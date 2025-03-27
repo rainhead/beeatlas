@@ -1,0 +1,25 @@
+{
+  "name": "beeatlas",
+  "private": true,
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "type": "module",
+  "author": "",
+  "license": "MIT",
+  "description": "",
+  "dependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^22.13.14",
+    "lit": "^3.2.1",
+    "ol": "^10.4.0",
+    "ol-mapbox-style": "^12.5.0",
+    "temporal-polyfill": "^0.2.5",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.3"
+  }
+}
