@@ -4,6 +4,8 @@ import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat } from "ol/proj.js";
 import { apply as applyOLMS } from 'ol-mapbox-style';
+import { makeParquetLayer } from "./parquet.ts";
+import gbifParquet from './assets/gbif.parquet?url';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -43,6 +45,7 @@ export class BeeMap extends LitElement {
         zoom: document.documentElement.clientWidth < 500 ? 6 : 8,
       }),
     });
+    makeParquetLayer(gbifParquet).then(layer => this.map!.addLayer(layer))
     applyOLMS(this.map, 'https://api.maptiler.com/maps/landscape/style.json?key=xEe29svIcKOIwTnQqmLn');
   }
 }
