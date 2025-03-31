@@ -12,14 +12,18 @@
   "author": "",
   "license": "MIT",
   "description": "",
-  "dependencies": {
+  "devDependencies": {
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.13.14",
+    "express": "^4.21.2",
+    "hyparquet": "^1.10.1",
     "lit": "^3.2.1",
+    "nodemon": "^3.1.9",
     "ol": "^10.4.0",
     "ol-mapbox-style": "^12.5.0",
     "temporal-polyfill": "^0.2.5",
     "typescript": "^5.8.2",
-    "vite": "^6.2.3"
+    "vite": "^6.2.3",
+    "vite-express": "^0.20.0"
   }
 }
