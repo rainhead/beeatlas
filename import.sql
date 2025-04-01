@@ -44,6 +44,9 @@ COPY (
     specificEpithet,
     infraspecificEpithet
   FROM read_csv('gbif-wa-bees/occurrence.txt', types={'scientificNameID': 'VARCHAR'})
+  WHERE
+    genus IS NOT NULL
+    AND coalesce(coordinateUncertaintyInMeters, 0) <= 2000
 ) TO 'src/assets/gbif.parquet' (FORMAT parquet);
 
 COPY (

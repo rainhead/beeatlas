@@ -1,13 +1,25 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, query } from "lit/decorators.js";
-import { View } from "ol";
+import { Feature, View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat } from "ol/proj.js";
-import { apply as applyOLMS } from 'ol-mapbox-style';
-import { makeParquetLayer } from "./parquet.ts";
+import { ParquetSource } from "./parquet.ts";
 import gbifParquet from './assets/gbif.parquet?url';
+import VectorLayer from "ol/layer/Vector.js";
+import { clusterStyle } from "./style.ts";
+import { Cluster } from "ol/source.js";
+import { apply as applyOLMS } from 'ol-mapbox-style';
+import LayerGroup from "ol/layer/Group.js";
 
 const sphericalMercator = 'EPSG:3857';
+
+const gbifSource = new ParquetSource({url: gbifParquet});
+const gbifLayer = new VectorLayer({
+  source: new Cluster({
+    source: gbifSource,
+  }),
+  style: clusterStyle,
+});
 
 @customElement('bee-map')
 export class BeeMap extends LitElement {
@@ -37,7 +49,12 @@ export class BeeMap extends LitElement {
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
+    const baseLayer = new LayerGroup();
     this.map = new OpenLayersMap({
+      layers: [
+        baseLayer,
+        gbifLayer,
+      ],
       target: this.mapElement,
       view: new View({
         center: fromLonLat([-120.32, 47.47]),
@@ -45,7 +62,10 @@ export class BeeMap extends LitElement {
         zoom: document.documentElement.clientWidth < 500 ? 6 : 8,
       }),
     });
-    makeParquetLayer(gbifParquet).then(layer => this.map!.addLayer(layer))
-    applyOLMS(this.map, 'https://api.maptiler.com/maps/landscape/style.json?key=xEe29svIcKOIwTnQqmLn');
+    applyOLMS(
+      baseLayer,
+      'https://api.maptiler.com/maps/landscape/style.json?key=xEe29svIcKOIwTnQqmLn',
+      {webfonts: 'https://fonts.googleapis.com/css?family={Font+Family}:{fontweight}{fontstyle}'}
+    );
   }
 }
