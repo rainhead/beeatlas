@@ -5,3 +5,13 @@ stages:
       - scripts/download.py
     outs:
       - data/processed/taxon.parquet
+      - data/processed/master_2025.parquet
+      - data/processed/ecdysis_wa.parquet
+
+  fetch_inat_links:
+    cmd: python scripts/fetch_inat_links.py
+    deps:
+      - scripts/fetch_inat_links.py
+      - data/processed/ecdysis_wa.parquet
+    outs:
+      - data/processed/ecdysis_inat_links.parquet
