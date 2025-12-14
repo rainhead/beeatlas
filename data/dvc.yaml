@@ -1,0 +1,7 @@
+stages:
+  download_and_convert:
+    cmd: python scripts/download.py
+    deps:
+      - scripts/download.py
+    outs:
+      - data/processed/taxon.parquet
