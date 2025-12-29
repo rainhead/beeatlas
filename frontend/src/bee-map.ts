@@ -1,24 +1,30 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, query } from "lit/decorators.js";
-import { Feature, View } from "ol";
+import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat } from "ol/proj.js";
 import { ParquetSource } from "./parquet.ts";
-import gbifParquet from './assets/gbif.parquet?url';
+import labelsParquet from './assets/labels-2025.parquet?url';
 import VectorLayer from "ol/layer/Vector.js";
-import { clusterStyle } from "./style.ts";
-import { Cluster } from "ol/source.js";
 import { apply as applyOLMS } from 'ol-mapbox-style';
 import LayerGroup from "ol/layer/Group.js";
+import { beeStyle } from "./style.ts";
 
 const sphericalMercator = 'EPSG:3857';
 
-const gbifSource = new ParquetSource({url: gbifParquet});
-const gbifLayer = new VectorLayer({
-  source: new Cluster({
-    source: gbifSource,
-  }),
-  style: clusterStyle,
+// const gbifSource = new ParquetSource({url: gbifParquet});
+// const gbifLayer = new VectorLayer({
+//   source: new Cluster({
+//     source: gbifSource,
+//   }),
+//   style: clusterStyle,
+// });
+
+
+const labelSource = new ParquetSource({url: labelsParquet});
+const labelLayer = new VectorLayer({
+  source: labelSource,
+  style: beeStyle,
 });
 
 @customElement('bee-map')
@@ -43,7 +49,7 @@ export class BeeMap extends LitElement {
 
   public render() {
     return html`
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.4.0/ol.css" type="text/css" />
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.7.0/ol.css" type="text/css" />
       <div id="map"></div>
     `
   }
@@ -53,7 +59,8 @@ export class BeeMap extends LitElement {
     this.map = new OpenLayersMap({
       layers: [
         baseLayer,
-        gbifLayer,
+        labelLayer,
+        // gbifLayer,
       ],
       target: this.mapElement,
       view: new View({
@@ -64,8 +71,8 @@ export class BeeMap extends LitElement {
     });
     applyOLMS(
       baseLayer,
-      'https://api.maptiler.com/maps/landscape/style.json?key=xEe29svIcKOIwTnQqmLn',
-      {webfonts: 'https://fonts.googleapis.com/css?family={Font+Family}:{fontweight}{fontstyle}'}
+      'https://api.maptiler.com/maps/019b6b78-8177-7c7b-9fab-286913b8bb79/style.json?key=xEe29svIcKOIwTnQqmLn',
+      // {webfonts: 'https://fonts.googleapis.com/css?family={Font+Family}:{fontweight}{fontstyle}'}
     );
   }
 }

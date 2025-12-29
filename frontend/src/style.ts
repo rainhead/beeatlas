@@ -5,13 +5,12 @@ import Circle from 'ol/style/Circle.js';
 import Stroke from "ol/style/Stroke.js";
 import Style from "ol/style/Style.js";
 
-const stroke = new Stroke({color: 'rgba(64, 0, 255, 0.4)', width: 1.25});
+const stroke = new Stroke({color: 'rgba(64, 0, 255, 0.2)', width: 1});
 export const beeStyle = new Style({
   image: new Circle({
     radius: 2,
     stroke,
   }),
-  stroke,
 });
 
 export const clusterStyle = (feature: RenderFeature) => {
