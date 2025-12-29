@@ -1,0 +1,12 @@
+md5: 5c716dc72ae09f7fd7ad68bb3f348964
+frozen: true
+deps:
+- checksum: '"39e76472-603fd34f1bd16"'
+  size: 971465842
+  hash: md5
+  path: https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip
+outs:
+- md5: e07a8215179a97f271e064e3ff217a08
+  size: 971465842
+  hash: md5
+  path: backbone.zip

@@ -1,4 +1,16 @@
 stages:
+  gbif_backbone_taxon:
+    cmd: unzip -d gbif gbif/backbone.zip Taxon.tsv
+    deps:
+      - gbif/backbone.zip
+    outs:
+      - gbif/Taxon.tsv
+
+  master_2025:
+    cmd: wget -o mm/master_2025.csv 'https://docs.google.com/spreadsheets/d/1lcul17yLdZvd0QmbhUHN-fcDpocsY04v/export?format=csv&gid=784598513'
+    outs:
+      - mm/master_2025.csv
+
   download_and_convert:
     cmd: python scripts/download.py
     deps:

@@ -7,44 +7,11 @@ import { Vector as VectorSource } from 'ol/source.js';
 import { all } from 'ol/loadingstrategy.js';
 
 const columns = [
-  'catalogNumber',
-  'coordinateUncertaintyInMeters',
+  'fieldNumber',
+  'dateLabelPrint',
   'decimalLongitude',
   'decimalLatitude',
-  'elevation',
-  'family',
-  'genus',
-  'gbifID',
-  'infraspecificEpithet',
-  'references',
-  'species',
-  'taxonKey',
 ];
-
-export type GBIFProperties = {
-  catalogNumber: string | null;
-  coordinateUncertaintyInMeters: number;
-  elevation: number | null;
-  family: string;
-  genus: string;
-  infraspecificEpithet: string | null;
-  references: string | null;
-  species: string | null; // scientificName
-  taxonKey: number; // gbif taxon id
-};
-
-// const filterExtent = (extent: Extent) => {
-//   const [minx, miny, maxx, maxy] = extent;
-//   const filter: ParquetQueryFilter = {
-//     decimalLongitude: [{$and: [
-//       {decimalLongitude: {$gte: minx}},
-//       {decimalLongitude: {$lte: maxx}},
-//       {decimalLatitude: {$gte: miny}},
-//       {decimalLatitude: {$lte: maxy}},
-//     ]}]
-//   };
-//   return filter;
-// }
 
 export class ParquetSource extends VectorSource {
   constructor({url}: {url: string}) {
@@ -52,11 +19,13 @@ export class ParquetSource extends VectorSource {
       asyncBufferFromUrl({url})
         .then(buffer => parquetReadObjects({columns, file: buffer}))
         .then(objects => {
-          const features = objects.map(obj => new Feature({
-            geometry: new Point(fromLonLat([obj.decimalLongitude, obj.decimalLatitude])),
-            id: `gbif:${obj.gbifID}`,
-            properties: obj,
-          }));
+          const features = objects.map(obj => {
+            const feature = new Feature(new Point(fromLonLat([obj.decimalLongitude, obj.decimalLatitude], projection)));
+            feature.setId(`osu:${obj.fieldNumber}`);
+            feature.setProperties(obj);
+            return feature;
+          })
+          console.debug(`Adding ${features.length} features from ${url}`);
           this.addFeatures(features);
           if (success)
             success(features);
