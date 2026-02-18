@@ -13,7 +13,7 @@ The project extends an existing brownfield TypeScript/Python static site to deli
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Pipeline** - Fix the Ecdysis data pipeline so it produces complete, correct Parquet (completed 2026-02-18)
-- [ ] **Phase 2: Infrastructure** - Define S3/CloudFront/OIDC in CDK and wire GitHub Actions deploy
+- [x] **Phase 2: Infrastructure** - Define S3/CloudFront/OIDC in CDK and wire GitHub Actions deploy (completed 2026-02-18)
 - [ ] **Phase 3: Core Map** - Enable specimen clustering and click-to-detail sidebar
 - [ ] **Phase 4: Filtering** - Add taxon and date-range filter controls
 - [ ] **Phase 5: URL Sharing** - Encode map view and filter state in the URL for shareable links
@@ -91,7 +91,7 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pipeline | 1/1 | Complete   | 2026-02-18 |
-| 2. Infrastructure | 0/2 | Not started | - |
+| 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
 | 3. Core Map | 0/TBD | Not started | - |
 | 4. Filtering | 0/TBD | Not started | - |
 | 5. URL Sharing | 0/TBD | Not started | - |
