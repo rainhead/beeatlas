@@ -29,7 +29,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Running `python data/ecdysis/occurrences.py <zip>` completes without hanging (no pdb trap) and writes a valid Parquet file
   3. The output Parquet contains all required columns: `scientificName`, `family`, `genus`, `specificEpithet`, `year`, `month`, `recordedBy`, `fieldNumber`
   4. Records with null coordinates are excluded from the output without crashing the pipeline
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 01-01-PLAN.md — Fix download.py and occurrences.py bugs; expand Parquet output columns
 
 ### Phase 2: Infrastructure
 **Goal**: The site deploys automatically — frontend builds on every push and the production S3/CloudFront site updates on push to main using OIDC (no stored AWS keys)
@@ -83,7 +86,7 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline | 0/TBD | Not started | - |
+| 1. Pipeline | 0/1 | Not started | - |
 | 2. Infrastructure | 0/TBD | Not started | - |
 | 3. Core Map | 0/TBD | Not started | - |
 | 4. Filtering | 0/TBD | Not started | - |
