@@ -10,27 +10,28 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 2 of 5 (Infrastructure)
-Plan: 2 of 2 in current phase
+Plan: 2 of 2 in current phase (02-01 complete; 02-02 at checkpoint awaiting human action)
 Status: Checkpoint — awaiting human action
-Last activity: 2026-02-18 — 02-02 Task 1 complete (.github/workflows/deploy.yml created); paused at human-verify checkpoint for CDK deploy + GitHub secrets
+Last activity: 2026-02-18 — 02-01 complete (CDK stack synthesizes cleanly); 02-02 Task 1 complete (.github/workflows/deploy.yml created); paused at human-verify checkpoint for CDK deploy + GitHub secrets
 
-Progress: [█░░░░░░░░░] 5%
+Progress: [██░░░░░░░░] 10%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 2 min
-- Total execution time: ~0.03 hours
+- Total plans completed: 2
+- Average duration: 3 min
+- Total execution time: ~0.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-pipeline | 1 | 2 min | 2 min |
+| 02-infrastructure | 1 | 4 min | 4 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min)
+- Last 5 plans: 01-01 (2 min), 02-01 (4 min)
 - Trend: —
 
 *Updated after each plan completion*
@@ -48,6 +49,9 @@ Recent decisions affecting current work:
 - [01-01]: Write plain pd.DataFrame (not GeoDataFrame) to Parquet to avoid GeoParquet format that breaks hyparquet
 - [02-02]: id-token: write permission must be at job level on deploy job, not workflow level — placing at workflow level with multiple jobs causes "Credentials could not be loaded" error
 - [02-02]: deploy job rebuilds frontend itself (self-contained) rather than consuming build job artifact — avoids artifact complexity
+- [02-01]: Use S3BucketOrigin.withOriginAccessControl() (OAC) not deprecated S3Origin (OAI) — confirmed stable in CDK v2.156+, verified in synth output
+- [02-01]: No websiteIndexDocument on S3 bucket — use defaultRootObject on CloudFront Distribution (incompatible with OAC if set on bucket)
+- [02-01]: OIDC trust uses StringLike with repo:rainhead/beeatlas:* — no thumbprints needed (AWS added GitHub root CA late 2024)
 
 ### Pending Todos
 
@@ -55,12 +59,14 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 2]: CDK OAC construct API (`S3BucketOrigin.withOriginAccessControl()`) should be verified against current CDK v2 changelog before writing the stack — MEDIUM confidence from training data
-- [Phase 2]: OIDC subject claim format — start with `StringLike` wildcard (`repo:rainhead/beeatlas:*`), tighten after confirming
 - [Phase 3]: Verify `place_id=82` for Washington State in iNaturalist before any iNat pipeline work
+
+*Resolved:*
+- [Phase 2 - resolved]: CDK OAC construct API confirmed working — `S3BucketOrigin.withOriginAccessControl()` verified in cdk synth output with aws-cdk-lib 2.238.0
+- [Phase 2 - resolved]: OIDC subject claim `repo:rainhead/beeatlas:*` confirmed correct format via synth output
 
 ## Session Continuity
 
 Last session: 2026-02-18
-Stopped at: Checkpoint in 02-02-PLAN.md Task 2 (human-verify: CDK deploy + GitHub secrets + live site verification)
+Stopped at: 02-01 complete; still at checkpoint in 02-02-PLAN.md Task 2 (human-verify: CDK deploy + GitHub secrets + live site verification)
 Resume file: None

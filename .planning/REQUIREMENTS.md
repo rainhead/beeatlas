@@ -13,8 +13,8 @@
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: S3 bucket and CloudFront distribution defined in CDK TypeScript (`infra/`) using `S3BucketOrigin.withOriginAccessControl()`
-- [ ] **INFRA-02**: OIDC IAM role defined in CDK, scoped to `repo:rainhead/beeatlas` — no stored AWS access keys
+- [x] **INFRA-01**: S3 bucket and CloudFront distribution defined in CDK TypeScript (`infra/`) using `S3BucketOrigin.withOriginAccessControl()`
+- [x] **INFRA-02**: OIDC IAM role defined in CDK, scoped to `repo:rainhead/beeatlas` — no stored AWS access keys
 - [ ] **INFRA-03**: GitHub Actions workflow builds frontend on all pushes; deploys to S3 and invalidates CloudFront on push to `main`
 
 ### Map
@@ -61,8 +61,8 @@
 | PIPE-01 | Phase 1 | Complete |
 | PIPE-02 | Phase 1 | Complete |
 | PIPE-03 | Phase 1 | Complete |
-| INFRA-01 | Phase 2 | Pending |
-| INFRA-02 | Phase 2 | Pending |
+| INFRA-01 | Phase 2 | Complete |
+| INFRA-02 | Phase 2 | Complete |
 | INFRA-03 | Phase 2 | Pending |
 | MAP-01 | Phase 3 | Pending |
 | MAP-02 | Phase 3 | Pending |
