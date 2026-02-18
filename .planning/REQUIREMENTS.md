@@ -25,7 +25,7 @@
 ### Filtering
 
 - [ ] **FILTER-01**: User can filter displayed specimens by taxon at species, genus, or family level
-- [ ] **FILTER-02**: User can filter displayed specimens by year range
+- [ ] **FILTER-02**: User can filter displayed specimens by year range and/or month of year (independently — e.g., "show all June/July records regardless of year")
 
 ### Navigation
 
