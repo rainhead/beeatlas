@@ -43,7 +43,11 @@ Plans:
   2. The GitHub Actions workflow builds and deploys successfully on push to `main` without any stored AWS access keys
   3. After a deploy, visiting the CloudFront URL shows the current version of the site (not a stale cached version)
   4. The OIDC IAM role trust policy restricts assumption to the `rainhead/beeatlas` repository
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Scaffold CDK project in infra/ and implement BeeAtlasStack (S3, CloudFront OAC, OIDC provider, deployer role)
+- [ ] 02-02-PLAN.md — Write GitHub Actions deploy workflow; checkpoint to bootstrap, deploy, set secrets, verify live site
 
 ### Phase 3: Core Map
 **Goal**: The map is usable at state zoom — specimen points cluster, and clicking any point or cluster shows the sample details in a sidebar
@@ -87,7 +91,7 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pipeline | 1/1 | Complete   | 2026-02-18 |
-| 2. Infrastructure | 0/TBD | Not started | - |
+| 2. Infrastructure | 0/2 | Not started | - |
 | 3. Core Map | 0/TBD | Not started | - |
 | 4. Filtering | 0/TBD | Not started | - |
 | 5. URL Sharing | 0/TBD | Not started | - |
