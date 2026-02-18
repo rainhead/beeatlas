@@ -7,9 +7,9 @@
 
 ### Data Pipeline
 
-- [ ] **PIPE-01**: Download script (`data/ecdysis/download.py`) runs end-to-end with `db=164` — main block calls `make_dump`, `argparse` fixed, db parameter passed
-- [ ] **PIPE-02**: Occurrences processor (`data/ecdysis/occurrences.py`) produces valid Parquet — `pdb.set_trace()` removed, `__main__` block receives zip path correctly
-- [ ] **PIPE-03**: Parquet output includes all fields required for popup and filters — `scientificName`, `family`, `genus`, `specificEpithet`, `year`, `month`, `recordedBy`, `fieldNumber` (host plant/sample identifier)
+- [x] **PIPE-01**: Download script (`data/ecdysis/download.py`) runs end-to-end with `db=164` — main block calls `make_dump`, `argparse` fixed, db parameter passed
+- [x] **PIPE-02**: Occurrences processor (`data/ecdysis/occurrences.py`) produces valid Parquet — `pdb.set_trace()` removed, `__main__` block receives zip path correctly
+- [x] **PIPE-03**: Parquet output includes all fields required for popup and filters — `scientificName`, `family`, `genus`, `specificEpithet`, `year`, `month`, `recordedBy`, `fieldNumber` (host plant/sample identifier)
 
 ### Infrastructure
 
@@ -58,9 +58,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-01 | Phase 1 | Pending |
-| PIPE-02 | Phase 1 | Pending |
-| PIPE-03 | Phase 1 | Pending |
+| PIPE-01 | Phase 1 | Complete |
+| PIPE-02 | Phase 1 | Complete |
+| PIPE-03 | Phase 1 | Complete |
 | INFRA-01 | Phase 2 | Pending |
 | INFRA-02 | Phase 2 | Pending |
 | INFRA-03 | Phase 2 | Pending |
