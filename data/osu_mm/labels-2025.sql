@@ -1,9 +1,11 @@
+INSTALL spatial;
+LOAD spatial;
+
 CREATE TABLE printings (
   fieldNumber uinteger,
   dateLabelPrint date,
   sampleurl varchar,
-  decimalLongitude double not null,
-  decimalLatitude double not null,
+  location geometry,
   primary key (fieldNumber, dateLabelPrint)
 );
 INSERT INTO printings (
@@ -11,16 +13,14 @@ INSERT INTO printings (
     fieldNumber,
     strptime(dateLabelPrint, '%d-%b-%y')::date,
     url,
-    decimalLongitude,
-    decimalLatitude
+    st_point(decimalLongitude, decimalLatitude)
   FROM read_csv('/dev/stdin')
 );
 COPY (
   SELECT
     fieldNumber,
     first(sampleurl ORDER BY dateLabelPrint desc) sampleurl,
-    first(decimalLongitude ORDER BY dateLabelPrint desc) decimalLongitude,
-    first(decimalLatitude ORDER BY dateLabelPrint desc) decimalLatitude
+    first(location ORDER BY dateLabelPrint desc) "location"
   FROM printings
   GROUP BY 1
 )

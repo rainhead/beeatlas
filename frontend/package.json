@@ -22,7 +22,7 @@
     "vite-express": "^0.20.0"
   },
   "dependencies": {
-    "hyparquet": "^1.10.1",
+    "hyparquet": "^1.23.3",
     "lit": "^3.2.1",
     "ol": "^10.7.0",
     "ol-mapbox-style": "^13.2.0",

@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 """Download GBIF backbone zip to disk and stream multiple files to Parquet."""
 
-import json
 import zipfile
 from io import StringIO
 from pathlib import Path
 
-import pandas as pd
 import requests
+import pandas as pd
 
 # Configuration
 RAW_DATA_DIR = Path("data/raw")
@@ -180,50 +179,24 @@ FILE_CONFIGS = {
     },
 }
 
-
-def load_metadata():
-    """Load stored download metadata (includes ETags)."""
-    if METADATA_FILE.exists():
-        with open(METADATA_FILE) as f:
-            return json.load(f)
-    return {}
-
-
-def save_metadata(metadata):
-    """Save download metadata."""
-    with open(METADATA_FILE, 'w') as f:
-        json.dump(metadata, f, indent=2)
-
-
-def get_remote_etag(url):
-    """Get ETag from remote server using HEAD request."""
-    try:
-        response = requests.head(url, timeout=10)
-        response.raise_for_status()
-        return response.headers.get('ETag')
-    except requests.RequestException as e:
-        print(f"Error fetching ETag from {url}: {e}")
-        return None
-
-
 def apply_transformations(df, transformations):
     """Apply a sequence of transformations to the dataframe."""
     for transform in transformations:
         if transform == 'drop_columns':
             df = df.drop(columns=['datasetID'], errors='ignore')
             print("Dropped datasetID column")
-        
+
         elif transform == 'drop_empty':
             columns_to_drop = ['nameAccordingTo', 'nomenclaturalStatus']
             df = df.drop(columns=columns_to_drop, errors='ignore')
             print(f"Dropped empty columns: {columns_to_drop}")
-        
+
         elif transform == 'filter_doubtful':
             initial_count = len(df)
             df = df[df['taxonomicStatus'] != 'doubtful']
             filtered_count = initial_count - len(df)
             print(f"Filtered out {filtered_count} taxa with status='doubtful' ({100*filtered_count/initial_count:.1f}%)")
-        
+
         elif transform == 'filter_wsda':
             # Filter for catalog numbers starting with WSDA_ (Ecdysis data)
             initial_count = len(df)
@@ -231,7 +204,7 @@ def apply_transformations(df, transformations):
             filtered_count = initial_count - len(df)
             pct = 100 * filtered_count / initial_count if initial_count > 0 else 0
             print(f"Filtered to WSDA_ records: {len(df)} kept, {filtered_count} removed ({pct:.1f}%)")
-    
+
     return df
 
 
@@ -240,15 +213,15 @@ def stream_and_convert_file(file_key, config):
     source_type = config['source']
     dtype_spec = config['dtype_spec']
     transformations = config['transformations']
-    
+
     print(f"\nProcessing {file_key}...")
-    
+
     try:
         if source_type == 'zip':
             zip_path = config['zip_file']
             file_zip_path = config['zip_path']
             print(f"Streaming from zip: {file_zip_path}")
-            
+
             with zipfile.ZipFile(zip_path) as z:
                 with z.open(file_zip_path) as f:
                     df = pd.read_csv(
@@ -258,29 +231,29 @@ def stream_and_convert_file(file_key, config):
                         na_values=[''],
                         keep_default_na=True,
                     )
-        
+
         elif source_type == 'url':
             url = config['url']
             print(f"Downloading from URL...")
-            
+
             response = requests.get(url, timeout=60)
             response.raise_for_status()
-            
+
             df = pd.read_csv(
                 StringIO(response.text),
                 dtype=dtype_spec,
                 na_values=[''],
                 keep_default_na=True,
             )
-        
+
         elif source_type == 'post_zip':
             zip_path = config['zip_file']
             file_zip_path = config['zip_path']
             url = config['url']
             post_data = config['post_data']
-            
+
             print(f"Streaming from POST response zip: {file_zip_path}")
-            
+
             # Note: zip file should already exist (downloaded in main())
             with zipfile.ZipFile(zip_path) as z:
                 with z.open(file_zip_path) as f:
@@ -291,36 +264,34 @@ def stream_and_convert_file(file_key, config):
                         na_values=[''],
                         keep_default_na=True,
                     )
-        
+
         else:
             raise ValueError(f"Unknown source type: {source_type}")
-    
+
     except Exception as e:
         print(f"Error reading {file_key}: {e}")
         raise
-    
+
     print(f"Loaded {len(df)} rows, {len(df.columns)} columns")
-    
+
     # Apply transformations
     df = apply_transformations(df, transformations)
     print(f"Final: {len(df)} rows, {len(df.columns)} columns")
-    
+
     return df
 
 
 def main():
     """Main logic: download sources as needed, process all configured files."""
-    metadata = load_metadata()
-    
     # First pass: handle GET downloads for zip-based sources
     zip_sources = {k: v for k, v in FILE_CONFIGS.items() if v['source'] == 'zip'}
-    
+
     for file_key, config in zip_sources.items():
         zip_file = config['zip_file']
         url = config['url']
-        
+
         print(f"Checking zip for {file_key}: {zip_file.name}")
-        
+
         # Check if we need to download
         need_download = False
         if not zip_file.exists():
@@ -328,7 +299,7 @@ def main():
             need_download = True
         else:
             print("Zip file exists (no ETag checking for zip sources)")
-        
+
         # Download if needed
         if need_download:
             print(f"Downloading from {url}...")
@@ -337,7 +308,7 @@ def main():
                 response.raise_for_status()
                 total_size = int(response.headers.get('content-length', 0))
                 downloaded = 0
-                
+
                 with open(zip_file, 'wb') as f:
                     for chunk in response.iter_content(chunk_size=1024*1024):
                         if chunk:
@@ -350,44 +321,44 @@ def main():
             except requests.RequestException as e:
                 print(f"Error downloading: {e}")
                 raise
-            
+
             file_size_mb = zip_file.stat().st_size / 1024 / 1024
             print(f"Download complete ({file_size_mb:.1f} MB)")
-    
+
     # Second pass: handle POST downloads for POST-based zip sources
     post_zip_sources = {k: v for k, v in FILE_CONFIGS.items() if v['source'] == 'post_zip'}
-    
+
     for file_key, config in post_zip_sources.items():
         zip_file = config['zip_file']
         url = config['url']
         post_data = config['post_data']
-        
+
         print(f"\nChecking POST zip for {file_key}: {zip_file.name}")
-        
+
         # For POST sources, always refresh (data changes frequently)
         print("Posting query to server...")
         try:
             response = requests.post(url, data=post_data, timeout=300)
             response.raise_for_status()
-            
+
             total_size = len(response.content)
             print(f"Received {total_size / 1024 / 1024:.1f} MB")
-            
+
             with open(zip_file, 'wb') as f:
                 f.write(response.content)
-            
+
             file_size_mb = zip_file.stat().st_size / 1024 / 1024
             print(f"Saved to {zip_file} ({file_size_mb:.1f} MB)")
-        
+
         except requests.RequestException as e:
             print(f"Error posting query: {e}")
             raise
-    
+
     # Third pass: process all configured files
     print(f"\nProcessing all configured files...")
     for file_key, config in FILE_CONFIGS.items():
         df = stream_and_convert_file(file_key, config)
-        
+
         # Write parquet
         output_file = config['output_file']
         print(f"Writing to {output_file}...")
@@ -401,10 +372,10 @@ def main():
         except Exception as e:
             print(f"Error writing Parquet: {e}")
             raise
-        
+
         file_size_mb = output_file.stat().st_size / 1024 / 1024
         print(f"Parquet file created: {file_size_mb:.1f} MB")
-    
+
     print("\nDone!")
 
 
