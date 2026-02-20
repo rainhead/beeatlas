@@ -30,6 +30,7 @@ jobs:
     permissions:
       id-token: write   # Required for OIDC JWT request — must be on THIS job
       contents: read
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
