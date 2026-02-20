@@ -7,10 +7,10 @@ import { Vector as VectorSource } from 'ol/source.js';
 import { all } from 'ol/loadingstrategy.js';
 
 const columns = [
-  'fieldNumber',
-  'dateLabelPrint',
-  'decimalLongitude',
-  'decimalLatitude',
+  'ecdysis_id',
+  'ecdysis_fieldNumber',
+  'longitude',
+  'latitude',
 ];
 
 export class ParquetSource extends VectorSource {
@@ -20,9 +20,9 @@ export class ParquetSource extends VectorSource {
         .then(buffer => parquetReadObjects({columns, file: buffer}))
         .then(objects => {
           const features = objects.map(obj => {
-            const feature = new Feature(new Point(fromLonLat([obj.decimalLongitude, obj.decimalLatitude], projection)));
-            feature.setId(`osu:${obj.fieldNumber}`);
-            feature.setProperties(obj);
+            const feature = new Feature();
+            feature.setGeometry(new Point(fromLonLat([obj.longitude, obj.latitude])))
+            feature.setId(`ecdysis:${obj.ecdysis_id}`);
             return feature;
           })
           console.debug(`Adding ${features.length} features from ${url}`);
