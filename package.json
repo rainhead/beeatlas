@@ -1,29 +1,23 @@
 {
   "name": "beeatlas",
-  "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
+  "description": "",
+  "homepage": "https://github.com/rainhead/beeatlas#readme",
+  "bugs": {
+    "url": "https://github.com/rainhead/beeatlas/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rainhead/beeatlas.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "build:data": "bash scripts/build-data.sh",
+    "build": "npm run build:data && npm run build --workspace=frontend",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "type": "module",
-  "author": "",
-  "license": "MIT",
-  "description": "",
-  "devDependencies": {
-    "@types/geojson": "^7946.0.16",
-    "@types/node": "^22.13.14",
-    "express": "^4.21.2",
-    "hyparquet": "^1.10.1",
-    "lit": "^3.2.1",
-    "nodemon": "^3.1.9",
-    "ol": "^10.4.0",
-    "ol-mapbox-style": "^12.5.0",
-    "temporal-polyfill": "^0.2.5",
-    "typescript": "^5.8.2",
-    "vite": "^6.2.3",
-    "vite-express": "^0.20.0"
-  }
+  "workspaces": ["frontend"]
 }
