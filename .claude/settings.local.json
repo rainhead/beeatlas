@@ -5,7 +5,8 @@
       "Bash(gh api:*)",
       "Bash(python3:*)",
       "Bash(node /Users/rainhead/.claude/get-shit-done/bin/gsd-tools.cjs commit:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(git check-ignore:*)"
     ]
   }
 }
