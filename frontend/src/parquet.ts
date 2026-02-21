@@ -31,7 +31,7 @@ export class ParquetSource extends VectorSource {
             feature.setId(`ecdysis:${obj.ecdysis_id}`);
             feature.setProperties({
               year: Number(obj.year),
-              month: Number(obj.month),
+              month: Number(obj.month) + 1,
               scientificName: obj.scientificName,
               recordedBy: obj.recordedBy,
               fieldNumber: obj.fieldNumber,
