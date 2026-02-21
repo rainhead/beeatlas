@@ -8,9 +8,15 @@ import { all } from 'ol/loadingstrategy.js';
 
 const columns = [
   'ecdysis_id',
-  'ecdysis_fieldNumber',
   'longitude',
   'latitude',
+  'year',
+  'month',
+  'scientificName',
+  'recordedBy',
+  'fieldNumber',
+  'genus',
+  'family',
 ];
 
 export class ParquetSource extends VectorSource {
@@ -23,6 +29,15 @@ export class ParquetSource extends VectorSource {
             const feature = new Feature();
             feature.setGeometry(new Point(fromLonLat([obj.longitude, obj.latitude])))
             feature.setId(`ecdysis:${obj.ecdysis_id}`);
+            feature.setProperties({
+              year: obj.year,
+              month: obj.month,
+              scientificName: obj.scientificName,
+              recordedBy: obj.recordedBy,
+              fieldNumber: obj.fieldNumber,
+              genus: obj.genus,
+              family: obj.family,
+            });
             return feature;
           })
           console.debug(`Adding ${features.length} features from ${url}`);
