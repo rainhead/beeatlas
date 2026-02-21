@@ -10,17 +10,17 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 3 of 5 (Core Map)
-Plan: 1 of 2 in current phase (03-01 complete)
-Status: In progress
-Last activity: 2026-02-21 — 03-01 complete (ol/source/Cluster wired with recency-aware clusterStyle; build passes)
+Plan: 2 of 2 in current phase (03-02 complete)
+Status: Phase 3 complete
+Last activity: 2026-02-21 — 03-02 complete (bee-sidebar LitElement + singleclick handler wired; build passes)
 
-Progress: [███░░░░░░░] 15%
+Progress: [█████░░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3
-- Average duration: 3 min
+- Total plans completed: 4
+- Average duration: 2 min
 - Total execution time: ~0.1 hours
 
 **By Phase:**
@@ -29,10 +29,10 @@ Progress: [███░░░░░░░] 15%
 |-------|-------|-------|----------|
 | 01-pipeline | 1 | 2 min | 2 min |
 | 02-infrastructure | 1 | 4 min | 4 min |
-| 03-core-map | 1 | 2 min | 2 min |
+| 03-core-map | 2 | 3 min | 1.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 02-01 (4 min), 03-01 (2 min)
+- Last 5 plans: 01-01 (2 min), 02-01 (4 min), 03-01 (2 min), 03-02 (1 min)
 - Trend: Fast
 
 *Updated after each plan completion*
@@ -56,6 +56,9 @@ Recent decisions affecting current work:
 - [03-01]: clusterStyle parameter typed as FeatureLike (not Feature) to match OL StyleFunction interface — inner cluster features cast to Feature[] since Cluster source always wraps proper Feature objects
 - [03-01]: Style cache key format is count:tier — sufficient for visual correctness, avoids per-render Style allocation
 - [03-01]: Recency PlainDate uses day=1 for month-level comparison — acceptable coarseness for 3-tier recency buckets
+- [03-02]: MapBrowserEvent type import required for singleclick handler under strict + verbatimModuleSyntax — OL map.on() overload resolves to any without explicit typing
+- [03-02]: specimenSource.once('change') fires reliably after addFeatures() in ParquetSource — getFeatures() returns complete dataset at that point
+- [03-02]: Single singleclick handler branches on hits.length — avoids ordering issues with separate open/dismiss handlers
 
 ### Pending Todos
 
@@ -72,5 +75,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-21
-Stopped at: Completed 03-01-PLAN.md (cluster styling and Parquet column expansion)
+Stopped at: Completed 03-02-PLAN.md (bee-sidebar LitElement + singleclick click-to-detail wiring)
 Resume file: None
