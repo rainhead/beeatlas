@@ -31,7 +31,8 @@ function buildSamples(features: Feature[]): Sample[] {
         species: [],
       });
     }
-    map.get(key)!.species.push(f.get('scientificName') as string);
+    const occid = (f.getId() as string).replace('ecdysis:', '');
+    map.get(key)!.species.push({ name: f.get('scientificName') as string, occid });
   }
   return [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
 }

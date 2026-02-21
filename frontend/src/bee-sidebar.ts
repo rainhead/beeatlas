@@ -1,12 +1,17 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 
+export interface Specimen {
+  name: string;
+  occid: string;
+}
+
 export interface Sample {
   year: number;
   month: number;
   recordedBy: string;
   fieldNumber: string;
-  species: string[];
+  species: Specimen[];
 }
 
 export interface DataSummary {
@@ -122,7 +127,7 @@ export class BeeSidebar extends LitElement {
           <div class="sample-header">${this._formatMonth(sample.year, sample.month)} ${sample.year}</div>
           <div class="sample-meta">${sample.recordedBy} · ${sample.fieldNumber}</div>
           <ul class="species-list">
-            ${sample.species.map(s => html`<li>${s}</li>`)}
+            ${sample.species.map(s => html`<li><a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name}</a></li>`)}
           </ul>
         </div>
       `)}
