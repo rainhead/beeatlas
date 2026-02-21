@@ -6,7 +6,17 @@
       "Bash(python3:*)",
       "Bash(node /Users/rainhead/.claude/get-shit-done/bin/gsd-tools.cjs commit:*)",
       "WebSearch",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(node:*)",
+      "Skill(gsd:plan-phase)",
+      "Skill(gsd:execute-phase)",
+      "Bash(npx tsc:*)",
+      "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"fix\\(03-01\\): coerce year/month to Number at parquet boundary:*)",
+      "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"fix\\(03-01\\): convert 0-indexed parquet months to 1-indexed:*)",
+      "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"feat\\(03-02\\): hyperlink each specimen to its ecdysis record:*)",
+      "Bash(git -C /Users/rainhead/dev/beeatlas checkout:*)",
+      "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"feat\\(pipeline\\): filter to WSDA_ atlas records only:*)"
     ]
   }
 }
