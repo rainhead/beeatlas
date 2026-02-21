@@ -30,8 +30,8 @@ export class ParquetSource extends VectorSource {
             feature.setGeometry(new Point(fromLonLat([obj.longitude, obj.latitude])))
             feature.setId(`ecdysis:${obj.ecdysis_id}`);
             feature.setProperties({
-              year: obj.year,
-              month: obj.month,
+              year: Number(obj.year),
+              month: Number(obj.month),
               scientificName: obj.scientificName,
               recordedBy: obj.recordedBy,
               fieldNumber: obj.fieldNumber,
