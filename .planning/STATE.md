@@ -5,21 +5,21 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 2 — Infrastructure
+**Current focus:** Phase 3 — Core Map
 
 ## Current Position
 
-Phase: 2 of 5 (Infrastructure)
-Plan: 2 of 2 in current phase (02-01 complete; 02-02 at checkpoint awaiting human action)
-Status: Checkpoint — awaiting human action
-Last activity: 2026-02-18 — 02-01 complete (CDK stack synthesizes cleanly); 02-02 Task 1 complete (.github/workflows/deploy.yml created); paused at human-verify checkpoint for CDK deploy + GitHub secrets
+Phase: 3 of 5 (Core Map)
+Plan: 1 of 2 in current phase (03-01 complete)
+Status: In progress
+Last activity: 2026-02-21 — 03-01 complete (ol/source/Cluster wired with recency-aware clusterStyle; build passes)
 
-Progress: [██░░░░░░░░] 10%
+Progress: [███░░░░░░░] 15%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
+- Total plans completed: 3
 - Average duration: 3 min
 - Total execution time: ~0.1 hours
 
@@ -29,10 +29,11 @@ Progress: [██░░░░░░░░] 10%
 |-------|-------|-------|----------|
 | 01-pipeline | 1 | 2 min | 2 min |
 | 02-infrastructure | 1 | 4 min | 4 min |
+| 03-core-map | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 02-01 (4 min)
-- Trend: —
+- Last 5 plans: 01-01 (2 min), 02-01 (4 min), 03-01 (2 min)
+- Trend: Fast
 
 *Updated after each plan completion*
 
@@ -52,6 +53,9 @@ Recent decisions affecting current work:
 - [02-01]: Use S3BucketOrigin.withOriginAccessControl() (OAC) not deprecated S3Origin (OAI) — confirmed stable in CDK v2.156+, verified in synth output
 - [02-01]: No websiteIndexDocument on S3 bucket — use defaultRootObject on CloudFront Distribution (incompatible with OAC if set on bucket)
 - [02-01]: OIDC trust uses StringLike with repo:rainhead/beeatlas:* — no thumbprints needed (AWS added GitHub root CA late 2024)
+- [03-01]: clusterStyle parameter typed as FeatureLike (not Feature) to match OL StyleFunction interface — inner cluster features cast to Feature[] since Cluster source always wraps proper Feature objects
+- [03-01]: Style cache key format is count:tier — sufficient for visual correctness, avoids per-render Style allocation
+- [03-01]: Recency PlainDate uses day=1 for month-level comparison — acceptable coarseness for 3-tier recency buckets
 
 ### Pending Todos
 
@@ -67,6 +71,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-18
-Stopped at: 02-01 complete; still at checkpoint in 02-02-PLAN.md Task 2 (human-verify: CDK deploy + GitHub secrets + live site verification)
+Last session: 2026-02-21
+Stopped at: Completed 03-01-PLAN.md (cluster styling and Parquet column expansion)
 Resume file: None
