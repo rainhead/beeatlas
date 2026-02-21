@@ -57,7 +57,12 @@ Plans:
   1. At low zoom levels specimen points merge into numbered clusters; zooming in splits clusters into individual points
   2. Clicking a cluster or individual specimen point opens a sidebar showing species, collector, date, and host plant (fieldNumber)
   3. Clicking elsewhere on the map or a close control dismisses the sidebar
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Expand Parquet columns, wire ol/source/Cluster, rewrite clusterStyle with recency tiers
+- [ ] 03-02-PLAN.md — Create bee-sidebar LitElement, wire click handler and summary computation in bee-map.ts
+- [ ] 03-03-PLAN.md — Human verify: MAP-01 clustering and MAP-02 click-to-detail sidebar
 
 ### Phase 4: Filtering
 **Goal**: Collectors can narrow the visible specimens by taxon and by time period without reloading the page
@@ -92,6 +97,6 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 |-------|----------------|--------|-----------|
 | 1. Pipeline | 1/1 | Complete   | 2026-02-18 |
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
-| 3. Core Map | 0/TBD | Not started | - |
+| 3. Core Map | 0/3 | Not started | - |
 | 4. Filtering | 0/TBD | Not started | - |
 | 5. URL Sharing | 0/TBD | Not started | - |
