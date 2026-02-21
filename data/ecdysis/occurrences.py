@@ -88,7 +88,7 @@ def from_zipfile(zip: Path):
     return df
 
 def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
-    df = df[df['ecdysis_decimalLatitude'].notna() & df['ecdysis_decimalLongitude'].notna()]
+    df = df[df['decimalLatitude'].notna() & df['decimalLongitude'].notna()]
     # Select required columns and rename for output
     df = df[[
         'id',
