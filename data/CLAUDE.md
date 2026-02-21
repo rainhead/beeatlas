@@ -61,10 +61,7 @@ Media files (images) linked to specimens. Foreign key: `coreid` → `occurrences
 ## Schema Definitions
 
 ### Source of Truth
-`scripts/download.py` contains dtype specifications for all data sources:
-- `TAXON_DTYPES` - GBIF backbone taxonomy
-- `MASTER_2025_DTYPES` - Field observation data
-- `ECDYSIS_DTYPES` - Ecdysis occurrences
+`ecdysis/occurrences.py` contains the `dtype` dict for Ecdysis occurrences.
 
 ### Python → DuckDB Type Mapping
 When converting from pandas dtypes to DuckDB SQL types:
@@ -120,9 +117,19 @@ CASE WHEN sex in ('m', 'f') THEN sex::sex END AS sex
 - DuckDB handles NULL values by default in all column types
 
 ## Git Workflow
-- Current branch: `pandas`
+- Current branch: `main`
 - Main branch for PRs: `main`
 - Data files are gitignored (tracked via DVC or separately)
+
+## Ecdysis Download
+
+Use `ecdysis/download.py` to fetch a dataset by its Ecdysis dataset ID:
+
+```bash
+python ecdysis/download.py --datasetid 44
+```
+
+Downloading by `datasetid` returns only the records in that collection (e.g. the WSDA Bee Atlas dataset), so no post-download filtering by `catalogNumber` is needed.
 
 ## Common Tasks
 
