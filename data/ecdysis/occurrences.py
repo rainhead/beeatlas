@@ -88,7 +88,8 @@ def from_zipfile(zip: Path):
     return df
 
 def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
-    # Filter records with null coordinates before output
+    # Filter to Washington Bee Atlas records and records with valid coordinates
+    df = df[df['ecdysis_catalogNumber'].str.startswith('WSDA_', na=False)]
     df = df[df['ecdysis_decimalLatitude'].notna() & df['ecdysis_decimalLongitude'].notna()]
     # Select required columns and rename for output
     df = df[[
