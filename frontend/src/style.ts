@@ -1,4 +1,5 @@
 import { Feature } from 'ol';
+import type { FeatureLike } from 'ol/Feature.js';
 import Circle from 'ol/style/Circle.js';
 import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
@@ -24,8 +25,8 @@ function recencyTier(year: number, month: number): keyof typeof RECENCY_COLORS {
 
 const styleCache = new Map<string, Style>();
 
-export function clusterStyle(feature: Feature): Style {
-  const innerFeatures: Feature[] = feature.get('features') ?? [feature];
+export function clusterStyle(feature: FeatureLike): Style {
+  const innerFeatures: Feature[] = (feature.get('features') as Feature[] | undefined) ?? [feature as Feature];
   const count = innerFeatures.length;
 
   // Find the most-recent tier across all inner features

@@ -7,7 +7,8 @@ import { ParquetSource } from "./parquet.ts";
 import ecdysisDump from './assets/ecdysis.parquet?url';
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
-import { beeStyle } from "./style.ts";
+import Cluster from "ol/source/Cluster.js";
+import { clusterStyle } from "./style.ts";
 import TileLayer from "ol/layer/Tile.js";
 import XYZ from "ol/source/XYZ.js";
 
@@ -17,9 +18,14 @@ const sphericalMercator = 'EPSG:3857';
 
 
 const specimenSource = new ParquetSource({url: ecdysisDump});
-const speicmenLayer = new VectorLayer({
+const clusterSource = new Cluster({
+  distance: 40,
+  minDistance: 0,
   source: specimenSource,
-  style: beeStyle,
+});
+const speicmenLayer = new VectorLayer({
+  source: clusterSource,
+  style: clusterStyle,
 });
 
 @customElement('bee-map')
