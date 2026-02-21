@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT/data"
 
 echo "--- Downloading Ecdysis data ---"
-uv run python ecdysis/download.py --db 164
+uv run python ecdysis/download.py --datasetid 44
 
 ZIPFILE=$(ls -t ecdysis_*.zip | head -1)
 echo "--- Processing $ZIPFILE ---"

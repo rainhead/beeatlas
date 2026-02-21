@@ -73,12 +73,12 @@ dtype = {
     'disposition': pd.StringDtype(),
     'references': pd.StringDtype(),
     'recordEnteredBy': pd.StringDtype(),
+    'securityReason': pd.StringDtype(),
 }
 
 def read_occurrences(file: IO[bytes]) -> pd.DataFrame:
     df = pd.read_csv(file, sep='\t', dtype=dtype, na_values=[''], keep_default_na=True, parse_dates=['modified'])
-    df = df.add_prefix('ecdysis_')
-    df = geopandas.GeoDataFrame(df, geometry=geopandas.points_from_xy(df.ecdysis_decimalLongitude, df.ecdysis_decimalLatitude), crs="EPSG:4326")
+    df = geopandas.GeoDataFrame(df, geometry=geopandas.points_from_xy(df.decimalLongitude, df.decimalLatitude), crs="EPSG:4326")
     return df
 
 def from_zipfile(zip: Path):
@@ -93,29 +93,18 @@ def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
     df = df[df['ecdysis_decimalLatitude'].notna() & df['ecdysis_decimalLongitude'].notna()]
     # Select required columns and rename for output
     df = df[[
-        'ecdysis_id',
-        'ecdysis_decimalLongitude',
-        'ecdysis_decimalLatitude',
-        'ecdysis_scientificName',
-        'ecdysis_family',
-        'ecdysis_genus',
-        'ecdysis_specificEpithet',
-        'ecdysis_year',
-        'ecdysis_month',
-        'ecdysis_recordedBy',
-        'ecdysis_fieldNumber',
-    ]].rename(columns={
-        'ecdysis_decimalLatitude': 'latitude',
-        'ecdysis_decimalLongitude': 'longitude',
-        'ecdysis_scientificName': 'scientificName',
-        'ecdysis_family': 'family',
-        'ecdysis_genus': 'genus',
-        'ecdysis_specificEpithet': 'specificEpithet',
-        'ecdysis_year': 'year',
-        'ecdysis_month': 'month',
-        'ecdysis_recordedBy': 'recordedBy',
-        'ecdysis_fieldNumber': 'fieldNumber',
-    })
+        'id',
+        'decimalLongitude',
+        'decimalLatitude',
+        'scientificName',
+        'family',
+        'genus',
+        'specificEpithet',
+        'year',
+        'month',
+        'recordedBy',
+        'fieldNumber',
+    ]]
     # Convert to plain DataFrame to avoid writing GeoParquet (geometry column breaks hyparquet)
     pd.DataFrame(df).to_parquet(out, engine='pyarrow', index=False)
 
