@@ -60,7 +60,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Expand Parquet columns, wire ol/source/Cluster, rewrite clusterStyle with recency tiers
+- [x] 03-01-PLAN.md — Expand Parquet columns, wire ol/source/Cluster, rewrite clusterStyle with recency tiers
 - [ ] 03-02-PLAN.md — Create bee-sidebar LitElement, wire click handler and summary computation in bee-map.ts
 - [ ] 03-03-PLAN.md — Human verify: MAP-01 clustering and MAP-02 click-to-detail sidebar
 
@@ -97,6 +97,6 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 |-------|----------------|--------|-----------|
 | 1. Pipeline | 1/1 | Complete   | 2026-02-18 |
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
-| 3. Core Map | 0/3 | Not started | - |
+| 3. Core Map | 1/3 | In progress | - |
 | 4. Filtering | 0/TBD | Not started | - |
 | 5. URL Sharing | 0/TBD | Not started | - |

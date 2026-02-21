@@ -19,7 +19,7 @@
 
 ### Map
 
-- [ ] **MAP-01**: Specimen points render as clusters at low zoom levels — existing `clusterStyle` wired to `ol/source/Cluster`
+- [x] **MAP-01**: Specimen points render as clusters at low zoom levels — existing `clusterStyle` wired to `ol/source/Cluster`
 - [ ] **MAP-02**: Clicking a specimen point or cluster shows sample details in a sidebar — species, collector, date, host plant (fieldNumber)
 
 ### Filtering
@@ -64,7 +64,7 @@
 | INFRA-01 | Phase 2 | Complete |
 | INFRA-02 | Phase 2 | Complete |
 | INFRA-03 | Phase 2 | Pending |
-| MAP-01 | Phase 3 | Pending |
+| MAP-01 | Phase 3 | Complete |
 | MAP-02 | Phase 3 | Pending |
 | FILTER-01 | Phase 4 | Pending |
 | FILTER-02 | Phase 4 | Pending |
@@ -77,4 +77,4 @@
 
 ---
 *Requirements defined: 2026-02-18*
-*Last updated: 2026-02-18 — traceability populated after roadmap creation*
+*Last updated: 2026-02-21 — MAP-01 marked complete after 03-01 plan execution*
