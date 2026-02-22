@@ -111,7 +111,10 @@ Plans:
   3. Push to main triggers GitHub Actions workflow; build and deploy succeed
   4. Visiting the CloudFront URL serves the current site
   5. SUMMARY documentation corrected: setup uses GitHub Variables tab (not Secrets)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 06-01-PLAN.md — Correct SUMMARY docs, execute CDK bootstrap+deploy, set GitHub Variables, verify live CloudFront site
 
 ### Phase 7: URL Sharing
 **Goal**: A collector can share a link that restores the exact map view and active filters another collector sees
