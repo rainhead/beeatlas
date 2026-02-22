@@ -116,6 +116,15 @@ None - no external service configuration required.
 - `clusterStyle` ghosting is complete — will activate automatically once `filterState` fields are set and `clusterSource.changed()` is called
 - Next plans in Phase 4: wire filter UI in `bee-sidebar.ts`, wire filter state mutations in `bee-map.ts`, compute filtered summary stats
 
+## Self-Check: PASSED
+
+- FOUND: `frontend/src/filter.ts`
+- FOUND: `frontend/src/style.ts`
+- FOUND: `.planning/phases/04-filtering/04-01-SUMMARY.md`
+- FOUND: commit `476e16a` (Task 1 — filter.ts)
+- FOUND: commit `f7ec271` (Task 2 — style.ts ghosting)
+- FOUND: commit `e436175` (docs — plan metadata)
+
 ---
 *Phase: 04-filtering*
 *Completed: 2026-02-22*
