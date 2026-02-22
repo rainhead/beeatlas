@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Pipeline** - Fix the Ecdysis data pipeline so it produces complete, correct Parquet (completed 2026-02-18)
 - [x] **Phase 2: Infrastructure** - Define S3/CloudFront/OIDC in CDK and wire GitHub Actions deploy (completed 2026-02-18)
-- [ ] **Phase 3: Core Map** - Enable specimen clustering and click-to-detail sidebar
+- [x] **Phase 3: Core Map** - Enable specimen clustering and click-to-detail sidebar (completed 2026-02-21)
 - [ ] **Phase 4: Filtering** - Add taxon and date-range filter controls
 - [ ] **Phase 5: URL Sharing** - Encode map view and filter state in the URL for shareable links
 
@@ -62,7 +62,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Expand Parquet columns, wire ol/source/Cluster, rewrite clusterStyle with recency tiers
 - [x] 03-02-PLAN.md — Create bee-sidebar LitElement, wire click handler and summary computation in bee-map.ts
-- [ ] 03-03-PLAN.md — Human verify: MAP-01 clustering and MAP-02 click-to-detail sidebar
+- [x] 03-03-PLAN.md — Human verify: MAP-01 clustering and MAP-02 click-to-detail sidebar
 
 ### Phase 4: Filtering
 **Goal**: Collectors can narrow the visible specimens by taxon and by time period without reloading the page
@@ -97,6 +97,6 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 |-------|----------------|--------|-----------|
 | 1. Pipeline | 1/1 | Complete   | 2026-02-18 |
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
-| 3. Core Map | 2/3 | In progress | - |
+| 3. Core Map | 3/3 | Complete | 2026-02-21 |
 | 4. Filtering | 0/TBD | Not started | - |
 | 5. URL Sharing | 0/TBD | Not started | - |
