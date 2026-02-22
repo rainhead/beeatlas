@@ -29,7 +29,7 @@
 
 ### Navigation
 
-- [ ] **NAV-01**: URL encodes current map view (center, zoom) and active filter state so collectors can share links
+- [x] **NAV-01**: URL encodes current map view (center, zoom) and active filter state so collectors can share links
 
 ## v2 Requirements
 
@@ -68,14 +68,14 @@
 | MAP-02 | Phase 3 | Complete |
 | FILTER-01 | Phase 4 | Complete |
 | FILTER-02 | Phase 5 (gap closure) | Complete |
-| NAV-01 | Phase 7 | Pending |
+| NAV-01 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 11 total
 - Mapped to phases: 11
 - Unmapped: 0 ✓
-- Satisfied: 9/11 (FILTER-02 and MAP-02 completed in Phase 5; INFRA-03 and NAV-01 remain pending)
+- Satisfied: 11/11 — all v1 requirements complete
 
 ---
 *Requirements defined: 2026-02-18*
-*Last updated: 2026-02-22 — FILTER-02 and MAP-02 completed in Phase 5 (month offset bug fixed and human-verified)*
+*Last updated: 2026-02-22 — NAV-01 completed in Phase 7 (URL sync implemented); all 11 v1 requirements satisfied*

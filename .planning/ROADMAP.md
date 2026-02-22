@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Filtering** - Add taxon and date-range filter controls (gap-closure in progress — 2 plans added) (completed 2026-02-22)
 - [x] **Phase 5: Fix Month Offset Bug** - Remove +1 from parquet.ts; fix FILTER-02 and MAP-02 month display (gap closure) (completed 2026-02-22)
 - [x] **Phase 6: Complete INFRA-03 Deployment** - Deploy CDK stack, configure GitHub Actions variables, verify live site (gap closure) (completed 2026-02-22)
-- [ ] **Phase 7: URL Sharing** - Encode map view and filter state in the URL for shareable links
+- [x] **Phase 7: URL Sharing** - Encode map view and filter state in the URL for shareable links (completed 2026-02-22)
 
 ## Phase Details
 
@@ -127,7 +127,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
+- [x] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
 - [ ] 07-02-PLAN.md — Human verify URL sharing end-to-end (all 7 scenarios)
 
 ## Progress
@@ -146,4 +146,4 @@ Note: Phases 5 and 6 are gap-closure phases added after v1.0 audit; they are ind
 | 4. Filtering | 5/5 | Complete   | 2026-02-22 |
 | 5. Fix Month Offset Bug | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | 1/1 | Complete   | 2026-02-22 |
-| 7. URL Sharing | 0/TBD | Not started | - |
+| 7. URL Sharing | 1/2 | In Progress | - |
