@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Infrastructure** - Define S3/CloudFront/OIDC in CDK and wire GitHub Actions deploy (completed 2026-02-18)
 - [x] **Phase 3: Core Map** - Enable specimen clustering and click-to-detail sidebar (completed 2026-02-21)
 - [x] **Phase 4: Filtering** - Add taxon and date-range filter controls (gap-closure in progress — 2 plans added) (completed 2026-02-22)
-- [ ] **Phase 5: Fix Month Offset Bug** - Remove +1 from parquet.ts; fix FILTER-02 and MAP-02 month display (gap closure)
+- [x] **Phase 5: Fix Month Offset Bug** - Remove +1 from parquet.ts; fix FILTER-02 and MAP-02 month display (gap closure) (completed 2026-02-22)
 - [ ] **Phase 6: Complete INFRA-03 Deployment** - Deploy CDK stack, configure GitHub Actions variables, verify live site (gap closure)
 - [ ] **Phase 7: URL Sharing** - Encode map view and filter state in the URL for shareable links
 
@@ -98,7 +98,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 05-01-PLAN.md — Remove +1 month offset from parquet.ts and human-verify January/December correctness
+- [x] 05-01-PLAN.md — Remove +1 month offset from parquet.ts and human-verify January/December correctness
 
 ### Phase 6: Complete INFRA-03 Deployment
 **Goal**: The production site is live on CloudFront and deploys automatically on every push to main via GitHub Actions OIDC
@@ -137,6 +137,6 @@ Note: Phases 5 and 6 are gap-closure phases added after v1.0 audit; they are ind
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
 | 3. Core Map | 3/3 | Complete | 2026-02-21 |
 | 4. Filtering | 5/5 | Complete   | 2026-02-22 |
-| 5. Fix Month Offset Bug | 0/1 | Not started | - |
+| 5. Fix Month Offset Bug | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | 0/TBD | Not started | - |
 | 7. URL Sharing | 0/TBD | Not started | - |
