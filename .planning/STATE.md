@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 4 of 5 (Filtering)
-Plan: 3 of TBD in current phase
-Status: Phase 4 in progress — plan 03 verification FAILED (4 issues found, gap-closure plans needed)
-Last activity: 2026-02-22 — Phase 4 plan 03 verification not approved; 4 issues filed
+Plan: 4 of TBD in current phase
+Status: Phase 4 in progress — plan 04 complete (all 4 UX gaps fixed); plan 05 verification pending
+Last activity: 2026-02-22 — Phase 4 plan 04 complete; bee-sidebar.ts UX gap closure done
 
-Progress: [██████░░░░] 30%
+Progress: [███████░░░] 35%
 
 ## Performance Metrics
 
@@ -30,10 +30,10 @@ Progress: [██████░░░░] 30%
 | 01-pipeline | 1 | 2 min | 2 min |
 | 02-infrastructure | 1 | 4 min | 4 min |
 | 03-core-map | 2 | 3 min | 1.5 min |
-| 04-filtering | 2 | 3 min | 1.5 min |
+| 04-filtering | 4 | 8 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (4 min), 03-01 (2 min), 03-02 (1 min), 04-01 (1 min), 04-02 (2 min)
+- Last 5 plans: 03-01 (2 min), 03-02 (1 min), 04-01 (1 min), 04-02 (2 min), 04-04 (5 min)
 - Trend: Fast
 
 *Updated after each plan completion*
@@ -67,6 +67,9 @@ Recent decisions affecting current work:
 - [04-02]: year inputs use change event (not input) — avoids filtering while user types a 4-digit year
 - [04-02]: _applyFilter always clears selectedSamples — applying any filter dismisses the open cluster detail panel
 - [04-02]: filteredSummary is null when no filter is active — avoids allocating an object when unneeded
+- [04-04]: _onTaxonInput now resolves exact label matches via input event — browser fires input reliably for datalist; change is unreliable for dropdown picks in some browsers
+- [04-04]: Clear selection button placed in _renderFilterControls conditional on this.samples !== null — navigation actions near filter controls, not inline with transient content
+- [04-04]: _clearTaxon resets only taxon fields (_taxonInput, _taxonName, _taxonRank) — leaves year and month filter state intact
 
 ### Pending Todos
 
@@ -75,10 +78,7 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 3]: Verify `place_id=82` for Washington State in iNaturalist before any iNat pipeline work
-- [Phase 4 - plan 03]: Year filter placeholder text not clear — needs "From year" / "To year"
-- [Phase 4 - plan 03]: Taxon datalist dropdown selection does not trigger filter (bug — change event not firing on dropdown pick)
-- [Phase 4 - plan 03]: Taxon input lacks dedicated clear button (UX gap)
-- [Phase 4 - plan 03]: Cluster selection uses back-button navigation paradigm — user wants "Clear selection" control near filter controls instead
+*(No active blockers for plan 04 items — all 4 Phase 4 UX issues resolved in plan 04)*
 
 *Resolved:*
 - [Phase 2 - resolved]: CDK OAC construct API confirmed working — `S3BucketOrigin.withOriginAccessControl()` verified in cdk synth output with aws-cdk-lib 2.238.0
@@ -87,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: 04-03-PLAN.md verification checkpoint — NOT approved, 4 issues found
+Stopped at: Completed 04-04-PLAN.md — UX gap closure done, plan 05 verification ready
 Resume file: None
