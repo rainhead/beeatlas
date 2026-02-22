@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 4 of 5 (Filtering)
-Plan: 2 of TBD in current phase
-Status: Phase 4 in progress — plan 02 complete
-Last activity: 2026-02-22 — Phase 4 plan 02 executed (Filter controls UI + BeeMap filter wiring)
+Plan: 3 of TBD in current phase
+Status: Phase 4 in progress — plan 03 verification FAILED (4 issues found, gap-closure plans needed)
+Last activity: 2026-02-22 — Phase 4 plan 03 verification not approved; 4 issues filed
 
 Progress: [██████░░░░] 30%
 
@@ -75,6 +75,10 @@ None yet.
 ### Blockers/Concerns
 
 - [Phase 3]: Verify `place_id=82` for Washington State in iNaturalist before any iNat pipeline work
+- [Phase 4 - plan 03]: Year filter placeholder text not clear — needs "From year" / "To year"
+- [Phase 4 - plan 03]: Taxon datalist dropdown selection does not trigger filter (bug — change event not firing on dropdown pick)
+- [Phase 4 - plan 03]: Taxon input lacks dedicated clear button (UX gap)
+- [Phase 4 - plan 03]: Cluster selection uses back-button navigation paradigm — user wants "Clear selection" control near filter controls instead
 
 *Resolved:*
 - [Phase 2 - resolved]: CDK OAC construct API confirmed working — `S3BucketOrigin.withOriginAccessControl()` verified in cdk synth output with aws-cdk-lib 2.238.0
@@ -83,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 04-02-PLAN.md (Filter controls UI + BeeMap filter wiring)
+Stopped at: 04-03-PLAN.md verification checkpoint — NOT approved, 4 issues found
 Resume file: None
