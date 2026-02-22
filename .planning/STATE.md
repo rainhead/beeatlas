@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 4 of 5 (Filtering)
-Plan: 0 of TBD in current phase
-Status: Phase 3 complete, Phase 4 not started
-Last activity: 2026-02-21 — Phase 3 human verification approved
+Plan: 1 of TBD in current phase
+Status: Phase 4 in progress — plan 01 complete
+Last activity: 2026-02-22 — Phase 4 plan 01 executed (FilterState module + clusterStyle ghosting)
 
-Progress: [█████░░░░░] 25%
+Progress: [██████░░░░] 30%
 
 ## Performance Metrics
 
@@ -30,9 +30,10 @@ Progress: [█████░░░░░] 25%
 | 01-pipeline | 1 | 2 min | 2 min |
 | 02-infrastructure | 1 | 4 min | 4 min |
 | 03-core-map | 2 | 3 min | 1.5 min |
+| 04-filtering | 1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 02-01 (4 min), 03-01 (2 min), 03-02 (1 min)
+- Last 5 plans: 01-01 (2 min), 02-01 (4 min), 03-01 (2 min), 03-02 (1 min), 04-01 (1 min)
 - Trend: Fast
 
 *Updated after each plan completion*
@@ -59,6 +60,9 @@ Recent decisions affecting current work:
 - [03-02]: MapBrowserEvent type import required for singleclick handler under strict + verbatimModuleSyntax — OL map.on() overload resolves to any without explicit typing
 - [03-02]: specimenSource.once('change') fires reliably after addFeatures() in ParquetSource — getFeatures() returns complete dataset at that point
 - [03-02]: Single singleclick handler branches on hits.length — avoids ordering issues with separate open/dismiss handlers
+- [04-01]: filterState is a shared mutable singleton (not a Lit reactive property) — OL style callbacks have fixed signatures and cannot receive extra parameters
+- [04-01]: styleCache is bypassed entirely when any filter is active — same count:tier pair can yield different match counts when filter applies
+- [04-01]: Ghosted clusters use 0.2 opacity grey fill with no count label; matching clusters show match count (not total cluster size) at full opacity
 
 ### Pending Todos
 
@@ -74,6 +78,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-21
-Stopped at: Completed 03-02-PLAN.md (bee-sidebar LitElement + singleclick click-to-detail wiring)
+Last session: 2026-02-22
+Stopped at: Completed 04-01-PLAN.md (FilterState module + clusterStyle ghosting)
 Resume file: None
