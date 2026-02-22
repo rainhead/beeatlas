@@ -95,7 +95,10 @@ Plans:
   2. Month filter checkboxes correctly show/hide specimens — January checkbox shows January data
   3. Sidebar specimen dates display correct month (December shows "December", not "January")
   4. All 12 months are reachable via filter checkboxes including January and December
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 05-01-PLAN.md — Remove +1 month offset from parquet.ts and human-verify January/December correctness
 
 ### Phase 6: Complete INFRA-03 Deployment
 **Goal**: The production site is live on CloudFront and deploys automatically on every push to main via GitHub Actions OIDC
@@ -134,6 +137,6 @@ Note: Phases 5 and 6 are gap-closure phases added after v1.0 audit; they are ind
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
 | 3. Core Map | 3/3 | Complete | 2026-02-21 |
 | 4. Filtering | 5/5 | Complete   | 2026-02-22 |
-| 5. Fix Month Offset Bug | 0/TBD | Not started | - |
+| 5. Fix Month Offset Bug | 0/1 | Not started | - |
 | 6. Complete INFRA-03 Deployment | 0/TBD | Not started | - |
 | 7. URL Sharing | 0/TBD | Not started | - |
