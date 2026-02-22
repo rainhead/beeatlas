@@ -88,7 +88,14 @@ def from_zipfile(zip: Path):
     return df
 
 def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
-    df = df[df['decimalLatitude'].notna() & df['decimalLongitude'].notna()]
+    df = df[df['decimalLatitude'].notna() & df['decimalLongitude'].notna()].copy()
+    # Normalise scientificName for display:
+    #   species-level ID  → keep as-is (e.g. "Andrena sladeni")
+    #   genus-only ID     → append " sp." (e.g. "Lasioglossum sp.")
+    #   no identification → "Unidentified"
+    genus_only = df['scientificName'].notna() & df['specificEpithet'].isna()
+    df.loc[genus_only, 'scientificName'] = df.loc[genus_only, 'scientificName'] + ' sp.'
+    df['scientificName'] = df['scientificName'].fillna('Unidentified')
     # Select required columns and rename for output
     df = df[[
         'id',
