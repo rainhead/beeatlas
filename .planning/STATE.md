@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 5 — Fix Month Offset
+**Current focus:** Phase 6 COMPLETE — CDK deployment and live site verified
 
 ## Current Position
 
-Phase: 5 of 6 (Fix Month Offset)
+Phase: 6 of 6 (CDK Deployment and Live Site)
 Plan: 1 of 1 in current phase
-Status: Phase 5 COMPLETE — month offset bug fixed and human-verified; all 12 months now reachable
-Last activity: 2026-02-22 — Phase 5 plan 01 complete; human verification approved
+Status: Phase 6 COMPLETE — INFRA-03 satisfied; live site at https://d1o1go591lqnqi.cloudfront.net; GitHub Actions deploy pipeline verified passing
+Last activity: 2026-02-22 — Phase 6 plan 01 complete; all tasks complete; v1.0 milestone achieved
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 2 min
-- Total execution time: ~0.1 hours
+- Total plans completed: 7
+- Average duration: ~6 min
+- Total execution time: ~0.5 hours
 
 **By Phase:**
 
@@ -32,6 +32,7 @@ Progress: [█████████░] 90%
 | 03-core-map | 2 | 3 min | 1.5 min |
 | 04-filtering | 5 | 13 min | 2.6 min |
 | 05-fix-month-offset | 1 | 5 min | 5 min |
+| 06-infra03-deployment | 1 | ~30 min | ~30 min |
 
 **Recent Trend:**
 - Last 5 plans: 04-01 (1 min), 04-02 (2 min), 04-04 (5 min), 04-05 (5 min), 05-01 (5 min)
@@ -73,6 +74,9 @@ Recent decisions affecting current work:
 - [04-04]: _clearTaxon resets only taxon fields (_taxonInput, _taxonName, _taxonRank) — leaves year and month filter state intact
 - [04-05]: Phase 4 filtering human-verified complete — all 4 UX gap fixes confirmed working; no regressions found
 - [05-01]: Remove only the +1 in parquet.ts — no changes to filter.ts, bee-sidebar.ts, style.ts; all downstream consumers already expect 1-indexed DarwinCore months
+- [06-01]: CDK stacks were already deployed from Phase 2 — cdk deploy returned "no changes"; INFRA-03 gap was documentation-only
+- [06-01]: GitHub Actions Variables set in Variables tab (vars.*) not Secrets tab — deploy.yml uses vars.* context throughout
+- [06-01]: No OIDC provider fallback needed — existing provider already present in account; stacks deployed cleanly
 
 ### Pending Todos
 
@@ -89,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-22 (plan 05-01 complete)
-Stopped at: Completed 05-01-PLAN.md — Phase 5 month offset fix complete and human-verified
+Last session: 2026-02-22 (plan 06-01 complete)
+Stopped at: Completed 06-01-PLAN.md — Phase 6 CDK deployment and live site verification complete; v1.0 milestone achieved
 Resume file: None
