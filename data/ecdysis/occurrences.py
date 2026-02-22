@@ -102,7 +102,11 @@ def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
         'month',
         'recordedBy',
         'fieldNumber',
-    ]]
+    ]].rename(columns={
+        'id': 'ecdysis_id',
+        'decimalLongitude': 'longitude',
+        'decimalLatitude': 'latitude',
+    })
     # Convert to plain DataFrame to avoid writing GeoParquet (geometry column breaks hyparquet)
     pd.DataFrame(df).to_parquet(out, engine='pyarrow', index=False)
 
