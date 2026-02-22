@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 3 — Core Map
+**Current focus:** Phase 4 — Filtering
 
 ## Current Position
 
-Phase: 3 of 5 (Core Map)
-Plan: 2 of 2 in current phase (03-02 complete)
-Status: Phase 3 complete
-Last activity: 2026-02-21 — 03-02 complete (bee-sidebar LitElement + singleclick handler wired; build passes)
+Phase: 4 of 5 (Filtering)
+Plan: 0 of TBD in current phase
+Status: Phase 3 complete, Phase 4 not started
+Last activity: 2026-02-21 — Phase 3 human verification approved
 
 Progress: [█████░░░░░] 25%
 
