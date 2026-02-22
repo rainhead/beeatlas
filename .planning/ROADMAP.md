@@ -103,5 +103,5 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 | 1. Pipeline | 1/1 | Complete   | 2026-02-18 |
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
 | 3. Core Map | 3/3 | Complete | 2026-02-21 |
-| 4. Filtering | 1/3 | In Progress|  |
+| 4. Filtering | 2/3 | In Progress|  |
 | 5. URL Sharing | 0/TBD | Not started | - |

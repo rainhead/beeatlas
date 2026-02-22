@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 4 of 5 (Filtering)
-Plan: 1 of TBD in current phase
-Status: Phase 4 in progress — plan 01 complete
-Last activity: 2026-02-22 — Phase 4 plan 01 executed (FilterState module + clusterStyle ghosting)
+Plan: 2 of TBD in current phase
+Status: Phase 4 in progress — plan 02 complete
+Last activity: 2026-02-22 — Phase 4 plan 02 executed (Filter controls UI + BeeMap filter wiring)
 
 Progress: [██████░░░░] 30%
 
@@ -30,10 +30,10 @@ Progress: [██████░░░░] 30%
 | 01-pipeline | 1 | 2 min | 2 min |
 | 02-infrastructure | 1 | 4 min | 4 min |
 | 03-core-map | 2 | 3 min | 1.5 min |
-| 04-filtering | 1 | 1 min | 1 min |
+| 04-filtering | 2 | 3 min | 1.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (2 min), 02-01 (4 min), 03-01 (2 min), 03-02 (1 min), 04-01 (1 min)
+- Last 5 plans: 02-01 (4 min), 03-01 (2 min), 03-02 (1 min), 04-01 (1 min), 04-02 (2 min)
 - Trend: Fast
 
 *Updated after each plan completion*
@@ -63,6 +63,10 @@ Recent decisions affecting current work:
 - [04-01]: filterState is a shared mutable singleton (not a Lit reactive property) — OL style callbacks have fixed signatures and cannot receive extra parameters
 - [04-01]: styleCache is bypassed entirely when any filter is active — same count:tier pair can yield different match counts when filter applies
 - [04-01]: Ghosted clusters use 0.2 opacity grey fill with no count label; matching clusters show match count (not total cluster size) at full opacity
+- [04-02]: taxon datalist uses change event (not input) to resolve TaxonOption by label — prevents partial-match false positives mid-keystroke
+- [04-02]: year inputs use change event (not input) — avoids filtering while user types a 4-digit year
+- [04-02]: _applyFilter always clears selectedSamples — applying any filter dismisses the open cluster detail panel
+- [04-02]: filteredSummary is null when no filter is active — avoids allocating an object when unneeded
 
 ### Pending Todos
 
@@ -79,5 +83,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-22
-Stopped at: Completed 04-01-PLAN.md (FilterState module + clusterStyle ghosting)
+Stopped at: Completed 04-02-PLAN.md (Filter controls UI + BeeMap filter wiring)
 Resume file: None
