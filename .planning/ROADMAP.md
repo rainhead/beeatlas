@@ -16,7 +16,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Infrastructure** - Define S3/CloudFront/OIDC in CDK and wire GitHub Actions deploy (completed 2026-02-18)
 - [x] **Phase 3: Core Map** - Enable specimen clustering and click-to-detail sidebar (completed 2026-02-21)
 - [x] **Phase 4: Filtering** - Add taxon and date-range filter controls (gap-closure in progress — 2 plans added) (completed 2026-02-22)
-- [ ] **Phase 5: URL Sharing** - Encode map view and filter state in the URL for shareable links
+- [ ] **Phase 5: Fix Month Offset Bug** - Remove +1 from parquet.ts; fix FILTER-02 and MAP-02 month display (gap closure)
+- [ ] **Phase 6: Complete INFRA-03 Deployment** - Deploy CDK stack, configure GitHub Actions variables, verify live site (gap closure)
+- [ ] **Phase 7: URL Sharing** - Encode map view and filter state in the URL for shareable links
 
 ## Phase Details
 
@@ -83,9 +85,34 @@ Plans:
 - [ ] 04-04-PLAN.md — Gap closure: fix year placeholder text, taxon datalist dropdown bug, taxon clear button, cluster selection paradigm
 - [ ] 04-05-PLAN.md — Re-verify all 4 fixed issues and confirm no regressions
 
-### Phase 5: URL Sharing
-**Goal**: A collector can share a link that restores the exact map view and active filters another collector sees
+### Phase 5: Fix Month Offset Bug
+**Goal**: All specimen months are correct throughout the app — filter checkboxes match the right specimens, sidebar dates display accurately, and January/December specimens are reachable
 **Depends on**: Phase 4
+**Requirements**: FILTER-02
+**Gap Closure**: Closes FILTER-02 and MAP-02 (partial) gaps from v1.0 audit; fixes flows h, i
+**Success Criteria** (what must be TRUE):
+  1. Removing `+ 1` from `frontend/src/parquet.ts:34` makes feature months 1–12 (matching DarwinCore)
+  2. Month filter checkboxes correctly show/hide specimens — January checkbox shows January data
+  3. Sidebar specimen dates display correct month (December shows "December", not "January")
+  4. All 12 months are reachable via filter checkboxes including January and December
+**Plans**: TBD
+
+### Phase 6: Complete INFRA-03 Deployment
+**Goal**: The production site is live on CloudFront and deploys automatically on every push to main via GitHub Actions OIDC
+**Depends on**: Phase 2 (CDK code already written)
+**Requirements**: INFRA-03
+**Gap Closure**: Closes INFRA-03 gap from v1.0 audit; completes flow k (push → S3 → CloudFront)
+**Success Criteria** (what must be TRUE):
+  1. `cdk bootstrap && cdk deploy` completes without error; CloudFront URL is accessible
+  2. GitHub Actions Variables set: `AWS_DEPLOYER_ROLE_ARN`, `S3_BUCKET_NAME`, `CF_DISTRIBUTION_ID`
+  3. Push to main triggers GitHub Actions workflow; build and deploy succeed
+  4. Visiting the CloudFront URL serves the current site
+  5. SUMMARY documentation corrected: setup uses GitHub Variables tab (not Secrets)
+**Plans**: TBD
+
+### Phase 7: URL Sharing
+**Goal**: A collector can share a link that restores the exact map view and active filters another collector sees
+**Depends on**: Phase 5 (filters must be correct before encoding them in URLs)
 **Requirements**: NAV-01
 **Success Criteria** (what must be TRUE):
   1. Panning, zooming, or changing filters updates the URL without a page reload
@@ -96,9 +123,10 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be worked in parallel.
+Note: Phases 5 and 6 are gap-closure phases added after v1.0 audit; they are independent of each other.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -106,4 +134,6 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
 | 3. Core Map | 3/3 | Complete | 2026-02-21 |
 | 4. Filtering | 5/5 | Complete   | 2026-02-22 |
-| 5. URL Sharing | 0/TBD | Not started | - |
+| 5. Fix Month Offset Bug | 0/TBD | Not started | - |
+| 6. Complete INFRA-03 Deployment | 0/TBD | Not started | - |
+| 7. URL Sharing | 0/TBD | Not started | - |
