@@ -189,12 +189,23 @@ export class BeeSidebar extends LitElement {
 
   private _onTaxonInput(e: Event) {
     const input = e.target as HTMLInputElement;
-    this._taxonInput = input.value;
-    if (input.value === '') {
+    const value = input.value;
+    this._taxonInput = value;
+    if (value === '') {
       this._taxonName = null;
       this._taxonRank = null;
       this._dispatchFilterChanged();
+      return;
     }
+    // Also resolve on exact label match — catches native datalist dropdown selection
+    // (browser fires 'input' reliably; 'change' is unreliable for datalist picks)
+    const option = this.taxaOptions.find(o => o.label === value);
+    if (option) {
+      this._taxonName = option.name;
+      this._taxonRank = option.rank;
+      this._dispatchFilterChanged();
+    }
+    // If no exact match, user is mid-keystroke — do not apply a partial filter
   }
 
   private _onTaxonChange(e: Event) {
@@ -274,7 +285,7 @@ export class BeeSidebar extends LitElement {
         <div class="filter-row year-row">
           <input
             type="number"
-            placeholder="From"
+            placeholder="From year"
             min="2023"
             max="2025"
             .value=${this._yearFrom !== null ? String(this._yearFrom) : ''}
@@ -282,7 +293,7 @@ export class BeeSidebar extends LitElement {
           />
           <input
             type="number"
-            placeholder="To"
+            placeholder="To year"
             min="2023"
             max="2025"
             .value=${this._yearTo !== null ? String(this._yearTo) : ''}
