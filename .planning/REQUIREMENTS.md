@@ -24,8 +24,8 @@
 
 ### Filtering
 
-- [ ] **FILTER-01**: User can filter displayed specimens by taxon at species, genus, or family level
-- [ ] **FILTER-02**: User can filter displayed specimens by year range and/or month of year (independently — e.g., "show all June/July records regardless of year")
+- [x] **FILTER-01**: User can filter displayed specimens by taxon at species, genus, or family level
+- [x] **FILTER-02**: User can filter displayed specimens by year range and/or month of year (independently — e.g., "show all June/July records regardless of year")
 
 ### Navigation
 
@@ -66,8 +66,8 @@
 | INFRA-03 | Phase 2 | Pending |
 | MAP-01 | Phase 3 | Complete |
 | MAP-02 | Phase 3 | Complete |
-| FILTER-01 | Phase 4 | Pending |
-| FILTER-02 | Phase 4 | Pending |
+| FILTER-01 | Phase 4 | Complete |
+| FILTER-02 | Phase 4 | Complete |
 | NAV-01 | Phase 5 | Pending |
 
 **Coverage:**
