@@ -124,7 +124,11 @@ Plans:
   1. Panning, zooming, or changing filters updates the URL without a page reload
   2. Opening a shared URL restores the map center, zoom level, and active filter values exactly
   3. A fresh page load with no URL parameters shows the default view (Washington state at full extent)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
+- [ ] 07-02-PLAN.md — Human verify URL sharing end-to-end (all 7 scenarios)
 
 ## Progress
 
