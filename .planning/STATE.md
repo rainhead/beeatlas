@@ -10,16 +10,16 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 ## Current Position
 
 Phase: 4 of 5 (Filtering)
-Plan: 4 of TBD in current phase
-Status: Phase 4 in progress — plan 04 complete (all 4 UX gaps fixed); plan 05 verification pending
-Last activity: 2026-02-22 — Phase 4 plan 04 complete; bee-sidebar.ts UX gap closure done
+Plan: 5 of 5 in current phase
+Status: Phase 4 COMPLETE — all 5 plans done; human-verified all 4 UX gap fixes; ready for Phase 5
+Last activity: 2026-02-22 — Phase 4 plan 05 complete; human verification approved
 
-Progress: [███████░░░] 35%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 5
 - Average duration: 2 min
 - Total execution time: ~0.1 hours
 
@@ -30,10 +30,10 @@ Progress: [███████░░░] 35%
 | 01-pipeline | 1 | 2 min | 2 min |
 | 02-infrastructure | 1 | 4 min | 4 min |
 | 03-core-map | 2 | 3 min | 1.5 min |
-| 04-filtering | 4 | 8 min | 2 min |
+| 04-filtering | 5 | 13 min | 2.6 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (2 min), 03-02 (1 min), 04-01 (1 min), 04-02 (2 min), 04-04 (5 min)
+- Last 5 plans: 03-02 (1 min), 04-01 (1 min), 04-02 (2 min), 04-04 (5 min), 04-05 (5 min)
 - Trend: Fast
 
 *Updated after each plan completion*
@@ -70,6 +70,7 @@ Recent decisions affecting current work:
 - [04-04]: _onTaxonInput now resolves exact label matches via input event — browser fires input reliably for datalist; change is unreliable for dropdown picks in some browsers
 - [04-04]: Clear selection button placed in _renderFilterControls conditional on this.samples !== null — navigation actions near filter controls, not inline with transient content
 - [04-04]: _clearTaxon resets only taxon fields (_taxonInput, _taxonName, _taxonRank) — leaves year and month filter state intact
+- [04-05]: Phase 4 filtering human-verified complete — all 4 UX gap fixes confirmed working; no regressions found
 
 ### Pending Todos
 
@@ -86,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-22
-Stopped at: Completed 04-04-PLAN.md — UX gap closure done, plan 05 verification ready
+Last session: 2026-02-22 (plan 04-05 complete)
+Stopped at: Completed 04-05-PLAN.md — Phase 4 filtering complete and human-verified
 Resume file: None
