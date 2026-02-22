@@ -86,13 +86,14 @@ None — Task 1 executed exactly as specified in the plan.
 ### Step 1 — Bootstrap CDK (one-time per account/region)
 ```bash
 cd infra
-AWS_PROFILE=your-profile npx cdk bootstrap aws://YOUR_ACCOUNT_ID/us-east-1
+npx cdk bootstrap aws://YOUR_ACCOUNT_ID/us-east-1 --qualifier beeatlas --profile your-aws-profile
+npx cdk bootstrap aws://YOUR_ACCOUNT_ID/us-west-2 --qualifier beeatlas --profile your-aws-profile
 ```
 
 ### Step 2 — Deploy the CDK stack
 ```bash
 cd infra
-AWS_PROFILE=your-profile npx cdk deploy
+npx cdk deploy --all --profile your-aws-profile
 ```
 Note outputs: `BeeAtlasStack.BucketName`, `BeeAtlasStack.DistributionId`, `BeeAtlasStack.DistributionDomain`, `BeeAtlasStack.DeployerRoleArn`
 
@@ -104,10 +105,10 @@ const githubProvider = iam.OpenIdConnectProvider.fromOpenIdConnectProviderArn(
 );
 ```
 
-### Step 3 — Set GitHub repository secrets
-Go to: https://github.com/rainhead/beeatlas/settings/secrets/actions
+### Step 3 — Set GitHub repository variables
+Go to: https://github.com/rainhead/beeatlas/settings/variables/actions
 
-Set these three secrets (values from Step 2 outputs):
+Set these three **variables** (not secrets) at: Settings → Secrets and variables → Actions → **Variables** tab → New repository variable:
 - `AWS_DEPLOYER_ROLE_ARN` = `BeeAtlasStack.DeployerRoleArn`
 - `S3_BUCKET_NAME` = `BeeAtlasStack.BucketName`
 - `CF_DISTRIBUTION_ID` = `BeeAtlasStack.DistributionId`
