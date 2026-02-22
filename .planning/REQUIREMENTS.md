@@ -25,7 +25,7 @@
 ### Filtering
 
 - [x] **FILTER-01**: User can filter displayed specimens by taxon at species, genus, or family level
-- [ ] **FILTER-02**: User can filter displayed specimens by year range and/or month of year (independently — e.g., "show all June/July records regardless of year")
+- [x] **FILTER-02**: User can filter displayed specimens by year range and/or month of year (independently — e.g., "show all June/July records regardless of year")
 
 ### Navigation
 
@@ -65,17 +65,17 @@
 | INFRA-02 | Phase 2 | Complete |
 | INFRA-03 | Phase 6 (gap closure) | Pending |
 | MAP-01 | Phase 3 | Complete |
-| MAP-02 | Phase 3 | Pending (month display fix in Phase 5) |
+| MAP-02 | Phase 3 | Complete |
 | FILTER-01 | Phase 4 | Complete |
-| FILTER-02 | Phase 5 (gap closure) | Pending |
+| FILTER-02 | Phase 5 (gap closure) | Complete |
 | NAV-01 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 11 total
 - Mapped to phases: 11
 - Unmapped: 0 ✓
-- Satisfied: 7/11 (FILTER-02 reset to Pending per v1.0 audit; INFRA-03 reassigned to Phase 6)
+- Satisfied: 9/11 (FILTER-02 and MAP-02 completed in Phase 5; INFRA-03 and NAV-01 remain pending)
 
 ---
 *Requirements defined: 2026-02-18*
-*Last updated: 2026-02-22 — FILTER-02 reset to Pending (month offset bug); gap closure phases 5 and 6 added; NAV-01 renumbered to Phase 7*
+*Last updated: 2026-02-22 — FILTER-02 and MAP-02 completed in Phase 5 (month offset bug fixed and human-verified)*
