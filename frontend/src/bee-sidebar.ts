@@ -117,6 +117,30 @@ export class BeeSidebar extends LitElement {
       font-size: 0.8rem;
       cursor: pointer;
     }
+    .taxon-row {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .taxon-row input[type="text"] {
+      flex: 1;
+      min-width: 0;
+    }
+    .taxon-clear-btn {
+      flex-shrink: 0;
+      padding: 0.3rem 0.5rem;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      background: transparent;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      line-height: 1;
+      color: #666;
+    }
+    .taxon-clear-btn:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
     .clear-btn {
       margin-top: 0.6rem;
       padding: 0.3rem 0.75rem;
@@ -259,6 +283,17 @@ export class BeeSidebar extends LitElement {
     this._dispatchFilterChanged();
   }
 
+  private _clearTaxon() {
+    this._taxonInput = '';
+    this._taxonName = null;
+    this._taxonRank = null;
+    this._dispatchFilterChanged();
+  }
+
+  private _clearSelection() {
+    this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
+  }
+
   private _getMonthName(month: number): string {
     return new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
       new Date(2000, month - 1)
@@ -269,7 +304,7 @@ export class BeeSidebar extends LitElement {
     return html`
       <div class="filter-controls">
         <h3>Filter</h3>
-        <div class="filter-row">
+        <div class="filter-row taxon-row">
           <input
             type="text"
             list="taxon-list"
@@ -278,6 +313,9 @@ export class BeeSidebar extends LitElement {
             @input=${this._onTaxonInput}
             @change=${this._onTaxonChange}
           />
+          ${this._taxonName !== null ? html`
+            <button class="taxon-clear-btn" @click=${this._clearTaxon} title="Clear taxon filter">&#x2715;</button>
+          ` : ''}
           <datalist id="taxon-list">
             ${this.taxaOptions.map(o => html`<option value=${o.label}></option>`)}
           </datalist>
@@ -314,6 +352,9 @@ export class BeeSidebar extends LitElement {
             `)}
           </div>
         </div>
+        ${this.samples !== null ? html`
+          <button class="clear-btn clear-selection-btn" @click=${this._clearSelection}>Clear selection</button>
+        ` : ''}
         <button class="clear-btn" @click=${this._clearFilters}>Clear filters</button>
       </div>
     `;
@@ -368,10 +409,6 @@ export class BeeSidebar extends LitElement {
 
   private _renderDetail(samples: Sample[]) {
     return html`
-      <button
-        class="back-btn"
-        @click=${() => this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }))}
-      >Back</button>
       ${samples.map(sample => html`
         <div class="sample">
           <div class="sample-header">${this._formatMonth(sample.year, sample.month)} ${sample.year}</div>
