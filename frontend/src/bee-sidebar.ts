@@ -1,4 +1,4 @@
-import { css, html, LitElement } from 'lit';
+import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
 export interface Specimen {
@@ -60,6 +60,14 @@ export class BeeSidebar extends LitElement {
 
   @property({ attribute: false })
   filteredSummary: FilteredSummary | null = null;
+
+  // URL-restore properties — driven by BeeMap when restoring from URL or popstate
+  @property({ attribute: false }) restoredTaxonInput: string = '';
+  @property({ attribute: false }) restoredTaxonRank: 'family' | 'genus' | 'species' | null = null;
+  @property({ attribute: false }) restoredTaxonName: string | null = null;
+  @property({ attribute: false }) restoredYearFrom: number | null = null;
+  @property({ attribute: false }) restoredYearTo: number | null = null;
+  @property({ attribute: false }) restoredMonths: Set<number> = new Set();
 
   @state() private _taxonInput = '';
   @state() private _taxonRank: 'family' | 'genus' | 'species' | null = null;
@@ -196,6 +204,23 @@ export class BeeSidebar extends LitElement {
       font-style: italic;
     }
   `;
+
+  updated(changedProperties: PropertyValues) {
+    // When BeeMap pushes a restored filter state (from URL load or popstate),
+    // apply it to the internal @state fields that drive the filter control UI.
+    const restoredKeys = [
+      'restoredTaxonInput', 'restoredTaxonRank', 'restoredTaxonName',
+      'restoredYearFrom', 'restoredYearTo', 'restoredMonths',
+    ];
+    if (restoredKeys.some(k => changedProperties.has(k))) {
+      this._taxonInput = this.restoredTaxonInput;
+      this._taxonRank  = this.restoredTaxonRank;
+      this._taxonName  = this.restoredTaxonName;
+      this._yearFrom   = this.restoredYearFrom;
+      this._yearTo     = this.restoredYearTo;
+      this._months     = new Set(this.restoredMonths);
+    }
+  }
 
   private _dispatchFilterChanged() {
     this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
