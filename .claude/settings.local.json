@@ -16,7 +16,11 @@
       "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"fix\\(03-01\\): convert 0-indexed parquet months to 1-indexed:*)",
       "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"feat\\(03-02\\): hyperlink each specimen to its ecdysis record:*)",
       "Bash(git -C /Users/rainhead/dev/beeatlas checkout:*)",
-      "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"feat\\(pipeline\\): filter to WSDA_ atlas records only:*)"
+      "Bash(git -C /Users/rainhead/dev/beeatlas commit -m \"feat\\(pipeline\\): filter to WSDA_ atlas records only:*)",
+      "Bash(git:*)",
+      "Skill(gsd:audit-milestone)",
+      "Skill(gsd:plan-milestone-gaps)",
+      "Bash(echo:*)"
     ]
   }
 }
