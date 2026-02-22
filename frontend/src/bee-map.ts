@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues } from "lit";
 import { customElement, query, state } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
-import { fromLonLat } from "ol/proj.js";
+import { fromLonLat, toLonLat } from "ol/proj.js";
 import { ParquetSource } from "./parquet.ts";
 import ecdysisDump from './assets/ecdysis.parquet?url';
 import VectorLayer from "ol/layer/Vector.js";
@@ -18,6 +18,72 @@ import './bee-sidebar.ts';
 import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent } from './bee-sidebar.ts';
 
 const sphericalMercator = 'EPSG:3857';
+
+// Default Washington State view
+const DEFAULT_LON = -120.5;
+const DEFAULT_LAT = 47.5;
+const DEFAULT_ZOOM = 7;
+
+interface ParsedParams {
+  lon: number;
+  lat: number;
+  zoom: number;
+  taxonName: string | null;
+  taxonRank: 'family' | 'genus' | 'species' | null;
+  yearFrom: number | null;
+  yearTo: number | null;
+  months: Set<number>;
+  occurrenceId: string | null;
+}
+
+function buildSearchParams(
+  center: number[],
+  zoom: number,
+  fs: typeof filterState,
+  selectedOccId: string | null
+): URLSearchParams {
+  const params = new URLSearchParams();
+  params.set('x', center[0]!.toFixed(4));
+  params.set('y', center[1]!.toFixed(4));
+  params.set('z', zoom.toFixed(2));
+  if (fs.taxonName !== null) {
+    params.set('taxon', fs.taxonName);
+    params.set('taxonRank', fs.taxonRank!);
+  }
+  if (fs.yearFrom !== null) params.set('yr0', String(fs.yearFrom));
+  if (fs.yearTo   !== null) params.set('yr1', String(fs.yearTo));
+  if (fs.months.size > 0)  params.set('months', [...fs.months].sort((a, b) => a - b).join(','));
+  if (selectedOccId !== null) params.set('o', selectedOccId);
+  return params;
+}
+
+function parseUrlParams(search: string): ParsedParams {
+  const p = new URLSearchParams(search);
+  const x = parseFloat(p.get('x') ?? '');
+  const y = parseFloat(p.get('y') ?? '');
+  const z = parseFloat(p.get('z') ?? '');
+  const lon  = isFinite(x) && x >= -180 && x <= 180 ? x : DEFAULT_LON;
+  const lat  = isFinite(y) && y >= -90  && y <= 90  ? y : DEFAULT_LAT;
+  const zoom = isFinite(z) && z >= 1    && z <= 22  ? z : DEFAULT_ZOOM;
+
+  const taxonName = p.get('taxon') ?? null;
+  const rawRank   = p.get('taxonRank') ?? null;
+  const taxonRank = (['family', 'genus', 'species'] as const).includes(rawRank as any)
+    ? rawRank as 'family' | 'genus' | 'species' : null;
+  // Both must be present and valid; if either is missing treat both as absent
+  const resolvedTaxonName = (taxonName && taxonRank) ? taxonName : null;
+  const resolvedTaxonRank = (taxonName && taxonRank) ? taxonRank : null;
+
+  const yearFrom = parseInt(p.get('yr0') ?? '') || null;
+  const yearTo   = parseInt(p.get('yr1') ?? '') || null;
+  const monthsStr = p.get('months') ?? '';
+  const months = new Set(
+    monthsStr ? monthsStr.split(',').map(Number).filter(n => n >= 1 && n <= 12) : []
+  );
+  const occurrenceId = p.get('o') ?? null;
+
+  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceId };
+}
 
 function buildSamples(features: Feature[]): Sample[] {
   const map = new Map<string, Sample>();
@@ -113,6 +179,41 @@ export class BeeMap extends LitElement {
   @state()
   private filteredSummary: FilteredSummary | null = null;
 
+  private _isRestoringFromHistory = false;
+  private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
+  private _selectedOccId: string | null = null;
+
+  // Filter state mirrored for URL sync — these track what to pass down to bee-sidebar for display restore
+  @state() private _restoredTaxonInput = '';
+  @state() private _restoredTaxonRank: 'family' | 'genus' | 'species' | null = null;
+  @state() private _restoredTaxonName: string | null = null;
+  @state() private _restoredYearFrom: number | null = null;
+  @state() private _restoredYearTo: number | null = null;
+  @state() private _restoredMonths: Set<number> = new Set();
+
+  private _onPopState = () => {
+    this._isRestoringFromHistory = true;
+    if (this._mapMoveDebounce) {
+      clearTimeout(this._mapMoveDebounce);
+      this._mapMoveDebounce = null;
+    }
+    try {
+      const parsed = parseUrlParams(window.location.search);
+      const view = this.map!.getView();
+      view.setCenter(fromLonLat([parsed.lon, parsed.lat]));
+      view.setZoom(parsed.zoom);
+      this._restoreFilterState(parsed);
+      if (parsed.occurrenceId) {
+        this._restoreSelectedOccurrence(parsed.occurrenceId);
+      } else {
+        this.selectedSamples = null;
+        this._selectedOccId = null;
+      }
+    } finally {
+      this._isRestoringFromHistory = false;
+    }
+  };
+
   static styles = css`
 :host {
   align-items: stretch;
@@ -147,6 +248,74 @@ bee-sidebar {
 }
   `
 
+  private _restoreFilterState(parsed: ParsedParams) {
+    filterState.taxonName = parsed.taxonName;
+    filterState.taxonRank = parsed.taxonRank;
+    filterState.yearFrom  = parsed.yearFrom;
+    filterState.yearTo    = parsed.yearTo;
+    filterState.months    = parsed.months;
+
+    clusterSource.changed();
+    this.map?.render();
+
+    // Recompute filteredSummary
+    const allFeatures = specimenSource.getFeatures();
+    const active = isFilterActive(filterState);
+    if (active && allFeatures.length > 0) {
+      const matching = allFeatures.filter(f => matchesFilter(f, filterState));
+      const fSummary = computeSummary(matching);
+      this.filteredSummary = {
+        filteredSpecimens: fSummary.totalSpecimens,
+        filteredSpeciesCount: fSummary.speciesCount,
+        filteredGenusCount: fSummary.genusCount,
+        filteredFamilyCount: fSummary.familyCount,
+        total: this.summary!,
+        isActive: true,
+      };
+    } else {
+      this.filteredSummary = null;
+    }
+
+    // Mirror to sidebar-driving @state fields (drives bee-sidebar controls via property binding)
+    this._restoredTaxonName  = parsed.taxonName;
+    this._restoredTaxonRank  = parsed.taxonRank;
+    this._restoredTaxonInput = parsed.taxonName
+      ? (this.taxaOptions.find(o => o.name === parsed.taxonName && o.rank === parsed.taxonRank)?.label ?? parsed.taxonName)
+      : '';
+    this._restoredYearFrom = parsed.yearFrom;
+    this._restoredYearTo   = parsed.yearTo;
+    this._restoredMonths   = parsed.months;
+  }
+
+  private _restoreSelectedOccurrence(occId: string) {
+    const feature = specimenSource.getFeatureById(occId) as Feature | null;
+    if (feature) {
+      const toShow = isFilterActive(filterState)
+        ? [feature].filter(f => matchesFilter(f, filterState))
+        : [feature];
+      if (toShow.length > 0) {
+        this.selectedSamples = buildSamples(toShow);
+        this._selectedOccId = occId;
+        return;
+      }
+    }
+    this.selectedSamples = null;
+    this._selectedOccId = null;
+  }
+
+  private _pushUrlState() {
+    const view = this.map!.getView();
+    const center = toLonLat(view.getCenter()!);
+    const zoom = view.getZoom()!;
+    const params = buildSearchParams(center, zoom, filterState, this._selectedOccId);
+    window.history.replaceState({}, '', '?' + params.toString());
+    if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
+    this._mapMoveDebounce = setTimeout(() => {
+      window.history.pushState({}, '', '?' + params.toString());
+      this._mapMoveDebounce = null;
+    }, 500);
+  }
+
   private _applyFilter(detail: FilterChangedEvent) {
     // Mutate the shared singleton (closed over by clusterStyle)
     filterState.taxonName = detail.taxonName;
@@ -180,6 +349,12 @@ bee-sidebar {
 
     // Clear selected samples (applying a filter dismisses any open cluster detail)
     this.selectedSamples = null;
+
+    // Sync filter change to URL
+    this._selectedOccId = null;
+    if (!this._isRestoringFromHistory && this.map) {
+      this._pushUrlState();
+    }
   }
 
   public render() {
@@ -191,13 +366,25 @@ bee-sidebar {
         .summary=${this.summary}
         .taxaOptions=${this.taxaOptions}
         .filteredSummary=${this.filteredSummary}
-        @close=${() => { this.selectedSamples = null; }}
+        .restoredTaxonInput=${this._restoredTaxonInput}
+        .restoredTaxonRank=${this._restoredTaxonRank}
+        .restoredTaxonName=${this._restoredTaxonName}
+        .restoredYearFrom=${this._restoredYearFrom}
+        .restoredYearTo=${this._restoredYearTo}
+        .restoredMonths=${this._restoredMonths}
+        @close=${() => {
+          this.selectedSamples = null;
+          this._selectedOccId = null;
+          if (this.map) this._pushUrlState();
+        }}
         @filter-changed=${(e: CustomEvent<FilterChangedEvent>) => this._applyFilter(e.detail)}
       ></bee-sidebar>
     `
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
+    const initialParams = parseUrlParams(window.location.search);
+
     const baseLayer = new LayerGroup();
     this.map = new OpenLayersMap({
       layers: [
@@ -221,34 +408,101 @@ bee-sidebar {
       ],
       target: this.mapElement,
       view: new View({
-        center: fromLonLat([-120.32, 47.47]),
+        center: fromLonLat([initialParams.lon, initialParams.lat]),
         projection: sphericalMercator,
-        zoom: document.documentElement.clientWidth < 500 ? 6 : 8,
+        zoom: initialParams.zoom,
       }),
     });
+
+    // Write initial URL state (covers no-param fresh loads — makes URL bar show params immediately)
+    const view = this.map.getView();
+    const initCenter = toLonLat(view.getCenter()!);
+    const initParams = buildSearchParams(initCenter, view.getZoom()!, filterState, null);
+    window.history.replaceState({}, '', '?' + initParams.toString());
+
+    // Restore filter state from URL params (filter singleton + sidebar display)
+    if (initialParams.taxonName || initialParams.yearFrom || initialParams.yearTo || initialParams.months.size > 0) {
+      filterState.taxonName = initialParams.taxonName;
+      filterState.taxonRank = initialParams.taxonRank;
+      filterState.yearFrom  = initialParams.yearFrom;
+      filterState.yearTo    = initialParams.yearTo;
+      filterState.months    = initialParams.months;
+      // Mirror to sidebar display fields
+      this._restoredTaxonName  = initialParams.taxonName;
+      this._restoredTaxonRank  = initialParams.taxonRank;
+      this._restoredTaxonInput = initialParams.taxonName ?? '';
+      this._restoredYearFrom   = initialParams.yearFrom;
+      this._restoredYearTo     = initialParams.yearTo;
+      this._restoredMonths     = initialParams.months;
+    }
 
     specimenSource.once('change', () => {
       const features = specimenSource.getFeatures();
       if (features.length > 0) {
         this.summary = computeSummary(features);
         this.taxaOptions = buildTaxaOptions(features);
-        // filteredSummary starts null (no filter active)
+
+        // Recompute filteredSummary if filter was restored from URL
+        if (isFilterActive(filterState)) {
+          const matching = features.filter(f => matchesFilter(f, filterState));
+          const fSummary = computeSummary(matching);
+          this.filteredSummary = {
+            filteredSpecimens: fSummary.totalSpecimens,
+            filteredSpeciesCount: fSummary.speciesCount,
+            filteredGenusCount: fSummary.genusCount,
+            filteredFamilyCount: fSummary.familyCount,
+            total: this.summary,
+            isActive: true,
+          };
+          // Now taxaOptions is available — refine _restoredTaxonInput label
+          if (this._restoredTaxonName) {
+            const opt = this.taxaOptions.find(o => o.name === this._restoredTaxonName && o.rank === this._restoredTaxonRank);
+            if (opt) this._restoredTaxonInput = opt.label;
+          }
+        }
+
+        // Restore selected occurrence (must happen here — data not available until this callback)
+        if (initialParams.occurrenceId) {
+          this._restoreSelectedOccurrence(initialParams.occurrenceId);
+        }
       }
     });
 
+    // moveend: replaceState immediately, pushState after 500ms debounce
+    this.map.on('moveend', () => {
+      if (this._isRestoringFromHistory) return;
+      this._pushUrlState();
+    });
+
+    // singleclick handler (unchanged from before, but also track _selectedOccId)
     this.map.on('singleclick', async (event: MapBrowserEvent) => {
       const hits = await speicmenLayer.getFeatures(event.pixel);
       if (!hits.length) {
         this.selectedSamples = null;
+        this._selectedOccId = null;
         return;
       }
       const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
       const toShow = isFilterActive(filterState)
         ? inner.filter(f => matchesFilter(f, filterState))
         : inner;
-      // If the clicked cluster has no matching specimens (ghosted), do nothing
       if (toShow.length === 0) return;
       this.selectedSamples = buildSamples(toShow);
+      // Store the first feature's ID for URL encoding (use first alphabetically for determinism)
+      this._selectedOccId = (toShow[0]!.getId() as string) ?? null;
+      this._pushUrlState();
     });
+
+    // popstate: restore app state when user navigates back/forward
+    window.addEventListener('popstate', this._onPopState);
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    window.removeEventListener('popstate', this._onPopState);
+    if (this._mapMoveDebounce) {
+      clearTimeout(this._mapMoveDebounce);
+      this._mapMoveDebounce = null;
+    }
   }
 }
