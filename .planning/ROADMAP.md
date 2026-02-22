@@ -74,7 +74,12 @@ Plans:
   3. Setting a year range (e.g., 2018–2022) hides specimens outside that range
   4. Setting a month filter (e.g., June–July) hides specimens from other months regardless of year
   5. Taxon and date filters combine — only specimens matching both are shown
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Create filter.ts (FilterState singleton + predicates) and update style.ts with per-cluster opacity ghosting
+- [ ] 04-02-PLAN.md — Restructure bee-sidebar.ts with filter controls UI and wire bee-map.ts to handle filter events + OL repaint
+- [ ] 04-03-PLAN.md — Human verify: FILTER-01 taxon autocomplete and FILTER-02 date/month filtering in browser
 
 ### Phase 5: URL Sharing
 **Goal**: A collector can share a link that restores the exact map view and active filters another collector sees
@@ -98,5 +103,5 @@ Note: Phase 2 (Infrastructure) is independent of Phase 1 (Pipeline) and can be w
 | 1. Pipeline | 1/1 | Complete   | 2026-02-18 |
 | 2. Infrastructure | 2/2 | Complete   | 2026-02-18 |
 | 3. Core Map | 3/3 | Complete | 2026-02-21 |
-| 4. Filtering | 0/TBD | Not started | - |
+| 4. Filtering | 0/3 | Not started | - |
 | 5. URL Sharing | 0/TBD | Not started | - |
