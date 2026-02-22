@@ -13,8 +13,9 @@ import TileLayer from "ol/layer/Tile.js";
 import XYZ from "ol/source/XYZ.js";
 import Feature from "ol/Feature.js";
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
+import { filterState, isFilterActive, matchesFilter } from './filter.ts';
 import './bee-sidebar.ts';
-import type { Sample, DataSummary } from './bee-sidebar.ts';
+import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent } from './bee-sidebar.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -63,6 +64,25 @@ function computeSummary(features: Feature[]): DataSummary {
   };
 }
 
+function buildTaxaOptions(features: Feature[]): TaxonOption[] {
+  const families = new Set<string>();
+  const genera = new Set<string>();
+  const species = new Set<string>();
+  for (const f of features) {
+    const fam = f.get('family') as string | null;
+    const gen = f.get('genus') as string | null;
+    const sp  = f.get('scientificName') as string | null;
+    if (fam) families.add(fam);
+    if (gen) genera.add(gen);
+    if (sp) species.add(sp);
+  }
+  return [
+    ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
+    ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
+    ...[...species].sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
+  ];
+}
+
 const specimenSource = new ParquetSource({url: ecdysisDump});
 const clusterSource = new Cluster({
   distance: 40,
@@ -86,6 +106,12 @@ export class BeeMap extends LitElement {
 
   @state()
   private summary: DataSummary | null = null;
+
+  @state()
+  private taxaOptions: TaxonOption[] = [];
+
+  @state()
+  private filteredSummary: FilteredSummary | null = null;
 
   static styles = css`
 :host {
@@ -121,6 +147,41 @@ bee-sidebar {
 }
   `
 
+  private _applyFilter(detail: FilterChangedEvent) {
+    // Mutate the shared singleton (closed over by clusterStyle)
+    filterState.taxonName = detail.taxonName;
+    filterState.taxonRank = detail.taxonRank;
+    filterState.yearFrom  = detail.yearFrom;
+    filterState.yearTo    = detail.yearTo;
+    filterState.months    = detail.months;
+
+    // Force OL to repaint with new filter state
+    clusterSource.changed();
+    // Also call map render in case changed() alone doesn't trigger repaint
+    this.map?.render();
+
+    // Recompute filtered summary for sidebar stats
+    const allFeatures = specimenSource.getFeatures();
+    const active = isFilterActive(filterState);
+    if (active && allFeatures.length > 0) {
+      const matching = allFeatures.filter(f => matchesFilter(f, filterState));
+      const fSummary = computeSummary(matching);
+      this.filteredSummary = {
+        filteredSpecimens: fSummary.totalSpecimens,
+        filteredSpeciesCount: fSummary.speciesCount,
+        filteredGenusCount: fSummary.genusCount,
+        filteredFamilyCount: fSummary.familyCount,
+        total: this.summary!,
+        isActive: true,
+      };
+    } else {
+      this.filteredSummary = null;
+    }
+
+    // Clear selected samples (applying a filter dismisses any open cluster detail)
+    this.selectedSamples = null;
+  }
+
   public render() {
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
@@ -128,7 +189,10 @@ bee-sidebar {
       <bee-sidebar
         .samples=${this.selectedSamples}
         .summary=${this.summary}
+        .taxaOptions=${this.taxaOptions}
+        .filteredSummary=${this.filteredSummary}
         @close=${() => { this.selectedSamples = null; }}
+        @filter-changed=${(e: CustomEvent<FilterChangedEvent>) => this._applyFilter(e.detail)}
       ></bee-sidebar>
     `
   }
@@ -167,6 +231,8 @@ bee-sidebar {
       const features = specimenSource.getFeatures();
       if (features.length > 0) {
         this.summary = computeSummary(features);
+        this.taxaOptions = buildTaxaOptions(features);
+        // filteredSummary starts null (no filter active)
       }
     });
 
@@ -177,7 +243,12 @@ bee-sidebar {
         return;
       }
       const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
-      this.selectedSamples = buildSamples(inner);
+      const toShow = isFilterActive(filterState)
+        ? inner.filter(f => matchesFilter(f, filterState))
+        : inner;
+      // If the clicked cluster has no matching specimens (ghosted), do nothing
+      if (toShow.length === 0) return;
+      this.selectedSamples = buildSamples(toShow);
     });
   }
 }
