@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-18)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 7 COMPLETE — URL state synchronization (NAV-01) satisfied; all v1.0 requirements done
+**Current focus:** Phase 6 COMPLETE — CDK deployment and live site verified
 
 ## Current Position
 
-Phase: 7 of 7 (URL Sharing)
+Phase: 6 of 6 (CDK Deployment and Live Site)
 Plan: 1 of 1 in current phase
-Status: Phase 7 COMPLETE — NAV-01 satisfied; shareable URLs encode map view and filters; browser history navigation works
-Last activity: 2026-02-22 — Phase 7 plan 01 complete; URL sync implemented; all v1.0 requirements satisfied
+Status: Phase 6 COMPLETE — INFRA-03 satisfied; live site at https://d1o1go591lqnqi.cloudfront.net; GitHub Actions deploy pipeline verified passing
+Last activity: 2026-02-22 — Phase 6 plan 01 complete; all tasks complete; v1.0 milestone achieved
 
 Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: ~7 min
-- Total execution time: ~0.6 hours
+- Total plans completed: 7
+- Average duration: ~6 min
+- Total execution time: ~0.5 hours
 
 **By Phase:**
 
@@ -33,10 +33,9 @@ Progress: [██████████] 100%
 | 04-filtering | 5 | 13 min | 2.6 min |
 | 05-fix-month-offset | 1 | 5 min | 5 min |
 | 06-infra03-deployment | 1 | ~30 min | ~30 min |
-| 07-url-sharing | 1 | 10 min | 10 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-04 (5 min), 04-05 (5 min), 05-01 (5 min), 06-01 (~30 min), 07-01 (10 min)
+- Last 5 plans: 04-01 (1 min), 04-02 (2 min), 04-04 (5 min), 04-05 (5 min), 05-01 (5 min)
 - Trend: Fast
 
 *Updated after each plan completion*
@@ -78,18 +77,15 @@ Recent decisions affecting current work:
 - [06-01]: CDK stacks were already deployed from Phase 2 — cdk deploy returned "no changes"; INFRA-03 gap was documentation-only
 - [06-01]: GitHub Actions Variables set in Variables tab (vars.*) not Secrets tab — deploy.yml uses vars.* context throughout
 - [06-01]: No OIDC provider fallback needed — existing provider already present in account; stacks deployed cleanly
-- [07-01]: URL params use query string (not hash): x/y/z/taxon/taxonRank/yr0/yr1/months/o — replaceState immediately, 500ms debounced pushState on moveend
-- [07-01]: _isRestoringFromHistory flag gates moveend listener to prevent reentrant history push during popstate restore
-- [07-01]: updated() pattern in BeeSidebar mirrors @property restore values to @state fields without breaking user-interaction state
-- [07-01]: Default Washington State view changed to lon=-120.5/lat=47.5/zoom=7 (from old hardcoded -120.32/47.47/8)
 
 ### Pending Todos
 
-None.
+None yet.
 
 ### Blockers/Concerns
 
 - [Phase 3]: Verify `place_id=82` for Washington State in iNaturalist before any iNat pipeline work
+*(No active blockers for plan 04 items — all 4 Phase 4 UX issues resolved in plan 04)*
 
 *Resolved:*
 - [Phase 2 - resolved]: CDK OAC construct API confirmed working — `S3BucketOrigin.withOriginAccessControl()` verified in cdk synth output with aws-cdk-lib 2.238.0
@@ -97,6 +93,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-22 (plan 07-01 complete)
-Stopped at: Completed 07-01-PLAN.md — Phase 7 URL sharing complete; NAV-01 satisfied; all v1.0 requirements done
+Last session: 2026-02-22 (plan 06-01 complete)
+Stopped at: Completed 06-01-PLAN.md — Phase 6 CDK deployment and live site verification complete; v1.0 milestone achieved
 Resume file: None
