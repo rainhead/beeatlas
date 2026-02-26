@@ -1,191 +1,199 @@
 # Project Research Summary
 
-**Project:** Washington Bee Atlas
-**Domain:** Static biodiversity occurrence map — brownfield extension with CI/CD deploy
-**Researched:** 2026-02-18
-**Confidence:** HIGH (frontend/pipeline from direct source audit; AWS infra MEDIUM from training data)
+**Project:** Washington Bee Atlas — v1.1 iNaturalist API Integration
+**Domain:** Static biodiversity map with CI/CD deploy; Python data pipeline; client-side Parquet
+**Researched:** 2026-02-25
+**Confidence:** HIGH (grounded in direct codebase inspection and official library docs)
 
 ## Executive Summary
 
-The Washington Bee Atlas is a brownfield TypeScript/Python project that renders entomological specimen observations on an OpenLayers map, served as a fully static site from S3+CloudFront. The task is to add five features (taxon filtering, date filtering, click-to-detail popup, iNaturalist host plant layer, location search) plus automate deployment via GitHub Actions OIDC. The existing stack — Lit web components, OpenLayers 10, hyparquet, pandas/geopandas, pyinaturalist — is well-chosen and should not change. The gaps to fill are: CDK infrastructure (S3 bucket, CloudFront distribution, OIDC IAM role), a completed iNaturalist data pipeline, and frontend feature work on top of the existing `BeeMap` component.
+The v1.1 milestone adds a second data stream to an already-working static map. The existing architecture — Python pipeline produces a Parquet file, Vite bundles it as a content-hash asset, hyparquet reads it client-side, OpenLayers renders it as a vector layer — is proven and simply needs to be repeated for iNaturalist observations. No new dependencies, no new AWS infrastructure, and no authentication are required. Both `pyinaturalist` (0.21.1) and `pyinaturalist-convert` (0.7.4) are already locked in `data/uv.lock`; the Washington Bee Atlas project ID (166376) is already recorded in `data/inat/projects.py`. The core implementation is a new `data/inat/download.py` script following the same pattern as the existing `data/ecdysis/occurrences.py`.
 
-The recommended approach is to work strictly left-to-right through the data path: fix the broken data pipeline first (remove the `pdb.set_trace()` debugger trap, consolidate Parquet schemas, add a null-coordinate guard), then wire up infrastructure (CDK stack + OIDC + GitHub Actions deploy workflow), then add frontend features in dependency order (clustering, popup, filters, host plant layer, URL sharing). Architecture research is decisive: use OL style functions as a visibility gate for filtering (return `null` to hide features), use Lit `@state()` with an `updated()` hook to bridge Lit and OL render loops, and render the detail panel as a Lit sidebar rather than an OL Overlay to avoid shadow DOM friction. All filtering is client-side; there is no backend.
+The single non-trivial technical decision is how to handle specimen count extraction. iNaturalist observation field values (`ofvs`) are not included in API responses by default — the `fields=all` parameter must be explicitly specified. More critically, the exact field ID used by the WA Bee Atlas for specimen count cannot be determined without inspecting live observations; it must be discovered at pipeline build time by querying `/v1/projects/166376`. The pipeline should treat absent specimen count as null (not 0), because the WA Bee Atlas is likely a collection project where observation field entry is voluntary, and the frontend sidebar must distinguish "0 specimens" from "not recorded."
 
-The two highest risks are both preventable with known patterns. First, the iNaturalist API has a hard 10,000-record cap per query that causes silent data truncation — use `id_above` pagination (pyinaturalist's `page='all'` already triggers this) and validate `total_results` in the pipeline. Second, the CDK/CloudFront deploy can leave stale cached files visible to users — always run `cloudfront create-invalidation` after every S3 sync, and set `Cache-Control: no-cache` on `index.html`. Both risks have concrete mitigations; neither requires architectural changes.
-
----
+The two significant risks for v1.1 are both in CI/CD rather than application logic. First, the iNat API is an external dependency that can fail independently of ecdysis.org, meaning the CI now has two external failure points; committing a fallback `samples.parquet` (matching the existing pattern for `ecdysis.parquet`) is the mitigation. Second, the existing `build-data.sh` runs on every push to any branch — adding a second API call compounds this waste; the iNat download should either be gated to the `deploy` job only or separated into a scheduled pipeline job.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack is solid and complete for this use case. The only new technology introductions are AWS CDK v2 for infrastructure-as-code and GitHub Actions OIDC for keyless CI/CD. CDK v2 (`aws-cdk-lib`) is the only supported major version; use `S3BucketOrigin.withOriginAccessControl()` (not the deprecated `S3Origin`) for the CloudFront origin. OIDC eliminates stored AWS key secrets: GitHub Actions receives a short-lived JWT, and the IAM role trust policy restricts assumption to the specific repo and branch.
+No new dependencies are required. `pyinaturalist` with `page='all'` handles cursor-based pagination automatically via its `IDRangePaginator` (uses `id_above` under the hood, handles arbitrarily large result sets without hitting the 10,000-record offset cap). `pyinaturalist-convert`'s `to_dataframe()` covers core fields but does not expand `ofvs` — a small custom `extract_ofv()` helper handles specimen count extraction.
 
-**Core technologies:**
-- **Lit 3 + OpenLayers 10**: Frontend web component + map — existing, do not change
-- **hyparquet**: Client-side Parquet reading via HTTP Range requests — existing, handles 45K+ features without a backend
-- **pandas/geopandas + pyarrow**: Data pipeline — existing; pyarrow Parquet output is the contract between pipeline and frontend
-- **pyinaturalist 0.20.2 (functional API)**: iNat data download — existing; use `get_observations(page='all')` for IDRangePaginator; do NOT use the experimental `iNatClient` OOP API
-- **AWS CDK v2**: S3 + CloudFront + OAC + OIDC IAM role — new; single bucket for both site and data files
-- **GitHub Actions OIDC**: Keyless deploy — new; `aws-actions/configure-aws-credentials@v4` handles JWT exchange
+**Core technologies (existing, no changes needed):**
+- `pyinaturalist` 0.21.1: iNat API client — `get_observations(project_id=166376, page='all', per_page=200)`; built-in rate limiting via pyrate-limiter
+- `pyinaturalist-convert` 0.7.4: converts observation response objects to pandas DataFrames via `to_dataframe()`; does not expand `ofvs` (custom helper required)
+- `pandas` + `pyarrow`: Parquet production (same as ecdysis pipeline, unchanged)
+- `hyparquet` (frontend): HTTP range requests to read samples.parquet client-side (same pattern as ecdysis.parquet)
+- OpenLayers `VectorLayer` + `forEachFeatureAtPixel`: layer-discriminated click handling with `layerFilter`
+
+**Critical version notes:**
+- Use iNat API v1, not v2: v2 has documented project observation count discrepancies vs v1; pyinaturalist's wrappers target v1
+- `page='all'` pagination must be verified against installed 0.21.1 docs before use (MEDIUM confidence on exact parameter name)
 
 ### Expected Features
 
-The target users are field biologists planning collecting trips — domain experts who know taxonomy and expect professional-grade map tooling.
+**Must have (table stakes) — all 5 PROJECT.md requirements:**
+- INAT-01: Query iNat API with cursor pagination for all WA Bee Atlas project observations
+- INAT-02: Extract observer, date, coordinates, specimen count (with `fields=all` to get `ofvs`); null-safe extraction
+- INAT-03: Write `samples.parquet` with schema: `observation_id` (int64), `observer` (string), `date` (string ISO), `lat` (float64), `lon` (float64), `specimen_count` (Int64 nullable), `uri` (string)
+- MAP-03: Sample markers layer — diamond-shaped, iNaturalist green (#74ac00), no clustering, renders above specimen layer
+- MAP-04: Click-to-detail sidebar — three-state render (summary / specimen cluster / iNat sample); shows observer, date, specimen_count ("Not yet entered" for null), link to iNat URL
 
-**Must have (table stakes):**
-- Taxon filter (typeahead against family/genus/species) — primary user workflow; "show me only Osmia records"
-- Date range filter (by year or month-of-year) — seasonality drives field planning
-- Click-to-detail popup/sidebar — every dot must be identifiable; show species, collector, date, host plant
-- Clustered point rendering — 45K unclustured points is an unreadable blob at state zoom; `clusterStyle` is already stubbed in `style.ts`
-- Scale bar + attribution — cartographic conventions; legally required for ESRI tiles
-
-**Should have (differentiators):**
-- iNaturalist host plant layer (toggleable) — cross-referencing bee habitat with plant availability is the primary analytical value of the tool
-- Shareable URL with filter state — `ol/interaction/Link` is already installed; field biologists share "look at this spot" links
-- Location search (Nominatim/OSM) — navigate to a county or city without knowing coordinates
+**Should have (differentiators, low complexity):**
+- `uri` stored in Parquet for sidebar deep-linking (`uri` is always present in API response; trivial to include)
+- Observer display name fallback: prefer `user.name`, fall back to `user.login` if name is empty string
+- Data freshness date displayed on map (e.g., "Sample data as of 2026-02-25") to manage volunteer expectations
 
 **Defer to v2+:**
-- Loading indicator — add when Parquet file size becomes perceptible; currently fast
-- Scale bar — trivial but not user-facing priority for launch
-- Heat map / analytics charts — scope creep; map is the analytical surface
-
-**Anti-features (explicitly do not build):**
-- Server-side API or backend — violates static hosting constraint
-- User accounts or saved filters — URL sharing covers the use case
-- Multi-source data (GBIF, OSU Museum) — out of scope; Ecdysis is the specimen source of truth
-- Real-time data refresh — static Parquet updated per pipeline run is correct
+- Specimen-to-sample linkage (Ecdysis HTML scraping) — explicitly v1.2 per PROJECT.md
+- Distinct "pending" vs "counted" marker styles — nice-to-have, not blocking milestone
+- URL sharing for iNat-specific state — NAV-01, explicitly v1.2 per PROJECT.md
+- Host plant display layer — different data shape, out of scope for v1.1
+- Taxon filtering for sample markers — iNat observations represent collection events, not identified specimens
 
 ### Architecture Approach
 
-The target architecture extends the existing `BeeMap` LitElement to own two data layers (specimen + host plant), hold reactive filter state, and render UI controls alongside the map. The key architectural pattern is the OL/Lit bridge: Lit `@state()` properties drive filter values, the `updated()` lifecycle hook calls `specimenLayer.changed()` when filter state changes, and the OL style function returns `null` for features that don't match — causing OL to skip rendering those features without reloading data. All 45K features stay in memory after the initial Parquet fetch; filtering is O(n) across existing Feature objects. The detail panel is a Lit-rendered sidebar (not an OL Overlay), which avoids shadow DOM complications.
+The integration follows the same pattern as the existing ecdysis pipeline end-to-end: Python produces a Parquet file, `build-data.sh` copies it to `frontend/src/assets/`, Vite bundles it with a content-hash URL, and hyparquet reads it client-side. No new AWS infrastructure, no CORS issues (same CloudFront origin), no CDK changes. The frontend extension requires modifying six existing files and adding one new file (`data/inat/download.py`).
 
 **Major components:**
-1. **ParquetSource (generalized)** — accepts `url`, `columns`, `featureId`, `geometry` constructor params; calls `feature.setProperties(row)` so all Parquet columns travel with the OL Feature; includes null-coordinate guard
-2. **BeeMap (extended)** — holds `@state()` properties for `taxonFilter`, `dateRange`, `selectedFeatureId`; wires `updated()` to `layer.changed()`; owns both VectorLayers and the OL Map
-3. **Offline data pipeline** — two scripts: `ecdysis/occurrences.py` (fix: remove pdb, extend column list) and `inat/observations.py` (new: download WA Atlas observations, convert to Parquet); both output Parquet to `frontend/src/assets/`
-4. **CDK stack** — S3 bucket (private, OAC) + CloudFront distribution + OIDC IAM role; separate cache behaviors for `index.html` (no-cache) vs. `data/*` (long TTL)
-5. **GitHub Actions workflow** — OIDC credential exchange + `npm ci && npm run build` + `aws s3 sync --exclude "data/*"` + `cloudfront create-invalidation`
+1. `data/inat/download.py` (NEW) — iNat API fetch with `fields=all` and cursor pagination; null-safe `ofvs` extraction; writes `samples.parquet`
+2. `scripts/build-data.sh` (MODIFIED) — adds iNat download step and copy to `frontend/src/assets/`
+3. `frontend/src/parquet.ts` `ParquetSource` (MODIFIED) — extract `columns` + `featureFromRow` as constructor options so both ecdysis and iNat variants share the class without duplication
+4. `frontend/src/bee-map.ts` (MODIFIED) — add `sampleSource`, `sampleLayer`, `selectedInatSample` state; update singleclick handler to check sampleLayer first via `forEachFeatureAtPixel` with `layerFilter`
+5. `frontend/src/bee-sidebar.ts` (MODIFIED) — add `InatSample` interface, `inatSample` property, `_renderInatDetail()`, three-branch `render()`
+6. `frontend/src/style.ts` (MODIFIED) — add `sampleStyle` export (diamond, iNat green, no cluster label)
+
+**Key patterns:**
+- Layer-discriminated click: `forEachFeatureAtPixel` with `{ layerFilter: (l) => l === sampleLayer }` before falling through to existing specimen cluster path; prevents spurious double-fires from overlapping layers
+- No clustering for sample markers: each iNat observation is a distinct collection event; hundreds of points pose no render performance concern at this scale
+- Committed fallback Parquet: `frontend/src/assets/samples.parquet` committed as a valid stub, overwritten by pipeline build
 
 ### Critical Pitfalls
 
-1. **CloudFront serves stale files after deploy** — Always run `aws cloudfront create-invalidation --paths "/*"` after every `aws s3 sync`. Set `Cache-Control: no-cache` on `index.html`. Hashed Vite assets self-invalidate by filename but `index.html` does not.
+1. **`ofvs` not returned by default** — Include `fields=all` in the API request. Without it, `specimen_count` will be null for every observation. The sample observation JSON in the repo (`data/inat/observation/300847934.json`) confirms `ofvs` is absent from a default API response. (PITFALL-7, blocking INAT-02)
 
-2. **pdb.set_trace() in occurrences.py halts CI indefinitely** — Remove before any CI wiring. This is a blocking bug. CI job will hang for 6 hours then timeout.
+2. **Observation field ID must be discovered, not assumed** — The specimen count field numeric ID for the WA Bee Atlas project is not findable via web search. Discover it by querying `/v1/projects/166376` or inspecting a live observation with a known specimen count; hardcode as a named constant. Matching by name string works as a fallback but is fragile (case-sensitive; curator can rename the field). (PITFALL-8, blocking INAT-02)
 
-3. **iNaturalist 10,000-record hard cap causes silent truncation** — pyinaturalist's `page='all'` uses `IDRangePaginator` (id_above strategy) which bypasses this limit. Validate `total_results` against actual record count after each fetch. Split queries by taxon or date range if needed.
+3. **CI external dependency failure** — The iNat API is a second external failure point alongside ecdysis.org. Commit `samples.parquet` as a fallback; gate the iNat download to the deploy job only (not every branch push) to avoid unnecessary rate limiting across concurrent CI runs. (PITFALL-11, PITFALL-12)
 
-4. **GitHub Actions OIDC subject claim mismatch** — Use `StringLike` with a wildcard (`repo:rainhead/beeatlas:*`) during initial setup; tighten after confirming it works. Ensure the trust policy includes both `aud: sts.amazonaws.com` and the `sub` condition. If using `environment:` scoping, the workflow job must declare it too.
+4. **iNat API pagination hard limit** — The 10,000-record offset-based cap is hard server-side; `page='all'` in pyinaturalist uses `id_above` cursor pagination to bypass it. Use `page='all'` from day one. Assert `total_results < 10_000` as a monitoring guard; fail the pipeline loudly if exceeded rather than silently truncating. (PITFALL-5)
 
-5. **aws s3 sync --delete wipes Parquet data files** — Use `--exclude "data/*"` in the deploy sync command. Keep frontend build and data pipeline as separate sync operations targeting different S3 prefixes.
-
----
+5. **`specimen_count` must be nullable, not default-to-zero** — WA Bee Atlas is likely a collection project; observation field entry is voluntary. Many observations will have no specimen count field. Use nullable `Int64` in pandas; display "Not yet entered" in the frontend sidebar for null, not "0". (PITFALL-9)
 
 ## Implications for Roadmap
 
-Dependencies flow strictly: data schema gates pipeline, pipeline gates frontend, infrastructure gates deployment. The natural phases follow this order.
+Dependencies flow strictly from pipeline to frontend, with two internal parallel sub-paths in the frontend phase. The natural structure is three sequential phases, with explicit parallelism noted within each.
 
-### Phase 1: Data Pipeline Fixes
-**Rationale:** Everything downstream depends on correct, stable Parquet output. The existing pipeline has a blocking debugger trap, duplicate dtype specs, and a null-coordinate bug. None of the frontend features can be tested until the Parquet contains the required fields. This phase has no external dependencies.
-**Delivers:** Reliable `ecdysis.parquet` with all popup/filter columns; consolidated schema definition; null guard; removal of pdb trap
-**Addresses:** Table stakes popup and filter features (they need the data fields)
-**Avoids:** Pitfall 13 (pdb CI hang), Pitfall 10 (schema drift), Pitfall 15 (Ecdysis POST silent failure)
+### Phase 1: Data Pipeline (INAT-01, INAT-02, INAT-03)
 
-### Phase 2: iNaturalist Data Pipeline
-**Rationale:** The host plant layer is a differentiating feature and requires a new pipeline script. It should be built and validated before the frontend layer is wired, so the frontend layer can be implemented against real data. Depends on Phase 1 establishing the Parquet output pattern.
-**Delivers:** `inat.parquet` with host plant observations for Washington Bee Atlas project; validated pagination and record counts
-**Addresses:** iNaturalist host plant layer (differentiator feature)
-**Avoids:** Pitfall 5 (10K cap — use IDRangePaginator), Pitfall 9 (rate limiting — weekly cache in CI)
+**Rationale:** The pipeline must produce a valid `samples.parquet` before any frontend work can be meaningfully validated. Two blocking unknowns — the `fields=all` parameter syntax and the specimen count field ID — must be resolved before writing the extraction logic. The phase begins with a live API inspection step (one curl command) that unblocks all subsequent pipeline work.
 
-### Phase 3: AWS Infrastructure (CDK + OIDC)
-**Rationale:** Infrastructure can be built in parallel with or immediately after pipeline work. It has no dependency on the frontend features but must exist before any deployment can happen. CDK bootstrap is a one-time manual step that must precede automated deploys.
-**Delivers:** S3 bucket, CloudFront distribution (OAC), OIDC IAM role, GitHub Actions deploy workflow
-**Uses:** AWS CDK v2, `S3BucketOrigin.withOriginAccessControl()`, `aws-actions/configure-aws-credentials@v4`
-**Avoids:** Pitfall 1 (CloudFront cache — invalidation in workflow), Pitfall 2 (OAI vs OAC), Pitfall 3 (OIDC subject mismatch — start with StringLike), Pitfall 7 (CDK bootstrap documentation), Pitfall 11 (--delete wipes data — use --exclude)
+**Delivers:** `data/inat/download.py` producing `samples.parquet` with the correct schema; `build-data.sh` extended with the iNat download step; committed fallback Parquet file; schema validation assertion in pipeline.
 
-### Phase 4: Frontend Core (Clustering + Popup + Generalized ParquetSource)
-**Rationale:** These three items are tightly coupled and block all filter work. Generalizing `ParquetSource` (add `columns`, `featureId`, `geometry` params + `setProperties`) is a prerequisite for both the second data layer and the popup. Clustering makes the map usable at state zoom. The popup requires feature properties on the OL Feature objects.
-**Delivers:** Generalized `ParquetSource`, null-coordinate guard in frontend, clustering enabled (`ol/source/Cluster` wired to existing `clusterStyle`), click-to-detail Lit sidebar
-**Addresses:** Table stakes: clustered rendering, click popup
-**Avoids:** Pitfall 12 (OL CSS version drift — switch to Vite-bundled import), ARCHITECTURE anti-pattern (storing Feature object as state — store ID only)
+**Addresses:** INAT-01, INAT-02, INAT-03 (all PROJECT.md pipeline requirements)
 
-### Phase 5: Frontend Filters + Host Plant Layer
-**Rationale:** Filters require the generalized ParquetSource and popup architecture from Phase 4. The host plant layer requires both the iNat pipeline (Phase 2) and the generalized ParquetSource (Phase 4). These ship together because the OL/Lit bridge pattern (`updated()` → `layer.changed()`) is the same for both.
-**Delivers:** Taxon typeahead filter, date range filter, second VectorLayer for host plants with toggle, layer visibility controls
-**Addresses:** Primary differentiators (filters, host plant layer)
-**Avoids:** Pitfall 6 (OL performance — wire clustering before adding host plant layer; consider WebGLPointsLayer if host plant count exceeds 50K), Pitfall 4 (large Parquet in Vite build — keep data files outside dist/ and serve from S3 `data/` prefix)
+**Avoids:** PITFALL-7 (ofvs not returned by default), PITFALL-8 (field ID unknown), PITFALL-5 (pagination cap — use `page='all'`), PITFALL-11/12 (CI external dependency — commit fallback, gate download to deploy job), PITFALL-20 (pdb.set_trace() must be removed from `data/ecdysis/occurrences.py` first — this is blocking and must be the first commit)
 
-### Phase 6: URL Sharing + Location Search
-**Rationale:** URL sharing requires filters to exist (Phase 5). Location search has no dependencies but is low-risk polish. Both are quality-of-life features that round out the tool.
-**Delivers:** `ol/interaction/Link` wired + filter state in URL params; Nominatim geocoder input with `view.fit()` zoom
-**Addresses:** Differentiators: shareable URL, location search
-**Avoids:** No new pitfalls; uses established patterns
+**Key tasks in order:**
+1. Remove `pdb.set_trace()` from `data/ecdysis/occurrences.py` line 95 (blocking)
+2. Inspect live WA Bee Atlas observations to discover specimen count field ID
+3. Verify `fields=all` parameter syntax in pyinaturalist 0.21.1
+4. Write `download.py` with `fields=all`, cursor pagination, null-safe `ofvs` extraction
+5. Add post-write schema validation (assert column types via `pyarrow.parquet.read_schema()`)
+6. Extend `build-data.sh`; commit fallback `samples.parquet`
+
+### Phase 2: Frontend Sample Layer (MAP-03)
+
+**Rationale:** The `ParquetSource` refactor (extract configurable `columns`/`featureFromRow`) is prerequisite to the sample source but the style export is independent and can proceed in parallel. This phase ends with visible diamond markers on the map. Frontend development can proceed against a hand-crafted stub `samples.parquet` before Phase 1 is complete.
+
+**Delivers:** Refactored `ParquetSource` accepting configurable columns and feature mapping; `sampleStyle` export (diamond, iNat green); `sampleSource` and `sampleLayer` added to `BeeMap`; correct z-ordering above specimen clusters.
+
+**Addresses:** MAP-03
+
+**Avoids:** PITFALL-4 (Vite Parquet handling — bundle as `?url` asset, same as ecdysis; no runtime S3 fetch), anti-pattern of merging specimens and iNat observations into one Parquet (incompatible schemas, different update cadences), anti-pattern of clustering sample markers (collection events must remain individually identifiable)
+
+**Parallelism:** `parquet.ts` refactor and `style.ts` `sampleStyle` addition can proceed in parallel; `bee-map.ts` layer construction waits for both.
+
+### Phase 3: Click Interaction and Sidebar (MAP-04)
+
+**Rationale:** Depends on MAP-03 completing (layer must exist and be clickable). The three-state sidebar render and layer-discriminated click handler are logically independent of each other and can be developed in parallel, but both must complete before the milestone is done.
+
+**Delivers:** Complete MAP-04 — click on a sample marker shows observer, date, specimen_count (null-aware: "Not yet entered"), link to iNat observation URL. Sidebar correctly handles all three states: summary, specimen cluster detail, iNat sample detail.
+
+**Addresses:** MAP-04
+
+**Avoids:** PITFALL-9 (collection project: null specimen_count shown as "Not yet entered," not "0"), anti-pattern of using `map.getFeaturesAtPixel` without `layerFilter` (mixing cluster features and iNat features in same callback requires fragile type-checking)
+
+**Key tasks:**
+- Update singleclick handler: `forEachFeatureAtPixel` with `{ layerFilter: (l) => l === sampleLayer }` first; fall through to existing specimen cluster path on miss
+- Add `InatSample` interface and `_renderInatDetail()` to `bee-sidebar.ts`
+- Three-branch render: summary / specimen cluster / iNat sample
+- Test all three click paths and the empty-map click (clear-selection) path
 
 ### Phase Ordering Rationale
 
-- **Pipeline before frontend** because the required Parquet columns (taxon hierarchy, year/month, fieldNumber, host plant) are not yet in the output. Frontend features built against the current Parquet would need rework.
-- **Infrastructure can overlap with pipeline** (Phases 2 and 3 are independent). The CDK stack does not depend on data content.
-- **Core architecture before features** because the generalized ParquetSource and OL/Lit bridge pattern are shared by all filter and layer features. Building filters before this refactor would mean rewriting them.
-- **Filters and host plant layer together** because they use the same `updated()` → `layer.changed()` bridge and ship in the same UI iteration.
+- Pipeline before frontend because the specimen count field ID and `fields=all` syntax are unknowns; building the extraction layer before these are resolved would require rework. However, Phase 2 frontend work can begin against a hand-crafted stub Parquet without waiting for Phase 1 to complete.
+- `ParquetSource` refactor must precede the sample layer (Phase 2 internal dependency); style export can proceed in parallel.
+- Sidebar (Phase 3) depends on the layer existing and being clickable (Phase 2 complete).
+- `pdb.set_trace()` removal is blocking and must be the very first commit — it causes CI to hang indefinitely on any run that hits the Ecdysis pipeline.
 
 ### Research Flags
 
-Phases needing deeper research during planning:
-- **Phase 3 (CDK + OIDC):** CDK API surface (especially OAC construct signatures) may have changed since training data cutoff (August 2025). Verify `S3BucketOrigin.withOriginAccessControl()` constructor API against current CDK v2 changelog before writing the stack. Check current `aws-actions/configure-aws-credentials` version tag.
-- **Phase 5 (Host plant layer performance):** If the iNat dataset for Washington exceeds 50K host plant observations, `VectorLayer` rendering may degrade. Research `WebGLPointsLayer` as a replacement for the host plant layer specifically. OL v10 WebGL rendering API should be verified against installed source.
+Phases with standard patterns (no additional research needed):
+- **Phase 2 (frontend layer):** OpenLayers multi-layer rendering and `forEachFeatureAtPixel` with `layerFilter` are well-documented. Vite `?url` import pattern is identical to existing working ecdysis code. `RegularShape` diamond style is a standard OL pattern.
+- **Phase 3 (sidebar):** Lit component three-branch render is an established pattern already in use in `bee-sidebar.ts`. The `CustomEvent` dispatch for "Back" navigation follows the existing component communication pattern.
 
-Phases with well-documented patterns (skip research-phase):
-- **Phase 1 (Pipeline fixes):** Removing pdb, consolidating dtypes, adding null guards — standard Python debugging and validation. No novel patterns.
-- **Phase 4 (Core frontend):** OL Cluster source, Overlay/sidebar pattern, style-function filtering — all verified from installed OL 10 source and established Lit 3 patterns. Well-documented.
-- **Phase 6 (URL sharing + geocoder):** `ol/interaction/Link` is in the installed dependency and verified from source. Nominatim API is straightforward. No research needed.
-
----
+Phases requiring live investigation before coding (not research-phase, but pre-implementation verification — 10–30 minutes each):
+- **Phase 1 (pipeline) — specimen count field ID:** One curl command against the live WA Bee Atlas project to inspect `ofvs` on a known observation. Cannot be determined without live API access.
+- **Phase 1 (pipeline) — `fields=all` parameter name:** Verify the exact pyinaturalist 0.21.1 keyword argument for requesting observation field values in `get_observations()`. STACK.md and PITFALLS.md both reference this parameter but with slightly different syntax (`fields='all'` vs `extra=fields`).
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Existing stack verified from installed packages; CDK/OIDC from training data (MEDIUM for those portions) |
-| Features | HIGH | OL API verified from installed source at `node_modules/ol/`; domain knowledge from PROJECT.md user description |
-| Architecture | HIGH | All patterns derived from direct codebase inspection; OL and Lit APIs stable and well-known |
-| Pitfalls | MEDIUM | Project-specific bugs (pdb, null coords, schema drift) are HIGH; CDK/GHA/iNat limits are MEDIUM from training data |
+| Stack | HIGH | Both libraries verified in `data/uv.lock` directly; API auth requirements confirmed from official docs; rate limits from official iNat Recommended Practices |
+| Features | HIGH | Actual observation JSON in repo (`data/inat/observation/300847934.json`) confirms field paths; all existing frontend source files read directly; PROJECT.md requirements are precise |
+| Architecture | HIGH | All integration point files read directly; OL multi-layer patterns confirmed against official API docs; Vite `?url` and hyparquet patterns identical to existing working code |
+| Pitfalls | HIGH (project-specific) / MEDIUM (AWS/GHA patterns) | Direct code audit for project-specific bugs (pdb.set_trace, dtype duplication) is HIGH confidence; CDK/GHA pitfalls from training data cutoff August 2025 are MEDIUM |
 
-**Overall confidence:** HIGH for what to build and how to build it. MEDIUM for exact AWS CDK API signatures — verify against CDK changelog before writing infra code.
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **CDK construct API stability:** `S3BucketOrigin.withOriginAccessControl()` was introduced in CDK v2 in 2022-2023. Verify the exact constructor signature and options hasn't changed in CDK 2.178.x before writing the stack. The pattern is correct; the API details may differ slightly.
-- **iNat record volume for Washington host plants:** Unknown how many total iNat observations exist for the WA Bee Atlas project (166376) and for host plants in WA broadly. If the project has under 10K records, `page='all'` with standard pagination is fine. If broader plant queries are needed, test `total_results` before committing to a query strategy.
-- **WebGLPointsLayer hit detection:** If host plant performance requires WebGLPointsLayer, the click interaction API is more complex than VectorLayer. This is a known tradeoff to resolve during Phase 5 if performance is an issue.
-- **Washington State iNat place ID:** Research confirms `place_id=82` for Washington from training knowledge. Verify with `pyinaturalist.get_places_by_id(82)` before the data pipeline ships.
-
----
+- **Specimen count field ID and name (LOW confidence):** Not determinable from web search or the sample observation JSON in the repo (which has no `ofvs`). Resolve with one `curl` command against the live API before writing extraction logic. Blocking for Phase 1.
+- **`fields=all` exact parameter syntax (MEDIUM confidence):** PITFALLS research flags this as "use `fields=all` or `extra=fields`." Confirm the exact pyinaturalist 0.21.1 keyword argument name before writing the extraction call. Low-effort to resolve (check installed docs).
+- **WA Bee Atlas project type — collection vs traditional (LOW confidence):** Affects what fraction of observations will have null `specimen_count`, which affects how prominently the "Not yet entered" state should be displayed in the UI. Resolve via `GET /v1/projects/166376` (one API call). Informs UI copy emphasis, not architecture.
+- **`page='all'` vs manual `id_above` loop:** STACK.md recommends `page='all'`; ARCHITECTURE.md shows a manual loop. Both are correct; `page='all'` is simpler if pyinaturalist 0.21.1 supports it — verify before choosing.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- Installed pyinaturalist source: `/Users/rainhead/dev/beeatlas/data/.venv/lib/python3.14/site-packages/pyinaturalist/` — pagination behavior, rate limits, functional vs OOP API
-- Installed OpenLayers source: `/Users/rainhead/dev/beeatlas/node_modules/ol/` — Cluster, Overlay, Link, VectorLayer, WebGLPoints APIs
-- Project codebase direct audit:
-  - `frontend/src/bee-map.ts`, `frontend/src/parquet.ts`, `frontend/src/style.ts` — current architecture baseline
-  - `data/ecdysis/occurrences.py` — specimen pipeline and known pdb bug
-  - `data/Makefile` — iNat fieldspec and pipeline dependencies
-  - `.planning/PROJECT.md` — constraints (static hosting, user personas)
-  - `.planning/codebase/ARCHITECTURE.md`, `.planning/codebase/CONCERNS.md` — existing analysis
-- WA Bee Atlas iNat project ID 166376: `data/inat/projects.py` — confirmed from repo
+- `data/uv.lock` — library versions (pyinaturalist 0.21.1, pyinaturalist-convert 0.7.4) verified directly
+- `data/inat/projects.py` — WA Bee Atlas project ID 166376 confirmed
+- `data/inat/observation/300847934.json` — actual iNat API response confirming field paths and absence of `ofvs` in default response
+- `data/pyproject.toml` — pyinaturalist dependency declaration confirmed
+- `scripts/build-data.sh` — existing pipeline pattern confirmed by direct read
+- `data/ecdysis/occurrences.py` — Parquet output pattern confirmed; `pdb.set_trace()` at line 95 confirmed
+- `frontend/src/parquet.ts`, `bee-map.ts`, `bee-sidebar.ts`, `style.ts`, `filter.ts` — frontend architecture confirmed by direct read
+- `.github/workflows/build-and-deploy.yml` — CI runs on all branches confirmed
+- [iNaturalist API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — rate limits, id_above pagination strategy
+- [iNaturalist API v1 docs](https://api.inaturalist.org/v1/docs/) — endpoint structure, per_page=200 maximum
+- [pyinaturalist 0.21.1 docs](https://pyinaturalist.readthedocs.io/en/stable/) — get_observations(), page='all' IDRangePaginator behavior
+- [OpenLayers forEachFeatureAtPixel API](https://openlayers.org/en/latest/apidoc/module-ol_layer_Vector-VectorLayer.html) — layerFilter option confirmed
+- [hyparquet asyncBufferFromUrl](https://github.com/hyparam/hyparquet) — HTTP range request pattern
+- [Vite static asset handling](https://vite.dev/guide/assets) — ?url import pattern
 
 ### Secondary (MEDIUM confidence)
+- [pyinaturalist-convert docs](https://pyinaturalist-convert.readthedocs.io/en/stable/) — to_dataframe() column coverage (does not expand ofvs)
+- [iNat forum: API v1 vs v2 project count discrepancy](https://forum.inaturalist.org/t/api-v1-vs-api-v2-observation-count-by-project-not-the-same/24394) — recommendation to use v1 for project queries
+- [iNat forum: 429 at 60 req/min](https://forum.inaturalist.org/t/429-error-from-observations-histogram-api-when-calling-at-60-calls-minute/64709) — real-world rate limit behavior
+- [Understanding Projects on iNaturalist](https://help.inaturalist.org/en/support/solutions/articles/151000176472) — collection vs traditional project distinction
+- [CloudFront + S3 CORS caching edge cases](https://advancedweb.hu/how-cloudfront-solves-cors-problems/) — rationale for bundling as asset vs runtime S3 fetch
 
-- AWS CDK v2 documentation and patterns — training data (August 2025 cutoff); OAC construct API, OIDC trust policy structure
-- GitHub Actions OIDC documentation — training data; `configure-aws-credentials@v4` workflow
-- iNaturalist API v1 pagination limits — training data + pyinaturalist community knowledge; 10K hard cap is well-established
-
-### Tertiary (MEDIUM-LOW confidence)
-
-- Washington State iNat place_id=82 — training data; verify with `pyinaturalist.get_places_by_id(82)` before shipping
-- OpenLayers rendering performance thresholds (VectorLayer vs WebGLPointsLayer) — training data; verify against OL v10 release notes
+### Tertiary (LOW confidence — needs live verification)
+- Specimen count observation field name/ID for WA Bee Atlas — not findable via web search; must inspect live observations
+- Exact pyinaturalist 0.21.1 parameter name for requesting ofvs in `get_observations()` — PITFALLS research notes ambiguity between `fields='all'` and `extra=fields`
 
 ---
-*Research completed: 2026-02-18*
+*Research completed: 2026-02-25*
 *Ready for roadmap: yes*
