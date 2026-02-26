@@ -252,13 +252,15 @@ export class BeeSidebar extends LitElement {
 
   private _onYearFromChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    this._yearFrom = input.value ? parseInt(input.value, 10) : null;
+    const val = input.value ? parseInt(input.value, 10) : null;
+    this._yearFrom = (val !== null && this._yearTo !== null && val > this._yearTo) ? this._yearTo : val;
     this._dispatchFilterChanged();
   }
 
   private _onYearToChange(e: Event) {
     const input = e.target as HTMLInputElement;
-    this._yearTo = input.value ? parseInt(input.value, 10) : null;
+    const val = input.value ? parseInt(input.value, 10) : null;
+    this._yearTo = (val !== null && this._yearFrom !== null && val < this._yearFrom) ? this._yearFrom : val;
     this._dispatchFilterChanged();
   }
 
@@ -325,14 +327,14 @@ export class BeeSidebar extends LitElement {
             type="number"
             placeholder="From year"
             min="2023"
-            max="2025"
+            max=${this._yearTo !== null ? String(this._yearTo) : "2025"}
             .value=${this._yearFrom !== null ? String(this._yearFrom) : ''}
             @change=${this._onYearFromChange}
           />
           <input
             type="number"
             placeholder="To year"
-            min="2023"
+            min=${this._yearFrom !== null ? String(this._yearFrom) : "2023"}
             max="2025"
             .value=${this._yearTo !== null ? String(this._yearTo) : ''}
             @change=${this._onYearToChange}
