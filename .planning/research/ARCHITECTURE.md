@@ -1,446 +1,422 @@
-# Architecture Patterns
+# Architecture Patterns: iNat Sample Layer Integration
 
-**Domain:** Static biodiversity map — brownfield extension
-**Researched:** 2026-02-18
-**Confidence:** HIGH (all patterns derived from direct codebase inspection + established OpenLayers/Lit API knowledge)
-
----
-
-## Current State (Baseline)
-
-The existing frontend is a single `BeeMap` LitElement that creates an OpenLayers `Map` with two tile base layers and one `VectorLayer` backed by a custom `ParquetSource`. All setup happens in `firstUpdated()`. No reactive properties, no state management, no event handling, no UI controls.
-
-```
-BeeMap (LitElement, shadow DOM)
-  └── OpenLayers Map
-        ├── TileLayer (Ocean Base)
-        ├── TileLayer (Ocean Reference)
-        └── VectorLayer → ParquetSource → ecdysis.parquet
-```
-
-`ParquetSource` extends `ol/source/Vector`, uses `hyparquet.parquetReadObjects` with a fixed column list, creates `ol/Feature` points from lon/lat, and adds them all at once (`strategy: all`).
+**Domain:** Static bee atlas — adding iNaturalist sample markers to existing specimen map
+**Researched:** 2026-02-25
+**Confidence:** HIGH (grounded in direct codebase inspection; OL multi-layer and hyparquet patterns verified against official documentation)
 
 ---
 
-## Target Architecture
+## Context
 
-```
-BeeMap (LitElement, shadow DOM)
-  ├── OpenLayers Map
-  │     ├── TileLayer (Ocean Base)
-  │     ├── TileLayer (Ocean Reference)
-  │     ├── VectorLayer → SpecimenSource → ecdysis.parquet  [layer A]
-  │     └── VectorLayer → HostPlantSource → inat.parquet    [layer B]
-  └── UI Panel (shadow DOM child elements, rendered by Lit)
-        ├── Filter controls (taxon, date range)
-        └── Detail sidebar (click popup)
-```
+This document targets the v1.1 milestone. The v1.0 architecture is fully shipped:
+- `ParquetSource` extends `VectorSource`, accepts a URL, reads ecdysis columns, emits OL Features
+- `speicmenLayer` wraps `clusterSource` wraps `specimenSource`
+- `BeeMap` owns filter state, `BeeSidebar` renders filters + specimen detail
+- `bee-map.ts` click handler uses `speicmenLayer.getFeatures(pixel)` — layer-specific, not map-wide
 
----
-
-## Component Boundaries
-
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `BeeMap` (LitElement) | Owns the OL `Map` instance; renders UI controls and panel via `render()`; holds reactive state for filters + selected feature | `SpecimenSource`, `HostPlantSource`, filter UI children |
-| `ParquetSource` (extends `VectorSource`) | Generic: fetch Parquet URL, read columns, emit `ol/Feature` objects | OpenLayers `VectorLayer`, hyparquet |
-| `SpecimenSource` | Configures `ParquetSource` with specimen columns; stores full feature data as properties | `BeeMap` (via OL click event) |
-| `HostPlantSource` | Configures `ParquetSource` with host plant columns | `BeeMap` |
-| Filter state (`@state` properties on `BeeMap`) | Holds `taxonFilter`, `dateRange`, `selectedFeatureId`; triggers re-render when changed | Filter controls (reads), OL style functions (reads), detail panel (reads) |
-| Detail sidebar (rendered in `render()`) | Shows selected feature properties; conditionally visible | `BeeMap` state (`selectedFeatureId`) |
+The v1.1 question is: how do `samples.parquet` (iNat observations) and its layer fit alongside this existing structure?
 
 ---
 
 ## Recommended Architecture
 
-### Two-Layer Approach
+The integration follows the same pattern as the existing ecdysis pipeline: Python produces a Parquet file, the build copies it into the frontend asset directory, Vite bundles it with a content-hash URL, and hyparquet reads it client-side via `asyncBufferFromUrl`. This keeps the static-hosting constraint intact, requires no new AWS infrastructure, and lets the same `ParquetSource` class serve both data types with minor extension.
 
-**Do not break `ParquetSource` into a specimen-specific class.** Instead, make it more generic by accepting a `columns` parameter (it already has a hardcoded `columns` array — move this to the constructor).
-
-```typescript
-// parquet.ts — generalized
-export interface ParquetSourceOptions {
-  url: string;
-  columns: string[];
-  featureId: (row: Record<string, unknown>) => string;
-  geometry: (row: Record<string, unknown>) => Point;
-}
-
-export class ParquetSource extends VectorSource {
-  constructor({ url, columns, featureId, geometry }: ParquetSourceOptions) { ... }
-}
+```
+Pipeline (data/)                       Frontend (frontend/src/)
+──────────────────────────             ──────────────────────────────────────────────────
+data/inat/download.py                  parquet.ts  (ParquetSource — modified to accept
+  → data/samples.parquet                             columns + featureFromRow as args)
+     ↑                                 assets/samples.parquet  (copied by build-data.sh)
+scripts/build-data.sh                     ↓ imported as ?url
+  uv run python inat/download.py       bee-map.ts
+  cp data/samples.parquet                specimenSource  (unchanged)
+     frontend/src/assets/               clusterSource   (unchanged)
+                                        speicmenLayer   (unchanged)
+                                        sampleSource    (NEW — ParquetSource for iNat)
+                                        sampleLayer     (NEW — VectorLayer, no cluster)
+                                        singleclick handler (MODIFIED)
+                                      style.ts
+                                        clusterStyle    (unchanged)
+                                        sampleStyle     (NEW export)
+                                      bee-sidebar.ts
+                                        InatSample interface + property (NEW)
+                                        _renderInatDetail() (NEW)
 ```
 
-Then in `bee-map.ts`, create two sources and two layers at module level (or inside `firstUpdated`, but module level works fine for static assets):
+### Why bundle as an asset (not S3 runtime fetch)
 
-```typescript
-import ecdysisDump from './assets/ecdysis.parquet?url';
-import inatDump from './assets/inat.parquet?url';
+`samples.parquet` must be placed in `frontend/src/assets/` and imported with `?url`, identical to `ecdysis.parquet`. The alternative — serving it from a separate S3 URL at runtime — is explicitly rejected:
 
-const specimenSource = new ParquetSource({
-  url: ecdysisDump,
-  columns: ['ecdysis_id', 'longitude', 'latitude', 'scientificName',
-            'recordedBy', 'eventDate', 'family', 'genus', 'specificEpithet'],
-  featureId: row => `ecdysis:${row.ecdysis_id}`,
-  geometry: row => new Point(fromLonLat([row.longitude as number, row.latitude as number])),
-});
+1. **CORS-free**: Both files are served from the same CloudFront origin as `index.html`. Runtime fetch from a separate S3 URL requires S3 CORS configuration (AllowedOrigins) and CloudFront behavior changes to forward the `Origin` header. If CloudFront caches the first response before the Origin header is whitelisted, all subsequent requests get responses without CORS headers and fail silently.
+2. **Zero infra change**: The existing CDK stack, GitHub Actions workflow, and `aws s3 sync` step already deploy everything in `frontend/dist/`. A second origin requires CDK changes.
+3. **Consistent availability**: The committed fallback file pattern (matching ecdysis) prevents CI breakage when the iNat API is unavailable.
+4. **hyparquet works identically**: `asyncBufferFromUrl` issues HTTP range requests against any public URL including content-hash Vite asset URLs.
 
-const hostPlantSource = new ParquetSource({
-  url: inatDump,
-  columns: ['inat_id', 'longitude', 'latitude', 'taxon_name',
-            'time_observed_at', 'uri', 'photo_url'],
-  featureId: row => `inat:${row.inat_id}`,
-  geometry: row => new Point(fromLonLat([row.longitude as number, row.latitude as number])),
-});
-
-const specimenLayer = new VectorLayer({ source: specimenSource, style: beeStyle });
-const hostPlantLayer = new VectorLayer({ source: hostPlantSource, style: plantStyle });
-```
-
-The `map.addLayer()` call in `firstUpdated` adds both layers after the tile layers. Layer ordering: base tiles → specimens → host plants (so plants render on top; reverse if desired).
-
-**Null guard is required.** The existing code has a known bug where null coordinates crash `fromLonLat`. Fix in the generalized constructor:
-
-```typescript
-.then(objects => {
-  const features = objects
-    .filter(obj => obj.longitude != null && obj.latitude != null)
-    .map(obj => {
-      const feature = new Feature();
-      feature.setGeometry(geometry(obj));
-      feature.setId(featureId(obj));
-      feature.setProperties(obj);  // store all columns as feature props
-      return feature;
-    });
-  ...
-})
-```
-
-Calling `feature.setProperties(obj)` stores all Parquet columns on each OL Feature. This is the hook for popup details — the detail panel reads `feature.getProperties()` on click.
+The downside of bundling is adding to page weight. For the Washington Bee Atlas iNat project (hundreds of observations, not tens of thousands), `samples.parquet` at ~5–15 KB is negligible.
 
 ---
 
-### Client-Side Filtering Pattern
+## Component Boundaries
 
-**Do not reload Parquet.** The entire dataset is in memory as OL Features after the initial load. Filtering means hiding features, not re-fetching.
+| Component | Status | Responsibility | Communicates With |
+|-----------|--------|---------------|-------------------|
+| `data/inat/download.py` | **NEW** | Query iNat API v1 `/observations?project_id=166376`, paginate via `id_above`, extract fields, write `samples.parquet` | iNat API, `data/` filesystem |
+| `scripts/build-data.sh` | **MODIFIED** | Add iNat download step; copy `samples.parquet` to `frontend/src/assets/` | `data/inat/download.py`, `frontend/src/assets/` |
+| `frontend/src/assets/samples.parquet` | **NEW** | Committed fallback; overwritten by pipeline build | Built artifact, read by frontend |
+| `frontend/src/parquet.ts` (`ParquetSource`) | **MODIFIED (lightly)** | Extract `columns` and `featureFromRow` as constructor options so iNat variant can configure its own column set and feature mapping | `bee-map.ts`, hyparquet |
+| `frontend/src/style.ts` | **MODIFIED** | Add `sampleStyle` export — fixed diamond marker for iNat points | `bee-map.ts` |
+| `frontend/src/bee-map.ts` | **MODIFIED** | Import `samplesDump`, construct `sampleSource` + `sampleLayer`, add layer to OL Map, update singleclick handler to discriminate between layers, add `selectedInatSample` reactive state | `parquet.ts`, OL map, `bee-sidebar.ts`, `style.ts` |
+| `frontend/src/bee-sidebar.ts` | **MODIFIED** | Add `InatSample` interface, `inatSample` property, `_renderInatDetail()` render branch | `bee-map.ts` |
 
-**Use OL VectorLayer's `style` function as the filter gate.** A style function returning `null` or `undefined` for a feature causes OL to skip rendering that feature. This is the idiomatic OL approach — no need to call `source.clear()` or `source.refresh()`.
-
-```typescript
-// In BeeMap, reactive property drives re-render of the style function
-@state() private taxonFilter = '';
-@state() private dateFrom: number | null = null;
-@state() private dateTo: number | null = null;
-
-// Style function reads current filter state via closure
-private specimenStyleFn = (feature: FeatureLike): Style | null => {
-  if (this.taxonFilter) {
-    const family = feature.get('family') as string | undefined;
-    const genus = feature.get('genus') as string | undefined;
-    const species = feature.get('specificEpithet') as string | undefined;
-    const matches = [family, genus, species].some(
-      v => v?.toLowerCase().includes(this.taxonFilter.toLowerCase())
-    );
-    if (!matches) return null;
-  }
-  if (this.dateFrom || this.dateTo) {
-    const year = feature.get('year') as number | undefined;
-    if (year == null) return null;
-    if (this.dateFrom && year < this.dateFrom) return null;
-    if (this.dateTo && year > this.dateTo) return null;
-  }
-  return beeStyle;
-};
-```
-
-**The critical wiring step:** When Lit reactive state changes, OL does not automatically know to re-render the layer. Call `specimenLayer.changed()` (or `specimenSource.changed()`) in a Lit `updated()` lifecycle hook to force OL to re-evaluate all feature styles:
-
-```typescript
-protected updated(changedProperties: PropertyValues): void {
-  super.updated(changedProperties);
-  if (changedProperties.has('taxonFilter') ||
-      changedProperties.has('dateFrom') ||
-      changedProperties.has('dateTo')) {
-    specimenLayer.changed();
-  }
-}
-```
-
-**Why this approach vs alternatives:**
-- `source.clear()` + re-read Parquet: wasteful network + CPU; defeats the purpose of client-side loading.
-- `source.forEachFeature()` + `feature.setStyle(null)`: works but is O(n) manual iteration and bypasses OL's render loop.
-- Style function gate: O(n) in OL's render pass anyway; no extra bookkeeping; composable.
-
-**Performance note:** With tens of thousands of points, style-function filtering is fast because OL already iterates all features per frame for rendering. The closure read (`feature.get('family')`) is a simple property map lookup.
+No changes to `infra/` (CDK), `frontend/vite.config.ts`, or `frontend/package.json`.
 
 ---
 
-### State Management: Lit Reactive Properties
-
-**Use Lit's built-in `@state()` decorator only.** Do not introduce a state management library (MobX, Zustand, Jotai, etc.). The component is self-contained and the state surface is small: a few filter values and a selected feature ID.
-
-```typescript
-@state() private taxonFilter = '';
-@state() private dateRange: [number, number] | null = null;
-@state() private selectedFeatureId: string | null = null;
-```
-
-`@state()` triggers Lit's re-render, which:
-1. Updates the UI controls (filter inputs, detail panel)
-2. Triggers the `updated()` hook, which calls `layer.changed()` to force OL re-render
-
-This is a one-directional flow: user gesture → update `@state` property → Lit re-renders UI + `updated()` triggers OL re-render.
-
-**Do not store the selected feature object in state.** Store only the feature ID. Resolve it at render time via `specimenSource.getFeatureById(this.selectedFeatureId)`. This avoids stale object references if the source ever reloads.
-
----
-
-### Click Popup / Detail Sidebar
-
-**Use a Lit-rendered sidebar inside shadow DOM, not an OL Overlay.** `ol/Overlay` anchors a DOM element to map coordinates; it is awkward inside shadow DOM because OL would need to append the element to the map container, which lives inside shadow DOM and is not accessible from outside without refs.
-
-The simpler and more Lit-idiomatic approach: a conditional sidebar rendered by `BeeMap.render()` alongside `<div id="map">`.
-
-```typescript
-// bee-map.ts render()
-public render() {
-  const selectedFeature = this.selectedFeatureId
-    ? specimenSource.getFeatureById(this.selectedFeatureId)
-    : null;
-  return html`
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" />
-    <div id="map"></div>
-    <div id="controls">
-      <input
-        type="text"
-        placeholder="Filter by taxon..."
-        .value=${this.taxonFilter}
-        @input=${(e: InputEvent) => { this.taxonFilter = (e.target as HTMLInputElement).value; }}
-      />
-      <!-- date range inputs -->
-    </div>
-    ${selectedFeature ? html`
-      <div id="detail-panel">
-        <button @click=${() => { this.selectedFeatureId = null; }}>Close</button>
-        <dl>
-          <dt>Species</dt><dd>${selectedFeature.get('scientificName') ?? 'Unknown'}</dd>
-          <dt>Collector</dt><dd>${selectedFeature.get('recordedBy') ?? '—'}</dd>
-          <dt>Date</dt><dd>${selectedFeature.get('eventDate') ?? '—'}</dd>
-          <dt>Host plant</dt><dd>${selectedFeature.get('hostPlant') ?? '—'}</dd>
-        </dl>
-      </div>
-    ` : nothing}
-  `;
-}
-```
-
-**Click wiring:** In `firstUpdated()`, attach an OL `singleclick` listener on the `map` instance:
-
-```typescript
-this.map.on('singleclick', (evt) => {
-  const feature = this.map!.forEachFeatureAtPixel(
-    evt.pixel,
-    f => f,
-    { hitTolerance: 8 }
-  );
-  this.selectedFeatureId = feature?.getId() as string ?? null;
-});
-```
-
-`forEachFeatureAtPixel` respects both layers (specimens and host plants). If you need to distinguish which layer was clicked, pass a `layerFilter` option.
-
-**Shadow DOM constraint is satisfied:** the sidebar lives entirely inside shadow DOM, rendered by Lit, and reads from `@state`. No DOM escaping required.
-
-**Layout:** The host element already uses `flex-direction: row`. Add the `#controls` panel as a column on the left and `#detail-panel` as a column on the right (or as an overlay on small screens via CSS). Update `static styles` accordingly.
-
----
-
-### Parquet Column Selection
-
-**Specimens (ecdysis.parquet) — include for popup:**
-
-| Column | Purpose |
-|--------|---------|
-| `ecdysis_id` | Feature ID |
-| `longitude`, `latitude` | Geometry |
-| `scientificName` | Display name |
-| `genus`, `specificEpithet` | Taxon filter |
-| `family` | Taxon filter (broad) |
-| `recordedBy` | Popup: collector |
-| `eventDate` | Popup: collection date |
-| `year`, `month` | Date range filter |
-| `stateProvince`, `county` | Popup: location |
-| `fieldNumber` | Sample grouping key (links specimens in same event) |
-
-Omit: `basisOfRecord`, `institutionCode`, `occurrenceID`, `taxonRank`, `identifiedBy`, and all `verbatim*` fields from the frontend Parquet. They add file size without UI value.
-
-**Host plants (inat.parquet) — include for popup:**
-
-The Makefile `fieldspec` already specifies: `id`, `geojson`, `description`, `license_code`, `time_observed_at`, `uri`, `public_positional_accuracy`, `observation_photos`, `taxon.id`, `taxon.ancestor_ids`, `user.login`, `user.name`.
-
-For the frontend Parquet, include:
-
-| Column | Purpose |
-|--------|---------|
-| `inat_id` | Feature ID |
-| `longitude`, `latitude` | Geometry (extracted from `geojson.coordinates`) |
-| `taxon_name` | Display / filter |
-| `time_observed_at` | Date filter + popup |
-| `uri` | Popup: link to iNat observation |
-| `photo_url` | Popup: thumbnail |
-| `observer_name` | Popup: who observed it |
-
----
-
-## Data Flow (Updated)
-
-### Offline Pipeline
+## Data Flow
 
 ```
-data/ecdysis/occurrences.py
-  → ecdysis.parquet (columns: id, lon, lat, scientificName, genus, specificEpithet,
-                              family, recordedBy, eventDate, year, month,
-                              stateProvince, county, fieldNumber)
-  → cp frontend/src/assets/ecdysis.parquet
+CI / local build:
+  inat/download.py
+    GET https://api.inaturalist.org/v1/observations
+        ?project_id=166376&per_page=200&order_by=id&order=asc
+    (paginate: while len(results) == 200: id_above=results[-1].id, fetch next page)
+    → data/samples.parquet
+        columns: observation_id (int64), observer (str), date_str (str),
+                 lat (float64), lon (float64), specimen_count (int64)
 
-data/inat/ (new script needed)
-  → inat.parquet (columns: inat_id, lon, lat, taxon_name, time_observed_at,
-                            uri, photo_url, observer_name)
-  → cp frontend/src/assets/inat.parquet
+  build-data.sh (modified)
+    ... existing ecdysis steps ...
+    uv run python inat/download.py --project_id 166376
+    cp data/samples.parquet frontend/src/assets/samples.parquet
+
+  Vite build
+    import samplesDump from './assets/samples.parquet?url'
+    → emits frontend/dist/assets/samples-[hash].parquet
+
+  S3 sync
+    → CloudFront serves samples-[hash].parquet alongside index.html
+
+Browser runtime:
+  ParquetSource({ url: samplesDump, columns: inatColumns, featureFromRow })
+    asyncBufferFromUrl({ url })  → HTTP range requests to same CloudFront origin
+    parquetReadObjects({ columns, file })
+    featureFromRow(obj)  → OL Feature, id = `inat:{observation_id}`,
+                            geometry = Point(fromLonLat([lon, lat])),
+                            properties: { observer, date_str, specimen_count }
+
+  singleclick handler (bee-map.ts)
+    Check sampleLayer first (via forEachFeatureAtPixel with layerFilter)
+    → if hit: set selectedInatSample, clear selectedSamples
+    Check speicmenLayer second (existing getFeatures path)
+    → if hit: existing buildSamples() logic, clear selectedInatSample
 ```
-
-Both assets are bundled by Vite via `?url` import and served as static files.
-
-### Runtime
-
-```
-1. Browser loads bee-map.ts → BeeMap.firstUpdated() initializes OL Map
-2. OL Map gets [TileA, TileB, specimenLayer, hostPlantLayer]
-3. ParquetSource loaders fire (async, parallel)
-4. hyparquet fetches .parquet, reads columns, emits Features with setProperties(row)
-5. Features added to sources → OL renders points
-6. User types in filter input → BeeMap @state updates → Lit re-render + updated() fires
-7. updated() calls specimenLayer.changed() → OL calls specimenStyleFn for each feature
-8. specimenStyleFn returns null for non-matching features → they disappear
-9. User clicks map → singleclick handler → selectedFeatureId set → detail panel renders
-```
-
----
-
-## Build Order
-
-Dependencies determine this order strictly:
-
-1. **Parquet schema definition** — Decide what columns go in each Parquet file. This gates both the Python pipeline work and the frontend column list.
-
-2. **Data pipeline: specimens** — Fix `ecdysis/occurrences.py` (remove `pdb.set_trace()`, extend `to_parquet` column list), produce `ecdysis.parquet` with all popup fields.
-
-3. **Data pipeline: host plants** — Implement `inat/observations.py` to produce `inat.parquet` from downloaded JSON observations. The Makefile rule body needs completing.
-
-4. **Generalize `ParquetSource`** — Accept `columns`, `featureId`, `geometry` in constructor. Add null-coordinate guard. Call `feature.setProperties(row)` to store all popup data on the feature.
-
-5. **Add second layer** — Import `inat.parquet?url`, create `HostPlantSource` and `hostPlantLayer`, add to OL Map in `firstUpdated()`.
-
-6. **Add filter state + style gate** — Add `@state()` properties to `BeeMap`. Change `specimenLayer` to use `specimenStyleFn` instead of `beeStyle`. Wire `updated()` to call `specimenLayer.changed()`.
-
-7. **Add filter UI** — Add `<input>` and date range inputs to `render()`. Bind to state properties.
-
-8. **Add click handler + detail panel** — Wire `map.on('singleclick', ...)` in `firstUpdated()`. Add conditional detail panel in `render()`.
-
-9. **Wire cluster style** — `clusterStyle` exists in `style.ts` but is unused. It can be wired after the filtering pattern is established.
 
 ---
 
 ## Patterns to Follow
 
-### Pattern: Style-function as visibility gate
+### Pattern 1: Extend ParquetSource with configurable columns and feature mapping
 
-**What:** Return `null` from an OL style function to hide a feature; return the real style to show it.
-**When:** Any time you need client-side filtering without reloading data.
-**Why:** OL already iterates all features each render frame; no extra bookkeeping needed.
+The current `ParquetSource` hardcodes the ecdysis column list at module scope in `parquet.ts`. Extract it as a constructor option so both specimen and sample sources can use the same class without duplication.
 
-### Pattern: Lit `updated()` bridges Lit state to OL
+```typescript
+// parquet.ts (modified)
+export interface ParquetSourceOptions {
+  url: string;
+  columns: string[];
+  featureFromRow: (obj: Record<string, unknown>) => Feature | null;
+}
 
-**What:** Detect changed reactive properties in `updated()` and call `layer.changed()` to force OL re-render.
-**When:** Any time Lit state needs to affect how OL renders map features.
-**Why:** OL and Lit have separate render loops; `changed()` is the explicit signal that OL's render output is stale.
+export class ParquetSource extends VectorSource {
+  constructor({ url, columns, featureFromRow }: ParquetSourceOptions) {
+    const load = (extent, resolution, projection, success, failure) => {
+      asyncBufferFromUrl({ url })
+        .then(buffer => parquetReadObjects({ columns, file: buffer }))
+        .then(objects => {
+          const features = objects
+            .map(featureFromRow)
+            .filter((f): f is Feature => f !== null);
+          this.addFeatures(features);
+          if (success) success(features);
+        })
+        .catch(failure);
+    };
+    super({ loader: load, strategy: all });
+  }
+}
+```
 
-### Pattern: Store feature properties at load time
+The caller in `bee-map.ts` provides column lists and mapping functions for both sources, keeping the schema knowledge close to the usage site.
 
-**What:** Call `feature.setProperties(row)` inside `ParquetSource` loader so all Parquet column values travel with the OL Feature.
-**When:** Any time you need to display per-feature data in a popup.
-**Why:** Avoids a secondary lookup (no need to maintain a `Map<id, data>` separately). OL `Feature.getProperties()` is the natural store.
+### Pattern 2: Layer-discriminated singleclick handler
 
-### Pattern: Sidebar over OL Overlay in shadow DOM
+The current handler calls `speicmenLayer.getFeatures(event.pixel)` — it is already layer-specific. With two layers, extend this to check `sampleLayer` first (iNat markers render on top in z-order), then fall through to the existing specimen cluster logic:
 
-**What:** Render the detail panel as a Lit template inside `render()`, positioned with CSS next to `#map`.
-**When:** You need a click-triggered detail panel inside a shadow DOM component.
-**Why:** `ol/Overlay` appends DOM elements to the map container. Working with those from inside shadow DOM requires careful `@query` refs and OL constructor options (`element: this.shadowRoot.querySelector(...)` called in `firstUpdated`). The Lit-rendered sidebar avoids all of that while being reactive for free.
+```typescript
+this.map.on('singleclick', async (event: MapBrowserEvent) => {
+  // Check iNat sample layer first (rendered on top)
+  let inatHit = false;
+  this.map!.forEachFeatureAtPixel(event.pixel, (feature) => {
+    this.selectedInatSample = {
+      observer:      feature.get('observer') as string,
+      dateStr:       feature.get('date_str') as string,
+      specimenCount: feature.get('specimen_count') as number,
+      observationId: (feature.getId() as string).replace('inat:', ''),
+    };
+    this.selectedSamples = null;
+    inatHit = true;
+    return true; // stop iteration after first hit
+  }, { layerFilter: (l) => l === sampleLayer });
+
+  if (inatHit) return;
+
+  // Fall through: existing specimen cluster logic
+  const hits = await speicmenLayer.getFeatures(event.pixel);
+  if (!hits.length) {
+    this.selectedSamples = null;
+    this.selectedInatSample = null;
+    return;
+  }
+  // ... existing buildSamples() path ...
+});
+```
+
+`map.forEachFeatureAtPixel` with `layerFilter` is the canonical OL approach for multi-layer hit discrimination (HIGH confidence — documented API). The `return true` from the callback terminates iteration after the first hit, preventing spurious double-fires on overlapping points.
+
+### Pattern 3: Visually distinct sample marker style
+
+Sample markers must be distinguishable from specimen cluster circles at a glance. Use a square/diamond `RegularShape` in iNat green. No count label (each iNat observation is one marker, not a cluster):
+
+```typescript
+// style.ts (new export)
+import RegularShape from 'ol/style/RegularShape.js';
+
+export const sampleStyle = new Style({
+  image: new RegularShape({
+    fill:   new Fill({ color: '#74ac00' }),    // iNaturalist brand green
+    stroke: new Stroke({ color: '#ffffff', width: 1 }),
+    points: 4,
+    radius: 7,
+    angle:  Math.PI / 4,  // rotate 45° → diamond orientation
+  }),
+});
+```
+
+A static `Style` object is safe here because sample markers carry no variable state (no filter, no count). Pass it directly as `sampleLayer`'s `style` option.
+
+The `sampleLayer` does not use a `Cluster` source. iNat observations represent distinct collection events; clustering hides individual events and conflicts with the "who collected, when" sidebar detail. The layer expects hundreds of points, not tens of thousands — no render performance concern.
+
+### Pattern 4: Three-state sidebar render
+
+`BeeSidebar` currently renders either the summary panel or specimen detail. Add a third state: iNat observation detail. Introduce a new `@property` and branch in `render()`:
+
+```typescript
+// bee-sidebar.ts additions
+
+export interface InatSample {
+  observer:      string;
+  dateStr:       string;      // ISO date string — formatted by _renderInatDetail()
+  specimenCount: number;
+  observationId: string;      // for iNat observation URL
+}
+
+// In BeeSidebar class:
+@property({ attribute: false })
+inatSample: InatSample | null = null;
+
+render() {
+  return html`
+    ${this._renderFilterControls()}
+    ${this.inatSample !== null
+      ? this._renderInatDetail(this.inatSample)
+      : this.samples !== null
+        ? this._renderDetail(this.samples)
+        : this._renderSummary()}
+  `;
+}
+
+private _renderInatDetail(sample: InatSample) {
+  const url = `https://www.inaturalist.org/observations/${sample.observationId}`;
+  const date = new Date(sample.dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return html`
+    <button class="back-btn" @click=${() => this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }))}>Back</button>
+    <div class="panel-content">
+      <h3>iNaturalist Collection</h3>
+      <dl>
+        <dt>Observer</dt><dd>${sample.observer}</dd>
+        <dt>Date</dt><dd>${date}</dd>
+        <dt>Specimens</dt><dd>${sample.specimenCount === 0 ? 'Not yet entered' : sample.specimenCount}</dd>
+      </dl>
+      <a href=${url} target="_blank" rel="noopener">View on iNaturalist</a>
+    </div>
+  `;
+}
+```
+
+`BeeMap` clears `selectedInatSample` (sets to `null`) on filter change and on any specimen cluster click, mirroring the existing pattern for `selectedSamples`.
+
+### Pattern 5: iNat API pagination via id_above
+
+The iNat API v1 caps responses at 200 per page and limits offset-based pagination to the first 10,000 results. For larger result sets, use `id_above` with ascending `order_by=id`:
+
+```python
+# data/inat/download.py (pseudocode pattern)
+import requests, pandas as pd
+
+def fetch_all(project_id: int) -> list[dict]:
+    results = []
+    id_above = 0
+    while True:
+        resp = requests.get(
+            'https://api.inaturalist.org/v1/observations',
+            params={
+                'project_id': project_id,
+                'per_page': 200,
+                'order_by': 'id',
+                'order': 'asc',
+                'id_above': id_above,
+                'fields': 'id,user.login,observed_on,geojson,ofvs',
+            }
+        )
+        resp.raise_for_status()
+        page = resp.json()['results']
+        results.extend(page)
+        if len(page) < 200:
+            break
+        id_above = page[-1]['id']
+    return results
+```
+
+This pattern handles arbitrarily large project observation counts without hitting the 10,000-row offset cap (HIGH confidence per iNat API recommended practices).
+
+---
+
+## Integration Points: New vs Modified
+
+| File | Status | Change Summary |
+|------|--------|---------------|
+| `data/inat/download.py` | **NEW** | iNat API fetch + pagination, extracts observer/date/coords/specimen_count, writes `samples.parquet` |
+| `scripts/build-data.sh` | **MODIFIED** | Add `uv run python inat/download.py` step; add `cp data/samples.parquet frontend/src/assets/samples.parquet` |
+| `frontend/src/assets/samples.parquet` | **NEW** | Committed stub/fallback (empty schema matching expected columns) |
+| `frontend/src/parquet.ts` | **MODIFIED** | Extract `columns` + `featureFromRow` as constructor args; existing behavior preserved |
+| `frontend/src/style.ts` | **MODIFIED** | Add `sampleStyle` export |
+| `frontend/src/bee-map.ts` | **MODIFIED** | Import `samplesDump`, construct `sampleSource` + `sampleLayer`, add to OL Map, update singleclick, add `selectedInatSample` reactive state, pass `inatSample` to sidebar |
+| `frontend/src/bee-sidebar.ts` | **MODIFIED** | Add `InatSample` interface, `inatSample` property, `_renderInatDetail()`, three-branch `render()` |
+
+**No new files required** in `infra/`, no new npm packages, no CDK changes.
+
+---
+
+## Build Order (Dependency-Aware)
+
+The dependency chain is strictly linear, with two parallel sub-paths in the middle:
+
+```
+Step 1  data/inat/download.py
+          (iNat API → samples.parquet)
+          Unblocks: step 2 for end-to-end verification
+
+Step 2  scripts/build-data.sh
+          (add iNat download step, add cp)
+          Unblocks: end-to-end pipeline test
+
+Step 3  frontend/src/parquet.ts refactor
+          (constructor accepts columns + featureFromRow)
+          Unblocks: steps 4 and 5 (parallel)
+
+Step 4  frontend/src/style.ts — sampleStyle
+          (new export, independent of step 5)
+          Unblocks: step 5
+
+Step 5  frontend/src/bee-map.ts
+          (import samplesDump, sampleSource, sampleLayer,
+           updated singleclick, selectedInatSample state)
+          Depends on steps 3 and 4
+          Unblocks: step 6
+
+Step 6  frontend/src/bee-sidebar.ts
+          (InatSample interface, inatSample property, _renderInatDetail)
+          Depends on step 5 (InatSample type is defined in bee-map.ts or
+          bee-sidebar.ts; if defined in sidebar it is imported by bee-map.ts)
+```
+
+Steps 1 and 3 can be developed in parallel. Steps 4 and 3 can be developed in parallel. Step 5 must wait for both 3 and 4. Step 6 must wait for step 5.
+
+Frontend development (steps 3–6) can proceed against a hand-crafted stub `samples.parquet` before the pipeline (steps 1–2) is complete — the `?url` import pattern works with any valid Parquet file in `assets/`.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern: Module-level source/layer construction referencing assets that may not exist yet
+### Anti-Pattern 1: Merging specimens and iNat observations into one Parquet
 
-**What goes wrong:** The existing code creates `specimenSource` and `speicmenLayer` at module level (outside any class). This works because `ecdysis.parquet?url` import is resolved at bundle time.
-**Risk for second layer:** If `inat.parquet` does not exist yet when building, Vite will throw at build time. Keep the second layer import guarded or add the Parquet asset before adding the import.
-**Mitigation:** Add the asset file (even an empty placeholder) to `frontend/src/assets/` before adding the import to `bee-map.ts`.
+**What goes wrong:** Combining ecdysis and iNat rows into a single `combined.parquet`.
 
-### Anti-Pattern: Calling source.clear() + refresh() to "filter"
+**Why bad:** The schemas are incompatible (specimens have taxon columns; iNat observations have observer/specimen_count). Merging forces nullable columns everywhere, complicates the pipeline, and prevents independent update cadences — an ecdysis pipeline failure would also wipe the iNat data.
 
-**What goes wrong:** `clear()` removes all features and `refresh()` re-fires the loader, causing a network fetch + full re-parse. For a static site with data bundled as assets, the "network" is a local file, but it still re-runs hyparquet decode on every filter change.
-**Instead:** Style-function gate (see above).
+**Instead:** Keep two Parquet files. The additional fetch is negligible (same CloudFront origin, HTTP range requests).
 
-### Anti-Pattern: Storing selected OL Feature object as Lit state
+### Anti-Pattern 2: Fetching samples.parquet at runtime from a separate S3 URL
 
-**What goes wrong:** OL features are mutable objects; Lit's change detection compares by reference. If the source ever reloads, the stored reference becomes stale. Also, storing complex objects as `@state` can trigger unexpected re-renders.
-**Instead:** Store only the feature ID string; resolve via `source.getFeatureById()` at render time.
+**What goes wrong:** Skip bundling samples.parquet; fetch it from a raw S3 bucket URL at runtime.
 
-### Anti-Pattern: Using `@property()` instead of `@state()` for internal filter state
+**Why bad:** Requires S3 CORS configuration, CloudFront behavior changes to forward the `Origin` header, and is vulnerable to the CloudFront CORS caching edge case (a cached response without CORS headers blocks all future cross-origin requests until TTL expires). No fallback mechanism.
 
-**What goes wrong:** `@property()` exposes the property as a reflected HTML attribute and is part of the component's public API. Filter state is internal.
-**Instead:** Use `@state()` for all internal state. It triggers re-renders identically but does not expose the property externally.
+**Instead:** Bundle as a `?url` import. Same origin = no CORS. Zero infra changes.
+
+### Anti-Pattern 3: Clustering iNat sample markers
+
+**What goes wrong:** Wrapping `sampleSource` in an OL `Cluster` source.
+
+**Why bad:** iNat observations are distinct collection events. Clustering hides individual events and breaks the sidebar "who collected, when" detail. With hundreds of points, render performance is not a concern.
+
+**Instead:** Use `sampleSource` directly in `sampleLayer` with no cluster wrapper. Fixed-size diamond marker handles single-point rendering cleanly.
+
+### Anti-Pattern 4: Running iNat download unconditionally in CI on every branch push
+
+**What goes wrong:** Adding `inat/download.py` to `build-data.sh` causes it to run on every CI push (all branches), hitting the iNat API on every commit.
+
+**Why bad:** iNat API has rate limits. CI currently runs on all branches per the GitHub Actions workflow (`on: push: branches: ['**']`). Repeated API calls for non-main branch pushes are wasteful and introduce a new external failure point.
+
+**Instead:** Commit `samples.parquet` as a fallback (same pattern as `ecdysis.parquet`). The CI build uses the committed file unless the pipeline step is explicitly triggered. Alternatively gate the iNat download in `build-data.sh` behind `${GITHUB_REF:-} == refs/heads/main` or run it in the `deploy` job only.
+
+### Anti-Pattern 5: Using map.getFeaturesAtPixel without layerFilter
+
+**What goes wrong:** `map.getFeaturesAtPixel(pixel)` or `map.forEachFeatureAtPixel(pixel, cb)` without a `layerFilter` hits features from both `speicmenLayer` (cluster features, which have a `features` property) and `sampleLayer` (raw iNat features). Cluster features require `feature.get('features')` unwrapping; iNat features do not. Mixing both in the same callback requires type-checking that is fragile.
+
+**Instead:** Call `forEachFeatureAtPixel` with `{ layerFilter: (l) => l === sampleLayer }` first, then the existing `speicmenLayer.getFeatures(pixel)` call. Each handler knows exactly what kind of feature it is dealing with.
 
 ---
 
 ## Scalability Considerations
 
-| Concern | Current scale (~5K specimens) | At 50K features | Notes |
+| Concern | Current (hundreds of iNat obs) | At 5K+ iNat obs | Notes |
 |---------|-------------------------------|-----------------|-------|
-| Parquet file size | Small (<1 MB) | ~5–10 MB | Snappy compression; hyparquet streams by row group |
-| Feature rendering | Fast (OL canvas) | May need clustering | Wire `clusterStyle` at zoom < 10 |
-| Filter performance | Instant | Instant | OL iterates all features per frame regardless |
-| Parquet column count | Small | Keep trim | Each extra column adds file size; don't include fields not shown in UI |
-
-Clustering is already half-implemented (`clusterStyle` in `style.ts`). When point density becomes visually noisy, switch `specimenLayer` to use `ol/source/Cluster` wrapping `specimenSource`. The existing `clusterStyle` function handles the radius-from-count logic.
+| samples.parquet size | ~10–20 KB (6 columns, 300 rows) | ~200 KB (5K rows) | Negligible at both scales |
+| OL render (unclustered) | Fast — hundreds of points | Fast — VectorLayer handles thousands without cluster | No performance action needed |
+| iNat API pagination | Single page (< 200 obs) | Multiple pages via id_above | download.py loop handles this |
+| CI API calls | Risk even at small scale | Higher risk at large scale | Committed fallback mitigates |
 
 ---
 
 ## Sources
 
-**Confidence: HIGH** — All findings from direct codebase inspection:
+- **iNaturalist API v1 docs** (official): https://api.inaturalist.org/v1/docs/
+- **iNat API recommended practices** (id_above pagination): https://www.inaturalist.org/pages/api+recommended+practices
+- **OpenLayers VectorLayer API** (getFeatures, forEachFeatureAtPixel): https://openlayers.org/en/latest/apidoc/module-ol_layer_Vector-VectorLayer.html
+- **OpenLayers hit-tolerance example**: https://openlayers.org/en/latest/examples/hit-tolerance.html
+- **hyparquet asyncBufferFromUrl**: https://github.com/hyparam/hyparquet
+- **Vite static asset handling** (?url imports): https://vite.dev/guide/assets
+- **CloudFront + S3 CORS caching edge cases**: https://advancedweb.hu/how-cloudfront-solves-cors-problems/
+- **Existing codebase** (direct inspection, HIGH confidence):
+  - `frontend/src/bee-map.ts` — current map/click setup
+  - `frontend/src/parquet.ts` — ParquetSource implementation
+  - `frontend/src/bee-sidebar.ts` — current sidebar structure
+  - `frontend/src/style.ts` — clusterStyle pattern
+  - `frontend/src/filter.ts` — FilterState singleton pattern
+  - `scripts/build-data.sh` — pipeline script
+  - `data/ecdysis/occurrences.py` — Parquet output pattern
+  - `.github/workflows/build-and-deploy.yml` — CI runs on all branches
 
-- `/Users/rainhead/dev/beeatlas/frontend/src/bee-map.ts` — current map setup
-- `/Users/rainhead/dev/beeatlas/frontend/src/parquet.ts` — ParquetSource implementation
-- `/Users/rainhead/dev/beeatlas/frontend/src/style.ts` — beeStyle, clusterStyle
-- `/Users/rainhead/dev/beeatlas/.planning/codebase/ARCHITECTURE.md` — existing architecture analysis
-- `/Users/rainhead/dev/beeatlas/.planning/codebase/CONCERNS.md` — known bugs (null coords, pdb.set_trace)
-- `/Users/rainhead/dev/beeatlas/.planning/PROJECT.md` — project requirements and constraints
-- `/Users/rainhead/dev/beeatlas/data/ecdysis/occurrences.py` — available specimen columns
-- `/Users/rainhead/dev/beeatlas/data/Makefile` — iNat fieldspec, pipeline dependencies
-
-OpenLayers API knowledge (HIGH confidence, stable across OL 10.x):
-- `VectorLayer` style function returning `null` hides features — documented behavior
-- `layer.changed()` forces re-render — documented method
-- `map.forEachFeatureAtPixel()` — documented click detection API
-- `feature.setProperties()` / `feature.getProperties()` — documented Feature API
-
-Lit API knowledge (HIGH confidence, stable across Lit 3.x):
-- `@state()` for internal reactive state — core Lit API
-- `updated(changedProperties)` lifecycle hook — core Lit API
-- Shadow DOM containment of `render()` output — fundamental Lit/web component behavior
-
----
-
-*Architecture research: 2026-02-18*
+*Research updated: 2026-02-25 for v1.1 milestone*
