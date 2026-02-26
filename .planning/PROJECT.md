@@ -8,6 +8,16 @@ An interactive web map displaying Ecdysis specimen records for volunteer collect
 
 Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
+## Current Milestone: v1.1 iNat Sample Markers
+
+**Goal:** Show live collection events from iNaturalist on the map, giving volunteers a community view of recent collecting activity before specimens arrive in Ecdysis.
+
+**Target features:**
+- iNat API pipeline querying Washington Bee Atlas project observations
+- Samples Parquet produced alongside specimens Parquet (observer, date, lat/lon, specimen count)
+- Sample markers layer on the map, coexisting with existing specimen clusters
+- Sample sidebar: who collected, when, specimen count (0 = not yet entered)
+
 ## Requirements
 
 ### Validated
@@ -27,7 +37,11 @@ Collectors can see where bees have been collected and where target host plants g
 
 ### Active
 
-- [ ] **NAV-01**: URL encodes current map view (center, zoom) and active filter state so collectors can share links — v1.1 (Phase 7 planned)
+- [ ] **INAT-01**: Pipeline queries iNaturalist API for Washington Bee Atlas collection observations — v1.1
+- [ ] **INAT-02**: Pipeline extracts observer, date, coordinates, and specimen count observation field from each iNat observation — v1.1
+- [ ] **INAT-03**: Pipeline produces samples.parquet (one row per iNat observation: observation_id, observer, date, lat, lon, specimen_count) — v1.1
+- [ ] **MAP-03**: Map renders a sample markers layer coexisting with existing specimen clusters — v1.1
+- [ ] **MAP-04**: Clicking a sample marker shows sidebar with observer name, collection date, and specimen count (0 = not yet entered) — v1.1
 
 ### Out of Scope
 
@@ -39,7 +53,9 @@ Collectors can see where bees have been collected and where target host plants g
 | Multi-source data (GBIF, OSU Museum) | Experimental; Ecdysis is the specimen source of truth |
 | Real-time data refresh | Static Parquet updated per pipeline run is correct |
 | Heat map / analytics | Map is the analytical surface; charts are scope creep |
-| iNaturalist host plant layer | Deferred to v2 (PLANT-01, PLANT-02, PLANT-03) |
+| iNaturalist host plant display layer | v1.1 uses iNat data for collection event samples, not a visual plant layer |
+| Ecdysis HTML scraping for specimen-sample linkage | Deferred to v1.2 — ship iNat sample markers first |
+| NAV-01: URL sharing (map view + filter state) | Deferred to v1.2 — v1.1 focused on iNat integration |
 | Location search / pan-to-place | Deferred to v2 (NAV-02) |
 
 ## Context
@@ -74,7 +90,7 @@ Shipped v1.0 on 2026-02-22. ~6,172 lines added across 47 files in 4 days.
 | Parquet as frontend data format | Enables browser-side filtering without a server; hyparquet reads client-side | ✓ Good — hyparquet read 45,754 rows cleanly; sub-second load |
 | CDK for AWS infrastructure | User preference; keeps infra as code alongside the project | ✓ Good — BeeAtlasStack + GlobalStack deployed; OAC pattern stable in CDK v2.156+ |
 | OIDC for GitHub Actions AWS auth | No long-lived secrets; matches reference project pattern | ✓ Good — StringLike trust policy (`repo:rainhead/beeatlas:*`) confirmed; no thumbprints needed |
-| iNaturalist data in same Parquet | Keep build simple; one file for specimen + host plant data | ⚠ Revisit — deferred entirely to v2; only Ecdysis data shipped in v1 |
+| iNaturalist data in separate samples.parquet | Keep data sources separate; iNat and Ecdysis have different latencies and schemas | — Pending — v1.1 |
 | FilterState as singleton (not Lit reactive) | OL style callbacks have fixed signatures; can't receive extra params | ✓ Good — singleton mutation + `clusterSource.changed()` repaint pattern works cleanly |
 | Style cache key = `count:tier` | Avoids per-render Style object allocation | ✓ Good — cache bypassed only when filter active; correct for all cases |
 | Month DarwinCore 1-indexing | DarwinCore months are 1=January; the original +1 offset was a bug | ✓ Good — removed in Phase 5; all 12 months now reachable |
@@ -83,4 +99,4 @@ Shipped v1.0 on 2026-02-22. ~6,172 lines added across 47 files in 4 days.
 | Deploy job rebuilds frontend independently | Avoids artifact upload/download complexity | ✓ Good — self-contained deploy job; acceptable double-build tradeoff |
 
 ---
-*Last updated: 2026-02-26 after v1.0 milestone*
+*Last updated: 2026-02-25 after v1.1 milestone start*
