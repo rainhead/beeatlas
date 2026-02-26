@@ -2,18 +2,19 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-26)
+See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Planning next milestone (v1.1 — NAV-01 URL sharing)
+**Current focus:** Milestone v1.1 — iNat Sample Markers
 
 ## Current Position
 
-Phase: v1.0 archived — next phase is 7 (URL Sharing, v1.1)
-Status: v1.0 MVP COMPLETE — archived 2026-02-26; live site at https://d1o1go591lqnqi.cloudfront.net
-Last activity: 2026-02-26 — v1.0 milestone archived; ROADMAP, PROJECT.md, STATE.md updated
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-25 — Milestone v1.1 started
 
-Progress: [██████░░░░] v1.0 complete; v1.1 not started
+Progress: [░░░░░░░░░░] v1.1 not started
 
 ## Performance Metrics
 
@@ -40,9 +41,13 @@ Progress: [██████░░░░] v1.0 complete; v1.1 not started
 
 All v1.0 decisions logged in PROJECT.md Key Decisions table.
 
-Key decisions for v1.1 (Phase 7 URL sharing):
-- BeeSidebar filter fields already promoted to `@property` in Phase 7 prep (reverted feat, but property promotion may be re-applied)
-- URL sync infrastructure was implemented and reverted (commit 43966b1 reverted by 7c44a42) — approach was adding `syncToUrl()`/`restoreFromUrl()` to bee-map.ts
+Key context for v1.1 (iNat Sample Markers):
+- iNat observations are of host plants made in the field; they appear hours-to-days before specimens arrive in Ecdysis
+- Specimen count is stored as an iNat observation field filled in by the collector (usually same day or next day)
+- Ecdysis HTML scraping (to link specimens → iNat observations) deferred to v1.2; v1.1 only queries iNat API
+- NAV-01 URL sharing deferred to v1.2
+- Previous URL sync work (commit 43966b1 reverted by 7c44a42) preserved for v1.2 reference
+- Verify `place_id=82` for Washington State in iNaturalist before pipeline implementation
 
 ### Pending Todos
 
@@ -50,11 +55,10 @@ None.
 
 ### Blockers/Concerns
 
-- [Phase 7]: Verify `place_id=82` for Washington State in iNaturalist before any iNat pipeline work (v2)
-- [Phase 7 prep]: Previous URL sync attempt reverted — Phase 7 plan needs revisit before execution
+None.
 
 ## Session Continuity
 
-Last session: 2026-02-26 (v1.0 milestone archived)
-Stopped at: v1.0 milestone complete — all phases 1-6 archived; ROADMAP reorganized; PROJECT.md evolved; ready for `/gsd:new-milestone` to start v1.1
+Last session: 2026-02-25 (v1.1 milestone started)
+Stopped at: Requirements defined, roadmap creation in progress
 Resume file: None
