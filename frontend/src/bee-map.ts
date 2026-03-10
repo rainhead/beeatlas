@@ -33,14 +33,14 @@ interface ParsedParams {
   yearFrom: number | null;
   yearTo: number | null;
   months: Set<number>;
-  occurrenceId: string | null;
+  occurrenceIds: string[];
 }
 
 function buildSearchParams(
   center: number[],
   zoom: number,
   fs: typeof filterState,
-  selectedOccId: string | null
+  selectedOccIds: string[] | null
 ): URLSearchParams {
   const params = new URLSearchParams();
   params.set('x', center[0]!.toFixed(4));
@@ -53,7 +53,9 @@ function buildSearchParams(
   if (fs.yearFrom !== null) params.set('yr0', String(fs.yearFrom));
   if (fs.yearTo   !== null) params.set('yr1', String(fs.yearTo));
   if (fs.months.size > 0)  params.set('months', [...fs.months].sort((a, b) => a - b).join(','));
-  if (selectedOccId !== null) params.set('o', selectedOccId);
+  if (selectedOccIds !== null && selectedOccIds.length > 0) {
+    params.set('o', selectedOccIds.join(','));
+  }
   return params;
 }
 
@@ -80,9 +82,12 @@ function parseUrlParams(search: string): ParsedParams {
   const months = new Set(
     monthsStr ? monthsStr.split(',').map(Number).filter(n => n >= 1 && n <= 12) : []
   );
-  const occurrenceId = p.get('o') ?? null;
+  const oRaw = p.get('o') ?? '';
+  const occurrenceIds = oRaw
+    ? oRaw.split(',').map(s => s.trim()).filter(s => s.startsWith('ecdysis:') && s.length > 8)
+    : [];
 
-  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceId };
+  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds };
 }
 
 function buildSamples(features: Feature[]): Sample[] {
@@ -181,7 +186,7 @@ export class BeeMap extends LitElement {
 
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
-  private _selectedOccId: string | null = null;
+  private _selectedOccIds: string[] | null = null;
 
   // Filter state mirrored for URL sync — these track what to pass down to bee-sidebar for display restore
   @state() private _restoredTaxonInput = '';
@@ -221,11 +226,11 @@ export class BeeMap extends LitElement {
     view.setCenter(fromLonLat([parsed.lon, parsed.lat]));
     view.setZoom(parsed.zoom);
     this._restoreFilterState(parsed);
-    if (parsed.occurrenceId) {
-      this._restoreSelectedOccurrence(parsed.occurrenceId);
+    if (parsed.occurrenceIds.length > 0) {
+      this._restoreSelectedOccurrences(parsed.occurrenceIds);
     } else {
       this.selectedSamples = null;
-      this._selectedOccId = null;
+      this._selectedOccIds = null;
     }
   };
 
@@ -302,27 +307,34 @@ bee-sidebar {
     this._restoredMonths   = parsed.months;
   }
 
-  private _restoreSelectedOccurrence(occId: string) {
-    const feature = specimenSource.getFeatureById(occId) as Feature | null;
-    if (feature) {
-      const toShow = isFilterActive(filterState)
-        ? [feature].filter(f => matchesFilter(f, filterState))
-        : [feature];
-      if (toShow.length > 0) {
-        this.selectedSamples = buildSamples(toShow);
-        this._selectedOccId = occId;
-        return;
-      }
+  private _restoreSelectedOccurrences(occIds: string[]) {
+    const features: Feature[] = [];
+    for (const occId of occIds) {
+      const feature = specimenSource.getFeatureById(occId) as Feature | null;
+      if (feature) features.push(feature);
     }
-    this.selectedSamples = null;
-    this._selectedOccId = null;
+    if (features.length === 0) {
+      this.selectedSamples = null;
+      this._selectedOccIds = null;
+      return;
+    }
+    const toShow = isFilterActive(filterState)
+      ? features.filter(f => matchesFilter(f, filterState))
+      : features;
+    if (toShow.length > 0) {
+      this.selectedSamples = buildSamples(toShow);
+      this._selectedOccIds = toShow.map(f => f.getId() as string);
+    } else {
+      this.selectedSamples = null;
+      this._selectedOccIds = null;
+    }
   }
 
   private _pushUrlState() {
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
-    const params = buildSearchParams(center, zoom, filterState, this._selectedOccId);
+    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds);
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
@@ -366,7 +378,7 @@ bee-sidebar {
     this.selectedSamples = null;
 
     // Sync filter change to URL
-    this._selectedOccId = null;
+    this._selectedOccIds = null;
     if (!this._isRestoringFromHistory && this.map) {
       this._pushUrlState();
     }
@@ -389,7 +401,7 @@ bee-sidebar {
         .restoredMonths=${this._restoredMonths}
         @close=${() => {
           this.selectedSamples = null;
-          this._selectedOccId = null;
+          this._selectedOccIds = null;
           if (this.map) this._pushUrlState();
         }}
         @filter-changed=${(e: CustomEvent<FilterChangedEvent>) => this._applyFilter(e.detail)}
@@ -432,7 +444,10 @@ bee-sidebar {
     // Write initial URL state (covers no-param fresh loads — makes URL bar show params immediately)
     const view = this.map.getView();
     const initCenter = toLonLat(view.getCenter()!);
-    const initParams = buildSearchParams(initCenter, view.getZoom()!, filterState, null);
+    const initParams = buildSearchParams(
+      initCenter, view.getZoom()!, filterState,
+      initialParams.occurrenceIds.length > 0 ? initialParams.occurrenceIds : null
+    );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
     // Restore filter state from URL params (filter singleton + sidebar display)
@@ -477,8 +492,10 @@ bee-sidebar {
         }
 
         // Restore selected occurrence (must happen here — data not available until this callback)
-        if (initialParams.occurrenceId) {
-          this._restoreSelectedOccurrence(initialParams.occurrenceId);
+        if (initialParams.occurrenceIds.length > 0) {
+          this._restoreSelectedOccurrences(initialParams.occurrenceIds);
+          // Re-sync URL after occurrence restore (keeps o= param in the URL bar)
+          if (this.map) this._pushUrlState();
         }
       }
     });
@@ -489,12 +506,12 @@ bee-sidebar {
       this._pushUrlState();
     });
 
-    // singleclick handler (unchanged from before, but also track _selectedOccId)
+    // singleclick handler: store all occurrence IDs in cluster for URL encoding
     this.map.on('singleclick', async (event: MapBrowserEvent) => {
       const hits = await speicmenLayer.getFeatures(event.pixel);
       if (!hits.length) {
         this.selectedSamples = null;
-        this._selectedOccId = null;
+        this._selectedOccIds = null;
         return;
       }
       const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
@@ -503,8 +520,7 @@ bee-sidebar {
         : inner;
       if (toShow.length === 0) return;
       this.selectedSamples = buildSamples(toShow);
-      // Store the first feature's ID for URL encoding (use first alphabetically for determinism)
-      this._selectedOccId = (toShow[0]!.getId() as string) ?? null;
+      this._selectedOccIds = toShow.map(f => f.getId() as string);
       this._pushUrlState();
     });
 
