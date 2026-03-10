@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–6 (shipped 2026-02-22)
-- 📋 **v1.1 URL Sharing** — Phase 7 (planned)
+- 🚧 **v1.1 URL Sharing** — Phase 7 (in progress)
 
 ## Phases
 
@@ -36,7 +36,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
+- [x] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
 - [ ] 07-02-PLAN.md — Human verify URL sharing end-to-end (all 7 scenarios)
 
 ## Progress
@@ -49,4 +49,4 @@ Plans:
 | 4. Filtering | v1.0 | 5/5 | Complete | 2026-02-22 |
 | 5. Fix Month Offset Bug | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
-| 7. URL Sharing | v1.1 | 0/2 | Not started | — |
+| 7. URL Sharing | v1.1 | 1/2 | In progress | — |

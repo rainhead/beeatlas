@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Milestone v1.1 — iNat Sample Markers
+**Current focus:** Phase 07 — URL Sharing
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-25 — Milestone v1.1 started
+Phase: 07-url-sharing
+Plan: 1 of 1
+Status: Plan 07-01 complete
+Last activity: 2026-03-09 — URL state synchronization implemented (NAV-01)
 
-Progress: [░░░░░░░░░░] v1.1 not started
+Progress: [##########] Phase 07 complete (1/1 plans)
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [░░░░░░░░░░] v1.1 not started
 | 04-filtering | 5 | 13 min | 2.6 min |
 | 05-fix-month-offset | 1 | 5 min | 5 min |
 | 06-infra03-deployment | 1 | ~30 min | ~30 min |
+| 07-url-sharing | 1 | 3 min | 3 min |
 
 *Updated after each plan completion*
 
@@ -45,9 +46,15 @@ Key context for v1.1 (iNat Sample Markers):
 - iNat observations are of host plants made in the field; they appear hours-to-days before specimens arrive in Ecdysis
 - Specimen count is stored as an iNat observation field filled in by the collector (usually same day or next day)
 - Ecdysis HTML scraping (to link specimens → iNat observations) deferred to v1.2; v1.1 only queries iNat API
-- NAV-01 URL sharing deferred to v1.2
-- Previous URL sync work (commit 43966b1 reverted by 7c44a42) preserved for v1.2 reference
 - Verify `place_id=82` for Washington State in iNaturalist before pipeline implementation
+
+### Phase 07 Decisions (URL Sharing)
+
+- Query string params (not hash): x/y/z for view, taxon/taxonRank/yr0/yr1/months/o for filters
+- replaceState on every moveend + 500ms debounced pushState avoids history explosion
+- _isRestoringFromHistory flag prevents feedback loops between popstate and moveend
+- Lit updated() pattern in BeeSidebar to apply parent-pushed restore properties to internal @state fields
+- DEFAULT_LON=-120.5, DEFAULT_LAT=47.5, DEFAULT_ZOOM=7 for Washington State default view
 
 ### Pending Todos
 
@@ -59,6 +66,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-25 (v1.1 milestone started)
-Stopped at: Requirements defined, roadmap creation in progress
+Last session: 2026-03-09 (Phase 07 URL sharing implemented)
+Stopped at: Completed 07-01-PLAN.md — URL state synchronization (NAV-01)
 Resume file: None
