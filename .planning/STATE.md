@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: URL Sharing
-status: completed
-stopped_at: Completed 07-02-PLAN.md — verification done, gaps F and G documented for gap-closure
-last_updated: "2026-03-10T02:43:09Z"
-last_activity: 2026-03-10 — URL sharing browser verification complete (5/7 scenarios pass; back button and o= param need gap-closure)
+status: verifying
+stopped_at: Completed 07-03-PLAN.md — back button fix complete
+last_updated: "2026-03-10T03:00:21.877Z"
+last_activity: 2026-03-10 — URL sharing browser verification; scenarios A-E pass, F and G need gap-closure
 progress:
   total_phases: 1
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 3
 ---
 
 # Project State
@@ -50,6 +50,7 @@ Progress: [##########] Phase 07 plans complete (2/2 plans) — NAV-01 partially 
 | 07-url-sharing | 1 | 3 min | 3 min |
 
 *Updated after each plan completion*
+| Phase 07-url-sharing P03 | 1m | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,7 @@ Key context for v1.1 (iNat Sample Markers):
 - Specimen count is stored as an iNat observation field filled in by the collector (usually same day or next day)
 - Ecdysis HTML scraping (to link specimens → iNat observations) deferred to v1.2; v1.1 only queries iNat API
 - Verify `place_id=82` for Washington State in iNaturalist before pipeline implementation
+- [Phase 07-url-sharing]: map.once('moveend') resets _isRestoringFromHistory after OL programmatic view change; synchronous fallback for no-view-change case
 
 ### Phase 07 Decisions (URL Sharing)
 
@@ -81,6 +83,6 @@ Key context for v1.1 (iNat Sample Markers):
 
 ## Session Continuity
 
-Last session: 2026-03-10T02:43:09Z
-Stopped at: Completed 07-02-PLAN.md — verification results recorded, SUMMARY.md written
+Last session: 2026-03-10T03:00:21.875Z
+Stopped at: Completed 07-03-PLAN.md — back button fix complete
 Resume file: None
