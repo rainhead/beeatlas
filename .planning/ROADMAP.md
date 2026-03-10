@@ -35,21 +35,20 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Fetch Washington Bee Atlas collection events from iNaturalist and produce `samples.parquet` with S3 caching — pipeline only, no map presentation.
 
-- [ ] **Phase 8: Discovery and Prerequisite Gate** — Live API inspection to confirm field paths; IAM permissions; committed zero-row `samples.parquet` stub
+- [ ] **Phase 8: Discovery and Prerequisite Gate** — Live API inspection to confirm field paths; IAM permissions updated for S3 cache
 - [ ] **Phase 9: Pipeline Implementation** — `download.py` querying iNat API, full extraction and S3 cache logic wired as npm scripts
 - [ ] **Phase 10: Build Integration and Verification** — `build-data.sh` extended; `samples.parquet` lands in frontend assets; CI green on merge
 
 ## Phase Details
 
 ### Phase 8: Discovery and Prerequisite Gate
-**Goal**: The blocking unknowns are resolved and the project is safe to implement — IAM permissions grant the pipeline S3 access, `SPECIMEN_COUNT_FIELD_NAME` is confirmed from a live API call, `ofvs` behavior under pyinaturalist v1 is verified, and a zero-row `samples.parquet` stub with the correct schema is committed to main so CI cannot break during development.
+**Goal**: The blocking unknowns are resolved and the project is safe to implement — IAM permissions grant the pipeline S3 access, `SPECIMEN_COUNT_FIELD_NAME` is confirmed from a live API call, and `ofvs` behavior under pyinaturalist v1 is verified.
 **Depends on**: Nothing (first phase of v1.2)
 **Requirements**: INFRA-04
 **Success Criteria** (what must be TRUE):
   1. OIDC IAM role policy grants `s3:GetObject` and `s3:PutObject` on the S3 cache prefix; CI workflow step provides AWS credentials to the pipeline
   2. A live `curl` call against iNaturalist API project 166376 has been made and the specimen count observation field name/ID is recorded as a named constant in the codebase
   3. Whether pyinaturalist v1 `get_observations()` includes `ofvs` by default (or requires `fields='all'`) is confirmed and documented
-  4. `frontend/src/assets/samples.parquet` exists in the main branch with the correct schema (observation_id, observer, date, lat, lon, specimen_count) and zero rows — `npm run build` passes without the download script present
 **Plans**: TBD
 
 ### Phase 9: Pipeline Implementation
@@ -65,13 +64,13 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 **Plans**: TBD
 
 ### Phase 10: Build Integration and Verification
-**Goal**: The iNat pipeline is wired into the full build — `build-data.sh` runs the download and copies `samples.parquet` to `frontend/src/assets/`; a complete local build produces both `ecdysis.parquet` and `samples.parquet` in the frontend; CI passes on merge to main.
+**Goal**: The iNat pipeline is wired into `build-data.sh`; a complete local build runs the download and produces `data/samples.parquet`; the S3 cache round-trip completes during CI; CI passes on merge to main.
 **Depends on**: Phase 9
 **Requirements**: INAT-03
 **Success Criteria** (what must be TRUE):
-  1. `npm run build` completes locally and `frontend/src/assets/samples.parquet` contains the correct schema and at least one row
-  2. Both `ecdysis.parquet` and `samples.parquet` are present in the Vite build output (`dist/assets/`) as content-hashed files
-  3. CI passes on a push to main — the GitHub Actions workflow completes the build step without error and deploys successfully
+  1. `npm run build` runs the iNat pipeline and produces `data/samples.parquet` with the correct schema and at least one row
+  2. The S3 cache round-trip (restore → fetch → upload) completes without error during a CI run
+  3. CI passes on a push to main — the GitHub Actions workflow completes without error and deploys successfully
 **Plans**: TBD
 
 ## Progress
