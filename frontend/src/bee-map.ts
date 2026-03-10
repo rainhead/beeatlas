@@ -197,20 +197,35 @@ export class BeeMap extends LitElement {
       clearTimeout(this._mapMoveDebounce);
       this._mapMoveDebounce = null;
     }
-    try {
-      const parsed = parseUrlParams(window.location.search);
-      const view = this.map!.getView();
-      view.setCenter(fromLonLat([parsed.lon, parsed.lat]));
-      view.setZoom(parsed.zoom);
-      this._restoreFilterState(parsed);
-      if (parsed.occurrenceId) {
-        this._restoreSelectedOccurrence(parsed.occurrenceId);
-      } else {
-        this.selectedSamples = null;
-        this._selectedOccId = null;
-      }
-    } finally {
+    const parsed = parseUrlParams(window.location.search);
+    const view = this.map!.getView();
+    const currentCenter = toLonLat(view.getCenter()!);
+    const currentZoom = view.getZoom()!;
+    const viewWillChange =
+      Math.abs(currentCenter[0]! - parsed.lon) > 0.0001 ||
+      Math.abs(currentCenter[1]! - parsed.lat) > 0.0001 ||
+      Math.abs(currentZoom - parsed.zoom) > 0.01;
+
+    if (viewWillChange) {
+      // OL will fire moveend after the programmatic move — reset flag there.
+      // Without this, the finally block would reset it synchronously, letting
+      // the moveend handler push a new history entry that cancels back navigation.
+      this.map!.once('moveend', () => {
+        this._isRestoringFromHistory = false;
+      });
+    } else {
+      // No view change — OL won't fire moveend, reset flag synchronously
       this._isRestoringFromHistory = false;
+    }
+
+    view.setCenter(fromLonLat([parsed.lon, parsed.lat]));
+    view.setZoom(parsed.zoom);
+    this._restoreFilterState(parsed);
+    if (parsed.occurrenceId) {
+      this._restoreSelectedOccurrence(parsed.occurrenceId);
+    } else {
+      this.selectedSamples = null;
+      this._selectedOccId = null;
     }
   };
 
