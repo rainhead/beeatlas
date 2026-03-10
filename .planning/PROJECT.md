@@ -8,15 +8,13 @@ An interactive web map displaying Ecdysis specimen records for volunteer collect
 
 Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
-## Current Milestone: v1.2 iNat Sample Markers
+## Current Milestone: v1.2 iNat Pipeline
 
-**Goal:** Show live collection events from iNaturalist on the map, giving volunteers a community view of recent collecting activity before specimens arrive in Ecdysis.
+**Goal:** Fetch Washington Bee Atlas collection events from iNaturalist and produce samples.parquet — pipeline only, no map presentation yet.
 
 **Target features:**
 - iNat API pipeline querying Washington Bee Atlas project observations
 - Samples Parquet produced alongside specimens Parquet (observer, date, lat/lon, specimen count)
-- Sample markers layer on the map, coexisting with existing specimen clusters
-- Sample sidebar: who collected, when, specimen count (0 = not yet entered)
 
 ## Requirements
 
@@ -41,8 +39,6 @@ Collectors can see where bees have been collected and where target host plants g
 - [ ] **INAT-01**: Pipeline queries iNaturalist API for Washington Bee Atlas collection observations — v1.2
 - [ ] **INAT-02**: Pipeline extracts observer, date, coordinates, and specimen count observation field from each iNat observation — v1.2
 - [ ] **INAT-03**: Pipeline produces samples.parquet (one row per iNat observation: observation_id, observer, date, lat, lon, specimen_count) — v1.2
-- [ ] **MAP-03**: Map renders a sample markers layer coexisting with existing specimen clusters — v1.2
-- [ ] **MAP-04**: Clicking a sample marker shows sidebar with observer name, collection date, and specimen count (0 = not yet entered) — v1.2
 
 ### Out of Scope
 
@@ -55,7 +51,8 @@ Collectors can see where bees have been collected and where target host plants g
 | Real-time data refresh | Static Parquet updated per pipeline run is correct |
 | Heat map / analytics | Map is the analytical surface; charts are scope creep |
 | iNaturalist host plant display layer | v1.2 uses iNat data for collection event samples, not a visual plant layer |
-| Ecdysis HTML scraping for specimen-sample linkage | Deferred to v1.3 — ship iNat sample markers first |
+| Sample markers map layer (MAP-03, MAP-04) | Deferred — sample↔specimen linkage modeling needed first (v1.3+) |
+| Ecdysis HTML scraping for specimen-sample linkage | Deferred — modeling work to relate samples and specimens precedes presentation |
 | Location search / pan-to-place | Deferred to v2 (NAV-02) |
 
 ## Context
@@ -104,4 +101,4 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Lit `updated()` pattern for URL-pushed restore props | BeeMap pushes restore props as `@property`; BeeSidebar mirrors to `@state` via `updated()` | ✓ Good — clean separation between map-driven restore and sidebar-driven state |
 
 ---
-*Last updated: 2026-03-10 after v1.1 milestone (URL Sharing)*
+*Last updated: 2026-03-10 after v1.2 milestone start (iNat Pipeline — scope reduced to pipeline only)*
