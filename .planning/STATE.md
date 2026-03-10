@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
-stopped_at: Completed 08-02-PLAN.md — AWS credentials in CI build job, S3 cache/ prefix smoke-tested
-last_updated: "2026-03-10T19:58:34.082Z"
+stopped_at: Completed 09-01-PLAN.md — samples.parquet schema stub, cache scripts, npm pipeline scripts
+last_updated: "2026-03-10T20:33:54.142Z"
 last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -53,6 +53,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 08-01]: OFVS_IN_DEFAULT_RESPONSE = True — no fields='all' parameter needed for iNat API v1 project observation queries
 - [Phase 08-02]: S3_BUCKET_NAME existing GitHub variable is sufficient for Phase 9 — no new variable needed; pipeline uses cache/ prefix
 - [Phase 08-02]: No new IAM grants needed for S3 cache/ prefix — siteBucket.grantReadWrite(deployerRole) already covers it
+- [Phase 09-01]: samples.parquet must be force-tracked (git add -f) because root .gitignore has *.parquet; stub must be in repo so CI does not fail before pipeline runs
+- [Phase 09-01]: specimen_count uses pandas Int64 (nullable) not int64 to match nullable integer requirement in schema spec
 
 ### Pending Todos
 
@@ -65,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T19:57:33.208Z
-Stopped at: Completed 08-02-PLAN.md — AWS credentials in CI build job, S3 cache/ prefix smoke-tested
+Last session: 2026-03-10T20:33:54.140Z
+Stopped at: Completed 09-01-PLAN.md — samples.parquet schema stub, cache scripts, npm pipeline scripts
 Resume file: None
