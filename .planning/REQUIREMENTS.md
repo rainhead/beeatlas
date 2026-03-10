@@ -1,0 +1,67 @@
+# Requirements: Washington Bee Atlas
+
+**Defined:** 2026-03-10
+**Core Value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
+
+## v1.2 Requirements
+
+### Pipeline (iNat fetch)
+
+- [ ] **INAT-01**: Pipeline queries iNaturalist API for all Washington Bee Atlas project (id=166376) observations
+- [ ] **INAT-02**: Pipeline extracts observer, date, coordinates, and specimen count observation field from each iNat observation
+- [ ] **INAT-03**: Pipeline produces `samples.parquet` (observation_id, observer, date, lat, lon, specimen_count nullable)
+
+### Caching
+
+- [ ] **CACHE-01**: Pipeline restores `samples.parquet` + `last_fetch.txt` from S3 cache prefix at build start; falls back to full fetch on cache miss
+- [ ] **CACHE-02**: Pipeline fetches only observations updated since `last_fetch.txt` timestamp; merges delta into restored parquet; falls back to full fetch when cache is absent or corrupt
+- [ ] **CACHE-03**: Pipeline uploads updated `samples.parquet` + `last_fetch.txt` back to S3 cache prefix after successful fetch
+
+### Infrastructure / DX
+
+- [ ] **INFRA-04**: OIDC IAM role grants `s3:GetObject` and `s3:PutObject` on the S3 cache prefix; CI workflow provides AWS credentials to the pipeline step
+- [ ] **INFRA-05**: Cache restore, iNat fetch, and cache upload operations are exposed as top-level `package.json` scripts; CI workflow calls these scripts rather than encoding the operations directly
+
+## Future Requirements
+
+### Map Presentation (v1.3+)
+
+- **MAP-03**: Map renders a sample markers layer coexisting with existing specimen clusters
+- **MAP-04**: Clicking a sample marker shows sidebar with observer name, collection date, and specimen count (0 = not yet entered)
+
+### Specimen-Sample Linkage (v1.3+)
+
+- **LINK-01**: Modeling work to relate iNat samples to Ecdysis specimens before map presentation
+- **LINK-02**: Ecdysis HTML scraping to link specimens to iNat observation IDs
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Sample markers map layer (MAP-03, MAP-04) | Deferred — specimen-sample linkage modeling needed first |
+| Specimen-sample linkage | Separate milestone after v1.2 pipeline ships |
+| iNaturalist host plant display layer | Not a collection event data source |
+| OR project (id=18521) | Out of scope for v1.2; stub exists in projects.py |
+| Real-time data refresh | Static Parquet updated per pipeline run is correct |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| INAT-01 | Phase 9 | Pending |
+| INAT-02 | Phase 9 | Pending |
+| INAT-03 | Phase 9 | Pending |
+| CACHE-01 | Phase 9 | Pending |
+| CACHE-02 | Phase 9 | Pending |
+| CACHE-03 | Phase 9 | Pending |
+| INFRA-04 | Phase 8 | Pending |
+| INFRA-05 | Phase 9 | Pending |
+
+**Coverage:**
+- v1.2 requirements: 8 total
+- Mapped to phases: 0
+- Unmapped: 8 ⚠️
+
+---
+*Requirements defined: 2026-03-10*
+*Last updated: 2026-03-10 after initial definition*
