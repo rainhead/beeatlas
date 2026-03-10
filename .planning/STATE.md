@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
-stopped_at: Milestone v1.2 started — defining requirements
+stopped_at: Roadmap created — 3 phases (8-10), ready to plan Phase 8
 last_updated: "2026-03-10T00:00:00.000Z"
-last_activity: 2026-03-10 — Milestone v1.2 started
+last_activity: 2026-03-10 — v1.2 roadmap created
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,72 +20,46 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Milestone v1.2 — iNat Pipeline
+**Current focus:** Milestone v1.2 — iNat Pipeline (Phase 8: Discovery and Prerequisite Gate)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-10 — Milestone v1.2 started
+Phase: 8 of 10 (Discovery and Prerequisite Gate)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-**v1.0 Velocity:**
-- Total plans completed: 13
-- Timeline: 4 days (2026-02-18 → 2026-02-22)
+**Prior velocity (v1.0 + v1.1):**
+- Total plans completed: 18 (13 in v1.0, 5 in v1.1)
+- v1.0 timeline: 4 days; avg ~2–3 min/plan (one outlier: Phase 6 ~30 min)
+- v1.1 Phase 7: 5 plans, ~15 min total
 
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 01-pipeline | 1 | 2 min | 2 min |
-| 02-infrastructure | 2 | 4 min | 2 min |
-| 03-core-map | 3 | 3 min | 1 min |
-| 04-filtering | 5 | 13 min | 2.6 min |
-| 05-fix-month-offset | 1 | 5 min | 5 min |
-| 06-infra03-deployment | 1 | ~30 min | ~30 min |
-| 07-url-sharing | 5 | ~15 min | ~3 min |
-
-*Updated after each plan completion*
-| Phase 07-url-sharing P03 | 1m | 1 tasks | 1 files |
-| Phase 07-url-sharing P04 | 2min | 1 tasks | 1 files |
-| Phase 07-url-sharing P05 | 5min | 2 tasks | 0 files |
+*v1.2 metrics will be tracked after first plan completes*
 
 ## Accumulated Context
 
 ### Decisions
 
-All v1.0 decisions logged in PROJECT.md Key Decisions table.
-
-Key context for v1.1 (iNat Sample Markers):
-- iNat observations are of host plants made in the field; they appear hours-to-days before specimens arrive in Ecdysis
-- Specimen count is stored as an iNat observation field filled in by the collector (usually same day or next day)
-- Ecdysis HTML scraping (to link specimens → iNat observations) deferred to v1.2; v1.1 only queries iNat API
-- Verify `place_id=82` for Washington State in iNaturalist before pipeline implementation
-- [Phase 07-url-sharing]: map.once('moveend') resets _isRestoringFromHistory after OL programmatic view change; synchronous fallback for no-view-change case
-- [Phase 07-url-sharing]: occurrenceIds: string[] (not string | null) in ParsedParams — empty array avoids null checks at call sites
-- [Phase 07-url-sharing]: Initial replaceState now preserves o= by passing initialParams.occurrenceIds to buildSearchParams
-- [Phase 07-url-sharing]: NAV-01 declared complete after all 7 browser verification scenarios passed in sequential human review
-
-### Phase 07 Decisions (URL Sharing)
-
-- Query string params (not hash): x/y/z for view, taxon/taxonRank/yr0/yr1/months/o for filters
-- replaceState on every moveend + 500ms debounced pushState avoids history explosion
-- _isRestoringFromHistory flag prevents feedback loops between popstate and moveend
-- Lit updated() pattern in BeeSidebar to apply parent-pushed restore properties to internal @state fields
-- DEFAULT_LON=-120.5, DEFAULT_LAT=47.5, DEFAULT_ZOOM=7 for Washington State default view
+- **v1.2 scope**: Pipeline only — MAP-03, MAP-04, and specimen-sample linkage deferred to v1.3+
+- **Parquet stub must land in main first**: `frontend/src/assets/samples.parquet` (zero rows, correct schema) committed before Phase 9 feature branch to prevent CI breakage
+- **Do not use `pyinaturalist-convert.to_dataframe()`**: Returns `ofvs.{field_id}` column names and `location` as list — unsuitable for samples schema; parse raw dicts directly
+- **Use iNat API v1 (pyinaturalist default), not v2**: v2 has project observation count discrepancies; coordinate order also differs
 
 ### Pending Todos
 
-None — Phase 07 complete.
+None.
 
 ### Blockers/Concerns
 
-None — NAV-01 fully met. All URL-sharing scenarios verified passing.
+- **Phase 8 hard prerequisite**: Specimen count observation field name/ID for WA Bee Atlas project 166376 cannot be determined statically — requires one live `curl` call. Must be resolved before extraction logic in Phase 9 can be written.
+- **`ofvs` presence ambiguity**: ARCHITECTURE.md says v1 includes `ofvs` by default; PITFALLS.md warns it may require `fields='all'`. Must be confirmed in Phase 8.
 
 ## Session Continuity
 
-Last session: 2026-03-09T00:00:00.000Z
-Stopped at: Completed 07-05-PLAN.md — all 7 URL-sharing scenarios verified; NAV-01 satisfied
+Last session: 2026-03-10
+Stopped at: Roadmap created — Phase 8 ready to plan
 Resume file: None
