@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
-stopped_at: Completed 09-02-PLAN.md — inat/download.py pipeline with incremental fetch, merge_delta, and build-data.sh integration
-last_updated: "2026-03-10T20:38:51.535Z"
+stopped_at: "Completed 10-01 Task 1: deploy.yml updated — awaiting CI green verification at checkpoint"
+last_updated: "2026-03-10T22:54:33.415Z"
 last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 0
 ---
 
@@ -58,6 +58,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 09-02]: page='all' pagination for both full and incremental fetches — pyinaturalist handles iteration automatically
 - [Phase 09-02]: Incremental fallback: catch any exception from fetch_since, warn, fall back to full fetch
 - [Phase 09-02]: merge_delta uses keep='last' so delta rows overwrite existing rows on duplicate observation_id
+- [Phase 10-01]: Job-level env: S3_BUCKET_NAME in both build and deploy jobs — cleaner than per-step env, avoids repetition across three steps
+- [Phase 10-01]: Mirror same cache-restore/build/cache-upload pattern in both CI jobs for consistency
 
 ### Pending Todos
 
@@ -70,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:38:10.100Z
-Stopped at: Completed 09-02-PLAN.md — inat/download.py pipeline with incremental fetch, merge_delta, and build-data.sh integration
+Last session: 2026-03-10T22:54:28.574Z
+Stopped at: Completed 10-01 Task 1: deploy.yml updated — awaiting CI green verification at checkpoint
 Resume file: None
