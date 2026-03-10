@@ -9,7 +9,7 @@
 
 - [x] **INAT-01**: Pipeline queries iNaturalist API for all Washington Bee Atlas project (id=166376) observations
 - [x] **INAT-02**: Pipeline extracts observer, date, coordinates, and specimen count observation field from each iNat observation
-- [ ] **INAT-03**: Pipeline produces `samples.parquet` (observation_id, observer, date, lat, lon, specimen_count nullable)
+- [x] **INAT-03**: Pipeline produces `samples.parquet` (observation_id, observer, date, lat, lon, specimen_count nullable)
 
 ### Caching
 
@@ -55,7 +55,7 @@
 | CACHE-02 | Phase 9 | Complete |
 | CACHE-03 | Phase 9 | Complete |
 | INFRA-05 | Phase 9 | Complete |
-| INAT-03 | Phase 10 | Pending |
+| INAT-03 | Phase 10 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 8 total
