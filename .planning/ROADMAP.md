@@ -23,7 +23,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 ### 📋 v1.1 URL Sharing (Planned)
 
-- [x] **Phase 7: URL Sharing** — Encode map view and filter state in the URL for shareable links (completed 2026-03-10)
+- [~] **Phase 7: URL Sharing** — Core URL sharing verified (A-E pass); back button and o= param need gap-closure (2026-03-10)
 
 #### Phase 7: URL Sharing
 **Goal**: A collector can share a link that restores the exact map view and active filters another collector sees
@@ -37,7 +37,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 Plans:
 - [x] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
-- [ ] 07-02-PLAN.md — Human verify URL sharing end-to-end (all 7 scenarios)
+- [x] 07-02-PLAN.md — Human verify URL sharing end-to-end (5/7 pass; F and G need gap-closure)
 
 ## Progress
 
@@ -49,4 +49,4 @@ Plans:
 | 4. Filtering | v1.0 | 5/5 | Complete | 2026-02-22 |
 | 5. Fix Month Offset Bug | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
-| 7. URL Sharing | 2/2 | Complete   | 2026-03-10 | — |
+| 7. URL Sharing | v1.1 | 2/2 | Partial — gap-closure needed | 2026-03-10 |
