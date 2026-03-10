@@ -48,20 +48,20 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| INFRA-04 | Phase 8 | Pending |
 | INAT-01 | Phase 9 | Pending |
 | INAT-02 | Phase 9 | Pending |
-| INAT-03 | Phase 9 | Pending |
 | CACHE-01 | Phase 9 | Pending |
 | CACHE-02 | Phase 9 | Pending |
 | CACHE-03 | Phase 9 | Pending |
-| INFRA-04 | Phase 8 | Pending |
 | INFRA-05 | Phase 9 | Pending |
+| INAT-03 | Phase 10 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 8 total
-- Mapped to phases: 0
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-10*
-*Last updated: 2026-03-10 after initial definition*
+*Last updated: 2026-03-10 — traceability updated after roadmap creation*
