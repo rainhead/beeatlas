@@ -49,7 +49,10 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
   1. OIDC IAM role policy grants `s3:GetObject` and `s3:PutObject` on the S3 cache prefix; CI workflow step provides AWS credentials to the pipeline
   2. A live `curl` call against iNaturalist API project 166376 has been made and the specimen count observation field name/ID is recorded as a named constant in the codebase
   3. Whether pyinaturalist v1 `get_observations()` includes `ofvs` by default (or requires `fields='all'`) is confirmed and documented
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 08-01-PLAN.md — Commit field ID constants and extraction helper to data/inat/observations.py
+- [ ] 08-02-PLAN.md — Add S3 cache bucket to CDK stack, grant deployer role scoped access, add AWS credentials to CI build job
 
 ### Phase 9: Pipeline Implementation
 **Goal**: A working `data/inat/download.py` script fetches all Washington Bee Atlas observations from iNaturalist, extracts the required fields (including nullable specimen count), restores and writes the S3 cache, and all operations are exposed as top-level npm scripts.
@@ -84,6 +87,6 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 | 5. Fix Month Offset Bug | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 7. URL Sharing | v1.1 | 5/5 | Complete | 2026-03-09 |
-| 8. Discovery and Prerequisite Gate | v1.2 | 0/TBD | Not started | - |
+| 8. Discovery and Prerequisite Gate | v1.2 | 0/2 | Not started | - |
 | 9. Pipeline Implementation | v1.2 | 0/TBD | Not started | - |
 | 10. Build Integration and Verification | v1.2 | 0/TBD | Not started | - |
