@@ -17,7 +17,10 @@
   "scripts": {
     "build:data": "bash scripts/build-data.sh",
     "build": "npm run build:data && npm run build --workspace=frontend",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "cache-restore": "bash scripts/cache_restore.sh",
+    "fetch-inat": "cd data && uv run python inat/download.py",
+    "cache-upload": "bash scripts/cache_upload.sh"
   },
   "workspaces": ["frontend"]
 }
