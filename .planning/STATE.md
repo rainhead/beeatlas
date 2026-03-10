@@ -3,14 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
-stopped_at: Roadmap created — 3 phases (8-10), ready to plan Phase 8
-last_updated: "2026-03-10T00:00:00.000Z"
-last_activity: 2026-03-10 — v1.2 roadmap created
+stopped_at: Completed 08-01-PLAN.md — observations.py with field constants committed
+last_updated: "2026-03-10T19:51:39.491Z"
+last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
+  percent: 0
 ---
 
 # Project State
@@ -48,6 +49,8 @@ Progress: [░░░░░░░░░░] 0%
 - **Parquet stub must land in main first**: `frontend/src/assets/samples.parquet` (zero rows, correct schema) committed before Phase 9 feature branch to prevent CI breakage
 - **Do not use `pyinaturalist-convert.to_dataframe()`**: Returns `ofvs.{field_id}` column names and `location` as list — unsuitable for samples schema; parse raw dicts directly
 - **Use iNat API v1 (pyinaturalist default), not v2**: v2 has project observation count discrepancies; coordinate order also differs
+- [Phase 08-01]: Match iNat ofvs by field_id=8338, not name string — field renamed from 'Number of bees collected' to 'numberOfSpecimens' circa 2024; name matching drops ~40% of historical data
+- [Phase 08-01]: OFVS_IN_DEFAULT_RESPONSE = True — no fields='all' parameter needed for iNat API v1 project observation queries
 
 ### Pending Todos
 
@@ -60,6 +63,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10
-Stopped at: Roadmap created — Phase 8 ready to plan
+Last session: 2026-03-10T19:51:39.488Z
+Stopped at: Completed 08-01-PLAN.md — observations.py with field constants committed
 Resume file: None
