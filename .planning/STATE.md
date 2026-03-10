@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: URL Sharing
 status: completed
-stopped_at: Checkpoint 07-02-PLAN.md Task 2 — awaiting human verification of URL sharing
-last_updated: "2026-03-10T02:37:11.082Z"
-last_activity: 2026-03-09 — URL state synchronization implemented (NAV-01)
+stopped_at: Completed 07-02-PLAN.md — verification done, gaps F and G documented for gap-closure
+last_updated: "2026-03-10T02:43:09Z"
+last_activity: 2026-03-10 — URL sharing browser verification complete (5/7 scenarios pass; back button and o= param need gap-closure)
 progress:
   total_phases: 1
   completed_phases: 1
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-02-25)
 ## Current Position
 
 Phase: 07-url-sharing
-Plan: 1 of 1
-Status: Plan 07-01 complete
-Last activity: 2026-03-09 — URL state synchronization implemented (NAV-01)
+Plan: 2 of 2 (both plans complete)
+Status: Plan 07-02 complete — browser verification done, gaps found
+Last activity: 2026-03-10 — URL sharing browser verification; scenarios A-E pass, F and G need gap-closure
 
-Progress: [##########] Phase 07 complete (1/1 plans)
+Progress: [##########] Phase 07 plans complete (2/2 plans) — NAV-01 partially met, gap-closure needed
 
 ## Performance Metrics
 
@@ -73,14 +73,14 @@ Key context for v1.1 (iNat Sample Markers):
 
 ### Pending Todos
 
-None.
+- Gap-closure plan needed for NAV-01: fix back button (Scenario F) and o= param (Scenario G)
 
 ### Blockers/Concerns
 
-None.
+- NAV-01 not fully met: back button non-functional (popstate handler); o= param stripped on load and only one occurrence encoded per cluster click
 
 ## Session Continuity
 
-Last session: 2026-03-10T02:37:11.080Z
-Stopped at: Checkpoint 07-02-PLAN.md Task 2 — awaiting human verification of URL sharing
+Last session: 2026-03-10T02:43:09Z
+Stopped at: Completed 07-02-PLAN.md — verification results recorded, SUMMARY.md written
 Resume file: None
