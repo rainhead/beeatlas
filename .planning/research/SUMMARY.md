@@ -1,199 +1,186 @@
 # Project Research Summary
 
-**Project:** Washington Bee Atlas — v1.1 iNaturalist API Integration
-**Domain:** Static biodiversity map with CI/CD deploy; Python data pipeline; client-side Parquet
-**Researched:** 2026-02-25
-**Confidence:** HIGH (grounded in direct codebase inspection and official library docs)
+**Project:** Washington Bee Atlas — v1.2 iNat Pipeline (pipeline-only)
+**Domain:** Python data pipeline — iNaturalist API to Parquet
+**Researched:** 2026-03-10
+**Confidence:** HIGH (codebase read directly; pyinaturalist source inspected in `.venv`; live iNat API response in repo)
 
 ## Executive Summary
 
-The v1.1 milestone adds a second data stream to an already-working static map. The existing architecture — Python pipeline produces a Parquet file, Vite bundles it as a content-hash asset, hyparquet reads it client-side, OpenLayers renders it as a vector layer — is proven and simply needs to be repeated for iNaturalist observations. No new dependencies, no new AWS infrastructure, and no authentication are required. Both `pyinaturalist` (0.21.1) and `pyinaturalist-convert` (0.7.4) are already locked in `data/uv.lock`; the Washington Bee Atlas project ID (166376) is already recorded in `data/inat/projects.py`. The core implementation is a new `data/inat/download.py` script following the same pattern as the existing `data/ecdysis/occurrences.py`.
+This milestone (v1.2) is a focused pipeline extension: query the iNaturalist API for all Washington Bee Atlas project observations and produce `samples.parquet` alongside the existing `ecdysis.parquet`. No frontend changes are in scope — MAP-03, MAP-04, and specimen-to-sample linkage are explicitly deferred to v1.3+. The existing codebase already has the necessary libraries (`pyinaturalist` 0.21.1 and `pyinaturalist-convert` 0.7.4, both locked in `data/uv.lock`), the project ID (166376 in `data/inat/projects.py`), and placeholder module files. The implementation pattern is directly established by the existing Ecdysis pipeline: a Python script fetches data, writes a Parquet file, and `build-data.sh` copies it to `frontend/src/assets/`. Estimate: 1–2 days of focused work.
 
-The single non-trivial technical decision is how to handle specimen count extraction. iNaturalist observation field values (`ofvs`) are not included in API responses by default — the `fields=all` parameter must be explicitly specified. More critically, the exact field ID used by the WA Bee Atlas for specimen count cannot be determined without inspecting live observations; it must be discovered at pipeline build time by querying `/v1/projects/166376`. The pipeline should treat absent specimen count as null (not 0), because the WA Bee Atlas is likely a collection project where observation field entry is voluntary, and the frontend sidebar must distinguish "0 specimens" from "not recorded."
+The single highest-risk unknown is the specimen count observation field name or ID used by the Washington Bee Atlas project. This cannot be resolved statically — it requires a live API call to inspect real observations from project 166376 before extraction logic can be written correctly. Everything else (pagination, rate limiting, schema, build integration) is either handled automatically by pyinaturalist or mirrors the existing Ecdysis pipeline exactly. There is also a minor ambiguity between `page='all'` (pyinaturalist cursor pagination) and a manual `id_above` loop — both are correct; pyinaturalist source confirms `page='all'` internally uses `IDRangePaginator` with `id_above` and is the simpler choice.
 
-The two significant risks for v1.1 are both in CI/CD rather than application logic. First, the iNat API is an external dependency that can fail independently of ecdysis.org, meaning the CI now has two external failure points; committing a fallback `samples.parquet` (matching the existing pattern for `ecdysis.parquet`) is the mitigation. Second, the existing `build-data.sh` runs on every push to any branch — adding a second API call compounds this waste; the iNat download should either be gated to the `deploy` job only or separated into a scheduled pipeline job.
+The key operational risk is CI fragility: adding an iNat API call to `build-data.sh` introduces a second external dependency alongside ecdysis.org, and CI runs on every branch push. The mitigation is to commit a stub `samples.parquet` (correct schema, zero rows) before the feature branch is created — the same pattern already used for `ecdysis.parquet`. Additionally, `pyinaturalist-convert`'s `to_dataframe()` should not be used: it produces unusable column names (`ofvs.{field_id}` instead of field names) and does not correctly split coordinates. Parse raw observation dicts directly.
 
 ## Key Findings
 
 ### Recommended Stack
 
-No new dependencies are required. `pyinaturalist` with `page='all'` handles cursor-based pagination automatically via its `IDRangePaginator` (uses `id_above` under the hood, handles arbitrarily large result sets without hitting the 10,000-record offset cap). `pyinaturalist-convert`'s `to_dataframe()` covers core fields but does not expand `ofvs` — a small custom `extract_ofv()` helper handles specimen count extraction.
+No new dependencies are needed. Both `pyinaturalist` (0.21.1) and `pyinaturalist-convert` (0.7.4) are already locked in `data/uv.lock` and declared in `data/pyproject.toml`. Use `pyinaturalist.get_observations()` with `page='all'` for automatic cursor pagination. Do not use `pyinaturalist-convert.to_dataframe()` — verified against installed source: it converts `ofvs` to `ofvs.{field_id}` column names and returns `location` as a list instead of split lat/lon, making it unsuitable for the samples schema.
 
 **Core technologies (existing, no changes needed):**
-- `pyinaturalist` 0.21.1: iNat API client — `get_observations(project_id=166376, page='all', per_page=200)`; built-in rate limiting via pyrate-limiter
-- `pyinaturalist-convert` 0.7.4: converts observation response objects to pandas DataFrames via `to_dataframe()`; does not expand `ofvs` (custom helper required)
-- `pandas` + `pyarrow`: Parquet production (same as ecdysis pipeline, unchanged)
-- `hyparquet` (frontend): HTTP range requests to read samples.parquet client-side (same pattern as ecdysis.parquet)
-- OpenLayers `VectorLayer` + `forEachFeatureAtPixel`: layer-discriminated click handling with `layerFilter`
+- `pyinaturalist` 0.21.1: iNat API client — `get_observations(project_id=166376, page='all', per_page=200)`; built-in rate limiting via `pyrate-limiter`; `IDRangePaginator` for unlimited cursor-based result sets
+- `pandas` >=3.0.0: DataFrame construction and Parquet writing — already in use by `ecdysis/occurrences.py`
+- `pyarrow` >=22.0.0: Parquet engine (`engine='pyarrow'`, `compression='snappy'`) — already in use
 
-**Critical version notes:**
-- Use iNat API v1, not v2: v2 has documented project observation count discrepancies vs v1; pyinaturalist's wrappers target v1
-- `page='all'` pagination must be verified against installed 0.21.1 docs before use (MEDIUM confidence on exact parameter name)
+**Do not add:** OAuth libraries (public API requires no auth), `aiohttp` (synchronous CI pipeline), raw `requests` (pyinaturalist manages sessions and rate limiting), `pyinaturalist-convert.to_dataframe()` (wrong column shapes), duckdb CLI (incomplete Makefile target, inconsistent with established Python pipeline pattern).
+
+**Critical version note:** Use iNat API v1 (pyinaturalist default), not v2. The v2 API has documented project observation count discrepancies versus v1. GeoJSON coordinate order also differs: v2 returns `[lon, lat]`; v1 (pyinaturalist) returns `(lat, lon)` tuple.
 
 ### Expected Features
 
-**Must have (table stakes) — all 5 PROJECT.md requirements:**
-- INAT-01: Query iNat API with cursor pagination for all WA Bee Atlas project observations
-- INAT-02: Extract observer, date, coordinates, specimen count (with `fields=all` to get `ofvs`); null-safe extraction
-- INAT-03: Write `samples.parquet` with schema: `observation_id` (int64), `observer` (string), `date` (string ISO), `lat` (float64), `lon` (float64), `specimen_count` (Int64 nullable), `uri` (string)
-- MAP-03: Sample markers layer — diamond-shaped, iNaturalist green (#74ac00), no clustering, renders above specimen layer
-- MAP-04: Click-to-detail sidebar — three-state render (summary / specimen cluster / iNat sample); shows observer, date, specimen_count ("Not yet entered" for null), link to iNat URL
+**Must have (table stakes — v1.2 INAT-01/02/03):**
+- Fetch all WA Bee Atlas project observations: `get_observations(project_id=166376, page='all', per_page=200)` — handles cursor pagination automatically via `IDRangePaginator` (INAT-01)
+- Confirm whether pyinaturalist v1 endpoint includes `ofvs` by default, or requires explicit `fields='all'` parameter — this has conflicting signals across research files and must be verified with one live API call
+- Discover specimen count field name/ID by inspecting a live project observation's `ofvs` array; hardcode as a named constant; match by field name string (case-insensitive) as primary strategy (INAT-02)
+- Extract per observation: `observation_id`, `observer` (prefer `user.name`, fall back to `user.login`), `date` (YYYY-MM-DD), `latitude`, `longitude`, `specimen_count` (INAT-02)
+- Treat `specimen_count` as nullable `Int64` from day one — WA Bee Atlas is likely a collection project where observation field entry is voluntary; expect significant null fraction (INAT-02)
+- Write `samples.parquet` with schema: `observation_id` (int64), `observer` (pd.StringDtype), `date` (pd.StringDtype), `lat` (float64), `lon` (float64), `specimen_count` (Int64 nullable) (INAT-03)
+- Extend `scripts/build-data.sh` with iNat download step and `cp data/samples.parquet frontend/src/assets/samples.parquet` (INAT-03)
+- Commit stub `samples.parquet` (correct schema, zero rows) before CI runs on the feature branch
 
 **Should have (differentiators, low complexity):**
-- `uri` stored in Parquet for sidebar deep-linking (`uri` is always present in API response; trivial to include)
-- Observer display name fallback: prefer `user.name`, fall back to `user.login` if name is empty string
-- Data freshness date displayed on map (e.g., "Sample data as of 2026-02-25") to manage volunteer expectations
+- Include `uri` column in samples.parquet — enables future MAP-04 deep-linking without URL reconstruction; `uri` is always present in API response; cheap to carry through
+- Progress logging — log observation count, page count, null rate in `specimen_count` for CI debugging
+- Log all distinct observation field names found in first fetched page — aids specimen count field debugging
 
-**Defer to v2+:**
-- Specimen-to-sample linkage (Ecdysis HTML scraping) — explicitly v1.2 per PROJECT.md
-- Distinct "pending" vs "counted" marker styles — nice-to-have, not blocking milestone
-- URL sharing for iNat-specific state — NAV-01, explicitly v1.2 per PROJECT.md
-- Host plant display layer — different data shape, out of scope for v1.1
-- Taxon filtering for sample markers — iNat observations represent collection events, not identified specimens
+**Defer to v1.3+:**
+- MAP-03: Sample markers map layer — requires specimen-to-sample linkage design first
+- MAP-04: Click-to-detail sidebar — depends on MAP-03
+- Specimen-to-sample linkage (Ecdysis HTML scraping) — separate script `fetch_inat_links.py` already stubbed; deferred per PROJECT.md
+- OR project support (project_id=18521) — stub already in `inat/projects.py`; trivially parameterized but explicitly out of scope
 
 ### Architecture Approach
 
-The integration follows the same pattern as the existing ecdysis pipeline end-to-end: Python produces a Parquet file, `build-data.sh` copies it to `frontend/src/assets/`, Vite bundles it with a content-hash URL, and hyparquet reads it client-side. No new AWS infrastructure, no CORS issues (same CloudFront origin), no CDK changes. The frontend extension requires modifying six existing files and adding one new file (`data/inat/download.py`).
+The new pipeline integrates as a third step in the existing `build-data.sh` orchestrator, strictly mirroring the Ecdysis pattern. A new script `data/inat/download.py` (or `fetch_observations.py`) calls the iNat API, writes `data/samples.parquet`, and `build-data.sh` copies it to `frontend/src/assets/`. The Vite build picks up the file automatically as a content-hashed `?url` asset — no frontend code change is needed in v1.2. No CDK, GitHub Actions, or infra changes are needed.
 
 **Major components:**
-1. `data/inat/download.py` (NEW) — iNat API fetch with `fields=all` and cursor pagination; null-safe `ofvs` extraction; writes `samples.parquet`
-2. `scripts/build-data.sh` (MODIFIED) — adds iNat download step and copy to `frontend/src/assets/`
-3. `frontend/src/parquet.ts` `ParquetSource` (MODIFIED) — extract `columns` + `featureFromRow` as constructor options so both ecdysis and iNat variants share the class without duplication
-4. `frontend/src/bee-map.ts` (MODIFIED) — add `sampleSource`, `sampleLayer`, `selectedInatSample` state; update singleclick handler to check sampleLayer first via `forEachFeatureAtPixel` with `layerFilter`
-5. `frontend/src/bee-sidebar.ts` (MODIFIED) — add `InatSample` interface, `inatSample` property, `_renderInatDetail()`, three-branch `render()`
-6. `frontend/src/style.ts` (MODIFIED) — add `sampleStyle` export (diamond, iNat green, no cluster label)
+1. `data/inat/download.py` (NEW — core deliverable): Query iNat API v1, cursor-paginate via `get_observations(page='all')`, extract required fields, write `data/samples.parquet` matching the Ecdysis dtype conventions (`pd.StringDtype()`, nullable `Int64`)
+2. `data/inat/observations.py` (FILL IN — currently empty): Extraction helpers — `extract_specimen_count(ofvs)`, row dict builder — may remain inline in `download.py` if the script stays simple
+3. `scripts/build-data.sh` (MODIFY): Add two lines after existing Ecdysis steps: `uv run python inat/download.py` and `cp data/samples.parquet frontend/src/assets/samples.parquet`
+4. `frontend/src/assets/samples.parquet` (NEW STUB): Committed minimal valid Parquet file, correct schema, zero rows — prevents CI breakage before the download script ships or when iNat API is unavailable
 
-**Key patterns:**
-- Layer-discriminated click: `forEachFeatureAtPixel` with `{ layerFilter: (l) => l === sampleLayer }` before falling through to existing specimen cluster path; prevents spurious double-fires from overlapping layers
-- No clustering for sample markers: each iNat observation is a distinct collection event; hundreds of points pose no render performance concern at this scale
-- Committed fallback Parquet: `frontend/src/assets/samples.parquet` committed as a valid stub, overwritten by pipeline build
+**Build order (respecting dependencies):**
+- Step 1: Discover specimen count field ID (live API call — 30 minutes)
+- Step 2 and Step 3 in parallel: write `download.py` + create committed stub `samples.parquet`
+- Step 4: Extend `build-data.sh` (requires Step 2 working locally)
+- Step 5: End-to-end verification — `npm run build` succeeds, both Parquet files land in `frontend/src/assets/`
 
 ### Critical Pitfalls
 
-1. **`ofvs` not returned by default** — Include `fields=all` in the API request. Without it, `specimen_count` will be null for every observation. The sample observation JSON in the repo (`data/inat/observation/300847934.json`) confirms `ofvs` is absent from a default API response. (PITFALL-7, blocking INAT-02)
+1. **`ofvs` may be absent unless explicitly requested** — The sample observation JSON in the repo (`data/inat/observation/300847934.json`) contains no `ofvs` key in a v2 API response. For v1 via pyinaturalist, confirm `ofvs` is included by default or add `fields='all'`. Log a warning if `ofvs` is missing from fetched observations. (Pitfall 7)
 
-2. **Observation field ID must be discovered, not assumed** — The specimen count field numeric ID for the WA Bee Atlas project is not findable via web search. Discover it by querying `/v1/projects/166376` or inspecting a live observation with a known specimen count; hardcode as a named constant. Matching by name string works as a fallback but is fragile (case-sensitive; curator can rename the field). (PITFALL-8, blocking INAT-02)
+2. **Specimen count field ID is unknown — must be discovered live** — The WA Bee Atlas project uses a custom observation field; its numeric ID cannot be found by web search. Inspect real observations to find the field name; hardcode as a named constant. Filtering by name string works as a primary strategy but is fragile (case-sensitive, curator can rename). (Pitfall 8)
 
-3. **CI external dependency failure** — The iNat API is a second external failure point alongside ecdysis.org. Commit `samples.parquet` as a fallback; gate the iNat download to the deploy job only (not every branch push) to avoid unnecessary rate limiting across concurrent CI runs. (PITFALL-11, PITFALL-12)
+3. **Collection project means sparse `specimen_count`** — WA Bee Atlas is likely a collection project; volunteers cannot be required to fill in observation fields. Expect >50% null `specimen_count`. Schema must use nullable `Int64`, not `int` with 0 default. Null in Parquet correctly expresses "not yet entered." (Pitfall 9)
 
-4. **iNat API pagination hard limit** — The 10,000-record offset-based cap is hard server-side; `page='all'` in pyinaturalist uses `id_above` cursor pagination to bypass it. Use `page='all'` from day one. Assert `total_results < 10_000` as a monitoring guard; fail the pipeline loudly if exceeded rather than silently truncating. (PITFALL-5)
+4. **API pagination hard cap at 10,000 records** — `page='all'` in pyinaturalist uses `IDRangePaginator` (`id_above` cursor) to bypass the offset-based 10,000-record server limit. Use `page='all'` from day one even though current WA Bee Atlas volume is well below 10,000. Assert `total_results` from the first page response and fail loudly if `len(results) != total_results`. (Pitfall 5)
 
-5. **`specimen_count` must be nullable, not default-to-zero** — WA Bee Atlas is likely a collection project; observation field entry is voluntary. Many observations will have no specimen count field. Use nullable `Int64` in pandas; display "Not yet entered" in the frontend sidebar for null, not "0". (PITFALL-9)
+5. **CI failure without committed stub** — `build-data.sh` runs on every branch push; iNat API downtime or rate limiting breaks every CI build. Commit a valid zero-row `samples.parquet` before the download step is merged. Optionally gate the live download behind an environment variable to allow CI dry runs. (ARCHITECTURE.md Anti-Pattern 2)
 
 ## Implications for Roadmap
 
-Dependencies flow strictly from pipeline to frontend, with two internal parallel sub-paths in the frontend phase. The natural structure is three sequential phases, with explicit parallelism noted within each.
+Research reveals a single linear dependency chain with one hard prerequisite (field ID discovery) gating the main implementation. The natural structure is two or three focused phases:
 
-### Phase 1: Data Pipeline (INAT-01, INAT-02, INAT-03)
+### Phase 1: Pre-Implementation Discovery and Stub
 
-**Rationale:** The pipeline must produce a valid `samples.parquet` before any frontend work can be meaningfully validated. Two blocking unknowns — the `fields=all` parameter syntax and the specimen count field ID — must be resolved before writing the extraction logic. The phase begins with a live API inspection step (one curl command) that unblocks all subsequent pipeline work.
+**Rationale:** The specimen count field ID is the only blocking unknown for this entire milestone. Resolving it takes 30 minutes and unblocks all subsequent pipeline work. The committed stub Parquet must land in main before any feature branch is created to prevent CI failures throughout development.
 
-**Delivers:** `data/inat/download.py` producing `samples.parquet` with the correct schema; `build-data.sh` extended with the iNat download step; committed fallback Parquet file; schema validation assertion in pipeline.
+**Delivers:** Confirmed `SPECIMEN_COUNT_FIELD_NAME` constant; verified `ofvs` inclusion behavior for pyinaturalist v1 `get_observations()`; committed zero-row `samples.parquet` stub with correct schema in `frontend/src/assets/`
 
-**Addresses:** INAT-01, INAT-02, INAT-03 (all PROJECT.md pipeline requirements)
+**Addresses:** INAT-02 prerequisite; Pitfalls 7, 8, 9 (pre-empts design mistakes)
 
-**Avoids:** PITFALL-7 (ofvs not returned by default), PITFALL-8 (field ID unknown), PITFALL-5 (pagination cap — use `page='all'`), PITFALL-11/12 (CI external dependency — commit fallback, gate download to deploy job), PITFALL-20 (pdb.set_trace() must be removed from `data/ecdysis/occurrences.py` first — this is blocking and must be the first commit)
+**Avoids:** Writing extraction logic against an unverified field name — the risk of silent null data
 
-**Key tasks in order:**
-1. Remove `pdb.set_trace()` from `data/ecdysis/occurrences.py` line 95 (blocking)
-2. Inspect live WA Bee Atlas observations to discover specimen count field ID
-3. Verify `fields=all` parameter syntax in pyinaturalist 0.21.1
-4. Write `download.py` with `fields=all`, cursor pagination, null-safe `ofvs` extraction
-5. Add post-write schema validation (assert column types via `pyarrow.parquet.read_schema()`)
-6. Extend `build-data.sh`; commit fallback `samples.parquet`
+### Phase 2: Pipeline Implementation
 
-### Phase 2: Frontend Sample Layer (MAP-03)
+**Rationale:** With field ID confirmed and the stub committed, the full pipeline can be written in one pass. The pattern is exactly established by `ecdysis/download.py` and `ecdysis/occurrences.py`. No new patterns need to be invented.
 
-**Rationale:** The `ParquetSource` refactor (extract configurable `columns`/`featureFromRow`) is prerequisite to the sample source but the style export is independent and can proceed in parallel. This phase ends with visible diamond markers on the map. Frontend development can proceed against a hand-crafted stub `samples.parquet` before Phase 1 is complete.
+**Delivers:** `data/inat/download.py` producing valid `samples.parquet` with correct schema; `data/inat/observations.py` extraction helpers if warranted; progress and diagnostic logging
 
-**Delivers:** Refactored `ParquetSource` accepting configurable columns and feature mapping; `sampleStyle` export (diamond, iNat green); `sampleSource` and `sampleLayer` added to `BeeMap`; correct z-ordering above specimen clusters.
+**Addresses:** INAT-01, INAT-02, INAT-03
 
-**Addresses:** MAP-03
+**Uses:** `pyinaturalist.get_observations(page='all')`, pandas `pd.StringDtype()` and `Int64` nullable dtype conventions, `pyarrow` Parquet engine, `snappy` compression — all matching existing pipeline conventions in `ecdysis/occurrences.py`
 
-**Avoids:** PITFALL-4 (Vite Parquet handling — bundle as `?url` asset, same as ecdysis; no runtime S3 fetch), anti-pattern of merging specimens and iNat observations into one Parquet (incompatible schemas, different update cadences), anti-pattern of clustering sample markers (collection events must remain individually identifiable)
+**Avoids:** `to_dataframe()` from pyinaturalist-convert (wrong column shapes); manual `id_above` loop (use `page='all'` instead); authentication libraries (not needed)
 
-**Parallelism:** `parquet.ts` refactor and `style.ts` `sampleStyle` addition can proceed in parallel; `bee-map.ts` layer construction waits for both.
+### Phase 3: Build Integration and End-to-End Verification
 
-### Phase 3: Click Interaction and Sidebar (MAP-04)
+**Rationale:** Separating the build script modification from pipeline implementation allows local testing of `download.py` before wiring it into CI. End-to-end verification confirms both Parquet files produce valid output and `npm run build` succeeds.
 
-**Rationale:** Depends on MAP-03 completing (layer must exist and be clickable). The three-state sidebar render and layer-discriminated click handler are logically independent of each other and can be developed in parallel, but both must complete before the milestone is done.
+**Delivers:** `build-data.sh` extended with iNat download and copy step; confirmed end-to-end local build with both `ecdysis.parquet` and `samples.parquet` present; CI green on merge
 
-**Delivers:** Complete MAP-04 — click on a sample marker shows observer, date, specimen_count (null-aware: "Not yet entered"), link to iNat observation URL. Sidebar correctly handles all three states: summary, specimen cluster detail, iNat sample detail.
+**Addresses:** INAT-03 (CI integration); Vite content-hashing of `samples.parquet` is automatic and requires no configuration change
 
-**Addresses:** MAP-04
-
-**Avoids:** PITFALL-9 (collection project: null specimen_count shown as "Not yet entered," not "0"), anti-pattern of using `map.getFeaturesAtPixel` without `layerFilter` (mixing cluster features and iNat features in same callback requires fragile type-checking)
-
-**Key tasks:**
-- Update singleclick handler: `forEachFeatureAtPixel` with `{ layerFilter: (l) => l === sampleLayer }` first; fall through to existing specimen cluster path on miss
-- Add `InatSample` interface and `_renderInatDetail()` to `bee-sidebar.ts`
-- Three-branch render: summary / specimen cluster / iNat sample
-- Test all three click paths and the empty-map click (clear-selection) path
+**Avoids:** CI breakage — ensured by committed stub from Phase 1
 
 ### Phase Ordering Rationale
 
-- Pipeline before frontend because the specimen count field ID and `fields=all` syntax are unknowns; building the extraction layer before these are resolved would require rework. However, Phase 2 frontend work can begin against a hand-crafted stub Parquet without waiting for Phase 1 to complete.
-- `ParquetSource` refactor must precede the sample layer (Phase 2 internal dependency); style export can proceed in parallel.
-- Sidebar (Phase 3) depends on the layer existing and being clickable (Phase 2 complete).
-- `pdb.set_trace()` removal is blocking and must be the very first commit — it causes CI to hang indefinitely on any run that hits the Ecdysis pipeline.
+- Phase 1 before Phase 2: field ID is a hard dependency; extraction logic written before it is confirmed may require rework
+- Phase 2 before Phase 3: `build-data.sh` extension only makes sense after `download.py` produces valid output locally
+- Committed stub (Phase 1 deliverable) must land in main before Phase 2 PR is created — otherwise the feature branch CI fails on every push
 
 ### Research Flags
 
 Phases with standard patterns (no additional research needed):
-- **Phase 2 (frontend layer):** OpenLayers multi-layer rendering and `forEachFeatureAtPixel` with `layerFilter` are well-documented. Vite `?url` import pattern is identical to existing working ecdysis code. `RegularShape` diamond style is a standard OL pattern.
-- **Phase 3 (sidebar):** Lit component three-branch render is an established pattern already in use in `bee-sidebar.ts`. The `CustomEvent` dispatch for "Back" navigation follows the existing component communication pattern.
+- **Phase 2 (pipeline implementation):** Extraction and Parquet-writing pattern is fully established by `ecdysis/occurrences.py`; pyinaturalist pagination confirmed in installed source; rate limiting automatic
+- **Phase 3 (build integration):** Two lines added to `build-data.sh` following an existing pattern; no new infrastructure
 
-Phases requiring live investigation before coding (not research-phase, but pre-implementation verification — 10–30 minutes each):
-- **Phase 1 (pipeline) — specimen count field ID:** One curl command against the live WA Bee Atlas project to inspect `ofvs` on a known observation. Cannot be determined without live API access.
-- **Phase 1 (pipeline) — `fields=all` parameter name:** Verify the exact pyinaturalist 0.21.1 keyword argument for requesting observation field values in `get_observations()`. STACK.md and PITFALLS.md both reference this parameter but with slightly different syntax (`fields='all'` vs `extra=fields`).
+Phases requiring live API verification before coding (not a research phase — 30 minutes of live API inspection):
+- **Phase 1 (field ID discovery):** One `curl` command against the live WA Bee Atlas project API. The exact command is documented in STACK.md. Result must be recorded as a constant before Phase 2 begins. Also verify: does `get_observations()` include `ofvs` by default, or is `fields='all'` required?
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Both libraries verified in `data/uv.lock` directly; API auth requirements confirmed from official docs; rate limits from official iNat Recommended Practices |
-| Features | HIGH | Actual observation JSON in repo (`data/inat/observation/300847934.json`) confirms field paths; all existing frontend source files read directly; PROJECT.md requirements are precise |
-| Architecture | HIGH | All integration point files read directly; OL multi-layer patterns confirmed against official API docs; Vite `?url` and hyparquet patterns identical to existing working code |
-| Pitfalls | HIGH (project-specific) / MEDIUM (AWS/GHA patterns) | Direct code audit for project-specific bugs (pdb.set_trace, dtype duplication) is HIGH confidence; CDK/GHA pitfalls from training data cutoff August 2025 are MEDIUM |
+| Stack | HIGH | Library versions read from `data/uv.lock`; pyinaturalist source inspected in `.venv`; no new dependencies needed |
+| Features | HIGH | Three INAT requirements are precise; existing Ecdysis pipeline is the exact template; only field ID is unknown |
+| Architecture | HIGH | All integration files read directly from codebase; integration pattern mirrors existing Ecdysis steps exactly |
+| Pitfalls | HIGH (project-specific) / MEDIUM (general infra) | Project-specific pitfalls verified against codebase and installed source; general CDK/GHA pitfalls from training data (August 2025 cutoff) |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Specimen count field ID and name (LOW confidence):** Not determinable from web search or the sample observation JSON in the repo (which has no `ofvs`). Resolve with one `curl` command against the live API before writing extraction logic. Blocking for Phase 1.
-- **`fields=all` exact parameter syntax (MEDIUM confidence):** PITFALLS research flags this as "use `fields=all` or `extra=fields`." Confirm the exact pyinaturalist 0.21.1 keyword argument name before writing the extraction call. Low-effort to resolve (check installed docs).
-- **WA Bee Atlas project type — collection vs traditional (LOW confidence):** Affects what fraction of observations will have null `specimen_count`, which affects how prominently the "Not yet entered" state should be displayed in the UI. Resolve via `GET /v1/projects/166376` (one API call). Informs UI copy emphasis, not architecture.
-- **`page='all'` vs manual `id_above` loop:** STACK.md recommends `page='all'`; ARCHITECTURE.md shows a manual loop. Both are correct; `page='all'` is simpler if pyinaturalist 0.21.1 supports it — verify before choosing.
+- **Specimen count field name/ID (LOW confidence):** Not determinable from web search or the sample observation JSON in the repo (which uses v2 API and has no `ofvs`). Resolve with one `curl` command against the live API before writing extraction logic. This is the only blocking unknown for the entire milestone.
+
+- **`ofvs` presence in `get_observations()` v1 response (MEDIUM confidence):** ARCHITECTURE.md says v1 includes `ofvs` by default; PITFALLS.md (Pitfall 7) warns it may require explicit `fields` parameter. Conflicting signals — must be verified against one live API call. Low effort; can be resolved alongside field ID discovery.
+
+- **Collection project vs traditional project (LOW confidence):** WA Bee Atlas project type not confirmed via API. Affects null fraction of `specimen_count` and how prominently the "not entered" state should surface in future MAP-04 display. Schema must be nullable regardless; this gap is informational for v1.3+ design.
+
+- **`obs.ofvs[i].name` attribute path (MEDIUM confidence):** pyinaturalist `Observation` model exposes `ofvs` as `ObservationFieldValue` model objects. Calling `obs.to_dict()` and accessing raw dict keys is documented as a reliable fallback in STACK.md. Verify the exact attribute path against pyinaturalist's `Observation` class before finalizing extraction code.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `data/uv.lock` — library versions (pyinaturalist 0.21.1, pyinaturalist-convert 0.7.4) verified directly
+
+- `data/uv.lock` — all locked library versions verified directly
 - `data/inat/projects.py` — WA Bee Atlas project ID 166376 confirmed
-- `data/inat/observation/300847934.json` — actual iNat API response confirming field paths and absence of `ofvs` in default response
-- `data/pyproject.toml` — pyinaturalist dependency declaration confirmed
-- `scripts/build-data.sh` — existing pipeline pattern confirmed by direct read
-- `data/ecdysis/occurrences.py` — Parquet output pattern confirmed; `pdb.set_trace()` at line 95 confirmed
-- `frontend/src/parquet.ts`, `bee-map.ts`, `bee-sidebar.ts`, `style.ts`, `filter.ts` — frontend architecture confirmed by direct read
+- `data/pyproject.toml` — declared dependencies confirmed
+- `data/.venv/lib/python3.14/site-packages/pyinaturalist/paginator.py` — `IDRangePaginator`, `page='all'` behavior confirmed in source
+- `data/.venv/lib/python3.14/site-packages/pyinaturalist/constants.py` — `PER_PAGE_RESULTS=200`, rate limit constants confirmed
+- `data/.venv/lib/python3.14/site-packages/pyinaturalist_convert/converters.py` — `to_dataframe()` column structure verified (confirms unsuitability)
+- `data/.venv/lib/python3.14/site-packages/pyinaturalist_convert/_models.py` — `ofvs` attribute structure in converted models
+- `data/inat/observation/300847934.json` — live iNat API v2 response; confirms field paths and absence of `ofvs` in default v2 response
+- `data/ecdysis/occurrences.py` — pandas dtype conventions (`pd.StringDtype()`, nullable `Int64`) confirmed as project standard
+- `scripts/build-data.sh` — existing pipeline orchestration pattern confirmed
 - `.github/workflows/build-and-deploy.yml` — CI runs on all branches confirmed
-- [iNaturalist API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — rate limits, id_above pagination strategy
 - [iNaturalist API v1 docs](https://api.inaturalist.org/v1/docs/) — endpoint structure, per_page=200 maximum
-- [pyinaturalist 0.21.1 docs](https://pyinaturalist.readthedocs.io/en/stable/) — get_observations(), page='all' IDRangePaginator behavior
-- [OpenLayers forEachFeatureAtPixel API](https://openlayers.org/en/latest/apidoc/module-ol_layer_Vector-VectorLayer.html) — layerFilter option confirmed
-- [hyparquet asyncBufferFromUrl](https://github.com/hyparam/hyparquet) — HTTP range request pattern
-- [Vite static asset handling](https://vite.dev/guide/assets) — ?url import pattern
+- [iNat API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — `id_above` pagination strategy, rate limits
 
 ### Secondary (MEDIUM confidence)
-- [pyinaturalist-convert docs](https://pyinaturalist-convert.readthedocs.io/en/stable/) — to_dataframe() column coverage (does not expand ofvs)
+
+- [pyinaturalist 0.21.1 documentation](https://pyinaturalist.readthedocs.io/en/stable/) — `get_observations()`, pagination behavior
 - [iNat forum: API v1 vs v2 project count discrepancy](https://forum.inaturalist.org/t/api-v1-vs-api-v2-observation-count-by-project-not-the-same/24394) — recommendation to use v1 for project queries
-- [iNat forum: 429 at 60 req/min](https://forum.inaturalist.org/t/429-error-from-observations-histogram-api-when-calling-at-60-calls-minute/64709) — real-world rate limit behavior
+- [iNat forum: 429 errors at 60 req/min](https://forum.inaturalist.org/t/429-error-from-observations-histogram-api-when-calling-at-60-calls-minute/64709) — real-world rate limit behavior
 - [Understanding Projects on iNaturalist](https://help.inaturalist.org/en/support/solutions/articles/151000176472) — collection vs traditional project distinction
-- [CloudFront + S3 CORS caching edge cases](https://advancedweb.hu/how-cloudfront-solves-cors-problems/) — rationale for bundling as asset vs runtime S3 fetch
 
 ### Tertiary (LOW confidence — needs live verification)
-- Specimen count observation field name/ID for WA Bee Atlas — not findable via web search; must inspect live observations
-- Exact pyinaturalist 0.21.1 parameter name for requesting ofvs in `get_observations()` — PITFALLS research notes ambiguity between `fields='all'` and `extra=fields`
+
+- Specimen count observation field name/ID for WA Bee Atlas — not findable via web search; must inspect live observations from project 166376
+- Whether pyinaturalist v1 `get_observations()` includes `ofvs` by default — conflicting signals; must verify with one live API call
 
 ---
-*Research completed: 2026-02-25*
+*Research completed: 2026-03-10*
 *Ready for roadmap: yes*
