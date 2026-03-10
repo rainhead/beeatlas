@@ -7,14 +7,14 @@
 
 ### Pipeline (iNat fetch)
 
-- [ ] **INAT-01**: Pipeline queries iNaturalist API for all Washington Bee Atlas project (id=166376) observations
-- [ ] **INAT-02**: Pipeline extracts observer, date, coordinates, and specimen count observation field from each iNat observation
+- [x] **INAT-01**: Pipeline queries iNaturalist API for all Washington Bee Atlas project (id=166376) observations
+- [x] **INAT-02**: Pipeline extracts observer, date, coordinates, and specimen count observation field from each iNat observation
 - [ ] **INAT-03**: Pipeline produces `samples.parquet` (observation_id, observer, date, lat, lon, specimen_count nullable)
 
 ### Caching
 
 - [x] **CACHE-01**: Pipeline restores `samples.parquet` + `last_fetch.txt` from S3 cache prefix at build start; falls back to full fetch on cache miss
-- [ ] **CACHE-02**: Pipeline fetches only observations updated since `last_fetch.txt` timestamp; merges delta into restored parquet; falls back to full fetch when cache is absent or corrupt
+- [x] **CACHE-02**: Pipeline fetches only observations updated since `last_fetch.txt` timestamp; merges delta into restored parquet; falls back to full fetch when cache is absent or corrupt
 - [x] **CACHE-03**: Pipeline uploads updated `samples.parquet` + `last_fetch.txt` back to S3 cache prefix after successful fetch
 
 ### Infrastructure / DX
@@ -49,10 +49,10 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-04 | Phase 8 | Complete |
-| INAT-01 | Phase 9 | Pending |
-| INAT-02 | Phase 9 | Pending |
+| INAT-01 | Phase 9 | Complete |
+| INAT-02 | Phase 9 | Complete |
 | CACHE-01 | Phase 9 | Complete |
-| CACHE-02 | Phase 9 | Pending |
+| CACHE-02 | Phase 9 | Complete |
 | CACHE-03 | Phase 9 | Complete |
 | INFRA-05 | Phase 9 | Complete |
 | INAT-03 | Phase 10 | Pending |
