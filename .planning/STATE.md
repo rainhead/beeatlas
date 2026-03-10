@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
-stopped_at: Completed 08-01-PLAN.md — observations.py with field constants committed
-last_updated: "2026-03-10T19:51:39.491Z"
+stopped_at: Completed 08-02-PLAN.md — AWS credentials in CI build job, S3 cache/ prefix smoke-tested
+last_updated: "2026-03-10T19:57:33.210Z"
 last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -51,6 +51,8 @@ Progress: [░░░░░░░░░░] 0%
 - **Use iNat API v1 (pyinaturalist default), not v2**: v2 has project observation count discrepancies; coordinate order also differs
 - [Phase 08-01]: Match iNat ofvs by field_id=8338, not name string — field renamed from 'Number of bees collected' to 'numberOfSpecimens' circa 2024; name matching drops ~40% of historical data
 - [Phase 08-01]: OFVS_IN_DEFAULT_RESPONSE = True — no fields='all' parameter needed for iNat API v1 project observation queries
+- [Phase 08-02]: S3_BUCKET_NAME existing GitHub variable is sufficient for Phase 9 — no new variable needed; pipeline uses cache/ prefix
+- [Phase 08-02]: No new IAM grants needed for S3 cache/ prefix — siteBucket.grantReadWrite(deployerRole) already covers it
 
 ### Pending Todos
 
@@ -63,6 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T19:51:39.488Z
-Stopped at: Completed 08-01-PLAN.md — observations.py with field constants committed
+Last session: 2026-03-10T19:57:33.208Z
+Stopped at: Completed 08-02-PLAN.md — AWS credentials in CI build job, S3 cache/ prefix smoke-tested
 Resume file: None
