@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v1.0 MVP** — Phases 1–6 (shipped 2026-02-22)
-- 🚧 **v1.1 URL Sharing** — Phase 7 (in progress)
+- ✅ **v1.1 URL Sharing** — Phase 7 (complete 2026-03-09)
 
 ## Phases
 
@@ -21,9 +21,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 </details>
 
-### 📋 v1.1 URL Sharing (Planned)
+### ✅ v1.1 URL Sharing (Complete — 2026-03-09)
 
-- [~] **Phase 7: URL Sharing** — Core URL sharing verified (A-E pass); gap-closure plans 07-03/04/05 fix back button and o= param (2026-03-10)
+- [x] **Phase 7: URL Sharing** — All 7 scenarios verified (A-G pass); NAV-01 fully satisfied
 
 #### Phase 7: URL Sharing
 **Goal**: A collector can share a link that restores the exact map view and active filters another collector sees
@@ -38,9 +38,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 Plans:
 - [x] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
 - [x] 07-02-PLAN.md — Human verify URL sharing end-to-end (5/7 pass; F and G need gap-closure)
-- [ ] 07-03-PLAN.md — Gap closure F: fix back button (_onPopState uses map.once('moveend') to reset flag)
-- [ ] 07-04-PLAN.md — Gap closure G: fix o= param (preserve on load, encode all cluster IDs, restore multi-occurrence)
-- [ ] 07-05-PLAN.md — Human verify all 7 scenarios pass; mark NAV-01 complete
+- [x] 07-03-PLAN.md — Gap closure F: fix back button (_onPopState uses map.once('moveend') to reset flag)
+- [x] 07-04-PLAN.md — Gap closure G: fix o= param (preserve on load, encode all cluster IDs, restore multi-occurrence)
+- [x] 07-05-PLAN.md — Human verify all 7 scenarios pass; NAV-01 complete
 
 ## Progress
 
@@ -52,4 +52,4 @@ Plans:
 | 4. Filtering | v1.0 | 5/5 | Complete | 2026-02-22 |
 | 5. Fix Month Offset Bug | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
-| 7. URL Sharing | 3/5 | In Progress|  | 2026-03-10 |
+| 7. URL Sharing | v1.1 | 5/5 | Complete | 2026-03-09 |

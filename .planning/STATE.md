@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: URL Sharing
-status: verifying
-stopped_at: Completed 07-04-PLAN.md — o= URL param bug fixes complete
-last_updated: "2026-03-10T03:04:12.200Z"
-last_activity: 2026-03-10 — URL sharing browser verification; scenarios A-E pass, F and G need gap-closure
+status: complete
+stopped_at: Completed 07-05-PLAN.md — all 7 URL-sharing scenarios verified; NAV-01 satisfied
+last_updated: "2026-03-09T00:00:00.000Z"
+last_activity: 2026-03-09 — Browser verification complete; all scenarios A-G pass; NAV-01 fully satisfied
 progress:
   total_phases: 1
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-02-25)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 07 — URL Sharing
+**Current focus:** Phase 07 — URL Sharing (complete)
 
 ## Current Position
 
 Phase: 07-url-sharing
-Plan: 2 of 2 (both plans complete)
-Status: Plan 07-02 complete — browser verification done, gaps found
-Last activity: 2026-03-10 — URL sharing browser verification; scenarios A-E pass, F and G need gap-closure
+Plan: 5 of 5 (all plans complete)
+Status: Phase complete — all 7 browser verification scenarios pass, NAV-01 fully satisfied
+Last activity: 2026-03-09 — Browser verification complete; all scenarios A-G pass; NAV-01 fully satisfied
 
-Progress: [##########] Phase 07 plans complete (2/2 plans) — NAV-01 partially met, gap-closure needed
+Progress: [##########] Phase 07 complete (5/5 plans) — NAV-01 fully satisfied
 
 ## Performance Metrics
 
@@ -47,11 +47,12 @@ Progress: [##########] Phase 07 plans complete (2/2 plans) — NAV-01 partially 
 | 04-filtering | 5 | 13 min | 2.6 min |
 | 05-fix-month-offset | 1 | 5 min | 5 min |
 | 06-infra03-deployment | 1 | ~30 min | ~30 min |
-| 07-url-sharing | 1 | 3 min | 3 min |
+| 07-url-sharing | 5 | ~15 min | ~3 min |
 
 *Updated after each plan completion*
 | Phase 07-url-sharing P03 | 1m | 1 tasks | 1 files |
 | Phase 07-url-sharing P04 | 2min | 1 tasks | 1 files |
+| Phase 07-url-sharing P05 | 5min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -67,6 +68,7 @@ Key context for v1.1 (iNat Sample Markers):
 - [Phase 07-url-sharing]: map.once('moveend') resets _isRestoringFromHistory after OL programmatic view change; synchronous fallback for no-view-change case
 - [Phase 07-url-sharing]: occurrenceIds: string[] (not string | null) in ParsedParams — empty array avoids null checks at call sites
 - [Phase 07-url-sharing]: Initial replaceState now preserves o= by passing initialParams.occurrenceIds to buildSearchParams
+- [Phase 07-url-sharing]: NAV-01 declared complete after all 7 browser verification scenarios passed in sequential human review
 
 ### Phase 07 Decisions (URL Sharing)
 
@@ -78,14 +80,14 @@ Key context for v1.1 (iNat Sample Markers):
 
 ### Pending Todos
 
-- Gap-closure plan needed for NAV-01: fix back button (Scenario F) and o= param (Scenario G)
+None — Phase 07 complete.
 
 ### Blockers/Concerns
 
-- NAV-01 not fully met: back button non-functional (popstate handler); o= param stripped on load and only one occurrence encoded per cluster click
+None — NAV-01 fully met. All URL-sharing scenarios verified passing.
 
 ## Session Continuity
 
-Last session: 2026-03-10T03:04:12.198Z
-Stopped at: Completed 07-04-PLAN.md — o= URL param bug fixes complete
+Last session: 2026-03-09T00:00:00.000Z
+Stopped at: Completed 07-05-PLAN.md — all 7 URL-sharing scenarios verified; NAV-01 satisfied
 Resume file: None
