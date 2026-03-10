@@ -8,6 +8,9 @@ jobs:
   build:
     name: Build frontend
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for OIDC JWT request — must be on THIS job
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +23,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
+          aws-region: us-west-2
 
       - name: Build
         run: npm run build
