@@ -1,35 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: URL Sharing
-status: verifying
-stopped_at: Completed 07-05-PLAN.md — all 7 URL-sharing scenarios verified; NAV-01 satisfied
-last_updated: "2026-03-10T17:07:24.681Z"
-last_activity: 2026-03-09 — Browser verification complete; all scenarios A-G pass; NAV-01 fully satisfied
+milestone: v1.2
+milestone_name: iNat Pipeline
+status: planning
+stopped_at: Milestone v1.2 started — defining requirements
+last_updated: "2026-03-10T00:00:00.000Z"
+last_activity: 2026-03-10 — Milestone v1.2 started
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-25)
+See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 07 — URL Sharing (complete)
+**Current focus:** Milestone v1.2 — iNat Pipeline
 
 ## Current Position
 
-Phase: 07-url-sharing
-Plan: 5 of 5 (all plans complete)
-Status: Phase complete — all 7 browser verification scenarios pass, NAV-01 fully satisfied
-Last activity: 2026-03-09 — Browser verification complete; all scenarios A-G pass; NAV-01 fully satisfied
-
-Progress: [##########] Phase 07 complete (5/5 plans) — NAV-01 fully satisfied
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-10 — Milestone v1.2 started
 
 ## Performance Metrics
 
