@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
 stopped_at: Completed 09-02-PLAN.md — inat/download.py pipeline with incremental fetch, merge_delta, and build-data.sh integration
-last_updated: "2026-03-10T20:38:10.102Z"
+last_updated: "2026-03-10T20:38:51.535Z"
 last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3
