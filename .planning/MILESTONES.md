@@ -1,5 +1,14 @@
 # Milestones
 
+## v1.1 URL Sharing (Shipped: 2026-03-10)
+
+**Phases completed:** 1 phases, 5 plans, 0 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.0 MVP (Shipped: 2026-02-22)
 
 **Phases completed:** 6 phases (Phases 1–6), 13 plans
