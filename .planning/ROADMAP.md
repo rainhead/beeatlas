@@ -35,7 +35,7 @@ See `.planning/milestones/v1.1-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Fetch Washington Bee Atlas collection events from iNaturalist and produce `samples.parquet` with S3 caching — pipeline only, no map presentation.
 
-- [ ] **Phase 8: Discovery and Prerequisite Gate** — Live API inspection to confirm field paths; IAM permissions updated for S3 cache
+- [x] **Phase 8: Discovery and Prerequisite Gate** — Live API inspection to confirm field paths; IAM permissions updated for S3 cache (completed 2026-03-10)
 - [ ] **Phase 9: Pipeline Implementation** — `download.py` querying iNat API, full extraction and S3 cache logic wired as npm scripts
 - [ ] **Phase 10: Build Integration and Verification** — `build-data.sh` extended; `samples.parquet` lands in frontend assets; CI green on merge
 
@@ -87,6 +87,6 @@ Plans:
 | 5. Fix Month Offset Bug | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 7. URL Sharing | v1.1 | 5/5 | Complete | 2026-03-09 |
-| 8. Discovery and Prerequisite Gate | 1/2 | In Progress|  | - |
+| 8. Discovery and Prerequisite Gate | 2/2 | Complete   | 2026-03-10 | - |
 | 9. Pipeline Implementation | v1.2 | 0/TBD | Not started | - |
 | 10. Build Integration and Verification | v1.2 | 0/TBD | Not started | - |
