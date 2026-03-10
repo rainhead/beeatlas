@@ -64,7 +64,10 @@ Plans:
   3. Running `npm run cache-upload` uploads `samples.parquet` and `last_fetch.txt` to the S3 cache prefix after a successful fetch
   4. Running `npm run fetch-inat` a second time fetches only observations updated since the `last_fetch.txt` timestamp and merges the delta into the restored Parquet rather than re-fetching everything
   5. Progress logging reports observation count, page count, and null rate in `specimen_count` to stdout during the fetch
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 09-01-PLAN.md — samples.parquet stub, cache shell scripts, npm script wiring (INFRA-05, CACHE-01, CACHE-03)
+- [ ] 09-02-PLAN.md — data/inat/download.py full pipeline + build-data.sh integration (INAT-01, INAT-02, CACHE-02)
 
 ### Phase 10: Build Integration and Verification
 **Goal**: The iNat pipeline is wired into `build-data.sh`; a complete local build runs the download and produces `data/samples.parquet`; the S3 cache round-trip completes during CI; CI passes on merge to main.
@@ -88,5 +91,5 @@ Plans:
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 7. URL Sharing | v1.1 | 5/5 | Complete | 2026-03-09 |
 | 8. Discovery and Prerequisite Gate | 2/2 | Complete   | 2026-03-10 | - |
-| 9. Pipeline Implementation | v1.2 | 0/TBD | Not started | - |
+| 9. Pipeline Implementation | v1.2 | 0/2 | Not started | - |
 | 10. Build Integration and Verification | v1.2 | 0/TBD | Not started | - |
