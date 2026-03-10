@@ -77,7 +77,9 @@ Plans:
   1. `npm run build` runs the iNat pipeline and produces `data/samples.parquet` with the correct schema and at least one row
   2. The S3 cache round-trip (restore → fetch → upload) completes without error during a CI run
   3. CI passes on a push to main — the GitHub Actions workflow completes without error and deploys successfully
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 10-01-PLAN.md — Update deploy.yml: wire S3 cache scripts and fix credential ordering; verify CI green
 
 ## Progress
 
