@@ -11,6 +11,8 @@ jobs:
     permissions:
       id-token: write   # Required for OIDC JWT request — must be on THIS job
       contents: read
+    env:
+      S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
     steps:
       - uses: actions/checkout@v4
 
@@ -30,8 +32,14 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
           aws-region: us-west-2
 
+      - name: Restore S3 cache
+        run: npm run cache-restore
+
       - name: Build
         run: npm run build
+
+      - name: Upload S3 cache
+        run: npm run cache-upload
 
   deploy:
     name: Deploy to S3 + CloudFront
@@ -42,6 +50,8 @@ jobs:
       id-token: write   # Required for OIDC JWT request — must be on THIS job
       contents: read
     environment: production
+    env:
+      S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
     steps:
       - uses: actions/checkout@v4
 
@@ -55,14 +65,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
-
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
           aws-region: us-west-2
+
+      - name: Restore S3 cache
+        run: npm run cache-restore
+
+      - name: Build
+        run: npm run build
+
+      - name: Upload S3 cache
+        run: npm run cache-upload
 
       - name: Sync to S3
         run: aws s3 sync frontend/dist/ s3://${{ vars.S3_BUCKET_NAME }} --delete
