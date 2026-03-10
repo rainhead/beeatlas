@@ -23,7 +23,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
 
 ### 📋 v1.1 URL Sharing (Planned)
 
-- [~] **Phase 7: URL Sharing** — Core URL sharing verified (A-E pass); back button and o= param need gap-closure (2026-03-10)
+- [~] **Phase 7: URL Sharing** — Core URL sharing verified (A-E pass); gap-closure plans 07-03/04/05 fix back button and o= param (2026-03-10)
 
 #### Phase 7: URL Sharing
 **Goal**: A collector can share a link that restores the exact map view and active filters another collector sees
@@ -33,11 +33,14 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full phase details.
   1. Panning, zooming, or changing filters updates the URL without a page reload
   2. Opening a shared URL restores the map center, zoom level, and active filter values exactly
   3. A fresh page load with no URL parameters shows the default view (Washington state at full extent)
-**Plans**: 2 plans
+**Plans**: 5 plans
 
 Plans:
 - [x] 07-01-PLAN.md — Implement URL sync in bee-map.ts and promote BeeSidebar filter fields to @property
 - [x] 07-02-PLAN.md — Human verify URL sharing end-to-end (5/7 pass; F and G need gap-closure)
+- [ ] 07-03-PLAN.md — Gap closure F: fix back button (_onPopState uses map.once('moveend') to reset flag)
+- [ ] 07-04-PLAN.md — Gap closure G: fix o= param (preserve on load, encode all cluster IDs, restore multi-occurrence)
+- [ ] 07-05-PLAN.md — Human verify all 7 scenarios pass; mark NAV-01 complete
 
 ## Progress
 
@@ -49,4 +52,4 @@ Plans:
 | 4. Filtering | v1.0 | 5/5 | Complete | 2026-02-22 |
 | 5. Fix Month Offset Bug | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
-| 7. URL Sharing | v1.1 | 2/2 | Partial — gap-closure needed | 2026-03-10 |
+| 7. URL Sharing | v1.1 | 2/5 | Partial — gap-closure in progress | 2026-03-10 |
