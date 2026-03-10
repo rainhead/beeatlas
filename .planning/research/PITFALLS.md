@@ -1,7 +1,7 @@
 # Domain Pitfalls
 
 **Domain:** Static biodiversity map with CI/CD deploy (S3+CloudFront, GitHub Actions OIDC, Python data pipeline, client-side Parquet)
-**Researched:** 2026-02-18 (v1.0); 2026-02-25 (v1.1 iNat API integration addendum)
+**Researched:** 2026-02-18 (v1.0); 2026-02-25 (v1.1 iNat API integration addendum); 2026-03-10 (v1.2 iNat pipeline — pipeline-only scope)
 **Confidence:** MEDIUM — CDK/GHA/OpenLayers from training data (August 2025 cutoff); iNaturalist limits from pyinaturalist docs + training; project-specific bugs from direct code audit (HIGH)
 
 ---
@@ -14,7 +14,7 @@ Mistakes that cause rewrites, broken deploys, or silent data loss.
 
 ### Pitfall 1: CloudFront Serving Stale Files After S3 Deploy
 
-**What goes wrong:** After `aws s3 sync` copies new files to S3, CloudFront continues serving the previous version from its edge cache. Users see old data or old JS bundles. With Vite's content-hashed assets (`main-Abc123.js`), JS/CSS files self-invalidate on filename change — but `index.html` is NOT content-hashed and will cache stale. Also any Parquet data files served at stable paths (e.g., `ecdysis.parquet`) cache without invalidation.
+**What goes wrong:** After `aws s3 sync` copies new files to S3, CloudFront continues serving the previous version from its edge cache. Users see old data or old JS bundles. With Vite's content-hashed assets (`main-Abc123.js`), JS/CSS files self-invalidate on filename change — but `index.html` is NOT content-hashed and will cache stale. Also any Parquet data files served at stable paths (e.g., `ecdysis.parquet`, `samples.parquet`) cache without invalidation.
 
 **Why it happens:** CloudFront TTL defaults to 24 hours for objects that don't set `Cache-Control`. S3 sync puts the file; CloudFront doesn't know.
 
@@ -28,9 +28,9 @@ Mistakes that cause rewrites, broken deploys, or silent data loss.
 2. Set `Cache-Control: no-cache` on `index.html` in S3 metadata; set long TTL on hashed assets.
 3. In GitHub Actions, store the CloudFront distribution ID in a secret or CDK output, not hardcoded.
 
-**Detection:** After deploy, `curl -I https://your-domain/` and check `x-cache: Hit from cloudfront` on a known-changed file. If it says HIT, invalidation didn't run.
+**Warning signs:** After deploy, `curl -I https://your-domain/` and check `x-cache: Hit from cloudfront` on a known-changed file. If it says HIT, invalidation didn't run.
 
-**Phase:** Infrastructure setup (CDK + GHA deploy workflow)
+**Phase to address:** Infrastructure setup (CDK + GHA deploy workflow)
 
 ---
 
@@ -48,9 +48,9 @@ The deeper trap: with OAC, S3 bucket policy must explicitly allow `s3:GetObject`
 - After CDK deploy, verify bucket policy was created with the correct `aws:SourceArn` condition.
 - Enable S3 server access logs or CloudFront access logs during initial setup to distinguish 403 (policy) from 404 (key not found).
 
-**Detection:** CloudFront returns 403. Check S3 bucket policy: does it have an `Allow` statement with `Principal: {"Service": "cloudfront.amazonaws.com"}` and `Condition: {"StringEquals": {"aws:SourceArn": "arn:aws:cloudfront::ACCOUNT:distribution/DIST_ID"}}`? If not, CDK didn't apply it.
+**Warning signs:** CloudFront returns 403. Check S3 bucket policy: does it have an `Allow` statement with `Principal: {"Service": "cloudfront.amazonaws.com"}` and `Condition: {"StringEquals": {"aws:SourceArn": "arn:aws:cloudfront::ACCOUNT:distribution/DIST_ID"}}`? If not, CDK didn't apply it.
 
-**Phase:** Infrastructure setup (CDK)
+**Phase to address:** Infrastructure setup (CDK)
 
 ---
 
@@ -70,9 +70,9 @@ Common mismatches:
 2. Match the `environment:` key in the workflow job to what's in the trust policy, or remove environment-scoped conditions from the trust policy.
 3. The trust policy must also include `"token.actions.githubusercontent.com:aud": "sts.amazonaws.com"` — this is frequently omitted from copied examples.
 
-**Detection:** `aws sts get-caller-identity` in the Actions step will fail with the AssumeRole error. Add `aws sts decode-authorization-message` if you have permissions; otherwise decode the subject by temporarily adding a debug step that prints `${{ github.token }}` decoded (do not print real tokens — use a separate step to print `github.ref` and `github.repository` to verify the subject you're generating).
+**Warning signs:** `aws sts get-caller-identity` in the Actions step will fail with the AssumeRole error. Print `github.ref` and `github.repository` in a debug step to verify the subject you're generating.
 
-**Phase:** CI/CD setup (GitHub Actions workflow)
+**Phase to address:** CI/CD setup (GitHub Actions workflow)
 
 ---
 
@@ -82,23 +82,23 @@ Common mismatches:
 
 The problems arise when:
 
-1. **Parquet file grows too large for the Vite build to handle in CI**: If iNaturalist host plant observations are added (potentially hundreds of thousands of records for Washington), the Parquet file could reach 10–50 MB+. Vite will try to copy it into `dist/assets/` during every build. This is slow and bloats the git-tracked build artifact if `dist/` is ever committed.
+1. **Parquet file grows too large for the Vite build to handle in CI**: If `samples.parquet` adds further rows over successive pipeline runs, the Vite build copies it into `dist/assets/` on every build. This is slow and bloats the git-tracked build artifact if `dist/` is ever committed.
 
-2. **Multiple Parquet files with different update cadences**: If specimens (updated monthly) and host plants (updated weekly) are separate files, each needs its own cache-busting URL but they currently live in `frontend/src/assets/` as build-time assets. Managing multiple large binary assets through Vite adds friction.
+2. **Multiple Parquet files with different update cadences**: `ecdysis.parquet` (updated monthly) and `samples.parquet` (updated more frequently) are separate files, each needing its own cache-busting URL. Managing multiple large binary assets through Vite adds friction.
 
-3. **hyparquet's `asyncBufferFromUrl` requires HTTP range requests**: The library uses HTTP `Range` headers to read Parquet row groups without fetching the full file. CloudFront supports range requests by default, but S3 origin must also support them (it does). If the Parquet file is served from a CDN or proxy that strips `Range` headers, hyparquet falls back to fetching the entire file — which works but defeats the purpose of columnar partial reads.
+3. **hyparquet's `asyncBufferFromUrl` requires HTTP range requests**: The library uses HTTP `Range` headers to read Parquet row groups without fetching the full file. CloudFront supports range requests by default. If the Parquet file is served from a CDN or proxy that strips `Range` headers, hyparquet falls back to fetching the entire file — which works but defeats the purpose of columnar partial reads.
 
 **Consequences:** Slow builds, large `dist/` directories, potential CI timeouts on large file copies. Range request stripping causes full-file fetches (not a correctness bug, but a performance regression).
 
 **Prevention:**
 1. Set `assetsInlineLimit: 0` in `vite.config.ts` to prevent any inlining of binary assets.
 2. Keep Parquet files out of `dist/` by serving them from a separate S3 path, not bundled as Vite assets. The frontend fetches them by a stable URL. Vite only bundles JS/CSS/HTML.
-3. For large data files: place them in S3 under a separate prefix (e.g., `data/ecdysis.parquet`), not in the CloudFront-served `dist/` prefix, and reference them by absolute URL or environment variable. The CloudFront distribution can serve both origins.
-4. Verify CloudFront passes `Range` headers: check the cache policy — the default "CachingOptimized" policy does not forward `Range` headers for caching keys, but it does allow the request to pass through. If using a custom cache policy, explicitly allow range requests.
+3. For large data files: place them in S3 under a separate prefix (e.g., `data/ecdysis.parquet`), not in the CloudFront-served `dist/` prefix, and reference them by absolute URL or environment variable.
+4. Verify CloudFront passes `Range` headers: check the cache policy — the default "CachingOptimized" policy allows range requests to pass through. If using a custom cache policy, explicitly allow range requests.
 
-**Detection:** In the network panel, if the Parquet fetch is a single 200 response (not 206 Partial Content), range requests are not being used. For a 5 MB file this is acceptable; for 50 MB it is not.
+**Warning signs:** In the network panel, if the Parquet fetch is a single 200 response (not 206 Partial Content), range requests are not being used. For a 5 MB file this is acceptable; for 50 MB it is not.
 
-**Phase:** Infrastructure setup + frontend feature work
+**Phase to address:** Infrastructure setup + frontend feature work
 
 ---
 
@@ -117,35 +117,34 @@ pyinaturalist's `get_observations()` with `page='all'` handles pagination automa
 2. For observations within a specific project, the count is unlikely to exceed 10,000 for the Washington Bee Atlas in the near term (it was founded in 2021). Assert `total_results < 10_000` and fail the pipeline loudly if it exceeds the limit — do not silently truncate.
 3. If the limit is ever exceeded, use the `id_above` pagination strategy: sort by `id` ascending and use `id_above=last_seen_id` to page through arbitrary result counts without hitting the hard limit. This is the iNaturalist-recommended approach for bulk downloads.
 
-**Detection:** After fetching, assert `len(results) == response['total_results']` and log a warning when `total_results > 10_000`.
+**Warning signs:** After fetching, assert `len(results) == response['total_results']` and log a warning when `total_results > 10_000`.
 
-**Phase:** Data pipeline (iNaturalist integration — INAT-01)
+**Phase to address:** INAT-01 (pipeline querying)
 
 ---
 
 ### Pitfall 6: OpenLayers VectorLayer Performance Degrades Non-Linearly Above ~10K Points
 
-**What goes wrong:** OpenLayers' default `VectorLayer` renders features on a canvas, re-rendering the full layer on every map interaction (pan, zoom, resize). The current code loads all 45K Ecdysis specimens at once with `strategy: all`. With ~45K points this is borderline; adding iNaturalist host plant observations (potentially 100K+ records) will cause visible frame drops on pan/zoom.
+**What goes wrong:** OpenLayers' default `VectorLayer` renders features on a canvas, re-rendering the full layer on every map interaction (pan, zoom, resize). The current code loads all 45K Ecdysis specimens at once with `strategy: all`. With ~45K points this is borderline; adding future sample markers from `samples.parquet` could approach the limit.
 
-The rendering bottleneck is not fetching (hyparquet partial reads help there) but canvas drawing: each feature is individually styled and painted. The existing `clusterStyle` in `style.ts` is defined but not wired up to the map — this is the correct solution but it's incomplete.
+The rendering bottleneck is not fetching (hyparquet partial reads help there) but canvas drawing: each feature is individually styled and painted.
 
 **Consequences:** Map feels sluggish or unresponsive, especially on mobile. Zooming becomes janky. On low-end devices the browser may skip frames entirely.
 
 **Prevention:**
-1. Enable clustering using `ol/source/Cluster` wrapping the `VectorSource`. The `clusterStyle` already exists in `style.ts` — wire it up.
-2. Use `WebGLPointsLayer` instead of `VectorLayer` for large point datasets. OpenLayers v10 supports this. It uses GPU rendering and handles 500K+ points without degradation. The tradeoff is that click interaction requires a `HitDetection` layer or manual coordinate math.
+1. Enable clustering using `ol/source/Cluster` wrapping the `VectorSource`. Clustering already exists in the codebase.
+2. Use `WebGLPointsLayer` instead of `VectorLayer` for large point datasets. OpenLayers v10 supports this and handles 500K+ points. The tradeoff is that click interaction requires a `HitDetection` layer or manual coordinate math.
 3. Separate concerns: use `WebGLPointsLayer` for rendering all points (fast), and a separate thin `VectorLayer` for selected/highlighted features (few features, full interaction support).
-4. If keeping `VectorLayer`, add a max-resolution threshold: only render points at zoom ≥ 8 (i.e., county level) and show a "zoom in to see specimens" message at lower zooms.
 
-**Detection:** Open Chrome DevTools Performance tab, record while panning the map. If frame time during a pan exceeds 16ms (60 fps threshold), the render path is a bottleneck. Test on a mid-range mobile device, not just a developer machine.
+**Warning signs:** Open Chrome DevTools Performance tab, record while panning. If frame time during a pan exceeds 16ms (60 fps threshold), the render path is a bottleneck.
 
-**Phase:** Frontend feature work (host plant layer, filtering)
+**Phase to address:** Future frontend feature work (deferred from v1.2 — v1.2 is pipeline-only)
 
 ---
 
-## v1.1 iNat API Integration — Critical Pitfalls
+## v1.2 iNat Pipeline — Critical Pitfalls
 
-These pitfalls are specific to adding iNaturalist API querying to the existing static pipeline.
+These pitfalls are specific to adding the iNaturalist API pipeline (INAT-01, INAT-02, INAT-03) to the existing static pipeline project.
 
 ---
 
@@ -153,20 +152,20 @@ These pitfalls are specific to adding iNaturalist API querying to the existing s
 
 **What goes wrong:** The iNaturalist API v1 observation response does NOT include `observation_field_values` by default. Fetching `/v1/observations?project_id=166376` returns observations without any observation field data, even if the observer entered a specimen count field. The field simply does not appear in the JSON response.
 
-Confirmed by the sample observation JSON in `data/inat/observation/300847934.json`: the response contains `uuid`, `id`, `geojson`, `user`, `taxon`, and `observation_photos` — but no `observation_field_values` key at all.
+Confirmed by the sample observation JSON in `data/inat/observation/300847934.json`: the response contains `uuid`, `id`, `geojson`, `user`, `taxon`, and `observation_photos` — but no `observation_field_values` key at all. This is the v2 API format; the v1 endpoint uses `ofvs` as the key.
 
 **Why it happens:** Observation field values are a separate data payload that the API must be instructed to include. Without the correct parameter, the server omits them to reduce response size.
 
-**Consequences:** The pipeline receives valid-looking observations with no specimen count data. `specimen_count` column in `samples.parquet` is populated entirely with nulls/zeros. The sidebar shows "0 specimens" for every collection event.
+**Consequences:** The pipeline receives valid-looking observations with no specimen count data. `specimen_count` column in `samples.parquet` is populated entirely with nulls/zeros.
 
 **Prevention:**
 - When using the iNaturalist API v1 `/observations` endpoint, include the `fields` parameter or use `extra=fields` to request observation field values. The exact parameter syntax is `fields=all` or selectively requesting `observation_field_values` as a field specification.
-- Verify the response contains `observation_field_values` before extracting specimen count. Log a warning if the key is missing.
+- Verify the response contains `ofvs` (v1) or `observation_field_values` (v2) before extracting specimen count. Log a warning if the key is missing.
 - Use pyinaturalist's `get_observations()` with `fields='all'` to include observation field values in the response.
 
-**Detection:** Inspect a raw API response for a known observation (e.g., ID 300847934) that has a specimen count field. If `observation_field_values` is not in the JSON, the request is missing the fields parameter.
+**Warning signs:** Inspect a raw API response for a known observation (e.g., ID 300847934) that has a specimen count field. If `ofvs` / `observation_field_values` is not in the JSON, the request is missing the fields parameter.
 
-**Phase:** INAT-02 (specimen count extraction)
+**Phase to address:** INAT-02 (specimen count extraction)
 
 ---
 
@@ -174,7 +173,7 @@ Confirmed by the sample observation JSON in `data/inat/observation/300847934.jso
 
 **What goes wrong:** Observation fields in iNaturalist are identified by numeric integer IDs (e.g., field ID 12345), not by their human-readable name ("Specimen Count" or similar). The web interface uses name-based URL search (`field:Specimen Count=yes`), which does not translate directly to the API.
 
-When parsing `observation_field_values` from the API response, the field is identified in the response by `observation_field.id` (numeric) and `observation_field.name` (string). Filtering by field name string works when parsing the response, but:
+When parsing `ofvs` from the API response, the field is identified by `observation_field_id` (numeric) and may include a `name` (string). Filtering by field name string works when parsing the response, but:
 
 1. Field names are case-sensitive and can change (a curator renames the field).
 2. Multiple projects may have observation fields with identical names but different IDs.
@@ -187,14 +186,14 @@ The project file `data/inat/projects.py` shows project ID 166376 for Washington,
 **Consequences:** Pipeline silently skips the specimen count field if it filters by wrong field name or ID. All observations report 0 specimens.
 
 **Prevention:**
-1. Identify the specific observation field ID used by the Washington Bee Atlas project for specimen count by fetching a known observation with a specimen count entered, and extracting the `observation_field.id` from `observation_field_values`.
+1. Identify the specific observation field ID used by the Washington Bee Atlas project for specimen count by fetching a known observation with a specimen count entered, and extracting the field ID from `ofvs`.
 2. Store the field ID as a named constant in the pipeline code, not as a string match on field name.
 3. Log all distinct observation field names and IDs found in the fetched observations to aid debugging.
 4. If matching by name is necessary as fallback, match case-insensitively and log when a match is found.
 
-**Detection:** Fetch a single observation where you know a specimen count was entered (ask a WaBA volunteer for a specific observation URL). Inspect the `observation_field_values` array and record the `observation_field.id` for the specimen count field.
+**Warning signs:** Fetch a single observation where you know a specimen count was entered (ask a WaBA volunteer for a specific observation URL). Inspect the `ofvs` array and record the field ID for the specimen count field.
 
-**Phase:** INAT-02 (specimen count extraction)
+**Phase to address:** INAT-02 (specimen count extraction)
 
 ---
 
@@ -205,7 +204,7 @@ The project file `data/inat/projects.py` shows project ID 166376 for Washington,
 - **Collection projects** cannot *require* observation fields. Fields are voluntary add-ons by individual observers.
 - **Traditional projects** can require observation fields as membership conditions.
 
-For a collection project, many observations will simply not have a specimen count field value entered, even if the project coordinator instructs volunteers to do so. The API will return observations with an empty `observation_field_values` array.
+For a collection project, many observations will simply not have a specimen count field value entered, even if the project coordinator instructs volunteers to do so. The API will return observations with an empty `ofvs` array.
 
 Additionally, collection project access through the API does not grant access to private/obscured coordinates for project curators. Observations by volunteers who collect in sensitive areas may have obscured GPS coordinates (±0.2 degree bounding box instead of exact location), reducing map accuracy.
 
@@ -213,22 +212,21 @@ Additionally, collection project access through the API does not grant access to
 
 **Consequences:**
 - `specimen_count` will be null for a significant fraction of observations (potentially >50% of early-stage project observations).
-- Map markers may appear offset by up to ~20km for obscured observations.
-- The sidebar must gracefully display "not entered" rather than "0" for missing specimen counts.
+- Map markers may appear offset by up to ~20km for obscured observations (relevant when map display is added in v1.3+).
+- The `samples.parquet` schema must treat `specimen_count` as nullable from the start.
 
 **Prevention:**
 1. Design the pipeline and schema to treat `specimen_count` as nullable (allow null/None), not 0 as default.
-2. In the frontend sidebar, distinguish between "0 specimens" (value explicitly entered as 0) and "not recorded" (field absent from observation).
-3. Confirm the project type by visiting `api.inaturalist.org/v1/projects/166376` — the `project_type` field will be `"collection"` or `"traditional"`.
-4. For obscured coordinates, use the center of the obscured bounding box as returned by the API (this is what the API provides as `geojson`). Document this known imprecision in the UI.
+2. Confirm the project type by visiting `api.inaturalist.org/v1/projects/166376` — the `project_type` field will be `"collection"` or `"traditional"`.
+3. For obscured coordinates, use the center of the obscured bounding box as returned by the API (this is what the API provides as `geojson`). Document this known imprecision.
 
-**Detection:** Fetch 10 observations from the project. Count how many have non-empty `observation_field_values`. If most are empty, the volunteer adoption of the specimen count field is low and the UI must handle null gracefully.
+**Warning signs:** Fetch 10 observations from the project. Count how many have non-empty `ofvs`. If most are empty, the volunteer adoption of the specimen count field is low and the schema must handle null gracefully.
 
-**Phase:** INAT-02, MAP-04 (sidebar display)
+**Phase to address:** INAT-02 (specimen count extraction), INAT-03 (schema design)
 
 ---
 
-### Pitfall 10: project_id Filtering Returns Members-Only or Includes Non-Member Observations
+### Pitfall 10: project_id Filtering Returns Wrong Observations
 
 **What goes wrong:** iNaturalist has two distinct ways to scope observations to a project:
 
@@ -241,40 +239,40 @@ For a collection project, `project_id` filtering is the correct approach — it 
 - If the project coordinator changes the project's filter criteria (e.g., adds a new taxon filter), the API results change retroactively without any notification.
 - The API may return a `per_page` default of 30 even when `per_page=200` is requested in some edge cases (confirmed as a historical bug in the iNaturalist forum; workaround is to explicitly set `per_page`).
 
-**Consequences:** If using place-based filtering instead of project-based filtering, the pipeline fetches all Washington bee observations (not just WaBA volunteers), producing a samples.parquet with tens of thousands of irrelevant observations and no specimen count data.
+**Consequences:** If using place-based filtering instead of project-based filtering, the pipeline fetches all Washington bee observations (not just WaBA volunteers), producing a `samples.parquet` with tens of thousands of irrelevant observations and no specimen count data.
 
 **Prevention:**
 1. Use `project_id=166376` (not `place_id=14`) as the primary filter for the Washington Bee Atlas.
 2. Explicitly set `per_page=200` and verify the response `per_page` matches what was requested.
 3. Log the total observation count per run to detect unexpected spikes or drops caused by project configuration changes.
 
-**Detection:** Fetch observations with `project_id=166376` and spot-check 5 observations: do the observer names match known WaBA participants? Are there observation field values for specimen counts? If results look wrong, compare with fetching `place_id=14&taxon_name=Anthophila` (all Washington bees) to see if you're getting project-specific vs. general data.
+**Warning signs:** Fetch observations with `project_id=166376` and spot-check 5 observations: do the observer names match known WaBA participants? Are there `ofvs` entries for specimen counts? If results look wrong, compare with fetching `place_id=14&taxon_name=Anthophila` (all Washington bees) to see if you're getting project-specific vs. general data.
 
-**Phase:** INAT-01 (pipeline querying)
+**Phase to address:** INAT-01 (pipeline querying)
 
 ---
 
 ### Pitfall 11: CI Build Fails When iNaturalist API Is Down (Compounding the Existing Ecdysis Problem)
 
-**What goes wrong:** The existing `build-data.sh` already makes a live HTTP POST to ecdysis.org on every `npm run build`. The v1.1 milestone adds a second external HTTP dependency: the iNaturalist API. The current workflow has no fallback — if ecdysis.org is down, the build fails. Adding iNat API creates a second independent failure point.
+**What goes wrong:** The existing `build-data.sh` already makes a live HTTP POST to ecdysis.org on every `npm run build`. The v1.2 milestone adds a second external HTTP dependency: the iNaturalist API. The current workflow has no fallback — if ecdysis.org is down, the build fails. Adding iNat API creates a second independent failure point.
 
 The deploy workflow runs `npm run build` twice (once in the `build` job, once in the `deploy` job). Both calls run `build-data.sh`, meaning both jobs make HTTP requests to both ecdysis.org and api.inaturalist.org. If either external service is down during any of these four HTTP calls, the deploy fails.
 
 iNaturalist does have scheduled maintenance windows (as confirmed by community forum announcements). A scheduled iNaturalist downtime during a CI run that happens to be pushing a code change will block deployment of unrelated frontend fixes.
 
-**Why it happens:** The pipeline has no separation between "fetch external data" and "build from cached data." Every build triggers a fresh data fetch.
+**Why it happens:** The pipeline has no separation between "fetch external data" and "build from cached data." Every build triggers a fresh data fetch. This is the existing known tech debt for the Ecdysis pipeline, now doubled.
 
 **Consequences:** Unrelated code changes (CSS fix, typo correction) fail CI because iNaturalist is temporarily down. Deployment is blocked. The team has no way to deploy without fixing the data pipeline.
 
 **Prevention:**
 1. Commit a fallback `samples.parquet` alongside the existing committed `ecdysis.parquet`. The build script uses the committed file if the API call fails.
 2. Separate the data pipeline from the frontend build in CI: add a scheduled job (e.g., daily or weekly) that runs the data pipeline and commits updated Parquet files, separate from the push-triggered build job. The push-triggered job only runs the frontend build against the most recently committed Parquet.
-3. Add timeout and retry logic to the iNat API fetch. The iNaturalist API Recommended Practices suggest keeping requests under 100/minute. A single project fetch at 200 observations/page should complete in under 10 seconds even for 5,000 observations.
+3. Add timeout and retry logic to the iNat API fetch.
 4. If the iNat API returns a 5xx or times out, use the last committed `samples.parquet` and log a warning rather than failing the build.
 
-**Detection:** A CI run fails with a connection error or HTTP 5xx pointing to api.inaturalist.org. If a committed fallback exists, the build should have used it instead of failing.
+**Warning signs:** A CI run fails with a connection error or HTTP 5xx pointing to api.inaturalist.org. If a committed fallback exists, the build should have used it instead of failing.
 
-**Phase:** INAT-01, CI/CD (data pipeline separation)
+**Phase to address:** INAT-01, CI/CD (data pipeline separation)
 
 ---
 
@@ -291,12 +289,12 @@ iNaturalist returns HTTP 429 when rate limited. The pipeline currently has no re
 **Prevention:**
 1. Use pyinaturalist rather than raw `requests` calls. pyinaturalist's built-in rate limiting respects iNaturalist's recommended practices by default.
 2. Cache the iNaturalist Parquet output in GitHub Actions with a weekly cache key using `actions/cache`. Only re-fetch when the cache misses: `key: inat-samples-${{ steps.date.outputs.week }}`.
-3. Set a custom `User-Agent` header identifying the application (e.g., `User-Agent: WashingtonBeeAtlas/1.1 (github.com/rainhead/beeatlas)`). iNaturalist's recommended practices call this out specifically — it allows them to contact you if there's a problem rather than silently blocking.
+3. Set a custom `User-Agent` header identifying the application (e.g., `User-Agent: WashingtonBeeAtlas/1.2 (github.com/rainhead/beeatlas)`). iNaturalist's recommended practices call this out specifically — it allows them to contact you if there's a problem rather than silently blocking.
 4. Add `time.sleep(1)` between pages (1 request/second = 60 requests/minute, safely below the limit).
 
-**Detection:** CI logs show HTTP 429 from api.inaturalist.org. pyinaturalist with `ClientSession` will log rate limit backoff automatically.
+**Warning signs:** CI logs show HTTP 429 from api.inaturalist.org. pyinaturalist with `ClientSession` will log rate limit backoff automatically.
 
-**Phase:** INAT-01, CI/CD setup
+**Phase to address:** INAT-01, CI/CD setup
 
 ---
 
@@ -308,29 +306,24 @@ Since Washington Bee Atlas volunteers collect physical specimens, the true GPS c
 
 For the Washington Bee Atlas project, bee taxa are generally not at-risk species so taxon-based auto-obscuration should be rare. However, individual observers may have personally set their observations to "obscured" for privacy reasons.
 
-**Why it happens:** iNaturalist's coordinate obscuration protects sensitive species locations and observer privacy. The API returns the obscured centroid as the public-facing coordinate. Accessing true coordinates requires authenticated requests with specific trust grants from the observer.
+**Why it happens:** iNaturalist's coordinate obscuration protects sensitive species locations and observer privacy. The API returns the obscured centroid as the public-facing coordinate.
 
-**Consequences:** Sample markers appear in incorrect locations (potentially in water or wrong county). Volunteers trying to revisit a collection site cannot use the map to navigate there.
+**Consequences (for pipeline — v1.2 stores coordinates in samples.parquet):** Coordinates stored in `samples.parquet` may be offset by up to 10km for obscured observations. This is permanent once stored unless the pipeline re-fetches and updates. Map markers (v1.3+) may appear in incorrect locations.
 
 **Prevention:**
-1. Accept that some observations will have obscured coordinates and map them as-is with the obscured centroid.
-2. In the UI, add a visual indicator (e.g., a dashed circle or different marker style) for observations where `positional_accuracy` in the API response is unusually large (>10,000 meters indicates obscuration).
-3. The API response includes `public_positional_accuracy` — values around 28,000–30,000 meters indicate the 0.2° obscured bounding box. Use this field to flag obscured observations.
-4. Do not attempt to access true coordinates through the API without OAuth authentication and explicit observer permission grants — this would require storing secrets and adds significant complexity.
+1. Accept that some observations will have obscured coordinates and store them as-is with the obscured centroid.
+2. Preserve `public_positional_accuracy` as a column in `samples.parquet` so future map display can flag obscured observations. Values around 28,000–30,000 meters indicate the 0.2° obscured bounding box.
+3. Do not attempt to access true coordinates through the API without OAuth authentication and explicit observer permission grants.
 
-**Detection:** Check `public_positional_accuracy` in the sample observation JSON (`300847934.json` shows `"public_positional_accuracy": 42`, indicating that observation is not obscured). Observations with `public_positional_accuracy > 10000` are likely obscured.
+**Warning signs:** Check `public_positional_accuracy` in API responses. The sample observation `300847934.json` shows `"public_positional_accuracy": 42`, indicating that observation is not obscured. Observations with `public_positional_accuracy > 10000` are likely obscured.
 
-**Phase:** INAT-03 (samples.parquet production), MAP-03 (marker rendering)
+**Phase to address:** INAT-03 (samples.parquet schema — include positional_accuracy column for future use)
 
 ---
 
 ### Pitfall 14: Data Staleness — Static Build Means iNat Data Is Frozen at Build Time
 
 **What goes wrong:** The static pipeline architecture means `samples.parquet` reflects the state of iNaturalist at the time of the last CI run that produced the file. New observations added after the build are invisible until the next build.
-
-The current CI workflow triggers on every push to any branch. This means:
-- A code-only change (frontend CSS fix) triggers a full data pipeline run, re-fetching iNat data unnecessarily.
-- If the pipeline is later separated (code pushes don't re-fetch data), the Parquet could grow stale over weeks.
 
 For a volunteer project, there's an expectation gap: a volunteer submits their iNaturalist observation today, then checks the Bee Atlas map tomorrow expecting to see it — but the map shows last week's data.
 
@@ -339,206 +332,231 @@ For a volunteer project, there's an expectation gap: a volunteer submits their i
 **Consequences:** Volunteer experience: "I submitted my collection but it's not on the map." This erodes trust in the tool even though the system is working correctly.
 
 **Prevention:**
-1. Display the data freshness date on the map UI (e.g., "Sample data as of 2026-02-25"). Store this as metadata in `samples.parquet` or as a separate file.
+1. Display the data freshness date on the map UI (e.g., "Sample data as of 2026-03-10"). Store this as metadata in `samples.parquet` or as a separate file.
 2. Schedule a daily or weekly CI run that runs the data pipeline regardless of code changes. GitHub Actions `schedule:` trigger with a cron expression handles this.
 3. Set volunteer expectations in project documentation: "The map updates daily" or "updates weekly" depending on the schedule chosen.
 
-**Detection:** Not a technical failure — a user experience issue. The map will always show some historical snapshot. The question is how old.
+**Warning signs:** Not a technical failure — a user experience issue. The question is how old the displayed data is.
 
-**Phase:** INAT-01 (CI scheduling), MAP-03/MAP-04 (UI freshness indicator)
-
----
-
-## Moderate Pitfalls
+**Phase to address:** INAT-01 (CI scheduling — schedule trigger for data pipeline)
 
 ---
 
-### Pitfall 15: CDK Bootstrap Required Before First Deploy
+### Pitfall 15: `build-data.sh` Integration — samples.parquet Not Copied to Frontend Assets
 
-**What goes wrong:** CDK requires a one-time `cdk bootstrap` to create the `CDKToolkit` stack in the target AWS account/region before any CDK deployment can run. The bootstrap stack creates an S3 bucket for staging assets and an ECR repository. Without it, `cdk deploy` fails with `This stack uses assets, so the toolkit stack must be deployed to the environment`.
+**What goes wrong:** The existing `build-data.sh` ends with `cp ecdysis.parquet "$REPO_ROOT/frontend/src/assets/ecdysis.parquet"`. When the iNat pipeline is added, it's easy to produce `samples.parquet` in `data/` but forget to also copy it to `frontend/src/assets/` (or the appropriate path for frontend consumption). The frontend build succeeds (it doesn't know about `samples.parquet` yet), but the pipeline's output is silently not deployed.
 
-In a fresh AWS account or new region, this step is not part of the normal CI pipeline and must be done manually once. If it's not documented, the next person to set up the account has no idea why deploys fail.
+This is compounded by the fact that v1.2 deliberately defers map display — so there is no runtime test showing that the file is missing. The broken state won't manifest until v1.3+ tries to load `samples.parquet`.
+
+**Why it happens:** The pipeline and frontend are loosely coupled through the `build-data.sh` script. Adding a new output requires explicitly updating the script's copy step, which is easy to overlook when the file isn't yet consumed.
+
+**Consequences:** `samples.parquet` is produced locally but never deployed to S3. v1.3 integration work discovers the file is missing from the CDN.
 
 **Prevention:**
-1. Document the one-time setup steps (bootstrap + OIDC identity provider creation) in the project README or `infra/README.md`.
-2. The OIDC identity provider (`token.actions.githubusercontent.com`) also must be created once in the AWS account — it is not created by CDK by default unless you add it to the CDK stack.
+1. Even in v1.2 (pipeline-only), verify the `build-data.sh` script copies `samples.parquet` to `frontend/src/assets/` (or wherever the frontend will import it from with `?url`).
+2. Add an assertion to the pipeline script: after the copy step, verify the destination file exists and is non-zero bytes.
+3. Verify the file appears in `frontend/dist/assets/` after `npm run build`.
 
-**Detection:** `cdk deploy` exits with "bootstrap" error message; easy to identify once you know to look for it.
+**Warning signs:** After running `npm run build`, check whether `samples.parquet` appears in `frontend/dist/assets/`. If only `ecdysis.parquet` is there, the copy step was not added.
 
-**Phase:** Infrastructure setup
+**Phase to address:** INAT-03 (samples.parquet production — must include CI copy step)
 
 ---
 
-### Pitfall 16: CDK Stack Name Collisions During Iteration
+### Pitfall 16: pyinaturalist-convert Schema Mismatch with Pipeline's Column Expectations
 
-**What goes wrong:** If you iterate on the CDK stack during development (rename a construct, change a logical ID, or change a resource type), CDK may attempt to replace the resource, which requires deleting the old one first. For S3 buckets, deletion requires the bucket to be empty. CDK will fail with `BucketNotEmpty` unless `removalPolicy: RemovalPolicy.DESTROY` and `autoDeleteObjects: true` are set — but these are dangerous in production.
+**What goes wrong:** `pyinaturalist-convert` (version 0.7.4+ in `pyproject.toml`) is a separate library that converts pyinaturalist API response objects to various formats including DataFrames and Parquet. Its output column names and types follow its own conventions, which may differ from the `samples.parquet` schema the pipeline intends to produce (`observation_id`, `observer`, `date`, `lat`, `lon`, `specimen_count`).
 
-Renaming a CloudFront distribution's logical ID causes CloudFront to be destroyed and recreated, which takes 15–20 minutes and changes the distribution domain name (breaking DNS).
+For example, `pyinaturalist-convert` may produce a column named `user_login` where the pipeline expects `observer`, or it may produce a DateTime column where the pipeline expects ISO8601 string dates, or it may produce a float for `specimen_count` where the pipeline expects nullable Int64.
+
+If the pipeline uses `pyinaturalist-convert` to shortcut the Parquet conversion without verifying the output schema, the resulting file has unexpected column names or types. The `hyparquet` frontend reads columns by name — if `observer` doesn't exist (because the column is named `user_login`), the UI silently receives `undefined` for every row.
+
+**Why it happens:** `pyinaturalist-convert` is a convenience library that makes assumptions about output schema based on what pyinaturalist returns. These assumptions were not designed to match the beeatlas project's specific column naming conventions.
+
+**Consequences:** Silent data absence in the frontend when trying to display observer names or other fields. Schema drift that's invisible until frontend integration in v1.3+.
 
 **Prevention:**
-1. Use stable logical IDs from the start. Avoid auto-generated names — explicitly set `id` parameters on constructs you might rename.
-2. For the S3 bucket, set `removalPolicy: RemovalPolicy.RETAIN` in production to prevent accidental deletion.
-3. Don't rename CDK resources after the first deploy without checking the `cdk diff` output for "Replacement" indicators.
+1. After producing `samples.parquet`, read back the schema with `pyarrow.parquet.read_schema('samples.parquet')` and assert expected column names and types explicitly.
+2. Define the expected `samples.parquet` schema as a constant (`SAMPLES_SCHEMA`) and validate against it before the copy step.
+3. If using `pyinaturalist-convert`, verify its output columns with a small integration test before relying on it.
 
-**Detection:** `cdk diff` output shows `[-] Delete` followed by `[+] Create` for the same resource type — this is a replacement, not an update.
+**Warning signs:** `pyarrow.parquet.read_schema('samples.parquet').names` doesn't include all of `['observation_id', 'observer', 'date', 'lat', 'lon', 'specimen_count']`.
 
-**Phase:** Infrastructure setup
+**Phase to address:** INAT-03 (samples.parquet production — schema validation)
 
 ---
 
-### Pitfall 17: Parquet Column Type Drift Between Pipeline Runs
+### Pitfall 17: uv Lockfile Drift When Adding Python Dependencies
 
-**What goes wrong:** The project currently has duplicate dtype specifications (`ECDYSIS_DTYPES` in `download.py` and the dtype dict in `ecdysis/occurrences.py`; same for OSU Museum data). When one is updated but not the other, the same column has different types in different Parquet outputs. The frontend (`parquet.ts`) then receives unexpected types (e.g., a column that was `int64` is now `string`) causing silent NaN coordinates or JavaScript type errors.
+**What goes wrong:** The project uses `uv` for Python dependency management. The `data/uv.lock` file is committed. When a new dependency is added to `data/pyproject.toml` (e.g., adding a new import or upgrading a transitive dependency), the lockfile must be regenerated with `uv lock`. If the developer adds the dependency but forgets to run `uv lock` and commit the updated lockfile, CI will fail with a lock file out of date error when `uv sync --frozen` (or equivalent) is used in the workflow.
 
-This is a pre-existing issue that becomes a CI/CD pitfall: automated pipeline runs will succeed even with wrong types, producing a deployed site with broken or missing map points.
+For v1.2, the `pyinaturalist` and `pyinaturalist-convert` packages are already in `pyproject.toml`. However, any new dependencies added during pipeline development (e.g., `pydantic` validation models, additional parsing utilities) must be added to `pyproject.toml` and the lockfile regenerated.
 
-Adding `samples.parquet` introduces a third schema that must be kept consistent: `observation_id` (int64), `observer` (string), `date` (string ISO8601), `lat` (float64), `lon` (float64), `specimen_count` (nullable Int64).
+**Why it happens:** uv generates a reproducible lockfile from `pyproject.toml`. If the lockfile is not committed after a dependency change, local development works (uv resolves fresh) but CI fails (uv expects the committed lock).
+
+**Consequences:** CI fails with a clear error message, but the developer must re-run `uv lock`, re-commit, and re-push — an extra round trip. Confusing if the developer hasn't seen uv lockfile errors before.
 
 **Prevention:**
-1. Consolidate dtype specs into a single source of truth before wiring up CI.
-2. Add a schema validation step in the pipeline: after writing Parquet, read back the schema with `pyarrow.parquet.read_schema()` and assert expected column names and types.
-3. Add a frontend assertion: if `parquet.ts` receives a row where `latitude` or `longitude` is not a finite number, skip it (null guard) and report a warning to the console.
+1. Always run `uv lock` after modifying `data/pyproject.toml` and commit both files together.
+2. In CI, use `uv sync` (which validates the lockfile) rather than `uv pip install`.
+3. The `astral-sh/setup-uv@v5` action in the existing workflow already handles uv setup; ensure the CI step runs `cd data && uv sync` before any Python script invocation.
 
-**Detection:** Deploy succeeds but fewer points appear on the map. Check browser console for NaN coordinate warnings. In CI, compare `pyarrow.parquet.read_schema(output).to_arrow_schema()` against a committed expected schema file.
+**Warning signs:** CI error: "lock file is outdated" or similar uv message. Local developer has no error because they ran `uv lock` but didn't commit.
 
-**Phase:** Data pipeline fixes (pre-CI work)
-
----
-
-### Pitfall 18: S3 Deploy Scope — Deleting Files Not in Current Build
-
-**What goes wrong:** `aws s3 sync` with `--delete` removes S3 files not present in the local `dist/` directory. This is usually correct for a single-origin static site. However, if Parquet data files are stored in S3 alongside the frontend build (e.g., at `s3://bucket/data/ecdysis.parquet`) but not inside `dist/`, the `--delete` flag will delete them on every deploy that doesn't re-generate data.
-
-This is especially likely if the CI workflow has two separate jobs: one that builds the frontend and syncs `dist/`, and a separate data pipeline job that uploads Parquet files. If only the frontend job runs (e.g., on a non-main branch), `--delete` will wipe the data files.
-
-**Prevention:**
-1. Use `aws s3 sync dist/ s3://bucket/ --delete --exclude "data/*"` to protect the data prefix.
-2. Or keep Parquet data files at a completely separate S3 path that the frontend job never syncs.
-3. Alternatively, put Parquet files inside `dist/data/` so they are always part of the frontend build output — but only feasible if the data pipeline always runs with the frontend build.
-
-**Detection:** Map loads with no points after a frontend-only deploy. CloudFront logs show 403/404 for Parquet file paths.
-
-**Phase:** CI/CD setup (deploy workflow)
+**Phase to address:** INAT-01 (initial pipeline setup — first commit that adds iNat script)
 
 ---
 
-## Minor Pitfalls
+### Pitfall 18: iNaturalist API v1 vs v2 — Stability and Field Availability
 
----
+**What goes wrong:** iNaturalist operates two API versions simultaneously: v1 (stable, widely used) and v2 (in development, eventual replacement). The v2 API uses JWT authentication (tokens expire in 24 hours) and has different endpoint structures. The sample observation JSON in `data/inat/observation/300847934.json` was fetched from the v2 API (`api.inaturalist.org/v2/observations`) based on the `fieldspec` variable in the Makefile. Some fields available in v1 responses may not be in v2, and vice versa.
 
-### Pitfall 19: OpenLayers CSS Version Drift
+For read-only project observation queries, v1 is appropriate and stable. However, if the existing Makefile's v2 approach is extended for the main pipeline, the JWT authentication requirement adds complexity: JWTs expire in 24 hours, requiring a refresh mechanism in long-running or scheduled CI jobs.
 
-**What goes wrong:** `bee-map.ts` loads OpenLayers CSS from jsDelivr CDN with a pinned version (`ol@v10.8.0`) that differs from the installed package version (`^10.7.0`). When `ol` is upgraded via `npm update`, the CDN link is not automatically updated. CSS changes between versions (rare but possible) cause visual regressions.
+**Why it happens:** v2 appears more "current" in documentation but is not production-stable for all use cases. The v2 API returns `ofvs` under a different structure than v1.
 
-**Prevention:** Import the CSS through Vite's module system: `import 'ol/ol.css'` in the component or entry point. Vite bundles it with the correct version. Remove the CDN `<link>` tag.
-
-**Phase:** Frontend cleanup (pre-feature work)
-
----
-
-### Pitfall 20: pdb.set_trace() in Production Code Path
-
-**What goes wrong:** `data/ecdysis/occurrences.py` line 95 has `import pdb; pdb.set_trace()` inside `to_parquet()`. A CI job running this function will hang indefinitely waiting for debugger input, consuming GitHub Actions minutes until the job timeout kills it.
-
-**Prevention:** Remove before wiring up CI. This is documented in CONCERNS.md. It must be the first fix applied before any CI work.
-
-**Detection:** CI job hangs with no output after the "Writing to parquet" log line, then times out after 6 hours (default GHA timeout).
-
-**Phase:** Data pipeline fixes (blocking, must fix first)
-
----
-
-### Pitfall 21: Python 3.14 Availability in GitHub Actions Runners
-
-**What goes wrong:** `data/pyproject.toml` requires `python>=3.14`. Python 3.14 is a recent release (released October 2024). GitHub Actions `ubuntu-latest` runners may have Python 3.12 or 3.13 pre-installed. The `actions/setup-python` action supports 3.14 via `python-version: "3.14"` but it must be explicitly specified. Without it, `uv sync` will fail because the Python version constraint isn't met by the system Python.
-
-**Prevention:** In the GitHub Actions workflow, use:
-```yaml
-- uses: actions/setup-python@v5
-  with:
-    python-version: "3.14"
-```
-Or use `uv` directly: `uv run --python 3.14 python ...` — `uv` can download and manage Python versions independently of the system.
-
-**Detection:** `uv sync` fails with "No interpreter found for python>=3.14" or similar.
-
-**Phase:** CI/CD setup
-
----
-
-### Pitfall 22: Ecdysis POST Download Returns Empty or Error Silently
-
-**What goes wrong:** The Ecdysis download uses a POST request to a Symbiota portal endpoint. Symbiota portals can return HTTP 200 with an error HTML page (not a zip file) if the query parameters are wrong or the server is overloaded. The current code checks `response.raise_for_status()` but does not validate that the response is actually a zip file before writing it to disk.
-
-In CI, if the Ecdysis server is temporarily down or the POST parameters change (Symbiota version updates occasionally change the download handler), the pipeline writes an HTML error page as a `.zip` file, which then fails to open with `zipfile.ZipFile`. The error message is obscure: `BadZipFile: File is not a zip file`.
-
-**Prevention:**
-1. After the POST response, check `response.headers['Content-Type']` — it should be `application/zip` or `application/octet-stream`. If it's `text/html`, raise a descriptive error before writing.
-2. Log the response size: an error HTML page is usually a few KB; a real data zip is several MB.
-
-**Detection:** CI fails with `BadZipFile` on the Ecdysis processing step. Inspect the saved `.zip` file — if it's readable text (HTML), the POST failed silently.
-
-**Phase:** Data pipeline (download reliability)
-
----
-
-### Pitfall 23: iNaturalist API v1 vs v2 — Stability and Field Availability
-
-**What goes wrong:** iNaturalist operates two API versions simultaneously: v1 (stable, widely used) and v2 (in development, eventual replacement). The v2 API uses JWT authentication (tokens expire in 24 hours) and has different endpoint structures. Some fields available in v1 responses may not yet be in v2, and vice versa.
-
-For read-only project observation queries (the v1.1 use case), v1 is appropriate and stable. But if code is written against v2 endpoints during development (because v2 docs appear more current), it may use authentication flows that require a JWT refresh loop, adding complexity.
+**Consequences:**
+- Using v2 for bulk unauthenticated reads fails with 401 if a JWT is required
+- `ofvs` field structure differs between v1 and v2 responses, causing parsing errors if switching between versions mid-development
 
 **Prevention:**
 - Use the v1 API (`api.inaturalist.org/v1/observations`) for read-only project observation queries. The v1 API does not require authentication for public data.
-- Do not use the v2 API unless a specific feature requires it (v2 has different field availability).
 - Set a custom `User-Agent` header as recommended by iNaturalist's API Recommended Practices.
+- Do not mix v1 and v2 response parsing logic in the same script.
 
-**Detection:** 401 Unauthorized responses indicate an authenticated endpoint was used for a public-data request, or a v2 endpoint without a valid JWT.
+**Warning signs:** 401 Unauthorized responses indicate an authenticated endpoint was used for a public-data request, or a v2 endpoint without a valid JWT.
 
-**Phase:** INAT-01 (pipeline querying)
+**Phase to address:** INAT-01 (pipeline querying)
 
 ---
 
-## Phase-Specific Warnings
+## Technical Debt Patterns
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| CDK S3+CloudFront setup | OAI vs OAC API confusion; bucket policy not auto-applied | Use `S3BucketOrigin.withOriginAccessControl()`; verify bucket policy after deploy |
-| CDK first deploy | Bootstrap not run; OIDC identity provider missing | Document one-time setup in infra README |
-| GitHub Actions OIDC | Subject claim mismatch; missing `aud` condition | Use `StringLike` with wildcard first; add `environment:` to workflow only if trust policy requires it |
-| GitHub Actions deploy | CloudFront cache not invalidated | Always run `create-invalidation` after s3 sync |
-| GitHub Actions deploy | `--delete` wipes Parquet data files | Use `--exclude "data/*"` or separate S3 paths |
-| iNat INAT-01: project query | Using `place_id` instead of `project_id` fetches wrong observations | Use `project_id=166376`; verify result spot-checks against known WaBA observers |
-| iNat INAT-01: project query | API v1 vs v2 endpoint confusion; JWT auth complexity | Use v1 for read-only; no auth needed |
-| iNat INAT-01: CI integration | Second external HTTP dependency blocks deploys | Commit fallback `samples.parquet`; separate data pipeline from code builds |
-| iNat INAT-01: CI integration | Rate limiting across concurrent runs | Use pyinaturalist with rate limiting; set custom User-Agent; cache weekly |
-| iNat INAT-02: field extraction | `observation_field_values` absent from response | Request `fields=all` in API call; verify raw response before parsing |
-| iNat INAT-02: field extraction | Observation field identified by numeric ID not name | Look up field ID from a real WaBA observation; store as constant |
-| iNat INAT-02: specimen count | Many observations have no specimen count (voluntary field) | Treat as nullable; distinguish null from explicit 0 in UI |
-| iNat INAT-03: coordinates | Obscured coordinates off by up to 20km | Use `public_positional_accuracy` to flag; accept imprecision |
-| iNat INAT-03: data size | > 10,000 observations hits hard API cap | Check `total_results`; fail loudly; use `id_above` if limit exceeded |
-| iNat MAP-03/MAP-04: freshness | Static build means data frozen at build time | Display freshness date in UI; schedule daily data pipeline run |
-| Python data pipeline | `pdb.set_trace()` hangs CI | Remove before any CI wiring |
-| Python data pipeline | Python 3.14 not pre-installed | Explicit `setup-python@v5` with `python-version: "3.14"` |
-| Python data pipeline | Parquet schema drift across sources | Consolidate dtype specs; add schema assertion step; document `samples.parquet` schema |
-| Python data pipeline | Ecdysis POST returns HTML as zip | Validate `Content-Type` before writing zip to disk |
-| Vite build | Large Parquet files in build artifacts | Consider separate S3 path for data files; set `assetsInlineLimit: 0` |
-| Frontend: filtering | Null coordinate crash | Guard `fromLonLat` calls with null check (pre-existing bug) |
+Shortcuts that seem reasonable but create long-term problems.
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Committing `samples.parquet` as fallback build artifact | CI resilience when iNat API is down | Binary file grows over time; git history bloats; merges conflict on binary | Always — use `.gitattributes` to mark as binary; use shallow commits |
+| String-matching observation field names instead of numeric IDs | Readable code | Silent failures if curator renames the field | Never — always store field ID as constant alongside the name for documentation |
+| `page='all'` without total_results check | Simpler pagination code | Silent truncation at 10K records | Only if assert on total_results is added immediately after |
+| Running full data pipeline on every push | Always-fresh data | Two external HTTP dependencies block every deploy | Never — separate data refresh from code deploy |
+| Not validating `samples.parquet` schema after write | Simpler pipeline | Type drift catches silently; frontend gets wrong types | Never — add schema assertion; it's three lines of pyarrow |
+
+---
+
+## Integration Gotchas
+
+Common mistakes when connecting to external services.
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| iNaturalist v1 API | Using `/v2/observations` for bulk read (JWT required) | Use `/v1/observations` with no auth for public project data |
+| iNaturalist v1 API | Not requesting `ofvs` in observation payload | Add `fields='all'` or equivalent parameter to include observation field values |
+| iNaturalist API | Using `place_id` instead of `project_id` for WaBA observations | Use `project_id=166376`; verify results against known WaBA observers |
+| iNaturalist API | Relying on field name strings to find specimen count | Look up numeric field ID from a real WaBA observation; store as constant |
+| iNaturalist API | Using per_page default (30) | Explicitly set `per_page=200`; verify response per_page matches |
+| pyinaturalist-convert | Assuming output column names match target schema | Read back schema with pyarrow after conversion; assert against expected column list |
+| build-data.sh | Adding pipeline output without adding cp step | Verify `samples.parquet` appears in `frontend/dist/assets/` after full build |
+| uv | Modifying pyproject.toml without updating lockfile | Run `uv lock` and commit both files together |
+
+---
+
+## Performance Traps
+
+Patterns that work at small scale but fail as usage grows.
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Standard page/per_page pagination to 10K+ records | Silent truncation with no error | Check total_results; use id_above for >10K | When WaBA exceeds ~10K project observations |
+| Full data pipeline re-fetch on every push | External API down = deploy blocked | Separate scheduled data job from push-triggered build | Day 1 if iNat has a maintenance window during a push |
+| No User-Agent header on API requests | IP silently throttled or blocked | Set descriptive User-Agent per iNat recommended practices | When CI runs frequently from shared GitHub runner IP pool |
+| Fetching all observation details without per_page=200 | 3-7x more API requests than necessary | Always request per_page=200 | Immediately — any project with >30 observations |
+
+---
+
+## Security Mistakes
+
+Domain-specific security issues beyond general web security.
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Hardcoding iNaturalist API credentials (if auth ever needed) | Credential exposure in git history | Use GitHub Actions secrets; never commit tokens |
+| Over-broad OIDC trust policy (repo:*) left in production | Any workflow in the repo can assume the deploy role | Tighten trust policy after initial deploy confirmation |
+| `aws s3 sync --delete` without exclusions | Data Parquet files deleted on frontend-only deploys | Use `--exclude "data/*"` or separate S3 paths for data vs frontend assets |
+
+---
+
+## "Looks Done But Isn't" Checklist
+
+Things that appear complete but are missing critical pieces.
+
+- [ ] **iNat pipeline (INAT-01):** Script fetches observations, but `samples.parquet` is not copied to `frontend/src/assets/` — verify copy step in `build-data.sh`
+- [ ] **iNat pipeline (INAT-01):** Script works locally, but CI has no uv setup step for `data/` directory — verify workflow runs `cd data && uv sync` before Python scripts
+- [ ] **iNat pipeline (INAT-02):** Specimen count column exists in parquet, but is all-null — verify `ofvs` parameter is included in API request and field ID constant matches actual WaBA field
+- [ ] **iNat pipeline (INAT-03):** `samples.parquet` file produced, but schema doesn't match expected — verify with `pyarrow.parquet.read_schema()` assertion
+- [ ] **iNat pipeline (INAT-03):** Pipeline succeeds in CI, but `samples.parquet` is not deployed to S3 — verify it appears in `dist/assets/` and that `aws s3 sync` doesn't exclude it
+- [ ] **10K limit guard:** Pipeline fetches successfully, but no assertion on `total_results` — verify explicit assert before returning results
+- [ ] **Fallback parquet:** CI passes, but there's no committed `samples.parquet` fallback — verify fallback exists so iNat downtime doesn't block deploys
+
+---
+
+## Recovery Strategies
+
+When pitfalls occur despite prevention, how to recover.
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| samples.parquet all-null specimen counts | LOW | Add `ofvs` parameter to API call; re-run pipeline; verify field ID constant |
+| Wrong field ID constant | LOW | Fetch one known WaBA observation; inspect ofvs; update constant; re-run |
+| 10K limit silently hit | MEDIUM | Switch to `id_above` pagination strategy; re-run full fetch |
+| CI blocked by iNat downtime | LOW | Use committed fallback `samples.parquet`; bypass data pipeline step |
+| uv lockfile drift | LOW | `cd data && uv lock`; commit and push |
+| samples.parquet not deployed | LOW | Add cp step to `build-data.sh`; redeploy |
+| pyinaturalist-convert schema mismatch | MEDIUM | Add explicit column rename/select step after conversion; add schema assertion |
+
+---
+
+## Pitfall-to-Phase Mapping
+
+How roadmap phases should address these pitfalls.
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Observation field values absent from response | INAT-02: specimen count extraction | Fetch one WaBA observation with known specimen count; assert `ofvs` present |
+| Observation field ID numeric vs name | INAT-02: specimen count extraction | Log all field names+IDs found; verify constant matches actual ID |
+| Collection project — many null specimen counts | INAT-02/INAT-03: schema design | Assert `specimen_count` column is nullable Int64; verify null fraction makes sense |
+| project_id vs place_id filtering | INAT-01: pipeline querying | Spot-check 5 observations against known WaBA observer list |
+| 10K pagination hard limit | INAT-01: pipeline querying | Assert `total_results < 10_000` with loud failure |
+| API v1 vs v2 confusion | INAT-01: pipeline querying | Verify endpoint URL is `/v1/observations`; no JWT logic |
+| CI blocked by iNat downtime | INAT-01: CI integration | Committed `samples.parquet` fallback exists before wiring CI |
+| Rate limiting across concurrent CI runs | INAT-01: CI integration | Use pyinaturalist with ClientSession; set User-Agent |
+| samples.parquet not copied to frontend assets | INAT-03: pipeline output | After full `npm run build`, verify `frontend/dist/assets/samples.parquet` exists |
+| pyinaturalist-convert schema mismatch | INAT-03: schema validation | `pyarrow.parquet.read_schema('samples.parquet').names` matches expected list |
+| uv lockfile drift | INAT-01: initial script setup | CI `uv sync` step validates lockfile; commit pyproject.toml + uv.lock together |
+| Obscured coordinates stored permanently | INAT-03: schema design | Include `public_positional_accuracy` column for future map display flagging |
+| Data staleness from static build | INAT-01: CI scheduling | Schedule trigger added to workflow; freshness date stored in parquet or metadata |
+| CloudFront stale cache after deploy | Deploy workflow | Verify `aws cloudfront create-invalidation` runs after every sync |
+| S3 sync --delete wipes data files | Deploy workflow | Verify --exclude or separate S3 prefix for data files |
+| pdb.set_trace() hangs CI | Blocking — fix before any CI | Confirmed removed from `ecdysis/occurrences.py` before CI wiring |
+| Python 3.14 not pre-installed | CI setup | Explicit `setup-python@v5` with `python-version: "3.14"` in workflow |
 
 ---
 
 ## Sources
 
-- Direct code audit of this repository, including `data/inat/projects.py`, `data/inat/observation/300847934.json`, `scripts/build-data.sh`, `.github/workflows/deploy.yml` (HIGH confidence for project-specific findings)
-- [iNaturalist API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — rate limits (100 req/min), User-Agent recommendation, pagination guidance, 10K hard cap (MEDIUM confidence — WebSearch-verified, consistent with pyinaturalist documentation)
+- Direct code audit of this repository, including `data/inat/projects.py`, `data/inat/observation/300847934.json`, `scripts/build-data.sh`, `.github/workflows/deploy.yml`, `data/pyproject.toml` (HIGH confidence for project-specific findings)
+- [iNaturalist API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — rate limits (~100 req/min), User-Agent recommendation, pagination guidance, 10K hard cap, `id_above` workaround (MEDIUM confidence — WebSearch-verified, consistent with pyinaturalist documentation)
 - [iNaturalist API v1 Documentation](https://api.inaturalist.org/v1/docs/) — endpoint reference, authentication requirements (MEDIUM confidence)
-- [pyinaturalist documentation](https://pyinaturalist.readthedocs.io/) — pagination, rate limiting behavior, `fields` parameter (MEDIUM confidence)
-- [Understanding Projects on iNaturalist](https://help.inaturalist.org/en/support/solutions/articles/151000176472-understanding-projects-on-inaturalist) — collection vs traditional project differences, observation field requirements, coordinate access (MEDIUM confidence)
-- [iNaturalist "project members only" collection project feature](https://www.inaturalist.org/blog/32525-new-feature-project-members-only-setting-on-collection-projects) — membership filtering behavior (MEDIUM confidence)
-- [iNat forum: observation field values in API responses](https://forum.inaturalist.org/t/include-project-observation-fields-when-using-api/30506) — fields absent by default (MEDIUM confidence)
-- [iNat forum: API pagination 10K limit](https://forum.inaturalist.org/t/impossible-to-search-old-pages-due-to-limit-of-10000/42240) — confirmed hard cap behavior (MEDIUM confidence)
+- [pyinaturalist documentation](https://pyinaturalist.readthedocs.io/) — pagination, rate limiting behavior, `fields` parameter, `page='all'` behavior (MEDIUM confidence)
+- [iNaturalist community forum: Include project observation fields when using API](https://forum.inaturalist.org/t/include-project-observation-fields-when-using-api/30506) — fields absent by default (MEDIUM confidence)
+- [iNaturalist community forum: API pagination 10K limit](https://forum.inaturalist.org/t/impossible-to-search-old-pages-due-to-limit-of-10000/42240) — confirmed hard cap behavior (MEDIUM confidence)
+- [iNaturalist community forum: API docs & params explained](https://forum.inaturalist.org/t/api-docs-params-explained/42673) — `id_above` pagination strategy (MEDIUM confidence)
 - [iNat scheduled downtime announcements](https://forum.inaturalist.org/t/scheduled-downtime-february-11-12-for-1-hour/75529) — confirmed iNat has maintenance windows (MEDIUM confidence)
-- Observation field ID vs name distinction: [iNat forum thread](https://forum.inaturalist.org/t/query-api-by-observation-field-or-observation-field-value/39719) — web URL uses names, JSON API uses numeric IDs (MEDIUM confidence)
+- Observation field ID vs name distinction from search findings: web URL uses names, JSON API uses numeric IDs (MEDIUM confidence)
 - AWS CDK v2 documentation on `S3BucketOrigin.withOriginAccessControl()` (MEDIUM confidence — training data August 2025)
 - GitHub Actions OIDC documentation (MEDIUM confidence — training data August 2025)
-- OpenLayers v10 rendering performance: training data (MEDIUM confidence — verify with OL v10 release notes)
+- uv documentation: lockfile behavior, `uv sync` vs `uv lock` (MEDIUM confidence — training data August 2025)
+
+---
+*Pitfalls research for: Washington Bee Atlas — iNat pipeline integration (v1.2)*
+*Researched: 2026-03-10*

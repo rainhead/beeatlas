@@ -1,256 +1,239 @@
-# Feature Landscape
+# Feature Research
 
-**Domain:** iNaturalist collection event integration for citizen science bee atlas
-**Project:** Washington Bee Atlas — v1.1 iNat Sample Markers
-**Researched:** 2026-02-25
-**Overall confidence:** HIGH (iNat API behavior verified from actual observation JSON in repo; pyinaturalist confirmed installed in pyproject.toml; existing codebase read directly)
+**Domain:** iNaturalist API pipeline — Washington Bee Atlas collection events
+**Project:** Washington Bee Atlas — v1.2 iNat Pipeline
+**Researched:** 2026-03-10
+**Confidence:** HIGH (project codebase read directly; pyinaturalist source code examined; live iNat API response in repo)
 
 ---
 
-## Context: What We're Adding
+## Scope Boundary
 
-The existing map already renders Ecdysis specimen clusters from `ecdysis.parquet`. This milestone (v1.1) adds a parallel data stream: iNaturalist observation records from the Washington Bee Atlas project (project ID 166376). Each iNat observation represents a collection event — a volunteer went out, caught bees, photographed the host plant, and logged an iNat observation. Specimens eventually arrive in Ecdysis, but the iNat observation is the earlier signal.
+This milestone (v1.2) is **pipeline only** — no map presentation. Three requirements govern scope:
 
-The five v1.1 requirements from PROJECT.md are:
 - **INAT-01**: Query iNat API for Washington Bee Atlas project observations
-- **INAT-02**: Extract observer, date, coordinates, specimen count observation field
+- **INAT-02**: Extract observer, date, coordinates, specimen count from each observation
 - **INAT-03**: Produce `samples.parquet` (observation_id, observer, date, lat, lon, specimen_count)
-- **MAP-03**: Sample markers layer coexisting with existing specimen clusters
-- **MAP-04**: Click sample marker → sidebar: observer name, collection date, specimen count
+
+MAP-03 (sample markers layer), MAP-04 (click-to-detail sidebar), and specimen-to-sample linkage are explicitly deferred to v1.3+.
 
 ---
 
-## How iNaturalist Projects Work (Domain Background)
+## Context: What Already Exists
 
-iNaturalist has two project types with critically different API behaviors:
+Significant iNat infrastructure is already in the repo before v1.2 starts:
 
-**Collection projects** — automatically include all observations matching a filter (taxa, place, quality grade). No user action needed. The API query is `GET /v1/observations?project_id=<id>` and returns all matching observations. The Washington Bee Atlas (project 166376) appears to be a collection project based on its structure.
+- `data/inat/projects.py` — WA project ID confirmed: **166376** (OR project: 18521)
+- `data/Makefile` — iNat API v2 call with custom `fields` fieldspec already written; one sample observation JSON fetched at `data/inat/observation/300847934.json`
+- `data/scripts/fetch_inat_links.py` — fetches iNat observation IDs from Ecdysis HTML (a different pipeline for v1.3 linkage work)
+- `pyinaturalist>=0.20.2` and `pyinaturalist-convert>=0.7.4` already in `data/pyproject.toml`
+- `data/inat/observations.py` and `data/inat/projects.py` — stubs, essentially empty
 
-**Traditional projects** — observations must be manually added by the observer. They support required observation fields. The API also uses `project_id` parameter for queries.
-
-**Key distinction:** Only traditional projects can *require* observation fields. Collection projects can have observation fields but cannot enforce them. This means:
-- If the WA Bee Atlas is a collection project, specimen count may be an optional observation field — many observations will have it null.
-- If it is a traditional project, the specimen count field may be reliably present.
-
-From the actual observation JSON in the repository (`data/inat/observation/300847934.json`), the observation for Bonnie Zand does NOT contain an `ofvs` (observation field values) array, which suggests either: (a) that particular observation has no fields filled in, or (b) observation fields were not included in that API request. The JSON structure confirms the observation contains: `id`, `uuid`, `geojson` (coordinates), `time_observed_at`, `uri`, `user` (with `login` and `name`), `taxon`, `observation_photos`, `license_code`.
-
----
-
-## iNaturalist Observation Data: What Is Reliably Available
-
-Based on direct examination of the JSON in the repo and iNat API documentation:
-
-### Always Present (HIGH confidence)
-
-| Field | JSON path | Notes |
-|-------|-----------|-------|
-| Observation ID | `id` (integer) | Stable, permanent identifier |
-| UUID | `uuid` | Alternative stable identifier |
-| Date/time | `time_observed_at` | ISO 8601 with timezone offset |
-| Coordinates | `geojson.coordinates` | [longitude, latitude] array |
-| Observer login | `user.login` | Username, always present |
-| Observer display name | `user.name` | Full name — may be empty string if not set |
-| iNat URL | `uri` | e.g. `https://www.inaturalist.org/observations/300847934` |
-| Positional accuracy | `public_positional_accuracy` | Meters; may be null |
-
-### Usually Present (MEDIUM confidence)
-
-| Field | JSON path | Notes |
-|-------|-----------|-------|
-| Taxon | `taxon.id`, `taxon.ancestor_ids` | Present if observation is identified |
-| Photos | `observation_photos` array | Present if observer added photos |
-| License | `license_code` | e.g. `cc-by-nc` |
-
-### Conditionally Present (LOW confidence)
-
-| Field | JSON path | Notes |
-|-------|-----------|-------|
-| Specimen count | `ofvs` array, field name varies | Only present if observer filled in the field; field name is project-specific |
-| Description/notes | `description` | Free text; often empty string |
-| Observed date | `observed_on` | Date-only string; separate from `time_observed_at` |
+The Makefile fieldspec fetches individual observations by ID via API v2:
+```
+GET https://api.inaturalist.org/v2/observations?fields=(id:!t,geojson:!t,time_observed_at:!t,user:(id:!t,login:!t,name:!t),...)&id=<obs_id>
+```
+This milestone extends this pattern to **bulk project fetching**: query all observations in project 166376, not individual ID lookups.
 
 ---
 
-## Observation Fields (ofvs): Specimen Count
+## How the iNaturalist API Works (HIGH confidence — source code + live JSON)
 
-**The core uncertainty:** The specific observation field name used by the Washington Bee Atlas project for specimen count is not determinable from public search results. iNaturalist has a public observation field called "Count" (field ID 1), but individual projects may define custom fields with names like "Number of specimens", "Specimen count", "Bees collected", etc.
-
-**What the data structure looks like** (from iNat API documentation and community forum posts):
-
-```json
-"ofvs": [
-  {
-    "id": 12345678,
-    "field_id": 1,
-    "datatype": "numeric",
-    "name": "Count",
-    "value": "12",
-    "observation_field": {
-      "id": 1,
-      "name": "Count",
-      "datatype": "numeric"
-    }
-  }
-]
+**Primary endpoint for project observations (API v1, pyinaturalist):**
+```
+GET https://api.inaturalist.org/v1/observations?project_id=166376&per_page=200&order_by=id&order=asc
 ```
 
-**Important:** The `value` is always a string, even for numeric fields. The pipeline must parse it.
+**Pagination behavior (confirmed from `pyinaturalist/paginator.py` source):**
+- Default and maximum per_page: **200** (from `pyinaturalist/constants.py`: `PER_PAGE_RESULTS = 200`)
+- Hard API limit: 10,000 results via page+per_page; exceeding this throws an error
+- Cursor pagination: use `id_above=<last_result_id>` with `order_by=id&order=asc` — unlimited results
+- `get_observations(page='all')` internally invokes `IDRangePaginator` with `id_above` cursor — handles large sets automatically, no manual loop required
 
-**Discovery approach:** The pipeline must introspect the project's observation fields at runtime. Best approach:
-1. Query `GET /v1/projects/166376` to get project metadata including any configured observation fields
-2. Inspect the `project_observation_fields` array to find a field with `name` matching something like "specimen", "count", "collected"
-3. Hardcode the resolved field ID for extraction (or make it a pipeline config parameter)
+**Rate limits (confirmed from `pyinaturalist/constants.py`):**
+- `REQUESTS_PER_SECOND = 1` (sustained)
+- `REQUEST_BURST_RATE = 5`
+- `REQUESTS_PER_DAY = 10000`
+- `REQUEST_RETRIES = 5` with exponential backoff for 500/502/503/504 errors
+- pyinaturalist session layer handles rate limiting automatically via `pyrate_limiter`
 
-**The "pending sample" condition:** An observation with no `ofvs` entry for the specimen count field means one of:
-- Specimens not yet counted/entered (true pending)
-- Observer never fills in the field at all (always pending)
-- The observation is a plant photo only (no specimens)
+**WA Bee Atlas project scale:** The project (ID 166376) has low thousands of observations (volunteer collector program across WA, active since ~2021). Well within 10k limit. Cursor pagination is safe default regardless.
 
-The pipeline should treat absent `ofvs` for the specimen count field as `specimen_count = null` (not 0, not empty), so the frontend can display "Not yet entered" rather than "0 specimens".
+**Key observation fields in the API response:**
+
+| Field | Path (API v1 model) | Path (API v2 JSON) | Notes |
+|-------|--------------------|--------------------|-------|
+| Observation ID | `id` | `id` | Integer, stable identifier |
+| Observer username | `user.login` | `user.login` | Always present |
+| Observer display name | `user.name` | `user.name` | May be empty string |
+| Observed date | `observed_on` | `time_observed_at` | ISO date or ISO 8601 datetime |
+| Coordinates (public) | `location` → (lat, lon) tuple | `geojson.coordinates` → [lon, lat] | Note lon/lat order reversal between v1 and v2 |
+| Coordinates (private) | `private_location` | Not in v2 fields | Only available with authentication + permissions |
+| Observation field values | `ofvs` list | `ofvs` (must request in fields spec) | Not included in sample Makefile fieldspec |
+| iNat URL | `uri` | `uri` | e.g. `https://www.inaturalist.org/observations/300847934` |
+
+**Observation field values (`ofvs`) — structure (HIGH confidence, `pyinaturalist/models/observation_field.py`):**
+Each `ofvs` entry has:
+- `field_id` (int) — identifies which field definition
+- `name` (str) — human-readable field name (e.g., "Count", "Number of specimens")
+- `value` — typed by `datatype`; parsed to Python int/float/str/date by pyinaturalist
+- `datatype` — one of: dna, date, datetime, numeric, taxon, text, time
+
+**Critical: the specimen count field ID is unknown.** The WA Bee Atlas project may use a custom observation field. The field ID must be discovered by:
+1. Querying `GET /v1/projects/166376` and inspecting `project_observation_fields`
+2. Or fetching one project observation and scanning its `ofvs` for a numeric field with a name matching "specimen", "count", "collected"
+
+The existing Makefile fieldspec does NOT include `ofvs`. The pipeline script must add `ofvs` to its API request.
 
 ---
 
 ## Table Stakes
 
-Features required for v1.1 to be useful. Missing = milestone incomplete.
+Features required for v1.2 to be complete. Missing = milestone not done.
 
-| Feature | Why Required | Complexity | Category | Notes |
-|---------|--------------|------------|----------|-------|
-| iNat API pagination | Project may have >200 observations; API max per_page is 200 | Low | Pipeline | Use `id_above` cursor pattern; pyinaturalist supports `page='all'` shorthand |
-| Observation field discovery | Must find specimen count field ID before extracting values | Low | Pipeline | Query `/v1/projects/166376` once; hardcode field ID in config |
-| Null specimen_count handling | Many obs will have no count entered; must not silently coerce to 0 | Low | Pipeline + Data model | Use nullable Int64 in pandas; null becomes null in Parquet; frontend shows "Not yet entered" |
-| Coordinate extraction | `geojson.coordinates` → [lon, lat]; must handle obscured observations | Low | Pipeline | Some obs have accuracy >10km and coordinates jittered; use as-is for markers |
-| samples.parquet schema | Pipeline output must match what the frontend ParquetSource reads | Low | Data model | Columns: observation_id (int64), observer (string), date (string ISO), lat (float64), lon (float64), specimen_count (Int64 nullable) |
-| Sample marker layer | Second VectorLayer on existing OL map; must coexist with cluster layer | Medium | Frontend | Distinct visual style (different shape/color from specimen circles); no clustering needed |
-| Click-to-detail for sample markers | Same click pattern as existing specimen clusters | Medium | Frontend | Must distinguish between hit on specimen cluster vs sample marker |
-| Sidebar sample panel | Show observer, date, specimen_count for a clicked sample marker | Low | Frontend | Reuse existing sidebar architecture; new view state for iNat samples |
-| build-data.sh extension | CI runs build-data.sh; must also produce samples.parquet alongside ecdysis.parquet | Low | Pipeline | Extend shell script; copy samples.parquet to frontend/src/assets/ |
+| Feature | Why Required | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Fetch all project observations via API | Core requirement INAT-01 | LOW | `get_observations(project_id=166376, page='all')` handles pagination |
+| Cursor-based pagination | API hard 10k limit; safe default for any project size | LOW | pyinaturalist `IDRangePaginator` handles this when `page='all'` is passed |
+| Extract observer, date, lat, lon | Core requirement INAT-02 | LOW | Standard fields on every observation; no discovery needed |
+| Include `ofvs` in API request | Without this, specimen count is inaccessible | LOW | Must add `ofvs` to fieldspec or use v1 endpoint (which includes `ofvs` by default) |
+| Discover specimen count field_id | INAT-02 requires correct field; wrong ID = silent nulls | LOW | Query project once at pipeline start; hardcode field ID as constant |
+| Extract specimen count from ofvs | Core requirement INAT-02 | MEDIUM | ofvs may be absent; field may not be filled; must parse and handle nulls |
+| Null specimen_count handling | Many observations will have no count entered; must not silently coerce to 0 | LOW | Use nullable `Int64` in pandas; null remains null in Parquet |
+| Handle obscured/null coordinates | Some observations have geoprivacy; null lat/lon is valid | LOW | Nullable float64; rows retained (not dropped) unless pipeline explicitly decides otherwise |
+| Write samples.parquet | Core requirement INAT-03 | LOW | Same pandas + pyarrow pattern as existing `ecdysis.parquet`; engine='pyarrow', compression='snappy' |
+| Extend build-data.sh or Makefile | CI must produce samples.parquet alongside ecdysis.parquet | LOW | Copy output to `frontend/src/assets/samples.parquet`; same pattern as existing ecdysis copy |
+| Rate limiting (1 req/sec) | API terms of service | LOW | Handled automatically by pyinaturalist session; no manual sleep needed |
 
 ---
 
 ## Differentiators
 
-Features that add value beyond the minimum viable milestone.
+Features that add value but are not required by the three INAT requirements.
 
-| Feature | Value Proposition | Complexity | Category | Notes |
-|---------|-------------------|------------|----------|-------|
-| Link to iNat observation | Observer can open original observation on iNaturalist.org | Very Low | Frontend | `uri` field is always present; render as `<a>` in sidebar |
-| Observer display name fallback | `user.name` may be empty; fall back to `user.login` | Very Low | Pipeline | Prevents empty "Collector:" labels in sidebar |
-| Distinct marker style per sample state | "Pending" (null count) vs "counted" markers get different visual treatment | Low | Frontend | Color or shape difference; helps volunteers identify which events need follow-up |
-| Date parsed for display | `time_observed_at` is ISO 8601 with timezone; format as "July 10, 2025" in sidebar | Very Low | Frontend | Use Intl.DateTimeFormat, same pattern as existing month formatting |
-| iNat observation URL in samples.parquet | Store `uri` in Parquet so frontend can link without reconstruction | Very Low | Pipeline | Cheap to include; enables future deep-linking |
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Cache raw API responses to disk | Enables re-runs without re-fetching; mirrors Makefile pattern of persisting individual JSONs | LOW | Write raw JSON pages to `data/inat/raw/` before parsing |
+| Observer display name fallback | `user.name` may be empty string; fall back to `user.login` | VERY LOW | One-liner in extraction; prevents empty "Collector:" labels |
+| Include `uri` in samples.parquet | Enables future deep-linking from sidebar without reconstruction | VERY LOW | Already in Makefile fieldspec; cheap to carry through |
+| OR project support (project_id=18521) | Generalize to Oregon Bee Atlas in same pipeline run | LOW | Already stubbed in `inat/projects.py`; trivially parameterized |
+| Progress reporting | Useful for debugging CI pipeline | LOW | Log observation count, page count, null rate in specimen_count |
+| Committed fallback parquet | If iNat API is down, CI build survives | LOW | Same mitigation as existing `ecdysis.parquet` committed fallback |
 
 ---
 
 ## Anti-Features
 
-Features to explicitly NOT build in v1.1.
+Features to explicitly NOT build in v1.2.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Specimen-to-sample linkage (Ecdysis HTML scraping) | Deferred to v1.2 per PROJECT.md; complex scraping adds brittleness | Ship sample markers without linkage first |
-| iNat host plant display layer | Out of scope per PROJECT.md for v1.1; different data shape from collection events | Revisit in v1.2 if needed |
-| Taxon filtering of sample markers | iNat observations are about collection events, not identified specimens; taxon is unreliable until Ecdysis | Filter only applies to specimen layer |
-| Real-time iNat fetch from browser | Static Parquet constraint is non-negotiable; no server runtime | Pipeline fetches; static Parquet serves |
-| Authentication / OAuth for iNat API | Read-only public project data requires no auth | Use unauthenticated API calls |
-| URL sharing (INAT-specific) | Deferred to v1.2 (NAV-01) per PROJECT.md | Ship basic sample markers first |
-| Clustering sample markers | Sample count is low (hundreds, not thousands); clustering adds complexity without benefit | Render individual markers |
+| Sample markers map layer (MAP-03) | Explicitly deferred to v1.3 per PROJECT.md; requires specimen-to-sample linkage design first | Deliver samples.parquet only; map layer is v1.3 |
+| Click-to-detail sidebar (MAP-04) | Depends on MAP-03; deferred | Deliver samples.parquet only |
+| Specimen-to-sample linkage (Ecdysis HTML scraping) | Separate pipeline script (`fetch_inat_links.py`) exists; linkage modeling is v1.3 | Deferred per PROJECT.md |
+| iNat host plant observation layer | Different data type and display scope; explicitly out of scope in PROJECT.md | Not in this milestone |
+| Authentication / private coordinates | Read-only public project data; complicates CI; privacy concern | Use public coordinates only |
+| Real-time fetch from browser | Static hosting constraint is non-negotiable | Pipeline fetches; static Parquet serves |
+| Taxon filtering of sample markers | iNat observations are collection events, not identified specimens | Filter applies only to specimen layer (future) |
+| Clustering of sample markers | Sample count is low (hundreds); clustering adds complexity without benefit | Render individual markers (future, v1.3) |
 
 ---
 
 ## Feature Dependencies
 
 ```
-INAT-01: Query iNat API
-  └── requires: project ID 166376 confirmed, pyinaturalist installed (confirmed in pyproject.toml)
-  └── requires: API pagination (id_above cursor or page='all')
-  └── produces: raw observation JSON list
+INAT-01: Fetch all project observations
+  └── requires: project_id=166376 (confirmed in inat/projects.py)
+  └── requires: pyinaturalist installed (confirmed in pyproject.toml)
+  └── requires: pagination (handled by page='all' → IDRangePaginator)
+  └── produces: raw observation records
 
 INAT-02: Extract fields
-  └── requires: INAT-01 complete (raw observations in hand)
-  └── requires: specimen count field ID discovered (query /v1/projects/166376 first)
-  └── produces: structured records (observation_id, observer, date, lat, lon, specimen_count)
+  └── requires: INAT-01 output
+  └── requires: specimen count field_id discovered (query project once at start)
+  └── requires: ofvs included in API response (fieldspec or v1 default)
+  └── produces: structured rows (observation_id, observer, date, lat, lon, specimen_count)
 
 INAT-03: Write samples.parquet
-  └── requires: INAT-02 complete
-  └── requires: build-data.sh extended to copy samples.parquet to frontend/src/assets/
-  └── produces: samples.parquet alongside ecdysis.parquet
+  └── requires: INAT-02 output
+  └── requires: build-data.sh extended to copy parquet to frontend/src/assets/
+  └── produces: samples.parquet (feeds MAP-03/MAP-04 in v1.3+)
 
-MAP-03: Sample markers layer
-  └── requires: INAT-03 complete (samples.parquet exists)
-  └── requires: frontend parquet.ts extended (or new SamplesParquetSource) to read samples.parquet
-  └── requires: distinct OL style for sample markers (separate from clusterStyle)
+MAP-03 (deferred v1.3+): Sample markers layer
+  └── requires: INAT-03 complete
+  └── requires: specimen-to-sample linkage design
 
-MAP-04: Click-to-detail sidebar
-  └── requires: MAP-03 complete (layer exists and is clickable)
-  └── requires: bee-map.ts click handler extended to route hits to correct source
-  └── requires: bee-sidebar.ts extended with iNat sample view (observer, date, specimen_count, link)
+MAP-04 (deferred v1.3+): Click-to-detail sidebar
+  └── requires: MAP-03
 ```
+
+### Dependency Notes
+
+- **INAT-02 requires specimen count field_id:** This is the single unknown in the pipeline. Must be resolved at pipeline startup by querying `GET /v1/projects/166376` or inspecting a sample observation's `ofvs`. Discovery result should be hardcoded as a constant (e.g., `SPECIMEN_COUNT_FIELD_ID = <id>`) for reproducibility.
+- **API v1 vs v2:** The existing Makefile uses API v2 with explicit `fields` spec. pyinaturalist's `get_observations()` uses API v1 and includes `ofvs` by default. Either works; v1 via pyinaturalist is simpler for the pipeline, consistent with how pyinaturalist is already used.
+- **GeoJSON coordinate order:** API v2 returns `geojson.coordinates` as [longitude, latitude]. API v1 (via pyinaturalist) returns `location` as `(latitude, longitude)` tuple. If using v2 directly, swap order when building the DataFrame row.
 
 ---
 
 ## Data Model: samples.parquet Schema
 
-Recommended columns — designed to match the pattern of ecdysis.parquet but for iNat data:
+Designed to match the pattern of `ecdysis.parquet` but for iNat collection event data:
 
-| Column | Type | Source | Notes |
-|--------|------|--------|-------|
-| `observation_id` | int64 | `id` | iNat observation integer ID; use as feature ID with prefix `inat:` |
-| `observer` | string | `user.name` or `user.login` | Prefer `name`; fallback to `login` if name is empty |
-| `date` | string (ISO date) | `time_observed_at` or `observed_on` | Store as `YYYY-MM-DD`; parse in frontend for display |
-| `latitude` | float64 | `geojson.coordinates[1]` | WGS84 |
-| `longitude` | float64 | `geojson.coordinates[0]` | WGS84 |
-| `specimen_count` | Int64 (nullable) | `ofvs` array, target field | Null = not entered; 0 = explicitly zero; parse string value to int |
-| `uri` | string | `uri` | iNat observation URL for deep-linking from sidebar |
-
-**Parquet reading in frontend:** The existing `ParquetSource` in `parquet.ts` is easily adapted — just change the `columns` list and the column-to-property mapping. A new `SamplesParquetSource` class extending `VectorSource` follows the same pattern.
+| Column | Parquet Type | Source | Notes |
+|--------|-------------|--------|-------|
+| `observation_id` | int64 | `id` | iNat integer ID; primary key |
+| `observer` | string | `user.name` or `user.login` | Prefer `name`; fallback to `login` if name is empty string |
+| `date` | string | `observed_on` | Store as `YYYY-MM-DD`; parse in frontend for display |
+| `latitude` | float64 | `location[0]` (v1) or `geojson.coordinates[1]` (v2) | WGS84; nullable |
+| `longitude` | float64 | `location[1]` (v1) or `geojson.coordinates[0]` (v2) | WGS84; nullable |
+| `specimen_count` | Int64 (nullable) | `ofvs` array, target `field_id` | Null = not entered; 0 = explicitly zero; parse string to int |
+| `uri` | string | `uri` | Full iNat URL for deep-linking; always present |
 
 ---
 
-## Pipeline Architecture: iNat Fetch Pattern
+## Pipeline Architecture
 
-Based on the existing Ecdysis pipeline in `data/ecdysis/` and the installed pyinaturalist library:
+Based on existing `data/scripts/download.py` and pyinaturalist paginator source:
 
-**Recommended:** New `data/inat/fetch.py` script following the same pattern as `data/ecdysis/occurrences.py`:
-1. Call pyinaturalist `get_observations(project_id=166376, page='all')` — pyinaturalist handles pagination automatically when `page='all'`
-2. Extract fields per observation, handling missing `ofvs`
-3. Write `samples.parquet` to `data/` (same level as `ecdysis.parquet`)
+**Recommended: `data/inat/fetch_samples.py`** following the same pattern as `data/scripts/download.py`:
 
-**Rate limiting:** iNat API allows ~1 req/sec / 10k req/day. pyinaturalist adds `User-Agent` header automatically. With pagination at 200/page and expected observation count in the low thousands, this is a handful of requests — no rate limiting concern.
+```
+1. Discover specimen count field_id:
+   - Query GET /v1/projects/166376
+   - Find field with name matching "specimen" or "count"
+   - Hardcode result as SPECIMEN_COUNT_FIELD_ID constant
 
-**CI concern:** Same pattern as Ecdysis — a live HTTP call to iNat API on every push. If iNat API is down, CI fails. Mitigate: commit a `frontend/src/assets/samples.parquet` fallback, same as `ecdysis.parquet`.
+2. Fetch observations:
+   - get_observations(project_id=166376, page='all', per_page=200)
+   - Returns all results via IDRangePaginator (id_above cursor)
+
+3. Extract rows:
+   - For each observation: observation_id, observer, date, lat, lon
+   - For each observation: scan ofvs for field_id == SPECIMEN_COUNT_FIELD_ID → specimen_count
+   - Build list of dicts
+
+4. Write Parquet:
+   - pd.DataFrame(rows).to_parquet('samples.parquet', compression='snappy', engine='pyarrow')
+
+5. CI integration:
+   - Extend build-data.sh to call fetch_samples.py and copy output to frontend/src/assets/
+```
+
+**CI concern:** Same as Ecdysis — live HTTP call to iNat API on every push. If iNat API is down, CI fails. Mitigate: commit `frontend/src/assets/samples.parquet` as fallback, same pattern as existing `ecdysis.parquet` committed fallback.
 
 ---
 
 ## Complexity Assessment
 
-| Feature ID | Feature | Complexity | Reason |
-|------------|---------|------------|--------|
-| INAT-01 | iNat API query | Low | pyinaturalist already installed; `get_observations(project_id=166376, page='all')` is straightforward |
-| INAT-02 | Field extraction | Low-Medium | Specimen count field ID must be discovered first; ofvs parsing is string→int with null handling |
-| INAT-03 | samples.parquet | Low | Same pattern as existing ecdysis.parquet pipeline; pandas + pyarrow already in stack |
-| MAP-03 | Sample markers layer | Medium | Need to design distinct marker style; layer coexistence with cluster layer requires careful z-ordering and click routing |
-| MAP-04 | Sidebar sample panel | Low-Medium | Sidebar already exists; new view state for iNat samples is straightforward; must not conflict with existing specimen detail view |
+| Feature | Complexity | Rationale |
+|---------|------------|-----------|
+| INAT-01: Fetch observations | LOW | pyinaturalist `get_observations(project_id=..., page='all')` is two lines |
+| Specimen count field discovery | LOW | One API call to `/v1/projects/166376`; scan result for field name |
+| INAT-02: Field extraction | LOW-MEDIUM | Standard fields are trivial; ofvs parsing with null handling adds one edge case |
+| INAT-03: Write samples.parquet | LOW | Identical to existing ecdysis.parquet pipeline pattern |
+| build-data.sh extension | LOW | Add one `python` call and one `cp` to existing shell script |
 
----
-
-## MVP Recommendation
-
-Ship in this order — each step produces testable output:
-
-1. **Field discovery** (pipeline, 1 day) — Query `/v1/projects/166376`, identify specimen count observation field ID, hardcode in pipeline config. Produces: known field ID.
-
-2. **INAT-01 + INAT-02 + INAT-03** (pipeline, 1 day) — `data/inat/fetch.py` produces `samples.parquet`. Validate by inspecting row count, null rate in `specimen_count`, coordinate range. Produces: `samples.parquet`.
-
-3. **build-data.sh extension** (infrastructure, 0.5 day) — Copy `samples.parquet` to `frontend/src/assets/`, update CI build. Produces: Parquet served to browser.
-
-4. **MAP-03: Sample markers layer** (frontend, 1 day) — `SamplesParquetSource` reads `samples.parquet`; new `VectorLayer` with distinct style (e.g. diamond shape or orange fill); added to `BeeMap` after specimen layer. Produces: visible markers.
-
-5. **MAP-04: Click-to-detail** (frontend, 1 day) — Extend click handler to route `inat:*` feature IDs to new iNat sidebar view; show observer, date, specimen_count, link to iNat URL. Produces: complete milestone.
-
-**Defer:**
-- Distinct "pending" vs "counted" marker styles (nice-to-have; add if time permits)
-- Specimen-to-sample linkage (explicitly deferred to v1.2)
+**Total estimate: 1–2 days of focused work.**
 
 ---
 
@@ -258,24 +241,28 @@ Ship in this order — each step produces testable output:
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| iNat API structure | HIGH | Actual observation JSON in repo (`data/inat/observation/300847934.json`) confirms field paths |
-| pyinaturalist usage | HIGH | Library version 0.20.2 in pyproject.toml; `get_observations(project_id=..., page='all')` confirmed from docs |
-| Specimen count field ID | LOW | Field name/ID for WA Bee Atlas project not confirmed; must be discovered at pipeline build time |
-| Project type (collection vs traditional) | LOW | Not confirmed; affects whether specimen count is consistently entered |
-| Frontend architecture | HIGH | All existing source files read; ParquetSource, VectorSource, Cluster, click handling patterns confirmed |
-| CI/CD impact | HIGH | build-data.sh and deploy.yml read; extension pattern is clear |
+| iNat API structure | HIGH | Live observation JSON in repo confirms field paths |
+| pyinaturalist pagination | HIGH | `IDRangePaginator`, `page='all'` confirmed in paginator.py source |
+| Rate limits | HIGH | Constants confirmed in pyinaturalist/constants.py source |
+| Specimen count field ID | LOW | Field name/ID for WA Bee Atlas project not confirmed; must be discovered at runtime |
+| WA project type | LOW | Not confirmed whether collection or traditional project; affects specimen count field reliability |
+| ofvs included by default | MEDIUM | pyinaturalist v1 endpoint includes ofvs; Makefile v2 fieldspec does not include it — must add if using v2 |
 
 ---
 
 ## Sources
 
-- Actual iNat observation JSON: `/Users/rainhead/dev/beeatlas/data/inat/observation/300847934.json` (HIGH confidence — real API response)
-- iNat project IDs: `/Users/rainhead/dev/beeatlas/data/inat/projects.py` — confirms WA project ID 166376 (HIGH confidence)
-- pyinaturalist installed: `/Users/rainhead/dev/beeatlas/data/pyproject.toml` — `pyinaturalist>=0.20.2` (HIGH confidence)
-- Existing pipeline pattern: `data/ecdysis/occurrences.py`, `scripts/build-data.sh` (HIGH confidence — direct read)
-- Frontend architecture: `frontend/src/parquet.ts`, `bee-map.ts`, `bee-sidebar.ts`, `filter.ts`, `style.ts` (HIGH confidence — direct read)
-- iNaturalist project types: [Understanding Projects on iNaturalist](https://help.inaturalist.org/en/support/solutions/articles/151000176472-understanding-projects-on-inaturalist) (MEDIUM confidence — official help docs)
-- iNat API pagination: [API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — `id_above`/`id_below` for large sets; 200 per_page max (MEDIUM confidence — web search summary)
-- pyinaturalist `page='all'` shorthand: pyinaturalist docs summary from web search (MEDIUM confidence — verify against installed 0.20.2 docs before use)
-- iNat API rate limits: 1 req/sec, 10k/day from official practices page (MEDIUM confidence)
-- Observation field JSON structure (`ofvs` array, string `value`): iNaturalist community forum and API docs (MEDIUM confidence — not directly verified against live response)
+- `data/inat/projects.py` — WA project ID 166376 confirmed (HIGH)
+- `data/inat/observation/300847934.json` — live iNat API v2 response structure (HIGH)
+- `data/Makefile` — existing v2 fieldspec and fetch pattern (HIGH)
+- `data/pyproject.toml` — pyinaturalist>=0.20.2 confirmed installed (HIGH)
+- `data/.venv/.../pyinaturalist/paginator.py` — IDRangePaginator, page='all', exhaustion logic (HIGH)
+- `data/.venv/.../pyinaturalist/constants.py` — PER_PAGE_RESULTS=200, rate limits confirmed (HIGH)
+- `data/.venv/.../pyinaturalist/models/observation_field.py` — ofvs schema: field_id, name, value, datatype (HIGH)
+- `data/.venv/.../pyinaturalist/v1/observations.py` — get_observations implementation (HIGH)
+- [iNaturalist API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — id_above pagination, 10k limit (MEDIUM)
+- [pyinaturalist documentation](https://pyinaturalist.readthedocs.io/) — paginator, IDRangePaginator (MEDIUM)
+
+---
+*Feature research for: iNaturalist API pipeline — WA Bee Atlas v1.2*
+*Researched: 2026-03-10*

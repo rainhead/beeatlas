@@ -1,270 +1,200 @@
-# Architecture Patterns: iNat Sample Layer Integration
+# Architecture Research: iNaturalist Pipeline Integration
 
-**Domain:** Static bee atlas — adding iNaturalist sample markers to existing specimen map
-**Researched:** 2026-02-25
-**Confidence:** HIGH (grounded in direct codebase inspection; OL multi-layer and hyparquet patterns verified against official documentation)
-
----
-
-## Context
-
-This document targets the v1.1 milestone. The v1.0 architecture is fully shipped:
-- `ParquetSource` extends `VectorSource`, accepts a URL, reads ecdysis columns, emits OL Features
-- `speicmenLayer` wraps `clusterSource` wraps `specimenSource`
-- `BeeMap` owns filter state, `BeeSidebar` renders filters + specimen detail
-- `bee-map.ts` click handler uses `speicmenLayer.getFeatures(pixel)` — layer-specific, not map-wide
-
-The v1.1 question is: how do `samples.parquet` (iNat observations) and its layer fit alongside this existing structure?
+**Domain:** Python data pipeline — adding iNaturalist API fetch to existing Ecdysis pipeline
+**Researched:** 2026-03-10
+**Confidence:** HIGH — grounded in direct codebase inspection; iNat API patterns confirmed via official documentation
 
 ---
 
-## Recommended Architecture
+## Context: Current State (v1.1 shipped)
 
-The integration follows the same pattern as the existing ecdysis pipeline: Python produces a Parquet file, the build copies it into the frontend asset directory, Vite bundles it with a content-hash URL, and hyparquet reads it client-side via `asyncBufferFromUrl`. This keeps the static-hosting constraint intact, requires no new AWS infrastructure, and lets the same `ParquetSource` class serve both data types with minor extension.
+The existing pipeline is:
 
 ```
-Pipeline (data/)                       Frontend (frontend/src/)
-──────────────────────────             ──────────────────────────────────────────────────
-data/inat/download.py                  parquet.ts  (ParquetSource — modified to accept
-  → data/samples.parquet                             columns + featureFromRow as args)
-     ↑                                 assets/samples.parquet  (copied by build-data.sh)
-scripts/build-data.sh                     ↓ imported as ?url
-  uv run python inat/download.py       bee-map.ts
-  cp data/samples.parquet                specimenSource  (unchanged)
-     frontend/src/assets/               clusterSource   (unchanged)
-                                        speicmenLayer   (unchanged)
-                                        sampleSource    (NEW — ParquetSource for iNat)
-                                        sampleLayer     (NEW — VectorLayer, no cluster)
-                                        singleclick handler (MODIFIED)
-                                      style.ts
-                                        clusterStyle    (unchanged)
-                                        sampleStyle     (NEW export)
-                                      bee-sidebar.ts
-                                        InatSample interface + property (NEW)
-                                        _renderInatDetail() (NEW)
+scripts/build-data.sh
+  uv run python ecdysis/download.py --datasetid 44
+    → POST to ecdysis.org → ecdysis_<date>_.zip
+  uv run python ecdysis/occurrences.py <zipfile>
+    → reads occurrences.tab → writes data/ecdysis.parquet
+  cp data/ecdysis.parquet frontend/src/assets/ecdysis.parquet
 ```
 
-### Why bundle as an asset (not S3 runtime fetch)
+`npm run build` calls `build-data.sh` then `npm run build --workspace=frontend`. GitHub Actions runs `npm run build` on every branch push. The frontend Vite build includes `ecdysis.parquet` as a `?url` asset (content-hashed), read client-side by hyparquet.
 
-`samples.parquet` must be placed in `frontend/src/assets/` and imported with `?url`, identical to `ecdysis.parquet`. The alternative — serving it from a separate S3 URL at runtime — is explicitly rejected:
+**Existing infrastructure already in place for v1.2:**
+- `data/pyproject.toml` already lists `pyinaturalist>=0.20.2` and `pyinaturalist-convert>=0.7.4` as dependencies
+- `data/inat/__init__.py` exists (empty)
+- `data/inat/projects.py` exists with `atlas_projects = {"wa": 166376}` — Washington Bee Atlas project ID is known
+- `data/inat/observations.py` exists but is currently empty (1 line, blank)
+- `data/Makefile` has an in-progress iNat target using `duckdb` (incomplete) — this approach is abandoned in favor of consistent Python/pyarrow tooling
 
-1. **CORS-free**: Both files are served from the same CloudFront origin as `index.html`. Runtime fetch from a separate S3 URL requires S3 CORS configuration (AllowedOrigins) and CloudFront behavior changes to forward the `Origin` header. If CloudFront caches the first response before the Origin header is whitelisted, all subsequent requests get responses without CORS headers and fail silently.
-2. **Zero infra change**: The existing CDK stack, GitHub Actions workflow, and `aws s3 sync` step already deploy everything in `frontend/dist/`. A second origin requires CDK changes.
-3. **Consistent availability**: The committed fallback file pattern (matching ecdysis) prevents CI breakage when the iNat API is unavailable.
-4. **hyparquet works identically**: `asyncBufferFromUrl` issues HTTP range requests against any public URL including content-hash Vite asset URLs.
+---
 
-The downside of bundling is adding to page weight. For the Washington Bee Atlas iNat project (hundreds of observations, not tens of thousands), `samples.parquet` at ~5–15 KB is negligible.
+## System Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  scripts/build-data.sh  (orchestrator — MODIFIED)               │
+│                                                                  │
+│  Step 1: ecdysis/download.py --datasetid 44                      │
+│    POST ecdysis.org  →  ecdysis_<date>_.zip                      │
+│                                                                  │
+│  Step 2: ecdysis/occurrences.py <zipfile>                        │
+│    reads .zip  →  data/ecdysis.parquet                           │
+│                                                                  │
+│  Step 3: inat/download.py  (NEW)                                 │
+│    GET api.inaturalist.org  →  data/samples.parquet              │
+│                                                                  │
+│  Step 4: cp data/ecdysis.parquet  →  frontend/src/assets/        │
+│  Step 5: cp data/samples.parquet  →  frontend/src/assets/ (NEW) │
+└─────────────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  npm run build --workspace=frontend  (UNCHANGED)                │
+│  Vite bundles both .parquet files as content-hashed ?url assets  │
+│  → frontend/dist/assets/ecdysis-[hash].parquet                  │
+│  → frontend/dist/assets/samples-[hash].parquet  (new artifact)  │
+└─────────────────────────────────────────────────────────────────┘
+         ↓
+┌─────────────────────────────────────────────────────────────────┐
+│  aws s3 sync frontend/dist/  →  S3  →  CloudFront              │
+│  (GitHub Actions deploy job — UNCHANGED)                         │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Component Boundaries
 
-| Component | Status | Responsibility | Communicates With |
-|-----------|--------|---------------|-------------------|
-| `data/inat/download.py` | **NEW** | Query iNat API v1 `/observations?project_id=166376`, paginate via `id_above`, extract fields, write `samples.parquet` | iNat API, `data/` filesystem |
-| `scripts/build-data.sh` | **MODIFIED** | Add iNat download step; copy `samples.parquet` to `frontend/src/assets/` | `data/inat/download.py`, `frontend/src/assets/` |
-| `frontend/src/assets/samples.parquet` | **NEW** | Committed fallback; overwritten by pipeline build | Built artifact, read by frontend |
-| `frontend/src/parquet.ts` (`ParquetSource`) | **MODIFIED (lightly)** | Extract `columns` and `featureFromRow` as constructor options so iNat variant can configure its own column set and feature mapping | `bee-map.ts`, hyparquet |
-| `frontend/src/style.ts` | **MODIFIED** | Add `sampleStyle` export — fixed diamond marker for iNat points | `bee-map.ts` |
-| `frontend/src/bee-map.ts` | **MODIFIED** | Import `samplesDump`, construct `sampleSource` + `sampleLayer`, add layer to OL Map, update singleclick handler to discriminate between layers, add `selectedInatSample` reactive state | `parquet.ts`, OL map, `bee-sidebar.ts`, `style.ts` |
-| `frontend/src/bee-sidebar.ts` | **MODIFIED** | Add `InatSample` interface, `inatSample` property, `_renderInatDetail()` render branch | `bee-map.ts` |
-
-No changes to `infra/` (CDK), `frontend/vite.config.ts`, or `frontend/package.json`.
+| Component | Status | Responsibility | Notes |
+|-----------|--------|---------------|-------|
+| `data/inat/download.py` | **NEW** (core deliverable) | Query iNat API v1 `GET /v1/observations?project_id=166376`, paginate via `id_above`, extract required fields, write `data/samples.parquet` | `data/inat/projects.py` has the project ID already |
+| `data/inat/observations.py` | **NEW (fill in)** | Currently empty — can hold shared extraction helpers (parse ofvs for specimen count, build row dict from observation) | May stay inline in `download.py` if simple enough |
+| `scripts/build-data.sh` | **MODIFIED** | Add steps: run `inat/download.py`, copy `data/samples.parquet` to `frontend/src/assets/` | Two lines added after existing ecdysis steps |
+| `frontend/src/assets/samples.parquet` | **NEW** | Committed fallback — empty parquet with correct schema (observation_id, observer, date, lat, lon, specimen_count); prevents CI breakage if iNat API is unavailable | Matches the `ecdysis.parquet` committed-fallback pattern |
+| `data/ecdysis/download.py` | **UNCHANGED** | Existing Ecdysis fetch — no modifications needed |  |
+| `data/ecdysis/occurrences.py` | **UNCHANGED** | Existing Ecdysis processing — no modifications needed |  |
+| `frontend/` (all files) | **UNCHANGED for v1.2** | v1.2 scope is pipeline only — no map layer, no sidebar changes | MAP-03/MAP-04 deferred to v1.3+ |
+| `infra/` (CDK) | **UNCHANGED** | No new AWS resources needed | `samples.parquet` deploys via existing `aws s3 sync` |
+| `.github/workflows/deploy.yml` | **UNCHANGED** | CI already calls `npm run build` which calls `build-data.sh` | iNat download will run on every push — mitigated by committed fallback |
 
 ---
 
 ## Data Flow
 
+### Pipeline Build Flow
+
 ```
-CI / local build:
-  inat/download.py
+inat/download.py
     GET https://api.inaturalist.org/v1/observations
-        ?project_id=166376&per_page=200&order_by=id&order=asc
-    (paginate: while len(results) == 200: id_above=results[-1].id, fetch next page)
-    → data/samples.parquet
-        columns: observation_id (int64), observer (str), date_str (str),
-                 lat (float64), lon (float64), specimen_count (int64)
-
-  build-data.sh (modified)
-    ... existing ecdysis steps ...
-    uv run python inat/download.py --project_id 166376
-    cp data/samples.parquet frontend/src/assets/samples.parquet
-
-  Vite build
-    import samplesDump from './assets/samples.parquet?url'
-    → emits frontend/dist/assets/samples-[hash].parquet
-
-  S3 sync
-    → CloudFront serves samples-[hash].parquet alongside index.html
-
-Browser runtime:
-  ParquetSource({ url: samplesDump, columns: inatColumns, featureFromRow })
-    asyncBufferFromUrl({ url })  → HTTP range requests to same CloudFront origin
-    parquetReadObjects({ columns, file })
-    featureFromRow(obj)  → OL Feature, id = `inat:{observation_id}`,
-                            geometry = Point(fromLonLat([lon, lat])),
-                            properties: { observer, date_str, specimen_count }
-
-  singleclick handler (bee-map.ts)
-    Check sampleLayer first (via forEachFeatureAtPixel with layerFilter)
-    → if hit: set selectedInatSample, clear selectedSamples
-    Check speicmenLayer second (existing getFeatures path)
-    → if hit: existing buildSamples() logic, clear selectedInatSample
+        params: project_id=166376, per_page=200, order_by=id, order=asc,
+                id_above=0, fields=id,user.login,observed_on,geojson,ofvs
+    while len(page) == 200:
+        id_above = page[-1]['id']
+        fetch next page
+    → extract per observation:
+        observation_id  int64       observation['id']
+        observer        str         observation['user']['login']
+        date            str         observation['observed_on']  (ISO date YYYY-MM-DD)
+        lat             float64     observation['geojson']['coordinates'][1]
+        lon             float64     observation['geojson']['coordinates'][0]
+        specimen_count  Int64       observation_field_value named "Number of Specimens"
+                                    (nullable — field may be absent on some observations)
+    → pd.DataFrame → df.to_parquet('data/samples.parquet', engine='pyarrow', index=False)
 ```
+
+### samples.parquet Schema
+
+| Column | Type | Source |
+|--------|------|--------|
+| `observation_id` | int64 | `observation['id']` |
+| `observer` | string (pd.StringDtype) | `observation['user']['login']` |
+| `date` | string (pd.StringDtype) | `observation['observed_on']` |
+| `lat` | float64 | `observation['geojson']['coordinates'][1]` |
+| `lon` | float64 | `observation['geojson']['coordinates'][0]` |
+| `specimen_count` | Int64 (nullable) | observation field value "Number of Specimens" |
+
+Using `pd.StringDtype()` for strings (not bare `'string'`) matches the pattern established in `ecdysis/occurrences.py`. Using nullable `Int64` for `specimen_count` matches `ecdysis/occurrences.py` nullable integer columns.
+
+### Observation Field Extraction (specimen_count)
+
+iNat API returns observation field values in `ofvs` (array of objects with `name` and `value` keys). Extract the specimen count like:
+
+```python
+def extract_specimen_count(ofvs: list[dict]) -> int | None:
+    for ofv in ofvs:
+        if ofv.get('name') == 'Number of Specimens':
+            try:
+                return int(ofv['value'])
+            except (ValueError, KeyError):
+                return None
+    return None
+```
+
+The exact field name used by the Washington Bee Atlas project must be confirmed against actual API responses. The field name may differ (e.g., "Specimen count", "# specimens"). The pipeline script should log field names found on the first fetched page to support debugging.
+
+**Confidence: MEDIUM** — field name confirmed as a common iNat bee atlas observation field pattern but must be verified against actual project data (project ID 166376).
+
+### Build Script Modification
+
+```bash
+# scripts/build-data.sh (additions after existing ecdysis steps)
+
+echo "--- Fetching iNaturalist data ---"
+uv run python inat/download.py
+
+cp samples.parquet "$REPO_ROOT/frontend/src/assets/samples.parquet"
+echo "--- Done: samples.parquet copied to frontend/src/assets/ ---"
+```
+
+The existing `cd "$REPO_ROOT/data"` at the top of `build-data.sh` means all paths inside the script are relative to `data/`. `samples.parquet` is written there by `inat/download.py`, then copied to `frontend/src/assets/`.
 
 ---
 
-## Patterns to Follow
+## Build Order (Dependency-Aware)
 
-### Pattern 1: Extend ParquetSource with configurable columns and feature mapping
+```
+Step 1  data/inat/observations.py  (helper extraction functions)
+        Independent — can stub out and test against real API data
+        Produces: extract_row(), extract_specimen_count() functions
 
-The current `ParquetSource` hardcodes the ecdysis column list at module scope in `parquet.ts`. Extract it as a constructor option so both specimen and sample sources can use the same class without duplication.
+Step 2  data/inat/download.py  (main pipeline script)
+        Depends on: observations.py helpers, data/inat/projects.py (already has project ID)
+        Produces: data/samples.parquet
 
-```typescript
-// parquet.ts (modified)
-export interface ParquetSourceOptions {
-  url: string;
-  columns: string[];
-  featureFromRow: (obj: Record<string, unknown>) => Feature | null;
-}
+Step 3  frontend/src/assets/samples.parquet  (committed stub)
+        Depends on: knowing the schema (from Step 2 design)
+        Can be created before Step 2 is working using a minimal hand-crafted file
+        Prevents: CI breakage if iNat API unavailable during build
 
-export class ParquetSource extends VectorSource {
-  constructor({ url, columns, featureFromRow }: ParquetSourceOptions) {
-    const load = (extent, resolution, projection, success, failure) => {
-      asyncBufferFromUrl({ url })
-        .then(buffer => parquetReadObjects({ columns, file: buffer }))
-        .then(objects => {
-          const features = objects
-            .map(featureFromRow)
-            .filter((f): f is Feature => f !== null);
-          this.addFeatures(features);
-          if (success) success(features);
-        })
-        .catch(failure);
-    };
-    super({ loader: load, strategy: all });
-  }
-}
+Step 4  scripts/build-data.sh modification
+        Depends on: Step 2 (download.py exists and produces output)
+        Adds: iNat download step and cp command
+
+        End-to-end test: npm run build:data runs both pipelines,
+        both .parquet files land in frontend/src/assets/
+
+Step 5  Verify end-to-end
+        Run build-data.sh locally, confirm samples.parquet row count,
+        confirm schema columns match INAT-02/INAT-03 requirements
 ```
 
-The caller in `bee-map.ts` provides column lists and mapping functions for both sources, keeping the schema knowledge close to the usage site.
+Steps 1 and 3 are parallelizable. Step 2 blocks Step 4. The committed stub (Step 3) should be created early to prevent CI issues on the feature branch.
 
-### Pattern 2: Layer-discriminated singleclick handler
+---
 
-The current handler calls `speicmenLayer.getFeatures(event.pixel)` — it is already layer-specific. With two layers, extend this to check `sampleLayer` first (iNat markers render on top in z-order), then fall through to the existing specimen cluster logic:
+## Architectural Patterns
 
-```typescript
-this.map.on('singleclick', async (event: MapBrowserEvent) => {
-  // Check iNat sample layer first (rendered on top)
-  let inatHit = false;
-  this.map!.forEachFeatureAtPixel(event.pixel, (feature) => {
-    this.selectedInatSample = {
-      observer:      feature.get('observer') as string,
-      dateStr:       feature.get('date_str') as string,
-      specimenCount: feature.get('specimen_count') as number,
-      observationId: (feature.getId() as string).replace('inat:', ''),
-    };
-    this.selectedSamples = null;
-    inatHit = true;
-    return true; // stop iteration after first hit
-  }, { layerFilter: (l) => l === sampleLayer });
+### Pattern 1: id_above Pagination (not page= offset)
 
-  if (inatHit) return;
+**What:** iNat API v1 caps offset-based pagination at 10,000 results. For any project that may exceed this, use cursor-based pagination via `id_above` with `order_by=id&order=asc`.
 
-  // Fall through: existing specimen cluster logic
-  const hits = await speicmenLayer.getFeatures(event.pixel);
-  if (!hits.length) {
-    this.selectedSamples = null;
-    this.selectedInatSample = null;
-    return;
-  }
-  // ... existing buildSamples() path ...
-});
-```
+**When to use:** Always for project observation fetches, even if current count is low. The Washington Bee Atlas project will grow over time.
 
-`map.forEachFeatureAtPixel` with `layerFilter` is the canonical OL approach for multi-layer hit discrimination (HIGH confidence — documented API). The `return true` from the callback terminates iteration after the first hit, preventing spurious double-fires on overlapping points.
-
-### Pattern 3: Visually distinct sample marker style
-
-Sample markers must be distinguishable from specimen cluster circles at a glance. Use a square/diamond `RegularShape` in iNat green. No count label (each iNat observation is one marker, not a cluster):
-
-```typescript
-// style.ts (new export)
-import RegularShape from 'ol/style/RegularShape.js';
-
-export const sampleStyle = new Style({
-  image: new RegularShape({
-    fill:   new Fill({ color: '#74ac00' }),    // iNaturalist brand green
-    stroke: new Stroke({ color: '#ffffff', width: 1 }),
-    points: 4,
-    radius: 7,
-    angle:  Math.PI / 4,  // rotate 45° → diamond orientation
-  }),
-});
-```
-
-A static `Style` object is safe here because sample markers carry no variable state (no filter, no count). Pass it directly as `sampleLayer`'s `style` option.
-
-The `sampleLayer` does not use a `Cluster` source. iNat observations represent distinct collection events; clustering hides individual events and conflicts with the "who collected, when" sidebar detail. The layer expects hundreds of points, not tens of thousands — no render performance concern.
-
-### Pattern 4: Three-state sidebar render
-
-`BeeSidebar` currently renders either the summary panel or specimen detail. Add a third state: iNat observation detail. Introduce a new `@property` and branch in `render()`:
-
-```typescript
-// bee-sidebar.ts additions
-
-export interface InatSample {
-  observer:      string;
-  dateStr:       string;      // ISO date string — formatted by _renderInatDetail()
-  specimenCount: number;
-  observationId: string;      // for iNat observation URL
-}
-
-// In BeeSidebar class:
-@property({ attribute: false })
-inatSample: InatSample | null = null;
-
-render() {
-  return html`
-    ${this._renderFilterControls()}
-    ${this.inatSample !== null
-      ? this._renderInatDetail(this.inatSample)
-      : this.samples !== null
-        ? this._renderDetail(this.samples)
-        : this._renderSummary()}
-  `;
-}
-
-private _renderInatDetail(sample: InatSample) {
-  const url = `https://www.inaturalist.org/observations/${sample.observationId}`;
-  const date = new Date(sample.dateStr).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-  return html`
-    <button class="back-btn" @click=${() => this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }))}>Back</button>
-    <div class="panel-content">
-      <h3>iNaturalist Collection</h3>
-      <dl>
-        <dt>Observer</dt><dd>${sample.observer}</dd>
-        <dt>Date</dt><dd>${date}</dd>
-        <dt>Specimens</dt><dd>${sample.specimenCount === 0 ? 'Not yet entered' : sample.specimenCount}</dd>
-      </dl>
-      <a href=${url} target="_blank" rel="noopener">View on iNaturalist</a>
-    </div>
-  `;
-}
-```
-
-`BeeMap` clears `selectedInatSample` (sets to `null`) on filter change and on any specimen cluster click, mirroring the existing pattern for `selectedSamples`.
-
-### Pattern 5: iNat API pagination via id_above
-
-The iNat API v1 caps responses at 200 per page and limits offset-based pagination to the first 10,000 results. For larger result sets, use `id_above` with ascending `order_by=id`:
+**Trade-offs:** Slightly more complex loop than `page='all'`; eliminates the 10,000 row hard cap.
 
 ```python
-# data/inat/download.py (pseudocode pattern)
-import requests, pandas as pd
-
-def fetch_all(project_id: int) -> list[dict]:
+def fetch_project_observations(project_id: int) -> list[dict]:
     results = []
     id_above = 0
     while True:
@@ -276,8 +206,8 @@ def fetch_all(project_id: int) -> list[dict]:
                 'order_by': 'id',
                 'order': 'asc',
                 'id_above': id_above,
-                'fields': 'id,user.login,observed_on,geojson,ofvs',
-            }
+            },
+            timeout=30,
         )
         resp.raise_for_status()
         page = resp.json()['results']
@@ -288,115 +218,98 @@ def fetch_all(project_id: int) -> list[dict]:
     return results
 ```
 
-This pattern handles arbitrarily large project observation counts without hitting the 10,000-row offset cap (HIGH confidence per iNat API recommended practices).
+Note: `pyinaturalist.get_observations(project_id=..., page='all')` is available and handles this automatically. The direct `requests` approach is also acceptable given the project already uses `requests` in `ecdysis/download.py`. Either is viable; direct requests requires no extra abstraction.
 
----
+### Pattern 2: Consistent pyarrow/pandas Output (matching ecdysis/occurrences.py)
 
-## Integration Points: New vs Modified
+**What:** Write Parquet using `df.to_parquet(path, engine='pyarrow', index=False)` with `pd.StringDtype()` for string columns and nullable `Int64` for integer columns that may be null.
 
-| File | Status | Change Summary |
-|------|--------|---------------|
-| `data/inat/download.py` | **NEW** | iNat API fetch + pagination, extracts observer/date/coords/specimen_count, writes `samples.parquet` |
-| `scripts/build-data.sh` | **MODIFIED** | Add `uv run python inat/download.py` step; add `cp data/samples.parquet frontend/src/assets/samples.parquet` |
-| `frontend/src/assets/samples.parquet` | **NEW** | Committed stub/fallback (empty schema matching expected columns) |
-| `frontend/src/parquet.ts` | **MODIFIED** | Extract `columns` + `featureFromRow` as constructor args; existing behavior preserved |
-| `frontend/src/style.ts` | **MODIFIED** | Add `sampleStyle` export |
-| `frontend/src/bee-map.ts` | **MODIFIED** | Import `samplesDump`, construct `sampleSource` + `sampleLayer`, add to OL Map, update singleclick, add `selectedInatSample` reactive state, pass `inatSample` to sidebar |
-| `frontend/src/bee-sidebar.ts` | **MODIFIED** | Add `InatSample` interface, `inatSample` property, `_renderInatDetail()`, three-branch `render()` |
+**When to use:** All pipeline Parquet outputs.
 
-**No new files required** in `infra/`, no new npm packages, no CDK changes.
+**Trade-offs:** Consistent column typing makes hyparquet frontend reading predictable. GeoDataFrame is not needed for iNat data (no spatial operations in this pipeline step — coordinates are just columns).
 
----
+### Pattern 3: Committed Fallback Parquet
 
-## Build Order (Dependency-Aware)
+**What:** Commit a minimal valid `samples.parquet` (empty or with stub rows, correct schema) to `frontend/src/assets/`.
 
-The dependency chain is strictly linear, with two parallel sub-paths in the middle:
+**When to use:** Any data file that is regenerated by a network-dependent pipeline step.
 
-```
-Step 1  data/inat/download.py
-          (iNat API → samples.parquet)
-          Unblocks: step 2 for end-to-end verification
+**Trade-offs:** Adds a binary file to git history. The file is small (~1–5 KB empty schema) and the tradeoff is justified: CI never breaks due to iNat API unavailability. Matches the existing `ecdysis.parquet` committed-fallback pattern already in the repo.
 
-Step 2  scripts/build-data.sh
-          (add iNat download step, add cp)
-          Unblocks: end-to-end pipeline test
+### Pattern 4: Graceful Handling of Missing Fields
 
-Step 3  frontend/src/parquet.ts refactor
-          (constructor accepts columns + featureFromRow)
-          Unblocks: steps 4 and 5 (parallel)
+**What:** iNat observations in a project may not all have the "Number of Specimens" observation field filled in. Download script must handle missing `ofvs`, empty `ofvs`, field name not found, and non-integer values — all mapped to `None` (nullable).
 
-Step 4  frontend/src/style.ts — sampleStyle
-          (new export, independent of step 5)
-          Unblocks: step 5
+**When to use:** All observation field extraction.
 
-Step 5  frontend/src/bee-map.ts
-          (import samplesDump, sampleSource, sampleLayer,
-           updated singleclick, selectedInatSample state)
-          Depends on steps 3 and 4
-          Unblocks: step 6
-
-Step 6  frontend/src/bee-sidebar.ts
-          (InatSample interface, inatSample property, _renderInatDetail)
-          Depends on step 5 (InatSample type is defined in bee-map.ts or
-          bee-sidebar.ts; if defined in sidebar it is imported by bee-map.ts)
-```
-
-Steps 1 and 3 can be developed in parallel. Steps 4 and 3 can be developed in parallel. Step 5 must wait for both 3 and 4. Step 6 must wait for step 5.
-
-Frontend development (steps 3–6) can proceed against a hand-crafted stub `samples.parquet` before the pipeline (steps 1–2) is complete — the `?url` import pattern works with any valid Parquet file in `assets/`.
+**Trade-offs:** Nullable `specimen_count` requires the frontend to handle null values when displaying samples. This is correct behavior for v1.2 since MAP-03/MAP-04 (visual layer) is deferred.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Merging specimens and iNat observations into one Parquet
+### Anti-Pattern 1: Using pyinaturalist.get_observations(page='all') Unconditionally
 
-**What goes wrong:** Combining ecdysis and iNat rows into a single `combined.parquet`.
+**What people do:** Pass `page='all'` and rely on the library to handle pagination automatically.
 
-**Why bad:** The schemas are incompatible (specimens have taxon columns; iNat observations have observer/specimen_count). Merging forces nullable columns everywhere, complicates the pipeline, and prevents independent update cadences — an ecdysis pipeline failure would also wipe the iNat data.
+**Why it's wrong:** The `page='all'` shortcut still uses offset-based pagination internally for some endpoints. For large projects, this hits the 10,000 observation ceiling. The iNat API recommended practices explicitly call out `id_above` as the correct approach for large result sets.
 
-**Instead:** Keep two Parquet files. The additional fetch is negligible (same CloudFront origin, HTTP range requests).
+**Do this instead:** Use explicit `id_above` cursor pagination. The Washington Bee Atlas project (project ID 166376) currently has a manageable number of observations, but writing it correctly now avoids a rewrite when the project grows.
 
-### Anti-Pattern 2: Fetching samples.parquet at runtime from a separate S3 URL
+### Anti-Pattern 2: Running the iNat Download on Every CI Push
 
-**What goes wrong:** Skip bundling samples.parquet; fetch it from a raw S3 bucket URL at runtime.
+**What people do:** Add `uv run python inat/download.py` to `build-data.sh` without a fallback.
 
-**Why bad:** Requires S3 CORS configuration, CloudFront behavior changes to forward the `Origin` header, and is vulnerable to the CloudFront CORS caching edge case (a cached response without CORS headers blocks all future cross-origin requests until TTL expires). No fallback mechanism.
+**Why it's wrong:** GitHub Actions runs `npm run build` (which calls `build-data.sh`) on every push to every branch. If the iNat API is unavailable (rate limited, maintenance, network issue), every CI build fails. The existing Ecdysis download has this exact vulnerability, documented as known tech debt in `PROJECT.md`.
 
-**Instead:** Bundle as a `?url` import. Same origin = no CORS. Zero infra changes.
+**Do this instead:** Commit a valid stub `samples.parquet` before merging the iNat download step. The CI build overwrites the stub if the API succeeds; falls back to the committed stub if it fails. Optionally gate the live download behind an environment variable to allow CI to skip it.
 
-### Anti-Pattern 3: Clustering iNat sample markers
+### Anti-Pattern 3: Using duckdb for the iNat Pipeline
 
-**What goes wrong:** Wrapping `sampleSource` in an OL `Cluster` source.
+**What people do:** Continue the Makefile approach (`data/Makefile` has an in-progress iNat/duckdb target).
 
-**Why bad:** iNat observations are distinct collection events. Clustering hides individual events and breaks the sidebar "who collected, when" detail. With hundreds of points, render performance is not a concern.
+**Why it's wrong:** The Makefile target is incomplete (truncated SQL). The rest of the pipeline (`ecdysis/download.py`, `ecdysis/occurrences.py`) uses Python/pandas/pyarrow consistently. Mixing duckdb CLI invocations into the pipeline requires duckdb to be installed separately (it is in `pyproject.toml` as a Python package, but the Makefile invokes it as a CLI tool). Build orchestration via `build-data.sh` calling Python scripts is the established pattern.
 
-**Instead:** Use `sampleSource` directly in `sampleLayer` with no cluster wrapper. Fixed-size diamond marker handles single-point rendering cleanly.
+**Do this instead:** Write `inat/download.py` as a Python script invoked by `build-data.sh`, consistent with the existing ecdysis scripts. The `pyinaturalist` and `pyinaturalist-convert` packages are already declared as dependencies.
 
-### Anti-Pattern 4: Running iNat download unconditionally in CI on every branch push
+### Anti-Pattern 4: Fetching `ofvs` Without Requesting the Field Explicitly
 
-**What goes wrong:** Adding `inat/download.py` to `build-data.sh` causes it to run on every CI push (all branches), hitting the iNat API on every commit.
+**What people do:** Call the iNat API without specifying `fields` and assume `ofvs` will be present.
 
-**Why bad:** iNat API has rate limits. CI currently runs on all branches per the GitHub Actions workflow (`on: push: branches: ['**']`). Repeated API calls for non-main branch pushes are wasteful and introduce a new external failure point.
+**Why it's wrong:** The iNat API v1 returns a default field set that may not include observation field values. Requesting `fields=id,user.login,observed_on,geojson,ofvs` (or equivalent) ensures the response includes what the pipeline needs and reduces payload size.
 
-**Instead:** Commit `samples.parquet` as a fallback (same pattern as `ecdysis.parquet`). The CI build uses the committed file unless the pipeline step is explicitly triggered. Alternatively gate the iNat download in `build-data.sh` behind `${GITHUB_REF:-} == refs/heads/main` or run it in the `deploy` job only.
+**Do this instead:** Specify fields explicitly in the API request. Verify against actual response before finalizing the column extraction logic.
 
-### Anti-Pattern 5: Using map.getFeaturesAtPixel without layerFilter
+---
 
-**What goes wrong:** `map.getFeaturesAtPixel(pixel)` or `map.forEachFeatureAtPixel(pixel, cb)` without a `layerFilter` hits features from both `speicmenLayer` (cluster features, which have a `features` property) and `sampleLayer` (raw iNat features). Cluster features require `feature.get('features')` unwrapping; iNat features do not. Mixing both in the same callback requires type-checking that is fragile.
+## Integration Points
 
-**Instead:** Call `forEachFeatureAtPixel` with `{ layerFilter: (l) => l === sampleLayer }` first, then the existing `speicmenLayer.getFeatures(pixel)` call. Each handler knows exactly what kind of feature it is dealing with.
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| iNaturalist API v1 | `GET /v1/observations?project_id=166376` via `requests` (or pyinaturalist wrapper) | Rate limit: ~1 req/sec recommended. 200 obs/page max. `id_above` pagination for > 10k obs. |
+| ecdysis.org | Existing POST pattern in `ecdysis/download.py` — unchanged | No changes; runs as Step 1-2 in `build-data.sh` |
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `inat/download.py` → filesystem | Writes `data/samples.parquet` | Same directory as `data/ecdysis.parquet` |
+| `scripts/build-data.sh` → `inat/download.py` | `uv run python inat/download.py` | Consistent with existing `uv run python ecdysis/download.py` invocation |
+| `build-data.sh` → `frontend/src/assets/` | `cp data/samples.parquet frontend/src/assets/samples.parquet` | Same `cp` pattern as `ecdysis.parquet` |
+| `frontend/src/assets/samples.parquet` → Vite | `import samplesDump from './assets/samples.parquet?url'` | v1.2 defers this — samples.parquet just needs to be a valid file so Vite doesn't error on build |
 
 ---
 
 ## Scalability Considerations
 
-| Concern | Current (hundreds of iNat obs) | At 5K+ iNat obs | Notes |
-|---------|-------------------------------|-----------------|-------|
-| samples.parquet size | ~10–20 KB (6 columns, 300 rows) | ~200 KB (5K rows) | Negligible at both scales |
-| OL render (unclustered) | Fast — hundreds of points | Fast — VectorLayer handles thousands without cluster | No performance action needed |
-| iNat API pagination | Single page (< 200 obs) | Multiple pages via id_above | download.py loop handles this |
-| CI API calls | Risk even at small scale | Higher risk at large scale | Committed fallback mitigates |
+| Concern | Now (hundreds of obs) | At 5K+ obs | Notes |
+|---------|----------------------|------------|-------|
+| API pagination | Likely single page | Multiple pages via id_above | Loop handles both cases |
+| samples.parquet size | ~5–15 KB | ~100–200 KB | Negligible at both scales |
+| CI API call frequency | Low risk (small count, fast fetch) | Low risk | Committed fallback prevents build failures |
+| iNat rate limit | Not a concern | Not a concern | Project observations fit in a handful of pages at 200/page |
 
 ---
 
@@ -404,19 +317,19 @@ Frontend development (steps 3–6) can proceed against a hand-crafted stub `samp
 
 - **iNaturalist API v1 docs** (official): https://api.inaturalist.org/v1/docs/
 - **iNat API recommended practices** (id_above pagination): https://www.inaturalist.org/pages/api+recommended+practices
-- **OpenLayers VectorLayer API** (getFeatures, forEachFeatureAtPixel): https://openlayers.org/en/latest/apidoc/module-ol_layer_Vector-VectorLayer.html
-- **OpenLayers hit-tolerance example**: https://openlayers.org/en/latest/examples/hit-tolerance.html
-- **hyparquet asyncBufferFromUrl**: https://github.com/hyparam/hyparquet
-- **Vite static asset handling** (?url imports): https://vite.dev/guide/assets
-- **CloudFront + S3 CORS caching edge cases**: https://advancedweb.hu/how-cloudfront-solves-cors-problems/
+- **pyinaturalist docs** (get_observations, page='all', id_above): https://pyinaturalist.readthedocs.io/en/stable/
+- **pyinaturalist-convert** (to_dataframe, to_parquet): https://github.com/pyinat/pyinaturalist-convert
 - **Existing codebase** (direct inspection, HIGH confidence):
-  - `frontend/src/bee-map.ts` — current map/click setup
-  - `frontend/src/parquet.ts` — ParquetSource implementation
-  - `frontend/src/bee-sidebar.ts` — current sidebar structure
-  - `frontend/src/style.ts` — clusterStyle pattern
-  - `frontend/src/filter.ts` — FilterState singleton pattern
-  - `scripts/build-data.sh` — pipeline script
-  - `data/ecdysis/occurrences.py` — Parquet output pattern
-  - `.github/workflows/build-and-deploy.yml` — CI runs on all branches
+  - `scripts/build-data.sh` — pipeline orchestration pattern
+  - `data/ecdysis/download.py` — fetch + zip write pattern
+  - `data/ecdysis/occurrences.py` — pandas dtype pattern, to_parquet call
+  - `data/inat/projects.py` — Washington Bee Atlas project ID 166376
+  - `data/inat/observations.py` — currently empty; placeholder for extraction helpers
+  - `data/pyproject.toml` — pyinaturalist, pyinaturalist-convert already declared
+  - `.github/workflows/deploy.yml` — CI runs on all branches (every push)
+  - `.planning/PROJECT.md` — v1.2 scope (pipeline only, no frontend changes)
 
-*Research updated: 2026-02-25 for v1.1 milestone*
+---
+
+*Architecture research for: iNaturalist API pipeline integration (v1.2)*
+*Researched: 2026-03-10*
