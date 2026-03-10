@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
 stopped_at: Completed 08-02-PLAN.md — AWS credentials in CI build job, S3 cache/ prefix smoke-tested
-last_updated: "2026-03-10T19:57:33.210Z"
+last_updated: "2026-03-10T19:58:34.082Z"
 last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3

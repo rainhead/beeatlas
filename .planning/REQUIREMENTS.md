@@ -19,7 +19,7 @@
 
 ### Infrastructure / DX
 
-- [ ] **INFRA-04**: OIDC IAM role grants `s3:GetObject` and `s3:PutObject` on the S3 cache prefix; CI workflow provides AWS credentials to the pipeline step
+- [x] **INFRA-04**: OIDC IAM role grants `s3:GetObject` and `s3:PutObject` on the S3 cache prefix; CI workflow provides AWS credentials to the pipeline step
 - [ ] **INFRA-05**: Cache restore, iNat fetch, and cache upload operations are exposed as top-level `package.json` scripts; CI workflow calls these scripts rather than encoding the operations directly
 
 ## Future Requirements
@@ -48,7 +48,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-04 | Phase 8 | Pending |
+| INFRA-04 | Phase 8 | Complete |
 | INAT-01 | Phase 9 | Pending |
 | INAT-02 | Phase 9 | Pending |
 | CACHE-01 | Phase 9 | Pending |
