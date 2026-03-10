@@ -13,14 +13,14 @@
 
 ### Caching
 
-- [ ] **CACHE-01**: Pipeline restores `samples.parquet` + `last_fetch.txt` from S3 cache prefix at build start; falls back to full fetch on cache miss
+- [x] **CACHE-01**: Pipeline restores `samples.parquet` + `last_fetch.txt` from S3 cache prefix at build start; falls back to full fetch on cache miss
 - [ ] **CACHE-02**: Pipeline fetches only observations updated since `last_fetch.txt` timestamp; merges delta into restored parquet; falls back to full fetch when cache is absent or corrupt
-- [ ] **CACHE-03**: Pipeline uploads updated `samples.parquet` + `last_fetch.txt` back to S3 cache prefix after successful fetch
+- [x] **CACHE-03**: Pipeline uploads updated `samples.parquet` + `last_fetch.txt` back to S3 cache prefix after successful fetch
 
 ### Infrastructure / DX
 
 - [x] **INFRA-04**: OIDC IAM role grants `s3:GetObject` and `s3:PutObject` on the S3 cache prefix; CI workflow provides AWS credentials to the pipeline step
-- [ ] **INFRA-05**: Cache restore, iNat fetch, and cache upload operations are exposed as top-level `package.json` scripts; CI workflow calls these scripts rather than encoding the operations directly
+- [x] **INFRA-05**: Cache restore, iNat fetch, and cache upload operations are exposed as top-level `package.json` scripts; CI workflow calls these scripts rather than encoding the operations directly
 
 ## Future Requirements
 
@@ -51,10 +51,10 @@
 | INFRA-04 | Phase 8 | Complete |
 | INAT-01 | Phase 9 | Pending |
 | INAT-02 | Phase 9 | Pending |
-| CACHE-01 | Phase 9 | Pending |
+| CACHE-01 | Phase 9 | Complete |
 | CACHE-02 | Phase 9 | Pending |
-| CACHE-03 | Phase 9 | Pending |
-| INFRA-05 | Phase 9 | Pending |
+| CACHE-03 | Phase 9 | Complete |
+| INFRA-05 | Phase 9 | Complete |
 | INAT-03 | Phase 10 | Pending |
 
 **Coverage:**
