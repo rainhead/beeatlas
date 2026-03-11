@@ -20,7 +20,8 @@
       "Bash(git:*)",
       "Skill(gsd:audit-milestone)",
       "Skill(gsd:plan-milestone-gaps)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Skill(gsd:new-milestone)"
     ]
   }
 }
