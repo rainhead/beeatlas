@@ -21,7 +21,9 @@
       "Skill(gsd:audit-milestone)",
       "Skill(gsd:plan-milestone-gaps)",
       "Bash(echo:*)",
-      "Skill(gsd:new-milestone)"
+      "Skill(gsd:new-milestone)",
+      "Bash(uv run:*)",
+      "Bash(bash:*)"
     ]
   }
 }
