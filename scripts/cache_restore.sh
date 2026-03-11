@@ -11,3 +11,7 @@ aws s3 cp "s3://$BUCKET/cache/samples.parquet" "$CACHE_DIR/samples.parquet" 2>/d
 aws s3 cp "s3://$BUCKET/cache/last_fetch.txt" "$CACHE_DIR/last_fetch.txt" 2>/dev/null \
   && echo "last_fetch.txt restored" \
   || echo "last_fetch.txt not in cache"
+
+aws s3 cp "s3://$BUCKET/cache/observations.ndjson" "$CACHE_DIR/observations.ndjson" 2>/dev/null \
+  && echo "observations.ndjson restored" \
+  || echo "observations.ndjson not in cache (will be written after fetch)"
