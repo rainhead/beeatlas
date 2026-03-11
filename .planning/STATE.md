@@ -4,7 +4,7 @@ milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
 stopped_at: Completed 10-01-PLAN.md — CI green verified, phase 10 complete
-last_updated: "2026-03-11T06:21:27.928Z"
+last_updated: "2026-03-11T06:22:24.355Z"
 last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3
