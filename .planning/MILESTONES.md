@@ -1,11 +1,34 @@
 # Milestones
 
-## v1.1 URL Sharing (Shipped: 2026-03-10)
+## v1.2 iNat Pipeline (Shipped: 2026-03-11)
 
-**Phases completed:** 1 phases, 5 plans, 0 tasks
+**Phases completed:** 3 phases (Phases 8–10), 5 plans
+**Timeline:** 2026-03-10 → 2026-03-11 (2 days)
+**Git range:** `feat(08-01)` → `docs(quick-1)`
+**LOC:** +5,069/−1,005 lines across 56 files; 244 Python + 51 shell (inat pipeline)
 
 **Key accomplishments:**
-- (none recorded)
+1. Confirmed iNat field IDs from live API (SPECIMEN_COUNT_FIELD_ID=8338, SAMPLE_ID_FIELD_ID=9963); documented OFVS in default response — no `fields='all'` needed
+2. Wired `id-token: write` + `configure-aws-credentials@v4` into CI build job; confirmed existing IAM role covers `cache/` prefix without new grants
+3. S3 cache scripts (`cache_restore.sh` with graceful miss, `cache_upload.sh` with hard fail) + `package.json` npm scripts (cache-restore, fetch-inat, cache-upload)
+4. Full `data/inat/download.py` pipeline: pyinaturalist fetch, incremental mode with `merge_delta`, 15 unit tests, wired into `build-data.sh`
+5. CI `deploy.yml` fixed (credential ordering bug); S3 cache round-trip verified green end-to-end
+
+**Delivered:** iNat pipeline produces `samples.parquet` (observation_id, observer, date, lat, lon, specimen_count nullable) with S3 caching and full CI integration.
+
+---
+
+## v1.1 URL Sharing (Shipped: 2026-03-10)
+
+**Phases completed:** 1 phase (Phase 7), 5 plans
+**Timeline:** ~1 day
+
+**Key accomplishments:**
+1. URL query string encoding of map center/zoom and full filter state (taxon, year range, months, selected occurrences)
+2. `replaceState` on every `moveend` + debounced `pushState` (500ms) — history explosion avoided while back-button nav works at settled positions
+3. `_isRestoringFromHistory` guard + `map.once('moveend')` async reset — prevents popstate→moveend feedback loop
+4. Multi-occurrence cluster `o=` encoding — all cluster IDs preserved; sidebar restore correctly shows full cluster
+5. URL sharing is fully round-trip: paste URL → exact map view and filter state restored
 
 ---
 
