@@ -74,10 +74,10 @@ def obs_to_row(obs: dict) -> dict:
     - obs["id"] → int
     - obs["user"]["login"] → str
     - obs["observed_on"] → "YYYY-MM-DD" string
-    - obs["location"] → "lat,lon" string
+    - obs["location"] → [lat, lon] list of floats
     - obs["ofvs"] → list of ofv dicts
     """
-    lat, lon = obs["location"].split(",")
+    lat, lon = obs["location"]
     return {
         "observation_id": int(obs["id"]),
         "observer": obs["user"]["login"],
