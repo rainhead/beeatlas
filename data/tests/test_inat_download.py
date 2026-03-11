@@ -8,7 +8,7 @@ Run from data/ directory:
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
-from datetime import date
+from pathlib import Path
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -16,19 +16,19 @@ from datetime import date
 def make_mock_obs(
     obs_id: int = 1,
     login: str = "testuser",
-    observed_on=None,
+    observed_on: str = "2024-06-15",
     lat: float = 47.6,
     lon: float = -120.5,
     ofvs: list | None = None,
-):
-    """Create a mock pyinaturalist Observation model object."""
-    obs = MagicMock()
-    obs.id = obs_id
-    obs.user.login = login
-    obs.observed_on = observed_on or date(2024, 6, 15)
-    obs.location = (lat, lon)
-    obs.to_dict.return_value = {"ofvs": ofvs or []}
-    return obs
+) -> dict:
+    """Create a plain dict matching the raw iNaturalist API observation shape."""
+    return {
+        "id": obs_id,
+        "user": {"login": login},
+        "observed_on": observed_on,
+        "location": (lat, lon),
+        "ofvs": ofvs or [],
+    }
 
 
 def make_ofv(field_id: int, value: str):
@@ -49,7 +49,7 @@ class TestObsToRow:
 
     def test_date_is_string(self):
         from inat.download import obs_to_row
-        obs = make_mock_obs(observed_on=date(2024, 7, 4))
+        obs = make_mock_obs(observed_on="2024-07-04")
         row = obs_to_row(obs)
         assert row["date"] == "2024-07-04"
 
@@ -96,7 +96,7 @@ class TestBuildDataframe:
     def test_column_names(self):
         from inat.download import build_dataframe
         df = build_dataframe(self._make_results())
-        assert set(df.columns) == {"observation_id", "observer", "date", "lat", "lon", "specimen_count"}
+        assert set(df.columns) == {"observation_id", "observer", "date", "lat", "lon", "specimen_count", "downloaded_at"}
 
     def test_dtypes(self):
         from inat.download import build_dataframe
@@ -107,12 +107,13 @@ class TestBuildDataframe:
         assert df["lat"].dtype == "float64"
         assert df["lon"].dtype == "float64"
         assert df["specimen_count"].dtype == pd.Int64Dtype()
+        assert df["downloaded_at"].dtype == pd.StringDtype()
 
     def test_empty_results_returns_empty_df(self):
         from inat.download import build_dataframe
         df = build_dataframe([])
         assert len(df) == 0
-        assert set(df.columns) == {"observation_id", "observer", "date", "lat", "lon", "specimen_count"}
+        assert set(df.columns) == {"observation_id", "observer", "date", "lat", "lon", "specimen_count", "downloaded_at"}
 
     def test_nullable_specimen_count(self):
         from inat.download import build_dataframe
@@ -123,6 +124,22 @@ class TestBuildDataframe:
         df = build_dataframe(results)
         assert df.loc[df.observation_id == 1, "specimen_count"].iloc[0] == 3
         assert pd.isna(df.loc[df.observation_id == 2, "specimen_count"].iloc[0])
+
+
+# ── downloaded_at tests ──────────────────────────────────────────────────────
+
+class TestBuildDataframeDownloadedAt:
+    def test_downloaded_at_set_when_provided(self):
+        from inat.download import build_dataframe
+        obs = make_mock_obs()
+        df = build_dataframe([obs], downloaded_at="2024-06-15T00:00:00+00:00")
+        assert df["downloaded_at"].iloc[0] == "2024-06-15T00:00:00+00:00"
+
+    def test_downloaded_at_na_when_not_provided(self):
+        from inat.download import build_dataframe
+        obs = make_mock_obs()
+        df = build_dataframe([obs])
+        assert pd.isna(df["downloaded_at"].iloc[0])
 
 
 # ── merge_delta tests ────────────────────────────────────────────────────────
@@ -137,6 +154,7 @@ def make_df(**kwargs):
         "lat": pd.array([47.0] * n, dtype="float64"),
         "lon": pd.array([-120.0] * n, dtype="float64"),
         "specimen_count": pd.array([None] * n, dtype="Int64"),
+        "downloaded_at": pd.array([None] * n, dtype=pd.StringDtype()),
     }
     defaults.update(kwargs)
     return pd.DataFrame(defaults)
@@ -182,6 +200,47 @@ class TestMergeDelta:
         delta = make_df(observation_id=pd.array([3, 4], dtype="int64"))
         merged = merge_delta(existing, delta)
         assert list(merged.index) == [0, 1, 2, 3]
+
+
+# ── main() NDJSON writing test ───────────────────────────────────────────────
+
+class TestMain:
+    def test_main_writes_ndjson(self, tmp_path):
+        """main() writes observations.ndjson with one line per fetched result."""
+        import json
+        import inat.download as dl
+
+        results = [
+            {"id": 1, "user": {"login": "u"}, "observed_on": "2024-01-01", "location": [47.0, -120.0], "ofvs": []},
+            {"id": 2, "user": {"login": "v"}, "observed_on": "2024-01-02", "location": [48.0, -121.0], "ofvs": []},
+        ]
+
+        ndjson_path = tmp_path / "observations.ndjson"
+        samples_path = tmp_path / "samples.parquet"
+        last_fetch_path = tmp_path / "last_fetch.txt"
+
+        original_ndjson = dl.NDJSON_PATH
+        original_samples = dl.SAMPLES_PATH
+        original_last_fetch = dl.LAST_FETCH_PATH
+
+        dl.NDJSON_PATH = ndjson_path
+        dl.SAMPLES_PATH = samples_path
+        dl.LAST_FETCH_PATH = last_fetch_path
+
+        try:
+            with patch("inat.download.fetch_all", return_value=results):
+                dl.main()
+        finally:
+            dl.NDJSON_PATH = original_ndjson
+            dl.SAMPLES_PATH = original_samples
+            dl.LAST_FETCH_PATH = original_last_fetch
+
+        assert ndjson_path.exists()
+        lines = ndjson_path.read_text().strip().splitlines()
+        assert len(lines) == 2
+        for line in lines:
+            obj = json.loads(line)
+            assert "id" in obj
 
 
 # ── Importable exports ───────────────────────────────────────────────────────
