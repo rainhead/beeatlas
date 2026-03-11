@@ -67,24 +67,24 @@ def fetch_since(timestamp: str) -> list:
 
 # ── Row extraction ────────────────────────────────────────────────────────────
 
-def obs_to_row(obs) -> dict:
-    """Extract a flat row dict from a pyinaturalist Observation model object.
+def obs_to_row(obs: dict) -> dict:
+    """Extract a flat row dict from a raw iNaturalist API observation dict.
 
-    Model attribute access (NOT raw dict):
-    - obs.id → int
-    - obs.user.login → str
-    - obs.observed_on → date object
-    - obs.location → (lat, lon) tuple
-    - obs.to_dict().get('ofvs', []) → raw ofv dicts for extract_specimen_count
+    Raw dict fields:
+    - obs["id"] → int
+    - obs["user"]["login"] → str
+    - obs["observed_on"] → "YYYY-MM-DD" string
+    - obs["location"] → "lat,lon" string
+    - obs["ofvs"] → list of ofv dicts
     """
-    lat, lon = obs.location
+    lat, lon = obs["location"].split(",")
     return {
-        "observation_id": int(obs.id),
-        "observer": obs.user.login,
-        "date": str(obs.observed_on),
+        "observation_id": int(obs["id"]),
+        "observer": obs["user"]["login"],
+        "date": obs["observed_on"],
         "lat": float(lat),
         "lon": float(lon),
-        "specimen_count": extract_specimen_count(obs.to_dict().get("ofvs", [])),
+        "specimen_count": extract_specimen_count(obs.get("ofvs", [])),
     }
 
 
