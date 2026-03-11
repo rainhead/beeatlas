@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-03-10)
 Phase: 8 of 10 (Discovery and Prerequisite Gate)
 Plan: — (not yet planned)
 Status: Ready to plan
-Last activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
+Last activity: 2026-03-11 - Completed quick task 1: Store full observation JSON in cache with download timestamp
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -66,6 +66,12 @@ Progress: [░░░░░░░░░░] 0%
 ### Pending Todos
 
 None.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Status | Directory |
+|---|-------------|------|--------|--------|-----------|
+| 1 | Store full observation JSON in cache with download timestamp | 2026-03-11 | 16256f3 | Verified | [1-store-full-observation-json-in-cache-wit](./quick/1-store-full-observation-json-in-cache-wit/) |
 
 ### Blockers/Concerns
 
