@@ -15,7 +15,7 @@ cp ecdysis.parquet "$REPO_ROOT/frontend/src/assets/ecdysis.parquet"
 echo "--- Done: ecdysis.parquet copied to frontend/src/assets/ ---"
 
 echo "--- Fetching iNaturalist data ---"
-uv run python inat/download.py
+uv run python -m inat.download
 
 cp samples.parquet "$REPO_ROOT/frontend/src/assets/samples.parquet"
 echo "--- Done: samples.parquet copied to frontend/src/assets/ ---"
