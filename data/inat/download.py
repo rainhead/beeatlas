@@ -50,8 +50,6 @@ def fetch_all() -> list:
         project_id=WA_PROJECT_ID,
         page="all",
         per_page=200,
-        order_by="id",
-        order="asc",
     )
     return response.get("results", []) if isinstance(response, dict) else list(response)
 
@@ -63,8 +61,6 @@ def fetch_since(timestamp: str) -> list:
         updated_since=timestamp,
         page="all",
         per_page=200,
-        order_by="id",
-        order="asc",
     )
     return response.get("results", []) if isinstance(response, dict) else list(response)
 
