@@ -13,6 +13,7 @@ Exports: fetch_all, fetch_since, obs_to_row, build_dataframe, merge_delta, main
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,7 @@ WA_PROJECT_ID = atlas_projects["wa"]  # 166376
 
 SAMPLES_PATH = Path("samples.parquet")
 LAST_FETCH_PATH = Path("last_fetch.txt")
+NDJSON_PATH = Path("observations.ndjson")
 
 DTYPE_MAP: dict[str, Any] = {
     "observation_id": "int64",
@@ -37,6 +39,7 @@ DTYPE_MAP: dict[str, Any] = {
     "lat": "float64",
     "lon": "float64",
     "specimen_count": pd.Int64Dtype(),
+    "downloaded_at": pd.StringDtype(),
 }
 
 COLUMNS = list(DTYPE_MAP.keys())
@@ -90,13 +93,18 @@ def obs_to_row(obs: dict) -> dict:
 
 # ── DataFrame construction ────────────────────────────────────────────────────
 
-def build_dataframe(results: list) -> pd.DataFrame:
-    """Build a typed DataFrame from a list of pyinaturalist Observation objects."""
+def build_dataframe(results: list, downloaded_at: str | None = None) -> pd.DataFrame:
+    """Build a typed DataFrame from a list of raw iNaturalist observation dicts.
+
+    Args:
+        results: Raw API observation dicts.
+        downloaded_at: UTC ISO string to stamp every row. If None, column is pd.NA.
+    """
     if not results:
         return pd.DataFrame({col: pd.array([], dtype=dtype) for col, dtype in DTYPE_MAP.items()})
 
     rows = [obs_to_row(obs) for obs in results if obs.get("location") is not None]
-    df = pd.DataFrame(rows, columns=COLUMNS)
+    df = pd.DataFrame(rows, columns=[c for c in COLUMNS if c != "downloaded_at"])
 
     # Apply explicit dtypes
     df["observation_id"] = df["observation_id"].astype("int64")
@@ -105,6 +113,8 @@ def build_dataframe(results: list) -> pd.DataFrame:
     df["lat"] = df["lat"].astype("float64")
     df["lon"] = df["lon"].astype("float64")
     df["specimen_count"] = df["specimen_count"].astype(pd.Int64Dtype())
+
+    df["downloaded_at"] = pd.array([downloaded_at] * len(df), dtype=pd.StringDtype())
 
     return df
 
@@ -148,7 +158,13 @@ def main() -> None:
     n_pages = max(1, (n_obs + 199) // 200)
     print(f"[inat] Fetched {n_obs} observations (~{n_pages} pages)")
 
-    delta = build_dataframe(results)
+    # Write raw NDJSON cache before any filtering
+    with NDJSON_PATH.open("w") as f:
+        for obs in results:
+            f.write(json.dumps(obs) + "\n")
+
+    now = datetime.now(timezone.utc).isoformat()
+    delta = build_dataframe(results, downloaded_at=now)
 
     if incremental and SAMPLES_PATH.exists():
         existing = pd.read_parquet(SAMPLES_PATH, engine="pyarrow")
@@ -163,9 +179,8 @@ def main() -> None:
 
     merged.to_parquet(SAMPLES_PATH, engine="pyarrow", index=False, compression="snappy")
 
-    now = datetime.now(timezone.utc).isoformat()
     LAST_FETCH_PATH.write_text(now)
-    print(f"[inat] Wrote samples.parquet and last_fetch.txt ({now})")
+    print(f"[inat] Wrote {SAMPLES_PATH}, {NDJSON_PATH}, and {LAST_FETCH_PATH} ({now})")
 
 
 if __name__ == "__main__":
