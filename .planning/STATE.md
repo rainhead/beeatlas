@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: iNat Pipeline
-status: planning
-stopped_at: Completed 10-01-PLAN.md — CI green verified, phase 10 complete
-last_updated: "2026-03-11T06:22:24.355Z"
-last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
+milestone: v1.3
+milestone_name: Planning next milestone
+status: between_milestones
+stopped_at: v1.2 milestone complete — archived
+last_updated: "2026-03-11"
+last_activity: "2026-03-11 - Completed v1.2 milestone (iNat Pipeline)"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -18,19 +18,18 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-10)
+See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Milestone v1.2 — iNat Pipeline (Phase 8: Discovery and Prerequisite Gate)
+**Current focus:** Planning next milestone (v1.3+)
 
 ## Current Position
 
-Phase: 8 of 10 (Discovery and Prerequisite Gate)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-11 - Completed quick task 1: Store full observation JSON in cache with download timestamp
+Phase: — (between milestones)
+Status: v1.2 complete — ready to plan v1.3
+Last activity: 2026-03-11 - Completed v1.2 milestone (iNat Pipeline)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [████████████████████] v1.2 complete
 
 ## Performance Metrics
 
