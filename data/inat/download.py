@@ -95,7 +95,7 @@ def build_dataframe(results: list) -> pd.DataFrame:
     if not results:
         return pd.DataFrame({col: pd.array([], dtype=dtype) for col, dtype in DTYPE_MAP.items()})
 
-    rows = [obs_to_row(obs) for obs in results]
+    rows = [obs_to_row(obs) for obs in results if obs.get("location") is not None]
     df = pd.DataFrame(rows, columns=COLUMNS)
 
     # Apply explicit dtypes
