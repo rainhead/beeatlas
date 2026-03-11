@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: iNat Pipeline
 status: planning
-stopped_at: "Completed 10-01 Task 1: deploy.yml updated — awaiting CI green verification at checkpoint"
-last_updated: "2026-03-10T22:54:33.415Z"
+stopped_at: Completed 10-01-PLAN.md — CI green verified, phase 10 complete
+last_updated: "2026-03-11T06:21:27.928Z"
 last_activity: 2026-03-10 — Roadmap created; 3 phases defined (8–10)
 progress:
   total_phases: 3
@@ -60,6 +60,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 09-02]: merge_delta uses keep='last' so delta rows overwrite existing rows on duplicate observation_id
 - [Phase 10-01]: Job-level env: S3_BUCKET_NAME in both build and deploy jobs — cleaner than per-step env, avoids repetition across three steps
 - [Phase 10-01]: Mirror same cache-restore/build/cache-upload pattern in both CI jobs for consistency
+- [Phase 10-01]: Job-level env: S3_BUCKET_NAME in both build and deploy CI jobs — avoids per-step repetition across three cache/build steps
+- [Phase 10-01]: Mirror same cache-restore/build/cache-upload pattern in both CI jobs for consistency
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-10T22:54:28.574Z
-Stopped at: Completed 10-01 Task 1: deploy.yml updated — awaiting CI green verification at checkpoint
+Last session: 2026-03-11T06:21:22.616Z
+Stopped at: Completed 10-01-PLAN.md — CI green verified, phase 10 complete
 Resume file: None

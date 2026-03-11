@@ -49,20 +49,22 @@ completed: 2026-03-10
 
 - **Duration:** ~5 min
 - **Started:** 2026-03-10T22:53:13Z
-- **Completed:** 2026-03-10T22:58:00Z
-- **Tasks:** 1 of 2 (Task 2 is human-verify checkpoint — awaiting CI verification)
+- **Completed:** 2026-03-10T23:00:00Z
+- **Tasks:** 2 of 2
 - **Files modified:** 1
 
 ## Accomplishments
 - Added job-level `env: S3_BUCKET_NAME` to both `build` and `deploy` jobs
 - Split monolithic `npm run build` into three named steps in both jobs: Restore S3 cache / Build / Upload S3 cache
 - Fixed credential ordering bug in `deploy` job: moved Configure AWS credentials step before Build
+- CI verified green — S3 cache round-trip and deploy both passed (human-approved)
 
 ## Task Commits
 
 Each task was committed atomically:
 
 1. **Task 1: Update deploy.yml — wire cache scripts and fix credential ordering** - `0eca29b` (feat)
+2. **Task 2: Verify CI green — S3 cache round-trip and deploy pass** - human-verify checkpoint (approved)
 
 ## Files Created/Modified
 - `.github/workflows/deploy.yml` - Added S3 cache round-trip steps and fixed deploy job credential ordering
@@ -86,9 +88,9 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- `deploy.yml` is updated and committed; push to origin and watch CI to confirm both jobs pass green
-- On push to main: build job will run cache-restore (cold miss on first run, prints "not in cache"), do full iNat fetch, write samples.parquet, upload cache; deploy job will do incremental fetch (fast, cache just uploaded by build job)
-- Awaiting Task 2 checkpoint: CI green verification before plan is fully complete
+- Phase 10 complete — CI passes green with full S3 cache round-trip verified
+- iNat pipeline (Phase 9) is fully integrated: data downloads incrementally on each CI build, caches to S3
+- v1.2 milestone (iNat Pipeline) complete — all phases (8, 9, 10) done
 
 ---
 *Phase: 10-build-integration-and-verification*
