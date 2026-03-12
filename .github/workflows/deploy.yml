@@ -16,8 +16,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v5
-
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -35,17 +33,8 @@ jobs:
       - name: Restore S3 cache
         run: npm run cache-restore
 
-      - name: Build
-        run: npm run build
-
-      - name: Refresh AWS credentials before upload
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
-          aws-region: us-west-2
-
-      - name: Upload S3 cache
-        run: npm run cache-upload
+      - name: Build frontend
+        run: npm run build --workspace=frontend
 
   deploy:
     name: Deploy to S3 + CloudFront
@@ -61,8 +50,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v5
-
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -80,17 +67,8 @@ jobs:
       - name: Restore S3 cache
         run: npm run cache-restore
 
-      - name: Build
-        run: npm run build
-
-      - name: Refresh AWS credentials before upload
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
-          aws-region: us-west-2
-
-      - name: Upload S3 cache
-        run: npm run cache-upload
+      - name: Build frontend
+        run: npm run build --workspace=frontend
 
       - name: Sync to S3
         run: aws s3 sync frontend/dist/ s3://${{ vars.S3_BUCKET_NAME }} --delete

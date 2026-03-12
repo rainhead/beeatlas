@@ -160,7 +160,7 @@ const clusterSource = new Cluster({
   minDistance: 0,
   source: specimenSource,
 });
-const speicmenLayer = new VectorLayer({
+const specimenLayer = new VectorLayer({
   source: clusterSource,
   style: clusterStyle,
 });
@@ -431,7 +431,7 @@ bee-sidebar {
           }),
         }),
         baseLayer,
-        speicmenLayer,
+        specimenLayer,
       ],
       target: this.mapElement,
       view: new View({
@@ -508,7 +508,7 @@ bee-sidebar {
 
     // singleclick handler: store all occurrence IDs in cluster for URL encoding
     this.map.on('singleclick', async (event: MapBrowserEvent) => {
-      const hits = await speicmenLayer.getFeatures(event.pixel);
+      const hits = await specimenLayer.getFeatures(event.pixel);
       if (!hits.length) {
         this.selectedSamples = null;
         this._selectedOccIds = null;
