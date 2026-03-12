@@ -42,16 +42,22 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ LCACHE-03: npm scripts expose cache-restore-links, fetch-links, cache-upload-links — v1.3
 - ✓ PIPE-04: build-data.sh includes cache restore → fetch → cache upload in sequence — v1.3
 
-## Current State: v1.3 Shipped
+## Current Milestone: v1.4 Sample Layer
 
-**Shipped:** 2026-03-12
-links.parquet is now produced by the build pipeline: occurrenceIDs from ecdysis.parquet are scraped from Ecdysis HTML pages, iNat observation IDs are extracted and stored with two-level permanent caching and S3 persistence. The data layer is complete; v1.4 will surface the linkage in the frontend.
+**Goal:** Surface iNat collection events on the map and wire up the specimen→iNat link in the sidebar.
 
-### Active (v1.4 candidates)
+**Target features:**
+- Sample dots layer (iNat collection events as simple unclustered markers)
+- Exclusive toggle — switch between specimen clusters and sample dots; both map and sidebar adapt
+- Sample sidebar — observer, date, specimen count, link to iNat observation
+- Specimen sidebar — iNat observation link when a linkage exists in links.parquet
 
-- [ ] MAP-03: Sample markers (iNat collection events) rendered as a distinct layer on the map
-- [ ] MAP-04: Clicking a sample marker shows the iNat observation details in the sidebar
-- [ ] LINK-05: Sidebar shows iNat observation link for a clicked specimen when a linkage exists
+### Active (v1.4)
+
+- [ ] MAP-03: User can see iNat collection events as simple dot markers on the map
+- [ ] MAP-04: User can toggle between specimen clusters and sample dots (exclusive; both layers adapt)
+- [ ] MAP-05: Clicking a sample marker shows observer, date, specimen count, and iNat link in the sidebar
+- [ ] LINK-05: Specimen sidebar shows a clickable iNat observation link when a linkage exists in links.parquet
 
 ### Out of Scope
 
@@ -127,4 +133,4 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Restore with graceful miss (`\|\| echo`), upload with fail-fast (`set -euo pipefail`) | First CI run has no cache to restore; upload failure means corrupt state | ✓ Good — correct asymmetry; matches v1.2 cache pattern |
 
 ---
-*Last updated: 2026-03-12 after v1.3 milestone complete (Specimen-Sample Linkage — links.parquet pipeline shipped)*
+*Last updated: 2026-03-12 after v1.4 milestone started (Sample Layer — frontend surfacing of iNat data)*

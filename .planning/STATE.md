@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Specimen-Sample Linkage
+milestone: v1.4
+milestone_name: Sample Layer
 status: planning
-stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-03-12T03:48:31.608Z"
-last_activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
+stopped_at: —
+last_updated: "2026-03-12"
+last_activity: 2026-03-12 — Milestone v1.4 started
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
   percent: 0
 ---
 
@@ -18,17 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-11)
+See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 11 — Links Pipeline (v1.3 Specimen-Sample Linkage)
+**Current focus:** Defining requirements for v1.4 Sample Layer
 
 ## Current Position
 
-Phase: 11 of 12 (Links Pipeline)
+Phase: Not started (defining requirements)
 Plan: —
-Status: Ready to plan
-Last activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
+Status: Defining requirements
+Last activity: 2026-03-12 — Milestone v1.4 started
 
 Progress: [░░░░░░░░░░] 0%
 
