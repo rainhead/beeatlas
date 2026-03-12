@@ -2,6 +2,46 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.3 — Specimen-Sample Linkage
+
+**Shipped:** 2026-03-12
+**Phases:** 2 (Phases 11–12) | **Plans:** 4 | **Timeline:** Single day
+
+### What Was Built
+- `data/ecdysis/occurrences.py`: `occurrenceID` added to `ecdysis.parquet` column selection (pd.StringDtype)
+- `data/links/fetch.py`: full links pipeline — `fetch_page`, `extract_observation_id`, `run_pipeline`; two-level skip (links.parquet then disk HTML); ≤20 req/sec rate limit; BeautifulSoup CSS selector `#association-div a[target="_blank"]`; 11 unit tests
+- `scripts/cache_restore_links.sh` + `scripts/cache_upload_links.sh`: S3 persistence mirroring the v1.2 iNat cache script pattern
+- `package.json` scripts: `cache-restore-links`, `cache-upload-links` (fetch-links was added by Phase 11); `build-data.sh` extended with cache restore → fetch → cache upload block
+
+### What Worked
+- TDD stub approach (Phase 11 creates failing tests, Phase 12 makes them pass) gave a clear implementation target and caught the `last_fetch_time` initialization bug before any real HTTP requests
+- Reusing the existing `cache_restore.sh` / `cache_upload.sh` pattern made Phase 12 trivial — same structure, same S3 path conventions, same `|| echo` / `set -euo pipefail` asymmetry
+- The research phase correctly identified the prototype bug (UUID `occurrenceID` used as `occid` URL param instead of integer `ecdysis_id`) before any code was written — saved a silent wrong-data bug
+- Two waves across two plans kept concerns cleanly separated: foundation + tests (11-01) vs. implementation (11-02)
+- `cd "$REPO_ROOT"` before npm commands in build-data.sh was anticipated in the plan (integration checker flagged it as a noteworthy pre-emptive fix)
+
+### What Was Inefficient
+- No VERIFICATION.md produced (verifier disabled in config) — integration checker filled the gap but this required manual audit work at milestone completion
+- Phase 11 VALIDATION.md scaffolded but `nyquist_compliant` never updated to true — Nyquist validation was left in draft state throughout
+- Phase 12 had no research phase (planned without it) and no VALIDATION.md — acceptable for a purely mechanical wiring phase, but consistency would be cleaner
+
+### Patterns Established
+- Use integer DB id (`ecdysis_id`) not UUID string (`occurrenceID`) for Ecdysis individual record page URLs — UUID is the DarwinCore identifier, integer is the database key used in URLs
+- TDD: create failing test stubs in one plan, implement in the next — even for short milestones this gives a clean pass/fail test gate
+- `last_fetch_time = time.monotonic()` (not `0.0`) to enforce rate limit on the first HTTP request, not just subsequent ones
+
+### Key Lessons
+1. **Prototype bugs are silent until tested** — the existing `fetch_inat_links.py` prototype was structurally correct but used the wrong ID type as the URL parameter. Research that reads and validates existing code prevents inheriting bugs.
+2. **Reusing established patterns is fast** — the S3 cache scripts for v1.3 took ~3 minutes because the v1.2 pattern was well-established. Pattern documentation in PROJECT.md pays forward.
+3. **TDD stubs in Phase N, implementation in Phase N+1** — clear contract definition before implementation reduces ambiguity and makes the executor's job mechanical.
+
+### Cost Observations
+- Model mix: 100% sonnet
+- Sessions: 1 day (2026-03-12 — plan + execute + complete)
+- Notable: Fastest milestone yet — TDD stubs + established patterns kept implementation predictable
+
+---
+
 ## Milestone: v1.2 — iNat Pipeline
 
 **Shipped:** 2026-03-11
@@ -89,9 +129,11 @@
 | v1.0 | ~4 | 6 | Established baseline GSD workflow for this project |
 | v1.1 | 2 | 1 | First use of gap closure cycle (human verify → plan gaps → re-verify) |
 | v1.2 | 2 | 3 | First external API pipeline; discovery phase proved essential for external data sources |
+| v1.3 | 1 | 2 | First scraping pipeline; TDD stub pattern + reuse of established S3 cache scripts made it the fastest milestone |
 
 ### Top Lessons (Verified Across Milestones)
 
 1. Human verification at a checkpoint plan is more reliable than automated checks for browser-interactive features
 2. Gap closure plans are cheaper to write and execute than getting everything right the first time — ship, verify, fix
 3. Discovery/research phases for external APIs and infrastructure are worth the upfront cost — they prevent blocked implementation phases and post-execution fix commits
+4. Prototype validation in research prevents inheriting bugs — reading existing code critically is part of research, not just gathering facts
