@@ -99,6 +99,7 @@ def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
     # Select required columns and rename for output
     df = df[[
         'id',
+        'occurrenceID',
         'decimalLongitude',
         'decimalLatitude',
         'scientificName',
