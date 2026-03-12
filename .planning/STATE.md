@@ -5,9 +5,9 @@ milestone_name: Sample Layer
 status: planning
 stopped_at: —
 last_updated: "2026-03-12"
-last_activity: 2026-03-12 — Milestone v1.4 started
+last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Defining requirements for v1.4 Sample Layer
+**Current focus:** v1.4 Sample Layer — Phase 13 (Parquet Sources and Asset Pipeline)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 13 — Parquet Sources and Asset Pipeline
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-12 — Milestone v1.4 started
+Status: Roadmap defined, ready for plan-phase
+Last activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -67,6 +67,10 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 12]: Cache scripts use aws s3 sync with --exclude '*' --include '*.html' to filter only HTML files for ecdysis_cache
 - [Phase 12]: Restore uses graceful miss for both links.parquet and ecdysis_cache; upload fails fast if links.parquet missing
 - [Phase 12-s3-cache-and-build-integration]: build-data.sh links pipeline block requires cd to REPO_ROOT before npm commands since script runs from data/ directory
+- **v1.4 join key**: occurrenceID (UUID string) is the join key for links.parquet — NOT the integer ecdysis_id used as OL feature ID suffix; occurrenceID must be added to ParquetSource column list in Phase 13
+- **v1.4 BigInt coercion**: hyparquet returns INT64 Parquet columns as JavaScript BigInt; must coerce with Number() at read time for both samples.parquet specimen_count and links.parquet inat_observation_id
+- **v1.4 exclusive toggle**: Layer toggle uses layer.setVisible(bool) — exclusive display because sample data has no taxon column (filter parity impossible) and click-handling clarity (merged hit-tests create ambiguous UX)
+- **v1.4 filter controls**: Specimen taxon/date filters are hidden when sample layer is active — sample features have no scientificName/genus/family properties; any active filter silently hides all dots
 
 ### Pending Todos
 
@@ -86,6 +90,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-12T03:01:03.988Z
-Stopped at: Completed 12-02-PLAN.md
+Last session: 2026-03-12 — roadmap creation
+Stopped at: Roadmap written (Phases 13–15); ready for /gsd:plan-phase 13
 Resume file: None
