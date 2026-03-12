@@ -1,268 +1,241 @@
 # Feature Research
 
-**Domain:** iNaturalist API pipeline — Washington Bee Atlas collection events
-**Project:** Washington Bee Atlas — v1.2 iNat Pipeline
-**Researched:** 2026-03-10
-**Confidence:** HIGH (project codebase read directly; pyinaturalist source code examined; live iNat API response in repo)
+**Domain:** Multi-layer interactive map with click-driven sidebar — specimen atlas with iNat event overlay
+**Researched:** 2026-03-12
+**Confidence:** HIGH (codebase directly inspected; OpenLayers API and map UX patterns verified)
 
 ---
 
-## Scope Boundary
+## Scope: v1.4 Sample Layer
 
-This milestone (v1.2) is **pipeline only** — no map presentation. Three requirements govern scope:
-
-- **INAT-01**: Query iNat API for Washington Bee Atlas project observations
-- **INAT-02**: Extract observer, date, coordinates, specimen count from each observation
-- **INAT-03**: Produce `samples.parquet` (observation_id, observer, date, lat, lon, specimen_count)
-
-MAP-03 (sample markers layer), MAP-04 (click-to-detail sidebar), and specimen-to-sample linkage are explicitly deferred to v1.3+.
+This milestone adds the frontend surfacing of data that already exists in built artifacts
+(`samples.parquet` from v1.2, `links.parquet` from v1.3). All pipeline work is done.
+The four requirements are MAP-03, MAP-04, MAP-05, LINK-05.
 
 ---
 
-## Context: What Already Exists
+## Feature Landscape
 
-Significant iNat infrastructure is already in the repo before v1.2 starts:
+### Table Stakes (Users Expect These)
 
-- `data/inat/projects.py` — WA project ID confirmed: **166376** (OR project: 18521)
-- `data/Makefile` — iNat API v2 call with custom `fields` fieldspec already written; one sample observation JSON fetched at `data/inat/observation/300847934.json`
-- `data/scripts/fetch_inat_links.py` — fetches iNat observation IDs from Ecdysis HTML (a different pipeline for v1.3 linkage work)
-- `pyinaturalist>=0.20.2` and `pyinaturalist-convert>=0.7.4` already in `data/pyproject.toml`
-- `data/inat/observations.py` and `data/inat/projects.py` — stubs, essentially empty
+Features users assume exist. Missing these = product feels incomplete.
 
-The Makefile fieldspec fetches individual observations by ID via API v2:
-```
-GET https://api.inaturalist.org/v2/observations?fields=(id:!t,geojson:!t,time_observed_at:!t,user:(id:!t,login:!t,name:!t),...)&id=<obs_id>
-```
-This milestone extends this pattern to **bulk project fetching**: query all observations in project 166376, not individual ID lookups.
-
----
-
-## How the iNaturalist API Works (HIGH confidence — source code + live JSON)
-
-**Primary endpoint for project observations (API v1, pyinaturalist):**
-```
-GET https://api.inaturalist.org/v1/observations?project_id=166376&per_page=200&order_by=id&order=asc
-```
-
-**Pagination behavior (confirmed from `pyinaturalist/paginator.py` source):**
-- Default and maximum per_page: **200** (from `pyinaturalist/constants.py`: `PER_PAGE_RESULTS = 200`)
-- Hard API limit: 10,000 results via page+per_page; exceeding this throws an error
-- Cursor pagination: use `id_above=<last_result_id>` with `order_by=id&order=asc` — unlimited results
-- `get_observations(page='all')` internally invokes `IDRangePaginator` with `id_above` cursor — handles large sets automatically, no manual loop required
-
-**Rate limits (confirmed from `pyinaturalist/constants.py`):**
-- `REQUESTS_PER_SECOND = 1` (sustained)
-- `REQUEST_BURST_RATE = 5`
-- `REQUESTS_PER_DAY = 10000`
-- `REQUEST_RETRIES = 5` with exponential backoff for 500/502/503/504 errors
-- pyinaturalist session layer handles rate limiting automatically via `pyrate_limiter`
-
-**WA Bee Atlas project scale:** The project (ID 166376) has low thousands of observations (volunteer collector program across WA, active since ~2021). Well within 10k limit. Cursor pagination is safe default regardless.
-
-**Key observation fields in the API response:**
-
-| Field | Path (API v1 model) | Path (API v2 JSON) | Notes |
-|-------|--------------------|--------------------|-------|
-| Observation ID | `id` | `id` | Integer, stable identifier |
-| Observer username | `user.login` | `user.login` | Always present |
-| Observer display name | `user.name` | `user.name` | May be empty string |
-| Observed date | `observed_on` | `time_observed_at` | ISO date or ISO 8601 datetime |
-| Coordinates (public) | `location` → (lat, lon) tuple | `geojson.coordinates` → [lon, lat] | Note lon/lat order reversal between v1 and v2 |
-| Coordinates (private) | `private_location` | Not in v2 fields | Only available with authentication + permissions |
-| Observation field values | `ofvs` list | `ofvs` (must request in fields spec) | Not included in sample Makefile fieldspec |
-| iNat URL | `uri` | `uri` | e.g. `https://www.inaturalist.org/observations/300847934` |
-
-**Observation field values (`ofvs`) — structure (HIGH confidence, `pyinaturalist/models/observation_field.py`):**
-Each `ofvs` entry has:
-- `field_id` (int) — identifies which field definition
-- `name` (str) — human-readable field name (e.g., "Count", "Number of specimens")
-- `value` — typed by `datatype`; parsed to Python int/float/str/date by pyinaturalist
-- `datatype` — one of: dna, date, datetime, numeric, taxon, text, time
-
-**Critical: the specimen count field ID is unknown.** The WA Bee Atlas project may use a custom observation field. The field ID must be discovered by:
-1. Querying `GET /v1/projects/166376` and inspecting `project_observation_fields`
-2. Or fetching one project observation and scanning its `ofvs` for a numeric field with a name matching "specimen", "count", "collected"
-
-The existing Makefile fieldspec does NOT include `ofvs`. The pipeline script must add `ofvs` to its API request.
-
----
-
-## Table Stakes
-
-Features required for v1.2 to be complete. Missing = milestone not done.
-
-| Feature | Why Required | Complexity | Notes |
+| Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Fetch all project observations via API | Core requirement INAT-01 | LOW | `get_observations(project_id=166376, page='all')` handles pagination |
-| Cursor-based pagination | API hard 10k limit; safe default for any project size | LOW | pyinaturalist `IDRangePaginator` handles this when `page='all'` is passed |
-| Extract observer, date, lat, lon | Core requirement INAT-02 | LOW | Standard fields on every observation; no discovery needed |
-| Include `ofvs` in API request | Without this, specimen count is inaccessible | LOW | Must add `ofvs` to fieldspec or use v1 endpoint (which includes `ofvs` by default) |
-| Discover specimen count field_id | INAT-02 requires correct field; wrong ID = silent nulls | LOW | Query project once at pipeline start; hardcode field ID as constant |
-| Extract specimen count from ofvs | Core requirement INAT-02 | MEDIUM | ofvs may be absent; field may not be filled; must parse and handle nulls |
-| Null specimen_count handling | Many observations will have no count entered; must not silently coerce to 0 | LOW | Use nullable `Int64` in pandas; null remains null in Parquet |
-| Handle obscured/null coordinates | Some observations have geoprivacy; null lat/lon is valid | LOW | Nullable float64; rows retained (not dropped) unless pipeline explicitly decides otherwise |
-| Write samples.parquet | Core requirement INAT-03 | LOW | Same pandas + pyarrow pattern as existing `ecdysis.parquet`; engine='pyarrow', compression='snappy' |
-| Extend build-data.sh or Makefile | CI must produce samples.parquet alongside ecdysis.parquet | LOW | Copy output to `frontend/src/assets/samples.parquet`; same pattern as existing ecdysis copy |
-| Rate limiting (1 req/sec) | API terms of service | LOW | Handled automatically by pyinaturalist session; no manual sleep needed |
+| Sample dot layer renders on map | samples.parquet exists; map without it means the milestone has not shipped | LOW | Plain unclustered VectorLayer; each row is one dot at (lon, lat); no Cluster source needed |
+| Exclusive toggle: specimens vs sample dots | Two datasets; showing both simultaneously creates visual confusion and click ambiguity | LOW | `layer.setVisible(bool)` on each VectorLayer; exactly one active at a time |
+| Sample marker click opens sidebar detail | Every clickable marker in this app opens a panel; omitting it for sample dots would be inconsistent | LOW | Reuses existing singleclick handler; branches on `_activeLayer` state |
+| Sample sidebar: observer, date, specimen count | These are the three meaningful fields in samples.parquet beyond coordinates | LOW | `specimen_count` is nullable; null must render as "not recorded", not "0" |
+| Sample sidebar: link to iNat observation | iNat is the authoritative source for these events; link closes the loop for collectors | LOW | URL: `https://www.inaturalist.org/observations/<observation_id>` |
+| Specimen sidebar: iNat link when linkage exists | links.parquet is built and cached; not surfacing it wastes the v1.3 pipeline work | LOW | Lookup by occurrenceID at parquet load time; render link only when non-null |
 
----
+### Differentiators (Competitive Advantage)
 
-## Differentiators
-
-Features that add value but are not required by the three INAT requirements.
+Features specific to this milestone that provide extra value.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Cache raw API responses to disk | Enables re-runs without re-fetching; mirrors Makefile pattern of persisting individual JSONs | LOW | Write raw JSON pages to `data/inat/raw/` before parsing |
-| Observer display name fallback | `user.name` may be empty string; fall back to `user.login` | VERY LOW | One-liner in extraction; prevents empty "Collector:" labels |
-| Include `uri` in samples.parquet | Enables future deep-linking from sidebar without reconstruction | VERY LOW | Already in Makefile fieldspec; cheap to carry through |
-| OR project support (project_id=18521) | Generalize to Oregon Bee Atlas in same pipeline run | LOW | Already stubbed in `inat/projects.py`; trivially parameterized |
-| Progress reporting | Useful for debugging CI pipeline | LOW | Log observation count, page count, null rate in specimen_count |
-| Committed fallback parquet | If iNat API is down, CI build survives | LOW | Same mitigation as existing `ecdysis.parquet` committed fallback |
+| Toggle clears sidebar selection | Prevents stale data from the other layer appearing after a switch | LOW | On toggle: set selectedSamples = null (existing pattern); sidebar falls back to summary automatically |
+| Sample dot style visually distinct from specimen clusters | Users must immediately understand they are viewing a different dataset | LOW | Different color or shape; simple flat circle vs recency-gradient cluster is sufficient |
+| Filters show as inactive when sample layer is active | Specimen taxon/date filters have no meaning for sample dots; misleading UI must be avoided | MEDIUM | Conditionally render or disable filter controls when _activeLayer === 'samples'; sample dots have no taxon column |
 
----
+### Anti-Features (Commonly Requested, Often Problematic)
 
-## Anti-Features
-
-Features to explicitly NOT build in v1.2.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Sample markers map layer (MAP-03) | Explicitly deferred to v1.3 per PROJECT.md; requires specimen-to-sample linkage design first | Deliver samples.parquet only; map layer is v1.3 |
-| Click-to-detail sidebar (MAP-04) | Depends on MAP-03; deferred | Deliver samples.parquet only |
-| Specimen-to-sample linkage (Ecdysis HTML scraping) | Separate pipeline script (`fetch_inat_links.py`) exists; linkage modeling is v1.3 | Deferred per PROJECT.md |
-| iNat host plant observation layer | Different data type and display scope; explicitly out of scope in PROJECT.md | Not in this milestone |
-| Authentication / private coordinates | Read-only public project data; complicates CI; privacy concern | Use public coordinates only |
-| Real-time fetch from browser | Static hosting constraint is non-negotiable | Pipeline fetches; static Parquet serves |
-| Taxon filtering of sample markers | iNat observations are collection events, not identified specimens | Filter applies only to specimen layer (future) |
-| Clustering of sample markers | Sample count is low (hundreds); clustering adds complexity without benefit | Render individual markers (future, v1.3) |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Show specimens AND sample dots simultaneously | "More data = more useful" intuition | Click hit-test becomes ambiguous; user cannot know which layer was clicked; click handler must be forked per layer | Exclusive toggle is the correct design; both layers can exist in the OL layer list but only one is visible |
+| Cluster sample dots | Specimens are clustered because 45k points overlap at state zoom | sample event count is in the hundreds; over-clustering a sparse dataset hides individual events collectors want to pinpoint | Plain unclustered VectorLayer; density does not warrant clustering |
+| Filter sample dots by taxon | Specimen filtering already exists; parity feels expected | samples.parquet has no taxon column — taxon data is on specimens, not collection events | Disable or hide taxon filter when sample layer active; optionally show explanatory text |
+| Persist selected sample marker in URL (o= param) | URL sharing works for specimens; parity feels right | Sample events use iNat observation_id, not ecdysis occurrenceID; mixing schemas in a single param adds fragility | Defer URL-persisted sample selection to a future milestone; v1.4 omits it without breaking existing URL sharing |
+| Animate layer transition (crossfade) | Polished feel | No measurable user benefit for a field-use tool; OL does not provide built-in VectorLayer crossfade | Instant visibility swap is consistent with the rest of the app |
 
 ---
 
 ## Feature Dependencies
 
 ```
-INAT-01: Fetch all project observations
-  └── requires: project_id=166376 (confirmed in inat/projects.py)
-  └── requires: pyinaturalist installed (confirmed in pyproject.toml)
-  └── requires: pagination (handled by page='all' → IDRangePaginator)
-  └── produces: raw observation records
+[samples.parquet loaded by hyparquet]
+    └──enables──> [Sample dot layer renders on map]
+                      └──enables──> [Sample marker click → iNat event sidebar]
 
-INAT-02: Extract fields
-  └── requires: INAT-01 output
-  └── requires: specimen count field_id discovered (query project once at start)
-  └── requires: ofvs included in API response (fieldspec or v1 default)
-  └── produces: structured rows (observation_id, observer, date, lat, lon, specimen_count)
+[links.parquet loaded by hyparquet]
+    └──enables──> [Specimen sidebar: iNat link when linkage exists]
 
-INAT-03: Write samples.parquet
-  └── requires: INAT-02 output
-  └── requires: build-data.sh extended to copy parquet to frontend/src/assets/
-  └── produces: samples.parquet (feeds MAP-03/MAP-04 in v1.3+)
+[Exclusive toggle UI]
+    └──requires──> [Both layers present in OL map]
+    └──drives──>   [Sidebar clears on layer switch]
+    └──drives──>   [Filter controls hide/disable when sample layer active]
 
-MAP-03 (deferred v1.3+): Sample markers layer
-  └── requires: INAT-03 complete
-  └── requires: specimen-to-sample linkage design
-
-MAP-04 (deferred v1.3+): Click-to-detail sidebar
-  └── requires: MAP-03
+[Sample dot layer] ──conflicts with (simultaneous)──> [Specimen cluster layer]
 ```
 
 ### Dependency Notes
 
-- **INAT-02 requires specimen count field_id:** This is the single unknown in the pipeline. Must be resolved at pipeline startup by querying `GET /v1/projects/166376` or inspecting a sample observation's `ofvs`. Discovery result should be hardcoded as a constant (e.g., `SPECIMEN_COUNT_FIELD_ID = <id>`) for reproducibility.
-- **API v1 vs v2:** The existing Makefile uses API v2 with explicit `fields` spec. pyinaturalist's `get_observations()` uses API v1 and includes `ofvs` by default. Either works; v1 via pyinaturalist is simpler for the pipeline, consistent with how pyinaturalist is already used.
-- **GeoJSON coordinate order:** API v2 returns `geojson.coordinates` as [longitude, latitude]. API v1 (via pyinaturalist) returns `location` as `(latitude, longitude)` tuple. If using v2 directly, swap order when building the DataFrame row.
+- **Sample dot layer requires samples.parquet loaded:** The existing `ParquetSource` pattern handles
+  this. A second `ParquetSource` instance for `samplesDump` is the natural extension. Each row
+  becomes an OL Feature with geometry from (lon, lat) and properties `observation_id`, `observer`,
+  `date`, `specimen_count`.
+
+- **Specimen iNat link requires links.parquet:** Load at startup alongside `ecdysis.parquet`. Build
+  a `Map<string, number>` (occurrenceID → inat_observation_id). Look up each specimen's
+  `occurrenceID` when rendering the sidebar. The sidebar currently stores `s.occid` as the integer
+  Ecdysis DB id; links.parquet is keyed by UUID `occurrenceID`. The join must use `occurrenceID`
+  from `ecdysis.parquet` (added in v1.3). The simplest approach: resolve iNat links at load time
+  in the `specimenSource.once('change', ...)` callback and pass them as a pre-resolved lookup to
+  the sidebar.
+
+- **Sidebar must branch on data type:** `bee-sidebar.ts` currently accepts `samples: Sample[] | null`.
+  For iNat events, a distinct `InatEvent` interface is needed. The sidebar's render() already
+  branches on `samples !== null`; add a parallel branch for `inatEvent !== null`. Exactly one of
+  `samples`, `inatEvent` should be non-null at any time (or both null for the summary view).
+  This is the highest-complexity change in v1.4 — it touches both `bee-map.ts` (what to pass) and
+  `bee-sidebar.ts` (how to render it).
+
+- **Filter controls conflict with sample layer:** When `_activeLayer === 'samples'`, the taxon/date
+  filter controls are meaningless. Rendering them active is misleading. Recommended: conditionally
+  render filter controls only when specimen layer is active, or render them visibly disabled with
+  a brief explanation. This is a P2 improvement — the app works without it, but it reduces confusion.
 
 ---
 
-## Data Model: samples.parquet Schema
+## MVP Definition
 
-Designed to match the pattern of `ecdysis.parquet` but for iNat collection event data:
+### Launch With (v1.4)
 
-| Column | Parquet Type | Source | Notes |
-|--------|-------------|--------|-------|
-| `observation_id` | int64 | `id` | iNat integer ID; primary key |
-| `observer` | string | `user.name` or `user.login` | Prefer `name`; fallback to `login` if name is empty string |
-| `date` | string | `observed_on` | Store as `YYYY-MM-DD`; parse in frontend for display |
-| `latitude` | float64 | `location[0]` (v1) or `geojson.coordinates[1]` (v2) | WGS84; nullable |
-| `longitude` | float64 | `location[1]` (v1) or `geojson.coordinates[0]` (v2) | WGS84; nullable |
-| `specimen_count` | Int64 (nullable) | `ofvs` array, target `field_id` | Null = not entered; 0 = explicitly zero; parse string to int |
-| `uri` | string | `uri` | Full iNat URL for deep-linking; always present |
+Minimum viable product — all four defined requirements.
+
+- [ ] MAP-03: Sample dot layer visible on map (unclustered VectorLayer from samples.parquet)
+- [ ] MAP-04: Exclusive toggle switches between specimen clusters and sample dots; both layers
+      respond; sidebar clears on switch
+- [ ] MAP-05: Clicking a sample marker shows observer, date, specimen count (or "not recorded"),
+      and iNat observation link in sidebar
+- [ ] LINK-05: Specimen sidebar shows clickable iNat link when links.parquet maps the occurrenceID
+
+### Add After Validation (v1.x)
+
+- [ ] Filter controls adapt when layer is switched — hide or disable specimen-only filters when
+      sample layer is active; defer until user confusion is reported
+- [ ] Sample layer count in sidebar summary — "N collection events" when sample layer is active,
+      mirroring the specimen summary panel
+- [ ] URL encoding of selected sample marker — add `inat=<observation_id>` param when collectors
+      confirm they share sample links; deferred because o= encoding is ecdysis-specific
+
+### Future Consideration (v2+)
+
+- [ ] Combined view (specimens + sample dots) with z-index and click disambiguation — only
+      warranted if collectors explicitly request overlapping views
+- [ ] Sample dot size-encoded by specimen count — collector insight value; wait for feedback on
+      basic dot layer first
 
 ---
 
-## Pipeline Architecture
+## Feature Prioritization Matrix
 
-Based on existing `data/scripts/download.py` and pyinaturalist paginator source:
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Sample dot layer (MAP-03) | HIGH | LOW | P1 |
+| Exclusive toggle (MAP-04) | HIGH | LOW | P1 |
+| Sample sidebar with iNat link (MAP-05) | HIGH | MEDIUM | P1 |
+| Specimen iNat link via links.parquet (LINK-05) | MEDIUM | LOW | P1 |
+| Filter controls adapt per active layer | MEDIUM | LOW | P2 |
+| Sidebar summary shows sample event count | LOW | LOW | P2 |
+| URL state for selected sample marker | LOW | MEDIUM | P3 |
+| Combined specimen + sample view | LOW | HIGH | P3 |
 
-**Recommended: `data/inat/fetch_samples.py`** following the same pattern as `data/scripts/download.py`:
+**Priority key:**
+- P1: Must have for v1.4 launch
+- P2: Should have, add in v1.4 if time permits
+- P3: Nice to have, future milestone
+
+---
+
+## Implementation Notes
+
+### Exclusive Toggle Pattern (MAP-04)
+
+OpenLayers `layer.setVisible(bool)` is the mechanism. The correct implementation:
 
 ```
-1. Discover specimen count field_id:
-   - Query GET /v1/projects/166376
-   - Find field with name matching "specimen" or "count"
-   - Hardcode result as SPECIMEN_COUNT_FIELD_ID constant
-
-2. Fetch observations:
-   - get_observations(project_id=166376, page='all', per_page=200)
-   - Returns all results via IDRangePaginator (id_above cursor)
-
-3. Extract rows:
-   - For each observation: observation_id, observer, date, lat, lon
-   - For each observation: scan ofvs for field_id == SPECIMEN_COUNT_FIELD_ID → specimen_count
-   - Build list of dicts
-
-4. Write Parquet:
-   - pd.DataFrame(rows).to_parquet('samples.parquet', compression='snappy', engine='pyarrow')
-
-5. CI integration:
-   - Extend build-data.sh to call fetch_samples.py and copy output to frontend/src/assets/
+toggleToSamples():   specimenLayer.setVisible(false); sampleLayer.setVisible(true); clearSelection();
+toggleToSpecimens(): sampleLayer.setVisible(false); specimenLayer.setVisible(true); clearSelection();
 ```
 
-**CI concern:** Same as Ecdysis — live HTTP call to iNat API on every push. If iNat API is down, CI fails. Mitigate: commit `frontend/src/assets/samples.parquet` as fallback, same pattern as existing `ecdysis.parquet` committed fallback.
+A `@state() private _activeLayer: 'specimens' | 'samples'` field on `BeeMap` drives both the
+toggle button label and the singleclick handler branch. No third-party layer switcher library is
+needed — a simple two-button or `<input type="radio">` group is sufficient and consistent with the
+app's minimal UI.
+
+The singleclick handler in `bee-map.ts` checks `specimenLayer.getFeatures(event.pixel)`. With
+two exclusive layers, the branch is: if `_activeLayer === 'specimens'`, handle as cluster hit; if
+`_activeLayer === 'samples'`, check `sampleLayer.getFeatures(event.pixel)` and handle as iNat
+event hit.
+
+### Sidebar Data Shape (MAP-05)
+
+`bee-sidebar.ts` should accept a new property `inatEvent: InatEvent | null` alongside the existing
+`samples: Sample[] | null`:
+
+```typescript
+interface InatEvent {
+  observationId: number;
+  observer: string;
+  date: string;           // ISO date string from parquet
+  specimenCount: number | null;
+}
+```
+
+The sidebar render() already branches on `samples !== null`. Add: else if `inatEvent !== null`,
+render the iNat event detail panel. Both properties being null shows the summary view.
+
+### Specimen iNat Link (LINK-05)
+
+Load `links.parquet` at startup. Build a `Map<string, number>` keyed by integer Ecdysis DB id
+(matching `s.occid` in the existing `Specimen` interface) for O(1) lookup per specimen in the
+detail render. The join key mapping from UUID `occurrenceID` to integer `occid` must be done at
+load time using the `occurrenceID` column in `ecdysis.parquet`.
 
 ---
 
-## Complexity Assessment
+## Layer Switching: Standard Map App Patterns
 
-| Feature | Complexity | Rationale |
-|---------|------------|-----------|
-| INAT-01: Fetch observations | LOW | pyinaturalist `get_observations(project_id=..., page='all')` is two lines |
-| Specimen count field discovery | LOW | One API call to `/v1/projects/166376`; scan result for field name |
-| INAT-02: Field extraction | LOW-MEDIUM | Standard fields are trivial; ofvs parsing with null handling adds one edge case |
-| INAT-03: Write samples.parquet | LOW | Identical to existing ecdysis.parquet pipeline pattern |
-| build-data.sh extension | LOW | Add one `python` call and one `cp` to existing shell script |
+**How map apps handle exclusive layer switching (verified from OpenLayers docs and map UX
+literature, MEDIUM confidence):**
 
-**Total estimate: 1–2 days of focused work.**
+1. **Visibility toggle via `setVisible()`** — the standard OL approach. No layer removal/addition
+   needed. Layer objects persist; only visibility changes. This is what ol-layerswitcher uses for
+   base layer radio buttons (type: 'base' layers get radio button behavior).
 
----
+2. **Radio button or segmented button in UI** — the conventional UX pattern for mutually exclusive
+   data layers. A checkbox implies independent toggling; a radio or segmented control communicates
+   exclusivity. Google Maps, iNaturalist explore, and eBird all use radio/segmented buttons for
+   exclusive base or data layer switches.
 
-## Confidence Assessment
+3. **Sidebar content clears on layer switch** — the dominant pattern in map apps with context
+   panels (iNaturalist, eBird, AllTrails). The sidebar shows context for whatever is selected on
+   the active layer; switching layers resets the selection to prevent stale context. This aligns
+   with the existing `selectedSamples = null` pattern when filters are applied.
 
-| Area | Confidence | Notes |
-|------|------------|-------|
-| iNat API structure | HIGH | Live observation JSON in repo confirms field paths |
-| pyinaturalist pagination | HIGH | `IDRangePaginator`, `page='all'` confirmed in paginator.py source |
-| Rate limits | HIGH | Constants confirmed in pyinaturalist/constants.py source |
-| Specimen count field ID | LOW | Field name/ID for WA Bee Atlas project not confirmed; must be discovered at runtime |
-| WA project type | LOW | Not confirmed whether collection or traditional project; affects specimen count field reliability |
-| ofvs included by default | MEDIUM | pyinaturalist v1 endpoint includes ofvs; Makefile v2 fieldspec does not include it — must add if using v2 |
+**Dot vs cluster for different densities:**
+
+At state-level zoom with 45k specimen points, clustering is necessary to prevent visual noise and
+click target collisions. At the same zoom with a few hundred iNat collection events, individual
+dots are readable and preferred — clustering would collapse distinct field events into a single
+unclickable blob, destroying the primary value of the layer (locating individual collection events).
+
+The decision boundary is roughly: cluster when points overlap meaningfully at the user's working
+zoom level. For the WA Bee Atlas specimen layer (45k points, statewide), clustering is essential.
+For the sample layer (hundreds of events), it is not.
 
 ---
 
 ## Sources
 
-- `data/inat/projects.py` — WA project ID 166376 confirmed (HIGH)
-- `data/inat/observation/300847934.json` — live iNat API v2 response structure (HIGH)
-- `data/Makefile` — existing v2 fieldspec and fetch pattern (HIGH)
-- `data/pyproject.toml` — pyinaturalist>=0.20.2 confirmed installed (HIGH)
-- `data/.venv/.../pyinaturalist/paginator.py` — IDRangePaginator, page='all', exhaustion logic (HIGH)
-- `data/.venv/.../pyinaturalist/constants.py` — PER_PAGE_RESULTS=200, rate limits confirmed (HIGH)
-- `data/.venv/.../pyinaturalist/models/observation_field.py` — ofvs schema: field_id, name, value, datatype (HIGH)
-- `data/.venv/.../pyinaturalist/v1/observations.py` — get_observations implementation (HIGH)
-- [iNaturalist API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — id_above pagination, 10k limit (MEDIUM)
-- [pyinaturalist documentation](https://pyinaturalist.readthedocs.io/) — paginator, IDRangePaginator (MEDIUM)
+- OpenLayers API `layer.setVisible()`: [OpenLayers Layer API](https://openlayers.org/en/latest/apidoc/module-ol_layer_Layer-Layer.html) — HIGH confidence
+- ol-layerswitcher base layer radio pattern: [GitHub walkermatt/ol-layerswitcher](https://github.com/walkermatt/ol-layerswitcher) — MEDIUM confidence
+- Map UI clustering patterns: [Cluster marker — Map UI Patterns](https://mapuipatterns.com/cluster-marker/), [Marker — Map UI Patterns](https://mapuipatterns.com/marker/) — MEDIUM confidence
+- Map UI layer/sidebar patterns: [Map UI Design — Eleken](https://www.eleken.co/blog-posts/map-ui-design), [Map UI — UXPin](https://www.uxpin.com/studio/blog/map-ui/), [Map UI Patterns](https://mapuipatterns.com/patterns/) — MEDIUM confidence
+- Existing codebase (`bee-map.ts`, `bee-sidebar.ts`, `PROJECT.md`) — HIGH confidence (direct inspection)
 
 ---
-*Feature research for: iNaturalist API pipeline — WA Bee Atlas v1.2*
-*Researched: 2026-03-10*
+*Feature research for: Washington Bee Atlas v1.4 Sample Layer*
+*Researched: 2026-03-12*
