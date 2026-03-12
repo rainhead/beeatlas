@@ -48,7 +48,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 **Milestone Goal:** Produce links.parquet mapping Ecdysis occurrenceIDs to iNaturalist observation IDs, with permanent per-record caching, S3-backed persistence, and full build pipeline integration.
 
 - [x] **Phase 11: Links Pipeline** — Fetch Ecdysis specimen pages, extract iNat observation IDs, produce links.parquet with two-level cache skipping (completed 2026-03-12)
-- [ ] **Phase 12: S3 Cache and Build Integration** — S3 restore/upload for links.parquet and HTML cache, npm scripts, build-data.sh wiring
+- [x] **Phase 12: S3 Cache and Build Integration** — S3 restore/upload for links.parquet and HTML cache, npm scripts, build-data.sh wiring (completed 2026-03-12)
 
 ## Phase Details
 
@@ -98,4 +98,4 @@ Plans:
 | 9. Pipeline Implementation | v1.2 | 2/2 | Complete | 2026-03-10 |
 | 10. Build Integration and Verification | v1.2 | 1/1 | Complete | 2026-03-11 |
 | 11. Links Pipeline | v1.3 | 2/2 | Complete | 2026-03-12 |
-| 12. S3 Cache and Build Integration | 1/2 | In Progress|  | - |
+| 12. S3 Cache and Build Integration | 2/2 | Complete   | 2026-03-12 | - |

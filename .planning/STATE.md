@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Specimen-Sample Linkage
 status: planning
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-12T02:57:30.555Z"
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-03-12T03:01:03.997Z"
 last_activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 11 P01 | 8 | 2 tasks | 3 files |
 | Phase 11 P02 | 3min | 3 tasks | 3 files |
 | Phase 12 P01 | 3min | 2 tasks | 2 files |
+| Phase 12-s3-cache-and-build-integration P02 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 11]: Write output parquet once at end after full loop to prevent partial data loss on error
 - [Phase 12]: Cache scripts use aws s3 sync with --exclude '*' --include '*.html' to filter only HTML files for ecdysis_cache
 - [Phase 12]: Restore uses graceful miss for both links.parquet and ecdysis_cache; upload fails fast if links.parquet missing
+- [Phase 12-s3-cache-and-build-integration]: build-data.sh links pipeline block requires cd to REPO_ROOT before npm commands since script runs from data/ directory
 
 ### Pending Todos
 
@@ -82,6 +84,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-12T02:57:30.547Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-03-12T03:01:03.988Z
+Stopped at: Completed 12-02-PLAN.md
 Resume file: None
