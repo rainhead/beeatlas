@@ -54,15 +54,19 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 
 ### Phase 11: Links Pipeline
 **Goal**: The pipeline can fetch Ecdysis specimen pages and produce a complete links.parquet mapping every occurrenceID to its iNat observation ID (or null)
-**Depends on**: Phase 10 (ecdysis_wa.parquet exists as input)
+**Depends on**: Phase 10 (ecdysis.parquet exists as input)
 **Requirements**: LINK-01, LINK-02, LINK-03, LINK-04
 **Success Criteria** (what must be TRUE):
-  1. Running the fetch script reads all occurrenceIDs from ecdysis_wa.parquet and fetches each Ecdysis HTML page at no more than 20 req/sec
+  1. Running the fetch script reads all occurrenceIDs from ecdysis.parquet and fetches each Ecdysis HTML page at no more than 20 req/sec
   2. occurrenceIDs already in links.parquet are skipped without any HTTP request (first-level skip)
   3. occurrenceIDs with HTML already cached on disk are parsed without re-fetching (second-level skip)
   4. links.parquet contains exactly two columns — occurrenceID (string) and inat_observation_id (Int64, nullable) — covering all occurrenceIDs
   5. inat_observation_id is extracted from `#association-div a[target="_blank"]` href when present; null when absent
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Add occurrenceID to ecdysis.parquet, create data/links/ module skeleton and failing test stubs
+- [ ] 11-02-PLAN.md — Implement links/fetch.py pipeline (two-level skip, rate limit, BeautifulSoup extraction, parquet output)
 
 ### Phase 12: S3 Cache and Build Integration
 **Goal**: The links pipeline is wired into S3 caching and the build-data.sh pipeline, so CI runs are incremental and the build always produces a fresh links.parquet
@@ -89,5 +93,5 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full phase details.
 | 8. Discovery and Prerequisite Gate | v1.2 | 2/2 | Complete | 2026-03-10 |
 | 9. Pipeline Implementation | v1.2 | 2/2 | Complete | 2026-03-10 |
 | 10. Build Integration and Verification | v1.2 | 1/1 | Complete | 2026-03-11 |
-| 11. Links Pipeline | v1.3 | 0/? | Not started | - |
+| 11. Links Pipeline | v1.3 | 0/2 | Not started | - |
 | 12. S3 Cache and Build Integration | v1.3 | 0/? | Not started | - |
