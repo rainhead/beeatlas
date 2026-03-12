@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Specimen-Sample Linkage
-status: defining_requirements
-stopped_at: Milestone v1.3 started — defining requirements
+status: ready_to_plan
+stopped_at: Roadmap created — Phase 11 ready to plan
 last_updated: "2026-03-11"
-last_activity: "2026-03-11 - Milestone v1.3 started"
+last_activity: "2026-03-11 - v1.3 roadmap created (Phases 11–12)"
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,26 +21,40 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-11)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Defining requirements for v1.3 (Specimen-Sample Linkage)
+**Current focus:** Phase 11 — Links Pipeline (v1.3 Specimen-Sample Linkage)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 11 of 12 (Links Pipeline)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-11 — Milestone v1.3 started
+Status: Ready to plan
+Last activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0 (this milestone)
+- Average duration: —
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
 ### Decisions
 
-- **v1.2 scope**: Pipeline only — MAP-03, MAP-04, and specimen-sample linkage deferred to v1.3+
-- **Parquet stub must land in main first**: `frontend/src/assets/samples.parquet` (zero rows, correct schema) committed before Phase 9 feature branch to prevent CI breakage
-- **Do not use `pyinaturalist-convert.to_dataframe()`**: Returns `ofvs.{field_id}` column names and `location` as list — unsuitable for samples schema; parse raw dicts directly
-- **Use iNat API v1 (pyinaturalist default), not v2**: v2 has project observation count discrepancies; coordinate order also differs
-- **Match iNat ofvs by field_id=8338, not name string**: Field renamed circa 2024; name matching drops ~40% of historical data
 - **v1.3 scope**: Pipeline only — links.parquet (occurrenceID → inat_observation_id); frontend display deferred to v1.4+
 - **v1.3 cache model**: Permanent per-record cache — once an occurrenceID→iNat link is fetched, it is never re-fetched
+- **HTML scraping only method**: Symbiota (Ecdysis) has no associations API; confirmed `#association-div a[target="_blank"]` as selector
+- **Two-level skip**: First skip on links.parquet presence (already linked); second skip on local HTML cache (parse without fetching)
 
 ### Pending Todos
 
@@ -55,3 +69,9 @@ None.
 ### Blockers/Concerns
 
 None currently.
+
+## Session Continuity
+
+Last session: 2026-03-11
+Stopped at: Roadmap created — ready to plan Phase 11 (Links Pipeline)
+Resume file: None

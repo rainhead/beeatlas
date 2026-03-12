@@ -47,20 +47,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LINK-01 | — | Pending |
-| LINK-02 | — | Pending |
-| LINK-03 | — | Pending |
-| LINK-04 | — | Pending |
-| LCACHE-01 | — | Pending |
-| LCACHE-02 | — | Pending |
-| LCACHE-03 | — | Pending |
-| PIPE-04 | — | Pending |
+| LINK-01 | Phase 11 | Pending |
+| LINK-02 | Phase 11 | Pending |
+| LINK-03 | Phase 11 | Pending |
+| LINK-04 | Phase 11 | Pending |
+| LCACHE-01 | Phase 12 | Pending |
+| LCACHE-02 | Phase 12 | Pending |
+| LCACHE-03 | Phase 12 | Pending |
+| PIPE-04 | Phase 12 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 8 total
-- Mapped to phases: 0
-- Unmapped: 8 ⚠️
+- Mapped to phases: 8
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-11*
-*Last updated: 2026-03-11 after initial definition*
+*Last updated: 2026-03-11 after roadmap creation (v1.3 Phase 11–12)*
