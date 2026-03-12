@@ -34,9 +34,20 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ INFRA-04: OIDC IAM role grants s3:GetObject and s3:PutObject on the S3 cache prefix; CI workflow provides AWS credentials to the pipeline step — v1.2
 - ✓ INFRA-05: Cache restore, iNat fetch, and cache upload operations are exposed as top-level package.json scripts — v1.2
 
+## Current Milestone: v1.3 Specimen-Sample Linkage
+
+**Goal:** Produce a join table (links.parquet) mapping Ecdysis occurrenceIDs to iNaturalist observation IDs, fetched from Ecdysis HTML pages with permanent per-record caching and S3-backed persistence.
+
+**Target features:**
+- Fetch Ecdysis specimen pages per occurrenceID to extract iNat observation links
+- Permanent cache: only fetch new occurrenceIDs on subsequent runs
+- S3 cache storage and restore (mirrors iNat pipeline pattern)
+- Rate limiting for Ecdysis requests
+- links.parquet integrated into build-data.sh pipeline
+
 ### Active
 
-(None — planning next milestone)
+(See REQUIREMENTS.md for v1.3 requirements)
 
 ### Out of Scope
 
@@ -108,4 +119,4 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Mirror cache-restore/build/cache-upload in both CI jobs | Keeps deploy job consistent with build job; both produce fresh samples.parquet | ✓ Good — credential ordering bug fixed in deploy job (credentials must precede build) |
 
 ---
-*Last updated: 2026-03-11 after v1.2 milestone (iNat Pipeline — pipeline complete, samples.parquet in CI)*
+*Last updated: 2026-03-11 after v1.3 milestone started (Specimen-Sample Linkage — Ecdysis→iNat join table pipeline)*
