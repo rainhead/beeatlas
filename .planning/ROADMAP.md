@@ -77,7 +77,11 @@ Plans:
   2. After a successful fetch run, links.parquet is uploaded to S3 and the HTML cache is synced to S3 (only new files uploaded)
   3. `npm run cache-restore-links`, `npm run fetch-links`, and `npm run cache-upload-links` each execute the correct underlying script
   4. build-data.sh executes cache-restore-links → fetch-links → cache-upload-links in sequence as part of the standard build
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Create cache_restore_links.sh and cache_upload_links.sh S3 scripts
+- [ ] 12-02-PLAN.md — Add npm scripts (cache-restore-links, cache-upload-links) and wire build-data.sh
 
 ## Progress
 
@@ -93,5 +97,5 @@ Plans:
 | 8. Discovery and Prerequisite Gate | v1.2 | 2/2 | Complete | 2026-03-10 |
 | 9. Pipeline Implementation | v1.2 | 2/2 | Complete | 2026-03-10 |
 | 10. Build Integration and Verification | v1.2 | 1/1 | Complete | 2026-03-11 |
-| 11. Links Pipeline | 2/2 | Complete    | 2026-03-12 | - |
-| 12. S3 Cache and Build Integration | v1.3 | 0/? | Not started | - |
+| 11. Links Pipeline | v1.3 | 2/2 | Complete | 2026-03-12 |
+| 12. S3 Cache and Build Integration | v1.3 | 0/2 | Not started | - |
