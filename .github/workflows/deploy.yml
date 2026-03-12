@@ -38,6 +38,12 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Refresh AWS credentials before upload
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
+          aws-region: us-west-2
+
       - name: Upload S3 cache
         run: npm run cache-upload
 
@@ -76,6 +82,12 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Refresh AWS credentials before upload
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
+          aws-region: us-west-2
 
       - name: Upload S3 cache
         run: npm run cache-upload
