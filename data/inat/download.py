@@ -159,9 +159,14 @@ def main() -> None:
     print(f"[inat] Fetched {n_obs} observations (~{n_pages} pages)")
 
     # Write raw NDJSON cache before any filtering
+    def _json_default(obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+
     with NDJSON_PATH.open("w") as f:
         for obs in results:
-            f.write(json.dumps(obs) + "\n")
+            f.write(json.dumps(obs, default=_json_default) + "\n")
 
     now = datetime.now(timezone.utc).isoformat()
     delta = build_dataframe(results, downloaded_at=now)
