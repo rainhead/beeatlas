@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Specimen-Sample Linkage
 status: planning
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-03-12T02:42:07.623Z"
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-03-12T02:46:45.940Z"
 last_activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -47,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 11 P01 | 8 | 2 tasks | 3 files |
+| Phase 11 P02 | 3min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,9 @@ Progress: [░░░░░░░░░░] 0%
 - **Two-level skip**: First skip on links.parquet presence (already linked); second skip on local HTML cache (parse without fetching)
 - [Phase 11]: occurrenceID kept as-is (not renamed) in ecdysis.parquet to match iNaturalist join key semantics
 - [Phase 11]: pytest.fail() pattern for TDD stubs gives clear failure message vs bare ImportError
+- [Phase 11]: Initialize last_fetch_time = time.monotonic() so first HTTP request also sleeps to respect 20 req/sec rate limit
+- [Phase 11]: Use integer ecdysis_id as HTML cache filename (e.g. 5594056.html), not UUID occurrenceID
+- [Phase 11]: Write output parquet once at end after full loop to prevent partial data loss on error
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-12T02:42:07.621Z
-Stopped at: Completed 11-01-PLAN.md
+Last session: 2026-03-12T02:46:45.937Z
+Stopped at: Completed 11-02-PLAN.md
 Resume file: None
