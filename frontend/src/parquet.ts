@@ -25,7 +25,8 @@ export class ParquetSource extends VectorSource {
       asyncBufferFromUrl({url})
         .then(buffer => parquetReadObjects({columns, file: buffer}))
         .then(objects => {
-          const features = objects.map(obj => {
+          const features = objects.flatMap(obj => {
+            if (obj.longitude == null || obj.latitude == null) return [];
             const feature = new Feature();
             feature.setGeometry(new Point(fromLonLat([obj.longitude, obj.latitude])))
             feature.setId(`ecdysis:${obj.ecdysis_id}`);
