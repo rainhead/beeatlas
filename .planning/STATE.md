@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Specimen-Sample Linkage
-status: ready_to_plan
-stopped_at: Roadmap created — Phase 11 ready to plan
-last_updated: "2026-03-11"
-last_activity: "2026-03-11 - v1.3 roadmap created (Phases 11–12)"
+status: planning
+stopped_at: Completed 11-01-PLAN.md
+last_updated: "2026-03-12T02:42:07.623Z"
+last_activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -46,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 11 P01 | 8 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -55,6 +56,8 @@ Progress: [░░░░░░░░░░] 0%
 - **v1.3 cache model**: Permanent per-record cache — once an occurrenceID→iNat link is fetched, it is never re-fetched
 - **HTML scraping only method**: Symbiota (Ecdysis) has no associations API; confirmed `#association-div a[target="_blank"]` as selector
 - **Two-level skip**: First skip on links.parquet presence (already linked); second skip on local HTML cache (parse without fetching)
+- [Phase 11]: occurrenceID kept as-is (not renamed) in ecdysis.parquet to match iNaturalist join key semantics
+- [Phase 11]: pytest.fail() pattern for TDD stubs gives clear failure message vs bare ImportError
 
 ### Pending Todos
 
@@ -72,6 +75,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-11
-Stopped at: Roadmap created — ready to plan Phase 11 (Links Pipeline)
+Last session: 2026-03-12T02:42:07.621Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
