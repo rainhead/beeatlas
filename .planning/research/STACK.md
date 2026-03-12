@@ -1,218 +1,249 @@
 # Stack Research
 
-**Domain:** Python pipeline — iNaturalist API to Parquet
-**Researched:** 2026-03-10
-**Confidence:** HIGH
-
-**Scope:** Stack additions and changes needed to query the iNaturalist API from the existing Python pipeline and produce `samples.parquet`. The baseline stack (TypeScript/Vite/OpenLayers, Python 3.14+, uv, pandas, geopandas, pyarrow, duckdb, AWS CDK/OIDC) is already validated and is NOT re-documented here.
+**Domain:** v1.4 Sample Layer — frontend additions to existing OpenLayers + Lit + hyparquet static app
+**Researched:** 2026-03-12
+**Confidence:** HIGH — all claims verified against actual source files in this repo
 
 ---
 
-## Key Finding: No New Dependencies Needed
+## Key Finding: Zero New npm Dependencies
 
-Both `pyinaturalist>=0.20.2` and `pyinaturalist-convert>=0.7.4` are already declared in `data/pyproject.toml` and locked in `data/uv.lock` at current stable versions (0.21.1 and 0.7.4 respectively). The iNaturalist public observations API requires no authentication for read-only access. The Washington Bee Atlas iNat project ID (`166376`) is already recorded in `data/inat/projects.py`. **No new packages need to be added to `pyproject.toml`.**
+All four v1.4 features are achievable with the current installed packages:
+- `ol` 10.7.0 — `VectorLayer`, `VectorSource`, `layer.setVisible()`, `layer.getFeatures()`
+- `hyparquet` 1.23.3 — `asyncBufferFromUrl` + `parquetReadObjects` (already reads two Parquet files)
+- `lit` 3.2.1 — `@property`, `@state`, multi-mode `render()` pattern already established
+
+The work is purely additive TypeScript inside `frontend/src/`.
 
 ---
 
 ## Recommended Stack
 
-### Core Technologies
+### Core Technologies (unchanged — context for integration)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `pyinaturalist` | 0.21.1 (locked) | iNat API client — `get_observations()` with project filtering, built-in rate limiting, `page='all'` cursor pagination | Standard Python client for iNat API; handles pagination complexity, rate limiting, and response parsing automatically |
-| `pandas` | >=3.0.0 | DataFrame construction and Parquet writing | Already used in existing pipeline; consistent with ecdysis.parquet production |
-| `pyarrow` | >=22.0.0 | Parquet engine | Already used in existing pipeline; required by `df.to_parquet(engine='pyarrow')` |
+| Technology | Version | Purpose | v1.4 Role |
+|------------|---------|---------|-----------|
+| `ol` | 10.7.0 installed | Map rendering | `VectorLayer` (plain, no Cluster) for sample dots; `layer.setVisible()` for exclusive toggle |
+| `lit` | 3.2.1 installed | Web components | `BeeMap` hosts toggle state; `BeeSidebar` gets new `InatSample` render branch and `linksMap` property |
+| `hyparquet` | 1.23.3 installed | Client-side Parquet reads | Loads `samples.parquet` and `links.parquet` using same `asyncBufferFromUrl` + `parquetReadObjects` pattern |
+| TypeScript | 5.8.x | Type safety | `BigInt` coercion required for Int64 fields from hyparquet (see notes below) |
 
-### Supporting Libraries
+### OL Classes Used by New Features
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `pyinaturalist-convert` | 0.7.4 (locked) | Converts observation API responses to pandas DataFrames | Optional — `to_dataframe()` does not produce useful columns for this pipeline (see note below); skip it and parse raw dicts directly |
-
-**Note on `pyinaturalist-convert`:** `to_dataframe()` uses `semitabular=True` flattening. This produces a `location` column as a Python list (not split into `latitude`/`longitude`), and `ofvs` columns keyed by field_id integer string (e.g. `ofvs.12345`) rather than field name. For the simple schema needed by `samples.parquet`, parsing raw API result dicts directly is cleaner and more reliable. The library is already installed but is not needed for this pipeline. (HIGH confidence — verified against installed source at `data/.venv/lib/python3.14/site-packages/pyinaturalist_convert/converters.py`.)
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| `uv` | Dependency management and script runner | Already in use; run pipeline with `uv run python inat/fetch_observations.py` |
+| OL Class | Import Path | Feature | Notes |
+|----------|-------------|---------|-------|
+| `VectorLayer` | `ol/layer/Vector.js` | Sample dot layer | Already imported in `bee-map.ts`; no Cluster wrapper needed |
+| `Vector` (VectorSource) | `ol/source/Vector.js` | Backing source for `SampleParquetSource` | Already used as `ParquetSource` base class |
+| `Style`, `Circle`, `Fill`, `Stroke` | `ol/style/` | Sample dot appearance | Already imported in `style.ts`; add a `sampleDotStyle` export |
 
 ---
 
-## Installation
+## Feature-by-Feature Integration
 
-No new packages. All required libraries are already declared in `data/pyproject.toml` and locked in `data/uv.lock`. `uv sync` will resolve them.
+### 1. Unclustered Sample VectorLayer
 
----
+**What:** A second `VectorLayer` backed by a new `SampleParquetSource` reading `samples.parquet`.
+No `Cluster` source — each iNat observation renders as a single dot.
 
-## iNaturalist API Facts
+**samples.parquet schema** (from `data/inat/download.py` DTYPE_MAP):
 
-### Authentication
+| Column | Type | hyparquet JS type | Use |
+|--------|------|------------------|-----|
+| `observation_id` | int64 | `number` | Feature ID: `inat:${observation_id}` |
+| `observer` | string | `string` | Sidebar display |
+| `date` | string "YYYY-MM-DD" | `string` | Parse for display |
+| `lat` | float64 | `number` | Coordinate |
+| `lon` | float64 | `number` | Coordinate |
+| `specimen_count` | Int64 nullable | `bigint \| null` | Coerce: `obj.specimen_count != null ? Number(obj.specimen_count) : null` |
+| `downloaded_at` | string | `string` | Not needed — omit from `columns` list |
 
-No auth token required. (HIGH confidence — confirmed in iNat API reference and pyinaturalist docs.) Read-only access to public project observations is unauthenticated. Authentication is only required for write operations or accessing private/obscured coordinates.
+**Implementation pattern:** Add `SampleParquetSource` as a second export in `frontend/src/parquet.ts`.
+Do not make `ParquetSource` generic — the column lists are stable and small; a concrete subclass
+is simpler and keeps the loader function readable.
 
-### Which API Version to Use
+```typescript
+// parquet.ts addition — new concrete class
+const sampleColumns = ['observation_id', 'lat', 'lon', 'observer', 'date', 'specimen_count'];
 
-The existing `data/Makefile` uses the iNat **v2 API** directly via `wget` for individual observation fetches. The v2 API is still in development and has a documented discrepancy with v1 for project observation counts — v2 may return fewer observations than v1 for a given project. (MEDIUM confidence — iNat community forum report.)
-
-For the batch project query in the pipeline, use **pyinaturalist's v1 wrapper** (`get_observations(project_id=...)`). The v1 API is stable, fully supported by pyinaturalist, and does not have the project count discrepancy.
-
-### Rate Limits
-
-| Limit | Value | Confidence |
-|-------|-------|------------|
-| Hard cap | 100 requests/minute | HIGH (iNat official docs) |
-| Recommended max | 60 requests/minute | HIGH (iNat API Recommended Practices) |
-| Daily guideline | 10,000 requests/day | HIGH (iNat API Recommended Practices) |
-| Real-world behavior | 429 errors reported at 60 req/min on some endpoints | MEDIUM (community forum bug reports) |
-
-pyinaturalist's built-in rate limiter (via `pyrate-limiter` 2.10.0, already locked) enforces compliance automatically — no manual `time.sleep()` needed.
-
-**Practical impact for this project:** At `per_page=200`, fetching 5,000–15,000 WA Bee Atlas observations requires 25–75 API requests — well inside daily and per-minute limits. Rate limiting is not a practical concern.
-
-### Pagination
-
-The iNat v1 API has a hard cap: standard page-based pagination breaks above 10,000 results (page 50 × per_page 200). For larger datasets, use cursor pagination with `id_above`.
-
-pyinaturalist handles this automatically when `page='all'` is passed. It routes to `IDRangePaginator`, which:
-1. Fetches pages ordered by ID ascending
-2. Records the last ID returned
-3. Next request uses `id_above=<last_id>` instead of incrementing page number
-4. Stops when a page returns fewer results than `per_page`
-
-Use `page='all'` from the start even if current volume is under 10,000 — it is safe for all sizes and future-proofs the script.
-
-### Washington Bee Atlas Project
-
-| Field | Value | Confidence |
-|-------|-------|------------|
-| Project ID | `166376` | HIGH (confirmed in `data/inat/projects.py`) |
-| Project type | Collection project | MEDIUM |
-| 2024 volume | 17,000+ specimens, 67 volunteers | HIGH (WSDA press release) |
-
----
-
-## Observation Fields: Specimen Count
-
-### Structure of `ofvs` in Raw API Response
-
-iNaturalist observation field values are in an `ofvs` JSON array on each raw API result dict. Each element has `field_id` (int), `name` (str), and `value` (str). They are optional — volunteers can omit them.
-
-Example structure in raw API response:
-```json
-"ofvs": [
-  {
-    "field_id": 12345,
-    "name": "Specimen Count",
-    "value": "3"
-  }
-]
-```
-
-### Why Not to Use `to_dataframe()` for ofvs
-
-`pyinaturalist-convert`'s `to_dataframe()` converts `ofvs` to a dict keyed by `str(field_id)` before flattening, producing columns named `ofvs.12345`. Accessing these requires knowing the numeric field ID in advance and produces fragile column name lookups. Parse `ofvs` from raw result dicts directly using the field name string instead.
-
-### Specimen Count Field: Needs Live Verification
-
-The specific observation field name used by the Washington Bee Atlas for specimen count **could not be confirmed by web search**. (LOW confidence for the exact field name.) The name is likely `"Specimen Count"` (common across collection projects), but must be verified against live data before use.
-
-**Required action before writing the pipeline script:** Call the iNat API for 5–10 live WA Bee Atlas observations and print all `ofvs` entries:
-
-```bash
-curl "https://api.inaturalist.org/v1/observations?project_id=166376&per_page=5&order_by=id&order=desc" \
-  | python3 -c "import json,sys; [print(o['id'], o.get('ofvs',[])) for o in json.load(sys.stdin)['results']]"
-```
-
-### Fallback: Missing = Zero
-
-Per PROJECT.md INAT-02: specimen_count of 0 means "not yet entered". If `ofvs` does not contain the specimen count field for an observation, write `0`. Use nullable `Int64` dtype and `.fillna(0)`.
-
----
-
-## Recommended Implementation Pattern
-
-Parse the raw results from `get_observations()` directly — do not use `to_dataframe()`, which produces unusable column names for this pipeline's needs.
-
-```python
-from pyinaturalist import get_observations
-import pandas as pd
-
-WA_BEE_ATLAS_PROJECT_ID = 166376
-# Verify this field name against live data (see above) before using:
-SPECIMEN_COUNT_FIELD_NAME = "Specimen Count"
-
-
-def extract_ofv(result: dict, field_name: str) -> int:
-    """Extract a named observation field value as int; return 0 if absent or unparseable."""
-    for ofv in result.get("ofvs", []):
-        if ofv.get("name") == field_name:
-            try:
-                return int(ofv["value"])
-            except (ValueError, KeyError):
-                return 0
-    return 0
-
-
-def fetch_wa_bee_atlas_observations() -> pd.DataFrame:
-    """Fetch all WA Bee Atlas observations from iNat API and return samples DataFrame."""
-    # page='all' triggers IDRangePaginator (id_above cursor pagination, safe for >10k results)
-    # per_page=200 is the API maximum for v1
-    # No auth needed for public project observations
-    results = get_observations(
-        project_id=WA_BEE_ATLAS_PROJECT_ID,
-        page="all",
-        per_page=200,
-        order_by="id",
-        order="asc",
-    )
-
-    rows = []
-    for obs in results:
-        # obs is a pyinaturalist Observation object
-        lat, lon = obs.location if obs.location else (None, None)
-        rows.append({
-            "observation_id": obs.id,
-            "observer": obs.user.login if obs.user else None,
-            "date": str(obs.observed_on.date()) if obs.observed_on else None,
-            "latitude": lat,
-            "longitude": lon,
-            "specimen_count": extract_ofv(obs.to_dict(), SPECIMEN_COUNT_FIELD_NAME),
+export class SampleParquetSource extends VectorSource {
+  constructor({url}: {url: string}) {
+    const load = (extent, resolution, projection, success, failure) => {
+      asyncBufferFromUrl({url})
+        .then(buffer => parquetReadObjects({columns: sampleColumns, file: buffer}))
+        .then(objects => {
+          const features = objects.flatMap(obj => {
+            if (obj.lat == null || obj.lon == null) return [];
+            const f = new Feature();
+            f.setGeometry(new Point(fromLonLat([obj.lon, obj.lat])));
+            f.setId(`inat:${obj.observation_id}`);
+            f.setProperties({
+              observer: obj.observer,
+              date: obj.date,
+              // Int64 → number coercion: hyparquet returns BigInt for INT64 columns
+              specimenCount: obj.specimen_count != null ? Number(obj.specimen_count) : null,
+            });
+            return f;
+          });
+          this.addFeatures(features);
+          if (success) success(features);
         })
-
-    df = pd.DataFrame(rows)
-    df["specimen_count"] = df["specimen_count"].astype("Int64")
-    return df
+        .catch(failure);
+    };
+    super({loader: load, strategy: all});
+  }
+}
 ```
 
-Write using existing pipeline conventions:
-```python
-df.to_parquet(
-    "frontend/src/assets/samples.parquet",
-    index=False,
-    compression="snappy",
-    engine="pyarrow",
-)
+**Style:** Add `sampleDotStyle` to `style.ts` — a simple fixed-color `Style` (e.g. blue circle,
+radius 5) with no recency tiers. iNat observation dots are a distinct data type and should
+be visually differentiated from specimen clusters.
+
+**Feature ID convention:** `inat:${observation_id}` parallels the existing `ecdysis:${ecdysis_id}`
+convention. This lets the click handler identify which layer produced a feature without
+inspecting layer membership.
+
+### 2. Exclusive Layer Toggle
+
+**What:** Clicking a UI toggle shows either the specimen layer or the sample layer, never both.
+
+**State:** One `@state() private _activeLayer: 'specimens' | 'samples' = 'specimens'` on `BeeMap`.
+
+**Mechanism:** `layer.setVisible(bool)` — standard OL API. OL stops rendering invisible layers
+immediately; no re-fetch, no cleanup needed. Call `this.map?.render()` after both `setVisible()`
+calls, matching the existing pattern in `_applyFilter`.
+
+```typescript
+private _setActiveLayer(layer: 'specimens' | 'samples') {
+  this._activeLayer = layer;
+  specimenLayer.setVisible(layer === 'specimens');
+  sampleLayer.setVisible(layer === 'samples');
+  this.map?.render();
+  // Clear any open sidebar detail when switching layers
+  this.selectedSamples = null;
+  this._selectedInatSample = null;
+}
 ```
 
-**Note on `obs.to_dict()`:** pyinaturalist Observation objects expose `ofvs` as `ObservationFieldValue` model objects, not raw dicts. Calling `.to_dict()` or accessing `obs.ofvs[i].name` and `obs.ofvs[i].value` directly avoids the field_id ambiguity. Verify the attribute names against the pyinaturalist Observation model if needed.
+**Click handler separation:** The existing `singleclick` handler calls
+`specimenLayer.getFeatures(event.pixel)`. OL's `getFeatures` still detects invisible layers,
+so gate on `_activeLayer` explicitly:
+
+```typescript
+this.map.on('singleclick', async (event) => {
+  if (this._activeLayer === 'specimens') {
+    const hits = await specimenLayer.getFeatures(event.pixel);
+    // ... existing logic ...
+  } else {
+    const hits = await sampleLayer.getFeatures(event.pixel);
+    // ... new iNat sample logic ...
+  }
+});
+```
+
+**Toggle UI:** A `<button>` or `<select>` in `BeeMap`'s template, styled consistently with
+the existing sidebar buttons. No new component needed.
+
+### 3. Sample Sidebar Content
+
+**What:** Clicking an iNat sample dot shows observation details in the sidebar.
+
+**Interface additions to `bee-sidebar.ts`:**
+
+```typescript
+export interface InatSample {
+  observationId: number;    // coerced from BigInt by SampleParquetSource
+  observer: string;
+  date: string;             // "YYYY-MM-DD" — sidebar parses with Intl.DateTimeFormat
+  specimenCount: number | null;
+}
+```
+
+**Sidebar changes:** Add `@property({ attribute: false }) inatSample: InatSample | null = null`
+to `BeeSidebar`. Extend `render()` with a third branch:
+
+```typescript
+render() {
+  return html`
+    ${this._renderFilterControls()}
+    ${this.inatSample !== null
+      ? this._renderInatSampleDetail(this.inatSample)
+      : this.samples !== null
+        ? this._renderDetail(this.samples)
+        : this._renderSummary()}
+  `;
+}
+```
+
+**`_renderInatSampleDetail` content:**
+- Formatted date ("Month YYYY" via `Intl.DateTimeFormat`)
+- Observer username
+- Specimen count (if not null)
+- Link to iNat observation: `https://www.inaturalist.org/observations/${observationId}`
+- Back button (dispatches `close` event, same as existing `_clearSelection`)
+
+**No new component.** `BeeSidebar` already has a multi-mode render structure. A fourth
+method is consistent with the established pattern.
+
+### 4. links.parquet — iNat Observation Link in Specimen Sidebar
+
+**What:** When a specimen has an iNat link, show a hyperlink in the specimen detail panel.
+
+**links.parquet schema** (from `data/links/fetch.py`):
+
+| Column | Type | hyparquet JS type | Notes |
+|--------|------|------------------|-------|
+| `occurrenceID` | string | `string` | Key — matches `s.occid` in `Specimen` interface |
+| `inat_observation_id` | Int64 nullable | `bigint \| null` | Coerce to `number`; omit nulls from Map |
+
+**Loading pattern:** Load `links.parquet` at startup in `firstUpdated()`, in parallel with
+`specimenSource` (both fire immediately, no sequential dependency). Build a
+`Map<string, number>` keyed by `occurrenceID`:
+
+```typescript
+// In bee-map.ts firstUpdated():
+asyncBufferFromUrl({url: linksDump})
+  .then(buf => parquetReadObjects({columns: ['occurrenceID', 'inat_observation_id'], file: buf}))
+  .then(rows => {
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      if (r.inat_observation_id != null) {
+        m.set(r.occurrenceID as string, Number(r.inat_observation_id));
+      }
+    }
+    this._linksMap = m;
+  });
+```
+
+**State on `BeeMap`:** `@state() private _linksMap: Map<string, number> = new Map()`.
+When populated, Lit triggers a re-render — any open specimen sidebar panel automatically
+refreshes to show the newly available links.
+
+**Pass to sidebar:** `@property() linksMap: Map<string, number>` on `BeeSidebar`.
+In `_renderDetail`, look up each specimen's `occid`:
+
+```typescript
+const inatId = this.linksMap.get(s.occid);
+// if inatId: html`<a href="https://www.inaturalist.org/observations/${inatId}" ...>View on iNaturalist</a>`
+```
+
+**File size:** links.parquet is one row per ecdysis specimen (~7,000 rows at current project
+scale). A `Map` of 7k entries is negligible. The `all` loading strategy is correct.
 
 ---
 
-## Integration with Existing Pipeline
+## BigInt Handling (Cross-Cutting Concern)
 
-The new script (`data/inat/fetch_observations.py`) integrates with `scripts/build-data.sh` by appending steps:
+hyparquet returns Parquet INT64 columns as JavaScript `BigInt`, not `number`. This affects:
+- `samples.parquet` `specimen_count` (nullable Int64)
+- `links.parquet` `inat_observation_id` (nullable Int64)
 
-```bash
-echo "--- Fetching iNaturalist observations ---"
-uv run python inat/fetch_observations.py
-cp samples.parquet "$REPO_ROOT/frontend/src/assets/samples.parquet"
-```
+**Rule:** Coerce with `Number()` at the point of reading, before storing on OL features or
+in the `_linksMap`. `BigInt` values in Lit templates produce no visible output and no error —
+they silently fail. TypeScript catches this if column types are declared correctly as
+`bigint | null`.
 
-The script writes `data/samples.parquet` (analogous to `data/ecdysis.parquet` for the Ecdysis pipeline). The file naming and copy pattern exactly mirrors the existing `ecdysis.parquet` → `frontend/src/assets/ecdysis.parquet` flow.
-
-**CI consideration:** The existing `build-data.sh` makes a live HTTP POST to ecdysis.org on every push. Adding iNat API calls makes the same tradeoff — CI will call the live iNat API on every build. For v1.2 (pipeline only, no map rendering yet), this is acceptable. A `data/samples.parquet` committed fallback (mirroring `frontend/src/assets/ecdysis.parquet` for the Ecdysis side) would protect against iNat downtime.
+The existing `parquet.ts` has this same issue for `year` and `month` columns — it uses
+`Number(obj.year)` already. Follow the same pattern.
 
 ---
 
@@ -220,14 +251,12 @@ The script writes `data/samples.parquet` (analogous to `data/ecdysis.parquet` fo
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| OAuth / JWT / keyring libraries | Public read-only API; no auth required | Nothing — unauthenticated requests work |
-| Direct `requests` usage | pyinaturalist manages the session including rate limiting | `get_observations()` |
-| `beautifulsoup4` / `lxml` for iNat | Those are for Ecdysis HTML scraping (deferred scope) | Not needed for v1.2 |
-| `aiohttp` or async HTTP | pyinaturalist is synchronous; CI pipeline, not a latency-sensitive server | Standard pyinaturalist sync API |
-| Redis or disk caching layer | Pipeline runs once per CI build; `page='all'` fetches incrementally | No caching needed |
-| `pyinaturalist-open-data` | For bulk S3 snapshot downloads; no project membership filter available | `get_observations(project_id=...)` |
-| iNat v2 API for project batch queries | Documented project count discrepancies vs v1 | `pyinaturalist` v1 wrappers |
-| `to_dataframe()` from pyinaturalist-convert | Produces `location` list and `ofvs.{field_id}` columns — not useful for samples schema | Parse raw `results` dicts directly |
+| New state management library (Zustand, MobX, etc.) | `FilterState` singleton + `@state` already handles app state; two new booleans do not justify a framework | Extend existing singleton or add module-level variable |
+| Generic `ParquetSource<T, Columns>` | TypeScript complexity for zero runtime benefit; column lists are stable | `SampleParquetSource` as second concrete class in `parquet.ts` |
+| Separate `bee-sample-sidebar.ts` component | `BeeSidebar` already has multi-mode render; a fourth method is consistent, a new component is unnecessary indirection | `_renderInatSampleDetail` method on existing `BeeSidebar` |
+| `ol/interaction/Select` for click handling | Already using `singleclick` map event with `layer.getFeatures(pixel)` | Keep `singleclick` handler; add `sampleLayer.getFeatures()` branch |
+| Lazy loading links.parquet | File is small; parallel load at startup is simpler than on-demand async click path | Load in `firstUpdated()` alongside specimen source |
+| Clustering for sample layer | iNat observations are collection events (one dot = one field trip); clustering obscures the data's meaning | Plain `VectorLayer`, no `Cluster` source |
 
 ---
 
@@ -235,9 +264,10 @@ The script writes `data/samples.parquet` (analogous to `data/ecdysis.parquet` fo
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `pyinaturalist` v1 `get_observations()` | Direct iNat v2 API via `requests` | If v2 API is needed for fields unavailable in v1; not the case here |
-| Parse raw results dicts | `pyinaturalist-convert to_dataframe()` | If all desired fields are top-level (no ofvs); not the case here |
-| Single script in `data/inat/` | DuckDB Makefile target (already partial in `data/Makefile`) | If the full pipeline is Makefile-based; would require completing the half-finished Makefile target |
+| `layer.setVisible()` for exclusive toggle | Remove/re-add layer from map layers array | Only if layers need different z-order on toggle; not needed here |
+| `Map<string, number>` lookup for links | Embed iNat links into ecdysis features at load time | Would require a client-side join across two parquet files — adds complexity and couples load order |
+| Load links.parquet in `firstUpdated()` (parallel) | Load only on first specimen click | Parallel load is simpler (no async click path); file is small |
+| `SampleParquetSource` concrete class | Make `ParquetSource` accept columns as constructor param | Acceptable alternative if more parquet sources are expected; for two sources, concrete classes are simpler |
 
 ---
 
@@ -245,60 +275,47 @@ The script writes `data/samples.parquet` (analogous to `data/ecdysis.parquet` fo
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| `pyinaturalist` | 0.21.1 | Python >=3.8 per PyPI; confirmed working on Python 3.14 (uv.lock present) |
-| `pyinaturalist-convert` | 0.7.4 | Depends on pyinaturalist; no upper bound conflict |
-| `pandas` | >=3.0.0 | Required for `to_dataframe()` if used; already in dependencies |
-| `pyarrow` | >=22.0.0 | Parquet engine; already in dependencies |
+| `ol` | 10.7.0 | `layer.setVisible()`, `layer.getFeatures(pixel)`, `VectorLayer` — all stable OL APIs, used in existing code |
+| `hyparquet` | 1.23.3 | INT64 → `BigInt` is documented behavior; `Number()` coercion required |
+| `lit` | 3.2.1 | `@property`, `@state`, multi-mode `render()` — pattern already in production |
+| TypeScript | 5.8.x | `bigint | null` union type works without flags |
 
 ---
 
-## pyproject.toml Impact
+## Installation
 
-**No changes required.** Both libraries are already declared:
+No changes to `package.json`. All required libraries are already installed.
 
-```toml
-# data/pyproject.toml (current, no changes needed)
-[project]
-dependencies = [
-    "pyinaturalist>=0.20.2",           # locked at 0.21.1
-    "pyinaturalist-convert>=0.7.4",    # locked at 0.7.4
-    ...
-]
+```bash
+# No new packages
 ```
 
-The new pipeline script (`data/inat/fetch_observations.py`) is a new file, not a dependency change.
+Vite asset import for new parquet files (same pattern as existing `ecdysis.parquet`):
 
----
+```typescript
+// bee-map.ts additions
+import samplesDump from './assets/samples.parquet?url';
+import linksDump from './assets/links.parquet?url';
+```
 
-## Confidence Assessment
-
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Library versions | HIGH | Read directly from `data/uv.lock` |
-| Auth: no token needed | HIGH | iNat API docs + pyinaturalist docs |
-| Rate limits (documented) | HIGH | iNat API Recommended Practices |
-| Rate limits (real-world) | MEDIUM | Community reports of 429s at documented limits |
-| WA Bee Atlas project ID | HIGH | In `data/inat/projects.py` |
-| `page='all'` cursor behavior | HIGH | pyinaturalist source + docs |
-| `to_dataframe()` column structure | HIGH | Verified against installed source at `.venv/lib/python3.14/site-packages/pyinaturalist_convert/converters.py` |
-| Specimen count field name | LOW | Not findable via web search; must inspect live observations |
-| `obs.ofvs[i].name` attribute on Observation model | MEDIUM | Consistent with pyinaturalist_convert _models.py usage; verify against pyinaturalist Observation class |
+Both files must be present in `frontend/src/assets/` at build time. `links.parquet` is
+produced by the v1.3 pipeline (`npm run fetch-links`). `samples.parquet` is produced by
+the v1.2 pipeline (`npm run fetch-inat`).
 
 ---
 
 ## Sources
 
-- `data/uv.lock` — all locked versions verified directly (HIGH confidence)
-- `data/inat/projects.py` — WA project ID 166376 confirmed in codebase (HIGH confidence)
-- `data/.venv/lib/python3.14/site-packages/pyinaturalist_convert/converters.py` — `to_dataframe()` column structure verified (HIGH confidence)
-- `data/.venv/lib/python3.14/site-packages/pyinaturalist_convert/_models.py` — ofvs attribute structure confirmed (HIGH confidence)
-- [pyinaturalist 0.21.1 documentation](https://pyinaturalist.readthedocs.io/en/stable/) — API surface and pagination (HIGH confidence)
-- [iNaturalist API Recommended Practices](https://www.inaturalist.org/pages/api+recommended+practices) — rate limits (HIGH confidence)
-- [iNaturalist API v1 docs](https://api.inaturalist.org/v1/docs/) — pagination, per_page=200 max (HIGH confidence)
-- [iNat forum: 429 at 60 req/min](https://forum.inaturalist.org/t/429-error-from-observations-histogram-api-when-calling-at-60-calls-minute/64709) — real-world rate limit behavior (MEDIUM confidence)
-- [pyinaturalist PyPI](https://pypi.org/project/pyinaturalist/) — version 0.21.1 released 2026-02-13 (HIGH confidence)
-- [pyinaturalist-convert PyPI](https://pypi.org/project/pyinaturalist-convert/) — version 0.7.4 released 2026-01-18 (HIGH confidence)
+- `frontend/src/bee-map.ts` — VectorLayer / ClusterSource / singleclick / filterState singleton patterns (HIGH)
+- `frontend/src/parquet.ts` — ParquetSource implementation, column loading, BigInt `Number()` coercion (HIGH)
+- `frontend/src/bee-sidebar.ts` — Sample/DataSummary/FilteredSummary multi-mode render pattern (HIGH)
+- `frontend/src/filter.ts` — FilterState singleton pattern (HIGH)
+- `frontend/package.json` — installed versions ol 10.7.0, hyparquet 1.23.3, lit 3.2.1 (HIGH)
+- `data/inat/download.py` DTYPE_MAP — samples.parquet schema (HIGH)
+- `data/links/fetch.py` — links.parquet schema, occurrenceID key type, Int64 nullable (HIGH)
+- OpenLayers `layer.setVisible()`, `VectorLayer`, `getFeatures(pixel)` — used in existing code (HIGH)
+- hyparquet INT64/BigInt — consistent with JS BigInt spec; `Number()` coercion pattern already in `parquet.ts` (HIGH)
 
 ---
-*Stack research for: Python iNaturalist API pipeline — Washington Bee Atlas v1.2*
-*Researched: 2026-03-10*
+*Stack research for: v1.4 Sample Layer — Washington Bee Atlas frontend*
+*Researched: 2026-03-12*

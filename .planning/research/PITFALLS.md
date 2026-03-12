@@ -560,3 +560,216 @@ How roadmap phases should address these pitfalls.
 ---
 *Pitfalls research for: Washington Bee Atlas — iNat pipeline integration (v1.2)*
 *Researched: 2026-03-10*
+
+---
+
+## v1.4 Addendum: Second Layer, Exclusive Toggle, Data-Dependent Sidebar
+
+**Scope:** Pitfalls specific to adding a second OL VectorLayer (sample dots), exclusive layer toggle, loading links.parquet alongside ecdysis.parquet, and sidebar content that adapts to the active layer.
+**Researched:** 2026-03-12
+**Confidence:** HIGH — based on direct code inspection of `bee-map.ts`, `bee-sidebar.ts`, `parquet.ts`, `filter.ts`
+
+---
+
+### Pitfall v1.4-A: singleclick handler queries both layers simultaneously
+
+**What goes wrong:**
+The current `singleclick` handler calls `specimenLayer.getFeatures(event.pixel)` and shows specimens in the sidebar. When `sampleLayer` is added, developers often write a parallel `sampleLayer.getFeatures(event.pixel)` call and use whichever result is non-empty. But both calls are async — the second `await` can resolve after the first has already set `selectedSamples`, causing the wrong sidebar view to flash or the second result to overwrite the first.
+
+**Why it happens:**
+`singleclick` is registered on `this.map`, not on a specific layer. Nothing in OL prevents both `getFeatures()` calls from racing.
+
+**How to avoid:**
+Check `this._activeLayer` (or equivalent toggle state) before deciding which layer to query. Only call `specimenLayer.getFeatures(event.pixel)` when the specimen layer is active; only call `sampleLayer.getFeatures(event.pixel)` when the sample layer is active. The toggle state drives the call, not the result.
+
+**Warning signs:**
+- Clicking near a specimen cluster while samples layer is active opens the specimen sidebar
+- A sample click shows specimen sidebar briefly then switches (async race)
+
+**Phase to address:**
+MAP-04 (exclusive toggle) — toggle state must be established before the click handler is wired.
+
+---
+
+### Pitfall v1.4-B: Layer visibility toggle does not clear selected sidebar state
+
+**What goes wrong:**
+User opens a specimen cluster in the sidebar, then toggles to the samples layer. `selectedSamples` is not cleared on toggle, so the sidebar still shows specimen detail (collector, field number, species list) while the map shows sample dots. The mismatch persists until the user manually closes the detail panel.
+
+**Why it happens:**
+`specimenLayer.setVisible(false)` changes layer visibility but has no effect on `this.selectedSamples` or `this._selectedOccIds`. These are independent component state fields.
+
+**How to avoid:**
+In the toggle handler, immediately set `this.selectedSamples = null` and `this._selectedOccIds = null`. Also update the URL — if `o=` params are in the URL when the layer switches, drop them (IDs are layer-namespace-specific).
+
+**Warning signs:**
+- Toggling layers leaves stale specimen detail visible in the sidebar
+- `o=` param survives a layer toggle in the URL bar
+
+**Phase to address:**
+MAP-04 (exclusive toggle).
+
+---
+
+### Pitfall v1.4-C: links.parquet loaded as VectorSource pollutes OL layer hit-testing
+
+**What goes wrong:**
+`links.parquet` is a lookup table with no geometry (occurrenceID → inat_observation_id). If a developer reuses `ParquetSource` (a VectorSource subclass) to load it, OL will add null-geometry features to the map. This does not crash, but null-geometry features interfere with `getFeatures(pixel)` in unpredictable ways and bloat the source for no benefit. Additionally, `specimenSource.once('change', ...)` fires when the specimen source loads — if `linksParquetSource.once('change', ...)` is added in parallel and its load resolves first, the initialization callback runs before `specimenSource.getFeatures()` returns any features, producing zero counts and a broken occurrence restore.
+
+**Why it happens:**
+It's tempting to reuse `ParquetSource` for all Parquet files. But `links.parquet` has no coordinates — it is not a geospatial data source.
+
+**How to avoid:**
+Load `links.parquet` with a plain `fetch` + `parquetReadObjects` call (not as a VectorSource). Store the result as a `Map<string, number>` component field (occurrenceID → inat_observation_id). Initiate this fetch in `firstUpdated`; handle it independently with its own promise chain. Do not add it to the OL map at all.
+
+**Warning signs:**
+- Sidebar shows "0 specimens / 0 species" at startup then corrects after a delay
+- Selected occurrence restore from URL silently fails
+- `specimenLayer.getFeatures(pixel)` returns unexpected results near sample locations
+
+**Phase to address:**
+LINK-05 — when links.parquet load is introduced.
+
+---
+
+### Pitfall v1.4-D: filterState singleton breaks sample feature clicks
+
+**What goes wrong:**
+`matchesFilter` in `filter.ts` tests `family`, `genus`, `scientificName`, `year`, and `month` — all specimen fields. Sample features from `samples.parquet` have different fields (`observer`, `date`, `specimen_count`). If `isFilterActive(filterState)` returns true and the click handler runs `inner.filter(f => matchesFilter(f, filterState))` on sample features, every sample fails all checks — `toShow` is empty, click does nothing, no sidebar opens, no error.
+
+**Why it happens:**
+The filter UI stays visible when the samples layer is active (it's in `_renderFilterControls()` which always renders). User applies a species filter to find specimens, then switches to samples layer — the active filter remains, silently blocking all sample clicks.
+
+**How to avoid:**
+Either (1) hide the filter controls entirely when samples layer is active — the filter has no meaning for iNat data — or (2) skip `matchesFilter` when sample layer is active. Option 1 is cleaner UX and prevents the confusion entirely.
+
+**Warning signs:**
+- Click on sample markers does nothing when a specimen filter is active
+- No console errors — `toShow.length === 0` is silent
+- `filteredSummary` stats show in sidebar while viewing samples (stale state from previous specimen filter)
+
+**Phase to address:**
+MAP-04 (exclusive toggle) — filter visibility must be conditioned on active layer.
+
+---
+
+### Pitfall v1.4-E: hyparquet reads inat_observation_id as BigInt; equality checks fail silently
+
+**What goes wrong:**
+`links.parquet` schema has `inat_observation_id` as Int64 (nullable). hyparquet represents Int64 as JavaScript `BigInt`. Template literals coerce BigInt correctly (`\`${BigInt(12345)}\`` → `"12345"`), so URL construction works. But any Map key comparison or equality test using a regular Number fails silently: `BigInt(12345) !== 12345` evaluates to `true` in JavaScript.
+
+**Why it happens:**
+The existing `parquet.ts` already handles this with explicit `Number(obj.year)` and `Number(obj.month)` casts — but this pattern must be deliberately repeated for links data. TypeScript does not error on BigInt/Number comparison in all contexts.
+
+**How to avoid:**
+When building the links lookup map from `parquetReadObjects` output, explicitly cast: `Number(obj.inat_observation_id)` (iNat IDs are ~9 digits, well within safe integer range). Document this alongside the existing `Number(obj.year)` pattern in `parquet.ts`.
+
+**Warning signs:**
+- iNat links never appear in the sidebar despite `links.parquet` containing data
+- `linksMap.has(occId)` returns true but the value is undefined downstream
+- No TypeScript error at the comparison site
+
+**Phase to address:**
+LINK-05 (specimen sidebar iNat link).
+
+---
+
+### Pitfall v1.4-F: links.parquet occurrenceID join key may not match feature ID format
+
+**What goes wrong:**
+`parquet.ts` sets feature IDs as `ecdysis:${obj.ecdysis_id}` where `ecdysis_id` is the integer DB primary key. `links.parquet` (per LINK-04 schema) uses `occurrenceID` (string) — which in Ecdysis DarwinCore exports is a UUID-style identifier, not the integer `ecdysis_id`. If the join attempts `linksMap.get(feature.getId())` where feature ID is `ecdysis:12345` (integer), but `links.parquet` stores `occurrenceID` as a UUID string, every lookup misses silently.
+
+**Why it happens:**
+The Ecdysis data has two ID fields: the integer `ecdysis_id` (used as the OL feature ID prefix) and the UUID `occurrenceID` (DarwinCore standard). PROJECT.md key decisions confirm that the `occid` URL parameter uses the integer — but `links.parquet` uses `occurrenceID` (UUID). These are different formats.
+
+**How to avoid:**
+Before writing any sidebar link rendering code, inspect the actual values in `links.parquet`: what does the `occurrenceID` column contain? If it's the UUID, the join key must come from `ecdysis.parquet`'s `occurrenceID` column (added in v1.3). Add `occurrenceID` to the `columns` list in `parquet.ts` and store it as a feature property; build the links map keyed by UUID; look up by feature property rather than feature ID.
+
+**Warning signs:**
+- `linksMap.size > 0` but `linksMap.get(feature.getId())` always returns undefined
+- iNat links never appear even for specimens known to have iNat observation IDs
+- `console.log` shows rows loaded from `links.parquet` but no lookup hits
+
+**Phase to address:**
+LINK-05 — first step should be a console inspection of actual key formats before any UI code.
+
+---
+
+### Pitfall v1.4-G: `o=` URL parameter encodes specimen IDs only; sample selection silently dropped on restore
+
+**What goes wrong:**
+`buildSearchParams` writes `o=ecdysis:12345,...` to the URL. The `parseUrlParams` filter at line 87 of `bee-map.ts` explicitly requires `s.startsWith('ecdysis:')` — sample IDs using a different prefix (e.g., `inat:999999`) would be silently dropped on restore. If sample clicks are added to URL state without a corresponding namespace update, the restore path ignores the IDs with no error.
+
+**Why it happens:**
+The `ecdysis:` prefix guard was added as a correct safety check for the specimen-only v1.1 URL state. It becomes a silent footgun when sample IDs need URL persistence.
+
+**How to avoid:**
+For v1.4, the simplest safe choice is to not encode sample selection in the URL at all (sample clicks do not push to `o=`). If URL persistence for sample selection is desired, use a separate URL parameter (e.g., `s=inat:999999`) and add a parallel restore path. Never reuse `o=` for a different ID namespace.
+
+**Warning signs:**
+- Sample selection in URL bar silently vanishes on page reload
+- `parseUrlParams` returns an empty `occurrenceIds` array even when `o=inat:...` is in the URL
+
+**Phase to address:**
+MAP-05 (sample click + sidebar) — decide before writing the click handler whether sample selection is URL-persisted.
+
+---
+
+### Pitfall v1.4-H: links.parquet asset absent at dev time; 404 silently produces no iNat links
+
+**What goes wrong:**
+`ecdysis.parquet` is committed as a static asset fallback. `samples.parquet` is present in `frontend/src/assets/`. `links.parquet` has no committed asset path yet — it is pipeline-generated. If `links.parquet` is imported via `?url` in a new module but the file is absent, Vite either errors at build time or the `fetch` 404s at runtime. iNat links never appear but no other feature breaks — the failure is invisible unless the error is handled explicitly.
+
+**Why it happens:**
+The pattern of committing Parquet files to the assets directory was established for `ecdysis.parquet`. New pipeline outputs need to be explicitly added to the committed assets or the developer must run the pipeline locally first.
+
+**How to avoid:**
+Before writing any LINK-05 UI code, run `npm run fetch-links` (or the equivalent pipeline step) to produce `links.parquet` locally, copy it to `frontend/src/assets/`, and verify it loads via `?url` import. Handle the fetch failure gracefully: if `links.parquet` fails to load, set `linksMap` to an empty Map and render the sidebar without iNat links (no broken state, just missing feature).
+
+**Warning signs:**
+- Network tab shows 404 for `links.parquet`
+- `parquetReadObjects` promise rejects (check the `.catch` path in the fetch chain)
+- Sidebar never shows iNat links even after pipeline produces the file locally
+
+**Phase to address:**
+LINK-05 — verify asset availability as the first step, before any rendering code.
+
+---
+
+## v1.4 Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| OL `singleclick` + two layers | Calling `getFeatures()` on both layers and using whichever returns results | Gate each `getFeatures()` call on the active layer toggle state |
+| hyparquet Int64 → BigInt | Using `inat_observation_id` in a Map or comparison without explicit `Number()` cast | `Number(obj.inat_observation_id)` on load; consistent with existing `Number(obj.year)` pattern in `parquet.ts` |
+| links.parquet join key | Joining on OL feature ID (`ecdysis:12345`) when `links.parquet` uses UUID `occurrenceID` | Inspect actual column values first; may need to add `occurrenceID` to `parquet.ts` column list and store as feature property |
+| iNaturalist observation URL | Constructing URL with raw `BigInt` or wrong ID type | `https://www.inaturalist.org/observations/${Number(id)}`; add `target="_blank" rel="noopener"` consistent with existing Ecdysis links |
+| Lit `updated()` restore pattern | Adding new restore `@property` fields to `BeeSidebar` without adding them to `restoredKeys` in `updated()` | Extend the `restoredKeys` array in `bee-sidebar.ts` for every new restore prop |
+
+## v1.4 "Looks Done But Isn't" Checklist
+
+- [ ] **Sample layer toggle:** `specimenLayer.setVisible(false)` called — verify `sampleLayer.setVisible(true)` AND `selectedSamples = null` AND URL `o=` param cleared in the same handler
+- [ ] **Sample click handler:** Verify `sampleLayer.getFeatures(event.pixel)` is only called when sample layer is active (not falling through to specimen handler)
+- [ ] **iNat link in specimen sidebar:** Verify the join key matches — `links.parquet` `occurrenceID` column value format must match the key used to look up in `linksMap`
+- [ ] **links.parquet asset path:** Verify Vite resolves the `?url` import and the file does not 404 in both dev and production (CloudFront)
+- [ ] **BigInt conversion:** Verify `inat_observation_id` from hyparquet is converted to `Number` before use in map lookup or URL construction
+- [ ] **Filter controls hidden in sample mode:** Confirm filter controls do not appear (and `filteredSummary` is not stale) when sample layer is active
+- [ ] **`updated()` restore keys:** If any new `@property` restore fields are added to `BeeSidebar`, confirm they are in the `restoredKeys` array
+- [ ] **`_isRestoringFromHistory` guard:** Confirm sample layer toggle does not interact with the popstate guard (toggle should not push history)
+
+## v1.4 Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| singleclick queries both layers | MAP-04 (exclusive toggle) | Click a sample dot while specimen filter is active; confirm specimen sidebar does not open |
+| Toggle does not clear selected state | MAP-04 (exclusive toggle) | Open specimen cluster, toggle to samples; confirm sidebar returns to summary |
+| links.parquet modeled as VectorSource | LINK-05 | Confirm links load uses plain `fetch` + `parquetReadObjects`, no OL source |
+| filterState applied to sample features | MAP-04 (exclusive toggle) | Apply taxon filter, toggle to samples, click dot; confirm sidebar opens |
+| hyparquet BigInt for inat_observation_id | LINK-05 | Console-log raw value from parquetReadObjects; confirm `Number()` converts correctly |
+| links.parquet join key mismatch | LINK-05 — step 1 | Console-log a linksMap entry vs a specimenSource feature ID; confirm key formats match |
+| `o=` URL encoding with sample IDs | MAP-05 (sample click + sidebar) | Confirm no `o=` param written for sample clicks |
+| links.parquet asset absent at dev time | LINK-05 — step 0 | Run pipeline locally; confirm `fetch` resolves before writing any rendering code |
+
+---
+*v1.4 pitfalls addendum for: second OL layer, exclusive toggle, data-dependent sidebar (Sample Layer milestone)*
+*Researched: 2026-03-12*
