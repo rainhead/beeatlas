@@ -9,10 +9,10 @@ Requirements for the Specimen-Sample Linkage milestone. Each maps to roadmap pha
 
 ### Links Pipeline (LINK)
 
-- [ ] **LINK-01**: Pipeline reads all occurrenceIDs from `ecdysis_wa.parquet` and fetches each Ecdysis individual record page at max 20 req/sec, caching raw HTML to disk
-- [ ] **LINK-02**: Pipeline skips HTTP fetch for occurrenceIDs already present in `links.parquet` (first-level skip) or already in the local HTML cache (second-level skip, parse without fetching)
-- [ ] **LINK-03**: Pipeline extracts iNat observation ID from `#association-div a[target="_blank"]` href; records null if the element is absent
-- [ ] **LINK-04**: Pipeline produces `links.parquet` with columns `occurrenceID` (string) and `inat_observation_id` (Int64, nullable), covering all occurrenceIDs
+- [x] **LINK-01**: Pipeline reads all occurrenceIDs from `ecdysis_wa.parquet` and fetches each Ecdysis individual record page at max 20 req/sec, caching raw HTML to disk
+- [x] **LINK-02**: Pipeline skips HTTP fetch for occurrenceIDs already present in `links.parquet` (first-level skip) or already in the local HTML cache (second-level skip, parse without fetching)
+- [x] **LINK-03**: Pipeline extracts iNat observation ID from `#association-div a[target="_blank"]` href; records null if the element is absent
+- [x] **LINK-04**: Pipeline produces `links.parquet` with columns `occurrenceID` (string) and `inat_observation_id` (Int64, nullable), covering all occurrenceIDs
 
 ### S3 Cache (LCACHE)
 
@@ -47,10 +47,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LINK-01 | Phase 11 | Pending |
-| LINK-02 | Phase 11 | Pending |
-| LINK-03 | Phase 11 | Pending |
-| LINK-04 | Phase 11 | Pending |
+| LINK-01 | Phase 11 | Complete |
+| LINK-02 | Phase 11 | Complete |
+| LINK-03 | Phase 11 | Complete |
+| LINK-04 | Phase 11 | Complete |
 | LCACHE-01 | Phase 12 | Pending |
 | LCACHE-02 | Phase 12 | Pending |
 | LCACHE-03 | Phase 12 | Pending |
