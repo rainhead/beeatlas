@@ -70,7 +70,9 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Pending Todos
 
-None.
+| # | Title | Area | File |
+|---|-------|------|------|
+| 1 | Specify explicit fields on iNat API calls | general | [2026-03-12-specify-explicit-fields-on-inat-api-calls.md](./todos/pending/2026-03-12-specify-explicit-fields-on-inat-api-calls.md) |
 
 ### Quick Tasks Completed
 
