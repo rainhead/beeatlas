@@ -51,6 +51,5 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(prog='download.py', description='Download archives from Ecdysis')
     parser.add_argument('-d', '--datasetid', required=True, help='Ecdysis dataset ID (e.g. 44)')
-    parser.add_argument('-s', '--state')
     args = parser.parse_args()
     make_dump({'datasetid': args.datasetid})
