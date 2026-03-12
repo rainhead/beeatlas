@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Specimen-Sample Linkage
 status: planning
-stopped_at: Completed 11-02-PLAN.md
-last_updated: "2026-03-12T02:47:24.703Z"
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-03-12T02:57:30.555Z"
 last_activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -48,6 +48,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 11 P01 | 8 | 2 tasks | 3 files |
 | Phase 11 P02 | 3min | 3 tasks | 3 files |
+| Phase 12 P01 | 3min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -62,6 +63,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 11]: Initialize last_fetch_time = time.monotonic() so first HTTP request also sleeps to respect 20 req/sec rate limit
 - [Phase 11]: Use integer ecdysis_id as HTML cache filename (e.g. 5594056.html), not UUID occurrenceID
 - [Phase 11]: Write output parquet once at end after full loop to prevent partial data loss on error
+- [Phase 12]: Cache scripts use aws s3 sync with --exclude '*' --include '*.html' to filter only HTML files for ecdysis_cache
+- [Phase 12]: Restore uses graceful miss for both links.parquet and ecdysis_cache; upload fails fast if links.parquet missing
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-12T02:46:45.937Z
-Stopped at: Completed 11-02-PLAN.md
+Last session: 2026-03-12T02:57:30.547Z
+Stopped at: Completed 12-01-PLAN.md
 Resume file: None
