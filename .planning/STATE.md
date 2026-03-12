@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: Specimen-Sample Linkage
 status: planning
 stopped_at: Completed 12-02-PLAN.md
-last_updated: "2026-03-12T03:01:52.529Z"
+last_updated: "2026-03-12T03:48:31.608Z"
 last_activity: 2026-03-11 — v1.3 roadmap created; Phase 11 ready for planning
 progress:
   total_phases: 2
