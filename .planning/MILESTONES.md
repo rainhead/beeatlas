@@ -1,5 +1,14 @@
 # Milestones
 
+## v1.3 Specimen-Sample Linkage (Shipped: 2026-03-12)
+
+**Phases completed:** 2 phases, 4 plans, 0 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.2 iNat Pipeline (Shipped: 2026-03-11)
 
 **Phases completed:** 3 phases (Phases 8–10), 5 plans

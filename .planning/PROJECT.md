@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that reads Parquet data bundled with the build — no server required at runtime. Two pipelines produce the Parquet: a Python pipeline fetching DarwinCore exports from Ecdysis (specimens), and a pyinaturalist pipeline fetching collection events from iNat project 166376 (samples). Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that reads Parquet data bundled with the build — no server required at runtime. Three pipelines produce the Parquet: a Python pipeline fetching DarwinCore exports from Ecdysis (specimens), a pyinaturalist pipeline fetching collection events from iNat project 166376 (samples), and a scraping pipeline fetching Ecdysis specimen HTML pages to extract iNaturalist observation IDs (links). Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC.
 
 ## Core Value
 
@@ -33,21 +33,25 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ CACHE-03: Pipeline uploads updated samples.parquet + last_fetch.txt back to S3 cache prefix after successful fetch — v1.2
 - ✓ INFRA-04: OIDC IAM role grants s3:GetObject and s3:PutObject on the S3 cache prefix; CI workflow provides AWS credentials to the pipeline step — v1.2
 - ✓ INFRA-05: Cache restore, iNat fetch, and cache upload operations are exposed as top-level package.json scripts — v1.2
+- ✓ LINK-01: Pipeline reads all occurrenceIDs from ecdysis.parquet and fetches each Ecdysis individual record page at ≤20 req/sec, caching raw HTML to disk — v1.3
+- ✓ LINK-02: Pipeline skips HTTP fetch for occurrenceIDs already in links.parquet (first-level skip) or in local HTML cache (second-level skip) — v1.3
+- ✓ LINK-03: Pipeline extracts iNat observation ID from `#association-div a[target="_blank"]` href; records null if absent — v1.3
+- ✓ LINK-04: Pipeline produces links.parquet with occurrenceID (string) and inat_observation_id (Int64, nullable) — v1.3
+- ✓ LCACHE-01: Restore links.parquet from S3 at build start (graceful miss); sync HTML cache from S3 (only missing files) — v1.3
+- ✓ LCACHE-02: Upload links.parquet to S3 and sync HTML cache to S3 (only new files) after successful run — v1.3
+- ✓ LCACHE-03: npm scripts expose cache-restore-links, fetch-links, cache-upload-links — v1.3
+- ✓ PIPE-04: build-data.sh includes cache restore → fetch → cache upload in sequence — v1.3
 
-## Current Milestone: v1.3 Specimen-Sample Linkage
+## Current State: v1.3 Shipped
 
-**Goal:** Produce a join table (links.parquet) mapping Ecdysis occurrenceIDs to iNaturalist observation IDs, fetched from Ecdysis HTML pages with permanent per-record caching and S3-backed persistence.
+**Shipped:** 2026-03-12
+links.parquet is now produced by the build pipeline: occurrenceIDs from ecdysis.parquet are scraped from Ecdysis HTML pages, iNat observation IDs are extracted and stored with two-level permanent caching and S3 persistence. The data layer is complete; v1.4 will surface the linkage in the frontend.
 
-**Target features:**
-- Fetch Ecdysis specimen pages per occurrenceID to extract iNat observation links
-- Permanent cache: only fetch new occurrenceIDs on subsequent runs
-- S3 cache storage and restore (mirrors iNat pipeline pattern)
-- Rate limiting for Ecdysis requests
-- links.parquet integrated into build-data.sh pipeline
+### Active (v1.4 candidates)
 
-### Active
-
-(See REQUIREMENTS.md for v1.3 requirements)
+- [ ] MAP-03: Sample markers (iNat collection events) rendered as a distinct layer on the map
+- [ ] MAP-04: Clicking a sample marker shows the iNat observation details in the sidebar
+- [ ] LINK-05: Sidebar shows iNat observation link for a clicked specimen when a linkage exists
 
 ### Out of Scope
 
@@ -60,14 +64,12 @@ Collectors can see where bees have been collected and where target host plants g
 | Real-time data refresh | Static Parquet updated per pipeline run is correct |
 | Heat map / analytics | Map is the analytical surface; charts are scope creep |
 | iNaturalist host plant display layer | v1.2 uses iNat data for collection event samples, not a visual plant layer |
-| Sample markers map layer (MAP-03, MAP-04) | Deferred — sample↔specimen linkage modeling needed first (v1.3+) |
-| Ecdysis HTML scraping for specimen-sample linkage | Deferred — modeling work to relate samples and specimens precedes presentation |
 | Location search / pan-to-place | Deferred to v2 (NAV-02) |
 | OR project (id=18521) | Out of scope; stub exists in projects.py |
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines in `bee-map.ts` and `bee-sidebar.ts`). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines across 56 files, 2 days): 244 Python + 51 shell scripts; samples.parquet produced and cached in S3.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines in `bee-map.ts` and `bee-sidebar.ts`). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines across 56 files, 2 days): 244 Python + 51 shell scripts; samples.parquet produced and cached in S3. Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines across 18 files, single day): links.parquet with two-level cache skip, Ecdysis HTML scraping, S3 persistence.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
@@ -117,6 +119,12 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Incremental fetch fallback on any exception | Any parse or merge error should trigger full re-fetch rather than producing corrupt parquet | ✓ Good — robust for corrupted cache states |
 | Job-level env: S3_BUCKET_NAME in CI | Cleaner than per-step env; avoids repetition across three cache/build steps | ✓ Good — applied to both build and deploy jobs |
 | Mirror cache-restore/build/cache-upload in both CI jobs | Keeps deploy job consistent with build job; both produce fresh samples.parquet | ✓ Good — credential ordering bug fixed in deploy job (credentials must precede build) |
+| Use integer `ecdysis_id` (not UUID `occurrenceID`) as `occid` URL parameter | Ecdysis individual record pages use integer DB id, not UUID; UUID in URL 404s or returns page without association section | ✓ Good — identified prototype bug; corrected in Phase 11 |
+| Add `occurrenceID` to `ecdysis.parquet` rather than maintaining separate `ecdysis_wa.parquet` | Simpler to extend existing pipeline output than maintain a second file | ✓ Good — single source of truth; Phase 11 reads from `ecdysis.parquet` |
+| Two-level cache skip (links.parquet then disk HTML) | Avoids re-fetching pages already linked or already cached; links are permanent | ✓ Good — both levels implemented and tested; rate limit applies only to HTTP requests, not cache hits |
+| Initialize `last_fetch_time = time.monotonic()` not `0.0` | Ensures first HTTP request also respects rate limit | ✓ Good — caught by TDD test; ensures ≤20 req/sec from first request |
+| S3 sync for HTML cache, S3 cp for links.parquet | HTML cache is a directory of many small files (sync efficient); links.parquet is a single file (cp simpler) | ✓ Good — mirrors iNat pipeline pattern |
+| Restore with graceful miss (`\|\| echo`), upload with fail-fast (`set -euo pipefail`) | First CI run has no cache to restore; upload failure means corrupt state | ✓ Good — correct asymmetry; matches v1.2 cache pattern |
 
 ---
-*Last updated: 2026-03-11 after v1.3 milestone started (Specimen-Sample Linkage — Ecdysis→iNat join table pipeline)*
+*Last updated: 2026-03-12 after v1.3 milestone complete (Specimen-Sample Linkage — links.parquet pipeline shipped)*
