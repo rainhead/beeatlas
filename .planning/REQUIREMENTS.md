@@ -18,11 +18,11 @@ Requirements for the Specimen-Sample Linkage milestone. Each maps to roadmap pha
 
 - [x] **LCACHE-01**: Pipeline restores `links.parquet` from S3 at build start (graceful miss); syncs HTML cache directory from S3 using `aws s3 sync` (downloads only missing files)
 - [x] **LCACHE-02**: Pipeline uploads `links.parquet` to S3 and syncs HTML cache to S3 (`aws s3 sync`, uploads only new files) after successful run
-- [ ] **LCACHE-03**: npm scripts expose `cache-restore-links`, `fetch-links`, and `cache-upload-links` as top-level commands
+- [x] **LCACHE-03**: npm scripts expose `cache-restore-links`, `fetch-links`, and `cache-upload-links` as top-level commands
 
 ### Pipeline Integration (PIPE)
 
-- [ ] **PIPE-04**: `build-data.sh` includes the links pipeline steps (cache restore → fetch → cache upload)
+- [x] **PIPE-04**: `build-data.sh` includes the links pipeline steps (cache restore → fetch → cache upload)
 
 ## Future Requirements
 
@@ -53,8 +53,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LINK-04 | Phase 11 | Complete |
 | LCACHE-01 | Phase 12 | Complete |
 | LCACHE-02 | Phase 12 | Complete |
-| LCACHE-03 | Phase 12 | Pending |
-| PIPE-04 | Phase 12 | Pending |
+| LCACHE-03 | Phase 12 | Complete |
+| PIPE-04 | Phase 12 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 8 total
