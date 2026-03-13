@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Sample Layer
 status: Roadmap defined, ready for plan-phase
-stopped_at: Phase 15 context gathered
-last_updated: "2026-03-13T16:46:18.248Z"
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-03-13T17:03:28.583Z"
 last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 0
 ---
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 13-parquet-sources-and-asset-pipeline P02 | 1min | 2 tasks | 2 files |
 | Phase 14-layer-toggle-and-map-display P01 | 3 | 2 tasks | 1 files |
 | Phase 14-layer-toggle-and-map-display P02 | 5 | 2 tasks | 1 files |
+| Phase 15-click-interaction-and-inat-links P01 | 16 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 13-parquet-sources-and-asset-pipeline]: sampleDotStyle uses new Date() not Temporal.PlainDate.from() — ISO 8601+timezone strings not parseable by Temporal
 - [Phase 14-01]: Tasks 1 and 2 committed together because TypeScript noUnusedLocals requires render() wiring for private methods to compile
 - [Phase 14-layer-toggle-and-map-display]: Tasks 1 and 2 in 14-02 committed together: TypeScript noUnusedLocals requires all private methods to be referenced from render() before build passes
+- [Phase 15]: Tasks 1 and 2 committed together in 15-01: TypeScript noUnusedLocals requires private methods referenced from render() before tsc passes
+- [Phase 15]: links.parquet force-added to git tracking (*.parquet gitignored but needed for frontend)
 
 ### Pending Todos
 
@@ -99,6 +102,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-13T16:46:18.240Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-click-interaction-and-inat-links/15-CONTEXT.md
+Last session: 2026-03-13T17:03:28.581Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: None

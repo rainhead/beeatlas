@@ -60,7 +60,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full phase details.
 
 - [x] **Phase 13: Parquet Sources and Asset Pipeline** — SampleParquetSource, occurrenceID on specimen features, sampleDotStyle, links.parquet asset copy (completed 2026-03-13)
 - [x] **Phase 14: Layer Toggle and Map Display** — Sample dots visible on map, exclusive toggle, sidebar clears on switch, URL lm= param (completed 2026-03-13)
-- [ ] **Phase 15: Click Interaction and iNat Links** — Sample dot click detail sidebar, links.parquet lookup for specimen iNat link
+- [x] **Phase 15: Click Interaction and iNat Links** — Sample dot click detail sidebar, links.parquet lookup for specimen iNat link (completed 2026-03-13)
 
 ## Phase Details
 
@@ -124,4 +124,4 @@ Plans:
 | 12. S3 Cache and Build Integration | v1.3 | 2/2 | Complete | 2026-03-12 |
 | 13. Parquet Sources and Asset Pipeline | 2/2 | Complete    | 2026-03-13 | - |
 | 14. Layer Toggle and Map Display | 2/2 | Complete    | 2026-03-13 | - |
-| 15. Click Interaction and iNat Links | v1.4 | 0/TBD | Not started | - |
+| 15. Click Interaction and iNat Links | 1/1 | Complete   | 2026-03-13 | - |
