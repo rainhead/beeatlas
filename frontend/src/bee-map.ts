@@ -5,13 +5,17 @@ import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { ParquetSource } from "./parquet.ts";
 import ecdysisDump from './assets/ecdysis.parquet?url';
+import samplesDump from './assets/samples.parquet?url';
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
 import { clusterStyle } from "./style.ts";
+import { SampleParquetSource } from './parquet.ts';
+import { sampleDotStyle } from './style.ts';
 import TileLayer from "ol/layer/Tile.js";
 import XYZ from "ol/source/XYZ.js";
 import Feature from "ol/Feature.js";
+import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
 import { filterState, isFilterActive, matchesFilter } from './filter.ts';
 import './bee-sidebar.ts';
@@ -34,13 +38,23 @@ interface ParsedParams {
   yearTo: number | null;
   months: Set<number>;
   occurrenceIds: string[];
+  layerMode: 'specimens' | 'samples';
+}
+
+interface SampleEvent {
+  observation_id: number;
+  observer: string;
+  date: string;
+  specimen_count: number;
+  coordinate: number[];  // EPSG:3857
 }
 
 function buildSearchParams(
   center: number[],
   zoom: number,
   fs: typeof filterState,
-  selectedOccIds: string[] | null
+  selectedOccIds: string[] | null,
+  layerMode: 'specimens' | 'samples'
 ): URLSearchParams {
   const params = new URLSearchParams();
   params.set('x', center[0]!.toFixed(4));
@@ -56,6 +70,7 @@ function buildSearchParams(
   if (selectedOccIds !== null && selectedOccIds.length > 0) {
     params.set('o', selectedOccIds.join(','));
   }
+  if (layerMode !== 'specimens') params.set('lm', layerMode);  // omit default value
   return params;
 }
 
@@ -87,7 +102,10 @@ function parseUrlParams(search: string): ParsedParams {
     ? oRaw.split(',').map(s => s.trim()).filter(s => s.startsWith('ecdysis:') && s.length > 8)
     : [];
 
-  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds };
+  const lmRaw = p.get('lm') ?? '';
+  const layerMode: 'specimens' | 'samples' = lmRaw === 'samples' ? 'samples' : 'specimens';
+
+  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds, layerMode };
 }
 
 function buildSamples(features: Feature[]): Sample[] {
@@ -164,6 +182,8 @@ const specimenLayer = new VectorLayer({
   source: clusterSource,
   style: clusterStyle,
 });
+const sampleSource = new SampleParquetSource({url: samplesDump});
+const sampleLayer = new VectorLayer({ source: sampleSource, style: sampleDotStyle });
 
 @customElement('bee-map')
 export class BeeMap extends LitElement {
@@ -177,6 +197,10 @@ export class BeeMap extends LitElement {
 
   @state()
   private summary: DataSummary | null = null;
+
+  @state() private layerMode: 'specimens' | 'samples' = 'specimens';
+  @state() private sampleDataLoaded = false;
+  @state() private recentSampleEvents: SampleEvent[] = [];
 
   @state()
   private taxaOptions: TaxonOption[] = [];
@@ -226,7 +250,10 @@ export class BeeMap extends LitElement {
     view.setCenter(fromLonLat([parsed.lon, parsed.lat]));
     view.setZoom(parsed.zoom);
     this._restoreFilterState(parsed);
-    if (parsed.occurrenceIds.length > 0) {
+    if (parsed.layerMode !== this.layerMode) {
+      // Layer switch clears selections and syncs URL
+      this._onLayerChanged(parsed.layerMode);
+    } else if (parsed.occurrenceIds.length > 0) {
       this._restoreSelectedOccurrences(parsed.occurrenceIds);
     } else {
       this.selectedSamples = null;
@@ -267,6 +294,41 @@ bee-sidebar {
   }
 }
   `
+
+  private _onLayerChanged(mode: 'specimens' | 'samples') {
+    this.layerMode = mode;
+    specimenLayer.setVisible(mode === 'specimens');
+    sampleLayer.setVisible(mode === 'samples');
+    this.selectedSamples = null;
+    this._selectedOccIds = null;
+    if (mode === 'samples' && this.sampleDataLoaded) {
+      this.recentSampleEvents = this._buildRecentSampleEvents();
+    }
+    if (this.map) this._pushUrlState();
+  }
+
+  private _buildRecentSampleEvents(): SampleEvent[] {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 14);
+    return sampleSource.getFeatures()
+      .filter(f => new Date(f.get('date') as string) >= cutoff)
+      .sort((a, b) =>
+        new Date(b.get('date') as string).valueOf() -
+        new Date(a.get('date') as string).valueOf()
+      )
+      .map(f => ({
+        observation_id: f.get('observation_id') as number,
+        observer: f.get('observer') as string,
+        date: f.get('date') as string,
+        specimen_count: f.get('specimen_count') as number,
+        coordinate: (f.getGeometry() as Point).getCoordinates(),
+      }));
+  }
+
+  private _onSampleEventClick(e: CustomEvent<{coordinate: number[]}>) {
+    if (!this.map) return;
+    this.map.getView().animate({ center: e.detail.coordinate, zoom: 12, duration: 300 });
+  }
 
   private _restoreFilterState(parsed: ParsedParams) {
     filterState.taxonName = parsed.taxonName;
@@ -334,7 +396,7 @@ bee-sidebar {
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
-    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds);
+    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds, this.layerMode);
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
@@ -393,6 +455,8 @@ bee-sidebar {
         .summary=${this.summary}
         .taxaOptions=${this.taxaOptions}
         .filteredSummary=${this.filteredSummary}
+        .layerMode=${this.layerMode}
+        .recentSampleEvents=${this.recentSampleEvents}
         .restoredTaxonInput=${this._restoredTaxonInput}
         .restoredTaxonRank=${this._restoredTaxonRank}
         .restoredTaxonName=${this._restoredTaxonName}
@@ -405,6 +469,8 @@ bee-sidebar {
           if (this.map) this._pushUrlState();
         }}
         @filter-changed=${(e: CustomEvent<FilterChangedEvent>) => this._applyFilter(e.detail)}
+        @layer-changed=${(e: CustomEvent<'specimens' | 'samples'>) => this._onLayerChanged(e.detail)}
+        @sample-event-click=${(e: CustomEvent<{coordinate: number[]}>) => this._onSampleEventClick(e)}
       ></bee-sidebar>
     `
   }
@@ -432,6 +498,7 @@ bee-sidebar {
         }),
         baseLayer,
         specimenLayer,
+        sampleLayer,
       ],
       target: this.mapElement,
       view: new View({
@@ -440,13 +507,23 @@ bee-sidebar {
         zoom: initialParams.zoom,
       }),
     });
+    sampleLayer.setVisible(false);
+
+    // Restore layer mode from URL (do this directly, not via _onLayerChanged,
+    // because _onLayerChanged calls _pushUrlState which needs this.map to be ready)
+    if (initialParams.layerMode === 'samples') {
+      this.layerMode = 'samples';
+      specimenLayer.setVisible(false);
+      sampleLayer.setVisible(true);
+    }
 
     // Write initial URL state (covers no-param fresh loads — makes URL bar show params immediately)
     const view = this.map.getView();
     const initCenter = toLonLat(view.getCenter()!);
     const initParams = buildSearchParams(
       initCenter, view.getZoom()!, filterState,
-      initialParams.occurrenceIds.length > 0 ? initialParams.occurrenceIds : null
+      initialParams.occurrenceIds.length > 0 ? initialParams.occurrenceIds : null,
+      initialParams.layerMode
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
@@ -500,27 +577,44 @@ bee-sidebar {
       }
     });
 
+    sampleSource.once('change', () => {
+      this.sampleDataLoaded = true;
+      if (this.layerMode === 'samples') {
+        this.recentSampleEvents = this._buildRecentSampleEvents();
+      }
+    });
+
     // moveend: replaceState immediately, pushState after 500ms debounce
     this.map.on('moveend', () => {
       if (this._isRestoringFromHistory) return;
       this._pushUrlState();
     });
 
-    // singleclick handler: store all occurrence IDs in cluster for URL encoding
+    // singleclick handler: mode-gated for specimen vs sample layer
     this.map.on('singleclick', async (event: MapBrowserEvent) => {
-      const hits = await specimenLayer.getFeatures(event.pixel);
-      if (!hits.length) {
+      if (this.layerMode === 'specimens') {
+        const hits = await specimenLayer.getFeatures(event.pixel);
+        if (!hits.length) {
+          this.selectedSamples = null;
+          this._selectedOccIds = null;
+          return;
+        }
+        const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
+        const toShow = isFilterActive(filterState) ? inner.filter(f => matchesFilter(f, filterState)) : inner;
+        if (toShow.length === 0) return;
+        this.selectedSamples = buildSamples(toShow);
+        this._selectedOccIds = toShow.map(f => f.getId() as string);
+      } else {
+        // sample mode — Phase 15 will add full detail; Phase 14 clears selection on miss
+        const hits = await sampleLayer.getFeatures(event.pixel);
+        if (!hits.length) {
+          this.selectedSamples = null;
+          return;
+        }
+        // Placeholder: clear selection (Phase 15 wires detail sidebar)
         this.selectedSamples = null;
         this._selectedOccIds = null;
-        return;
       }
-      const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
-      const toShow = isFilterActive(filterState)
-        ? inner.filter(f => matchesFilter(f, filterState))
-        : inner;
-      if (toShow.length === 0) return;
-      this.selectedSamples = buildSamples(toShow);
-      this._selectedOccIds = toShow.map(f => f.getId() as string);
       this._pushUrlState();
     });
 
