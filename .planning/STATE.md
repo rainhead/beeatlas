@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Sample Layer
 status: Roadmap defined, ready for plan-phase
-stopped_at: Phase 14 context gathered
-last_updated: "2026-03-13T03:21:12.810Z"
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-03-13T03:43:31.561Z"
 last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 12-s3-cache-and-build-integration P02 | 2min | 2 tasks | 2 files |
 | Phase 13-parquet-sources-and-asset-pipeline P01 | 1min | 2 tasks | 1 files |
 | Phase 13-parquet-sources-and-asset-pipeline P02 | 1min | 2 tasks | 2 files |
+| Phase 14-layer-toggle-and-map-display P01 | 3 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 13-parquet-sources-and-asset-pipeline]: occurrenceID kept as UUID string (large_string) — no Number() coercion; SampleParquetSource uses lat/lon matching samples.parquet schema
 - [Phase 13-parquet-sources-and-asset-pipeline]: Sample colors use shifted palette (teal/blue/slate) distinct from specimen colors (green/orange/gray)
 - [Phase 13-parquet-sources-and-asset-pipeline]: sampleDotStyle uses new Date() not Temporal.PlainDate.from() — ISO 8601+timezone strings not parseable by Temporal
+- [Phase 14-01]: Tasks 1 and 2 committed together because TypeScript noUnusedLocals requires render() wiring for private methods to compile
 
 ### Pending Todos
 
@@ -95,6 +97,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-13T03:21:12.807Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-layer-toggle-and-map-display/14-CONTEXT.md
+Last session: 2026-03-13T03:43:31.559Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None
