@@ -75,3 +75,33 @@ export function clusterStyle(feature: FeatureLike): Style {
   if (cacheKey) styleCache.set(cacheKey, style);
   return style;
 }
+
+export const SAMPLE_RECENCY_COLORS = {
+  fresh:    '#1abc9c',  // teal — within 6 weeks
+  thisYear: '#3498db',  // blue — this year, older than 6 weeks
+  older:    '#7f8c8d',  // slate — before this year (same as RECENCY_COLORS.older)
+} as const;
+
+const sampleStyleCache = new Map<string, Style>();
+
+export function sampleDotStyle(feature: FeatureLike): Style {
+  const date = feature.get('date') as string;
+  // date is an ISO 8601 datetime with timezone offset, e.g. '2023-04-04 15:32:38-07:00'
+  // Temporal.PlainDate.from() cannot parse this format — use Date instead
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1;  // getUTCMonth() is 0-indexed
+  const tier = recencyTier(year, month);
+
+  if (sampleStyleCache.has(tier)) return sampleStyleCache.get(tier)!;
+
+  const style = new Style({
+    image: new Circle({
+      radius: 5,   // fixed; visually distinct from single-specimen cluster radius of 4
+      fill: new Fill({ color: SAMPLE_RECENCY_COLORS[tier] }),
+      stroke: new Stroke({ color: '#ffffff', width: 1 }),
+    }),
+  });
+  sampleStyleCache.set(tier, style);
+  return style;
+}
