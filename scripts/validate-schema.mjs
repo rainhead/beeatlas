@@ -38,6 +38,10 @@ for (const [filename, expectedCols] of Object.entries(EXPECTED)) {
     const meta = await parquetMetadataAsync(file);
     actualCols = meta.schema.map(f => f.name).filter(n => n !== 'schema');
   } catch (e) {
+    if (e.code === 'ENOENT') {
+      console.log(`— ${filename}: not cached, skipping`);
+      continue;
+    }
     console.error(`✗ ${filename}: could not read (${e.message})`);
     failed = true;
     continue;
