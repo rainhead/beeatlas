@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import sys
 from typing import IO
 import zipfile
@@ -74,6 +75,7 @@ dtype = {
     'references': pd.StringDtype(),
     'recordEnteredBy': pd.StringDtype(),
     'securityReason': pd.StringDtype(),
+    'associatedTaxa': pd.StringDtype(),
 }
 
 def read_occurrences(file: IO[bytes]) -> pd.DataFrame:
@@ -87,8 +89,19 @@ def from_zipfile(zip: Path):
             df = read_occurrences(f)
     return df
 
+_HOST_RE = re.compile(r'host\s*:\s*"([^"]+)"', re.IGNORECASE)
+
+def _parse_floral_host(associated_taxa) -> str | None:
+    if associated_taxa is None or not isinstance(associated_taxa, str):
+        return None
+    m = _HOST_RE.search(associated_taxa)
+    return m.group(1) if m else None
+
+
 def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
     df = df[df['decimalLatitude'].notna() & df['decimalLongitude'].notna()].copy()
+    # Extract floral host from associatedTaxa ("host":"Plant name" format)
+    df['floralHost'] = df['associatedTaxa'].apply(_parse_floral_host).astype(pd.StringDtype())
     # Normalise scientificName for display:
     #   species-level ID  → keep as-is (e.g. "Andrena sladeni")
     #   genus-only ID     → append " sp." (e.g. "Lasioglossum sp.")
@@ -110,6 +123,7 @@ def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
         'month',
         'recordedBy',
         'fieldNumber',
+        'floralHost',
     ]].rename(columns={
         'id': 'ecdysis_id',
         'decimalLongitude': 'longitude',
