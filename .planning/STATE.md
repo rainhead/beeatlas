@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Sample Layer
 status: Roadmap defined, ready for plan-phase
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-03-13T03:43:31.561Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-03-13T03:46:29.971Z"
 last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 13-parquet-sources-and-asset-pipeline P01 | 1min | 2 tasks | 1 files |
 | Phase 13-parquet-sources-and-asset-pipeline P02 | 1min | 2 tasks | 2 files |
 | Phase 14-layer-toggle-and-map-display P01 | 3 | 2 tasks | 1 files |
+| Phase 14-layer-toggle-and-map-display P02 | 5 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 13-parquet-sources-and-asset-pipeline]: Sample colors use shifted palette (teal/blue/slate) distinct from specimen colors (green/orange/gray)
 - [Phase 13-parquet-sources-and-asset-pipeline]: sampleDotStyle uses new Date() not Temporal.PlainDate.from() — ISO 8601+timezone strings not parseable by Temporal
 - [Phase 14-01]: Tasks 1 and 2 committed together because TypeScript noUnusedLocals requires render() wiring for private methods to compile
+- [Phase 14-layer-toggle-and-map-display]: Tasks 1 and 2 in 14-02 committed together: TypeScript noUnusedLocals requires all private methods to be referenced from render() before build passes
 
 ### Pending Todos
 
@@ -97,6 +99,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-13T03:43:31.559Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-03-13T03:46:29.969Z
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None
