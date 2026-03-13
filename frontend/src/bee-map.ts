@@ -316,14 +316,20 @@ bee-sidebar {
         new Date(b.get('date') as string).valueOf() -
         new Date(a.get('date') as string).valueOf()
       )
-      .map(f => ({
-        observation_id: f.get('observation_id') as number,
-        observer: f.get('observer') as string,
-        date: f.get('date') as string,
-        specimen_count: f.get('specimen_count') as number,
-        sample_id: f.get('sample_id') as number | null,
-        coordinate: (f.getGeometry() as Point).getCoordinates(),
-      }));
+      .map(f => {
+        const rawDate = f.get('date');
+        const date = rawDate instanceof Date
+          ? rawDate.toISOString().slice(0, 10)
+          : String(rawDate).slice(0, 10);
+        return {
+          observation_id: f.get('observation_id') as number,
+          observer: f.get('observer') as string,
+          date,
+          specimen_count: f.get('specimen_count') as number,
+          sample_id: f.get('sample_id') as number | null,
+          coordinate: (f.getGeometry() as Point).getCoordinates(),
+        };
+      });
   }
 
   private _onSampleEventClick(e: CustomEvent<{coordinate: number[]}>) {

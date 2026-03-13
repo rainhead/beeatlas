@@ -275,6 +275,16 @@ export class BeeSidebar extends LitElement {
       font-weight: 600;
       color: #333;
     }
+    .event-date-heading {
+      padding: 0.5rem 1rem 0.25rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: #f5f5f5;
+      border-bottom: 1px solid #eee;
+    }
     .event-observer {
       font-size: 0.8rem;
       color: #666;
@@ -480,7 +490,7 @@ export class BeeSidebar extends LitElement {
       <div class="recent-events">
         <div class="recent-events-header">Recent collections (last 14 days)</div>
         ${[...byDate.entries()].map(([date, events]) => html`
-          <div class="event-date">${this._formatSampleDate(date)}</div>
+          <div class="event-date-heading">${this._formatSampleDate(date)}</div>
           ${events.map(event => html`
             <div class="event-row" @click=${() => this._onSampleEventRowClick(event)}>
               <div class="event-observer">
