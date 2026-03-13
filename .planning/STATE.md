@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Sample Layer
 status: Roadmap defined, ready for plan-phase
-stopped_at: Phase 13 context gathered
-last_updated: "2026-03-13T02:05:53.904Z"
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-03-13T02:25:14.972Z"
 last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 11 P02 | 3min | 3 tasks | 3 files |
 | Phase 12 P01 | 3min | 2 tasks | 2 files |
 | Phase 12-s3-cache-and-build-integration P02 | 2min | 2 tasks | 2 files |
+| Phase 13-parquet-sources-and-asset-pipeline P01 | 1min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Progress: [░░░░░░░░░░] 0%
 - **v1.4 BigInt coercion**: hyparquet returns INT64 Parquet columns as JavaScript BigInt; must coerce with Number() at read time for both samples.parquet specimen_count and links.parquet inat_observation_id
 - **v1.4 exclusive toggle**: Layer toggle uses layer.setVisible(bool) — exclusive display because sample data has no taxon column (filter parity impossible) and click-handling clarity (merged hit-tests create ambiguous UX)
 - **v1.4 filter controls**: Specimen taxon/date filters are hidden when sample layer is active — sample features have no scientificName/genus/family properties; any active filter silently hides all dots
+- [Phase 13-parquet-sources-and-asset-pipeline]: occurrenceID kept as UUID string (large_string) — no Number() coercion; SampleParquetSource uses lat/lon matching samples.parquet schema
 
 ### Pending Todos
 
@@ -90,6 +92,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-13T02:05:53.897Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-parquet-sources-and-asset-pipeline/13-CONTEXT.md
+Last session: 2026-03-13T02:25:14.970Z
+Stopped at: Completed 13-01-PLAN.md
+Resume file: None
