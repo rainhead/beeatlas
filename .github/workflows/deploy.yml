@@ -33,6 +33,9 @@ jobs:
       - name: Restore S3 cache
         run: npm run cache-restore
 
+      - name: Validate parquet schema
+        run: npm run validate-schema
+
       - name: Build frontend
         run: npm run build --workspace=frontend
 
@@ -66,6 +69,9 @@ jobs:
 
       - name: Restore S3 cache
         run: npm run cache-restore
+
+      - name: Validate parquet schema
+        run: npm run validate-schema
 
       - name: Build frontend
         run: npm run build --workspace=frontend
