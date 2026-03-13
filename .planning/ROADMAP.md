@@ -102,7 +102,9 @@ Plans:
   2. The iNat observation link in the sample sidebar opens the correct iNat URL in a new tab
   3. Clicking a specimen in specimen mode shows a clickable iNat observation link in the sidebar when `links.parquet` has a matching `occurrenceID`
   4. Specimen sidebar shows no iNat link (no broken link, no error) when `links.parquet` has no match for the specimen's `occurrenceID`
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 15-01-PLAN.md — parquet.ts: loadLinksMap + bee-map.ts: links startup wiring + bee-sidebar.ts: sample dot detail and specimen iNat links
 
 ## Progress
 
