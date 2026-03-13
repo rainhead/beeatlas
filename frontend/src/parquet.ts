@@ -6,6 +6,20 @@ import { fromLonLat, Projection } from "ol/proj.js";
 import { Vector as VectorSource } from 'ol/source.js';
 import { all } from 'ol/loadingstrategy.js';
 
+const linkColumns = ['occurrenceID', 'inat_observation_id'];
+
+export async function loadLinksMap(url: string): Promise<Map<string, number>> {
+  const buffer = await asyncBufferFromUrl({ url });
+  const objects = await parquetReadObjects({ columns: linkColumns, file: buffer });
+  const map = new Map<string, number>();
+  for (const obj of objects) {
+    if (obj.occurrenceID != null && obj.inat_observation_id != null) {
+      map.set(obj.occurrenceID as string, Number(obj.inat_observation_id));  // BigInt coercion
+    }
+  }
+  return map;
+}
+
 const columns = [
   'ecdysis_id',
   'occurrenceID',

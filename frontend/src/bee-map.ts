@@ -3,9 +3,10 @@ import { customElement, query, state } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
-import { ParquetSource } from "./parquet.ts";
+import { ParquetSource, loadLinksMap } from "./parquet.ts";
 import ecdysisDump from './assets/ecdysis.parquet?url';
 import samplesDump from './assets/samples.parquet?url';
+import linksDump from './assets/links.parquet?url';
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
@@ -19,7 +20,7 @@ import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
 import { filterState, isFilterActive, matchesFilter } from './filter.ts';
 import './bee-sidebar.ts';
-import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent } from './bee-sidebar.ts';
+import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -39,14 +40,6 @@ interface ParsedParams {
   months: Set<number>;
   occurrenceIds: string[];
   layerMode: 'specimens' | 'samples';
-}
-
-interface SampleEvent {
-  observation_id: number;
-  observer: string;
-  date: string;
-  specimen_count: number;
-  coordinate: number[];  // EPSG:3857
 }
 
 function buildSearchParams(
@@ -108,7 +101,7 @@ function parseUrlParams(search: string): ParsedParams {
   return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds, layerMode };
 }
 
-function buildSamples(features: Feature[]): Sample[] {
+function buildSamples(features: Feature[], linksMap?: Map<string, number>): Sample[] {
   const map = new Map<string, Sample>();
   for (const f of features) {
     const key = `${f.get('year')}-${f.get('month')}-${f.get('recordedBy')}-${f.get('fieldNumber')}`;
@@ -122,7 +115,8 @@ function buildSamples(features: Feature[]): Sample[] {
       });
     }
     const occid = (f.getId() as string).replace('ecdysis:', '');
-    map.get(key)!.species.push({ name: f.get('scientificName') as string, occid });
+    const inatId = linksMap ? (linksMap.get(f.get('occurrenceID') as string) ?? null) : null;
+    map.get(key)!.species.push({ name: f.get('scientificName') as string, occid, inatObservationId: inatId });
   }
   return [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
 }
@@ -197,6 +191,10 @@ export class BeeMap extends LitElement {
 
   @state()
   private summary: DataSummary | null = null;
+
+  private _linksMap: Map<string, number> = new Map();
+
+  @state() private _selectedSampleEvent: SampleEvent | null = null;
 
   @state() private layerMode: 'specimens' | 'samples' = 'specimens';
   @state() private sampleDataLoaded = false;
@@ -301,6 +299,7 @@ bee-sidebar {
     sampleLayer.setVisible(mode === 'samples');
     this.selectedSamples = null;
     this._selectedOccIds = null;
+    this._selectedSampleEvent = null;
     if (mode === 'samples' && this.sampleDataLoaded) {
       this.recentSampleEvents = this._buildRecentSampleEvents();
     }
@@ -384,7 +383,7 @@ bee-sidebar {
       ? features.filter(f => matchesFilter(f, filterState))
       : features;
     if (toShow.length > 0) {
-      this.selectedSamples = buildSamples(toShow);
+      this.selectedSamples = buildSamples(toShow, this._linksMap);
       this._selectedOccIds = toShow.map(f => f.getId() as string);
     } else {
       this.selectedSamples = null;
@@ -457,6 +456,7 @@ bee-sidebar {
         .filteredSummary=${this.filteredSummary}
         .layerMode=${this.layerMode}
         .recentSampleEvents=${this.recentSampleEvents}
+        .selectedSampleEvent=${this._selectedSampleEvent}
         .restoredTaxonInput=${this._restoredTaxonInput}
         .restoredTaxonRank=${this._restoredTaxonRank}
         .restoredTaxonName=${this._restoredTaxonName}
@@ -584,6 +584,10 @@ bee-sidebar {
       }
     });
 
+    loadLinksMap(linksDump).catch(() => new Map<string, number>()).then(map => {
+      this._linksMap = map;
+    });
+
     // moveend: replaceState immediately, pushState after 500ms debounce
     this.map.on('moveend', () => {
       if (this._isRestoringFromHistory) return;
@@ -602,18 +606,22 @@ bee-sidebar {
         const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
         const toShow = isFilterActive(filterState) ? inner.filter(f => matchesFilter(f, filterState)) : inner;
         if (toShow.length === 0) return;
-        this.selectedSamples = buildSamples(toShow);
+        this.selectedSamples = buildSamples(toShow, this._linksMap);
         this._selectedOccIds = toShow.map(f => f.getId() as string);
       } else {
-        // sample mode — Phase 15 will add full detail; Phase 14 clears selection on miss
         const hits = await sampleLayer.getFeatures(event.pixel);
         if (!hits.length) {
-          this.selectedSamples = null;
+          this._selectedSampleEvent = null;
           return;
         }
-        // Placeholder: clear selection (Phase 15 wires detail sidebar)
-        this.selectedSamples = null;
-        this._selectedOccIds = null;
+        const f = hits[0]!;
+        this._selectedSampleEvent = {
+          observation_id: f.get('observation_id') as number,
+          observer: f.get('observer') as string,
+          date: f.get('date') as string,
+          specimen_count: f.get('specimen_count') as number,
+          coordinate: (f.getGeometry() as Point).getCoordinates(),
+        };
       }
       this._pushUrlState();
     });

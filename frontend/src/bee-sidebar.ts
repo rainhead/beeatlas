@@ -4,6 +4,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 export interface Specimen {
   name: string;
   occid: string;
+  inatObservationId?: number | null;
 }
 
 export interface Sample {
@@ -74,6 +75,9 @@ export class BeeSidebar extends LitElement {
 
   @property({ attribute: false })
   recentSampleEvents: SampleEvent[] = [];
+
+  @property({ attribute: false })
+  selectedSampleEvent: SampleEvent | null = null;
 
   // URL-restore properties — driven by BeeMap when restoring from URL or popstate
   @property({ attribute: false }) restoredTaxonInput: string = '';
@@ -276,6 +280,21 @@ export class BeeSidebar extends LitElement {
     .event-count {
       font-size: 0.8rem;
       color: #888;
+    }
+    .inat-missing {
+      color: #aaa;
+      font-style: normal;
+    }
+    .sample-dot-detail {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .sample-dot-detail-header {
+      margin-bottom: 0.25rem;
+    }
+    .event-inat {
+      font-size: 0.85rem;
     }
   `;
 
@@ -573,6 +592,25 @@ export class BeeSidebar extends LitElement {
     `;
   }
 
+  private _renderSampleDotDetail(event: SampleEvent) {
+    const count = event.specimen_count != null && !isNaN(event.specimen_count)
+      ? `${event.specimen_count} specimen${event.specimen_count === 1 ? '' : 's'}`
+      : 'not recorded';
+    return html`
+      <div class="panel-content sample-dot-detail">
+        <div class="sample-dot-detail-header">
+          <button class="back-btn" @click=${() => { this.selectedSampleEvent = null; }}>&#8592; Back</button>
+        </div>
+        <div class="event-date">${this._formatSampleDate(event.date)}</div>
+        <div class="event-observer">${event.observer}</div>
+        <div class="event-count">${count}</div>
+        <div class="event-inat">
+          <a href="https://www.inaturalist.org/observations/${event.observation_id}" target="_blank" rel="noopener">View on iNaturalist</a>
+        </div>
+      </div>
+    `;
+  }
+
   private _renderDetail(samples: Sample[]) {
     return html`
       ${samples.map(sample => html`
@@ -580,7 +618,15 @@ export class BeeSidebar extends LitElement {
           <div class="sample-header">${this._formatMonth(sample.year, sample.month)} ${sample.year}</div>
           <div class="sample-meta">${sample.recordedBy} · ${sample.fieldNumber}</div>
           <ul class="species-list">
-            ${sample.species.map(s => html`<li><a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name}</a></li>`)}
+            ${sample.species.map(s => html`
+              <li>
+                <a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name}</a>
+                ${s.inatObservationId != null
+                  ? html` · <a href="https://www.inaturalist.org/observations/${s.inatObservationId}" target="_blank" rel="noopener">iNat</a>`
+                  : html` · <span class="inat-missing">iNat: —</span>`
+                }
+              </li>
+            `)}
           </ul>
         </div>
       `)}
@@ -593,9 +639,11 @@ export class BeeSidebar extends LitElement {
       ${this.layerMode === 'specimens' ? this._renderFilterControls() : ''}
       ${this.samples !== null
         ? this._renderDetail(this.samples)
-        : this.layerMode === 'samples'
-          ? this._renderRecentSampleEvents()
-          : this._renderSummary()}
+        : this.layerMode === 'samples' && this.selectedSampleEvent !== null
+          ? this._renderSampleDotDetail(this.selectedSampleEvent)
+          : this.layerMode === 'samples'
+            ? this._renderRecentSampleEvents()
+            : this._renderSummary()}
     `;
   }
 }
