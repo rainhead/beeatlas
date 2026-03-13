@@ -73,7 +73,10 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full phase details.
   2. Each specimen OL feature carries an `occurrenceID` property (UUID string) accessible after `ParquetSource` loads
   3. `sampleDotStyle` is defined in `style.ts` and visually distinct from the specimen cluster style
   4. `frontend/src/assets/links.parquet` is present after running `npm run build` (i.e., `build-data.sh` copies it)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 13-01-PLAN.md — parquet.ts: occurrenceID on ParquetSource + SampleParquetSource class
+- [ ] 13-02-PLAN.md — style.ts: sampleDotStyle + build-data.sh: graceful links.parquet copy
 
 ### Phase 14: Layer Toggle and Map Display
 **Goal**: Users can see iNat collection events as sample dots on the map and switch exclusively between specimen clusters and sample dots, with the sidebar and URL reflecting the active layer
@@ -114,6 +117,6 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full phase details.
 | 10. Build Integration and Verification | v1.2 | 1/1 | Complete | 2026-03-11 |
 | 11. Links Pipeline | v1.3 | 2/2 | Complete | 2026-03-12 |
 | 12. S3 Cache and Build Integration | v1.3 | 2/2 | Complete | 2026-03-12 |
-| 13. Parquet Sources and Asset Pipeline | v1.4 | 0/TBD | Not started | - |
+| 13. Parquet Sources and Asset Pipeline | v1.4 | 0/2 | Not started | - |
 | 14. Layer Toggle and Map Display | v1.4 | 0/TBD | Not started | - |
 | 15. Click Interaction and iNat Links | v1.4 | 0/TBD | Not started | - |
