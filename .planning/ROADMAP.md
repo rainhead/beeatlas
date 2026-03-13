@@ -121,5 +121,5 @@ Plans:
 | 11. Links Pipeline | v1.3 | 2/2 | Complete | 2026-03-12 |
 | 12. S3 Cache and Build Integration | v1.3 | 2/2 | Complete | 2026-03-12 |
 | 13. Parquet Sources and Asset Pipeline | 2/2 | Complete    | 2026-03-13 | - |
-| 14. Layer Toggle and Map Display | 2/2 | Complete   | 2026-03-13 | - |
+| 14. Layer Toggle and Map Display | 2/2 | Complete    | 2026-03-13 | - |
 | 15. Click Interaction and iNat Links | v1.4 | 0/TBD | Not started | - |
