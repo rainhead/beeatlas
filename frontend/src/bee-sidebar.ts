@@ -470,20 +470,28 @@ export class BeeSidebar extends LitElement {
         </div>
       `;
     }
+    const byDate = new Map<string, SampleEvent[]>();
+    for (const event of this.recentSampleEvents) {
+      const group = byDate.get(event.date) ?? [];
+      group.push(event);
+      byDate.set(event.date, group);
+    }
     return html`
       <div class="recent-events">
         <div class="recent-events-header">Recent collections (last 14 days)</div>
-        ${this.recentSampleEvents.map(event => html`
-          <div class="event-row" @click=${() => this._onSampleEventRowClick(event)}>
-            <div class="event-date">${this._formatSampleDate(event.date)}</div>
-            <div class="event-observer">
-              ${event.observer}${event.sample_id != null ? html` · <a href="https://www.inaturalist.org/observations/${event.observation_id}" target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>sample ${event.sample_id}</a>` : ''}
+        ${[...byDate.entries()].map(([date, events]) => html`
+          <div class="event-date">${this._formatSampleDate(date)}</div>
+          ${events.map(event => html`
+            <div class="event-row" @click=${() => this._onSampleEventRowClick(event)}>
+              <div class="event-observer">
+                ${event.observer}${event.sample_id != null ? html` · <a href="https://www.inaturalist.org/observations/${event.observation_id}" target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>sample ${event.sample_id}</a>` : ''}
+              </div>
+              <div class="event-count">${event.specimen_count != null && !isNaN(event.specimen_count)
+                ? `${event.specimen_count} specimen${event.specimen_count === 1 ? '' : 's'}`
+                : 'specimen count not recorded'
+              }</div>
             </div>
-            <div class="event-count">${event.specimen_count != null && !isNaN(event.specimen_count)
-              ? `${event.specimen_count} specimen${event.specimen_count === 1 ? '' : 's'}`
-              : 'specimen count not recorded'
-            }</div>
-          </div>
+          `)}
         `)}
       </div>
     `;
