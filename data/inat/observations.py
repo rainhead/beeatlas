@@ -25,6 +25,22 @@ OFVS_IN_DEFAULT_RESPONSE = True
 
 # ── Extraction helpers ────────────────────────────────────────────────────────
 
+def extract_sample_id(ofvs: list[dict]) -> int | None:
+    """Extract sample ID from an observation's ofvs list.
+
+    Matches by field_id=9963. Present on essentially all observations.
+
+    Returns None when the field is absent or value cannot be parsed as int.
+    """
+    for ofv in (ofvs or []):
+        if ofv.get('field_id') == SAMPLE_ID_FIELD_ID:
+            try:
+                return int(ofv['value'])
+            except (ValueError, KeyError, TypeError):
+                return None
+    return None
+
+
 def extract_specimen_count(ofvs: list[dict]) -> int | None:
     """Extract specimen count from an observation's ofvs list.
 

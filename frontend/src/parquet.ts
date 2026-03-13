@@ -77,6 +77,7 @@ const sampleColumns = [
   'lat',
   'lon',
   'specimen_count',
+  'sample_id',
 ];
 
 export class SampleParquetSource extends VectorSource {
@@ -95,6 +96,7 @@ export class SampleParquetSource extends VectorSource {
               observer: obj.observer,
               date: obj.date,
               specimen_count: Number(obj.specimen_count),
+              sample_id: obj.sample_id != null ? Number(obj.sample_id) : null,
             });
             return feature;
           });
