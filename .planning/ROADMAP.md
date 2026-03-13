@@ -88,7 +88,10 @@ Plans:
   3. Switching layers clears the sidebar (no stale specimen or sample detail remains visible)
   4. The `lm=` URL parameter encodes the active layer mode; pasting a sample-mode URL restores sample dots as the active layer
   5. Specimen taxon/date filter controls are hidden or disabled when sample mode is active
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 14-01-PLAN.md — bee-map.ts: sampleLayer wiring, layerMode state, lm= URL param, singleclick routing
+- [ ] 14-02-PLAN.md — bee-sidebar.ts: toggle UI, conditional filters, recent events list + human verify
 
 ### Phase 15: Click Interaction and iNat Links
 **Goal**: Clicking a sample dot shows its iNat observation detail in the sidebar, and the specimen sidebar shows a clickable iNat link when a matching entry exists in links.parquet
