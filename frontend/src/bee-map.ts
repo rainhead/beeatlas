@@ -116,7 +116,8 @@ function buildSamples(features: Feature[], linksMap?: Map<string, number>): Samp
     }
     const occid = (f.getId() as string).replace('ecdysis:', '');
     const inatId = linksMap ? (linksMap.get(f.get('occurrenceID') as string) ?? null) : null;
-    map.get(key)!.species.push({ name: f.get('scientificName') as string, occid, inatObservationId: inatId });
+    const floralHost = (f.get('floralHost') as string | null | undefined) ?? null;
+    map.get(key)!.species.push({ name: f.get('scientificName') as string, occid, inatObservationId: inatId, floralHost });
   }
   return [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
 }

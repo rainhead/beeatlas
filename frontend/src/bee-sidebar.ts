@@ -5,6 +5,7 @@ export interface Specimen {
   name: string;
   occid: string;
   inatObservationId?: number | null;
+  floralHost?: string | null;
 }
 
 export interface Sample {
@@ -479,6 +480,7 @@ export class BeeSidebar extends LitElement {
               ? `${event.specimen_count} specimen${event.specimen_count === 1 ? '' : 's'}`
               : 'specimen count not recorded'
             }</div>
+            <a href="https://www.inaturalist.org/observations/${event.observation_id}" target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>iNat</a>
           </div>
         `)}
       </div>
@@ -622,7 +624,7 @@ export class BeeSidebar extends LitElement {
               <li>
                 <a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name}</a>
                 ${s.inatObservationId != null
-                  ? html` · <a href="https://www.inaturalist.org/observations/${s.inatObservationId}" target="_blank" rel="noopener">iNat</a>`
+                  ? html` · <a href="https://www.inaturalist.org/observations/${s.inatObservationId}" target="_blank" rel="noopener">${s.floralHost ?? 'no host'}</a>`
                   : html` · <span class="inat-missing">iNat: —</span>`
                 }
               </li>
