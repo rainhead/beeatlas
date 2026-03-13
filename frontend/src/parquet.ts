@@ -1,4 +1,4 @@
- import { asyncBufferFromUrl, parquetReadObjects } from "hyparquet";
+import { asyncBufferFromUrl, parquetReadObjects } from "hyparquet";
 import { Feature } from "ol";
 import type { Extent } from "ol/extent.js";
 import Point from "ol/geom/Point.js";
@@ -50,6 +50,44 @@ export class ParquetSource extends VectorSource {
         })
         .catch(failure);
     }
+    super({loader: load, strategy: all});
+  }
+}
+
+const sampleColumns = [
+  'observation_id',
+  'observer',
+  'date',
+  'lat',
+  'lon',
+  'specimen_count',
+];
+
+export class SampleParquetSource extends VectorSource {
+  constructor({url}: {url: string}) {
+    const load = (extent: Extent, resolution: number, projection: Projection, success: any, failure: any) => {
+      asyncBufferFromUrl({url})
+        .then(buffer => parquetReadObjects({columns: sampleColumns, file: buffer}))
+        .then(objects => {
+          const features = objects.flatMap(obj => {
+            if (obj.lat == null || obj.lon == null) return [];
+            const feature = new Feature();
+            feature.setGeometry(new Point(fromLonLat([obj.lon, obj.lat])));
+            feature.setId(`inat:${Number(obj.observation_id)}`);
+            feature.setProperties({
+              observation_id: Number(obj.observation_id),
+              observer: obj.observer,
+              date: obj.date,
+              specimen_count: Number(obj.specimen_count),
+            });
+            return feature;
+          });
+          console.debug(`Adding ${features.length} features from ${url}`);
+          this.addFeatures(features);
+          if (success) success(features);
+        })
+        .catch(failure);
+    };
     super({loader: load, strategy: all});
   }
 }
