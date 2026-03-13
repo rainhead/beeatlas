@@ -321,6 +321,7 @@ bee-sidebar {
         observer: f.get('observer') as string,
         date: f.get('date') as string,
         specimen_count: f.get('specimen_count') as number,
+        sample_id: f.get('sample_id') as number | null,
         coordinate: (f.getGeometry() as Point).getCoordinates(),
       }));
   }
@@ -621,6 +622,7 @@ bee-sidebar {
           observer: f.get('observer') as string,
           date: f.get('date') as string,
           specimen_count: f.get('specimen_count') as number,
+          sample_id: f.get('sample_id') as number | null,
           coordinate: (f.getGeometry() as Point).getCoordinates(),
         };
       }

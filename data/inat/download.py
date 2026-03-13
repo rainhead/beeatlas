@@ -21,7 +21,7 @@ from typing import Any
 import pandas as pd
 import pyinaturalist
 
-from inat.observations import extract_specimen_count
+from inat.observations import extract_sample_id, extract_specimen_count
 from inat.projects import atlas_projects
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -39,6 +39,7 @@ DTYPE_MAP: dict[str, Any] = {
     "lat": "float64",
     "lon": "float64",
     "specimen_count": pd.Int64Dtype(),
+    "sample_id": pd.Int64Dtype(),
     "downloaded_at": pd.StringDtype(),
 }
 
@@ -88,6 +89,7 @@ def obs_to_row(obs: dict) -> dict:
         "lat": float(lat),
         "lon": float(lon),
         "specimen_count": extract_specimen_count(obs.get("ofvs", [])),
+        "sample_id": extract_sample_id(obs.get("ofvs", [])),
     }
 
 
@@ -113,6 +115,7 @@ def build_dataframe(results: list, downloaded_at: str | None = None) -> pd.DataF
     df["lat"] = df["lat"].astype("float64")
     df["lon"] = df["lon"].astype("float64")
     df["specimen_count"] = df["specimen_count"].astype(pd.Int64Dtype())
+    df["sample_id"] = df["sample_id"].astype(pd.Int64Dtype())
 
     df["downloaded_at"] = pd.array([downloaded_at] * len(df), dtype=pd.StringDtype())
 

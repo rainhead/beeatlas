@@ -45,6 +45,7 @@ export interface SampleEvent {
   observer: string;
   date: string;
   specimen_count: number;
+  sample_id: number | null;
   coordinate: number[];  // EPSG:3857
 }
 
@@ -475,12 +476,13 @@ export class BeeSidebar extends LitElement {
         ${this.recentSampleEvents.map(event => html`
           <div class="event-row" @click=${() => this._onSampleEventRowClick(event)}>
             <div class="event-date">${this._formatSampleDate(event.date)}</div>
-            <div class="event-observer">${event.observer}</div>
+            <div class="event-observer">
+              ${event.observer}${event.sample_id != null ? html` · <a href="https://www.inaturalist.org/observations/${event.observation_id}" target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>sample ${event.sample_id}</a>` : ''}
+            </div>
             <div class="event-count">${event.specimen_count != null && !isNaN(event.specimen_count)
               ? `${event.specimen_count} specimen${event.specimen_count === 1 ? '' : 's'}`
               : 'specimen count not recorded'
             }</div>
-            <a href="https://www.inaturalist.org/observations/${event.observation_id}" target="_blank" rel="noopener" @click=${(e: Event) => e.stopPropagation()}>iNat</a>
           </div>
         `)}
       </div>
