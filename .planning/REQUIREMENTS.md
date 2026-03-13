@@ -9,7 +9,7 @@
 
 - [x] **MAP-03**: User can see iNat collection events rendered as simple dot markers on the map as a distinct layer
 - [x] **MAP-04**: User can toggle between specimen clusters and sample dots (exclusive — one layer visible at a time; sidebar clears on switch)
-- [ ] **MAP-05**: Clicking a sample dot shows observer, date, specimen count, and a link to the iNat observation in the sidebar
+- [x] **MAP-05**: Clicking a sample dot shows observer, date, specimen count, and a link to the iNat observation in the sidebar
 
 ### Linkage
 
@@ -39,7 +39,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | MAP-03 | Phase 13 (partial — source), Phase 14 (complete) | Complete |
 | MAP-04 | Phase 14 | Complete |
-| MAP-05 | Phase 15 | Pending |
+| MAP-05 | Phase 15 | Complete |
 | LINK-05 | Phase 15 | Complete |
 
 **Coverage:**
