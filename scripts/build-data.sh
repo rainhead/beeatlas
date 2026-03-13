@@ -30,4 +30,6 @@ npm run fetch-links
 echo "--- Uploading links cache to S3 ---"
 npm run cache-upload-links
 
-echo "--- Done: links.parquet built ---"
+cp "$REPO_ROOT/data/links/links.parquet" "$REPO_ROOT/frontend/src/assets/links.parquet" \
+  || echo "links.parquet not found, skipping (pipeline not yet run)"
+echo "--- Done: links.parquet step complete ---"
