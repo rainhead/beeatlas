@@ -39,6 +39,13 @@ jobs:
       - name: Build frontend
         run: npm run build --workspace=frontend
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist/
+          retention-days: 1
+
   deploy:
     name: Deploy to S3 + CloudFront
     needs: build
@@ -51,30 +58,17 @@ jobs:
     env:
       S3_BUCKET_NAME: ${{ vars.S3_BUCKET_NAME }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
+          name: frontend-dist
+          path: frontend/dist/
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
           aws-region: us-west-2
-
-      - name: Restore S3 cache
-        run: npm run cache-restore
-
-      - name: Validate parquet schema
-        run: npm run validate-schema
-
-      - name: Build frontend
-        run: npm run build --workspace=frontend
 
       - name: Sync to S3
         run: aws s3 sync frontend/dist/ s3://${{ vars.S3_BUCKET_NAME }} --delete
