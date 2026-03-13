@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Sample Layer
 status: Roadmap defined, ready for plan-phase
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-03-13T02:30:08.096Z"
+stopped_at: Phase 14 context gathered
+last_updated: "2026-03-13T03:21:12.810Z"
 last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 progress:
   total_phases: 3
@@ -95,6 +95,6 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-03-13T02:27:47.799Z
-Stopped at: Completed 13-02-PLAN.md
-Resume file: None
+Last session: 2026-03-13T03:21:12.807Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-layer-toggle-and-map-display/14-CONTEXT.md
