@@ -32,6 +32,7 @@ const columns = [
   'fieldNumber',
   'genus',
   'family',
+  'floralHost',
 ];
 
 export class ParquetSource extends VectorSource {
@@ -54,6 +55,7 @@ export class ParquetSource extends VectorSource {
               fieldNumber: obj.fieldNumber,
               genus: obj.genus,
               family: obj.family,
+              floralHost: obj.floralHost ?? null,
             });
             return feature;
           })
