@@ -23,7 +23,12 @@
       "Bash(echo:*)",
       "Skill(gsd:new-milestone)",
       "Bash(uv run:*)",
-      "Bash(bash:*)"
+      "Bash(bash:*)",
+      "Bash(gh workflow:*)",
+      "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -20)",
+      "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -10)",
+      "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -12)",
+      "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -5)"
     ]
   }
 }
