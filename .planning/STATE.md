@@ -4,7 +4,7 @@ milestone: v1.4
 milestone_name: Sample Layer
 status: Roadmap defined, ready for plan-phase
 stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-03-13T03:46:29.971Z"
+last_updated: "2026-03-13T04:47:31.943Z"
 last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
 progress:
   total_phases: 3
