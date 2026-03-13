@@ -8,6 +8,7 @@ import { all } from 'ol/loadingstrategy.js';
 
 const columns = [
   'ecdysis_id',
+  'occurrenceID',
   'longitude',
   'latitude',
   'year',
@@ -31,6 +32,7 @@ export class ParquetSource extends VectorSource {
             feature.setGeometry(new Point(fromLonLat([obj.longitude, obj.latitude])))
             feature.setId(`ecdysis:${obj.ecdysis_id}`);
             feature.setProperties({
+              occurrenceID: obj.occurrenceID,
               year: Number(obj.year),
               month: Number(obj.month),       // DarwinCore months are 1-indexed (1=January, 12=December)
               scientificName: obj.scientificName,
