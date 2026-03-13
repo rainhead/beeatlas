@@ -38,6 +38,14 @@ export interface FilteredSummary {
   isActive: boolean;    // true if any filter is on (controls whether to show "X of Y" or just "Y")
 }
 
+export interface SampleEvent {
+  observation_id: number;
+  observer: string;
+  date: string;
+  specimen_count: number;
+  coordinate: number[];  // EPSG:3857
+}
+
 // Custom event payload
 export interface FilterChangedEvent {
   taxonName: string | null;
@@ -60,6 +68,12 @@ export class BeeSidebar extends LitElement {
 
   @property({ attribute: false })
   filteredSummary: FilteredSummary | null = null;
+
+  @property({ attribute: false })
+  layerMode: 'specimens' | 'samples' = 'specimens';
+
+  @property({ attribute: false })
+  recentSampleEvents: SampleEvent[] = [];
 
   // URL-restore properties — driven by BeeMap when restoring from URL or popstate
   @property({ attribute: false }) restoredTaxonInput: string = '';
@@ -203,6 +217,66 @@ export class BeeSidebar extends LitElement {
       font-size: 0.85rem;
       font-style: italic;
     }
+    .layer-toggle {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+    }
+    .toggle-btn {
+      flex: 1;
+      padding: 0.6rem 1rem;
+      border: none;
+      border-bottom: 2px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #888;
+      transition: none;
+    }
+    .toggle-btn:hover {
+      background: #f5f5f5;
+      color: #444;
+    }
+    .toggle-btn.active {
+      color: #2c7a2c;
+      border-bottom-color: #2c7a2c;
+      font-weight: 600;
+    }
+    .recent-events {
+      display: flex;
+      flex-direction: column;
+    }
+    .recent-events-header {
+      padding: 0.75rem 1rem 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #444;
+      border-bottom: 1px solid #eee;
+    }
+    .event-row {
+      padding: 0.6rem 1rem;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 0.15rem;
+    }
+    .event-row:hover {
+      background: #f8f8f8;
+    }
+    .event-date {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333;
+    }
+    .event-observer {
+      font-size: 0.8rem;
+      color: #666;
+    }
+    .event-count {
+      font-size: 0.8rem;
+      color: #888;
+    }
   `;
 
   updated(changedProperties: PropertyValues) {
@@ -325,6 +399,71 @@ export class BeeSidebar extends LitElement {
     return new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
       new Date(2000, month - 1)
     );
+  }
+
+  private _renderToggle() {
+    return html`
+      <div class="layer-toggle">
+        <button
+          class=${this.layerMode === 'specimens' ? 'toggle-btn active' : 'toggle-btn'}
+          @click=${() => this._onToggleLayer('specimens')}
+        >Specimens</button>
+        <button
+          class=${this.layerMode === 'samples' ? 'toggle-btn active' : 'toggle-btn'}
+          @click=${() => this._onToggleLayer('samples')}
+        >Samples</button>
+      </div>
+    `;
+  }
+
+  private _onToggleLayer(mode: 'specimens' | 'samples') {
+    if (mode === this.layerMode) return;  // no-op if already active
+    this.dispatchEvent(new CustomEvent<'specimens' | 'samples'>('layer-changed', {
+      bubbles: true,
+      composed: true,
+      detail: mode,
+    }));
+  }
+
+  private _onSampleEventRowClick(event: SampleEvent) {
+    this.dispatchEvent(new CustomEvent<{coordinate: number[]}>('sample-event-click', {
+      bubbles: true,
+      composed: true,
+      detail: { coordinate: event.coordinate },
+    }));
+  }
+
+  private _formatSampleDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    }).format(d);
+  }
+
+  private _renderRecentSampleEvents() {
+    if (this.recentSampleEvents.length === 0) {
+      return html`
+        <div class="panel-content">
+          <p class="hint">Loading sample data...</p>
+        </div>
+      `;
+    }
+    return html`
+      <div class="recent-events">
+        <div class="recent-events-header">Recent collections (last 14 days)</div>
+        ${this.recentSampleEvents.map(event => html`
+          <div class="event-row" @click=${() => this._onSampleEventRowClick(event)}>
+            <div class="event-date">${this._formatSampleDate(event.date)}</div>
+            <div class="event-observer">${event.observer}</div>
+            <div class="event-count">${event.specimen_count != null && !isNaN(event.specimen_count)
+              ? `${event.specimen_count} specimen${event.specimen_count === 1 ? '' : 's'}`
+              : 'specimen count not recorded'
+            }</div>
+          </div>
+        `)}
+      </div>
+    `;
   }
 
   private _renderFilterControls() {
@@ -450,8 +589,13 @@ export class BeeSidebar extends LitElement {
 
   render() {
     return html`
-      ${this._renderFilterControls()}
-      ${this.samples !== null ? this._renderDetail(this.samples) : this._renderSummary()}
+      ${this._renderToggle()}
+      ${this.layerMode === 'specimens' ? this._renderFilterControls() : ''}
+      ${this.samples !== null
+        ? this._renderDetail(this.samples)
+        : this.layerMode === 'samples'
+          ? this._renderRecentSampleEvents()
+          : this._renderSummary()}
     `;
   }
 }
