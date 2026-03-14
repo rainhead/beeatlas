@@ -29,7 +29,8 @@
       "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -10)",
       "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -12)",
       "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -5)",
-      "Bash(gh run:*)"
+      "Bash(gh run:*)",
+      "Bash(cd /Users/rainhead/dev/beeatlas/frontend && grep '\"hyparquet\"' package.json)"
     ]
   }
 }

@@ -1,4 +1,13 @@
-import { asyncBufferFromUrl, parquetReadObjects } from "hyparquet";
+import { parquetReadObjects } from "hyparquet";
+
+async function asyncBufferFromUrlEager(url: string) {
+  const res = await fetch(url);
+  const arrayBuffer = await res.arrayBuffer();
+  return {
+    byteLength: arrayBuffer.byteLength,
+    slice: async (start: number, end?: number) => arrayBuffer.slice(start, end),
+  };
+}
 import { Feature } from "ol";
 import type { Extent } from "ol/extent.js";
 import Point from "ol/geom/Point.js";
@@ -38,7 +47,7 @@ const columns = [
 export class ParquetSource extends VectorSource {
   constructor({url}: {url: string}) {
     const load = (extent: Extent, resolution: number, projection: Projection, success: any, failure: any) => {
-      asyncBufferFromUrl({url})
+      asyncBufferFromUrlEager(url)
         .then(buffer => parquetReadObjects({columns, file: buffer}))
         .then(objects => {
           const features = objects.flatMap(obj => {
@@ -83,7 +92,7 @@ const sampleColumns = [
 export class SampleParquetSource extends VectorSource {
   constructor({url}: {url: string}) {
     const load = (extent: Extent, resolution: number, projection: Projection, success: any, failure: any) => {
-      asyncBufferFromUrl({url})
+      asyncBufferFromUrlEager(url)
         .then(buffer => parquetReadObjects({columns: sampleColumns, file: buffer}))
         .then(objects => {
           const features = objects.flatMap(obj => {
