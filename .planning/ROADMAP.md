@@ -199,5 +199,5 @@ Plans:
 | 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
 | 16. Pipeline Spatial Join | v1.5 | 7/7 | Complete | 2026-03-14 |
 | 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
-| 18. Map Integration | v1.5 | 2/4 | In Progress | - |
+| 18. Map Integration | 3/4 | In Progress|  | - |
 | 19. Sidebar UI | v1.5 | 0/? | Not started | - |
