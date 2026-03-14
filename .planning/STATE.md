@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
 status: planning
-stopped_at: Phase 18 context gathered
-last_updated: "2026-03-14T21:22:49.919Z"
+stopped_at: Completed 18-01-PLAN.md
+last_updated: "2026-03-14T21:39:36.717Z"
 last_activity: 2026-03-14 — Phase 17 complete; frontend data layer shipped (Parquet projections, FilterState region logic, region VectorLayer)
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 14
-  completed_plans: 14
+  total_plans: 16
+  completed_plans: 15
   percent: 100
 ---
 
@@ -55,6 +55,7 @@ Progress: [████████████████████] 14/14 p
 | Phase 16-pipeline-spatial-join P07 | ~30min | 2 tasks | 1 files |
 | Phase 17-frontend-data-layer P01 | 2min | 2 tasks | 2 files |
 | Phase 17-frontend-data-layer P02 | 1min | 2 tasks | 2 files |
+| Phase 18-map-integration P01 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Progress: [████████████████████] 14/14 p
 - [Phase 17-frontend-data-layer]: county and ecoregion_l3 are string columns — no BigInt coercion needed (unlike year/month INT64)
 - [Phase 17-frontend-data-layer]: Region filter semantics: AND-across-types (county AND ecoregion if both active), OR-within-type (membership in Set)
 - [Phase 17-frontend-data-layer]: geojson.d.ts module declaration typed as FeatureCollection — eliminates as unknown as casts, cleaner than plan's workaround
+- [Phase 18-map-integration]: _setBoundaryMode deferred to boundary toggle UI plan — noUnusedLocals:true prevents unused private methods; will be added when call site exists
+- [Phase 18-map-integration]: vite.config.ts geojson plugin: .geojson imports handled via readFileSync + export default; map:null suppresses sourcemap warnings
+- [Phase 18-map-integration]: bm= URL param omitted when off (absence = off) — clean URLs; counties= and ecor= also omitted when empty
 
 ### Pending Todos
 
@@ -93,6 +97,6 @@ None — ecoregion property name confirmed as `NA_L3NAME` by Phase 17 verifier (
 
 ## Session Continuity
 
-Last session: 2026-03-14T21:22:49.916Z
-Stopped at: Phase 18 context gathered
-Resume file: .planning/phases/18-map-integration/18-CONTEXT.md
+Last session: 2026-03-14T21:39:36.715Z
+Stopped at: Completed 18-01-PLAN.md
+Resume file: None
