@@ -42,6 +42,8 @@ const columns = [
   'genus',
   'family',
   'floralHost',
+  'county',
+  'ecoregion_l3',
 ];
 
 export class ParquetSource extends VectorSource {
@@ -65,6 +67,8 @@ export class ParquetSource extends VectorSource {
               genus: obj.genus,
               family: obj.family,
               floralHost: obj.floralHost ?? null,
+              county: obj.county as string ?? null,
+              ecoregion_l3: obj.ecoregion_l3 as string ?? null,
             });
             return feature;
           })
@@ -87,6 +91,8 @@ const sampleColumns = [
   'lon',
   'specimen_count',
   'sample_id',
+  'county',
+  'ecoregion_l3',
 ];
 
 export class SampleParquetSource extends VectorSource {
@@ -106,6 +112,8 @@ export class SampleParquetSource extends VectorSource {
               date: obj.date,
               specimen_count: Number(obj.specimen_count),
               sample_id: obj.sample_id != null ? Number(obj.sample_id) : null,
+              county: obj.county as string ?? null,
+              ecoregion_l3: obj.ecoregion_l3 as string ?? null,
             });
             return feature;
           });
