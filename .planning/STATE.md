@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
-status: executing
-stopped_at: Completed 16-07-PLAN.md
-last_updated: "2026-03-14T19:05:00.000Z"
+status: completed
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-03-14T20:38:49.735Z"
 last_activity: 2026-03-14 — 16-07 S3 cache refreshed; schema validation passes
 progress:
   total_phases: 7
-  completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
+  completed_phases: 4
+  total_plans: 14
+  completed_plans: 13
   percent: 75
 ---
 
@@ -53,6 +53,7 @@ Progress: [███████░░░] 75%
 | Phase 16-pipeline-spatial-join P05 | 525712min | 2 tasks | 2 files |
 | Phase 16-pipeline-spatial-join P06 | 1min | 2 tasks | 2 files |
 | Phase 16-pipeline-spatial-join P07 | ~30min | 2 tasks | 1 files |
+| Phase 17-frontend-data-layer P01 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Progress: [███████░░░] 75%
 - [Phase 16-pipeline-spatial-join]: iNat load_boundaries() defined as named function for test mocking; add_region_columns applied to merged (not delta alone) to handle incremental run correctness
 - [Phase 16-pipeline-spatial-join]: GeoJSON boundary files committed to git rather than generated at CI time — simplest resolution with no workflow changes
 - [Phase 16-pipeline-spatial-join]: fetch-data workflow step order: cache-restore must precede ecdysis pipeline to enable incremental iNat fetch; boundary download must precede pipeline steps
+- [Phase 17-frontend-data-layer]: county and ecoregion_l3 are string columns — no BigInt coercion needed (unlike year/month INT64)
+- [Phase 17-frontend-data-layer]: Region filter semantics: AND-across-types (county AND ecoregion if both active), OR-within-type (membership in Set)
 
 ### Pending Todos
 
@@ -88,6 +91,6 @@ Progress: [███████░░░] 75%
 
 ## Session Continuity
 
-Last session: 2026-03-14T19:05:00.000Z
-Stopped at: Completed 16-07-PLAN.md
+Last session: 2026-03-14T20:38:49.733Z
+Stopped at: Completed 17-01-PLAN.md
 Resume file: None
