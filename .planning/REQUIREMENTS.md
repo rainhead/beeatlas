@@ -3,7 +3,27 @@
 **Defined:** 2026-03-12
 **Core Value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
-## v1.4 Requirements
+## v1.5 Requirements
+
+### Pipeline
+
+- [ ] **PIPE-05**: Specimens in ecdysis.parquet each have county and ecoregion_l3 values after the pipeline runs (spatial join overrides DarwinCore county field; nearest-polygon fallback handles coastal edge cases where points fall outside polygon boundaries)
+- [ ] **PIPE-06**: Collection events in samples.parquet each have county and ecoregion_l3 values after the pipeline runs (same spatial join logic as specimens)
+- [ ] **PIPE-07**: WA county and EPA Level III ecoregion GeoJSON files are simplified, bundled with the frontend build, and available at runtime; CI schema validation (validate-schema.mjs) updated to include county and ecoregion_l3 columns
+
+### Map
+
+- [ ] **MAP-09**: User can toggle a boundary overlay between three states: off, county boundaries, ecoregion boundaries — only one boundary type is visible at a time; overlay is independent of the specimen/sample layer toggle
+- [ ] **MAP-10**: User can click a visible boundary polygon to add that county or ecoregion to the active filter; specimen and sample point clicks take priority over polygon clicks when both could register
+
+### Filter
+
+- [ ] **FILTER-03**: User can filter specimens and samples to one or more counties using a multi-select autocomplete with removable chips; county filter uses OR semantics (King OR Pierce) and ANDs with taxon, date, and ecoregion filters
+- [ ] **FILTER-04**: User can filter specimens and samples to one or more ecoregions using a multi-select autocomplete with removable chips; chips show a type label ("county" / "ecoregion") to disambiguate when both are active simultaneously
+- [ ] **FILTER-05**: Active region filter state (boundary mode, selected counties, selected ecoregions) is encoded in the URL (bm=, counties=, ecor= params) and restored when the URL is pasted or navigated to
+- [ ] **FILTER-06**: Clicking "Clear filters" resets county and ecoregion selections in addition to taxon and date filters; map position is unchanged
+
+## v1.4 Requirements (Shipped)
 
 ### Map Layer
 
@@ -23,6 +43,11 @@
 - **MAP-07**: Combined specimens + samples view — click disambiguation is non-trivial; defer until collectors request it
 - **MAP-08**: Sample dot size-encoded by specimen count — defer until basic layer ships and feedback received
 
+### Map / Region
+
+- **MAP-11**: Selected polygon highlighted distinctly on map — sidebar chips are sufficient confirmation at launch
+- **MAP-12**: Draw-a-polygon region filter — named regions cover the real use case; draw interaction is significant complexity
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -30,6 +55,8 @@
 | Filter controls (taxon/date) active in sample mode | Sample data has no taxon column; filters are hidden when sample layer is active |
 | Tribe-level filtering | Tribe not present in Ecdysis DarwinCore export |
 | Server-side API or backend | Static hosting constraint — all data client-side |
+| Filter result count per region in sidebar | Requires cross-cutting count logic; defer until basic filter ships |
+| Auto-zoom to region on filter | Explicitly out of scope per PROJECT.md — map position unchanged |
 
 ## Traceability
 
@@ -41,12 +68,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-04 | Phase 14 | Complete |
 | MAP-05 | Phase 15 | Complete |
 | LINK-05 | Phase 15 | Complete |
+| PIPE-05 | Phase ? | Pending |
+| PIPE-06 | Phase ? | Pending |
+| PIPE-07 | Phase ? | Pending |
+| MAP-09 | Phase ? | Pending |
+| MAP-10 | Phase ? | Pending |
+| FILTER-03 | Phase ? | Pending |
+| FILTER-04 | Phase ? | Pending |
+| FILTER-05 | Phase ? | Pending |
+| FILTER-06 | Phase ? | Pending |
 
 **Coverage:**
-- v1.4 requirements: 4 total
-- Mapped to phases: 4
-- Unmapped: 0 ✓
+- v1.5 requirements: 9 total
+- Mapped to phases: 0
+- Unmapped: 9 ⚠️
 
 ---
-*Requirements defined: 2026-03-12*
-*Last updated: 2026-03-12 after roadmap creation (Phases 13–15)*
+*Requirements defined: 2026-03-12 (v1.4), extended 2026-03-14 (v1.5)*
+*Last updated: 2026-03-14 after v1.5 requirements definition*
