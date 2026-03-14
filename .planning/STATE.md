@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
 status: planning
-stopped_at: Phase 16 context gathered
-last_updated: "2026-03-14T16:56:02.495Z"
+stopped_at: Completed 16-04-PLAN.md
+last_updated: "2026-03-14T17:56:34.968Z"
 last_activity: 2026-03-14 — Roadmap created; Phases 16–19 defined
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 10
+  completed_plans: 6
   percent: 0
 ---
 
@@ -46,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 16-pipeline-spatial-join P04 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -59,6 +60,7 @@ Progress: [░░░░░░░░░░] 0%
 - **v1.5 coastal nulls**: ~408 WA specimens (~0.9%) fall outside ecoregion polygon boundaries; nearest-polygon fallback required after 'within' sjoin for null rows
 - **v1.5 click priority**: Polygon singleclick handler must check specimen/sample hits FIRST; checking polygon first swallows specimen clicks when boundary overlay is visible
 - **v1.5 polygon fill**: OL only hit-detects rendered pixels; transparent Fill (rgba 0,0,0,0) required for polygon interior to be clickable
+- [Phase 16-pipeline-spatial-join]: validate-schema.mjs EXPECTED dict is the authoritative CI schema contract for parquet column requirements
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-03-14T16:56:02.491Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-pipeline-spatial-join/16-CONTEXT.md
+Last session: 2026-03-14T17:56:34.966Z
+Stopped at: Completed 16-04-PLAN.md
+Resume file: None
