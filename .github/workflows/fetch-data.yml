@@ -42,6 +42,9 @@ jobs:
         if: github.event_name != 'schedule'
         run: npm run cache-restore
 
+      - name: Download boundary files
+        run: cd data && uv run python scripts/build_geojson.py
+
       - name: Download and process Ecdysis data
         run: |
           cd data
