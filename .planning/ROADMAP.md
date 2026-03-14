@@ -71,7 +71,7 @@ See Phase Details section for full criteria.
 **Milestone Goal:** Collectors can filter specimens and samples by WA county or EPA Level III ecoregion, using a sidebar multi-select autocomplete or by clicking a visible boundary polygon on the map.
 
 - [x] **Phase 16: Pipeline Spatial Join** — Specimens and samples get county and ecoregion_l3 columns at build time; GeoJSON boundary files bundled with the frontend (gap closure in progress) (completed 2026-03-14)
-- [ ] **Phase 17: Frontend Data Layer** — FilterState extended for region Sets; region-layer.ts module with GeoJSON-backed VectorLayer created; Parquet region columns read into OL feature properties
+- [x] **Phase 17: Frontend Data Layer** — FilterState extended for region Sets; region-layer.ts module with GeoJSON-backed VectorLayer created; Parquet region columns read into OL feature properties (completed 2026-03-14)
 - [ ] **Phase 18: Map Integration** — Region boundary overlay toggle wired into map; polygon click adds region to active filter; region filter state encoded in URL
 - [ ] **Phase 19: Sidebar UI** — County and ecoregion multi-select chips in sidebar; boundary toggle control; clear-all resets region filters
 
@@ -199,6 +199,6 @@ Plans:
 | 14. Layer Toggle and Map Display | v1.4 | 2/2 | Complete | 2026-03-13 |
 | 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
 | 16. Pipeline Spatial Join | 7/7 | Complete   | 2026-03-14 | 2026-03-14 |
-| 17. Frontend Data Layer | 1/2 | In Progress|  | - |
+| 17. Frontend Data Layer | 2/2 | Complete   | 2026-03-14 | - |
 | 18. Map Integration | v1.5 | 0/? | Not started | - |
 | 19. Sidebar UI | v1.5 | 0/? | Not started | - |
