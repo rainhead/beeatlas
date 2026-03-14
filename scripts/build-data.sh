@@ -4,6 +4,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT/data"
 
+echo "--- Generating boundary GeoJSON ---"
+uv run python scripts/build_geojson.py
+echo "--- Done: boundary GeoJSON files in frontend/src/assets/ ---"
+
 echo "--- Downloading Ecdysis data ---"
 uv run python ecdysis/download.py --datasetid 44
 
