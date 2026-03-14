@@ -38,16 +38,16 @@ jobs:
           role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
           aws-region: us-west-2
 
+      - name: Restore S3 cache for incremental fetch
+        if: github.event_name != 'schedule'
+        run: npm run cache-restore
+
       - name: Download and process Ecdysis data
         run: |
           cd data
           uv run python ecdysis/download.py --datasetid 44
           ZIPFILE=$(ls -t ecdysis_*.zip | head -1)
           uv run python ecdysis/occurrences.py "$ZIPFILE"
-
-      - name: Restore S3 cache for incremental fetch
-        if: github.event_name != 'schedule'
-        run: npm run cache-restore
 
       - name: Fetch iNaturalist observations
         # Scheduled runs: full fetch for anti-entropy (no last_fetch.txt in env).
