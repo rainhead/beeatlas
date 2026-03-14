@@ -126,9 +126,15 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Running the Ecdysis pipeline produces `ecdysis.parquet` where every row has a non-null `county` string and non-null `ecoregion_l3` string (nearest-polygon fallback eliminates all nulls for points within the WA bounding box)
   2. Running the iNat pipeline produces `samples.parquet` where every row has a non-null `county` string and non-null `ecoregion_l3` string using the same spatial join logic
-  3. `frontend/src/assets/wa_counties.geojson` and `frontend/src/assets/epa_l3_ecoregions_wa.geojson` are present after `npm run build`, with each file under 400 KB (simplified at 0.005 degrees)
+  3. `frontend/src/assets/wa_counties.geojson` and `frontend/src/assets/epa_l3_ecoregions_wa.geojson` are present after `npm run build`, with each file under 400 KB (simplified at 0.006 degrees)
   4. `scripts/validate-schema.mjs` includes `county` and `ecoregion_l3` in the expected column list for both Parquet files and fails CI if either column is absent
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 16-01-PLAN.md — test scaffold: data/tests/test_spatial.py with four failing test classes
+- [ ] 16-02-PLAN.md — data/spatial.py: add_region_columns() shared join utility (PIPE-05 core)
+- [ ] 16-03-PLAN.md — data/scripts/build-geojson.py + scripts/build-data.sh GeoJSON step (PIPE-07)
+- [ ] 16-04-PLAN.md — scripts/validate-schema.mjs: county + ecoregion_l3 columns added (PIPE-07)
+- [ ] 16-05-PLAN.md — occurrences.py + inat/download.py: pipeline integrations (PIPE-05, PIPE-06)
 
 ### Phase 17: Frontend Data Layer
 **Goal**: The frontend can read region columns from Parquet, FilterState tracks selected counties and ecoregions, and the region boundary VectorLayer is constructed and styled — verified via browser console before any UI is wired
