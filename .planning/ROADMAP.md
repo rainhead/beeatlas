@@ -70,7 +70,7 @@ See Phase Details section for full criteria.
 
 **Milestone Goal:** Collectors can filter specimens and samples by WA county or EPA Level III ecoregion, using a sidebar multi-select autocomplete or by clicking a visible boundary polygon on the map.
 
-- [x] **Phase 16: Pipeline Spatial Join** — Specimens and samples get county and ecoregion_l3 columns at build time; GeoJSON boundary files bundled with the frontend (completed 2026-03-14)
+- [ ] **Phase 16: Pipeline Spatial Join** — Specimens and samples get county and ecoregion_l3 columns at build time; GeoJSON boundary files bundled with the frontend (gap closure in progress)
 - [ ] **Phase 17: Frontend Data Layer** — FilterState extended for region Sets; region-layer.ts module with GeoJSON-backed VectorLayer created; Parquet region columns read into OL feature properties
 - [ ] **Phase 18: Map Integration** — Region boundary overlay toggle wired into map; polygon click adds region to active filter; region filter state encoded in URL
 - [ ] **Phase 19: Sidebar UI** — County and ecoregion multi-select chips in sidebar; boundary toggle control; clear-all resets region filters
@@ -128,13 +128,15 @@ Plans:
   2. Running the iNat pipeline produces `samples.parquet` where every row has a non-null `county` string and non-null `ecoregion_l3` string using the same spatial join logic
   3. `frontend/src/assets/wa_counties.geojson` and `frontend/src/assets/epa_l3_ecoregions_wa.geojson` are present after `npm run build`, with each file under 400 KB (simplified at 0.006 degrees)
   4. `scripts/validate-schema.mjs` includes `county` and `ecoregion_l3` in the expected column list for both Parquet files and fails CI if either column is absent
-**Plans**: 5 plans
+**Plans**: 7 plans
 Plans:
-- [ ] 16-01-PLAN.md — test scaffold: data/tests/test_spatial.py with four failing test classes
-- [ ] 16-02-PLAN.md — data/spatial.py: add_region_columns() shared join utility (PIPE-05 core)
-- [ ] 16-03-PLAN.md — data/scripts/build-geojson.py + scripts/build-data.sh GeoJSON step (PIPE-07)
-- [ ] 16-04-PLAN.md — scripts/validate-schema.mjs: county + ecoregion_l3 columns added (PIPE-07)
-- [ ] 16-05-PLAN.md — occurrences.py + inat/download.py: pipeline integrations (PIPE-05, PIPE-06)
+- [x] 16-01-PLAN.md — test scaffold: data/tests/test_spatial.py with four failing test classes
+- [x] 16-02-PLAN.md — data/spatial.py: add_region_columns() shared join utility (PIPE-05 core)
+- [x] 16-03-PLAN.md — data/scripts/build-geojson.py + scripts/build-data.sh GeoJSON step (PIPE-07)
+- [x] 16-04-PLAN.md — scripts/validate-schema.mjs: county + ecoregion_l3 columns added (PIPE-07)
+- [x] 16-05-PLAN.md — occurrences.py + inat/download.py: pipeline integrations (PIPE-05, PIPE-06)
+- [ ] 16-06-PLAN.md — gap closure: generate and commit GeoJSON files to git (PIPE-07)
+- [ ] 16-07-PLAN.md — gap closure: trigger fetch-data workflow to refresh stale S3 parquet cache (PIPE-05, PIPE-06)
 
 ### Phase 17: Frontend Data Layer
 **Goal**: The frontend can read region columns from Parquet, FilterState tracks selected counties and ecoregions, and the region boundary VectorLayer is constructed and styled — verified via browser console before any UI is wired
@@ -187,7 +189,7 @@ Plans:
 | 13. Parquet Sources and Asset Pipeline | v1.4 | 2/2 | Complete | 2026-03-13 |
 | 14. Layer Toggle and Map Display | v1.4 | 2/2 | Complete | 2026-03-13 |
 | 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
-| 16. Pipeline Spatial Join | 5/5 | Complete   | 2026-03-14 | - |
+| 16. Pipeline Spatial Join | v1.5 | 5/7 | Gap closure | 2026-03-14 |
 | 17. Frontend Data Layer | v1.5 | 0/? | Not started | - |
 | 18. Map Integration | v1.5 | 0/? | Not started | - |
 | 19. Sidebar UI | v1.5 | 0/? | Not started | - |
