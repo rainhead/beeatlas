@@ -13,8 +13,8 @@
 
 ### Map
 
-- [ ] **MAP-09**: User can toggle a boundary overlay between three states: off, county boundaries, ecoregion boundaries — only one boundary type is visible at a time; overlay is independent of the specimen/sample layer toggle
-- [ ] **MAP-10**: User can click a visible boundary polygon to add that county or ecoregion to the active filter; specimen and sample point clicks take priority over polygon clicks when both could register
+- [x] **MAP-09**: User can toggle a boundary overlay between three states: off, county boundaries, ecoregion boundaries — only one boundary type is visible at a time; overlay is independent of the specimen/sample layer toggle
+- [x] **MAP-10**: User can click a visible boundary polygon to add that county or ecoregion to the active filter; specimen and sample point clicks take priority over polygon clicks when both could register
 
 ### Filter
 
@@ -71,8 +71,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PIPE-05 | Phase 16 | Complete |
 | PIPE-06 | Phase 16 | Complete |
 | PIPE-07 | Phase 16 | Complete |
-| MAP-09 | Phase 18 | Pending |
-| MAP-10 | Phase 18 | Pending |
+| MAP-09 | Phase 18 | Complete |
+| MAP-10 | Phase 18 | Complete |
 | FILTER-05 | Phase 18 | Complete |
 | FILTER-03 | Phase 19 | Pending |
 | FILTER-04 | Phase 19 | Pending |
