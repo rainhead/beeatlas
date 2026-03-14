@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
 status: executing
-stopped_at: Completed 16-03-PLAN.md
-last_updated: "2026-03-14T17:58:34.917Z"
+stopped_at: Completed 16-05-PLAN.md
+last_updated: "2026-03-14T18:02:09.500Z"
 last_activity: 2026-03-14 — 16-01 test scaffold complete (9 tests, all RED)
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
   percent: 70
 ---
 
@@ -50,6 +50,7 @@ Progress: [███████░░░] 70%
 | Phase 16-pipeline-spatial-join P01 | 1 | 1 tasks | 1 files |
 | Phase 16-pipeline-spatial-join P02 | 2 | 1 tasks | 1 files |
 | Phase 16 P03 | 148 | 2 tasks | 3 files |
+| Phase 16-pipeline-spatial-join P05 | 525712min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Progress: [███████░░░] 70%
 - [Phase 16-pipeline-spatial-join]: Three coordinate conventions handled in add_region_columns: longitude/latitude, lon/lat, decimalLongitude/decimalLatitude
 - [Phase 16-pipeline-spatial-join]: sjoin_nearest fallback uses EPSG:32610 to avoid geographic CRS warning; deduplication applied after every sjoin
 - [Phase 16]: build_geojson.py uses underscore (not dash) to match Python module import requirements from 16-01 test scaffold
+- [Phase 16-pipeline-spatial-join]: Pipeline boundary loading: boundaries loaded once at entrypoint (main/__main__), passed as arguments through to pipeline functions — avoids double-loading
+- [Phase 16-pipeline-spatial-join]: iNat load_boundaries() defined as named function for test mocking; add_region_columns applied to merged (not delta alone) to handle incremental run correctness
 
 ### Pending Todos
 
@@ -81,6 +84,6 @@ Progress: [███████░░░] 70%
 
 ## Session Continuity
 
-Last session: 2026-03-14T17:58:34.914Z
-Stopped at: Completed 16-03-PLAN.md
+Last session: 2026-03-14T18:02:09.498Z
+Stopped at: Completed 16-05-PLAN.md
 Resume file: None
