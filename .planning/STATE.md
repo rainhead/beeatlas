@@ -4,7 +4,7 @@ milestone: v1.5
 milestone_name: Geographic Regions
 status: planning
 stopped_at: Completed 18-04-PLAN.md
-last_updated: "2026-03-14T22:34:03.573Z"
+last_updated: "2026-03-14T22:37:10.219Z"
 last_activity: 2026-03-14 — Phase 17 complete; frontend data layer shipped (Parquet projections, FilterState region logic, region VectorLayer)
 progress:
   total_phases: 7
