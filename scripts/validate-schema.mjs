@@ -18,10 +18,12 @@ const EXPECTED = {
     'ecdysis_id', 'occurrenceID', 'longitude', 'latitude',
     'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
     'genus', 'family', 'floralHost',
+    'county', 'ecoregion_l3',
   ],
   'samples.parquet': [
     'observation_id', 'observer', 'date', 'lat', 'lon',
     'specimen_count', 'sample_id',
+    'county', 'ecoregion_l3',
   ],
   'links.parquet': [
     'occurrenceID', 'inat_observation_id',
