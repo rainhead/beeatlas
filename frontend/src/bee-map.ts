@@ -19,7 +19,7 @@ import Feature from "ol/Feature.js";
 import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
 import { filterState, isFilterActive, matchesFilter } from './filter.ts';
-import { regionLayer, countySource, ecoregionSource } from './region-layer.ts';
+import { regionLayer, countySource, ecoregionSource, makeRegionStyleFn } from './region-layer.ts';
 import './bee-sidebar.ts';
 import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 
@@ -265,6 +265,7 @@ export class BeeMap extends LitElement {
     }
     clusterSource.changed();
     sampleSource.changed();
+    regionLayer.changed();
     if (this.map) this._pushUrlState();
   }
 
@@ -275,25 +276,43 @@ export class BeeMap extends LitElement {
     return all.length > 0 ? `Filter: ${all.join(', ')}` : null;
   }
 
-  private _onPolygonClick(feature: Feature) {
+  private _onPolygonClick(feature: Feature, shiftKey: boolean) {
     const isCounty = this.boundaryMode === 'counties';
     const name = isCounty
       ? (feature.get('NAME') as string)
       : (feature.get('NA_L3NAME') as string);
-    const targetSet = isCounty ? filterState.selectedCounties : filterState.selectedEcoregions;
-    const newSet = new Set(targetSet);
-    if (newSet.has(name)) {
-      newSet.delete(name);
+
+    if (!shiftKey) {
+      // Single-select (default): replace current selection with this region.
+      // If this region was already the sole selection, clear it (toggle off single).
+      const currentSet = isCounty ? filterState.selectedCounties : filterState.selectedEcoregions;
+      const wasOnlySelection = currentSet.size === 1 && currentSet.has(name);
+      if (isCounty) {
+        filterState.selectedCounties = wasOnlySelection ? new Set() : new Set([name]);
+        filterState.selectedEcoregions = new Set();  // clear cross-type on replace
+      } else {
+        filterState.selectedEcoregions = wasOnlySelection ? new Set() : new Set([name]);
+        filterState.selectedCounties = new Set();    // clear cross-type on replace
+      }
     } else {
-      newSet.add(name);
+      // Shift-click: add to or remove from current selection (multi-select).
+      const targetSet = isCounty ? filterState.selectedCounties : filterState.selectedEcoregions;
+      const newSet = new Set(targetSet);
+      if (newSet.has(name)) {
+        newSet.delete(name);
+      } else {
+        newSet.add(name);
+      }
+      if (isCounty) {
+        filterState.selectedCounties = newSet;
+      } else {
+        filterState.selectedEcoregions = newSet;
+      }
     }
-    if (isCounty) {
-      filterState.selectedCounties = newSet;
-    } else {
-      filterState.selectedEcoregions = newSet;
-    }
+
     clusterSource.changed();
     sampleSource.changed();
+    regionLayer.changed();
     this.map?.render();
     this._regionFilterText = this._buildRegionFilterText();
     const view = this.map!.getView();
@@ -308,6 +327,7 @@ export class BeeMap extends LitElement {
     filterState.selectedEcoregions = new Set();
     clusterSource.changed();
     sampleSource.changed();
+    regionLayer.changed();
     this.map?.render();
     this._regionFilterText = null;
     if (!this._isRestoringFromHistory && this.map) this._pushUrlState();
@@ -670,6 +690,9 @@ bee-sidebar {
     });
     sampleLayer.setVisible(false);
 
+    // Set dynamic style function so selected polygons are highlighted
+    regionLayer.setStyle(makeRegionStyleFn(() => this.boundaryMode));
+
     // Restore layer mode from URL (do this directly, not via _onLayerChanged,
     // because _onLayerChanged calls _pushUrlState which needs this.map to be ready)
     if (initialParams.layerMode === 'samples') {
@@ -786,7 +809,7 @@ bee-sidebar {
         if (this.boundaryMode !== 'off') {
           const polyHits = await regionLayer.getFeatures(event.pixel);
           if (polyHits.length) {
-            this._onPolygonClick(polyHits[0]! as Feature);
+            this._onPolygonClick(polyHits[0]! as Feature, (event.originalEvent as MouseEvent).shiftKey);
             return;
           }
           // Miss on open map area — clear region filter
@@ -815,7 +838,7 @@ bee-sidebar {
         if (this.boundaryMode !== 'off') {
           const polyHits = await regionLayer.getFeatures(event.pixel);
           if (polyHits.length) {
-            this._onPolygonClick(polyHits[0]! as Feature);
+            this._onPolygonClick(polyHits[0]! as Feature, (event.originalEvent as MouseEvent).shiftKey);
             return;
           }
           // Miss on open map area — clear region filter
