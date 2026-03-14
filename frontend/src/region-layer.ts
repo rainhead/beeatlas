@@ -12,7 +12,7 @@ import ecoregionsJson from './assets/epa_l3_ecoregions_wa.geojson';
 // See: STATE.md v1.5 decisions — "v1.5 polygon fill"
 export const boundaryStyle = new Style({
   fill: new Fill({ color: 'rgba(0, 0, 0, 0)' }),
-  stroke: new Stroke({ color: '#3388ff', width: 1.5 }),
+  stroke: new Stroke({ color: 'rgba(80, 80, 80, 0.55)', width: 1.5 }),
 });
 
 // featureProjection: 'EPSG:3857' is required — GeoJSON is stored in WGS84 lon/lat,

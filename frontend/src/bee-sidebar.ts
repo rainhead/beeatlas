@@ -81,6 +81,8 @@ export class BeeSidebar extends LitElement {
   @property({ attribute: false })
   selectedSampleEvent: SampleEvent | null = null;
 
+  @property({ attribute: false }) regionFilterText: string | null = null;
+
   // URL-restore properties — driven by BeeMap when restoring from URL or popstate
   @property({ attribute: false }) restoredTaxonInput: string = '';
   @property({ attribute: false }) restoredTaxonRank: 'family' | 'genus' | 'species' | null = null;
@@ -307,6 +309,12 @@ export class BeeSidebar extends LitElement {
     }
     .event-inat {
       font-size: 0.85rem;
+    }
+    .region-filter-text {
+      margin: 0.5rem 1rem;
+      font-size: 0.85rem;
+      color: #2c7be5;
+      font-weight: 500;
     }
   `;
 
@@ -658,6 +666,7 @@ export class BeeSidebar extends LitElement {
   render() {
     return html`
       ${this._renderToggle()}
+      ${this.regionFilterText ? html`<p class="region-filter-text">${this.regionFilterText}</p>` : ''}
       ${this.layerMode === 'specimens' ? this._renderFilterControls() : ''}
       ${this.samples !== null
         ? this._renderDetail(this.samples)
