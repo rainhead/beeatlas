@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
-status: completed
-stopped_at: Completed 17-02-PLAN.md
-last_updated: "2026-03-14T20:44:07.952Z"
-last_activity: 2026-03-14 — 16-07 S3 cache refreshed; schema validation passes
+status: planning
+stopped_at: Phase 18 context gathered
+last_updated: "2026-03-14T21:22:49.919Z"
+last_activity: 2026-03-14 — Phase 17 complete; frontend data layer shipped (Parquet projections, FilterState region logic, region VectorLayer)
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 14
   completed_plans: 14
-  percent: 75
+  percent: 100
 ---
 
 # Project State
@@ -93,6 +93,6 @@ None — ecoregion property name confirmed as `NA_L3NAME` by Phase 17 verifier (
 
 ## Session Continuity
 
-Last session: 2026-03-14
-Stopped at: Phase 17 complete, ready to plan Phase 18
-Resume file: None
+Last session: 2026-03-14T21:22:49.916Z
+Stopped at: Phase 18 context gathered
+Resume file: .planning/phases/18-map-integration/18-CONTEXT.md
