@@ -1,249 +1,211 @@
 # Stack Research
 
-**Domain:** v1.4 Sample Layer — frontend additions to existing OpenLayers + Lit + hyparquet static app
-**Researched:** 2026-03-12
-**Confidence:** HIGH — all claims verified against actual source files in this repo
+**Domain:** v1.5 Geographic Regions — spatial join pipeline + polygon overlay + region filter UI
+**Researched:** 2026-03-14
+**Confidence:** HIGH — all claims verified against actual repo source files and live data
 
 ---
 
-## Key Finding: Zero New npm Dependencies
+## Key Finding: No New Python Dependencies, No New npm Packages
 
-All four v1.4 features are achievable with the current installed packages:
-- `ol` 10.7.0 — `VectorLayer`, `VectorSource`, `layer.setVisible()`, `layer.getFeatures()`
-- `hyparquet` 1.23.3 — `asyncBufferFromUrl` + `parquetReadObjects` (already reads two Parquet files)
-- `lit` 3.2.1 — `@property`, `@state`, multi-mode `render()` pattern already established
+v1.5 is achievable with what is already installed:
 
-The work is purely additive TypeScript inside `frontend/src/`.
+**Python pipeline:** geopandas 1.1.2, pyogrio 0.12.1, pyarrow 22 are all in `data/pyproject.toml`.
+`gpd.sjoin()` (point-in-polygon) and `gdf.to_crs()` (CRS alignment) are the only new API surface.
 
----
+**Frontend:** `ol` 10.7.0 already includes `VectorLayer`, `VectorSource`, `GeoJSON` format, `Style`, `Fill`, `Stroke`. No new packages.
 
-## Recommended Stack
-
-### Core Technologies (unchanged — context for integration)
-
-| Technology | Version | Purpose | v1.4 Role |
-|------------|---------|---------|-----------|
-| `ol` | 10.7.0 installed | Map rendering | `VectorLayer` (plain, no Cluster) for sample dots; `layer.setVisible()` for exclusive toggle |
-| `lit` | 3.2.1 installed | Web components | `BeeMap` hosts toggle state; `BeeSidebar` gets new `InatSample` render branch and `linksMap` property |
-| `hyparquet` | 1.23.3 installed | Client-side Parquet reads | Loads `samples.parquet` and `links.parquet` using same `asyncBufferFromUrl` + `parquetReadObjects` pattern |
-| TypeScript | 5.8.x | Type safety | `BigInt` coercion required for Int64 fields from hyparquet (see notes below) |
-
-### OL Classes Used by New Features
-
-| OL Class | Import Path | Feature | Notes |
-|----------|-------------|---------|-------|
-| `VectorLayer` | `ol/layer/Vector.js` | Sample dot layer | Already imported in `bee-map.ts`; no Cluster wrapper needed |
-| `Vector` (VectorSource) | `ol/source/Vector.js` | Backing source for `SampleParquetSource` | Already used as `ParquetSource` base class |
-| `Style`, `Circle`, `Fill`, `Stroke` | `ol/style/` | Sample dot appearance | Already imported in `style.ts`; add a `sampleDotStyle` export |
+**GeoJSON bundling:** Vite treats `.geojson` as JSON (inline import as module object). No `?url` suffix required. Already have `@types/geojson` 7946.0.16 installed.
 
 ---
 
-## Feature-by-Feature Integration
+## Data Sources
 
-### 1. Unclustered Sample VectorLayer
+### Ecoregions: CEC North America Level III — ALREADY IN REPO
 
-**What:** A second `VectorLayer` backed by a new `SampleParquetSource` reading `samples.parquet`.
-No `Cluster` source — each iNat observation renders as a single dot.
+| Source | Location | Format | CRS |
+|--------|----------|--------|-----|
+| CEC NA Level III ecoregions | `data/NA_CEC_Eco_Level3.zip` | Shapefile | Custom Lambert AEA (must reproject to EPSG:4326) |
+| Derived intermediate | `data/eco3.parquet` | GeoParquet (binary WKB geometry) | — |
 
-**samples.parquet schema** (from `data/inat/download.py` DTYPE_MAP):
+**Washington coverage:** 11 ecoregions after dissolve + bbox filter: Blue Mountains, Cascades, Coast Range, Coastal Western Hemlock-Sitka Spruce Forests, Columbia Mountains/Northern Rockies, Columbia Plateau, Eastern Cascades Slopes and Foothills, North Cascades, Strait of Georgia/Puget Lowland, Thompson-Okanogan Plateau, Willamette Valley.
 
-| Column | Type | hyparquet JS type | Use |
-|--------|------|------------------|-----|
-| `observation_id` | int64 | `number` | Feature ID: `inat:${observation_id}` |
-| `observer` | string | `string` | Sidebar display |
-| `date` | string "YYYY-MM-DD" | `string` | Parse for display |
-| `lat` | float64 | `number` | Coordinate |
-| `lon` | float64 | `number` | Coordinate |
-| `specimen_count` | Int64 nullable | `bigint \| null` | Coerce: `obj.specimen_count != null ? Number(obj.specimen_count) : null` |
-| `downloaded_at` | string | `string` | Not needed — omit from `columns` list |
+**Verified:** Read `NA_CEC_Eco_Level3.zip` with geopandas, reprojected to EPSG:4326, filtered to WA bbox (-124.8 to -116.9 lon, 45.5 to 49.1 lat) — 79 raw polygons dissolve to 11 named ecoregions.
 
-**Implementation pattern:** Add `SampleParquetSource` as a second export in `frontend/src/parquet.ts`.
-Do not make `ParquetSource` generic — the column lists are stable and small; a concrete subclass
-is simpler and keeps the loader function readable.
+**Note on EPA vs CEC naming:** The milestone spec says "EPA Level III ecoregions." The CEC NA Level III classification is the joint US-Canada-Mexico framework from which EPA derived its Level III nomenclature. For Washington specifically, the CEC NA L3 names match what EPA uses (e.g. "Cascades," "Columbia Plateau"). The `NA_CEC_Eco_Level3.zip` already in the repo is the correct dataset — no additional download required.
 
-```typescript
-// parquet.ts addition — new concrete class
-const sampleColumns = ['observation_id', 'lat', 'lon', 'observer', 'date', 'specimen_count'];
+**GeoJSON size:** At full resolution, WA ecoregion GeoJSON is 7.2 MB. After `geometry.simplify(0.005)` (approximately 500m tolerance), it is **382 KB** — acceptable for inline Vite bundling. At 0.001 tolerance it is 1.1 MB; 0.005 is the right tradeoff for display-only overlays at regional scale.
 
-export class SampleParquetSource extends VectorSource {
-  constructor({url}: {url: string}) {
-    const load = (extent, resolution, projection, success, failure) => {
-      asyncBufferFromUrl({url})
-        .then(buffer => parquetReadObjects({columns: sampleColumns, file: buffer}))
-        .then(objects => {
-          const features = objects.flatMap(obj => {
-            if (obj.lat == null || obj.lon == null) return [];
-            const f = new Feature();
-            f.setGeometry(new Point(fromLonLat([obj.lon, obj.lat])));
-            f.setId(`inat:${obj.observation_id}`);
-            f.setProperties({
-              observer: obj.observer,
-              date: obj.date,
-              // Int64 → number coercion: hyparquet returns BigInt for INT64 columns
-              specimenCount: obj.specimen_count != null ? Number(obj.specimen_count) : null,
-            });
-            return f;
-          });
-          this.addFeatures(features);
-          if (success) success(features);
-        })
-        .catch(failure);
-    };
-    super({loader: load, strategy: all});
-  }
-}
+### Counties: Census TIGER Cartographic Boundary
+
+| Source | URL Pattern | Format | Resolution |
+|--------|-------------|--------|------------|
+| US Census TIGER 2023 WA counties | `https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_53_county_500k.zip` | Shapefile | 1:500,000 (cartographic boundary, coast-clipped) |
+
+**FIPS code for WA:** 53. Resolution 500k is sufficient for county-level display at state scale.
+
+**Why cartographic boundary over TIGER/Line:** TIGER/Line extends into water bodies; cartographic boundary files clip to shoreline. Better visual result for an overlay layer with no additional processing.
+
+**Why geopandas reads this directly:** `gpd.read_file(url)` with pyogrio engine uses GDAL's `/vsicurl/` virtual filesystem handler to stream the zip from the URL without a manual download step. This avoids storing a raw zip in the repo or pipeline.
+
+**County name column:** `NAME` field in the Census shapefile gives the bare county name (e.g. "King", "Yakima") without "County" suffix. Use as-is.
+
+**Expected size:** At 500k resolution, WA county GeoJSON is approximately 500-700 KB uncompressed. Simplify at 0.005 degrees to reduce to approximately 100-150 KB for bundling.
+
+---
+
+## Spatial Join Strategy
+
+### Specimens (ecdysis.parquet)
+
+**County:** The Ecdysis DarwinCore export already contains a `county` column. Verified: 100% of 46,090 rows with coordinates have non-null `county`. **No spatial join needed for specimen county.** Simply pass the `county` column through from `occurrences.py`.
+
+**Ecoregion:** No ecoregion field in DarwinCore. Requires spatial join: create a `GeoDataFrame` from `longitude`/`latitude` columns, join against the WA ecoregion polygons.
+
+### Samples (samples.parquet)
+
+**County and ecoregion:** iNat API provides only `lat`/`lon`. Both fields require spatial join.
+
+### Spatial Join Pattern
+
+```python
+import geopandas as gpd
+from shapely.geometry import Point
+
+# Points GeoDataFrame
+gdf_pts = gpd.GeoDataFrame(
+    df,
+    geometry=gpd.points_from_xy(df['lon'], df['lat']),
+    crs='EPSG:4326'
+)
+
+# Region polygons (reproject to match)
+regions = gpd.read_file(...).to_crs('EPSG:4326')
+
+# Left join: keep all points, assign region attributes
+joined = gpd.sjoin(gdf_pts, regions[['NAME', 'geometry']], how='left', predicate='within')
+df['county'] = joined['NAME']
 ```
 
-**Style:** Add `sampleDotStyle` to `style.ts` — a simple fixed-color `Style` (e.g. blue circle,
-radius 5) with no recency tiers. iNat observation dots are a distinct data type and should
-be visually differentiated from specimen clusters.
+**CRS must match before sjoin.** The ecoregion shapefile is in a custom Lambert AEA projection and must be reprojected to EPSG:4326 before joining points that are stored as WGS84 lon/lat.
 
-**Feature ID convention:** `inat:${observation_id}` parallels the existing `ecdysis:${ecdysis_id}`
-convention. This lets the click handler identify which layer produced a feature without
-inspecting layer membership.
+**`predicate='within'`** is correct for point-in-polygon. Points on polygon boundaries go to one polygon arbitrarily — acceptable for this use case.
 
-### 2. Exclusive Layer Toggle
+**Null handling:** Points outside all WA polygons (e.g. specimens near the OR border or in water) will get null county/ecoregion. Store as nullable string in the output Parquet. Frontend treats null as "no region" — excluded from region filter matches but still visible on map.
 
-**What:** Clicking a UI toggle shows either the specimen layer or the sample layer, never both.
+**Performance:** 46,090 specimens + 9,586 samples against 11 ecoregion polygons and 39 county polygons. geopandas sjoin uses an STR-tree spatial index — this runs in under a second.
 
-**State:** One `@state() private _activeLayer: 'specimens' | 'samples' = 'specimens'` on `BeeMap`.
+---
 
-**Mechanism:** `layer.setVisible(bool)` — standard OL API. OL stops rendering invisible layers
-immediately; no re-fetch, no cleanup needed. Call `this.map?.render()` after both `setVisible()`
-calls, matching the existing pattern in `_applyFilter`.
+## Frontend: GeoJSON Bundling
+
+### Import Strategy
 
 ```typescript
-private _setActiveLayer(layer: 'specimens' | 'samples') {
-  this._activeLayer = layer;
-  specimenLayer.setVisible(layer === 'specimens');
-  sampleLayer.setVisible(layer === 'samples');
-  this.map?.render();
-  // Clear any open sidebar detail when switching layers
-  this.selectedSamples = null;
-  this._selectedInatSample = null;
-}
+// Direct inline import — Vite treats .geojson as a JSON module
+import waCounties from './assets/wa_counties.geojson';
+import waEcoregions from './assets/wa_ecoregions.geojson';
 ```
 
-**Click handler separation:** The existing `singleclick` handler calls
-`specimenLayer.getFeatures(event.pixel)`. OL's `getFeatures` still detects invisible layers,
-so gate on `_activeLayer` explicitly:
+Vite's JSON module behavior: the file is parsed at build time and inlined as a JS object. No runtime fetch required. This is the correct approach for geometry that is needed immediately on map init (the overlay layer must be ready before any user interaction).
+
+**TypeScript type:** `import type { FeatureCollection } from 'geojson'` — already available via `@types/geojson` 7946.0.16.
+
+**Alternative `?url` suffix:** Use `import url from './assets/wa_counties.geojson?url'` only if deferring load is needed. Not needed here — the files are 100-400 KB, well within acceptable initial bundle overhead, and the overlay renders during initial map setup.
+
+**Vite config:** No changes to `vite.config.ts` needed. Vite handles GeoJSON out of the box.
+
+### Asset Naming Convention
+
+| File | Description | Target Size |
+|------|-------------|-------------|
+| `frontend/src/assets/wa_counties.geojson` | 39 WA counties, simplified 0.005 deg | ~150 KB |
+| `frontend/src/assets/wa_ecoregions.geojson` | 11 CEC NA L3 ecoregions, simplified 0.005 deg | ~382 KB |
+
+Both files are produced by the Python pipeline at build time and committed to the repo (same pattern as `ecdysis.parquet`).
+
+---
+
+## Frontend: OpenLayers Vector Layer
+
+### Pattern
+
+`ol` 10.7.0 already provides everything needed. The relevant imports are a superset of what is already in `bee-map.ts`:
+
+| OL Class | Import Path | Already Used? | v1.5 Use |
+|----------|-------------|--------------|----------|
+| `VectorLayer` | `ol/layer/Vector.js` | Yes | Region polygon overlay layer |
+| `VectorSource` | `ol/source/Vector.js` | Yes | Backing source for region features |
+| `GeoJSON` | `ol/format/GeoJSON.js` | No — new import | Parse inline GeoJSON object |
+| `Style` | `ol/style/Style.js` | Yes | Polygon stroke + fill style |
+| `Fill` | `ol/style/Fill.js` | Yes | Semi-transparent fill for region polygons |
+| `Stroke` | `ol/style/Stroke.js` | Yes | Border for region polygons |
+
+**GeoJSON format usage:**
 
 ```typescript
-this.map.on('singleclick', async (event) => {
-  if (this._activeLayer === 'specimens') {
-    const hits = await specimenLayer.getFeatures(event.pixel);
-    // ... existing logic ...
-  } else {
-    const hits = await sampleLayer.getFeatures(event.pixel);
-    // ... new iNat sample logic ...
-  }
+import GeoJSONFormat from 'ol/format/GeoJSON.js';
+import waCounties from './assets/wa_counties.geojson';
+
+const countiesSource = new VectorSource({
+  features: new GeoJSONFormat().readFeatures(waCounties, {
+    featureProjection: 'EPSG:3857',
+  }),
 });
 ```
 
-**Toggle UI:** A `<button>` or `<select>` in `BeeMap`'s template, styled consistently with
-the existing sidebar buttons. No new component needed.
+The `featureProjection: 'EPSG:3857'` argument reprojects from WGS84 (GeoJSON standard) to Spherical Mercator (OL's internal CRS). This is the standard OpenLayers pattern for GeoJSON imports.
 
-### 3. Sample Sidebar Content
-
-**What:** Clicking an iNat sample dot shows observation details in the sidebar.
-
-**Interface additions to `bee-sidebar.ts`:**
+**Layer styling:**
 
 ```typescript
-export interface InatSample {
-  observationId: number;    // coerced from BigInt by SampleParquetSource
-  observer: string;
-  date: string;             // "YYYY-MM-DD" — sidebar parses with Intl.DateTimeFormat
-  specimenCount: number | null;
-}
+const regionLayerStyle = new Style({
+  stroke: new Stroke({ color: 'rgba(60, 100, 200, 0.8)', width: 1.5 }),
+  fill: new Fill({ color: 'rgba(60, 100, 200, 0.05)' }),
+});
 ```
 
-**Sidebar changes:** Add `@property({ attribute: false }) inatSample: InatSample | null = null`
-to `BeeSidebar`. Extend `render()` with a third branch:
+Light fill (5% opacity) + visible stroke. Adjust color by region type (counties vs ecoregions).
 
-```typescript
-render() {
-  return html`
-    ${this._renderFilterControls()}
-    ${this.inatSample !== null
-      ? this._renderInatSampleDetail(this.inatSample)
-      : this.samples !== null
-        ? this._renderDetail(this.samples)
-        : this._renderSummary()}
-  `;
-}
-```
+**Exclusive toggle (off / counties / ecoregions):** One `VectorLayer` for counties, one for ecoregions. Toggle by calling `setVisible()` on each. Matches the existing `specimens`/`samples` toggle pattern.
 
-**`_renderInatSampleDetail` content:**
-- Formatted date ("Month YYYY" via `Intl.DateTimeFormat`)
-- Observer username
-- Specimen count (if not null)
-- Link to iNat observation: `https://www.inaturalist.org/observations/${observationId}`
-- Back button (dispatches `close` event, same as existing `_clearSelection`)
-
-**No new component.** `BeeSidebar` already has a multi-mode render structure. A fourth
-method is consistent with the established pattern.
-
-### 4. links.parquet — iNat Observation Link in Specimen Sidebar
-
-**What:** When a specimen has an iNat link, show a hyperlink in the specimen detail panel.
-
-**links.parquet schema** (from `data/links/fetch.py`):
-
-| Column | Type | hyparquet JS type | Notes |
-|--------|------|------------------|-------|
-| `occurrenceID` | string | `string` | Key — matches `s.occid` in `Specimen` interface |
-| `inat_observation_id` | Int64 nullable | `bigint \| null` | Coerce to `number`; omit nulls from Map |
-
-**Loading pattern:** Load `links.parquet` at startup in `firstUpdated()`, in parallel with
-`specimenSource` (both fire immediately, no sequential dependency). Build a
-`Map<string, number>` keyed by `occurrenceID`:
-
-```typescript
-// In bee-map.ts firstUpdated():
-asyncBufferFromUrl({url: linksDump})
-  .then(buf => parquetReadObjects({columns: ['occurrenceID', 'inat_observation_id'], file: buf}))
-  .then(rows => {
-    const m = new Map<string, number>();
-    for (const r of rows) {
-      if (r.inat_observation_id != null) {
-        m.set(r.occurrenceID as string, Number(r.inat_observation_id));
-      }
-    }
-    this._linksMap = m;
-  });
-```
-
-**State on `BeeMap`:** `@state() private _linksMap: Map<string, number> = new Map()`.
-When populated, Lit triggers a re-render — any open specimen sidebar panel automatically
-refreshes to show the newly available links.
-
-**Pass to sidebar:** `@property() linksMap: Map<string, number>` on `BeeSidebar`.
-In `_renderDetail`, look up each specimen's `occid`:
-
-```typescript
-const inatId = this.linksMap.get(s.occid);
-// if inatId: html`<a href="https://www.inaturalist.org/observations/${inatId}" ...>View on iNaturalist</a>`
-```
-
-**File size:** links.parquet is one row per ecdysis specimen (~7,000 rows at current project
-scale). A `Map` of 7k entries is negligible. The `all` loading strategy is correct.
+**Click-to-filter:** Add a branch to the existing `singleclick` handler. Check active region layer, call `regionLayer.getFeatures(event.pixel)`, get the region name from `feature.get('NAME')` (counties) or `feature.get('NA_L3NAME')` (ecoregions), dispatch a filter event.
 
 ---
 
-## BigInt Handling (Cross-Cutting Concern)
+## Frontend: Region Filter UI
 
-hyparquet returns Parquet INT64 columns as JavaScript `BigInt`, not `number`. This affects:
-- `samples.parquet` `specimen_count` (nullable Int64)
-- `links.parquet` `inat_observation_id` (nullable Int64)
+**No new component.** Extend `BeeSidebar` with two additional multi-select inputs, following the existing autocomplete datalist pattern for taxon filtering.
 
-**Rule:** Coerce with `Number()` at the point of reading, before storing on OL features or
-in the `_linksMap`. `BigInt` values in Lit templates produce no visible output and no error —
-they silently fail. TypeScript catches this if column types are declared correctly as
-`bigint | null`.
+**State extension:** Add `counties: string[]` and `ecoregions: string[]` to `FilterState` in `filter.ts`. Both default to `[]` (no filter active). Region filter ANDs with existing taxon/date filters.
 
-The existing `parquet.ts` has this same issue for `year` and `month` columns — it uses
-`Number(obj.year)` already. Follow the same pattern.
+**`matchesFilter` extension:** Add county and ecoregion checks using the new columns in specimen/sample features:
+```typescript
+if (f.counties.length > 0 && !f.counties.includes(feature.get('county'))) return false;
+if (f.ecoregions.length > 0 && !f.ecoregions.includes(feature.get('ecoregion_l3'))) return false;
+```
+
+**Autocomplete options:** Available counties and ecoregions are derived from the data (known at build time). Hard-code the 39 WA county names and 11 ecoregion names as static arrays in the sidebar — no dynamic computation needed.
+
+---
+
+## Parquet Schema Changes
+
+### ecdysis.parquet (new columns)
+
+| Column | Type | Source | Notes |
+|--------|------|--------|-------|
+| `county` | string nullable | DarwinCore `county` field (pass-through) | 100% populated in current data |
+| `ecoregion_l3` | string nullable | Spatial join against CEC NA L3 polygons | Null for points outside WA |
+
+### samples.parquet (new columns)
+
+| Column | Type | Source | Notes |
+|--------|------|--------|-------|
+| `county` | string nullable | Spatial join against Census county polygons | Null for points outside WA |
+| `ecoregion_l3` | string nullable | Spatial join against CEC NA L3 polygons | Null for points outside WA |
+
+**CI schema validation:** The existing `scripts/validate-schema.mjs` checks Parquet column schemas before build. Add `county` and `ecoregion_l3` to the expected column list for both `ecdysis.parquet` and `samples.parquet` to catch regressions.
 
 ---
 
@@ -251,12 +213,13 @@ The existing `parquet.ts` has this same issue for `year` and `month` columns —
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| New state management library (Zustand, MobX, etc.) | `FilterState` singleton + `@state` already handles app state; two new booleans do not justify a framework | Extend existing singleton or add module-level variable |
-| Generic `ParquetSource<T, Columns>` | TypeScript complexity for zero runtime benefit; column lists are stable | `SampleParquetSource` as second concrete class in `parquet.ts` |
-| Separate `bee-sample-sidebar.ts` component | `BeeSidebar` already has multi-mode render; a fourth method is consistent, a new component is unnecessary indirection | `_renderInatSampleDetail` method on existing `BeeSidebar` |
-| `ol/interaction/Select` for click handling | Already using `singleclick` map event with `layer.getFeatures(pixel)` | Keep `singleclick` handler; add `sampleLayer.getFeatures()` branch |
-| Lazy loading links.parquet | File is small; parallel load at startup is simpler than on-demand async click path | Load in `firstUpdated()` alongside specimen source |
-| Clustering for sample layer | iNat observations are collection events (one dot = one field trip); clustering obscures the data's meaning | Plain `VectorLayer`, no `Cluster` source |
+| EPA WA-specific ecoregion shapefile (`wa_eco_l3` from EPA S3) | `NA_CEC_Eco_Level3.zip` is already in the repo and covers WA correctly; EPA WA L3 file uses identical region names | The existing `NA_CEC_Eco_Level3.zip` |
+| `fiona` as geopandas engine | `pyogrio` is already installed and is the default as of geopandas 1.0; fiona is the deprecated path | pyogrio (default, no config needed) |
+| `topojson` format for bundled geometry | TopoJSON reduces file size ~30-50% vs GeoJSON but requires a parser library (`topojson-client`, ~24 KB). At 150-400 KB GeoJSON, the savings do not justify adding a dependency | GeoJSON (built into OL, no extra library) |
+| Fetching GeoJSON at runtime via `url:` in VectorSource | Would require CloudFront to serve the GeoJSON separately from the JS bundle; complicates the static build model | Inline Vite JSON import |
+| `ol-mapbox-style` for region styling | Already installed for tile basemap; polygon overlay styling is simple enough for native OL `Style`/`Fill`/`Stroke` | Native OL style API |
+| Server-side spatial query | Project constraint: static hosting only | Spatial join at pipeline build time, store county/ecoregion in Parquet |
+| `shapely` direct usage | geopandas wraps shapely; `geometry.simplify()` is available on the GeoDataFrame geometry column via geopandas | `gdf.geometry.simplify(tolerance)` |
 
 ---
 
@@ -264,10 +227,11 @@ The existing `parquet.ts` has this same issue for `year` and `month` columns —
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `layer.setVisible()` for exclusive toggle | Remove/re-add layer from map layers array | Only if layers need different z-order on toggle; not needed here |
-| `Map<string, number>` lookup for links | Embed iNat links into ecdysis features at load time | Would require a client-side join across two parquet files — adds complexity and couples load order |
-| Load links.parquet in `firstUpdated()` (parallel) | Load only on first specimen click | Parallel load is simpler (no async click path); file is small |
-| `SampleParquetSource` concrete class | Make `ParquetSource` accept columns as constructor param | Acceptable alternative if more parquet sources are expected; for two sources, concrete classes are simpler |
+| CEC NA L3 ecoregions (already in repo) | EPA WA-specific L3 shapefile from `dmap-prod-oms-edc.s3.us-east-1.amazonaws.com` | If EPA-specific attributes (US L3 codes, not NA codes) were required |
+| DarwinCore `county` pass-through for specimens | Spatial join for specimens county | If Ecdysis data had < 100% county coverage |
+| Census TIGER 500k cartographic boundary (coast-clipped) | TIGER/Line full-resolution county file | If precise shoreline geometry were needed (it's not — display only) |
+| `geometry.simplify(0.005)` in pipeline | Simplify in a post-processing step or manually | Only if pipeline needed to preserve full-res geometry for another purpose |
+| Inline Vite JSON import | `?url` import + runtime fetch | If GeoJSON files were > 2 MB or needed cache-busting separate from the JS bundle |
 
 ---
 
@@ -275,47 +239,43 @@ The existing `parquet.ts` has this same issue for `year` and `month` columns —
 
 | Package | Version | Notes |
 |---------|---------|-------|
-| `ol` | 10.7.0 | `layer.setVisible()`, `layer.getFeatures(pixel)`, `VectorLayer` — all stable OL APIs, used in existing code |
-| `hyparquet` | 1.23.3 | INT64 → `BigInt` is documented behavior; `Number()` coercion required |
-| `lit` | 3.2.1 | `@property`, `@state`, multi-mode `render()` — pattern already in production |
-| TypeScript | 5.8.x | `bigint | null` union type works without flags |
+| `geopandas` | >=1.1.2 (installed) | `gpd.sjoin()` stable; pyogrio default engine as of 1.0 |
+| `pyogrio` | >=0.12.1 (installed) | GDAL URL reading via `/vsicurl/`; handles zip URLs |
+| `pyarrow` | >=22 (installed) | Nullable string type for `county`/`ecoregion_l3` columns |
+| `ol` | 10.7.0 (installed) | `GeoJSON` format, `VectorLayer`, `VectorSource`, `Style` all stable |
+| `@types/geojson` | 7946.0.16 (installed) | `FeatureCollection` type for inline GeoJSON imports |
+| `vite` | 6.2.x (installed) | JSON module import of `.geojson` files: no config needed |
 
 ---
 
 ## Installation
 
-No changes to `package.json`. All required libraries are already installed.
-
 ```bash
-# No new packages
+# No new packages for either Python pipeline or frontend
+# All required libraries are already installed
 ```
 
-Vite asset import for new parquet files (same pattern as existing `ecdysis.parquet`):
-
-```typescript
-// bee-map.ts additions
-import samplesDump from './assets/samples.parquet?url';
-import linksDump from './assets/links.parquet?url';
-```
-
-Both files must be present in `frontend/src/assets/` at build time. `links.parquet` is
-produced by the v1.3 pipeline (`npm run fetch-links`). `samples.parquet` is produced by
-the v1.2 pipeline (`npm run fetch-inat`).
+Pipeline additions are purely new Python modules and scripts. Frontend additions are new TypeScript in existing files plus two new GeoJSON assets in `frontend/src/assets/`.
 
 ---
 
 ## Sources
 
-- `frontend/src/bee-map.ts` — VectorLayer / ClusterSource / singleclick / filterState singleton patterns (HIGH)
-- `frontend/src/parquet.ts` — ParquetSource implementation, column loading, BigInt `Number()` coercion (HIGH)
-- `frontend/src/bee-sidebar.ts` — Sample/DataSummary/FilteredSummary multi-mode render pattern (HIGH)
-- `frontend/src/filter.ts` — FilterState singleton pattern (HIGH)
-- `frontend/package.json` — installed versions ol 10.7.0, hyparquet 1.23.3, lit 3.2.1 (HIGH)
-- `data/inat/download.py` DTYPE_MAP — samples.parquet schema (HIGH)
-- `data/links/fetch.py` — links.parquet schema, occurrenceID key type, Int64 nullable (HIGH)
-- OpenLayers `layer.setVisible()`, `VectorLayer`, `getFeatures(pixel)` — used in existing code (HIGH)
-- hyparquet INT64/BigInt — consistent with JS BigInt spec; `Number()` coercion pattern already in `parquet.ts` (HIGH)
+- `data/pyproject.toml` — geopandas 1.1.2, pyogrio 0.12.1, pyarrow 22 confirmed installed (HIGH)
+- `data/NA_CEC_Eco_Level3.zip` — read with geopandas, verified 11 WA ecoregions after reproject + dissolve (HIGH)
+- `data/eco3.parquet` — schema verified: NA_L3CODE, NA_L3NAME, geometry (WKB binary), 2548 rows (HIGH)
+- `data/ecdysis/occurrences.py` — county field exists in DarwinCore dtype dict; currently dropped in `to_parquet` (HIGH)
+- Ecdysis zip `occurrences.tab` — county column: 100% populated for 46,090 WA records (HIGH, verified live)
+- `data/samples.parquet` — schema: observation_id, observer, date, lat, lon, specimen_count, sample_id, downloaded_at — no county/ecoregion (HIGH)
+- `frontend/package.json` — ol 10.7.0, @types/geojson 7946.0.16, vite 6.2.3 (HIGH)
+- `frontend/src/bee-map.ts` — existing OL imports, VectorLayer, VectorSource, singleclick pattern (HIGH)
+- geopandas.org/en/stable/docs/reference/api/geopandas.sjoin.html — sjoin left join, predicate='within' (HIGH)
+- geopandas.org/en/stable/docs/user_guide/io.html — pyogrio URL reading, GeoJSON export, CRS handling (HIGH)
+- openlayers.org/en/latest/apidoc/module-ol_format_GeoJSON-GeoJSON.html — readFeatures with featureProjection (MEDIUM, official docs)
+- vite.dev/guide/assets — JSON/GeoJSON inline import vs ?url behavior (MEDIUM, official docs)
+- US Census TIGER cartographic boundary naming convention: `cb_{year}_{state_fips}_county_{resolution}.zip` (MEDIUM, WebSearch verified)
+- EPA ecoregion download page confirmed WA L3 file at `dmap-prod-oms-edc.s3.amazonaws.com/ORD/Ecoregions/wa/` (MEDIUM, WebSearch)
 
 ---
-*Stack research for: v1.4 Sample Layer — Washington Bee Atlas frontend*
-*Researched: 2026-03-12*
+*Stack research for: v1.5 Geographic Regions — Washington Bee Atlas pipeline + frontend*
+*Researched: 2026-03-14*

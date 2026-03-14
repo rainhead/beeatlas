@@ -1,16 +1,26 @@
 # Feature Research
 
-**Domain:** Multi-layer interactive map with click-driven sidebar — specimen atlas with iNat event overlay
-**Researched:** 2026-03-12
-**Confidence:** HIGH (codebase directly inspected; OpenLayers API and map UX patterns verified)
+**Domain:** Multi-layer interactive map with polygon-based geographic region filtering — specimen atlas addendum
+**Researched:** 2026-03-14
+**Confidence:** HIGH (codebase directly inspected; OpenLayers Select API verified; map UX patterns cross-referenced from multiple sources)
 
 ---
 
-## Scope: v1.4 Sample Layer
+## Scope: v1.5 Geographic Regions
 
-This milestone adds the frontend surfacing of data that already exists in built artifacts
-(`samples.parquet` from v1.2, `links.parquet` from v1.3). All pipeline work is done.
-The four requirements are MAP-03, MAP-04, MAP-05, LINK-05.
+This milestone adds geographic region filtering to the existing specimen/sample map. The pipeline
+will spatial-join region attributes (`county`, `ecoregion_l3`) into both Parquet files at build
+time. The frontend adds a boundary overlay toggle on the map and multi-select region filters in
+the sidebar. Region filter ANDs with existing taxon/date filters. Clicking a visible polygon adds
+it to the active filter.
+
+**Existing filter system (do not break):**
+- `FilterState` singleton in `filter.ts` with fields: `taxonName`, `taxonRank`, `yearFrom`,
+  `yearTo`, `months`
+- `isFilterActive()` and `matchesFilter()` functions used throughout `bee-map.ts`
+- `BeeSidebar` dispatches `filter-changed` CustomEvent; `BeeMap` receives and applies it
+- URL state encodes all filter fields via `replaceState`/`pushState` pattern
+- Month filter uses checkbox Set; taxon uses autocomplete datalist with exact-match gate
 
 ---
 
@@ -18,114 +28,151 @@ The four requirements are MAP-03, MAP-04, MAP-05, LINK-05.
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = product feels incomplete.
+Features users assume exist in any map tool with region filtering. Missing these = feature feels
+incomplete or broken.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Sample dot layer renders on map | samples.parquet exists; map without it means the milestone has not shipped | LOW | Plain unclustered VectorLayer; each row is one dot at (lon, lat); no Cluster source needed |
-| Exclusive toggle: specimens vs sample dots | Two datasets; showing both simultaneously creates visual confusion and click ambiguity | LOW | `layer.setVisible(bool)` on each VectorLayer; exactly one active at a time |
-| Sample marker click opens sidebar detail | Every clickable marker in this app opens a panel; omitting it for sample dots would be inconsistent | LOW | Reuses existing singleclick handler; branches on `_activeLayer` state |
-| Sample sidebar: observer, date, specimen count | These are the three meaningful fields in samples.parquet beyond coordinates | LOW | `specimen_count` is nullable; null must render as "not recorded", not "0" |
-| Sample sidebar: link to iNat observation | iNat is the authoritative source for these events; link closes the loop for collectors | LOW | URL: `https://www.inaturalist.org/observations/<observation_id>` |
-| Specimen sidebar: iNat link when linkage exists | links.parquet is built and cached; not surfacing it wastes the v1.3 pipeline work | LOW | Lookup by occurrenceID at parquet load time; render link only when non-null |
+| Region filter clears all data when no regions share an intersection | AND semantics is the universal expectation for combined filters; "nothing matches" is the correct and expected empty state | LOW | Same pattern as existing taxon + date AND logic |
+| Active region filter visually reflected in the UI | Users need confirmation the filter is applied; a filter with no visible feedback feels broken | LOW | Selected chips/tags in sidebar; highlighted polygons on map if overlay is on |
+| Multi-select for both county and ecoregion | Collectors frequently work across multiple counties or within a large ecoregion that spans boundaries; single-select forces repeated toggling | MEDIUM | Two independent multi-select autocomplete inputs, one per region type |
+| Remove individual regions from active filter | Chip/tag removal is the standard affordance after any multi-select UI | LOW | X button on each selected region chip; clicking polygon in active filter removes it |
+| Clear all region filters at once | Consistent with existing "Clear filters" button; collectors routinely switch study areas | LOW | Extend existing `_clearFilters()` to reset region arrays |
+| Region filter applies to both specimens and samples | Both layers show data for the same geography; filtering only one is confusing | MEDIUM | Pipeline must add county/ecoregion_l3 to both ecdysis.parquet and samples.parquet; frontend matchesFilter() must check the new columns |
+| Boundary overlay off by default | A polygon overlay on top of clustered points adds visual noise for users not using region filtering; default-off is the standard | LOW | Initial state: no polygon layer visible; toggle activates one of two vector layers |
+| Map position unchanged when region filter applied | Applying a filter should not auto-pan or auto-zoom; collectors know where they are | LOW | Explicitly called out in PROJECT.md; do not call `map.getView().fit()` on filter change |
 
 ### Differentiators (Competitive Advantage)
 
-Features specific to this milestone that provide extra value.
+Features that make this implementation notably better than a generic region filter add-on.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Toggle clears sidebar selection | Prevents stale data from the other layer appearing after a switch | LOW | On toggle: set selectedSamples = null (existing pattern); sidebar falls back to summary automatically |
-| Sample dot style visually distinct from specimen clusters | Users must immediately understand they are viewing a different dataset | LOW | Different color or shape; simple flat circle vs recency-gradient cluster is sufficient |
-| Filters show as inactive when sample layer is active | Specimen taxon/date filters have no meaning for sample dots; misleading UI must be avoided | MEDIUM | Conditionally render or disable filter controls when _activeLayer === 'samples'; sample dots have no taxon column |
+| Click a visible polygon to add it to the active filter | Direct map interaction is faster than typing for geographic selection; collectors naturally think spatially | MEDIUM | Requires OL Select interaction on the boundary VectorLayer; fires only when overlay is visible; clicking an already-selected polygon removes it (toggle) |
+| Exclusive 3-state boundary toggle (off / counties / ecoregions) | County and ecoregion boundaries overlap and visually conflict if shown together; mutual exclusion forces legibility | LOW | Three-state segmented button in UI; same pattern as existing specimens/samples toggle; `layer.setVisible(false)` on the inactive boundary layer |
+| Region filter on sidebar, boundary toggle on map, linked | Filter and map view are synchronized: when overlay is off but filter is active, the sidebar shows active regions as chips; when overlay is on, selected polygons are highlighted | MEDIUM | Highlight requires OL Select interaction or manual style callback that checks region membership |
+| Region type label in selected chip | "King (county)" vs "Blue Mountains (ecoregion)" prevents ambiguity when both region types are in the active filter simultaneously | LOW | Prefix or suffix tag on chip; data-driven from region type field |
+| Autocomplete narrows by prefix match | 39 WA counties and ~12 EPA L3 ecoregions fit in dropdown, but prefix autocomplete is faster than scrolling | LOW | HTML datalist with options pre-populated from GeoJSON; matches existing taxon autocomplete pattern |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Show specimens AND sample dots simultaneously | "More data = more useful" intuition | Click hit-test becomes ambiguous; user cannot know which layer was clicked; click handler must be forked per layer | Exclusive toggle is the correct design; both layers can exist in the OL layer list but only one is visible |
-| Cluster sample dots | Specimens are clustered because 45k points overlap at state zoom | sample event count is in the hundreds; over-clustering a sparse dataset hides individual events collectors want to pinpoint | Plain unclustered VectorLayer; density does not warrant clustering |
-| Filter sample dots by taxon | Specimen filtering already exists; parity feels expected | samples.parquet has no taxon column — taxon data is on specimens, not collection events | Disable or hide taxon filter when sample layer active; optionally show explanatory text |
-| Persist selected sample marker in URL (o= param) | URL sharing works for specimens; parity feels right | Sample events use iNat observation_id, not ecdysis occurrenceID; mixing schemas in a single param adds fragility | Defer URL-persisted sample selection to a future milestone; v1.4 omits it without breaking existing URL sharing |
-| Animate layer transition (crossfade) | Polished feel | No measurable user benefit for a field-use tool; OL does not provide built-in VectorLayer crossfade | Instant visibility swap is consistent with the rest of the app |
+| Auto-zoom to selected region bounding box | "Show me King County" feels natural as zoom + filter | Violates PROJECT.md constraint ("map position unchanged when region is selected"); disorients collectors who've manually positioned the view | Do not auto-zoom; let the boundary overlay and highlighted polygon provide visual confirmation |
+| Draw-a-polygon custom region filter | Power-user spatial selection; common in ArcGIS tools | Adds significant UI complexity (OL Draw interaction, polygon simplification, spatial query against Parquet attributes); pipeline spatial join is at named-region granularity, not arbitrary geometry | Named region filter (county/ecoregion) covers the actual use case; arbitrary polygon is v3+ if ever requested |
+| Show specimens AND boundary overlay as a simultaneous combined view with automatic layer ordering | "I want to see clusters inside King County" is intuitive | Not an anti-feature per se — this IS the target behavior. The risk is z-index fighting between polygon fill and point clusters. The correct approach is semi-transparent fill (fill opacity ≈ 0.08–0.15) so clusters remain visible | Semi-transparent polygon fill on boundary layer; stroke only; clusters on top via z-index |
+| OR logic between regions of the same type | "Show me King OR Pierce County" — collector might expect checkbox-style OR | AND across region types (county AND ecoregion) is required; OR within the same type is the natural expectation for multi-select. But implementing OR-within-type, AND-across-type introduces query logic complexity | Use OR within a single region type naturally: "selected counties" forms a union; "selected ecoregions" forms a union; the two unions are then ANDed together. This is the correct UX expectation and is consistent with how faceted search works |
+| Server-side spatial query | "Just query the database for features in the polygon" | Static hosting constraint: no server runtime. All filtering is client-side against Parquet data with pre-joined region columns | Pipeline spatial join at build time; client reads pre-assigned region name columns |
+| Save named regions as presets | Collectors might want to bookmark "my study area = Okanogan + Chelan" | URL sharing already covers the use case (region filter state encoded in query string); named presets require persistent storage | Encode selected regions in URL query params; share the URL |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[samples.parquet loaded by hyparquet]
-    └──enables──> [Sample dot layer renders on map]
-                      └──enables──> [Sample marker click → iNat event sidebar]
+[Pipeline spatial join: county + ecoregion_l3 columns in both Parquet files]
+    └──required by──> [Region filter in matchesFilter()]
+    └──required by──> [Autocomplete populates from unique column values in Parquet]
 
-[links.parquet loaded by hyparquet]
-    └──enables──> [Specimen sidebar: iNat link when linkage exists]
+[GeoJSON bundled at build time: WA counties + EPA L3 ecoregions]
+    └──required by──> [Boundary overlay VectorLayer on map]
+    └──required by──> [Click-polygon-to-filter (Select interaction)]
 
-[Exclusive toggle UI]
-    └──requires──> [Both layers present in OL map]
-    └──drives──>   [Sidebar clears on layer switch]
-    └──drives──>   [Filter controls hide/disable when sample layer active]
+[Boundary overlay VectorLayer]
+    └──enables──> [3-state boundary toggle (off/counties/ecoregions)]
+    └──enables──> [Click polygon → add to filter]
+    └──enhances──> [Selected polygon highlight when filter active]
 
-[Sample dot layer] ──conflicts with (simultaneous)──> [Specimen cluster layer]
+[Region filter state (Set<string> counties, Set<string> ecoregions)]
+    └──extends──> [FilterState in filter.ts]
+    └──requires──> [isFilterActive() updated]
+    └──requires──> [matchesFilter() updated for both Parquet row schemas]
+    └──requires──> [URL encoding updated for region params]
+    └──requires──> [BeeSidebar updated to render region chips + autocomplete inputs]
+    └──requires──> [filter-changed CustomEvent detail updated]
+
+[Click polygon → add to filter]
+    └──requires──> [Boundary overlay visible (at least one boundary layer active)]
+    └──conflicts with──> [Boundary overlay off — click hits specimen/sample layer instead]
+
+[Selected polygon highlight on map]
+    └──requires──> [Boundary overlay visible]
+    └──requires──> [OL style function that checks region membership in active filter]
+
+[Region filter]
+    └──ANDs with──> [Existing taxon filter]
+    └──ANDs with──> [Existing year/month filter]
+    └──applies to──> [Specimen cluster layer]
+    └──applies to──> [Sample dot layer]
 ```
 
 ### Dependency Notes
 
-- **Sample dot layer requires samples.parquet loaded:** The existing `ParquetSource` pattern handles
-  this. A second `ParquetSource` instance for `samplesDump` is the natural extension. Each row
-  becomes an OL Feature with geometry from (lon, lat) and properties `observation_id`, `observer`,
-  `date`, `specimen_count`.
+- **Pipeline spatial join is a hard prerequisite:** Without `county` and `ecoregion_l3` columns in
+  both Parquet files, the frontend cannot filter. The pipeline phase must complete before any
+  frontend filter work can be validated. This creates a strong phase ordering constraint.
 
-- **Specimen iNat link requires links.parquet:** Load at startup alongside `ecdysis.parquet`. Build
-  a `Map<string, number>` (occurrenceID → inat_observation_id). Look up each specimen's
-  `occurrenceID` when rendering the sidebar. The sidebar currently stores `s.occid` as the integer
-  Ecdysis DB id; links.parquet is keyed by UUID `occurrenceID`. The join must use `occurrenceID`
-  from `ecdysis.parquet` (added in v1.3). The simplest approach: resolve iNat links at load time
-  in the `specimenSource.once('change', ...)` callback and pass them as a pre-resolved lookup to
-  the sidebar.
+- **OR-within-type AND-across-types semantics:** A specimen matches the region filter if
+  `(counties.size === 0 || counties.has(feature.county)) && (ecoregions.size === 0 || ecoregions.has(feature.ecoregion_l3))`.
+  Empty set means "no restriction on this type." This is the natural multi-select faceted search
+  model and what users expect when selecting multiple counties.
 
-- **Sidebar must branch on data type:** `bee-sidebar.ts` currently accepts `samples: Sample[] | null`.
-  For iNat events, a distinct `InatEvent` interface is needed. The sidebar's render() already
-  branches on `samples !== null`; add a parallel branch for `inatEvent !== null`. Exactly one of
-  `samples`, `inatEvent` should be non-null at any time (or both null for the summary view).
-  This is the highest-complexity change in v1.4 — it touches both `bee-map.ts` (what to pass) and
-  `bee-sidebar.ts` (how to render it).
+- **GeoJSON size consideration:** WA county boundaries at full resolution are ~2 MB; simplified
+  at 0.001 degree tolerance (Mapshaper default) typically reduce to ~100–200 KB. EPA L3 ecoregion
+  boundaries for WA are smaller (fewer polygons). Both must be bundled with the Vite build as
+  static assets. Total boundary asset budget: aim for under 500 KB combined to keep bundle size
+  acceptable.
 
-- **Filter controls conflict with sample layer:** When `_activeLayer === 'samples'`, the taxon/date
-  filter controls are meaningless. Rendering them active is misleading. Recommended: conditionally
-  render filter controls only when specimen layer is active, or render them visibly disabled with
-  a brief explanation. This is a P2 improvement — the app works without it, but it reduces confusion.
+- **Autocomplete values from Parquet vs GeoJSON:** The list of county/ecoregion names should come
+  from unique values in the Parquet data (what actually has records), not from GeoJSON (full
+  boundary set). A county with zero specimens should still appear in the autocomplete if the
+  GeoJSON includes it, but this adds noise. Using Parquet-derived unique values is cleaner.
+
+- **URL state extension:** The existing URL schema uses single-value params
+  (`taxon`, `yr0`, `yr1`, `months`). Multi-select regions require repeatable params or
+  comma-delimited strings. Comma-delimited is simpler to implement given the existing pattern
+  (e.g., `c=King,Pierce&e=Blue+Mountains`). County names with spaces need encoding.
+
+- **FilterState is a singleton (not Lit reactive):** Adding region arrays to FilterState follows
+  the existing pattern. The singleton mutation + `clusterSource.changed()` repaint pattern
+  documented in PROJECT.md Key Decisions works for region filtering too. No architecture change
+  needed.
 
 ---
 
 ## MVP Definition
 
-### Launch With (v1.4)
+### Launch With (v1.5)
 
-Minimum viable product — all four defined requirements.
+Minimum viable product — the goal stated in PROJECT.md.
 
-- [ ] MAP-03: Sample dot layer visible on map (unclustered VectorLayer from samples.parquet)
-- [ ] MAP-04: Exclusive toggle switches between specimen clusters and sample dots; both layers
-      respond; sidebar clears on switch
-- [ ] MAP-05: Clicking a sample marker shows observer, date, specimen count (or "not recorded"),
-      and iNat observation link in sidebar
-- [ ] LINK-05: Specimen sidebar shows clickable iNat link when links.parquet maps the occurrenceID
+- [ ] PIPE: Pipeline spatial join adds `county` and `ecoregion_l3` to both `ecdysis.parquet` and
+      `samples.parquet` at build time (using geopandas or pyogrio point-in-polygon)
+- [ ] DATA: WA county GeoJSON and EPA Level III ecoregion GeoJSON bundled with Vite build
+      (simplified to keep file size reasonable)
+- [ ] MAP-TOGGLE: Exclusive 3-state boundary overlay toggle (off / counties / ecoregions) on
+      map; clicking toggles VectorLayer visibility
+- [ ] FILTER-REGION: County multi-select autocomplete in sidebar sidebar; ecoregion multi-select
+      autocomplete in sidebar; selected regions shown as removable chips
+- [ ] FILTER-CLICK: Clicking a visible region polygon adds it to the active filter (or removes it
+      if already selected)
+- [ ] FILTER-AND: Region filter ANDs with existing taxon/date filters; applies to both specimen
+      and sample layers
+- [ ] URL: Region filter state encoded in URL query params (shareable)
 
 ### Add After Validation (v1.x)
 
-- [ ] Filter controls adapt when layer is switched — hide or disable specimen-only filters when
-      sample layer is active; defer until user confusion is reported
-- [ ] Sample layer count in sidebar summary — "N collection events" when sample layer is active,
-      mirroring the specimen summary panel
-- [ ] URL encoding of selected sample marker — add `inat=<observation_id>` param when collectors
-      confirm they share sample links; deferred because o= encoding is ecdysis-specific
+- [ ] Selected polygon highlighted distinctly from unselected polygons when overlay is on —
+      useful but not blocking; the sidebar chip list is sufficient confirmation at launch
+- [ ] Autocomplete values derived from Parquet unique values rather than hardcoded GeoJSON names
+      — correctness improvement; defer until mismatch is actually observed
 
 ### Future Consideration (v2+)
 
-- [ ] Combined view (specimens + sample dots) with z-index and click disambiguation — only
-      warranted if collectors explicitly request overlapping views
-- [ ] Sample dot size-encoded by specimen count — collector insight value; wait for feedback on
-      basic dot layer first
+- [ ] Filter summary in sidebar shows "X of Y specimens in selected region" — requires
+      cross-cutting count logic; defer until basic region filter ships and collectors request it
+- [ ] Arbitrary draw-a-polygon region filter — significant complexity; named regions cover the
+      use case for the Washington Bee Atlas
 
 ---
 
@@ -133,109 +180,138 @@ Minimum viable product — all four defined requirements.
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Sample dot layer (MAP-03) | HIGH | LOW | P1 |
-| Exclusive toggle (MAP-04) | HIGH | LOW | P1 |
-| Sample sidebar with iNat link (MAP-05) | HIGH | MEDIUM | P1 |
-| Specimen iNat link via links.parquet (LINK-05) | MEDIUM | LOW | P1 |
-| Filter controls adapt per active layer | MEDIUM | LOW | P2 |
-| Sidebar summary shows sample event count | LOW | LOW | P2 |
-| URL state for selected sample marker | LOW | MEDIUM | P3 |
-| Combined specimen + sample view | LOW | HIGH | P3 |
+| Pipeline spatial join (county + ecoregion) | HIGH | MEDIUM | P1 |
+| Bundle GeoJSON boundaries | HIGH | LOW | P1 |
+| Boundary overlay toggle (3-state) | HIGH | LOW | P1 |
+| Sidebar region multi-select autocomplete | HIGH | MEDIUM | P1 |
+| Click polygon to add to filter | HIGH | MEDIUM | P1 |
+| Region filter ANDs with existing filters | HIGH | LOW | P1 |
+| URL encoding of region filter state | MEDIUM | LOW | P1 |
+| Selected polygon highlight on map | MEDIUM | LOW | P2 |
+| Parquet-derived autocomplete values | LOW | LOW | P2 |
+| Filter result count by region in sidebar | LOW | MEDIUM | P3 |
+| Arbitrary draw-polygon filter | LOW | HIGH | P3 |
 
 **Priority key:**
-- P1: Must have for v1.4 launch
-- P2: Should have, add in v1.4 if time permits
+- P1: Must have for v1.5 launch
+- P2: Should have, add if time permits
 - P3: Nice to have, future milestone
 
 ---
 
 ## Implementation Notes
 
-### Exclusive Toggle Pattern (MAP-04)
+### Existing Filter Integration
 
-OpenLayers `layer.setVisible(bool)` is the mechanism. The correct implementation:
+The key extension points in the current codebase:
 
+**`filter.ts`** — extend `FilterState`:
 ```
-toggleToSamples():   specimenLayer.setVisible(false); sampleLayer.setVisible(true); clearSelection();
-toggleToSpecimens(): sampleLayer.setVisible(false); specimenLayer.setVisible(true); clearSelection();
+counties: Set<string>      // empty = no restriction
+ecoregions: Set<string>    // empty = no restriction
 ```
+Update `isFilterActive()` to check `counties.size > 0 || ecoregions.size > 0`.
+Update `matchesFilter()`: AND the two region checks with existing taxon/date checks.
+For the sample layer, a parallel `matchesSampleFilter()` (or generalized version) must
+check the same region columns on sample rows.
 
-A `@state() private _activeLayer: 'specimens' | 'samples'` field on `BeeMap` drives both the
-toggle button label and the singleclick handler branch. No third-party layer switcher library is
-needed — a simple two-button or `<input type="radio">` group is sufficient and consistent with the
-app's minimal UI.
+**`bee-sidebar.ts`** — the `FilterChangedEvent` detail must include `counties` and `ecoregions`.
+The sidebar renders two new autocomplete inputs (one per region type) below the existing month
+grid, plus a chips row showing selected regions. The existing `_clearFilters()` clears these too.
+The existing `restoredX` property pattern extends to `restoredCounties` and `restoredEcoregions`.
 
-The singleclick handler in `bee-map.ts` checks `specimenLayer.getFeatures(event.pixel)`. With
-two exclusive layers, the branch is: if `_activeLayer === 'specimens'`, handle as cluster hit; if
-`_activeLayer === 'samples'`, check `sampleLayer.getFeatures(event.pixel)` and handle as iNat
-event hit.
+**`bee-map.ts`** — receives the extended `filter-changed` event; updates `filterState` singleton;
+calls `clusterSource.changed()` to repaint. Also manages the boundary VectorLayer(s) and the
+OL Select interaction on them.
 
-### Sidebar Data Shape (MAP-05)
+### Boundary Overlay Toggle
 
-`bee-sidebar.ts` should accept a new property `inatEvent: InatEvent | null` alongside the existing
-`samples: Sample[] | null`:
-
-```typescript
-interface InatEvent {
-  observationId: number;
-  observer: string;
-  date: string;           // ISO date string from parquet
-  specimenCount: number | null;
-}
+The 3-state toggle (off / counties / ecoregions) is an exclusive segmented control, identical
+in logic to the existing specimens/samples toggle. Implementation:
 ```
+state: 'off' | 'counties' | 'ecoregions'
+```
+On each state change: set `countyLayer.setVisible(state === 'counties')` and
+`ecoregionLayer.setVisible(state === 'ecoregions')`. When switching to 'off', deactivate the
+OL Select interaction so clicks fall through to the specimen/sample layer.
 
-The sidebar render() already branches on `samples !== null`. Add: else if `inatEvent !== null`,
-render the iNat event detail panel. Both properties being null shows the summary view.
+### Click-to-Filter with OL Select Interaction
 
-### Specimen iNat Link (LINK-05)
+OpenLayers has a built-in `ol/interaction/Select` that handles single-click on vector features,
+applies a highlight style, and maintains a selected features collection. For click-to-filter:
 
-Load `links.parquet` at startup. Build a `Map<string, number>` keyed by integer Ecdysis DB id
-(matching `s.occid` in the existing `Specimen` interface) for O(1) lookup per specimen in the
-detail render. The join key mapping from UUID `occurrenceID` to integer `occid` must be done at
-load time using the `occurrenceID` column in `ecdysis.parquet`.
+1. Add an `ol/interaction/Select` targeting whichever boundary layer is currently active.
+2. On `select` event: read the clicked feature's region name property, toggle it in/out of the
+   active filter Set, dispatch `filter-changed`, repaint.
+3. The Select interaction's style callback should reflect the filter state — selected regions
+   (those in the active filter) get a distinct fill/stroke regardless of whether they were
+   the most recently clicked feature.
+
+Alternatively, a plain `singleclick` handler on the map can call
+`countyLayer.getFeatures(event.pixel)` to detect a polygon hit when the overlay is visible.
+This is simpler and avoids interaction priority issues with the existing specimen cluster
+click handler. The simpler approach is preferred given the existing codebase pattern.
+
+### GeoJSON Sources
+
+- **WA Counties:** Washington State Department of Transportation or US Census TIGER/Line
+  shapefiles (counties for Washington state, EPSG:4326). Simplify with Mapshaper before bundling.
+- **EPA Level III Ecoregions:** EPA official download at
+  https://www.epa.gov/eco-research/level-iii-and-iv-ecoregions-continental-united-states
+  Clip to Washington state extent. Simplify before bundling.
+
+Both should be stored as static assets in `frontend/src/assets/` and imported by Vite.
+The Parquet spatial join pipeline needs the same GeoJSON files (or equivalent shapefiles)
+as input. A single source of truth (one GeoJSON per region type, used by both pipeline and
+frontend) reduces drift risk.
 
 ---
 
-## Layer Switching: Standard Map App Patterns
+## Standard UX Expectations for Polygon Region Filters
 
-**How map apps handle exclusive layer switching (verified from OpenLayers docs and map UX
-literature, MEDIUM confidence):**
+Based on analysis of GIS tools (ArcGIS Experience Builder, Foursquare Studio), faceted search
+UX literature, and map UI pattern libraries (MEDIUM confidence — patterns verified across
+multiple sources):
 
-1. **Visibility toggle via `setVisible()`** — the standard OL approach. No layer removal/addition
-   needed. Layer objects persist; only visibility changes. This is what ol-layerswitcher uses for
-   base layer radio buttons (type: 'base' layers get radio button behavior).
+1. **AND semantics across filter dimensions is universal.** Users expect taxon + region to narrow
+   results, not expand them. No tool uses OR across filter categories.
 
-2. **Radio button or segmented button in UI** — the conventional UX pattern for mutually exclusive
-   data layers. A checkbox implies independent toggling; a radio or segmented control communicates
-   exclusivity. Google Maps, iNaturalist explore, and eBird all use radio/segmented buttons for
-   exclusive base or data layer switches.
+2. **OR semantics within a multi-select is also universal.** Selecting King AND Pierce County
+   means "show records in King OR Pierce" — both are included. This is what faceted search users
+   expect and what e-commerce sites (the largest training ground for filter UX) consistently do.
 
-3. **Sidebar content clears on layer switch** — the dominant pattern in map apps with context
-   panels (iNaturalist, eBird, AllTrails). The sidebar shows context for whatever is selected on
-   the active layer; switching layers resets the selection to prevent stale context. This aligns
-   with the existing `selectedSamples = null` pattern when filters are applied.
+3. **Empty multi-select means no restriction, not "nothing matches."** An empty county set
+   means "no county filter active" — do not filter by county at all. This is consistent with
+   the existing `months` Set behavior (empty Set = no month filter).
 
-**Dot vs cluster for different densities:**
+4. **Click-to-filter requires the boundary overlay to be visible.** If the polygon layer is off,
+   clicking the map should hit the specimen/sample layer as normal. Activating click-to-filter
+   without a visible overlay would be invisible affordance — a UX failure.
 
-At state-level zoom with 45k specimen points, clustering is necessary to prevent visual noise and
-click target collisions. At the same zoom with a few hundred iNat collection events, individual
-dots are readable and preferred — clustering would collapse distinct field events into a single
-unclickable blob, destroying the primary value of the layer (locating individual collection events).
+5. **Selected polygon visual distinction.** When a region is in the active filter AND the
+   boundary overlay is on, the polygon should look visually selected (different fill or stroke
+   color/weight). This confirms the filter is applied at the spatial level. Fill opacity of
+   selected regions can be ~0.25–0.35; unselected ~0.05–0.10.
 
-The decision boundary is roughly: cluster when points overlap meaningfully at the user's working
-zoom level. For the WA Bee Atlas specimen layer (45k points, statewide), clustering is essential.
-For the sample layer (hundreds of events), it is not.
+6. **Removal affordance on every chip.** Each selected region chip must have an X that removes
+   only that region. This is the universal chip/tag UX expectation.
+
+7. **"Clear filters" must clear region filters too.** Users expect one action to reset everything.
+   Partial clear (only clears taxon, leaves region) is a common complaint in complex filter UIs.
 
 ---
 
 ## Sources
 
-- OpenLayers API `layer.setVisible()`: [OpenLayers Layer API](https://openlayers.org/en/latest/apidoc/module-ol_layer_Layer-Layer.html) — HIGH confidence
-- ol-layerswitcher base layer radio pattern: [GitHub walkermatt/ol-layerswitcher](https://github.com/walkermatt/ol-layerswitcher) — MEDIUM confidence
-- Map UI clustering patterns: [Cluster marker — Map UI Patterns](https://mapuipatterns.com/cluster-marker/), [Marker — Map UI Patterns](https://mapuipatterns.com/marker/) — MEDIUM confidence
-- Map UI layer/sidebar patterns: [Map UI Design — Eleken](https://www.eleken.co/blog-posts/map-ui-design), [Map UI — UXPin](https://www.uxpin.com/studio/blog/map-ui/), [Map UI Patterns](https://mapuipatterns.com/patterns/) — MEDIUM confidence
-- Existing codebase (`bee-map.ts`, `bee-sidebar.ts`, `PROJECT.md`) — HIGH confidence (direct inspection)
+- OpenLayers Select interaction API: [ol/interaction/Select](https://openlayers.org/en/latest/apidoc/module-ol_interaction_Select-Select.html) — HIGH confidence
+- OpenLayers Select Features example: [openlayers.org examples](https://openlayers.org/en/latest/examples/select-features.html) — HIGH confidence
+- Spatial filter UX pattern: [Map UI Patterns — Spatial filter](https://mapuipatterns.com/spatial-filter/) — MEDIUM confidence
+- Feature selection UX pattern: [Map UI Patterns — Feature selection](https://mapuipatterns.com/feature-selection/) — MEDIUM confidence
+- Faceted search multi-select chip UX: [Filter UI Design — insaim.design](https://www.insaim.design/blog/filter-ui-design-best-ux-practices-and-examples) — MEDIUM confidence
+- Exclusive layer toggle pattern: [Leaflet layers control](https://leafletjs.com/examples/layers-control/) — MEDIUM confidence (same radio-button-for-base-layers concept)
+- AND across filter dimensions, OR within multi-select: [Foursquare geospatial filters docs](https://docs.foursquare.com/analytics-products/docs/filters-geospatial) — MEDIUM confidence
+- Existing codebase (`filter.ts`, `bee-sidebar.ts`, `bee-map.ts`, `PROJECT.md`) — HIGH confidence (direct inspection)
 
 ---
-*Feature research for: Washington Bee Atlas v1.4 Sample Layer*
-*Researched: 2026-03-12*
+*Feature research for: Washington Bee Atlas v1.5 Geographic Regions*
+*Researched: 2026-03-14*
