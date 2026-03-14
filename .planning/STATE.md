@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
 status: planning
-stopped_at: Completed 18-03-PLAN.md
-last_updated: "2026-03-14T22:22:58.058Z"
+stopped_at: Completed 18-04-PLAN.md
+last_updated: "2026-03-14T22:34:03.573Z"
 last_activity: 2026-03-14 — Phase 17 complete; frontend data layer shipped (Parquet projections, FilterState region logic, region VectorLayer)
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
   percent: 100
 ---
 
@@ -58,6 +58,7 @@ Progress: [████████████████████] 14/14 p
 | Phase 18-map-integration P01 | 3 | 2 tasks | 2 files |
 | Phase 18-map-integration P02 | 8min | 1 tasks | 4 files |
 | Phase 18-map-integration P03 | 4min | 3 tasks | 2 files |
+| Phase 18-map-integration P04 | 7min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Progress: [████████████████████] 14/14 p
 - [Phase 18-map-integration]: sampleDotStyle ghost check bypasses cache: filter-dependent styles must skip tier cache
 - [Phase 18-map-integration]: map-container flex wrapper with position:relative enables absolute toggle without breaking existing layout
 - [Phase 18-map-integration]: Parquet assets remain gitignored; spatial join columns added by regenerating via pipeline, not force-adding to git
+- [Phase 18-map-integration]: Single-select replaces entire selection (including cross-type clear) on plain click; toggle-off when re-clicking sole selection
+- [Phase 18-map-integration]: makeRegionStyleFn takes getBoundaryMode getter so closure always reads current mode; regionLayer.changed() required after filterState mutation
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None — ecoregion property name confirmed as `NA_L3NAME` by Phase 17 verifier (
 
 ## Session Continuity
 
-Last session: 2026-03-14T22:22:58.056Z
-Stopped at: Completed 18-03-PLAN.md
+Last session: 2026-03-14T22:34:03.571Z
+Stopped at: Completed 18-04-PLAN.md
 Resume file: None
