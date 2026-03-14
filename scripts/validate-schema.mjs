@@ -39,10 +39,10 @@ for (const [filename, expectedCols] of Object.entries(EXPECTED)) {
     actualCols = meta.schema.map(f => f.name).filter(n => n !== 'schema');
   } catch (e) {
     if (e.code === 'ENOENT') {
-      console.log(`— ${filename}: not cached, skipping`);
-      continue;
+      console.error(`✗ ${filename}: not found in assets/ — S3 cache may be empty. Run the fetch-data workflow.`);
+    } else {
+      console.error(`✗ ${filename}: could not read (${e.message})`);
     }
-    console.error(`✗ ${filename}: could not read (${e.message})`);
     failed = true;
     continue;
   }
