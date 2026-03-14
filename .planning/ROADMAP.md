@@ -148,8 +148,8 @@ Plans:
   3. `region-layer.ts` exports a single `regionLayer` OL VectorLayer with `countySource` and `ecoregionSource`; clicking inside a polygon interior registers a hit (transparent fill in place)
 **Plans**: 2 plans
 Plans:
-- [ ] 17-01-PLAN.md — parquet.ts + filter.ts: Parquet region columns and FilterState region Sets
-- [ ] 17-02-PLAN.md — region-layer.ts: GeoJSON-backed VectorLayer + browser verify checkpoint
+- [x] 17-01-PLAN.md — parquet.ts + filter.ts: Parquet region columns and FilterState region Sets
+- [x] 17-02-PLAN.md — region-layer.ts: GeoJSON-backed VectorLayer + browser verify checkpoint
 
 ### Phase 18: Map Integration
 **Goal**: The region boundary overlay is visible on the map, users can toggle it between off / counties / ecoregions, clicking a polygon adds its region to the active filter, and region filter state round-trips through the URL
@@ -162,8 +162,8 @@ Plans:
   4. The URL encodes `bm=` (boundary mode), `counties=` (comma-separated names), and `ecor=` (comma-separated names); pasting the URL restores the same boundary mode and region filter
 **Plans**: 2 plans
 Plans:
-- [ ] 17-01-PLAN.md — parquet.ts + filter.ts: Parquet region columns and FilterState region Sets
-- [ ] 17-02-PLAN.md — region-layer.ts: GeoJSON-backed VectorLayer + browser verify checkpoint
+- [ ] 18-01-PLAN.md — bee-map.ts: boundaryMode state, regionLayer wiring, URL encode/decode for bm=/counties=/ecor=
+- [ ] 18-02-PLAN.md — bee-map.ts: polygon singleclick, floating toggle UI, sample ghosting + human verify
 
 ### Phase 19: Sidebar UI
 **Goal**: Collectors can select, view, and clear county and ecoregion filters from the sidebar using a multi-select autocomplete with removable chips and a boundary mode toggle
@@ -174,10 +174,7 @@ Plans:
   2. The sidebar shows an ecoregion multi-select autocomplete; selecting an ecoregion adds a removable chip labeled with the ecoregion name and an "ecoregion" type label; chips from both types are visible simultaneously
   3. Removing a chip from the sidebar deselects that region; the map updates immediately to reflect the narrowed filter
   4. Clicking "Clear filters" removes all county and ecoregion chips in addition to resetting taxon and date filters; map position is unchanged
-**Plans**: 2 plans
-Plans:
-- [ ] 17-01-PLAN.md — parquet.ts + filter.ts: Parquet region columns and FilterState region Sets
-- [ ] 17-02-PLAN.md — region-layer.ts: GeoJSON-backed VectorLayer + browser verify checkpoint
+**Plans**: [To be planned]
 
 ## Progress
 
@@ -200,5 +197,5 @@ Plans:
 | 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
 | 16. Pipeline Spatial Join | 7/7 | Complete   | 2026-03-14 | 2026-03-14 |
 | 17. Frontend Data Layer | 2/2 | Complete    | 2026-03-14 | - |
-| 18. Map Integration | v1.5 | 0/? | Not started | - |
+| 18. Map Integration | v1.5 | 0/2 | Not started | - |
 | 19. Sidebar UI | v1.5 | 0/? | Not started | - |
