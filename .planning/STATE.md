@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
 status: executing
-stopped_at: Completed 16-05-PLAN.md
-last_updated: "2026-03-14T18:02:09.500Z"
+stopped_at: Completed 16-06-PLAN.md
+last_updated: "2026-03-14T18:22:05.918Z"
 last_activity: 2026-03-14 — 16-01 test scaffold complete (9 tests, all RED)
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
+  completed_phases: 3
+  total_plans: 12
+  completed_plans: 11
   percent: 70
 ---
 
@@ -51,6 +51,7 @@ Progress: [███████░░░] 70%
 | Phase 16-pipeline-spatial-join P02 | 2 | 1 tasks | 1 files |
 | Phase 16 P03 | 148 | 2 tasks | 3 files |
 | Phase 16-pipeline-spatial-join P05 | 525712min | 2 tasks | 2 files |
+| Phase 16-pipeline-spatial-join P06 | 1min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,7 @@ Progress: [███████░░░] 70%
 - [Phase 16]: build_geojson.py uses underscore (not dash) to match Python module import requirements from 16-01 test scaffold
 - [Phase 16-pipeline-spatial-join]: Pipeline boundary loading: boundaries loaded once at entrypoint (main/__main__), passed as arguments through to pipeline functions — avoids double-loading
 - [Phase 16-pipeline-spatial-join]: iNat load_boundaries() defined as named function for test mocking; add_region_columns applied to merged (not delta alone) to handle incremental run correctness
+- [Phase 16-pipeline-spatial-join]: GeoJSON boundary files committed to git rather than generated at CI time — simplest resolution with no workflow changes
 
 ### Pending Todos
 
@@ -84,6 +86,6 @@ Progress: [███████░░░] 70%
 
 ## Session Continuity
 
-Last session: 2026-03-14T18:02:09.498Z
-Stopped at: Completed 16-05-PLAN.md
+Last session: 2026-03-14T18:22:05.916Z
+Stopped at: Completed 16-06-PLAN.md
 Resume file: None
