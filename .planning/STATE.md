@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
 status: planning
-stopped_at: Completed 16-04-PLAN.md
-last_updated: "2026-03-14T17:56:34.968Z"
+stopped_at: Completed 16-01-PLAN.md (test scaffold)
+last_updated: "2026-03-14T17:57:06.679Z"
 last_activity: 2026-03-14 — Roadmap created; Phases 16–19 defined
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-14)
 ## Current Position
 
 Phase: 16 of 19 (Pipeline Spatial Join)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-14 — Roadmap created; Phases 16–19 defined
+Plan: 1 of 5 complete (16-01 test scaffold)
+Status: In progress
+Last activity: 2026-03-14 — 16-01 test scaffold complete (9 tests, all RED)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███████░░░] 70%
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 16-pipeline-spatial-join P04 | 5 | 1 tasks | 1 files |
+| Phase 16-pipeline-spatial-join P01 | 1 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,7 @@ Progress: [░░░░░░░░░░] 0%
 - **v1.5 click priority**: Polygon singleclick handler must check specimen/sample hits FIRST; checking polygon first swallows specimen clicks when boundary overlay is visible
 - **v1.5 polygon fill**: OL only hit-detects rendered pixels; transparent Fill (rgba 0,0,0,0) required for polygon interior to be clickable
 - [Phase 16-pipeline-spatial-join]: validate-schema.mjs EXPECTED dict is the authoritative CI schema contract for parquet column requirements
+- [Phase 16-pipeline-spatial-join]: Test scaffold contracts: build_county_geojson/build_ecoregion_geojson accept out_path param; load_boundaries must exist in inat.download; separate load_*_gdf functions for test isolation
 
 ### Pending Todos
 
@@ -74,6 +76,6 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-03-14T17:56:34.966Z
-Stopped at: Completed 16-04-PLAN.md
+Last session: 2026-03-14T17:57:02.672Z
+Stopped at: Completed 16-01-PLAN.md (test scaffold)
 Resume file: None
