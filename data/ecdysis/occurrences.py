@@ -7,6 +7,8 @@ import zipfile
 import geopandas
 import pandas as pd
 
+from spatial import add_region_columns
+
 dtype = {
     'id': 'int64',
     'taxonID': 'Int64',
@@ -98,7 +100,7 @@ def _parse_floral_host(associated_taxa) -> str | None:
     return m.group(1) if m else None
 
 
-def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
+def to_parquet(df: pd.DataFrame, out: Path | IO[bytes], counties_gdf, ecoregions_gdf):
     df = df[df['decimalLatitude'].notna() & df['decimalLongitude'].notna()].copy()
     # Extract floral host from associatedTaxa ("host":"Plant name" format)
     df['floralHost'] = df['associatedTaxa'].apply(_parse_floral_host).astype(pd.StringDtype())
@@ -109,6 +111,9 @@ def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
     genus_only = df['scientificName'].notna() & df['specificEpithet'].isna()
     df.loc[genus_only, 'scientificName'] = df.loc[genus_only, 'scientificName'] + ' sp.'
     df['scientificName'] = df['scientificName'].fillna('Unidentified')
+    # Add county and ecoregion_l3 via spatial join (before column selection,
+    # while df still has decimalLongitude/decimalLatitude)
+    df = add_region_columns(df, counties_gdf, ecoregions_gdf)
     # Select required columns and rename for output
     df = df[[
         'id',
@@ -124,6 +129,8 @@ def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
         'recordedBy',
         'fieldNumber',
         'floralHost',
+        'county',
+        'ecoregion_l3',
     ]].rename(columns={
         'id': 'ecdysis_id',
         'decimalLongitude': 'longitude',
@@ -133,7 +140,12 @@ def to_parquet(df: pd.DataFrame, out: Path | IO[bytes]):
     pd.DataFrame(df).to_parquet(out, engine='pyarrow', index=False)
 
 if __name__ == '__main__':
+    import geopandas as gpd
     zip_path = Path(sys.argv[1])
     df = from_zipfile(zip_path)
     print(f"Loaded {len(df)} occurrences")
-    to_parquet(df, Path("ecdysis.parquet"))
+    # Load boundaries once here and pass through (avoid double-loading)
+    counties_gdf = gpd.read_file('zip://tl_2024_us_county.zip')
+    counties_gdf = counties_gdf[counties_gdf['STATEFP'] == '53'].to_crs('EPSG:4326')
+    eco_gdf = gpd.read_file('zip://NA_CEC_Eco_Level3.zip!NA_CEC_Eco_Level3.shp').to_crs('EPSG:4326')
+    to_parquet(df, Path("ecdysis.parquet"), counties_gdf, eco_gdf)
