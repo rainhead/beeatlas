@@ -19,6 +19,7 @@ import Feature from "ol/Feature.js";
 import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
 import { filterState, isFilterActive, matchesFilter } from './filter.ts';
+import { regionLayer, countySource, ecoregionSource } from './region-layer.ts';
 import './bee-sidebar.ts';
 import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 
@@ -40,6 +41,9 @@ interface ParsedParams {
   months: Set<number>;
   occurrenceIds: string[];
   layerMode: 'specimens' | 'samples';
+  boundaryMode: 'off' | 'counties' | 'ecoregions';
+  selectedCounties: Set<string>;
+  selectedEcoregions: Set<string>;
 }
 
 function buildSearchParams(
@@ -47,7 +51,8 @@ function buildSearchParams(
   zoom: number,
   fs: typeof filterState,
   selectedOccIds: string[] | null,
-  layerMode: 'specimens' | 'samples'
+  layerMode: 'specimens' | 'samples',
+  boundaryMode: 'off' | 'counties' | 'ecoregions'
 ): URLSearchParams {
   const params = new URLSearchParams();
   params.set('x', center[0]!.toFixed(4));
@@ -64,6 +69,14 @@ function buildSearchParams(
     params.set('o', selectedOccIds.join(','));
   }
   if (layerMode !== 'specimens') params.set('lm', layerMode);  // omit default value
+  // Boundary mode and region filter — omit entirely when off (absence = off)
+  if (boundaryMode !== 'off') params.set('bm', boundaryMode);
+  if (fs.selectedCounties.size > 0) {
+    params.set('counties', [...fs.selectedCounties].sort().join(','));
+  }
+  if (fs.selectedEcoregions.size > 0) {
+    params.set('ecor', [...fs.selectedEcoregions].sort().join(','));
+  }
   return params;
 }
 
@@ -98,7 +111,21 @@ function parseUrlParams(search: string): ParsedParams {
   const lmRaw = p.get('lm') ?? '';
   const layerMode: 'specimens' | 'samples' = lmRaw === 'samples' ? 'samples' : 'specimens';
 
-  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds, layerMode };
+  const bmRaw = p.get('bm') ?? '';
+  const boundaryMode: 'off' | 'counties' | 'ecoregions' =
+    (bmRaw === 'counties' || bmRaw === 'ecoregions') ? bmRaw : 'off';
+
+  const countiesRaw = p.get('counties') ?? '';
+  const selectedCounties = new Set<string>(
+    countiesRaw ? countiesRaw.split(',').map(s => s.trim()).filter(Boolean) : []
+  );
+
+  const ecorRaw = p.get('ecor') ?? '';
+  const selectedEcoregions = new Set<string>(
+    ecorRaw ? ecorRaw.split(',').map(s => s.trim()).filter(Boolean) : []
+  );
+
+  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds, layerMode, boundaryMode, selectedCounties, selectedEcoregions };
 }
 
 function buildSamples(features: Feature[], linksMap?: Map<string, number>): Sample[] {
@@ -198,6 +225,7 @@ export class BeeMap extends LitElement {
   @state() private _selectedSampleEvent: SampleEvent | null = null;
 
   @state() private layerMode: 'specimens' | 'samples' = 'specimens';
+  @state() private boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @state() private sampleDataLoaded = false;
   @state() private recentSampleEvents: SampleEvent[] = [];
 
@@ -343,6 +371,20 @@ bee-sidebar {
     filterState.yearFrom  = parsed.yearFrom;
     filterState.yearTo    = parsed.yearTo;
     filterState.months    = parsed.months;
+    filterState.selectedCounties = parsed.selectedCounties;
+    filterState.selectedEcoregions = parsed.selectedEcoregions;
+    this.boundaryMode = parsed.boundaryMode;
+    if (parsed.boundaryMode === 'counties') {
+      regionLayer.setSource(countySource);
+      regionLayer.setVisible(true);
+    } else if (parsed.boundaryMode === 'ecoregions') {
+      regionLayer.setSource(ecoregionSource);
+      regionLayer.setVisible(true);
+    } else {
+      regionLayer.setVisible(false);
+    }
+    // Also repaint sample layer (region filter applies to both layers)
+    sampleSource.changed();
 
     clusterSource.changed();
     this.map?.render();
@@ -403,7 +445,7 @@ bee-sidebar {
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
-    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds, this.layerMode);
+    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds, this.layerMode, this.boundaryMode);
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
@@ -507,6 +549,7 @@ bee-sidebar {
         baseLayer,
         specimenLayer,
         sampleLayer,
+        regionLayer,   // added last — renders boundary strokes above data dots
       ],
       target: this.mapElement,
       view: new View({
@@ -531,17 +574,30 @@ bee-sidebar {
     const initParams = buildSearchParams(
       initCenter, view.getZoom()!, filterState,
       initialParams.occurrenceIds.length > 0 ? initialParams.occurrenceIds : null,
-      initialParams.layerMode
+      initialParams.layerMode,
+      initialParams.boundaryMode
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
     // Restore filter state from URL params (filter singleton + sidebar display)
-    if (initialParams.taxonName || initialParams.yearFrom || initialParams.yearTo || initialParams.months.size > 0) {
+    if (initialParams.taxonName || initialParams.yearFrom || initialParams.yearTo
+        || initialParams.months.size > 0
+        || initialParams.boundaryMode !== 'off'
+        || initialParams.selectedCounties.size > 0
+        || initialParams.selectedEcoregions.size > 0) {
       filterState.taxonName = initialParams.taxonName;
       filterState.taxonRank = initialParams.taxonRank;
       filterState.yearFrom  = initialParams.yearFrom;
       filterState.yearTo    = initialParams.yearTo;
       filterState.months    = initialParams.months;
+      // Restore region filter state
+      filterState.selectedCounties = initialParams.selectedCounties;
+      filterState.selectedEcoregions = initialParams.selectedEcoregions;
+      this.boundaryMode = initialParams.boundaryMode;
+      if (initialParams.boundaryMode !== 'off') {
+        regionLayer.setSource(initialParams.boundaryMode === 'counties' ? countySource : ecoregionSource);
+        regionLayer.setVisible(true);
+      }
       // Mirror to sidebar display fields
       this._restoredTaxonName  = initialParams.taxonName;
       this._restoredTaxonRank  = initialParams.taxonRank;
