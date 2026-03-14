@@ -1,439 +1,486 @@
 # Architecture Research
 
-**Domain:** Static frontend map app — OpenLayers + Lit + hyparquet, v1.4 Sample Layer extension
-**Researched:** 2026-03-12
+**Domain:** Geographic region filtering — integration into existing static bee atlas web app (v1.5)
+**Researched:** 2026-03-14
 **Confidence:** HIGH — all claims derived from direct inspection of current source files
-
----
 
 ## System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                 bee-map.ts  (LitElement host)                        │
-│                                                                      │
-│  ┌──────────────────────────────┐  ┌──────────────────────────────┐  │
-│  │  OL Map                      │  │  bee-sidebar.ts              │  │
-│  │                              │  │                              │  │
-│  │  TileLayer (base x2)         │  │  @property samples           │  │
-│  │                              │  │  @property inatSamples  NEW  │  │
-│  │  specimenLayer               │  │  @property layerMode    NEW  │  │
-│  │    ClusterSource             │  │  @property summary           │  │
-│  │      ParquetSource           │  │  @property filteredSummary   │  │
-│  │        ecdysis.parquet       │  │  @property taxaOptions       │  │
-│  │                              │  │  @property linksMap     NEW  │  │
-│  │  sampleLayer  (NEW)          │  │  @property restored*         │  │
-│  │    VectorSource              │  └──────────────────────────────┘  │
-│  │      SampleSource  (NEW)     │                                    │
-│  │        samples.parquet       │  @state _layerMode           NEW  │
-│  └──────────────────────────────┘  @state _linksMap            NEW  │
-│                                    @state _selectedInatSamples  NEW  │
-│  filterState singleton (filter.ts) — unchanged                       │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Python Pipeline (build time)                         │
+├─────────────────────────┬───────────────────────────────────────────────┤
+│  ecdysis/occurrences.py │  inat/download.py                             │
+│  (MODIFY)               │  (MODIFY)                                     │
+│  + sjoin county,        │  + sjoin county,                              │
+│    ecoregion_l3         │    ecoregion_l3                               │
+│  via regions.py (NEW)   │  via regions.py (NEW)                         │
+└────────────┬────────────┴────────────────┬──────────────────────────────┘
+             │                             │
+             ▼                             ▼
+      ecdysis.parquet               samples.parquet
+      + county col                  + county col
+      + ecoregion_l3 col            + ecoregion_l3 col
+             │                             │
+             └─────────────┬───────────────┘
+                           │ cp to frontend/src/assets/
+                           ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Frontend (Vite / TypeScript)                         │
+├──────────────────────────────────┬──────────────────────────────────────┤
+│  src/assets/                     │  src/                                │
+│  ecdysis.parquet   (?url import) │  filter.ts        (MODIFY)           │
+│  samples.parquet   (?url import) │  parquet.ts       (MODIFY)           │
+│  links.parquet     (?url import) │  region-layer.ts  (NEW)              │
+│  counties.geojson  (?url import) │  bee-map.ts       (MODIFY)           │
+│  ecoregions.geojson(?url import) │  bee-sidebar.ts   (MODIFY)           │
+│                                  │  style.ts         (unchanged)        │
+└──────────────────────────────────┴──────────────────────────────────────┘
+                           │
+                           ▼ (runtime, browser)
+┌─────────────────────────────────────────────────────────────────────────┐
+│  BeeMap (LitElement)                                                     │
+│  ├── OpenLayers Map                                                      │
+│  │   ├── TileLayer x2 (Esri basemap)                                    │
+│  │   ├── regionLayer (VectorLayer, NEW) ← counties or ecoregions GeoJSON│
+│  │   ├── specimenLayer (cluster VectorLayer, unchanged)                  │
+│  │   └── sampleLayer (dot VectorLayer, unchanged)                        │
+│  └── BeeSidebar (LitElement)                                             │
+│      ├── layer toggle (Specimens/Samples — unchanged)                    │
+│      ├── boundary toggle (Off/Counties/Ecoregions — NEW)                │
+│      ├── filter controls: taxon/year/month (unchanged)                   │
+│      └── filter controls: county multi-select + ecoregion multi-select   │
+│                           (NEW, inside existing filter-controls section) │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
 | Component | Status | Responsibility |
 |-----------|--------|----------------|
-| `bee-map.ts` | Modified | OL map host; owns both layers and `_layerMode`; loads all three parquet files; routes click events by mode; pushes `_linksMap` and `inatSamples` to sidebar |
-| `bee-sidebar.ts` | Modified | Renders filter controls + detail panel; mode-aware: shows specimen or iNat detail based on `layerMode`; shows iNat link on specimens when `linksMap` has a match |
-| `parquet.ts` | Modified | Add `occurrenceID` column to `ParquetSource`; add `SampleSource` class for samples.parquet |
-| `style.ts` | Modified | Add `sampleDotStyle` function — fixed-size dot for sample markers |
-| `filter.ts` | Unchanged | FilterState singleton; `matchesFilter`, `isFilterActive` — specimen-only, not applied to sample layer |
-| `links.parquet` | New asset | Join table: `occurrenceID` (string UUID) → `inat_observation_id` (Int64 nullable); loaded into a `Map` in memory, never an OL source |
+| `data/ecdysis/regions.py` | NEW | Load WA county GeoJSON + EPA L3 ecoregion GeoJSON; expose `spatial_join_regions(gdf)` helper |
+| `data/ecdysis/occurrences.py` | MODIFY | Call `spatial_join_regions()` before `to_parquet()`; add county, ecoregion_l3 to output columns |
+| `data/inat/download.py` | MODIFY | Convert observations DataFrame to GeoDataFrame; call `spatial_join_regions()`; add county, ecoregion_l3 to samples.parquet |
+| `frontend/src/filter.ts` | MODIFY | Add `selectedCounties: Set<string>` and `selectedEcoregions: Set<string>` to `FilterState`; extend `isFilterActive()` and `matchesFilter()` |
+| `frontend/src/parquet.ts` | MODIFY | Read county + ecoregion_l3 columns from both Parquet files; set as Feature properties |
+| `frontend/src/region-layer.ts` | NEW | `countySource`, `ecoregionSource` VectorSources from GeoJSON; `regionLayer` VectorLayer; polygon style; `BoundaryMode` type export |
+| `frontend/src/bee-map.ts` | MODIFY | Import regionLayer; add boundaryMode state; pre-check polygon click in singleclick handler; extend `_applyFilter()`; extend URL encode/decode; pass new props to sidebar |
+| `frontend/src/bee-sidebar.ts` | MODIFY | Boundary toggle (3-way: off/counties/ecoregions); county multi-select autocomplete; ecoregion multi-select autocomplete; extend `FilterChangedEvent` |
 
----
-
-## Data Schemas (confirmed from pipeline source)
-
-### samples.parquet
-```
-observation_id   int64
-observer         string        iNat login
-date             string        "YYYY-MM-DD"
-lat              float64
-lon              float64
-specimen_count   Int64         nullable
-downloaded_at    string
-```
-
-### links.parquet
-```
-occurrenceID           string    UUID, e.g. "Symbiota:Occurrence:abc123"
-inat_observation_id    Int64     nullable — null when Ecdysis page has no iNat link
-```
-
-### Key join note
-
-The OL specimen feature ID is `ecdysis:{integer_ecdysis_id}`. The links.parquet join key is the UUID `occurrenceID`. `ecdysis.parquet` already has both columns. The `ParquetSource` must store `occurrenceID` as a feature property so the sidebar can perform the lookup. The integer `ecdysis_id` (extracted from the feature ID) is what the Ecdysis detail page URL uses (`?occid=<integer>`).
-
----
-
-## Recommended File Changes
+## Recommended Project Structure
 
 ```
+data/
+├── ecdysis/
+│   ├── occurrences.py    MODIFY — add spatial join
+│   ├── download.py       unchanged
+│   └── regions.py        NEW — shared spatial join helper
+├── inat/
+│   ├── download.py       MODIFY — add spatial join
+│   └── observations.py   unchanged
+├── links/
+│   └── fetch.py          unchanged
+└── geodata/              NEW directory — authoritative GeoJSON source
+    ├── wa_counties.geojson
+    └── epa_l3_ecoregions_wa.geojson
+
 frontend/src/
-├── bee-map.ts        MODIFIED — _layerMode state; sampleLayer; linksMap load;
-│                                click handler branch; URL param lm/si; toggle handler
-├── bee-sidebar.ts    MODIFIED — accept layerMode, inatSamples, linksMap props;
-│                                render iNat detail panel; iNat link on specimen detail;
-│                                hide filter controls in sample mode
-├── parquet.ts        MODIFIED — add occurrenceID to ParquetSource columns;
-│                                add SampleSource class
-├── style.ts          MODIFIED — add sampleDotStyle (fixed dot, no text label)
-├── filter.ts         UNCHANGED
-└── assets/
-    ├── ecdysis.parquet   UNCHANGED (already has occurrenceID column)
-    ├── samples.parquet   UNCHANGED
-    └── links.parquet     NEW — must be copied into assets/ by build-data.sh
+├── assets/
+│   ├── ecdysis.parquet
+│   ├── samples.parquet
+│   ├── links.parquet
+│   ├── counties.geojson     NEW — bundled by Vite (copied from data/geodata/)
+│   └── ecoregions.geojson   NEW — bundled by Vite (copied from data/geodata/)
+├── filter.ts                MODIFY
+├── parquet.ts               MODIFY
+├── region-layer.ts          NEW
+├── bee-map.ts               MODIFY
+├── bee-sidebar.ts           MODIFY
+└── style.ts                 unchanged
 ```
 
----
+### Structure Rationale
+
+- **`data/geodata/`:** One authoritative copy of boundary GeoJSON. Both the pipeline (for spatial join) and the frontend asset directory (for map display) reference the same files. `build-data.sh` copies the preprocessed GeoJSON to `frontend/src/assets/` as part of the build.
+- **`data/ecdysis/regions.py`:** Both ecdysis and inat pipelines perform the identical spatial join. Shared helper avoids duplication and ensures consistent column naming.
+- **`frontend/src/region-layer.ts`:** Isolates OL VectorSource/VectorLayer construction and polygon styling. Keeps `bee-map.ts` from growing further. Exports `countySource`, `ecoregionSource`, `regionLayer`, and `BoundaryMode`.
+- **GeoJSON as Vite `?url` assets:** Same pattern as the existing Parquet files. No plugin required. CloudFront serves them compressed.
 
 ## Architectural Patterns
 
-### Pattern 1: Parallel Parquet Load
+### Pattern 1: Vite `?url` Import for GeoJSON Assets
 
-**What:** Load ecdysis.parquet (via `ParquetSource` OL loader), samples.parquet (via `SampleSource` OL loader), and links.parquet (direct hyparquet call) simultaneously. Each is independent; parallel load minimizes time-to-interactive.
+**What:** Import GeoJSON files with Vite's `?url` suffix to get a cache-busted URL string; fetch at runtime via OpenLayers VectorSource.
 
-**When to use:** All three files start loading in `firstUpdated()`.
+**When to use:** Static files that must be served separately from the JS bundle (too large to inline). Already used for all three Parquet files in `bee-map.ts`.
 
-**Trade-offs:** `linksMap` arrives asynchronously after the specimen `once('change')` callback fires. The iNat link on specimen detail must render when `_linksMap` is ready, not just on specimen data load. Store `_linksMap` as `@state` on BeeMap and pass it as a `@property` to `BeeSidebar` — Lit re-renders the sidebar when the map arrives.
+**Trade-offs:** GeoJSON is a separate HTTP request, not inlined. For WA counties (~300-600KB raw, ~50-80KB gzipped) and EPA ecoregions (~500KB-2MB raw, ~80-200KB gzipped), this is the correct approach. Inline JSON import would bloat the bundle and delay first parse.
 
+**Example:**
 ```typescript
-// In bee-map.ts firstUpdated():
-asyncBufferFromUrl({ url: linksDump })
-  .then(buf => parquetReadObjects({
-    file: buf,
-    columns: ['occurrenceID', 'inat_observation_id'],
-  }))
-  .then(rows => {
-    const m = new Map<string, bigint>();
-    for (const row of rows) {
-      if (row.occurrenceID != null && row.inat_observation_id != null) {
-        m.set(row.occurrenceID as string, row.inat_observation_id as bigint);
-      }
-    }
-    this._linksMap = m;  // @state triggers sidebar re-render
-  });
+import countiesUrl from './assets/counties.geojson?url';
+import ecoregionsUrl from './assets/ecoregions.geojson?url';
+
+const countySource = new VectorSource({
+  url: countiesUrl,
+  format: new GeoJSON(),
+});
 ```
 
-### Pattern 2: Layer Mode as @state on BeeMap
+### Pattern 2: Single regionLayer with Source Swapping
 
-**What:** `_layerMode: 'specimens' | 'samples'` is a `@state` field on BeeMap. On toggle, call `setVisible()` on each layer and clear any active selection. Pass `_layerMode` as a `@property` to `BeeSidebar`.
+**What:** One OL VectorLayer (`regionLayer`) whose source is swapped between `countySource` and `ecoregionSource` when the boundary toggle changes. The layer is hidden when boundary mode is 'off'.
 
-**When to use:** Exclusive toggle between two layers. `setVisible()` is cheaper than adding/removing layers from the OL map and preserves layer state across toggles.
+**When to use:** Exclusive toggle between two GeoJSON datasets. Source swapping is cleaner than maintaining two layers with independent z-order management.
 
-**Trade-offs:** The filter controls (taxon/year/month) are specimen-specific. In sample mode they are misleading. For v1.4 simplicity, hide them entirely when `layerMode === 'samples'`.
+**Trade-offs:** Both sources are constructed at startup but OL's `url` option defers the HTTP fetch until the source is first rendered. Swapping triggers the other source's fetch on first use — acceptable since the user actively requested it.
 
+**Example:**
 ```typescript
-@state() private _layerMode: 'specimens' | 'samples' = 'specimens';
+export type BoundaryMode = 'off' | 'counties' | 'ecoregions';
 
-private _toggleLayer() {
-  this._layerMode = this._layerMode === 'specimens' ? 'samples' : 'specimens';
-  specimenLayer.setVisible(this._layerMode === 'specimens');
-  sampleLayer.setVisible(this._layerMode === 'samples');
-  this.selectedSamples = null;
-  this._selectedInatSamples = null;
-  this._selectedOccIds = null;
-  if (this.map) this._pushUrlState();
+export function applyBoundaryMode(mode: BoundaryMode): void {
+  if (mode === 'off') {
+    regionLayer.setVisible(false);
+  } else {
+    regionLayer.setSource(mode === 'counties' ? countySource : ecoregionSource);
+    regionLayer.setVisible(true);
+  }
 }
 ```
 
-### Pattern 3: SampleSource — VectorSource for samples.parquet
+### Pattern 3: FilterState Singleton Extension
 
-**What:** A new class (or factory) in `parquet.ts` following the same VectorSource loader pattern as `ParquetSource`. Reads samples.parquet; creates one OL Feature per row with `Point` geometry and properties for observer, date, specimenCount, observationId.
+**What:** Add `selectedCounties: Set<string>` and `selectedEcoregions: Set<string>` to the `FilterState` interface in `filter.ts`. Extend `isFilterActive()` and `matchesFilter()`.
 
-**Feature ID convention:** Use `inat:${observation_id}` to namespace away from specimen feature IDs (`ecdysis:${ecdysis_id}`). This prevents OL internal ID collisions if both sources are ever queried simultaneously.
+**When to use:** Consistent with the established singleton pattern. The singleton is already closed over by `clusterStyle` in `style.ts` — no new wiring required for specimen cluster ghosting to respect region filter.
 
-**Column list:**
+**Filter semantics:** OR within region sets (county OR ecoregion match is sufficient), AND with existing taxon/year/month filters.
+
+**Example:**
 ```typescript
-const sampleColumns = ['observation_id', 'observer', 'date', 'lat', 'lon', 'specimen_count'];
+// Extension to matchesFilter() in filter.ts:
+function matchesRegion(feature: Feature, f: FilterState): boolean {
+  const noCounties = f.selectedCounties.size === 0;
+  const noEcoregions = f.selectedEcoregions.size === 0;
+  if (noCounties && noEcoregions) return true;
+  const county = feature.get('county') as string | null;
+  const eco = feature.get('ecoregion_l3') as string | null;
+  if (!noCounties && county && f.selectedCounties.has(county)) return true;
+  if (!noEcoregions && eco && f.selectedEcoregions.has(eco)) return true;
+  return false;
+}
 ```
 
-**Not filtered by filterState:** `sampleDotStyle` must not close over `filterState`. Sample features have no taxon properties; applying `matchesFilter` would silently hide all of them.
+### Pattern 4: Polygon Click as Pre-Check in Singleclick Handler
 
-### Pattern 4: Separate Click Handlers Branched on Layer Mode
+**What:** In `bee-map.ts` singleclick handler, check `regionLayer.getFeatures(pixel)` first (when boundaries are visible). If a polygon hit is found, extract the region name, add it to `filterState`, and return early. Otherwise fall through to the existing specimen/sample hit-testing.
 
-**What:** The existing `singleclick` handler calls `specimenLayer.getFeatures(event.pixel)`. In v1.4, branch on `_layerMode` before calling `getFeatures()`.
+**When to use:** Region boundaries are a filter mechanism, not a navigation target. The click pre-check avoids conflating polygon selection with specimen/sample selection and preserves existing specimen/sample click behavior.
 
-**When to use:** The toggle is exclusive — only one layer is visible at a time. Hit-testing an invisible layer always returns empty. Branching is cleaner than merging two empty-or-one results.
-
+**Example:**
 ```typescript
 this.map.on('singleclick', async (event: MapBrowserEvent) => {
-  if (this._layerMode === 'specimens') {
-    // existing logic → this.selectedSamples
-  } else {
-    const hits = await sampleLayer.getFeatures(event.pixel);
-    if (!hits.length) {
-      this._selectedInatSamples = null;
-      this._selectedInatObsIds = null;
-      return;
+  // Pre-check: polygon click when boundaries visible
+  if (this.boundaryMode !== 'off') {
+    const regionHits = await regionLayer.getFeatures(event.pixel);
+    if (regionHits.length > 0) {
+      const f = regionHits[0]!;
+      if (this.boundaryMode === 'counties') {
+        const name = f.get('COUNTY_NM') as string; // property name TBD from GeoJSON schema
+        filterState.selectedCounties = new Set([...filterState.selectedCounties, name]);
+      } else {
+        const name = f.get('US_L3NAME') as string;
+        filterState.selectedEcoregions = new Set([...filterState.selectedEcoregions, name]);
+      }
+      this._applyFilterAndSync();
+      return; // do not fall through to specimen/sample click
     }
-    this._selectedInatSamples = buildInatSamples(hits);
-    this._selectedInatObsIds = hits.map(f => f.getId() as string);
-    this._pushUrlState();
   }
+  // Existing specimen/sample click logic follows...
 });
 ```
 
-### Pattern 5: occurrenceID on OL Specimen Features
+### Pattern 5: Region Options Derived from Parquet Data
 
-**What:** Add `occurrenceID` to the columns list in `ParquetSource` and store it as a feature property. This is the join key for linking to links.parquet.
+**What:** County and ecoregion multi-select options are derived from the unique values present in `specimenSource.getFeatures()` after load — same pattern as `buildTaxaOptions()`. Do not hardcode region lists.
 
+**When to use:** Ensures only counties/ecoregions that have actual specimen data appear in the filter. Avoids showing empty filter options for regions with no records.
+
+**Trade-offs:** Options are not available until `specimenSource.once('change')` fires. This is identical to the existing taxon autocomplete behavior and is acceptable.
+
+**Example:**
 ```typescript
-// parquet.ts — updated columns list
-const columns = [
-  'ecdysis_id',
-  'occurrenceID',    // ← add this
-  'longitude', 'latitude',
-  'year', 'month', 'scientificName',
-  'recordedBy', 'fieldNumber', 'genus', 'family',
-];
-
-// In feature property setup:
-feature.setProperties({
-  // ... existing properties ...
-  occurrenceID: obj.occurrenceID,
-});
+function buildRegionOptions(features: Feature[]): { counties: string[], ecoregions: string[] } {
+  const counties = new Set<string>();
+  const ecoregions = new Set<string>();
+  for (const f of features) {
+    const c = f.get('county') as string | null;
+    const e = f.get('ecoregion_l3') as string | null;
+    if (c) counties.add(c);
+    if (e) ecoregions.add(e);
+  }
+  return {
+    counties: [...counties].sort(),
+    ecoregions: [...ecoregions].sort(),
+  };
+}
 ```
 
-The `Specimen` interface exported from `bee-sidebar.ts` should gain an `occurrenceID?: string` field, populated from `f.get('occurrenceID')` in `buildSamples()`.
+### Pattern 6: Shared GeoJSON Files (Pipeline + Frontend)
 
-### Pattern 6: Toggle Button in Sidebar, State Owned by BeeMap
+**What:** The WA county and EPA ecoregion GeoJSON files live in `data/geodata/`. The pipeline reads them there for spatial join. `build-data.sh` copies them to `frontend/src/assets/` for bundling.
 
-**What:** `BeeSidebar` renders the layer toggle button (it already owns the filter-controls section — natural home for a mode switch). It fires a `layer-toggle` CustomEvent. `BeeMap` handles the event, updates `_layerMode`, and pushes new `layerMode` back to sidebar via property.
+**When to use:** Both pipeline and frontend need the same boundary geometry. One authoritative copy prevents drift between what was joined and what is displayed.
 
-**Trade-offs vs. toggle in BeeMap template:** Sidebar approach avoids adding absolute-positioned map overlay UI. BeeMap remains the source of truth for state; sidebar is purely presentational.
-
----
+**Trade-offs:** The pipeline spatial join and the display GeoJSON must match exactly. If the display GeoJSON is simplified (for size), the pipeline should also use the simplified version — otherwise a point near a boundary may show in a county visually but be joined to a different county in the parquet.
 
 ## Data Flow
 
-### Initialization Flow
+### Pipeline Spatial Join Flow (build time)
 
 ```
-firstUpdated()
-    ├── Parse URL params (existing + new: lm, si params)
-    ├── Construct OL Map with layers:
-    │     [tileLayer x2, specimenLayer (visible), sampleLayer (hidden)]
-    ├── Parallel async:
-    │     specimenSource loader starts (ParquetSource)
-    │     sampleSource loader starts (SampleSource)        [independent]
-    │     links.parquet load → _linksMap @state             [independent]
-    └── Restore layerMode from URL lm= param
-        (set initial layer visibility accordingly)
-
-specimenSource.once('change', cb)
-    └── Compute summary, taxaOptions, filteredSummary (existing)
-        Restore selected specimens from URL o= (existing)
-        _linksMap may or may not be ready — sidebar renders link lazily when it arrives
+data/geodata/wa_counties.geojson ─────────────┐
+data/geodata/epa_l3_ecoregions_wa.geojson ────┤
+                                              ▼
+                                    regions.py
+                                    load_wa_counties() → GeoDataFrame
+                                    load_epa_ecoregions() → GeoDataFrame
+                                              │
+                  ┌───────────────────────────┤
+                  ▼                           ▼
+        occurrences.py                 inat/download.py
+        reads DarwinCore zip           fetches iNat API
+        → GeoDataFrame (EPSG:4326)     → DataFrame
+        → spatial_join_regions()       → to GeoDataFrame (EPSG:4326)
+          adds county col              → spatial_join_regions()
+          adds ecoregion_l3 col          adds county col
+        → to_parquet()                   adds ecoregion_l3 col
+                  │                → to_parquet()
+                  ▼                           │
+        ecdysis.parquet                       ▼
+        (+ county, ecoregion_l3)      samples.parquet
+                  │                   (+ county, ecoregion_l3)
+                  └──────────┬────────────────┘
+                             │ cp to frontend/src/assets/
+                             ▼
+build-data.sh also:
+  cp data/geodata/counties.geojson frontend/src/assets/counties.geojson
+  cp data/geodata/ecoregions.geojson frontend/src/assets/ecoregions.geojson
 ```
 
-### Layer Toggle Flow
+### Frontend Filter Data Flow (runtime)
 
 ```
-User clicks toggle button (inside bee-sidebar filter-controls)
-    ↓
-BeeSidebar fires CustomEvent 'layer-toggle'
-    ↓
-BeeMap._toggleLayer()
-    ├── _layerMode flips ('specimens' ↔ 'samples')
-    ├── specimenLayer.setVisible() / sampleLayer.setVisible()
-    ├── selectedSamples = null, _selectedInatSamples = null
-    └── _pushUrlState()  — encodes lm= in URL
-    ↓
-Lit re-renders: passes layerMode prop to <bee-sidebar>
-    ├── 'specimens': show filter controls, summary/specimen detail
-    └── 'samples': hide filter controls, show iNat sample count or detail
+App startup
+  ├── regionLayer created (hidden); countySource + ecoregionSource deferred
+  ├── ParquetSource loads ecdysis.parquet (reads county, ecoregion_l3 columns)
+  └── SampleParquetSource loads samples.parquet (reads county, ecoregion_l3 columns)
+
+specimenSource.once('change'):
+  └── buildRegionOptions(features) → { counties: string[], ecoregions: string[] }
+      → pushed as @property to BeeSidebar (populates autocomplete options)
+
+User selects county in autocomplete OR clicks county polygon:
+  → filterState.selectedCounties.add(countyName)
+  → clusterSource.changed() → OL rerenders specimenLayer (matchesFilter checks region)
+  → map.render() → sample layer re-evaluation (if region filter applies to samples)
+  → BeeMap recomputes filteredSummary → pushed to sidebar
+
+User toggles boundary display to 'counties':
+  → regionLayer.setSource(countySource); regionLayer.setVisible(true)
+  → OL triggers countySource fetch (if not yet loaded)
+  → polygons render on map
 ```
 
-### Specimen iNat Link Flow
+### URL State Extension
 
-```
-User clicks specimen cluster (specimenLayer visible)
-    ↓
-existing singleclick handler → buildSamples(features) → Sample[]
-  Each Sample.species[] item now has .occurrenceID (new field)
-    ↓
-<bee-sidebar samples=[...] linksMap={_linksMap}>
-    For each specimen in species list:
-        if linksMap?.has(specimen.occurrenceID):
-            render <a href="https://www.inaturalist.org/observations/{id}">iNat</a>
-    (linksMap may be null briefly during load — link just doesn't show until ready)
-```
+New params (backward compatible — absent = no region filter):
 
-### Sample Click + Detail Flow
+| Param | Format | Example |
+|-------|--------|---------|
+| `counties` | comma-separated county names | `counties=King,Yakima` |
+| `ecor` | comma-separated ecoregion names | `ecor=Cascades` |
+| `bm` | `counties` or `ecoregions` | `bm=counties` (boundary display mode; absent = off) |
 
-```
-User clicks sample dot (sampleLayer visible)
-    ↓
-map 'singleclick' → sampleLayer.getFeatures(pixel)
-    ↓
-buildInatSamples(hits) → InatSample[]
-    ↓
-_selectedInatSamples = [...] (@state → Lit re-render)
-    ↓
-<bee-sidebar inatSamples=[...] layerMode='samples'>
-    Renders: observer, date, specimen_count (if non-null), iNat link
-    iNat URL: https://www.inaturalist.org/observations/{observationId}
-```
-
----
+These encode into `buildSearchParams()` and decode from `parseUrlParams()` following the existing pattern for `months`, `taxon`, etc.
 
 ## Integration Points
 
 ### New vs. Modified — Explicit Inventory
 
-| File | New / Modified | Change Summary |
-|------|----------------|----------------|
-| `frontend/src/parquet.ts` | Modified | Add `occurrenceID` to columns array; add `SampleSource` class |
-| `frontend/src/style.ts` | Modified | Add `sampleDotStyle(feature): Style` — simple circle, no text, fixed radius |
-| `frontend/src/bee-map.ts` | Modified | `_layerMode` @state; `_linksMap` @state; `_selectedInatSamples` @state; sampleLayer construction; parallel links.parquet load; singleclick branch; toggle handler; URL params `lm` and `si`; pass new props to `<bee-sidebar>` |
-| `frontend/src/bee-sidebar.ts` | Modified | New `@property` fields: `layerMode`, `inatSamples`, `linksMap`; new `InatSample` interface; `_renderInatDetail()` method; iNat link in `_renderDetail()` for specimens; hide filter in sample mode; toggle button |
-| `frontend/src/assets/links.parquet` | New | Static asset bundled by Vite; copied by `build-data.sh` |
-| `scripts/build-data.sh` | Modified | Add `cp data/links.parquet frontend/src/assets/links.parquet` |
-| `filter.ts` | Unchanged | No changes |
-| `infra/` (CDK) | Unchanged | No new AWS resources; `links.parquet` deploys via existing `aws s3 sync` |
+| File | Status | Key Changes |
+|------|--------|-------------|
+| `data/ecdysis/regions.py` | NEW | `load_wa_counties()`, `load_epa_ecoregions()`, `spatial_join_regions(gdf: GeoDataFrame) -> GeoDataFrame` |
+| `data/ecdysis/occurrences.py` | MODIFY | Call `spatial_join_regions()` before column selection in `to_parquet()`; add `county` and `ecoregion_l3` to output columns list |
+| `data/inat/download.py` | MODIFY | Construct GeoDataFrame from lat/lon; call `spatial_join_regions()`; add `county` and `ecoregion_l3` to `samples.parquet` output |
+| `data/geodata/wa_counties.geojson` | NEW | WA county boundaries — authoritative source |
+| `data/geodata/epa_l3_ecoregions_wa.geojson` | NEW | EPA L3 ecoregions clipped to WA — authoritative source |
+| `frontend/src/assets/counties.geojson` | NEW | Copy of data/geodata version; Vite bundles with ?url import |
+| `frontend/src/assets/ecoregions.geojson` | NEW | Copy of data/geodata version; Vite bundles with ?url import |
+| `frontend/src/filter.ts` | MODIFY | Add `selectedCounties`, `selectedEcoregions` to `FilterState`; extend `isFilterActive()` and `matchesFilter()` |
+| `frontend/src/parquet.ts` | MODIFY | Add `county`, `ecoregion_l3` to `columns` arrays in `ParquetSource` and `SampleParquetSource`; set as Feature properties |
+| `frontend/src/region-layer.ts` | NEW | `countySource`, `ecoregionSource`, `regionLayer`; `BoundaryMode` type; `applyBoundaryMode()` helper; polygon style function |
+| `frontend/src/bee-map.ts` | MODIFY | Import region-layer; add `boundaryMode` @state; add `countyOptions`/`ecoregionOptions` @state; extend singleclick handler; extend `_applyFilter()`; extend `buildSearchParams()`/`parseUrlParams()`; add restored-region @state props; pass new props to `<bee-sidebar>` |
+| `frontend/src/bee-sidebar.ts` | MODIFY | `BoundaryMode` property; boundary toggle UI; county multi-select; ecoregion multi-select; extend `FilterChangedEvent` with `selectedCounties`, `selectedEcoregions`, `boundaryMode` |
+| `build-data.sh` | MODIFY | Add `cp data/geodata/*.geojson frontend/src/assets/` step |
+| `style.ts` | UNCHANGED | No changes — region filter extension of `matchesFilter()` is transparent |
+| `infra/` (CDK) | UNCHANGED | No new AWS resources; GeoJSON assets deploy via existing `aws s3 sync` |
 
-### URL State Extension
-
-Add two new params — both backward compatible (absent = default behavior):
-
-| Param | Values | Meaning |
-|-------|--------|---------|
-| `lm` | `samples` | Layer mode is sample; absent means specimens |
-| `si` | `inat:12345,inat:67890` | Selected iNat observation IDs (comma-separated) |
-
-The existing `o=` param encodes specimen occurrence IDs (filtered by `startsWith('ecdysis:')`). Keep it as-is — do not repurpose for iNat IDs. Use separate `si=` for iNat selections.
-
-### New TypeScript Interfaces
+### New TypeScript Types
 
 ```typescript
-// In bee-sidebar.ts (exported):
-export interface InatSample {
-  observationId: number;
-  observer: string;
-  date: string;           // "YYYY-MM-DD"
-  specimenCount: number | null;
-}
+// region-layer.ts (exported):
+export type BoundaryMode = 'off' | 'counties' | 'ecoregions';
 
-// Updated Specimen (add occurrenceID):
-export interface Specimen {
-  name: string;
-  occid: string;          // integer ecdysis_id string (for Ecdysis URL)
-  occurrenceID?: string;  // UUID (for links.parquet lookup)
+// bee-sidebar.ts FilterChangedEvent extension:
+export interface FilterChangedEvent {
+  taxonName: string | null;
+  taxonRank: 'family' | 'genus' | 'species' | null;
+  yearFrom: number | null;
+  yearTo: number | null;
+  months: Set<number>;
+  selectedCounties: Set<string>;       // NEW
+  selectedEcoregions: Set<string>;     // NEW
+  boundaryMode: BoundaryMode;          // NEW
 }
 ```
 
----
+### Internal Boundaries
 
-## Build Order (Phase Dependencies)
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `filter.ts` ↔ `style.ts` | Direct singleton read (existing) | `matchesFilter()` extension includes region; `clusterStyle` automatically picks it up |
+| `filter.ts` ↔ `bee-map.ts` | Direct import + mutation (existing) | `_applyFilter()` mutates filterState, calls `clusterSource.changed()` |
+| `region-layer.ts` ↔ `bee-map.ts` | Direct import | bee-map imports `regionLayer`, `applyBoundaryMode`, `BoundaryMode` from region-layer |
+| `bee-map.ts` → `bee-sidebar.ts` | Lit `@property` (down) | New: `countyOptions`, `ecoregionOptions`, `boundaryMode`, `restoredCounties`, `restoredEcoregions` |
+| `bee-sidebar.ts` → `bee-map.ts` | `filter-changed` CustomEvent (up) | Extended `FilterChangedEvent` carries new fields |
 
-The four requirements are MAP-03, MAP-04, MAP-05, LINK-05. Recommended implementation order:
+## Recommended Build Order
 
-1. **parquet.ts + style.ts + asset pipeline** (no Lit component changes)
-   - Add `occurrenceID` to `ParquetSource` columns
-   - Add `SampleSource` class
-   - Add `sampleDotStyle`
-   - Copy links.parquet into assets/ in `build-data.sh`
-   - Self-contained; can be verified by checking OL feature properties in browser console
+### Phase 1: Pipeline — Spatial Join
 
-2. **sampleLayer visible + sample dots on map** (MAP-03 — partial)
-   - Construct `sampleSource` and `sampleLayer` in `bee-map.ts`
-   - Add both to OL Map layers (sampleLayer starts hidden)
-   - Force `sampleLayer.setVisible(true)` temporarily to verify dots render
+1. Acquire GeoJSON boundary files:
+   - WA county boundaries: WA State GIS Open Data portal (39 counties)
+   - EPA L3 ecoregions: EPA website (US-level file; clip to WA bounding box with geopandas)
+   - Simplify if raw file exceeds ~2MB: `gdf.simplify(tolerance=0.01, preserve_topology=True)`
+2. Create `data/ecdysis/regions.py` with `spatial_join_regions()` using geopandas `sjoin()`
+3. Modify `data/ecdysis/occurrences.py`: integrate spatial join before column selection
+4. Modify `data/inat/download.py`: add GeoDataFrame construction and spatial join
+5. Update `build-data.sh`: add GeoJSON copy step to frontend assets
+6. Validate: run pipeline locally; inspect parquet for correct county/ecoregion_l3 values on 5-10 known specimens from King County and a Cascade ecoregion
 
-3. **Layer toggle** (MAP-04)
-   - Add `_layerMode` @state to BeeMap
-   - Add `_toggleLayer()` handler
-   - Pass `layerMode` to `<bee-sidebar>`
-   - Render toggle button in sidebar filter-controls section
-   - Wire `layer-toggle` CustomEvent
-   - URL `lm=` param encode/restore
-   - Verify: toggle hides/shows each layer, clears selection, updates URL
+**Rationale:** Pipeline first. Frontend cannot read new columns until they exist in the parquet files. This phase has no frontend dependencies and is independently testable.
 
-4. **Sample click + detail sidebar** (MAP-05)
-   - Branch singleclick handler on `_layerMode`
-   - Add `buildInatSamples()` function
-   - Add `_selectedInatSamples` @state; pass `inatSamples` prop to sidebar
-   - Add `_renderInatDetail()` to sidebar
-   - URL `si=` param encode/restore
+### Phase 2: Frontend Data Layer
 
-5. **Specimen iNat link** (LINK-05)
-   - Load links.parquet in `firstUpdated()`; store as `_linksMap` @state
-   - Pass `linksMap` prop to sidebar
-   - Update `buildSamples()` to include `occurrenceID` on each `Specimen`
-   - Render iNat link in `_renderDetail()` when `linksMap?.has(specimen.occurrenceID)`
+1. Add `county` and `ecoregion_l3` to `columns` arrays in `parquet.ts` (both `ParquetSource` and `SampleParquetSource`)
+2. Set them as Feature properties in the loader callbacks
+3. Extend `FilterState` in `filter.ts` with `selectedCounties`, `selectedEcoregions`; initialize both as `new Set()`
+4. Extend `isFilterActive()` to return true if either set is non-empty
+5. Extend `matchesFilter()` with region check (OR within sets, AND with existing checks)
+6. Create `frontend/src/region-layer.ts`: `countySource`, `ecoregionSource`, `regionLayer`, `BoundaryMode` type, `applyBoundaryMode()`, polygon style function
 
-Steps 3 and 4 are somewhat independent (toggle can ship before click detail), but step 3 must precede step 4 because the click handler branch depends on `_layerMode`. Steps 1 and 5 are independent of each other and can be worked in parallel if needed.
+**Rationale:** Data layer before interaction. Validates that parquet columns parse correctly and filter logic is sound before UI is wired up. The region layer module can be created and imported without yet adding the layer to the OL map.
 
----
+### Phase 3: Map Integration
+
+1. Import `regionLayer`, `applyBoundaryMode`, `BoundaryMode` from `region-layer.ts` in `bee-map.ts`
+2. Add `regionLayer` to the OL map layer stack, below specimen and sample layers
+3. Add `boundaryMode: BoundaryMode` as `@state` on BeeMap (initial: `'off'`)
+4. Extend `singleclick` handler: polygon pre-check when `boundaryMode !== 'off'`
+5. Extend `buildSearchParams()` and `parseUrlParams()` for `bm`, `counties`, `ecor` params
+6. Add `countyOptions: string[]` and `ecoregionOptions: string[]` as `@state`; populate in `specimenSource.once('change')` callback
+7. Pass new state as `@property` to `<bee-sidebar>`
+
+**Rationale:** Map layer and polygon click before sidebar UI. Polygon click is the primary discovery mechanism. Validates that region features load and clicks register correctly before building the sidebar multi-select.
+
+### Phase 4: Sidebar UI
+
+1. Extend `FilterChangedEvent` interface with `selectedCounties`, `selectedEcoregions`, `boundaryMode`
+2. Add `boundaryMode` property and boundary toggle buttons to `BeeSidebar` (3-way: Off / Counties / Ecoregions)
+3. Add `countyOptions` and `ecoregionOptions` properties to sidebar
+4. Add `selectedCounties` and `selectedEcoregions` internal `@state` fields
+5. Render county multi-select autocomplete (uses `<datalist>` or custom multi-select)
+6. Render ecoregion multi-select autocomplete
+7. Include new fields in `_dispatchFilterChanged()`
+8. Add URL-restore properties for region state; extend `updated()` handler
+
+**Rationale:** UI last. Autocomplete options depend on parquet data being loaded (populated in Phase 3 step 6). The sidebar change is the largest UI modification and benefits from the data layer and polygon click being confirmed working first.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Applying filterState to sampleLayer
+### Anti-Pattern 1: Inlining GeoJSON into the Bundle
 
-**What people do:** Pass sample features through `matchesFilter(f, filterState)` to filter by year/taxon.
+**What people do:** `import countiesData from './assets/counties.geojson'` (Vite default behavior inlines JSON)
 
-**Why it's wrong:** samples.parquet has no `scientificName`, `genus`, or `family` columns. `matchesFilter` reads these properties from OL Feature objects — they will all be `undefined` on sample features. With any taxon filter active, `matchesFilter` returns false for every sample feature, silently hiding all sample dots. The display count in `clusterStyle` would show 0 for all clusters.
+**Why it's wrong:** WA county GeoJSON is ~300-600KB. Inlining adds ~80KB+ gzipped to the JS bundle and delays first render. The browser cannot cache the GeoJSON independently of the JS bundle.
 
-**Do this instead:** Keep sampleLayer completely outside the filter machinery. `sampleDotStyle` must not reference `filterState`.
+**Do this instead:** `import countiesUrl from './assets/counties.geojson?url'` — Vite emits the file as a separate asset with a content hash, and OL VectorSource fetches it lazily only when the boundary layer first becomes visible.
 
-### Anti-Pattern 2: Reusing the Sample interface for iNat observations
+### Anti-Pattern 2: Two Separate Region Layers
 
-**What people do:** Extend the existing `Sample` interface (collector + field number + species list) to also represent iNat collection events.
+**What people do:** Create `countyLayer` and `ecoregionLayer` as separate OL VectorLayer instances; toggle visibility.
 
-**Why it's wrong:** The data shapes are fundamentally different. `Sample` groups multiple species under one field event — it is a grouping artifact built by `buildSamples()` from multiple features. An iNat sample is a single observation: one observer, one date, one optional count. Forcing iNat data into `Sample` requires fake `fieldNumber` and empty `species[]` arrays, breaking the type contract.
+**Why it's wrong:** The exclusive 3-way toggle means only one is ever visible. Two registered layers means two z-order positions to manage, two event registrations, and more code surface. OL does not optimize invisible layer computation, so having both registered costs more than needed.
 
-**Do this instead:** Add a new `InatSample` interface (see above). Pass `inatSamples: InatSample[] | null` as a separate `@property` alongside the existing `samples: Sample[] | null`.
+**Do this instead:** One `regionLayer` with source swapping (`regionLayer.setSource(countySource | ecoregionSource)`). Both sources fetch their GeoJSON on first use.
 
-### Anti-Pattern 3: Loading links.parquet via an OL VectorSource
+### Anti-Pattern 3: Spatial Join at Frontend Runtime
 
-**What people do:** Create a third OL VectorSource for links.parquet to keep the loading pattern consistent.
+**What people do:** Ship raw GeoJSON + Parquet to the browser, run point-in-polygon using a library like turf.js.
 
-**Why it's wrong:** links.parquet is a join table with no geometry. OL VectorSource expects features with geometry. A geometry-less source adds complexity; OL may log warnings or fail internally when `addFeatures()` receives features without geometry.
+**Why it's wrong:** 45,000+ point-in-polygon tests against county + ecoregion polygons runs for 1-5 seconds in the browser. Adds ~100KB (turf.js) to the bundle. The filter result is then a derived computation that must be recomputed whenever the filter changes.
 
-**Do this instead:** Load links.parquet directly with `asyncBufferFromUrl` + `parquetReadObjects` into a plain `Map<string, bigint>`. No OL involvement.
+**Do this instead:** Spatial join at build time in the Python pipeline using geopandas. County and ecoregion values become string columns in Parquet — the client filter is a `Set.has()` lookup, O(1) per feature.
 
-### Anti-Pattern 4: Looking up iNat links by ecdysis integer ID instead of occurrenceID UUID
+### Anti-Pattern 4: Using the Ecdysis DarwinCore `county` Field Directly
 
-**What people do:** Use the integer `ecdysis_id` (stored as feature ID suffix) as the key to look up in links.parquet.
+**What people do:** The existing DarwinCore export has a `county` column — use it as-is to avoid the spatial join.
 
-**Why it's wrong:** links.parquet uses `occurrenceID` (UUID string, e.g. `"Symbiota:Occurrence:abc123"`) as its join key — this is the canonical Ecdysis identifier. The integer `ecdysis_id` is an internal DB row ID. The pipeline writes links rows keyed by UUID. Using the integer would find no matches.
+**Why it's wrong:** The Ecdysis `county` field is free-text, collector-entered. It has inconsistent casing, typos, abbreviations, and missing values. Filtering on it would produce unreliable, inconsistent results.
 
-**Do this instead:** Store `occurrenceID` as a feature property in `ParquetSource` and use `feature.get('occurrenceID')` as the lookup key.
+**Do this instead:** Ignore the DarwinCore `county` column. Overwrite it with the authoritative value from the spatial join against the WA State GIS county boundary file.
 
-### Anti-Pattern 5: Single click handler hit-testing both layers
+### Anti-Pattern 5: Hardcoding County and Ecoregion Lists in the Frontend
 
-**What people do:** Call `getFeatures()` on both `specimenLayer` and `sampleLayer` in the same handler and merge results.
+**What people do:** Define `const WA_COUNTIES = ['Adams', 'Asotin', ...]` in TypeScript; use this as the multi-select option list.
 
-**Why it's wrong:** The toggle is exclusive — only one layer is visible at a time. `getFeatures()` on an invisible layer always returns empty. The merge just produces the same result as branching, but with an extra unnecessary async call.
+**Why it's wrong:** Options would show counties/ecoregions with no specimen records — confusing filter choices that return 0 results. Also requires manual maintenance if county data changes.
 
-**Do this instead:** Branch on `_layerMode` before calling `getFeatures()`.
+**Do this instead:** Derive options from `specimenSource.getFeatures()` after data loads — identical to the existing `buildTaxaOptions()` pattern. Only counties/ecoregions with actual records appear as filter options.
 
----
+### Anti-Pattern 6: Applying Sample Layer Region Filter Through matchesFilter
+
+**What people do:** Apply `matchesFilter(f, filterState)` to sample features when re-rendering the sample layer after region filter change.
+
+**Why it's wrong:** `matchesFilter` checks `taxonName`, `year`, `month` — none of which sample features have (samples.parquet has `observer`, `date`, `county`, `ecoregion_l3` but not taxon). The region check itself can safely use `feature.get('county')` on sample features, but calling the full `matchesFilter` would silently misbehave for taxon checks.
+
+**Do this instead:** Add a separate `matchesRegionFilter(feature, f)` function (or extend `matchesFilter` to guard against missing taxon properties gracefully) and apply it to sample features separately.
 
 ## Scaling Considerations
 
-| Concern | Current state | Notes |
-|---------|---------------|-------|
-| links.parquet size | ~45K rows × 2 cols | ~200–400KB compressed. Acceptable static asset. |
-| samples.parquet size | ~9.5K rows × 7 cols | Already bundled and loading. |
-| Client memory for _linksMap | 45K entries as a JS Map | ~5–10MB. Acceptable for a desktop mapping app. |
-| Filter controls hidden in sample mode | No functional impact | Filters still apply to specimen layer when toggled back. |
+This is a static app with a fixed dataset. Scale is not a concern. Size matters only at build time:
 
----
+| Asset | Estimated Raw Size | Gzipped | Notes |
+|-------|-------------------|---------|-------|
+| WA counties GeoJSON | 300-600KB | 50-80KB | 39 counties; simplification optional |
+| EPA L3 ecoregions (WA clip) | 500KB-2MB | 80-200KB | Clip and simplify to ~1MB raw |
+| ecdysis.parquet with new columns | +200KB raw | negligible % change | Two short string cols, 45K rows |
+| samples.parquet with new columns | +20KB raw | negligible % change | Two short string cols, 9.5K rows |
+
+If ecoregion GeoJSON exceeds 1MB raw after clipping, apply `gdf.simplify(tolerance=0.01, preserve_topology=True)` during pipeline preprocessing. The WA ecoregion boundaries are not precision-critical for a map filter; moderate simplification is acceptable.
 
 ## Sources
 
-- Direct inspection of: `frontend/src/bee-map.ts`, `bee-sidebar.ts`, `parquet.ts`, `filter.ts`, `style.ts` (HIGH confidence)
-- Pipeline schemas: `data/inat/download.py` (samples.parquet), `data/links/fetch.py` (links.parquet) (HIGH confidence)
-- Project context: `.planning/PROJECT.md` (HIGH confidence)
-- No external research required — all architectural decisions are internal to an existing well-defined codebase
+- Direct inspection of `frontend/src/bee-map.ts`, `bee-sidebar.ts`, `parquet.ts`, `filter.ts`, `style.ts` (HIGH confidence)
+- Direct inspection of `data/ecdysis/occurrences.py`, `data/inat/observations.py`, `data/inat/download.py` (HIGH confidence)
+- Direct inspection of `build-data.sh` (HIGH confidence)
+- Direct inspection of `frontend/package.json`, `vite.config.ts` (HIGH confidence)
+- Project history and key decisions: `.planning/PROJECT.md` (HIGH confidence)
+- All architectural decisions are internal to an existing well-understood codebase; no external research required
 
 ---
 
-*Architecture research for: Washington Bee Atlas v1.4 Sample Layer frontend extension*
-*Researched: 2026-03-12*
+*Architecture research for: Washington Bee Atlas v1.5 Geographic Regions*
+*Researched: 2026-03-14*
