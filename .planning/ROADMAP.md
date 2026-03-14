@@ -6,7 +6,8 @@
 - ✅ **v1.1 URL Sharing** — Phase 7 (shipped 2026-03-10)
 - ✅ **v1.2 iNat Pipeline** — Phases 8–10 (shipped 2026-03-11)
 - ✅ **v1.3 Specimen-Sample Linkage** — Phases 11–12 (shipped 2026-03-12)
-- 🚧 **v1.4 Sample Layer** — Phases 13–15 (in progress)
+- ✅ **v1.4 Sample Layer** — Phases 13–15 (shipped 2026-03-13)
+- 🚧 **v1.5 Geographic Regions** — Phases 16–19 (in progress)
 
 ## Phases
 
@@ -54,13 +55,25 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full phase details.
 
 </details>
 
-### 🚧 v1.4 Sample Layer (In Progress)
+<details>
+<summary>✅ v1.4 Sample Layer (Phases 13–15) — SHIPPED 2026-03-13</summary>
 
-**Milestone Goal:** Surface iNat collection events on the map and wire up the specimen→iNat observation link in the sidebar.
+- [x] Phase 13: Parquet Sources and Asset Pipeline (2/2 plans) — completed 2026-03-13
+- [x] Phase 14: Layer Toggle and Map Display (2/2 plans) — completed 2026-03-13
+- [x] Phase 15: Click Interaction and iNat Links (1/1 plan) — completed 2026-03-13
 
-- [x] **Phase 13: Parquet Sources and Asset Pipeline** — SampleParquetSource, occurrenceID on specimen features, sampleDotStyle, links.parquet asset copy (completed 2026-03-13)
-- [x] **Phase 14: Layer Toggle and Map Display** — Sample dots visible on map, exclusive toggle, sidebar clears on switch, URL lm= param (completed 2026-03-13)
-- [x] **Phase 15: Click Interaction and iNat Links** — Sample dot click detail sidebar, links.parquet lookup for specimen iNat link (completed 2026-03-13)
+See Phase Details section for full criteria.
+
+</details>
+
+### 🚧 v1.5 Geographic Regions (In Progress)
+
+**Milestone Goal:** Collectors can filter specimens and samples by WA county or EPA Level III ecoregion, using a sidebar multi-select autocomplete or by clicking a visible boundary polygon on the map.
+
+- [ ] **Phase 16: Pipeline Spatial Join** — Specimens and samples get county and ecoregion_l3 columns at build time; GeoJSON boundary files bundled with the frontend
+- [ ] **Phase 17: Frontend Data Layer** — FilterState extended for region Sets; region-layer.ts module with GeoJSON-backed VectorLayer created; Parquet region columns read into OL feature properties
+- [ ] **Phase 18: Map Integration** — Region boundary overlay toggle wired into map; polygon click adds region to active filter; region filter state encoded in URL
+- [ ] **Phase 19: Sidebar UI** — County and ecoregion multi-select chips in sidebar; boundary toggle control; clear-all resets region filters
 
 ## Phase Details
 
@@ -75,8 +88,8 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full phase details.
   4. `frontend/src/assets/links.parquet` is present after running `npm run build` (i.e., `build-data.sh` copies it)
 **Plans**: 2 plans
 Plans:
-- [ ] 13-01-PLAN.md — parquet.ts: occurrenceID on ParquetSource + SampleParquetSource class
-- [ ] 13-02-PLAN.md — style.ts: sampleDotStyle + build-data.sh: graceful links.parquet copy
+- [x] 13-01-PLAN.md — parquet.ts: occurrenceID on ParquetSource + SampleParquetSource class
+- [x] 13-02-PLAN.md — style.ts: sampleDotStyle + build-data.sh: graceful links.parquet copy
 
 ### Phase 14: Layer Toggle and Map Display
 **Goal**: Users can see iNat collection events as sample dots on the map and switch exclusively between specimen clusters and sample dots, with the sidebar and URL reflecting the active layer
@@ -90,8 +103,8 @@ Plans:
   5. Specimen taxon/date filter controls are hidden or disabled when sample mode is active
 **Plans**: 2 plans
 Plans:
-- [ ] 14-01-PLAN.md — bee-map.ts: sampleLayer wiring, layerMode state, lm= URL param, singleclick routing
-- [ ] 14-02-PLAN.md — bee-sidebar.ts: toggle UI, conditional filters, recent events list + human verify
+- [x] 14-01-PLAN.md — bee-map.ts: sampleLayer wiring, layerMode state, lm= URL param, singleclick routing
+- [x] 14-02-PLAN.md — bee-sidebar.ts: toggle UI, conditional filters, recent events list + human verify
 
 ### Phase 15: Click Interaction and iNat Links
 **Goal**: Clicking a sample dot shows its iNat observation detail in the sidebar, and the specimen sidebar shows a clickable iNat link when a matching entry exists in links.parquet
@@ -104,7 +117,50 @@ Plans:
   4. Specimen sidebar shows no iNat link (no broken link, no error) when `links.parquet` has no match for the specimen's `occurrenceID`
 **Plans**: 1 plan
 Plans:
-- [ ] 15-01-PLAN.md — parquet.ts: loadLinksMap + bee-map.ts: links startup wiring + bee-sidebar.ts: sample dot detail and specimen iNat links
+- [x] 15-01-PLAN.md — parquet.ts: loadLinksMap + bee-map.ts: links startup wiring + bee-sidebar.ts: sample dot detail and specimen iNat links
+
+### Phase 16: Pipeline Spatial Join
+**Goal**: Every specimen and sample record has county and ecoregion_l3 values after the pipeline runs; WA county and ecoregion GeoJSON boundary files are simplified, bundled with the frontend build, and validated by CI schema checks
+**Depends on**: Phase 15
+**Requirements**: PIPE-05, PIPE-06, PIPE-07
+**Success Criteria** (what must be TRUE):
+  1. Running the Ecdysis pipeline produces `ecdysis.parquet` where every row has a non-null `county` string and non-null `ecoregion_l3` string (nearest-polygon fallback eliminates all nulls for points within the WA bounding box)
+  2. Running the iNat pipeline produces `samples.parquet` where every row has a non-null `county` string and non-null `ecoregion_l3` string using the same spatial join logic
+  3. `frontend/src/assets/wa_counties.geojson` and `frontend/src/assets/epa_l3_ecoregions_wa.geojson` are present after `npm run build`, with each file under 400 KB (simplified at 0.005 degrees)
+  4. `scripts/validate-schema.mjs` includes `county` and `ecoregion_l3` in the expected column list for both Parquet files and fails CI if either column is absent
+**Plans**: TBD
+
+### Phase 17: Frontend Data Layer
+**Goal**: The frontend can read region columns from Parquet, FilterState tracks selected counties and ecoregions, and the region boundary VectorLayer is constructed and styled — verified via browser console before any UI is wired
+**Depends on**: Phase 16
+**Requirements**: (no standalone v1.5 requirement — prerequisite layer for Phase 18 and 19 requirements)
+**Success Criteria** (what must be TRUE):
+  1. Each specimen OL feature has a `county` string property and each sample OL feature has `county` and `ecoregion_l3` string properties accessible in the browser console after Parquet loads
+  2. `FilterState` has `selectedCounties: Set<string>` and `selectedEcoregions: Set<string>`; `isFilterActive()` returns true when either set is non-empty; `matchesFilter()` applies AND-across-types / OR-within-type logic
+  3. `region-layer.ts` exports a single `regionLayer` OL VectorLayer with `countySource` and `ecoregionSource`; clicking inside a polygon interior registers a hit (transparent fill in place)
+**Plans**: TBD
+
+### Phase 18: Map Integration
+**Goal**: The region boundary overlay is visible on the map, users can toggle it between off / counties / ecoregions, clicking a polygon adds its region to the active filter, and region filter state round-trips through the URL
+**Depends on**: Phase 17
+**Requirements**: MAP-09, MAP-10, FILTER-05
+**Success Criteria** (what must be TRUE):
+  1. A boundary toggle cycles through off / counties / ecoregions — only one boundary type is visible at a time; switching is independent of the specimen/sample layer toggle
+  2. Clicking a county or ecoregion polygon when its boundary overlay is active adds that region to the active filter; specimen and sample dot clicks take priority over polygon clicks when both could register
+  3. After a polygon click, the specimen and sample points on the map reflect the active region filter (points outside the selected regions are hidden or shown according to current filter semantics)
+  4. The URL encodes `bm=` (boundary mode), `counties=` (comma-separated names), and `ecor=` (comma-separated names); pasting the URL restores the same boundary mode and region filter
+**Plans**: TBD
+
+### Phase 19: Sidebar UI
+**Goal**: Collectors can select, view, and clear county and ecoregion filters from the sidebar using a multi-select autocomplete with removable chips and a boundary mode toggle
+**Depends on**: Phase 18
+**Requirements**: FILTER-03, FILTER-04, FILTER-06
+**Success Criteria** (what must be TRUE):
+  1. The sidebar shows a county multi-select autocomplete; selecting a county adds a removable chip labeled with the county name and a "county" type label; multiple counties use OR semantics
+  2. The sidebar shows an ecoregion multi-select autocomplete; selecting an ecoregion adds a removable chip labeled with the ecoregion name and an "ecoregion" type label; chips from both types are visible simultaneously
+  3. Removing a chip from the sidebar deselects that region; the map updates immediately to reflect the narrowed filter
+  4. Clicking "Clear filters" removes all county and ecoregion chips in addition to resetting taxon and date filters; map position is unchanged
+**Plans**: TBD
 
 ## Progress
 
@@ -122,6 +178,10 @@ Plans:
 | 10. Build Integration and Verification | v1.2 | 1/1 | Complete | 2026-03-11 |
 | 11. Links Pipeline | v1.3 | 2/2 | Complete | 2026-03-12 |
 | 12. S3 Cache and Build Integration | v1.3 | 2/2 | Complete | 2026-03-12 |
-| 13. Parquet Sources and Asset Pipeline | 2/2 | Complete    | 2026-03-13 | - |
-| 14. Layer Toggle and Map Display | 2/2 | Complete    | 2026-03-13 | - |
-| 15. Click Interaction and iNat Links | 1/1 | Complete   | 2026-03-13 | - |
+| 13. Parquet Sources and Asset Pipeline | v1.4 | 2/2 | Complete | 2026-03-13 |
+| 14. Layer Toggle and Map Display | v1.4 | 2/2 | Complete | 2026-03-13 |
+| 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
+| 16. Pipeline Spatial Join | v1.5 | 0/? | Not started | - |
+| 17. Frontend Data Layer | v1.5 | 0/? | Not started | - |
+| 18. Map Integration | v1.5 | 0/? | Not started | - |
+| 19. Sidebar UI | v1.5 | 0/? | Not started | - |

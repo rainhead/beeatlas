@@ -68,21 +68,21 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-04 | Phase 14 | Complete |
 | MAP-05 | Phase 15 | Complete |
 | LINK-05 | Phase 15 | Complete |
-| PIPE-05 | Phase ? | Pending |
-| PIPE-06 | Phase ? | Pending |
-| PIPE-07 | Phase ? | Pending |
-| MAP-09 | Phase ? | Pending |
-| MAP-10 | Phase ? | Pending |
-| FILTER-03 | Phase ? | Pending |
-| FILTER-04 | Phase ? | Pending |
-| FILTER-05 | Phase ? | Pending |
-| FILTER-06 | Phase ? | Pending |
+| PIPE-05 | Phase 16 | Pending |
+| PIPE-06 | Phase 16 | Pending |
+| PIPE-07 | Phase 16 | Pending |
+| MAP-09 | Phase 18 | Pending |
+| MAP-10 | Phase 18 | Pending |
+| FILTER-05 | Phase 18 | Pending |
+| FILTER-03 | Phase 19 | Pending |
+| FILTER-04 | Phase 19 | Pending |
+| FILTER-06 | Phase 19 | Pending |
 
 **Coverage:**
 - v1.5 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9 ⚠️
+- Mapped to phases: 9
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-12 (v1.4), extended 2026-03-14 (v1.5)*
-*Last updated: 2026-03-14 after v1.5 requirements definition*
+*Last updated: 2026-03-14 after v1.5 roadmap creation (Phases 16–19)*
