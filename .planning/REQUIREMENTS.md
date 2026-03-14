@@ -9,7 +9,7 @@
 
 - [ ] **PIPE-05**: Specimens in ecdysis.parquet each have county and ecoregion_l3 values after the pipeline runs (spatial join overrides DarwinCore county field; nearest-polygon fallback handles coastal edge cases where points fall outside polygon boundaries)
 - [ ] **PIPE-06**: Collection events in samples.parquet each have county and ecoregion_l3 values after the pipeline runs (same spatial join logic as specimens)
-- [ ] **PIPE-07**: WA county and EPA Level III ecoregion GeoJSON files are simplified, bundled with the frontend build, and available at runtime; CI schema validation (validate-schema.mjs) updated to include county and ecoregion_l3 columns
+- [x] **PIPE-07**: WA county and EPA Level III ecoregion GeoJSON files are simplified, bundled with the frontend build, and available at runtime; CI schema validation (validate-schema.mjs) updated to include county and ecoregion_l3 columns
 
 ### Map
 
@@ -70,7 +70,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LINK-05 | Phase 15 | Complete |
 | PIPE-05 | Phase 16 | Pending |
 | PIPE-06 | Phase 16 | Pending |
-| PIPE-07 | Phase 16 | Pending |
+| PIPE-07 | Phase 16 | Complete |
 | MAP-09 | Phase 18 | Pending |
 | MAP-10 | Phase 18 | Pending |
 | FILTER-05 | Phase 18 | Pending |
