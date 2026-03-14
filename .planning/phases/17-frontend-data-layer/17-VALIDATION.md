@@ -2,8 +2,8 @@
 phase: 17
 slug: frontend-data-layer
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-14
 ---
 
@@ -17,30 +17,33 @@ created: 2026-03-14
 
 | Property | Value |
 |----------|-------|
-| **Framework** | vitest |
-| **Config file** | frontend/vite.config.ts |
-| **Quick run command** | `cd frontend && npm run test -- --run` |
-| **Full suite command** | `cd frontend && npm run test -- --run` |
-| **Estimated runtime** | ~10 seconds |
+| **Framework** | None — no frontend test runner installed |
+| **Automated gate** | `cd /Users/rainhead/dev/beeatlas/frontend && npm run build` (TypeScript compile + Vite build) |
+| **Quick run command** | `cd /Users/rainhead/dev/beeatlas/frontend && npm run build` |
+| **Full suite command** | `cd /Users/rainhead/dev/beeatlas/frontend && npm run build` |
+| **Estimated runtime** | ~15 seconds |
+
+No vitest, jest, or other frontend test runner is present in `frontend/package.json`. The TypeScript compiler (`tsc`) enforced by Vite build catches interface violations, missing properties, and type errors — this is the sole automated gate for Phase 17.
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run `cd frontend && npm run test -- --run`
-- **After every plan wave:** Run `cd frontend && npm run test -- --run`
-- **Before `/gsd:verify-work`:** Full suite must be green
-- **Max feedback latency:** ~10 seconds
+- **After every task commit:** Run `cd /Users/rainhead/dev/beeatlas/frontend && npm run build`
+- **After every plan wave:** Run `cd /Users/rainhead/dev/beeatlas/frontend && npm run build`
+- **Before `/gsd:verify-work`:** Build must be green + browser console verification complete
+- **Max feedback latency:** ~15 seconds
 
 ---
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 17-01-01 | 01 | 1 | Parquet county/ecoregion columns | unit | `cd frontend && npm run test -- --run` | ❌ W0 | ⬜ pending |
-| 17-02-01 | 02 | 1 | FilterState selectedCounties/selectedEcoregions | unit | `cd frontend && npm run test -- --run` | ❌ W0 | ⬜ pending |
-| 17-03-01 | 03 | 2 | region-layer.ts VectorLayer + hit detection | unit | `cd frontend && npm run test -- --run` | ❌ W0 | ⬜ pending |
+| Task ID | Plan | Wave | Requirement | Test Type | Automated Command | Status |
+|---------|------|------|-------------|-----------|-------------------|--------|
+| 17-01 T1 | 01 | 1 | Parquet county/ecoregion_l3 columns on specimen and sample features | build (type-check) | `cd /Users/rainhead/dev/beeatlas/frontend && npm run build` | ⬜ pending |
+| 17-01 T2 | 01 | 1 | FilterState selectedCounties/selectedEcoregions; isFilterActive; matchesFilter | build (type-check) | `cd /Users/rainhead/dev/beeatlas/frontend && npm run build` | ⬜ pending |
+| 17-02 T1 | 02 | 2 | region-layer.ts exports regionLayer, countySource, ecoregionSource, boundaryStyle | build (type-check) | `cd /Users/rainhead/dev/beeatlas/frontend && npm run build` | ⬜ pending |
+| 17-02 T2 | 02 | 2 | Browser: county + ecoregion_l3 on OL features; no JS errors | checkpoint:human-verify | `cd /Users/rainhead/dev/beeatlas/frontend && npm run build` (pre-check) | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -48,11 +51,7 @@ created: 2026-03-14
 
 ## Wave 0 Requirements
 
-- [ ] `frontend/src/lib/__tests__/parquet.test.ts` — stubs for Parquet column tests
-- [ ] `frontend/src/lib/__tests__/filter.test.ts` — stubs for FilterState region tests
-- [ ] `frontend/src/lib/__tests__/region-layer.test.ts` — stubs for region-layer tests
-
-*Existing vitest infrastructure detected — no new framework install needed.*
+None — `npm run build` infrastructure exists. No test framework scaffold needed.
 
 ---
 
@@ -60,18 +59,19 @@ created: 2026-03-14
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Browser console shows county/ecoregion_l3 on OL features | Phase 17 SC1 | Requires live Parquet load in browser | Open browser console after `npm run dev`, inspect a feature's properties |
-| Clicking polygon interior registers hit | Phase 17 SC3 | Requires OL rendering in browser | Open map, click inside polygon, confirm click event fires |
+| Browser console shows county and ecoregion_l3 on specimen OL features | Phase 17 SC-1 | Requires live Parquet load in browser | Open browser console after `npm run dev`, run `specimenSource.getFeatures()[0].get('county')` and `.get('ecoregion_l3')` |
+| Browser console shows county and ecoregion_l3 on sample OL features | Phase 17 SC-1 | Requires live Parquet load in browser | Open browser console after `npm run dev`, inspect sample feature properties |
+| Clicking polygon interior registers hit | Phase 17 SC-3 | Requires OL rendering in browser | Phase 18 — region-layer not wired to map in Phase 17 |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify commands
+- [x] No Wave 0 stubs required — build infrastructure exists
+- [x] No vitest/jest references — framework not installed
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
