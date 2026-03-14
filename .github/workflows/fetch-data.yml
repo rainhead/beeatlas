@@ -45,11 +45,15 @@ jobs:
           ZIPFILE=$(ls -t ecdysis_*.zip | head -1)
           uv run python ecdysis/occurrences.py "$ZIPFILE"
 
-      - name: Fetch iNaturalist observations (full)
-        # Always full fetch for anti-entropy: no last_fetch.txt means download.py
-        # takes the full-fetch path and replaces rather than merges.
-        # TODO: add deletion detection — observations removed from iNat currently
-        # persist in samples.parquet until a fresh full fetch overwrites them.
+      - name: Restore S3 cache for incremental fetch
+        if: github.event_name != 'schedule'
+        run: npm run cache-restore
+
+      - name: Fetch iNaturalist observations
+        # Scheduled runs: full fetch for anti-entropy (no last_fetch.txt in env).
+        # Manual runs: incremental — cache-restore above provides last_fetch.txt
+        # so download.py fetches only observations updated since the last run.
+        # Note: deletions from iNat persist until the next weekly full fetch.
         run: npm run fetch-inat
 
       - name: Restore links cache from S3
