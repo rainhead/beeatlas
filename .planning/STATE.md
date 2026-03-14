@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.4
-milestone_name: Sample Layer
-status: Roadmap defined, ready for plan-phase
-stopped_at: Completed 15-01-PLAN.md
-last_updated: "2026-03-13T17:03:28.583Z"
-last_activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
+milestone: v1.5
+milestone_name: Geographic Regions
+status: Defining requirements
+stopped_at: ~
+last_updated: "2026-03-14T00:00:00.000Z"
+last_activity: 2026-03-14 — Milestone v1.5 started (Geographic Regions)
 progress:
   total_phases: 3
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-12)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v1.4 Sample Layer — Phase 13 (Parquet Sources and Asset Pipeline)
+**Current focus:** v1.5 Geographic Regions — defining requirements
 
 ## Current Position
 
-Phase: 13 — Parquet Sources and Asset Pipeline
+Phase: Not started (defining requirements)
 Plan: —
-Status: Roadmap defined, ready for plan-phase
-Last activity: 2026-03-12 — Roadmap created for v1.4 (Phases 13–15)
+Status: Defining requirements
+Last activity: 2026-03-14 — Milestone v1.5 Geographic Regions started
 
 Progress: [░░░░░░░░░░] 0%
 
