@@ -187,7 +187,7 @@ Plans:
 | 13. Parquet Sources and Asset Pipeline | v1.4 | 2/2 | Complete | 2026-03-13 |
 | 14. Layer Toggle and Map Display | v1.4 | 2/2 | Complete | 2026-03-13 |
 | 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
-| 16. Pipeline Spatial Join | 1/5 | In Progress|  | - |
+| 16. Pipeline Spatial Join | 2/5 | In Progress|  | - |
 | 17. Frontend Data Layer | v1.5 | 0/? | Not started | - |
 | 18. Map Integration | v1.5 | 0/? | Not started | - |
 | 19. Sidebar UI | v1.5 | 0/? | Not started | - |
