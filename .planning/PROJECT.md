@@ -42,22 +42,22 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ LCACHE-03: npm scripts expose cache-restore-links, fetch-links, cache-upload-links — v1.3
 - ✓ PIPE-04: build-data.sh includes cache restore → fetch → cache upload in sequence — v1.3
 
-## Current Milestone: v1.4 Sample Layer
+## Current Milestone: v1.5 Geographic Regions
 
-**Goal:** Surface iNat collection events on the map and wire up the specimen→iNat link in the sidebar.
+**Goal:** Collectors can filter specimens and samples by geographic region (WA county or EPA Level III ecoregion) using a sidebar autocomplete or by clicking region boundaries on the map.
 
 **Target features:**
-- Sample dots layer (iNat collection events as simple unclustered markers)
-- Exclusive toggle — switch between specimen clusters and sample dots; both map and sidebar adapt
-- Sample sidebar — observer, date, specimen count, link to iNat observation
-- Specimen sidebar — iNat observation link when a linkage exists in links.parquet
+- Pipeline spatial join: each specimen and sample gets `county` and `ecoregion_l3` columns at build time
+- WA county and EPA Level III ecoregion GeoJSON bundled with the build
+- Exclusive 3-state region boundary toggle on map: off / counties / ecoregions
+- Region filter in sidebar: county multi-select + ecoregion multi-select (autocomplete)
+- Clicking a visible region polygon adds it to the active filter
+- Region filter ANDs with existing taxon/date filters; applies to both specimens and samples
+- Map position unchanged when region is selected
 
-### Active (v1.4)
+### Active (v1.5)
 
-- [ ] MAP-03: User can see iNat collection events as simple dot markers on the map
-- [ ] MAP-04: User can toggle between specimen clusters and sample dots (exclusive; both layers adapt)
-- [ ] MAP-05: Clicking a sample marker shows observer, date, specimen count, and iNat link in the sidebar
-- [ ] LINK-05: Specimen sidebar shows a clickable iNat observation link when a linkage exists in links.parquet
+(Requirements to be defined — see REQUIREMENTS.md)
 
 ### Out of Scope
 
@@ -133,4 +133,4 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Restore with graceful miss (`\|\| echo`), upload with fail-fast (`set -euo pipefail`) | First CI run has no cache to restore; upload failure means corrupt state | ✓ Good — correct asymmetry; matches v1.2 cache pattern |
 
 ---
-*Last updated: 2026-03-12 after v1.4 milestone started (Sample Layer — frontend surfacing of iNat data)*
+*Last updated: 2026-03-14 after v1.5 milestone started (Geographic Regions — spatial filtering)*
