@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
 status: executing
-stopped_at: "Completed 16-02: add_region_columns implemented in data/spatial.py"
-last_updated: "2026-03-14T17:58:07.506Z"
+stopped_at: Completed 16-03-PLAN.md
+last_updated: "2026-03-14T17:58:34.917Z"
 last_activity: 2026-03-14 — 16-01 test scaffold complete (9 tests, all RED)
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 10
-  completed_plans: 8
+  completed_plans: 9
   percent: 70
 ---
 
@@ -49,6 +49,7 @@ Progress: [███████░░░] 70%
 | Phase 16-pipeline-spatial-join P04 | 5 | 1 tasks | 1 files |
 | Phase 16-pipeline-spatial-join P01 | 1 | 1 tasks | 1 files |
 | Phase 16-pipeline-spatial-join P02 | 2 | 1 tasks | 1 files |
+| Phase 16 P03 | 148 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Progress: [███████░░░] 70%
 - [Phase 16-pipeline-spatial-join]: Test scaffold contracts: build_county_geojson/build_ecoregion_geojson accept out_path param; load_boundaries must exist in inat.download; separate load_*_gdf functions for test isolation
 - [Phase 16-pipeline-spatial-join]: Three coordinate conventions handled in add_region_columns: longitude/latitude, lon/lat, decimalLongitude/decimalLatitude
 - [Phase 16-pipeline-spatial-join]: sjoin_nearest fallback uses EPSG:32610 to avoid geographic CRS warning; deduplication applied after every sjoin
+- [Phase 16]: build_geojson.py uses underscore (not dash) to match Python module import requirements from 16-01 test scaffold
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ Progress: [███████░░░] 70%
 
 ## Session Continuity
 
-Last session: 2026-03-14T17:58:07.504Z
-Stopped at: Completed 16-02: add_region_columns implemented in data/spatial.py
+Last session: 2026-03-14T17:58:34.914Z
+Stopped at: Completed 16-03-PLAN.md
 Resume file: None
