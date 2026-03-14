@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v1.5 Geographic Regions — Phase 16 ready to plan
+**Current focus:** v1.5 Geographic Regions — Phase 18 (map-integration) ready to plan
 
 ## Current Position
 
-Phase: 16 of 19 (Pipeline Spatial Join)
-Plan: 7 of 7 complete (16-07 S3 cache refresh)
-Status: Complete
-Last activity: 2026-03-14 — 16-07 S3 cache refreshed; schema validation passes
+Phase: 18 of 19 (Map Integration)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-03-14 — Phase 17 complete; frontend data layer shipped (Parquet projections, FilterState region logic, region VectorLayer)
 
-Progress: [███████░░░] 75%
+Progress: [████████████████████] 14/14 plans (100%)
 
 ## Performance Metrics
 
@@ -89,10 +89,10 @@ Progress: [███████░░░] 75%
 
 ### Blockers/Concerns
 
-- **GeoJSON property name gap**: ecoregion GeoJSON property name needs confirmation against generated file — research notes `NA_L3NAME` as likely but `US_L3NAME` appears in ARCHITECTURE.md as placeholder; confirm before writing click handler in Phase 18
+None — ecoregion property name confirmed as `NA_L3NAME` by Phase 17 verifier (checked live file).
 
 ## Session Continuity
 
-Last session: 2026-03-14T20:41:26.674Z
-Stopped at: Completed 17-02-PLAN.md
+Last session: 2026-03-14
+Stopped at: Phase 17 complete, ready to plan Phase 18
 Resume file: None
