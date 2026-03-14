@@ -18,11 +18,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import geopandas as gpd
 import pandas as pd
 import pyinaturalist
 
 from inat.observations import extract_sample_id, extract_specimen_count
 from inat.projects import atlas_projects
+from spatial import add_region_columns
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,8 @@ WA_PROJECT_ID = atlas_projects["wa"]  # 166376
 SAMPLES_PATH = Path("samples.parquet")
 LAST_FETCH_PATH = Path("last_fetch.txt")
 NDJSON_PATH = Path("observations.ndjson")
+TIGER_ZIP = Path("tl_2024_us_county.zip")
+ECO_ZIP = Path("NA_CEC_Eco_Level3.zip")
 
 DTYPE_MAP: dict[str, Any] = {
     "observation_id": "int64",
@@ -44,6 +48,20 @@ DTYPE_MAP: dict[str, Any] = {
 }
 
 COLUMNS = list(DTYPE_MAP.keys())
+
+
+# ── Boundary loading ──────────────────────────────────────────────────────────
+
+def load_boundaries():
+    """Load WA county and EPA L3 ecoregion GeoDataFrames.
+
+    Both returned in EPSG:4326 for use with add_region_columns().
+    Raises FileNotFoundError if boundary zips are missing — run build-geojson.py first.
+    """
+    counties = gpd.read_file(f'zip://{TIGER_ZIP}')
+    counties = counties[counties['STATEFP'] == '53'].to_crs('EPSG:4326')
+    eco = gpd.read_file(f'zip://{ECO_ZIP}!NA_CEC_Eco_Level3.shp').to_crs('EPSG:4326')
+    return counties, eco
 
 
 # ── Fetch functions ───────────────────────────────────────────────────────────
@@ -184,6 +202,9 @@ def main() -> None:
     null_rate = merged["specimen_count"].isna().mean()
     print(f"[inat] Total in parquet: {total}")
     print(f"[inat] specimen_count null rate: {null_rate:.1%}")
+
+    counties_gdf, eco_gdf = load_boundaries()
+    merged = add_region_columns(merged, counties_gdf, eco_gdf)
 
     merged.to_parquet(SAMPLES_PATH, engine="pyarrow", index=False, compression="snappy")
 
