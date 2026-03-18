@@ -56,6 +56,9 @@ export interface FilterChangedEvent {
   yearFrom: number | null;
   yearTo: number | null;
   months: Set<number>;
+  selectedCounties: Set<string>;
+  selectedEcoregions: Set<string>;
+  boundaryMode: 'off' | 'counties' | 'ecoregions';
 }
 
 @customElement('bee-sidebar')
@@ -81,8 +84,6 @@ export class BeeSidebar extends LitElement {
   @property({ attribute: false })
   selectedSampleEvent: SampleEvent | null = null;
 
-  @property({ attribute: false }) regionFilterText: string | null = null;
-
   // URL-restore properties — driven by BeeMap when restoring from URL or popstate
   @property({ attribute: false }) restoredTaxonInput: string = '';
   @property({ attribute: false }) restoredTaxonRank: 'family' | 'genus' | 'species' | null = null;
@@ -91,12 +92,23 @@ export class BeeSidebar extends LitElement {
   @property({ attribute: false }) restoredYearTo: number | null = null;
   @property({ attribute: false }) restoredMonths: Set<number> = new Set();
 
+  // Region props — driven by BeeMap
+  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
+  @property({ attribute: false }) countyOptions: string[] = [];
+  @property({ attribute: false }) ecoregionOptions: string[] = [];
+  @property({ attribute: false }) restoredCounties: Set<string> = new Set();
+  @property({ attribute: false }) restoredEcoregions: Set<string> = new Set();
+
   @state() private _taxonInput = '';
   @state() private _taxonRank: 'family' | 'genus' | 'species' | null = null;
   @state() private _taxonName: string | null = null;
   @state() private _yearFrom: number | null = null;
   @state() private _yearTo: number | null = null;
   @state() private _months: Set<number> = new Set();
+  @state() private _selectedCounties: Set<string> = new Set();
+  @state() private _selectedEcoregions: Set<string> = new Set();
+  @state() private _countyInput = '';
+  @state() private _ecoregionInput = '';
 
   static styles = css`
     :host {
@@ -310,11 +322,49 @@ export class BeeSidebar extends LitElement {
     .event-inat {
       font-size: 0.85rem;
     }
-    .region-filter-text {
-      margin: 0.5rem 1rem;
+    .region-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.5rem;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.25rem 0.5rem;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 4px;
       font-size: 0.85rem;
-      color: #2c7be5;
-      font-weight: 500;
+      color: #333;
+    }
+    .chip-type {
+      font-size: 0.75rem;
+      font-weight: 400;
+      background: #e0e0e0;
+      color: #555;
+      border-radius: 3px;
+      padding: 0 0.25rem;
+    }
+    .chip-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #666;
+      font-size: 0.85rem;
+      padding: 0.25rem;
+      line-height: 1;
+      border-radius: 2px;
+      min-width: 24px;
+      min-height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .chip-remove:hover {
+      color: #333;
+      background: #d0d0d0;
     }
   `;
 
@@ -333,6 +383,12 @@ export class BeeSidebar extends LitElement {
       this._yearTo     = this.restoredYearTo;
       this._months     = new Set(this.restoredMonths);
     }
+    if (changedProperties.has('restoredCounties')) {
+      this._selectedCounties = new Set(this.restoredCounties);
+    }
+    if (changedProperties.has('restoredEcoregions')) {
+      this._selectedEcoregions = new Set(this.restoredEcoregions);
+    }
   }
 
   private _dispatchFilterChanged() {
@@ -345,6 +401,9 @@ export class BeeSidebar extends LitElement {
         yearFrom: this._yearFrom,
         yearTo: this._yearTo,
         months: new Set(this._months),  // copy so caller can safely hold reference
+        selectedCounties: new Set(this._selectedCounties),
+        selectedEcoregions: new Set(this._selectedEcoregions),
+        boundaryMode: this.boundaryMode,
       },
     }));
   }
@@ -420,6 +479,11 @@ export class BeeSidebar extends LitElement {
     this._yearFrom = null;
     this._yearTo = null;
     this._months = new Set();
+    this._selectedCounties = new Set();
+    this._selectedEcoregions = new Set();
+    this._countyInput = '';
+    this._ecoregionInput = '';
+    this.boundaryMode = 'off';
     this._dispatchFilterChanged();
   }
 
@@ -438,6 +502,159 @@ export class BeeSidebar extends LitElement {
     return new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
       new Date(2000, month - 1)
     );
+  }
+
+  private _onBoundaryToggle(mode: 'off' | 'counties' | 'ecoregions') {
+    if (mode === this.boundaryMode) return;
+    this.boundaryMode = mode;
+    this._dispatchFilterChanged();
+  }
+
+  private _onCountyInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    this._countyInput = input.value;
+    const match = this.countyOptions.find(o => o === input.value);
+    if (match && !this._selectedCounties.has(match)) {
+      const next = new Set(this._selectedCounties);
+      next.add(match);
+      this._selectedCounties = next;
+      this._countyInput = '';
+      input.value = '';
+      this._dispatchFilterChanged();
+    }
+  }
+
+  private _onCountyChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const value = input.value.trim();
+    const match = this.countyOptions.find(o => o === value);
+    if (match && !this._selectedCounties.has(match)) {
+      const next = new Set(this._selectedCounties);
+      next.add(match);
+      this._selectedCounties = next;
+      this._countyInput = '';
+      input.value = '';
+      this._dispatchFilterChanged();
+    }
+  }
+
+  private _onEcoregionInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    this._ecoregionInput = input.value;
+    const match = this.ecoregionOptions.find(o => o === input.value);
+    if (match && !this._selectedEcoregions.has(match)) {
+      const next = new Set(this._selectedEcoregions);
+      next.add(match);
+      this._selectedEcoregions = next;
+      this._ecoregionInput = '';
+      input.value = '';
+      this._dispatchFilterChanged();
+    }
+  }
+
+  private _onEcoregionChange(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const value = input.value.trim();
+    const match = this.ecoregionOptions.find(o => o === value);
+    if (match && !this._selectedEcoregions.has(match)) {
+      const next = new Set(this._selectedEcoregions);
+      next.add(match);
+      this._selectedEcoregions = next;
+      this._ecoregionInput = '';
+      input.value = '';
+      this._dispatchFilterChanged();
+    }
+  }
+
+  private _removeCounty(name: string) {
+    const next = new Set(this._selectedCounties);
+    next.delete(name);
+    this._selectedCounties = next;
+    this._dispatchFilterChanged();
+  }
+
+  private _removeEcoregion(name: string) {
+    const next = new Set(this._selectedEcoregions);
+    next.delete(name);
+    this._selectedEcoregions = next;
+    this._dispatchFilterChanged();
+  }
+
+  private _renderBoundaryToggle() {
+    return html`
+      <div class="layer-toggle">
+        <button
+          class=${this.boundaryMode === 'off' ? 'toggle-btn active' : 'toggle-btn'}
+          @click=${() => this._onBoundaryToggle('off')}
+        >Off</button>
+        <button
+          class=${this.boundaryMode === 'counties' ? 'toggle-btn active' : 'toggle-btn'}
+          @click=${() => this._onBoundaryToggle('counties')}
+        >Counties</button>
+        <button
+          class=${this.boundaryMode === 'ecoregions' ? 'toggle-btn active' : 'toggle-btn'}
+          @click=${() => this._onBoundaryToggle('ecoregions')}
+        >Ecoregions</button>
+      </div>
+    `;
+  }
+
+  private _renderRegionChips() {
+    const bothActive = this._selectedCounties.size > 0 && this._selectedEcoregions.size > 0;
+    if (this._selectedCounties.size === 0 && this._selectedEcoregions.size === 0) return '';
+    return html`
+      <div class="region-chips">
+        ${[...this._selectedCounties].map(name => html`
+          <span class="chip">
+            ${bothActive ? html`<span class="chip-type">county</span>` : ''}
+            ${name}
+            <button class="chip-remove" aria-label="Remove ${name}" @click=${() => this._removeCounty(name)}>&#x2715;</button>
+          </span>
+        `)}
+        ${[...this._selectedEcoregions].map(name => html`
+          <span class="chip">
+            ${bothActive ? html`<span class="chip-type">ecoregion</span>` : ''}
+            ${name}
+            <button class="chip-remove" aria-label="Remove ${name}" @click=${() => this._removeEcoregion(name)}>&#x2715;</button>
+          </span>
+        `)}
+      </div>
+    `;
+  }
+
+  private _renderRegionControls() {
+    return html`
+      <div class="filter-controls">
+        <div class="filter-row">
+          <input
+            type="text"
+            list="county-list"
+            placeholder="Filter by county\u2026"
+            .value=${this._countyInput}
+            @input=${this._onCountyInput}
+            @change=${this._onCountyChange}
+          />
+          <datalist id="county-list">
+            ${this.countyOptions.map(name => html`<option value=${name}></option>`)}
+          </datalist>
+        </div>
+        <div class="filter-row">
+          <input
+            type="text"
+            list="ecoregion-list"
+            placeholder="Filter by ecoregion\u2026"
+            .value=${this._ecoregionInput}
+            @input=${this._onEcoregionInput}
+            @change=${this._onEcoregionChange}
+          />
+          <datalist id="ecoregion-list">
+            ${this.ecoregionOptions.map(name => html`<option value=${name}></option>`)}
+          </datalist>
+        </div>
+        ${this._renderRegionChips()}
+        <button class="clear-btn" @click=${this._clearFilters}>Clear filters</button>
+      </div>
+    `;
   }
 
   private _renderToggle() {
@@ -570,7 +787,6 @@ export class BeeSidebar extends LitElement {
         ${this.samples !== null ? html`
           <button class="clear-btn clear-selection-btn" @click=${this._clearSelection}>Clear selection</button>
         ` : ''}
-        <button class="clear-btn" @click=${this._clearFilters}>Clear filters</button>
       </div>
     `;
   }
@@ -665,9 +881,10 @@ export class BeeSidebar extends LitElement {
 
   render() {
     return html`
+      ${this._renderBoundaryToggle()}
       ${this._renderToggle()}
-      ${this.regionFilterText ? html`<p class="region-filter-text">${this.regionFilterText}</p>` : ''}
       ${this.layerMode === 'specimens' ? this._renderFilterControls() : ''}
+      ${this._renderRegionControls()}
       ${this.samples !== null
         ? this._renderDetail(this.samples)
         : this.layerMode === 'samples' && this.selectedSampleEvent !== null
