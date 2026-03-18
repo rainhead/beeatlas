@@ -73,7 +73,7 @@ See Phase Details section for full criteria.
 - [x] **Phase 16: Pipeline Spatial Join** — Specimens and samples get county and ecoregion_l3 columns at build time; GeoJSON boundary files simplified, bundled with the frontend build, and validated by CI schema checks (completed 2026-03-14)
 - [x] **Phase 17: Frontend Data Layer** — FilterState extended for region Sets; region-layer.ts module with GeoJSON-backed VectorLayer created; Parquet region columns read into OL feature properties (completed 2026-03-14)
 - 🚧 **Phase 18: Map Integration** — Region boundary overlay toggle wired into map; polygon click adds region to active filter; region filter state encoded in URL (gap closure in progress)
-- [ ] **Phase 19: Sidebar UI** — County and ecoregion multi-select chips in sidebar; boundary toggle control; clear-all resets region filters
+- [x] **Phase 19: Sidebar UI** — County and ecoregion multi-select chips in sidebar; boundary toggle control; clear-all resets region filters (completed 2026-03-18)
 
 ## Phase Details
 
@@ -203,4 +203,4 @@ Plans:
 | 16. Pipeline Spatial Join | v1.5 | 7/7 | Complete | 2026-03-14 |
 | 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
 | 18. Map Integration | 4/4 | Complete    | 2026-03-14 | - |
-| 19. Sidebar UI | 1/2 | In Progress|  | - |
+| 19. Sidebar UI | 2/2 | Complete   | 2026-03-18 | - |
