@@ -207,6 +207,14 @@ const specimenLayer = new VectorLayer({
 const sampleSource = new SampleParquetSource({url: samplesDump});
 const sampleLayer = new VectorLayer({ source: sampleSource, style: sampleDotStyle });
 
+const countyOptions: string[] = [...new Set(
+  countySource.getFeatures().map(f => f.get('NAME') as string)
+)].sort();
+
+const ecoregionOptions: string[] = [...new Set(
+  ecoregionSource.getFeatures().map(f => f.get('NA_L3NAME') as string)
+)].sort();
+
 @customElement('bee-map')
 export class BeeMap extends LitElement {
   @query('#map')
@@ -239,8 +247,6 @@ export class BeeMap extends LitElement {
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   private _selectedOccIds: string[] | null = null;
 
-  @state() private _regionFilterText: string | null = null;
-
   // Filter state mirrored for URL sync — these track what to pass down to bee-sidebar for display restore
   @state() private _restoredTaxonInput = '';
   @state() private _restoredTaxonRank: 'family' | 'genus' | 'species' | null = null;
@@ -248,6 +254,8 @@ export class BeeMap extends LitElement {
   @state() private _restoredYearFrom: number | null = null;
   @state() private _restoredYearTo: number | null = null;
   @state() private _restoredMonths: Set<number> = new Set();
+  @state() private _restoredCounties: Set<string> = new Set();
+  @state() private _restoredEcoregions: Set<string> = new Set();
 
   private _setBoundaryMode(mode: 'off' | 'counties' | 'ecoregions'): void {
     this.boundaryMode = mode;
@@ -255,7 +263,6 @@ export class BeeMap extends LitElement {
       regionLayer.setVisible(false);
       filterState.selectedCounties = new Set();
       filterState.selectedEcoregions = new Set();
-      this._regionFilterText = null;
     } else if (mode === 'counties') {
       regionLayer.setSource(countySource);
       regionLayer.setVisible(true);
@@ -267,13 +274,6 @@ export class BeeMap extends LitElement {
     sampleSource.changed();
     regionLayer.changed();
     if (this.map) this._pushUrlState();
-  }
-
-  private _buildRegionFilterText(): string | null {
-    const counties = [...filterState.selectedCounties];
-    const ecors = [...filterState.selectedEcoregions];
-    const all = [...counties, ...ecors];
-    return all.length > 0 ? `Filter: ${all.join(', ')}` : null;
   }
 
   private _onPolygonClick(feature: Feature, shiftKey: boolean) {
@@ -314,7 +314,8 @@ export class BeeMap extends LitElement {
     sampleSource.changed();
     regionLayer.changed();
     this.map?.render();
-    this._regionFilterText = this._buildRegionFilterText();
+    this._restoredCounties = new Set(filterState.selectedCounties);
+    this._restoredEcoregions = new Set(filterState.selectedEcoregions);
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
@@ -329,7 +330,8 @@ export class BeeMap extends LitElement {
     sampleSource.changed();
     regionLayer.changed();
     this.map?.render();
-    this._regionFilterText = null;
+    this._restoredCounties = new Set();
+    this._restoredEcoregions = new Set();
     if (!this._isRestoringFromHistory && this.map) this._pushUrlState();
   }
 
@@ -389,33 +391,6 @@ export class BeeMap extends LitElement {
 }
 .map-container #map {
   flex-grow: 1;
-}
-.boundary-toggle {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  z-index: 10;
-  display: flex;
-  gap: 2px;
-  background: white;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-  overflow: hidden;
-}
-.boundary-toggle .btn {
-  padding: 4px 8px;
-  font-size: 12px;
-  border: none;
-  background: white;
-  cursor: pointer;
-  color: #555;
-}
-.boundary-toggle .btn.active {
-  background: #2c7be5;
-  color: white;
-}
-.boundary-toggle .btn:hover:not(.active) {
-  background: #f0f0f0;
 }
 bee-sidebar {
   width: 25rem;
@@ -534,7 +509,8 @@ bee-sidebar {
     this._restoredYearFrom = parsed.yearFrom;
     this._restoredYearTo   = parsed.yearTo;
     this._restoredMonths   = parsed.months;
-    this._regionFilterText = this._buildRegionFilterText();
+    this._restoredCounties = parsed.selectedCounties;
+    this._restoredEcoregions = parsed.selectedEcoregions;
   }
 
   private _restoreSelectedOccurrences(occIds: string[]) {
@@ -580,6 +556,18 @@ bee-sidebar {
     filterState.yearFrom  = detail.yearFrom;
     filterState.yearTo    = detail.yearTo;
     filterState.months    = detail.months;
+    filterState.selectedCounties = detail.selectedCounties;
+    filterState.selectedEcoregions = detail.selectedEcoregions;
+    if (detail.boundaryMode !== this.boundaryMode) {
+      this._setBoundaryMode(detail.boundaryMode);
+    }
+    // Repaint sample layer for region filter changes
+    sampleSource.changed();
+    regionLayer.changed();
+
+    // Mirror region state to sidebar restore props
+    this._restoredCounties = detail.selectedCounties;
+    this._restoredEcoregions = detail.selectedEcoregions;
 
     // Force OL to repaint with new filter state
     clusterSource.changed();
@@ -619,14 +607,6 @@ bee-sidebar {
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
       <div class="map-container">
         <div id="map"></div>
-        <div class="boundary-toggle">
-          <button class="btn${this.boundaryMode === 'off' ? ' active' : ''}"
-                  @click=${() => this._setBoundaryMode('off')}>Off</button>
-          <button class="btn${this.boundaryMode === 'counties' ? ' active' : ''}"
-                  @click=${() => this._setBoundaryMode('counties')}>Counties</button>
-          <button class="btn${this.boundaryMode === 'ecoregions' ? ' active' : ''}"
-                  @click=${() => this._setBoundaryMode('ecoregions')}>Ecoregions</button>
-        </div>
       </div>
       <bee-sidebar
         .samples=${this.selectedSamples}
@@ -642,7 +622,11 @@ bee-sidebar {
         .restoredYearFrom=${this._restoredYearFrom}
         .restoredYearTo=${this._restoredYearTo}
         .restoredMonths=${this._restoredMonths}
-        .regionFilterText=${this._regionFilterText}
+        .boundaryMode=${this.boundaryMode}
+        .countyOptions=${countyOptions}
+        .ecoregionOptions=${ecoregionOptions}
+        .restoredCounties=${this._restoredCounties}
+        .restoredEcoregions=${this._restoredEcoregions}
         @close=${() => {
           this.selectedSamples = null;
           this._selectedOccIds = null;
@@ -738,7 +722,8 @@ bee-sidebar {
       this._restoredYearFrom   = initialParams.yearFrom;
       this._restoredYearTo     = initialParams.yearTo;
       this._restoredMonths     = initialParams.months;
-      this._regionFilterText   = this._buildRegionFilterText();
+      this._restoredCounties   = initialParams.selectedCounties;
+      this._restoredEcoregions = initialParams.selectedEcoregions;
     }
 
     specimenSource.once('change', () => {
