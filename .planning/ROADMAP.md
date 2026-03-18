@@ -176,7 +176,10 @@ Plans:
   2. The sidebar shows an ecoregion multi-select autocomplete; selecting an ecoregion adds a removable chip labeled with the ecoregion name and an "ecoregion" type label; chips from both types are visible simultaneously
   3. Removing a chip from the sidebar deselects that region; the map updates immediately to reflect the narrowed filter
   4. Clicking "Clear filters" removes all county and ecoregion chips in addition to resetting taxon and date filters; map position is unchanged
-**Plans**: [To be planned]
+**Plans**: 2 plans
+Plans:
+- [ ] 19-01-PLAN.md — bee-sidebar.ts + bee-map.ts: boundary toggle, region autocomplete, chips, extended events
+- [ ] 19-02-PLAN.md — human verification: full sidebar region UI end-to-end
 
 ## Progress
 
@@ -200,4 +203,4 @@ Plans:
 | 16. Pipeline Spatial Join | v1.5 | 7/7 | Complete | 2026-03-14 |
 | 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
 | 18. Map Integration | 4/4 | Complete    | 2026-03-14 | - |
-| 19. Sidebar UI | v1.5 | 0/? | Not started | - |
+| 19. Sidebar UI | v1.5 | 0/2 | Not started | - |
