@@ -41,10 +41,16 @@ Declared values (must be multiples of 4):
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions:
+Exceptions — LOCKED LEGACY VALUES (do not replicate in new CSS; locked by codebase compatibility):
 - Toggle button padding: 0.6rem vertical / 1rem horizontal (9.6px / 16px) — matches existing `.toggle-btn` exactly; do not change
 - Input padding: 0.35rem 0.5rem (5.6px / 8px) — matches existing input style; do not change
-- Chip remove button touch target: minimum 24px x 24px to be tappable; use padding 0.2rem 0.4rem on the `<button class="chip-remove">`
+
+NEW VALUES introduced in this phase (must all be multiples of 4):
+- `.region-chips` gap: 0.25rem (4px) — xs token
+- `.region-chips` margin-top: 0.5rem (8px) — sm token
+- `.chip` padding: 0.25rem 0.5rem (4px / 8px) — xs / sm tokens
+- `.chip-type` padding: 0 0.25rem (0px / 4px) — xs token
+- `.chip-remove` padding: 0.25rem (4px) all sides — xs token; min-width: 24px; min-height: 24px
 
 Source: bee-sidebar.ts static styles (existing tokens extracted from live CSS).
 
@@ -57,13 +63,15 @@ Source: bee-sidebar.ts static styles (existing tokens extracted from live CSS).
 | Body / detail | 14px (0.85rem) | 400 regular | 1.5 |
 | Label / input / secondary | 14.4px (0.9rem) | 400 regular | 1.4 |
 | Section heading | 15.2px (0.95rem) | 600 semibold | 1.2 |
-| Toggle button | 14.4px (0.9rem) | 500 medium (inactive) / 600 semibold (active) | 1 |
+| Toggle button (active) | 14.4px (0.9rem) | 600 semibold | 1 |
+| Toggle button (inactive) | 14.4px (0.9rem) | 400 regular | 1 |
 
 Notes:
 - All sizes are rem-based to match existing sidebar conventions. Pixel equivalents assume 16px base.
-- Only two weights are introduced: 400 (regular) and 600 (semibold). Toggle buttons use 500 only in inactive state as the existing `.toggle-btn` does — treat as a variant of regular for this phase.
-- New chip text: 14px (0.85rem) at weight 400. Chip-type badge: 12px (0.75rem) at weight 500.
-- Do not introduce new font sizes outside this table.
+- Exactly two weights are in use: 400 (regular) and 600 (semibold). Weight 500 is not used anywhere in this phase.
+- Toggle inactive state uses 400 — the perceptual difference from 500 is negligible at this size; the active/inactive distinction is communicated by color (#2c7a2c vs #888), not weight alone.
+- New chip text: 14px (0.85rem) at weight 400. Chip-type badge: 12px (0.75rem) at weight 400.
+- Do not introduce new font sizes or weights outside this table.
 
 Source: bee-sidebar.ts static styles.
 
@@ -110,7 +118,7 @@ Structure: Reuses `.layer-toggle` + `.toggle-btn` + `.toggle-btn.active` classes
 
 - Exactly one button is active at all times (driven by `boundaryMode` @property from bee-map.ts).
 - Active button: color #2c7a2c, border-bottom 2px solid #2c7a2c, weight 600.
-- Inactive button: color #888, weight 500, hover background #f5f5f5.
+- Inactive button: color #888, weight 400, hover background #f5f5f5.
 - On click: dispatch `filter-changed` event with updated `boundaryMode` field (see architecture pattern).
 
 ### 2. Region Autocomplete Inputs (new)
@@ -154,7 +162,7 @@ CSS for new elements:
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;   /* 4px */
-  padding: 0.2rem 0.5rem; /* 3.2px / 8px */
+  padding: 0.25rem 0.5rem; /* 4px / 8px — xs / sm tokens */
   background: #f0f0f0;
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -163,7 +171,7 @@ CSS for new elements:
 }
 .chip-type {
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 400;
   background: #e0e0e0;
   color: #555;
   border-radius: 3px;
@@ -175,11 +183,11 @@ CSS for new elements:
   cursor: pointer;
   color: #666;
   font-size: 0.85rem;
-  padding: 0.1rem 0.2rem;
+  padding: 0.25rem; /* 4px all sides — xs token */
   line-height: 1;
   border-radius: 2px;
-  min-width: 20px;
-  min-height: 20px;
+  min-width: 24px;
+  min-height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
