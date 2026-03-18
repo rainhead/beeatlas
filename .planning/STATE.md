@@ -2,16 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
-status: planning
-stopped_at: Phase 19 context gathered
-last_updated: "2026-03-18T21:53:35.469Z"
-last_activity: 2026-03-14 — Phase 17 complete; frontend data layer shipped (Parquet projections, FilterState region logic, region VectorLayer)
+status: unknown
+stopped_at: Completed 19-sidebar-ui-01-PLAN.md
+last_updated: "2026-03-18T22:39:30.269Z"
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 18
-  completed_plans: 18
-  percent: 100
+  total_plans: 20
+  completed_plans: 19
 ---
 
 # Project State
@@ -21,16 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-14)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v1.5 Geographic Regions — Phase 18 (map-integration) ready to plan
+**Current focus:** Phase 19 — sidebar-ui
 
 ## Current Position
 
-Phase: 18 of 19 (Map Integration)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-03-14 — Phase 17 complete; frontend data layer shipped (Parquet projections, FilterState region logic, region VectorLayer)
-
-Progress: [████████████████████] 14/14 plans (100%)
+Phase: 19 (sidebar-ui) — EXECUTING
+Plan: 1 of 2
 
 ## Performance Metrics
 
@@ -60,6 +54,7 @@ Progress: [████████████████████] 14/14 p
 | Phase 18-map-integration P02 | 8min | 1 tasks | 4 files |
 | Phase 18-map-integration P03 | 4min | 3 tasks | 2 files |
 | Phase 18-map-integration P04 | 7min | 2 tasks | 2 files |
+| Phase 19-sidebar-ui P01 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -93,6 +88,9 @@ Progress: [████████████████████] 14/14 p
 - [Phase 18-map-integration]: Parquet assets remain gitignored; spatial join columns added by regenerating via pipeline, not force-adding to git
 - [Phase 18-map-integration]: Single-select replaces entire selection (including cross-type clear) on plain click; toggle-off when re-clicking sole selection
 - [Phase 18-map-integration]: makeRegionStyleFn takes getBoundaryMode getter so closure always reads current mode; regionLayer.changed() required after filterState mutation
+- [Phase 19-sidebar-ui]: Boundary toggle reuses .layer-toggle/.toggle-btn/.toggle-btn.active CSS — no new CSS classes needed
+- [Phase 19-sidebar-ui]: Clear filters button moved to _renderRegionControls() so it is always visible covering both filter blocks
+- [Phase 19-sidebar-ui]: countyOptions and ecoregionOptions derived as module-level constants with Set deduplication (ecoregions: 80 features → 11 unique names)
 
 ### Pending Todos
 
@@ -106,6 +104,6 @@ None — ecoregion property name confirmed as `NA_L3NAME` by Phase 17 verifier (
 
 ## Session Continuity
 
-Last session: 2026-03-18T21:53:35.461Z
-Stopped at: Phase 19 context gathered
-Resume file: .planning/phases/19-sidebar-ui/19-CONTEXT.md
+Last session: 2026-03-18T22:39:30.267Z
+Stopped at: Completed 19-sidebar-ui-01-PLAN.md
+Resume file: None

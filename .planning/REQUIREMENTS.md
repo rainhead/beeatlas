@@ -18,10 +18,10 @@
 
 ### Filter
 
-- [ ] **FILTER-03**: User can filter specimens and samples to one or more counties using a multi-select autocomplete with removable chips; county filter uses OR semantics (King OR Pierce) and ANDs with taxon, date, and ecoregion filters
-- [ ] **FILTER-04**: User can filter specimens and samples to one or more ecoregions using a multi-select autocomplete with removable chips; chips show a type label ("county" / "ecoregion") to disambiguate when both are active simultaneously
+- [x] **FILTER-03**: User can filter specimens and samples to one or more counties using a multi-select autocomplete with removable chips; county filter uses OR semantics (King OR Pierce) and ANDs with taxon, date, and ecoregion filters
+- [x] **FILTER-04**: User can filter specimens and samples to one or more ecoregions using a multi-select autocomplete with removable chips; chips show a type label ("county" / "ecoregion") to disambiguate when both are active simultaneously
 - [x] **FILTER-05**: Active region filter state (boundary mode, selected counties, selected ecoregions) is encoded in the URL (bm=, counties=, ecor= params) and restored when the URL is pasted or navigated to
-- [ ] **FILTER-06**: Clicking "Clear filters" resets county and ecoregion selections in addition to taxon and date filters; map position is unchanged
+- [x] **FILTER-06**: Clicking "Clear filters" resets county and ecoregion selections in addition to taxon and date filters; map position is unchanged
 
 ## v1.4 Requirements (Shipped)
 
@@ -74,9 +74,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-09 | Phase 18 | Complete |
 | MAP-10 | Phase 18 | Complete |
 | FILTER-05 | Phase 18 | Complete |
-| FILTER-03 | Phase 19 | Pending |
-| FILTER-04 | Phase 19 | Pending |
-| FILTER-06 | Phase 19 | Pending |
+| FILTER-03 | Phase 19 | Complete |
+| FILTER-04 | Phase 19 | Complete |
+| FILTER-06 | Phase 19 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 9 total
