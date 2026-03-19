@@ -178,8 +178,8 @@ Plans:
   4. Clicking "Clear filters" removes all county and ecoregion chips in addition to resetting taxon and date filters; map position is unchanged
 **Plans**: 2 plans
 Plans:
-- [ ] 19-01-PLAN.md — bee-sidebar.ts + bee-map.ts: boundary toggle, region autocomplete, chips, extended events
-- [ ] 19-02-PLAN.md — human verification: full sidebar region UI end-to-end
+- [x] 19-01-PLAN.md — bee-sidebar.ts + bee-map.ts: boundary toggle, region autocomplete, chips, extended events
+- [x] 19-02-PLAN.md — human verification: full sidebar region UI end-to-end
 
 ## Progress
 
@@ -202,5 +202,5 @@ Plans:
 | 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
 | 16. Pipeline Spatial Join | v1.5 | 7/7 | Complete | 2026-03-14 |
 | 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
-| 18. Map Integration | 4/4 | Complete    | 2026-03-14 | - |
-| 19. Sidebar UI | 2/2 | Complete   | 2026-03-18 | - |
+| 18. Map Integration | v1.5 | 4/4 | Complete | 2026-03-14 |
+| 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |

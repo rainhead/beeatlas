@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
-status: unknown
+status: complete
 stopped_at: Completed 19-sidebar-ui-02-PLAN.md
 last_updated: "2026-03-18T22:41:45.073Z"
 progress:
