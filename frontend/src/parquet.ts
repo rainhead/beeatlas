@@ -15,20 +15,6 @@ async function asyncBufferFromUrlEager(url: string) {
   };
 }
 
-const linkColumns = ['occurrenceID', 'inat_observation_id'];
-
-export async function loadLinksMap(url: string): Promise<Map<string, number>> {
-  const buffer = await asyncBufferFromUrlEager(url);
-  const objects = await parquetReadObjects({ columns: linkColumns, file: buffer });
-  const map = new Map<string, number>();
-  for (const obj of objects) {
-    if (obj.occurrenceID != null && obj.inat_observation_id != null) {
-      map.set(obj.occurrenceID as string, Number(obj.inat_observation_id));  // BigInt coercion
-    }
-  }
-  return map;
-}
-
 const columns = [
   'ecdysis_id',
   'occurrenceID',
@@ -44,6 +30,7 @@ const columns = [
   'floralHost',
   'county',
   'ecoregion_l3',
+  'inat_observation_id',
 ];
 
 export class ParquetSource extends VectorSource {
@@ -69,6 +56,7 @@ export class ParquetSource extends VectorSource {
               floralHost: obj.floralHost ?? null,
               county: obj.county as string ?? null,
               ecoregion_l3: obj.ecoregion_l3 as string ?? null,
+              inat_observation_id: obj.inat_observation_id != null ? Number(obj.inat_observation_id) : null,
             });
             return feature;
           })
