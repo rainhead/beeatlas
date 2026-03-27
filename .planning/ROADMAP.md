@@ -101,7 +101,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
   3. .dlt/config.toml is the sole place to change iNat project_id, Ecdysis dataset_id, html_cache_dir, and db_path — no hardcoded values remain in pipeline files
 **Plans:** 2 plans
 Plans:
-- [ ] 20-01-PLAN.md — Port pipeline files, config, deps, cleanup, and docs (PIPE-08, PIPE-09)
+- [x] 20-01-PLAN.md — Port pipeline files, config, deps, cleanup, and docs (PIPE-08, PIPE-09)
 - [ ] 20-02-PLAN.md — Run all five pipelines to verify DuckDB writes (PIPE-10)
 
 ### Phase 21: Parquet and GeoJSON Export
