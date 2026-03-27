@@ -3,3 +3,7 @@
 __pycache__
 last_fetch.txt
 *.ndjson
+beeatlas.duckdb
+beeatlas.duckdb.wal
+.geography_cache/
+raw/ecdysis_cache/
