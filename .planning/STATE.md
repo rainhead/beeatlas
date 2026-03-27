@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: dlt Pipeline Migration
 status: executing
-stopped_at: v1.6 roadmap created; ready to plan Phase 20
-last_updated: "2026-03-27T20:34:02.571Z"
+stopped_at: Completed 21-01-PLAN.md
+last_updated: "2026-03-27T21:11:06.486Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 20 — pipeline-migration
+**Current focus:** Phase 21 — parquet-and-geojson-export
 
 ## Current Position
 
-Phase: 21
-Plan: Not started
-Status: Executing Phase 20
+Phase: 21 (parquet-and-geojson-export) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-03-27
 
 Progress: [░░░░░░░░░░] 0%
@@ -47,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 21-parquet-and-geojson-export P01 | 3min | 1 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -56,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 - **v1.5 CRS risk**: EPA L3 ecoregion shapefile uses non-EPSG spherical Lambert AEA CRS — must call .to_crs('EPSG:4326') before sjoin
 - **v1.4 BigInt coercion**: hyparquet returns INT64 Parquet columns as JavaScript BigInt; must coerce with Number() at read time
 - **v1.6 scope**: Production CI integration (INFRA-06/07/08) and DuckDB WASM frontend deferred — local-first migration goal for this milestone
+- [Phase 21-parquet-and-geojson-export]: export.py uses DuckDB COPY TO PARQUET with ST_Within + ST_Distance fallback; parquet files remain gitignored (build artifacts); GeoJSON files committed as geographic source boundaries
 
 ### Pending Todos
 
@@ -70,6 +72,6 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-03-27
-Stopped at: v1.6 roadmap created; ready to plan Phase 20
+Last session: 2026-03-27T21:11:06.483Z
+Stopped at: Completed 21-01-PLAN.md
 Resume file: None
