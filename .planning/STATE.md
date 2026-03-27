@@ -4,13 +4,13 @@ milestone: v1.6
 milestone_name: dlt Pipeline Migration
 status: executing
 stopped_at: v1.6 roadmap created; ready to plan Phase 20
-last_updated: "2026-03-27T18:41:11.948Z"
-last_activity: 2026-03-27 -- Phase 20 execution started
+last_updated: "2026-03-27T20:34:02.571Z"
+last_activity: 2026-03-27
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 0
+  completed_plans: 2
   percent: 0
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-27)
 
 ## Current Position
 
-Phase: 20 (pipeline-migration) — EXECUTING
-Plan: 1 of 2
+Phase: 21
+Plan: Not started
 Status: Executing Phase 20
-Last activity: 2026-03-27 -- Phase 20 execution started
+Last activity: 2026-03-27
 
 Progress: [░░░░░░░░░░] 0%
 

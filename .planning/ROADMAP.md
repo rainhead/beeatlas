@@ -83,7 +83,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Replace the custom data pipeline with dlt-based pipelines backed by an authoritative DuckDB store, with a Parquet + GeoJSON export layer feeding the existing frontend.
 
-- [ ] **Phase 20: Pipeline Migration** — Port dlt prototype into data/, remove old modules, wire config
+- [x] **Phase 20: Pipeline Migration** — Port dlt prototype into data/, remove old modules, wire config (completed 2026-03-27)
 - [ ] **Phase 21: Parquet and GeoJSON Export** — Export script producing all frontend-compatible outputs with spatial join
 - [ ] **Phase 22: Orchestration** — Local runner replacing build-data.sh with step isolation
 - [ ] **Phase 23: Frontend Simplification** — Read inat_observation_id from ecdysis features; remove links.parquet loading
@@ -99,7 +99,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
   1. Running each of the five dlt pipelines (inat, ecdysis, geographies, projects, anti-entropy) writes rows to data/beeatlas.duckdb without error
   2. data/ contains a single consolidated pyproject.toml and uv.lock; the old ecdysis/, inat/, links/, and scripts/ module directories are absent
   3. .dlt/config.toml is the sole place to change iNat project_id, Ecdysis dataset_id, html_cache_dir, and db_path — no hardcoded values remain in pipeline files
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 20-01-PLAN.md — Port pipeline files, config, deps, cleanup, and docs (PIPE-08, PIPE-09)
 - [ ] 20-02-PLAN.md — Run all five pipelines to verify DuckDB writes (PIPE-10)
@@ -170,7 +170,7 @@ Plans:
 | 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
 | 18. Map Integration | v1.5 | 4/4 | Complete | 2026-03-14 |
 | 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |
-| 20. Pipeline Migration | v1.6 | 0/2 | Not started | - |
+| 20. Pipeline Migration | v1.6 | 1/2 | Complete    | 2026-03-27 |
 | 21. Parquet and GeoJSON Export | v1.6 | 0/? | Not started | - |
 | 22. Orchestration | v1.6 | 0/? | Not started | - |
 | 23. Frontend Simplification | v1.6 | 0/? | Not started | - |
