@@ -151,7 +151,7 @@ Plans:
   1. Each item from the PROJECT.md Known Tech Debt section has an explicit disposition (closed / updated description / carried forward)
   2. Items resolved by the dlt migration are marked closed with a brief rationale
   3. Surviving items are documented with updated descriptions reflecting the new architecture
-**Plans:** 1/1 plans
+**Plans:** 1/1 plans complete
 Plans:
 - [x] 24-01-PLAN.md — Audit all tech debt items, update PROJECT.md (DEBT-01)
 
@@ -182,4 +182,4 @@ Plans:
 | 21. Parquet and GeoJSON Export | v1.6 | 1/2 | In Progress|  |
 | 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 24. Tech Debt Audit | v1.6 | 1/1 | Complete | 2026-03-27 |
+| 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
