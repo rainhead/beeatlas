@@ -16,6 +16,8 @@ Sources:
 from pathlib import Path
 from typing import Iterator
 
+DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
+
 import dlt
 import geopandas as gpd
 import requests
@@ -131,7 +133,7 @@ def load_geographies() -> None:
     pipeline = dlt.pipeline(
         pipeline_name="geographies",
         destination=dlt.destinations.duckdb(
-            "beeatlas.duckdb",
+            DB_PATH,
             create_indexes=False,
         ),
         dataset_name="geographies",
