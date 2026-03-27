@@ -1,0 +1,13 @@
+[runtime]
+log_level="WARNING"
+dlthub_telemetry = true
+
+[sources.inaturalist]
+project_id = 166376
+
+[sources.ecdysis]
+dataset_id = 44
+
+[sources.ecdysis_links]
+db_path = "beeatlas.duckdb"
+html_cache_dir = "raw/ecdysis_cache"
