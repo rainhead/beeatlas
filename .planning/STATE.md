@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: dlt Pipeline Migration
-status: verifying
+status: executing
 stopped_at: Completed 23-01-PLAN.md
-last_updated: "2026-03-27T22:56:12.511Z"
-last_activity: 2026-03-27
+last_updated: "2026-03-27T23:26:42.445Z"
+last_activity: 2026-03-27 -- Phase 24 execution started
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 6
+  total_plans: 7
   completed_plans: 6
   percent: 0
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 23 — frontend-simplification
+**Current focus:** Phase 24 — tech-debt-audit
 
 ## Current Position
 
-Phase: 24
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-03-27
+Phase: 24 (tech-debt-audit) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 24
+Last activity: 2026-03-27 -- Phase 24 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -67,12 +67,11 @@ Progress: [░░░░░░░░░░] 0%
 
 | # | Title | Area | File |
 |---|-------|------|------|
-| 1 | Specify explicit fields on iNat API calls | general | [2026-03-12-specify-explicit-fields-on-inat-api-calls.md](./todos/pending/2026-03-12-specify-explicit-fields-on-inat-api-calls.md) |
+| - | (none) | - | - |
 
 ### Blockers/Concerns
 
-- Phase 21 depends on geographies tables being populated in DuckDB (Phase 20 must run geographies pipeline successfully first)
-- dlt prototype at ~/dlt-inat-test/ is the source for Phase 20 — review it before planning
+None.
 
 ## Session Continuity
 
