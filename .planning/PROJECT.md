@@ -50,6 +50,7 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILTER-04: Ecoregion multi-select autocomplete with removable chips; type labels disambiguate when both active — v1.5
 - ✓ FILTER-05: Region filter state (bm=/counties=/ecor=) encoded in URL and restored on paste — v1.5
 - ✓ FILTER-06: "Clear filters" resets county and ecoregion selections in addition to taxon and date — v1.5
+- ✓ FRONT-01: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code removed — Validated in Phase 23
 
 ## Current Milestone: v1.6 dlt Pipeline Migration
 
@@ -169,4 +170,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 — Phase 22 complete: data/run.py replaces scripts/build-data.sh as local pipeline orchestrator*
+*Last updated: 2026-03-27 — Phase 23 complete: frontend reads inat_observation_id directly from ecdysis features; links.parquet loading pipeline removed*
