@@ -2,6 +2,50 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.5 — Geographic Regions
+
+**Shipped:** 2026-03-27
+**Phases:** 4 (Phases 16–19) | **Plans:** 20 | **Timeline:** 4 days (2026-03-14 → 2026-03-18)
+
+### What Was Built
+- `data/spatial.py`: `add_region_columns()` — two-step geopandas sjoin (within + sjoin_nearest fallback); handles three coordinate column conventions; EPSG:32610 for deduplication; applied to both ecdysis and iNat pipelines
+- `data/scripts/build_geojson.py`: GeoJSON boundary generator with download-if-missing, WA filter, 0.006° simplification; produces `wa_counties.geojson` (56 KB) and `epa_l3_ecoregions_wa.geojson` (357 KB)
+- `scripts/validate-schema.mjs`: county and ecoregion_l3 added to CI schema contract for both parquets
+- `frontend/src/region-layer.ts`: OL VectorLayer backed by GeoJSON county and ecoregion sources; transparent fill for interior hit detection
+- `frontend/src/filter.ts`: FilterState extended with `selectedCounties` and `selectedEcoregions` Sets; AND-across-types / OR-within-type semantics in `matchesFilter()`
+- `frontend/src/bee-map.ts`: `boundaryMode` @state with 3-state toggle; polygon singleclick with specimen/sample click priority; bm=/counties=/ecor= URL round-trip; single-select (replace) and shift-click multi-select with blue highlight; sample dot ghosting outside selected regions
+- `frontend/src/bee-sidebar.ts`: boundary toggle (Off/Counties/Ecoregions); county and ecoregion datalist autocomplete with removable chips; Clear filters extended to reset region Sets
+
+### What Worked
+- TDD-first approach for spatial join (Phase 16-01 test scaffold before implementation) gave concrete contracts — add_region_columns(), build_county_geojson(), build_ecoregion_geojson() all had test-defined signatures before being written
+- Committing GeoJSON boundary files to git (not generating at CI time) was the right call — eliminated workflow complexity and S3 download risk in CI
+- CRS validation in research phase caught the EPA shapefile non-EPSG CRS issue before it could produce silently wrong results — the `.to_crs('EPSG:4326')` fix was pre-emptive
+- Gap closure plans (18-03: regenerate parquets with region columns; 18-04: polygon highlight) kept the core plans clean and added complexity only when confirmed needed
+- Module-level county/ecoregion options with Set deduplication (Phase 19) was a clean sidebar implementation — 80 ecoregion features → 11 unique names computed once
+
+### What Was Inefficient
+- Phase 18 required two gap closure plans: parquet regeneration (18-03) was necessary because the live S3 parquets predated the spatial join, and polygon highlight (18-04) was easier to scope after seeing the base filter working. Both were predictable at planning time — the "gap closure" framing worked but earlier scoping would have been cleaner.
+- The ROADMAP.md showed Phase 18 as "🚧 in progress" past completion — state tracking between plans lagged the actual execution state.
+
+### Patterns Established
+- **EPA L3 ecoregion CRS**: always call `.to_crs('EPSG:4326')` before sjoin; non-EPSG spherical Lambert AEA is silent wrong-results risk
+- **Nearest-polygon fallback**: ~0.9% of WA specimens fall outside ecoregion boundaries; sjoin_nearest on EPSG:32610 is the fix; apply after 'within' sjoin
+- **OL polygon hit detection**: transparent `Fill(rgba 0,0,0,0)` required for interior clicks; OL only hit-detects rendered pixels
+- **Polygon click priority**: check specimen/sample hits BEFORE polygon click handler; polygon-first swallows specimen clicks when boundary overlay is active
+- **vite.config.ts geojson plugin**: `readFileSync + export default; map: null` — pattern reusable for any static JSON asset type
+
+### Key Lessons
+1. **CRS validation before any spatial join** — any shapefile from an external source should have its CRS inspected and converted to EPSG:4326 before joining. Silent wrong results from Lambert AEA coordinates treated as lat/lon are hard to diagnose.
+2. **Commit boundary files to git, not to CI** — for static geographic reference data that changes infrequently, committing to git is simpler than S3 download steps in CI. The 413 KB total is well within git budget.
+3. **Transparent fill is not optional for polygon click** — OL hit detection is pixel-based. A polygon with no fill is invisible to clicks in its interior; must use rgba(0,0,0,0) fill.
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 4 days
+- Notable: 7-plan Phase 16 was the most complex single phase in the project; TDD scaffold in plan 1 kept the subsequent implementation plans well-targeted
+
+---
+
 ## Milestone: v1.3 — Specimen-Sample Linkage
 
 **Shipped:** 2026-03-12
@@ -130,6 +174,7 @@
 | v1.1 | 2 | 1 | First use of gap closure cycle (human verify → plan gaps → re-verify) |
 | v1.2 | 2 | 3 | First external API pipeline; discovery phase proved essential for external data sources |
 | v1.3 | 1 | 2 | First scraping pipeline; TDD stub pattern + reuse of established S3 cache scripts made it the fastest milestone |
+| v1.5 | 4 | 4 | First geospatial feature; 7-plan pipeline phase + 3-phase frontend stack; gap closure scoped correctly after core confirmed working |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -137,3 +182,4 @@
 2. Gap closure plans are cheaper to write and execute than getting everything right the first time — ship, verify, fix
 3. Discovery/research phases for external APIs and infrastructure are worth the upfront cost — they prevent blocked implementation phases and post-execution fix commits
 4. Prototype validation in research prevents inheriting bugs — reading existing code critically is part of research, not just gathering facts
+5. CRS validation is a must-do for any external shapefile — silent wrong results from coordinate mismatch are worse than an obvious error
