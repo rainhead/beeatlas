@@ -5,8 +5,8 @@ import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
 import type { FeatureLike } from 'ol/Feature.js';
-import countiesJson from './assets/wa_counties.geojson';
-import ecoregionsJson from './assets/epa_l3_ecoregions_wa.geojson';
+import countiesJson from './assets/counties.geojson';
+import ecoregionsJson from './assets/ecoregions.geojson';
 import { filterState } from './filter.ts';
 
 // Transparent fill is required for OL to fire click events on polygon interiors.
