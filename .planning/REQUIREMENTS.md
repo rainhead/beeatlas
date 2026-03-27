@@ -63,25 +63,25 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-08 | — | Pending |
-| PIPE-09 | — | Pending |
-| PIPE-10 | — | Pending |
-| EXP-01 | — | Pending |
-| EXP-02 | — | Pending |
-| EXP-03 | — | Pending |
-| EXP-04 | — | Pending |
-| GEO-01 | — | Pending |
-| GEO-02 | — | Pending |
-| ORCH-01 | — | Pending |
-| ORCH-02 | — | Pending |
-| FRONT-01 | — | Pending |
-| DEBT-01 | — | Pending |
+| PIPE-08 | Phase 20 | Pending |
+| PIPE-09 | Phase 20 | Pending |
+| PIPE-10 | Phase 20 | Pending |
+| EXP-01 | Phase 21 | Pending |
+| EXP-02 | Phase 21 | Pending |
+| EXP-03 | Phase 21 | Pending |
+| EXP-04 | Phase 21 | Pending |
+| GEO-01 | Phase 21 | Pending |
+| GEO-02 | Phase 21 | Pending |
+| ORCH-01 | Phase 22 | Pending |
+| ORCH-02 | Phase 22 | Pending |
+| FRONT-01 | Phase 23 | Pending |
+| DEBT-01 | Phase 24 | Pending |
 
 **Coverage:**
 - v1.6 requirements: 13 total
-- Mapped to phases: 0
-- Unmapped: 13 ⚠️ (roadmap pending)
+- Mapped to phases: 13
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 after initial definition*
+*Last updated: 2026-03-27 — traceability mapped after roadmap creation*
