@@ -8,6 +8,7 @@
 - ✅ **v1.3 Specimen-Sample Linkage** — Phases 11–12 (shipped 2026-03-12)
 - ✅ **v1.4 Sample Layer** — Phases 13–15 (shipped 2026-03-13)
 - ✅ **v1.5 Geographic Regions** — Phases 16–19 (shipped 2026-03-27)
+- 🚧 **v1.6 dlt Pipeline Migration** — Phases 20–24 (in progress)
 
 ## Phases
 
@@ -78,6 +79,71 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
 
 </details>
 
+### 🚧 v1.6 dlt Pipeline Migration (In Progress)
+
+**Milestone Goal:** Replace the custom data pipeline with dlt-based pipelines backed by an authoritative DuckDB store, with a Parquet + GeoJSON export layer feeding the existing frontend.
+
+- [ ] **Phase 20: Pipeline Migration** — Port dlt prototype into data/, remove old modules, wire config
+- [ ] **Phase 21: Parquet and GeoJSON Export** — Export script producing all frontend-compatible outputs with spatial join
+- [ ] **Phase 22: Orchestration** — Local runner replacing build-data.sh with step isolation
+- [ ] **Phase 23: Frontend Simplification** — Read inat_observation_id from ecdysis features; remove links.parquet loading
+- [ ] **Phase 24: Tech Debt Audit** — Review all known debt items against new architecture
+
+## Phase Details
+
+### Phase 20: Pipeline Migration
+**Goal**: All five dlt pipelines are runnable from data/ against a local DuckDB, with old pipeline modules gone and config centralised in .dlt/config.toml
+**Depends on**: Phase 19
+**Requirements**: PIPE-08, PIPE-09, PIPE-10
+**Success Criteria** (what must be TRUE):
+  1. Running each of the five dlt pipelines (inat, ecdysis, geographies, projects, anti-entropy) writes rows to data/beeatlas.duckdb without error
+  2. data/ contains a single consolidated pyproject.toml and uv.lock; the old ecdysis/, inat/, links/, and scripts/ module directories are absent
+  3. .dlt/config.toml is the sole place to change iNat project_id, Ecdysis dataset_id, html_cache_dir, and db_path — no hardcoded values remain in pipeline files
+**Plans**: TBD
+
+### Phase 21: Parquet and GeoJSON Export
+**Goal**: A single export script produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson from DuckDB, passing schema validation
+**Depends on**: Phase 20
+**Requirements**: EXP-01, EXP-02, EXP-03, EXP-04, GEO-01, GEO-02
+**Success Criteria** (what must be TRUE):
+  1. ecdysis.parquet contains inat_observation_id (joined from ecdysis_data.occurrence_links) alongside all existing frontend columns
+  2. Every specimen and sample row has non-null county and ecoregion_l3 values — specimens outside polygon boundaries are assigned values via nearest-polygon fallback
+  3. samples.parquet specimen_count is sourced from observation field value with field_id=8338 (not field name)
+  4. Running validate-schema.mjs passes: inat_observation_id present in ecdysis.parquet check; links.parquet validation absent
+  5. counties.geojson and ecoregions.geojson in frontend/src/assets/ are generated from DuckDB geographies tables (not the previously committed static files)
+**Plans**: TBD
+
+### Phase 22: Orchestration
+**Goal**: A local runner script sequences all pipeline and export steps in the correct order; each step is also runnable in isolation
+**Depends on**: Phase 21
+**Requirements**: ORCH-01, ORCH-02
+**Success Criteria** (what must be TRUE):
+  1. Running the local runner end-to-end executes: geographies → ecdysis → inat → projects → export (parquet + geojson) in that order and completes without error
+  2. build-data.sh is removed (or superseded) and no longer referenced in package.json or CI
+  3. Each individual pipeline step and the export step can be invoked independently for development and debugging without running the full sequence
+**Plans**: TBD
+
+### Phase 23: Frontend Simplification
+**Goal**: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet load and merge code is gone
+**Depends on**: Phase 21
+**Requirements**: FRONT-01
+**Success Criteria** (what must be TRUE):
+  1. Clicking a specimen that has an iNat link still shows the correct iNaturalist URL in the sidebar
+  2. No network request for links.parquet is made on page load (verifiable in browser DevTools Network tab)
+  3. The code paths that loaded links.parquet and merged inat_observation_id onto features are deleted
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 24: Tech Debt Audit
+**Goal**: Every known tech debt item has been reviewed against the new architecture and given a disposition: closed, updated, or carried forward with a revised description
+**Depends on**: Phase 20, Phase 21, Phase 22, Phase 23
+**Requirements**: DEBT-01
+**Success Criteria** (what must be TRUE):
+  1. Each item from the PROJECT.md Known Tech Debt section has an explicit disposition (closed / updated description / carried forward)
+  2. Items resolved by the dlt migration are marked closed with a brief rationale
+  3. Surviving items are documented with updated descriptions reflecting the new architecture
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -101,3 +167,8 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
 | 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
 | 18. Map Integration | v1.5 | 4/4 | Complete | 2026-03-14 |
 | 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |
+| 20. Pipeline Migration | v1.6 | 0/? | Not started | - |
+| 21. Parquet and GeoJSON Export | v1.6 | 0/? | Not started | - |
+| 22. Orchestration | v1.6 | 0/? | Not started | - |
+| 23. Frontend Simplification | v1.6 | 0/? | Not started | - |
+| 24. Tech Debt Audit | v1.6 | 0/? | Not started | - |
