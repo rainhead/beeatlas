@@ -169,4 +169,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 — started v1.6 dlt Pipeline Migration*
+*Last updated: 2026-03-27 — Phase 22 complete: data/run.py replaces scripts/build-data.sh as local pipeline orchestrator*
