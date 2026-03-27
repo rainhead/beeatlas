@@ -30,7 +30,7 @@
 
 ### Frontend
 
-- [ ] **FRONT-01**: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code is removed
+- [x] **FRONT-01**: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code is removed
 
 ### Tech Debt Audit
 
@@ -74,7 +74,7 @@
 | GEO-02 | Phase 21 | Complete |
 | ORCH-01 | Phase 22 | Complete |
 | ORCH-02 | Phase 22 | Complete |
-| FRONT-01 | Phase 23 | Pending |
+| FRONT-01 | Phase 23 | Complete |
 | DEBT-01 | Phase 24 | Pending |
 
 **Coverage:**

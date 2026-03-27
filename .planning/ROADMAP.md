@@ -86,7 +86,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
 - [x] **Phase 20: Pipeline Migration** — Port dlt prototype into data/, remove old modules, wire config (completed 2026-03-27)
 - [ ] **Phase 21: Parquet and GeoJSON Export** — Export script producing all frontend-compatible outputs with spatial join
 - [x] **Phase 22: Orchestration** — Local runner replacing build-data.sh with step isolation (completed 2026-03-27)
-- [ ] **Phase 23: Frontend Simplification** — Read inat_observation_id from ecdysis features; remove links.parquet loading
+- [x] **Phase 23: Frontend Simplification** — Read inat_observation_id from ecdysis features; remove links.parquet loading (completed 2026-03-27)
 - [ ] **Phase 24: Tech Debt Audit** — Review all known debt items against new architecture
 
 ## Phase Details
@@ -139,9 +139,9 @@ Plans:
   1. Clicking a specimen that has an iNat link still shows the correct iNaturalist URL in the sidebar
   2. No network request for links.parquet is made on page load (verifiable in browser DevTools Network tab)
   3. The code paths that loaded links.parquet and merged inat_observation_id onto features are deleted
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 23-01-PLAN.md — Delete links.parquet loading, rewire buildSamples to read inat_observation_id from features (FRONT-01)
+- [x] 23-01-PLAN.md — Delete links.parquet loading, rewire buildSamples to read inat_observation_id from features (FRONT-01)
 
 ### Phase 24: Tech Debt Audit
 **Goal**: Every known tech debt item has been reviewed against the new architecture and given a disposition: closed, updated, or carried forward with a revised description
@@ -179,5 +179,5 @@ Plans:
 | 20. Pipeline Migration | v1.6 | 1/2 | Complete    | 2026-03-27 |
 | 21. Parquet and GeoJSON Export | v1.6 | 1/2 | In Progress|  |
 | 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 23. Frontend Simplification | v1.6 | 0/1 | Not started | - |
+| 23. Frontend Simplification | v1.6 | 1/1 | Complete   | 2026-03-27 |
 | 24. Tech Debt Audit | v1.6 | 0/? | Not started | - |
