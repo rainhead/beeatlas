@@ -51,9 +51,21 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILTER-05: Region filter state (bm=/counties=/ecor=) encoded in URL and restored on paste — v1.5
 - ✓ FILTER-06: "Clear filters" resets county and ecoregion selections in addition to taxon and date — v1.5
 
-### Active
+## Current Milestone: v1.6 dlt Pipeline Migration
 
-(Requirements to be defined for next milestone)
+**Goal:** Replace the custom data pipeline with dlt-based pipelines backed by an authoritative DuckDB store, with a Parquet export layer feeding the existing frontend.
+
+**Target features:**
+- Port dlt-inat-test prototype into data/, consolidate pyproject.toml, remove old pipeline modules
+- Parquet export: DuckDB → ecdysis.parquet, samples.parquet, links.parquet with frontend-compatible schemas
+- Spatial join (county/ecoregion_l3) implemented in DuckDB spatial extension, including nearest-polygon fallback
+- GeoJSON generation from geographies DuckDB tables (replacing build_geojson.py)
+- Local orchestration replacing build-data.sh
+- Tech debt audit: review all known items against new architecture
+
+**Deferred:** Production infra (DuckDB persistence strategy, S3, CI integration)
+
+### Active
 
 ### Out of Scope
 
@@ -139,5 +151,22 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | countyOptions/ecoregionOptions as module-level constants with Set deduplication | Ecoregions reduce to 11 unique names from 80 features; computed once at load | ✓ Good — Phase 19; simpler than deriving from feature properties at render time |
 | Boundary toggle reuses existing .layer-toggle/.toggle-btn CSS | No new CSS classes needed; sidebar toggle and map toggle share same visual language | ✓ Good — Phase 19 decision; consistent UI with zero CSS additions |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-27 after v1.5 milestone (Geographic Regions — spatial join pipeline, region boundary overlay, sidebar region filter UI)*
+*Last updated: 2026-03-27 — started v1.6 dlt Pipeline Migration*
