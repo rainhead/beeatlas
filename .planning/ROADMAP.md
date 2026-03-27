@@ -127,7 +127,9 @@ Plans:
   1. Running the local runner end-to-end executes: geographies → ecdysis → inat → projects → export (parquet + geojson) in that order and completes without error
   2. build-data.sh is removed (or superseded) and no longer referenced in package.json or CI
   3. Each individual pipeline step and the export step can be invoked independently for development and debugging without running the full sequence
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 22-01-PLAN.md — Create data/run.py runner, delete build-data.sh, update package.json (ORCH-01, ORCH-02)
 
 ### Phase 23: Frontend Simplification
 **Goal**: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet load and merge code is gone
@@ -175,6 +177,6 @@ Plans:
 | 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |
 | 20. Pipeline Migration | v1.6 | 1/2 | Complete    | 2026-03-27 |
 | 21. Parquet and GeoJSON Export | v1.6 | 1/2 | In Progress|  |
-| 22. Orchestration | v1.6 | 0/? | Not started | - |
+| 22. Orchestration | v1.6 | 0/1 | Not started | - |
 | 23. Frontend Simplification | v1.6 | 0/? | Not started | - |
 | 24. Tech Debt Audit | v1.6 | 0/? | Not started | - |
