@@ -41,23 +41,19 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ LCACHE-02: Upload links.parquet to S3 and sync HTML cache to S3 (only new files) after successful run — v1.3
 - ✓ LCACHE-03: npm scripts expose cache-restore-links, fetch-links, cache-upload-links — v1.3
 - ✓ PIPE-04: build-data.sh includes cache restore → fetch → cache upload in sequence — v1.3
+- ✓ PIPE-05: Specimens in ecdysis.parquet each have county and ecoregion_l3 values after the pipeline runs (spatial join + nearest-polygon fallback) — v1.5
+- ✓ PIPE-06: Collection events in samples.parquet each have county and ecoregion_l3 values after the pipeline runs — v1.5
+- ✓ PIPE-07: WA county and EPA L3 ecoregion GeoJSON bundled with build; CI schema validation enforces county and ecoregion_l3 columns — v1.5
+- ✓ MAP-09: User can toggle boundary overlay between off / county / ecoregion states — v1.5
+- ✓ MAP-10: User can click a visible boundary polygon to add that region to the active filter — v1.5
+- ✓ FILTER-03: County multi-select autocomplete with removable chips; OR semantics within type — v1.5
+- ✓ FILTER-04: Ecoregion multi-select autocomplete with removable chips; type labels disambiguate when both active — v1.5
+- ✓ FILTER-05: Region filter state (bm=/counties=/ecor=) encoded in URL and restored on paste — v1.5
+- ✓ FILTER-06: "Clear filters" resets county and ecoregion selections in addition to taxon and date — v1.5
 
-## Current Milestone: v1.5 Geographic Regions
+### Active
 
-**Goal:** Collectors can filter specimens and samples by geographic region (WA county or EPA Level III ecoregion) using a sidebar autocomplete or by clicking region boundaries on the map.
-
-**Target features:**
-- Pipeline spatial join: each specimen and sample gets `county` and `ecoregion_l3` columns at build time
-- WA county and EPA Level III ecoregion GeoJSON bundled with the build
-- Exclusive 3-state region boundary toggle on map: off / counties / ecoregions
-- Region filter in sidebar: county multi-select + ecoregion multi-select (autocomplete)
-- Clicking a visible region polygon adds it to the active filter
-- Region filter ANDs with existing taxon/date filters; applies to both specimens and samples
-- Map position unchanged when region is selected
-
-### Active (v1.5)
-
-(Requirements to be defined — see REQUIREMENTS.md)
+(Requirements to be defined for next milestone)
 
 ### Out of Scope
 
@@ -75,7 +71,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines in `bee-map.ts` and `bee-sidebar.ts`). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines across 56 files, 2 days): 244 Python + 51 shell scripts; samples.parquet produced and cached in S3. Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines across 18 files, single day): links.parquet with two-level cache skip, Ecdysis HTML scraping, S3 persistence.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days): geopandas spatial join adding county/ecoregion_l3 to both parquets; WA county (56 KB) and EPA L3 ecoregion (357 KB) GeoJSON bundled; 3-state boundary toggle on map; polygon click-to-filter; sidebar multi-select autocomplete with removable chips; URL round-trip for region filter state.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
@@ -88,10 +84,11 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 **Known tech debt:**
 - CI build runs `npm run build` which calls `build-data.sh` — makes a live HTTP POST to ecdysis.org and live iNat API calls on every push. If either is down, CI fails. `frontend/src/assets/ecdysis.parquet` is committed as fallback; no fallback for samples.parquet yet.
 - `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly).
-- No VERIFICATION.md files for any phase — verification relies on human-approved SUMMARY files.
 - Phase 1 SUMMARY references `--db` flag; actual CLI flag is `--datasetid`.
 - Match iNat ofvs by field_id=8338 (not name) — field was renamed circa 2024; name matching drops ~40% of historical data.
 - observations.ndjson cache stores full observation JSON with download timestamp (added in quick task post-v1.2).
+- EPA L3 ecoregion CRS risk: shapefile uses non-EPSG spherical Lambert AEA; `.to_crs('EPSG:4326')` required before sjoin — already applied, but any future shapefile ingestion must repeat this step.
+- iNat API calls don't specify explicit fields — fetches full observation JSON; defer until payload size becomes a concern (todo item in STATE.md).
 
 ## Constraints
 
@@ -134,7 +131,13 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `county`/`ecoregion_l3` as string columns (no BigInt coercion) | Parquet string columns come through as JS strings directly — no Number() cast needed unlike INT64 year/month | ✓ Good — Phase 17 confirmed; simpler than numeric coercion |
 | AND-across-types / OR-within-type region filter semantics | Matches expectation: "show me specimens in King County AND Cascades ecoregion" but "show me specimens in King OR Pierce County" | ✓ Good — implemented in matchesFilter() via Set.has() guards |
 | `geojson.d.ts` module declaration for `*.geojson` imports | vite/client types don't declare .geojson modules; typed as FeatureCollection covers all future imports without casts | ✓ Good — Phase 17 deviation; cleaner than as-unknown-as workaround |
-| EPA L3 ecoregion GeoJSON property name is `NA_L3NAME` | `US_L3NAME` appeared in early planning notes but `NA_L3NAME` is the correct column name in the actual file | ✓ Confirmed — Phase 17 verifier checked live file; Phase 18 click handler must use `NA_L3NAME` |
+| EPA L3 ecoregion GeoJSON property name is `NA_L3NAME` | `US_L3NAME` appeared in early planning notes but `NA_L3NAME` is the correct column name in the actual file | ✓ Good — Phase 17 verifier checked live file |
+| GeoJSON boundary files committed to git (not generated at CI time) | Avoids shapefile download in CI; simplest resolution with no workflow changes needed | ✓ Good — 56 KB + 357 KB well within git budget; CI-safe |
+| Vite geojson plugin: readFileSync + export default; map:null | .geojson imports need custom Vite plugin; map:null suppresses sourcemap warnings | ✓ Good — Phase 18; pattern reusable for future static asset types |
+| bm= URL param omitted when off (absence = off) | Clean URLs; counties= and ecor= also omitted when empty | ✓ Good — minimal URL noise; symmetric with layer mode pattern |
+| Single-select replaces entire selection on plain click; toggle-off on re-click | Most intuitive: plain click = "show me this region"; shift-click for multi | ✓ Good — Phase 18-04; matches standard list selection UX |
+| countyOptions/ecoregionOptions as module-level constants with Set deduplication | Ecoregions reduce to 11 unique names from 80 features; computed once at load | ✓ Good — Phase 19; simpler than deriving from feature properties at render time |
+| Boundary toggle reuses existing .layer-toggle/.toggle-btn CSS | No new CSS classes needed; sidebar toggle and map toggle share same visual language | ✓ Good — Phase 19 decision; consistent UI with zero CSS additions |
 
 ---
-*Last updated: 2026-03-14 after Phase 17 (frontend-data-layer — Parquet projections, FilterState region logic, region VectorLayer)*
+*Last updated: 2026-03-27 after v1.5 milestone (Geographic Regions — spatial join pipeline, region boundary overlay, sidebar region filter UI)*

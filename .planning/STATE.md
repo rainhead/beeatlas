@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Geographic Regions
-status: complete
+status: v1.5 milestone complete
 stopped_at: Completed 19-sidebar-ui-02-PLAN.md
-last_updated: "2026-03-18T22:41:45.073Z"
+last_updated: "2026-03-27T16:48:00.504Z"
 progress:
   total_phases: 7
   completed_phases: 7
@@ -16,15 +16,14 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-14)
+See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 19 — sidebar-ui
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 19 (sidebar-ui) — COMPLETE
-Plan: 2 of 2
+Milestone v1.5 complete — between milestones
 
 ## Performance Metrics
 
