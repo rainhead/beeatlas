@@ -95,13 +95,11 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 **Live site:** https://d1o1go591lqnqi.cloudfront.net
 
 **Known tech debt:**
-- CI build runs `npm run build` which calls `build-data.sh` — makes a live HTTP POST to ecdysis.org and live iNat API calls on every push. If either is down, CI fails. `frontend/src/assets/ecdysis.parquet` is committed as fallback; no fallback for samples.parquet yet.
-- `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly).
-- Phase 1 SUMMARY references `--db` flag; actual CLI flag is `--datasetid`.
-- Match iNat ofvs by field_id=8338 (not name) — field was renamed circa 2024; name matching drops ~40% of historical data.
-- observations.ndjson cache stores full observation JSON with download timestamp (added in quick task post-v1.2).
-- EPA L3 ecoregion CRS risk: shapefile uses non-EPSG spherical Lambert AEA; `.to_crs('EPSG:4326')` required before sjoin — already applied, but any future shapefile ingestion must repeat this step.
-- iNat API calls don't specify explicit fields — fetches full observation JSON; defer until payload size becomes a concern (todo item in STATE.md).
+- `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly). Trivially fixable but deferred.
+- EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
+- No test coverage for dlt pipelines — `data/tests/` was deleted in Phase 20 as part of removing the old pandas-based modules; dlt pipelines were copied verbatim from prototype with no unit tests. Regression risk if pipeline logic changes.
+- CI integration for dlt pipelines not yet wired (INFRA-06/07/08 explicitly deferred for v1.6). The `build:data` npm script runs `cd data && uv run python run.py` which requires a local `beeatlas.duckdb`; CI currently uses committed parquet fallbacks. No automated pipeline trigger or S3 persistence strategy exists.
+- `beeatlas.duckdb` has no production persistence strategy — the DuckDB file is a local build artifact. No backup, versioning, or CI upload/restore pattern exists yet (deferred per v1.6 milestone scope).
 
 ## Constraints
 
@@ -170,4 +168,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 — Phase 23 complete: frontend reads inat_observation_id directly from ecdysis features; links.parquet loading pipeline removed*
+*Last updated: 2026-03-27 — Phase 24 tech debt audit: closed 5 items resolved by dlt migration (Phases 20-23); updated EPA CRS risk item; added 3 new debt items from migration*
