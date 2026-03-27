@@ -1,13 +1,16 @@
 """Load iNaturalist project names for projects referenced in the observations join table."""
 
+from pathlib import Path
 from typing import Iterator
 
 import duckdb
 import requests
 import dlt
 
+DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
 
-def get_project_ids_from_db(db_path: str = "beeatlas.duckdb") -> list[int]:
+
+def get_project_ids_from_db(db_path: str = DB_PATH) -> list[int]:
     """Read project IDs from the join table that aren't already in the projects table."""
     con = duckdb.connect(db_path, read_only=True)
     try:
@@ -63,7 +66,7 @@ def load_projects() -> None:
 
     pipeline = dlt.pipeline(
         pipeline_name="inaturalist",
-        destination=dlt.destinations.duckdb("beeatlas.duckdb"),
+        destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="inaturalist_data",
     )
     load_info = pipeline.run(inaturalist_projects_source(project_ids))

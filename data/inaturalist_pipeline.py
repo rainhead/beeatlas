@@ -1,7 +1,10 @@
+from pathlib import Path
 from typing import Any, Dict
 
 import dlt
 from dlt.sources.rest_api import RESTAPIConfig, rest_api_resources
+
+DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
 
 
 def _transform(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,7 +113,7 @@ def inaturalist_source(
 def load_observations(full_reload: bool = False) -> None:
     pipeline = dlt.pipeline(
         pipeline_name="inaturalist",
-        destination=dlt.destinations.duckdb("beeatlas.duckdb"),
+        destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="inaturalist_data",
     )
     if full_reload:

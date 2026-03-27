@@ -10,6 +10,8 @@ import duckdb
 import requests
 from bs4 import BeautifulSoup
 
+DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
+
 ECDYSIS_BASE = "https://ecdysis.org/collections/individual/index.php"
 RATE_LIMIT_SECONDS = 1 / 20  # max 20 req/sec
 
@@ -170,7 +172,7 @@ def ecdysis_links_source(
 def load_ecdysis() -> None:
     pipeline = dlt.pipeline(
         pipeline_name="ecdysis",
-        destination=dlt.destinations.duckdb("beeatlas.duckdb"),
+        destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="ecdysis_data",
     )
     load_info = pipeline.run(ecdysis_source())
@@ -180,7 +182,7 @@ def load_ecdysis() -> None:
 def load_links() -> None:
     pipeline = dlt.pipeline(
         pipeline_name="ecdysis",
-        destination=dlt.destinations.duckdb("beeatlas.duckdb"),
+        destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="ecdysis_data",
     )
     load_info = pipeline.run(ecdysis_links_source())

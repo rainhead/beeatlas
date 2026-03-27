@@ -5,12 +5,15 @@ re-fetches them from the iNaturalist API. Changed observations are updated via
 merge; observations no longer returned by the API (deleted or no longer matching
 project criteria) are soft-deleted by setting is_deleted=True.
 """
+from pathlib import Path
 from typing import Iterator
 
 import dlt
 import requests
 
 from inaturalist_pipeline import DEFAULT_FIELDS, _transform
+
+DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
 
 INAT_BASE_URL = "https://api.inaturalist.org/v2/"
 
@@ -78,7 +81,7 @@ def anti_entropy_source(sampled: list[dict]):
 def run_anti_entropy(n: int = 200) -> None:
     pipeline = dlt.pipeline(
         pipeline_name="inaturalist",
-        destination=dlt.destinations.duckdb("beeatlas.duckdb"),
+        destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="inaturalist_data",
     )
 
