@@ -51,8 +51,9 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILTER-05: Region filter state (bm=/counties=/ecor=) encoded in URL and restored on paste — v1.5
 - ✓ FILTER-06: "Clear filters" resets county and ecoregion selections in addition to taxon and date — v1.5
 - ✓ FRONT-01: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code removed — Validated in Phase 23
+- ✓ DEBT-01: All 7 known tech debt items audited against dlt architecture; 5 closed, 1 updated, 1 carried forward; 3 new items surfaced — Validated in Phase 24
 
-## Current Milestone: v1.6 dlt Pipeline Migration
+## Current Milestone: v1.6 dlt Pipeline Migration — COMPLETE
 
 **Goal:** Replace the custom data pipeline with dlt-based pipelines backed by an authoritative DuckDB store, with a Parquet export layer feeding the existing frontend.
 
