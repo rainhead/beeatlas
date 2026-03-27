@@ -87,7 +87,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
 - [ ] **Phase 21: Parquet and GeoJSON Export** — Export script producing all frontend-compatible outputs with spatial join
 - [x] **Phase 22: Orchestration** — Local runner replacing build-data.sh with step isolation (completed 2026-03-27)
 - [x] **Phase 23: Frontend Simplification** — Read inat_observation_id from ecdysis features; remove links.parquet loading (completed 2026-03-27)
-- [ ] **Phase 24: Tech Debt Audit** — Review all known debt items against new architecture
+- [x] **Phase 24: Tech Debt Audit** — Review all known debt items against new architecture (completed 2026-03-27)
 
 ## Phase Details
 
@@ -153,7 +153,7 @@ Plans:
   3. Surviving items are documented with updated descriptions reflecting the new architecture
 **Plans:** 1/1 plans
 Plans:
-- [ ] 24-01-PLAN.md — Audit all tech debt items, update PROJECT.md (DEBT-01)
+- [x] 24-01-PLAN.md — Audit all tech debt items, update PROJECT.md (DEBT-01)
 
 ## Progress
 
@@ -182,4 +182,4 @@ Plans:
 | 21. Parquet and GeoJSON Export | v1.6 | 1/2 | In Progress|  |
 | 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 24. Tech Debt Audit | v1.6 | 0/? | Not started | - |
+| 24. Tech Debt Audit | v1.6 | 1/1 | Complete | 2026-03-27 |
