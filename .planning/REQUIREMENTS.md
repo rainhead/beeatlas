@@ -16,7 +16,7 @@
 - [x] **EXP-01**: Export script produces ecdysis.parquet with current frontend schema plus inat_observation_id (joined from ecdysis_data.occurrence_links); county and ecoregion_l3 added via DuckDB spatial extension ST_Within join against geographies tables
 - [x] **EXP-02**: Nearest-polygon fallback (ST_Distance ORDER BY … LIMIT 1) handles specimens outside polygon boundaries after ST_Within join
 - [x] **EXP-03**: Export script produces samples.parquet with current frontend schema; county and ecoregion_l3 from spatial join; specimen_count sourced from observation field value with field_id=8338
-- [ ] **EXP-04**: All exports pass validate-schema.mjs (updated: inat_observation_id added to ecdysis.parquet check; links.parquet validation removed)
+- [x] **EXP-04**: All exports pass validate-schema.mjs (updated: inat_observation_id added to ecdysis.parquet check; links.parquet validation removed)
 
 ### GeoJSON Generation
 
@@ -25,8 +25,8 @@
 
 ### Orchestration
 
-- [ ] **ORCH-01**: Local runner replaces build-data.sh; sequences geographies → ecdysis → inat → projects → export (parquet + geojson) in the correct order
-- [ ] **ORCH-02**: Individual pipeline steps are runnable in isolation for development and debugging
+- [x] **ORCH-01**: Local runner replaces build-data.sh; sequences geographies → ecdysis → inat → projects → export (parquet + geojson) in the correct order
+- [x] **ORCH-02**: Individual pipeline steps are runnable in isolation for development and debugging
 
 ### Frontend
 
@@ -69,11 +69,11 @@
 | EXP-01 | Phase 21 | Complete |
 | EXP-02 | Phase 21 | Complete |
 | EXP-03 | Phase 21 | Complete |
-| EXP-04 | Phase 21 | Pending |
+| EXP-04 | Phase 21 | Complete |
 | GEO-01 | Phase 21 | Complete |
 | GEO-02 | Phase 21 | Complete |
-| ORCH-01 | Phase 22 | Pending |
-| ORCH-02 | Phase 22 | Pending |
+| ORCH-01 | Phase 22 | Complete |
+| ORCH-02 | Phase 22 | Complete |
 | FRONT-01 | Phase 23 | Pending |
 | DEBT-01 | Phase 24 | Pending |
 

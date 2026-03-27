@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: dlt Pipeline Migration
-status: executing
-stopped_at: Completed 21-01-PLAN.md
-last_updated: "2026-03-27T21:11:06.486Z"
+status: verifying
+stopped_at: Completed 22-01-PLAN.md
+last_updated: "2026-03-27T21:52:15.241Z"
 last_activity: 2026-03-27
 progress:
   total_phases: 5
-  completed_phases: 1
-  total_plans: 4
-  completed_plans: 3
+  completed_phases: 3
+  total_plans: 5
+  completed_plans: 5
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 21 — parquet-and-geojson-export
+**Current focus:** Phase 22 — orchestration
 
 ## Current Position
 
-Phase: 21 (parquet-and-geojson-export) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
+Phase: 22 (orchestration) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
 Last activity: 2026-03-27
 
 Progress: [░░░░░░░░░░] 0%
@@ -48,6 +48,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 21-parquet-and-geojson-export P01 | 3min | 1 tasks | 7 files |
+| Phase 22-orchestration P01 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -58,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 - **v1.4 BigInt coercion**: hyparquet returns INT64 Parquet columns as JavaScript BigInt; must coerce with Number() at read time
 - **v1.6 scope**: Production CI integration (INFRA-06/07/08) and DuckDB WASM frontend deferred — local-first migration goal for this milestone
 - [Phase 21-parquet-and-geojson-export]: export.py uses DuckDB COPY TO PARQUET with ST_Within + ST_Distance fallback; parquet files remain gitignored (build artifacts); GeoJSON files committed as geographic source boundaries
+- [Phase 22-orchestration]: data/run.py replaces build-data.sh — Python orchestrator calls pipeline functions in-process, no subprocess
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Continuity
 
-Last session: 2026-03-27T21:11:06.483Z
-Stopped at: Completed 21-01-PLAN.md
+Last session: 2026-03-27T21:52:15.239Z
+Stopped at: Completed 22-01-PLAN.md
 Resume file: None
