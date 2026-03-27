@@ -2,14 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: dlt Pipeline Migration
-status: Ready to plan
-stopped_at: ""
-last_updated: "2026-03-27T00:00:00.000Z"
+status: executing
+stopped_at: v1.6 roadmap created; ready to plan Phase 20
+last_updated: "2026-03-27T18:41:11.948Z"
+last_activity: 2026-03-27 -- Phase 20 execution started
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 2
   completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -19,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 20 — Pipeline Migration
+**Current focus:** Phase 20 — pipeline-migration
 
 ## Current Position
 
-Phase: 20 of 24 (Pipeline Migration)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-27 — v1.6 roadmap created (Phases 20–24)
+Phase: 20 (pipeline-migration) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 20
+Last activity: 2026-03-27 -- Phase 20 execution started
 
 Progress: [░░░░░░░░░░] 0%
 

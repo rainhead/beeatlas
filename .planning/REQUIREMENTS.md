@@ -7,8 +7,8 @@
 
 ### Pipeline Migration
 
-- [ ] **PIPE-08**: dlt pipeline files live in data/ alongside a consolidated pyproject.toml and uv.lock; old pipeline modules (ecdysis/, inat/, links/, scripts/) are removed
-- [ ] **PIPE-09**: .dlt/config.toml configures all pipeline parameters: iNat project_id, Ecdysis dataset_id, html_cache_dir, db_path
+- [x] **PIPE-08**: dlt pipeline files live in data/ alongside a consolidated pyproject.toml and uv.lock; old pipeline modules (ecdysis/, inat/, links/, scripts/) are removed
+- [x] **PIPE-09**: .dlt/config.toml configures all pipeline parameters: iNat project_id, Ecdysis dataset_id, html_cache_dir, db_path
 - [ ] **PIPE-10**: All 5 dlt pipelines (inat, ecdysis, geographies, projects, anti-entropy) run locally and write to data/beeatlas.duckdb
 
 ### Parquet Export
@@ -63,8 +63,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PIPE-08 | Phase 20 | Pending |
-| PIPE-09 | Phase 20 | Pending |
+| PIPE-08 | Phase 20 | Complete |
+| PIPE-09 | Phase 20 | Complete |
 | PIPE-10 | Phase 20 | Pending |
 | EXP-01 | Phase 21 | Pending |
 | EXP-02 | Phase 21 | Pending |
