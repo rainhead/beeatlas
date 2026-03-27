@@ -100,6 +100,14 @@ None - no external service configuration required.
 - Ready for Phase 16 Plan 06: CI/schema validation update to include new columns in expected schema dict
 - No blockers
 
+## Self-Check: PASSED
+
+- `data/ecdysis/occurrences.py` — FOUND
+- `data/inat/download.py` — FOUND
+- `16-05-SUMMARY.md` — FOUND
+- Commit `6ab74bc` (Task 1) — FOUND
+- Commit `8b2fa84` (Task 2) — FOUND
+
 ---
 *Phase: 16-pipeline-spatial-join*
 *Completed: 2026-03-14*
