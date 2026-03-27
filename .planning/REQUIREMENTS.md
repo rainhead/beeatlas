@@ -13,15 +13,15 @@
 
 ### Parquet Export
 
-- [ ] **EXP-01**: Export script produces ecdysis.parquet with current frontend schema plus inat_observation_id (joined from ecdysis_data.occurrence_links); county and ecoregion_l3 added via DuckDB spatial extension ST_Within join against geographies tables
-- [ ] **EXP-02**: Nearest-polygon fallback (ST_Distance ORDER BY … LIMIT 1) handles specimens outside polygon boundaries after ST_Within join
-- [ ] **EXP-03**: Export script produces samples.parquet with current frontend schema; county and ecoregion_l3 from spatial join; specimen_count sourced from observation field value with field_id=8338
+- [x] **EXP-01**: Export script produces ecdysis.parquet with current frontend schema plus inat_observation_id (joined from ecdysis_data.occurrence_links); county and ecoregion_l3 added via DuckDB spatial extension ST_Within join against geographies tables
+- [x] **EXP-02**: Nearest-polygon fallback (ST_Distance ORDER BY … LIMIT 1) handles specimens outside polygon boundaries after ST_Within join
+- [x] **EXP-03**: Export script produces samples.parquet with current frontend schema; county and ecoregion_l3 from spatial join; specimen_count sourced from observation field value with field_id=8338
 - [ ] **EXP-04**: All exports pass validate-schema.mjs (updated: inat_observation_id added to ecdysis.parquet check; links.parquet validation removed)
 
 ### GeoJSON Generation
 
-- [ ] **GEO-01**: Export generates frontend/src/assets/counties.geojson from geographies.us_counties filtered to WA (state_fips = '53'); replaces the committed static file
-- [ ] **GEO-02**: Export generates frontend/src/assets/ecoregions.geojson from geographies.ecoregions filtered to polygons intersecting WA; replaces the committed static file
+- [x] **GEO-01**: Export generates frontend/src/assets/counties.geojson from geographies.us_counties filtered to WA (state_fips = '53'); replaces the committed static file
+- [x] **GEO-02**: Export generates frontend/src/assets/ecoregions.geojson from geographies.ecoregions filtered to polygons intersecting WA; replaces the committed static file
 
 ### Orchestration
 
@@ -66,12 +66,12 @@
 | PIPE-08 | Phase 20 | Complete |
 | PIPE-09 | Phase 20 | Complete |
 | PIPE-10 | Phase 20 | Pending |
-| EXP-01 | Phase 21 | Pending |
-| EXP-02 | Phase 21 | Pending |
-| EXP-03 | Phase 21 | Pending |
+| EXP-01 | Phase 21 | Complete |
+| EXP-02 | Phase 21 | Complete |
+| EXP-03 | Phase 21 | Complete |
 | EXP-04 | Phase 21 | Pending |
-| GEO-01 | Phase 21 | Pending |
-| GEO-02 | Phase 21 | Pending |
+| GEO-01 | Phase 21 | Complete |
+| GEO-02 | Phase 21 | Complete |
 | ORCH-01 | Phase 22 | Pending |
 | ORCH-02 | Phase 22 | Pending |
 | FRONT-01 | Phase 23 | Pending |

@@ -114,9 +114,9 @@ Plans:
   3. samples.parquet specimen_count is sourced from observation field value with field_id=8338 (not field name)
   4. Running validate-schema.mjs passes: inat_observation_id present in ecdysis.parquet check; links.parquet validation absent
   5. counties.geojson and ecoregions.geojson in frontend/src/assets/ are generated from DuckDB geographies tables (not the previously committed static files)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 21-01-PLAN.md — Create data/export.py with spatial joins, parquet export, GeoJSON generation (EXP-01, EXP-02, EXP-03, GEO-01, GEO-02)
+- [x] 21-01-PLAN.md — Create data/export.py with spatial joins, parquet export, GeoJSON generation (EXP-01, EXP-02, EXP-03, GEO-01, GEO-02)
 - [ ] 21-02-PLAN.md — Update validate-schema.mjs, region-layer.ts imports, delete stale files (EXP-04, GEO-01, GEO-02)
 
 ### Phase 22: Orchestration
@@ -174,7 +174,7 @@ Plans:
 | 18. Map Integration | v1.5 | 4/4 | Complete | 2026-03-14 |
 | 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |
 | 20. Pipeline Migration | v1.6 | 1/2 | Complete    | 2026-03-27 |
-| 21. Parquet and GeoJSON Export | v1.6 | 0/2 | Not started | - |
+| 21. Parquet and GeoJSON Export | v1.6 | 1/2 | In Progress|  |
 | 22. Orchestration | v1.6 | 0/? | Not started | - |
 | 23. Frontend Simplification | v1.6 | 0/? | Not started | - |
 | 24. Tech Debt Audit | v1.6 | 0/? | Not started | - |
