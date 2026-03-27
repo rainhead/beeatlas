@@ -139,8 +139,9 @@ Plans:
   1. Clicking a specimen that has an iNat link still shows the correct iNaturalist URL in the sidebar
   2. No network request for links.parquet is made on page load (verifiable in browser DevTools Network tab)
   3. The code paths that loaded links.parquet and merged inat_observation_id onto features are deleted
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 1 plan
+Plans:
+- [ ] 23-01-PLAN.md — Delete links.parquet loading, rewire buildSamples to read inat_observation_id from features (FRONT-01)
 
 ### Phase 24: Tech Debt Audit
 **Goal**: Every known tech debt item has been reviewed against the new architecture and given a disposition: closed, updated, or carried forward with a revised description
@@ -178,5 +179,5 @@ Plans:
 | 20. Pipeline Migration | v1.6 | 1/2 | Complete    | 2026-03-27 |
 | 21. Parquet and GeoJSON Export | v1.6 | 1/2 | In Progress|  |
 | 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 23. Frontend Simplification | v1.6 | 0/? | Not started | - |
+| 23. Frontend Simplification | v1.6 | 0/1 | Not started | - |
 | 24. Tech Debt Audit | v1.6 | 0/? | Not started | - |
