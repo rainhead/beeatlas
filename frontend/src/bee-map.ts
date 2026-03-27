@@ -3,10 +3,9 @@ import { customElement, query, state } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
-import { ParquetSource, loadLinksMap } from "./parquet.ts";
+import { ParquetSource } from "./parquet.ts";
 import ecdysisDump from './assets/ecdysis.parquet?url';
 import samplesDump from './assets/samples.parquet?url';
-import linksDump from './assets/links.parquet?url';
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
@@ -128,7 +127,7 @@ function parseUrlParams(search: string): ParsedParams {
   return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds, layerMode, boundaryMode, selectedCounties, selectedEcoregions };
 }
 
-function buildSamples(features: Feature[], linksMap?: Map<string, number>): Sample[] {
+function buildSamples(features: Feature[]): Sample[] {
   const map = new Map<string, Sample>();
   for (const f of features) {
     const key = `${f.get('year')}-${f.get('month')}-${f.get('recordedBy')}-${f.get('fieldNumber')}`;
@@ -142,7 +141,7 @@ function buildSamples(features: Feature[], linksMap?: Map<string, number>): Samp
       });
     }
     const occid = (f.getId() as string).replace('ecdysis:', '');
-    const inatId = linksMap ? (linksMap.get(f.get('occurrenceID') as string) ?? null) : null;
+    const inatId = f.get('inat_observation_id') as number | null ?? null;
     const floralHost = (f.get('floralHost') as string | null | undefined) ?? null;
     map.get(key)!.species.push({ name: f.get('scientificName') as string, occid, inatObservationId: inatId, floralHost });
   }
@@ -227,8 +226,6 @@ export class BeeMap extends LitElement {
 
   @state()
   private summary: DataSummary | null = null;
-
-  private _linksMap: Map<string, number> = new Map();
 
   @state() private _selectedSampleEvent: SampleEvent | null = null;
 
@@ -528,7 +525,7 @@ bee-sidebar {
       ? features.filter(f => matchesFilter(f, filterState))
       : features;
     if (toShow.length > 0) {
-      this.selectedSamples = buildSamples(toShow, this._linksMap);
+      this.selectedSamples = buildSamples(toShow);
       this._selectedOccIds = toShow.map(f => f.getId() as string);
     } else {
       this.selectedSamples = null;
@@ -767,10 +764,6 @@ bee-sidebar {
       }
     });
 
-    loadLinksMap(linksDump).catch(() => new Map<string, number>()).then(map => {
-      this._linksMap = map;
-    });
-
     // moveend: replaceState immediately, pushState after 500ms debounce
     this.map.on('moveend', () => {
       if (this._isRestoringFromHistory) return;
@@ -785,7 +778,7 @@ bee-sidebar {
           const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
           const toShow = isFilterActive(filterState) ? inner.filter(f => matchesFilter(f, filterState)) : inner;
           if (toShow.length === 0) return;
-          this.selectedSamples = buildSamples(toShow, this._linksMap);
+          this.selectedSamples = buildSamples(toShow);
           this._selectedOccIds = toShow.map(f => f.getId() as string);
           this._pushUrlState();
           return;
