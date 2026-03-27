@@ -177,6 +177,6 @@ Plans:
 | 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |
 | 20. Pipeline Migration | v1.6 | 1/2 | Complete    | 2026-03-27 |
 | 21. Parquet and GeoJSON Export | v1.6 | 1/2 | In Progress|  |
-| 22. Orchestration | v1.6 | 1/1 | Complete   | 2026-03-27 |
+| 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 23. Frontend Simplification | v1.6 | 0/? | Not started | - |
 | 24. Tech Debt Audit | v1.6 | 0/? | Not started | - |
