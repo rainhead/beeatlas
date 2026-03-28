@@ -92,9 +92,9 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
 
 ### v1.7 Production Pipeline Infrastructure (Planned)
 
-**Milestone Goal:** Move pipeline execution to Lambda with EFS-backed DuckDB; export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
+**Milestone Goal:** Move pipeline execution to Lambda with S3-backed DuckDB (downloaded to /tmp on invocation); export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
 
-- [ ] **Phase 25: CDK Infrastructure** — VPC, EFS, Lambda stub, EventBridge schedule, Lambda URL deployed to AWS
+- [ ] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip
 - [ ] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation
 - [ ] **Phase 27: Seed DuckDB + Tests** — Fixture DuckDB committed; pytest covers export.py and at least one pipeline module
 - [ ] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime
@@ -167,27 +167,28 @@ Plans:
 - [x] 24-01-PLAN.md — Audit all tech debt items, update PROJECT.md (DEBT-01)
 
 ### Phase 25: CDK Infrastructure
-**Goal**: VPC, EFS, Lambda stub, EventBridge schedule, and Lambda URL are deployed to AWS; EFS mount verified accessible from Lambda with removalPolicy RETAIN
+**Goal**: Lambda stub, EventBridge schedule, and Lambda URL are deployed to AWS; stub verifies S3 read/write from /tmp works end-to-end
 **Depends on**: Phase 24
-**Requirements**: LAMBDA-01, LAMBDA-02, LAMBDA-03, LAMBDA-04, LAMBDA-05
+**Requirements**: LAMBDA-03, LAMBDA-04, LAMBDA-05
 **Success Criteria** (what must be TRUE):
   1. `cdk deploy` completes without error; CloudFormation outputs include the Lambda URL endpoint
-  2. Invoking the Lambda URL returns a 200 response and CloudWatch logs show the stub handler confirmed a successful EFS read/write at `/mnt/data/`
-  3. The EFS FileSystem has `removalPolicy: RETAIN`; running `cdk destroy` removes the Lambda and schedule but leaves the filesystem in the AWS console
-  4. EventBridge Scheduler shows two rules: one nightly schedule (iNat pipeline) and one weekly schedule (full pipeline); both target the Lambda function
-  5. Lambda has `reservedConcurrentExecutions: 1`; env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap` are present in the function configuration
-**Plans**: TBD
+  2. Invoking the Lambda URL returns a 200 response and CloudWatch logs show the stub handler completed a successful S3 round-trip (download from `s3://BUCKET/db/`, write to `/tmp/`, upload back)
+  3. EventBridge Scheduler shows two rules: one nightly schedule (iNat pipeline) and one weekly schedule (full pipeline); both target the Lambda function
+  4. Lambda has `reservedConcurrentExecutions: 1`; env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap` are present in the function configuration
+**Plans**: 1 plan
+Plans:
+- [ ] 25-01-PLAN.md — Dockerfile, stub handler, Lambda + Scheduler + URL constructs (LAMBDA-03, LAMBDA-04, LAMBDA-05)
 
 ### Phase 26: Lambda Handler + Dockerfile
 **Goal**: Real pipeline execution runs end-to-end inside Lambda; invoking the Lambda URL triggers the dlt pipelines, exports data files to S3, backs up DuckDB, and invalidates CloudFront
 **Depends on**: Phase 25
 **Requirements**: PIPE-11, PIPE-12, PIPE-13, PIPE-14
 **Success Criteria** (what must be TRUE):
-  1. Invoking the Lambda URL (with a seeded EFS DuckDB) completes within 15 minutes and CloudWatch logs show all five pipelines finishing without error
+  1. Invoking the Lambda URL (with a seeded S3 DuckDB at `s3://BUCKET/db/beeatlas.duckdb`) completes within 15 minutes and CloudWatch logs show all five pipelines finishing without error
   2. After invocation, `aws s3 ls s3://BUCKET/data/` shows ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with recent modification timestamps
-  3. After invocation, `aws s3 ls s3://BUCKET/backup/` shows beeatlas.duckdb with a recent modification timestamp
+  3. After invocation, `aws s3 ls s3://BUCKET/db/` shows beeatlas.duckdb with a recent modification timestamp
   4. A CloudFront invalidation for `/data/*` appears in the distribution's invalidation history after each successful invocation
-**Plans**: TBD
+**Plans**: 1 plan
 
 ### Phase 27: Seed DuckDB + Tests
 **Goal**: A minimal fixture DuckDB is committed to git; pytest covers export.py schema correctness and at least one dlt pipeline module
@@ -198,7 +199,7 @@ Plans:
   2. `uv run pytest data/tests/test_export.py` passes: all required Parquet columns present in output; GeoJSON output is valid and non-empty
   3. `uv run pytest` passes at least one test covering a dlt pipeline module (inat or ecdysis) that verifies rows are written to the fixture DuckDB correctly
   4. All pytest tests pass without live AWS credentials or network access
-**Plans**: TBD
+**Plans**: 1 plan
 
 ### Phase 28: Frontend Runtime Fetch
 **Goal**: Frontend fetches all data files from CloudFront /data/ at runtime; no Parquet or GeoJSON files are bundled with the build; loading state visible during fetch
@@ -209,7 +210,7 @@ Plans:
   2. Loading the live site shows a visible loading indicator; the map renders correctly after fetch completes (verifiable in browser DevTools Network tab showing /data/*.parquet and /data/*.geojson requests returning 200)
   3. A browser fetch of `https://CLOUDFRONT_DOMAIN/data/ecdysis.parquet` from a different origin (e.g., localhost:5173) returns the file without CORS errors; Range request headers work correctly
   4. If a data file fetch fails, the frontend shows an error message rather than a blank or broken map
-**Plans**: TBD
+**Plans**: 1 plan
 **UI hint**: yes
 
 ### Phase 29: CI Simplification
@@ -220,7 +221,7 @@ Plans:
   1. A push to main triggers `deploy.yml`; the workflow completes without running any Python pipeline step or referencing `build:data`, `S3_BUCKET_NAME`, or cache restore scripts
   2. The file `.github/workflows/fetch-data.yml` does not exist in the repository
   3. CI wall-clock time for a frontend-only deploy is measurably shorter than the previous pipeline-inclusive build
-**Plans**: TBD
+**Plans**: 1 plan
 
 ## Progress
 
@@ -250,7 +251,7 @@ Plans:
 | 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 25. CDK Infrastructure | v1.7 | 0/? | Not started | - |
+| 25. CDK Infrastructure | v1.7 | 0/1 | Not started | - |
 | 26. Lambda Handler + Dockerfile | v1.7 | 0/? | Not started | - |
 | 27. Seed DuckDB + Tests | v1.7 | 0/? | Not started | - |
 | 28. Frontend Runtime Fetch | v1.7 | 0/? | Not started | - |
