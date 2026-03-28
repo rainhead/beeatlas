@@ -156,7 +156,7 @@ function handler(event) {
       ),
       architecture: lambda.Architecture.X86_64,
       timeout: cdk.Duration.minutes(15),
-      memorySize: 1024,
+      memorySize: 3008,
       ephemeralStorageSize: cdk.Size.mebibytes(4096),
       reservedConcurrentExecutions: 1,
       environment: {
