@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 import time
 import zipfile
 from pathlib import Path
@@ -10,7 +11,7 @@ import duckdb
 import requests
 from bs4 import BeautifulSoup
 
-DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
+DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
 ECDYSIS_BASE = "https://ecdysis.org/collections/individual/index.php"
 RATE_LIMIT_SECONDS = 1 / 20  # max 20 req/sec

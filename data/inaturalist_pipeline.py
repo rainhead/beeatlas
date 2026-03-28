@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 from typing import Any, Dict
 
 import dlt
 from dlt.sources.rest_api import RESTAPIConfig, rest_api_resources
 
-DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
+DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
 
 def _transform(item: Dict[str, Any]) -> Dict[str, Any]:

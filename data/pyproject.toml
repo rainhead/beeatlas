@@ -10,4 +10,5 @@ dependencies = [
     "requests",
     "beautifulsoup4",
     "geopandas",
+    "boto3>=1.42.78",
 ]
