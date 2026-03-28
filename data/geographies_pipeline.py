@@ -71,10 +71,16 @@ def _download(name: str, url: str) -> Path:
     return dest
 
 
-def _to_wkt_rows(gdf: gpd.GeoDataFrame, columns: dict[str, str]) -> Iterator[dict]:
-    """Yield dicts with renamed columns plus a WKT geometry field."""
+def _to_wkt_rows(gdf: gpd.GeoDataFrame, columns: dict[str, str], simplify_tolerance: float = 0.01) -> Iterator[dict]:
+    """Yield dicts with renamed columns plus a WKT geometry field.
+
+    simplify_tolerance: degrees (default 0.01 ≈ 1 km). Dramatically reduces WKT
+    size for high-resolution source data (e.g. Stats Canada full-detail coastlines)
+    with no visible difference at regional map zoom levels.
+    """
     gdf = gdf[list(columns.keys()) + ["geometry"]].copy()
     gdf = gdf.to_crs("EPSG:4326")
+    gdf["geometry"] = gdf["geometry"].simplify(simplify_tolerance, preserve_topology=True)
     for _, row in gdf.iterrows():
         record = {new: row[old] for old, new in columns.items()}
         record["geometry_wkt"] = row["geometry"].wkt if row["geometry"] else None
