@@ -59,17 +59,23 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Current Milestone: v1.7 Production Pipeline Infrastructure
 
-**Goal:** Move pipeline execution to Lambda with EFS-backed DuckDB; export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
+**Goal:** Move pipeline execution to Lambda with S3-backed DuckDB (downloaded to /tmp on invocation); export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
 
 **Target features:**
-- Lambda + EFS: CDK Lambda function with EFS mount (VPC), EventBridge schedule, Lambda URL for manual invocation
-- Pipeline in Lambda: data/run.py as Lambda handler; dlt pipelines write to EFS DuckDB, then export Parquets + GeoJSON to S3
-- DuckDB backup: Lambda backs up beeatlas.duckdb to S3 after pipeline runs
+- Lambda: CDK DockerImageFunction (no VPC), EventBridge schedule, Lambda URL for manual invocation
+- Pipeline in Lambda: data/run.py as Lambda handler; Lambda downloads beeatlas.duckdb from S3 to /tmp, dlt pipelines write to /tmp/beeatlas.duckdb, then export Parquets + GeoJSON to S3
+- DuckDB backup: Lambda uploads updated beeatlas.duckdb from /tmp back to S3 after pipeline runs
 - Frontend runtime fetching: bundled Parquets and GeoJSON removed; frontend fetches all data files from CloudFront at runtime
 - Seed DuckDB + tests: data/fixtures/beeatlas-test.duckdb committed; pytest covers export.py and pipeline logic
 - CI simplified: no pipeline code in CI; frontend build only
 
 **Deferred:** Multi-region support, Lambda concurrency controls
+
+### Validated
+
+- ✓ LAMBDA-03: DockerImageFunction deployed — Python container, 15-min timeout, reserved concurrency 1, DLT_DATA_DIR + temp_directory env vars, prefix-scoped S3 grants — Validated in Phase 25
+- ✓ LAMBDA-04: EventBridge Scheduler rules — NightlyInatSchedule (0 8 UTC) and WeeklyFullSchedule (0 10 SUN UTC) — Validated in Phase 25
+- ✓ LAMBDA-05: Lambda Function URL (NONE auth) deployed; curl returns "S3 round-trip complete" HTTP 200 — Validated in Phase 25
 
 ### Active
 
@@ -89,7 +95,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days): geopandas spatial join adding county/ecoregion_l3 to both parquets; WA county (56 KB) and EPA L3 ecoregion (357 KB) GeoJSON bundled; 3-state boundary toggle on map; polygon click-to-filter; sidebar multi-select autocomplete with removable chips; URL round-trip for region filter state.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Phase 25 complete (2026-03-28) — CDK Lambda stub deployed: DockerImageFunction, two EventBridge Scheduler rules, Lambda URL; curl confirms S3 round-trip live.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
@@ -103,8 +109,7 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 - `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly). Trivially fixable but deferred.
 - EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
 - No test coverage for dlt pipelines — `data/tests/` was deleted in Phase 20 as part of removing the old pandas-based modules; dlt pipelines were copied verbatim from prototype with no unit tests. Regression risk if pipeline logic changes.
-- CI integration for dlt pipelines not yet wired (INFRA-06/07/08 explicitly deferred for v1.6). The `build:data` npm script runs `cd data && uv run python run.py` which requires a local `beeatlas.duckdb`; CI currently uses committed parquet fallbacks. No automated pipeline trigger or S3 persistence strategy exists.
-- `beeatlas.duckdb` has no production persistence strategy — the DuckDB file is a local build artifact. No backup, versioning, or CI upload/restore pattern exists yet (deferred per v1.6 milestone scope).
+- CI integration for dlt pipelines not yet wired (INFRA-06/07/08 explicitly deferred for v1.6). The `build:data` npm script runs `cd data && uv run python run.py` which requires a local `beeatlas.duckdb`; CI currently uses committed parquet fallbacks. Pipeline will move to Lambda in v1.7 (Phase 26); CI pipeline step will be removed in Phase 29.
 
 ## Constraints
 
@@ -173,4 +178,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 — v1.7 milestone started: Lambda + EFS pipeline infrastructure, runtime S3 data fetching*
+*Last updated: 2026-03-27 — v1.7 architecture revised: EFS/VPC replaced by S3-backed DuckDB (download to /tmp on invocation); simpler, no NAT Gateway cost*
