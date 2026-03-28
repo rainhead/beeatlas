@@ -94,7 +94,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Move pipeline execution to Lambda with S3-backed DuckDB (downloaded to /tmp on invocation); export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
 
-- [ ] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip
+- [x] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip (completed 2026-03-28)
 - [ ] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation
 - [ ] **Phase 27: Seed DuckDB + Tests** — Fixture DuckDB committed; pytest covers export.py and at least one pipeline module
 - [ ] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime
@@ -177,7 +177,7 @@ Plans:
   4. Lambda has `reservedConcurrentExecutions: 1`; env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap` are present in the function configuration
 **Plans**: 1 plan
 Plans:
-- [ ] 25-01-PLAN.md — Dockerfile, stub handler, Lambda + Scheduler + URL constructs (LAMBDA-03, LAMBDA-04, LAMBDA-05)
+- [x] 25-01-PLAN.md — Dockerfile, stub handler, Lambda + Scheduler + URL constructs (LAMBDA-03, LAMBDA-04, LAMBDA-05)
 
 ### Phase 26: Lambda Handler + Dockerfile
 **Goal**: Real pipeline execution runs end-to-end inside Lambda; invoking the Lambda URL triggers the dlt pipelines, exports data files to S3, backs up DuckDB, and invalidates CloudFront
@@ -251,7 +251,7 @@ Plans:
 | 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 25. CDK Infrastructure | v1.7 | 0/1 | Not started | - |
+| 25. CDK Infrastructure | v1.7 | 1/1 | Complete   | 2026-03-28 |
 | 26. Lambda Handler + Dockerfile | v1.7 | 0/? | Not started | - |
 | 27. Seed DuckDB + Tests | v1.7 | 0/? | Not started | - |
 | 28. Frontend Runtime Fetch | v1.7 | 0/? | Not started | - |
