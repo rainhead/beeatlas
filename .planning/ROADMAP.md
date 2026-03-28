@@ -251,7 +251,7 @@ Plans:
 | 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 25. CDK Infrastructure | v1.7 | 1/1 | Complete   | 2026-03-28 |
+| 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
 | 26. Lambda Handler + Dockerfile | v1.7 | 0/? | Not started | - |
 | 27. Seed DuckDB + Tests | v1.7 | 0/? | Not started | - |
 | 28. Frontend Runtime Fetch | v1.7 | 0/? | Not started | - |
