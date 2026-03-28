@@ -45,13 +45,10 @@ for name, fn in steps:
     print(f"--- {name} done in {time.monotonic()-t:.1f}s ---")
 EOF
 
-# 3. Push exports to S3 /data/ and update CI cache /cache/
+# 3. Push exports to S3 /data/
 echo "--- uploading exports ---"
 for f in ecdysis.parquet samples.parquet counties.geojson ecoregions.geojson; do
     aws --profile "$AWS_PROFILE" s3 cp "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
-done
-for f in ecdysis.parquet samples.parquet; do
-    aws --profile "$AWS_PROFILE" s3 cp "$EXPORT_DIR/$f" "s3://$BUCKET/cache/$f"
 done
 
 # 4. Back up DuckDB to S3 /db/
