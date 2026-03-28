@@ -88,23 +88,23 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LAMBDA-01 | TBD | Pending |
-| LAMBDA-02 | TBD | Pending |
-| LAMBDA-03 | TBD | Pending |
-| LAMBDA-04 | TBD | Pending |
-| LAMBDA-05 | TBD | Pending |
-| PIPE-11 | TBD | Pending |
-| PIPE-12 | TBD | Pending |
-| PIPE-13 | TBD | Pending |
-| PIPE-14 | TBD | Pending |
-| FETCH-01 | TBD | Pending |
-| FETCH-02 | TBD | Pending |
-| FETCH-03 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
-| TEST-03 | TBD | Pending |
-| CI-01 | TBD | Pending |
-| CI-02 | TBD | Pending |
+| LAMBDA-01 | Phase 25 | Pending |
+| LAMBDA-02 | Phase 25 | Pending |
+| LAMBDA-03 | Phase 25 | Pending |
+| LAMBDA-04 | Phase 25 | Pending |
+| LAMBDA-05 | Phase 25 | Pending |
+| PIPE-11 | Phase 26 | Pending |
+| PIPE-12 | Phase 26 | Pending |
+| PIPE-13 | Phase 26 | Pending |
+| PIPE-14 | Phase 26 | Pending |
+| TEST-01 | Phase 27 | Pending |
+| TEST-02 | Phase 27 | Pending |
+| TEST-03 | Phase 27 | Pending |
+| FETCH-01 | Phase 28 | Pending |
+| FETCH-02 | Phase 28 | Pending |
+| FETCH-03 | Phase 28 | Pending |
+| CI-01 | Phase 29 | Pending |
+| CI-02 | Phase 29 | Pending |
 | PIPE-08 | Phase 20 | Complete |
 | PIPE-09 | Phase 20 | Complete |
 | PIPE-10 | Phase 20 | Superseded by PIPE-11 |
@@ -121,9 +121,9 @@
 
 **Coverage:**
 - v1.7 requirements: 17 total
-- Mapped to phases: 0 (TBD — roadmap pending)
-- Unmapped: 17
+- Mapped to phases: 17/17
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 — v1.7 milestone requirements defined*
+*Last updated: 2026-03-27 — v1.7 roadmap created; all 17 requirements mapped to Phases 25–29*

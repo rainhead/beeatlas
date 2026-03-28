@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Production Pipeline Infrastructure
-status: defining requirements
+status: roadmap defined
 stopped_at: —
-last_updated: "2026-03-27T23:50:00.000Z"
+last_updated: "2026-03-27T23:55:00.000Z"
 last_activity: 2026-03-27
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Defining v1.7 requirements
+**Current focus:** v1.7 roadmap defined — ready to plan Phase 25
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started (roadmap defined, Phase 25 is next)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-03-27 — Milestone v1.7 started
+Status: Roadmap defined
+Last activity: 2026-03-27 — v1.7 roadmap created (Phases 25–29)
 
-Progress: [██████████] 100%
+Progress: [__________] 0% (0/5 phases)
 
 ## Performance Metrics
 
@@ -64,6 +64,12 @@ Progress: [██████████] 100%
 - [Phase 22-orchestration]: data/run.py replaces build-data.sh — Python orchestrator calls pipeline functions in-process, no subprocess
 - [Phase 23-frontend-simplification]: Read inat_observation_id from ecdysis feature properties; deleted loadLinksMap without fallback since Phase 21 guarantees the column
 - [Phase 24-tech-debt-audit]: Closed 5 legacy debt items resolved by dlt migration; updated EPA CRS item; added 3 new items (no dlt tests, CI not wired, DuckDB persistence unresolved)
+- **v1.7 container image required**: geopandas (GDAL/GEOS) + duckdb + dlt exceed 250 MB Lambda zip limit; DockerImageFunction is the only viable packaging approach
+- **v1.7 EFS removalPolicy RETAIN is non-negotiable**: destroying the CDK stack must not delete the EFS filesystem or the DuckDB data stored on it
+- **v1.7 DuckDB temp on /tmp not EFS**: temp_directory must point to /tmp/duckdb_swap; NFS stale handle errors occur if temp files land on EFS
+- **v1.7 PIPE-10 superseded**: PIPE-10 (local pipeline runs) is superseded by PIPE-11 (Lambda execution); not assigned to any v1.7 phase
+- **v1.7 seed prerequisite**: Ecdysis links pipeline takes ~38 min cold; exceeds Lambda 15-min limit; DuckDB must be seeded locally and uploaded before EventBridge schedule is enabled — manual step in Phase 26
+- **v1.7 CloudFront CORS cache**: Origin header must be in CloudFront cache key and S3 CORS must expose Range/Content-Range headers; both must be configured together in Phase 28 to avoid CORS failures for browser hyparquet fetch
 
 ### Pending Todos
 
@@ -77,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T23:30:00Z
-Stopped at: Completed 24-01-PLAN.md
+Last session: 2026-03-27T23:50:00Z
+Stopped at: v1.7 roadmap created
 Resume file: None
