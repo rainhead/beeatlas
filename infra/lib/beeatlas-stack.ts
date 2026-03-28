@@ -6,6 +6,12 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
+import { Schedule, ScheduleExpression, ScheduleTargetInput } from 'aws-cdk-lib/aws-scheduler';
+import { TimeZone } from 'aws-cdk-lib';
+import { LambdaInvoke } from 'aws-cdk-lib/aws-scheduler-targets';
+import * as path from 'path';
 import { Construct } from 'constructs';
 import { GlobalStack } from './global-stack';
 
@@ -142,6 +148,60 @@ function handler(event) {
       ],
     }));
 
+    // ── Pipeline Lambda ─────────────────────────────────────────────────────
+    const pipelineFn = new lambda.DockerImageFunction(this, 'PipelineFunction', {
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../data'),
+        { platform: Platform.LINUX_AMD64 }
+      ),
+      architecture: lambda.Architecture.X86_64,
+      timeout: cdk.Duration.minutes(15),
+      memorySize: 1024,
+      ephemeralStorageSize: cdk.Size.mebibytes(4096),
+      reservedConcurrentExecutions: 1,
+      environment: {
+        DLT_DATA_DIR: '/tmp/dlt',
+        temp_directory: '/tmp/duckdb_swap',
+        BUCKET_NAME: siteBucket.bucketName,
+      },
+    });
+
+    // Scoped S3 permissions — data/* for exports, db/* for DuckDB backup
+    siteBucket.grantReadWrite(pipelineFn, 'data/*');
+    siteBucket.grantReadWrite(pipelineFn, 'db/*');
+
+    // EventBridge Scheduler: nightly iNat pipeline (08:00 UTC)
+    new Schedule(this, 'NightlyInatSchedule', {
+      schedule: ScheduleExpression.cron({
+        minute: '0',
+        hour: '8',
+        timeZone: TimeZone.ETC_UTC,
+      }),
+      target: new LambdaInvoke(pipelineFn, {
+        input: ScheduleTargetInput.fromObject({ pipeline: 'inat' }),
+      }),
+      description: 'Nightly iNat pipeline refresh',
+    });
+
+    // EventBridge Scheduler: weekly full pipeline (all 5) — Sunday 10:00 UTC
+    new Schedule(this, 'WeeklyFullSchedule', {
+      schedule: ScheduleExpression.cron({
+        minute: '0',
+        hour: '10',
+        weekDay: 'SUN',
+        timeZone: TimeZone.ETC_UTC,
+      }),
+      target: new LambdaInvoke(pipelineFn, {
+        input: ScheduleTargetInput.fromObject({ pipeline: 'full' }),
+      }),
+      description: 'Weekly full pipeline run (all 5 pipelines)',
+    });
+
+    // Lambda Function URL for manual invocation (NONE auth — volunteer project)
+    const fnUrl = pipelineFn.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+    });
+
     // ── Outputs (consumed as GitHub Actions secrets) ──────────────────────
     new cdk.CfnOutput(this, 'BucketName', {
       value: siteBucket.bucketName,
@@ -158,6 +218,14 @@ function handler(event) {
     new cdk.CfnOutput(this, 'DeployerRoleArn', {
       value: deployerRole.roleArn,
       description: 'OIDC deployer role ARN → GitHub secret AWS_DEPLOYER_ROLE_ARN',
+    });
+    new cdk.CfnOutput(this, 'PipelineFunctionUrl', {
+      value: fnUrl.url,
+      description: 'Lambda Function URL for manual pipeline invocation',
+    });
+    new cdk.CfnOutput(this, 'PipelineFunctionArn', {
+      value: pipelineFn.functionArn,
+      description: 'Lambda function ARN',
     });
   }
 }
