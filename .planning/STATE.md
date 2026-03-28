@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.7
-milestone_name: Production Pipeline Infrastructure
-status: roadmap defined
-stopped_at: —
-last_updated: "2026-03-27T23:55:00.000Z"
-last_activity: 2026-03-27
+milestone: v1.6
+milestone_name: dlt Pipeline Migration
+status: verifying
+stopped_at: Completed 25-cdk-infrastructure 25-01-PLAN.md
+last_updated: "2026-03-28T15:43:34.181Z"
+last_activity: 2026-03-28
 progress:
-  total_phases: 5
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 9
+  completed_phases: 9
+  total_plans: 13
+  completed_plans: 13
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v1.7 roadmap defined — ready to plan Phase 25
+**Current focus:** Phase 25 — cdk-infrastructure
 
 ## Current Position
 
-Phase: Not started (roadmap defined, Phase 25 is next)
-Plan: —
-Status: Roadmap defined
-Last activity: 2026-03-27 — v1.7 roadmap created (Phases 25–29)
+Phase: 25 (cdk-infrastructure) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-03-28
 
 Progress: [__________] 0% (0/5 phases)
 
@@ -51,6 +51,7 @@ Progress: [__________] 0% (0/5 phases)
 | Phase 22-orchestration P01 | 5min | 2 tasks | 3 files |
 | Phase 23-frontend-simplification P01 | 1min | 2 tasks | 2 files |
 | Phase 24-tech-debt-audit P01 | 1min | 1 tasks | 2 files |
+| Phase 25-cdk-infrastructure P01 | 4 | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Progress: [__________] 0% (0/5 phases)
 - **v1.7 PIPE-10 superseded**: PIPE-10 (local pipeline runs) is superseded by PIPE-11 (Lambda execution); not assigned to any v1.7 phase
 - **v1.7 seed prerequisite**: Ecdysis links pipeline takes ~38 min cold; exceeds Lambda 15-min limit; DuckDB must be seeded locally and uploaded before EventBridge schedule is enabled — manual step in Phase 26
 - **v1.7 CloudFront CORS cache**: Origin header must be in CloudFront cache key and S3 CORS must expose Range/Content-Range headers; both must be configured together in Phase 28 to avoid CORS failures for browser hyparquet fetch
+- [Phase 25-cdk-infrastructure]: TimeZone must be imported from aws-cdk-lib core (not aws-scheduler) in CDK 2.238.0
+- [Phase 25-cdk-infrastructure]: Lambda URL auth NONE — volunteer project, manual invocation only, no sensitive data in endpoint
 
 ### Pending Todos
 
@@ -83,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-27T23:50:00Z
-Stopped at: v1.7 roadmap created
+Last session: 2026-03-28T15:43:34.178Z
+Stopped at: Completed 25-cdk-infrastructure 25-01-PLAN.md
 Resume file: None

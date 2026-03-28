@@ -6,16 +6,14 @@
 ## v1.7 Requirements
 
 ### Lambda Infrastructure
-- [ ] **LAMBDA-01**: CDK adds VPC (private subnets, NAT Gateway for Ecdysis/iNat internet egress, S3 Gateway Endpoint for free S3 writes) to BeeAtlasStack
-- [ ] **LAMBDA-02**: CDK adds EFS FileSystem (`removalPolicy: RETAIN`) with access point mounted at `/mnt/data` in Lambda; destroying the stack must not delete the filesystem
-- [ ] **LAMBDA-03**: CDK adds `DockerImageFunction` (Python 3.14 base image, EFS mount, 15-min timeout, reserved concurrency 1, env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap`)
-- [ ] **LAMBDA-04**: CDK adds EventBridge Scheduler rules: iNat pipeline nightly, full pipeline (all 5) weekly
-- [ ] **LAMBDA-05**: CDK adds Lambda Function URL for manual invocation
+- [x] **LAMBDA-03**: CDK adds `DockerImageFunction` (Python 3.14 base image, no VPC, 15-min timeout, reserved concurrency 1, env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap`); Lambda role has scoped S3 read/write on `/data/*` and `/db/*` prefixes of siteBucket
+- [x] **LAMBDA-04**: CDK adds EventBridge Scheduler rules: iNat pipeline nightly, full pipeline (all 5) weekly
+- [x] **LAMBDA-05**: CDK adds Lambda Function URL for manual invocation
 
 ### Pipeline Execution
-- [ ] **PIPE-11**: Lambda handler invokes `data/run.py`; dlt pipelines write to EFS DuckDB at `/mnt/data/beeatlas.duckdb`; reserved concurrency prevents concurrent runs
+- [ ] **PIPE-11**: Lambda handler downloads `beeatlas.duckdb` from `s3://BUCKET/db/beeatlas.duckdb` to `/tmp/` on invocation; invokes `data/run.py`; dlt pipelines write to `/tmp/beeatlas.duckdb`; reserved concurrency prevents concurrent runs
 - [ ] **PIPE-12**: Lambda handler runs `export.py` after successful pipeline run; uploads `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` to S3 `/data/` prefix
-- [ ] **PIPE-13**: Lambda handler backs up `beeatlas.duckdb` from EFS to S3 after successful export
+- [ ] **PIPE-13**: Lambda handler uploads updated `beeatlas.duckdb` from `/tmp/` back to `s3://BUCKET/db/beeatlas.duckdb` after successful export
 - [ ] **PIPE-14**: Lambda handler triggers CloudFront invalidation on `/data/*` after S3 upload
 
 ### Frontend Runtime Fetching
@@ -88,11 +86,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LAMBDA-01 | Phase 25 | Pending |
-| LAMBDA-02 | Phase 25 | Pending |
-| LAMBDA-03 | Phase 25 | Pending |
-| LAMBDA-04 | Phase 25 | Pending |
-| LAMBDA-05 | Phase 25 | Pending |
+| LAMBDA-01 | — | Removed — VPC/NAT replaced by S3-backed DuckDB pattern (no VPC needed) |
+| LAMBDA-02 | — | Removed — EFS replaced by S3-backed DuckDB pattern |
+| LAMBDA-03 | Phase 25 | Complete |
+| LAMBDA-04 | Phase 25 | Complete |
+| LAMBDA-05 | Phase 25 | Complete |
 | PIPE-11 | Phase 26 | Pending |
 | PIPE-12 | Phase 26 | Pending |
 | PIPE-13 | Phase 26 | Pending |
@@ -120,10 +118,10 @@
 | DEBT-01 | Phase 24 | Complete |
 
 **Coverage:**
-- v1.7 requirements: 17 total
-- Mapped to phases: 17/17
+- v1.7 requirements: 15 active (LAMBDA-01 and LAMBDA-02 removed)
+- Mapped to phases: 15/15
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-27*
-*Last updated: 2026-03-27 — v1.7 roadmap created; all 17 requirements mapped to Phases 25–29*
+*Last updated: 2026-03-27 — EFS/VPC architecture replaced by S3-backed DuckDB; LAMBDA-01 and LAMBDA-02 removed; LAMBDA-03 and PIPE-11/13 updated*
