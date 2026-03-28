@@ -11,10 +11,10 @@
 - [x] **LAMBDA-05**: CDK adds Lambda Function URL for manual invocation
 
 ### Pipeline Execution
-- [ ] **PIPE-11**: Lambda handler downloads `beeatlas.duckdb` from `s3://BUCKET/db/beeatlas.duckdb` to `/tmp/` on invocation; invokes `data/run.py`; dlt pipelines write to `/tmp/beeatlas.duckdb`; reserved concurrency prevents concurrent runs
-- [ ] **PIPE-12**: Lambda handler runs `export.py` after successful pipeline run; uploads `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` to S3 `/data/` prefix
-- [ ] **PIPE-13**: Lambda handler uploads updated `beeatlas.duckdb` from `/tmp/` back to `s3://BUCKET/db/beeatlas.duckdb` after successful export
-- [ ] **PIPE-14**: Lambda handler triggers CloudFront invalidation on `/data/*` after S3 upload
+- [x] **PIPE-11**: Lambda handler downloads `beeatlas.duckdb` from `s3://BUCKET/db/beeatlas.duckdb` to `/tmp/` on invocation; invokes `data/run.py`; dlt pipelines write to `/tmp/beeatlas.duckdb`; reserved concurrency prevents concurrent runs
+- [x] **PIPE-12**: Lambda handler runs `export.py` after successful pipeline run; uploads `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` to S3 `/data/` prefix
+- [x] **PIPE-13**: Lambda handler uploads updated `beeatlas.duckdb` from `/tmp/` back to `s3://BUCKET/db/beeatlas.duckdb` after successful export
+- [x] **PIPE-14**: Lambda handler triggers CloudFront invalidation on `/data/*` after S3 upload
 
 ### Frontend Runtime Fetching
 - [ ] **FETCH-01**: Frontend fetches `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` from CloudFront `/data/` path at runtime; bundled asset imports removed from build
@@ -58,10 +58,10 @@
 | LAMBDA-03 | Phase 25 | Complete |
 | LAMBDA-04 | Phase 25 | Complete |
 | LAMBDA-05 | Phase 25 | Complete |
-| PIPE-11 | Phase 26 | Pending |
-| PIPE-12 | Phase 26 | Pending |
-| PIPE-13 | Phase 26 | Pending |
-| PIPE-14 | Phase 26 | Pending |
+| PIPE-11 | Phase 26 | Complete |
+| PIPE-12 | Phase 26 | Complete |
+| PIPE-13 | Phase 26 | Complete |
+| PIPE-14 | Phase 26 | Complete |
 | TEST-01 | Phase 27 | Pending |
 | TEST-02 | Phase 27 | Pending |
 | TEST-03 | Phase 27 | Pending |

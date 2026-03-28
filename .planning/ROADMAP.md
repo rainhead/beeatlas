@@ -98,7 +98,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full phase details.
 **Milestone Goal:** Move pipeline execution to Lambda with S3-backed DuckDB (downloaded to /tmp on invocation); export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
 
 - [x] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip (completed 2026-03-28)
-- [ ] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation
+- [x] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation (completed 2026-03-28)
 - [ ] **Phase 27: Seed DuckDB + Tests** — Fixture DuckDB committed; pytest covers export.py and at least one pipeline module
 - [ ] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime
 - [ ] **Phase 29: CI Simplification** — build:data removed from CI; fetch-data.yml deleted; frontend-only build
@@ -129,7 +129,7 @@ Plans:
   4. A CloudFront invalidation for `/data/*` appears in the distribution's invalidation history after each successful invocation
 **Plans**: 1 plan
 Plans:
-- [ ] 26-01-PLAN.md — Real handler, env-var pipeline modules, production Dockerfile, CDK updates (PIPE-11, PIPE-12, PIPE-13, PIPE-14)
+- [x] 26-01-PLAN.md — Real handler, env-var pipeline modules, production Dockerfile, CDK updates (PIPE-11, PIPE-12, PIPE-13, PIPE-14)
 
 ### Phase 27: Seed DuckDB + Tests
 **Goal**: A minimal fixture DuckDB is committed to git; pytest covers export.py schema correctness and at least one dlt pipeline module
@@ -193,7 +193,7 @@ Plans:
 | 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
-| 26. Lambda Handler + Dockerfile | v1.7 | 0/1 | Not started | - |
+| 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
 | 27. Seed DuckDB + Tests | v1.7 | 0/? | Not started | - |
 | 28. Frontend Runtime Fetch | v1.7 | 0/? | Not started | - |
 | 29. CI Simplification | v1.7 | 0/? | Not started | - |
