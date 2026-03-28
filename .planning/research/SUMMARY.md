@@ -1,175 +1,230 @@
 # Project Research Summary
 
-**Project:** Washington Bee Atlas — v1.5 Geographic Regions
-**Domain:** Polygon-based geographic region filtering added to existing static OpenLayers + Parquet map app
-**Researched:** 2026-03-14
+**Project:** Washington Bee Atlas — v1.7 Lambda + EFS Production Pipeline Infrastructure
+**Domain:** Scheduled serverless data pipeline with persistent DuckDB state, serving a static frontend via CloudFront
+**Researched:** 2026-03-27
 **Confidence:** HIGH
 
 ## Executive Summary
 
-v1.5 Geographic Regions adds county and ecoregion filtering to the Washington Bee Atlas specimen map. The approach is fully determined by the existing architecture: all spatial work happens at pipeline build time using geopandas, and the frontend reads pre-joined string columns from Parquet via O(1) Set lookups. No new dependencies are required — geopandas 1.1.2, pyogrio, pyarrow 22, ol 10.7.0, and Vite are all already installed. The two boundary GeoJSON datasets are either already in the repo (CEC NA Level III ecoregions) or downloadable in a single `gpd.read_file(url)` call (Census TIGER WA counties). Both must be simplified to 0.005–0.01 degrees before bundling to keep frontend asset sizes under 400 KB each.
+BeeAtlas v1.7 moves the data pipeline from manual/CI invocation to a fully automated Lambda function with EFS-backed DuckDB persistence. The architecture is well-understood: a Python 3.14 container image on Lambda runs the existing `run.py` pipeline on a schedule, writes exported Parquets and GeoJSON to S3, and the frontend fetches those files from CloudFront at runtime instead of loading bundled build assets. All new constructs (VPC, EFS, Lambda, EventBridge Scheduler, Lambda URL) are additions to the existing `BeeAtlasStack` — no new CDK stacks are required.
 
-The key structural recommendation is a strict pipeline-first build order. The frontend cannot validate region filtering until `county` and `ecoregion_l3` columns exist in both `ecdysis.parquet` and `samples.parquet`. The four implementation phases — pipeline spatial join, frontend data layer, map integration, sidebar UI — each have hard dependencies on the prior phase, and none can be parallelized meaningfully. The architecture follows six well-defined patterns that are already established in the codebase; the largest new concept is a single `region-layer.ts` module that isolates VectorLayer construction and source swapping.
+The recommended approach uses a container image (not zip) because geopandas + duckdb + dlt combined exceed Lambda's 250 MB zip limit. EFS holds the persistent `beeatlas.duckdb` between invocations; S3 holds a backup copy for disaster recovery. The pipeline must be seeded locally first (Ecdysis link scraping at 45K+ records takes ~38 min, far exceeding Lambda's 15-min hard limit), and only the incremental delta runs in Lambda on a schedule. The two-level skip cache already in the codebase handles this correctly when operating against the EFS DuckDB.
 
-The primary risks are a non-standard CRS in the ecoregion shapefile (requires explicit `.to_crs('EPSG:4326')` before any spatial join), approximately 408 coastal points (~0.9%) that fall in polygon gaps and need a nearest-polygon fallback, and a click-handler priority bug where polygon hits must be checked after specimen/sample hits to preserve existing click behavior. All three risks are known, bounded, and prevented by specific, tested code patterns documented in PITFALLS.md.
+The key risks are configuration-level traps rather than architectural unknowns: DuckDB temp files must stay on `/tmp` (not EFS) to avoid NFS stale handle errors; CloudFront must include the `Origin` header in its cache key to avoid serving cached non-CORS responses to browser fetch calls; dlt's working directory must be explicitly set to `/tmp/dlt` because Lambda's `/var/task` is read-only; and Lambda concurrency must be reserved to 1 to prevent DuckDB write lock conflicts. All of these are preventable with known countermeasures documented in the research.
 
 ## Key Findings
 
 ### Recommended Stack
 
-All required technology is already installed. The Python pipeline uses geopandas `gpd.sjoin()` with `predicate='within'` for point-in-polygon assignment, plus `.to_crs('EPSG:4326')` for CRS alignment before any join. GeoJSON files are exported from the pipeline and bundled via Vite `?url` import, which defers the HTTP fetch until the boundary layer first becomes visible — the correct pattern for separate cacheable assets of this size (150–400 KB each). The frontend uses OL's `GeoJSON` format class, `VectorSource`, and `VectorLayer` — all already imported elsewhere in the codebase.
+The existing stack (CDK v2 ^2.238.0, Python 3.14, dlt[duckdb], hyparquet, Lit, OpenLayers) requires no new npm packages. All new AWS constructs are already in `aws-cdk-lib`. See [STACK.md](./STACK.md) for the full inventory.
 
-**Core technologies:**
-- `geopandas 1.1.2` + `pyogrio 0.12.1`: spatial join and GeoJSON export — already installed; `gpd.sjoin()` + `.to_crs()` is the complete new API surface
-- `pyarrow 22`: nullable string columns (`county`, `ecoregion_l3`) in Parquet output — already installed
-- `ol 10.7.0`: `VectorLayer`/`VectorSource`/`GeoJSON` format for boundary overlay — already installed; only new import is `ol/format/GeoJSON.js`
-- `vite 6.2.x`: `?url` suffix import for GeoJSON assets — no config changes needed
-- `@types/geojson 7946.0.16`: `FeatureCollection` type for GeoJSON assets — already installed
+**Core new technologies:**
+- `lambda.DockerImageFunction` + ECR container image — only viable packaging approach; geopandas native libs (GDAL/GEOS) and DuckDB exceed the 250 MB zip limit
+- `efs.FileSystem` + `efs.AccessPoint` — persistent DuckDB store across Lambda invocations; `removalPolicy: RETAIN` is non-negotiable
+- `ec2.Vpc` with `natGateways: 1` + S3 Gateway Endpoint (free) — EFS requires VPC; NAT Gateway provides outbound internet for iNat and Ecdysis API calls
+- `scheduler.Schedule` (EventBridge Scheduler L2, GA April 2025) — preferred over EventBridge Rules for cron-triggered Lambda; supports flexible time windows
+- `lambda.FunctionUrl` with `authType: NONE` — simpler than API Gateway for single-function manual invocation
+- `asyncBufferFromUrl` (already in hyparquet ^1.23.3) — no version change needed; replace bundled asset imports with runtime CloudFront-relative URLs
+
+**Version notes:**
+- Python 3.14 Lambda base image (`public.ecr.aws/lambda/python:3.14`) — GA November 2025; verify tag exists before writing Dockerfile
+- CDK EventBridge Scheduler L2 — available in aws-cdk-lib ^2.178+; already pinned at ^2.238.0
 
 ### Expected Features
 
-**Must have (table stakes):**
-- Region filter applies to both specimen and sample layers — both Parquet files need the new columns
-- Multi-select for county and ecoregion with removable chips — single-select is insufficient for field collectors
-- AND semantics across region types (county AND ecoregion), OR semantics within a type (King OR Pierce)
-- Region filter ANDs with existing taxon/date filters — no new filter logic architecture needed
-- Active filter visually reflected in sidebar chips — no visual feedback feels broken to users
-- "Clear all" clears region filter too — partial clear is a common UX complaint
-- Map position unchanged when filter is applied — explicitly required in PROJECT.md
-- URL encoding of region filter state — enables sharing filtered views
+See [FEATURES.md](./FEATURES.md) for the full feature breakdown and dependency graph.
 
-**Should have (differentiators):**
-- Exclusive 3-state boundary toggle (off / counties / ecoregions) — mutual exclusion prevents visual conflict between overlapping polygon types
-- Click a visible polygon to add it to the active filter — faster than typing for spatially-oriented users
-- Region type label on chips ("King (county)" vs "Blue Mountains (ecoregion)") — prevents ambiguity when both types are active simultaneously
+**Must have (v1.7 launch):**
+- Scheduled Lambda invocation (nightly iNat incremental + weekly full pipeline)
+- Lambda timeout set to 15 minutes (900s hard limit)
+- EFS mount at `/mnt/data/beeatlas.duckdb` with restore-from-S3 on empty EFS
+- S3 upload of 4 exported data files + DuckDB backup after successful run
+- Lambda URL for manual pipeline invocation (async, 202 response)
+- Frontend runtime fetch replacing all bundled Parquet and GeoJSON imports
+- Loading state and error handling in frontend for failed fetches
+- CloudFront invalidation (`/data/*`) after successful S3 upload
+- Reserved concurrency = 1 to prevent DuckDB write lock conflicts
+- `data/fixtures/beeatlas-test.duckdb` committed for pytest coverage of `export.py`
+- CI simplified to frontend-only build; `fetch-data.yml` workflow deleted
 
-**Defer (v2+):**
-- Selected polygon highlighted distinctly on map — sidebar chips are sufficient confirmation at launch
-- Arbitrary draw-a-polygon region filter — named regions cover the real use case; draw interaction is significant complexity
-- Filter result count per region in sidebar — requires cross-cutting count logic; defer until basic filter ships
+**Should have (v1.x after validation):**
+- Separate EventBridge schedules: iNat-only nightly vs full pipeline weekly (reduces runtime)
+- Cache-Control headers tuned per file type (Parquets: 1h TTL; GeoJSON: 24h TTL)
+- CloudWatch alarm on Lambda error rate or timeout
+
+**Defer to v2+:**
+- Step Functions (pipeline is sequential; no branching/parallel execution needed at current scale)
+- Multi-region S3 replication (WA-focused atlas; not needed)
+- Lambda concurrency > 1 (DuckDB single-writer is a hard constraint)
+
+**Anti-features to avoid:**
+- SnapStart (incompatible with EFS mounts — AWS hard constraint as of 2025)
+- DynamoDB/RDS for pipeline state (DuckDB on EFS is the correct choice for this access pattern)
+- Real-time iNat webhook updates (iNat has no webhooks; static hosting precludes WebSocket server)
 
 ### Architecture Approach
 
-The architecture is a clean additive extension of the existing system. A new `data/geodata/` directory holds authoritative GeoJSON boundary files used by both the pipeline (for spatial join) and the frontend (for map display), enforcing a single source of truth. A shared `data/ecdysis/regions.py` module exposes `spatial_join_regions(gdf)` so both `occurrences.py` and `inat/download.py` add the same columns via the same code path. On the frontend, a new `region-layer.ts` module encapsulates the OL VectorLayer with source-swapping logic (`regionLayer.setSource(countySource | ecoregionSource)`), keeping `bee-map.ts` from growing further. The FilterState singleton in `filter.ts` gains two Sets and must be updated atomically across all three consumer files.
+The v1.7 architecture adds a Lambda execution layer alongside the existing S3 + CloudFront static hosting. All new constructs are additions to `BeeAtlasStack` in `infra/lib/beeatlas-stack.ts`. The CDK deploy order is deterministic: VPC first (prerequisite for EFS), EFS next (prerequisite for Lambda access point), then Lambda, EventBridge schedule, and Lambda URL. The frontend and CI changes are independent of the CDK deploy order but depend on the Lambda having written files to `S3/data/` before they take effect. See [ARCHITECTURE.md](./ARCHITECTURE.md) for CDK construct snippets and the complete data flow diagrams.
 
 **Major components:**
-1. `data/ecdysis/regions.py` (NEW) — shared `spatial_join_regions()` helper called by both pipeline scripts
-2. `data/geodata/` (NEW) — authoritative GeoJSON boundary files; pipeline reads here, build script copies to frontend assets
-3. `frontend/src/region-layer.ts` (NEW) — `countySource`, `ecoregionSource`, single `regionLayer` with source swapping, `BoundaryMode` type, polygon style with transparent fill
-4. `frontend/src/filter.ts` (MODIFY) — add `selectedCounties: Set<string>`, `selectedEcoregions: Set<string>`; extend `isFilterActive()` and `matchesFilter()`
-5. `frontend/src/bee-map.ts` (MODIFY) — import regionLayer, add `boundaryMode` state, extend singleclick pre-check, extend URL encode/decode, derive and pass region options to sidebar
-6. `frontend/src/bee-sidebar.ts` (MODIFY) — boundary toggle, county and ecoregion multi-select autocomplete, extend `FilterChangedEvent`
+1. `PipelineFn` (Lambda `DockerImageFunction`) — runs `data/run.py` against EFS DuckDB, exports to `/tmp/data/`, uploads to S3 `data/` and `backup/` prefixes
+2. `EFS FileSystem` + `AccessPoint` — durable DuckDB store at `/mnt/data/beeatlas.duckdb`; `removalPolicy: RETAIN`
+3. `EventBridge Schedule` — weekly cron (and optionally separate nightly iNat-only schedule)
+4. `Lambda URL` — HTTP endpoint for on-demand pipeline invocation
+5. `data/lambda/Dockerfile` — Python 3.14 Lambda base image with system deps for geopandas, uv-installed Python deps, pre-installed DuckDB spatial extension
+6. Modified `export.py` — parameterized output directory (`EXPORT_DIR` env var); S3 upload when `S3_BUCKET` is set
+7. Modified frontend (`bee-map.ts`, `region-layer.ts`) — `?url` import removal; runtime fetch from `/data/` CloudFront-relative path
+8. Simplified `deploy.yml` — frontend-only build; `fetch-data.yml` deleted
+
+**Key file changes inventory:**
+
+| File | Status |
+|------|--------|
+| `infra/lib/beeatlas-stack.ts` | MODIFY — add VPC, EFS, Lambda, EventBridge, URL |
+| `data/lambda/Dockerfile` | NEW |
+| `data/run.py` | MODIFY — add `handler(event, context)` wrapper |
+| `data/export.py` | MODIFY — parameterize output dir; add S3 upload |
+| `data/fixtures/beeatlas-test.duckdb` | NEW |
+| `data/tests/test_export.py` | NEW |
+| `frontend/src/bee-map.ts` | MODIFY — runtime fetch |
+| `frontend/src/region-layer.ts` | MODIFY — runtime fetch |
+| `frontend/src/assets/` | MODIFY — remove data files |
+| `.github/workflows/deploy.yml` | MODIFY — remove build:data step |
+| `.github/workflows/fetch-data.yml` | DELETE |
 
 ### Critical Pitfalls
 
-1. **CRS mismatch (ecoregion shapefile)** — The CEC NA L3 shapefile uses a non-EPSG spherical Lambert AEA CRS (`Sphere_ARC_INFO_Lambert_Azimuthal_Equal_Area`). Always call `.to_crs('EPSG:4326')` on the ecoregion GeoDataFrame before `gpd.sjoin()`. Failure produces silent wrong results (0 matches or geographically scrambled assignments).
+See [PITFALLS.md](./PITFALLS.md) for the complete list with recovery strategies and a "looks done but isn't" checklist.
 
-2. **408 coastal points fall outside all ecoregion polygons** — Confirmed on live data: ~0.9% of WA specimens cluster at coastal coordinates where ecoregion boundaries do not reach the shoreline. Add a nearest-polygon fallback after the initial `within` join for null rows; do not accept nulls as correct for points inside the WA bounding box.
+1. **DuckDB temp files on EFS cause stale file handle errors** — Keep DB file on EFS but set `temp_directory='/tmp/duckdb_swap'` immediately after `duckdb.connect()`. Do not point temp to EFS. (Pitfall 1)
 
-3. **Polygon click swallows specimen clicks** — The singleclick handler must check specimen/sample hits FIRST, then fall through to polygon hit-detection only when no specimen hit is found. Checking polygon first causes region filter to trigger instead of the specimen detail panel when the boundary overlay is visible.
+2. **CloudFront caches non-CORS responses, blocking browser hyparquet fetch** — Add `Origin` to CloudFront cache key headers; configure S3 CORS with `AllowedHeaders: [Range]` and `ExposeHeaders: [Content-Range, Accept-Ranges, Content-Length]`. Both S3 CORS and CloudFront cache policy must be configured together. (Pitfall 4)
 
-4. **Unfilled polygon has no interior hit detection** — OpenLayers only detects clicks on rendered pixels. A stroke-only polygon style leaves the interior unclickable. Always include `new Fill({ color: 'rgba(0, 0, 0, 0)' })` in the polygon style (transparent but hit-detectable).
+3. **dlt writes to read-only `/var/task` on Lambda cold start** — Set `DLT_DATA_DIR=/tmp/dlt` as Lambda environment variable. This is separate from the DuckDB path configuration. (Pitfall 10)
 
-5. **FilterState must be updated atomically** — Adding region fields to `FilterState` without simultaneously updating `isFilterActive()`, `matchesFilter()`, `buildSearchParams()`, `parseUrlParams()`, and the `FilterChangedEvent` interface produces a filter that shows active in the UI but has zero effect on the map.
+4. **DuckDB single-writer lock blocks concurrent invocations** — Set `reservedConcurrentExecutions: 1` in CDK. Add stale lock file detection in handler (mtime > 15 min = stale lock, safe to delete). (Pitfall 6)
+
+5. **Ecdysis links pipeline exceeds 15-minute Lambda timeout on cold run** — Seed DuckDB locally before enabling the Lambda schedule. Only incremental runs (new occurrenceIDs) belong in Lambda. Document the bootstrap procedure. (Pitfall 9)
+
+6. **EFS security group misconfiguration causes silent Lambda timeout** — Use `fileSystem.connections.allowDefaultPortFrom(lambdaFunction)` in CDK; explicitly verify Lambda SG has egress TCP 2049 to EFS SG. (Pitfall 8)
 
 ## Implications for Roadmap
 
-Based on research, the phase structure is dictated by hard sequential dependencies. No phases can be usefully parallelized.
+Based on combined research, the dependency chain dictates a 5-phase structure. Each phase builds on infrastructure that must exist before the next phase can be validated.
 
-### Phase 1: Pipeline Spatial Join
+### Phase 1: CDK Infrastructure (VPC + EFS + Lambda stub)
 
-**Rationale:** The frontend cannot validate region filtering without `county` and `ecoregion_l3` columns in both Parquet files. This phase has no frontend dependencies and is independently testable against real data.
-**Delivers:** `ecdysis.parquet` and `samples.parquet` with region columns; WA county and ecoregion GeoJSON files in `data/geodata/`; `build-data.sh` updated to copy GeoJSON to frontend assets; CI schema validation updated
-**Addresses:** Pipeline spatial join (P1), GeoJSON boundary files (P1)
-**Avoids:**
-- CRS mismatch — call `.to_crs('EPSG:4326')` before sjoin; assert both inputs report the same CRS
-- 408 coastal nulls — add nearest-polygon fallback; assert `ecoregion_l3.isna().sum() == 0` after fallback
-- Unsimplified GeoJSON — apply `simplify(0.005)` during export; verify both files under 400 KB
-- `intersects` performance trap — use `within` + fallback, not `intersects` (4.3s vs 0.03s on live data)
+**Rationale:** All subsequent phases depend on the Lambda existing in AWS with EFS mounted. A stub handler (prints "hello", verifies EFS read/write) confirms VPC networking, EFS security groups, and NAT Gateway routing before any real pipeline code is involved. Debugging infra issues is far easier with a minimal handler.
 
-### Phase 2: Frontend Data Layer
+**Delivers:** VPC with NAT Gateway + S3 Gateway Endpoint; EFS FileSystem + AccessPoint (`removalPolicy: RETAIN`); `DockerImageFunction` stub; EventBridge schedule; Lambda URL output in CDK; clean `cdk deploy`.
 
-**Rationale:** Validates that Parquet columns parse correctly and filter logic is sound before any UI is wired up. Each piece is testable via browser console against real loaded data.
-**Delivers:** Region columns read from Parquet and set as OL feature properties; `FilterState` extended with `selectedCounties` and `selectedEcoregions`; `isFilterActive()` and `matchesFilter()` extended; `region-layer.ts` module created with polygon styling
-**Implements:** FilterState singleton extension, `region-layer.ts` module, Vite `?url` GeoJSON import, source-swapping VectorLayer pattern
-**Avoids:**
-- FilterState partial update — extend `isFilterActive()`, `matchesFilter()`, `isFilterActive()` in the same commit; do not add the field without updating the functions
-- Unfilled polygon — include transparent fill in polygon style from the start; test by clicking interior of a polygon before proceeding to Phase 3
+**Features addressed:** Scheduled invocation, Lambda URL, EFS persistence foundation, IAM role with S3 grants.
 
-### Phase 3: Map Integration
+**Pitfalls to address:** EFS security group misconfiguration (Pitfall 8); DuckDB single-writer lock via `reservedConcurrentExecutions: 1` (Pitfall 6); container image packaging decision (Pitfall 2).
 
-**Rationale:** Polygon click-to-filter is the primary discovery mechanism and must be validated before building the sidebar multi-select UI that mirrors the same state. URL state must be complete before sidebar state restore is implemented.
-**Delivers:** `regionLayer` added to OL map layer stack; `boundaryMode` @state; singleclick handler extended with specimen-first polygon pre-check; URL params `bm`, `counties`, `ecor` encoded and decoded; `countyOptions`/`ecoregionOptions` derived from loaded Parquet data and passed to sidebar as @property
-**Implements:** Polygon click pre-check pattern (specimen-first), region options from Parquet data, URL state extension
-**Avoids:**
-- Polygon click swallowing specimen clicks — explicit specimen-first hit-detection order; do not check `regionLayer.getFeatures()` first
-- Region overlay toggle conflated with specimen/samples toggle — keep `boundaryMode` state independent of `layerMode`
+**Note:** Expect 15-25 min for first CDK deploy (NAT Gateway provisioning + Docker image build).
 
-### Phase 4: Sidebar UI
+### Phase 2: Lambda Handler + Dockerfile
 
-**Rationale:** UI last — autocomplete options depend on Parquet data loaded and passed from Phase 3; polygon click confirmed working before building the sidebar that mirrors the same filter state.
-**Delivers:** Boundary toggle (Off / Counties / Ecoregions) in sidebar; county and ecoregion multi-select autocomplete with removable chips; `FilterChangedEvent` extended with new fields; `_clearFilters()` extended to reset region Sets; URL-restore properties for region state
-**Implements:** Multi-select chip UI (requires custom rendered list — `<datalist>` is single-select only), `FilterChangedEvent` extension, sidebar URL-restore pattern
-**Avoids:**
-- Partial clear — "Clear filters" button must reset `selectedCounties` and `selectedEcoregions`
-- Region Lit `@state` divorced from FilterState singleton — must mirror region selections to `filterState` singleton so `clusterStyle` in `style.ts` sees the correct state
-- No visual feedback — chips must show region type label ("county" / "ecoregion") to disambiguate when both types are active
+**Rationale:** The Dockerfile and handler code must work before the frontend can depend on S3 output. Build real pipeline execution in Lambda: multi-stage Dockerfile with geopandas + DuckDB spatial extension pre-installed, `handler(event, context)` wrapper in `run.py`, `export.py` parameterized for S3 output, CloudFront invalidation after upload.
+
+**Delivers:** Working end-to-end pipeline run triggered by Lambda URL; `S3/data/*.parquet` and `S3/data/*.geojson` present after invocation; `S3/backup/beeatlas.duckdb` present; CloudFront invalidated.
+
+**Features addressed:** Full pipeline execution in Lambda, S3 backup, CloudFront invalidation, restore-from-S3 on empty EFS.
+
+**Pitfalls to address:** DuckDB temp on `/tmp` not EFS (Pitfall 1); dlt data dir set to `/tmp/dlt` (Pitfall 10); Lambda timeout at 900s; Python 3.14 base image verified (Pitfall 3); seed DuckDB locally before first Lambda run to avoid links timeout (Pitfall 9).
+
+### Phase 3: Seed DuckDB + Pytest Coverage
+
+**Rationale:** Establishing the test fixture before frontend changes pins the export contract. Tests can run in CI without live AWS access or local DuckDB. A failing export.py test after pipeline changes is caught before deployment.
+
+**Delivers:** `data/fixtures/beeatlas-test.duckdb` committed to git; `data/tests/test_export.py` passing with `uv run pytest`; export column schema validated.
+
+**Features addressed:** Test coverage gate; export contract pinning.
+
+**Pitfalls to address:** Incremental run logic validated against DuckDB (not links.parquet) so skip logic survives Lambda restarts (Pitfall 9).
+
+### Phase 4: Frontend Runtime Fetch
+
+**Rationale:** Safe to change only after Phase 2 has confirmed `S3/data/` files exist in production. Remove bundled asset imports; add loading state and error handling; validate same-origin fetch from CloudFront. CORS configuration must be done in this phase even though same-origin (beeatlas.net) doesn't need it — local dev (localhost:5173) does.
+
+**Delivers:** Frontend builds without local Parquet/GeoJSON files; loading spinner during fetch; user-visible error on fetch failure; local dev working via Vite proxy or CloudFront direct.
+
+**Features addressed:** Runtime data fetching, loading state, error handling, Cache-Control headers.
+
+**Pitfalls to address:** CloudFront CORS cache (Pitfall 4); S3 CORS OPTIONS preflight (Pitfall 5); avoid hardcoding CloudFront domain — use root-relative `/data/` path (Architecture Anti-Pattern 5).
+
+### Phase 5: CI Simplification
+
+**Rationale:** Cleanup that is cosmetic until Phases 1-4 are stable. Removing `fetch-data.yml` before the Lambda schedule is confirmed working would break the existing fallback. Do this last once the pipeline has completed at least one successful scheduled run.
+
+**Delivers:** `deploy.yml` builds frontend only (no `build:data` step, no S3 cache env var); `fetch-data.yml` deleted; CI deploys in less time.
+
+**Features addressed:** CI cleanup, removal of obsolete pipeline workflow.
 
 ### Phase Ordering Rationale
 
-- Pipeline-first is non-negotiable: frontend cannot read columns that don't exist in the Parquet files
-- Data layer before UI: filter logic correctness is verifiable independently via browser console before UI is built
-- Map click before sidebar: primary interaction pattern validated before secondary UI that mirrors the same state
-- URL params in Phase 3 (not Phase 4): URL state must be present before sidebar restore logic is written in Phase 4
-- Each phase is independently deployable and testable before the next begins
+- Infrastructure must precede code: Lambda handler code cannot be tested in AWS without the VPC, EFS, and Lambda construct deployed first.
+- Tests before frontend swap: pinning the export schema before changing how the frontend loads data prevents silent breakage of the data contract.
+- Frontend swap before CI cleanup: changing CI before Phase 4 confirms live data fetch works would leave the site broken with no fallback.
+- Manual bootstrap prerequisite: the Ecdysis timeout constraint (38 min cold run vs 15 min Lambda limit) means the DuckDB must be seeded locally and uploaded before the EventBridge schedule is enabled. This is a manual step documented in Phase 2, not a separate phase.
 
 ### Research Flags
 
-All phases have well-documented, codebase-verified patterns. No phases require `/gsd:research-phase`.
+Phases with straightforward, well-documented patterns (research-phase not needed):
+- **Phase 1** — CDK VPC/EFS/Lambda constructs are all in `aws-cdk-lib`; official docs and CDK construct snippets are in ARCHITECTURE.md
+- **Phase 3** — pytest + DuckDB fixture is standard Python testing; no novel integrations
+- **Phase 5** — CI cleanup; no research needed
 
-- **Phase 1:** geopandas sjoin is fully documented; all data sources are in the repo or single-step downloadable; exact pitfalls are identified with measured data (408 nulls confirmed, sjoin timing confirmed)
-- **Phase 2:** Extends existing FilterState singleton pattern; OL VectorSource/VectorLayer already used in codebase; new module follows established pattern
-- **Phase 3:** Extends existing singleclick handler with documented priority pattern; URL encoding follows established pattern in `bee-map.ts`
-- **Phase 4:** Extends existing sidebar with custom multi-select chip component; the chip pattern is standard HTML/CSS with no obscure APIs
+Phases that warrant careful review of PITFALLS.md before starting (not full research-phase, but read the relevant pitfalls first):
+- **Phase 2** — Dockerfile for geopandas on Amazon Linux 2023 is finicky (GDAL system deps); DuckDB spatial extension pre-installation is non-obvious; refer to Pitfalls 1, 9, 10
+- **Phase 4** — CloudFront CORS caching is the most likely production-only failure mode; refer to Pitfalls 4 and 5 before touching CloudFront/S3 config
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All claims verified against actual repo source files and live data; no new packages required |
-| Features | HIGH | Existing codebase inspected directly; OL Select API verified; UX patterns cross-referenced from multiple sources |
-| Architecture | HIGH | All architectural decisions derived from direct inspection of current source files; no external research required |
-| Pitfalls | HIGH | Most pitfalls verified on live data (408 coastal nulls measured, sjoin timing measured, CRS confirmed on actual zip file) |
+| Stack | HIGH | All new constructs in `aws-cdk-lib` (pinned); Python 3.14 Lambda runtime confirmed GA November 2025; hyparquet `asyncBufferFromUrl` confirmed stable API; no new npm packages needed |
+| Features | HIGH | Based on direct inspection of `run.py`, `export.py`, `pyproject.toml`, existing CI workflows, CDK stack; iNat rate limits from official docs |
+| Architecture | HIGH | CDK construct code verified against official docs; data flow derived from direct source inspection of actual pipeline code |
+| Pitfalls | HIGH for Lambda/EFS/CORS (verified AWS docs); MEDIUM for dlt-specific Lambda behavior (limited official dlt-on-Lambda docs; extrapolated from DuckDB-on-Lambda community reports) |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **GeoJSON property name for ecoregions:** The singleclick handler needs the exact GeoJSON property name for the region name. For counties, the Census TIGER `NAME` field is confirmed. For ecoregions, the CEC NA L3 shapefile uses `NA_L3NAME` — but ARCHITECTURE.md uses `US_L3NAME` as a placeholder. Confirm the actual property name against the generated `data/geodata/epa_l3_ecoregions_wa.geojson` before writing the click handler.
+- **DuckDB spatial extension pre-installation:** The exact mechanism for bundling the spatial extension into the container image (during Docker build) needs to be verified against the Amazon Linux 2023 Lambda base image. The extension downloads binaries at install time; confirm the extension cache directory path and that it survives into the final image stage.
 
-- **Multi-select chip UI implementation:** The existing sidebar uses `<datalist>` for single-select taxon autocomplete. Multi-select requires a custom rendered list with chips and an input. The exact HTML/CSS structure is not specified in research — this is a local design decision to make during Phase 4. No library is needed, but the implementation surface is open.
+- **NAT Gateway cost decision:** Research recommends starting with a single NAT Gateway (~$32/month) for simplicity and revisiting with a NAT Instance (EC2 t3.nano, ~$3-4/month) if cost is a concern. This is an implementation-time decision, not a blocking gap.
 
-- **CI schema validation update:** `scripts/validate-schema.mjs` must be updated to include `county` and `ecoregion_l3` in expected column lists for both Parquet files. This is a two-line change but is easy to omit; include it as an explicit task in Phase 1.
+- **`byteLength` for hyparquet `asyncBufferFromUrl`:** Passing `byteLength` to `asyncBufferFromUrl` saves one HEAD request per Parquet file on cold cache load. File sizes are known post-pipeline-run. Consider exposing Content-Length via CloudFront and using it in the frontend to optimize first-load time. Low priority but noted.
+
+- **Bootstrap procedure documentation:** The manual steps to seed EFS before enabling the EventBridge schedule (run Ecdysis links locally, upload DuckDB to S3, restore from S3 to EFS) must be documented before Phase 2 is considered complete. This is not covered by any automated test.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- `data/pyproject.toml` — package versions confirmed (geopandas 1.1.2, pyogrio 0.12.1, pyarrow 22)
-- `data/NA_CEC_Eco_Level3.zip` — read with geopandas; 11 WA ecoregions verified after reproject + dissolve; CRS confirmed as non-EPSG spherical Lambert AEA
-- `data/ecdysis/occurrences.py`, `data/inat/download.py`, `data/inat/observations.py` — pipeline structure confirmed
-- `frontend/src/bee-map.ts`, `bee-sidebar.ts`, `parquet.ts`, `filter.ts`, `style.ts` — full architecture confirmed via direct inspection
-- `frontend/package.json` — ol 10.7.0, @types/geojson 7946.0.16, vite 6.2.3
-- Live ecdysis.parquet — 46,090 rows; 408 coastal nulls measured; `within` sjoin = 0.03s, `intersects` = 4.3s
-- geopandas.org sjoin API docs — `predicate='within'` vs `intersects` boundary behavior
-- OpenLayers hit detection (PR #7750) — polygon fill requirement for interior hit-detection confirmed in OL docs
+- AWS Lambda Python 3.14 runtime announcement (November 2025) — runtime availability confirmed
+- AWS Lambda quotas — container image 10 GB limit vs zip 250 MB limit
+- AWS CDK v2 Lambda, EFS, EC2, CloudFront API docs — construct signatures and behavior
+- AWS Lambda EFS configuration docs — access point, security group, VPC requirements
+- EventBridge Scheduler L2 GA announcement (April 2025) — preferred construct for cron Lambda
+- iNaturalist API recommended practices — rate limits (60 req/min, 10,000 req/day)
+- Live codebase (`run.py`, `export.py`, `pyproject.toml`, `beeatlas-stack.ts`, `deploy.yml`, `fetch-data.yml`, `bee-map.ts`, `region-layer.ts`) — direct inspection
 
 ### Secondary (MEDIUM confidence)
-- openlayers.org API docs — GeoJSON format `readFeatures` with `featureProjection`
-- vite.dev/guide/assets — JSON/GeoJSON inline vs `?url` behavior
-- US Census TIGER cartographic boundary file naming and FIPS code for Washington (53)
-- Map UI patterns (mapuipatterns.com) — spatial filter and feature selection patterns
-- Faceted search UX — AND across dimensions, OR within multi-select (Foursquare docs, design literature)
+- duckdb/duckdb GitHub Discussion #8687 — EFS stale file handle, DuckDB on Lambda behavior
+- DuckDB concurrency docs + GitHub issue #17158 — single-writer POSIX lock model over NFS
+- AWS CORS through CloudFront networking blog — Origin header in cache key requirement
+- NAT gateway vs VPC endpoint cost (Vantage.sh) — pricing analysis consistent with AWS pricing page
+- EFS + Lambda cold start overhead (community sources) — 1-3s as of 2025
+- tobilg.com DuckDB on Lambda — practical patterns for EFS temp directory separation
+- dlt on AWS Lambda (Leolytix/community) — env var config pattern for read-only filesystem
+
+### Tertiary (LOW confidence)
+- IPv6 Egress-Only IGW as NAT alternative (carriagereturn.nl) — potential cost optimization; not the primary recommendation; needs validation if cost becomes a concern
 
 ---
-*Research completed: 2026-03-14*
+*Research completed: 2026-03-27*
 *Ready for roadmap: yes*
