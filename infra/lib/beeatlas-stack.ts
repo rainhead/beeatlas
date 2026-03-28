@@ -167,6 +167,8 @@ function handler(event) {
         DB_PATH: '/tmp/beeatlas.duckdb',
         EXPORT_DIR: '/tmp/export',
         GEOGRAPHY_CACHE_DIR: '/tmp/geography_cache',
+        SOURCES__ECDYSIS_LINKS__DB_PATH: '/tmp/beeatlas.duckdb',
+        SOURCES__ECDYSIS_LINKS__HTML_CACHE_DIR: '/tmp/ecdysis_cache',
       },
     });
 
