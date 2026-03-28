@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that reads Parquet data bundled with the build — no server required at runtime. Three pipelines produce the Parquet: a Python pipeline fetching DarwinCore exports from Ecdysis (specimens), a pyinaturalist pipeline fetching collection events from iNat project 166376 (samples), and a scraping pipeline fetching Ecdysis specimen HTML pages to extract iNaturalist observation IDs (links). Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that reads Parquet data bundled with the build — no server required at runtime. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution moving to Lambda in v1.7.
 
 ## Core Value
 
@@ -50,8 +50,19 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILTER-04: Ecoregion multi-select autocomplete with removable chips; type labels disambiguate when both active — v1.5
 - ✓ FILTER-05: Region filter state (bm=/counties=/ecor=) encoded in URL and restored on paste — v1.5
 - ✓ FILTER-06: "Clear filters" resets county and ecoregion selections in addition to taxon and date — v1.5
-- ✓ FRONT-01: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code removed — Validated in Phase 23
-- ✓ DEBT-01: All 7 known tech debt items audited against dlt architecture; 5 closed, 1 updated, 1 carried forward; 3 new items surfaced — Validated in Phase 24
+- ✓ FRONT-01: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code removed — v1.6
+- ✓ DEBT-01: All 7 known tech debt items audited against dlt architecture; 5 closed, 1 updated, 1 carried forward; 3 new items surfaced — v1.6
+- ✓ PIPE-08: dlt pipeline files live in data/ with consolidated pyproject.toml and uv.lock; old pipeline modules removed — v1.6
+- ✓ PIPE-09: .dlt/config.toml configures all pipeline parameters (iNat project_id, Ecdysis dataset_id, html_cache_dir, db_path) — v1.6
+- ✓ PIPE-10: All 5 dlt pipelines run locally and write to data/beeatlas.duckdb (superseded by PIPE-11 for production; local dev still works) — v1.6
+- ✓ EXP-01: export.py produces ecdysis.parquet with inat_observation_id joined from occurrence_links; county/ecoregion_l3 via DuckDB ST_Within spatial join — v1.6
+- ✓ EXP-02: Nearest-polygon fallback (ST_Distance ORDER BY LIMIT 1) handles specimens outside polygon boundaries — v1.6
+- ✓ EXP-03: export.py produces samples.parquet with spatial join; specimen_count sourced from observation field_id=8338 — v1.6
+- ✓ EXP-04: validate-schema.mjs updated (inat_observation_id in ecdysis.parquet; links.parquet check removed) — v1.6
+- ✓ GEO-01: Export generates counties.geojson from geographies.us_counties (WA state_fips='53') — v1.6
+- ✓ GEO-02: Export generates ecoregions.geojson from geographies.ecoregions (polygons intersecting WA) — v1.6
+- ✓ ORCH-01: data/run.py runner sequences geographies → ecdysis → inat → projects → export; replaces build-data.sh — v1.6
+- ✓ ORCH-02: Individual pipeline steps runnable in isolation for development — v1.6
 
 ## Previous Milestone: v1.6 dlt Pipeline Migration — COMPLETE
 
@@ -95,11 +106,11 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Phase 25 complete (2026-03-28) — CDK Lambda stub deployed: DockerImageFunction, two EventBridge Scheduler rules, Lambda URL; curl confirms S3 round-trip live.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day): custom pandas pipelines replaced with 5 dlt pipelines + DuckDB store; unified export.py; data/run.py local runner; links.parquet removed from frontend. Phase 25 complete (2026-03-28) — CDK Lambda stub deployed: DockerImageFunction, two EventBridge Scheduler rules, Lambda URL; curl confirms S3 round-trip live.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
-- Pipeline: Python 3.14+, uv, pandas, pyarrow, pyinaturalist; geopandas (Ecdysis pipeline)
+- Pipeline: Python 3.14+, uv, dlt[duckdb], duckdb, requests, beautifulsoup4, geopandas
 - Infrastructure: AWS CDK v2 (TypeScript), S3 + CloudFront OAC, OIDC IAM role
 - CI/CD: GitHub Actions (build on all pushes, deploy on push to main)
 
@@ -178,4 +189,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 — v1.7 architecture revised: EFS/VPC replaced by S3-backed DuckDB (download to /tmp on invocation); simpler, no NAT Gateway cost*
+*Last updated: 2026-03-28 after v1.6 milestone*
