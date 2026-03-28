@@ -11,12 +11,14 @@ Usage:
 """
 
 import json
+import os
 from pathlib import Path
 
 import duckdb
 
-DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
-ASSETS_DIR = Path(__file__).parent.parent / "frontend" / "src" / "assets"
+DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
+_default_assets = str(Path(__file__).parent.parent / 'frontend' / 'src' / 'assets')
+ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
 
 
 def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:

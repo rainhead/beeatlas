@@ -13,16 +13,17 @@ Sources:
   https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcd_000b21a_e.zip
 """
 
+import os
 from pathlib import Path
 from typing import Iterator
 
-DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
+DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
 import dlt
 import geopandas as gpd
 import requests
 
-CACHE_DIR = Path(".geography_cache")
+CACHE_DIR = Path(os.environ.get('GEOGRAPHY_CACHE_DIR', '.geography_cache'))
 
 SOURCES = {
     "ecoregions": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip",

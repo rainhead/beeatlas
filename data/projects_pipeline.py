@@ -1,5 +1,6 @@
 """Load iNaturalist project names for projects referenced in the observations join table."""
 
+import os
 from pathlib import Path
 from typing import Iterator
 
@@ -7,7 +8,7 @@ import duckdb
 import requests
 import dlt
 
-DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
+DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 
 
 def get_project_ids_from_db(db_path: str = DB_PATH) -> list[int]:
