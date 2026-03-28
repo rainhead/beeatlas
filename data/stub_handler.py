@@ -1,8 +1,9 @@
 """Lambda handler -- runs dlt pipelines, exports data to S3, invalidates CloudFront.
 
-Dispatch modes (per D-01, D-02, D-03):
+Dispatch modes:
   - event.pipeline == 'inat' (nightly): ecdysis -> ecdysis-links -> inaturalist -> projects -> export
-  - event.pipeline == 'full' (weekly/default): geographies -> ecdysis -> ecdysis-links -> inaturalist -> projects -> export
+  - event.pipeline == 'full' (weekly/default): ecdysis -> ecdysis-links -> inaturalist -> projects -> export
+  - event.pipeline == 'geographies' (one-time seed): geographies only, no export upload
 """
 
 import json
@@ -21,7 +22,8 @@ EXPORT_DIR = '/tmp/export'
 EXPORT_FILES = ['ecdysis.parquet', 'samples.parquet', 'counties.geojson', 'ecoregions.geojson']
 
 NIGHTLY_STEPS = ['ecdysis', 'ecdysis-links', 'inaturalist', 'projects', 'export']
-FULL_STEPS = ['geographies', 'ecdysis', 'ecdysis-links', 'inaturalist', 'projects', 'export']
+FULL_STEPS = ['ecdysis', 'ecdysis-links', 'inaturalist', 'projects', 'export']
+GEOGRAPHY_STEPS = ['geographies']
 
 
 def handler(event, context):
@@ -37,7 +39,12 @@ def handler(event, context):
     else:
         payload = event
     pipeline_mode = payload.get('pipeline', 'full')
-    steps = FULL_STEPS if pipeline_mode == 'full' else NIGHTLY_STEPS
+    if pipeline_mode == 'geographies':
+        steps = GEOGRAPHY_STEPS
+    elif pipeline_mode == 'inat':
+        steps = NIGHTLY_STEPS
+    else:
+        steps = FULL_STEPS
     print(f"Pipeline mode: {pipeline_mode}, steps: {steps}")
 
     # 1. Download DuckDB from S3 (PIPE-11)
@@ -63,27 +70,29 @@ def handler(event, context):
         elapsed = time.monotonic() - step_start
         print(f"--- {step_name} done in {elapsed:.1f}s ---")
 
-    # 3. Upload exports to S3 /data/ (PIPE-12)
-    for filename in EXPORT_FILES:
-        local_path = f'{EXPORT_DIR}/{filename}'
-        s3_key = f'data/{filename}'
-        s3.upload_file(local_path, BUCKET, s3_key)
-        print(f"Uploaded {local_path} -> s3://{BUCKET}/{s3_key}")
+    # 3. Upload exports to S3 /data/ (PIPE-12) -- skipped for geographies-only runs
+    if pipeline_mode != 'geographies':
+        for filename in EXPORT_FILES:
+            local_path = f'{EXPORT_DIR}/{filename}'
+            s3_key = f'data/{filename}'
+            s3.upload_file(local_path, BUCKET, s3_key)
+            print(f"Uploaded {local_path} -> s3://{BUCKET}/{s3_key}")
 
     # 4. Backup DuckDB to S3 /db/ (PIPE-13)
     s3.upload_file(TMP_DB, BUCKET, DB_KEY)
     print(f"Backed up DuckDB to s3://{BUCKET}/{DB_KEY}")
 
-    # 5. Invalidate CloudFront /data/* (PIPE-14)
-    cf = boto3.client('cloudfront')
-    cf.create_invalidation(
-        DistributionId=DISTRIBUTION_ID,
-        InvalidationBatch={
-            'Paths': {'Quantity': 1, 'Items': ['/data/*']},
-            'CallerReference': str(uuid.uuid4()),
-        },
-    )
-    print(f"CloudFront invalidation created for /data/*")
+    # 5. Invalidate CloudFront /data/* (PIPE-14) -- skipped for geographies-only runs
+    if pipeline_mode != 'geographies':
+        cf = boto3.client('cloudfront')
+        cf.create_invalidation(
+            DistributionId=DISTRIBUTION_ID,
+            InvalidationBatch={
+                'Paths': {'Quantity': 1, 'Items': ['/data/*']},
+                'CallerReference': str(uuid.uuid4()),
+            },
+        )
+        print(f"CloudFront invalidation created for /data/*")
 
     total = time.monotonic() - overall_start
     print(f"Pipeline complete in {total:.1f}s: {pipeline_mode}")
