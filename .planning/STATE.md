@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: dlt Pipeline Migration
-status: completed
-stopped_at: Completed 24-01-PLAN.md
-last_updated: "2026-03-27T23:35:02.751Z"
+milestone: v1.7
+milestone_name: Production Pipeline Infrastructure
+status: defining requirements
+stopped_at: —
+last_updated: "2026-03-27T23:50:00.000Z"
 last_activity: 2026-03-27
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 24 — tech-debt-audit
+**Current focus:** Defining v1.7 requirements
 
 ## Current Position
 
-Phase: 24
-Plan: Not started
-Status: v1.6 milestone complete
-Last activity: 2026-03-27
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-27 — Milestone v1.7 started
 
 Progress: [██████████] 100%
 

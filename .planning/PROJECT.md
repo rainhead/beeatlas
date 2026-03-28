@@ -53,19 +53,23 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FRONT-01: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code removed — Validated in Phase 23
 - ✓ DEBT-01: All 7 known tech debt items audited against dlt architecture; 5 closed, 1 updated, 1 carried forward; 3 new items surfaced — Validated in Phase 24
 
-## Current Milestone: v1.6 dlt Pipeline Migration — COMPLETE
+## Previous Milestone: v1.6 dlt Pipeline Migration — COMPLETE
 
 **Goal:** Replace the custom data pipeline with dlt-based pipelines backed by an authoritative DuckDB store, with a Parquet export layer feeding the existing frontend.
 
-**Target features:**
-- Port dlt-inat-test prototype into data/, consolidate pyproject.toml, remove old pipeline modules
-- Parquet export: DuckDB → ecdysis.parquet, samples.parquet, links.parquet with frontend-compatible schemas
-- Spatial join (county/ecoregion_l3) implemented in DuckDB spatial extension, including nearest-polygon fallback
-- GeoJSON generation from geographies DuckDB tables (replacing build_geojson.py)
-- Local orchestration replacing build-data.sh
-- Tech debt audit: review all known items against new architecture
+## Current Milestone: v1.7 Production Pipeline Infrastructure
 
-**Deferred:** Production infra (DuckDB persistence strategy, S3, CI integration)
+**Goal:** Move pipeline execution to Lambda with EFS-backed DuckDB; export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
+
+**Target features:**
+- Lambda + EFS: CDK Lambda function with EFS mount (VPC), EventBridge schedule, Lambda URL for manual invocation
+- Pipeline in Lambda: data/run.py as Lambda handler; dlt pipelines write to EFS DuckDB, then export Parquets + GeoJSON to S3
+- DuckDB backup: Lambda backs up beeatlas.duckdb to S3 after pipeline runs
+- Frontend runtime fetching: bundled Parquets and GeoJSON removed; frontend fetches all data files from CloudFront at runtime
+- Seed DuckDB + tests: data/fixtures/beeatlas-test.duckdb committed; pytest covers export.py and pipeline logic
+- CI simplified: no pipeline code in CI; frontend build only
+
+**Deferred:** Multi-region support, Lambda concurrency controls
 
 ### Active
 
@@ -169,4 +173,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-27 — Phase 24 tech debt audit: closed 5 items resolved by dlt migration (Phases 20-23); updated EPA CRS risk item; added 3 new debt items from migration*
+*Last updated: 2026-03-27 — v1.7 milestone started: Lambda + EFS pipeline infrastructure, runtime S3 data fetching*
