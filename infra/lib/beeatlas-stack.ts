@@ -169,6 +169,7 @@ function handler(event) {
         GEOGRAPHY_CACHE_DIR: '/tmp/geography_cache',
         SOURCES__ECDYSIS_LINKS__DB_PATH: '/tmp/beeatlas.duckdb',
         SOURCES__ECDYSIS_LINKS__HTML_CACHE_DIR: '/tmp/ecdysis_cache',
+        SOURCES__INATURALIST__API_TOKEN: 'eyJhbGciOiJIUzUxMiJ9.eyJ1c2VyX2lkIjo3Mjg1NTQsImV4cCI6MTc3NDgxMTk4NH0.famzv09dyWSA2B9iaDcDYptLFdt8oSSpXWCEEGbRxt2CFoRfIMRpSE-0KfwWpoQjhNMJXC7IgPi7OPWCAfbt9w',
       },
     });
 
