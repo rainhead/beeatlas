@@ -24,7 +24,7 @@ echo "--- running pipelines ---"
 mkdir -p "$EXPORT_DIR"
 export DB_PATH EXPORT_DIR
 cd "$SCRIPT_DIR"
-uv run python - <<'EOF'
+~/.local/bin/uv run python - <<'EOF'
 import sys, time
 from ecdysis_pipeline import load_ecdysis, load_links
 from inaturalist_pipeline import load_observations
