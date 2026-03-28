@@ -128,6 +128,8 @@ Plans:
   3. After invocation, `aws s3 ls s3://BUCKET/db/` shows beeatlas.duckdb with a recent modification timestamp
   4. A CloudFront invalidation for `/data/*` appears in the distribution's invalidation history after each successful invocation
 **Plans**: 1 plan
+Plans:
+- [ ] 26-01-PLAN.md — Real handler, env-var pipeline modules, production Dockerfile, CDK updates (PIPE-11, PIPE-12, PIPE-13, PIPE-14)
 
 ### Phase 27: Seed DuckDB + Tests
 **Goal**: A minimal fixture DuckDB is committed to git; pytest covers export.py schema correctness and at least one dlt pipeline module
@@ -191,7 +193,7 @@ Plans:
 | 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
-| 26. Lambda Handler + Dockerfile | v1.7 | 0/? | Not started | - |
+| 26. Lambda Handler + Dockerfile | v1.7 | 0/1 | Not started | - |
 | 27. Seed DuckDB + Tests | v1.7 | 0/? | Not started | - |
 | 28. Frontend Runtime Fetch | v1.7 | 0/? | Not started | - |
 | 29. CI Simplification | v1.7 | 0/? | Not started | - |
