@@ -1,5 +1,24 @@
 # Milestones
 
+## v1.6 dlt Pipeline Migration (Shipped: 2026-03-28)
+
+**Phases completed:** 9 phases, 13 plans, 17 tasks
+
+**Key accomplishments:**
+
+- occurrenceID UUID join key added to ParquetSource; new SampleParquetSource class exports iNat sample features with BigInt-safe INT64 coercion
+- Added sampleDotStyle (teal/blue/slate OL Circle style) and SAMPLE_RECENCY_COLORS to style.ts, plus graceful links.parquet copy to build-data.sh
+- sampleLayer wired to OL map with exclusive visibility toggle, layerMode @state, lm= URL param encode/restore, and mode-gated singleclick handler in bee-map.ts
+- Lit web component sidebar extended with Specimens/Samples toggle, mode-conditional filter controls, and a clickable recent sample events list dispatching EPSG:3857 pan/zoom events
+- Sample dot singleclick shows observation detail (observer, date, count, iNat link) via _selectedSampleEvent; specimen detail rows show iNat link or 'iNat: —' sourced from links.parquet loaded eagerly at startup
+- One-liner:
+- validate-schema.mjs updated with inat_observation_id in ecdysis.parquet and links.parquet removed; region-layer.ts wired to counties.geojson/ecoregions.geojson; stale assets deleted
+- Eliminated the links.parquet secondary fetch by reading inat_observation_id directly off ecdysis features, removing loadLinksMap, _linksMap, and the linksDump asset import
+- Closed 5 of 7 legacy tech debt items confirmed resolved by the dlt migration (Phases 20-23); updated 1 item; carried forward 1 typo; added 3 new debt items from the migration
+- CDK DockerImageFunction with S3-backed stub handler, two EventBridge Scheduler rules, and Lambda Function URL added to BeeAtlasStack; cdk synth passes with all required CloudFormation resources
+
+---
+
 ## v1.5 Geographic Regions (Shipped: 2026-03-27)
 
 **Phases completed:** 7 phases, 20 plans, 33 tasks
