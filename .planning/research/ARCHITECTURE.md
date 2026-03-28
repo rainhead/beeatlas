@@ -1,486 +1,534 @@
 # Architecture Research
 
-**Domain:** Geographic region filtering — integration into existing static bee atlas web app (v1.5)
-**Researched:** 2026-03-14
-**Confidence:** HIGH — all claims derived from direct inspection of current source files
+**Domain:** Lambda + EFS pipeline infrastructure — Washington Bee Atlas v1.7
+**Researched:** 2026-03-27
+**Confidence:** HIGH — CDK constructs verified against official docs; data flow derived from direct source inspection
 
 ## System Overview
 
+### Current Architecture (v1.6, before this milestone)
+
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     Python Pipeline (build time)                         │
-├─────────────────────────┬───────────────────────────────────────────────┤
-│  ecdysis/occurrences.py │  inat/download.py                             │
-│  (MODIFY)               │  (MODIFY)                                     │
-│  + sjoin county,        │  + sjoin county,                              │
-│    ecoregion_l3         │    ecoregion_l3                               │
-│  via regions.py (NEW)   │  via regions.py (NEW)                         │
-└────────────┬────────────┴────────────────┬──────────────────────────────┘
-             │                             │
-             ▼                             ▼
-      ecdysis.parquet               samples.parquet
-      + county col                  + county col
-      + ecoregion_l3 col            + ecoregion_l3 col
-             │                             │
-             └─────────────┬───────────────┘
-                           │ cp to frontend/src/assets/
-                           ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                     Frontend (Vite / TypeScript)                         │
-├──────────────────────────────────┬──────────────────────────────────────┤
-│  src/assets/                     │  src/                                │
-│  ecdysis.parquet   (?url import) │  filter.ts        (MODIFY)           │
-│  samples.parquet   (?url import) │  parquet.ts       (MODIFY)           │
-│  links.parquet     (?url import) │  region-layer.ts  (NEW)              │
-│  counties.geojson  (?url import) │  bee-map.ts       (MODIFY)           │
-│  ecoregions.geojson(?url import) │  bee-sidebar.ts   (MODIFY)           │
-│                                  │  style.ts         (unchanged)        │
-└──────────────────────────────────┴──────────────────────────────────────┘
-                           │
-                           ▼ (runtime, browser)
-┌─────────────────────────────────────────────────────────────────────────┐
-│  BeeMap (LitElement)                                                     │
-│  ├── OpenLayers Map                                                      │
-│  │   ├── TileLayer x2 (Esri basemap)                                    │
-│  │   ├── regionLayer (VectorLayer, NEW) ← counties or ecoregions GeoJSON│
-│  │   ├── specimenLayer (cluster VectorLayer, unchanged)                  │
-│  │   └── sampleLayer (dot VectorLayer, unchanged)                        │
-│  └── BeeSidebar (LitElement)                                             │
-│      ├── layer toggle (Specimens/Samples — unchanged)                    │
-│      ├── boundary toggle (Off/Counties/Ecoregions — NEW)                │
-│      ├── filter controls: taxon/year/month (unchanged)                   │
-│      └── filter controls: county multi-select + ecoregion multi-select   │
-│                           (NEW, inside existing filter-controls section) │
-└─────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────┐
+│  GitHub Actions (CI)                                                │
+│  deploy.yml: npm run build:data → npm run build (frontend) → S3    │
+│  fetch-data.yml (manual/scheduled): runs dlt pipelines             │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │
+                         frontend/dist/
+                      (bundled parquet + geojson)
+                                │
+┌───────────────────────────────▼────────────────────────────────────┐
+│  S3 (siteBucket) — private, OAC                                     │
+│  ├── index.html, *.js, *.css                                        │
+│  ├── assets/ecdysis.parquet    ← bundled at build time              │
+│  ├── assets/samples.parquet    ← bundled at build time              │
+│  ├── assets/counties.geojson   ← bundled at build time              │
+│  └── assets/ecoregions.geojson ← bundled at build time             │
+│  ── cache/ prefix (pipeline incremental state)                      │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ OAC
+┌───────────────────────────────▼────────────────────────────────────┐
+│  CloudFront (beeatlas.net)                                           │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ HTTPS
+┌───────────────────────────────▼────────────────────────────────────┐
+│  Browser — static SPA                                               │
+│  Reads Parquet via hyparquet (bundled as assets)                    │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Target Architecture (v1.7)
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│  GitHub Actions (CI) — SIMPLIFIED                                       │
+│  deploy.yml: npm run build (frontend only, no data) → S3               │
+│  No fetch-data.yml needed (Lambda owns pipeline execution)              │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌───────────────────────────────────────────────────────────────────────┐
+│  EventBridge Schedule (weekly cron)  Lambda URL (manual invoke)        │
+│         │                                       │                      │
+│         └────────────────┬────────────────────── ┘                     │
+│                          ▼                                              │
+│  ┌─────────────────────────────────────────────────────────────┐        │
+│  │  Lambda Function (PipelineFn) — Python 3.14 container image  │        │
+│  │  VPC: private subnet, SG allows EFS port 2049 egress          │        │
+│  │  EFS mount: /mnt/data  → beeatlas.duckdb lives here           │        │
+│  │                                                               │        │
+│  │  Handler: data/run.py main()                                  │        │
+│  │    1. run dlt pipelines (writes to /mnt/data/beeatlas.duckdb) │        │
+│  │    2. export.py: export parquets + geojson to /tmp/           │        │
+│  │    3. upload /tmp/*.parquet, /tmp/*.geojson → S3 data/ prefix │        │
+│  │    4. upload /mnt/data/beeatlas.duckdb → S3 backup/ prefix    │        │
+│  └───────────────────────────────────────────────────────────────┘       │
+└────────────────────────────────────────────────────────────────────────┘
+
+┌────────────────────────────────────────────────────────────────────┐
+│  S3 (siteBucket)                                                    │
+│  ├── index.html, *.js, *.css    (deployed by CI)                    │
+│  ├── data/ecdysis.parquet       (written by Lambda)                 │
+│  ├── data/samples.parquet       (written by Lambda)                 │
+│  ├── data/counties.geojson      (written by Lambda)                 │
+│  ├── data/ecoregions.geojson    (written by Lambda)                 │
+│  ├── backup/beeatlas.duckdb     (DuckDB EFS backup by Lambda)       │
+│  └── cache/ prefix              (legacy — no longer used)           │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ OAC
+┌───────────────────────────────▼────────────────────────────────────┐
+│  CloudFront (beeatlas.net)                                           │
+└───────────────────────────────┬────────────────────────────────────┘
+                                │ HTTPS
+┌───────────────────────────────▼────────────────────────────────────┐
+│  Browser — static SPA                                               │
+│  fetch('https://beeatlas.net/data/ecdysis.parquet')  ← runtime     │
+│  fetch('https://beeatlas.net/data/samples.parquet')  ← runtime     │
+│  fetch('https://beeatlas.net/data/counties.geojson') ← runtime     │
+│  fetch('https://beeatlas.net/data/ecoregions.geojson') ← runtime   │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
 | Component | Status | Responsibility |
 |-----------|--------|----------------|
-| `data/ecdysis/regions.py` | NEW | Load WA county GeoJSON + EPA L3 ecoregion GeoJSON; expose `spatial_join_regions(gdf)` helper |
-| `data/ecdysis/occurrences.py` | MODIFY | Call `spatial_join_regions()` before `to_parquet()`; add county, ecoregion_l3 to output columns |
-| `data/inat/download.py` | MODIFY | Convert observations DataFrame to GeoDataFrame; call `spatial_join_regions()`; add county, ecoregion_l3 to samples.parquet |
-| `frontend/src/filter.ts` | MODIFY | Add `selectedCounties: Set<string>` and `selectedEcoregions: Set<string>` to `FilterState`; extend `isFilterActive()` and `matchesFilter()` |
-| `frontend/src/parquet.ts` | MODIFY | Read county + ecoregion_l3 columns from both Parquet files; set as Feature properties |
-| `frontend/src/region-layer.ts` | NEW | `countySource`, `ecoregionSource` VectorSources from GeoJSON; `regionLayer` VectorLayer; polygon style; `BoundaryMode` type export |
-| `frontend/src/bee-map.ts` | MODIFY | Import regionLayer; add boundaryMode state; pre-check polygon click in singleclick handler; extend `_applyFilter()`; extend URL encode/decode; pass new props to sidebar |
-| `frontend/src/bee-sidebar.ts` | MODIFY | Boundary toggle (3-way: off/counties/ecoregions); county multi-select autocomplete; ecoregion multi-select autocomplete; extend `FilterChangedEvent` |
+| `BeeAtlasStack` (CDK) | MODIFY | Add VPC, EFS, Lambda, EventBridge, Lambda URL; grant Lambda S3 write to `data/` and `backup/` prefixes |
+| `PipelineFn` (Lambda) | NEW | Run dlt pipelines against EFS DuckDB, export to /tmp, upload to S3 |
+| `EFS FileSystem` | NEW | Persistent store for `beeatlas.duckdb`; survives Lambda invocations |
+| `EventBridge Schedule` | NEW | Weekly cron trigger for PipelineFn |
+| `Lambda URL` | NEW | HTTP endpoint for manual pipeline invocation without API Gateway |
+| `export.py` | MODIFY | Write output to /tmp (not frontend/src/assets/) when S3_UPLOAD_PREFIX is set |
+| `frontend` | MODIFY | Replace bundled `?url` imports with `fetch()` from CloudFront runtime URLs |
+| `deploy.yml` | MODIFY | Remove build:data step; build frontend only; frontend build no longer needs parquet files present |
 
 ## Recommended Project Structure
 
 ```
+infra/lib/
+├── beeatlas-stack.ts    MODIFY — add Lambda, EFS, VPC, EventBridge, Lambda URL
+└── global-stack.ts      UNCHANGED
+
 data/
-├── ecdysis/
-│   ├── occurrences.py    MODIFY — add spatial join
-│   ├── download.py       unchanged
-│   └── regions.py        NEW — shared spatial join helper
-├── inat/
-│   ├── download.py       MODIFY — add spatial join
-│   └── observations.py   unchanged
-├── links/
-│   └── fetch.py          unchanged
-└── geodata/              NEW directory — authoritative GeoJSON source
-    ├── wa_counties.geojson
-    └── epa_l3_ecoregions_wa.geojson
+├── run.py               MODIFY (or new lambda_handler.py) — adapt for Lambda entry point
+├── export.py            MODIFY — parameterize output dir; write to /tmp when in Lambda
+├── lambda/
+│   └── Dockerfile       NEW — Python 3.14, uv, data/ dependencies, Lambda runtime
+├── ecdysis_pipeline.py  UNCHANGED
+├── inaturalist_pipeline.py  UNCHANGED
+├── geographies_pipeline.py  UNCHANGED
+├── projects_pipeline.py UNCHANGED
+└── fixtures/
+    └── beeatlas-test.duckdb  NEW — seed DuckDB for pytest
 
 frontend/src/
-├── assets/
-│   ├── ecdysis.parquet
-│   ├── samples.parquet
-│   ├── links.parquet
-│   ├── counties.geojson     NEW — bundled by Vite (copied from data/geodata/)
-│   └── ecoregions.geojson   NEW — bundled by Vite (copied from data/geodata/)
-├── filter.ts                MODIFY
-├── parquet.ts               MODIFY
-├── region-layer.ts          NEW
-├── bee-map.ts               MODIFY
-├── bee-sidebar.ts           MODIFY
-└── style.ts                 unchanged
+├── assets/              EMPTY (no parquet/geojson; removed from git)
+├── bee-map.ts           MODIFY — replace ?url imports with fetch() calls
+├── region-layer.ts      MODIFY — replace static GeoJSON imports with fetch()
+└── ...                  UNCHANGED
 ```
 
 ### Structure Rationale
 
-- **`data/geodata/`:** One authoritative copy of boundary GeoJSON. Both the pipeline (for spatial join) and the frontend asset directory (for map display) reference the same files. `build-data.sh` copies the preprocessed GeoJSON to `frontend/src/assets/` as part of the build.
-- **`data/ecdysis/regions.py`:** Both ecdysis and inat pipelines perform the identical spatial join. Shared helper avoids duplication and ensures consistent column naming.
-- **`frontend/src/region-layer.ts`:** Isolates OL VectorSource/VectorLayer construction and polygon styling. Keeps `bee-map.ts` from growing further. Exports `countySource`, `ecoregionSource`, `regionLayer`, and `BoundaryMode`.
-- **GeoJSON as Vite `?url` assets:** Same pattern as the existing Parquet files. No plugin required. CloudFront serves them compressed.
+- **`data/lambda/Dockerfile`:** Lambda requires a container image to use Python 3.14 with geopandas + duckdb spatial extension. uv is the package manager already in use. Docker allows bundling system libraries (libgdal, etc.) that geopandas needs and that cannot be installed as Lambda layers.
+- **`data/fixtures/beeatlas-test.duckdb`:** Enables pytest for export.py without running full pipelines. Committed small fixture database allows deterministic test validation of export SQL queries.
+- **Empty `frontend/src/assets/`:** Parquet and GeoJSON files are no longer bundled. The directory can remain for other static assets (e.g., icons). Vite asset imports become `fetch()` calls pointing at CloudFront.
 
 ## Architectural Patterns
 
-### Pattern 1: Vite `?url` Import for GeoJSON Assets
+### Pattern 1: Lambda Container Image for Python + geopandas
 
-**What:** Import GeoJSON files with Vite's `?url` suffix to get a cache-busted URL string; fetch at runtime via OpenLayers VectorSource.
+**What:** Build a Docker container image from `public.ecr.aws/lambda/python:3.14`. Install system dependencies (libgdal), then Python dependencies via uv. Package `data/` source files as the Lambda handler code.
 
-**When to use:** Static files that must be served separately from the JS bundle (too large to inline). Already used for all three Parquet files in `bee-map.ts`.
+**When to use:** When Lambda dependencies include compiled native extensions (geopandas, duckdb spatial). Lambda layers cannot satisfy geopandas system library requirements. Container images support up to 10GB and arbitrary OS packages.
 
-**Trade-offs:** GeoJSON is a separate HTTP request, not inlined. For WA counties (~300-600KB raw, ~50-80KB gzipped) and EPA ecoregions (~500KB-2MB raw, ~80-200KB gzipped), this is the correct approach. Inline JSON import would bloat the bundle and delay first parse.
+**Trade-offs:** Container build adds ~2-5 minutes to CDK deploy. Cold starts are slower than zip-deployed functions (~5-15s for a data-heavy image). Acceptable for a weekly-scheduled pipeline — latency is not a concern.
 
-**Example:**
+**CDK construct (TypeScript):**
 ```typescript
-import countiesUrl from './assets/counties.geojson?url';
-import ecoregionsUrl from './assets/ecoregions.geojson?url';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 
-const countySource = new VectorSource({
-  url: countiesUrl,
-  format: new GeoJSON(),
+const pipelineFn = new lambda.DockerImageFunction(this, 'PipelineFn', {
+  code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../../data'), {
+    file: 'lambda/Dockerfile',
+  }),
+  vpc,
+  filesystem: lambda.FileSystem.fromEfsAccessPoint(accessPoint, '/mnt/data'),
+  timeout: cdk.Duration.minutes(15),  // max Lambda timeout
+  memorySize: 3008,                   // geopandas + spatial joins are memory-hungry
+  environment: {
+    DUCKDB_PATH: '/mnt/data/beeatlas.duckdb',
+    S3_BUCKET: siteBucket.bucketName,
+    DATA_PREFIX: 'data/',
+    BACKUP_PREFIX: 'backup/',
+  },
 });
 ```
 
-### Pattern 2: Single regionLayer with Source Swapping
+### Pattern 2: EFS Persistent DuckDB via Access Point
 
-**What:** One OL VectorLayer (`regionLayer`) whose source is swapped between `countySource` and `ecoregionSource` when the boundary toggle changes. The layer is hidden when boundary mode is 'off'.
+**What:** Create an EFS FileSystem in the VPC. Create an access point with a specific POSIX user/group that matches the Lambda execution context. Mount to `/mnt/data` in the Lambda runtime. `beeatlas.duckdb` lives at `/mnt/data/beeatlas.duckdb` and persists across invocations.
 
-**When to use:** Exclusive toggle between two GeoJSON datasets. Source swapping is cleaner than maintaining two layers with independent z-order management.
+**When to use:** Lambda `/tmp` is ephemeral (10GB max, cleared between cold starts). DuckDB with the full bee atlas dataset grows over time. EFS provides durable, shared storage accessible only from within the VPC.
 
-**Trade-offs:** Both sources are constructed at startup but OL's `url` option defers the HTTP fetch until the source is first rendered. Swapping triggers the other source's fetch on first use — acceptable since the user actively requested it.
-
-**Example:**
+**CDK construct (TypeScript):**
 ```typescript
-export type BoundaryMode = 'off' | 'counties' | 'ecoregions';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as efs from 'aws-cdk-lib/aws-efs';
 
-export function applyBoundaryMode(mode: BoundaryMode): void {
-  if (mode === 'off') {
-    regionLayer.setVisible(false);
-  } else {
-    regionLayer.setSource(mode === 'counties' ? countySource : ecoregionSource);
-    regionLayer.setVisible(true);
-  }
-}
-```
+const vpc = new ec2.Vpc(this, 'PipelineVpc', {
+  maxAzs: 2,
+  natGateways: 1,    // Lambda needs NAT to reach iNat API and Ecdysis
+});
 
-### Pattern 3: FilterState Singleton Extension
+const fileSystem = new efs.FileSystem(this, 'PipelineEfs', {
+  vpc,
+  removalPolicy: cdk.RemovalPolicy.RETAIN,  // do NOT destroy on stack update
+});
 
-**What:** Add `selectedCounties: Set<string>` and `selectedEcoregions: Set<string>` to the `FilterState` interface in `filter.ts`. Extend `isFilterActive()` and `matchesFilter()`.
-
-**When to use:** Consistent with the established singleton pattern. The singleton is already closed over by `clusterStyle` in `style.ts` — no new wiring required for specimen cluster ghosting to respect region filter.
-
-**Filter semantics:** OR within region sets (county OR ecoregion match is sufficient), AND with existing taxon/year/month filters.
-
-**Example:**
-```typescript
-// Extension to matchesFilter() in filter.ts:
-function matchesRegion(feature: Feature, f: FilterState): boolean {
-  const noCounties = f.selectedCounties.size === 0;
-  const noEcoregions = f.selectedEcoregions.size === 0;
-  if (noCounties && noEcoregions) return true;
-  const county = feature.get('county') as string | null;
-  const eco = feature.get('ecoregion_l3') as string | null;
-  if (!noCounties && county && f.selectedCounties.has(county)) return true;
-  if (!noEcoregions && eco && f.selectedEcoregions.has(eco)) return true;
-  return false;
-}
-```
-
-### Pattern 4: Polygon Click as Pre-Check in Singleclick Handler
-
-**What:** In `bee-map.ts` singleclick handler, check `regionLayer.getFeatures(pixel)` first (when boundaries are visible). If a polygon hit is found, extract the region name, add it to `filterState`, and return early. Otherwise fall through to the existing specimen/sample hit-testing.
-
-**When to use:** Region boundaries are a filter mechanism, not a navigation target. The click pre-check avoids conflating polygon selection with specimen/sample selection and preserves existing specimen/sample click behavior.
-
-**Example:**
-```typescript
-this.map.on('singleclick', async (event: MapBrowserEvent) => {
-  // Pre-check: polygon click when boundaries visible
-  if (this.boundaryMode !== 'off') {
-    const regionHits = await regionLayer.getFeatures(event.pixel);
-    if (regionHits.length > 0) {
-      const f = regionHits[0]!;
-      if (this.boundaryMode === 'counties') {
-        const name = f.get('COUNTY_NM') as string; // property name TBD from GeoJSON schema
-        filterState.selectedCounties = new Set([...filterState.selectedCounties, name]);
-      } else {
-        const name = f.get('US_L3NAME') as string;
-        filterState.selectedEcoregions = new Set([...filterState.selectedEcoregions, name]);
-      }
-      this._applyFilterAndSync();
-      return; // do not fall through to specimen/sample click
-    }
-  }
-  // Existing specimen/sample click logic follows...
+const accessPoint = fileSystem.addAccessPoint('LambdaAP', {
+  path: '/beeatlas',
+  createAcl: { ownerUid: '1000', ownerGid: '1000', permissions: '750' },
+  posixUser: { uid: '1000', gid: '1000' },
 });
 ```
 
-### Pattern 5: Region Options Derived from Parquet Data
+**Critical:** `removalPolicy: RETAIN` on the EFS FileSystem. If the stack is updated or recreated, DESTROY would delete the DuckDB — months of pipeline history gone. Use RETAIN and manage EFS lifecycle manually.
 
-**What:** County and ecoregion multi-select options are derived from the unique values present in `specimenSource.getFeatures()` after load — same pattern as `buildTaxaOptions()`. Do not hardcode region lists.
+### Pattern 3: EventBridge Scheduler for Weekly Pipeline Run
 
-**When to use:** Ensures only counties/ecoregions that have actual specimen data appear in the filter. Avoids showing empty filter options for regions with no records.
+**What:** Use `aws-cdk-lib/aws-events` + `aws-cdk-lib/aws-events-targets` to create a Rule with a cron schedule targeting the Lambda function. The EventBridge Scheduler L2 construct is also now GA (as of April 2025) but the existing `aws-events` approach is simpler and sufficient.
 
-**Trade-offs:** Options are not available until `specimenSource.once('change')` fires. This is identical to the existing taxon autocomplete behavior and is acceptable.
+**When to use:** Weekly pipeline execution on a fixed schedule. No dynamic scheduling, no payload variation.
 
-**Example:**
+**CDK construct (TypeScript):**
 ```typescript
-function buildRegionOptions(features: Feature[]): { counties: string[], ecoregions: string[] } {
-  const counties = new Set<string>();
-  const ecoregions = new Set<string>();
-  for (const f of features) {
-    const c = f.get('county') as string | null;
-    const e = f.get('ecoregion_l3') as string | null;
-    if (c) counties.add(c);
-    if (e) ecoregions.add(e);
-  }
-  return {
-    counties: [...counties].sort(),
-    ecoregions: [...ecoregions].sort(),
-  };
-}
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
+
+new events.Rule(this, 'PipelineSchedule', {
+  schedule: events.Schedule.cron({ weekDay: 'MON', hour: '6', minute: '0' }),
+  targets: [new targets.LambdaFunction(pipelineFn)],
+});
 ```
 
-### Pattern 6: Shared GeoJSON Files (Pipeline + Frontend)
+### Pattern 4: Lambda URL for Manual Invocation
 
-**What:** The WA county and EPA ecoregion GeoJSON files live in `data/geodata/`. The pipeline reads them there for spatial join. `build-data.sh` copies them to `frontend/src/assets/` for bundling.
+**What:** Add a Function URL to the Lambda with `FunctionUrlAuthType.NONE` (no auth) or `AWS_IAM`. The URL allows triggering the pipeline without the EventBridge schedule — useful for immediate re-run after a data fix.
 
-**When to use:** Both pipeline and frontend need the same boundary geometry. One authoritative copy prevents drift between what was joined and what is displayed.
+**When to use:** Operational convenience. No API Gateway needed for a single-endpoint, single-function invocation.
 
-**Trade-offs:** The pipeline spatial join and the display GeoJSON must match exactly. If the display GeoJSON is simplified (for size), the pipeline should also use the simplified version — otherwise a point near a boundary may show in a county visually but be joined to a different county in the parquet.
+**Security note (October 2025 change):** New function URLs now require both `lambda:InvokeFunctionUrl` AND `lambda:InvokeFunction` permissions for IAM-authenticated calls. With `NONE` auth type, the URL is publicly accessible — acceptable for a trigger-only endpoint where the Lambda itself is idempotent and rate-limited by the pipeline's own logic. If the URL should be restricted, use `FunctionUrlAuthType.AWS_IAM` and call with signed requests.
+
+**CDK construct (TypeScript):**
+```typescript
+const fnUrl = pipelineFn.addFunctionUrl({
+  authType: lambda.FunctionUrlAuthType.NONE,
+});
+
+new cdk.CfnOutput(this, 'PipelineFnUrl', {
+  value: fnUrl.url,
+  description: 'Lambda URL for manual pipeline invocation',
+});
+```
+
+### Pattern 5: Runtime Fetch from CloudFront (Frontend)
+
+**What:** Replace Vite `?url` asset imports with `fetch()` calls using hardcoded CloudFront-relative URLs. The data files are served from the same CloudFront distribution as the app, so relative paths work.
+
+**When to use:** Data files are no longer bundled with the frontend. They are written to S3 by Lambda after each pipeline run. The frontend must fetch them at runtime.
+
+**Trade-offs:** Adds 1-4 network requests on page load (4 files). CloudFront caching means subsequent loads are fast. The browser fetch API is already in use for hyparquet streaming. No additional library needed.
+
+**Before (bundled):**
+```typescript
+import ecdysisDump from './assets/ecdysis.parquet?url';
+import samplesDump from './assets/samples.parquet?url';
+```
+
+**After (runtime fetch):**
+```typescript
+const DATA_BASE = '/data/';  // relative to CloudFront origin
+const ecdysisDump = `${DATA_BASE}ecdysis.parquet`;
+const samplesDump = `${DATA_BASE}samples.parquet`;
+```
+
+GeoJSON files in `region-layer.ts` similarly change from static imports to URL strings passed to `VectorSource`.
+
+### Pattern 6: NAT Gateway for Lambda Outbound Internet Access
+
+**What:** Lambda in a VPC private subnet cannot reach the internet without a NAT Gateway (or VPC endpoints for each AWS service). The pipeline calls external APIs (iNaturalist REST API, Ecdysis scraper) and uses S3. NAT Gateway enables all outbound internet access from the private subnet.
+
+**Cost implication:** NAT Gateway costs ~$32/month (1 AZ) plus ~$0.045/GB data processed. For a weekly pipeline that transfers ~100MB of data, this is ~$33/month total. This is the primary new ongoing cost of the v1.7 architecture.
+
+**Alternative considered:** VPC Gateway Endpoint for S3 (free) eliminates S3 data transfer costs through the NAT but still requires the NAT for iNat/Ecdysis API calls. Use a Gateway Endpoint for S3 in addition to the NAT Gateway.
+
+**CDK addition:**
+```typescript
+// VPC Gateway Endpoint for S3 (free — avoids routing S3 traffic through NAT)
+vpc.addGatewayEndpoint('S3Endpoint', {
+  service: ec2.GatewayVpcEndpointAwsService.S3,
+});
+```
 
 ## Data Flow
 
-### Pipeline Spatial Join Flow (build time)
+### Pipeline Execution Flow (Lambda, runtime)
 
 ```
-data/geodata/wa_counties.geojson ─────────────┐
-data/geodata/epa_l3_ecoregions_wa.geojson ────┤
-                                              ▼
-                                    regions.py
-                                    load_wa_counties() → GeoDataFrame
-                                    load_epa_ecoregions() → GeoDataFrame
-                                              │
-                  ┌───────────────────────────┤
-                  ▼                           ▼
-        occurrences.py                 inat/download.py
-        reads DarwinCore zip           fetches iNat API
-        → GeoDataFrame (EPSG:4326)     → DataFrame
-        → spatial_join_regions()       → to GeoDataFrame (EPSG:4326)
-          adds county col              → spatial_join_regions()
-          adds ecoregion_l3 col          adds county col
-        → to_parquet()                   adds ecoregion_l3 col
-                  │                → to_parquet()
-                  ▼                           │
-        ecdysis.parquet                       ▼
-        (+ county, ecoregion_l3)      samples.parquet
-                  │                   (+ county, ecoregion_l3)
-                  └──────────┬────────────────┘
-                             │ cp to frontend/src/assets/
-                             ▼
-build-data.sh also:
-  cp data/geodata/counties.geojson frontend/src/assets/counties.geojson
-  cp data/geodata/ecoregions.geojson frontend/src/assets/ecoregions.geojson
+EventBridge cron OR Lambda URL invoke
+  │
+  ▼
+Lambda cold start: mount /mnt/data (EFS), import Python modules
+  │
+  ▼
+data/run.py main():
+  ├── geographies pipeline → /mnt/data/beeatlas.duckdb (geographies schema)
+  ├── ecdysis pipeline → /mnt/data/beeatlas.duckdb (ecdysis_data schema)
+  ├── ecdysis-links pipeline → /mnt/data/beeatlas.duckdb (ecdysis_data.occurrence_links)
+  ├── inaturalist pipeline → /mnt/data/beeatlas.duckdb (inaturalist_data schema)
+  ├── projects pipeline → /mnt/data/beeatlas.duckdb (projects schema)
+  └── export pipeline:
+        export.py main() [with output_dir='/tmp/data/']:
+          ├── export_ecdysis_parquet() → /tmp/data/ecdysis.parquet
+          ├── export_samples_parquet() → /tmp/data/samples.parquet
+          ├── export_counties_geojson() → /tmp/data/counties.geojson
+          └── export_ecoregions_geojson() → /tmp/data/ecoregions.geojson
+        upload /tmp/data/* → S3 siteBucket/data/*
+        upload /mnt/data/beeatlas.duckdb → S3 siteBucket/backup/beeatlas.duckdb
+  │
+  ▼
+Lambda returns success response (or error)
+  │
+  ▼
+CloudFront serves updated files on next request
+(existing CloudFront cache TTL applies — may need invalidation after pipeline run)
 ```
 
-### Frontend Filter Data Flow (runtime)
+### Frontend Data Load Flow (browser, runtime)
 
 ```
-App startup
-  ├── regionLayer created (hidden); countySource + ecoregionSource deferred
-  ├── ParquetSource loads ecdysis.parquet (reads county, ecoregion_l3 columns)
-  └── SampleParquetSource loads samples.parquet (reads county, ecoregion_l3 columns)
-
-specimenSource.once('change'):
-  └── buildRegionOptions(features) → { counties: string[], ecoregions: string[] }
-      → pushed as @property to BeeSidebar (populates autocomplete options)
-
-User selects county in autocomplete OR clicks county polygon:
-  → filterState.selectedCounties.add(countyName)
-  → clusterSource.changed() → OL rerenders specimenLayer (matchesFilter checks region)
-  → map.render() → sample layer re-evaluation (if region filter applies to samples)
-  → BeeMap recomputes filteredSummary → pushed to sidebar
-
-User toggles boundary display to 'counties':
-  → regionLayer.setSource(countySource); regionLayer.setVisible(true)
-  → OL triggers countySource fetch (if not yet loaded)
-  → polygons render on map
+Browser loads https://beeatlas.net/
+  │
+  ├── fetch /data/ecdysis.parquet → CloudFront → S3
+  │   hyparquet streams rows → OL Feature[] → specimenLayer
+  │
+  ├── fetch /data/samples.parquet → CloudFront → S3
+  │   hyparquet streams rows → OL Feature[] → sampleLayer
+  │
+  ├── fetch /data/counties.geojson (deferred until boundary toggle activated)
+  │   OL GeoJSON format → regionLayer (county mode)
+  │
+  └── fetch /data/ecoregions.geojson (deferred until boundary toggle activated)
+      OL GeoJSON format → regionLayer (ecoregion mode)
 ```
 
-### URL State Extension
+### New vs. Modified Components — Explicit Inventory
 
-New params (backward compatible — absent = no region filter):
-
-| Param | Format | Example |
-|-------|--------|---------|
-| `counties` | comma-separated county names | `counties=King,Yakima` |
-| `ecor` | comma-separated ecoregion names | `ecor=Cascades` |
-| `bm` | `counties` or `ecoregions` | `bm=counties` (boundary display mode; absent = off) |
-
-These encode into `buildSearchParams()` and decode from `parseUrlParams()` following the existing pattern for `months`, `taxon`, etc.
+| Component | Status | Key Changes |
+|-----------|--------|-------------|
+| `infra/lib/beeatlas-stack.ts` | MODIFY | Add: `ec2.Vpc`, `efs.FileSystem`, `efs.AccessPoint`, `lambda.DockerImageFunction`, `events.Rule`, `fn.addFunctionUrl()`, S3 grants for `data/*` and `backup/*` prefixes |
+| `data/lambda/Dockerfile` | NEW | Python 3.14 Lambda base image, uv, geopandas system deps, data/ source |
+| `data/run.py` | MODIFY | Add Lambda handler entry point (`handler(event, context)` wrapper around `main()`); handle DUCKDB_PATH env var |
+| `data/export.py` | MODIFY | Parameterize output directory via env var `EXPORT_DIR` (default: `frontend/src/assets/`; Lambda: `/tmp/data/`); add S3 upload step when `S3_BUCKET` env var is set |
+| `data/fixtures/beeatlas-test.duckdb` | NEW | Minimal DuckDB with enough rows to validate export SQL |
+| `data/tests/test_export.py` | NEW | pytest for export functions against fixture DuckDB |
+| `frontend/src/bee-map.ts` | MODIFY | Remove `?url` Parquet imports; replace with string constants pointing to `/data/ecdysis.parquet`, `/data/samples.parquet` |
+| `frontend/src/region-layer.ts` | MODIFY | Remove static GeoJSON imports; replace with URL strings `/data/counties.geojson`, `/data/ecoregions.geojson` passed to `VectorSource` |
+| `frontend/src/assets/` | MODIFY | Remove ecdysis.parquet, samples.parquet, counties.geojson, ecoregions.geojson from git and Vite bundling |
+| `.github/workflows/deploy.yml` | MODIFY | Remove `build:data` step; remove cache-restore step; remove S3 cache env var from build job |
+| `.github/workflows/fetch-data.yml` | DELETE | Lambda owns pipeline scheduling; this workflow is superseded |
 
 ## Integration Points
 
-### New vs. Modified — Explicit Inventory
+### CDK Construct Dependencies (deployment order)
 
-| File | Status | Key Changes |
-|------|--------|-------------|
-| `data/ecdysis/regions.py` | NEW | `load_wa_counties()`, `load_epa_ecoregions()`, `spatial_join_regions(gdf: GeoDataFrame) -> GeoDataFrame` |
-| `data/ecdysis/occurrences.py` | MODIFY | Call `spatial_join_regions()` before column selection in `to_parquet()`; add `county` and `ecoregion_l3` to output columns list |
-| `data/inat/download.py` | MODIFY | Construct GeoDataFrame from lat/lon; call `spatial_join_regions()`; add `county` and `ecoregion_l3` to `samples.parquet` output |
-| `data/geodata/wa_counties.geojson` | NEW | WA county boundaries — authoritative source |
-| `data/geodata/epa_l3_ecoregions_wa.geojson` | NEW | EPA L3 ecoregions clipped to WA — authoritative source |
-| `frontend/src/assets/counties.geojson` | NEW | Copy of data/geodata version; Vite bundles with ?url import |
-| `frontend/src/assets/ecoregions.geojson` | NEW | Copy of data/geodata version; Vite bundles with ?url import |
-| `frontend/src/filter.ts` | MODIFY | Add `selectedCounties`, `selectedEcoregions` to `FilterState`; extend `isFilterActive()` and `matchesFilter()` |
-| `frontend/src/parquet.ts` | MODIFY | Add `county`, `ecoregion_l3` to `columns` arrays in `ParquetSource` and `SampleParquetSource`; set as Feature properties |
-| `frontend/src/region-layer.ts` | NEW | `countySource`, `ecoregionSource`, `regionLayer`; `BoundaryMode` type; `applyBoundaryMode()` helper; polygon style function |
-| `frontend/src/bee-map.ts` | MODIFY | Import region-layer; add `boundaryMode` @state; add `countyOptions`/`ecoregionOptions` @state; extend singleclick handler; extend `_applyFilter()`; extend `buildSearchParams()`/`parseUrlParams()`; add restored-region @state props; pass new props to `<bee-sidebar>` |
-| `frontend/src/bee-sidebar.ts` | MODIFY | `BoundaryMode` property; boundary toggle UI; county multi-select; ecoregion multi-select; extend `FilterChangedEvent` with `selectedCounties`, `selectedEcoregions`, `boundaryMode` |
-| `build-data.sh` | MODIFY | Add `cp data/geodata/*.geojson frontend/src/assets/` step |
-| `style.ts` | UNCHANGED | No changes — region filter extension of `matchesFilter()` is transparent |
-| `infra/` (CDK) | UNCHANGED | No new AWS resources; GeoJSON assets deploy via existing `aws s3 sync` |
-
-### New TypeScript Types
-
-```typescript
-// region-layer.ts (exported):
-export type BoundaryMode = 'off' | 'counties' | 'ecoregions';
-
-// bee-sidebar.ts FilterChangedEvent extension:
-export interface FilterChangedEvent {
-  taxonName: string | null;
-  taxonRank: 'family' | 'genus' | 'species' | null;
-  yearFrom: number | null;
-  yearTo: number | null;
-  months: Set<number>;
-  selectedCounties: Set<string>;       // NEW
-  selectedEcoregions: Set<string>;     // NEW
-  boundaryMode: BoundaryMode;          // NEW
-}
+```
+GlobalStack (us-east-1) — certs, Route 53 — UNCHANGED
+  ↓
+BeeAtlasStack (us-west-2):
+  ├── ec2.Vpc                     (prerequisite for EFS + Lambda)
+  ├── efs.FileSystem              (requires VPC)
+  ├── efs.AccessPoint             (requires FileSystem)
+  ├── s3.Bucket (siteBucket)      (existing — no change)
+  ├── cloudfront.Distribution     (existing — no change)
+  ├── lambda.DockerImageFunction  (requires VPC, AccessPoint, siteBucket)
+  ├── events.Rule                 (requires Lambda)
+  └── fn.addFunctionUrl()         (requires Lambda)
 ```
 
-### Internal Boundaries
+All new constructs are additions to `BeeAtlasStack`. No new CDK stacks are required. The `GlobalStack` is unchanged.
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `filter.ts` ↔ `style.ts` | Direct singleton read (existing) | `matchesFilter()` extension includes region; `clusterStyle` automatically picks it up |
-| `filter.ts` ↔ `bee-map.ts` | Direct import + mutation (existing) | `_applyFilter()` mutates filterState, calls `clusterSource.changed()` |
-| `region-layer.ts` ↔ `bee-map.ts` | Direct import | bee-map imports `regionLayer`, `applyBoundaryMode`, `BoundaryMode` from region-layer |
-| `bee-map.ts` → `bee-sidebar.ts` | Lit `@property` (down) | New: `countyOptions`, `ecoregionOptions`, `boundaryMode`, `restoredCounties`, `restoredEcoregions` |
-| `bee-sidebar.ts` → `bee-map.ts` | `filter-changed` CustomEvent (up) | Extended `FilterChangedEvent` carries new fields |
+### IAM Permission Changes
 
-## Recommended Build Order
+The Lambda execution role (auto-created by CDK) needs:
 
-### Phase 1: Pipeline — Spatial Join
+| Permission | Resource | Why |
+|------------|----------|-----|
+| `s3:PutObject` | `siteBucket/data/*` | Upload exported parquets + geojson |
+| `s3:PutObject` | `siteBucket/backup/*` | Upload DuckDB backup |
+| `s3:GetObject` | `siteBucket/backup/*` | Restore DuckDB backup on cold start (future) |
+| EFS mount permissions | Auto-granted by `lambda.FileSystem.fromEfsAccessPoint()` | Mounts the access point |
 
-1. Acquire GeoJSON boundary files:
-   - WA county boundaries: WA State GIS Open Data portal (39 counties)
-   - EPA L3 ecoregions: EPA website (US-level file; clip to WA bounding box with geopandas)
-   - Simplify if raw file exceeds ~2MB: `gdf.simplify(tolerance=0.01, preserve_topology=True)`
-2. Create `data/ecdysis/regions.py` with `spatial_join_regions()` using geopandas `sjoin()`
-3. Modify `data/ecdysis/occurrences.py`: integrate spatial join before column selection
-4. Modify `data/inat/download.py`: add GeoDataFrame construction and spatial join
-5. Update `build-data.sh`: add GeoJSON copy step to frontend assets
-6. Validate: run pipeline locally; inspect parquet for correct county/ecoregion_l3 values on 5-10 known specimens from King County and a Cascade ecoregion
+The existing `deployerRole` (GitHub Actions OIDC) already has `siteBucket.grantReadWrite()`. No changes to its permissions are needed.
 
-**Rationale:** Pipeline first. Frontend cannot read new columns until they exist in the parquet files. This phase has no frontend dependencies and is independently testable.
+The deployer role may need `cloudfront:CreateInvalidation` after pipeline runs to clear cached data files — or the Lambda itself should call CloudFront invalidation after successful S3 upload.
 
-### Phase 2: Frontend Data Layer
+### External Service Integration
 
-1. Add `county` and `ecoregion_l3` to `columns` arrays in `parquet.ts` (both `ParquetSource` and `SampleParquetSource`)
-2. Set them as Feature properties in the loader callbacks
-3. Extend `FilterState` in `filter.ts` with `selectedCounties`, `selectedEcoregions`; initialize both as `new Set()`
-4. Extend `isFilterActive()` to return true if either set is non-empty
-5. Extend `matchesFilter()` with region check (OR within sets, AND with existing checks)
-6. Create `frontend/src/region-layer.ts`: `countySource`, `ecoregionSource`, `regionLayer`, `BoundaryMode` type, `applyBoundaryMode()`, polygon style function
+| Service | How Lambda Reaches It | Notes |
+|---------|----------------------|-------|
+| iNaturalist REST API | NAT Gateway → internet | Same credentials/rate limits as current CI pipeline |
+| Ecdysis website | NAT Gateway → internet | HTML scraping; rate-limited to ≤20 req/sec in pipeline code |
+| S3 (siteBucket) | VPC Gateway Endpoint (free) | No NAT traversal for S3 calls |
+| AWS Lambda service (for URL invocation) | Lambda URL is exposed externally | No VPC endpoint needed for incoming invocations |
 
-**Rationale:** Data layer before interaction. Validates that parquet columns parse correctly and filter logic is sound before UI is wired up. The region layer module can be created and imported without yet adding the layer to the OL map.
+## Build Order (Phases)
 
-### Phase 3: Map Integration
+The CDK → Lambda → Frontend dependency chain dictates this ordering:
 
-1. Import `regionLayer`, `applyBoundaryMode`, `BoundaryMode` from `region-layer.ts` in `bee-map.ts`
-2. Add `regionLayer` to the OL map layer stack, below specimen and sample layers
-3. Add `boundaryMode: BoundaryMode` as `@state` on BeeMap (initial: `'off'`)
-4. Extend `singleclick` handler: polygon pre-check when `boundaryMode !== 'off'`
-5. Extend `buildSearchParams()` and `parseUrlParams()` for `bm`, `counties`, `ecor` params
-6. Add `countyOptions: string[]` and `ecoregionOptions: string[]` as `@state`; populate in `specimenSource.once('change')` callback
-7. Pass new state as `@property` to `<bee-sidebar>`
+### Phase 1: CDK Infrastructure (VPC + EFS + Lambda stub)
 
-**Rationale:** Map layer and polygon click before sidebar UI. Polygon click is the primary discovery mechanism. Validates that region features load and clicks register correctly before building the sidebar multi-select.
+Build the AWS infrastructure first. A stub Lambda (e.g., `handler` that prints "hello") validates that VPC, EFS mount, and Lambda URL all work before any real pipeline code is involved.
 
-### Phase 4: Sidebar UI
+**Deliverables:**
+- VPC with private subnets and NAT Gateway
+- EFS FileSystem with access point
+- `DockerImageFunction` stub with EFS mount at `/mnt/data`
+- EventBridge weekly schedule rule
+- Lambda URL output in CDK outputs
+- CDK deploy succeeds cleanly
 
-1. Extend `FilterChangedEvent` interface with `selectedCounties`, `selectedEcoregions`, `boundaryMode`
-2. Add `boundaryMode` property and boundary toggle buttons to `BeeSidebar` (3-way: Off / Counties / Ecoregions)
-3. Add `countyOptions` and `ecoregionOptions` properties to sidebar
-4. Add `selectedCounties` and `selectedEcoregions` internal `@state` fields
-5. Render county multi-select autocomplete (uses `<datalist>` or custom multi-select)
-6. Render ecoregion multi-select autocomplete
-7. Include new fields in `_dispatchFilterChanged()`
-8. Add URL-restore properties for region state; extend `updated()` handler
+**Why first:** All subsequent phases depend on the Lambda existing in AWS. EFS mount issues are easier to debug with a minimal handler. NAT Gateway routing must be confirmed before the pipeline tries to call iNat/Ecdysis.
 
-**Rationale:** UI last. Autocomplete options depend on parquet data being loaded (populated in Phase 3 step 6). The sidebar change is the largest UI modification and benefits from the data layer and polygon click being confirmed working first.
+**Pitfall:** CDK deploy time increases significantly with NAT Gateway and Docker image build. Expect 15-25 minutes for first deploy.
+
+### Phase 2: Lambda Handler + Dockerfile
+
+Make the real pipeline code run inside Lambda. This requires:
+
+1. Dockerfile for Lambda container (Python 3.14 base, system deps for geopandas, uv install)
+2. `data/run.py` gets a `handler(event, context)` wrapper that calls `main()`
+3. `data/export.py` reads `EXPORT_DIR` env var; writes to `/tmp/data/` in Lambda context; uploads to S3 after successful export
+4. `DUCKDB_PATH` env var controls DuckDB file location (`/mnt/data/beeatlas.duckdb`)
+5. Test by invoking Lambda URL manually; verify S3 receives `data/ecdysis.parquet`
+
+**Why second:** Lambda handler must work before the frontend can fetch from it. The Dockerfile is a prerequisite for the Lambda deploy that was stubbed in Phase 1.
+
+**Pitfall:** `geopandas` requires `libgdal` system library. The Lambda Python base image is minimal — the Dockerfile must `dnf install` or compile GDAL. Use the AWS-provided `public.ecr.aws/lambda/python:3.14` base and verify `geopandas` imports successfully in the container.
+
+### Phase 3: Seed DuckDB + Tests
+
+Before removing CI pipeline steps, establish a test fixture and pytest coverage for `export.py`.
+
+1. Create `data/fixtures/beeatlas-test.duckdb` with minimal rows (5-10 occurrences, 5 samples, a few geographies)
+2. Write `data/tests/test_export.py`: parameterize `export.py` functions with the fixture DB; assert output files have correct columns and row counts
+3. Confirm tests pass locally with `uv run pytest`
+
+**Why third:** Tests can be written before Lambda works end-to-end. Having tests before Phase 4 (frontend changes) means the export contract is pinned — frontend changes don't break the data contract silently.
+
+### Phase 4: Frontend Runtime Fetch
+
+Replace bundled asset imports with runtime fetch calls.
+
+1. Remove `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` from `frontend/src/assets/` and git
+2. In `bee-map.ts`: replace `import ecdysisDump from './assets/ecdysis.parquet?url'` with `const ecdysisDump = '/data/ecdysis.parquet'`
+3. In `region-layer.ts`: replace static GeoJSON imports with URL strings
+4. Validate: `npm run build --workspace=frontend` succeeds without local parquet files present
+5. Validate: browser loads the live site and fetches files from CloudFront `data/` prefix
+
+**Why fourth:** The frontend change is safe to make only after the Lambda has successfully written files to `S3/data/`. If the frontend is changed before the data files exist in S3, the live site breaks.
+
+### Phase 5: CI Simplification
+
+Clean up the GitHub Actions workflows now that Lambda owns pipeline execution.
+
+1. Remove `build:data` step from `deploy.yml` build job
+2. Remove `cache-restore` step and `S3_BUCKET_NAME` env var from the build job (no longer needed for build)
+3. Delete `.github/workflows/fetch-data.yml` (superseded by Lambda + EventBridge)
+4. Optionally: add a post-pipeline CloudFront invalidation to the Lambda handler (invalidate `/data/*` after successful S3 upload)
+
+**Why last:** CI simplification is cosmetic until the pipeline runs in Lambda. Changing CI before Phase 2-3 are complete would break the existing fallback where CI runs the pipeline.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Inlining GeoJSON into the Bundle
+### Anti-Pattern 1: Putting DuckDB on Lambda /tmp
 
-**What people do:** `import countiesData from './assets/counties.geojson'` (Vite default behavior inlines JSON)
+**What people do:** Store `beeatlas.duckdb` in `/tmp` (the Lambda ephemeral filesystem).
 
-**Why it's wrong:** WA county GeoJSON is ~300-600KB. Inlining adds ~80KB+ gzipped to the JS bundle and delays first render. The browser cannot cache the GeoJSON independently of the JS bundle.
+**Why it's wrong:** Lambda `/tmp` is cleared on cold start. The pipeline is incremental — it relies on the existing DuckDB schema and data to avoid full re-fetches. Losing the DuckDB on every cold start means a full pipeline re-run every week, which takes hours (Ecdysis HTML scraping is the bottleneck at ≤20 req/sec for 45K+ records).
 
-**Do this instead:** `import countiesUrl from './assets/counties.geojson?url'` — Vite emits the file as a separate asset with a content hash, and OL VectorSource fetches it lazily only when the boundary layer first becomes visible.
+**Do this instead:** Store `beeatlas.duckdb` on EFS at `/mnt/data/beeatlas.duckdb`. EFS persists across Lambda invocations.
 
-### Anti-Pattern 2: Two Separate Region Layers
+### Anti-Pattern 2: Using S3 as DuckDB Store (S3 direct read/write)
 
-**What people do:** Create `countyLayer` and `ecoregionLayer` as separate OL VectorLayer instances; toggle visibility.
+**What people do:** Store DuckDB on S3, read it at Lambda startup with `COPY FROM S3`, write back at the end.
 
-**Why it's wrong:** The exclusive 3-way toggle means only one is ever visible. Two registered layers means two z-order positions to manage, two event registrations, and more code surface. OL does not optimize invisible layer computation, so having both registered costs more than needed.
+**Why it's wrong:** DuckDB cannot use S3 as a native file backend — it requires a local writable path. Copying a DuckDB file from S3 at the start of every Lambda invocation (download GB-scale file) and uploading at the end doubles latency and S3 costs. EFS is already in the VPC and provides sub-millisecond access.
 
-**Do this instead:** One `regionLayer` with source swapping (`regionLayer.setSource(countySource | ecoregionSource)`). Both sources fetch their GeoJSON on first use.
+**Do this instead:** EFS for the primary store. S3 for a periodic backup only (after successful pipeline run). The DuckDB backup S3 upload is a safety net, not the primary access pattern.
 
-### Anti-Pattern 3: Spatial Join at Frontend Runtime
+### Anti-Pattern 3: Skipping NAT Gateway (Using VPC Endpoints for Everything)
 
-**What people do:** Ship raw GeoJSON + Parquet to the browser, run point-in-polygon using a library like turf.js.
+**What people do:** Try to avoid the NAT Gateway cost (~$32/month) by using VPC Interface Endpoints for every service the pipeline calls.
 
-**Why it's wrong:** 45,000+ point-in-polygon tests against county + ecoregion polygons runs for 1-5 seconds in the browser. Adds ~100KB (turf.js) to the bundle. The filter result is then a derived computation that must be recomputed whenever the filter changes.
+**Why it's wrong:** The iNaturalist API and Ecdysis website are public internet endpoints — there is no VPC endpoint for them. A NAT Gateway (or NAT instance) is required. Only S3 can use a free Gateway Endpoint.
 
-**Do this instead:** Spatial join at build time in the Python pipeline using geopandas. County and ecoregion values become string columns in Parquet — the client filter is a `Set.has()` lookup, O(1) per feature.
+**Do this instead:** One NAT Gateway (single AZ is sufficient for this use case — the pipeline is not SLA-critical). Add a free S3 Gateway Endpoint to avoid routing S3 traffic through the NAT.
 
-### Anti-Pattern 4: Using the Ecdysis DarwinCore `county` Field Directly
+### Anti-Pattern 4: Bundling the Container Image in CDK Assets Without Docker Caching
 
-**What people do:** The existing DarwinCore export has a `county` column — use it as-is to avoid the spatial join.
+**What people do:** Use `DockerImageCode.fromImageAsset()` with default settings, resulting in a full image rebuild on every `cdk deploy` even when source hasn't changed.
 
-**Why it's wrong:** The Ecdysis `county` field is free-text, collector-entered. It has inconsistent casing, typos, abbreviations, and missing values. Filtering on it would produce unreliable, inconsistent results.
+**Why it's wrong:** The Docker build for geopandas (GDAL compilation or system package install) takes 5-10 minutes. Unnecessary rebuilds slow down CDK deploys.
 
-**Do this instead:** Ignore the DarwinCore `county` column. Overwrite it with the authoritative value from the spatial join against the WA State GIS county boundary file.
+**Do this instead:** Structure the Dockerfile with dependency layers before source code layers. Docker layer caching will skip the slow dependency install when only Python source files change. CDK also caches the asset hash and skips ECR push if unchanged.
 
-### Anti-Pattern 5: Hardcoding County and Ecoregion Lists in the Frontend
+### Anti-Pattern 5: Hardcoding CloudFront Domain in Frontend
 
-**What people do:** Define `const WA_COUNTIES = ['Adams', 'Asotin', ...]` in TypeScript; use this as the multi-select option list.
+**What people do:** Set `const DATA_BASE = 'https://d1o1go591lqnqi.cloudfront.net/data/'` in the frontend.
 
-**Why it's wrong:** Options would show counties/ecoregions with no specimen records — confusing filter choices that return 0 results. Also requires manual maintenance if county data changes.
+**Why it's wrong:** The CloudFront domain changes if the distribution is recreated. Also breaks local development (can't serve local files from the production CloudFront URL).
 
-**Do this instead:** Derive options from `specimenSource.getFeatures()` after data loads — identical to the existing `buildTaxaOptions()` pattern. Only counties/ecoregions with actual records appear as filter options.
+**Do this instead:** Use a root-relative path: `const DATA_BASE = '/data/'`. This works on both beeatlas.net (via CloudFront) and local Vite dev server (where `/data/` can be proxied or the files symlinked).
 
-### Anti-Pattern 6: Applying Sample Layer Region Filter Through matchesFilter
+### Anti-Pattern 6: Lambda URL with No Auth on a Destructive Operation
 
-**What people do:** Apply `matchesFilter(f, filterState)` to sample features when re-rendering the sample layer after region filter change.
+**What people do:** Expose a Lambda URL with `FunctionUrlAuthType.NONE` where invoking the URL triggers irreversible operations (e.g., deleting DuckDB, overwriting S3 data unconditionally).
 
-**Why it's wrong:** `matchesFilter` checks `taxonName`, `year`, `month` — none of which sample features have (samples.parquet has `observer`, `date`, `county`, `ecoregion_l3` but not taxon). The region check itself can safely use `feature.get('county')` on sample features, but calling the full `matchesFilter` would silently misbehave for taxon checks.
+**Why it's wrong:** Any public request to the URL triggers the pipeline. A malicious or accidental flood of requests would run the pipeline repeatedly, burning Lambda compute time and API rate limits.
 
-**Do this instead:** Add a separate `matchesRegionFilter(feature, f)` function (or extend `matchesFilter` to guard against missing taxon properties gracefully) and apply it to sample features separately.
+**Do this instead:** The Lambda handler should be idempotent and check a cooldown (e.g., skip if last run was less than 1 hour ago). The pipeline's own rate limiting (≤20 req/sec for Ecdysis) naturally limits damage, but an explicit cooldown check is safer.
 
 ## Scaling Considerations
 
-This is a static app with a fixed dataset. Scale is not a concern. Size matters only at build time:
+This is a low-traffic, single-tenant system. Scaling is not a concern. The key constraints are:
 
-| Asset | Estimated Raw Size | Gzipped | Notes |
-|-------|-------------------|---------|-------|
-| WA counties GeoJSON | 300-600KB | 50-80KB | 39 counties; simplification optional |
-| EPA L3 ecoregions (WA clip) | 500KB-2MB | 80-200KB | Clip and simplify to ~1MB raw |
-| ecdysis.parquet with new columns | +200KB raw | negligible % change | Two short string cols, 45K rows |
-| samples.parquet with new columns | +20KB raw | negligible % change | Two short string cols, 9.5K rows |
+| Concern | Current | With Lambda + EFS |
+|---------|---------|-------------------|
+| Pipeline execution | CI runner (2 vCPU, 7GB RAM, 6h limit) | Lambda (up to 6 vCPU, 10GB RAM, 15min limit) |
+| DuckDB persistence | Local developer machine only | EFS — durable, survives all deploys |
+| Data freshness | Weekly CI manual trigger | Weekly EventBridge + on-demand Lambda URL |
+| Frontend data size | Bundled at build time | Runtime fetch; CloudFront caches at edge |
+| S3 storage cost | ~10MB/week (parquets + cache) | Same data volume; adds backup/ prefix (~100MB DuckDB) |
 
-If ecoregion GeoJSON exceeds 1MB raw after clipping, apply `gdf.simplify(tolerance=0.01, preserve_topology=True)` during pipeline preprocessing. The WA ecoregion boundaries are not precision-critical for a map filter; moderate simplification is acceptable.
+The 15-minute Lambda timeout is the binding constraint. The current pipeline (geographies + ecdysis + links + inat + projects + export) takes approximately 30-90 minutes on a local developer machine due to the Ecdysis HTML scraping. The Lambda will need EFS-persisted state to support incremental runs — the DuckDB already stores `last_fetch` timestamps via dlt's state mechanism, so this works correctly with EFS persistence.
+
+If the pipeline consistently exceeds 15 minutes, the solution is to split into separate Lambda functions for slow steps (Ecdysis links scraping) versus fast steps (iNat delta fetch, export). This is deferred per milestone scope.
 
 ## Sources
 
-- Direct inspection of `frontend/src/bee-map.ts`, `bee-sidebar.ts`, `parquet.ts`, `filter.ts`, `style.ts` (HIGH confidence)
-- Direct inspection of `data/ecdysis/occurrences.py`, `data/inat/observations.py`, `data/inat/download.py` (HIGH confidence)
-- Direct inspection of `build-data.sh` (HIGH confidence)
-- Direct inspection of `frontend/package.json`, `vite.config.ts` (HIGH confidence)
-- Project history and key decisions: `.planning/PROJECT.md` (HIGH confidence)
-- All architectural decisions are internal to an existing well-understood codebase; no external research required
+- Direct inspection of `infra/lib/beeatlas-stack.ts` (HIGH confidence)
+- Direct inspection of `data/run.py`, `data/export.py`, `data/pyproject.toml` (HIGH confidence)
+- Direct inspection of `.github/workflows/deploy.yml`, `fetch-data.yml` (HIGH confidence)
+- Direct inspection of `frontend/src/bee-map.ts`, `region-layer.ts` (HIGH confidence)
+- AWS CDK v2 Lambda EFS official documentation: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda-readme.html (HIGH confidence)
+- AWS Lambda Python 3.14 runtime: https://aws.amazon.com/about-aws/whats-new/2025/11/aws-lambda-python-314/ (HIGH confidence — GA November 2025)
+- Lambda Function URL auth: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.FunctionUrl.html (HIGH confidence)
+- DuckDB on Lambda: https://www.bbourgeois.dev/blog/2025/04-duckdb-aws-lambda-layers (MEDIUM confidence — confirms native extension requirements)
+- EventBridge Scheduler L2 GA: https://aws.amazon.com/about-aws/whats-new/2025/04/aws-cdk-construct-library-eventbridge-scheduler/ (HIGH confidence)
 
 ---
 
-*Architecture research for: Washington Bee Atlas v1.5 Geographic Regions*
-*Researched: 2026-03-14*
+*Architecture research for: Washington Bee Atlas v1.7 Lambda + EFS Pipeline Infrastructure*
+*Researched: 2026-03-27*
