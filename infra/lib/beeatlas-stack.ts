@@ -163,12 +163,25 @@ function handler(event) {
         DLT_DATA_DIR: '/tmp/dlt',
         temp_directory: '/tmp/duckdb_swap',
         BUCKET_NAME: siteBucket.bucketName,
+        DISTRIBUTION_ID: distribution.distributionId,
+        DB_PATH: '/tmp/beeatlas.duckdb',
+        EXPORT_DIR: '/tmp/export',
+        GEOGRAPHY_CACHE_DIR: '/tmp/geography_cache',
       },
     });
 
     // Scoped S3 permissions — data/* for exports, db/* for DuckDB backup
     siteBucket.grantReadWrite(pipelineFn, 'data/*');
     siteBucket.grantReadWrite(pipelineFn, 'db/*');
+
+    // Grant CloudFront invalidation permission (PIPE-14)
+    pipelineFn.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['cloudfront:CreateInvalidation'],
+      resources: [
+        `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
+      ],
+    }));
 
     // EventBridge Scheduler: nightly iNat pipeline (08:00 UTC)
     new Schedule(this, 'NightlyInatSchedule', {
