@@ -44,7 +44,6 @@ DEFAULT_FIELDS = (
 @dlt.source(name="inaturalist")
 def inaturalist_source(
     project_id: int = dlt.config.value,
-    api_token: str = dlt.secrets.value,
     write_disposition: str = "merge",
     fields: str = DEFAULT_FIELDS,
 ) -> None:
@@ -53,9 +52,6 @@ def inaturalist_source(
     Args:
         project_id: iNaturalist project ID to load observations from.
                     Auto-loaded from config.toml [sources.inaturalist] project_id.
-        api_token: iNaturalist JWT bearer token.
-                   Auto-loaded from secrets [sources.inaturalist] api_token.
-                   Required for requests from cloud IPs (AWS blocks unauthenticated).
         fields: Comma-separated v2 API fields to return.
 
     Example:
@@ -65,7 +61,6 @@ def inaturalist_source(
     config: RESTAPIConfig = {
         "client": {
             "base_url": "https://api.inaturalist.org/v2/",
-            "headers": {"Authorization": f"Bearer {api_token}"},
         },
         "resource_defaults": {
             "primary_key": "uuid",
