@@ -270,7 +270,7 @@ def export_ecoregions_geojson(con: duckdb.DuckDBPyConnection) -> None:
 def main() -> None:
     """Export all four frontend asset files from beeatlas.duckdb."""
     print("Connecting to DuckDB...")
-    con = duckdb.connect(DB_PATH, read_only=True, config={'home_directory': '/tmp'})
+    con = duckdb.connect(DB_PATH, read_only=True)
     con.execute("INSTALL spatial; LOAD spatial;")
     print("Exporting frontend assets:")
     export_ecdysis_parquet(con)
