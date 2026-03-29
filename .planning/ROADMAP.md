@@ -143,6 +143,8 @@ Plans:
   3. `uv run pytest` passes at least one test covering a dlt pipeline module (inat or ecdysis) that verifies rows are written to the fixture DuckDB correctly
   4. All pytest tests pass without live AWS credentials or network access
 **Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Test infrastructure, transform tests, export tests (TEST-01, TEST-02, TEST-03)
 
 ### Phase 28: Frontend Runtime Fetch
 **Goal**: Frontend fetches all data files from CloudFront /data/ at runtime; no Parquet or GeoJSON files are bundled with the build; loading state visible during fetch
@@ -196,6 +198,6 @@ Plans:
 | 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
 | 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
 | 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
-| 27. Seed DuckDB + Tests | v1.7 | 0/? | Not started | - |
+| 27. Seed DuckDB + Tests | v1.7 | 0/1 | Not started | - |
 | 28. Frontend Runtime Fetch | v1.7 | 0/? | Not started | - |
 | 29. CI Simplification | v1.7 | 0/? | Not started | - |
