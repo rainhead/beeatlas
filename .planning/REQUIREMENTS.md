@@ -22,9 +22,9 @@
 - [ ] **FETCH-03**: Frontend shows loading state while data files are being fetched
 
 ### Tests
-- [ ] **TEST-01**: `conftest.py` creates a programmatic DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary file
-- [ ] **TEST-02**: pytest covers `export.py` using fixture DuckDB: verifies correct Parquet schema (all required columns) and valid GeoJSON output
-- [ ] **TEST-03**: pytest covers `_transform()` and `_extract_inat_id()` as pure function unit tests; dlt write-path tests are deferred
+- [x] **TEST-01**: `conftest.py` creates a programmatic DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary file
+- [x] **TEST-02**: pytest covers `export.py` using fixture DuckDB: verifies correct Parquet schema (all required columns) and valid GeoJSON output
+- [x] **TEST-03**: pytest covers `_transform()` and `_extract_inat_id()` as pure function unit tests; dlt write-path tests are deferred
 
 ### CI Simplification
 - [ ] **CI-01**: `deploy.yml` removes `build:data` step; CI runs frontend build only; no Python pipeline code executes in CI
@@ -62,9 +62,9 @@
 | PIPE-12 | Phase 26 | Complete |
 | PIPE-13 | Phase 26 | Complete |
 | PIPE-14 | Phase 26 | Complete |
-| TEST-01 | Phase 27 | Pending |
-| TEST-02 | Phase 27 | Pending |
-| TEST-03 | Phase 27 | Pending |
+| TEST-01 | Phase 27 | Complete |
+| TEST-02 | Phase 27 | Complete |
+| TEST-03 | Phase 27 | Complete |
 | FETCH-01 | Phase 28 | Pending |
 | FETCH-02 | Phase 28 | Pending |
 | FETCH-03 | Phase 28 | Pending |
