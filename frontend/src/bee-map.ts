@@ -394,6 +394,19 @@ export class BeeMap extends LitElement {
 .map-container #map {
   flex-grow: 1;
 }
+.loading-overlay, .error-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  background: rgba(255,255,255,0.85);
+  z-index: 10;
+}
+.error-overlay {
+  color: #b00;
+}
 bee-sidebar {
   width: 25rem;
   border-left: 1px solid #cccccc;
@@ -605,22 +618,14 @@ bee-sidebar {
   }
 
   public render() {
-    if (this._dataError) {
-      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;font-size:1.1rem;color:#b00;">
-        ${this._dataError}
-      </div>`;
-    }
-    if (this._dataLoading) {
-      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;font-size:1.1rem;">
-        Loading\u2026
-      </div>`;
-    }
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
       <div class="map-container">
         <div id="map"></div>
+        ${this._dataError ? html`<div class="error-overlay">${this._dataError}</div>` : ''}
+        ${this._dataLoading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       </div>
-      <bee-sidebar
+      ${this._dataError ? '' : html`<bee-sidebar
         .samples=${this.selectedSamples}
         .summary=${this.summary}
         .taxaOptions=${this.taxaOptions}
@@ -647,7 +652,7 @@ bee-sidebar {
         @filter-changed=${(e: CustomEvent<FilterChangedEvent>) => this._applyFilter(e.detail)}
         @layer-changed=${(e: CustomEvent<'specimens' | 'samples'>) => this._onLayerChanged(e.detail)}
         @sample-event-click=${(e: CustomEvent<{coordinate: number[]}>) => this._onSampleEventClick(e)}
-      ></bee-sidebar>
+      ></bee-sidebar>`}
     `
   }
 
