@@ -42,6 +42,7 @@ key-decisions:
   - "ResponseHeadersPolicy exposes Content-Range/Content-Length/ETag for hyparquet Range request compatibility"
   - "_countyOptions/_ecoregionOptions are @state() populated via countySource/ecoregionSource once('change') handlers"
   - "dataErrorHandler is a module-scope variable set in firstUpdated() — wires parquet onError to Lit reactive state"
+  - "#map must always be in DOM — gating entire render on _dataLoading prevented firstUpdated from initializing OL; fixed with loading overlay instead"
 
 patterns-established:
   - "Pattern: async GeoJSON via OL VectorSource url+format — feature population deferred to source change event"
@@ -63,8 +64,8 @@ completed: 2026-03-29
 - **Duration:** ~30 min
 - **Started:** 2026-03-29T00:00:00Z
 - **Completed:** 2026-03-29
-- **Tasks:** 2 of 3 auto-tasks complete (Task 3 is checkpoint:human-verify, pending)
-- **Files modified:** 7 (+ 3 deleted)
+- **Tasks:** 3/3 complete (Task 3 checkpoint human-verified: approved)
+- **Files modified:** 8 (+ 3 deleted)
 
 ## Accomplishments
 
@@ -78,7 +79,7 @@ completed: 2026-03-29
 
 1. **Task 1: Add CloudFront /data/* cache behavior with CORS headers** - `95e603b` (feat)
 2. **Task 2: Remove bundled assets, switch to runtime fetch, add loading/error state** - `3171a62` (feat)
-3. **Task 3: Verify runtime fetch works in browser** - PENDING (checkpoint:human-verify)
+3. **Task 3: Verify runtime fetch works in browser** - `46a5e9e` (fix: loading overlay bug), checkpoint approved
 
 ## Files Created/Modified
 
@@ -102,7 +103,7 @@ completed: 2026-03-29
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+- **Loading overlay bug fix (post-checkpoint):** Initial implementation gated `render()` entirely on `_dataLoading`, returning only a "Loading…" div. This prevented `#map` from existing in the shadow DOM, so `firstUpdated()` received `null` for `this.mapElement`, the OL map never initialized, parquet loaders never fired, and loading never cleared. Fix: always render `#map`; use a positioned overlay for loading/error states.
 
 ## Issues Encountered
 
@@ -110,12 +111,7 @@ None - plan executed exactly as written.
 
 ## User Setup Required
 
-**Task 3 checkpoint pending.** After CDK is deployed, verify:
-
-1. `cd infra && npx cdk deploy --require-approval never`
-2. Check CORS headers: `curl -sI -H "Origin: http://localhost:5173" "https://beeatlas.net/data/ecdysis.parquet" | grep -i access-control`
-3. `cd frontend && npm run dev` — open http://localhost:5173 — verify loading state then map render
-4. Confirm no CORS errors in DevTools Network tab
+None — all verification complete. CDK deployed, CORS confirmed, browser test passed.
 
 ## Next Phase Readiness
 
@@ -141,4 +137,4 @@ None — loading state and error state are wired to real data sources, not hardc
 
 ---
 *Phase: 28-frontend-runtime-fetch*
-*Completed: 2026-03-29 (partial — Task 3 checkpoint pending)*
+*Completed: 2026-03-29*
