@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Production Pipeline Infrastructure
 status: verifying
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-03-29T16:10:40.708Z"
+stopped_at: "Completed 28-01-PLAN.md (Tasks 1-2 done; Task 3 checkpoint:human-verify pending)"
+last_updated: "2026-03-29T17:19:55.377Z"
 last_activity: 2026-03-29
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
   percent: 40
 ---
 
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 27 — pipeline-tests
+**Current focus:** Phase 28 — frontend-runtime-fetch
 
 ## Current Position
 
-Phase: 28
-Plan: Not started
+Phase: 28 (frontend-runtime-fetch) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
 Last activity: 2026-03-29
 
@@ -62,6 +62,7 @@ Lambda was attempted (phases 25–26) but hit fatal blockers: geographies OOM, 1
 | Phase 25-cdk-infrastructure P01 | 4min | 3 tasks | 3 files |
 | Phase 26-lambda-handler-dockerfile P01 | 3min | 2 tasks | 10 files |
 | Phase 27-pipeline-tests P01 | 25 | 3 tasks | 6 files |
+| Phase 28-frontend-runtime-fetch P01 | 30min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Lambda was attempted (phases 25–26) but hit fatal blockers: geographies OOM, 1
 - [Phase 27-pipeline-tests]: Fixture DuckDB uses embedded WKT constants (not committed binary) — fetched from production DB, embedded as string literals in conftest.py (D-01)
 - [Phase 27-pipeline-tests]: monkeypatch.setattr over env var for ASSETS_DIR — module-level global set at import time, env var override is unreliable after first import
 - [Phase 27-pipeline-tests]: North Cascades WKT: 3 polygons named 'North Cascades'; only 7941-char polygon contains test coordinates — must use explicit length check, not LIMIT 1 on length > 1000
+- [Phase 28-frontend-runtime-fetch]: VITE_DATA_BASE_URL defaults to https://beeatlas.net/data — dev fetches from prod CloudFront directly
+- [Phase 28-frontend-runtime-fetch]: CachePolicy with Origin allowList (not CACHING_OPTIMIZED) required for per-origin CORS caching in /data/* behavior
+- [Phase 28-frontend-runtime-fetch]: _countyOptions/_ecoregionOptions as @state() populated on OL source change event — countySource.getFeatures() returns [] at module init with async url+format
 
 ### Pending Todos
 
@@ -98,6 +102,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-29T16:07:32.624Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-03-29T17:19:55.374Z
+Stopped at: Completed 28-01-PLAN.md (Tasks 1-2 done; Task 3 checkpoint:human-verify pending)
 Resume file: None
