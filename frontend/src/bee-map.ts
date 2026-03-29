@@ -4,8 +4,8 @@ import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { ParquetSource } from "./parquet.ts";
-import ecdysisDump from './assets/ecdysis.parquet?url';
-import samplesDump from './assets/samples.parquet?url';
+
+const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
@@ -193,7 +193,12 @@ function buildTaxaOptions(features: Feature[]): TaxonOption[] {
   ];
 }
 
-const specimenSource = new ParquetSource({url: ecdysisDump});
+let dataErrorHandler: ((err: Error) => void) | null = null;
+
+const specimenSource = new ParquetSource({
+  url: `${DATA_BASE_URL}/ecdysis.parquet`,
+  onError: (err) => { if (dataErrorHandler) dataErrorHandler(err); },
+});
 const clusterSource = new Cluster({
   distance: 40,
   minDistance: 0,
@@ -203,16 +208,11 @@ const specimenLayer = new VectorLayer({
   source: clusterSource,
   style: clusterStyle,
 });
-const sampleSource = new SampleParquetSource({url: samplesDump});
+const sampleSource = new SampleParquetSource({
+  url: `${DATA_BASE_URL}/samples.parquet`,
+  onError: (err) => { if (dataErrorHandler) dataErrorHandler(err); },
+});
 const sampleLayer = new VectorLayer({ source: sampleSource, style: sampleDotStyle });
-
-const countyOptions: string[] = [...new Set(
-  countySource.getFeatures().map(f => f.get('NAME') as string)
-)].sort();
-
-const ecoregionOptions: string[] = [...new Set(
-  ecoregionSource.getFeatures().map(f => f.get('NA_L3NAME') as string)
-)].sort();
 
 @customElement('bee-map')
 export class BeeMap extends LitElement {
@@ -220,6 +220,11 @@ export class BeeMap extends LitElement {
   mapElement!: HTMLDivElement
 
   map?: OpenLayersMap
+
+  @state() private _dataLoading = true;
+  @state() private _dataError: string | null = null;
+  @state() private _countyOptions: string[] = [];
+  @state() private _ecoregionOptions: string[] = [];
 
   @state()
   private selectedSamples: Sample[] | null = null;
@@ -600,6 +605,16 @@ bee-sidebar {
   }
 
   public render() {
+    if (this._dataError) {
+      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;font-size:1.1rem;color:#b00;">
+        ${this._dataError}
+      </div>`;
+    }
+    if (this._dataLoading) {
+      return html`<div style="display:flex;align-items:center;justify-content:center;height:100%;padding:2rem;font-size:1.1rem;">
+        Loading\u2026
+      </div>`;
+    }
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
       <div class="map-container">
@@ -620,8 +635,8 @@ bee-sidebar {
         .restoredYearTo=${this._restoredYearTo}
         .restoredMonths=${this._restoredMonths}
         .boundaryMode=${this.boundaryMode}
-        .countyOptions=${countyOptions}
-        .ecoregionOptions=${ecoregionOptions}
+        .countyOptions=${this._countyOptions}
+        .ecoregionOptions=${this._ecoregionOptions}
         .restoredCounties=${this._restoredCounties}
         .restoredEcoregions=${this._restoredEcoregions}
         @close=${() => {
@@ -637,6 +652,12 @@ bee-sidebar {
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
+    // Wire up error handler so parquet fetch errors surface to Lit state
+    dataErrorHandler = (err: Error) => {
+      console.error('Data fetch failed:', err);
+      this._dataError = 'Failed to load data. Please try refreshing.';
+    };
+
     const initialParams = parseUrlParams(window.location.search);
 
     const baseLayer = new LayerGroup();
@@ -724,6 +745,7 @@ bee-sidebar {
     }
 
     specimenSource.once('change', () => {
+      this._dataLoading = false;
       const features = specimenSource.getFeatures();
       if (features.length > 0) {
         this.summary = computeSummary(features);
@@ -762,6 +784,18 @@ bee-sidebar {
       if (this.layerMode === 'samples') {
         this.recentSampleEvents = this._buildRecentSampleEvents();
       }
+    });
+
+    // Populate county/ecoregion dropdown options after async GeoJSON sources load
+    countySource.once('change', () => {
+      this._countyOptions = [...new Set(
+        countySource.getFeatures().map(f => f.get('NAME') as string)
+      )].sort();
+    });
+    ecoregionSource.once('change', () => {
+      this._ecoregionOptions = [...new Set(
+        ecoregionSource.getFeatures().map(f => f.get('NA_L3NAME') as string)
+      )].sort();
     });
 
     // moveend: replaceState immediately, pushState after 500ms debounce
