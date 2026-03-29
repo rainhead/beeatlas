@@ -87,6 +87,9 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ LAMBDA-03: DockerImageFunction deployed — Python container, 15-min timeout, reserved concurrency 1, DLT_DATA_DIR + temp_directory env vars, prefix-scoped S3 grants — Validated in Phase 25
 - ✓ LAMBDA-04: EventBridge Scheduler rules — NightlyInatSchedule (0 8 UTC) and WeeklyFullSchedule (0 10 SUN UTC) — Validated in Phase 25
 - ✓ LAMBDA-05: Lambda Function URL (NONE auth) deployed; curl returns "S3 round-trip complete" HTTP 200 — Validated in Phase 25
+- ✓ TEST-01: Programmatic DuckDB fixture in conftest.py with ecdysis, inat_observations, geographies rows — Validated in Phase 27
+- ✓ TEST-02: export.py integration tests — correct Parquet schemas (15 ecdysis cols, 9 samples cols) and valid GeoJSON FeatureCollections — Validated in Phase 27
+- ✓ TEST-03: _transform() and _extract_inat_id() pure function unit tests (7 tests, edge cases covered) — Validated in Phase 27
 
 ### Active
 
@@ -189,4 +192,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-28 after v1.6 milestone*
+*Last updated: 2026-03-29 after Phase 27 (pipeline tests) complete*
