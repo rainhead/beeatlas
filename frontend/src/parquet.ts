@@ -34,7 +34,7 @@ const columns = [
 ];
 
 export class ParquetSource extends VectorSource {
-  constructor({url}: {url: string}) {
+  constructor({url, onError}: {url: string, onError?: (err: Error) => void}) {
     const load = (extent: Extent, resolution: number, projection: Projection, success: any, failure: any) => {
       asyncBufferFromUrlEager(url)
         .then(buffer => parquetReadObjects({columns, file: buffer}))
@@ -65,7 +65,10 @@ export class ParquetSource extends VectorSource {
           if (success)
             success(features);
         })
-        .catch(failure);
+        .catch((err: Error) => {
+          if (onError) onError(err);
+          failure();
+        });
     }
     super({loader: load, strategy: all});
   }
@@ -84,7 +87,7 @@ const sampleColumns = [
 ];
 
 export class SampleParquetSource extends VectorSource {
-  constructor({url}: {url: string}) {
+  constructor({url, onError}: {url: string, onError?: (err: Error) => void}) {
     const load = (extent: Extent, resolution: number, projection: Projection, success: any, failure: any) => {
       asyncBufferFromUrlEager(url)
         .then(buffer => parquetReadObjects({columns: sampleColumns, file: buffer}))
@@ -109,7 +112,10 @@ export class SampleParquetSource extends VectorSource {
           this.addFeatures(features);
           if (success) success(features);
         })
-        .catch(failure);
+        .catch((err: Error) => {
+          if (onError) onError(err);
+          failure();
+        });
     };
     super({loader: load, strategy: all});
   }
