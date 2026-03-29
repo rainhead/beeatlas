@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: dlt Pipeline Migration
-status: verifying
-stopped_at: Completed 26-lambda-handler-dockerfile 26-01-PLAN.md
-last_updated: "2026-03-28T18:09:00.000Z"
+milestone: v1.7
+milestone_name: Production Pipeline Infrastructure
+status: in_progress
+stopped_at: maderas cron operational; CI passing
+last_updated: "2026-03-28T20:30:00.000Z"
 last_activity: 2026-03-28
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 13
-  completed_plans: 13
-  percent: 0
+  total_phases: 5
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -21,37 +21,42 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 25 — cdk-infrastructure
+**Current focus:** Phase 27 (tests) or Phase 28 (frontend runtime fetch)
 
 ## Current Position
 
-Phase: 26
-Plan: 01 complete
-Status: In progress — checkpoint:human-verify reached (deploy + verify Lambda)
+Phase: 26 complete; Phase 27 not started
+Status: Lambda abandoned; maderas nightly cron operational. Phases 27–29 remain.
 Last activity: 2026-03-28
 
-Progress: [__________] 0% (0/5 phases)
+Progress: [████░░░░░░] 40% (2/5 phases)
+
+## Pivot: Lambda → maderas cron
+
+Lambda was attempted (phases 25–26) but hit fatal blockers: geographies OOM, 15-min timeout, read-only filesystem, missing home directory, iNat auth. Pipeline now runs as `data/nightly.sh` on maderas via cron at 3am daily. CDK/Lambda infrastructure remains deployed in AWS but is not the execution path.
+
+**What's working:**
+- `nightly.sh` runs end-to-end on maderas (~2.5 min): pipelines → export → S3 upload → DuckDB backup → CloudFront invalidation
+- Cron: `0 3 * * * /home/peter/dev/beeatlas/data/nightly.sh >> /home/peter/beeatlas-pipeline.log 2>&1`
+- CI: `cache_restore.sh` reads parquet from `s3://BUCKET/data/` (updated 2026-03-28)
+- CI schema validation passing
+
+**What remains:**
+- Phase 27: pytest coverage for export.py and pipeline modules
+- Phase 28: Frontend runtime fetch (parquet still bundled via assets/)
+- Phase 29: CI simplification (fetch-data.yml still exists; cache-restore + validate-schema steps still run)
 
 ## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 0 (this milestone)
-- Average duration: —
-- Total execution time: —
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
-
-*Updated after each plan completion*
 | Phase 21-parquet-and-geojson-export P01 | 3min | 1 tasks | 7 files |
 | Phase 22-orchestration P01 | 5min | 2 tasks | 3 files |
 | Phase 23-frontend-simplification P01 | 1min | 2 tasks | 2 files |
 | Phase 24-tech-debt-audit P01 | 1min | 1 tasks | 2 files |
-| Phase 25-cdk-infrastructure P01 | 4 | 3 tasks | 3 files |
+| Phase 25-cdk-infrastructure P01 | 4min | 3 tasks | 3 files |
 | Phase 26-lambda-handler-dockerfile P01 | 3min | 2 tasks | 10 files |
 
 ## Accumulated Context
@@ -66,18 +71,13 @@ Progress: [__________] 0% (0/5 phases)
 - [Phase 22-orchestration]: data/run.py replaces build-data.sh — Python orchestrator calls pipeline functions in-process, no subprocess
 - [Phase 23-frontend-simplification]: Read inat_observation_id from ecdysis feature properties; deleted loadLinksMap without fallback since Phase 21 guarantees the column
 - [Phase 24-tech-debt-audit]: Closed 5 legacy debt items resolved by dlt migration; updated EPA CRS item; added 3 new items (no dlt tests, CI not wired, DuckDB persistence unresolved)
-- **v1.7 container image required**: geopandas (GDAL/GEOS) + duckdb + dlt exceed 250 MB Lambda zip limit; DockerImageFunction is the only viable packaging approach
-- **v1.7 EFS removalPolicy RETAIN is non-negotiable**: destroying the CDK stack must not delete the EFS filesystem or the DuckDB data stored on it
-- **v1.7 DuckDB temp on /tmp not EFS**: temp_directory must point to /tmp/duckdb_swap; NFS stale handle errors occur if temp files land on EFS
-- **v1.7 PIPE-10 superseded**: PIPE-10 (local pipeline runs) is superseded by PIPE-11 (Lambda execution); not assigned to any v1.7 phase
-- **v1.7 seed prerequisite**: Ecdysis links pipeline takes ~38 min cold; exceeds Lambda 15-min limit; DuckDB must be seeded locally and uploaded before EventBridge schedule is enabled — manual step in Phase 26
-- **v1.7 CloudFront CORS cache**: Origin header must be in CloudFront cache key and S3 CORS must expose Range/Content-Range headers; both must be configured together in Phase 28 to avoid CORS failures for browser hyparquet fetch
+- **v1.7 Lambda abandoned**: geographies OOM, 15-min timeout, read-only filesystem, missing home directory, iNat auth all blocked Lambda; maderas cron is the execution path
+- **v1.7 maderas cron**: `data/nightly.sh` runs all pipelines + export + S3 upload + CloudFront invalidation; cron at 0 3 * * *; logs to ~/beeatlas-pipeline.log on maderas
+- **v1.7 CloudFront CORS cache**: Origin header must be in CloudFront cache key and S3 CORS must expose Range/Content-Range headers; both must be configured together in Phase 28 to avoid CORS failures for browser fetch
 - [Phase 25-cdk-infrastructure]: TimeZone must be imported from aws-cdk-lib core (not aws-scheduler) in CDK 2.238.0
 - [Phase 25-cdk-infrastructure]: Lambda URL auth NONE — volunteer project, manual invocation only, no sensitive data in endpoint
-- [Phase 26-lambda-handler-dockerfile]: All pipeline module paths (DB_PATH, EXPORT_DIR, GEOGRAPHY_CACHE_DIR) read from env vars with local fallback — enables Lambda and local dev simultaneously
-- [Phase 26-lambda-handler-dockerfile]: Handler imports STEPS from run.py inside handler function to avoid circular import at module load time
-- [Phase 26-lambda-handler-dockerfile]: Default pipeline mode is 'full' — unknown modes fall back to all 6 steps safely
-- [Phase 26-lambda-handler-dockerfile]: Dockerfile uses uv multi-stage build (ghcr.io/astral-sh/uv + public.ecr.aws/lambda/python:3.14) — pyogrio binary wheel bundles libgdal, no system GDAL install needed
+- [Phase 26-lambda-handler-dockerfile]: All pipeline module paths (DB_PATH, EXPORT_DIR, GEOGRAPHY_CACHE_DIR) read from env vars with local fallback — enables maderas and local dev simultaneously
+- [Phase 26-lambda-handler-dockerfile]: Dockerfile uses uv multi-stage build (ghcr.io/astral-sh/uv + public.ecr.aws/lambda/python:3.14) — pyogrio binary wheel bundles libgdal, no system GDAL install needed (unused now but Dockerfile remains)
 
 ### Pending Todos
 
@@ -91,6 +91,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-28T18:09:00.000Z
-Stopped at: Completed 26-lambda-handler-dockerfile 26-01-PLAN.md (checkpoint:human-verify Task 3)
+Last session: 2026-03-28T20:30:00.000Z
+Stopped at: maderas cron operational; CI passing; ready for Phase 27 (tests) or Phase 28 (frontend runtime fetch)
 Resume file: None

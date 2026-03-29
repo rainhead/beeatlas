@@ -11,6 +11,8 @@
 - ✅ **v1.6 dlt Pipeline Migration** — Phases 20–24 (shipped 2026-03-28)
 - 🚧 **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (in progress)
 
+  > **Pivot note (2026-03-28):** Lambda was abandoned mid-milestone after hitting geographies OOM, 15-min timeout, read-only filesystem, missing home directory, and iNat auth issues. Pipeline now runs as a nightly cron on maderas (`data/nightly.sh`). Phases 25–26 CDK/Lambda artifacts remain in AWS but are not the execution path. Phases 27–29 goals are unchanged.
+
 ## Phases
 
 <details>
@@ -95,7 +97,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full phase details.
 
 ### v1.7 Production Pipeline Infrastructure (In Progress)
 
-**Milestone Goal:** Move pipeline execution to Lambda with S3-backed DuckDB (downloaded to /tmp on invocation); export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
+**Milestone Goal:** Move pipeline execution off CI to a scheduled nightly cron; export all data files to S3; frontend fetches Parquets and GeoJSON at runtime. *(Lambda was attempted then abandoned — maderas `nightly.sh` cron is the execution path.)*
 
 - [x] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip (completed 2026-03-28)
 - [x] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation (completed 2026-03-28)
@@ -131,8 +133,8 @@ Plans:
 Plans:
 - [x] 26-01-PLAN.md — Real handler, env-var pipeline modules, production Dockerfile, CDK updates (PIPE-11, PIPE-12, PIPE-13, PIPE-14)
 
-### Phase 27: Seed DuckDB + Tests
-**Goal**: A minimal fixture DuckDB is committed to git; pytest covers export.py schema correctness and at least one dlt pipeline module
+### Phase 27: Pipeline Tests
+**Goal**: pytest covers export.py schema correctness and at least one dlt pipeline module using a minimal fixture DuckDB
 **Depends on**: Phase 26
 **Requirements**: TEST-01, TEST-02, TEST-03
 **Success Criteria** (what must be TRUE):
