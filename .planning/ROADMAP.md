@@ -156,7 +156,8 @@ Plans:
   3. A browser fetch of `https://CLOUDFRONT_DOMAIN/data/ecdysis.parquet` from a different origin (e.g., localhost:5173) returns the file without CORS errors; Range request headers work correctly
   4. If a data file fetch fails, the frontend shows an error message rather than a blank or broken map
 **Plans**: 1 plan
-**UI hint**: yes
+Plans:
+- [ ] 28-01-PLAN.md — CDK CORS behavior, frontend runtime fetch migration, loading/error state (FETCH-01, FETCH-02, FETCH-03)
 
 ### Phase 29: CI Simplification
 **Goal**: CI runs frontend build only; no pipeline code executes in CI; fetch-data.yml is deleted
@@ -199,5 +200,5 @@ Plans:
 | 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
 | 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
 | 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
-| 28. Frontend Runtime Fetch | v1.7 | 0/? | Not started | - |
+| 28. Frontend Runtime Fetch | v1.7 | 0/1 | Not started | - |
 | 29. CI Simplification | v1.7 | 0/? | Not started | - |
