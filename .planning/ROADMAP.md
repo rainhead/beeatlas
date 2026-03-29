@@ -138,9 +138,9 @@ Plans:
 **Depends on**: Phase 26
 **Requirements**: TEST-01, TEST-02, TEST-03
 **Success Criteria** (what must be TRUE):
-  1. `data/fixtures/beeatlas-test.duckdb` exists in git and contains rows in the ecdysis, inat_observations, and geographies tables
+  1. `data/tests/conftest.py` programmatically creates a DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary `.duckdb` file
   2. `uv run pytest data/tests/test_export.py` passes: all required Parquet columns present in output; GeoJSON output is valid and non-empty
-  3. `uv run pytest` passes at least one test covering a dlt pipeline module (inat or ecdysis) that verifies rows are written to the fixture DuckDB correctly
+  3. `uv run pytest data/tests/test_transforms.py` passes: `_transform()` and `_extract_inat_id()` pure function unit tests cover happy path and edge cases; dlt write-path tests are deferred
   4. All pytest tests pass without live AWS credentials or network access
 **Plans**: 1 plan
 Plans:

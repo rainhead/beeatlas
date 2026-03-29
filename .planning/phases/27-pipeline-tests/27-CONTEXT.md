@@ -31,7 +31,7 @@ Add pytest coverage for `data/export.py` (correct output schema + valid GeoJSON)
 
 ### Test runner and isolation
 - **D-10:** `pytest` added as a dev dependency in `data/pyproject.toml` under `[dependency-groups]` or `[project.optional-dependencies]`.
-- **D-11:** Test isolation via env vars: `DB_PATH` and `EXPORT_DIR` set to temp paths in `conftest.py` — no patching needed, the env-var pattern already supports this.
+- **D-11:** Test isolation via env vars where possible: `DB_PATH` uses env var override in `conftest.py`. Exception: `ASSETS_DIR` in `export.py` is evaluated at import time as a module-level `Path(...)`, so env vars are ineffective — must use `monkeypatch.setattr(export_mod, 'ASSETS_DIR', tmp_path)` instead.
 - **D-12:** Tests run locally only (`uv run pytest` in `data/`). Not added to CI in this phase — CI runs frontend build only until Phase 29.
 
 ### Claude's Discretion

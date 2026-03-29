@@ -39,9 +39,8 @@ created: 2026-03-28
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
 | 27-01-01 | 01 | 1 | TEST-01 | infra | `cd data && uv run pytest --collect-only -q` | ❌ W0 | ⬜ pending |
-| 27-01-02 | 01 | 1 | TEST-01 | unit | `cd data && uv run pytest data/tests/test_pipelines.py -x -q` | ❌ W0 | ⬜ pending |
-| 27-01-03 | 01 | 2 | TEST-02 | integration | `cd data && uv run pytest data/tests/test_export.py -x -q` | ❌ W0 | ⬜ pending |
-| 27-01-04 | 01 | 2 | TEST-03 | unit | `cd data && uv run pytest data/tests/test_pipelines.py -x -q` | ❌ W0 | ⬜ pending |
+| 27-01-02 | 01 | 1 | TEST-01, TEST-03 | unit | `cd data && uv run pytest tests/test_transforms.py -x -q` | ❌ W0 | ⬜ pending |
+| 27-01-03 | 01 | 1 | TEST-02 | integration | `cd data && uv run pytest tests/test_export.py -x -q` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -49,9 +48,9 @@ created: 2026-03-28
 
 ## Wave 0 Requirements
 
-- [ ] `data/tests/conftest.py` — fixture DuckDB creation + env var setup
-- [ ] `data/tests/test_export.py` — stubs for TEST-01 (export schema + GeoJSON)
-- [ ] `data/tests/test_pipelines.py` — stubs for TEST-02/TEST-03 (pipeline transforms)
+- [ ] `data/tests/conftest.py` — fixture DuckDB creation + monkeypatch setup
+- [ ] `data/tests/test_export.py` — export schema + GeoJSON tests (TEST-02)
+- [ ] `data/tests/test_transforms.py` — _transform and _extract_inat_id tests (TEST-03)
 
 *pytest 9.0.2 already installed — no framework install needed.*
 
