@@ -46,6 +46,40 @@ export class BeeAtlasStack extends cdk.Stack {
       certificate: siteCert,
     });
 
+    // ── /data/* cache behavior with CORS headers ──────────────────────────
+    // Cache policy: include Origin in cache key so CORS responses are cached per-origin.
+    // Do NOT use CACHING_OPTIMIZED (it does not include Origin in the cache key).
+    const dataCachePolicy = new cloudfront.CachePolicy(this, 'DataCachePolicy', {
+      headerBehavior: cloudfront.CacheHeaderBehavior.allowList('Origin'),
+      queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+      cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+      defaultTtl: cdk.Duration.days(1),
+      maxTtl: cdk.Duration.days(365),
+      minTtl: cdk.Duration.seconds(0),
+    });
+
+    // Response headers policy: expose CORS + Range/ETag headers to the browser.
+    // No S3 bucket CORS config needed with OAC + ResponseHeadersPolicy.
+    const dataCorsPolicy = new cloudfront.ResponseHeadersPolicy(this, 'DataCorsPolicy', {
+      corsBehavior: {
+        accessControlAllowCredentials: false,
+        accessControlAllowHeaders: ['*'],
+        accessControlAllowMethods: ['GET', 'HEAD'],
+        accessControlAllowOrigins: ['*'],
+        accessControlExposeHeaders: ['Content-Range', 'Content-Length', 'ETag'],
+        originOverride: true,
+      },
+    });
+
+    distribution.addBehavior('/data/*',
+      origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
+      {
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: dataCachePolicy,
+        responseHeadersPolicy: dataCorsPolicy,
+      }
+    );
+
     // ── Route 53 records for beeatlas.net (apex + www) ────────────────────
     const siteTarget = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
     for (const recordName of [undefined, 'www']) {
