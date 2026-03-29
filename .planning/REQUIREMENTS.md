@@ -22,9 +22,9 @@
 - [ ] **FETCH-03**: Frontend shows loading state while data files are being fetched
 
 ### Tests
-- [ ] **TEST-01**: `data/fixtures/beeatlas-test.duckdb` committed; contains minimal rows covering ecdysis, inat observations, and geographies tables
-- [ ] **TEST-02**: pytest covers `export.py` using seed DuckDB: verifies correct Parquet schema (all required columns) and valid GeoJSON output
-- [ ] **TEST-03**: pytest covers at least one dlt pipeline module (inat or ecdysis) against seed DuckDB: verifies rows written correctly
+- [ ] **TEST-01**: `conftest.py` creates a programmatic DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary file
+- [ ] **TEST-02**: pytest covers `export.py` using fixture DuckDB: verifies correct Parquet schema (all required columns) and valid GeoJSON output
+- [ ] **TEST-03**: pytest covers `_transform()` and `_extract_inat_id()` as pure function unit tests; dlt write-path tests are deferred
 
 ### CI Simplification
 - [ ] **CI-01**: `deploy.yml` removes `build:data` step; CI runs frontend build only; no Python pipeline code executes in CI
