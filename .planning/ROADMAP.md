@@ -200,5 +200,5 @@ Plans:
 | 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
 | 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
 | 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
-| 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete   | 2026-03-29 |
+| 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 29. CI Simplification | v1.7 | 0/? | Not started | - |
