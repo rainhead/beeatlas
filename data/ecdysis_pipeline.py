@@ -88,6 +88,21 @@ def ecdysis_source(dataset_id: int = dlt.config.value):
     return occurrences(), identifications()
 
 
+def _extract_inat_id(html: str | None) -> int | None:
+    """Extract iNaturalist observation ID from Ecdysis specimen page HTML."""
+    if not html:
+        return None
+    anchor = BeautifulSoup(html, "html.parser").select_one(
+        '#association-div a[target="_blank"]'
+    )
+    if anchor:
+        try:
+            return int(anchor["href"].split("/")[-1])
+        except (ValueError, IndexError, KeyError):
+            pass
+    return None
+
+
 @dlt.source(name="ecdysis_links")
 def ecdysis_links_source(
     db_path: str = dlt.config.value,
@@ -155,15 +170,7 @@ def ecdysis_links_source(
                     html = None
                 last_fetch_time = time.monotonic()
 
-            anchor = BeautifulSoup(html, "html.parser").select_one(
-                '#association-div a[target="_blank"]'
-            ) if html else None
-            obs_id = None
-            if anchor:
-                try:
-                    obs_id = int(anchor["href"].split("/")[-1])
-                except (ValueError, IndexError, KeyError):
-                    pass
+            obs_id = _extract_inat_id(html)
 
             yield {"occurrence_id": occurrence_id, "inat_observation_id": obs_id}
 

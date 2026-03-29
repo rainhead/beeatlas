@@ -12,3 +12,11 @@ dependencies = [
     "geopandas",
     "boto3>=1.42.78",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
