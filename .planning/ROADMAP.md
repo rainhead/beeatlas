@@ -102,7 +102,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full phase details.
 - [x] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip (completed 2026-03-28)
 - [x] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation (completed 2026-03-28)
 - [x] **Phase 27: Seed DuckDB + Tests** — Fixture DuckDB committed; pytest covers export.py and at least one pipeline module (completed 2026-03-29)
-- [ ] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime
+- [x] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime (completed 2026-03-29)
 - [ ] **Phase 29: CI Simplification** — build:data removed from CI; fetch-data.yml deleted; frontend-only build
 
 ## Phase Details
@@ -157,7 +157,7 @@ Plans:
   4. If a data file fetch fails, the frontend shows an error message rather than a blank or broken map
 **Plans**: 1 plan
 Plans:
-- [ ] 28-01-PLAN.md — CDK CORS behavior, frontend runtime fetch migration, loading/error state (FETCH-01, FETCH-02, FETCH-03)
+- [x] 28-01-PLAN.md — CDK CORS behavior, frontend runtime fetch migration, loading/error state (FETCH-01, FETCH-02, FETCH-03)
 
 ### Phase 29: CI Simplification
 **Goal**: CI runs frontend build only; no pipeline code executes in CI; fetch-data.yml is deleted
@@ -200,5 +200,5 @@ Plans:
 | 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
 | 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
 | 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
-| 28. Frontend Runtime Fetch | v1.7 | 0/1 | Not started | - |
+| 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete   | 2026-03-29 |
 | 29. CI Simplification | v1.7 | 0/? | Not started | - |

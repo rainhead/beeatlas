@@ -17,9 +17,9 @@
 - [x] **PIPE-14**: Lambda handler triggers CloudFront invalidation on `/data/*` after S3 upload
 
 ### Frontend Runtime Fetching
-- [ ] **FETCH-01**: Frontend fetches `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` from CloudFront `/data/` path at runtime; bundled asset imports removed from build
-- [ ] **FETCH-02**: CloudFront `/data/*` cache behavior configured with correct CORS headers (Origin in cache key) and S3 data prefix as origin; supports hyparquet Range requests
-- [ ] **FETCH-03**: Frontend shows loading state while data files are being fetched
+- [x] **FETCH-01**: Frontend fetches `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` from CloudFront `/data/` path at runtime; bundled asset imports removed from build
+- [x] **FETCH-02**: CloudFront `/data/*` cache behavior configured with correct CORS headers (Origin in cache key) and S3 data prefix as origin; supports hyparquet Range requests
+- [x] **FETCH-03**: Frontend shows loading state while data files are being fetched
 
 ### Tests
 - [x] **TEST-01**: `conftest.py` creates a programmatic DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary file
@@ -65,9 +65,9 @@
 | TEST-01 | Phase 27 | Complete |
 | TEST-02 | Phase 27 | Complete |
 | TEST-03 | Phase 27 | Complete |
-| FETCH-01 | Phase 28 | Pending |
-| FETCH-02 | Phase 28 | Pending |
-| FETCH-03 | Phase 28 | Pending |
+| FETCH-01 | Phase 28 | Complete |
+| FETCH-02 | Phase 28 | Complete |
+| FETCH-03 | Phase 28 | Complete |
 | CI-01 | Phase 29 | Pending |
 | CI-02 | Phase 29 | Pending |
 | PIPE-08 | Phase 20 | Complete |
