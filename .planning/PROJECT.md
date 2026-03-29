@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that reads Parquet data bundled with the build — no server required at runtime. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution moving to Lambda in v1.7.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution moving to Lambda in v1.7.
 
 ## Core Value
 
@@ -93,6 +93,10 @@ Collectors can see where bees have been collected and where target host plants g
 
 ### Active
 
+- ✓ FETCH-01: Frontend fetches ecdysis.parquet and samples.parquet from CloudFront /data/ at runtime; no bundled Parquet files in dist/ — Validated in Phase 28
+- ✓ FETCH-02: CloudFront /data/* cache behavior with CORS headers (Access-Control-Allow-Origin: *, Content-Range/Content-Length/ETag exposed); CachePolicy varies by Origin — Validated in Phase 28
+- ✓ FETCH-03: BeeMap shows loading indicator while data is being fetched; error message if fetch fails — Validated in Phase 28
+
 ### Out of Scope
 
 | Feature | Reason |
@@ -109,7 +113,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day): custom pandas pipelines replaced with 5 dlt pipelines + DuckDB store; unified export.py; data/run.py local runner; links.parquet removed from frontend. Phase 25 complete (2026-03-28) — CDK Lambda stub deployed: DockerImageFunction, two EventBridge Scheduler rules, Lambda URL; curl confirms S3 round-trip live.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day): custom pandas pipelines replaced with 5 dlt pipelines + DuckDB store; unified export.py; data/run.py local runner; links.parquet removed from frontend. Phase 25 complete (2026-03-28) — CDK Lambda stub deployed: DockerImageFunction, two EventBridge Scheduler rules, Lambda URL; curl confirms S3 round-trip live. Phase 27 complete (2026-03-28) — export.py integration tests and unit tests; programmatic DuckDB fixture. Phase 28 complete (2026-03-29) — frontend runtime fetch: bundled data files removed; CloudFront /data/* CORS behavior; loading/error overlay.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
