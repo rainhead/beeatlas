@@ -17,7 +17,7 @@ echo "=== BeeAtlas nightly pipeline $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
 # 1. Pull DuckDB from S3 (missing = first run, not an error)
 echo "--- pulling DuckDB from S3 ---"
-if ! aws --profile "$AWS_PROFILE" s3 cp "s3://$BUCKET/$DB_S3_KEY" "$DB_PATH" 2>/dev/null; then
+if ! aws --profile "$AWS_PROFILE" s3 cp --no-progress "s3://$BUCKET/$DB_S3_KEY" "$DB_PATH" 2>/dev/null; then
     echo "No existing DuckDB in S3 (first run), starting fresh."
 fi
 
@@ -50,12 +50,12 @@ EOF
 # 3. Push exports to S3 /data/
 echo "--- uploading exports ---"
 for f in ecdysis.parquet samples.parquet counties.geojson ecoregions.geojson; do
-    aws --profile "$AWS_PROFILE" s3 cp "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
 done
 
 # 4. Back up DuckDB to S3 /db/
 echo "--- backing up DuckDB ---"
-aws --profile "$AWS_PROFILE" s3 cp "$DB_PATH" "s3://$BUCKET/$DB_S3_KEY"
+aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BUCKET/$DB_S3_KEY"
 
 # 5. Invalidate CloudFront /data/*
 echo "--- invalidating CloudFront ---"
