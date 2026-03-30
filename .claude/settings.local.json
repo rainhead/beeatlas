@@ -30,7 +30,10 @@
       "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -12)",
       "Bash(cd /Users/rainhead/dev/beeatlas/frontend && npm run build 2>&1 | tail -5)",
       "Bash(gh run:*)",
-      "Bash(cd /Users/rainhead/dev/beeatlas/frontend && grep '\"hyparquet\"' package.json)"
+      "Bash(cd /Users/rainhead/dev/beeatlas/frontend && grep '\"hyparquet\"' package.json)",
+      "Skill(gsd:discuss-phase)",
+      "Bash(source \"/Users/rainhead/.nvm/nvm.sh\")",
+      "Bash(nvm use:*)"
     ]
   }
 }

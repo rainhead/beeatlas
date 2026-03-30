@@ -7,7 +7,11 @@
 - ✅ **v1.2 iNat Pipeline** — Phases 8–10 (shipped 2026-03-11)
 - ✅ **v1.3 Specimen-Sample Linkage** — Phases 11–12 (shipped 2026-03-12)
 - ✅ **v1.4 Sample Layer** — Phases 13–15 (shipped 2026-03-13)
-- 🚧 **v1.5 Geographic Regions** — Phases 16–19 (in progress)
+- ✅ **v1.5 Geographic Regions** — Phases 16–19 (shipped 2026-03-27)
+- ✅ **v1.6 dlt Pipeline Migration** — Phases 20–24 (shipped 2026-03-28)
+- 🚧 **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (in progress)
+
+  > **Pivot note (2026-03-28):** Lambda was abandoned mid-milestone after hitting geographies OOM, 15-min timeout, read-only filesystem, missing home directory, and iNat auth issues. Pipeline now runs as a nightly cron on maderas (`data/nightly.sh`). Phases 25–26 CDK/Lambda artifacts remain in AWS but are not the execution path. Phases 27–29 goals are unchanged.
 
 ## Phases
 
@@ -62,113 +66,108 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full phase details.
 - [x] Phase 14: Layer Toggle and Map Display (2/2 plans) — completed 2026-03-13
 - [x] Phase 15: Click Interaction and iNat Links (1/1 plan) — completed 2026-03-13
 
-See Phase Details section for full criteria.
+See `.planning/milestones/v1.4-ROADMAP.md` for full phase details.
 
 </details>
 
-### 🚧 v1.5 Geographic Regions (In Progress)
+<details>
+<summary>✅ v1.5 Geographic Regions (Phases 16–19) — SHIPPED 2026-03-27</summary>
 
-**Milestone Goal:** Collectors can filter specimens and samples by WA county or EPA Level III ecoregion, using a sidebar multi-select autocomplete or by clicking a visible boundary polygon on the map.
+- [x] Phase 16: Pipeline Spatial Join (7/7 plans) — completed 2026-03-14
+- [x] Phase 17: Frontend Data Layer (2/2 plans) — completed 2026-03-14
+- [x] Phase 18: Map Integration (4/4 plans) — completed 2026-03-14
+- [x] Phase 19: Sidebar UI (2/2 plans) — completed 2026-03-18
 
-- [ ] **Phase 16: Pipeline Spatial Join** — Specimens and samples get county and ecoregion_l3 columns at build time; GeoJSON boundary files bundled with the frontend (gap closure in progress)
-- [ ] **Phase 17: Frontend Data Layer** — FilterState extended for region Sets; region-layer.ts module with GeoJSON-backed VectorLayer created; Parquet region columns read into OL feature properties
-- [ ] **Phase 18: Map Integration** — Region boundary overlay toggle wired into map; polygon click adds region to active filter; region filter state encoded in URL
-- [ ] **Phase 19: Sidebar UI** — County and ecoregion multi-select chips in sidebar; boundary toggle control; clear-all resets region filters
+See `.planning/milestones/v1.5-ROADMAP.md` for full phase details.
+
+</details>
+
+<details>
+<summary>✅ v1.6 dlt Pipeline Migration (Phases 20–24) — SHIPPED 2026-03-28</summary>
+
+- [x] Phase 20: Pipeline Migration (2/2 plans) — completed 2026-03-27
+- [x] Phase 21: Parquet and GeoJSON Export (2/2 plans) — completed 2026-03-27
+- [x] Phase 22: Orchestration (1/1 plan) — completed 2026-03-27
+- [x] Phase 23: Frontend Simplification (1/1 plan) — completed 2026-03-27
+- [x] Phase 24: Tech Debt Audit (1/1 plan) — completed 2026-03-27
+
+See `.planning/milestones/v1.6-ROADMAP.md` for full phase details.
+
+</details>
+
+### v1.7 Production Pipeline Infrastructure (In Progress)
+
+**Milestone Goal:** Move pipeline execution off CI to a scheduled nightly cron; export all data files to S3; frontend fetches Parquets and GeoJSON at runtime. *(Lambda was attempted then abandoned — maderas `nightly.sh` cron is the execution path.)*
+
+- [x] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip (completed 2026-03-28)
+- [x] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation (completed 2026-03-28)
+- [x] **Phase 27: Seed DuckDB + Tests** — Fixture DuckDB committed; pytest covers export.py and at least one pipeline module (completed 2026-03-29)
+- [x] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime (completed 2026-03-29)
+- [ ] **Phase 29: CI Simplification** — build:data removed from CI; fetch-data.yml deleted; frontend-only build
 
 ## Phase Details
 
-### Phase 13: Parquet Sources and Asset Pipeline
-**Goal**: The data layer infrastructure needed by the sample feature is in place — new Parquet sources compile, specimen features carry the join key, sample dot style exists, and links.parquet is bundled with the build
-**Depends on**: Phase 12
-**Requirements**: MAP-03 (partial — source only), LINK-05 (prerequisite — join key available)
+### Phase 25: CDK Infrastructure
+**Goal**: Lambda stub, EventBridge schedule, and Lambda URL are deployed to AWS; stub verifies S3 read/write from /tmp works end-to-end
+**Depends on**: Phase 24
+**Requirements**: LAMBDA-03, LAMBDA-04, LAMBDA-05
 **Success Criteria** (what must be TRUE):
-  1. `SampleParquetSource` class exists in `parquet.ts` and reads rows from `samples.parquet` without errors (verified in browser console)
-  2. Each specimen OL feature carries an `occurrenceID` property (UUID string) accessible after `ParquetSource` loads
-  3. `sampleDotStyle` is defined in `style.ts` and visually distinct from the specimen cluster style
-  4. `frontend/src/assets/links.parquet` is present after running `npm run build` (i.e., `build-data.sh` copies it)
-**Plans**: 2 plans
-Plans:
-- [x] 13-01-PLAN.md — parquet.ts: occurrenceID on ParquetSource + SampleParquetSource class
-- [x] 13-02-PLAN.md — style.ts: sampleDotStyle + build-data.sh: graceful links.parquet copy
-
-### Phase 14: Layer Toggle and Map Display
-**Goal**: Users can see iNat collection events as sample dots on the map and switch exclusively between specimen clusters and sample dots, with the sidebar and URL reflecting the active layer
-**Depends on**: Phase 13
-**Requirements**: MAP-03, MAP-04
-**Success Criteria** (what must be TRUE):
-  1. Sample dot markers appear on the map when sample mode is active — one dot per iNat collection event at the correct coordinates
-  2. Toggling to sample mode hides specimen clusters; toggling back hides sample dots — only one layer is visible at a time
-  3. Switching layers clears the sidebar (no stale specimen or sample detail remains visible)
-  4. The `lm=` URL parameter encodes the active layer mode; pasting a sample-mode URL restores sample dots as the active layer
-  5. Specimen taxon/date filter controls are hidden or disabled when sample mode is active
-**Plans**: 2 plans
-Plans:
-- [x] 14-01-PLAN.md — bee-map.ts: sampleLayer wiring, layerMode state, lm= URL param, singleclick routing
-- [x] 14-02-PLAN.md — bee-sidebar.ts: toggle UI, conditional filters, recent events list + human verify
-
-### Phase 15: Click Interaction and iNat Links
-**Goal**: Clicking a sample dot shows its iNat observation detail in the sidebar, and the specimen sidebar shows a clickable iNat link when a matching entry exists in links.parquet
-**Depends on**: Phase 14
-**Requirements**: MAP-05, LINK-05
-**Success Criteria** (what must be TRUE):
-  1. Clicking a sample dot opens the sidebar showing observer name, date, specimen count (or "not recorded" when null), and a link to the iNaturalist observation page
-  2. The iNat observation link in the sample sidebar opens the correct iNat URL in a new tab
-  3. Clicking a specimen in specimen mode shows a clickable iNat observation link in the sidebar when `links.parquet` has a matching `occurrenceID`
-  4. Specimen sidebar shows no iNat link (no broken link, no error) when `links.parquet` has no match for the specimen's `occurrenceID`
+  1. `cdk deploy` completes without error; CloudFormation outputs include the Lambda URL endpoint
+  2. Invoking the Lambda URL returns a 200 response and CloudWatch logs show the stub handler completed a successful S3 round-trip (download from `s3://BUCKET/db/`, write to `/tmp/`, upload back)
+  3. EventBridge Scheduler shows two rules: one nightly schedule (iNat pipeline) and one weekly schedule (full pipeline); both target the Lambda function
+  4. Lambda has `reservedConcurrentExecutions: 1`; env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap` are present in the function configuration
 **Plans**: 1 plan
 Plans:
-- [x] 15-01-PLAN.md — parquet.ts: loadLinksMap + bee-map.ts: links startup wiring + bee-sidebar.ts: sample dot detail and specimen iNat links
+- [x] 25-01-PLAN.md — Dockerfile, stub handler, Lambda + Scheduler + URL constructs (LAMBDA-03, LAMBDA-04, LAMBDA-05)
 
-### Phase 16: Pipeline Spatial Join
-**Goal**: Every specimen and sample record has county and ecoregion_l3 values after the pipeline runs; WA county and ecoregion GeoJSON boundary files are simplified, bundled with the frontend build, and validated by CI schema checks
-**Depends on**: Phase 15
-**Requirements**: PIPE-05, PIPE-06, PIPE-07
+### Phase 26: Lambda Handler + Dockerfile
+**Goal**: Real pipeline execution runs end-to-end inside Lambda; invoking the Lambda URL triggers the dlt pipelines, exports data files to S3, backs up DuckDB, and invalidates CloudFront
+**Depends on**: Phase 25
+**Requirements**: PIPE-11, PIPE-12, PIPE-13, PIPE-14
 **Success Criteria** (what must be TRUE):
-  1. Running the Ecdysis pipeline produces `ecdysis.parquet` where every row has a non-null `county` string and non-null `ecoregion_l3` string (nearest-polygon fallback eliminates all nulls for points within the WA bounding box)
-  2. Running the iNat pipeline produces `samples.parquet` where every row has a non-null `county` string and non-null `ecoregion_l3` string using the same spatial join logic
-  3. `frontend/src/assets/wa_counties.geojson` and `frontend/src/assets/epa_l3_ecoregions_wa.geojson` are present after `npm run build`, with each file under 400 KB (simplified at 0.006 degrees)
-  4. `scripts/validate-schema.mjs` includes `county` and `ecoregion_l3` in the expected column list for both Parquet files and fails CI if either column is absent
-**Plans**: 7 plans
+  1. Invoking the Lambda URL (with a seeded S3 DuckDB at `s3://BUCKET/db/beeatlas.duckdb`) completes within 15 minutes and CloudWatch logs show all five pipelines finishing without error
+  2. After invocation, `aws s3 ls s3://BUCKET/data/` shows ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with recent modification timestamps
+  3. After invocation, `aws s3 ls s3://BUCKET/db/` shows beeatlas.duckdb with a recent modification timestamp
+  4. A CloudFront invalidation for `/data/*` appears in the distribution's invalidation history after each successful invocation
+**Plans**: 1 plan
 Plans:
-- [x] 16-01-PLAN.md — test scaffold: data/tests/test_spatial.py with four failing test classes
-- [x] 16-02-PLAN.md — data/spatial.py: add_region_columns() shared join utility (PIPE-05 core)
-- [x] 16-03-PLAN.md — data/scripts/build-geojson.py + scripts/build-data.sh GeoJSON step (PIPE-07)
-- [x] 16-04-PLAN.md — scripts/validate-schema.mjs: county + ecoregion_l3 columns added (PIPE-07)
-- [x] 16-05-PLAN.md — occurrences.py + inat/download.py: pipeline integrations (PIPE-05, PIPE-06)
-- [ ] 16-06-PLAN.md — gap closure: generate and commit GeoJSON files to git (PIPE-07)
-- [ ] 16-07-PLAN.md — gap closure: trigger fetch-data workflow to refresh stale S3 parquet cache (PIPE-05, PIPE-06)
+- [x] 26-01-PLAN.md — Real handler, env-var pipeline modules, production Dockerfile, CDK updates (PIPE-11, PIPE-12, PIPE-13, PIPE-14)
 
-### Phase 17: Frontend Data Layer
-**Goal**: The frontend can read region columns from Parquet, FilterState tracks selected counties and ecoregions, and the region boundary VectorLayer is constructed and styled — verified via browser console before any UI is wired
-**Depends on**: Phase 16
-**Requirements**: (no standalone v1.5 requirement — prerequisite layer for Phase 18 and 19 requirements)
+### Phase 27: Pipeline Tests
+**Goal**: pytest covers export.py schema correctness and at least one dlt pipeline module using a minimal fixture DuckDB
+**Depends on**: Phase 26
+**Requirements**: TEST-01, TEST-02, TEST-03
 **Success Criteria** (what must be TRUE):
-  1. Each specimen OL feature has a `county` string property and each sample OL feature has `county` and `ecoregion_l3` string properties accessible in the browser console after Parquet loads
-  2. `FilterState` has `selectedCounties: Set<string>` and `selectedEcoregions: Set<string>`; `isFilterActive()` returns true when either set is non-empty; `matchesFilter()` applies AND-across-types / OR-within-type logic
-  3. `region-layer.ts` exports a single `regionLayer` OL VectorLayer with `countySource` and `ecoregionSource`; clicking inside a polygon interior registers a hit (transparent fill in place)
-**Plans**: TBD
+  1. `data/tests/conftest.py` programmatically creates a DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary `.duckdb` file
+  2. `uv run pytest data/tests/test_export.py` passes: all required Parquet columns present in output; GeoJSON output is valid and non-empty
+  3. `uv run pytest data/tests/test_transforms.py` passes: `_transform()` and `_extract_inat_id()` pure function unit tests cover happy path and edge cases; dlt write-path tests are deferred
+  4. All pytest tests pass without live AWS credentials or network access
+**Plans**: 1 plan
+Plans:
+- [x] 27-01-PLAN.md — Test infrastructure, transform tests, export tests (TEST-01, TEST-02, TEST-03)
 
-### Phase 18: Map Integration
-**Goal**: The region boundary overlay is visible on the map, users can toggle it between off / counties / ecoregions, clicking a polygon adds its region to the active filter, and region filter state round-trips through the URL
-**Depends on**: Phase 17
-**Requirements**: MAP-09, MAP-10, FILTER-05
+### Phase 28: Frontend Runtime Fetch
+**Goal**: Frontend fetches all data files from CloudFront /data/ at runtime; no Parquet or GeoJSON files are bundled with the build; loading state visible during fetch
+**Depends on**: Phase 26
+**Requirements**: FETCH-01, FETCH-02, FETCH-03
 **Success Criteria** (what must be TRUE):
-  1. A boundary toggle cycles through off / counties / ecoregions — only one boundary type is visible at a time; switching is independent of the specimen/sample layer toggle
-  2. Clicking a county or ecoregion polygon when its boundary overlay is active adds that region to the active filter; specimen and sample dot clicks take priority over polygon clicks when both could register
-  3. After a polygon click, the specimen and sample points on the map reflect the active region filter (points outside the selected regions are hidden or shown according to current filter semantics)
-  4. The URL encodes `bm=` (boundary mode), `counties=` (comma-separated names), and `ecor=` (comma-separated names); pasting the URL restores the same boundary mode and region filter
-**Plans**: TBD
+  1. The production build (`npm run build`) completes without errors and the dist/ output contains no .parquet or .geojson files
+  2. Loading the live site shows a visible loading indicator; the map renders correctly after fetch completes (verifiable in browser DevTools Network tab showing /data/*.parquet and /data/*.geojson requests returning 200)
+  3. A browser fetch of `https://CLOUDFRONT_DOMAIN/data/ecdysis.parquet` from a different origin (e.g., localhost:5173) returns the file without CORS errors; Range request headers work correctly
+  4. If a data file fetch fails, the frontend shows an error message rather than a blank or broken map
+**Plans**: 1 plan
+Plans:
+- [x] 28-01-PLAN.md — CDK CORS behavior, frontend runtime fetch migration, loading/error state (FETCH-01, FETCH-02, FETCH-03)
 
-### Phase 19: Sidebar UI
-**Goal**: Collectors can select, view, and clear county and ecoregion filters from the sidebar using a multi-select autocomplete with removable chips and a boundary mode toggle
-**Depends on**: Phase 18
-**Requirements**: FILTER-03, FILTER-04, FILTER-06
+### Phase 29: CI Simplification
+**Goal**: CI runs frontend build only; no pipeline code executes in CI; fetch-data.yml is deleted
+**Depends on**: Phase 28
+**Requirements**: CI-01, CI-02
 **Success Criteria** (what must be TRUE):
-  1. The sidebar shows a county multi-select autocomplete; selecting a county adds a removable chip labeled with the county name and a "county" type label; multiple counties use OR semantics
-  2. The sidebar shows an ecoregion multi-select autocomplete; selecting an ecoregion adds a removable chip labeled with the ecoregion name and an "ecoregion" type label; chips from both types are visible simultaneously
-  3. Removing a chip from the sidebar deselects that region; the map updates immediately to reflect the narrowed filter
-  4. Clicking "Clear filters" removes all county and ecoregion chips in addition to resetting taxon and date filters; map position is unchanged
-**Plans**: TBD
+  1. A push to main triggers `deploy.yml`; the workflow completes without running any Python pipeline step or referencing `build:data`, `S3_BUCKET_NAME`, or cache restore scripts
+  2. The file `.github/workflows/fetch-data.yml` does not exist in the repository
+  3. CI wall-clock time for a frontend-only deploy is measurably shorter than the previous pipeline-inclusive build
+**Plans**: 1 plan
 
 ## Progress
 
@@ -189,7 +188,17 @@ Plans:
 | 13. Parquet Sources and Asset Pipeline | v1.4 | 2/2 | Complete | 2026-03-13 |
 | 14. Layer Toggle and Map Display | v1.4 | 2/2 | Complete | 2026-03-13 |
 | 15. Click Interaction and iNat Links | v1.4 | 1/1 | Complete | 2026-03-13 |
-| 16. Pipeline Spatial Join | 6/7 | In Progress|  | 2026-03-14 |
-| 17. Frontend Data Layer | v1.5 | 0/? | Not started | - |
-| 18. Map Integration | v1.5 | 0/? | Not started | - |
-| 19. Sidebar UI | v1.5 | 0/? | Not started | - |
+| 16. Pipeline Spatial Join | v1.5 | 7/7 | Complete | 2026-03-14 |
+| 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
+| 18. Map Integration | v1.5 | 4/4 | Complete | 2026-03-14 |
+| 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |
+| 20. Pipeline Migration | v1.6 | 2/2 | Complete    | 2026-03-27 |
+| 21. Parquet and GeoJSON Export | v1.6 | 2/2 | Complete   | 2026-03-27 |
+| 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
+| 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
+| 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
+| 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
+| 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
+| 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
+| 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
+| 29. CI Simplification | v1.7 | 0/? | Not started | - |

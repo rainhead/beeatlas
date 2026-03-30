@@ -1,88 +1,94 @@
 # Requirements: Washington Bee Atlas
 
-**Defined:** 2026-03-12
+**Defined:** 2026-03-27
 **Core Value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
-## v1.5 Requirements
+## v1.7 Requirements
 
-### Pipeline
+### Lambda Infrastructure
+- [x] **LAMBDA-03**: CDK adds `DockerImageFunction` (Python 3.14 base image, no VPC, 15-min timeout, reserved concurrency 1, env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap`); Lambda role has scoped S3 read/write on `/data/*` and `/db/*` prefixes of siteBucket
+- [x] **LAMBDA-04**: CDK adds EventBridge Scheduler rules: iNat pipeline nightly, full pipeline (all 5) weekly
+- [x] **LAMBDA-05**: CDK adds Lambda Function URL for manual invocation
 
-- [x] **PIPE-05**: Specimens in ecdysis.parquet each have county and ecoregion_l3 values after the pipeline runs (spatial join overrides DarwinCore county field; nearest-polygon fallback handles coastal edge cases where points fall outside polygon boundaries)
-- [x] **PIPE-06**: Collection events in samples.parquet each have county and ecoregion_l3 values after the pipeline runs (same spatial join logic as specimens)
-- [x] **PIPE-07**: WA county and EPA Level III ecoregion GeoJSON files are simplified, bundled with the frontend build, and available at runtime; CI schema validation (validate-schema.mjs) updated to include county and ecoregion_l3 columns
+### Pipeline Execution
+- [x] **PIPE-11**: Lambda handler downloads `beeatlas.duckdb` from `s3://BUCKET/db/beeatlas.duckdb` to `/tmp/` on invocation; invokes `data/run.py`; dlt pipelines write to `/tmp/beeatlas.duckdb`; reserved concurrency prevents concurrent runs
+- [x] **PIPE-12**: Lambda handler runs `export.py` after successful pipeline run; uploads `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` to S3 `/data/` prefix
+- [x] **PIPE-13**: Lambda handler uploads updated `beeatlas.duckdb` from `/tmp/` back to `s3://BUCKET/db/beeatlas.duckdb` after successful export
+- [x] **PIPE-14**: Lambda handler triggers CloudFront invalidation on `/data/*` after S3 upload
 
-### Map
+### Frontend Runtime Fetching
+- [x] **FETCH-01**: Frontend fetches `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` from CloudFront `/data/` path at runtime; bundled asset imports removed from build
+- [x] **FETCH-02**: CloudFront `/data/*` cache behavior configured with correct CORS headers (Origin in cache key) and S3 data prefix as origin; supports hyparquet Range requests
+- [x] **FETCH-03**: Frontend shows loading state while data files are being fetched
 
-- [ ] **MAP-09**: User can toggle a boundary overlay between three states: off, county boundaries, ecoregion boundaries — only one boundary type is visible at a time; overlay is independent of the specimen/sample layer toggle
-- [ ] **MAP-10**: User can click a visible boundary polygon to add that county or ecoregion to the active filter; specimen and sample point clicks take priority over polygon clicks when both could register
+### Tests
+- [x] **TEST-01**: `conftest.py` creates a programmatic DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary file
+- [x] **TEST-02**: pytest covers `export.py` using fixture DuckDB: verifies correct Parquet schema (all required columns) and valid GeoJSON output
+- [x] **TEST-03**: pytest covers `_transform()` and `_extract_inat_id()` as pure function unit tests; dlt write-path tests are deferred
 
-### Filter
-
-- [ ] **FILTER-03**: User can filter specimens and samples to one or more counties using a multi-select autocomplete with removable chips; county filter uses OR semantics (King OR Pierce) and ANDs with taxon, date, and ecoregion filters
-- [ ] **FILTER-04**: User can filter specimens and samples to one or more ecoregions using a multi-select autocomplete with removable chips; chips show a type label ("county" / "ecoregion") to disambiguate when both are active simultaneously
-- [ ] **FILTER-05**: Active region filter state (boundary mode, selected counties, selected ecoregions) is encoded in the URL (bm=, counties=, ecor= params) and restored when the URL is pasted or navigated to
-- [ ] **FILTER-06**: Clicking "Clear filters" resets county and ecoregion selections in addition to taxon and date filters; map position is unchanged
-
-## v1.4 Requirements (Shipped)
-
-### Map Layer
-
-- [x] **MAP-03**: User can see iNat collection events rendered as simple dot markers on the map as a distinct layer
-- [x] **MAP-04**: User can toggle between specimen clusters and sample dots (exclusive — one layer visible at a time; sidebar clears on switch)
-- [x] **MAP-05**: Clicking a sample dot shows observer, date, specimen count, and a link to the iNat observation in the sidebar
-
-### Linkage
-
-- [x] **LINK-05**: Specimen sidebar shows a clickable iNat observation link when a linkage exists in links.parquet
+### CI Simplification
+- [ ] **CI-01**: `deploy.yml` removes `build:data` step; CI runs frontend build only; no Python pipeline code executes in CI
+- [ ] **CI-02**: `fetch-data.yml` workflow deleted
 
 ## Future Requirements
 
-### Map Layer
+### Frontend DuckDB WASM
 
-- **MAP-06**: URL encoding of selected sample marker (`inat=` param) — defer until collectors confirm they share sample links
-- **MAP-07**: Combined specimens + samples view — click disambiguation is non-trivial; defer until collectors request it
-- **MAP-08**: Sample dot size-encoded by specimen count — defer until basic layer ships and feedback received
-
-### Map / Region
-
-- **MAP-11**: Selected polygon highlighted distinctly on map — sidebar chips are sufficient confirmation at launch
-- **MAP-12**: Draw-a-polygon region filter — named regions cover the real use case; draw interaction is significant complexity
+- **WASM-01**: Frontend replaced with DuckDB WASM reading parquet files directly
+- **WASM-02**: Client-side SQL joins, filters, and sorts replace JavaScript FilterState
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Filter controls (taxon/date) active in sample mode | Sample data has no taxon column; filters are hidden when sample layer is active |
-| Tribe-level filtering | Tribe not present in Ecdysis DarwinCore export |
-| Server-side API or backend | Static hosting constraint — all data client-side |
-| Filter result count per region in sidebar | Requires cross-cutting count logic; defer until basic filter ships |
-| Auto-zoom to region on filter | Explicitly out of scope per PROJECT.md — map position unchanged |
+| DuckDB WASM frontend | Future milestone; current hyparquet frontend stays for v1.7 |
+| Anti-entropy scheduling | No production scheduler yet; manual Lambda invocation sufficient |
+| Schema changes for DuckDB WASM optimization | Premature — wait until WASM frontend is being built |
+| links.parquet as separate export | Folded into ecdysis.parquet; no separate file needed |
+| Lambda concurrency / throttling controls | Beyond reserved concurrency = 1; out of scope for v1.7 |
+| Multi-region deployment | Single CloudFront distribution; no geo-routing needed |
+| Lambda monitoring / alerting | CloudWatch metrics available; dashboards/alerts deferred |
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MAP-03 | Phase 13 (partial — source), Phase 14 (complete) | Complete |
-| MAP-04 | Phase 14 | Complete |
-| MAP-05 | Phase 15 | Complete |
-| LINK-05 | Phase 15 | Complete |
-| PIPE-05 | Phase 16 | Complete |
-| PIPE-06 | Phase 16 | Complete |
-| PIPE-07 | Phase 16 | Complete |
-| MAP-09 | Phase 18 | Pending |
-| MAP-10 | Phase 18 | Pending |
-| FILTER-05 | Phase 18 | Pending |
-| FILTER-03 | Phase 19 | Pending |
-| FILTER-04 | Phase 19 | Pending |
-| FILTER-06 | Phase 19 | Pending |
+| LAMBDA-01 | — | Removed — VPC/NAT replaced by S3-backed DuckDB pattern (no VPC needed) |
+| LAMBDA-02 | — | Removed — EFS replaced by S3-backed DuckDB pattern |
+| LAMBDA-03 | Phase 25 | Complete |
+| LAMBDA-04 | Phase 25 | Complete |
+| LAMBDA-05 | Phase 25 | Complete |
+| PIPE-11 | Phase 26 | Complete |
+| PIPE-12 | Phase 26 | Complete |
+| PIPE-13 | Phase 26 | Complete |
+| PIPE-14 | Phase 26 | Complete |
+| TEST-01 | Phase 27 | Complete |
+| TEST-02 | Phase 27 | Complete |
+| TEST-03 | Phase 27 | Complete |
+| FETCH-01 | Phase 28 | Complete |
+| FETCH-02 | Phase 28 | Complete |
+| FETCH-03 | Phase 28 | Complete |
+| CI-01 | Phase 29 | Pending |
+| CI-02 | Phase 29 | Pending |
+| PIPE-08 | Phase 20 | Complete |
+| PIPE-09 | Phase 20 | Complete |
+| PIPE-10 | Phase 20 | Superseded by PIPE-11 |
+| EXP-01 | Phase 21 | Complete |
+| EXP-02 | Phase 21 | Complete |
+| EXP-03 | Phase 21 | Complete |
+| EXP-04 | Phase 21 | Complete |
+| GEO-01 | Phase 21 | Complete |
+| GEO-02 | Phase 21 | Complete |
+| ORCH-01 | Phase 22 | Complete |
+| ORCH-02 | Phase 22 | Complete |
+| FRONT-01 | Phase 23 | Complete |
+| DEBT-01 | Phase 24 | Complete |
 
 **Coverage:**
-- v1.5 requirements: 9 total
-- Mapped to phases: 9
-- Unmapped: 0 ✓
+- v1.7 requirements: 15 active (LAMBDA-01 and LAMBDA-02 removed)
+- Mapped to phases: 15/15
+- Unmapped: 0
 
 ---
-*Requirements defined: 2026-03-12 (v1.4), extended 2026-03-14 (v1.5)*
-*Last updated: 2026-03-14 after v1.5 roadmap creation (Phases 16–19)*
+*Requirements defined: 2026-03-27*
+*Last updated: 2026-03-27 — EFS/VPC architecture replaced by S3-backed DuckDB; LAMBDA-01 and LAMBDA-02 removed; LAMBDA-03 and PIPE-11/13 updated*

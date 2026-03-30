@@ -1,91 +1,107 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: Geographic Regions
-status: executing
-stopped_at: Completed 16-06-PLAN.md
-last_updated: "2026-03-14T18:22:05.918Z"
-last_activity: 2026-03-14 — 16-01 test scaffold complete (9 tests, all RED)
+milestone: v1.7
+milestone_name: Production Pipeline Infrastructure
+status: verifying
+stopped_at: "Completed 28-01-PLAN.md (Tasks 1-2 done; Task 3 checkpoint:human-verify pending)"
+last_updated: "2026-03-29T20:49:16.176Z"
+last_activity: 2026-03-29
 progress:
-  total_phases: 7
-  completed_phases: 3
-  total_plans: 12
-  completed_plans: 11
-  percent: 70
+  total_phases: 5
+  completed_phases: 4
+  total_plans: 4
+  completed_plans: 4
+  percent: 40
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-14)
+See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v1.5 Geographic Regions — Phase 16 ready to plan
+**Current focus:** Phase 28 — frontend-runtime-fetch
 
 ## Current Position
 
-Phase: 16 of 19 (Pipeline Spatial Join)
-Plan: 1 of 5 complete (16-01 test scaffold)
-Status: In progress
-Last activity: 2026-03-14 — 16-01 test scaffold complete (9 tests, all RED)
+Phase: 29
+Plan: Not started
+Status: Phase complete — ready for verification
+Last activity: 2026-03-29
 
-Progress: [███████░░░] 70%
+Progress: [████░░░░░░] 40% (2/5 phases)
+
+## Pivot: Lambda → maderas cron
+
+Lambda was attempted (phases 25–26) but hit fatal blockers: geographies OOM, 15-min timeout, read-only filesystem, missing home directory, iNat auth. Pipeline now runs as `data/nightly.sh` on maderas via cron at 3am daily. CDK/Lambda infrastructure remains deployed in AWS but is not the execution path.
+
+**What's working:**
+
+- `nightly.sh` runs end-to-end on maderas (~2.5 min): pipelines → export → S3 upload → DuckDB backup → CloudFront invalidation
+- Cron: `0 3 * * * /home/peter/dev/beeatlas/data/nightly.sh >> /home/peter/beeatlas-pipeline.log 2>&1`
+- CI: `cache_restore.sh` reads parquet from `s3://BUCKET/data/` (updated 2026-03-28)
+- CI schema validation passing
+
+**What remains:**
+
+- Phase 27: pytest coverage for export.py and pipeline modules
+- Phase 28: Frontend runtime fetch (parquet still bundled via assets/)
+- Phase 29: CI simplification (fetch-data.yml still exists; cache-restore + validate-schema steps still run)
 
 ## Performance Metrics
-
-**Velocity:**
-- Total plans completed: 0 (this milestone)
-- Average duration: —
-- Total execution time: —
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
-
-*Updated after each plan completion*
-| Phase 16-pipeline-spatial-join P04 | 5 | 1 tasks | 1 files |
-| Phase 16-pipeline-spatial-join P01 | 1 | 1 tasks | 1 files |
-| Phase 16-pipeline-spatial-join P02 | 2 | 1 tasks | 1 files |
-| Phase 16 P03 | 148 | 2 tasks | 3 files |
-| Phase 16-pipeline-spatial-join P05 | 525712min | 2 tasks | 2 files |
-| Phase 16-pipeline-spatial-join P06 | 1min | 2 tasks | 2 files |
+| Phase 21-parquet-and-geojson-export P01 | 3min | 1 tasks | 7 files |
+| Phase 22-orchestration P01 | 5min | 2 tasks | 3 files |
+| Phase 23-frontend-simplification P01 | 1min | 2 tasks | 2 files |
+| Phase 24-tech-debt-audit P01 | 1min | 1 tasks | 2 files |
+| Phase 25-cdk-infrastructure P01 | 4min | 3 tasks | 3 files |
+| Phase 26-lambda-handler-dockerfile P01 | 3min | 2 tasks | 10 files |
+| Phase 27-pipeline-tests P01 | 25 | 3 tasks | 6 files |
+| Phase 28-frontend-runtime-fetch P01 | 30min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
 ### Decisions
 
+- **v1.5 coastal nulls**: ~408 WA specimens fall outside ecoregion polygon boundaries; nearest-polygon fallback required after 'within' sjoin for null rows
+- **v1.5 CRS risk**: EPA L3 ecoregion shapefile uses non-EPSG spherical Lambert AEA CRS — must call .to_crs('EPSG:4326') before sjoin
 - **v1.4 BigInt coercion**: hyparquet returns INT64 Parquet columns as JavaScript BigInt; must coerce with Number() at read time
-- **v1.4 exclusive toggle**: Layer toggle uses layer.setVisible(bool) — sample data has no taxon column so parity is impossible; click disambiguation requires exclusive display
-- **v1.4 filter controls**: Specimen taxon/date filters hidden when sample layer is active — sample features have no taxon properties
-- [Phase 15]: links.parquet requires force-add to git tracking (*.parquet gitignored but needed for frontend)
-- **v1.5 CRS risk**: EPA L3 ecoregion shapefile uses non-EPSG spherical Lambert AEA CRS — must call .to_crs('EPSG:4326') before sjoin or results are silently wrong
-- **v1.5 coastal nulls**: ~408 WA specimens (~0.9%) fall outside ecoregion polygon boundaries; nearest-polygon fallback required after 'within' sjoin for null rows
-- **v1.5 click priority**: Polygon singleclick handler must check specimen/sample hits FIRST; checking polygon first swallows specimen clicks when boundary overlay is visible
-- **v1.5 polygon fill**: OL only hit-detects rendered pixels; transparent Fill (rgba 0,0,0,0) required for polygon interior to be clickable
-- [Phase 16-pipeline-spatial-join]: validate-schema.mjs EXPECTED dict is the authoritative CI schema contract for parquet column requirements
-- [Phase 16-pipeline-spatial-join]: Test scaffold contracts: build_county_geojson/build_ecoregion_geojson accept out_path param; load_boundaries must exist in inat.download; separate load_*_gdf functions for test isolation
-- [Phase 16-pipeline-spatial-join]: Three coordinate conventions handled in add_region_columns: longitude/latitude, lon/lat, decimalLongitude/decimalLatitude
-- [Phase 16-pipeline-spatial-join]: sjoin_nearest fallback uses EPSG:32610 to avoid geographic CRS warning; deduplication applied after every sjoin
-- [Phase 16]: build_geojson.py uses underscore (not dash) to match Python module import requirements from 16-01 test scaffold
-- [Phase 16-pipeline-spatial-join]: Pipeline boundary loading: boundaries loaded once at entrypoint (main/__main__), passed as arguments through to pipeline functions — avoids double-loading
-- [Phase 16-pipeline-spatial-join]: iNat load_boundaries() defined as named function for test mocking; add_region_columns applied to merged (not delta alone) to handle incremental run correctness
-- [Phase 16-pipeline-spatial-join]: GeoJSON boundary files committed to git rather than generated at CI time — simplest resolution with no workflow changes
+- **v1.6 scope**: Production CI integration (INFRA-06/07/08) and DuckDB WASM frontend deferred — local-first migration goal for this milestone
+- [Phase 21-parquet-and-geojson-export]: export.py uses DuckDB COPY TO PARQUET with ST_Within + ST_Distance fallback; parquet files remain gitignored (build artifacts); GeoJSON files committed as geographic source boundaries
+- [Phase 22-orchestration]: data/run.py replaces build-data.sh — Python orchestrator calls pipeline functions in-process, no subprocess
+- [Phase 23-frontend-simplification]: Read inat_observation_id from ecdysis feature properties; deleted loadLinksMap without fallback since Phase 21 guarantees the column
+- [Phase 24-tech-debt-audit]: Closed 5 legacy debt items resolved by dlt migration; updated EPA CRS item; added 3 new items (no dlt tests, CI not wired, DuckDB persistence unresolved)
+- **v1.7 Lambda abandoned**: geographies OOM, 15-min timeout, read-only filesystem, missing home directory, iNat auth all blocked Lambda; maderas cron is the execution path
+- **v1.7 maderas cron**: `data/nightly.sh` runs all pipelines + export + S3 upload + CloudFront invalidation; cron at 0 3 * * *; logs to ~/beeatlas-pipeline.log on maderas
+- **v1.7 CloudFront CORS cache**: Origin header must be in CloudFront cache key and S3 CORS must expose Range/Content-Range headers; both must be configured together in Phase 28 to avoid CORS failures for browser fetch
+- [Phase 25-cdk-infrastructure]: TimeZone must be imported from aws-cdk-lib core (not aws-scheduler) in CDK 2.238.0
+- [Phase 25-cdk-infrastructure]: Lambda URL auth NONE — volunteer project, manual invocation only, no sensitive data in endpoint
+- [Phase 26-lambda-handler-dockerfile]: All pipeline module paths (DB_PATH, EXPORT_DIR, GEOGRAPHY_CACHE_DIR) read from env vars with local fallback — enables maderas and local dev simultaneously
+- [Phase 26-lambda-handler-dockerfile]: Dockerfile uses uv multi-stage build (ghcr.io/astral-sh/uv + public.ecr.aws/lambda/python:3.14) — pyogrio binary wheel bundles libgdal, no system GDAL install needed (unused now but Dockerfile remains)
+- [Phase 27-pipeline-tests]: Fixture DuckDB uses embedded WKT constants (not committed binary) — fetched from production DB, embedded as string literals in conftest.py (D-01)
+- [Phase 27-pipeline-tests]: monkeypatch.setattr over env var for ASSETS_DIR — module-level global set at import time, env var override is unreliable after first import
+- [Phase 27-pipeline-tests]: North Cascades WKT: 3 polygons named 'North Cascades'; only 7941-char polygon contains test coordinates — must use explicit length check, not LIMIT 1 on length > 1000
+- [Phase 28-frontend-runtime-fetch]: VITE_DATA_BASE_URL defaults to https://beeatlas.net/data — dev fetches from prod CloudFront directly
+- [Phase 28-frontend-runtime-fetch]: CachePolicy with Origin allowList (not CACHING_OPTIMIZED) required for per-origin CORS caching in /data/* behavior
+- [Phase 28-frontend-runtime-fetch]: _countyOptions/_ecoregionOptions as @state() populated on OL source change event — countySource.getFeatures() returns [] at module init with async url+format
 
 ### Pending Todos
 
 | # | Title | Area | File |
 |---|-------|------|------|
-| 1 | Specify explicit fields on iNat API calls | general | [2026-03-12-specify-explicit-fields-on-inat-api-calls.md](./todos/pending/2026-03-12-specify-explicit-fields-on-inat-api-calls.md) |
+| - | (none) | - | - |
 
 ### Blockers/Concerns
 
-- **GeoJSON property name gap**: ecoregion GeoJSON property name needs confirmation against generated file — research notes `NA_L3NAME` as likely but `US_L3NAME` appears in ARCHITECTURE.md as placeholder; confirm before writing click handler in Phase 18
+None.
 
 ## Session Continuity
 
-Last session: 2026-03-14T18:22:05.916Z
-Stopped at: Completed 16-06-PLAN.md
+Last session: 2026-03-29T17:19:55.374Z
+Stopped at: Completed 28-01-PLAN.md (Tasks 1-2 done; Task 3 checkpoint:human-verify pending)
 Resume file: None
