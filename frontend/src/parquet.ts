@@ -8,6 +8,7 @@ import { all } from 'ol/loadingstrategy.js';
 
 async function asyncBufferFromUrlEager(url: string) {
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${url}`);
   const arrayBuffer = await res.arrayBuffer();
   return {
     byteLength: arrayBuffer.byteLength,
