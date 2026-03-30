@@ -6,8 +6,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUCKET="beeatlasstack-sitebucket397a1860-h5dtjzkld3yv"
-DISTRIBUTION_ID="E3SAI2PQ8FN0E7"
+BUCKET="${BUCKET:-beeatlasstack-sitebucket397a1860-h5dtjzkld3yv}"
+DISTRIBUTION_ID="${DISTRIBUTION_ID:-E3SAI2PQ8FN0E7}"
 DB_S3_KEY="db/beeatlas.duckdb"
 DB_PATH="/tmp/beeatlas.duckdb"
 EXPORT_DIR="/tmp/beeatlas-export"
@@ -15,9 +15,11 @@ AWS_PROFILE="${AWS_PROFILE:-beeatlas}"
 
 echo "=== BeeAtlas nightly pipeline $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
-# 1. Pull DuckDB from S3
+# 1. Pull DuckDB from S3 (missing = first run, not an error)
 echo "--- pulling DuckDB from S3 ---"
-aws --profile "$AWS_PROFILE" s3 cp "s3://$BUCKET/$DB_S3_KEY" "$DB_PATH"
+if ! aws --profile "$AWS_PROFILE" s3 cp "s3://$BUCKET/$DB_S3_KEY" "$DB_PATH" 2>/dev/null; then
+    echo "No existing DuckDB in S3 (first run), starting fresh."
+fi
 
 # 2. Run pipelines
 echo "--- running pipelines ---"
