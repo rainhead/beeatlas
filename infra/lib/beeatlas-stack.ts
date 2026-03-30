@@ -6,6 +6,12 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as targets from 'aws-cdk-lib/aws-route53-targets';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Platform } from 'aws-cdk-lib/aws-ecr-assets';
+import { Schedule, ScheduleExpression, ScheduleTargetInput } from 'aws-cdk-lib/aws-scheduler';
+import { TimeZone } from 'aws-cdk-lib';
+import { LambdaInvoke } from 'aws-cdk-lib/aws-scheduler-targets';
+import * as path from 'path';
 import { Construct } from 'constructs';
 import { GlobalStack } from './global-stack';
 
@@ -39,6 +45,40 @@ export class BeeAtlasStack extends cdk.Stack {
       domainNames: ['beeatlas.net', 'www.beeatlas.net'],
       certificate: siteCert,
     });
+
+    // ── /data/* cache behavior with CORS headers ──────────────────────────
+    // Cache policy: include Origin in cache key so CORS responses are cached per-origin.
+    // Do NOT use CACHING_OPTIMIZED (it does not include Origin in the cache key).
+    const dataCachePolicy = new cloudfront.CachePolicy(this, 'DataCachePolicy', {
+      headerBehavior: cloudfront.CacheHeaderBehavior.allowList('Origin'),
+      queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+      cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+      defaultTtl: cdk.Duration.days(1),
+      maxTtl: cdk.Duration.days(365),
+      minTtl: cdk.Duration.seconds(0),
+    });
+
+    // Response headers policy: expose CORS + Range/ETag headers to the browser.
+    // No S3 bucket CORS config needed with OAC + ResponseHeadersPolicy.
+    const dataCorsPolicy = new cloudfront.ResponseHeadersPolicy(this, 'DataCorsPolicy', {
+      corsBehavior: {
+        accessControlAllowCredentials: false,
+        accessControlAllowHeaders: ['*'],
+        accessControlAllowMethods: ['GET', 'HEAD'],
+        accessControlAllowOrigins: ['*'],
+        accessControlExposeHeaders: ['Content-Range', 'Content-Length', 'ETag'],
+        originOverride: true,
+      },
+    });
+
+    distribution.addBehavior('/data/*',
+      origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
+      {
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: dataCachePolicy,
+        responseHeadersPolicy: dataCorsPolicy,
+      }
+    );
 
     // ── Route 53 records for beeatlas.net (apex + www) ────────────────────
     const siteTarget = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
@@ -142,6 +182,75 @@ function handler(event) {
       ],
     }));
 
+    // ── Pipeline Lambda ─────────────────────────────────────────────────────
+    const pipelineFn = new lambda.DockerImageFunction(this, 'PipelineFunction', {
+      code: lambda.DockerImageCode.fromImageAsset(
+        path.join(__dirname, '../../data'),
+        { platform: Platform.LINUX_AMD64 }
+      ),
+      architecture: lambda.Architecture.X86_64,
+      timeout: cdk.Duration.minutes(15),
+      memorySize: 3008,
+      ephemeralStorageSize: cdk.Size.mebibytes(4096),
+      reservedConcurrentExecutions: 1,
+      environment: {
+        DLT_DATA_DIR: '/tmp/dlt',
+        temp_directory: '/tmp/duckdb_swap',
+        BUCKET_NAME: siteBucket.bucketName,
+        DISTRIBUTION_ID: distribution.distributionId,
+        DB_PATH: '/tmp/beeatlas.duckdb',
+        EXPORT_DIR: '/tmp/export',
+        GEOGRAPHY_CACHE_DIR: '/tmp/geography_cache',
+        SOURCES__ECDYSIS_LINKS__DB_PATH: '/tmp/beeatlas.duckdb',
+        SOURCES__ECDYSIS_LINKS__HTML_CACHE_DIR: '/tmp/ecdysis_cache',
+      },
+    });
+
+    // Scoped S3 permissions — data/* for exports, db/* for DuckDB backup
+    siteBucket.grantReadWrite(pipelineFn, 'data/*');
+    siteBucket.grantReadWrite(pipelineFn, 'db/*');
+
+    // Grant CloudFront invalidation permission (PIPE-14)
+    pipelineFn.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['cloudfront:CreateInvalidation'],
+      resources: [
+        `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
+      ],
+    }));
+
+    // EventBridge Scheduler: nightly iNat pipeline (08:00 UTC)
+    new Schedule(this, 'NightlyInatSchedule', {
+      schedule: ScheduleExpression.cron({
+        minute: '0',
+        hour: '8',
+        timeZone: TimeZone.ETC_UTC,
+      }),
+      target: new LambdaInvoke(pipelineFn, {
+        input: ScheduleTargetInput.fromObject({ pipeline: 'inat' }),
+      }),
+      description: 'Nightly iNat pipeline refresh',
+    });
+
+    // EventBridge Scheduler: weekly full pipeline (all 5) — Sunday 10:00 UTC
+    new Schedule(this, 'WeeklyFullSchedule', {
+      schedule: ScheduleExpression.cron({
+        minute: '0',
+        hour: '10',
+        weekDay: 'SUN',
+        timeZone: TimeZone.ETC_UTC,
+      }),
+      target: new LambdaInvoke(pipelineFn, {
+        input: ScheduleTargetInput.fromObject({ pipeline: 'full' }),
+      }),
+      description: 'Weekly full pipeline run (all 5 pipelines)',
+    });
+
+    // Lambda Function URL for manual invocation (NONE auth — volunteer project)
+    const fnUrl = pipelineFn.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+    });
+
     // ── Outputs (consumed as GitHub Actions secrets) ──────────────────────
     new cdk.CfnOutput(this, 'BucketName', {
       value: siteBucket.bucketName,
@@ -158,6 +267,14 @@ function handler(event) {
     new cdk.CfnOutput(this, 'DeployerRoleArn', {
       value: deployerRole.roleArn,
       description: 'OIDC deployer role ARN → GitHub secret AWS_DEPLOYER_ROLE_ARN',
+    });
+    new cdk.CfnOutput(this, 'PipelineFunctionUrl', {
+      value: fnUrl.url,
+      description: 'Lambda Function URL for manual pipeline invocation',
+    });
+    new cdk.CfnOutput(this, 'PipelineFunctionArn', {
+      value: pipelineFn.functionArn,
+      description: 'Lambda function ARN',
     });
   }
 }

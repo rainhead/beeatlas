@@ -82,9 +82,23 @@ export const SAMPLE_RECENCY_COLORS = {
   older:    '#7f8c8d',  // slate — before this year (same as RECENCY_COLORS.older)
 } as const;
 
+const GHOSTED_SAMPLE_STYLE = new Style({
+  image: new Circle({
+    radius: 5,
+    fill: new Fill({ color: 'rgba(170, 170, 170, 0.2)' }),
+    stroke: new Stroke({ color: 'rgba(255,255,255,0.2)', width: 1 }),
+  }),
+});
+
 const sampleStyleCache = new Map<string, Style>();
 
 export function sampleDotStyle(feature: FeatureLike): Style {
+  // Ghost check — must come before cache lookup (ghost state depends on filterState)
+  const active = isFilterActive(filterState);
+  if (active && !matchesFilter(feature as Feature, filterState)) {
+    return GHOSTED_SAMPLE_STYLE;
+  }
+
   const date = feature.get('date') as string;
   // date is an ISO 8601 datetime with timezone offset, e.g. '2023-04-04 15:32:38-07:00'
   // Temporal.PlainDate.from() cannot parse this format — use Date instead

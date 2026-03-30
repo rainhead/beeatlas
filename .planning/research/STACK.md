@@ -1,281 +1,166 @@
 # Stack Research
 
-**Domain:** v1.5 Geographic Regions — spatial join pipeline + polygon overlay + region filter UI
-**Researched:** 2026-03-14
-**Confidence:** HIGH — all claims verified against actual repo source files and live data
+**Domain:** Lambda + EFS pipeline execution; runtime CloudFront data fetching (v1.7 additions)
+**Researched:** 2026-03-27
+**Confidence:** HIGH for CDK constructs and Python Lambda runtime; MEDIUM for VPC networking cost decisions
 
 ---
 
-## Key Finding: No New Python Dependencies, No New npm Packages
+This file covers only NEW stack additions for v1.7. Existing decisions (CDK v2, hyparquet, Lit, OpenLayers, uv, dlt[duckdb]) are validated and not re-litigated here.
 
-v1.5 is achievable with what is already installed:
+## Recommended Stack
 
-**Python pipeline:** geopandas 1.1.2, pyogrio 0.12.1, pyarrow 22 are all in `data/pyproject.toml`.
-`gpd.sjoin()` (point-in-polygon) and `gdf.to_crs()` (CRS alignment) are the only new API surface.
+### Core Technologies (New for v1.7)
 
-**Frontend:** `ol` 10.7.0 already includes `VectorLayer`, `VectorSource`, `GeoJSON` format, `Style`, `Fill`, `Stroke`. No new packages.
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Lambda container image (ECR) | aws-cdk-lib ^2.238.0 (already pinned) | Package Python pipeline with geopandas + duckdb for Lambda | zip archives are capped at 250 MB unzipped; geopandas + duckdb + dlt exceed this. Container images support up to 10 GB. Container image is the only viable approach. |
+| Python 3.14 Lambda runtime | managed runtime `python3.14` (GA Nov 2025) | Match `requires-python = ">=3.14"` in data/pyproject.toml | AWS added Python 3.14 managed runtime in November 2025; available in all regions. Matches existing pyproject.toml constraint exactly. |
+| Amazon EFS (`aws-cdk-lib/aws-efs`) | CDK v2 (already pinned) | Persistent DuckDB file across Lambda invocations | Lambda `/tmp` is ephemeral and wiped between invocations. EFS provides durable, cross-invocation storage for `beeatlas.duckdb`. Required for incremental dlt pipeline state. |
+| Amazon VPC (`aws-cdk-lib/aws-ec2`) | CDK v2 (already pinned) | EFS requires VPC; Lambda must be in the same VPC | EFS mount targets are VPC-internal. No way to attach EFS to Lambda without placing both in a VPC. |
+| EventBridge Scheduler (`aws-cdk-lib/aws-scheduler`) | CDK v2 (already pinned; L2 GA April 2025) | Trigger pipeline Lambda on a daily/weekly cron | Prefer Scheduler over EventBridge Rules for scheduled Lambda: Scheduler is decoupled from event buses, supports flexible time windows, and the L2 construct is now GA in CDK v2. |
+| Lambda Function URL (`aws-cdk-lib/aws-lambda`) | CDK v2 (already pinned) | HTTP endpoint for manual pipeline invocation | Simpler than API Gateway for a single-function trigger with no routing needs. Auth `NONE` is acceptable: the Lambda is a write-only operation (pipeline run) with no sensitive output — worst case is a redundant pipeline run. |
+| boto3 | bundled in Lambda runtime | Upload DuckDB backup and exported Parquets/GeoJSON to S3 | Already available in the Lambda execution environment; no additional packaging needed for S3 `upload_file` calls. |
 
-**GeoJSON bundling:** Vite treats `.geojson` as JSON (inline import as module object). No `?url` suffix required. Already have `@types/geojson` 7946.0.16 installed.
+### Supporting CDK Constructs (New for v1.7)
 
----
+| Construct | Module | Purpose | Notes |
+|-----------|--------|---------|-------|
+| `efs.FileSystem` | `aws-cdk-lib/aws-efs` | EFS filesystem definition | Set `removalPolicy: RETAIN` — do not destroy DuckDB storage on stack update |
+| `efs.AccessPoint` | `aws-cdk-lib/aws-efs` | POSIX-scoped mount point for Lambda | Set `ownerUid/Gid: '1000'`, `permissions: '755'`; access point uid is applied at mount |
+| `lambda.FileSystem.fromEfsAccessPoint(ap, '/mnt/data')` | `aws-cdk-lib/aws-lambda` | Attach EFS to Lambda at runtime | CDK wires the `elasticfilesystem:ClientMount` permission automatically |
+| `lambda.DockerImageFunction` | `aws-cdk-lib/aws-lambda` | Lambda from container image | Use `DockerImageCode.fromImageAsset('./data')` for CDK-managed build + ECR push |
+| `ec2.Vpc` | `aws-cdk-lib/aws-ec2` | Isolated VPC for EFS + Lambda | Use `natGateways: 0` and add VPC Gateway Endpoint for S3 (free) |
+| `ec2.GatewayVpcEndpoint` (S3) | `aws-cdk-lib/aws-ec2` | Free S3 access from private subnet | S3 Gateway endpoints have no hourly or data-processing charge — eliminates need for NAT gateway for S3 uploads |
+| `cloudfront.ResponseHeadersPolicy` | `aws-cdk-lib/aws-cloudfront` | Add CORS headers to CloudFront responses | Needed for `asyncBufferFromUrl` range requests from browser to CloudFront-served Parquets in the same bucket |
+| `cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN` | `aws-cdk-lib/aws-cloudfront` | Forward `Origin` header to S3 | Required so S3 can respond with CORS headers; without this, CloudFront strips the Origin header before forwarding to S3 |
 
-## Data Sources
+### Frontend Change (Runtime Fetching)
 
-### Ecoregions: CEC North America Level III — ALREADY IN REPO
+| Change | Current | New | Why |
+|--------|---------|-----|-----|
+| hyparquet data source | `asyncBuffer` from bundled `/assets/*.parquet` | `asyncBufferFromUrl({ url })` pointing to CloudFront | Parquets removed from build bundle; fetched at runtime from CloudFront |
+| GeoJSON loading | Vite plugin / bundled import | `fetch(url)` at runtime from CloudFront | Same reasoning — static files served from S3 via CloudFront |
+| hyparquet version | `^1.23.3` (already installed) | No change | `asyncBufferFromUrl` has been in hyparquet since early versions; no upgrade needed |
 
-| Source | Location | Format | CRS |
-|--------|----------|--------|-----|
-| CEC NA Level III ecoregions | `data/NA_CEC_Eco_Level3.zip` | Shapefile | Custom Lambert AEA (must reproject to EPSG:4326) |
-| Derived intermediate | `data/eco3.parquet` | GeoParquet (binary WKB geometry) | — |
+## VPC Networking Decision
 
-**Washington coverage:** 11 ecoregions after dissolve + bbox filter: Blue Mountains, Cascades, Coast Range, Coastal Western Hemlock-Sitka Spruce Forests, Columbia Mountains/Northern Rockies, Columbia Plateau, Eastern Cascades Slopes and Foothills, North Cascades, Strait of Georgia/Puget Lowland, Thompson-Okanogan Plateau, Willamette Valley.
+**Use `natGateways: 0` + VPC endpoints instead of NAT gateways for S3 traffic.**
 
-**Verified:** Read `NA_CEC_Eco_Level3.zip` with geopandas, reprojected to EPSG:4326, filtered to WA bbox (-124.8 to -116.9 lon, 45.5 to 49.1 lat) — 79 raw polygons dissolve to 11 named ecoregions.
+NAT gateways cost ~$32/month baseline (one per AZ in a multi-AZ VPC) plus $0.045/GB data processing. For a pipeline Lambda that runs once daily, this is disproportionate.
 
-**Note on EPA vs CEC naming:** The milestone spec says "EPA Level III ecoregions." The CEC NA Level III classification is the joint US-Canada-Mexico framework from which EPA derived its Level III nomenclature. For Washington specifically, the CEC NA L3 names match what EPA uses (e.g. "Cascades," "Columbia Plateau"). The `NA_CEC_Eco_Level3.zip` already in the repo is the correct dataset — no additional download required.
+Architecture recommendation:
+- **S3 Gateway Endpoint**: Free. Routes S3 traffic (Parquet uploads, DuckDB backup) within VPC — no NAT needed.
+- **ECR Interface Endpoint**: ~$7.30/month. Needed if Lambda cold-start pulls the container image from ECR at invocation time. CDK `DockerImageFunction` manages push to ECR; whether Lambda pulls from ECR at cold-start or from a cached layer is worth confirming at implementation time.
+- **Internet access for pipeline HTTP calls** (Ecdysis, iNaturalist HTTP APIs): Lambda in a private subnet with no NAT cannot make arbitrary outbound HTTP calls. Two options:
+  1. **NAT Instance** (t3.nano, ~$3/month) — cheapest path for outbound internet using `ec2.NatProvider.instanceV2()`
+  2. **NAT Gateway** (one, single AZ, ~$32/month) — operationally simpler but expensive for this use case
+  - Recommendation: start with a single NAT gateway for simplicity; revisit with NAT instance if monthly cost is a concern. Flag as implementation-time cost decision.
 
-**GeoJSON size:** At full resolution, WA ecoregion GeoJSON is 7.2 MB. After `geometry.simplify(0.005)` (approximately 500m tolerance), it is **382 KB** — acceptable for inline Vite bundling. At 0.001 tolerance it is 1.1 MB; 0.005 is the right tradeoff for display-only overlays at regional scale.
+## Lambda Packaging: Container Image
 
-### Counties: Census TIGER Cartographic Boundary
+Use `DockerImageCode.fromImageAsset('./data')` — CDK builds the image locally from `data/Dockerfile` and pushes it to ECR.
 
-| Source | URL Pattern | Format | Resolution |
-|--------|-------------|--------|------------|
-| US Census TIGER 2023 WA counties | `https://www2.census.gov/geo/tiger/GENZ2023/shp/cb_2023_53_county_500k.zip` | Shapefile | 1:500,000 (cartographic boundary, coast-clipped) |
+Write a multi-stage `Dockerfile`:
 
-**FIPS code for WA:** 53. Resolution 500k is sufficient for county-level display at state scale.
+```
+Stage 1 (builder): FROM python:3.14-slim
+  - COPY pyproject.toml uv.lock
+  - RUN uv pip install --target /deps --python-platform x86_64-manylinux2014
 
-**Why cartographic boundary over TIGER/Line:** TIGER/Line extends into water bodies; cartographic boundary files clip to shoreline. Better visual result for an overlay layer with no additional processing.
-
-**Why geopandas reads this directly:** `gpd.read_file(url)` with pyogrio engine uses GDAL's `/vsicurl/` virtual filesystem handler to stream the zip from the URL without a manual download step. This avoids storing a raw zip in the repo or pipeline.
-
-**County name column:** `NAME` field in the Census shapefile gives the bare county name (e.g. "King", "Yakima") without "County" suffix. Use as-is.
-
-**Expected size:** At 500k resolution, WA county GeoJSON is approximately 500-700 KB uncompressed. Simplify at 0.005 degrees to reduce to approximately 100-150 KB for bundling.
-
----
-
-## Spatial Join Strategy
-
-### Specimens (ecdysis.parquet)
-
-**County:** The Ecdysis DarwinCore export already contains a `county` column. Verified: 100% of 46,090 rows with coordinates have non-null `county`. **No spatial join needed for specimen county.** Simply pass the `county` column through from `occurrences.py`.
-
-**Ecoregion:** No ecoregion field in DarwinCore. Requires spatial join: create a `GeoDataFrame` from `longitude`/`latitude` columns, join against the WA ecoregion polygons.
-
-### Samples (samples.parquet)
-
-**County and ecoregion:** iNat API provides only `lat`/`lon`. Both fields require spatial join.
-
-### Spatial Join Pattern
-
-```python
-import geopandas as gpd
-from shapely.geometry import Point
-
-# Points GeoDataFrame
-gdf_pts = gpd.GeoDataFrame(
-    df,
-    geometry=gpd.points_from_xy(df['lon'], df['lat']),
-    crs='EPSG:4326'
-)
-
-# Region polygons (reproject to match)
-regions = gpd.read_file(...).to_crs('EPSG:4326')
-
-# Left join: keep all points, assign region attributes
-joined = gpd.sjoin(gdf_pts, regions[['NAME', 'geometry']], how='left', predicate='within')
-df['county'] = joined['NAME']
+Stage 2 (runtime): FROM public.ecr.aws/lambda/python:3.14
+  - COPY --from=builder /deps /var/task
+  - COPY *.py /var/task/
+  - CMD ["lambda_handler.handler"]
 ```
 
-**CRS must match before sjoin.** The ecoregion shapefile is in a custom Lambert AEA projection and must be reprojected to EPSG:4326 before joining points that are stored as WGS84 lon/lat.
+Do not use `@aws-cdk/aws-lambda-python-alpha` — it is alpha-stability and adds bundling magic that obscures the Dockerfile. The alpha construct's uv support mirrors what a well-written Dockerfile achieves directly.
 
-**`predicate='within'`** is correct for point-in-polygon. Points on polygon boundaries go to one polygon arbitrarily — acceptable for this use case.
+**Why container image over zip:**
+- geopandas alone (with GDAL/GEOS native deps) exceeds the 250 MB unzipped zip limit
+- duckdb binary adds ~50 MB; dlt adds additional dependencies
+- Container images support up to 10 GB; total image will be ~800 MB–1.5 GB, well within limit
+- Multi-stage builds keep the final image lean by excluding build tools
 
-**Null handling:** Points outside all WA polygons (e.g. specimens near the OR border or in water) will get null county/ecoregion. Store as nullable string in the output Parquet. Frontend treats null as "no region" — excluded from region filter matches but still visible on map.
+**Pre-install DuckDB spatial extension in image:** The DuckDB spatial extension downloads native binaries at first `INSTALL spatial` call. In Lambda, this write path is restricted. Pre-install by running `INSTALL spatial` during the Docker build and copying the extension files into the image.
 
-**Performance:** 46,090 specimens + 9,586 samples against 11 ecoregion polygons and 39 county polygons. geopandas sjoin uses an STR-tree spatial index — this runs in under a second.
+## CORS for CloudFront
 
----
+The frontend fetches Parquets and GeoJSON from the CloudFront distribution via `asyncBufferFromUrl` (which uses HTTP range requests). Since the frontend is served from `beeatlas.net` and the Parquets are also served from `beeatlas.net` via the same CloudFront distribution, this is technically same-origin — no CORS is needed in production.
 
-## Frontend: GeoJSON Bundling
+However, local development (`localhost:5173`) makes cross-origin requests to CloudFront. Add CORS support preemptively:
 
-### Import Strategy
+1. **S3 bucket CORS rule**: allow `GET`, `HEAD` from `https://beeatlas.net` and `http://localhost:*`
+2. **CloudFront origin request policy**: use `OriginRequestPolicy.CORS_S3_ORIGIN` managed policy to forward the `Origin` header to S3 — required for S3 to include CORS response headers
+3. **CloudFront response headers policy**: use `ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS` managed policy on the default behavior, or create a custom policy scoped to specific origins
 
-```typescript
-// Direct inline import — Vite treats .geojson as a JSON module
-import waCounties from './assets/wa_counties.geojson';
-import waEcoregions from './assets/wa_ecoregions.geojson';
+CDK managed policy names (already in `aws-cdk-lib/aws-cloudfront`):
+- `cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS` — adds `Access-Control-Allow-Origin: *`
+- `cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN` — forwards `Origin`, `Access-Control-Request-Headers`, `Access-Control-Request-Method` to S3
+
+## CDK Import Summary
+
+All new constructs are in `aws-cdk-lib` (already installed at ^2.238.0). No new npm packages needed:
+
 ```
-
-Vite's JSON module behavior: the file is parsed at build time and inlined as a JS object. No runtime fetch required. This is the correct approach for geometry that is needed immediately on map init (the overlay layer must be ready before any user interaction).
-
-**TypeScript type:** `import type { FeatureCollection } from 'geojson'` — already available via `@types/geojson` 7946.0.16.
-
-**Alternative `?url` suffix:** Use `import url from './assets/wa_counties.geojson?url'` only if deferring load is needed. Not needed here — the files are 100-400 KB, well within acceptable initial bundle overhead, and the overlay renders during initial map setup.
-
-**Vite config:** No changes to `vite.config.ts` needed. Vite handles GeoJSON out of the box.
-
-### Asset Naming Convention
-
-| File | Description | Target Size |
-|------|-------------|-------------|
-| `frontend/src/assets/wa_counties.geojson` | 39 WA counties, simplified 0.005 deg | ~150 KB |
-| `frontend/src/assets/wa_ecoregions.geojson` | 11 CEC NA L3 ecoregions, simplified 0.005 deg | ~382 KB |
-
-Both files are produced by the Python pipeline at build time and committed to the repo (same pattern as `ecdysis.parquet`).
-
----
-
-## Frontend: OpenLayers Vector Layer
-
-### Pattern
-
-`ol` 10.7.0 already provides everything needed. The relevant imports are a superset of what is already in `bee-map.ts`:
-
-| OL Class | Import Path | Already Used? | v1.5 Use |
-|----------|-------------|--------------|----------|
-| `VectorLayer` | `ol/layer/Vector.js` | Yes | Region polygon overlay layer |
-| `VectorSource` | `ol/source/Vector.js` | Yes | Backing source for region features |
-| `GeoJSON` | `ol/format/GeoJSON.js` | No — new import | Parse inline GeoJSON object |
-| `Style` | `ol/style/Style.js` | Yes | Polygon stroke + fill style |
-| `Fill` | `ol/style/Fill.js` | Yes | Semi-transparent fill for region polygons |
-| `Stroke` | `ol/style/Stroke.js` | Yes | Border for region polygons |
-
-**GeoJSON format usage:**
-
-```typescript
-import GeoJSONFormat from 'ol/format/GeoJSON.js';
-import waCounties from './assets/wa_counties.geojson';
-
-const countiesSource = new VectorSource({
-  features: new GeoJSONFormat().readFeatures(waCounties, {
-    featureProjection: 'EPSG:3857',
-  }),
-});
+aws-cdk-lib/aws-efs       → efs.FileSystem, efs.AccessPoint
+aws-cdk-lib/aws-ec2       → ec2.Vpc, ec2.SubnetType, ec2.GatewayVpcEndpoint
+aws-cdk-lib/aws-lambda    → lambda.DockerImageFunction, lambda.DockerImageCode,
+                             lambda.FileSystem, lambda.FunctionUrlAuthType
+aws-cdk-lib/aws-scheduler → scheduler.Schedule, scheduler.ScheduleExpression,
+                             scheduler.targets.LambdaInvoke
+aws-cdk-lib/aws-cloudfront → cloudfront.ResponseHeadersPolicy,
+                              cloudfront.OriginRequestPolicy
 ```
-
-The `featureProjection: 'EPSG:3857'` argument reprojects from WGS84 (GeoJSON standard) to Spherical Mercator (OL's internal CRS). This is the standard OpenLayers pattern for GeoJSON imports.
-
-**Layer styling:**
-
-```typescript
-const regionLayerStyle = new Style({
-  stroke: new Stroke({ color: 'rgba(60, 100, 200, 0.8)', width: 1.5 }),
-  fill: new Fill({ color: 'rgba(60, 100, 200, 0.05)' }),
-});
-```
-
-Light fill (5% opacity) + visible stroke. Adjust color by region type (counties vs ecoregions).
-
-**Exclusive toggle (off / counties / ecoregions):** One `VectorLayer` for counties, one for ecoregions. Toggle by calling `setVisible()` on each. Matches the existing `specimens`/`samples` toggle pattern.
-
-**Click-to-filter:** Add a branch to the existing `singleclick` handler. Check active region layer, call `regionLayer.getFeatures(event.pixel)`, get the region name from `feature.get('NAME')` (counties) or `feature.get('NA_L3NAME')` (ecoregions), dispatch a filter event.
-
----
-
-## Frontend: Region Filter UI
-
-**No new component.** Extend `BeeSidebar` with two additional multi-select inputs, following the existing autocomplete datalist pattern for taxon filtering.
-
-**State extension:** Add `counties: string[]` and `ecoregions: string[]` to `FilterState` in `filter.ts`. Both default to `[]` (no filter active). Region filter ANDs with existing taxon/date filters.
-
-**`matchesFilter` extension:** Add county and ecoregion checks using the new columns in specimen/sample features:
-```typescript
-if (f.counties.length > 0 && !f.counties.includes(feature.get('county'))) return false;
-if (f.ecoregions.length > 0 && !f.ecoregions.includes(feature.get('ecoregion_l3'))) return false;
-```
-
-**Autocomplete options:** Available counties and ecoregions are derived from the data (known at build time). Hard-code the 39 WA county names and 11 ecoregion names as static arrays in the sidebar — no dynamic computation needed.
-
----
-
-## Parquet Schema Changes
-
-### ecdysis.parquet (new columns)
-
-| Column | Type | Source | Notes |
-|--------|------|--------|-------|
-| `county` | string nullable | DarwinCore `county` field (pass-through) | 100% populated in current data |
-| `ecoregion_l3` | string nullable | Spatial join against CEC NA L3 polygons | Null for points outside WA |
-
-### samples.parquet (new columns)
-
-| Column | Type | Source | Notes |
-|--------|------|--------|-------|
-| `county` | string nullable | Spatial join against Census county polygons | Null for points outside WA |
-| `ecoregion_l3` | string nullable | Spatial join against CEC NA L3 polygons | Null for points outside WA |
-
-**CI schema validation:** The existing `scripts/validate-schema.mjs` checks Parquet column schemas before build. Add `county` and `ecoregion_l3` to the expected column list for both `ecdysis.parquet` and `samples.parquet` to catch regressions.
-
----
-
-## What NOT to Add
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| EPA WA-specific ecoregion shapefile (`wa_eco_l3` from EPA S3) | `NA_CEC_Eco_Level3.zip` is already in the repo and covers WA correctly; EPA WA L3 file uses identical region names | The existing `NA_CEC_Eco_Level3.zip` |
-| `fiona` as geopandas engine | `pyogrio` is already installed and is the default as of geopandas 1.0; fiona is the deprecated path | pyogrio (default, no config needed) |
-| `topojson` format for bundled geometry | TopoJSON reduces file size ~30-50% vs GeoJSON but requires a parser library (`topojson-client`, ~24 KB). At 150-400 KB GeoJSON, the savings do not justify adding a dependency | GeoJSON (built into OL, no extra library) |
-| Fetching GeoJSON at runtime via `url:` in VectorSource | Would require CloudFront to serve the GeoJSON separately from the JS bundle; complicates the static build model | Inline Vite JSON import |
-| `ol-mapbox-style` for region styling | Already installed for tile basemap; polygon overlay styling is simple enough for native OL `Style`/`Fill`/`Stroke` | Native OL style API |
-| Server-side spatial query | Project constraint: static hosting only | Spatial join at pipeline build time, store county/ecoregion in Parquet |
-| `shapely` direct usage | geopandas wraps shapely; `geometry.simplify()` is available on the GeoDataFrame geometry column via geopandas | `gdf.geometry.simplify(tolerance)` |
-
----
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| CEC NA L3 ecoregions (already in repo) | EPA WA-specific L3 shapefile from `dmap-prod-oms-edc.s3.us-east-1.amazonaws.com` | If EPA-specific attributes (US L3 codes, not NA codes) were required |
-| DarwinCore `county` pass-through for specimens | Spatial join for specimens county | If Ecdysis data had < 100% county coverage |
-| Census TIGER 500k cartographic boundary (coast-clipped) | TIGER/Line full-resolution county file | If precise shoreline geometry were needed (it's not — display only) |
-| `geometry.simplify(0.005)` in pipeline | Simplify in a post-processing step or manually | Only if pipeline needed to preserve full-res geometry for another purpose |
-| Inline Vite JSON import | `?url` import + runtime fetch | If GeoJSON files were > 2 MB or needed cache-busting separate from the JS bundle |
+| Recommended | Alternative | Why Not |
+|-------------|-------------|---------|
+| Container image Lambda | Zip archive | geopandas + duckdb exceed 250 MB unzipped zip limit |
+| Container image Lambda | Lambda Layers | Layers also subject to 250 MB unzipped limit; managing multiple layers for geopandas is fragile |
+| EFS for DuckDB persistence | S3 download/upload per run | DuckDB WAL and incremental dlt state require a real filesystem; S3 round-trips on every run break dlt's incremental state model. S3 backup is additive (disaster recovery), not the primary store. |
+| EventBridge Scheduler | EventBridge Rules (cron) | Scheduler L2 is now GA; Scheduler supports flexible time windows and doesn't require an event bus |
+| Lambda Function URL | API Gateway | API Gateway adds cost and complexity for a single-function, no-auth invocation endpoint |
+| `natGateways: 0` + S3 endpoint | Full NAT Gateway | NAT Gateway ~$32/month baseline is disproportionate for a once-daily pipeline Lambda |
+| `asyncBufferFromUrl` (existing hyparquet) | DuckDB WASM in browser | DuckDB WASM is planned for v1.7+ (noted in project memory) but is a separate milestone; `asyncBufferFromUrl` is the minimal change for runtime fetching with the existing hyparquet stack |
 
----
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `@aws-cdk/aws-lambda-python-alpha` | Alpha stability; obscures packaging with magic; no advantage over a hand-written Dockerfile | `lambda.DockerImageFunction` with `DockerImageCode.fromImageAsset` |
+| Zip/layer deployment | geopandas + duckdb exceed 250 MB unzipped limit | Container image (10 GB limit) |
+| `/tmp` for DuckDB persistence | Ephemeral; wiped between Lambda invocations | EFS mount at `/mnt/data/beeatlas.duckdb` |
+| `removalPolicy: DESTROY` on EFS | Would delete `beeatlas.duckdb` on stack update | `removalPolicy: RETAIN` |
+| `OriginAccessIdentity` (OAI) | Deprecated CDK pattern; project already uses OAC | `S3BucketOrigin.withOriginAccessControl()` (already used) |
+| Lambda managed runtime (non-container) | geopandas GDAL native libs not present in managed runtime; DuckDB spatial extension installation blocked | Container image with full Python environment and pre-installed extensions |
+| `INSTALL spatial` at Lambda invocation time | DuckDB extension installer writes to filesystem; Lambda `/tmp` is limited and the extension downloads from the internet (requires NAT) | Pre-install spatial extension during Docker build, copy extension files into image |
 
 ## Version Compatibility
 
-| Package | Version | Notes |
-|---------|---------|-------|
-| `geopandas` | >=1.1.2 (installed) | `gpd.sjoin()` stable; pyogrio default engine as of 1.0 |
-| `pyogrio` | >=0.12.1 (installed) | GDAL URL reading via `/vsicurl/`; handles zip URLs |
-| `pyarrow` | >=22 (installed) | Nullable string type for `county`/`ecoregion_l3` columns |
-| `ol` | 10.7.0 (installed) | `GeoJSON` format, `VectorLayer`, `VectorSource`, `Style` all stable |
-| `@types/geojson` | 7946.0.16 (installed) | `FeatureCollection` type for inline GeoJSON imports |
-| `vite` | 6.2.x (installed) | JSON module import of `.geojson` files: no config needed |
-
----
-
-## Installation
-
-```bash
-# No new packages for either Python pipeline or frontend
-# All required libraries are already installed
-```
-
-Pipeline additions are purely new Python modules and scripts. Frontend additions are new TypeScript in existing files plus two new GeoJSON assets in `frontend/src/assets/`.
-
----
+| Package | Version | Compatibility Notes |
+|---------|---------|---------------------|
+| aws-cdk-lib | ^2.238.0 (pinned in infra/) | `aws_scheduler` L2 went GA April 2025; available in 2.238.0+ |
+| Python Lambda runtime | `python3.14` | GA November 2025; all regions |
+| hyparquet | ^1.23.3 (pinned in frontend/) | `asyncBufferFromUrl` stable API; no version change needed |
+| dlt[duckdb] | >=1.23.0 (pyproject.toml) | dlt uses `DESTINATION__FILESYSTEM__BUCKET_URL` and `PIPELINE_WORKING_DIR` env vars; set working dir to EFS mount path in Lambda env |
+| duckdb | any (pyproject.toml) | Spatial extension must be pre-installed in container image; cannot download at Lambda runtime without NAT/internet access |
 
 ## Sources
 
-- `data/pyproject.toml` — geopandas 1.1.2, pyogrio 0.12.1, pyarrow 22 confirmed installed (HIGH)
-- `data/NA_CEC_Eco_Level3.zip` — read with geopandas, verified 11 WA ecoregions after reproject + dissolve (HIGH)
-- `data/eco3.parquet` — schema verified: NA_L3CODE, NA_L3NAME, geometry (WKB binary), 2548 rows (HIGH)
-- `data/ecdysis/occurrences.py` — county field exists in DarwinCore dtype dict; currently dropped in `to_parquet` (HIGH)
-- Ecdysis zip `occurrences.tab` — county column: 100% populated for 46,090 WA records (HIGH, verified live)
-- `data/samples.parquet` — schema: observation_id, observer, date, lat, lon, specimen_count, sample_id, downloaded_at — no county/ecoregion (HIGH)
-- `frontend/package.json` — ol 10.7.0, @types/geojson 7946.0.16, vite 6.2.3 (HIGH)
-- `frontend/src/bee-map.ts` — existing OL imports, VectorLayer, VectorSource, singleclick pattern (HIGH)
-- geopandas.org/en/stable/docs/reference/api/geopandas.sjoin.html — sjoin left join, predicate='within' (HIGH)
-- geopandas.org/en/stable/docs/user_guide/io.html — pyogrio URL reading, GeoJSON export, CRS handling (HIGH)
-- openlayers.org/en/latest/apidoc/module-ol_format_GeoJSON-GeoJSON.html — readFeatures with featureProjection (MEDIUM, official docs)
-- vite.dev/guide/assets — JSON/GeoJSON inline import vs ?url behavior (MEDIUM, official docs)
-- US Census TIGER cartographic boundary naming convention: `cb_{year}_{state_fips}_county_{resolution}.zip` (MEDIUM, WebSearch verified)
-- EPA ecoregion download page confirmed WA L3 file at `dmap-prod-oms-edc.s3.amazonaws.com/ORD/Ecoregions/wa/` (MEDIUM, WebSearch)
+- [AWS Lambda Python 3.14 announcement (Nov 2025)](https://aws.amazon.com/about-aws/whats-new/2025/11/aws-lambda-python-314/) — HIGH confidence (official AWS announcement)
+- [AWS Lambda quotas — container image 10 GB limit](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html) — HIGH confidence (official docs)
+- [Lambda FileSystem CDK API](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.FileSystem.html) — HIGH confidence (official CDK docs)
+- [uv AWS Lambda packaging guide](https://docs.astral.sh/uv/guides/integration/aws-lambda/) — HIGH confidence (official uv docs; covers zip and container image approaches)
+- [EventBridge Scheduler L2 GA announcement (April 2025)](https://aws.amazon.com/about-aws/whats-new/2025/04/aws-cdk-construct-library-eventbridge-scheduler/) — HIGH confidence (official AWS announcement)
+- [Lambda FunctionUrl CDK construct](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.FunctionUrl.html) — HIGH confidence (official CDK docs)
+- [S3 Gateway Endpoint — no charge](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html) — HIGH confidence (official AWS docs)
+- [CloudFront ResponseHeadersPolicy CDK](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_cloudfront.ResponseHeadersPolicy.html) — HIGH confidence (official CDK docs)
+- [hyparquet asyncBufferFromUrl README](https://github.com/hyparam/hyparquet/blob/master/README.md) — HIGH confidence (official repo)
+- [NAT gateway vs VPC endpoint cost](https://www.vantage.sh/blog/nat-gateway-vpc-endpoint-savings) — MEDIUM confidence (third-party pricing analysis consistent with AWS pricing page)
+- [dlt on AWS Lambda (Leolytix article)](https://medium.com/leolytix/serverless-elt-with-dlt-deploying-open-source-data-pipelines-on-aws-lambda-a53294cc4089) — MEDIUM confidence (community source; confirms env var config pattern)
 
 ---
-*Stack research for: v1.5 Geographic Regions — Washington Bee Atlas pipeline + frontend*
-*Researched: 2026-03-14*
+*Stack research for: BeeAtlas v1.7 — Lambda + EFS pipeline execution, runtime CloudFront data fetching*
+*Researched: 2026-03-27*

@@ -15,20 +15,6 @@ async function asyncBufferFromUrlEager(url: string) {
   };
 }
 
-const linkColumns = ['occurrenceID', 'inat_observation_id'];
-
-export async function loadLinksMap(url: string): Promise<Map<string, number>> {
-  const buffer = await asyncBufferFromUrlEager(url);
-  const objects = await parquetReadObjects({ columns: linkColumns, file: buffer });
-  const map = new Map<string, number>();
-  for (const obj of objects) {
-    if (obj.occurrenceID != null && obj.inat_observation_id != null) {
-      map.set(obj.occurrenceID as string, Number(obj.inat_observation_id));  // BigInt coercion
-    }
-  }
-  return map;
-}
-
 const columns = [
   'ecdysis_id',
   'occurrenceID',
@@ -42,10 +28,13 @@ const columns = [
   'genus',
   'family',
   'floralHost',
+  'county',
+  'ecoregion_l3',
+  'inat_observation_id',
 ];
 
 export class ParquetSource extends VectorSource {
-  constructor({url}: {url: string}) {
+  constructor({url, onError}: {url: string, onError?: (err: Error) => void}) {
     const load = (extent: Extent, resolution: number, projection: Projection, success: any, failure: any) => {
       asyncBufferFromUrlEager(url)
         .then(buffer => parquetReadObjects({columns, file: buffer}))
@@ -65,6 +54,9 @@ export class ParquetSource extends VectorSource {
               genus: obj.genus,
               family: obj.family,
               floralHost: obj.floralHost ?? null,
+              county: obj.county as string ?? null,
+              ecoregion_l3: obj.ecoregion_l3 as string ?? null,
+              inat_observation_id: obj.inat_observation_id != null ? Number(obj.inat_observation_id) : null,
             });
             return feature;
           })
@@ -73,7 +65,10 @@ export class ParquetSource extends VectorSource {
           if (success)
             success(features);
         })
-        .catch(failure);
+        .catch((err: Error) => {
+          if (onError) onError(err);
+          failure();
+        });
     }
     super({loader: load, strategy: all});
   }
@@ -87,10 +82,12 @@ const sampleColumns = [
   'lon',
   'specimen_count',
   'sample_id',
+  'county',
+  'ecoregion_l3',
 ];
 
 export class SampleParquetSource extends VectorSource {
-  constructor({url}: {url: string}) {
+  constructor({url, onError}: {url: string, onError?: (err: Error) => void}) {
     const load = (extent: Extent, resolution: number, projection: Projection, success: any, failure: any) => {
       asyncBufferFromUrlEager(url)
         .then(buffer => parquetReadObjects({columns: sampleColumns, file: buffer}))
@@ -106,6 +103,8 @@ export class SampleParquetSource extends VectorSource {
               date: obj.date,
               specimen_count: Number(obj.specimen_count),
               sample_id: obj.sample_id != null ? Number(obj.sample_id) : null,
+              county: obj.county as string ?? null,
+              ecoregion_l3: obj.ecoregion_l3 as string ?? null,
             });
             return feature;
           });
@@ -113,7 +112,10 @@ export class SampleParquetSource extends VectorSource {
           this.addFeatures(features);
           if (success) success(features);
         })
-        .catch(failure);
+        .catch((err: Error) => {
+          if (onError) onError(err);
+          failure();
+        });
     };
     super({loader: load, strategy: all});
   }

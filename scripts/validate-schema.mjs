@@ -19,14 +19,12 @@ const EXPECTED = {
     'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
     'genus', 'family', 'floralHost',
     'county', 'ecoregion_l3',
+    'inat_observation_id',
   ],
   'samples.parquet': [
     'observation_id', 'observer', 'date', 'lat', 'lon',
     'specimen_count', 'sample_id',
     'county', 'ecoregion_l3',
-  ],
-  'links.parquet': [
-    'occurrenceID', 'inat_observation_id',
   ],
 };
 

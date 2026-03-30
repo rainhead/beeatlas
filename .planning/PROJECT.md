@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that reads Parquet data bundled with the build — no server required at runtime. Three pipelines produce the Parquet: a Python pipeline fetching DarwinCore exports from Ecdysis (specimens), a pyinaturalist pipeline fetching collection events from iNat project 166376 (samples), and a scraping pipeline fetching Ecdysis specimen HTML pages to extract iNaturalist observation IDs (links). Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution moving to Lambda in v1.7.
 
 ## Core Value
 
@@ -41,23 +41,61 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ LCACHE-02: Upload links.parquet to S3 and sync HTML cache to S3 (only new files) after successful run — v1.3
 - ✓ LCACHE-03: npm scripts expose cache-restore-links, fetch-links, cache-upload-links — v1.3
 - ✓ PIPE-04: build-data.sh includes cache restore → fetch → cache upload in sequence — v1.3
+- ✓ PIPE-05: Specimens in ecdysis.parquet each have county and ecoregion_l3 values after the pipeline runs (spatial join + nearest-polygon fallback) — v1.5
+- ✓ PIPE-06: Collection events in samples.parquet each have county and ecoregion_l3 values after the pipeline runs — v1.5
+- ✓ PIPE-07: WA county and EPA L3 ecoregion GeoJSON bundled with build; CI schema validation enforces county and ecoregion_l3 columns — v1.5
+- ✓ MAP-09: User can toggle boundary overlay between off / county / ecoregion states — v1.5
+- ✓ MAP-10: User can click a visible boundary polygon to add that region to the active filter — v1.5
+- ✓ FILTER-03: County multi-select autocomplete with removable chips; OR semantics within type — v1.5
+- ✓ FILTER-04: Ecoregion multi-select autocomplete with removable chips; type labels disambiguate when both active — v1.5
+- ✓ FILTER-05: Region filter state (bm=/counties=/ecor=) encoded in URL and restored on paste — v1.5
+- ✓ FILTER-06: "Clear filters" resets county and ecoregion selections in addition to taxon and date — v1.5
+- ✓ FRONT-01: Frontend reads inat_observation_id directly from already-loaded ecdysis features; separate links.parquet loading and merge code removed — v1.6
+- ✓ DEBT-01: All 7 known tech debt items audited against dlt architecture; 5 closed, 1 updated, 1 carried forward; 3 new items surfaced — v1.6
+- ✓ PIPE-08: dlt pipeline files live in data/ with consolidated pyproject.toml and uv.lock; old pipeline modules removed — v1.6
+- ✓ PIPE-09: .dlt/config.toml configures all pipeline parameters (iNat project_id, Ecdysis dataset_id, html_cache_dir, db_path) — v1.6
+- ✓ PIPE-10: All 5 dlt pipelines run locally and write to data/beeatlas.duckdb (superseded by PIPE-11 for production; local dev still works) — v1.6
+- ✓ EXP-01: export.py produces ecdysis.parquet with inat_observation_id joined from occurrence_links; county/ecoregion_l3 via DuckDB ST_Within spatial join — v1.6
+- ✓ EXP-02: Nearest-polygon fallback (ST_Distance ORDER BY LIMIT 1) handles specimens outside polygon boundaries — v1.6
+- ✓ EXP-03: export.py produces samples.parquet with spatial join; specimen_count sourced from observation field_id=8338 — v1.6
+- ✓ EXP-04: validate-schema.mjs updated (inat_observation_id in ecdysis.parquet; links.parquet check removed) — v1.6
+- ✓ GEO-01: Export generates counties.geojson from geographies.us_counties (WA state_fips='53') — v1.6
+- ✓ GEO-02: Export generates ecoregions.geojson from geographies.ecoregions (polygons intersecting WA) — v1.6
+- ✓ ORCH-01: data/run.py runner sequences geographies → ecdysis → inat → projects → export; replaces build-data.sh — v1.6
+- ✓ ORCH-02: Individual pipeline steps runnable in isolation for development — v1.6
 
-## Current Milestone: v1.5 Geographic Regions
+## Previous Milestone: v1.6 dlt Pipeline Migration — COMPLETE
 
-**Goal:** Collectors can filter specimens and samples by geographic region (WA county or EPA Level III ecoregion) using a sidebar autocomplete or by clicking region boundaries on the map.
+**Goal:** Replace the custom data pipeline with dlt-based pipelines backed by an authoritative DuckDB store, with a Parquet export layer feeding the existing frontend.
+
+## Current Milestone: v1.7 Production Pipeline Infrastructure
+
+**Goal:** Move pipeline execution to Lambda with S3-backed DuckDB (downloaded to /tmp on invocation); export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
 
 **Target features:**
-- Pipeline spatial join: each specimen and sample gets `county` and `ecoregion_l3` columns at build time
-- WA county and EPA Level III ecoregion GeoJSON bundled with the build
-- Exclusive 3-state region boundary toggle on map: off / counties / ecoregions
-- Region filter in sidebar: county multi-select + ecoregion multi-select (autocomplete)
-- Clicking a visible region polygon adds it to the active filter
-- Region filter ANDs with existing taxon/date filters; applies to both specimens and samples
-- Map position unchanged when region is selected
+- Lambda: CDK DockerImageFunction (no VPC), EventBridge schedule, Lambda URL for manual invocation
+- Pipeline in Lambda: data/run.py as Lambda handler; Lambda downloads beeatlas.duckdb from S3 to /tmp, dlt pipelines write to /tmp/beeatlas.duckdb, then export Parquets + GeoJSON to S3
+- DuckDB backup: Lambda uploads updated beeatlas.duckdb from /tmp back to S3 after pipeline runs
+- Frontend runtime fetching: bundled Parquets and GeoJSON removed; frontend fetches all data files from CloudFront at runtime
+- Seed DuckDB + tests: data/fixtures/beeatlas-test.duckdb committed; pytest covers export.py and pipeline logic
+- CI simplified: no pipeline code in CI; frontend build only
 
-### Active (v1.5)
+**Deferred:** Multi-region support, Lambda concurrency controls
 
-(Requirements to be defined — see REQUIREMENTS.md)
+### Validated
+
+- ✓ LAMBDA-03: DockerImageFunction deployed — Python container, 15-min timeout, reserved concurrency 1, DLT_DATA_DIR + temp_directory env vars, prefix-scoped S3 grants — Validated in Phase 25
+- ✓ LAMBDA-04: EventBridge Scheduler rules — NightlyInatSchedule (0 8 UTC) and WeeklyFullSchedule (0 10 SUN UTC) — Validated in Phase 25
+- ✓ LAMBDA-05: Lambda Function URL (NONE auth) deployed; curl returns "S3 round-trip complete" HTTP 200 — Validated in Phase 25
+- ✓ TEST-01: Programmatic DuckDB fixture in conftest.py with ecdysis, inat_observations, geographies rows — Validated in Phase 27
+- ✓ TEST-02: export.py integration tests — correct Parquet schemas (15 ecdysis cols, 9 samples cols) and valid GeoJSON FeatureCollections — Validated in Phase 27
+- ✓ TEST-03: _transform() and _extract_inat_id() pure function unit tests (7 tests, edge cases covered) — Validated in Phase 27
+
+### Active
+
+- ✓ FETCH-01: Frontend fetches ecdysis.parquet and samples.parquet from CloudFront /data/ at runtime; no bundled Parquet files in dist/ — Validated in Phase 28
+- ✓ FETCH-02: CloudFront /data/* cache behavior with CORS headers (Access-Control-Allow-Origin: *, Content-Range/Content-Length/ETag exposed); CachePolicy varies by Origin — Validated in Phase 28
+- ✓ FETCH-03: BeeMap shows loading indicator while data is being fetched; error message if fetch fails — Validated in Phase 28
 
 ### Out of Scope
 
@@ -75,23 +113,21 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines in `bee-map.ts` and `bee-sidebar.ts`). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines across 56 files, 2 days): 244 Python + 51 shell scripts; samples.parquet produced and cached in S3. Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines across 18 files, single day): links.parquet with two-level cache skip, Ecdysis HTML scraping, S3 persistence.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day): custom pandas pipelines replaced with 5 dlt pipelines + DuckDB store; unified export.py; data/run.py local runner; links.parquet removed from frontend. Phase 25 complete (2026-03-28) — CDK Lambda stub deployed: DockerImageFunction, two EventBridge Scheduler rules, Lambda URL; curl confirms S3 round-trip live. Phase 27 complete (2026-03-28) — export.py integration tests and unit tests; programmatic DuckDB fixture. Phase 28 complete (2026-03-29) — frontend runtime fetch: bundled data files removed; CloudFront /data/* CORS behavior; loading/error overlay.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
-- Pipeline: Python 3.14+, uv, pandas, pyarrow, pyinaturalist; geopandas (Ecdysis pipeline)
+- Pipeline: Python 3.14+, uv, dlt[duckdb], duckdb, requests, beautifulsoup4, geopandas
 - Infrastructure: AWS CDK v2 (TypeScript), S3 + CloudFront OAC, OIDC IAM role
 - CI/CD: GitHub Actions (build on all pushes, deploy on push to main)
 
 **Live site:** https://d1o1go591lqnqi.cloudfront.net
 
 **Known tech debt:**
-- CI build runs `npm run build` which calls `build-data.sh` — makes a live HTTP POST to ecdysis.org and live iNat API calls on every push. If either is down, CI fails. `frontend/src/assets/ecdysis.parquet` is committed as fallback; no fallback for samples.parquet yet.
-- `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly).
-- No VERIFICATION.md files for any phase — verification relies on human-approved SUMMARY files.
-- Phase 1 SUMMARY references `--db` flag; actual CLI flag is `--datasetid`.
-- Match iNat ofvs by field_id=8338 (not name) — field was renamed circa 2024; name matching drops ~40% of historical data.
-- observations.ndjson cache stores full observation JSON with download timestamp (added in quick task post-v1.2).
+- `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly). Trivially fixable but deferred.
+- EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
+- No test coverage for dlt pipelines — `data/tests/` was deleted in Phase 20 as part of removing the old pandas-based modules; dlt pipelines were copied verbatim from prototype with no unit tests. Regression risk if pipeline logic changes.
+- CI integration for dlt pipelines not yet wired (INFRA-06/07/08 explicitly deferred for v1.6). The `build:data` npm script runs `cd data && uv run python run.py` which requires a local `beeatlas.duckdb`; CI currently uses committed parquet fallbacks. Pipeline will move to Lambda in v1.7 (Phase 26); CI pipeline step will be removed in Phase 29.
 
 ## Constraints
 
@@ -121,7 +157,7 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Lit `updated()` pattern for URL-pushed restore props | BeeMap pushes restore props as `@property`; BeeSidebar mirrors to `@state` via `updated()` | ✓ Good — clean separation between map-driven restore and sidebar-driven state |
 | Match iNat ofvs by field_id not name | Field renamed 'Number of bees collected' → 'numberOfSpecimens' circa 2024; name matching drops ~40% of historical data | ✓ Good — field_id=8338 is stable; confirmed from live API |
 | Parse raw API dicts not pyinaturalist model objects | Model attribute access inconsistent for ofvs; raw dict access is explicit and debuggable | ✓ Good — required discovery in Phase 9 (initial model approach failed) |
-| Use iNat API v1 (pyinaturalist default), not v2 | v2 has project observation count discrepancies; coordinate order also differs | ✓ Good — v1 returned correct counts and lat/lon order |
+| Use iNat v2 REST API directly (not pyinaturalist) | dlt prototype uses v2 with explicit DEFAULT_FIELDS and geojson.coordinates for correct lat/lon; original v1 decision was about pyinaturalist's v2 wrapper which had different issues | ✓ Updated — Phase 20 migration; direct REST usage avoids v2 wrapper issues |
 | Incremental fetch fallback on any exception | Any parse or merge error should trigger full re-fetch rather than producing corrupt parquet | ✓ Good — robust for corrupted cache states |
 | Job-level env: S3_BUCKET_NAME in CI | Cleaner than per-step env; avoids repetition across three cache/build steps | ✓ Good — applied to both build and deploy jobs |
 | Mirror cache-restore/build/cache-upload in both CI jobs | Keeps deploy job consistent with build job; both produce fresh samples.parquet | ✓ Good — credential ordering bug fixed in deploy job (credentials must precede build) |
@@ -131,6 +167,33 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Initialize `last_fetch_time = time.monotonic()` not `0.0` | Ensures first HTTP request also respects rate limit | ✓ Good — caught by TDD test; ensures ≤20 req/sec from first request |
 | S3 sync for HTML cache, S3 cp for links.parquet | HTML cache is a directory of many small files (sync efficient); links.parquet is a single file (cp simpler) | ✓ Good — mirrors iNat pipeline pattern |
 | Restore with graceful miss (`\|\| echo`), upload with fail-fast (`set -euo pipefail`) | First CI run has no cache to restore; upload failure means corrupt state | ✓ Good — correct asymmetry; matches v1.2 cache pattern |
+| `county`/`ecoregion_l3` as string columns (no BigInt coercion) | Parquet string columns come through as JS strings directly — no Number() cast needed unlike INT64 year/month | ✓ Good — Phase 17 confirmed; simpler than numeric coercion |
+| AND-across-types / OR-within-type region filter semantics | Matches expectation: "show me specimens in King County AND Cascades ecoregion" but "show me specimens in King OR Pierce County" | ✓ Good — implemented in matchesFilter() via Set.has() guards |
+| `geojson.d.ts` module declaration for `*.geojson` imports | vite/client types don't declare .geojson modules; typed as FeatureCollection covers all future imports without casts | ✓ Good — Phase 17 deviation; cleaner than as-unknown-as workaround |
+| EPA L3 ecoregion GeoJSON property name is `NA_L3NAME` | `US_L3NAME` appeared in early planning notes but `NA_L3NAME` is the correct column name in the actual file | ✓ Good — Phase 17 verifier checked live file |
+| GeoJSON boundary files committed to git (not generated at CI time) | Avoids shapefile download in CI; simplest resolution with no workflow changes needed | ✓ Good — 56 KB + 357 KB well within git budget; CI-safe |
+| Vite geojson plugin: readFileSync + export default; map:null | .geojson imports need custom Vite plugin; map:null suppresses sourcemap warnings | ✓ Good — Phase 18; pattern reusable for future static asset types |
+| bm= URL param omitted when off (absence = off) | Clean URLs; counties= and ecor= also omitted when empty | ✓ Good — minimal URL noise; symmetric with layer mode pattern |
+| Single-select replaces entire selection on plain click; toggle-off on re-click | Most intuitive: plain click = "show me this region"; shift-click for multi | ✓ Good — Phase 18-04; matches standard list selection UX |
+| countyOptions/ecoregionOptions as module-level constants with Set deduplication | Ecoregions reduce to 11 unique names from 80 features; computed once at load | ✓ Good — Phase 19; simpler than deriving from feature properties at render time |
+| Boundary toggle reuses existing .layer-toggle/.toggle-btn CSS | No new CSS classes needed; sidebar toggle and map toggle share same visual language | ✓ Good — Phase 19 decision; consistent UI with zero CSS additions |
+
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
 
 ---
-*Last updated: 2026-03-14 after v1.5 milestone started (Geographic Regions — spatial filtering)*
+*Last updated: 2026-03-29 after Phase 27 (pipeline tests) complete*
