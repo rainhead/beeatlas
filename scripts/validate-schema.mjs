@@ -52,11 +52,14 @@ for (const [filename, expectedCols] of Object.entries(EXPECTED)) {
   } catch (e) {
     if (e.code === 'ENOENT') {
       console.error(`x ${filename}: not found in assets/ -- S3 cache may be empty.`);
+      failed = true;
+    } else if (!useLocal && /403|404/.test(e.message)) {
+      console.warn(`! ${filename}: not available on CloudFront yet (pipeline not run) -- skipping`);
     } else {
       const source = useLocal ? 'local file' : 'CloudFront';
       console.error(`x ${filename}: could not read from ${source} (${e.message})`);
+      failed = true;
     }
-    failed = true;
     continue;
   }
 
