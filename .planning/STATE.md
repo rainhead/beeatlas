@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Production Pipeline Infrastructure
 status: verifying
-stopped_at: "Completed 28-01-PLAN.md (Tasks 1-2 done; Task 3 checkpoint:human-verify pending)"
-last_updated: "2026-03-29T20:49:16.176Z"
-last_activity: 2026-03-29
+stopped_at: Completed 29-01-PLAN.md
+last_updated: "2026-03-30T05:25:32.764Z"
+last_activity: 2026-03-30
 progress:
   total_phases: 5
-  completed_phases: 4
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 5
+  total_plans: 5
+  completed_plans: 5
   percent: 40
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 28 — frontend-runtime-fetch
+**Current focus:** Phase 29 — ci-simplification
 
 ## Current Position
 
-Phase: 29
-Plan: Not started
+Phase: 29 (ci-simplification) — EXECUTING
+Plan: 1 of 1
 Status: Phase complete — ready for verification
-Last activity: 2026-03-29
+Last activity: 2026-03-30
 
 Progress: [████░░░░░░] 40% (2/5 phases)
 
@@ -63,6 +63,7 @@ Lambda was attempted (phases 25–26) but hit fatal blockers: geographies OOM, 1
 | Phase 26-lambda-handler-dockerfile P01 | 3min | 2 tasks | 10 files |
 | Phase 27-pipeline-tests P01 | 25 | 3 tasks | 6 files |
 | Phase 28-frontend-runtime-fetch P01 | 30min | 2 tasks | 10 files |
+| Phase 29-ci-simplification P01 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,8 @@ Lambda was attempted (phases 25–26) but hit fatal blockers: geographies OOM, 1
 - [Phase 28-frontend-runtime-fetch]: VITE_DATA_BASE_URL defaults to https://beeatlas.net/data — dev fetches from prod CloudFront directly
 - [Phase 28-frontend-runtime-fetch]: CachePolicy with Origin allowList (not CACHING_OPTIMIZED) required for per-origin CORS caching in /data/* behavior
 - [Phase 28-frontend-runtime-fetch]: _countyOptions/_ecoregionOptions as @state() populated on OL source change event — countySource.getFeatures() returns [] at module init with async url+format
+- [Phase 29-ci-simplification]: asyncBufferFromUrl requires object { url } arg — hyparquet API
+- [Phase 29-ci-simplification]: CI build job: contents-read only, no id-token write; validate-schema uses CloudFront public endpoint
 
 ### Pending Todos
 
@@ -102,6 +105,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-29T17:19:55.374Z
-Stopped at: Completed 28-01-PLAN.md (Tasks 1-2 done; Task 3 checkpoint:human-verify pending)
+Last session: 2026-03-30T05:25:32.761Z
+Stopped at: Completed 29-01-PLAN.md
 Resume file: None

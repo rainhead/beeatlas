@@ -103,7 +103,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full phase details.
 - [x] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation (completed 2026-03-28)
 - [x] **Phase 27: Seed DuckDB + Tests** — Fixture DuckDB committed; pytest covers export.py and at least one pipeline module (completed 2026-03-29)
 - [x] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime (completed 2026-03-29)
-- [ ] **Phase 29: CI Simplification** — build:data removed from CI; fetch-data.yml deleted; frontend-only build
+- [x] **Phase 29: CI Simplification** — build:data removed from CI; fetch-data.yml deleted; frontend-only build (completed 2026-03-30)
 
 ## Phase Details
 
@@ -169,7 +169,7 @@ Plans:
   3. CI wall-clock time for a frontend-only deploy is measurably shorter than the previous pipeline-inclusive build
 **Plans**: 1 plan
 Plans:
-- [ ] 29-01-PLAN.md — Strip pipeline from CI, update validate-schema to CloudFront, delete fetch-data.yml (CI-01, CI-02)
+- [x] 29-01-PLAN.md — Strip pipeline from CI, update validate-schema to CloudFront, delete fetch-data.yml (CI-01, CI-02)
 
 ## Progress
 
@@ -203,4 +203,4 @@ Plans:
 | 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
 | 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
-| 29. CI Simplification | v1.7 | 0/1 | Not started | - |
+| 29. CI Simplification | v1.7 | 1/1 | Complete   | 2026-03-30 |
