@@ -14,6 +14,7 @@ from geographies_pipeline import load_geographies
 from ecdysis_pipeline import load_ecdysis, load_links
 from inaturalist_pipeline import load_observations
 from projects_pipeline import load_projects
+from anti_entropy_pipeline import run_anti_entropy
 from export import main as export_all
 
 STEPS: list[tuple[str, Callable]] = [
@@ -22,6 +23,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("ecdysis-links", load_links),
     ("inaturalist", load_observations),
     ("projects", load_projects),
+    ("anti-entropy", run_anti_entropy),
     ("export", export_all),
 ]
 
