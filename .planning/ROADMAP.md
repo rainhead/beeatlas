@@ -9,9 +9,7 @@
 - ✅ **v1.4 Sample Layer** — Phases 13–15 (shipped 2026-03-13)
 - ✅ **v1.5 Geographic Regions** — Phases 16–19 (shipped 2026-03-27)
 - ✅ **v1.6 dlt Pipeline Migration** — Phases 20–24 (shipped 2026-03-28)
-- 🚧 **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (in progress)
-
-  > **Pivot note (2026-03-28):** Lambda was abandoned mid-milestone after hitting geographies OOM, 15-min timeout, read-only filesystem, missing home directory, and iNat auth issues. Pipeline now runs as a nightly cron on maderas (`data/nightly.sh`). Phases 25–26 CDK/Lambda artifacts remain in AWS but are not the execution path. Phases 27–29 goals are unchanged.
+- ✅ **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (shipped 2026-03-30)
 
 ## Phases
 
@@ -95,81 +93,20 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full phase details.
 
 </details>
 
-### v1.7 Production Pipeline Infrastructure (In Progress)
+<details>
+<summary>✅ v1.7 Production Pipeline Infrastructure (Phases 25–29) — SHIPPED 2026-03-30</summary>
 
-**Milestone Goal:** Move pipeline execution off CI to a scheduled nightly cron; export all data files to S3; frontend fetches Parquets and GeoJSON at runtime. *(Lambda was attempted then abandoned — maderas `nightly.sh` cron is the execution path.)*
+- [x] Phase 25: CDK Infrastructure (1/1 plans) — completed 2026-03-28
+- [x] Phase 26: Lambda Handler + Dockerfile (1/1 plans) — completed 2026-03-28
+- [x] Phase 27: Pipeline Tests (1/1 plans) — completed 2026-03-29
+- [x] Phase 28: Frontend Runtime Fetch (1/1 plans) — completed 2026-03-29
+- [x] Phase 29: CI Simplification (1/1 plans) — completed 2026-03-30
 
-- [x] **Phase 25: CDK Infrastructure** — Lambda stub, EventBridge schedule, Lambda URL deployed to AWS; stub verifies S3 round-trip (completed 2026-03-28)
-- [x] **Phase 26: Lambda Handler + Dockerfile** — Real pipeline execution in Lambda; S3 data export, backup, and CloudFront invalidation (completed 2026-03-28)
-- [x] **Phase 27: Seed DuckDB + Tests** — Fixture DuckDB committed; pytest covers export.py and at least one pipeline module (completed 2026-03-29)
-- [x] **Phase 28: Frontend Runtime Fetch** — Bundled Parquet/GeoJSON imports removed; frontend fetches from CloudFront /data/ at runtime (completed 2026-03-29)
-- [x] **Phase 29: CI Simplification** — build:data removed from CI; fetch-data.yml deleted; frontend-only build (completed 2026-03-30)
+> **Pivot note:** Lambda was abandoned mid-milestone (geographies OOM, 15-min timeout, read-only filesystem). Pipeline runs as `data/nightly.sh` cron on maderas. CDK/Lambda artifacts remain in AWS but are not the execution path.
 
-## Phase Details
+See `.planning/milestones/v1.7-ROADMAP.md` for full phase details.
 
-### Phase 25: CDK Infrastructure
-**Goal**: Lambda stub, EventBridge schedule, and Lambda URL are deployed to AWS; stub verifies S3 read/write from /tmp works end-to-end
-**Depends on**: Phase 24
-**Requirements**: LAMBDA-03, LAMBDA-04, LAMBDA-05
-**Success Criteria** (what must be TRUE):
-  1. `cdk deploy` completes without error; CloudFormation outputs include the Lambda URL endpoint
-  2. Invoking the Lambda URL returns a 200 response and CloudWatch logs show the stub handler completed a successful S3 round-trip (download from `s3://BUCKET/db/`, write to `/tmp/`, upload back)
-  3. EventBridge Scheduler shows two rules: one nightly schedule (iNat pipeline) and one weekly schedule (full pipeline); both target the Lambda function
-  4. Lambda has `reservedConcurrentExecutions: 1`; env vars `DLT_DATA_DIR=/tmp/dlt` and `temp_directory=/tmp/duckdb_swap` are present in the function configuration
-**Plans**: 1 plan
-Plans:
-- [x] 25-01-PLAN.md — Dockerfile, stub handler, Lambda + Scheduler + URL constructs (LAMBDA-03, LAMBDA-04, LAMBDA-05)
-
-### Phase 26: Lambda Handler + Dockerfile
-**Goal**: Real pipeline execution runs end-to-end inside Lambda; invoking the Lambda URL triggers the dlt pipelines, exports data files to S3, backs up DuckDB, and invalidates CloudFront
-**Depends on**: Phase 25
-**Requirements**: PIPE-11, PIPE-12, PIPE-13, PIPE-14
-**Success Criteria** (what must be TRUE):
-  1. Invoking the Lambda URL (with a seeded S3 DuckDB at `s3://BUCKET/db/beeatlas.duckdb`) completes within 15 minutes and CloudWatch logs show all five pipelines finishing without error
-  2. After invocation, `aws s3 ls s3://BUCKET/data/` shows ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with recent modification timestamps
-  3. After invocation, `aws s3 ls s3://BUCKET/db/` shows beeatlas.duckdb with a recent modification timestamp
-  4. A CloudFront invalidation for `/data/*` appears in the distribution's invalidation history after each successful invocation
-**Plans**: 1 plan
-Plans:
-- [x] 26-01-PLAN.md — Real handler, env-var pipeline modules, production Dockerfile, CDK updates (PIPE-11, PIPE-12, PIPE-13, PIPE-14)
-
-### Phase 27: Pipeline Tests
-**Goal**: pytest covers export.py schema correctness and at least one dlt pipeline module using a minimal fixture DuckDB
-**Depends on**: Phase 26
-**Requirements**: TEST-01, TEST-02, TEST-03
-**Success Criteria** (what must be TRUE):
-  1. `data/tests/conftest.py` programmatically creates a DuckDB fixture with ecdysis, inat observations, and geographies tables; no committed binary `.duckdb` file
-  2. `uv run pytest data/tests/test_export.py` passes: all required Parquet columns present in output; GeoJSON output is valid and non-empty
-  3. `uv run pytest data/tests/test_transforms.py` passes: `_transform()` and `_extract_inat_id()` pure function unit tests cover happy path and edge cases; dlt write-path tests are deferred
-  4. All pytest tests pass without live AWS credentials or network access
-**Plans**: 1 plan
-Plans:
-- [x] 27-01-PLAN.md — Test infrastructure, transform tests, export tests (TEST-01, TEST-02, TEST-03)
-
-### Phase 28: Frontend Runtime Fetch
-**Goal**: Frontend fetches all data files from CloudFront /data/ at runtime; no Parquet or GeoJSON files are bundled with the build; loading state visible during fetch
-**Depends on**: Phase 26
-**Requirements**: FETCH-01, FETCH-02, FETCH-03
-**Success Criteria** (what must be TRUE):
-  1. The production build (`npm run build`) completes without errors and the dist/ output contains no .parquet or .geojson files
-  2. Loading the live site shows a visible loading indicator; the map renders correctly after fetch completes (verifiable in browser DevTools Network tab showing /data/*.parquet and /data/*.geojson requests returning 200)
-  3. A browser fetch of `https://CLOUDFRONT_DOMAIN/data/ecdysis.parquet` from a different origin (e.g., localhost:5173) returns the file without CORS errors; Range request headers work correctly
-  4. If a data file fetch fails, the frontend shows an error message rather than a blank or broken map
-**Plans**: 1 plan
-Plans:
-- [x] 28-01-PLAN.md — CDK CORS behavior, frontend runtime fetch migration, loading/error state (FETCH-01, FETCH-02, FETCH-03)
-
-### Phase 29: CI Simplification
-**Goal**: CI runs frontend build only; no pipeline code executes in CI; fetch-data.yml is deleted
-**Depends on**: Phase 28
-**Requirements**: CI-01, CI-02
-**Success Criteria** (what must be TRUE):
-  1. A push to main triggers `deploy.yml`; the workflow completes without running any Python pipeline step or referencing `build:data`, `S3_BUCKET_NAME`, or cache restore scripts
-  2. The file `.github/workflows/fetch-data.yml` does not exist in the repository
-  3. CI wall-clock time for a frontend-only deploy is measurably shorter than the previous pipeline-inclusive build
-**Plans**: 1 plan
-Plans:
-- [x] 29-01-PLAN.md — Strip pipeline from CI, update validate-schema to CloudFront, delete fetch-data.yml (CI-01, CI-02)
+</details>
 
 ## Progress
 

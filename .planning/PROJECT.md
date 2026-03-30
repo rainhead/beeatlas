@@ -63,41 +63,18 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ GEO-02: Export generates ecoregions.geojson from geographies.ecoregions (polygons intersecting WA) — v1.6
 - ✓ ORCH-01: data/run.py runner sequences geographies → ecdysis → inat → projects → export; replaces build-data.sh — v1.6
 - ✓ ORCH-02: Individual pipeline steps runnable in isolation for development — v1.6
+- ✓ LAMBDA-03: CDK DockerImageFunction deployed — Python container, 15-min timeout, reserved concurrency 1, env vars, prefix-scoped S3 grants — v1.7
+- ✓ LAMBDA-04: EventBridge Scheduler rules — NightlyInatSchedule + WeeklyFullSchedule — v1.7
+- ✓ LAMBDA-05: Lambda Function URL (NONE auth) deployed — v1.7
+- ✓ PIPE-11–14: Lambda handler with S3 DuckDB download, pipeline dispatch, S3 export, backup, CloudFront invalidation — v1.7 (CDK/Lambda deployed but maderas cron is execution path)
+- ✓ TEST-01–03: pytest suite (13 tests) — programmatic DuckDB fixture, export.py schema tests, transform unit tests — v1.7
+- ✓ FETCH-01–03: Frontend runtime fetch from CloudFront /data/; no bundled data files in dist/; loading/error overlay — v1.7
+- ✓ CI-01–02: CI frontend-only build; fetch-data.yml deleted; no AWS credentials in build job — v1.7
 
-## Previous Milestone: v1.6 dlt Pipeline Migration — COMPLETE
+## Previous Milestones
 
-**Goal:** Replace the custom data pipeline with dlt-based pipelines backed by an authoritative DuckDB store, with a Parquet export layer feeding the existing frontend.
-
-## Current Milestone: v1.7 Production Pipeline Infrastructure
-
-**Goal:** Move pipeline execution to Lambda with S3-backed DuckDB (downloaded to /tmp on invocation); export all data files to S3; frontend fetches Parquets and GeoJSON at runtime.
-
-**Target features:**
-- Lambda: CDK DockerImageFunction (no VPC), EventBridge schedule, Lambda URL for manual invocation
-- Pipeline in Lambda: data/run.py as Lambda handler; Lambda downloads beeatlas.duckdb from S3 to /tmp, dlt pipelines write to /tmp/beeatlas.duckdb, then export Parquets + GeoJSON to S3
-- DuckDB backup: Lambda uploads updated beeatlas.duckdb from /tmp back to S3 after pipeline runs
-- Frontend runtime fetching: bundled Parquets and GeoJSON removed; frontend fetches all data files from CloudFront at runtime
-- Seed DuckDB + tests: data/fixtures/beeatlas-test.duckdb committed; pytest covers export.py and pipeline logic
-- CI simplified: no pipeline code in CI; frontend build only
-
-**Deferred:** Multi-region support, Lambda concurrency controls
-
-### Validated
-
-- ✓ LAMBDA-03: DockerImageFunction deployed — Python container, 15-min timeout, reserved concurrency 1, DLT_DATA_DIR + temp_directory env vars, prefix-scoped S3 grants — Validated in Phase 25
-- ✓ LAMBDA-04: EventBridge Scheduler rules — NightlyInatSchedule (0 8 UTC) and WeeklyFullSchedule (0 10 SUN UTC) — Validated in Phase 25
-- ✓ LAMBDA-05: Lambda Function URL (NONE auth) deployed; curl returns "S3 round-trip complete" HTTP 200 — Validated in Phase 25
-- ✓ TEST-01: Programmatic DuckDB fixture in conftest.py with ecdysis, inat_observations, geographies rows — Validated in Phase 27
-- ✓ TEST-02: export.py integration tests — correct Parquet schemas (15 ecdysis cols, 9 samples cols) and valid GeoJSON FeatureCollections — Validated in Phase 27
-- ✓ TEST-03: _transform() and _extract_inat_id() pure function unit tests (7 tests, edge cases covered) — Validated in Phase 27
-
-### Active
-
-- ✓ FETCH-01: Frontend fetches ecdysis.parquet and samples.parquet from CloudFront /data/ at runtime; no bundled Parquet files in dist/ — Validated in Phase 28
-- ✓ FETCH-02: CloudFront /data/* cache behavior with CORS headers (Access-Control-Allow-Origin: *, Content-Range/Content-Length/ETag exposed); CachePolicy varies by Origin — Validated in Phase 28
-- ✓ FETCH-03: BeeMap shows loading indicator while data is being fetched; error message if fetch fails — Validated in Phase 28
-- ✓ CI-01: deploy.yml runs frontend build only; no Python pipeline steps, no `build:data`, no `S3_BUCKET_NAME`, no AWS credentials in build job — Validated in Phase 29
-- ✓ CI-02: fetch-data.yml deleted; Lambda owns pipeline execution — Validated in Phase 29
+- v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
+- v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
 
 ### Out of Scope
 
@@ -115,7 +92,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day): custom pandas pipelines replaced with 5 dlt pipelines + DuckDB store; unified export.py; data/run.py local runner; links.parquet removed from frontend. Phase 25 complete (2026-03-28) — CDK Lambda stub deployed: DockerImageFunction, two EventBridge Scheduler rules, Lambda URL; curl confirms S3 round-trip live. Phase 27 complete (2026-03-28) — export.py integration tests and unit tests; programmatic DuckDB fixture. Phase 28 complete (2026-03-29) — frontend runtime fetch: bundled data files removed; CloudFront /data/* CORS behavior; loading/error overlay. Phase 29 complete (2026-03-30) — CI simplified: fetch-data.yml deleted; deploy.yml build job is checkout → install → validate-schema (CloudFront Range requests) → build frontend; no AWS credentials in build job.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
@@ -128,8 +105,8 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 **Known tech debt:**
 - `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly). Trivially fixable but deferred.
 - EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
-- No test coverage for dlt pipelines — `data/tests/` was deleted in Phase 20 as part of removing the old pandas-based modules; dlt pipelines were copied verbatim from prototype with no unit tests. Regression risk if pipeline logic changes.
-- CI integration for dlt pipelines not yet wired (INFRA-06/07/08 explicitly deferred for v1.6). The `build:data` npm script runs `cd data && uv run python run.py` which requires a local `beeatlas.duckdb`; CI currently uses committed parquet fallbacks. Pipeline will move to Lambda in v1.7 (Phase 26); CI pipeline step will be removed in Phase 29.
+- dlt pipeline write-path tests deferred (TEST-03 scope): dlt resource tests skipped in v1.7; only pure-function unit tests and export integration tests covered.
+- Lambda infrastructure deployed but not the execution path: CDK/Lambda artifacts live in AWS; maderas cron is authoritative. Lambda will need cleanup or repurposing if execution path changes.
 
 ## Constraints
 
@@ -179,6 +156,11 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Single-select replaces entire selection on plain click; toggle-off on re-click | Most intuitive: plain click = "show me this region"; shift-click for multi | ✓ Good — Phase 18-04; matches standard list selection UX |
 | countyOptions/ecoregionOptions as module-level constants with Set deduplication | Ecoregions reduce to 11 unique names from 80 features; computed once at load | ✓ Good — Phase 19; simpler than deriving from feature properties at render time |
 | Boundary toggle reuses existing .layer-toggle/.toggle-btn CSS | No new CSS classes needed; sidebar toggle and map toggle share same visual language | ✓ Good — Phase 19 decision; consistent UI with zero CSS additions |
+| Lambda execution path abandoned for maderas cron | Lambda hit geographies OOM, 15-min timeout, read-only filesystem, missing home dir, iNat auth issues; maderas has none of these constraints | ✓ Good — nightly.sh runs in ~2.5 min; CDK artifacts remain for future repurposing |
+| asyncBufferFromUrl requires `{ url }` object form | hyparquet API requires object argument, not bare string | ✓ Good — Phase 29 discovery; documented in SUMMARY |
+| VITE_DATA_BASE_URL defaults to prod CloudFront | Dev environment fetches from live data; avoids local data file dependency | ✓ Good — clean dev experience with real data |
+| CachePolicy with Origin allowList for /data/* | CACHING_OPTIMIZED doesn't vary by Origin; per-origin CORS caching requires explicit allowList policy | ✓ Good — required for Range request CORS to work across origins |
+| monkeypatch.setattr over env var for ASSETS_DIR in tests | Module-level global set at import time; env var override unreliable after first import | ✓ Good — Phase 27 pattern; applies to any module-level config read at import |
 
 ## Evolution
 
@@ -198,4 +180,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-29 after Phase 27 (pipeline tests) complete*
+*Last updated: 2026-03-30 after v1.7 milestone complete*

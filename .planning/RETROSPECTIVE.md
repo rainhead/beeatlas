@@ -2,6 +2,47 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.7 — Production Pipeline Infrastructure
+
+**Shipped:** 2026-03-30
+**Phases:** 5 (Phases 25–29) | **Plans:** 5 | **Timeline:** 10 days (2026-03-20 → 2026-03-30)
+
+### What Was Built
+- CDK Lambda stub: `DockerImageFunction` (Python 3.14), `EventBridgeScheduler` (nightly iNat + weekly full), Lambda Function URL; S3 round-trip verified live
+- Production Lambda handler + Dockerfile: uv multi-stage build, env-var pipeline dispatch, DuckDB /tmp round-trip, S3 export, CloudFront invalidation
+- `data/nightly.sh` cron on maderas: full pipeline → export → S3 upload → DuckDB backup → CloudFront invalidation (~2.5 min); Lambda execution path abandoned
+- pytest suite: 13 tests, programmatic DuckDB fixture (embedded WKT constants), export.py integration tests, `_transform()` and `_extract_inat_id()` pure function unit tests
+- Frontend runtime fetch: CloudFront `/data/*` cache behavior (CORS, Origin in cache key, Range headers); bundled Parquet/GeoJSON removed; loading/error overlay
+- CI simplified: `fetch-data.yml` deleted; `deploy.yml` is checkout → install → validate-schema (CloudFront Range) → build; no AWS credentials in build job
+
+### What Worked
+- Lambda CDK deployment went smoothly — stub approach (verify S3 round-trip before real handler) de-risked infra before touching pipeline code
+- Using embedded WKT string constants (not a committed binary `.duckdb`) for test fixtures was clean — avoids binary-in-git, programmatic fixture is self-documenting
+- Pivot decision was fast: Lambda blockers (OOM, timeout, read-only fs) were concrete and immediate; maderas cron was a drop-in replacement; no sunk cost paralysis
+- Phase sequencing (25: infra, 26: handler, 27: tests, 28: frontend, 29: CI) was the right order — each phase built on verified prior work
+
+### What Was Inefficient
+- Lambda was attempted and abandoned (Phases 25–26): geographies OOM, 15-min timeout, read-only filesystem, missing home directory, iNat auth all blocked Lambda. Two phases of work produced CDK infrastructure that isn't the execution path. These phases validated the infra design but the execution pivot was costly.
+- asyncBufferFromUrl `{ url }` vs bare string bug in Phase 29 was a hyparquet API detail that should have been caught in research — cost one debug cycle
+
+### Patterns Established
+- **Lambda stub before real handler**: deploy a no-op stub that validates infra assumptions (S3 round-trip, env vars, timeout) before writing real handler code
+- **monkeypatch.setattr over env var for module-level globals**: if a module reads a global at import time, env var override is unreliable — monkeypatch the attribute directly in pytest
+- **hyparquet asyncBufferFromUrl**: requires `{ url }` object form, not bare string — document at call site
+- **CloudFront CORS + Range**: CachePolicy must include Origin in allowList (not CACHING_OPTIMIZED) AND S3 CORS must expose Content-Range/ETag headers — both required together
+
+### Key Lessons
+1. **Validate Lambda constraints before committing to the execution path** — OOM, filesystem, timeout, and network auth all need confirming with real workloads before architecture lock-in. A "Lambda viability check" plan at the start would have caught these faster.
+2. **Embedded WKT string constants are better than committed DuckDB binaries** — programmatic fixtures using string literals are self-documenting, diffable, and don't grow the repo with binary data.
+3. **CloudFront CORS + Range is a two-part configuration** — CachePolicy and S3 CORS must both be configured together or Range requests will fail silently for cross-origin fetches.
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 10 days
+- Notable: Lambda pivot mid-milestone was the right call despite the sunk cost; maderas cron runs 6x faster than Lambda would have
+
+---
+
 ## Milestone: v1.5 — Geographic Regions
 
 **Shipped:** 2026-03-27
@@ -175,6 +216,8 @@
 | v1.2 | 2 | 3 | First external API pipeline; discovery phase proved essential for external data sources |
 | v1.3 | 1 | 2 | First scraping pipeline; TDD stub pattern + reuse of established S3 cache scripts made it the fastest milestone |
 | v1.5 | 4 | 4 | First geospatial feature; 7-plan pipeline phase + 3-phase frontend stack; gap closure scoped correctly after core confirmed working |
+| v1.6 | 1 | 5 | dlt migration; fastest milestone — established patterns made each phase mechanical |
+| v1.7 | 10 | 5 | First infra pivot mid-milestone; Lambda abandoned for maderas cron; frontend fully decoupled from build-time data |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -183,3 +226,4 @@
 3. Discovery/research phases for external APIs and infrastructure are worth the upfront cost — they prevent blocked implementation phases and post-execution fix commits
 4. Prototype validation in research prevents inheriting bugs — reading existing code critically is part of research, not just gathering facts
 5. CRS validation is a must-do for any external shapefile — silent wrong results from coordinate mismatch are worse than an obvious error
+6. Validate infrastructure execution constraints (memory, timeout, filesystem) with real workloads before committing to an architecture

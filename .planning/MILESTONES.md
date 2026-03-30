@@ -1,5 +1,17 @@
 # Milestones
 
+## v1.7 Production Pipeline Infrastructure (Shipped: 2026-03-30)
+
+**Phases completed:** 5 phases, 5 plans, 13 tasks
+
+**Key accomplishments:**
+
+- CDK DockerImageFunction with S3-backed stub handler, two EventBridge Scheduler rules, and Lambda Function URL added to BeeAtlasStack; cdk synth passes with all required CloudFormation resources
+- pytest suite for data/ with 13 passing tests: _extract_inat_id() pure function extracted from ecdysis_pipeline, session-scoped fixture DuckDB with embedded WA/Chelan/North Cascades WKT, export integration tests asserting correct Parquet schema and valid GeoJSON
+- CI build job stripped of all AWS/pipeline steps; validate-schema.mjs fetches parquet schema via CloudFront Range requests when no local files present
+
+---
+
 ## v1.6 dlt Pipeline Migration (Shipped: 2026-03-28)
 
 **Phases completed:** 9 phases, 13 plans, 17 tasks
