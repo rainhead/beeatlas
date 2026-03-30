@@ -97,10 +97,13 @@ export class SampleParquetSource extends VectorSource {
             const feature = new Feature();
             feature.setGeometry(new Point(fromLonLat([obj.lon, obj.lat])));
             feature.setId(`inat:${Number(obj.observation_id)}`);
+            const d = new Date(obj.date);
             feature.setProperties({
               observation_id: Number(obj.observation_id),
               observer: obj.observer,
               date: obj.date,
+              year: d.getUTCFullYear(),
+              month: d.getUTCMonth() + 1,
               specimen_count: Number(obj.specimen_count),
               sample_id: obj.sample_id != null ? Number(obj.sample_id) : null,
               county: obj.county as string ?? null,
