@@ -16,7 +16,7 @@
   "main": "index.js",
   "scripts": {
     "build:data": "cd data && uv run python run.py",
-    "build": "npm run build:data && npm run build --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
     "test": "echo \"Error: no test specified\" && exit 1",
     "validate-schema": "node scripts/validate-schema.mjs",
     "cache-restore": "bash scripts/cache_restore.sh",

@@ -2,7 +2,7 @@
 
 Dispatch modes:
   - event.pipeline == 'inat' (nightly): ecdysis -> ecdysis-links -> inaturalist -> projects -> export
-  - event.pipeline == 'full' (weekly/default): ecdysis -> ecdysis-links -> inaturalist -> projects -> export
+  - event.pipeline == 'full' (weekly/default): ecdysis -> ecdysis-links -> inaturalist -> projects -> anti-entropy -> export
   - event.pipeline == 'geographies' (one-time seed): geographies only, no export upload
 """
 
@@ -17,12 +17,12 @@ from botocore.exceptions import ClientError
 BUCKET = os.environ['BUCKET_NAME']
 DISTRIBUTION_ID = os.environ['DISTRIBUTION_ID']
 DB_KEY = 'db/beeatlas.duckdb'
-TMP_DB = '/tmp/beeatlas.duckdb'
-EXPORT_DIR = '/tmp/export'
+TMP_DB = os.environ.get('DB_PATH', '/tmp/beeatlas.duckdb')
+EXPORT_DIR = os.environ.get('EXPORT_DIR', '/tmp/export')
 EXPORT_FILES = ['ecdysis.parquet', 'samples.parquet', 'counties.geojson', 'ecoregions.geojson']
 
 NIGHTLY_STEPS = ['ecdysis', 'ecdysis-links', 'inaturalist', 'projects', 'export']
-FULL_STEPS = ['ecdysis', 'ecdysis-links', 'inaturalist', 'projects', 'export']
+FULL_STEPS = ['ecdysis', 'ecdysis-links', 'inaturalist', 'projects', 'anti-entropy', 'export']
 GEOGRAPHY_STEPS = ['geographies']
 
 

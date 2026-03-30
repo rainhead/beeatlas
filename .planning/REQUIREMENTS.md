@@ -27,8 +27,8 @@
 - [x] **TEST-03**: pytest covers `_transform()` and `_extract_inat_id()` as pure function unit tests; dlt write-path tests are deferred
 
 ### CI Simplification
-- [ ] **CI-01**: `deploy.yml` removes `build:data` step; CI runs frontend build only; no Python pipeline code executes in CI
-- [ ] **CI-02**: `fetch-data.yml` workflow deleted
+- [x] **CI-01**: `deploy.yml` removes `build:data` step; CI runs frontend build only; no Python pipeline code executes in CI
+- [x] **CI-02**: `fetch-data.yml` workflow deleted
 
 ## Future Requirements
 
@@ -68,8 +68,8 @@
 | FETCH-01 | Phase 28 | Complete |
 | FETCH-02 | Phase 28 | Complete |
 | FETCH-03 | Phase 28 | Complete |
-| CI-01 | Phase 29 | Pending |
-| CI-02 | Phase 29 | Pending |
+| CI-01 | Phase 29 | Complete |
+| CI-02 | Phase 29 | Complete |
 | PIPE-08 | Phase 20 | Complete |
 | PIPE-09 | Phase 20 | Complete |
 | PIPE-10 | Phase 20 | Superseded by PIPE-11 |
