@@ -168,6 +168,8 @@ Plans:
   2. The file `.github/workflows/fetch-data.yml` does not exist in the repository
   3. CI wall-clock time for a frontend-only deploy is measurably shorter than the previous pipeline-inclusive build
 **Plans**: 1 plan
+Plans:
+- [ ] 29-01-PLAN.md — Strip pipeline from CI, update validate-schema to CloudFront, delete fetch-data.yml (CI-01, CI-02)
 
 ## Progress
 
@@ -201,4 +203,4 @@ Plans:
 | 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
 | 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
-| 29. CI Simplification | v1.7 | 0/? | Not started | - |
+| 29. CI Simplification | v1.7 | 0/1 | Not started | - |
