@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Production Pipeline Infrastructure
-status: verifying
-stopped_at: Completed 29-01-PLAN.md
-last_updated: "2026-03-30T05:33:34.314Z"
+status: milestone_complete
+stopped_at: v1.7 milestone archived
+last_updated: "2026-03-30T21:40:19.481Z"
 last_activity: 2026-03-30
 progress:
   total_phases: 5
   completed_phases: 5
   total_plans: 5
   completed_plans: 5
-  percent: 40
+  percent: 100
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-27)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 29 — ci-simplification
+**Current focus:** v1.7 complete — planning next milestone
 
 ## Current Position
 
