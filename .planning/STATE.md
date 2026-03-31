@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: DuckDB WASM Frontend
-status: milestone_planning_complete
-stopped_at: requirements and roadmap defined; ready for phase planning
-last_updated: "2026-03-31T00:00:00.000Z"
+status: verifying
+last_updated: "2026-03-31T17:11:03Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 3
-  completed_plans: 0
-  percent: 0
+  total_plans: 1
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -25,12 +24,12 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 30 (not started)
-Plan: Not started
-Status: Ready for `/gsd:plan-phase 30`
+Phase: 30
+Plan: 01 (Tasks 1-2 complete; awaiting Task 3 human-verify checkpoint)
+Status: Paused at checkpoint:human-verify
 Last activity: 2026-03-31
 
-Progress: [░░░░░░░░░░] 0% (0/3 phases)
+Progress: [███░░░░░░░] 33% (0/3 phases; 1/1 plans in progress)
 
 ## Architecture Notes
 
@@ -66,7 +65,12 @@ Progress: [░░░░░░░░░░] 0% (0/3 phases)
 
 ## Accumulated Context
 
-(None yet — milestone just started)
+### Decisions
+
+- **[Phase 30-duckdb-wasm-setup]**: EH bundle (not threads) avoids SharedArrayBuffer/COOP-COEP requirement — no CloudFront header changes needed for DUCK-04
+- **[Phase 30-duckdb-wasm-setup]**: INSTALL spatial + LOAD spatial called as separate conn.query() invocations (Pitfall 5 — multi-statement strings unreliable in DuckDB WASM)
+- **[Phase 30-duckdb-wasm-setup]**: Spatial extension failure caught with try/catch; fallback to read_json_auto preserves GeoJSON properties (loses geometry column; acceptable for Phase 30)
+- **[Phase 30-duckdb-wasm-setup]**: DuckDB init fires non-fatal in parallel with existing hyparquet loading; _dataError/_dataLoading lifecycle still driven by specimenSource.once('change') until Phase 31
 
 ## Pending Todos
 
@@ -76,5 +80,4 @@ Progress: [░░░░░░░░░░] 0% (0/3 phases)
 
 ## Blockers/Concerns
 
-- DuckDB WASM bundle configuration (SharedArrayBuffer / COOP-COEP) needs research in Phase 30
-- CloudFront may need header updates if SharedArrayBuffer bundle is required
+None.

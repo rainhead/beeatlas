@@ -7,10 +7,10 @@
 
 ### DuckDB WASM Setup
 
-- [ ] **DUCK-01**: DuckDB WASM singleton initializes on page load; ecdysis.parquet and samples.parquet loaded into in-memory DuckDB tables via PARQUET scan from CloudFront URLs
-- [ ] **DUCK-02**: counties.geojson and ecoregions.geojson loaded into DuckDB spatial tables (spatial extension enabled) — available for future spatial SQL queries
-- [ ] **DUCK-03**: All data loading completes before map renders; loading and error overlay behavior is unchanged from current runtime fetch behavior
-- [ ] **DUCK-04**: DuckDB WASM bundle configuration chosen to avoid SharedArrayBuffer requirement (EH bundle), or COOP/COEP headers added to Vite dev server and CloudFront CDK distribution
+- [x] **DUCK-01**: DuckDB WASM singleton initializes on page load; ecdysis.parquet and samples.parquet loaded into in-memory DuckDB tables via PARQUET scan from CloudFront URLs
+- [x] **DUCK-02**: counties.geojson and ecoregions.geojson loaded into DuckDB spatial tables (spatial extension enabled) — available for future spatial SQL queries
+- [x] **DUCK-03**: All data loading completes before map renders; loading and error overlay behavior is unchanged from current runtime fetch behavior
+- [x] **DUCK-04**: DuckDB WASM bundle configuration chosen to avoid SharedArrayBuffer requirement (EH bundle), or COOP/COEP headers added to Vite dev server and CloudFront CDK distribution
 
 ### Feature Creation
 
@@ -50,10 +50,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DUCK-01 | Phase 30 | Pending |
-| DUCK-02 | Phase 30 | Pending |
-| DUCK-03 | Phase 30 | Pending |
-| DUCK-04 | Phase 30 | Pending |
+| DUCK-01 | Phase 30 | Complete |
+| DUCK-02 | Phase 30 | Complete |
+| DUCK-03 | Phase 30 | Complete |
+| DUCK-04 | Phase 30 | Complete |
 | FEAT-01 | Phase 31 | Pending |
 | FEAT-02 | Phase 31 | Pending |
 | FEAT-03 | Phase 31 | Pending |
