@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: DuckDB WASM Frontend
-status: active
-last_updated: "2026-03-31T18:00:00Z"
+status: completed
+last_updated: "2026-03-31T17:55:46.172Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 3
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 31
-Plan: 01 (not started)
+Plan: Not started
 Status: Active — Phase 30 complete, ready for Phase 31
 Last activity: 2026-03-31
 
@@ -76,7 +76,7 @@ Progress: [███░░░░░░░] 33% (1/3 phases; 1/1 plans complete)
 
 | # | Title | Area | File |
 |---|-------|------|------|
-| - | (none) | - | - |
+| 999.1 | Error overlay and loading overlay overlap when fetch fails — "Failed load" and "Loading..." render simultaneously; likely z-index issue in existing CSS | frontend/ui | - |
 
 ## Blockers/Concerns
 
