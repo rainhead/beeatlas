@@ -19,6 +19,7 @@ import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
 import { filterState, isFilterActive, matchesFilter } from './filter.ts';
 import { regionLayer, countySource, ecoregionSource, makeRegionStyleFn } from './region-layer.ts';
+import { getDuckDB, loadAllTables } from './duckdb.ts';
 import './bee-sidebar.ts';
 import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 
@@ -748,6 +749,18 @@ bee-sidebar {
       this._restoredCounties   = initialParams.selectedCounties;
       this._restoredEcoregions = initialParams.selectedEcoregions;
     }
+
+    // Initialize DuckDB tables in parallel with existing hyparquet loading
+    getDuckDB()
+      .then(db => loadAllTables(db, DATA_BASE_URL))
+      .then(() => {
+        console.debug('DuckDB tables ready');
+      })
+      .catch(err => {
+        console.error('DuckDB init failed:', err);
+        // Don't set _dataError here -- existing hyparquet flow still works
+        // DuckDB errors are non-fatal in Phase 30; becomes primary in Phase 31
+      });
 
     specimenSource.once('change', () => {
       this._dataLoading = false;
