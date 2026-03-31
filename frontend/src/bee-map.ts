@@ -758,13 +758,14 @@ bee-sidebar {
       });
 
     specimenSource.once('change', async () => {
-      this._dataLoading = false;
       const features = specimenSource.getFeatures();
       if (features.length > 0) {
         this.summary = computeSummary(features);
         this.taxaOptions = buildTaxaOptions(features);
 
-        // Recompute filteredSummary if filter was restored from URL
+        // Recompute filteredSummary if filter was restored from URL.
+        // Apply filter before clearing _dataLoading so the loading overlay stays
+        // up until visibleIds are set — prevents a brief flash of all features.
         if (isFilterActive(filterState)) {
           const { ecdysis, samples } = await queryVisibleIds(filterState);
           setVisibleIds(ecdysis, samples);
@@ -794,14 +795,21 @@ bee-sidebar {
           if (this.map) this._pushUrlState();
         }
       }
+      this._dataLoading = false;
     });
 
-    sampleSource.once('change', () => {
+    // Use on() + guard instead of once() because _runFilterQuery() calls
+    // sampleSource.changed() which would fire a once() handler prematurely
+    // (before the OL loader has run), consuming it with no actual data loaded.
+    const onSampleLoaded = () => {
+      if (sampleSource.getFeatures().length === 0) return;
+      sampleSource.un('change', onSampleLoaded);
       this.sampleDataLoaded = true;
       if (this.layerMode === 'samples') {
         this.recentSampleEvents = this._buildRecentSampleEvents();
       }
-    });
+    };
+    sampleSource.on('change', onSampleLoaded);
 
     // Populate county/ecoregion dropdown options after async GeoJSON sources load
     countySource.once('change', () => {
