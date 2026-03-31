@@ -805,6 +805,7 @@ bee-sidebar {
       if (sampleSource.getFeatures().length === 0) return;
       sampleSource.un('change', onSampleLoaded);
       this.sampleDataLoaded = true;
+      this._dataLoading = false;
       if (this.layerMode === 'samples') {
         this.recentSampleEvents = this._buildRecentSampleEvents();
       }
