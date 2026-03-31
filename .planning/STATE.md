@@ -20,7 +20,7 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v1.8 — migrate frontend data layer from hyparquet + FilterState to DuckDB WASM + SQL filters
+**Current focus:** Phase 30 — duckdb-wasm-setup
 
 ## Current Position
 
