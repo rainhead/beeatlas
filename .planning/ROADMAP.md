@@ -128,7 +128,7 @@ See `.planning/milestones/v1.7-ROADMAP.md` for full phase details.
   5. DuckDB WASM bundle loads without COOP/COEP errors in Chrome/Firefox devtools (or headers are correctly set)
 **Plans**: 1 plan
 Plans:
-- [ ] 30-01-PLAN.md — DuckDB WASM singleton, parquet scan, GeoJSON load, spatial extension (DUCK-01, DUCK-02, DUCK-03, DUCK-04)
+- [x] 30-01-PLAN.md — DuckDB WASM singleton, parquet scan, GeoJSON load, spatial extension (DUCK-01, DUCK-02, DUCK-03, DUCK-04)
 
 ### Phase 31: Feature Creation from DuckDB
 **Goal**: OL map features (specimens and samples) are created from DuckDB query results; hyparquet is removed and ParquetSource/SampleParquetSource are replaced
@@ -192,6 +192,6 @@ Plans:
 | 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 29. CI Simplification | v1.7 | 1/1 | Complete    | 2026-03-30 |
-| 30. DuckDB WASM Setup | v1.8 | 0/1 | Pending | — |
+| 30. DuckDB WASM Setup | v1.8 | 1/1 | Verifying | 2026-03-31 |
 | 31. Feature Creation from DuckDB | v1.8 | 0/1 | Pending | — |
 | 32. SQL Filter Layer | v1.8 | 0/1 | Pending | — |
