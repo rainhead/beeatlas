@@ -83,9 +83,9 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ **DUCK-02**: counties.geojson + ecoregions.geojson loaded into DuckDB tables (fetch+registerFileBuffer+read_json; spatial extension deferred to Phase 31/32) — Phase 30
 - ✓ **DUCK-03**: Loading/error overlay behavior unchanged; DuckDB init fires non-fatally in parallel with hyparquet — Phase 30
 - ✓ **DUCK-04**: EH bundle avoids SharedArrayBuffer/COOP-COEP requirement — Phase 30
-- [ ] **FEAT-01**: OL ecdysis features created from DuckDB query; ClusterSource behavior unchanged
-- [ ] **FEAT-02**: OL iNat sample features created from DuckDB query; sample layer behavior unchanged
-- [ ] **FEAT-03**: hyparquet removed from package.json
+- ✓ **FEAT-01**: OL ecdysis features created from DuckDB query; ClusterSource behavior unchanged — Phase 31
+- ✓ **FEAT-02**: OL iNat sample features created from DuckDB query; sample layer behavior unchanged — Phase 31
+- ✓ **FEAT-03**: hyparquet removed from package.json — Phase 31
 - [ ] **FILT-01–05**: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB
 - [ ] **FILT-06**: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter()
 - [ ] **FILT-07**: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved
@@ -109,7 +109,7 @@ Collectors can see where bees have been collected and where target host plants g
 Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic.
 
 **Tech stack:**
-- Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), hyparquet, temporal-polyfill
+- Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), @duckdb/duckdb-wasm, temporal-polyfill
 - Pipeline: Python 3.14+, uv, dlt[duckdb], duckdb, requests, beautifulsoup4, geopandas
 - Infrastructure: AWS CDK v2 (TypeScript), S3 + CloudFront OAC, OIDC IAM role
 - CI/CD: GitHub Actions (build on all pushes, deploy on push to main)
@@ -194,4 +194,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after Phase 30 complete (DuckDB WASM Setup)*
+*Last updated: 2026-03-31 after Phase 31 complete (Feature Creation from DuckDB)*
