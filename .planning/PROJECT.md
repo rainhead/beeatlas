@@ -75,6 +75,20 @@ Collectors can see where bees have been collected and where target host plants g
 
 - v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
 - v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
+- v1.8 DuckDB WASM Frontend — IN PROGRESS (started 2026-03-31)
+
+### Active (v1.8)
+
+- [ ] **DUCK-01**: DuckDB WASM singleton loads ecdysis.parquet + samples.parquet into in-memory tables via PARQUET scan
+- [ ] **DUCK-02**: counties.geojson + ecoregions.geojson loaded into DuckDB spatial tables (spatial extension)
+- [ ] **DUCK-03**: Loading/error overlay behavior unchanged; all data ready before map renders
+- [ ] **DUCK-04**: WASM bundle configured to avoid SharedArrayBuffer requirement, or COOP/COEP headers added
+- [ ] **FEAT-01**: OL ecdysis features created from DuckDB query; ClusterSource behavior unchanged
+- [ ] **FEAT-02**: OL iNat sample features created from DuckDB query; sample layer behavior unchanged
+- [ ] **FEAT-03**: hyparquet removed from package.json
+- [ ] **FILT-01–05**: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB
+- [ ] **FILT-06**: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter()
+- [ ] **FILT-07**: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved
 
 ### Out of Scope
 
