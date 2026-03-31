@@ -155,9 +155,10 @@ Plans:
   4. "Clear filters" resets all SQL predicates and all features become visible
   5. Boundary polygon highlight (blue fill for selected county/ecoregion) still works
   6. Taxon, county, and ecoregion autocomplete dropdowns still populate correctly
-**Plans**: 1 plan
+**Plans**: 2 plans
 Plans:
-- [ ] 32-01-PLAN.md — SQL predicate builder, Set&lt;featureId&gt; query result, OL style callback rewire, URL state preservation (FILT-01 through FILT-07)
+- [ ] 32-01-PLAN.md — SQL predicate builder, visibleIds query, style callback rewire (FILT-01, FILT-02, FILT-03, FILT-04, FILT-05, FILT-06)
+- [ ] 32-02-PLAN.md — bee-map.ts async filter handler, URL round-trip, browser smoke test (FILT-06, FILT-07)
 
 ## Progress
 
@@ -194,4 +195,4 @@ Plans:
 | 29. CI Simplification | v1.7 | 1/1 | Complete    | 2026-03-30 |
 | 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete    | 2026-03-31 |
-| 32. SQL Filter Layer | v1.8 | 0/1 | Pending | — |
+| 32. SQL Filter Layer | v1.8 | 0/2 | Pending | — |
