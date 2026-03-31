@@ -22,6 +22,7 @@
     "vite-express": "^0.20.0"
   },
   "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.33.1-dev20.0",
     "hyparquet": "^1.23.3",
     "lit": "^3.2.1",
     "ol": "^10.7.0",
