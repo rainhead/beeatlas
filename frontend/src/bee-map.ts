@@ -3,14 +3,14 @@ import { customElement, query, state } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
-import { ParquetSource } from "./parquet.ts";
+import { EcdysisSource } from "./features.ts";
 
 const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
 import { clusterStyle } from "./style.ts";
-import { SampleParquetSource } from './parquet.ts';
+import { SampleSource } from './features.ts';
 import { sampleDotStyle } from './style.ts';
 import TileLayer from "ol/layer/Tile.js";
 import XYZ from "ol/source/XYZ.js";
@@ -196,8 +196,7 @@ function buildTaxaOptions(features: Feature[]): TaxonOption[] {
 
 let dataErrorHandler: ((err: Error) => void) | null = null;
 
-const specimenSource = new ParquetSource({
-  url: `${DATA_BASE_URL}/ecdysis.parquet`,
+const specimenSource = new EcdysisSource({
   onError: (err) => { if (dataErrorHandler) dataErrorHandler(err); },
 });
 const clusterSource = new Cluster({
@@ -209,8 +208,7 @@ const specimenLayer = new VectorLayer({
   source: clusterSource,
   style: clusterStyle,
 });
-const sampleSource = new SampleParquetSource({
-  url: `${DATA_BASE_URL}/samples.parquet`,
+const sampleSource = new SampleSource({
   onError: (err) => { if (dataErrorHandler) dataErrorHandler(err); },
 });
 const sampleLayer = new VectorLayer({ source: sampleSource, style: sampleDotStyle });
@@ -750,7 +748,7 @@ bee-sidebar {
       this._restoredEcoregions = initialParams.selectedEcoregions;
     }
 
-    // Initialize DuckDB tables in parallel with existing hyparquet loading
+    // Initialize DuckDB — primary data source for Phase 31+
     getDuckDB()
       .then(db => loadAllTables(db, DATA_BASE_URL))
       .then(() => {
@@ -758,8 +756,7 @@ bee-sidebar {
       })
       .catch(err => {
         console.error('DuckDB init failed:', err);
-        // Don't set _dataError here -- existing hyparquet flow still works
-        // DuckDB errors are non-fatal in Phase 30; becomes primary in Phase 31
+        this._dataError = err instanceof Error ? err.message : String(err);
       });
 
     specimenSource.once('change', () => {
