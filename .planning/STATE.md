@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: DuckDB WASM Frontend
 status: completed
-last_updated: "2026-03-31T17:55:46.172Z"
+last_updated: "2026-03-31T19:01:06.330Z"
 last_activity: 2026-03-31
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
   percent: 33
 ---
 
@@ -25,11 +25,12 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 31
-Plan: Not started
-Status: Active — Phase 30 complete, ready for Phase 31
+Plan: 01 — complete
+Status: Phase 31 Plan 01 complete — awaiting human browser verification (checkpoint:human-verify auto-approved)
 Last activity: 2026-03-31
+Stopped at: Completed 31-01-PLAN.md
 
-Progress: [███░░░░░░░] 33% (1/3 phases; 1/1 plans complete)
+Progress: [██████████] 100% (2/3 phases; 2/2 plans complete)
 
 ## Architecture Notes
 
@@ -60,7 +61,7 @@ Progress: [███░░░░░░░] 33% (1/3 phases; 1/1 plans complete)
 | Phase | Name | Requirements | Status |
 |-------|------|-------------|--------|
 | 30 | DuckDB WASM Setup | DUCK-01–04 | Complete |
-| 31 | Feature Creation from DuckDB | FEAT-01–03 | Pending |
+| 31 | Feature Creation from DuckDB | FEAT-01–03 | Complete (Plan 01) |
 | 32 | SQL Filter Layer | FILT-01–07 | Pending |
 
 ## Accumulated Context
@@ -71,6 +72,8 @@ Progress: [███░░░░░░░] 33% (1/3 phases; 1/1 plans complete)
 - **[Phase 30-duckdb-wasm-setup]**: DuckDB init fires non-fatal in parallel with existing hyparquet loading; _dataError/_dataLoading lifecycle still driven by specimenSource.once('change') until Phase 31
 - **[Phase 30-duckdb-wasm-setup]**: GeoJSON loaded via browser fetch() + registerFileBuffer + read_json; spatial extension approach abandoned (DuckDB WASM spatial cannot read registered URL files)
 - **[Phase 30-duckdb-wasm-setup]**: counties and ecoregions load as 1-row FeatureCollection tables — expected shape for Phase 30; geometry unnesting deferred to Phase 31/32
+- [Phase 31-feature-creation-from-duckdb]: loader function is async — VectorSource accepts async loaders; tablesReady deferred promise guards against race condition
+- [Phase 31-feature-creation-from-duckdb]: DuckDB init errors are fatal in Phase 31+ (set _dataError); hyparquet removed as fallback data path
 
 ## Pending Todos
 

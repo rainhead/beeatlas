@@ -113,7 +113,7 @@ See `.planning/milestones/v1.7-ROADMAP.md` for full phase details.
 **Milestone Goal:** Replace hyparquet + JS FilterState with DuckDB WASM as the frontend data layer; all parquet reads and filter queries executed via SQL in-browser.
 
 - [x] **Phase 30: DuckDB WASM Setup** — Initialize DuckDB WASM singleton; load ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson into in-memory DuckDB tables (completed 2026-03-31)
-- [ ] **Phase 31: Feature Creation from DuckDB** — Replace ParquetSource/SampleParquetSource (hyparquet) with DuckDB query → OL Feature creation; remove hyparquet dependency
+- [x] **Phase 31: Feature Creation from DuckDB** — Replace ParquetSource/SampleParquetSource (hyparquet) with DuckDB query → OL Feature creation; remove hyparquet dependency (completed 2026-03-31)
 - [ ] **Phase 32: SQL Filter Layer** — Replace FilterState + matchesFilter() with SQL predicate builder; DuckDB query returns Set&lt;featureId&gt; used by OL style callbacks
 
 ### Phase 30: DuckDB WASM Setup
@@ -142,7 +142,7 @@ Plans:
   5. Sidebar click on specimen/sample shows correct details (species, collector, date, iNat link)
 **Plans**: 1 plan
 Plans:
-- [ ] 31-01-PLAN.md — Replace ParquetSource/SampleParquetSource with DuckDB SELECT → OL Feature creation; remove hyparquet (FEAT-01, FEAT-02, FEAT-03)
+- [x] 31-01-PLAN.md — Replace ParquetSource/SampleParquetSource with DuckDB SELECT → OL Feature creation; remove hyparquet (FEAT-01, FEAT-02, FEAT-03)
 
 ### Phase 32: SQL Filter Layer
 **Goal**: All filter types (taxon, year, month, county, ecoregion) execute as SQL WHERE clauses against DuckDB; OL style callbacks use a Set of visible feature IDs in place of matchesFilter(); all existing filter behaviors preserved
@@ -193,5 +193,5 @@ Plans:
 | 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 29. CI Simplification | v1.7 | 1/1 | Complete    | 2026-03-30 |
 | 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete    | 2026-03-31 |
-| 31. Feature Creation from DuckDB | v1.8 | 0/1 | Pending | — |
+| 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete   | 2026-03-31 |
 | 32. SQL Filter Layer | v1.8 | 0/1 | Pending | — |

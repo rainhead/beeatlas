@@ -14,9 +14,9 @@
 
 ### Feature Creation
 
-- [ ] **FEAT-01**: OL ecdysis features created from DuckDB query results (SELECT from ecdysis table); ClusterSource and style callbacks behavior unchanged
-- [ ] **FEAT-02**: OL iNat sample features created from DuckDB query results (SELECT from samples table); sample layer and click behavior unchanged
-- [ ] **FEAT-03**: hyparquet removed from package.json; parquet.ts loading code replaced
+- [x] **FEAT-01**: OL ecdysis features created from DuckDB query results (SELECT from ecdysis table); ClusterSource and style callbacks behavior unchanged
+- [x] **FEAT-02**: OL iNat sample features created from DuckDB query results (SELECT from samples table); sample layer and click behavior unchanged
+- [x] **FEAT-03**: hyparquet removed from package.json; parquet.ts loading code replaced
 
 ### Filter Layer
 
@@ -54,9 +54,9 @@
 | DUCK-02 | Phase 30 | Complete |
 | DUCK-03 | Phase 30 | Complete |
 | DUCK-04 | Phase 30 | Complete |
-| FEAT-01 | Phase 31 | Pending |
-| FEAT-02 | Phase 31 | Pending |
-| FEAT-03 | Phase 31 | Pending |
+| FEAT-01 | Phase 31 | Complete |
+| FEAT-02 | Phase 31 | Complete |
+| FEAT-03 | Phase 31 | Complete |
 | FILT-01 | Phase 32 | Pending |
 | FILT-02 | Phase 32 | Pending |
 | FILT-03 | Phase 32 | Pending |
