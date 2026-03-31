@@ -12,6 +12,11 @@ const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
 
 let _dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
 
+let _tablesReadyResolve: (() => void) | null = null;
+export const tablesReady: Promise<void> = new Promise(resolve => {
+  _tablesReadyResolve = resolve;
+});
+
 async function _init(): Promise<duckdb.AsyncDuckDB> {
   const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
   const worker = new Worker(bundle.mainWorker!);
@@ -66,4 +71,6 @@ export async function loadAllTables(db: duckdb.AsyncDuckDB, baseUrl: string): Pr
     'ecoregions:', ecoregionsCount.toArray()[0]?.toJSON(),
   );
   await countConn.close();
+
+  if (_tablesReadyResolve) _tablesReadyResolve();
 }
