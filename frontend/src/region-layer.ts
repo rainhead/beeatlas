@@ -5,6 +5,7 @@ import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
 import type { FeatureLike } from 'ol/Feature.js';
+import { get as getProjection } from 'ol/proj.js';
 import { filterState } from './filter.ts';
 
 const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
@@ -54,6 +55,14 @@ export const ecoregionSource = new VectorSource({
   url: `${DATA_BASE_URL}/ecoregions.geojson`,
   format: new GeoJSONFormat({ featureProjection: 'EPSG:3857' }),
 });
+
+// Eagerly load both sources regardless of layer visibility so that the
+// countySource.once('change') / ecoregionSource.once('change') handlers in
+// bee-map.ts fire on page load and populate the filter dropdowns.
+const _proj3857 = getProjection('EPSG:3857')!;
+const _worldExtent = _proj3857.getExtent()!;
+countySource.loadFeatures(_worldExtent, 1, _proj3857);
+ecoregionSource.loadFeatures(_worldExtent, 1, _proj3857);
 
 // Starts invisible; Phase 18 wires the boundary toggle via:
 //   regionLayer.setVisible(true/false)
