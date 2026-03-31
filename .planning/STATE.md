@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: DuckDB WASM Frontend
-status: verifying
-stopped_at: Completed 32-01-PLAN.md
-last_updated: "2026-03-31T20:48:08.721Z"
-last_activity: 2026-03-31
+status: executing
+stopped_at: Phase 32 context gathered
+last_updated: "2026-03-31T20:43:01.720Z"
+last_activity: 2026-03-31 -- Phase 32 execution started
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 2
   percent: 100
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 31 — feature-creation-from-duckdb
+**Current focus:** Phase 32 — sql-filter-layer
 
 ## Current Position
 
-Phase: 32
-Plan: Not started
-Status: Phase 31 Plan 01 complete — awaiting verification
-Last activity: 2026-03-31
-Stopped at: Completed 32-01-PLAN.md
+Phase: 32 (sql-filter-layer) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 32
+Last activity: 2026-03-31 -- Phase 32 execution started
+Stopped at: Phase 32 context gathered
 
 Progress: [██████████] 100% (2/3 phases; 2/2 plans complete)
 
@@ -75,9 +75,6 @@ Progress: [██████████] 100% (2/3 phases; 2/2 plans complete)
 - **[Phase 30-duckdb-wasm-setup]**: counties and ecoregions load as 1-row FeatureCollection tables — expected shape for Phase 30; geometry unnesting deferred to Phase 31/32
 - [Phase 31-feature-creation-from-duckdb]: loader function is async — VectorSource accepts async loaders; tablesReady deferred promise guards against race condition
 - [Phase 31-feature-creation-from-duckdb]: DuckDB init errors are fatal in Phase 31+ (set _dataError); hyparquet removed as fallback data path
-- [Phase 32-sql-filter-layer]: Taxon filter uses 1=0 for samples WHERE — samples have no taxon columns, so all samples ghost when taxon filter active (D-01)
-- [Phase 32-sql-filter-layer]: setVisibleIds() function required — exported let bindings can only be mutated from declaring module
-- [Phase 32-sql-filter-layer]: Local snapshot activeEcdysisIds = visibleEcdysisIds used in clusterStyle loop for TypeScript null narrowing
 
 ## Pending Todos
 
