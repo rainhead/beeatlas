@@ -79,10 +79,10 @@ Collectors can see where bees have been collected and where target host plants g
 
 ### Active (v1.8)
 
-- [ ] **DUCK-01**: DuckDB WASM singleton loads ecdysis.parquet + samples.parquet into in-memory tables via PARQUET scan
-- [ ] **DUCK-02**: counties.geojson + ecoregions.geojson loaded into DuckDB spatial tables (spatial extension)
-- [ ] **DUCK-03**: Loading/error overlay behavior unchanged; all data ready before map renders
-- [ ] **DUCK-04**: WASM bundle configured to avoid SharedArrayBuffer requirement, or COOP/COEP headers added
+- ✓ **DUCK-01**: DuckDB WASM singleton loads ecdysis.parquet + samples.parquet into in-memory tables via PARQUET scan — Phase 30
+- ✓ **DUCK-02**: counties.geojson + ecoregions.geojson loaded into DuckDB tables (fetch+registerFileBuffer+read_json; spatial extension deferred to Phase 31/32) — Phase 30
+- ✓ **DUCK-03**: Loading/error overlay behavior unchanged; DuckDB init fires non-fatally in parallel with hyparquet — Phase 30
+- ✓ **DUCK-04**: EH bundle avoids SharedArrayBuffer/COOP-COEP requirement — Phase 30
 - [ ] **FEAT-01**: OL ecdysis features created from DuckDB query; ClusterSource behavior unchanged
 - [ ] **FEAT-02**: OL iNat sample features created from DuckDB query; sample layer behavior unchanged
 - [ ] **FEAT-03**: hyparquet removed from package.json
@@ -194,4 +194,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-30 after v1.7 milestone complete*
+*Last updated: 2026-03-31 after Phase 30 complete (DuckDB WASM Setup)*
