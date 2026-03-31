@@ -6,7 +6,7 @@ import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
 import Text from 'ol/style/Text.js';
 import { Temporal } from 'temporal-polyfill';
-import { filterState, isFilterActive, matchesFilter } from './filter.ts';
+import { visibleEcdysisIds, visibleSampleIds } from './filter.ts';
 
 export const RECENCY_COLORS = {
   fresh:    '#2ecc71',  // within 6 weeks
@@ -36,7 +36,8 @@ const styleCache = new Map<string, Style>();
 
 export function clusterStyle(feature: FeatureLike): Style {
   const innerFeatures: Feature[] = (feature.get('features') as Feature[] | undefined) ?? [feature as Feature];
-  const active = isFilterActive(filterState);
+  const activeEcdysisIds = visibleEcdysisIds;
+  const hasFilter = activeEcdysisIds !== null;
 
   let bestTier: keyof typeof RECENCY_COLORS = 'older';
   let matchCount = 0;
@@ -45,14 +46,14 @@ export function clusterStyle(feature: FeatureLike): Style {
     const tier = recencyTier(f.get('year') as number, f.get('month') as number);
     if (tier === 'fresh') bestTier = 'fresh';
     else if (tier === 'thisYear' && bestTier === 'older') bestTier = 'thisYear';
-    if (!active || matchesFilter(f, filterState)) matchCount++;
+    if (!hasFilter || activeEcdysisIds.has(f.getId() as string)) matchCount++;
   }
 
-  const isGhosted = active && matchCount === 0;
-  const displayCount = active ? matchCount : innerFeatures.length;
+  const isGhosted = hasFilter && matchCount === 0;
+  const displayCount = hasFilter ? matchCount : innerFeatures.length;
 
   // Skip cache when filter active — same count:tier pair can have different match counts
-  const cacheKey = active ? null : `${displayCount}:${bestTier}`;
+  const cacheKey = hasFilter ? null : `${displayCount}:${bestTier}`;
   if (cacheKey && styleCache.has(cacheKey)) return styleCache.get(cacheKey)!;
 
   const fillColor = isGhosted ? hexWithOpacity('#aaaaaa', 0.2) : hexWithOpacity(RECENCY_COLORS[bestTier], 1.0);
@@ -93,9 +94,8 @@ const GHOSTED_SAMPLE_STYLE = new Style({
 const sampleStyleCache = new Map<string, Style>();
 
 export function sampleDotStyle(feature: FeatureLike): Style {
-  // Ghost check — must come before cache lookup (ghost state depends on filterState)
-  const active = isFilterActive(filterState);
-  if (active && !matchesFilter(feature as Feature, filterState)) {
+  // Ghost check — must come before cache lookup (ghost state depends on visibleSampleIds)
+  if (visibleSampleIds !== null && !visibleSampleIds.has((feature as Feature).getId() as string)) {
     return GHOSTED_SAMPLE_STYLE;
   }
 
