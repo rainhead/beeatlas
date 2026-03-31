@@ -266,12 +266,14 @@ export class BeeMap extends LitElement {
     this.map?.render();
   }
 
-  private async _setBoundaryMode(mode: 'off' | 'counties' | 'ecoregions'): Promise<void> {
+  private async _setBoundaryMode(mode: 'off' | 'counties' | 'ecoregions', skipFilterReset = false): Promise<void> {
     this.boundaryMode = mode;
     if (mode === 'off') {
       regionLayer.setVisible(false);
-      filterState.selectedCounties = new Set();
-      filterState.selectedEcoregions = new Set();
+      if (!skipFilterReset) {
+        filterState.selectedCounties = new Set();
+        filterState.selectedEcoregions = new Set();
+      }
     } else if (mode === 'counties') {
       regionLayer.setSource(countySource);
       regionLayer.setVisible(true);
@@ -279,7 +281,9 @@ export class BeeMap extends LitElement {
       regionLayer.setSource(ecoregionSource);
       regionLayer.setVisible(true);
     }
-    await this._runFilterQuery();
+    if (!skipFilterReset) {
+      await this._runFilterQuery();
+    }
     regionLayer.changed();
     if (this.map) this._pushUrlState();
   }
@@ -574,7 +578,7 @@ bee-sidebar {
     filterState.selectedCounties = detail.selectedCounties;
     filterState.selectedEcoregions = detail.selectedEcoregions;
     if (detail.boundaryMode !== this.boundaryMode) {
-      await this._setBoundaryMode(detail.boundaryMode);
+      await this._setBoundaryMode(detail.boundaryMode, true);
     }
 
     // Run DuckDB filter query async, then repaint (per D-05)
