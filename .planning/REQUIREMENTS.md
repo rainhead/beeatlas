@@ -20,12 +20,12 @@
 
 ### Filter Layer
 
-- [ ] **FILT-01**: Taxon filter (family/genus/species) expressed as SQL WHERE clause executed against DuckDB ecdysis table
-- [ ] **FILT-02**: Year range filter expressed as SQL WHERE year BETWEEN clause
-- [ ] **FILT-03**: Month filter expressed as SQL WHERE month IN (...) clause
-- [ ] **FILT-04**: County filter expressed as SQL WHERE county IN (...) clause (pre-joined column)
-- [ ] **FILT-05**: Ecoregion filter expressed as SQL WHERE ecoregion_l3 IN (...) clause (pre-joined column)
-- [ ] **FILT-06**: Filter query returns Set<featureId>; OL style callbacks use Set.has() for show/hide in place of matchesFilter(); clusterSource.changed() triggers re-render on filter change
+- [x] **FILT-01**: Taxon filter (family/genus/species) expressed as SQL WHERE clause executed against DuckDB ecdysis table
+- [x] **FILT-02**: Year range filter expressed as SQL WHERE year BETWEEN clause
+- [x] **FILT-03**: Month filter expressed as SQL WHERE month IN (...) clause
+- [x] **FILT-04**: County filter expressed as SQL WHERE county IN (...) clause (pre-joined column)
+- [x] **FILT-05**: Ecoregion filter expressed as SQL WHERE ecoregion_l3 IN (...) clause (pre-joined column)
+- [x] **FILT-06**: Filter query returns Set<featureId>; OL style callbacks use Set.has() for show/hide in place of matchesFilter(); clusterSource.changed() triggers re-render on filter change
 - [ ] **FILT-07**: All existing filter behaviors preserved: URL round-trip for all params, "clear filters" reset, boundary polygon highlight for selected counties/ecoregions, taxon/county/ecoregion autocomplete
 
 ## Future Milestone (v1.9+)
@@ -57,12 +57,12 @@
 | FEAT-01 | Phase 31 | Complete |
 | FEAT-02 | Phase 31 | Complete |
 | FEAT-03 | Phase 31 | Complete |
-| FILT-01 | Phase 32 | Pending |
-| FILT-02 | Phase 32 | Pending |
-| FILT-03 | Phase 32 | Pending |
-| FILT-04 | Phase 32 | Pending |
-| FILT-05 | Phase 32 | Pending |
-| FILT-06 | Phase 32 | Pending |
+| FILT-01 | Phase 32 | Complete |
+| FILT-02 | Phase 32 | Complete |
+| FILT-03 | Phase 32 | Complete |
+| FILT-04 | Phase 32 | Complete |
+| FILT-05 | Phase 32 | Complete |
+| FILT-06 | Phase 32 | Complete |
 | FILT-07 | Phase 32 | Pending |
 
 **Coverage:**
