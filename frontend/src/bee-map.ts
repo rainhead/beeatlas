@@ -805,15 +805,16 @@ bee-sidebar {
       if (sampleSource.getFeatures().length === 0) return;
       sampleSource.un('change', onSampleLoaded);
       this.sampleDataLoaded = true;
-      this._dataLoading = false;
       if (this.layerMode === 'samples') {
         this.recentSampleEvents = this._buildRecentSampleEvents();
       }
       // specimenSource.once('change') applies URL-restored filters, but it never
       // fires in lm=samples mode (specimenLayer is invisible). Apply here instead.
+      // Run before clearing _dataLoading so overlay stays up until visibleIds are set.
       if (isFilterActive(filterState)) {
         await this._runFilterQuery();
       }
+      this._dataLoading = false;
     };
     sampleSource.on('change', onSampleLoaded);
 
