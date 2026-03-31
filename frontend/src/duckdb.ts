@@ -34,17 +34,21 @@ export async function loadAllTables(db: duckdb.AsyncDuckDB, baseUrl: string): Pr
     await conn.close();
   }
 
-  // Load GeoJSON tables via spatial extension
+  // Fetch GeoJSON via browser fetch and register as buffers — DuckDB WASM spatial extension
+  // can't read registered URL files, and read_json_auto doesn't recognise .geojson extension
+  const [countiesBytes, ecoregionsBytes] = await Promise.all([
+    fetch(`${baseUrl}/counties.geojson`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+    fetch(`${baseUrl}/ecoregions.geojson`).then(r => r.arrayBuffer()).then(b => new Uint8Array(b)),
+  ]);
+  await db.registerFileBuffer('counties.geojson', countiesBytes);
+  await db.registerFileBuffer('ecoregions.geojson', ecoregionsBytes);
+
+  // Load GeoJSON as flat JSON — no spatial extension needed in Phase 30 (no geometry queries yet)
   const conn = await db.connect();
   try {
-    await conn.query('INSTALL spatial');
-    await conn.query('LOAD spatial');
-    await conn.query(`CREATE TABLE counties AS SELECT * FROM '${baseUrl}/counties.geojson'`);
-    await conn.query(`CREATE TABLE ecoregions AS SELECT * FROM '${baseUrl}/ecoregions.geojson'`);
-  } catch (error) {
-    console.warn('Spatial extension failed, falling back to read_json_auto:', error);
-    await conn.query(`CREATE TABLE counties AS SELECT * FROM read_json_auto('${baseUrl}/counties.geojson')`);
-    await conn.query(`CREATE TABLE ecoregions AS SELECT * FROM read_json_auto('${baseUrl}/ecoregions.geojson')`);
+    await conn.query('LOAD json');
+    await conn.query(`CREATE TABLE counties AS SELECT * FROM read_json('counties.geojson')`);
+    await conn.query(`CREATE TABLE ecoregions AS SELECT * FROM read_json('ecoregions.geojson')`);
   } finally {
     await conn.close();
   }
