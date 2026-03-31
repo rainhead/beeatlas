@@ -108,6 +108,57 @@ See `.planning/milestones/v1.7-ROADMAP.md` for full phase details.
 
 </details>
 
+### v1.8 DuckDB WASM Frontend (In Progress)
+
+**Milestone Goal:** Replace hyparquet + JS FilterState with DuckDB WASM as the frontend data layer; all parquet reads and filter queries executed via SQL in-browser.
+
+- [ ] **Phase 30: DuckDB WASM Setup** — Initialize DuckDB WASM singleton; load ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson into in-memory DuckDB tables
+- [ ] **Phase 31: Feature Creation from DuckDB** — Replace ParquetSource/SampleParquetSource (hyparquet) with DuckDB query → OL Feature creation; remove hyparquet dependency
+- [ ] **Phase 32: SQL Filter Layer** — Replace FilterState + matchesFilter() with SQL predicate builder; DuckDB query returns Set&lt;featureId&gt; used by OL style callbacks
+
+### Phase 30: DuckDB WASM Setup
+**Goal**: DuckDB WASM initializes on page load with all data loaded; ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson are available as queryable DuckDB tables before the map renders
+**Depends on**: Phase 29
+**Requirements**: DUCK-01, DUCK-02, DUCK-03, DUCK-04
+**Success Criteria** (what must be TRUE):
+  1. `SELECT COUNT(*) FROM ecdysis` returns > 45000 rows in browser console
+  2. `SELECT COUNT(*) FROM samples` returns > 9000 rows
+  3. `SELECT COUNT(*) FROM counties` and `SELECT COUNT(*) FROM ecoregions` return non-zero row counts
+  4. Map loading overlay appears during DuckDB init and disappears when all tables are ready; error overlay appears on fetch failure
+  5. DuckDB WASM bundle loads without COOP/COEP errors in Chrome/Firefox devtools (or headers are correctly set)
+**Plans**: 1 plan
+Plans:
+- [ ] 30-01-PLAN.md — DuckDB WASM singleton, parquet scan, GeoJSON load, spatial extension (DUCK-01, DUCK-02, DUCK-03, DUCK-04)
+
+### Phase 31: Feature Creation from DuckDB
+**Goal**: OL map features (specimens and samples) are created from DuckDB query results; hyparquet is removed and ParquetSource/SampleParquetSource are replaced
+**Depends on**: Phase 30
+**Requirements**: FEAT-01, FEAT-02, FEAT-03
+**Success Criteria** (what must be TRUE):
+  1. `parquet.ts` no longer imports from `hyparquet`; `hyparquet` removed from `package.json`
+  2. Ecdysis specimen features appear on map with correct clustering behavior identical to pre-migration
+  3. iNat sample features appear on map with correct dot rendering and click behavior identical to pre-migration
+  4. `npm run build` exits 0 with no TypeScript errors
+  5. Sidebar click on specimen/sample shows correct details (species, collector, date, iNat link)
+**Plans**: 1 plan
+Plans:
+- [ ] 31-01-PLAN.md — Replace ParquetSource/SampleParquetSource with DuckDB SELECT → OL Feature creation; remove hyparquet (FEAT-01, FEAT-02, FEAT-03)
+
+### Phase 32: SQL Filter Layer
+**Goal**: All filter types (taxon, year, month, county, ecoregion) execute as SQL WHERE clauses against DuckDB; OL style callbacks use a Set of visible feature IDs in place of matchesFilter(); all existing filter behaviors preserved
+**Depends on**: Phase 31
+**Requirements**: FILT-01, FILT-02, FILT-03, FILT-04, FILT-05, FILT-06, FILT-07
+**Success Criteria** (what must be TRUE):
+  1. `filter.ts` no longer contains `matchesFilter()` function; OL style callbacks call `visibleIds.has(featureId)` pattern
+  2. Taxon filter (family/genus/species), year range, month, county, and ecoregion filters each produce SQL WHERE clauses visible in devtools console logs
+  3. URL round-trip: paste URL with all filter params → correct filter state restored and map shows same visible features
+  4. "Clear filters" resets all SQL predicates and all features become visible
+  5. Boundary polygon highlight (blue fill for selected county/ecoregion) still works
+  6. Taxon, county, and ecoregion autocomplete dropdowns still populate correctly
+**Plans**: 1 plan
+Plans:
+- [ ] 32-01-PLAN.md — SQL predicate builder, Set&lt;featureId&gt; query result, OL style callback rewire, URL state preservation (FILT-01 through FILT-07)
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -141,3 +192,6 @@ See `.planning/milestones/v1.7-ROADMAP.md` for full phase details.
 | 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
 | 29. CI Simplification | v1.7 | 1/1 | Complete    | 2026-03-30 |
+| 30. DuckDB WASM Setup | v1.8 | 0/1 | Pending | — |
+| 31. Feature Creation from DuckDB | v1.8 | 0/1 | Pending | — |
+| 32. SQL Filter Layer | v1.8 | 0/1 | Pending | — |

@@ -1,0 +1,75 @@
+# Requirements: Washington Bee Atlas — v1.8 DuckDB WASM Frontend
+
+**Defined:** 2026-03-31
+**Core Value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
+
+## v1.8 Requirements
+
+### DuckDB WASM Setup
+
+- [ ] **DUCK-01**: DuckDB WASM singleton initializes on page load; ecdysis.parquet and samples.parquet loaded into in-memory DuckDB tables via PARQUET scan from CloudFront URLs
+- [ ] **DUCK-02**: counties.geojson and ecoregions.geojson loaded into DuckDB spatial tables (spatial extension enabled) — available for future spatial SQL queries
+- [ ] **DUCK-03**: All data loading completes before map renders; loading and error overlay behavior is unchanged from current runtime fetch behavior
+- [ ] **DUCK-04**: DuckDB WASM bundle configuration chosen to avoid SharedArrayBuffer requirement (EH bundle), or COOP/COEP headers added to Vite dev server and CloudFront CDK distribution
+
+### Feature Creation
+
+- [ ] **FEAT-01**: OL ecdysis features created from DuckDB query results (SELECT from ecdysis table); ClusterSource and style callbacks behavior unchanged
+- [ ] **FEAT-02**: OL iNat sample features created from DuckDB query results (SELECT from samples table); sample layer and click behavior unchanged
+- [ ] **FEAT-03**: hyparquet removed from package.json; parquet.ts loading code replaced
+
+### Filter Layer
+
+- [ ] **FILT-01**: Taxon filter (family/genus/species) expressed as SQL WHERE clause executed against DuckDB ecdysis table
+- [ ] **FILT-02**: Year range filter expressed as SQL WHERE year BETWEEN clause
+- [ ] **FILT-03**: Month filter expressed as SQL WHERE month IN (...) clause
+- [ ] **FILT-04**: County filter expressed as SQL WHERE county IN (...) clause (pre-joined column)
+- [ ] **FILT-05**: Ecoregion filter expressed as SQL WHERE ecoregion_l3 IN (...) clause (pre-joined column)
+- [ ] **FILT-06**: Filter query returns Set<featureId>; OL style callbacks use Set.has() for show/hide in place of matchesFilter(); clusterSource.changed() triggers re-render on filter change
+- [ ] **FILT-07**: All existing filter behaviors preserved: URL round-trip for all params, "clear filters" reset, boundary polygon highlight for selected counties/ecoregions, taxon/county/ecoregion autocomplete
+
+## Future Milestone (v1.9+)
+
+### Tabular Views
+
+- **TAB-01**: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline
+- **TAB-02**: Specimens collected last season on land owned by a named organization — requires land ownership data source
+- **TAB-03**: Common floral hosts by month and region — cross-table aggregation query on ecdysis data
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| OPFS persistence | Ephemeral DuckDB is sufficient; schema/data migration complexity deferred |
+| Mosaic / cross-filter framework | Raw DuckDB WASM + thin Lit-reactive coordinator preferred; Mosaic momentum concerns |
+| Spatial SQL for region filtering | Pre-joined county/ecoregion_l3 columns in parquet make spatial queries unnecessary for v1.8 |
+| Replacing OL VectorSource for boundaries | Boundary polygons needed in OL for map rendering and click detection regardless |
+| Tabular data views | v1.9+ work; DuckDB foundation enables but does not include them |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| DUCK-01 | Phase 30 | Pending |
+| DUCK-02 | Phase 30 | Pending |
+| DUCK-03 | Phase 30 | Pending |
+| DUCK-04 | Phase 30 | Pending |
+| FEAT-01 | Phase 31 | Pending |
+| FEAT-02 | Phase 31 | Pending |
+| FEAT-03 | Phase 31 | Pending |
+| FILT-01 | Phase 32 | Pending |
+| FILT-02 | Phase 32 | Pending |
+| FILT-03 | Phase 32 | Pending |
+| FILT-04 | Phase 32 | Pending |
+| FILT-05 | Phase 32 | Pending |
+| FILT-06 | Phase 32 | Pending |
+| FILT-07 | Phase 32 | Pending |
+
+**Coverage:**
+- v1.8 requirements: 14 total
+- Mapped to phases: 14
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-03-31*
+*Last updated: 2026-03-31 after initial milestone definition*
