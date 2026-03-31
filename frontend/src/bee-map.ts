@@ -801,13 +801,18 @@ bee-sidebar {
     // Use on() + guard instead of once() because _runFilterQuery() calls
     // sampleSource.changed() which would fire a once() handler prematurely
     // (before the OL loader has run), consuming it with no actual data loaded.
-    const onSampleLoaded = () => {
+    const onSampleLoaded = async () => {
       if (sampleSource.getFeatures().length === 0) return;
       sampleSource.un('change', onSampleLoaded);
       this.sampleDataLoaded = true;
       this._dataLoading = false;
       if (this.layerMode === 'samples') {
         this.recentSampleEvents = this._buildRecentSampleEvents();
+      }
+      // specimenSource.once('change') applies URL-restored filters, but it never
+      // fires in lm=samples mode (specimenLayer is invisible). Apply here instead.
+      if (isFilterActive(filterState)) {
+        await this._runFilterQuery();
       }
     };
     sampleSource.on('change', onSampleLoaded);
