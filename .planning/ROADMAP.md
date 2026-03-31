@@ -114,7 +114,7 @@ See `.planning/milestones/v1.7-ROADMAP.md` for full phase details.
 
 - [x] **Phase 30: DuckDB WASM Setup** — Initialize DuckDB WASM singleton; load ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson into in-memory DuckDB tables (completed 2026-03-31)
 - [x] **Phase 31: Feature Creation from DuckDB** — Replace ParquetSource/SampleParquetSource (hyparquet) with DuckDB query → OL Feature creation; remove hyparquet dependency (completed 2026-03-31)
-- [ ] **Phase 32: SQL Filter Layer** — Replace FilterState + matchesFilter() with SQL predicate builder; DuckDB query returns Set&lt;featureId&gt; used by OL style callbacks
+- [x] **Phase 32: SQL Filter Layer** — Replace FilterState + matchesFilter() with SQL predicate builder; DuckDB query returns Set&lt;featureId&gt; used by OL style callbacks (completed 2026-03-31)
 
 ### Phase 30: DuckDB WASM Setup
 **Goal**: DuckDB WASM initializes on page load with all data loaded; ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson are available as queryable DuckDB tables before the map renders
@@ -158,7 +158,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 32-01-PLAN.md — SQL predicate builder, visibleIds query, style callback rewire (FILT-01, FILT-02, FILT-03, FILT-04, FILT-05, FILT-06)
-- [ ] 32-02-PLAN.md — bee-map.ts async filter handler, URL round-trip, browser smoke test (FILT-06, FILT-07)
+- [x] 32-02-PLAN.md — bee-map.ts async filter handler, URL round-trip, browser smoke test (FILT-06, FILT-07)
 
 ## Progress
 
@@ -195,4 +195,4 @@ Plans:
 | 29. CI Simplification | v1.7 | 1/1 | Complete    | 2026-03-30 |
 | 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete    | 2026-03-31 |
-| 32. SQL Filter Layer | v1.8 | 1/2 | In Progress|  |
+| 32. SQL Filter Layer | v1.8 | 2/2 | Complete   | 2026-03-31 |

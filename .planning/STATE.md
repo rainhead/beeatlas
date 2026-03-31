@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: DuckDB WASM Frontend
 status: executing
-stopped_at: Phase 32 context gathered
-last_updated: "2026-03-31T20:43:01.720Z"
-last_activity: 2026-03-31 -- Phase 32 execution started
+stopped_at: Completed 32-02-PLAN.md
+last_updated: "2026-03-31T21:05:56.386Z"
+last_activity: 2026-03-31
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 4
   percent: 100
 ---
 
@@ -26,10 +26,10 @@ See: .planning/PROJECT.md
 ## Current Position
 
 Phase: 32 (sql-filter-layer) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 32
-Last activity: 2026-03-31 -- Phase 32 execution started
-Stopped at: Phase 32 context gathered
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-03-31
+Stopped at: Completed 32-02-PLAN.md
 
 Progress: [██████████] 100% (2/3 phases; 2/2 plans complete)
 
@@ -75,6 +75,8 @@ Progress: [██████████] 100% (2/3 phases; 2/2 plans complete)
 - **[Phase 30-duckdb-wasm-setup]**: counties and ecoregions load as 1-row FeatureCollection tables — expected shape for Phase 30; geometry unnesting deferred to Phase 31/32
 - [Phase 31-feature-creation-from-duckdb]: loader function is async — VectorSource accepts async loaders; tablesReady deferred promise guards against race condition
 - [Phase 31-feature-creation-from-duckdb]: DuckDB init errors are fatal in Phase 31+ (set _dataError); hyparquet removed as fallback data path
+- [Phase 32]: bee-map.ts _runFilterQuery() helper centralizes DuckDB query + setVisibleIds + source.changed() for all filter mutation paths
+- [Phase 32]: visibleSampleIds removed from bee-map.ts import — style.ts reads it directly; bee-map.ts only needs visibleEcdysisIds for summary/click filtering
 
 ## Pending Todos
 
