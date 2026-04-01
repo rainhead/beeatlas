@@ -63,6 +63,30 @@ jobs:
 
       - name: Invalidate CloudFront cache
         run: |
-          aws cloudfront create-invalidation \
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
             --distribution-id ${{ vars.CF_DISTRIBUTION_ID }} \
-            --paths "/*"
+            --paths "/*" \
+            --query 'Invalidation.Id' --output text)
+          echo "invalidation_id=$INVALIDATION_ID" >> $GITHUB_OUTPUT
+        id: invalidate
+
+      - name: Wait for CloudFront invalidation
+        run: |
+          aws cloudfront wait invalidation-completed \
+            --distribution-id ${{ vars.CF_DISTRIBUTION_ID }} \
+            --id ${{ steps.invalidate.outputs.invalidation_id }}
+
+  lighthouse:
+    name: Lighthouse audit
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run Lighthouse
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: https://beeatlas.net/
+          configPath: .lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
