@@ -139,3 +139,6 @@ dist
 
 # Claude Code worktrees (temporary isolated repo copies for agent execution)
 .claude/worktrees/
+
+# GSD debug session artifacts
+.planning/debug/
