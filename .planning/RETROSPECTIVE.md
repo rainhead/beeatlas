@@ -2,6 +2,47 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.8 — DuckDB WASM Frontend
+
+**Shipped:** 2026-04-01
+**Phases:** 3 (Phases 30–32) | **Plans:** 5 | **Timeline:** 1 day (2026-03-31 → 2026-04-01)
+
+### What Was Built
+- `frontend/src/duckdb.ts`: DuckDB WASM EH-bundle singleton with `getDuckDB()` / `loadAllTables()`; ecdysis + samples via HTTP parquet scan; counties + ecoregions via fetch+registerFileBuffer+read_json; `tablesReady` promise gates feature creation
+- `EcdysisSource` + `SampleSource` VectorSource subclasses: query DuckDB `SELECT` on load; replace hyparquet `ParquetSource`/`SampleParquetSource`; `hyparquet` removed from package.json
+- `frontend/src/filter.ts`: `buildFilterSQL()` composes SQL WHERE clause from FilterState; `queryVisibleIds()` returns `{ecdysis: Set<string>|null, samples: Set<string>|null}`; `setVisibleIds()` updates module-level singletons
+- `frontend/src/style.ts`: OL style callbacks switched from `matchesFilter(f)` to `visibleEcdysisIds?.has(id) ?? true`; `matchesFilter()` removed
+- `frontend/src/bee-map.ts`: all filter call sites rewired to await `queryVisibleIds`; URL restore, polygon click, boundary mode, and clear-filters all call `_runFilterQuery()`; loading overlay held until filter applied
+- Gap fixes (32-03): `countySource.loadFeatures()` + `ecoregionSource.loadFeatures()` at module scope in `region-layer.ts` for eager fetch; `_setBoundaryMode(mode, skipFilterReset=false)` to preserve county/ecoregion selections when called from `_applyFilter`
+
+### What Worked
+- Phase sequencing (30: init, 31: feature creation, 32: filter layer) was clean — each phase produced working, verifiable output before the next started
+- DuckDB WASM EH bundle choice (vs threads) avoided CloudFront header changes — correct architectural choice made in research before writing a line of code
+- Pre-joined county/ecoregion_l3 columns in parquet meant no spatial SQL needed — the v1.5 pipeline investment paid off here
+- 3-phase milestone in 1 day — the DuckDB WASM direction was well-researched and the data model was already right
+
+### What Was Inefficient
+- Two UAT failures required a gap closure plan (32-03): county/ecoregion dropdowns empty on load and sidebar counts not updating. Both root causes were OL VectorSource lazy-loading and `_setBoundaryMode` clearing filterState — both were foreseeable at planning time if the OL VectorSource lazy-fetch behavior had been checked.
+- The checkpoint plan 32-02 (human browser test) ran a full UAT that found 2 major issues. Earlier automated testing of the dropdown population path might have caught gap 1 before UAT.
+
+### Patterns Established
+- **OL VectorSource with `url` option is lazy** — `loadFeatures()` must be called explicitly if the source is attached to an invisible layer and needed for UI population before the layer becomes visible
+- **DuckDB WASM spatial extension cannot read registered URL files** — load GeoJSON via `fetch()` → `registerFileBuffer()` → `read_json()` instead
+- **`buildFilterSQL()` returns plain SQL string** — DuckDB WASM `query()` does not support parameterized queries; string interpolation with input validation is the correct approach for client-side trusted filter state
+- **tablesReady Promise as initialization contract** — any module that queries DuckDB must await `tablesReady` before issuing queries; this is the clean boundary between init and use
+
+### Key Lessons
+1. **Check OL source lifecycle before wiring `once('change')` handlers** — if the source's layer starts invisible, the source never fetches and the handler never fires. Either call `loadFeatures()` eagerly or check layer visibility in the handler.
+2. **Trace filter state mutation before writing `_applyFilter`** — any method called inside `_applyFilter` that also mutates filterState will produce silent wrong results. Map the full mutation chain before planning.
+3. **DuckDB WASM bundle choice is architectural, not a detail** — EH vs threads vs MVP bundles have different constraint profiles (COOP/COEP, SharedArrayBuffer, size). Decide in research, not mid-implementation.
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 1 day
+- Notable: Fastest DuckDB integration possible — research from memory (DuckDB direction already in project memory) meant no external research phase needed
+
+---
+
 ## Milestone: v1.7 — Production Pipeline Infrastructure
 
 **Shipped:** 2026-03-30
@@ -218,6 +259,7 @@
 | v1.5 | 4 | 4 | First geospatial feature; 7-plan pipeline phase + 3-phase frontend stack; gap closure scoped correctly after core confirmed working |
 | v1.6 | 1 | 5 | dlt migration; fastest milestone — established patterns made each phase mechanical |
 | v1.7 | 10 | 5 | First infra pivot mid-milestone; Lambda abandoned for maderas cron; frontend fully decoupled from build-time data |
+| v1.8 | 1 | 3 | DuckDB WASM replaces hyparquet; SQL filter layer; hyparquet removed; all in 1 day on pre-laid foundation |
 
 ### Top Lessons (Verified Across Milestones)
 
