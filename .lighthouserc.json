@@ -1,5 +1,10 @@
 {
   "ci": {
+    "collect": {
+      "settings": {
+        "preset": "desktop"
+      }
+    },
     "assert": {
       "assertions": {
         "categories:performance": ["warn", { "minScore": 0.8 }],
