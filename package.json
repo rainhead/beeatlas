@@ -26,5 +26,10 @@
     "cache-upload-links": "bash scripts/cache_upload_links.sh",
     "fetch-links": "cd data && uv run python -m links.fetch"
   },
-  "workspaces": ["frontend"]
+  "workspaces": [
+    "frontend"
+  ],
+  "devDependencies": {
+    "hyparquet": "^1.25.3"
+  }
 }
