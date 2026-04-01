@@ -176,7 +176,7 @@ function handler(event) {
     // Grant CloudFront invalidation (workflow runs create-invalidation after S3 sync)
     deployerRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      actions: ['cloudfront:CreateInvalidation'],
+      actions: ['cloudfront:CreateInvalidation', 'cloudfront:GetInvalidation'],
       resources: [
         `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
       ],
