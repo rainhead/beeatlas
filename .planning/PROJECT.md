@@ -70,6 +70,16 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ TEST-01–03: pytest suite (13 tests) — programmatic DuckDB fixture, export.py schema tests, transform unit tests — v1.7
 - ✓ FETCH-01–03: Frontend runtime fetch from CloudFront /data/; no bundled data files in dist/; loading/error overlay — v1.7
 - ✓ CI-01–02: CI frontend-only build; fetch-data.yml deleted; no AWS credentials in build job — v1.7
+- ✓ DUCK-01: DuckDB WASM singleton loads ecdysis.parquet + samples.parquet into in-memory tables via PARQUET scan — v1.8
+- ✓ DUCK-02: counties.geojson + ecoregions.geojson loaded via fetch+registerFileBuffer+read_json (spatial extension deferred; pre-joined columns used instead) — v1.8
+- ✓ DUCK-03: Loading/error overlay behavior unchanged; DuckDB init gates OL feature creation via tablesReady promise — v1.8
+- ✓ DUCK-04: EH bundle avoids SharedArrayBuffer/COOP-COEP requirement; no CloudFront header changes needed — v1.8
+- ✓ FEAT-01: OL ecdysis features created from DuckDB SELECT; ClusterSource behavior unchanged — v1.8
+- ✓ FEAT-02: OL iNat sample features created from DuckDB SELECT; sample layer and click behavior unchanged — v1.8
+- ✓ FEAT-03: hyparquet removed from package.json; parquet.ts loading code replaced — v1.8
+- ✓ FILT-01–05: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB — v1.8
+- ✓ FILT-06: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — v1.8
+- ✓ FILT-07: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — v1.8
 
 ## Previous Milestones
 
@@ -77,18 +87,11 @@ Collectors can see where bees have been collected and where target host plants g
 - v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
 - v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
 
-### Active (v1.8)
+### Active (v1.9)
 
-- ✓ **DUCK-01**: DuckDB WASM singleton loads ecdysis.parquet + samples.parquet into in-memory tables via PARQUET scan — Phase 30
-- ✓ **DUCK-02**: counties.geojson + ecoregions.geojson loaded into DuckDB tables (fetch+registerFileBuffer+read_json; spatial extension deferred to Phase 31/32) — Phase 30
-- ✓ **DUCK-03**: Loading/error overlay behavior unchanged; DuckDB init fires non-fatally in parallel with hyparquet — Phase 30
-- ✓ **DUCK-04**: EH bundle avoids SharedArrayBuffer/COOP-COEP requirement — Phase 30
-- ✓ **FEAT-01**: OL ecdysis features created from DuckDB query; ClusterSource behavior unchanged — Phase 31
-- ✓ **FEAT-02**: OL iNat sample features created from DuckDB query; sample layer behavior unchanged — Phase 31
-- ✓ **FEAT-03**: hyparquet removed from package.json — Phase 31
-- ✓ **FILT-01–05**: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB — Phase 32
-- ✓ **FILT-06**: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — Phase 32
-- ✓ **FILT-07**: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — Phase 32
+- [ ] **TAB-01**: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline
+- [ ] **TAB-02**: Specimens collected last season on land owned by a named organization — requires land ownership data source
+- [ ] **TAB-03**: Common floral hosts by month and region — cross-table aggregation query on ecdysis data
 
 ### Out of Scope
 
@@ -106,7 +109,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), @duckdb/duckdb-wasm, temporal-polyfill
@@ -175,6 +178,13 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | VITE_DATA_BASE_URL defaults to prod CloudFront | Dev environment fetches from live data; avoids local data file dependency | ✓ Good — clean dev experience with real data |
 | CachePolicy with Origin allowList for /data/* | CACHING_OPTIMIZED doesn't vary by Origin; per-origin CORS caching requires explicit allowList policy | ✓ Good — required for Range request CORS to work across origins |
 | monkeypatch.setattr over env var for ASSETS_DIR in tests | Module-level global set at import time; env var override unreliable after first import | ✓ Good — Phase 27 pattern; applies to any module-level config read at import |
+| EH bundle (not threads bundle) for DuckDB WASM | EH bundle avoids SharedArrayBuffer/COOP-COEP requirement; no CloudFront header changes needed | ✓ Good — MANUAL_BUNDLES with Vite `?url` imports; confirmed in Phase 30 |
+| GeoJSON into DuckDB via fetch+registerFileBuffer+read_json, not spatial extension | DuckDB WASM spatial extension cannot read registered URL files; browser fetch → buffer → read_json works | ✓ Good — spatial extension approach abandoned early; pre-joined parquet columns make spatial queries unnecessary |
+| tablesReady Promise gates OL feature creation | Race condition if OL queries DuckDB before tables loaded; tablesReady replaces ad-hoc hyparquet loading guard | ✓ Good — clean initialization contract between duckdb.ts and bee-map.ts |
+| buildFilterSQL() returns plain SQL string (not parameterized) | DuckDB WASM `query()` does not support parameterized queries with ? placeholders in WASM builds | ✓ Good — SQL string interpolation with string escaping; acceptable for client-side trusted input |
+| visibleIds Set replaces per-feature matchesFilter() in OL style callbacks | Set.has() is O(1) vs iterating filter conditions per-feature on every repaint | ✓ Good — style callbacks now read module-level `visibleEcdysisIds`/`visibleSampleIds` |
+| VectorSource.loadFeatures() eager call at module scope for county/ecoregion | OL lazy-fetches VectorSource only when attached to visible layer; eager call ensures `once('change')` fires on page load for datalist population | ✓ Good — Phase 32-03 gap fix; required because regionLayer starts `visible: false` |
+| _setBoundaryMode skipFilterReset parameter to preserve filter state when called from _applyFilter | _applyFilter sets filterState then calls _setBoundaryMode which cleared it; skipFilterReset=true skips the internal clear+query | ✓ Good — Phase 32-03 gap fix; sidebar counts now correctly reflect filtered totals |
 
 ## Evolution
 
@@ -194,4 +204,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after Phase 32 complete (SQL Filter Layer)*
+*Last updated: 2026-04-01 after v1.8 milestone complete (DuckDB WASM Frontend)*

@@ -1,5 +1,19 @@
 # Milestones
 
+## v1.8 DuckDB WASM Frontend (Shipped: 2026-04-01)
+
+**Phases completed:** 3 phases, 5 plans, 10 tasks
+
+**Key accomplishments:**
+
+- @duckdb/duckdb-wasm EH-bundle singleton loads ecdysis/samples via HTTP parquet scan and counties/ecoregions via fetch+buffer+read_json into four queryable in-browser DuckDB tables, verified with all row counts correct and no COOP/COEP errors
+- EcdysisSource and SampleSource VectorSource subclasses querying DuckDB tables directly, replacing hyparquet; tablesReady promise guards against race conditions
+- SQL-based filter architecture: buildFilterSQL() + queryVisibleIds() replace per-feature JS matchesFilter(); style callbacks switched to Set.has() visibility checks
+- bee-map.ts fully rewired to async DuckDB SQL queries: all matchesFilter() call sites replaced with visibleEcdysisIds Set.has() checks; filter handler, URL restore, polygon click, clear filters, and boundary mode all await queryVisibleIds before repaint
+- Fixed two UAT-failing gaps: county/ecoregion dropdowns now populate on page load, and sidebar counts correctly update when region filters are applied
+
+---
+
 ## v1.7 Production Pipeline Infrastructure (Shipped: 2026-03-30)
 
 **Phases completed:** 5 phases, 5 plans, 13 tasks
