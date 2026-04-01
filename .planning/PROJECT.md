@@ -75,7 +75,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 - v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
 - v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
-- v1.8 DuckDB WASM Frontend — IN PROGRESS (started 2026-03-31)
+- v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
 
 ### Active (v1.8)
 
@@ -86,9 +86,9 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ **FEAT-01**: OL ecdysis features created from DuckDB query; ClusterSource behavior unchanged — Phase 31
 - ✓ **FEAT-02**: OL iNat sample features created from DuckDB query; sample layer behavior unchanged — Phase 31
 - ✓ **FEAT-03**: hyparquet removed from package.json — Phase 31
-- [ ] **FILT-01–05**: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB
-- [ ] **FILT-06**: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter()
-- [ ] **FILT-07**: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved
+- ✓ **FILT-01–05**: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB — Phase 32
+- ✓ **FILT-06**: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — Phase 32
+- ✓ **FILT-07**: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — Phase 32
 
 ### Out of Scope
 
@@ -194,4 +194,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after Phase 31 complete (Feature Creation from DuckDB)*
+*Last updated: 2026-04-01 after Phase 32 complete (SQL Filter Layer)*
