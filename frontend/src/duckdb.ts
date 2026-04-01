@@ -1,23 +1,22 @@
-import * as duckdb from '@duckdb/duckdb-wasm';
+import type * as DuckDBTypes from '@duckdb/duckdb-wasm';
 import duckdb_wasm from '@duckdb/duckdb-wasm/dist/duckdb-mvp.wasm?url';
 import mvp_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-mvp.worker.js?url';
 import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
-import { DuckDBDataProtocol } from '@duckdb/duckdb-wasm';
 
-const MANUAL_BUNDLES: duckdb.DuckDBBundles = {
-  mvp: { mainModule: duckdb_wasm,    mainWorker: mvp_worker },
-  eh:  { mainModule: duckdb_wasm_eh, mainWorker: eh_worker  },
-};
-
-let _dbPromise: Promise<duckdb.AsyncDuckDB> | null = null;
+let _dbPromise: Promise<DuckDBTypes.AsyncDuckDB> | null = null;
 
 let _tablesReadyResolve: (() => void) | null = null;
 export const tablesReady: Promise<void> = new Promise(resolve => {
   _tablesReadyResolve = resolve;
 });
 
-async function _init(): Promise<duckdb.AsyncDuckDB> {
+async function _init(): Promise<DuckDBTypes.AsyncDuckDB> {
+  const duckdb = await import('@duckdb/duckdb-wasm');
+  const MANUAL_BUNDLES: DuckDBTypes.DuckDBBundles = {
+    mvp: { mainModule: duckdb_wasm,    mainWorker: mvp_worker },
+    eh:  { mainModule: duckdb_wasm_eh, mainWorker: eh_worker  },
+  };
   const bundle = await duckdb.selectBundle(MANUAL_BUNDLES);
   const worker = new Worker(bundle.mainWorker!);
   const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
@@ -25,12 +24,13 @@ async function _init(): Promise<duckdb.AsyncDuckDB> {
   return db;
 }
 
-export function getDuckDB(): Promise<duckdb.AsyncDuckDB> {
+export function getDuckDB(): Promise<DuckDBTypes.AsyncDuckDB> {
   if (!_dbPromise) _dbPromise = _init();
   return _dbPromise;
 }
 
-export async function loadAllTables(db: duckdb.AsyncDuckDB, baseUrl: string): Promise<void> {
+export async function loadAllTables(db: DuckDBTypes.AsyncDuckDB, baseUrl: string): Promise<void> {
+  const { DuckDBDataProtocol } = await import('@duckdb/duckdb-wasm');
   // Load parquet tables via HTTP URL registration
   for (const [tableName, file] of [['ecdysis', 'ecdysis.parquet'], ['samples', 'samples.parquet']] as const) {
     await db.registerFileURL(file, `${baseUrl}/${file}`, DuckDBDataProtocol.HTTP, false);
