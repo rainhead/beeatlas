@@ -195,4 +195,4 @@ Plans:
 | 29. CI Simplification | v1.7 | 1/1 | Complete    | 2026-03-30 |
 | 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete    | 2026-03-31 |
-| 32. SQL Filter Layer | v1.8 | 2/2 | Complete   | 2026-03-31 |
+| 32. SQL Filter Layer | v1.8 | 2/2 | Complete    | 2026-04-01 |
