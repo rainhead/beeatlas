@@ -47,6 +47,14 @@ export class BeeAtlas extends LitElement {
   // Non-reactive private fields
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
+  // Monotonic counter used to discard stale async filter-query results.
+  // Root cause of chip-removal flicker: _filterState updates synchronously (Lit
+  // re-render + bee-map.updated() → regionLayer.changed() → OL canvas repaint)
+  // while _runFilterQuery is async. When the previous query resolves it would
+  // overwrite _visibleEcdysisIds/_visibleSampleIds with stale data, causing a
+  // flash of the wrong filter state. The generation guard ensures only the
+  // most-recently-started query can commit its result.
+  private _filterQueryGeneration = 0;
   private _currentView: { lon: number; lat: number; zoom: number } = {
     lon: DEFAULT_LON,
     lat: DEFAULT_LAT,
@@ -223,7 +231,10 @@ bee-sidebar {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
+    const generation = ++this._filterQueryGeneration;
     const { ecdysis, samples } = await queryVisibleIds(this._filterState);
+    // Discard result if a newer query has started since this one began.
+    if (generation !== this._filterQueryGeneration) return;
     this._visibleEcdysisIds = ecdysis;
     this._visibleSampleIds = samples;
   }
