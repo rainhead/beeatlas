@@ -55,32 +55,30 @@
 
 ## Traceability
 
-*(populated during roadmap creation)*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ARCH-01 | — | Pending |
-| ARCH-02 | — | Pending |
-| ARCH-03 | — | Pending |
-| URL-01 | — | Pending |
-| URL-02 | — | Pending |
-| DECOMP-01 | — | Pending |
-| DECOMP-02 | — | Pending |
-| DECOMP-03 | — | Pending |
-| DECOMP-04 | — | Pending |
-| STATE-01 | — | Pending |
-| STATE-02 | — | Pending |
-| STATE-03 | — | Pending |
-| TEST-01 | — | Pending |
-| TEST-02 | — | Pending |
-| TEST-03 | — | Pending |
-| TEST-04 | — | Pending |
+| ARCH-01 | Phase 36 | Pending |
+| ARCH-02 | Phase 36 | Pending |
+| ARCH-03 | Phase 36 | Pending |
+| URL-01 | Phase 35 | Pending |
+| URL-02 | Phase 35 | Pending |
+| DECOMP-01 | Phase 37 | Pending |
+| DECOMP-02 | Phase 37 | Pending |
+| DECOMP-03 | Phase 37 | Pending |
+| DECOMP-04 | Phase 37 | Pending |
+| STATE-01 | Phase 34 | Pending |
+| STATE-02 | Phase 34 | Pending |
+| STATE-03 | Phase 34 | Pending |
+| TEST-01 | Phase 33 | Pending |
+| TEST-02 | Phase 38 | Pending |
+| TEST-03 | Phase 38 | Pending |
+| TEST-04 | Phase 38 | Pending |
 
 **Coverage:**
 - v1.9 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️ (pending roadmap)
+- Mapped to phases: 16
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-03*
-*Last updated: 2026-04-03 after initial definition*
+*Last updated: 2026-04-03 — traceability populated during roadmap creation*
