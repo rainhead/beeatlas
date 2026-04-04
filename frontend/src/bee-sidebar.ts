@@ -120,13 +120,13 @@ export class BeeSidebar extends LitElement {
     }
     .filter-controls {
       padding: 1rem;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid var(--border);
     }
     .filter-controls h3 {
       margin: 0 0 0.75rem 0;
       font-size: 0.95rem;
       font-weight: 600;
-      color: #444;
+      color: var(--text-secondary);
     }
     .filter-row {
       margin-bottom: 0.6rem;
@@ -136,7 +136,7 @@ export class BeeSidebar extends LitElement {
       width: 100%;
       box-sizing: border-box;
       padding: 0.35rem 0.5rem;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border-input);
       border-radius: 4px;
       font-size: 0.9rem;
     }
@@ -173,22 +173,22 @@ export class BeeSidebar extends LitElement {
       flex-shrink: 0;
       padding: 0.3rem 0.5rem;
       cursor: pointer;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border-input);
       background: transparent;
       border-radius: 4px;
       font-size: 0.8rem;
       line-height: 1;
-      color: #666;
+      color: var(--text-muted);
     }
     .taxon-clear-btn:hover {
-      background: #f0f0f0;
-      color: #333;
+      background: var(--surface-muted);
+      color: var(--text-body);
     }
     .clear-btn {
       margin-top: 0.6rem;
       padding: 0.3rem 0.75rem;
       cursor: pointer;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border-input);
       background: transparent;
       border-radius: 4px;
       font-size: 0.85rem;
@@ -200,14 +200,14 @@ export class BeeSidebar extends LitElement {
       margin: 0.75rem;
       padding: 0.4rem 0.75rem;
       cursor: pointer;
-      border: 1px solid #ccc;
+      border: 1px solid var(--border-input);
       background: transparent;
       border-radius: 4px;
       font-size: 0.9rem;
     }
     .sample {
       padding: 0.75rem 1rem;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid var(--border-subtle);
     }
     .sample-header {
       font-weight: 600;
@@ -216,7 +216,7 @@ export class BeeSidebar extends LitElement {
     }
     .sample-meta {
       font-size: 0.8rem;
-      color: #666;
+      color: var(--text-muted);
       margin-bottom: 0.5rem;
       overflow-wrap: break-word;
       word-break: break-word;
@@ -240,13 +240,13 @@ export class BeeSidebar extends LitElement {
       font-size: 1rem;
     }
     .hint {
-      color: #888;
+      color: var(--text-hint);
       font-size: 0.85rem;
       font-style: italic;
     }
     .layer-toggle {
       display: flex;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid var(--border);
     }
     .toggle-btn {
       flex: 1;
@@ -257,16 +257,16 @@ export class BeeSidebar extends LitElement {
       cursor: pointer;
       font-size: 0.9rem;
       font-weight: 500;
-      color: #888;
+      color: var(--text-hint);
       transition: none;
     }
     .toggle-btn:hover {
-      background: #f5f5f5;
-      color: #444;
+      background: var(--surface-subtle);
+      color: var(--text-secondary);
     }
     .toggle-btn.active {
-      color: #2c7a2c;
-      border-bottom-color: #2c7a2c;
+      color: var(--accent);
+      border-bottom-color: var(--accent);
       font-weight: 600;
     }
     .recent-events {
@@ -277,47 +277,47 @@ export class BeeSidebar extends LitElement {
       padding: 0.75rem 1rem 0.5rem;
       font-size: 0.85rem;
       font-weight: 600;
-      color: #444;
-      border-bottom: 1px solid #eee;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-subtle);
     }
     .event-row {
       padding: 0.6rem 1rem;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid var(--border-subtle);
       cursor: pointer;
       display: flex;
       flex-direction: column;
       gap: 0.15rem;
     }
     .event-row:hover {
-      background: #f8f8f8;
+      background: var(--surface-hover);
     }
     .event-date {
       font-size: 0.85rem;
       font-weight: 600;
-      color: #333;
+      color: var(--text-body);
     }
     .event-date-heading {
       padding: 0.5rem 1rem 0.25rem;
       font-size: 0.8rem;
       font-weight: 700;
-      color: #555;
+      color: var(--text-tertiary);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      background: #f5f5f5;
-      border-bottom: 1px solid #eee;
+      background: var(--surface-subtle);
+      border-bottom: 1px solid var(--border-subtle);
     }
     .event-observer {
       font-size: 0.8rem;
-      color: #666;
+      color: var(--text-muted);
       overflow-wrap: break-word;
       word-break: break-word;
     }
     .event-count {
       font-size: 0.8rem;
-      color: #888;
+      color: var(--text-hint);
     }
     .inat-missing {
-      color: #aaa;
+      color: var(--text-hint);
       font-style: normal;
     }
     .sample-dot-detail {
@@ -342,17 +342,17 @@ export class BeeSidebar extends LitElement {
       align-items: center;
       gap: 0.25rem;
       padding: 0.25rem 0.5rem;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
+      background: var(--surface-muted);
+      border: 1px solid var(--border-input);
       border-radius: 4px;
       font-size: 0.85rem;
-      color: #333;
+      color: var(--text-body);
     }
     .chip-type {
       font-size: 0.75rem;
       font-weight: 400;
-      background: #e0e0e0;
-      color: #555;
+      background: var(--surface-chip);
+      color: var(--text-tertiary);
       border-radius: 3px;
       padding: 0 0.25rem;
     }
@@ -360,7 +360,7 @@ export class BeeSidebar extends LitElement {
       background: none;
       border: none;
       cursor: pointer;
-      color: #666;
+      color: var(--text-muted);
       font-size: 0.85rem;
       padding: 0.25rem;
       line-height: 1;
@@ -372,8 +372,8 @@ export class BeeSidebar extends LitElement {
       justify-content: center;
     }
     .chip-remove:hover {
-      color: #333;
-      background: #d0d0d0;
+      color: var(--text-body);
+      background: var(--surface-pressed);
     }
   `;
 

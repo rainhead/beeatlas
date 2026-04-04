@@ -409,15 +409,15 @@ export class BeeMap extends LitElement {
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
-  background: rgba(255,255,255,0.85);
+  background: var(--surface-overlay);
   z-index: 10;
 }
 .error-overlay {
-  color: #b00;
+  color: var(--error);
 }
 bee-sidebar {
   width: 25rem;
-  border-left: 1px solid #cccccc;
+  border-left: 1px solid var(--border-input);
   overflow-y: auto;
 }
 @media (max-aspect-ratio: 1) {
@@ -432,7 +432,7 @@ bee-sidebar {
   bee-sidebar {
     width: 100%;
     border-left: none;
-    border-top: 1px solid #cccccc;
+    border-top: 1px solid var(--border-input);
     flex-grow: 1;
   }
 }
