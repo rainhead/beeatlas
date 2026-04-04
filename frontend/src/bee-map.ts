@@ -9,15 +9,15 @@ const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined)
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
-import { clusterStyle } from "./style.ts";
+import { makeClusterStyleFn } from "./style.ts";
 import { SampleSource } from './features.ts';
-import { sampleDotStyle } from './style.ts';
+import { makeSampleDotStyleFn } from './style.ts';
 import TileLayer from "ol/layer/Tile.js";
 import XYZ from "ol/source/XYZ.js";
 import Feature from "ol/Feature.js";
 import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
-import { filterState, isFilterActive, queryVisibleIds, setVisibleIds, visibleEcdysisIds } from './filter.ts';
+import { type FilterState, isFilterActive, queryVisibleIds } from './filter.ts';
 import { regionLayer, countySource, ecoregionSource, makeRegionStyleFn } from './region-layer.ts';
 import { getDuckDB, loadAllTables } from './duckdb.ts';
 import './bee-sidebar.ts';
@@ -49,7 +49,7 @@ interface ParsedParams {
 function buildSearchParams(
   center: number[],
   zoom: number,
-  fs: typeof filterState,
+  fs: FilterState,
   selectedOccIds: string[] | null,
   layerMode: 'specimens' | 'samples',
   boundaryMode: 'off' | 'counties' | 'ecoregions'
@@ -206,12 +206,11 @@ const clusterSource = new Cluster({
 });
 const specimenLayer = new VectorLayer({
   source: clusterSource,
-  style: clusterStyle,
 });
 const sampleSource = new SampleSource({
   onError: (err) => { if (dataErrorHandler) dataErrorHandler(err); },
 });
-const sampleLayer = new VectorLayer({ source: sampleSource, style: sampleDotStyle });
+const sampleLayer = new VectorLayer({ source: sampleSource });
 
 @customElement('bee-map')
 export class BeeMap extends LitElement {
@@ -244,6 +243,19 @@ export class BeeMap extends LitElement {
   @state()
   private filteredSummary: FilteredSummary | null = null;
 
+  private filterState: FilterState = {
+    taxonName: null,
+    taxonRank: null,
+    yearFrom: null,
+    yearTo: null,
+    months: new Set(),
+    selectedCounties: new Set(),
+    selectedEcoregions: new Set(),
+  };
+
+  private visibleEcdysisIds: Set<string> | null = null;
+  private visibleSampleIds: Set<string> | null = null;
+
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   private _selectedOccIds: string[] | null = null;
@@ -259,8 +271,9 @@ export class BeeMap extends LitElement {
   @state() private _restoredEcoregions: Set<string> = new Set();
 
   private async _runFilterQuery(): Promise<void> {
-    const { ecdysis, samples } = await queryVisibleIds(filterState);
-    setVisibleIds(ecdysis, samples);
+    const { ecdysis, samples } = await queryVisibleIds(this.filterState);
+    this.visibleEcdysisIds = ecdysis;
+    this.visibleSampleIds = samples;
     clusterSource.changed();
     sampleSource.changed();
     this.map?.render();
@@ -271,8 +284,8 @@ export class BeeMap extends LitElement {
     if (mode === 'off') {
       regionLayer.setVisible(false);
       if (!skipFilterReset) {
-        filterState.selectedCounties = new Set();
-        filterState.selectedEcoregions = new Set();
+        this.filterState.selectedCounties = new Set();
+        this.filterState.selectedEcoregions = new Set();
       }
     } else if (mode === 'counties') {
       regionLayer.setSource(countySource);
@@ -297,18 +310,18 @@ export class BeeMap extends LitElement {
     if (!shiftKey) {
       // Single-select (default): replace current selection with this region.
       // If this region was already the sole selection, clear it (toggle off single).
-      const currentSet = isCounty ? filterState.selectedCounties : filterState.selectedEcoregions;
+      const currentSet = isCounty ? this.filterState.selectedCounties : this.filterState.selectedEcoregions;
       const wasOnlySelection = currentSet.size === 1 && currentSet.has(name);
       if (isCounty) {
-        filterState.selectedCounties = wasOnlySelection ? new Set() : new Set([name]);
-        filterState.selectedEcoregions = new Set();  // clear cross-type on replace
+        this.filterState.selectedCounties = wasOnlySelection ? new Set() : new Set([name]);
+        this.filterState.selectedEcoregions = new Set();  // clear cross-type on replace
       } else {
-        filterState.selectedEcoregions = wasOnlySelection ? new Set() : new Set([name]);
-        filterState.selectedCounties = new Set();    // clear cross-type on replace
+        this.filterState.selectedEcoregions = wasOnlySelection ? new Set() : new Set([name]);
+        this.filterState.selectedCounties = new Set();    // clear cross-type on replace
       }
     } else {
       // Shift-click: add to or remove from current selection (multi-select).
-      const targetSet = isCounty ? filterState.selectedCounties : filterState.selectedEcoregions;
+      const targetSet = isCounty ? this.filterState.selectedCounties : this.filterState.selectedEcoregions;
       const newSet = new Set(targetSet);
       if (newSet.has(name)) {
         newSet.delete(name);
@@ -316,27 +329,27 @@ export class BeeMap extends LitElement {
         newSet.add(name);
       }
       if (isCounty) {
-        filterState.selectedCounties = newSet;
+        this.filterState.selectedCounties = newSet;
       } else {
-        filterState.selectedEcoregions = newSet;
+        this.filterState.selectedEcoregions = newSet;
       }
     }
 
     await this._runFilterQuery();
     regionLayer.changed();
     this.map?.render();
-    this._restoredCounties = new Set(filterState.selectedCounties);
-    this._restoredEcoregions = new Set(filterState.selectedEcoregions);
+    this._restoredCounties = new Set(this.filterState.selectedCounties);
+    this._restoredEcoregions = new Set(this.filterState.selectedEcoregions);
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
-    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds, this.layerMode, this.boundaryMode);
+    const params = buildSearchParams(center, zoom, this.filterState, this._selectedOccIds, this.layerMode, this.boundaryMode);
     window.history.pushState({}, '', '?' + params.toString());
   }
 
   private async _clearRegionFilter(): Promise<void> {
-    filterState.selectedCounties = new Set();
-    filterState.selectedEcoregions = new Set();
+    this.filterState.selectedCounties = new Set();
+    this.filterState.selectedEcoregions = new Set();
     await this._runFilterQuery();
     regionLayer.changed();
     this.map?.render();
@@ -482,13 +495,13 @@ bee-sidebar {
   }
 
   private async _restoreFilterState(parsed: ParsedParams): Promise<void> {
-    filterState.taxonName = parsed.taxonName;
-    filterState.taxonRank = parsed.taxonRank;
-    filterState.yearFrom  = parsed.yearFrom;
-    filterState.yearTo    = parsed.yearTo;
-    filterState.months    = parsed.months;
-    filterState.selectedCounties = parsed.selectedCounties;
-    filterState.selectedEcoregions = parsed.selectedEcoregions;
+    this.filterState.taxonName = parsed.taxonName;
+    this.filterState.taxonRank = parsed.taxonRank;
+    this.filterState.yearFrom  = parsed.yearFrom;
+    this.filterState.yearTo    = parsed.yearTo;
+    this.filterState.months    = parsed.months;
+    this.filterState.selectedCounties = parsed.selectedCounties;
+    this.filterState.selectedEcoregions = parsed.selectedEcoregions;
     this.boundaryMode = parsed.boundaryMode;
     if (parsed.boundaryMode === 'counties') {
       regionLayer.setSource(countySource);
@@ -503,9 +516,9 @@ bee-sidebar {
     await this._runFilterQuery();
 
     // Recompute filteredSummary using visibleIds
-    if (visibleEcdysisIds !== null) {
+    if (this.visibleEcdysisIds !== null) {
       const allFeatures = specimenSource.getFeatures();
-      const matching = allFeatures.filter(f => visibleEcdysisIds!.has(f.getId() as string));
+      const matching = allFeatures.filter(f => this.visibleEcdysisIds!.has(f.getId() as string));
       const fSummary = computeSummary(matching);
       this.filteredSummary = {
         filteredSpecimens: fSummary.totalSpecimens,
@@ -543,8 +556,8 @@ bee-sidebar {
       this._selectedOccIds = null;
       return;
     }
-    const toShow = visibleEcdysisIds !== null
-      ? features.filter(f => visibleEcdysisIds!.has(f.getId() as string))
+    const toShow = this.visibleEcdysisIds !== null
+      ? features.filter(f => this.visibleEcdysisIds!.has(f.getId() as string))
       : features;
     if (toShow.length > 0) {
       this.selectedSamples = buildSamples(toShow);
@@ -559,7 +572,7 @@ bee-sidebar {
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
-    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds, this.layerMode, this.boundaryMode);
+    const params = buildSearchParams(center, zoom, this.filterState, this._selectedOccIds, this.layerMode, this.boundaryMode);
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
@@ -569,14 +582,14 @@ bee-sidebar {
   }
 
   private async _applyFilter(detail: FilterChangedEvent): Promise<void> {
-    // Mutate the shared singleton (closed over by clusterStyle)
-    filterState.taxonName = detail.taxonName;
-    filterState.taxonRank = detail.taxonRank;
-    filterState.yearFrom  = detail.yearFrom;
-    filterState.yearTo    = detail.yearTo;
-    filterState.months    = detail.months;
-    filterState.selectedCounties = detail.selectedCounties;
-    filterState.selectedEcoregions = detail.selectedEcoregions;
+    // Update class-owned filterState (closed over by style factory closures)
+    this.filterState.taxonName = detail.taxonName;
+    this.filterState.taxonRank = detail.taxonRank;
+    this.filterState.yearFrom  = detail.yearFrom;
+    this.filterState.yearTo    = detail.yearTo;
+    this.filterState.months    = detail.months;
+    this.filterState.selectedCounties = detail.selectedCounties;
+    this.filterState.selectedEcoregions = detail.selectedEcoregions;
     if (detail.boundaryMode !== this.boundaryMode) {
       await this._setBoundaryMode(detail.boundaryMode, true);
     }
@@ -592,9 +605,9 @@ bee-sidebar {
     this._restoredEcoregions = detail.selectedEcoregions;
 
     // Recompute filtered summary using visibleIds
-    if (visibleEcdysisIds !== null) {
+    if (this.visibleEcdysisIds !== null) {
       const allFeatures = specimenSource.getFeatures();
-      const matching = allFeatures.filter(f => visibleEcdysisIds!.has(f.getId() as string));
+      const matching = allFeatures.filter(f => this.visibleEcdysisIds!.has(f.getId() as string));
       const fSummary = computeSummary(matching);
       this.filteredSummary = {
         filteredSpecimens: fSummary.totalSpecimens,
@@ -699,8 +712,10 @@ bee-sidebar {
     });
     sampleLayer.setVisible(false);
 
-    // Set dynamic style function so selected polygons are highlighted
-    regionLayer.setStyle(makeRegionStyleFn(() => this.boundaryMode));
+    // Set dynamic style functions via factory closures
+    specimenLayer.setStyle(makeClusterStyleFn(() => this.visibleEcdysisIds));
+    sampleLayer.setStyle(makeSampleDotStyleFn(() => this.visibleSampleIds));
+    regionLayer.setStyle(makeRegionStyleFn(() => this.boundaryMode, () => this.filterState));
 
     // Restore layer mode from URL (do this directly, not via _onLayerChanged,
     // because _onLayerChanged calls _pushUrlState which needs this.map to be ready)
@@ -714,7 +729,7 @@ bee-sidebar {
     const view = this.map.getView();
     const initCenter = toLonLat(view.getCenter()!);
     const initParams = buildSearchParams(
-      initCenter, view.getZoom()!, filterState,
+      initCenter, view.getZoom()!, this.filterState,
       initialParams.occurrenceIds.length > 0 ? initialParams.occurrenceIds : null,
       initialParams.layerMode,
       initialParams.boundaryMode
@@ -727,14 +742,14 @@ bee-sidebar {
         || initialParams.boundaryMode !== 'off'
         || initialParams.selectedCounties.size > 0
         || initialParams.selectedEcoregions.size > 0) {
-      filterState.taxonName = initialParams.taxonName;
-      filterState.taxonRank = initialParams.taxonRank;
-      filterState.yearFrom  = initialParams.yearFrom;
-      filterState.yearTo    = initialParams.yearTo;
-      filterState.months    = initialParams.months;
+      this.filterState.taxonName = initialParams.taxonName;
+      this.filterState.taxonRank = initialParams.taxonRank;
+      this.filterState.yearFrom  = initialParams.yearFrom;
+      this.filterState.yearTo    = initialParams.yearTo;
+      this.filterState.months    = initialParams.months;
       // Restore region filter state
-      filterState.selectedCounties = initialParams.selectedCounties;
-      filterState.selectedEcoregions = initialParams.selectedEcoregions;
+      this.filterState.selectedCounties = initialParams.selectedCounties;
+      this.filterState.selectedEcoregions = initialParams.selectedEcoregions;
       this.boundaryMode = initialParams.boundaryMode;
       if (initialParams.boundaryMode !== 'off') {
         regionLayer.setSource(initialParams.boundaryMode === 'counties' ? countySource : ecoregionSource);
@@ -771,12 +786,13 @@ bee-sidebar {
         // Recompute filteredSummary if filter was restored from URL.
         // Apply filter before clearing _dataLoading so the loading overlay stays
         // up until visibleIds are set — prevents a brief flash of all features.
-        if (isFilterActive(filterState)) {
-          const { ecdysis, samples } = await queryVisibleIds(filterState);
-          setVisibleIds(ecdysis, samples);
+        if (isFilterActive(this.filterState)) {
+          const { ecdysis, samples } = await queryVisibleIds(this.filterState);
+          this.visibleEcdysisIds = ecdysis;
+          this.visibleSampleIds = samples;
           clusterSource.changed();
           sampleSource.changed();
-          const matching = features.filter(f => visibleEcdysisIds!.has(f.getId() as string));
+          const matching = features.filter(f => this.visibleEcdysisIds!.has(f.getId() as string));
           const fSummary = computeSummary(matching);
           this.filteredSummary = {
             filteredSpecimens: fSummary.totalSpecimens,
@@ -816,7 +832,7 @@ bee-sidebar {
       // specimenSource.once('change') applies URL-restored filters, but it never
       // fires in lm=samples mode (specimenLayer is invisible). Apply here instead.
       // Run before clearing _dataLoading so overlay stays up until visibleIds are set.
-      if (isFilterActive(filterState)) {
+      if (isFilterActive(this.filterState)) {
         await this._runFilterQuery();
       }
       this._dataLoading = false;
@@ -847,7 +863,7 @@ bee-sidebar {
         const hits = await specimenLayer.getFeatures(event.pixel);
         if (hits.length) {
           const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
-          const toShow = visibleEcdysisIds !== null ? inner.filter(f => visibleEcdysisIds!.has(f.getId() as string)) : inner;
+          const toShow = this.visibleEcdysisIds !== null ? inner.filter(f => this.visibleEcdysisIds!.has(f.getId() as string)) : inner;
           if (toShow.length === 0) return;
           this.selectedSamples = buildSamples(toShow);
           this._selectedOccIds = toShow.map(f => f.getId() as string);
