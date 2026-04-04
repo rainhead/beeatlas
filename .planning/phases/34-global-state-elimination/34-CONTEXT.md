@@ -21,10 +21,9 @@ Remove module-level mutable singletons from `filter.ts`, `bee-map.ts`, and `regi
 - **D-03:** Move all module-level OL objects into `BeeMap` as class properties: `specimenSource`, `clusterSource`, `specimenLayer`, `sampleSource`, `sampleLayer`, and `dataErrorHandler`. These are already only used inside the class; the move is mechanical.
 - **D-04:** These become plain class properties (not `@state()`). They are constructed once and not reassigned after initialization; no reactive tracking needed.
 
-### Scope exclusions
+### region-layer.ts singletons
 - **D-05:** Immutable style constants at module level (`boundaryStyle`, `selectedBoundaryStyle` in `region-layer.ts`) are NOT in scope — they are constants, not mutable singletons.
-- **D-06:** The eager `loadFeatures()` side effect in `region-layer.ts` (lines 62–65) is deferred to Phase 36. It is tightly coupled to root component initialization order and belongs with the `<bee-atlas>` refactor.
-- **D-07:** `countySource`, `ecoregionSource`, and `regionLayer` in `region-layer.ts` are deferred to Phase 36 for the same reason — they carry the eager-load side effect and will need to move as a unit.
+- **D-06:** `countySource`, `ecoregionSource`, `regionLayer`, and the eager `loadFeatures()` call are all in scope for Phase 34. They move into `BeeMap` as class properties; `loadFeatures()` moves to `firstUpdated`. (STATE-03)
 
 ### Claude's Discretion
 - Exact class property declaration style (inline initializer vs. constructor assignment)
@@ -41,7 +40,7 @@ Remove module-level mutable singletons from `filter.ts`, `bee-map.ts`, and `regi
 ### Source files being refactored
 - `frontend/src/filter.ts` — contains `filterState`, `visibleEcdysisIds`, `visibleSampleIds`; pure functions stay
 - `frontend/src/bee-map.ts` — `BeeMap` LitElement; OL objects and `dataErrorHandler` move inside
-- `frontend/src/region-layer.ts` — style constants and sources; only style constants fully in scope this phase
+- `frontend/src/region-layer.ts` — style constants stay; sources (`countySource`, `ecoregionSource`, `regionLayer`) and `loadFeatures()` move to BeeMap
 
 ### Test infrastructure (just established)
 - `frontend/src/smoke.test.ts` — trivial harness test from Phase 33; real tests come in Phase 38
@@ -77,7 +76,6 @@ No specific requirements — open to standard approaches.
 <deferred>
 ## Deferred Ideas
 
-- `countySource`, `ecoregionSource`, `regionLayer`, and eager `loadFeatures()` side effect in `region-layer.ts` — deferred to Phase 36 (`<bee-atlas>` root component)
 - Style constants (`boundaryStyle`, `selectedBoundaryStyle`) — immutable, no action needed
 
 </deferred>
