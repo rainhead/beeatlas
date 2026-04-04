@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, isFilterActive, queryVisibleIds } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables } from './duckdb.ts';
-import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
+import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 import './bee-map.ts';
 import './bee-sidebar.ts';
 
@@ -455,6 +455,56 @@ bee-sidebar {
     // If filter was restored from URL, run the filter query now that data is loaded
     if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
+    }
+
+    // If occurrences were restored from URL, fetch their specimen data now that DuckDB is ready
+    if (this._selectedOccIds && this._selectedOccIds.length > 0 && this._selectedSamples === null) {
+      this._restoreSelectionSamples(this._selectedOccIds);
+    }
+  }
+
+  private async _restoreSelectionSamples(occIds: string[]) {
+    const ecdysisIds = occIds
+      .filter(id => id.startsWith('ecdysis:'))
+      .map(id => id.slice('ecdysis:'.length));
+    if (ecdysisIds.length === 0) return;
+    let conn: Awaited<ReturnType<Awaited<ReturnType<typeof getDuckDB>>['connect']>> | null = null;
+    try {
+      const db = await getDuckDB();
+      conn = await db.connect();
+      const idList = ecdysisIds.map(id => `'${id}'`).join(',');
+      const result = await conn.query(`
+        SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
+               inat_observation_id, floralHost
+        FROM ecdysis
+        WHERE CAST(ecdysis_id AS VARCHAR) IN (${idList})
+      `);
+      const map = new Map<string, Sample>();
+      for (const row of result.toArray()) {
+        const obj = row.toJSON();
+        const key = `${obj.year}-${obj.month}-${obj.recordedBy}-${obj.fieldNumber}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            year: Number(obj.year),
+            month: Number(obj.month),
+            recordedBy: String(obj.recordedBy),
+            fieldNumber: String(obj.fieldNumber),
+            species: [],
+          });
+        }
+        const specimen: Specimen = {
+          name: String(obj.scientificName),
+          occid: String(obj.ecdysis_id),
+          inatObservationId: obj.inat_observation_id != null ? Number(obj.inat_observation_id) : null,
+          floralHost: obj.floralHost ?? null,
+        };
+        map.get(key)!.species.push(specimen);
+      }
+      this._selectedSamples = [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+    } catch (err) {
+      console.error('Failed to restore selection from URL:', err);
+    } finally {
+      if (conn) await conn.close();
     }
   }
 
