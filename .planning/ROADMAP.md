@@ -170,7 +170,7 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 | 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 32. SQL Filter Layer | v1.8 | 3/3 | Complete    | 2026-04-01 |
 | 33. Test Infrastructure | v1.9 | 1/1 | Complete    | 2026-04-04 |
-| 34. Global State Elimination | v1.9 | 2/2 | Complete   | 2026-04-04 |
+| 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
 | 35. URL State Module | v1.9 | 0/? | Not started | - |
 | 36. bee-atlas Root Component | v1.9 | 0/? | Not started | - |
 | 37. Sidebar Decomposition | v1.9 | 0/? | Not started | - |
