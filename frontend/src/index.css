@@ -1,11 +1,43 @@
 :root {
+  /* Text */
+  --text-body:       #213547;
+  --text-secondary:  #444;
+  --text-tertiary:   #555;
+  --text-muted:      #666;
+  --text-hint:       #767676;  /* WCAG AA minimum: 4.54:1 on --surface */
+
+  /* Accent */
+  --accent:          #2c7a2c;
+
+  /* Borders */
+  --border:          #ddd;
+  --border-subtle:   #eee;
+  --border-input:    #ccc;
+
+  /* Surfaces */
+  --surface:         #fafafa;
+  --surface-subtle:  #f5f5f5;
+  --surface-hover:   #f8f8f8;
+  --surface-muted:   #f0f0f0;
+  --surface-chip:    #e0e0e0;
+  --surface-pressed: #d0d0d0;
+  --surface-overlay: rgba(255, 255, 255, 0.85);
+
+  /* Brand */
+  --header-bg:       rgb(8, 13, 38);
+
+  /* Semantic */
+  --error:           #b00;
+  --link:            #646cff;
+  --link-hover:      #535bf2;
+
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light;
-  color: #213547;
-  background-color: #ffffff;
+  color: var(--text-body);
+  background-color: var(--surface);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,7 +47,7 @@
 
 
 header {
-  background-color: rgb(8, 13, 38);
+  background-color: var(--header-bg);
   color: white;
   display: flex;
   justify-content: space-between;
@@ -43,18 +75,17 @@ h1 {
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--link);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--link-hover);
 }
 
 body {
   display: flex;
-  align-content: stretch;
   align-items: stretch;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   margin: 0;
 }
