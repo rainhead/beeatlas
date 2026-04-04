@@ -81,6 +81,18 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILT-06: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — v1.8
 - ✓ FILT-07: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — v1.8
 
+## Current Milestone: v1.9 Frontend Architecture Refactor
+
+**Goal:** Decompose bee-map.ts into well-bounded, testable components with clean state ownership and a scalable structure ready for tabular views.
+
+**Target features:**
+- Extract `<bee-atlas>` root component from bee-map, owning non-map state (layer mode, selection, URL state)
+- Extract URL state into a dedicated module, eliminating the `_restored*` property cascade
+- Decompose bee-sidebar into sub-components (filter controls, specimen detail, sample event detail)
+- Eliminate module-level global mutable state in filter.ts and bee-map.ts to enable unit isolation
+- Set up Vitest + happy-dom test infrastructure
+- Add unit tests for newly-bounded components and modules
+
 ## Previous Milestones
 
 - v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
@@ -88,6 +100,10 @@ Collectors can see where bees have been collected and where target host plants g
 - v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
 
 ### Active (v1.9)
+
+*(to be defined — see REQUIREMENTS.md)*
+
+### Future
 
 - [ ] **TAB-01**: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline
 - [ ] **TAB-02**: Specimens collected last season on land owned by a named organization — requires land ownership data source
@@ -204,4 +220,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 after v1.8 milestone complete (DuckDB WASM Frontend)*
+*Last updated: 2026-04-03 — Milestone v1.9 started (Frontend Architecture Refactor)*
