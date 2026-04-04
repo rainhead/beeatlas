@@ -120,6 +120,82 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 
 </details>
 
+## Phase Details
+
+### Phase 33: Test Infrastructure
+**Goal**: Developers can run an isolated unit test suite with `npm test`
+**Depends on**: Nothing (first v1.9 phase)
+**Requirements**: TEST-01
+**Success Criteria** (what must be TRUE):
+  1. `npm test` in `frontend/` runs Vitest and exits non-zero on any test failure
+  2. happy-dom is configured as the test environment so DOM APIs are available in tests
+  3. A trivial passing test exists that imports from a frontend module without errors
+**Plans**: 1 plan
+**Status**: Complete (2026-04-04)
+
+### Phase 34: Global State Elimination
+**Goal**: Frontend modules have no module-level mutable state that prevents isolated testing
+**Depends on**: Phase 33
+**Requirements**: STATE-01, STATE-02, STATE-03
+**Success Criteria** (what must be TRUE):
+  1. Importing `filter.ts` in a test does not create any module-level filterState, visibleEcdysisIds, or visibleSampleIds singletons
+  2. Importing `bee-map.ts` in a test does not trigger OL source/layer construction or any side effects
+  3. Importing `region-layer.ts` in a test does not trigger GeoJSON fetch or VectorSource eager-loading
+  4. All state previously held as module-level globals is now owned by component instances or passed as arguments
+**Plans**: 2 plans
+**Status**: Complete (2026-04-04)
+
+### Phase 35: URL State Module
+**Goal**: URL serialization and deserialization is a pure, testable module owned by bee-atlas
+**Depends on**: Phase 34
+**Requirements**: URL-01, URL-02
+**Success Criteria** (what must be TRUE):
+  1. `url-state.ts` exports typed `serialize` and `deserialize` functions with no DOM or component imports
+  2. bee-atlas reads URL params on initialization and sets its own state without delegating to bee-map
+  3. bee-atlas calls the URL serializer on every state change and pushes/replaces history
+  4. `_restored*` properties no longer exist on `<bee-map>`; popstate is handled entirely in bee-atlas
+**Plans**: 1 plan
+**Status**: Complete (2026-04-04)
+
+### Phase 36: bee-atlas Root Component
+**Goal**: `<bee-atlas>` owns all non-map state; bee-map and bee-sidebar are pure presenter components
+**Depends on**: Phase 35
+**Requirements**: ARCH-01, ARCH-02, ARCH-03
+**Success Criteria** (what must be TRUE):
+  1. `<bee-atlas>` custom element exists and is the document root component; bee-map is a child rendered by bee-atlas
+  2. `<bee-map>` accepts filter results, layer mode, boundary mode, and selection as properties and emits events — it does not read or write any shared state
+  3. bee-atlas handles all events from bee-map and bee-sidebar, updates its own state, and propagates updated properties downward — bee-map and bee-sidebar have no direct references to each other
+  4. Layer mode, selection, filter state, summaries, and boundary mode are properties on bee-atlas, not on bee-map
+**Plans**: 2 plans
+Plans:
+- [ ] 36-01-PLAN.md — Create bee-atlas coordinator component, style.ts factories, test infrastructure, index.html update
+- [ ] 36-02-PLAN.md — Refactor bee-map to pure presenter, wire events, clean up module coupling, integration tests
+**UI hint**: yes
+
+### Phase 37: Sidebar Decomposition
+**Goal**: bee-sidebar is a thin layout container composed of focused, independently renderable sub-components
+**Depends on**: Phase 36
+**Requirements**: DECOMP-01, DECOMP-02, DECOMP-03, DECOMP-04
+**Success Criteria** (what must be TRUE):
+  1. `<bee-filter-controls>` renders all filter inputs (taxon, year, month, county, ecoregion) and emits a single `filter-changed` event with full filter state — it holds no filter state internally
+  2. `<bee-specimen-detail>` renders specimen cluster detail when given a specimens property, with no sidebar or map awareness
+  3. `<bee-sample-detail>` renders sample observation detail when given a sample event property, with no sidebar or map awareness
+  4. bee-sidebar contains no filter input markup or specimen/sample rendering logic of its own — it only composes the sub-components and routes their events upward
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 38: Unit Tests
+**Goal**: Critical pure logic and representative UI components are covered by automated tests
+**Depends on**: Phase 37
+**Requirements**: TEST-02, TEST-03, TEST-04
+**Success Criteria** (what must be TRUE):
+  1. url-state.ts round-trip tests pass: serialize a typed state object → deserialize from the resulting URL params → output equals the input, for all field combinations
+  2. Filter SQL builder tests pass for all filter fields individually and in combination (taxon, year, month, county, ecoregion)
+  3. At least one decomposed Lit component has a render test that mounts it with known props and asserts correct DOM output
+  4. `npm test` runs all three test suites and reports results; any failure exits non-zero
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -159,6 +235,6 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 | 33. Test Infrastructure | v1.9 | 1/1 | Complete    | 2026-04-04 |
 | 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
 | 35. URL State Module | v1.9 | 1/1 | Complete    | 2026-04-04 |
-| 36. bee-atlas Root Component | v1.9 | 0/? | Not started | - |
+| 36. bee-atlas Root Component | v1.9 | 0/2 | Not started | - |
 | 37. Sidebar Decomposition | v1.9 | 0/? | Not started | - |
 | 38. Unit Tests | v1.9 | 0/? | Not started | - |
