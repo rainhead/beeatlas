@@ -10,16 +10,6 @@ export interface FilterState {
   selectedEcoregions: Set<string>;
 }
 
-export const filterState: FilterState = {
-  taxonName: null,
-  taxonRank: null,
-  yearFrom: null,
-  yearTo: null,
-  months: new Set(),
-  selectedCounties: new Set(),
-  selectedEcoregions: new Set(),
-};
-
 export function isFilterActive(f: FilterState): boolean {
   return f.taxonName !== null
     || f.yearFrom !== null
@@ -27,19 +17,6 @@ export function isFilterActive(f: FilterState): boolean {
     || f.months.size > 0
     || f.selectedCounties.size > 0
     || f.selectedEcoregions.size > 0;
-}
-
-// Visible feature ID sets. null = no filter active (show all).
-// Populated by queryVisibleIds(), consumed by style callbacks.
-export let visibleEcdysisIds: Set<string> | null = null;
-export let visibleSampleIds: Set<string> | null = null;
-
-export function setVisibleIds(
-  ecdysis: Set<string> | null,
-  samples: Set<string> | null,
-): void {
-  visibleEcdysisIds = ecdysis;
-  visibleSampleIds = samples;
 }
 
 export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesWhere: string } {

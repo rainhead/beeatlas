@@ -1,28 +1,22 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
-import { customElement, query, state } from "lit/decorators.js";
+import { customElement, property, query } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
 import { EcdysisSource } from "./features.ts";
-
-const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
-import { clusterStyle } from "./style.ts";
+import { makeClusterStyleFn, makeSampleDotStyleFn } from "./style.ts";
 import { SampleSource } from './features.ts';
-import { sampleDotStyle } from './style.ts';
 import TileLayer from "ol/layer/Tile.js";
 import XYZ from "ol/source/XYZ.js";
 import Feature from "ol/Feature.js";
 import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
-import { filterState, isFilterActive, queryVisibleIds, setVisibleIds, visibleEcdysisIds } from './filter.ts';
-import { buildParams, parseParams, type AppState } from './url-state.ts';
+import type { FilterState } from './filter.ts';
 import { regionLayer, countySource, ecoregionSource, makeRegionStyleFn } from './region-layer.ts';
-import { getDuckDB, loadAllTables } from './duckdb.ts';
-import './bee-sidebar.ts';
-import type { Sample, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
+import type { Sample, DataSummary, TaxonOption, FilteredSummary, SampleEvent } from './bee-sidebar.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -98,277 +92,135 @@ function buildTaxaOptions(features: Feature[]): TaxonOption[] {
   ];
 }
 
-let dataErrorHandler: ((err: Error) => void) | null = null;
-
-const specimenSource = new EcdysisSource({
-  onError: (err) => { if (dataErrorHandler) dataErrorHandler(err); },
-});
-const clusterSource = new Cluster({
-  distance: 40,
-  minDistance: 0,
-  source: specimenSource,
-});
-const specimenLayer = new VectorLayer({
-  source: clusterSource,
-  style: clusterStyle,
-});
-const sampleSource = new SampleSource({
-  onError: (err) => { if (dataErrorHandler) dataErrorHandler(err); },
-});
-const sampleLayer = new VectorLayer({ source: sampleSource, style: sampleDotStyle });
-
 @customElement('bee-map')
 export class BeeMap extends LitElement {
   @query('#map')
-  mapElement!: HTMLDivElement
+  mapElement!: HTMLDivElement;
 
-  map?: OpenLayersMap
+  map?: OpenLayersMap;
 
-  @state() private _dataLoading = true;
-  @state() private _dataError: string | null = null;
-  @state() private _countyOptions: string[] = [];
-  @state() private _ecoregionOptions: string[] = [];
-
-  @state()
-  private selectedSamples: Sample[] | null = null;
-
-  @state()
-  private summary: DataSummary | null = null;
-
-  @state() private _selectedSampleEvent: SampleEvent | null = null;
-
-  @state() private layerMode: 'specimens' | 'samples' = 'specimens';
-  @state() private boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
-  @state() private sampleDataLoaded = false;
-  @state() private recentSampleEvents: SampleEvent[] = [];
-
-  @state()
-  private taxaOptions: TaxonOption[] = [];
-
-  @state()
-  private filteredSummary: FilteredSummary | null = null;
-
-  private _isRestoringFromHistory = false;
-  private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
-  private _selectedOccIds: string[] | null = null;
-
-  // Filter state mirrored for URL sync — these track what to pass down to bee-sidebar for display restore
-  @state() private _restoredTaxonInput = '';
-  @state() private _restoredTaxonRank: 'family' | 'genus' | 'species' | null = null;
-  @state() private _restoredTaxonName: string | null = null;
-  @state() private _restoredYearFrom: number | null = null;
-  @state() private _restoredYearTo: number | null = null;
-  @state() private _restoredMonths: Set<number> = new Set();
-  @state() private _restoredCounties: Set<string> = new Set();
-  @state() private _restoredEcoregions: Set<string> = new Set();
-
-  private async _runFilterQuery(): Promise<void> {
-    const { ecdysis, samples } = await queryVisibleIds(filterState);
-    setVisibleIds(ecdysis, samples);
-    clusterSource.changed();
-    sampleSource.changed();
-    this.map?.render();
-  }
-
-  private async _setBoundaryMode(mode: 'off' | 'counties' | 'ecoregions', skipFilterReset = false): Promise<void> {
-    this.boundaryMode = mode;
-    if (mode === 'off') {
-      regionLayer.setVisible(false);
-      if (!skipFilterReset) {
-        filterState.selectedCounties = new Set();
-        filterState.selectedEcoregions = new Set();
-      }
-    } else if (mode === 'counties') {
-      regionLayer.setSource(countySource);
-      regionLayer.setVisible(true);
-    } else {
-      regionLayer.setSource(ecoregionSource);
-      regionLayer.setVisible(true);
-    }
-    if (!skipFilterReset) {
-      await this._runFilterQuery();
-    }
-    regionLayer.changed();
-    if (this.map) this._pushUrlState();
-  }
-
-  private async _onPolygonClick(feature: Feature, shiftKey: boolean): Promise<void> {
-    const isCounty = this.boundaryMode === 'counties';
-    const name = isCounty
-      ? (feature.get('NAME') as string)
-      : (feature.get('NA_L3NAME') as string);
-
-    if (!shiftKey) {
-      // Single-select (default): replace current selection with this region.
-      // If this region was already the sole selection, clear it (toggle off single).
-      const currentSet = isCounty ? filterState.selectedCounties : filterState.selectedEcoregions;
-      const wasOnlySelection = currentSet.size === 1 && currentSet.has(name);
-      if (isCounty) {
-        filterState.selectedCounties = wasOnlySelection ? new Set() : new Set([name]);
-        filterState.selectedEcoregions = new Set();  // clear cross-type on replace
-      } else {
-        filterState.selectedEcoregions = wasOnlySelection ? new Set() : new Set([name]);
-        filterState.selectedCounties = new Set();    // clear cross-type on replace
-      }
-    } else {
-      // Shift-click: add to or remove from current selection (multi-select).
-      const targetSet = isCounty ? filterState.selectedCounties : filterState.selectedEcoregions;
-      const newSet = new Set(targetSet);
-      if (newSet.has(name)) {
-        newSet.delete(name);
-      } else {
-        newSet.add(name);
-      }
-      if (isCounty) {
-        filterState.selectedCounties = newSet;
-      } else {
-        filterState.selectedEcoregions = newSet;
-      }
-    }
-
-    await this._runFilterQuery();
-    regionLayer.changed();
-    this.map?.render();
-    this._restoredCounties = new Set(filterState.selectedCounties);
-    this._restoredEcoregions = new Set(filterState.selectedEcoregions);
-    const view = this.map!.getView();
-    const center = toLonLat(view.getCenter()!);
-    const zoom = view.getZoom()!;
-    const params = buildParams(
-      { lon: center[0]!, lat: center[1]!, zoom },
-      filterState,
-      { occurrenceIds: this._selectedOccIds ?? [] },
-      { layerMode: this.layerMode, boundaryMode: this.boundaryMode }
-    );
-    window.history.pushState({}, '', '?' + params.toString());
-  }
-
-  private async _clearRegionFilter(): Promise<void> {
-    filterState.selectedCounties = new Set();
-    filterState.selectedEcoregions = new Set();
-    await this._runFilterQuery();
-    regionLayer.changed();
-    this.map?.render();
-    this._restoredCounties = new Set();
-    this._restoredEcoregions = new Set();
-    if (!this._isRestoringFromHistory && this.map) this._pushUrlState();
-  }
-
-  private _onPopState = () => {
-    this._isRestoringFromHistory = true;
-    if (this._mapMoveDebounce) {
-      clearTimeout(this._mapMoveDebounce);
-      this._mapMoveDebounce = null;
-    }
-    const parsed = parseParams(window.location.search);
-    const parsedLon = parsed.view?.lon ?? DEFAULT_LON;
-    const parsedLat = parsed.view?.lat ?? DEFAULT_LAT;
-    const parsedZoom = parsed.view?.zoom ?? DEFAULT_ZOOM;
-    const view = this.map!.getView();
-    const currentCenter = toLonLat(view.getCenter()!);
-    const currentZoom = view.getZoom()!;
-    const viewWillChange =
-      Math.abs(currentCenter[0]! - parsedLon) > 0.0001 ||
-      Math.abs(currentCenter[1]! - parsedLat) > 0.0001 ||
-      Math.abs(currentZoom - parsedZoom) > 0.01;
-
-    if (viewWillChange) {
-      // OL will fire moveend after the programmatic move — reset flag there.
-      // Without this, the finally block would reset it synchronously, letting
-      // the moveend handler push a new history entry that cancels back navigation.
-      this.map!.once('moveend', () => {
-        this._isRestoringFromHistory = false;
-      });
-    } else {
-      // No view change — OL won't fire moveend, reset flag synchronously
-      this._isRestoringFromHistory = false;
-    }
-
-    view.setCenter(fromLonLat([parsedLon, parsedLat]));
-    view.setZoom(parsedZoom);
-    this._restoreFilterState(parsed);
-    const parsedLayerMode = parsed.ui?.layerMode ?? 'specimens';
-    const parsedOccIds = parsed.selection?.occurrenceIds ?? [];
-    if (parsedLayerMode !== this.layerMode) {
-      // Layer switch clears selections and syncs URL
-      this._onLayerChanged(parsedLayerMode);
-    } else if (parsedOccIds.length > 0) {
-      this._restoreSelectedOccurrences(parsedOccIds);
-    } else {
-      this.selectedSamples = null;
-      this._selectedOccIds = null;
-    }
+  // --- @property inputs from bee-atlas ---
+  @property({ attribute: false }) layerMode: 'specimens' | 'samples' = 'specimens';
+  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
+  @property({ attribute: false }) visibleEcdysisIds: Set<string> | null = null;
+  @property({ attribute: false }) visibleSampleIds: Set<string> | null = null;
+  @property({ attribute: false }) countyOptions: string[] = [];
+  @property({ attribute: false }) ecoregionOptions: string[] = [];
+  @property({ attribute: false }) viewState: { lon: number; lat: number; zoom: number } | null = null;
+  @property({ attribute: false }) panTo: { coordinate: number[]; zoom: number } | null = null;
+  @property({ attribute: false }) filterState: FilterState = {
+    taxonName: null,
+    taxonRank: null,
+    yearFrom: null,
+    yearTo: null,
+    months: new Set(),
+    selectedCounties: new Set(),
+    selectedEcoregions: new Set(),
   };
+
+  // Instance OL sources/layers (moved from module-level per Phase 34-02 decision)
+  private specimenSource!: EcdysisSource;
+  private clusterSource!: Cluster;
+  private specimenLayer!: VectorLayer;
+  private sampleSource!: SampleSource;
+  private sampleLayer!: VectorLayer;
 
   static styles = css`
 :host {
-  align-items: stretch;
   display: flex;
-  flex-direction: row;
-  flex-grow: 1;
-  overflow: auto;
-}
-.map-container {
-  position: relative;
-  flex-grow: 1;
-  display: flex;
-}
-.map-container #map {
   flex-grow: 1;
 }
-.loading-overlay, .error-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.1rem;
-  background: var(--surface-overlay);
-  z-index: 10;
+#map {
+  flex-grow: 1;
 }
-.error-overlay {
-  color: var(--error);
-}
-bee-sidebar {
-  width: 25rem;
-  border-left: 1px solid var(--border-input);
-  overflow-y: auto;
-}
-@media (max-aspect-ratio: 1) {
-  :host {
-    flex-direction: column;
-  }
-  .map-container {
-    height: 50svh;
-    flex-grow: 0;
-    flex-shrink: 0;
-  }
-  bee-sidebar {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid var(--border-input);
-    flex-grow: 1;
-  }
-}
-  `
+  `;
 
-  private _onLayerChanged(mode: 'specimens' | 'samples') {
-    this.layerMode = mode;
-    specimenLayer.setVisible(mode === 'specimens');
-    sampleLayer.setVisible(mode === 'samples');
-    this.selectedSamples = null;
-    this._selectedOccIds = null;
-    this._selectedSampleEvent = null;
-    if (mode === 'samples' && this.sampleDataLoaded) {
-      this.recentSampleEvents = this._buildRecentSampleEvents();
+  private _emit<T>(name: string, detail?: T) {
+    this.dispatchEvent(new CustomEvent(name, {
+      bubbles: true, composed: true, detail,
+    }));
+  }
+
+  render() {
+    return html`
+      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
+      <div id="map"></div>
+    `;
+  }
+
+  updated(changedProperties: PropertyValues) {
+    super.updated(changedProperties);
+
+    // Repaint OL when visible ID sets change
+    if (changedProperties.has('visibleEcdysisIds') || changedProperties.has('visibleSampleIds')) {
+      this.clusterSource?.changed();
+      this.sampleSource?.changed();
+      this.map?.render();
+      // Compute and emit filtered summary
+      this._emitFilteredSummary();
     }
-    if (this.map) this._pushUrlState();
+
+    // Layer visibility
+    if (changedProperties.has('layerMode')) {
+      this.specimenLayer?.setVisible(this.layerMode === 'specimens');
+      this.sampleLayer?.setVisible(this.layerMode === 'samples');
+    }
+
+    // Boundary mode and filter state changes (both affect region layer styling)
+    if (changedProperties.has('boundaryMode') || changedProperties.has('filterState')) {
+      if (this.boundaryMode === 'off') {
+        regionLayer.setVisible(false);
+      } else if (this.boundaryMode === 'counties') {
+        regionLayer.setSource(countySource);
+        regionLayer.setVisible(true);
+      } else {
+        regionLayer.setSource(ecoregionSource);
+        regionLayer.setVisible(true);
+      }
+      regionLayer.changed();
+    }
+
+    // View state restore (from popstate)
+    if (changedProperties.has('viewState') && this.viewState && this.map) {
+      this.map.getView().setCenter(fromLonLat([this.viewState.lon, this.viewState.lat]));
+      this.map.getView().setZoom(this.viewState.zoom);
+    }
+
+    // Pan-to animation (from sample-event-click)
+    if (changedProperties.has('panTo') && this.panTo && this.map) {
+      this.map.getView().animate({
+        center: this.panTo.coordinate,
+        zoom: this.panTo.zoom,
+        duration: 300,
+      });
+    }
+  }
+
+  private _emitFilteredSummary() {
+    if (this.visibleEcdysisIds !== null && this.specimenSource) {
+      const allFeatures = this.specimenSource.getFeatures();
+      const matching = allFeatures.filter(f => this.visibleEcdysisIds!.has(f.getId() as string));
+      const fSummary = computeSummary(matching);
+      const totalSummary = allFeatures.length > 0 ? computeSummary(allFeatures) : null;
+      this._emit<{ filteredSummary: FilteredSummary | null }>('filtered-summary-computed', {
+        filteredSummary: totalSummary ? {
+          filteredSpecimens: fSummary.totalSpecimens,
+          filteredSpeciesCount: fSummary.speciesCount,
+          filteredGenusCount: fSummary.genusCount,
+          filteredFamilyCount: fSummary.familyCount,
+          total: totalSummary,
+          isActive: true,
+        } : null,
+      });
+    } else {
+      this._emit<{ filteredSummary: FilteredSummary | null }>('filtered-summary-computed', { filteredSummary: null });
+    }
   }
 
   private _buildRecentSampleEvents(): SampleEvent[] {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 14);
-    return sampleSource.getFeatures()
+    return this.sampleSource.getFeatures()
       .filter(f => new Date(f.get('date') as string) >= cutoff)
       .sort((a, b) =>
         new Date(b.get('date') as string).valueOf() -
@@ -390,206 +242,29 @@ bee-sidebar {
       });
   }
 
-  private _onSampleEventClick(e: CustomEvent<{coordinate: number[]}>) {
-    if (!this.map) return;
-    this.map.getView().animate({ center: e.detail.coordinate, zoom: 12, duration: 300 });
-  }
-
-  private async _restoreFilterState(parsed: Partial<AppState>): Promise<void> {
-    filterState.taxonName = parsed.filter?.taxonName ?? null;
-    filterState.taxonRank = parsed.filter?.taxonRank ?? null;
-    filterState.yearFrom  = parsed.filter?.yearFrom ?? null;
-    filterState.yearTo    = parsed.filter?.yearTo ?? null;
-    filterState.months    = parsed.filter?.months ?? new Set();
-    filterState.selectedCounties = parsed.filter?.selectedCounties ?? new Set();
-    filterState.selectedEcoregions = parsed.filter?.selectedEcoregions ?? new Set();
-    const boundaryMode = parsed.ui?.boundaryMode ?? 'off';
-    this.boundaryMode = boundaryMode;
-    if (boundaryMode === 'counties') {
-      regionLayer.setSource(countySource);
-      regionLayer.setVisible(true);
-    } else if (boundaryMode === 'ecoregions') {
-      regionLayer.setSource(ecoregionSource);
-      regionLayer.setVisible(true);
-    } else {
-      regionLayer.setVisible(false);
-    }
-    // Run DuckDB query for restored filter state
-    await this._runFilterQuery();
-
-    // Recompute filteredSummary using visibleIds
-    if (visibleEcdysisIds !== null) {
-      const allFeatures = specimenSource.getFeatures();
-      const matching = allFeatures.filter(f => visibleEcdysisIds!.has(f.getId() as string));
-      const fSummary = computeSummary(matching);
-      this.filteredSummary = {
-        filteredSpecimens: fSummary.totalSpecimens,
-        filteredSpeciesCount: fSummary.speciesCount,
-        filteredGenusCount: fSummary.genusCount,
-        filteredFamilyCount: fSummary.familyCount,
-        total: this.summary!,
-        isActive: true,
-      };
-    } else {
-      this.filteredSummary = null;
-    }
-
-    // Mirror to sidebar-driving @state fields (drives bee-sidebar controls via property binding)
-    const taxonName = parsed.filter?.taxonName ?? null;
-    const taxonRank = parsed.filter?.taxonRank ?? null;
-    this._restoredTaxonName  = taxonName;
-    this._restoredTaxonRank  = taxonRank;
-    this._restoredTaxonInput = taxonName
-      ? (this.taxaOptions.find(o => o.name === taxonName && o.rank === taxonRank)?.label ?? taxonName)
-      : '';
-    this._restoredYearFrom = parsed.filter?.yearFrom ?? null;
-    this._restoredYearTo   = parsed.filter?.yearTo ?? null;
-    this._restoredMonths   = parsed.filter?.months ?? new Set();
-    this._restoredCounties = parsed.filter?.selectedCounties ?? new Set();
-    this._restoredEcoregions = parsed.filter?.selectedEcoregions ?? new Set();
-  }
-
-  private _restoreSelectedOccurrences(occIds: string[]) {
-    const features: Feature[] = [];
-    for (const occId of occIds) {
-      const feature = specimenSource.getFeatureById(occId) as Feature | null;
-      if (feature) features.push(feature);
-    }
-    if (features.length === 0) {
-      this.selectedSamples = null;
-      this._selectedOccIds = null;
-      return;
-    }
-    const toShow = visibleEcdysisIds !== null
-      ? features.filter(f => visibleEcdysisIds!.has(f.getId() as string))
-      : features;
-    if (toShow.length > 0) {
-      this.selectedSamples = buildSamples(toShow);
-      this._selectedOccIds = toShow.map(f => f.getId() as string);
-    } else {
-      this.selectedSamples = null;
-      this._selectedOccIds = null;
-    }
-  }
-
-  private _pushUrlState() {
-    const view = this.map!.getView();
-    const center = toLonLat(view.getCenter()!);
-    const zoom = view.getZoom()!;
-    const params = buildParams(
-      { lon: center[0]!, lat: center[1]!, zoom },
-      filterState,
-      { occurrenceIds: this._selectedOccIds ?? [] },
-      { layerMode: this.layerMode, boundaryMode: this.boundaryMode }
-    );
-    window.history.replaceState({}, '', '?' + params.toString());
-    if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
-    this._mapMoveDebounce = setTimeout(() => {
-      window.history.pushState({}, '', '?' + params.toString());
-      this._mapMoveDebounce = null;
-    }, 500);
-  }
-
-  private async _applyFilter(detail: FilterChangedEvent): Promise<void> {
-    // Mutate the shared singleton (closed over by clusterStyle)
-    filterState.taxonName = detail.taxonName;
-    filterState.taxonRank = detail.taxonRank;
-    filterState.yearFrom  = detail.yearFrom;
-    filterState.yearTo    = detail.yearTo;
-    filterState.months    = detail.months;
-    filterState.selectedCounties = detail.selectedCounties;
-    filterState.selectedEcoregions = detail.selectedEcoregions;
-    if (detail.boundaryMode !== this.boundaryMode) {
-      await this._setBoundaryMode(detail.boundaryMode, true);
-    }
-
-    // Run DuckDB filter query async, then repaint (per D-05)
-    await this._runFilterQuery();
-
-    // Repaint region layer for boundary highlight
-    regionLayer.changed();
-
-    // Mirror region state to sidebar restore props
-    this._restoredCounties = detail.selectedCounties;
-    this._restoredEcoregions = detail.selectedEcoregions;
-
-    // Recompute filtered summary using visibleIds
-    if (visibleEcdysisIds !== null) {
-      const allFeatures = specimenSource.getFeatures();
-      const matching = allFeatures.filter(f => visibleEcdysisIds!.has(f.getId() as string));
-      const fSummary = computeSummary(matching);
-      this.filteredSummary = {
-        filteredSpecimens: fSummary.totalSpecimens,
-        filteredSpeciesCount: fSummary.speciesCount,
-        filteredGenusCount: fSummary.genusCount,
-        filteredFamilyCount: fSummary.familyCount,
-        total: this.summary!,
-        isActive: true,
-      };
-    } else {
-      this.filteredSummary = null;
-    }
-
-    // Clear selected samples (applying a filter dismisses any open cluster detail)
-    this.selectedSamples = null;
-
-    // Sync filter change to URL
-    this._selectedOccIds = null;
-    if (!this._isRestoringFromHistory && this.map) {
-      this._pushUrlState();
-    }
-  }
-
-  public render() {
-    return html`
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
-      <div class="map-container">
-        <div id="map"></div>
-        ${this._dataError ? html`<div class="error-overlay">${this._dataError}</div>` : ''}
-        ${this._dataLoading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
-      </div>
-      ${this._dataError ? '' : html`<bee-sidebar
-        .samples=${this.selectedSamples}
-        .summary=${this.summary}
-        .taxaOptions=${this.taxaOptions}
-        .filteredSummary=${this.filteredSummary}
-        .layerMode=${this.layerMode}
-        .recentSampleEvents=${this.recentSampleEvents}
-        .sampleDataLoaded=${this.sampleDataLoaded}
-        .selectedSampleEvent=${this._selectedSampleEvent}
-        .restoredTaxonInput=${this._restoredTaxonInput}
-        .restoredTaxonRank=${this._restoredTaxonRank}
-        .restoredTaxonName=${this._restoredTaxonName}
-        .restoredYearFrom=${this._restoredYearFrom}
-        .restoredYearTo=${this._restoredYearTo}
-        .restoredMonths=${this._restoredMonths}
-        .boundaryMode=${this.boundaryMode}
-        .countyOptions=${this._countyOptions}
-        .ecoregionOptions=${this._ecoregionOptions}
-        .restoredCounties=${this._restoredCounties}
-        .restoredEcoregions=${this._restoredEcoregions}
-        @close=${() => {
-          this.selectedSamples = null;
-          this._selectedOccIds = null;
-          if (this.map) this._pushUrlState();
-        }}
-        @filter-changed=${(e: CustomEvent<FilterChangedEvent>) => this._applyFilter(e.detail)}
-        @layer-changed=${(e: CustomEvent<'specimens' | 'samples'>) => this._onLayerChanged(e.detail)}
-        @sample-event-click=${(e: CustomEvent<{coordinate: number[]}>) => this._onSampleEventClick(e)}
-      ></bee-sidebar>`}
-    `
-  }
-
   public firstUpdated(_changedProperties: PropertyValues): void {
-    // Wire up error handler so parquet fetch errors surface to Lit state
-    dataErrorHandler = (err: Error) => {
-      console.error('Data fetch failed:', err);
-      this._dataError = 'Failed to load data. Please try refreshing.';
-    };
+    // Create instance-level OL sources and layers using factory style functions
+    this.specimenSource = new EcdysisSource({
+      onError: (err) => this._emit('data-error', { message: err.message }),
+    });
+    this.clusterSource = new Cluster({
+      distance: 40,
+      minDistance: 0,
+      source: this.specimenSource,
+    });
+    this.specimenLayer = new VectorLayer({
+      source: this.clusterSource,
+      style: makeClusterStyleFn(() => this.visibleEcdysisIds),
+    });
+    this.sampleSource = new SampleSource({
+      onError: (err) => this._emit('data-error', { message: err.message }),
+    });
+    this.sampleLayer = new VectorLayer({
+      source: this.sampleSource,
+      style: makeSampleDotStyleFn(() => this.visibleSampleIds),
+    });
 
-    const initialParams = parseParams(window.location.search);
-
-    const baseLayer = new LayerGroup();
+    // Create OL map
     this.map = new OpenLayersMap({
       layers: [
         new TileLayer({
@@ -607,234 +282,146 @@ bee-sidebar {
             url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
           }),
         }),
-        baseLayer,
-        specimenLayer,
-        sampleLayer,
+        new LayerGroup(),
+        this.specimenLayer,
+        this.sampleLayer,
         regionLayer,   // added last — renders boundary strokes above data dots
       ],
       target: this.mapElement,
       view: new View({
-        center: fromLonLat([initialParams.view?.lon ?? DEFAULT_LON, initialParams.view?.lat ?? DEFAULT_LAT]),
+        center: fromLonLat([this.viewState?.lon ?? DEFAULT_LON, this.viewState?.lat ?? DEFAULT_LAT]),
         projection: sphericalMercator,
-        zoom: initialParams.view?.zoom ?? DEFAULT_ZOOM,
+        zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
       }),
     });
-    sampleLayer.setVisible(false);
+
+    // sampleLayer starts hidden
+    this.sampleLayer.setVisible(false);
+    // Apply layerMode if initially not specimens
+    if (this.layerMode === 'samples') {
+      this.specimenLayer.setVisible(false);
+      this.sampleLayer.setVisible(true);
+    }
 
     // Set dynamic style function so selected polygons are highlighted
-    regionLayer.setStyle(makeRegionStyleFn(() => this.boundaryMode));
+    regionLayer.setStyle(makeRegionStyleFn(
+      () => this.boundaryMode,
+      () => this.filterState,
+    ));
 
-    // Restore layer mode from URL (do this directly, not via _onLayerChanged,
-    // because _onLayerChanged calls _pushUrlState which needs this.map to be ready)
-    const initLayerMode = initialParams.ui?.layerMode ?? 'specimens';
-    const initBoundaryMode = initialParams.ui?.boundaryMode ?? 'off';
-    if (initLayerMode === 'samples') {
-      this.layerMode = 'samples';
-      specimenLayer.setVisible(false);
-      sampleLayer.setVisible(true);
+    // Apply initial boundary mode
+    if (this.boundaryMode !== 'off') {
+      regionLayer.setSource(this.boundaryMode === 'counties' ? countySource : ecoregionSource);
+      regionLayer.setVisible(true);
     }
 
-    // Write initial URL state (covers no-param fresh loads — makes URL bar show params immediately)
-    const view = this.map.getView();
-    const initCenter = toLonLat(view.getCenter()!);
-    const initOccIds = initialParams.selection?.occurrenceIds ?? [];
-    const initParams = buildParams(
-      { lon: initCenter[0]!, lat: initCenter[1]!, zoom: view.getZoom()! },
-      filterState,
-      { occurrenceIds: initOccIds },
-      { layerMode: initLayerMode, boundaryMode: initBoundaryMode }
-    );
-    window.history.replaceState({}, '', '?' + initParams.toString());
-
-    // Restore filter state from URL params (filter singleton + sidebar display)
-    const initFilter = initialParams.filter;
-    if (initFilter?.taxonName || initFilter?.yearFrom || initFilter?.yearTo
-        || (initFilter?.months.size ?? 0) > 0
-        || initBoundaryMode !== 'off'
-        || (initFilter?.selectedCounties.size ?? 0) > 0
-        || (initFilter?.selectedEcoregions.size ?? 0) > 0) {
-      filterState.taxonName = initFilter?.taxonName ?? null;
-      filterState.taxonRank = initFilter?.taxonRank ?? null;
-      filterState.yearFrom  = initFilter?.yearFrom ?? null;
-      filterState.yearTo    = initFilter?.yearTo ?? null;
-      filterState.months    = initFilter?.months ?? new Set();
-      // Restore region filter state
-      filterState.selectedCounties = initFilter?.selectedCounties ?? new Set();
-      filterState.selectedEcoregions = initFilter?.selectedEcoregions ?? new Set();
-      this.boundaryMode = initBoundaryMode;
-      if (initBoundaryMode !== 'off') {
-        regionLayer.setSource(initBoundaryMode === 'counties' ? countySource : ecoregionSource);
-        regionLayer.setVisible(true);
-      }
-      // Mirror to sidebar display fields
-      this._restoredTaxonName  = initFilter?.taxonName ?? null;
-      this._restoredTaxonRank  = initFilter?.taxonRank ?? null;
-      this._restoredTaxonInput = initFilter?.taxonName ?? '';
-      this._restoredYearFrom   = initFilter?.yearFrom ?? null;
-      this._restoredYearTo     = initFilter?.yearTo ?? null;
-      this._restoredMonths     = initFilter?.months ?? new Set();
-      this._restoredCounties   = initFilter?.selectedCounties ?? new Set();
-      this._restoredEcoregions = initFilter?.selectedEcoregions ?? new Set();
-    }
-
-    // Initialize DuckDB — primary data source for Phase 31+
-    getDuckDB()
-      .then(db => loadAllTables(db, DATA_BASE_URL))
-      .then(() => {
-        console.debug('DuckDB tables ready');
-      })
-      .catch(err => {
-        console.error('DuckDB init failed:', err);
-        this._dataError = err instanceof Error ? err.message : String(err);
-      });
-
-    specimenSource.once('change', async () => {
-      const features = specimenSource.getFeatures();
+    // specimenSource: emit data-loaded when features arrive
+    this.specimenSource.once('change', () => {
+      const features = this.specimenSource.getFeatures();
       if (features.length > 0) {
-        this.summary = computeSummary(features);
-        this.taxaOptions = buildTaxaOptions(features);
-
-        // Recompute filteredSummary if filter was restored from URL.
-        // Apply filter before clearing _dataLoading so the loading overlay stays
-        // up until visibleIds are set — prevents a brief flash of all features.
-        if (isFilterActive(filterState)) {
-          const { ecdysis, samples } = await queryVisibleIds(filterState);
-          setVisibleIds(ecdysis, samples);
-          clusterSource.changed();
-          sampleSource.changed();
-          const matching = features.filter(f => visibleEcdysisIds!.has(f.getId() as string));
-          const fSummary = computeSummary(matching);
-          this.filteredSummary = {
-            filteredSpecimens: fSummary.totalSpecimens,
-            filteredSpeciesCount: fSummary.speciesCount,
-            filteredGenusCount: fSummary.genusCount,
-            filteredFamilyCount: fSummary.familyCount,
-            total: this.summary,
-            isActive: true,
-          };
-          // Now taxaOptions is available — refine _restoredTaxonInput label
-          if (this._restoredTaxonName) {
-            const opt = this.taxaOptions.find(o => o.name === this._restoredTaxonName && o.rank === this._restoredTaxonRank);
-            if (opt) this._restoredTaxonInput = opt.label;
-          }
-        }
-
-        // Restore selected occurrence (must happen here — data not available until this callback)
-        if (initOccIds.length > 0) {
-          this._restoreSelectedOccurrences(initOccIds);
-          // Re-sync URL after occurrence restore (keeps o= param in the URL bar)
-          if (this.map) this._pushUrlState();
-        }
+        this._emit('data-loaded', {
+          summary: computeSummary(features),
+          taxaOptions: buildTaxaOptions(features),
+        });
       }
-      this._dataLoading = false;
     });
 
-    // Use on() + guard instead of once() because _runFilterQuery() calls
-    // sampleSource.changed() which would fire a once() handler prematurely
-    // (before the OL loader has run), consuming it with no actual data loaded.
-    const onSampleLoaded = async () => {
-      if (sampleSource.getFeatures().length === 0) return;
-      sampleSource.un('change', onSampleLoaded);
-      this.sampleDataLoaded = true;
-      if (this.layerMode === 'samples') {
-        this.recentSampleEvents = this._buildRecentSampleEvents();
-      }
-      // specimenSource.once('change') applies URL-restored filters, but it never
-      // fires in lm=samples mode (specimenLayer is invisible). Apply here instead.
-      // Run before clearing _dataLoading so overlay stays up until visibleIds are set.
-      if (isFilterActive(filterState)) {
-        await this._runFilterQuery();
-      }
-      this._dataLoading = false;
+    // sampleSource: emit sample-data-loaded when features arrive
+    const onSampleLoaded = () => {
+      if (this.sampleSource.getFeatures().length === 0) return;
+      this.sampleSource.un('change', onSampleLoaded);
+      this._emit('sample-data-loaded', {
+        recentEvents: this._buildRecentSampleEvents(),
+      });
     };
-    sampleSource.on('change', onSampleLoaded);
+    this.sampleSource.on('change', onSampleLoaded);
 
-    // Populate county/ecoregion dropdown options after async GeoJSON sources load
+    // County/ecoregion options — emit when sources load
     countySource.once('change', () => {
-      this._countyOptions = [...new Set(
-        countySource.getFeatures().map(f => f.get('NAME') as string)
-      )].sort();
+      this._emit('county-options-loaded', {
+        options: [...new Set(countySource.getFeatures().map(f => f.get('NAME') as string))].sort(),
+      });
     });
     ecoregionSource.once('change', () => {
-      this._ecoregionOptions = [...new Set(
-        ecoregionSource.getFeatures().map(f => f.get('NA_L3NAME') as string)
-      )].sort();
+      this._emit('ecoregion-options-loaded', {
+        options: [...new Set(ecoregionSource.getFeatures().map(f => f.get('NA_L3NAME') as string))].sort(),
+      });
     });
 
-    // moveend: replaceState immediately, pushState after 500ms debounce
+    // moveend: emit view-moved event
     this.map.on('moveend', () => {
-      if (this._isRestoringFromHistory) return;
-      this._pushUrlState();
+      const center = toLonLat(this.map!.getView().getCenter()!);
+      const zoom = this.map!.getView().getZoom()!;
+      this._emit('view-moved', { lon: center[0]!, lat: center[1]!, zoom });
     });
 
     // singleclick handler: mode-gated for specimen vs sample layer
     this.map.on('singleclick', async (event: MapBrowserEvent) => {
       if (this.layerMode === 'specimens') {
-        const hits = await specimenLayer.getFeatures(event.pixel);
+        const hits = await this.specimenLayer.getFeatures(event.pixel);
         if (hits.length) {
           const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
-          const toShow = visibleEcdysisIds !== null ? inner.filter(f => visibleEcdysisIds!.has(f.getId() as string)) : inner;
+          const toShow = this.visibleEcdysisIds !== null
+            ? inner.filter(f => this.visibleEcdysisIds!.has(f.getId() as string))
+            : inner;
           if (toShow.length === 0) return;
-          this.selectedSamples = buildSamples(toShow);
-          this._selectedOccIds = toShow.map(f => f.getId() as string);
-          this._pushUrlState();
+          this._emit('map-click-specimen', {
+            samples: buildSamples(toShow),
+            occIds: toShow.map(f => f.getId() as string),
+          });
           return;
         }
         // No specimen hit — check boundary overlay if active
         if (this.boundaryMode !== 'off') {
           const polyHits = await regionLayer.getFeatures(event.pixel);
           if (polyHits.length) {
-            this._onPolygonClick(polyHits[0]! as Feature, (event.originalEvent as MouseEvent).shiftKey);
+            const feature = polyHits[0]! as Feature;
+            const isCounty = this.boundaryMode === 'counties';
+            this._emit('map-click-region', {
+              name: isCounty ? (feature.get('NAME') as string) : (feature.get('NA_L3NAME') as string),
+              shiftKey: (event.originalEvent as MouseEvent).shiftKey,
+            });
             return;
           }
-          // Miss on open map area — clear region filter
-          this._clearRegionFilter();
+          // Miss on open map area — emit map-click-empty
+          this._emit('map-click-empty');
           return;
         }
-        // No boundary overlay active — clear selection
-        this.selectedSamples = null;
-        this._selectedOccIds = null;
+        // No boundary overlay active — emit map-click-empty
+        this._emit('map-click-empty');
       } else {
-        const hits = await sampleLayer.getFeatures(event.pixel);
+        const hits = await this.sampleLayer.getFeatures(event.pixel);
         if (hits.length) {
           const f = hits[0]!;
-          this._selectedSampleEvent = {
+          this._emit('map-click-sample', {
             observation_id: f.get('observation_id') as number,
             observer: f.get('observer') as string,
             date: f.get('date') as string,
             specimen_count: f.get('specimen_count') as number,
             sample_id: f.get('sample_id') as number | null,
             coordinate: (f.getGeometry() as Point).getCoordinates(),
-          };
-          this._pushUrlState();
+          });
           return;
         }
         // No sample hit — check boundary overlay if active
         if (this.boundaryMode !== 'off') {
           const polyHits = await regionLayer.getFeatures(event.pixel);
           if (polyHits.length) {
-            this._onPolygonClick(polyHits[0]! as Feature, (event.originalEvent as MouseEvent).shiftKey);
+            const feature = polyHits[0]! as Feature;
+            const isCounty = this.boundaryMode === 'counties';
+            this._emit('map-click-region', {
+              name: isCounty ? (feature.get('NAME') as string) : (feature.get('NA_L3NAME') as string),
+              shiftKey: (event.originalEvent as MouseEvent).shiftKey,
+            });
             return;
           }
-          // Miss on open map area — clear region filter
-          this._clearRegionFilter();
+          // Miss on open map area — emit map-click-empty
+          this._emit('map-click-empty');
           return;
         }
-        // No boundary overlay active — clear selection
-        this._selectedSampleEvent = null;
+        // No boundary overlay active — emit map-click-empty
+        this._emit('map-click-empty');
       }
     });
-
-    // popstate: restore app state when user navigates back/forward
-    window.addEventListener('popstate', this._onPopState);
-  }
-
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    window.removeEventListener('popstate', this._onPopState);
-    if (this._mapMoveDebounce) {
-      clearTimeout(this._mapMoveDebounce);
-      this._mapMoveDebounce = null;
-    }
   }
 }
