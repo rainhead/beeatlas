@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Frontend Architecture Refactor
 status: executing
-stopped_at: Phase 35 complete
-last_updated: "2026-04-04T16:30:00.000Z"
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-04-04T00:08:00.000Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 11
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 35 (url-state-module) — COMPLETE
-Plan: 1/1 complete
-Status: Phase 35 complete; ready for verification
+Phase: 36 (bee-atlas-root-component) — IN PROGRESS
+Plan: 1/? complete
+Status: Plan 36-01 complete; bee-atlas.ts coordinator created, style factories added
 Last activity: 2026-04-04
-Stopped at: Phase 35 complete
+Stopped at: Completed 36-01-PLAN.md
 
 Progress: [████░░░░░░] 27% (2/6 phases; 4/13 plans complete)
 
@@ -40,7 +40,7 @@ Progress: [████░░░░░░] 27% (2/6 phases; 4/13 plans complete)
 | 33 | Test Infrastructure | TEST-01 | Complete |
 | 34 | Global State Elimination | STATE-01, STATE-02, STATE-03 | Complete (2/2 plans) |
 | 35 | URL State Module | URL-01, URL-02 | Complete (1/1 plans) |
-| 36 | bee-atlas Root Component | ARCH-01, ARCH-02, ARCH-03 | Not started |
+| 36 | bee-atlas Root Component | ARCH-01, ARCH-02, ARCH-03 | In Progress (1/? plans) |
 | 37 | Sidebar Decomposition | DECOMP-01, DECOMP-02, DECOMP-03, DECOMP-04 | Not started |
 | 38 | Unit Tests | TEST-02, TEST-03, TEST-04 | Not started |
 
@@ -61,6 +61,9 @@ Progress: [████░░░░░░] 27% (2/6 phases; 4/13 plans complete)
 - **[Phase 34-01]**: Style factory closures (makeClusterStyleFn, makeSampleDotStyleFn) set on layers in firstUpdated via this.visibleEcdysisIds/visibleSampleIds getters — factories called at module level not possible because BeeMap instance doesn't exist yet; plan 02 moves layers into class
 - **[Phase 34-01]**: filter.ts now exports zero mutable state — FilterState interface + isFilterActive + buildFilterSQL + queryVisibleIds only; all mutable state (filterState, visibleEcdysisIds, visibleSampleIds) now private BeeMap class properties
 - **[Phase 34-02]**: All OL sources and layers (specimenSource, clusterSource, specimenLayer, sampleSource, sampleLayer, countySource, ecoregionSource, regionLayer) are BeeMap instance properties; dataErrorHandler indirection removed — onError arrow functions capture this directly; eager loadFeatures() moved to firstUpdated
+- **[Phase 36-01]**: bee-atlas does not import OpenLayers — all OL code stays in bee-map; coordinator is framework-agnostic
+- **[Phase 36-01]**: Old clusterStyle/sampleDotStyle kept in style.ts for backward compatibility during Plan 01 transition; Plan 02 will remove them when bee-map switches to factory functions
+- **[Phase 36-01]**: vitest passWithNoTests: true in vite.config.ts — test suite passes before any test files exist
 
 ## Pending Todos
 
