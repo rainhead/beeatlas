@@ -633,6 +633,7 @@ bee-sidebar {
         .filteredSummary=${this.filteredSummary}
         .layerMode=${this.layerMode}
         .recentSampleEvents=${this.recentSampleEvents}
+        .sampleDataLoaded=${this.sampleDataLoaded}
         .selectedSampleEvent=${this._selectedSampleEvent}
         .restoredTaxonInput=${this._restoredTaxonInput}
         .restoredTaxonRank=${this._restoredTaxonRank}
