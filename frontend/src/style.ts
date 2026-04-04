@@ -6,6 +6,7 @@ import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
 import Text from 'ol/style/Text.js';
 import { Temporal } from 'temporal-polyfill';
+import { visibleEcdysisIds, visibleSampleIds } from './filter.ts';
 
 export const RECENCY_COLORS = {
   fresh:    '#2ecc71',  // within 6 weeks
@@ -33,51 +34,47 @@ function hexWithOpacity(hex: string, opacity: number): string {
 
 const styleCache = new Map<string, Style>();
 
-export function makeClusterStyleFn(
-  getVisibleEcdysisIds: () => Set<string> | null
-): (feature: FeatureLike) => Style {
-  return (feature: FeatureLike): Style => {
-    const innerFeatures: Feature[] = (feature.get('features') as Feature[] | undefined) ?? [feature as Feature];
-    const activeEcdysisIds = getVisibleEcdysisIds();
-    const hasFilter = activeEcdysisIds !== null;
+export function clusterStyle(feature: FeatureLike): Style {
+  const innerFeatures: Feature[] = (feature.get('features') as Feature[] | undefined) ?? [feature as Feature];
+  const activeEcdysisIds = visibleEcdysisIds;
+  const hasFilter = activeEcdysisIds !== null;
 
-    let bestTier: keyof typeof RECENCY_COLORS = 'older';
-    let matchCount = 0;
+  let bestTier: keyof typeof RECENCY_COLORS = 'older';
+  let matchCount = 0;
 
-    for (const f of innerFeatures) {
-      const tier = recencyTier(f.get('year') as number, f.get('month') as number);
-      if (tier === 'fresh') bestTier = 'fresh';
-      else if (tier === 'thisYear' && bestTier === 'older') bestTier = 'thisYear';
-      if (!hasFilter || activeEcdysisIds.has(f.getId() as string)) matchCount++;
-    }
+  for (const f of innerFeatures) {
+    const tier = recencyTier(f.get('year') as number, f.get('month') as number);
+    if (tier === 'fresh') bestTier = 'fresh';
+    else if (tier === 'thisYear' && bestTier === 'older') bestTier = 'thisYear';
+    if (!hasFilter || activeEcdysisIds.has(f.getId() as string)) matchCount++;
+  }
 
-    const isGhosted = hasFilter && matchCount === 0;
-    const displayCount = hasFilter ? matchCount : innerFeatures.length;
+  const isGhosted = hasFilter && matchCount === 0;
+  const displayCount = hasFilter ? matchCount : innerFeatures.length;
 
-    // Skip cache when filter active — same count:tier pair can have different match counts
-    const cacheKey = hasFilter ? null : `${displayCount}:${bestTier}`;
-    if (cacheKey && styleCache.has(cacheKey)) return styleCache.get(cacheKey)!;
+  // Skip cache when filter active — same count:tier pair can have different match counts
+  const cacheKey = hasFilter ? null : `${displayCount}:${bestTier}`;
+  if (cacheKey && styleCache.has(cacheKey)) return styleCache.get(cacheKey)!;
 
-    const fillColor = isGhosted ? hexWithOpacity('#aaaaaa', 0.2) : hexWithOpacity(RECENCY_COLORS[bestTier], 1.0);
-    const strokeColor = isGhosted ? 'rgba(255,255,255,0.2)' : '#ffffff';
-    const radius = displayCount <= 1 ? 4 : 6 + Math.log2(Math.max(displayCount, 1)) * 2;
+  const fillColor = isGhosted ? hexWithOpacity('#aaaaaa', 0.2) : hexWithOpacity(RECENCY_COLORS[bestTier], 1.0);
+  const strokeColor = isGhosted ? 'rgba(255,255,255,0.2)' : '#ffffff';
+  const radius = displayCount <= 1 ? 4 : 6 + Math.log2(Math.max(displayCount, 1)) * 2;
 
-    const style = new Style({
-      image: new Circle({
-        radius,
-        fill: new Fill({ color: fillColor }),
-        stroke: new Stroke({ color: strokeColor, width: 1 }),
-      }),
-      text: isGhosted ? undefined : new Text({
-        text: String(displayCount),
-        fill: new Fill({ color: '#fff' }),
-        font: 'bold 11px sans-serif',
-      }),
-    });
+  const style = new Style({
+    image: new Circle({
+      radius,
+      fill: new Fill({ color: fillColor }),
+      stroke: new Stroke({ color: strokeColor, width: 1 }),
+    }),
+    text: isGhosted ? undefined : new Text({
+      text: String(displayCount),
+      fill: new Fill({ color: '#fff' }),
+      font: 'bold 11px sans-serif',
+    }),
+  });
 
-    if (cacheKey) styleCache.set(cacheKey, style);
-    return style;
-  };
+  if (cacheKey) styleCache.set(cacheKey, style);
+  return style;
 }
 
 export const SAMPLE_RECENCY_COLORS = {
@@ -96,34 +93,29 @@ const GHOSTED_SAMPLE_STYLE = new Style({
 
 const sampleStyleCache = new Map<string, Style>();
 
-export function makeSampleDotStyleFn(
-  getVisibleSampleIds: () => Set<string> | null
-): (feature: FeatureLike) => Style {
-  return (feature: FeatureLike): Style => {
-    // Ghost check — must come before cache lookup (ghost state depends on visibleSampleIds)
-    const activeSampleIds = getVisibleSampleIds();
-    if (activeSampleIds !== null && !activeSampleIds.has((feature as Feature).getId() as string)) {
-      return GHOSTED_SAMPLE_STYLE;
-    }
+export function sampleDotStyle(feature: FeatureLike): Style {
+  // Ghost check — must come before cache lookup (ghost state depends on visibleSampleIds)
+  if (visibleSampleIds !== null && !visibleSampleIds.has((feature as Feature).getId() as string)) {
+    return GHOSTED_SAMPLE_STYLE;
+  }
 
-    const date = feature.get('date') as string;
-    // date is an ISO 8601 datetime with timezone offset, e.g. '2023-04-04 15:32:38-07:00'
-    // Temporal.PlainDate.from() cannot parse this format — use Date instead
-    const d = new Date(date);
-    const year = d.getUTCFullYear();
-    const month = d.getUTCMonth() + 1;  // getUTCMonth() is 0-indexed
-    const tier = recencyTier(year, month);
+  const date = feature.get('date') as string;
+  // date is an ISO 8601 datetime with timezone offset, e.g. '2023-04-04 15:32:38-07:00'
+  // Temporal.PlainDate.from() cannot parse this format — use Date instead
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1;  // getUTCMonth() is 0-indexed
+  const tier = recencyTier(year, month);
 
-    if (sampleStyleCache.has(tier)) return sampleStyleCache.get(tier)!;
+  if (sampleStyleCache.has(tier)) return sampleStyleCache.get(tier)!;
 
-    const style = new Style({
-      image: new Circle({
-        radius: 5,   // fixed; visually distinct from single-specimen cluster radius of 4
-        fill: new Fill({ color: SAMPLE_RECENCY_COLORS[tier] }),
-        stroke: new Stroke({ color: '#ffffff', width: 1 }),
-      }),
-    });
-    sampleStyleCache.set(tier, style);
-    return style;
-  };
+  const style = new Style({
+    image: new Circle({
+      radius: 5,   // fixed; visually distinct from single-specimen cluster radius of 4
+      fill: new Fill({ color: SAMPLE_RECENCY_COLORS[tier] }),
+      stroke: new Stroke({ color: '#ffffff', width: 1 }),
+    }),
+  });
+  sampleStyleCache.set(tier, style);
+  return style;
 }

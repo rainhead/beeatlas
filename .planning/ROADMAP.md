@@ -11,7 +11,6 @@
 - ✅ **v1.6 dlt Pipeline Migration** — Phases 20–24 (shipped 2026-03-28)
 - ✅ **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (shipped 2026-03-30)
 - ✅ **v1.8 DuckDB WASM Frontend** — Phases 30–32 (shipped 2026-04-01)
-- 🔄 **v1.9 Frontend Architecture Refactor** — Phases 33–38 (in progress)
 
 ## Phases
 
@@ -121,32 +120,6 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 
 </details>
 
-### v1.9 Frontend Architecture Refactor (Phases 33–38)
-
-- [x] **Phase 33: Test Infrastructure** - Install and configure Vitest + happy-dom; wire `npm test` (1/1 plans — completed 2026-04-04)
-- [x] **Phase 34: Global State Elimination** - Remove module-level mutable singletons from filter.ts, bee-map.ts, and region-layer.ts (2 plans) (completed 2026-04-04)
-  Plans:
-  - [x] 34-01-PLAN.md — Eliminate mutable singletons from filter.ts; convert style.ts to factory pattern
-  - [x] 34-02-PLAN.md — Move OL objects and region-layer singletons into BeeMap class properties
-- [ ] **Phase 35: URL State Module** - Extract serialize/deserialize into pure url-state.ts; wire bee-atlas as URL owner
-  Plans:
-  - [ ] 35-01-PLAN.md — Create url-state.ts pure module and refactor bee-map.ts to call it
-- [ ] **Phase 36: bee-atlas Root Component** - Extract `<bee-atlas>` owning non-map state; rewire bee-map to property/event interface
-- [ ] **Phase 37: Sidebar Decomposition** - Decompose bee-sidebar into bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components
-- [ ] **Phase 38: Unit Tests** - Write round-trip, SQL builder, and component render tests
-
-### Phase 35: URL State Module
-**Goal**: `url-state.ts` pure module exports typed serialize/deserialize functions for all app state; bee-map.ts is refactored to call the new module in place of inline logic
-**Depends on**: Phase 34
-**Requirements**: URL-01
-**Success Criteria** (what must be TRUE):
-  1. `frontend/src/url-state.ts` exists and exports `buildParams(view, filter, selection, ui): URLSearchParams` and `parseParams(search: string): Partial<AppState>`
-  2. `url-state.ts` has no imports from Lit, OpenLayers, or DOM APIs — pure TypeScript only
-  3. `bee-map.ts` no longer contains `buildSearchParams` or `parseUrlParams` inline implementations; it calls the new module functions
-  4. `npm run build` exits 0 with no TypeScript errors
-  (Round-trip tests deferred to Phase 38 — TEST-02)
-**Plans**: 1 plan
-
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -183,9 +156,3 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 | 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 32. SQL Filter Layer | v1.8 | 3/3 | Complete    | 2026-04-01 |
-| 33. Test Infrastructure | v1.9 | 1/1 | Complete    | 2026-04-04 |
-| 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
-| 35. URL State Module | v1.9 | 0/1 | Not started | - |
-| 36. bee-atlas Root Component | v1.9 | 0/? | Not started | - |
-| 37. Sidebar Decomposition | v1.9 | 0/? | Not started | - |
-| 38. Unit Tests | v1.9 | 0/? | Not started | - |
