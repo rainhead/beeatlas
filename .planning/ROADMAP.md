@@ -144,7 +144,7 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
   2. `url-state.ts` has no imports from Lit, OpenLayers, or DOM APIs — pure TypeScript only
   3. `bee-map.ts` no longer contains `buildSearchParams` or `parseUrlParams` inline implementations; it calls the new module functions
   4. `npm run build` exits 0 with no TypeScript errors
-  5. Round-trip smoke test passes: serialize then deserialize of a known state returns equivalent values
+  (Round-trip tests deferred to Phase 38 — TEST-02)
 **Plans**: 1 plan
 
 ## Progress
