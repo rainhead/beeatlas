@@ -1,5 +1,5 @@
 ---
-status: partial
+status: resolved
 phase: 37-sidebar-decomposition
 source: [37-VERIFICATION.md]
 started: 2026-04-04T00:00:00Z
