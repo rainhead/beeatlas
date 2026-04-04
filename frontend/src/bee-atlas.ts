@@ -123,6 +123,7 @@ bee-sidebar {
           .ecoregionOptions=${this._ecoregionOptions}
           .viewState=${this._viewState}
           .panTo=${this._panTo}
+          .filterState=${this._filterState}
           @view-moved=${this._onViewMoved}
           @map-click-specimen=${this._onSpecimenClick}
           @map-click-sample=${this._onSampleClick}
