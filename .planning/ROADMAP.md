@@ -181,7 +181,10 @@ Plans:
   2. `<bee-specimen-detail>` renders specimen cluster detail when given a specimens property, with no sidebar or map awareness
   3. `<bee-sample-detail>` renders sample observation detail when given a sample event property, with no sidebar or map awareness
   4. bee-sidebar contains no filter input markup or specimen/sample rendering logic of its own — it only composes the sub-components and routes their events upward
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 37-01-PLAN.md — Create bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components and structural tests
+- [ ] 37-02-PLAN.md — Refactor bee-sidebar to thin layout shell, update bee-atlas bindings, visual verification
 **UI hint**: yes
 
 ### Phase 38: Unit Tests
@@ -193,7 +196,10 @@ Plans:
   2. Filter SQL builder tests pass for all filter fields individually and in combination (taxon, year, month, county, ecoregion)
   3. At least one decomposed Lit component has a render test that mounts it with known props and asserts correct DOM output
   4. `npm test` runs all three test suites and reports results; any failure exits non-zero
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 37-01-PLAN.md — Create bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components and structural tests
+- [ ] 37-02-PLAN.md — Refactor bee-sidebar to thin layout shell, update bee-atlas bindings, visual verification
 **UI hint**: yes
 
 ## Progress
@@ -236,5 +242,5 @@ Plans:
 | 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
 | 35. URL State Module | v1.9 | 1/1 | Complete    | 2026-04-04 |
 | 36. bee-atlas Root Component | v1.9 | 2/2 | Complete   | 2026-04-04 |
-| 37. Sidebar Decomposition | v1.9 | 0/? | Not started | - |
+| 37. Sidebar Decomposition | v1.9 | 0/2 | Not started | - |
 | 38. Unit Tests | v1.9 | 0/? | Not started | - |
