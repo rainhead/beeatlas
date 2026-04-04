@@ -136,6 +136,7 @@ dist
 .pnp.*
 
 *.parquet
+frontend/public/data/
 
 # Claude Code worktrees (temporary isolated repo copies for agent execution)
 .claude/worktrees/
