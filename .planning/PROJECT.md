@@ -68,9 +68,22 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ LAMBDA-05: Lambda Function URL (NONE auth) deployed — v1.7
 - ✓ PIPE-11–14: Lambda handler with S3 DuckDB download, pipeline dispatch, S3 export, backup, CloudFront invalidation — v1.7 (CDK/Lambda deployed but maderas cron is execution path)
 - ✓ TEST-01–03: pytest suite (13 tests) — programmatic DuckDB fixture, export.py schema tests, transform unit tests — v1.7
-- ✓ TEST-02: url-state.ts round-trip and validation tests (20 tests) — frontend buildParams/parseParams covered for all fields individually, combined, and edge cases — Phase 38
-- ✓ TEST-03: filter.ts unit tests (13 tests) — buildFilterSQL covered for all fields, combined clauses, empty filter, and SQL quote escaping — Phase 38
-- ✓ TEST-04: bee-specimen-detail Lit component render test — sample fixture mounts into shadow DOM; empty samples produce zero .sample divs — Phase 38
+- ✓ TEST-01: `npm test` in `frontend/` runs Vitest with happy-dom; exits non-zero on failure — v1.9
+- ✓ STATE-01: Importing `filter.ts` creates no module-level filterState/visibleIds singletons — v1.9
+- ✓ STATE-02: Importing `bee-map.ts` triggers no OL source/layer construction or side effects — v1.9
+- ✓ STATE-03: All mutable state moved to component instances; `region-layer.ts` no longer eager-loads GeoJSON — v1.9
+- ✓ URL-01: `url-state.ts` exports typed `buildParams`/`parseParams` with zero component or DOM imports — v1.9
+- ✓ URL-02: `bee-atlas` owns URL init and history; `_restored*` properties removed from `<bee-map>` — v1.9
+- ✓ ARCH-01: `<bee-atlas>` custom element is the document root; `bee-map` and `bee-sidebar` are children — v1.9
+- ✓ ARCH-02: `<bee-map>` accepts state via 9 `@property` inputs and emits 11 CustomEvents; reads no shared state — v1.9
+- ✓ ARCH-03: `bee-atlas` coordinates all state; `bee-map` and `bee-sidebar` have no cross-references — v1.9
+- ✓ DECOMP-01: `<bee-filter-controls>` renders all filter inputs; emits `filter-changed` with full filter state — v1.9
+- ✓ DECOMP-02: `<bee-specimen-detail>` renders cluster detail from a specimens property; no sidebar or map awareness — v1.9
+- ✓ DECOMP-03: `<bee-sample-detail>` renders sample detail from a sample event property; no sidebar or map awareness — v1.9
+- ✓ DECOMP-04: `bee-sidebar` is a thin layout shell composing sub-components; no embedded filter or detail markup — v1.9
+- ✓ TEST-02: url-state.ts round-trip and validation tests (20 tests) — frontend buildParams/parseParams covered for all fields individually, combined, and edge cases — v1.9
+- ✓ TEST-03: filter.ts unit tests (13 tests) — buildFilterSQL covered for all fields, combined clauses, empty filter, and SQL quote escaping — v1.9
+- ✓ TEST-04: bee-specimen-detail Lit component render test — sample fixture mounts into shadow DOM; empty samples produce zero .sample divs — v1.9
 - ✓ FETCH-01–03: Frontend runtime fetch from CloudFront /data/; no bundled data files in dist/; loading/error overlay — v1.7
 - ✓ CI-01–02: CI frontend-only build; fetch-data.yml deleted; no AWS credentials in build job — v1.7
 - ✓ DUCK-01: DuckDB WASM singleton loads ecdysis.parquet + samples.parquet into in-memory tables via PARQUET scan — v1.8
@@ -89,8 +102,9 @@ Collectors can see where bees have been collected and where target host plants g
 - v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
 - v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
 - v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
+- v1.9 Component Architecture & Test Suite — COMPLETE (2026-04-04)
 
-### Active (v1.9)
+### Active (future)
 
 - [ ] **TAB-01**: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline
 - [ ] **TAB-02**: Specimens collected last season on land owned by a named organization — requires land ownership data source
@@ -112,7 +126,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Phase 38 (2026-04-04): frontend unit test suite added — 61 Vitest tests across 4 files (url-state, filter, bee-sidebar with render tests, bee-atlas); all pure-logic modules and one Lit component covered.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), @duckdb/duckdb-wasm, temporal-polyfill
@@ -188,6 +202,12 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | visibleIds Set replaces per-feature matchesFilter() in OL style callbacks | Set.has() is O(1) vs iterating filter conditions per-feature on every repaint | ✓ Good — style callbacks now read module-level `visibleEcdysisIds`/`visibleSampleIds` |
 | VectorSource.loadFeatures() eager call at module scope for county/ecoregion | OL lazy-fetches VectorSource only when attached to visible layer; eager call ensures `once('change')` fires on page load for datalist population | ✓ Good — Phase 32-03 gap fix; required because regionLayer starts `visible: false` |
 | _setBoundaryMode skipFilterReset parameter to preserve filter state when called from _applyFilter | _applyFilter sets filterState then calls _setBoundaryMode which cleared it; skipFilterReset=true skips the internal clear+query | ✓ Good — Phase 32-03 gap fix; sidebar counts now correctly reflect filtered totals |
+| Vitest configured inline in `vite.config.ts` (not separate `vitest.config.ts`) | Minimal config warrants in-place extension; avoids a second config file for a test block that fits in 4 lines | ✓ Good — Phase 33; no conflicts with existing vite config |
+| Explicit `import { test, expect } from 'vitest'` in test files | Avoids type conflicts with `"types": ["vite/client"]`; global Vitest types not safe to enable project-wide | ✓ Good — Phase 33; consistent pattern across all test files |
+| `bee-atlas` coordinator does not import OpenLayers | Keeps OL contained in `bee-map`; coordinator is framework-agnostic and testable without OL canvas setup | ✓ Good — Phase 36; ARCH-03 source analysis tests enforce this invariant |
+| `bee-map.updated()` as synchronization boundary between coordinator state and OL canvas | `updated()` fires after every Lit property change; `changedProperties.has()` drives targeted OL operations without over-triggering | ✓ Good — Phase 36; replaces ad-hoc property watchers |
+| `readFileSync` source analysis in Vitest for architectural invariants | Avoids DuckDB WASM/OL canvas/happy-dom incompatibility while reliably verifying import graph contracts | ✓ Good — Phase 36; ARCH-03 tests run fast and are not flaky |
+| Monotonic generation counter in `_runFilterQuery` discards stale DuckDB async results | Async filter queries can race when chips removed quickly; last-write-wins causes flash of unfiltered state | ✓ Good — Phase 37-03 gap fix; flicker eliminated |
 
 ## Evolution
 
@@ -207,4 +227,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 38 complete (Unit Tests — 61 Vitest tests across url-state, filter, bee-sidebar render, and bee-atlas)*
+*Last updated: 2026-04-04 after v1.9 milestone complete (Component Architecture & Test Suite — coordinator pattern, sidebar decomposition, 61 Vitest tests)*

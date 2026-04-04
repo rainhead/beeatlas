@@ -1,5 +1,21 @@
 # Milestones
 
+## v1.9 Component Architecture & Test Suite (Shipped: 2026-04-04)
+
+**Phases completed:** 4 phases, 7 plans, 13 tasks
+
+**Key accomplishments:**
+
+- Pure `url-state.ts` module extracts URL serialization from `bee-map.ts`, exporting typed `buildParams`/`parseParams` functions with zero component dependencies
+- `<bee-atlas>` coordinator LitElement created with full app-level state ownership, factory-based style.ts, vitest infrastructure, and updated HTML entry point
+- bee-map.ts refactored to pure presenter with 9 @property inputs and 11 CustomEvent outputs; filter.ts/style.ts/region-layer.ts module-level singleton coupling fully removed; coordinator pattern verified in browser
+- 1. [Rule 2 - Missing correctness] sample-dot-detail test pattern fixed to match CSS too
+- Monotonic generation counter added to `_runFilterQuery` in bee-atlas.ts, discarding stale DuckDB async results that caused a flash of unfiltered specimens when removing county/ecoregion/taxon filter chips.
+- 33 Vitest unit tests covering URL round-trips and SQL clause generation for both pure-function frontend modules
+- Lit shadow DOM render tests for bee-specimen-detail: non-empty samples surface recordedBy/fieldNumber/species text; empty samples produce zero .sample divs; full 4-file suite (61 tests) passes together.
+
+---
+
 ## v1.8 DuckDB WASM Frontend (Shipped: 2026-04-01)
 
 **Phases completed:** 3 phases, 5 plans, 10 tasks
