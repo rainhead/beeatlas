@@ -91,6 +91,7 @@ Collectors can see where bees have been collected and where target host plants g
 - Decompose bee-sidebar into sub-components (filter controls, specimen detail, sample event detail)
 - Eliminate module-level global mutable state in filter.ts and bee-map.ts to enable unit isolation
 - ✓ Set up Vitest + happy-dom test infrastructure — Phase 33 complete
+- ✓ Eliminate module-level global mutable state in filter.ts and bee-map.ts — Phase 34 complete
 - Add unit tests for newly-bounded components and modules
 
 ## Previous Milestones
@@ -199,6 +200,8 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | tablesReady Promise gates OL feature creation | Race condition if OL queries DuckDB before tables loaded; tablesReady replaces ad-hoc hyparquet loading guard | ✓ Good — clean initialization contract between duckdb.ts and bee-map.ts |
 | buildFilterSQL() returns plain SQL string (not parameterized) | DuckDB WASM `query()` does not support parameterized queries with ? placeholders in WASM builds | ✓ Good — SQL string interpolation with string escaping; acceptable for client-side trusted input |
 | visibleIds Set replaces per-feature matchesFilter() in OL style callbacks | Set.has() is O(1) vs iterating filter conditions per-feature on every repaint | ✓ Good — style callbacks now read module-level `visibleEcdysisIds`/`visibleSampleIds` |
+| Style factory closures (makeClusterStyleFn, makeSampleDotStyleFn) set on layers in firstUpdated | Factories need BeeMap instance for getters; can't call at module level before instance exists | ✓ Good — Phase 34 pattern; clean closure capture of this.visibleEcdysisIds/visibleSampleIds |
+| All OL objects as BeeMap class properties; dataErrorHandler indirection removed | Enables import without side effects; arrow functions in class initializers capture `this` directly | ✓ Good — Phase 34; importing bee-map.ts or region-layer.ts causes zero side effects |
 | VectorSource.loadFeatures() eager call at module scope for county/ecoregion | OL lazy-fetches VectorSource only when attached to visible layer; eager call ensures `once('change')` fires on page load for datalist population | ✓ Good — Phase 32-03 gap fix; required because regionLayer starts `visible: false` |
 | _setBoundaryMode skipFilterReset parameter to preserve filter state when called from _applyFilter | _applyFilter sets filterState then calls _setBoundaryMode which cleared it; skipFilterReset=true skips the internal clear+query | ✓ Good — Phase 32-03 gap fix; sidebar counts now correctly reflect filtered totals |
 
@@ -220,4 +223,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 — Phase 33 complete (Vitest + happy-dom test infrastructure)*
+*Last updated: 2026-04-04 — Phase 34 complete (global state elimination — all OL objects and filter state as BeeMap class properties)*
