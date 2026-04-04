@@ -198,9 +198,8 @@ Plans:
   4. `npm test` runs all three test suites and reports results; any failure exits non-zero
 **Plans**: 2 plans
 Plans:
-- [x] 37-01-PLAN.md — Create bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components and structural tests
-- [x] 37-02-PLAN.md — Refactor bee-sidebar to thin layout shell, update bee-atlas bindings, visual verification
-**UI hint**: yes
+- [ ] 38-01-PLAN.md — url-state round-trip tests and buildFilterSQL unit tests
+- [ ] 38-02-PLAN.md — bee-specimen-detail render test and full suite verification
 
 ## Progress
 
@@ -243,4 +242,4 @@ Plans:
 | 35. URL State Module | v1.9 | 1/1 | Complete    | 2026-04-04 |
 | 36. bee-atlas Root Component | v1.9 | 2/2 | Complete   | 2026-04-04 |
 | 37. Sidebar Decomposition | v1.9 | 3/3 | Complete    | 2026-04-04 |
-| 38. Unit Tests | v1.9 | 0/? | Not started | - |
+| 38. Unit Tests | v1.9 | 0/2 | Not started | - |
