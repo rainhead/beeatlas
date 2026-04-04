@@ -169,3 +169,61 @@ describe('DECOMP-04: bee-sidebar is thin layout shell', () => {
     expect(src).toMatch(/bee-sample-detail/);
   });
 });
+
+describe('bee-specimen-detail render', () => {
+  test('renders sample data into shadow DOM', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+
+    const el = new BeeSpecimenDetail();
+    el.samples = [
+      {
+        year: 2023,
+        month: 6,
+        recordedBy: 'J. Smith',
+        fieldNumber: 'WA-2023-001',
+        species: [
+          { name: 'Bombus occidentalis', occid: '12345', inatObservationId: null, floralHost: null },
+          { name: 'Andrena milwaukeensis', occid: '12346', inatObservationId: 99001, floralHost: 'Salix' },
+        ],
+      },
+    ];
+
+    // Attach to DOM so Lit renders into shadowRoot
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const shadow = el.shadowRoot!;
+    const text = shadow.textContent ?? '';
+
+    expect(text).toContain('J. Smith');
+    expect(text).toContain('WA-2023-001');
+    expect(text).toContain('Bombus occidentalis');
+    expect(text).toContain('Andrena milwaukeensis');
+
+    // Verify a link to ecdysis exists
+    const links = shadow.querySelectorAll('a[href*="ecdysis.org"]');
+    expect(links.length).toBeGreaterThanOrEqual(2);
+
+    // Verify iNat link for species with inatObservationId
+    const inatLinks = shadow.querySelectorAll('a[href*="inaturalist.org"]');
+    expect(inatLinks.length).toBeGreaterThanOrEqual(1);
+
+    document.body.removeChild(el);
+  });
+
+  test('renders no sample divs when samples is empty', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+
+    const el = new BeeSpecimenDetail();
+    el.samples = [];
+
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const shadow = el.shadowRoot!;
+    const sampleDivs = shadow.querySelectorAll('.sample');
+    expect(sampleDivs.length).toBe(0);
+
+    document.body.removeChild(el);
+  });
+});
