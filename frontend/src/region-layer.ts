@@ -6,7 +6,6 @@ import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
 import type { FeatureLike } from 'ol/Feature.js';
 import { get as getProjection } from 'ol/proj.js';
-import { filterState } from './filter.ts';
 
 const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 
@@ -25,19 +24,21 @@ export const selectedBoundaryStyle = new Style({
 });
 
 // Style function factory that highlights selected polygons based on filterState.
-// getBoundaryMode is a getter so the function always reads the current mode.
+// getBoundaryMode and getFilterState are getters so the function always reads current values.
 export function makeRegionStyleFn(
-  getBoundaryMode: () => 'off' | 'counties' | 'ecoregions'
+  getBoundaryMode: () => 'off' | 'counties' | 'ecoregions',
+  getFilterState: () => { selectedCounties: Set<string>; selectedEcoregions: Set<string> }
 ): (feature: FeatureLike) => Style {
   return (feature: FeatureLike): Style => {
     const mode = getBoundaryMode();
+    const fs = getFilterState();
     const name = mode === 'counties'
       ? (feature.get('NAME') as string | undefined)
       : (feature.get('NA_L3NAME') as string | undefined);
     if (!name) return boundaryStyle;
     const isSelected = mode === 'counties'
-      ? filterState.selectedCounties.has(name)
-      : filterState.selectedEcoregions.has(name);
+      ? fs.selectedCounties.has(name)
+      : fs.selectedEcoregions.has(name);
     return isSelected ? selectedBoundaryStyle : boundaryStyle;
   };
 }
