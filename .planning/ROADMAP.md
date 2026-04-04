@@ -168,8 +168,8 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
   4. Layer mode, selection, filter state, summaries, and boundary mode are properties on bee-atlas, not on bee-map
 **Plans**: 2 plans
 Plans:
-- [ ] 36-01-PLAN.md — Create bee-atlas coordinator component, style.ts factories, test infrastructure, index.html update
-- [ ] 36-02-PLAN.md — Refactor bee-map to pure presenter, wire events, clean up module coupling, integration tests
+- [x] 36-01-PLAN.md — Create bee-atlas coordinator component, style.ts factories, test infrastructure, index.html update
+- [x] 36-02-PLAN.md — Refactor bee-map to pure presenter, wire events, clean up module coupling, integration tests
 **UI hint**: yes
 
 ### Phase 37: Sidebar Decomposition
@@ -235,6 +235,6 @@ Plans:
 | 33. Test Infrastructure | v1.9 | 1/1 | Complete    | 2026-04-04 |
 | 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
 | 35. URL State Module | v1.9 | 1/1 | Complete    | 2026-04-04 |
-| 36. bee-atlas Root Component | v1.9 | 0/2 | Not started | - |
+| 36. bee-atlas Root Component | v1.9 | 2/2 | Complete   | 2026-04-04 |
 | 37. Sidebar Decomposition | v1.9 | 0/? | Not started | - |
 | 38. Unit Tests | v1.9 | 0/? | Not started | - |

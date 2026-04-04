@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: Frontend Architecture Refactor
-status: executing
-stopped_at: Completed 36-01-PLAN.md
-last_updated: "2026-04-04T00:08:00.000Z"
+milestone: v1.0
+milestone_name: milestone
+status: completed
+stopped_at: Completed 36-02-PLAN.md
+last_updated: "2026-04-04T19:12:00.651Z"
 last_activity: 2026-04-04
 progress:
-  total_phases: 11
-  completed_phases: 11
-  total_plans: 16
-  completed_plans: 16
-  percent: 27
+  total_phases: 6
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md
 
 ## Current Position
 
-Phase: 36 (bee-atlas-root-component) — IN PROGRESS
-Plan: 1/? complete
-Status: Plan 36-01 complete; bee-atlas.ts coordinator created, style factories added
+Phase: 36 (bee-atlas-root-component) — COMPLETE
+Plan: 2/2 complete
+Status: Plan 36-02 complete; bee-map refactored to pure presenter, ARCH-01/02/03 tests passing, browser-verified
 Last activity: 2026-04-04
-Stopped at: Completed 36-01-PLAN.md
+Stopped at: Completed 36-02-PLAN.md
 
-Progress: [████░░░░░░] 27% (2/6 phases; 4/13 plans complete)
+Progress: [████░░░░░░] 27% (3/6 phases; 6/13 plans complete)
 
 ## Phase Plan
 
@@ -40,7 +40,7 @@ Progress: [████░░░░░░] 27% (2/6 phases; 4/13 plans complete)
 | 33 | Test Infrastructure | TEST-01 | Complete |
 | 34 | Global State Elimination | STATE-01, STATE-02, STATE-03 | Complete (2/2 plans) |
 | 35 | URL State Module | URL-01, URL-02 | Complete (1/1 plans) |
-| 36 | bee-atlas Root Component | ARCH-01, ARCH-02, ARCH-03 | In Progress (1/? plans) |
+| 36 | bee-atlas Root Component | ARCH-01, ARCH-02, ARCH-03 | Complete (2/2 plans) |
 | 37 | Sidebar Decomposition | DECOMP-01, DECOMP-02, DECOMP-03, DECOMP-04 | Not started |
 | 38 | Unit Tests | TEST-02, TEST-03, TEST-04 | Not started |
 
@@ -64,6 +64,8 @@ Progress: [████░░░░░░] 27% (2/6 phases; 4/13 plans complete)
 - **[Phase 36-01]**: bee-atlas does not import OpenLayers — all OL code stays in bee-map; coordinator is framework-agnostic
 - **[Phase 36-01]**: Old clusterStyle/sampleDotStyle kept in style.ts for backward compatibility during Plan 01 transition; Plan 02 will remove them when bee-map switches to factory functions
 - **[Phase 36-01]**: vitest passWithNoTests: true in vite.config.ts — test suite passes before any test files exist
+- [Phase 36]: bee-map.updated() is the synchronization boundary between coordinator-owned state and OL canvas repaints — changedProperties.has() checks drive clusterSource.changed(), layer visibility, view animation, and filtered-summary computation
+- [Phase 36]: Source analysis tests (readFileSync) used for architectural invariant checks in vitest — avoids DuckDB WASM/OL canvas happy-dom incompatibility while reliably verifying import graph contracts
 
 ## Pending Todos
 
