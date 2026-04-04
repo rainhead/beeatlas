@@ -98,6 +98,7 @@ export class BeeSidebar extends LitElement {
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) restoredCounties: Set<string> = new Set();
   @property({ attribute: false }) restoredEcoregions: Set<string> = new Set();
+  @property({ attribute: false }) sampleDataLoaded = false;
 
   @state() private _taxonInput = '';
   @state() private _taxonRank: 'family' | 'genus' | 'species' | null = null;
@@ -217,12 +218,18 @@ export class BeeSidebar extends LitElement {
       font-size: 0.8rem;
       color: #666;
       margin-bottom: 0.5rem;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .species-list {
       margin: 0;
       padding-left: 1.25rem;
       font-size: 0.85rem;
       font-style: italic;
+    }
+    .species-list li {
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     dt {
       font-weight: 600;
@@ -302,6 +309,8 @@ export class BeeSidebar extends LitElement {
     .event-observer {
       font-size: 0.8rem;
       color: #666;
+      overflow-wrap: break-word;
+      word-break: break-word;
     }
     .event-count {
       font-size: 0.8rem;
@@ -701,7 +710,7 @@ export class BeeSidebar extends LitElement {
     if (this.recentSampleEvents.length === 0) {
       return html`
         <div class="panel-content">
-          <p class="hint">Loading sample data...</p>
+          <p class="hint">${this.sampleDataLoaded ? 'No collections in the last 14 days.' : 'Loading sample data\u2026'}</p>
         </div>
       `;
     }
@@ -756,16 +765,16 @@ export class BeeSidebar extends LitElement {
           <input
             type="number"
             placeholder="From year"
-            min="2023"
-            max=${this._yearTo !== null ? String(this._yearTo) : "2025"}
+            min=${this.summary ? String(this.summary.earliestYear) : "2023"}
+            max=${this._yearTo !== null ? String(this._yearTo) : (this.summary ? String(this.summary.latestYear) : "2025")}
             .value=${this._yearFrom !== null ? String(this._yearFrom) : ''}
             @change=${this._onYearFromChange}
           />
           <input
             type="number"
             placeholder="To year"
-            min=${this._yearFrom !== null ? String(this._yearFrom) : "2023"}
-            max="2025"
+            min=${this._yearFrom !== null ? String(this._yearFrom) : (this.summary ? String(this.summary.earliestYear) : "2023")}
+            max=${this.summary ? String(this.summary.latestYear) : "2025"}
             .value=${this._yearTo !== null ? String(this._yearTo) : ''}
             @change=${this._onYearToChange}
           />
@@ -819,7 +828,10 @@ export class BeeSidebar extends LitElement {
             <dt>Families</dt><dd>${filteredSummary.filteredFamilyCount} of ${t.familyCount}</dd>
             <dt>Years</dt><dd>${t.earliestYear}–${t.latestYear}</dd>
           </dl>
-          <p class="hint">Click a specimen point or cluster to see sample details.</p>
+          ${filteredSummary.filteredSpecimens === 0
+            ? html`<p class="hint">No specimens match the current filters.</p>`
+            : html`<p class="hint">Click a specimen point or cluster to see sample details.</p>`
+          }
         </div>
       `;
     }
