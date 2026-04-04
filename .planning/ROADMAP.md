@@ -11,6 +11,7 @@
 - ✅ **v1.6 dlt Pipeline Migration** — Phases 20–24 (shipped 2026-03-28)
 - ✅ **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (shipped 2026-03-30)
 - ✅ **v1.8 DuckDB WASM Frontend** — Phases 30–32 (shipped 2026-04-01)
+- 🔄 **v1.9 Frontend Architecture Refactor** — Phases 33–38 (in progress)
 
 ## Phases
 
@@ -120,6 +121,15 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 
 </details>
 
+### v1.9 Frontend Architecture Refactor (Phases 33–38)
+
+- [x] **Phase 33: Test Infrastructure** - Install and configure Vitest + happy-dom; wire `npm test` (1/1 plans — completed 2026-04-04)
+- [ ] **Phase 34: Global State Elimination** - Remove module-level mutable singletons from filter.ts, bee-map.ts, and region-layer.ts
+- [ ] **Phase 35: URL State Module** - Extract serialize/deserialize into pure url-state.ts; wire bee-atlas as URL owner
+- [ ] **Phase 36: bee-atlas Root Component** - Extract `<bee-atlas>` owning non-map state; rewire bee-map to property/event interface
+- [ ] **Phase 37: Sidebar Decomposition** - Decompose bee-sidebar into bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components
+- [ ] **Phase 38: Unit Tests** - Write round-trip, SQL builder, and component render tests
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -156,3 +166,9 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 | 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete    | 2026-03-31 |
 | 32. SQL Filter Layer | v1.8 | 3/3 | Complete    | 2026-04-01 |
+| 33. Test Infrastructure | v1.9 | 1/1 | Complete    | 2026-04-04 |
+| 34. Global State Elimination | v1.9 | 0/? | Not started | - |
+| 35. URL State Module | v1.9 | 0/? | Not started | - |
+| 36. bee-atlas Root Component | v1.9 | 0/? | Not started | - |
+| 37. Sidebar Decomposition | v1.9 | 0/? | Not started | - |
+| 38. Unit Tests | v1.9 | 0/? | Not started | - |
