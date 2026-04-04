@@ -140,8 +140,9 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
   1. `npm test` in `frontend/` runs Vitest and exits non-zero on any test failure
   2. happy-dom is configured as the test environment so DOM APIs are available in tests
   3. A trivial passing test exists that imports from a frontend module without errors
-**Plans**: TBD
-**UI hint**: yes
+**Plans:** 1 plan
+Plans:
+- [ ] 33-01-PLAN.md — Install Vitest + happy-dom, configure test runner, add smoke test
 
 ### Phase 34: Global State Elimination
 **Goal**: Frontend modules have no module-level mutable state that prevents isolated testing
@@ -237,7 +238,7 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full phase details.
 | 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete | 2026-03-31 |
 | 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete | 2026-03-31 |
 | 32. SQL Filter Layer | v1.8 | 3/3 | Complete | 2026-04-01 |
-| 33. Test Infrastructure | v1.9 | 0/? | Not started | - |
+| 33. Test Infrastructure | v1.9 | 0/1 | Not started | - |
 | 34. Global State Elimination | v1.9 | 0/? | Not started | - |
 | 35. URL State Module | v1.9 | 0/? | Not started | - |
 | 36. bee-atlas Root Component | v1.9 | 0/? | Not started | - |
