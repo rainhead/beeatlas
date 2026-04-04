@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Frontend Architecture Refactor
-status: completed
-stopped_at: Completed 33-01-PLAN.md
-last_updated: "2026-04-04T14:48:26.912Z"
+status: executing
+stopped_at: Completed 34-01-PLAN.md
+last_updated: "2026-04-04T15:27:00.000Z"
 last_activity: 2026-04-04
 progress:
   total_phases: 9
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 33 — test-infrastructure
+**Current focus:** Phase 34 — global-state-elimination
 
 ## Current Position
 
-Phase: 33
-Plan: Not started
-Status: Phase 33 Complete
+Phase: 34
+Plan: 01 Complete
+Status: Executing Phase 34
 Last activity: 2026-04-04
-Stopped at: Completed 33-01-PLAN.md
+Stopped at: Completed 34-01-PLAN.md
 
-Progress: [██░░░░░░░░] 17% (1/6 phases; 1/1 plans complete)
+Progress: [██░░░░░░░░] 20% (1/6 phases; 2/13 plans complete)
 
 ## Phase Plan
 
 | Phase | Name | Requirements | Status |
 |-------|------|-------------|--------|
 | 33 | Test Infrastructure | TEST-01 | Complete |
-| 34 | Global State Elimination | STATE-01, STATE-02, STATE-03 | Not started |
+| 34 | Global State Elimination | STATE-01, STATE-02, STATE-03 | In Progress (1/2 plans) |
 | 35 | URL State Module | URL-01, URL-02 | Not started |
 | 36 | bee-atlas Root Component | ARCH-01, ARCH-02, ARCH-03 | Not started |
 | 37 | Sidebar Decomposition | DECOMP-01, DECOMP-02, DECOMP-03, DECOMP-04 | Not started |
@@ -58,6 +58,8 @@ Progress: [██░░░░░░░░] 17% (1/6 phases; 1/1 plans complete)
 - **[Phase 33]**: Extend vite.config.ts with test block (not separate vitest.config.ts) — minimal config warrants in-place extension
 - **[Phase 33]**: Explicit `import { test, expect } from 'vitest'` in test files to avoid type conflicts with `"types": ["vite/client"]`
 - **[Phase 33]**: Smoke test imports no app modules — DuckDB WASM has module-level side effects; Phase 34 removes them
+- **[Phase 34-01]**: Style factory closures (makeClusterStyleFn, makeSampleDotStyleFn) set on layers in firstUpdated via this.visibleEcdysisIds/visibleSampleIds getters — factories called at module level not possible because BeeMap instance doesn't exist yet; plan 02 moves layers into class
+- **[Phase 34-01]**: filter.ts now exports zero mutable state — FilterState interface + isFilterActive + buildFilterSQL + queryVisibleIds only; all mutable state (filterState, visibleEcdysisIds, visibleSampleIds) now private BeeMap class properties
 
 ## Pending Todos
 
