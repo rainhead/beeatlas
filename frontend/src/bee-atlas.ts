@@ -101,14 +101,6 @@ bee-sidebar {
 }
   `;
 
-  private _getRestoredTaxonInput(): string {
-    if (!this._filterState.taxonName) return '';
-    const opt = this._taxaOptions.find(
-      o => o.name === this._filterState.taxonName && o.rank === this._filterState.taxonRank
-    );
-    return opt?.label ?? this._filterState.taxonName;
-  }
-
   render() {
     return html`
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
@@ -145,17 +137,10 @@ bee-sidebar {
           .recentSampleEvents=${this._recentSampleEvents}
           .sampleDataLoaded=${this._sampleDataLoaded}
           .selectedSampleEvent=${this._selectedSampleEvent}
-          .restoredTaxonInput=${this._getRestoredTaxonInput()}
-          .restoredTaxonRank=${this._filterState.taxonRank}
-          .restoredTaxonName=${this._filterState.taxonName}
-          .restoredYearFrom=${this._filterState.yearFrom}
-          .restoredYearTo=${this._filterState.yearTo}
-          .restoredMonths=${this._filterState.months}
+          .filterState=${this._filterState}
           .boundaryMode=${this._boundaryMode}
           .countyOptions=${this._countyOptions}
           .ecoregionOptions=${this._ecoregionOptions}
-          .restoredCounties=${this._filterState.selectedCounties}
-          .restoredEcoregions=${this._filterState.selectedEcoregions}
           @close=${this._onClose}
           @filter-changed=${this._onFilterChanged}
           @layer-changed=${this._onLayerChanged}
