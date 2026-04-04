@@ -183,8 +183,8 @@ Plans:
   4. bee-sidebar contains no filter input markup or specimen/sample rendering logic of its own — it only composes the sub-components and routes their events upward
 **Plans**: 2 plans
 Plans:
-- [ ] 37-01-PLAN.md — Create bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components and structural tests
-- [ ] 37-02-PLAN.md — Refactor bee-sidebar to thin layout shell, update bee-atlas bindings, visual verification
+- [x] 37-01-PLAN.md — Create bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components and structural tests
+- [x] 37-02-PLAN.md — Refactor bee-sidebar to thin layout shell, update bee-atlas bindings, visual verification
 **UI hint**: yes
 
 ### Phase 38: Unit Tests
@@ -198,8 +198,8 @@ Plans:
   4. `npm test` runs all three test suites and reports results; any failure exits non-zero
 **Plans**: 2 plans
 Plans:
-- [ ] 37-01-PLAN.md — Create bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components and structural tests
-- [ ] 37-02-PLAN.md — Refactor bee-sidebar to thin layout shell, update bee-atlas bindings, visual verification
+- [x] 37-01-PLAN.md — Create bee-filter-controls, bee-specimen-detail, bee-sample-detail sub-components and structural tests
+- [x] 37-02-PLAN.md — Refactor bee-sidebar to thin layout shell, update bee-atlas bindings, visual verification
 **UI hint**: yes
 
 ## Progress
@@ -242,5 +242,5 @@ Plans:
 | 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
 | 35. URL State Module | v1.9 | 1/1 | Complete    | 2026-04-04 |
 | 36. bee-atlas Root Component | v1.9 | 2/2 | Complete   | 2026-04-04 |
-| 37. Sidebar Decomposition | v1.9 | 0/2 | Not started | - |
+| 37. Sidebar Decomposition | v1.9 | 3/3 | Complete    | 2026-04-04 |
 | 38. Unit Tests | v1.9 | 0/? | Not started | - |
