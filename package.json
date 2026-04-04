@@ -17,14 +17,8 @@
   "scripts": {
     "build:data": "cd data && uv run python run.py",
     "build": "npm run build --workspace=frontend",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "validate-schema": "node scripts/validate-schema.mjs",
-    "cache-restore": "bash scripts/cache_restore.sh",
-    "cache-restore-links": "bash scripts/cache_restore_links.sh",
-    "fetch-inat": "cd data && uv run python inat/download.py",
-    "cache-upload": "bash scripts/cache_upload.sh",
-    "cache-upload-links": "bash scripts/cache_upload_links.sh",
-    "fetch-links": "cd data && uv run python -m links.fetch"
+    "fetch-data": "bash scripts/fetch-data.sh"
   },
   "workspaces": [
     "frontend"

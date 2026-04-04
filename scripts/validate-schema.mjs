@@ -16,7 +16,7 @@ import { asyncBufferFromFile, asyncBufferFromUrl, parquetMetadataAsync } from 'h
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ASSETS_DIR = new URL('../frontend/src/assets/', import.meta.url).pathname;
+const ASSETS_DIR = new URL('../frontend/public/data/', import.meta.url).pathname;
 const CLOUDFRONT_BASE = 'https://beeatlas.net/data/';
 
 const EXPECTED = {
