@@ -18,6 +18,7 @@ import Feature from "ol/Feature.js";
 import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
 import { filterState, isFilterActive, queryVisibleIds, setVisibleIds, visibleEcdysisIds } from './filter.ts';
+import { buildParams, parseParams, type AppState } from './url-state.ts';
 import { regionLayer, countySource, ecoregionSource, makeRegionStyleFn } from './region-layer.ts';
 import { getDuckDB, loadAllTables } from './duckdb.ts';
 import './bee-sidebar.ts';
@@ -30,103 +31,6 @@ const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
 
-interface ParsedParams {
-  lon: number;
-  lat: number;
-  zoom: number;
-  taxonName: string | null;
-  taxonRank: 'family' | 'genus' | 'species' | null;
-  yearFrom: number | null;
-  yearTo: number | null;
-  months: Set<number>;
-  occurrenceIds: string[];
-  layerMode: 'specimens' | 'samples';
-  boundaryMode: 'off' | 'counties' | 'ecoregions';
-  selectedCounties: Set<string>;
-  selectedEcoregions: Set<string>;
-}
-
-function buildSearchParams(
-  center: number[],
-  zoom: number,
-  fs: typeof filterState,
-  selectedOccIds: string[] | null,
-  layerMode: 'specimens' | 'samples',
-  boundaryMode: 'off' | 'counties' | 'ecoregions'
-): URLSearchParams {
-  const params = new URLSearchParams();
-  params.set('x', center[0]!.toFixed(4));
-  params.set('y', center[1]!.toFixed(4));
-  params.set('z', zoom.toFixed(2));
-  if (fs.taxonName !== null) {
-    params.set('taxon', fs.taxonName);
-    params.set('taxonRank', fs.taxonRank!);
-  }
-  if (fs.yearFrom !== null) params.set('yr0', String(fs.yearFrom));
-  if (fs.yearTo   !== null) params.set('yr1', String(fs.yearTo));
-  if (fs.months.size > 0)  params.set('months', [...fs.months].sort((a, b) => a - b).join(','));
-  if (selectedOccIds !== null && selectedOccIds.length > 0) {
-    params.set('o', selectedOccIds.join(','));
-  }
-  if (layerMode !== 'specimens') params.set('lm', layerMode);  // omit default value
-  // Boundary mode and region filter — omit entirely when off (absence = off)
-  if (boundaryMode !== 'off') params.set('bm', boundaryMode);
-  if (fs.selectedCounties.size > 0) {
-    params.set('counties', [...fs.selectedCounties].sort().join(','));
-  }
-  if (fs.selectedEcoregions.size > 0) {
-    params.set('ecor', [...fs.selectedEcoregions].sort().join(','));
-  }
-  return params;
-}
-
-function parseUrlParams(search: string): ParsedParams {
-  const p = new URLSearchParams(search);
-  const x = parseFloat(p.get('x') ?? '');
-  const y = parseFloat(p.get('y') ?? '');
-  const z = parseFloat(p.get('z') ?? '');
-  const lon  = isFinite(x) && x >= -180 && x <= 180 ? x : DEFAULT_LON;
-  const lat  = isFinite(y) && y >= -90  && y <= 90  ? y : DEFAULT_LAT;
-  const zoom = isFinite(z) && z >= 1    && z <= 22  ? z : DEFAULT_ZOOM;
-
-  const taxonName = p.get('taxon') ?? null;
-  const rawRank   = p.get('taxonRank') ?? null;
-  const taxonRank = (['family', 'genus', 'species'] as const).includes(rawRank as any)
-    ? rawRank as 'family' | 'genus' | 'species' : null;
-  // Both must be present and valid; if either is missing treat both as absent
-  const resolvedTaxonName = (taxonName && taxonRank) ? taxonName : null;
-  const resolvedTaxonRank = (taxonName && taxonRank) ? taxonRank : null;
-
-  const yearFrom = parseInt(p.get('yr0') ?? '') || null;
-  const yearTo   = parseInt(p.get('yr1') ?? '') || null;
-  const monthsStr = p.get('months') ?? '';
-  const months = new Set(
-    monthsStr ? monthsStr.split(',').map(Number).filter(n => n >= 1 && n <= 12) : []
-  );
-  const oRaw = p.get('o') ?? '';
-  const occurrenceIds = oRaw
-    ? oRaw.split(',').map(s => s.trim()).filter(s => s.startsWith('ecdysis:') && s.length > 8)
-    : [];
-
-  const lmRaw = p.get('lm') ?? '';
-  const layerMode: 'specimens' | 'samples' = lmRaw === 'samples' ? 'samples' : 'specimens';
-
-  const bmRaw = p.get('bm') ?? '';
-  const boundaryMode: 'off' | 'counties' | 'ecoregions' =
-    (bmRaw === 'counties' || bmRaw === 'ecoregions') ? bmRaw : 'off';
-
-  const countiesRaw = p.get('counties') ?? '';
-  const selectedCounties = new Set<string>(
-    countiesRaw ? countiesRaw.split(',').map(s => s.trim()).filter(Boolean) : []
-  );
-
-  const ecorRaw = p.get('ecor') ?? '';
-  const selectedEcoregions = new Set<string>(
-    ecorRaw ? ecorRaw.split(',').map(s => s.trim()).filter(Boolean) : []
-  );
-
-  return { lon, lat, zoom, taxonName: resolvedTaxonName, taxonRank: resolvedTaxonRank, yearFrom, yearTo, months, occurrenceIds, layerMode, boundaryMode, selectedCounties, selectedEcoregions };
-}
 
 function buildSamples(features: Feature[]): Sample[] {
   const map = new Map<string, Sample>();
@@ -330,7 +234,12 @@ export class BeeMap extends LitElement {
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
-    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds, this.layerMode, this.boundaryMode);
+    const params = buildParams(
+      { lon: center[0]!, lat: center[1]!, zoom },
+      filterState,
+      { occurrenceIds: this._selectedOccIds ?? [] },
+      { layerMode: this.layerMode, boundaryMode: this.boundaryMode }
+    );
     window.history.pushState({}, '', '?' + params.toString());
   }
 
@@ -351,14 +260,17 @@ export class BeeMap extends LitElement {
       clearTimeout(this._mapMoveDebounce);
       this._mapMoveDebounce = null;
     }
-    const parsed = parseUrlParams(window.location.search);
+    const parsed = parseParams(window.location.search);
+    const parsedLon = parsed.view?.lon ?? DEFAULT_LON;
+    const parsedLat = parsed.view?.lat ?? DEFAULT_LAT;
+    const parsedZoom = parsed.view?.zoom ?? DEFAULT_ZOOM;
     const view = this.map!.getView();
     const currentCenter = toLonLat(view.getCenter()!);
     const currentZoom = view.getZoom()!;
     const viewWillChange =
-      Math.abs(currentCenter[0]! - parsed.lon) > 0.0001 ||
-      Math.abs(currentCenter[1]! - parsed.lat) > 0.0001 ||
-      Math.abs(currentZoom - parsed.zoom) > 0.01;
+      Math.abs(currentCenter[0]! - parsedLon) > 0.0001 ||
+      Math.abs(currentCenter[1]! - parsedLat) > 0.0001 ||
+      Math.abs(currentZoom - parsedZoom) > 0.01;
 
     if (viewWillChange) {
       // OL will fire moveend after the programmatic move — reset flag there.
@@ -372,14 +284,16 @@ export class BeeMap extends LitElement {
       this._isRestoringFromHistory = false;
     }
 
-    view.setCenter(fromLonLat([parsed.lon, parsed.lat]));
-    view.setZoom(parsed.zoom);
+    view.setCenter(fromLonLat([parsedLon, parsedLat]));
+    view.setZoom(parsedZoom);
     this._restoreFilterState(parsed);
-    if (parsed.layerMode !== this.layerMode) {
+    const parsedLayerMode = parsed.ui?.layerMode ?? 'specimens';
+    const parsedOccIds = parsed.selection?.occurrenceIds ?? [];
+    if (parsedLayerMode !== this.layerMode) {
       // Layer switch clears selections and syncs URL
-      this._onLayerChanged(parsed.layerMode);
-    } else if (parsed.occurrenceIds.length > 0) {
-      this._restoreSelectedOccurrences(parsed.occurrenceIds);
+      this._onLayerChanged(parsedLayerMode);
+    } else if (parsedOccIds.length > 0) {
+      this._restoreSelectedOccurrences(parsedOccIds);
     } else {
       this.selectedSamples = null;
       this._selectedOccIds = null;
@@ -481,19 +395,20 @@ bee-sidebar {
     this.map.getView().animate({ center: e.detail.coordinate, zoom: 12, duration: 300 });
   }
 
-  private async _restoreFilterState(parsed: ParsedParams): Promise<void> {
-    filterState.taxonName = parsed.taxonName;
-    filterState.taxonRank = parsed.taxonRank;
-    filterState.yearFrom  = parsed.yearFrom;
-    filterState.yearTo    = parsed.yearTo;
-    filterState.months    = parsed.months;
-    filterState.selectedCounties = parsed.selectedCounties;
-    filterState.selectedEcoregions = parsed.selectedEcoregions;
-    this.boundaryMode = parsed.boundaryMode;
-    if (parsed.boundaryMode === 'counties') {
+  private async _restoreFilterState(parsed: Partial<AppState>): Promise<void> {
+    filterState.taxonName = parsed.filter?.taxonName ?? null;
+    filterState.taxonRank = parsed.filter?.taxonRank ?? null;
+    filterState.yearFrom  = parsed.filter?.yearFrom ?? null;
+    filterState.yearTo    = parsed.filter?.yearTo ?? null;
+    filterState.months    = parsed.filter?.months ?? new Set();
+    filterState.selectedCounties = parsed.filter?.selectedCounties ?? new Set();
+    filterState.selectedEcoregions = parsed.filter?.selectedEcoregions ?? new Set();
+    const boundaryMode = parsed.ui?.boundaryMode ?? 'off';
+    this.boundaryMode = boundaryMode;
+    if (boundaryMode === 'counties') {
       regionLayer.setSource(countySource);
       regionLayer.setVisible(true);
-    } else if (parsed.boundaryMode === 'ecoregions') {
+    } else if (boundaryMode === 'ecoregions') {
       regionLayer.setSource(ecoregionSource);
       regionLayer.setVisible(true);
     } else {
@@ -520,16 +435,18 @@ bee-sidebar {
     }
 
     // Mirror to sidebar-driving @state fields (drives bee-sidebar controls via property binding)
-    this._restoredTaxonName  = parsed.taxonName;
-    this._restoredTaxonRank  = parsed.taxonRank;
-    this._restoredTaxonInput = parsed.taxonName
-      ? (this.taxaOptions.find(o => o.name === parsed.taxonName && o.rank === parsed.taxonRank)?.label ?? parsed.taxonName)
+    const taxonName = parsed.filter?.taxonName ?? null;
+    const taxonRank = parsed.filter?.taxonRank ?? null;
+    this._restoredTaxonName  = taxonName;
+    this._restoredTaxonRank  = taxonRank;
+    this._restoredTaxonInput = taxonName
+      ? (this.taxaOptions.find(o => o.name === taxonName && o.rank === taxonRank)?.label ?? taxonName)
       : '';
-    this._restoredYearFrom = parsed.yearFrom;
-    this._restoredYearTo   = parsed.yearTo;
-    this._restoredMonths   = parsed.months;
-    this._restoredCounties = parsed.selectedCounties;
-    this._restoredEcoregions = parsed.selectedEcoregions;
+    this._restoredYearFrom = parsed.filter?.yearFrom ?? null;
+    this._restoredYearTo   = parsed.filter?.yearTo ?? null;
+    this._restoredMonths   = parsed.filter?.months ?? new Set();
+    this._restoredCounties = parsed.filter?.selectedCounties ?? new Set();
+    this._restoredEcoregions = parsed.filter?.selectedEcoregions ?? new Set();
   }
 
   private _restoreSelectedOccurrences(occIds: string[]) {
@@ -559,7 +476,12 @@ bee-sidebar {
     const view = this.map!.getView();
     const center = toLonLat(view.getCenter()!);
     const zoom = view.getZoom()!;
-    const params = buildSearchParams(center, zoom, filterState, this._selectedOccIds, this.layerMode, this.boundaryMode);
+    const params = buildParams(
+      { lon: center[0]!, lat: center[1]!, zoom },
+      filterState,
+      { occurrenceIds: this._selectedOccIds ?? [] },
+      { layerMode: this.layerMode, boundaryMode: this.boundaryMode }
+    );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
@@ -665,7 +587,7 @@ bee-sidebar {
       this._dataError = 'Failed to load data. Please try refreshing.';
     };
 
-    const initialParams = parseUrlParams(window.location.search);
+    const initialParams = parseParams(window.location.search);
 
     const baseLayer = new LayerGroup();
     this.map = new OpenLayersMap({
@@ -692,9 +614,9 @@ bee-sidebar {
       ],
       target: this.mapElement,
       view: new View({
-        center: fromLonLat([initialParams.lon, initialParams.lat]),
+        center: fromLonLat([initialParams.view?.lon ?? DEFAULT_LON, initialParams.view?.lat ?? DEFAULT_LAT]),
         projection: sphericalMercator,
-        zoom: initialParams.zoom,
+        zoom: initialParams.view?.zoom ?? DEFAULT_ZOOM,
       }),
     });
     sampleLayer.setVisible(false);
@@ -704,7 +626,9 @@ bee-sidebar {
 
     // Restore layer mode from URL (do this directly, not via _onLayerChanged,
     // because _onLayerChanged calls _pushUrlState which needs this.map to be ready)
-    if (initialParams.layerMode === 'samples') {
+    const initLayerMode = initialParams.ui?.layerMode ?? 'specimens';
+    const initBoundaryMode = initialParams.ui?.boundaryMode ?? 'off';
+    if (initLayerMode === 'samples') {
       this.layerMode = 'samples';
       specimenLayer.setVisible(false);
       sampleLayer.setVisible(true);
@@ -713,42 +637,44 @@ bee-sidebar {
     // Write initial URL state (covers no-param fresh loads — makes URL bar show params immediately)
     const view = this.map.getView();
     const initCenter = toLonLat(view.getCenter()!);
-    const initParams = buildSearchParams(
-      initCenter, view.getZoom()!, filterState,
-      initialParams.occurrenceIds.length > 0 ? initialParams.occurrenceIds : null,
-      initialParams.layerMode,
-      initialParams.boundaryMode
+    const initOccIds = initialParams.selection?.occurrenceIds ?? [];
+    const initParams = buildParams(
+      { lon: initCenter[0]!, lat: initCenter[1]!, zoom: view.getZoom()! },
+      filterState,
+      { occurrenceIds: initOccIds },
+      { layerMode: initLayerMode, boundaryMode: initBoundaryMode }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
     // Restore filter state from URL params (filter singleton + sidebar display)
-    if (initialParams.taxonName || initialParams.yearFrom || initialParams.yearTo
-        || initialParams.months.size > 0
-        || initialParams.boundaryMode !== 'off'
-        || initialParams.selectedCounties.size > 0
-        || initialParams.selectedEcoregions.size > 0) {
-      filterState.taxonName = initialParams.taxonName;
-      filterState.taxonRank = initialParams.taxonRank;
-      filterState.yearFrom  = initialParams.yearFrom;
-      filterState.yearTo    = initialParams.yearTo;
-      filterState.months    = initialParams.months;
+    const initFilter = initialParams.filter;
+    if (initFilter?.taxonName || initFilter?.yearFrom || initFilter?.yearTo
+        || (initFilter?.months.size ?? 0) > 0
+        || initBoundaryMode !== 'off'
+        || (initFilter?.selectedCounties.size ?? 0) > 0
+        || (initFilter?.selectedEcoregions.size ?? 0) > 0) {
+      filterState.taxonName = initFilter?.taxonName ?? null;
+      filterState.taxonRank = initFilter?.taxonRank ?? null;
+      filterState.yearFrom  = initFilter?.yearFrom ?? null;
+      filterState.yearTo    = initFilter?.yearTo ?? null;
+      filterState.months    = initFilter?.months ?? new Set();
       // Restore region filter state
-      filterState.selectedCounties = initialParams.selectedCounties;
-      filterState.selectedEcoregions = initialParams.selectedEcoregions;
-      this.boundaryMode = initialParams.boundaryMode;
-      if (initialParams.boundaryMode !== 'off') {
-        regionLayer.setSource(initialParams.boundaryMode === 'counties' ? countySource : ecoregionSource);
+      filterState.selectedCounties = initFilter?.selectedCounties ?? new Set();
+      filterState.selectedEcoregions = initFilter?.selectedEcoregions ?? new Set();
+      this.boundaryMode = initBoundaryMode;
+      if (initBoundaryMode !== 'off') {
+        regionLayer.setSource(initBoundaryMode === 'counties' ? countySource : ecoregionSource);
         regionLayer.setVisible(true);
       }
       // Mirror to sidebar display fields
-      this._restoredTaxonName  = initialParams.taxonName;
-      this._restoredTaxonRank  = initialParams.taxonRank;
-      this._restoredTaxonInput = initialParams.taxonName ?? '';
-      this._restoredYearFrom   = initialParams.yearFrom;
-      this._restoredYearTo     = initialParams.yearTo;
-      this._restoredMonths     = initialParams.months;
-      this._restoredCounties   = initialParams.selectedCounties;
-      this._restoredEcoregions = initialParams.selectedEcoregions;
+      this._restoredTaxonName  = initFilter?.taxonName ?? null;
+      this._restoredTaxonRank  = initFilter?.taxonRank ?? null;
+      this._restoredTaxonInput = initFilter?.taxonName ?? '';
+      this._restoredYearFrom   = initFilter?.yearFrom ?? null;
+      this._restoredYearTo     = initFilter?.yearTo ?? null;
+      this._restoredMonths     = initFilter?.months ?? new Set();
+      this._restoredCounties   = initFilter?.selectedCounties ?? new Set();
+      this._restoredEcoregions = initFilter?.selectedEcoregions ?? new Set();
     }
 
     // Initialize DuckDB — primary data source for Phase 31+
@@ -794,8 +720,8 @@ bee-sidebar {
         }
 
         // Restore selected occurrence (must happen here — data not available until this callback)
-        if (initialParams.occurrenceIds.length > 0) {
-          this._restoreSelectedOccurrences(initialParams.occurrenceIds);
+        if (initOccIds.length > 0) {
+          this._restoreSelectedOccurrences(initOccIds);
           // Re-sync URL after occurrence restore (keeps o= param in the URL bar)
           if (this.map) this._pushUrlState();
         }
