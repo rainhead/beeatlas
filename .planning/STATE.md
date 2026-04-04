@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Completed 36-02-PLAN.md
-last_updated: "2026-04-04T19:12:00.651Z"
-last_activity: 2026-04-04
+status: executing
+stopped_at: Phase 37 UI-SPEC approved
+last_updated: "2026-04-04T21:17:08.203Z"
+last_activity: 2026-04-04 -- Phase 37 planning complete
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
+  total_plans: 4
   completed_plans: 3
-  percent: 100
+  percent: 75
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 35 — url-state-module
+**Current focus:** Phase 37 — sidebar-decomposition
 
 ## Current Position
 
-Phase: 36 (bee-atlas-root-component) — COMPLETE
+Phase: 36 (bee-atlas-root-component) — VERIFIED COMPLETE
 Plan: 2/2 complete
-Status: Plan 36-02 complete; bee-map refactored to pure presenter, ARCH-01/02/03 tests passing, browser-verified
-Last activity: 2026-04-04
-Stopped at: Completed 36-02-PLAN.md
+Status: Ready to execute
+Last activity: 2026-04-04 -- Phase 37 planning complete
+Stopped at: Phase 37 UI-SPEC approved
 
-Progress: [████░░░░░░] 27% (3/6 phases; 6/13 plans complete)
+Progress: [████████░░] 67% (4/6 phases; 6/13 plans complete)
 
 ## Phase Plan
 
@@ -40,7 +40,7 @@ Progress: [████░░░░░░] 27% (3/6 phases; 6/13 plans complete)
 | 33 | Test Infrastructure | TEST-01 | Complete |
 | 34 | Global State Elimination | STATE-01, STATE-02, STATE-03 | Complete (2/2 plans) |
 | 35 | URL State Module | URL-01, URL-02 | Complete (1/1 plans) |
-| 36 | bee-atlas Root Component | ARCH-01, ARCH-02, ARCH-03 | Complete (2/2 plans) |
+| 36 | bee-atlas Root Component | ARCH-01, ARCH-02, ARCH-03 | Complete (2/2 plans) — Verified 2026-04-04 |
 | 37 | Sidebar Decomposition | DECOMP-01, DECOMP-02, DECOMP-03, DECOMP-04 | Not started |
 | 38 | Unit Tests | TEST-02, TEST-03, TEST-04 | Not started |
 
