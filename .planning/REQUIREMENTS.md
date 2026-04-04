@@ -26,8 +26,8 @@
 ### Global State Elimination
 
 - [ ] **STATE-01**: `filter.ts` has no module-level mutable exports — `filterState`, `visibleEcdysisIds`, `visibleSampleIds` are not module-level variables; filter logic is owned by bee-atlas or an encapsulated class
-- [ ] **STATE-02**: OL sources and layers in bee-map.ts are instance properties on `<bee-map>`; bee-map.ts has no module-level side effects on import
-- [ ] **STATE-03**: `region-layer.ts` has no module-level eager-loading side effects; county and ecoregion sources initialized as instance properties within their owning component
+- [x] **STATE-02**: OL sources and layers in bee-map.ts are instance properties on `<bee-map>`; bee-map.ts has no module-level side effects on import
+- [x] **STATE-03**: `region-layer.ts` has no module-level eager-loading side effects; county and ecoregion sources initialized as instance properties within their owning component
 
 ### Test Infrastructure
 
@@ -67,8 +67,8 @@
 | DECOMP-03 | Phase 37 | Pending |
 | DECOMP-04 | Phase 37 | Pending |
 | STATE-01 | Phase 34 | Pending |
-| STATE-02 | Phase 34 | Pending |
-| STATE-03 | Phase 34 | Pending |
+| STATE-02 | Phase 34 | Complete |
+| STATE-03 | Phase 34 | Complete |
 | TEST-01 | Phase 33 | Pending |
 | TEST-02 | Phase 38 | Pending |
 | TEST-03 | Phase 38 | Pending |
