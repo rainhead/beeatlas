@@ -104,6 +104,7 @@ export class BeeMap extends LitElement {
   @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @property({ attribute: false }) visibleEcdysisIds: Set<string> | null = null;
   @property({ attribute: false }) visibleSampleIds: Set<string> | null = null;
+  @property({ attribute: false }) selectedOccIds: Set<string> | null = null;
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) viewState: { lon: number; lat: number; zoom: number } | null = null;
@@ -158,6 +159,12 @@ export class BeeMap extends LitElement {
       this.map?.render();
       // Compute and emit filtered summary
       this._emitFilteredSummary();
+    }
+
+    // Repaint clusters when selection changes (for highlight ring)
+    if (changedProperties.has('selectedOccIds')) {
+      this.clusterSource?.changed();
+      this.map?.render();
     }
 
     // Layer visibility
@@ -254,7 +261,7 @@ export class BeeMap extends LitElement {
     });
     this.specimenLayer = new VectorLayer({
       source: this.clusterSource,
-      style: makeClusterStyleFn(() => this.visibleEcdysisIds),
+      style: makeClusterStyleFn(() => this.visibleEcdysisIds, () => this.selectedOccIds),
     });
     this.sampleSource = new SampleSource({
       onError: (err) => this._emit('data-error', { message: err.message }),

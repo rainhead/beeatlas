@@ -57,9 +57,10 @@ const sampleStyleCache = new Map<string, Style>();
  * This enables bee-atlas to own the visible ID state and pass it via closure.
  */
 export function makeClusterStyleFn(
-  getVisibleEcdysisIds: () => Set<string> | null
-): (feature: FeatureLike) => Style {
-  return function clusterStyleFn(feature: FeatureLike): Style {
+  getVisibleEcdysisIds: () => Set<string> | null,
+  getSelectedOccIds: () => Set<string> | null = () => null,
+): (feature: FeatureLike) => Style | Style[] {
+  return function clusterStyleFn(feature: FeatureLike): Style | Style[] {
     const innerFeatures: Feature[] = (feature.get('features') as Feature[] | undefined) ?? [feature as Feature];
     const activeEcdysisIds = getVisibleEcdysisIds();
     const hasFilter = activeEcdysisIds !== null;
@@ -85,7 +86,7 @@ export function makeClusterStyleFn(
     const strokeColor = isGhosted ? 'rgba(255,255,255,0.2)' : '#ffffff';
     const radius = displayCount <= 1 ? 4 : 6 + Math.log2(Math.max(displayCount, 1)) * 2;
 
-    const style = new Style({
+    const baseStyle = new Style({
       image: new Circle({
         radius,
         fill: new Fill({ color: fillColor }),
@@ -98,8 +99,22 @@ export function makeClusterStyleFn(
       }),
     });
 
-    if (cacheKey) styleCache.set(cacheKey, style);
-    return style;
+    if (cacheKey) styleCache.set(cacheKey, baseStyle);
+
+    // Selection ring — never cached (selection state is dynamic)
+    const selectedIds = getSelectedOccIds();
+    if (selectedIds !== null && innerFeatures.some(f => selectedIds.has(f.getId() as string))) {
+      const ringStyle = new Style({
+        image: new Circle({
+          radius: radius + 4,
+          fill: new Fill({ color: 'transparent' }),
+          stroke: new Stroke({ color: '#f1c40f', width: 2.5 }),
+        }),
+      });
+      return [ringStyle, baseStyle];
+    }
+
+    return baseStyle;
   };
 }
 
