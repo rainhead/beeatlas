@@ -78,8 +78,12 @@ export function makeClusterStyleFn(
     const isGhosted = hasFilter && matchCount === 0;
     const displayCount = hasFilter ? matchCount : innerFeatures.length;
 
-    // Skip cache when filter active — same count:tier pair can have different match counts
-    const cacheKey = hasFilter ? null : `${displayCount}:${bestTier}`;
+    // Check selection before cache — selected clusters always need the ring, bypassing cache
+    const selectedIds = getSelectedOccIds();
+    const isSelected = selectedIds !== null && innerFeatures.some(f => selectedIds.has(f.getId() as string));
+
+    // Skip cache when filter active or cluster is selected — same count:tier pair can have different styles
+    const cacheKey = (hasFilter || isSelected) ? null : `${displayCount}:${bestTier}`;
     if (cacheKey && styleCache.has(cacheKey)) return styleCache.get(cacheKey)!;
 
     const fillColor = isGhosted ? hexWithOpacity('#aaaaaa', 0.2) : hexWithOpacity(RECENCY_COLORS[bestTier], 1.0);
@@ -102,8 +106,7 @@ export function makeClusterStyleFn(
     if (cacheKey) styleCache.set(cacheKey, baseStyle);
 
     // Selection ring — never cached (selection state is dynamic)
-    const selectedIds = getSelectedOccIds();
-    if (selectedIds !== null && innerFeatures.some(f => selectedIds.has(f.getId() as string))) {
+    if (isSelected) {
       const ringStyle = new Style({
         image: new Circle({
           radius: radius + 4,
