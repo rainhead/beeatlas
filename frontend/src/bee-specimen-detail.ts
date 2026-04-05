@@ -49,12 +49,52 @@ export class BeeSpecimenDetail extends LitElement {
       color: var(--text-hint);
       font-style: normal;
     }
+    .host-conflict {
+      font-style: normal;
+    }
+    .host-label {
+      color: var(--text-hint);
+      font-size: 0.75rem;
+    }
+    .quality-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-style: normal;
+      padding: 0 0.3em;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-left: 0.4em;
+    }
+    .quality-badge.research {
+      background: #d4edda;
+      color: #155724;
+    }
+    .quality-badge.needs_id {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .quality-badge.casual {
+      background: #e2e3e5;
+      color: #383d41;
+    }
   `;
 
   private _formatMonth(year: number, month: number): string {
     return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
       new Date(year, month - 1)
     );
+  }
+
+  private _renderHostInfo(s: import('./bee-sidebar.ts').Specimen) {
+    const grade = s.inatQualityGrade;
+    const badge = grade
+      ? html`<span class="quality-badge ${grade}">${grade === 'research' ? 'RG' : grade === 'needs_id' ? 'NID' : 'casual'}</span>`
+      : '';
+    if (s.floralHost && s.inatHost && s.floralHost !== s.inatHost) {
+      return html`<span class="host-conflict"><span class="host-label">ecdysis:</span> ${s.floralHost} · <span class="host-label">iNat:</span> ${s.inatHost}${badge}</span>`;
+    }
+    const host = s.floralHost ?? s.inatHost ?? null;
+    return host ? html`${host}${badge}` : html`<span class="inat-missing">no host</span>${badge}`;
   }
 
   private _onClose() {
@@ -72,10 +112,9 @@ export class BeeSpecimenDetail extends LitElement {
             ${sample.species.map(s => html`
               <li>
                 <a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name}</a>
-                ${s.inatObservationId != null
-                  ? html` · <a href="https://www.inaturalist.org/observations/${s.inatObservationId}" target="_blank" rel="noopener">${s.floralHost ?? 'no host'}</a>`
-                  : html` · <span class="inat-missing">iNat: —</span>`
-                }
+                ${s.inatObservationId != null ? html`
+                  · <a href="https://www.inaturalist.org/observations/${s.inatObservationId}" target="_blank" rel="noopener">${this._renderHostInfo(s)}</a>
+                ` : html` · <span class="inat-missing">iNat: —</span>`}
               </li>
             `)}
           </ul>

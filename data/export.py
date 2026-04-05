@@ -17,7 +17,7 @@ from pathlib import Path
 import duckdb
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
-_default_assets = str(Path(__file__).parent.parent / 'frontend' / 'src' / 'assets')
+_default_assets = str(Path(__file__).parent.parent / 'frontend' / 'public' / 'data')
 ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
 
 
@@ -100,11 +100,14 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
         NULLIF(regexp_extract(o.associated_taxa, 'host:"([^"]+)"', 1), '') AS floralHost,
         fc.county,
         fe.ecoregion_l3,
-        links.inat_observation_id
+        links.inat_observation_id,
+        CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host,
+        inat.quality_grade AS inat_quality_grade
     FROM ecdysis_data.occurrences o
     JOIN final_county fc ON fc.occurrence_id = o.occurrence_id
     JOIN final_eco fe ON fe.occurrence_id = o.occurrence_id
     LEFT JOIN ecdysis_data.occurrence_links links ON links.occurrence_id = o.occurrence_id
+    LEFT JOIN inaturalist_data.observations inat ON inat.id = links.inat_observation_id
     WHERE o.decimal_latitude IS NOT NULL AND o.decimal_latitude != ''
     ) TO '{out}' (FORMAT PARQUET)
     """)

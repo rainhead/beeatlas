@@ -10,6 +10,8 @@ export interface Specimen {
   occid: string;
   inatObservationId?: number | null;
   floralHost?: string | null;
+  inatHost?: string | null;
+  inatQualityGrade?: string | null;
 }
 
 export interface Sample {
