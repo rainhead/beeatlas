@@ -119,6 +119,7 @@ bee-sidebar {
           .boundaryMode=${this._boundaryMode}
           .visibleEcdysisIds=${this._visibleEcdysisIds}
           .visibleSampleIds=${this._visibleSampleIds}
+          .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
           .countyOptions=${this._countyOptions}
           .ecoregionOptions=${this._ecoregionOptions}
           .viewState=${this._viewState}
