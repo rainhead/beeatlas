@@ -189,6 +189,19 @@ bee-sidebar {
       };
     }
 
+    // If URL restores an active filter, initialize visible ID sets to empty (hide-all)
+    // so no dots flash before the async filter query completes.
+    if (isFilterActive(this._filterState)) {
+      this._visibleEcdysisIds = new Set();
+      this._visibleSampleIds = new Set();
+    }
+
+    // Start filter query early — queryVisibleIds awaits tablesReady internally,
+    // so this runs in parallel with DuckDB init and resolves as soon as tables load.
+    if (isFilterActive(this._filterState)) {
+      this._runFilterQuery();
+    }
+
     // Restore selected occurrences from URL
     const initOccIds = initialParams.selection?.occurrenceIds ?? [];
     if (initOccIds.length > 0) {
