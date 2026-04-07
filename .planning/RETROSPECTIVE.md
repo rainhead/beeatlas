@@ -2,6 +2,50 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v1.9 — Component Architecture & Test Suite
+
+**Shipped:** 2026-04-04
+**Phases:** 6 (Phases 33–38) | **Plans:** 13 | **Timeline:** 4 days (2026-03-31 → 2026-04-04)
+
+### What Was Built
+- `frontend/src/url-state.ts`: pure module extracting URL serialization from `bee-map.ts`; typed `buildParams`/`parseParams` with zero component or DOM imports
+- `frontend/src/bee-atlas.ts`: `<bee-atlas>` coordinator LitElement owning all app state (filter, selection, URL, layer mode, boundary mode); `bee-map` and `bee-sidebar` receive state via properties and emit events up
+- `bee-map.ts` refactored to pure presenter: 9 `@property` inputs, 11 `CustomEvent` outputs; no shared state reads; `updated()` as OL synchronization boundary
+- `bee-sidebar.ts` decomposed into 4 Lit sub-components: `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail`, `bee-sidebar` (thin layout shell)
+- Monotonic generation counter in `_runFilterQuery` discards stale DuckDB async results — fixes chip-removal filter flash race condition
+- Vitest test suite: 63 tests across 4 files — `url-state.test.ts` (20), `filter.test.ts` (13), `bee-sidebar.test.ts` (28 including Lit render tests), `bee-atlas.test.ts` (2 source analysis tests for ARCH-03)
+- `readFileSync` source analysis tests enforce ARCH-03 import graph invariant: `bee-atlas.ts` does not import OpenLayers; siblings have no cross-references
+
+### What Worked
+- Coordinator pattern (bee-atlas owns state → presenters receive props → emit events up) was the right architectural move — each component is now independently testable
+- `readFileSync` source analysis in Vitest for architectural invariants: avoids DuckDB WASM/OL/happy-dom incompatibility while reliably enforcing import graph contracts; tests run fast and are not flaky
+- Phase sequencing (33: test infra → 34: state elimination → 35: URL module → 36: coordinator → 37: decomposition → 38: unit tests) matched the dependency graph exactly — no phase was blocked waiting for another
+- Gap closure plan (37-03) was the right vehicle for the generation counter race fix — kept the main decomposition plans clean and added complexity only when the race was confirmed
+- Nyquist validation retroactively applied after milestone completion — phases 35, 36, 37, 38 all now compliant
+
+### What Was Inefficient
+- Phase 33 and 34 directories were cleaned up before archiving — no VERIFICATION.md available for audit; downstream integration checks had to substitute. Phase directory cleanup should happen after milestone archiving, not before.
+- The chip-removal flicker fix (generation counter) required a gap closure plan because the async race wasn't anticipated in the Phase 37 plan — the pattern (`lastFilterGeneration` counter) is a standard async-task-cancellation technique that could have been preemptively included.
+- MILESTONES.md reported "4 phases, 7 plans, 13 tasks" but v1.9 was actually 6 phases and 13 plans — the milestone complete tool counted only phases with surviving directories, not the full 33-38 range.
+
+### Patterns Established
+- **Coordinator + pure presenter pattern**: one coordinator LitElement owns all app state; sibling presenters have zero cross-imports; enforced via `readFileSync` import-graph test
+- **`updated(changedProperties)` as OL sync boundary**: fire targeted OL operations only when relevant properties changed; replaces ad-hoc watchers and avoids over-triggering
+- **Monotonic generation counter for async-results races**: increment counter before async call; check on return; discard if counter has advanced — standard pattern for any async query that can be superseded
+- **`readFileSync` source analysis tests in Vitest**: check architectural invariants without needing DOM or DuckDB; runs in <1ms; survives refactors that rename symbols
+
+### Key Lessons
+1. **Archive phase directories after milestone completion, not before** — VERIFICATION.md files are the audit evidence. Cleaning up directories before the milestone audit creates documentary gaps that require extra inference work.
+2. **Async task cancellation is a standard pattern, not an edge case** — any component that fires async queries on user input (filter changes, chip removal) will race. Plan for a generation counter or AbortController from the start.
+3. **Source analysis tests are the right tool for import graph contracts** — AST-based or string-search tests on the actual files are more reliable than "trust the developer" documentation for architectural invariants like sibling isolation.
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 4 days
+- Notable: 6-phase milestone with 63 tests delivered in 4 days; coordinator pattern established a clean foundation for future component additions
+
+---
+
 ## Milestone: v1.8 — DuckDB WASM Frontend
 
 **Shipped:** 2026-04-01
@@ -260,6 +304,7 @@
 | v1.6 | 1 | 5 | dlt migration; fastest milestone — established patterns made each phase mechanical |
 | v1.7 | 10 | 5 | First infra pivot mid-milestone; Lambda abandoned for maderas cron; frontend fully decoupled from build-time data |
 | v1.8 | 1 | 3 | DuckDB WASM replaces hyparquet; SQL filter layer; hyparquet removed; all in 1 day on pre-laid foundation |
+| v1.9 | 4 | 6 | Coordinator pattern + pure presenters; sidebar decomposed into 4 sub-components; 63-test Vitest suite; generation counter race fix |
 
 ### Top Lessons (Verified Across Milestones)
 
