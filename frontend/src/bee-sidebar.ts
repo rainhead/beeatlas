@@ -321,16 +321,14 @@ export class BeeSidebar extends LitElement {
   render() {
     return html`
       ${this._renderToggle()}
-      ${this.layerMode === 'specimens' ? html`
-        <bee-filter-controls
-          .filterState=${this.filterState}
-          .taxaOptions=${this.taxaOptions}
-          .countyOptions=${this.countyOptions}
-          .ecoregionOptions=${this.ecoregionOptions}
-          .boundaryMode=${this.boundaryMode}
-          .summary=${this.summary}
-        ></bee-filter-controls>
-      ` : ''}
+      <bee-filter-controls
+        .filterState=${this.filterState}
+        .taxaOptions=${this.taxaOptions}
+        .countyOptions=${this.countyOptions}
+        .ecoregionOptions=${this.ecoregionOptions}
+        .boundaryMode=${this.boundaryMode}
+        .summary=${this.summary}
+      ></bee-filter-controls>
       ${this.samples !== null
         ? html`<bee-specimen-detail .samples=${this.samples}></bee-specimen-detail>`
         : this.layerMode === 'samples' && this.selectedSampleEvent !== null
