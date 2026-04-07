@@ -174,6 +174,6 @@ See `.planning/milestones/v1.9-ROADMAP.md` for full phase details.
 | 33. Test Infrastructure | v1.9 | 1/1 | Complete    | 2026-04-04 |
 | 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
 | 35. URL State Module | v1.9 | 1/1 | Complete    | 2026-04-04 |
-| 36. bee-atlas Root Component | v1.9 | 2/2 | Complete   | 2026-04-04 |
+| 36. bee-atlas Root Component | v1.9 | 4/2 | Complete   | 2026-04-07 |
 | 37. Sidebar Decomposition | v1.9 | 3/3 | Complete    | 2026-04-04 |
 | 38. Unit Tests | v1.9 | 2/2 | Complete    | 2026-04-04 |
