@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 36-bee-atlas-root-component
 source: [36-01-SUMMARY.md, 36-02-SUMMARY.md]
 started: 2026-04-06T00:00:00Z
@@ -78,19 +78,34 @@ blocked: 0
   reason: "User reported: It shows, but after a longer delay than I would expect."
   severity: minor
   test: 5
-  artifacts: []
-  missing: []
+  root_cause: "OpenLayers fires 'singleclick' with a mandatory 250ms delay to disambiguate from double-click; all user-code after that is synchronous with no DuckDB or network involvement"
+  artifacts:
+    - path: "frontend/src/bee-map.ts"
+      issue: "map.on('singleclick', ...) — OL singleclick introduces 250ms hold before firing"
+  missing:
+    - "Switch sampleLayer click handler from 'singleclick' to 'click' and add event.dragging guard"
 - truth: "Taxon filter suggestions clearly distinguish genus-level matches from exact matches"
   status: failed
   reason: "User reported: the genus appears as both e.g. 'Bombus (genus)' and 'Bombus', which is confusing. I think the second is an exact match. We should find better copy."
   severity: minor
   test: 8
-  artifacts: []
-  missing: []
+  root_cause: "Specimens identified only to genus level have scientificName set to the bare genus name (e.g. 'Bombus'); buildTaxaOptions() adds these to the species Set unlabelled, producing a second unlabelled entry alongside the proper genus entry with different filter semantics ('genus = Bombus' vs 'scientificName = Bombus')"
+  artifacts:
+    - path: "frontend/src/bee-map.ts"
+      issue: "buildTaxaOptions() lines 78-94 — species group uses raw scientificName with no rank annotation, so genus-named records appear unlabelled"
+  missing:
+    - "Add a label suffix to the species entry for bare-genus scientificNames, e.g. 'Bombus (genus ID only)', or suppress them and fold into the genus-level filter"
 - truth: "Opening a URL with active filters shows filtered results immediately, without a flash of all specimens"
   status: failed
   reason: "User reported: Yes, but initially all specimens are shown."
   severity: minor
   test: 9
-  artifacts: []
-  missing: []
+  root_cause: "_visibleEcdysisIds starts as null (show-all) and _runFilterQuery() is only called in _onDataLoaded(), which fires after EcdysisSource already paints all features — a full DuckDB round-trip of flash occurs between addFeatures() and the filter result"
+  artifacts:
+    - path: "frontend/src/bee-atlas.ts"
+      issue: "_visibleEcdysisIds initialised to null unconditionally; _runFilterQuery called in _onDataLoaded after map already painted"
+    - path: "frontend/src/style.ts"
+      issue: "clusterStyleFn treats null as 'show all' — cannot distinguish 'no filter' from 'filter pending'"
+  missing:
+    - "Call _runFilterQuery() in firstUpdated() immediately after restoring _filterState from URL, in parallel with DuckDB init (queryVisibleIds already awaits tablesReady)"
+    - "Add _filterQueryPending flag or use empty Set sentinel so clusterStyleFn can ghost/hide dots while filter query is in flight"
