@@ -90,7 +90,7 @@ function buildTaxaOptions(features: Feature[]): TaxonOption[] {
   return [
     ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
     ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
-    ...[...species].sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
+    ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
   ];
 }
 
@@ -364,8 +364,9 @@ export class BeeMap extends LitElement {
       this._emit('view-moved', { lon: center[0]!, lat: center[1]!, zoom });
     });
 
-    // singleclick handler: mode-gated for specimen vs sample layer
-    this.map.on('singleclick', async (event: MapBrowserEvent) => {
+    // click handler: mode-gated for specimen vs sample layer
+    this.map.on('click', async (event: MapBrowserEvent) => {
+      if (event.dragging) return;
       if (this.layerMode === 'specimens') {
         const hits = await this.specimenLayer.getFeatures(event.pixel);
         if (hits.length) {
