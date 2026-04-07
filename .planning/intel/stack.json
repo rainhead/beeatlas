@@ -1,0 +1,46 @@
+{
+  "_meta": {
+    "updated_at": "2026-04-07T04:03:28.421Z",
+    "version": 2
+  },
+  "languages": [
+    "TypeScript",
+    "JavaScript",
+    "Python"
+  ],
+  "frameworks": [
+    "Lit (web components)",
+    "OpenLayers",
+    "AWS CDK",
+    "dlt (data load tool)"
+  ],
+  "tools": [
+    "Vite",
+    "Vitest",
+    "TypeScript compiler",
+    "uv (Python packaging)",
+    "DuckDB",
+    "AWS CDK CLI",
+    "hyparquet",
+    "GitHub Actions"
+  ],
+  "build_system": "npm workspaces (root) + Vite (frontend) + tsc (infra) + uv (data pipeline)",
+  "test_framework": "Vitest (frontend) + pytest (data)",
+  "package_manager": "npm (JavaScript) + uv (Python)",
+  "content_formats": [
+    "Parquet (ecdysis.parquet, samples.parquet — frontend data exports)",
+    "GeoJSON (counties.geojson, ecoregions.geojson — boundary data)",
+    "NDJSON (iNaturalist observations raw download)"
+  ],
+  "deployment": {
+    "hosting": "AWS S3 + CloudFront",
+    "infrastructure_as_code": "AWS CDK (TypeScript)",
+    "ci_cd": "GitHub Actions (deploy.yml)",
+    "data_pipeline": "AWS Lambda (Docker image, nightly + weekly EventBridge schedules)"
+  },
+  "runtime_environments": {
+    "frontend": "Browser (DuckDB WASM via Web Workers)",
+    "data_pipeline": "AWS Lambda / local Docker (Python 3.14+, DuckDB native)",
+    "infra": "Node.js (CDK deploy)"
+  }
+}

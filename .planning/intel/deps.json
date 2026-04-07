@@ -1,0 +1,183 @@
+{
+  "_meta": {
+    "updated_at": "2026-04-07T04:03:28.553Z",
+    "version": 2
+  },
+  "entries": {
+    "@duckdb/duckdb-wasm": {
+      "version": "^1.33.1-dev20.0",
+      "type": "production",
+      "invocation": "require",
+      "used_by": [
+        "frontend/src/duckdb.ts",
+        "frontend/src/features.ts",
+        "frontend/src/filter.ts"
+      ],
+      "notes": "Browser DuckDB via WASM. Uses mvp/eh bundles with manual worker selection. Loads parquet files via HTTP URL registration; GeoJSON via buffer registration."
+    },
+    "lit": {
+      "version": "^3.2.1",
+      "type": "production",
+      "invocation": "require",
+      "used_by": [
+        "frontend/src/bee-atlas.ts",
+        "frontend/src/bee-map.ts",
+        "frontend/src/bee-sidebar.ts",
+        "frontend/src/bee-filter-controls.ts",
+        "frontend/src/bee-specimen-detail.ts",
+        "frontend/src/bee-sample-detail.ts"
+      ]
+    },
+    "ol": {
+      "version": "^10.7.0",
+      "type": "production",
+      "invocation": "require",
+      "used_by": [
+        "frontend/src/bee-map.ts",
+        "frontend/src/features.ts",
+        "frontend/src/region-layer.ts",
+        "frontend/src/style.ts"
+      ]
+    },
+    "ol-mapbox-style": {
+      "version": "^13.2.0",
+      "type": "production",
+      "invocation": "require",
+      "used_by": [
+        "frontend/src/bee-map.ts"
+      ],
+      "notes": "Used for basemap tile styling"
+    },
+    "temporal-polyfill": {
+      "version": "^0.2.5",
+      "type": "production",
+      "invocation": "require",
+      "used_by": [
+        "frontend/src/style.ts"
+      ],
+      "notes": "Temporal.Now.plainDateISO() for recency tier calculation"
+    },
+    "vite": {
+      "version": "^6.2.3",
+      "type": "development",
+      "invocation": "npm run dev",
+      "used_by": [
+        "frontend"
+      ]
+    },
+    "vitest": {
+      "version": "^4.1.2",
+      "type": "development",
+      "invocation": "npm test",
+      "used_by": [
+        "frontend/src/tests/"
+      ]
+    },
+    "typescript": {
+      "version": "^5.8.2 (frontend), ~5.7.0 (infra)",
+      "type": "development",
+      "invocation": "npm run build",
+      "used_by": [
+        "frontend",
+        "infra"
+      ]
+    },
+    "happy-dom": {
+      "version": "^20.8.9",
+      "type": "development",
+      "invocation": "npm test",
+      "used_by": [
+        "frontend/src/tests/"
+      ],
+      "notes": "DOM environment for Vitest browser-like testing"
+    },
+    "hyparquet": {
+      "version": "^1.25.3",
+      "type": "development",
+      "invocation": "npm run validate-schema",
+      "used_by": [
+        "scripts/validate-schema.mjs"
+      ],
+      "notes": "Parquet footer metadata reader for schema validation in CI. Root-level devDependency."
+    },
+    "aws-cdk-lib": {
+      "version": "^2.238.0",
+      "type": "production",
+      "invocation": "npm run deploy",
+      "used_by": [
+        "infra/lib/beeatlas-stack.ts",
+        "infra/lib/global-stack.ts"
+      ]
+    },
+    "constructs": {
+      "version": "^10.0.0",
+      "type": "production",
+      "invocation": "implicit",
+      "used_by": [
+        "infra/lib/"
+      ]
+    },
+    "aws-cdk": {
+      "version": "^2.1106.1",
+      "type": "development",
+      "invocation": "npm run deploy",
+      "used_by": [
+        "infra"
+      ]
+    },
+    "dlt[duckdb]": {
+      "version": ">=1.23.0",
+      "type": "production",
+      "invocation": "uv run python run.py",
+      "used_by": [
+        "data/ecdysis_pipeline.py",
+        "data/inaturalist_pipeline.py",
+        "data/geographies_pipeline.py",
+        "data/projects_pipeline.py"
+      ]
+    },
+    "duckdb": {
+      "version": "latest",
+      "type": "production",
+      "invocation": "uv run python run.py",
+      "used_by": [
+        "data/export.py",
+        "data/anti_entropy_pipeline.py"
+      ]
+    },
+    "geopandas": {
+      "version": "latest",
+      "type": "production",
+      "invocation": "uv run python run.py",
+      "used_by": [
+        "data/geographies_pipeline.py"
+      ]
+    },
+    "boto3": {
+      "version": ">=1.42.78",
+      "type": "production",
+      "invocation": "uv run python run.py",
+      "used_by": [
+        "data/export.py"
+      ],
+      "notes": "S3 upload and CloudFront invalidation in Lambda context"
+    },
+    "beautifulsoup4": {
+      "version": "latest",
+      "type": "production",
+      "invocation": "uv run python run.py",
+      "used_by": [
+        "data/ecdysis_pipeline.py"
+      ],
+      "notes": "HTML scraping for Ecdysis iNaturalist link extraction"
+    },
+    "pytest": {
+      "version": ">=9.0.2",
+      "type": "development",
+      "invocation": "uv run pytest",
+      "used_by": [
+        "data/tests/"
+      ]
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "_meta": {
+    "updated_at": "2026-04-07T04:03:28.509Z",
+    "version": 2
+  },
+  "entries": {
+    "GET https://beeatlas.net/data/ecdysis.parquet": {
+      "method": "GET",
+      "path": "/data/ecdysis.parquet",
+      "params": [],
+      "file": "data/export.py",
+      "description": "Specimen records parquet file served from S3 via CloudFront. Columns: ecdysis_id, occurrenceID, longitude, latitude, year, month, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, inat_observation_id, inat_host, inat_quality_grade"
+    },
+    "GET https://beeatlas.net/data/samples.parquet": {
+      "method": "GET",
+      "path": "/data/samples.parquet",
+      "params": [],
+      "file": "data/export.py",
+      "description": "iNaturalist sample event records parquet file. Columns: observation_id, observer, date, lat, lon, specimen_count, sample_id, county, ecoregion_l3"
+    },
+    "GET https://beeatlas.net/data/counties.geojson": {
+      "method": "GET",
+      "path": "/data/counties.geojson",
+      "params": [],
+      "file": "data/export.py",
+      "description": "Washington state county boundaries GeoJSON. Feature property: NAME (county name string)"
+    },
+    "GET https://beeatlas.net/data/ecoregions.geojson": {
+      "method": "GET",
+      "path": "/data/ecoregions.geojson",
+      "params": [],
+      "file": "data/export.py",
+      "description": "WA EPA Level 3 ecoregion boundaries GeoJSON. Feature property: NA_L3NAME (ecoregion name string)"
+    },
+    "Lambda invoke (inat)": {
+      "method": "POST",
+      "path": "Lambda Function URL",
+      "params": [
+        "pipeline: 'inat'"
+      ],
+      "file": "data/stub_handler.py",
+      "description": "Manual or scheduled Lambda invocation to run iNaturalist pipeline only (nightly schedule: daily 08:00 UTC)"
+    },
+    "Lambda invoke (full)": {
+      "method": "POST",
+      "path": "Lambda Function URL",
+      "params": [
+        "pipeline: 'full'"
+      ],
+      "file": "data/stub_handler.py",
+      "description": "Manual or scheduled Lambda invocation to run all 5 pipelines (weekly schedule: Sunday 10:00 UTC)"
+    }
+  }
+}
