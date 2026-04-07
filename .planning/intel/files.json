@@ -1,0 +1,317 @@
+{
+  "_meta": {
+    "updated_at": "2026-04-07T04:03:28.464Z",
+    "version": 2
+  },
+  "entries": {
+    "frontend/src/bee-atlas.ts": {
+      "exports": [
+        "BeeAtlas"
+      ],
+      "imports": [
+        "lit",
+        "lit/decorators.js",
+        "./filter.ts",
+        "./url-state.ts",
+        "./duckdb.ts",
+        "./bee-sidebar.ts",
+        "./bee-map.ts"
+      ],
+      "type": "entry-point",
+      "description": "Root app component. Owns all reactive state: filterState, visibleEcdysisIds/SampleIds, layerMode, boundaryMode, selection. Coordinates bee-map and bee-sidebar via properties and custom events."
+    },
+    "frontend/src/bee-map.ts": {
+      "exports": [
+        "BeeMap"
+      ],
+      "imports": [
+        "lit",
+        "ol",
+        "ol/Map.js",
+        "ol/layer/Vector.js",
+        "ol/source/Cluster.js",
+        "./features.ts",
+        "./style.ts",
+        "./filter.ts",
+        "./region-layer.ts",
+        "./bee-sidebar.ts"
+      ],
+      "type": "module",
+      "description": "OpenLayers map component. Renders specimen clusters (EcdysisSource) and sample dots (SampleSource). Fires view-moved, map-click-specimen, map-click-sample, map-click-region events upward to bee-atlas."
+    },
+    "frontend/src/bee-sidebar.ts": {
+      "exports": [
+        "BeeSidebar",
+        "Specimen",
+        "Sample",
+        "DataSummary",
+        "TaxonOption",
+        "FilteredSummary",
+        "SampleEvent",
+        "FilterChangedEvent"
+      ],
+      "imports": [
+        "lit",
+        "lit/decorators.js",
+        "./bee-filter-controls.ts",
+        "./bee-specimen-detail.ts",
+        "./bee-sample-detail.ts",
+        "./filter.ts"
+      ],
+      "type": "module",
+      "description": "Sidebar component. Displays data summary, filter controls, specimen/sample detail panels. Exports key data interfaces shared across components."
+    },
+    "frontend/src/bee-filter-controls.ts": {
+      "exports": [
+        "BeeFilterControls"
+      ],
+      "imports": [
+        "lit",
+        "lit/decorators.js",
+        "./filter.ts"
+      ],
+      "type": "module",
+      "description": "Filter UI component: taxon selector, year range, month pickers, county/ecoregion multi-select. Fires filter-changed event."
+    },
+    "frontend/src/bee-specimen-detail.ts": {
+      "exports": [
+        "BeeSpecimenDetail"
+      ],
+      "imports": [
+        "lit",
+        "lit/decorators.js",
+        "./bee-sidebar.ts"
+      ],
+      "type": "module",
+      "description": "Detail panel for clicked specimen clusters — lists samples and species."
+    },
+    "frontend/src/bee-sample-detail.ts": {
+      "exports": [
+        "BeeSampleDetail"
+      ],
+      "imports": [
+        "lit",
+        "lit/decorators.js",
+        "./bee-sidebar.ts"
+      ],
+      "type": "module",
+      "description": "Detail panel for clicked iNaturalist sample events."
+    },
+    "frontend/src/duckdb.ts": {
+      "exports": [
+        "getDuckDB",
+        "loadAllTables",
+        "tablesReady"
+      ],
+      "imports": [
+        "@duckdb/duckdb-wasm"
+      ],
+      "type": "module",
+      "description": "DuckDB WASM singleton. Initializes browser DuckDB, loads ecdysis.parquet and samples.parquet via HTTP, registers counties.geojson and ecoregions.geojson as buffers. Exports tablesReady promise for filter queries to await."
+    },
+    "frontend/src/filter.ts": {
+      "exports": [
+        "FilterState",
+        "isFilterActive",
+        "buildFilterSQL",
+        "queryVisibleIds"
+      ],
+      "imports": [
+        "./duckdb.ts"
+      ],
+      "type": "module",
+      "description": "Filter logic. Defines FilterState interface. buildFilterSQL generates WHERE clauses for both ecdysis and samples tables. queryVisibleIds executes DuckDB queries and returns ID sets used to ghost unmatched map features."
+    },
+    "frontend/src/features.ts": {
+      "exports": [
+        "EcdysisSource",
+        "SampleSource"
+      ],
+      "imports": [
+        "./duckdb.ts",
+        "ol",
+        "ol/geom/Point.js",
+        "ol/proj.js",
+        "ol/source.js",
+        "ol/loadingstrategy.js"
+      ],
+      "type": "module",
+      "description": "OpenLayers VectorSource subclasses. EcdysisSource loads all specimen records from DuckDB ecdysis table as OL Features. SampleSource loads iNat sample events from DuckDB samples table."
+    },
+    "frontend/src/region-layer.ts": {
+      "exports": [
+        "regionLayer",
+        "countySource",
+        "ecoregionSource",
+        "makeRegionStyleFn",
+        "boundaryStyle",
+        "selectedBoundaryStyle"
+      ],
+      "imports": [
+        "ol/format/GeoJSON.js",
+        "ol/source.js",
+        "ol/layer/Vector.js",
+        "ol/style/",
+        "./filter.ts"
+      ],
+      "type": "module",
+      "description": "County and ecoregion boundary OL layers. Eagerly loads both GeoJSON sources on module init. makeRegionStyleFn returns a style function that highlights selected regions based on filterState."
+    },
+    "frontend/src/style.ts": {
+      "exports": [
+        "makeClusterStyleFn",
+        "makeSampleDotStyleFn",
+        "RECENCY_COLORS",
+        "SAMPLE_RECENCY_COLORS"
+      ],
+      "imports": [
+        "ol",
+        "ol/style/",
+        "temporal-polyfill"
+      ],
+      "type": "module",
+      "description": "OL style factory functions. makeClusterStyleFn returns a cluster style function (reads visibleEcdysisIds via closure). makeSampleDotStyleFn returns a sample dot style function. Recency coloring based on Temporal.Now."
+    },
+    "frontend/src/url-state.ts": {
+      "exports": [
+        "ViewState",
+        "SelectionState",
+        "UiState",
+        "AppState",
+        "buildParams",
+        "parseParams"
+      ],
+      "imports": [
+        "./filter.ts"
+      ],
+      "type": "module",
+      "description": "URL serialization/deserialization. buildParams encodes view, filter, selection, and UI state into URLSearchParams. parseParams decodes them back. Used for browser history push/pop."
+    },
+    "data/run.py": {
+      "exports": [
+        "main"
+      ],
+      "imports": [
+        "geographies_pipeline",
+        "ecdysis_pipeline",
+        "inaturalist_pipeline",
+        "projects_pipeline",
+        "anti_entropy_pipeline",
+        "export"
+      ],
+      "type": "entry-point",
+      "description": "Pipeline orchestrator. Runs all 6 steps in sequence: geographies -> ecdysis -> ecdysis-links -> inaturalist -> projects -> anti-entropy -> export."
+    },
+    "data/export.py": {
+      "exports": [
+        "main",
+        "export_ecdysis_parquet",
+        "export_samples_parquet",
+        "export_counties_geojson",
+        "export_ecoregions_geojson"
+      ],
+      "imports": [
+        "duckdb",
+        "json",
+        "pathlib",
+        "os"
+      ],
+      "type": "module",
+      "description": "Exports 4 frontend data files from beeatlas.duckdb to frontend/public/data/: ecdysis.parquet (specimen data), samples.parquet (iNat sample events), counties.geojson (WA counties), ecoregions.geojson (WA ecoregions). Uses DuckDB spatial extension for geometry joins."
+    },
+    "data/ecdysis_pipeline.py": {
+      "exports": [
+        "load_ecdysis",
+        "load_links"
+      ],
+      "imports": [
+        "dlt",
+        "duckdb",
+        "requests",
+        "beautifulsoup4"
+      ],
+      "type": "module",
+      "description": "dlt pipeline for Ecdysis Museum bee specimen data. load_ecdysis ingests occurrence records; load_links scrapes iNaturalist observation links."
+    },
+    "data/inaturalist_pipeline.py": {
+      "exports": [
+        "load_observations"
+      ],
+      "imports": [
+        "dlt"
+      ],
+      "type": "module",
+      "description": "dlt pipeline for iNaturalist bee-netting project observations (Washington Bee Atlas iNat project data)."
+    },
+    "data/geographies_pipeline.py": {
+      "exports": [
+        "load_geographies"
+      ],
+      "imports": [
+        "dlt",
+        "geopandas"
+      ],
+      "type": "module",
+      "description": "Loads geographic boundary data: US counties (WA), EPA Level 3 ecoregions. Stores in geographies schema in DuckDB."
+    },
+    "data/projects_pipeline.py": {
+      "exports": [
+        "load_projects"
+      ],
+      "imports": [
+        "dlt"
+      ],
+      "type": "module",
+      "description": "Loads iNaturalist project membership data."
+    },
+    "data/anti_entropy_pipeline.py": {
+      "exports": [
+        "run_anti_entropy"
+      ],
+      "imports": [
+        "duckdb"
+      ],
+      "type": "module",
+      "description": "Data quality reconciliation step. Ensures cross-table consistency between ecdysis and iNaturalist data."
+    },
+    "data/stub_handler.py": {
+      "exports": [
+        "handler"
+      ],
+      "imports": [],
+      "type": "entry-point",
+      "description": "AWS Lambda handler stub. Routes invocations to the appropriate pipeline based on the event payload (pipeline: 'inat' | 'full')."
+    },
+    "infra/lib/beeatlas-stack.ts": {
+      "exports": [
+        "BeeAtlasStack"
+      ],
+      "imports": [
+        "aws-cdk-lib",
+        "constructs",
+        "./global-stack"
+      ],
+      "type": "module",
+      "description": "Main CDK stack. Provisions S3 bucket, CloudFront distribution (main + redirect), Route53 DNS, GitHub OIDC deployer role, and Docker Lambda for the data pipeline with EventBridge nightly/weekly schedules."
+    },
+    "infra/lib/global-stack.ts": {
+      "exports": [
+        "GlobalStack"
+      ],
+      "imports": [
+        "aws-cdk-lib",
+        "constructs"
+      ],
+      "type": "module",
+      "description": "Global CDK stack (us-east-1). Provisions ACM certificates for beeatlas.net and beeatlas.com (CloudFront requires certs in us-east-1), and Route53 hosted zones."
+    },
+    "scripts/validate-schema.mjs": {
+      "exports": [],
+      "imports": [
+        "hyparquet"
+      ],
+      "type": "script",
+      "description": "Pre-build parquet schema validation. Checks that ecdysis.parquet and samples.parquet have all columns the frontend expects. Reads local files if present, otherwise fetches from CloudFront using Range requests (footer only)."
+    }
+  }
+}

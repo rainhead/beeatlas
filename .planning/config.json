@@ -1,4 +1,7 @@
 {
+  "intel": {
+    "enabled": true
+  },
   "mode": "yolo",
   "parallelization": true,
   "commit_docs": true,

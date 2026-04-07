@@ -1,84 +1,42 @@
 # Testing Patterns
 
-**Analysis Date:** 2026-02-18
+*Updated: 2026-04-07 (from intel refresh)*
 
-## Test Framework
+## Test Frameworks
 
-**Runner:** None detected
-
-No test runner is configured. Neither the root `package.json` nor `frontend/package.json` contains a `test` script. No `jest.config.*`, `vitest.config.*`, or `pytest.ini` / `pyproject.toml` `[tool.pytest]` section was found. The Python `pyproject.toml` at `data/pyproject.toml` has no test dependencies listed.
-
-**Assertion Library:** None
-
-**Run Commands:**
+**Frontend:** Vitest, configured inline in `frontend/vite.config.ts`
 ```bash
-# No test commands configured
+cd frontend && npm test
 ```
 
-## Test File Organization
+**Data pipeline:** pytest
+```bash
+cd data && uv run pytest
+```
 
-**Location:** No test files exist in this codebase.
+## Frontend Tests (Vitest)
 
-A search for `*.test.*` and `*.spec.*` files returned no results (excluding `node_modules` and `.venv`).
+61 tests across 4 files in `frontend/src/tests/`:
 
-## Test Structure
+- **url-state.test.ts** — `buildParams`/`parseParams` round-trips for all fields individually, combined, and edge cases (20 tests)
+- **filter.test.ts** — `buildFilterSQL` for all filter fields, combined clauses, empty filter, SQL quote escaping (13 tests)
+- **bee-specimen-detail.test.ts** — Lit component render test; sample fixture mounts into shadow DOM (happy-dom environment)
+- **arch.test.ts** — Source analysis tests using `readFileSync`; verifies `bee-atlas` does not import OpenLayers (architectural invariant)
 
-No test structure to document. The codebase has no automated tests.
+**Environment:** happy-dom (avoids DuckDB WASM / OL canvas incompatibility)
 
-## Mocking
+**Import style:** Explicit `import { test, expect } from 'vitest'` in all test files (avoids type conflicts with `"types": ["vite/client"]`)
 
-**Framework:** None
+## Data Pipeline Tests (pytest)
 
-## Fixtures and Factories
+13 tests in `data/tests/`:
 
-**Test Data:** None
+- Export schema validation — verifies parquet column schemas from `export.py`
+- Transform unit tests — pure function coverage for pipeline transforms
+- Fixture pattern: programmatic DuckDB fixture (not mocked — hits real DuckDB)
 
-## Coverage
+## What Is Not Tested
 
-**Requirements:** None enforced
-
-No coverage tooling is configured.
-
-## Test Types
-
-**Unit Tests:** Not present
-
-**Integration Tests:** Not present
-
-**E2E Tests:** Not present
-
-## Manual Verification Patterns
-
-While no automated tests exist, the codebase uses the following manual verification approaches:
-
-**Python data scripts:**
-- Progress output via `print()` statements to verify row counts and file sizes
-- `response.raise_for_status()` used consistently for HTTP error checking (`data/scripts/download.py`, `data/ecdysis/download.py`, `data/scripts/fetch_inat_links.py`)
-- DuckDB ad-hoc verification documented in `data/CLAUDE.md`:
-  ```bash
-  duckdb test.db < script.sql
-  duckdb test.db -c "SELECT COUNT(*) FROM table_name"
-  rm test.db  # Clean up test database
-  ```
-
-**Debug tooling:**
-- `import pdb; pdb.set_trace()` left inline in `data/ecdysis/occurrences.py` line 95 (indicates manual step-through debugging rather than test-driven development)
-
-## Recommendations for Adding Tests
-
-If tests are added, the existing tech stack supports:
-
-**Frontend (TypeScript):**
-- Add `vitest` as dev dependency (compatible with Vite build setup)
-- Config: `frontend/vitest.config.ts`
-- Test files: co-located as `frontend/src/*.test.ts`
-- The `ParquetSource` class in `frontend/src/parquet.ts` and `clusterStyle` function in `frontend/src/style.ts` are pure enough to unit test
-
-**Data pipeline (Python):**
-- Add `pytest` as dev dependency in `data/pyproject.toml`
-- Pure transformation functions (`apply_transformations`, `read_occurrences`, `samples_2025`, `extract_observation_id`) are candidates for unit tests
-- Test data fixtures: small TSV/CSV snippets representing each dtype specification
-
----
-
-*Testing analysis: 2026-02-18*
+- dlt pipeline write-path (resource tests deferred — only pure functions and export integration are covered)
+- OL map rendering (canvas setup incompatible with test environments)
+- Lambda handler (stub only)
