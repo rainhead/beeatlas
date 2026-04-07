@@ -170,6 +170,20 @@ describe('DECOMP-04: bee-sidebar is thin layout shell', () => {
   });
 });
 
+describe('DECOMP-04-RACE: bee-atlas _runFilterQuery race guard', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts declares _filterQueryGeneration field (at least 3 occurrences)', () => {
+    const matches = src.match(/_filterQueryGeneration/g);
+    expect(matches).not.toBeNull();
+    expect(matches!.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('bee-atlas.ts contains the generation guard that discards stale results', () => {
+    expect(src).toMatch(/if \(generation !== this\._filterQueryGeneration\) return/);
+  });
+});
+
 describe('bee-specimen-detail render', () => {
   test('renders sample data into shadow DOM', async () => {
     const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
