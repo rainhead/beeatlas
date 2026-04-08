@@ -357,6 +357,10 @@ bee-sidebar {
     this._selectedSampleEvent = e.detail;
     this._selectedSamples = null;
     this._selectedOccIds = null;
+    // Known limitation: sample event selection is not URL-persisted.
+    // The 'o=' param only serializes ecdysis: specimen IDs; inat: sample events
+    // are not included, so navigating back will restore map/filter state but
+    // the sample event panel will be blank.
     this._pushUrlState();
   }
 
