@@ -170,8 +170,8 @@ Plans:
   5. Clicking a column header sorts the table by that column; clicking again reverses sort direction
 **Plans**: 2 plans
 Plans:
-- [ ] 40-01-PLAN.md — Data layer: extend UiState with sort params, add queryTablePage function and column constants
-- [ ] 40-02-PLAN.md — Presenter + wiring: create bee-table component, integrate into bee-atlas with state management
+- [x] 40-01-PLAN.md — Data layer: extend UiState with sort params, add queryTablePage function and column constants
+- [x] 40-02-PLAN.md — Presenter + wiring: create bee-table component, integrate into bee-atlas with state management
 **UI hint**: yes
 
 ### Phase 41: CSV Export
@@ -227,5 +227,5 @@ Plans:
 | 37. Sidebar Decomposition | v1.9 | 3/3 | Complete | 2026-04-04 |
 | 38. Unit Tests | v1.9 | 2/2 | Complete | 2026-04-04 |
 | 39. View Mode Toggle | v2.0 | 3/3 | Complete    | 2026-04-08 |
-| 40. bee-table Component | v2.0 | 0/2 | Not started | - |
+| 40. bee-table Component | v2.0 | 2/2 | Complete   | 2026-04-08 |
 | 41. CSV Export | v2.0 | 0/TBD | Not started | - |
