@@ -153,9 +153,9 @@ See `.planning/milestones/v1.9-ROADMAP.md` for full phase details.
   4. Copying a table-view URL and pasting it in a new tab restores the table view
 **Plans**: 3 plans
 Plans:
-- [ ] 39-01-PLAN.md — Extend url-state.ts with viewMode field and round-trip serialization
-- [ ] 39-02-PLAN.md — Add view mode toggle row to bee-sidebar (view-changed event)
-- [ ] 39-03-PLAN.md — Wire _viewMode state into bee-atlas (conditional render, URL push, popstate restore)
+- [x] 39-01-PLAN.md — Extend url-state.ts with viewMode field and round-trip serialization
+- [x] 39-02-PLAN.md — Add view mode toggle row to bee-sidebar (view-changed event)
+- [x] 39-03-PLAN.md — Wire _viewMode state into bee-atlas (conditional render, URL push, popstate restore)
 **UI hint**: yes
 
 ### Phase 40: bee-table Component
@@ -223,6 +223,6 @@ Plans:
 | 36. bee-atlas Root Component | v1.9 | 4/2 | Complete | 2026-04-07 |
 | 37. Sidebar Decomposition | v1.9 | 3/3 | Complete | 2026-04-04 |
 | 38. Unit Tests | v1.9 | 2/2 | Complete | 2026-04-04 |
-| 39. View Mode Toggle | v2.0 | 0/3 | Not started | - |
+| 39. View Mode Toggle | v2.0 | 3/3 | Complete    | 2026-04-08 |
 | 40. bee-table Component | v2.0 | 0/TBD | Not started | - |
 | 41. CSV Export | v2.0 | 0/TBD | Not started | - |
