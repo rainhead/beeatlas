@@ -97,6 +97,16 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILT-06: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — v1.8
 - ✓ FILT-07: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — v1.8
 
+## Current Milestone: v2.0 Tabular Data View
+
+**Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
+
+**Target features:**
+- View mode toggle (map ↔ table) in `bee-atlas`; in table mode the map is hidden and `<bee-table>` takes its flex slot
+- `<bee-table>` pure presenter receiving `filterState` + `visibleIds` as properties; sortable columns, paginated rows (DuckDB queries), row count display
+- CSV export button — full result set query, triggers browser file download
+- `viewMode` encoded in URL params for shareable/bookmarkable table links
+
 ## Previous Milestones
 
 - v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
@@ -227,4 +237,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after v1.9 milestone complete (Component Architecture & Test Suite — coordinator pattern, sidebar decomposition, 61 Vitest tests)*
+*Last updated: 2026-04-07 — v2.0 milestone started (Tabular Data View)*
