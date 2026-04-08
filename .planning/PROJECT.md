@@ -102,10 +102,10 @@ Collectors can see where bees have been collected and where target host plants g
 **Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
 
 **Target features:**
-- View mode toggle (map ↔ table) in `bee-atlas`; in table mode the map is hidden and `<bee-table>` takes its flex slot
+- ✓ View mode toggle (map ↔ table) in `bee-atlas`; in table mode the map is hidden and `<bee-table>` takes its flex slot — Validated in Phase 39: View Mode Toggle
 - `<bee-table>` pure presenter receiving `filterState` + `visibleIds` as properties; sortable columns, paginated rows (DuckDB queries), row count display
 - CSV export button — full result set query, triggers browser file download
-- `viewMode` encoded in URL params for shareable/bookmarkable table links
+- ✓ `viewMode` encoded in URL params for shareable/bookmarkable table links — Validated in Phase 39: View Mode Toggle
 
 ## Previous Milestones
 
