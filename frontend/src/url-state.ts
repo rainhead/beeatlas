@@ -14,6 +14,8 @@ export interface UiState {
   layerMode: 'specimens' | 'samples';
   boundaryMode: 'off' | 'counties' | 'ecoregions';
   viewMode: 'map' | 'table';
+  sortColumn: string;       // per D-06; default 'year'
+  sortDir: 'asc' | 'desc'; // per D-06; default 'desc'
 }
 
 export interface AppState {
@@ -47,6 +49,8 @@ export function buildParams(
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.viewMode !== 'map') params.set('view', ui.viewMode);
+  if (ui.sortColumn !== 'year') params.set('sort', ui.sortColumn);
+  if (ui.sortDir !== 'desc') params.set('dir', ui.sortDir);
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
   }
@@ -129,9 +133,13 @@ export function parseParams(search: string): Partial<AppState> {
     (bmRaw === 'counties' || bmRaw === 'ecoregions') ? bmRaw : 'off';
   const viewRaw = p.get('view') ?? '';
   const viewMode: 'map' | 'table' = viewRaw === 'table' ? 'table' : 'map';
+  const sortRaw = p.get('sort') ?? '';
+  const sortColumn = sortRaw || 'year';
+  const dirRaw = p.get('dir') ?? '';
+  const sortDir: 'asc' | 'desc' = dirRaw === 'asc' ? 'asc' : 'desc';
   // Include UI when non-default values present
-  if (layerMode !== 'specimens' || boundaryMode !== 'off' || viewMode !== 'map') {
-    result.ui = { layerMode, boundaryMode, viewMode };
+  if (layerMode !== 'specimens' || boundaryMode !== 'off' || viewMode !== 'map' || sortColumn !== 'year' || sortDir !== 'desc') {
+    result.ui = { layerMode, boundaryMode, viewMode, sortColumn, sortDir };
   }
 
   return result;
