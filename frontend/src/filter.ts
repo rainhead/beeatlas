@@ -13,6 +13,7 @@ export interface FilterState {
 export interface SpecimenRow {
   scientificName: string;
   recordedBy: string;
+  date: string;
   year: number;
   month: number;
   county: string;
@@ -32,6 +33,7 @@ export interface SampleRow {
 export const SPECIMEN_COLUMNS: Record<string, string> = {
   species: 'scientificName',
   collector: 'recordedBy',
+  date: 'date',
   year: 'year',
   month: 'month',
   county: 'county',
@@ -59,7 +61,7 @@ export async function queryTablePage(
   const columns = layerMode === 'specimens' ? SPECIMEN_COLUMNS : SAMPLE_COLUMNS;
   // Validate sort column against allowlist (SQL injection protection per T-40-01)
   const sqlSortCol = columns[sortCol];
-  const safeSortCol = sqlSortCol ?? (layerMode === 'specimens' ? 'year' : 'date');
+  const safeSortCol = sqlSortCol ?? (layerMode === 'specimens' ? 'date' : 'date');
   // Validate sort direction — only accept literal 'asc' (per T-40-02)
   const safeDir = sortDir === 'asc' ? 'ASC' : 'DESC';
   const offset = (page - 1) * PAGE_SIZE;

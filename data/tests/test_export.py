@@ -13,7 +13,7 @@ import export as export_mod
 
 EXPECTED_ECDYSIS_COLS = [
     'ecdysis_id', 'occurrenceID', 'longitude', 'latitude',
-    'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
+    'date', 'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
     'genus', 'family', 'floralHost',
     'county', 'ecoregion_l3',
     'inat_observation_id',
