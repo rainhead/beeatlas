@@ -16,7 +16,7 @@ function emptyFilter(): FilterState {
 
 const defaultView = { lon: -120.5, lat: 47.3, zoom: 8 };
 const defaultSelection = { occurrenceIds: [] as string[] };
-const defaultUi = { layerMode: 'specimens' as const, boundaryMode: 'off' as const };
+const defaultUi = { layerMode: 'specimens' as const, boundaryMode: 'off' as const, viewMode: 'map' as const };
 
 describe('buildParams -> parseParams round-trip', () => {
   test('view: lon/lat/zoom round-trips within toFixed precision', () => {
@@ -72,7 +72,7 @@ describe('buildParams -> parseParams round-trip', () => {
   });
 
   test('layerMode=samples: serialized as lm=samples', () => {
-    const ui = { layerMode: 'samples' as const, boundaryMode: 'off' as const };
+    const ui = { layerMode: 'samples' as const, boundaryMode: 'off' as const, viewMode: 'map' as const };
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     expect(params.get('lm')).toBe('samples');
     const result = parseParams(params.toString());
@@ -85,7 +85,7 @@ describe('buildParams -> parseParams round-trip', () => {
   });
 
   test('boundaryMode=counties: serialized as bm=counties', () => {
-    const ui = { layerMode: 'specimens' as const, boundaryMode: 'counties' as const };
+    const ui = { layerMode: 'specimens' as const, boundaryMode: 'counties' as const, viewMode: 'map' as const };
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     expect(params.get('bm')).toBe('counties');
     const result = parseParams(params.toString());
@@ -95,6 +95,19 @@ describe('buildParams -> parseParams round-trip', () => {
   test('boundaryMode=off (default): bm param is absent', () => {
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
     expect(params.has('bm')).toBe(false);
+  });
+
+  test('viewMode=table: serialized as view=table', () => {
+    const ui = { layerMode: 'specimens' as const, boundaryMode: 'off' as const, viewMode: 'table' as const };
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('view')).toBe('table');
+    const result = parseParams(params.toString());
+    expect(result.ui?.viewMode).toBe('table');
+  });
+
+  test('viewMode=map (default): view param is absent', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('view')).toBe(false);
   });
 
   test('selectedCounties: round-trips as counties param', () => {
@@ -125,7 +138,7 @@ describe('combined round-trip', () => {
       selectedEcoregions: new Set(['Cascades']),
     };
     const selection = { occurrenceIds: ['ecdysis:999'] };
-    const ui = { layerMode: 'samples' as const, boundaryMode: 'counties' as const };
+    const ui = { layerMode: 'samples' as const, boundaryMode: 'counties' as const, viewMode: 'table' as const };
 
     const params = buildParams(view, filter, selection, ui);
     const result = parseParams(params.toString());
@@ -146,6 +159,7 @@ describe('combined round-trip', () => {
 
     expect(result.ui!.layerMode).toBe('samples');
     expect(result.ui!.boundaryMode).toBe('counties');
+    expect(result.ui!.viewMode).toBe('table');
   });
 });
 
@@ -186,5 +200,17 @@ describe('validation and rejection', () => {
     expect(result.filter?.taxonName).toBeNull();
     expect(result.filter?.taxonRank).toBeNull();
     expect(result.filter?.yearFrom).toBe(2020);
+  });
+
+  test('invalid view param (view=grid): viewMode defaults to map', () => {
+    const result = parseParams('view=grid');
+    // result.ui may be undefined (all defaults) — viewMode is map in both cases
+    expect(result.ui?.viewMode ?? 'map').toBe('map');
+  });
+
+  test('view=table with no lm/bm: result.ui is defined with viewMode=table', () => {
+    const result = parseParams('view=table');
+    expect(result.ui).toBeDefined();
+    expect(result.ui!.viewMode).toBe('table');
   });
 });
