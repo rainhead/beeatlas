@@ -1,11 +1,12 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, isFilterActive, queryVisibleIds } from './filter.ts';
+import { type FilterState, isFilterActive, queryVisibleIds, queryTablePage, type SpecimenRow, type SampleRow } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 import './bee-map.ts';
 import './bee-sidebar.ts';
+import './bee-table.ts';
 
 const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 const DEFAULT_LON = -120.5;
@@ -30,6 +31,12 @@ export class BeeAtlas extends LitElement {
   @state() private _layerMode: 'specimens' | 'samples' = 'specimens';
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @state() private _viewMode: 'map' | 'table' = 'map';
+  @state() private _sortColumn = 'year';
+  @state() private _sortDir: 'asc' | 'desc' = 'desc';
+  @state() private _tablePage = 1;
+  @state() private _tableRows: SpecimenRow[] | SampleRow[] = [];
+  @state() private _tableRowCount = 0;
+  @state() private _tableLoading = false;
   @state() private _selectedSamples: Sample[] | null = null;
   @state() private _selectedSampleEvent: SampleEvent | null = null;
   @state() private _selectedOccIds: string[] | null = null;
@@ -56,6 +63,7 @@ export class BeeAtlas extends LitElement {
   // flash of the wrong filter state. The generation guard ensures only the
   // most-recently-started query can commit its result.
   private _filterQueryGeneration = 0;
+  private _tableQueryGeneration = 0;
   private _currentView: { lon: number; lat: number; zoom: number } = {
     lon: DEFAULT_LON,
     lat: DEFAULT_LAT,
@@ -74,9 +82,9 @@ export class BeeAtlas extends LitElement {
 bee-map {
   flex-grow: 1;
 }
-.table-slot {
+bee-table {
   flex-grow: 1;
-  background: var(--surface);
+  position: relative;
 }
 bee-sidebar {
   width: 25rem;
@@ -143,7 +151,17 @@ bee-sidebar {
               @data-error=${this._onDataError}
               @filtered-summary-computed=${this._onFilteredSummaryComputed}
             ></bee-map>`
-          : html`<div class="table-slot"></div>`
+          : html`<bee-table
+              .rows=${this._tableRows}
+              .rowCount=${this._tableRowCount}
+              .layerMode=${this._layerMode}
+              .page=${this._tablePage}
+              .sortColumn=${this._sortColumn}
+              .sortDir=${this._sortDir}
+              .loading=${this._tableLoading}
+              @sort-changed=${this._onSortChanged}
+              @page-changed=${this._onPageChanged}
+            ></bee-table>`
         }
         <bee-sidebar
           .samples=${this._selectedSamples}
@@ -186,6 +204,8 @@ bee-sidebar {
     this._layerMode = initLayerMode;
     this._boundaryMode = initBoundaryMode;
     this._viewMode = initViewMode;
+    this._sortColumn = initialParams.ui?.sortColumn ?? 'year';
+    this._sortDir = initialParams.ui?.sortDir ?? 'desc';
 
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
@@ -225,7 +245,7 @@ bee-sidebar {
       { lon: initLon, lat: initLat, zoom: initZoom },
       this._filterState,
       { occurrenceIds: initOccIds },
-      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode, sortColumn: 'year', sortDir: 'desc' }
+      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode, sortColumn: this._sortColumn, sortDir: this._sortDir }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
@@ -265,6 +285,30 @@ bee-sidebar {
     this._visibleSampleIds = samples;
   }
 
+  private async _runTableQuery(): Promise<void> {
+    if (this._viewMode !== 'table') return;
+    this._tableLoading = true;
+    const generation = ++this._tableQueryGeneration;
+    try {
+      const { rows, total } = await queryTablePage(
+        this._filterState, this._layerMode,
+        this._sortColumn, this._sortDir, this._tablePage
+      );
+      if (generation !== this._tableQueryGeneration) return;
+      this._tableRows = rows;
+      this._tableRowCount = total;
+    } catch (err) {
+      console.error('Table query failed:', err);
+      if (generation !== this._tableQueryGeneration) return;
+      this._tableRows = [];
+      this._tableRowCount = 0;
+    } finally {
+      if (generation === this._tableQueryGeneration) {
+        this._tableLoading = false;
+      }
+    }
+  }
+
   // --- URL state ---
 
   private _pushUrlState() {
@@ -272,7 +316,7 @@ bee-sidebar {
       this._currentView,
       this._filterState,
       { occurrenceIds: this._selectedOccIds ?? [] },
-      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode, sortColumn: 'year', sortDir: 'desc' }
+      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode, sortColumn: this._sortColumn, sortDir: this._sortDir }
     );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
@@ -312,6 +356,12 @@ bee-sidebar {
     this._layerMode = parsed.ui?.layerMode ?? 'specimens';
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
     this._viewMode = parsed.ui?.viewMode ?? 'map';
+    this._sortColumn = parsed.ui?.sortColumn ?? 'year';
+    this._sortDir = parsed.ui?.sortDir ?? 'desc';
+    this._tablePage = 1;
+    if (this._viewMode === 'table') {
+      this._runTableQuery();
+    }
 
     // Restore selection
     const parsedOccIds = parsed.selection?.occurrenceIds ?? [];
@@ -454,9 +504,11 @@ bee-sidebar {
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
 
+    this._tablePage = 1;  // per D-09
     this._runFilterQuery().then(() => {
       this._pushUrlState();
     });
+    this._runTableQuery();
   }
 
   private _onLayerChanged(e: CustomEvent<'specimens' | 'samples'>) {
@@ -464,12 +516,33 @@ bee-sidebar {
     this._selectedSamples = null;
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
+    this._tablePage = 1;
+    this._sortColumn = 'year';
+    this._sortDir = 'desc';
+    this._runTableQuery();
     this._pushUrlState();
   }
 
   private _onViewChanged(e: CustomEvent<'map' | 'table'>) {
     this._viewMode = e.detail;
+    if (this._viewMode === 'table') {
+      this._tableLoading = true;
+      this._runTableQuery();
+    }
     this._pushUrlState();
+  }
+
+  private _onSortChanged(e: CustomEvent<{ column: string; dir: 'asc' | 'desc' }>) {
+    this._sortColumn = e.detail.column;
+    this._sortDir = e.detail.dir;
+    this._tablePage = 1;
+    this._runTableQuery();
+    this._pushUrlState();
+  }
+
+  private _onPageChanged(e: CustomEvent<{ page: number }>) {
+    this._tablePage = e.detail.page;
+    this._runTableQuery();
   }
 
   private _onSampleEventClick(e: CustomEvent<{ coordinate: number[] }>) {
@@ -491,6 +564,11 @@ bee-sidebar {
     // If filter was restored from URL, run the filter query now that data is loaded
     if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
+    }
+
+    // If table view is active, run table query now that data is loaded
+    if (this._viewMode === 'table') {
+      this._runTableQuery();
     }
 
     // If occurrences were restored from URL, fetch their specimen data now that DuckDB is ready
