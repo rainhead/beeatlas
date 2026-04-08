@@ -498,7 +498,7 @@ const label = `Showing ${start}–${end} of ${rowCount.toLocaleString()} ${noun}
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `queryTablePage` live in `filter.ts` or a new `table-query.ts`?**
    - What we know: `filter.ts` already holds `queryVisibleIds` with the same DuckDB pattern; adding `queryTablePage` there is consistent.
