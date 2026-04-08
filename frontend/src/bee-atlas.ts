@@ -225,7 +225,7 @@ bee-sidebar {
       { lon: initLon, lat: initLat, zoom: initZoom },
       this._filterState,
       { occurrenceIds: initOccIds },
-      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode }
+      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode, sortColumn: 'year', sortDir: 'desc' }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
@@ -272,7 +272,7 @@ bee-sidebar {
       this._currentView,
       this._filterState,
       { occurrenceIds: this._selectedOccIds ?? [] },
-      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode }
+      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode, sortColumn: 'year', sortDir: 'desc' }
     );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
