@@ -228,7 +228,7 @@ export class BeeSidebar extends LitElement {
 
   private _renderViewToggle() {
     return html`
-      <div class="layer-toggle">
+      <div class="layer-toggle view-mode-toggle">
         <button
           class=${this.viewMode === 'map' ? 'toggle-btn active' : 'toggle-btn'}
           @click=${() => this._onToggleView('map')}
