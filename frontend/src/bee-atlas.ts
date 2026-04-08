@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, isFilterActive, queryVisibleIds, queryTablePage, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
-import { getDuckDB, loadAllTables } from './duckdb.ts';
+import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 import './bee-map.ts';
 import './bee-sidebar.ts';
@@ -84,9 +84,11 @@ bee-map {
 }
 bee-table {
   flex-grow: 1;
+  min-width: 0;
   position: relative;
 }
 bee-sidebar {
+  flex-shrink: 0;
   width: 25rem;
   border-left: 1px solid var(--border-input);
   overflow-y: auto;
@@ -255,6 +257,9 @@ bee-sidebar {
       .then(db => loadAllTables(db, DATA_BASE_URL))
       .then(() => {
         console.debug('DuckDB tables ready');
+        if (this._viewMode === 'table') {
+          this._loadSummaryFromDuckDB();
+        }
       })
       .catch((err: unknown) => {
         console.error('DuckDB init failed:', err);
@@ -284,6 +289,66 @@ bee-sidebar {
     if (generation !== this._filterQueryGeneration) return;
     this._visibleEcdysisIds = ecdysis;
     this._visibleSampleIds = samples;
+  }
+
+  private async _loadSummaryFromDuckDB(): Promise<void> {
+    await tablesReady;
+    const db = await getDuckDB();
+    const conn = await db.connect();
+    try {
+      const summaryResult = await conn.query(`
+        SELECT COUNT(*) AS total_specimens,
+               COUNT(DISTINCT scientificName) AS species_count,
+               COUNT(DISTINCT genus) AS genus_count,
+               COUNT(DISTINCT family) AS family_count,
+               MIN(year) AS earliest_year,
+               MAX(year) AS latest_year
+        FROM ecdysis
+      `);
+      const row = summaryResult.toArray()[0]?.toJSON();
+      if (!row) { this._loading = false; return; }
+      this._summary = {
+        totalSpecimens: Number(row.total_specimens),
+        speciesCount: Number(row.species_count),
+        genusCount: Number(row.genus_count),
+        familyCount: Number(row.family_count),
+        earliestYear: Number(row.earliest_year),
+        latestYear: Number(row.latest_year),
+      };
+
+      const taxaResult = await conn.query(
+        `SELECT DISTINCT family, genus, scientificName FROM ecdysis ORDER BY family, genus, scientificName`
+      );
+      const families = new Set<string>();
+      const genera = new Set<string>();
+      const species = new Set<string>();
+      for (const r of taxaResult.toArray()) {
+        const obj = r.toJSON() as Record<string, unknown>;
+        if (obj.family) families.add(String(obj.family));
+        if (obj.genus) genera.add(String(obj.genus));
+        if (obj.scientificName) species.add(String(obj.scientificName));
+      }
+      this._taxaOptions = [
+        ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
+        ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
+        ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
+      ];
+
+      const countyResult = await conn.query(
+        `SELECT DISTINCT county FROM ecdysis WHERE county IS NOT NULL ORDER BY county`
+      );
+      this._countyOptions = countyResult.toArray().map(r => String((r.toJSON() as Record<string, unknown>).county));
+
+      const ecoregionResult = await conn.query(
+        `SELECT DISTINCT ecoregion_l3 FROM ecdysis WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`
+      );
+      this._ecoregionOptions = ecoregionResult.toArray().map(r => String((r.toJSON() as Record<string, unknown>).ecoregion_l3));
+    } catch (err) {
+      console.error('Failed to load summary from DuckDB:', err);
+    } finally {
+      await conn.close();
+      this._loading = false;
+    }
   }
 
   private async _runTableQuery(): Promise<void> {
@@ -541,6 +606,10 @@ bee-sidebar {
     if (this._viewMode === 'table') {
       this._tableLoading = true;
       this._runTableQuery();
+      if (this._loading) {
+        // bee-map data-loaded hasn't fired yet; load summary from DuckDB
+        this._loadSummaryFromDuckDB();
+      }
     }
     this._pushUrlState();
   }
