@@ -106,3 +106,31 @@ describe('ARCH-03: coordinator pattern — sibling isolation', () => {
     expect(filterSource).not.toMatch(/^export let visibleSampleIds/m);
   });
 });
+
+describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts contains table-slot div class', () => {
+    expect(src).toMatch(/class="table-slot"/);
+  });
+
+  test('bee-atlas.ts contains .table-slot CSS rule in static styles', () => {
+    expect(src).toMatch(/\.table-slot\s*\{/);
+  });
+
+  test('bee-atlas.ts declares _viewMode as @state field', () => {
+    expect(src).toMatch(/@state\(\)\s+private\s+_viewMode/);
+  });
+
+  test('bee-atlas.ts listens for view-changed event on bee-sidebar', () => {
+    expect(src).toMatch(/@view-changed=\$\{this\._onViewChanged\}/);
+  });
+
+  test('bee-atlas.ts passes viewMode property to bee-sidebar', () => {
+    expect(src).toMatch(/\.viewMode=\$\{this\._viewMode\}/);
+  });
+
+  test('bee-atlas.ts _onPopState restores _viewMode from URL', () => {
+    expect(src).toMatch(/this\._viewMode\s*=\s*parsed\.ui\?\.viewMode\s*\?\?\s*'map'/);
+  });
+});
