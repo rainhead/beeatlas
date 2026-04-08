@@ -62,16 +62,17 @@ async function createBeeTable(props: {
 }
 
 describe('TABLE-01: bee-table column headers', () => {
-  test('renders 5 specimen column headers when layerMode is specimens', async () => {
+  test('renders 6 specimen column headers when layerMode is specimens', async () => {
     const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
     const labels = Array.from(headers).map(th => th.textContent?.replace(/[\u2191\u2193\u2195]/g, '').trim());
     expect(labels.filter(Boolean)).toContain('Species');
     expect(labels.filter(Boolean)).toContain('Collector');
+    expect(labels.filter(Boolean)).toContain('Date');
     expect(labels.filter(Boolean)).toContain('County');
     expect(labels.filter(Boolean)).toContain('Ecoregion');
     expect(labels.filter(Boolean)).toContain('Field #');
-    expect(headers.length).toBe(5);
+    expect(headers.length).toBe(6);
     document.body.removeChild(el);
   });
 

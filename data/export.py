@@ -90,6 +90,7 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
         o.occurrence_id AS occurrenceID,
         CAST(o.decimal_longitude AS DOUBLE) AS longitude,
         CAST(o.decimal_latitude AS DOUBLE) AS latitude,
+        o.event_date AS date,
         CAST(o.year AS INTEGER) AS year,
         CAST(o.month AS INTEGER) AS month,
         o.scientific_name AS scientificName,

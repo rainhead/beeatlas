@@ -361,7 +361,7 @@ export class BeeSidebar extends LitElement {
         ? html`<bee-specimen-detail .samples=${this.samples}></bee-specimen-detail>`
         : this.layerMode === 'samples' && this.selectedSampleEvent !== null
           ? html`<bee-sample-detail .sampleEvent=${this.selectedSampleEvent}></bee-sample-detail>`
-          : this.layerMode === 'samples'
+          : this.layerMode === 'samples' && this.viewMode === 'map'
             ? this._renderRecentSampleEvents()
             : this._renderSummary()}
     `;

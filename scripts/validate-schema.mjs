@@ -22,7 +22,7 @@ const CLOUDFRONT_BASE = 'https://beeatlas.net/data/';
 const EXPECTED = {
   'ecdysis.parquet': [
     'ecdysis_id', 'occurrenceID', 'longitude', 'latitude',
-    'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
+    'date', 'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
     'genus', 'family', 'floralHost',
     'county', 'ecoregion_l3',
     'inat_observation_id',

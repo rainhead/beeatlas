@@ -31,7 +31,7 @@ export class BeeAtlas extends LitElement {
   @state() private _layerMode: 'specimens' | 'samples' = 'specimens';
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @state() private _viewMode: 'map' | 'table' = 'map';
-  @state() private _sortColumn = 'year';
+  @state() private _sortColumn = 'date';
   @state() private _sortDir: 'asc' | 'desc' = 'desc';
   @state() private _tablePage = 1;
   @state() private _tableRows: SpecimenRow[] | SampleRow[] = [];
@@ -207,7 +207,7 @@ bee-sidebar {
     this._layerMode = initLayerMode;
     this._boundaryMode = initBoundaryMode;
     this._viewMode = initViewMode;
-    this._sortColumn = initialParams.ui?.sortColumn ?? 'year';
+    this._sortColumn = initialParams.ui?.sortColumn ?? 'date';
     this._sortDir = initialParams.ui?.sortDir ?? 'desc';
 
     // Restore filter state from URL params
@@ -422,7 +422,7 @@ bee-sidebar {
     this._layerMode = parsed.ui?.layerMode ?? 'specimens';
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
     this._viewMode = parsed.ui?.viewMode ?? 'map';
-    this._sortColumn = parsed.ui?.sortColumn ?? 'year';
+    this._sortColumn = parsed.ui?.sortColumn ?? 'date';
     this._sortDir = parsed.ui?.sortDir ?? 'desc';
     this._tablePage = 1;
     if (this._viewMode === 'table') {
@@ -577,10 +577,12 @@ bee-sidebar {
     this._runTableQuery();
     if (this._viewMode === 'table' && this._summary) {
       queryFilteredCounts(this._filterState).then(c => {
-        if (c && this._summary) this._filteredSummary = { ...c, total: this._summary, isActive: true };
+        if (c && this._summary) {
+          this._filteredSummary = { ...c, total: this._summary, isActive: true };
+        } else {
+          this._filteredSummary = null;
+        }
       });
-    } else if (this._viewMode === 'table' && !isFilterActive(this._filterState)) {
-      this._filteredSummary = null;
     }
   }
 
@@ -590,7 +592,7 @@ bee-sidebar {
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
     this._tablePage = 1;
-    this._sortColumn = e.detail === 'samples' ? 'date' : 'year';
+    this._sortColumn = 'date';
     this._sortDir = 'desc';
     this._runTableQuery();
     if (this._viewMode === 'table' && this._summary) {

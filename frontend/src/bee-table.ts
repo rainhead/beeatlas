@@ -10,11 +10,12 @@ interface ColumnDef {
 }
 
 const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '30%' },
-  { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '22%' },
+  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '28%' },
+  { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '20%' },
+  { key: 'date', label: 'Date', dataField: 'date', minWidth: '12%' },
   { key: 'county', label: 'County', dataField: 'county', minWidth: '16%' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '22%' },
-  { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '10%' },
+  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '16%' },
+  { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '8%' },
 ];
 
 const SAMPLE_COLUMN_DEFS: ColumnDef[] = [
@@ -31,7 +32,7 @@ export class BeeTable extends LitElement {
   @property({ attribute: false }) rowCount = 0;
   @property({ attribute: false }) layerMode: 'specimens' | 'samples' = 'specimens';
   @property({ attribute: false }) page = 1;
-  @property({ attribute: false }) sortColumn = 'year';
+  @property({ attribute: false }) sortColumn = 'date';
   @property({ attribute: false }) sortDir: 'asc' | 'desc' = 'desc';
   @property({ attribute: false }) loading = false;
 

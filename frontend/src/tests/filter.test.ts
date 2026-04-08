@@ -153,7 +153,8 @@ describe('SPECIMEN_COLUMNS and SAMPLE_COLUMNS', () => {
     expect(SPECIMEN_COLUMNS['collector']).toBe('recordedBy');
   });
 
-  test('SPECIMEN_COLUMNS maps year, month, county, fieldNumber correctly', () => {
+  test('SPECIMEN_COLUMNS maps date, year, month, county, fieldNumber correctly', () => {
+    expect(SPECIMEN_COLUMNS['date']).toBe('date');
     expect(SPECIMEN_COLUMNS['year']).toBe('year');
     expect(SPECIMEN_COLUMNS['month']).toBe('month');
     expect(SPECIMEN_COLUMNS['county']).toBe('county');
@@ -191,12 +192,13 @@ function mockDuckDB(dataRows: any[], countValue: number) {
 }
 
 describe('queryTablePage', () => {
-  test('specimens: SQL contains scientificName, recordedBy, year, month, county, ecoregion_l3, fieldNumber', async () => {
+  test('specimens: SQL contains scientificName, recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
     const { queryFn } = mockDuckDB([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 'year', 'desc', 1);
+    await queryTablePage(emptyFilter(), 'specimens', 'date', 'desc', 1);
     const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('scientificName');
     expect(dataSql).toContain('recordedBy');
+    expect(dataSql).toContain('date');
     expect(dataSql).toContain('year');
     expect(dataSql).toContain('month');
     expect(dataSql).toContain('county');
@@ -206,7 +208,7 @@ describe('queryTablePage', () => {
 
   test('specimens: SQL contains ORDER BY and LIMIT 100 OFFSET', async () => {
     const { queryFn } = mockDuckDB([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 'year', 'desc', 1);
+    await queryTablePage(emptyFilter(), 'specimens', 'date', 'desc', 1);
     const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('ORDER BY');
     expect(dataSql).toContain('LIMIT 100');
@@ -238,8 +240,8 @@ describe('queryTablePage', () => {
     const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
     // Should NOT contain the injection string
     expect(dataSql).not.toContain('DROP TABLE');
-    // Should fall back to default 'year'
-    expect(dataSql).toContain('ORDER BY year');
+    // Should fall back to default 'date'
+    expect(dataSql).toContain('ORDER BY date');
   });
 
   test('conn.close is called even when query throws', async () => {
