@@ -498,7 +498,8 @@ bee-sidebar {
   private async _restoreSelectionSamples(occIds: string[]) {
     const ecdysisIds = occIds
       .filter(id => id.startsWith('ecdysis:'))
-      .map(id => id.slice('ecdysis:'.length));
+      .map(id => id.slice('ecdysis:'.length))
+      .filter(id => /^\d+$/.test(id));  // only accept pure integer suffixes (CLAUDE.md: ecdysis IDs are ecdysis:<integer>)
     if (ecdysisIds.length === 0) return;
     let conn: Awaited<ReturnType<Awaited<ReturnType<typeof getDuckDB>>['connect']>> | null = null;
     try {
