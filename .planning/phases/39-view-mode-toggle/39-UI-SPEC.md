@@ -1,7 +1,7 @@
 ---
 phase: 39
 slug: view-mode-toggle
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-04-07
@@ -42,8 +42,9 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Page-level spacing |
 
 Exceptions:
-- Toggle button row padding: `0.6rem 1rem` (9.6px / 16px) — this value is inherited from the existing `.toggle-btn` rule in `bee-sidebar.ts` and is **not modified in Phase 39**. Phase 39 reuses this class as-is.
 - Touch targets for toggle buttons: 44px minimum height (each button must be at least 44px tall to meet WCAG 2.5.5)
+
+Note: The existing `.toggle-btn` rule in `bee-sidebar.ts` uses `0.6rem 1rem` padding. Phase 39 reuses this class as-is — it does not modify this value, so it is not a new spacing decision introduced by this phase.
 
 ---
 
@@ -178,11 +179,11 @@ Source: CONTEXT.md D-05. Follows existing convention: `lm` omitted when `specime
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking — toggle labels are view-selectors matching existing pattern)
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: FLAG (non-blocking — inherited 0.8px-apart sizes from existing codebase)
+- [x] Dimension 5 Spacing: FLAG (non-blocking — 44px touch target WCAG exception)
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-04-07
