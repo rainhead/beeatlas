@@ -10,6 +10,83 @@ export interface FilterState {
   selectedEcoregions: Set<string>;
 }
 
+export interface SpecimenRow {
+  scientificName: string;
+  recordedBy: string;
+  year: number;
+  month: number;
+  county: string;
+  ecoregion_l3: string;
+  fieldNumber: string;
+}
+
+export interface SampleRow {
+  observer: string;
+  date: string;
+  specimen_count: number;
+  county: string;
+  ecoregion_l3: string;
+}
+
+/** UI column key -> SQL column name. Also serves as allowlist for SQL injection prevention. */
+export const SPECIMEN_COLUMNS: Record<string, string> = {
+  species: 'scientificName',
+  collector: 'recordedBy',
+  year: 'year',
+  month: 'month',
+  county: 'county',
+  ecoregion: 'ecoregion_l3',
+  fieldNumber: 'fieldNumber',
+};
+
+export const SAMPLE_COLUMNS: Record<string, string> = {
+  observer: 'observer',
+  date: 'date',
+  specimenCount: 'specimen_count',
+  county: 'county',
+  ecoregion: 'ecoregion_l3',
+};
+
+const PAGE_SIZE = 100;
+
+export async function queryTablePage(
+  f: FilterState,
+  layerMode: 'specimens' | 'samples',
+  sortCol: string,
+  sortDir: 'asc' | 'desc',
+  page: number
+): Promise<{ rows: SpecimenRow[] | SampleRow[]; total: number }> {
+  const columns = layerMode === 'specimens' ? SPECIMEN_COLUMNS : SAMPLE_COLUMNS;
+  // Validate sort column against allowlist (SQL injection protection per T-40-01)
+  const sqlSortCol = columns[sortCol];
+  const safeSortCol = sqlSortCol ?? (layerMode === 'specimens' ? 'year' : 'date');
+  // Validate sort direction — only accept literal 'asc' (per T-40-02)
+  const safeDir = sortDir === 'asc' ? 'ASC' : 'DESC';
+  const offset = (page - 1) * PAGE_SIZE;
+
+  const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
+  const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
+  const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;
+  const selectCols = Object.values(columns).join(', ');
+
+  await tablesReady;
+  const db = await getDuckDB();
+  const conn = await db.connect();
+  try {
+    const dataResult = await conn.query(
+      `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${safeSortCol} ${safeDir} LIMIT ${PAGE_SIZE} OFFSET ${offset}`
+    );
+    const countResult = await conn.query(
+      `SELECT COUNT(*) as n FROM ${table} WHERE ${where}`
+    );
+    const rows = dataResult.toArray().map((r: any) => r.toJSON());
+    const total = Number(countResult.toArray()[0]?.toJSON().n ?? 0);
+    return { rows, total };
+  } finally {
+    await conn.close();
+  }
+}
+
 export function isFilterActive(f: FilterState): boolean {
   return f.taxonName !== null
     || f.yearFrom !== null
