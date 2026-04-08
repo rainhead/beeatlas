@@ -42,7 +42,7 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Page-level spacing |
 
 Exceptions:
-- Toggle button row padding: 0.6rem 1rem (9.6px / 16px) — matches existing `.toggle-btn` pattern in `bee-sidebar.ts`
+- Toggle button row padding: `0.6rem 1rem` (9.6px / 16px) — this value is inherited from the existing `.toggle-btn` rule in `bee-sidebar.ts` and is **not modified in Phase 39**. Phase 39 reuses this class as-is.
 - Touch targets for toggle buttons: 44px minimum height (each button must be at least 44px tall to meet WCAG 2.5.5)
 
 ---
@@ -54,11 +54,13 @@ Source: `index.css` root declarations + `bee-sidebar.ts` static styles
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 16px (1rem) | 400 | 1.5 |
-| Label / button | 14.4px (0.9rem) | 500 | 1.2 |
+| Label / button | 14.4px (0.9rem) | 400 | 1.2 |
 | Small label / hint | 13.6px (0.85rem) | 400 | 1.5 |
 | Heading (h2) | 19.2px (1.2rem) | 600 | 1.2 |
 
-Active state weight exception: active toggle button uses weight 600 (matches existing `.toggle-btn.active` rule).
+Active state weight exception: active toggle button uses weight 600 (matches existing `.toggle-btn.active` rule in `bee-sidebar.ts` — not introduced by Phase 39).
+
+Weights in use: 400 (regular — body, label/button, small label) and 600 (semibold — headings and active toggle). No weight 500.
 
 ---
 
