@@ -1,6 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, isFilterActive, queryVisibleIds, queryTablePage, type SpecimenRow, type SampleRow } from './filter.ts';
+import { type FilterState, isFilterActive, queryVisibleIds, queryTablePage, queryFilteredSummary, type SpecimenRow, type SampleRow } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
@@ -90,6 +90,7 @@ bee-sidebar {
   width: 25rem;
   border-left: 1px solid var(--border-input);
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .loading-overlay, .error-overlay {
   position: absolute;
@@ -509,6 +510,11 @@ bee-sidebar {
       this._pushUrlState();
     });
     this._runTableQuery();
+    if (this._viewMode === 'table' && this._summary) {
+      queryFilteredSummary(this._filterState, this._summary).then(fs => { this._filteredSummary = fs; });
+    } else if (this._viewMode === 'table' && !isFilterActive(this._filterState)) {
+      this._filteredSummary = null;
+    }
   }
 
   private _onLayerChanged(e: CustomEvent<'specimens' | 'samples'>) {
@@ -517,9 +523,12 @@ bee-sidebar {
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
     this._tablePage = 1;
-    this._sortColumn = 'year';
+    this._sortColumn = e.detail === 'samples' ? 'date' : 'year';
     this._sortDir = 'desc';
     this._runTableQuery();
+    if (this._viewMode === 'table' && this._summary) {
+      queryFilteredSummary(this._filterState, this._summary).then(fs => { this._filteredSummary = fs; });
+    }
     this._pushUrlState();
   }
 
