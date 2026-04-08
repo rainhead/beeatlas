@@ -13,6 +13,7 @@ export interface SelectionState {
 export interface UiState {
   layerMode: 'specimens' | 'samples';
   boundaryMode: 'off' | 'counties' | 'ecoregions';
+  viewMode: 'map' | 'table';
 }
 
 export interface AppState {
@@ -45,6 +46,7 @@ export function buildParams(
   if (ui.layerMode !== 'specimens') params.set('lm', ui.layerMode);  // omit default value
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
+  if (ui.viewMode !== 'map') params.set('view', ui.viewMode);
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
   }
@@ -125,9 +127,11 @@ export function parseParams(search: string): Partial<AppState> {
   const bmRaw = p.get('bm') ?? '';
   const boundaryMode: 'off' | 'counties' | 'ecoregions' =
     (bmRaw === 'counties' || bmRaw === 'ecoregions') ? bmRaw : 'off';
+  const viewRaw = p.get('view') ?? '';
+  const viewMode: 'map' | 'table' = viewRaw === 'table' ? 'table' : 'map';
   // Include UI when non-default values present
-  if (layerMode !== 'specimens' || boundaryMode !== 'off') {
-    result.ui = { layerMode, boundaryMode };
+  if (layerMode !== 'specimens' || boundaryMode !== 'off' || viewMode !== 'map') {
+    result.ui = { layerMode, boundaryMode, viewMode };
   }
 
   return result;
