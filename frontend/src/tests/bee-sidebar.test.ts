@@ -241,3 +241,26 @@ describe('bee-specimen-detail render', () => {
     document.body.removeChild(el);
   });
 });
+
+describe('VIEW-01: bee-sidebar view mode toggle', () => {
+  test('bee-sidebar.ts contains view-changed event string', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/'view-changed'/);
+  });
+
+  test('bee-sidebar.ts contains viewMode @property declaration', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/viewMode/);
+  });
+
+  test('bee-sidebar.ts does NOT own viewMode as @state (presenter pattern)', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_viewMode/);
+  });
+
+  test('BeeSidebar elementProperties has viewMode key', async () => {
+    const { BeeSidebar } = await import('../bee-sidebar.ts');
+    const props = (BeeSidebar as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
+    expect(props.has('viewMode')).toBe(true);
+  });
+});
