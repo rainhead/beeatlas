@@ -12,6 +12,7 @@
 - ✅ **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (shipped 2026-03-30)
 - ✅ **v1.8 DuckDB WASM Frontend** — Phases 30–32 (shipped 2026-04-01)
 - ✅ **v1.9 Component Architecture & Test Suite** — Phases 33–38 (shipped 2026-04-04)
+- 🚧 **v2.0 Tabular Data View** — Phases 39–41 (in progress)
 
 ## Phases
 
@@ -100,7 +101,7 @@ See `.planning/milestones/v1.6-ROADMAP.md` for full phase details.
 
 - [x] Phase 25: CDK Infrastructure (1/1 plans) — completed 2026-03-28
 - [x] Phase 26: Lambda Handler + Dockerfile (1/1 plans) — completed 2026-03-28
-- [x] Phase 27: Pipeline Tests (1/1 plans) — completed 2026-03-29
+- [x] Phase 27: Seed DuckDB + Tests (1/1 plans) — completed 2026-03-29
 - [x] Phase 28: Frontend Runtime Fetch (1/1 plans) — completed 2026-03-29
 - [x] Phase 29: CI Simplification (1/1 plans) — completed 2026-03-30
 
@@ -135,6 +136,47 @@ See `.planning/milestones/v1.9-ROADMAP.md` for full phase details.
 
 </details>
 
+### 🚧 v2.0 Tabular Data View (In Progress)
+
+**Milestone Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
+
+## Phase Details
+
+### Phase 39: View Mode Toggle
+**Goal**: Users can switch between map view and table view, with the choice bookmarkable in the URL
+**Depends on**: Phase 38
+**Requirements**: VIEW-01, VIEW-02, VIEW-03
+**Success Criteria** (what must be TRUE):
+  1. User can click a toggle control in the main UI to switch from map view to table view and back
+  2. In table view, the map is not visible and the table area occupies the full content space
+  3. Navigating to a URL with `view=table` param opens directly in table view
+  4. Copying a table-view URL and pasting it in a new tab restores the table view
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 40: bee-table Component
+**Goal**: Users can browse, sort, and paginate the filtered dataset as a table
+**Depends on**: Phase 39
+**Requirements**: TABLE-01, TABLE-02, TABLE-03, TABLE-04, TABLE-05, TABLE-06, TABLE-07
+**Success Criteria** (what must be TRUE):
+  1. Table shows specimen rows (species, collector, year, month, county, ecoregion, field number) when layer mode is "specimens", and sample rows (observer, date, specimen count, county, ecoregion) when layer mode is "samples"
+  2. Applying a filter updates the table to show only rows matching the active filter — the same set visible as dots on the map
+  3. A row count indicator reads "showing 1–100 of N specimens" (or samples), accurately reflecting the filtered total
+  4. Previous/next page controls navigate through the result set, with current page shown; each page shows up to 100 rows
+  5. Clicking a column header sorts the table by that column; clicking again reverses sort direction
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 41: CSV Export
+**Goal**: Users can download the full filtered result set as a CSV file with a descriptive filename
+**Depends on**: Phase 40
+**Requirements**: CSV-01, CSV-02
+**Success Criteria** (what must be TRUE):
+  1. Clicking "Download CSV" triggers a browser file download of the complete filtered result set (not just the current page)
+  2. The downloaded filename reflects the active filter state (e.g. `specimens-bombus-2023.csv` or `samples-all.csv`)
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -158,22 +200,25 @@ See `.planning/milestones/v1.9-ROADMAP.md` for full phase details.
 | 17. Frontend Data Layer | v1.5 | 2/2 | Complete | 2026-03-14 |
 | 18. Map Integration | v1.5 | 4/4 | Complete | 2026-03-14 |
 | 19. Sidebar UI | v1.5 | 2/2 | Complete | 2026-03-18 |
-| 20. Pipeline Migration | v1.6 | 2/2 | Complete    | 2026-03-27 |
-| 21. Parquet and GeoJSON Export | v1.6 | 2/2 | Complete   | 2026-03-27 |
-| 22. Orchestration | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 23. Frontend Simplification | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 24. Tech Debt Audit | v1.6 | 1/1 | Complete    | 2026-03-27 |
-| 25. CDK Infrastructure | v1.7 | 1/1 | Complete    | 2026-03-28 |
-| 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete   | 2026-03-28 |
-| 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete    | 2026-03-29 |
-| 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete    | 2026-03-29 |
-| 29. CI Simplification | v1.7 | 1/1 | Complete    | 2026-03-30 |
-| 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete    | 2026-03-31 |
-| 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete    | 2026-03-31 |
-| 32. SQL Filter Layer | v1.8 | 3/3 | Complete    | 2026-04-01 |
-| 33. Test Infrastructure | v1.9 | 1/1 | Complete    | 2026-04-04 |
-| 34. Global State Elimination | v1.9 | 2/2 | Complete    | 2026-04-04 |
-| 35. URL State Module | v1.9 | 1/1 | Complete    | 2026-04-04 |
-| 36. bee-atlas Root Component | v1.9 | 4/2 | Complete   | 2026-04-07 |
-| 37. Sidebar Decomposition | v1.9 | 3/3 | Complete    | 2026-04-04 |
-| 38. Unit Tests | v1.9 | 2/2 | Complete    | 2026-04-04 |
+| 20. Pipeline Migration | v1.6 | 2/2 | Complete | 2026-03-27 |
+| 21. Parquet and GeoJSON Export | v1.6 | 2/2 | Complete | 2026-03-27 |
+| 22. Orchestration | v1.6 | 1/1 | Complete | 2026-03-27 |
+| 23. Frontend Simplification | v1.6 | 1/1 | Complete | 2026-03-27 |
+| 24. Tech Debt Audit | v1.6 | 1/1 | Complete | 2026-03-27 |
+| 25. CDK Infrastructure | v1.7 | 1/1 | Complete | 2026-03-28 |
+| 26. Lambda Handler + Dockerfile | v1.7 | 1/1 | Complete | 2026-03-28 |
+| 27. Seed DuckDB + Tests | v1.7 | 1/1 | Complete | 2026-03-29 |
+| 28. Frontend Runtime Fetch | v1.7 | 1/1 | Complete | 2026-03-29 |
+| 29. CI Simplification | v1.7 | 1/1 | Complete | 2026-03-30 |
+| 30. DuckDB WASM Setup | v1.8 | 1/1 | Complete | 2026-03-31 |
+| 31. Feature Creation from DuckDB | v1.8 | 1/1 | Complete | 2026-03-31 |
+| 32. SQL Filter Layer | v1.8 | 3/3 | Complete | 2026-04-01 |
+| 33. Test Infrastructure | v1.9 | 1/1 | Complete | 2026-04-04 |
+| 34. Global State Elimination | v1.9 | 2/2 | Complete | 2026-04-04 |
+| 35. URL State Module | v1.9 | 1/1 | Complete | 2026-04-04 |
+| 36. bee-atlas Root Component | v1.9 | 4/2 | Complete | 2026-04-07 |
+| 37. Sidebar Decomposition | v1.9 | 3/3 | Complete | 2026-04-04 |
+| 38. Unit Tests | v1.9 | 2/2 | Complete | 2026-04-04 |
+| 39. View Mode Toggle | v2.0 | 0/TBD | Not started | - |
+| 40. bee-table Component | v2.0 | 0/TBD | Not started | - |
+| 41. CSV Export | v2.0 | 0/TBD | Not started | - |
