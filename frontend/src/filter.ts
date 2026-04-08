@@ -1,5 +1,4 @@
 import { getDuckDB, tablesReady } from './duckdb.ts';
-import type { DataSummary, FilteredSummary } from './bee-sidebar.ts';
 
 export interface FilterState {
   taxonName: string | null;      // value of the selected taxon (family name, genus name, or scientificName)
@@ -155,7 +154,14 @@ export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesW
   return { ecdysisWhere, samplesWhere };
 }
 
-export async function queryFilteredSummary(f: FilterState, total: DataSummary): Promise<FilteredSummary | null> {
+export interface FilteredCounts {
+  filteredSpecimens: number;
+  filteredSpeciesCount: number;
+  filteredGenusCount: number;
+  filteredFamilyCount: number;
+}
+
+export async function queryFilteredCounts(f: FilterState): Promise<FilteredCounts | null> {
   if (!isFilterActive(f)) return null;
   const { ecdysisWhere } = buildFilterSQL(f);
   await tablesReady;
@@ -173,8 +179,6 @@ export async function queryFilteredSummary(f: FilterState, total: DataSummary): 
       filteredSpeciesCount: Number(row?.species ?? 0),
       filteredGenusCount: Number(row?.genera ?? 0),
       filteredFamilyCount: Number(row?.families ?? 0),
-      total,
-      isActive: true,
     };
   } finally {
     await conn.close();
