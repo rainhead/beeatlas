@@ -29,6 +29,7 @@ export class BeeAtlas extends LitElement {
   @state() private _visibleSampleIds: Set<string> | null = null;
   @state() private _layerMode: 'specimens' | 'samples' = 'specimens';
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
+  @state() private _viewMode: 'map' | 'table' = 'map';
   @state() private _selectedSamples: Sample[] | null = null;
   @state() private _selectedSampleEvent: SampleEvent | null = null;
   @state() private _selectedOccIds: string[] | null = null;
@@ -73,6 +74,10 @@ export class BeeAtlas extends LitElement {
 bee-map {
   flex-grow: 1;
 }
+.table-slot {
+  flex-grow: 1;
+  background: var(--surface);
+}
 bee-sidebar {
   width: 25rem;
   border-left: 1px solid var(--border-input);
@@ -114,35 +119,39 @@ bee-sidebar {
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       ${this._error ? '' : html`
-        <bee-map
-          .layerMode=${this._layerMode}
-          .boundaryMode=${this._boundaryMode}
-          .visibleEcdysisIds=${this._visibleEcdysisIds}
-          .visibleSampleIds=${this._visibleSampleIds}
-          .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
-          .countyOptions=${this._countyOptions}
-          .ecoregionOptions=${this._ecoregionOptions}
-          .viewState=${this._viewState}
-          .panTo=${this._panTo}
-          .filterState=${this._filterState}
-          @view-moved=${this._onViewMoved}
-          @map-click-specimen=${this._onSpecimenClick}
-          @map-click-sample=${this._onSampleClick}
-          @map-click-region=${this._onRegionClick}
-          @map-click-empty=${this._onMapClickEmpty}
-          @data-loaded=${this._onDataLoaded}
-          @sample-data-loaded=${this._onSampleDataLoaded}
-          @county-options-loaded=${this._onCountyOptionsLoaded}
-          @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
-          @data-error=${this._onDataError}
-          @filtered-summary-computed=${this._onFilteredSummaryComputed}
-        ></bee-map>
+        ${this._viewMode === 'map'
+          ? html`<bee-map
+              .layerMode=${this._layerMode}
+              .boundaryMode=${this._boundaryMode}
+              .visibleEcdysisIds=${this._visibleEcdysisIds}
+              .visibleSampleIds=${this._visibleSampleIds}
+              .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
+              .countyOptions=${this._countyOptions}
+              .ecoregionOptions=${this._ecoregionOptions}
+              .viewState=${this._viewState}
+              .panTo=${this._panTo}
+              .filterState=${this._filterState}
+              @view-moved=${this._onViewMoved}
+              @map-click-specimen=${this._onSpecimenClick}
+              @map-click-sample=${this._onSampleClick}
+              @map-click-region=${this._onRegionClick}
+              @map-click-empty=${this._onMapClickEmpty}
+              @data-loaded=${this._onDataLoaded}
+              @sample-data-loaded=${this._onSampleDataLoaded}
+              @county-options-loaded=${this._onCountyOptionsLoaded}
+              @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
+              @data-error=${this._onDataError}
+              @filtered-summary-computed=${this._onFilteredSummaryComputed}
+            ></bee-map>`
+          : html`<div class="table-slot"></div>`
+        }
         <bee-sidebar
           .samples=${this._selectedSamples}
           .summary=${this._summary}
           .taxaOptions=${this._taxaOptions}
           .filteredSummary=${this._filteredSummary}
           .layerMode=${this._layerMode}
+          .viewMode=${this._viewMode}
           .recentSampleEvents=${this._recentSampleEvents}
           .sampleDataLoaded=${this._sampleDataLoaded}
           .selectedSampleEvent=${this._selectedSampleEvent}
@@ -153,6 +162,7 @@ bee-sidebar {
           @close=${this._onClose}
           @filter-changed=${this._onFilterChanged}
           @layer-changed=${this._onLayerChanged}
+          @view-changed=${this._onViewChanged}
           @sample-event-click=${this._onSampleEventClick}
         ></bee-sidebar>
       `}
@@ -169,11 +179,13 @@ bee-sidebar {
     this._currentView = { lon: initLon, lat: initLat, zoom: initZoom };
     this._viewState = { lon: initLon, lat: initLat, zoom: initZoom };
 
-    // Restore layer/boundary mode from URL
+    // Restore layer/boundary/view mode from URL
     const initLayerMode = initialParams.ui?.layerMode ?? 'specimens';
     const initBoundaryMode = initialParams.ui?.boundaryMode ?? 'off';
+    const initViewMode = initialParams.ui?.viewMode ?? 'map';
     this._layerMode = initLayerMode;
     this._boundaryMode = initBoundaryMode;
+    this._viewMode = initViewMode;
 
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
@@ -213,7 +225,7 @@ bee-sidebar {
       { lon: initLon, lat: initLat, zoom: initZoom },
       this._filterState,
       { occurrenceIds: initOccIds },
-      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: 'map' }
+      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
@@ -260,7 +272,7 @@ bee-sidebar {
       this._currentView,
       this._filterState,
       { occurrenceIds: this._selectedOccIds ?? [] },
-      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: 'map' }
+      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode }
     );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
@@ -299,6 +311,7 @@ bee-sidebar {
     // Restore UI state
     this._layerMode = parsed.ui?.layerMode ?? 'specimens';
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
+    this._viewMode = parsed.ui?.viewMode ?? 'map';
 
     // Restore selection
     const parsedOccIds = parsed.selection?.occurrenceIds ?? [];
@@ -447,6 +460,11 @@ bee-sidebar {
     this._selectedSamples = null;
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
+    this._pushUrlState();
+  }
+
+  private _onViewChanged(e: CustomEvent<'map' | 'table'>) {
+    this._viewMode = e.detail;
     this._pushUrlState();
   }
 
