@@ -110,12 +110,12 @@ describe('ARCH-03: coordinator pattern — sibling isolation', () => {
 describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  test('bee-atlas.ts contains table-slot div class', () => {
-    expect(src).toMatch(/class="table-slot"/);
+  test('bee-atlas.ts contains bee-table element (replaces table-slot placeholder)', () => {
+    expect(src).toMatch(/<bee-table/);
   });
 
-  test('bee-atlas.ts contains .table-slot CSS rule in static styles', () => {
-    expect(src).toMatch(/\.table-slot\s*\{/);
+  test('bee-atlas.ts contains bee-table CSS rule in static styles (replaces .table-slot)', () => {
+    expect(src).toMatch(/bee-table\s*\{/);
   });
 
   test('bee-atlas.ts declares _viewMode as @state field', () => {
