@@ -1,6 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, isFilterActive, queryVisibleIds, queryTablePage, queryFilteredSummary, type SpecimenRow, type SampleRow } from './filter.ts';
+import { type FilterState, isFilterActive, queryVisibleIds, queryTablePage, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
@@ -511,7 +511,9 @@ bee-sidebar {
     });
     this._runTableQuery();
     if (this._viewMode === 'table' && this._summary) {
-      queryFilteredSummary(this._filterState, this._summary).then(fs => { this._filteredSummary = fs; });
+      queryFilteredCounts(this._filterState).then(c => {
+        if (c && this._summary) this._filteredSummary = { ...c, total: this._summary, isActive: true };
+      });
     } else if (this._viewMode === 'table' && !isFilterActive(this._filterState)) {
       this._filteredSummary = null;
     }
@@ -527,7 +529,9 @@ bee-sidebar {
     this._sortDir = 'desc';
     this._runTableQuery();
     if (this._viewMode === 'table' && this._summary) {
-      queryFilteredSummary(this._filterState, this._summary).then(fs => { this._filteredSummary = fs; });
+      queryFilteredCounts(this._filterState).then(c => {
+        if (c && this._summary) this._filteredSummary = { ...c, total: this._summary, isActive: true };
+      });
     }
     this._pushUrlState();
   }
