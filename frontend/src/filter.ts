@@ -1,4 +1,5 @@
 import { getDuckDB, tablesReady } from './duckdb.ts';
+import type { DataSummary, FilteredSummary } from './bee-sidebar.ts';
 
 export interface FilterState {
   taxonName: string | null;      // value of the selected taxon (family name, genus name, or scientificName)
@@ -67,7 +68,11 @@ export async function queryTablePage(
   const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
   const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
   const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;
-  const selectCols = Object.values(columns).join(', ');
+  const selectCols = layerMode === 'specimens'
+    ? Object.values(columns).join(', ')
+    : Object.entries(columns).map(([k, col]) =>
+        k === 'date' ? `strftime(${col}, '%Y-%m-%d') as ${col}` : col
+      ).join(', ');
 
   await tablesReady;
   const db = await getDuckDB();
@@ -148,6 +153,32 @@ export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesW
   const ecdysisWhere = ecdysisClauses.length > 0 ? ecdysisClauses.join(' AND ') : '1 = 1';
   const samplesWhere = samplesClauses.length > 0 ? samplesClauses.join(' AND ') : '1 = 1';
   return { ecdysisWhere, samplesWhere };
+}
+
+export async function queryFilteredSummary(f: FilterState, total: DataSummary): Promise<FilteredSummary | null> {
+  if (!isFilterActive(f)) return null;
+  const { ecdysisWhere } = buildFilterSQL(f);
+  await tablesReady;
+  const db = await getDuckDB();
+  const conn = await db.connect();
+  try {
+    const result = await conn.query(
+      `SELECT COUNT(*) as specimens, COUNT(DISTINCT scientificName) as species,
+              COUNT(DISTINCT genus) as genera, COUNT(DISTINCT family) as families
+       FROM ecdysis WHERE ${ecdysisWhere}`
+    );
+    const row = result.toArray()[0]?.toJSON();
+    return {
+      filteredSpecimens: Number(row?.specimens ?? 0),
+      filteredSpeciesCount: Number(row?.species ?? 0),
+      filteredGenusCount: Number(row?.genera ?? 0),
+      filteredFamilyCount: Number(row?.families ?? 0),
+      total,
+      isActive: true,
+    };
+  } finally {
+    await conn.close();
+  }
 }
 
 export async function queryVisibleIds(f: FilterState): Promise<{ ecdysis: Set<string> | null; samples: Set<string> | null }> {

@@ -10,21 +10,19 @@ interface ColumnDef {
 }
 
 const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '180px' },
-  { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '140px' },
-  { key: 'year', label: 'Year', dataField: 'year', minWidth: '64px' },
-  { key: 'month', label: 'Month', dataField: 'month', minWidth: '72px' },
-  { key: 'county', label: 'County', dataField: 'county', minWidth: '120px' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '140px' },
-  { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '96px' },
+  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '30%' },
+  { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '22%' },
+  { key: 'county', label: 'County', dataField: 'county', minWidth: '16%' },
+  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '22%' },
+  { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '10%' },
 ];
 
 const SAMPLE_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'observer', label: 'Observer', dataField: 'observer', minWidth: '160px' },
-  { key: 'date', label: 'Date', dataField: 'date', minWidth: '100px' },
-  { key: 'specimenCount', label: 'Specimens', dataField: 'specimen_count', minWidth: '96px' },
-  { key: 'county', label: 'County', dataField: 'county', minWidth: '120px' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '140px' },
+  { key: 'observer', label: 'Observer', dataField: 'observer', minWidth: '22%' },
+  { key: 'date', label: 'Date', dataField: 'date', minWidth: '13%' },
+  { key: 'specimenCount', label: 'Specimens', dataField: 'specimen_count', minWidth: '10%' },
+  { key: 'county', label: 'County', dataField: 'county', minWidth: '20%' },
+  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '35%' },
 ];
 
 @customElement('bee-table')
@@ -52,6 +50,7 @@ export class BeeTable extends LitElement {
     }
     table {
       width: 100%;
+      table-layout: fixed;
       border-collapse: collapse;
       font-size: 0.875rem;
     }
@@ -233,7 +232,7 @@ export class BeeTable extends LitElement {
                       <th
                         class=${isActive ? 'sort-active' : ''}
                         aria-sort=${ariaSort}
-                        style="min-width: ${col.minWidth}"
+                        style="width: ${col.minWidth}"
                       >
                         <button @click=${() => this._onHeaderClick(col.key)}>
                           ${col.label}
@@ -259,7 +258,7 @@ export class BeeTable extends LitElement {
         `}
       <div class="pagination">
         <span aria-live="polite" class="row-count">
-          Showing ${start}\u2013${end} of ${this.rowCount.toLocaleString()} ${noun}
+          ${this.rowCount === 0 ? `No ${noun} match the current filters` : `Showing ${start}\u2013${end} of ${this.rowCount.toLocaleString()} ${noun}`}
         </span>
         <div class="pagination-center">
           <button
