@@ -85,6 +85,9 @@ export class BeeSidebar extends LitElement {
   layerMode: 'specimens' | 'samples' = 'specimens';
 
   @property({ attribute: false })
+  viewMode: 'map' | 'table' = 'map';
+
+  @property({ attribute: false })
   recentSampleEvents: SampleEvent[] = [];
 
   @property({ attribute: false })
@@ -223,6 +226,30 @@ export class BeeSidebar extends LitElement {
     }));
   }
 
+  private _renderViewToggle() {
+    return html`
+      <div class="layer-toggle">
+        <button
+          class=${this.viewMode === 'map' ? 'toggle-btn active' : 'toggle-btn'}
+          @click=${() => this._onToggleView('map')}
+        >Map</button>
+        <button
+          class=${this.viewMode === 'table' ? 'toggle-btn active' : 'toggle-btn'}
+          @click=${() => this._onToggleView('table')}
+        >Table</button>
+      </div>
+    `;
+  }
+
+  private _onToggleView(mode: 'map' | 'table') {
+    if (mode === this.viewMode) return;
+    this.dispatchEvent(new CustomEvent<'map' | 'table'>('view-changed', {
+      bubbles: true,
+      composed: true,
+      detail: mode,
+    }));
+  }
+
   private _onSampleEventRowClick(event: SampleEvent) {
     this.dispatchEvent(new CustomEvent<{coordinate: number[]}>('sample-event-click', {
       bubbles: true,
@@ -321,6 +348,7 @@ export class BeeSidebar extends LitElement {
   render() {
     return html`
       ${this._renderToggle()}
+      ${this._renderViewToggle()}
       <bee-filter-controls
         .filterState=${this.filterState}
         .taxaOptions=${this.taxaOptions}
