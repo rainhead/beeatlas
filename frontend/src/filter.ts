@@ -107,8 +107,8 @@ export function buildCsvFilename(f: FilterState, layerMode: 'specimens' | 'sampl
 
   // County/ecoregion (fourth priority)
   if (segments.length < 2) {
-    const firstCounty = f.selectedCounties.size > 0 ? [...f.selectedCounties][0] : null;
-    const firstEcor = f.selectedEcoregions.size > 0 ? [...f.selectedEcoregions][0] : null;
+    const firstCounty = f.selectedCounties.size > 0 ? (f.selectedCounties.values().next().value as string) : null;
+    const firstEcor = f.selectedEcoregions.size > 0 ? (f.selectedEcoregions.values().next().value as string) : null;
     const region = firstCounty ?? firstEcor;
     if (region !== null) {
       segments.push(slugify(region));

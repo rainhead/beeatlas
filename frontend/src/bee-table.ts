@@ -146,6 +146,13 @@ export class BeeTable extends LitElement {
     }
   `;
 
+  private _onDownloadCsv() {
+    this.dispatchEvent(new CustomEvent('download-csv', {
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   private _onPrev() {
     this.dispatchEvent(new CustomEvent('page-changed', {
       detail: { page: this.page - 1 },
@@ -220,6 +227,11 @@ export class BeeTable extends LitElement {
             @click=${this._onNext}
           >Next \u2192</button>
         </div>
+        <button
+          class="download-csv-btn"
+          aria-label="Download CSV"
+          @click=${this._onDownloadCsv}
+        >Download CSV</button>
       </div>
     `;
   }
