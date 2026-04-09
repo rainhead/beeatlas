@@ -3,7 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import './bee-filter-controls.ts';
 import './bee-specimen-detail.ts';
 import './bee-sample-detail.ts';
-import type { FilterState } from './filter.ts';
+import type { FilterState, CollectorEntry } from './filter.ts';
 
 export interface Specimen {
   name: string;
@@ -64,6 +64,7 @@ export interface FilterChangedEvent {
   months: Set<number>;
   selectedCounties: Set<string>;
   selectedEcoregions: Set<string>;
+  selectedCollectors: CollectorEntry[];
   boundaryMode: 'off' | 'counties' | 'ecoregions';
 }
 
@@ -97,12 +98,14 @@ export class BeeSidebar extends LitElement {
   filterState: FilterState = {
     taxonName: null, taxonRank: null, yearFrom: null, yearTo: null,
     months: new Set(), selectedCounties: new Set(), selectedEcoregions: new Set(),
+    selectedCollectors: [],
   };
 
   // Region props — driven by BeeAtlas
   @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
+  @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
   @property({ attribute: false }) sampleDataLoaded = false;
 
   static styles = css`
@@ -354,6 +357,7 @@ export class BeeSidebar extends LitElement {
         .taxaOptions=${this.taxaOptions}
         .countyOptions=${this.countyOptions}
         .ecoregionOptions=${this.ecoregionOptions}
+        .collectorOptions=${this.collectorOptions}
         .boundaryMode=${this.boundaryMode}
         .summary=${this.summary}
       ></bee-filter-controls>

@@ -11,6 +11,7 @@ function emptyFilter(): FilterState {
     months: new Set(),
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
+    selectedCollectors: [],
   };
 }
 
@@ -136,6 +137,7 @@ describe('combined round-trip', () => {
       months: new Set([3, 6, 9]),
       selectedCounties: new Set(['King', 'Pierce']),
       selectedEcoregions: new Set(['Cascades']),
+      selectedCollectors: [],
     };
     const selection = { occurrenceIds: ['ecdysis:999'] };
     const ui = { layerMode: 'samples' as const, boundaryMode: 'counties' as const, viewMode: 'table' as const };

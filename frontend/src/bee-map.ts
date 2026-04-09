@@ -119,6 +119,7 @@ export class BeeMap extends LitElement {
     months: new Set(),
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
+    selectedCollectors: [],
   };
 
   // Instance OL sources/layers (moved from module-level per Phase 34-02 decision)

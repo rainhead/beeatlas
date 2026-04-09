@@ -1,6 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, isFilterActive, queryVisibleIds, queryTablePage, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
@@ -24,6 +24,7 @@ export class BeeAtlas extends LitElement {
     months: new Set(),
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
+    selectedCollectors: [],
   };
 
   @state() private _visibleEcdysisIds: Set<string> | null = null;
@@ -43,6 +44,7 @@ export class BeeAtlas extends LitElement {
   @state() private _taxaOptions: TaxonOption[] = [];
   @state() private _countyOptions: string[] = [];
   @state() private _ecoregionOptions: string[] = [];
+  @state() private _collectorOptions: CollectorEntry[] = [];
   @state() private _sampleDataLoaded = false;
   @state() private _recentSampleEvents: SampleEvent[] = [];
   @state() private _loading = true;
@@ -175,6 +177,7 @@ bee-sidebar {
           .boundaryMode=${this._boundaryMode}
           .countyOptions=${this._countyOptions}
           .ecoregionOptions=${this._ecoregionOptions}
+          .collectorOptions=${this._collectorOptions}
           @close=${this._onClose}
           @filter-changed=${this._onFilterChanged}
           @layer-changed=${this._onLayerChanged}
@@ -213,6 +216,7 @@ bee-sidebar {
         months: initFilter.months ?? new Set(),
         selectedCounties: initFilter.selectedCounties ?? new Set(),
         selectedEcoregions: initFilter.selectedEcoregions ?? new Set(),
+        selectedCollectors: initFilter.selectedCollectors ?? [],
       };
     }
 
@@ -335,11 +339,52 @@ bee-sidebar {
         `SELECT DISTINCT ecoregion_l3 FROM ecdysis WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`
       );
       this._ecoregionOptions = ecoregionResult.toArray().map(r => String((r.toJSON() as Record<string, unknown>).ecoregion_l3));
+
+      const collectorResult = await conn.query(`
+        SELECT e.recordedBy, MIN(s.observer) AS observer
+        FROM ecdysis e
+        LEFT JOIN samples s ON e.inat_observation_id = s.observation_id
+        WHERE e.recordedBy IS NOT NULL
+        GROUP BY e.recordedBy
+        ORDER BY e.recordedBy
+      `);
+      this._collectorOptions = collectorResult.toArray().map(r => {
+        const obj = r.toJSON() as Record<string, unknown>;
+        const recordedBy = String(obj.recordedBy);
+        const observer = obj.observer != null ? String(obj.observer) : null;
+        return { displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry;
+      });
     } catch (err) {
       console.error('Failed to load summary from DuckDB:', err);
     } finally {
       await conn.close();
       this._loading = false;
+    }
+  }
+
+  private async _loadCollectorOptions(): Promise<void> {
+    await tablesReady;
+    const db = await getDuckDB();
+    const conn = await db.connect();
+    try {
+      // Join ecdysis → samples via inat_observation_id to map collector names to iNat usernames.
+      // DISTINCT because one collector may have many specimens; take any matching observer per name.
+      const result = await conn.query(`
+        SELECT e.recordedBy, MIN(s.observer) AS observer
+        FROM ecdysis e
+        LEFT JOIN samples s ON e.inat_observation_id = s.observation_id
+        WHERE e.recordedBy IS NOT NULL
+        GROUP BY e.recordedBy
+        ORDER BY e.recordedBy
+      `);
+      this._collectorOptions = result.toArray().map(r => {
+        const obj = r.toJSON() as Record<string, unknown>;
+        const recordedBy = String(obj.recordedBy);
+        const observer = obj.observer != null ? String(obj.observer) : null;
+        return { displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry;
+      });
+    } finally {
+      await conn.close();
     }
   }
 
@@ -407,6 +452,7 @@ bee-sidebar {
       months: parsed.filter?.months ?? new Set(),
       selectedCounties: parsed.filter?.selectedCounties ?? new Set(),
       selectedEcoregions: parsed.filter?.selectedEcoregions ?? new Set(),
+      selectedCollectors: parsed.filter?.selectedCollectors ?? [],
     };
 
     // Restore UI state
@@ -548,6 +594,7 @@ bee-sidebar {
       months: detail.months,
       selectedCounties: detail.selectedCounties,
       selectedEcoregions: detail.selectedEcoregions,
+      selectedCollectors: detail.selectedCollectors,
     };
 
     if (newBoundaryMode !== this._boundaryMode) {
@@ -623,6 +670,7 @@ bee-sidebar {
     this._summary = e.detail.summary;
     this._taxaOptions = e.detail.taxaOptions;
     this._loading = false;
+    this._loadCollectorOptions();
 
     // If filter was restored from URL, run the filter query now that data is loaded
     if (isFilterActive(this._filterState)) {

@@ -1,5 +1,13 @@
 import { getDuckDB, tablesReady } from './duckdb.ts';
 
+// A resolved collector entry links a human name to an iNat username (either may be null).
+// Stored in FilterState.selectedCollectors and used as CollectorOption in autocomplete.
+export interface CollectorEntry {
+  displayName: string;          // human name if known, else iNat username
+  recordedBy: string | null;    // ecdysis.recordedBy value (null if only known as iNat user)
+  observer: string | null;      // samples.observer value / iNat username (null if no iNat link)
+}
+
 export interface FilterState {
   taxonName: string | null;      // value of the selected taxon (family name, genus name, or scientificName)
   taxonRank: 'family' | 'genus' | 'species' | null;
@@ -8,6 +16,7 @@ export interface FilterState {
   months: Set<number>;           // 1-12; empty Set = no month filter active
   selectedCounties: Set<string>;
   selectedEcoregions: Set<string>;
+  selectedCollectors: CollectorEntry[];
 }
 
 export interface SpecimenRow {
@@ -98,7 +107,8 @@ export function isFilterActive(f: FilterState): boolean {
     || f.yearTo !== null
     || f.months.size > 0
     || f.selectedCounties.size > 0
-    || f.selectedEcoregions.size > 0;
+    || f.selectedEcoregions.size > 0
+    || f.selectedCollectors.length > 0;
 }
 
 export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesWhere: string } {
@@ -148,6 +158,18 @@ export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesW
     const ecors = [...f.selectedEcoregions].map(e => `'${e.replace(/'/g, "''")}'`).join(',');
     ecdysisClauses.push(`ecoregion_l3 IN (${ecors})`);
     samplesClauses.push(`ecoregion_l3 IN (${ecors})`);
+  }
+
+  // Collector filter — ecdysis uses recordedBy, samples uses observer (iNat username)
+  if (f.selectedCollectors.length > 0) {
+    const recordedBys = f.selectedCollectors
+      .filter(c => c.recordedBy !== null)
+      .map(c => `'${c.recordedBy!.replace(/'/g, "''")}'`);
+    const observers = f.selectedCollectors
+      .filter(c => c.observer !== null)
+      .map(c => `'${c.observer!.replace(/'/g, "''")}'`);
+    if (recordedBys.length > 0) ecdysisClauses.push(`recordedBy IN (${recordedBys.join(',')})`);
+    if (observers.length > 0) samplesClauses.push(`observer IN (${observers.join(',')})`);
   }
 
   const ecdysisWhere = ecdysisClauses.length > 0 ? ecdysisClauses.join(' AND ') : '1 = 1';

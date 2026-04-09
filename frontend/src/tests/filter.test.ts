@@ -20,6 +20,7 @@ function emptyFilter(): FilterState {
     months: new Set(),
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
+    selectedCollectors: [],
   };
 }
 
@@ -113,6 +114,7 @@ describe('combined filters', () => {
       months: new Set([6, 7]),
       selectedCounties: new Set(['King']),
       selectedEcoregions: new Set(['Cascades']),
+      selectedCollectors: [],
     };
     const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
 
