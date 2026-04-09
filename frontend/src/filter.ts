@@ -25,6 +25,7 @@ export interface SampleRow {
   observer: string;
   date: string;
   specimen_count: number;
+  sample_id: number | null;
   county: string;
   ecoregion_l3: string;
 }
@@ -45,6 +46,7 @@ export const SAMPLE_COLUMNS: Record<string, string> = {
   observer: 'observer',
   date: 'date',
   specimenCount: 'specimen_count',
+  sampleId: 'sample_id',
   county: 'county',
   ecoregion: 'ecoregion_l3',
 };

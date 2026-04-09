@@ -19,11 +19,12 @@ const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
 ];
 
 const SAMPLE_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'observer', label: 'Observer', dataField: 'observer', minWidth: '22%' },
-  { key: 'date', label: 'Date', dataField: 'date', minWidth: '13%' },
+  { key: 'observer', label: 'Observer', dataField: 'observer', minWidth: '20%' },
+  { key: 'date', label: 'Date', dataField: 'date', minWidth: '12%' },
   { key: 'specimenCount', label: 'Specimens', dataField: 'specimen_count', minWidth: '10%' },
-  { key: 'county', label: 'County', dataField: 'county', minWidth: '20%' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '35%' },
+  { key: 'sampleId', label: 'Sample ID', dataField: 'sample_id', minWidth: '10%' },
+  { key: 'county', label: 'County', dataField: 'county', minWidth: '18%' },
+  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '30%' },
 ];
 
 @customElement('bee-table')
