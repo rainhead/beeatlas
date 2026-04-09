@@ -75,7 +75,8 @@ function slugify(s: string): string {
 }
 
 export function buildCsvFilename(f: FilterState, layerMode: 'specimens' | 'samples'): string {
-  if (!isFilterActive(f)) return `${layerMode}-all.csv`;
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  if (!isFilterActive(f)) return `${layerMode}-all-${date}.csv`;
 
   const segments: string[] = [];
 
@@ -115,7 +116,7 @@ export function buildCsvFilename(f: FilterState, layerMode: 'specimens' | 'sampl
     }
   }
 
-  return `${layerMode}-${segments.join('-')}.csv`;
+  return `${layerMode}-${segments.join('-')}-${date}.csv`;
 }
 
 export async function queryAllFiltered(
@@ -126,7 +127,9 @@ export async function queryAllFiltered(
   const orderBy = layerMode === 'specimens' ? SPECIMEN_ORDER : SAMPLE_ORDER;
 
   const selectCols = layerMode === 'specimens'
-    ? 'ecdysis_id, occurrenceID, longitude, latitude, date, year, month, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, inat_observation_id'
+    ? "ecdysis_id, longitude, latitude, date, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, " +
+      "'https://ecdysis.org/collections/individual/index.php?occid=' || CAST(ecdysis_id AS VARCHAR) AS url, " +
+      "CASE WHEN inat_observation_id IS NOT NULL THEN 'https://www.inaturalist.org/observations/' || CAST(inat_observation_id AS VARCHAR) ELSE NULL END AS inat_url"
     : "observation_id, observer, strftime(date, '%Y-%m-%d') as date, lat, lon, specimen_count, sample_id, county, ecoregion_l3";
   const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
   const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;

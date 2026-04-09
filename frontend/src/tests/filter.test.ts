@@ -1,4 +1,4 @@
-import { test, expect, describe, vi } from 'vitest';
+import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
 import { buildFilterSQL, buildCsvFilename, queryTablePage, SPECIMEN_COLUMNS, SAMPLE_COLUMNS } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDuckDB } from '../duckdb.ts';
@@ -10,6 +10,10 @@ vi.mock('../duckdb.ts', () => ({
   loadAllTables: vi.fn(() => Promise.resolve()),
   tablesReady: Promise.resolve(),
 }));
+
+// Freeze date for deterministic buildCsvFilename tests (date suffix = 20260115).
+beforeAll(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-15')); });
+afterAll(() => { vi.useRealTimers(); });
 
 function emptyFilter(): FilterState {
   return {
@@ -139,63 +143,63 @@ describe('combined filters', () => {
 });
 
 describe('buildCsvFilename', () => {
-  test('no filter active: specimens => specimens-all.csv', () => {
-    expect(buildCsvFilename(emptyFilter(), 'specimens')).toBe('specimens-all.csv');
+  // Date frozen to 2026-01-15 → suffix is 20260115.
+  test('no filter active: specimens => specimens-all-20260115.csv', () => {
+    expect(buildCsvFilename(emptyFilter(), 'specimens')).toBe('specimens-all-20260115.csv');
   });
 
-  test('no filter active: samples => samples-all.csv', () => {
-    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all.csv');
+  test('no filter active: samples => samples-all-20260115.csv', () => {
+    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all-20260115.csv');
   });
 
-  test('taxon only: specimens-bombus.csv', () => {
+  test('taxon only: specimens-bombus-20260115.csv', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-20260115.csv');
   });
 
-  test('taxon + same yearFrom/yearTo: specimens-bombus-2023.csv', () => {
+  test('taxon + same yearFrom/yearTo: specimens-bombus-2023-20260115.csv', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2023, yearTo: 2023 };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2023.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2023-20260115.csv');
   });
 
-  test('taxon + year range: specimens-bombus-2020-2023.csv', () => {
+  test('taxon + year range: specimens-bombus-2020-2023-20260115.csv', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2020, yearTo: 2023 };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2020-2023.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2020-2023-20260115.csv');
   });
 
-  test('taxon + county: specimens-bombus-king.csv (at most 2 segments)', () => {
+  test('taxon + county: specimens-bombus-king-20260115.csv (at most 2 segments)', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, selectedCounties: new Set(['King']) };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-king.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-king-20260115.csv');
   });
 
-  test('county only: specimens-king.csv', () => {
+  test('county only: specimens-king-20260115.csv', () => {
     const f = { ...emptyFilter(), selectedCounties: new Set(['King']) };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-king.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-king-20260115.csv');
   });
 
   test('collector only: slugified displayName', () => {
     const f = { ...emptyFilter(), selectedCollectors: [{ displayName: 'Roy D. Smith', recordedBy: 'Roy D. Smith', observer: null }] };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-roy-d-smith.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-roy-d-smith-20260115.csv');
   });
 
-  test('only yearFrom set: specimens-2023.csv', () => {
+  test('only yearFrom set: specimens-2023-20260115.csv', () => {
     const f = { ...emptyFilter(), yearFrom: 2023 };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-2023.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-2023-20260115.csv');
   });
 
-  test('samples with filter: samples-all.csv when no filter', () => {
-    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all.csv');
+  test('samples with filter: samples-all-20260115.csv when no filter', () => {
+    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all-20260115.csv');
   });
 
   test('taxon with spaces: slugified to lowercase hyphens', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus occidentalis', taxonRank: 'species' as const };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-occidentalis.csv');
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-occidentalis-20260115.csv');
   });
 
   test('segment truncated to 20 chars max', () => {
     const f = { ...emptyFilter(), taxonName: 'Averyverylongtaxonnamethatexceeds', taxonRank: 'genus' as const };
     const result = buildCsvFilename(f, 'specimens');
-    // Taxon segment should be truncated to 20 chars: 'averyverylongtaxonna'
-    expect(result).toBe('specimens-averyverylongtaxonna.csv');
+    expect(result).toBe('specimens-averyverylongtaxonna-20260115.csv');
   });
 });
 
