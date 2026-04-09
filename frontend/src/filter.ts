@@ -53,19 +53,16 @@ export const SAMPLE_COLUMNS: Record<string, string> = {
 
 const PAGE_SIZE = 100;
 
+const SPECIMEN_ORDER = 'date DESC, recordedBy ASC, fieldNumber ASC';
+const SAMPLE_ORDER = 'date DESC, observer ASC, sample_id ASC';
+
 export async function queryTablePage(
   f: FilterState,
   layerMode: 'specimens' | 'samples',
-  sortCol: string,
-  sortDir: 'asc' | 'desc',
   page: number
 ): Promise<{ rows: SpecimenRow[] | SampleRow[]; total: number }> {
   const columns = layerMode === 'specimens' ? SPECIMEN_COLUMNS : SAMPLE_COLUMNS;
-  // Validate sort column against allowlist (SQL injection protection per T-40-01)
-  const sqlSortCol = columns[sortCol];
-  const safeSortCol = sqlSortCol ?? (layerMode === 'specimens' ? 'date' : 'date');
-  // Validate sort direction — only accept literal 'asc' (per T-40-02)
-  const safeDir = sortDir === 'asc' ? 'ASC' : 'DESC';
+  const orderBy = layerMode === 'specimens' ? SPECIMEN_ORDER : SAMPLE_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
 
   const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
@@ -82,7 +79,7 @@ export async function queryTablePage(
   const conn = await db.connect();
   try {
     const dataResult = await conn.query(
-      `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${safeSortCol} ${safeDir} LIMIT ${PAGE_SIZE} OFFSET ${offset}`
+      `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`
     );
     const countResult = await conn.query(
       `SELECT COUNT(*) as n FROM ${table} WHERE ${where}`

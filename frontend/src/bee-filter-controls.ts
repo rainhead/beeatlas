@@ -1,7 +1,164 @@
-import { css, html, LitElement, type PropertyValues } from 'lit';
+import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { FilterState } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+// --- Token types ---
+
+interface MonthToken    { type: 'month';     month: number }
+interface TaxonToken    { type: 'taxon';     taxonName: string; taxonRank: 'family' | 'genus' | 'species' }
+interface CountyToken   { type: 'county';    county: string }
+interface EcorToken     { type: 'ecoregion'; ecoregion: string }
+interface YearFromToken { type: 'yearFrom';  year: number }
+interface YearToToken   { type: 'yearTo';    year: number }
+interface YearExactToken{ type: 'yearExact'; year: number }
+
+type Token = MonthToken | TaxonToken | CountyToken | EcorToken | YearFromToken | YearToToken | YearExactToken;
+type Suggestion = { label: string; token: Token };
+
+function tokenLabel(t: Token): string {
+  switch (t.type) {
+    case 'month':     return `in ${MONTH_NAMES[t.month - 1]}`;
+    case 'taxon':     return t.taxonRank === 'species' ? t.taxonName : `${t.taxonName} (${t.taxonRank})`;
+    case 'county':    return `${t.county} County`;
+    case 'ecoregion': return t.ecoregion;
+    case 'yearFrom':  return `since ${t.year}`;
+    case 'yearTo':    return `until ${t.year}`;
+    case 'yearExact': return `in ${t.year}`;
+  }
+}
+
+function tokensToFilterState(tokens: Token[]): FilterState {
+  const f: FilterState = {
+    taxonName: null, taxonRank: null,
+    yearFrom: null, yearTo: null,
+    months: new Set(),
+    selectedCounties: new Set(),
+    selectedEcoregions: new Set(),
+  };
+  for (const t of tokens) {
+    switch (t.type) {
+      case 'month':     f.months.add(t.month); break;
+      case 'taxon':     f.taxonName = t.taxonName; f.taxonRank = t.taxonRank; break;
+      case 'county':    f.selectedCounties.add(t.county); break;
+      case 'ecoregion': f.selectedEcoregions.add(t.ecoregion); break;
+      case 'yearFrom':  f.yearFrom = t.year; break;
+      case 'yearTo':    f.yearTo = t.year; break;
+      case 'yearExact': f.yearFrom = t.year; f.yearTo = t.year; break;
+    }
+  }
+  return f;
+}
+
+function filterStateToTokens(f: FilterState): Token[] {
+  const tokens: Token[] = [];
+  if (f.taxonName && f.taxonRank) {
+    tokens.push({ type: 'taxon', taxonName: f.taxonName, taxonRank: f.taxonRank });
+  }
+  if (f.yearFrom !== null && f.yearFrom === f.yearTo) {
+    tokens.push({ type: 'yearExact', year: f.yearFrom });
+  } else {
+    if (f.yearFrom !== null) tokens.push({ type: 'yearFrom', year: f.yearFrom });
+    if (f.yearTo   !== null) tokens.push({ type: 'yearTo',   year: f.yearTo });
+  }
+  for (const m of [...f.months].sort((a, b) => a - b)) tokens.push({ type: 'month', month: m });
+  for (const c of [...f.selectedCounties].sort())       tokens.push({ type: 'county', county: c });
+  for (const e of [...f.selectedEcoregions].sort())     tokens.push({ type: 'ecoregion', ecoregion: e });
+  return tokens;
+}
+
+function filterStatesEqual(a: FilterState, b: FilterState): boolean {
+  return a.taxonName === b.taxonName
+    && a.taxonRank === b.taxonRank
+    && a.yearFrom === b.yearFrom
+    && a.yearTo === b.yearTo
+    && setsEqual(a.months, b.months)
+    && setsEqual(a.selectedCounties, b.selectedCounties)
+    && setsEqual(a.selectedEcoregions, b.selectedEcoregions);
+}
+
+function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false;
+  for (const item of a) if (!b.has(item)) return false;
+  return true;
+}
+
+function getSuggestions(
+  q: string,
+  taxaOptions: TaxonOption[],
+  countyOptions: string[],
+  ecoregionOptions: string[],
+  tokens: Token[],
+): Suggestion[] {
+  const trimmed = q.trim();
+  if (!trimmed) return [];
+  const lower = trimmed.toLowerCase();
+  const results: Suggestion[] = [];
+
+  // Month suggestions — prefix match
+  const activeMonths = new Set(
+    tokens.filter((t): t is MonthToken => t.type === 'month').map(t => t.month)
+  );
+  for (let i = 0; i < MONTH_NAMES.length; i++) {
+    if (MONTH_NAMES[i].toLowerCase().startsWith(lower) && !activeMonths.has(i + 1)) {
+      results.push({ label: `in ${MONTH_NAMES[i]}`, token: { type: 'month', month: i + 1 } });
+    }
+  }
+
+  // Year suggestions — only for complete 4-digit input
+  if (/^\d{4}$/.test(trimmed)) {
+    const year = parseInt(trimmed, 10);
+    const hasFrom = tokens.some(t => t.type === 'yearFrom' || t.type === 'yearExact');
+    const hasTo   = tokens.some(t => t.type === 'yearTo'   || t.type === 'yearExact');
+    if (!hasFrom) results.push({ label: `since ${year}`, token: { type: 'yearFrom', year } });
+    if (!hasTo)   results.push({ label: `until ${year}`, token: { type: 'yearTo',   year } });
+    results.push({ label: `in ${year}`, token: { type: 'yearExact', year } });
+  }
+
+  // Taxon suggestions — substring match, up to 5, only if no taxon token active
+  if (!tokens.some(t => t.type === 'taxon')) {
+    let n = 0;
+    for (const opt of taxaOptions) {
+      if (opt.label.toLowerCase().includes(lower)) {
+        results.push({ label: opt.label, token: { type: 'taxon', taxonName: opt.name, taxonRank: opt.rank } });
+        if (++n >= 5) break;
+      }
+    }
+  }
+
+  // County suggestions — substring match, up to 5
+  const activeCounties = new Set(
+    tokens.filter((t): t is CountyToken => t.type === 'county').map(t => t.county)
+  );
+  let cn = 0;
+  for (const c of countyOptions) {
+    if (c.toLowerCase().includes(lower) && !activeCounties.has(c)) {
+      results.push({ label: `${c} County`, token: { type: 'county', county: c } });
+      if (++cn >= 5) break;
+    }
+  }
+
+  // Ecoregion suggestions — substring match, up to 5
+  const activeEcor = new Set(
+    tokens.filter((t): t is EcorToken => t.type === 'ecoregion').map(t => t.ecoregion)
+  );
+  let en = 0;
+  for (const e of ecoregionOptions) {
+    if (e.toLowerCase().includes(lower) && !activeEcor.has(e)) {
+      results.push({ label: e, token: { type: 'ecoregion', ecoregion: e } });
+      if (++en >= 5) break;
+    }
+  }
+
+  return results.slice(0, 8);
+}
+
+// --- Component ---
 
 @customElement('bee-filter-controls')
 export class BeeFilterControls extends LitElement {
@@ -12,133 +169,16 @@ export class BeeFilterControls extends LitElement {
   @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @property({ attribute: false }) summary: DataSummary | null = null;
 
-  @state() private _taxonInputText = '';
-  @state() private _countyInputText = '';
-  @state() private _ecoregionInputText = '';
+  @state() private _tokens: Token[] = [];
+  @state() private _inputText = '';
+  @state() private _suggestions: Suggestion[] = [];
+  @state() private _highlightIndex = -1;
+  @state() private _open = false;
 
   static styles = css`
-    :host {
-      display: block;
-    }
-    .filter-controls {
-      padding: 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .filter-controls h3 {
-      margin: 0 0 0.75rem 0;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
-    .filter-row {
-      margin-bottom: 0.6rem;
-    }
-    .filter-row input[type="text"],
-    .filter-row input[type="number"] {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 0.35rem 0.5rem;
-      border: 1px solid var(--border-input);
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
-    .year-row {
-      display: flex;
-      gap: 0.5rem;
-    }
-    .year-row input {
-      flex: 1;
-    }
-    .month-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 0.25rem;
-      margin-top: 0.25rem;
-    }
-    .month-grid label {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      font-size: 0.8rem;
-      cursor: pointer;
-    }
-    .taxon-row {
-      display: flex;
-      align-items: center;
-      gap: 0.35rem;
-    }
-    .taxon-row input[type="text"] {
-      flex: 1;
-      min-width: 0;
-    }
-    .taxon-clear-btn {
-      flex-shrink: 0;
-      padding: 0.3rem 0.5rem;
-      cursor: pointer;
-      border: 1px solid var(--border-input);
-      background: transparent;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      line-height: 1;
-      color: var(--text-muted);
-    }
-    .taxon-clear-btn:hover {
-      background: var(--surface-muted);
-      color: var(--text-body);
-    }
-    .clear-btn {
-      margin-top: 0.6rem;
-      padding: 0.3rem 0.75rem;
-      cursor: pointer;
-      border: 1px solid var(--border-input);
-      background: transparent;
-      border-radius: 4px;
-      font-size: 0.85rem;
-    }
-    .region-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.25rem;
-      margin-top: 0.5rem;
-    }
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.25rem 0.5rem;
-      background: var(--surface-muted);
-      border: 1px solid var(--border-input);
-      border-radius: 4px;
-      font-size: 0.85rem;
-      color: var(--text-body);
-    }
-    .chip-type {
-      font-size: 0.75rem;
-      font-weight: 400;
-      background: var(--surface-chip);
-      color: var(--text-tertiary);
-      border-radius: 3px;
-      padding: 0 0.25rem;
-    }
-    .chip-remove {
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      padding: 0.25rem;
-      line-height: 1;
-      border-radius: 2px;
-      min-width: 24px;
-      min-height: 24px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .chip-remove:hover {
-      color: var(--text-body);
-      background: var(--surface-pressed);
-    }
+    :host { display: block; }
+
+    /* Boundary toggle */
     .layer-toggle {
       display: flex;
       border-bottom: 1px solid var(--border);
@@ -153,7 +193,6 @@ export class BeeFilterControls extends LitElement {
       font-size: 0.9rem;
       font-weight: 500;
       color: var(--text-hint);
-      transition: none;
     }
     .toggle-btn:hover {
       background: var(--surface-subtle);
@@ -164,344 +203,272 @@ export class BeeFilterControls extends LitElement {
       border-bottom-color: var(--accent);
       font-weight: 600;
     }
+
+    /* Token search */
+    .search-section {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    .token-field {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border-input);
+      border-radius: 4px;
+      cursor: text;
+      min-height: 36px;
+      background: var(--surface, #fff);
+    }
+    .token-field:focus-within {
+      border-color: var(--accent, #2c7a2c);
+    }
+    .token {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
+      padding: 0.15rem 0.35rem;
+      background: var(--surface-muted);
+      border: 1px solid var(--border-input);
+      border-radius: 3px;
+      font-size: 0.82rem;
+      color: var(--text-body);
+      white-space: nowrap;
+    }
+    .token-remove {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      padding: 0 0.1rem;
+      line-height: 1;
+      border-radius: 2px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 16px;
+      min-height: 16px;
+    }
+    .token-remove:hover {
+      color: var(--text-body);
+      background: var(--surface-pressed);
+    }
+    .token-input {
+      flex: 1;
+      min-width: 4rem;
+      border: none;
+      outline: none;
+      font-size: 0.875rem;
+      background: transparent;
+      color: var(--text-body);
+      padding: 0;
+    }
+    .token-input::placeholder { color: var(--text-hint); }
+
+    /* Dropdown */
+    .suggestions {
+      position: absolute;
+      left: 0.75rem;
+      right: 0.75rem;
+      top: calc(100% - 0.75rem);
+      background: var(--surface, #fff);
+      border: 1px solid var(--border-input);
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      z-index: 100;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .suggestion {
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-body);
+    }
+    .suggestion:hover,
+    .suggestion.highlighted { background: var(--surface-subtle); }
+
+    .clear-btn {
+      margin-top: 0.5rem;
+      padding: 0.2rem 0;
+      cursor: pointer;
+      border: none;
+      background: none;
+      font-size: 0.8rem;
+      color: var(--text-hint);
+      text-decoration: underline;
+    }
+    .clear-btn:hover { color: var(--text-body); }
   `;
 
   updated(changedProperties: PropertyValues) {
-    if (changedProperties.has('filterState')) {
-      const prev = changedProperties.get('filterState') as FilterState | undefined;
-      if (!prev || prev.taxonName !== this.filterState.taxonName) {
-        const opt = this.taxaOptions.find(
-          o => o.name === this.filterState.taxonName && o.rank === this.filterState.taxonRank
-        );
-        this._taxonInputText = opt?.label ?? this.filterState.taxonName ?? '';
-      }
-      if (!prev || prev.selectedCounties !== this.filterState.selectedCounties) {
-        this._countyInputText = '';
-      }
-      if (!prev || prev.selectedEcoregions !== this.filterState.selectedEcoregions) {
-        this._ecoregionInputText = '';
+    if (changedProperties.has('filterState') && this.filterState) {
+      // Only re-sync tokens from external filterState when it genuinely differs
+      // from what our current tokens produce — prevents echoing our own emissions.
+      if (!filterStatesEqual(tokensToFilterState(this._tokens), this.filterState)) {
+        this._tokens = filterStateToTokens(this.filterState);
       }
     }
   }
 
-  private _emit(partial: Partial<FilterChangedEvent> = {}) {
-    const detail: FilterChangedEvent = {
-      taxonName: this.filterState.taxonName,
-      taxonRank: this.filterState.taxonRank,
-      yearFrom: this.filterState.yearFrom,
-      yearTo: this.filterState.yearTo,
-      months: new Set(this.filterState.months),
-      selectedCounties: new Set(this.filterState.selectedCounties),
-      selectedEcoregions: new Set(this.filterState.selectedEcoregions),
-      boundaryMode: this.boundaryMode,
-      ...partial,
-    };
+  private _emitTokens(tokens: Token[]) {
+    const f = tokensToFilterState(tokens);
     this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
       bubbles: true, composed: true,
-      detail,
+      detail: { ...f, boundaryMode: this.boundaryMode },
     }));
   }
 
-  private _onTaxonInput(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const value = input.value;
-    this._taxonInputText = value;
-    if (value === '') {
-      this._emit({ taxonName: null, taxonRank: null });
-      return;
-    }
-    // Also resolve on exact label match — catches native datalist dropdown selection
-    // (browser fires 'input' reliably; 'change' is unreliable for datalist picks)
-    const option = this.taxaOptions.find(o => o.label === value);
-    if (option) {
-      this._emit({ taxonName: option.name, taxonRank: option.rank });
-    }
-    // If no exact match, user is mid-keystroke — do not apply a partial filter
+  private _onInput(e: Event) {
+    const value = (e.target as HTMLInputElement).value;
+    this._inputText = value;
+    this._suggestions = getSuggestions(value, this.taxaOptions, this.countyOptions, this.ecoregionOptions, this._tokens);
+    this._open = this._suggestions.length > 0;
+    this._highlightIndex = -1;
   }
 
-  private _onTaxonChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const value = input.value.trim();
-    if (value === '') {
-      this._emit({ taxonName: null, taxonRank: null });
-      return;
+  private _onKeydown(e: KeyboardEvent) {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        this._highlightIndex = Math.min(this._highlightIndex + 1, this._suggestions.length - 1);
+        if (!this._open && this._suggestions.length > 0) this._open = true;
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        this._highlightIndex = Math.max(this._highlightIndex - 1, -1);
+        break;
+      case 'Enter': {
+        e.preventDefault();
+        const idx = this._highlightIndex >= 0 ? this._highlightIndex : 0;
+        if (this._suggestions[idx]) this._selectSuggestion(this._suggestions[idx]);
+        break;
+      }
+      case 'Escape':
+        this._open = false;
+        this._highlightIndex = -1;
+        break;
+      case 'Backspace':
+        if (this._inputText === '' && this._tokens.length > 0) {
+          const next = this._tokens.slice(0, -1);
+          this._tokens = next;
+          this._emitTokens(next);
+        }
+        break;
     }
-    const option = this.taxaOptions.find(o => o.label === value);
-    if (option) {
-      this._emit({ taxonName: option.name, taxonRank: option.rank });
+  }
+
+  private _selectSuggestion(s: Suggestion) {
+    let next = [...this._tokens];
+    // Remove any conflicting tokens for single-slot dimensions
+    switch (s.token.type) {
+      case 'taxon':
+        next = next.filter(t => t.type !== 'taxon'); break;
+      case 'yearFrom':
+        next = next.filter(t => t.type !== 'yearFrom' && t.type !== 'yearExact'); break;
+      case 'yearTo':
+        next = next.filter(t => t.type !== 'yearTo' && t.type !== 'yearExact'); break;
+      case 'yearExact':
+        next = next.filter(t => t.type !== 'yearFrom' && t.type !== 'yearTo' && t.type !== 'yearExact'); break;
     }
-    // If not found in list, do nothing (no filter applied)
-  }
-
-  private _onYearFromChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const val = input.value ? parseInt(input.value, 10) : null;
-    const yearFrom = (val !== null && this.filterState.yearTo !== null && val > this.filterState.yearTo)
-      ? this.filterState.yearTo
-      : val;
-    this._emit({ yearFrom });
-  }
-
-  private _onYearToChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const val = input.value ? parseInt(input.value, 10) : null;
-    const yearTo = (val !== null && this.filterState.yearFrom !== null && val < this.filterState.yearFrom)
-      ? this.filterState.yearFrom
-      : val;
-    this._emit({ yearTo });
-  }
-
-  private _onMonthChange(month: number, checked: boolean) {
-    const next = new Set(this.filterState.months);
-    if (checked) {
-      next.add(month);
-    } else {
-      next.delete(month);
-    }
-    this._emit({ months: next });
-  }
-
-  private _clearFilters() {
-    this._taxonInputText = '';
-    this._countyInputText = '';
-    this._ecoregionInputText = '';
-    this._emit({
-      taxonName: null,
-      taxonRank: null,
-      yearFrom: null,
-      yearTo: null,
-      months: new Set(),
-      selectedCounties: new Set(),
-      selectedEcoregions: new Set(),
-      boundaryMode: 'off',
+    next.push(s.token);
+    this._tokens = next;
+    this._inputText = '';
+    this._open = false;
+    this._highlightIndex = -1;
+    this._suggestions = [];
+    this._emitTokens(next);
+    requestAnimationFrame(() => {
+      (this.shadowRoot?.querySelector('.token-input') as HTMLInputElement)?.focus();
     });
   }
 
-  private _clearTaxon() {
-    this._taxonInputText = '';
-    this._emit({ taxonName: null, taxonRank: null });
+  private _removeToken(i: number) {
+    const next = [...this._tokens.slice(0, i), ...this._tokens.slice(i + 1)];
+    this._tokens = next;
+    this._emitTokens(next);
   }
 
-  private _getMonthName(month: number): string {
-    return new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
-      new Date(2000, month - 1)
-    );
+  private _clearAll() {
+    this._tokens = [];
+    this._inputText = '';
+    this._open = false;
+    this._suggestions = [];
+    this._emitTokens([]);
+  }
+
+  private _onBlur() {
+    // Delay allows mousedown on a suggestion to fire before blur closes dropdown
+    setTimeout(() => { this._open = false; this._highlightIndex = -1; }, 150);
+  }
+
+  private _focusInput() {
+    (this.shadowRoot?.querySelector('.token-input') as HTMLInputElement)?.focus();
   }
 
   private _onBoundaryToggle(mode: 'off' | 'counties' | 'ecoregions') {
     if (mode === this.boundaryMode) return;
-    this._emit({ boundaryMode: mode });
-  }
-
-  private _onCountyInput(e: Event) {
-    const input = e.target as HTMLInputElement;
-    this._countyInputText = input.value;
-    const match = this.countyOptions.find(o => o === input.value);
-    if (match && !this.filterState.selectedCounties.has(match)) {
-      const next = new Set(this.filterState.selectedCounties);
-      next.add(match);
-      this._countyInputText = '';
-      input.value = '';
-      this._emit({ selectedCounties: next });
-    }
-  }
-
-  private _onCountyChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const value = input.value.trim();
-    const match = this.countyOptions.find(o => o === value);
-    if (match && !this.filterState.selectedCounties.has(match)) {
-      const next = new Set(this.filterState.selectedCounties);
-      next.add(match);
-      this._countyInputText = '';
-      input.value = '';
-      this._emit({ selectedCounties: next });
-    }
-  }
-
-  private _onEcoregionInput(e: Event) {
-    const input = e.target as HTMLInputElement;
-    this._ecoregionInputText = input.value;
-    const match = this.ecoregionOptions.find(o => o === input.value);
-    if (match && !this.filterState.selectedEcoregions.has(match)) {
-      const next = new Set(this.filterState.selectedEcoregions);
-      next.add(match);
-      this._ecoregionInputText = '';
-      input.value = '';
-      this._emit({ selectedEcoregions: next });
-    }
-  }
-
-  private _onEcoregionChange(e: Event) {
-    const input = e.target as HTMLInputElement;
-    const value = input.value.trim();
-    const match = this.ecoregionOptions.find(o => o === value);
-    if (match && !this.filterState.selectedEcoregions.has(match)) {
-      const next = new Set(this.filterState.selectedEcoregions);
-      next.add(match);
-      this._ecoregionInputText = '';
-      input.value = '';
-      this._emit({ selectedEcoregions: next });
-    }
-  }
-
-  private _removeCounty(name: string) {
-    const next = new Set(this.filterState.selectedCounties);
-    next.delete(name);
-    this._emit({ selectedCounties: next });
-  }
-
-  private _removeEcoregion(name: string) {
-    const next = new Set(this.filterState.selectedEcoregions);
-    next.delete(name);
-    this._emit({ selectedEcoregions: next });
-  }
-
-  private _renderBoundaryToggle() {
-    return html`
-      <div class="layer-toggle">
-        <button
-          class=${this.boundaryMode === 'off' ? 'toggle-btn active' : 'toggle-btn'}
-          @click=${() => this._onBoundaryToggle('off')}
-        >Off</button>
-        <button
-          class=${this.boundaryMode === 'counties' ? 'toggle-btn active' : 'toggle-btn'}
-          @click=${() => this._onBoundaryToggle('counties')}
-        >Counties</button>
-        <button
-          class=${this.boundaryMode === 'ecoregions' ? 'toggle-btn active' : 'toggle-btn'}
-          @click=${() => this._onBoundaryToggle('ecoregions')}
-        >Ecoregions</button>
-      </div>
-    `;
-  }
-
-  private _renderRegionChips() {
-    const selectedCounties = this.filterState?.selectedCounties ?? new Set<string>();
-    const selectedEcoregions = this.filterState?.selectedEcoregions ?? new Set<string>();
-    const bothActive = selectedCounties.size > 0 && selectedEcoregions.size > 0;
-    if (selectedCounties.size === 0 && selectedEcoregions.size === 0) return '';
-    return html`
-      <div class="region-chips">
-        ${[...selectedCounties].map(name => html`
-          <span class="chip">
-            ${bothActive ? html`<span class="chip-type">county</span>` : ''}
-            ${name}
-            <button class="chip-remove" aria-label="Remove ${name}" @click=${() => this._removeCounty(name)}>&#x2715;</button>
-          </span>
-        `)}
-        ${[...selectedEcoregions].map(name => html`
-          <span class="chip">
-            ${bothActive ? html`<span class="chip-type">ecoregion</span>` : ''}
-            ${name}
-            <button class="chip-remove" aria-label="Remove ${name}" @click=${() => this._removeEcoregion(name)}>&#x2715;</button>
-          </span>
-        `)}
-      </div>
-    `;
-  }
-
-  private _renderRegionControls() {
-    return html`
-      <div class="filter-controls">
-        <div class="filter-row">
-          <input
-            type="text"
-            list="county-list"
-            placeholder="Filter by county\u2026"
-            .value=${this._countyInputText}
-            @input=${this._onCountyInput}
-            @change=${this._onCountyChange}
-          />
-          <datalist id="county-list">
-            ${this.countyOptions.map(name => html`<option value=${name}></option>`)}
-          </datalist>
-        </div>
-        <div class="filter-row">
-          <input
-            type="text"
-            list="ecoregion-list"
-            placeholder="Filter by ecoregion\u2026"
-            .value=${this._ecoregionInputText}
-            @input=${this._onEcoregionInput}
-            @change=${this._onEcoregionChange}
-          />
-          <datalist id="ecoregion-list">
-            ${this.ecoregionOptions.map(name => html`<option value=${name}></option>`)}
-          </datalist>
-        </div>
-        ${this._renderRegionChips()}
-        <button class="clear-btn" @click=${this._clearFilters}>Clear filters</button>
-      </div>
-    `;
-  }
-
-  private _renderFilterControls() {
-    const yearFrom = this.filterState?.yearFrom ?? null;
-    const yearTo = this.filterState?.yearTo ?? null;
-    const months = this.filterState?.months ?? new Set<number>();
-    const taxonName = this.filterState?.taxonName ?? null;
-
-    return html`
-      <div class="filter-controls">
-        <h3>Filter</h3>
-        <div class="filter-row taxon-row">
-          <input
-            type="text"
-            list="taxon-list"
-            placeholder="Filter by taxon\u2026"
-            .value=${this._taxonInputText}
-            @input=${this._onTaxonInput}
-            @change=${this._onTaxonChange}
-          />
-          ${taxonName !== null ? html`
-            <button class="taxon-clear-btn" aria-label="Clear taxon filter" @click=${this._clearTaxon} title="Clear taxon filter">&#x2715;</button>
-          ` : ''}
-          <datalist id="taxon-list">
-            ${this.taxaOptions.map(o => html`<option value=${o.label}></option>`)}
-          </datalist>
-        </div>
-        <div class="filter-row year-row">
-          <input
-            type="number"
-            placeholder="From year"
-            min=${this.summary ? String(this.summary.earliestYear) : "2023"}
-            max=${yearTo !== null ? String(yearTo) : (this.summary ? String(this.summary.latestYear) : "2025")}
-            .value=${yearFrom !== null ? String(yearFrom) : ''}
-            @change=${this._onYearFromChange}
-          />
-          <input
-            type="number"
-            placeholder="To year"
-            min=${yearFrom !== null ? String(yearFrom) : (this.summary ? String(this.summary.earliestYear) : "2023")}
-            max=${this.summary ? String(this.summary.latestYear) : "2025"}
-            .value=${yearTo !== null ? String(yearTo) : ''}
-            @change=${this._onYearToChange}
-          />
-        </div>
-        <div class="filter-row">
-          <div class="month-grid">
-            ${[1,2,3,4,5,6,7,8,9,10,11,12].map(m => html`
-              <label>
-                <input
-                  type="checkbox"
-                  .checked=${months.has(m)}
-                  @change=${(e: Event) => this._onMonthChange(m, (e.target as HTMLInputElement).checked)}
-                />
-                ${this._getMonthName(m)}
-              </label>
-            `)}
-          </div>
-        </div>
-      </div>
-    `;
+    const f = tokensToFilterState(this._tokens);
+    this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
+      bubbles: true, composed: true,
+      detail: { ...f, boundaryMode: mode },
+    }));
   }
 
   render() {
     return html`
-      ${this._renderBoundaryToggle()}
-      ${this._renderFilterControls()}
-      ${this._renderRegionControls()}
+      <div class="layer-toggle">
+        <button class=${'toggle-btn' + (this.boundaryMode === 'off'        ? ' active' : '')} @click=${() => this._onBoundaryToggle('off')}>Off</button>
+        <button class=${'toggle-btn' + (this.boundaryMode === 'counties'   ? ' active' : '')} @click=${() => this._onBoundaryToggle('counties')}>Counties</button>
+        <button class=${'toggle-btn' + (this.boundaryMode === 'ecoregions' ? ' active' : '')} @click=${() => this._onBoundaryToggle('ecoregions')}>Ecoregions</button>
+      </div>
+      <div class="search-section">
+        <div class="token-field" @click=${this._focusInput}>
+          ${this._tokens.map((t, i) => html`
+            <span class="token">
+              ${tokenLabel(t)}
+              <button
+                class="token-remove"
+                aria-label="Remove ${tokenLabel(t)}"
+                @click=${(e: Event) => { e.stopPropagation(); this._removeToken(i); }}
+              >&#x2715;</button>
+            </span>
+          `)}
+          <input
+            type="text"
+            class="token-input"
+            placeholder=${this._tokens.length === 0 ? 'Filter\u2026' : ''}
+            .value=${this._inputText}
+            @input=${this._onInput}
+            @keydown=${this._onKeydown}
+            @blur=${this._onBlur}
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        ${this._open ? html`
+          <ul class="suggestions" role="listbox">
+            ${this._suggestions.map((s, i) => html`
+              <li
+                class=${'suggestion' + (i === this._highlightIndex ? ' highlighted' : '')}
+                role="option"
+                aria-selected=${i === this._highlightIndex}
+                @mousedown=${(e: Event) => { e.preventDefault(); this._selectSuggestion(s); }}
+              >${s.label}</li>
+            `)}
+          </ul>
+        ` : nothing}
+        ${this._tokens.length > 0 ? html`
+          <button class="clear-btn" @click=${this._clearAll}>Clear filters</button>
+        ` : nothing}
+      </div>
     `;
   }
 }

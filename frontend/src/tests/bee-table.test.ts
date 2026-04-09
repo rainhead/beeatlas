@@ -43,8 +43,6 @@ async function createBeeTable(props: {
   rowCount?: number;
   layerMode?: 'specimens' | 'samples';
   page?: number;
-  sortColumn?: string;
-  sortDir?: 'asc' | 'desc';
   loading?: boolean;
 }) {
   const { BeeTable } = await import('../bee-table.ts');
@@ -53,8 +51,6 @@ async function createBeeTable(props: {
   if (props.rowCount !== undefined) (el as any).rowCount = props.rowCount;
   if (props.layerMode !== undefined) (el as any).layerMode = props.layerMode;
   if (props.page !== undefined) (el as any).page = props.page;
-  if (props.sortColumn !== undefined) (el as any).sortColumn = props.sortColumn;
-  if (props.sortDir !== undefined) (el as any).sortDir = props.sortDir;
   if (props.loading !== undefined) (el as any).loading = props.loading;
   document.body.appendChild(el);
   await el.updateComplete;
@@ -65,7 +61,7 @@ describe('TABLE-01: bee-table column headers', () => {
   test('renders 6 specimen column headers when layerMode is specimens', async () => {
     const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
-    const labels = Array.from(headers).map(th => th.textContent?.replace(/[\u2191\u2193\u2195]/g, '').trim());
+    const labels = Array.from(headers).map(th => th.textContent?.trim());
     expect(labels.filter(Boolean)).toContain('Species');
     expect(labels.filter(Boolean)).toContain('Collector');
     expect(labels.filter(Boolean)).toContain('Date');
@@ -79,7 +75,7 @@ describe('TABLE-01: bee-table column headers', () => {
   test('renders 6 sample column headers when layerMode is samples', async () => {
     const el = await createBeeTable({ layerMode: 'samples', rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
-    const labels = Array.from(headers).map(th => th.textContent?.replace(/[\u2191\u2193\u2195]/g, '').trim());
+    const labels = Array.from(headers).map(th => th.textContent?.trim());
     expect(labels.filter(Boolean)).toContain('Observer');
     expect(labels.filter(Boolean)).toContain('Date');
     expect(labels.filter(Boolean)).toContain('Specimens');
@@ -137,36 +133,6 @@ describe('TABLE-03: bee-table pagination controls', () => {
   });
 });
 
-describe('TABLE-04: bee-table sort events', () => {
-  test('clicking active sort column header dispatches sort-changed with reversed direction', async () => {
-    const el = await createBeeTable({ sortColumn: 'species', sortDir: 'desc', rowCount: 100 });
-    const sortChangedPromise = new Promise<CustomEvent>(resolve => {
-      el.addEventListener('sort-changed', (e) => resolve(e as CustomEvent));
-    });
-    const headers = el.shadowRoot!.querySelectorAll('th button');
-    const speciesHeader = Array.from(headers).find(btn => btn.textContent?.includes('Species'));
-    (speciesHeader as HTMLElement)?.click();
-    const event = await sortChangedPromise;
-    expect(event.detail.column).toBe('species');
-    expect(event.detail.dir).toBe('asc');  // reversed from 'desc'
-    document.body.removeChild(el);
-  });
-
-  test('clicking inactive column header dispatches sort-changed with that column and dir=asc', async () => {
-    const el = await createBeeTable({ sortColumn: 'year', sortDir: 'desc', rowCount: 100 });
-    const sortChangedPromise = new Promise<CustomEvent>(resolve => {
-      el.addEventListener('sort-changed', (e) => resolve(e as CustomEvent));
-    });
-    const headers = el.shadowRoot!.querySelectorAll('th button');
-    const speciesHeader = Array.from(headers).find(btn => btn.textContent?.includes('Species'));
-    (speciesHeader as HTMLElement)?.click();
-    const event = await sortChangedPromise;
-    expect(event.detail.column).toBe('species');
-    expect(event.detail.dir).toBe('asc');
-    document.body.removeChild(el);
-  });
-});
-
 describe('TABLE-05: bee-table page events', () => {
   test('clicking Next dispatches page-changed with page+1', async () => {
     const el = await createBeeTable({ page: 1, rowCount: 200 });
@@ -217,30 +183,6 @@ describe('TABLE-07: bee-table accessibility', () => {
     const el = await createBeeTable({ rows: specimenRows, rowCount: 1, layerMode: 'specimens', page: 1 });
     const firstCell = el.shadowRoot!.querySelector('tbody td') as HTMLElement;
     expect(firstCell?.getAttribute('title')).toBe(firstCell?.textContent?.trim());
-    document.body.removeChild(el);
-  });
-
-  test('active sort column header has aria-sort="ascending"', async () => {
-    const el = await createBeeTable({ sortColumn: 'species', sortDir: 'asc', rowCount: 100 });
-    const headers = el.shadowRoot!.querySelectorAll('th');
-    const speciesHeader = Array.from(headers).find(th => th.textContent?.includes('Species'));
-    expect(speciesHeader?.getAttribute('aria-sort')).toBe('ascending');
-    document.body.removeChild(el);
-  });
-
-  test('active sort column header has aria-sort="descending"', async () => {
-    const el = await createBeeTable({ sortColumn: 'species', sortDir: 'desc', rowCount: 100 });
-    const headers = el.shadowRoot!.querySelectorAll('th');
-    const speciesHeader = Array.from(headers).find(th => th.textContent?.includes('Species'));
-    expect(speciesHeader?.getAttribute('aria-sort')).toBe('descending');
-    document.body.removeChild(el);
-  });
-
-  test('inactive column headers have aria-sort="none"', async () => {
-    const el = await createBeeTable({ sortColumn: 'year', sortDir: 'desc', rowCount: 100 });
-    const headers = el.shadowRoot!.querySelectorAll('th');
-    const speciesHeader = Array.from(headers).find(th => th.textContent?.includes('Species'));
-    expect(speciesHeader?.getAttribute('aria-sort')).toBe('none');
     document.body.removeChild(el);
   });
 

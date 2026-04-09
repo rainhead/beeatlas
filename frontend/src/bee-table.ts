@@ -33,8 +33,6 @@ export class BeeTable extends LitElement {
   @property({ attribute: false }) rowCount = 0;
   @property({ attribute: false }) layerMode: 'specimens' | 'samples' = 'specimens';
   @property({ attribute: false }) page = 1;
-  @property({ attribute: false }) sortColumn = 'date';
-  @property({ attribute: false }) sortDir: 'asc' | 'desc' = 'desc';
   @property({ attribute: false }) loading = false;
 
   static styles = css`
@@ -70,27 +68,6 @@ export class BeeTable extends LitElement {
       padding: 8px 16px;
       border-bottom: 1px solid var(--border, #ddd);
       white-space: nowrap;
-    }
-    th.sort-active {
-      border-bottom: 2px solid var(--accent, #2c7a2c);
-    }
-    th button {
-      background: none;
-      border: none;
-      font: inherit;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      color: var(--text-secondary, #444);
-    }
-    .sort-arrow {
-      color: var(--text-hint, #767676);
-    }
-    .sort-arrow.active {
-      color: var(--accent, #2c7a2c);
     }
     td {
       padding: 8px 16px;
@@ -169,20 +146,6 @@ export class BeeTable extends LitElement {
     }
   `;
 
-  private _onHeaderClick(colKey: string) {
-    let dir: 'asc' | 'desc';
-    if (colKey === this.sortColumn) {
-      dir = this.sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      dir = 'asc';
-    }
-    this.dispatchEvent(new CustomEvent('sort-changed', {
-      detail: { column: colKey, dir },
-      bubbles: true,
-      composed: true,
-    }));
-  }
-
   private _onPrev() {
     this.dispatchEvent(new CustomEvent('page-changed', {
       detail: { page: this.page - 1 },
@@ -222,27 +185,9 @@ export class BeeTable extends LitElement {
             <table>
               <thead>
                 <tr>
-                  ${cols.map(col => {
-                    const isActive = col.key === this.sortColumn;
-                    const ariaSort = isActive
-                      ? (this.sortDir === 'asc' ? 'ascending' : 'descending')
-                      : 'none';
-                    const arrow = isActive
-                      ? (this.sortDir === 'asc' ? '\u2191' : '\u2193')
-                      : '\u2195';
-                    return html`
-                      <th
-                        class=${isActive ? 'sort-active' : ''}
-                        aria-sort=${ariaSort}
-                        style="width: ${col.minWidth}"
-                      >
-                        <button @click=${() => this._onHeaderClick(col.key)}>
-                          ${col.label}
-                          <span class="sort-arrow ${isActive ? 'active' : ''}">${arrow}</span>
-                        </button>
-                      </th>
-                    `;
-                  })}
+                  ${cols.map(col => html`
+                    <th style="width: ${col.minWidth}">${col.label}</th>
+                  `)}
                 </tr>
               </thead>
               <tbody>
