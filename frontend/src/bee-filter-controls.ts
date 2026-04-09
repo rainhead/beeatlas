@@ -192,7 +192,6 @@ export class BeeFilterControls extends LitElement {
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
-  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @property({ attribute: false }) summary: DataSummary | null = null;
 
   @state() private _tokens: Token[] = [];
@@ -203,32 +202,6 @@ export class BeeFilterControls extends LitElement {
 
   static styles = css`
     :host { display: block; }
-
-    /* Boundary toggle */
-    .layer-toggle {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-    }
-    .toggle-btn {
-      flex: 1;
-      padding: 0.6rem 1rem;
-      border: none;
-      border-bottom: 2px solid transparent;
-      background: transparent;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: var(--text-hint);
-    }
-    .toggle-btn:hover {
-      background: var(--surface-subtle);
-      color: var(--text-secondary);
-    }
-    .toggle-btn.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-      font-weight: 600;
-    }
 
     /* Token search */
     .search-section {
@@ -348,7 +321,7 @@ export class BeeFilterControls extends LitElement {
     const f = tokensToFilterState(tokens);
     this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
       bubbles: true, composed: true,
-      detail: { ...f, boundaryMode: this.boundaryMode },
+      detail: { ...f },
     }));
   }
 
@@ -439,22 +412,8 @@ export class BeeFilterControls extends LitElement {
     (this.shadowRoot?.querySelector('.token-input') as HTMLInputElement)?.focus();
   }
 
-  private _onBoundaryToggle(mode: 'off' | 'counties' | 'ecoregions') {
-    if (mode === this.boundaryMode) return;
-    const f = tokensToFilterState(this._tokens);
-    this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
-      bubbles: true, composed: true,
-      detail: { ...f, boundaryMode: mode },
-    }));
-  }
-
   render() {
     return html`
-      <div class="layer-toggle">
-        <button class=${'toggle-btn' + (this.boundaryMode === 'off'        ? ' active' : '')} @click=${() => this._onBoundaryToggle('off')}>Off</button>
-        <button class=${'toggle-btn' + (this.boundaryMode === 'counties'   ? ' active' : '')} @click=${() => this._onBoundaryToggle('counties')}>Counties</button>
-        <button class=${'toggle-btn' + (this.boundaryMode === 'ecoregions' ? ' active' : '')} @click=${() => this._onBoundaryToggle('ecoregions')}>Ecoregions</button>
-      </div>
       <div class="search-section">
         <div class="token-field" @click=${this._focusInput}>
           ${this._tokens.map((t, i) => html`

@@ -174,7 +174,6 @@ bee-sidebar {
           .sampleDataLoaded=${this._sampleDataLoaded}
           .selectedSampleEvent=${this._selectedSampleEvent}
           .filterState=${this._filterState}
-          .boundaryMode=${this._boundaryMode}
           .countyOptions=${this._countyOptions}
           .ecoregionOptions=${this._ecoregionOptions}
           .collectorOptions=${this._collectorOptions}
@@ -584,7 +583,6 @@ bee-sidebar {
 
   private _onFilterChanged(e: CustomEvent<FilterChangedEvent>) {
     const detail = e.detail;
-    const newBoundaryMode = detail.boundaryMode;
 
     this._filterState = {
       taxonName: detail.taxonName,
@@ -596,10 +594,6 @@ bee-sidebar {
       selectedEcoregions: detail.selectedEcoregions,
       selectedCollectors: detail.selectedCollectors,
     };
-
-    if (newBoundaryMode !== this._boundaryMode) {
-      this._boundaryMode = newBoundaryMode;
-    }
 
     // Clear selections when filter changes
     this._selectedSamples = null;
