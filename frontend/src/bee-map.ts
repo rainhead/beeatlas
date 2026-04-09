@@ -142,8 +142,8 @@ export class BeeMap extends LitElement {
 }
 .region-control {
   position: absolute;
-  bottom: 2rem;
-  left: 0.5rem;
+  top: 0.5em;
+  right: 0.5em;
   z-index: 1;
 }
 .region-btn {
@@ -161,9 +161,9 @@ export class BeeMap extends LitElement {
 .region-btn:hover { background: #f0f0f0; }
 .region-menu {
   position: absolute;
-  bottom: 100%;
-  left: 0;
-  margin-bottom: 0.3rem;
+  top: 100%;
+  right: 0;
+  margin-top: 0.3rem;
   background: white;
   border: 1px solid rgba(0,0,0,0.2);
   border-radius: 4px;
