@@ -12,7 +12,7 @@
 - ✅ **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (shipped 2026-03-30)
 - ✅ **v1.8 DuckDB WASM Frontend** — Phases 30–32 (shipped 2026-04-01)
 - ✅ **v1.9 Component Architecture & Test Suite** — Phases 33–38 (shipped 2026-04-04)
-- ✅ **v2.0 Tabular Data View** — Phases 39–41 (shipped 2026-04-08)
+- 🚧 **v2.0 Tabular Data View** — Phases 39–41 (in progress)
 
 ## Phases
 
@@ -136,16 +136,55 @@ See `.planning/milestones/v1.9-ROADMAP.md` for full phase details.
 
 </details>
 
-<details>
-<summary>✅ v2.0 Tabular Data View (Phases 39–41) — SHIPPED 2026-04-08</summary>
+### 🚧 v2.0 Tabular Data View (In Progress)
 
-- [x] Phase 39: View Mode Toggle (3/3 plans) — completed 2026-04-08
-- [x] Phase 40: bee-table Component (2/2 plans) — completed 2026-04-08
-- [x] Phase 41: CSV Export (1/1 plan) — completed 2026-04-08
+**Milestone Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
 
-See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
+## Phase Details
 
-</details>
+### Phase 39: View Mode Toggle
+**Goal**: Users can switch between map view and table view, with the choice bookmarkable in the URL
+**Depends on**: Phase 38
+**Requirements**: VIEW-01, VIEW-02, VIEW-03
+**Success Criteria** (what must be TRUE):
+  1. User can click a toggle control in the main UI to switch from map view to table view and back
+  2. In table view, the map is not visible and the table area occupies the full content space
+  3. Navigating to a URL with `view=table` param opens directly in table view
+  4. Copying a table-view URL and pasting it in a new tab restores the table view
+**Plans**: 3 plans
+Plans:
+- [x] 39-01-PLAN.md — Extend url-state.ts with viewMode field and round-trip serialization
+- [x] 39-02-PLAN.md — Add view mode toggle row to bee-sidebar (view-changed event)
+- [x] 39-03-PLAN.md — Wire _viewMode state into bee-atlas (conditional render, URL push, popstate restore)
+**UI hint**: yes
+
+### Phase 40: bee-table Component
+**Goal**: Users can browse, sort, and paginate the filtered dataset as a table
+**Depends on**: Phase 39
+**Requirements**: TABLE-01, TABLE-02, TABLE-03, TABLE-04, TABLE-05, TABLE-06, TABLE-07
+**Success Criteria** (what must be TRUE):
+  1. Table shows specimen rows (species, collector, year, month, county, ecoregion, field number) when layer mode is "specimens", and sample rows (observer, date, specimen count, county, ecoregion) when layer mode is "samples"
+  2. Applying a filter updates the table to show only rows matching the active filter — the same set visible as dots on the map
+  3. A row count indicator reads "showing 1–100 of N specimens" (or samples), accurately reflecting the filtered total
+  4. Previous/next page controls navigate through the result set, with current page shown; each page shows up to 100 rows
+  5. Clicking a column header sorts the table by that column; clicking again reverses sort direction
+**Plans**: 2 plans
+Plans:
+- [x] 40-01-PLAN.md — Data layer: extend UiState with sort params, add queryTablePage function and column constants
+- [x] 40-02-PLAN.md — Presenter + wiring: create bee-table component, integrate into bee-atlas with state management
+**UI hint**: yes
+
+### Phase 41: CSV Export
+**Goal**: Users can download the full filtered result set as a CSV file with a descriptive filename
+**Depends on**: Phase 40
+**Requirements**: CSV-01, CSV-02
+**Success Criteria** (what must be TRUE):
+  1. Clicking "Download CSV" triggers a browser file download of the complete filtered result set (not just the current page)
+  2. The downloaded filename reflects the active filter state (e.g. `specimens-bombus-2023.csv` or `samples-all.csv`)
+**Plans**: 1 plan
+Plans:
+- [x] 41-01-PLAN.md — Add CSV export: queryAllFiltered, buildCsvFilename, Download CSV button, bee-atlas handler
+**UI hint**: yes
 
 ## Progress
 
