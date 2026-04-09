@@ -61,16 +61,20 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-| # | Title | Area | File |
-|---|-------|------|------|
-| 999.1 | Error overlay and loading overlay overlap when fetch fails — "Failed load" and "Loading..." render simultaneously; likely z-index issue in existing CSS | frontend/ui | - |
+None.
 
 ### Blockers/Concerns
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260408-roy | Move region overlay control from sidebar to map overlay button | 2026-04-09 | e6d1281 | [260408-roy-move-region-overlay-control-from-sidebar](./quick/260408-roy-move-region-overlay-control-from-sidebar/) |
+
 ## Session Continuity
 
-Last session: 2026-04-07
+Last session: 2026-04-09 - Completed quick task 260408-roy: Move region overlay control from sidebar to map overlay button
 Stopped at: Roadmap written; ready to plan Phase 39
 Resume file: None
