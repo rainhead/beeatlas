@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map and table view displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, DuckDB WASM) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Users can browse the filtered dataset in a paginated table and export it as a CSV. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution is Lambda-based (v1.7 complete); CI runs frontend build only.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution is Lambda-based (v1.7 complete); CI runs frontend build only.
 
 ## Core Value
 
@@ -96,9 +96,16 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILT-01–05: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB — v1.8
 - ✓ FILT-06: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — v1.8
 - ✓ FILT-07: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — v1.8
-- ✓ VIEW-01–03: Map/table view toggle in sidebar; `<bee-map>` removed from DOM in table mode; `?view=table` URL param with default-omit pattern — v2.0
-- ✓ TABLE-01–04, TABLE-06–07: `<bee-table>` presenter with DuckDB-backed pagination (100 rows/page), layer-mode column sets, row count indicator, filter integration — v2.0
-- ✓ CSV-01–02: `Download CSV` exports full filtered result set via `queryAllFiltered`; filename reflects active filter (taxon > collector > year > county/ecoregion priority) — v2.0
+
+## Current Milestone: v2.0 Tabular Data View
+
+**Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
+
+**Target features:**
+- ✓ View mode toggle (map ↔ table) in `bee-atlas`; in table mode the map is hidden and `<bee-table>` takes its flex slot — Validated in Phase 39: View Mode Toggle
+- `<bee-table>` pure presenter receiving `filterState` + `visibleIds` as properties; sortable columns, paginated rows (DuckDB queries), row count display
+- CSV export button — full result set query, triggers browser file download
+- ✓ `viewMode` encoded in URL params for shareable/bookmarkable table links — Validated in Phase 39: View Mode Toggle
 
 ## Previous Milestones
 
@@ -106,7 +113,6 @@ Collectors can see where bees have been collected and where target host plants g
 - v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
 - v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
 - v1.9 Component Architecture & Test Suite — COMPLETE (2026-04-04)
-- v2.0 Tabular Data View — COMPLETE (2026-04-08)
 
 ### Active (future)
 
@@ -130,7 +136,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v2.0 on 2026-04-08 — Tabular Data View (~65 commits, 3 days): map/table view toggle with URL persistence; `<bee-table>` LitElement with DuckDB-backed pagination, layer-mode column sets, filter integration; CSV export with priority-based filename slugging; 111 tests passing; 3 phases, 6 plans.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), @duckdb/duckdb-wasm, temporal-polyfill
@@ -212,11 +218,6 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `bee-map.updated()` as synchronization boundary between coordinator state and OL canvas | `updated()` fires after every Lit property change; `changedProperties.has()` drives targeted OL operations without over-triggering | ✓ Good — Phase 36; replaces ad-hoc property watchers |
 | `readFileSync` source analysis in Vitest for architectural invariants | Avoids DuckDB WASM/OL canvas/happy-dom incompatibility while reliably verifying import graph contracts | ✓ Good — Phase 36; ARCH-03 tests run fast and are not flaky |
 | Monotonic generation counter in `_runFilterQuery` discards stale DuckDB async results | Async filter queries can race when chips removed quickly; last-write-wins causes flash of unfiltered state | ✓ Good — Phase 37-03 gap fix; flicker eliminated |
-| `viewMode` default-omit in URL (`?view=table` present; absent = map) | Clean URLs; map is the default view so omitting the param saves noise | ✓ Good — Phase 39; symmetric with `bm=` and `lm=` default-omit pattern |
-| `download-csv` CustomEvent from `<bee-table>` → `bee-atlas` handles query and download | Keeps `bee-table` as pure presenter; coordinator owns DuckDB access | ✓ Good — Phase 41; clean separation; `bee-table` emits event, `bee-atlas` calls `queryAllFiltered` |
-| CSV exports `SELECT *` (all parquet columns, not just display columns) | Researchers want full data; display columns are a UI subset | ✓ Good — Phase 41; includes iNat URL, field number, and other non-display columns |
-| `_runTableQuery` called in DuckDB-ready `firstUpdated` path when `viewMode=table` | `data-loaded` from `<bee-map>` never fires in table mode; startup path must trigger table query directly | ✓ Good — Gap 1 fix post-Phase 41 audit; direct-URL table view now populates correctly |
-| Sort-by-column removed; hardcoded `date DESC` order ships in v2.0 | Sort controls added then removed in UI refactor (commit 8fbe895); fixed date order is reasonable default | ⚠ Revisit — TABLE-05 deferred; sort is a likely v2.1 request |
 
 ## Evolution
 
@@ -236,4 +237,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 — v2.0 milestone complete (Tabular Data View)*
+*Last updated: 2026-04-07 — v2.0 milestone started (Tabular Data View)*

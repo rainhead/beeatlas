@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Tabular Data View
-status: complete
-stopped_at: v2.0 milestone archived — ready for /gsd-new-milestone
-last_updated: "2026-04-08T00:00:00.000Z"
+status: planning
+stopped_at: Roadmap written; ready to plan Phase 39
+last_updated: "2026-04-08T02:26:50.334Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 3
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 3
   percent: 100
 ---
 
@@ -18,18 +18,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-08 — v2.0 milestone complete)
+See: .planning/PROJECT.md (updated 2026-04-07 — v2.0 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v2.0 archived — start next milestone with /gsd-new-milestone
+**Current focus:** Phase 39 — View Mode Toggle
 
 ## Current Position
 
-Milestone: v2.0 COMPLETE (3/3 phases, 6/6 plans)
-Status: Archived
+Phase: 40 of 41 (bee table component)
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-04-08
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
