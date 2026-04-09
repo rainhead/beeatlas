@@ -16,7 +16,7 @@ function emptyFilter(): FilterState {
 
 const defaultView = { lon: -120.5, lat: 47.3, zoom: 8 };
 const defaultSelection = { occurrenceIds: [] as string[] };
-const defaultUi = { layerMode: 'specimens' as const, boundaryMode: 'off' as const, viewMode: 'map' as const, sortColumn: 'year' as const, sortDir: 'desc' as const };
+const defaultUi = { layerMode: 'specimens' as const, boundaryMode: 'off' as const, viewMode: 'map' as const };
 
 describe('buildParams -> parseParams round-trip', () => {
   test('view: lon/lat/zoom round-trips within toFixed precision', () => {
@@ -215,55 +215,3 @@ describe('validation and rejection', () => {
   });
 });
 
-describe('sort param round-trip', () => {
-  test('default sort (year/desc): sort and dir params are absent', () => {
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
-    expect(params.has('sort')).toBe(false);
-    expect(params.has('dir')).toBe(false);
-  });
-
-  test('non-default sortColumn: sort param is included', () => {
-    const ui = { ...defaultUi, sortColumn: 'species' };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('sort')).toBe('species');
-  });
-
-  test('non-default sortDir=asc: dir param is included', () => {
-    const ui = { ...defaultUi, sortDir: 'asc' as const };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('dir')).toBe('asc');
-  });
-
-  test('both non-default: sort=county&dir=asc both present', () => {
-    const ui = { ...defaultUi, sortColumn: 'county', sortDir: 'asc' as const };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('sort')).toBe('county');
-    expect(params.get('dir')).toBe('asc');
-  });
-
-  test('parseParams with no sort/dir: returns sortColumn=year, sortDir=desc (defaults)', () => {
-    const result = parseParams('');
-    expect(result.ui?.sortColumn ?? 'year').toBe('year');
-    expect(result.ui?.sortDir ?? 'desc').toBe('desc');
-  });
-
-  test('parseParams with sort=species&dir=asc: returns correct values', () => {
-    const result = parseParams('sort=species&dir=asc');
-    expect(result.ui).toBeDefined();
-    expect(result.ui!.sortColumn).toBe('species');
-    expect(result.ui!.sortDir).toBe('asc');
-  });
-
-  test('parseParams with invalid dir value: sortDir falls back to desc', () => {
-    const result = parseParams('sort=county&dir=invalid');
-    expect(result.ui!.sortDir).toBe('desc');
-  });
-
-  test('round-trip: buildParams -> parseParams preserves non-default sort state', () => {
-    const ui = { ...defaultUi, sortColumn: 'collector', sortDir: 'asc' as const };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    const result = parseParams(params.toString());
-    expect(result.ui!.sortColumn).toBe('collector');
-    expect(result.ui!.sortDir).toBe('asc');
-  });
-});

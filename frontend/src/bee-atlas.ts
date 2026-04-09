@@ -31,8 +31,6 @@ export class BeeAtlas extends LitElement {
   @state() private _layerMode: 'specimens' | 'samples' = 'specimens';
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @state() private _viewMode: 'map' | 'table' = 'map';
-  @state() private _sortColumn = 'date';
-  @state() private _sortDir: 'asc' | 'desc' = 'desc';
   @state() private _tablePage = 1;
   @state() private _tableRows: SpecimenRow[] | SampleRow[] = [];
   @state() private _tableRowCount = 0;
@@ -159,10 +157,7 @@ bee-sidebar {
               .rowCount=${this._tableRowCount}
               .layerMode=${this._layerMode}
               .page=${this._tablePage}
-              .sortColumn=${this._sortColumn}
-              .sortDir=${this._sortDir}
               .loading=${this._tableLoading}
-              @sort-changed=${this._onSortChanged}
               @page-changed=${this._onPageChanged}
             ></bee-table>`
         }
@@ -207,9 +202,6 @@ bee-sidebar {
     this._layerMode = initLayerMode;
     this._boundaryMode = initBoundaryMode;
     this._viewMode = initViewMode;
-    this._sortColumn = initialParams.ui?.sortColumn ?? 'date';
-    this._sortDir = initialParams.ui?.sortDir ?? 'desc';
-
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
     if (initFilter) {
@@ -248,7 +240,7 @@ bee-sidebar {
       { lon: initLon, lat: initLat, zoom: initZoom },
       this._filterState,
       { occurrenceIds: initOccIds },
-      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode, sortColumn: this._sortColumn, sortDir: this._sortDir }
+      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
@@ -357,8 +349,7 @@ bee-sidebar {
     const generation = ++this._tableQueryGeneration;
     try {
       const { rows, total } = await queryTablePage(
-        this._filterState, this._layerMode,
-        this._sortColumn, this._sortDir, this._tablePage
+        this._filterState, this._layerMode, this._tablePage
       );
       if (generation !== this._tableQueryGeneration) return;
       this._tableRows = rows;
@@ -382,7 +373,7 @@ bee-sidebar {
       this._currentView,
       this._filterState,
       { occurrenceIds: this._selectedOccIds ?? [] },
-      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode, sortColumn: this._sortColumn, sortDir: this._sortDir }
+      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode }
     );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
@@ -422,8 +413,6 @@ bee-sidebar {
     this._layerMode = parsed.ui?.layerMode ?? 'specimens';
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
     this._viewMode = parsed.ui?.viewMode ?? 'map';
-    this._sortColumn = parsed.ui?.sortColumn ?? 'date';
-    this._sortDir = parsed.ui?.sortDir ?? 'desc';
     this._tablePage = 1;
     if (this._viewMode === 'table') {
       this._runTableQuery();
@@ -592,8 +581,6 @@ bee-sidebar {
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
     this._tablePage = 1;
-    this._sortColumn = 'date';
-    this._sortDir = 'desc';
     this._runTableQuery();
     if (this._viewMode === 'table' && this._summary) {
       queryFilteredCounts(this._filterState).then(c => {
@@ -613,14 +600,6 @@ bee-sidebar {
         this._loadSummaryFromDuckDB();
       }
     }
-    this._pushUrlState();
-  }
-
-  private _onSortChanged(e: CustomEvent<{ column: string; dir: 'asc' | 'desc' }>) {
-    this._sortColumn = e.detail.column;
-    this._sortDir = e.detail.dir;
-    this._tablePage = 1;
-    this._runTableQuery();
     this._pushUrlState();
   }
 

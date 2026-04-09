@@ -195,7 +195,7 @@ function mockDuckDB(dataRows: any[], countValue: number) {
 describe('queryTablePage', () => {
   test('specimens: SQL contains scientificName, recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
     const { queryFn } = mockDuckDB([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 'date', 'desc', 1);
+    await queryTablePage(emptyFilter(), 'specimens', 1);
     const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('scientificName');
     expect(dataSql).toContain('recordedBy');
@@ -209,7 +209,7 @@ describe('queryTablePage', () => {
 
   test('specimens: SQL contains ORDER BY and LIMIT 100 OFFSET', async () => {
     const { queryFn } = mockDuckDB([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 'date', 'desc', 1);
+    await queryTablePage(emptyFilter(), 'specimens', 1);
     const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('ORDER BY');
     expect(dataSql).toContain('LIMIT 100');
@@ -218,7 +218,7 @@ describe('queryTablePage', () => {
 
   test('samples: SQL contains observer, date, specimen_count, sample_id, county, ecoregion_l3', async () => {
     const { queryFn } = mockDuckDB([], 0);
-    await queryTablePage(emptyFilter(), 'samples', 'date', 'desc', 1);
+    await queryTablePage(emptyFilter(), 'samples', 1);
     const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('observer');
     expect(dataSql).toContain('date');
@@ -231,19 +231,9 @@ describe('queryTablePage', () => {
   test('returns { rows, total } with total from COUNT(*)', async () => {
     const dataRows = [{ scientificName: 'Bombus', recordedBy: 'Smith', year: 2020, month: 6, county: 'King', ecoregion_l3: 'Cascades', fieldNumber: 'ABC' }];
     mockDuckDB(dataRows, 42);
-    const result = await queryTablePage(emptyFilter(), 'specimens', 'year', 'desc', 1);
+    const result = await queryTablePage(emptyFilter(), 'specimens', 1);
     expect(result.total).toBe(42);
     expect(result.rows).toHaveLength(1);
-  });
-
-  test('invalid sort column falls back to default sort column', async () => {
-    const { queryFn } = mockDuckDB([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 'DROP TABLE', 'desc', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
-    // Should NOT contain the injection string
-    expect(dataSql).not.toContain('DROP TABLE');
-    // Should fall back to default 'date'
-    expect(dataSql).toContain('ORDER BY date');
   });
 
   test('conn.close is called even when query throws', async () => {
@@ -251,7 +241,7 @@ describe('queryTablePage', () => {
     const queryFn = vi.fn(() => Promise.reject(new Error('query failed')));
     const connectFn = vi.fn(() => Promise.resolve({ query: queryFn, close: closeFn }));
     vi.mocked(getDuckDB).mockResolvedValue({ connect: connectFn } as any);
-    await expect(queryTablePage(emptyFilter(), 'specimens', 'year', 'desc', 1)).rejects.toThrow('query failed');
+    await expect(queryTablePage(emptyFilter(), 'specimens', 1)).rejects.toThrow('query failed');
     expect(closeFn).toHaveBeenCalledOnce();
   });
 });
