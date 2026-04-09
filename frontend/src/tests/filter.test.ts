@@ -165,10 +165,11 @@ describe('SPECIMEN_COLUMNS and SAMPLE_COLUMNS', () => {
     expect(SPECIMEN_COLUMNS['ecoregion']).toBe('ecoregion_l3');
   });
 
-  test('SAMPLE_COLUMNS maps observer, date, specimenCount, county, ecoregion correctly', () => {
+  test('SAMPLE_COLUMNS maps observer, date, specimenCount, sampleId, county, ecoregion correctly', () => {
     expect(SAMPLE_COLUMNS['observer']).toBe('observer');
     expect(SAMPLE_COLUMNS['date']).toBe('date');
     expect(SAMPLE_COLUMNS['specimenCount']).toBe('specimen_count');
+    expect(SAMPLE_COLUMNS['sampleId']).toBe('sample_id');
     expect(SAMPLE_COLUMNS['county']).toBe('county');
     expect(SAMPLE_COLUMNS['ecoregion']).toBe('ecoregion_l3');
   });
@@ -215,13 +216,14 @@ describe('queryTablePage', () => {
     expect(dataSql).toContain('OFFSET');
   });
 
-  test('samples: SQL contains observer, date, specimen_count, county, ecoregion_l3', async () => {
+  test('samples: SQL contains observer, date, specimen_count, sample_id, county, ecoregion_l3', async () => {
     const { queryFn } = mockDuckDB([], 0);
     await queryTablePage(emptyFilter(), 'samples', 'date', 'desc', 1);
     const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('observer');
     expect(dataSql).toContain('date');
     expect(dataSql).toContain('specimen_count');
+    expect(dataSql).toContain('sample_id');
     expect(dataSql).toContain('county');
     expect(dataSql).toContain('ecoregion_l3');
   });
