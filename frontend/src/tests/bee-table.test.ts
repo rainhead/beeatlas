@@ -58,31 +58,33 @@ async function createBeeTable(props: {
 }
 
 describe('TABLE-01: bee-table column headers', () => {
-  test('renders 6 specimen column headers when layerMode is specimens', async () => {
+  test('renders 7 specimen column headers when layerMode is specimens', async () => {
     const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
     const labels = Array.from(headers).map(th => th.textContent?.trim());
+    expect(labels.filter(Boolean)).toContain('Source');
     expect(labels.filter(Boolean)).toContain('Species');
     expect(labels.filter(Boolean)).toContain('Collector');
     expect(labels.filter(Boolean)).toContain('Date');
     expect(labels.filter(Boolean)).toContain('County');
     expect(labels.filter(Boolean)).toContain('Ecoregion');
     expect(labels.filter(Boolean)).toContain('Field #');
-    expect(headers.length).toBe(6);
+    expect(headers.length).toBe(7);
     document.body.removeChild(el);
   });
 
-  test('renders 6 sample column headers when layerMode is samples', async () => {
+  test('renders 7 sample column headers when layerMode is samples', async () => {
     const el = await createBeeTable({ layerMode: 'samples', rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
     const labels = Array.from(headers).map(th => th.textContent?.trim());
+    expect(labels.filter(Boolean)).toContain('Source');
     expect(labels.filter(Boolean)).toContain('Observer');
     expect(labels.filter(Boolean)).toContain('Date');
     expect(labels.filter(Boolean)).toContain('Specimens');
     expect(labels.filter(Boolean)).toContain('Sample ID');
     expect(labels.filter(Boolean)).toContain('County');
     expect(labels.filter(Boolean)).toContain('Ecoregion');
-    expect(headers.length).toBe(6);
+    expect(headers.length).toBe(7);
     document.body.removeChild(el);
   });
 });

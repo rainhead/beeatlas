@@ -7,10 +7,15 @@ interface ColumnDef {
   label: string;
   dataField: string;
   minWidth: string;
+  linkFn?: (row: any) => string | null;  // returns URL or null
 }
 
 const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '28%' },
+  { key: 'source', label: 'Source', dataField: 'ecdysis_id', minWidth: '6%',
+    linkFn: (row) => row.ecdysis_id != null
+      ? `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}`
+      : null },
+  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '22%' },
   { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '20%' },
   { key: 'date', label: 'Date', dataField: 'date', minWidth: '12%' },
   { key: 'county', label: 'County', dataField: 'county', minWidth: '16%' },
@@ -19,12 +24,16 @@ const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
 ];
 
 const SAMPLE_COLUMN_DEFS: ColumnDef[] = [
+  { key: 'source', label: 'Source', dataField: 'observation_id', minWidth: '6%',
+    linkFn: (row) => row.observation_id != null
+      ? `https://www.inaturalist.org/observations/${row.observation_id}`
+      : null },
   { key: 'observer', label: 'Observer', dataField: 'observer', minWidth: '20%' },
   { key: 'date', label: 'Date', dataField: 'date', minWidth: '12%' },
   { key: 'specimenCount', label: 'Specimens', dataField: 'specimen_count', minWidth: '10%' },
   { key: 'sampleId', label: 'Sample ID', dataField: 'sample_id', minWidth: '10%' },
   { key: 'county', label: 'County', dataField: 'county', minWidth: '18%' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '30%' },
+  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '24%' },
 ];
 
 @customElement('bee-table')
@@ -144,6 +153,13 @@ export class BeeTable extends LitElement {
       background: var(--surface-overlay, rgba(255,255,255,0.85));
       z-index: 10;
     }
+    td a {
+      color: var(--link, #1a73e8);
+      text-decoration: none;
+    }
+    td a:hover {
+      text-decoration: underline;
+    }
   `;
 
   private _onDownloadCsv() {
@@ -202,6 +218,12 @@ export class BeeTable extends LitElement {
                   <tr>
                     ${cols.map(col => {
                       const cellText = String((row as any)[col.dataField] ?? '');
+                      if (col.linkFn) {
+                        const url = col.linkFn(row);
+                        if (url) {
+                          return html`<td><a href=${url} target="_blank" rel="noopener noreferrer">View</a></td>`;
+                        }
+                      }
                       return html`<td title=${cellText}>${cellText}</td>`;
                     })}
                   </tr>
