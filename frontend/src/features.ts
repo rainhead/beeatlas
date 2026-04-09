@@ -16,7 +16,7 @@ export class EcdysisSource extends VectorSource {
         const db = await getDuckDB();
         conn = await db.connect();
         const table = await conn.query(`
-          SELECT ecdysis_id, occurrenceID, longitude, latitude, year, month,
+          SELECT ecdysis_id, longitude, latitude, year, month,
                  scientificName, recordedBy, fieldNumber, genus, family,
                  floralHost, county, ecoregion_l3, inat_observation_id,
                  inat_host, inat_quality_grade
@@ -29,7 +29,6 @@ export class EcdysisSource extends VectorSource {
           feature.setGeometry(new Point(fromLonLat([obj.longitude, obj.latitude])));
           feature.setId(`ecdysis:${obj.ecdysis_id}`);
           feature.setProperties({
-            occurrenceID: obj.occurrenceID,
             year: Number(obj.year),
             month: Number(obj.month),
             scientificName: obj.scientificName,
