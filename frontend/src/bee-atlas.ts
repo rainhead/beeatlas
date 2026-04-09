@@ -153,6 +153,7 @@ bee-sidebar {
               @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
               @data-error=${this._onDataError}
               @filtered-summary-computed=${this._onFilteredSummaryComputed}
+              @boundary-mode-changed=${this._onBoundaryModeChanged}
             ></bee-map>`
           : html`<bee-table
               .rows=${this._tableRows}
@@ -756,5 +757,10 @@ bee-sidebar {
   private _onDataError(e: CustomEvent<{ message: string }>) {
     this._error = e.detail.message;
     this._loading = false;
+  }
+
+  private _onBoundaryModeChanged(e: CustomEvent<'off' | 'counties' | 'ecoregions'>) {
+    this._boundaryMode = e.detail;
+    this._pushUrlState();
   }
 }
