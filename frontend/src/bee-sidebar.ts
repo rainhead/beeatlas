@@ -65,7 +65,6 @@ export interface FilterChangedEvent {
   selectedCounties: Set<string>;
   selectedEcoregions: Set<string>;
   selectedCollectors: CollectorEntry[];
-  boundaryMode: 'off' | 'counties' | 'ecoregions';
 }
 
 @customElement('bee-sidebar')
@@ -102,7 +101,6 @@ export class BeeSidebar extends LitElement {
   };
 
   // Region props — driven by BeeAtlas
-  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
@@ -358,7 +356,6 @@ export class BeeSidebar extends LitElement {
         .countyOptions=${this.countyOptions}
         .ecoregionOptions=${this.ecoregionOptions}
         .collectorOptions=${this.collectorOptions}
-        .boundaryMode=${this.boundaryMode}
         .summary=${this.summary}
       ></bee-filter-controls>
       ${this.samples !== null
