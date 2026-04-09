@@ -1,5 +1,5 @@
 import { test, expect, describe, vi } from 'vitest';
-import { buildFilterSQL, queryTablePage, SPECIMEN_COLUMNS, SAMPLE_COLUMNS } from '../filter.ts';
+import { buildFilterSQL, buildCsvFilename, queryTablePage, SPECIMEN_COLUMNS, SAMPLE_COLUMNS } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDuckDB } from '../duckdb.ts';
 
@@ -135,6 +135,67 @@ describe('combined filters', () => {
     expect(samplesWhere).toContain("county IN ('King')");
     expect(samplesWhere).toContain("ecoregion_l3 IN ('Cascades')");
     expect(samplesWhere).toContain(' AND ');
+  });
+});
+
+describe('buildCsvFilename', () => {
+  test('no filter active: specimens => specimens-all.csv', () => {
+    expect(buildCsvFilename(emptyFilter(), 'specimens')).toBe('specimens-all.csv');
+  });
+
+  test('no filter active: samples => samples-all.csv', () => {
+    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all.csv');
+  });
+
+  test('taxon only: specimens-bombus.csv', () => {
+    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus.csv');
+  });
+
+  test('taxon + same yearFrom/yearTo: specimens-bombus-2023.csv', () => {
+    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2023, yearTo: 2023 };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2023.csv');
+  });
+
+  test('taxon + year range: specimens-bombus-2020-2023.csv', () => {
+    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2020, yearTo: 2023 };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2020-2023.csv');
+  });
+
+  test('taxon + county: specimens-bombus-king.csv (at most 2 segments)', () => {
+    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, selectedCounties: new Set(['King']) };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-king.csv');
+  });
+
+  test('county only: specimens-king.csv', () => {
+    const f = { ...emptyFilter(), selectedCounties: new Set(['King']) };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-king.csv');
+  });
+
+  test('collector only: slugified displayName', () => {
+    const f = { ...emptyFilter(), selectedCollectors: [{ displayName: 'Roy D. Smith', recordedBy: 'Roy D. Smith', observer: null }] };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-roy-d-smith.csv');
+  });
+
+  test('only yearFrom set: specimens-2023.csv', () => {
+    const f = { ...emptyFilter(), yearFrom: 2023 };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-2023.csv');
+  });
+
+  test('samples with filter: samples-all.csv when no filter', () => {
+    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all.csv');
+  });
+
+  test('taxon with spaces: slugified to lowercase hyphens', () => {
+    const f = { ...emptyFilter(), taxonName: 'Bombus occidentalis', taxonRank: 'species' as const };
+    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-occidentalis.csv');
+  });
+
+  test('segment truncated to 20 chars max', () => {
+    const f = { ...emptyFilter(), taxonName: 'Averyverylongtaxonnamethatexceeds', taxonRank: 'genus' as const };
+    const result = buildCsvFilename(f, 'specimens');
+    // Taxon segment should be truncated to 20 chars: 'averyverylongtaxonna'
+    expect(result).toBe('specimens-averyverylongtaxonna.csv');
   });
 });
 

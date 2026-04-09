@@ -65,6 +65,85 @@ const PAGE_SIZE = 100;
 const SPECIMEN_ORDER = 'date DESC, recordedBy ASC, fieldNumber ASC';
 const SAMPLE_ORDER = 'date DESC, observer ASC, sample_id ASC';
 
+function slugify(s: string): string {
+  return s.toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 20);
+}
+
+export function buildCsvFilename(f: FilterState, layerMode: 'specimens' | 'samples'): string {
+  if (!isFilterActive(f)) return `${layerMode}-all.csv`;
+
+  const segments: string[] = [];
+
+  // Priority: taxon > collector > year > county/ecoregion
+  // Taxon
+  if (f.taxonName !== null && segments.length < 2) {
+    segments.push(slugify(f.taxonName));
+  }
+
+  // Collector (second priority, only if taxon not set)
+  if (f.selectedCollectors.length > 0 && segments.length < 2) {
+    segments.push(slugify(f.selectedCollectors[0]!.displayName));
+  }
+
+  // Year (third priority)
+  if (segments.length < 2 && (f.yearFrom !== null || f.yearTo !== null)) {
+    if (f.yearFrom !== null && f.yearTo !== null) {
+      if (f.yearFrom === f.yearTo) {
+        segments.push(String(f.yearFrom));
+      } else {
+        segments.push(`${f.yearFrom}-${f.yearTo}`);
+      }
+    } else if (f.yearFrom !== null) {
+      segments.push(String(f.yearFrom));
+    } else if (f.yearTo !== null) {
+      segments.push(String(f.yearTo));
+    }
+  }
+
+  // County/ecoregion (fourth priority)
+  if (segments.length < 2) {
+    const firstCounty = f.selectedCounties.size > 0 ? [...f.selectedCounties][0] : null;
+    const firstEcor = f.selectedEcoregions.size > 0 ? [...f.selectedEcoregions][0] : null;
+    const region = firstCounty ?? firstEcor;
+    if (region !== null) {
+      segments.push(slugify(region));
+    }
+  }
+
+  return `${layerMode}-${segments.join('-')}.csv`;
+}
+
+export async function queryAllFiltered(
+  f: FilterState,
+  layerMode: 'specimens' | 'samples'
+): Promise<Record<string, unknown>[]> {
+  const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
+  const orderBy = layerMode === 'specimens' ? SPECIMEN_ORDER : SAMPLE_ORDER;
+
+  const selectCols = layerMode === 'specimens'
+    ? 'ecdysis_id, occurrenceID, longitude, latitude, date, year, month, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, inat_observation_id'
+    : "observation_id, observer, strftime(date, '%Y-%m-%d') as date, lat, lon, specimen_count, sample_id, county, ecoregion_l3";
+  const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
+  const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;
+
+  await tablesReady;
+  const db = await getDuckDB();
+  const conn = await db.connect();
+  try {
+    const dataResult = await conn.query(
+      `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy}`
+    );
+    return dataResult.toArray().map((r: any) => r.toJSON());
+  } finally {
+    await conn.close();
+  }
+}
+
 export async function queryTablePage(
   f: FilterState,
   layerMode: 'specimens' | 'samples',
