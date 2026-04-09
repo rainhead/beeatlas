@@ -256,6 +256,7 @@ bee-sidebar {
         console.debug('DuckDB tables ready');
         if (this._viewMode === 'table') {
           this._loadSummaryFromDuckDB();
+          this._runTableQuery();
         }
       })
       .catch((err: unknown) => {
