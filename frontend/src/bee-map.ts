@@ -1,5 +1,5 @@
 import { css, html, LitElement, type PropertyValues } from "lit";
-import { customElement, property, query } from "lit/decorators.js";
+import { customElement, property, query, state } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
@@ -122,6 +122,8 @@ export class BeeMap extends LitElement {
     selectedCollectors: [],
   };
 
+  @state() private _regionMenuOpen = false;
+
   // Instance OL sources/layers (moved from module-level per Phase 34-02 decision)
   private specimenSource!: EcdysisSource;
   private clusterSource!: Cluster;
@@ -133,10 +135,54 @@ export class BeeMap extends LitElement {
 :host {
   display: flex;
   flex-grow: 1;
+  position: relative;
 }
 #map {
   flex-grow: 1;
 }
+.region-control {
+  position: absolute;
+  bottom: 2rem;
+  left: 0.5rem;
+  z-index: 1;
+}
+.region-btn {
+  background: white;
+  border: 1px solid rgba(0,0,0,0.3);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.region-btn:hover { background: #f0f0f0; }
+.region-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 0.3rem;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  min-width: 10rem;
+  overflow: hidden;
+}
+.region-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.region-menu button:hover { background: #f0f0f0; }
+.region-menu button.active { font-weight: 600; color: var(--accent, #2c7be5); }
   `;
 
   private _emit<T>(name: string, detail?: T) {
@@ -146,10 +192,41 @@ export class BeeMap extends LitElement {
   }
 
   render() {
+    const label = this.boundaryMode === 'off' ? 'Regions'
+      : this.boundaryMode === 'counties' ? 'Counties'
+      : 'Ecoregions';
     return html`
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
       <div id="map"></div>
+      <div class="region-control">
+        ${this._regionMenuOpen ? html`
+          <div class="region-menu">
+            <button class=${this.boundaryMode === 'off' ? 'active' : ''} @click=${() => this._selectBoundary('off')}>Off</button>
+            <button class=${this.boundaryMode === 'counties' ? 'active' : ''} @click=${() => this._selectBoundary('counties')}>Counties</button>
+            <button class=${this.boundaryMode === 'ecoregions' ? 'active' : ''} @click=${() => this._selectBoundary('ecoregions')}>Ecoregions</button>
+          </div>
+        ` : ''}
+        <button class="region-btn" @click=${this._toggleRegionMenu}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="6" height="6" rx="1"/>
+            <rect x="9" y="1" width="6" height="6" rx="1"/>
+            <rect x="1" y="9" width="6" height="6" rx="1"/>
+            <rect x="9" y="9" width="6" height="6" rx="1"/>
+          </svg>
+          ${label}
+        </button>
+      </div>
     `;
+  }
+
+  private _toggleRegionMenu() {
+    this._regionMenuOpen = !this._regionMenuOpen;
+  }
+
+  private _selectBoundary(mode: 'off' | 'counties' | 'ecoregions') {
+    this._regionMenuOpen = false;
+    if (mode === this.boundaryMode) return;
+    this._emit<'off' | 'counties' | 'ecoregions'>('boundary-mode-changed', mode);
   }
 
   updated(changedProperties: PropertyValues) {
@@ -356,6 +433,11 @@ export class BeeMap extends LitElement {
       this._emit('ecoregion-options-loaded', {
         options: [...new Set(ecoregionSource.getFeatures().map(f => f.get('NA_L3NAME') as string))].sort(),
       });
+    });
+
+    // Close region menu when clicking the map canvas
+    this.mapElement.addEventListener('click', () => {
+      if (this._regionMenuOpen) this._regionMenuOpen = false;
     });
 
     // moveend: emit view-moved event
