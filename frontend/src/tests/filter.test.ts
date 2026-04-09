@@ -196,7 +196,7 @@ describe('queryTablePage', () => {
   test('specimens: SQL contains scientificName, recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
     const { queryFn } = mockDuckDB([], 0);
     await queryTablePage(emptyFilter(), 'specimens', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('scientificName');
     expect(dataSql).toContain('recordedBy');
     expect(dataSql).toContain('date');
@@ -210,7 +210,7 @@ describe('queryTablePage', () => {
   test('specimens: SQL contains ORDER BY and LIMIT 100 OFFSET', async () => {
     const { queryFn } = mockDuckDB([], 0);
     await queryTablePage(emptyFilter(), 'specimens', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('ORDER BY');
     expect(dataSql).toContain('LIMIT 100');
     expect(dataSql).toContain('OFFSET');
@@ -219,7 +219,7 @@ describe('queryTablePage', () => {
   test('samples: SQL contains observer, date, specimen_count, sample_id, county, ecoregion_l3', async () => {
     const { queryFn } = mockDuckDB([], 0);
     await queryTablePage(emptyFilter(), 'samples', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0].includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
     expect(dataSql).toContain('observer');
     expect(dataSql).toContain('date');
     expect(dataSql).toContain('specimen_count');

@@ -105,7 +105,7 @@ function getSuggestions(
     tokens.filter((t): t is MonthToken => t.type === 'month').map(t => t.month)
   );
   for (let i = 0; i < MONTH_NAMES.length; i++) {
-    if (MONTH_NAMES[i].toLowerCase().startsWith(lower) && !activeMonths.has(i + 1)) {
+    if (MONTH_NAMES[i]!.toLowerCase().startsWith(lower) && !activeMonths.has(i + 1)) {
       results.push({ label: `in ${MONTH_NAMES[i]}`, token: { type: 'month', month: i + 1 } });
     }
   }

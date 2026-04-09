@@ -1,4 +1,4 @@
-import { test, expect, describe, vi, beforeEach } from 'vitest';
+import { test, expect, describe, vi } from 'vitest';
 
 // Mock heavy modules
 vi.mock('../duckdb.ts', () => ({
