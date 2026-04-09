@@ -20,6 +20,7 @@ export interface FilterState {
 }
 
 export interface SpecimenRow {
+  ecdysis_id: number;
   scientificName: string;
   recordedBy: string;
   date: string;
@@ -31,6 +32,7 @@ export interface SpecimenRow {
 }
 
 export interface SampleRow {
+  observation_id: number;
   observer: string;
   date: string;
   specimen_count: number;
@@ -41,6 +43,7 @@ export interface SampleRow {
 
 /** UI column key -> SQL column name. Also serves as allowlist for SQL injection prevention. */
 export const SPECIMEN_COLUMNS: Record<string, string> = {
+  ecdysisId: 'ecdysis_id',
   species: 'scientificName',
   collector: 'recordedBy',
   date: 'date',
@@ -52,6 +55,7 @@ export const SPECIMEN_COLUMNS: Record<string, string> = {
 };
 
 export const SAMPLE_COLUMNS: Record<string, string> = {
+  observationId: 'observation_id',
   observer: 'observer',
   date: 'date',
   specimenCount: 'specimen_count',
