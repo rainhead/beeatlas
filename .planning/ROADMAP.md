@@ -181,7 +181,9 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Clicking "Download CSV" triggers a browser file download of the complete filtered result set (not just the current page)
   2. The downloaded filename reflects the active filter state (e.g. `specimens-bombus-2023.csv` or `samples-all.csv`)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 41-01-PLAN.md — Add CSV export: queryAllFiltered, buildCsvFilename, Download CSV button, bee-atlas handler
 **UI hint**: yes
 
 ## Progress
@@ -228,4 +230,4 @@ Plans:
 | 38. Unit Tests | v1.9 | 2/2 | Complete | 2026-04-04 |
 | 39. View Mode Toggle | v2.0 | 3/3 | Complete    | 2026-04-08 |
 | 40. bee-table Component | v2.0 | 2/2 | Complete   | 2026-04-08 |
-| 41. CSV Export | v2.0 | 0/TBD | Not started | - |
+| 41. CSV Export | v2.0 | 0/1 | Planning | - |
