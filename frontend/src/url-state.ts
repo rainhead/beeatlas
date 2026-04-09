@@ -1,4 +1,4 @@
-import type { FilterState } from './filter.ts';
+import type { FilterState, CollectorEntry } from './filter.ts';
 
 export interface ViewState {
   lon: number;   // WGS84 longitude
@@ -53,6 +53,12 @@ export function buildParams(
   if (filter.selectedEcoregions.size > 0) {
     params.set('ecor', [...filter.selectedEcoregions].sort().join(','));
   }
+  if (filter.selectedCollectors.length > 0) {
+    // Each entry encoded as "recordedBy:observer" (either part may be empty)
+    params.set('collectors', filter.selectedCollectors.map(c =>
+      `${encodeURIComponent(c.recordedBy ?? '')}:${encodeURIComponent(c.observer ?? '')}`
+    ).join('|'));
+  }
   return params;
 }
 
@@ -97,9 +103,23 @@ export function parseParams(search: string): Partial<AppState> {
     ecorRaw ? ecorRaw.split(',').map(s => s.trim()).filter(Boolean) : []
   );
 
+  const collectorsRaw = p.get('collectors') ?? '';
+  const selectedCollectors: CollectorEntry[] = collectorsRaw
+    ? collectorsRaw.split('|').flatMap(part => {
+        const colonIdx = part.indexOf(':');
+        if (colonIdx === -1) return [];
+        const recordedBy = decodeURIComponent(part.slice(0, colonIdx)) || null;
+        const observer = decodeURIComponent(part.slice(colonIdx + 1)) || null;
+        if (!recordedBy && !observer) return [];
+        const displayName = recordedBy ?? observer!;
+        return [{ displayName, recordedBy, observer }];
+      })
+    : [];
+
   // Include filter sub-object when any filter param is present
   const hasFilter = resolvedTaxonName !== null || yearFrom !== null || yearTo !== null
-    || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0;
+    || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
+    || selectedCollectors.length > 0;
   if (hasFilter) {
     result.filter = {
       taxonName: resolvedTaxonName,
@@ -109,6 +129,7 @@ export function parseParams(search: string): Partial<AppState> {
       months,
       selectedCounties,
       selectedEcoregions,
+      selectedCollectors,
     };
   }
 

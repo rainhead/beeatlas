@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import type { FilterState } from './filter.ts';
+import type { FilterState, CollectorEntry } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
 
 const MONTH_NAMES = [
@@ -10,15 +10,16 @@ const MONTH_NAMES = [
 
 // --- Token types ---
 
-interface MonthToken    { type: 'month';     month: number }
-interface TaxonToken    { type: 'taxon';     taxonName: string; taxonRank: 'family' | 'genus' | 'species' }
-interface CountyToken   { type: 'county';    county: string }
-interface EcorToken     { type: 'ecoregion'; ecoregion: string }
-interface YearFromToken { type: 'yearFrom';  year: number }
-interface YearToToken   { type: 'yearTo';    year: number }
-interface YearExactToken{ type: 'yearExact'; year: number }
+interface MonthToken     { type: 'month';     month: number }
+interface TaxonToken     { type: 'taxon';     taxonName: string; taxonRank: 'family' | 'genus' | 'species' }
+interface CountyToken    { type: 'county';    county: string }
+interface EcorToken      { type: 'ecoregion'; ecoregion: string }
+interface YearFromToken  { type: 'yearFrom';  year: number }
+interface YearToToken    { type: 'yearTo';    year: number }
+interface YearExactToken { type: 'yearExact'; year: number }
+interface CollectorToken { type: 'collector'; displayName: string; recordedBy: string | null; observer: string | null }
 
-type Token = MonthToken | TaxonToken | CountyToken | EcorToken | YearFromToken | YearToToken | YearExactToken;
+type Token = MonthToken | TaxonToken | CountyToken | EcorToken | YearFromToken | YearToToken | YearExactToken | CollectorToken;
 type Suggestion = { label: string; token: Token };
 
 function tokenLabel(t: Token): string {
@@ -30,6 +31,7 @@ function tokenLabel(t: Token): string {
     case 'yearFrom':  return `since ${t.year}`;
     case 'yearTo':    return `until ${t.year}`;
     case 'yearExact': return `in ${t.year}`;
+    case 'collector': return `by ${t.displayName}`;
   }
 }
 
@@ -40,6 +42,7 @@ function tokensToFilterState(tokens: Token[]): FilterState {
     months: new Set(),
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
+    selectedCollectors: [],
   };
   for (const t of tokens) {
     switch (t.type) {
@@ -50,6 +53,7 @@ function tokensToFilterState(tokens: Token[]): FilterState {
       case 'yearFrom':  f.yearFrom = t.year; break;
       case 'yearTo':    f.yearTo = t.year; break;
       case 'yearExact': f.yearFrom = t.year; f.yearTo = t.year; break;
+      case 'collector': f.selectedCollectors.push({ displayName: t.displayName, recordedBy: t.recordedBy, observer: t.observer }); break;
     }
   }
   return f;
@@ -69,6 +73,7 @@ function filterStateToTokens(f: FilterState): Token[] {
   for (const m of [...f.months].sort((a, b) => a - b)) tokens.push({ type: 'month', month: m });
   for (const c of [...f.selectedCounties].sort())       tokens.push({ type: 'county', county: c });
   for (const e of [...f.selectedEcoregions].sort())     tokens.push({ type: 'ecoregion', ecoregion: e });
+  for (const c of f.selectedCollectors) tokens.push({ type: 'collector', displayName: c.displayName, recordedBy: c.recordedBy, observer: c.observer });
   return tokens;
 }
 
@@ -79,7 +84,9 @@ function filterStatesEqual(a: FilterState, b: FilterState): boolean {
     && a.yearTo === b.yearTo
     && setsEqual(a.months, b.months)
     && setsEqual(a.selectedCounties, b.selectedCounties)
-    && setsEqual(a.selectedEcoregions, b.selectedEcoregions);
+    && setsEqual(a.selectedEcoregions, b.selectedEcoregions)
+    && a.selectedCollectors.length === b.selectedCollectors.length
+    && a.selectedCollectors.every((c, i) => c.displayName === b.selectedCollectors[i]!.displayName);
 }
 
 function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
@@ -93,6 +100,7 @@ function getSuggestions(
   taxaOptions: TaxonOption[],
   countyOptions: string[],
   ecoregionOptions: string[],
+  collectorOptions: CollectorEntry[],
   tokens: Token[],
 ): Suggestion[] {
   const trimmed = q.trim();
@@ -155,6 +163,23 @@ function getSuggestions(
     }
   }
 
+  // Collector suggestions — match on displayName or observer username, up to 5
+  const activeCollectors = new Set(
+    tokens.filter((t): t is CollectorToken => t.type === 'collector').map(t => t.displayName)
+  );
+  let col = 0;
+  for (const c of collectorOptions) {
+    const matchesName = c.displayName.toLowerCase().includes(lower);
+    const matchesUsername = c.observer !== null && c.observer.toLowerCase().includes(lower);
+    if ((matchesName || matchesUsername) && !activeCollectors.has(c.displayName)) {
+      const label = c.observer && c.observer !== c.displayName
+        ? `by ${c.displayName} (${c.observer})`
+        : `by ${c.displayName}`;
+      results.push({ label, token: { type: 'collector', displayName: c.displayName, recordedBy: c.recordedBy, observer: c.observer } });
+      if (++col >= 5) break;
+    }
+  }
+
   return results.slice(0, 8);
 }
 
@@ -166,6 +191,7 @@ export class BeeFilterControls extends LitElement {
   @property({ attribute: false }) taxaOptions: TaxonOption[] = [];
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
+  @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
   @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @property({ attribute: false }) summary: DataSummary | null = null;
 
@@ -329,7 +355,7 @@ export class BeeFilterControls extends LitElement {
   private _onInput(e: Event) {
     const value = (e.target as HTMLInputElement).value;
     this._inputText = value;
-    this._suggestions = getSuggestions(value, this.taxaOptions, this.countyOptions, this.ecoregionOptions, this._tokens);
+    this._suggestions = getSuggestions(value, this.taxaOptions, this.countyOptions, this.ecoregionOptions, this.collectorOptions, this._tokens);
     this._open = this._suggestions.length > 0;
     this._highlightIndex = -1;
   }
