@@ -1,6 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
@@ -162,6 +162,7 @@ bee-sidebar {
               .page=${this._tablePage}
               .loading=${this._tableLoading}
               @page-changed=${this._onPageChanged}
+              @download-csv=${this._onDownloadCsv}
             ></bee-table>`
         }
         <bee-sidebar
@@ -648,6 +649,40 @@ bee-sidebar {
   private _onPageChanged(e: CustomEvent<{ page: number }>) {
     this._tablePage = e.detail.page;
     this._runTableQuery();
+  }
+
+  private async _onDownloadCsv() {
+    try {
+      const rows = await queryAllFiltered(this._filterState, this._layerMode);
+      if (rows.length === 0) return;
+      const headers = Object.keys(rows[0]!);
+      const csvLines = [
+        headers.join(','),
+        ...rows.map(row =>
+          headers.map(h => {
+            const val = row[h];
+            const str = val == null ? '' : String(val);
+            return str.includes(',') || str.includes('"') || str.includes('\n')
+              ? '"' + str.replace(/"/g, '""') + '"'
+              : str;
+          }).join(',')
+        ),
+      ];
+      const csvContent = csvLines.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const filename = buildCsvFilename(this._filterState, this._layerMode);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('CSV download failed:', err);
+    }
   }
 
   private _onSampleEventClick(e: CustomEvent<{ coordinate: number[] }>) {
