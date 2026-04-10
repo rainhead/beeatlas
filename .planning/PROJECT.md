@@ -8,6 +8,17 @@ An interactive web map and table view displaying Ecdysis specimen records and iN
 
 Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
+## Current Milestone: v2.1 Determination Feeds
+
+**Goal:** Generate static Atom feeds for new Ecdysis specimen identifications, enabling subscribers to track recent determinations by collector, genus, county, and ecoregion.
+
+**Target features:**
+- Atom XML feed of all recent determinations (unfiltered, 90-day rolling window)
+- Per-collector feeds (one file per collector)
+- Per-genus feeds (one file per genus)
+- Per-county feeds (one file per county)
+- Per-ecoregion feeds (one file per ecoregion)
+
 ## Requirements
 
 ### Validated
@@ -236,4 +247,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 — v2.0 milestone complete (Tabular Data View)*
+*Last updated: 2026-04-09 — v2.1 milestone started (Determination Feeds)*
