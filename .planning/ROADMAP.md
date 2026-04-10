@@ -166,7 +166,9 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
   3. Entries are limited to determinations whose `modified` timestamp falls within the last 90 days, sorted newest-first
   4. Feed-level `<updated>` equals the most recent entry's `modified` timestamp; `<title>` reads "Washington Bee Atlas — All Recent Determinations"
   5. Running run.py end-to-end calls feeds.py after the export step without error
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
 
 ### Phase 43: Feed Variants
 **Goal**: All four filter-variant feed families are generated and an index lists them all
@@ -177,7 +179,9 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
   2. `frontend/public/data/feeds/` contains one `genus-{slug}.xml` per unique genus, one `county-{slug}.xml` per unique county, and one `ecoregion-{slug}.xml` per unique ecoregion in the window
   3. Each variant feed has a `<title>` describing its specific filter (e.g., "Washington Bee Atlas — Collector: Jane Smith") and contains only entries matching that filter
   4. `frontend/public/data/feeds/index.json` lists every generated feed file with its title, filter type, and entry count; the JSON is valid and machine-readable
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
 
 ### Phase 44: Pipeline Wiring and Discovery
 **Goal**: Feed files reach S3 on every nightly run and browsers can autodiscover the main feed
@@ -186,7 +190,9 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
 **Success Criteria** (what must be TRUE):
   1. `nightly.sh` uploads the `frontend/public/data/feeds/` directory to S3 alongside parquet files; feeds are reachable at `https://d1o1go591lqnqi.cloudfront.net/data/feeds/determinations.xml`
   2. `index.html` contains a `<link rel="alternate" type="application/atom+xml">` tag pointing to `/data/feeds/determinations.xml`; feed readers that support autodiscovery detect the feed without a manual URL
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
 
 ## Progress
 
@@ -233,6 +239,6 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
 | 39. View Mode Toggle | v2.0 | 3/3 | Complete | 2026-04-08 |
 | 40. bee-table Component | v2.0 | 2/2 | Complete | 2026-04-08 |
 | 41. CSV Export | v2.0 | 1/1 | Complete | 2026-04-09 |
-| 42. Feed Generator Core | v2.1 | 0/? | Not started | - |
+| 42. Feed Generator Core | v2.1 | 0/1 | In progress | - |
 | 43. Feed Variants | v2.1 | 0/? | Not started | - |
 | 44. Pipeline Wiring and Discovery | v2.1 | 0/? | Not started | - |
