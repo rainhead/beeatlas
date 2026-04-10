@@ -43,19 +43,17 @@
 
 ## Traceability
 
-*Filled by roadmapper*
-
 | REQ-ID | Phase | Plan |
 |--------|-------|------|
-| FEED-01 | — | — |
-| FEED-02 | — | — |
-| FEED-03 | — | — |
-| FEED-04 | — | — |
-| FEED-05 | — | — |
-| FEED-06 | — | — |
-| FEED-07 | — | — |
-| FEED-08 | — | — |
-| PIPE-01 | — | — |
-| PIPE-02 | — | — |
-| PIPE-03 | — | — |
-| DISC-01 | — | — |
+| FEED-01 | Phase 42 | — |
+| FEED-02 | Phase 42 | — |
+| FEED-03 | Phase 42 | — |
+| FEED-04 | Phase 42 | — |
+| PIPE-01 | Phase 42 | — |
+| FEED-05 | Phase 43 | — |
+| FEED-06 | Phase 43 | — |
+| FEED-07 | Phase 43 | — |
+| FEED-08 | Phase 43 | — |
+| PIPE-03 | Phase 43 | — |
+| PIPE-02 | Phase 44 | — |
+| DISC-01 | Phase 44 | — |
