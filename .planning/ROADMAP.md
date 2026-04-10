@@ -181,7 +181,7 @@ Plans:
   4. `frontend/public/data/feeds/index.json` lists every generated feed file with its title, filter type, and entry count; the JSON is valid and machine-readable
 **Plans**: 1 plan
 Plans:
-- [ ] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
+- [ ] 43-01-PLAN.md — Variant feed writers (collector, genus, county, ecoregion) + index.json
 
 ### Phase 44: Pipeline Wiring and Discovery
 **Goal**: Feed files reach S3 on every nightly run and browsers can autodiscover the main feed
@@ -192,7 +192,7 @@ Plans:
   2. `index.html` contains a `<link rel="alternate" type="application/atom+xml">` tag pointing to `/data/feeds/determinations.xml`; feed readers that support autodiscovery detect the feed without a manual URL
 **Plans**: 1 plan
 Plans:
-- [ ] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
+- [ ] 44-01-PLAN.md — nightly.sh upload and HTML autodiscovery tag
 
 ## Progress
 
@@ -240,5 +240,5 @@ Plans:
 | 40. bee-table Component | v2.0 | 2/2 | Complete | 2026-04-08 |
 | 41. CSV Export | v2.0 | 1/1 | Complete | 2026-04-09 |
 | 42. Feed Generator Core | v2.1 | 1/1 | Complete   | 2026-04-10 |
-| 43. Feed Variants | v2.1 | 0/? | Not started | - |
-| 44. Pipeline Wiring and Discovery | v2.1 | 0/? | Not started | - |
+| 43. Feed Variants | v2.1 | 0/1 | Not started | - |
+| 44. Pipeline Wiring and Discovery | v2.1 | 0/1 | Not started | - |
