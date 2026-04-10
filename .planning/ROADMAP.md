@@ -13,6 +13,7 @@
 - ✅ **v1.8 DuckDB WASM Frontend** — Phases 30–32 (shipped 2026-04-01)
 - ✅ **v1.9 Component Architecture & Test Suite** — Phases 33–38 (shipped 2026-04-04)
 - ✅ **v2.0 Tabular Data View** — Phases 39–41 (shipped 2026-04-08)
+- **v2.1 Determination Feeds** — Phases 42–44 (in progress)
 
 ## Phases
 
@@ -147,6 +148,46 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
 
 </details>
 
+### v2.1 Determination Feeds (Phases 42–44)
+
+- [ ] **Phase 42: Feed Generator Core** — feeds.py with Atom entry schema, 90-day window, and unfiltered feed
+- [ ] **Phase 43: Feed Variants** — per-collector, per-genus, per-county, per-ecoregion feeds plus index.json
+- [ ] **Phase 44: Pipeline Wiring and Discovery** — nightly.sh upload step and HTML autodiscovery tag
+
+## Phase Details
+
+### Phase 42: Feed Generator Core
+**Goal**: A working feeds.py module produces valid Atom XML for all recent determinations
+**Depends on**: Nothing new (beeatlas.duckdb already contains determinations; feeds.py is new)
+**Requirements**: FEED-01, FEED-02, FEED-03, FEED-04, PIPE-01
+**Success Criteria** (what must be TRUE):
+  1. `python -m feeds` (or equivalent run.py call) writes `frontend/public/data/feeds/determinations.xml` with no error
+  2. The XML parses as valid Atom; each entry contains taxon name, determiner, specimen ID linked to ecdysis.org, collector, and collection date
+  3. Entries are limited to determinations whose `modified` timestamp falls within the last 90 days, sorted newest-first
+  4. Feed-level `<updated>` equals the most recent entry's `modified` timestamp; `<title>` reads "Washington Bee Atlas — All Recent Determinations"
+  5. Running run.py end-to-end calls feeds.py after the export step without error
+**Plans**: TBD
+
+### Phase 43: Feed Variants
+**Goal**: All four filter-variant feed families are generated and an index lists them all
+**Depends on**: Phase 42
+**Requirements**: FEED-05, FEED-06, FEED-07, FEED-08, PIPE-03
+**Success Criteria** (what must be TRUE):
+  1. `frontend/public/data/feeds/` contains one `collector-{slug}.xml` per unique collector with determinations in the 90-day window
+  2. `frontend/public/data/feeds/` contains one `genus-{slug}.xml` per unique genus, one `county-{slug}.xml` per unique county, and one `ecoregion-{slug}.xml` per unique ecoregion in the window
+  3. Each variant feed has a `<title>` describing its specific filter (e.g., "Washington Bee Atlas — Collector: Jane Smith") and contains only entries matching that filter
+  4. `frontend/public/data/feeds/index.json` lists every generated feed file with its title, filter type, and entry count; the JSON is valid and machine-readable
+**Plans**: TBD
+
+### Phase 44: Pipeline Wiring and Discovery
+**Goal**: Feed files reach S3 on every nightly run and browsers can autodiscover the main feed
+**Depends on**: Phase 43
+**Requirements**: PIPE-02, DISC-01
+**Success Criteria** (what must be TRUE):
+  1. `nightly.sh` uploads the `frontend/public/data/feeds/` directory to S3 alongside parquet files; feeds are reachable at `https://d1o1go591lqnqi.cloudfront.net/data/feeds/determinations.xml`
+  2. `index.html` contains a `<link rel="alternate" type="application/atom+xml">` tag pointing to `/data/feeds/determinations.xml`; feed readers that support autodiscovery detect the feed without a manual URL
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -189,6 +230,9 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
 | 36. bee-atlas Root Component | v1.9 | 4/2 | Complete | 2026-04-07 |
 | 37. Sidebar Decomposition | v1.9 | 3/3 | Complete | 2026-04-04 |
 | 38. Unit Tests | v1.9 | 2/2 | Complete | 2026-04-04 |
-| 39. View Mode Toggle | v2.0 | 3/3 | Complete    | 2026-04-08 |
-| 40. bee-table Component | v2.0 | 2/2 | Complete   | 2026-04-08 |
-| 41. CSV Export | v2.0 | 1/1 | Complete   | 2026-04-09 |
+| 39. View Mode Toggle | v2.0 | 3/3 | Complete | 2026-04-08 |
+| 40. bee-table Component | v2.0 | 2/2 | Complete | 2026-04-08 |
+| 41. CSV Export | v2.0 | 1/1 | Complete | 2026-04-09 |
+| 42. Feed Generator Core | v2.1 | 0/? | Not started | - |
+| 43. Feed Variants | v2.1 | 0/? | Not started | - |
+| 44. Pipeline Wiring and Discovery | v2.1 | 0/? | Not started | - |
