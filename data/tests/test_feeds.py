@@ -136,6 +136,28 @@ def test_blank_fields_excluded(fixture_con, export_dir, monkeypatch):
     assert len(entries) == 1
 
 
+def test_run_py_integration():
+    """run.py STEPS list includes a 'feeds' entry wired to feeds.main (PIPE-01)."""
+    import run as run_mod
+    import feeds as feeds_mod
+
+    step_names = [name for name, _ in run_mod.STEPS]
+    assert 'feeds' in step_names, f"'feeds' step not found in run.STEPS: {step_names}"
+
+    # The callable must be feeds.main
+    feeds_callable = dict(run_mod.STEPS)['feeds']
+    assert feeds_callable is feeds_mod.main, (
+        f"STEPS['feeds'] is {feeds_callable!r}, expected feeds.main ({feeds_mod.main!r})"
+    )
+
+    # 'feeds' must come after 'export' in the pipeline order
+    export_idx = step_names.index('export')
+    feeds_idx = step_names.index('feeds')
+    assert feeds_idx > export_idx, (
+        f"'feeds' (index {feeds_idx}) must come after 'export' (index {export_idx})"
+    )
+
+
 def test_empty_window(tmp_path, monkeypatch):
     """When no rows match 90-day window, no file is written."""
     import duckdb
