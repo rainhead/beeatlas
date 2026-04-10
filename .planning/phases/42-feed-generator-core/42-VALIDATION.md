@@ -1,9 +1,9 @@
 ---
 phase: 42
 slug: feed-generator-core
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-09
 ---
 
@@ -38,11 +38,11 @@ created: 2026-04-09
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 42-01-01 | 01 | 0 | FEED-01 | — | N/A | unit stub | `cd data && uv run pytest tests/test_feeds.py -q` | ❌ W0 | ⬜ pending |
-| 42-01-02 | 01 | 1 | FEED-01,FEED-02 | — | N/A | unit | `cd data && uv run pytest tests/test_feeds.py::test_entry_fields -q` | ✅ | ⬜ pending |
-| 42-01-03 | 01 | 1 | FEED-02,FEED-03 | — | N/A | unit | `cd data && uv run pytest tests/test_feeds.py::test_feed_metadata -q` | ✅ | ⬜ pending |
-| 42-01-04 | 01 | 1 | FEED-04 | — | N/A | integration | `cd data && uv run pytest tests/test_feeds.py::test_output_file -q` | ✅ | ⬜ pending |
-| 42-01-05 | 01 | 2 | PIPE-01 | — | N/A | integration | `cd data && uv run pytest tests/test_feeds.py::test_run_py_integration -q` | ✅ | ⬜ pending |
+| 42-01-01 | 01 | 0 | FEED-01 | — | N/A | unit stub | `cd data && uv run pytest tests/test_feeds.py -q` | ✅ | ✅ green |
+| 42-01-02 | 01 | 1 | FEED-01,FEED-02 | — | N/A | unit | `cd data && uv run pytest tests/test_feeds.py::test_entry_fields -q` | ✅ | ✅ green |
+| 42-01-03 | 01 | 1 | FEED-02,FEED-03 | — | N/A | unit | `cd data && uv run pytest tests/test_feeds.py::test_feed_metadata -q` | ✅ | ✅ green |
+| 42-01-04 | 01 | 1 | FEED-04 | — | N/A | integration | `cd data && uv run pytest tests/test_feeds.py::test_output_file -q` | ✅ | ✅ green |
+| 42-01-05 | 01 | 2 | PIPE-01 | — | N/A | integration | `cd data && uv run pytest tests/test_feeds.py::test_run_py_integration -q` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -68,11 +68,21 @@ created: 2026-04-09
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 10s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 10s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** 2026-04-10
+
+---
+
+## Validation Audit 2026-04-10
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 1 |
+| Resolved | 1 |
+| Escalated | 0 |

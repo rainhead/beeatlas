@@ -150,7 +150,7 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
 
 ### v2.1 Determination Feeds (Phases 42–44)
 
-- [ ] **Phase 42: Feed Generator Core** — feeds.py with Atom entry schema, 90-day window, and unfiltered feed
+- [x] **Phase 42: Feed Generator Core** — feeds.py with Atom entry schema, 90-day window, and unfiltered feed (completed 2026-04-10)
 - [ ] **Phase 43: Feed Variants** — per-collector, per-genus, per-county, per-ecoregion feeds plus index.json
 - [ ] **Phase 44: Pipeline Wiring and Discovery** — nightly.sh upload step and HTML autodiscovery tag
 
@@ -168,7 +168,7 @@ See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
   5. Running run.py end-to-end calls feeds.py after the export step without error
 **Plans**: 1 plan
 Plans:
-- [ ] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
+- [x] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
 
 ### Phase 43: Feed Variants
 **Goal**: All four filter-variant feed families are generated and an index lists them all
@@ -239,6 +239,6 @@ Plans:
 | 39. View Mode Toggle | v2.0 | 3/3 | Complete | 2026-04-08 |
 | 40. bee-table Component | v2.0 | 2/2 | Complete | 2026-04-08 |
 | 41. CSV Export | v2.0 | 1/1 | Complete | 2026-04-09 |
-| 42. Feed Generator Core | v2.1 | 0/1 | In progress | - |
+| 42. Feed Generator Core | v2.1 | 1/1 | Complete   | 2026-04-10 |
 | 43. Feed Variants | v2.1 | 0/? | Not started | - |
 | 44. Pipeline Wiring and Discovery | v2.1 | 0/? | Not started | - |
