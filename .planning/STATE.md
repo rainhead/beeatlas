@@ -1,49 +1,44 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Tabular Data View
-status: complete
-stopped_at: v2.0 milestone archived — ready for /gsd-new-milestone
-last_updated: "2026-04-08T00:00:00.000Z"
-last_activity: 2026-04-08
+milestone: v2.1
+milestone_name: Determination Feeds
+status: in_progress
+stopped_at: Defining requirements
+last_updated: "2026-04-09T00:00:00.000Z"
+last_activity: 2026-04-09
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-08 — v2.0 milestone complete)
+See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v2.0 archived — start next milestone with /gsd-new-milestone
+**Current focus:** v2.1 Determination Feeds — defining requirements
 
 ## Current Position
 
-Milestone: v2.0 COMPLETE (3/3 phases, 6/6 plans)
-Status: Archived
-Last activity: 2026-04-08
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-09 — Milestone v2.1 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3 (this milestone)
+- Total plans completed: 0 (this milestone)
 - Average duration: —
 - Total execution time: —
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 39 | 3 | - | - |
 
 *Updated after each plan completion*
 
@@ -54,7 +49,7 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v1.9]: `bee-atlas` coordinator owns all state; `bee-map` and `bee-sidebar` are pure presenters — `bee-table` must follow the same pattern
+- [v1.9]: `bee-atlas` coordinator owns all state; `bee-map` and `bee-sidebar` are pure presenters
 - [v1.9]: `bee-atlas` does not import OpenLayers — keep OL contained in `bee-map`
 - [v1.8]: `buildFilterSQL()` returns plain SQL strings (not parameterized) — DuckDB WASM does not support parameterized queries
 
@@ -76,6 +71,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-09 - Completed quick task 260408-tvl: Show recent filters when filter input is focused and empty
-Stopped at: Roadmap written; ready to plan Phase 39
+Last session: 2026-04-09 - Started milestone v2.1 Determination Feeds
+Stopped at: Defining requirements
 Resume file: None
