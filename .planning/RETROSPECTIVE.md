@@ -2,6 +2,44 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v2.1 — Determination Feeds
+
+**Shipped:** 2026-04-11
+**Phases:** 3 (Phases 42–44) | **Plans:** 3 | **Timeline:** 2 days (2026-04-10 → 2026-04-11)
+
+### What Was Built
+- `data/feeds.py`: Atom feed generator for recent determinations — DuckDB read-only query, 90-day window, blank-field exclusion, `ET.tostring+write_text` (avoids BOM)
+- Four variant feed families (collector, genus, county, ecoregion) via `write_variant_feed` + `write_all_variants`; `_slugify` for path-traversal-safe filenames; always writes even empty feeds; `write_index_json` produces `feeds/index.json`
+- `nightly.sh` refactored to delegate to `run.py` (replaces inline Python heredoc); `aws s3 sync` uploads entire `feeds/` directory to S3
+- `<link rel="alternate" type="application/atom+xml">` autodiscovery tag in `frontend/index.html`
+- Pre-existing `test_export.py` fixture failures fixed: missing iNat observation columns + stale `occurrenceID` expectation removed
+
+### What Worked
+- Single shared module pattern (phases 42 and 43 both extend `data/feeds.py`) eliminated import gaps — no separate modules to wire together
+- The 90-day filter + blank-field exclusion design made the main feed immediately useful without requiring a full data fetch; 14 tests covered all behaviors cleanly
+- Spatial joins for county/ecoregion variant enumeration reused existing `geographies` tables — no new data needed
+- `nightly.sh` heredoc → `run.py` refactor was clean and added missing pipeline steps (geographies, anti-entropy) for free
+
+### What Was Inefficient
+- `gsd-tools milestone complete` CLI failed again to extract accomplishments from SUMMARY.md frontmatter (returned "One-liner:" placeholders) — MILESTONES.md required manual correction for the second milestone in a row
+
+### Patterns Established
+- **`ET.tostring(encoding='unicode') + write_text`**: avoids BOM that `ET.write(..., encoding='utf-8')` emits; use this pattern for all Atom/XML generation
+- **Always-write variant feeds**: even feeds with 0 entries should be written as valid empty Atom (not skipped); feed readers handle empty feeds; missing files are confusing
+- **Enumerate from geographies tables, not 90-day window**: county/ecoregion variant enumeration uses the full geographies table, not what appeared in recent data — ensures consistent file set across pipeline runs
+
+### Key Lessons
+1. **`milestone complete` accomplishment extraction is broken** — two milestones in a row the CLI returned "One-liner:" placeholders. Always manually write MILESTONES.md accomplishments after running the CLI.
+2. **Refactoring shell heredocs to `run.py` delegation is always worth it** — `nightly.sh` had drifted from `run.py`; consolidating added missing steps and made the pipeline single-source-of-truth.
+3. **Test fixture columns must track production schema** — the `inaturalist_data.observations` fixture was missing 3 columns that `export.py` LEFT JOINs; schema drift in fixtures is silent until the join is exercised.
+
+### Cost Observations
+- Model mix: ~100% sonnet
+- Sessions: 2 days
+- Notable: Smallest milestone by LOC (+2,682/−157); clean sequencing (core → variants → wiring) with no rework
+
+---
+
 ## Milestone: v2.0 — Tabular Data View
 
 **Shipped:** 2026-04-08

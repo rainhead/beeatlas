@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution is Lambda-based (v1.7 complete); CI runs frontend build only.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, DuckDB WASM) that fetches Parquet and GeoJSON data from CloudFront at runtime. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); `data/export.py` produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson; `data/feeds.py` generates Atom feeds of recent determinations (unfiltered + per-collector/genus/county/ecoregion variants). Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution runs as `data/nightly.sh` on maderas (nightly cron); CI runs frontend build only.
 
 ## Core Value
 
@@ -96,16 +96,12 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILT-01–05: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB — v1.8
 - ✓ FILT-06: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — v1.8
 - ✓ FILT-07: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — v1.8
-
-## Current Milestone: v2.0 Tabular Data View
-
-**Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
-
-**Target features:**
-- ✓ View mode toggle (map ↔ table) in `bee-atlas`; in table mode the map is hidden and `<bee-table>` takes its flex slot — Validated in Phase 39: View Mode Toggle
-- `<bee-table>` pure presenter receiving `filterState` + `visibleIds` as properties; sortable columns, paginated rows (DuckDB queries), row count display
-- CSV export button — full result set query, triggers browser file download
-- ✓ `viewMode` encoded in URL params for shareable/bookmarkable table links — Validated in Phase 39: View Mode Toggle
+- ✓ VIEW-01–03: View mode toggle (map/table), URL-encoded, map hidden in table mode — v2.0
+- ✓ TABLE-01–07: bee-table LitElement with DuckDB-backed pagination, layer-mode column sets, row count, filter integration — v2.0
+- ✓ CSV-01–02: Full filtered result set CSV download with priority-based slugified filename — v2.0
+- ✓ FEED-01–08: Atom feeds for all determinations + per-collector/genus/county/ecoregion variants; _slugify path safety; index.json — v2.1
+- ✓ PIPE-01–03: feeds.py called by run.py after export; S3 sync in nightly.sh; index.json listing all variants — v2.1
+- ✓ DISC-01: `<link rel="alternate" type="application/atom+xml">` autodiscovery in index.html — v2.1
 
 ## Previous Milestones
 
@@ -113,6 +109,8 @@ Collectors can see where bees have been collected and where target host plants g
 - v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
 - v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
 - v1.9 Component Architecture & Test Suite — COMPLETE (2026-04-04)
+- v2.0 Tabular Data View — COMPLETE (2026-04-09)
+- v2.1 Determination Feeds — COMPLETE (2026-04-11)
 
 ### Active (future)
 
@@ -237,4 +235,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 — v2.0 milestone started (Tabular Data View)*
+*Last updated: 2026-04-11 — v2.1 milestone complete (Determination Feeds)*
