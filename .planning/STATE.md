@@ -60,6 +60,10 @@ Recent decisions affecting current work:
 
 None.
 
+### Roadmap Evolution
+
+- Phase 45 added: Sidebar Feed Discovery (v2.2 milestone)
+
 ### Blockers/Concerns
 
 None.
