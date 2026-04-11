@@ -193,7 +193,7 @@ def load_links() -> None:
         destination=dlt.destinations.duckdb(DB_PATH),
         dataset_name="ecdysis_data",
     )
-    load_info = pipeline.run(ecdysis_links_source())
+    load_info = pipeline.run(ecdysis_links_source(db_path=DB_PATH))
     print(load_info)  # noqa: T201
 
 
