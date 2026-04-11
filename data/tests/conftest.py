@@ -257,6 +257,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             _dlt_id VARCHAR, id BIGINT, uuid VARCHAR,
             user__login VARCHAR, observed_on DATE,
             longitude DOUBLE, latitude DOUBLE,
+            taxon__iconic_taxon_name VARCHAR, taxon__name VARCHAR,
+            quality_grade VARCHAR,
             _dlt_load_id VARCHAR
         )
     """)
@@ -320,6 +322,8 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             'test-obs-1', 999999, 'test-uuid-1',
             'testuser', '2024-06-15'::DATE,
             -120.8, 47.5,
+            'Insecta', 'Eucera acerba',
+            'research',
             'load1'
         )
     """)
