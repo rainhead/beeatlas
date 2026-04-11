@@ -1,9 +1,18 @@
-import { css, html, LitElement } from 'lit';
+import { css, html, nothing, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import './bee-filter-controls.ts';
 import './bee-specimen-detail.ts';
 import './bee-sample-detail.ts';
 import type { FilterState, CollectorEntry } from './filter.ts';
+
+export interface FeedEntry {
+  filename: string;
+  url: string;
+  title: string;
+  filter_type: string;
+  filter_value: string;
+  entry_count: number;
+}
 
 export interface Specimen {
   name: string;
@@ -106,6 +115,9 @@ export class BeeSidebar extends LitElement {
   @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
   @property({ attribute: false }) sampleDataLoaded = false;
 
+  @property({ attribute: false })
+  activeFeedEntries: FeedEntry[] = [];
+
   static styles = css`
     :host {
       display: flex;
@@ -200,6 +212,58 @@ export class BeeSidebar extends LitElement {
     .event-count {
       font-size: 0.8rem;
       color: var(--text-hint);
+    }
+    .feeds-section {
+      border-top: 1px solid var(--border-subtle);
+      padding: 1rem;
+    }
+    .feeds-header {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-tertiary);
+      margin: 0 0 0.5rem 0;
+    }
+    .feed-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .feed-row:last-child {
+      border-bottom: none;
+    }
+    .feed-label {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-body);
+    }
+    .feed-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .feed-copy-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0;
+      font-family: inherit;
+    }
+    .feed-copy-btn:hover {
+      text-decoration: underline;
+    }
+    .feed-actions a {
+      color: var(--accent);
+      font-size: 0.85rem;
+      text-decoration: none;
+    }
+    .feed-actions a:hover {
+      text-decoration: underline;
     }
   `;
 
@@ -328,6 +392,9 @@ export class BeeSidebar extends LitElement {
             ? html`<p class="hint">No specimens match the current filters.</p>`
             : html`<p class="hint">Click a specimen point or cluster to see sample details.</p>`
           }
+          ${this.activeFeedEntries.length === 0 && this.layerMode === 'specimens'
+            ? html`<p class="hint">Filter by collector to subscribe to a determination feed.</p>`
+            : nothing}
         </div>
       `;
     }
@@ -342,6 +409,27 @@ export class BeeSidebar extends LitElement {
           <dt>Years</dt><dd>${summary.earliestYear}–${summary.latestYear}</dd>
         </dl>
         <p class="hint">Click a specimen point or cluster to see sample details.</p>
+        ${this.activeFeedEntries.length === 0 && this.layerMode === 'specimens'
+          ? html`<p class="hint">Filter by collector to subscribe to a determination feed.</p>`
+          : nothing}
+      </div>
+    `;
+  }
+
+  private _renderFeedsSection() {
+    if (this.activeFeedEntries.length === 0) return nothing;
+    return html`
+      <div class="feeds-section">
+        <h3 class="feeds-header">Feeds</h3>
+        ${this.activeFeedEntries.map(entry => html`
+          <div class="feed-row">
+            <span class="feed-label">${entry.filter_value} \u2014 determinations</span>
+            <span class="feed-actions">
+              <button class="feed-copy-btn" @click=${() => navigator.clipboard.writeText(entry.url)}>Copy URL</button>
+              <a href="${entry.url}" target="_blank" rel="noopener">Open Feed</a>
+            </span>
+          </div>
+        `)}
       </div>
     `;
   }
@@ -365,6 +453,7 @@ export class BeeSidebar extends LitElement {
           : this.layerMode === 'samples' && this.viewMode === 'map'
             ? this._renderRecentSampleEvents()
             : this._renderSummary()}
+      ${this._renderFeedsSection()}
     `;
   }
 }
