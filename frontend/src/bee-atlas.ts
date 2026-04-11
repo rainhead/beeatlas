@@ -8,6 +8,15 @@ import './bee-map.ts';
 import './bee-sidebar.ts';
 import './bee-table.ts';
 
+export interface FeedEntry {
+  filename: string;
+  url: string;
+  title: string;
+  filter_type: string;
+  filter_value: string;
+  entry_count: number;
+}
+
 const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
@@ -51,9 +60,11 @@ export class BeeAtlas extends LitElement {
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
   @state() private _panTo: { coordinate: number[]; zoom: number } | null = null;
+  @state() private _activeFeedEntries: FeedEntry[] = [];
 
   // Non-reactive private fields
   private _isRestoringFromHistory = false;
+  private _feedIndex: Map<string, FeedEntry> = new Map();
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   // Monotonic counter used to discard stale async filter-query results.
   // Root cause of chip-removal flicker: _filterState updates synchronously (Lit
@@ -179,6 +190,7 @@ bee-sidebar {
           .countyOptions=${this._countyOptions}
           .ecoregionOptions=${this._ecoregionOptions}
           .collectorOptions=${this._collectorOptions}
+          .activeFeedEntries=${this._activeFeedEntries}
           @close=${this._onClose}
           @filter-changed=${this._onFilterChanged}
           @layer-changed=${this._onLayerChanged}
@@ -267,6 +279,15 @@ bee-sidebar {
 
     // Register popstate handler for browser back/forward navigation
     window.addEventListener('popstate', this._onPopState);
+
+    // Fetch feed index for sidebar feed discovery (D-07, D-10)
+    fetch('/data/feeds/index.json')
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((entries: FeedEntry[]) => {
+        this._feedIndex = new Map(entries.map(e => [e.filter_value, e]));
+        this._computeActiveFeedEntries(); // handles URL-restored filter state (Pitfall 2)
+      })
+      .catch(() => {}); // D-10: silent failure, feature simply absent
   }
 
   disconnectedCallback() {
@@ -279,6 +300,13 @@ bee-sidebar {
   }
 
   // --- Filter query ---
+
+  private _computeActiveFeedEntries(): void {
+    const entries = this._filterState.selectedCollectors
+      .map(c => c.recordedBy ? this._feedIndex.get(c.recordedBy) : undefined)
+      .filter((e): e is FeedEntry => e !== undefined);
+    this._activeFeedEntries = entries;
+  }
 
   private async _runFilterQuery(): Promise<void> {
     const generation = ++this._filterQueryGeneration;
@@ -604,6 +632,7 @@ bee-sidebar {
     this._selectedSampleEvent = null;
 
     this._tablePage = 1;  // per D-09
+    this._computeActiveFeedEntries();
     this._runFilterQuery().then(() => {
       this._pushUrlState();
     });
