@@ -1,20 +1,5 @@
 # Milestones
 
-## v2.0 Tabular Data View (Shipped: 2026-04-09)
-
-**Phases completed:** 3 phases, 6 plans, 6 tasks
-
-**Key accomplishments:**
-
-- `viewMode` ('map'|'table') added to `UiState` with URL default-omit pattern (`?view=table` present; omitted when map); 4 round-trip tests added (67 total)
-- View mode toggle row added to `bee-sidebar`; `bee-atlas` conditionally renders `<bee-map>` vs `<bee-table>` based on `_viewMode`; SQL injection fix applied to ecdysis ID validation via code review
-- `<bee-table>` LitElement presenter with DuckDB-backed pagination (100 rows/page), layer-mode column sets (7 specimen cols / 5 sample cols), row count indicator, and filter integration; 19 new tests (96 total)
-- `queryTablePage` and `queryAllFiltered` added to `filter.ts` with allowlist-based SQL injection protection and shared `buildFilterSQL` clause builder
-- CSV export: `buildCsvFilename` with priority-based slugified naming (taxon > collector > year > county/ecoregion), `Download CSV` button in pagination bar, browser blob download in `bee-atlas`; 13 new tests (111 total)
-- Direct-URL `?view=table` startup bug fixed: `_runTableQuery` now called in DuckDB-ready callback when starting in table mode
-
----
-
 ## v1.9 Component Architecture & Test Suite (Shipped: 2026-04-04)
 
 **Phases completed:** 4 phases, 7 plans, 13 tasks

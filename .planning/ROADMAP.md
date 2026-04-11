@@ -12,8 +12,7 @@
 - ✅ **v1.7 Production Pipeline Infrastructure** — Phases 25–29 (shipped 2026-03-30)
 - ✅ **v1.8 DuckDB WASM Frontend** — Phases 30–32 (shipped 2026-04-01)
 - ✅ **v1.9 Component Architecture & Test Suite** — Phases 33–38 (shipped 2026-04-04)
-- ✅ **v2.0 Tabular Data View** — Phases 39–41 (shipped 2026-04-08)
-- **v2.1 Determination Feeds** — Phases 42–44 (in progress)
+- 🚧 **v2.0 Tabular Data View** — Phases 39–41 (in progress)
 
 ## Phases
 
@@ -137,62 +136,55 @@ See `.planning/milestones/v1.9-ROADMAP.md` for full phase details.
 
 </details>
 
-<details>
-<summary>✅ v2.0 Tabular Data View (Phases 39–41) — SHIPPED 2026-04-08</summary>
+### 🚧 v2.0 Tabular Data View (In Progress)
 
-- [x] Phase 39: View Mode Toggle (3/3 plans) — completed 2026-04-08
-- [x] Phase 40: bee-table Component (2/2 plans) — completed 2026-04-08
-- [x] Phase 41: CSV Export (1/1 plan) — completed 2026-04-08
-
-See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
-
-</details>
-
-### v2.1 Determination Feeds (Phases 42–44)
-
-- [x] **Phase 42: Feed Generator Core** — feeds.py with Atom entry schema, 90-day window, and unfiltered feed (completed 2026-04-10)
-- [ ] **Phase 43: Feed Variants** — per-collector, per-genus, per-county, per-ecoregion feeds plus index.json
-- [ ] **Phase 44: Pipeline Wiring and Discovery** — nightly.sh upload step and HTML autodiscovery tag
+**Milestone Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
 
 ## Phase Details
 
-### Phase 42: Feed Generator Core
-**Goal**: A working feeds.py module produces valid Atom XML for all recent determinations
-**Depends on**: Nothing new (beeatlas.duckdb already contains determinations; feeds.py is new)
-**Requirements**: FEED-01, FEED-02, FEED-03, FEED-04, PIPE-01
+### Phase 39: View Mode Toggle
+**Goal**: Users can switch between map view and table view, with the choice bookmarkable in the URL
+**Depends on**: Phase 38
+**Requirements**: VIEW-01, VIEW-02, VIEW-03
 **Success Criteria** (what must be TRUE):
-  1. `python -m feeds` (or equivalent run.py call) writes `frontend/public/data/feeds/determinations.xml` with no error
-  2. The XML parses as valid Atom; each entry contains taxon name, determiner, specimen ID linked to ecdysis.org, collector, and collection date
-  3. Entries are limited to determinations whose `modified` timestamp falls within the last 90 days, sorted newest-first
-  4. Feed-level `<updated>` equals the most recent entry's `modified` timestamp; `<title>` reads "Washington Bee Atlas — All Recent Determinations"
-  5. Running run.py end-to-end calls feeds.py after the export step without error
-**Plans**: 1 plan
+  1. User can click a toggle control in the main UI to switch from map view to table view and back
+  2. In table view, the map is not visible and the table area occupies the full content space
+  3. Navigating to a URL with `view=table` param opens directly in table view
+  4. Copying a table-view URL and pasting it in a new tab restores the table view
+**Plans**: 3 plans
 Plans:
-- [x] 42-01-PLAN.md — Test infrastructure, feeds.py implementation, and run.py wiring
+- [x] 39-01-PLAN.md — Extend url-state.ts with viewMode field and round-trip serialization
+- [x] 39-02-PLAN.md — Add view mode toggle row to bee-sidebar (view-changed event)
+- [x] 39-03-PLAN.md — Wire _viewMode state into bee-atlas (conditional render, URL push, popstate restore)
+**UI hint**: yes
 
-### Phase 43: Feed Variants
-**Goal**: All four filter-variant feed families are generated and an index lists them all
-**Depends on**: Phase 42
-**Requirements**: FEED-05, FEED-06, FEED-07, FEED-08, PIPE-03
+### Phase 40: bee-table Component
+**Goal**: Users can browse, sort, and paginate the filtered dataset as a table
+**Depends on**: Phase 39
+**Requirements**: TABLE-01, TABLE-02, TABLE-03, TABLE-04, TABLE-05, TABLE-06, TABLE-07
 **Success Criteria** (what must be TRUE):
-  1. `frontend/public/data/feeds/` contains one `collector-{slug}.xml` per unique collector with determinations in the 90-day window
-  2. `frontend/public/data/feeds/` contains one `genus-{slug}.xml` per unique genus, one `county-{slug}.xml` per unique county, and one `ecoregion-{slug}.xml` per unique ecoregion in the window
-  3. Each variant feed has a `<title>` describing its specific filter (e.g., "Washington Bee Atlas — Collector: Jane Smith") and contains only entries matching that filter
-  4. `frontend/public/data/feeds/index.json` lists every generated feed file with its title, filter type, and entry count; the JSON is valid and machine-readable
-**Plans**: 1 plan
+  1. Table shows specimen rows (species, collector, year, month, county, ecoregion, field number) when layer mode is "specimens", and sample rows (observer, date, specimen count, county, ecoregion) when layer mode is "samples"
+  2. Applying a filter updates the table to show only rows matching the active filter — the same set visible as dots on the map
+  3. A row count indicator reads "showing 1–100 of N specimens" (or samples), accurately reflecting the filtered total
+  4. Previous/next page controls navigate through the result set, with current page shown; each page shows up to 100 rows
+  5. Clicking a column header sorts the table by that column; clicking again reverses sort direction
+**Plans**: 2 plans
 Plans:
-- [ ] 43-01-PLAN.md — Variant feed writers (collector, genus, county, ecoregion) + index.json
+- [x] 40-01-PLAN.md — Data layer: extend UiState with sort params, add queryTablePage function and column constants
+- [x] 40-02-PLAN.md — Presenter + wiring: create bee-table component, integrate into bee-atlas with state management
+**UI hint**: yes
 
-### Phase 44: Pipeline Wiring and Discovery
-**Goal**: Feed files reach S3 on every nightly run and browsers can autodiscover the main feed
-**Depends on**: Phase 43
-**Requirements**: PIPE-02, DISC-01
+### Phase 41: CSV Export
+**Goal**: Users can download the full filtered result set as a CSV file with a descriptive filename
+**Depends on**: Phase 40
+**Requirements**: CSV-01, CSV-02
 **Success Criteria** (what must be TRUE):
-  1. `nightly.sh` uploads the `frontend/public/data/feeds/` directory to S3 alongside parquet files; feeds are reachable at `https://d1o1go591lqnqi.cloudfront.net/data/feeds/determinations.xml`
-  2. `index.html` contains a `<link rel="alternate" type="application/atom+xml">` tag pointing to `/data/feeds/determinations.xml`; feed readers that support autodiscovery detect the feed without a manual URL
+  1. Clicking "Download CSV" triggers a browser file download of the complete filtered result set (not just the current page)
+  2. The downloaded filename reflects the active filter state (e.g. `specimens-bombus-2023.csv` or `samples-all.csv`)
 **Plans**: 1 plan
 Plans:
-- [ ] 44-01-PLAN.md — nightly.sh upload and HTML autodiscovery tag
+- [x] 41-01-PLAN.md — Add CSV export: queryAllFiltered, buildCsvFilename, Download CSV button, bee-atlas handler
+**UI hint**: yes
 
 ## Progress
 
@@ -236,9 +228,6 @@ Plans:
 | 36. bee-atlas Root Component | v1.9 | 4/2 | Complete | 2026-04-07 |
 | 37. Sidebar Decomposition | v1.9 | 3/3 | Complete | 2026-04-04 |
 | 38. Unit Tests | v1.9 | 2/2 | Complete | 2026-04-04 |
-| 39. View Mode Toggle | v2.0 | 3/3 | Complete | 2026-04-08 |
-| 40. bee-table Component | v2.0 | 2/2 | Complete | 2026-04-08 |
-| 41. CSV Export | v2.0 | 1/1 | Complete | 2026-04-09 |
-| 42. Feed Generator Core | v2.1 | 1/1 | Complete   | 2026-04-10 |
-| 43. Feed Variants | v2.1 | 0/1 | Not started | - |
-| 44. Pipeline Wiring and Discovery | v2.1 | 0/1 | Not started | - |
+| 39. View Mode Toggle | v2.0 | 3/3 | Complete    | 2026-04-08 |
+| 40. bee-table Component | v2.0 | 2/2 | Complete   | 2026-04-08 |
+| 41. CSV Export | v2.0 | 1/1 | Complete   | 2026-04-09 |

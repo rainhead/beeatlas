@@ -2,45 +2,6 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
-## Milestone: v2.0 — Tabular Data View
-
-**Shipped:** 2026-04-08
-**Phases:** 3 (Phases 39–41) | **Plans:** 6 | **Timeline:** 3 days (2026-04-06 → 2026-04-08)
-
-### What Was Built
-- `UiState.viewMode` ('map'|'table') in `url-state.ts` with default-omit URL pattern; `bee-sidebar` view toggle row; `bee-atlas` conditional render switching between `<bee-map>` and `<bee-table>`
-- `<bee-table>` LitElement: DuckDB-backed pagination via `queryTablePage` (100 rows/page), layer-mode column sets (`SPECIMEN_COLUMN_DEFS` / `SAMPLE_COLUMN_DEFS`), row count indicator, filter integration, sticky header
-- `queryTablePage` and `queryAllFiltered` in `filter.ts` — shared `buildFilterSQL` clause builder; allowlist-based SQL injection protection for column names
-- CSV export: `buildCsvFilename` (priority-based slugified naming: taxon > collector > year > county/ecoregion), `Download CSV` button in pagination bar, browser blob download in `bee-atlas._onDownloadCsv`
-- Post-audit fix: `_runTableQuery` added to DuckDB-ready `firstUpdated` callback so direct-URL `?view=table` populates the table without requiring a round-trip through map view
-- SQL injection fix for ecdysis ID validation (Phase 39 code review): `.filter(id => /^\d+$/.test(id))` applied before URL-controlled IDs are interpolated into SQL
-- 111 tests total (up from 63); 48 new tests across url-state, filter, and bee-table
-
-### What Worked
-- Audit-before-complete workflow caught two real issues: the direct-URL table bug and the undocumented TABLE-05 removal. Both fixed before tagging.
-- Phase 41 was genuinely small (1 plan, ~15 min) — CSV export composed cleanly on top of the Phase 40 data layer; no rework needed
-- `buildCsvFilename` priority logic (taxon > collector > year > county/ecoregion) was well-specified in context doc; implemented correctly on first attempt with 13 tests
-
-### What Was Inefficient
-- Sort-by-column (TABLE-05) was implemented in Phase 40 data layer then silently removed in a subsequent UI refactor — the SUMMARY.md claimed it was shipped but the code didn't have it. The discrepancy was caught by the integration checker during audit, not during the phase. Feature removal should update the phase summary and requirements immediately.
-- The gsd-tools `milestone complete` CLI failed to extract accomplishments from SUMMARY.md files (returned "One-liner:" placeholders for 5 of 6 entries) — required manual correction of MILESTONES.md.
-
-### Patterns Established
-- **Post-milestone audit catches integration gaps**: the `gsd-audit-milestone` → integration checker pipeline found the direct-URL startup bug that phase verification missed (each phase passed its own verification; the gap was cross-phase)
-- **`_runTableQuery` in DuckDB-ready path**: any component that starts hidden (not rendered on page load) cannot rely on `data-loaded` from other components; must trigger its own query in the DuckDB init path
-
-### Key Lessons
-1. **Feature removals must update SUMMARY.md and REQUIREMENTS.md at removal time** — not at audit time. A SUMMARY that claims a feature was shipped when it was subsequently removed creates false confidence.
-2. **The integration checker is worth running even on small milestones** — the direct-URL table bug was a one-line fix but would have been a confusing user-visible defect for anyone bookmarking a table URL.
-3. **Plan the "what if viewMode=table on first load" case explicitly** — components that start hidden in one app mode need an explicit initialization trigger; the `data-loaded` event pattern only works for the default mode.
-
-### Cost Observations
-- Model mix: ~100% sonnet
-- Sessions: 3 days
-- Notable: 3-phase milestone with clean phase sequencing (URL state → component → export); each phase built directly on the previous with no rework
-
----
-
 ## Milestone: v1.9 — Component Architecture & Test Suite
 
 **Shipped:** 2026-04-04

@@ -4,7 +4,7 @@ Usage:
     cd data && uv run python run.py
 
 Pipelines are executed in this order:
-    geographies -> ecdysis -> ecdysis-links -> inaturalist -> projects -> export -> feeds
+    geographies -> ecdysis -> ecdysis-links -> inaturalist -> projects -> export
 """
 
 import time
@@ -16,7 +16,6 @@ from inaturalist_pipeline import load_observations
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from export import main as export_all
-from feeds import main as generate_feeds
 
 STEPS: list[tuple[str, Callable]] = [
     ("geographies", load_geographies),
@@ -26,7 +25,6 @@ STEPS: list[tuple[str, Callable]] = [
     ("projects", load_projects),
     ("anti-entropy", run_anti_entropy),
     ("export", export_all),
-    ("feeds", generate_feeds),
 ]
 
 

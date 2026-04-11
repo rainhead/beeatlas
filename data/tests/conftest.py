@@ -1,7 +1,5 @@
 """Session-scoped fixture DuckDB with all required schemas and seed data for tests."""
 
-import datetime
-
 import pytest
 import duckdb
 
@@ -229,21 +227,7 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             year VARCHAR, month VARCHAR, scientific_name VARCHAR,
             recorded_by VARCHAR, field_number VARCHAR,
             genus VARCHAR, family VARCHAR, associated_taxa VARCHAR,
-            event_date VARCHAR,
             _dlt_load_id VARCHAR, _dlt_id VARCHAR
-        )
-    """)
-    con.execute("""
-        CREATE TABLE ecdysis_data.identifications (
-            coreid VARCHAR,
-            scientific_name VARCHAR,
-            identified_by VARCHAR,
-            modified TIMESTAMPTZ,
-            record_id VARCHAR,
-            identification_is_current VARCHAR,
-            date_identified VARCHAR,
-            _dlt_load_id VARCHAR,
-            _dlt_id VARCHAR
         )
     """)
     con.execute("""
@@ -302,7 +286,6 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             'Test Collector', 'TC-001',
             'Eucera', 'Apidae',
             'host:"Balsamorhiza sagittata"',
-            '2024-06-15',
             'load1', 'occ-1'
         )
     """)
@@ -331,31 +314,6 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             'load1', 'ofv-1', 'test-obs-1', 0
         )
     """)
-
-    # Identifications seed rows for feeds tests:
-    # a. Recent valid: should appear in feed (within 90-day window, non-blank fields)
-    con.execute("""
-        INSERT INTO ecdysis_data.identifications VALUES (
-            '5594569', 'Eucera acerba', 'Test Determiner',
-            ?, 'det-uuid-1', '1', '2026-01-15', 'load1', 'det-1'
-        )
-    """, [datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)])
-
-    # b. Recent blank: should be excluded by blank-field filter
-    con.execute("""
-        INSERT INTO ecdysis_data.identifications VALUES (
-            '5594569', '', '',
-            ?, 'det-uuid-2', '1', '2026-01-15', 'load1', 'det-2'
-        )
-    """, [datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)])
-
-    # c. Old valid: should be excluded by 90-day window
-    con.execute("""
-        INSERT INTO ecdysis_data.identifications VALUES (
-            '5594569', 'Andrena lupinorum', 'Old Determiner',
-            ?, 'det-uuid-3', '1', '2024-01-15', 'load1', 'det-3'
-        )
-    """, [datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=100)])
 
 
 @pytest.fixture(scope="session")

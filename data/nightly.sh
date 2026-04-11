@@ -26,32 +26,14 @@ echo "--- running pipelines ---"
 mkdir -p "$EXPORT_DIR"
 export DB_PATH EXPORT_DIR
 cd "$SCRIPT_DIR"
-~/.local/bin/uv run python - <<'EOF'
-import sys, time
-from ecdysis_pipeline import load_ecdysis, load_links
-from inaturalist_pipeline import load_observations
-from projects_pipeline import load_projects
-from export import main as export_all
-
-steps = [
-    ("ecdysis",        load_ecdysis),
-    ("ecdysis-links",  load_links),
-    ("inaturalist",    load_observations),
-    ("projects",       load_projects),
-    ("export",         export_all),
-]
-for name, fn in steps:
-    print(f"--- {name} ---")
-    t = time.monotonic()
-    fn()
-    print(f"--- {name} done in {time.monotonic()-t:.1f}s ---")
-EOF
+~/.local/bin/uv run python run.py
 
 # 3. Push exports to S3 /data/
 echo "--- uploading exports ---"
 for f in ecdysis.parquet samples.parquet counties.geojson ecoregions.geojson; do
     aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
 done
+aws --profile "$AWS_PROFILE" s3 sync --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
 
 # 4. Back up DuckDB to S3 /db/
 echo "--- backing up DuckDB ---"
