@@ -1,5 +1,21 @@
 # Milestones
 
+## v2.1 Determination Feeds (Shipped: 2026-04-11)
+
+**Phases completed:** 3 phases, 3 plans
+**Timeline:** 2 days (2026-04-10 → 2026-04-11)
+**LOC:** +2,682/−157 across 27 files
+
+**Key accomplishments:**
+
+- `data/feeds.py` generates valid Atom XML for all recent determinations — DuckDB read-only query with 90-day window, blank-field exclusion, `ET.tostring+write_text` pattern avoiding UTF-8 BOM
+- Four variant feed families (per-collector, per-genus, per-county, per-ecoregion) using `_slugify` for path-traversal-safe filenames; always writes even empty feeds; `index.json` lists all variants with title, filter_type, entry_count
+- `nightly.sh` delegates to `run.py` (replacing inline heredoc) and uploads all feed files to S3 via `aws s3 sync`
+- Browser autodiscovery: `<link rel="alternate" type="application/atom+xml">` in `index.html` pointing to `/data/feeds/determinations.xml`
+- 14 feed tests covering all variant types, slug safety, empty feed behavior, and index.json structure; 27/27 data tests passing after fixing pre-existing fixture failures
+
+---
+
 ## v2.0 Tabular Data View (Shipped: 2026-04-09)
 
 **Phases completed:** 3 phases, 6 plans, 6 tasks
