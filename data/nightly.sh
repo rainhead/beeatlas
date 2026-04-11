@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Nightly pipeline: pull DuckDB from S3, run pipelines, push exports + DB, invalidate CloudFront.
-# Runs: ecdysis -> ecdysis-links -> inaturalist -> projects -> export
+# Runs: ecdysis -> ecdysis-links -> inaturalist -> projects -> export -> feeds
 # Designed for cron on maderas. Logs to stdout/stderr (capture with cron's MAILTO or redirect).
 
 set -euo pipefail
