@@ -1,49 +1,44 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Tabular Data View
-status: complete
-stopped_at: v2.0 milestone archived — ready for /gsd-new-milestone
-last_updated: "2026-04-08T00:00:00.000Z"
-last_activity: 2026-04-08
+milestone: v2.1
+milestone_name: Determination Feeds
+status: executing
+stopped_at: Phase 42 not started
+last_updated: "2026-04-11T16:10:00.641Z"
+last_activity: 2026-04-11 -- Phase 44 execution started
 progress:
   total_phases: 3
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  completed_phases: 2
+  total_plans: 3
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-08 — v2.0 milestone complete)
+See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v2.0 archived — start next milestone with /gsd-new-milestone
+**Current focus:** Phase 44 — pipeline-wiring-and-discovery
 
 ## Current Position
 
-Milestone: v2.0 COMPLETE (3/3 phases, 6/6 plans)
-Status: Archived
-Last activity: 2026-04-08
+Phase: 44 (pipeline-wiring-and-discovery) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 44
+Last activity: 2026-04-11 -- Phase 44 execution started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 3 (this milestone)
+- Total plans completed: 0 (this milestone)
 - Average duration: —
 - Total execution time: —
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 39 | 3 | - | - |
 
 *Updated after each plan completion*
 
@@ -54,9 +49,12 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [v1.9]: `bee-atlas` coordinator owns all state; `bee-map` and `bee-sidebar` are pure presenters — `bee-table` must follow the same pattern
+- [v1.9]: `bee-atlas` coordinator owns all state; `bee-map` and `bee-sidebar` are pure presenters
 - [v1.9]: `bee-atlas` does not import OpenLayers — keep OL contained in `bee-map`
 - [v1.8]: `buildFilterSQL()` returns plain SQL strings (not parameterized) — DuckDB WASM does not support parameterized queries
+- [v2.1]: Determinations already exist in beeatlas.duckdb — no new pipeline fetch needed; feeds.py queries the existing data
+- [v2.1]: Static hosting constraint means each filter variant (collector, genus, county, ecoregion) is a separate XML file on disk
+- [v2.1]: Feed files go to `frontend/public/data/feeds/` matching the parquet export path pattern; nightly.sh uploads them to S3
 
 ### Pending Todos
 
@@ -76,6 +74,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-09 - Completed quick task 260408-tvl: Show recent filters when filter input is focused and empty
-Stopped at: Roadmap written; ready to plan Phase 39
+Last session: 2026-04-09 - Roadmap created for v2.1 Determination Feeds
+Stopped at: Phase 42 not started
 Resume file: None
