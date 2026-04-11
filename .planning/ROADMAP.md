@@ -14,6 +14,7 @@
 - ✅ **v1.9 Component Architecture & Test Suite** — Phases 33–38 (shipped 2026-04-04)
 - ✅ **v2.0 Tabular Data View** — Phases 39–41 (shipped 2026-04-09)
 - ✅ **v2.1 Determination Feeds** — Phases 42–44 (shipped 2026-04-11)
+- 🔄 **v2.2 Feed Discoverability** — Phase 45 (in progress)
 
 ## Phases
 
@@ -251,3 +252,14 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 | 42. Feed Generator Core | v2.1 | 1/1 | Complete | 2026-04-09 |
 | 43. Feed Variants | v2.1 | 1/1 | Complete | 2026-04-10 |
 | 44. Pipeline Wiring and Discovery | v2.1 | 1/1 | Complete | 2026-04-11 |
+| 45. Sidebar Feed Discovery | v2.2 | 0/? | Not started | — |
+
+### Phase 45: Sidebar Feed Discovery
+
+**Goal:** Collectors can discover and subscribe to their personal identification feed directly from the sidebar
+**Requirements**: TBD
+**Depends on:** Phase 44
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 45 to break down)
