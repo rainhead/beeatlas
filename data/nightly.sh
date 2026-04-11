@@ -15,6 +15,10 @@ AWS_PROFILE="${AWS_PROFILE:-beeatlas}"
 
 echo "=== BeeAtlas nightly pipeline $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
 
+# Always back up DuckDB on exit (success or failure) so pipeline progress
+# (e.g. occurrence_links) is not lost if a later step fails.
+trap 'if [[ -f "$DB_PATH" ]]; then echo "--- backing up DuckDB (trap) ---"; aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BUCKET/$DB_S3_KEY" || true; fi' EXIT
+
 # 1. Pull DuckDB from S3 (missing = first run, not an error)
 echo "--- pulling DuckDB from S3 ---"
 if ! aws --profile "$AWS_PROFILE" s3 cp --no-progress "s3://$BUCKET/$DB_S3_KEY" "$DB_PATH" 2>/dev/null; then
@@ -35,11 +39,7 @@ for f in ecdysis.parquet samples.parquet counties.geojson ecoregions.geojson; do
 done
 aws --profile "$AWS_PROFILE" s3 sync --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
 
-# 4. Back up DuckDB to S3 /db/
-echo "--- backing up DuckDB ---"
-aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BUCKET/$DB_S3_KEY"
-
-# 5. Invalidate CloudFront /data/*
+# 4. Invalidate CloudFront /data/*
 echo "--- invalidating CloudFront ---"
 aws --profile "$AWS_PROFILE" cloudfront create-invalidation \
     --distribution-id "$DISTRIBUTION_ID" \
