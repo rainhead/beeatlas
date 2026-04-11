@@ -35,14 +35,14 @@ Declared values (multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline gaps within a feed row |
-| sm | 8px | Gap between feed label and action buttons |
+| sm | 8px | Gap between feed label and action buttons; feed row vertical padding |
 | md | 16px | `.panel-content` padding (matches existing `1rem` = 16px) |
 | lg | 24px | Section separation — gap above Feeds section header |
 | xl | 32px | Not used in this phase |
 | 2xl | 48px | Not used in this phase |
 | 3xl | 64px | Not used in this phase |
 
-Exceptions: Feed row vertical padding matches `.event-row` precedent — 0.6rem top/bottom (≈10px, acceptable variation from scale for consistency with existing rows).
+Feed row vertical padding: `0.5rem` (8px) top/bottom — matches the `sm` token.
 
 ---
 
@@ -53,11 +53,14 @@ All sizes expressed in rem using the existing 16px base from `index.css`.
 | Role | Size | Weight | Line Height | CSS Variable / Class |
 |------|------|--------|-------------|----------------------|
 | Body | 16px (1rem) | 400 | 1.5 | inherited from `:root` |
-| Label | 13.6px (0.85rem) | 600 | 1.4 | matches existing `dt`, `.recent-events-header` |
 | Hint | 13.6px (0.85rem) | 400 | 1.5 | `.hint` class — color: `var(--text-hint)` |
-| Section heading | 12.8px (0.8rem) | 700 | 1.2 | matches `.event-date-heading` — uppercase, letter-spacing 0.04em |
+| Label / Section heading | 13.6px (0.85rem) / 12.8px (0.8rem) | 700 | 1.4 / 1.2 | label matches existing `dt`; section heading matches `.event-date-heading` — uppercase, letter-spacing 0.04em |
+
+Exactly 2 weights in use: **400** (body, hint) and **700** (feed row label, section heading).
 
 **Feeds section heading** uses the `.event-date-heading` pattern: `font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary)`.
+
+**Feed row label** uses: `font-size: 0.85rem; font-weight: 700; color: var(--text-body)`.
 
 ---
 
@@ -69,15 +72,15 @@ All colors are CSS custom properties from `frontend/src/index.css`. No new color
 |------|-------|-------|
 | Dominant (60%) | `var(--surface)` = `#fafafa` | Page background, `.panel-content` background |
 | Secondary (30%) | `var(--surface-subtle)` = `#f5f5f5` | Feeds section header background (matches `.event-date-heading`) |
-| Accent (10%) | `var(--accent)` = `#2c7a2c` | Feed action buttons (Copy URL, Open) — text color for link-style actions |
+| Accent (10%) | `var(--accent)` = `#2c7a2c` | Feed action buttons (Copy URL, Open Feed) — text color for link-style actions |
 | Destructive | `var(--error)` = `#bb0000` | Not used in this phase |
 
-**Accent reserved for:** Feed action links/buttons (Copy URL button text, Open link text). The teaser hint uses `var(--text-hint)` — not accent.
+**Accent reserved for:** Feed action links/buttons (Copy URL button text, Open Feed link text). The teaser hint uses `var(--text-hint)` — not accent.
 
 **Border:** `var(--border-subtle)` = `#eee` — used as bottom border on feed rows and top border separating Feeds section from filter controls above.
 
 **Text colors in use:**
-- Feed label (collector name + "— determinations"): `var(--text-body)` = `#213547`, weight 400, 1rem
+- Feed row label (collector name + "— determinations"): `var(--text-body)` = `#213547`, weight 700, 0.85rem
 - Action buttons/links: `var(--accent)` = `#2c7a2c`
 - Teaser hint: `var(--text-hint)` = `#767676`
 
@@ -94,7 +97,7 @@ No new component files. All rendering is added to `bee-sidebar.ts`.
 | `.feeds-header` | CSS class | `bee-sidebar.ts` static styles | Section heading; reuses `.event-date-heading` visual pattern |
 | `.feed-row` | CSS class | `bee-sidebar.ts` static styles | One row per active collector with a feed |
 | `.feed-label` | CSS class | `bee-sidebar.ts` static styles | Collector name + "— determinations" |
-| `.feed-actions` | CSS class | `bee-sidebar.ts` static styles | Container for Copy URL and Open |
+| `.feed-actions` | CSS class | `bee-sidebar.ts` static styles | Container for Copy URL and Open Feed |
 | `.feed-copy-btn` | CSS class | `bee-sidebar.ts` static styles | Button styled as a text link |
 | Teaser `<p class="hint">` | inline in `_renderSummary()` | `bee-sidebar.ts` | No new CSS class needed |
 
@@ -107,11 +110,11 @@ No new component files. All rendering is added to `bee-sidebar.ts`.
 - Rendered **below** the filter controls and above any specimen/sample detail panel — appended at the bottom of the sidebar content flow via `render()`.
 - Visually separated from filter controls above by a `1px solid var(--border-subtle)` top border on `.feeds-section`.
 - Section heading: "Feeds" — rendered as a `.feeds-header` heading element styled like `.event-date-heading`.
-- One `.feed-row` per entry in `activeFeedEntries`. Row layout: flex row, space-between alignment.
-  - Left: `.feed-label` — `{entry.filter_value} — determinations` in `var(--text-body)` at 1rem / weight 400.
+- One `.feed-row` per entry in `activeFeedEntries`. Row layout: flex row, space-between alignment. Vertical padding: `0.5rem` (8px) top/bottom.
+  - Left: `.feed-label` — `{entry.filter_value} — determinations` in `var(--text-body)` at 0.85rem / weight 700.
   - Right: `.feed-actions` — two inline actions side by side, separated by 8px gap.
     - "Copy URL" — `<button>` styled as a text link in `var(--accent)`, no border, no background. On click: `navigator.clipboard.writeText(entry.url)`. Silent copy (no "Copied!" flash) — simpler and avoids adding `@state` to the presenter.
-    - "Open" — `<a href="${entry.url}" target="_blank" rel="noopener">` in `var(--accent)`. Opens feed XML in new tab.
+    - "Open Feed" — `<a href="${entry.url}" target="_blank" rel="noopener">` in `var(--accent)`. Opens feed XML in new tab.
 - If a selected collector has no matching entry in `_feedIndex`, that collector is silently omitted (no row rendered, no error).
 
 ### Teaser Hint (when `activeFeedEntries.length === 0` AND `layerMode === 'specimens'`)
@@ -137,7 +140,7 @@ No new component files. All rendering is added to `bee-sidebar.ts`.
 | Element | Copy |
 |---------|------|
 | Primary CTA | "Copy URL" (verb + noun — clipboard copy for feed subscription) |
-| Secondary CTA | "Open" (opens feed XML in new tab) |
+| Secondary CTA | "Open Feed" (verb + noun — opens feed XML in new tab) |
 | Section heading | "Feeds" |
 | Feed row label | "{collector name} — determinations" |
 | Teaser hint | "Filter by collector to subscribe to a determination feed." |
@@ -150,7 +153,7 @@ No new component files. All rendering is added to `bee-sidebar.ts`.
 ## Accessibility Contract
 
 - "Copy URL" button must be a `<button>` element (not a `<div>` or `<span>`), keyboard-focusable by default.
-- "Open" link must be an `<a>` element with `target="_blank" rel="noopener"`.
+- "Open Feed" link must be an `<a>` element with `target="_blank" rel="noopener"`.
 - Feed row label text contrast: `var(--text-body)` `#213547` on `var(--surface)` `#fafafa` — contrast ratio ≈ 10.7:1 (WCAG AA pass).
 - Teaser hint text contrast: `var(--text-hint)` `#767676` on `var(--surface)` `#fafafa` — contrast ratio 4.54:1 (WCAG AA minimum, noted in index.css).
 - Accent action links/buttons: `var(--accent)` `#2c7a2c` on `#fafafa` — contrast ratio ≈ 5.6:1 (WCAG AA pass for normal text).
