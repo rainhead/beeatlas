@@ -26,7 +26,7 @@ echo "--- running pipelines ---"
 mkdir -p "$EXPORT_DIR"
 export DB_PATH EXPORT_DIR
 cd "$SCRIPT_DIR"
-~/.local/bin/uv run python run.py
+uv run python run.py
 
 # 3. Push exports to S3 /data/
 echo "--- uploading exports ---"
