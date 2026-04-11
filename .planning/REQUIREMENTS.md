@@ -1,59 +1,75 @@
-# Requirements — v2.1 Determination Feeds
+# Requirements: Washington Bee Atlas v2.0
 
-## Active Requirements
+**Defined:** 2026-04-07
+**Core Value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
-### Feed Content
+## v2.0 Requirements
 
-- [ ] **FEED-01**: Each Atom entry includes taxon name, determiner name, specimen ID with link to Ecdysis record, collector name, and collection date
-- [ ] **FEED-02**: Feed covers determinations with `modified` timestamp within last 90 days, sorted by `modified` desc; Atom `<updated>` per entry uses `modified` timestamp (required by spec)
-- [ ] **FEED-03**: Feed-level `<updated>` reflects the most recent entry's `modified` timestamp; feed `<title>` describes the filter variant
+### View Mode
 
-### Feed Variants
+- [ ] **VIEW-01**: User can toggle between map view and table view via a control in the main UI
+- [ ] **VIEW-02**: In table view, the map is not rendered, giving the table full layout space
+- [ ] **VIEW-03**: View mode (map/table) is encoded in the URL so the table view is bookmarkable and shareable
 
-- [ ] **FEED-04**: Unfiltered feed at `/data/feeds/determinations.xml` — all recent determinations
-- [ ] **FEED-05**: Per-collector feeds at `/data/feeds/collector-{slug}.xml` — one file per unique collector with determinations in the 90-day window
-- [ ] **FEED-06**: Per-genus feeds at `/data/feeds/genus-{slug}.xml` — one file per unique genus with determinations in the window
-- [ ] **FEED-07**: Per-county feeds at `/data/feeds/county-{slug}.xml` — one file per unique county
-- [ ] **FEED-08**: Per-ecoregion feeds at `/data/feeds/ecoregion-{slug}.xml` — one file per unique ecoregion
+### Table Component
 
-### Pipeline Integration
+- [ ] **TABLE-01**: Table displays specimens when layer mode is "specimens", samples when layer mode is "samples"
+- [ ] **TABLE-02**: Table reflects the active filter state — rows shown match `visibleIds` (or all rows if no filter active)
+- [ ] **TABLE-03**: Table shows a row count indicator (e.g. "showing 1–100 of 3,847 specimens")
+- [ ] **TABLE-04**: Table is paginated at 100 rows/page with previous/next controls and current page display
+- [ ] **TABLE-05**: User can sort by clicking a column header; clicking again reverses sort direction
+- [ ] **TABLE-06**: Specimen table columns: species, collector (recordedBy), year, month, county, ecoregion, field number
+- [ ] **TABLE-07**: Sample table columns: observer, date, specimen count, county, ecoregion
 
-- [ ] **PIPE-01**: `data/feeds.py` module generates all Atom XML files from beeatlas.duckdb; called by `run.py` after the export step
-- [ ] **PIPE-02**: Feed XML files written to `frontend/public/data/feeds/` and uploaded to S3 by `nightly.sh` alongside parquet files
-- [ ] **PIPE-03**: `/data/feeds/index.json` lists all generated feed URLs with title, filter type, and entry count
+### CSV Export
 
-### Frontend Discovery
-
-- [ ] **DISC-01**: `<link rel="alternate" type="application/atom+xml">` autodiscovery tag added to `index.html` pointing to the unfiltered determinations feed
+- [ ] **CSV-01**: User can download the full filtered result set as a CSV via a "Download CSV" button (no pagination limit)
+- [ ] **CSV-02**: Downloaded filename reflects the active filter (e.g. `specimens-bombus-2023.csv`, `samples-all.csv`)
 
 ## Future Requirements
 
-- TAB-01: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline (distinct from Ecdysis determinations)
-- TAB-02: Specimens collected last season on land owned by a named organization — requires land ownership data source
-- TAB-03: Common floral hosts by month and region — cross-table aggregation query on ecdysis data
+### Enhanced Table
+
+- **TABLE-08**: User can choose which columns to display (column visibility toggle)
+- **TABLE-09**: Virtual scrolling replaces pagination for seamless infinite-scroll browsing
+
+### Advanced Export
+
+- **CSV-03**: User can export only the current page (not full result set)
+- **CSV-04**: Export includes all filter metadata as a header comment in the CSV
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Per-species feeds | Genus-level covers the use case; species granularity creates too many files |
-| Per-collector discovery UI | Feed index.json covers programmatic discovery; UI listing deferred |
-| Atom feed for iNat samples | iNat observations don't have determination workflow; out of scope for this milestone |
-| Server-side feed filtering | Static hosting constraint — each filter variant is its own file |
+| Virtualized scrolling (this milestone) | Pagination sufficient for v2.0; add later if UX demands it |
+| Column chooser (this milestone) | Deferred — fixed column set is simpler and covers all use cases |
+| In-table filtering | Filter controls in sidebar already handle this |
+| Row selection / bulk actions | No clear use case beyond CSV export which is already covered |
+| Server-side pagination | Static hosting constraint — all queries run in DuckDB WASM |
 
 ## Traceability
 
-| REQ-ID | Phase | Plan |
-|--------|-------|------|
-| FEED-01 | Phase 42 | — |
-| FEED-02 | Phase 42 | — |
-| FEED-03 | Phase 42 | — |
-| FEED-04 | Phase 42 | — |
-| PIPE-01 | Phase 42 | — |
-| FEED-05 | Phase 43 | — |
-| FEED-06 | Phase 43 | — |
-| FEED-07 | Phase 43 | — |
-| FEED-08 | Phase 43 | — |
-| PIPE-03 | Phase 43 | — |
-| PIPE-02 | Phase 44 | — |
-| DISC-01 | Phase 44 | — |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| VIEW-01 | Phase 39 | Pending |
+| VIEW-02 | Phase 39 | Pending |
+| VIEW-03 | Phase 39 | Pending |
+| TABLE-01 | Phase 40 | Pending |
+| TABLE-02 | Phase 40 | Pending |
+| TABLE-03 | Phase 40 | Pending |
+| TABLE-04 | Phase 40 | Pending |
+| TABLE-05 | Phase 40 | Pending |
+| TABLE-06 | Phase 40 | Pending |
+| TABLE-07 | Phase 40 | Pending |
+| CSV-01 | Phase 41 | Pending |
+| CSV-02 | Phase 41 | Pending |
+
+**Coverage:**
+- v2.0 requirements: 12 total
+- Mapped to phases: 12
+- Unmapped: 0 ✓
+
+---
+*Requirements defined: 2026-04-07*
+*Last updated: 2026-04-07 — traceability filled after roadmap creation*
