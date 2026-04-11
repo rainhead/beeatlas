@@ -8,13 +8,7 @@ updated: 2026-04-11T00:00:00Z
 
 ## Current Test
 
-number: 2
-name: Atom feed autodiscovery tag in index.html
-expected: |
-  Open frontend/index.html. Inside the <head> section, there is:
-  <link rel="alternate" type="application/atom+xml" title="Washington Bee Atlas — All Recent Determinations" href="/data/feeds/determinations.xml">
-  A feed reader or browser extension that scans for Atom feeds would find the determinations feed automatically at /data/feeds/determinations.xml without requiring a manual URL entry.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -30,20 +24,23 @@ reported: "nightly.sh line 29 hardcodes an incorrect path to uv. Rely on $PATH b
 severity: major
 fix: "Changed ~/.local/bin/uv run python run.py → uv run python run.py (relies on PATH)"
 fix_status: applied
+followup_issue:
+  reported: "During live run, ecdysis_links showed '46090 to process, 0 already done' — DLT pipeline state not preserved; expected incremental run from cached state in DuckDB."
+  severity: major
 
 ### 2. Atom feed autodiscovery tag in index.html
 expected: |
   Open frontend/index.html. Inside the <head> section, there is:
   <link rel="alternate" type="application/atom+xml" title="Washington Bee Atlas — All Recent Determinations" href="/data/feeds/determinations.xml">
   A feed reader or browser extension that scans for Atom feeds would find the determinations feed automatically at /data/feeds/determinations.xml without requiring a manual URL entry.
-result: [pending]
+result: pass
 
 ## Summary
 
 total: 2
-passed: 0
-issues: 0
-pending: 2
+passed: 1
+issues: 1
+pending: 0
 skipped: 0
 
 ## Gaps
