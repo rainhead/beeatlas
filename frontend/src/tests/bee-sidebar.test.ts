@@ -242,6 +242,39 @@ describe('bee-specimen-detail render', () => {
   });
 });
 
+describe('DISC-04: feed discovery section in bee-sidebar', () => {
+  test('BeeSidebar has activeFeedEntries property', async () => {
+    const { BeeSidebar } = await import('../bee-sidebar.ts');
+    const props = (BeeSidebar as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
+    expect(props.has('activeFeedEntries')).toBe(true);
+  });
+
+  test('bee-sidebar.ts does NOT contain a fetch call (presenter invariant)', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/\bfetch\s*\(/);
+  });
+
+  test('bee-sidebar.ts contains _renderFeedsSection method', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/_renderFeedsSection/);
+  });
+
+  test('bee-sidebar.ts uses navigator.clipboard.writeText for Copy URL', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/navigator\.clipboard\.writeText/);
+  });
+
+  test('bee-sidebar.ts contains teaser hint text for feed discovery', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/Filter by collector to subscribe to a determination feed/);
+  });
+
+  test('bee-sidebar.ts Open Feed link opens in new tab', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/target="_blank"/);
+  });
+});
+
 describe('VIEW-01: bee-sidebar view mode toggle', () => {
   test('bee-sidebar.ts contains view-changed event string', () => {
     const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
