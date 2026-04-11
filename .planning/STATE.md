@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Determination Feeds
+milestone: v2.0
+milestone_name: Tabular Data View
 status: executing
 stopped_at: Phase 42 not started
-last_updated: "2026-04-11T16:10:00.641Z"
-last_activity: 2026-04-11 -- Phase 44 execution started
+last_updated: "2026-04-11T16:20:28.191Z"
+last_activity: 2026-04-11
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 
 ## Current Position
 
-Phase: 44 (pipeline-wiring-and-discovery) — EXECUTING
-Plan: 1 of 1
+Phase: 44
+Plan: Not started
 Status: Executing Phase 44
-Last activity: 2026-04-11 -- Phase 44 execution started
+Last activity: 2026-04-11
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 0 (this milestone)
+- Total plans completed: 1 (this milestone)
 - Average duration: —
 - Total execution time: —
 
