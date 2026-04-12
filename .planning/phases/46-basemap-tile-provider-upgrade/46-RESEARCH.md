@@ -157,22 +157,13 @@ Production authentication is managed entirely in the Stadia Maps dashboard by ad
 | A2 | No explicit `maxZoom` is set on the OL View that would cap zoom below 20 | Pitfalls | Planner should verify; would need a one-line fix if present |
 | A3 | `XYZ` import is only used for the basemap layers (not elsewhere in bee-map.ts) | Code Examples | TypeScript would catch this at build time |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does the project need an API key in the codebase or is domain auth sufficient?**
-   - What we know: Domain auth requires free account registration + allowlist; no code change.
-   - What's unclear: Whether the project owner wants to depend on an external free-tier account.
-   - Recommendation: Use domain auth (no credentials in repo). Document registration step as a prerequisite task in the plan.
+1. **Does the project need an API key in the codebase or is domain auth sufficient?** — RESOLVED: Use domain auth. No credentials in repo. Registration + domain allowlist documented as a prerequisite task in the plan.
 
-2. **Which Stadia layer exactly — `outdoors` vs `stamen_terrain`?**
-   - What we know: `outdoors` shows roads, trails, terrain, and POIs up to zoom 20. `stamen_terrain` shows hillshade/contours with fewer roads.
-   - What's unclear: User preference for visual style.
-   - Recommendation: Default to `outdoors` — it is the most complete for fieldwork use (roads AND trails). Note that `stamen_terrain` is the alternative if a more "topo map" aesthetic is preferred.
+2. **Which Stadia layer exactly — `outdoors` vs `stamen_terrain`?** — RESOLVED: `outdoors` selected. Most complete for fieldwork (roads + trails + terrain up to zoom 20).
 
-3. **Should the map show a USGS Topo overlay as an optional layer?**
-   - What we know: USGS Topo (`basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}`) is free, no account needed, covers US only, caches to zoom 16.
-   - What's unclear: Whether the phase scope includes optional layer controls.
-   - Recommendation: Out of scope for this phase; single-layer replacement is sufficient.
+3. **Should the map show a USGS Topo overlay as an optional layer?** — RESOLVED: Out of scope for this phase. Single-layer replacement is sufficient.
 
 ## Environment Availability
 
