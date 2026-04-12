@@ -252,7 +252,7 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 | 42. Feed Generator Core | v2.1 | 1/1 | Complete | 2026-04-09 |
 | 43. Feed Variants | v2.1 | 1/1 | Complete | 2026-04-10 |
 | 44. Pipeline Wiring and Discovery | v2.1 | 1/1 | Complete | 2026-04-11 |
-| 45. Sidebar Feed Discovery | v2.2 | 0/2 | Not started | — |
+| 45. Sidebar Feed Discovery | v2.2 | 2/2 | Complete   | 2026-04-12 |
 
 ### Phase 45: Sidebar Feed Discovery
 
@@ -263,8 +263,8 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
   1. When a collector filter is active, a Feeds section appears in the sidebar showing one row per collector with Copy URL and Open Feed actions
   2. When no collector filter is active in specimens mode, a teaser hint reads "Filter by collector to subscribe to a determination feed."
   3. Feed data is fetched once at startup from index.json and passed to bee-sidebar as a property (pure presenter pattern preserved)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 45-01-PLAN.md — Data layer: fetch index.json, build feed index Map, compute activeFeedEntries, pass to sidebar
-- [ ] 45-02-PLAN.md — Presentation: add activeFeedEntries property, Feeds section, teaser hint, CSS styles to bee-sidebar
+- [x] 45-01-PLAN.md — Data layer: fetch index.json, build feed index Map, compute activeFeedEntries, pass to sidebar
+- [x] 45-02-PLAN.md — Presentation: add activeFeedEntries property, Feeds section, teaser hint, CSS styles to bee-sidebar
 **UI hint**: yes

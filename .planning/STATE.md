@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Determination Feeds
+milestone: v1.0
+milestone_name: milestone
 status: executing
 stopped_at: Phase 42 not started
-last_updated: "2026-04-11T19:15:18.282Z"
-last_activity: 2026-04-11
+last_updated: "2026-04-12T00:41:36.680Z"
+last_activity: 2026-04-12 -- Phase 45 execution started
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 3
-  completed_plans: 3
+  total_phases: 1
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 44 — pipeline-wiring-and-discovery
+**Current focus:** Phase 45 — sidebar-feed-discovery
 
 ## Current Position
 
-Phase: 44
-Plan: Not started
-Status: Executing Phase 44
-Last activity: 2026-04-11
+Phase: 45 (sidebar-feed-discovery) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 45
+Last activity: 2026-04-12 -- Phase 45 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
