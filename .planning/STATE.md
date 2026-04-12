@@ -78,6 +78,7 @@ None.
 | 260408-tvl | Show recent filters when filter input is focused and empty | 2026-04-09 | a8fa85f | [260408-tvl-show-recent-filters-when-filter-input-is](./quick/260408-tvl-show-recent-filters-when-filter-input-is/) |
 | 260411-pru | Display "No determination" for unidentified specimens in sidebar | 2026-04-12 | 01928e3 | [260411-pru-unidentified-specimens-like-5611752-are-](./quick/260411-pru-unidentified-specimens-like-5611752-are-/) |
 | 260412-dl6 | In the frontend, in the specimen table view, add a 'modified' column that is the maximum of the occurrence's modified field and all of its identifications' modified fields | 2026-04-12 | d99bd54 | [260412-dl6-in-the-frontend-in-the-specimen-table-vi](./quick/260412-dl6-in-the-frontend-in-the-specimen-table-vi/) |
+| 260412-kpe | Schema validation is failing on build despite having rerun nightly.sh | 2026-04-12 | 10915b3 | [260412-kpe-schema-validation-is-failing-on-build-de](./quick/260412-kpe-schema-validation-is-failing-on-build-de/) |
 
 ## Session Continuity
 
