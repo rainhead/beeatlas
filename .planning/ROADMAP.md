@@ -268,3 +268,13 @@ Plans:
 - [x] 45-01-PLAN.md — Data layer: fetch index.json, build feed index Map, compute activeFeedEntries, pass to sidebar
 - [x] 45-02-PLAN.md — Presentation: add activeFeedEntries property, Feeds section, teaser hint, CSS styles to bee-sidebar
 **UI hint**: yes
+
+### Phase 46: Basemap Tile Provider Upgrade
+
+**Goal:** Replace the current tile provider with one that supports higher zoom levels and includes terrain, natural features, roads, and trails.
+**Requirements**: None (infrastructure improvement)
+**Depends on:** Phase 45
+**Plans:** 1 plan
+
+Plans:
+- [ ] 46-01-PLAN.md — Replace Esri Ocean basemap with Stadia Maps outdoors (terrain, roads, trails, zoom 20)
