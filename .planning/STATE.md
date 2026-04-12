@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 Phase: 46 (basemap-tile-provider-upgrade) — COMPLETE
 Plan: 1 of 1
 Status: Phase 46 complete
-Last activity: 2026-04-12 -- Phase 46 complete
+Last activity: 2026-04-12 - Completed quick task 260411-pru: Display "No determination" for unidentified specimens in sidebar
 
 Progress: [██████████] 100%
 
@@ -76,6 +76,7 @@ None.
 | 260408-roy | Move region overlay control from sidebar to map overlay button | 2026-04-09 | e6d1281 | [260408-roy-move-region-overlay-control-from-sidebar](./quick/260408-roy-move-region-overlay-control-from-sidebar/) |
 | 260408-tkd | Add occurrence/observation ID columns to table for ecdysis and iNat links | 2026-04-09 | 003284c | [260408-tkd-add-occurrence-observation-id-columns-to](./quick/260408-tkd-add-occurrence-observation-id-columns-to/) |
 | 260408-tvl | Show recent filters when filter input is focused and empty | 2026-04-09 | a8fa85f | [260408-tvl-show-recent-filters-when-filter-input-is](./quick/260408-tvl-show-recent-filters-when-filter-input-is/) |
+| 260411-pru | Display "No determination" for unidentified specimens in sidebar | 2026-04-12 | 01928e3 | [260411-pru-unidentified-specimens-like-5611752-are-](./quick/260411-pru-unidentified-specimens-like-5611752-are-/) |
 
 ## Session Continuity
 
