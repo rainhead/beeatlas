@@ -225,6 +225,35 @@ describe('bee-specimen-detail render', () => {
     document.body.removeChild(el);
   });
 
+  test('renders "No determination" for specimen with empty name', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+
+    const el = new BeeSpecimenDetail();
+    el.samples = [
+      {
+        year: 2024,
+        month: 3,
+        recordedBy: 'A. Collector',
+        fieldNumber: 'WA-2024-001',
+        species: [
+          { name: '', occid: '5611752', inatObservationId: null, floralHost: null },
+          { name: 'Bombus vosnesenskii', occid: '5611753', inatObservationId: null, floralHost: null },
+        ],
+      },
+    ];
+
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const shadow = el.shadowRoot!;
+    const text = shadow.textContent ?? '';
+
+    expect(text).toContain('No determination');
+    expect(text).toContain('Bombus vosnesenskii');
+
+    document.body.removeChild(el);
+  });
+
   test('renders no sample divs when samples is empty', async () => {
     const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
 
