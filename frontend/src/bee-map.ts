@@ -10,7 +10,7 @@ import Cluster from "ol/source/Cluster.js";
 import { makeClusterStyleFn, makeSampleDotStyleFn } from "./style.ts";
 import { SampleSource } from './features.ts';
 import TileLayer from "ol/layer/Tile.js";
-import XYZ from "ol/source/XYZ.js";
+import StadiaMaps from "ol/source/StadiaMaps.js";
 import Feature from "ol/Feature.js";
 import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
@@ -355,18 +355,9 @@ export class BeeMap extends LitElement {
     this.map = new OpenLayersMap({
       layers: [
         new TileLayer({
-          source: new XYZ({
-            attributions: 'Base map by Esri and its data providers',
-            urls: [
-              'https://services.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-              'https://server.arcgisonline.com/arcgis/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}',
-            ]
-          }),
-        }),
-        new TileLayer({
-          source: new XYZ({
-            // NB: this source is unmaintained
-            url: "https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}",
+          source: new StadiaMaps({
+            layer: 'outdoors',
+            retina: true,
           }),
         }),
         new LayerGroup(),
