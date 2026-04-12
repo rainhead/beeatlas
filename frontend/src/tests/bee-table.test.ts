@@ -14,6 +14,7 @@ vi.mock('../filter.ts', () => ({
   isFilterActive: vi.fn(() => false),
   queryVisibleIds: vi.fn(() => Promise.resolve({ ecdysis: null, samples: null })),
   buildFilterSQL: vi.fn(() => ({ ecdysisWhere: '1=1', samplesWhere: '1=1' })),
+  SpecimenSortBy: undefined,
 }));
 
 vi.mock('../features.ts', () => ({
@@ -44,6 +45,7 @@ async function createBeeTable(props: {
   layerMode?: 'specimens' | 'samples';
   page?: number;
   loading?: boolean;
+  sortBy?: 'date' | 'modified';
 }) {
   const { BeeTable } = await import('../bee-table.ts');
   const el = new BeeTable() as InstanceType<typeof BeeTable> & HTMLElement;
@@ -52,6 +54,7 @@ async function createBeeTable(props: {
   if (props.layerMode !== undefined) (el as any).layerMode = props.layerMode;
   if (props.page !== undefined) (el as any).page = props.page;
   if (props.loading !== undefined) (el as any).loading = props.loading;
+  if (props.sortBy !== undefined) (el as any).sortBy = props.sortBy;
   document.body.appendChild(el);
   await el.updateComplete;
   return el;
@@ -61,15 +64,15 @@ describe('TABLE-01: bee-table column headers', () => {
   test('renders 7 specimen column headers when layerMode is specimens', async () => {
     const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
-    const labels = Array.from(headers).map(th => th.textContent?.trim());
-    expect(labels.filter(Boolean)).toContain('Source');
-    expect(labels.filter(Boolean)).toContain('Species');
-    expect(labels.filter(Boolean)).toContain('Collector');
-    expect(labels.filter(Boolean)).toContain('Date');
-    expect(labels.filter(Boolean)).toContain('County');
-    expect(labels.filter(Boolean)).toContain('Ecoregion');
-    expect(labels.filter(Boolean)).toContain('Field #');
-    expect(labels.filter(Boolean)).toContain('Modified');
+    const labels = Array.from(headers).map(th => th.textContent?.trim() ?? '');
+    expect(labels.some(l => l.includes('Source'))).toBe(true);
+    expect(labels.some(l => l.includes('Species'))).toBe(true);
+    expect(labels.some(l => l.includes('Collector'))).toBe(true);
+    expect(labels.some(l => l.includes('Date'))).toBe(true);
+    expect(labels.some(l => l.includes('County'))).toBe(true);
+    expect(labels.some(l => l.includes('Ecoregion'))).toBe(true);
+    expect(labels.some(l => l.includes('Field #'))).toBe(true);
+    expect(labels.some(l => l.includes('Modified'))).toBe(true);
     expect(headers.length).toBe(8);
     document.body.removeChild(el);
   });
@@ -194,6 +197,53 @@ describe('TABLE-07: bee-table accessibility', () => {
     const el = await createBeeTable({ rowCount: 100, page: 1 });
     const ariaLive = el.shadowRoot!.querySelector('[aria-live="polite"]');
     expect(ariaLive).not.toBeNull();
+    document.body.removeChild(el);
+  });
+});
+
+describe('TABLE-08: bee-table sort controls', () => {
+  test('specimen mode with sortBy=date shows sort indicator (\u25BC) on Date header', async () => {
+    const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100, sortBy: 'date' });
+    const headers = Array.from(el.shadowRoot!.querySelectorAll('th'));
+    const dateHeader = headers.find(th => th.textContent?.includes('Date'));
+    expect(dateHeader).not.toBeUndefined();
+    expect(dateHeader!.textContent).toContain('\u25BC');
+    // Modified header should NOT show indicator
+    const modifiedHeader = headers.find(th => th.textContent?.includes('Modified'));
+    expect(modifiedHeader!.textContent).not.toContain('\u25BC');
+    document.body.removeChild(el);
+  });
+
+  test('specimen mode with sortBy=modified shows sort indicator (\u25BC) on Modified header', async () => {
+    const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100, sortBy: 'modified' });
+    const headers = Array.from(el.shadowRoot!.querySelectorAll('th'));
+    const modifiedHeader = headers.find(th => th.textContent?.includes('Modified'));
+    expect(modifiedHeader).not.toBeUndefined();
+    expect(modifiedHeader!.textContent).toContain('\u25BC');
+    // Date header should NOT show indicator
+    const dateHeader = headers.find(th => th.textContent?.includes('Date'));
+    expect(dateHeader!.textContent).not.toContain('\u25BC');
+    document.body.removeChild(el);
+  });
+
+  test('clicking Modified header dispatches sort-changed event with { sortBy: "modified" }', async () => {
+    const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100, sortBy: 'date' });
+    const sortChangedPromise = new Promise<CustomEvent>(resolve => {
+      el.addEventListener('sort-changed', (e) => resolve(e as CustomEvent));
+    });
+    const headers = Array.from(el.shadowRoot!.querySelectorAll('th'));
+    const modifiedHeader = headers.find(th => th.textContent?.includes('Modified')) as HTMLElement;
+    modifiedHeader?.click();
+    const event = await sortChangedPromise;
+    expect(event.detail.sortBy).toBe('modified');
+    document.body.removeChild(el);
+  });
+
+  test('sample mode shows no sort indicators on headers', async () => {
+    const el = await createBeeTable({ layerMode: 'samples', rows: [], rowCount: 100 });
+    const headers = Array.from(el.shadowRoot!.querySelectorAll('th'));
+    const anyWithIndicator = headers.some(th => th.textContent?.includes('\u25BC'));
+    expect(anyWithIndicator).toBe(false);
     document.body.removeChild(el);
   });
 });

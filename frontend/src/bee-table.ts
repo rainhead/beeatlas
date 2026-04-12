@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { SpecimenRow, SampleRow } from './filter.ts';
+import type { SpecimenRow, SampleRow, SpecimenSortBy } from './filter.ts';
 
 interface ColumnDef {
   key: string;
@@ -44,6 +44,7 @@ export class BeeTable extends LitElement {
   @property({ attribute: false }) layerMode: 'specimens' | 'samples' = 'specimens';
   @property({ attribute: false }) page = 1;
   @property({ attribute: false }) loading = false;
+  @property({ attribute: false }) sortBy: SpecimenSortBy = 'date';
 
   static styles = css`
     :host {
@@ -161,7 +162,23 @@ export class BeeTable extends LitElement {
     td a:hover {
       text-decoration: underline;
     }
+    .sortable {
+      cursor: pointer;
+      user-select: none;
+    }
+    .sort-indicator {
+      margin-left: 4px;
+      font-size: 0.75rem;
+    }
   `;
+
+  private _onSortClick(sortBy: SpecimenSortBy) {
+    this.dispatchEvent(new CustomEvent('sort-changed', {
+      detail: { sortBy },
+      bubbles: true,
+      composed: true,
+    }));
+  }
 
   private _onDownloadCsv() {
     this.dispatchEvent(new CustomEvent('download-csv', {
@@ -209,9 +226,17 @@ export class BeeTable extends LitElement {
             <table>
               <thead>
                 <tr>
-                  ${cols.map(col => html`
-                    <th style="width: ${col.minWidth}">${col.label}</th>
-                  `)}
+                  ${cols.map(col => {
+                    const isSortable = this.layerMode === 'specimens' && (col.key === 'date' || col.key === 'modified');
+                    const isActive = isSortable && this.sortBy === col.key;
+                    if (isSortable) {
+                      return html`
+                        <th style="width: ${col.minWidth}" class="sortable" @click=${() => this._onSortClick(col.key as SpecimenSortBy)}>
+                          ${col.label}${isActive ? html`<span class="sort-indicator">\u25BC</span>` : nothing}
+                        </th>`;
+                    }
+                    return html`<th style="width: ${col.minWidth}">${col.label}</th>`;
+                  })}
                 </tr>
               </thead>
               <tbody>

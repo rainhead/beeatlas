@@ -1,6 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, queryFilteredCounts, type SpecimenRow, type SampleRow, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent, FeedEntry } from './bee-sidebar.ts';
@@ -33,6 +33,7 @@ export class BeeAtlas extends LitElement {
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @state() private _viewMode: 'map' | 'table' = 'map';
   @state() private _tablePage = 1;
+  @state() private _tableSortBy: SpecimenSortBy = 'date';
   @state() private _tableRows: SpecimenRow[] | SampleRow[] = [];
   @state() private _tableRowCount = 0;
   @state() private _tableLoading = false;
@@ -163,8 +164,10 @@ bee-sidebar {
               .layerMode=${this._layerMode}
               .page=${this._tablePage}
               .loading=${this._tableLoading}
+              .sortBy=${this._tableSortBy}
               @page-changed=${this._onPageChanged}
               @download-csv=${this._onDownloadCsv}
+              @sort-changed=${this._onSortChanged}
             ></bee-table>`
         }
         <bee-sidebar
@@ -417,7 +420,7 @@ bee-sidebar {
     const generation = ++this._tableQueryGeneration;
     try {
       const { rows, total } = await queryTablePage(
-        this._filterState, this._layerMode, this._tablePage
+        this._filterState, this._layerMode, this._tablePage, this._tableSortBy
       );
       if (generation !== this._tableQueryGeneration) return;
       this._tableRows = rows;
@@ -647,6 +650,9 @@ bee-sidebar {
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
     this._tablePage = 1;
+    if (e.detail === 'samples') {
+      this._tableSortBy = 'date';
+    }
     this._runTableQuery();
     if (this._viewMode === 'table' && this._summary) {
       queryFilteredCounts(this._filterState).then(c => {
@@ -674,9 +680,15 @@ bee-sidebar {
     this._runTableQuery();
   }
 
+  private _onSortChanged(e: CustomEvent<{ sortBy: SpecimenSortBy }>) {
+    this._tableSortBy = e.detail.sortBy;
+    this._tablePage = 1;
+    this._runTableQuery();
+  }
+
   private async _onDownloadCsv() {
     try {
-      const rows = await queryAllFiltered(this._filterState, this._layerMode);
+      const rows = await queryAllFiltered(this._filterState, this._layerMode, this._tableSortBy);
       if (rows.length === 0) return;
       const headers = Object.keys(rows[0]!);
       const csvLines = [
