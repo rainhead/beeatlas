@@ -230,6 +230,7 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             recorded_by VARCHAR, field_number VARCHAR,
             genus VARCHAR, family VARCHAR, associated_taxa VARCHAR,
             event_date VARCHAR,
+            modified TIMESTAMPTZ,
             _dlt_load_id VARCHAR, _dlt_id VARCHAR
         )
     """)
@@ -305,6 +306,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             'Eucera', 'Apidae',
             'host:"Balsamorhiza sagittata"',
             '2024-06-15',
+            '2024-05-01T00:00:00+00:00'::TIMESTAMPTZ,
             'load1', 'occ-1'
         )
     """)
