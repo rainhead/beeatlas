@@ -425,7 +425,7 @@ export class BeeSidebar extends LitElement {
           <div class="feed-row">
             <span class="feed-label">${entry.filter_value} \u2014 determinations</span>
             <span class="feed-actions">
-              <button class="feed-copy-btn" @click=${() => navigator.clipboard.writeText(entry.url)}>Copy URL</button>
+              <button class="feed-copy-btn" @click=${() => navigator.clipboard.writeText(window.location.origin + entry.url)}>Copy URL</button>
               <a href="${entry.url}" target="_blank" rel="noopener">Open Feed</a>
             </span>
           </div>
