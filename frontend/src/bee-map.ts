@@ -44,7 +44,7 @@ function buildSamples(features: Feature[]): Sample[] {
     const floralHost = (f.get('floralHost') as string | null | undefined) ?? null;
     const inatHost = (f.get('inat_host') as string | null | undefined) ?? null;
     const inatQualityGrade = (f.get('inat_quality_grade') as string | null | undefined) ?? null;
-    map.get(key)!.species.push({ name: f.get('scientificName') as string, occid, inatObservationId: inatId, floralHost, inatHost, inatQualityGrade });
+    map.get(key)!.species.push({ name: (f.get('scientificName') as string) || '', occid, inatObservationId: inatId, floralHost, inatHost, inatQualityGrade });
   }
   return [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
 }

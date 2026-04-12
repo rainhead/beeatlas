@@ -49,6 +49,10 @@ export class BeeSpecimenDetail extends LitElement {
       color: var(--text-hint);
       font-style: normal;
     }
+    .no-determination {
+      font-style: normal;
+      color: var(--text-hint);
+    }
     .host-conflict {
       font-style: normal;
     }
@@ -111,7 +115,7 @@ export class BeeSpecimenDetail extends LitElement {
           <ul class="species-list">
             ${sample.species.map(s => html`
               <li>
-                <a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name}</a>
+                <a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name ? s.name : html`<span class="no-determination">No determination</span>`}</a>
                 ${s.inatObservationId != null ? html`
                   · <a href="https://www.inaturalist.org/observations/${s.inatObservationId}" target="_blank" rel="noopener">${this._renderHostInfo(s)}</a>
                 ` : html` · <span class="inat-missing">iNat: —</span>`}
