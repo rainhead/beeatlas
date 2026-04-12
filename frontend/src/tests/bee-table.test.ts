@@ -69,7 +69,8 @@ describe('TABLE-01: bee-table column headers', () => {
     expect(labels.filter(Boolean)).toContain('County');
     expect(labels.filter(Boolean)).toContain('Ecoregion');
     expect(labels.filter(Boolean)).toContain('Field #');
-    expect(headers.length).toBe(7);
+    expect(labels.filter(Boolean)).toContain('Modified');
+    expect(headers.length).toBe(8);
     document.body.removeChild(el);
   });
 
@@ -181,6 +182,7 @@ describe('TABLE-07: bee-table accessibility', () => {
       county: 'King',
       ecoregion_l3: 'Cascades',
       fieldNumber: 'JS-001',
+      modified: '2025-03-13',
     }];
     const el = await createBeeTable({ rows: specimenRows, rowCount: 1, layerMode: 'specimens', page: 1 });
     const firstCell = el.shadowRoot!.querySelector('tbody td') as HTMLElement;
