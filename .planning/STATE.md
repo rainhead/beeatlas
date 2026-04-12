@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 Phase: 46 (basemap-tile-provider-upgrade) — COMPLETE
 Plan: 1 of 1
 Status: Phase 46 complete
-Last activity: 2026-04-12 - Completed quick task 260412-dl6: In the frontend, in the specimen table view, add a 'modified' column
+Last activity: 2026-04-12 - Completed quick task 260412-due: Re-add sort controls to the specimen table (date + modified)
 
 Progress: [██████████] 100%
 
