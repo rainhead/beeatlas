@@ -772,7 +772,7 @@ bee-sidebar {
           });
         }
         const specimen: Specimen = {
-          name: String(obj.scientificName),
+          name: obj.scientificName ? String(obj.scientificName) : '',
           occid: String(obj.ecdysis_id),
           inatObservationId: obj.inat_observation_id != null ? Number(obj.inat_observation_id) : null,
           floralHost: obj.floralHost ?? null,
