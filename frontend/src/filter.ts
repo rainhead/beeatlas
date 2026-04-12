@@ -29,6 +29,7 @@ export interface SpecimenRow {
   county: string;
   ecoregion_l3: string;
   fieldNumber: string;
+  modified: string;
 }
 
 export interface SampleRow {
@@ -52,6 +53,7 @@ export const SPECIMEN_COLUMNS: Record<string, string> = {
   county: 'county',
   ecoregion: 'ecoregion_l3',
   fieldNumber: 'fieldNumber',
+  modified: 'modified',
 };
 
 export const SAMPLE_COLUMNS: Record<string, string> = {

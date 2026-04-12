@@ -15,12 +15,13 @@ const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
     linkFn: (row) => row.ecdysis_id != null
       ? `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}`
       : null },
-  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '22%' },
-  { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '20%' },
+  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '18%' },
+  { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '16%' },
   { key: 'date', label: 'Date', dataField: 'date', minWidth: '12%' },
-  { key: 'county', label: 'County', dataField: 'county', minWidth: '16%' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '16%' },
+  { key: 'county', label: 'County', dataField: 'county', minWidth: '14%' },
+  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '14%' },
   { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '8%' },
+  { key: 'modified', label: 'Modified', dataField: 'modified', minWidth: '12%' },
 ];
 
 const SAMPLE_COLUMN_DEFS: ColumnDef[] = [
