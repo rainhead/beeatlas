@@ -183,7 +183,9 @@ bee-sidebar {
           .filteredSummary=${this._filteredSummary}
           .layerMode=${this._layerMode}
           .viewMode=${this._viewMode}
-          .recentSampleEvents=${this._recentSampleEvents}
+          .recentSampleEvents=${this._visibleSampleIds !== null
+            ? this._recentSampleEvents.filter(e => this._visibleSampleIds!.has(`inat:${e.observation_id}`))
+            : this._recentSampleEvents}
           .sampleDataLoaded=${this._sampleDataLoaded}
           .selectedSampleEvent=${this._selectedSampleEvent}
           .filterState=${this._filterState}
