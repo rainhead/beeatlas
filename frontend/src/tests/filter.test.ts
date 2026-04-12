@@ -311,4 +311,25 @@ describe('queryTablePage', () => {
     await expect(queryTablePage(emptyFilter(), 'specimens', 1)).rejects.toThrow('query failed');
     expect(closeFn).toHaveBeenCalledOnce();
   });
+
+  test('specimens with sortBy=modified: SQL contains modified DESC', async () => {
+    const { queryFn } = mockDuckDB([], 0);
+    await queryTablePage(emptyFilter(), 'specimens', 1, 'modified');
+    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    expect(dataSql).toContain('modified DESC');
+  });
+
+  test('specimens with no sortBy (default): SQL contains date DESC', async () => {
+    const { queryFn } = mockDuckDB([], 0);
+    await queryTablePage(emptyFilter(), 'specimens', 1);
+    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    expect(dataSql).toContain('date DESC');
+  });
+
+  test('samples with sortBy=modified: SQL still uses date DESC (sample order unchanged)', async () => {
+    const { queryFn } = mockDuckDB([], 0);
+    await queryTablePage(emptyFilter(), 'samples', 1, 'modified');
+    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    expect(dataSql).toContain('date DESC');
+  });
 });
