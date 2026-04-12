@@ -84,6 +84,11 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     final_eco AS (
         SELECT * FROM eco_dedup WHERE ecoregion_l3 IS NOT NULL
         UNION ALL SELECT * FROM eco_fallback
+    ),
+    id_modified AS (
+        SELECT coreid, MAX(modified) AS max_id_modified
+        FROM ecdysis_data.identifications
+        GROUP BY coreid
     )
     SELECT
         CAST(o.id AS INTEGER) AS ecdysis_id,
@@ -102,12 +107,14 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
         fe.ecoregion_l3,
         links.inat_observation_id,
         CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host,
-        inat.quality_grade AS inat_quality_grade
+        inat.quality_grade AS inat_quality_grade,
+        strftime(GREATEST(o.modified, im.max_id_modified), '%Y-%m-%d') AS modified
     FROM ecdysis_data.occurrences o
     JOIN final_county fc ON fc.occurrence_id = o.occurrence_id
     JOIN final_eco fe ON fe.occurrence_id = o.occurrence_id
     LEFT JOIN ecdysis_data.occurrence_links links ON links.occurrence_id = o.occurrence_id
     LEFT JOIN inaturalist_data.observations inat ON inat.id = links.inat_observation_id
+    LEFT JOIN id_modified im ON im.coreid = o.id
     WHERE o.decimal_latitude IS NOT NULL AND o.decimal_latitude != ''
     ) TO '{out}' (FORMAT PARQUET)
     """)
