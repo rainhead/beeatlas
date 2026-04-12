@@ -3,19 +3,10 @@ import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, queryFilteredCounts, type SpecimenRow, type SampleRow } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
-import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
+import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent, FeedEntry } from './bee-sidebar.ts';
 import './bee-map.ts';
 import './bee-sidebar.ts';
 import './bee-table.ts';
-
-export interface FeedEntry {
-  filename: string;
-  url: string;
-  title: string;
-  filter_type: string;
-  filter_value: string;
-  entry_count: number;
-}
 
 const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 const DEFAULT_LON = -120.5;
@@ -283,7 +274,7 @@ bee-sidebar {
     window.addEventListener('popstate', this._onPopState);
 
     // Fetch feed index for sidebar feed discovery (D-07, D-10)
-    fetch('/data/feeds/index.json')
+    fetch(`${DATA_BASE_URL}/feeds/index.json`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then((entries: FeedEntry[]) => {
         this._feedIndex = new Map(entries.map(e => [e.filter_value, e]));
