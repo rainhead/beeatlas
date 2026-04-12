@@ -324,7 +324,8 @@ export class BeeSidebar extends LitElement {
   }
 
   private _formatSampleDate(dateStr: string): string {
-    const d = new Date(dateStr);
+    const n = Number(dateStr);
+    const d = Number.isFinite(n) ? new Date(n * 1000) : new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric', month: 'long', day: 'numeric'
