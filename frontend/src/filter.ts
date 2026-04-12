@@ -68,7 +68,10 @@ export const SAMPLE_COLUMNS: Record<string, string> = {
 
 const PAGE_SIZE = 100;
 
+export type SpecimenSortBy = 'date' | 'modified';
+
 const SPECIMEN_ORDER = 'date DESC, recordedBy ASC, fieldNumber ASC';
+const SPECIMEN_ORDER_MODIFIED = 'modified DESC, recordedBy ASC, fieldNumber ASC';
 const SAMPLE_ORDER = 'date DESC, observer ASC, sample_id ASC';
 
 function slugify(s: string): string {
@@ -127,10 +130,13 @@ export function buildCsvFilename(f: FilterState, layerMode: 'specimens' | 'sampl
 
 export async function queryAllFiltered(
   f: FilterState,
-  layerMode: 'specimens' | 'samples'
+  layerMode: 'specimens' | 'samples',
+  sortBy: SpecimenSortBy = 'date'
 ): Promise<Record<string, unknown>[]> {
   const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-  const orderBy = layerMode === 'specimens' ? SPECIMEN_ORDER : SAMPLE_ORDER;
+  const orderBy = layerMode === 'specimens'
+    ? (sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER)
+    : SAMPLE_ORDER;
 
   const selectCols = layerMode === 'specimens'
     ? "ecdysis_id, longitude, latitude, date, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, " +
@@ -156,10 +162,13 @@ export async function queryAllFiltered(
 export async function queryTablePage(
   f: FilterState,
   layerMode: 'specimens' | 'samples',
-  page: number
+  page: number,
+  sortBy: SpecimenSortBy = 'date'
 ): Promise<{ rows: SpecimenRow[] | SampleRow[]; total: number }> {
   const columns = layerMode === 'specimens' ? SPECIMEN_COLUMNS : SAMPLE_COLUMNS;
-  const orderBy = layerMode === 'specimens' ? SPECIMEN_ORDER : SAMPLE_ORDER;
+  const orderBy = layerMode === 'specimens'
+    ? (sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER)
+    : SAMPLE_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
 
   const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
