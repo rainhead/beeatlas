@@ -220,7 +220,7 @@ See `.planning/milestones/v2.2-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Pull iNat observations that self-identify as photos of Ecdysis specimens via the WABA observation field and surface those links in the specimen detail view.
 
-- [ ] **Phase 48: Column Rename** — Rename `inat_observation_id` to `host_observation_id` atomically across all 14 touch points
+- [x] **Phase 48: Column Rename** — Rename `inat_observation_id` to `host_observation_id` atomically across all 14 touch points (completed 2026-04-13)
 - [ ] **Phase 49: WABA Pipeline** — New dlt pipeline fetching iNat observations with the WABA field filter
 - [ ] **Phase 50: Export Join & Schema Gate** — Add `specimen_observation_id` to ecdysis.parquet via waba_link CTE
 - [ ] **Phase 51: Frontend Link Rendering** — Show specimen photo link in sidebar detail view
@@ -238,7 +238,7 @@ See `.planning/milestones/v2.2-ROADMAP.md` for full phase details.
   4. Specimen sidebar still shows the host plant observation link (the column has been renamed, not removed)
 **Plans**: 1 plan
 Plans:
-- [ ] 48-01-PLAN.md — Rename inat_observation_id to host_observation_id across all 12 source files, ALTER TABLE in DuckDB, regenerate and upload parquet
+- [x] 48-01-PLAN.md — Rename inat_observation_id to host_observation_id across all 12 source files, ALTER TABLE in DuckDB, regenerate and upload parquet
 
 ### Phase 49: WABA Pipeline
 **Goal**: The WABA dlt pipeline runs end-to-end, populates its own isolated DuckDB schema with iNat observations tagged with the WABA catalog field, and is wired into the run.py sequence
@@ -323,7 +323,7 @@ Plans:
 | 45. Sidebar Feed Discovery | v2.2 | 2/2 | Complete | 2026-04-12 |
 | 46. Basemap Tile Provider Upgrade | v2.2 | 1/1 | Complete | 2026-04-12 |
 | 47. DuckDB Spatial Geographies Pipeline | v2.2 | 2/2 | Complete | 2026-04-12 |
-| 48. Column Rename | v2.3 | 0/1 | Not started | - |
+| 48. Column Rename | v2.3 | 1/1 | Complete    | 2026-04-13 |
 | 49. WABA Pipeline | v2.3 | 0/? | Not started | - |
 | 50. Export Join & Schema Gate | v2.3 | 0/? | Not started | - |
 | 51. Frontend Link Rendering | v2.3 | 0/? | Not started | - |
