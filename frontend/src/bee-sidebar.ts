@@ -1,9 +1,8 @@
 import { css, html, nothing, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import './bee-filter-controls.ts';
+import type { CollectorEntry } from './filter.ts';
 import './bee-specimen-detail.ts';
 import './bee-sample-detail.ts';
-import type { FilterState, CollectorEntry } from './filter.ts';
 
 export interface FeedEntry {
   filename: string;
@@ -86,9 +85,6 @@ export class BeeSidebar extends LitElement {
   summary: DataSummary | null = null;
 
   @property({ attribute: false })
-  taxaOptions: TaxonOption[] = [];
-
-  @property({ attribute: false })
   filteredSummary: FilteredSummary | null = null;
 
   @property({ attribute: false })
@@ -103,17 +99,6 @@ export class BeeSidebar extends LitElement {
   @property({ attribute: false })
   selectedSampleEvent: SampleEvent | null = null;
 
-  @property({ attribute: false })
-  filterState: FilterState = {
-    taxonName: null, taxonRank: null, yearFrom: null, yearTo: null,
-    months: new Set(), selectedCounties: new Set(), selectedEcoregions: new Set(),
-    selectedCollectors: [],
-  };
-
-  // Region props — driven by BeeAtlas
-  @property({ attribute: false }) countyOptions: string[] = [];
-  @property({ attribute: false }) ecoregionOptions: string[] = [];
-  @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
   @property({ attribute: false }) sampleDataLoaded = false;
 
   @property({ attribute: false })
@@ -440,14 +425,6 @@ export class BeeSidebar extends LitElement {
     return html`
       ${this._renderToggle()}
       ${this._renderViewToggle()}
-      <bee-filter-controls
-        .filterState=${this.filterState}
-        .taxaOptions=${this.taxaOptions}
-        .countyOptions=${this.countyOptions}
-        .ecoregionOptions=${this.ecoregionOptions}
-        .collectorOptions=${this.collectorOptions}
-        .summary=${this.summary}
-      ></bee-filter-controls>
       ${this.samples !== null
         ? html`<bee-specimen-detail .samples=${this.samples}></bee-specimen-detail>`
         : this.layerMode === 'samples' && this.selectedSampleEvent !== null

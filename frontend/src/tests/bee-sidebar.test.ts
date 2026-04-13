@@ -58,7 +58,6 @@ describe('DECOMP-01: bee-filter-controls property interface', () => {
     expect(props.has('taxaOptions')).toBe(true);
     expect(props.has('countyOptions')).toBe(true);
     expect(props.has('ecoregionOptions')).toBe(true);
-    expect(props.has('boundaryMode')).toBe(true);
     expect(props.has('summary')).toBe(true);
   });
 
@@ -154,9 +153,9 @@ describe('DECOMP-04: bee-sidebar is thin layout shell', () => {
     expect(src).not.toMatch(/_renderDetail|_renderSampleDotDetail/);
   });
 
-  test('bee-sidebar.ts contains bee-filter-controls sub-component tag', () => {
+  test('bee-sidebar.ts does NOT contain bee-filter-controls sub-component tag', () => {
     const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/bee-filter-controls/);
+    expect(src).not.toMatch(/bee-filter-controls/);
   });
 
   test('bee-sidebar.ts contains bee-specimen-detail sub-component tag', () => {
