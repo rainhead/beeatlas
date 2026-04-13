@@ -291,8 +291,8 @@ Plans:
   4. geopandas is removed from pyproject.toml; dlt/geopandas/shapely imports removed from geographies_pipeline.py
   5. export.py and feeds.py use geom column directly (no ST_GeomFromText wrappers)
   6. Full test suite passes with updated fixtures
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 47-01-PLAN.md — Rewrite geographies_pipeline.py with DuckDB spatial ST_Read, remove geopandas from pyproject.toml
-- [ ] 47-02-PLAN.md — Migrate export.py, feeds.py, and test fixtures from geometry_wkt to native geom column
+- [x] 47-01-PLAN.md — Rewrite geographies_pipeline.py with DuckDB spatial ST_Read, remove geopandas from pyproject.toml
+- [x] 47-02-PLAN.md — Migrate export.py, feeds.py, and test fixtures from geometry_wkt to native geom column
