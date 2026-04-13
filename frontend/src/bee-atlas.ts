@@ -1,9 +1,9 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, queryFilteredCounts, type SpecimenRow, type SampleRow, type SpecimenSortBy } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type SpecimenRow, type SampleRow, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
-import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent, FeedEntry } from './bee-sidebar.ts';
+import type { Sample, Specimen, DataSummary, TaxonOption, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
 import './bee-filter-toolbar.ts';
 import './bee-map.ts';
@@ -43,22 +43,17 @@ export class BeeAtlas extends LitElement {
   @state() private _selectedSampleEvent: SampleEvent | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _summary: DataSummary | null = null;
-  @state() private _filteredSummary: FilteredSummary | null = null;
   @state() private _taxaOptions: TaxonOption[] = [];
   @state() private _countyOptions: string[] = [];
   @state() private _ecoregionOptions: string[] = [];
   @state() private _collectorOptions: CollectorEntry[] = [];
-  @state() private _sampleDataLoaded = false;
-  @state() private _recentSampleEvents: SampleEvent[] = [];
   @state() private _loading = true;
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
-  @state() private _panTo: { coordinate: number[]; zoom: number } | null = null;
-  @state() private _activeFeedEntries: FeedEntry[] = [];
+  @state() private _sidebarOpen = false;
 
   // Non-reactive private fields
   private _isRestoringFromHistory = false;
-  private _feedIndex: Map<string, FeedEntry> = new Map();
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   // Monotonic counter used to discard stale async filter-query results.
   // Root cause of chip-removal flicker: _filterState updates synchronously (Lit
@@ -168,7 +163,6 @@ bee-sidebar {
                 .countyOptions=${this._countyOptions}
                 .ecoregionOptions=${this._ecoregionOptions}
                 .viewState=${this._viewState}
-                .panTo=${this._panTo}
                 .filterState=${this._filterState}
                 @view-moved=${this._onViewMoved}
                 @map-click-specimen=${this._onSpecimenClick}
@@ -176,11 +170,9 @@ bee-sidebar {
                 @map-click-region=${this._onRegionClick}
                 @map-click-empty=${this._onMapClickEmpty}
                 @data-loaded=${this._onDataLoaded}
-                @sample-data-loaded=${this._onSampleDataLoaded}
                 @county-options-loaded=${this._onCountyOptionsLoaded}
                 @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
                 @data-error=${this._onDataError}
-                @filtered-summary-computed=${this._onFilteredSummaryComputed}
                 @boundary-mode-changed=${this._onBoundaryModeChanged}
               ></bee-map>`
             : html`<bee-table
@@ -195,21 +187,11 @@ bee-sidebar {
                 @sort-changed=${this._onSortChanged}
               ></bee-table>`
           }
-          <bee-sidebar
+          ${this._sidebarOpen ? html`<bee-sidebar
             .samples=${this._selectedSamples}
-            .summary=${this._summary}
-            .filteredSummary=${this._filteredSummary}
-            .layerMode=${this._layerMode}
-            .viewMode=${this._viewMode}
-            .recentSampleEvents=${this._visibleSampleIds !== null
-              ? this._recentSampleEvents.filter(e => this._visibleSampleIds!.has(`inat:${e.observation_id}`))
-              : this._recentSampleEvents}
-            .sampleDataLoaded=${this._sampleDataLoaded}
             .selectedSampleEvent=${this._selectedSampleEvent}
-            .activeFeedEntries=${this._activeFeedEntries}
             @close=${this._onClose}
-            @sample-event-click=${this._onSampleEventClick}
-          ></bee-sidebar>
+          ></bee-sidebar>` : ''}
         </div>
       `}
     `;
@@ -293,15 +275,6 @@ bee-sidebar {
 
     // Register popstate handler for browser back/forward navigation
     window.addEventListener('popstate', this._onPopState);
-
-    // Fetch feed index for sidebar feed discovery (D-07, D-10)
-    fetch(`${DATA_BASE_URL}/feeds/index.json`)
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then((entries: FeedEntry[]) => {
-        this._feedIndex = new Map(entries.map(e => [e.filter_value, e]));
-        this._computeActiveFeedEntries(); // handles URL-restored filter state (Pitfall 2)
-      })
-      .catch(() => {}); // D-10: silent failure, feature simply absent
   }
 
   disconnectedCallback() {
@@ -314,13 +287,6 @@ bee-sidebar {
   }
 
   // --- Filter query ---
-
-  private _computeActiveFeedEntries(): void {
-    const entries = this._filterState.selectedCollectors
-      .map(c => c.recordedBy ? this._feedIndex.get(c.recordedBy) : undefined)
-      .filter((e): e is FeedEntry => e !== undefined);
-    this._activeFeedEntries = entries;
-  }
 
   private async _runFilterQuery(): Promise<void> {
     const generation = ++this._filterQueryGeneration;
@@ -512,11 +478,13 @@ bee-sidebar {
     const parsedOccIds = parsed.selection?.occurrenceIds ?? [];
     if (parsedOccIds.length > 0) {
       this._selectedOccIds = parsedOccIds;
+      this._sidebarOpen = true;
       // bee-map will resolve these to features when it receives the property
     } else {
       this._selectedSamples = null;
       this._selectedOccIds = null;
       this._selectedSampleEvent = null;
+      this._sidebarOpen = false;
     }
 
     // Run filter query for restored state
@@ -525,7 +493,6 @@ bee-sidebar {
     } else {
       this._visibleEcdysisIds = null;
       this._visibleSampleIds = null;
-      this._filteredSummary = null;
     }
   };
 
@@ -545,6 +512,7 @@ bee-sidebar {
     this._selectedSamples = e.detail.samples;
     this._selectedOccIds = e.detail.occIds;
     this._selectedSampleEvent = null;
+    this._sidebarOpen = true;
     this._pushUrlState();
   }
 
@@ -552,6 +520,7 @@ bee-sidebar {
     this._selectedSampleEvent = e.detail;
     this._selectedSamples = null;
     this._selectedOccIds = null;
+    this._sidebarOpen = true;
     // Known limitation: sample event selection is not URL-persisted.
     // The 'o=' param only serializes ecdysis: specimen IDs; inat: sample events
     // are not included, so navigating back will restore map/filter state but
@@ -646,20 +615,10 @@ bee-sidebar {
     this._selectedSampleEvent = null;
 
     this._tablePage = 1;  // per D-09
-    this._computeActiveFeedEntries();
     this._runFilterQuery().then(() => {
       this._pushUrlState();
     });
     this._runTableQuery();
-    if (this._viewMode === 'table' && this._summary) {
-      queryFilteredCounts(this._filterState).then(c => {
-        if (c && this._summary) {
-          this._filteredSummary = { ...c, total: this._summary, isActive: true };
-        } else {
-          this._filteredSummary = null;
-        }
-      });
-    }
   }
 
   private _onLayerChanged(e: CustomEvent<'specimens' | 'samples'>) {
@@ -667,16 +626,12 @@ bee-sidebar {
     this._selectedSamples = null;
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
+    this._sidebarOpen = false;
     this._tablePage = 1;
     if (e.detail === 'samples') {
       this._tableSortBy = 'date';
     }
     this._runTableQuery();
-    if (this._viewMode === 'table' && this._summary) {
-      queryFilteredCounts(this._filterState).then(c => {
-        if (c && this._summary) this._filteredSummary = { ...c, total: this._summary, isActive: true };
-      });
-    }
     this._pushUrlState();
   }
 
@@ -738,14 +693,11 @@ bee-sidebar {
     }
   }
 
-  private _onSampleEventClick(e: CustomEvent<{ coordinate: number[] }>) {
-    this._panTo = { coordinate: e.detail.coordinate, zoom: 12 };
-  }
-
   private _onClose() {
     this._selectedSamples = null;
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
+    this._sidebarOpen = false;
     this._pushUrlState();
   }
 
@@ -818,21 +770,6 @@ bee-sidebar {
       console.error('Failed to restore selection from URL:', err);
     } finally {
       if (conn) await conn.close();
-    }
-  }
-
-  private _onFilteredSummaryComputed(e: CustomEvent<{ filteredSummary: FilteredSummary | null }>) {
-    this._filteredSummary = e.detail.filteredSummary;
-  }
-
-  private _onSampleDataLoaded(e: CustomEvent<{ recentEvents: SampleEvent[] }>) {
-    this._sampleDataLoaded = true;
-    this._recentSampleEvents = e.detail.recentEvents;
-    this._loading = false;
-
-    // Apply filter to samples if filter is active
-    if (isFilterActive(this._filterState)) {
-      this._runFilterQuery();
     }
   }
 
