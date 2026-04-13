@@ -4,6 +4,7 @@ import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds,
 import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent, FeedEntry } from './bee-sidebar.ts';
+import './bee-header.ts';
 import './bee-map.ts';
 import './bee-sidebar.ts';
 import './bee-table.ts';
@@ -75,7 +76,12 @@ export class BeeAtlas extends LitElement {
 
   static styles = css`
 :host {
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+}
+.content {
   display: flex;
   flex-direction: row;
   flex-grow: 1;
@@ -111,7 +117,7 @@ bee-sidebar {
   color: var(--error);
 }
 @media (max-aspect-ratio: 1) {
-  :host {
+  .content {
     flex-direction: column;
   }
   bee-map, bee-table {
@@ -130,69 +136,77 @@ bee-sidebar {
 
   render() {
     return html`
+      <bee-header
+        .layerMode=${this._layerMode}
+        .viewMode=${this._viewMode}
+        @layer-changed=${this._onLayerChanged}
+        @view-changed=${this._onViewChanged}
+      ></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       ${this._error ? '' : html`
-        ${this._viewMode === 'map'
-          ? html`<bee-map
-              .layerMode=${this._layerMode}
-              .boundaryMode=${this._boundaryMode}
-              .visibleEcdysisIds=${this._visibleEcdysisIds}
-              .visibleSampleIds=${this._visibleSampleIds}
-              .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
-              .countyOptions=${this._countyOptions}
-              .ecoregionOptions=${this._ecoregionOptions}
-              .viewState=${this._viewState}
-              .panTo=${this._panTo}
-              .filterState=${this._filterState}
-              @view-moved=${this._onViewMoved}
-              @map-click-specimen=${this._onSpecimenClick}
-              @map-click-sample=${this._onSampleClick}
-              @map-click-region=${this._onRegionClick}
-              @map-click-empty=${this._onMapClickEmpty}
-              @data-loaded=${this._onDataLoaded}
-              @sample-data-loaded=${this._onSampleDataLoaded}
-              @county-options-loaded=${this._onCountyOptionsLoaded}
-              @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
-              @data-error=${this._onDataError}
-              @filtered-summary-computed=${this._onFilteredSummaryComputed}
-              @boundary-mode-changed=${this._onBoundaryModeChanged}
-            ></bee-map>`
-          : html`<bee-table
-              .rows=${this._tableRows}
-              .rowCount=${this._tableRowCount}
-              .layerMode=${this._layerMode}
-              .page=${this._tablePage}
-              .loading=${this._tableLoading}
-              .sortBy=${this._tableSortBy}
-              @page-changed=${this._onPageChanged}
-              @download-csv=${this._onDownloadCsv}
-              @sort-changed=${this._onSortChanged}
-            ></bee-table>`
-        }
-        <bee-sidebar
-          .samples=${this._selectedSamples}
-          .summary=${this._summary}
-          .taxaOptions=${this._taxaOptions}
-          .filteredSummary=${this._filteredSummary}
-          .layerMode=${this._layerMode}
-          .viewMode=${this._viewMode}
-          .recentSampleEvents=${this._visibleSampleIds !== null
-            ? this._recentSampleEvents.filter(e => this._visibleSampleIds!.has(`inat:${e.observation_id}`))
-            : this._recentSampleEvents}
-          .sampleDataLoaded=${this._sampleDataLoaded}
-          .selectedSampleEvent=${this._selectedSampleEvent}
-          .filterState=${this._filterState}
-          .countyOptions=${this._countyOptions}
-          .ecoregionOptions=${this._ecoregionOptions}
-          .collectorOptions=${this._collectorOptions}
-          .activeFeedEntries=${this._activeFeedEntries}
-          @close=${this._onClose}
-          @filter-changed=${this._onFilterChanged}
-          @layer-changed=${this._onLayerChanged}
-          @view-changed=${this._onViewChanged}
-          @sample-event-click=${this._onSampleEventClick}
-        ></bee-sidebar>
+        <div class="content">
+          ${this._viewMode === 'map'
+            ? html`<bee-map
+                .layerMode=${this._layerMode}
+                .boundaryMode=${this._boundaryMode}
+                .visibleEcdysisIds=${this._visibleEcdysisIds}
+                .visibleSampleIds=${this._visibleSampleIds}
+                .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
+                .countyOptions=${this._countyOptions}
+                .ecoregionOptions=${this._ecoregionOptions}
+                .viewState=${this._viewState}
+                .panTo=${this._panTo}
+                .filterState=${this._filterState}
+                @view-moved=${this._onViewMoved}
+                @map-click-specimen=${this._onSpecimenClick}
+                @map-click-sample=${this._onSampleClick}
+                @map-click-region=${this._onRegionClick}
+                @map-click-empty=${this._onMapClickEmpty}
+                @data-loaded=${this._onDataLoaded}
+                @sample-data-loaded=${this._onSampleDataLoaded}
+                @county-options-loaded=${this._onCountyOptionsLoaded}
+                @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
+                @data-error=${this._onDataError}
+                @filtered-summary-computed=${this._onFilteredSummaryComputed}
+                @boundary-mode-changed=${this._onBoundaryModeChanged}
+              ></bee-map>`
+            : html`<bee-table
+                .rows=${this._tableRows}
+                .rowCount=${this._tableRowCount}
+                .layerMode=${this._layerMode}
+                .page=${this._tablePage}
+                .loading=${this._tableLoading}
+                .sortBy=${this._tableSortBy}
+                @page-changed=${this._onPageChanged}
+                @download-csv=${this._onDownloadCsv}
+                @sort-changed=${this._onSortChanged}
+              ></bee-table>`
+          }
+          <bee-sidebar
+            .samples=${this._selectedSamples}
+            .summary=${this._summary}
+            .taxaOptions=${this._taxaOptions}
+            .filteredSummary=${this._filteredSummary}
+            .layerMode=${this._layerMode}
+            .viewMode=${this._viewMode}
+            .recentSampleEvents=${this._visibleSampleIds !== null
+              ? this._recentSampleEvents.filter(e => this._visibleSampleIds!.has(`inat:${e.observation_id}`))
+              : this._recentSampleEvents}
+            .sampleDataLoaded=${this._sampleDataLoaded}
+            .selectedSampleEvent=${this._selectedSampleEvent}
+            .filterState=${this._filterState}
+            .countyOptions=${this._countyOptions}
+            .ecoregionOptions=${this._ecoregionOptions}
+            .collectorOptions=${this._collectorOptions}
+            .activeFeedEntries=${this._activeFeedEntries}
+            @close=${this._onClose}
+            @filter-changed=${this._onFilterChanged}
+            @layer-changed=${this._onLayerChanged}
+            @view-changed=${this._onViewChanged}
+            @sample-event-click=${this._onSampleEventClick}
+          ></bee-sidebar>
+        </div>
       `}
     `;
   }

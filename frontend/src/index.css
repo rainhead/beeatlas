@@ -46,33 +46,6 @@
 }
 
 
-header {
-  background-color: var(--header-bg);
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-}
-
-.github-link {
-  color: white;
-  display: flex;
-  align-items: center;
-  padding: 0 1rem;
-  opacity: 0.8;
-}
-
-.github-link:hover {
-  color: white;
-  opacity: 1;
-}
-
-h1 {
-  font-size: 1.2rem;
-  margin: 1rem 0.5rem;
-}
-
 a {
   font-weight: 500;
   color: var(--link);
