@@ -27,16 +27,16 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(f"""
     COPY (
     WITH wa_counties AS (
-        SELECT name AS county, geom
+        SELECT name AS county, ST_GeomFromText(geometry_wkt) AS geom
         FROM geographies.us_counties
         WHERE state_fips = '53'
     ),
     wa_eco AS (
-        SELECT name AS ecoregion_l3, geom
+        SELECT name AS ecoregion_l3, ST_GeomFromText(geometry_wkt) AS geom
         FROM geographies.ecoregions
         WHERE ST_Intersects(
-            geom,
-            (SELECT geom FROM geographies.us_states WHERE abbreviation = 'WA')
+            ST_GeomFromText(geometry_wkt),
+            (SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states WHERE abbreviation = 'WA')
         )
     ),
     occ AS (
@@ -157,16 +157,16 @@ def export_samples_parquet(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(f"""
     COPY (
     WITH wa_counties AS (
-        SELECT name AS county, geom
+        SELECT name AS county, ST_GeomFromText(geometry_wkt) AS geom
         FROM geographies.us_counties
         WHERE state_fips = '53'
     ),
     wa_eco AS (
-        SELECT name AS ecoregion_l3, geom
+        SELECT name AS ecoregion_l3, ST_GeomFromText(geometry_wkt) AS geom
         FROM geographies.ecoregions
         WHERE ST_Intersects(
-            geom,
-            (SELECT geom FROM geographies.us_states WHERE abbreviation = 'WA')
+            ST_GeomFromText(geometry_wkt),
+            (SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states WHERE abbreviation = 'WA')
         )
     ),
     obs_pt AS (
@@ -261,7 +261,7 @@ def export_counties_geojson(con: duckdb.DuckDBPyConnection) -> None:
     """Export counties.geojson with 39 WA county features (NAME property, simplified geometry)."""
     rows = con.execute("""
     SELECT name AS NAME,
-           ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.001))
+           ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_GeomFromText(geometry_wkt), 0.001))
     FROM geographies.us_counties
     WHERE state_fips = '53'
     """).fetchall()
@@ -278,11 +278,11 @@ def export_ecoregions_geojson(con: duckdb.DuckDBPyConnection) -> None:
     """Export ecoregions.geojson with WA ecoregion features (NA_L3NAME property, simplified geometry)."""
     rows = con.execute("""
     SELECT name AS NA_L3NAME,
-           ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.001))
+           ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_GeomFromText(geometry_wkt), 0.001))
     FROM geographies.ecoregions
     WHERE ST_Intersects(
-        geom,
-        (SELECT geom FROM geographies.us_states WHERE abbreviation = 'WA')
+        ST_GeomFromText(geometry_wkt),
+        (SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states WHERE abbreviation = 'WA')
     )
     """).fetchall()
     features = [
