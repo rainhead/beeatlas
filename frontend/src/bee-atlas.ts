@@ -659,7 +659,7 @@ bee-sidebar {
           headers.map(h => {
             const val = row[h];
             const str = val == null ? '' : String(val);
-            return str.includes(',') || str.includes('"') || str.includes('\n')
+            return str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')
               ? '"' + str.replace(/"/g, '""') + '"'
               : str;
           }).join(',')
