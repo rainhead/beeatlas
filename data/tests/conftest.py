@@ -60,7 +60,7 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.execute("""
         CREATE TABLE ecdysis_data.occurrence_links (
-            occurrence_id VARCHAR, inat_observation_id BIGINT,
+            occurrence_id VARCHAR, host_observation_id BIGINT,
             _dlt_load_id VARCHAR, _dlt_id VARCHAR
         )
     """)

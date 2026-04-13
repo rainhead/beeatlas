@@ -16,7 +16,7 @@ EXPECTED_ECDYSIS_COLS = [
     'date', 'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
     'genus', 'family', 'floralHost',
     'county', 'ecoregion_l3',
-    'inat_observation_id', 'inat_host', 'inat_quality_grade',
+    'host_observation_id', 'inat_host', 'inat_quality_grade',
     'modified',
 ]
 

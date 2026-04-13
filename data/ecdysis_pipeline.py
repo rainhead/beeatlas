@@ -112,7 +112,7 @@ def ecdysis_links_source(
 
     Reads occurrences from ecdysis_data.occurrences in the destination DB,
     skips any occurrenceIDs already in occurrence_links, fetches/parses the
-    rest (using an HTML disk cache), and yields {occurrenceID, inat_observation_id}.
+    rest (using an HTML disk cache), and yields {occurrenceID, host_observation_id}.
 
     Args:
         db_path: Path to beeatlas.duckdb.
@@ -172,7 +172,7 @@ def ecdysis_links_source(
 
             obs_id = _extract_inat_id(html)
 
-            yield {"occurrence_id": occurrence_id, "inat_observation_id": obs_id}
+            yield {"occurrence_id": occurrence_id, "host_observation_id": obs_id}
 
     return occurrence_links()
 
