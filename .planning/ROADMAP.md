@@ -264,7 +264,9 @@ Plans:
   2. CSV download button appears in the filter toolbar and triggers a download of the current filtered result set
   3. Filter state (chips, URL params) continues to work identically to before — changing a filter in the toolbar updates the map and table
   4. The sidebar no longer contains filter controls or the CSV download button
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 53-01-PLAN.md — Create bee-filter-toolbar, wire into bee-atlas, clean up bee-sidebar
 **UI hint**: yes
 
 ### Phase 54: Sidebar Cleanup
@@ -276,7 +278,9 @@ Plans:
   2. Clicking a specimen cluster or sample dot on the map opens the sidebar showing the relevant detail panel
   3. User can dismiss the open sidebar (via a close button or equivalent) and it returns to hidden; the map/table returns to full width
   4. The sidebar no longer contains the layer toggle, view toggle, filter controls, or feed subscription links
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 53-01-PLAN.md — Create bee-filter-toolbar, wire into bee-atlas, clean up bee-sidebar
 **UI hint**: yes
 
 ## Progress
@@ -335,5 +339,5 @@ Plans:
 | 50. Export Join & Schema Gate | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 51. Frontend Link Rendering | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 52. Header Component | v2.4 | 2/2 | Complete    | 2026-04-13 |
-| 53. Filter Toolbar | v2.4 | 0/TBD | Not started | - |
+| 53. Filter Toolbar | v2.4 | 0/1 | Not started | - |
 | 54. Sidebar Cleanup | v2.4 | 0/TBD | Not started | - |
