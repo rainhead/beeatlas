@@ -278,3 +278,13 @@ Plans:
 
 Plans:
 - [ ] 46-01-PLAN.md — Replace Esri Ocean basemap with Stadia Maps outdoors (terrain, roads, trails, zoom 20)
+
+### Phase 47: Rewrite geographies_pipeline.py to use DuckDB spatial extension directly: stream shapefiles with ST_Read, simplify with ST_Simplify, store as native GEOMETRY type, eliminating geopandas/shapely/dlt dependencies and the in-memory buffering that caused OOM
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 46
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 47 to break down)
