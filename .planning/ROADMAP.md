@@ -15,6 +15,7 @@
 - ✅ **v2.0 Tabular Data View** — Phases 39–41 (shipped 2026-04-09)
 - ✅ **v2.1 Determination Feeds** — Phases 42–44 (shipped 2026-04-11)
 - ✅ **v2.2 Feed Discoverability & Pipeline** — Phases 45–47 (shipped 2026-04-12)
+- 🚧 **v2.3 Specimen iNat Observation Links** — Phases 48–51 (in progress)
 
 ## Phases
 
@@ -204,6 +205,71 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 
 </details>
 
+<details>
+<summary>✅ v2.2 Feed Discoverability & Pipeline (Phases 45–47) — SHIPPED 2026-04-12</summary>
+
+- [x] Phase 45: Sidebar Feed Discovery (2/2 plans) — completed 2026-04-12
+- [x] Phase 46: Basemap Tile Provider Upgrade (1/1 plan) — completed 2026-04-12
+- [x] Phase 47: DuckDB Spatial Geographies Pipeline Rewrite (2/2 plans) — completed 2026-04-12
+
+See `.planning/milestones/v2.2-ROADMAP.md` for full phase details.
+
+</details>
+
+### 🚧 v2.3 Specimen iNat Observation Links (In Progress)
+
+**Milestone Goal:** Pull iNat observations that self-identify as photos of Ecdysis specimens via the WABA observation field and surface those links in the specimen detail view.
+
+- [ ] **Phase 48: Column Rename** — Rename `inat_observation_id` to `host_observation_id` atomically across all 14 touch points
+- [ ] **Phase 49: WABA Pipeline** — New dlt pipeline fetching iNat observations with the WABA field filter
+- [ ] **Phase 50: Export Join & Schema Gate** — Add `specimen_observation_id` to ecdysis.parquet via waba_link CTE
+- [ ] **Phase 51: Frontend Link Rendering** — Show specimen photo link in sidebar detail view
+
+## Phase Details
+
+### Phase 48: Column Rename
+**Goal**: `host_observation_id` replaces `inat_observation_id` consistently everywhere — pipeline, export SQL, schema gate, frontend interfaces, test fixtures — with no silent nulls introduced
+**Depends on**: Phase 47
+**Requirements**: REN-01, REN-02, REN-03, REN-04
+**Success Criteria** (what must be TRUE):
+  1. `pytest` passes with no reference to `inat_observation_id` in any Python source or fixture
+  2. `npm test` passes with no reference to `inatObservationId` in any TypeScript source or test fixture
+  3. `validate-schema.mjs` requires `host_observation_id` and does not require `inat_observation_id`
+  4. Specimen sidebar still shows the host plant observation link (the column has been renamed, not removed)
+**Plans**: TBD
+
+### Phase 49: WABA Pipeline
+**Goal**: The WABA dlt pipeline runs end-to-end, populates its own isolated DuckDB schema with iNat observations tagged with the WABA catalog field, and is wired into the run.py sequence
+**Depends on**: Phase 48
+**Requirements**: PIPE-01, PIPE-02
+**Success Criteria** (what must be TRUE):
+  1. `python run.py` completes without error and `SELECT COUNT(*) FROM inaturalist_waba_data.observations__ofvs` returns a non-zero row count
+  2. The pipeline state table confirms `pipeline_name = 'waba'` — separate from the existing `inaturalist` pipeline cursor
+  3. A second run completes faster than the first (incremental cursor is advancing on `updated_at`)
+**Plans**: TBD
+
+### Phase 50: Export Join & Schema Gate
+**Goal**: `ecdysis.parquet` gains a `specimen_observation_id` column (nullable BIGINT) joined from WABA data via catalog number suffix, with deduplication and schema validation enforced in CI
+**Depends on**: Phase 49
+**Requirements**: EXP-01, EXP-02
+**Success Criteria** (what must be TRUE):
+  1. `export.py` runs without error and `SELECT COUNT(*) FROM 'frontend/public/data/ecdysis.parquet' WHERE specimen_observation_id IS NOT NULL` returns a positive count
+  2. `node scripts/validate-schema.mjs` passes and would fail if `specimen_observation_id` were absent from the parquet
+  3. `pytest` passes, including any export schema tests that assert `specimen_observation_id` presence
+  4. No specimen row is duplicated in `ecdysis.parquet` due to multiple WABA photographers of the same catalog number
+**Plans**: TBD
+
+### Phase 51: Frontend Link Rendering
+**Goal**: The specimen detail sidebar shows a "Specimen photo" link to iNaturalist for specimens with a WABA observation, and shows nothing for specimens without one
+**Depends on**: Phase 50
+**Requirements**: FRONT-01
+**Success Criteria** (what must be TRUE):
+  1. Clicking a specimen cluster that has a `specimen_observation_id` shows a "Specimen photo" link in the detail sidebar that opens the correct iNaturalist observation URL in a new tab
+  2. Clicking a specimen cluster without a `specimen_observation_id` shows no specimen photo link (no broken link, no placeholder text)
+  3. `npm test` passes with the new rendering covered by existing or new Vitest render tests
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -255,14 +321,7 @@ See `.planning/milestones/v2.1-ROADMAP.md` for full phase details.
 | 45. Sidebar Feed Discovery | v2.2 | 2/2 | Complete | 2026-04-12 |
 | 46. Basemap Tile Provider Upgrade | v2.2 | 1/1 | Complete | 2026-04-12 |
 | 47. DuckDB Spatial Geographies Pipeline | v2.2 | 2/2 | Complete | 2026-04-12 |
-
-<details>
-<summary>✅ v2.2 Feed Discoverability & Pipeline (Phases 45–47) — SHIPPED 2026-04-12</summary>
-
-- [x] Phase 45: Sidebar Feed Discovery (2/2 plans) — completed 2026-04-12
-- [x] Phase 46: Basemap Tile Provider Upgrade (1/1 plan) — completed 2026-04-12
-- [x] Phase 47: DuckDB Spatial Geographies Pipeline Rewrite (2/2 plans) — completed 2026-04-12
-
-See `.planning/milestones/v2.2-ROADMAP.md` for full phase details.
-
-</details>
+| 48. Column Rename | v2.3 | 0/? | Not started | - |
+| 49. WABA Pipeline | v2.3 | 0/? | Not started | - |
+| 50. Export Join & Schema Gate | v2.3 | 0/? | Not started | - |
+| 51. Frontend Link Rendering | v2.3 | 0/? | Not started | - |
