@@ -107,32 +107,35 @@ describe('ARCH-03: coordinator pattern — sibling isolation', () => {
   });
 });
 
-describe('DISC-02: feed index fetch and activeFeedEntries computation', () => {
+describe('SIDE-01: bee-atlas sidebar visibility wiring', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  test('bee-atlas.ts declares _feedIndex as a private field', () => {
-    expect(src).toMatch(/private\s+_feedIndex/);
+  test('bee-atlas.ts declares _sidebarOpen as @state()', () => {
+    expect(src).toMatch(/@state\(\)\s+private\s+_sidebarOpen/);
   });
 
-  test('bee-atlas.ts declares _activeFeedEntries as @state()', () => {
-    expect(src).toMatch(/@state\(\)\s+private\s+_activeFeedEntries/);
+  test('bee-atlas.ts sets _sidebarOpen = true in _onSpecimenClick', () => {
+    expect(src).toMatch(/this\._sidebarOpen\s*=\s*true/);
   });
 
-  test('bee-atlas.ts fetches feeds/index.json', () => {
-    expect(src).toMatch(/feeds\/index\.json/);
+  test('bee-atlas.ts sets _sidebarOpen = false in _onClose', () => {
+    expect(src).toMatch(/this\._sidebarOpen\s*=\s*false/);
   });
 
-  test('bee-atlas.ts defines _computeActiveFeedEntries method', () => {
-    expect(src).toMatch(/private\s+_computeActiveFeedEntries/);
+  test('bee-atlas.ts does NOT contain _feedIndex field', () => {
+    expect(src).not.toMatch(/private\s+_feedIndex/);
   });
 
-  test('bee-atlas.ts passes activeFeedEntries to bee-sidebar', () => {
-    expect(src).toMatch(/\.activeFeedEntries=\$\{this\._activeFeedEntries\}/);
+  test('bee-atlas.ts does NOT contain _activeFeedEntries', () => {
+    expect(src).not.toMatch(/_activeFeedEntries/);
   });
 
-  test('bee-atlas.ts calls _computeActiveFeedEntries in _onFilterChanged', () => {
-    // Extract _onFilterChanged method body and check it calls _computeActiveFeedEntries
-    expect(src).toMatch(/this\._computeActiveFeedEntries\(\)/);
+  test('bee-atlas.ts does NOT fetch feeds/index.json', () => {
+    expect(src).not.toMatch(/feeds\/index\.json/);
+  });
+
+  test('bee-atlas.ts does NOT define _computeActiveFeedEntries', () => {
+    expect(src).not.toMatch(/_computeActiveFeedEntries/);
   });
 });
 
@@ -149,14 +152,6 @@ describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
 
   test('bee-atlas.ts declares _viewMode as @state field', () => {
     expect(src).toMatch(/@state\(\)\s+private\s+_viewMode/);
-  });
-
-  test('bee-atlas.ts listens for view-changed event on bee-sidebar', () => {
-    expect(src).toMatch(/@view-changed=\$\{this\._onViewChanged\}/);
-  });
-
-  test('bee-atlas.ts passes viewMode property to bee-sidebar', () => {
-    expect(src).toMatch(/\.viewMode=\$\{this\._viewMode\}/);
   });
 
   test('bee-atlas.ts _onPopState restores _viewMode from URL', () => {
