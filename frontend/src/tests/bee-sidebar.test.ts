@@ -270,59 +270,67 @@ describe('bee-specimen-detail render', () => {
   });
 });
 
-describe('DISC-04: feed discovery section in bee-sidebar', () => {
-  test('BeeSidebar has activeFeedEntries property', async () => {
+describe('SIDE-01/SIDE-02: sidebar is detail-only with close button', () => {
+  test('bee-sidebar.ts does NOT contain _renderToggle method', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/_renderToggle/);
+  });
+
+  test('bee-sidebar.ts does NOT contain _renderViewToggle method', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/_renderViewToggle/);
+  });
+
+  test('bee-sidebar.ts does NOT contain _renderSummary method', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/_renderSummary/);
+  });
+
+  test('bee-sidebar.ts does NOT contain _renderRecentSampleEvents method', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/_renderRecentSampleEvents/);
+  });
+
+  test('bee-sidebar.ts does NOT contain _renderFeedsSection method', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/_renderFeedsSection/);
+  });
+
+  test('bee-sidebar.ts contains close button with aria-label', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/aria-label="Close detail panel"/);
+  });
+
+  test('bee-sidebar.ts dispatches close event from _onCloseClick', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).toMatch(/_onCloseClick/);
+    expect(src).toMatch(/new CustomEvent\('close'/);
+  });
+
+  test('bee-atlas.ts conditionally renders bee-sidebar based on _sidebarOpen', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(src).toMatch(/_sidebarOpen/);
+  });
+
+  test('bee-atlas.ts does NOT contain activeFeedEntries', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(src).not.toMatch(/_activeFeedEntries/);
+  });
+
+  test('bee-atlas.ts does NOT contain _onFilteredSummaryComputed', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(src).not.toMatch(/_onFilteredSummaryComputed/);
+  });
+
+  test('BeeSidebar only has samples and selectedSampleEvent properties', async () => {
     const { BeeSidebar } = await import('../bee-sidebar.ts');
     const props = (BeeSidebar as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('activeFeedEntries')).toBe(true);
-  });
-
-  test('bee-sidebar.ts does NOT contain a fetch call (presenter invariant)', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).not.toMatch(/\bfetch\s*\(/);
-  });
-
-  test('bee-sidebar.ts contains _renderFeedsSection method', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/_renderFeedsSection/);
-  });
-
-  test('bee-sidebar.ts uses navigator.clipboard.writeText for Copy URL', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/navigator\.clipboard\.writeText/);
-  });
-
-  test('bee-sidebar.ts contains teaser hint text for feed discovery', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/Filter by collector to subscribe to a determination feed/);
-  });
-
-  test('bee-sidebar.ts Open Feed link opens in new tab', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/target="_blank"/);
-  });
-});
-
-describe('VIEW-01: bee-sidebar view mode toggle', () => {
-  test('bee-sidebar.ts contains view-changed event string', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/'view-changed'/);
-  });
-
-  test('bee-sidebar.ts contains viewMode @property declaration', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/viewMode/);
-  });
-
-  test('bee-sidebar.ts does NOT own viewMode as @state (presenter pattern)', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).not.toMatch(/@state\(\)\s+private\s+_viewMode/);
-  });
-
-  test('BeeSidebar elementProperties has viewMode key', async () => {
-    const { BeeSidebar } = await import('../bee-sidebar.ts');
-    const props = (BeeSidebar as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('viewMode')).toBe(true);
+    expect(props.has('samples')).toBe(true);
+    expect(props.has('selectedSampleEvent')).toBe(true);
+    expect(props.has('layerMode')).toBe(false);
+    expect(props.has('viewMode')).toBe(false);
+    expect(props.has('summary')).toBe(false);
+    expect(props.has('activeFeedEntries')).toBe(false);
   });
 });
 
