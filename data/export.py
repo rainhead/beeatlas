@@ -108,7 +108,7 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
         links.inat_observation_id,
         CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host,
         inat.quality_grade AS inat_quality_grade,
-        strftime(GREATEST(o.modified, im.max_id_modified), '%Y-%m-%d') AS modified
+        strftime(GREATEST(o.modified, COALESCE(im.max_id_modified, o.modified)), '%Y-%m-%d') AS modified
     FROM ecdysis_data.occurrences o
     JOIN final_county fc ON fc.occurrence_id = o.occurrence_id
     JOIN final_eco fe ON fe.occurrence_id = o.occurrence_id
