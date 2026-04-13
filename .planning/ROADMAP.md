@@ -279,12 +279,20 @@ Plans:
 Plans:
 - [ ] 46-01-PLAN.md — Replace Esri Ocean basemap with Stadia Maps outdoors (terrain, roads, trails, zoom 20)
 
-### Phase 47: Rewrite geographies_pipeline.py to use DuckDB spatial extension directly: stream shapefiles with ST_Read, simplify with ST_Simplify, store as native GEOMETRY type, eliminating geopandas/shapely/dlt dependencies and the in-memory buffering that caused OOM
+### Phase 47: Rewrite geographies_pipeline.py with DuckDB spatial
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Eliminate geopandas/shapely/dlt from the geographies pipeline by using DuckDB spatial ST_Read to stream shapefiles directly, storing native GEOMETRY columns, and fixing the OOM caused by in-memory GeoDataFrame buffering
+**Requirements**: None (infrastructure improvement)
 **Depends on:** Phase 46
-**Plans:** 0 plans
+**Success Criteria** (what must be TRUE):
+  1. load_geographies() streams all 5 shapefiles via DuckDB ST_Read without loading into Python memory
+  2. Projected CRS sources are transformed to WGS84 via ST_Transform with always_xy=true
+  3. All geographies tables store native GEOMETRY columns (geom), not WKT text
+  4. geopandas is removed from pyproject.toml; dlt/geopandas/shapely imports removed from geographies_pipeline.py
+  5. export.py and feeds.py use geom column directly (no ST_GeomFromText wrappers)
+  6. Full test suite passes with updated fixtures
+**Plans:** 2 plans
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 47 to break down)
+- [ ] 47-01-PLAN.md — Rewrite geographies_pipeline.py with DuckDB spatial ST_Read, remove geopandas from pyproject.toml
+- [ ] 47-02-PLAN.md — Migrate export.py, feeds.py, and test fixtures from geometry_wkt to native geom column
