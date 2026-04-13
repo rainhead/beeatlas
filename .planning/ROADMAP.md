@@ -269,7 +269,9 @@ Plans:
   1. Clicking a specimen cluster that has a `specimen_observation_id` shows a "Specimen photo" link in the detail sidebar that opens the correct iNaturalist observation URL in a new tab
   2. Clicking a specimen cluster without a `specimen_observation_id` shows no specimen photo link (no broken link, no placeholder text)
   3. `npm test` passes with the new rendering covered by existing or new Vitest render tests
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 51-01-PLAN.md — Add specimenObservationId to data flow (interface, OL mapping, DuckDB query) and render as camera emoji link in bee-specimen-detail
 **UI hint**: yes
 
 ## Progress
@@ -326,4 +328,4 @@ Plans:
 | 48. Column Rename | v2.3 | 1/1 | Complete    | 2026-04-13 |
 | 49. WABA Pipeline | v2.3 | 1/1 | Complete   | 2026-04-13 |
 | 50. Export Join & Schema Gate | v2.3 | 1/1 | Complete   | 2026-04-13 |
-| 51. Frontend Link Rendering | v2.3 | 0/? | Not started | - |
+| 51. Frontend Link Rendering | v2.3 | 0/1 | Not started | - |
