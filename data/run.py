@@ -43,9 +43,11 @@ STEPS: list[tuple[str, Callable]] = [
 def _apply_migrations() -> None:
     """One-time schema migrations applied before pipelines run.
 
-    Phase 48 renamed inat_observation_id → host_observation_id in occurrence_links.
-    The S3 DuckDB may still have the old column name if it was last uploaded before
-    that migration ran locally.
+    Phase 48: renamed inat_observation_id → host_observation_id in occurrence_links.
+    Phase 47: geographies tables gained native geom GEOMETRY column (replacing geometry_wkt
+              used only for ST_GeomFromText calls). feeds.py references geom directly;
+              the S3 DuckDB may still have only geometry_wkt if geographies_pipeline.py
+              has not been re-run since that change.
     """
     import duckdb
     db_path = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
@@ -53,6 +55,7 @@ def _apply_migrations() -> None:
         return
     con = duckdb.connect(db_path)
     try:
+        # Phase 48: rename inat_observation_id → host_observation_id
         cols = {row[0] for row in con.execute(
             "SELECT column_name FROM information_schema.columns "
             "WHERE table_schema = 'ecdysis_data' AND table_name = 'occurrence_links'"
@@ -60,6 +63,29 @@ def _apply_migrations() -> None:
         if 'inat_observation_id' in cols and 'host_observation_id' not in cols:
             print("Migration: renaming occurrence_links.inat_observation_id → host_observation_id")
             con.execute("ALTER TABLE ecdysis_data.occurrence_links RENAME COLUMN inat_observation_id TO host_observation_id")
+
+        # Phase 47: backfill geom GEOMETRY column on old-schema geographies tables
+        # (geometry_wkt present but geom absent means pre-Phase-47 DuckDB from S3)
+        geo_tables = [
+            ('geographies', 'us_counties'),
+            ('geographies', 'ecoregions'),
+            ('geographies', 'us_states'),
+        ]
+        needs_geom = []
+        for schema, table in geo_tables:
+            table_cols = {row[0] for row in con.execute(
+                "SELECT column_name FROM information_schema.columns "
+                f"WHERE table_schema = '{schema}' AND table_name = '{table}'"
+            ).fetchall()}
+            if 'geometry_wkt' in table_cols and 'geom' not in table_cols:
+                needs_geom.append(f'{schema}.{table}')
+
+        if needs_geom:
+            con.execute("INSTALL spatial; LOAD spatial;")
+            for qualified in needs_geom:
+                print(f"Migration: adding geom column to {qualified}")
+                con.execute(f"ALTER TABLE {qualified} ADD COLUMN geom GEOMETRY")
+                con.execute(f"UPDATE {qualified} SET geom = ST_GeomFromText(geometry_wkt)")
     finally:
         con.close()
 
