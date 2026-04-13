@@ -207,19 +207,19 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         CREATE TABLE geographies.us_states (
             fips VARCHAR, name VARCHAR, abbreviation VARCHAR,
-            geometry_wkt VARCHAR, _dlt_load_id VARCHAR, _dlt_id VARCHAR
+            geom GEOMETRY
         )
     """)
     con.execute("""
         CREATE TABLE geographies.us_counties (
             geoid VARCHAR, name VARCHAR, state_fips VARCHAR,
-            geometry_wkt VARCHAR, _dlt_load_id VARCHAR, _dlt_id VARCHAR
+            geom GEOMETRY
         )
     """)
     con.execute("""
         CREATE TABLE geographies.ecoregions (
             name VARCHAR, level2_name VARCHAR, level1_name VARCHAR,
-            geometry_wkt VARCHAR, _dlt_load_id VARCHAR, _dlt_id VARCHAR
+            geom GEOMETRY
         )
     """)
     con.execute("""
@@ -277,14 +277,14 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     # WA state boundary (required by export queries that filter ecoregions via ST_Intersects)
     con.execute("""
         INSERT INTO geographies.us_states VALUES (
-            '53', 'Washington', 'WA', ?, 'load1', 'state-wa'
+            '53', 'Washington', 'WA', ST_GeomFromText(?)
         )
     """, [WA_STATE_WKT])
 
     # Chelan county (state_fips='53', contains both test specimen and iNat observation)
     con.execute("""
         INSERT INTO geographies.us_counties VALUES (
-            '53007', 'Chelan', '53', ?, 'load1', 'county-chelan'
+            '53007', 'Chelan', '53', ST_GeomFromText(?)
         )
     """, [CHELAN_WKT])
 
@@ -292,7 +292,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         INSERT INTO geographies.ecoregions VALUES (
             'North Cascades', 'Western Cordillera', 'North American Cordillera',
-            ?, 'load1', 'eco-nc'
+            ST_GeomFromText(?)
         )
     """, [NORTH_CASCADES_WKT])
 

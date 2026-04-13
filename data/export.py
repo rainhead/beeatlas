@@ -27,16 +27,16 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(f"""
     COPY (
     WITH wa_counties AS (
-        SELECT name AS county, geometry_wkt
+        SELECT name AS county, geom
         FROM geographies.us_counties
         WHERE state_fips = '53'
     ),
     wa_eco AS (
-        SELECT name AS ecoregion_l3, geometry_wkt
+        SELECT name AS ecoregion_l3, geom
         FROM geographies.ecoregions
         WHERE ST_Intersects(
-            ST_GeomFromText(geometry_wkt),
-            (SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states WHERE abbreviation = 'WA')
+            geom,
+            (SELECT geom FROM geographies.us_states WHERE abbreviation = 'WA')
         )
     ),
     occ AS (
@@ -48,12 +48,12 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     with_county AS (
         SELECT occ.occurrence_id, c.county
         FROM occ
-        LEFT JOIN wa_counties c ON ST_Within(occ.pt, ST_GeomFromText(c.geometry_wkt))
+        LEFT JOIN wa_counties c ON ST_Within(occ.pt, c.geom)
     ),
     county_fallback AS (
         SELECT occurrence_id,
             (SELECT county FROM wa_counties
-             ORDER BY ST_Distance(ST_GeomFromText(geometry_wkt),
+             ORDER BY ST_Distance(geom,
                  (SELECT pt FROM occ o2 WHERE o2.occurrence_id = with_county.occurrence_id))
              LIMIT 1) AS county
         FROM with_county
@@ -66,7 +66,7 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     with_eco AS (
         SELECT occ.occurrence_id, e.ecoregion_l3
         FROM occ
-        LEFT JOIN wa_eco e ON ST_Within(occ.pt, ST_GeomFromText(e.geometry_wkt))
+        LEFT JOIN wa_eco e ON ST_Within(occ.pt, e.geom)
     ),
     eco_dedup AS (
         SELECT DISTINCT ON (occurrence_id) occurrence_id, ecoregion_l3
@@ -75,7 +75,7 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     eco_fallback AS (
         SELECT occurrence_id,
             (SELECT ecoregion_l3 FROM wa_eco
-             ORDER BY ST_Distance(ST_GeomFromText(geometry_wkt),
+             ORDER BY ST_Distance(geom,
                  (SELECT pt FROM occ o2 WHERE o2.occurrence_id = eco_dedup.occurrence_id))
              LIMIT 1) AS ecoregion_l3
         FROM eco_dedup
@@ -140,16 +140,16 @@ def export_samples_parquet(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(f"""
     COPY (
     WITH wa_counties AS (
-        SELECT name AS county, geometry_wkt
+        SELECT name AS county, geom
         FROM geographies.us_counties
         WHERE state_fips = '53'
     ),
     wa_eco AS (
-        SELECT name AS ecoregion_l3, geometry_wkt
+        SELECT name AS ecoregion_l3, geom
         FROM geographies.ecoregions
         WHERE ST_Intersects(
-            ST_GeomFromText(geometry_wkt),
-            (SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states WHERE abbreviation = 'WA')
+            geom,
+            (SELECT geom FROM geographies.us_states WHERE abbreviation = 'WA')
         )
     ),
     obs_pt AS (
@@ -172,12 +172,12 @@ def export_samples_parquet(con: duckdb.DuckDBPyConnection) -> None:
     with_county AS (
         SELECT ws._dlt_id, c.county
         FROM with_specimen ws
-        LEFT JOIN wa_counties c ON ST_Within(ws.pt, ST_GeomFromText(c.geometry_wkt))
+        LEFT JOIN wa_counties c ON ST_Within(ws.pt, c.geom)
     ),
     county_fallback AS (
         SELECT _dlt_id,
             (SELECT county FROM wa_counties
-             ORDER BY ST_Distance(ST_GeomFromText(geometry_wkt),
+             ORDER BY ST_Distance(geom,
                  (SELECT pt FROM with_specimen ws2 WHERE ws2._dlt_id = with_county._dlt_id))
              LIMIT 1) AS county
         FROM with_county
@@ -190,7 +190,7 @@ def export_samples_parquet(con: duckdb.DuckDBPyConnection) -> None:
     with_eco AS (
         SELECT ws._dlt_id, e.ecoregion_l3
         FROM with_specimen ws
-        LEFT JOIN wa_eco e ON ST_Within(ws.pt, ST_GeomFromText(e.geometry_wkt))
+        LEFT JOIN wa_eco e ON ST_Within(ws.pt, e.geom)
     ),
     eco_dedup AS (
         SELECT DISTINCT ON (_dlt_id) _dlt_id, ecoregion_l3
@@ -199,7 +199,7 @@ def export_samples_parquet(con: duckdb.DuckDBPyConnection) -> None:
     eco_fallback AS (
         SELECT _dlt_id,
             (SELECT ecoregion_l3 FROM wa_eco
-             ORDER BY ST_Distance(ST_GeomFromText(geometry_wkt),
+             ORDER BY ST_Distance(geom,
                  (SELECT pt FROM with_specimen ws2 WHERE ws2._dlt_id = eco_dedup._dlt_id))
              LIMIT 1) AS ecoregion_l3
         FROM eco_dedup
@@ -244,7 +244,7 @@ def export_counties_geojson(con: duckdb.DuckDBPyConnection) -> None:
     """Export counties.geojson with 39 WA county features (NAME property, simplified geometry)."""
     rows = con.execute("""
     SELECT name AS NAME,
-           ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_GeomFromText(geometry_wkt), 0.001))
+           ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.001))
     FROM geographies.us_counties
     WHERE state_fips = '53'
     """).fetchall()
@@ -261,11 +261,11 @@ def export_ecoregions_geojson(con: duckdb.DuckDBPyConnection) -> None:
     """Export ecoregions.geojson with WA ecoregion features (NA_L3NAME property, simplified geometry)."""
     rows = con.execute("""
     SELECT name AS NA_L3NAME,
-           ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_GeomFromText(geometry_wkt), 0.001))
+           ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.001))
     FROM geographies.ecoregions
     WHERE ST_Intersects(
-        ST_GeomFromText(geometry_wkt),
-        (SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states WHERE abbreviation = 'WA')
+        geom,
+        (SELECT geom FROM geographies.us_states WHERE abbreviation = 'WA')
     )
     """).fetchall()
     features = [

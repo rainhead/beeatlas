@@ -14,14 +14,13 @@ Sources:
 """
 
 import os
+import zipfile
 from pathlib import Path
-from typing import Iterator
+
+import duckdb
+import requests
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
-
-import dlt
-import geopandas as gpd
-import requests
 
 CACHE_DIR = Path(os.environ.get('GEOGRAPHY_CACHE_DIR', '.geography_cache'))
 
@@ -71,85 +70,77 @@ def _download(name: str, url: str) -> Path:
     return dest
 
 
-def _to_wkt_rows(gdf: gpd.GeoDataFrame, columns: dict[str, str], simplify_tolerance: float = 0.01) -> Iterator[dict]:
-    """Yield dicts with renamed columns plus a WKT geometry field.
-
-    simplify_tolerance: degrees (default 0.01 ≈ 1 km). Dramatically reduces WKT
-    size for high-resolution source data (e.g. Stats Canada full-detail coastlines)
-    with no visible difference at regional map zoom levels.
-    """
-    gdf = gdf[list(columns.keys()) + ["geometry"]].copy()
-    gdf = gdf.to_crs("EPSG:4326")
-    gdf["geometry"] = gdf["geometry"].simplify(simplify_tolerance, preserve_topology=True)
-    for _, row in gdf.iterrows():
-        record = {new: row[old] for old, new in columns.items()}
-        record["geometry_wkt"] = row["geometry"].wkt if row["geometry"] else None
-        yield record
-
-
-@dlt.source(name="geographies")
-def geographies_source() -> Iterator:
-    @dlt.resource(name="ecoregions", primary_key="name", write_disposition="replace")
-    def ecoregions() -> Iterator:
-        path = _download("ecoregions", SOURCES["ecoregions"])
-        print("  Reading ecoregions shapefile...")  # noqa: T201
-        gdf = gpd.read_file(f"zip://{path}!NA_CEC_Eco_Level3.shp")
-        print(f"  Loaded {len(gdf)} ecoregion polygons")  # noqa: T201
-        yield from _to_wkt_rows(gdf, {"NA_L3NAME": "name", "NA_L2NAME": "level2_name", "NA_L1NAME": "level1_name"})
-
-    @dlt.resource(name="us_states", primary_key="fips", write_disposition="replace")
-    def us_states() -> Iterator:
-        path = _download("us_states", SOURCES["us_states"])
-        print("  Reading US states shapefile...")  # noqa: T201
-        gdf = gpd.read_file(f"zip://{path}")
-        print(f"  Loaded {len(gdf)} states")  # noqa: T201
-        yield from _to_wkt_rows(gdf, {"STATEFP": "fips", "NAME": "name", "STUSPS": "abbreviation"})
-
-    @dlt.resource(name="us_counties", primary_key="geoid", write_disposition="replace")
-    def us_counties() -> Iterator:
-        path = _download("us_counties", SOURCES["us_counties"])
-        print("  Reading US counties shapefile...")  # noqa: T201
-        gdf = gpd.read_file(f"zip://{path}")
-        print(f"  Loaded {len(gdf)} counties")  # noqa: T201
-        yield from _to_wkt_rows(gdf, {"GEOID": "geoid", "NAME": "name", "STATEFP": "state_fips"})
-
-    @dlt.resource(name="ca_provinces", primary_key="pruid", write_disposition="replace")
-    def ca_provinces() -> Iterator:
-        path = _download("ca_provinces", SOURCES["ca_provinces"])
-        print("  Reading Canadian provinces shapefile...")  # noqa: T201
-        gdf = gpd.read_file(f"zip://{path}")
-        print(f"  Loaded {len(gdf)} provinces/territories")  # noqa: T201
-        yield from _to_wkt_rows(gdf, {"PRUID": "pruid", "PRENAME": "name", "PREABBR": "abbreviation"})
-
-    @dlt.resource(name="ca_census_divisions", primary_key="cduid", write_disposition="replace")
-    def ca_census_divisions() -> Iterator:
-        path = _download("ca_census_divisions", SOURCES["ca_census_divisions"])
-        print("  Reading Canadian census divisions shapefile...")  # noqa: T201
-        gdf = gpd.read_file(f"zip://{path}")
-        print(f"  Loaded {len(gdf)} census divisions")  # noqa: T201
-        yield from _to_wkt_rows(gdf, {"CDUID": "cduid", "CDNAME": "name", "CDTYPE": "division_type", "PRUID": "pruid"})
-
-    yield ecoregions()
-    yield us_states()
-    yield us_counties()
-    yield ca_provinces()
-    yield ca_census_divisions()
+def _read_prj(zip_path: Path, shp_stem: str) -> str:
+    """Read the WKT CRS definition from a shapefile's .prj file inside a zip."""
+    with zipfile.ZipFile(zip_path) as zf:
+        return zf.read(f"{shp_stem}.prj").decode().strip()
 
 
 def load_geographies() -> None:
-    pipeline = dlt.pipeline(
-        pipeline_name="geographies",
-        destination=dlt.destinations.duckdb(
-            DB_PATH,
-            create_indexes=False,
-        ),
-        dataset_name="geographies",
-    )
-    # Run each resource separately to avoid buffering all datasets in memory at once.
-    for resource in geographies_source().resources.values():
-        load_info = pipeline.run(resource)
-        print(load_info)  # noqa: T201
-        load_info.raise_on_failed_jobs()
+    con = duckdb.connect(DB_PATH)
+    con.execute("INSTALL spatial; LOAD spatial;")
+    con.execute("CREATE SCHEMA IF NOT EXISTS geographies")
+
+    # --- ecoregions (projected CRS, needs ST_Transform to WGS84) ---
+    path = _download("ecoregions", SOURCES["ecoregions"])
+    print("  Loading ecoregions...")  # noqa: T201
+    prj_wkt = _read_prj(path, "NA_CEC_Eco_Level3")
+    con.execute("""
+        CREATE OR REPLACE TABLE geographies.ecoregions AS
+        SELECT
+            NA_L3NAME AS name,
+            NA_L2NAME AS level2_name,
+            NA_L1NAME AS level1_name,
+            ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
+        FROM ST_Read(?)
+    """, [prj_wkt, f"/vsizip/{path}/NA_CEC_Eco_Level3.shp"])
+    print("  ecoregions: done")  # noqa: T201
+
+    # --- us_states (geographic NAD83, no transform needed) ---
+    path = _download("us_states", SOURCES["us_states"])
+    print("  Loading us_states...")  # noqa: T201
+    con.execute("""
+        CREATE OR REPLACE TABLE geographies.us_states AS
+        SELECT STATEFP AS fips, NAME AS name, STUSPS AS abbreviation, geom
+        FROM ST_Read(?)
+    """, [f"/vsizip/{path}/tl_2024_us_state.shp"])
+    print("  us_states: done")  # noqa: T201
+
+    # --- us_counties (geographic NAD83, no transform needed) ---
+    path = _download("us_counties", SOURCES["us_counties"])
+    print("  Loading us_counties...")  # noqa: T201
+    con.execute("""
+        CREATE OR REPLACE TABLE geographies.us_counties AS
+        SELECT GEOID AS geoid, NAME AS name, STATEFP AS state_fips, geom
+        FROM ST_Read(?)
+    """, [f"/vsizip/{path}/tl_2024_us_county.shp"])
+    print("  us_counties: done")  # noqa: T201
+
+    # --- ca_provinces (Stats Canada Lambert, needs ST_Transform to WGS84) ---
+    path = _download("ca_provinces", SOURCES["ca_provinces"])
+    print("  Loading ca_provinces...")  # noqa: T201
+    prj_wkt = _read_prj(path, "lpr_000b21a_e")
+    con.execute("""
+        CREATE OR REPLACE TABLE geographies.ca_provinces AS
+        SELECT PRUID AS pruid, PRENAME AS name, PREABBR AS abbreviation,
+               ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
+        FROM ST_Read(?)
+    """, [prj_wkt, f"/vsizip/{path}/lpr_000b21a_e.shp"])
+    print("  ca_provinces: done")  # noqa: T201
+
+    # --- ca_census_divisions (Stats Canada Lambert, needs ST_Transform to WGS84) ---
+    path = _download("ca_census_divisions", SOURCES["ca_census_divisions"])
+    print("  Loading ca_census_divisions...")  # noqa: T201
+    prj_wkt = _read_prj(path, "lcd_000b21a_e")
+    con.execute("""
+        CREATE OR REPLACE TABLE geographies.ca_census_divisions AS
+        SELECT CDUID AS cduid, CDNAME AS name, CDTYPE AS division_type, PRUID AS pruid,
+               ST_Transform(geom, ?, 'EPSG:4326', true) AS geom
+        FROM ST_Read(?)
+    """, [prj_wkt, f"/vsizip/{path}/lcd_000b21a_e.shp"])
+    print("  ca_census_divisions: done")  # noqa: T201
+
+    con.close()
 
 
 if __name__ == "__main__":
