@@ -110,6 +110,16 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ EXP-01–02: `ecdysis.parquet` gains `specimen_observation_id` (nullable BIGINT) via `waba_link` CTE joining WABA OFV catalog numbers to ecdysis `catalog_number` numeric suffixes; schema gate enforced in CI — v2.3
 - ✓ FRONT-01: `specimen_observation_id` rendered as conditional camera emoji link (📷) in sidebar detail view; absent when null — v2.3
 
+## Current Milestone: v2.4 Header Navigation & Toolbar
+
+**Goal:** Reorganize the UI into a header-driven layout with navigational data-layer tabs, a map/table view toggle, and a persistent filter toolbar, replacing the sidebar's navigation and filter roles.
+
+**Target features:**
+- Header nav tabs (Specimens, Samples; future-ready for Species, Plants) collapsing to hamburger menu on narrow viewports
+- Map / Table icon toggle on the right of the header
+- Persistent filter toolbar below the header (taxon, date, region filters + CSV download)
+- Sidebar retained for click-detail only (specimen or sample detail on map click)
+
 ## Previous Milestones
 
 - v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
@@ -250,4 +260,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 — v2.3 milestone complete (Specimen iNat Observation Links)*
+*Last updated: 2026-04-13 — v2.4 milestone started (Header Navigation & Toolbar)*
