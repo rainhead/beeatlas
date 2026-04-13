@@ -17,7 +17,8 @@ export class BeeFilterToolbar extends LitElement {
   static styles = css`
     :host {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
+      flex-shrink: 0;
       width: 100%;
       padding: 0 8px;
       background: var(--surface);
@@ -25,9 +26,10 @@ export class BeeFilterToolbar extends LitElement {
       min-height: 48px;
       box-sizing: border-box;
     }
-    bee-filter-controls { flex-grow: 1; }
+    bee-filter-controls { flex-grow: 1; min-width: 0; }
     .csv-btn {
       flex-shrink: 0;
+      align-self: center;
       margin-left: 8px;
       background: transparent;
       border: 1px solid var(--border-input);
