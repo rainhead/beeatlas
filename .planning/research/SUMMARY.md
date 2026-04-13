@@ -1,230 +1,138 @@
 # Project Research Summary
 
-**Project:** Washington Bee Atlas — v1.7 Lambda + EFS Production Pipeline Infrastructure
-**Domain:** Scheduled serverless data pipeline with persistent DuckDB state, serving a static frontend via CloudFront
-**Researched:** 2026-03-27
+**Project:** BeeAtlas v2.3 — Specimen iNat Observation Links
+**Domain:** Incremental iNat API pipeline + cross-stack column rename
+**Researched:** 2026-04-12
 **Confidence:** HIGH
 
 ## Executive Summary
 
-BeeAtlas v1.7 moves the data pipeline from manual/CI invocation to a fully automated Lambda function with EFS-backed DuckDB persistence. The architecture is well-understood: a Python 3.14 container image on Lambda runs the existing `run.py` pipeline on a schedule, writes exported Parquets and GeoJSON to S3, and the frontend fetches those files from CloudFront at runtime instead of loading bundled build assets. All new constructs (VPC, EFS, Lambda, EventBridge Scheduler, Lambda URL) are additions to the existing `BeeAtlasStack` — no new CDK stacks are required.
+BeeAtlas v2.3 adds a specimen photo link to the sidebar by querying the iNaturalist WABA observation field (field_id=18116, confirmed 1,374 observations) and joining the results to Ecdysis specimen records via catalog number. The work spans three layers: a new dlt pipeline (`waba_pipeline.py`) fetching from the iNat v2 API, a modified export join in `export.py` that matches WABA field values to Ecdysis `catalog_number` via `split_part`, and frontend changes that render a new specimen photo link in `bee-specimen-detail.ts` alongside the existing host plant link.
 
-The recommended approach uses a container image (not zip) because geopandas + duckdb + dlt combined exceed Lambda's 250 MB zip limit. EFS holds the persistent `beeatlas.duckdb` between invocations; S3 holds a backup copy for disaster recovery. The pipeline must be seeded locally first (Ecdysis link scraping at 45K+ records takes ~38 min, far exceeding Lambda's 15-min hard limit), and only the incremental delta runs in Lambda on a schedule. The two-level skip cache already in the codebase handles this correctly when operating against the EFS DuckDB.
+The recommended approach mirrors the existing `inaturalist_pipeline.py` exactly — same incremental cursor (`updated_since`), same paginator, same `per_page=200` — with only the filter parameter changed. The new pipeline must use a distinct `pipeline_name="waba"` and `dataset_name="inaturalist_waba_data"` for complete isolation from the existing pipeline. A prerequisite rename of `inat_observation_id` to `host_observation_id` throughout the stack must land atomically before the new column is added, to prevent an ambiguous two-iNat-column state.
 
-The key risks are configuration-level traps rather than architectural unknowns: DuckDB temp files must stay on `/tmp` (not EFS) to avoid NFS stale handle errors; CloudFront must include the `Origin` header in its cache key to avoid serving cached non-CORS responses to browser fetch calls; dlt's working directory must be explicitly set to `/tmp/dlt` because Lambda's `/var/task` is read-only; and Lambda concurrency must be reserved to 1 to prevent DuckDB write lock conflicts. All of these are preventable with known countermeasures documented in the research.
+The dominant risk is the column rename: it crosses a snake_case/camelCase boundary at 14 distinct touch points across Python, SQL, TypeScript, test fixtures, and the CI schema gate. Missing any one produces silent nulls rather than compilation errors. The second risk is the iNat API filter parameter name for the v2 endpoint — `field_id=18116` has medium confidence; verify with a live curl before implementing the pipeline. Both risks are well-understood and fully addressable with the checklists in PITFALLS.md.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack (CDK v2 ^2.238.0, Python 3.14, dlt[duckdb], hyparquet, Lit, OpenLayers) requires no new npm packages. All new AWS constructs are already in `aws-cdk-lib`. See [STACK.md](./STACK.md) for the full inventory.
+No new stack dependencies are introduced for v2.3. All additions use existing tools: dlt's `RESTAPIConfig` pattern (already used by `inaturalist_pipeline.py`), DuckDB SQL in `export.py`, and Lit template rendering in `bee-specimen-detail.ts`. The iNat v2 API endpoint and `asyncBufferFromUrl` are already established. This milestone is implementation-only against a proven stack.
 
-**Core new technologies:**
-- `lambda.DockerImageFunction` + ECR container image — only viable packaging approach; geopandas native libs (GDAL/GEOS) and DuckDB exceed the 250 MB zip limit
-- `efs.FileSystem` + `efs.AccessPoint` — persistent DuckDB store across Lambda invocations; `removalPolicy: RETAIN` is non-negotiable
-- `ec2.Vpc` with `natGateways: 1` + S3 Gateway Endpoint (free) — EFS requires VPC; NAT Gateway provides outbound internet for iNat and Ecdysis API calls
-- `scheduler.Schedule` (EventBridge Scheduler L2, GA April 2025) — preferred over EventBridge Rules for cron-triggered Lambda; supports flexible time windows
-- `lambda.FunctionUrl` with `authType: NONE` — simpler than API Gateway for single-function manual invocation
-- `asyncBufferFromUrl` (already in hyparquet ^1.23.3) — no version change needed; replace bundled asset imports with runtime CloudFront-relative URLs
+For context, STACK.md also covers v1.7 Lambda/EFS infrastructure (Lambda container image, EFS-backed DuckDB, EventBridge Scheduler). That work is a separate milestone and does not block v2.3.
 
-**Version notes:**
-- Python 3.14 Lambda base image (`public.ecr.aws/lambda/python:3.14`) — GA November 2025; verify tag exists before writing Dockerfile
-- CDK EventBridge Scheduler L2 — available in aws-cdk-lib ^2.178+; already pinned at ^2.238.0
+**Core technologies for v2.3 (all pre-existing):**
+- `dlt` RESTAPIConfig — incremental pipeline, `pipeline_name="waba"` / `dataset_name="inaturalist_waba_data"` for isolation
+- DuckDB `split_part` + `DISTINCT ON` — catalog number suffix join with deduplication in `export.py`
+- Lit `bee-specimen-detail.ts` — new conditional link block, mirrors existing `inatObservationId` pattern
+- `validate-schema.mjs` — CI schema gate; must be updated atomically with export SQL
 
 ### Expected Features
 
-See [FEATURES.md](./FEATURES.md) for the full feature breakdown and dependency graph.
+The feature scope for v2.3 is well-defined and small. The MVP is complete with four deliverables: the new pipeline, the export join, the schema gate update, and the frontend link. Two enhancements (observer login, quality grade badge) are low-cost additions that depend on data already stored by the pipeline and can follow validation.
 
-**Must have (v1.7 launch):**
-- Scheduled Lambda invocation (nightly iNat incremental + weekly full pipeline)
-- Lambda timeout set to 15 minutes (900s hard limit)
-- EFS mount at `/mnt/data/beeatlas.duckdb` with restore-from-S3 on empty EFS
-- S3 upload of 4 exported data files + DuckDB backup after successful run
-- Lambda URL for manual pipeline invocation (async, 202 response)
-- Frontend runtime fetch replacing all bundled Parquet and GeoJSON imports
-- Loading state and error handling in frontend for failed fetches
-- CloudFront invalidation (`/data/*`) after successful S3 upload
-- Reserved concurrency = 1 to prevent DuckDB write lock conflicts
-- `data/fixtures/beeatlas-test.duckdb` committed for pytest coverage of `export.py`
-- CI simplified to frontend-only build; `fetch-data.yml` workflow deleted
+**Must have (table stakes for v2.3):**
+- Specimen photo link in sidebar — closes the gap where a linked specimen has no photo link; pattern already exists for host links
+- Rename `inat_observation_id` to `host_observation_id` throughout — prerequisite for adding a second iNat column without ambiguity
 
-**Should have (v1.x after validation):**
-- Separate EventBridge schedules: iNat-only nightly vs full pipeline weekly (reduces runtime)
-- Cache-Control headers tuned per file type (Parquets: 1h TTL; GeoJSON: 24h TTL)
-- CloudWatch alarm on Lambda error rate or timeout
+**Should have (add after MVP validation):**
+- Observer login next to specimen photo link — low cost; pipeline stores it
+- Quality grade badge — CSS already exists; adds community ID confidence signal
 
-**Defer to v2+:**
-- Step Functions (pipeline is sequential; no branching/parallel execution needed at current scale)
-- Multi-region S3 replication (WA-focused atlas; not needed)
-- Lambda concurrency > 1 (DuckDB single-writer is a hard constraint)
-
-**Anti-features to avoid:**
-- SnapStart (incompatible with EFS mounts — AWS hard constraint as of 2025)
-- DynamoDB/RDS for pipeline state (DuckDB on EFS is the correct choice for this access pattern)
-- Real-time iNat webhook updates (iNat has no webhooks; static hosting precludes WebSocket server)
+**Defer (v3+):**
+- Inline photo thumbnail — CORS uncertainty, static-hosting constraint, parquet bloat; a text link with "specimen photo" label is the correct MVP
 
 ### Architecture Approach
 
-The v1.7 architecture adds a Lambda execution layer alongside the existing S3 + CloudFront static hosting. All new constructs are additions to `BeeAtlasStack` in `infra/lib/beeatlas-stack.ts`. The CDK deploy order is deterministic: VPC first (prerequisite for EFS), EFS next (prerequisite for Lambda access point), then Lambda, EventBridge schedule, and Lambda URL. The frontend and CI changes are independent of the CDK deploy order but depend on the Lambda having written files to `S3/data/` before they take effect. See [ARCHITECTURE.md](./ARCHITECTURE.md) for CDK construct snippets and the complete data flow diagrams.
+The architecture is a new pipeline feeding an existing export join. `waba_pipeline.py` writes to an isolated `inaturalist_waba_data` DuckDB schema; `export.py` gains a `waba_link` CTE that joins that schema to `ecdysis_data.occurrences` via `split_part(catalog_number, '_', 2)`. The new `specimen_observation_id` column flows into `ecdysis.parquet` and from there into the frontend `Specimen` interface. The data flow is entirely additive except for the `host_observation_id` rename.
 
 **Major components:**
-1. `PipelineFn` (Lambda `DockerImageFunction`) — runs `data/run.py` against EFS DuckDB, exports to `/tmp/data/`, uploads to S3 `data/` and `backup/` prefixes
-2. `EFS FileSystem` + `AccessPoint` — durable DuckDB store at `/mnt/data/beeatlas.duckdb`; `removalPolicy: RETAIN`
-3. `EventBridge Schedule` — weekly cron (and optionally separate nightly iNat-only schedule)
-4. `Lambda URL` — HTTP endpoint for on-demand pipeline invocation
-5. `data/lambda/Dockerfile` — Python 3.14 Lambda base image with system deps for geopandas, uv-installed Python deps, pre-installed DuckDB spatial extension
-6. Modified `export.py` — parameterized output directory (`EXPORT_DIR` env var); S3 upload when `S3_BUCKET` is set
-7. Modified frontend (`bee-map.ts`, `region-layer.ts`) — `?url` import removal; runtime fetch from `/data/` CloudFront-relative path
-8. Simplified `deploy.yml` — frontend-only build; `fetch-data.yml` deleted
-
-**Key file changes inventory:**
-
-| File | Status |
-|------|--------|
-| `infra/lib/beeatlas-stack.ts` | MODIFY — add VPC, EFS, Lambda, EventBridge, URL |
-| `data/lambda/Dockerfile` | NEW |
-| `data/run.py` | MODIFY — add `handler(event, context)` wrapper |
-| `data/export.py` | MODIFY — parameterize output dir; add S3 upload |
-| `data/fixtures/beeatlas-test.duckdb` | NEW |
-| `data/tests/test_export.py` | NEW |
-| `frontend/src/bee-map.ts` | MODIFY — runtime fetch |
-| `frontend/src/region-layer.ts` | MODIFY — runtime fetch |
-| `frontend/src/assets/` | MODIFY — remove data files |
-| `.github/workflows/deploy.yml` | MODIFY — remove build:data step |
-| `.github/workflows/fetch-data.yml` | DELETE |
+1. `waba_pipeline.py` (NEW) — dlt source, `field_id=18116`, `pipeline_name="waba"`, `dataset_name="inaturalist_waba_data"`, incremental `updated_since` cursor
+2. `export.py` (MODIFIED) — `waba_link` CTE with `DISTINCT ON (ofv.value)` deduplication; LEFT JOIN on `split_part`; `specimen_observation_id` in SELECT; `inat_observation_id` renamed to `host_observation_id`
+3. Frontend (MODIFIED) — `bee-sidebar.ts` interface, `bee-atlas.ts` query, `bee-specimen-detail.ts` template, `bee-map.ts` feature access, `filter.ts` SQL string; two-pass rename (snake_case then camelCase)
 
 ### Critical Pitfalls
 
-See [PITFALLS.md](./PITFALLS.md) for the complete list with recovery strategies and a "looks done but isn't" checklist.
-
-1. **DuckDB temp files on EFS cause stale file handle errors** — Keep DB file on EFS but set `temp_directory='/tmp/duckdb_swap'` immediately after `duckdb.connect()`. Do not point temp to EFS. (Pitfall 1)
-
-2. **CloudFront caches non-CORS responses, blocking browser hyparquet fetch** — Add `Origin` to CloudFront cache key headers; configure S3 CORS with `AllowedHeaders: [Range]` and `ExposeHeaders: [Content-Range, Accept-Ranges, Content-Length]`. Both S3 CORS and CloudFront cache policy must be configured together. (Pitfall 4)
-
-3. **dlt writes to read-only `/var/task` on Lambda cold start** — Set `DLT_DATA_DIR=/tmp/dlt` as Lambda environment variable. This is separate from the DuckDB path configuration. (Pitfall 10)
-
-4. **DuckDB single-writer lock blocks concurrent invocations** — Set `reservedConcurrentExecutions: 1` in CDK. Add stale lock file detection in handler (mtime > 15 min = stale lock, safe to delete). (Pitfall 6)
-
-5. **Ecdysis links pipeline exceeds 15-minute Lambda timeout on cold run** — Seed DuckDB locally before enabling the Lambda schedule. Only incremental runs (new occurrenceIDs) belong in Lambda. Document the bootstrap procedure. (Pitfall 9)
-
-6. **EFS security group misconfiguration causes silent Lambda timeout** — Use `fileSystem.connections.allowDefaultPortFrom(lambdaFunction)` in CDK; explicitly verify Lambda SG has egress TCP 2049 to EFS SG. (Pitfall 8)
+1. **Shared `pipeline_name="inaturalist"` corrupts incremental cursors** — use `pipeline_name="waba"`; verify isolation via `SELECT pipeline_name FROM _dlt_pipeline_state` after first run
+2. **Column rename has 14 independent touch points across two naming conventions** — treat as a two-pass atomic rename: snake_case layer first (Python, SQL), camelCase layer second (TypeScript); run `pytest` + `npm test` + `validate-schema.mjs` before merging
+3. **iNat API field filter parameter name unconfirmed for integer form** — `field:WABA=` is confirmed working on v2; `field_id=18116` is MEDIUM confidence; verify with curl before writing the pipeline
+4. **Catalog number join produces zero matches if normalization is wrong** — use `split_part(o.catalog_number, '_', 2) = ofv.value` (VARCHAR, no integer cast); verify with `SELECT COUNT(*) FROM ecdysis.parquet WHERE specimen_observation_id IS NOT NULL`
+5. **`waba_link` CTE without deduplication produces duplicate specimen rows** — use `DISTINCT ON (ofv.value) ORDER BY ofv.value, obs.id ASC`
 
 ## Implications for Roadmap
 
-Based on combined research, the dependency chain dictates a 5-phase structure. Each phase builds on infrastructure that must exist before the next phase can be validated.
+Based on research, the work naturally falls into four phases with a mandatory ordering:
 
-### Phase 1: CDK Infrastructure (VPC + EFS + Lambda stub)
+### Phase 1: Column Rename (inat_observation_id to host_observation_id)
+**Rationale:** The rename must be atomic and complete before any new iNat column is added. An intermediate state with both the old and new names is confusing and risks silent nulls in production.
+**Delivers:** Clean schema foundation; `host_observation_id` in parquet, SQL, TypeScript interfaces, test fixtures, CI gate
+**Addresses:** Naming sanity prerequisite from FEATURES.md
+**Avoids:** Pitfall 3 (14-point rename with two naming conventions; risks silent production regression if split across phases)
 
-**Rationale:** All subsequent phases depend on the Lambda existing in AWS with EFS mounted. A stub handler (prints "hello", verifies EFS read/write) confirms VPC networking, EFS security groups, and NAT Gateway routing before any real pipeline code is involved. Debugging infra issues is far easier with a minimal handler.
+### Phase 2: WABA Pipeline
+**Rationale:** The pipeline populates the DuckDB data that the export phase depends on. It can be implemented and verified independently before touching `export.py`.
+**Delivers:** `inaturalist_waba_data.observations` and `.observations__ofvs` populated in `beeatlas.duckdb` with incremental cursor isolated from existing iNat pipeline
+**Uses:** dlt RESTAPIConfig pattern from `inaturalist_pipeline.py`; `pipeline_name="waba"`, `dataset_name="inaturalist_waba_data"`
+**Avoids:** Pitfall 1 (cursor collision), Pitfall 4 (wrong API filter parameter — verify live before writing)
 
-**Delivers:** VPC with NAT Gateway + S3 Gateway Endpoint; EFS FileSystem + AccessPoint (`removalPolicy: RETAIN`); `DockerImageFunction` stub; EventBridge schedule; Lambda URL output in CDK; clean `cdk deploy`.
+### Phase 3: Export Join + Schema Gate
+**Rationale:** Depends on Phase 2 data existing in DuckDB. The `waba_link` CTE and new parquet column can be developed and tested in isolation before the frontend is touched.
+**Delivers:** `specimen_observation_id` (nullable BIGINT) in `ecdysis.parquet`; `validate-schema.mjs` updated; `test_export.py` passing
+**Implements:** `waba_link` CTE with `DISTINCT ON` deduplication; `split_part` catalog suffix join
+**Avoids:** Pitfall 2 (zero-match join from type mismatch), Pitfall 5 (semantic confusion between specimen and host observation IDs)
 
-**Features addressed:** Scheduled invocation, Lambda URL, EFS persistence foundation, IAM role with S3 grants.
-
-**Pitfalls to address:** EFS security group misconfiguration (Pitfall 8); DuckDB single-writer lock via `reservedConcurrentExecutions: 1` (Pitfall 6); container image packaging decision (Pitfall 2).
-
-**Note:** Expect 15-25 min for first CDK deploy (NAT Gateway provisioning + Docker image build).
-
-### Phase 2: Lambda Handler + Dockerfile
-
-**Rationale:** The Dockerfile and handler code must work before the frontend can depend on S3 output. Build real pipeline execution in Lambda: multi-stage Dockerfile with geopandas + DuckDB spatial extension pre-installed, `handler(event, context)` wrapper in `run.py`, `export.py` parameterized for S3 output, CloudFront invalidation after upload.
-
-**Delivers:** Working end-to-end pipeline run triggered by Lambda URL; `S3/data/*.parquet` and `S3/data/*.geojson` present after invocation; `S3/backup/beeatlas.duckdb` present; CloudFront invalidated.
-
-**Features addressed:** Full pipeline execution in Lambda, S3 backup, CloudFront invalidation, restore-from-S3 on empty EFS.
-
-**Pitfalls to address:** DuckDB temp on `/tmp` not EFS (Pitfall 1); dlt data dir set to `/tmp/dlt` (Pitfall 10); Lambda timeout at 900s; Python 3.14 base image verified (Pitfall 3); seed DuckDB locally before first Lambda run to avoid links timeout (Pitfall 9).
-
-### Phase 3: Seed DuckDB + Pytest Coverage
-
-**Rationale:** Establishing the test fixture before frontend changes pins the export contract. Tests can run in CI without live AWS access or local DuckDB. A failing export.py test after pipeline changes is caught before deployment.
-
-**Delivers:** `data/fixtures/beeatlas-test.duckdb` committed to git; `data/tests/test_export.py` passing with `uv run pytest`; export column schema validated.
-
-**Features addressed:** Test coverage gate; export contract pinning.
-
-**Pitfalls to address:** Incremental run logic validated against DuckDB (not links.parquet) so skip logic survives Lambda restarts (Pitfall 9).
-
-### Phase 4: Frontend Runtime Fetch
-
-**Rationale:** Safe to change only after Phase 2 has confirmed `S3/data/` files exist in production. Remove bundled asset imports; add loading state and error handling; validate same-origin fetch from CloudFront. CORS configuration must be done in this phase even though same-origin (beeatlas.net) doesn't need it — local dev (localhost:5173) does.
-
-**Delivers:** Frontend builds without local Parquet/GeoJSON files; loading spinner during fetch; user-visible error on fetch failure; local dev working via Vite proxy or CloudFront direct.
-
-**Features addressed:** Runtime data fetching, loading state, error handling, Cache-Control headers.
-
-**Pitfalls to address:** CloudFront CORS cache (Pitfall 4); S3 CORS OPTIONS preflight (Pitfall 5); avoid hardcoding CloudFront domain — use root-relative `/data/` path (Architecture Anti-Pattern 5).
-
-### Phase 5: CI Simplification
-
-**Rationale:** Cleanup that is cosmetic until Phases 1-4 are stable. Removing `fetch-data.yml` before the Lambda schedule is confirmed working would break the existing fallback. Do this last once the pipeline has completed at least one successful scheduled run.
-
-**Delivers:** `deploy.yml` builds frontend only (no `build:data` step, no S3 cache env var); `fetch-data.yml` deleted; CI deploys in less time.
-
-**Features addressed:** CI cleanup, removal of obsolete pipeline workflow.
+### Phase 4: Frontend Link Rendering
+**Rationale:** Depends on Phase 3 delivering the new parquet column. Purely additive to `bee-specimen-detail.ts`; the template pattern is already established by the existing host link block.
+**Delivers:** Specimen photo link visible in sidebar for specimens with WABA catalog field entries; graceful absent state for unlinked specimens
+**Addresses:** Table-stakes feature from FEATURES.md; pattern mirrors existing `inatObservationId` block
 
 ### Phase Ordering Rationale
 
-- Infrastructure must precede code: Lambda handler code cannot be tested in AWS without the VPC, EFS, and Lambda construct deployed first.
-- Tests before frontend swap: pinning the export schema before changing how the frontend loads data prevents silent breakage of the data contract.
-- Frontend swap before CI cleanup: changing CI before Phase 4 confirms live data fetch works would leave the site broken with no fallback.
-- Manual bootstrap prerequisite: the Ecdysis timeout constraint (38 min cold run vs 15 min Lambda limit) means the DuckDB must be seeded locally and uploaded before the EventBridge schedule is enabled. This is a manual step documented in Phase 2, not a separate phase.
+- The rename (Phase 1) before the new column (Phases 3-4) prevents any overlap of old and new column names in any intermediate deploy state.
+- The pipeline (Phase 2) before the export (Phase 3) ensures data exists to test the join locally before changing `export.py`.
+- The export (Phase 3) before the frontend (Phase 4) ensures the parquet schema is verified by `validate-schema.mjs` before frontend code reads it.
+- Each phase has a clean, independently verifiable success state (`pytest`/`npm test`/`validate-schema.mjs`/visual sidebar check), reducing integration risk.
 
 ### Research Flags
 
-Phases with straightforward, well-documented patterns (research-phase not needed):
-- **Phase 1** — CDK VPC/EFS/Lambda constructs are all in `aws-cdk-lib`; official docs and CDK construct snippets are in ARCHITECTURE.md
-- **Phase 3** — pytest + DuckDB fixture is standard Python testing; no novel integrations
-- **Phase 5** — CI cleanup; no research needed
+Phases likely needing verification during implementation:
+- **Phase 2 (WABA Pipeline):** The iNat v2 API integer filter parameter form (`field_id=18116`) is MEDIUM confidence. The confirmed-working form from STACK.md is `field:WABA=` (verified by live call). Verify which form to use in dlt RESTAPIConfig params before writing `waba_pipeline.py`, and whether dlt URL-encodes colons in param keys.
 
-Phases that warrant careful review of PITFALLS.md before starting (not full research-phase, but read the relevant pitfalls first):
-- **Phase 2** — Dockerfile for geopandas on Amazon Linux 2023 is finicky (GDAL system deps); DuckDB spatial extension pre-installation is non-obvious; refer to Pitfalls 1, 9, 10
-- **Phase 4** — CloudFront CORS caching is the most likely production-only failure mode; refer to Pitfalls 4 and 5 before touching CloudFront/S3 config
+Phases with standard patterns (no additional research needed):
+- **Phase 1 (Column Rename):** Pure find-and-replace with a known checklist from PITFALLS.md; no external uncertainty.
+- **Phase 3 (Export Join):** DuckDB `split_part` and `DISTINCT ON` are standard SQL; join logic is fully worked out in ARCHITECTURE.md with verified sample data.
+- **Phase 4 (Frontend):** Lit template pattern is a direct mirror of the existing host link rendering; no new patterns.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All new constructs in `aws-cdk-lib` (pinned); Python 3.14 Lambda runtime confirmed GA November 2025; hyparquet `asyncBufferFromUrl` confirmed stable API; no new npm packages needed |
-| Features | HIGH | Based on direct inspection of `run.py`, `export.py`, `pyproject.toml`, existing CI workflows, CDK stack; iNat rate limits from official docs |
-| Architecture | HIGH | CDK construct code verified against official docs; data flow derived from direct source inspection of actual pipeline code |
-| Pitfalls | HIGH for Lambda/EFS/CORS (verified AWS docs); MEDIUM for dlt-specific Lambda behavior (limited official dlt-on-Lambda docs; extrapolated from DuckDB-on-Lambda community reports) |
+| Stack | HIGH | All technologies pre-existing and proven in codebase; no new dependencies |
+| Features | HIGH | Scope verified against live codebase; iNat API response shape confirmed by live call |
+| Architecture | HIGH | Code read directly; join logic verified with real WABA observation data (3 sample rows confirmed) |
+| Pitfalls | HIGH | Derived from live codebase inspection; all 14 rename touch points enumerated from actual files |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **DuckDB spatial extension pre-installation:** The exact mechanism for bundling the spatial extension into the container image (during Docker build) needs to be verified against the Amazon Linux 2023 Lambda base image. The extension downloads binaries at install time; confirm the extension cache directory path and that it survives into the final image stage.
-
-- **NAT Gateway cost decision:** Research recommends starting with a single NAT Gateway (~$32/month) for simplicity and revisiting with a NAT Instance (EC2 t3.nano, ~$3-4/month) if cost is a concern. This is an implementation-time decision, not a blocking gap.
-
-- **`byteLength` for hyparquet `asyncBufferFromUrl`:** Passing `byteLength` to `asyncBufferFromUrl` saves one HEAD request per Parquet file on cold cache load. File sizes are known post-pipeline-run. Consider exposing Content-Length via CloudFront and using it in the frontend to optimize first-load time. Low priority but noted.
-
-- **Bootstrap procedure documentation:** The manual steps to seed EFS before enabling the EventBridge schedule (run Ecdysis links locally, upload DuckDB to S3, restore from S3 to EFS) must be documented before Phase 2 is considered complete. This is not covered by any automated test.
+- **iNat v2 filter parameter form:** STACK.md confirmed `field:WABA=` works on v2 (live call, 1,374 results). ARCHITECTURE.md uses `field_id=18116` (MEDIUM confidence). These are different parameter forms. Verify before writing `waba_pipeline.py`. If `field_id` does not work, fall back to `"field:WABA": ""` in the params dict (or `"field%3AWABA": ""` if dlt does not encode colons).
+- **dlt param key URL encoding:** Test whether dlt's REST API source URL-encodes colons in param keys. This determines whether to pass `"field:WABA"` or `"field%3AWABA"` as the key in RESTAPIConfig `params`.
+- **DuckDB `occurrence_links` migration approach:** ALTER TABLE migration (preferred for speed) vs. `--full-reload` on the ecdysis-links step. Either is acceptable; decide at implementation time based on whether the Ecdysis HTML disk cache is still intact.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- AWS Lambda Python 3.14 runtime announcement (November 2025) — runtime availability confirmed
-- AWS Lambda quotas — container image 10 GB limit vs zip 250 MB limit
-- AWS CDK v2 Lambda, EFS, EC2, CloudFront API docs — construct signatures and behavior
-- AWS Lambda EFS configuration docs — access point, security group, VPC requirements
-- EventBridge Scheduler L2 GA announcement (April 2025) — preferred construct for cron Lambda
-- iNaturalist API recommended practices — rate limits (60 req/min, 10,000 req/day)
-- Live codebase (`run.py`, `export.py`, `pyproject.toml`, `beeatlas-stack.ts`, `deploy.yml`, `fetch-data.yml`, `bee-map.ts`, `region-layer.ts`) — direct inspection
+- Live iNat API calls — field_id=18116 confirmed 1,374 observations; `field:WABA=` filter verified on both v1 and v2; join key confirmed with 3 sample specimens
+- Direct codebase inspection — `inaturalist_pipeline.py`, `export.py`, `run.py`, `ecdysis_pipeline.py`, all frontend TypeScript files; all pitfall enumeration derived from live code
 
 ### Secondary (MEDIUM confidence)
-- duckdb/duckdb GitHub Discussion #8687 — EFS stale file handle, DuckDB on Lambda behavior
-- DuckDB concurrency docs + GitHub issue #17158 — single-writer POSIX lock model over NFS
-- AWS CORS through CloudFront networking blog — Origin header in cache key requirement
-- NAT gateway vs VPC endpoint cost (Vantage.sh) — pricing analysis consistent with AWS pricing page
-- EFS + Lambda cold start overhead (community sources) — 1-3s as of 2025
-- tobilg.com DuckDB on Lambda — practical patterns for EFS temp directory separation
-- dlt on AWS Lambda (Leolytix/community) — env var config pattern for read-only filesystem
+- iNaturalist API forum — `field:WABA=` syntax community-confirmed; `field_id` integer parameter form inferred from `ofvs.field_id` usage in export.py
+- dlt incremental loading docs — cursor keyed by `pipeline_name` + source + resource; behavior under shared names
 
-### Tertiary (LOW confidence)
-- IPv6 Egress-Only IGW as NAT alternative (carriagereturn.nl) — potential cost optimization; not the primary recommendation; needs validation if cost becomes a concern
+### Tertiary
+- NAT gateway vs VPC endpoint cost analysis (third-party) — relevant to v1.7 Lambda infrastructure, not v2.3
 
 ---
-*Research completed: 2026-03-27*
+*Research completed: 2026-04-12*
 *Ready for roadmap: yes*
