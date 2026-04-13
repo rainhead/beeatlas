@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, DuckDB WASM) that fetches Parquet and GeoJSON data from CloudFront at runtime. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); `data/export.py` produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson; `data/feeds.py` generates Atom feeds of recent determinations (unfiltered + per-collector/genus/county/ecoregion variants). Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution runs as `data/nightly.sh` on maderas (nightly cron); CI runs frontend build only.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, DuckDB WASM) that fetches Parquet and GeoJSON data from CloudFront at runtime. Four dlt pipelines + a DuckDB-native geographies pipeline write to a local DuckDB store (`data/beeatlas.duckdb`); `data/export.py` produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson; `data/feeds.py` generates Atom feeds of recent determinations (unfiltered + per-collector/genus/county/ecoregion variants) plus an index.json listing all variants. The sidebar surfaces available feeds via `index.json` so collectors can subscribe directly from the map. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution runs as `data/nightly.sh` on maderas (nightly cron); CI runs frontend build only.
 
 ## Core Value
 
@@ -102,6 +102,9 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FEED-01–08: Atom feeds for all determinations + per-collector/genus/county/ecoregion variants; _slugify path safety; index.json — v2.1
 - ✓ PIPE-01–03: feeds.py called by run.py after export; S3 sync in nightly.sh; index.json listing all variants — v2.1
 - ✓ DISC-01: `<link rel="alternate" type="application/atom+xml">` autodiscovery in index.html — v2.1
+- ✓ DISC-02: Sidebar surfaces available feeds from `index.json`; collector can see and open personal determination feed without leaving the map — v2.2
+- ✓ MAP-11: Basemap upgraded to Stadia Maps `outdoors` (terrain, roads, trails, zoom 20); Esri Ocean layers removed — v2.2
+- ✓ GEO-03: `geographies_pipeline.py` rewrites all 5 shapefiles via DuckDB `ST_Read`/`ST_Transform`; geopandas/shapely/dlt removed; native `geom GEOMETRY` columns replace `geometry_wkt VARCHAR` throughout — v2.2
 
 ## Previous Milestones
 
@@ -111,6 +114,7 @@ Collectors can see where bees have been collected and where target host plants g
 - v1.9 Component Architecture & Test Suite — COMPLETE (2026-04-04)
 - v2.0 Tabular Data View — COMPLETE (2026-04-09)
 - v2.1 Determination Feeds — COMPLETE (2026-04-11)
+- v2.2 Feed Discoverability & Pipeline — COMPLETE (2026-04-12)
 
 ### Active (future)
 
@@ -134,11 +138,11 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v2.0 on 2026-04-09 — Tabular Data View. Shipped v2.1 on 2026-04-11 — Determination Feeds. Shipped v2.2 on 2026-04-12 — Feed Discoverability & Pipeline (68 files, 8,920 insertions/3,305 deletions, 2 days): sidebar feed discovery from `index.json`; Stadia Maps `outdoors` basemap (zoom 20, terrain/roads/trails); geographies pipeline rewritten with DuckDB `ST_Read`/`ST_Transform` eliminating geopandas OOM; native `geom GEOMETRY` columns throughout; 3 phases, 5 plans.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), @duckdb/duckdb-wasm, temporal-polyfill
-- Pipeline: Python 3.14+, uv, dlt[duckdb], duckdb, requests, beautifulsoup4, geopandas
+- Pipeline: Python 3.14+, uv, dlt[duckdb], duckdb (with spatial extension), requests, beautifulsoup4
 - Infrastructure: AWS CDK v2 (TypeScript), S3 + CloudFront OAC, OIDC IAM role
 - CI/CD: GitHub Actions (build on all pushes, deploy on push to main)
 
@@ -146,9 +150,9 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 
 **Known tech debt:**
 - `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly). Trivially fixable but deferred.
-- EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
 - dlt pipeline write-path tests deferred (TEST-03 scope): dlt resource tests skipped in v1.7; only pure-function unit tests and export integration tests covered.
 - Lambda infrastructure deployed but not the execution path: CDK/Lambda artifacts live in AWS; maderas cron is authoritative. Lambda will need cleanup or repurposing if execution path changes.
+- `load_geographies` imported in `run.py` but absent from `STEPS` (dead import, IN-01 from v2.2 code review). Low priority — cosmetic only.
 
 ## Constraints
 
@@ -216,6 +220,9 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `bee-map.updated()` as synchronization boundary between coordinator state and OL canvas | `updated()` fires after every Lit property change; `changedProperties.has()` drives targeted OL operations without over-triggering | ✓ Good — Phase 36; replaces ad-hoc property watchers |
 | `readFileSync` source analysis in Vitest for architectural invariants | Avoids DuckDB WASM/OL canvas/happy-dom incompatibility while reliably verifying import graph contracts | ✓ Good — Phase 36; ARCH-03 tests run fast and are not flaky |
 | Monotonic generation counter in `_runFilterQuery` discards stale DuckDB async results | Async filter queries can race when chips removed quickly; last-write-wins causes flash of unfiltered state | ✓ Good — Phase 37-03 gap fix; flicker eliminated |
+| Local `FeedEntry` definition in `bee-sidebar.ts` (not imported from `bee-atlas.ts`) | ARCH-03 prohibits `bee-sidebar` importing from `bee-atlas`; local interface mirrors the shape without creating a cross-reference | ✓ Good — v2.2 Phase 45; ARCH-03 compliance preserved |
+| Stadia Maps `outdoors` single layer replaces two stacked Esri Ocean layers | Esri Ocean capped at zoom 16; Stadia outdoors supports zoom 20 with terrain, roads, trails — essential for field collectors | ✓ Good — v2.2 Phase 46; tile URL parameterized via env var |
+| DuckDB `ST_Read('/vsizip/...')` + `ST_Transform(geom, prj_wkt, 'EPSG:4326', true)` replaces geopandas for geographies pipeline | geopandas loaded full GeoDataFrames into Python heap causing OOM on maderas; DuckDB streams directly without Python heap allocation | ✓ Good — v2.2 Phase 47; all 5 shapefiles stream via ST_Read; 3 projected CRS sources use 4-arg ST_Transform with always_xy=true |
 
 ## Evolution
 
@@ -235,4 +242,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 — v2.1 milestone complete (Determination Feeds)*
+*Last updated: 2026-04-12 — v2.2 milestone complete (Feed Discoverability & Pipeline)*

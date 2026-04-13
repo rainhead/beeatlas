@@ -1,5 +1,17 @@
 # Milestones
 
+## v2.2 Feed Discoverability & Pipeline (Shipped: 2026-04-13)
+
+**Phases completed:** 3 phases, 5 plans, 0 tasks
+
+**Key accomplishments:**
+
+- `FeedEntry` interface
+- `FeedEntry` interface
+- One-liner:
+
+---
+
 ## v2.1 Determination Feeds (Shipped: 2026-04-11)
 
 **Phases completed:** 3 phases, 3 plans

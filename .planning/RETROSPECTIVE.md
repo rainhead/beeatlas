@@ -2,6 +2,32 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v2.2 — Feed Discoverability & Pipeline
+
+**Shipped:** 2026-04-12
+**Phases:** 3 (Phases 45–47) | **Plans:** 5 | **Timeline:** 2 days (2026-04-11 → 2026-04-12)
+
+### What Was Built
+- Phase 45: Sidebar surfaces available feeds from `index.json`; collectors can discover and open personal determination feeds from the map
+- Phase 46: Replaced stacked Esri Ocean tile layers with Stadia Maps `outdoors` — zoom 20, terrain, roads, trails
+- Phase 47: Rewrote geographies pipeline with DuckDB `ST_Read`/`ST_Transform`; eliminated geopandas OOM; native `geom GEOMETRY` columns throughout
+
+### What Worked
+- Wave 1 executor for phase 47 applied the geometry_wkt→geom migration atomically across all consumer files — recognized that partial execution would cause runtime failures and handled it proactively
+- Code review caught 3 real bugs (NULL propagation in GREATEST(), missing INSTALL spatial, sys.path double-import) that would have caused silent failures
+
+### What Was Inefficient
+- WR-03 fix (extract WKT constants to fixtures.py) introduced a bare `from fixtures import` that broke in a package context — required a follow-up fix for relative imports
+- REQUIREMENTS.md for v2.0 was never archived when v2.0 completed; carried stale unchecked requirements into v2.2 close
+
+### Patterns Established
+- DuckDB `ST_Read('/vsizip/<path>/<stem>.shp')` + `ST_Transform(geom, prj_wkt, 'EPSG:4326', true)` is the canonical pattern for shapefile ingestion going forward
+- Tests in a package with `__init__.py` must use relative imports (`from .fixtures import`) not bare module names
+
+### Key Lessons
+- When atomically applying related changes across wave boundaries, the executor made the right call — avoiding partial failure is more important than strict wave isolation
+- Always check import style (relative vs absolute) when extracting shared test fixtures in a Python package
+
 ## Milestone: v2.1 — Determination Feeds
 
 **Shipped:** 2026-04-11
