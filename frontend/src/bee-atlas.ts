@@ -734,7 +734,10 @@ bee-sidebar {
     try {
       const db = await getDuckDB();
       conn = await db.connect();
-      const idList = ecdysisIds.map(id => `'${id}'`).join(',');
+      // Belt-and-suspenders: reject any id that is not a pure integer string
+      const safeIds = ecdysisIds.filter(id => /^\d+$/.test(id));
+      if (safeIds.length === 0) return;
+      const idList = safeIds.map(id => `'${id}'`).join(',');
       const result = await conn.query(`
         SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
                host_observation_id, floralHost, inat_host, inat_quality_grade,
