@@ -106,6 +106,16 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ MAP-11: Basemap upgraded to Stadia Maps `outdoors` (terrain, roads, trails, zoom 20); Esri Ocean layers removed — v2.2
 - ✓ GEO-03: `geographies_pipeline.py` rewrites all 5 shapefiles via DuckDB `ST_Read`/`ST_Transform`; geopandas/shapely/dlt removed; native `geom GEOMETRY` columns replace `geometry_wkt VARCHAR` throughout — v2.2
 
+## Current Milestone: v2.3 Specimen iNat Observation Links
+
+**Goal:** Pull iNat observations that self-identify as photos of Ecdysis specimens via the WABA observation field and surface those links in the specimen detail view.
+
+**Target features:**
+- New pipeline: query iNat API for observations with field_id=18116 (WABA catalog number); store incrementally
+- Export: join WABA observations to specimens via catalog_number suffix; add `specimen_observation_id` column to ecdysis.parquet
+- Rename `inat_observation_id` → `host_observation_id` throughout (pipeline, export, schema, frontend)
+- Frontend: show `specimen_observation_id` link in specimen detail sidebar
+
 ## Previous Milestones
 
 - v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
@@ -242,4 +252,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-12 — v2.2 milestone complete (Feed Discoverability & Pipeline)*
+*Last updated: 2026-04-12 — v2.3 milestone started (Specimen iNat Observation Links)*
