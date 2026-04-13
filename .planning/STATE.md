@@ -1,42 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: Phase 42 not started
-last_updated: "2026-04-13T04:07:58.818Z"
-last_activity: 2026-04-13
+milestone: v2.3
+milestone_name: Specimen iNat Observation Links
+status: ready_to_plan
+stopped_at: Phase 48 not started
+last_updated: "2026-04-12T00:00:00.000Z"
+last_activity: 2026-04-12
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
+See: .planning/PROJECT.md (updated 2026-04-12 — v2.3 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 47 — rewrite-geographies-pipeline-py-to-use-duckdb-spatial-extens
+**Current focus:** Phase 48 — Column Rename (inat_observation_id → host_observation_id)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-12 — Milestone v2.3 started
+Phase: 48 of 51 (Column Rename)
+Plan: — (not started)
+Status: Ready to plan
+Last activity: 2026-04-12 — Roadmap created for v2.3 Specimen iNat Observation Links
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1 (this milestone)
+- Total plans completed: 0 (this milestone)
 - Average duration: —
 - Total execution time: —
 
@@ -49,22 +49,23 @@ Progress: [██████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [v2.2]: DuckDB `ST_Read('/vsizip/...')` + `ST_Transform` with always_xy=true replaces geopandas for all shapefile reads
+- [v2.1]: Static hosting constraint means each feed variant is a separate XML file; nightly.sh uploads them to S3
 - [v1.9]: `bee-atlas` coordinator owns all state; `bee-map` and `bee-sidebar` are pure presenters
 - [v1.9]: `bee-atlas` does not import OpenLayers — keep OL contained in `bee-map`
-- [v1.8]: `buildFilterSQL()` returns plain SQL strings (not parameterized) — DuckDB WASM does not support parameterized queries
-- [v2.1]: Determinations already exist in beeatlas.duckdb — no new pipeline fetch needed; feeds.py queries the existing data
-- [v2.1]: Static hosting constraint means each filter variant (collector, genus, county, ecoregion) is a separate XML file on disk
-- [v2.1]: Feed files go to `frontend/public/data/feeds/` matching the parquet export path pattern; nightly.sh uploads them to S3
+- [v1.8]: `buildFilterSQL()` returns plain SQL strings — DuckDB WASM does not support parameterized queries
+
+### Key Constraints for v2.3
+
+- Column rename (Phase 48) must be atomic and complete before any new iNat column is added — prevents ambiguous two-iNat-column state
+- WABA pipeline must use `pipeline_name="waba"` and `dataset_name="inaturalist_waba_data"` — separate from existing `inaturalist` pipeline to avoid cursor collision
+- iNat v2 API filter parameter form for WABA field: `field:WABA=` confirmed working; `field_id=18116` is MEDIUM confidence — verify with live curl before writing pipeline
+- Catalog number join uses `split_part(catalog_number, '_', 2) = ofv.value` (VARCHAR, no integer cast)
+- `DISTINCT ON (ofv.value)` dedup required in waba_link CTE — multiple photographers per specimen exist
 
 ### Pending Todos
 
 None.
-
-### Roadmap Evolution
-
-- Phase 45 added: Sidebar Feed Discovery (v2.2 milestone)
-- Phase 46 added: Basemap Tile Provider Upgrade
-- Phase 47 added: Rewrite geographies_pipeline.py to use DuckDB spatial extension (eliminate geopandas/dlt, fix OOM)
 
 ### Blockers/Concerns
 
@@ -78,11 +79,11 @@ None.
 | 260408-tkd | Add occurrence/observation ID columns to table for ecdysis and iNat links | 2026-04-09 | 003284c | [260408-tkd-add-occurrence-observation-id-columns-to](./quick/260408-tkd-add-occurrence-observation-id-columns-to/) |
 | 260408-tvl | Show recent filters when filter input is focused and empty | 2026-04-09 | a8fa85f | [260408-tvl-show-recent-filters-when-filter-input-is](./quick/260408-tvl-show-recent-filters-when-filter-input-is/) |
 | 260411-pru | Display "No determination" for unidentified specimens in sidebar | 2026-04-12 | 01928e3 | [260411-pru-unidentified-specimens-like-5611752-are-](./quick/260411-pru-unidentified-specimens-like-5611752-are-/) |
-| 260412-dl6 | In the frontend, in the specimen table view, add a 'modified' column that is the maximum of the occurrence's modified field and all of its identifications' modified fields | 2026-04-12 | d99bd54 | [260412-dl6-in-the-frontend-in-the-specimen-table-vi](./quick/260412-dl6-in-the-frontend-in-the-specimen-table-vi/) |
+| 260412-dl6 | Add 'modified' column to specimen table view | 2026-04-12 | d99bd54 | [260412-dl6-in-the-frontend-in-the-specimen-table-vi](./quick/260412-dl6-in-the-frontend-in-the-specimen-table-vi/) |
 | 260412-kpe | Schema validation is failing on build despite having rerun nightly.sh | 2026-04-12 | 10915b3 | [260412-kpe-schema-validation-is-failing-on-build-de](./quick/260412-kpe-schema-validation-is-failing-on-build-de/) |
 
 ## Session Continuity
 
-Last session: 2026-04-09 - Roadmap created for v2.1 Determination Feeds
-Stopped at: Phase 42 not started
+Last session: 2026-04-12 — Roadmap created for v2.3 Specimen iNat Observation Links
+Stopped at: Phase 48 not started
 Resume file: None
