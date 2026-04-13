@@ -11,3 +11,7 @@ dataset_id = 44
 [sources.ecdysis_links]
 db_path = "beeatlas.duckdb"
 html_cache_dir = "raw/ecdysis_cache"
+
+[sources.waba]
+# WABA catalog field filter (field:WABA=) is hardcoded in waba_pipeline.py
+# field_id=18116 on api.inaturalist.org
