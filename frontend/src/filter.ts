@@ -141,7 +141,7 @@ export async function queryAllFiltered(
   const selectCols = layerMode === 'specimens'
     ? "ecdysis_id, longitude, latitude, date, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, " +
       "'https://ecdysis.org/collections/individual/index.php?occid=' || CAST(ecdysis_id AS VARCHAR) AS url, " +
-      "CASE WHEN inat_observation_id IS NOT NULL THEN 'https://www.inaturalist.org/observations/' || CAST(inat_observation_id AS VARCHAR) ELSE NULL END AS inat_url"
+      "CASE WHEN host_observation_id IS NOT NULL THEN 'https://www.inaturalist.org/observations/' || CAST(host_observation_id AS VARCHAR) ELSE NULL END AS inat_url"
     : "observation_id, observer, strftime(date, '%Y-%m-%d') as date, lat, lon, specimen_count, sample_id, county, ecoregion_l3";
   const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
   const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;

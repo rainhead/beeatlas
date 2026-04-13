@@ -196,8 +196,8 @@ describe('bee-specimen-detail render', () => {
         recordedBy: 'J. Smith',
         fieldNumber: 'WA-2023-001',
         species: [
-          { name: 'Bombus occidentalis', occid: '12345', inatObservationId: null, floralHost: null },
-          { name: 'Andrena milwaukeensis', occid: '12346', inatObservationId: 99001, floralHost: 'Salix' },
+          { name: 'Bombus occidentalis', occid: '12345', hostObservationId: null, floralHost: null },
+          { name: 'Andrena milwaukeensis', occid: '12346', hostObservationId: 99001, floralHost: 'Salix' },
         ],
       },
     ];
@@ -218,7 +218,7 @@ describe('bee-specimen-detail render', () => {
     const links = shadow.querySelectorAll('a[href*="ecdysis.org"]');
     expect(links.length).toBeGreaterThanOrEqual(2);
 
-    // Verify iNat link for species with inatObservationId
+    // Verify iNat link for species with hostObservationId
     const inatLinks = shadow.querySelectorAll('a[href*="inaturalist.org"]');
     expect(inatLinks.length).toBeGreaterThanOrEqual(1);
 
@@ -236,8 +236,8 @@ describe('bee-specimen-detail render', () => {
         recordedBy: 'A. Collector',
         fieldNumber: 'WA-2024-001',
         species: [
-          { name: '', occid: '5611752', inatObservationId: null, floralHost: null },
-          { name: 'Bombus vosnesenskii', occid: '5611753', inatObservationId: null, floralHost: null },
+          { name: '', occid: '5611752', hostObservationId: null, floralHost: null },
+          { name: 'Bombus vosnesenskii', occid: '5611753', hostObservationId: null, floralHost: null },
         ],
       },
     ];

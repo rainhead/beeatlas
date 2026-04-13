@@ -17,7 +17,7 @@ export interface FeedEntry {
 export interface Specimen {
   name: string;
   occid: string;
-  inatObservationId?: number | null;
+  hostObservationId?: number | null;
   floralHost?: string | null;
   inatHost?: string | null;
   inatQualityGrade?: string | null;

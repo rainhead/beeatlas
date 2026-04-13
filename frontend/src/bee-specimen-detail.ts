@@ -116,8 +116,8 @@ export class BeeSpecimenDetail extends LitElement {
             ${sample.species.map(s => html`
               <li>
                 <a href="https://ecdysis.org/collections/individual/index.php?occid=${s.occid}" target="_blank" rel="noopener">${s.name ? s.name : html`<span class="no-determination">No determination</span>`}</a>
-                ${s.inatObservationId != null ? html`
-                  · <a href="https://www.inaturalist.org/observations/${s.inatObservationId}" target="_blank" rel="noopener">${this._renderHostInfo(s)}</a>
+                ${s.hostObservationId != null ? html`
+                  · <a href="https://www.inaturalist.org/observations/${s.hostObservationId}" target="_blank" rel="noopener">${this._renderHostInfo(s)}</a>
                 ` : html` · <span class="inat-missing">iNat: —</span>`}
               </li>
             `)}

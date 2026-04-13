@@ -369,7 +369,7 @@ bee-sidebar {
       const collectorResult = await conn.query(`
         SELECT e.recordedBy, MIN(s.observer) AS observer
         FROM ecdysis e
-        LEFT JOIN samples s ON e.inat_observation_id = s.observation_id
+        LEFT JOIN samples s ON e.host_observation_id = s.observation_id
         WHERE e.recordedBy IS NOT NULL
         GROUP BY e.recordedBy
         ORDER BY e.recordedBy
@@ -393,12 +393,12 @@ bee-sidebar {
     const db = await getDuckDB();
     const conn = await db.connect();
     try {
-      // Join ecdysis → samples via inat_observation_id to map collector names to iNat usernames.
+      // Join ecdysis → samples via host_observation_id to map collector names to iNat usernames.
       // DISTINCT because one collector may have many specimens; take any matching observer per name.
       const result = await conn.query(`
         SELECT e.recordedBy, MIN(s.observer) AS observer
         FROM ecdysis e
-        LEFT JOIN samples s ON e.inat_observation_id = s.observation_id
+        LEFT JOIN samples s ON e.host_observation_id = s.observation_id
         WHERE e.recordedBy IS NOT NULL
         GROUP BY e.recordedBy
         ORDER BY e.recordedBy
@@ -766,7 +766,7 @@ bee-sidebar {
       const idList = ecdysisIds.map(id => `'${id}'`).join(',');
       const result = await conn.query(`
         SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
-               inat_observation_id, floralHost, inat_host, inat_quality_grade
+               host_observation_id, floralHost, inat_host, inat_quality_grade
         FROM ecdysis
         WHERE CAST(ecdysis_id AS VARCHAR) IN (${idList})
       `);
@@ -786,7 +786,7 @@ bee-sidebar {
         const specimen: Specimen = {
           name: obj.scientificName ? String(obj.scientificName) : '',
           occid: String(obj.ecdysis_id),
-          inatObservationId: obj.inat_observation_id != null ? Number(obj.inat_observation_id) : null,
+          hostObservationId: obj.host_observation_id != null ? Number(obj.host_observation_id) : null,
           floralHost: obj.floralHost ?? null,
           inatHost: obj.inat_host ?? null,
           inatQualityGrade: obj.inat_quality_grade ?? null,
