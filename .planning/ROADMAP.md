@@ -229,7 +229,7 @@ See `.planning/milestones/v2.3-ROADMAP.md` for full phase details.
 
 </details>
 
-### 🚧 v2.4 Header Navigation & Toolbar (In Progress)
+### v2.4 Header Navigation & Toolbar (In Progress)
 
 **Milestone Goal:** Reorganize the UI into a header-driven layout with navigational data-layer tabs, a map/table view toggle, and a persistent filter toolbar, replacing the sidebar's navigation and filter roles.
 
@@ -249,7 +249,10 @@ See `.planning/milestones/v2.3-ROADMAP.md` for full phase details.
   3. User can click icon buttons on the right side of the header to toggle between Map and Table views
   4. On narrow viewports, the nav tabs collapse to a hamburger menu that expands to show all tab options
   5. The `lm=` and `view=` URL params continue to round-trip correctly through the new header controls
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 52-01-PLAN.md — Create bee-header Lit component with nav tabs, view icons, hamburger menu, and unit tests
+- [ ] 52-02-PLAN.md — Wire bee-header into bee-atlas, clean up index.html, visual verification
 **UI hint**: yes
 
 ### Phase 53: Filter Toolbar
@@ -331,6 +334,6 @@ See `.planning/milestones/v2.3-ROADMAP.md` for full phase details.
 | 49. WABA Pipeline | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 50. Export Join & Schema Gate | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 51. Frontend Link Rendering | v2.3 | 1/1 | Complete | 2026-04-13 |
-| 52. Header Component | v2.4 | 0/TBD | Not started | - |
+| 52. Header Component | v2.4 | 0/2 | Not started | - |
 | 53. Filter Toolbar | v2.4 | 0/TBD | Not started | - |
 | 54. Sidebar Cleanup | v2.4 | 0/TBD | Not started | - |
