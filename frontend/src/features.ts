@@ -19,7 +19,7 @@ export class EcdysisSource extends VectorSource {
           SELECT ecdysis_id, longitude, latitude, year, month,
                  scientificName, recordedBy, fieldNumber, genus, family,
                  floralHost, county, ecoregion_l3, host_observation_id,
-                 inat_host, inat_quality_grade
+                 inat_host, inat_quality_grade, specimen_observation_id
           FROM ecdysis
         `);
         const features = table.toArray().flatMap(row => {
@@ -42,6 +42,7 @@ export class EcdysisSource extends VectorSource {
             host_observation_id: obj.host_observation_id != null ? Number(obj.host_observation_id) : null,
             inat_host: obj.inat_host ?? null,
             inat_quality_grade: obj.inat_quality_grade ?? null,
+            specimen_observation_id: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
           });
           return feature;
         });
