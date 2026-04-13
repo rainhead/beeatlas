@@ -1,75 +1,68 @@
-# Requirements: Washington Bee Atlas v2.0
+# Requirements: Washington Bee Atlas — v2.3
 
-**Defined:** 2026-04-07
+**Defined:** 2026-04-12
 **Core Value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
-## v2.0 Requirements
+## v2.3 Requirements
 
-### View Mode
+Requirements for this milestone. Each maps to roadmap phases.
 
-- [ ] **VIEW-01**: User can toggle between map view and table view via a control in the main UI
-- [ ] **VIEW-02**: In table view, the map is not rendered, giving the table full layout space
-- [ ] **VIEW-03**: View mode (map/table) is encoded in the URL so the table view is bookmarkable and shareable
+### Rename
 
-### Table Component
+- [ ] **REN-01**: `inat_observation_id` renamed to `host_observation_id` in `ecdysis_pipeline.py` (yield key) and `ecdysis_data.occurrence_links` physical column (ALTER TABLE or --full-reload)
+- [ ] **REN-02**: `inat_observation_id` → `host_observation_id` in `export.py` SELECT and JOIN
+- [ ] **REN-03**: `inat_observation_id` → `host_observation_id` in `validate-schema.mjs` expected columns list
+- [ ] **REN-04**: camelCase `inatObservationId` → `hostObservationId` in all frontend files and test fixtures (Specimen interface, DuckDB SELECT alias, feature property access, sidebar render, conftest.py test DDL)
 
-- [ ] **TABLE-01**: Table displays specimens when layer mode is "specimens", samples when layer mode is "samples"
-- [ ] **TABLE-02**: Table reflects the active filter state — rows shown match `visibleIds` (or all rows if no filter active)
-- [ ] **TABLE-03**: Table shows a row count indicator (e.g. "showing 1–100 of 3,847 specimens")
-- [ ] **TABLE-04**: Table is paginated at 100 rows/page with previous/next controls and current page display
-- [ ] **TABLE-05**: User can sort by clicking a column header; clicking again reverses sort direction
-- [ ] **TABLE-06**: Specimen table columns: species, collector (recordedBy), year, month, county, ecoregion, field number
-- [ ] **TABLE-07**: Sample table columns: observer, date, specimen count, county, ecoregion
+### Pipeline
 
-### CSV Export
+- [ ] **PIPE-01**: `data/waba_pipeline.py` fetches iNat observations with `field:WABA=` filter; `pipeline_name="waba"`, `dataset_name="inaturalist_waba_data"`; incremental on `updated_at`
+- [ ] **PIPE-02**: New pipeline added to `run.py` sequence after `inaturalist`, before `projects`
 
-- [ ] **CSV-01**: User can download the full filtered result set as a CSV via a "Download CSV" button (no pagination limit)
-- [ ] **CSV-02**: Downloaded filename reflects the active filter (e.g. `specimens-bombus-2023.csv`, `samples-all.csv`)
+### Export
+
+- [ ] **EXP-01**: `export.py` adds `waba_link` CTE joining `inaturalist_waba_data` observations to Ecdysis specimens via `catalog_number = 'WSDA_' || ofv.value`; `DISTINCT ON` dedup handles multiple photographers of same specimen
+- [ ] **EXP-02**: `ecdysis.parquet` gains `specimen_observation_id` (BIGINT nullable) column; `validate-schema.mjs` updated to require it
+
+### Frontend
+
+- [ ] **FRONT-01**: `bee-specimen-detail.ts` renders `specimen_observation_id` as a link in specimen detail (mirrors existing `host_observation_id` link pattern); absent/hidden when null
 
 ## Future Requirements
 
-### Enhanced Table
+### Enhancement
 
-- **TABLE-08**: User can choose which columns to display (column visibility toggle)
-- **TABLE-09**: Virtual scrolling replaces pagination for seamless infinite-scroll browsing
-
-### Advanced Export
-
-- **CSV-03**: User can export only the current page (not full result set)
-- **CSV-04**: Export includes all filter metadata as a header comment in the CSV
+- **ENH-01**: Show iNat quality grade badge for `specimen_observation_id` (reuse existing `.quality-badge` CSS)
+- **ENH-02**: Show observer login for `specimen_observation_id` (who photographed the specimen)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Virtualized scrolling (this milestone) | Pagination sufficient for v2.0; add later if UX demands it |
-| Column chooser (this milestone) | Deferred — fixed column set is simpler and covers all use cases |
-| In-table filtering | Filter controls in sidebar already handle this |
-| Row selection / bulk actions | No clear use case beyond CSV export which is already covered |
-| Server-side pagination | Static hosting constraint — all queries run in DuckDB WASM |
+| Photo thumbnails from iNat | CORS unreliable, static hosting runtime CDN dependency, small minority of specimens affected |
+| Merging WABA obs into inaturalist_data.observations | Would corrupt existing samples export (field_id=8338/9963 joins); separate dataset required |
 
 ## Traceability
 
+Which phases cover which requirements. Updated during roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIEW-01 | Phase 39 | Pending |
-| VIEW-02 | Phase 39 | Pending |
-| VIEW-03 | Phase 39 | Pending |
-| TABLE-01 | Phase 40 | Pending |
-| TABLE-02 | Phase 40 | Pending |
-| TABLE-03 | Phase 40 | Pending |
-| TABLE-04 | Phase 40 | Pending |
-| TABLE-05 | Phase 40 | Pending |
-| TABLE-06 | Phase 40 | Pending |
-| TABLE-07 | Phase 40 | Pending |
-| CSV-01 | Phase 41 | Pending |
-| CSV-02 | Phase 41 | Pending |
+| REN-01 | Phase 48 | Pending |
+| REN-02 | Phase 48 | Pending |
+| REN-03 | Phase 48 | Pending |
+| REN-04 | Phase 48 | Pending |
+| PIPE-01 | Phase 49 | Pending |
+| PIPE-02 | Phase 49 | Pending |
+| EXP-01 | Phase 50 | Pending |
+| EXP-02 | Phase 50 | Pending |
+| FRONT-01 | Phase 51 | Pending |
 
 **Coverage:**
-- v2.0 requirements: 12 total
-- Mapped to phases: 12
+- v2.3 requirements: 9 total
+- Mapped to phases: 9
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-04-07*
-*Last updated: 2026-04-07 — traceability filled after roadmap creation*
+*Requirements defined: 2026-04-12*
+*Last updated: 2026-04-12 after initial definition*
