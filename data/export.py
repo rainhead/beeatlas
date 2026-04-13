@@ -22,7 +22,7 @@ ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
 
 
 def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
-    """Export ecdysis.parquet with columns including county, ecoregion_l3, host_observation_id, inat_host, inat_quality_grade."""
+    """Export ecdysis.parquet with columns including county, ecoregion_l3, host_observation_id, inat_host, inat_quality_grade, specimen_observation_id."""
     out = str(ASSETS_DIR / "ecdysis.parquet")
     con.execute(f"""
     COPY (
@@ -89,6 +89,17 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
         SELECT coreid, MAX(modified) AS max_id_modified
         FROM ecdysis_data.identifications
         GROUP BY coreid
+    ),
+    waba_link AS (
+        SELECT
+            CAST(ofv.value AS BIGINT) AS catalog_suffix,
+            MIN(waba.id) AS specimen_observation_id
+        FROM inaturalist_waba_data.observations waba
+        JOIN inaturalist_waba_data.observations__ofvs ofv
+            ON ofv._dlt_root_id = waba._dlt_id
+            AND ofv.field_id = 18116
+            AND ofv.value != ''
+        GROUP BY catalog_suffix
     )
     SELECT
         CAST(o.id AS INTEGER) AS ecdysis_id,
@@ -108,13 +119,15 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
         links.host_observation_id,
         CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host,
         inat.quality_grade AS inat_quality_grade,
-        strftime(GREATEST(o.modified, COALESCE(im.max_id_modified, o.modified)), '%Y-%m-%d') AS modified
+        strftime(GREATEST(o.modified, COALESCE(im.max_id_modified, o.modified)), '%Y-%m-%d') AS modified,
+        wl.specimen_observation_id
     FROM ecdysis_data.occurrences o
     JOIN final_county fc ON fc.occurrence_id = o.occurrence_id
     JOIN final_eco fe ON fe.occurrence_id = o.occurrence_id
     LEFT JOIN ecdysis_data.occurrence_links links ON links.occurrence_id = o.occurrence_id
     LEFT JOIN inaturalist_data.observations inat ON inat.id = links.host_observation_id
     LEFT JOIN id_modified im ON im.coreid = o.id
+    LEFT JOIN waba_link wl ON wl.catalog_suffix = CAST(regexp_extract(o.catalog_number, '[0-9]+$', 0) AS BIGINT)
     WHERE o.decimal_latitude IS NOT NULL AND o.decimal_latitude != ''
     ) TO '{out}' (FORMAT PARQUET)
     """)
@@ -128,7 +141,11 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     FROM read_parquet('{out}')
     """).fetchone()
     total, null_county, null_eco = row
+    waba_row = con.execute(f"""
+    SELECT COUNT(*) FROM read_parquet('{out}') WHERE specimen_observation_id IS NOT NULL
+    """).fetchone()
     print(f"  ecdysis.parquet: {total:,} rows, {null_county} null county, {null_eco} null ecoregion, "
+          f"{waba_row[0]:,} specimen_observation_id, "
           f"{(ASSETS_DIR / 'ecdysis.parquet').stat().st_size:,} bytes")
     assert null_county == 0, f"ecdysis.parquet has {null_county} rows with null county"
     assert null_eco == 0, f"ecdysis.parquet has {null_eco} rows with null ecoregion_l3"
