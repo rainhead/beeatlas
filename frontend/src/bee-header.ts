@@ -17,7 +17,6 @@ export class BeeHeader extends LitElement {
       width: 100%;
       background-color: var(--header-bg);
       color: white;
-      position: relative;
     }
 
     .left-group {
@@ -110,6 +109,7 @@ export class BeeHeader extends LitElement {
 
     .hamburger-menu {
       display: none;
+      position: relative;
     }
 
     .hamburger-menu summary {
@@ -133,12 +133,13 @@ export class BeeHeader extends LitElement {
       position: absolute;
       top: 100%;
       left: 0;
-      right: 0;
+      min-width: 10rem;
       background: var(--header-bg);
       z-index: 100;
       display: flex;
       flex-direction: column;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.4);
     }
 
     .hamburger-items .tab-btn {
@@ -152,6 +153,7 @@ export class BeeHeader extends LitElement {
       }
       .hamburger-menu {
         display: block;
+        order: -1;
       }
     }
   `;
