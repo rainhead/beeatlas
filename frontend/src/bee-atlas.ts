@@ -114,7 +114,7 @@ bee-sidebar {
   :host {
     flex-direction: column;
   }
-  bee-map {
+  bee-map, bee-table {
     height: 50svh;
     flex-grow: 0;
     flex-shrink: 0;
