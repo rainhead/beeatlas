@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: complete
-stopped_at: Phase 46 complete
-last_updated: "2026-04-12T02:30:00.000Z"
-last_activity: 2026-04-12 -- Phase 46 complete
+stopped_at: Phase 47 complete
+last_updated: "2026-04-12T18:00:00.000Z"
+last_activity: 2026-04-12 -- Phase 47 complete
 progress:
   total_phases: 2
   completed_phases: 2
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 46 — basemap-tile-provider-upgrade
+**Current focus:** Phase 47 — rewrite-geographies-pipeline-py-to-use-duckdb-spatial-extens
 
 ## Current Position
 
-Phase: 46 (basemap-tile-provider-upgrade) — COMPLETE
-Plan: 1 of 1
-Status: Phase 46 complete
-Last activity: 2026-04-12 - Completed quick task 260412-due: Re-add sort controls to the specimen table (date + modified)
+Phase: 47 (rewrite-geographies-pipeline-py-to-use-duckdb-spatial-extens) — COMPLETE
+Plan: 2 of 2
+Status: Phase 47 complete
+Last activity: 2026-04-12 - Phase 47 complete — DuckDB spatial rewrite of geographies pipeline, geopandas removed
 
 Progress: [██████████] 100%
 
