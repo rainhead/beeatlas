@@ -105,16 +105,10 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ DISC-02: Sidebar surfaces available feeds from `index.json`; collector can see and open personal determination feed without leaving the map — v2.2
 - ✓ MAP-11: Basemap upgraded to Stadia Maps `outdoors` (terrain, roads, trails, zoom 20); Esri Ocean layers removed — v2.2
 - ✓ GEO-03: `geographies_pipeline.py` rewrites all 5 shapefiles via DuckDB `ST_Read`/`ST_Transform`; geopandas/shapely/dlt removed; native `geom GEOMETRY` columns replace `geometry_wkt VARCHAR` throughout — v2.2
-
-## Current Milestone: v2.3 Specimen iNat Observation Links
-
-**Goal:** Pull iNat observations that self-identify as photos of Ecdysis specimens via the WABA observation field and surface those links in the specimen detail view.
-
-**Target features:**
-- New pipeline: query iNat API for observations with field_id=18116 (WABA catalog number); store incrementally
-- Export: join WABA observations to specimens via catalog_number suffix; add `specimen_observation_id` column to ecdysis.parquet
-- Rename `inat_observation_id` → `host_observation_id` throughout (pipeline, export, schema, frontend)
-- Frontend: show `specimen_observation_id` link in specimen detail sidebar
+- ✓ REN-01–04: `host_observation_id` replaces `inat_observation_id` throughout pipeline, export, schema gate, and all frontend files and test fixtures — v2.3
+- ✓ PIPE-01–02: WABA dlt pipeline (`waba_pipeline.py`) with `field:WABA=` filter, isolated `inaturalist_waba_data` schema, incremental `updated_at` cursor; wired into `run.py` — v2.3
+- ✓ EXP-01–02: `ecdysis.parquet` gains `specimen_observation_id` (nullable BIGINT) via `waba_link` CTE joining WABA OFV catalog numbers to ecdysis `catalog_number` numeric suffixes; schema gate enforced in CI — v2.3
+- ✓ FRONT-01: `specimen_observation_id` rendered as conditional camera emoji link (📷) in sidebar detail view; absent when null — v2.3
 
 ## Previous Milestones
 
@@ -125,6 +119,7 @@ Collectors can see where bees have been collected and where target host plants g
 - v2.0 Tabular Data View — COMPLETE (2026-04-09)
 - v2.1 Determination Feeds — COMPLETE (2026-04-11)
 - v2.2 Feed Discoverability & Pipeline — COMPLETE (2026-04-12)
+- v2.3 Specimen iNat Observation Links — COMPLETE (2026-04-13)
 
 ### Active (future)
 
@@ -148,7 +143,7 @@ Collectors can see where bees have been collected and where target host plants g
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v2.0 on 2026-04-09 — Tabular Data View. Shipped v2.1 on 2026-04-11 — Determination Feeds. Shipped v2.2 on 2026-04-12 — Feed Discoverability & Pipeline (68 files, 8,920 insertions/3,305 deletions, 2 days): sidebar feed discovery from `index.json`; Stadia Maps `outdoors` basemap (zoom 20, terrain/roads/trails); geographies pipeline rewritten with DuckDB `ST_Read`/`ST_Transform` eliminating geopandas OOM; native `geom GEOMETRY` columns throughout; 3 phases, 5 plans.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v2.0 on 2026-04-09 — Tabular Data View. Shipped v2.1 on 2026-04-11 — Determination Feeds. Shipped v2.2 on 2026-04-12 — Feed Discoverability & Pipeline (68 files, 8,920 insertions/3,305 deletions, 2 days): sidebar feed discovery from `index.json`; Stadia Maps `outdoors` basemap (zoom 20, terrain/roads/trails); geographies pipeline rewritten with DuckDB `ST_Read`/`ST_Transform` eliminating geopandas OOM; native `geom GEOMETRY` columns throughout; 3 phases, 5 plans. Shipped v2.3 on 2026-04-13 — Specimen iNat Observation Links (2 days): renamed `inat_observation_id` → `host_observation_id` across 12 files; new WABA dlt pipeline fetches 1,374 iNat observations via `field:WABA=` filter into isolated `inaturalist_waba_data` schema; `ecdysis.parquet` gains `specimen_observation_id` (nullable BIGINT) with 1,347 production matches; camera emoji link (📷) in sidebar for specimens with WABA observation; 4 phases, 4 plans, 135 tests passing.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), @duckdb/duckdb-wasm, temporal-polyfill
@@ -233,6 +228,9 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Local `FeedEntry` definition in `bee-sidebar.ts` (not imported from `bee-atlas.ts`) | ARCH-03 prohibits `bee-sidebar` importing from `bee-atlas`; local interface mirrors the shape without creating a cross-reference | ✓ Good — v2.2 Phase 45; ARCH-03 compliance preserved |
 | Stadia Maps `outdoors` single layer replaces two stacked Esri Ocean layers | Esri Ocean capped at zoom 16; Stadia outdoors supports zoom 20 with terrain, roads, trails — essential for field collectors | ✓ Good — v2.2 Phase 46; tile URL parameterized via env var |
 | DuckDB `ST_Read('/vsizip/...')` + `ST_Transform(geom, prj_wkt, 'EPSG:4326', true)` replaces geopandas for geographies pipeline | geopandas loaded full GeoDataFrames into Python heap causing OOM on maderas; DuckDB streams directly without Python heap allocation | ✓ Good — v2.2 Phase 47; all 5 shapefiles stream via ST_Read; 3 projected CRS sources use 4-arg ST_Transform with always_xy=true |
+| WABA pipeline uses strictly isolated `pipeline_name="waba"` / `dataset_name="inaturalist_waba_data"` | Prevents cursor collision in `_dlt_pipeline_state` with existing `inaturalist` pipeline | ✓ Good — v2.3 Phase 49; aliased imports in run.py avoid load_observations name collision |
+| Join key is numeric suffix of `catalog_number` via `regexp_extract(catalog_number, '[0-9]+$')` | WABA OFV field_id=18116 stores bare integer (e.g. `5594569`), not full `WSDA_5594569` prefix — direct join impossible | ✓ Good — v2.3 Phase 50; CAST to BIGINT matches OFV value type |
+| `MIN(waba.id)` dedup per catalog suffix in `waba_link` CTE | Multiple WABA observers can photograph same specimen; any one observation ID is sufficient for the link | ✓ Good — v2.3 Phase 50; prevents row duplication in ecdysis.parquet |
 
 ## Evolution
 
@@ -252,4 +250,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-12 — v2.3 milestone started (Specimen iNat Observation Links)*
+*Last updated: 2026-04-13 — v2.3 milestone complete (Specimen iNat Observation Links)*
