@@ -4,7 +4,7 @@ Usage:
     cd data && uv run python run.py
 
 Pipelines are executed in this order:
-    ecdysis -> ecdysis-links -> inaturalist -> projects -> export -> feeds
+    ecdysis -> ecdysis-links -> inaturalist -> waba -> projects -> export -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
 nightly run. Load them manually: uv run python geographies_pipeline.py
@@ -19,7 +19,8 @@ logging.basicConfig(level=logging.WARNING, format="%(name)s %(levelname)s %(mess
 
 from geographies_pipeline import load_geographies
 from ecdysis_pipeline import load_ecdysis, load_links
-from inaturalist_pipeline import load_observations
+from inaturalist_pipeline import load_observations as load_inaturalist_observations
+from waba_pipeline import load_observations as load_waba_observations
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from export import main as export_all
@@ -28,7 +29,8 @@ from feeds import main as generate_feeds
 STEPS: list[tuple[str, Callable]] = [
     ("ecdysis", load_ecdysis),
     ("ecdysis-links", load_links),
-    ("inaturalist", load_observations),
+    ("inaturalist", load_inaturalist_observations),
+    ("waba", load_waba_observations),
     ("projects", load_projects),
     ("anti-entropy", run_anti_entropy),
     ("export", export_all),
