@@ -251,8 +251,7 @@ export class BeeFilterControls extends LitElement {
 
     /* Token search */
     .search-section {
-      padding: 0.75rem;
-      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 0;
       position: relative;
     }
     .token-field {
@@ -316,8 +315,8 @@ export class BeeFilterControls extends LitElement {
     /* Dropdown */
     .suggestions {
       position: absolute;
-      left: 0.75rem;
-      right: 0.75rem;
+      left: 0;
+      right: 0;
       top: calc(100% - 0.75rem);
       background: var(--surface, #fff);
       border: 1px solid var(--border-input);
@@ -340,17 +339,6 @@ export class BeeFilterControls extends LitElement {
     .suggestion:hover,
     .suggestion.highlighted { background: var(--surface-subtle); }
 
-    .clear-btn {
-      margin-top: 0.5rem;
-      padding: 0.2rem 0;
-      cursor: pointer;
-      border: none;
-      background: none;
-      font-size: 0.8rem;
-      color: var(--text-hint);
-      text-decoration: underline;
-    }
-    .clear-btn:hover { color: var(--text-body); }
   `;
 
   updated(changedProperties: PropertyValues) {
@@ -508,9 +496,6 @@ export class BeeFilterControls extends LitElement {
               >${s.label}</li>
             `)}
           </ul>
-        ` : nothing}
-        ${this._tokens.length > 0 ? html`
-          <button class="clear-btn" @click=${this._clearAll}>Clear filters</button>
         ` : nothing}
       </div>
     `;
