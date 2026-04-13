@@ -766,7 +766,8 @@ bee-sidebar {
       const idList = ecdysisIds.map(id => `'${id}'`).join(',');
       const result = await conn.query(`
         SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
-               host_observation_id, floralHost, inat_host, inat_quality_grade
+               host_observation_id, floralHost, inat_host, inat_quality_grade,
+               specimen_observation_id
         FROM ecdysis
         WHERE CAST(ecdysis_id AS VARCHAR) IN (${idList})
       `);
@@ -790,6 +791,7 @@ bee-sidebar {
           floralHost: obj.floralHost ?? null,
           inatHost: obj.inat_host ?? null,
           inatQualityGrade: obj.inat_quality_grade ?? null,
+          specimenObservationId: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
         };
         map.get(key)!.species.push(specimen);
       }
