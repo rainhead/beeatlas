@@ -326,3 +326,71 @@ describe('VIEW-01: bee-sidebar view mode toggle', () => {
     expect(props.has('viewMode')).toBe(true);
   });
 });
+
+describe('FRONT-01: specimen photo link rendering', () => {
+  test('renders camera emoji link when specimenObservationId is present', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+    const el = new BeeSpecimenDetail();
+    el.samples = [
+      {
+        year: 2023, month: 6, recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
+        species: [
+          { name: 'Bombus occidentalis', occid: '12345', hostObservationId: 99001, floralHost: 'Salix', specimenObservationId: 55555 },
+        ],
+      },
+    ];
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const shadow = el.shadowRoot!;
+    const cameraLinks = shadow.querySelectorAll('a[href="https://www.inaturalist.org/observations/55555"]');
+    expect(cameraLinks.length).toBe(1);
+    expect(cameraLinks[0].textContent).toContain('📷');
+    expect(cameraLinks[0].getAttribute('target')).toBe('_blank');
+    document.body.removeChild(el);
+  });
+
+  test('renders no camera link when specimenObservationId is null', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+    const el = new BeeSpecimenDetail();
+    el.samples = [
+      {
+        year: 2023, month: 6, recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
+        species: [
+          { name: 'Bombus occidentalis', occid: '12345', hostObservationId: 99001, floralHost: 'Salix', specimenObservationId: null },
+        ],
+      },
+    ];
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const shadow = el.shadowRoot!;
+    // Should have the host observation link but NOT a camera emoji link
+    const allInatLinks = shadow.querySelectorAll('a[href*="inaturalist.org/observations"]');
+    // Only the host observation link (99001), no specimen photo link
+    expect(allInatLinks.length).toBe(1);
+    expect(allInatLinks[0].getAttribute('href')).toContain('99001');
+    document.body.removeChild(el);
+  });
+
+  test('renders camera link even when hostObservationId is null', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+    const el = new BeeSpecimenDetail();
+    el.samples = [
+      {
+        year: 2023, month: 6, recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
+        species: [
+          { name: 'Andrena milwaukeensis', occid: '12346', hostObservationId: null, floralHost: null, specimenObservationId: 77777 },
+        ],
+      },
+    ];
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const shadow = el.shadowRoot!;
+    const cameraLinks = shadow.querySelectorAll('a[href="https://www.inaturalist.org/observations/77777"]');
+    expect(cameraLinks.length).toBe(1);
+    expect(cameraLinks[0].textContent).toContain('📷');
+    // The "iNat: —" placeholder should still appear for the missing host observation
+    const text = shadow.textContent ?? '';
+    expect(text).toContain('iNat: —');
+    document.body.removeChild(el);
+  });
+});
