@@ -246,6 +246,7 @@ bee-sidebar {
     const initOccIds = initialParams.selection?.occurrenceIds ?? [];
     if (initOccIds.length > 0) {
       this._selectedOccIds = initOccIds;
+      this._sidebarOpen = true;
     }
 
     // Write initial URL state (covers fresh loads — makes URL bar show params immediately)
