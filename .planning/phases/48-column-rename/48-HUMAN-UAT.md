@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 48-column-rename
 source: [48-VERIFICATION.md]
 started: 2026-04-13T00:00:00Z
@@ -19,14 +19,14 @@ Open the app in a browser. Click a specimen with a host plant observation. Confi
 - The link is absent when `hostObservationId` is null
 
 expected: Link renders correctly for specimens with a host observation; absent otherwise
-result: [pending]
+result: passed
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
