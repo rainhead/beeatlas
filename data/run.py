@@ -4,7 +4,10 @@ Usage:
     cd data && uv run python run.py
 
 Pipelines are executed in this order:
-    geographies -> ecdysis -> ecdysis-links -> inaturalist -> projects -> export -> feeds
+    ecdysis -> ecdysis-links -> inaturalist -> projects -> export -> feeds
+
+Geographies (county/ecoregion boundaries) change rarely and are excluded from the
+nightly run. Load them manually: uv run python geographies_pipeline.py
 """
 
 import logging
@@ -23,7 +26,6 @@ from export import main as export_all
 from feeds import main as generate_feeds
 
 STEPS: list[tuple[str, Callable]] = [
-    ("geographies", load_geographies),
     ("ecdysis", load_ecdysis),
     ("ecdysis-links", load_links),
     ("inaturalist", load_observations),
