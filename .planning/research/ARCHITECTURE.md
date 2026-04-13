@@ -1,534 +1,337 @@
 # Architecture Research
 
-**Domain:** Lambda + EFS pipeline infrastructure — Washington Bee Atlas v1.7
-**Researched:** 2026-03-27
-**Confidence:** HIGH — CDK constructs verified against official docs; data flow derived from direct source inspection
+**Domain:** BeeAtlas v2.3 — WABA specimen observation pipeline integration
+**Researched:** 2026-04-12
+**Confidence:** HIGH — code read directly; no external research needed
 
 ## System Overview
 
-### Current Architecture (v1.6, before this milestone)
-
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│  GitHub Actions (CI)                                                │
-│  deploy.yml: npm run build:data → npm run build (frontend) → S3    │
-│  fetch-data.yml (manual/scheduled): runs dlt pipelines             │
-└───────────────────────────────┬────────────────────────────────────┘
-                                │
-                         frontend/dist/
-                      (bundled parquet + geojson)
-                                │
-┌───────────────────────────────▼────────────────────────────────────┐
-│  S3 (siteBucket) — private, OAC                                     │
-│  ├── index.html, *.js, *.css                                        │
-│  ├── assets/ecdysis.parquet    ← bundled at build time              │
-│  ├── assets/samples.parquet    ← bundled at build time              │
-│  ├── assets/counties.geojson   ← bundled at build time              │
-│  └── assets/ecoregions.geojson ← bundled at build time             │
-│  ── cache/ prefix (pipeline incremental state)                      │
-└───────────────────────────────┬────────────────────────────────────┘
-                                │ OAC
-┌───────────────────────────────▼────────────────────────────────────┐
-│  CloudFront (beeatlas.net)                                           │
-└───────────────────────────────┬────────────────────────────────────┘
-                                │ HTTPS
-┌───────────────────────────────▼────────────────────────────────────┐
-│  Browser — static SPA                                               │
-│  Reads Parquet via hyparquet (bundled as assets)                    │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-### Target Architecture (v1.7)
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│  GitHub Actions (CI) — SIMPLIFIED                                       │
-│  deploy.yml: npm run build (frontend only, no data) → S3               │
-│  No fetch-data.yml needed (Lambda owns pipeline execution)              │
-└────────────────────────────────────────────────────────────────────────┘
-
-┌───────────────────────────────────────────────────────────────────────┐
-│  EventBridge Schedule (weekly cron)  Lambda URL (manual invoke)        │
-│         │                                       │                      │
-│         └────────────────┬────────────────────── ┘                     │
-│                          ▼                                              │
-│  ┌─────────────────────────────────────────────────────────────┐        │
-│  │  Lambda Function (PipelineFn) — Python 3.14 container image  │        │
-│  │  VPC: private subnet, SG allows EFS port 2049 egress          │        │
-│  │  EFS mount: /mnt/data  → beeatlas.duckdb lives here           │        │
-│  │                                                               │        │
-│  │  Handler: data/run.py main()                                  │        │
-│  │    1. run dlt pipelines (writes to /mnt/data/beeatlas.duckdb) │        │
-│  │    2. export.py: export parquets + geojson to /tmp/           │        │
-│  │    3. upload /tmp/*.parquet, /tmp/*.geojson → S3 data/ prefix │        │
-│  │    4. upload /mnt/data/beeatlas.duckdb → S3 backup/ prefix    │        │
-│  └───────────────────────────────────────────────────────────────┘       │
-└────────────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────────┐
-│  S3 (siteBucket)                                                    │
-│  ├── index.html, *.js, *.css    (deployed by CI)                    │
-│  ├── data/ecdysis.parquet       (written by Lambda)                 │
-│  ├── data/samples.parquet       (written by Lambda)                 │
-│  ├── data/counties.geojson      (written by Lambda)                 │
-│  ├── data/ecoregions.geojson    (written by Lambda)                 │
-│  ├── backup/beeatlas.duckdb     (DuckDB EFS backup by Lambda)       │
-│  └── cache/ prefix              (legacy — no longer used)           │
-└───────────────────────────────┬────────────────────────────────────┘
-                                │ OAC
-┌───────────────────────────────▼────────────────────────────────────┐
-│  CloudFront (beeatlas.net)                                           │
-└───────────────────────────────┬────────────────────────────────────┘
-                                │ HTTPS
-┌───────────────────────────────▼────────────────────────────────────┐
-│  Browser — static SPA                                               │
-│  fetch('https://beeatlas.net/data/ecdysis.parquet')  ← runtime     │
-│  fetch('https://beeatlas.net/data/samples.parquet')  ← runtime     │
-│  fetch('https://beeatlas.net/data/counties.geojson') ← runtime     │
-│  fetch('https://beeatlas.net/data/ecoregions.geojson') ← runtime   │
-└────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                         data/ pipeline layer                         │
+├────────────────┬────────────────┬───────────────┬────────────────────┤
+│ ecdysis_       │ inaturalist_   │ waba_          │ projects_/anti_   │
+│ pipeline.py    │ pipeline.py    │ pipeline.py    │ entropy_pipeline  │
+│                │ (dataset:      │ (dataset:      │                   │
+│ ecdysis_data   │ inaturalist_   │ inaturalist_   │                   │
+│ .occurrences   │ data)          │ waba_data)     │                   │
+│ .occurrence_   │ .observations  │ .observations  │                   │
+│  links         │ .observations  │ .observations  │                   │
+│ (host_obs_id)  │  __ofvs        │  __ofvs        │                   │
+├────────────────┴────────────────┴───────────────┴────────────────────┤
+│                         beeatlas.duckdb                               │
+├─────────────────────────────────────────────────────────────────────┤
+│                            export.py                                  │
+│   export_ecdysis_parquet():                                           │
+│     joins occurrence_links (host_observation_id)                     │
+│         + inaturalist_data.observations (host plant join)            │
+│         + inaturalist_waba_data observations__ofvs (specimen join)   │
+├─────────────────────────────────────────────────────────────────────┤
+│              frontend/public/data/ (static parquet/geojson)          │
+│   ecdysis.parquet: host_observation_id, specimen_observation_id      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
 | Component | Status | Responsibility |
 |-----------|--------|----------------|
-| `BeeAtlasStack` (CDK) | MODIFY | Add VPC, EFS, Lambda, EventBridge, Lambda URL; grant Lambda S3 write to `data/` and `backup/` prefixes |
-| `PipelineFn` (Lambda) | NEW | Run dlt pipelines against EFS DuckDB, export to /tmp, upload to S3 |
-| `EFS FileSystem` | NEW | Persistent store for `beeatlas.duckdb`; survives Lambda invocations |
-| `EventBridge Schedule` | NEW | Weekly cron trigger for PipelineFn |
-| `Lambda URL` | NEW | HTTP endpoint for manual pipeline invocation without API Gateway |
-| `export.py` | MODIFY | Write output to /tmp (not frontend/src/assets/) when S3_UPLOAD_PREFIX is set |
-| `frontend` | MODIFY | Replace bundled `?url` imports with `fetch()` from CloudFront runtime URLs |
-| `deploy.yml` | MODIFY | Remove build:data step; build frontend only; frontend build no longer needs parquet files present |
+| `inaturalist_pipeline.py` | UNCHANGED | Fetches project 166376 observations (host plants, collection events); writes to `inaturalist_data` |
+| `waba_pipeline.py` | NEW | Fetches observations with field_id=18116 (WABA catalog number); writes to `inaturalist_waba_data` |
+| `ecdysis_pipeline.py` | MODIFIED | Rename yield key `inat_observation_id` to `host_observation_id` |
+| `export.py` | MODIFIED | Add `waba_link` CTE; add `specimen_observation_id` SELECT column; rename `inat_observation_id` to `host_observation_id` throughout |
+| `run.py` | MODIFIED | Add `("waba", load_waba_observations)` step between `inaturalist` and `projects` |
+| Frontend | MODIFIED | Rename `inat_observation_id` field access to `host_observation_id`; add `specimen_observation_id` link |
+
+## Dataset Placement Decision: Separate Dataset
+
+**Use `dataset_name="inaturalist_waba_data"`, not `"inaturalist_data"`.**
+
+This is the only safe choice. Two concrete collision problems exist with sharing `inaturalist_data`:
+
+**1. Table name collision.** dlt writes the resource named `observations` into `{dataset_name}.observations`. Both the existing `inaturalist_pipeline` and the new `waba_pipeline` produce a resource named `observations`. If both use `dataset_name="inaturalist_data"`, the second pipeline writes into the same table as the first. Even though WABA and project observations have different UUIDs (so dlt's `merge` won't corrupt individual rows), the tables become semantically mixed. The `observations__ofvs` child table is also shared, making it impossible for `export.py` to distinguish which `ofvs` rows belong to which source without adding a discriminator column that doesn't exist in the raw API response.
+
+**2. Incremental cursor collision.** dlt stores pipeline state (including the `updated_since` cursor) keyed by `pipeline_name`. If two pipelines share `pipeline_name`, their cursors collide. Using separate `pipeline_name="waba"` and `pipeline_name="inaturalist"` avoids this — but even with distinct pipeline names, sharing the dataset name creates schema-level ambiguity that will cause confusion in `export.py` and tests.
+
+**Conclusion:** `dataset_name="inaturalist_waba_data"` and `pipeline_name="waba"` gives complete isolation. `export.py` references both datasets by name explicitly, making the join intent self-documenting.
 
 ## Recommended Project Structure
 
 ```
-infra/lib/
-├── beeatlas-stack.ts    MODIFY — add Lambda, EFS, VPC, EventBridge, Lambda URL
-└── global-stack.ts      UNCHANGED
-
 data/
-├── run.py               MODIFY (or new lambda_handler.py) — adapt for Lambda entry point
-├── export.py            MODIFY — parameterize output dir; write to /tmp when in Lambda
-├── lambda/
-│   └── Dockerfile       NEW — Python 3.14, uv, data/ dependencies, Lambda runtime
-├── ecdysis_pipeline.py  UNCHANGED
-├── inaturalist_pipeline.py  UNCHANGED
-├── geographies_pipeline.py  UNCHANGED
-├── projects_pipeline.py UNCHANGED
-└── fixtures/
-    └── beeatlas-test.duckdb  NEW — seed DuckDB for pytest
-
-frontend/src/
-├── assets/              EMPTY (no parquet/geojson; removed from git)
-├── bee-map.ts           MODIFY — replace ?url imports with fetch() calls
-├── region-layer.ts      MODIFY — replace static GeoJSON imports with fetch()
-└── ...                  UNCHANGED
+├── inaturalist_pipeline.py      # unchanged
+├── waba_pipeline.py             # NEW — field_id=18116, inaturalist_waba_data dataset
+├── ecdysis_pipeline.py          # modified — rename yield key
+├── export.py                    # modified — WABA join + column renames
+├── run.py                       # modified — add waba step
+├── .dlt/
+│   └── config.toml              # add [sources.waba] section if needed
+└── tests/
+    └── test_export.py           # add specimen_observation_id schema test + host rename test
 ```
-
-### Structure Rationale
-
-- **`data/lambda/Dockerfile`:** Lambda requires a container image to use Python 3.14 with geopandas + duckdb spatial extension. uv is the package manager already in use. Docker allows bundling system libraries (libgdal, etc.) that geopandas needs and that cannot be installed as Lambda layers.
-- **`data/fixtures/beeatlas-test.duckdb`:** Enables pytest for export.py without running full pipelines. Committed small fixture database allows deterministic test validation of export SQL queries.
-- **Empty `frontend/src/assets/`:** Parquet and GeoJSON files are no longer bundled. The directory can remain for other static assets (e.g., icons). Vite asset imports become `fetch()` calls pointing at CloudFront.
 
 ## Architectural Patterns
 
-### Pattern 1: Lambda Container Image for Python + geopandas
+### Pattern 1: Mirror inaturalist_pipeline.py for waba_pipeline.py
 
-**What:** Build a Docker container image from `public.ecr.aws/lambda/python:3.14`. Install system dependencies (libgdal), then Python dependencies via uv. Package `data/` source files as the Lambda handler code.
+**What:** Duplicate the dlt RESTAPIConfig structure from `inaturalist_pipeline.py`, changing only the API filter parameter, `dataset_name`, and `pipeline_name`. Share `DEFAULT_FIELDS` and `_transform` either by import or inline copy.
 
-**When to use:** When Lambda dependencies include compiled native extensions (geopandas, duckdb spatial). Lambda layers cannot satisfy geopandas system library requirements. Container images support up to 10GB and arbitrary OS packages.
+**When to use:** Always — WABA field observations use the same iNat v2 REST API, same incremental cursor (`updated_at`), same `per_page=200`, same stop-after-empty-page paginator.
 
-**Trade-offs:** Container build adds ~2-5 minutes to CDK deploy. Cold starts are slower than zip-deployed functions (~5-15s for a data-heavy image). Acceptable for a weekly-scheduled pipeline — latency is not a concern.
+**API filter parameter:** Use `"field_id": 18116` in the endpoint `params` dict. The iNat v2 API accepts `field_id` as a query parameter to return only observations that have a value for that field. MEDIUM confidence on exact param name — verify with a quick `curl 'https://api.inaturalist.org/v2/observations?field_id=18116&per_page=1&fields=id'` before implementing.
 
-**CDK construct (TypeScript):**
-```typescript
-import * as lambda from 'aws-cdk-lib/aws-lambda';
+**Trade-offs:** Small code duplication between the two pipeline files. A shared base is premature given only two pipelines and potentially divergent future needs (WABA may need field value extraction logic not relevant to project observations).
 
-const pipelineFn = new lambda.DockerImageFunction(this, 'PipelineFn', {
-  code: lambda.DockerImageCode.fromImageAsset(path.join(__dirname, '../../data'), {
-    file: 'lambda/Dockerfile',
-  }),
-  vpc,
-  filesystem: lambda.FileSystem.fromEfsAccessPoint(accessPoint, '/mnt/data'),
-  timeout: cdk.Duration.minutes(15),  // max Lambda timeout
-  memorySize: 3008,                   // geopandas + spatial joins are memory-hungry
-  environment: {
-    DUCKDB_PATH: '/mnt/data/beeatlas.duckdb',
-    S3_BUCKET: siteBucket.bucketName,
-    DATA_PREFIX: 'data/',
-    BACKUP_PREFIX: 'backup/',
-  },
-});
+```python
+# waba_pipeline.py skeleton
+@dlt.source(name="waba")
+def waba_source(write_disposition: str = "merge", fields: str = DEFAULT_FIELDS):
+    config: RESTAPIConfig = {
+        "client": {"base_url": "https://api.inaturalist.org/v2/"},
+        "resource_defaults": {
+            "primary_key": "uuid",
+            "write_disposition": write_disposition,
+        },
+        "resources": [{
+            "name": "observations",
+            "endpoint": {
+                "path": "observations",
+                "params": {
+                    "field_id": 18116,
+                    "fields": fields,
+                    "per_page": 200,
+                    "updated_since": "{incremental.start_value}",
+                },
+                "incremental": {
+                    "cursor_path": "updated_at",
+                    "initial_value": "2000-01-01T00:00:00+00:00",
+                },
+                "data_selector": "results",
+                "paginator": {
+                    "type": "page_number",
+                    "base_page": 1,
+                    "page_param": "page",
+                    "total_path": None,
+                    "stop_after_empty_page": True,
+                },
+            },
+            "processing_steps": [{"map": _transform}],
+        }],
+    }
+    yield from rest_api_resources(config)
+
+def load_waba_observations(full_reload: bool = False) -> None:
+    pipeline = dlt.pipeline(
+        pipeline_name="waba",
+        destination=dlt.destinations.duckdb(DB_PATH),
+        dataset_name="inaturalist_waba_data",
+    )
+    # same full_reload pattern as inaturalist_pipeline.load_observations()
 ```
 
-### Pattern 2: EFS Persistent DuckDB via Access Point
+### Pattern 2: catalog_number JOIN via split_part in export.py
 
-**What:** Create an EFS FileSystem in the VPC. Create an access point with a specific POSIX user/group that matches the Lambda execution context. Mount to `/mnt/data` in the Lambda runtime. `beeatlas.duckdb` lives at `/mnt/data/beeatlas.duckdb` and persists across invocations.
+**What:** Ecdysis `catalog_number` values are formatted as `WSDA_25034236`. WABA field values are the bare numeric suffix `25034236`. The join must strip the `WSDA_` prefix before matching.
 
-**When to use:** Lambda `/tmp` is ephemeral (10GB max, cleared between cold starts). DuckDB with the full bee atlas dataset grows over time. EFS provides durable, shared storage accessible only from within the VPC.
+**Implementation:** Use `split_part(o.catalog_number, '_', 2)` to extract the suffix. This is simpler and faster than regex. The WABA field value comes through dlt as a VARCHAR string; the Ecdysis catalog suffix is also VARCHAR — string equality comparison works directly.
 
-**CDK construct (TypeScript):**
-```typescript
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as efs from 'aws-cdk-lib/aws-efs';
+**Add a new CTE in `export_ecdysis_parquet()`:**
 
-const vpc = new ec2.Vpc(this, 'PipelineVpc', {
-  maxAzs: 2,
-  natGateways: 1,    // Lambda needs NAT to reach iNat API and Ecdysis
-});
-
-const fileSystem = new efs.FileSystem(this, 'PipelineEfs', {
-  vpc,
-  removalPolicy: cdk.RemovalPolicy.RETAIN,  // do NOT destroy on stack update
-});
-
-const accessPoint = fileSystem.addAccessPoint('LambdaAP', {
-  path: '/beeatlas',
-  createAcl: { ownerUid: '1000', ownerGid: '1000', permissions: '750' },
-  posixUser: { uid: '1000', gid: '1000' },
-});
+```sql
+waba_link AS (
+    SELECT
+        ofv.value AS catalog_suffix,
+        obs.id AS specimen_observation_id
+    FROM inaturalist_waba_data.observations obs
+    JOIN inaturalist_waba_data.observations__ofvs ofv
+        ON ofv._dlt_root_id = obs._dlt_id
+        AND ofv.field_id = 18116
+        AND ofv.value != ''
+)
 ```
 
-**Critical:** `removalPolicy: RETAIN` on the EFS FileSystem. If the stack is updated or recreated, DESTROY would delete the DuckDB — months of pipeline history gone. Use RETAIN and manage EFS lifecycle manually.
+**Then add a LEFT JOIN in the final SELECT:**
 
-### Pattern 3: EventBridge Scheduler for Weekly Pipeline Run
-
-**What:** Use `aws-cdk-lib/aws-events` + `aws-cdk-lib/aws-events-targets` to create a Rule with a cron schedule targeting the Lambda function. The EventBridge Scheduler L2 construct is also now GA (as of April 2025) but the existing `aws-events` approach is simpler and sufficient.
-
-**When to use:** Weekly pipeline execution on a fixed schedule. No dynamic scheduling, no payload variation.
-
-**CDK construct (TypeScript):**
-```typescript
-import * as events from 'aws-cdk-lib/aws-events';
-import * as targets from 'aws-cdk-lib/aws-events-targets';
-
-new events.Rule(this, 'PipelineSchedule', {
-  schedule: events.Schedule.cron({ weekDay: 'MON', hour: '6', minute: '0' }),
-  targets: [new targets.LambdaFunction(pipelineFn)],
-});
+```sql
+LEFT JOIN waba_link wl
+    ON o.catalog_number LIKE 'WSDA_%'
+    AND wl.catalog_suffix = split_part(o.catalog_number, '_', 2)
 ```
 
-### Pattern 4: Lambda URL for Manual Invocation
+**And add to the SELECT list:**
 
-**What:** Add a Function URL to the Lambda with `FunctionUrlAuthType.NONE` (no auth) or `AWS_IAM`. The URL allows triggering the pipeline without the EventBridge schedule — useful for immediate re-run after a data fix.
-
-**When to use:** Operational convenience. No API Gateway needed for a single-endpoint, single-function invocation.
-
-**Security note (October 2025 change):** New function URLs now require both `lambda:InvokeFunctionUrl` AND `lambda:InvokeFunction` permissions for IAM-authenticated calls. With `NONE` auth type, the URL is publicly accessible — acceptable for a trigger-only endpoint where the Lambda itself is idempotent and rate-limited by the pipeline's own logic. If the URL should be restricted, use `FunctionUrlAuthType.AWS_IAM` and call with signed requests.
-
-**CDK construct (TypeScript):**
-```typescript
-const fnUrl = pipelineFn.addFunctionUrl({
-  authType: lambda.FunctionUrlAuthType.NONE,
-});
-
-new cdk.CfnOutput(this, 'PipelineFnUrl', {
-  value: fnUrl.url,
-  description: 'Lambda URL for manual pipeline invocation',
-});
+```sql
+wl.specimen_observation_id,
 ```
 
-### Pattern 5: Runtime Fetch from CloudFront (Frontend)
+**Why `LIKE 'WSDA_%'` guard:** DuckDB `split_part` returns the original string (not empty string) when the delimiter is absent. A catalog_number without `_` would return the full value as the "suffix", potentially matching a WABA field value incorrectly. The `LIKE` guard prevents false matches on specimens with different catalog number formats.
 
-**What:** Replace Vite `?url` asset imports with `fetch()` calls using hardcoded CloudFront-relative URLs. The data files are served from the same CloudFront distribution as the app, so relative paths work.
+**Why split_part over regex:** `regexp_extract(o.catalog_number, 'WSDA_(\d+)', 1)` would also work but adds regex overhead and is less readable. `split_part` is sufficient for the single known prefix format.
 
-**When to use:** Data files are no longer bundled with the frontend. They are written to S3 by Lambda after each pipeline run. The frontend must fetch them at runtime.
+**Deduplication consideration:** If a single catalog number has multiple WABA observations (e.g., multiple photographers), the JOIN produces multiple rows per specimen. Add `DISTINCT ON (obs.id)` or `GROUP BY ... LIMIT 1` in the `waba_link` CTE to ensure one specimen_observation_id per catalog suffix. The simplest approach: take the numerically smallest `obs.id` (earliest iNat observation ID) as the canonical link.
 
-**Trade-offs:** Adds 1-4 network requests on page load (4 files). CloudFront caching means subsequent loads are fast. The browser fetch API is already in use for hyparquet streaming. No additional library needed.
-
-**Before (bundled):**
-```typescript
-import ecdysisDump from './assets/ecdysis.parquet?url';
-import samplesDump from './assets/samples.parquet?url';
+```sql
+waba_link AS (
+    SELECT DISTINCT ON (ofv.value)
+        ofv.value AS catalog_suffix,
+        obs.id AS specimen_observation_id
+    FROM inaturalist_waba_data.observations obs
+    JOIN inaturalist_waba_data.observations__ofvs ofv
+        ON ofv._dlt_root_id = obs._dlt_id
+        AND ofv.field_id = 18116
+        AND ofv.value != ''
+    ORDER BY ofv.value, obs.id ASC
+)
 ```
 
-**After (runtime fetch):**
-```typescript
-const DATA_BASE = '/data/';  // relative to CloudFront origin
-const ecdysisDump = `${DATA_BASE}ecdysis.parquet`;
-const samplesDump = `${DATA_BASE}samples.parquet`;
+### Pattern 3: Column rename inat_observation_id to host_observation_id
+
+**What:** Every reference to the occurrence-scraping link column must be renamed. This column lives in `ecdysis_data.occurrence_links` (written by `ecdysis_pipeline.py`) and is consumed by `export.py`.
+
+**DuckDB migration required:** The `ecdysis_data.occurrence_links` table already exists in `beeatlas.duckdb` with a physical column named `inat_observation_id`. Changing the dlt yield key alone does not rename the existing column — dlt `merge` disposition will add a new `host_observation_id` column while leaving `inat_observation_id` in place. The export JOIN on `links.host_observation_id` returns NULL for all pre-existing rows.
+
+**Two acceptable approaches:**
+
+Option A — One-time ALTER TABLE migration (preferred):
+```python
+# At the top of export.py main(), or as a migration step in run.py before export:
+# (using read-write connection before the read-only export connection)
+with duckdb.connect(DB_PATH) as mig:
+    mig.execute("""
+        ALTER TABLE ecdysis_data.occurrence_links
+        RENAME COLUMN inat_observation_id TO host_observation_id
+    """)
 ```
+Run once; safe to re-run (DuckDB ALTER RENAME on a non-existent column raises an error, so wrap in a try/except or check `information_schema.columns` first).
 
-GeoJSON files in `region-layer.ts` similarly change from static imports to URL strings passed to `VectorSource`.
+Option B — Full reload of ecdysis-links:
+Run `uv run python ecdysis_pipeline.py --full-reload` once after deploying the rename. This rebuilds `occurrence_links` from the HTML disk cache (already present) with the new column name. Slower but doesn't require a migration script.
 
-### Pattern 6: NAT Gateway for Lambda Outbound Internet Access
+**Scope of all rename changes:**
 
-**What:** Lambda in a VPC private subnet cannot reach the internet without a NAT Gateway (or VPC endpoints for each AWS service). The pipeline calls external APIs (iNaturalist REST API, Ecdysis scraper) and uses S3. NAT Gateway enables all outbound internet access from the private subnet.
-
-**Cost implication:** NAT Gateway costs ~$32/month (1 AZ) plus ~$0.045/GB data processed. For a weekly pipeline that transfers ~100MB of data, this is ~$33/month total. This is the primary new ongoing cost of the v1.7 architecture.
-
-**Alternative considered:** VPC Gateway Endpoint for S3 (free) eliminates S3 data transfer costs through the NAT but still requires the NAT for iNat/Ecdysis API calls. Use a Gateway Endpoint for S3 in addition to the NAT Gateway.
-
-**CDK addition:**
-```typescript
-// VPC Gateway Endpoint for S3 (free — avoids routing S3 traffic through NAT)
-vpc.addGatewayEndpoint('S3Endpoint', {
-  service: ec2.GatewayVpcEndpointAwsService.S3,
-});
-```
+| File | Change |
+|------|--------|
+| `data/ecdysis_pipeline.py` | `yield {"occurrence_id": ..., "inat_observation_id": ...}` → `"host_observation_id"` |
+| `data/export.py` | `links.inat_observation_id` → `links.host_observation_id` in LEFT JOIN and SELECT |
+| `scripts/validate-schema.mjs` | `inat_observation_id` → `host_observation_id` in ecdysis.parquet column list |
+| Frontend DuckDB queries | `inat_observation_id` column reference → `host_observation_id` |
+| Frontend feature property access | `.inat_observation_id` → `.host_observation_id` in specimen detail display |
 
 ## Data Flow
 
-### Pipeline Execution Flow (Lambda, runtime)
+### WABA Pipeline Flow
 
 ```
-EventBridge cron OR Lambda URL invoke
-  │
-  ▼
-Lambda cold start: mount /mnt/data (EFS), import Python modules
-  │
-  ▼
-data/run.py main():
-  ├── geographies pipeline → /mnt/data/beeatlas.duckdb (geographies schema)
-  ├── ecdysis pipeline → /mnt/data/beeatlas.duckdb (ecdysis_data schema)
-  ├── ecdysis-links pipeline → /mnt/data/beeatlas.duckdb (ecdysis_data.occurrence_links)
-  ├── inaturalist pipeline → /mnt/data/beeatlas.duckdb (inaturalist_data schema)
-  ├── projects pipeline → /mnt/data/beeatlas.duckdb (projects schema)
-  └── export pipeline:
-        export.py main() [with output_dir='/tmp/data/']:
-          ├── export_ecdysis_parquet() → /tmp/data/ecdysis.parquet
-          ├── export_samples_parquet() → /tmp/data/samples.parquet
-          ├── export_counties_geojson() → /tmp/data/counties.geojson
-          └── export_ecoregions_geojson() → /tmp/data/ecoregions.geojson
-        upload /tmp/data/* → S3 siteBucket/data/*
-        upload /mnt/data/beeatlas.duckdb → S3 siteBucket/backup/beeatlas.duckdb
-  │
-  ▼
-Lambda returns success response (or error)
-  │
-  ▼
-CloudFront serves updated files on next request
-(existing CloudFront cache TTL applies — may need invalidation after pipeline run)
+iNat v2 API (/observations?field_id=18116&updated_since=...)
+    ↓ dlt incremental fetch (updated_since cursor, pipeline_name="waba")
+inaturalist_waba_data.observations       (one row per iNat observation)
+inaturalist_waba_data.observations__ofvs (child rows; field_id=18116 row has catalog suffix as value)
+    ↓
+export.py: waba_link CTE
+    ↓ LEFT JOIN on split_part(catalog_number, '_', 2) = ofv.value
+ecdysis_data.occurrences.catalog_number
+    ↓
+ecdysis.parquet: specimen_observation_id column (nullable BIGINT)
+    ↓
+frontend: iNat observation link shown in specimen detail sidebar
 ```
 
-### Frontend Data Load Flow (browser, runtime)
+### run.py Step Ordering
 
+Current: `ecdysis → ecdysis-links → inaturalist → projects → anti-entropy → export → feeds`
+
+New: `ecdysis → ecdysis-links → inaturalist → waba → projects → anti-entropy → export → feeds`
+
+**Rationale:** `waba` runs after `inaturalist` because both are iNat API consumers — grouping them reduces context switching and makes rate-limit reasoning clearer. `waba` runs before `export` because `export.py` reads from `inaturalist_waba_data` which must be populated first. `waba` before `projects` is also correct — no dependency either way — but after `inaturalist` is the natural grouping.
+
+**run.py change:**
+
+```python
+from waba_pipeline import load_waba_observations
+
+STEPS: list[tuple[str, Callable]] = [
+    ("ecdysis", load_ecdysis),
+    ("ecdysis-links", load_links),
+    ("inaturalist", load_observations),
+    ("waba", load_waba_observations),   # NEW — after inaturalist, before projects
+    ("projects", load_projects),
+    ("anti-entropy", run_anti_entropy),
+    ("export", export_all),
+    ("feeds", generate_feeds),
+]
 ```
-Browser loads https://beeatlas.net/
-  │
-  ├── fetch /data/ecdysis.parquet → CloudFront → S3
-  │   hyparquet streams rows → OL Feature[] → specimenLayer
-  │
-  ├── fetch /data/samples.parquet → CloudFront → S3
-  │   hyparquet streams rows → OL Feature[] → sampleLayer
-  │
-  ├── fetch /data/counties.geojson (deferred until boundary toggle activated)
-  │   OL GeoJSON format → regionLayer (county mode)
-  │
-  └── fetch /data/ecoregions.geojson (deferred until boundary toggle activated)
-      OL GeoJSON format → regionLayer (ecoregion mode)
-```
 
-### New vs. Modified Components — Explicit Inventory
+## Files Changed vs. Files New
 
-| Component | Status | Key Changes |
-|-----------|--------|-------------|
-| `infra/lib/beeatlas-stack.ts` | MODIFY | Add: `ec2.Vpc`, `efs.FileSystem`, `efs.AccessPoint`, `lambda.DockerImageFunction`, `events.Rule`, `fn.addFunctionUrl()`, S3 grants for `data/*` and `backup/*` prefixes |
-| `data/lambda/Dockerfile` | NEW | Python 3.14 Lambda base image, uv, geopandas system deps, data/ source |
-| `data/run.py` | MODIFY | Add Lambda handler entry point (`handler(event, context)` wrapper around `main()`); handle DUCKDB_PATH env var |
-| `data/export.py` | MODIFY | Parameterize output directory via env var `EXPORT_DIR` (default: `frontend/src/assets/`; Lambda: `/tmp/data/`); add S3 upload step when `S3_BUCKET` env var is set |
-| `data/fixtures/beeatlas-test.duckdb` | NEW | Minimal DuckDB with enough rows to validate export SQL |
-| `data/tests/test_export.py` | NEW | pytest for export functions against fixture DuckDB |
-| `frontend/src/bee-map.ts` | MODIFY | Remove `?url` Parquet imports; replace with string constants pointing to `/data/ecdysis.parquet`, `/data/samples.parquet` |
-| `frontend/src/region-layer.ts` | MODIFY | Remove static GeoJSON imports; replace with URL strings `/data/counties.geojson`, `/data/ecoregions.geojson` passed to `VectorSource` |
-| `frontend/src/assets/` | MODIFY | Remove ecdysis.parquet, samples.parquet, counties.geojson, ecoregions.geojson from git and Vite bundling |
-| `.github/workflows/deploy.yml` | MODIFY | Remove `build:data` step; remove cache-restore step; remove S3 cache env var from build job |
-| `.github/workflows/fetch-data.yml` | DELETE | Lambda owns pipeline scheduling; this workflow is superseded |
+| File | Status | Change Summary |
+|------|--------|----------------|
+| `data/waba_pipeline.py` | NEW | dlt pipeline; `field_id=18116` param; `pipeline_name="waba"`; `dataset_name="inaturalist_waba_data"` |
+| `data/run.py` | MODIFIED | Import `load_waba_observations`; add `("waba", ...)` STEPS entry after `inaturalist` |
+| `data/export.py` | MODIFIED | Add `waba_link` CTE; LEFT JOIN on catalog_number; add `specimen_observation_id` to SELECT; rename `links.inat_observation_id` → `links.host_observation_id`; optional one-time migration call |
+| `data/ecdysis_pipeline.py` | MODIFIED | Rename yield key `inat_observation_id` → `host_observation_id` in `occurrence_links` resource |
+| `data/.dlt/config.toml` | POSSIBLY MODIFIED | Add `[sources.waba]` section only if waba_pipeline exposes dlt.config.value params |
+| `scripts/validate-schema.mjs` | MODIFIED | `inat_observation_id` → `host_observation_id`; add `specimen_observation_id` to ecdysis.parquet column assertions |
+| `data/tests/test_export.py` | MODIFIED | Update column name assertions; add `specimen_observation_id` in output schema test |
+| Frontend (multiple files) | MODIFIED | `inat_observation_id` field access → `host_observation_id`; add `specimen_observation_id` link rendering in specimen detail |
 
 ## Integration Points
 
-### CDK Construct Dependencies (deployment order)
+### External Services
 
-```
-GlobalStack (us-east-1) — certs, Route 53 — UNCHANGED
-  ↓
-BeeAtlasStack (us-west-2):
-  ├── ec2.Vpc                     (prerequisite for EFS + Lambda)
-  ├── efs.FileSystem              (requires VPC)
-  ├── efs.AccessPoint             (requires FileSystem)
-  ├── s3.Bucket (siteBucket)      (existing — no change)
-  ├── cloudfront.Distribution     (existing — no change)
-  ├── lambda.DockerImageFunction  (requires VPC, AccessPoint, siteBucket)
-  ├── events.Rule                 (requires Lambda)
-  └── fn.addFunctionUrl()         (requires Lambda)
-```
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| iNat v2 API (`/observations?field_id=18116`) | dlt RESTAPIConfig, same as existing inaturalist_pipeline | Verify `field_id` param name against live API before implementing; MEDIUM confidence |
+| beeatlas.duckdb | dlt destination + direct duckdb connection in export.py | `inaturalist_waba_data` schema created by dlt on first pipeline run |
 
-All new constructs are additions to `BeeAtlasStack`. No new CDK stacks are required. The `GlobalStack` is unchanged.
+### Internal Boundaries
 
-### IAM Permission Changes
-
-The Lambda execution role (auto-created by CDK) needs:
-
-| Permission | Resource | Why |
-|------------|----------|-----|
-| `s3:PutObject` | `siteBucket/data/*` | Upload exported parquets + geojson |
-| `s3:PutObject` | `siteBucket/backup/*` | Upload DuckDB backup |
-| `s3:GetObject` | `siteBucket/backup/*` | Restore DuckDB backup on cold start (future) |
-| EFS mount permissions | Auto-granted by `lambda.FileSystem.fromEfsAccessPoint()` | Mounts the access point |
-
-The existing `deployerRole` (GitHub Actions OIDC) already has `siteBucket.grantReadWrite()`. No changes to its permissions are needed.
-
-The deployer role may need `cloudfront:CreateInvalidation` after pipeline runs to clear cached data files — or the Lambda itself should call CloudFront invalidation after successful S3 upload.
-
-### External Service Integration
-
-| Service | How Lambda Reaches It | Notes |
-|---------|----------------------|-------|
-| iNaturalist REST API | NAT Gateway → internet | Same credentials/rate limits as current CI pipeline |
-| Ecdysis website | NAT Gateway → internet | HTML scraping; rate-limited to ≤20 req/sec in pipeline code |
-| S3 (siteBucket) | VPC Gateway Endpoint (free) | No NAT traversal for S3 calls |
-| AWS Lambda service (for URL invocation) | Lambda URL is exposed externally | No VPC endpoint needed for incoming invocations |
-
-## Build Order (Phases)
-
-The CDK → Lambda → Frontend dependency chain dictates this ordering:
-
-### Phase 1: CDK Infrastructure (VPC + EFS + Lambda stub)
-
-Build the AWS infrastructure first. A stub Lambda (e.g., `handler` that prints "hello") validates that VPC, EFS mount, and Lambda URL all work before any real pipeline code is involved.
-
-**Deliverables:**
-- VPC with private subnets and NAT Gateway
-- EFS FileSystem with access point
-- `DockerImageFunction` stub with EFS mount at `/mnt/data`
-- EventBridge weekly schedule rule
-- Lambda URL output in CDK outputs
-- CDK deploy succeeds cleanly
-
-**Why first:** All subsequent phases depend on the Lambda existing in AWS. EFS mount issues are easier to debug with a minimal handler. NAT Gateway routing must be confirmed before the pipeline tries to call iNat/Ecdysis.
-
-**Pitfall:** CDK deploy time increases significantly with NAT Gateway and Docker image build. Expect 15-25 minutes for first deploy.
-
-### Phase 2: Lambda Handler + Dockerfile
-
-Make the real pipeline code run inside Lambda. This requires:
-
-1. Dockerfile for Lambda container (Python 3.14 base, system deps for geopandas, uv install)
-2. `data/run.py` gets a `handler(event, context)` wrapper that calls `main()`
-3. `data/export.py` reads `EXPORT_DIR` env var; writes to `/tmp/data/` in Lambda context; uploads to S3 after successful export
-4. `DUCKDB_PATH` env var controls DuckDB file location (`/mnt/data/beeatlas.duckdb`)
-5. Test by invoking Lambda URL manually; verify S3 receives `data/ecdysis.parquet`
-
-**Why second:** Lambda handler must work before the frontend can fetch from it. The Dockerfile is a prerequisite for the Lambda deploy that was stubbed in Phase 1.
-
-**Pitfall:** `geopandas` requires `libgdal` system library. The Lambda Python base image is minimal — the Dockerfile must `dnf install` or compile GDAL. Use the AWS-provided `public.ecr.aws/lambda/python:3.14` base and verify `geopandas` imports successfully in the container.
-
-### Phase 3: Seed DuckDB + Tests
-
-Before removing CI pipeline steps, establish a test fixture and pytest coverage for `export.py`.
-
-1. Create `data/fixtures/beeatlas-test.duckdb` with minimal rows (5-10 occurrences, 5 samples, a few geographies)
-2. Write `data/tests/test_export.py`: parameterize `export.py` functions with the fixture DB; assert output files have correct columns and row counts
-3. Confirm tests pass locally with `uv run pytest`
-
-**Why third:** Tests can be written before Lambda works end-to-end. Having tests before Phase 4 (frontend changes) means the export contract is pinned — frontend changes don't break the data contract silently.
-
-### Phase 4: Frontend Runtime Fetch
-
-Replace bundled asset imports with runtime fetch calls.
-
-1. Remove `ecdysis.parquet`, `samples.parquet`, `counties.geojson`, `ecoregions.geojson` from `frontend/src/assets/` and git
-2. In `bee-map.ts`: replace `import ecdysisDump from './assets/ecdysis.parquet?url'` with `const ecdysisDump = '/data/ecdysis.parquet'`
-3. In `region-layer.ts`: replace static GeoJSON imports with URL strings
-4. Validate: `npm run build --workspace=frontend` succeeds without local parquet files present
-5. Validate: browser loads the live site and fetches files from CloudFront `data/` prefix
-
-**Why fourth:** The frontend change is safe to make only after the Lambda has successfully written files to `S3/data/`. If the frontend is changed before the data files exist in S3, the live site breaks.
-
-### Phase 5: CI Simplification
-
-Clean up the GitHub Actions workflows now that Lambda owns pipeline execution.
-
-1. Remove `build:data` step from `deploy.yml` build job
-2. Remove `cache-restore` step and `S3_BUCKET_NAME` env var from the build job (no longer needed for build)
-3. Delete `.github/workflows/fetch-data.yml` (superseded by Lambda + EventBridge)
-4. Optionally: add a post-pipeline CloudFront invalidation to the Lambda handler (invalidate `/data/*` after successful S3 upload)
-
-**Why last:** CI simplification is cosmetic until the pipeline runs in Lambda. Changing CI before Phase 2-3 are complete would break the existing fallback where CI runs the pipeline.
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `waba_pipeline.py` → `beeatlas.duckdb` | dlt write, `dataset_name="inaturalist_waba_data"` | Schema auto-created; no migration needed for the new tables |
+| `export.py` → `inaturalist_waba_data` | Direct SQL JOIN in CTE | `read_only=True` connection; waba step must complete before export |
+| `ecdysis_data.occurrence_links` column rename | One-time ALTER TABLE or --full-reload | Must happen before first post-deploy pipeline run to avoid NULL host_observation_id |
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Putting DuckDB on Lambda /tmp
+### Anti-Pattern 1: Sharing inaturalist_data dataset with the new pipeline
 
-**What people do:** Store `beeatlas.duckdb` in `/tmp` (the Lambda ephemeral filesystem).
+**What people do:** Use `dataset_name="inaturalist_data"` for the WABA pipeline to keep all iNat data together.
 
-**Why it's wrong:** Lambda `/tmp` is cleared on cold start. The pipeline is incremental — it relies on the existing DuckDB schema and data to avoid full re-fetches. Losing the DuckDB on every cold start means a full pipeline re-run every week, which takes hours (Ecdysis HTML scraping is the bottleneck at ≤20 req/sec for 45K+ records).
+**Why it's wrong:** dlt writes the resource named `observations` into `{dataset_name}.observations`. With two pipelines sharing `inaturalist_data`, the WABA observations merge into the same table as project observations. The `observations__ofvs` child table is also shared. `export.py` can no longer distinguish host-plant `ofvs` rows (field_id=8338, 9963) from WABA catalog-number rows (field_id=18116) without a source-discriminator column that doesn't exist. The existing `export_samples_parquet()` query joins `observations__ofvs` and would pick up WABA rows unexpectedly.
 
-**Do this instead:** Store `beeatlas.duckdb` on EFS at `/mnt/data/beeatlas.duckdb`. EFS persists across Lambda invocations.
+**Do this instead:** `dataset_name="inaturalist_waba_data"` — complete table-level isolation at zero additional complexity cost.
 
-### Anti-Pattern 2: Using S3 as DuckDB Store (S3 direct read/write)
+### Anti-Pattern 2: Regex for catalog_number suffix extraction
 
-**What people do:** Store DuckDB on S3, read it at Lambda startup with `COPY FROM S3`, write back at the end.
+**What people do:** `regexp_extract(o.catalog_number, 'WSDA_(\d+)', 1)` for the JOIN predicate.
 
-**Why it's wrong:** DuckDB cannot use S3 as a native file backend — it requires a local writable path. Copying a DuckDB file from S3 at the start of every Lambda invocation (download GB-scale file) and uploading at the end doubles latency and S3 costs. EFS is already in the VPC and provides sub-millisecond access.
+**Why it's wrong:** Not wrong, just unnecessary. `split_part(o.catalog_number, '_', 2)` is faster and more readable. Regex is appropriate if multiple prefix formats exist; currently there is only `WSDA_`.
 
-**Do this instead:** EFS for the primary store. S3 for a periodic backup only (after successful pipeline run). The DuckDB backup S3 upload is a safety net, not the primary access pattern.
+**Do this instead:** `split_part(o.catalog_number, '_', 2)` with a `LIKE 'WSDA_%'` guard to prevent false matches on catalog numbers without the expected prefix.
 
-### Anti-Pattern 3: Skipping NAT Gateway (Using VPC Endpoints for Everything)
+### Anti-Pattern 3: Renaming the DuckDB column via dlt code change alone
 
-**What people do:** Try to avoid the NAT Gateway cost (~$32/month) by using VPC Interface Endpoints for every service the pipeline calls.
+**What people do:** Change the yield dict key from `inat_observation_id` to `host_observation_id` in `ecdysis_pipeline.py` and expect the live table to reflect the rename after the next pipeline run.
 
-**Why it's wrong:** The iNaturalist API and Ecdysis website are public internet endpoints — there is no VPC endpoint for them. A NAT Gateway (or NAT instance) is required. Only S3 can use a free Gateway Endpoint.
+**Why it's wrong:** dlt `merge` disposition adds new rows with the new column name while the existing column (`inat_observation_id`) persists. `export.py` JOIN on `links.host_observation_id` returns NULL for all pre-existing rows, silently dropping all host observation links from ecdysis.parquet.
 
-**Do this instead:** One NAT Gateway (single AZ is sufficient for this use case — the pipeline is not SLA-critical). Add a free S3 Gateway Endpoint to avoid routing S3 traffic through the NAT.
+**Do this instead:** Run a one-time `ALTER TABLE ecdysis_data.occurrence_links RENAME COLUMN inat_observation_id TO host_observation_id` before the first post-deploy export run, or use `--full-reload` on the ecdysis-links step to rebuild from the HTML disk cache.
 
-### Anti-Pattern 4: Bundling the Container Image in CDK Assets Without Docker Caching
+### Anti-Pattern 4: No deduplication in waba_link CTE
 
-**What people do:** Use `DockerImageCode.fromImageAsset()` with default settings, resulting in a full image rebuild on every `cdk deploy` even when source hasn't changed.
+**What people do:** Join `observations__ofvs` directly without `DISTINCT ON`, allowing multiple WABA observations for the same catalog number to produce multiple rows per specimen in the final SELECT.
 
-**Why it's wrong:** The Docker build for geopandas (GDAL compilation or system package install) takes 5-10 minutes. Unnecessary rebuilds slow down CDK deploys.
+**Why it's wrong:** If two iNat users photograph the same specimen, the catalog number appears twice in `waba_link`, causing ecdysis.parquet to have duplicate rows for those specimens.
 
-**Do this instead:** Structure the Dockerfile with dependency layers before source code layers. Docker layer caching will skip the slow dependency install when only Python source files change. CDK also caches the asset hash and skips ECR push if unchanged.
-
-### Anti-Pattern 5: Hardcoding CloudFront Domain in Frontend
-
-**What people do:** Set `const DATA_BASE = 'https://d1o1go591lqnqi.cloudfront.net/data/'` in the frontend.
-
-**Why it's wrong:** The CloudFront domain changes if the distribution is recreated. Also breaks local development (can't serve local files from the production CloudFront URL).
-
-**Do this instead:** Use a root-relative path: `const DATA_BASE = '/data/'`. This works on both beeatlas.net (via CloudFront) and local Vite dev server (where `/data/` can be proxied or the files symlinked).
-
-### Anti-Pattern 6: Lambda URL with No Auth on a Destructive Operation
-
-**What people do:** Expose a Lambda URL with `FunctionUrlAuthType.NONE` where invoking the URL triggers irreversible operations (e.g., deleting DuckDB, overwriting S3 data unconditionally).
-
-**Why it's wrong:** Any public request to the URL triggers the pipeline. A malicious or accidental flood of requests would run the pipeline repeatedly, burning Lambda compute time and API rate limits.
-
-**Do this instead:** The Lambda handler should be idempotent and check a cooldown (e.g., skip if last run was less than 1 hour ago). The pipeline's own rate limiting (≤20 req/sec for Ecdysis) naturally limits damage, but an explicit cooldown check is safer.
-
-## Scaling Considerations
-
-This is a low-traffic, single-tenant system. Scaling is not a concern. The key constraints are:
-
-| Concern | Current | With Lambda + EFS |
-|---------|---------|-------------------|
-| Pipeline execution | CI runner (2 vCPU, 7GB RAM, 6h limit) | Lambda (up to 6 vCPU, 10GB RAM, 15min limit) |
-| DuckDB persistence | Local developer machine only | EFS — durable, survives all deploys |
-| Data freshness | Weekly CI manual trigger | Weekly EventBridge + on-demand Lambda URL |
-| Frontend data size | Bundled at build time | Runtime fetch; CloudFront caches at edge |
-| S3 storage cost | ~10MB/week (parquets + cache) | Same data volume; adds backup/ prefix (~100MB DuckDB) |
-
-The 15-minute Lambda timeout is the binding constraint. The current pipeline (geographies + ecdysis + links + inat + projects + export) takes approximately 30-90 minutes on a local developer machine due to the Ecdysis HTML scraping. The Lambda will need EFS-persisted state to support incremental runs — the DuckDB already stores `last_fetch` timestamps via dlt's state mechanism, so this works correctly with EFS persistence.
-
-If the pipeline consistently exceeds 15 minutes, the solution is to split into separate Lambda functions for slow steps (Ecdysis links scraping) versus fast steps (iNat delta fetch, export). This is deferred per milestone scope.
+**Do this instead:** `DISTINCT ON (ofv.value) ... ORDER BY ofv.value, obs.id ASC` in the `waba_link` CTE picks the earliest observation ID per catalog number, giving a deterministic single row per specimen.
 
 ## Sources
 
-- Direct inspection of `infra/lib/beeatlas-stack.ts` (HIGH confidence)
-- Direct inspection of `data/run.py`, `data/export.py`, `data/pyproject.toml` (HIGH confidence)
-- Direct inspection of `.github/workflows/deploy.yml`, `fetch-data.yml` (HIGH confidence)
-- Direct inspection of `frontend/src/bee-map.ts`, `region-layer.ts` (HIGH confidence)
-- AWS CDK v2 Lambda EFS official documentation: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda-readme.html (HIGH confidence)
-- AWS Lambda Python 3.14 runtime: https://aws.amazon.com/about-aws/whats-new/2025/11/aws-lambda-python-314/ (HIGH confidence — GA November 2025)
-- Lambda Function URL auth: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.FunctionUrl.html (HIGH confidence)
-- DuckDB on Lambda: https://www.bbourgeois.dev/blog/2025/04-duckdb-aws-lambda-layers (MEDIUM confidence — confirms native extension requirements)
-- EventBridge Scheduler L2 GA: https://aws.amazon.com/about-aws/whats-new/2025/04/aws-cdk-construct-library-eventbridge-scheduler/ (HIGH confidence)
+- Direct code inspection: `data/inaturalist_pipeline.py`, `data/export.py`, `data/run.py`, `data/ecdysis_pipeline.py`, `data/.dlt/config.toml`, `.planning/PROJECT.md` (HIGH confidence)
+- DuckDB `split_part` and `DISTINCT ON` semantics: standard DuckDB SQL; HIGH confidence from direct DuckDB documentation knowledge (cutoff August 2025)
+- iNat v2 API `field_id` query parameter: MEDIUM confidence — consistent with `ofvs.field_id` usage in existing export.py; verify against live API before implementing
 
 ---
 
-*Architecture research for: Washington Bee Atlas v1.7 Lambda + EFS Pipeline Infrastructure*
-*Researched: 2026-03-27*
+*Architecture research for: BeeAtlas v2.3 WABA specimen observation pipeline*
+*Researched: 2026-04-12*

@@ -164,3 +164,131 @@ aws-cdk-lib/aws-cloudfront → cloudfront.ResponseHeadersPolicy,
 ---
 *Stack research for: BeeAtlas v1.7 — Lambda + EFS pipeline execution, runtime CloudFront data fetching*
 *Researched: 2026-03-27*
+
+---
+
+# iNat API: Observation Field Filtering (v2.3 addition)
+
+**Domain:** iNaturalist REST API — filtering observations by observation field value
+**Researched:** 2026-04-12
+**Confidence:** HIGH — all key claims verified by direct live API calls
+
+## The WABA Observation Field
+
+Field id 18116, name "WABA", datatype "numeric", description "Washington Bee Atlas Id". As of 2026-04-12 the field has 1,374 observations and 1,374 users. It was created 2024-07-16 and last updated 2026-03-18.
+
+```json
+{"id": 18116, "name": "WABA", "datatype": "numeric", "values_count": 1374, "users_count": 1374}
+```
+
+Source: `https://www.inaturalist.org/observation_fields.json?q=WABA` — verified by live API call.
+
+## Filtering Parameter: `field:WABA=`
+
+Both the v1 and v2 iNaturalist REST APIs accept the `field:FIELDNAME=VALUE` query parameter for observation field filtering. The parameter name is not listed in Swagger (`/v1/swagger.json`) — it is a pass-through from the Rails web search URL syntax. It is, however, fully functional.
+
+**Correct parameter:** `field%3AWABA=` (URL-encoded `field:WABA=`)
+
+- Omitting the value (i.e., `field:WABA=` with empty value) returns all observations that have the field set to any value. This is the correct form for the pipeline — fetch all WABA-tagged observations regardless of value.
+- Setting a specific value (e.g., `field:WABA=1`) would filter to observations where WABA equals exactly that number. Do not use this — catalog numbers are arbitrary integers, not a filter target.
+
+**Verified results (live API calls):**
+
+| Query | Total results |
+|-------|--------------|
+| `GET /v1/observations?field%3AWABA=&per_page=1` | 1374 |
+| `GET /v2/observations?field%3AWABA=&per_page=1&fields=id` | 1374 |
+| `GET /v1/observations?field%3AWABA=1&per_page=1` | 0 (specific value=1 matches nothing) |
+
+## API Version: Use v2 (Consistent with Existing Pipeline)
+
+The existing `inaturalist_pipeline.py` uses `https://api.inaturalist.org/v2/` as `base_url`. Use v2 for the new WABA pipeline too. The `field:WABA=` filter works identically on both v1 and v2 — verified by direct comparison.
+
+## Incremental Cursor: `updated_since` (Identical to Existing Pipeline)
+
+The WABA pipeline can use the same incremental pattern as the existing pipeline: `updated_since={incremental.start_value}` with `cursor_path: updated_at`. Verified working:
+
+```
+GET /v2/observations?field%3AWABA=&updated_since=2026-01-01T00%3A00%3A00%2B00%3A00&order_by=updated_at&order=asc&per_page=200
+→ total_results: 303 (observations updated since 2026-01-01)
+```
+
+The dlt RESTAPIConfig for the new pipeline is structurally identical to the existing `inaturalist_source`, with `project_id` replaced by `"field%3AWABA": ""` (or equivalent param construction).
+
+**Note on dlt RESTAPIConfig param encoding:** dlt's REST API source sends params as query string key-value pairs. The param key must be the literal string `field:WABA` (with colon, not URL-encoded) — the HTTP library handles URL encoding. Verify this during implementation; if dlt does not encode colons in param keys, pass it pre-encoded as `field%3AWABA`.
+
+## WABA Field Value Format and Join Key
+
+WABA field values are **plain integers** (datatype: numeric), e.g., `2420796`. They correspond to the numeric suffix of Ecdysis `catalog_number` values, which have the format `WSDA_{integer}`.
+
+**Join condition verified by live data:**
+
+| iNat observation | WABA value | Ecdysis catalog_number |
+|-----------------|-----------|----------------------|
+| 225243616 | 2420796 | WSDA_2420796 |
+| 229760637 | 2417133 | WSDA_2417133 |
+| 220980576 | 2414072 | WSDA_2414072 |
+
+The export join is:
+```sql
+CAST(waba_observations.waba_value AS BIGINT) = CAST(SPLIT_PART(occurrences.catalog_number, '_', 2) AS BIGINT)
+```
+
+Or equivalently:
+```sql
+occurrences.catalog_number = 'WSDA_' || waba_observations.waba_value
+```
+
+The second form is simpler — WABA values are always the raw integer suffix.
+
+## Minimum Fields Required
+
+The WABA pipeline only needs to extract: `id`, `uuid`, `updated_at`, `ofvs.field_id`, `ofvs.value`. The WABA value is in `ofvs` filtered to `field_id=18116`.
+
+Verified response shape from v2 with `fields=id,uuid,updated_at,ofvs.field_id,ofvs.value`:
+```json
+{"id": 225243616, "uuid": "0497519d-...", "updated_at": "2024-07-16T...", "ofvs": [{"field_id": 18116, "value": "2420796"}]}
+```
+
+The `value` field is a string in the API response even though the field datatype is numeric. Cast to integer in the transform or in the export SQL.
+
+## Pagination
+
+With 1,374 total observations and `per_page=200`, the full corpus spans 7 pages. The existing pipeline uses `stop_after_empty_page: true` with no `total_path` — this works correctly here too. The iNat API does not paginate beyond 10,000 results (hard cap), so the WABA corpus (1,374) is well within bounds.
+
+No pagination behavior differences between observation field queries and project queries were observed.
+
+## Rate Limiting
+
+The iNat API has an **official limit of 100 requests/minute**, with a recommendation to stay at or below 60/minute. Community reports indicate 429 errors can appear even at 60/minute for some endpoints. The existing pipeline does not implement explicit rate limiting beyond dlt's default behavior.
+
+For the WABA pipeline: 7 pages per full fetch is negligible. Incremental nightly runs will typically fetch 1-3 pages. Rate limiting is not a concern for this pipeline at its current scale.
+
+No authentication is required for read access to public observations filtered by observation field. The WABA field observations are all public.
+
+## Differences from Project-Based Queries
+
+| Aspect | Project query (existing) | Field query (new) |
+|--------|--------------------------|-------------------|
+| Filter param | `project_id=166376` | `field%3AWABA=` |
+| Auth required | No | No |
+| Incremental cursor | `updated_since` | `updated_since` (identical) |
+| Pagination behavior | `stop_after_empty_page` | `stop_after_empty_page` (identical) |
+| OFVs in response | Yes, multiple fields | Yes, at least field_id=18116 |
+| Total corpus size | ~unknown | 1,374 observations |
+| Rate limit exposure | Same | Same |
+
+The only material difference is the filter parameter. The rest of the pipeline configuration is identical.
+
+## Sources
+
+- `https://www.inaturalist.org/observation_fields.json?q=WABA` — live API call confirming field id=18116, name="WABA", datatype="numeric", values_count=1374 — HIGH confidence
+- `https://api.inaturalist.org/v1/observations?field%3AWABA=&per_page=1` — live API call confirming 1374 results — HIGH confidence
+- `https://api.inaturalist.org/v2/observations?field%3AWABA=&per_page=1&fields=id` — live API call confirming v2 support — HIGH confidence
+- `https://api.inaturalist.org/v2/observations?field%3AWABA=&updated_since=...&order_by=updated_at` — live API call confirming incremental query works — HIGH confidence
+- [iNaturalist API rate limits — forum discussion](https://forum.inaturalist.org/t/429-error-from-observations-histogram-api-when-calling-at-60-calls-minute/64709) — MEDIUM confidence (community report; documented limit is 100/min, practical safe limit ~60/min)
+- [iNaturalist API forum — field: parameter syntax](https://forum.inaturalist.org/t/query-api-by-observation-field-or-observation-field-value/39719) — MEDIUM confidence (community-confirmed syntax; not in official Swagger docs)
+
+---
+*iNat API field filtering research for: BeeAtlas v2.3 — WABA observation field pipeline*
+*Researched: 2026-04-12*
