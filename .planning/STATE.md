@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-04-09 — v2.1 milestone started)
 
 ## Current Position
 
-Phase: 47 (rewrite-geographies-pipeline-py-to-use-duckdb-spatial-extens) — COMPLETE
-Plan: 2 of 2
-Status: Phase 47 complete
-Last activity: 2026-04-13
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-12 — Milestone v2.3 started
 
 Progress: [██████████] 100%
 
