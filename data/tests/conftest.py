@@ -12,6 +12,7 @@ def _create_schemas(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("CREATE SCHEMA geographies")
     con.execute("CREATE SCHEMA ecdysis_data")
     con.execute("CREATE SCHEMA inaturalist_data")
+    con.execute("CREATE SCHEMA inaturalist_waba_data")
 
 
 def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
@@ -42,6 +43,7 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             genus VARCHAR, family VARCHAR, associated_taxa VARCHAR,
             event_date VARCHAR,
             modified TIMESTAMPTZ,
+            catalog_number VARCHAR,
             _dlt_load_id VARCHAR, _dlt_id VARCHAR
         )
     """)
@@ -82,6 +84,23 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             _dlt_parent_id VARCHAR, _dlt_list_idx BIGINT
         )
     """)
+    con.execute("""
+        CREATE TABLE inaturalist_waba_data.observations (
+            _dlt_id VARCHAR, id BIGINT, uuid VARCHAR,
+            user__login VARCHAR, observed_on DATE,
+            longitude DOUBLE, latitude DOUBLE,
+            quality_grade VARCHAR,
+            _dlt_load_id VARCHAR
+        )
+    """)
+    con.execute("""
+        CREATE TABLE inaturalist_waba_data.observations__ofvs (
+            _dlt_root_id VARCHAR, field_id BIGINT, name VARCHAR,
+            value VARCHAR, datatype VARCHAR,
+            _dlt_load_id VARCHAR, _dlt_id VARCHAR,
+            _dlt_parent_id VARCHAR, _dlt_list_idx BIGINT
+        )
+    """)
 
 
 def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
@@ -108,6 +127,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     """, [NORTH_CASCADES_WKT])
 
     # Ecdysis specimen (lat=47.608, lon=-120.912, inside Chelan county and North Cascades)
+    # catalog_number='WSDA_5594569' so WABA OFV value '5594569' joins via numeric suffix
     con.execute("""
         INSERT INTO ecdysis_data.occurrences VALUES (
             '5594569', '69c258f0-7c62-4da3-b991-130ec3dde645',
@@ -118,6 +138,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             'host:"Balsamorhiza sagittata"',
             '2024-06-15',
             '2024-05-01T00:00:00+00:00'::TIMESTAMPTZ,
+            'WSDA_5594569',
             'load1', 'occ-1'
         )
     """)
@@ -146,6 +167,25 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         INSERT INTO inaturalist_data.observations__ofvs VALUES (
             'test-obs-1', 8338, 'Specimen Count', '3', 'numeric',
             'load1', 'ofv-1', 'test-obs-1', 0
+        )
+    """)
+
+    # WABA observation linking to the test specimen via catalog number suffix
+    # The test specimen has catalog_number='WSDA_5594569', suffix='5594569'
+    # The WABA OFV value '5594569' joins via regexp_extract(catalog_number, '[0-9]+$')
+    con.execute("""
+        INSERT INTO inaturalist_waba_data.observations VALUES (
+            'waba-obs-1', 777777, 'waba-uuid-1',
+            'wabauser', '2024-06-15'::DATE,
+            -120.8, 47.5,
+            'research',
+            'waba-load1'
+        )
+    """)
+    con.execute("""
+        INSERT INTO inaturalist_waba_data.observations__ofvs VALUES (
+            'waba-obs-1', 18116, 'WABA', '5594569', 'text',
+            'waba-load1', 'waba-ofv-1', 'waba-obs-1', 0
         )
     """)
 

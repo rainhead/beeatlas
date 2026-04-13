@@ -18,6 +18,7 @@ EXPECTED_ECDYSIS_COLS = [
     'county', 'ecoregion_l3',
     'host_observation_id', 'inat_host', 'inat_quality_grade',
     'modified',
+    'specimen_observation_id',
 ]
 
 EXPECTED_SAMPLES_COLS = [
@@ -44,6 +45,19 @@ def test_ecdysis_parquet_schema(fixture_con, export_dir, monkeypatch):
 
     for col in EXPECTED_ECDYSIS_COLS:
         assert col in actual_cols, f"Missing column in ecdysis.parquet: {col}"
+
+
+def test_ecdysis_parquet_has_specimen_observation_id(fixture_con, export_dir, monkeypatch):
+    """export_ecdysis_parquet populates specimen_observation_id for WABA-linked specimens."""
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_ecdysis_parquet(fixture_con)
+
+    parquet_path = str(export_dir / 'ecdysis.parquet')
+    row = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE specimen_observation_id IS NOT NULL
+    """).fetchone()
+    assert row[0] >= 1, "No rows have specimen_observation_id set — WABA join may be broken"
 
 
 def test_ecdysis_parquet_has_rows(fixture_con, export_dir, monkeypatch):
