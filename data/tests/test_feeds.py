@@ -323,14 +323,7 @@ def test_ecoregion_variant(fixture_con, export_dir):
 def test_empty_variant_feed(tmp_path):
     """Empty variant feeds (0 matching entries) are written as valid Atom with 0 entries and run_time updated."""
     import duckdb
-    import sys
-    import os
-    # conftest.py is a pytest plugin module — import it via path to access WKT constants
-    sys.path.insert(0, os.path.dirname(__file__))
-    import conftest as _conftest
-    WA_STATE_WKT = _conftest.WA_STATE_WKT
-    CHELAN_WKT = _conftest.CHELAN_WKT
-    NORTH_CASCADES_WKT = _conftest.NORTH_CASCADES_WKT
+    from fixtures import WA_STATE_WKT, CHELAN_WKT, NORTH_CASCADES_WKT
 
     # Create minimal DB: geographies tables with one county + one ecoregion, but NO identifications/occurrences
     db_path = str(tmp_path / 'empty_variant.duckdb')
