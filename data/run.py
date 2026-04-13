@@ -7,8 +7,12 @@ Pipelines are executed in this order:
     geographies -> ecdysis -> ecdysis-links -> inaturalist -> projects -> export -> feeds
 """
 
+import logging
 import time
+import traceback
 from typing import Callable
+
+logging.basicConfig(level=logging.WARNING, format="%(name)s %(levelname)s %(message)s")
 
 from geographies_pipeline import load_geographies
 from ecdysis_pipeline import load_ecdysis, load_links
@@ -35,7 +39,11 @@ def main() -> None:
     for name, fn in STEPS:
         print(f"--- {name} ---")  # noqa: T201
         step_start = time.monotonic()
-        fn()
+        try:
+            fn()
+        except Exception:
+            traceback.print_exc()
+            raise
         elapsed = time.monotonic() - step_start
         print(f"--- {name} done in {elapsed:.1f}s ---")  # noqa: T201
     total = time.monotonic() - overall_start
