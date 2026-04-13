@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Specimen iNat Observation Links
-status: planning
-stopped_at: Phase 48 context gathered
-last_updated: "2026-04-13T15:10:28.469Z"
+status: in_progress
+stopped_at: Phase 49 complete
+last_updated: "2026-04-13T16:30:00.000Z"
 last_activity: 2026-04-13
 progress:
   total_phases: 4
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
-  percent: 100
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-12 — v2.3 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 48 — Column Rename (inat_observation_id → host_observation_id)
+**Current focus:** Phase 49 complete — next: Phase 50 (Export Join & Schema Gate)
 
 ## Current Position
 
-Phase: 49 of 51 (waba pipeline)
-Plan: Not started
-Status: Ready to plan
+Phase: 49 of 51 (waba pipeline) — COMPLETE
+Plan: 1/1 complete
+Status: Phase complete, verified
 Last activity: 2026-04-13
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 

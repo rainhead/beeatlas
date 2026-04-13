@@ -221,7 +221,7 @@ See `.planning/milestones/v2.2-ROADMAP.md` for full phase details.
 **Milestone Goal:** Pull iNat observations that self-identify as photos of Ecdysis specimens via the WABA observation field and surface those links in the specimen detail view.
 
 - [x] **Phase 48: Column Rename** — Rename `inat_observation_id` to `host_observation_id` atomically across all 14 touch points (completed 2026-04-13)
-- [ ] **Phase 49: WABA Pipeline** — New dlt pipeline fetching iNat observations with the WABA field filter
+- [x] **Phase 49: WABA Pipeline** — New dlt pipeline fetching iNat observations with the WABA field filter (completed 2026-04-13)
 - [ ] **Phase 50: Export Join & Schema Gate** — Add `specimen_observation_id` to ecdysis.parquet via waba_link CTE
 - [ ] **Phase 51: Frontend Link Rendering** — Show specimen photo link in sidebar detail view
 
@@ -324,6 +324,6 @@ Plans:
 | 46. Basemap Tile Provider Upgrade | v2.2 | 1/1 | Complete | 2026-04-12 |
 | 47. DuckDB Spatial Geographies Pipeline | v2.2 | 2/2 | Complete | 2026-04-12 |
 | 48. Column Rename | v2.3 | 1/1 | Complete    | 2026-04-13 |
-| 49. WABA Pipeline | v2.3 | 0/? | Not started | - |
+| 49. WABA Pipeline | v2.3 | 1/1 | Complete   | 2026-04-13 |
 | 50. Export Join & Schema Gate | v2.3 | 0/? | Not started | - |
 | 51. Frontend Link Rendering | v2.3 | 0/? | Not started | - |
