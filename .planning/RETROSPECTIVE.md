@@ -2,6 +2,34 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v2.3 — Specimen iNat Observation Links
+
+**Shipped:** 2026-04-13
+**Phases:** 4 (Phases 48–51) | **Plans:** 4 | **Timeline:** 2 days (2026-04-12 → 2026-04-13)
+
+### What Was Built
+- Phase 48: Atomically renamed `inat_observation_id` → `host_observation_id` across 12 source files (Python, TypeScript, schema gate, test fixtures) via DuckDB `ALTER TABLE` + SQL `SELECT AS` for local parquet
+- Phase 49: `data/waba_pipeline.py` — dlt pipeline with `field:WABA=` filter, `inaturalist_waba_data` isolated schema, incremental `updated_at` cursor; 1,374 observations fetched on first run
+- Phase 50: `waba_link` CTE added to `export.py` — joins WABA OFV catalog numbers to ecdysis `catalog_number` numeric suffix via `regexp_extract`; 1,347 specimens matched in production; `MIN(waba.id)` dedup; schema gate updated
+- Phase 51: `specimenObservationId` threaded through full frontend data flow (OL feature, DuckDB SELECT, Specimen interface); camera emoji link (📷) rendered conditionally in sidebar; 3 Vitest render tests
+
+### What Worked
+- Following the existing `hostObservationId` pattern exactly for `specimenObservationId` — no design decisions needed, just mechanical extension; phase 51 completed in 7 minutes
+- `regexp_extract(catalog_number, '[0-9]+$')` for the join key was a clean discovery — WABA OFV stores bare integer suffix, not the full `WSDA_` prefix
+- Isolating the WABA pipeline with `pipeline_name="waba"` / `dataset_name="inaturalist_waba_data"` from day one prevented any cursor state pollution with the existing iNat pipeline
+
+### What Was Inefficient
+- `gsd-tools milestone complete` CLI failed again to extract accomplishments from SUMMARY.md frontmatter (returned "Task 1 — Source file renames:" from wrong position in phase 48 summary) — MILESTONES.md required manual correction for the third milestone in a row
+- REQUIREMENTS.md checkboxes were never updated during execution — all 9 requirements showed "Pending" at close despite being complete; the traceability table is not being maintained during phase execution
+
+### Patterns Established
+- `MIN(waba.id) GROUP BY catalog_suffix` is the canonical dedup pattern when multiple records can match a single specimen via an observation field value
+- WABA OFV field_id=18116 stores the numeric suffix of the Ecdysis catalog number — document in pipeline config comments, not just plan notes
+
+### Key Lessons
+- Requirement checkbox hygiene: update REQUIREMENTS.md traceability status during or immediately after each phase execution, not just at milestone close
+- The `gsd-tools summary-extract` one-liner extraction is fragile for summaries that don't have a clean frontmatter `one_liner` field — ensure SUMMARY.md files include a `one_liner` in frontmatter for correct CLI extraction
+
 ## Milestone: v2.2 — Feed Discoverability & Pipeline
 
 **Shipped:** 2026-04-12

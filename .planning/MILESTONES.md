@@ -1,5 +1,19 @@
 # Milestones
 
+## v2.3 Specimen iNat Observation Links (Shipped: 2026-04-13)
+
+**Phases completed:** 4 phases, 4 plans
+**Timeline:** 2 days (2026-04-12 → 2026-04-13)
+
+**Key accomplishments:**
+
+- Atomically renamed `inat_observation_id` → `host_observation_id` across 12 source files (Python pipeline, export SQL, schema gate, TypeScript interfaces, test fixtures) to disambiguate before adding the new column
+- Built WABA dlt pipeline (`waba_pipeline.py`) fetching 1,374 iNat observations via `field:WABA=` filter into isolated `inaturalist_waba_data` schema with incremental `updated_at` cursor
+- Added `specimen_observation_id` (nullable BIGINT) to `ecdysis.parquet` via `waba_link` CTE joining WABA OFV catalog numbers to ecdysis `catalog_number` numeric suffixes; 1,347 specimens now have photo links in production data
+- Surfaced specimen observation as camera emoji link (📷) in sidebar detail view; 3 Vitest render tests cover link presence, absence, and independence from host observation link
+
+---
+
 ## v2.2 Feed Discoverability & Pipeline (Shipped: 2026-04-13)
 
 **Phases completed:** 3 phases, 5 plans, 0 tasks
