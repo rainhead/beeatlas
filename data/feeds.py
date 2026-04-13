@@ -399,7 +399,7 @@ def write_index_json(out_dir: Path, entries: list) -> None:
 def main() -> None:
     """Connect to beeatlas.duckdb and write the determinations feed and all variants."""
     con = duckdb.connect(DB_PATH, read_only=True)
-    con.execute("LOAD spatial;")
+    con.execute("INSTALL spatial; LOAD spatial;")
     run_time = datetime.datetime.now(tz=_UTC)
     write_determinations_feed(con, ASSETS_DIR)
     entries = write_all_variants(con, ASSETS_DIR, run_time)
