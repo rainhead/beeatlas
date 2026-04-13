@@ -44,11 +44,11 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| HDR-01 | TBD | pending |
-| HDR-02 | TBD | pending |
-| HDR-03 | TBD | pending |
-| HDR-04 | TBD | pending |
-| FILT-08 | TBD | pending |
-| FILT-09 | TBD | pending |
-| SIDE-01 | TBD | pending |
-| SIDE-02 | TBD | pending |
+| HDR-01 | Phase 52 | pending |
+| HDR-02 | Phase 52 | pending |
+| HDR-03 | Phase 52 | pending |
+| HDR-04 | Phase 52 | pending |
+| FILT-08 | Phase 53 | pending |
+| FILT-09 | Phase 53 | pending |
+| SIDE-01 | Phase 54 | pending |
+| SIDE-02 | Phase 54 | pending |
