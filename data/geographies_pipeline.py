@@ -145,9 +145,11 @@ def load_geographies() -> None:
         ),
         dataset_name="geographies",
     )
-    load_info = pipeline.run(geographies_source())
-    print(load_info)  # noqa: T201
-    load_info.raise_on_failed_jobs()
+    # Run each resource separately to avoid buffering all datasets in memory at once.
+    for resource in geographies_source().resources.values():
+        load_info = pipeline.run(resource)
+        print(load_info)  # noqa: T201
+        load_info.raise_on_failed_jobs()
 
 
 if __name__ == "__main__":
