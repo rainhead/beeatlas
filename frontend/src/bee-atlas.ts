@@ -351,20 +351,8 @@ bee-sidebar {
       );
       this._ecoregionOptions = ecoregionResult.toArray().map(r => String((r.toJSON() as Record<string, unknown>).ecoregion_l3));
 
-      const collectorResult = await conn.query(`
-        SELECT e.recordedBy, MIN(s.observer) AS observer
-        FROM ecdysis e
-        LEFT JOIN samples s ON e.host_observation_id = s.observation_id
-        WHERE e.recordedBy IS NOT NULL
-        GROUP BY e.recordedBy
-        ORDER BY e.recordedBy
-      `);
-      this._collectorOptions = collectorResult.toArray().map(r => {
-        const obj = r.toJSON() as Record<string, unknown>;
-        const recordedBy = String(obj.recordedBy);
-        const observer = obj.observer != null ? String(obj.observer) : null;
-        return { displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry;
-      });
+      // _collectorOptions is populated by _loadCollectorOptions, called from _onDataLoaded
+      // independently of view mode — no need to duplicate the query here.
     } catch (err) {
       console.error('Failed to load summary from DuckDB:', err);
     } finally {
