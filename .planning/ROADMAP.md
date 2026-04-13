@@ -266,7 +266,7 @@ Plans:
   4. The sidebar no longer contains filter controls or the CSV download button
 **Plans**: 1 plan
 Plans:
-- [x] 53-01-PLAN.md — Create bee-filter-toolbar, wire into bee-atlas, clean up bee-sidebar
+- [ ] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
 **UI hint**: yes
 
 ### Phase 54: Sidebar Cleanup
@@ -280,7 +280,7 @@ Plans:
   4. The sidebar no longer contains the layer toggle, view toggle, filter controls, or feed subscription links
 **Plans**: 1 plan
 Plans:
-- [x] 53-01-PLAN.md — Create bee-filter-toolbar, wire into bee-atlas, clean up bee-sidebar
+- [ ] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
 **UI hint**: yes
 
 ## Progress
@@ -340,4 +340,4 @@ Plans:
 | 51. Frontend Link Rendering | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 52. Header Component | v2.4 | 2/2 | Complete    | 2026-04-13 |
 | 53. Filter Toolbar | v2.4 | 1/1 | Complete | 2026-04-13 |
-| 54. Sidebar Cleanup | v2.4 | 0/TBD | Not started | - |
+| 54. Sidebar Cleanup | v2.4 | 0/1 | In progress | - |
