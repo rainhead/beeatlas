@@ -42,11 +42,10 @@ Declared values (multiples of 4):
 | 3xl | 64px | Page-level spacing |
 
 Exceptions:
-- Tab vertical padding: 9.6px (0.6rem at 16px base) — preserved from existing `.toggle-btn` to match the sidebar pattern weight
 - Touch targets for icon buttons (Map/Table): minimum 44px × 44px clickable area (WCAG 2.5.5)
 - h1 margin: 16px top/bottom, 8px left (1rem/0.5rem) — existing value, preserved
 
-Source: existing `.toggle-btn` padding `0.6rem 1rem` in bee-sidebar.ts; h1 style in index.css
+Source: existing `.toggle-btn` horizontal padding `1rem` in bee-sidebar.ts; h1 style in index.css
 
 ---
 
@@ -55,11 +54,12 @@ Source: existing `.toggle-btn` padding `0.6rem 1rem` in bee-sidebar.ts; h1 style
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body | 16px (1rem) | 400 | 1.5 |
-| Label / tab | 14.4px (0.9rem) | 500 (inactive), 600 (active) | 1.2 |
+| Label / tab | 14.4px (0.9rem) | 500 | 1.2 |
 | Heading (h1) | 19.2px (1.2rem) | 400 | 1.5 |
-| Disabled tab | 14.4px (0.9rem) | 500 | 1.2 |
 
-Source: `:root` in index.css (`font-size` 16px base, `line-height 1.5`, `font-weight 400`); `.toggle-btn` in bee-sidebar.ts (`font-size: 0.9rem; font-weight: 500`; `.active` → `font-weight: 600`)
+Two weights only: 400 (body and heading) and 500 (all tab labels — active and inactive alike). Active tab state is communicated via accent color (`color: var(--accent)`) and `border-bottom: 2px solid var(--accent)`, not font-weight change.
+
+Source: `:root` in index.css (`font-size` 16px base, `line-height 1.5`, `font-weight 400`); `.toggle-btn` in bee-sidebar.ts (`font-size: 0.9rem; font-weight: 500`)
 
 ---
 
@@ -92,10 +92,12 @@ Source: index.css `--header-bg`, `--accent`, `--text-hint`; `.toggle-btn.active`
 
 | State | Visual |
 |-------|--------|
-| Active (Specimens or Samples) | white text at full opacity, `border-bottom: 2px solid var(--accent)`, font-weight 600 |
-| Inactive | white text at opacity 0.7, no bottom border, font-weight 500 |
+| Active (Specimens or Samples) | `color: var(--accent)`, `border-bottom: 2px solid var(--accent)`, white text at full opacity, font-weight: 500 |
+| Inactive | white text at opacity 0.7, no bottom border, font-weight: 500 |
 | Hover (inactive) | white text at opacity 1.0, subtle background tint (`rgba(255,255,255,0.08)`) |
 | Disabled (Species, Plants) | white text at `opacity: 0.4`, `pointer-events: none`, `cursor: default` |
+
+Tab vertical padding: inherits from existing `.toggle-btn` (0.6rem / 9.6px at 16px base); pending normalization to 8px in Phase 53 when the sidebar is refactored.
 
 ### View Toggle Icons (right side of header)
 
@@ -172,6 +174,7 @@ Mobile (≤640px):
 - Left group: h1 title + nav tabs (or hamburger on mobile)
 - Right group: view icon buttons + GitHub icon
 - Header height: content-driven (no fixed px height); follows existing `h1` margin rhythm
+- Primary focal point: the active nav tab (accent underline + full-opacity accent text) is the primary visual anchor; h1 establishes identity at rest.
 
 ---
 
