@@ -323,7 +323,7 @@ def test_ecoregion_variant(fixture_con, export_dir):
 def test_empty_variant_feed(tmp_path):
     """Empty variant feeds (0 matching entries) are written as valid Atom with 0 entries and run_time updated."""
     import duckdb
-    from fixtures import WA_STATE_WKT, CHELAN_WKT, NORTH_CASCADES_WKT
+    from .fixtures import WA_STATE_WKT, CHELAN_WKT, NORTH_CASCADES_WKT
 
     # Create minimal DB: geographies tables with one county + one ecoregion, but NO identifications/occurrences
     db_path = str(tmp_path / 'empty_variant.duckdb')

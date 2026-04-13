@@ -5,7 +5,7 @@ import datetime
 import pytest
 import duckdb
 
-from fixtures import WA_STATE_WKT, CHELAN_WKT, NORTH_CASCADES_WKT  # noqa: F401
+from .fixtures import WA_STATE_WKT, CHELAN_WKT, NORTH_CASCADES_WKT  # noqa: F401
 
 
 def _create_schemas(con: duckdb.DuckDBPyConnection) -> None:
