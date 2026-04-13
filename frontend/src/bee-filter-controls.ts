@@ -256,7 +256,7 @@ export class BeeFilterControls extends LitElement {
     }
     .token-field {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 0.3rem;
       padding: 0.35rem 0.5rem;
@@ -265,7 +265,10 @@ export class BeeFilterControls extends LitElement {
       cursor: text;
       min-height: 36px;
       background: var(--surface, #fff);
+      overflow-x: auto;
+      scrollbar-width: none;
     }
+    .token-field::-webkit-scrollbar { display: none; }
     .token-field:focus-within {
       border-color: var(--accent, #2c7a2c);
     }
