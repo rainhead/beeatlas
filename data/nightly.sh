@@ -47,7 +47,7 @@ _t0=$(date +%s)
 for f in ecdysis.parquet samples.parquet counties.geojson ecoregions.geojson; do
     aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
 done
-aws --profile "$AWS_PROFILE" s3 sync --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
+aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
 echo "exports uploaded in $(_elapsed $_t0)"
 
 # 4. Invalidate CloudFront /data/*
