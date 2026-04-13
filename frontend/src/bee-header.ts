@@ -17,6 +17,7 @@ export class BeeHeader extends LitElement {
       width: 100%;
       background-color: var(--header-bg);
       color: white;
+      position: relative;
     }
 
     .left-group {
@@ -151,7 +152,6 @@ export class BeeHeader extends LitElement {
       }
       .hamburger-menu {
         display: block;
-        position: relative;
       }
     }
   `;
