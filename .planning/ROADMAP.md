@@ -16,6 +16,7 @@
 - ✅ **v2.1 Determination Feeds** — Phases 42–44 (shipped 2026-04-11)
 - ✅ **v2.2 Feed Discoverability & Pipeline** — Phases 45–47 (shipped 2026-04-12)
 - ✅ **v2.3 Specimen iNat Observation Links** — Phases 48–51 (shipped 2026-04-13)
+- 🚧 **v2.4 Header Navigation & Toolbar** — Phases 52–54 (in progress)
 
 ## Phases
 
@@ -228,6 +229,53 @@ See `.planning/milestones/v2.3-ROADMAP.md` for full phase details.
 
 </details>
 
+### 🚧 v2.4 Header Navigation & Toolbar (In Progress)
+
+**Milestone Goal:** Reorganize the UI into a header-driven layout with navigational data-layer tabs, a map/table view toggle, and a persistent filter toolbar, replacing the sidebar's navigation and filter roles.
+
+- [ ] **Phase 52: Header Component** — nav tabs for layer switching + map/table icon toggle on the right
+- [ ] **Phase 53: Filter Toolbar** — move all filter controls and CSV download out of sidebar into persistent toolbar below header
+- [ ] **Phase 54: Sidebar Cleanup** — sidebar becomes click-detail only, hidden by default, dismissible
+
+## Phase Details
+
+### Phase 52: Header Component
+**Goal**: Users can switch data layers and views from a persistent header bar at the top of the page
+**Depends on**: Phase 51
+**Requirements**: HDR-01, HDR-02, HDR-03, HDR-04
+**Success Criteria** (what must be TRUE):
+  1. User can click Specimens or Samples tab in the header to switch the active data layer; the active tab is visually distinct from the inactive one
+  2. Species and Plants appear as greyed-out disabled tabs in the header, signaling future roadmap items without being clickable
+  3. User can click icon buttons on the right side of the header to toggle between Map and Table views
+  4. On narrow viewports, the nav tabs collapse to a hamburger menu that expands to show all tab options
+  5. The `lm=` and `view=` URL params continue to round-trip correctly through the new header controls
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 53: Filter Toolbar
+**Goal**: Users see all filter controls and the CSV download button in a persistent toolbar below the header, not inside the sidebar
+**Depends on**: Phase 52
+**Requirements**: FILT-08, FILT-09
+**Success Criteria** (what must be TRUE):
+  1. Taxon, year, month, county, and ecoregion filter controls are visible in a toolbar below the header when the app loads — no sidebar interaction required to reach them
+  2. CSV download button appears in the filter toolbar and triggers a download of the current filtered result set
+  3. Filter state (chips, URL params) continues to work identically to before — changing a filter in the toolbar updates the map and table
+  4. The sidebar no longer contains filter controls or the CSV download button
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 54: Sidebar Cleanup
+**Goal**: The sidebar is hidden until the user clicks a map feature, and can be dismissed back to hidden
+**Depends on**: Phase 53
+**Requirements**: SIDE-01, SIDE-02
+**Success Criteria** (what must be TRUE):
+  1. When the app loads with no map feature selected, the sidebar is not visible — the map or table occupies the full content area
+  2. Clicking a specimen cluster or sample dot on the map opens the sidebar showing the relevant detail panel
+  3. User can dismiss the open sidebar (via a close button or equivalent) and it returns to hidden; the map/table returns to full width
+  4. The sidebar no longer contains the layer toggle, view toggle, filter controls, or feed subscription links
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -279,7 +327,10 @@ See `.planning/milestones/v2.3-ROADMAP.md` for full phase details.
 | 45. Sidebar Feed Discovery | v2.2 | 2/2 | Complete | 2026-04-12 |
 | 46. Basemap Tile Provider Upgrade | v2.2 | 1/1 | Complete | 2026-04-12 |
 | 47. DuckDB Spatial Geographies Pipeline | v2.2 | 2/2 | Complete | 2026-04-12 |
-| 48. Column Rename | v2.3 | 1/1 | Complete    | 2026-04-13 |
-| 49. WABA Pipeline | v2.3 | 1/1 | Complete   | 2026-04-13 |
-| 50. Export Join & Schema Gate | v2.3 | 1/1 | Complete   | 2026-04-13 |
-| 51. Frontend Link Rendering | v2.3 | 1/1 | Complete   | 2026-04-13 |
+| 48. Column Rename | v2.3 | 1/1 | Complete | 2026-04-13 |
+| 49. WABA Pipeline | v2.3 | 1/1 | Complete | 2026-04-13 |
+| 50. Export Join & Schema Gate | v2.3 | 1/1 | Complete | 2026-04-13 |
+| 51. Frontend Link Rendering | v2.3 | 1/1 | Complete | 2026-04-13 |
+| 52. Header Component | v2.4 | 0/TBD | Not started | - |
+| 53. Filter Toolbar | v2.4 | 0/TBD | Not started | - |
+| 54. Sidebar Cleanup | v2.4 | 0/TBD | Not started | - |
