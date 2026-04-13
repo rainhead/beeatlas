@@ -22,7 +22,7 @@ ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
 
 
 def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
-    """Export ecdysis.parquet with columns including county, ecoregion_l3, host_observation_id, inat_host, inat_quality_grade, specimen_observation_id."""
+    """Export ecdysis.parquet with columns including catalog_number, county, ecoregion_l3, host_observation_id, inat_host, inat_quality_grade, specimen_observation_id."""
     out = str(ASSETS_DIR / "ecdysis.parquet")
     con.execute(f"""
     COPY (
@@ -103,6 +103,7 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     )
     SELECT
         CAST(o.id AS INTEGER) AS ecdysis_id,
+        o.catalog_number,
         CAST(o.decimal_longitude AS DOUBLE) AS longitude,
         CAST(o.decimal_latitude AS DOUBLE) AS latitude,
         o.event_date AS date,

@@ -8,20 +8,30 @@ interface ColumnDef {
   dataField: string;
   minWidth: string;
   linkFn?: (row: any) => string | null;  // returns URL or null
+  linkLabel?: (row: any) => string;       // link text; defaults to 'View'
+  nullLabel?: string;                     // display text when cell value is empty
 }
 
+const CAMERA_ICON = html`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+
 const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'source', label: 'Source', dataField: 'ecdysis_id', minWidth: '6%',
+  { key: 'label', label: 'Label', dataField: 'catalog_number', minWidth: '8%',
     linkFn: (row) => row.ecdysis_id != null
       ? `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}`
-      : null },
-  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '18%' },
+      : null,
+    linkLabel: (row) => row.catalog_number ?? 'View' },
+  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '18%',
+    nullLabel: 'No Determination' },
   { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '16%' },
   { key: 'date', label: 'Date', dataField: 'date', minWidth: '12%' },
-  { key: 'county', label: 'County', dataField: 'county', minWidth: '14%' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '14%' },
-  { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '8%' },
-  { key: 'modified', label: 'Modified', dataField: 'modified', minWidth: '12%' },
+  { key: 'county', label: 'County', dataField: 'county', minWidth: '12%' },
+  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '12%' },
+  { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '7%' },
+  { key: 'modified', label: 'Modified', dataField: 'modified', minWidth: '10%' },
+  { key: 'photo', label: 'Photo', dataField: 'specimen_observation_id', minWidth: '5%',
+    linkFn: (row) => row.specimen_observation_id != null
+      ? `https://www.inaturalist.org/observations/${row.specimen_observation_id}`
+      : null },
 ];
 
 const SAMPLE_COLUMN_DEFS: ColumnDef[] = [
@@ -170,6 +180,18 @@ export class BeeTable extends LitElement {
       margin-left: 4px;
       font-size: 0.75rem;
     }
+    .sort-indicator--inactive {
+      color: #bbb;
+    }
+    .cell-null {
+      color: var(--text-hint, #767676);
+      font-style: italic;
+    }
+    td a.photo-link {
+      display: inline-flex;
+      align-items: center;
+      color: var(--link, #1a73e8);
+    }
   `;
 
   private _onSortClick(sortBy: SpecimenSortBy) {
@@ -232,7 +254,9 @@ export class BeeTable extends LitElement {
                     if (isSortable) {
                       return html`
                         <th style="width: ${col.minWidth}" class="sortable" @click=${() => this._onSortClick(col.key as SpecimenSortBy)}>
-                          ${col.label}${isActive ? html`<span class="sort-indicator">\u25BC</span>` : nothing}
+                          ${col.label}${isActive
+                            ? html`<span class="sort-indicator">\u25BC</span>`
+                            : html`<span class="sort-indicator sort-indicator--inactive">\u25BC</span>`}
                         </th>`;
                     }
                     return html`<th style="width: ${col.minWidth}">${col.label}</th>`;
@@ -243,14 +267,24 @@ export class BeeTable extends LitElement {
                 ${(this.rows as any[]).map(row => html`
                   <tr>
                     ${cols.map(col => {
-                      const cellText = String((row as any)[col.dataField] ?? '');
+                      const raw = (row as any)[col.dataField];
+                      const cellText = String(raw ?? '');
                       if (col.linkFn) {
                         const url = col.linkFn(row);
                         if (url) {
-                          return html`<td><a href=${url} target="_blank" rel="noopener noreferrer">View</a></td>`;
+                          if (col.key === 'photo') {
+                            return html`<td><a href=${url} class="photo-link" target="_blank" rel="noopener noreferrer" title="View iNat observation" aria-label="View iNat observation">${CAMERA_ICON}</a></td>`;
+                          }
+                          const label = col.linkLabel ? col.linkLabel(row) : 'View';
+                          return html`<td><a href=${url} target="_blank" rel="noopener noreferrer">${label}</a></td>`;
+                        }
+                        if (col.key === 'photo') {
+                          return html`<td></td>`;
                         }
                       }
-                      return html`<td title=${cellText}>${cellText}</td>`;
+                      const displayText = (!cellText && col.nullLabel) ? col.nullLabel : cellText;
+                      const isNull = !cellText && !!col.nullLabel;
+                      return html`<td title=${displayText} class=${isNull ? 'cell-null' : ''}>${displayText}</td>`;
                     })}
                   </tr>
                 `)}
