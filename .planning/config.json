@@ -14,8 +14,5 @@
     "nyquist_validation": true,
     "_auto_chain_active": false
   },
-  "granularity": "standard",
-  "git": {
-    "branching_strategy": "none"
-  }
+  "granularity": "standard"
 }

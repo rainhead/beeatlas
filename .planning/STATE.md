@@ -64,6 +64,7 @@ None.
 
 - Phase 45 added: Sidebar Feed Discovery (v2.2 milestone)
 - Phase 46 added: Basemap Tile Provider Upgrade
+- Phase 47 added: Rewrite geographies_pipeline.py to use DuckDB spatial extension (eliminate geopandas/dlt, fix OOM)
 
 ### Blockers/Concerns
 
