@@ -211,7 +211,7 @@ _COUNTY_QUERY = """
        AND ST_Within(
                ST_Point(CAST(o.decimal_longitude AS DOUBLE),
                         CAST(o.decimal_latitude AS DOUBLE)),
-               ST_GeomFromText(c.geometry_wkt)
+               c.geom
            )
     WHERE i.modified >= NOW() - INTERVAL '90 days'
       AND i.scientific_name != ''
@@ -235,14 +235,14 @@ _ECOREGION_QUERY = """
     JOIN ecdysis_data.occurrences o ON i.coreid = CAST(o.id AS VARCHAR)
     JOIN geographies.ecoregions e
         ON ST_Intersects(
-               ST_GeomFromText(e.geometry_wkt),
-               (SELECT ST_GeomFromText(geometry_wkt)
+               e.geom,
+               (SELECT geom
                 FROM geographies.us_states WHERE abbreviation = 'WA')
            )
        AND ST_Within(
                ST_Point(CAST(o.decimal_longitude AS DOUBLE),
                         CAST(o.decimal_latitude AS DOUBLE)),
-               ST_GeomFromText(e.geometry_wkt)
+               e.geom
            )
     WHERE i.modified >= NOW() - INTERVAL '90 days'
       AND i.scientific_name != ''
@@ -353,8 +353,8 @@ def write_all_variants(
         ),
         'ecoregion': (
             "SELECT name FROM geographies.ecoregions "
-            "WHERE ST_Intersects(ST_GeomFromText(geometry_wkt), "
-            "(SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states "
+            "WHERE ST_Intersects(geom, "
+            "(SELECT geom FROM geographies.us_states "
             "WHERE abbreviation = 'WA')) ORDER BY name"
         ),
     }
