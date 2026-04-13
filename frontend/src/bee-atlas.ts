@@ -5,6 +5,7 @@ import { buildParams, parseParams } from './url-state.ts';
 import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilteredSummary, FilterChangedEvent, SampleEvent, FeedEntry } from './bee-sidebar.ts';
 import './bee-header.ts';
+import './bee-filter-toolbar.ts';
 import './bee-map.ts';
 import './bee-sidebar.ts';
 import './bee-table.ts';
@@ -142,6 +143,17 @@ bee-sidebar {
         @layer-changed=${this._onLayerChanged}
         @view-changed=${this._onViewChanged}
       ></bee-header>
+      <bee-filter-toolbar
+        .filterState=${this._filterState}
+        .taxaOptions=${this._taxaOptions}
+        .countyOptions=${this._countyOptions}
+        .ecoregionOptions=${this._ecoregionOptions}
+        .collectorOptions=${this._collectorOptions}
+        .summary=${this._summary}
+        .layerMode=${this._layerMode}
+        @filter-changed=${this._onFilterChanged}
+        @csv-download=${this._onDownloadCsv}
+      ></bee-filter-toolbar>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       ${this._error ? '' : html`
@@ -186,7 +198,6 @@ bee-sidebar {
           <bee-sidebar
             .samples=${this._selectedSamples}
             .summary=${this._summary}
-            .taxaOptions=${this._taxaOptions}
             .filteredSummary=${this._filteredSummary}
             .layerMode=${this._layerMode}
             .viewMode=${this._viewMode}
@@ -195,15 +206,8 @@ bee-sidebar {
               : this._recentSampleEvents}
             .sampleDataLoaded=${this._sampleDataLoaded}
             .selectedSampleEvent=${this._selectedSampleEvent}
-            .filterState=${this._filterState}
-            .countyOptions=${this._countyOptions}
-            .ecoregionOptions=${this._ecoregionOptions}
-            .collectorOptions=${this._collectorOptions}
             .activeFeedEntries=${this._activeFeedEntries}
             @close=${this._onClose}
-            @filter-changed=${this._onFilterChanged}
-            @layer-changed=${this._onLayerChanged}
-            @view-changed=${this._onViewChanged}
             @sample-event-click=${this._onSampleEventClick}
           ></bee-sidebar>
         </div>
