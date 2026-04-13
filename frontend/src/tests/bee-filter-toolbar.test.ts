@@ -79,8 +79,8 @@ describe('FILT-09: csv-download event', () => {
     expect(src).toMatch(/csv-download/);
   });
 
-  test('bee-filter-toolbar.ts source contains a button with class csv-btn', () => {
+  test('bee-filter-toolbar.ts source contains a download icon button', () => {
     const src = readFileSync(resolve(__dirname, '../bee-filter-toolbar.ts'), 'utf-8');
-    expect(src).toMatch(/csv-btn/);
+    expect(src).toMatch(/download-btn/);
   });
 });
