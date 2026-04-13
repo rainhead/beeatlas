@@ -119,6 +119,9 @@ export class BeeSpecimenDetail extends LitElement {
                 ${s.hostObservationId != null ? html`
                   · <a href="https://www.inaturalist.org/observations/${s.hostObservationId}" target="_blank" rel="noopener">${this._renderHostInfo(s)}</a>
                 ` : html` · <span class="inat-missing">iNat: —</span>`}
+                ${s.specimenObservationId != null ? html`
+                  · <a href="https://www.inaturalist.org/observations/${s.specimenObservationId}" target="_blank" rel="noopener">📷</a>
+                ` : ''}
               </li>
             `)}
           </ul>

@@ -21,6 +21,7 @@ export interface Specimen {
   floralHost?: string | null;
   inatHost?: string | null;
   inatQualityGrade?: string | null;
+  specimenObservationId?: number | null;
 }
 
 export interface Sample {
