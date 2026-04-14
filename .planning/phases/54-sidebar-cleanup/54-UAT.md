@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 54-sidebar-cleanup
 source: [54-01-SUMMARY.md]
 started: 2026-04-13T00:00:00Z
@@ -60,13 +60,24 @@ blocked: 0
   reason: "User reported: stayed open, with no records shown"
   severity: major
   test: 5
-  artifacts: []
-  missing: []
+  root_cause: "_onMapClickEmpty else-branch (bee-atlas.ts:578-584) clears selection state but never sets _sidebarOpen = false"
+  artifacts:
+    - path: "frontend/src/bee-atlas.ts"
+      issue: "_onMapClickEmpty does not set this._sidebarOpen = false in the else branch"
+  missing:
+    - "Add this._sidebarOpen = false in _onMapClickEmpty else branch before _pushUrlState()"
 
 - truth: "Sidebar shows only the × close button in the header — no other navigation buttons"
   status: failed
   reason: "User reported: yes, except there is an unnecessary Back button in addition to the close button"
   severity: minor
   test: 7
-  artifacts: []
-  missing: []
+  root_cause: "bee-specimen-detail.ts and bee-sample-detail.ts have pre-existing .back-btn elements that pre-date the sidebar cleanup; now redundant alongside the sidebar's own × close button"
+  artifacts:
+    - path: "frontend/src/bee-specimen-detail.ts"
+      issue: ".back-btn button at line 110 is now redundant"
+    - path: "frontend/src/bee-sample-detail.ts"
+      issue: ".back-btn button at line 86 is now redundant"
+  missing:
+    - "Remove .back-btn button and styles from bee-specimen-detail.ts"
+    - "Remove .back-btn button and styles from bee-sample-detail.ts"
