@@ -603,6 +603,7 @@ bee-sidebar {
     this._selectedSamples = null;
     this._selectedOccIds = null;
     this._selectedSampleEvent = null;
+    this._sidebarOpen = false;
 
     this._tablePage = 1;  // per D-09
     this._runFilterQuery().then(() => {
