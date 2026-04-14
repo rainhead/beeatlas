@@ -40,15 +40,23 @@ export const SAMPLE_RECENCY_COLORS = {
   older:    '#7f8c8d',  // slate — before this year (same as RECENCY_COLORS.older)
 } as const;
 
+// Darker variants used for filter-matched samples (higher contrast against ghosted unmatched)
+const SAMPLE_RECENCY_COLORS_ACTIVE = {
+  fresh:    '#148f77',
+  thisYear: '#2471a3',
+  older:    '#5d6d7e',
+} as const;
+
 const GHOSTED_SAMPLE_STYLE = new Style({
   image: new Circle({
     radius: 5,
-    fill: new Fill({ color: 'rgba(170, 170, 170, 0.2)' }),
-    stroke: new Stroke({ color: 'rgba(255,255,255,0.2)', width: 1 }),
+    fill: new Fill({ color: 'rgba(170, 170, 170, 0.1)' }),
+    stroke: new Stroke({ color: 'rgba(255,255,255,0.1)', width: 1 }),
   }),
 });
 
 const sampleStyleCache = new Map<string, Style>();
+const sampleStyleCacheActive = new Map<string, Style>();
 
 
 /**
@@ -130,8 +138,11 @@ export function makeSampleDotStyleFn(
   getVisibleSampleIds: () => Set<string> | null
 ): (feature: FeatureLike) => Style {
   return function sampleDotStyleFn(feature: FeatureLike): Style {
+    const visibleIds = getVisibleSampleIds();
+    const hasFilter = visibleIds !== null;
+
     // Ghost check — must come before cache lookup (ghost state depends on visibleSampleIds)
-    if (getVisibleSampleIds() !== null && !getVisibleSampleIds()!.has((feature as Feature).getId() as string)) {
+    if (hasFilter && !visibleIds!.has((feature as Feature).getId() as string)) {
       return GHOSTED_SAMPLE_STYLE;
     }
 
@@ -143,16 +154,18 @@ export function makeSampleDotStyleFn(
     const month = d.getUTCMonth() + 1;  // getUTCMonth() is 0-indexed
     const tier = recencyTier(year, month);
 
-    if (sampleStyleCache.has(tier)) return sampleStyleCache.get(tier)!;
+    const cache = hasFilter ? sampleStyleCacheActive : sampleStyleCache;
+    if (cache.has(tier)) return cache.get(tier)!;
 
+    const colors = hasFilter ? SAMPLE_RECENCY_COLORS_ACTIVE : SAMPLE_RECENCY_COLORS;
     const style = new Style({
       image: new Circle({
         radius: 5,   // fixed; visually distinct from single-specimen cluster radius of 4
-        fill: new Fill({ color: SAMPLE_RECENCY_COLORS[tier] }),
+        fill: new Fill({ color: colors[tier] }),
         stroke: new Stroke({ color: '#ffffff', width: 1 }),
       }),
     });
-    sampleStyleCache.set(tier, style);
+    cache.set(tier, style);
     return style;
   };
 }
