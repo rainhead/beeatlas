@@ -566,12 +566,16 @@ bee-sidebar {
 
   private _onMapClickEmpty() {
     if (this._boundaryMode !== 'off') {
-      // Clear region filter
+      // Clear region filter and any open selection
       this._filterState = {
         ...this._filterState,
         selectedCounties: new Set(),
         selectedEcoregions: new Set(),
       };
+      this._selectedSamples = null;
+      this._selectedOccIds = null;
+      this._selectedSampleEvent = null;
+      this._sidebarOpen = false;
       this._runFilterQuery().then(() => {
         this._pushUrlState();
       });
