@@ -52,7 +52,9 @@ export class BeeSampleDetail extends LitElement {
   `;
 
   private _formatSampleDate(dateStr: string): string {
-    const d = new Date(dateStr);
+    // Append T00:00:00 to force local-timezone parsing; bare ISO dates parse as UTC
+    // which causes off-by-one display in timezones west of UTC.
+    const d = new Date(dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr);
     if (isNaN(d.getTime())) return dateStr;
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric', month: 'long', day: 'numeric'
