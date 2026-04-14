@@ -10,15 +10,6 @@ export class BeeSpecimenDetail extends LitElement {
     :host {
       display: block;
     }
-    .back-btn {
-      margin: 0.75rem;
-      padding: 0.4rem 0.75rem;
-      cursor: pointer;
-      border: 1px solid var(--border-input);
-      background: transparent;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
     .sample {
       padding: 0.75rem 1rem;
       border-bottom: 1px solid var(--border-subtle);
@@ -107,7 +98,6 @@ export class BeeSpecimenDetail extends LitElement {
 
   render() {
     return html`
-      <button class="back-btn" @click=${this._onClose}>&#8592; Back</button>
       ${this.samples.map(sample => html`
         <div class="sample">
           <div class="sample-header">${this._formatMonth(sample.year, sample.month)} ${sample.year}</div>
