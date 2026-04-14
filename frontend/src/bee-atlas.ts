@@ -170,6 +170,7 @@ bee-sidebar {
                 @map-click-region=${this._onRegionClick}
                 @map-click-empty=${this._onMapClickEmpty}
                 @data-loaded=${this._onDataLoaded}
+                @sample-data-loaded=${this._onSampleDataLoaded}
                 @county-options-loaded=${this._onCountyOptionsLoaded}
                 @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
                 @data-error=${this._onDataError}
@@ -694,6 +695,11 @@ bee-sidebar {
     this._selectedSampleEvent = null;
     this._sidebarOpen = false;
     this._pushUrlState();
+  }
+
+  private _onSampleDataLoaded() {
+    this._loading = false;
+    this._loadCollectorOptions();
   }
 
   private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[] }>) {
