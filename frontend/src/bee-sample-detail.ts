@@ -10,15 +10,6 @@ export class BeeSampleDetail extends LitElement {
     :host {
       display: block;
     }
-    .back-btn {
-      margin: 0.75rem;
-      padding: 0.4rem 0.75rem;
-      cursor: pointer;
-      border: 1px solid var(--border-input);
-      background: transparent;
-      border-radius: 4px;
-      font-size: 0.9rem;
-    }
     .panel-content {
       padding: 1rem;
     }
@@ -26,9 +17,6 @@ export class BeeSampleDetail extends LitElement {
       display: flex;
       flex-direction: column;
       gap: 0.4rem;
-    }
-    .sample-dot-detail-header {
-      margin-bottom: 0.25rem;
     }
     .event-date {
       font-size: 0.85rem;
@@ -82,9 +70,6 @@ export class BeeSampleDetail extends LitElement {
       : 'not recorded';
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="sample-dot-detail-header">
-          <button class="back-btn" @click=${this._onClose}>&#8592; Back</button>
-        </div>
         <div class="event-date">${this._formatSampleDate(event.date)}</div>
         <div class="event-observer">${event.observer}</div>
         <div class="event-count">${count}</div>
