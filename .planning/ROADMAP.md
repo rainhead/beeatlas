@@ -235,7 +235,7 @@ See `.planning/milestones/v2.3-ROADMAP.md` for full phase details.
 
 - [x] **Phase 52: Header Component** — nav tabs for layer switching + map/table icon toggle on the right (completed 2026-04-13)
 - [x] **Phase 53: Filter Toolbar** — move all filter controls and CSV download out of sidebar into persistent toolbar below header
-- [ ] **Phase 54: Sidebar Cleanup** — sidebar becomes click-detail only, hidden by default, dismissible
+- [x] **Phase 54: Sidebar Cleanup** — sidebar becomes click-detail only, hidden by default, dismissible (completed 2026-04-13)
 
 ## Phase Details
 
@@ -266,7 +266,7 @@ Plans:
   4. The sidebar no longer contains filter controls or the CSV download button
 **Plans**: 1 plan
 Plans:
-- [ ] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
+- [x] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
 **UI hint**: yes
 
 ### Phase 54: Sidebar Cleanup
@@ -278,9 +278,10 @@ Plans:
   2. Clicking a specimen cluster or sample dot on the map opens the sidebar showing the relevant detail panel
   3. User can dismiss the open sidebar (via a close button or equivalent) and it returns to hidden; the map/table returns to full width
   4. The sidebar no longer contains the layer toggle, view toggle, filter controls, or feed subscription links
-**Plans**: 1 plan
+**Plans**: 2 plans
 Plans:
-- [ ] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
+- [x] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
+- [ ] 54-02-PLAN.md — Gap closure: fix empty-click sidebar dismiss and remove redundant Back buttons from detail panels
 **UI hint**: yes
 
 ## Progress
@@ -340,4 +341,4 @@ Plans:
 | 51. Frontend Link Rendering | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 52. Header Component | v2.4 | 2/2 | Complete    | 2026-04-13 |
 | 53. Filter Toolbar | v2.4 | 1/1 | Complete | 2026-04-13 |
-| 54. Sidebar Cleanup | v2.4 | 0/1 | In progress | - |
+| 54. Sidebar Cleanup | v2.4 | 1/2 | In progress | 2026-04-13 |
