@@ -580,6 +580,7 @@ bee-sidebar {
       this._selectedSamples = null;
       this._selectedOccIds = null;
       this._selectedSampleEvent = null;
+      this._sidebarOpen = false;
       this._pushUrlState();
     }
   }
