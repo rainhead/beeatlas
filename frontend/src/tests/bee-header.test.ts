@@ -75,14 +75,14 @@ describe('HDR: bee-header event emission', () => {
 
     const shadow = el.shadowRoot!;
     const buttons = shadow.querySelectorAll('button.tab-btn');
-    const samplesBtn = Array.from(buttons).find(
+    const samplesBtn = Array.from<Element>(buttons).find(
       (b) => b.textContent?.trim() === 'Samples'
     ) as HTMLButtonElement | undefined;
     expect(samplesBtn).toBeDefined();
     samplesBtn!.click();
 
     expect(receivedEvent).not.toBeNull();
-    expect((receivedEvent as CustomEvent).detail).toBe('samples');
+    expect(receivedEvent!.detail).toBe('samples');
 
     document.body.removeChild(el);
   });
@@ -101,7 +101,7 @@ describe('HDR: bee-header event emission', () => {
 
     const shadow = el.shadowRoot!;
     const buttons = shadow.querySelectorAll('button.tab-btn');
-    const specimensBtn = Array.from(buttons).find(
+    const specimensBtn = Array.from<Element>(buttons).find(
       (b) => b.textContent?.trim() === 'Specimens'
     ) as HTMLButtonElement | undefined;
     expect(specimensBtn).toBeDefined();
@@ -130,7 +130,7 @@ describe('HDR: bee-header event emission', () => {
     tableBtn!.click();
 
     expect(receivedEvent).not.toBeNull();
-    expect((receivedEvent as CustomEvent).detail).toBe('table');
+    expect(receivedEvent!.detail).toBe('table');
 
     document.body.removeChild(el);
   });
@@ -146,10 +146,10 @@ describe('HDR: disabled placeholder tabs', () => {
     const shadow = el.shadowRoot!;
     // Find all tab buttons (from inline-tabs; disabled ones should have the disabled attribute)
     const allButtons = shadow.querySelectorAll('button.tab-btn');
-    const speciesBtn = Array.from(allButtons).find(
+    const speciesBtn = Array.from<Element>(allButtons).find(
       (b) => b.textContent?.trim() === 'Species'
     ) as HTMLButtonElement | undefined;
-    const plantsBtn = Array.from(allButtons).find(
+    const plantsBtn = Array.from<Element>(allButtons).find(
       (b) => b.textContent?.trim() === 'Plants'
     ) as HTMLButtonElement | undefined;
 

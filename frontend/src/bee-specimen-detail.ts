@@ -92,10 +92,6 @@ export class BeeSpecimenDetail extends LitElement {
     return host ? html`${host}${badge}` : html`<span class="inat-missing">no host</span>${badge}`;
   }
 
-  private _onClose() {
-    this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
-  }
-
   render() {
     return html`
       ${this.samples.map(sample => html`

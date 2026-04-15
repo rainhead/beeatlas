@@ -444,13 +444,6 @@ export class BeeFilterControls extends LitElement {
     this._emitTokens(next);
   }
 
-  private _clearAll() {
-    this._tokens = [];
-    this._inputText = '';
-    this._open = false;
-    this._suggestions = [];
-    this._emitTokens([]);
-  }
 
   private _onBlur() {
     // Delay allows mousedown on a suggestion to fire before blur closes dropdown

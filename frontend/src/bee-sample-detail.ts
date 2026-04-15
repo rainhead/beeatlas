@@ -61,10 +61,6 @@ export class BeeSampleDetail extends LitElement {
     }).format(d);
   }
 
-  private _onClose() {
-    this.dispatchEvent(new CustomEvent('close', { bubbles: true, composed: true }));
-  }
-
   render() {
     const event = this.sampleEvent;
     const count = event.specimen_count != null && !isNaN(event.specimen_count)
