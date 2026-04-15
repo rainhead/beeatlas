@@ -8,6 +8,16 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 
 Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
 
+## Current Milestone: v2.5 Elevation Data
+
+**Goal:** Annotate specimens and samples with inferred elevation (meters) from a public WA DEM, surface in sidebar and filter toolbar.
+
+**Target features:**
+- Pipeline: Download/cache USGS 3DEP 10m DEM for Washington, sample elevation at each specimen and sample lat/lon, add `elevation_m` (INT16, nullable) to `ecdysis.parquet` and `samples.parquet`
+- Schema gate: `validate-schema.mjs` enforces `elevation_m` column presence
+- Sidebar: elevation displayed in `bee-specimen-detail` and `bee-sample-detail`
+- Filter toolbar: elevation range filter (min/max inputs), URL-encoded, integrated with DuckDB SQL filter layer
+
 ## Requirements
 
 ### Validated
