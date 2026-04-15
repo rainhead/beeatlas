@@ -20,7 +20,39 @@ _DEM_FILENAME = "wa_3dep_10m.tif"
 
 def ensure_dem(cache_dir: Path | str) -> Path:
     """Download and cache the WA 3DEP DEM. Returns path to merged GeoTIFF."""
-    raise NotImplementedError
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    dem_path = cache_dir / _DEM_FILENAME
+
+    if dem_path.exists():
+        print(f"  Using cached {dem_path}")  # noqa: T201
+        return dem_path
+
+    tile_dir = cache_dir / "_tiles"
+    tile_dir.mkdir(exist_ok=True)
+
+    print(f"  Downloading WA 3DEP tiles to {tile_dir} ...")  # noqa: T201
+    tile_paths = s3dep.get_dem(WA_BBOX, tile_dir, res=10)
+
+    if len(tile_paths) == 1:
+        shutil.copy(tile_paths[0], dem_path)
+    else:
+        print(f"  Merging {len(tile_paths)} tile(s) into {dem_path} ...")  # noqa: T201
+        datasets = [rasterio.open(p) for p in tile_paths]
+        mosaic, transform = merge(datasets)
+        meta = datasets[0].meta.copy()
+        meta.update({
+            "driver": "GTiff",
+            "height": mosaic.shape[1],
+            "width": mosaic.shape[2],
+            "transform": transform,
+        })
+        for ds in datasets:
+            ds.close()
+        with rasterio.open(dem_path, "w", **meta) as dest:
+            dest.write(mosaic)
+
+    return dem_path
 
 
 def sample_elevation(
@@ -33,7 +65,16 @@ def sample_elevation(
     Returns integer meters for in-bounds coordinates, None for out-of-bounds
     or nodata pixels. Nodata sentinel is read from dataset.nodata (not hardcoded).
     """
-    raise NotImplementedError
+    with rasterio.open(dem_path) as dataset:
+        nodata = dataset.nodata
+        results: list[int | None] = []
+        for pixel in dataset.sample(zip(lons, lats)):
+            value = pixel[0]
+            if nodata is not None and value == nodata:
+                results.append(None)
+            else:
+                results.append(int(round(float(value))))
+    return results
 
 
 if __name__ == "__main__":

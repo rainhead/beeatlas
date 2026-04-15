@@ -60,6 +60,7 @@ def test_nodata_from_file(tmp_path):
                        dtype=np.float32, crs="EPSG:4326", transform=transform,
                        nodata=nodata_val) as dst:
         dst.write(data, 1)
-    # The pixel at (-120.75, 47.75) should be nodata (-32768) → None
-    result = sample_elevation([-120.75], [47.75], path)
+    # The pixel at (-120.25, 47.75) is data[0,1] = nodata (-32768) → None
+    # data[0,0] = 100.0 (top-left), data[0,1] = nodata (top-right)
+    result = sample_elevation([-120.25], [47.75], path)
     assert result == [None]
