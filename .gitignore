@@ -143,3 +143,6 @@ frontend/public/data/
 
 # GSD debug session artifacts
 .planning/debug/
+
+# DEM tile cache (~200-500 MB WA DEM file)
+data/_dem_cache/
