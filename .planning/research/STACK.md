@@ -292,3 +292,125 @@ The only material difference is the filter parameter. The rest of the pipeline c
 ---
 *iNat API field filtering research for: BeeAtlas v2.3 — WABA observation field pipeline*
 *Researched: 2026-04-12*
+
+---
+
+# DEM Elevation Annotation: Raster Stack (v2.5 addition)
+
+**Domain:** USGS 3DEP DEM download + raster point sampling in Python pipeline
+**Researched:** 2026-04-15
+**Confidence:** HIGH for rasterio capabilities and Python compatibility; MEDIUM for seamless-3dep (newer library, limited secondary sources); LOW for DuckDB-native raster sampling (community extension, not production-ready)
+
+This section covers only NEW stack additions for v2.5 elevation annotation. All existing decisions (dlt, DuckDB, uv, export.py spatial pattern) are unchanged.
+
+## Recommended Stack
+
+### New Python Dependencies
+
+| Package | Version | Purpose | Why Recommended |
+|---------|---------|---------|-----------------|
+| `seamless-3dep` | `>=0.4.1` | Download USGS 3DEP 10m DEM GeoTIFF tiles for a bounding box | Recommended successor to py3dep (v0.19.0 changelog explicitly directs users here). `get_dem(bbox, data_dir)` downloads tiles to disk; returns list of file paths. Lightweight: only requires `requests` + `rasterio`. No xarray/shapely needed for the download path alone. Latest: 0.4.1 (2026-03-13). |
+| `rasterio` | `>=1.4.4` | Sample elevation values at (lon, lat) point coordinates from GeoTIFF | Industry-standard raster I/O for Python. `rasterio.sample.sample_gen(dataset, xy_pairs)` yields one array per coordinate — the exact primitive needed. v1.4.4 explicitly supports Python 3.14 (confirmed; free-threading wheels available). Requires GDAL >=3.6 (bundled in pip wheels — no system GDAL needed). |
+
+### Integration Point: export.py
+
+No new pipeline step is needed. The DEM download and elevation sampling belongs in `export.py`, alongside the existing spatial join logic:
+
+1. Download WA DEM once per run to a local cache path (e.g., `data/dem_cache/`). Skip download if files already exist.
+2. Open the GeoTIFF with rasterio and call `sample_gen` with all (lon, lat) coordinate pairs from the ecdysis and samples tables.
+3. Add `elevation_m` as INT16 (nullable) to both `ecdysis.parquet` and `samples.parquet` output via the existing `COPY (...) TO ... (FORMAT PARQUET)` SQL.
+
+The DEM is a pipeline input, not a dlt resource — it does not need dlt wrapping.
+
+### DEM Source: USGS 3DEP 1/3 arc-second (~10m)
+
+The 1/3 arc-second (~10m horizontal resolution) seamless DEM covers all of Washington state. This is the correct product:
+- USGS dataset: "1/3rd arc-second Digital Elevation Models (DEMs) — USGS National Map 3DEP"
+- Accessed via: `seamless-3dep` calls the TNM (The National Map) staging service directly
+- WA bounding box: `(-124.85, 45.55, -116.95, 49.0)` — covers the full state
+- At 10m resolution, this covers ~760km × ~370km ≈ ~10.5 million pixels. Tile-based download is automatic.
+
+### Rasterio Sampling Pattern
+
+```python
+import rasterio
+from rasterio.sample import sample_gen
+
+with rasterio.open("path/to/dem_tile.tif") as src:
+    # xy must be in the dataset's CRS (EPSG:4326 for 3DEP)
+    # yields arrays; band 1 value is the elevation in meters
+    for val in sample_gen(src, [(lon, lat), ...], indexes=1):
+        elevation = val[0]  # INT or nodata sentinel
+```
+
+For the export use case: collect all (lon, lat) pairs from both tables, batch-sample against the merged/VRT DEM, then join elevations back by index position before writing parquet.
+
+seamless-3dep returns tiles in EPSG:4326, which matches the lat/lon stored in ecdysis and samples tables — no reprojection needed.
+
+## What NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `py3dep` | Superseded. The HyRiver changelog for v0.19.0 explicitly recommends `seamless-3dep` as the replacement. py3dep has heavier dependencies (aiohttp, async stack). | `seamless-3dep` |
+| `geopandas` | Already removed from pipeline in v2.2 (caused OOM in geographies pipeline). No vector operations needed here — sampling is coordinate-list-based. | `rasterio.sample.sample_gen` directly |
+| `xarray` / `rioxarray` | Required only by `seamless-3dep`'s `tiffs_to_da()` conversion function. That function is not needed — we want files on disk for rasterio, not an xarray array. | Omit; use `get_dem()` return value (list of file paths) directly |
+| `shapely` | Only required by `seamless-3dep`'s optional `tiffs_to_da()` path. Not needed for download + rasterio sampling. | Omit |
+| `pyproj` | Only needed for CRS reprojection. 3DEP tiles are already EPSG:4326 — same CRS as stored coordinates. | Omit |
+| `elevation` (PyPI) | Older SRTM-based library. SRTM data is 30m (3 arc-second) vs 10m for 3DEP. Lower resolution; not USGS-sourced. | `seamless-3dep` + `rasterio` |
+| DuckDB `geotiff` community extension | Exposes `read_geotiff()` as a table function returning (cell_id, value) pairs — not a point-sampling primitive. No spatial join to coordinate pairs. Community extension (not core spatial extension). Would require rebuilding the entire sampling logic in SQL against a cell-id join, which is more complex and less direct than `rasterio.sample_gen`. | `rasterio` |
+| DuckDB spatial raster prototype (`duckdb-spatial-raster`) | Early-stage community prototype; no stable API, no pip package. | `rasterio` |
+| `GDAL` system install | `rasterio` wheels from PyPI bundle GDAL internally — no system `libgdal-dev` needed. Installing system GDAL alongside pip rasterio risks version conflicts. | `pip install rasterio` only |
+
+## DEM Caching Strategy
+
+The DEM tiles (~500MB–1GB for WA at 10m) should be cached on disk between pipeline runs — consistent with the S3 caching pattern used for `links.parquet` and `samples.parquet`.
+
+Recommended approach:
+- Store tiles in `data/dem_cache/` (local, gitignored)
+- `seamless-3dep`'s `get_dem()` accepts a `data_dir` argument and skips download if files exist
+- On maderas (the nightly cron host), the cache persists between runs in the same directory — no S3 round-trip needed for the DEM
+- The DEM is a stable dataset (USGS updates are infrequent) — no incremental update logic needed
+
+If the pipeline moves to Lambda, the DEM would need S3 caching (same pattern as links.parquet). That is out of scope for v2.5 since maderas cron is the execution path.
+
+## pyproject.toml Addition
+
+```toml
+dependencies = [
+    "dlt[duckdb]>=1.23.0",
+    "duckdb",
+    "requests",
+    "beautifulsoup4",
+    "boto3>=1.42.78",
+    "seamless-3dep>=0.4.1",
+    "rasterio>=1.4.4",
+]
+```
+
+No frontend changes. The `elevation_m` column is consumed via the existing DuckDB WASM SQL query path in the browser — no new frontend libraries.
+
+## Confidence Assessment
+
+| Claim | Confidence | Basis |
+|-------|------------|-------|
+| rasterio 1.4.4 supports Python 3.14 | HIGH | Official release notes confirm Python 3.14 support and free-threading wheels |
+| `sample_gen(dataset, xy_pairs)` is the correct sampling API | HIGH | Context7 (rasterio official docs), confirmed by PyPI `rasterio.sample` module docs |
+| seamless-3dep 0.4.1 is the recommended 3DEP download library | MEDIUM | py3dep v0.19.0 changelog recommends it; PyPI page confirms 0.4.1 (2026-03-13); limited secondary sources |
+| WA bounding box covers all specimens | MEDIUM | Based on known WA state bounds; verify against actual data extent at implementation time |
+| No CRS reprojection needed (3DEP = EPSG:4326) | HIGH | seamless-3dep documentation states "downloads as GeoTIFF files in EPSG:4326" |
+| DuckDB has no production-ready ST_Value equivalent | HIGH | DuckDB spatial extension docs confirm no raster sampling functions; community extensions are prototypes only |
+
+## Sources
+
+- [rasterio 1.4.4 release — Python 3.14 support confirmed](https://sgillies.net/2025/12/12/rasterio-1-4-4.html) — HIGH confidence (author's blog; Sean Gillies is rasterio maintainer)
+- [rasterio PyPI page](https://pypi.org/project/rasterio/) — HIGH confidence (official)
+- [rasterio Context7 docs — sample_gen](https://github.com/rasterio/rasterio/blob/main/docs/api/rasterio.sample.rst) — HIGH confidence (official source)
+- [seamless-3dep PyPI page — version 0.4.1, 2026-03-13](https://pypi.org/project/seamless-3dep/) — HIGH confidence (official)
+- [seamless-3dep GitHub — get_dem API](https://github.com/hyriver/seamless-3dep) — MEDIUM confidence (official repo; limited doc depth fetched)
+- [py3dep v0.19.0 changelog — recommends seamless-3dep](https://docs.hyriver.io/changelogs/py3dep.html) — HIGH confidence (official HyRiver docs)
+- [DuckDB geotiff community extension](https://duckdb.org/community_extensions/extensions/geotiff) — HIGH confidence (official DuckDB community extensions page; confirmed limited to cell_id/value tabular output, not point sampling)
+- [USGS 3DEP 1/3 arc-second dataset catalog](https://data.usgs.gov/datacatalog/data/USGS:3a81321b-c153-416f-98b7-cc8e5f0e17c3) — HIGH confidence (official USGS data catalog)
+
+---
+*DEM elevation annotation stack research for: BeeAtlas v2.5*
+*Researched: 2026-04-15*

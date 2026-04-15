@@ -1,138 +1,144 @@
-# Project Research Summary
+# Research Summary: BeeAtlas v2.5 — DEM Elevation Annotation
 
-**Project:** BeeAtlas v2.3 — Specimen iNat Observation Links
-**Domain:** Incremental iNat API pipeline + cross-stack column rename
-**Researched:** 2026-04-12
-**Confidence:** HIGH
+**Project:** BeeAtlas v2.5
+**Domain:** USGS 3DEP DEM sampling + parquet schema extension + frontend filter/display
+**Researched:** 2026-04-15
+**Confidence:** HIGH (pipeline integration); MEDIUM (seamless-3dep library maturity)
 
-## Executive Summary
+---
 
-BeeAtlas v2.3 adds a specimen photo link to the sidebar by querying the iNaturalist WABA observation field (field_id=18116, confirmed 1,374 observations) and joining the results to Ecdysis specimen records via catalog number. The work spans three layers: a new dlt pipeline (`waba_pipeline.py`) fetching from the iNat v2 API, a modified export join in `export.py` that matches WABA field values to Ecdysis `catalog_number` via `split_part`, and frontend changes that render a new specimen photo link in `bee-specimen-detail.ts` alongside the existing host plant link.
+## Milestone Summary
 
-The recommended approach mirrors the existing `inaturalist_pipeline.py` exactly — same incremental cursor (`updated_since`), same paginator, same `per_page=200` — with only the filter parameter changed. The new pipeline must use a distinct `pipeline_name="waba"` and `dataset_name="inaturalist_waba_data"` for complete isolation from the existing pipeline. A prerequisite rename of `inat_observation_id` to `host_observation_id` throughout the stack must land atomically before the new column is added, to prevent an ambiguous two-iNat-column state.
+v2.5 adds an `elevation_m` (INT16, nullable) column to both `ecdysis.parquet` and `samples.parquet` by sampling the USGS 3DEP 10m seamless DEM at each specimen and sample coordinate during the nightly export step. No new pipeline stages, no dlt resources, no AWS infrastructure changes. The work slots entirely into `export.py` (consistent with how county and ecoregion are already computed at export time) plus a new `dem_pipeline.py` helper module and straightforward frontend additions: sidebar display and an elevation range filter using two number inputs. The milestone is tractable because all required tooling (`rasterio`, `seamless-3dep`) is mature, the data model change is additive (nullable column), and every integration point follows an already-established pattern in this codebase.
 
-The dominant risk is the column rename: it crosses a snake_case/camelCase boundary at 14 distinct touch points across Python, SQL, TypeScript, test fixtures, and the CI schema gate. Missing any one produces silent nulls rather than compilation errors. The second risk is the iNat API filter parameter name for the v2 endpoint — `field_id=18116` has medium confidence; verify with a live curl before implementing the pipeline. Both risks are well-understood and fully addressable with the checklists in PITFALLS.md.
+---
 
-## Key Findings
+## Stack Additions
 
-### Recommended Stack
+Two new pip dependencies; no frontend library changes, no new AWS services.
 
-No new stack dependencies are introduced for v2.3. All additions use existing tools: dlt's `RESTAPIConfig` pattern (already used by `inaturalist_pipeline.py`), DuckDB SQL in `export.py`, and Lit template rendering in `bee-specimen-detail.ts`. The iNat v2 API endpoint and `asyncBufferFromUrl` are already established. This milestone is implementation-only against a proven stack.
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `seamless-3dep` | `>=0.4.1` | Downloads USGS 3DEP 10m GeoTIFF tiles for a bounding box via the USGS National Map service. `get_dem(bbox, data_dir)` returns a list of local file paths and skips download if files already exist. Successor to py3dep (recommended explicitly in py3dep v0.19.0 changelog). Requires only `requests` + `rasterio`; no xarray or shapely needed for the download path. |
+| `rasterio` | `>=1.4.4` | Samples elevation values at (lon, lat) coordinates from GeoTIFF. `src.sample(list_of_xy_tuples)` feeds all points to the underlying GDAL C layer in one call — fast enough for 55k points. Bundles GDAL internally (no system libgdal-dev needed). Python 3.14 support confirmed in 1.4.4. |
 
-For context, STACK.md also covers v1.7 Lambda/EFS infrastructure (Lambda container image, EFS-backed DuckDB, EventBridge Scheduler). That work is a separate milestone and does not block v2.3.
+No `geopandas`, no `xarray`, no `pyproj` — consistent with v2.2 decision to drop geopandas after OOM issues.
 
-**Core technologies for v2.3 (all pre-existing):**
-- `dlt` RESTAPIConfig — incremental pipeline, `pipeline_name="waba"` / `dataset_name="inaturalist_waba_data"` for isolation
-- DuckDB `split_part` + `DISTINCT ON` — catalog number suffix join with deduplication in `export.py`
-- Lit `bee-specimen-detail.ts` — new conditional link block, mirrors existing `inatObservationId` pattern
-- `validate-schema.mjs` — CI schema gate; must be updated atomically with export SQL
+---
 
-### Expected Features
+## Feature Table Stakes
 
-The feature scope for v2.3 is well-defined and small. The MVP is complete with four deliverables: the new pipeline, the export join, the schema gate update, and the frontend link. Two enhancements (observer login, quality grade badge) are low-cost additions that depend on data already stored by the pipeline and can follow validation.
+Everything in the must-ship list is either a display change or a filter extension; all follow established patterns.
 
-**Must have (table stakes for v2.3):**
-- Specimen photo link in sidebar — closes the gap where a linked specimen has no photo link; pattern already exists for host links
-- Rename `inat_observation_id` to `host_observation_id` throughout — prerequisite for adding a second iNat column without ambiguity
+**Must ship (v2.5):**
+- `elevation_m` in both parquet files — INT16 nullable; INT16 is large enough for WA (max 4,392 m) and small enough to stay compact
+- Schema gate updated (`validate-schema.mjs`) — enforces column presence before CI build proceeds
+- Sidebar display in `bee-specimen-detail` and `bee-sample-detail` — show elevation when non-null; omit row when null (do not show "0 m" as a null sentinel; 0 is a valid sea-level elevation)
+- Elevation range filter — two `<input type="number">` fields (min/max), not a slider; WA spans 0–4,392 m and a slider cannot achieve useful precision at that scale; follows the same year/month input pattern already in the codebase
+- URL state — `elev0`/`elev1` params via existing `buildParams`/`parseParams` pattern
+- Clear-filters resets elevation range — same as all other filter state
 
-**Should have (add after MVP validation):**
-- Observer login next to specimen photo link — low cost; pipeline stores it
-- Quality grade badge — CSS already exists; adds community ID confidence signal
+**Add after v2.5 validation:**
+- Table view elevation column — trivially low effort once the column exists in parquet
+- CSV export — already picks up new columns automatically via DuckDB `SELECT *`
 
-**Defer (v3+):**
-- Inline photo thumbnail — CORS uncertainty, static-hosting constraint, parquet bloat; a text link with "specimen photo" label is the correct MVP
+**Out of scope:**
+- Feet/meters toggle (scientific audience; Darwin Core and GBIF both use meters)
+- Elevation as a map visual encoding (conflicts with recency-based cluster coloring)
+- Range slider (anti-pattern for wide numeric ranges per NN/G and Apache Superset issue #15605)
+- Rounding to nearest 10 m for display (raw integer is acceptable; may add as polish)
 
-### Architecture Approach
+---
 
-The architecture is a new pipeline feeding an existing export join. `waba_pipeline.py` writes to an isolated `inaturalist_waba_data` DuckDB schema; `export.py` gains a `waba_link` CTE that joins that schema to `ecdysis_data.occurrences` via `split_part(catalog_number, '_', 2)`. The new `specimen_observation_id` column flows into `ecdysis.parquet` and from there into the frontend `Specimen` interface. The data flow is entirely additive except for the `host_observation_id` rename.
+## Architecture
 
-**Major components:**
-1. `waba_pipeline.py` (NEW) — dlt source, `field_id=18116`, `pipeline_name="waba"`, `dataset_name="inaturalist_waba_data"`, incremental `updated_since` cursor
-2. `export.py` (MODIFIED) — `waba_link` CTE with `DISTINCT ON (ofv.value)` deduplication; LEFT JOIN on `split_part`; `specimen_observation_id` in SELECT; `inat_observation_id` renamed to `host_observation_id`
-3. Frontend (MODIFIED) — `bee-sidebar.ts` interface, `bee-atlas.ts` query, `bee-specimen-detail.ts` template, `bee-map.ts` feature access, `filter.ts` SQL string; two-pass rename (snake_case then camelCase)
+**Elevation sampling belongs in `export.py`, not a new pipeline step.** Elevation is a deterministic function of lat/lon; there is no incremental state to track and no upstream API to poll. This exactly matches how `county` and `ecoregion_l3` are already computed at export time — spatial attributes derived from coordinates, not fetched from an external system. `run.py` STEPS list does not change.
 
-### Critical Pitfalls
+The new code is a standalone `data/dem_pipeline.py` module with two pure functions — `ensure_dem(path)` and `sample_elevation(lons, lats, dem_path) -> list[int | None]` — imported by `export.py`. Separating the module makes it unit-testable with a synthetic 2x2 GeoTIFF fixture without downloading real DEM data in CI.
 
-1. **Shared `pipeline_name="inaturalist"` corrupts incremental cursors** — use `pipeline_name="waba"`; verify isolation via `SELECT pipeline_name FROM _dlt_pipeline_state` after first run
-2. **Column rename has 14 independent touch points across two naming conventions** — treat as a two-pass atomic rename: snake_case layer first (Python, SQL), camelCase layer second (TypeScript); run `pytest` + `npm test` + `validate-schema.mjs` before merging
-3. **iNat API field filter parameter name unconfirmed for integer form** — `field:WABA=` is confirmed working on v2; `field_id=18116` is MEDIUM confidence; verify with curl before writing the pipeline
-4. **Catalog number join produces zero matches if normalization is wrong** — use `split_part(o.catalog_number, '_', 2) = ofv.value` (VARCHAR, no integer cast); verify with `SELECT COUNT(*) FROM ecdysis.parquet WHERE specimen_observation_id IS NOT NULL`
-5. **`waba_link` CTE without deduplication produces duplicate specimen rows** — use `DISTINCT ON (ofv.value) ORDER BY ofv.value, obs.id ASC`
+**DEM storage — note the researcher disagreement:**
 
-## Implications for Roadmap
+ARCHITECTURE.md recommends backing the DEM in S3 (`cache/dem/wa_10m.tif`) using the same `aws s3 cp` restore/upload pattern that `nightly.sh` already uses for `beeatlas.duckdb`. STACK.md takes the position that S3 caching is out of scope for v2.5 because maderas cron is the execution path and the file persists between runs on disk.
 
-Based on research, the work naturally falls into four phases with a mandatory ordering:
+**Recommendation: implement S3 caching.** The S3 pattern is already in `nightly.sh`, costs nothing to add (S3 PUT/GET on a single 500 MB file), and protects against the maderas disk being wiped or the pipeline moving to Lambda later. Local-only cache is fine for development but the nightly run should be robust. The implementation cost is two lines in `nightly.sh`.
 
-### Phase 1: Column Rename (inat_observation_id to host_observation_id)
-**Rationale:** The rename must be atomic and complete before any new iNat column is added. An intermediate state with both the old and new names is confusing and risks silent nulls in production.
-**Delivers:** Clean schema foundation; `host_observation_id` in parquet, SQL, TypeScript interfaces, test fixtures, CI gate
-**Addresses:** Naming sanity prerequisite from FEATURES.md
-**Avoids:** Pitfall 3 (14-point rename with two naming conventions; risks silent production regression if split across phases)
+The implementation note about `export.py`'s `read_only=True` DuckDB connection is real: temp table injection for the elevation join requires a writable connection. The cleanest resolution is to use a second in-memory DuckDB connection for the elevation join, or to simply drop `read_only=True` (it was defensive, not structural — the nightly run is single-writer).
 
-### Phase 2: WABA Pipeline
-**Rationale:** The pipeline populates the DuckDB data that the export phase depends on. It can be implemented and verified independently before touching `export.py`.
-**Delivers:** `inaturalist_waba_data.observations` and `.observations__ofvs` populated in `beeatlas.duckdb` with incremental cursor isolated from existing iNat pipeline
-**Uses:** dlt RESTAPIConfig pattern from `inaturalist_pipeline.py`; `pipeline_name="waba"`, `dataset_name="inaturalist_waba_data"`
-**Avoids:** Pitfall 1 (cursor collision), Pitfall 4 (wrong API filter parameter — verify live before writing)
+---
 
-### Phase 3: Export Join + Schema Gate
-**Rationale:** Depends on Phase 2 data existing in DuckDB. The `waba_link` CTE and new parquet column can be developed and tested in isolation before the frontend is touched.
-**Delivers:** `specimen_observation_id` (nullable BIGINT) in `ecdysis.parquet`; `validate-schema.mjs` updated; `test_export.py` passing
-**Implements:** `waba_link` CTE with `DISTINCT ON` deduplication; `split_part` catalog suffix join
-**Avoids:** Pitfall 2 (zero-match join from type mismatch), Pitfall 5 (semantic confusion between specimen and host observation IDs)
+## Build Order
 
-### Phase 4: Frontend Link Rendering
-**Rationale:** Depends on Phase 3 delivering the new parquet column. Purely additive to `bee-specimen-detail.ts`; the template pattern is already established by the existing host link block.
-**Delivers:** Specimen photo link visible in sidebar for specimens with WABA catalog field entries; graceful absent state for unlinked specimens
-**Addresses:** Table-stakes feature from FEATURES.md; pattern mirrors existing `inatObservationId` block
+Dependencies drive the order. The DEM sampler must exist before export can produce the column; the schema gate must not be updated ahead of the pipeline change.
 
-### Phase Ordering Rationale
+**Phase 1 — DEM acquisition and sampling (`dem_pipeline.py`)**
+Build `ensure_dem()` and `sample_elevation()` with unit tests using a synthetic 2x2 GeoTIFF fixture. Add `seamless-3dep` and `rasterio` to `pyproject.toml`. Validate nodata to None handling and out-of-bounds to None handling. Nothing else can proceed without a working sampler.
 
-- The rename (Phase 1) before the new column (Phases 3-4) prevents any overlap of old and new column names in any intermediate deploy state.
-- The pipeline (Phase 2) before the export (Phase 3) ensures data exists to test the join locally before changing `export.py`.
-- The export (Phase 3) before the frontend (Phase 4) ensures the parquet schema is verified by `validate-schema.mjs` before frontend code reads it.
-- Each phase has a clean, independently verifiable success state (`pytest`/`npm test`/`validate-schema.mjs`/visual sidebar check), reducing integration risk.
+**Phase 2 — Export integration (parquet schema + schema gate)**
+Modify `export_ecdysis_parquet` and `export_samples_parquet` in `export.py` to call `sample_elevation` and join the result into the COPY output. Update `validate-schema.mjs` and `test_export.py` in the same commit/PR as the export change. Update `nightly.sh` for DEM S3 cache restore/upload. Critical path: once parquet has `elevation_m`, all frontend work can proceed.
 
-### Research Flags
+**Phase 3 — Sidebar display (frontend)**
+Add `elevation_m` to `SpecimenRow`/`SampleRow` types and `SPECIMEN_COLUMNS`/`SAMPLE_COLUMNS`. Render elevation in `bee-specimen-detail` and `bee-sample-detail` with null-omit fallback. Highest user-visible value at lowest complexity; can be reviewed independently.
 
-Phases likely needing verification during implementation:
-- **Phase 2 (WABA Pipeline):** The iNat v2 API integer filter parameter form (`field_id=18116`) is MEDIUM confidence. The confirmed-working form from STACK.md is `field:WABA=` (verified by live call). Verify which form to use in dlt RESTAPIConfig params before writing `waba_pipeline.py`, and whether dlt URL-encodes colons in param keys.
+**Phase 4 — Elevation filter (frontend)**
+Add `elevationMin`/`elevationMax` to `FilterState`, `buildFilterSQL`, and `isFilterActive`. Add `elev0`/`elev1` to `url-state.ts`. Add min/max number inputs to `bee-filter-controls`. Add filter SQL tests and URL round-trip tests. Build last to reduce debugging surface — filter touches more files than display.
 
-Phases with standard patterns (no additional research needed):
-- **Phase 1 (Column Rename):** Pure find-and-replace with a known checklist from PITFALLS.md; no external uncertainty.
-- **Phase 3 (Export Join):** DuckDB `split_part` and `DISTINCT ON` are standard SQL; join logic is fully worked out in ARCHITECTURE.md with verified sample data.
-- **Phase 4 (Frontend):** Lit template pattern is a direct mirror of the existing host link rendering; no new patterns.
+---
+
+## Watch Out For
+
+**1. Nodata sentinel stored as real elevation (CRITICAL)**
+USGS 3DEP GeoTIFF nodata is commonly -9999 for integer DEMs. Rasterio's `.sample()` returns the raw sentinel without masking. A naive `int(v)` cast stores -9999 in parquet as a valid elevation — it fits in INT16 with no overflow exception raised. Prevention: read `dataset.nodata`, compare before converting, assign Python `None` for sentinel values. Post-export assertion: `SELECT COUNT(*) FROM read_parquet(...) WHERE elevation_m < -500` must return 0.
+
+**2. Schema gate shipped ahead of pipeline change (HIGH)**
+If `validate-schema.mjs` is updated to require `elevation_m` before the pipeline change lands, CI will fail for all PRs until the first post-merge nightly run (production CloudFront parquets won't have the column yet). Prevention: ship the schema gate update in the same commit/PR as the `export.py` change. Established pattern from prior phases: never update EXPECTED columns ahead of the pipeline that produces them.
+
+**3. Out-of-bounds sampling for coastal specimens (HIGH)**
+Specimens collected near Puget Sound, San Juan Islands, or the Oregon/Idaho border may fall outside the DEM tile extent. Rasterio behavior on out-of-bounds coordinates is inconsistent across versions (may return nodata or raise `WindowError`). Prevention: bounds-check all coordinates against `dataset.bounds` before sampling; assign NULL for out-of-bounds points. A small non-zero null count is expected and correct.
+
+**4. DEM re-downloaded every nightly run (HIGH)**
+Without caching, the 400-700 MB WA DEM downloads from USGS on every nightly run, adding 2-5 minutes and creating fragility against USGS TNM server availability. Prevention: cache in S3 under `dem/wa_10m.tif`; restore to `/tmp/wa_10m.tif` at nightly.sh start using the existing DuckDB `aws s3 cp` pattern. The DEM is stable (USGS updates quarterly at most) — no incremental logic needed.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies pre-existing and proven in codebase; no new dependencies |
-| Features | HIGH | Scope verified against live codebase; iNat API response shape confirmed by live call |
-| Architecture | HIGH | Code read directly; join logic verified with real WABA observation data (3 sample rows confirmed) |
-| Pitfalls | HIGH | Derived from live codebase inspection; all 14 rename touch points enumerated from actual files |
+| Stack | HIGH (rasterio) / MEDIUM (seamless-3dep) | rasterio API and Python 3.14 support verified from maintainer release notes. seamless-3dep confirmed on PyPI with recent 0.4.1 release; limited secondary documentation depth. |
+| Features | MEDIUM-HIGH | UX guidance from NN/G and GBIF authoritative; BeeAtlas-specific UI decisions (omit null row vs. show dash) are product calls documented as such. |
+| Architecture | HIGH | Based on direct code read of export.py, nightly.sh, and validate-schema.mjs. Integration pattern matches existing county/ecoregion precedent exactly. |
+| Pitfalls | HIGH (technical) / MEDIUM (CI specifics) | Nodata, CRS, and bounds pitfalls well-documented in rasterio issues and USGS docs. Schema gate sequencing pitfall is BeeAtlas-specific and observed from prior phase patterns. |
 
-**Overall confidence:** HIGH
+**Overall confidence: HIGH** — narrow, well-scoped pipeline addition with clear precedents in the existing codebase.
 
 ### Gaps to Address
 
-- **iNat v2 filter parameter form:** STACK.md confirmed `field:WABA=` works on v2 (live call, 1,374 results). ARCHITECTURE.md uses `field_id=18116` (MEDIUM confidence). These are different parameter forms. Verify before writing `waba_pipeline.py`. If `field_id` does not work, fall back to `"field:WABA": ""` in the params dict (or `"field%3AWABA": ""` if dlt does not encode colons).
-- **dlt param key URL encoding:** Test whether dlt's REST API source URL-encodes colons in param keys. This determines whether to pass `"field:WABA"` or `"field%3AWABA"` as the key in RESTAPIConfig `params`.
-- **DuckDB `occurrence_links` migration approach:** ALTER TABLE migration (preferred for speed) vs. `--full-reload` on the ecdysis-links step. Either is acceptable; decide at implementation time based on whether the Ecdysis HTML disk cache is still intact.
+- **Exact nodata sentinel value:** Documented as -9999 but must be verified at download time with `gdalinfo`. Sampling code must read `dataset.nodata` dynamically, not hardcode -9999.
+- **Ocean/water body fill value:** Some 3DEP products fill water bodies with 0 rather than nodata. Inspect the downloaded file at pipeline development time; document the handling decision in a code comment.
+- **DEM CRS:** Tiles are documented as EPSG:4269 (NAD83) or EPSG:4326 (WGS84) depending on product variant. The horizontal offset is sub-pixel at 10m resolution and can be accepted as a known limitation. Assert CRS in `ensure_dem()` and log a warning if it is not 4326; do not attempt datum transformation.
+- **export.py read_only connection:** The `read_only=True` flag on the DuckDB connection blocks temp table injection for the elevation join. Decide during Phase 2: drop `read_only=True` (safe for single-writer nightly run) or use a second in-memory DuckDB connection for the join.
+
+---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- Live iNat API calls — field_id=18116 confirmed 1,374 observations; `field:WABA=` filter verified on both v1 and v2; join key confirmed with 3 sample specimens
-- Direct codebase inspection — `inaturalist_pipeline.py`, `export.py`, `run.py`, `ecdysis_pipeline.py`, all frontend TypeScript files; all pitfall enumeration derived from live code
+- rasterio 1.4.4 release notes — Python 3.14 support, sample_gen API
+- rasterio PyPI / official docs — sample() vectorized call pattern
+- seamless-3dep PyPI page — version 0.4.1, 2026-03-13
+- py3dep v0.19.0 changelog — explicit seamless-3dep recommendation
+- USGS 3DEP dataset catalog — 1/3 arc-second product, EPSG coverage
+- DuckDB spatial extension docs — confirmed no raster sampling primitives
+- NN/G slider design guidance — numeric inputs preferred for wide-range filters
+- Darwin Core / GBIF elevation field standards — meters, nullable
 
 ### Secondary (MEDIUM confidence)
-- iNaturalist API forum — `field:WABA=` syntax community-confirmed; `field_id` integer parameter form inferred from `ofvs.field_id` usage in export.py
-- dlt incremental loading docs — cursor keyed by `pipeline_name` + source + resource; behavior under shared names
-
-### Tertiary
-- NAT gateway vs VPC endpoint cost analysis (third-party) — relevant to v1.7 Lambda infrastructure, not v2.3
+- seamless-3dep GitHub — get_dem() API (limited documentation depth)
+- iNaturalist community forum — GPS altitude accuracy, user expectations
+- Baymard slider UX research — numeric input preference for precise values
+- USGS 3DEP Google Earth Engine dataset page — dtype, CRS, nodata documentation
 
 ---
-*Research completed: 2026-04-12*
+
+*Research completed: 2026-04-15*
 *Ready for roadmap: yes*
