@@ -1,33 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.4
-milestone_name: Header Navigation & Toolbar
+milestone: v2.5
+milestone_name: Elevation Data
 status: In progress
-last_updated: "2026-04-13T22:00:00.000Z"
-last_activity: 2026-04-13
+last_updated: "2026-04-15T00:00:00.000Z"
+last_activity: 2026-04-15
 progress:
-  total_phases: 3
-  completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
-  percent: 67
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-13 — v2.4 milestone started)
+See: .planning/PROJECT.md (updated 2026-04-15 — v2.5 milestone started)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 54 — Sidebar Cleanup
+**Current focus:** Defining requirements for v2.5 Elevation Data
 
 ## Current Position
 
-Phase: 53
-Plan: 53-01
-Status: Complete
-Last activity: 2026-04-13
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-15 — Milestone v2.5 started
 
 ```
 Progress: [█████████████░░░░░░░] 67% (2/3 phases)
