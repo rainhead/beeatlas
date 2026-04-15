@@ -119,6 +119,7 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ PIPE-01–02: WABA dlt pipeline (`waba_pipeline.py`) with `field:WABA=` filter, isolated `inaturalist_waba_data` schema, incremental `updated_at` cursor; wired into `run.py` — v2.3
 - ✓ EXP-01–02: `ecdysis.parquet` gains `specimen_observation_id` (nullable BIGINT) via `waba_link` CTE joining WABA OFV catalog numbers to ecdysis `catalog_number` numeric suffixes; schema gate enforced in CI — v2.3
 - ✓ FRONT-01: `specimen_observation_id` rendered as conditional camera emoji link (📷) in sidebar detail view; absent when null — v2.3
+- ✓ ELEV-01: `dem_pipeline.py` with `ensure_dem` (download/cache USGS 3DEP 10m WA DEM) and `sample_elevation` (rasterio sampling); 5 unit tests, no network required — v2.5 (Phase 55)
 
 ## Previous Milestones
 
