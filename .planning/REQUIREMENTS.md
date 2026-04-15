@@ -45,14 +45,14 @@
 
 | REQ-ID | Phase |
 |--------|-------|
-| ELEV-01 | TBD |
-| ELEV-02 | TBD |
-| ELEV-03 | TBD |
-| ELEV-04 | TBD |
-| ELEV-05 | TBD |
-| ELEV-06 | TBD |
-| ELEV-07 | TBD |
-| ELEV-08 | TBD |
-| ELEV-09 | TBD |
+| ELEV-01 | Phase 55 |
+| ELEV-02 | Phase 56 |
+| ELEV-03 | Phase 56 |
+| ELEV-04 | Phase 56 |
+| ELEV-05 | Phase 57 |
+| ELEV-06 | Phase 57 |
+| ELEV-07 | Phase 58 |
+| ELEV-08 | Phase 58 |
+| ELEV-09 | Phase 58 |
 
-_Last updated: 2026-04-15 — v2.5 milestone requirements defined_
+_Last updated: 2026-04-15 — v2.5 traceability mapped to phases 55–58_
