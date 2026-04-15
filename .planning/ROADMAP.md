@@ -399,7 +399,7 @@ Plans:
 | 52. Header Component | v2.4 | 2/2 | Complete | 2026-04-13 |
 | 53. Filter Toolbar | v2.4 | 1/1 | Complete | 2026-04-13 |
 | 54. Sidebar Cleanup | v2.4 | 2/2 | Complete | 2026-04-14 |
-| 55. DEM Acquisition Module | v2.5 | 1/1 | Complete   | 2026-04-15 |
+| 55. DEM Acquisition Module | v2.5 | 1/1 | Complete    | 2026-04-15 |
 | 56. Export Integration | v2.5 | 0/? | Not started | - |
 | 57. Sidebar Display | v2.5 | 0/? | Not started | - |
 | 58. Elevation Filter | v2.5 | 0/? | Not started | - |
