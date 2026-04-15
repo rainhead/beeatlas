@@ -245,7 +245,7 @@ See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Annotate specimens and samples with inferred elevation (meters) from the USGS 3DEP DEM, surface in sidebar detail and filter toolbar.
 
-- [ ] **Phase 55: DEM Acquisition Module** — dem_pipeline.py with download + sampling functions, unit tests, pip deps
+- [x] **Phase 55: DEM Acquisition Module** — dem_pipeline.py with download + sampling functions, unit tests, pip deps (completed 2026-04-15)
 - [ ] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update
 - [ ] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail
 - [ ] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters
@@ -306,9 +306,9 @@ Plans:
   2. `sample_elevation(lons, lats, dem_path)` returns integer meters for in-bounds coordinates and None for out-of-bounds or nodata coordinates
   3. The nodata sentinel value is read from `dataset.nodata` (not hardcoded) and converted to None before returning
   4. Unit tests pass using a synthetic 2x2 GeoTIFF fixture without downloading real DEM data; `seamless-3dep` and `rasterio` are listed in `pyproject.toml`
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 55-01-PLAN.md — Add dependencies, create dem_pipeline.py with ensure_dem and sample_elevation, unit tests with synthetic fixture
+- [x] 55-01-PLAN.md — Add dependencies, create dem_pipeline.py with ensure_dem and sample_elevation, unit tests with synthetic fixture
 
 ### Phase 56: Export Integration
 **Goal**: Both parquet export files contain a nullable `elevation_m` INT16 column populated from the DEM, and CI enforces its presence
@@ -399,7 +399,7 @@ Plans:
 | 52. Header Component | v2.4 | 2/2 | Complete | 2026-04-13 |
 | 53. Filter Toolbar | v2.4 | 1/1 | Complete | 2026-04-13 |
 | 54. Sidebar Cleanup | v2.4 | 2/2 | Complete | 2026-04-14 |
-| 55. DEM Acquisition Module | v2.5 | 0/1 | Not started | - |
+| 55. DEM Acquisition Module | v2.5 | 1/1 | Complete   | 2026-04-15 |
 | 56. Export Integration | v2.5 | 0/? | Not started | - |
 | 57. Sidebar Display | v2.5 | 0/? | Not started | - |
 | 58. Elevation Filter | v2.5 | 0/? | Not started | - |
