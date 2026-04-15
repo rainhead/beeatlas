@@ -146,3 +146,4 @@ frontend/public/data/
 
 # DEM tile cache (~200-500 MB WA DEM file)
 data/_dem_cache/
+.aider*
