@@ -334,19 +334,19 @@ def test_empty_variant_feed(tmp_path):
     con.execute("""
         CREATE TABLE geographies.us_states (
             fips VARCHAR, name VARCHAR, abbreviation VARCHAR,
-            geom GEOMETRY
+            geometry_wkt VARCHAR
         )
     """)
     con.execute("""
         CREATE TABLE geographies.us_counties (
             geoid VARCHAR, name VARCHAR, state_fips VARCHAR,
-            geom GEOMETRY
+            geometry_wkt VARCHAR
         )
     """)
     con.execute("""
         CREATE TABLE geographies.ecoregions (
             name VARCHAR, level2_name VARCHAR, level1_name VARCHAR,
-            geom GEOMETRY
+            geometry_wkt VARCHAR
         )
     """)
     con.execute("""
@@ -370,15 +370,15 @@ def test_empty_variant_feed(tmp_path):
     """)
     # Seed geographies but NO occurrence/identification rows
     con.execute(
-        "INSERT INTO geographies.us_states VALUES ('53', 'Washington', 'WA', ST_GeomFromText(?))",
+        "INSERT INTO geographies.us_states VALUES ('53', 'Washington', 'WA', ?)",
         [WA_STATE_WKT],
     )
     con.execute(
-        "INSERT INTO geographies.us_counties VALUES ('53007', 'Chelan', '53', ST_GeomFromText(?))",
+        "INSERT INTO geographies.us_counties VALUES ('53007', 'Chelan', '53', ?)",
         [CHELAN_WKT],
     )
     con.execute(
-        "INSERT INTO geographies.ecoregions VALUES ('North Cascades', 'Western Cordillera', 'North American Cordillera', ST_GeomFromText(?))",
+        "INSERT INTO geographies.ecoregions VALUES ('North Cascades', 'Western Cordillera', 'North American Cordillera', ?)",
         [NORTH_CASCADES_WKT],
     )
 

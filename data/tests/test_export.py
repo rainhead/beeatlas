@@ -81,6 +81,49 @@ def test_ecdysis_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypa
     assert null_eco == 0, f"ecdysis.parquet has {null_eco} rows with null ecoregion_l3"
 
 
+def test_ecdysis_parquet_elevation_col(fixture_con, export_dir, dem_fixture, monkeypatch):
+    """export_ecdysis_parquet adds elevation_m as INT16 (SMALLINT) column."""
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+
+    parquet_path = str(export_dir / 'ecdysis.parquet')
+    schema = duckdb.execute(
+        f"DESCRIBE SELECT * FROM read_parquet('{parquet_path}')"
+    ).fetchall()
+    actual_cols = [row[0] for row in schema]
+    assert 'elevation_m' in actual_cols, "Missing elevation_m column in ecdysis.parquet"
+    type_map = {row[0]: row[1] for row in schema}
+    assert 'SMALLINT' in type_map['elevation_m'], (
+        f"elevation_m should be SMALLINT (INT16), got {type_map['elevation_m']}"
+    )
+
+
+def test_ecdysis_elevation_no_sentinel_leak(fixture_con, export_dir, dem_fixture, monkeypatch):
+    """No row has elevation_m < -500 (nodata sentinel not leaking as real value)."""
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+
+    parquet_path = str(export_dir / 'ecdysis.parquet')
+    row = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE elevation_m < -500
+    """).fetchone()
+    assert row[0] == 0, f"ecdysis.parquet has {row[0]} rows with elevation_m < -500 (sentinel leak)"
+
+
+def test_ecdysis_elevation_has_values(fixture_con, export_dir, dem_fixture, monkeypatch):
+    """Seed specimen at (-120.912, 47.608) is inside dem_fixture bbox -- elevation_m should be non-null."""
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+
+    parquet_path = str(export_dir / 'ecdysis.parquet')
+    row = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE elevation_m IS NOT NULL
+    """).fetchone()
+    assert row[0] >= 1, "No rows have non-null elevation_m -- seed specimen should have a value"
+
+
 # ---------------------------------------------------------------------------
 # samples.parquet tests
 # ---------------------------------------------------------------------------
@@ -117,6 +160,36 @@ def test_samples_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypa
     assert total >= 1, "samples.parquet has no rows"
     assert null_county == 0, f"samples.parquet has {null_county} rows with null county"
     assert null_eco == 0, f"samples.parquet has {null_eco} rows with null ecoregion_l3"
+
+
+def test_samples_parquet_elevation_col(fixture_con, export_dir, dem_fixture, monkeypatch):
+    """export_samples_parquet adds elevation_m as INT16 (SMALLINT) column."""
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_samples_parquet(fixture_con, dem_fixture)
+
+    parquet_path = str(export_dir / 'samples.parquet')
+    schema = duckdb.execute(
+        f"DESCRIBE SELECT * FROM read_parquet('{parquet_path}')"
+    ).fetchall()
+    actual_cols = [row[0] for row in schema]
+    assert 'elevation_m' in actual_cols, "Missing elevation_m column in samples.parquet"
+    type_map = {row[0]: row[1] for row in schema}
+    assert 'SMALLINT' in type_map['elevation_m'], (
+        f"elevation_m should be SMALLINT (INT16), got {type_map['elevation_m']}"
+    )
+
+
+def test_samples_elevation_no_sentinel_leak(fixture_con, export_dir, dem_fixture, monkeypatch):
+    """No row has elevation_m < -500 (nodata sentinel not leaking as real value)."""
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_samples_parquet(fixture_con, dem_fixture)
+
+    parquet_path = str(export_dir / 'samples.parquet')
+    row = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE elevation_m < -500
+    """).fetchone()
+    assert row[0] == 0, f"samples.parquet has {row[0]} rows with elevation_m < -500 (sentinel leak)"
 
 
 # ---------------------------------------------------------------------------
