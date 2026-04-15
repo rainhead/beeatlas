@@ -351,8 +351,8 @@ describe('FRONT-01: specimen photo link rendering', () => {
     const shadow = el.shadowRoot!;
     const cameraLinks = shadow.querySelectorAll('a[href="https://www.inaturalist.org/observations/55555"]');
     expect(cameraLinks.length).toBe(1);
-    expect(cameraLinks[0].textContent).toContain('📷');
-    expect(cameraLinks[0].getAttribute('target')).toBe('_blank');
+    expect(cameraLinks.item(0)!.textContent).toContain('📷');
+    expect(cameraLinks.item(0)!.getAttribute('target')).toBe('_blank');
     document.body.removeChild(el);
   });
 
@@ -374,7 +374,7 @@ describe('FRONT-01: specimen photo link rendering', () => {
     const allInatLinks = shadow.querySelectorAll('a[href*="inaturalist.org/observations"]');
     // Only the host observation link (99001), no specimen photo link
     expect(allInatLinks.length).toBe(1);
-    expect(allInatLinks[0].getAttribute('href')).toContain('99001');
+    expect(allInatLinks.item(0)!.getAttribute('href')).toContain('99001');
     document.body.removeChild(el);
   });
 
@@ -394,7 +394,7 @@ describe('FRONT-01: specimen photo link rendering', () => {
     const shadow = el.shadowRoot!;
     const cameraLinks = shadow.querySelectorAll('a[href="https://www.inaturalist.org/observations/77777"]');
     expect(cameraLinks.length).toBe(1);
-    expect(cameraLinks[0].textContent).toContain('📷');
+    expect(cameraLinks.item(0)!.textContent).toContain('📷');
     // The "iNat: —" placeholder should still appear for the missing host observation
     const text = shadow.textContent ?? '';
     expect(text).toContain('iNat: —');
