@@ -1,10 +1,11 @@
 ---
 phase: 56
 slug: export-integration
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: complete
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-04-15
+audited: 2026-04-15
 ---
 
 # Phase 56 — Validation Strategy
@@ -38,9 +39,9 @@ created: 2026-04-15
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 56-01-01 | 01 | 1 | ELEV-02 | — | elevation_m column is INT16 (not float) — prevents sentinel leakage as numeric | unit | `cd data && uv run pytest tests/test_export.py -x -q` | ❌ W0 | ⬜ pending |
-| 56-01-02 | 01 | 1 | ELEV-03 | — | samples.parquet also gains elevation_m INT16 column | unit | `cd data && uv run pytest tests/test_export.py -x -q` | ❌ W0 | ⬜ pending |
-| 56-01-03 | 01 | 1 | ELEV-04 | — | validate-schema.mjs exits non-zero when elevation_m missing | integration | `node scripts/validate-schema.mjs` | ✅ | ⬜ pending |
+| 56-01-01 | 01 | 1 | ELEV-02 | — | elevation_m column is INT16 (not float) — prevents sentinel leakage as numeric | unit | `cd data && uv run pytest tests/test_export.py -x -q` | ✅ | ✅ green |
+| 56-01-02 | 01 | 1 | ELEV-03 | — | samples.parquet also gains elevation_m INT16 column | unit | `cd data && uv run pytest tests/test_export.py -x -q` | ✅ | ✅ green |
+| 56-01-03 | 01 | 1 | ELEV-04 | — | validate-schema.mjs exits non-zero when elevation_m missing | integration | `node scripts/validate-schema.mjs` | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -48,7 +49,7 @@ created: 2026-04-15
 
 ## Wave 0 Requirements
 
-- [ ] `data/tests/test_export.py` — add tests for elevation_m column (INT16 type, nullable, no sentinel leakage)
+- [x] `data/tests/test_export.py` — add tests for elevation_m column (INT16 type, nullable, no sentinel leakage)
 
 *Existing infrastructure covers all other phase requirements (pytest, dem_fixture from Phase 55).*
 
@@ -64,11 +65,23 @@ created: 2026-04-15
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 30s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 30s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** 2026-04-15
+
+---
+
+## Validation Audit 2026-04-15
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 3 requirements covered by `test_export.py` (12 tests, all green). `validate-schema.mjs` correctly exits non-zero when elevation_m missing.
