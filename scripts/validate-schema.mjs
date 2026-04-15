@@ -26,12 +26,12 @@ const EXPECTED = {
     'genus', 'family', 'floralHost',
     'county', 'ecoregion_l3',
     'host_observation_id', 'inat_host', 'inat_quality_grade',
-    'modified', 'specimen_observation_id',
+    'modified', 'specimen_observation_id', 'elevation_m',
   ],
   'samples.parquet': [
     'observation_id', 'observer', 'date', 'lat', 'lon',
     'specimen_count', 'sample_id',
-    'county', 'ecoregion_l3',
+    'county', 'ecoregion_l3', 'elevation_m',
   ],
 };
 
