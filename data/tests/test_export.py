@@ -19,12 +19,14 @@ EXPECTED_ECDYSIS_COLS = [
     'host_observation_id', 'inat_host', 'inat_quality_grade',
     'modified',
     'specimen_observation_id',
+    'elevation_m',
 ]
 
 EXPECTED_SAMPLES_COLS = [
     'observation_id', 'observer', 'date', 'lat', 'lon',
     'specimen_count', 'sample_id',
     'county', 'ecoregion_l3',
+    'elevation_m',
 ]
 
 
@@ -32,10 +34,10 @@ EXPECTED_SAMPLES_COLS = [
 # ecdysis.parquet tests
 # ---------------------------------------------------------------------------
 
-def test_ecdysis_parquet_schema(fixture_con, export_dir, monkeypatch):
+def test_ecdysis_parquet_schema(fixture_con, export_dir, dem_fixture, monkeypatch):
     """export_ecdysis_parquet writes file with all 15 expected columns."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con)
+    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     schema = duckdb.execute(
@@ -47,10 +49,10 @@ def test_ecdysis_parquet_schema(fixture_con, export_dir, monkeypatch):
         assert col in actual_cols, f"Missing column in ecdysis.parquet: {col}"
 
 
-def test_ecdysis_parquet_has_specimen_observation_id(fixture_con, export_dir, monkeypatch):
+def test_ecdysis_parquet_has_specimen_observation_id(fixture_con, export_dir, dem_fixture, monkeypatch):
     """export_ecdysis_parquet populates specimen_observation_id for WABA-linked specimens."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con)
+    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     row = duckdb.execute(f"""
@@ -60,10 +62,10 @@ def test_ecdysis_parquet_has_specimen_observation_id(fixture_con, export_dir, mo
     assert row[0] >= 1, "No rows have specimen_observation_id set — WABA join may be broken"
 
 
-def test_ecdysis_parquet_has_rows(fixture_con, export_dir, monkeypatch):
+def test_ecdysis_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypatch):
     """export_ecdysis_parquet writes at least 1 row with non-null county and ecoregion_l3."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con)
+    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     row = duckdb.execute(f"""
@@ -83,10 +85,10 @@ def test_ecdysis_parquet_has_rows(fixture_con, export_dir, monkeypatch):
 # samples.parquet tests
 # ---------------------------------------------------------------------------
 
-def test_samples_parquet_schema(fixture_con, export_dir, monkeypatch):
+def test_samples_parquet_schema(fixture_con, export_dir, dem_fixture, monkeypatch):
     """export_samples_parquet writes file with all 9 expected columns."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_samples_parquet(fixture_con)
+    export_mod.export_samples_parquet(fixture_con, dem_fixture)
 
     parquet_path = str(export_dir / 'samples.parquet')
     schema = duckdb.execute(
@@ -98,10 +100,10 @@ def test_samples_parquet_schema(fixture_con, export_dir, monkeypatch):
         assert col in actual_cols, f"Missing column in samples.parquet: {col}"
 
 
-def test_samples_parquet_has_rows(fixture_con, export_dir, monkeypatch):
+def test_samples_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypatch):
     """export_samples_parquet writes at least 1 row with non-null county and ecoregion_l3."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_samples_parquet(fixture_con)
+    export_mod.export_samples_parquet(fixture_con, dem_fixture)
 
     parquet_path = str(export_dir / 'samples.parquet')
     row = duckdb.execute(f"""
