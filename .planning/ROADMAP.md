@@ -16,7 +16,8 @@
 - ✅ **v2.1 Determination Feeds** — Phases 42–44 (shipped 2026-04-11)
 - ✅ **v2.2 Feed Discoverability & Pipeline** — Phases 45–47 (shipped 2026-04-12)
 - ✅ **v2.3 Specimen iNat Observation Links** — Phases 48–51 (shipped 2026-04-13)
-- 🚧 **v2.4 Header Navigation & Toolbar** — Phases 52–54 (in progress)
+- ✅ **v2.4 Header Navigation & Toolbar** — Phases 52–54 (shipped 2026-04-14)
+- 🚧 **v2.5 Elevation Data** — Phases 55–58 (in progress)
 
 ## Phases
 
@@ -229,13 +230,25 @@ See `.planning/milestones/v2.3-ROADMAP.md` for full phase details.
 
 </details>
 
-### v2.4 Header Navigation & Toolbar (In Progress)
+<details>
+<summary>✅ v2.4 Header Navigation & Toolbar (Phases 52–54) — SHIPPED 2026-04-14</summary>
 
-**Milestone Goal:** Reorganize the UI into a header-driven layout with navigational data-layer tabs, a map/table view toggle, and a persistent filter toolbar, replacing the sidebar's navigation and filter roles.
+- [x] Phase 52: Header Component (2/2 plans) — completed 2026-04-13
+- [x] Phase 53: Filter Toolbar (1/1 plans) — completed 2026-04-13
+- [x] Phase 54: Sidebar Cleanup (2/2 plans) — completed 2026-04-14
 
-- [x] **Phase 52: Header Component** — nav tabs for layer switching + map/table icon toggle on the right (completed 2026-04-13)
-- [x] **Phase 53: Filter Toolbar** — move all filter controls and CSV download out of sidebar into persistent toolbar below header
-- [x] **Phase 54: Sidebar Cleanup** — sidebar becomes click-detail only, hidden by default, dismissible (completed 2026-04-13)
+See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
+
+</details>
+
+### v2.5 Elevation Data (In Progress)
+
+**Milestone Goal:** Annotate specimens and samples with inferred elevation (meters) from the USGS 3DEP DEM, surface in sidebar detail and filter toolbar.
+
+- [ ] **Phase 55: DEM Acquisition Module** — dem_pipeline.py with download + sampling functions, unit tests, pip deps
+- [ ] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update
+- [ ] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail
+- [ ] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters
 
 ## Phase Details
 
@@ -281,7 +294,48 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
-- [ ] 54-02-PLAN.md — Gap closure: fix empty-click sidebar dismiss and remove redundant Back buttons from detail panels
+- [x] 54-02-PLAN.md — Gap closure: fix empty-click sidebar dismiss and remove redundant Back buttons from detail panels
+**UI hint**: yes
+
+### Phase 55: DEM Acquisition Module
+**Goal**: A tested Python module can download the USGS 3DEP DEM for Washington and sample elevation at arbitrary coordinates
+**Depends on**: Phase 54
+**Requirements**: ELEV-01
+**Success Criteria** (what must be TRUE):
+  1. Running `ensure_dem(path)` downloads the WA bounding-box GeoTIFF on first call and skips download on subsequent calls when the file exists
+  2. `sample_elevation(lons, lats, dem_path)` returns integer meters for in-bounds coordinates and None for out-of-bounds or nodata coordinates
+  3. The nodata sentinel value is read from `dataset.nodata` (not hardcoded) and converted to None before returning
+  4. Unit tests pass using a synthetic 2x2 GeoTIFF fixture without downloading real DEM data; `seamless-3dep` and `rasterio` are listed in `pyproject.toml`
+
+### Phase 56: Export Integration
+**Goal**: Both parquet export files contain a nullable `elevation_m` INT16 column populated from the DEM, and CI enforces its presence
+**Depends on**: Phase 55
+**Requirements**: ELEV-02, ELEV-03, ELEV-04
+**Success Criteria** (what must be TRUE):
+  1. After running the export pipeline, `ecdysis.parquet` contains an `elevation_m` INT16 nullable column with valid integer meter values for specimens within WA and NULL for out-of-bounds/nodata points
+  2. After running the export pipeline, `samples.parquet` contains the same `elevation_m` column with the same null semantics
+  3. `validate-schema.mjs` fails the CI build if `elevation_m` is absent from either parquet file; the schema gate change ships in the same commit as the export change
+  4. No row in either parquet file has `elevation_m < -500` (nodata sentinel not leaking as a real value)
+
+### Phase 57: Sidebar Display
+**Goal**: Users can see a specimen's or sample's elevation in the sidebar detail panel when elevation data is available
+**Depends on**: Phase 56
+**Requirements**: ELEV-05, ELEV-06
+**Success Criteria** (what must be TRUE):
+  1. In `bee-specimen-detail`, an "Elevation" row showing "1219 m" (integer, no decimal) appears when `elevation_m` is non-null
+  2. In `bee-specimen-detail`, the elevation row is entirely absent (not shown as blank or "—") when `elevation_m` is null
+  3. In `bee-sample-detail`, elevation displays with the identical format and null-omit behavior as the specimen detail panel
+**UI hint**: yes
+
+### Phase 58: Elevation Filter
+**Goal**: Users can filter the map and table to specimens and samples within an elevation range, with the range bookmarkable in the URL
+**Depends on**: Phase 57
+**Requirements**: ELEV-07, ELEV-08, ELEV-09
+**Success Criteria** (what must be TRUE):
+  1. Min and max elevation number inputs appear in the filter toolbar; entering values narrows the map dots and table rows to points within that elevation range
+  2. A URL containing `elev_min=500&elev_max=1500` opens with those values pre-filled in the elevation inputs and the filter active
+  3. When only one bound is set (min only or max only), the filter does not exclude null-elevation records — null rows are excluded only when both bounds are provided
+  4. Clicking "Clear filters" resets the elevation min/max inputs to empty alongside all other filter fields
 **UI hint**: yes
 
 ## Progress
@@ -339,6 +393,10 @@ Plans:
 | 49. WABA Pipeline | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 50. Export Join & Schema Gate | v2.3 | 1/1 | Complete | 2026-04-13 |
 | 51. Frontend Link Rendering | v2.3 | 1/1 | Complete | 2026-04-13 |
-| 52. Header Component | v2.4 | 2/2 | Complete    | 2026-04-13 |
+| 52. Header Component | v2.4 | 2/2 | Complete | 2026-04-13 |
 | 53. Filter Toolbar | v2.4 | 1/1 | Complete | 2026-04-13 |
-| 54. Sidebar Cleanup | v2.4 | 1/2 | In progress | 2026-04-13 |
+| 54. Sidebar Cleanup | v2.4 | 2/2 | Complete | 2026-04-14 |
+| 55. DEM Acquisition Module | v2.5 | 0/? | Not started | - |
+| 56. Export Integration | v2.5 | 0/? | Not started | - |
+| 57. Sidebar Display | v2.5 | 0/? | Not started | - |
+| 58. Elevation Filter | v2.5 | 0/? | Not started | - |
