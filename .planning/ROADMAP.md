@@ -246,7 +246,7 @@ See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
 **Milestone Goal:** Annotate specimens and samples with inferred elevation (meters) from the USGS 3DEP DEM, surface in sidebar detail and filter toolbar.
 
 - [x] **Phase 55: DEM Acquisition Module** — dem_pipeline.py with download + sampling functions, unit tests, pip deps (completed 2026-04-15)
-- [ ] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update
+- [x] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update (completed 2026-04-15)
 - [ ] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail
 - [ ] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters
 
@@ -319,10 +319,10 @@ Plans:
   2. After running the export pipeline, `samples.parquet` contains the same `elevation_m` column with the same null semantics
   3. `validate-schema.mjs` fails the CI build if `elevation_m` is absent from either parquet file; the schema gate change ships in the same commit as the export change
   4. No row in either parquet file has `elevation_m < -500` (nodata sentinel not leaking as a real value)
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 56-01-PLAN.md — Wire elevation sampling into export.py, update schema gate, add pyarrow dep
-- [ ] 56-02-PLAN.md — Add elevation integration tests to test_export.py
+- [x] 56-01-PLAN.md — Wire elevation sampling into export.py, update schema gate, add pyarrow dep
+- [x] 56-02-PLAN.md — Add elevation integration tests to test_export.py
 
 ### Phase 57: Sidebar Display
 **Goal**: Users can see a specimen's or sample's elevation in the sidebar detail panel when elevation data is available
@@ -404,6 +404,6 @@ Plans:
 | 53. Filter Toolbar | v2.4 | 1/1 | Complete | 2026-04-13 |
 | 54. Sidebar Cleanup | v2.4 | 2/2 | Complete | 2026-04-14 |
 | 55. DEM Acquisition Module | v2.5 | 1/1 | Complete    | 2026-04-15 |
-| 56. Export Integration | v2.5 | 0/2 | Not started | - |
+| 56. Export Integration | v2.5 | 2/2 | Complete   | 2026-04-15 |
 | 57. Sidebar Display | v2.5 | 0/? | Not started | - |
 | 58. Elevation Filter | v2.5 | 0/? | Not started | - |
