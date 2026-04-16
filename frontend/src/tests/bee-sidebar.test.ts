@@ -198,6 +198,7 @@ describe('bee-specimen-detail render', () => {
           { name: 'Bombus occidentalis', occid: '12345', hostObservationId: null, floralHost: null },
           { name: 'Andrena milwaukeensis', occid: '12346', hostObservationId: 99001, floralHost: 'Salix' },
         ],
+        elevation_m: null,
       },
     ];
 
@@ -238,6 +239,7 @@ describe('bee-specimen-detail render', () => {
           { name: '', occid: '5611752', hostObservationId: null, floralHost: null },
           { name: 'Bombus vosnesenskii', occid: '5611753', hostObservationId: null, floralHost: null },
         ],
+        elevation_m: null,
       },
     ];
 
@@ -344,6 +346,7 @@ describe('FRONT-01: specimen photo link rendering', () => {
         species: [
           { name: 'Bombus occidentalis', occid: '12345', hostObservationId: 99001, floralHost: 'Salix', specimenObservationId: 55555 },
         ],
+        elevation_m: null,
       },
     ];
     document.body.appendChild(el);
@@ -365,6 +368,7 @@ describe('FRONT-01: specimen photo link rendering', () => {
         species: [
           { name: 'Bombus occidentalis', occid: '12345', hostObservationId: 99001, floralHost: 'Salix', specimenObservationId: null },
         ],
+        elevation_m: null,
       },
     ];
     document.body.appendChild(el);
@@ -387,6 +391,7 @@ describe('FRONT-01: specimen photo link rendering', () => {
         species: [
           { name: 'Andrena milwaukeensis', occid: '12346', hostObservationId: null, floralHost: null, specimenObservationId: 77777 },
         ],
+        elevation_m: null,
       },
     ];
     document.body.appendChild(el);
