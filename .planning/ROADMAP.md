@@ -247,7 +247,7 @@ See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
 
 - [x] **Phase 55: DEM Acquisition Module** — dem_pipeline.py with download + sampling functions, unit tests, pip deps (completed 2026-04-15)
 - [x] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update (completed 2026-04-15)
-- [ ] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail
+- [x] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail (completed 2026-04-16)
 - [ ] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters
 
 ## Phase Details
@@ -333,10 +333,10 @@ Plans:
   2. In `bee-specimen-detail`, the elevation row is entirely absent (not shown as blank or "—") when `elevation_m` is null
   3. In `bee-sample-detail`, elevation displays with the identical format and null-omit behavior as the specimen detail panel
 **UI hint**: yes
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 57-01-PLAN.md — Thread elevation_m through data layer (interfaces, DuckDB queries, event propagation)
-- [ ] 57-02-PLAN.md — Render elevation in detail components with conditional null-omission and tests
+- [x] 57-02-PLAN.md — Render elevation in detail components with conditional null-omission and tests
 
 
 ### Phase 58: Elevation Filter
@@ -410,5 +410,5 @@ Plans:
 | 54. Sidebar Cleanup | v2.4 | 2/2 | Complete | 2026-04-14 |
 | 55. DEM Acquisition Module | v2.5 | 1/1 | Complete    | 2026-04-15 |
 | 56. Export Integration | v2.5 | 2/2 | Complete   | 2026-04-15 |
-| 57. Sidebar Display | v2.5 | 1/2 | In Progress|  |
+| 57. Sidebar Display | v2.5 | 2/2 | Complete   | 2026-04-16 |
 | 58. Elevation Filter | v2.5 | 0/? | Not started | - |
