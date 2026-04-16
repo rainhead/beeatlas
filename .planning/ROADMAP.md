@@ -333,9 +333,9 @@ Plans:
   2. In `bee-specimen-detail`, the elevation row is entirely absent (not shown as blank or "—") when `elevation_m` is null
   3. In `bee-sample-detail`, elevation displays with the identical format and null-omit behavior as the specimen detail panel
 **UI hint**: yes
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 57-01-PLAN.md — Thread elevation_m through data layer (interfaces, DuckDB queries, event propagation)
+- [x] 57-01-PLAN.md — Thread elevation_m through data layer (interfaces, DuckDB queries, event propagation)
 - [ ] 57-02-PLAN.md — Render elevation in detail components with conditional null-omission and tests
 
 
@@ -410,5 +410,5 @@ Plans:
 | 54. Sidebar Cleanup | v2.4 | 2/2 | Complete | 2026-04-14 |
 | 55. DEM Acquisition Module | v2.5 | 1/1 | Complete    | 2026-04-15 |
 | 56. Export Integration | v2.5 | 2/2 | Complete   | 2026-04-15 |
-| 57. Sidebar Display | v2.5 | 0/2 | Not started | - |
+| 57. Sidebar Display | v2.5 | 1/2 | In Progress|  |
 | 58. Elevation Filter | v2.5 | 0/? | Not started | - |
