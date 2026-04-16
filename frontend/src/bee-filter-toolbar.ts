@@ -19,7 +19,7 @@ export class BeeFilterToolbar extends LitElement {
   static styles = css`
     :host {
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       flex-shrink: 0;
       width: 100%;
       padding: 0 8px;
@@ -32,7 +32,6 @@ export class BeeFilterToolbar extends LitElement {
     .download-wrap {
       position: relative;
       flex-shrink: 0;
-      margin-top: 0.75rem;
       margin-left: 8px;
     }
     .download-btn {

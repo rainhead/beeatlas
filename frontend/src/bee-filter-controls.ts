@@ -253,10 +253,12 @@ export class BeeFilterControls extends LitElement {
   @state() private _elevMax: number | null = null;
 
   static styles = css`
-    :host { display: block; }
+    :host { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
     /* Token search */
     .search-section {
+      flex: 1;
+      min-width: 0;
       padding: 0.75rem 0;
       position: relative;
     }
@@ -354,7 +356,6 @@ export class BeeFilterControls extends LitElement {
       align-items: center;
       gap: 4px;
       flex-shrink: 0;
-      margin-top: 8px;
     }
     .elev-input {
       width: 72px;
