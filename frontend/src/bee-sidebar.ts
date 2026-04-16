@@ -20,6 +20,7 @@ export interface Sample {
   recordedBy: string;
   fieldNumber: string;
   species: Specimen[];
+  elevation_m: number | null;
 }
 
 export interface DataSummary {
@@ -53,6 +54,7 @@ export interface SampleEvent {
   specimen_count: number;
   sample_id: number | null;
   coordinate: number[];  // EPSG:3857
+  elevation_m: number | null;
 }
 
 // Custom event payload

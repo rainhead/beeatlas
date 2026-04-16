@@ -741,7 +741,7 @@ bee-sidebar {
       const result = await conn.query(`
         SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
                host_observation_id, floralHost, inat_host, inat_quality_grade,
-               specimen_observation_id
+               specimen_observation_id, elevation_m
         FROM ecdysis
         WHERE CAST(ecdysis_id AS VARCHAR) IN (${idList})
       `);
@@ -756,6 +756,7 @@ bee-sidebar {
             recordedBy: String(obj.recordedBy),
             fieldNumber: String(obj.fieldNumber),
             species: [],
+            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
           });
         }
         const specimen: Specimen = {

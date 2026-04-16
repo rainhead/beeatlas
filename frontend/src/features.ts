@@ -19,7 +19,8 @@ export class EcdysisSource extends VectorSource {
           SELECT ecdysis_id, longitude, latitude, year, month,
                  scientificName, recordedBy, fieldNumber, genus, family,
                  floralHost, county, ecoregion_l3, host_observation_id,
-                 inat_host, inat_quality_grade, specimen_observation_id
+                 inat_host, inat_quality_grade, specimen_observation_id,
+                 elevation_m
           FROM ecdysis
         `);
         const features = table.toArray().flatMap(row => {
@@ -43,6 +44,7 @@ export class EcdysisSource extends VectorSource {
             inat_host: obj.inat_host ?? null,
             inat_quality_grade: obj.inat_quality_grade ?? null,
             specimen_observation_id: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
+            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
           });
           return feature;
         });
@@ -70,7 +72,7 @@ export class SampleSource extends VectorSource {
         conn = await db.connect();
         const table = await conn.query(`
           SELECT observation_id, observer, date, lat, lon,
-                 specimen_count, sample_id, county, ecoregion_l3
+                 specimen_count, sample_id, county, ecoregion_l3, elevation_m
           FROM samples
         `);
         const features = table.toArray().flatMap(row => {
@@ -90,6 +92,7 @@ export class SampleSource extends VectorSource {
             sample_id: obj.sample_id != null ? Number(obj.sample_id) : null,
             county: obj.county ?? null,
             ecoregion_l3: obj.ecoregion_l3 ?? null,
+            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
           });
           return feature;
         });

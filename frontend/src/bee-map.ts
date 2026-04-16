@@ -37,6 +37,7 @@ function buildSamples(features: Feature[]): Sample[] {
         recordedBy: f.get('recordedBy') as string,
         fieldNumber: f.get('fieldNumber') as string,
         species: [],
+        elevation_m: f.get('elevation_m') != null ? Number(f.get('elevation_m')) : null,
       });
     }
     const occid = (f.getId() as string).replace('ecdysis:', '');
@@ -326,6 +327,7 @@ export class BeeMap extends LitElement {
           specimen_count: f.get('specimen_count') as number,
           sample_id: f.get('sample_id') as number | null,
           coordinate: (f.getGeometry() as Point).getCoordinates(),
+          elevation_m: f.get('elevation_m') != null ? Number(f.get('elevation_m')) : null,
         };
       });
   }
@@ -485,6 +487,7 @@ export class BeeMap extends LitElement {
             specimen_count: f.get('specimen_count') as number,
             sample_id: f.get('sample_id') as number | null,
             coordinate: (f.getGeometry() as Point).getCoordinates(),
+            elevation_m: f.get('elevation_m') != null ? Number(f.get('elevation_m')) : null,
           });
           return;
         }
