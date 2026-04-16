@@ -27,6 +27,8 @@ export class BeeAtlas extends LitElement {
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
     selectedCollectors: [],
+    elevMin: null,
+    elevMax: null,
   };
 
   @state() private _visibleEcdysisIds: Set<string> | null = null;
@@ -227,6 +229,8 @@ bee-sidebar {
         selectedCounties: initFilter.selectedCounties ?? new Set(),
         selectedEcoregions: initFilter.selectedEcoregions ?? new Set(),
         selectedCollectors: initFilter.selectedCollectors ?? [],
+        elevMin: initFilter.elevMin ?? null,
+        elevMax: initFilter.elevMax ?? null,
       };
     }
 
@@ -453,6 +457,8 @@ bee-sidebar {
       selectedCounties: parsed.filter?.selectedCounties ?? new Set(),
       selectedEcoregions: parsed.filter?.selectedEcoregions ?? new Set(),
       selectedCollectors: parsed.filter?.selectedCollectors ?? [],
+      elevMin: parsed.filter?.elevMin ?? null,
+      elevMax: parsed.filter?.elevMax ?? null,
     };
 
     // Restore UI state
@@ -602,6 +608,8 @@ bee-sidebar {
       selectedCounties: detail.selectedCounties,
       selectedEcoregions: detail.selectedEcoregions,
       selectedCollectors: detail.selectedCollectors,
+      elevMin: (detail as any).elevMin ?? null,
+      elevMax: (detail as any).elevMax ?? null,
     };
 
     // Clear selections when filter changes

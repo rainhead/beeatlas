@@ -17,6 +17,8 @@ export interface FilterState {
   selectedCounties: Set<string>;
   selectedEcoregions: Set<string>;
   selectedCollectors: CollectorEntry[];
+  elevMin: number | null;
+  elevMax: number | null;
 }
 
 export interface SpecimenRow {
@@ -209,7 +211,9 @@ export function isFilterActive(f: FilterState): boolean {
     || f.months.size > 0
     || f.selectedCounties.size > 0
     || f.selectedEcoregions.size > 0
-    || f.selectedCollectors.length > 0;
+    || f.selectedCollectors.length > 0
+    || f.elevMin !== null
+    || f.elevMax !== null;
 }
 
 export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesWhere: string } {
@@ -271,6 +275,18 @@ export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesW
       .map(c => `'${c.observer!.replace(/'/g, "''")}'`);
     if (recordedBys.length > 0) ecdysisClauses.push(`recordedBy IN (${recordedBys.join(',')})`);
     if (observers.length > 0) samplesClauses.push(`observer IN (${observers.join(',')})`);
+  }
+
+  // Elevation filter (D-06): conditional null semantics
+  if (f.elevMin !== null && f.elevMax !== null) {
+    ecdysisClauses.push(`elevation_m IS NOT NULL AND elevation_m BETWEEN ${f.elevMin} AND ${f.elevMax}`);
+    samplesClauses.push(`elevation_m IS NOT NULL AND elevation_m BETWEEN ${f.elevMin} AND ${f.elevMax}`);
+  } else if (f.elevMin !== null) {
+    ecdysisClauses.push(`(elevation_m IS NULL OR elevation_m >= ${f.elevMin})`);
+    samplesClauses.push(`(elevation_m IS NULL OR elevation_m >= ${f.elevMin})`);
+  } else if (f.elevMax !== null) {
+    ecdysisClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
+    samplesClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
   }
 
   const ecdysisWhere = ecdysisClauses.length > 0 ? ecdysisClauses.join(' AND ') : '1 = 1';
