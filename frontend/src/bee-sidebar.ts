@@ -67,6 +67,8 @@ export interface FilterChangedEvent {
   selectedCounties: Set<string>;
   selectedEcoregions: Set<string>;
   selectedCollectors: CollectorEntry[];
+  elevMin: number | null;
+  elevMax: number | null;
 }
 
 @customElement('bee-sidebar')
