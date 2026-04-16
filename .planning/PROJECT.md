@@ -8,15 +8,14 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 
 Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
-## Current Milestone: v2.5 Elevation Data
+## Current Milestone: v2.6 SQLite WASM Migration
 
-**Goal:** Annotate specimens and samples with inferred elevation (meters) from a public WA DEM, surface in sidebar and filter toolbar.
+**Goal:** Replace DuckDB WASM (~34 MB uncompressed) with wa-sqlite + Hyparquet (~545 KB). Retain full SQL filter capability. Record before/after benchmark numbers.
 
 **Target features:**
-- Pipeline: Download/cache USGS 3DEP 10m DEM for Washington, sample elevation at each specimen and sample lat/lon, add `elevation_m` (INT16, nullable) to `ecdysis.parquet` and `samples.parquet`
-- Schema gate: `validate-schema.mjs` enforces `elevation_m` column presence
-- Sidebar: elevation displayed in `bee-specimen-detail` and `bee-sample-detail`
-- Filter toolbar: elevation range filter (min/max inputs), URL-encoded, integrated with DuckDB SQL filter layer
+- Benchmark DuckDB WASM init time, first-query latency, memory footprint
+- wa-sqlite integration with Hyparquet parquet read → in-memory insert with batched transactions
+- Remove `@duckdb/duckdb-wasm` dependency; verify all filter/query/export paths
 
 ## Requirements
 
@@ -120,6 +119,14 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ EXP-01–02: `ecdysis.parquet` gains `specimen_observation_id` (nullable BIGINT) via `waba_link` CTE joining WABA OFV catalog numbers to ecdysis `catalog_number` numeric suffixes; schema gate enforced in CI — v2.3
 - ✓ FRONT-01: `specimen_observation_id` rendered as conditional camera emoji link (📷) in sidebar detail view; absent when null — v2.3
 - ✓ ELEV-01: `dem_pipeline.py` with `ensure_dem` (download/cache USGS 3DEP 10m WA DEM) and `sample_elevation` (rasterio sampling); 5 unit tests, no network required — v2.5 (Phase 55)
+- ✓ ELEV-02: `export.py` samples elevation at each specimen's lat/lon; `elevation_m` (INT16, nullable) added to `ecdysis.parquet`; nodata sentinel from `dataset.nodata` — v2.5 (Phase 56)
+- ✓ ELEV-03: `export.py` samples elevation at each sample's lat/lon; `elevation_m` (INT16, nullable) added to `samples.parquet` — v2.5 (Phase 56)
+- ✓ ELEV-04: `validate-schema.mjs` enforces `elevation_m` column presence in both parquet files; ships in same commit as `export.py` — v2.5 (Phase 56)
+- ✓ ELEV-05: `bee-specimen-detail` shows elevation as "1219 m" (integer, no decimal) when non-null; row omitted entirely when null — v2.5 (Phase 57)
+- ✓ ELEV-06: `bee-sample-detail` shows elevation in the same format and null-omit behavior — v2.5 (Phase 57)
+- ✓ ELEV-07: Elevation range filter (min/max number inputs) in `bee-filter-controls`; `elev_min`/`elev_max` URL params; round-trip preserved — v2.5 (Phase 58)
+- ✓ ELEV-08: `buildFilterSQL` applies D-06 conditional null semantics — null rows excluded only when both bounds set; single-bound passes nulls through — v2.5 (Phase 58)
+- ✓ ELEV-09: Elevation min/max inputs reset when all filter tokens are removed (no explicit Clear button) — v2.5 (Phase 58)
 
 ## Previous Milestones
 
@@ -242,6 +249,10 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | WABA pipeline uses strictly isolated `pipeline_name="waba"` / `dataset_name="inaturalist_waba_data"` | Prevents cursor collision in `_dlt_pipeline_state` with existing `inaturalist` pipeline | ✓ Good — v2.3 Phase 49; aliased imports in run.py avoid load_observations name collision |
 | Join key is numeric suffix of `catalog_number` via `regexp_extract(catalog_number, '[0-9]+$')` | WABA OFV field_id=18116 stores bare integer (e.g. `5594569`), not full `WSDA_5594569` prefix — direct join impossible | ✓ Good — v2.3 Phase 50; CAST to BIGINT matches OFV value type |
 | `MIN(waba.id)` dedup per catalog suffix in `waba_link` CTE | Multiple WABA observers can photograph same specimen; any one observation ID is sufficient for the link | ✓ Good — v2.3 Phase 50; prevents row duplication in ecdysis.parquet |
+| DEM pipeline built then dropped — `ecdysis_data.occurrences` already has `minimum_elevation_in_meters` | Ecdysis Darwin Core field has ~96% coverage; building a rasterio/seamless-3dep DEM sampler was unnecessary for specimens | ✓ Good — v2.5 Phase 55–56; iNat samples have no elevation source, elevation_m is always null for them |
+| Elevation inputs placed outside `.search-section` as sibling div | Dropdown z-index scoping is set on `.search-section`; placing inputs inside would clip the token dropdown | ✓ Good — v2.5 Phase 58; clean z-index separation |
+| `filterStatesEqual` extended with elevMin/elevMax before dispatching filter-changed | Without equality check, elevation-only input changes would cause `updated()` loop (component re-receives its own emission) | ✓ Good — v2.5 Phase 58; guard correctly ignores own emissions |
+| D-06 conditional null semantics: single-bound passes nulls, both-bounds excludes nulls | Null elevation records should remain visible when only one bound is set — forcing null exclusion with one bound would silently hide ~4% of specimens | ✓ Good — v2.5 Phase 58; SQL: both set → BETWEEN + IS NOT NULL; one set → IS NULL OR >= / <= |
 
 ## Evolution
 
@@ -261,4 +272,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 — v2.3 milestone complete (Specimen iNat Observation Links)*
+*Last updated: 2026-04-16 — v2.5 milestone complete (Elevation Data)*
