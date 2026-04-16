@@ -6,7 +6,7 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 
 ## Core Value
 
-Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
+Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
 ## Current Milestone: v2.5 Elevation Data
 
