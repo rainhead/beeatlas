@@ -349,9 +349,9 @@ Plans:
   3. When only one bound is set (min only or max only), the filter does not exclude null-elevation records — null rows are excluded only when both bounds are provided
   4. Clicking "Clear filters" resets the elevation min/max inputs to empty alongside all other filter fields
 **UI hint**: yes
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 58-01-PLAN.md — Extend FilterState, buildFilterSQL, isFilterActive, URL state, and tests
+- [x] 58-01-PLAN.md — Extend FilterState, buildFilterSQL, isFilterActive, URL state, and tests
 - [ ] 58-02-PLAN.md — Add elevation number inputs to bee-filter-controls with state sync and CSS
 
 ## Progress
@@ -415,4 +415,4 @@ Plans:
 | 55. DEM Acquisition Module | v2.5 | 1/1 | Complete    | 2026-04-15 |
 | 56. Export Integration | v2.5 | 2/2 | Complete   | 2026-04-15 |
 | 57. Sidebar Display | v2.5 | 2/2 | Complete   | 2026-04-16 |
-| 58. Elevation Filter | v2.5 | 0/2 | Not started | - |
+| 58. Elevation Filter | v2.5 | 1/2 | In Progress|  |
