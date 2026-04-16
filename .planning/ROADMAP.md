@@ -267,6 +267,17 @@ See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
 - [ ] **Phase 60: wa-sqlite Integration** — Hyparquet parquet read → wa-sqlite in-memory insert with batched transactions; SQL filter layer compatibility
 - [ ] **Phase 61: DuckDB Removal** — remove `@duckdb/duckdb-wasm` dependency; verify all filter/query/export paths
 
+### Phase 59: Benchmark Baseline
+**Goal**: Establish baseline performance numbers for DuckDB WASM (init time, first-query latency, memory footprint) to compare against after migration
+**Depends on**: Phase 58
+**Requirements**: None (measurement only)
+**Success Criteria** (what must be TRUE):
+  1. DuckDB WASM initialization time measured from page load to first query ready
+  2. First-query latency measured (time from query start to first result)
+  3. Peak memory footprint recorded during typical usage
+  4. Numbers documented in a benchmark artifact for comparison after migration
+**Plans**: TBD
+
 ### v2.7 Unified Occurrence Model (Planned)
 
 **Milestone Goal:** Produce a single `occurrences.parquet` from a full outer join of specimens and samples. The unified record carries an epistemic-state field: specimen-only, sample-only, or both. Frontend renders one record type with varying completeness.
