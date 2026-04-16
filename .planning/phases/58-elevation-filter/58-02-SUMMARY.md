@@ -20,9 +20,9 @@ decisions:
   - "filterStatesEqual extended with elevMin/elevMax so updated() guard correctly ignores own emissions"
   - "FilterChangedEvent in bee-sidebar.ts extended with elevMin/elevMax (Rule 3 fix — was blocking tsc)"
 metrics:
-  duration_minutes: 15
-  completed_date: "2026-04-16T15:00:00Z"
-  tasks_completed: 1
+  duration_minutes: 20
+  completed_date: "2026-04-15T00:00:00Z"
+  tasks_completed: 2
   files_modified: 2
 ---
 
@@ -35,6 +35,7 @@ metrics:
 | Task | Name | Commit | Files |
 |------|------|--------|-------|
 | 1 | Add elevation state, handlers, sync, emit, render, and CSS | 7a570e6 | bee-filter-controls.ts, bee-sidebar.ts |
+| 2 | Visual verification of elevation filter end-to-end | checkpoint | Human-approved |
 
 ## What Was Built
 
@@ -79,7 +80,7 @@ No new network endpoints, auth paths, or trust boundaries. T-58-03 (user input t
 
 ## Checkpoint
 
-Task 2 is a `checkpoint:human-verify` — visual verification of elevation inputs in the running app. Awaiting human approval.
+Task 2 (`checkpoint:human-verify`) — visual verification of elevation inputs in the running app. User approved: elevation inputs visible in filter toolbar, filter-changed events fire on input, URL round-trip works (elev_min/elev_max params), and clear filters resets elevation inputs.
 
 ## Self-Check: PASSED
 
