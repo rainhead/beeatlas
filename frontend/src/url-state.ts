@@ -39,6 +39,8 @@ export function buildParams(
   }
   if (filter.yearFrom !== null) params.set('yr0', String(filter.yearFrom));
   if (filter.yearTo   !== null) params.set('yr1', String(filter.yearTo));
+  if (filter.elevMin !== null) params.set('elev_min', String(filter.elevMin));
+  if (filter.elevMax !== null) params.set('elev_max', String(filter.elevMax));
   if (filter.months.size > 0)  params.set('months', [...filter.months].sort((a, b) => a - b).join(','));
   if (selection.occurrenceIds.length > 0) {
     params.set('o', selection.occurrenceIds.join(','));
@@ -88,6 +90,8 @@ export function parseParams(search: string): Partial<AppState> {
 
   const yearFrom = parseInt(p.get('yr0') ?? '') || null;
   const yearTo   = parseInt(p.get('yr1') ?? '') || null;
+  const elevMin = parseInt(p.get('elev_min') ?? '') || null;
+  const elevMax = parseInt(p.get('elev_max') ?? '') || null;
   const monthsStr = p.get('months') ?? '';
   const months = new Set(
     monthsStr ? monthsStr.split(',').map(Number).filter(n => n >= 1 && n <= 12) : []
@@ -119,7 +123,7 @@ export function parseParams(search: string): Partial<AppState> {
   // Include filter sub-object when any filter param is present
   const hasFilter = resolvedTaxonName !== null || yearFrom !== null || yearTo !== null
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
-    || selectedCollectors.length > 0;
+    || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null;
   if (hasFilter) {
     result.filter = {
       taxonName: resolvedTaxonName,
@@ -130,6 +134,8 @@ export function parseParams(search: string): Partial<AppState> {
       selectedCounties,
       selectedEcoregions,
       selectedCollectors,
+      elevMin,
+      elevMax,
     };
   }
 
