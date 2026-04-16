@@ -316,17 +316,19 @@ None — existing test infrastructure covers all phase requirements. No new test
 | A1 | The inline `(performance as unknown as {...}).memory` cast pattern compiles cleanly under the project's strict TypeScript config | Architecture Patterns, Pattern 2 | TypeScript error at build time; fallback is ambient `.d.ts` declaration (Option B in Pattern 2) |
 | A2 | `SELECT COUNT(*) FROM ecdysis` executes in under 1 second after tablesReady (making it a practical first-query benchmark) | Code Examples | If it takes longer, a lighter query like `SELECT 1` should be substituted; but count queries on in-memory tables are typically sub-100ms |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the console output prefix `[BENCHMARK]` to make it easy to find?**
    - What we know: The existing debug output uses `console.debug('DuckDB table counts:', ...)` without a prefix.
    - What's unclear: Whether a distinct prefix helps or creates noise.
    - Recommendation: Yes — use `[BENCHMARK]` prefix so the developer can search the console output unambiguously. Low cost, high findability.
+   - RESOLVED: `[BENCHMARK]` prefix used on all console.log output
 
 2. **Should `_benchmarkT0` be a module-level variable or passed as a parameter?**
    - What we know: `loadAllTables` receives `db` and `baseUrl` as parameters; `_init()` and `loadAllTables` are in the same module.
    - What's unclear: Whether passing timing state through module-level variables is acceptable for temporary instrumentation.
    - Recommendation: Module-level `let _benchmarkT0 = 0` is acceptable — this is temporary dev instrumentation, not production state architecture. The alternative (passing `t0` as a parameter to `loadAllTables`) would require changing the exported function signature, which is a larger change.
+   - RESOLVED: module-level `_benchmarkT0` used
 
 ## Environment Availability
 
