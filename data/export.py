@@ -2,7 +2,7 @@
 
 Produces four files in frontend/src/assets/:
   - ecdysis.parquet    (specimen data with spatial columns, host_observation_id, and elevation_m)
-  - samples.parquet    (sample data with spatial columns, specimen_count, and elevation_m)
+  - samples.parquet    (sample data with spatial columns, specimen_count, elevation_m always null)
   - counties.geojson   (WA county boundaries, simplified)
   - ecoregions.geojson (WA ecoregion boundaries, simplified)
 
@@ -15,34 +15,13 @@ import os
 from pathlib import Path
 
 import duckdb
-import pyarrow as pa
-import pyarrow.parquet as pq
-
-from dem_pipeline import ensure_dem, sample_elevation
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 _default_assets = str(Path(__file__).parent.parent / 'frontend' / 'public' / 'data')
 ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
-DEM_CACHE_DIR = Path(os.environ.get('DEM_CACHE_DIR', Path(__file__).parent / '_dem_cache'))
 
 
-def _add_elevation(out_path: str, dem_path: Path, lon_col: str, lat_col: str) -> list[int | None]:
-    """Append elevation_m INT16 nullable column to a written parquet file in-place.
-
-    Returns the elevations list for summary printing.
-    Note: water body pixels may yield elevation_m = 0 (not null) -- valid 0m elevation data.
-    """
-    table = pq.read_table(out_path)
-    lons = table.column(lon_col).to_pylist()
-    lats = table.column(lat_col).to_pylist()
-    elevations = sample_elevation(lons, lats, dem_path)
-    elevation_col = pa.array(elevations, type=pa.int16())
-    table = table.append_column("elevation_m", elevation_col)
-    pq.write_table(table, out_path)
-    return elevations
-
-
-def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection, dem_path: Path) -> None:
+def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection) -> None:
     """Export ecdysis.parquet with columns including catalog_number, county, ecoregion_l3, host_observation_id, inat_host, inat_quality_grade, specimen_observation_id."""
     out = str(ASSETS_DIR / "ecdysis.parquet")
     con.execute(f"""
@@ -142,7 +121,8 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection, dem_path: Path) -> No
         CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host,
         inat.quality_grade AS inat_quality_grade,
         strftime(GREATEST(o.modified, COALESCE(im.max_id_modified, o.modified)), '%Y-%m-%d') AS modified,
-        wl.specimen_observation_id
+        wl.specimen_observation_id,
+        TRY_CAST(NULLIF(o.minimum_elevation_in_meters, '') AS INTEGER) AS elevation_m
     FROM ecdysis_data.occurrences o
     JOIN final_county fc ON fc.occurrence_id = o.occurrence_id
     JOIN final_eco fe ON fe.occurrence_id = o.occurrence_id
@@ -154,31 +134,28 @@ def export_ecdysis_parquet(con: duckdb.DuckDBPyConnection, dem_path: Path) -> No
     ) TO '{out}' (FORMAT PARQUET)
     """)
 
-    elevations = _add_elevation(out, dem_path, lon_col="longitude", lat_col="latitude")
-
     # Verify: assert zero null county/ecoregion rows
     row = con.execute(f"""
     SELECT
         COUNT(*) AS total,
         SUM(CASE WHEN county IS NULL THEN 1 ELSE 0 END) AS null_county,
-        SUM(CASE WHEN ecoregion_l3 IS NULL THEN 1 ELSE 0 END) AS null_eco
+        SUM(CASE WHEN ecoregion_l3 IS NULL THEN 1 ELSE 0 END) AS null_eco,
+        SUM(CASE WHEN elevation_m IS NOT NULL THEN 1 ELSE 0 END) AS elev_non_null
     FROM read_parquet('{out}')
     """).fetchone()
-    total, null_county, null_eco = row
+    total, null_county, null_eco, elev_non_null = row
     waba_row = con.execute(f"""
     SELECT COUNT(*) FROM read_parquet('{out}') WHERE specimen_observation_id IS NOT NULL
     """).fetchone()
-    non_null = sum(1 for e in elevations if e is not None)
-    null_count = len(elevations) - non_null
     print(f"  ecdysis.parquet: {total:,} rows, {null_county} null county, {null_eco} null ecoregion, "
           f"{waba_row[0]:,} specimen_observation_id, "
-          f"{non_null:,} elevation_m non-null, {null_count:,} null, "
+          f"{elev_non_null:,}/{total:,} elevation_m, "
           f"{(ASSETS_DIR / 'ecdysis.parquet').stat().st_size:,} bytes")
     assert null_county == 0, f"ecdysis.parquet has {null_county} rows with null county"
     assert null_eco == 0, f"ecdysis.parquet has {null_eco} rows with null ecoregion_l3"
 
 
-def export_samples_parquet(con: duckdb.DuckDBPyConnection, dem_path: Path) -> None:
+def export_samples_parquet(con: duckdb.DuckDBPyConnection) -> None:
     """Export samples.parquet with 9 columns including county, ecoregion_l3, specimen_count."""
     out = str(ASSETS_DIR / "samples.parquet")
     con.execute(f"""
@@ -262,14 +239,13 @@ def export_samples_parquet(con: duckdb.DuckDBPyConnection, dem_path: Path) -> No
         ws.specimen_count,
         ws.sample_id,
         fc.county,
-        fe.ecoregion_l3
+        fe.ecoregion_l3,
+        NULL::INTEGER AS elevation_m
     FROM with_specimen ws
     JOIN final_county fc ON fc._dlt_id = ws._dlt_id
     JOIN final_eco fe ON fe._dlt_id = ws._dlt_id
     ) TO '{out}' (FORMAT PARQUET)
     """)
-
-    elevations = _add_elevation(out, dem_path, lon_col="lon", lat_col="lat")
 
     # Verify: assert zero null county/ecoregion rows
     row = con.execute(f"""
@@ -280,10 +256,7 @@ def export_samples_parquet(con: duckdb.DuckDBPyConnection, dem_path: Path) -> No
     FROM read_parquet('{out}')
     """).fetchone()
     total, null_county, null_eco = row
-    non_null = sum(1 for e in elevations if e is not None)
-    null_count = len(elevations) - non_null
     print(f"  samples.parquet: {total:,} rows, {null_county} null county, {null_eco} null ecoregion, "
-          f"{non_null:,} elevation_m non-null, {null_count:,} null, "
           f"{(ASSETS_DIR / 'samples.parquet').stat().st_size:,} bytes")
     assert null_county == 0, f"samples.parquet has {null_county} rows with null county"
     assert null_eco == 0, f"samples.parquet has {null_eco} rows with null ecoregion_l3"
@@ -331,10 +304,9 @@ def main() -> None:
     print("Connecting to DuckDB...")
     con = duckdb.connect(DB_PATH)
     con.execute("INSTALL spatial; LOAD spatial;")
-    dem_path = ensure_dem(DEM_CACHE_DIR)
     print("Exporting frontend assets:")
-    export_ecdysis_parquet(con, dem_path)
-    export_samples_parquet(con, dem_path)
+    export_ecdysis_parquet(con)
+    export_samples_parquet(con)
     export_counties_geojson(con)
     export_ecoregions_geojson(con)
     con.close()

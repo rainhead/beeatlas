@@ -44,7 +44,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             event_date VARCHAR,
             modified TIMESTAMPTZ,
             catalog_number VARCHAR,
-            _dlt_load_id VARCHAR, _dlt_id VARCHAR
+            _dlt_load_id VARCHAR, _dlt_id VARCHAR,
+            minimum_elevation_in_meters VARCHAR
         )
     """)
     con.execute("""
@@ -139,7 +140,8 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             '2024-06-15',
             '2024-05-01T00:00:00+00:00'::TIMESTAMPTZ,
             'WSDA_5594569',
-            'load1', 'occ-1'
+            'load1', 'occ-1',
+            '1219'
         )
     """)
 
@@ -243,23 +245,3 @@ def export_dir(tmp_path):
     return tmp_path
 
 
-@pytest.fixture
-def dem_fixture(tmp_path):
-    """2x2 GeoTIFF in a WA sub-bbox with known elevation values and nodata sentinel."""
-    import numpy as np
-    import rasterio
-    from rasterio.transform import from_bounds
-
-    path = tmp_path / "test_dem.tif"
-    west, south, east, north = -121.0, 47.0, -120.0, 48.0
-    transform = from_bounds(west, south, east, north, width=2, height=2)
-    nodata_val = -9999.0
-    data = np.array([[500.0, 1000.0], [750.0, nodata_val]], dtype=np.float32)
-    with rasterio.open(
-        path, "w", driver="GTiff",
-        height=2, width=2, count=1,
-        dtype=np.float32, crs="EPSG:4326",
-        transform=transform, nodata=nodata_val,
-    ) as dst:
-        dst.write(data, 1)
-    return path

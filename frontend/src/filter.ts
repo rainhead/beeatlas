@@ -34,6 +34,7 @@ export interface SpecimenRow {
   fieldNumber: string;
   modified: string;
   specimen_observation_id: bigint | null;
+  elevation_m: number | null;
 }
 
 export interface SampleRow {
@@ -60,6 +61,7 @@ export const SPECIMEN_COLUMNS: Record<string, string> = {
   fieldNumber: 'fieldNumber',
   modified: 'modified',
   specimenObservationId: 'specimen_observation_id',
+  elevation: 'elevation_m',
 };
 
 export const SAMPLE_COLUMNS: Record<string, string> = {
