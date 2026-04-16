@@ -406,3 +406,68 @@ describe('FRONT-01: specimen photo link rendering', () => {
     document.body.removeChild(el);
   });
 });
+
+describe('ELEV-05: bee-specimen-detail elevation display', () => {
+  test('shows elevation row when elevation_m is non-null', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+    const el = new BeeSpecimenDetail();
+    el.samples = [{
+      year: 2023, month: 6,
+      recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
+      elevation_m: 1219,
+      species: [{ name: 'Bombus occidentalis', occid: '12345', hostObservationId: null, floralHost: null, specimenObservationId: null }],
+    }];
+    document.body.appendChild(el);
+    await el.updateComplete;
+    expect(el.shadowRoot!.textContent).toContain('1219 m');
+    expect(el.shadowRoot!.textContent).toContain('Elevation');
+    document.body.removeChild(el);
+  });
+
+  test('omits elevation row when elevation_m is null', async () => {
+    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
+    const el = new BeeSpecimenDetail();
+    el.samples = [{
+      year: 2023, month: 6,
+      recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
+      elevation_m: null,
+      species: [{ name: 'Bombus occidentalis', occid: '12345', hostObservationId: null, floralHost: null, specimenObservationId: null }],
+    }];
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const text = el.shadowRoot!.textContent ?? '';
+    expect(text).not.toContain('Elevation');
+    document.body.removeChild(el);
+  });
+});
+
+describe('ELEV-06: bee-sample-detail elevation display', () => {
+  test('shows elevation when elevation_m is non-null', async () => {
+    const { BeeSampleDetail } = await import('../bee-sample-detail.ts');
+    const el = new BeeSampleDetail();
+    el.sampleEvent = {
+      observation_id: 1, observer: 'J. Smith', date: '2023-06-01',
+      specimen_count: 3, sample_id: null, coordinate: [0, 0],
+      elevation_m: 1219,
+    };
+    document.body.appendChild(el);
+    await el.updateComplete;
+    expect(el.shadowRoot!.textContent).toContain('1219 m');
+    document.body.removeChild(el);
+  });
+
+  test('omits elevation when elevation_m is null', async () => {
+    const { BeeSampleDetail } = await import('../bee-sample-detail.ts');
+    const el = new BeeSampleDetail();
+    el.sampleEvent = {
+      observation_id: 1, observer: 'J. Smith', date: '2023-06-01',
+      specimen_count: 3, sample_id: null, coordinate: [0, 0],
+      elevation_m: null,
+    };
+    document.body.appendChild(el);
+    await el.updateComplete;
+    const text = el.shadowRoot!.textContent ?? '';
+    expect(text).not.toContain(' m');
+    document.body.removeChild(el);
+  });
+});
