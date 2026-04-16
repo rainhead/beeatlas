@@ -10,15 +10,15 @@ A fresh connection is opened for the first-query latency measurement.
 
 | Metric | DuckDB WASM (Phase 59 baseline) | wa-sqlite (Phase 61 after migration) |
 |--------|---------------------------------|---------------------------------------|
-| WASM instantiate time (ms) | ___ | ___ |
-| tablesReady total time (ms) | ___ | ___ |
-| First-query latency (ms) | ___ | ___ |
-| Heap before init (MB) | ___ | ___ |
-| Heap after instantiate (MB) | ___ | ___ |
-| Heap after tablesReady (MB) | ___ | ___ |
+| WASM instantiate time (ms) | 539 | ___ |
+| tablesReady total time (ms) | 1941 | ___ |
+| First-query latency (ms) | 613 | ___ |
+| Heap before init (MB) | 6.6 | ___ |
+| Heap after instantiate (MB) | 16.7 | ___ |
+| Heap after tablesReady (MB) | 18.7 | ___ |
 
 ## Notes
 
-- Measured on: [machine / Chrome version / date]
+- Measured on: MacBook Air 10,1 (Apple M1, 8 cores, 16 GB RAM) / Chrome 146.0.7680.178 (arm64) / 2026-04-16
 - Network: [local dev server -- no real network latency]
 - Data files: ecdysis.parquet, samples.parquet, counties.geojson, ecoregions.geojson
