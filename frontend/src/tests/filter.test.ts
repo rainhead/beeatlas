@@ -1,5 +1,5 @@
 import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
-import { buildFilterSQL, buildCsvFilename, queryTablePage, SPECIMEN_COLUMNS, SAMPLE_COLUMNS } from '../filter.ts';
+import { buildFilterSQL, buildCsvFilename, queryTablePage, SPECIMEN_COLUMNS, SAMPLE_COLUMNS, isFilterActive } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDuckDB } from '../duckdb.ts';
 
@@ -25,6 +25,8 @@ function emptyFilter(): FilterState {
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
     selectedCollectors: [],
+    elevMin: null,
+    elevMax: null,
   };
 }
 
@@ -119,6 +121,8 @@ describe('combined filters', () => {
       selectedCounties: new Set(['King']),
       selectedEcoregions: new Set(['Cascades']),
       selectedCollectors: [],
+      elevMin: null,
+      elevMax: null,
     };
     const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
 
@@ -139,6 +143,47 @@ describe('combined filters', () => {
     expect(samplesWhere).toContain("county IN ('King')");
     expect(samplesWhere).toContain("ecoregion_l3 IN ('Cascades')");
     expect(samplesWhere).toContain(' AND ');
+  });
+});
+
+describe('elevation filter', () => {
+  test('elevMin only: both clauses use IS NULL OR >= pattern', () => {
+    const f = { ...emptyFilter(), elevMin: 500 };
+    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
+    expect(ecdysisWhere).toBe('(elevation_m IS NULL OR elevation_m >= 500)');
+    expect(samplesWhere).toBe('(elevation_m IS NULL OR elevation_m >= 500)');
+  });
+
+  test('elevMax only: both clauses use IS NULL OR <= pattern', () => {
+    const f = { ...emptyFilter(), elevMax: 1500 };
+    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
+    expect(ecdysisWhere).toBe('(elevation_m IS NULL OR elevation_m <= 1500)');
+    expect(samplesWhere).toBe('(elevation_m IS NULL OR elevation_m <= 1500)');
+  });
+
+  test('both set: both clauses use BETWEEN (nulls excluded)', () => {
+    const f = { ...emptyFilter(), elevMin: 500, elevMax: 1500 };
+    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
+    expect(ecdysisWhere).toBe('elevation_m IS NOT NULL AND elevation_m BETWEEN 500 AND 1500');
+    expect(samplesWhere).toBe('elevation_m IS NOT NULL AND elevation_m BETWEEN 500 AND 1500');
+  });
+
+  test('neither set: no elevation clause; both return 1 = 1', () => {
+    const { ecdysisWhere, samplesWhere } = buildFilterSQL(emptyFilter());
+    expect(ecdysisWhere).toBe('1 = 1');
+    expect(samplesWhere).toBe('1 = 1');
+  });
+});
+
+describe('isFilterActive — elevation', () => {
+  test('elevMin set: returns true', () => {
+    expect(isFilterActive({ ...emptyFilter(), elevMin: 100 })).toBe(true);
+  });
+  test('elevMax set: returns true', () => {
+    expect(isFilterActive({ ...emptyFilter(), elevMax: 2000 })).toBe(true);
+  });
+  test('both null with no other fields: returns false', () => {
+    expect(isFilterActive(emptyFilter())).toBe(false);
   });
 });
 

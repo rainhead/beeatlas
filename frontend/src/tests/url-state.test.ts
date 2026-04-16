@@ -12,6 +12,8 @@ function emptyFilter(): FilterState {
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
     selectedCollectors: [],
+    elevMin: null,
+    elevMax: null,
   };
 }
 
@@ -138,6 +140,8 @@ describe('combined round-trip', () => {
       selectedCounties: new Set(['King', 'Pierce']),
       selectedEcoregions: new Set(['Cascades']),
       selectedCollectors: [],
+      elevMin: null,
+      elevMax: null,
     };
     const selection = { occurrenceIds: ['ecdysis:999'] };
     const ui = { layerMode: 'samples' as const, boundaryMode: 'counties' as const, viewMode: 'table' as const };
@@ -162,6 +166,55 @@ describe('combined round-trip', () => {
     expect(result.ui!.layerMode).toBe('samples');
     expect(result.ui!.boundaryMode).toBe('counties');
     expect(result.ui!.viewMode).toBe('table');
+
+    expect(result.filter!.elevMin).toBeNull();
+    expect(result.filter!.elevMax).toBeNull();
+  });
+});
+
+describe('elevation param round-trip', () => {
+  test('elevMin: round-trips as elev_min', () => {
+    const filter = { ...emptyFilter(), elevMin: 500 };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('elev_min')).toBe('500');
+    const result = parseParams(params.toString());
+    expect(result.filter?.elevMin).toBe(500);
+  });
+
+  test('elevMax: round-trips as elev_max', () => {
+    const filter = { ...emptyFilter(), elevMax: 1500 };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('elev_max')).toBe('1500');
+    const result = parseParams(params.toString());
+    expect(result.filter?.elevMax).toBe(1500);
+  });
+
+  test('both set: both params present and round-trip', () => {
+    const filter = { ...emptyFilter(), elevMin: 500, elevMax: 1500 };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('elev_min')).toBe('500');
+    expect(params.get('elev_max')).toBe('1500');
+    const result = parseParams(params.toString());
+    expect(result.filter?.elevMin).toBe(500);
+    expect(result.filter?.elevMax).toBe(1500);
+  });
+
+  test('neither set: elev_min and elev_max params absent', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('elev_min')).toBe(false);
+    expect(params.has('elev_max')).toBe(false);
+  });
+
+  test('invalid elev_min (non-numeric): parses to null', () => {
+    const result = parseParams('elev_min=abc');
+    expect(result.filter?.elevMin ?? null).toBeNull();
+  });
+
+  test('elevMin alone triggers hasFilter: result.filter is defined', () => {
+    const result = parseParams('elev_min=500');
+    expect(result.filter).toBeDefined();
+    expect(result.filter!.elevMin).toBe(500);
+    expect(result.filter!.elevMax).toBeNull();
   });
 });
 
