@@ -33,6 +33,10 @@ export class BeeSampleDetail extends LitElement {
       font-size: 0.8rem;
       color: var(--text-hint);
     }
+    .event-elevation {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
     .event-inat {
       font-size: 0.85rem;
     }
@@ -71,6 +75,9 @@ export class BeeSampleDetail extends LitElement {
         <div class="event-date">${this._formatSampleDate(event.date)}</div>
         <div class="event-observer">${event.observer}</div>
         <div class="event-count">${count}</div>
+        ${event.elevation_m !== null
+          ? html`<div class="event-elevation">${Math.round(event.elevation_m)} m</div>`
+          : ''}
         <div class="event-inat">
           <a href="https://www.inaturalist.org/observations/${event.observation_id}" target="_blank" rel="noopener">View on iNaturalist</a>
         </div>
