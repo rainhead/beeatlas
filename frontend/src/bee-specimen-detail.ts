@@ -98,6 +98,12 @@ export class BeeSpecimenDetail extends LitElement {
         <div class="sample">
           <div class="sample-header">${this._formatMonth(sample.year, sample.month)} ${sample.year}</div>
           <div class="sample-meta">${sample.recordedBy} · ${sample.fieldNumber}</div>
+          ${sample.elevation_m !== null
+            ? html`<div class="sample-meta">
+                <span class="host-label">Elevation</span>
+                ${Math.round(sample.elevation_m)} m
+              </div>`
+            : ''}
           <ul class="species-list">
             ${sample.species.map(s => html`
               <li>
