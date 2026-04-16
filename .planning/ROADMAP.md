@@ -17,7 +17,7 @@
 - ✅ **v2.2 Feed Discoverability & Pipeline** — Phases 45–47 (shipped 2026-04-12)
 - ✅ **v2.3 Specimen iNat Observation Links** — Phases 48–51 (shipped 2026-04-13)
 - ✅ **v2.4 Header Navigation & Toolbar** — Phases 52–54 (shipped 2026-04-14)
-- 🚧 **v2.5 Elevation Data** — Phases 55–58 (in progress)
+- ✅ **v2.5 Elevation Data** — Phases 55–58 (shipped 2026-04-16)
 - 🔲 **v2.6 SQLite WASM Migration** — Phases 59–61
 - 🔲 **v2.7 Unified Occurrence Model** — Phases 62–64
 - 🔲 **v2.8 Liveness: Provisional Specimen Records** — Phases 65–66
@@ -247,14 +247,17 @@ See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
 
 </details>
 
-### v2.5 Elevation Data (In Progress)
+<details>
+<summary>✅ v2.5 Elevation Data (Phases 55–58) — SHIPPED 2026-04-16</summary>
 
-**Milestone Goal:** Annotate specimens and samples with inferred elevation (meters) from the USGS 3DEP DEM, surface in sidebar detail and filter toolbar.
+- [x] Phase 55: DEM Acquisition Module (1/1 plans) — completed 2026-04-15
+- [x] Phase 56: Export Integration (2/2 plans) — completed 2026-04-15
+- [x] Phase 57: Sidebar Display (2/2 plans) — completed 2026-04-16
+- [x] Phase 58: Elevation Filter (2/2 plans) — completed 2026-04-16
 
-- [x] **Phase 55: DEM Acquisition Module** — dem_pipeline.py with download + sampling functions, unit tests, pip deps (completed 2026-04-15)
-- [x] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update (completed 2026-04-15)
-- [x] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail (completed 2026-04-16)
-- [x] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters (completed 2026-04-16)
+See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
+
+</details>
 
 ### v2.6 SQLite WASM Migration (Planned)
 
@@ -299,110 +302,6 @@ See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
 **Milestone Goal:** Heuristics-based flags on occurrence records surfacing likely data issues (duplicate sample or field numbers, implausible coordinates, etc.).
 
 - [ ] **Phase 72: Quality Flag Pipeline and Display** — flag generation in pipeline; surface flags in sidebar detail and table view
-
-## Phase Details
-
-### Phase 52: Header Component
-**Goal**: Users can switch data layers and views from a persistent header bar at the top of the page
-**Depends on**: Phase 51
-**Requirements**: HDR-01, HDR-02, HDR-03, HDR-04
-**Success Criteria** (what must be TRUE):
-  1. User can click Specimens or Samples tab in the header to switch the active data layer; the active tab is visually distinct from the inactive one
-  2. Species and Plants appear as greyed-out disabled tabs in the header, signaling future roadmap items without being clickable
-  3. User can click icon buttons on the right side of the header to toggle between Map and Table views
-  4. On narrow viewports, the nav tabs collapse to a hamburger menu that expands to show all tab options
-  5. The `lm=` and `view=` URL params continue to round-trip correctly through the new header controls
-**Plans**: 2 plans
-Plans:
-- [x] 52-01-PLAN.md — Create bee-header Lit component with nav tabs, view icons, hamburger menu, and unit tests
-- [x] 52-02-PLAN.md — Wire bee-header into bee-atlas, clean up index.html, visual verification
-**UI hint**: yes
-
-### Phase 53: Filter Toolbar
-**Goal**: Users see all filter controls and the CSV download button in a persistent toolbar below the header, not inside the sidebar
-**Depends on**: Phase 52
-**Requirements**: FILT-08, FILT-09
-**Success Criteria** (what must be TRUE):
-  1. Taxon, year, month, county, and ecoregion filter controls are visible in a toolbar below the header when the app loads — no sidebar interaction required to reach them
-  2. CSV download button appears in the filter toolbar and triggers a download of the current filtered result set
-  3. Filter state (chips, URL params) continues to work identically to before — changing a filter in the toolbar updates the map and table
-  4. The sidebar no longer contains filter controls or the CSV download button
-**Plans**: 1 plan
-Plans:
-- [x] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
-**UI hint**: yes
-
-### Phase 54: Sidebar Cleanup
-**Goal**: The sidebar is hidden until the user clicks a map feature, and can be dismissed back to hidden
-**Depends on**: Phase 53
-**Requirements**: SIDE-01, SIDE-02
-**Success Criteria** (what must be TRUE):
-  1. When the app loads with no map feature selected, the sidebar is not visible — the map or table occupies the full content area
-  2. Clicking a specimen cluster or sample dot on the map opens the sidebar showing the relevant detail panel
-  3. User can dismiss the open sidebar (via a close button or equivalent) and it returns to hidden; the map/table returns to full width
-  4. The sidebar no longer contains the layer toggle, view toggle, filter controls, or feed subscription links
-**Plans**: 2 plans
-Plans:
-- [x] 54-01-PLAN.md — Sidebar detail-only panel: hide by default, open on click, close button, strip non-detail content
-- [x] 54-02-PLAN.md — Gap closure: fix empty-click sidebar dismiss and remove redundant Back buttons from detail panels
-**UI hint**: yes
-
-### Phase 55: DEM Acquisition Module
-**Goal**: A tested Python module can download the USGS 3DEP DEM for Washington and sample elevation at arbitrary coordinates
-**Depends on**: Phase 54
-**Requirements**: ELEV-01
-**Success Criteria** (what must be TRUE):
-  1. Running `ensure_dem(path)` downloads the WA bounding-box GeoTIFF on first call and skips download on subsequent calls when the file exists
-  2. `sample_elevation(lons, lats, dem_path)` returns integer meters for in-bounds coordinates and None for out-of-bounds or nodata coordinates
-  3. The nodata sentinel value is read from `dataset.nodata` (not hardcoded) and converted to None before returning
-  4. Unit tests pass using a synthetic 2x2 GeoTIFF fixture without downloading real DEM data; `seamless-3dep` and `rasterio` are listed in `pyproject.toml`
-**Plans:** 1/1 plans complete
-Plans:
-- [x] 55-01-PLAN.md — Add dependencies, create dem_pipeline.py with ensure_dem and sample_elevation, unit tests with synthetic fixture
-
-### Phase 56: Export Integration
-**Goal**: Both parquet export files contain a nullable `elevation_m` INT16 column populated from the DEM, and CI enforces its presence
-**Depends on**: Phase 55
-**Requirements**: ELEV-02, ELEV-03, ELEV-04
-**Success Criteria** (what must be TRUE):
-  1. After running the export pipeline, `ecdysis.parquet` contains an `elevation_m` INT16 nullable column with valid integer meter values for specimens within WA and NULL for out-of-bounds/nodata points
-  2. After running the export pipeline, `samples.parquet` contains the same `elevation_m` column with the same null semantics
-  3. `validate-schema.mjs` fails the CI build if `elevation_m` is absent from either parquet file; the schema gate change ships in the same commit as the export change
-  4. No row in either parquet file has `elevation_m < -500` (nodata sentinel not leaking as a real value)
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 56-01-PLAN.md — Wire elevation sampling into export.py, update schema gate, add pyarrow dep
-- [x] 56-02-PLAN.md — Add elevation integration tests to test_export.py
-
-### Phase 57: Sidebar Display
-**Goal**: Users can see a specimen's or sample's elevation in the sidebar detail panel when elevation data is available
-**Depends on**: Phase 56
-**Requirements**: ELEV-05, ELEV-06
-**Success Criteria** (what must be TRUE):
-  1. In `bee-specimen-detail`, an "Elevation" row showing "1219 m" (integer, no decimal) appears when `elevation_m` is non-null
-  2. In `bee-specimen-detail`, the elevation row is entirely absent (not shown as blank or "—") when `elevation_m` is null
-  3. In `bee-sample-detail`, elevation displays with the identical format and null-omit behavior as the specimen detail panel
-**UI hint**: yes
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 57-01-PLAN.md — Thread elevation_m through data layer (interfaces, DuckDB queries, event propagation)
-- [x] 57-02-PLAN.md — Render elevation in detail components with conditional null-omission and tests
-
-
-### Phase 58: Elevation Filter
-**Goal**: Users can filter the map and table to specimens and samples within an elevation range, with the range bookmarkable in the URL
-**Depends on**: Phase 57
-**Requirements**: ELEV-07, ELEV-08, ELEV-09
-**Success Criteria** (what must be TRUE):
-  1. Min and max elevation number inputs appear in the filter toolbar; entering values narrows the map dots and table rows to points within that elevation range
-  2. A URL containing `elev_min=500&elev_max=1500` opens with those values pre-filled in the elevation inputs and the filter active
-  3. When only one bound is set (min only or max only), the filter does not exclude null-elevation records — null rows are excluded only when both bounds are provided
-  4. Clicking "Clear filters" resets the elevation min/max inputs to empty alongside all other filter fields
-**UI hint**: yes
-**Plans:** 2/2 plans complete
-Plans:
-- [x] 58-01-PLAN.md — Extend FilterState, buildFilterSQL, isFilterActive, URL state, and tests
-- [x] 58-02-PLAN.md — Add elevation number inputs to bee-filter-controls with state sync and CSS
 
 ## Progress
 
@@ -465,4 +364,4 @@ Plans:
 | 55. DEM Acquisition Module | v2.5 | 1/1 | Complete    | 2026-04-15 |
 | 56. Export Integration | v2.5 | 2/2 | Complete   | 2026-04-15 |
 | 57. Sidebar Display | v2.5 | 2/2 | Complete   | 2026-04-16 |
-| 58. Elevation Filter | v2.5 | 2/2 | Complete   | 2026-04-16 |
+| 58. Elevation Filter | v2.5 | 2/2 | Complete    | 2026-04-16 |
