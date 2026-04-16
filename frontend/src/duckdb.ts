@@ -5,6 +5,11 @@ import duckdb_wasm_eh from '@duckdb/duckdb-wasm/dist/duckdb-eh.wasm?url';
 import eh_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-eh.worker.js?url';
 
 let _dbPromise: Promise<DuckDBTypes.AsyncDuckDB> | null = null;
+let _benchmarkT0 = 0;
+
+function _heapMB(): number {
+  return ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1_048_576;
+}
 
 let _tablesReadyResolve: (() => void) | null = null;
 export const tablesReady: Promise<void> = new Promise(resolve => {
@@ -12,6 +17,8 @@ export const tablesReady: Promise<void> = new Promise(resolve => {
 });
 
 async function _init(): Promise<DuckDBTypes.AsyncDuckDB> {
+  const t0 = performance.now();
+  const mem0 = _heapMB();
   const duckdb = await import('@duckdb/duckdb-wasm');
   const MANUAL_BUNDLES: DuckDBTypes.DuckDBBundles = {
     mvp: { mainModule: duckdb_wasm,    mainWorker: mvp_worker },
@@ -21,6 +28,10 @@ async function _init(): Promise<DuckDBTypes.AsyncDuckDB> {
   const worker = new Worker(bundle.mainWorker!);
   const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
   await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+  const t1 = performance.now();
+  const mem1 = _heapMB();
+  console.log(`[BENCHMARK] WASM instantiate: ${(t1 - t0).toFixed(0)} ms | heap: ${mem0.toFixed(1)} -> ${mem1.toFixed(1)} MB`);
+  _benchmarkT0 = t0;
   return db;
 }
 
@@ -73,4 +84,19 @@ export async function loadAllTables(db: DuckDBTypes.AsyncDuckDB, baseUrl: string
   await countConn.close();
 
   if (_tablesReadyResolve) _tablesReadyResolve();
+
+  const tReady = performance.now();
+  const mem2 = _heapMB();
+
+  const tQueryStart = performance.now();
+  const qConn = await db.connect();
+  await qConn.query('SELECT COUNT(*) FROM ecdysis');
+  await qConn.close();
+  const tQueryEnd = performance.now();
+
+  console.log(
+    `[BENCHMARK] tablesReady: ${(tReady - _benchmarkT0).toFixed(0)} ms total from init start`,
+    `| heap after tables: ${mem2.toFixed(1)} MB`,
+    `| first-query latency: ${(tQueryEnd - tQueryStart).toFixed(0)} ms`,
+  );
 }
