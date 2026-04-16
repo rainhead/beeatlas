@@ -88,7 +88,9 @@ function filterStatesEqual(a: FilterState, b: FilterState): boolean {
     && setsEqual(a.selectedCounties, b.selectedCounties)
     && setsEqual(a.selectedEcoregions, b.selectedEcoregions)
     && a.selectedCollectors.length === b.selectedCollectors.length
-    && a.selectedCollectors.every((c, i) => c.displayName === b.selectedCollectors[i]!.displayName);
+    && a.selectedCollectors.every((c, i) => c.displayName === b.selectedCollectors[i]!.displayName)
+    && a.elevMin === b.elevMin
+    && a.elevMax === b.elevMax;
 }
 
 function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
@@ -247,6 +249,8 @@ export class BeeFilterControls extends LitElement {
   @state() private _suggestions: Suggestion[] = [];
   @state() private _highlightIndex = -1;
   @state() private _open = false;
+  @state() private _elevMin: number | null = null;
+  @state() private _elevMax: number | null = null;
 
   static styles = css`
     :host { display: block; }
@@ -344,6 +348,34 @@ export class BeeFilterControls extends LitElement {
     .suggestion:hover,
     .suggestion.highlighted { background: var(--surface-subtle); }
 
+    /* Elevation inputs */
+    .elev-inputs {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      margin-top: 8px;
+    }
+    .elev-input {
+      width: 72px;
+      height: 36px;
+      padding: 0 0.4rem;
+      border: 1px solid var(--border-input);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: var(--text-body);
+      background: var(--surface);
+      box-sizing: border-box;
+      -moz-appearance: textfield;
+    }
+    .elev-input::-webkit-outer-spin-button,
+    .elev-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .elev-input::placeholder { color: var(--text-hint); }
+    .elev-input:focus {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+
   `;
 
   updated(changedProperties: PropertyValues) {
@@ -353,6 +385,13 @@ export class BeeFilterControls extends LitElement {
       if (!filterStatesEqual(tokensToFilterState(this._tokens), this.filterState)) {
         this._tokens = filterStateToTokens(this.filterState);
       }
+      // Elevation sync — simple scalar guard (no equality helper needed)
+      if (this._elevMin !== this.filterState.elevMin) {
+        this._elevMin = this.filterState.elevMin;
+      }
+      if (this._elevMax !== this.filterState.elevMax) {
+        this._elevMax = this.filterState.elevMax;
+      }
     }
   }
 
@@ -360,7 +399,27 @@ export class BeeFilterControls extends LitElement {
     const f = tokensToFilterState(tokens);
     this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
       bubbles: true, composed: true,
-      detail: { ...f },
+      detail: { ...f, elevMin: this._elevMin, elevMax: this._elevMax },
+    }));
+  }
+
+  private _onElevMinInput(e: Event) {
+    const raw = parseInt((e.target as HTMLInputElement).value, 10);
+    this._elevMin = isNaN(raw) ? null : raw;
+    this._emitWithElev();
+  }
+
+  private _onElevMaxInput(e: Event) {
+    const raw = parseInt((e.target as HTMLInputElement).value, 10);
+    this._elevMax = isNaN(raw) ? null : raw;
+    this._emitWithElev();
+  }
+
+  private _emitWithElev() {
+    const f = tokensToFilterState(this._tokens);
+    this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
+      bubbles: true, composed: true,
+      detail: { ...f, elevMin: this._elevMin, elevMax: this._elevMax },
     }));
   }
 
@@ -495,6 +554,28 @@ export class BeeFilterControls extends LitElement {
             `)}
           </ul>
         ` : nothing}
+      </div>
+      <div class="elev-inputs">
+        <input
+          type="number"
+          class="elev-input"
+          placeholder="\u2191 min m"
+          min="0"
+          step="1"
+          .value=${this._elevMin !== null ? String(this._elevMin) : ''}
+          @input=${this._onElevMinInput}
+          aria-label="Minimum elevation in meters"
+        />
+        <input
+          type="number"
+          class="elev-input"
+          placeholder="max m"
+          min="0"
+          step="1"
+          .value=${this._elevMax !== null ? String(this._elevMax) : ''}
+          @input=${this._onElevMaxInput}
+          aria-label="Maximum elevation in meters"
+        />
       </div>
     `;
   }
