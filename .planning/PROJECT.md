@@ -253,6 +253,7 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Elevation inputs placed outside `.search-section` as sibling div | Dropdown z-index scoping is set on `.search-section`; placing inputs inside would clip the token dropdown | ✓ Good — v2.5 Phase 58; clean z-index separation |
 | `filterStatesEqual` extended with elevMin/elevMax before dispatching filter-changed | Without equality check, elevation-only input changes would cause `updated()` loop (component re-receives its own emission) | ✓ Good — v2.5 Phase 58; guard correctly ignores own emissions |
 | D-06 conditional null semantics: single-bound passes nulls, both-bounds excludes nulls | Null elevation records should remain visible when only one bound is set — forcing null exclusion with one bound would silently hide ~4% of specimens | ✓ Good — v2.5 Phase 58; SQL: both set → BETWEEN + IS NOT NULL; one set → IS NULL OR >= / <= |
+| Inline `performance.now()` + `performance.memory` instrumentation in `duckdb.ts` (removed in Phase 61) | DuckDB WASM init, tablesReady, and first-query latency span async boundaries; module-level `_benchmarkT0` bridges `_init()` to `loadAllTables()`; Chrome-only heap reads use inline cast to avoid a temporary `.d.ts` | ✓ Good — v2.6 Phase 59; baseline: 539 ms instantiate, 1941 ms tablesReady, 613 ms first-query, 18.7 MB heap peak (M1 MacBook Air, Chrome 146) |
 
 ## Evolution
 
@@ -272,4 +273,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 — v2.5 milestone complete (Elevation Data)*
+*Last updated: 2026-04-16 — Phase 59 complete (DuckDB WASM benchmark baseline recorded)*
