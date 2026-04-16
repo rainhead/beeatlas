@@ -397,6 +397,11 @@ export class BeeFilterControls extends LitElement {
 
   private _emitTokens(tokens: Token[]) {
     const f = tokensToFilterState(tokens);
+    // When all tokens are cleared, reset elevation too ("Clear filters" semantic, SC4)
+    if (tokens.length === 0) {
+      this._elevMin = null;
+      this._elevMax = null;
+    }
     this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
       bubbles: true, composed: true,
       detail: { ...f, elevMin: this._elevMin, elevMax: this._elevMax },
