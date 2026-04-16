@@ -276,7 +276,9 @@ See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
   2. First-query latency measured (time from query start to first result)
   3. Peak memory footprint recorded during typical usage
   4. Numbers documented in a benchmark artifact for comparison after migration
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 59-01-PLAN.md — Instrument duckdb.ts with performance.now() timing and performance.memory heap snapshots; create BENCHMARK.md comparison artifact
 
 ### v2.7 Unified Occurrence Model (Planned)
 
