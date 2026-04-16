@@ -61,19 +61,20 @@ async function createBeeTable(props: {
 }
 
 describe('TABLE-01: bee-table column headers', () => {
-  test('renders 7 specimen column headers when layerMode is specimens', async () => {
+  test('renders specimen column headers when layerMode is specimens', async () => {
     const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
     const labels = Array.from(headers).map(th => th.textContent?.trim() ?? '');
-    expect(labels.some(l => l.includes('Source'))).toBe(true);
+    expect(labels.some(l => l.includes('Label'))).toBe(true);
     expect(labels.some(l => l.includes('Species'))).toBe(true);
     expect(labels.some(l => l.includes('Collector'))).toBe(true);
     expect(labels.some(l => l.includes('Date'))).toBe(true);
     expect(labels.some(l => l.includes('County'))).toBe(true);
     expect(labels.some(l => l.includes('Ecoregion'))).toBe(true);
+    expect(labels.some(l => l.includes('Elev'))).toBe(true);
     expect(labels.some(l => l.includes('Field #'))).toBe(true);
     expect(labels.some(l => l.includes('Modified'))).toBe(true);
-    expect(headers.length).toBe(8);
+    expect(headers.length).toBe(10);
     document.body.removeChild(el);
   });
 

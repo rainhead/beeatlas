@@ -139,5 +139,25 @@ None — discussion stayed within phase scope.
 
 ---
 
+## Post-Execution Revision (2026-04-15)
+
+The DEM pipeline approach (phases 55–56) was **replaced in the same session** after discovering that `ecdysis_data.occurrences` already carries `minimum_elevation_in_meters` (Darwin Core field, ~96% coverage).
+
+### What changed
+- `dem_pipeline.py` and `tests/test_dem_pipeline.py` deleted
+- `rasterio`, `seamless-3dep`, `botocore[crt]` removed from `pyproject.toml` (17 packages uninstalled)
+- `export_ecdysis_parquet`: `elevation_m` now comes from `TRY_CAST(NULLIF(o.minimum_elevation_in_meters, '') AS INTEGER)` inline in the SQL — no post-processing step
+- `export_samples_parquet`: emits `NULL::INTEGER AS elevation_m` to keep the parquet schema stable (iNat observations have no elevation source)
+- `_add_elevation`, pyarrow post-processing, and all DEM cache logic removed from `export.py`
+
+### Why the DEM approach was dropped
+1. Source data exists and is more accurate than raster sampling
+2. `rasterio` imports `boto3` unconditionally at startup, triggering botocore's SSO credential chain (required `botocore[crt]` to fix)
+3. WA coverage at 10 m resolution produced 308 tiles; merging hit the OS fd limit and produced NaN pixels
+
+### Remaining elevation gap
+iNat samples have no elevation field. `elevation_m` is null for all sample rows. If this matters in future, options are: (a) DEM sampling for samples only, (b) joining through ecdysis via a shared field.
+
+*Revised: 2026-04-15*
 *Phase: 56-export-integration*
 *Context gathered: 2026-04-15*

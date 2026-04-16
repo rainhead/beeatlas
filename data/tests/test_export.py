@@ -34,10 +34,10 @@ EXPECTED_SAMPLES_COLS = [
 # ecdysis.parquet tests
 # ---------------------------------------------------------------------------
 
-def test_ecdysis_parquet_schema(fixture_con, export_dir, dem_fixture, monkeypatch):
+def test_ecdysis_parquet_schema(fixture_con, export_dir, monkeypatch):
     """export_ecdysis_parquet writes file with all 15 expected columns."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+    export_mod.export_ecdysis_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     schema = duckdb.execute(
@@ -49,10 +49,10 @@ def test_ecdysis_parquet_schema(fixture_con, export_dir, dem_fixture, monkeypatc
         assert col in actual_cols, f"Missing column in ecdysis.parquet: {col}"
 
 
-def test_ecdysis_parquet_has_specimen_observation_id(fixture_con, export_dir, dem_fixture, monkeypatch):
+def test_ecdysis_parquet_has_specimen_observation_id(fixture_con, export_dir, monkeypatch):
     """export_ecdysis_parquet populates specimen_observation_id for WABA-linked specimens."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+    export_mod.export_ecdysis_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     row = duckdb.execute(f"""
@@ -62,10 +62,10 @@ def test_ecdysis_parquet_has_specimen_observation_id(fixture_con, export_dir, de
     assert row[0] >= 1, "No rows have specimen_observation_id set — WABA join may be broken"
 
 
-def test_ecdysis_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypatch):
+def test_ecdysis_parquet_has_rows(fixture_con, export_dir, monkeypatch):
     """export_ecdysis_parquet writes at least 1 row with non-null county and ecoregion_l3."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+    export_mod.export_ecdysis_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     row = duckdb.execute(f"""
@@ -81,10 +81,10 @@ def test_ecdysis_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypa
     assert null_eco == 0, f"ecdysis.parquet has {null_eco} rows with null ecoregion_l3"
 
 
-def test_ecdysis_parquet_elevation_col(fixture_con, export_dir, dem_fixture, monkeypatch):
+def test_ecdysis_parquet_elevation_col(fixture_con, export_dir, monkeypatch):
     """export_ecdysis_parquet adds elevation_m as INT16 (SMALLINT) column."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+    export_mod.export_ecdysis_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     schema = duckdb.execute(
@@ -93,28 +93,15 @@ def test_ecdysis_parquet_elevation_col(fixture_con, export_dir, dem_fixture, mon
     actual_cols = [row[0] for row in schema]
     assert 'elevation_m' in actual_cols, "Missing elevation_m column in ecdysis.parquet"
     type_map = {row[0]: row[1] for row in schema}
-    assert 'SMALLINT' in type_map['elevation_m'], (
-        f"elevation_m should be SMALLINT (INT16), got {type_map['elevation_m']}"
+    assert 'INT' in type_map['elevation_m'], (
+        f"elevation_m should be INTEGER, got {type_map['elevation_m']}"
     )
 
 
-def test_ecdysis_elevation_no_sentinel_leak(fixture_con, export_dir, dem_fixture, monkeypatch):
-    """No row has elevation_m < -500 (nodata sentinel not leaking as real value)."""
+def test_ecdysis_elevation_has_values(fixture_con, export_dir, monkeypatch):
+    """Seed specimen has minimum_elevation_in_meters='1219' -- elevation_m should be non-null."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
-
-    parquet_path = str(export_dir / 'ecdysis.parquet')
-    row = duckdb.execute(f"""
-        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
-        WHERE elevation_m < -500
-    """).fetchone()
-    assert row[0] == 0, f"ecdysis.parquet has {row[0]} rows with elevation_m < -500 (sentinel leak)"
-
-
-def test_ecdysis_elevation_has_values(fixture_con, export_dir, dem_fixture, monkeypatch):
-    """Seed specimen at (-120.912, 47.608) is inside dem_fixture bbox -- elevation_m should be non-null."""
-    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_ecdysis_parquet(fixture_con, dem_fixture)
+    export_mod.export_ecdysis_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'ecdysis.parquet')
     row = duckdb.execute(f"""
@@ -128,10 +115,10 @@ def test_ecdysis_elevation_has_values(fixture_con, export_dir, dem_fixture, monk
 # samples.parquet tests
 # ---------------------------------------------------------------------------
 
-def test_samples_parquet_schema(fixture_con, export_dir, dem_fixture, monkeypatch):
+def test_samples_parquet_schema(fixture_con, export_dir, monkeypatch):
     """export_samples_parquet writes file with all 9 expected columns."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_samples_parquet(fixture_con, dem_fixture)
+    export_mod.export_samples_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'samples.parquet')
     schema = duckdb.execute(
@@ -143,10 +130,10 @@ def test_samples_parquet_schema(fixture_con, export_dir, dem_fixture, monkeypatc
         assert col in actual_cols, f"Missing column in samples.parquet: {col}"
 
 
-def test_samples_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypatch):
+def test_samples_parquet_has_rows(fixture_con, export_dir, monkeypatch):
     """export_samples_parquet writes at least 1 row with non-null county and ecoregion_l3."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_samples_parquet(fixture_con, dem_fixture)
+    export_mod.export_samples_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'samples.parquet')
     row = duckdb.execute(f"""
@@ -162,10 +149,10 @@ def test_samples_parquet_has_rows(fixture_con, export_dir, dem_fixture, monkeypa
     assert null_eco == 0, f"samples.parquet has {null_eco} rows with null ecoregion_l3"
 
 
-def test_samples_parquet_elevation_col(fixture_con, export_dir, dem_fixture, monkeypatch):
+def test_samples_parquet_elevation_col(fixture_con, export_dir, monkeypatch):
     """export_samples_parquet adds elevation_m as INT16 (SMALLINT) column."""
     monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_samples_parquet(fixture_con, dem_fixture)
+    export_mod.export_samples_parquet(fixture_con)
 
     parquet_path = str(export_dir / 'samples.parquet')
     schema = duckdb.execute(
@@ -174,22 +161,9 @@ def test_samples_parquet_elevation_col(fixture_con, export_dir, dem_fixture, mon
     actual_cols = [row[0] for row in schema]
     assert 'elevation_m' in actual_cols, "Missing elevation_m column in samples.parquet"
     type_map = {row[0]: row[1] for row in schema}
-    assert 'SMALLINT' in type_map['elevation_m'], (
-        f"elevation_m should be SMALLINT (INT16), got {type_map['elevation_m']}"
+    assert 'INT' in type_map['elevation_m'], (
+        f"elevation_m should be INTEGER, got {type_map['elevation_m']}"
     )
-
-
-def test_samples_elevation_no_sentinel_leak(fixture_con, export_dir, dem_fixture, monkeypatch):
-    """No row has elevation_m < -500 (nodata sentinel not leaking as real value)."""
-    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
-    export_mod.export_samples_parquet(fixture_con, dem_fixture)
-
-    parquet_path = str(export_dir / 'samples.parquet')
-    row = duckdb.execute(f"""
-        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
-        WHERE elevation_m < -500
-    """).fetchone()
-    assert row[0] == 0, f"samples.parquet has {row[0]} rows with elevation_m < -500 (sentinel leak)"
 
 
 # ---------------------------------------------------------------------------

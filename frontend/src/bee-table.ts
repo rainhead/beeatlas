@@ -26,6 +26,7 @@ const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
   { key: 'date', label: 'Date', dataField: 'date', minWidth: '100px' },
   { key: 'county', label: 'County', dataField: 'county', minWidth: '110px' },
   { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '130px' },
+  { key: 'elevation', label: 'Elev (m)', dataField: 'elevation_m', minWidth: '80px' },
   { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '80px' },
   { key: 'modified', label: 'Modified', dataField: 'modified', minWidth: '100px' },
   { key: 'photo', label: 'Photo', dataField: 'specimen_observation_id', minWidth: '60px',
@@ -256,7 +257,7 @@ export class BeeTable extends LitElement {
                         <th style="min-width: ${col.minWidth}" class="sortable" @click=${() => this._onSortClick(col.key as SpecimenSortBy)}>
                           ${col.label}${isActive
                             ? html`<span class="sort-indicator">\u25BC</span>`
-                            : html`<span class="sort-indicator sort-indicator--inactive">\u25BC</span>`}
+                            : nothing}
                         </th>`;
                     }
                     return html`<th style="min-width: ${col.minWidth}">${col.label}</th>`;
