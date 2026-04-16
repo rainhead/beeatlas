@@ -34,7 +34,7 @@ Declared values (must be multiples of 4):
 | Token | Value | Usage |
 |-------|-------|-------|
 | xs | 4px | Icon gaps, inline padding, gap between elevation inputs |
-| sm | 8px | Margin-left between elevation group and download button |
+| sm | 8px | Margin-left between elevation group and download button; margin-top on `.elev-inputs` |
 | md | 16px | Default element spacing |
 | lg | 24px | Section padding |
 | xl | 32px | Layout gaps |
@@ -43,7 +43,7 @@ Declared values (must be multiples of 4):
 
 Exceptions: none
 
-**Phase-specific spacing:** The elevation inputs sit inline with the token-chip field row. Gap between the two elevation inputs is 4px (xs). The elevation input group is right-aligned within the toolbar's flex row, flush with the existing download-wrap margin-left of 8px (sm). Input height must match the token-field min-height of 36px.
+**Phase-specific spacing:** The elevation inputs sit inline with the token-chip field row. Gap between the two elevation inputs is 4px (xs). The elevation input group is right-aligned within the toolbar's flex row, flush with the existing download-wrap margin-left of 8px (sm). `.elev-inputs` uses `margin-top: 8px` (sm) to align with the token-field vertical rhythm. Input height must match the token-field min-height of 36px.
 
 ---
 
@@ -55,10 +55,9 @@ Source: `frontend/src/index.css` root declarations + existing component patterns
 |------|------|--------|-------------|
 | Body | 16px (1rem) | 400 | 1.5 |
 | Label | 13.6px (0.85rem) | 600 | 1.5 |
-| Secondary | 12.8px (0.8rem) | 400 | 1.5 |
 | Hint | 12px (0.75rem) | 400 | 1.5 |
 
-**Phase-specific typography:** Elevation inputs use 14px (0.875rem), weight 400 — matching `.token-input` and `.suggestion` sizes in `bee-filter-controls`. Placeholder text uses `--text-hint` color.
+**Phase-specific typography:** Elevation inputs use 0.85rem (Label size), weight 400 — aligning to the same size used by `.token-input` and `.suggestion` in `bee-filter-controls`. Placeholder text uses `--text-hint` color.
 
 ---
 
@@ -139,7 +138,7 @@ Text tokens used in this phase:
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  margin-top: 0.75rem; /* aligns with token-field vertical rhythm */
+  margin-top: 8px; /* sm token — aligns with token-field vertical rhythm */
 }
 .elev-input {
   width: 72px;
@@ -147,7 +146,7 @@ Text tokens used in this phase:
   padding: 0 0.4rem;
   border: 1px solid var(--border-input);
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: var(--text-body);
   background: var(--surface);
   box-sizing: border-box;
