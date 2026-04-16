@@ -18,9 +18,9 @@
 
 ## Filter Toolbar
 
-- [ ] **ELEV-07**: Elevation range filter (min/max number inputs) appears in `bee-filter-controls`; encoded as `elev_min=` / `elev_max=` URL params; URL round-trip preserved
+- [x] **ELEV-07**: Elevation range filter (min/max number inputs) appears in `bee-filter-controls`; encoded as `elev_min=` / `elev_max=` URL params; URL round-trip preserved
 - [ ] **ELEV-08**: `buildFilterSQL` in `filter.ts` applies `(elevation_m IS NULL OR elevation_m BETWEEN min AND max)` semantics — null rows excluded only when both bounds are set
-- [ ] **ELEV-09**: "Clear filters" resets elevation min/max inputs in addition to existing filter fields
+- [x] **ELEV-09**: "Clear filters" resets elevation min/max inputs in addition to existing filter fields
 
 ---
 

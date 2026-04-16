@@ -248,7 +248,7 @@ See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
 - [x] **Phase 55: DEM Acquisition Module** — dem_pipeline.py with download + sampling functions, unit tests, pip deps (completed 2026-04-15)
 - [x] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update (completed 2026-04-15)
 - [x] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail (completed 2026-04-16)
-- [ ] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters
+- [x] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters (completed 2026-04-16)
 
 ## Phase Details
 
@@ -349,10 +349,10 @@ Plans:
   3. When only one bound is set (min only or max only), the filter does not exclude null-elevation records — null rows are excluded only when both bounds are provided
   4. Clicking "Clear filters" resets the elevation min/max inputs to empty alongside all other filter fields
 **UI hint**: yes
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 58-01-PLAN.md — Extend FilterState, buildFilterSQL, isFilterActive, URL state, and tests
-- [ ] 58-02-PLAN.md — Add elevation number inputs to bee-filter-controls with state sync and CSS
+- [x] 58-02-PLAN.md — Add elevation number inputs to bee-filter-controls with state sync and CSS
 
 ## Progress
 
@@ -415,4 +415,4 @@ Plans:
 | 55. DEM Acquisition Module | v2.5 | 1/1 | Complete    | 2026-04-15 |
 | 56. Export Integration | v2.5 | 2/2 | Complete   | 2026-04-15 |
 | 57. Sidebar Display | v2.5 | 2/2 | Complete   | 2026-04-16 |
-| 58. Elevation Filter | v2.5 | 1/2 | In Progress|  |
+| 58. Elevation Filter | v2.5 | 2/2 | Complete   | 2026-04-16 |
