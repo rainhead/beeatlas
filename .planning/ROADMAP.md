@@ -263,7 +263,7 @@ See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Replace DuckDB WASM (~34 MB uncompressed) with wa-sqlite + Hyparquet (~545 KB). Retain full SQL filter capability. Record before/after benchmark numbers.
 
-- [ ] **Phase 59: Benchmark Baseline** — measure DuckDB WASM init time, first-query latency, memory footprint; establish numbers to compare against
+- [x] **Phase 59: Benchmark Baseline** — measure DuckDB WASM init time, first-query latency, memory footprint; establish numbers to compare against (completed 2026-04-16)
 - [ ] **Phase 60: wa-sqlite Integration** — Hyparquet parquet read → wa-sqlite in-memory insert with batched transactions; SQL filter layer compatibility
 - [ ] **Phase 61: DuckDB Removal** — remove `@duckdb/duckdb-wasm` dependency; verify all filter/query/export paths
 
@@ -278,7 +278,7 @@ See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
   4. Numbers documented in a benchmark artifact for comparison after migration
 **Plans**: 1 plan
 Plans:
-- [ ] 59-01-PLAN.md — Instrument duckdb.ts with performance.now() timing and performance.memory heap snapshots; create BENCHMARK.md comparison artifact
+- [x] 59-01-PLAN.md — Instrument duckdb.ts with performance.now() timing and performance.memory heap snapshots; create BENCHMARK.md comparison artifact
 
 ### v2.7 Unified Occurrence Model (Planned)
 
