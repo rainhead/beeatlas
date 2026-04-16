@@ -18,6 +18,12 @@
 - ✅ **v2.3 Specimen iNat Observation Links** — Phases 48–51 (shipped 2026-04-13)
 - ✅ **v2.4 Header Navigation & Toolbar** — Phases 52–54 (shipped 2026-04-14)
 - 🚧 **v2.5 Elevation Data** — Phases 55–58 (in progress)
+- 🔲 **v2.6 SQLite WASM Migration** — Phases 59–61
+- 🔲 **v2.7 Unified Occurrence Model** — Phases 62–64
+- 🔲 **v2.8 Liveness: Provisional Specimen Records** — Phases 65–66
+- 🔲 **v2.9 UI Flow Redesign** — Phases 67–69
+- 🔲 **v3.0 Plants Tab** — Phases 70–71
+- 🔲 **v3.1 Data Quality Flags** — Phase 72
 
 ## Phases
 
@@ -249,6 +255,50 @@ See `.planning/milestones/v2.4-ROADMAP.md` for full phase details.
 - [x] **Phase 56: Export Integration** — wire elevation sampling into export.py for both tables, schema gate update (completed 2026-04-15)
 - [x] **Phase 57: Sidebar Display** — elevation in bee-specimen-detail and bee-sample-detail (completed 2026-04-16)
 - [x] **Phase 58: Elevation Filter** — filter toolbar inputs, buildFilterSQL, url-state, clear filters (completed 2026-04-16)
+
+### v2.6 SQLite WASM Migration (Planned)
+
+**Milestone Goal:** Replace DuckDB WASM (~34 MB uncompressed) with wa-sqlite + Hyparquet (~545 KB). Retain full SQL filter capability. Record before/after benchmark numbers.
+
+- [ ] **Phase 59: Benchmark Baseline** — measure DuckDB WASM init time, first-query latency, memory footprint; establish numbers to compare against
+- [ ] **Phase 60: wa-sqlite Integration** — Hyparquet parquet read → wa-sqlite in-memory insert with batched transactions; SQL filter layer compatibility
+- [ ] **Phase 61: DuckDB Removal** — remove `@duckdb/duckdb-wasm` dependency; verify all filter/query/export paths
+
+### v2.7 Unified Occurrence Model (Planned)
+
+**Milestone Goal:** Produce a single `occurrences.parquet` from a full outer join of specimens and samples. The unified record carries an epistemic-state field: specimen-only, sample-only, or both. Frontend renders one record type with varying completeness.
+
+- [ ] **Phase 62: Pipeline Join** — export.py produces occurrences.parquet; retain separate parquets during transition
+- [ ] **Phase 63: Frontend Data Layer** — replace dual-parquet load with single occurrences table; update filter SQL
+- [ ] **Phase 64: UI Update** — unified detail panel reflecting epistemic state; update map layers
+
+### v2.8 Liveness: Provisional Specimen Records (Planned)
+
+**Milestone Goal:** Ingest iNat specimen observations posted by collectors before they appear in Ecdysis. Surface as provisional records on the map to convey currency and volunteer activity.
+
+- [ ] **Phase 65: Pipeline — Provisional Specimen Ingest** — fetch WABA iNat observations of type specimen (not sample records); store with `provisional: true` flag
+- [ ] **Phase 66: Frontend — Provisional Record Display** — render provisional records distinctly on map; link to iNat observation
+
+### v2.9 UI Flow Redesign (Planned)
+
+**Milestone Goal:** Reorganize the UI around the flow: overview → narrow → dive. Map always visible. Filter as collapsible panel that hints at what's filterable. Table as a drawer over the map, not a replacement for it.
+
+- [ ] **Phase 67: Filter Panel Redesign** — collapsible, with discovery hints (e.g. top genera/counties in current view); doesn't consume space when idle
+- [ ] **Phase 68: Table Drawer** — table slides up over map rather than replacing it; spatial context preserved throughout
+- [ ] **Phase 69: Map Overlay Sidebar** — detail panel overlays map instead of shifting it
+
+### v3.0 Plants Tab (Planned)
+
+**Milestone Goal:** A Plants tab showing plant species present in Washington with per-species × H3/ecoregion × month sampling coverage — how many plant observations exist and how many times bee visitors have been sampled.
+
+- [ ] **Phase 70: Plants Pipeline** — compile plant species dataset outside browser; produce plants.parquet
+- [ ] **Phase 71: Plants Frontend View** — Plants tab UI with species list, coverage map, and filter
+
+### v3.1 Data Quality Flags (Planned)
+
+**Milestone Goal:** Heuristics-based flags on occurrence records surfacing likely data issues (duplicate sample or field numbers, implausible coordinates, etc.).
+
+- [ ] **Phase 72: Quality Flag Pipeline and Display** — flag generation in pipeline; surface flags in sidebar detail and table view
 
 ## Phase Details
 
