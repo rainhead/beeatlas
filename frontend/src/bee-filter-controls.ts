@@ -43,6 +43,8 @@ function tokensToFilterState(tokens: Token[]): FilterState {
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
     selectedCollectors: [],
+    elevMin: null,
+    elevMax: null,
   };
   for (const t of tokens) {
     switch (t.type) {

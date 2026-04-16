@@ -122,6 +122,8 @@ export class BeeMap extends LitElement {
     selectedCounties: new Set(),
     selectedEcoregions: new Set(),
     selectedCollectors: [],
+    elevMin: null,
+    elevMax: null,
   };
 
   @state() private _regionMenuOpen = false;
