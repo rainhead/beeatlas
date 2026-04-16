@@ -1,5 +1,21 @@
 # Milestones
 
+## v2.5 Elevation Data (Shipped: 2026-04-16)
+
+**Phases completed:** 4 phases, 7 plans
+**Timeline:** 2 days (2026-04-15 → 2026-04-16)
+**LOC:** +8,556/−1,438 across 82 files
+
+**Key accomplishments:**
+
+- Built `dem_pipeline.py` DEM acquisition module (seamless-3dep + rasterio) with 5 synthetic fixture tests; discovered Ecdysis source already carries `minimum_elevation_in_meters` so rasterio path unused in production
+- Both parquet outputs gain `elevation_m` (INT16, nullable) via pyarrow post-processing in `export.py`; schema gate enforced in CI; fixed geometry_wkt schema mismatch blocking full pytest suite
+- `elevation_m` threaded from DuckDB through OL feature properties to `Sample`/`SampleEvent` TypeScript interfaces, with URL restore path covered
+- Conditional elevation rows in `bee-specimen-detail` and `bee-sample-detail` — "1219 m" format, strict null-omission, 4 Vitest tests
+- Elevation range filter (min/max number inputs) in filter toolbar with D-06 conditional null semantics (both bounds → exclude nulls; one bound → pass nulls through); `elev_min`/`elev_max` URL round-trip; 19 new tests
+
+---
+
 ## v2.3 Specimen iNat Observation Links (Shipped: 2026-04-13)
 
 **Phases completed:** 4 phases, 4 plans

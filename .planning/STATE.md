@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.5
-milestone_name: Elevation Data
-status: complete
-stopped_at: Phase 58 complete, all v2.5 phases done
-last_updated: "2026-04-16T21:25:00.000Z"
+milestone: v2.6
+milestone_name: SQLite WASM Migration
+status: planning
+stopped_at: v2.5 archived — ready to plan v2.6
+last_updated: "2026-04-16T00:00:00.000Z"
 last_activity: 2026-04-16
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16 — v2.5 milestone complete)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** v2.5 complete — ready for v2.6 SQLite WASM Migration
+**Current focus:** v2.6 SQLite WASM Migration (Phases 59–61)
 
 ## Current Position
 
