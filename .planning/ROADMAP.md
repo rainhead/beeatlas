@@ -280,6 +280,19 @@ See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
 Plans:
 - [x] 59-01-PLAN.md — Instrument duckdb.ts with performance.now() timing and performance.memory heap snapshots; create BENCHMARK.md comparison artifact
 
+### Phase 60: wa-sqlite Integration
+**Goal**: Replace DuckDB WASM with wa-sqlite + Hyparquet: read parquet files via Hyparquet, insert rows into wa-sqlite in-memory database with batched transactions, verify SQL filter layer (filter.ts) works without changes
+**Depends on**: Phase 59
+**Requirements**: None
+**Success Criteria** (what must be TRUE):
+  1. `@duckdb/duckdb-wasm` is no longer imported or initialized in the frontend
+  2. Both ecdysis.parquet and samples.parquet are loaded via Hyparquet and inserted into wa-sqlite
+  3. All existing SQL queries in filter.ts execute correctly against wa-sqlite
+  4. All 165 tests pass
+  5. TypeScript compiles cleanly
+  6. BENCHMARK.md wa-sqlite column filled with measured init/query/heap numbers
+**Plans**: TBD
+
 ### v2.7 Unified Occurrence Model (Planned)
 
 **Milestone Goal:** Produce a single `occurrences.parquet` from a full outer join of specimens and samples. The unified record carries an epistemic-state field: specimen-only, sample-only, or both. Frontend renders one record type with varying completeness.
