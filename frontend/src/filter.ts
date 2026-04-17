@@ -21,58 +21,41 @@ export interface FilterState {
   elevMax: number | null;
 }
 
-export interface SpecimenRow {
-  ecdysis_id: number;
+export interface OccurrenceRow {
+  lat: number;
+  lon: number;
+  date: string;
+  county: string | null;
+  ecoregion_l3: string | null;
+  ecdysis_id: number | null;
   catalog_number: string | null;
-  scientificName: string;
-  recordedBy: string;
-  date: string;
-  year: number;
-  month: number;
-  county: string;
-  ecoregion_l3: string;
-  fieldNumber: string;
-  modified: string;
-  specimen_observation_id: bigint | null;
+  scientificName: string | null;
+  recordedBy: string | null;
+  fieldNumber: string | null;
+  genus: string | null;
+  family: string | null;
+  floralHost: string | null;
+  host_observation_id: number | null;
+  inat_host: string | null;
+  inat_quality_grade: string | null;
+  modified: string | null;
+  specimen_observation_id: number | null;
   elevation_m: number | null;
-}
-
-export interface SampleRow {
-  observation_id: number;
-  observer: string;
-  date: string;
-  specimen_count: number;
+  year: number | null;
+  month: number | null;
+  observation_id: number | null;
+  observer: string | null;
+  specimen_count: number | null;
   sample_id: number | null;
-  county: string;
-  ecoregion_l3: string;
 }
 
-/** UI column key -> SQL column name. Also serves as allowlist for SQL injection prevention. */
-export const SPECIMEN_COLUMNS: Record<string, string> = {
-  ecdysisId: 'ecdysis_id',
-  catalogNumber: 'catalog_number',
-  species: 'scientificName',
-  collector: 'recordedBy',
-  date: 'date',
-  year: 'year',
-  month: 'month',
-  county: 'county',
-  ecoregion: 'ecoregion_l3',
-  fieldNumber: 'fieldNumber',
-  modified: 'modified',
-  specimenObservationId: 'specimen_observation_id',
-  elevation: 'elevation_m',
-};
-
-export const SAMPLE_COLUMNS: Record<string, string> = {
-  observationId: 'observation_id',
-  observer: 'observer',
-  date: 'date',
-  specimenCount: 'specimen_count',
-  sampleId: 'sample_id',
-  county: 'county',
-  ecoregion: 'ecoregion_l3',
-};
+export const OCCURRENCE_COLUMNS = [
+  'lat', 'lon', 'date', 'county', 'ecoregion_l3',
+  'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber',
+  'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host',
+  'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
+  'year', 'month', 'observation_id', 'observer', 'specimen_count', 'sample_id',
+] as const;
 
 const PAGE_SIZE = 100;
 
@@ -80,7 +63,6 @@ export type SpecimenSortBy = 'date' | 'modified';
 
 const SPECIMEN_ORDER = 'date DESC, recordedBy ASC, fieldNumber ASC';
 const SPECIMEN_ORDER_MODIFIED = 'modified DESC, recordedBy ASC, fieldNumber ASC';
-const SAMPLE_ORDER = 'date DESC, observer ASC, sample_id ASC';
 
 function slugify(s: string): string {
   return s.toLowerCase()
@@ -91,9 +73,9 @@ function slugify(s: string): string {
     .slice(0, 20);
 }
 
-export function buildCsvFilename(f: FilterState, layerMode: 'specimens' | 'samples'): string {
+export function buildCsvFilename(f: FilterState): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  if (!isFilterActive(f)) return `${layerMode}-all-${date}.csv`;
+  if (!isFilterActive(f)) return `occurrences-all-${date}.csv`;
 
   const segments: string[] = [];
 
@@ -133,32 +115,22 @@ export function buildCsvFilename(f: FilterState, layerMode: 'specimens' | 'sampl
     }
   }
 
-  return `${layerMode}-${segments.join('-')}-${date}.csv`;
+  return `occurrences-${segments.join('-')}-${date}.csv`;
 }
 
 export async function queryAllFiltered(
   f: FilterState,
-  layerMode: 'specimens' | 'samples',
   sortBy: SpecimenSortBy = 'date'
 ): Promise<Record<string, unknown>[]> {
   const { occurrenceWhere } = buildFilterSQL(f);
-  const orderBy = layerMode === 'specimens'
-    ? (sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER)
-    : SAMPLE_ORDER;
-
-  const selectCols = layerMode === 'specimens'
-    ? "ecdysis_id, lat, lon, date, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, " +
-      "'https://ecdysis.org/collections/individual/index.php?occid=' || CAST(ecdysis_id AS TEXT) AS url, " +
-      "CASE WHEN host_observation_id IS NOT NULL THEN 'https://www.inaturalist.org/observations/' || CAST(host_observation_id AS TEXT) ELSE NULL END AS inat_url"
-    : "observation_id, observer, strftime('%Y-%m-%d', date) as date, lat, lon, specimen_count, sample_id, county, ecoregion_l3";
-  const discriminator = layerMode === 'specimens' ? 'ecdysis_id IS NOT NULL' : 'observation_id IS NOT NULL';
-  const where = `${discriminator} AND ${occurrenceWhere}`;
+  const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
+  const selectCols = OCCURRENCE_COLUMNS.join(', ');
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: Record<string, unknown>[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences WHERE ${where} ORDER BY ${orderBy}`,
+    `SELECT ${selectCols} FROM occurrences WHERE ${occurrenceWhere} ORDER BY ${orderBy}`,
     (rowValues: unknown[], columnNames: string[]) => {
       const obj: Record<string, unknown> = {};
       columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
@@ -170,44 +142,34 @@ export async function queryAllFiltered(
 
 export async function queryTablePage(
   f: FilterState,
-  layerMode: 'specimens' | 'samples',
   page: number,
   sortBy: SpecimenSortBy = 'date'
-): Promise<{ rows: SpecimenRow[] | SampleRow[]; total: number }> {
-  const columns = layerMode === 'specimens' ? SPECIMEN_COLUMNS : SAMPLE_COLUMNS;
-  const orderBy = layerMode === 'specimens'
-    ? (sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER)
-    : SAMPLE_ORDER;
+): Promise<{ rows: OccurrenceRow[]; total: number }> {
+  const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
 
   const { occurrenceWhere } = buildFilterSQL(f);
-  const discriminator = layerMode === 'specimens' ? 'ecdysis_id IS NOT NULL' : 'observation_id IS NOT NULL';
-  const where = `${discriminator} AND ${occurrenceWhere}`;
-  const selectCols = layerMode === 'specimens'
-    ? Object.values(columns).join(', ')
-    : Object.entries(columns).map(([k, col]) =>
-        k === 'date' ? `strftime('%Y-%m-%d', ${col}) as ${col}` : col
-      ).join(', ');
+  const selectCols = OCCURRENCE_COLUMNS.join(', ');
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
   let total = 0;
   await sqlite3.exec(db,
-    `SELECT COUNT(*) as n FROM occurrences WHERE ${where}`,
+    `SELECT COUNT(*) as n FROM occurrences WHERE ${occurrenceWhere}`,
     (rowValues: unknown[], columnNames: string[]) => {
       total = Number(rowValues[columnNames.indexOf('n')] ?? 0);
     }
   );
   const rows: Record<string, unknown>[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences WHERE ${where} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    `SELECT ${selectCols} FROM occurrences WHERE ${occurrenceWhere} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
     (rowValues: unknown[], columnNames: string[]) => {
       const obj: Record<string, unknown> = {};
       columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
       rows.push(obj);
     }
   );
-  return { rows: rows as unknown as SpecimenRow[] | SampleRow[], total };
+  return { rows: rows as unknown as OccurrenceRow[], total };
 }
 
 export function isFilterActive(f: FilterState): boolean {
@@ -319,25 +281,20 @@ export async function queryFilteredCounts(f: FilterState): Promise<FilteredCount
   };
 }
 
-export async function queryVisibleIds(f: FilterState): Promise<{ ecdysis: Set<string> | null; samples: Set<string> | null }> {
-  if (!isFilterActive(f)) {
-    return { ecdysis: null, samples: null };
-  }
-
+export async function queryVisibleIds(f: FilterState): Promise<Set<string> | null> {
+  if (!isFilterActive(f)) return null;
   const { occurrenceWhere } = buildFilterSQL(f);
-  console.debug('[filter-sql] occurrence WHERE:', occurrenceWhere);
-
   await tablesReady;
   const { sqlite3, db } = await getDB();
-  const ecdysisIds = new Set<string>();
+  const ids = new Set<string>();
   await sqlite3.exec(db,
-    `SELECT ecdysis_id FROM occurrences WHERE ecdysis_id IS NOT NULL AND ${occurrenceWhere}`,
-    (rowValues: unknown[]) => { ecdysisIds.add(`ecdysis:${Number(rowValues[0])}`); }
+    `SELECT ecdysis_id, observation_id FROM occurrences WHERE ${occurrenceWhere}`,
+    (rowValues: unknown[]) => {
+      const ecdysisId = rowValues[0];
+      const obsId = rowValues[1];
+      if (ecdysisId != null) ids.add(`ecdysis:${Number(ecdysisId)}`);
+      if (obsId != null) ids.add(`inat:${Number(obsId)}`);
+    }
   );
-  const sampleIds = new Set<string>();
-  await sqlite3.exec(db,
-    `SELECT observation_id FROM occurrences WHERE observation_id IS NOT NULL AND ${occurrenceWhere}`,
-    (rowValues: unknown[]) => { sampleIds.add(`inat:${Number(rowValues[0])}`); }
-  );
-  return { ecdysis: ecdysisIds, samples: sampleIds };
+  return ids;
 }
