@@ -1,5 +1,21 @@
 # Milestones
 
+## v2.6 SQLite WASM Migration (Shipped: 2026-04-17)
+
+**Phases completed:** 3 phases, 5 plans
+**Timeline:** 2 days (2026-04-16 → 2026-04-17)
+
+**Key accomplishments:**
+
+- Baseline DuckDB WASM numbers captured: 539ms instantiate, 1941ms tablesReady, 613ms first-query, 18.7MB heap peak (Chrome 146, M1 MacBook Air)
+- `sqlite.ts` module created: wa-sqlite (MemoryVFS sync build) + hyparquet parquet reader; `getDB`/`tablesReady`/`loadAllTables` API; `wa-sqlite.d.ts` type declarations written manually (no bundled types)
+- features.ts, filter.ts, bee-atlas.ts migrated from DuckDB Arrow API to wa-sqlite exec callbacks; 5 SQL dialect rewrites (DuckDB `year()`/`month()` → SQLite `strftime`); all 165 tests pass
+- Browser E2E verified; three runtime bugs found and fixed: Vite pre-bundling broke WASM URL resolution (`optimizeDeps.exclude`), concurrent `sqlite3.exec` caused Asyncify reentrance (serialized via microtask queue), hyparquet Date objects bound as null (converted to ISO strings)
+- `@duckdb/duckdb-wasm` + `apache-arrow` removed from package.json; `frontend/src/duckdb.ts` deleted; `tsconfig.json` updated to make `@types/node` dependency explicit; 165 tests passing; `npm run build` succeeds
+- Benchmark outcome: wa-sqlite 8× faster to instantiate, 1.8× faster to tablesReady, 613× faster first-query; heap after tablesReady 4× higher (76 vs 19 MB) due to hyparquet JS memory model
+
+---
+
 ## v2.5 Elevation Data (Shipped: 2026-04-16)
 
 **Phases completed:** 4 phases, 7 plans
