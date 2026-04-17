@@ -56,14 +56,13 @@ All sizes sourced from existing component CSS (`bee-specimen-detail.ts`, `bee-sa
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body / table cell | 14px (0.875rem) | 400 | 1.4 |
-| Label / meta text | 12.8px (0.8rem) | 400 | 1.5 |
-| Sample header / event date | 13.6px (0.85rem) | 600 | 1.2 |
+| Sample header / event date / species list | 13.6px (0.85rem) | 600 (header) / 400 italic (species list) | 1.2 |
 | Table header | 13px (0.8125rem) | 600 | 1.2 |
+| Label / meta text / quality badge | 12.8px (0.8rem) | 400 | 1.5 |
 
 Notes:
-- Species list in specimen groups: 13.6px (0.85rem), font-style italic, weight 400
-- Quality badge text: 11.2px (0.7rem), weight 400 (inline badge, not a heading)
-- These sizes are carried forward unchanged from the two detail components being merged
+- Quality badges use the label/meta size (12.8px). The 11.2px value from the legacy component is superseded — the size difference is imperceptible and merging simplifies the scale.
+- These sizes are carried forward from the two detail components being merged, with the badge size collapse applied.
 
 ---
 
@@ -113,7 +112,7 @@ CSS class reuse plan:
 - `.sample-header` — month/year or date heading (carry from specimen detail)
 - `.sample-meta` — secondary metadata text (carry from both)
 - `.species-list` — italic species list (carry from specimen detail)
-- `.quality-badge`, `.quality-badge.research`, `.quality-badge.needs_id`, `.quality-badge.casual` — carry from specimen detail
+- `.quality-badge`, `.quality-badge.research`, `.quality-badge.needs_id`, `.quality-badge.casual` — carry from specimen detail; rendered at 12.8px (label/meta size)
 - `.inat-missing` — carry from specimen detail
 - `.no-determination` — carry from specimen detail
 - `.sample-entry` — NEW class for sample-only row block (same padding as `.sample`, no species list)
@@ -135,7 +134,7 @@ Columns (in order):
 | elevation | Elev (m) | `elevation_m` | 80px | null shows blank |
 | fieldNumber | Field # | `fieldNumber` | 80px | null shows blank |
 | modified | Modified | `modified` | 100px | Sortable |
-| photo | Photo | `specimen_observation_id` | 60px | Camera icon link when non-null; blank otherwise |
+| photo | Photo | `specimen_observation_id` | 60px | When non-null: camera icon `<a>` link with `aria-label="View photo on iNaturalist"`; blank otherwise |
 
 Sort applies to `date` column (unified across both row types, ordered date desc).
 
