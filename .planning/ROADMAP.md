@@ -322,8 +322,8 @@ Plans:
   4. Clicking an occurrence cluster opens the sidebar detail panel with the correct record
 **Plans**: 2 plans
 Plans:
-- [x] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
-- [x] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
+- [ ] 64-01-PLAN.md — OccurrenceSource + SelectionState + style tap target + test mock updates
+- [ ] 64-02-PLAN.md — bee-map single source/layer + bee-atlas SelectionState handling and spatial restore
 **UI hint**: yes
 
 ### Phase 65: UI Unification
