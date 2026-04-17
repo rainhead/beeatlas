@@ -274,7 +274,7 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Collapse separate ecdysis/iNat parquet files and frontend layers into a single `occurrences.parquet`. Column nullability conveys which sources contributed to each row.
 
-- [ ] **Phase 62: Pipeline Join** — export.py produces occurrences.parquet from full outer join; coordinate/date unification; schema gate updated
+- [x] **Phase 62: Pipeline Join** — export.py produces occurrences.parquet from full outer join; coordinate/date unification; schema gate updated (completed 2026-04-17)
 - [ ] **Phase 63: SQLite Data Layer** — load single occurrences table; buildFilterSQL and all query functions updated for unified table
 - [ ] **Phase 64: OccurrenceSource** — single OL source replaces EcdysisSource and SampleSource; unified feature ID convention
 - [ ] **Phase 65: UI Unification** — bee-occurrence-detail replaces dual detail components; bee-atlas/bee-map updated; bee-table columns unified
@@ -292,8 +292,8 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
   4. `validate-schema.mjs` enforces the `occurrences.parquet` schema and CI passes with the new file
 **Plans**: 2 plans
 Plans:
-- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
-- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
+- [x] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
+- [x] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
 
 ### Phase 63: SQLite Data Layer
 **Goal**: The frontend loads occurrence data from a single SQLite table and all filter queries operate on that table
@@ -306,8 +306,8 @@ Plans:
   4. All existing filter unit tests pass without modification to their assertions
 **Plans**: 2 plans
 Plans:
-- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
-- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
+- [x] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
+- [x] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
 
 ### Phase 64: OccurrenceSource
 **Goal**: The map renders all occurrences from a single OpenLayers vector source using the correct feature ID convention
@@ -404,7 +404,7 @@ Plans:
 | 59. Benchmark Baseline | v2.6 | 1/1 | Complete | 2026-04-16 |
 | 60. wa-sqlite Integration | v2.6 | 3/3 | Complete | 2026-04-17 |
 | 61. DuckDB Removal | v2.6 | 1/1 | Complete | 2026-04-17 |
-| 62. Pipeline Join | v2.7 | 0/? | Not started | — |
+| 62. Pipeline Join | v2.7 | 2/2 | Complete   | 2026-04-17 |
 | 63. SQLite Data Layer | v2.7 | 0/? | Not started | — |
 | 64. OccurrenceSource | v2.7 | 0/? | Not started | — |
 | 65. UI Unification | v2.7 | 0/? | Not started | — |
