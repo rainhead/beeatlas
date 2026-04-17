@@ -491,17 +491,11 @@ export function makeClusterStyleFn(
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`_buildRecentSampleEvents` fate**
-   - What we know: It is called in `firstUpdated` and passed as `recentEvents` in the `data-loaded` event. `bee-atlas._onDataLoaded` receives it but does not assign it anywhere (line 725-730).
-   - What's unclear: Was this used by a removed feature, or is it plumbing for a future feed feature?
-   - Recommendation: Delete it in Phase 65 (it is dead code); if the feed feature needs it later it can be re-added.
+1. **`_buildRecentSampleEvents` fate** — RESOLVED: Delete in Phase 65 (dead code — `recentEvents` is not assigned anywhere in `bee-atlas._onDataLoaded`). Plan 65-02 Task 2 explicitly deletes this method.
 
-2. **`bee-filter-toolbar` `layerMode` usage**
-   - What we know: The property is declared at line 15 with no visible branch on it in the first 50 lines of the file.
-   - What's unclear: Whether the remainder of the toolbar uses it for anything visible.
-   - Recommendation: Planner should read the full file during task scoping and confirm removal is complete.
+2. **`bee-filter-toolbar` `layerMode` usage** — RESOLVED: Remove the `@property({ attribute: false }) layerMode` declaration. Full file read by pattern mapper confirms no other usage of `layerMode` beyond the property declaration. Plan 65-02 Task 2 removes it.
 
 ---
 
