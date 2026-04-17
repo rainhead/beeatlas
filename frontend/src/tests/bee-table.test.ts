@@ -9,11 +9,9 @@ vi.mock('../sqlite.ts', () => ({
 
 vi.mock('../filter.ts', () => ({
   queryTablePage: vi.fn(() => Promise.resolve({ rows: [], total: 0 })),
-  SPECIMEN_COLUMNS: { year: 'year', species: 'scientificName' },
-  SAMPLE_COLUMNS: { date: 'date', observer: 'observer' },
+  OCCURRENCE_COLUMNS: ['lat', 'lon', 'date', 'county', 'ecoregion_l3', 'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber', 'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host', 'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'year', 'month', 'observation_id', 'observer', 'specimen_count', 'sample_id'],
   isFilterActive: vi.fn(() => false),
-  queryVisibleIds: vi.fn(() => Promise.resolve({ ecdysis: null, samples: null })),
-  buildFilterSQL: vi.fn(() => ({ ecdysisWhere: '1=1', samplesWhere: '1=1' })),
+  queryVisibleIds: vi.fn(() => Promise.resolve(null)),
   SpecimenSortBy: undefined,
 }));
 
@@ -39,7 +37,6 @@ vi.mock('../region-layer.ts', () => ({
 async function createBeeTable(props: {
   rows?: object[];
   rowCount?: number;
-  layerMode?: 'specimens' | 'samples';
   page?: number;
   loading?: boolean;
   sortBy?: 'date' | 'modified';
@@ -48,7 +45,6 @@ async function createBeeTable(props: {
   const el = new BeeTable() as InstanceType<typeof BeeTable> & HTMLElement;
   if (props.rows !== undefined) (el as any).rows = props.rows;
   if (props.rowCount !== undefined) (el as any).rowCount = props.rowCount;
-  if (props.layerMode !== undefined) (el as any).layerMode = props.layerMode;
   if (props.page !== undefined) (el as any).page = props.page;
   if (props.loading !== undefined) (el as any).loading = props.loading;
   if (props.sortBy !== undefined) (el as any).sortBy = props.sortBy;
@@ -58,58 +54,44 @@ async function createBeeTable(props: {
 }
 
 describe('TABLE-01: bee-table column headers', () => {
-  test('renders specimen column headers when layerMode is specimens', async () => {
-    const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100 });
+  test('renders 10 occurrence column headers', async () => {
+    const el = await createBeeTable({ rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
     const labels = Array.from(headers).map(th => th.textContent?.trim() ?? '');
-    expect(labels.some(l => l.includes('Label'))).toBe(true);
+    expect(labels.some(l => l.includes('Date'))).toBe(true);
     expect(labels.some(l => l.includes('Species'))).toBe(true);
     expect(labels.some(l => l.includes('Collector'))).toBe(true);
-    expect(labels.some(l => l.includes('Date'))).toBe(true);
+    expect(labels.some(l => l.includes('Observer'))).toBe(true);
     expect(labels.some(l => l.includes('County'))).toBe(true);
     expect(labels.some(l => l.includes('Ecoregion'))).toBe(true);
     expect(labels.some(l => l.includes('Elev'))).toBe(true);
     expect(labels.some(l => l.includes('Field #'))).toBe(true);
     expect(labels.some(l => l.includes('Modified'))).toBe(true);
+    expect(labels.some(l => l.includes('Photo'))).toBe(true);
     expect(headers.length).toBe(10);
-    document.body.removeChild(el);
-  });
-
-  test('renders 7 sample column headers when layerMode is samples', async () => {
-    const el = await createBeeTable({ layerMode: 'samples', rows: [], rowCount: 100 });
-    const headers = el.shadowRoot!.querySelectorAll('th');
-    const labels = Array.from(headers).map(th => th.textContent?.trim());
-    expect(labels.filter(Boolean)).toContain('Source');
-    expect(labels.filter(Boolean)).toContain('Observer');
-    expect(labels.filter(Boolean)).toContain('Date');
-    expect(labels.filter(Boolean)).toContain('Specimens');
-    expect(labels.filter(Boolean)).toContain('Sample ID');
-    expect(labels.filter(Boolean)).toContain('County');
-    expect(labels.filter(Boolean)).toContain('Ecoregion');
-    expect(headers.length).toBe(7);
     document.body.removeChild(el);
   });
 });
 
 describe('TABLE-02: bee-table row count indicator', () => {
-  test('shows "Showing 1-100 of 3,847 specimens" for page=1, rowCount=3847, layerMode=specimens', async () => {
-    const el = await createBeeTable({ layerMode: 'specimens', rowCount: 3847, page: 1 });
+  test('shows "Showing 1-100 of 3,847 occurrences" for page=1, rowCount=3847', async () => {
+    const el = await createBeeTable({ rowCount: 3847, page: 1 });
     const label = el.shadowRoot!.querySelector('.row-count');
-    expect(label?.textContent).toMatch(/Showing 1[–\u2013]100 of 3,847 specimens/);
+    expect(label?.textContent).toMatch(/Showing 1[–\u2013]100 of 3,847 occurrences/);
     document.body.removeChild(el);
   });
 
-  test('shows "Showing 101-200 of 500 samples" for page=2, rowCount=500, layerMode=samples', async () => {
-    const el = await createBeeTable({ layerMode: 'samples', rowCount: 500, page: 2 });
+  test('shows "Showing 101-200 of 500 occurrences" for page=2, rowCount=500', async () => {
+    const el = await createBeeTable({ rowCount: 500, page: 2 });
     const label = el.shadowRoot!.querySelector('.row-count');
-    expect(label?.textContent).toMatch(/Showing 101[–\u2013]200 of 500 samples/);
+    expect(label?.textContent).toMatch(/Showing 101[–\u2013]200 of 500 occurrences/);
     document.body.removeChild(el);
   });
 
-  test('shows "Showing 401-427 of 427 specimens" for last page (page=5, rowCount=427)', async () => {
-    const el = await createBeeTable({ layerMode: 'specimens', rowCount: 427, page: 5 });
+  test('shows "Showing 401-427 of 427 occurrences" for last page (page=5, rowCount=427)', async () => {
+    const el = await createBeeTable({ rowCount: 427, page: 5 });
     const label = el.shadowRoot!.querySelector('.row-count');
-    expect(label?.textContent).toMatch(/Showing 401[–\u2013]427 of 427 specimens/);
+    expect(label?.textContent).toMatch(/Showing 401[–\u2013]427 of 427 occurrences/);
     document.body.removeChild(el);
   });
 });
@@ -165,27 +147,31 @@ describe('TABLE-05: bee-table page events', () => {
 
 describe('TABLE-06: bee-table empty and loading states', () => {
   test('shows empty state message when rows is empty and rowCount is 0', async () => {
-    const el = await createBeeTable({ rows: [], rowCount: 0, layerMode: 'specimens', loading: false });
+    const el = await createBeeTable({ rows: [], rowCount: 0, loading: false });
     const emptyState = el.shadowRoot!.querySelector('.empty-state');
     expect(emptyState).not.toBeNull();
-    expect(emptyState?.textContent).toMatch(/No specimens match the current filters/);
+    expect(emptyState?.textContent).toMatch(/No occurrences match the current filters/);
     document.body.removeChild(el);
   });
 });
 
 describe('TABLE-07: bee-table accessibility', () => {
   test('cells have title attribute matching cell text content', async () => {
-    const specimenRows = [{
+    const occurrenceRows = [{
       scientificName: 'Bombus vosnesenskii',
       recordedBy: 'Jane Smith',
+      observer: null,
       year: 2023,
       month: 6,
       county: 'King',
       ecoregion_l3: 'Cascades',
       fieldNumber: 'JS-001',
       modified: '2025-03-13',
+      date: '2023-06-15',
+      elevation_m: null,
+      specimen_observation_id: null,
     }];
-    const el = await createBeeTable({ rows: specimenRows, rowCount: 1, layerMode: 'specimens', page: 1 });
+    const el = await createBeeTable({ rows: occurrenceRows, rowCount: 1, page: 1 });
     const firstCell = el.shadowRoot!.querySelector('tbody td') as HTMLElement;
     expect(firstCell?.getAttribute('title')).toBe(firstCell?.textContent?.trim());
     document.body.removeChild(el);
@@ -200,8 +186,8 @@ describe('TABLE-07: bee-table accessibility', () => {
 });
 
 describe('TABLE-08: bee-table sort controls', () => {
-  test('specimen mode with sortBy=date shows sort indicator (\u25BC) on Date header', async () => {
-    const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100, sortBy: 'date' });
+  test('sortBy=date shows sort indicator (\u25BC) on Date header', async () => {
+    const el = await createBeeTable({ rows: [], rowCount: 100, sortBy: 'date' });
     const headers = Array.from(el.shadowRoot!.querySelectorAll('th'));
     const dateHeader = headers.find(th => th.textContent?.includes('Date'));
     expect(dateHeader).not.toBeUndefined();
@@ -212,8 +198,8 @@ describe('TABLE-08: bee-table sort controls', () => {
     document.body.removeChild(el);
   });
 
-  test('specimen mode with sortBy=modified shows sort indicator (\u25BC) on Modified header', async () => {
-    const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100, sortBy: 'modified' });
+  test('sortBy=modified shows sort indicator (\u25BC) on Modified header', async () => {
+    const el = await createBeeTable({ rows: [], rowCount: 100, sortBy: 'modified' });
     const headers = Array.from(el.shadowRoot!.querySelectorAll('th'));
     const modifiedHeader = headers.find(th => th.textContent?.includes('Modified'));
     expect(modifiedHeader).not.toBeUndefined();
@@ -225,7 +211,7 @@ describe('TABLE-08: bee-table sort controls', () => {
   });
 
   test('clicking Modified header dispatches sort-changed event with { sortBy: "modified" }', async () => {
-    const el = await createBeeTable({ layerMode: 'specimens', rows: [], rowCount: 100, sortBy: 'date' });
+    const el = await createBeeTable({ rows: [], rowCount: 100, sortBy: 'date' });
     const sortChangedPromise = new Promise<CustomEvent>(resolve => {
       el.addEventListener('sort-changed', (e) => resolve(e as CustomEvent));
     });
@@ -234,14 +220,6 @@ describe('TABLE-08: bee-table sort controls', () => {
     modifiedHeader?.click();
     const event = await sortChangedPromise;
     expect(event.detail.sortBy).toBe('modified');
-    document.body.removeChild(el);
-  });
-
-  test('sample mode shows no sort indicators on headers', async () => {
-    const el = await createBeeTable({ layerMode: 'samples', rows: [], rowCount: 100 });
-    const headers = Array.from(el.shadowRoot!.querySelectorAll('th'));
-    const anyWithIndicator = headers.some(th => th.textContent?.includes('\u25BC'));
-    expect(anyWithIndicator).toBe(false);
     document.body.removeChild(el);
   });
 });

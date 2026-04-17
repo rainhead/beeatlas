@@ -4,9 +4,6 @@ import { customElement, property } from 'lit/decorators.js';
 @customElement('bee-header')
 export class BeeHeader extends LitElement {
   @property({ attribute: false })
-  layerMode: 'specimens' | 'samples' = 'specimens';
-
-  @property({ attribute: false })
   viewMode: 'map' | 'table' = 'map';
 
   static styles = css`
@@ -158,30 +155,6 @@ export class BeeHeader extends LitElement {
     }
   `;
 
-  private _renderTabItems() {
-    return [
-      html`<button
-        class="tab-btn ${this.layerMode === 'specimens' ? 'active' : ''}"
-        @click=${() => this._onLayerClick('specimens')}
-      >Specimens</button>`,
-      html`<button
-        class="tab-btn ${this.layerMode === 'samples' ? 'active' : ''}"
-        @click=${() => this._onLayerClick('samples')}
-      >Samples</button>`,
-      html`<button class="tab-btn" disabled>Species</button>`,
-      html`<button class="tab-btn" disabled>Plants</button>`,
-    ];
-  }
-
-  private _onLayerClick(mode: 'specimens' | 'samples') {
-    if (mode === this.layerMode) return;
-    this.dispatchEvent(new CustomEvent('layer-changed', {
-      bubbles: true,
-      composed: true,
-      detail: mode,
-    }));
-  }
-
   private _onViewClick(mode: 'map' | 'table') {
     if (mode === this.viewMode) return;
     this.dispatchEvent(new CustomEvent('view-changed', {
@@ -195,15 +168,6 @@ export class BeeHeader extends LitElement {
     return html`
       <div class="left-group">
         <h1>BeeAtlas</h1>
-        <div class="inline-tabs">
-          ${this._renderTabItems()}
-        </div>
-        <details class="hamburger-menu">
-          <summary aria-label="Navigation menu">&#9776;</summary>
-          <div class="hamburger-items">
-            ${this._renderTabItems()}
-          </div>
-        </details>
       </div>
       <div class="right-group">
         <button

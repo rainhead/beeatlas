@@ -1,4 +1,9 @@
 import { test, expect, describe, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Mock heavy modules that have module-level side effects incompatible with happy-dom
 vi.mock('../sqlite.ts', () => ({
@@ -40,11 +45,11 @@ vi.mock('../region-layer.ts', () => ({
 }));
 
 describe('HDR: bee-header property interface', () => {
-  test('BeeHeader has @property declarations for layerMode and viewMode', async () => {
+  test('BeeHeader has @property declaration for viewMode', async () => {
     const { BeeHeader } = await import('../bee-header.ts');
     const props = (BeeHeader as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('layerMode')).toBe(true);
     expect(props.has('viewMode')).toBe(true);
+    expect(props.has('layerMode')).toBe(false);
   });
 
   test('BeeHeader is registered as bee-header custom element', async () => {
@@ -52,60 +57,16 @@ describe('HDR: bee-header property interface', () => {
     const el = document.createElement('bee-header');
     expect(el.tagName.toLowerCase()).toBe('bee-header');
   });
+
+  test('bee-header.ts does NOT contain layerMode, _onLayerClick, or layer-changed', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-header.ts'), 'utf-8');
+    expect(src).not.toMatch(/layerMode/);
+    expect(src).not.toMatch(/_onLayerClick/);
+    expect(src).not.toMatch(/layer-changed/);
+  });
 });
 
 describe('HDR: bee-header event emission', () => {
-  test('clicking inactive Samples tab dispatches layer-changed with detail "samples"', async () => {
-    await import('../bee-header.ts');
-    const el = document.createElement('bee-header') as any;
-    el.layerMode = 'specimens';
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    let receivedEvent: CustomEvent | null = null;
-    el.addEventListener('layer-changed', (e: CustomEvent) => {
-      receivedEvent = e;
-    });
-
-    const shadow = el.shadowRoot!;
-    const buttons = shadow.querySelectorAll('button.tab-btn');
-    const samplesBtn = Array.from<Element>(buttons).find(
-      (b) => b.textContent?.trim() === 'Samples'
-    ) as HTMLButtonElement | undefined;
-    expect(samplesBtn).toBeDefined();
-    samplesBtn!.click();
-
-    expect(receivedEvent).not.toBeNull();
-    expect(receivedEvent!.detail).toBe('samples');
-
-    document.body.removeChild(el);
-  });
-
-  test('clicking already-active Specimens tab does NOT dispatch layer-changed', async () => {
-    await import('../bee-header.ts');
-    const el = document.createElement('bee-header') as any;
-    el.layerMode = 'specimens';
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    let eventCount = 0;
-    el.addEventListener('layer-changed', () => {
-      eventCount++;
-    });
-
-    const shadow = el.shadowRoot!;
-    const buttons = shadow.querySelectorAll('button.tab-btn');
-    const specimensBtn = Array.from<Element>(buttons).find(
-      (b) => b.textContent?.trim() === 'Specimens'
-    ) as HTMLButtonElement | undefined;
-    expect(specimensBtn).toBeDefined();
-    specimensBtn!.click();
-
-    expect(eventCount).toBe(0);
-
-    document.body.removeChild(el);
-  });
-
   test('clicking inactive Table view button dispatches view-changed with detail "table"', async () => {
     await import('../bee-header.ts');
     const el = document.createElement('bee-header') as any;
@@ -128,58 +89,23 @@ describe('HDR: bee-header event emission', () => {
 
     document.body.removeChild(el);
   });
-});
 
-describe('HDR: disabled placeholder tabs', () => {
-  test('Species and Plants tabs have disabled attribute', async () => {
+  test('clicking active Map view button does NOT dispatch view-changed', async () => {
     await import('../bee-header.ts');
     const el = document.createElement('bee-header') as any;
+    el.viewMode = 'map';
     document.body.appendChild(el);
     await el.updateComplete;
 
-    const shadow = el.shadowRoot!;
-    // Find all tab buttons (from inline-tabs; disabled ones should have the disabled attribute)
-    const allButtons = shadow.querySelectorAll('button.tab-btn');
-    const speciesBtn = Array.from<Element>(allButtons).find(
-      (b) => b.textContent?.trim() === 'Species'
-    ) as HTMLButtonElement | undefined;
-    const plantsBtn = Array.from<Element>(allButtons).find(
-      (b) => b.textContent?.trim() === 'Plants'
-    ) as HTMLButtonElement | undefined;
-
-    expect(speciesBtn).toBeDefined();
-    expect(plantsBtn).toBeDefined();
-    expect(speciesBtn!.disabled).toBe(true);
-    expect(plantsBtn!.disabled).toBe(true);
-
-    document.body.removeChild(el);
-  });
-});
-
-describe('HDR: hamburger menu', () => {
-  test('a <details> element exists in shadow DOM', async () => {
-    await import('../bee-header.ts');
-    const el = document.createElement('bee-header') as any;
-    document.body.appendChild(el);
-    await el.updateComplete;
+    let eventCount = 0;
+    el.addEventListener('view-changed', () => { eventCount++; });
 
     const shadow = el.shadowRoot!;
-    const details = shadow.querySelector('details');
-    expect(details).not.toBeNull();
+    const mapBtn = shadow.querySelector('button[aria-label="Map view"]') as HTMLButtonElement | null;
+    expect(mapBtn).not.toBeNull();
+    mapBtn!.click();
 
-    document.body.removeChild(el);
-  });
-
-  test('a <summary> element exists inside <details>', async () => {
-    await import('../bee-header.ts');
-    const el = document.createElement('bee-header') as any;
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    const shadow = el.shadowRoot!;
-    const summary = shadow.querySelector('details summary');
-    expect(summary).not.toBeNull();
-
+    expect(eventCount).toBe(0);
     document.body.removeChild(el);
   });
 });

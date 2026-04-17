@@ -42,7 +42,7 @@ vi.mock('../region-layer.ts', () => ({
 }));
 
 describe('FILT-08: bee-filter-toolbar property interface', () => {
-  test('BeeFilterToolbar has @property declarations for filterState, taxaOptions, countyOptions, ecoregionOptions, collectorOptions, summary, layerMode', async () => {
+  test('BeeFilterToolbar has @property declarations for filterState, taxaOptions, countyOptions, ecoregionOptions, collectorOptions, summary', async () => {
     const { BeeFilterToolbar } = await import('../bee-filter-toolbar.ts');
     const props = (BeeFilterToolbar as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
     expect(props.has('filterState')).toBe(true);
@@ -51,7 +51,7 @@ describe('FILT-08: bee-filter-toolbar property interface', () => {
     expect(props.has('ecoregionOptions')).toBe(true);
     expect(props.has('collectorOptions')).toBe(true);
     expect(props.has('summary')).toBe(true);
-    expect(props.has('layerMode')).toBe(true);
+    expect(props.has('layerMode')).toBe(false);
   });
 });
 
