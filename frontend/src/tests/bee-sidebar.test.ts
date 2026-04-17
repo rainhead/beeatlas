@@ -77,34 +77,17 @@ describe('DECOMP-01: bee-filter-controls property interface', () => {
   });
 });
 
-describe('DECOMP-02: bee-specimen-detail property interface', () => {
-  test('BeeSpecimenDetail has @property declaration for samples', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-    const props = (BeeSpecimenDetail as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('samples')).toBe(true);
+describe('DECOMP-02: bee-occurrence-detail property interface', () => {
+  test('BeeOccurrenceDetail has @property declaration for occurrences', async () => {
+    const { BeeOccurrenceDetail } = await import('../bee-occurrence-detail.ts');
+    const props = (BeeOccurrenceDetail as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
+    expect(props.has('occurrences')).toBe(true);
   });
 
-  test('bee-specimen-detail.ts does NOT contain @state()', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-specimen-detail.ts'), 'utf-8');
+  test('bee-occurrence-detail.ts does NOT contain @state()', async () => {
+    const src = (await import('node:fs')).readFileSync(
+      (await import('node:path')).resolve(__dirname, '../bee-occurrence-detail.ts'), 'utf-8');
     expect(src).not.toMatch(/@state\(\)/);
-  });
-});
-
-describe('DECOMP-03: bee-sample-detail property interface', () => {
-  test('BeeSampleDetail has @property declaration for sampleEvent', async () => {
-    const { BeeSampleDetail } = await import('../bee-sample-detail.ts');
-    const props = (BeeSampleDetail as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('sampleEvent')).toBe(true);
-  });
-
-  test('bee-sample-detail.ts does NOT contain @state()', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sample-detail.ts'), 'utf-8');
-    expect(src).not.toMatch(/@state\(\)/);
-  });
-
-  test('bee-sample-detail.ts does NOT contain this.selectedSampleEvent = null', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-sample-detail.ts'), 'utf-8');
-    expect(src).not.toMatch(/this\.selectedSampleEvent\s*=\s*null/);
   });
 });
 
@@ -152,14 +135,19 @@ describe('DECOMP-04: bee-sidebar is thin layout shell', () => {
     expect(src).not.toMatch(/bee-filter-controls/);
   });
 
-  test('bee-sidebar.ts contains bee-specimen-detail sub-component tag', () => {
+  test('bee-sidebar.ts contains bee-occurrence-detail sub-component tag', () => {
     const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/bee-specimen-detail/);
+    expect(src).toMatch(/bee-occurrence-detail/);
   });
 
-  test('bee-sidebar.ts contains bee-sample-detail sub-component tag', () => {
+  test('bee-sidebar.ts does NOT contain bee-specimen-detail sub-component tag', () => {
     const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(src).toMatch(/bee-sample-detail/);
+    expect(src).not.toMatch(/bee-specimen-detail/);
+  });
+
+  test('bee-sidebar.ts does NOT contain bee-sample-detail sub-component tag', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
+    expect(src).not.toMatch(/bee-sample-detail/);
   });
 });
 
@@ -174,95 +162,6 @@ describe('DECOMP-04-RACE: bee-atlas _runFilterQuery race guard', () => {
 
   test('bee-atlas.ts contains the generation guard that discards stale results', () => {
     expect(src).toMatch(/if \(generation !== this\._filterQueryGeneration\) return/);
-  });
-});
-
-describe('bee-specimen-detail render', () => {
-  test('renders sample data into shadow DOM', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-
-    const el = new BeeSpecimenDetail();
-    el.samples = [
-      {
-        year: 2023,
-        month: 6,
-        recordedBy: 'J. Smith',
-        fieldNumber: 'WA-2023-001',
-        species: [
-          { name: 'Bombus occidentalis', occid: '12345', hostObservationId: null, floralHost: null },
-          { name: 'Andrena milwaukeensis', occid: '12346', hostObservationId: 99001, floralHost: 'Salix' },
-        ],
-        elevation_m: null,
-      },
-    ];
-
-    // Attach to DOM so Lit renders into shadowRoot
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    const shadow = el.shadowRoot!;
-    const text = shadow.textContent ?? '';
-
-    expect(text).toContain('J. Smith');
-    expect(text).toContain('WA-2023-001');
-    expect(text).toContain('Bombus occidentalis');
-    expect(text).toContain('Andrena milwaukeensis');
-
-    // Verify a link to ecdysis exists
-    const links = shadow.querySelectorAll('a[href*="ecdysis.org"]');
-    expect(links.length).toBeGreaterThanOrEqual(2);
-
-    // Verify iNat link for species with hostObservationId
-    const inatLinks = shadow.querySelectorAll('a[href*="inaturalist.org"]');
-    expect(inatLinks.length).toBeGreaterThanOrEqual(1);
-
-    document.body.removeChild(el);
-  });
-
-  test('renders "No determination" for specimen with empty name', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-
-    const el = new BeeSpecimenDetail();
-    el.samples = [
-      {
-        year: 2024,
-        month: 3,
-        recordedBy: 'A. Collector',
-        fieldNumber: 'WA-2024-001',
-        species: [
-          { name: '', occid: '5611752', hostObservationId: null, floralHost: null },
-          { name: 'Bombus vosnesenskii', occid: '5611753', hostObservationId: null, floralHost: null },
-        ],
-        elevation_m: null,
-      },
-    ];
-
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    const shadow = el.shadowRoot!;
-    const text = shadow.textContent ?? '';
-
-    expect(text).toContain('No determination');
-    expect(text).toContain('Bombus vosnesenskii');
-
-    document.body.removeChild(el);
-  });
-
-  test('renders no sample divs when samples is empty', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-
-    const el = new BeeSpecimenDetail();
-    el.samples = [];
-
-    document.body.appendChild(el);
-    await el.updateComplete;
-
-    const shadow = el.shadowRoot!;
-    const sampleDivs = shadow.querySelectorAll('.sample');
-    expect(sampleDivs.length).toBe(0);
-
-    document.body.removeChild(el);
   });
 });
 
@@ -318,150 +217,15 @@ describe('SIDE-01/SIDE-02: sidebar is detail-only with close button', () => {
     expect(src).not.toMatch(/_onFilteredSummaryComputed/);
   });
 
-  test('BeeSidebar only has samples and selectedSampleEvent properties', async () => {
+  test('BeeSidebar has occurrences property and does NOT have samples or selectedSampleEvent', async () => {
     const { BeeSidebar } = await import('../bee-sidebar.ts');
     const props = (BeeSidebar as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('samples')).toBe(true);
-    expect(props.has('selectedSampleEvent')).toBe(true);
+    expect(props.has('occurrences')).toBe(true);
+    expect(props.has('samples')).toBe(false);
+    expect(props.has('selectedSampleEvent')).toBe(false);
     expect(props.has('layerMode')).toBe(false);
     expect(props.has('viewMode')).toBe(false);
     expect(props.has('summary')).toBe(false);
     expect(props.has('activeFeedEntries')).toBe(false);
-  });
-});
-
-describe('FRONT-01: specimen photo link rendering', () => {
-  test('renders camera emoji link when specimenObservationId is present', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-    const el = new BeeSpecimenDetail();
-    el.samples = [
-      {
-        year: 2023, month: 6, recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
-        species: [
-          { name: 'Bombus occidentalis', occid: '12345', hostObservationId: 99001, floralHost: 'Salix', specimenObservationId: 55555 },
-        ],
-        elevation_m: null,
-      },
-    ];
-    document.body.appendChild(el);
-    await el.updateComplete;
-    const shadow = el.shadowRoot!;
-    const cameraLinks = shadow.querySelectorAll('a[href="https://www.inaturalist.org/observations/55555"]');
-    expect(cameraLinks.length).toBe(1);
-    expect(cameraLinks.item(0)!.textContent).toContain('📷');
-    expect(cameraLinks.item(0)!.getAttribute('target')).toBe('_blank');
-    document.body.removeChild(el);
-  });
-
-  test('renders no camera link when specimenObservationId is null', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-    const el = new BeeSpecimenDetail();
-    el.samples = [
-      {
-        year: 2023, month: 6, recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
-        species: [
-          { name: 'Bombus occidentalis', occid: '12345', hostObservationId: 99001, floralHost: 'Salix', specimenObservationId: null },
-        ],
-        elevation_m: null,
-      },
-    ];
-    document.body.appendChild(el);
-    await el.updateComplete;
-    const shadow = el.shadowRoot!;
-    // Should have the host observation link but NOT a camera emoji link
-    const allInatLinks = shadow.querySelectorAll('a[href*="inaturalist.org/observations"]');
-    // Only the host observation link (99001), no specimen photo link
-    expect(allInatLinks.length).toBe(1);
-    expect(allInatLinks.item(0)!.getAttribute('href')).toContain('99001');
-    document.body.removeChild(el);
-  });
-
-  test('renders camera link even when hostObservationId is null', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-    const el = new BeeSpecimenDetail();
-    el.samples = [
-      {
-        year: 2023, month: 6, recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
-        species: [
-          { name: 'Andrena milwaukeensis', occid: '12346', hostObservationId: null, floralHost: null, specimenObservationId: 77777 },
-        ],
-        elevation_m: null,
-      },
-    ];
-    document.body.appendChild(el);
-    await el.updateComplete;
-    const shadow = el.shadowRoot!;
-    const cameraLinks = shadow.querySelectorAll('a[href="https://www.inaturalist.org/observations/77777"]');
-    expect(cameraLinks.length).toBe(1);
-    expect(cameraLinks.item(0)!.textContent).toContain('📷');
-    // The "iNat: —" placeholder should still appear for the missing host observation
-    const text = shadow.textContent ?? '';
-    expect(text).toContain('iNat: —');
-    document.body.removeChild(el);
-  });
-});
-
-describe('ELEV-05: bee-specimen-detail elevation display', () => {
-  test('shows elevation row when elevation_m is non-null', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-    const el = new BeeSpecimenDetail();
-    el.samples = [{
-      year: 2023, month: 6,
-      recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
-      elevation_m: 1219,
-      species: [{ name: 'Bombus occidentalis', occid: '12345', hostObservationId: null, floralHost: null, specimenObservationId: null }],
-    }];
-    document.body.appendChild(el);
-    await el.updateComplete;
-    expect(el.shadowRoot!.textContent).toContain('1219 m');
-    expect(el.shadowRoot!.textContent).toContain('Elevation');
-    document.body.removeChild(el);
-  });
-
-  test('omits elevation row when elevation_m is null', async () => {
-    const { BeeSpecimenDetail } = await import('../bee-specimen-detail.ts');
-    const el = new BeeSpecimenDetail();
-    el.samples = [{
-      year: 2023, month: 6,
-      recordedBy: 'J. Smith', fieldNumber: 'WA-2023-001',
-      elevation_m: null,
-      species: [{ name: 'Bombus occidentalis', occid: '12345', hostObservationId: null, floralHost: null, specimenObservationId: null }],
-    }];
-    document.body.appendChild(el);
-    await el.updateComplete;
-    const text = el.shadowRoot!.textContent ?? '';
-    expect(text).not.toContain('Elevation');
-    document.body.removeChild(el);
-  });
-});
-
-describe('ELEV-06: bee-sample-detail elevation display', () => {
-  test('shows elevation when elevation_m is non-null', async () => {
-    const { BeeSampleDetail } = await import('../bee-sample-detail.ts');
-    const el = new BeeSampleDetail();
-    el.sampleEvent = {
-      observation_id: 1, observer: 'J. Smith', date: '2023-06-01',
-      specimen_count: 3, sample_id: null, coordinate: [0, 0],
-      elevation_m: 1219,
-    };
-    document.body.appendChild(el);
-    await el.updateComplete;
-    expect(el.shadowRoot!.textContent).toContain('1219 m');
-    document.body.removeChild(el);
-  });
-
-  test('omits elevation when elevation_m is null', async () => {
-    const { BeeSampleDetail } = await import('../bee-sample-detail.ts');
-    const el = new BeeSampleDetail();
-    el.sampleEvent = {
-      observation_id: 1, observer: 'J. Smith', date: '2023-06-01',
-      specimen_count: 3, sample_id: null, coordinate: [0, 0],
-      elevation_m: null,
-    };
-    document.body.appendChild(el);
-    await el.updateComplete;
-    const text = el.shadowRoot!.textContent ?? '';
-    expect(text).not.toContain(' m');
-    document.body.removeChild(el);
   });
 });
