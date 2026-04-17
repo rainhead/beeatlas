@@ -60,56 +60,42 @@ export function getDB(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
   return _dbPromise;
 }
 
-export async function loadAllTables(baseUrl: string): Promise<void> {
+export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
   const { sqlite3, db } = await getDB();
 
-  await sqlite3.exec(db, `CREATE TABLE ecdysis (
+  await sqlite3.exec(db, `CREATE TABLE occurrences (
     ecdysis_id INTEGER,
-    longitude REAL,
-    latitude REAL,
-    year INTEGER,
-    month INTEGER,
+    catalog_number TEXT,
     scientificName TEXT,
     recordedBy TEXT,
     fieldNumber TEXT,
     genus TEXT,
     family TEXT,
     floralHost TEXT,
-    county TEXT,
-    ecoregion_l3 TEXT,
     host_observation_id INTEGER,
     inat_host TEXT,
     inat_quality_grade TEXT,
+    modified TEXT,
     specimen_observation_id INTEGER,
     elevation_m REAL,
-    date TEXT,
-    modified TEXT,
-    catalog_number TEXT
-  )`);
-
-  await sqlite3.exec(db, `CREATE TABLE samples (
+    year INTEGER,
+    month INTEGER,
     observation_id INTEGER,
     observer TEXT,
-    date TEXT,
-    lat REAL,
-    lon REAL,
     specimen_count INTEGER,
     sample_id INTEGER,
+    lat REAL,
+    lon REAL,
+    date TEXT,
     county TEXT,
-    ecoregion_l3 TEXT,
-    elevation_m REAL
+    ecoregion_l3 TEXT
   )`);
 
-  const ecdysisFile = await asyncBufferFromUrl({ url: `${baseUrl}/ecdysis.parquet` });
-  const ecdysisRows = await parquetReadObjects({ file: ecdysisFile });
+  const occFile = await asyncBufferFromUrl({ url: `${baseUrl}/occurrences.parquet` });
+  const occRows = await parquetReadObjects({ file: occFile });
+  await _insertRows(sqlite3, db, 'occurrences', occRows);
 
-  const samplesFile = await asyncBufferFromUrl({ url: `${baseUrl}/samples.parquet` });
-  const samplesRows = await parquetReadObjects({ file: samplesFile });
-
-  await _insertRows(sqlite3, db, 'ecdysis', ecdysisRows);
-  await _insertRows(sqlite3, db, 'samples', samplesRows);
-
-  console.debug('SQLite table counts: ecdysis:', ecdysisRows.length, 'samples:', samplesRows.length);
+  console.debug('SQLite table count: occurrences:', occRows.length);
 
   if (_tablesReadyResolve) _tablesReadyResolve();
 
@@ -117,7 +103,7 @@ export async function loadAllTables(baseUrl: string): Promise<void> {
   const mem2 = _heapMB();
 
   const tQueryStart = performance.now();
-  await sqlite3.exec(db, 'SELECT COUNT(*) FROM ecdysis', (_vals: any) => { /* first-query benchmark */ });
+  await sqlite3.exec(db, 'SELECT COUNT(*) FROM occurrences', (_vals: any) => { /* first-query benchmark */ });
   const tQueryEnd = performance.now();
 
   console.log(
