@@ -306,8 +306,10 @@ Plans:
   4. All existing filter unit tests pass without modification to their assertions
 **Plans**: 2 plans
 Plans:
-- [x] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
-- [x] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
+- [ ] 63-01-PLAN.md — Single occurrences table in sqlite.ts + loadOccurrencesTable rename
+- [ ] 63-02-PLAN.md — Unified buildFilterSQL and query functions for occurrences table
+
+
 
 ### Phase 64: OccurrenceSource
 **Goal**: The map renders all occurrences from a single OpenLayers vector source using the correct feature ID convention
