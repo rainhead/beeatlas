@@ -1,370 +1,379 @@
-# Architecture: DEM Elevation Annotation (v2.5)
+# Architecture Research
 
-**Domain:** BeeAtlas — DEM elevation annotation for specimens and samples
-**Researched:** 2026-04-15
-**Confidence:** HIGH — code read directly; external research for DEM tooling
-
----
-
-## Current System Context
-
-```
-nightly.sh (maderas cron)
-  └── uv run python run.py
-        ├── ecdysis_pipeline.py    → ecdysis_data.occurrences (DuckDB)
-        ├── ecdysis-links          → ecdysis_data.occurrence_links
-        ├── inaturalist_pipeline   → inaturalist_data.observations
-        ├── waba_pipeline          → inaturalist_waba_data.observations
-        ├── projects_pipeline      → ...
-        ├── anti_entropy_pipeline  → ...
-        ├── export.py              → ecdysis.parquet + samples.parquet
-        └── feeds.py               → feeds/...
-
-export.py reads beeatlas.duckdb → writes to $EXPORT_DIR (→ S3 /data/)
-frontend DuckDB WASM loads parquet at runtime from CloudFront
-```
-
-The DEM file is raster data — it cannot be bundled with the frontend or
-fetched by the browser. All elevation annotation must happen at pipeline time.
+**Domain:** Unified occurrence model — collapsing two-source data pipeline and two-layer frontend into one
+**Researched:** 2026-04-16
+**Confidence:** HIGH (full source analysis of all affected files)
 
 ---
 
-## Integration Points
+## Current Architecture (v2.6 baseline)
 
-### Where Elevation Sampling Fits: export.py
+### System Overview
 
-Elevation sampling belongs in `export.py`, not in a separate pipeline step,
-for these reasons:
+```
+Pipeline (Python / DuckDB)
+  ecdysis_data.occurrences  ──┐
+  inaturalist_data.obs        ├─► export.py ─► ecdysis.parquet
+  inaturalist_waba_data       ┘               samples.parquet
+  geographies.*
+                                              ↓ CloudFront fetch
+Frontend (TypeScript / wa-sqlite / hyparquet)
+  sqlite.ts  ─ loadAllTables() ──────────────────────────────────────────
+    creates TABLE ecdysis  (21 cols)
+    creates TABLE samples  (10 cols)
+    hyparquet reads ecdysis.parquet → bulk INSERT INTO ecdysis
+    hyparquet reads samples.parquet → bulk INSERT INTO samples
+    resolves tablesReady Promise
 
-1. **No DuckDB persistence needed.** Elevation values are derived from lat/lon
-   coordinates already in the DB. There is no new upstream API to poll or
-   incremental state to track. The computation is deterministic: same lat/lon →
-   same elevation. A separate pipeline step would add orchestration complexity
-   with no benefit.
+  features.ts
+    EcdysisSource extends VectorSource  → SELECT * FROM ecdysis
+    SampleSource  extends VectorSource  → SELECT * FROM samples
 
-2. **Consistent pattern with spatial joins.** The county and ecoregion_l3
-   columns follow the same pattern: they are computed during export from
-   lat/lon coordinates, not stored in the pipeline DB. Elevation is identical
-   in nature.
+  filter.ts
+    buildFilterSQL(f) → { ecdysisWhere, samplesWhere }   ← two separate WHERE strings
+    queryVisibleIds() → { ecdysis: Set<string>, samples: Set<string> }
+    queryTablePage()  → queries either ecdysis or samples table
+    queryAllFiltered() → queries either ecdysis or samples table
 
-3. **DEM file is an export-time resource.** The DEM raster must be available
-   on the machine running export. On maderas this is straightforward (cached
-   on disk). In the nightly pipeline, `export.py` already has `$DB_PATH` and
-   `$EXPORT_DIR` env vars; `$DEM_PATH` follows the same pattern.
+  bee-map.ts
+    specimenSource (EcdysisSource) → clusterSource → specimenLayer
+    sampleSource   (SampleSource)  → sampleLayer
+    layerMode property switches visibility: specimenLayer XOR sampleLayer
 
-4. **Schema gate runs after export.** `validate-schema.mjs` checks parquet
-   output — keeping elevation computation in export keeps the gate effective.
+  bee-atlas.ts (coordinator)
+    _visibleEcdysisIds: Set<string> | null
+    _visibleSampleIds:  Set<string> | null
+    _layerMode: 'specimens' | 'samples'
 
-### Modified Components
+  bee-sidebar.ts
+    samples:             Sample[] | null  → bee-specimen-detail
+    selectedSampleEvent: SampleEvent | null → bee-sample-detail
 
-| Component | Change |
-|-----------|--------|
-| `data/export.py` | Add `sample_elevation()` helper; call it in `export_ecdysis_parquet` and `export_samples_parquet`; add `elevation_m INT16 NULLABLE` to both SELECT lists |
-| `data/run.py` | No change to STEPS; elevation is inside export step |
-| `data/nightly.sh` | Add DEM cache restore before `uv run python run.py`; add DEM cache upload after (S3 key: `cache/dem/wa_10m.tif`) |
-| `data/pyproject.toml` | Add `rasterio` dependency |
-| `scripts/validate-schema.mjs` | Add `elevation_m` to both EXPECTED column lists |
-| `data/tests/test_export.py` | Add `elevation_m` to EXPECTED_ECDYSIS_COLS and EXPECTED_SAMPLES_COLS; add test for null handling |
-| `frontend/src/filter.ts` | Add `elevationMin`/`elevationMax` to `FilterState`; add clauses to `buildFilterSQL`; add `elevation_m` to `SpecimenRow`, `SampleRow`, `SPECIMEN_COLUMNS`, `SAMPLE_COLUMNS` |
-| `frontend/src/url-state.ts` | Add `elev0`/`elev1` params to `buildParams`/`parseParams` |
-| `frontend/src/bee-filter-controls.ts` | Add elevation range inputs (min/max number inputs) |
-| `frontend/src/bee-specimen-detail.ts` | Display `elevation_m` if non-null |
-| `frontend/src/bee-sample-detail.ts` | Display `elevation_m` if non-null |
-
-### New Components
-
-| Component | Purpose |
-|-----------|---------|
-| `data/dem_pipeline.py` (or inline in export.py) | DEM download+cache function; `sample_elevation(lons, lats, dem_path) → list[int|None]` |
-
-The question of a separate module vs. inline in export.py is a matter of
-testability. A standalone `dem_pipeline.py` with a `ensure_dem(path)` function
-and a pure `sample_elevation(lons, lats, path)` function is easier to unit-test
-and mock. Recommend: separate module, imported by export.py.
+  validate-schema.mjs
+    EXPECTED['ecdysis.parquet'] = [21 cols]
+    EXPECTED['samples.parquet'] = [10 cols]
+```
 
 ---
 
-## DEM File: Storage and Caching Strategy
+## Target Architecture (v2.7 unified)
 
-### Recommended Approach: Single State-Wide COG, S3 Cached
+### Core Concept
 
-**File:** USGS 3DEP 1/3 arc-second (~10m) for Washington state bounding box.
-Format: Cloud-Optimized GeoTIFF (COG). Estimated compressed size: 400–700 MB
-(WA bounding box ~45–49°N, 116–124°W; 10m resolution).
+Replace two heterogeneous tables with one `occurrences` table. Each row is a full outer join of an ecdysis record with an iNat sample. Column nullability declares which source contributed:
+- Ecdysis-only row: specimen columns populated, iNat sample columns null
+- Sample-only row: iNat columns populated, ecdysis specimen columns null
+- Matched row: all columns populated
 
-**Access:**
+The `occurrence_type` column (or inferred from null pattern) tells the render layer how to style and display each row.
 
-- **Download once:** `py3dep` can fetch the DEM as a GeoTIFF for a bounding
-  box using `get_map()` or similar. Alternatively, direct USGS National Map
-  downloader via `requests` for the 1/3 arc-second layer. Download on first
-  run; cache thereafter.
+### Proposed SQLite Table Schema
 
-- **S3 cache key:** `cache/dem/wa_10m.tif` in the existing site bucket.
-  IAM role already has `s3:GetObject` / `s3:PutObject` on the bucket.
-  Follow the existing DuckDB cache pattern in `nightly.sh`:
-  - Restore: `aws s3 cp s3://$BUCKET/cache/dem/wa_10m.tif $DEM_PATH` (graceful miss)
-  - Upload: `aws s3 cp $DEM_PATH s3://$BUCKET/cache/dem/wa_10m.tif` (after first download)
-
-- **Local path:** `/tmp/wa_10m.tif` on maderas (matching nightly.sh's `/tmp/` convention).
-
-**Why not tile-based:**
-  The full WA state GeoTIFF is large but a one-time download. Tile-based
-  approaches (fetching per-tile from USGS WMS/WCS) introduce per-run network
-  requests, complexity, and API rate-limit risk (USGS EPQS point query API is
-  single-point only; Bulk Point Query Service is lightly documented and
-  reported as unstable). A local COG avoids all of that. COG format allows
-  efficient windowed reads via rasterio so the full file need not be held in
-  memory.
-
-**Why not py3dep `elevation_bycoords` directly:**
-  `py3dep` makes async HTTP requests to USGS web services. For 50,000+ points
-  this is viable but has two risks: (1) USGS service reliability during nightly
-  run, (2) per-run network dependency and latency. The DEM file approach
-  eliminates both. Use `py3dep.get_map()` only for the one-time DEM download,
-  then rasterio for all sampling.
-
-**Why not bundle DEM in frontend:**
-  Static hosting constraint. A 400–700 MB raster file cannot be bundled or
-  usefully fetched at runtime. All elevation data must be in the parquet files.
-
----
-
-## Elevation Sampling: Technical Approach
-
-### Tool: rasterio
-
-```python
-import rasterio
-from rasterio.sample import sample_gen
-
-def sample_elevation(lons: list[float], lats: list[float], dem_path: str) -> list[int | None]:
-    """Return INT16 elevations (meters) for each lon/lat pair. None where nodata."""
-    coords = list(zip(lons, lats))  # rasterio expects (x, y) = (lon, lat)
-    with rasterio.open(dem_path) as src:
-        nodata = src.nodata
-        values = [v[0] for v in src.sample(coords)]
-    return [
-        int(round(v)) if (nodata is None or v != nodata) and v == v else None
-        for v in values
-    ]
-```
-
-`rasterio.DatasetReader.sample()` accepts a list of `(x, y)` coordinate
-tuples and streams windowed reads — it does not load the full raster into
-memory. For 50,000 points over a COG this is efficient. No geopandas needed.
-
-### CRS Alignment
-
-USGS 3DEP 10m DEMs are distributed in EPSG:4269 (NAD83) or EPSG:4326
-(WGS84). Both are functionally identical at ~10m scale — no reprojection
-needed. Verify at download time and assert in `ensure_dem()`.
-
-### DEM Download
-
-Use `py3dep.get_map()` for downloading the bounding-box raster:
-
-```python
-import py3dep
-WA_BBOX = (-124.9, 45.5, -116.9, 49.1)  # (west, south, east, north) WGS84
-
-def ensure_dem(path: str) -> None:
-    if Path(path).exists():
-        return
-    dem = py3dep.get_map("DEM", WA_BBOX, resolution=10, crs="EPSG:4326")
-    dem.rio.to_raster(path)
-```
-
-Or use `requests` to pull directly from the USGS National Map WCS endpoint
-(more explicit, no xarray/rioxarray dependencies). `py3dep` is the simpler path
-as it handles the WCS protocol internally; add `py3dep` and `rioxarray` to
-pyproject.toml alongside `rasterio`.
-
----
-
-## Data Flow Changes
-
-### Before (v2.3)
-
-```
-beeatlas.duckdb
-  └── export.py
-        ├── SELECT + ST_Within spatial join → county, ecoregion_l3
-        └── COPY TO ecdysis.parquet (20 columns), samples.parquet (9 columns)
-```
-
-### After (v2.5)
-
-```
-beeatlas.duckdb  +  wa_10m.tif (local cache, S3-backed)
-  └── export.py
-        ├── SELECT + ST_Within spatial join → county, ecoregion_l3
-        ├── sample_elevation(lons, lats, dem_path) → elevation_m list
-        ├── UPDATE parquet in-memory or write via DuckDB VALUES join
-        └── COPY TO ecdysis.parquet (21 columns), samples.parquet (10 columns)
-```
-
-### Parquet Schema Changes
-
-**ecdysis.parquet** — add: `elevation_m INT16 NULLABLE`
-**samples.parquet** — add: `elevation_m INT16 NULLABLE`
-
-### Implementation Note: Export with Elevation
-
-Since `export.py` uses `COPY (SELECT ...) TO file`, the cleanest approach is:
-
-1. Run the existing SQL query without elevation_m.
-2. In Python, fetch `(ecdysis_id, longitude, latitude)` rows.
-3. Call `sample_elevation(lons, lats, dem_path)`.
-4. Write a temp elevation table into DuckDB: `CREATE TEMP TABLE elev AS SELECT * FROM VALUES (...)`.
-5. Re-run the COPY with `LEFT JOIN elev` to add `elevation_m`.
-
-Alternatively: write parquet without elevation, then use DuckDB's `read_parquet` + `VALUES` join to produce final parquet. Either approach keeps the SQL-native COPY pattern intact.
-
----
-
-## Frontend Changes
-
-### Filter: Elevation Range
-
-`FilterState` gains `elevationMin: number | null` and `elevationMax: number | null`.
-
-`buildFilterSQL` adds:
 ```sql
--- ecdysis:
-AND elevation_m >= {elevationMin}
-AND elevation_m <= {elevationMax}
--- samples: same
+CREATE TABLE occurrences (
+  -- Primary key / ID routing
+  occurrence_id TEXT NOT NULL,     -- 'ecdysis:<int>' or 'inat:<int>'
+  occurrence_type TEXT NOT NULL,   -- 'specimen' | 'sample' | 'matched'
+
+  -- Geometry (shared)
+  longitude REAL,
+  latitude  REAL,
+
+  -- Temporal (shared — derived from whichever source is present)
+  date      TEXT,
+  year      INTEGER,
+  month     INTEGER,
+
+  -- Geography (shared — spatial join result, always non-null)
+  county      TEXT NOT NULL,
+  ecoregion_l3 TEXT NOT NULL,
+  elevation_m  REAL,
+
+  -- Ecdysis specimen columns (null when no ecdysis record)
+  ecdysis_id              INTEGER,
+  catalog_number          TEXT,
+  scientificName          TEXT,
+  recordedBy              TEXT,
+  fieldNumber             TEXT,
+  genus                   TEXT,
+  family                  TEXT,
+  floralHost              TEXT,
+  host_observation_id     INTEGER,
+  inat_host               TEXT,
+  inat_quality_grade      TEXT,
+  modified                TEXT,
+  specimen_observation_id INTEGER,
+
+  -- iNat sample columns (null when no iNat sample record)
+  observation_id   INTEGER,
+  observer         TEXT,
+  specimen_count   INTEGER,
+  sample_id        INTEGER
+)
 ```
 
-Note: rows with `elevation_m IS NULL` must not be excluded when filter is
-active. Use `(elevation_m IS NULL OR elevation_m >= ...)` or accept that
-unsampled rows drop out of filtered results. Recommend: exclude nulls from
-filtered results (nulls are a data quality issue, not a user concern) but
-this is a product decision to make in the phase plan.
+**Rationale for `occurrence_id` and `occurrence_type`:**
+- `occurrence_id` uses the existing `ecdysis:<int>` / `inat:<int>` prefix convention (load-bearing throughout the app — OL feature IDs, URL state, cluster click handler, style callbacks)
+- For matched rows, `occurrence_id` uses the ecdysis prefix since the ecdysis specimen is the authoritative physical record; the iNat link is supplemental
+- `occurrence_type` makes the render path explicit without null-sniffing in every callsite
 
-URL params: `elev0` (min) and `elev1` (max), integers only.
+**County / ecoregion non-null contract**: spatial join run at export time, nearest-polygon fallback — same guarantee as current per-table approach.
 
-### Sidebar Display
+### Pipeline Changes
 
-In `bee-specimen-detail` and `bee-sample-detail`, display `elevation_m`
-when non-null: e.g., "Elevation: 1,240 m". No new component needed — add
-a conditional field row to the existing detail templates.
+#### What changes in `export.py`
 
-### isFilterActive
+Replace `export_ecdysis_parquet()` and `export_samples_parquet()` with a single `export_occurrences_parquet()` that performs a full outer join using a UNION ALL pattern:
 
-Must check `elevationMin !== null || elevationMax !== null`.
+- **Top half**: every ecdysis occurrence, LEFT JOINed to iNat sample data via `occurrence_links.host_observation_id`. `occurrence_type` = 'matched' when the join succeeds, 'specimen' otherwise.
+- **Bottom half**: iNat samples that have no matching ecdysis occurrence (LEFT JOIN occurrence_links WHERE host_observation_id IS NULL). `occurrence_type` = 'sample'. All ecdysis columns are NULL.
+
+The existing spatial join CTEs (county, ecoregion, waba_link, id_modified) are reused unchanged for the ecdysis half. The sample half runs its own spatial join CTEs (same pattern as the current `export_samples_parquet`).
+
+The join key for matching: `ecdysis_data.occurrence_links.host_observation_id` IS the iNat observation ID. This is already computed in `export_ecdysis_parquet` — reuse that JOIN.
+
+### Frontend Changes
+
+#### 1. `sqlite.ts` — loadAllTables()
+
+Replace two `CREATE TABLE` statements + two parquet fetches with one:
+
+```typescript
+CREATE TABLE occurrences (
+  occurrence_id TEXT, occurrence_type TEXT,
+  longitude REAL, latitude REAL,
+  date TEXT, year INTEGER, month INTEGER,
+  county TEXT, ecoregion_l3 TEXT, elevation_m REAL,
+  ecdysis_id INTEGER, catalog_number TEXT,
+  scientificName TEXT, recordedBy TEXT, fieldNumber TEXT,
+  genus TEXT, family TEXT, floralHost TEXT,
+  host_observation_id INTEGER, inat_host TEXT, inat_quality_grade TEXT,
+  modified TEXT, specimen_observation_id INTEGER,
+  observation_id INTEGER, observer TEXT,
+  specimen_count INTEGER, sample_id INTEGER
+)
+```
+
+One `asyncBufferFromUrl` + one `parquetReadObjects` + one `_insertRows`. `tablesReady` resolves after a single INSERT transaction. File count drops from two fetches to one.
+
+#### 2. `features.ts` — Replace EcdysisSource and SampleSource
+
+Write a single `OccurrenceSource extends VectorSource`. The loader queries `occurrences` and creates features using `occurrence_type` to set the correct feature ID (already encoded in `occurrence_id`) and properties. Feature IDs preserve the existing `ecdysis:<int>` / `inat:<int>` prefix convention so no downstream ID handling changes.
+
+#### 3. `filter.ts` — Unify SQL surface
+
+**`buildFilterSQL`**: Replace `{ ecdysisWhere, samplesWhere }` return type with `{ occurrencesWhere: string }`. Key behavioral contracts to preserve:
+
+- **Taxon filter ghosting (D-01)**: When a taxon filter is active, pure sample rows (which have null `scientificName`) must be excluded. SQL: add `occurrence_type != 'sample'` when any taxon clause is present.
+- **Collector filter**: Both `recordedBy` (ecdysis) and `observer` (iNat) exist on every row. The filter becomes `(recordedBy IN (...) OR observer IN (...))` — simpler than the current dual-query approach.
+- **Year / month / county / ecoregion / elevation**: These are shared columns on all row types; apply uniformly with no branching.
+
+**`queryVisibleIds`**: Returns `Set<string> | null` (mixed-prefix IDs). The `{ ecdysis, samples }` split is eliminated. `Set.has(feature.getId())` continues to work identically for both prefix types.
+
+**`queryTablePage` and `queryAllFiltered`**: Always query `occurrences`. The `layerMode` parameter still controls which columns are SELECTed for display — it is repurposed from table selection to column set selection.
+
+**`queryFilteredCounts`**: Count only rows where `scientificName IS NOT NULL` (specimen + matched rows) for taxon statistics.
+
+#### 4. `bee-atlas.ts` — Coordinator
+
+State simplification:
+- Replace `_visibleEcdysisIds: Set<string> | null` + `_visibleSampleIds: Set<string> | null` with `_visibleOccurrenceIds: Set<string> | null`
+- Remove `_onSampleDataLoaded` handler and `@sample-data-loaded` listener; a single `data-loaded` event fires when `OccurrenceSource` completes
+- `_layerMode` stays for table column display control but no longer drives layer visibility in `bee-map`
+
+Collector options query targets `occurrences` instead of cross-table join:
+```sql
+SELECT recordedBy, MIN(observer) AS observer
+FROM occurrences
+WHERE occurrence_type IN ('specimen', 'matched') AND recordedBy IS NOT NULL
+GROUP BY recordedBy ORDER BY recordedBy
+```
+
+#### 5. `bee-map.ts` — Layer simplification
+
+Replace four instance fields (`specimenSource`, `clusterSource`, `specimenLayer`, `sampleSource`, `sampleLayer`) with two: `occurrenceSource`, `clusterSource`, `occurrenceLayer`.
+
+`OccurrenceSource` feeds a single `Cluster` source feeds a single `VectorLayer`. The unified style function reads `occurrence_type` from feature properties to determine rendering treatment (cluster/recency-color for specimen/matched; teal dot for sample).
+
+`layerMode` no longer switches layer visibility. The `updated()` block for `layerMode` that calls `setVisible()` is removed. Instead, `layerMode` is passed to the style function via closure so it can switch between cluster-emphasis and sample-dot-emphasis rendering.
+
+Remove `visibleEcdysisIds` and `visibleSampleIds` @property inputs; add `visibleOccurrenceIds: Set<string> | null`.
+
+Updated `updated()` synchronization:
+```typescript
+if (changedProperties.has('visibleOccurrenceIds')) {
+  this.clusterSource?.changed();
+  this.map?.render();
+}
+```
+
+#### 6. `style.ts` — Unified style function
+
+Replace `makeClusterStyleFn` + `makeSampleDotStyleFn` with a single `makeOccurrenceStyleFn` that:
+- Reads `occurrence_type` from each inner feature's properties
+- Applies cluster/recency-color treatment to specimen/matched features
+- Applies teal-dot treatment to sample features
+- Style cache key must incorporate `occurrence_type` and `layerMode`
+
+Both existing caches (`styleCache`, `sampleStyleCache`) can be merged or kept separate and looked up by type.
+
+#### 7. `bee-sidebar.ts` — Unified detail panel
+
+The current sidebar branches: `if (samples) <bee-specimen-detail> else if (selectedSampleEvent) <bee-sample-detail>`. After unification, a clicked occurrence has a single `OccurrenceDetail` shape with `occurrence_type`.
+
+**Recommended approach**: Write a new `<bee-occurrence-detail>` component that receives an occurrence object and renders conditionally based on which columns are non-null. This avoids retrofitting two existing components with incompatible data shapes and keeps the components small.
+
+Retire `bee-sample-detail` once `bee-occurrence-detail` covers sample-type rendering. Extend or retire `bee-specimen-detail` once the unified component covers specimen/matched rendering.
+
+The `Sample` / `SampleEvent` interface split in `bee-sidebar.ts` is replaced with a single `OccurrenceDetail` interface mirroring the unified schema.
+
+#### 8. `validate-schema.mjs` — Schema gate
+
+Replace two EXPECTED entries with one for `occurrences.parquet` listing all columns in the new schema.
 
 ---
 
-## Components: New vs Modified Summary
+## Component Boundary Map
 
-### New Files
+| Component | Role | Change in v2.7 |
+|-----------|------|----------------|
+| `export.py` | Pipeline → parquet | New `export_occurrences_parquet()` replaces two export fns |
+| `validate-schema.mjs` | CI schema gate | Replace 2-file EXPECTED with 1 |
+| `sqlite.ts` | Parquet → SQLite | One table, one fetch, one INSERT batch |
+| `features.ts` | SQLite → OL Features | Replace EcdysisSource + SampleSource with OccurrenceSource |
+| `filter.ts` | SQL WHERE generation | Unified WHERE; `queryVisibleIds` returns `Set<string>` not `{ecdysis, samples}` |
+| `bee-atlas.ts` | App coordinator | `_visibleOccurrenceIds` replaces two sets; `_onSampleDataLoaded` removed |
+| `bee-map.ts` | OL presenter | One layer replaces two; `visibleEcdysisIds`/`visibleSampleIds` props removed |
+| `style.ts` | OL style functions | Single style fn reads `occurrence_type`; two fns merge into one |
+| `bee-sidebar.ts` | Sidebar layout | Single `OccurrenceDetail` branch replaces specimen/sample fork |
+| `bee-specimen-detail.ts` | Detail renderer | Extend or retire; superseded by `bee-occurrence-detail` |
+| `bee-sample-detail.ts` | Detail renderer | Retire; superseded by `bee-occurrence-detail` |
 
-| File | Purpose |
-|------|---------|
-| `data/dem_pipeline.py` | `ensure_dem(path)` download/cache logic; `sample_elevation(lons, lats, path)` pure sampling function |
+---
 
-### Modified Files
+## Data Flow (Unified)
 
-| File | What Changes |
-|------|-------------|
-| `data/export.py` | Import `dem_pipeline`; call `sample_elevation` for both parquet exports; join elevation into SQL via temp table or VALUES insert |
-| `data/nightly.sh` | DEM S3 cache restore (before `uv run python run.py`) and cache upload (after, only if downloaded fresh) |
-| `data/pyproject.toml` | Add `rasterio`, `py3dep`, `rioxarray` |
-| `scripts/validate-schema.mjs` | Add `elevation_m` to both expected column lists |
-| `data/tests/test_export.py` | Add `elevation_m` to expected columns; add test that null elevation rows pass assertion |
-| `frontend/src/filter.ts` | `FilterState`, `buildFilterSQL`, `isFilterActive`, `SPECIMEN_COLUMNS`, `SAMPLE_COLUMNS`, `SpecimenRow`, `SampleRow` |
-| `frontend/src/url-state.ts` | `buildParams`, `parseParams` for `elev0`/`elev1` |
-| `frontend/src/bee-filter-controls.ts` | Elevation min/max number inputs |
-| `frontend/src/bee-specimen-detail.ts` | Elevation display field |
-| `frontend/src/bee-sample-detail.ts` | Elevation display field |
-| `frontend/src/tests/` | New/updated tests for filter SQL, url-state round-trip, detail render |
+### Filter path
+
+```
+User changes filter
+    ↓
+bee-atlas._runFilterQuery()
+    ↓
+filter.buildFilterSQL(filterState) → occurrencesWhere: string
+    ↓
+sqlite.exec("SELECT occurrence_id FROM occurrences WHERE {occurrencesWhere}")
+    ↓
+_visibleOccurrenceIds: Set<string>    ← mixed ecdysis:* and inat:* IDs
+    ↓
+bee-map receives visibleOccurrenceIds @property → Lit updated()
+    ↓
+clusterSource.changed() → OL repaint
+    ↓
+style fn: Set.has(feature.getId()) → highlight / ghost
+```
+
+### Page load path
+
+```
+bee-atlas.firstUpdated()
+    ↓
+sqlite.loadAllTables(baseUrl)
+    ↓ fetch occurrences.parquet (one Range request)
+    ↓ INSERT INTO occurrences (one transaction)
+    ↓ tablesReady resolves
+    ↓
+OccurrenceSource.load() → SELECT from occurrences
+    ↓ features with occurrence_id as OL feature ID
+    ↓
+bee-map emits 'data-loaded' (single event — no 'sample-data-loaded')
+    ↓
+bee-atlas._onDataLoaded → summary + taxaOptions populated
+```
 
 ---
 
 ## Suggested Build Order
 
-The dependency chain drives the order: DEM tooling must exist before export
-can produce elevation columns; parquet schema must be updated before frontend
-can consume it; filter logic and display are independent of each other.
+### Phase 1 — Pipeline (`data/export.py`)
+Write `export_occurrences_parquet()`. Delete `export_ecdysis_parquet()` and `export_samples_parquet()`. Run locally to verify row counts and null contract (county/ecoregion always non-null).
 
-### Phase 1: DEM acquisition and sampling (pipeline)
+### Phase 2 — Schema gate (`scripts/validate-schema.mjs`)
+Update EXPECTED to `occurrences.parquet`. Run against local export.
 
-Build `dem_pipeline.py` with `ensure_dem()` and `sample_elevation()`. Write
-unit tests with a synthetic 2x2 GeoTIFF fixture (avoids downloading real DEM
-in CI). Add `rasterio` + `py3dep` + `rioxarray` to `pyproject.toml`. Validate
-the sampling logic produces correct INT16 values including nodata → None.
+### Phase 3 — SQLite layer (`frontend/src/sqlite.ts`)
+Replace two CREATE TABLE + two fetch+insert with one. Run `npm test` — filter tests will TS-error because `buildFilterSQL` still returns `{ ecdysisWhere, samplesWhere }` but the table names have changed; that is acceptable mid-refactor.
 
-**Rationale:** Foundation. Nothing else can proceed without a working sampler.
+### Phase 4 — Features layer (`frontend/src/features.ts`)
+Write `OccurrenceSource`. Export it. Keep `EcdysisSource` and `SampleSource` as deprecated aliases temporarily to avoid cascading TS errors in `bee-map.ts` before that file is updated.
 
-### Phase 2: Export integration (pipeline → parquet schema)
+### Phase 5 — Filter SQL (`frontend/src/filter.ts`)
+Rewrite `buildFilterSQL` to return `{ occurrencesWhere: string }` — this is a breaking change that drives all downstream TS errors. Rewrite `queryVisibleIds`, `queryTablePage`, `queryAllFiltered`, `queryFilteredCounts`. Update collector query target.
 
-Modify `export_ecdysis_parquet` and `export_samples_parquet` in `export.py`
-to join elevation values and write `elevation_m` column. Update
-`validate-schema.mjs` and `test_export.py`. Update `nightly.sh` for DEM cache.
+### Phase 6 — Coordinator (`frontend/src/bee-atlas.ts`)
+Replace `_visibleEcdysisIds` + `_visibleSampleIds` with `_visibleOccurrenceIds`. Remove `_onSampleDataLoaded`. Update all @property bindings passed to `bee-map`.
 
-**Rationale:** This is the critical path for the schema gate. Once parquet has
-`elevation_m`, all downstream work (frontend) can proceed in parallel or
-sequence.
+### Phase 7 — Style functions (`frontend/src/style.ts`)
+Write `makeOccurrenceStyleFn`. Remove `makeClusterStyleFn` and `makeSampleDotStyleFn` once `bee-map.ts` is updated.
 
-### Phase 3: Sidebar display (frontend)
+### Phase 8 — Map presenter (`frontend/src/bee-map.ts`)
+Replace two-source two-layer setup with single `OccurrenceSource` + `Cluster` + `VectorLayer`. Remove `visibleEcdysisIds` / `visibleSampleIds` @property. Update `updated()`. Remove `sample-data-loaded` emit. Remove layerMode visibility switching (keep for style closure).
 
-Add `elevation_m` to `SpecimenRow`/`SampleRow` types and `SPECIMEN_COLUMNS`/
-`SAMPLE_COLUMNS` maps. Render elevation in `bee-specimen-detail` and
-`bee-sample-detail` detail panels. No filter logic needed for this phase.
+### Phase 9 — Sidebar (`frontend/src/bee-sidebar.ts` + detail components)
+Write `<bee-occurrence-detail>`. Define `OccurrenceDetail` interface. Update `bee-sidebar` to pass unified occurrence data. Retire `bee-sample-detail`. Extend or retire `bee-specimen-detail`.
 
-**Rationale:** Highest user-visible value with lowest complexity. Can ship
-independently before filter is built.
-
-### Phase 4: Elevation filter (frontend)
-
-Add `elevationMin`/`elevationMax` to `FilterState`, `buildFilterSQL`,
-`isFilterActive`. Add `elev0`/`elev1` to `url-state.ts`. Add elevation range
-inputs to `bee-filter-controls`. Add tests for SQL generation, URL round-trips.
-
-**Rationale:** More complex (touches filter engine, URL state, UI) — build
-after display works to reduce debugging surface. Filter logic follows the
-established pattern from year/month range filters.
+### Phase 10 — Tests
+Update `filter.test.ts` for new `buildFilterSQL` signature. Update sidebar/atlas/table test fixtures. Remove references to `ecdysis` and `samples` tables.
 
 ---
 
-## Pitfalls for Phase Plans to Address
+## Critical Integration Points
 
-- **DEM CRS mismatch:** USGS may deliver EPSG:4269 (NAD83) not EPSG:4326.
-  Differences are sub-meter but rasterio will reject a `sample()` call if
-  the input coords are in a different CRS than the raster. Assert CRS at
-  download time; reproject if needed.
+### ID prefix convention is preserved
+`occurrence_id` carries `ecdysis:<int>` or `inat:<int>` prefixes, matching the existing feature ID convention throughout OL click handlers, URL state serialization (`o=` param), and `_restoreSelectionSamples` parsing. `url-state.ts` and the `o=` URL param format require no changes.
 
-- **nodata sentinel:** USGS 3DEP uses -9999 or similar nodata value.
-  Must check `src.nodata` and map to None; do not store -9999 in parquet.
+### `tablesReady` contract is unchanged
+`sqlite.ts` resolves `tablesReady` after the single INSERT completes. All callers that `await tablesReady` require no change.
 
-- **Elevation for ocean/boundary coords:** Some specimens near Puget Sound
-  or coastal areas may have coords that fall outside the DEM extent or on
-  nodata pixels. Sample returns None — this is correct; INT16 NULLABLE handles
-  it.
+### `layerMode` has two roles that must be separated
+Currently `layerMode` serves two distinct purposes: (1) OL layer visibility toggle, and (2) table view column set selection. After unification, role (1) disappears but role (2) remains. `layerMode` stays on `bee-atlas` and flows to `bee-table` and `bee-filter-toolbar`. `bee-map` still receives it for style-switching, but no longer uses it for `setVisible()`.
 
-- **DEM download in CI:** The schema gate fetches from CloudFront when no
-  local parquet exists. CI does not run the pipeline — no DEM download needed
-  in CI. The gate only checks column presence, not values.
+### Taxon filter ghosting (D-01 equivalent)
+When a taxon filter is active, sample-only rows (null `scientificName`) must be ghosted or excluded. In the unified schema: add `occurrence_type != 'sample'` to the WHERE clause when any taxon clause is present. This preserves the existing behavior where a taxon filter hides all sample dots.
 
-- **Export pattern change:** The current `COPY (SELECT ...) TO file` pattern
-  returns no rows to Python. Elevation injection requires either: (a) a Python
-  query step before/after COPY, or (b) a DuckDB temp table pattern. Option (b)
-  is cleaner (stays SQL-native) but requires verifying that DuckDB temp tables
-  work correctly across the read-only connection (export.py opens DuckDB
-  `read_only=True` — temp tables require a writable connection or a separate
-  in-memory DB for the join).
+### Collector filter simplification
+The current approach queries `recordedBy` and `observer` in separate tables. In the unified schema both are on the same row, so the filter becomes `(recordedBy IN (...) OR observer IN (...))`. For matched rows where both are non-null, this correctly matches on either.
 
-  **Resolution:** Open a second in-memory DuckDB connection for the elevation
-  join, reading parquet output from the first step and writing final parquet.
-  Or change export.py to use `read_only=False`. Current read_only was defensive
-  — a single-writer nightly run can safely use read/write mode.
+### Summary stats scope
+`queryFilteredCounts` and `computeSummary` only make sense for rows with taxon data. Filter the aggregates to `WHERE scientificName IS NOT NULL` (or `occurrence_type IN ('specimen', 'matched')`) to avoid counting sample-only rows in species/genus/family tallies.
 
-- **geopandas avoided:** `sample_elevation` uses rasterio directly with no
-  geopandas. This is consistent with the v2.2 decision to eliminate geopandas
-  from the pipeline after OOM issues.
+---
 
-- **Large DEM first download:** First nightly run after deployment will
-  download 400–700 MB from USGS. This adds ~5 minutes to the first run. After
-  that, S3 cache restore makes it instant. Log a clear message so the operator
-  knows why the first run is slow.
+## Anti-Patterns to Avoid
+
+### Keeping ecdysis.parquet + samples.parquet as pipeline intermediates
+**What goes wrong:** Adds an extra pipeline stage; spatial join CTEs run twice; files must be kept in sync.
+**Instead:** Perform the full outer join directly in DuckDB from `ecdysis_data` and `inaturalist_data` schemas.
+
+### Using two internal VectorSource instances inside OccurrenceSource
+**What goes wrong:** Style, filter visibility, and click handling still branch by source type — no simplification.
+**Instead:** One source, one layer, one style function that reads `occurrence_type` from feature properties.
+
+### Returning two Sets from queryVisibleIds after migration
+**What goes wrong:** Forces all call sites to split/merge — defeats the unification; coordinator still needs two state fields.
+**Instead:** Return `Set<string> | null` with mixed-prefix IDs. `Set.has(feature.getId())` works identically for both prefix types.
+
+### Merging the layerMode visibility toggle into the style function
+**What goes wrong:** The style function is called per-feature on every repaint; injecting layer-level visibility logic creates coupling and performance cost.
+**Instead:** `layerMode` is passed as a closure to the style function only for rendering treatment decisions (cluster vs dots), not for hiding entire categories.
+
+---
+
+## Sources
+
+- Full source analysis: `filter.ts`, `features.ts`, `sqlite.ts`, `bee-atlas.ts`, `bee-map.ts`, `bee-sidebar.ts`, `style.ts`, `export.py`, `validate-schema.mjs` (HIGH confidence — direct code reading)
+- `.planning/PROJECT.md` for requirement history and key decisions (HIGH confidence)
+
+---
+*Architecture research for: BeeAtlas v2.7 Unified Occurrence Model*
+*Researched: 2026-04-16*

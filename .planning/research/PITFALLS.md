@@ -1,8 +1,8 @@
-# Domain Pitfalls: DEM Elevation Annotation
+# Pitfalls Research: Unified Occurrence Model (v2.7)
 
-**Domain:** Adding elevation_m column to ecdysis.parquet and samples.parquet by sampling USGS 3DEP 10m DEM at specimen/sample lat/lon coordinates
-**Researched:** 2026-04-15
-**Confidence:** HIGH (core technical pitfalls); MEDIUM (caching/CI integration specifics)
+**Domain:** Collapsing ecdysis.parquet + samples.parquet into occurrences.parquet; replacing two frontend layers with one unified layer.
+**Researched:** 2026-04-16
+**Confidence:** HIGH — all pitfalls grounded in the specific current codebase.
 
 ---
 
@@ -10,219 +10,407 @@
 
 | # | Pitfall | Risk | Phase |
 |---|---------|------|-------|
-| 1 | DEM nodata value treated as real elevation | CRITICAL | DEM download & sampling |
-| 2 | CRS/datum mismatch (NAD83 DEM vs WGS84 points) | HIGH | DEM download & sampling |
-| 3 | Out-of-bounds sampling for coastal/border specimens | HIGH | DEM download & sampling |
-| 4 | DEM file re-downloaded every nightly run | HIGH | DEM download & caching |
-| 5 | INT16 overflow for negative elevations or nodata sentinels | HIGH | Schema design |
-| 6 | Ocean/water body returns zero instead of NULL | HIGH | DEM sampling |
-| 7 | DEM file size bloats CI artifact or S3 sync | MEDIUM | CI/pipeline integration |
-| 8 | Schema gate not updated before CI build uses new column | MEDIUM | Schema gate (CI) |
-| 9 | Vectorized vs row-by-row sampling performance | MEDIUM | DEM sampling |
-| 10 | Floating-point elevation stored as FLOAT32 precision loss | LOW | Schema design |
-| 11 | DEM tile boundary artefacts at specimen coordinates | LOW | DEM sampling |
-| 12 | Vertical datum mismatch (NAVD88 vs ellipsoidal) | LOW | DEM source selection |
+| 1 | host_observation_id NULL breaks join key uniqueness | CRITICAL | Pipeline: outer join |
+| 2 | Row duplication when one specimen matches multiple samples | CRITICAL | Pipeline: outer join |
+| 3 | Column name collisions between ecdysis and samples schemas | HIGH | Pipeline: outer join |
+| 4 | filter.ts breaks when column names or table name changes | HIGH | Frontend: filter SQL |
+| 5 | OL feature ID prefix contract (ecdysis:/inat:) broken during layer consolidation | HIGH | Frontend: layer replacement |
+| 6 | Selection state / URL restore silently clears on reload | HIGH | Frontend: layer replacement |
+| 7 | Cluster style bypasses cache for wrong reason after layer merge | HIGH | Frontend: style/clustering |
+| 8 | Schema gate validated against wrong file names | HIGH | Schema gate migration |
+| 9 | hyparquet loading wider schema — missing column or wrong order | MEDIUM | Frontend: data loading |
+| 10 | Date column type divergence causes hyparquet type mismatch | MEDIUM | Frontend: data loading |
+| 11 | Sidebar detail rendering assumes source-specific column presence | MEDIUM | Frontend: sidebar |
+| 12 | Collector filter breaks — recordedBy vs observer column semantics change | MEDIUM | Frontend: filter SQL |
+| 13 | validate-schema.mjs ships before nightly produces occurrences.parquet | MEDIUM | Schema gate migration |
+| 14 | buildFilterSQL two-table split becomes stale dead code | LOW | Frontend: filter SQL |
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: DEM Nodata Value Treated as Real Elevation
+### Pitfall 1: NULL host_observation_id Breaks the Full Outer Join
 
-**What goes wrong:** USGS 3DEP GeoTIFF files store missing/void pixels as a numeric sentinel. For integer DEMs this is commonly -9999; for the float32 variant it may be a large negative IEEE float. Rasterio's `.sample()` generator returns these raw values without masking unless explicitly told the nodata value. Code that naively casts the sampled value to INT16 will store -9999 as a valid elevation.
+**What goes wrong:** The join between ecdysis and samples uses `host_observation_id` (ecdysis side) matched to `observation_id` (samples side). In ecdysis.parquet, `host_observation_id` is nullable — approximately 46k − number_linked rows have it NULL. A naive `FULL OUTER JOIN ecdysis ON ecdysis.host_observation_id = samples.observation_id` will not match those rows to any sample. That is correct behavior, BUT: if the join is written carelessly as `WHERE ecdysis.host_observation_id = samples.observation_id` or as an `INNER JOIN`, those ~80-90% of unlinked specimens disappear entirely.
 
-**Why it happens:** rasterio's low-level `.sample()` does not automatically convert nodata to None/NaN. The dataset's `.nodata` attribute must be read and compared manually, or `masked=True` must be passed to `.read()` to get a numpy masked array.
+**Why it happens:** NULL = NULL is false in SQL. `FULL OUTER JOIN ... ON a.col = b.col` handles NULL correctly on the join condition (unmatched rows appear with NULLs on the other side), but any subsequent WHERE clause filtering on either side will drop the unmatched rows.
 
-**Consequences:** Specimens near data voids (mountain ridgelines, border pixels, water bodies) get elevation_m = -9999 in parquet. DuckDB filter queries like `elevation_m BETWEEN 0 AND 500` silently exclude or misrepresent those specimens.
+**Consequences:** Silently losing 80-90% of specimens. The output row count will look superficially reasonable (9.5k sample rows visible), masking the data loss.
 
 **Prevention:**
-1. After sampling, compare each result against `dataset.nodata` and convert to Python `None` before writing.
-2. Assert in export.py: `SELECT COUNT(*) FROM ... WHERE elevation_m < -500` — should be 0.
-3. Use `masked=True` when reading a window to let numpy flag nodata as masked.
+1. Write the FULL OUTER JOIN and immediately assert the output row count: `SELECT COUNT(*) FROM occurrences` must be ≥ max(COUNT(ecdysis), COUNT(samples)), not less.
+2. Assert `COUNT(*) FILTER (WHERE ecdysis_id IS NULL AND observation_id IS NULL) = 0` — every row must have at least one source side populated.
+3. Add a post-export check: `COUNT(*) FILTER (WHERE ecdysis_id IS NOT NULL)` must equal the pre-join ecdysis row count.
 
-**Detection:** Run `SELECT MIN(elevation_m), MAX(elevation_m), COUNT(*) FILTER (WHERE elevation_m < -500) FROM read_parquet('ecdysis.parquet')` immediately after generating the file.
+**Warning signs:** occurrences.parquet row count equals approximately 9.5k (only samples) or equals linked ecdysis count (~1,374). Either means the join is not FULL OUTER.
+
+**Phase to address:** Pipeline: outer join (the DuckDB SQL in export.py).
 
 ---
 
-### Pitfall 2: CRS/Datum Mismatch (NAD83 DEM vs WGS84 Specimen Coordinates)
+### Pitfall 2: Row Duplication When One Specimen Links to Multiple Samples
 
-**What goes wrong:** USGS 3DEP 1/3-arc-second DEM uses NAD83 horizontal datum. Ecdysis and iNaturalist coordinates are WGS84. NAD83 and WGS84 initially agreed to within 1-2 cm, but modern realizations (NAD83(2011) vs WGS84(G1762)) differ by up to 1-2 meters in the contiguous US. For 10m resolution pixels, a 1-2m horizontal shift moves a point to an adjacent pixel — potentially a different elevation value on steep terrain.
+**What goes wrong:** The `occurrence_links` table pairs ecdysis `occurrence_id` → `host_observation_id`. If a single specimen's `host_observation_id` appears in the samples table more than once (which should be impossible given samples are unique iNat observations, but could happen from data bugs or future pipeline changes), the FULL OUTER JOIN produces duplicate specimen rows.
 
-**Why it happens:** WGS84 vs NAD83 looks identical to `pyproj` unless you force an explicit datum transformation. Rasterio defaults to assuming the DEM's CRS and the point CRS are compatible, silently using the same numeric coordinates without datum shift.
+Additionally, the spatial join in export.py can produce multiple county rows per specimen (eco_dedup uses `DISTINCT ON` to prevent this for ecoregions, but the county dedup path relies on `final_county` also being distinct). If the unified join is rewritten and these dedup CTEs are inadvertently dropped or altered, duplicate rows re-emerge.
 
-**Consequences:** On flat terrain: no observable error. On steep Cascade/Olympic terrain (common for WA bee specimens at elevation): up to ~30m elevation error from pixel misalignment.
+**Why it happens:** FULL OUTER JOIN fanout: if ecdysis row A matches N sample rows, the output has N rows for specimen A. The `MIN(waba.id)` dedup for specimen_observation_id (v2.3 decision) is a precedent showing this problem already occurred once.
 
-**Prevention:**
-1. For 10m DEM, the 1-2m horizontal error is within one pixel. Accept this as a known limitation (elevation is inferential anyway).
-2. Document in code comments that coordinates are passed directly to the DEM without datum conversion.
-3. Do NOT attempt explicit NADCON5/HTDP datum transformation — complexity outweighs a sub-pixel benefit at 10m resolution.
-
-**Detection:** Compare a handful of known-elevation specimens against USGS spot elevations; expect less than or equal to 10m disagreement on moderate terrain.
-
----
-
-### Pitfall 3: Out-of-Bounds Sampling for Coastal/Border Specimens
-
-**What goes wrong:** A single-tile WA DEM will have a bounding box. Specimens collected on coastline, Puget Sound islands, or near the Oregon/Idaho borders may fall outside the tile extent. rasterio raises an inconsistent exception depending on whether the out-of-bounds coordinate falls in the buffer or strictly outside, and the behavior changed between rasterio versions.
-
-**Why it happens:** The 3DEP 10m WA tile does not extend into the ocean or adjacent states. Any sample-point query that hits `.sample()` with coordinates outside the raster extent will either return the nodata value or raise a `rasterio.errors.WindowError`.
-
-**Consequences:** Pipeline crash or silent nodata for coastal specimens. WA has significant coastal collection activity (San Juan Islands, Olympic Peninsula coast).
+**Consequences:** Row count inflated; specimens appear multiple times in the map as clustered points; table view shows duplicate rows; CSV export double-counts; filter counts are wrong.
 
 **Prevention:**
-1. Before sampling, filter coordinates against the DEM's bounding box (`dataset.bounds`). Set elevation_m = NULL for out-of-bounds points.
-2. Wrap per-point sampling in a try/except and assign NULL on any bounds error.
-3. Assert in export.py that null elevation_m is allowed (not flagged as an error, unlike null county).
+1. Assert after export: `SELECT COUNT(*) FROM occurrences` equals `COUNT(DISTINCT ecdysis_id) WHERE ecdysis_id IS NOT NULL` plus `COUNT(*) WHERE ecdysis_id IS NULL`. Exact equality required.
+2. If any ecdysis_id appears more than once, the outer join has a fanout bug. Add a GROUP BY + aggregation step if needed.
+3. Preserve the `DISTINCT ON` or equivalent dedup logic from the existing county/ecoregion CTEs in the new unified export.
 
-**Detection:** `SELECT COUNT(*) FROM read_parquet('ecdysis.parquet') WHERE elevation_m IS NULL` — a small but non-zero count is expected and correct for coastal specimens.
+**Warning signs:** `SELECT ecdysis_id, COUNT(*) FROM occurrences GROUP BY ecdysis_id HAVING COUNT(*) > 1` returns any rows.
+
+**Phase to address:** Pipeline: outer join (add post-export dedup assertion).
 
 ---
 
 ## High Risk Pitfalls
 
-### Pitfall 4: DEM File Re-Downloaded Every Nightly Run
+### Pitfall 3: Column Name Collisions Between ecdysis and samples Schemas
 
-**What goes wrong:** The WA DEM GeoTIFF is 100MB+. Without caching, every nightly run re-downloads it from USGS, adding 2-5 minutes to the pipeline and risking rate-limiting or transient failures.
+**What goes wrong:** Both parquets share several column names with the same meaning (`county`, `ecoregion_l3`, `elevation_m`, `date`). They also have columns that look similar but mean different things: ecdysis has `latitude`/`longitude`, samples has `lat`/`lon`. After a FULL OUTER JOIN, a unified schema must pick one canonical name for each concept. If `COALESCE(ecdysis.latitude, samples.lat)` is used without renaming, the output column is called `latitude` on one side and `lat` on the other — or the join SQL uses both names and the frontend must know which to read.
 
-**Why it happens:** The existing pipeline caches data in S3 (beeatlas.duckdb, samples.parquet, etc.) but has no precedent for large binary raster files. A naive implementation adds a download step that runs unconditionally.
+Similarly: ecdysis has `recordedBy` (DarwinCore camelCase), samples has `observer` (iNat login). These are parallel concepts. In a unified row, a specimen-only occurrence has `recordedBy` non-null and `observer` null; a sample-only occurrence has the reverse. The frontend must handle both nullability patterns.
 
-**Consequences:** Nightly pipeline becomes fragile — USGS TNM server has intermittent availability. A failed download at 2am aborts the entire nightly run without updating specimens.
+**Consequences:** Frontend code referencing `lat`/`lon` (sample geometry columns) will return null for specimen-only rows that use `latitude`/`longitude`. Geometry will be missing for specimen-only occurrences, and they will not appear on the map.
 
 **Prevention:**
-1. Cache the DEM in S3 at `dem/wa_10m.tif` and download to `/tmp/wa_10m.tif` at nightly.sh start, following the existing DuckDB `s3 cp` pattern.
-2. Use a SHA256 or ETag check before re-downloading: if the local file exists and matches, skip download.
-3. Better: download once, store permanently in S3 under `dem/`, never re-download unless a version file changes. The 3DEP 10m DEM for WA does not change nightly; USGS updates it quarterly at most.
-4. Add DEM cache restore steps to nightly.sh in the same pattern as the DuckDB pull.
+1. Audit all column names in both schemas before writing the outer join SQL. Produce a column-by-column mapping table before coding.
+2. Use `COALESCE(ecdysis.latitude, samples.lat) AS latitude` for shared-concept columns; canonicalize to one name.
+3. Keep source-specific columns (recordedBy, observer, specimen_count, scientificName, etc.) with their original names — nullability conveys which source contributed.
+4. Document the canonical column name decisions in a comment at the top of export.py.
 
-**Detection:** Time the nightly run before/after adding DEM caching. The DEM step should add less than 5 seconds on cache hit.
+**Warning signs:** Frontend shows no geometry (all NULLs) for one category of occurrences; check which geometry column name was used in the SELECT.
+
+**Phase to address:** Pipeline: column schema design (before writing the outer join SQL).
 
 ---
 
-### Pitfall 5: INT16 Overflow for Negative Elevations or Nodata Sentinels
+### Pitfall 4: filter.ts Breaks When Column Names or Table Name Changes
 
-**What goes wrong:** INT16 range is -32,768 to 32,767. Washington's highest point (Mt. Rainier, 4,392m) is safely within range. However, if nodata values (-9999) are not caught before `CAST(... AS SMALLINT)`, the value -9999 fits in INT16 and silently stores as a valid elevation. The danger is that the sentinel fits cleanly, so no overflow exception is raised to signal the problem.
+**What goes wrong:** `buildFilterSQL()` currently emits SQL targeting two tables: `ecdysis` (for specimen clauses) and `samples` (for sample clauses), with hardcoded column names like `scientificName`, `recordedBy`, `year`, `month`, `observer`. These are the SQLite table names created in `sqlite.ts` `loadAllTables()`.
 
-**Why it happens:** DuckDB's `CAST(value AS SMALLINT)` on -9999 succeeds without error. The pipeline author may test the happy path (positive elevations 0-4400) and not notice the nodata case passes through.
+After the migration, the SQLite layer will have a single `occurrences` table with a unified schema. Every place in filter.ts that references `ecdysis` or `samples` as table names will be wrong. Every column reference to `year`, `month` (which in samples is derived via `strftime`) will need to be unified.
 
-**Consequences:** Described in Pitfall 1. INT16 is a correct type choice for this domain; the risk is in nodata handling upstream, not in INT16 itself.
+Critically, `buildFilterSQL()` currently returns `{ ecdysisWhere, samplesWhere }` — two separate WHERE clauses for two queries. In the unified model this API must change to return a single WHERE clause or the callers (queryVisibleIds, queryTablePage, queryAllFiltered, queryFilteredCounts) must all be updated.
+
+**Why it happens:** The two-table split is structural throughout filter.ts. It was designed this way and every caller uses both fields. The migration touches a load-bearing abstraction, not just constants.
+
+**Consequences:** Filter queries return empty results or SQL errors; no visible errors in the UI if errors are swallowed; incorrect filter behavior produces wrong occurrence counts.
 
 **Prevention:**
-1. Null-check BEFORE casting: apply `None` for nodata in Python before the DuckDB COPY step.
-2. Unit test the sampling function with a mock raster that has nodata pixels.
+1. Before changing filter.ts, audit every caller of `buildFilterSQL()` and document which field (`ecdysisWhere` vs `samplesWhere`) each caller uses and why.
+2. Define the new API signature first (`buildFilterSQL` → `string` single WHERE clause), update all callers, then rewrite the clause-building logic.
+3. All existing filter.test.ts tests must pass with the new unified schema before any frontend layer changes.
+4. Add a new test verifying that a collector filter correctly handles both `recordedBy` (specimen-only) and `observer` (sample-only) in a single WHERE clause.
+
+**Warning signs:** Existing filter tests compile but start testing unreachable code paths (dead `ecdysisWhere` / `samplesWhere` branches); `npm test` passes but filter behavior in browser is wrong.
+
+**Phase to address:** Frontend: filter SQL (must precede frontend layer replacement).
 
 ---
 
-### Pitfall 6: Ocean/Water Body Returns Zero Instead of NULL
+### Pitfall 5: OL Feature ID Prefix Contract Broken During Layer Consolidation
 
-**What goes wrong:** Some 3DEP processing pipelines fill ocean and water body pixels with 0 (sea level) rather than nodata. A specimen collected on a San Juan Island beach could legitimately be at 0-5m elevation, but a specimen miscoordinated to open water should get NULL, not 0.
+**What goes wrong:** Feature IDs are currently `ecdysis:<integer>` and `inat:<integer>`. These ID formats are load-bearing in at least four places:
+- `queryVisibleIds()` constructs IDs as `` `ecdysis:${Number(rowValues[0])}` `` and `` `inat:${Number(rowValues[0])}` ``
+- OL style callbacks call `f.getId()` and check Set membership using these IDs
+- URL state encodes selected occurrence IDs in the `o=` parameter as comma-separated prefixed strings
+- Click handler in bee-map.ts reads feature IDs to route to the correct sidebar detail (ecdysis vs iNat)
 
-**Why it happens:** Zero is a valid elevation for coastal specimens but is also the conventional fill value for water bodies in some DEM products. The two cases are visually indistinguishable in the data.
+If the unified layer assigns a different ID scheme (e.g., just integers, or `occ:<integer>`), all four subsystems break simultaneously.
 
-**Consequences:** Specimens with imprecise coordinates (field-recorded locations) may get elevation_m = 0 when they should get NULL. This makes the elevation filter behave unexpectedly: `elevation_m BETWEEN 0 AND 100` matches all coastal/water-body outliers.
+**Why it happens:** Refactoring a layer means rewriting the feature-creation code; the ID format is easy to inadvertently change during a rewrite of features.ts.
+
+**Consequences:** Selection state lost on reload; style callback Set lookups miss all features (nothing filtered correctly); click handler cannot distinguish specimen from sample occurrence rows; URL sharing broken.
 
 **Prevention:**
-1. Check the specific 3DEP 10m WA file metadata at acquisition time: `gdalinfo wa_10m.tif` to confirm the nodata value and water-body handling.
-2. If water bodies are 0-filled, accept this as a limitation and document it. Specimens accurately collected on beaches may genuinely be at 0m.
-3. Document the behavior in a code comment near the sampling logic.
+1. For unified occurrences, define the ID scheme before writing any code: specimen-only rows retain `ecdysis:<ecdysis_id>`, sample-only rows retain `inat:<observation_id>`, matched rows that have both sources need a policy (use `ecdysis:<ecdysis_id>` as primary since the specimen is the domain object).
+2. Verify the ID scheme decision covers URL restore: if a URL was shared with `o=ecdysis:12345`, it must still resolve after the migration.
+3. Write a test asserting the feature ID format produced by the new OccurrenceSource matches the expected prefix pattern.
+
+**Warning signs:** Selecting an occurrence and copying the URL; after reload, sidebar is blank (restore not finding the feature by ID).
+
+**Phase to address:** Frontend: layer replacement (plan ID scheme before coding).
 
 ---
 
-### Pitfall 7: DEM File Size Bloats CI Artifact or S3 Sync
+### Pitfall 6: Selection State / URL Restore Silently Clears on Reload
 
-**What goes wrong:** GitHub CI's frontend-only build does not run the pipeline, so the DEM file should never appear in CI artifacts. But if the DEM path is accidentally added to ASSETS_DIR or the S3 sync glob, a 100MB+ file could be uploaded to the `/data/` CloudFront path.
+**What goes wrong:** `bee-atlas.ts` encodes selected occurrence IDs in the `o=` URL parameter. On restore, it reads IDs from the URL and calls into bee-map to restore selection. If the unified OL source loads features with different IDs than what was stored in the URL, the restore lookup silently finds nothing and selection is cleared without error.
 
-**Why it happens:** The nightly.sh `for f in ecdysis.parquet samples.parquet ...` loop is explicit, so this risk is low. The danger is a developer accidentally running the pipeline with EXPORT_DIR set to `frontend/public/data/`.
+This is a silent failure — no exception is thrown, the user just sees an empty sidebar on page load from a shared URL.
 
-**Consequences:** If the DEM is uploaded to S3 `/data/wa_10m.tif` it wastes S3 storage and CloudFront transfer budget. It will never be served to clients since no frontend references it.
+**Why it happens:** The restore code does `source.getFeatureById(id)` and returns null without error when the feature is not found.
+
+**Consequences:** All shared URLs containing `o=` parameters stop working after the migration. This is a user-facing regression for any URL shared before or during the migration window.
 
 **Prevention:**
-1. Store the DEM exclusively in `/tmp/` during pipeline execution (already the nightly.sh pattern).
-2. Cache in S3 under `dem/` prefix, never `data/` prefix.
-3. Add `*.tif` to `.gitignore` in the data directory.
-4. Assert that EXPORT_DIR contains only parquet/geojson/feeds outputs.
+1. Keep the `ecdysis:`/`inat:` ID prefix convention exactly as-is for feature IDs in the unified layer.
+2. Add a regression test: construct a URL with `o=ecdysis:12345`, load it into a mock environment, verify the restore code can look up that ID.
+3. If the ID scheme must change (unlikely), write a URL migration shim in `parseParams` that rewrites old ID formats to new ones.
+
+**Warning signs:** CI test for URL round-trip with `o=` param fails; or manual test of saved URL shows blank sidebar.
+
+**Phase to address:** Frontend: layer replacement (must preserve ID format).
 
 ---
 
-### Pitfall 8: Schema Gate Not Updated Before CI Build Uses New Column
+### Pitfall 7: Cluster Style Cache Bypassed for Wrong Reason
 
-**What goes wrong:** `validate-schema.mjs` checks that `elevation_m` exists in both parquet files. If the pipeline phase that adds the column ships before the schema gate update, CI will fail on the CloudFront check because production parquets do not yet have the column.
+**What goes wrong:** The OL cluster style function currently uses a cache keyed on `count:tier`. The cache is bypassed when `filterState` is active or `selectedOccIds` is non-empty (see CLAUDE.md invariant). After the layer merge, there is one `clusterSource` instead of two. The style function currently lives in `style.ts` and is called separately for specimen clusters and sample dots.
 
-**Why it happens:** The schema gate has two modes: local (validates freshly built parquets) and CloudFront (validates production). Adding `elevation_m` to EXPECTED before it is in production causes CloudFront-mode failures until the first post-merge nightly run.
+If the unified layer uses a single cluster source, the style function must distinguish "specimen-only cluster", "sample-only cluster", and "mixed cluster" within the same style function call. The cache key must include this new dimension or the style will return wrong styling for mixed-content clusters.
 
-**Consequences:** CI build fails for all PRs between schema gate update and first successful nightly run.
+**Why it happens:** The cache key `count:tier` does not encode the source composition of the cluster. Adding a new dimension (mix type) requires updating the cache key and potentially the recency-tier calculation (which uses `year` from ecdysis but sample-only clusters have no year field).
+
+**Consequences:** Mixed clusters display with specimen color scheme even when they contain only iNat samples; or vice versa. Recency coloring is incorrect for sample-only clusters.
 
 **Prevention:**
-1. Ship pipeline changes (export.py adds elevation_m) and schema gate update (validate-schema.mjs adds elevation_m to EXPECTED) in the same commit/PR.
-2. CI runs validate-schema.mjs against local parquets when present — this works correctly because the pipeline runs first.
-3. If a PR updates only the schema gate without local parquets present, CI uses CloudFront mode and fails. The safe pattern established in prior phases is: schema gate update ships with the pipeline change, not ahead of it.
+1. Audit style.ts before starting layer work. Understand how `makeClusterStyleFn` uses feature properties to compute tier/color.
+2. Decide the coloring policy for mixed clusters before writing code: e.g., color by the most recent specimen year if any specimen is present; fall back to sample date if specimen-only null.
+3. Update the cache key to include cluster composition type if needed.
+4. The "bypass cache when filter active" invariant must still hold in the unified layer.
+
+**Warning signs:** Clusters flash incorrect colors when filter is toggled; or all clusters render the same color regardless of recency.
+
+**Phase to address:** Frontend: style/clustering (audit before layer merge).
+
+---
+
+### Pitfall 8: Schema Gate Validated Against Wrong File Names
+
+**What goes wrong:** `validate-schema.mjs` currently checks two filenames: `ecdysis.parquet` and `samples.parquet`. After the migration the file is `occurrences.parquet`. If the schema gate is updated to check `occurrences.parquet` but the pipeline still outputs `ecdysis.parquet` + `samples.parquet`, CI will fail on the local path check. If the schema gate is not updated, it will check the old files (which may still be present on CloudFront) and pass, giving false confidence.
+
+The CloudFront mode checks the live production URL. If `occurrences.parquet` is not yet deployed but the schema gate checks it, CI fails in CloudFront mode for all PRs after the schema gate update until nightly runs.
+
+**Why it happens:** The schema gate has two modes (local and CloudFront) with different failure modes. The transition window between schema gate update, pipeline change, and nightly deployment is a fragile period.
+
+**Consequences:** CI is broken for all PRs during the transition window (could be 12-24 hours).
+
+**Prevention:**
+1. Ship pipeline change (export.py produces occurrences.parquet) and schema gate change (validate-schema.mjs checks occurrences.parquet) in the same commit.
+2. The nightly.sh must also be updated to upload `occurrences.parquet` and stop uploading `ecdysis.parquet` + `samples.parquet` in the same pipeline change.
+3. Keep old file names in validate-schema.mjs until after the first successful nightly run, then remove them in a follow-up commit.
+4. The schema gate CloudFront-miss path (`403|404`) is handled gracefully with a warning not an error — so checking `occurrences.parquet` before it exists on CloudFront will warn, not fail. Verify this path before relying on it.
+
+**Warning signs:** CI fails on schema validation immediately after the PR merges; check whether the failure is local-mode or CloudFront-mode.
+
+**Phase to address:** Schema gate migration (ship atomically with pipeline change).
 
 ---
 
 ## Moderate Pitfalls
 
-### Pitfall 9: Vectorized vs Row-by-Row Sampling Performance
+### Pitfall 9: hyparquet Loading Wider Schema — Column Order Dependency
 
-**What goes wrong:** For 55,000 points (46k specimens + 9.5k samples), naively calling `dataset.sample([(lon, lat)])` in a Python loop creates a generator call per point. On a loaded maderas cron server, this can take 30-120 seconds.
+**What goes wrong:** `sqlite.ts` uses `parquetReadObjects()` which returns column values as a JS object keyed by column name. The `_insertRows` function then derives the column list from `Object.keys(rows[0])` and builds an INSERT statement. This is order-dependent: if the Parquet file has a different column order than the CREATE TABLE statement in `loadAllTables()`, the INSERT will succeed but bind wrong values to wrong columns.
 
-**Why it happens:** rasterio's `.sample()` is a generator that processes one coordinate at a time. Repeated Python-layer overhead dominates for thousands of points.
+For the unified `occurrences.parquet`, the schema will be wider (20+ columns from two sources). If any column name in the Parquet differs from the CREATE TABLE declaration (e.g., `lat` in samples becomes `latitude` in occurrences, or `lon` becomes `longitude`), the INSERT will silently store NULL for that column.
+
+**Why it happens:** `parquetReadObjects` returns objects keyed by Parquet column name; `_insertRows` uses those keys to build the INSERT. Mismatches are silent because hyparquet returns the column values keyed by their Parquet name, but SQLite does not validate column names against the table schema in a dynamic INSERT.
+
+Actually, re-reading `_insertRows`: it uses `cols.map(c => row[c])` where `cols = Object.keys(rows[0])`. So the insert columns come from the Parquet row, not the CREATE TABLE. SQLite will accept an INSERT with columns not declared in the CREATE TABLE and fail; but if a column is in CREATE TABLE but not in Parquet, it defaults to NULL without error.
 
 **Prevention:**
-1. Use rasterio's `.sample(list_of_xy_tuples)` with all coordinates passed at once — this feeds the full list to the underlying C layer in one call.
-2. Alternative: convert all (lon, lat) pairs to pixel indices via `dataset.index(xs, ys)` as a vectorized numpy operation, then do a single array lookup.
-3. For 55k points at 10m resolution, either vectorized approach runs in under 5 seconds. Python-loop is only a problem if coordinates are processed one at a time with file open/close per point.
+1. After `loadAllTables()`, run a `PRAGMA table_info(occurrences)` check and compare against the expected column list.
+2. Add a test that loads a minimal mock Parquet row and verifies each column is correctly mapped in the SQLite table.
+3. Ensure the CREATE TABLE in `loadAllTables()` column list exactly matches the occurrences.parquet schema produced by export.py.
+
+**Warning signs:** Geometry columns null for all rows (lat/lon/latitude/longitude mismatch); `SELECT COUNT(*) FROM occurrences WHERE latitude IS NULL` returns unexpectedly high count.
+
+**Phase to address:** Frontend: data loading (loadAllTables rewrite).
 
 ---
 
-### Pitfall 10: FLOAT32 Precision Loss
+### Pitfall 10: Date Column Type Divergence Between Sources
 
-**What goes wrong:** If elevation is written as FLOAT32 (single precision), values may exhibit IEEE 754 rounding artifacts. For integer meter values this is negligible.
+**What goes wrong:** ecdysis.parquet stores `date` as a Parquet DATE type. samples.parquet stores `observed_on` (renamed to `date`) as a TEXT ISO string. In the current `_insertRows`, there is a special case: `if (v instanceof Date) return v.toISOString().slice(0, 10)`. This handles hyparquet returning JS Date objects for DATE columns.
 
-**Prevention:** Use INT16 (SMALLINT in DuckDB) as specified in PROJECT.md. DuckDB `CAST(sampled_value AS SMALLINT)` truncates fractional meters at the sampling stage, which is appropriate for display precision. No floating-point storage involved.
+In the unified occurrences.parquet, the date field comes from two sources with potentially different Parquet encodings. If the ecdysis date column is a Parquet DATE (logical type) and the sample date column is Parquet UTF8, hyparquet returns Date for one and string for the other. In the unified schema, the column must be one type. The COALESCE in export.py must produce a consistent type.
 
----
+**Why it happens:** DuckDB FULL OUTER JOIN with COALESCE on columns of different Parquet logical types (DATE vs UTF8) may produce a mixed-type output column. DuckDB will cast, but the resulting Parquet column type may be DATE or VARCHAR depending on the COALESCE argument order.
 
-### Pitfall 11: DEM Tile Boundary Artefacts
+**Consequences:** If some rows have JS Date and others have string for the same `date` column, the ISO string conversion in `_insertRows` produces correct strings for some rows and leaves Date objects for others (though actually the code handles Date objects, so this may be benign). The safer concern is consistent SQLite column behavior for `strftime('%Y', date)` — this requires date to be stored as an ISO string, not a Unix timestamp.
 
-**What goes wrong:** If the WA DEM is assembled from multiple tiles, seam lines can introduce ±1m vertical discontinuities. A specimen at a tile boundary may get a slightly different elevation from adjacent specimens at the same actual elevation.
+**Prevention:**
+1. In export.py, explicitly cast the unified date column: `COALESCE(o.event_date::VARCHAR, s.observed_on::VARCHAR) AS date`. Force VARCHAR output.
+2. Verify the parquet column type using `parquetMetadataAsync` after export: `date` column should be Parquet UTF8, not DATE.
+3. Test `strftime('%Y', date)` in SQLite against the actual loaded data.
 
-**Prevention:** Download the pre-mosaicked seamless 3DEP product (single GeoTIFF covering all of WA) rather than individual 1°x1° tiles. The USGS National Map downloader provides a seamless export option. Verify by checking if the downloaded file covers the full WA bounding box (`gdalinfo wa_10m.tif | grep "Upper Left\|Lower Right"`).
+**Warning signs:** Year/month filter returns 0 results; SQLite `strftime('%Y', date)` returns NULL for some rows.
 
----
-
-### Pitfall 12: Vertical Datum Mismatch (NAVD88 vs Ellipsoidal)
-
-**What goes wrong:** 3DEP 10m DEM vertical datum is NAVD88 (North American Vertical Datum 1988), not ellipsoidal height. GPS-derived elevations use ellipsoidal height, which differs from NAVD88 by the geoid undulation (~20-40m in Washington).
-
-**Why it happens:** This matters if elevation_m is ever compared against GPS altimeter readings or iNaturalist-reported elevation fields.
-
-**Consequences:** For a "display only / filter by range" use case within this parquet, the absolute vertical datum choice is irrelevant as long as it is internally consistent.
-
-**Prevention:** Document in a code comment that elevation_m is NAVD88. If cross-referencing external elevation data in a future phase, apply geoid correction (GEOID18 model).
+**Phase to address:** Pipeline: outer join (type-cast explicitly) and Frontend: data loading (verify behavior).
 
 ---
 
-## Phase-Specific Warnings
+### Pitfall 11: Sidebar Detail Rendering Assumes Source-Specific Column Presence
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|----------------|------------|
-| DEM source download | Nodata sentinel identity unknown until runtime | Run `gdalinfo` on the file at download; assert sentinel in pipeline code |
-| DEM caching | 100MB re-download every nightly run | S3 cache key under `dem/`; skip download if local `/tmp/wa_10m.tif` exists |
-| Point sampling | Coastal/out-of-bounds specimens raise rasterio exception | Bounds check before sampling; assign NULL for out-of-bounds |
-| Point sampling | Nodata sentinel stored as real elevation | Compare raw value against `dataset.nodata` and assign None before DuckDB COPY |
-| Schema/type | DuckDB CAST on nodata value succeeds silently | Null-check before cast; post-export assertion query `WHERE elevation_m < -500` |
-| export.py integration | Ocean pixels with 0 fill value | Inspect DEM metadata at acquisition; document water-body handling decision |
-| validate-schema.mjs update | Schema gate ships ahead of pipeline | Ship schema gate update in same commit as export.py elevation_m change |
-| CI / S3 sync | DEM file accidentally placed in ASSETS_DIR | Keep DEM in `/tmp/`; DEM S3 key must be `dem/` not `data/` |
-| Filter toolbar (frontend) | elevation_m IS NULL specimens excluded by BETWEEN filter | SQL filter should use `elevation_m IS NULL OR elevation_m BETWEEN min AND max` semantics |
+**What goes wrong:** `bee-specimen-detail.ts` renders ecdysis-specific columns (scientificName, recordedBy, fieldNumber, floralHost, etc.). `bee-sample-detail.ts` renders sample-specific columns (observer, specimen_count, sample_id). In the unified model, a single `OccurrenceDetail` component must render whatever columns are non-null.
+
+If the component blindly renders all columns and some are null for a given occurrence type, it may render empty rows, broken links, or display "null" text. For example, if a sample-only occurrence has `scientificName = null`, a naive render of the specimen section will show a blank or the literal string "null".
+
+**Why it happens:** The existing components are designed for non-null inputs. The spec says "column nullability conveys which sources contributed" — but the rendering components must explicitly check nullability before rendering each field.
+
+**Consequences:** Sample-only occurrences render garbled specimen section; specimen-only occurrences render garbled sample section; UI looks broken for half the occurrences.
+
+**Prevention:**
+1. Design the unified detail component around null-conditional rendering from the start. Every field must be wrapped in an `if (value !== null)` guard.
+2. Write Lit component tests with three fixture types: specimen-only (all sample columns null), sample-only (all specimen columns null), and matched (all non-null).
+3. The existing two-component approach can be preserved during transition: conditionally render `bee-specimen-detail` if `ecdysis_id` is non-null, `bee-sample-detail` if `observation_id` is non-null, and both if matched.
+
+**Warning signs:** Test with a sample-only occurrence; if the rendered output contains "null" as literal text or empty `<td>` elements, null guard is missing.
+
+**Phase to address:** Frontend: sidebar (design null-conditional rendering before implementing).
+
+---
+
+### Pitfall 12: Collector Filter Breaks — recordedBy vs observer Column Semantics
+
+**What goes wrong:** The current collector filter uses `CollectorEntry` with both `recordedBy` (ecdysis column) and `observer` (samples column). `buildFilterSQL` emits separate clauses per table: `recordedBy IN (...)` for ecdysis, `observer IN (...)` for samples.
+
+In the unified `occurrences` table, both columns exist but are nullable by source. The WHERE clause for a collector filter in the unified table must be `(recordedBy IN (...) OR observer IN (...))` — an OR, not two separate queries. This is a semantic change: currently the filter is "ecdysis rows where recordedBy matches OR samples rows where observer matches, independently". In the unified model, the OR must be within a single query against a single table.
+
+The subtle risk: a matched occurrence (both ecdysis_id and observation_id non-null) will have both `recordedBy` and `observer` set. If the filter says "show collector Alice", and Alice has both a recordedBy value and an observer value in the same unified row, the OR clause correctly includes it. But if the CollectorEntry is constructed with only `recordedBy` non-null (observer = null), the filter `(recordedBy IN ('Alice') OR observer IN ())` must not emit an empty IN clause — `IN ()` is a SQL error.
+
+**Why it happens:** The empty IN clause guard already exists in the current code (`if (recordedBys.length > 0)` before emitting). But in the unified query, the overall structure changes and the guard logic must be re-verified.
+
+**Prevention:**
+1. When rewriting `buildFilterSQL` for the unified table, keep the guard: skip the `observer IN (...)` clause if `observers` array is empty.
+2. Write a filter.test.ts test for a CollectorEntry with `observer = null` (recordedBy-only) to verify no SQL error.
+3. Write a test for a CollectorEntry with `recordedBy = null` (observer-only) for the reverse case.
+
+**Warning signs:** Collector filter throws a SQL error; or collector filter with only ecdysis-matched collectors stops matching any occurrences.
+
+**Phase to address:** Frontend: filter SQL (collector filter rewrite).
+
+---
+
+### Pitfall 13: validate-schema.mjs Ships Before Nightly Produces occurrences.parquet
+
+**What goes wrong:** If the schema gate is updated to expect `occurrences.parquet` columns, and that PR merges to main before the pipeline change that produces `occurrences.parquet`, CI on main will run the schema gate in CloudFront mode (no local file). The CloudFront check will 404 on `occurrences.parquet` — which the code handles as a warning, not a failure. So CI passes with a warning. But the gate now provides no value for the transition window.
+
+The more dangerous version: if the schema gate PR ships on the same day as pipeline PR, but nightly.sh has not yet been updated to upload `occurrences.parquet`, production CloudFront still serves `ecdysis.parquet` + `samples.parquet`. All subsequent CI runs will see the CloudFront warning and silently pass schema validation with no useful signal.
+
+**Why it happens:** The two-mode schema gate design (local vs CloudFront) was optimized for the steady-state case. During file name transitions, neither mode reliably catches regressions.
+
+**Consequences:** A broken `occurrences.parquet` schema (missing column, wrong type) can reach production without CI catching it.
+
+**Prevention:**
+1. Pipeline change and schema gate change ship atomically in a single PR: export.py, nightly.sh, and validate-schema.mjs updated together.
+2. Test locally: run export.py to produce `occurrences.parquet` in `frontend/public/data/`, then run `node scripts/validate-schema.mjs` to confirm local-mode check passes.
+3. After nightly runs once with the new pipeline, verify CI enters local-mode on the next push (file will be present in the repo if it was committed, or CloudFront-mode if not).
+4. Do not commit `occurrences.parquet` to the repo (it is gitignored); CI uses CloudFront mode for normal builds.
+
+**Warning signs:** CI shows `! occurrences.parquet: not available on CloudFront yet -- skipping` for more than 24 hours after merge.
+
+**Phase to address:** Schema gate migration (ship atomically; test locally before pushing).
+
+---
+
+### Pitfall 14: buildFilterSQL Two-Table Split Becomes Stale Dead Code
+
+**What goes wrong:** After the unified migration, `buildFilterSQL()` may be partially updated — the table references changed to `occurrences`, but the function still returns `{ ecdysisWhere, samplesWhere }` with identical content in both fields. Callers continue to use `ecdysisWhere` (ignoring `samplesWhere`), and everything works. But `samplesWhere` is now dead code that diverges from `ecdysisWhere` over time as new filter conditions are added.
+
+**Why it happens:** If the API is not explicitly changed (returning a single WHERE clause), callers do not need to be updated, and the dead field is not obviously broken.
+
+**Consequences:** A future developer adds a filter condition to `ecdysisClauses` but not `samplesClauses` (or vice versa). In the two-table era this was correct; in the unified era, one branch is dead. The dead branch accumulates drift and becomes misleading.
+
+**Prevention:**
+1. Change `buildFilterSQL()` to return a single `where: string` field when the unified table lands. This forces all callers to be updated and makes the dead code impossible to miss.
+2. Run TypeScript compilation — callers destructuring `{ ecdysisWhere, samplesWhere }` will produce type errors after the return type changes.
+3. Remove `SPECIMEN_COLUMNS` / `SAMPLE_COLUMNS` from filter.ts and replace with a single `OCCURRENCE_COLUMNS` map.
+
+**Warning signs:** `buildFilterSQL` still exports `{ ecdysisWhere, samplesWhere }` after the migration; grep for `samplesWhere` usages — if any survive unchanged they are likely dead.
+
+**Phase to address:** Frontend: filter SQL (change return type simultaneously with rewrite).
+
+---
+
+## Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Keep `{ ecdysisWhere, samplesWhere }` API but make both fields identical | No caller changes needed | Dead `samplesWhere` field misleads future developers | Never — change the return type |
+| Conditionally render old `bee-specimen-detail` / `bee-sample-detail` inside unified layer instead of writing a true unified component | Faster delivery | Two render paths diverge; unified "matched" rows display inconsistently | Only as a transition step within the same phase; remove before milestone close |
+| Leave old `ecdysis.parquet` + `samples.parquet` on CloudFront alongside `occurrences.parquet` | No CloudFront invalidation needed | Storage cost; schema gate becomes ambiguous | Never — delete old files from S3 after cutover |
+| Hardcode `occurrences` as table name in multiple places | Simple | Brittle if table is ever renamed | Acceptable; centralize to a constant if it appears in >3 files |
+
+## Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| DuckDB FULL OUTER JOIN | Forgetting NULL = NULL is false and adding a WHERE clause that drops unmatched rows | Use FULL OUTER JOIN with only the join condition in ON; keep WHERE only for source-side filtering (null checks on latitude, etc.) |
+| hyparquet + wa-sqlite | Parquet DATE columns returned as JS Date objects; INSERT binds NULL | Always convert Date objects to ISO strings in `_insertRows`; verify with `typeof v === 'object' && v instanceof Date` |
+| validate-schema.mjs local vs CloudFront mode | Testing schema gate locally with stale CloudFront file | Run `node scripts/validate-schema.mjs` only after `uv run python data/export.py` has produced local file |
+| OL feature ID lookup | Using `source.getFeatureById()` with wrong prefix | Verify `f.getId()` in browser console against the ID stored in URL `o=` param |
+
+## Performance Traps
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Wider INSERT per row in _insertRows | loadAllTables takes longer; tablesReady delayed | SQLite bulk INSERT via single transaction is already in place; 20+ column row is still fast for 56k rows | Negligible at current scale; watch if row count grows 10× |
+| Single cluster source with both specimen + sample features | Cluster computation must handle mixed-source feature sets; style function called more | Benchmark cluster render before and after; ensure style cache is hit correctly | Already handles ~55k features; unified ~56k (net) is similar |
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **Outer join**: assert `COUNT(ecdysis_id IS NOT NULL) + COUNT(ecdysis_id IS NULL) = total rows` — verify no row duplication and no row loss
+- [ ] **Schema gate**: run `node scripts/validate-schema.mjs` locally after `python data/export.py`; confirm `ok occurrences.parquet` in output
+- [ ] **Filter**: run all 13+ filter.test.ts tests against unified schema; all must pass
+- [ ] **URL restore**: share a URL with `o=ecdysis:NNNN`; reload; confirm sidebar shows the specimen
+- [ ] **Collector filter**: filter by a collector with ecdysis-only link; verify iNat-only samples for same person are also shown if expected
+- [ ] **Cluster style**: toggle filter on and off; verify cluster colors update correctly and cache bypass fires
+- [ ] **Sample-only occurrences**: click an iNat-only occurrence (no ecdysis_id); verify sidebar renders correctly without null field values
+- [ ] **Matched occurrences**: click an occurrence with both ecdysis_id and observation_id; verify both source sections render
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Row loss from wrong join type | MEDIUM | Fix export.py join; re-run pipeline; re-deploy parquet; CloudFront invalidation |
+| Row duplication | MEDIUM | Add dedup GROUP BY in export.py; re-run pipeline; re-deploy |
+| Filter SQL broken (empty results) | LOW | Revert filter.ts to last working state; fix single table reference; npm test |
+| Feature ID format broken (restore fails) | LOW | Keep `ecdysis:`/`inat:` prefix in OccurrenceSource feature creation; no parquet change needed |
+| Schema gate failing on CloudFront | LOW | Wait for nightly run (≤24h); or trigger nightly manually on maderas |
+| Sidebar renders "null" text | LOW | Add null guards in unified detail component; npm test with null-field fixture |
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| NULL join key drops unlinked specimens | Pipeline: outer join | Post-export assertion: COUNT(*) ≥ 46k |
+| Row duplication from join fanout | Pipeline: outer join | `SELECT ecdysis_id, COUNT(*) GROUP BY ecdysis_id HAVING COUNT(*) > 1` returns 0 rows |
+| Column name collisions | Pipeline: schema design | Audit before coding; canonical column name table in export.py comment |
+| filter.ts two-table split | Frontend: filter SQL | All filter.test.ts pass; return type changed to single `where` string |
+| OL feature ID prefix | Frontend: layer replacement | URL restore test passes; `o=ecdysis:NNNN` restores sidebar |
+| Selection / URL restore | Frontend: layer replacement | Round-trip test in url-state.test.ts |
+| Cluster style cache | Frontend: style/clustering | Visual regression test: filter toggle changes cluster colors |
+| Schema gate file names | Schema gate migration | Local validate-schema.mjs passes after export.py run |
+| hyparquet column order | Frontend: data loading | PRAGMA table_info assertion in loadAllTables |
+| Date type divergence | Pipeline + frontend loading | strftime year/month filter returns expected results in browser |
+| Sidebar null fields | Frontend: sidebar | Lit component test with null-column fixtures for all three occurrence types |
+| Collector filter empty IN clause | Frontend: filter SQL | filter.test.ts test with observer=null CollectorEntry |
+| Schema gate ships early | Schema gate migration | Atomic PR: export.py + nightly.sh + validate-schema.mjs |
+| Dead samplesWhere code | Frontend: filter SQL | TypeScript compile error if callers not updated |
 
 ---
 
 ## Sources
 
-- USGS 3DEP FAQ — projection, datum, resolution: https://www.usgs.gov/faqs/what-projection-horizontal-datum-vertical-datum-and-resolution-a-usgs-digital-elevation-model
-- USGS 3DEP 1/3 arc-second DEM collection: https://www.sciencebase.gov/catalog/item/4f70aa9fe4b058caae3f8de5
-- USGS 3DEP 10m on Google Earth Engine (dtype, CRS, nodata): https://developers.google.com/earth-engine/datasets/catalog/USGS_3DEP_10m_collection
-- rasterio out-of-bounds sampling issue: https://github.com/rasterio/rasterio/issues/1904
-- NAD83 vs WGS84 datum shift magnitude (NGS): https://www.ngs.noaa.gov/CORS/Articles/WGS84NAD83.pdf
-- Geocomputation with Python — raster-vector interactions: https://py.geocompx.org/05-raster-vector
-- Vectorized raster sampling performance: https://rdrn.me/optimising-sampling/
+- Current codebase: `data/export.py` (FULL OUTER JOIN structure, column names, spatial CTEs)
+- Current codebase: `frontend/src/filter.ts` (buildFilterSQL two-table split, CollectorEntry, column name constants)
+- Current codebase: `frontend/src/sqlite.ts` (loadAllTables CREATE TABLE, _insertRows, Date conversion)
+- Current codebase: `frontend/src/features.ts` (EcdysisSource / SampleSource feature ID format, property names)
+- Current codebase: `scripts/validate-schema.mjs` (EXPECTED column lists, local vs CloudFront mode)
+- CLAUDE.md architecture invariants: style cache bypass rule, filter race guard, ID format spec
+- PROJECT.md v2.3 Key Decision: `MIN(waba.id)` dedup per catalog suffix (precedent for join dedup)
+- PROJECT.md v2.3 Key Decision: join key is numeric suffix via regexp_extract (precedent for nullable join key handling)
+
+---
+*Pitfalls research for: Unified Occurrence Model (v2.7)*
+*Researched: 2026-04-16*

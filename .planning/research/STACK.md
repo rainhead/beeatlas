@@ -414,3 +414,258 @@ No frontend changes. The `elevation_m` column is consumed via the existing DuckD
 ---
 *DEM elevation annotation stack research for: BeeAtlas v2.5*
 *Researched: 2026-04-15*
+
+---
+
+# Unified Occurrence Model (v2.7 addition)
+
+**Domain:** Collapsing ecdysis.parquet + samples.parquet into a single occurrences.parquet
+**Researched:** 2026-04-16
+**Confidence:** HIGH — all claims verified against live DuckDB 1.4.4 + actual parquet files
+
+## No New Libraries Required
+
+This milestone adds zero new dependencies. Every required capability exists in the installed stack.
+
+| Need | Already Provided By | Notes |
+|------|---------------------|-------|
+| Full outer join + parquet export | DuckDB 1.4.4 | `FULL OUTER JOIN` verified working; `COPY (...) TO (FORMAT PARQUET)` is the existing pattern |
+| Unified spatial join CTE | DuckDB spatial (bundled) | Same ST_Point/ST_Within/ST_Distance pattern already in export.py |
+| Read unified parquet in browser | hyparquet 1.25.6 | `parquetReadObjects` is schema-agnostic; column name changes drive DDL only |
+| Store unified table in browser | wa-sqlite 1.0.0 | DDL changes from two tables to one; no API changes |
+| Schema gate update | hyparquet 1.25.6 (validate-schema.mjs) | Only the `EXPECTED` dict entries change |
+
+## Join Architecture (verified against live data)
+
+**Join key:** `ecdysis_data.occurrence_links.host_observation_id = inaturalist_data.observations.id`
+
+This is the same key the existing `export_ecdysis_parquet` uses for its LEFT JOIN to `inaturalist_data.observations`. The FULL OUTER JOIN extends it to capture sample observations with no ecdysis match.
+
+**Cardinality (measured from current parquet files):**
+
+| Source | Rows |
+|--------|------|
+| ecdysis specimens (with lat/lon) | 46,132 |
+| iNat sample observations | 10,099 |
+| ecdysis joined to a sample | 43,455 |
+| ecdysis with no sample | 2,677 |
+| samples with no ecdysis match | 987 |
+| **expected occurrences.parquet rows** | **47,119** |
+
+Note: many ecdysis specimens share the same sample (many-to-one). The FULL OUTER JOIN preserves one row per specimen (not one row per sample), which is correct — a sample with 12 specimens produces 12 rows, each with the shared sample metadata alongside the specimen-specific columns.
+
+## DuckDB Full Outer Join Pattern
+
+The core SQL structure for `export_occurrences_parquet` in `export.py`:
+
+```sql
+WITH
+-- Sample candidate observations (same CTE as current export_samples_parquet)
+sample_obs AS (
+    SELECT op._dlt_id, op.id AS observation_id, op.user__login AS observer,
+           op.observed_on, op.longitude, op.latitude,
+           CAST(sc.value AS INTEGER) AS specimen_count,
+           TRY_CAST(sid.value AS INTEGER) AS sample_id
+    FROM inaturalist_data.observations op
+    JOIN inaturalist_data.observations__ofvs sc
+        ON sc._dlt_root_id = op._dlt_id AND sc.field_id = 8338 AND sc.value != ''
+    LEFT JOIN inaturalist_data.observations__ofvs sid
+        ON sid._dlt_root_id = op._dlt_id AND sid.field_id = 9963
+    WHERE op.longitude IS NOT NULL AND op.latitude IS NOT NULL
+),
+-- Ecdysis with geometry + occurrence link resolved
+ecdysis_linked AS (
+    SELECT o.*,
+           CAST(o.decimal_longitude AS DOUBLE) AS lon,
+           CAST(o.decimal_latitude AS DOUBLE) AS lat,
+           links.host_observation_id
+    FROM ecdysis_data.occurrences o
+    LEFT JOIN ecdysis_data.occurrence_links links
+        ON links.occurrence_id = o.occurrence_id
+    WHERE o.decimal_latitude IS NOT NULL AND o.decimal_latitude != ''
+),
+-- Full outer join on the host observation link
+joined AS (
+    SELECT
+        e.id AS ecdysis_id_raw,
+        s.observation_id,
+        COALESCE(e.lon, s.longitude) AS longitude,
+        COALESCE(e.lat, s.latitude) AS latitude,
+        ST_Point(COALESCE(e.lon, s.longitude),
+                 COALESCE(e.lat, s.latitude)) AS pt,
+        e.host_observation_id,
+        -- ecdysis-side columns
+        e.catalog_number,
+        strftime(COALESCE(e.event_date, CAST(s.observed_on AS VARCHAR)), '%Y-%m-%d') AS date,
+        COALESCE(CAST(e.year AS INTEGER), YEAR(s.observed_on)) AS year,
+        COALESCE(CAST(e.month AS INTEGER), MONTH(s.observed_on)) AS month,
+        e.scientific_name AS scientificName,
+        e.recorded_by AS recordedBy,
+        e.field_number AS fieldNumber,
+        e.genus, e.family,
+        NULLIF(regexp_extract(e.associated_taxa, 'host:"([^"]+)"', 1), '') AS floralHost,
+        TRY_CAST(NULLIF(e.minimum_elevation_in_meters, '') AS INTEGER) AS elevation_m,
+        -- sample-side columns
+        s.observer,
+        s.specimen_count,
+        s.sample_id
+    FROM ecdysis_linked e
+    FULL OUTER JOIN sample_obs s
+        ON e.host_observation_id = s.observation_id
+),
+-- Spatial join CTEs (applied once to the merged geometry)
+wa_counties AS (...),
+wa_eco AS (...),
+-- ... same ST_Within + fallback pattern as existing export.py ...
+-- Additional existing enrichment CTEs
+id_modified AS (...),
+waba_link AS (...),
+inat_enrich AS (
+    SELECT links.host_observation_id,
+           CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae'
+                THEN inat.taxon__name ELSE NULL END AS inat_host,
+           inat.quality_grade AS inat_quality_grade
+    FROM ecdysis_data.occurrence_links links
+    JOIN inaturalist_data.observations inat
+        ON inat.id = links.host_observation_id
+)
+SELECT
+    CAST(j.ecdysis_id_raw AS INTEGER) AS ecdysis_id,       -- null for sample-only rows
+    j.observation_id,                                        -- null for specimen-only rows
+    j.longitude, j.latitude,
+    j.year, j.month, j.date,
+    j.scientificName, j.recordedBy, j.fieldNumber,
+    j.genus, j.family, j.floralHost,
+    j.observer, j.specimen_count, j.sample_id,
+    fc.county, fe.ecoregion_l3,
+    j.host_observation_id,
+    ie.inat_host, ie.inat_quality_grade,
+    wl.specimen_observation_id,
+    strftime(GREATEST(e_orig.modified,
+             COALESCE(im.max_id_modified, e_orig.modified)), '%Y-%m-%d') AS modified,
+    j.elevation_m,
+    j.catalog_number
+FROM joined j
+LEFT JOIN final_county fc ON ...
+LEFT JOIN final_eco fe ON ...
+LEFT JOIN inat_enrich ie ON ie.host_observation_id = j.host_observation_id
+LEFT JOIN id_modified im ON im.coreid = j.ecdysis_id_raw
+LEFT JOIN waba_link wl ON wl.catalog_suffix = CAST(regexp_extract(j.catalog_number, '[0-9]+$', 0) AS BIGINT)
+LEFT JOIN ecdysis_data.occurrences e_orig ON CAST(e_orig.id AS INTEGER) = CAST(j.ecdysis_id_raw AS INTEGER)
+```
+
+**Date standardization:** Export `date` as VARCHAR using `strftime(..., '%Y-%m-%d')`. The existing `_insertRows` in `sqlite.ts` already converts `Date` objects to ISO strings, but standardizing as VARCHAR avoids the conversion entirely and is consistent with the current `ecdysis.date` column type. Use `COALESCE(e.event_date, CAST(s.observed_on AS VARCHAR))`.
+
+**Year/month pre-computation:** Store `year` and `month` as INTEGER using `COALESCE(CAST(e.year AS INTEGER), YEAR(s.observed_on))`. This eliminates the `CAST(strftime('%Y', date) AS INTEGER)` that `filter.ts` currently applies to the samples table — unified filter SQL becomes `year >= X` for all rows.
+
+## Frontend: sqlite.ts Changes
+
+Replace two `CREATE TABLE` statements + two `asyncBufferFromUrl` calls with one each.
+
+**Unified SQLite DDL:**
+
+```typescript
+await sqlite3.exec(db, `CREATE TABLE occurrences (
+  ecdysis_id     INTEGER,   -- null for sample-only rows
+  observation_id INTEGER,   -- null for specimen-only rows with no sample match
+  longitude      REAL,
+  latitude       REAL,
+  year           INTEGER,
+  month          INTEGER,
+  date           TEXT,
+  scientificName TEXT,      -- null for sample-only rows
+  recordedBy     TEXT,      -- null for sample-only rows
+  fieldNumber    TEXT,
+  genus          TEXT,
+  family         TEXT,
+  floralHost     TEXT,
+  observer       TEXT,      -- null for specimen-only rows
+  specimen_count INTEGER,
+  sample_id      INTEGER,
+  county         TEXT,
+  ecoregion_l3   TEXT,
+  host_observation_id    INTEGER,
+  inat_host              TEXT,
+  inat_quality_grade     TEXT,
+  specimen_observation_id INTEGER,
+  elevation_m    REAL,
+  modified       TEXT,
+  catalog_number TEXT
+)`);
+```
+
+The `_insertRows` function requires no changes — it handles nulls, bigints, and Date objects already.
+
+## Frontend: features.ts Changes
+
+Replace `EcdysisSource` + `SampleSource` with a single `OccurrenceSource`.
+
+Feature ID construction preserves the existing string format that OL, URL state, and sidebar depend on:
+
+```typescript
+// In OccurrenceSource loader:
+const id = obj.ecdysis_id != null
+  ? `ecdysis:${Number(obj.ecdysis_id)}`
+  : `inat:${Number(obj.observation_id)}`;
+feature.setId(id);
+```
+
+## Frontend: filter.ts Changes
+
+`buildFilterSQL` currently returns `{ ecdysisWhere: string; samplesWhere: string }` to query two separate tables.
+
+In the unified model it returns a single `occurrencesWhere: string` against the `occurrences` table.
+
+**Filter clause mapping (all columns now present on every row):**
+
+| Filter | Current (two tables) | Unified (one table) |
+|--------|---------------------|---------------------|
+| Taxon (family/genus/species) | ecdysis only | `family = X` — sample-only rows have null family, excluded naturally |
+| Year | `year >= X` / `strftime('%Y', date)` | `year >= X` for all rows (year pre-computed in parquet) |
+| Month | `month IN (...)` / `strftime('%m', date)` | `month IN (...)` for all rows (month pre-computed in parquet) |
+| County | separate clauses on each table | `county IN (...)` — non-null for all rows (coalesced in export) |
+| Ecoregion | separate clauses on each table | `ecoregion_l3 IN (...)` — non-null for all rows |
+| Collector | `recordedBy IN (...)` / `observer IN (...)` | `(recordedBy IN (...) OR observer IN (...))` |
+| Elevation | duplicate clauses on each table | `elevation_m IS NOT NULL AND elevation_m BETWEEN X AND Y` |
+
+**Taxon filter and sample-only rows:** When a taxon filter is active, the current code adds `1 = 0` to `samplesWhere` to ghost all sample features. In the unified model, taxon columns (family, genus, scientificName) are null on sample-only rows. `WHERE family = 'Halictidae'` already excludes null-family rows. No ghost clause needed — the nullability does the work.
+
+**Collector filter:** The current code checks `recordedBy` and `observer` separately on their respective tables. In the unified model, a matched row has both fields non-null (the Ecdysis collector's full name and the iNat observer's username are different people for most specimens). The correct unified clause is `(recordedBy IN (...) OR observer IN (...))` with an `OR` — a row should pass if either field matches the selected collector.
+
+**Downstream callers of buildFilterSQL** — `queryVisibleIds`, `queryTablePage`, `queryAllFiltered`, `queryFilteredCounts` — all need updating to use a single table name (`occurrences`) and a single WHERE clause.
+
+## scripts/validate-schema.mjs Changes
+
+Replace the two-key `EXPECTED` object with a single `'occurrences.parquet'` entry. No structural changes to the script.
+
+## What NOT to Add
+
+| Avoid | Why |
+|-------|-----|
+| pandas/polars for the join | DuckDB `FULL OUTER JOIN ... COPY TO PARQUET` handles this entirely in SQL — no Python-level data manipulation |
+| pyarrow schema enforcement in export.py | DuckDB infers nullable types automatically from FULL OUTER JOIN (unmatched sides yield null); the existing `read_parquet` + assertion block is sufficient post-export verification |
+| New parquet library on frontend | hyparquet reads any valid parquet; column changes require only DDL + feature mapping updates |
+| DuckDB WASM or Apache Arrow in browser | Removed in v2.6 for documented performance and complexity reasons; wa-sqlite remains the correct choice |
+| Separate occurrence_id synthetic key column | Feature IDs are computed at load time from `ecdysis_id` / `observation_id` — no need to store a pre-computed string key in the parquet |
+
+## Version Compatibility
+
+| Package | Version | Notes |
+|---------|---------|-------|
+| DuckDB 1.4.4 | FULL OUTER JOIN | Verified working in REPL against live parquet files |
+| DuckDB 1.4.4 | COPY ... TO PARQUET | Existing pattern; null columns from outer join are stored as nullable Parquet columns automatically |
+| hyparquet 1.25.6 | wa-sqlite 1.0.0 | No API changes; `_insertRows` handles nulls correctly |
+| DuckDB spatial 1.4.4 | FULL OUTER JOIN | ST_Point/ST_Within/ST_Distance operate on CTEs regardless of join type |
+
+## Sources
+
+- Live DuckDB 1.4.4 REPL — `FULL OUTER JOIN` syntax, nullable output, COALESCE patterns, COPY TO PARQUET — HIGH confidence (verified)
+- `/Users/rainhead/dev/beeatlas/data/export.py` — existing spatial join CTE patterns and enrichment CTEs — HIGH confidence (source of truth)
+- `/Users/rainhead/dev/beeatlas/frontend/src/sqlite.ts` — existing DDL, `_insertRows`, `loadAllTables` — HIGH confidence
+- `/Users/rainhead/dev/beeatlas/frontend/src/features.ts` — feature ID construction, OL source patterns — HIGH confidence
+- `/Users/rainhead/dev/beeatlas/frontend/src/filter.ts` — `buildFilterSQL` structure, collector filter pattern — HIGH confidence
+- Live parquet analysis: ecdysis.parquet (46,132 rows, 21 cols), samples.parquet (10,099 rows, 10 cols), join cardinality verified — HIGH confidence
+
+---
+*Unified occurrence model stack research for: BeeAtlas v2.7*
+*Researched: 2026-04-16*

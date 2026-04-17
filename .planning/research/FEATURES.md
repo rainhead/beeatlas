@@ -1,136 +1,157 @@
-# Feature Research: Elevation Display and Range Filtering
+# Feature Research
 
-**Domain:** Elevation annotation in a field biology / nature observation web map (bee atlas)
-**Researched:** 2026-04-15
-**Confidence:** MEDIUM-HIGH (multiple authoritative sources; specific UX precedents from production apps verified)
+**Domain:** Biodiversity data unification — collapsing two separate occurrence sources into a single unified model
+**Researched:** 2026-04-16
+**Confidence:** HIGH (derived from first-party codebase analysis; domain conventions consistent with Darwin Core and GBIF occurrence model practices)
 
----
+## Feature Landscape
 
-## Table Stakes
+### Table Stakes (Users Expect These)
 
-Features that users of field biology observation tools expect. Absence feels like missing or broken data.
+Features that the unified model must preserve or the product regresses.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Elevation displayed in sidebar detail panels | Museum databases, iNaturalist, GBIF all surface elevation per record; collectors expect to see the full location context of a specimen or sample | LOW | Single `elevation_m` INT16 field; render as "1 234 m" with absent-state fallback (dash or omit row) |
-| Meters as the display unit | Darwin Core standard uses meters; GBIF stores as meters; scientific community baseline | LOW | No unit conversion needed for WA state bees; feet would be out of place in this context |
-| Elevation range filter with min and max bounds | GBIF and MCZbase both expose elevation as a filterable range; collectors targeting high-elevation populations need this | MEDIUM | Two numeric text inputs; integrates with existing DuckDB `WHERE elevation_m >= ? AND elevation_m <= ?` pattern |
-| URL encoding of elevation filter state | All other filters are URL-encoded in this app; elevation must follow suit for shareable links | LOW | Follows existing `buildParams`/`parseParams` pattern in `url-state.ts` |
-| Clear filters resets elevation range | Existing "clear filters" resets all active filter state; elevation must be included | LOW | Same pattern as county/ecoregion clear logic |
-| Absent/null elevation gracefully handled | DEM sampling may yield null for offshore or edge points; pipeline uses INT16 nullable | LOW | Null elevation_m: omit row in sidebar, exclude from filter predicate (or treat null as "unknown", not zero) |
+| All occurrences visible on one layer | Two-layer toggle was a workaround for separate data; unified model makes one layer the natural state | MEDIUM | `EcdysisSource` + `SampleSource` collapse to one `OccurrenceSource`; both style functions survive (cluster for specimen rows, dot for sample-only rows) |
+| Map point appearance still conveys record type | Users have learned specimen clusters (recency-colored) vs sample dots (teal); visual distinction must survive the merge | MEDIUM | Three render modes by null pattern: ecdysis_id non-null → cluster; ecdysis_id null → dot; both non-null → cluster (specimen data takes precedence for visual encoding) |
+| Sidebar shows all available fields for a clicked point | Users expect to see the full record — not silently truncated | LOW | Conditional section rendering by null pattern; already the pattern for `elevation_m`; extend to source-level sections ("Specimen", "Collection event") |
+| Taxon filter still works | Taxon columns exist only on ecdysis rows; filter must not break sample-only rows | LOW | Current D-01 rule (`taxon filter → samplesClauses 1=0`) becomes: taxon clause applied only where `ecdysis_id IS NOT NULL`; sample-only rows excluded when taxon filter active |
+| Collector filter still works | Both sources have a collector/observer field; unified model must preserve this | MEDIUM | `buildFilterSQL` currently produces separate `recordedBy` and `observer` clauses; in a unified table: `(recordedBy IN (...) OR observer IN (...))` on a single row |
+| URL state preserves selected occurrence across reload | `o=` param encodes selected IDs; format `ecdysis:N` and `inat:N` must remain parseable | LOW | ID assignment rule: `ecdysis:N` when ecdysis_id non-null; `inat:N` when ecdysis_id null; linked rows get `ecdysis:N` |
+| Schema gate validates occurrences.parquet | CI must reject deploys with missing or wrong-typed columns | LOW | `validate-schema.mjs` currently checks two files; replace with single `occurrences.parquet` expected-columns check |
+| Table view renders all records consistently | `bee-table` currently switches column defs by `layerMode`; unified model removes the hard split | MEDIUM | Single column superset; null cells render as empty/dash; `layerMode` toggle may collapse or become a column-visibility control |
+| CSV export includes source provenance | Downloaded CSV must be self-describing about which data source(s) contributed | LOW | Add a `source` derived column (`ecdysis`, `inat`, `linked`) based on null pattern; no additional UI needed |
 
----
+### Differentiators (Competitive Advantage)
 
-## Differentiators
-
-Features that provide value beyond what field biology apps standardly offer; not expected, but appreciated by power users.
+Features that become possible once the data is unified that were impossible or awkward with two separate tables.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Elevation in table view column | Consistent with other numeric attributes; enables sorting and visual scanning by elevation | LOW | `bee-table` component; add `elevation_m` column to specimen and sample column sets |
-| Elevation in CSV export | Research use; collectors analyzing elevation distribution of findings | LOW | Already exported if present in DuckDB SELECT; schema gate ensures column presence |
-| Display elevation to nearest 10 m | Honest about DEM precision; GPS-derived elevations have ±10–50 m real-world accuracy; rounding avoids false precision | LOW | `Math.round(elevation_m / 10) * 10` for display; store raw INT16 in parquet for filter arithmetic |
+| Linked record shows specimen + sample data in one sidebar view | A specimen with `host_observation_id` currently requires clicking through to iNat to see the plant; unified detail surfaces plant name, quality grade, and observation link alongside specimen fields | LOW | `inat_host`, `inat_quality_grade`, `host_observation_id` already in ecdysis.parquet and rendered; unification means sample fields (observer, date, specimen_count) also appear in the same panel for linked rows |
+| Filter counts reflect true occurrence count | Current summary shows "N specimens / M samples" as separate totals; unified model enables "N occurrences (X with specimens)" | LOW | `DataSummary` and `FilteredSummary` interfaces need new fields; sidebar count display simplifies |
+| Cross-source queries unlock future analytics | "How many of my samples have at least one determined specimen?" becomes a single SQL query | MEDIUM | Enables future TAB-03 (common floral hosts by month and region); requires linked rows to carry both specimen and sample columns in the same SQLite row |
 
----
+### Anti-Features (Commonly Requested, Often Problematic)
 
-## Anti-Features
-
-Features commonly requested in nature observation tools that cause more harm than benefit here.
-
-| Feature | Why Requested | Why to Avoid | What to Do Instead |
-|---------|---------------|---------------|--------------------|
-| Feet / meters toggle | US users may prefer feet | BeeAtlas targets field collectors and researchers; Darwin Core, GBIF, and entomological databases all use meters; adding a toggle multiplies UI surface for a feature whose scientific audience expects SI units | Use meters throughout; a single parenthetical conversion in a tooltip ("≈ 4 000 ft") is acceptable if user-testing reveals confusion, but do not default to feet |
-| Range slider for elevation filter | Sliders are visually intuitive for continuous ranges | WA elevation spans 0–4 392 m (Mt. Rainier); a dual-thumb slider cannot achieve meaningful precision at that scale without either huge pixel width or tiny target zones. NN/G and Baymard research both identify sliders as problematic when the range is very wide or precise values matter. Apache Superset documented this as a known UX defect (issue #15605). | Min/max number inputs; low implementation cost, exact precision, keyboard-accessible, consistent with existing year/month filter input patterns in this codebase |
-| Elevation as a map visual encoding (color or size) | Elevation-colored points would surface clustering patterns | Recency-based cluster coloring is the core visual encoding; adding elevation color conflicts with the existing legend and would make the map harder to read for its primary use case (where are records?) | Elevation remains a filter/display attribute, not a visual encoding |
-| Fetching live elevation from external API at runtime | Ensures freshness; avoids pipeline complexity | Violates the static-hosting constraint; adds a runtime dependency on an external elevation API; the USGS 3DEP DEM approach already in scope is the correct architecture | Pipeline-sourced DEM elevation stored in parquet is sufficient |
-| Displaying elevation uncertainty or range | GPS elevation has ±10–50 m accuracy; honest to show uncertainty | Adds UI complexity; collectors do not need to reason about DEM accuracy; the DEM provides consistent inferred elevation, not GPS-measured | Treat elevation as a derived attribute with implicit ±10 m precision; no uncertainty range needed in the UI |
-| Filtering on verbatim (original) elevation | Some specimens have hand-recorded elevation in feet or ambiguous units | BeeAtlas computes elevation_m uniformly from the DEM; there is no verbatim elevation in scope for this milestone | elevation_m is the sole elevation field; verbatim elevation is not in Ecdysis DarwinCore export |
-
----
-
-## UX Pattern: Elevation Range Filter
-
-**Recommendation: Two labeled number inputs (min/max), not a slider.**
-
-Rationale:
-- WA elevation range is 0–4 392 m. A slider spanning this range cannot represent values like "800 m" without pixel-perfect dragging.
-- Existing codebase filter patterns use text/number inputs for year and month. Elevation range inputs follow the same pattern.
-- NN/G slider guidance states: "Use a slider only when the precise value won't matter to the user." Elevation filtering for targeted collecting trips requires precision.
-- Baymard's research confirms numeric inputs alongside sliders improve accuracy; in a toolbar-constrained layout, inputs alone are the correct trade-off.
-
-Input design:
-- Two `<input type="number">` fields labeled "Min elev." and "Max elev."
-- Placeholder text: "0" and "4 400" (or "any" / "any") to communicate the full WA range.
-- Unit suffix "m" adjacent to each input (non-interactive text).
-- Either bound optional: min-only or max-only filter is valid SQL (`elevation_m >= ?` or `elevation_m <= ?`).
-- Validation: max must be >= min when both are set; invalid state clears or resets the offending field.
-
----
-
-## UX Pattern: Elevation Display in Sidebar
-
-**Recommendation: Single line in the existing key/value detail layout.**
-
-Format: `1 230 m` (integer, thin-space thousands separator, "m" unit, no decimal places).
-
-Rationale:
-- DEM precision is ±10 m or worse; decimal meters convey false precision (GBIF elevation guide recommends rounding to nearest 10 m for honest representation).
-- Museum specimen labels use format "1219m" (no space); GBIF displays integer meters. Using a thin space before "m" improves readability at 4-digit values.
-- Display rounded to nearest 10 m for UI; raw INT16 stored in parquet for filter arithmetic to avoid rounding artifacts.
-- Null elevation_m: omit the elevation row entirely (same absent-state pattern as other nullable sidebar fields). Do not show "0 m" — zero is a valid elevation (sea level) and must not be used as a null sentinel.
-
----
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Remove layer mode toggle entirely | Unified model implies one layer, one view | Sample-only records (iNat dots) have fundamentally different data density than specimen clusters; rendering them identically loses spatial context about where individual bees vs collection events are | Keep visual distinction between specimen-carrying and sample-only rows; assess whether `layerMode` toggle becomes a "show sample-only events" on/off rather than a layer switch |
+| Render all null fields as "unknown" or "not recorded" | Feels complete and explicit | Noisy for sparse records; 9,500 iNat sample rows have no taxon, no collector label, no field number; every null field showing "not recorded" creates cluttered detail views | Omit entire field rows when null; section headers ("Specimen data", "Collection event") collapse when all fields in section are null |
+| Merge lat/lon from both sources to a single coordinate | Tempting when both sources are "linked" | Sample coordinates are floral host locations (where the plant was); specimen coordinates are where the bee was caught — usually similar but semantically distinct | Use ecdysis lat/lon for specimen-carrying rows; keep iNat lat/lon for sample-only rows; a single point per occurrence using the most precise available coordinate |
+| One unified `occurrences` SQLite table with all 20+ columns via `SELECT *` | Architecturally clean | Mixed-schema rows cause every query to drag unnecessary nulls; filter SQL complexity grows because every clause needs IS NULL guards | Keep explicit SELECT lists; use column null pattern in OL feature properties to drive rendering decisions |
 
 ## Feature Dependencies
 
 ```
-Pipeline: USGS 3DEP DEM download + elevation sampling
-    └──required by──> ecdysis.parquet + samples.parquet: add elevation_m (INT16, nullable)
-                          └──required by──> Schema gate: validate-schema.mjs enforces column presence
-                          └──required by──> Sidebar: bee-specimen-detail + bee-sample-detail display
-                          └──required by──> Filter toolbar: elevation range inputs + DuckDB WHERE clause
-                          └──required by──> URL state: elev_min / elev_max params
-                          └──required by──> CSV export: elevation_m in downloaded columns
+occurrences.parquet (pipeline: full outer join ecdysis + samples on host_observation_id)
+    └──required by──> OccurrenceSource (single OL VectorSource)
+                          └──required by──> unified OL VectorLayer + style dispatch
+                          └──required by──> filter.ts: single occurrencesWhere clause
+                          └──required by──> bee-occurrence-detail (unified sidebar component)
+
+occurrences.parquet
+    └──required by──> schema gate update (validate-schema.mjs)
+
+filter.ts unified WHERE clause
+    └──replaces──> dual {ecdysisWhere, samplesWhere} return type
+    └──required by──> queryVisibleIds → single Set<string>
+    └──required by──> queryTablePage → single table query
+    └──required by──> queryAllFiltered → single table query
+    └──required by──> queryFilteredCounts → single table query
+
+bee-occurrence-detail
+    └──replaces──> bee-specimen-detail + bee-sample-detail
+    └──required by──> bee-sidebar (simplifies: always renders bee-occurrence-detail)
+
+unified OL VectorLayer
+    └──required by──> bee-map: removes speicmenLayer / sampleLayer distinction
+    └──required by──> bee-atlas: _selectedSamples + _selectedSampleEvent unify
 ```
 
-Filter integration follows the existing DuckDB WHERE clause pattern in `filter.ts`. No new query architecture needed — elevation range is two optional numeric comparisons appended to the existing WHERE clause builder.
+### Dependency Notes
 
----
+- **Join key decision:** The full outer join key is `host_observation_id` (ecdysis) = `observation_id` (iNat). Linked rows have both non-null; `ecdysis_id` takes precedence for OL feature ID and `o=` URL param. Sample-only rows use `inat:N`.
+
+- **buildFilterSQL return type change is a wide blast radius:** Every call site in `filter.ts` that destructures `{ ecdysisWhere, samplesWhere }` must be updated to `{ occurrencesWhere }`. This includes `queryVisibleIds`, `queryTablePage`, `queryAllFiltered`, `queryFilteredCounts`. The test suite for `buildFilterSQL` (13 tests in `filter.test.ts`) must be updated in lockstep.
+
+- **Collector filter cross-source semantics:** `CollectorEntry` has separate `recordedBy` and `observer` fields today. In a unified table, a linked row has both; the WHERE clause becomes `(recordedBy IN (...) OR observer IN (...))`. The collector autocomplete query currently hits `ecdysis` and `samples` separately — needs to become a UNION or a single query against `occurrences` with DISTINCT on both columns.
+
+- **_layerMode on bee-atlas:** Currently drives `'specimens' | 'samples'` for table pagination and CSV export. In the unified model this may become `'all' | 'specimens-only' | 'samples-only'` or be removed entirely. Assess during implementation; do not over-engineer.
 
 ## MVP Definition
 
-### Launch with (v2.5)
+### Launch With (v2.7)
 
-- Pipeline: DEM download/cache + elevation sampling → `elevation_m` INT16 nullable in both parquet files
-- Schema gate: `validate-schema.mjs` enforces `elevation_m` column
-- Sidebar: `bee-specimen-detail` and `bee-sample-detail` render elevation with absent-state fallback
-- Filter toolbar: min/max number inputs, URL-encoded, DuckDB SQL integration, clear-filters reset
+Minimum viable product — collapse the data model without regressing visible behavior.
 
-### Add After Validation (v2.5+)
+- [ ] Pipeline: `export_occurrences_parquet()` full outer join producing `occurrences.parquet`; ecdysis-side or sample-side columns null when that source has no match; `export_ecdysis_parquet()` and `export_samples_parquet()` removed
+- [ ] Schema gate: `validate-schema.mjs` EXPECTED updated for `occurrences.parquet`; old file entries removed
+- [ ] Frontend SQLite: `loadAllTables()` loads single `occurrences` table; `ecdysis` and `samples` table references renamed or aliased throughout
+- [ ] Frontend map: `OccurrenceSource` replaces `EcdysisSource` + `SampleSource`; style dispatches on `ecdysis_id` null status (non-null → cluster, null → dot)
+- [ ] Frontend filter: `buildFilterSQL` returns single `{ occurrencesWhere }`; all call sites updated; test suite updated
+- [ ] Frontend sidebar: `bee-occurrence-detail` replaces `bee-specimen-detail` + `bee-sample-detail`; renders "Specimen" section when `ecdysis_id` non-null, "Collection event" section when `observation_id` non-null
+- [ ] Frontend coordinator: `bee-atlas` unifies `_selectedSamples` + `_selectedSampleEvent` into single `_selectedOccurrence`
 
-- Table view elevation column (low effort once parquet column exists)
-- CSV export already picks up new columns automatically via DuckDB SELECT *
+### Add After Validation (v2.7.x)
 
-### Out of Scope for This Milestone
+- [ ] Table view: single column set replacing `SPECIMEN_COLUMN_DEFS` / `SAMPLE_COLUMN_DEFS` split; null-cell display
+- [ ] CSV export: add `source` derived column
+- [ ] Filter counts: `DataSummary` sidebar display updated to "N occurrences" framing
 
-- Feet/meters toggle
-- Elevation as map visual encoding
-- Elevation uncertainty display
-- Rounding to nearest 10 m for display (may add; raw integer is acceptable)
+### Future Consideration (v2.8+)
 
----
+- [ ] Completeness indicator on map points (visual encoding of data richness per record)
+- [ ] Source-type filter dimension ("specimen-only", "sample-only", "linked") — low demand until linked record count is larger
+- [ ] Collector deduplication improvement — unified model surfaces cross-source name mismatches more clearly but the fix requires pipeline-side person reconciliation
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| occurrences.parquet pipeline join | HIGH | MEDIUM | P1 |
+| Schema gate update | HIGH | LOW | P1 |
+| OccurrenceSource + style dispatch | HIGH | MEDIUM | P1 |
+| buildFilterSQL unified WHERE | HIGH | MEDIUM | P1 |
+| bee-occurrence-detail unified sidebar | HIGH | LOW | P1 |
+| bee-atlas coordinator unification | HIGH | LOW | P1 |
+| Table view unified columns | MEDIUM | MEDIUM | P2 |
+| CSV source column | LOW | LOW | P2 |
+| Filter counts redesign | MEDIUM | LOW | P2 |
+| Completeness indicator (map visual) | MEDIUM | HIGH | P3 |
+| Source-type filter dimension | LOW | MEDIUM | P3 |
+
+## Existing Component Inventory (Change Surface)
+
+| Component / Module | Current Role | Change in v2.7 |
+|--------------------|-------------|----------------|
+| `data/export.py` — `export_ecdysis_parquet()` | Exports ecdysis.parquet (~46k rows, 21 cols) | Replace with `export_occurrences_parquet()` doing full outer join |
+| `data/export.py` — `export_samples_parquet()` | Exports samples.parquet (~9.5k rows, 10 cols) | Remove; logic folded into occurrences export |
+| `scripts/validate-schema.mjs` | Gates both parquet files | Update EXPECTED for `occurrences.parquet`; remove old entries |
+| `frontend/src/features.ts` — `EcdysisSource` | Loads ecdysis rows into OL | Replace with `OccurrenceSource` |
+| `frontend/src/features.ts` — `SampleSource` | Loads sample rows into OL | Remove |
+| `frontend/src/sqlite.ts` — `loadAllTables()` | Loads two parquet files into two SQLite tables | Load single occurrences.parquet into single `occurrences` table |
+| `frontend/src/filter.ts` — `buildFilterSQL()` | Returns `{ecdysisWhere, samplesWhere}` | Return single `{occurrencesWhere}` |
+| `frontend/src/filter.ts` — `queryVisibleIds()` | Queries two tables, returns `{ecdysis, samples}` sets | Query one table, return `{occurrences}` set |
+| `frontend/src/filter.ts` — `queryTablePage()` | Switches table by layerMode | Single table query; layerMode effect TBD |
+| `frontend/src/filter.ts` — `queryAllFiltered()` | Switches table by layerMode | Single table query |
+| `frontend/src/filter.ts` — `queryFilteredCounts()` | Queries ecdysis only | Query occurrences WHERE ecdysis_id IS NOT NULL for specimen counts |
+| `frontend/src/bee-specimen-detail.ts` | Renders specimen cluster detail | Replace with `bee-occurrence-detail` |
+| `frontend/src/bee-sample-detail.ts` | Renders sample event detail | Remove; logic folded into `bee-occurrence-detail` |
+| `frontend/src/bee-sidebar.ts` | Switches between specimen/sample detail components | Simplify: always renders `bee-occurrence-detail` |
+| `frontend/src/bee-atlas.ts` — `_layerMode` | `'specimens' \| 'samples'` toggle | Assess for removal or semantic change |
+| `frontend/src/bee-atlas.ts` — `_selectedSamples` + `_selectedSampleEvent` | Two parallel selection state paths | Unify into single `_selectedOccurrence` |
+| `frontend/src/bee-map.ts` — `speicmenLayer` + `sampleLayer` | Two OL VectorLayer instances | Replace with single `occurrenceLayer` |
+| `frontend/src/bee-table.ts` | Switches column defs by `layerMode` | Single column set; null cells display as dash |
+| `frontend/src/style.ts` | `makeClusterStyleFn` + `makeSampleDotStyleFn` | Unified style dispatches on `ecdysis_id` null status |
+| `frontend/src/tests/filter.test.ts` | 13 tests for `buildFilterSQL` (dual WHERE) | Must update to test single `occurrencesWhere` |
 
 ## Sources
 
-- [GBIF Guide to Elevation Issues](https://discourse.gbif.org/t/a-guide-to-elevation-issues/4375) — precision guidance, GPS inaccuracy, recommendation to round to nearest 10 m
-- [Darwin Core Quick Reference: minimumElevationInMeters](https://dwc.tdwg.org/terms/) — standard field definitions, meters as unit
-- [Mississippi Entomological Museum Label Guidelines](https://mississippientomologicalmuseum.org.msstate.edu/Specimen_labels/Specimen_labels.html) — "1219m" format, no space, no decimal
-- [iNaturalist Community Forum: Altitude on observations](https://forum.inaturalist.org/t/altitude-on-observations/1476) — user expectations, GPS accuracy caveats, searchability requests
-- [NN/G Slider Design: Rules of Thumb](https://www.nngroup.com/articles/gui-slider-controls/) — "use slider only when precise value won't matter"
-- [Baymard: Improve Form Slider UX](https://baymard.com/blog/slider-interfaces) — numeric inputs alongside or instead of sliders for precision
-- [Apache Superset issue #15605](https://github.com/apache/superset/issues/15605) — documented production failure of slider for wide-range numeric filters
-- [GBIF Occurrence API](https://techdocs.gbif.org/en/openapi/v1/occurrence) — elevation as decimal in metres, filterable parameter
+- First-party codebase analysis: `features.ts`, `filter.ts`, `bee-specimen-detail.ts`, `bee-sample-detail.ts`, `bee-sidebar.ts`, `bee-atlas.ts`, `bee-table.ts`, `export.py`, `validate-schema.mjs`
+- Darwin Core occurrence standard: column nullability, full outer join as canonical merge pattern for multi-source occurrence data (HIGH confidence — well-established standard)
+- GBIF occurrence model: specimen records, human observation records, and combined records are standard types; null columns per source are the accepted representation (HIGH confidence)
 
 ---
-*Feature research for: BeeAtlas v2.5 — DEM Elevation Annotation*
-*Researched: 2026-04-15*
+*Feature research for: BeeAtlas v2.7 — Unified Occurrence Model*
+*Researched: 2026-04-16*
