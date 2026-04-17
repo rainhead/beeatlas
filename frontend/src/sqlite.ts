@@ -17,6 +17,22 @@ export const tablesReady: Promise<void> = new Promise(resolve => {
   _tablesReadyResolve = resolve;
 });
 
+// wa-sqlite's Asyncify-based step/prepare cannot handle concurrent calls on the
+// same db — concurrent exec calls corrupt each other's return values (yielding
+// SQLITE_OK=0 from step, which is never a valid step result). Serialize all exec
+// calls through a microtask queue so only one runs at a time.
+let _execQueue: Promise<void> = Promise.resolve();
+function _serializedExec(
+  origExec: SQLiteAPI['exec'],
+  db: number,
+  sql: string,
+  callback?: (rowValues: unknown[], columnNames: string[]) => void
+): Promise<void> {
+  const next = _execQueue.then(() => (origExec as any)(db, sql, callback));
+  _execQueue = next.then(() => {}, () => {});
+  return next;
+}
+
 async function _init(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
   const t0 = performance.now();
   const mem0 = _heapMB();
@@ -29,6 +45,13 @@ async function _init(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
   const mem1 = _heapMB();
   console.log(`[BENCHMARK] WASM instantiate: ${(t1 - t0).toFixed(0)} ms | heap: ${mem0.toFixed(1)} -> ${mem1.toFixed(1)} MB`);
   _benchmarkT0 = t0;
+
+  // Patch exec in-place so all callers (features.ts, filter.ts, bee-atlas.ts)
+  // automatically get serialized access without any changes at call sites.
+  const origExec = sqlite3.exec.bind(sqlite3);
+  (sqlite3 as any).exec = (db: number, sql: string, cb?: any) =>
+    _serializedExec(origExec, db, sql, cb);
+
   return { sqlite3, db };
 }
 
@@ -122,6 +145,7 @@ async function _insertRows(
         const v = row[c];
         if (v == null) return null;
         if (typeof v === 'bigint') return Number(v);
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
         return v;
       }) as any);
       await sqlite3.step(stmt);

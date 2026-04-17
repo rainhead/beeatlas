@@ -368,7 +368,8 @@ bee-sidebar {
       // _collectorOptions is populated by _loadCollectorOptions, called from _onDataLoaded
       // independently of view mode — no need to duplicate the query here.
     } catch (err) {
-      console.error('Failed to load summary from SQLite:', err);
+      const code = (err as any)?.code;
+      console.error('Failed to load summary from SQLite:', err, code !== undefined ? `(SQLite error code ${code})` : '');
     } finally {
       this._loading = false;
     }
