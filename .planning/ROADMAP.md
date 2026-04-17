@@ -322,7 +322,7 @@ Plans:
   4. Clicking an occurrence cluster opens the sidebar detail panel with the correct record
 **Plans**: 2 plans
 Plans:
-- [ ] 64-01-PLAN.md — OccurrenceSource + SelectionState + style tap target + test mock updates
+- [x] 64-01-PLAN.md — OccurrenceSource + SelectionState + style tap target + test mock updates
 - [ ] 64-02-PLAN.md — bee-map single source/layer + bee-atlas SelectionState handling and spatial restore
 **UI hint**: yes
 
@@ -408,5 +408,5 @@ Plans:
 | 61. DuckDB Removal | v2.6 | 1/1 | Complete | 2026-04-17 |
 | 62. Pipeline Join | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 63. SQLite Data Layer | v2.7 | 2/2 | Complete    | 2026-04-17 |
-| 64. OccurrenceSource | v2.7 | 0/? | Not started | — |
+| 64. OccurrenceSource | v2.7 | 1/2 | In Progress|  |
 | 65. UI Unification | v2.7 | 0/? | Not started | — |
