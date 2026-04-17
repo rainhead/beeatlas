@@ -19,11 +19,11 @@
 - ✅ **v2.4 Header Navigation & Toolbar** — Phases 52–54 (shipped 2026-04-14)
 - ✅ **v2.5 Elevation Data** — Phases 55–58 (shipped 2026-04-16)
 - ✅ **v2.6 SQLite WASM Migration** — Phases 59–61 (shipped 2026-04-17)
-- 🔲 **v2.7 Unified Occurrence Model** — Phases 62–64
-- 🔲 **v2.8 Liveness: Provisional Specimen Records** — Phases 65–66
-- 🔲 **v2.9 UI Flow Redesign** — Phases 67–69
-- 🔲 **v3.0 Plants Tab** — Phases 70–71
-- 🔲 **v3.1 Data Quality Flags** — Phase 72
+- 🔲 **v2.7 Unified Occurrence Model** — Phases 62–65
+- 🔲 **v2.8 Liveness: Provisional Specimen Records** — Phases 66–67
+- 🔲 **v2.9 UI Flow Redesign** — Phases 68–70
+- 🔲 **v3.0 Plants Tab** — Phases 71–72
+- 🔲 **v3.1 Data Quality Flags** — Phase 73
 
 ## Phases
 
@@ -270,41 +270,62 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
 
 </details>
 
-### v2.7 Unified Occurrence Model (Planned)
+### v2.7 Unified Occurrence Model (Phases 62–65)
 
-**Milestone Goal:** Produce a single `occurrences.parquet` from a full outer join of specimens and samples. The unified record carries an epistemic-state field: specimen-only, sample-only, or both. Frontend renders one record type with varying completeness.
+**Milestone Goal:** Collapse separate ecdysis/iNat parquet files and frontend layers into a single `occurrences.parquet`. Column nullability conveys which sources contributed to each row.
 
-- [ ] **Phase 62: Pipeline Join** — export.py produces occurrences.parquet; retain separate parquets during transition
-- [ ] **Phase 63: Frontend Data Layer** — replace dual-parquet load with single occurrences table; update filter SQL
-- [ ] **Phase 64: UI Update** — unified detail panel reflecting epistemic state; update map layers
+- [ ] **Phase 62: Pipeline Join** — export.py produces occurrences.parquet from full outer join; coordinate/date unification; schema gate updated
+- [ ] **Phase 63: SQLite Data Layer** — load single occurrences table; buildFilterSQL and all query functions updated for unified table
+- [ ] **Phase 64: OccurrenceSource** — single OL source replaces EcdysisSource and SampleSource; unified feature ID convention
+- [ ] **Phase 65: UI Unification** — bee-occurrence-detail replaces dual detail components; bee-atlas/bee-map updated; bee-table columns unified
 
-### v2.8 Liveness: Provisional Specimen Records (Planned)
+## Phase Details
 
-**Milestone Goal:** Ingest iNat specimen observations posted by collectors before they appear in Ecdysis. Surface as provisional records on the map to convey currency and volunteer activity.
+### Phase 62: Pipeline Join
+**Goal**: The pipeline produces a single `occurrences.parquet` that correctly unifies all specimen and sample records through a full outer join
+**Depends on**: Phase 61
+**Requirements**: OCC-01, OCC-03
+**Success Criteria** (what must be TRUE):
+  1. Running `data/run.py` produces `occurrences.parquet` in `frontend/public/data/`; `ecdysis.parquet` and `samples.parquet` are no longer produced
+  2. Specimen-only rows have null values in sample-side columns (observer, specimen_count); sample-only rows have null values in specimen-side columns (scientificName, family, etc.)
+  3. All rows carry canonical `lat`, `lon` columns (COALESCE of ecdysis and iNat coordinate columns) and a `date` column in VARCHAR ISO format
+  4. `validate-schema.mjs` enforces the `occurrences.parquet` schema and CI passes with the new file
+**Plans**: TBD
 
-- [ ] **Phase 65: Pipeline — Provisional Specimen Ingest** — fetch WABA iNat observations of type specimen (not sample records); store with `provisional: true` flag
-- [ ] **Phase 66: Frontend — Provisional Record Display** — render provisional records distinctly on map; link to iNat observation
+### Phase 63: SQLite Data Layer
+**Goal**: The frontend loads occurrence data from a single SQLite table and all filter queries operate on that table
+**Depends on**: Phase 62
+**Requirements**: OCC-05, OCC-06
+**Success Criteria** (what must be TRUE):
+  1. `sqlite.ts` loads `occurrences.parquet` into a single `occurrences` table; no `ecdysis` or `samples` tables exist at runtime
+  2. All existing filters (taxon, year, month, county, ecoregion, elevation) produce correct SQL WHERE clauses against the `occurrences` table
+  3. `queryVisibleIds`, `queryTablePage`, `queryAllFiltered`, and `queryFilteredCounts` all return correct results from the unified table
+  4. All existing filter unit tests pass without modification to their assertions
+**Plans**: TBD
 
-### v2.9 UI Flow Redesign (Planned)
+### Phase 64: OccurrenceSource
+**Goal**: The map renders all occurrences from a single OpenLayers vector source using the correct feature ID convention
+**Depends on**: Phase 63
+**Requirements**: OCC-07
+**Success Criteria** (what must be TRUE):
+  1. A single OL vector source (`OccurrenceSource`) replaces the separate `EcdysisSource` and `SampleSource`; both old source classes are deleted
+  2. Specimen-backed features carry IDs of the form `ecdysis:<int>`; sample-only features carry IDs of the form `inat:<int>`
+  3. All occurrences (specimens and samples) appear on the map with correct coordinates and recency-based cluster coloring
+  4. Clicking an occurrence cluster opens the sidebar detail panel with the correct record
+**Plans**: TBD
+**UI hint**: yes
 
-**Milestone Goal:** Reorganize the UI around the flow: overview → narrow → dive. Map always visible. Filter as collapsible panel that hints at what's filterable. Table as a drawer over the map, not a replacement for it.
-
-- [ ] **Phase 67: Filter Panel Redesign** — collapsible, with discovery hints (e.g. top genera/counties in current view); doesn't consume space when idle
-- [ ] **Phase 68: Table Drawer** — table slides up over map rather than replacing it; spatial context preserved throughout
-- [ ] **Phase 69: Map Overlay Sidebar** — detail panel overlays map instead of shifting it
-
-### v3.0 Plants Tab (Planned)
-
-**Milestone Goal:** A Plants tab showing plant species present in Washington with per-species × H3/ecoregion × month sampling coverage — how many plant observations exist and how many times bee visitors have been sampled.
-
-- [ ] **Phase 70: Plants Pipeline** — compile plant species dataset outside browser; produce plants.parquet
-- [ ] **Phase 71: Plants Frontend View** — Plants tab UI with species list, coverage map, and filter
-
-### v3.1 Data Quality Flags (Planned)
-
-**Milestone Goal:** Heuristics-based flags on occurrence records surfacing likely data issues (duplicate sample or field numbers, implausible coordinates, etc.).
-
-- [ ] **Phase 72: Quality Flag Pipeline and Display** — flag generation in pipeline; surface flags in sidebar detail and table view
+### Phase 65: UI Unification
+**Goal**: The sidebar detail, map layer wiring, and table view all operate on the unified occurrence model with no remnants of the dual-source architecture
+**Depends on**: Phase 64
+**Requirements**: OCC-08, OCC-09, OCC-10
+**Success Criteria** (what must be TRUE):
+  1. The `<bee-occurrence-detail>` component renders specimen columns, sample columns, or both depending on which are non-null for the clicked record — null rows are omitted entirely
+  2. `bee-atlas` coordinator and `bee-map` have no references to `layerMode`, `EcdysisSource`, or `SampleSource`; the layer-switching toggle is removed from the UI
+  3. The table view shows a unified column set for all occurrence rows; specimen-only and sample-only fields display as blank cells when null
+  4. All existing tests pass; `<bee-specimen-detail>` and `<bee-sample-detail>` components are deleted
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
@@ -371,3 +392,7 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
 | 59. Benchmark Baseline | v2.6 | 1/1 | Complete | 2026-04-16 |
 | 60. wa-sqlite Integration | v2.6 | 3/3 | Complete | 2026-04-17 |
 | 61. DuckDB Removal | v2.6 | 1/1 | Complete | 2026-04-17 |
+| 62. Pipeline Join | v2.7 | 0/? | Not started | — |
+| 63. SQLite Data Layer | v2.7 | 0/? | Not started | — |
+| 64. OccurrenceSource | v2.7 | 0/? | Not started | — |
+| 65. UI Unification | v2.7 | 0/? | Not started | — |
