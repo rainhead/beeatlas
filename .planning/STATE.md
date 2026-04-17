@@ -3,9 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.7
 milestone_name: Unified Occurrence Model
 status: planning
-stopped_at: Roadmap created — ready to plan Phase 62
-last_updated: "2026-04-16T00:00:00.000Z"
-last_activity: 2026-04-16
+last_updated: "2026-04-17T15:57:47.481Z"
+last_activity: 2026-04-16 — Roadmap written for v2.7
 progress:
   total_phases: 4
   completed_phases: 0
