@@ -1,6 +1,9 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  optimizeDeps: {
+    exclude: ['wa-sqlite'],
+  },
   build: {
     sourcemap: true,
   },
