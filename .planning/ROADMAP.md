@@ -306,7 +306,7 @@ Plans:
   4. All existing filter unit tests pass without modification to their assertions
 **Plans**: 2 plans
 Plans:
-- [ ] 63-01-PLAN.md — Single occurrences table in sqlite.ts + loadOccurrencesTable rename
+- [x] 63-01-PLAN.md — Single occurrences table in sqlite.ts + loadOccurrencesTable rename
 - [ ] 63-02-PLAN.md — Unified buildFilterSQL and query functions for occurrences table
 
 
@@ -407,6 +407,6 @@ Plans:
 | 60. wa-sqlite Integration | v2.6 | 3/3 | Complete | 2026-04-17 |
 | 61. DuckDB Removal | v2.6 | 1/1 | Complete | 2026-04-17 |
 | 62. Pipeline Join | v2.7 | 2/2 | Complete    | 2026-04-17 |
-| 63. SQLite Data Layer | v2.7 | 0/? | Not started | — |
+| 63. SQLite Data Layer | v2.7 | 1/2 | In Progress|  |
 | 64. OccurrenceSource | v2.7 | 0/? | Not started | — |
 | 65. UI Unification | v2.7 | 0/? | Not started | — |
