@@ -8,14 +8,14 @@ A fresh connection is opened for the first-query latency measurement.
 
 ## Results
 
-| Metric | DuckDB WASM (Phase 59 baseline) | wa-sqlite (Phase 61 after migration) |
-|--------|---------------------------------|---------------------------------------|
-| WASM instantiate time (ms) | 539 | ___ |
-| tablesReady total time (ms) | 1941 | ___ |
-| First-query latency (ms) | 613 | ___ |
-| Heap before init (MB) | 6.6 | ___ |
-| Heap after instantiate (MB) | 16.7 | ___ |
-| Heap after tablesReady (MB) | 18.7 | ___ |
+| Metric | DuckDB WASM (Phase 59 baseline) | wa-sqlite (Phase 60) |
+|--------|---------------------------------|----------------------|
+| WASM instantiate time (ms) | 539 | 69 |
+| tablesReady total time (ms) | 1941 | 1087 |
+| First-query latency (ms) | 613 | 1 |
+| Heap before init (MB) | 6.6 | 108.4 |
+| Heap after instantiate (MB) | 16.7 | 13.2 |
+| Heap after tablesReady (MB) | 18.7 | 76.6 |
 
 ## Notes
 
