@@ -1,0 +1,132 @@
+import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs';
+import * as SQLite from 'wa-sqlite';
+import { MemoryVFS } from 'wa-sqlite/src/examples/MemoryVFS.js';
+import { asyncBufferFromUrl, parquetReadObjects } from 'hyparquet';
+
+type SQLiteAPI = ReturnType<typeof SQLite.Factory>;
+
+let _dbPromise: Promise<{ sqlite3: SQLiteAPI; db: number }> | null = null;
+let _benchmarkT0 = 0;
+
+function _heapMB(): number {
+  return ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1_048_576;
+}
+
+let _tablesReadyResolve: (() => void) | null = null;
+export const tablesReady: Promise<void> = new Promise(resolve => {
+  _tablesReadyResolve = resolve;
+});
+
+async function _init(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
+  const t0 = performance.now();
+  const mem0 = _heapMB();
+  const module = await SQLiteESMFactory();
+  const sqlite3 = SQLite.Factory(module);
+  const vfs = new MemoryVFS();
+  sqlite3.vfs_register(vfs, true);
+  const db = await sqlite3.open_v2(':memory:');
+  const t1 = performance.now();
+  const mem1 = _heapMB();
+  console.log(`[BENCHMARK] WASM instantiate: ${(t1 - t0).toFixed(0)} ms | heap: ${mem0.toFixed(1)} -> ${mem1.toFixed(1)} MB`);
+  _benchmarkT0 = t0;
+  return { sqlite3, db };
+}
+
+export function getDB(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
+  if (!_dbPromise) _dbPromise = _init();
+  return _dbPromise;
+}
+
+export async function loadAllTables(baseUrl: string): Promise<void> {
+  const { sqlite3, db } = await getDB();
+
+  await sqlite3.exec(db, `CREATE TABLE ecdysis (
+    ecdysis_id INTEGER,
+    longitude REAL,
+    latitude REAL,
+    year INTEGER,
+    month INTEGER,
+    scientificName TEXT,
+    recordedBy TEXT,
+    fieldNumber TEXT,
+    genus TEXT,
+    family TEXT,
+    floralHost TEXT,
+    county TEXT,
+    ecoregion_l3 TEXT,
+    host_observation_id INTEGER,
+    inat_host TEXT,
+    inat_quality_grade TEXT,
+    specimen_observation_id INTEGER,
+    elevation_m REAL,
+    date TEXT,
+    modified TEXT,
+    catalog_number TEXT
+  )`);
+
+  await sqlite3.exec(db, `CREATE TABLE samples (
+    observation_id INTEGER,
+    observer TEXT,
+    date TEXT,
+    lat REAL,
+    lon REAL,
+    specimen_count INTEGER,
+    sample_id INTEGER,
+    county TEXT,
+    ecoregion_l3 TEXT,
+    elevation_m REAL
+  )`);
+
+  const ecdysisFile = await asyncBufferFromUrl({ url: `${baseUrl}/ecdysis.parquet` });
+  const ecdysisRows = await parquetReadObjects({ file: ecdysisFile });
+
+  const samplesFile = await asyncBufferFromUrl({ url: `${baseUrl}/samples.parquet` });
+  const samplesRows = await parquetReadObjects({ file: samplesFile });
+
+  await _insertRows(sqlite3, db, 'ecdysis', ecdysisRows);
+  await _insertRows(sqlite3, db, 'samples', samplesRows);
+
+  console.debug('SQLite table counts: ecdysis:', ecdysisRows.length, 'samples:', samplesRows.length);
+
+  if (_tablesReadyResolve) _tablesReadyResolve();
+
+  const tReady = performance.now();
+  const mem2 = _heapMB();
+
+  const tQueryStart = performance.now();
+  await sqlite3.exec(db, 'SELECT COUNT(*) FROM ecdysis', (_vals: any) => { /* first-query benchmark */ });
+  const tQueryEnd = performance.now();
+
+  console.log(
+    `[BENCHMARK] tablesReady: ${(tReady - _benchmarkT0).toFixed(0)} ms total from init start`,
+    `| heap after tables: ${mem2.toFixed(1)} MB`,
+    `| first-query latency: ${(tQueryEnd - tQueryStart).toFixed(0)} ms`,
+  );
+}
+
+async function _insertRows(
+  sqlite3: SQLiteAPI,
+  db: number,
+  table: string,
+  rows: Record<string, unknown>[]
+): Promise<void> {
+  if (rows.length === 0) return;
+  const cols = Object.keys(rows[0]!);
+  const placeholders = cols.map(() => '?').join(', ');
+  const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`;
+
+  await sqlite3.exec(db, 'BEGIN');
+  for await (const stmt of sqlite3.statements(db, sql)) {
+    for (const row of rows) {
+      sqlite3.bind_collection(stmt, cols.map(c => {
+        const v = row[c];
+        if (v == null) return null;
+        if (typeof v === 'bigint') return Number(v);
+        return v;
+      }) as any);
+      await sqlite3.step(stmt);
+      sqlite3.reset(stmt);
+    }
+  }
+  await sqlite3.exec(db, 'COMMIT');
+}
