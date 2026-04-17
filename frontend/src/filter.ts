@@ -141,24 +141,24 @@ export async function queryAllFiltered(
   layerMode: 'specimens' | 'samples',
   sortBy: SpecimenSortBy = 'date'
 ): Promise<Record<string, unknown>[]> {
-  const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
+  const { occurrenceWhere } = buildFilterSQL(f);
   const orderBy = layerMode === 'specimens'
     ? (sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER)
     : SAMPLE_ORDER;
 
   const selectCols = layerMode === 'specimens'
-    ? "ecdysis_id, longitude, latitude, date, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, " +
+    ? "ecdysis_id, lat, lon, date, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, " +
       "'https://ecdysis.org/collections/individual/index.php?occid=' || CAST(ecdysis_id AS TEXT) AS url, " +
       "CASE WHEN host_observation_id IS NOT NULL THEN 'https://www.inaturalist.org/observations/' || CAST(host_observation_id AS TEXT) ELSE NULL END AS inat_url"
     : "observation_id, observer, strftime('%Y-%m-%d', date) as date, lat, lon, specimen_count, sample_id, county, ecoregion_l3";
-  const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
-  const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;
+  const discriminator = layerMode === 'specimens' ? 'ecdysis_id IS NOT NULL' : 'observation_id IS NOT NULL';
+  const where = `${discriminator} AND ${occurrenceWhere}`;
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: Record<string, unknown>[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy}`,
+    `SELECT ${selectCols} FROM occurrences WHERE ${where} ORDER BY ${orderBy}`,
     (rowValues: unknown[], columnNames: string[]) => {
       const obj: Record<string, unknown> = {};
       columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
@@ -180,9 +180,9 @@ export async function queryTablePage(
     : SAMPLE_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
 
-  const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-  const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
-  const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;
+  const { occurrenceWhere } = buildFilterSQL(f);
+  const discriminator = layerMode === 'specimens' ? 'ecdysis_id IS NOT NULL' : 'observation_id IS NOT NULL';
+  const where = `${discriminator} AND ${occurrenceWhere}`;
   const selectCols = layerMode === 'specimens'
     ? Object.values(columns).join(', ')
     : Object.entries(columns).map(([k, col]) =>
@@ -193,14 +193,14 @@ export async function queryTablePage(
   const { sqlite3, db } = await getDB();
   let total = 0;
   await sqlite3.exec(db,
-    `SELECT COUNT(*) as n FROM ${table} WHERE ${where}`,
+    `SELECT COUNT(*) as n FROM occurrences WHERE ${where}`,
     (rowValues: unknown[], columnNames: string[]) => {
       total = Number(rowValues[columnNames.indexOf('n')] ?? 0);
     }
   );
   const rows: Record<string, unknown>[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    `SELECT ${selectCols} FROM occurrences WHERE ${where} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
     (rowValues: unknown[], columnNames: string[]) => {
       const obj: Record<string, unknown> = {};
       columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
@@ -222,56 +222,48 @@ export function isFilterActive(f: FilterState): boolean {
     || f.elevMax !== null;
 }
 
-export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesWhere: string } {
-  const ecdysisClauses: string[] = [];
-  const samplesClauses: string[] = [];
+export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
+  const occurrenceClauses: string[] = [];
 
-  // Taxon filter — ecdysis only (samples have no taxon columns)
+  // Taxon filter — null semantics naturally exclude sample-only rows (no taxon columns)
   if (f.taxonName !== null && f.taxonRank !== null) {
     const escaped = f.taxonName.replace(/'/g, "''");
     if (f.taxonRank === 'family') {
-      ecdysisClauses.push(`family = '${escaped}'`);
+      occurrenceClauses.push(`family = '${escaped}'`);
     } else if (f.taxonRank === 'genus') {
-      ecdysisClauses.push(`genus = '${escaped}'`);
+      occurrenceClauses.push(`genus = '${escaped}'`);
     } else {
-      ecdysisClauses.push(`scientificName = '${escaped}'`);
+      occurrenceClauses.push(`scientificName = '${escaped}'`);
     }
-    // Taxon filter ghosts all samples — add impossible clause per D-01
-    samplesClauses.push('1 = 0');
   }
 
-  // Year range — both tables have year (samples derive year from date)
+  // Year range — direct column comparison; null year for sample-only rows naturally excludes them
   if (f.yearFrom !== null) {
-    ecdysisClauses.push(`year >= ${f.yearFrom}`);
-    samplesClauses.push(`CAST(strftime('%Y', date) AS INTEGER) >= ${f.yearFrom}`);
+    occurrenceClauses.push(`year >= ${f.yearFrom}`);
   }
   if (f.yearTo !== null) {
-    ecdysisClauses.push(`year <= ${f.yearTo}`);
-    samplesClauses.push(`CAST(strftime('%Y', date) AS INTEGER) <= ${f.yearTo}`);
+    occurrenceClauses.push(`year <= ${f.yearTo}`);
   }
 
-  // Month filter — both tables (samples derive month from date)
+  // Month filter — direct column comparison; null month for sample-only rows naturally excludes them
   if (f.months.size > 0) {
     const monthList = [...f.months].join(',');
-    ecdysisClauses.push(`month IN (${monthList})`);
-    samplesClauses.push(`CAST(strftime('%m', date) AS INTEGER) IN (${monthList})`);
+    occurrenceClauses.push(`month IN (${monthList})`);
   }
 
-  // County filter — both tables have county column
+  // County filter
   if (f.selectedCounties.size > 0) {
     const counties = [...f.selectedCounties].map(c => `'${c.replace(/'/g, "''")}'`).join(',');
-    ecdysisClauses.push(`county IN (${counties})`);
-    samplesClauses.push(`county IN (${counties})`);
+    occurrenceClauses.push(`county IN (${counties})`);
   }
 
-  // Ecoregion filter — both tables have ecoregion_l3 column
+  // Ecoregion filter
   if (f.selectedEcoregions.size > 0) {
     const ecors = [...f.selectedEcoregions].map(e => `'${e.replace(/'/g, "''")}'`).join(',');
-    ecdysisClauses.push(`ecoregion_l3 IN (${ecors})`);
-    samplesClauses.push(`ecoregion_l3 IN (${ecors})`);
+    occurrenceClauses.push(`ecoregion_l3 IN (${ecors})`);
   }
 
-  // Collector filter — ecdysis uses recordedBy, samples uses observer (iNat username)
+  // Collector filter — single OR clause combining recordedBy (ecdysis) and observer (iNat)
   if (f.selectedCollectors.length > 0) {
     const recordedBys = f.selectedCollectors
       .filter(c => c.recordedBy !== null)
@@ -279,25 +271,23 @@ export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesW
     const observers = f.selectedCollectors
       .filter(c => c.observer !== null)
       .map(c => `'${c.observer!.replace(/'/g, "''")}'`);
-    if (recordedBys.length > 0) ecdysisClauses.push(`recordedBy IN (${recordedBys.join(',')})`);
-    if (observers.length > 0) samplesClauses.push(`observer IN (${observers.join(',')})`);
+    const parts: string[] = [];
+    if (recordedBys.length > 0) parts.push(`recordedBy IN (${recordedBys.join(',')})`);
+    if (observers.length > 0) parts.push(`observer IN (${observers.join(',')})`);
+    if (parts.length > 0) occurrenceClauses.push(`(${parts.join(' OR ')})`);
   }
 
-  // Elevation filter (D-06): conditional null semantics
+  // Elevation filter — conditional null semantics
   if (f.elevMin !== null && f.elevMax !== null) {
-    ecdysisClauses.push(`elevation_m IS NOT NULL AND elevation_m BETWEEN ${f.elevMin} AND ${f.elevMax}`);
-    samplesClauses.push(`elevation_m IS NOT NULL AND elevation_m BETWEEN ${f.elevMin} AND ${f.elevMax}`);
+    occurrenceClauses.push(`elevation_m IS NOT NULL AND elevation_m BETWEEN ${f.elevMin} AND ${f.elevMax}`);
   } else if (f.elevMin !== null) {
-    ecdysisClauses.push(`(elevation_m IS NULL OR elevation_m >= ${f.elevMin})`);
-    samplesClauses.push(`(elevation_m IS NULL OR elevation_m >= ${f.elevMin})`);
+    occurrenceClauses.push(`(elevation_m IS NULL OR elevation_m >= ${f.elevMin})`);
   } else if (f.elevMax !== null) {
-    ecdysisClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
-    samplesClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
+    occurrenceClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
   }
 
-  const ecdysisWhere = ecdysisClauses.length > 0 ? ecdysisClauses.join(' AND ') : '1 = 1';
-  const samplesWhere = samplesClauses.length > 0 ? samplesClauses.join(' AND ') : '1 = 1';
-  return { ecdysisWhere, samplesWhere };
+  const occurrenceWhere = occurrenceClauses.length > 0 ? occurrenceClauses.join(' AND ') : '1 = 1';
+  return { occurrenceWhere };
 }
 
 export interface FilteredCounts {
@@ -309,14 +299,14 @@ export interface FilteredCounts {
 
 export async function queryFilteredCounts(f: FilterState): Promise<FilteredCounts | null> {
   if (!isFilterActive(f)) return null;
-  const { ecdysisWhere } = buildFilterSQL(f);
+  const { occurrenceWhere } = buildFilterSQL(f);
   await tablesReady;
   const { sqlite3, db } = await getDB();
   let result: Record<string, unknown> = {};
   await sqlite3.exec(db,
     `SELECT COUNT(*) as specimens, COUNT(DISTINCT scientificName) as species,
             COUNT(DISTINCT genus) as genera, COUNT(DISTINCT family) as families
-     FROM ecdysis WHERE ${ecdysisWhere}`,
+     FROM occurrences WHERE ecdysis_id IS NOT NULL AND ${occurrenceWhere}`,
     (rowValues: unknown[], columnNames: string[]) => {
       result = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
     }
@@ -334,20 +324,19 @@ export async function queryVisibleIds(f: FilterState): Promise<{ ecdysis: Set<st
     return { ecdysis: null, samples: null };
   }
 
-  const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-  console.debug('[filter-sql] ecdysis WHERE:', ecdysisWhere);
-  console.debug('[filter-sql] samples WHERE:', samplesWhere);
+  const { occurrenceWhere } = buildFilterSQL(f);
+  console.debug('[filter-sql] occurrence WHERE:', occurrenceWhere);
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const ecdysisIds = new Set<string>();
   await sqlite3.exec(db,
-    `SELECT ecdysis_id FROM ecdysis WHERE ${ecdysisWhere}`,
+    `SELECT ecdysis_id FROM occurrences WHERE ecdysis_id IS NOT NULL AND ${occurrenceWhere}`,
     (rowValues: unknown[]) => { ecdysisIds.add(`ecdysis:${Number(rowValues[0])}`); }
   );
   const sampleIds = new Set<string>();
   await sqlite3.exec(db,
-    `SELECT observation_id FROM samples WHERE ${samplesWhere}`,
+    `SELECT observation_id FROM occurrences WHERE observation_id IS NOT NULL AND ${occurrenceWhere}`,
     (rowValues: unknown[]) => { sampleIds.add(`inat:${Number(rowValues[0])}`); }
   );
   return { ecdysis: ecdysisIds, samples: sampleIds };
