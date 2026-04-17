@@ -290,7 +290,10 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
   2. Specimen-only rows have null values in sample-side columns (observer, specimen_count); sample-only rows have null values in specimen-side columns (scientificName, family, etc.)
   3. All rows carry canonical `lat`, `lon` columns (COALESCE of ecdysis and iNat coordinate columns) and a `date` column in VARCHAR ISO format
   4. `validate-schema.mjs` enforces the `occurrences.parquet` schema and CI passes with the new file
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
+- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
 
 ### Phase 63: SQLite Data Layer
 **Goal**: The frontend loads occurrence data from a single SQLite table and all filter queries operate on that table
@@ -301,7 +304,10 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
   2. All existing filters (taxon, year, month, county, ecoregion, elevation) produce correct SQL WHERE clauses against the `occurrences` table
   3. `queryVisibleIds`, `queryTablePage`, `queryAllFiltered`, and `queryFilteredCounts` all return correct results from the unified table
   4. All existing filter unit tests pass without modification to their assertions
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
+- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
 
 ### Phase 64: OccurrenceSource
 **Goal**: The map renders all occurrences from a single OpenLayers vector source using the correct feature ID convention
@@ -312,7 +318,10 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
   2. Specimen-backed features carry IDs of the form `ecdysis:<int>`; sample-only features carry IDs of the form `inat:<int>`
   3. All occurrences (specimens and samples) appear on the map with correct coordinates and recency-based cluster coloring
   4. Clicking an occurrence cluster opens the sidebar detail panel with the correct record
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
+- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
 **UI hint**: yes
 
 ### Phase 65: UI Unification
@@ -324,7 +333,10 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
   2. `bee-atlas` coordinator and `bee-map` have no references to `layerMode`, `EcdysisSource`, or `SampleSource`; the layer-switching toggle is removed from the UI
   3. The table view shows a unified column set for all occurrence rows; specimen-only and sample-only fields display as blank cells when null
   4. All existing tests pass; `<bee-specimen-detail>` and `<bee-sample-detail>` components are deleted
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
+- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
 **UI hint**: yes
 
 ## Progress
