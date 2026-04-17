@@ -1,27 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { CollectorEntry } from './filter.ts';
-import './bee-specimen-detail.ts';
-import './bee-sample-detail.ts';
-
-export interface Specimen {
-  name: string;
-  occid: string;
-  hostObservationId?: number | null;
-  floralHost?: string | null;
-  inatHost?: string | null;
-  inatQualityGrade?: string | null;
-  specimenObservationId?: number | null;
-}
-
-export interface Sample {
-  year: number;
-  month: number;
-  recordedBy: string;
-  fieldNumber: string;
-  species: Specimen[];
-  elevation_m: number | null;
-}
+import type { CollectorEntry, OccurrenceRow } from './filter.ts';
+import './bee-occurrence-detail.ts';
 
 export interface DataSummary {
   totalSpecimens: number;
@@ -47,16 +27,6 @@ export interface FilteredSummary {
   isActive: boolean;    // true if any filter is on (controls whether to show "X of Y" or just "Y")
 }
 
-export interface SampleEvent {
-  observation_id: number;
-  observer: string;
-  date: string;
-  specimen_count: number;
-  sample_id: number | null;
-  coordinate: number[];  // EPSG:3857
-  elevation_m: number | null;
-}
-
 // Custom event payload
 export interface FilterChangedEvent {
   taxonName: string | null;
@@ -74,10 +44,7 @@ export interface FilterChangedEvent {
 @customElement('bee-sidebar')
 export class BeeSidebar extends LitElement {
   @property({ attribute: false })
-  samples: Sample[] | null = null;
-
-  @property({ attribute: false })
-  selectedSampleEvent: SampleEvent | null = null;
+  occurrences: OccurrenceRow[] | null = null;
 
   static styles = css`
     :host {
@@ -136,11 +103,9 @@ export class BeeSidebar extends LitElement {
       <div class="sidebar-header">
         <button class="close-btn" @click=${this._onCloseClick} aria-label="Close detail panel">&times;</button>
       </div>
-      ${this.samples !== null
-        ? html`<bee-specimen-detail .samples=${this.samples}></bee-specimen-detail>`
-        : this.selectedSampleEvent !== null
-          ? html`<bee-sample-detail .sampleEvent=${this.selectedSampleEvent}></bee-sample-detail>`
-          : html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
+      ${this.occurrences !== null
+        ? html`<bee-occurrence-detail .occurrences=${this.occurrences}></bee-occurrence-detail>`
+        : html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
       }
     `;
   }
