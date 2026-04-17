@@ -1,5 +1,5 @@
 import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
-import { buildFilterSQL, buildCsvFilename, queryTablePage, SPECIMEN_COLUMNS, SAMPLE_COLUMNS, isFilterActive } from '../filter.ts';
+import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, isFilterActive } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDB } from '../sqlite.ts';
 
@@ -162,62 +162,54 @@ describe('isFilterActive — elevation', () => {
 
 describe('buildCsvFilename', () => {
   // Date frozen to 2026-01-15 → suffix is 20260115.
-  test('no filter active: specimens => specimens-all-20260115.csv', () => {
-    expect(buildCsvFilename(emptyFilter(), 'specimens')).toBe('specimens-all-20260115.csv');
+  test('no filter active: occurrences-all-20260115.csv', () => {
+    expect(buildCsvFilename(emptyFilter())).toBe('occurrences-all-20260115.csv');
   });
 
-  test('no filter active: samples => samples-all-20260115.csv', () => {
-    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all-20260115.csv');
-  });
-
-  test('taxon only: specimens-bombus-20260115.csv', () => {
+  test('taxon only: occurrences-bombus-20260115.csv', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-bombus-20260115.csv');
   });
 
-  test('taxon + same yearFrom/yearTo: specimens-bombus-2023-20260115.csv', () => {
+  test('taxon + same yearFrom/yearTo: occurrences-bombus-2023-20260115.csv', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2023, yearTo: 2023 };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2023-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-bombus-2023-20260115.csv');
   });
 
-  test('taxon + year range: specimens-bombus-2020-2023-20260115.csv', () => {
+  test('taxon + year range: occurrences-bombus-2020-2023-20260115.csv', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2020, yearTo: 2023 };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-2020-2023-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-bombus-2020-2023-20260115.csv');
   });
 
-  test('taxon + county: specimens-bombus-king-20260115.csv (at most 2 segments)', () => {
+  test('taxon + county: occurrences-bombus-king-20260115.csv (at most 2 segments)', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, selectedCounties: new Set(['King']) };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-king-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-bombus-king-20260115.csv');
   });
 
-  test('county only: specimens-king-20260115.csv', () => {
+  test('county only: occurrences-king-20260115.csv', () => {
     const f = { ...emptyFilter(), selectedCounties: new Set(['King']) };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-king-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-king-20260115.csv');
   });
 
   test('collector only: slugified displayName', () => {
     const f = { ...emptyFilter(), selectedCollectors: [{ displayName: 'Roy D. Smith', recordedBy: 'Roy D. Smith', observer: null }] };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-roy-d-smith-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-roy-d-smith-20260115.csv');
   });
 
-  test('only yearFrom set: specimens-2023-20260115.csv', () => {
+  test('only yearFrom set: occurrences-2023-20260115.csv', () => {
     const f = { ...emptyFilter(), yearFrom: 2023 };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-2023-20260115.csv');
-  });
-
-  test('samples with filter: samples-all-20260115.csv when no filter', () => {
-    expect(buildCsvFilename(emptyFilter(), 'samples')).toBe('samples-all-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-2023-20260115.csv');
   });
 
   test('taxon with spaces: slugified to lowercase hyphens', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus occidentalis', taxonRank: 'species' as const };
-    expect(buildCsvFilename(f, 'specimens')).toBe('specimens-bombus-occidentalis-20260115.csv');
+    expect(buildCsvFilename(f)).toBe('occurrences-bombus-occidentalis-20260115.csv');
   });
 
   test('segment truncated to 20 chars max', () => {
     const f = { ...emptyFilter(), taxonName: 'Averyverylongtaxonnamethatexceeds', taxonRank: 'genus' as const };
-    const result = buildCsvFilename(f, 'specimens');
-    expect(result).toBe('specimens-averyverylongtaxonna-20260115.csv');
+    const result = buildCsvFilename(f);
+    expect(result).toBe('occurrences-averyverylongtaxonna-20260115.csv');
   });
 });
 
@@ -229,34 +221,16 @@ describe('single-quote escaping', () => {
   });
 });
 
-describe('SPECIMEN_COLUMNS and SAMPLE_COLUMNS', () => {
-  test('SPECIMEN_COLUMNS maps species to scientificName', () => {
-    expect(SPECIMEN_COLUMNS['species']).toBe('scientificName');
-  });
-
-  test('SPECIMEN_COLUMNS maps collector to recordedBy', () => {
-    expect(SPECIMEN_COLUMNS['collector']).toBe('recordedBy');
-  });
-
-  test('SPECIMEN_COLUMNS maps date, year, month, county, fieldNumber correctly', () => {
-    expect(SPECIMEN_COLUMNS['date']).toBe('date');
-    expect(SPECIMEN_COLUMNS['year']).toBe('year');
-    expect(SPECIMEN_COLUMNS['month']).toBe('month');
-    expect(SPECIMEN_COLUMNS['county']).toBe('county');
-    expect(SPECIMEN_COLUMNS['fieldNumber']).toBe('fieldNumber');
-  });
-
-  test('SPECIMEN_COLUMNS maps ecoregion to ecoregion_l3', () => {
-    expect(SPECIMEN_COLUMNS['ecoregion']).toBe('ecoregion_l3');
-  });
-
-  test('SAMPLE_COLUMNS maps observer, date, specimenCount, sampleId, county, ecoregion correctly', () => {
-    expect(SAMPLE_COLUMNS['observer']).toBe('observer');
-    expect(SAMPLE_COLUMNS['date']).toBe('date');
-    expect(SAMPLE_COLUMNS['specimenCount']).toBe('specimen_count');
-    expect(SAMPLE_COLUMNS['sampleId']).toBe('sample_id');
-    expect(SAMPLE_COLUMNS['county']).toBe('county');
-    expect(SAMPLE_COLUMNS['ecoregion']).toBe('ecoregion_l3');
+describe('OCCURRENCE_COLUMNS', () => {
+  test('OCCURRENCE_COLUMNS includes all required column names', () => {
+    expect(OCCURRENCE_COLUMNS).toContain('scientificName');
+    expect(OCCURRENCE_COLUMNS).toContain('recordedBy');
+    expect(OCCURRENCE_COLUMNS).toContain('date');
+    expect(OCCURRENCE_COLUMNS).toContain('county');
+    expect(OCCURRENCE_COLUMNS).toContain('ecoregion_l3');
+    expect(OCCURRENCE_COLUMNS).toContain('observer');
+    expect(OCCURRENCE_COLUMNS).toContain('specimen_count');
+    expect(OCCURRENCE_COLUMNS).toContain('elevation_m');
   });
 });
 
@@ -278,9 +252,9 @@ function mockSQLite(dataRows: Record<string, unknown>[], countValue: number) {
 }
 
 describe('queryTablePage', () => {
-  test('specimens: SQL contains scientificName, recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
+  test('SQL contains scientificName, recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
     const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 1);
+    await queryTablePage(emptyFilter(), 1);
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('scientificName');
     expect(dataSql).toContain('recordedBy');
@@ -292,51 +266,49 @@ describe('queryTablePage', () => {
     expect(dataSql).toContain('fieldNumber');
   });
 
-  test('specimens: SQL contains FROM occurrences and ecdysis_id IS NOT NULL', async () => {
+  test('SQL contains FROM occurrences and does NOT contain ecdysis_id IS NOT NULL discriminator', async () => {
     const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 1);
+    await queryTablePage(emptyFilter(), 1);
     const allSqls = execFn.mock.calls.map((c: unknown[]) => String(c[1]));
     for (const sql of allSqls) {
       expect(sql).toContain('FROM occurrences');
-      expect(sql).toContain('ecdysis_id IS NOT NULL');
+      expect(sql).not.toContain('ecdysis_id IS NOT NULL');
     }
   });
 
-  test('specimens: SQL contains ORDER BY and LIMIT 100 OFFSET', async () => {
+  test('SQL contains observer, specimen_count, sample_id alongside specimen columns', async () => {
     const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 1);
-    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
-    expect(dataSql).toContain('ORDER BY');
-    expect(dataSql).toContain('LIMIT 100');
-    expect(dataSql).toContain('OFFSET');
-  });
-
-  test('samples: SQL contains observer, date, specimen_count, sample_id, county, ecoregion_l3', async () => {
-    const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'samples', 1);
+    await queryTablePage(emptyFilter(), 1);
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('observer');
-    expect(dataSql).toContain('date');
     expect(dataSql).toContain('specimen_count');
     expect(dataSql).toContain('sample_id');
     expect(dataSql).toContain('county');
     expect(dataSql).toContain('ecoregion_l3');
   });
 
-  test('samples: SQL contains FROM occurrences and observation_id IS NOT NULL', async () => {
+  test('SQL does NOT contain observation_id IS NOT NULL discriminator', async () => {
     const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'samples', 1);
+    await queryTablePage(emptyFilter(), 1);
     const allSqls = execFn.mock.calls.map((c: unknown[]) => String(c[1]));
     for (const sql of allSqls) {
-      expect(sql).toContain('FROM occurrences');
-      expect(sql).toContain('observation_id IS NOT NULL');
+      expect(sql).not.toContain('observation_id IS NOT NULL');
     }
+  });
+
+  test('SQL contains ORDER BY and LIMIT 100 OFFSET', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await queryTablePage(emptyFilter(), 1);
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
+    expect(dataSql).toContain('ORDER BY');
+    expect(dataSql).toContain('LIMIT 100');
+    expect(dataSql).toContain('OFFSET');
   });
 
   test('returns { rows, total } with total from COUNT(*)', async () => {
     const dataRows = [{ scientificName: 'Bombus', recordedBy: 'Smith', year: 2020, month: 6, county: 'King', ecoregion_l3: 'Cascades', fieldNumber: 'ABC' }];
     mockSQLite(dataRows, 42);
-    const result = await queryTablePage(emptyFilter(), 'specimens', 1);
+    const result = await queryTablePage(emptyFilter(), 1);
     expect(result.total).toBe(42);
     expect(result.rows).toHaveLength(1);
   });
@@ -344,26 +316,19 @@ describe('queryTablePage', () => {
   test('error propagates when exec throws', async () => {
     const execFn = vi.fn(() => Promise.reject(new Error('query failed')));
     vi.mocked(getDB).mockResolvedValue({ sqlite3: { exec: execFn } as any, db: 0 });
-    await expect(queryTablePage(emptyFilter(), 'specimens', 1)).rejects.toThrow('query failed');
+    await expect(queryTablePage(emptyFilter(), 1)).rejects.toThrow('query failed');
   });
 
-  test('specimens with sortBy=modified: SQL contains modified DESC', async () => {
+  test('with sortBy=modified: SQL contains modified DESC', async () => {
     const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 1, 'modified');
+    await queryTablePage(emptyFilter(), 1, 'modified');
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('modified DESC');
   });
 
-  test('specimens with no sortBy (default): SQL contains date DESC', async () => {
+  test('with no sortBy (default): SQL contains date DESC', async () => {
     const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'specimens', 1);
-    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
-    expect(dataSql).toContain('date DESC');
-  });
-
-  test('samples with sortBy=modified: SQL still uses date DESC (sample order unchanged)', async () => {
-    const { execFn } = mockSQLite([], 0);
-    await queryTablePage(emptyFilter(), 'samples', 1, 'modified');
+    await queryTablePage(emptyFilter(), 1);
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('date DESC');
   });
