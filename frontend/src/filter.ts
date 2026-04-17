@@ -1,4 +1,4 @@
-import { getDuckDB, tablesReady } from './duckdb.ts';
+import { getDB, tablesReady } from './sqlite.ts';
 
 // A resolved collector entry links a human name to an iNat username (either may be null).
 // Stored in FilterState.selectedCollectors and used as CollectorOption in autocomplete.
@@ -148,23 +148,24 @@ export async function queryAllFiltered(
 
   const selectCols = layerMode === 'specimens'
     ? "ecdysis_id, longitude, latitude, date, scientificName, recordedBy, fieldNumber, genus, family, floralHost, county, ecoregion_l3, " +
-      "'https://ecdysis.org/collections/individual/index.php?occid=' || CAST(ecdysis_id AS VARCHAR) AS url, " +
-      "CASE WHEN host_observation_id IS NOT NULL THEN 'https://www.inaturalist.org/observations/' || CAST(host_observation_id AS VARCHAR) ELSE NULL END AS inat_url"
-    : "observation_id, observer, strftime(date, '%Y-%m-%d') as date, lat, lon, specimen_count, sample_id, county, ecoregion_l3";
+      "'https://ecdysis.org/collections/individual/index.php?occid=' || CAST(ecdysis_id AS TEXT) AS url, " +
+      "CASE WHEN host_observation_id IS NOT NULL THEN 'https://www.inaturalist.org/observations/' || CAST(host_observation_id AS TEXT) ELSE NULL END AS inat_url"
+    : "observation_id, observer, strftime('%Y-%m-%d', date) as date, lat, lon, specimen_count, sample_id, county, ecoregion_l3";
   const table = layerMode === 'specimens' ? 'ecdysis' : 'samples';
   const where = layerMode === 'specimens' ? ecdysisWhere : samplesWhere;
 
   await tablesReady;
-  const db = await getDuckDB();
-  const conn = await db.connect();
-  try {
-    const dataResult = await conn.query(
-      `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy}`
-    );
-    return dataResult.toArray().map((r: any) => r.toJSON());
-  } finally {
-    await conn.close();
-  }
+  const { sqlite3, db } = await getDB();
+  const rows: Record<string, unknown>[] = [];
+  await sqlite3.exec(db,
+    `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy}`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      const obj: Record<string, unknown> = {};
+      columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
+      rows.push(obj);
+    }
+  );
+  return rows;
 }
 
 export async function queryTablePage(
@@ -185,25 +186,28 @@ export async function queryTablePage(
   const selectCols = layerMode === 'specimens'
     ? Object.values(columns).join(', ')
     : Object.entries(columns).map(([k, col]) =>
-        k === 'date' ? `strftime(${col}, '%Y-%m-%d') as ${col}` : col
+        k === 'date' ? `strftime('%Y-%m-%d', ${col}) as ${col}` : col
       ).join(', ');
 
   await tablesReady;
-  const db = await getDuckDB();
-  const conn = await db.connect();
-  try {
-    const dataResult = await conn.query(
-      `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`
-    );
-    const countResult = await conn.query(
-      `SELECT COUNT(*) as n FROM ${table} WHERE ${where}`
-    );
-    const rows = dataResult.toArray().map((r: any) => r.toJSON());
-    const total = Number(countResult.toArray()[0]?.toJSON().n ?? 0);
-    return { rows, total };
-  } finally {
-    await conn.close();
-  }
+  const { sqlite3, db } = await getDB();
+  let total = 0;
+  await sqlite3.exec(db,
+    `SELECT COUNT(*) as n FROM ${table} WHERE ${where}`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      total = Number(rowValues[columnNames.indexOf('n')] ?? 0);
+    }
+  );
+  const rows: Record<string, unknown>[] = [];
+  await sqlite3.exec(db,
+    `SELECT ${selectCols} FROM ${table} WHERE ${where} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      const obj: Record<string, unknown> = {};
+      columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
+      rows.push(obj);
+    }
+  );
+  return { rows: rows as unknown as SpecimenRow[] | SampleRow[], total };
 }
 
 export function isFilterActive(f: FilterState): boolean {
@@ -239,18 +243,18 @@ export function buildFilterSQL(f: FilterState): { ecdysisWhere: string; samplesW
   // Year range — both tables have year (samples derive year from date)
   if (f.yearFrom !== null) {
     ecdysisClauses.push(`year >= ${f.yearFrom}`);
-    samplesClauses.push(`year(date::TIMESTAMP) >= ${f.yearFrom}`);
+    samplesClauses.push(`CAST(strftime('%Y', date) AS INTEGER) >= ${f.yearFrom}`);
   }
   if (f.yearTo !== null) {
     ecdysisClauses.push(`year <= ${f.yearTo}`);
-    samplesClauses.push(`year(date::TIMESTAMP) <= ${f.yearTo}`);
+    samplesClauses.push(`CAST(strftime('%Y', date) AS INTEGER) <= ${f.yearTo}`);
   }
 
   // Month filter — both tables (samples derive month from date)
   if (f.months.size > 0) {
     const monthList = [...f.months].join(',');
     ecdysisClauses.push(`month IN (${monthList})`);
-    samplesClauses.push(`month(date::TIMESTAMP) IN (${monthList})`);
+    samplesClauses.push(`CAST(strftime('%m', date) AS INTEGER) IN (${monthList})`);
   }
 
   // County filter — both tables have county column
@@ -307,24 +311,22 @@ export async function queryFilteredCounts(f: FilterState): Promise<FilteredCount
   if (!isFilterActive(f)) return null;
   const { ecdysisWhere } = buildFilterSQL(f);
   await tablesReady;
-  const db = await getDuckDB();
-  const conn = await db.connect();
-  try {
-    const result = await conn.query(
-      `SELECT COUNT(*) as specimens, COUNT(DISTINCT scientificName) as species,
-              COUNT(DISTINCT genus) as genera, COUNT(DISTINCT family) as families
-       FROM ecdysis WHERE ${ecdysisWhere}`
-    );
-    const row = result.toArray()[0]?.toJSON();
-    return {
-      filteredSpecimens: Number(row?.specimens ?? 0),
-      filteredSpeciesCount: Number(row?.species ?? 0),
-      filteredGenusCount: Number(row?.genera ?? 0),
-      filteredFamilyCount: Number(row?.families ?? 0),
-    };
-  } finally {
-    await conn.close();
-  }
+  const { sqlite3, db } = await getDB();
+  let result: Record<string, unknown> = {};
+  await sqlite3.exec(db,
+    `SELECT COUNT(*) as specimens, COUNT(DISTINCT scientificName) as species,
+            COUNT(DISTINCT genus) as genera, COUNT(DISTINCT family) as families
+     FROM ecdysis WHERE ${ecdysisWhere}`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      result = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
+    }
+  );
+  return {
+    filteredSpecimens: Number(result.specimens ?? 0),
+    filteredSpeciesCount: Number(result.species ?? 0),
+    filteredGenusCount: Number(result.genera ?? 0),
+    filteredFamilyCount: Number(result.families ?? 0),
+  };
 }
 
 export async function queryVisibleIds(f: FilterState): Promise<{ ecdysis: Set<string> | null; samples: Set<string> | null }> {
@@ -337,27 +339,16 @@ export async function queryVisibleIds(f: FilterState): Promise<{ ecdysis: Set<st
   console.debug('[filter-sql] samples WHERE:', samplesWhere);
 
   await tablesReady;
-  const db = await getDuckDB();
-  const conn = await db.connect();
-  try {
-    const ecdysisResult = await conn.query(
-      `SELECT ecdysis_id FROM ecdysis WHERE ${ecdysisWhere}`
-    );
-    const ecdysisIds = new Set<string>();
-    for (const row of ecdysisResult.toArray()) {
-      ecdysisIds.add(`ecdysis:${Number(row.toJSON().ecdysis_id)}`);
-    }
-
-    const samplesResult = await conn.query(
-      `SELECT observation_id FROM samples WHERE ${samplesWhere}`
-    );
-    const sampleIds = new Set<string>();
-    for (const row of samplesResult.toArray()) {
-      sampleIds.add(`inat:${Number(row.toJSON().observation_id)}`);
-    }
-
-    return { ecdysis: ecdysisIds, samples: sampleIds };
-  } finally {
-    await conn.close();
-  }
+  const { sqlite3, db } = await getDB();
+  const ecdysisIds = new Set<string>();
+  await sqlite3.exec(db,
+    `SELECT ecdysis_id FROM ecdysis WHERE ${ecdysisWhere}`,
+    (rowValues: unknown[]) => { ecdysisIds.add(`ecdysis:${Number(rowValues[0])}`); }
+  );
+  const sampleIds = new Set<string>();
+  await sqlite3.exec(db,
+    `SELECT observation_id FROM samples WHERE ${samplesWhere}`,
+    (rowValues: unknown[]) => { sampleIds.add(`inat:${Number(rowValues[0])}`); }
+  );
+  return { ecdysis: ecdysisIds, samples: sampleIds };
 }

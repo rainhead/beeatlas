@@ -1,15 +1,7 @@
 import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
 import { buildFilterSQL, buildCsvFilename, queryTablePage, SPECIMEN_COLUMNS, SAMPLE_COLUMNS, isFilterActive } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
-import { getDuckDB } from '../duckdb.ts';
-
-// filter.ts imports getDuckDB and tablesReady from duckdb.ts at module level;
-// mock to avoid WASM initialization side effects.
-vi.mock('../duckdb.ts', () => ({
-  getDuckDB: vi.fn(() => Promise.resolve({})),
-  loadAllTables: vi.fn(() => Promise.resolve()),
-  tablesReady: Promise.resolve(),
-}));
+import { getDB } from '../sqlite.ts';
 
 vi.mock('../sqlite.ts', () => ({
   getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
@@ -66,32 +58,32 @@ describe('individual filter fields', () => {
     expect(samplesWhere).toBe('1 = 0');
   });
 
-  test('yearFrom: both clauses contain year >= 2020', () => {
+  test('yearFrom: ecdysis contains year >= 2020; samples uses SQLite strftime', () => {
     const f = { ...emptyFilter(), yearFrom: 2020 };
     const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
     expect(ecdysisWhere).toBe('year >= 2020');
-    expect(samplesWhere).toBe('year(date::TIMESTAMP) >= 2020');
+    expect(samplesWhere).toBe("CAST(strftime('%Y', date) AS INTEGER) >= 2020");
   });
 
-  test('yearTo: both clauses contain year <= 2023', () => {
+  test('yearTo: ecdysis contains year <= 2023; samples uses SQLite strftime', () => {
     const f = { ...emptyFilter(), yearTo: 2023 };
     const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
     expect(ecdysisWhere).toBe('year <= 2023');
-    expect(samplesWhere).toBe('year(date::TIMESTAMP) <= 2023');
+    expect(samplesWhere).toBe("CAST(strftime('%Y', date) AS INTEGER) <= 2023");
   });
 
-  test('single month: both clauses contain month IN (6)', () => {
+  test('single month: ecdysis contains month IN (6); samples uses SQLite strftime', () => {
     const f = { ...emptyFilter(), months: new Set([6]) };
     const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
     expect(ecdysisWhere).toBe('month IN (6)');
-    expect(samplesWhere).toBe('month(date::TIMESTAMP) IN (6)');
+    expect(samplesWhere).toBe("CAST(strftime('%m', date) AS INTEGER) IN (6)");
   });
 
-  test('multiple months: both clauses contain comma-separated month list', () => {
+  test('multiple months: ecdysis contains comma-separated month list; samples uses SQLite strftime', () => {
     const f = { ...emptyFilter(), months: new Set([3, 7, 11]) };
     const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
     expect(ecdysisWhere).toContain('month IN (3,7,11)');
-    expect(samplesWhere).toContain('month(date::TIMESTAMP) IN (3,7,11)');
+    expect(samplesWhere).toContain("CAST(strftime('%m', date) AS INTEGER) IN (3,7,11)");
   });
 
   test('single county: both clauses contain county IN', () => {
@@ -143,9 +135,9 @@ describe('combined filters', () => {
 
     // samplesWhere — taxon ghosts + date-based year/month + shared county/ecoregion
     expect(samplesWhere).toContain('1 = 0');
-    expect(samplesWhere).toContain('year(date::TIMESTAMP) >= 2020');
-    expect(samplesWhere).toContain('year(date::TIMESTAMP) <= 2023');
-    expect(samplesWhere).toContain('month(date::TIMESTAMP) IN (6,7)');
+    expect(samplesWhere).toContain("CAST(strftime('%Y', date) AS INTEGER) >= 2020");
+    expect(samplesWhere).toContain("CAST(strftime('%Y', date) AS INTEGER) <= 2023");
+    expect(samplesWhere).toContain("CAST(strftime('%m', date) AS INTEGER) IN (6,7)");
     expect(samplesWhere).toContain("county IN ('King')");
     expect(samplesWhere).toContain("ecoregion_l3 IN ('Cascades')");
     expect(samplesWhere).toContain(' AND ');
@@ -293,28 +285,28 @@ describe('SPECIMEN_COLUMNS and SAMPLE_COLUMNS', () => {
   });
 });
 
-function mockDuckDB(dataRows: any[], countValue: number) {
-  const closeFn = vi.fn(() => Promise.resolve());
-  const queryFn = vi.fn((sql: string) => {
-    if (sql.includes('COUNT(*)')) {
-      return Promise.resolve({
-        toArray: () => [{ toJSON: () => ({ n: countValue }) }],
-      });
+function mockSQLite(dataRows: Record<string, unknown>[], countValue: number) {
+  const execFn = vi.fn((_db: number, sql: string, callback?: (rowValues: unknown[], columnNames: string[]) => void) => {
+    if (sql.includes('COUNT(*)') && callback) {
+      callback([countValue], ['n']);
+    } else if (callback) {
+      const cols = dataRows.length > 0 ? Object.keys(dataRows[0]!) : [];
+      for (const row of dataRows) {
+        callback(cols.map(c => row[c]), cols);
+      }
     }
-    return Promise.resolve({
-      toArray: () => dataRows.map(r => ({ toJSON: () => r })),
-    });
+    return Promise.resolve();
   });
-  const connectFn = vi.fn(() => Promise.resolve({ query: queryFn, close: closeFn }));
-  vi.mocked(getDuckDB).mockResolvedValue({ connect: connectFn } as any);
-  return { connectFn, queryFn, closeFn };
+  const mockSqlite3 = { exec: execFn };
+  vi.mocked(getDB).mockResolvedValue({ sqlite3: mockSqlite3 as any, db: 0 });
+  return { execFn };
 }
 
 describe('queryTablePage', () => {
   test('specimens: SQL contains scientificName, recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
-    const { queryFn } = mockDuckDB([], 0);
+    const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 'specimens', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('scientificName');
     expect(dataSql).toContain('recordedBy');
     expect(dataSql).toContain('date');
@@ -326,18 +318,18 @@ describe('queryTablePage', () => {
   });
 
   test('specimens: SQL contains ORDER BY and LIMIT 100 OFFSET', async () => {
-    const { queryFn } = mockDuckDB([], 0);
+    const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 'specimens', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('ORDER BY');
     expect(dataSql).toContain('LIMIT 100');
     expect(dataSql).toContain('OFFSET');
   });
 
   test('samples: SQL contains observer, date, specimen_count, sample_id, county, ecoregion_l3', async () => {
-    const { queryFn } = mockDuckDB([], 0);
+    const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 'samples', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('observer');
     expect(dataSql).toContain('date');
     expect(dataSql).toContain('specimen_count');
@@ -348,39 +340,36 @@ describe('queryTablePage', () => {
 
   test('returns { rows, total } with total from COUNT(*)', async () => {
     const dataRows = [{ scientificName: 'Bombus', recordedBy: 'Smith', year: 2020, month: 6, county: 'King', ecoregion_l3: 'Cascades', fieldNumber: 'ABC' }];
-    mockDuckDB(dataRows, 42);
+    mockSQLite(dataRows, 42);
     const result = await queryTablePage(emptyFilter(), 'specimens', 1);
     expect(result.total).toBe(42);
     expect(result.rows).toHaveLength(1);
   });
 
-  test('conn.close is called even when query throws', async () => {
-    const closeFn = vi.fn(() => Promise.resolve());
-    const queryFn = vi.fn(() => Promise.reject(new Error('query failed')));
-    const connectFn = vi.fn(() => Promise.resolve({ query: queryFn, close: closeFn }));
-    vi.mocked(getDuckDB).mockResolvedValue({ connect: connectFn } as any);
+  test('error propagates when exec throws', async () => {
+    const execFn = vi.fn(() => Promise.reject(new Error('query failed')));
+    vi.mocked(getDB).mockResolvedValue({ sqlite3: { exec: execFn } as any, db: 0 });
     await expect(queryTablePage(emptyFilter(), 'specimens', 1)).rejects.toThrow('query failed');
-    expect(closeFn).toHaveBeenCalledOnce();
   });
 
   test('specimens with sortBy=modified: SQL contains modified DESC', async () => {
-    const { queryFn } = mockDuckDB([], 0);
+    const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 'specimens', 1, 'modified');
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('modified DESC');
   });
 
   test('specimens with no sortBy (default): SQL contains date DESC', async () => {
-    const { queryFn } = mockDuckDB([], 0);
+    const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 'specimens', 1);
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('date DESC');
   });
 
   test('samples with sortBy=modified: SQL still uses date DESC (sample order unchanged)', async () => {
-    const { queryFn } = mockDuckDB([], 0);
+    const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 'samples', 1, 'modified');
-    const dataSql = queryFn.mock.calls.find((c: string[]) => !c[0]!.includes('COUNT(*)'))?.[0] ?? '';
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('date DESC');
   });
 });

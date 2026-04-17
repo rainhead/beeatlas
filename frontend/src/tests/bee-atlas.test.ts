@@ -6,12 +6,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Mock heavy modules that have module-level side effects incompatible with happy-dom
-vi.mock('../duckdb.ts', () => ({
-  getDuckDB: vi.fn(() => Promise.resolve({})),
-  loadAllTables: vi.fn(() => Promise.resolve()),
-  tablesReady: Promise.resolve(),
-}));
-
 vi.mock('../sqlite.ts', () => ({
   getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
   loadAllTables: vi.fn(() => Promise.resolve()),
