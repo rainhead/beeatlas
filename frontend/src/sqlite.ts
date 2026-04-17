@@ -125,18 +125,23 @@ async function _insertRows(
   const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`;
 
   await sqlite3.exec(db, 'BEGIN');
-  for await (const stmt of sqlite3.statements(db, sql)) {
-    for (const row of rows) {
-      sqlite3.bind_collection(stmt, cols.map(c => {
-        const v = row[c];
-        if (v == null) return null;
-        if (typeof v === 'bigint') return Number(v);
-        if (v instanceof Date) return v.toISOString().slice(0, 10);
-        return v;
-      }) as any);
-      await sqlite3.step(stmt);
-      sqlite3.reset(stmt);
+  try {
+    for await (const stmt of sqlite3.statements(db, sql)) {
+      for (const row of rows) {
+        sqlite3.bind_collection(stmt, cols.map(c => {
+          const v = row[c];
+          if (v == null) return null;
+          if (typeof v === 'bigint') return Number(v);
+          if (v instanceof Date) return v.toISOString().slice(0, 10);
+          return v;
+        }) as any);
+        await sqlite3.step(stmt);
+        sqlite3.reset(stmt);
+      }
     }
+    await sqlite3.exec(db, 'COMMIT');
+  } catch (err) {
+    await sqlite3.exec(db, 'ROLLBACK').catch(() => {});
+    throw err;
   }
-  await sqlite3.exec(db, 'COMMIT');
 }
