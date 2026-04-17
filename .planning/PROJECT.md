@@ -283,4 +283,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after Phase 62 — pipeline join complete; occurrences.parquet replaces ecdysis.parquet + samples.parquet*
+*Last updated: 2026-04-17 after Phase 64 — OccurrenceSource complete; unified VectorSource, SelectionState discriminated union with cluster URL encoding, 44px tap target enforced*
