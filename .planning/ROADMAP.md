@@ -265,7 +265,7 @@ See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
 
 - [x] **Phase 59: Benchmark Baseline** — measure DuckDB WASM init time, first-query latency, memory footprint; establish numbers to compare against (completed 2026-04-16)
 - [x] **Phase 60: wa-sqlite Integration** — Hyparquet parquet read → wa-sqlite in-memory insert with batched transactions; SQL filter layer compatibility (completed 2026-04-17)
-- [ ] **Phase 61: DuckDB Removal** — remove `@duckdb/duckdb-wasm` dependency; verify all filter/query/export paths
+- [x] **Phase 61: DuckDB Removal** — remove `@duckdb/duckdb-wasm` dependency; verify all filter/query/export paths (completed 2026-04-17)
 
 ### Phase 59: Benchmark Baseline
 **Goal**: Establish baseline performance numbers for DuckDB WASM (init time, first-query latency, memory footprint) to compare against after migration
@@ -310,7 +310,7 @@ Plans:
   6. `npm run build` succeeds and bundle size is measurably smaller
 **Plans**: 1 plan
 Plans:
-- [ ] 61-01-PLAN.md — Remove DuckDB dependency and module, update docs and benchmark
+- [x] 61-01-PLAN.md — Remove DuckDB dependency and module, update docs and benchmark
 
 ### v2.7 Unified Occurrence Model (Planned)
 
