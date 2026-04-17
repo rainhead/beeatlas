@@ -17,6 +17,9 @@ Collapse separate ecdysis/iNat parquet files and frontend layers into a single `
 
 - [ ] **OCC-05**: `sqlite.ts` loads `occurrences.parquet` into a single `occurrences` SQLite table; `ecdysis` and `samples` tables removed
 - [ ] **OCC-06**: `buildFilterSQL` returns a single WHERE clause string for the `occurrences` table; `queryVisibleIds`, `queryTablePage`, `queryAllFiltered`, `queryFilteredCounts` all updated; all existing filter tests pass with unified table
+
+### Frontend — Map Layer
+
 - [ ] **OCC-07**: `OccurrenceSource` replaces `EcdysisSource` and `SampleSource`; OL feature IDs follow existing convention (`ecdysis:<int>` for specimen-backed rows, `inat:<int>` for sample-only rows)
 
 ### Frontend — UI
@@ -50,11 +53,11 @@ Collapse separate ecdysis/iNat parquet files and frontend layers into a single `
 
 | REQ-ID | Phase | Plans |
 |--------|-------|-------|
-| OCC-01 | — | — |
-| OCC-03 | — | — |
-| OCC-05 | — | — |
-| OCC-06 | — | — |
-| OCC-07 | — | — |
-| OCC-08 | — | — |
-| OCC-09 | — | — |
-| OCC-10 | — | — |
+| OCC-01 | Phase 62 | — |
+| OCC-03 | Phase 62 | — |
+| OCC-05 | Phase 63 | — |
+| OCC-06 | Phase 63 | — |
+| OCC-07 | Phase 64 | — |
+| OCC-08 | Phase 65 | — |
+| OCC-09 | Phase 65 | — |
+| OCC-10 | Phase 65 | — |
