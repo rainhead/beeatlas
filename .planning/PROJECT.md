@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, wa-sqlite + hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime. Four dlt pipelines + a DuckDB-native geographies pipeline write to a local DuckDB store (`data/beeatlas.duckdb`); `data/export.py` produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson; `data/feeds.py` generates Atom feeds of recent determinations (unfiltered + per-collector/genus/county/ecoregion variants) plus an index.json listing all variants. The sidebar surfaces available feeds via `index.json` so collectors can subscribe directly from the map. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution runs as `data/nightly.sh` on maderas (nightly cron); CI runs frontend build only.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, wa-sqlite + hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime. Four dlt pipelines + a DuckDB-native geographies pipeline write to a local DuckDB store (`data/beeatlas.duckdb`); `data/export.py` produces occurrences.parquet (full outer join of ecdysis specimens and iNat samples), counties.geojson, and ecoregions.geojson; `data/feeds.py` generates Atom feeds of recent determinations (unfiltered + per-collector/genus/county/ecoregion variants) plus an index.json listing all variants. The sidebar surfaces available feeds via `index.json` so collectors can subscribe directly from the map. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution runs as `data/nightly.sh` on maderas (nightly cron); CI runs frontend build only.
 
 ## Core Value
 
@@ -127,6 +127,8 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ ELEV-07: Elevation range filter (min/max number inputs) in `bee-filter-controls`; `elev_min`/`elev_max` URL params; round-trip preserved — v2.5 (Phase 58)
 - ✓ ELEV-08: `buildFilterSQL` applies D-06 conditional null semantics — null rows excluded only when both bounds set; single-bound passes nulls through — v2.5 (Phase 58)
 - ✓ ELEV-09: Elevation min/max inputs reset when all filter tokens are removed (no explicit Clear button) — v2.5 (Phase 58)
+- ✓ OCC-01: `export.py` produces `occurrences.parquet` from full outer join of ecdysis specimens and iNat samples; specimen-side columns null for sample-only rows; sample-side columns null for specimen-only rows; `validate-schema.mjs` updated — v2.7 (Phase 62)
+- ✓ OCC-03: COALESCE unifies coordinate columns into canonical `lat`/`lon`; `date` column standardized to VARCHAR ISO format in export SQL — v2.7 (Phase 62)
 
 ## Previous Milestones
 
@@ -281,4 +283,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after v2.6 milestone — SQLite WASM Migration complete (wa-sqlite + hyparquet replaced DuckDB WASM)*
+*Last updated: 2026-04-17 after Phase 62 — pipeline join complete; occurrences.parquet replaces ecdysis.parquet + samples.parquet*
