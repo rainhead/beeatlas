@@ -2,6 +2,33 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v2.6 — SQLite WASM Migration
+
+**Shipped:** 2026-04-17
+**Phases:** 3 (Phases 59–61) | **Plans:** 5 | **Timeline:** 2 days (2026-04-16 → 2026-04-17)
+
+### What Was Built
+- Phase 59: Inline `performance.now()` + `performance.memory` instrumentation in `duckdb.ts`; `BENCHMARK.md` created with two-column comparison table; baseline recorded: 539ms instantiate, 1941ms tablesReady, 613ms first-query, 18.7MB heap peak
+- Phase 60: `sqlite.ts` module (wa-sqlite MemoryVFS + hyparquet); `wa-sqlite.d.ts` hand-written; all 6 test files updated; features.ts, filter.ts, bee-atlas.ts migrated from DuckDB Arrow API to wa-sqlite exec callbacks; 5 SQL dialect rewrites; 3 browser bugs found and fixed during E2E verification
+- Phase 61: `@duckdb/duckdb-wasm` + `apache-arrow` removed; `duckdb.ts` deleted; `@types/node` made explicit in tsconfig; BENCHMARK.md filled; 165 tests passing
+
+### What Worked
+- Phase 60's browser E2E verification checkpoint (plan 60-03) caught all three runtime bugs before shipping — Vite pre-bundling, Asyncify reentrance, and hyparquet Date binding; all three required production fixes that unit tests couldn't catch
+- The three-phase structure (benchmark → migrate → cleanup) kept each phase cleanly scoped; phase 61 was entirely mechanical once phase 60 was verified
+
+### What Was Inefficient
+- `gsd-tools milestone complete` CLI failed to extract accomplishments from SUMMARY.md files for the fourth time — returned wrong field content rather than meaningful one-liners; MILESTONES.md required manual rewrite again
+- Phase 61 discovery that duckdb.ts was already orphaned (not imported) meant the expected bundle size reduction didn't happen — plan claimed "measurably smaller bundle" but Vite never included DuckDB WASM files; a quick import search before planning would have caught this
+
+### Patterns Established
+- wa-sqlite with Vite: always add `optimizeDeps.exclude: ['wa-sqlite']` — Vite pre-bundling breaks WASM URL resolution for packages that load WASM files at runtime
+- Serialize all `sqlite3.exec` calls through a microtask queue when using Asyncify build; concurrent exec calls cause Asyncify reentrance (SQLITE_OK returned prematurely from interrupted step)
+- hyparquet returns JS `Date` objects for DATE parquet columns; wa-sqlite cannot bind these — convert to ISO strings before INSERT
+
+### Key Lessons
+- The `gsd-tools summary-extract` extraction is consistently unreliable for MILESTONES.md; write one-liners manually from SUMMARY.md content at milestone close rather than relying on CLI extraction
+- Before writing migration plans, verify that the module being replaced is actually imported in the bundle — an orphaned module inflates perceived impact
+
 ## Milestone: v2.3 — Specimen iNat Observation Links
 
 **Shipped:** 2026-04-13
