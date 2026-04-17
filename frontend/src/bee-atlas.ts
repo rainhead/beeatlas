@@ -315,7 +315,8 @@ bee-sidebar {
                COUNT(DISTINCT family) AS family_count,
                MIN(year) AS earliest_year,
                MAX(year) AS latest_year
-        FROM ecdysis
+        FROM occurrences
+        WHERE ecdysis_id IS NOT NULL
       `, (rowValues: unknown[], columnNames: string[]) => {
         summaryRow = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
       });
@@ -332,7 +333,7 @@ bee-sidebar {
       // Taxa options
       const taxaRows: Record<string, unknown>[] = [];
       await sqlite3.exec(db,
-        `SELECT DISTINCT family, genus, scientificName FROM ecdysis ORDER BY family, genus, scientificName`,
+        `SELECT DISTINCT family, genus, scientificName FROM occurrences WHERE ecdysis_id IS NOT NULL ORDER BY family, genus, scientificName`,
         (rowValues: unknown[], columnNames: string[]) => {
           taxaRows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])));
         }
@@ -354,14 +355,14 @@ bee-sidebar {
       // County options
       this._countyOptions = [];
       await sqlite3.exec(db,
-        `SELECT DISTINCT county FROM ecdysis WHERE county IS NOT NULL ORDER BY county`,
+        `SELECT DISTINCT county FROM occurrences WHERE county IS NOT NULL ORDER BY county`,
         (rowValues: unknown[]) => { this._countyOptions.push(String(rowValues[0])); }
       );
 
       // Ecoregion options
       this._ecoregionOptions = [];
       await sqlite3.exec(db,
-        `SELECT DISTINCT ecoregion_l3 FROM ecdysis WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`,
+        `SELECT DISTINCT ecoregion_l3 FROM occurrences WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`,
         (rowValues: unknown[]) => { this._ecoregionOptions.push(String(rowValues[0])); }
       );
 
@@ -378,22 +379,27 @@ bee-sidebar {
   private async _loadCollectorOptions(): Promise<void> {
     await tablesReady;
     const { sqlite3, db } = await getDB();
-    // Join ecdysis → samples via host_observation_id to map collector names to iNat usernames.
+    // occurrences table has both recordedBy (from ecdysis) and observer (from samples) on the same row.
     // DISTINCT because one collector may have many specimens; take any matching observer per name.
-    this._collectorOptions = [];
-    await sqlite3.exec(db, `
-      SELECT e.recordedBy, MIN(s.observer) AS observer
-      FROM ecdysis e
-      LEFT JOIN samples s ON e.host_observation_id = s.observation_id
-      WHERE e.recordedBy IS NOT NULL
-      GROUP BY e.recordedBy
-      ORDER BY e.recordedBy
-    `, (rowValues: unknown[], columnNames: string[]) => {
-      const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
-      const recordedBy = String(obj.recordedBy);
-      const observer = obj.observer != null ? String(obj.observer) : null;
-      this._collectorOptions.push({ displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry);
-    });
+    const newOptions: CollectorEntry[] = [];
+    try {
+      await sqlite3.exec(db, `
+        SELECT recordedBy, MIN(observer) AS observer
+        FROM occurrences
+        WHERE recordedBy IS NOT NULL AND ecdysis_id IS NOT NULL
+        GROUP BY recordedBy
+        ORDER BY recordedBy
+      `, (rowValues: unknown[], columnNames: string[]) => {
+        const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
+        const recordedBy = String(obj.recordedBy);
+        const observer = obj.observer != null ? String(obj.observer) : null;
+        newOptions.push({ displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry);
+      });
+      this._collectorOptions = newOptions;
+    } catch (err) {
+      console.error('Failed to load collector options:', err);
+      // leave _collectorOptions unchanged
+    }
   }
 
   private async _runTableQuery(): Promise<void> {
@@ -753,7 +759,7 @@ bee-sidebar {
         SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
                host_observation_id, floralHost, inat_host, inat_quality_grade,
                specimen_observation_id, elevation_m
-        FROM ecdysis
+        FROM occurrences
         WHERE CAST(ecdysis_id AS TEXT) IN (${idList})
       `, (rowValues: unknown[], columnNames: string[]) => {
         const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
