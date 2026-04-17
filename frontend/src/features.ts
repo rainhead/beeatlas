@@ -1,4 +1,4 @@
-import { getDuckDB, tablesReady } from './duckdb.ts';
+import { getDB, tablesReady } from './sqlite.ts';
 import { Feature } from "ol";
 import Point from "ol/geom/Point.js";
 import { fromLonLat } from "ol/proj.js";
@@ -10,24 +10,26 @@ import type { Projection } from "ol/proj.js";
 export class EcdysisSource extends VectorSource {
   constructor({ onError }: { onError?: (err: Error) => void } = {}) {
     const load = async (_extent: Extent, _resolution: number, _projection: Projection, success: any, failure: any) => {
-      let conn: Awaited<ReturnType<Awaited<ReturnType<typeof getDuckDB>>['connect']>> | null = null;
       try {
         await tablesReady;
-        const db = await getDuckDB();
-        conn = await db.connect();
-        const table = await conn.query(`
+        const { sqlite3, db } = await getDB();
+        const rows: Record<string, unknown>[] = [];
+        await sqlite3.exec(db, `
           SELECT ecdysis_id, longitude, latitude, year, month,
                  scientificName, recordedBy, fieldNumber, genus, family,
                  floralHost, county, ecoregion_l3, host_observation_id,
                  inat_host, inat_quality_grade, specimen_observation_id,
                  elevation_m
           FROM ecdysis
-        `);
-        const features = table.toArray().flatMap(row => {
-          const obj = row.toJSON();
+        `, (rowValues: unknown[], columnNames: string[]) => {
+          const obj: Record<string, unknown> = {};
+          columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
+          rows.push(obj);
+        });
+        const features = rows.flatMap(obj => {
           if (obj.longitude == null || obj.latitude == null) return [];
           const feature = new Feature();
-          feature.setGeometry(new Point(fromLonLat([obj.longitude, obj.latitude])));
+          feature.setGeometry(new Point(fromLonLat([Number(obj.longitude), Number(obj.latitude)])));
           feature.setId(`ecdysis:${obj.ecdysis_id}`);
           feature.setProperties({
             year: Number(obj.year),
@@ -48,14 +50,12 @@ export class EcdysisSource extends VectorSource {
           });
           return feature;
         });
-        console.debug(`Adding ${features.length} ecdysis features from DuckDB`);
+        console.debug(`Adding ${features.length} ecdysis features from SQLite`);
         this.addFeatures(features);
         if (success) success(features);
       } catch (err: unknown) {
         if (onError) onError(err instanceof Error ? err : new Error(String(err)));
         failure();
-      } finally {
-        if (conn) await conn.close();
       }
     };
     super({ loader: load, strategy: all });
@@ -65,23 +65,25 @@ export class EcdysisSource extends VectorSource {
 export class SampleSource extends VectorSource {
   constructor({ onError }: { onError?: (err: Error) => void } = {}) {
     const load = async (_extent: Extent, _resolution: number, _projection: Projection, success: any, failure: any) => {
-      let conn: Awaited<ReturnType<Awaited<ReturnType<typeof getDuckDB>>['connect']>> | null = null;
       try {
         await tablesReady;
-        const db = await getDuckDB();
-        conn = await db.connect();
-        const table = await conn.query(`
+        const { sqlite3, db } = await getDB();
+        const rows: Record<string, unknown>[] = [];
+        await sqlite3.exec(db, `
           SELECT observation_id, observer, date, lat, lon,
                  specimen_count, sample_id, county, ecoregion_l3, elevation_m
           FROM samples
-        `);
-        const features = table.toArray().flatMap(row => {
-          const obj = row.toJSON();
+        `, (rowValues: unknown[], columnNames: string[]) => {
+          const obj: Record<string, unknown> = {};
+          columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
+          rows.push(obj);
+        });
+        const features = rows.flatMap(obj => {
           if (obj.lat == null || obj.lon == null) return [];
           const feature = new Feature();
-          feature.setGeometry(new Point(fromLonLat([obj.lon, obj.lat])));
+          feature.setGeometry(new Point(fromLonLat([Number(obj.lon), Number(obj.lat)])));
           feature.setId(`inat:${Number(obj.observation_id)}`);
-          const d = new Date(obj.date);
+          const d = new Date(String(obj.date));
           feature.setProperties({
             observation_id: Number(obj.observation_id),
             observer: obj.observer,
@@ -96,14 +98,12 @@ export class SampleSource extends VectorSource {
           });
           return feature;
         });
-        console.debug(`Adding ${features.length} sample features from DuckDB`);
+        console.debug(`Adding ${features.length} sample features from SQLite`);
         this.addFeatures(features);
         if (success) success(features);
       } catch (err: unknown) {
         if (onError) onError(err instanceof Error ? err : new Error(String(err)));
         failure();
-      } finally {
-        if (conn) await conn.close();
       }
     };
     super({ loader: load, strategy: all });
