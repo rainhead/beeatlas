@@ -273,4 +273,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-16 — Phase 59 complete (DuckDB WASM benchmark baseline recorded)*
+*Last updated: 2026-04-17 — Phase 61 complete (DuckDB WASM removed; v2.6 SQLite WASM Migration milestone complete)*
