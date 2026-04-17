@@ -242,7 +242,7 @@ bee-sidebar {
     }
 
     // Start filter query early — queryVisibleIds awaits tablesReady internally,
-    // so this runs in parallel with DuckDB init and resolves as soon as tables load.
+    // so this runs in parallel with SQLite init and resolves as soon as tables load.
     if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
     }
@@ -649,7 +649,7 @@ bee-sidebar {
       this._tableLoading = true;
       this._runTableQuery();
       if (this._loading) {
-        // bee-map data-loaded hasn't fired yet; load summary from DuckDB
+        // bee-map data-loaded hasn't fired yet; load summary from SQLite
         this._loadSummaryFromSQLite();
       }
     }
@@ -730,7 +730,7 @@ bee-sidebar {
       this._runTableQuery();
     }
 
-    // If occurrences were restored from URL, fetch their specimen data now that DuckDB is ready
+    // If occurrences were restored from URL, fetch their specimen data now that SQLite is ready
     if (this._selectedOccIds && this._selectedOccIds.length > 0 && this._selectedSamples === null) {
       this._restoreSelectionSamples(this._selectedOccIds);
     }
