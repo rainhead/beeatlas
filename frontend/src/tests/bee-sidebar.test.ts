@@ -12,6 +12,12 @@ vi.mock('../duckdb.ts', () => ({
   tablesReady: Promise.resolve(),
 }));
 
+vi.mock('../sqlite.ts', () => ({
+  getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
+  loadAllTables: vi.fn(() => Promise.resolve()),
+  tablesReady: Promise.resolve(),
+}));
+
 vi.mock('../features.ts', () => ({
   EcdysisSource: vi.fn().mockImplementation(() => ({
     once: vi.fn(),

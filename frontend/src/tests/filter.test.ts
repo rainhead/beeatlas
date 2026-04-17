@@ -11,6 +11,12 @@ vi.mock('../duckdb.ts', () => ({
   tablesReady: Promise.resolve(),
 }));
 
+vi.mock('../sqlite.ts', () => ({
+  getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
+  loadAllTables: vi.fn(() => Promise.resolve()),
+  tablesReady: Promise.resolve(),
+}));
+
 // Freeze date for deterministic buildCsvFilename tests (date suffix = 20260115).
 beforeAll(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-01-15')); });
 afterAll(() => { vi.useRealTimers(); });
