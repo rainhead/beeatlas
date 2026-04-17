@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.6
 milestone_name: SQLite WASM Migration
-status: completed
+status: executing
 stopped_at: Phase 61 context gathered
-last_updated: "2026-04-17T03:11:45.385Z"
-last_activity: 2026-04-17 -- Phase 60 UAT passed, phase complete
+last_updated: "2026-04-17T03:20:33.676Z"
+last_activity: 2026-04-17 -- Phase 61 execution started
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 4
+  total_plans: 5
   completed_plans: 4
-  percent: 100
+  percent: 80
 ---
 
 # Project State
@@ -21,13 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-16 — v2.5 milestone complete)
 
 **Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 60 — wa-sqlite-integration
+**Current focus:** Phase 61 — duckdb-removal
 
 ## Current Position
 
-Phase: 61 (DuckDB Removal) — NEXT
-Status: Phase 60 complete, Phase 61 not yet started
-Last activity: 2026-04-17 -- Phase 60 UAT passed, phase complete
+Phase: 61 (duckdb-removal) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 61
+Last activity: 2026-04-17 -- Phase 61 execution started
 
 ```
 Progress: [████████████████████] 7/7 plans (100%)

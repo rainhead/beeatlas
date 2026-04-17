@@ -308,8 +308,9 @@ Plans:
   4. All 165+ tests pass
   5. TypeScript compiles cleanly
   6. `npm run build` succeeds and bundle size is measurably smaller
-**Plans**: 0 plans (not yet planned)
-Plans: []
+**Plans**: 1 plan
+Plans:
+- [ ] 61-01-PLAN.md — Remove DuckDB dependency and module, update docs and benchmark
 
 ### v2.7 Unified Occurrence Model (Planned)
 
