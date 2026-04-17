@@ -25,9 +25,10 @@ See: .planning/PROJECT.md (updated 2026-04-17 — v2.6 milestone complete)
 
 ## Current Position
 
-Phase: —
+Phase: Not started (defining requirements)
 Plan: —
-Status: Milestone v2.6 complete; ready to plan v2.7
+Status: Defining requirements
+Last activity: 2026-04-16 — Milestone v2.7 started
 
 ## Accumulated Context
 
