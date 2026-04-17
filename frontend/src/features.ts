@@ -7,73 +7,14 @@ import { all } from 'ol/loadingstrategy.js';
 import type { Extent } from "ol/extent.js";
 import type { Projection } from "ol/proj.js";
 
-export class EcdysisSource extends VectorSource {
+export class OccurrenceSource extends VectorSource {
   constructor({ onError }: { onError?: (err: Error) => void } = {}) {
     const load = async (_extent: Extent, _resolution: number, _projection: Projection, success: any, failure: any) => {
       try {
         await tablesReady;
         const { sqlite3, db } = await getDB();
         const rows: Record<string, unknown>[] = [];
-        await sqlite3.exec(db, `
-          SELECT ecdysis_id, longitude, latitude, year, month,
-                 scientificName, recordedBy, fieldNumber, genus, family,
-                 floralHost, county, ecoregion_l3, host_observation_id,
-                 inat_host, inat_quality_grade, specimen_observation_id,
-                 elevation_m
-          FROM ecdysis
-        `, (rowValues: unknown[], columnNames: string[]) => {
-          const obj: Record<string, unknown> = {};
-          columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
-          rows.push(obj);
-        });
-        const features = rows.flatMap(obj => {
-          if (obj.longitude == null || obj.latitude == null) return [];
-          const feature = new Feature();
-          feature.setGeometry(new Point(fromLonLat([Number(obj.longitude), Number(obj.latitude)])));
-          feature.setId(`ecdysis:${obj.ecdysis_id}`);
-          feature.setProperties({
-            year: Number(obj.year),
-            month: Number(obj.month),
-            scientificName: obj.scientificName,
-            recordedBy: obj.recordedBy,
-            fieldNumber: obj.fieldNumber,
-            genus: obj.genus,
-            family: obj.family,
-            floralHost: obj.floralHost ?? null,
-            county: obj.county ?? null,
-            ecoregion_l3: obj.ecoregion_l3 ?? null,
-            host_observation_id: obj.host_observation_id != null ? Number(obj.host_observation_id) : null,
-            inat_host: obj.inat_host ?? null,
-            inat_quality_grade: obj.inat_quality_grade ?? null,
-            specimen_observation_id: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
-            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
-          });
-          return feature;
-        });
-        console.debug(`Adding ${features.length} ecdysis features from SQLite`);
-        this.addFeatures(features);
-        if (success) success(features);
-      } catch (err: unknown) {
-        if (onError) onError(err instanceof Error ? err : new Error(String(err)));
-        failure();
-      }
-    };
-    super({ loader: load, strategy: all });
-  }
-}
-
-export class SampleSource extends VectorSource {
-  constructor({ onError }: { onError?: (err: Error) => void } = {}) {
-    const load = async (_extent: Extent, _resolution: number, _projection: Projection, success: any, failure: any) => {
-      try {
-        await tablesReady;
-        const { sqlite3, db } = await getDB();
-        const rows: Record<string, unknown>[] = [];
-        await sqlite3.exec(db, `
-          SELECT observation_id, observer, date, lat, lon,
-                 specimen_count, sample_id, county, ecoregion_l3, elevation_m
-          FROM samples
-        `, (rowValues: unknown[], columnNames: string[]) => {
+        await sqlite3.exec(db, `SELECT * FROM occurrences`, (rowValues: unknown[], columnNames: string[]) => {
           const obj: Record<string, unknown> = {};
           columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
           rows.push(obj);
@@ -82,23 +23,19 @@ export class SampleSource extends VectorSource {
           if (obj.lat == null || obj.lon == null) return [];
           const feature = new Feature();
           feature.setGeometry(new Point(fromLonLat([Number(obj.lon), Number(obj.lat)])));
-          feature.setId(`inat:${Number(obj.observation_id)}`);
-          const d = new Date(String(obj.date));
-          feature.setProperties({
-            observation_id: Number(obj.observation_id),
-            observer: obj.observer,
-            date: obj.date,
-            year: d.getUTCFullYear(),
-            month: d.getUTCMonth() + 1,
-            specimen_count: Number(obj.specimen_count),
-            sample_id: obj.sample_id != null ? Number(obj.sample_id) : null,
-            county: obj.county ?? null,
-            ecoregion_l3: obj.ecoregion_l3 ?? null,
-            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
-          });
+          if (obj.ecdysis_id != null) {
+            feature.setId('ecdysis:' + obj.ecdysis_id);
+          } else {
+            feature.setId('inat:' + Number(obj.observation_id));
+          }
+          const props: Record<string, unknown> = {};
+          for (const col of Object.keys(obj)) {
+            props[col] = obj[col] ?? null;
+          }
+          feature.setProperties(props);
           return feature;
         });
-        console.debug(`Adding ${features.length} sample features from SQLite`);
+        console.debug(`Adding ${features.length} occurrence features from SQLite`);
         this.addFeatures(features);
         if (success) success(features);
       } catch (err: unknown) {

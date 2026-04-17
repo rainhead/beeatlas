@@ -96,7 +96,7 @@ export function makeClusterStyleFn(
 
     const fillColor = isGhosted ? hexWithOpacity('#aaaaaa', 0.2) : hexWithOpacity(RECENCY_COLORS[bestTier], 1.0);
     const strokeColor = isGhosted ? 'rgba(255,255,255,0.2)' : '#ffffff';
-    const radius = displayCount <= 1 ? 4 : 6 + Math.log2(Math.max(displayCount, 1)) * 2;
+    const radius = displayCount <= 1 ? 22 : Math.max(22, 6 + Math.log2(Math.max(displayCount, 1)) * 3);
 
     const baseStyle = new Style({
       image: new Circle({
@@ -104,7 +104,7 @@ export function makeClusterStyleFn(
         fill: new Fill({ color: fillColor }),
         stroke: new Stroke({ color: strokeColor, width: 1 }),
       }),
-      text: isGhosted ? undefined : new Text({
+      text: (isGhosted || displayCount <= 1) ? undefined : new Text({
         text: String(displayCount),
         fill: new Fill({ color: '#fff' }),
         font: 'bold 11px sans-serif',
