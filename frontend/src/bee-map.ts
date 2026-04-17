@@ -3,12 +3,11 @@ import { customElement, property, query, state } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
 import { fromLonLat, toLonLat } from "ol/proj.js";
-import { EcdysisSource } from "./features.ts";
+import { OccurrenceSource } from "./features.ts";
 import VectorLayer from "ol/layer/Vector.js";
 import LayerGroup from "ol/layer/Group.js";
 import Cluster from "ol/source/Cluster.js";
-import { makeClusterStyleFn, makeSampleDotStyleFn } from "./style.ts";
-import { SampleSource } from './features.ts';
+import { makeClusterStyleFn } from "./style.ts";
 import TileLayer from "ol/layer/Tile.js";
 import StadiaMaps from "ol/source/StadiaMaps.js";
 import Feature from "ol/Feature.js";
@@ -96,6 +95,35 @@ function buildTaxaOptions(features: Feature[]): TaxonOption[] {
   ];
 }
 
+function clusterCentroid(features: Feature[]): { lon: number; lat: number } {
+  let sumLon = 0, sumLat = 0;
+  for (const f of features) {
+    const [lon, lat] = toLonLat((f.getGeometry() as Point).getCoordinates());
+    sumLon += lon!;
+    sumLat += lat!;
+  }
+  return { lon: sumLon / features.length, lat: sumLat / features.length };
+}
+
+function haversineMetres(lon1: number, lat1: number, lon2: number, lat2: number): number {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function maxRadiusMetres(features: Feature[], centroid: { lon: number; lat: number }): number {
+  let max = 0;
+  for (const f of features) {
+    const [lon, lat] = toLonLat((f.getGeometry() as Point).getCoordinates());
+    const d = haversineMetres(centroid.lon, centroid.lat, lon!, lat!);
+    if (d > max) max = d;
+  }
+  return max;
+}
+
 @customElement('bee-map')
 export class BeeMap extends LitElement {
   @query('#map')
@@ -129,11 +157,9 @@ export class BeeMap extends LitElement {
   @state() private _regionMenuOpen = false;
 
   // Instance OL sources/layers (moved from module-level per Phase 34-02 decision)
-  private specimenSource!: EcdysisSource;
+  private occurrenceSource!: OccurrenceSource;
   private clusterSource!: Cluster;
-  private specimenLayer!: VectorLayer;
-  private sampleSource!: SampleSource;
-  private sampleLayer!: VectorLayer;
+  private occurrenceLayer!: VectorLayer;
 
   static styles = css`
 :host {
@@ -239,7 +265,6 @@ export class BeeMap extends LitElement {
     // Repaint OL when visible ID sets change
     if (changedProperties.has('visibleEcdysisIds') || changedProperties.has('visibleSampleIds')) {
       this.clusterSource?.changed();
-      this.sampleSource?.changed();
       this.map?.render();
       // Compute and emit filtered summary
       this._emitFilteredSummary();
@@ -249,12 +274,6 @@ export class BeeMap extends LitElement {
     if (changedProperties.has('selectedOccIds')) {
       this.clusterSource?.changed();
       this.map?.render();
-    }
-
-    // Layer visibility
-    if (changedProperties.has('layerMode')) {
-      this.specimenLayer?.setVisible(this.layerMode === 'specimens');
-      this.sampleLayer?.setVisible(this.layerMode === 'samples');
     }
 
     // Boundary mode and filter state changes (both affect region layer styling)
@@ -288,8 +307,10 @@ export class BeeMap extends LitElement {
   }
 
   private _emitFilteredSummary() {
-    if (this.visibleEcdysisIds !== null && this.specimenSource) {
-      const allFeatures = this.specimenSource.getFeatures();
+    if (this.visibleEcdysisIds !== null && this.occurrenceSource) {
+      const allFeatures = this.occurrenceSource.getFeatures().filter(
+        f => String(f.getId()).startsWith('ecdysis:')
+      );
       const matching = allFeatures.filter(f => this.visibleEcdysisIds!.has(f.getId() as string));
       const fSummary = computeSummary(matching);
       const totalSummary = allFeatures.length > 0 ? computeSummary(allFeatures) : null;
@@ -311,7 +332,7 @@ export class BeeMap extends LitElement {
   private _buildRecentSampleEvents(): SampleEvent[] {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 14);
-    return this.sampleSource.getFeatures()
+    return this.occurrenceSource.getFeatures().filter(f => String(f.getId()).startsWith('inat:'))
       .filter(f => new Date(f.get('date') as string) >= cutoff)
       .sort((a, b) =>
         new Date(b.get('date') as string).valueOf() -
@@ -336,24 +357,17 @@ export class BeeMap extends LitElement {
 
   public firstUpdated(_changedProperties: PropertyValues): void {
     // Create instance-level OL sources and layers using factory style functions
-    this.specimenSource = new EcdysisSource({
+    this.occurrenceSource = new OccurrenceSource({
       onError: (err) => this._emit('data-error', { message: err.message }),
     });
     this.clusterSource = new Cluster({
-      distance: 40,
-      minDistance: 0,
-      source: this.specimenSource,
+      distance: 20,    // D-02: tighter clusters (was 40)
+      minDistance: 5,
+      source: this.occurrenceSource,
     });
-    this.specimenLayer = new VectorLayer({
+    this.occurrenceLayer = new VectorLayer({
       source: this.clusterSource,
       style: makeClusterStyleFn(() => this.visibleEcdysisIds, () => this.selectedOccIds),
-    });
-    this.sampleSource = new SampleSource({
-      onError: (err) => this._emit('data-error', { message: err.message }),
-    });
-    this.sampleLayer = new VectorLayer({
-      source: this.sampleSource,
-      style: makeSampleDotStyleFn(() => this.visibleSampleIds),
     });
 
     // Create OL map
@@ -366,8 +380,7 @@ export class BeeMap extends LitElement {
           }),
         }),
         new LayerGroup(),
-        this.specimenLayer,
-        this.sampleLayer,
+        this.occurrenceLayer,
         regionLayer,   // added last — renders boundary strokes above data dots
       ],
       target: this.mapElement,
@@ -377,14 +390,6 @@ export class BeeMap extends LitElement {
         zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
       }),
     });
-
-    // sampleLayer starts hidden
-    this.sampleLayer.setVisible(false);
-    // Apply layerMode if initially not specimens
-    if (this.layerMode === 'samples') {
-      this.specimenLayer.setVisible(false);
-      this.sampleLayer.setVisible(true);
-    }
 
     // Set dynamic style function so selected polygons are highlighted
     regionLayer.setStyle(makeRegionStyleFn(
@@ -398,26 +403,17 @@ export class BeeMap extends LitElement {
       regionLayer.setVisible(true);
     }
 
-    // specimenSource: emit data-loaded when features arrive
-    this.specimenSource.once('change', () => {
-      const features = this.specimenSource.getFeatures();
-      if (features.length > 0) {
-        this._emit('data-loaded', {
-          summary: computeSummary(features),
-          taxaOptions: buildTaxaOptions(features),
-        });
-      }
-    });
-
-    // sampleSource: emit sample-data-loaded when features arrive
-    const onSampleLoaded = () => {
-      if (this.sampleSource.getFeatures().length === 0) return;
-      this.sampleSource.un('change', onSampleLoaded);
-      this._emit('sample-data-loaded', {
+    // occurrenceSource: emit data-loaded when features arrive (consolidated event)
+    this.occurrenceSource.once('change', () => {
+      const features = this.occurrenceSource.getFeatures();
+      if (features.length === 0) return;
+      const specimenFeatures = features.filter(f => String(f.getId()).startsWith('ecdysis:'));
+      this._emit('data-loaded', {
+        summary: computeSummary(specimenFeatures),
+        taxaOptions: buildTaxaOptions(specimenFeatures),
         recentEvents: this._buildRecentSampleEvents(),
       });
-    };
-    this.sampleSource.on('change', onSampleLoaded);
+    });
 
     // County/ecoregion options — emit when sources load
     countySource.once('change', () => {
@@ -443,75 +439,58 @@ export class BeeMap extends LitElement {
       this._emit('view-moved', { lon: center[0]!, lat: center[1]!, zoom });
     });
 
-    // click handler: mode-gated for specimen vs sample layer
+    // click handler: unified for all occurrences
     this.map.on('click', async (event: MapBrowserEvent) => {
       if (event.dragging) return;
-      if (this.layerMode === 'specimens') {
-        const hits = await this.specimenLayer.getFeatures(event.pixel);
-        if (hits.length) {
-          const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
-          const toShow = this.visibleEcdysisIds !== null
-            ? inner.filter(f => this.visibleEcdysisIds!.has(f.getId() as string))
-            : inner;
-          if (toShow.length === 0) return;
-          this._emit('map-click-specimen', {
-            samples: buildSamples(toShow),
-            occIds: toShow.map(f => f.getId() as string),
+
+      const hits = await this.occurrenceLayer.getFeatures(event.pixel);
+      if (hits.length) {
+        const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
+        const toShow = this.visibleEcdysisIds !== null
+          ? inner.filter(f => this.visibleEcdysisIds!.has(f.getId() as string))
+          : inner;
+        if (toShow.length === 0) return;
+
+        // Filter to specimen-backed features for buildSamples (Pitfall 3 from RESEARCH)
+        const specimenFeatures = toShow.filter(f => String(f.getId()).startsWith('ecdysis:'));
+        const occIds = toShow.map(f => f.getId() as string);
+
+        if (toShow.length === 1) {
+          // Single feature click — D-05: emit ID directly
+          this._emit('map-click-occurrence', {
+            samples: buildSamples(specimenFeatures),
+            occIds,
           });
-          return;
-        }
-        // No specimen hit — check boundary overlay if active
-        if (this.boundaryMode !== 'off') {
-          const polyHits = await regionLayer.getFeatures(event.pixel);
-          if (polyHits.length) {
-            const feature = polyHits[0]! as Feature;
-            const isCounty = this.boundaryMode === 'counties';
-            this._emit('map-click-region', {
-              name: isCounty ? (feature.get('NAME') as string) : (feature.get('NA_L3NAME') as string),
-              shiftKey: (event.originalEvent as MouseEvent).shiftKey,
-            });
-            return;
-          }
-          // Miss on open map area — emit map-click-empty
-          this._emit('map-click-empty');
-          return;
-        }
-        // No boundary overlay active — emit map-click-empty
-        this._emit('map-click-empty');
-      } else {
-        const hits = await this.sampleLayer.getFeatures(event.pixel);
-        if (hits.length) {
-          const f = hits[0]!;
-          this._emit('map-click-sample', {
-            observation_id: f.get('observation_id') as number,
-            observer: f.get('observer') as string,
-            date: f.get('date') as string,
-            specimen_count: f.get('specimen_count') as number,
-            sample_id: f.get('sample_id') as number | null,
-            coordinate: (f.getGeometry() as Point).getCoordinates(),
-            elevation_m: f.get('elevation_m') != null ? Number(f.get('elevation_m')) : null,
+        } else {
+          // Multi-feature cluster click — D-06: compute centroid + radiusM
+          const centroid = clusterCentroid(toShow);
+          const radiusM = maxRadiusMetres(toShow, centroid);
+          this._emit('map-click-occurrence', {
+            samples: buildSamples(specimenFeatures),
+            occIds,
+            centroid,
+            radiusM,
           });
-          return;
         }
-        // No sample hit — check boundary overlay if active
-        if (this.boundaryMode !== 'off') {
-          const polyHits = await regionLayer.getFeatures(event.pixel);
-          if (polyHits.length) {
-            const feature = polyHits[0]! as Feature;
-            const isCounty = this.boundaryMode === 'counties';
-            this._emit('map-click-region', {
-              name: isCounty ? (feature.get('NAME') as string) : (feature.get('NA_L3NAME') as string),
-              shiftKey: (event.originalEvent as MouseEvent).shiftKey,
-            });
-            return;
-          }
-          // Miss on open map area — emit map-click-empty
-          this._emit('map-click-empty');
-          return;
-        }
-        // No boundary overlay active — emit map-click-empty
-        this._emit('map-click-empty');
+        return;
       }
+
+      // No occurrence hit — check boundary overlay if active
+      if (this.boundaryMode !== 'off') {
+        const polyHits = await regionLayer.getFeatures(event.pixel);
+        if (polyHits.length) {
+          const feature = polyHits[0]! as Feature;
+          const isCounty = this.boundaryMode === 'counties';
+          this._emit('map-click-region', {
+            name: isCounty ? (feature.get('NAME') as string) : (feature.get('NA_L3NAME') as string),
+            shiftKey: (event.originalEvent as MouseEvent).shiftKey,
+          });
+          return;
+        }
+        this._emit('map-click-empty');
+        return;
+      }
+      this._emit('map-click-empty');
     });
   }
 }
