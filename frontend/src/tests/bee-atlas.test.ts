@@ -58,13 +58,20 @@ describe('ARCH-02: bee-map property interface', () => {
     const { BeeMap } = await import('../bee-map.ts');
     // Lit stores property definitions in a static properties map
     const props = (BeeMap as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('layerMode')).toBe(true);
+    expect(props.has('visibleIds')).toBe(true);
     expect(props.has('boundaryMode')).toBe(true);
-    expect(props.has('visibleEcdysisIds')).toBe(true);
-    expect(props.has('visibleSampleIds')).toBe(true);
     expect(props.has('viewState')).toBe(true);
     expect(props.has('panTo')).toBe(true);
     expect(props.has('filterState')).toBe(true);
+    expect(props.has('layerMode')).toBe(false);
+  });
+
+  test('bee-atlas.ts does not contain _layerMode or old state fields', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(src).not.toMatch(/_layerMode/);
+    expect(src).not.toMatch(/_visibleEcdysisIds/);
+    expect(src).not.toMatch(/_visibleSampleIds/);
+    expect(src).not.toMatch(/_selectedSampleEvent/);
   });
 });
 

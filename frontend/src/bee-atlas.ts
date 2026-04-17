@@ -1,9 +1,9 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type SpecimenRow, type SampleRow, type SpecimenSortBy } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
-import type { Sample, Specimen, DataSummary, TaxonOption, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
+import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
 import './bee-filter-toolbar.ts';
 import './bee-map.ts';
@@ -31,18 +31,15 @@ export class BeeAtlas extends LitElement {
     elevMax: null,
   };
 
-  @state() private _visibleEcdysisIds: Set<string> | null = null;
-  @state() private _visibleSampleIds: Set<string> | null = null;
-  @state() private _layerMode: 'specimens' | 'samples' = 'specimens';
+  @state() private _visibleIds: Set<string> | null = null;
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @state() private _viewMode: 'map' | 'table' = 'map';
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
-  @state() private _tableRows: SpecimenRow[] | SampleRow[] = [];
+  @state() private _tableRows: OccurrenceRow[] = [];
   @state() private _tableRowCount = 0;
   @state() private _tableLoading = false;
-  @state() private _selectedSamples: Sample[] | null = null;
-  @state() private _selectedSampleEvent: SampleEvent | null = null;
+  @state() private _selectedOccurrences: OccurrenceRow[] | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
   @state() private _summary: DataSummary | null = null;
@@ -62,9 +59,9 @@ export class BeeAtlas extends LitElement {
   // Root cause of chip-removal flicker: _filterState updates synchronously (Lit
   // re-render + bee-map.updated() → regionLayer.changed() → OL canvas repaint)
   // while _runFilterQuery is async. When the previous query resolves it would
-  // overwrite _visibleEcdysisIds/_visibleSampleIds with stale data, causing a
-  // flash of the wrong filter state. The generation guard ensures only the
-  // most-recently-started query can commit its result.
+  // overwrite _visibleIds with stale data, causing a flash of the wrong filter
+  // state. The generation guard ensures only the most-recently-started query
+  // can commit its result.
   private _filterQueryGeneration = 0;
   private _tableQueryGeneration = 0;
   private _currentView: { lon: number; lat: number; zoom: number } = {
@@ -136,9 +133,7 @@ bee-sidebar {
   render() {
     return html`
       <bee-header
-        .layerMode=${this._layerMode}
         .viewMode=${this._viewMode}
-        @layer-changed=${this._onLayerChanged}
         @view-changed=${this._onViewChanged}
       ></bee-header>
       <bee-filter-toolbar
@@ -148,7 +143,6 @@ bee-sidebar {
         .ecoregionOptions=${this._ecoregionOptions}
         .collectorOptions=${this._collectorOptions}
         .summary=${this._summary}
-        .layerMode=${this._layerMode}
         @filter-changed=${this._onFilterChanged}
         @csv-download=${this._onDownloadCsv}
       ></bee-filter-toolbar>
@@ -158,10 +152,8 @@ bee-sidebar {
         <div class="content">
           ${this._viewMode === 'map'
             ? html`<bee-map
-                .layerMode=${this._layerMode}
                 .boundaryMode=${this._boundaryMode}
-                .visibleEcdysisIds=${this._visibleEcdysisIds}
-                .visibleSampleIds=${this._visibleSampleIds}
+                .visibleIds=${this._visibleIds}
                 .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
                 .countyOptions=${this._countyOptions}
                 .ecoregionOptions=${this._ecoregionOptions}
@@ -180,7 +172,6 @@ bee-sidebar {
             : html`<bee-table
                 .rows=${this._tableRows}
                 .rowCount=${this._tableRowCount}
-                .layerMode=${this._layerMode}
                 .page=${this._tablePage}
                 .loading=${this._tableLoading}
                 .sortBy=${this._tableSortBy}
@@ -190,8 +181,7 @@ bee-sidebar {
               ></bee-table>`
           }
           ${this._sidebarOpen ? html`<bee-sidebar
-            .samples=${this._selectedSamples}
-            .selectedSampleEvent=${this._selectedSampleEvent}
+            .occurrences=${this._selectedOccurrences}
             @close=${this._onClose}
           ></bee-sidebar>` : ''}
         </div>
@@ -209,11 +199,9 @@ bee-sidebar {
     this._currentView = { lon: initLon, lat: initLat, zoom: initZoom };
     this._viewState = { lon: initLon, lat: initLat, zoom: initZoom };
 
-    // Restore layer/boundary/view mode from URL
-    const initLayerMode = initialParams.ui?.layerMode ?? 'specimens';
+    // Restore boundary/view mode from URL
     const initBoundaryMode = initialParams.ui?.boundaryMode ?? 'off';
     const initViewMode = initialParams.ui?.viewMode ?? 'map';
-    this._layerMode = initLayerMode;
     this._boundaryMode = initBoundaryMode;
     this._viewMode = initViewMode;
     // Restore filter state from URL params
@@ -233,11 +221,10 @@ bee-sidebar {
       };
     }
 
-    // If URL restores an active filter, initialize visible ID sets to empty (hide-all)
+    // If URL restores an active filter, initialize visible ID set to empty (hide-all)
     // so no dots flash before the async filter query completes.
     if (isFilterActive(this._filterState)) {
-      this._visibleEcdysisIds = new Set();
-      this._visibleSampleIds = new Set();
+      this._visibleIds = new Set();
     }
 
     // Start filter query early — queryVisibleIds awaits tablesReady internally,
@@ -261,7 +248,7 @@ bee-sidebar {
       { lon: initLon, lat: initLat, zoom: initZoom },
       this._filterState,
       initSel ?? { type: 'ids' as const, ids: [] },
-      { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode }
+      { boundaryMode: initBoundaryMode, viewMode: initViewMode }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
@@ -297,11 +284,10 @@ bee-sidebar {
 
   private async _runFilterQuery(): Promise<void> {
     const generation = ++this._filterQueryGeneration;
-    const { ecdysis, samples } = await queryVisibleIds(this._filterState);
+    const ids = await queryVisibleIds(this._filterState);
     // Discard result if a newer query has started since this one began.
     if (generation !== this._filterQueryGeneration) return;
-    this._visibleEcdysisIds = ecdysis;
-    this._visibleSampleIds = samples;
+    this._visibleIds = ids;
   }
 
   private async _loadSummaryFromSQLite(): Promise<void> {
@@ -410,7 +396,7 @@ bee-sidebar {
     const generation = ++this._tableQueryGeneration;
     try {
       const { rows, total } = await queryTablePage(
-        this._filterState, this._layerMode, this._tablePage, this._tableSortBy
+        this._filterState, this._tablePage, this._tableSortBy
       );
       if (generation !== this._tableQueryGeneration) return;
       this._tableRows = rows;
@@ -436,7 +422,7 @@ bee-sidebar {
       this._selectedCluster
         ? { type: 'cluster' as const, ...this._selectedCluster }
         : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode }
+      { boundaryMode: this._boundaryMode, viewMode: this._viewMode }
     );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
@@ -476,7 +462,6 @@ bee-sidebar {
     };
 
     // Restore UI state
-    this._layerMode = parsed.ui?.layerMode ?? 'specimens';
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
     this._viewMode = parsed.ui?.viewMode ?? 'map';
     this._tablePage = 1;
@@ -495,10 +480,9 @@ bee-sidebar {
       this._selectedOccIds = null;
       this._sidebarOpen = true;
     } else {
-      this._selectedSamples = null;
+      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectedSampleEvent = null;
       this._sidebarOpen = false;
     }
 
@@ -506,8 +490,7 @@ bee-sidebar {
     if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
     } else {
-      this._visibleEcdysisIds = null;
-      this._visibleSampleIds = null;
+      this._visibleIds = null;
     }
   };
 
@@ -523,10 +506,9 @@ bee-sidebar {
     }
   }
 
-  private _onOccurrenceClick(e: CustomEvent<{ samples: Sample[]; occIds: string[]; centroid?: { lon: number; lat: number }; radiusM?: number }>) {
-    this._selectedSamples = e.detail.samples;
+  private _onOccurrenceClick(e: CustomEvent<{ occurrences: OccurrenceRow[]; occIds: string[]; centroid?: { lon: number; lat: number }; radiusM?: number }>) {
+    this._selectedOccurrences = e.detail.occurrences;
     this._selectedOccIds = e.detail.occIds;
-    this._selectedSampleEvent = null;
     if (e.detail.centroid && e.detail.radiusM != null) {
       this._selectedCluster = { lon: e.detail.centroid.lon, lat: e.detail.centroid.lat, radiusM: e.detail.radiusM };
     } else {
@@ -591,20 +573,18 @@ bee-sidebar {
         selectedCounties: new Set(),
         selectedEcoregions: new Set(),
       };
-      this._selectedSamples = null;
+      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectedSampleEvent = null;
       this._sidebarOpen = false;
       this._runFilterQuery().then(() => {
         this._pushUrlState();
       });
     } else {
       // Clear selection
-      this._selectedSamples = null;
+      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectedSampleEvent = null;
       this._sidebarOpen = false;
       this._pushUrlState();
     }
@@ -627,10 +607,9 @@ bee-sidebar {
     };
 
     // Clear selections when filter changes
-    this._selectedSamples = null;
+    this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._selectedSampleEvent = null;
     this._sidebarOpen = false;
 
     this._tablePage = 1;  // per D-09
@@ -638,21 +617,6 @@ bee-sidebar {
       this._pushUrlState();
     });
     this._runTableQuery();
-  }
-
-  private _onLayerChanged(e: CustomEvent<'specimens' | 'samples'>) {
-    this._layerMode = e.detail;
-    this._selectedSamples = null;
-    this._selectedOccIds = null;
-    this._selectedCluster = null;
-    this._selectedSampleEvent = null;
-    this._sidebarOpen = false;
-    this._tablePage = 1;
-    if (e.detail === 'samples') {
-      this._tableSortBy = 'date';
-    }
-    this._runTableQuery();
-    this._pushUrlState();
   }
 
   private _onViewChanged(e: CustomEvent<'map' | 'table'>) {
@@ -681,14 +645,14 @@ bee-sidebar {
 
   private async _onDownloadCsv() {
     try {
-      const rows = await queryAllFiltered(this._filterState, this._layerMode, this._tableSortBy);
+      const rows = await queryAllFiltered(this._filterState, this._tableSortBy);
       if (rows.length === 0) return;
       const headers = Object.keys(rows[0]!);
       const csvLines = [
         headers.join(','),
         ...rows.map(row =>
           headers.map(h => {
-            const val = row[h];
+            const val = (row as any)[h];
             const str = val == null ? '' : String(val);
             return str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')
               ? '"' + str.replace(/"/g, '""') + '"'
@@ -699,7 +663,7 @@ bee-sidebar {
       const csvContent = csvLines.join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const filename = buildCsvFilename(this._filterState, this._layerMode);
+      const filename = buildCsvFilename(this._filterState);
       const a = document.createElement('a');
       a.href = url;
       a.download = filename;
@@ -714,15 +678,14 @@ bee-sidebar {
   }
 
   private _onClose() {
-    this._selectedSamples = null;
+    this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._selectedSampleEvent = null;
     this._sidebarOpen = false;
     this._pushUrlState();
   }
 
-  private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[]; recentEvents?: SampleEvent[] }>) {
+  private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[] }>) {
     this._summary = e.detail.summary;
     this._taxaOptions = e.detail.taxaOptions;
     this._loading = false;
@@ -739,61 +702,46 @@ bee-sidebar {
     }
 
     // Restore ID-based selection
-    if (this._selectedOccIds && this._selectedOccIds.length > 0 && this._selectedSamples === null) {
-      this._restoreSelectionSamples(this._selectedOccIds);
+    if (this._selectedOccIds && this._selectedOccIds.length > 0 && this._selectedOccurrences === null) {
+      this._restoreSelectionOccurrences(this._selectedOccIds);
     }
     // Restore cluster-based selection
-    if (this._selectedCluster && this._selectedSamples === null) {
+    if (this._selectedCluster && this._selectedOccurrences === null) {
       this._restoreClusterSelection(this._selectedCluster);
     }
   }
 
-  private async _restoreSelectionSamples(occIds: string[]) {
-    const ecdysisIds = occIds
-      .filter(id => id.startsWith('ecdysis:'))
-      .map(id => id.slice('ecdysis:'.length))
-      .filter(id => /^\d+$/.test(id));  // only accept pure integer suffixes (CLAUDE.md: ecdysis IDs are ecdysis:<integer>)
-    // For inat: prefixed IDs, just validate they exist — no specimen data to load
-    // (sidebar will show blank specimen fields for sample-only records until Phase 65)
-    if (ecdysisIds.length === 0) return;
+  private async _restoreSelectionOccurrences(occIds: string[]) {
     try {
       const { sqlite3, db } = await getDB();
-      // Belt-and-suspenders: reject any id that is not a pure integer string
-      const safeIds = ecdysisIds.filter(id => /^\d+$/.test(id));
-      if (safeIds.length === 0) return;
-      const idList = safeIds.map(id => `'${id}'`).join(',');
-      const map = new Map<string, Sample>();
+      const ecdysisIds = occIds
+        .filter(id => id.startsWith('ecdysis:'))
+        .map(id => id.slice('ecdysis:'.length))
+        .filter(id => /^\d+$/.test(id));
+      const inatIds = occIds
+        .filter(id => id.startsWith('inat:'))
+        .map(id => id.slice('inat:'.length))
+        .filter(id => /^\d+$/.test(id));
+
+      const conditions: string[] = [];
+      if (ecdysisIds.length > 0) {
+        conditions.push(`CAST(ecdysis_id AS TEXT) IN (${ecdysisIds.map(id => `'${id}'`).join(',')})`);
+      }
+      if (inatIds.length > 0) {
+        conditions.push(`CAST(observation_id AS TEXT) IN (${inatIds.map(id => `'${id}'`).join(',')})`);
+      }
+      if (conditions.length === 0) return;
+
+      const colList = OCCURRENCE_COLUMNS.join(', ');
+      const rows: OccurrenceRow[] = [];
       await sqlite3.exec(db, `
-        SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
-               host_observation_id, floralHost, inat_host, inat_quality_grade,
-               specimen_observation_id, elevation_m
+        SELECT ${colList}
         FROM occurrences
-        WHERE CAST(ecdysis_id AS TEXT) IN (${idList})
+        WHERE ${conditions.join(' OR ')}
       `, (rowValues: unknown[], columnNames: string[]) => {
-        const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
-        const key = `${obj.year}-${obj.month}-${obj.recordedBy}-${obj.fieldNumber}`;
-        if (!map.has(key)) {
-          map.set(key, {
-            year: Number(obj.year),
-            month: Number(obj.month),
-            recordedBy: String(obj.recordedBy),
-            fieldNumber: String(obj.fieldNumber),
-            species: [],
-            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
-          });
-        }
-        const specimen: Specimen = {
-          name: obj.scientificName ? String(obj.scientificName) : '',
-          occid: String(obj.ecdysis_id),
-          hostObservationId: obj.host_observation_id != null ? Number(obj.host_observation_id) : null,
-          floralHost: obj.floralHost != null ? String(obj.floralHost) : null,
-          inatHost: obj.inat_host != null ? String(obj.inat_host) : null,
-          inatQualityGrade: obj.inat_quality_grade != null ? String(obj.inat_quality_grade) : null,
-          specimenObservationId: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
-        };
-        map.get(key)!.species.push(specimen);
+        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as OccurrenceRow);
       });
-      this._selectedSamples = [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+      this._selectedOccurrences = rows;
     } catch (err) {
       console.error('Failed to restore selection from URL:', err);
     }
@@ -806,16 +754,15 @@ bee-sidebar {
       const degPerMetre = 1 / 111320;
       const dLat = radiusM * degPerMetre;
       const dLon = radiusM * degPerMetre / Math.cos(lat * Math.PI / 180);
-      const rows: Record<string, unknown>[] = [];
+      const colList = OCCURRENCE_COLUMNS.join(', ');
+      const rows: OccurrenceRow[] = [];
       await sqlite3.exec(db, `
-        SELECT ecdysis_id, observation_id, year, month, scientificName, recordedBy, fieldNumber,
-               host_observation_id, floralHost, inat_host, inat_quality_grade,
-               specimen_observation_id, elevation_m, lat, lon
+        SELECT ${colList}
         FROM occurrences
         WHERE lat BETWEEN ${lat - dLat} AND ${lat + dLat}
           AND lon BETWEEN ${lon - dLon} AND ${lon + dLon}
       `, (rowValues: unknown[], columnNames: string[]) => {
-        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])));
+        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as OccurrenceRow);
       });
 
       // Post-filter with haversine for precision
@@ -836,33 +783,7 @@ bee-sidebar {
         obj.ecdysis_id != null ? `ecdysis:${obj.ecdysis_id}` : `inat:${Number(obj.observation_id)}`
       );
       this._selectedOccIds = restoredIds;
-
-      // Build samples from specimen-backed rows (same pattern as _restoreSelectionSamples)
-      const map = new Map<string, Sample>();
-      for (const obj of filtered) {
-        if (obj.ecdysis_id == null) continue; // skip sample-only rows for Sample display
-        const key = `${obj.year}-${obj.month}-${obj.recordedBy}-${obj.fieldNumber}`;
-        if (!map.has(key)) {
-          map.set(key, {
-            year: Number(obj.year),
-            month: Number(obj.month),
-            recordedBy: String(obj.recordedBy),
-            fieldNumber: String(obj.fieldNumber),
-            species: [],
-            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
-          });
-        }
-        map.get(key)!.species.push({
-          name: obj.scientificName ? String(obj.scientificName) : '',
-          occid: String(obj.ecdysis_id),
-          hostObservationId: obj.host_observation_id != null ? Number(obj.host_observation_id) : null,
-          floralHost: obj.floralHost != null ? String(obj.floralHost) : null,
-          inatHost: obj.inat_host != null ? String(obj.inat_host) : null,
-          inatQualityGrade: obj.inat_quality_grade != null ? String(obj.inat_quality_grade) : null,
-          specimenObservationId: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
-        });
-      }
-      this._selectedSamples = [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+      this._selectedOccurrences = filtered;
     } catch (err) {
       console.error('Failed to restore cluster selection from URL:', err);
     }

@@ -13,9 +13,9 @@ import StadiaMaps from "ol/source/StadiaMaps.js";
 import Feature from "ol/Feature.js";
 import Point from 'ol/geom/Point.js';
 import type MapBrowserEvent from "ol/MapBrowserEvent.js";
-import type { FilterState } from './filter.ts';
+import { type FilterState, OCCURRENCE_COLUMNS, type OccurrenceRow } from './filter.ts';
 import { regionLayer, countySource, ecoregionSource, makeRegionStyleFn } from './region-layer.ts';
-import type { Sample, DataSummary, TaxonOption, FilteredSummary, SampleEvent } from './bee-sidebar.ts';
+import type { DataSummary, TaxonOption, FilteredSummary } from './bee-sidebar.ts';
 
 const sphericalMercator = 'EPSG:3857';
 
@@ -24,31 +24,6 @@ const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
 
-
-function buildSamples(features: Feature[]): Sample[] {
-  const map = new Map<string, Sample>();
-  for (const f of features) {
-    const key = `${f.get('year')}-${f.get('month')}-${f.get('recordedBy')}-${f.get('fieldNumber')}`;
-    if (!map.has(key)) {
-      map.set(key, {
-        year: f.get('year') as number,
-        month: f.get('month') as number,
-        recordedBy: f.get('recordedBy') as string,
-        fieldNumber: f.get('fieldNumber') as string,
-        species: [],
-        elevation_m: f.get('elevation_m') != null ? Number(f.get('elevation_m')) : null,
-      });
-    }
-    const occid = (f.getId() as string).replace('ecdysis:', '');
-    const hostObsId = f.get('host_observation_id') as number | null ?? null;
-    const floralHost = (f.get('floralHost') as string | null | undefined) ?? null;
-    const inatHost = (f.get('inat_host') as string | null | undefined) ?? null;
-    const inatQualityGrade = (f.get('inat_quality_grade') as string | null | undefined) ?? null;
-    const specObsId = f.get('specimen_observation_id') as number | null ?? null;
-    map.get(key)!.species.push({ name: (f.get('scientificName') as string) || '', occid, hostObservationId: hostObsId, floralHost, inatHost, inatQualityGrade, specimenObservationId: specObsId });
-  }
-  return [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
-}
 
 function computeSummary(features: Feature[]): DataSummary {
   const species = new Set<string>();
@@ -132,10 +107,8 @@ export class BeeMap extends LitElement {
   map?: OpenLayersMap;
 
   // --- @property inputs from bee-atlas ---
-  @property({ attribute: false }) layerMode: 'specimens' | 'samples' = 'specimens';
   @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
-  @property({ attribute: false }) visibleEcdysisIds: Set<string> | null = null;
-  @property({ attribute: false }) visibleSampleIds: Set<string> | null = null;
+  @property({ attribute: false }) visibleIds: Set<string> | null = null;
   @property({ attribute: false }) selectedOccIds: Set<string> | null = null;
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
@@ -160,6 +133,8 @@ export class BeeMap extends LitElement {
   private occurrenceSource!: OccurrenceSource;
   private clusterSource!: Cluster;
   private occurrenceLayer!: VectorLayer;
+  // speicmenLayer typo is intentionally deferred — do not fix incidentally
+  private speicmenLayer: VectorLayer | undefined;
 
   static styles = css`
 :host {
@@ -262,8 +237,8 @@ export class BeeMap extends LitElement {
   updated(changedProperties: PropertyValues) {
     super.updated(changedProperties);
 
-    // Repaint OL when visible ID sets change
-    if (changedProperties.has('visibleEcdysisIds') || changedProperties.has('visibleSampleIds')) {
+    // Repaint OL when visible ID set changes
+    if (changedProperties.has('visibleIds')) {
       this.clusterSource?.changed();
       this.map?.render();
       // Compute and emit filtered summary
@@ -307,11 +282,11 @@ export class BeeMap extends LitElement {
   }
 
   private _emitFilteredSummary() {
-    if (this.visibleEcdysisIds !== null && this.occurrenceSource) {
+    if (this.visibleIds !== null && this.occurrenceSource) {
       const allFeatures = this.occurrenceSource.getFeatures().filter(
         f => String(f.getId()).startsWith('ecdysis:')
       );
-      const matching = allFeatures.filter(f => this.visibleEcdysisIds!.has(f.getId() as string));
+      const matching = allFeatures.filter(f => this.visibleIds!.has(f.getId() as string));
       const fSummary = computeSummary(matching);
       const totalSummary = allFeatures.length > 0 ? computeSummary(allFeatures) : null;
       this._emit<{ filteredSummary: FilteredSummary | null }>('filtered-summary-computed', {
@@ -329,32 +304,6 @@ export class BeeMap extends LitElement {
     }
   }
 
-  private _buildRecentSampleEvents(): SampleEvent[] {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 14);
-    return this.occurrenceSource.getFeatures().filter(f => String(f.getId()).startsWith('inat:'))
-      .filter(f => new Date(f.get('date') as string) >= cutoff)
-      .sort((a, b) =>
-        new Date(b.get('date') as string).valueOf() -
-        new Date(a.get('date') as string).valueOf()
-      )
-      .map(f => {
-        const rawDate = f.get('date');
-        const date = rawDate instanceof Date
-          ? rawDate.toISOString().slice(0, 10)
-          : String(rawDate).slice(0, 10);
-        return {
-          observation_id: f.get('observation_id') as number,
-          observer: f.get('observer') as string,
-          date,
-          specimen_count: f.get('specimen_count') as number,
-          sample_id: f.get('sample_id') as number | null,
-          coordinate: (f.getGeometry() as Point).getCoordinates(),
-          elevation_m: f.get('elevation_m') != null ? Number(f.get('elevation_m')) : null,
-        };
-      });
-  }
-
   public firstUpdated(_changedProperties: PropertyValues): void {
     // Create instance-level OL sources and layers using factory style functions
     this.occurrenceSource = new OccurrenceSource({
@@ -367,7 +316,7 @@ export class BeeMap extends LitElement {
     });
     this.occurrenceLayer = new VectorLayer({
       source: this.clusterSource,
-      style: makeClusterStyleFn(() => this.visibleEcdysisIds, () => this.selectedOccIds),
+      style: makeClusterStyleFn(() => this.visibleIds, () => this.selectedOccIds),
     });
 
     // Create OL map
@@ -411,7 +360,6 @@ export class BeeMap extends LitElement {
       this._emit('data-loaded', {
         summary: computeSummary(specimenFeatures),
         taxaOptions: buildTaxaOptions(specimenFeatures),
-        recentEvents: this._buildRecentSampleEvents(),
       });
     });
 
@@ -446,19 +394,23 @@ export class BeeMap extends LitElement {
       const hits = await this.occurrenceLayer.getFeatures(event.pixel);
       if (hits.length) {
         const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
-        const toShow = this.visibleEcdysisIds !== null
-          ? inner.filter(f => this.visibleEcdysisIds!.has(f.getId() as string))
+        const toShow = this.visibleIds !== null
+          ? inner.filter(f => this.visibleIds!.has(f.getId() as string))
           : inner;
         if (toShow.length === 0) return;
 
-        // Filter to specimen-backed features for buildSamples (Pitfall 3 from RESEARCH)
-        const specimenFeatures = toShow.filter(f => String(f.getId()).startsWith('ecdysis:'));
         const occIds = toShow.map(f => f.getId() as string);
+
+        const occurrences: OccurrenceRow[] = toShow.map(f => {
+          const obj: Record<string, unknown> = {};
+          for (const col of OCCURRENCE_COLUMNS) obj[col] = f.get(col);
+          return obj as OccurrenceRow;
+        });
 
         if (toShow.length === 1) {
           // Single feature click — D-05: emit ID directly
           this._emit('map-click-occurrence', {
-            samples: buildSamples(specimenFeatures),
+            occurrences,
             occIds,
           });
         } else {
@@ -466,7 +418,7 @@ export class BeeMap extends LitElement {
           const centroid = clusterCentroid(toShow);
           const radiusM = maxRadiusMetres(toShow, centroid);
           this._emit('map-click-occurrence', {
-            samples: buildSamples(specimenFeatures),
+            occurrences,
             occIds,
             centroid,
             radiusM,

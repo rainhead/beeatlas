@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { SpecimenRow, SampleRow, SpecimenSortBy } from './filter.ts';
+import type { OccurrenceRow, SpecimenSortBy } from './filter.ts';
 
 interface ColumnDef {
   key: string;
@@ -14,45 +14,26 @@ interface ColumnDef {
 
 const CAMERA_ICON = html`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
 
-const SPECIMEN_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'label', label: 'Label', dataField: 'catalog_number', minWidth: '90px',
-    linkFn: (row) => row.ecdysis_id != null
-      ? `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}`
-      : null,
-    linkLabel: (row) => row.catalog_number ?? 'View' },
-  { key: 'species', label: 'Species', dataField: 'scientificName', minWidth: '180px',
-    nullLabel: 'No Determination' },
-  { key: 'collector', label: 'Collector', dataField: 'recordedBy', minWidth: '150px' },
-  { key: 'date', label: 'Date', dataField: 'date', minWidth: '100px' },
-  { key: 'county', label: 'County', dataField: 'county', minWidth: '110px' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '130px' },
-  { key: 'elevation', label: 'Elev (m)', dataField: 'elevation_m', minWidth: '80px' },
-  { key: 'fieldNumber', label: 'Field #', dataField: 'fieldNumber', minWidth: '80px' },
-  { key: 'modified', label: 'Modified', dataField: 'modified', minWidth: '100px' },
-  { key: 'photo', label: 'Photo', dataField: 'specimen_observation_id', minWidth: '60px',
-    linkFn: (row) => row.specimen_observation_id != null
+const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
+  { key: 'date',        label: 'Date',       dataField: 'date',                    minWidth: '100px' },
+  { key: 'species',     label: 'Species',    dataField: 'scientificName',          minWidth: '180px', nullLabel: 'No Determination' },
+  { key: 'collector',   label: 'Collector',  dataField: 'recordedBy',              minWidth: '150px' },
+  { key: 'observer',    label: 'Observer',   dataField: 'observer',                minWidth: '150px' },
+  { key: 'county',      label: 'County',     dataField: 'county',                  minWidth: '110px' },
+  { key: 'ecoregion',   label: 'Ecoregion',  dataField: 'ecoregion_l3',            minWidth: '130px' },
+  { key: 'elevation',   label: 'Elev (m)',   dataField: 'elevation_m',             minWidth: '80px'  },
+  { key: 'fieldNumber', label: 'Field #',    dataField: 'fieldNumber',             minWidth: '80px'  },
+  { key: 'modified',    label: 'Modified',   dataField: 'modified',                minWidth: '100px' },
+  { key: 'photo',       label: 'Photo',      dataField: 'specimen_observation_id', minWidth: '60px',
+    linkFn: (row: OccurrenceRow) => row.specimen_observation_id != null
       ? `https://www.inaturalist.org/observations/${row.specimen_observation_id}`
       : null },
 ];
 
-const SAMPLE_COLUMN_DEFS: ColumnDef[] = [
-  { key: 'source', label: 'Source', dataField: 'observation_id', minWidth: '70px',
-    linkFn: (row) => row.observation_id != null
-      ? `https://www.inaturalist.org/observations/${row.observation_id}`
-      : null },
-  { key: 'observer', label: 'Observer', dataField: 'observer', minWidth: '160px' },
-  { key: 'date', label: 'Date', dataField: 'date', minWidth: '100px' },
-  { key: 'specimenCount', label: 'Specimens', dataField: 'specimen_count', minWidth: '90px' },
-  { key: 'sampleId', label: 'Sample ID', dataField: 'sample_id', minWidth: '100px' },
-  { key: 'county', label: 'County', dataField: 'county', minWidth: '130px' },
-  { key: 'ecoregion', label: 'Ecoregion', dataField: 'ecoregion_l3', minWidth: '160px' },
-];
-
 @customElement('bee-table')
 export class BeeTable extends LitElement {
-  @property({ attribute: false }) rows: SpecimenRow[] | SampleRow[] = [];
+  @property({ attribute: false }) rows: OccurrenceRow[] = [];
   @property({ attribute: false }) rowCount = 0;
-  @property({ attribute: false }) layerMode: 'specimens' | 'samples' = 'specimens';
   @property({ attribute: false }) page = 1;
   @property({ attribute: false }) loading = false;
   @property({ attribute: false }) sortBy: SpecimenSortBy = 'date';
@@ -227,8 +208,8 @@ export class BeeTable extends LitElement {
   }
 
   render() {
-    const cols = this.layerMode === 'specimens' ? SPECIMEN_COLUMN_DEFS : SAMPLE_COLUMN_DEFS;
-    const noun = this.layerMode === 'specimens' ? 'specimens' : 'samples';
+    const cols = OCCURRENCE_COLUMN_DEFS;
+    const noun = 'occurrences';
     const start = (this.page - 1) * 100 + 1;
     const end = Math.min(this.page * 100, this.rowCount);
     const totalPages = Math.ceil(this.rowCount / 100);
@@ -250,7 +231,7 @@ export class BeeTable extends LitElement {
               <thead>
                 <tr>
                   ${cols.map(col => {
-                    const isSortable = this.layerMode === 'specimens' && (col.key === 'date' || col.key === 'modified');
+                    const isSortable = col.key === 'date' || col.key === 'modified';
                     const isActive = isSortable && this.sortBy === col.key;
                     if (isSortable) {
                       return html`

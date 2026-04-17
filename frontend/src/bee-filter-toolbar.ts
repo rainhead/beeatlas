@@ -12,7 +12,6 @@ export class BeeFilterToolbar extends LitElement {
   @property({ attribute: false }) ecoregionOptions: string[] = [];
   @property({ attribute: false }) collectorOptions: CollectorEntry[] = [];
   @property({ attribute: false }) summary: DataSummary | null = null;
-  @property({ attribute: false }) layerMode: 'specimens' | 'samples' = 'specimens';
 
   @state() private _menuOpen = false;
 
