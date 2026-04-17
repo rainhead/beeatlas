@@ -44,6 +44,7 @@ export class BeeAtlas extends LitElement {
   @state() private _selectedSamples: Sample[] | null = null;
   @state() private _selectedSampleEvent: SampleEvent | null = null;
   @state() private _selectedOccIds: string[] | null = null;
+  @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
   @state() private _summary: DataSummary | null = null;
   @state() private _taxaOptions: TaxonOption[] = [];
   @state() private _countyOptions: string[] = [];
@@ -167,12 +168,10 @@ bee-sidebar {
                 .viewState=${this._viewState}
                 .filterState=${this._filterState}
                 @view-moved=${this._onViewMoved}
-                @map-click-specimen=${this._onSpecimenClick}
-                @map-click-sample=${this._onSampleClick}
+                @map-click-occurrence=${this._onOccurrenceClick}
                 @map-click-region=${this._onRegionClick}
                 @map-click-empty=${this._onMapClickEmpty}
                 @data-loaded=${this._onDataLoaded}
-                @sample-data-loaded=${this._onSampleDataLoaded}
                 @county-options-loaded=${this._onCountyOptionsLoaded}
                 @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
                 @data-error=${this._onDataError}
@@ -248,9 +247,12 @@ bee-sidebar {
     }
 
     // Restore selected occurrences from URL
-    const initOccIds = initialParams.selection?.occurrenceIds ?? [];
-    if (initOccIds.length > 0) {
-      this._selectedOccIds = initOccIds;
+    const initSel = initialParams.selection;
+    if (initSel?.type === 'ids' && initSel.ids.length > 0) {
+      this._selectedOccIds = initSel.ids;
+      this._sidebarOpen = true;
+    } else if (initSel?.type === 'cluster') {
+      this._selectedCluster = { lon: initSel.lon, lat: initSel.lat, radiusM: initSel.radiusM };
       this._sidebarOpen = true;
     }
 
@@ -258,7 +260,7 @@ bee-sidebar {
     const initParams = buildParams(
       { lon: initLon, lat: initLat, zoom: initZoom },
       this._filterState,
-      { occurrenceIds: initOccIds },
+      initSel ?? { type: 'ids' as const, ids: [] },
       { layerMode: initLayerMode, boundaryMode: initBoundaryMode, viewMode: initViewMode }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
@@ -431,7 +433,9 @@ bee-sidebar {
     const params = buildParams(
       this._currentView,
       this._filterState,
-      { occurrenceIds: this._selectedOccIds ?? [] },
+      this._selectedCluster
+        ? { type: 'cluster' as const, ...this._selectedCluster }
+        : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
       { layerMode: this._layerMode, boundaryMode: this._boundaryMode, viewMode: this._viewMode }
     );
     window.history.replaceState({}, '', '?' + params.toString());
@@ -481,14 +485,19 @@ bee-sidebar {
     }
 
     // Restore selection
-    const parsedOccIds = parsed.selection?.occurrenceIds ?? [];
-    if (parsedOccIds.length > 0) {
-      this._selectedOccIds = parsedOccIds;
+    const parsedSel = parsed.selection;
+    if (parsedSel?.type === 'ids' && parsedSel.ids.length > 0) {
+      this._selectedOccIds = parsedSel.ids;
+      this._selectedCluster = null;
       this._sidebarOpen = true;
-      // bee-map will resolve these to features when it receives the property
+    } else if (parsedSel?.type === 'cluster') {
+      this._selectedCluster = { lon: parsedSel.lon, lat: parsedSel.lat, radiusM: parsedSel.radiusM };
+      this._selectedOccIds = null;
+      this._sidebarOpen = true;
     } else {
       this._selectedSamples = null;
       this._selectedOccIds = null;
+      this._selectedCluster = null;
       this._selectedSampleEvent = null;
       this._sidebarOpen = false;
     }
@@ -514,23 +523,16 @@ bee-sidebar {
     }
   }
 
-  private _onSpecimenClick(e: CustomEvent<{ samples: Sample[]; occIds: string[] }>) {
+  private _onOccurrenceClick(e: CustomEvent<{ samples: Sample[]; occIds: string[]; centroid?: { lon: number; lat: number }; radiusM?: number }>) {
     this._selectedSamples = e.detail.samples;
     this._selectedOccIds = e.detail.occIds;
     this._selectedSampleEvent = null;
+    if (e.detail.centroid && e.detail.radiusM != null) {
+      this._selectedCluster = { lon: e.detail.centroid.lon, lat: e.detail.centroid.lat, radiusM: e.detail.radiusM };
+    } else {
+      this._selectedCluster = null;
+    }
     this._sidebarOpen = true;
-    this._pushUrlState();
-  }
-
-  private _onSampleClick(e: CustomEvent<SampleEvent>) {
-    this._selectedSampleEvent = e.detail;
-    this._selectedSamples = null;
-    this._selectedOccIds = null;
-    this._sidebarOpen = true;
-    // Known limitation: sample event selection is not URL-persisted.
-    // The 'o=' param only serializes ecdysis: specimen IDs; inat: sample events
-    // are not included, so navigating back will restore map/filter state but
-    // the sample event panel will be blank.
     this._pushUrlState();
   }
 
@@ -591,6 +593,7 @@ bee-sidebar {
       };
       this._selectedSamples = null;
       this._selectedOccIds = null;
+      this._selectedCluster = null;
       this._selectedSampleEvent = null;
       this._sidebarOpen = false;
       this._runFilterQuery().then(() => {
@@ -600,6 +603,7 @@ bee-sidebar {
       // Clear selection
       this._selectedSamples = null;
       this._selectedOccIds = null;
+      this._selectedCluster = null;
       this._selectedSampleEvent = null;
       this._sidebarOpen = false;
       this._pushUrlState();
@@ -625,6 +629,7 @@ bee-sidebar {
     // Clear selections when filter changes
     this._selectedSamples = null;
     this._selectedOccIds = null;
+    this._selectedCluster = null;
     this._selectedSampleEvent = null;
     this._sidebarOpen = false;
 
@@ -639,6 +644,7 @@ bee-sidebar {
     this._layerMode = e.detail;
     this._selectedSamples = null;
     this._selectedOccIds = null;
+    this._selectedCluster = null;
     this._selectedSampleEvent = null;
     this._sidebarOpen = false;
     this._tablePage = 1;
@@ -710,17 +716,13 @@ bee-sidebar {
   private _onClose() {
     this._selectedSamples = null;
     this._selectedOccIds = null;
+    this._selectedCluster = null;
     this._selectedSampleEvent = null;
     this._sidebarOpen = false;
     this._pushUrlState();
   }
 
-  private _onSampleDataLoaded() {
-    this._loading = false;
-    this._loadCollectorOptions();
-  }
-
-  private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[] }>) {
+  private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[]; recentEvents?: SampleEvent[] }>) {
     this._summary = e.detail.summary;
     this._taxaOptions = e.detail.taxaOptions;
     this._loading = false;
@@ -736,9 +738,13 @@ bee-sidebar {
       this._runTableQuery();
     }
 
-    // If occurrences were restored from URL, fetch their specimen data now that SQLite is ready
+    // Restore ID-based selection
     if (this._selectedOccIds && this._selectedOccIds.length > 0 && this._selectedSamples === null) {
       this._restoreSelectionSamples(this._selectedOccIds);
+    }
+    // Restore cluster-based selection
+    if (this._selectedCluster && this._selectedSamples === null) {
+      this._restoreClusterSelection(this._selectedCluster);
     }
   }
 
@@ -747,6 +753,8 @@ bee-sidebar {
       .filter(id => id.startsWith('ecdysis:'))
       .map(id => id.slice('ecdysis:'.length))
       .filter(id => /^\d+$/.test(id));  // only accept pure integer suffixes (CLAUDE.md: ecdysis IDs are ecdysis:<integer>)
+    // For inat: prefixed IDs, just validate they exist — no specimen data to load
+    // (sidebar will show blank specimen fields for sample-only records until Phase 65)
     if (ecdysisIds.length === 0) return;
     try {
       const { sqlite3, db } = await getDB();
@@ -788,6 +796,75 @@ bee-sidebar {
       this._selectedSamples = [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
     } catch (err) {
       console.error('Failed to restore selection from URL:', err);
+    }
+  }
+
+  private async _restoreClusterSelection({ lon, lat, radiusM }: { lon: number; lat: number; radiusM: number }) {
+    try {
+      await tablesReady;
+      const { sqlite3, db } = await getDB();
+      const degPerMetre = 1 / 111320;
+      const dLat = radiusM * degPerMetre;
+      const dLon = radiusM * degPerMetre / Math.cos(lat * Math.PI / 180);
+      const rows: Record<string, unknown>[] = [];
+      await sqlite3.exec(db, `
+        SELECT ecdysis_id, observation_id, year, month, scientificName, recordedBy, fieldNumber,
+               host_observation_id, floralHost, inat_host, inat_quality_grade,
+               specimen_observation_id, elevation_m, lat, lon
+        FROM occurrences
+        WHERE lat BETWEEN ${lat - dLat} AND ${lat + dLat}
+          AND lon BETWEEN ${lon - dLon} AND ${lon + dLon}
+      `, (rowValues: unknown[], columnNames: string[]) => {
+        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])));
+      });
+
+      // Post-filter with haversine for precision
+      const filtered = rows.filter(obj => {
+        const rLat = Number(obj.lat);
+        const rLon = Number(obj.lon);
+        const R = 6371000;
+        const dLatR = (rLat - lat) * Math.PI / 180;
+        const dLonR = (rLon - lon) * Math.PI / 180;
+        const a = Math.sin(dLatR / 2) ** 2 +
+          Math.cos(lat * Math.PI / 180) * Math.cos(rLat * Math.PI / 180) * Math.sin(dLonR / 2) ** 2;
+        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return dist <= radiusM;
+      });
+
+      // Build IDs list for selectedOccIds
+      const restoredIds = filtered.map(obj =>
+        obj.ecdysis_id != null ? `ecdysis:${obj.ecdysis_id}` : `inat:${Number(obj.observation_id)}`
+      );
+      this._selectedOccIds = restoredIds;
+
+      // Build samples from specimen-backed rows (same pattern as _restoreSelectionSamples)
+      const map = new Map<string, Sample>();
+      for (const obj of filtered) {
+        if (obj.ecdysis_id == null) continue; // skip sample-only rows for Sample display
+        const key = `${obj.year}-${obj.month}-${obj.recordedBy}-${obj.fieldNumber}`;
+        if (!map.has(key)) {
+          map.set(key, {
+            year: Number(obj.year),
+            month: Number(obj.month),
+            recordedBy: String(obj.recordedBy),
+            fieldNumber: String(obj.fieldNumber),
+            species: [],
+            elevation_m: obj.elevation_m != null ? Number(obj.elevation_m) : null,
+          });
+        }
+        map.get(key)!.species.push({
+          name: obj.scientificName ? String(obj.scientificName) : '',
+          occid: String(obj.ecdysis_id),
+          hostObservationId: obj.host_observation_id != null ? Number(obj.host_observation_id) : null,
+          floralHost: obj.floralHost != null ? String(obj.floralHost) : null,
+          inatHost: obj.inat_host != null ? String(obj.inat_host) : null,
+          inatQualityGrade: obj.inat_quality_grade != null ? String(obj.inat_quality_grade) : null,
+          specimenObservationId: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
+        });
+      }
+      this._selectedSamples = [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+    } catch (err) {
+      console.error('Failed to restore cluster selection from URL:', err);
     }
   }
 
