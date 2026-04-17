@@ -6,9 +6,9 @@ export interface ViewState {
   zoom: number;
 }
 
-export interface SelectionState {
-  occurrenceIds: string[];   // e.g. ["ecdysis:12345"]
-}
+export type SelectionState =
+  | { type: 'ids'; ids: string[] }
+  | { type: 'cluster'; lon: number; lat: number; radiusM: number };
 
 export interface UiState {
   layerMode: 'specimens' | 'samples';
@@ -42,8 +42,10 @@ export function buildParams(
   if (filter.elevMin !== null) params.set('elev_min', String(filter.elevMin));
   if (filter.elevMax !== null) params.set('elev_max', String(filter.elevMax));
   if (filter.months.size > 0)  params.set('months', [...filter.months].sort((a, b) => a - b).join(','));
-  if (selection.occurrenceIds.length > 0) {
-    params.set('o', selection.occurrenceIds.join(','));
+  if (selection.type === 'ids' && selection.ids.length > 0) {
+    params.set('o', selection.ids.join(','));
+  } else if (selection.type === 'cluster') {
+    params.set('o', `@${selection.lon.toFixed(4)},${selection.lat.toFixed(4)},${Math.ceil(selection.radiusM)}`);
   }
   if (ui.layerMode !== 'specimens') params.set('lm', ui.layerMode);  // omit default value
   // Boundary mode and region filter — omit entirely when off (absence = off)
@@ -139,13 +141,26 @@ export function parseParams(search: string): Partial<AppState> {
     };
   }
 
-  // Selection state — occurrenceIds
+  // Selection state — ids or cluster centroid
   const oRaw = p.get('o') ?? '';
-  const occurrenceIds = oRaw
-    ? oRaw.split(',').map(s => s.trim()).filter(s => s.startsWith('ecdysis:') && s.length > 8)
-    : [];
-  if (occurrenceIds.length > 0) {
-    result.selection = { occurrenceIds };
+  if (oRaw.startsWith('@')) {
+    const parts = oRaw.slice(1).split(',');
+    if (parts.length === 3) {
+      const lon = parseFloat(parts[0]!);
+      const lat = parseFloat(parts[1]!);
+      const radiusM = parseInt(parts[2]!, 10);
+      if (isFinite(lon) && lon >= -180 && lon <= 180 &&
+          isFinite(lat) && lat >= -90  && lat <= 90  &&
+          isFinite(radiusM) && radiusM > 0 && radiusM <= 100000) {
+        result.selection = { type: 'cluster', lon, lat, radiusM };
+      }
+    }
+  } else if (oRaw) {
+    const ids = oRaw.split(',').map(s => s.trim())
+      .filter(s => (s.startsWith('ecdysis:') || s.startsWith('inat:')) && s.length > 5);
+    if (ids.length > 0) {
+      result.selection = { type: 'ids', ids };
+    }
   }
 
   // UI state
