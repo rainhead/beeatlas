@@ -3,7 +3,7 @@
  * Validates that parquet files have the columns the frontend expects.
  *
  * Modes:
- * - Local: if frontend/src/assets/ecdysis.parquet exists, validate from disk
+ * - Local: if frontend/public/data/occurrences.parquet exists, validate from disk
  *   (preserves dev workflow for anyone who runs the pipeline locally)
  * - CloudFront: otherwise, fetch from https://beeatlas.net/data/ using Range
  *   requests (only the parquet footer is fetched, not the full file)
@@ -20,22 +20,22 @@ const ASSETS_DIR = new URL('../frontend/public/data/', import.meta.url).pathname
 const CLOUDFRONT_BASE = 'https://beeatlas.net/data/';
 
 const EXPECTED = {
-  'ecdysis.parquet': [
-    'ecdysis_id', 'catalog_number', 'longitude', 'latitude',
-    'date', 'year', 'month', 'scientificName', 'recordedBy', 'fieldNumber',
+  'occurrences.parquet': [
+    // specimen-side (null for sample-only rows)
+    'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber',
     'genus', 'family', 'floralHost',
-    'county', 'ecoregion_l3',
     'host_observation_id', 'inat_host', 'inat_quality_grade',
     'modified', 'specimen_observation_id', 'elevation_m',
-  ],
-  'samples.parquet': [
-    'observation_id', 'observer', 'date', 'lat', 'lon',
-    'specimen_count', 'sample_id',
-    'county', 'ecoregion_l3', 'elevation_m',
+    'year', 'month',
+    // sample-side (null for specimen-only rows)
+    'observation_id', 'observer', 'specimen_count', 'sample_id',
+    // unified (always populated via COALESCE)
+    'lat', 'lon', 'date',
+    'county', 'ecoregion_l3',
   ],
 };
 
-const useLocal = existsSync(join(ASSETS_DIR, 'ecdysis.parquet'));
+const useLocal = existsSync(join(ASSETS_DIR, 'occurrences.parquet'));
 if (!useLocal) {
   console.log('No local parquet found -- validating against production CloudFront');
 }
