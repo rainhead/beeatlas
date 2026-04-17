@@ -10,7 +10,12 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Current Milestone: v2.7 Unified Occurrence Model
 
-**Goal:** Produce a single `occurrences.parquet` from a full outer join of specimens and samples. The unified record carries an epistemic-state field: specimen-only, sample-only, or both. Frontend renders one record type with varying completeness.
+**Goal:** Collapse separate ecdysis/iNat parquet files and frontend layers into a single occurrences.parquet; column nullability conveys which sources contributed to each row.
+
+**Target features:**
+- Pipeline: full outer join of ecdysis.parquet + samples.parquet into occurrences.parquet; specimen-side or sample-side columns null when that source has no match
+- Frontend: single occurrence layer + unified sidebar detail, rendering each record with whatever columns are non-null
+- Schema gate: validate-schema.mjs updated for occurrences.parquet
 
 ## Requirements
 
