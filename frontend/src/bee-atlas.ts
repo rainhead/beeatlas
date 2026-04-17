@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type SpecimenRow, type SampleRow, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
-import { getDuckDB, loadAllTables, tablesReady } from './duckdb.ts';
+import { getDB, loadAllTables, tablesReady } from './sqlite.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
 import './bee-filter-toolbar.ts';
@@ -263,18 +263,17 @@ bee-sidebar {
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
-    // Initialize DuckDB
-    getDuckDB()
-      .then(db => loadAllTables(db, DATA_BASE_URL))
+    // Initialize SQLite
+    loadAllTables(DATA_BASE_URL)
       .then(() => {
-        console.debug('DuckDB tables ready');
+        console.debug('SQLite tables ready');
         if (this._viewMode === 'table') {
-          this._loadSummaryFromDuckDB();
+          this._loadSummaryFromSQLite();
           this._runTableQuery();
         }
       })
       .catch((err: unknown) => {
-        console.error('DuckDB init failed:', err);
+        console.error('SQLite init failed:', err);
         this._error = err instanceof Error ? err.message : String(err);
         this._loading = false;
       });
@@ -303,12 +302,13 @@ bee-sidebar {
     this._visibleSampleIds = samples;
   }
 
-  private async _loadSummaryFromDuckDB(): Promise<void> {
+  private async _loadSummaryFromSQLite(): Promise<void> {
     await tablesReady;
-    const db = await getDuckDB();
-    const conn = await db.connect();
+    const { sqlite3, db } = await getDB();
     try {
-      const summaryResult = await conn.query(`
+      // Summary stats
+      let summaryRow: Record<string, unknown> = {};
+      await sqlite3.exec(db, `
         SELECT COUNT(*) AS total_specimens,
                COUNT(DISTINCT scientificName) AS species_count,
                COUNT(DISTINCT genus) AS genus_count,
@@ -316,26 +316,31 @@ bee-sidebar {
                MIN(year) AS earliest_year,
                MAX(year) AS latest_year
         FROM ecdysis
-      `);
-      const row = summaryResult.toArray()[0]?.toJSON();
-      if (!row) { this._loading = false; return; }
+      `, (rowValues: unknown[], columnNames: string[]) => {
+        summaryRow = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
+      });
+      if (Object.keys(summaryRow).length === 0) { this._loading = false; return; }
       this._summary = {
-        totalSpecimens: Number(row.total_specimens),
-        speciesCount: Number(row.species_count),
-        genusCount: Number(row.genus_count),
-        familyCount: Number(row.family_count),
-        earliestYear: Number(row.earliest_year),
-        latestYear: Number(row.latest_year),
+        totalSpecimens: Number(summaryRow.total_specimens),
+        speciesCount: Number(summaryRow.species_count),
+        genusCount: Number(summaryRow.genus_count),
+        familyCount: Number(summaryRow.family_count),
+        earliestYear: Number(summaryRow.earliest_year),
+        latestYear: Number(summaryRow.latest_year),
       };
 
-      const taxaResult = await conn.query(
-        `SELECT DISTINCT family, genus, scientificName FROM ecdysis ORDER BY family, genus, scientificName`
+      // Taxa options
+      const taxaRows: Record<string, unknown>[] = [];
+      await sqlite3.exec(db,
+        `SELECT DISTINCT family, genus, scientificName FROM ecdysis ORDER BY family, genus, scientificName`,
+        (rowValues: unknown[], columnNames: string[]) => {
+          taxaRows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])));
+        }
       );
       const families = new Set<string>();
       const genera = new Set<string>();
       const species = new Set<string>();
-      for (const r of taxaResult.toArray()) {
-        const obj = r.toJSON() as Record<string, unknown>;
+      for (const obj of taxaRows) {
         if (obj.family) families.add(String(obj.family));
         if (obj.genus) genera.add(String(obj.genus));
         if (obj.scientificName) species.add(String(obj.scientificName));
@@ -346,50 +351,48 @@ bee-sidebar {
         ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
       ];
 
-      const countyResult = await conn.query(
-        `SELECT DISTINCT county FROM ecdysis WHERE county IS NOT NULL ORDER BY county`
+      // County options
+      this._countyOptions = [];
+      await sqlite3.exec(db,
+        `SELECT DISTINCT county FROM ecdysis WHERE county IS NOT NULL ORDER BY county`,
+        (rowValues: unknown[]) => { this._countyOptions.push(String(rowValues[0])); }
       );
-      this._countyOptions = countyResult.toArray().map(r => String((r.toJSON() as Record<string, unknown>).county));
 
-      const ecoregionResult = await conn.query(
-        `SELECT DISTINCT ecoregion_l3 FROM ecdysis WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`
+      // Ecoregion options
+      this._ecoregionOptions = [];
+      await sqlite3.exec(db,
+        `SELECT DISTINCT ecoregion_l3 FROM ecdysis WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`,
+        (rowValues: unknown[]) => { this._ecoregionOptions.push(String(rowValues[0])); }
       );
-      this._ecoregionOptions = ecoregionResult.toArray().map(r => String((r.toJSON() as Record<string, unknown>).ecoregion_l3));
 
       // _collectorOptions is populated by _loadCollectorOptions, called from _onDataLoaded
       // independently of view mode — no need to duplicate the query here.
     } catch (err) {
-      console.error('Failed to load summary from DuckDB:', err);
+      console.error('Failed to load summary from SQLite:', err);
     } finally {
-      await conn.close();
       this._loading = false;
     }
   }
 
   private async _loadCollectorOptions(): Promise<void> {
     await tablesReady;
-    const db = await getDuckDB();
-    const conn = await db.connect();
-    try {
-      // Join ecdysis → samples via host_observation_id to map collector names to iNat usernames.
-      // DISTINCT because one collector may have many specimens; take any matching observer per name.
-      const result = await conn.query(`
-        SELECT e.recordedBy, MIN(s.observer) AS observer
-        FROM ecdysis e
-        LEFT JOIN samples s ON e.host_observation_id = s.observation_id
-        WHERE e.recordedBy IS NOT NULL
-        GROUP BY e.recordedBy
-        ORDER BY e.recordedBy
-      `);
-      this._collectorOptions = result.toArray().map(r => {
-        const obj = r.toJSON() as Record<string, unknown>;
-        const recordedBy = String(obj.recordedBy);
-        const observer = obj.observer != null ? String(obj.observer) : null;
-        return { displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry;
-      });
-    } finally {
-      await conn.close();
-    }
+    const { sqlite3, db } = await getDB();
+    // Join ecdysis → samples via host_observation_id to map collector names to iNat usernames.
+    // DISTINCT because one collector may have many specimens; take any matching observer per name.
+    this._collectorOptions = [];
+    await sqlite3.exec(db, `
+      SELECT e.recordedBy, MIN(s.observer) AS observer
+      FROM ecdysis e
+      LEFT JOIN samples s ON e.host_observation_id = s.observation_id
+      WHERE e.recordedBy IS NOT NULL
+      GROUP BY e.recordedBy
+      ORDER BY e.recordedBy
+    `, (rowValues: unknown[], columnNames: string[]) => {
+      const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
+      const recordedBy = String(obj.recordedBy);
+      const observer = obj.observer != null ? String(obj.observer) : null;
+      this._collectorOptions.push({ displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry);
+    });
   }
 
   private async _runTableQuery(): Promise<void> {
@@ -646,7 +649,7 @@ bee-sidebar {
       this._runTableQuery();
       if (this._loading) {
         // bee-map data-loaded hasn't fired yet; load summary from DuckDB
-        this._loadSummaryFromDuckDB();
+        this._loadSummaryFromSQLite();
       }
     }
     this._pushUrlState();
@@ -738,24 +741,21 @@ bee-sidebar {
       .map(id => id.slice('ecdysis:'.length))
       .filter(id => /^\d+$/.test(id));  // only accept pure integer suffixes (CLAUDE.md: ecdysis IDs are ecdysis:<integer>)
     if (ecdysisIds.length === 0) return;
-    let conn: Awaited<ReturnType<Awaited<ReturnType<typeof getDuckDB>>['connect']>> | null = null;
     try {
-      const db = await getDuckDB();
-      conn = await db.connect();
+      const { sqlite3, db } = await getDB();
       // Belt-and-suspenders: reject any id that is not a pure integer string
       const safeIds = ecdysisIds.filter(id => /^\d+$/.test(id));
       if (safeIds.length === 0) return;
       const idList = safeIds.map(id => `'${id}'`).join(',');
-      const result = await conn.query(`
+      const map = new Map<string, Sample>();
+      await sqlite3.exec(db, `
         SELECT ecdysis_id, year, month, scientificName, recordedBy, fieldNumber,
                host_observation_id, floralHost, inat_host, inat_quality_grade,
                specimen_observation_id, elevation_m
         FROM ecdysis
-        WHERE CAST(ecdysis_id AS VARCHAR) IN (${idList})
-      `);
-      const map = new Map<string, Sample>();
-      for (const row of result.toArray()) {
-        const obj = row.toJSON();
+        WHERE CAST(ecdysis_id AS TEXT) IN (${idList})
+      `, (rowValues: unknown[], columnNames: string[]) => {
+        const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
         const key = `${obj.year}-${obj.month}-${obj.recordedBy}-${obj.fieldNumber}`;
         if (!map.has(key)) {
           map.set(key, {
@@ -771,18 +771,16 @@ bee-sidebar {
           name: obj.scientificName ? String(obj.scientificName) : '',
           occid: String(obj.ecdysis_id),
           hostObservationId: obj.host_observation_id != null ? Number(obj.host_observation_id) : null,
-          floralHost: obj.floralHost ?? null,
-          inatHost: obj.inat_host ?? null,
-          inatQualityGrade: obj.inat_quality_grade ?? null,
+          floralHost: obj.floralHost != null ? String(obj.floralHost) : null,
+          inatHost: obj.inat_host != null ? String(obj.inat_host) : null,
+          inatQualityGrade: obj.inat_quality_grade != null ? String(obj.inat_quality_grade) : null,
           specimenObservationId: obj.specimen_observation_id != null ? Number(obj.specimen_observation_id) : null,
         };
         map.get(key)!.species.push(specimen);
-      }
+      });
       this._selectedSamples = [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
     } catch (err) {
       console.error('Failed to restore selection from URL:', err);
-    } finally {
-      if (conn) await conn.close();
     }
   }
 
