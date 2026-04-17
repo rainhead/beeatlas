@@ -34,44 +34,19 @@ function hexWithOpacity(hex: string, opacity: number): string {
 const styleCache = new Map<string, Style>();
 
 
-export const SAMPLE_RECENCY_COLORS = {
-  fresh:    '#1abc9c',  // teal — within 6 weeks
-  thisYear: '#3498db',  // blue — this year, older than 6 weeks
-  older:    '#7f8c8d',  // slate — before this year (same as RECENCY_COLORS.older)
-} as const;
-
-// Darker variants used for filter-matched samples (higher contrast against ghosted unmatched)
-const SAMPLE_RECENCY_COLORS_ACTIVE = {
-  fresh:    '#148f77',
-  thisYear: '#2471a3',
-  older:    '#5d6d7e',
-} as const;
-
-const GHOSTED_SAMPLE_STYLE = new Style({
-  image: new Circle({
-    radius: 5,
-    fill: new Fill({ color: 'rgba(170, 170, 170, 0.1)' }),
-    stroke: new Stroke({ color: 'rgba(255,255,255,0.1)', width: 1 }),
-  }),
-});
-
-const sampleStyleCache = new Map<string, Style>();
-const sampleStyleCacheActive = new Map<string, Style>();
-
-
 /**
  * Factory function: returns a clusterStyle function that reads visible IDs from
  * a getter parameter instead of the module-level visibleEcdysisIds import.
  * This enables bee-atlas to own the visible ID state and pass it via closure.
  */
 export function makeClusterStyleFn(
-  getVisibleEcdysisIds: () => Set<string> | null,
+  getVisibleIds: () => Set<string> | null,
   getSelectedOccIds: () => Set<string> | null = () => null,
 ): (feature: FeatureLike) => Style | Style[] {
   return function clusterStyleFn(feature: FeatureLike): Style | Style[] {
     const innerFeatures: Feature[] = (feature.get('features') as Feature[] | undefined) ?? [feature as Feature];
-    const activeEcdysisIds = getVisibleEcdysisIds();
-    const hasFilter = activeEcdysisIds !== null;
+    const activeIds = getVisibleIds();
+    const hasFilter = activeIds !== null;
 
     let bestTier: keyof typeof RECENCY_COLORS = 'older';
     let matchCount = 0;
@@ -80,7 +55,7 @@ export function makeClusterStyleFn(
       const tier = recencyTier(f.get('year') as number, f.get('month') as number);
       if (tier === 'fresh') bestTier = 'fresh';
       else if (tier === 'thisYear' && bestTier === 'older') bestTier = 'thisYear';
-      if (!hasFilter || activeEcdysisIds.has(f.getId() as string)) matchCount++;
+      if (!hasFilter || activeIds.has(f.getId() as string)) matchCount++;
     }
 
     const isGhosted = hasFilter && matchCount === 0;
@@ -129,43 +104,3 @@ export function makeClusterStyleFn(
   };
 }
 
-/**
- * Factory function: returns a sampleDotStyle function that reads visible IDs from
- * a getter parameter instead of the module-level visibleSampleIds import.
- * This enables bee-atlas to own the visible ID state and pass it via closure.
- */
-export function makeSampleDotStyleFn(
-  getVisibleSampleIds: () => Set<string> | null
-): (feature: FeatureLike) => Style {
-  return function sampleDotStyleFn(feature: FeatureLike): Style {
-    const visibleIds = getVisibleSampleIds();
-    const hasFilter = visibleIds !== null;
-
-    // Ghost check — must come before cache lookup (ghost state depends on visibleSampleIds)
-    if (hasFilter && !visibleIds!.has((feature as Feature).getId() as string)) {
-      return GHOSTED_SAMPLE_STYLE;
-    }
-
-    const date = feature.get('date') as string;
-    // date is an ISO 8601 datetime with timezone offset, e.g. '2023-04-04 15:32:38-07:00'
-    // Temporal.PlainDate.from() cannot parse this format — use Date instead
-    const d = new Date(date);
-    const year = d.getUTCFullYear();
-    const month = d.getUTCMonth() + 1;  // getUTCMonth() is 0-indexed
-    const tier = recencyTier(year, month);
-
-    const cache = hasFilter ? sampleStyleCacheActive : sampleStyleCache;
-    if (cache.has(tier)) return cache.get(tier)!;
-
-    const colors = hasFilter ? SAMPLE_RECENCY_COLORS_ACTIVE : SAMPLE_RECENCY_COLORS;
-    const style = new Style({
-      image: new Circle({
-        radius: 5,   // fixed; visually distinct from single-specimen cluster radius of 4
-        fill: new Fill({ color: colors[tier] }),
-        stroke: new Stroke({ color: '#ffffff', width: 1 }),
-      }),
-    });
-    cache.set(tier, style);
-    return style;
-  };
-}
