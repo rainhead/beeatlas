@@ -277,7 +277,7 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
 - [x] **Phase 62: Pipeline Join** — export.py produces occurrences.parquet from full outer join; coordinate/date unification; schema gate updated (completed 2026-04-17)
 - [x] **Phase 63: SQLite Data Layer** — load single occurrences table; buildFilterSQL and all query functions updated for unified table (completed 2026-04-17)
 - [x] **Phase 64: OccurrenceSource** — single OL source replaces EcdysisSource and SampleSource; unified feature ID convention (completed 2026-04-17)
-- [ ] **Phase 65: UI Unification** — bee-occurrence-detail replaces dual detail components; bee-atlas/bee-map updated; bee-table columns unified
+- [x] **Phase 65: UI Unification** — bee-occurrence-detail replaces dual detail components; bee-atlas/bee-map updated; bee-table columns unified (completed 2026-04-17)
 
 ## Phase Details
 
@@ -338,7 +338,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 65-01-PLAN.md — Unify filter.ts types/queries, url-state.ts layerMode removal, style.ts cleanup
-- [ ] 65-02-PLAN.md — bee-occurrence-detail component, UI component updates, test updates, file deletions
+- [x] 65-02-PLAN.md — bee-occurrence-detail component, UI component updates, test updates, file deletions
 **UI hint**: yes
 
 ## Progress
@@ -409,4 +409,4 @@ Plans:
 | 62. Pipeline Join | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 63. SQLite Data Layer | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 64. OccurrenceSource | v2.7 | 2/2 | Complete    | 2026-04-17 |
-| 65. UI Unification | v2.7 | 1/2 | In Progress|  |
+| 65. UI Unification | v2.7 | 2/2 | Complete   | 2026-04-17 |
