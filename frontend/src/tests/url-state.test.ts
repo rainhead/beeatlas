@@ -20,7 +20,7 @@ function emptyFilter(): FilterState {
 
 const defaultView = { lon: -120.5, lat: 47.3, zoom: 8 };
 const defaultSelection: SelectionState = { type: 'ids', ids: [] };
-const defaultUi = { layerMode: 'specimens' as const, boundaryMode: 'off' as const, viewMode: 'map' as const };
+const defaultUi = { boundaryMode: 'off' as const, viewMode: 'map' as const };
 
 describe('buildParams -> parseParams round-trip', () => {
   test('view: lon/lat/zoom round-trips within toFixed precision', () => {
@@ -75,21 +75,8 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:123', 'ecdysis:456'] });
   });
 
-  test('layerMode=samples: serialized as lm=samples', () => {
-    const ui = { layerMode: 'samples' as const, boundaryMode: 'off' as const, viewMode: 'map' as const };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('lm')).toBe('samples');
-    const result = parseParams(params.toString());
-    expect(result.ui?.layerMode).toBe('samples');
-  });
-
-  test('layerMode=specimens (default): lm param is absent', () => {
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
-    expect(params.has('lm')).toBe(false);
-  });
-
   test('boundaryMode=counties: serialized as bm=counties', () => {
-    const ui = { layerMode: 'specimens' as const, boundaryMode: 'counties' as const, viewMode: 'map' as const };
+    const ui = { boundaryMode: 'counties' as const, viewMode: 'map' as const };
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     expect(params.get('bm')).toBe('counties');
     const result = parseParams(params.toString());
@@ -196,7 +183,7 @@ describe('combined round-trip', () => {
       elevMax: null,
     };
     const selection: SelectionState = { type: 'ids', ids: ['ecdysis:999'] };
-    const ui = { layerMode: 'samples' as const, boundaryMode: 'counties' as const, viewMode: 'table' as const };
+    const ui = { boundaryMode: 'counties' as const, viewMode: 'table' as const };
 
     const params = buildParams(view, filter, selection, ui);
     const result = parseParams(params.toString());
@@ -215,7 +202,6 @@ describe('combined round-trip', () => {
 
     expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:999'] });
 
-    expect(result.ui!.layerMode).toBe('samples');
     expect(result.ui!.boundaryMode).toBe('counties');
     expect(result.ui!.viewMode).toBe('table');
 
