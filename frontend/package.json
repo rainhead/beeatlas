@@ -22,7 +22,6 @@
     "vitest": "^4.1.2"
   },
   "dependencies": {
-    "@duckdb/duckdb-wasm": "^1.33.1-dev20.0",
     "hyparquet": "^1.25.6",
     "lit": "^3.2.1",
     "ol": "^10.7.0",
