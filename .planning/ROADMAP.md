@@ -275,7 +275,7 @@ See `.planning/milestones/v2.6-ROADMAP.md` for full phase details.
 **Milestone Goal:** Collapse separate ecdysis/iNat parquet files and frontend layers into a single `occurrences.parquet`. Column nullability conveys which sources contributed to each row.
 
 - [x] **Phase 62: Pipeline Join** — export.py produces occurrences.parquet from full outer join; coordinate/date unification; schema gate updated (completed 2026-04-17)
-- [ ] **Phase 63: SQLite Data Layer** — load single occurrences table; buildFilterSQL and all query functions updated for unified table
+- [x] **Phase 63: SQLite Data Layer** — load single occurrences table; buildFilterSQL and all query functions updated for unified table (completed 2026-04-17)
 - [ ] **Phase 64: OccurrenceSource** — single OL source replaces EcdysisSource and SampleSource; unified feature ID convention
 - [ ] **Phase 65: UI Unification** — bee-occurrence-detail replaces dual detail components; bee-atlas/bee-map updated; bee-table columns unified
 
@@ -307,7 +307,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 63-01-PLAN.md — Single occurrences table in sqlite.ts + loadOccurrencesTable rename
-- [ ] 63-02-PLAN.md — Unified buildFilterSQL and query functions for occurrences table
+- [x] 63-02-PLAN.md — Unified buildFilterSQL and query functions for occurrences table
 
 
 
@@ -407,6 +407,6 @@ Plans:
 | 60. wa-sqlite Integration | v2.6 | 3/3 | Complete | 2026-04-17 |
 | 61. DuckDB Removal | v2.6 | 1/1 | Complete | 2026-04-17 |
 | 62. Pipeline Join | v2.7 | 2/2 | Complete    | 2026-04-17 |
-| 63. SQLite Data Layer | v2.7 | 1/2 | In Progress|  |
+| 63. SQLite Data Layer | v2.7 | 2/2 | Complete   | 2026-04-17 |
 | 64. OccurrenceSource | v2.7 | 0/? | Not started | — |
 | 65. UI Unification | v2.7 | 0/? | Not started | — |
