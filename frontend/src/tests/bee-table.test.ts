@@ -18,10 +18,7 @@ vi.mock('../filter.ts', () => ({
 }));
 
 vi.mock('../features.ts', () => ({
-  EcdysisSource: vi.fn().mockImplementation(() => ({
-    once: vi.fn(), on: vi.fn(), getFeatures: vi.fn(() => []), un: vi.fn(),
-  })),
-  SampleSource: vi.fn().mockImplementation(() => ({
+  OccurrenceSource: vi.fn().mockImplementation(() => ({
     once: vi.fn(), on: vi.fn(), getFeatures: vi.fn(() => []), un: vi.fn(),
   })),
 }));

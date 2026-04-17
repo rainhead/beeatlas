@@ -1,6 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import { buildParams, parseParams } from '../url-state.ts';
 import type { FilterState } from '../filter.ts';
+import type { SelectionState } from '../url-state.ts';
 
 function emptyFilter(): FilterState {
   return {
@@ -18,7 +19,7 @@ function emptyFilter(): FilterState {
 }
 
 const defaultView = { lon: -120.5, lat: 47.3, zoom: 8 };
-const defaultSelection = { occurrenceIds: [] as string[] };
+const defaultSelection: SelectionState = { type: 'ids', ids: [] };
 const defaultUi = { layerMode: 'specimens' as const, boundaryMode: 'off' as const, viewMode: 'map' as const };
 
 describe('buildParams -> parseParams round-trip', () => {
@@ -67,11 +68,11 @@ describe('buildParams -> parseParams round-trip', () => {
   });
 
   test('occurrenceIds: round-trips comma-separated', () => {
-    const selection = { occurrenceIds: ['ecdysis:123', 'ecdysis:456'] };
+    const selection: SelectionState = { type: 'ids', ids: ['ecdysis:123', 'ecdysis:456'] };
     const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
     expect(params.get('o')).toBe('ecdysis:123,ecdysis:456');
     const result = parseParams(params.toString());
-    expect(result.selection?.occurrenceIds).toEqual(['ecdysis:123', 'ecdysis:456']);
+    expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:123', 'ecdysis:456'] });
   });
 
   test('layerMode=samples: serialized as lm=samples', () => {
@@ -126,6 +127,57 @@ describe('buildParams -> parseParams round-trip', () => {
     const result = parseParams(params.toString());
     expect(result.filter?.selectedEcoregions).toEqual(new Set(['Cascades']));
   });
+
+  test('inat: prefixed single ID round-trips (D-05)', () => {
+    const selection: SelectionState = { type: 'ids', ids: ['inat:5678'] };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.get('o')).toBe('inat:5678');
+    const result = parseParams(params.toString());
+    expect(result.selection).toEqual({ type: 'ids', ids: ['inat:5678'] });
+  });
+
+  test('mixed ecdysis+inat IDs round-trip (D-05)', () => {
+    const selection: SelectionState = { type: 'ids', ids: ['ecdysis:123', 'inat:456'] };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.get('o')).toBe('ecdysis:123,inat:456');
+    const result = parseParams(params.toString());
+    expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:123', 'inat:456'] });
+  });
+
+  test('cluster centroid encodes as @lon,lat,r (D-06)', () => {
+    const selection: SelectionState = { type: 'cluster', lon: -120.5123, lat: 47.4567, radiusM: 312 };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.get('o')).toBe('@-120.5123,47.4567,312');
+    const result = parseParams(params.toString());
+    expect(result.selection).toEqual({ type: 'cluster', lon: -120.5123, lat: 47.4567, radiusM: 312 });
+  });
+
+  test('cluster with fractional radiusM rounds up (D-06)', () => {
+    const selection: SelectionState = { type: 'cluster', lon: -120.0, lat: 47.0, radiusM: 100.7 };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.get('o')).toBe('@-120.0000,47.0000,101');
+  });
+
+  test('invalid @lon,lat,r with out-of-range lon: selection undefined', () => {
+    const result = parseParams('o=@999,47,100');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('invalid @lon,lat,r with out-of-range lat: selection undefined', () => {
+    const result = parseParams('o=@-120,999,100');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('invalid @lon,lat,r with negative radiusM: selection undefined', () => {
+    const result = parseParams('o=@-120,47,-5');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('empty ids selection: o param absent', () => {
+    const selection: SelectionState = { type: 'ids', ids: [] };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.has('o')).toBe(false);
+  });
 });
 
 describe('combined round-trip', () => {
@@ -143,7 +195,7 @@ describe('combined round-trip', () => {
       elevMin: null,
       elevMax: null,
     };
-    const selection = { occurrenceIds: ['ecdysis:999'] };
+    const selection: SelectionState = { type: 'ids', ids: ['ecdysis:999'] };
     const ui = { layerMode: 'samples' as const, boundaryMode: 'counties' as const, viewMode: 'table' as const };
 
     const params = buildParams(view, filter, selection, ui);
@@ -161,7 +213,7 @@ describe('combined round-trip', () => {
     expect(result.filter!.selectedCounties).toEqual(new Set(['King', 'Pierce']));
     expect(result.filter!.selectedEcoregions).toEqual(new Set(['Cascades']));
 
-    expect(result.selection!.occurrenceIds).toEqual(['ecdysis:999']);
+    expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:999'] });
 
     expect(result.ui!.layerMode).toBe('samples');
     expect(result.ui!.boundaryMode).toBe('counties');
@@ -269,4 +321,3 @@ describe('validation and rejection', () => {
     expect(result.ui!.viewMode).toBe('table');
   });
 });
-
