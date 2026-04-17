@@ -337,8 +337,8 @@ Plans:
   4. All existing tests pass; `<bee-specimen-detail>` and `<bee-sample-detail>` components are deleted
 **Plans**: 2 plans
 Plans:
-- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
-- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
+- [ ] 65-01-PLAN.md — Unify filter.ts types/queries, url-state.ts layerMode removal, style.ts cleanup
+- [ ] 65-02-PLAN.md — bee-occurrence-detail component, UI component updates, test updates, file deletions
 **UI hint**: yes
 
 ## Progress
@@ -409,4 +409,4 @@ Plans:
 | 62. Pipeline Join | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 63. SQLite Data Layer | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 64. OccurrenceSource | v2.7 | 2/2 | Complete    | 2026-04-17 |
-| 65. UI Unification | v2.7 | 0/? | Not started | — |
+| 65. UI Unification | v2.7 | 0/2 | Not started | — |
