@@ -291,7 +291,11 @@ Plans:
   4. All 165 tests pass
   5. TypeScript compiles cleanly
   6. BENCHMARK.md wa-sqlite column filled with measured init/query/heap numbers
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 60-01-PLAN.md — Create sqlite.ts module + install wa-sqlite and hyparquet + update test mocks
+- [ ] 60-02-PLAN.md — Migrate features.ts, filter.ts, bee-atlas.ts to wa-sqlite + SQL dialect rewrites
+- [ ] 60-03-PLAN.md — Browser verification checkpoint + fill BENCHMARK.md
 
 ### v2.7 Unified Occurrence Model (Planned)
 
