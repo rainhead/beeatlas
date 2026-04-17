@@ -5,7 +5,7 @@ import { getDB } from '../sqlite.ts';
 
 vi.mock('../sqlite.ts', () => ({
   getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
-  loadAllTables: vi.fn(() => Promise.resolve()),
+  loadOccurrencesTable: vi.fn(() => Promise.resolve()),
   tablesReady: Promise.resolve(),
 }));
 

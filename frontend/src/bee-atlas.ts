@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type SpecimenRow, type SampleRow, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
-import { getDB, loadAllTables, tablesReady } from './sqlite.ts';
+import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { Sample, Specimen, DataSummary, TaxonOption, FilterChangedEvent, SampleEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
 import './bee-filter-toolbar.ts';
@@ -264,7 +264,7 @@ bee-sidebar {
     window.history.replaceState({}, '', '?' + initParams.toString());
 
     // Initialize SQLite
-    loadAllTables(DATA_BASE_URL)
+    loadOccurrencesTable(DATA_BASE_URL)
       .then(() => {
         console.debug('SQLite tables ready');
         if (this._viewMode === 'table') {
