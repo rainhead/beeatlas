@@ -11,7 +11,6 @@ export type SelectionState =
   | { type: 'cluster'; lon: number; lat: number; radiusM: number };
 
 export interface UiState {
-  layerMode: 'specimens' | 'samples';
   boundaryMode: 'off' | 'counties' | 'ecoregions';
   viewMode: 'map' | 'table';
 }
@@ -47,7 +46,6 @@ export function buildParams(
   } else if (selection.type === 'cluster') {
     params.set('o', `@${selection.lon.toFixed(4)},${selection.lat.toFixed(4)},${Math.ceil(selection.radiusM)}`);
   }
-  if (ui.layerMode !== 'specimens') params.set('lm', ui.layerMode);  // omit default value
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.viewMode !== 'map') params.set('view', ui.viewMode);
@@ -164,16 +162,14 @@ export function parseParams(search: string): Partial<AppState> {
   }
 
   // UI state
-  const lmRaw = p.get('lm') ?? '';
-  const layerMode: 'specimens' | 'samples' = lmRaw === 'samples' ? 'samples' : 'specimens';
   const bmRaw = p.get('bm') ?? '';
   const boundaryMode: 'off' | 'counties' | 'ecoregions' =
     (bmRaw === 'counties' || bmRaw === 'ecoregions') ? bmRaw : 'off';
   const viewRaw = p.get('view') ?? '';
   const viewMode: 'map' | 'table' = viewRaw === 'table' ? 'table' : 'map';
   // Include UI when non-default values present
-  if (layerMode !== 'specimens' || boundaryMode !== 'off' || viewMode !== 'map') {
-    result.ui = { layerMode, boundaryMode, viewMode };
+  if (boundaryMode !== 'off' || viewMode !== 'map') {
+    result.ui = { boundaryMode, viewMode };
   }
 
   return result;
