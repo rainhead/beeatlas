@@ -129,6 +129,9 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ ELEV-09: Elevation min/max inputs reset when all filter tokens are removed (no explicit Clear button) — v2.5 (Phase 58)
 - ✓ OCC-01: `export.py` produces `occurrences.parquet` from full outer join of ecdysis specimens and iNat samples; specimen-side columns null for sample-only rows; sample-side columns null for specimen-only rows; `validate-schema.mjs` updated — v2.7 (Phase 62)
 - ✓ OCC-03: COALESCE unifies coordinate columns into canonical `lat`/`lon`; `date` column standardized to VARCHAR ISO format in export SQL — v2.7 (Phase 62)
+- ✓ OCC-08: `OccurrenceRow` replaces `SpecimenRow`/`SampleRow`; `queryVisibleIds` returns `Set<string>`; `layerMode` removed from `UiState`; `makeSampleDotStyleFn` deleted — v2.7 (Phase 65)
+- ✓ OCC-09: `bee-occurrence-detail` unified detail component with specimen group rendering and sample-only entries; `bee-specimen-detail` and `bee-sample-detail` deleted — v2.7 (Phase 65)
+- ✓ OCC-10: All UI components (`bee-atlas`, `bee-map`, `bee-header`, `bee-table`, `bee-sidebar`) wired to `OccurrenceRow`; `layerMode` branching eliminated throughout — v2.7 (Phase 65)
 
 ## Previous Milestones
 
@@ -283,4 +286,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after Phase 64 — OccurrenceSource complete; unified VectorSource, SelectionState discriminated union with cluster URL encoding, 44px tap target enforced*
+*Last updated: 2026-04-17 after Phase 65 — UI unification complete; OccurrenceRow replaces SpecimenRow/SampleRow; bee-occurrence-detail created; layerMode eliminated from all components; bee-specimen-detail and bee-sample-detail deleted; 150 tests passing*
