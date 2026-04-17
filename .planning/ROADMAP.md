@@ -297,6 +297,20 @@ Plans:
 - [x] 60-02-PLAN.md — Migrate features.ts, filter.ts, bee-atlas.ts to wa-sqlite + SQL dialect rewrites
 - [x] 60-03-PLAN.md — Browser verification checkpoint + fill BENCHMARK.md
 
+### Phase 61: DuckDB Removal
+**Goal**: Remove `@duckdb/duckdb-wasm` dependency and all remaining DuckDB code; verify all filter/query/export paths work against wa-sqlite only
+**Depends on**: Phase 60
+**Requirements**: None
+**Success Criteria** (what must be TRUE):
+  1. `@duckdb/duckdb-wasm` is absent from package.json dependencies
+  2. `frontend/src/duckdb.ts` is deleted
+  3. No remaining imports of duckdb anywhere in frontend/src
+  4. All 165+ tests pass
+  5. TypeScript compiles cleanly
+  6. `npm run build` succeeds and bundle size is measurably smaller
+**Plans**: 0 plans (not yet planned)
+Plans: []
+
 ### v2.7 Unified Occurrence Model (Planned)
 
 **Milestone Goal:** Produce a single `occurrences.parquet` from a full outer join of specimens and samples. The unified record carries an epistemic-state field: specimen-only, sample-only, or both. Frontend renders one record type with varying completeness.
