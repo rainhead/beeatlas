@@ -264,7 +264,7 @@ See `.planning/milestones/v2.5-ROADMAP.md` for full phase details.
 **Milestone Goal:** Replace DuckDB WASM (~34 MB uncompressed) with wa-sqlite + Hyparquet (~545 KB). Retain full SQL filter capability. Record before/after benchmark numbers.
 
 - [x] **Phase 59: Benchmark Baseline** — measure DuckDB WASM init time, first-query latency, memory footprint; establish numbers to compare against (completed 2026-04-16)
-- [ ] **Phase 60: wa-sqlite Integration** — Hyparquet parquet read → wa-sqlite in-memory insert with batched transactions; SQL filter layer compatibility
+- [x] **Phase 60: wa-sqlite Integration** — Hyparquet parquet read → wa-sqlite in-memory insert with batched transactions; SQL filter layer compatibility (completed 2026-04-17)
 - [ ] **Phase 61: DuckDB Removal** — remove `@duckdb/duckdb-wasm` dependency; verify all filter/query/export paths
 
 ### Phase 59: Benchmark Baseline
@@ -293,9 +293,9 @@ Plans:
   6. BENCHMARK.md wa-sqlite column filled with measured init/query/heap numbers
 **Plans**: 3 plans
 Plans:
-- [ ] 60-01-PLAN.md — Create sqlite.ts module + install wa-sqlite and hyparquet + update test mocks
-- [ ] 60-02-PLAN.md — Migrate features.ts, filter.ts, bee-atlas.ts to wa-sqlite + SQL dialect rewrites
-- [ ] 60-03-PLAN.md — Browser verification checkpoint + fill BENCHMARK.md
+- [x] 60-01-PLAN.md — Create sqlite.ts module + install wa-sqlite and hyparquet + update test mocks
+- [x] 60-02-PLAN.md — Migrate features.ts, filter.ts, bee-atlas.ts to wa-sqlite + SQL dialect rewrites
+- [x] 60-03-PLAN.md — Browser verification checkpoint + fill BENCHMARK.md
 
 ### v2.7 Unified Occurrence Model (Planned)
 
@@ -395,3 +395,5 @@ Plans:
 | 56. Export Integration | v2.5 | 2/2 | Complete   | 2026-04-15 |
 | 57. Sidebar Display | v2.5 | 2/2 | Complete   | 2026-04-16 |
 | 58. Elevation Filter | v2.5 | 2/2 | Complete    | 2026-04-16 |
+| 59. Benchmark Baseline | v2.6 | 1/1 | Complete | 2026-04-16 |
+| 60. wa-sqlite Integration | v2.6 | 3/3 | Complete | 2026-04-17 |
