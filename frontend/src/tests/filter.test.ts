@@ -29,87 +29,76 @@ function emptyFilter(): FilterState {
 }
 
 describe('empty filter', () => {
-  test('returns 1 = 1 for both clauses', () => {
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(emptyFilter());
-    expect(ecdysisWhere).toBe('1 = 1');
-    expect(samplesWhere).toBe('1 = 1');
+  test('returns 1 = 1 for the unified clause', () => {
+    const { occurrenceWhere } = buildFilterSQL(emptyFilter());
+    expect(occurrenceWhere).toBe('1 = 1');
   });
 });
 
 describe('individual filter fields', () => {
-  test('taxon family: ecdysisWhere contains family clause; samplesWhere is 1 = 0', () => {
+  test('taxon family: occurrenceWhere contains family clause', () => {
     const f = { ...emptyFilter(), taxonName: 'Apidae', taxonRank: 'family' as const };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe("family = 'Apidae'");
-    expect(samplesWhere).toBe('1 = 0');
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe("family = 'Apidae'");
   });
 
-  test('taxon genus: ecdysisWhere contains genus clause; samplesWhere is 1 = 0', () => {
+  test('taxon genus: occurrenceWhere contains genus clause', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe("genus = 'Bombus'");
-    expect(samplesWhere).toBe('1 = 0');
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe("genus = 'Bombus'");
   });
 
-  test('taxon species: ecdysisWhere contains scientificName clause; samplesWhere is 1 = 0', () => {
+  test('taxon species: occurrenceWhere contains scientificName clause', () => {
     const f = { ...emptyFilter(), taxonName: 'Bombus occidentalis', taxonRank: 'species' as const };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe("scientificName = 'Bombus occidentalis'");
-    expect(samplesWhere).toBe('1 = 0');
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe("scientificName = 'Bombus occidentalis'");
   });
 
-  test('yearFrom: ecdysis contains year >= 2020; samples uses SQLite strftime', () => {
+  test('yearFrom: occurrenceWhere contains year >= 2020', () => {
     const f = { ...emptyFilter(), yearFrom: 2020 };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe('year >= 2020');
-    expect(samplesWhere).toBe("CAST(strftime('%Y', date) AS INTEGER) >= 2020");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe('year >= 2020');
   });
 
-  test('yearTo: ecdysis contains year <= 2023; samples uses SQLite strftime', () => {
+  test('yearTo: occurrenceWhere contains year <= 2023', () => {
     const f = { ...emptyFilter(), yearTo: 2023 };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe('year <= 2023');
-    expect(samplesWhere).toBe("CAST(strftime('%Y', date) AS INTEGER) <= 2023");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe('year <= 2023');
   });
 
-  test('single month: ecdysis contains month IN (6); samples uses SQLite strftime', () => {
+  test('single month: occurrenceWhere contains month IN (6)', () => {
     const f = { ...emptyFilter(), months: new Set([6]) };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe('month IN (6)');
-    expect(samplesWhere).toBe("CAST(strftime('%m', date) AS INTEGER) IN (6)");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe('month IN (6)');
   });
 
-  test('multiple months: ecdysis contains comma-separated month list; samples uses SQLite strftime', () => {
+  test('multiple months: occurrenceWhere contains comma-separated month list', () => {
     const f = { ...emptyFilter(), months: new Set([3, 7, 11]) };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toContain('month IN (3,7,11)');
-    expect(samplesWhere).toContain("CAST(strftime('%m', date) AS INTEGER) IN (3,7,11)");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain('month IN (3,7,11)');
   });
 
-  test('single county: both clauses contain county IN', () => {
+  test('single county: occurrenceWhere contains county IN', () => {
     const f = { ...emptyFilter(), selectedCounties: new Set(['King']) };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe("county IN ('King')");
-    expect(samplesWhere).toBe("county IN ('King')");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe("county IN ('King')");
   });
 
-  test('multiple counties: both clauses contain all county names', () => {
+  test('multiple counties: occurrenceWhere contains all county names', () => {
     const f = { ...emptyFilter(), selectedCounties: new Set(['King', 'Pierce']) };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toContain("county IN ('King','Pierce')");
-    expect(samplesWhere).toContain("county IN ('King','Pierce')");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain("county IN ('King','Pierce')");
   });
 
-  test('ecoregion: both clauses contain ecoregion_l3 IN', () => {
+  test('ecoregion: occurrenceWhere contains ecoregion_l3 IN', () => {
     const f = { ...emptyFilter(), selectedEcoregions: new Set(['Cascades']) };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe("ecoregion_l3 IN ('Cascades')");
-    expect(samplesWhere).toBe("ecoregion_l3 IN ('Cascades')");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe("ecoregion_l3 IN ('Cascades')");
   });
 });
 
 describe('combined filters', () => {
-  test('all fields: ecdysisWhere contains all clauses; samplesWhere has ghost + date clauses', () => {
+  test('all fields: occurrenceWhere contains all clauses joined by AND', () => {
     const f: FilterState = {
       taxonName: 'Bombus',
       taxonRank: 'genus',
@@ -122,54 +111,40 @@ describe('combined filters', () => {
       elevMin: null,
       elevMax: null,
     };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
+    const { occurrenceWhere } = buildFilterSQL(f);
 
-    // ecdysisWhere — all clauses joined by AND
-    expect(ecdysisWhere).toContain("genus = 'Bombus'");
-    expect(ecdysisWhere).toContain('year >= 2020');
-    expect(ecdysisWhere).toContain('year <= 2023');
-    expect(ecdysisWhere).toContain('month IN (6,7)');
-    expect(ecdysisWhere).toContain("county IN ('King')");
-    expect(ecdysisWhere).toContain("ecoregion_l3 IN ('Cascades')");
-    expect(ecdysisWhere).toContain(' AND ');
-
-    // samplesWhere — taxon ghosts + date-based year/month + shared county/ecoregion
-    expect(samplesWhere).toContain('1 = 0');
-    expect(samplesWhere).toContain("CAST(strftime('%Y', date) AS INTEGER) >= 2020");
-    expect(samplesWhere).toContain("CAST(strftime('%Y', date) AS INTEGER) <= 2023");
-    expect(samplesWhere).toContain("CAST(strftime('%m', date) AS INTEGER) IN (6,7)");
-    expect(samplesWhere).toContain("county IN ('King')");
-    expect(samplesWhere).toContain("ecoregion_l3 IN ('Cascades')");
-    expect(samplesWhere).toContain(' AND ');
+    expect(occurrenceWhere).toContain("genus = 'Bombus'");
+    expect(occurrenceWhere).toContain('year >= 2020');
+    expect(occurrenceWhere).toContain('year <= 2023');
+    expect(occurrenceWhere).toContain('month IN (6,7)');
+    expect(occurrenceWhere).toContain("county IN ('King')");
+    expect(occurrenceWhere).toContain("ecoregion_l3 IN ('Cascades')");
+    expect(occurrenceWhere).toContain(' AND ');
   });
 });
 
 describe('elevation filter', () => {
-  test('elevMin only: both clauses use IS NULL OR >= pattern', () => {
+  test('elevMin only: clause uses IS NULL OR >= pattern', () => {
     const f = { ...emptyFilter(), elevMin: 500 };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe('(elevation_m IS NULL OR elevation_m >= 500)');
-    expect(samplesWhere).toBe('(elevation_m IS NULL OR elevation_m >= 500)');
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe('(elevation_m IS NULL OR elevation_m >= 500)');
   });
 
-  test('elevMax only: both clauses use IS NULL OR <= pattern', () => {
+  test('elevMax only: clause uses IS NULL OR <= pattern', () => {
     const f = { ...emptyFilter(), elevMax: 1500 };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe('(elevation_m IS NULL OR elevation_m <= 1500)');
-    expect(samplesWhere).toBe('(elevation_m IS NULL OR elevation_m <= 1500)');
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe('(elevation_m IS NULL OR elevation_m <= 1500)');
   });
 
-  test('both set: both clauses use BETWEEN (nulls excluded)', () => {
+  test('both set: clause uses BETWEEN (nulls excluded)', () => {
     const f = { ...emptyFilter(), elevMin: 500, elevMax: 1500 };
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toBe('elevation_m IS NOT NULL AND elevation_m BETWEEN 500 AND 1500');
-    expect(samplesWhere).toBe('elevation_m IS NOT NULL AND elevation_m BETWEEN 500 AND 1500');
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toBe('elevation_m IS NOT NULL AND elevation_m BETWEEN 500 AND 1500');
   });
 
-  test('neither set: no elevation clause; both return 1 = 1', () => {
-    const { ecdysisWhere, samplesWhere } = buildFilterSQL(emptyFilter());
-    expect(ecdysisWhere).toBe('1 = 1');
-    expect(samplesWhere).toBe('1 = 1');
+  test('neither set: no elevation clause; returns 1 = 1', () => {
+    const { occurrenceWhere } = buildFilterSQL(emptyFilter());
+    expect(occurrenceWhere).toBe('1 = 1');
   });
 });
 
@@ -249,8 +224,8 @@ describe('buildCsvFilename', () => {
 describe('single-quote escaping', () => {
   test("taxon with single-quote is doubled in SQL output", () => {
     const f = { ...emptyFilter(), taxonName: "O'Brien", taxonRank: 'genus' as const };
-    const { ecdysisWhere } = buildFilterSQL(f);
-    expect(ecdysisWhere).toContain("genus = 'O''Brien'");
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain("genus = 'O''Brien'");
   });
 });
 
@@ -317,6 +292,16 @@ describe('queryTablePage', () => {
     expect(dataSql).toContain('fieldNumber');
   });
 
+  test('specimens: SQL contains FROM occurrences and ecdysis_id IS NOT NULL', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await queryTablePage(emptyFilter(), 'specimens', 1);
+    const allSqls = execFn.mock.calls.map((c: unknown[]) => String(c[1]));
+    for (const sql of allSqls) {
+      expect(sql).toContain('FROM occurrences');
+      expect(sql).toContain('ecdysis_id IS NOT NULL');
+    }
+  });
+
   test('specimens: SQL contains ORDER BY and LIMIT 100 OFFSET', async () => {
     const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 'specimens', 1);
@@ -336,6 +321,16 @@ describe('queryTablePage', () => {
     expect(dataSql).toContain('sample_id');
     expect(dataSql).toContain('county');
     expect(dataSql).toContain('ecoregion_l3');
+  });
+
+  test('samples: SQL contains FROM occurrences and observation_id IS NOT NULL', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await queryTablePage(emptyFilter(), 'samples', 1);
+    const allSqls = execFn.mock.calls.map((c: unknown[]) => String(c[1]));
+    for (const sql of allSqls) {
+      expect(sql).toContain('FROM occurrences');
+      expect(sql).toContain('observation_id IS NOT NULL');
+    }
   });
 
   test('returns { rows, total } with total from COUNT(*)', async () => {
