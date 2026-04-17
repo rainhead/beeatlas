@@ -320,8 +320,8 @@ Plans:
   4. Clicking an occurrence cluster opens the sidebar detail panel with the correct record
 **Plans**: 2 plans
 Plans:
-- [ ] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
-- [ ] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
+- [x] 62-01-PLAN.md — Tests for unified export + validate-schema.mjs update
+- [x] 62-02-PLAN.md — Implement export_occurrences_parquet with full outer join
 **UI hint**: yes
 
 ### Phase 65: UI Unification
@@ -404,7 +404,7 @@ Plans:
 | 59. Benchmark Baseline | v2.6 | 1/1 | Complete | 2026-04-16 |
 | 60. wa-sqlite Integration | v2.6 | 3/3 | Complete | 2026-04-17 |
 | 61. DuckDB Removal | v2.6 | 1/1 | Complete | 2026-04-17 |
-| 62. Pipeline Join | v2.7 | 2/2 | Complete   | 2026-04-17 |
+| 62. Pipeline Join | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 63. SQLite Data Layer | v2.7 | 0/? | Not started | — |
 | 64. OccurrenceSource | v2.7 | 0/? | Not started | — |
 | 65. UI Unification | v2.7 | 0/? | Not started | — |
