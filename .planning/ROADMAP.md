@@ -282,6 +282,32 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 
 </details>
 
+## Phase Details
+
+### Phase 66: Provisional Rows in Pipeline
+**Goal**: The export pipeline surfaces WABA observations that have no Ecdysis match as provisional occurrence rows, complete with iNat taxon, observer, and host sample context
+**Depends on**: Phase 65
+**Requirements**: PROV-01, PROV-02, PROV-03, PROV-04, PROV-05
+**Success Criteria** (what must be TRUE):
+  1. Running `export.py` against a DuckDB with WABA observations produces `occurrences.parquet` rows where `ecdysis_id` is null and `is_provisional` is true for unmatched WABA observations
+  2. Provisional rows carry `scientificName`, `genus`, `family` from the iNat community taxon, `observer` from the iNat user login, and `specimen_observation_id` equal to the WABA observation ID
+  3. Provisional rows whose WABA observation has OFV field_id 1718 carry a populated `host_observation_id`; where that host observation is a known sample, `specimen_count` and `sample_id` are also populated
+  4. WABA observations that do have an Ecdysis catalog-number match are absent from the provisional rows (matched rows remain as specimen rows only)
+  5. `validate-schema.mjs` passes with the new `is_provisional` column; 2 pytest integration tests confirm the above inclusion/exclusion behavior
+**Plans**: TBD
+
+### Phase 67: Provisional Row Display in Sidebar
+**Goal**: Users see meaningful labels and links for sample-only and provisional rows in the occurrence detail sidebar
+**Depends on**: Phase 66
+**Requirements**: SID-01, SID-02
+**Success Criteria** (what must be TRUE):
+  1. Clicking a sample-only occurrence (ecdysis_id null, is_provisional falsy) shows "N specimens collected, identification pending" in the sidebar — no blank species name
+  2. Clicking a provisional occurrence (is_provisional true) shows a provisional identification label with the iNat community taxon name and a link to the WABA observation via `specimen_observation_id`
+  3. A Vitest render test mounts `bee-occurrence-detail` with a provisional row fixture and asserts the provisional label and observation link are present
+  4. Existing specimen and sample-only render tests continue to pass
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -351,3 +377,5 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 | 63. SQLite Data Layer | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 64. OccurrenceSource | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 65. UI Unification | v2.7 | 2/2 | Complete    | 2026-04-17 |
+| 66. Provisional Rows in Pipeline | v2.8 | 0/? | Not started | — |
+| 67. Provisional Row Display in Sidebar | v2.8 | 0/? | Not started | — |

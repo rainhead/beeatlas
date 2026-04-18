@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-04-18T00:00:00.000Z"
 last_activity: 2026-04-18
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning v2.8 milestone
+**Current focus:** v2.8 — Phase 66: Provisional Rows in Pipeline
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 66 — Provisional Rows in Pipeline
 Plan: —
-Status: Defining requirements for v2.8
-Last activity: 2026-04-18 — Milestone v2.8 started
+Status: Not started
+Last activity: 2026-04-18 — Roadmap created for v2.8
 
 ```
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0 phases)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/2 phases)
 ```
 
 ## Accumulated Context
