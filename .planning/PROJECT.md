@@ -1,5 +1,13 @@
 # Washington Bee Atlas
 
+## Current Milestone: v2.8 Liveness — Provisional Specimen Records
+
+**Goal:** Surface specimen-adjacent records that exist before Ecdysis ingestion, giving the map a feeling of live activity.
+
+**Target features:**
+- WABA provisional specimens — WABA iNat observations without a catalog-number Ecdysis match added as first-class rows in `occurrences.parquet`, with iNat community ID as provisional determination and `host_observation_id` from OFV field_id 1718 where available
+- Sample-only row labeling — sidebar explanation for sample-only rows ("N specimens collected, identification pending")
+
 ## What This Is
 
 An interactive web map for volunteer collectors participating in the Washington Bee Atlas. Displays Ecdysis specimen records and iNaturalist collection events as a unified occurrence layer — a single `occurrences.parquet` (full outer join; column nullability conveys source coverage). The static frontend (TypeScript, OpenLayers, Lit, wa-sqlite + hyparquet) fetches Parquet and GeoJSON from CloudFront at runtime; wa-sqlite MemoryVFS powers all filter queries and table pagination in-browser. Four dlt pipelines + a DuckDB-native geographies pipeline write to `data/beeatlas.duckdb`; `data/export.py` produces occurrences.parquet, counties.geojson, and ecoregions.geojson; `data/feeds.py` generates Atom feeds of recent determinations. Infrastructure is CDK on AWS (S3 + CloudFront), deployed via GitHub Actions OIDC. Pipeline execution runs as `data/nightly.sh` on maderas (nightly cron); CI runs frontend build only.
