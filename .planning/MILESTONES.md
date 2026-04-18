@@ -1,5 +1,21 @@
 # Milestones
 
+## v2.7 Unified Occurrence Model (Shipped: 2026-04-17)
+
+**Phases completed:** 4 phases (Phases 62–65), 8 plans
+**Timeline:** 1 day (2026-04-17)
+**LOC:** +9,338/−1,831 across 62 files
+
+**Key accomplishments:**
+
+- `export.py` full outer join of ecdysis specimens + iNat samples into single `occurrences.parquet` (25 columns); COALESCE-unified `lat`/`lon`/`date`; `validate-schema.mjs` updated; TDD with 6 failing tests first
+- `sqlite.ts` loads single `occurrences` table; `loadAllTables` renamed to `loadOccurrencesTable`; all call sites and test mocks updated
+- `buildFilterSQL` rewritten to return single `{ occurrenceWhere }` clause for unified table; all 167 existing filter tests pass without assertion changes
+- `OccurrenceSource` replaces `EcdysisSource` + `SampleSource`; discriminated union `SelectionState` added; spatial cluster restore unified; `ecdysis:<int>` / `inat:<int>` feature ID convention preserved
+- `bee-occurrence-detail` new unified component with null-omit rendering; `layerMode` eliminated from `url-state.ts`, all query functions, and all UI components; `bee-specimen-detail` + `bee-sample-detail` deleted
+
+---
+
 ## v2.6 SQLite WASM Migration (Shipped: 2026-04-17)
 
 **Phases completed:** 3 phases, 5 plans
