@@ -407,9 +407,8 @@ bee-sidebar {
       this._tableRows = [];
       this._tableRowCount = 0;
     } finally {
-      if (generation === this._tableQueryGeneration) {
-        this._tableLoading = false;
-      }
+      // Clear loading regardless of generation; the active query will set it again if needed.
+      this._tableLoading = false;
     }
   }
 
@@ -691,8 +690,9 @@ bee-sidebar {
     this._loading = false;
     this._loadCollectorOptions();
 
-    // If filter was restored from URL, run the filter query now that data is loaded
-    if (isFilterActive(this._filterState)) {
+    // If filter was restored from URL, run the filter query now that data is loaded.
+    // Guard against the case where firstUpdated already started a query that has resolved.
+    if (isFilterActive(this._filterState) && this._visibleIds === null) {
       this._runFilterQuery();
     }
 
@@ -722,6 +722,13 @@ bee-sidebar {
         .filter(id => id.startsWith('inat:'))
         .map(id => id.slice('inat:'.length))
         .filter(id => /^\d+$/.test(id));
+
+      // Safety: ecdysisIds/inatIds have already been filtered to /^\d+$/.
+      // If this assertion fails, the regex guard above has been changed — do NOT remove it.
+      if (ecdysisIds.some(id => !/^\d+$/.test(id)) || inatIds.some(id => !/^\d+$/.test(id))) {
+        console.error('ID validation failed; skipping selection restore');
+        return;
+      }
 
       const conditions: string[] = [];
       if (ecdysisIds.length > 0) {
@@ -753,7 +760,7 @@ bee-sidebar {
       const { sqlite3, db } = await getDB();
       const degPerMetre = 1 / 111320;
       const dLat = radiusM * degPerMetre;
-      const dLon = radiusM * degPerMetre / Math.cos(lat * Math.PI / 180);
+      const dLon = Math.min(radiusM * degPerMetre / Math.cos(lat * Math.PI / 180), 180);
       const colList = OCCURRENCE_COLUMNS.join(', ');
       const rows: OccurrenceRow[] = [];
       await sqlite3.exec(db, `
