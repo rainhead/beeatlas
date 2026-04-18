@@ -367,17 +367,19 @@ const EXPECTED = {
 | A1 | DuckDB `CAST(observed_on AS VARCHAR)` produces ISO format `'YYYY-MM-DD'` | Pattern 3 | date column format wrong; downstream frontend date parsing breaks |
 | A2 | No sample row has multiple ecdysis specimens linked via the same host_observation_id; row count stays predictable | Pitfall 2 | Row count higher than expected; downstream table pages show duplicate samples |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Unified row key for spatial CTE fallbacks**
    - What we know: Existing fallback CTEs use `occurrence_id` (ecdysis UUID) or `_dlt_id` (iNat UUID) as correlated subquery keys.
    - What's unclear: Whether to use `ROW_NUMBER()` or restructure the fallback to avoid correlated subqueries entirely (window function approach is cleaner but more divergent from existing pattern).
    - Recommendation: Use `ROW_NUMBER() OVER () AS _row_id` in the `joined` CTE — minimal change from existing pattern, clearly propagated through spatial CTEs.
+   - RESOLVED: Use `ROW_NUMBER() OVER () AS _row_id` in the `joined` CTE (adopted in Plan 02 CTE 7).
 
 2. **year/month for sample-only rows**
    - What we know: CONTEXT.md says this is Claude's discretion.
    - What's unclear: Whether Phase 63+ frontend code will need year/month for sample rows (e.g., for date range filter).
    - Recommendation: Compute `YEAR(ws.observed_on)` / `MONTH(ws.observed_on)` for sample rows using COALESCE with ecdysis year/month — zero cost, forward-compatible.
+   - RESOLVED: Compute `COALESCE(e.year, YEAR(s.sample_date_raw)) AS year` and `COALESCE(e.month, MONTH(s.sample_date_raw)) AS month` (adopted in Plan 02 CTE 7).
 
 ## Environment Availability
 

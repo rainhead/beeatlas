@@ -2,6 +2,37 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v2.7 — Unified Occurrence Model
+
+**Shipped:** 2026-04-17
+**Phases:** 4 (Phases 62–65) | **Plans:** 8 | **Timeline:** 1 day (2026-04-17)
+
+### What Was Built
+- Phase 62: `export.py` full outer join producing `occurrences.parquet` (25 columns); `validate-schema.mjs` updated; 6 TDD tests written first; ecdysis.parquet + samples.parquet removed
+- Phase 63: `sqlite.ts` loads single `occurrences` table; `loadAllTables` renamed to `loadOccurrencesTable`; `buildFilterSQL` rewritten to return single `{ occurrenceWhere }` clause; all 167 tests pass
+- Phase 64: `OccurrenceSource` replaces `EcdysisSource` + `SampleSource`; `SelectionState` discriminated union added to bee-atlas; spatial cluster restore unified; test mocks updated
+- Phase 65: `bee-occurrence-detail` new component with null-omit rendering; `layerMode` eliminated from `url-state.ts`, `filter.ts`, all UI components; `bee-specimen-detail` + `bee-sample-detail` deleted; `bee-table` unified column set
+
+### What Worked
+- TDD-first approach in Phase 62 (6 failing tests before implementation) caught schema issues early and made verification straightforward
+- The four-phase structure cleanly separated pipeline (62), data layer (63), map layer (64), and UI (65) — each phase had a clear input/output contract that made planning straightforward
+- Discriminated union `SelectionState` in Phase 64 was the right design: eliminates if/else on `layerMode` throughout the coordinator
+
+### What Was Inefficient
+- `gsd-tools summary-extract` again returned file paths instead of one-liner descriptions from SUMMARY.md frontmatter — MILESTONES.md accomplishments required manual correction (fifth consecutive milestone with this issue)
+- Phase 63 included a `layerMode` discriminator clause in `buildFilterSQL` that Phase 65 then removed from the coordinator — a sign that the boundary between phases 63 and 65 wasn't perfectly clean; minor rework
+
+### Patterns Established
+- Full outer join with column-nullability is the right pattern for unified occurrence models when sources have disjoint schemas; don't try to coerce both schemas into a single nullable table at the query layer
+- `null-omit` rendering in Lit: render each field as a conditional template literal or `nothing` — cleaner than conditional CSS or empty string checks
+- When removing a concept (`layerMode`) that crosses many files, tackle it top-down: data layer → map layer → UI coordinator → presenters; each layer can be verified independently
+
+### Key Lessons
+- `gsd-tools summary-extract` is unreliable for one-liners; write MILESTONES.md accomplishments directly from reading SUMMARY.md files
+- The unified model made Phase 65 simpler than expected — deleting `bee-specimen-detail` and `bee-sample-detail` was net negative lines, not an addition
+
+---
+
 ## Milestone: v2.6 — SQLite WASM Migration
 
 **Shipped:** 2026-04-17

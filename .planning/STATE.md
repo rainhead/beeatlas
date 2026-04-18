@@ -1,43 +1,43 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.7
-milestone_name: Unified Occurrence Model
-status: executing
-last_updated: "2026-04-17T23:35:21.194Z"
-last_activity: 2026-04-17
+milestone: v2.8
+milestone_name: Liveness — Provisional Specimen Records
+status: planning
+last_updated: "2026-04-18T00:00:00.000Z"
+last_activity: 2026-04-18
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-17 — v2.6 milestone complete)
+See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
-**Core value:** Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
-**Current focus:** Phase 65 — ui-unification
+**Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
+**Current focus:** Planning v2.8 milestone
 
 ## Current Position
 
-Phase: 65
+Phase: Not started
 Plan: Not started
-Status: Executing Phase 65
-Last activity: 2026-04-17
+Status: v2.7 complete — planning next milestone
+Last activity: 2026-04-18
 
 ```
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/4 phases)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/0 phases)
 ```
 
 ## Accumulated Context
 
 ### Decisions
 
-(Fresh for v2.7 milestone)
+(Fresh for v2.8 milestone)
 
 ### Pending Todos
 
