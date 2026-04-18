@@ -37,10 +37,10 @@ Surface specimen-adjacent records that exist before Ecdysis ingestion, giving th
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| PROV-01 | — | Pending |
-| PROV-02 | — | Pending |
-| PROV-03 | — | Pending |
-| PROV-04 | — | Pending |
-| PROV-05 | — | Pending |
-| SID-01 | — | Pending |
-| SID-02 | — | Pending |
+| PROV-01 | Phase 66 | Pending |
+| PROV-02 | Phase 66 | Pending |
+| PROV-03 | Phase 66 | Pending |
+| PROV-04 | Phase 66 | Pending |
+| PROV-05 | Phase 66 | Pending |
+| SID-01 | Phase 67 | Pending |
+| SID-02 | Phase 67 | Pending |
