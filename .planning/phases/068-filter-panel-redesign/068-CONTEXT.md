@@ -30,10 +30,12 @@ Replace the always-visible `<bee-filter-toolbar>` with a floating map overlay co
 ### Filter Input Style
 - **D-09:** Remove the `localStorage`-based recent filter memory (`beeatlas.recentFilters` key in `bee-filter-controls.ts:192`). Rely on the browser's native input history/autofill for recall instead. The programmatic datalists (taxon names, collector names, etc. populated from loaded data) are still appropriate for autocomplete candidates.
 
+### Placement
+- **D-10:** The filter control lives inside `<bee-map>`, positioned `top: 0.5em` (same as `.region-control`), to the left of the Regions button — i.e. `right` offset accounts for Regions button width + gap, or use a flex row container for the two controls
+- **D-11:** Download button moves to the table view only (CSV export is only meaningful there)
+
 ### Claude's Discretion
 - **Elevation filter placement:** Doesn't map cleanly to what/who/where/when — place under "Where" (it is a spatial characteristic of the collection site)
-- **Download button:** Currently in `<bee-filter-toolbar>`; with the toolbar removed, move it to the table view only (CSV export is only meaningful there)
-- **Panel position on map:** Where on screen the floating control sits (e.g. top-left, bottom-left) — choose what works best with the OL map controls
 - **Panel open direction:** Whether the panel expands downward, upward, or sideways from the trigger control
 
 </decisions>
