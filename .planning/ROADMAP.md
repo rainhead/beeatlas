@@ -287,6 +287,27 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 - [x] Phase 66: Provisional Rows in Pipeline (5/5 plans) — completed 2026-04-20
 - [x] Phase 67: Provisional Row Display in Sidebar (2/2 plans) — completed 2026-04-20
 
+## 🔲 v2.9 UI Flow Redesign (Phases 68–70)
+
+**Milestone Goal:** Reorganize the UI around the flow: overview → narrow → dive. Map always visible. Filter as collapsible panel that hints at what's filterable. Table as a drawer over the map, not a replacement for it.
+
+- [ ] Phase 68: Filter Panel Redesign — floating map overlay control (magnifying glass + count) that expands into what/who/where/when panel
+- [ ] Phase 69: Table Drawer — table slides up over map rather than replacing it; spatial context preserved
+- [ ] Phase 70: Map Overlay Sidebar — detail panel overlays map instead of shifting it
+
+## 🔲 v3.0 Plants Tab (Phases 71–72)
+
+**Milestone Goal:** A Plants tab showing plant species present in Washington with per-species × H3/ecoregion × month sampling coverage — how many plant observations exist and how many times bee visitors have been sampled.
+
+- [ ] Phase 71: Plants Pipeline
+- [ ] Phase 72: Plants Frontend View
+
+## 🔲 v3.1 Data Quality Flags (Phase 73)
+
+**Milestone Goal:** Heuristics-based flags on occurrence records surfacing likely data issues (duplicate sample or field numbers, implausible coordinates, etc.).
+
+- [ ] Phase 73: Quality Flag Pipeline and Display
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
