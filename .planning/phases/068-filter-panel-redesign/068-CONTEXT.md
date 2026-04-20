@@ -28,7 +28,7 @@ Replace the always-visible `<bee-filter-toolbar>` with a floating map overlay co
 - **D-08:** The what/who/where/when icon-based structure is sufficient for discoverability — no "top genera in view" hints or dynamic suggestions needed
 
 ### Filter Input Style
-- **D-09:** No custom suggestion caching — rely on the browser's native input history/autofill for recall. The existing programmatic datalists (taxon names, collector names, etc. populated from loaded data) are still appropriate for autocomplete candidates; this decision only means we do not persist or pre-populate suggestions beyond what the data and browser provide natively.
+- **D-09:** Remove the `localStorage`-based recent filter memory (`beeatlas.recentFilters` key in `bee-filter-controls.ts:192`). Rely on the browser's native input history/autofill for recall instead. The programmatic datalists (taxon names, collector names, etc. populated from loaded data) are still appropriate for autocomplete candidates.
 
 ### Claude's Discretion
 - **Elevation filter placement:** Doesn't map cleanly to what/who/where/when — place under "Where" (it is a spatial characteristic of the collection site)
