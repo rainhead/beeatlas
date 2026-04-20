@@ -139,6 +139,8 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ PROV-03: Provisional rows carry `specimen_inat_taxon_name`, `specimen_inat_genus`, `specimen_inat_family` from `taxon_lineage`; `specimen_inat_login` = iNat user login; `specimen_observation_id` = WABA obs ID — v2.8 (Phase 66)
 - ✓ PROV-04: Provisional rows with OFV 1718 carry `host_observation_id` (regexp_extract from URL); where host is a known sample, `specimen_count` and `sample_id` are populated — v2.8 (Phase 66)
 - ✓ PROV-05: `occurrences.parquet` gains `is_provisional BOOLEAN`; `validate-schema.mjs` EXPECTED list updated to 30 columns; 2 pytest integration tests cover inclusion/exclusion behavior — v2.8 (Phase 66)
+- ✓ SID-01: `bee-occurrence-detail` renders sample-only rows with "N specimens collected, identification pending"; uses `host_inat_login` for observer display — v2.8 (Phase 67)
+- ✓ SID-02: `bee-occurrence-detail` renders WABA provisional rows with `.inat-id-label` ("iNat ID:"), italic taxon name, quality badge (aria-labeled), and "View WABA observation" link to `specimen_observation_id`; 2 Vitest render tests pass — v2.8 (Phase 67)
 
 ## Previous Milestones
 
@@ -299,4 +301,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-20 after Phase 66 — Provisional Rows in Pipeline complete; occurrences.parquet gains WABA provisional rows (is_provisional BOOLEAN, 30 columns total); export.py UNION ALL arm joins taxon_lineage for genus/family; validate-schema.mjs updated; 31 pytest tests passing*
+*Last updated: 2026-04-20 after Phase 67 — Provisional Row Display in Sidebar complete; `bee-occurrence-detail` renders provisional rows (iNat ID label, quality badge, WABA link) and sample-only rows ("identification pending"); `filter.ts` schema layer updated (`observer` → `host_inat_login`, 3 new fields); `specimen_inat_quality_grade` added to export pipeline; 152 Vitest tests passing*
