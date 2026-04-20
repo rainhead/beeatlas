@@ -92,7 +92,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             longitude DOUBLE, latitude DOUBLE,
             quality_grade VARCHAR,
             _dlt_load_id VARCHAR,
-            taxon__name VARCHAR, taxon__rank VARCHAR
+            taxon__name VARCHAR, taxon__rank VARCHAR,
+            taxon__id BIGINT
         )
     """)
     con.execute("""
@@ -104,10 +105,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
     con.execute("""
-        CREATE TABLE inaturalist_waba_data.observations__taxon__ancestors (
-            _dlt_root_id VARCHAR, rank VARCHAR, name VARCHAR,
-            _dlt_list_idx BIGINT, _dlt_id VARCHAR,
-            _dlt_parent_id VARCHAR, _dlt_load_id VARCHAR
+        CREATE TABLE inaturalist_waba_data.taxon_lineage (
+            taxon_id BIGINT, genus VARCHAR, family VARCHAR
         )
     """)
 
@@ -190,7 +189,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             -120.8, 47.5,
             'research',
             'waba-load1',
-            'Eucera acerba', 'species'
+            'Eucera acerba', 'species', 100001
         )
     """)
     con.execute("""
@@ -208,7 +207,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             -120.8, 47.5,
             'research',
             'waba-load2',
-            'Osmia', 'genus'
+            'Osmia', 'genus', 100002
         )
     """)
     # OFV 1718 on provisional obs points to the known iNat host sample (id=999999)
@@ -220,17 +219,11 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
 
-    # Ancestor rows for waba-obs-1 (matched Eucera acerba)
+    # Taxon lineage rows (genus + family keyed by taxon_id, mirrors enrich_taxon_lineage output)
     con.execute("""
-        INSERT INTO inaturalist_waba_data.observations__taxon__ancestors VALUES
-            ('waba-obs-1', 'genus', 'Eucera', 0, 'anc-1a', 'waba-obs-1', 'waba-load1'),
-            ('waba-obs-1', 'family', 'Apidae', 1, 'anc-1b', 'waba-obs-1', 'waba-load1')
-    """)
-    # Ancestor rows for waba-obs-2 (provisional Osmia)
-    con.execute("""
-        INSERT INTO inaturalist_waba_data.observations__taxon__ancestors VALUES
-            ('waba-obs-2', 'genus', 'Osmia', 0, 'anc-2a', 'waba-obs-2', 'waba-load2'),
-            ('waba-obs-2', 'family', 'Megachilidae', 1, 'anc-2b', 'waba-obs-2', 'waba-load2')
+        INSERT INTO inaturalist_waba_data.taxon_lineage VALUES
+            (100001, 'Eucera', 'Apidae'),
+            (100002, 'Osmia', 'Megachilidae')
     """)
 
     # Identifications seed rows for feeds tests:
