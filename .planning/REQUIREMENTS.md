@@ -8,11 +8,11 @@ Surface specimen-adjacent records that exist before Ecdysis ingestion, giving th
 
 ### PROV — Provisional Specimen Records (Pipeline)
 
-- [ ] **PROV-01**: `waba_pipeline.py` DEFAULT_FIELDS includes OFV field_id 1718 (associated observation URL); value persisted in `inaturalist_waba_data.observations__ofvs`
-- [ ] **PROV-02**: `export.py` adds WABA provisional rows to `occurrences.parquet` — WABA observations with no Ecdysis catalog-number match (not matched via `waba_link`); these rows have `ecdysis_id = null` and `is_provisional = true`
-- [ ] **PROV-03**: Provisional rows carry `scientificName`, `genus`, and `family` derived from the iNat taxon; `specimen_observation_id` = the WABA observation ID itself; `observer` = iNat user login
-- [ ] **PROV-04**: Provisional rows with OFV 1718 populated carry `host_observation_id` parsed from the associated observation URL; where the host observation is a known sample, sample context columns (`specimen_count`, `sample_id`) are populated via join to `samples_base`
-- [ ] **PROV-05**: `occurrences.parquet` schema gains `is_provisional BOOLEAN` column; `validate-schema.mjs` updated; 2 pytest integration tests confirm provisional rows appear in export and are excluded when a catalog-number Ecdysis match exists
+- [x] **PROV-01**: `waba_pipeline.py` DEFAULT_FIELDS includes OFV field_id 1718 (associated observation URL); value persisted in `inaturalist_waba_data.observations__ofvs` — validated Phase 66
+- [x] **PROV-02**: `export.py` adds WABA provisional rows to `occurrences.parquet` — WABA observations with no Ecdysis catalog-number match (not matched via `waba_link`); these rows have `ecdysis_id = null` and `is_provisional = true` — validated Phase 66
+- [x] **PROV-03**: Provisional rows carry `scientificName`, `genus`, and `family` derived from the iNat taxon; `specimen_observation_id` = the WABA observation ID itself; `observer` = iNat user login (column named `specimen_inat_login`) — validated Phase 66
+- [x] **PROV-04**: Provisional rows with OFV 1718 populated carry `host_observation_id` parsed from the associated observation URL; where the host observation is a known sample, sample context columns (`specimen_count`, `sample_id`) are populated via join to `samples_base` — validated Phase 66
+- [x] **PROV-05**: `occurrences.parquet` schema gains `is_provisional BOOLEAN` column; `validate-schema.mjs` updated; 2 pytest integration tests confirm provisional rows appear in export and are excluded when a catalog-number Ecdysis match exists — validated Phase 66
 
 ### SID — Sidebar Display
 
@@ -37,10 +37,10 @@ Surface specimen-adjacent records that exist before Ecdysis ingestion, giving th
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| PROV-01 | Phase 66 | Pending |
-| PROV-02 | Phase 66 | Pending |
-| PROV-03 | Phase 66 | Pending |
-| PROV-04 | Phase 66 | Pending |
-| PROV-05 | Phase 66 | Pending |
+| PROV-01 | Phase 66 | Complete |
+| PROV-02 | Phase 66 | Complete |
+| PROV-03 | Phase 66 | Complete |
+| PROV-04 | Phase 66 | Complete |
+| PROV-05 | Phase 66 | Complete |
 | SID-01 | Phase 67 | Pending |
 | SID-02 | Phase 67 | Pending |
