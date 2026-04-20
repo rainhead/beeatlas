@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v2.8
 milestone_name: Liveness — Provisional Specimen Records
 status: planning
-last_updated: "2026-04-18T00:00:00.000Z"
-last_activity: 2026-04-18
+last_updated: "2026-04-20T00:00:00.000Z"
+last_activity: 2026-04-20
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
   percent: 0
 ---
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
 Phase: 66 — Provisional Rows in Pipeline
 Plan: —
-Status: Not started
-Last activity: 2026-04-18 — Roadmap created for v2.8
+Status: Ready to execute
+Last activity: 2026-04-20 — Phase 66 planned (4 plans, 3 waves)
 
 ```
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/2 phases)
