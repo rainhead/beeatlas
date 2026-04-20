@@ -229,3 +229,78 @@ describe('SIDE-01/SIDE-02: sidebar is detail-only with close button', () => {
     expect(props.has('activeFeedEntries')).toBe(false);
   });
 });
+
+describe('SID-01/SID-02: bee-occurrence-detail render branches', () => {
+  // Provisional row fixture per 067-UI-SPEC.md
+  const provisionalRow = {
+    lat: 47.6, lon: -122.3, date: '2024-06-15',
+    county: 'King', ecoregion_l3: null,
+    ecdysis_id: null, catalog_number: null,
+    scientificName: null, recordedBy: null, fieldNumber: null,
+    genus: null, family: null, floralHost: null,
+    host_observation_id: null, inat_host: null, inat_quality_grade: null,
+    modified: null,
+    specimen_observation_id: 12345678,
+    elevation_m: 320, year: 2024, month: 6,
+    observation_id: null,
+    host_inat_login: 'fieldcollector',
+    specimen_count: 3, sample_id: null,
+    is_provisional: true,
+    specimen_inat_taxon_name: 'Bombus mixtus',
+    specimen_inat_quality_grade: 'needs_id',
+  };
+
+  // Sample-only row fixture (ecdysis_id null, is_provisional false)
+  const sampleOnlyRow = {
+    lat: 47.6, lon: -122.3, date: '2024-07-10',
+    county: 'King', ecoregion_l3: null,
+    ecdysis_id: null, catalog_number: null,
+    scientificName: null, recordedBy: null, fieldNumber: null,
+    genus: null, family: null, floralHost: null,
+    host_observation_id: null, inat_host: null, inat_quality_grade: null,
+    modified: null,
+    specimen_observation_id: null,
+    elevation_m: null, year: 2024, month: 7,
+    observation_id: 99999,
+    host_inat_login: 'sampler',
+    specimen_count: 2, sample_id: 42,
+    is_provisional: false,
+    specimen_inat_taxon_name: null,
+    specimen_inat_quality_grade: null,
+  };
+
+  test('SID-02: provisional row renders .inat-id-label with "iNat ID:" and WABA observation link', async () => {
+    const { BeeOccurrenceDetail } = await import('../bee-occurrence-detail.ts');
+    const el = document.createElement('bee-occurrence-detail') as InstanceType<typeof BeeOccurrenceDetail>;
+    document.body.appendChild(el);
+    el.occurrences = [provisionalRow] as typeof el.occurrences;
+    await el.updateComplete;
+
+    const shadow = el.shadowRoot!;
+    const label = shadow.querySelector('.inat-id-label');
+    expect(label).not.toBeNull();
+    expect(label!.textContent).toContain('iNat ID:');
+
+    const links = shadow.querySelectorAll('a');
+    const wabaLink = [...links].find(a => a.href.includes('12345678'));
+    expect(wabaLink).not.toBeUndefined();
+    expect(wabaLink!.textContent!.trim()).toBe('View WABA observation');
+
+    document.body.removeChild(el);
+  });
+
+  test('SID-01: sample-only row renders "identification pending" in .event-count', async () => {
+    const { BeeOccurrenceDetail } = await import('../bee-occurrence-detail.ts');
+    const el = document.createElement('bee-occurrence-detail') as InstanceType<typeof BeeOccurrenceDetail>;
+    document.body.appendChild(el);
+    el.occurrences = [sampleOnlyRow] as typeof el.occurrences;
+    await el.updateComplete;
+
+    const shadow = el.shadowRoot!;
+    const countEl = shadow.querySelector('.event-count');
+    expect(countEl).not.toBeNull();
+    expect(countEl!.textContent).toContain('identification pending');
+
+    document.body.removeChild(el);
+  });
+});
