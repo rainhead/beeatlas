@@ -436,3 +436,19 @@ Plans:
 - [x] 068-01-PLAN.md — Create bee-filter-panel.ts (floating overlay, trigger button, four section headers, bee-filter-controls embedded)
 - [x] 068-02-PLAN.md — Remove localStorage recents from bee-filter-controls.ts (D-09)
 - [x] 068-03-PLAN.md — Wire bee-atlas.ts: swap toolbar for panel, update tests
+
+### Phase 69: Table Drawer
+**Goal**: Table slides up over map rather than replacing it; spatial context preserved
+**Depends on**: Phase 68
+**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
+**Success Criteria** (what must be TRUE):
+  1. In table mode, the map remains visible as a ~18% strip above the drawer; bee-map is never removed from the DOM
+  2. The table drawer covers ~82% of the content area height, positioned absolute at bottom: 0
+  3. In table mode, the filter panel and sidebar are not rendered
+  4. Switching to table mode closes any open sidebar (_sidebarOpen → false)
+  5. Clicking a table row pans the map strip to center on that occurrence's lat/lon
+  6. Rows without lat/lon are silently skipped (no error or sidebar open)
+**Plans**: 2 plans
+Plans:
+- [ ] 069-01-PLAN.md — Add _onRowClick handler and row-pan event dispatch to bee-table.ts
+- [ ] 069-02-PLAN.md — Restructure bee-atlas.ts: drawer layout, mode gating, _onRowPan handler
