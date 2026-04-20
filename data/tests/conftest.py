@@ -91,7 +91,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             user__login VARCHAR, observed_on DATE,
             longitude DOUBLE, latitude DOUBLE,
             quality_grade VARCHAR,
-            _dlt_load_id VARCHAR
+            _dlt_load_id VARCHAR,
+            taxon__name VARCHAR, taxon__rank VARCHAR
         )
     """)
     con.execute("""
@@ -100,6 +101,13 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             value VARCHAR, datatype VARCHAR,
             _dlt_load_id VARCHAR, _dlt_id VARCHAR,
             _dlt_parent_id VARCHAR, _dlt_list_idx BIGINT
+        )
+    """)
+    con.execute("""
+        CREATE TABLE inaturalist_waba_data.observations__taxon__ancestors (
+            _dlt_root_id VARCHAR, rank VARCHAR, name VARCHAR,
+            _dlt_list_idx BIGINT, _dlt_id VARCHAR,
+            _dlt_parent_id VARCHAR, _dlt_load_id VARCHAR
         )
     """)
 
@@ -181,7 +189,8 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             'wabauser', '2024-06-15'::DATE,
             -120.8, 47.5,
             'research',
-            'waba-load1'
+            'waba-load1',
+            'Eucera acerba', 'species'
         )
     """)
     con.execute("""
@@ -189,6 +198,39 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             'waba-obs-1', 18116, 'WABA', '5594569', 'text',
             'waba-load1', 'waba-ofv-1', 'waba-obs-1', 0
         )
+    """)
+
+    # Second WABA observation: unmatched (no OFV 18116) — will become a provisional row
+    con.execute("""
+        INSERT INTO inaturalist_waba_data.observations VALUES (
+            'waba-obs-2', 888888, 'waba-uuid-2',
+            'provisionaluser', '2024-07-01'::DATE,
+            -120.8, 47.5,
+            'research',
+            'waba-load2',
+            'Osmia', 'genus'
+        )
+    """)
+    # OFV 1718 on provisional obs points to the known iNat host sample (id=999999)
+    con.execute("""
+        INSERT INTO inaturalist_waba_data.observations__ofvs VALUES (
+            'waba-obs-2', 1718, 'Associated observation',
+            'https://www.inaturalist.org/observations/999999', 'text',
+            'waba-load2', 'waba-ofv-2', 'waba-obs-2', 0
+        )
+    """)
+
+    # Ancestor rows for waba-obs-1 (matched Eucera acerba)
+    con.execute("""
+        INSERT INTO inaturalist_waba_data.observations__taxon__ancestors VALUES
+            ('waba-obs-1', 'genus', 'Eucera', 0, 'anc-1a', 'waba-obs-1', 'waba-load1'),
+            ('waba-obs-1', 'family', 'Apidae', 1, 'anc-1b', 'waba-obs-1', 'waba-load1')
+    """)
+    # Ancestor rows for waba-obs-2 (provisional Osmia)
+    con.execute("""
+        INSERT INTO inaturalist_waba_data.observations__taxon__ancestors VALUES
+            ('waba-obs-2', 'genus', 'Osmia', 0, 'anc-2a', 'waba-obs-2', 'waba-load2'),
+            ('waba-obs-2', 'family', 'Megachilidae', 1, 'anc-2b', 'waba-obs-2', 'waba-load2')
     """)
 
     # Identifications seed rows for feeds tests:
