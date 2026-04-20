@@ -294,7 +294,12 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
   3. Provisional rows whose WABA observation has OFV field_id 1718 carry a populated `host_observation_id`; where that host observation is a known sample, `specimen_count` and `sample_id` are also populated
   4. WABA observations that do have an Ecdysis catalog-number match are absent from the provisional rows (matched rows remain as specimen rows only)
   5. `validate-schema.mjs` passes with the new `is_provisional` column; 2 pytest integration tests confirm the above inclusion/exclusion behavior
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 066-01-PLAN.md — Add taxon.ancestors to waba_pipeline.py DEFAULT_FIELDS and run pipeline
+- [ ] 066-02-PLAN.md — Extend conftest.py fixtures and add integration test stubs (Wave 0)
+- [ ] 066-03-PLAN.md — Restructure export.py joined CTE into UNION ALL with provisional rows and new columns
+- [ ] 066-04-PLAN.md — Update validate-schema.mjs EXPECTED list and verify schema gate passes
 
 ### Phase 67: Provisional Row Display in Sidebar
 **Goal**: Users see meaningful labels and links for sample-only and provisional rows in the occurrence detail sidebar
@@ -377,5 +382,5 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 | 63. SQLite Data Layer | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 64. OccurrenceSource | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 65. UI Unification | v2.7 | 2/2 | Complete    | 2026-04-17 |
-| 66. Provisional Rows in Pipeline | v2.8 | 0/? | Not started | — |
+| 66. Provisional Rows in Pipeline | v2.8 | 0/4 | Not started | — |
 | 67. Provisional Row Display in Sidebar | v2.8 | 0/? | Not started | — |
