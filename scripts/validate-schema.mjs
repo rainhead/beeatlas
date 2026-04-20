@@ -28,10 +28,15 @@ const EXPECTED = {
     'modified', 'specimen_observation_id', 'elevation_m',
     'year', 'month',
     // sample-side (null for specimen-only rows)
-    'observation_id', 'observer', 'specimen_count', 'sample_id',
+    'observation_id', 'host_inat_login', 'specimen_count', 'sample_id',
     // unified (always populated via COALESCE)
     'lat', 'lon', 'date',
     'county', 'ecoregion_l3',
+    // WABA specimen fields (null when no WABA obs linked)
+    'specimen_inat_login', 'specimen_inat_taxon_name',
+    'specimen_inat_genus', 'specimen_inat_family',
+    // provisional flag
+    'is_provisional',
   ],
 };
 
