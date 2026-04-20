@@ -291,7 +291,7 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Reorganize the UI around the flow: overview → narrow → dive. Map always visible. Filter as collapsible panel that hints at what's filterable. Table as a drawer over the map, not a replacement for it.
 
-- [ ] Phase 68: Filter Panel Redesign — floating map overlay control (magnifying glass + count) that expands into what/who/where/when panel
+- [x] Phase 68: Filter Panel Redesign — floating map overlay control (magnifying glass + count) that expands into what/who/where/when panel
 - [ ] Phase 69: Table Drawer — table slides up over map rather than replacing it; spatial context preserved
 - [ ] Phase 70: Map Overlay Sidebar — detail panel overlays map instead of shifting it
 
@@ -414,6 +414,7 @@ Plans:
 | 65. UI Unification | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 66. Provisional Rows in Pipeline | v2.8 | 5/5 | Complete | 2026-04-20 |
 | 67. Provisional Row Display in Sidebar | v2.8 | 2/2 | Complete | 2026-04-20 |
+| 68. Filter Panel Redesign | v2.9 | 3/3 | Complete | 2026-04-20 |
 
 ## Phase Details
 
@@ -432,6 +433,6 @@ Plans:
   8. CSV download is only accessible from table view
 **Plans**: 3 plans
 Plans:
-- [ ] 068-01-PLAN.md — Create bee-filter-panel.ts (floating overlay, trigger button, four section headers, bee-filter-controls embedded)
-- [ ] 068-02-PLAN.md — Remove localStorage recents from bee-filter-controls.ts (D-09)
-- [ ] 068-03-PLAN.md — Wire bee-atlas.ts: swap toolbar for panel, update tests
+- [x] 068-01-PLAN.md — Create bee-filter-panel.ts (floating overlay, trigger button, four section headers, bee-filter-controls embedded)
+- [x] 068-02-PLAN.md — Remove localStorage recents from bee-filter-controls.ts (D-09)
+- [x] 068-03-PLAN.md — Wire bee-atlas.ts: swap toolbar for panel, update tests
