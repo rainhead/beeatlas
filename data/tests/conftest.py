@@ -109,13 +109,6 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             taxon_id BIGINT, genus VARCHAR, family VARCHAR
         )
     """)
-    con.execute("""
-        CREATE TABLE inaturalist_waba_data.observations__taxon__ancestors (
-            _dlt_root_id VARCHAR, rank VARCHAR, name VARCHAR,
-            _dlt_list_idx BIGINT, _dlt_id VARCHAR,
-            _dlt_parent_id VARCHAR, _dlt_load_id VARCHAR
-        )
-    """)
 
 
 def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
@@ -233,15 +226,6 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             (100002, 'Osmia', 'Megachilidae')
     """)
 
-    # Taxon ancestor rows for WABA observations (dlt-normalized child table)
-    # waba-obs-1: matched specimen (Eucera acerba)
-    con.execute("""
-        INSERT INTO inaturalist_waba_data.observations__taxon__ancestors VALUES
-            ('waba-obs-1', 'genus', 'Eucera', 0, 'anc-1a', 'waba-obs-1', 'waba-load1'),
-            ('waba-obs-1', 'family', 'Apidae', 1, 'anc-1b', 'waba-obs-1', 'waba-load1'),
-            ('waba-obs-2', 'genus', 'Osmia', 0, 'anc-2a', 'waba-obs-2', 'waba-load2'),
-            ('waba-obs-2', 'family', 'Megachilidae', 1, 'anc-2b', 'waba-obs-2', 'waba-load2')
-    """)
 
     # Identifications seed rows for feeds tests:
     # a. Recent valid: should appear in feed (within 90-day window, non-blank fields)
