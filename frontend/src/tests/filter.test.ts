@@ -192,7 +192,7 @@ describe('buildCsvFilename', () => {
   });
 
   test('collector only: slugified displayName', () => {
-    const f = { ...emptyFilter(), selectedCollectors: [{ displayName: 'Roy D. Smith', recordedBy: 'Roy D. Smith', observer: null }] };
+    const f = { ...emptyFilter(), selectedCollectors: [{ displayName: 'Roy D. Smith', recordedBy: 'Roy D. Smith', host_inat_login: null }] };
     expect(buildCsvFilename(f)).toBe('occurrences-roy-d-smith-20260115.csv');
   });
 
@@ -228,7 +228,7 @@ describe('OCCURRENCE_COLUMNS', () => {
     expect(OCCURRENCE_COLUMNS).toContain('date');
     expect(OCCURRENCE_COLUMNS).toContain('county');
     expect(OCCURRENCE_COLUMNS).toContain('ecoregion_l3');
-    expect(OCCURRENCE_COLUMNS).toContain('observer');
+    expect(OCCURRENCE_COLUMNS).toContain('host_inat_login');
     expect(OCCURRENCE_COLUMNS).toContain('specimen_count');
     expect(OCCURRENCE_COLUMNS).toContain('elevation_m');
   });
@@ -276,11 +276,11 @@ describe('queryTablePage', () => {
     }
   });
 
-  test('SQL contains observer, specimen_count, sample_id alongside specimen columns', async () => {
+  test('SQL contains host_inat_login, specimen_count, sample_id alongside specimen columns', async () => {
     const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 1);
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
-    expect(dataSql).toContain('observer');
+    expect(dataSql).toContain('host_inat_login');
     expect(dataSql).toContain('specimen_count');
     expect(dataSql).toContain('sample_id');
     expect(dataSql).toContain('county');
