@@ -148,6 +148,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             sob.specimen_inat_taxon_name,
             sob.specimen_inat_genus,
             sob.specimen_inat_family,
+            sob.quality_grade AS specimen_inat_quality_grade,
             FALSE AS is_provisional
         FROM ecdysis_base e
         FULL OUTER JOIN samples_base s ON e.host_observation_id = s.observation_id
@@ -179,6 +180,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             sob.specimen_inat_taxon_name,
             sob.specimen_inat_genus,
             sob.specimen_inat_family,
+            sob.quality_grade AS specimen_inat_quality_grade,
             TRUE AS is_provisional
         FROM provisional_waba_ids p
         JOIN specimen_obs_base sob ON sob.waba_obs_id = p.waba_obs_id
@@ -243,7 +245,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
         j.modified, j.specimen_observation_id, j.elevation_m,
         j.observation_id, j.host_inat_login, j.specimen_count, j.sample_id,
         j.specimen_inat_login, j.specimen_inat_taxon_name,
-        j.specimen_inat_genus, j.specimen_inat_family,
+        j.specimen_inat_genus, j.specimen_inat_family, j.specimen_inat_quality_grade,
         j.is_provisional,
         fc.county, fe.ecoregion_l3
     FROM joined j
