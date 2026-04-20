@@ -187,52 +187,6 @@ function getSuggestions(
   return results.slice(0, 8);
 }
 
-// --- Recent filter helpers ---
-
-const RECENTS_KEY = 'beeatlas.recentFilters';
-const RECENTS_MAX = 10;
-
-function loadRecentTokens(): Token[] {
-  try {
-    const raw = localStorage.getItem(RECENTS_KEY);
-    return raw ? (JSON.parse(raw) as Token[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRecentToken(token: Token): void {
-  const existing = loadRecentTokens();
-  // Deduplicate: remove any existing entry for same token identity
-  const filtered = existing.filter(t => JSON.stringify(t) !== JSON.stringify(token));
-  const next = [token, ...filtered].slice(0, RECENTS_MAX);
-  try {
-    localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
-  } catch {
-    // quota exceeded — ignore
-  }
-}
-
-function getRecentSuggestions(tokens: Token[]): Suggestion[] {
-  const recents = loadRecentTokens();
-  const results: Suggestion[] = [];
-  const activeTypes = new Set(tokens.map(t => t.type));
-
-  for (const t of recents) {
-    // Skip if this exact token is already active
-    if (tokens.some(a => JSON.stringify(a) === JSON.stringify(t))) continue;
-    // Skip single-slot dimensions that are already filled
-    if (t.type === 'taxon' && activeTypes.has('taxon')) continue;
-    if ((t.type === 'yearFrom' || t.type === 'yearExact') &&
-        (activeTypes.has('yearFrom') || activeTypes.has('yearExact'))) continue;
-    if ((t.type === 'yearTo' || t.type === 'yearExact') &&
-        (activeTypes.has('yearTo') || activeTypes.has('yearExact'))) continue;
-    results.push({ label: tokenLabel(t), token: t });
-    if (results.length >= 5) break;
-  }
-  return results;
-}
-
 // --- Component ---
 
 @customElement('bee-filter-controls')
@@ -433,19 +387,17 @@ export class BeeFilterControls extends LitElement {
     const value = (e.target as HTMLInputElement).value;
     this._inputText = value;
     if (value === '') {
-      this._suggestions = getRecentSuggestions(this._tokens);
+      this._suggestions = [];
+      this._open = false;
     } else {
       this._suggestions = getSuggestions(value, this.taxaOptions, this.countyOptions, this.ecoregionOptions, this.collectorOptions, this._tokens);
+      this._open = this._suggestions.length > 0;
     }
-    this._open = this._suggestions.length > 0;
     this._highlightIndex = -1;
   }
 
   private _onFocus() {
-    if (this._inputText === '') {
-      this._suggestions = getRecentSuggestions(this._tokens);
-      this._open = this._suggestions.length > 0;
-    }
+    // Dropdown only opens on typed input — no recent suggestions
   }
 
   private _onKeydown(e: KeyboardEvent) {
@@ -493,7 +445,6 @@ export class BeeFilterControls extends LitElement {
         next = next.filter(t => t.type !== 'yearFrom' && t.type !== 'yearTo' && t.type !== 'yearExact'); break;
     }
     next.push(s.token);
-    saveRecentToken(s.token);
     this._tokens = next;
     this._inputText = '';
     this._open = false;
