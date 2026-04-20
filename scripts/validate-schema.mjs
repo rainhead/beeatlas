@@ -34,7 +34,7 @@ const EXPECTED = {
     'county', 'ecoregion_l3',
     // WABA specimen fields (null when no WABA obs linked)
     'specimen_inat_login', 'specimen_inat_taxon_name',
-    'specimen_inat_genus', 'specimen_inat_family',
+    'specimen_inat_genus', 'specimen_inat_family', 'specimen_inat_quality_grade',
     // provisional flag
     'is_provisional',
   ],
