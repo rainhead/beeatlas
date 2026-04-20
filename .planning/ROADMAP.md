@@ -285,7 +285,7 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 ## 🔲 v2.8 Liveness: Provisional Specimen Records (Phases 66–67) — in progress
 
 - [x] Phase 66: Provisional Rows in Pipeline (5/5 plans) — completed 2026-04-20
-- [ ] Phase 67: Provisional Row Display in Sidebar — TBD
+- [ ] Phase 67: Provisional Row Display in Sidebar (0/2 plans)
 
 ## Phase Details
 
@@ -316,7 +316,10 @@ Plans:
   2. Clicking a provisional occurrence (is_provisional true) shows a provisional identification label with the iNat community taxon name and a link to the WABA observation via `specimen_observation_id`
   3. A Vitest render test mounts `bee-occurrence-detail` with a provisional row fixture and asserts the provisional label and observation link are present
   4. Existing specimen and sample-only render tests continue to pass
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 067-01-PLAN.md — Schema + data layer: add specimen_inat_quality_grade to export.py and validate-schema.mjs; rename observer to host_inat_login in filter.ts; add is_provisional, specimen_inat_taxon_name, specimen_inat_quality_grade to OccurrenceRow and OCCURRENCE_COLUMNS
+- [ ] 067-02-PLAN.md — Rendering + tests: _renderProvisional method and updated _renderSampleOnly in bee-occurrence-detail.ts; two new Vitest render tests in bee-sidebar.test.ts
 **UI hint**: yes
 
 ## Progress
@@ -388,5 +391,5 @@ Plans:
 | 63. SQLite Data Layer | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 64. OccurrenceSource | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 65. UI Unification | v2.7 | 2/2 | Complete    | 2026-04-17 |
-| 66. Provisional Rows in Pipeline | v2.8 | 0/4 | Not started | — |
-| 67. Provisional Row Display in Sidebar | v2.8 | 0/? | Not started | — |
+| 66. Provisional Rows in Pipeline | v2.8 | 5/5 | Complete | 2026-04-20 |
+| 67. Provisional Row Display in Sidebar | v2.8 | 0/2 | Planned | — |
