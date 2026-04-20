@@ -56,9 +56,9 @@ export function buildParams(
     params.set('ecor', [...filter.selectedEcoregions].sort().join(','));
   }
   if (filter.selectedCollectors.length > 0) {
-    // Each entry encoded as "recordedBy:observer" (either part may be empty)
+    // Each entry encoded as "recordedBy:host_inat_login" (either part may be empty)
     params.set('collectors', filter.selectedCollectors.map(c =>
-      `${encodeURIComponent(c.recordedBy ?? '')}:${encodeURIComponent(c.observer ?? '')}`
+      `${encodeURIComponent(c.recordedBy ?? '')}:${encodeURIComponent(c.host_inat_login ?? '')}`
     ).join('|'));
   }
   return params;
@@ -113,10 +113,10 @@ export function parseParams(search: string): Partial<AppState> {
         const colonIdx = part.indexOf(':');
         if (colonIdx === -1) return [];
         const recordedBy = decodeURIComponent(part.slice(0, colonIdx)) || null;
-        const observer = decodeURIComponent(part.slice(colonIdx + 1)) || null;
-        if (!recordedBy && !observer) return [];
-        const displayName = recordedBy ?? observer!;
-        return [{ displayName, recordedBy, observer }];
+        const host_inat_login = decodeURIComponent(part.slice(colonIdx + 1)) || null;
+        if (!recordedBy && !host_inat_login) return [];
+        const displayName = recordedBy ?? host_inat_login!;
+        return [{ displayName, recordedBy, host_inat_login }];
       })
     : [];
 

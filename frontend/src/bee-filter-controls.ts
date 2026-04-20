@@ -17,7 +17,7 @@ interface EcorToken      { type: 'ecoregion'; ecoregion: string }
 interface YearFromToken  { type: 'yearFrom';  year: number }
 interface YearToToken    { type: 'yearTo';    year: number }
 interface YearExactToken { type: 'yearExact'; year: number }
-interface CollectorToken { type: 'collector'; displayName: string; recordedBy: string | null; observer: string | null }
+interface CollectorToken { type: 'collector'; displayName: string; recordedBy: string | null; host_inat_login: string | null }
 
 type Token = MonthToken | TaxonToken | CountyToken | EcorToken | YearFromToken | YearToToken | YearExactToken | CollectorToken;
 type Suggestion = { label: string; token: Token };
@@ -55,7 +55,7 @@ function tokensToFilterState(tokens: Token[]): FilterState {
       case 'yearFrom':  f.yearFrom = t.year; break;
       case 'yearTo':    f.yearTo = t.year; break;
       case 'yearExact': f.yearFrom = t.year; f.yearTo = t.year; break;
-      case 'collector': f.selectedCollectors.push({ displayName: t.displayName, recordedBy: t.recordedBy, observer: t.observer }); break;
+      case 'collector': f.selectedCollectors.push({ displayName: t.displayName, recordedBy: t.recordedBy, host_inat_login: t.host_inat_login }); break;
     }
   }
   return f;
@@ -75,7 +75,7 @@ function filterStateToTokens(f: FilterState): Token[] {
   for (const m of [...f.months].sort((a, b) => a - b)) tokens.push({ type: 'month', month: m });
   for (const c of [...f.selectedCounties].sort())       tokens.push({ type: 'county', county: c });
   for (const e of [...f.selectedEcoregions].sort())     tokens.push({ type: 'ecoregion', ecoregion: e });
-  for (const c of f.selectedCollectors) tokens.push({ type: 'collector', displayName: c.displayName, recordedBy: c.recordedBy, observer: c.observer });
+  for (const c of f.selectedCollectors) tokens.push({ type: 'collector', displayName: c.displayName, recordedBy: c.recordedBy, host_inat_login: c.host_inat_login });
   return tokens;
 }
 
@@ -174,12 +174,12 @@ function getSuggestions(
   let col = 0;
   for (const c of collectorOptions) {
     const matchesName = c.displayName.toLowerCase().includes(lower);
-    const matchesUsername = c.observer !== null && c.observer.toLowerCase().includes(lower);
+    const matchesUsername = c.host_inat_login !== null && c.host_inat_login.toLowerCase().includes(lower);
     if ((matchesName || matchesUsername) && !activeCollectors.has(c.displayName)) {
-      const label = c.observer && c.observer !== c.displayName
-        ? `by ${c.displayName} (${c.observer})`
+      const label = c.host_inat_login && c.host_inat_login !== c.displayName
+        ? `by ${c.displayName} (${c.host_inat_login})`
         : `by ${c.displayName}`;
-      results.push({ label, token: { type: 'collector', displayName: c.displayName, recordedBy: c.recordedBy, observer: c.observer } });
+      results.push({ label, token: { type: 'collector', displayName: c.displayName, recordedBy: c.recordedBy, host_inat_login: c.host_inat_login } });
       if (++col >= 5) break;
     }
   }

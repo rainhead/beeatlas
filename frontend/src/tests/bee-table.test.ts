@@ -9,7 +9,7 @@ vi.mock('../sqlite.ts', () => ({
 
 vi.mock('../filter.ts', () => ({
   queryTablePage: vi.fn(() => Promise.resolve({ rows: [], total: 0 })),
-  OCCURRENCE_COLUMNS: ['lat', 'lon', 'date', 'county', 'ecoregion_l3', 'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber', 'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host', 'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'year', 'month', 'observation_id', 'observer', 'specimen_count', 'sample_id'],
+  OCCURRENCE_COLUMNS: ['lat', 'lon', 'date', 'county', 'ecoregion_l3', 'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber', 'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host', 'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'year', 'month', 'observation_id', 'host_inat_login', 'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade', 'specimen_count', 'sample_id'],
   isFilterActive: vi.fn(() => false),
   queryVisibleIds: vi.fn(() => Promise.resolve(null)),
   SpecimenSortBy: undefined,
@@ -160,7 +160,7 @@ describe('TABLE-07: bee-table accessibility', () => {
     const occurrenceRows = [{
       scientificName: 'Bombus vosnesenskii',
       recordedBy: 'Jane Smith',
-      observer: null,
+      host_inat_login: null,
       year: 2023,
       month: 6,
       county: 'King',

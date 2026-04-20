@@ -18,7 +18,7 @@ const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
   { key: 'date',        label: 'Date',       dataField: 'date',                    minWidth: '100px' },
   { key: 'species',     label: 'Species',    dataField: 'scientificName',          minWidth: '180px', nullLabel: 'No Determination' },
   { key: 'collector',   label: 'Collector',  dataField: 'recordedBy',              minWidth: '150px' },
-  { key: 'observer',    label: 'Observer',   dataField: 'observer',                minWidth: '150px' },
+  { key: 'observer',    label: 'Observer',   dataField: 'host_inat_login',         minWidth: '150px' },
   { key: 'county',      label: 'County',     dataField: 'county',                  minWidth: '110px' },
   { key: 'ecoregion',   label: 'Ecoregion',  dataField: 'ecoregion_l3',            minWidth: '130px' },
   { key: 'elevation',   label: 'Elev (m)',   dataField: 'elevation_m',             minWidth: '80px'  },
