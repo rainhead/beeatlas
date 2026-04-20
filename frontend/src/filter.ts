@@ -5,7 +5,7 @@ import { getDB, tablesReady } from './sqlite.ts';
 export interface CollectorEntry {
   displayName: string;          // human name if known, else iNat username
   recordedBy: string | null;    // ecdysis.recordedBy value (null if only known as iNat user)
-  observer: string | null;      // samples.observer value / iNat username (null if no iNat link)
+  host_inat_login: string | null; // iNat username from samples/WABA (null if no iNat link)
 }
 
 export interface FilterState {
@@ -44,7 +44,10 @@ export interface OccurrenceRow {
   year: number | null;
   month: number | null;
   observation_id: number | null;
-  observer: string | null;
+  host_inat_login: string | null;
+  is_provisional: boolean;
+  specimen_inat_taxon_name: string | null;
+  specimen_inat_quality_grade: string | null;
   specimen_count: number | null;
   sample_id: number | null;
 }
@@ -54,7 +57,7 @@ export const OCCURRENCE_COLUMNS = [
   'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber',
   'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host',
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
-  'year', 'month', 'observation_id', 'observer', 'specimen_count', 'sample_id',
+  'year', 'month', 'observation_id', 'host_inat_login', 'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade', 'specimen_count', 'sample_id',
 ] as const;
 
 const PAGE_SIZE = 100;
@@ -225,17 +228,17 @@ export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
     occurrenceClauses.push(`ecoregion_l3 IN (${ecors})`);
   }
 
-  // Collector filter — single OR clause combining recordedBy (ecdysis) and observer (iNat)
+  // Collector filter — single OR clause combining recordedBy (ecdysis) and host_inat_login (iNat)
   if (f.selectedCollectors.length > 0) {
     const recordedBys = f.selectedCollectors
       .filter(c => c.recordedBy !== null)
       .map(c => `'${c.recordedBy!.replace(/'/g, "''")}'`);
-    const observers = f.selectedCollectors
-      .filter(c => c.observer !== null)
-      .map(c => `'${c.observer!.replace(/'/g, "''")}'`);
+    const logins = f.selectedCollectors
+      .filter(c => c.host_inat_login !== null)
+      .map(c => `'${c.host_inat_login!.replace(/'/g, "''")}'`);
     const parts: string[] = [];
     if (recordedBys.length > 0) parts.push(`recordedBy IN (${recordedBys.join(',')})`);
-    if (observers.length > 0) parts.push(`observer IN (${observers.join(',')})`);
+    if (logins.length > 0) parts.push(`host_inat_login IN (${logins.join(',')})`);
     if (parts.length > 0) occurrenceClauses.push(`(${parts.join(' OR ')})`);
   }
 
