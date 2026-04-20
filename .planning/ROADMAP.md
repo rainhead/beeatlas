@@ -414,3 +414,24 @@ Plans:
 | 65. UI Unification | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 66. Provisional Rows in Pipeline | v2.8 | 5/5 | Complete | 2026-04-20 |
 | 67. Provisional Row Display in Sidebar | v2.8 | 2/2 | Complete | 2026-04-20 |
+
+## Phase Details
+
+### Phase 68: Filter Panel Redesign
+**Goal**: Replace the always-visible filter toolbar with a floating map overlay control (magnifying glass + count) that expands into a structured what/who/where/when filter panel
+**Depends on**: Phase 67
+**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
+**Success Criteria** (what must be TRUE):
+  1. The filter toolbar row is gone; the map fills the full content area
+  2. A floating button overlays the map at top: 0.5em, to the left of the Regions button — shows magnifying-glass icon + specimen count
+  3. When any filter is active, the button turns green (active coloring)
+  4. Clicking the button opens a panel; clicking again closes it
+  5. The panel has four icon-headed sections: What (taxon), Who (collector), Where (county/ecoregion/elevation), When (year/month)
+  6. Filter changes propagate to bee-atlas and update the map identically to before
+  7. localStorage recents (beeatlas.recentFilters) are no longer written
+  8. CSV download is only accessible from table view
+**Plans**: 3 plans
+Plans:
+- [ ] 068-01-PLAN.md — Create bee-filter-panel.ts (floating overlay, trigger button, four section headers, bee-filter-controls embedded)
+- [ ] 068-02-PLAN.md — Remove localStorage recents from bee-filter-controls.ts (D-09)
+- [ ] 068-03-PLAN.md — Wire bee-atlas.ts: swap toolbar for panel, update tests
