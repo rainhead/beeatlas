@@ -85,7 +85,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
     samples_base AS (
         SELECT
             op.id AS observation_id,
-            op.user__login AS observer,
+            op.user__login AS host_inat_login,
             CAST(op.observed_on AS VARCHAR) AS sample_date,
             op.observed_on AS sample_date_raw,
             op.longitude AS sample_lon,
@@ -99,9 +99,42 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             ON sid._dlt_root_id = op._dlt_id AND sid.field_id = 9963
         WHERE op.longitude IS NOT NULL AND op.latitude IS NOT NULL
     ),
-    joined AS (
+    specimen_obs_base AS (
         SELECT
-            ROW_NUMBER() OVER () AS _row_id,
+            waba.id                          AS waba_obs_id,
+            waba._dlt_id                     AS waba_dlt_id,
+            waba.user__login                 AS specimen_inat_login,
+            waba.taxon__name                 AS specimen_inat_taxon_name,
+            waba.longitude,
+            waba.latitude,
+            waba.observed_on,
+            waba.quality_grade,
+            anc_genus.name                   AS specimen_inat_genus,
+            anc_family.name                  AS specimen_inat_family
+        FROM inaturalist_waba_data.observations waba
+        LEFT JOIN inaturalist_waba_data.observations__taxon__ancestors anc_genus
+            ON anc_genus._dlt_root_id = waba._dlt_id AND anc_genus.rank = 'genus'
+        LEFT JOIN inaturalist_waba_data.observations__taxon__ancestors anc_family
+            ON anc_family._dlt_root_id = waba._dlt_id AND anc_family.rank = 'family'
+    ),
+    ecdysis_catalog_suffixes AS (
+        SELECT DISTINCT CAST(regexp_extract(o.catalog_number, '[0-9]+$', 0) AS BIGINT) AS catalog_suffix
+        FROM ecdysis_data.occurrences o
+        WHERE o.decimal_latitude IS NOT NULL AND o.decimal_latitude != ''
+    ),
+    matched_waba_ids AS (
+        SELECT wl.specimen_observation_id AS waba_obs_id
+        FROM waba_link wl
+        JOIN ecdysis_catalog_suffixes ecs ON ecs.catalog_suffix = wl.catalog_suffix
+    ),
+    provisional_waba_ids AS (
+        SELECT waba.id AS waba_obs_id
+        FROM inaturalist_waba_data.observations waba
+        WHERE waba.id NOT IN (SELECT waba_obs_id FROM matched_waba_ids)
+    ),
+    combined AS (
+        -- ARM 1: Ecdysis rows (FULL OUTER JOIN preserved) with WABA specimen fields LEFT JOINed
+        SELECT
             e.ecdysis_id,
             e.catalog_number,
             COALESCE(e.ecdysis_lon, s.sample_lon) AS lon,
@@ -112,9 +145,54 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             e.scientificName, e.recordedBy, e.fieldNumber, e.genus, e.family,
             e.floralHost, e.host_observation_id, e.inat_host, e.inat_quality_grade,
             e.modified, e.specimen_observation_id, e.elevation_m,
-            s.observation_id, s.observer, s.specimen_count, s.sample_id
+            s.observation_id, s.host_inat_login, s.specimen_count, s.sample_id,
+            sob.specimen_inat_login,
+            sob.specimen_inat_taxon_name,
+            sob.specimen_inat_genus,
+            sob.specimen_inat_family,
+            FALSE AS is_provisional
         FROM ecdysis_base e
         FULL OUTER JOIN samples_base s ON e.host_observation_id = s.observation_id
+        LEFT JOIN specimen_obs_base sob ON sob.waba_obs_id = e.specimen_observation_id
+
+        UNION ALL
+
+        -- ARM 2: Provisional WABA rows (unmatched WABA obs with no Ecdysis catalog match)
+        SELECT
+            NULL                                                                     AS ecdysis_id,
+            NULL                                                                     AS catalog_number,
+            sob.longitude                                                            AS lon,
+            sob.latitude                                                             AS lat,
+            CAST(sob.observed_on AS VARCHAR)                                         AS date,
+            YEAR(sob.observed_on)                                                    AS year,
+            MONTH(sob.observed_on)                                                   AS month,
+            NULL AS scientificName, NULL AS recordedBy, NULL AS fieldNumber,
+            sob.specimen_inat_genus                                                  AS genus,
+            sob.specimen_inat_family                                                 AS family,
+            NULL AS floralHost,
+            CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)           AS host_observation_id,
+            NULL AS inat_host,
+            sob.quality_grade                                                        AS inat_quality_grade,
+            NULL AS modified,
+            sob.waba_obs_id                                                          AS specimen_observation_id,
+            NULL AS elevation_m,
+            s.observation_id, s.host_inat_login, s.specimen_count, s.sample_id,
+            sob.specimen_inat_login,
+            sob.specimen_inat_taxon_name,
+            sob.specimen_inat_genus,
+            sob.specimen_inat_family,
+            TRUE AS is_provisional
+        FROM provisional_waba_ids p
+        JOIN specimen_obs_base sob ON sob.waba_obs_id = p.waba_obs_id
+        LEFT JOIN inaturalist_waba_data.observations__ofvs ofv1718
+            ON ofv1718._dlt_root_id = sob.waba_dlt_id AND ofv1718.field_id = 1718
+        LEFT JOIN samples_base s
+            ON s.observation_id = CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)
+        WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL
+    ),
+    joined AS (
+        SELECT ROW_NUMBER() OVER () AS _row_id, *
+        FROM combined
     ),
     occ_pt AS (
         SELECT *, ST_Point(lon, lat) AS pt FROM joined
@@ -165,7 +243,10 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
         j.scientificName, j.recordedBy, j.fieldNumber, j.genus, j.family,
         j.floralHost, j.host_observation_id, j.inat_host, j.inat_quality_grade,
         j.modified, j.specimen_observation_id, j.elevation_m,
-        j.observation_id, j.observer, j.specimen_count, j.sample_id,
+        j.observation_id, j.host_inat_login, j.specimen_count, j.sample_id,
+        j.specimen_inat_login, j.specimen_inat_taxon_name,
+        j.specimen_inat_genus, j.specimen_inat_family,
+        j.is_provisional,
         fc.county, fe.ecoregion_l3
     FROM joined j
     JOIN final_county fc ON fc._row_id = j._row_id
