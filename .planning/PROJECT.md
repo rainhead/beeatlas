@@ -134,6 +134,11 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ OCC-08: `OccurrenceRow` replaces `SpecimenRow`/`SampleRow`; `queryVisibleIds` returns `Set<string>`; `layerMode` removed from `UiState`; `makeSampleDotStyleFn` deleted — v2.7 (Phase 65)
 - ✓ OCC-09: `bee-occurrence-detail` unified detail component with specimen group rendering and sample-only entries; `bee-specimen-detail` and `bee-sample-detail` deleted — v2.7 (Phase 65)
 - ✓ OCC-10: All UI components (`bee-atlas`, `bee-map`, `bee-header`, `bee-table`, `bee-sidebar`) wired to `OccurrenceRow`; `layerMode` branching eliminated throughout — v2.7 (Phase 65)
+- ✓ PROV-01: `waba_pipeline.py` DEFAULT_FIELDS includes OFV field_id 1718; value persisted in `inaturalist_waba_data.observations__ofvs` — v2.8 (Phase 66)
+- ✓ PROV-02: `export.py` adds WABA provisional rows (`ecdysis_id = null`, `is_provisional = true`) via UNION ALL arm for unmatched WABA observations — v2.8 (Phase 66)
+- ✓ PROV-03: Provisional rows carry `specimen_inat_taxon_name`, `specimen_inat_genus`, `specimen_inat_family` from `taxon_lineage`; `specimen_inat_login` = iNat user login; `specimen_observation_id` = WABA obs ID — v2.8 (Phase 66)
+- ✓ PROV-04: Provisional rows with OFV 1718 carry `host_observation_id` (regexp_extract from URL); where host is a known sample, `specimen_count` and `sample_id` are populated — v2.8 (Phase 66)
+- ✓ PROV-05: `occurrences.parquet` gains `is_provisional BOOLEAN`; `validate-schema.mjs` EXPECTED list updated to 30 columns; 2 pytest integration tests cover inclusion/exclusion behavior — v2.8 (Phase 66)
 
 ## Previous Milestones
 
@@ -294,4 +299,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after v2.7 milestone — Unified Occurrence Model shipped; occurrences.parquet replaces ecdysis.parquet + samples.parquet; single SQLite table, single OL source, unified UI components; layerMode eliminated; 165 tests passing*
+*Last updated: 2026-04-20 after Phase 66 — Provisional Rows in Pipeline complete; occurrences.parquet gains WABA provisional rows (is_provisional BOOLEAN, 30 columns total); export.py UNION ALL arm joins taxon_lineage for genus/family; validate-schema.mjs updated; 31 pytest tests passing*
