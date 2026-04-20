@@ -36,6 +36,7 @@ DEFAULT_FIELDS = (
     "positional_accuracy,captive,out_of_range,"
     "num_identification_agreements,num_identification_disagreements,"
     "license_code,"
+    "taxon.ancestors.rank,taxon.ancestors.name,"
     "ofvs.uuid,ofvs.field_id,ofvs.name,ofvs.value,ofvs.datatype,"
     "project_ids"
 )
