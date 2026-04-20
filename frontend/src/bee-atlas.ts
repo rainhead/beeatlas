@@ -374,7 +374,7 @@ bee-filter-panel {
     const newOptions: CollectorEntry[] = [];
     try {
       await sqlite3.exec(db, `
-        SELECT recordedBy, MIN(observer) AS observer
+        SELECT recordedBy, MIN(host_inat_login) AS host_inat_login
         FROM occurrences
         WHERE recordedBy IS NOT NULL AND ecdysis_id IS NOT NULL
         GROUP BY recordedBy
@@ -382,8 +382,8 @@ bee-filter-panel {
       `, (rowValues: unknown[], columnNames: string[]) => {
         const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
         const recordedBy = String(obj.recordedBy);
-        const observer = obj.observer != null ? String(obj.observer) : null;
-        newOptions.push({ displayName: recordedBy, recordedBy, observer } satisfies CollectorEntry);
+        const host_inat_login = obj.host_inat_login != null ? String(obj.host_inat_login) : null;
+        newOptions.push({ displayName: recordedBy, recordedBy, host_inat_login } satisfies CollectorEntry);
       });
       this._collectorOptions = newOptions;
     } catch (err) {
