@@ -135,6 +135,11 @@ export class BeeOccurrenceDetail extends LitElement {
       font-size: 0.85rem;
       font-style: italic;
     }
+    .inat-id-label {
+      font-size: 0.8rem;
+      color: var(--text-body);
+      font-weight: 400;
+    }
     hr.separator {
       border: none;
       border-top: 1px solid var(--border-subtle);
@@ -170,6 +175,13 @@ export class BeeOccurrenceDetail extends LitElement {
     return host ? html`${host}${badge}` : html`<span class="inat-missing">no host</span>${badge}`;
   }
 
+  private _renderQualityBadge(grade: string | null) {
+    if (!grade) return '';
+    const abbr = grade === 'research' ? 'RG' : grade === 'needs_id' ? 'NID' : 'casual';
+    const fullLabel = grade === 'research' ? 'research grade' : grade === 'needs_id' ? 'needs ID' : 'casual';
+    return html`<span class="quality-badge ${grade}" aria-label="${fullLabel}">${abbr}</span>`;
+  }
+
   private _renderSpecimenGroup(group: SampleGroup) {
     return html`
       <div class="sample">
@@ -195,12 +207,12 @@ export class BeeOccurrenceDetail extends LitElement {
 
   private _renderSampleOnly(row: OccurrenceRow) {
     const count = row.specimen_count != null && !isNaN(row.specimen_count)
-      ? `${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'}`
-      : 'not recorded';
+      ? `${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected, identification pending`
+      : 'identification pending';
     return html`
       <div class="panel-content sample-dot-detail">
         <div class="event-date">${this._formatSampleDate(row.date)}</div>
-        ${row.observer != null ? html`<div class="event-observer">${row.observer}</div>` : ''}
+        ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         <div class="event-count">${count}</div>
         ${row.elevation_m != null
           ? html`<div class="event-elevation">${Math.round(row.elevation_m)} m</div>`
@@ -214,6 +226,30 @@ export class BeeOccurrenceDetail extends LitElement {
     `;
   }
 
+  private _renderProvisional(row: OccurrenceRow) {
+    const taxonEl = row.specimen_inat_taxon_name
+      ? html`<em>${row.specimen_inat_taxon_name}</em>`
+      : html`<span class="hint">identification pending</span>`;
+    return html`
+      <div class="panel-content sample-dot-detail">
+        <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
+        <div class="event-date">${this._formatSampleDate(row.date)}</div>
+        ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
+        ${row.specimen_count != null && !isNaN(row.specimen_count)
+          ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
+          : ''}
+        ${row.elevation_m != null
+          ? html`<div class="event-elevation">${Math.round(row.elevation_m)} m</div>`
+          : ''}
+        <div class="event-inat">
+          <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}"
+             target="_blank" rel="noopener"
+             aria-label="View WABA observation on iNaturalist">View WABA observation</a>
+        </div>
+      </div>
+    `;
+  }
+
   render() {
     const specimenBacked = this.occurrences.filter(r => r.ecdysis_id != null);
     const sampleOnly = this.occurrences.filter(r => r.ecdysis_id == null);
@@ -222,7 +258,11 @@ export class BeeOccurrenceDetail extends LitElement {
       ${specimenGroups.map(group => this._renderSpecimenGroup(group))}
       ${specimenGroups.length > 0 && sampleOnly.length > 0
         ? html`<hr class="separator">` : ''}
-      ${sampleOnly.map(row => this._renderSampleOnly(row))}
+      ${sampleOnly.map(row =>
+        row.is_provisional === true
+          ? this._renderProvisional(row)
+          : this._renderSampleOnly(row)
+      )}
     `;
   }
 }
