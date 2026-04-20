@@ -282,6 +282,11 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 
 </details>
 
+## 🔲 v2.8 Liveness: Provisional Specimen Records (Phases 66–67) — in progress
+
+- [x] Phase 66: Provisional Rows in Pipeline (5/5 plans) — completed 2026-04-20
+- [ ] Phase 67: Provisional Row Display in Sidebar — TBD
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -294,12 +299,13 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
   3. Provisional rows whose WABA observation has OFV field_id 1718 carry a populated `host_observation_id`; where that host observation is a known sample, `specimen_count` and `sample_id` are also populated
   4. WABA observations that do have an Ecdysis catalog-number match are absent from the provisional rows (matched rows remain as specimen rows only)
   5. `validate-schema.mjs` passes with the new `is_provisional` column; 2 pytest integration tests confirm the above inclusion/exclusion behavior
-**Plans**: 4 plans
+**Plans**: 5 plans
 Plans:
-- [ ] 066-01-PLAN.md — Add taxon.ancestors to waba_pipeline.py DEFAULT_FIELDS and run pipeline
-- [ ] 066-02-PLAN.md — Extend conftest.py fixtures and add integration test stubs (Wave 0)
+- [x] 066-01-PLAN.md — Add taxon.ancestors to waba_pipeline.py DEFAULT_FIELDS and run pipeline
+- [x] 066-02-PLAN.md — Extend conftest.py fixtures and add integration test stubs (Wave 0)
 - [x] 066-03-PLAN.md — Restructure export.py joined CTE into UNION ALL with provisional rows and new columns
 - [x] 066-04-PLAN.md — Update validate-schema.mjs EXPECTED list and verify schema gate passes
+- [x] 066-05-PLAN.md — Fix taxon_lineage table mismatch (gap closure)
 
 ### Phase 67: Provisional Row Display in Sidebar
 **Goal**: Users see meaningful labels and links for sample-only and provisional rows in the occurrence detail sidebar
