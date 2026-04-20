@@ -9,8 +9,8 @@ progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 7
-  completed_plans: 5
-  percent: 50
+  completed_plans: 6
+  percent: 57
 ---
 
 # Project State
@@ -25,19 +25,20 @@ See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 ## Current Position
 
 Phase: 67 — Provisional Row Display in Sidebar
-Plan: —
-Status: Ready to execute (2 plans in 2 waves)
-Last activity: 2026-04-20 — Phase 67 planned (2 plans)
+Plan: 01 complete; 02 remaining
+Status: In progress
+Last activity: 2026-04-20 — Phase 67, Plan 01 complete (schema + data layer)
 
 ```
-Progress: [██████████░░░░░░░░░░] 50% (1/2 phases)
+Progress: [████████████░░░░░░░░] 57% (6/7 plans)
 ```
 
 ## Accumulated Context
 
 ### Decisions
 
-(Fresh for v2.8 milestone)
+- Added specimen_inat_quality_grade as second alias (sob.quality_grade) in both ARM 1 and ARM 2 of combined CTE so final SELECT can reference j.specimen_inat_quality_grade uniformly
+- Renamed CollectorEntry.observer to host_inat_login to match parquet column name; collector SQL filter updated to host_inat_login IN
 
 ### Pending Todos
 
