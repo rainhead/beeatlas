@@ -109,13 +109,11 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             waba.latitude,
             waba.observed_on,
             waba.quality_grade,
-            anc_genus.name                   AS specimen_inat_genus,
-            anc_family.name                  AS specimen_inat_family
+            tl.genus                         AS specimen_inat_genus,
+            tl.family                        AS specimen_inat_family
         FROM inaturalist_waba_data.observations waba
-        LEFT JOIN inaturalist_waba_data.observations__taxon__ancestors anc_genus
-            ON anc_genus._dlt_root_id = waba._dlt_id AND anc_genus.rank = 'genus'
-        LEFT JOIN inaturalist_waba_data.observations__taxon__ancestors anc_family
-            ON anc_family._dlt_root_id = waba._dlt_id AND anc_family.rank = 'family'
+        LEFT JOIN inaturalist_waba_data.taxon_lineage tl
+            ON tl.taxon_id = waba.taxon__id
     ),
     ecdysis_catalog_suffixes AS (
         SELECT DISTINCT CAST(regexp_extract(o.catalog_number, '[0-9]+$', 0) AS BIGINT) AS catalog_suffix
