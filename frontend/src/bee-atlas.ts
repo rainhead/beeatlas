@@ -5,7 +5,7 @@ import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
-import './bee-filter-toolbar.ts';
+import './bee-filter-panel.ts';
 import './bee-map.ts';
 import './bee-sidebar.ts';
 import './bee-table.ts';
@@ -99,6 +99,9 @@ bee-sidebar {
   overflow-y: auto;
   scrollbar-gutter: stable;
 }
+bee-filter-panel {
+  right: calc(0.5em + 6rem);
+}
 .loading-overlay, .error-overlay {
   position: absolute;
   inset: 0;
@@ -136,16 +139,6 @@ bee-sidebar {
         .viewMode=${this._viewMode}
         @view-changed=${this._onViewChanged}
       ></bee-header>
-      <bee-filter-toolbar
-        .filterState=${this._filterState}
-        .taxaOptions=${this._taxaOptions}
-        .countyOptions=${this._countyOptions}
-        .ecoregionOptions=${this._ecoregionOptions}
-        .collectorOptions=${this._collectorOptions}
-        .summary=${this._summary}
-        @filter-changed=${this._onFilterChanged}
-        @csv-download=${this._onDownloadCsv}
-      ></bee-filter-toolbar>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       ${this._error ? '' : html`
@@ -180,6 +173,15 @@ bee-sidebar {
                 @sort-changed=${this._onSortChanged}
               ></bee-table>`
           }
+          <bee-filter-panel
+            .filterState=${this._filterState}
+            .taxaOptions=${this._taxaOptions}
+            .countyOptions=${this._countyOptions}
+            .ecoregionOptions=${this._ecoregionOptions}
+            .collectorOptions=${this._collectorOptions}
+            .summary=${this._summary}
+            @filter-changed=${this._onFilterChanged}
+          ></bee-filter-panel>
           ${this._sidebarOpen ? html`<bee-sidebar
             .occurrences=${this._selectedOccurrences}
             @close=${this._onClose}
