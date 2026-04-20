@@ -20,7 +20,7 @@
 - ✅ **v2.5 Elevation Data** — Phases 55–58 (shipped 2026-04-16)
 - ✅ **v2.6 SQLite WASM Migration** — Phases 59–61 (shipped 2026-04-17)
 - ✅ **v2.7 Unified Occurrence Model** — Phases 62–65 (shipped 2026-04-17)
-- 🔲 **v2.8 Liveness: Provisional Specimen Records** — Phases 66–67
+- ✅ **v2.8 Liveness: Provisional Specimen Records** — Phases 66–67 (shipped 2026-04-20)
 - 🔲 **v2.9 UI Flow Redesign** — Phases 68–70
 - 🔲 **v3.0 Plants Tab** — Phases 71–72
 - 🔲 **v3.1 Data Quality Flags** — Phase 73
@@ -282,10 +282,10 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 
 </details>
 
-## 🔲 v2.8 Liveness: Provisional Specimen Records (Phases 66–67) — in progress
+## ✅ v2.8 Liveness: Provisional Specimen Records (Phases 66–67) — SHIPPED 2026-04-20
 
 - [x] Phase 66: Provisional Rows in Pipeline (5/5 plans) — completed 2026-04-20
-- [ ] Phase 67: Provisional Row Display in Sidebar (1/2 plans)
+- [x] Phase 67: Provisional Row Display in Sidebar (2/2 plans) — completed 2026-04-20
 
 ## Phase Details
 
@@ -319,7 +319,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 067-01-PLAN.md — Schema + data layer: add specimen_inat_quality_grade to export.py and validate-schema.mjs; rename observer to host_inat_login in filter.ts; add is_provisional, specimen_inat_taxon_name, specimen_inat_quality_grade to OccurrenceRow and OCCURRENCE_COLUMNS
-- [ ] 067-02-PLAN.md — Rendering + tests: _renderProvisional method and updated _renderSampleOnly in bee-occurrence-detail.ts; two new Vitest render tests in bee-sidebar.test.ts
+- [x] 067-02-PLAN.md — Rendering + tests: _renderProvisional method and updated _renderSampleOnly in bee-occurrence-detail.ts; two new Vitest render tests in bee-sidebar.test.ts
 **UI hint**: yes
 
 ## Progress
@@ -392,4 +392,4 @@ Plans:
 | 64. OccurrenceSource | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 65. UI Unification | v2.7 | 2/2 | Complete    | 2026-04-17 |
 | 66. Provisional Rows in Pipeline | v2.8 | 5/5 | Complete | 2026-04-20 |
-| 67. Provisional Row Display in Sidebar | v2.8 | 1/2 | In Progress | — |
+| 67. Provisional Row Display in Sidebar | v2.8 | 2/2 | Complete | 2026-04-20 |
