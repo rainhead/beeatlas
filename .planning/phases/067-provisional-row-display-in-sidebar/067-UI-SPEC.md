@@ -50,7 +50,9 @@ No new spacing values are introduced in Phase 67.
 ## Typography
 
 All sizes are existing CSS classes in `bee-occurrence-detail.ts`. Phase 67 adds no new
-type roles — new content slots into existing roles:
+type roles — new content slots into existing roles.
+
+This phase governs exactly 2 font weights:
 
 | Role | Size | Weight | Line Height | CSS Class / Element |
 |------|------|--------|-------------|---------------------|
@@ -59,7 +61,10 @@ type roles — new content slots into existing roles:
 | iNat ID label | 0.8rem (≈12.8px) | 400 regular | 1.5 (inherited) | new `.inat-id-label` — inherits body size |
 | Taxon name (italic) | 0.8rem (≈12.8px) | 400 regular, italic | 1.5 (inherited) | `<em>` inside `.inat-id-label` |
 | Quality badge | 0.7rem (≈11.2px) | 400 regular | n/a (inline-block) | `.quality-badge` (existing) |
-| Link text | 0.85rem | 500 medium (from `a` global rule) | 1.5 (inherited) | `<a>` — inherits global link style |
+
+**Link weight:** `<a>` elements inherit `font-weight: 500` from the project-level global
+`a` rule in `index.css`. Phase 67 does not change link styling and does not own this
+weight. It is out of scope for this phase's typography contract.
 
 **Taxon name styling:** Render as `<em>` (italic) inside the iNat ID label. Italic conveys
 scientific name convention, matching the existing `.species-list` italic treatment for
