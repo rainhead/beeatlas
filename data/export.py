@@ -85,7 +85,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
     samples_base AS (
         SELECT
             op.id AS observation_id,
-            op.user__login AS observer,
+            op.user__login AS host_inat_login,
             CAST(op.observed_on AS VARCHAR) AS sample_date,
             op.observed_on AS sample_date_raw,
             op.longitude AS sample_lon,
