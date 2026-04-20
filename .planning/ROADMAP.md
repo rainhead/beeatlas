@@ -299,7 +299,7 @@ Plans:
 - [ ] 066-01-PLAN.md — Add taxon.ancestors to waba_pipeline.py DEFAULT_FIELDS and run pipeline
 - [ ] 066-02-PLAN.md — Extend conftest.py fixtures and add integration test stubs (Wave 0)
 - [x] 066-03-PLAN.md — Restructure export.py joined CTE into UNION ALL with provisional rows and new columns
-- [ ] 066-04-PLAN.md — Update validate-schema.mjs EXPECTED list and verify schema gate passes
+- [x] 066-04-PLAN.md — Update validate-schema.mjs EXPECTED list and verify schema gate passes
 
 ### Phase 67: Provisional Row Display in Sidebar
 **Goal**: Users see meaningful labels and links for sample-only and provisional rows in the occurrence detail sidebar
