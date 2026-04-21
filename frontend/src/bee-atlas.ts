@@ -111,12 +111,6 @@ bee-filter-panel {
   right: 0.5em;
   top: calc(0.5em + 2.5rem);
 }
-.content.table-mode bee-filter-panel {
-  right: auto;
-  left: 0.5em;
-  top: auto;
-  bottom: 0.5em;
-}
 .loading-overlay, .error-overlay {
   position: absolute;
   inset: 0;
@@ -415,9 +409,22 @@ bee-filter-panel {
     if (this._viewMode !== 'table') return;
     this._tableLoading = true;
     const generation = ++this._tableQueryGeneration;
+    // Parse selected IDs into integer arrays for SQL priority ordering.
+    const selEcdysisIds: number[] = [];
+    const selInatIds: number[] = [];
+    for (const id of this._selectedOccIds ?? []) {
+      if (id.startsWith('ecdysis:')) {
+        const n = parseInt(id.slice('ecdysis:'.length), 10);
+        if (!isNaN(n)) selEcdysisIds.push(n);
+      } else if (id.startsWith('inat:')) {
+        const n = parseInt(id.slice('inat:'.length), 10);
+        if (!isNaN(n)) selInatIds.push(n);
+      }
+    }
     try {
       const { rows, total } = await queryTablePage(
-        this._filterState, this._tablePage, this._tableSortBy
+        this._filterState, this._tablePage, this._tableSortBy,
+        selEcdysisIds, selInatIds
       );
       if (generation !== this._tableQueryGeneration) return;
       this._tableRows = rows;
@@ -535,6 +542,10 @@ bee-filter-panel {
       this._selectedCluster = null;
     }
     this._sidebarOpen = true;
+    if (this._viewMode === 'table') {
+      this._tablePage = 1;
+      this._runTableQuery();
+    }
     this._pushUrlState();
   }
 
