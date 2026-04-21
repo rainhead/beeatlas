@@ -21,7 +21,7 @@
 - ✅ **v2.6 SQLite WASM Migration** — Phases 59–61 (shipped 2026-04-17)
 - ✅ **v2.7 Unified Occurrence Model** — Phases 62–65 (shipped 2026-04-17)
 - ✅ **v2.8 Liveness: Provisional Specimen Records** — Phases 66–67 (shipped 2026-04-20)
-- 🔲 **v2.9 UI Flow Redesign** — Phases 68–70
+- ✅ **v2.9 UI Flow Redesign** — Phases 68–70 (shipped 2026-04-21)
 - 🔲 **v3.0 Plants Tab** — Phases 71–72
 - 🔲 **v3.1 Data Quality Flags** — Phase 73
 
@@ -287,13 +287,13 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 - [x] Phase 66: Provisional Rows in Pipeline (5/5 plans) — completed 2026-04-20
 - [x] Phase 67: Provisional Row Display in Sidebar (2/2 plans) — completed 2026-04-20
 
-## 🔲 v2.9 UI Flow Redesign (Phases 68–70)
+## ✅ v2.9 UI Flow Redesign (Phases 68–70) — SHIPPED 2026-04-21
 
 **Milestone Goal:** Reorganize the UI around the flow: overview → narrow → dive. Map always visible. Filter as collapsible panel that hints at what's filterable. Table as a drawer over the map, not a replacement for it.
 
 - [x] Phase 68: Filter Panel Redesign — floating map overlay control (magnifying glass + count) that expands into what/who/where/when panel
 - [x] Phase 69: Table Drawer — table slides up over map rather than replacing it; spatial context preserved
-- [ ] Phase 70: Map Overlay Sidebar — detail panel overlays map instead of shifting it
+- [x] Phase 70: Map Overlay Sidebar — detail panel overlays map instead of shifting it
 
 ## 🔲 v3.0 Plants Tab (Phases 71–72)
 
@@ -416,6 +416,7 @@ Plans:
 | 67. Provisional Row Display in Sidebar | v2.8 | 2/2 | Complete | 2026-04-20 |
 | 68. Filter Panel Redesign | v2.9 | 3/3 | Complete | 2026-04-20 |
 | 69. Table Drawer | v2.9 | 2/2 | Complete | 2026-04-20 |
+| 70. Map Overlay Sidebar | v2.9 | 1/1 | Complete | 2026-04-21 |
 
 ## Phase Details
 
@@ -465,4 +466,4 @@ Plans:
   4. On portrait screens the sidebar reverts to the below-map flex layout (width: 100%, border-top)
 **Plans**: 1 plan
 Plans:
-- [ ] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
+- [x] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
