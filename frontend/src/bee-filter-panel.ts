@@ -55,6 +55,7 @@ export class BeeFilterPanel extends LitElement {
 
   @property({ attribute: false }) hideButton = false;
   @property({ attribute: false }) externalOpen = false;
+  @property({ type: Boolean, reflect: true, attribute: 'open-upward' }) openUpward = false;
 
   @state() private _open = false;
 
@@ -127,6 +128,10 @@ export class BeeFilterPanel extends LitElement {
       z-index: 10;
       padding: 0.75rem;
       box-sizing: border-box;
+    }
+    :host([open-upward]) .filter-panel {
+      top: auto;
+      bottom: calc(100% + 0.3rem);
     }
     .filter-row {
       display: flex;
