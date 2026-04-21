@@ -295,10 +295,13 @@ export class BeeFilterPanel extends LitElement {
     }
   };
 
+  /** Called externally (e.g. from table mode filter button) to open or close the panel. */
+  public setOpen(open: boolean) {
+    this._open = open;
+    if (!open) this._openSection = null;
+  }
+
   updated(changed: PropertyValues) {
-    if (changed.has('externalOpen') && this.hideButton) {
-      this._open = this.externalOpen;
-    }
     if (!changed.has('filterState') || !this.filterState) return;
     const f = this.filterState;
 

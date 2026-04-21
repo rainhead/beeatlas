@@ -673,6 +673,7 @@ bee-filter-panel {
 
   private _onToggleFilter() {
     this._tableFilterOpen = !this._tableFilterOpen;
+    (this.shadowRoot?.querySelector('bee-filter-panel') as any)?.setOpen(this._tableFilterOpen);
   }
 
   private _onRowPan(e: CustomEvent<{ lat: number; lon: number }>) {
