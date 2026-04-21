@@ -88,12 +88,17 @@ bee-map {
   flex-grow: 1;
 }
 bee-table {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 82%;
-  z-index: 2;
+  flex-grow: 1;
+  min-height: 0;
+}
+.content.table-mode {
+  flex-direction: column;
+}
+.content.table-mode bee-map {
+  height: 18%;
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-height: 0;
 }
 bee-sidebar {
   flex-shrink: 0;
@@ -103,7 +108,8 @@ bee-sidebar {
   scrollbar-gutter: stable;
 }
 bee-filter-panel {
-  right: calc(0.5em + 6rem);
+  right: 0.5em;
+  top: calc(0.5em + 2.5rem);
 }
 .loading-overlay, .error-overlay {
   position: absolute;
@@ -145,7 +151,7 @@ bee-filter-panel {
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       ${this._error ? '' : html`
-        <div class="content">
+        <div class="${this._viewMode === 'table' ? 'content table-mode' : 'content'}">
           <bee-map
             .boundaryMode=${this._boundaryMode}
             .visibleIds=${this._visibleIds}
