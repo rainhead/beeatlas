@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v2.9
 milestone_name: UI Flow Redesign
 status: in_progress
-last_updated: "2026-04-20T00:00:00.000Z"
-last_activity: 2026-04-20
+last_updated: "2026-04-21T00:00:00.000Z"
+last_activity: 2026-04-21
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
+  total_plans: 6
   completed_plans: 5
   percent: 67
 ---
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v2.9 in progress — Phase 69: Table Drawer complete
+**Current focus:** v2.9 in progress — Phase 70: Map Overlay Sidebar planned, ready to execute
 
 ## Current Position
 
-Phase: 69 — Table Drawer
-Status: Complete
-Last activity: 2026-04-20 — Phase 69 complete (bee-table row-pan event, bee-atlas drawer layout, bee-map always rendered)
+Phase: 70 — Map Overlay Sidebar
+Status: Ready to execute
+Last activity: 2026-04-21 — Phase 70 planned (1 plan, 1 wave — bee-sidebar overlay repositioning)
 
 ```
 Progress: [██████████████░░░░░░] 67% (2/3 phases)
