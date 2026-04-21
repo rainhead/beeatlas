@@ -1,4 +1,4 @@
-import { css, html, LitElement, type PropertyValues } from 'lit';
+import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
@@ -146,49 +146,50 @@ bee-filter-panel {
       ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       ${this._error ? '' : html`
         <div class="content">
-          ${this._viewMode === 'map'
-            ? html`<bee-map
-                .boundaryMode=${this._boundaryMode}
-                .visibleIds=${this._visibleIds}
-                .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
-                .countyOptions=${this._countyOptions}
-                .ecoregionOptions=${this._ecoregionOptions}
-                .viewState=${this._viewState}
-                .filterState=${this._filterState}
-                @view-moved=${this._onViewMoved}
-                @map-click-occurrence=${this._onOccurrenceClick}
-                @map-click-region=${this._onRegionClick}
-                @map-click-empty=${this._onMapClickEmpty}
-                @data-loaded=${this._onDataLoaded}
-                @county-options-loaded=${this._onCountyOptionsLoaded}
-                @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
-                @data-error=${this._onDataError}
-                @boundary-mode-changed=${this._onBoundaryModeChanged}
-              ></bee-map>`
-            : html`<bee-table
-                .rows=${this._tableRows}
-                .rowCount=${this._tableRowCount}
-                .page=${this._tablePage}
-                .loading=${this._tableLoading}
-                .sortBy=${this._tableSortBy}
-                @page-changed=${this._onPageChanged}
-                @download-csv=${this._onDownloadCsv}
-                @sort-changed=${this._onSortChanged}
-              ></bee-table>`
-          }
-          <bee-filter-panel
-            .filterState=${this._filterState}
-            .taxaOptions=${this._taxaOptions}
+          <bee-map
+            .boundaryMode=${this._boundaryMode}
+            .visibleIds=${this._visibleIds}
+            .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             .countyOptions=${this._countyOptions}
             .ecoregionOptions=${this._ecoregionOptions}
-            .collectorOptions=${this._collectorOptions}
-            .summary=${this._summary}
-            @filter-changed=${this._onFilterChanged}
-          ></bee-filter-panel>
-          ${this._sidebarOpen ? html`<bee-sidebar
-            .occurrences=${this._selectedOccurrences}
-            @close=${this._onClose}
-          ></bee-sidebar>` : ''}
+            .viewState=${this._viewState}
+            .filterState=${this._filterState}
+            @view-moved=${this._onViewMoved}
+            @map-click-occurrence=${this._onOccurrenceClick}
+            @map-click-region=${this._onRegionClick}
+            @map-click-empty=${this._onMapClickEmpty}
+            @data-loaded=${this._onDataLoaded}
+            @county-options-loaded=${this._onCountyOptionsLoaded}
+            @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
+            @data-error=${this._onDataError}
+            @boundary-mode-changed=${this._onBoundaryModeChanged}
+          ></bee-map>
+          ${this._viewMode === 'table' ? html`<bee-table
+            .rows=${this._tableRows}
+            .rowCount=${this._tableRowCount}
+            .page=${this._tablePage}
+            .loading=${this._tableLoading}
+            .sortBy=${this._tableSortBy}
+            @page-changed=${this._onPageChanged}
+            @download-csv=${this._onDownloadCsv}
+            @sort-changed=${this._onSortChanged}
+            @row-pan=${this._onRowPan}
+          ></bee-table>` : nothing}
+          ${this._viewMode === 'map' ? html`
+            <bee-filter-panel
+              .filterState=${this._filterState}
+              .taxaOptions=${this._taxaOptions}
+              .countyOptions=${this._countyOptions}
+              .ecoregionOptions=${this._ecoregionOptions}
+              .collectorOptions=${this._collectorOptions}
+              .summary=${this._summary}
+              @filter-changed=${this._onFilterChanged}
+            ></bee-filter-panel>
+            ${this._sidebarOpen ? html`<bee-sidebar
+              .occurrences=${this._selectedOccurrences}
+              @close=${this._onClose}
+            ></bee-sidebar>` : ''}
+          ` : nothing}
         </div>
       `}
     `;
@@ -632,8 +633,13 @@ bee-filter-panel {
         // bee-map data-loaded hasn't fired yet; load summary from SQLite
         this._loadSummaryFromSQLite();
       }
+      this._sidebarOpen = false;  // D-08: close sidebar when entering table mode
     }
     this._pushUrlState();
+  }
+
+  private _onRowPan(e: CustomEvent<{ lat: number; lon: number }>) {
+    this._viewState = { lat: e.detail.lat, lon: e.detail.lon, zoom: this._currentView.zoom };
   }
 
   private _onPageChanged(e: CustomEvent<{ page: number }>) {
