@@ -111,6 +111,10 @@ bee-filter-panel {
   right: 0.5em;
   top: calc(0.5em + 2.5rem);
 }
+.content.table-mode bee-filter-panel {
+  top: auto;
+  bottom: 3.5rem;
+}
 .loading-overlay, .error-overlay {
   position: absolute;
   inset: 0;
@@ -193,6 +197,7 @@ bee-filter-panel {
             .specimenCount=${isFilterActive(this._filterState) ? (this._visibleIds?.size ?? null) : null}
             .hideButton=${this._viewMode === 'table'}
             .externalOpen=${this._tableFilterOpen}
+            .openUpward=${this._viewMode === 'table'}
             @filter-changed=${this._onFilterChanged}
           ></bee-filter-panel>
           ${this._viewMode === 'map' && this._sidebarOpen ? html`<bee-sidebar
