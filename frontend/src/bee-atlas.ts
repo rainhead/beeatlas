@@ -127,11 +127,6 @@ bee-filter-panel {
   .content {
     flex-direction: column;
   }
-  bee-map {
-    height: 50svh;
-    flex-grow: 0;
-    flex-shrink: 0;
-  }
   bee-sidebar {
     width: 100%;
     border-left: none;
