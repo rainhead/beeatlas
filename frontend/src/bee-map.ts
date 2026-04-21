@@ -149,7 +149,7 @@ export class BeeMap extends LitElement {
   position: absolute;
   top: 0.5em;
   right: 0.5em;
-  z-index: 1;
+  z-index: 2;
 }
 .region-btn {
   background: white;
@@ -222,6 +222,17 @@ export class BeeMap extends LitElement {
         </button>
       </div>
     `;
+  }
+
+  private _onDocumentClick = (e: MouseEvent) => {
+    if (this._regionMenuOpen && !e.composedPath().includes(this)) {
+      this._regionMenuOpen = false;
+    }
+  };
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener('click', this._onDocumentClick);
   }
 
   private _toggleRegionMenu() {
@@ -375,10 +386,8 @@ export class BeeMap extends LitElement {
       });
     });
 
-    // Close region menu when clicking the map canvas
-    this.mapElement.addEventListener('click', () => {
-      if (this._regionMenuOpen) this._regionMenuOpen = false;
-    });
+    // Close region menu when clicking outside this component
+    document.addEventListener('click', this._onDocumentClick);
 
     // moveend: emit view-moved event
     this.map.on('moveend', () => {
