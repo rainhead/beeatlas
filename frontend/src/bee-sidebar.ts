@@ -50,8 +50,12 @@ export class BeeSidebar extends LitElement {
     :host {
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
       font-family: system-ui, sans-serif;
+      position: absolute;
+      z-index: 1;
+      background: var(--surface);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      overflow-y: auto;
     }
     .panel-content {
       padding: 1rem;
@@ -71,9 +75,16 @@ export class BeeSidebar extends LitElement {
     }
     .sidebar-header {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
       padding: 0.5rem;
       border-bottom: 1px solid var(--border-subtle);
+    }
+    .sidebar-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      padding-left: 0.25rem;
     }
     .close-btn {
       background: none;
@@ -101,6 +112,7 @@ export class BeeSidebar extends LitElement {
   render() {
     return html`
       <div class="sidebar-header">
+        <span class="sidebar-title">Selected specimens</span>
         <button class="close-btn" @click=${this._onCloseClick} aria-label="Close detail panel">&times;</button>
       </div>
       ${this.occurrences !== null
