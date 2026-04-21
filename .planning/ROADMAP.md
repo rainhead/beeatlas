@@ -292,7 +292,7 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 **Milestone Goal:** Reorganize the UI around the flow: overview → narrow → dive. Map always visible. Filter as collapsible panel that hints at what's filterable. Table as a drawer over the map, not a replacement for it.
 
 - [x] Phase 68: Filter Panel Redesign — floating map overlay control (magnifying glass + count) that expands into what/who/where/when panel
-- [ ] Phase 69: Table Drawer — table slides up over map rather than replacing it; spatial context preserved
+- [x] Phase 69: Table Drawer — table slides up over map rather than replacing it; spatial context preserved
 - [ ] Phase 70: Map Overlay Sidebar — detail panel overlays map instead of shifting it
 
 ## 🔲 v3.0 Plants Tab (Phases 71–72)
@@ -415,6 +415,7 @@ Plans:
 | 66. Provisional Rows in Pipeline | v2.8 | 5/5 | Complete | 2026-04-20 |
 | 67. Provisional Row Display in Sidebar | v2.8 | 2/2 | Complete | 2026-04-20 |
 | 68. Filter Panel Redesign | v2.9 | 3/3 | Complete | 2026-04-20 |
+| 69. Table Drawer | v2.9 | 2/2 | Complete | 2026-04-20 |
 
 ## Phase Details
 
@@ -450,5 +451,5 @@ Plans:
   6. Rows without lat/lon are silently skipped (no error or sidebar open)
 **Plans**: 2 plans
 Plans:
-- [ ] 069-01-PLAN.md — Add _onRowClick handler and row-pan event dispatch to bee-table.ts
-- [ ] 069-02-PLAN.md — Restructure bee-atlas.ts: drawer layout, mode gating, _onRowPan handler
+- [x] 069-01-PLAN.md — Add _onRowClick handler and row-pan event dispatch to bee-table.ts
+- [x] 069-02-PLAN.md — Restructure bee-atlas.ts: drawer layout, mode gating, _onRowPan handler
