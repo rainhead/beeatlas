@@ -128,6 +128,10 @@ bee-filter-panel {
     flex-direction: column;
   }
   bee-sidebar {
+    position: static;
+    right: auto;
+    top: auto;
+    bottom: auto;
     width: 100%;
     border-left: none;
     border-top: 1px solid var(--border-input);
