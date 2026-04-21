@@ -189,6 +189,7 @@ bee-filter-panel {
               .ecoregionOptions=${this._ecoregionOptions}
               .collectorOptions=${this._collectorOptions}
               .summary=${this._summary}
+              .specimenCount=${isFilterActive(this._filterState) ? (this._visibleIds?.size ?? null) : null}
               @filter-changed=${this._onFilterChanged}
             ></bee-filter-panel>
             ${this._sidebarOpen ? html`<bee-sidebar
