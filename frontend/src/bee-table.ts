@@ -184,6 +184,17 @@ export class BeeTable extends LitElement {
     }));
   }
 
+  private _onRowClick(row: OccurrenceRow) {
+    const lat = row.lat != null ? Number(row.lat) : null;
+    const lon = row.lon != null ? Number(row.lon) : null;
+    if (lat === null || lon === null) return;
+    this.dispatchEvent(new CustomEvent('row-pan', {
+      detail: { lat, lon },
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   private _onDownloadCsv() {
     this.dispatchEvent(new CustomEvent('download-csv', {
       bubbles: true,
@@ -247,7 +258,7 @@ export class BeeTable extends LitElement {
               </thead>
               <tbody>
                 ${(this.rows as any[]).map(row => html`
-                  <tr>
+                  <tr @click=${() => this._onRowClick(row as OccurrenceRow)} style="cursor: pointer">
                     ${cols.map(col => {
                       const raw = (row as any)[col.dataField];
                       const cellText = String(raw ?? '');
