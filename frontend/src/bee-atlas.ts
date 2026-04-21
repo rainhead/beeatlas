@@ -88,9 +88,12 @@ bee-map {
   flex-grow: 1;
 }
 bee-table {
-  flex-grow: 1;
-  min-width: 0;
-  position: relative;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 82%;
+  z-index: 2;
 }
 bee-sidebar {
   flex-shrink: 0;
@@ -119,7 +122,7 @@ bee-filter-panel {
   .content {
     flex-direction: column;
   }
-  bee-map, bee-table {
+  bee-map {
     height: 50svh;
     flex-grow: 0;
     flex-shrink: 0;
