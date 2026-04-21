@@ -453,3 +453,16 @@ Plans:
 Plans:
 - [x] 069-01-PLAN.md — Add _onRowClick handler and row-pan event dispatch to bee-table.ts
 - [x] 069-02-PLAN.md — Restructure bee-atlas.ts: drawer layout, mode gating, _onRowPan handler
+
+### Phase 70: Map Overlay Sidebar
+**Goal**: Detail panel overlays map instead of shifting it; map always full-width
+**Depends on**: Phase 69
+**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
+**Success Criteria** (what must be TRUE):
+  1. Opening the sidebar does not change the map's width — it always occupies the full .content area
+  2. The sidebar panel appears as a right-edge overlay anchored below the filter button with a drop shadow
+  3. The sidebar header reads "Selected specimens" alongside the existing close button
+  4. On portrait screens the sidebar reverts to the below-map flex layout (width: 100%, border-top)
+**Plans**: 1 plan
+Plans:
+- [ ] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
