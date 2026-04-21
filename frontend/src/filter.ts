@@ -146,9 +146,21 @@ export async function queryAllFiltered(
 export async function queryTablePage(
   f: FilterState,
   page: number,
-  sortBy: SpecimenSortBy = 'date'
+  sortBy: SpecimenSortBy = 'date',
+  selectedEcdysisIds: number[] = [],
+  selectedInatIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
-  const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
+  // Build a selection-priority prefix so selected rows always sort to the top.
+  // IDs are pre-validated as integers by the caller.
+  const selParts: string[] = [];
+  if (selectedEcdysisIds.length > 0) selParts.push(`ecdysis_id IN (${selectedEcdysisIds.join(',')})`);
+  if (selectedInatIds.length > 0) selParts.push(`observation_id IN (${selectedInatIds.join(',')})`);
+  const priorityExpr = selParts.length > 0
+    ? `CASE WHEN (${selParts.join(' OR ')}) THEN 0 ELSE 1 END, `
+    : '';
+
+  const baseOrder = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
+  const orderBy = priorityExpr + baseOrder;
   const offset = (page - 1) * PAGE_SIZE;
 
   const { occurrenceWhere } = buildFilterSQL(f);

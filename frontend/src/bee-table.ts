@@ -399,14 +399,14 @@ export class BeeTable extends LitElement {
           class=${'filter-table-btn' + (this.filterActive ? ' active' : '')}
           aria-label="Filter occurrences"
           @click=${this._onFilterBtnClick}
-        >${FILTER_ICON} Filter</button>
+        >${FILTER_ICON} ${this.rowCount.toLocaleString()} occurrences</button>
         <div class="pagination-center">
           <button
             aria-label="Previous page"
             ?disabled=${this.page === 1}
             @click=${this._onPrev}
           >\u2190 Prev</button>
-          <span class="page-info">Page ${this.page} of ${totalPages || 1} &nbsp;(${this.rowCount.toLocaleString()} ${noun})</span>
+          <span class="page-info">Page ${this.page} of ${totalPages || 1}</span>
           <button
             aria-label="Next page"
             ?disabled=${this.page * 100 >= this.rowCount}
