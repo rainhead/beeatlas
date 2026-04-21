@@ -7,27 +7,57 @@ interface ColumnDef {
   label: string;
   dataField: string;
   minWidth: string;
-  linkFn?: (row: any) => string | null;  // returns URL or null
-  linkLabel?: (row: any) => string;       // link text; defaults to 'View'
-  nullLabel?: string;                     // display text when cell value is empty
+  linkFn?: (row: OccurrenceRow) => string | null;
+  linkLabel?: (row: OccurrenceRow) => string;
+  nullLabel?: string;
+  valueFn?: (row: OccurrenceRow) => string | null;
 }
 
 const CAMERA_ICON = html`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
 
+const FILTER_ICON = html`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4"/><line x1="9.9" y1="9.9" x2="13.5" y2="13.5"/></svg>`;
+
+const ECDYSIS_LOGO = 'https://ecdysis.org/images/favicon-32x32.png';
+const INAT_LOGO = 'https://static.inaturalist.org/sites/1-favicon.png?1573071870';
+
+function collectorDisplay(row: OccurrenceRow): string | null {
+  const collector = row.recordedBy;
+  const observer = row.host_inat_login;
+  if (collector && observer && collector !== observer) return `${collector} (${observer})`;
+  return collector ?? observer ?? null;
+}
+
+function fieldNumberDisplay(row: OccurrenceRow): string | null {
+  if (row.fieldNumber != null) return row.fieldNumber;
+  if (row.sample_id != null && row.specimen_count != null && row.specimen_count > 0) {
+    if (row.specimen_count === 1) return `${row.sample_id}.1`;
+    return `${row.sample_id}.1\u2014${row.sample_id}.${row.specimen_count}`;
+  }
+  return null;
+}
+
+function rowOccId(row: OccurrenceRow): string | null {
+  if (row.ecdysis_id != null) return `ecdysis:${row.ecdysis_id}`;
+  if (row.observation_id != null) return `inat:${row.observation_id}`;
+  return null;
+}
+
 const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
   { key: 'date',        label: 'Date',       dataField: 'date',                    minWidth: '100px' },
   { key: 'species',     label: 'Species',    dataField: 'scientificName',          minWidth: '180px', nullLabel: 'No Determination' },
-  { key: 'collector',   label: 'Collector',  dataField: 'recordedBy',              minWidth: '150px' },
-  { key: 'observer',    label: 'Observer',   dataField: 'host_inat_login',         minWidth: '150px' },
+  { key: 'collector',   label: 'Collector',  dataField: 'recordedBy',              minWidth: '160px',
+    valueFn: collectorDisplay },
   { key: 'county',      label: 'County',     dataField: 'county',                  minWidth: '110px' },
   { key: 'ecoregion',   label: 'Ecoregion',  dataField: 'ecoregion_l3',            minWidth: '130px' },
   { key: 'elevation',   label: 'Elev (m)',   dataField: 'elevation_m',             minWidth: '80px'  },
-  { key: 'fieldNumber', label: 'Field #',    dataField: 'fieldNumber',             minWidth: '80px'  },
+  { key: 'fieldNumber', label: 'Field #',    dataField: 'fieldNumber',             minWidth: '90px',
+    valueFn: fieldNumberDisplay },
   { key: 'modified',    label: 'Modified',   dataField: 'modified',                minWidth: '100px' },
   { key: 'photo',       label: 'Photo',      dataField: 'specimen_observation_id', minWidth: '60px',
     linkFn: (row: OccurrenceRow) => row.specimen_observation_id != null
       ? `https://www.inaturalist.org/observations/${row.specimen_observation_id}`
       : null },
+  { key: 'links',       label: 'Links',      dataField: 'ecdysis_id',              minWidth: '70px' },
 ];
 
 @customElement('bee-table')
@@ -37,6 +67,8 @@ export class BeeTable extends LitElement {
   @property({ attribute: false }) page = 1;
   @property({ attribute: false }) loading = false;
   @property({ attribute: false }) sortBy: SpecimenSortBy = 'date';
+  @property({ attribute: false }) selectedIds: Set<string> | null = null;
+  @property({ attribute: false }) filterActive = false;
 
   static styles = css`
     :host {
@@ -85,6 +117,12 @@ export class BeeTable extends LitElement {
     tr:hover td {
       background: var(--surface-hover, #f8f8f8);
     }
+    tr.selected td {
+      background: var(--accent-subtle, #e8f5e9);
+    }
+    tr.selected:hover td {
+      background: var(--accent-subtle-hover, #c8e6c9);
+    }
     .pagination {
       display: flex;
       align-items: center;
@@ -113,8 +151,26 @@ export class BeeTable extends LitElement {
       opacity: 0.4;
       cursor: not-allowed;
     }
-    .row-count {
-      color: var(--text-hint, #767676);
+    .filter-table-btn {
+      background: white;
+      border: 1px solid rgba(0,0,0,0.25);
+      border-radius: 4px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 0.8125rem;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .filter-table-btn:hover {
+      background: #f0f0f0;
+    }
+    .filter-table-btn.active {
+      background: var(--accent, #2c7a2c);
+      color: white;
+      border-color: var(--accent, #2c7a2c);
     }
     .page-info {
       color: var(--text-secondary, #444);
@@ -174,6 +230,23 @@ export class BeeTable extends LitElement {
       align-items: center;
       color: var(--link, #1a73e8);
     }
+    .links-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .site-logo {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+    .site-logo--dim {
+      opacity: 0.2;
+    }
+    a.site-logo-link {
+      display: inline-flex;
+      align-items: center;
+    }
   `;
 
   private _onSortClick(sortBy: SpecimenSortBy) {
@@ -218,14 +291,30 @@ export class BeeTable extends LitElement {
     }));
   }
 
+  private _onFilterBtnClick() {
+    this.dispatchEvent(new CustomEvent('toggle-filter', {
+      bubbles: true,
+      composed: true,
+    }));
+  }
+
   render() {
     const cols = OCCURRENCE_COLUMN_DEFS;
     const noun = 'occurrences';
-    const start = (this.page - 1) * 100 + 1;
-    const end = Math.min(this.page * 100, this.rowCount);
     const totalPages = Math.ceil(this.rowCount / 100);
 
     const isEmptyState = this.rowCount === 0 && !this.loading;
+
+    // Sort selected rows to top, preserving order within each group
+    const sortedRows = this.selectedIds
+      ? [...this.rows].sort((a, b) => {
+          const aId = rowOccId(a);
+          const bId = rowOccId(b);
+          const aSelected = (aId && this.selectedIds!.has(aId)) ? 0 : 1;
+          const bSelected = (bId && this.selectedIds!.has(bId)) ? 0 : 1;
+          return aSelected - bSelected;
+        })
+      : this.rows;
 
     return html`
       ${this.loading ? html`<div class="loading-overlay">Loading\u2026</div>` : nothing}
@@ -257,11 +346,29 @@ export class BeeTable extends LitElement {
                 </tr>
               </thead>
               <tbody>
-                ${(this.rows as any[]).map(row => html`
-                  <tr @click=${() => this._onRowClick(row as OccurrenceRow)} style="cursor: pointer">
+                ${(sortedRows as OccurrenceRow[]).map(row => {
+                  const occId = rowOccId(row);
+                  const isSelected = !!(occId && this.selectedIds?.has(occId));
+                  return html`
+                  <tr @click=${() => this._onRowClick(row)} style="cursor: pointer" class=${isSelected ? 'selected' : ''}>
                     ${cols.map(col => {
-                      const raw = (row as any)[col.dataField];
-                      const cellText = String(raw ?? '');
+                      if (col.key === 'links') {
+                        const ecdysisUrl = row.ecdysis_id != null
+                          ? `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}`
+                          : null;
+                        const inatId = row.specimen_observation_id ?? row.host_observation_id;
+                        const inatUrl = inatId != null
+                          ? `https://www.inaturalist.org/observations/${inatId}`
+                          : null;
+                        return html`<td><div class="links-cell">
+                          ${ecdysisUrl
+                            ? html`<a href=${ecdysisUrl} class="site-logo-link" target="_blank" rel="noopener noreferrer" title="View on Ecdysis"><img src=${ECDYSIS_LOGO} class="site-logo" alt="Ecdysis"></a>`
+                            : html`<img src=${ECDYSIS_LOGO} class="site-logo site-logo--dim" alt="" aria-hidden="true">`}
+                          ${inatUrl
+                            ? html`<a href=${inatUrl} class="site-logo-link" target="_blank" rel="noopener noreferrer" title="View on iNaturalist"><img src=${INAT_LOGO} class="site-logo" alt="iNaturalist"></a>`
+                            : html`<img src=${INAT_LOGO} class="site-logo site-logo--dim" alt="" aria-hidden="true">`}
+                        </div></td>`;
+                      }
                       if (col.linkFn) {
                         const url = col.linkFn(row);
                         if (url) {
@@ -275,27 +382,31 @@ export class BeeTable extends LitElement {
                           return html`<td></td>`;
                         }
                       }
+                      const raw = col.valueFn ? col.valueFn(row) : (row as any)[col.dataField];
+                      const cellText = raw != null ? String(raw) : '';
                       const displayText = (!cellText && col.nullLabel) ? col.nullLabel : cellText;
                       const isNull = !cellText && !!col.nullLabel;
                       return html`<td title=${displayText} class=${isNull ? 'cell-null' : ''}>${displayText}</td>`;
                     })}
-                  </tr>
-                `)}
+                  </tr>`;
+                })}
               </tbody>
             </table>
           </div>
         `}
       <div class="pagination">
-        <span aria-live="polite" class="row-count">
-          ${this.rowCount === 0 ? `No ${noun} match the current filters` : `Showing ${start}\u2013${end} of ${this.rowCount.toLocaleString()} ${noun}`}
-        </span>
+        <button
+          class=${'filter-table-btn' + (this.filterActive ? ' active' : '')}
+          aria-label="Filter occurrences"
+          @click=${this._onFilterBtnClick}
+        >${FILTER_ICON} Filter</button>
         <div class="pagination-center">
           <button
             aria-label="Previous page"
             ?disabled=${this.page === 1}
             @click=${this._onPrev}
           >\u2190 Prev</button>
-          <span class="page-info">Page ${this.page} of ${totalPages}</span>
+          <span class="page-info">Page ${this.page} of ${totalPages || 1} &nbsp;(${this.rowCount.toLocaleString()} ${noun})</span>
           <button
             aria-label="Next page"
             ?disabled=${this.page * 100 >= this.rowCount}

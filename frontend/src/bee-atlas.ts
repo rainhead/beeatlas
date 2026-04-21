@@ -51,6 +51,7 @@ export class BeeAtlas extends LitElement {
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
   @state() private _sidebarOpen = false;
+  @state() private _tableFilterOpen = false;
 
   // Non-reactive private fields
   private _isRestoringFromHistory = false;
@@ -109,6 +110,12 @@ bee-sidebar {
 bee-filter-panel {
   right: 0.5em;
   top: calc(0.5em + 2.5rem);
+}
+.content.table-mode bee-filter-panel {
+  right: auto;
+  left: 0.5em;
+  top: auto;
+  bottom: 0.5em;
 }
 .loading-overlay, .error-overlay {
   position: absolute;
@@ -174,27 +181,30 @@ bee-filter-panel {
             .page=${this._tablePage}
             .loading=${this._tableLoading}
             .sortBy=${this._tableSortBy}
+            .filterActive=${isFilterActive(this._filterState)}
+            .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             @page-changed=${this._onPageChanged}
             @download-csv=${this._onDownloadCsv}
             @sort-changed=${this._onSortChanged}
             @row-pan=${this._onRowPan}
+            @toggle-filter=${this._onToggleFilter}
           ></bee-table>` : nothing}
-          ${this._viewMode === 'map' ? html`
-            <bee-filter-panel
-              .filterState=${this._filterState}
-              .taxaOptions=${this._taxaOptions}
-              .countyOptions=${this._countyOptions}
-              .ecoregionOptions=${this._ecoregionOptions}
-              .collectorOptions=${this._collectorOptions}
-              .summary=${this._summary}
-              .specimenCount=${isFilterActive(this._filterState) ? (this._visibleIds?.size ?? null) : null}
-              @filter-changed=${this._onFilterChanged}
-            ></bee-filter-panel>
-            ${this._sidebarOpen ? html`<bee-sidebar
-              .occurrences=${this._selectedOccurrences}
-              @close=${this._onClose}
-            ></bee-sidebar>` : ''}
-          ` : nothing}
+          <bee-filter-panel
+            .filterState=${this._filterState}
+            .taxaOptions=${this._taxaOptions}
+            .countyOptions=${this._countyOptions}
+            .ecoregionOptions=${this._ecoregionOptions}
+            .collectorOptions=${this._collectorOptions}
+            .summary=${this._summary}
+            .specimenCount=${isFilterActive(this._filterState) ? (this._visibleIds?.size ?? null) : null}
+            .hideButton=${this._viewMode === 'table'}
+            .externalOpen=${this._tableFilterOpen}
+            @filter-changed=${this._onFilterChanged}
+          ></bee-filter-panel>
+          ${this._viewMode === 'map' && this._sidebarOpen ? html`<bee-sidebar
+            .occurrences=${this._selectedOccurrences}
+            @close=${this._onClose}
+          ></bee-sidebar>` : nothing}
         </div>
       `}
     `;
@@ -639,8 +649,14 @@ bee-filter-panel {
         this._loadSummaryFromSQLite();
       }
       this._sidebarOpen = false;  // D-08: close sidebar when entering table mode
+    } else {
+      this._tableFilterOpen = false;
     }
     this._pushUrlState();
+  }
+
+  private _onToggleFilter() {
+    this._tableFilterOpen = !this._tableFilterOpen;
   }
 
   private _onRowPan(e: CustomEvent<{ lat: number; lon: number }>) {
