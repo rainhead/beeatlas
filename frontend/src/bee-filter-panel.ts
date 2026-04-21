@@ -53,6 +53,9 @@ export class BeeFilterPanel extends LitElement {
   @property({ attribute: false }) summary: DataSummary | null = null;
   @property({ attribute: false }) specimenCount: number | null = null;
 
+  @property({ attribute: false }) hideButton = false;
+  @property({ attribute: false }) externalOpen = false;
+
   @state() private _open = false;
 
   // Taxon (single-select)
@@ -288,6 +291,9 @@ export class BeeFilterPanel extends LitElement {
   };
 
   updated(changed: PropertyValues) {
+    if (changed.has('externalOpen') && this.hideButton) {
+      this._open = this.externalOpen;
+    }
     if (!changed.has('filterState') || !this.filterState) return;
     const f = this.filterState;
 
@@ -772,7 +778,7 @@ export class BeeFilterPanel extends LitElement {
     const count = this.specimenCount ?? this.summary?.totalSpecimens ?? '…';
     return html`
       <div class="panel-container">
-        <button
+        ${!this.hideButton ? html`<button
           class=${'filter-btn' + (active ? ' active' : '')}
           @click=${this._togglePanel}
           aria-label="Filter occurrences"
@@ -784,7 +790,7 @@ export class BeeFilterPanel extends LitElement {
             <line x1="9.9" y1="9.9" x2="13.5" y2="13.5"/>
           </svg>
           ${count} specimens
-        </button>
+        </button>` : nothing}
         ${this._open ? html`
           <div class="filter-panel" role="dialog" aria-label="Filter panel">
             ${this._renderWhat()}
