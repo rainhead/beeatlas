@@ -223,3 +223,68 @@ describe('TABLE-08: bee-table sort controls', () => {
     document.body.removeChild(el);
   });
 });
+
+describe('TABLE-09: bee-table row-pan event on row click', () => {
+  const baseRow = {
+    scientificName: 'Bombus vosnesenskii',
+    recordedBy: 'Jane Smith',
+    host_inat_login: null,
+    year: 2023,
+    month: 6,
+    county: 'King',
+    ecoregion_l3: 'Cascades',
+    fieldNumber: 'JS-001',
+    modified: '2025-03-13',
+    date: '2023-06-15',
+    elevation_m: null,
+    specimen_observation_id: null,
+  };
+
+  test('clicking a row with lat/lon dispatches row-pan with { lat, lon }', async () => {
+    const row = { ...baseRow, lat: 47.5, lon: -120.5 };
+    const el = await createBeeTable({ rows: [row], rowCount: 1, page: 1 });
+    const rowPanPromise = new Promise<CustomEvent>(resolve => {
+      el.addEventListener('row-pan', (e) => resolve(e as CustomEvent));
+    });
+    const tr = el.shadowRoot!.querySelector('tbody tr') as HTMLElement;
+    tr?.click();
+    const event = await rowPanPromise;
+    expect(event.detail.lat).toBe(47.5);
+    expect(event.detail.lon).toBe(-120.5);
+    expect(event.bubbles).toBe(true);
+    expect(event.composed).toBe(true);
+    document.body.removeChild(el);
+  });
+
+  test('clicking a row with lat=null does not dispatch row-pan', async () => {
+    const row = { ...baseRow, lat: null, lon: -120.5 };
+    const el = await createBeeTable({ rows: [row], rowCount: 1, page: 1 });
+    let dispatched = false;
+    el.addEventListener('row-pan', () => { dispatched = true; });
+    const tr = el.shadowRoot!.querySelector('tbody tr') as HTMLElement;
+    tr?.click();
+    await el.updateComplete;
+    expect(dispatched).toBe(false);
+    document.body.removeChild(el);
+  });
+
+  test('clicking a row with lon=null does not dispatch row-pan', async () => {
+    const row = { ...baseRow, lat: 47.5, lon: null };
+    const el = await createBeeTable({ rows: [row], rowCount: 1, page: 1 });
+    let dispatched = false;
+    el.addEventListener('row-pan', () => { dispatched = true; });
+    const tr = el.shadowRoot!.querySelector('tbody tr') as HTMLElement;
+    tr?.click();
+    await el.updateComplete;
+    expect(dispatched).toBe(false);
+    document.body.removeChild(el);
+  });
+
+  test('tr elements have cursor: pointer style', async () => {
+    const row = { ...baseRow, lat: 47.5, lon: -120.5 };
+    const el = await createBeeTable({ rows: [row], rowCount: 1, page: 1 });
+    const tr = el.shadowRoot!.querySelector('tbody tr') as HTMLElement;
+    expect(tr?.getAttribute('style')).toContain('cursor: pointer');
+    document.body.removeChild(el);
+  });
+});
