@@ -1,12 +1,8 @@
 # Washington Bee Atlas
 
-## Current Milestone: v2.8 Liveness — Provisional Specimen Records
+## Current Milestone: v3.0 Plants Tab (Phases 71–72)
 
-**Goal:** Surface specimen-adjacent records that exist before Ecdysis ingestion, giving the map a feeling of live activity.
-
-**Target features:**
-- WABA provisional specimens — WABA iNat observations without a catalog-number Ecdysis match added as first-class rows in `occurrences.parquet`, with iNat community ID as provisional determination and `host_observation_id` from OFV field_id 1718 where available
-- Sample-only row labeling — sidebar explanation for sample-only rows ("N specimens collected, identification pending")
+**Goal:** A Plants tab showing plant species present in Washington with per-species × H3/ecoregion × month sampling coverage — how many plant observations exist and how many times bee visitors have been sampled.
 
 ## What This Is
 
@@ -301,4 +297,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-20 after Phase 67 — Provisional Row Display in Sidebar complete; `bee-occurrence-detail` renders provisional rows (iNat ID label, quality badge, WABA link) and sample-only rows ("identification pending"); `filter.ts` schema layer updated (`observer` → `host_inat_login`, 3 new fields); `specimen_inat_quality_grade` added to export pipeline; 152 Vitest tests passing*
+*Last updated: 2026-04-21 after Phase 70 — v2.9 UI Flow Redesign complete; `bee-sidebar` converted to `position: absolute` right-edge overlay with drop shadow; "Selected specimens" header label; portrait mode resets to `position: static` so sidebar re-enters flex flow; map always full-width in landscape, full-height when sidebar closed in portrait; 162 Vitest tests passing*
