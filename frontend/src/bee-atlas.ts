@@ -101,11 +101,10 @@ bee-table {
   min-height: 0;
 }
 bee-sidebar {
-  flex-shrink: 0;
+  right: 0.5em;
+  top: calc(0.5em + 2.5rem + 2.5rem + 0.5em);
   width: 25rem;
-  border-left: 1px solid var(--border-input);
-  overflow-y: auto;
-  scrollbar-gutter: stable;
+  bottom: 0.5em;
 }
 bee-filter-panel {
   right: 0.5em;
