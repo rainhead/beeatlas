@@ -2,32 +2,43 @@ import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { OccurrenceRow } from './filter.ts';
 
-interface SampleGroup {
-  year: number;
-  month: number;
+const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+
+function formatRomanDate(dateStr: string): string {
+  const d = new Date(dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${d.getDate()} ${ROMAN_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+interface CollectorGroup {
+  date: string;
   recordedBy: string;
-  fieldNumber: string;
-  elevation_m: number | null;
   rows: OccurrenceRow[];
 }
 
-function groupBySpecimenSample(rows: OccurrenceRow[]): SampleGroup[] {
-  const map = new Map<string, SampleGroup>();
+interface DateGroup {
+  date: string;
+  collectors: CollectorGroup[];
+}
+
+function groupOccurrences(rows: OccurrenceRow[]): DateGroup[] {
+  const dateMap = new Map<string, Map<string, CollectorGroup>>();
   for (const row of rows) {
-    const key = `${row.year}-${row.month}-${row.recordedBy}-${row.fieldNumber}`;
-    if (!map.has(key)) {
-      map.set(key, {
-        year: row.year!,
-        month: row.month!,
-        recordedBy: row.recordedBy!,
-        fieldNumber: row.fieldNumber!,
-        elevation_m: row.elevation_m,
-        rows: [],
-      });
+    const date = row.date;
+    if (!dateMap.has(date)) dateMap.set(date, new Map());
+    const collKey = row.recordedBy ?? '';
+    const collMap = dateMap.get(date)!;
+    if (!collMap.has(collKey)) {
+      collMap.set(collKey, { date, recordedBy: row.recordedBy ?? '', rows: [] });
     }
-    map.get(key)!.rows.push(row);
+    collMap.get(collKey)!.rows.push(row);
   }
-  return [...map.values()].sort((a, b) => b.year - a.year || b.month - a.month);
+  return [...dateMap.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, collMap]) => ({
+      date,
+      collectors: [...collMap.values()].sort((a, b) => a.recordedBy.localeCompare(b.recordedBy)),
+    }));
 }
 
 @customElement('bee-occurrence-detail')
@@ -38,21 +49,19 @@ export class BeeOccurrenceDetail extends LitElement {
     :host {
       display: block;
     }
+    .date-header {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      padding: 0.5rem 1rem 0.25rem;
+    }
     .sample {
       padding: 0.75rem 1rem;
       border-bottom: 1px solid var(--border-subtle);
     }
     .sample-header {
-      font-weight: 600;
       margin-bottom: 0.25rem;
       font-size: 0.9rem;
-    }
-    .sample-meta {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-bottom: 0.5rem;
-      overflow-wrap: break-word;
-      word-break: break-word;
     }
     .species-list {
       margin: 0;
@@ -123,10 +132,6 @@ export class BeeOccurrenceDetail extends LitElement {
       font-size: 0.8rem;
       color: var(--text-hint);
     }
-    .event-elevation {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
     .event-inat {
       font-size: 0.85rem;
     }
@@ -147,22 +152,6 @@ export class BeeOccurrenceDetail extends LitElement {
     }
   `;
 
-  private _formatMonth(year: number, month: number): string {
-    return new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
-      new Date(year, month - 1)
-    );
-  }
-
-  private _formatSampleDate(dateStr: string): string {
-    // Append T00:00:00 to force local-timezone parsing; bare ISO dates parse as UTC
-    // which causes off-by-one display in timezones west of UTC.
-    const d = new Date(dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric', month: 'long', day: 'numeric'
-    }).format(d);
-  }
-
   private _renderHostInfo(row: OccurrenceRow) {
     const grade = row.inat_quality_grade;
     const badge = grade
@@ -182,12 +171,10 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`<span class="quality-badge ${grade}" aria-label="${fullLabel}">${abbr}</span>`;
   }
 
-  private _renderSpecimenGroup(group: SampleGroup) {
+  private _renderCollectorGroup(group: CollectorGroup) {
     return html`
       <div class="sample">
-        <div class="sample-header">${this._formatMonth(group.year, group.month)} ${group.year}</div>
-        <div class="sample-meta">${group.recordedBy} · ${group.fieldNumber}</div>
-        ${group.elevation_m != null ? html`<div class="sample-meta">${Math.round(group.elevation_m)} m</div>` : ''}
+        <div class="sample-header">${group.recordedBy || html`<span class="hint">unknown</span>`}</div>
         <ul class="species-list">
           ${group.rows.map(row => html`
             <li>
@@ -205,18 +192,24 @@ export class BeeOccurrenceDetail extends LitElement {
     `;
   }
 
+  private _renderDateGroup(group: DateGroup) {
+    return html`
+      <div class="date-group">
+        <div class="date-header">${formatRomanDate(group.date)}</div>
+        ${group.collectors.map(c => this._renderCollectorGroup(c))}
+      </div>
+    `;
+  }
+
   private _renderSampleOnly(row: OccurrenceRow) {
     const count = row.specimen_count != null && !isNaN(row.specimen_count)
       ? `${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected, identification pending`
       : 'identification pending';
     return html`
       <div class="panel-content sample-dot-detail">
-        <div class="event-date">${this._formatSampleDate(row.date)}</div>
+        <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         <div class="event-count">${count}</div>
-        ${row.elevation_m != null
-          ? html`<div class="event-elevation">${Math.round(row.elevation_m)} m</div>`
-          : ''}
         ${row.observation_id != null
           ? html`<div class="event-inat">
               <a href="https://www.inaturalist.org/observations/${row.observation_id}" target="_blank" rel="noopener">View on iNaturalist</a>
@@ -233,13 +226,10 @@ export class BeeOccurrenceDetail extends LitElement {
     return html`
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
-        <div class="event-date">${this._formatSampleDate(row.date)}</div>
+        <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
         ${row.specimen_count != null && !isNaN(row.specimen_count)
           ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
-          : ''}
-        ${row.elevation_m != null
-          ? html`<div class="event-elevation">${Math.round(row.elevation_m)} m</div>`
           : ''}
         <div class="event-inat">
           <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}"
@@ -253,10 +243,10 @@ export class BeeOccurrenceDetail extends LitElement {
   render() {
     const specimenBacked = this.occurrences.filter(r => r.ecdysis_id != null);
     const sampleOnly = this.occurrences.filter(r => r.ecdysis_id == null);
-    const specimenGroups = groupBySpecimenSample(specimenBacked);
+    const dateGroups = groupOccurrences(specimenBacked);
     return html`
-      ${specimenGroups.map(group => this._renderSpecimenGroup(group))}
-      ${specimenGroups.length > 0 && sampleOnly.length > 0
+      ${dateGroups.map(group => this._renderDateGroup(group))}
+      ${dateGroups.length > 0 && sampleOnly.length > 0
         ? html`<hr class="separator">` : ''}
       ${sampleOnly.map(row =>
         row.is_provisional === true
