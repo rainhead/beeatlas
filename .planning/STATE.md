@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.9
-milestone_name: UI Flow Redesign
-status: complete
-last_updated: "2026-04-21T00:00:00.000Z"
-last_activity: 2026-04-21
+milestone: v2.8
+milestone_name: "Liveness: Provisional Specimen Records"
+status: completed
+last_updated: "2026-04-21T23:18:01.649Z"
+last_activity: 2026-04-21 — Phase 70 complete; v2.9 milestone shipped
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_phases: 5
+  completed_phases: 5
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
