@@ -44,7 +44,7 @@ echo "--- pipelines done in $(_elapsed $_t0) ---"
 # 3. Push exports to S3 /data/
 echo "--- uploading exports ---"
 _t0=$(date +%s)
-for f in ecdysis.parquet samples.parquet counties.geojson ecoregions.geojson; do
+for f in occurrences.parquet counties.geojson ecoregions.geojson; do
     aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
 done
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
