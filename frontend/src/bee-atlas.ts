@@ -604,6 +604,8 @@ bee-filter-panel {
     this._runFilterQuery().then(() => {
       this._pushUrlState();
     });
+    this._tablePage = 1;
+    this._runTableQuery();
   }
 
   private _onMapClickEmpty() {
@@ -621,6 +623,8 @@ bee-filter-panel {
       this._runFilterQuery().then(() => {
         this._pushUrlState();
       });
+      this._tablePage = 1;
+      this._runTableQuery();
     } else {
       // Clear selection
       this._selectedOccurrences = null;
