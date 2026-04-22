@@ -134,6 +134,7 @@ export class BeeMap extends LitElement {
   private clusterSource!: Cluster;
   private occurrenceLayer!: VectorLayer;
   // speicmenLayer typo is intentionally deferred — do not fix incidentally
+  // @ts-ignore -- intentionally unused until specimen layer is implemented
   private speicmenLayer: VectorLayer | undefined;
 
   static styles = css`
@@ -413,7 +414,7 @@ export class BeeMap extends LitElement {
         const occurrences: OccurrenceRow[] = toShow.map(f => {
           const obj: Record<string, unknown> = {};
           for (const col of OCCURRENCE_COLUMNS) obj[col] = f.get(col);
-          return obj as OccurrenceRow;
+          return obj as unknown as OccurrenceRow;
         });
 
         if (toShow.length === 1) {

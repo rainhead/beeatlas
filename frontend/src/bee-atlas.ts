@@ -797,7 +797,7 @@ bee-filter-panel {
         FROM occurrences
         WHERE ${conditions.join(' OR ')}
       `, (rowValues: unknown[], columnNames: string[]) => {
-        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as OccurrenceRow);
+        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
       });
       this._selectedOccurrences = rows;
     } catch (err) {
@@ -820,7 +820,7 @@ bee-filter-panel {
         WHERE lat BETWEEN ${lat - dLat} AND ${lat + dLat}
           AND lon BETWEEN ${lon - dLon} AND ${lon + dLon}
       `, (rowValues: unknown[], columnNames: string[]) => {
-        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as OccurrenceRow);
+        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
       });
 
       // Post-filter with haversine for precision
