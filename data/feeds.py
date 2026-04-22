@@ -4,8 +4,6 @@ Produces:
   frontend/public/data/feeds/determinations.xml
   frontend/public/data/feeds/collector-{slug}.xml  (one per unique collector)
   frontend/public/data/feeds/genus-{slug}.xml       (one per unique genus)
-  frontend/public/data/feeds/county-{slug}.xml      (one per WA county)
-  frontend/public/data/feeds/ecoregion-{slug}.xml   (one per WA ecoregion)
   frontend/public/data/feeds/index.json             (machine-readable feed index)
 
 Covers all determinations whose modified timestamp falls within the last 90 days,
@@ -155,8 +153,6 @@ _UTC = datetime.timezone.utc
 _TITLE_TEMPLATES = {
     'collector': 'Washington Bee Atlas \u2014 Collector: {value}',
     'genus':     'Washington Bee Atlas \u2014 Genus: {value}',
-    'county':    'Washington Bee Atlas \u2014 County: {value}',
-    'ecoregion': 'Washington Bee Atlas \u2014 Ecoregion: {value}',
 }
 
 _COLLECTOR_QUERY = """
@@ -195,69 +191,9 @@ _GENUS_QUERY = """
     ORDER BY i.modified DESC
 """
 
-_COUNTY_QUERY = """
-    SELECT
-        i.modified,
-        NULLIF(i.scientific_name, '')  AS taxon_name,
-        NULLIF(i.identified_by, '')    AS determiner,
-        o.occurrence_id                AS specimen_occurrence_id,
-        o.id                           AS ecdysis_id,
-        o.recorded_by                  AS collector,
-        o.event_date                   AS collection_date
-    FROM ecdysis_data.identifications i
-    JOIN ecdysis_data.occurrences o ON i.coreid = CAST(o.id AS VARCHAR)
-    JOIN geographies.us_counties c
-        ON c.state_fips = '53'
-       AND ST_Within(
-               ST_Point(CAST(o.decimal_longitude AS DOUBLE),
-                        CAST(o.decimal_latitude AS DOUBLE)),
-               ST_GeomFromText(c.geometry_wkt)
-           )
-    WHERE i.modified >= NOW() - INTERVAL '90 days'
-      AND i.scientific_name != ''
-      AND i.identified_by   != ''
-      AND o.decimal_latitude  IS NOT NULL AND o.decimal_latitude  != ''
-      AND o.decimal_longitude IS NOT NULL AND o.decimal_longitude != ''
-      AND c.name = ?
-    ORDER BY i.modified DESC
-"""
-
-_ECOREGION_QUERY = """
-    SELECT
-        i.modified,
-        NULLIF(i.scientific_name, '')  AS taxon_name,
-        NULLIF(i.identified_by, '')    AS determiner,
-        o.occurrence_id                AS specimen_occurrence_id,
-        o.id                           AS ecdysis_id,
-        o.recorded_by                  AS collector,
-        o.event_date                   AS collection_date
-    FROM ecdysis_data.identifications i
-    JOIN ecdysis_data.occurrences o ON i.coreid = CAST(o.id AS VARCHAR)
-    JOIN geographies.ecoregions e
-        ON ST_Intersects(
-               ST_GeomFromText(e.geometry_wkt),
-               (SELECT ST_GeomFromText(geometry_wkt)
-                FROM geographies.us_states WHERE abbreviation = 'WA')
-           )
-       AND ST_Within(
-               ST_Point(CAST(o.decimal_longitude AS DOUBLE),
-                        CAST(o.decimal_latitude AS DOUBLE)),
-               ST_GeomFromText(e.geometry_wkt)
-           )
-    WHERE i.modified >= NOW() - INTERVAL '90 days'
-      AND i.scientific_name != ''
-      AND i.identified_by   != ''
-      AND o.decimal_latitude  IS NOT NULL AND o.decimal_latitude  != ''
-      AND o.decimal_longitude IS NOT NULL AND o.decimal_longitude != ''
-      AND e.name = ?
-    ORDER BY i.modified DESC
-"""
-
 _VARIANT_QUERIES = {
     'collector': _COLLECTOR_QUERY,
     'genus':     _GENUS_QUERY,
-    'county':    _COUNTY_QUERY,
-    'ecoregion': _ECOREGION_QUERY,
 }
 
 
@@ -329,11 +265,7 @@ def write_all_variants(
     out_dir: Path,
     run_time: datetime.datetime,
 ) -> list:
-    """Enumerate all filter values per variant type and write one feed file each.
-
-    Counties and ecoregions are enumerated from the geographies tables (not the
-    90-day window) so all known regions get a feed file regardless of recent activity
-    (D-01 always-write intent).
+    """Enumerates all filter values per variant type (collector, genus) and writes one feed file each.
 
     Returns list of index entry dicts (one per feed written).
     """
@@ -347,21 +279,11 @@ def write_all_variants(
             "SELECT DISTINCT o.genus FROM ecdysis_data.occurrences o "
             "WHERE o.genus IS NOT NULL AND o.genus != '' ORDER BY o.genus"
         ),
-        'county': (
-            "SELECT DISTINCT name FROM geographies.us_counties "
-            "WHERE state_fips = '53' ORDER BY name"
-        ),
-        'ecoregion': (
-            "SELECT name FROM geographies.ecoregions "
-            "WHERE ST_Intersects(ST_GeomFromText(geometry_wkt), "
-            "(SELECT ST_GeomFromText(geometry_wkt) FROM geographies.us_states "
-            "WHERE abbreviation = 'WA')) ORDER BY name"
-        ),
     }
 
     all_entries = []
 
-    for variant_type in ('collector', 'genus', 'county', 'ecoregion'):
+    for variant_type in ('collector', 'genus'):
         filter_values = [row[0] for row in con.execute(_ENUM_QUERIES[variant_type]).fetchall()]
         # Track slugs within this variant type to detect collisions
         seen_slugs: dict[str, int] = {}
