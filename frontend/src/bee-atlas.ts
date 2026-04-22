@@ -113,6 +113,8 @@ bee-filter-panel {
 }
 .content.table-mode bee-filter-panel {
   top: auto;
+  right: auto;
+  left: 0.5em;
   bottom: 3.5rem;
 }
 .loading-overlay, .error-overlay {

@@ -132,6 +132,8 @@ export class BeeFilterPanel extends LitElement {
     :host([open-upward]) .filter-panel {
       top: auto;
       bottom: calc(100% + 0.3rem);
+      right: auto;
+      left: 0;
     }
     .filter-row {
       display: flex;

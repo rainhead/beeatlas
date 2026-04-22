@@ -127,7 +127,7 @@ export class BeeTable extends LitElement {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 8px 16px;
+      padding: 8px;
       border-top: 1px solid var(--border, #ddd);
       background: var(--surface-subtle, #f5f5f5);
       font-size: 0.8125rem;
@@ -291,7 +291,8 @@ export class BeeTable extends LitElement {
     }));
   }
 
-  private _onFilterBtnClick() {
+  private _onFilterBtnClick(e: Event) {
+    e.stopPropagation();
     this.dispatchEvent(new CustomEvent('toggle-filter', {
       bubbles: true,
       composed: true,
