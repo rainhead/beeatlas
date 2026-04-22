@@ -296,20 +296,22 @@ export async function queryFilteredCounts(f: FilterState): Promise<FilteredCount
   };
 }
 
-export async function queryVisibleIds(f: FilterState): Promise<Set<string> | null> {
+export async function queryVisibleIds(f: FilterState): Promise<{ ids: Set<string>; rowCount: number } | null> {
   if (!isFilterActive(f)) return null;
   const { occurrenceWhere } = buildFilterSQL(f);
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const ids = new Set<string>();
+  let rowCount = 0;
   await sqlite3.exec(db,
     `SELECT ecdysis_id, observation_id FROM occurrences WHERE ${occurrenceWhere}`,
     (rowValues: unknown[]) => {
+      rowCount++;
       const ecdysisId = rowValues[0];
       const obsId = rowValues[1];
       if (ecdysisId != null) ids.add(`ecdysis:${Number(ecdysisId)}`);
       if (obsId != null) ids.add(`inat:${Number(obsId)}`);
     }
   );
-  return ids;
+  return { ids, rowCount };
 }
