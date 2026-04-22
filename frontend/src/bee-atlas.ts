@@ -32,6 +32,7 @@ export class BeeAtlas extends LitElement {
   };
 
   @state() private _visibleIds: Set<string> | null = null;
+  @state() private _filteredRowCount: number | null = null;
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
   @state() private _viewMode: 'map' | 'table' = 'map';
   @state() private _tablePage = 1;
@@ -196,7 +197,7 @@ bee-filter-panel {
             .ecoregionOptions=${this._ecoregionOptions}
             .collectorOptions=${this._collectorOptions}
             .summary=${this._summary}
-            .specimenCount=${isFilterActive(this._filterState) ? (this._visibleIds?.size ?? null) : null}
+            .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
             .hideButton=${this._viewMode === 'table'}
             .externalOpen=${this._tableFilterOpen}
             .openUpward=${this._viewMode === 'table'}
@@ -306,10 +307,11 @@ bee-filter-panel {
 
   private async _runFilterQuery(): Promise<void> {
     const generation = ++this._filterQueryGeneration;
-    const ids = await queryVisibleIds(this._filterState);
+    const result = await queryVisibleIds(this._filterState);
     // Discard result if a newer query has started since this one began.
     if (generation !== this._filterQueryGeneration) return;
-    this._visibleIds = ids;
+    this._visibleIds = result?.ids ?? null;
+    this._filteredRowCount = result?.rowCount ?? null;
   }
 
   private async _loadSummaryFromSQLite(): Promise<void> {
@@ -525,6 +527,7 @@ bee-filter-panel {
       this._runFilterQuery();
     } else {
       this._visibleIds = null;
+      this._filteredRowCount = null;
     }
   };
 
