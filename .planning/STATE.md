@@ -4,7 +4,7 @@ milestone: v2.8
 milestone_name: "Liveness: Provisional Specimen Records"
 status: completed
 last_updated: "2026-04-21T23:18:01.649Z"
-last_activity: 2026-04-21 — Phase 70 complete; v2.9 milestone shipped
+last_activity: 2026-04-21 — Completed quick task 260421-qk1: Drop atom feeds for counties and ecoregions
 progress:
   total_phases: 5
   completed_phases: 5
@@ -54,3 +54,4 @@ CR-01 (pre-existing from Phase 67): bee-filter-controls.ts uses `observer` field
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260421-t1a | Table mode improvements (filter button, selection highlight, links column, collector coalesce, field# fallback) | 2026-04-21 | c9c1b8c | [260421-t1a-table-mode-improvements](./quick/260421-t1a-table-mode-improvements/) |
+| 260421-qk1 | Drop atom feeds for counties and ecoregions | 2026-04-21 | c1f196e | [260421-qk1-drop-county-ecoregion-feeds](./quick/260421-qk1-drop-county-ecoregion-feeds/) |
