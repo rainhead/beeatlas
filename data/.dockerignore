@@ -1,0 +1,27 @@
+# Caches and local data
+_dem_cache/
+.geography_cache/
+.venv/
+.pytest_cache/
+__pycache__
+raw/
+
+# Large data files
+*.parquet
+*.duckdb
+*.duckdb.wal
+*.zip
+*.ndjson
+*.tif
+
+# Misc
+.DS_Store
+.gitignore
+.dvcignore
+.python-version
+.planning/
+gbif-backbone/
+tests/
+nightly.sh
+README.md
+last_fetch.txt
