@@ -32,6 +32,10 @@ export class BeeAtlasStack extends cdk.Stack {
       autoDeleteObjects: true,  // safe: bucket and distribution are in the same stack
     });
 
+    // ── CloudFront Access Logs Bucket ──────────────────────────────────────
+    // Manually created 2026-04-25; imported here so CDK manages the reference.
+    const logBucket = s3.Bucket.fromBucketName(this, 'CfLogBucket', 'beeatlas-cf-logs');
+
     // ── Main CloudFront Distribution (beeatlas.net) ───────────────────────
     // Use S3BucketOrigin.withOriginAccessControl() (stable since CDK v2.156.0).
     // Do NOT use deprecated S3Origin (OAI). Do NOT set websiteIndexDocument on bucket.
@@ -44,6 +48,8 @@ export class BeeAtlasStack extends cdk.Stack {
       defaultRootObject: 'index.html',
       domainNames: ['beeatlas.net', 'www.beeatlas.net'],
       certificate: siteCert,
+      logBucket,
+      logFilePrefix: 'cf-logs/',
     });
 
     // ── /data/* cache behavior with CORS headers ──────────────────────────
