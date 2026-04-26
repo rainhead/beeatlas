@@ -26,7 +26,6 @@
     "lit": "^3.2.1",
     "ol": "^10.7.0",
     "ol-mapbox-style": "^13.2.0",
-    "temporal-polyfill": "^0.2.5",
     "wa-sqlite": "^1.0.0"
   }
 }

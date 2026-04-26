@@ -5,21 +5,19 @@ import Fill from 'ol/style/Fill.js';
 import Stroke from 'ol/style/Stroke.js';
 import Style from 'ol/style/Style.js';
 import Text from 'ol/style/Text.js';
-import { Temporal } from 'temporal-polyfill';
-
 export const RECENCY_COLORS = {
   fresh:    '#2ecc71',  // within 6 weeks
   thisYear: '#f39c12',  // this year, older than 6 weeks
   older:    '#7f8c8d',  // before this year
 } as const;
 
-const today = Temporal.Now.plainDateISO();
-const sixWeeksAgo = today.subtract({ weeks: 6 });
+const _now = new Date();
+const _sixWeeksAgoMs = _now.getTime() - 6 * 7 * 86_400_000;
+const _thisYear = _now.getFullYear();
 
 function recencyTier(year: number, month: number): keyof typeof RECENCY_COLORS {
-  const sampleDate = Temporal.PlainDate.from({ year, month, day: 1 });
-  if (Temporal.PlainDate.compare(sampleDate, sixWeeksAgo) >= 0) return 'fresh';
-  if (year >= today.year) return 'thisYear';
+  if (new Date(year, month - 1, 1).getTime() >= _sixWeeksAgoMs) return 'fresh';
+  if (year >= _thisYear) return 'thisYear';
   return 'older';
 }
 
