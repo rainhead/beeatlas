@@ -3,12 +3,11 @@ import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
+import { loadBoundaries } from './region-layer.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
 import './bee-filter-panel.ts';
 import './bee-map.ts';
-import './bee-sidebar.ts';
-import './bee-table.ts';
 
 const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 const DEFAULT_LON = -120.5;
@@ -227,6 +226,7 @@ bee-filter-panel {
     const initViewMode = initialParams.ui?.viewMode ?? 'map';
     this._boundaryMode = initBoundaryMode;
     this._viewMode = initViewMode;
+    if (initViewMode === 'table') import('./bee-table.ts');
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
     if (initFilter) {
@@ -259,9 +259,11 @@ bee-filter-panel {
     // Restore selected occurrences from URL
     const initSel = initialParams.selection;
     if (initSel?.type === 'ids' && initSel.ids.length > 0) {
+      import('./bee-sidebar.ts');
       this._selectedOccIds = initSel.ids;
       this._sidebarOpen = true;
     } else if (initSel?.type === 'cluster') {
+      import('./bee-sidebar.ts');
       this._selectedCluster = { lon: initSel.lon, lat: initSel.lat, radiusM: initSel.radiusM };
       this._sidebarOpen = true;
     }
@@ -275,10 +277,12 @@ bee-filter-panel {
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
-    // Initialize SQLite
+    // Initialize SQLite, then load boundary GeoJSON (deferred to avoid
+    // competing with the parquet file for bandwidth on the critical path).
     loadOccurrencesTable(DATA_BASE_URL)
       .then(() => {
         console.debug('SQLite tables ready');
+        loadBoundaries();
         if (this._viewMode === 'table') {
           this._loadSummaryFromSQLite();
           this._runTableQuery();
@@ -544,6 +548,7 @@ bee-filter-panel {
   }
 
   private _onOccurrenceClick(e: CustomEvent<{ occurrences: OccurrenceRow[]; occIds: string[]; centroid?: { lon: number; lat: number }; radiusM?: number }>) {
+    import('./bee-sidebar.ts');
     this._selectedOccurrences = e.detail.occurrences.sort((a, b) => b.date.localeCompare(a.date));
     this._selectedOccIds = e.detail.occIds;
     if (e.detail.centroid && e.detail.radiusM != null) {
@@ -667,6 +672,7 @@ bee-filter-panel {
   private _onViewChanged(e: CustomEvent<'map' | 'table'>) {
     this._viewMode = e.detail;
     if (this._viewMode === 'table') {
+      import('./bee-table.ts');
       this._tableLoading = true;
       this._runTableQuery();
       if (this._loading) {

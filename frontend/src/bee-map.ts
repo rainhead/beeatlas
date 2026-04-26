@@ -1,4 +1,5 @@
-import { css, html, LitElement, type PropertyValues } from "lit";
+import { css, html, LitElement, unsafeCSS, type PropertyValues } from "lit";
+import olCssText from 'ol/ol.css?raw';
 import { customElement, property, query, state } from "lit/decorators.js";
 import { View } from "ol";
 import OpenLayersMap from "ol/Map.js";
@@ -137,6 +138,8 @@ export class BeeMap extends LitElement {
   // @ts-ignore -- intentionally unused until specimen layer is implemented
   private speicmenLayer: VectorLayer | undefined;
 
+  static _olCss = unsafeCSS(olCssText);
+
   static styles = css`
 :host {
   display: flex;
@@ -202,7 +205,7 @@ export class BeeMap extends LitElement {
       : this.boundaryMode === 'counties' ? 'Counties'
       : 'Ecoregions';
     return html`
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v10.8.0/ol.css" type="text/css" />
+      <style>${BeeMap._olCss}</style>
       <div id="map"></div>
       <div class="region-control">
         ${this._regionMenuOpen ? html`
