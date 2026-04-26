@@ -24,6 +24,9 @@ jobs:
       - name: Validate parquet schema
         run: npm run validate-schema
 
+      - name: Run tests
+        run: npm test --workspace=frontend
+
       - name: Build frontend
         run: npm run build --workspace=frontend
 

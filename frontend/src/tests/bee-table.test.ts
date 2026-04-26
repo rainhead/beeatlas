@@ -9,7 +9,7 @@ vi.mock('../sqlite.ts', () => ({
 
 vi.mock('../filter.ts', () => ({
   queryTablePage: vi.fn(() => Promise.resolve({ rows: [], total: 0 })),
-  OCCURRENCE_COLUMNS: ['lat', 'lon', 'date', 'county', 'ecoregion_l3', 'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber', 'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host', 'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'year', 'month', 'observation_id', 'host_inat_login', 'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade', 'specimen_count', 'sample_id'],
+  OCCURRENCE_COLUMNS: ['lat', 'lon', 'date', 'county', 'ecoregion_l3', 'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber', 'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host', 'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host', 'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade'],
   isFilterActive: vi.fn(() => false),
   queryVisibleIds: vi.fn(() => Promise.resolve(null)),
   SpecimenSortBy: undefined,
@@ -61,37 +61,37 @@ describe('TABLE-01: bee-table column headers', () => {
     expect(labels.some(l => l.includes('Date'))).toBe(true);
     expect(labels.some(l => l.includes('Species'))).toBe(true);
     expect(labels.some(l => l.includes('Collector'))).toBe(true);
-    expect(labels.some(l => l.includes('Observer'))).toBe(true);
     expect(labels.some(l => l.includes('County'))).toBe(true);
     expect(labels.some(l => l.includes('Ecoregion'))).toBe(true);
     expect(labels.some(l => l.includes('Elev'))).toBe(true);
     expect(labels.some(l => l.includes('Field #'))).toBe(true);
     expect(labels.some(l => l.includes('Modified'))).toBe(true);
     expect(labels.some(l => l.includes('Photo'))).toBe(true);
+    expect(labels.some(l => l.includes('Links'))).toBe(true);
     expect(headers.length).toBe(10);
     document.body.removeChild(el);
   });
 });
 
-describe('TABLE-02: bee-table row count indicator', () => {
-  test('shows "Showing 1-100 of 3,847 occurrences" for page=1, rowCount=3847', async () => {
+describe('TABLE-02: bee-table pagination info', () => {
+  test('shows "Page 1 of 39" for page=1, rowCount=3847', async () => {
     const el = await createBeeTable({ rowCount: 3847, page: 1 });
-    const label = el.shadowRoot!.querySelector('.row-count');
-    expect(label?.textContent).toMatch(/Showing 1[–\u2013]100 of 3,847 occurrences/);
+    const label = el.shadowRoot!.querySelector('.page-info');
+    expect(label?.textContent).toMatch(/Page 1 of 39/);
     document.body.removeChild(el);
   });
 
-  test('shows "Showing 101-200 of 500 occurrences" for page=2, rowCount=500', async () => {
+  test('shows "Page 2 of 5" for page=2, rowCount=500', async () => {
     const el = await createBeeTable({ rowCount: 500, page: 2 });
-    const label = el.shadowRoot!.querySelector('.row-count');
-    expect(label?.textContent).toMatch(/Showing 101[–\u2013]200 of 500 occurrences/);
+    const label = el.shadowRoot!.querySelector('.page-info');
+    expect(label?.textContent).toMatch(/Page 2 of 5/);
     document.body.removeChild(el);
   });
 
-  test('shows "Showing 401-427 of 427 occurrences" for last page (page=5, rowCount=427)', async () => {
+  test('shows "Page 5 of 5" for last page (page=5, rowCount=427)', async () => {
     const el = await createBeeTable({ rowCount: 427, page: 5 });
-    const label = el.shadowRoot!.querySelector('.row-count');
-    expect(label?.textContent).toMatch(/Showing 401[–\u2013]427 of 427 occurrences/);
+    const label = el.shadowRoot!.querySelector('.page-info');
+    expect(label?.textContent).toMatch(/Page 5 of 5/);
     document.body.removeChild(el);
   });
 });
@@ -177,10 +177,12 @@ describe('TABLE-07: bee-table accessibility', () => {
     document.body.removeChild(el);
   });
 
-  test('row count label is wrapped in aria-live="polite" span', async () => {
+  test('pagination has aria-label on navigation buttons', async () => {
     const el = await createBeeTable({ rowCount: 100, page: 1 });
-    const ariaLive = el.shadowRoot!.querySelector('[aria-live="polite"]');
-    expect(ariaLive).not.toBeNull();
+    const prevBtn = el.shadowRoot!.querySelector('[aria-label="Previous page"]');
+    const nextBtn = el.shadowRoot!.querySelector('[aria-label="Next page"]');
+    expect(prevBtn).not.toBeNull();
+    expect(nextBtn).not.toBeNull();
     document.body.removeChild(el);
   });
 });

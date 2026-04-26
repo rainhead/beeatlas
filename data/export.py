@@ -91,7 +91,8 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             op.longitude AS sample_lon,
             op.latitude AS sample_lat,
             CAST(sc.value AS INTEGER) AS specimen_count,
-            TRY_CAST(sid.value AS INTEGER) AS sample_id
+            TRY_CAST(sid.value AS INTEGER) AS sample_id,
+            CASE WHEN op.taxon__iconic_taxon_name = 'Plantae' THEN op.taxon__name ELSE NULL END AS sample_host
         FROM inaturalist_data.observations op
         JOIN inaturalist_data.observations__ofvs sc
             ON sc._dlt_root_id = op._dlt_id AND sc.field_id = 8338 AND sc.value != ''
@@ -144,6 +145,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             e.floralHost, e.host_observation_id, e.inat_host, e.inat_quality_grade,
             e.modified, e.specimen_observation_id, e.elevation_m,
             s.observation_id, s.host_inat_login, s.specimen_count, s.sample_id,
+            s.sample_host,
             sob.specimen_inat_login,
             sob.specimen_inat_taxon_name,
             sob.specimen_inat_genus,
@@ -176,6 +178,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             sob.waba_obs_id                                                          AS specimen_observation_id,
             NULL AS elevation_m,
             s.observation_id, s.host_inat_login, s.specimen_count, s.sample_id,
+            s.sample_host,
             sob.specimen_inat_login,
             sob.specimen_inat_taxon_name,
             sob.specimen_inat_genus,
@@ -244,6 +247,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
         j.floralHost, j.host_observation_id, j.inat_host, j.inat_quality_grade,
         j.modified, j.specimen_observation_id, j.elevation_m,
         j.observation_id, j.host_inat_login, j.specimen_count, j.sample_id,
+        j.sample_host,
         j.specimen_inat_login, j.specimen_inat_taxon_name,
         j.specimen_inat_genus, j.specimen_inat_family, j.specimen_inat_quality_grade,
         j.is_provisional,
