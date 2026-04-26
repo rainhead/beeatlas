@@ -1,7 +1,7 @@
 import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs';
 import * as SQLite from 'wa-sqlite';
 import { MemoryVFS } from 'wa-sqlite/src/examples/MemoryVFS.js';
-import { asyncBufferFromUrl, parquetReadObjects } from 'hyparquet';
+import { parquetReadObjects } from 'hyparquet';
 
 type SQLiteAPI = ReturnType<typeof SQLite.Factory>;
 
@@ -97,8 +97,10 @@ export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
     ecoregion_l3 TEXT
   )`);
 
-  const occFile = await asyncBufferFromUrl({ url: `${baseUrl}/occurrences.parquet` });
-  const occRows = await parquetReadObjects({ file: occFile });
+  const resp = await fetch(`${baseUrl}/occurrences.parquet`);
+  const buffer = await resp.arrayBuffer();
+  const file = { byteLength: buffer.byteLength, slice: (start: number, end: number) => buffer.slice(start, end) };
+  const occRows = await parquetReadObjects({ file });
   await _insertRows(sqlite3, db, 'occurrences', occRows);
 
   console.debug('SQLite table count: occurrences:', occRows.length);

@@ -45,7 +45,7 @@ requires-dist = [
     { name = "beautifulsoup4" },
     { name = "boto3", specifier = ">=1.42.78" },
     { name = "dlt", extras = ["duckdb"], specifier = ">=1.23.0" },
-    { name = "duckdb" },
+    { name = "duckdb", specifier = ">=1.4,<2" },
     { name = "pyarrow", specifier = ">=12" },
     { name = "requests" },
 ]
