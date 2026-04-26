@@ -425,7 +425,7 @@ Plans:
 | 68. Filter Panel Redesign | v2.9 | 3/3 | Complete | 2026-04-20 |
 | 69. Table Drawer | v2.9 | 2/2 | Complete | 2026-04-20 |
 | 70. Map Overlay Sidebar | v2.9 | 1/1 | Complete | 2026-04-21 |
-| 71. Base Map and Occurrence Layer | v3.0 | 0/0 | Planned | — |
+| 71. Base Map and Occurrence Layer | v3.0 | 0/3 | Planned | — |
 | 72. Boundaries and Interaction | v3.0 | 0/0 | Planned | — |
 | 73. OL Removal and Verification | v3.0 | 0/0 | Planned | — |
 
@@ -492,7 +492,11 @@ Plans:
   6. `visibleIds` filtering works — only features matching the active filter are rendered
   7. `selectedOccIds` highlighting works — selected features render with distinct styling
   8. The Mapbox access token is configured without hardcoding in source (env var or config)
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 071-01-PLAN.md — Foundation: install Mapbox GL JS, env config, rewrite style.ts/features.ts/region-layer.ts
+- [ ] 071-02-PLAN.md — Rewrite bee-map.ts with Mapbox GL JS (clustered source, recency layers, filtering, selection)
+- [ ] 071-03-PLAN.md — Wire bee-atlas.ts, update test mocks, visual verification
 
 ### Phase 72: Boundaries and Interaction
 **Goal**: Port region boundary layers and all click interactions (occurrence, cluster, region, empty map) to Mapbox
@@ -507,7 +511,11 @@ Plans:
   6. Clicking a region polygon emits `map-click-region` with the region name
   7. Clicking empty map emits `map-click-empty`
   8. The `data-loaded`, `county-options-loaded`, `ecoregion-options-loaded` events fire with correct data
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 071-01-PLAN.md — Foundation: install Mapbox GL JS, env config, rewrite style.ts/features.ts/region-layer.ts
+- [ ] 071-02-PLAN.md — Rewrite bee-map.ts with Mapbox GL JS (clustered source, recency layers, filtering, selection)
+- [ ] 071-03-PLAN.md — Wire bee-atlas.ts, update test mocks, visual verification
 
 ### Phase 73: OL Removal and Verification
 **Goal**: Remove all OpenLayers dependencies, verify bundle size reduction and full feature parity
