@@ -122,6 +122,16 @@ export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
   );
 }
 
+function _escapeSqlValue(v: unknown): string {
+  if (v == null) return 'NULL';
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'bigint') return String(Number(v));
+  if (v instanceof Date) return `'${v.toISOString().slice(0, 10)}'`;
+  return `'${String(v).replace(/'/g, "''")}'`;
+}
+
+const INSERT_BATCH = 500;
+
 async function _insertRows(
   sqlite3: SQLiteAPI,
   db: number,
@@ -130,23 +140,16 @@ async function _insertRows(
 ): Promise<void> {
   if (rows.length === 0) return;
   const cols = Object.keys(rows[0]!);
-  const placeholders = cols.map(() => '?').join(', ');
-  const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders})`;
+  const colList = cols.join(', ');
 
   await sqlite3.exec(db, 'BEGIN');
   try {
-    for await (const stmt of sqlite3.statements(db, sql)) {
-      for (const row of rows) {
-        sqlite3.bind_collection(stmt, cols.map(c => {
-          const v = row[c];
-          if (v == null) return null;
-          if (typeof v === 'bigint') return Number(v);
-          if (v instanceof Date) return v.toISOString().slice(0, 10);
-          return v;
-        }) as any);
-        await sqlite3.step(stmt);
-        sqlite3.reset(stmt);
-      }
+    for (let i = 0; i < rows.length; i += INSERT_BATCH) {
+      const batch = rows.slice(i, i + INSERT_BATCH);
+      const values = batch.map(row =>
+        '(' + cols.map(c => _escapeSqlValue(row[c])).join(',') + ')'
+      ).join(',');
+      await sqlite3.exec(db, `INSERT INTO ${table} (${colList}) VALUES ${values}`);
     }
     await sqlite3.exec(db, 'COMMIT');
   } catch (err) {

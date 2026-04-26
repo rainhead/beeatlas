@@ -58,13 +58,15 @@ export const ecoregionSource = new VectorSource({
   format: new GeoJSONFormat({ featureProjection: 'EPSG:3857' }),
 });
 
-// Eagerly load both sources regardless of layer visibility so that the
-// countySource.once('change') / ecoregionSource.once('change') handlers in
-// bee-map.ts fire on page load and populate the filter dropdowns.
+// Defer GeoJSON loading so it doesn't compete with the parquet file on the
+// critical path. Call loadBoundaries() after occurrences are loaded.
 const _proj3857 = getProjection('EPSG:3857')!;
 const _worldExtent = _proj3857.getExtent()!;
-countySource.loadFeatures(_worldExtent, 1, _proj3857);
-ecoregionSource.loadFeatures(_worldExtent, 1, _proj3857);
+
+export function loadBoundaries(): void {
+  countySource.loadFeatures(_worldExtent, 1, _proj3857);
+  ecoregionSource.loadFeatures(_worldExtent, 1, _proj3857);
+}
 
 // Starts invisible; Phase 18 wires the boundary toggle via:
 //   regionLayer.setVisible(true/false)
