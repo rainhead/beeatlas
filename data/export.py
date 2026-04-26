@@ -251,7 +251,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
     FROM joined j
     JOIN final_county fc ON fc._row_id = j._row_id
     JOIN final_eco fe ON fe._row_id = j._row_id
-    ) TO '{out}' (FORMAT PARQUET)
+    ) TO '{out}' (FORMAT PARQUET, CODEC 'SNAPPY')
     """)
 
     # Verify: assert zero null county/ecoregion rows
