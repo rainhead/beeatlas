@@ -84,6 +84,7 @@ export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
     host_inat_login TEXT,
     specimen_count INTEGER,
     sample_id INTEGER,
+    sample_host TEXT,
     specimen_inat_login TEXT,
     specimen_inat_taxon_name TEXT,
     specimen_inat_genus TEXT,

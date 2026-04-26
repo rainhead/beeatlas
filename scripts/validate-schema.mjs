@@ -28,7 +28,7 @@ const EXPECTED = {
     'modified', 'specimen_observation_id', 'elevation_m',
     'year', 'month',
     // sample-side (null for specimen-only rows)
-    'observation_id', 'host_inat_login', 'specimen_count', 'sample_id',
+    'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host',
     // unified (always populated via COALESCE)
     'lat', 'lon', 'date',
     'county', 'ecoregion_l3',

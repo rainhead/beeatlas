@@ -544,7 +544,7 @@ bee-filter-panel {
   }
 
   private _onOccurrenceClick(e: CustomEvent<{ occurrences: OccurrenceRow[]; occIds: string[]; centroid?: { lon: number; lat: number }; radiusM?: number }>) {
-    this._selectedOccurrences = e.detail.occurrences;
+    this._selectedOccurrences = e.detail.occurrences.sort((a, b) => b.date.localeCompare(a.date));
     this._selectedOccIds = e.detail.occIds;
     if (e.detail.centroid && e.detail.radiusM != null) {
       this._selectedCluster = { lon: e.detail.centroid.lon, lat: e.detail.centroid.lat, radiusM: e.detail.radiusM };
@@ -803,6 +803,7 @@ bee-filter-panel {
         SELECT ${colList}
         FROM occurrences
         WHERE ${conditions.join(' OR ')}
+        ORDER BY date DESC, recordedBy ASC
       `, (rowValues: unknown[], columnNames: string[]) => {
         rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
       });
@@ -848,7 +849,7 @@ bee-filter-panel {
         obj.ecdysis_id != null ? `ecdysis:${obj.ecdysis_id}` : `inat:${Number(obj.observation_id)}`
       );
       this._selectedOccIds = restoredIds;
-      this._selectedOccurrences = filtered;
+      this._selectedOccurrences = filtered.sort((a, b) => b.date.localeCompare(a.date));
     } catch (err) {
       console.error('Failed to restore cluster selection from URL:', err);
     }

@@ -50,6 +50,7 @@ export interface OccurrenceRow {
   specimen_inat_quality_grade: string | null;
   specimen_count: number | null;
   sample_id: number | null;
+  sample_host: string | null;
 }
 
 export const OCCURRENCE_COLUMNS = [
@@ -57,7 +58,8 @@ export const OCCURRENCE_COLUMNS = [
   'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber',
   'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host',
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
-  'year', 'month', 'observation_id', 'host_inat_login', 'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade', 'specimen_count', 'sample_id',
+  'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host',
+  'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade',
 ] as const;
 
 const PAGE_SIZE = 100;

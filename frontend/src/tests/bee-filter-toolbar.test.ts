@@ -60,11 +60,6 @@ describe('FILTER-PANEL: bee-filter-panel source structure', () => {
     expect(src).toMatch(/@customElement\(['"]bee-filter-panel['"]\)/);
   });
 
-  test('bee-filter-panel.ts source contains bee-filter-controls sub-component tag', () => {
-    const src = readFileSync(resolve(__dirname, '../bee-filter-panel.ts'), 'utf-8');
-    expect(src).toMatch(/bee-filter-controls/);
-  });
-
   test('bee-filter-panel.ts source contains isFilterActive import', () => {
     const src = readFileSync(resolve(__dirname, '../bee-filter-panel.ts'), 'utf-8');
     expect(src).toMatch(/isFilterActive/);

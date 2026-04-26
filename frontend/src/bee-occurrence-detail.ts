@@ -54,6 +54,7 @@ export class BeeOccurrenceDetail extends LitElement {
       font-weight: 700;
       color: var(--text-secondary);
       padding: 0.5rem 1rem 0.25rem;
+      font-family: 'Times New Roman', 'Georgia', serif;
     }
     .sample {
       padding: 0.75rem 1rem;
@@ -121,6 +122,7 @@ export class BeeOccurrenceDetail extends LitElement {
       font-size: 0.85rem;
       font-weight: 600;
       color: var(--text-body);
+      font-family: 'Times New Roman', 'Georgia', serif;
     }
     .event-observer {
       font-size: 0.8rem;
@@ -209,6 +211,7 @@ export class BeeOccurrenceDetail extends LitElement {
       <div class="panel-content sample-dot-detail">
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.host_inat_login != null ? html`<div class="event-observer">${row.host_inat_login}</div>` : ''}
+        ${row.sample_host != null ? html`<div class="event-host"><em>${row.sample_host}</em></div>` : ''}
         <div class="event-count">${count}</div>
         ${row.observation_id != null
           ? html`<div class="event-inat">
@@ -242,7 +245,8 @@ export class BeeOccurrenceDetail extends LitElement {
 
   render() {
     const specimenBacked = this.occurrences.filter(r => r.ecdysis_id != null);
-    const sampleOnly = this.occurrences.filter(r => r.ecdysis_id == null);
+    const sampleOnly = this.occurrences.filter(r => r.ecdysis_id == null)
+      .sort((a, b) => b.date.localeCompare(a.date));
     const dateGroups = groupOccurrences(specimenBacked);
     return html`
       ${dateGroups.map(group => this._renderDateGroup(group))}
