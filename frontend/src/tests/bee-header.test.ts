@@ -13,35 +13,11 @@ vi.mock('../sqlite.ts', () => ({
 }));
 
 vi.mock('../features.ts', () => ({
-  OccurrenceSource: vi.fn().mockImplementation(() => ({
-    once: vi.fn(),
-    on: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    un: vi.fn(),
+  loadOccurrenceGeoJSON: vi.fn(() => Promise.resolve({
+    geojson: { type: 'FeatureCollection', features: [] },
+    summary: { totalSpecimens: 0, speciesCount: 0, genusCount: 0, familyCount: 0, earliestYear: 0, latestYear: 0 },
+    taxaOptions: [],
   })),
-}));
-
-vi.mock('../region-layer.ts', () => ({
-  regionLayer: {
-    setVisible: vi.fn(),
-    setSource: vi.fn(),
-    setStyle: vi.fn(),
-    changed: vi.fn(),
-    getFeatures: vi.fn(() => Promise.resolve([])),
-  },
-  countySource: {
-    once: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    loadFeatures: vi.fn(),
-  },
-  ecoregionSource: {
-    once: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    loadFeatures: vi.fn(),
-  },
-  makeRegionStyleFn: vi.fn(() => vi.fn()),
-  boundaryStyle: {},
-  selectedBoundaryStyle: {},
 }));
 
 describe('HDR: bee-header property interface', () => {

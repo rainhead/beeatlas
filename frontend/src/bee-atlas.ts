@@ -3,7 +3,6 @@ import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
-import { loadBoundaries } from './region-layer.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
 import './bee-filter-panel.ts';
@@ -275,12 +274,11 @@ bee-filter-panel {
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
-    // Initialize SQLite, then load boundary GeoJSON (deferred to avoid
-    // competing with the parquet file for bandwidth on the critical path).
+    // Initialize SQLite (deferred to avoid competing with the parquet file
+    // for bandwidth on the critical path).
     loadOccurrencesTable(DATA_BASE_URL)
       .then(() => {
         console.debug('SQLite tables ready');
-        loadBoundaries();
         if (this._viewMode === 'table') {
           this._loadSummaryFromSQLite();
           this._runTableQuery();
