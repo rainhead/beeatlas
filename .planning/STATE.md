@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Mapbox GL JS Migration
-status: planning
-last_updated: "2026-04-27T02:00:00.000Z"
-last_activity: 2026-04-27 — Phase 72 planned (2 plans in 2 waves)
+status: executing
+last_updated: "2026-04-27T01:10:00.000Z"
+last_activity: 2026-04-27 — Phase 72 Plan 01 complete (boundary layers + click interaction chain)
 progress:
   total_phases: 8
   completed_phases: 6
   total_plans: 18
-  completed_plans: 16
-  percent: 89
+  completed_plans: 17
+  percent: 94
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 ## Current Position
 
 Phase: 72 — Boundaries and Interaction
-Plan: 0/2
-Status: Ready to execute
-Last activity: 2026-04-27 — Phase 72 planned (2 plans in 2 waves)
+Plan: 1/2
+Status: Plan 01 complete, Plan 02 next
+Last activity: 2026-04-27 — Plan 01 complete (boundary layers + click interaction chain)
 
 ```
-Progress: [████████████████████] 100% (3/3 plans)
+Progress: [██████████░░░░░░░░░░] 50% (1/2 plans)
 ```
 
 ## Accumulated Context
@@ -46,6 +46,7 @@ Progress: [████████████████████] 100% (3
 - Filter-based selection highlighting (setFilter on selected-ring layer) chosen over feature-state to avoid promoteId conflicts with cluster IDs
 - TypeScript accessToken cast required: verbatimModuleSyntax + nodenext resolves mapbox-gl default import to module namespace type; runtime property exists but TS cannot see it
 - County/ecoregion filter options loaded from SQLite DISTINCT queries in bee-atlas._loadCountyEcoregionOptions, decoupled from map source events
+- Boundary layers render BELOW occurrence layers so dots remain clickable and visually prominent; _clickConsumed flag pattern guards empty-click fallback
 
 ### Pending Todos
 
