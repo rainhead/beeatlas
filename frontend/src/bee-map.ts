@@ -451,6 +451,11 @@ export class BeeMap extends LitElement {
           },
         });
 
+        // Apply URL-restored boundary visibility now that layers exist.
+        // updated() fires before the style loads so its _applyBoundaryMode()
+        // returns early; calling here (synchronously inside 'load') is reliable.
+        this._applyBoundaryMode();
+
         // Emit data-loaded event
         this._emit('data-loaded', { summary, taxaOptions });
 
