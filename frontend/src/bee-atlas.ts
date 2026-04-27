@@ -170,8 +170,6 @@ bee-filter-panel {
             @map-click-region=${this._onRegionClick}
             @map-click-empty=${this._onMapClickEmpty}
             @data-loaded=${this._onDataLoaded}
-            @county-options-loaded=${this._onCountyOptionsLoaded}
-            @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
             @data-error=${this._onDataError}
             @boundary-mode-changed=${this._onBoundaryModeChanged}
           ></bee-map>
@@ -415,6 +413,29 @@ bee-filter-panel {
     } catch (err) {
       console.error('Failed to load collector options:', err);
       // leave _collectorOptions unchanged
+    }
+  }
+
+  private async _loadCountyEcoregionOptions(): Promise<void> {
+    try {
+      await tablesReady;
+      const { sqlite3, db } = await getDB();
+
+      const counties: string[] = [];
+      await sqlite3.exec(db,
+        `SELECT DISTINCT county FROM occurrences WHERE county IS NOT NULL ORDER BY county`,
+        (rowValues: unknown[]) => { counties.push(String(rowValues[0])); }
+      );
+      this._countyOptions = counties;
+
+      const ecoregions: string[] = [];
+      await sqlite3.exec(db,
+        `SELECT DISTINCT ecoregion_l3 FROM occurrences WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`,
+        (rowValues: unknown[]) => { ecoregions.push(String(rowValues[0])); }
+      );
+      this._ecoregionOptions = ecoregions;
+    } catch (err) {
+      console.error('Failed to load county/ecoregion options:', err);
     }
   }
 
@@ -753,6 +774,9 @@ bee-filter-panel {
     this._taxaOptions = e.detail.taxaOptions;
     this._loading = false;
     this._loadCollectorOptions();
+    // Load county and ecoregion options from SQLite
+    // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
+    this._loadCountyEcoregionOptions();
 
     // If filter was restored from URL, run the filter query now that data is loaded.
     // Guard against the case where firstUpdated already started a query that has resolved.
