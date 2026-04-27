@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.0
-milestone_name: "Mapbox GL JS Migration"
-status: in-progress
-last_updated: "2026-04-27T00:22:00Z"
-last_activity: 2026-04-27 — Completed 071-03-PLAN.md (bee-atlas.ts wiring, test mocks, visual verification)
+milestone_name: Mapbox GL JS Migration
+status: planning
+last_updated: "2026-04-27T02:00:00.000Z"
+last_activity: 2026-04-27 — Phase 72 planned (2 plans in 2 waves)
 progress:
-  total_phases: 3
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 100
+  total_phases: 8
+  completed_phases: 6
+  total_plans: 18
+  completed_plans: 16
+  percent: 89
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
 ## Current Position
 
-Phase: 71 — Base Map and Occurrence Layer
-Plan: 03 complete (phase complete)
-Status: Phase 71 Complete — Ready for Phase 72
-Last activity: 2026-04-27 — Plan 071-03 complete (bee-atlas.ts wiring, test mocks, visual verification approved)
+Phase: 72 — Boundaries and Interaction
+Plan: 0/2
+Status: Ready to execute
+Last activity: 2026-04-27 — Phase 72 planned (2 plans in 2 waves)
 
 ```
 Progress: [████████████████████] 100% (3/3 plans)
