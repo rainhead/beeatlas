@@ -13,36 +13,49 @@ vi.mock('../sqlite.ts', () => ({
 }));
 
 vi.mock('../features.ts', () => ({
-  OccurrenceSource: vi.fn().mockImplementation(() => ({
-    once: vi.fn(),
-    on: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    un: vi.fn(),
+  loadOccurrenceGeoJSON: vi.fn(() => Promise.resolve({
+    geojson: { type: 'FeatureCollection', features: [] },
+    summary: {
+      totalSpecimens: 0,
+      speciesCount: 0,
+      genusCount: 0,
+      familyCount: 0,
+      earliestYear: 0,
+      latestYear: 0,
+    },
+    taxaOptions: [],
   })),
 }));
 
 vi.mock('../region-layer.ts', () => ({
-  regionLayer: {
-    setVisible: vi.fn(),
-    setSource: vi.fn(),
-    setStyle: vi.fn(),
-    changed: vi.fn(),
-    getFeatures: vi.fn(() => Promise.resolve([])),
-  },
-  countySource: {
-    once: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    loadFeatures: vi.fn(),
-  },
-  ecoregionSource: {
-    once: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    loadFeatures: vi.fn(),
-  },
+  loadBoundaries: vi.fn(),
   makeRegionStyleFn: vi.fn(() => vi.fn()),
-  boundaryStyle: {},
-  selectedBoundaryStyle: {},
 }));
+
+vi.mock('mapbox-gl', () => {
+  const MapMock = vi.fn().mockImplementation(() => ({
+    on: vi.fn(),
+    remove: vi.fn(),
+    getCenter: vi.fn(() => ({ lng: -120.5, lat: 47.5 })),
+    getZoom: vi.fn(() => 7),
+    addSource: vi.fn(),
+    addLayer: vi.fn(),
+    getSource: vi.fn(() => ({ setData: vi.fn() })),
+    setFilter: vi.fn(),
+    isStyleLoaded: vi.fn(() => true),
+    jumpTo: vi.fn(),
+    flyTo: vi.fn(),
+    resize: vi.fn(),
+  }));
+  return {
+    default: {
+      accessToken: '',
+      Map: MapMock,
+    },
+  };
+});
+
+vi.mock('mapbox-gl/dist/mapbox-gl.css?raw', () => ({ default: '' }));
 
 describe('ARCH-01: bee-atlas registration', () => {
   test('bee-atlas is a registered custom element', async () => {

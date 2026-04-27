@@ -885,14 +885,6 @@ bee-filter-panel {
     }
   }
 
-  private _onCountyOptionsLoaded(e: CustomEvent<{ options: string[] }>) {
-    this._countyOptions = e.detail.options;
-  }
-
-  private _onEcoregionOptionsLoaded(e: CustomEvent<{ options: string[] }>) {
-    this._ecoregionOptions = e.detail.options;
-  }
-
   private _onDataError(e: CustomEvent<{ message: string }>) {
     this._error = e.detail.message;
     this._loading = false;
