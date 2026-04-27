@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: Mapbox GL JS Migration
-status: planning
-last_updated: "2026-04-27T03:35:00.000Z"
-last_activity: 2026-04-27 — Phase 73 planned (2 plans, 2 waves)
+status: complete
+last_updated: "2026-04-27T03:30:00.000Z"
+last_activity: 2026-04-27 — Phase 73 complete (2/2 plans, 8/8 must-haves verified)
 progress:
   total_phases: 8
-  completed_phases: 6
-  total_plans: 18
-  completed_plans: 18
+  completed_phases: 8
+  total_plans: 20
+  completed_plans: 20
   percent: 100
 ---
 
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v2.9 complete — next milestone: v3.0 Plants Tab (Phases 71–72)
+**Current focus:** v3.0 Mapbox GL JS Migration complete — next milestone: v3.1 Plants Tab (Phases 74–75)
 
 ## Current Position
 
 Phase: 73 — OL Removal and Verification
-Plan: 0/2
-Status: Ready to execute
-Last activity: 2026-04-27 — Phase 73 planned (2 plans, 2 waves)
+Plan: 2/2
+Status: Complete (verified 8/8 must-haves)
+Last activity: 2026-04-27 — Phase 73 complete, v3.0 milestone shipped
 
 ```
 Progress: [████████████████████] 100% (2/2 plans)
