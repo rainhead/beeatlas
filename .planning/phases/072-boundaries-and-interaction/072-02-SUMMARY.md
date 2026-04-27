@@ -75,13 +75,25 @@ Updated `frontend/src/tests/bee-atlas.test.ts` (+85 lines):
   - Verifies bee-map.ts does NOT emit county-options-loaded or ecoregion-options-loaded
   - Verifies bee-atlas.ts loads options from SQLite DISTINCT queries
 
-### Task 2: Visual verification (CHECKPOINT -- awaiting human review)
+### Task 2: Visual verification (CHECKPOINT -- approved)
 
-Status: Blocked on human verification.
+**Commits:** `127b50e`, `36a84c4`
+
+Human verification completed. All boundary and interaction behaviors confirmed working:
+- County/ecoregion boundaries render, toggle, and highlight correctly
+- Cluster click opens sidebar with occurrence list (no zoom per D-01)
+- Single point click opens occurrence detail
+- Region click selects boundary in filter
+- Empty click clears selection/sidebar
+- County/ecoregion dropdown options loaded from SQLite (D-02)
+
+**Bug found and fixed during verification:** Boundary layers disappeared on page reload because layers were created with hardcoded `visibility: 'none'`. Fix: compute initial visibility from `boundaryMode` at layer creation time, avoiding race condition with `isStyleLoaded()`.
+
+**Noted for later:** Brief reflow on first cluster click (also occurs in production, pre-existing).
 
 ## Deviations from Plan
 
-None -- plan executed exactly as written.
+Boundary visibility bug required two additional fix commits during visual verification.
 
 ## Verification
 
