@@ -24,6 +24,7 @@
   "dependencies": {
     "hyparquet": "^1.25.6",
     "lit": "^3.2.1",
+    "mapbox-gl": "^3.22.0",
     "ol": "^10.7.0",
     "ol-mapbox-style": "^13.2.0",
     "wa-sqlite": "^1.0.0"
