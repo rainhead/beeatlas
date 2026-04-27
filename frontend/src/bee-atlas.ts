@@ -776,9 +776,10 @@ bee-filter-panel {
     // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
     this._loadCountyEcoregionOptions();
 
-    // If filter was restored from URL, run the filter query now that data is loaded.
-    // Guard against the case where firstUpdated already started a query that has resolved.
-    if (isFilterActive(this._filterState) && this._visibleIds === null) {
+    // If filter was restored from URL, (re-)run the filter query now that data is loaded.
+    // The generation counter in _runFilterQuery discards stale results, so this is safe
+    // even if firstUpdated already started a query.
+    if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
     }
 
