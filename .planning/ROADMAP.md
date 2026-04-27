@@ -300,7 +300,7 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 **Milestone Goal:** Replace OpenLayers with Mapbox GL JS v3 to cut ~400 KB from the main bundle, gain WebGL rendering for 250K+ points, and unlock 3D terrain and geocoding for future use.
 
 - [x] Phase 71: Base Map and Occurrence Layer (3/3 plans) — completed 2026-04-27
-- [ ] Phase 72: Boundaries and Interaction
+- [x] Phase 72: Boundaries and Interaction (2/2 plans) — completed 2026-04-27
 - [ ] Phase 73: OL Removal and Verification
 
 ## 🔲 v3.1 Plants Tab (Phases 74–75)
