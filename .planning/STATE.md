@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.8
-milestone_name: "Liveness: Provisional Specimen Records"
-status: completed
-last_updated: "2026-04-21T23:18:01.649Z"
-last_activity: 2026-04-22 — Completed quick task 260422-sc1: Fix specimen count mismatch between map filter panel and table view
+milestone: v3.0
+milestone_name: "Mapbox GL JS Migration"
+status: in-progress
+last_updated: "2026-04-27T00:11:08Z"
+last_activity: 2026-04-26 — Completed 071-01-PLAN.md (Foundation: install Mapbox GL JS, env config, rewrite style.ts/features.ts/region-layer.ts)
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -24,12 +24,13 @@ See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
 ## Current Position
 
-Phase: 70 — Map Overlay Sidebar
-Status: Complete
-Last activity: 2026-04-21 — Phase 70 complete; v2.9 milestone shipped
+Phase: 71 — Base Map and Occurrence Layer
+Plan: 01 complete, 02 next
+Status: In Progress
+Last activity: 2026-04-26 — Plan 071-01 complete (Foundation: Mapbox GL JS, env config, module rewrites)
 
 ```
-Progress: [████████████████████] 100% (3/3 phases)
+Progress: [██████░░░░░░░░░░░░░░] 33% (1/3 plans)
 ```
 
 ## Accumulated Context
@@ -40,6 +41,8 @@ Progress: [████████████████████] 100% (3
 - Renamed CollectorEntry.observer to host_inat_login to match parquet column name; collector SQL filter updated to host_inat_login IN
 - bee-filter-panel placed inside .content alongside bee-map (not inside bee-map shadow DOM) to preserve pure presenter invariant; right: calc(0.5em + 6rem) clears Regions button
 - bee-sidebar :host position: absolute follows identical pattern to bee-filter-panel; portrait media query resets to position: static so sidebar re-enters flex flow on portrait screens
+- features.ts outputs [lon, lat] WGS84 coordinates (not projected EPSG:3857) for Mapbox GL JS which expects WGS84 natively
+- region-layer.ts stubs export only loadBoundaries and makeRegionStyleFn; removed exports cause expected bee-map.ts errors until Plan 02
 
 ### Pending Todos
 

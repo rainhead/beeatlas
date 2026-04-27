@@ -425,7 +425,7 @@ Plans:
 | 68. Filter Panel Redesign | v2.9 | 3/3 | Complete | 2026-04-20 |
 | 69. Table Drawer | v2.9 | 2/2 | Complete | 2026-04-20 |
 | 70. Map Overlay Sidebar | v2.9 | 1/1 | Complete | 2026-04-21 |
-| 71. Base Map and Occurrence Layer | v3.0 | 0/3 | Planned | — |
+| 71. Base Map and Occurrence Layer | v3.0 | 1/3 | In Progress | — |
 | 72. Boundaries and Interaction | v3.0 | 0/0 | Planned | — |
 | 73. OL Removal and Verification | v3.0 | 0/0 | Planned | — |
 
@@ -494,7 +494,7 @@ Plans:
   8. The Mapbox access token is configured without hardcoding in source (env var or config)
 **Plans**: 3 plans
 Plans:
-- [ ] 071-01-PLAN.md — Foundation: install Mapbox GL JS, env config, rewrite style.ts/features.ts/region-layer.ts
+- [x] 071-01-PLAN.md — Foundation: install Mapbox GL JS, env config, rewrite style.ts/features.ts/region-layer.ts
 - [ ] 071-02-PLAN.md — Rewrite bee-map.ts with Mapbox GL JS (clustered source, recency layers, filtering, selection)
 - [ ] 071-03-PLAN.md — Wire bee-atlas.ts, update test mocks, visual verification
 
