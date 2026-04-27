@@ -22,8 +22,8 @@
 - ✅ **v2.7 Unified Occurrence Model** — Phases 62–65 (shipped 2026-04-17)
 - ✅ **v2.8 Liveness: Provisional Specimen Records** — Phases 66–67 (shipped 2026-04-20)
 - ✅ **v2.9 UI Flow Redesign** — Phases 68–70 (shipped 2026-04-21)
-- 🔲 **v3.0 Plants Tab** — Phases 71–72
-- 🔲 **v3.1 Data Quality Flags** — Phase 73
+- ✅ **v3.0 Mapbox GL JS Migration** — Phases 71–73 (shipped 2026-04-27)
+- 🔲 **v3.1 Plants Tab** — Phases 74–75
 
 ## Phases
 
@@ -295,13 +295,13 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 - [x] Phase 69: Table Drawer — table slides up over map rather than replacing it; spatial context preserved
 - [x] Phase 70: Map Overlay Sidebar — detail panel overlays map instead of shifting it
 
-## 🔲 v3.0 Mapbox GL JS Migration (Phases 71–73)
+## ✅ v3.0 Mapbox GL JS Migration (Phases 71–73) — SHIPPED 2026-04-27
 
 **Milestone Goal:** Replace OpenLayers with Mapbox GL JS v3 to cut ~400 KB from the main bundle, gain WebGL rendering for 250K+ points, and unlock 3D terrain and geocoding for future use.
 
 - [x] Phase 71: Base Map and Occurrence Layer (3/3 plans) — completed 2026-04-27
 - [x] Phase 72: Boundaries and Interaction (2/2 plans) — completed 2026-04-27
-- [ ] Phase 73: OL Removal and Verification
+- [x] Phase 73: OL Removal and Verification (2/2 plans) — completed 2026-04-27
 
 ## 🔲 v3.1 Plants Tab (Phases 74–75)
 
@@ -427,7 +427,7 @@ Plans:
 | 70. Map Overlay Sidebar | v2.9 | 1/1 | Complete | 2026-04-21 |
 | 71. Base Map and Occurrence Layer | v3.0 | 3/3 | Complete | 2026-04-27 |
 | 72. Boundaries and Interaction | v3.0 | 2/2 | Complete | 2026-04-27 |
-| 73. OL Removal and Verification | v3.0 | 0/2 | Planned | — |
+| 73. OL Removal and Verification | v3.0 | 2/2 | Complete | 2026-04-27 |
 
 ## Phase Details
 
