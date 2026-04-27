@@ -13,36 +13,54 @@ vi.mock('../sqlite.ts', () => ({
 }));
 
 vi.mock('../features.ts', () => ({
-  OccurrenceSource: vi.fn().mockImplementation(() => ({
-    once: vi.fn(),
-    on: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    un: vi.fn(),
+  loadOccurrenceGeoJSON: vi.fn(() => Promise.resolve({
+    geojson: { type: 'FeatureCollection', features: [] },
+    summary: {
+      totalSpecimens: 0,
+      speciesCount: 0,
+      genusCount: 0,
+      familyCount: 0,
+      earliestYear: 0,
+      latestYear: 0,
+    },
+    taxaOptions: [],
   })),
 }));
 
-vi.mock('../region-layer.ts', () => ({
-  regionLayer: {
-    setVisible: vi.fn(),
-    setSource: vi.fn(),
-    setStyle: vi.fn(),
-    changed: vi.fn(),
-    getFeatures: vi.fn(() => Promise.resolve([])),
-  },
-  countySource: {
-    once: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    loadFeatures: vi.fn(),
-  },
-  ecoregionSource: {
-    once: vi.fn(),
-    getFeatures: vi.fn(() => []),
-    loadFeatures: vi.fn(),
-  },
-  makeRegionStyleFn: vi.fn(() => vi.fn()),
-  boundaryStyle: {},
-  selectedBoundaryStyle: {},
-}));
+vi.mock('mapbox-gl', () => {
+  const MapMock = vi.fn().mockImplementation(() => ({
+    on: vi.fn(),
+    remove: vi.fn(),
+    getCenter: vi.fn(() => ({ lng: -120.5, lat: 47.5 })),
+    getZoom: vi.fn(() => 7),
+    addSource: vi.fn(),
+    addLayer: vi.fn(),
+    getSource: vi.fn(() => ({
+      setData: vi.fn(),
+      getClusterLeaves: vi.fn((_clusterId: number, _limit: number, _offset: number, cb: Function) => {
+        cb(null, []);
+      }),
+    })),
+    setFilter: vi.fn(),
+    isStyleLoaded: vi.fn(() => true),
+    jumpTo: vi.fn(),
+    flyTo: vi.fn(),
+    resize: vi.fn(),
+    // Phase 72 additions:
+    addInteraction: vi.fn(),
+    setLayoutProperty: vi.fn(),
+    setFeatureState: vi.fn(),
+    removeFeatureState: vi.fn(),
+  }));
+  return {
+    default: {
+      accessToken: '',
+      Map: MapMock,
+    },
+  };
+});
+
+vi.mock('mapbox-gl/dist/mapbox-gl.css?raw', () => ({ default: '' }));
 
 describe('ARCH-01: bee-atlas registration', () => {
   test('bee-atlas is a registered custom element', async () => {
@@ -157,5 +175,79 @@ describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
 
   test('bee-atlas.ts _onPopState restores _viewMode from URL', () => {
     expect(src).toMatch(/this\._viewMode\s*=\s*parsed\.ui\?\.viewMode\s*\?\?\s*'map'/);
+  });
+});
+
+describe('BOUNDARY-01: bee-map boundary layer declarations', () => {
+  test('bee-map.ts contains addSource calls for counties and ecoregions with generateId', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/addSource\s*\(\s*['"]counties['"]/);
+    expect(src).toMatch(/addSource\s*\(\s*['"]ecoregions['"]/);
+    expect(src).toMatch(/generateId\s*:\s*true/);
+  });
+
+  test('bee-map.ts contains fill and line layers for both boundary types', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/['"]county-fill['"]/);
+    expect(src).toMatch(/['"]county-line['"]/);
+    expect(src).toMatch(/['"]ecoregion-fill['"]/);
+    expect(src).toMatch(/['"]ecoregion-line['"]/);
+  });
+
+  test('bee-map.ts uses feature-state for boundary selection highlighting', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/setFeatureState/);
+    expect(src).toMatch(/removeFeatureState/);
+    expect(src).toMatch(/feature-state.*selected/);
+  });
+});
+
+describe('CLICK-01: bee-map click interaction chain', () => {
+  test('bee-map.ts registers addInteraction for cluster, point, county, and ecoregion layers', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-cluster['"]/);
+    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-point['"]/);
+    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-county['"]/);
+    expect(src).toMatch(/addInteraction\s*\(\s*['"]click-ecoregion['"]/);
+  });
+
+  test('bee-map.ts cluster click handler uses getClusterLeaves (D-01: no zoom)', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/getClusterLeaves/);
+    // D-01: must NOT zoom to expand clusters
+    expect(src).not.toMatch(/getClusterExpansionZoom/);
+  });
+
+  test('bee-map.ts emits map-click-occurrence for both cluster and single point clicks', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    // Both handlers emit the same event name
+    const occurrenceEmitCount = (src.match(/map-click-occurrence/g) ?? []).length;
+    expect(occurrenceEmitCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test('bee-map.ts emits map-click-region with name and shiftKey', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/map-click-region/);
+    expect(src).toMatch(/shiftKey/);
+  });
+
+  test('bee-map.ts emits map-click-empty as fallback', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).toMatch(/map-click-empty/);
+  });
+});
+
+describe('D-02: county/ecoregion options from SQLite not boundary events', () => {
+  test('bee-map.ts does NOT emit county-options-loaded or ecoregion-options-loaded', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    expect(src).not.toMatch(/county-options-loaded/);
+    expect(src).not.toMatch(/ecoregion-options-loaded/);
+  });
+
+  test('bee-atlas.ts loads county/ecoregion options from SQLite', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(src).toMatch(/_loadCountyEcoregionOptions/);
+    expect(src).toMatch(/SELECT DISTINCT county FROM occurrences/);
+    expect(src).toMatch(/SELECT DISTINCT ecoregion_l3 FROM occurrences/);
   });
 });
