@@ -427,7 +427,7 @@ Plans:
 | 70. Map Overlay Sidebar | v2.9 | 1/1 | Complete | 2026-04-21 |
 | 71. Base Map and Occurrence Layer | v3.0 | 3/3 | Complete | 2026-04-27 |
 | 72. Boundaries and Interaction | v3.0 | 2/2 | Complete | 2026-04-27 |
-| 73. OL Removal and Verification | v3.0 | 0/0 | Planned | — |
+| 73. OL Removal and Verification | v3.0 | 0/2 | Planned | — |
 
 ## Phase Details
 
@@ -527,3 +527,7 @@ Plans:
   4. All existing Vitest tests pass (updated for Mapbox where needed)
   5. URL sharing (view state, filter state, selection state) works end-to-end
   6. Table view row-pan still centers the map on the clicked occurrence
+**Plans**: 2 plans
+Plans:
+- [ ] 073-01-PLAN.md — Remove OL packages, delete region-layer.ts stub, clean stale test mocks
+- [ ] 073-02-PLAN.md — Bundle size verification and end-to-end feature parity checkpoint
