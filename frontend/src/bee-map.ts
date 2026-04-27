@@ -1,111 +1,22 @@
-import { css, html, LitElement, unsafeCSS, type PropertyValues } from "lit";
-import olCssText from 'ol/ol.css?raw';
-import { customElement, property, query, state } from "lit/decorators.js";
-import { View } from "ol";
-import OpenLayersMap from "ol/Map.js";
-import { fromLonLat, toLonLat } from "ol/proj.js";
-import { OccurrenceSource } from "./features.ts";
-import VectorLayer from "ol/layer/Vector.js";
-import LayerGroup from "ol/layer/Group.js";
-import Cluster from "ol/source/Cluster.js";
-import { makeClusterStyleFn } from "./style.ts";
-import TileLayer from "ol/layer/Tile.js";
-import StadiaMaps from "ol/source/StadiaMaps.js";
-import Feature from "ol/Feature.js";
-import Point from 'ol/geom/Point.js';
-import type MapBrowserEvent from "ol/MapBrowserEvent.js";
-import { type FilterState, OCCURRENCE_COLUMNS, type OccurrenceRow } from './filter.ts';
-import { regionLayer, countySource, ecoregionSource, makeRegionStyleFn } from './region-layer.ts';
-import type { DataSummary, TaxonOption, FilteredSummary } from './bee-sidebar.ts';
-
-const sphericalMercator = 'EPSG:3857';
+import { css, html, LitElement, unsafeCSS, type PropertyValues } from 'lit';
+import { customElement, property, query, state } from 'lit/decorators.js';
+import mapboxgl from 'mapbox-gl';
+import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
+import { loadOccurrenceGeoJSON, type OccurrenceProperties } from './features.ts';
+import { RECENCY_COLORS } from './style.ts';
+import { type FilterState } from './filter.ts';
+import type { FeatureCollection, Point } from 'geojson';
+import type { DataSummary, FilteredSummary } from './bee-sidebar.ts';
 
 // Default Washington State view
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
 
-
-function computeSummary(features: Feature[]): DataSummary {
-  const species = new Set<string>();
-  const genera = new Set<string>();
-  const families = new Set<string>();
-  let min = Infinity, max = -Infinity;
-  for (const f of features) {
-    const s = f.get('scientificName') as string;
-    const g = f.get('genus') as string;
-    const fam = f.get('family') as string;
-    if (s) species.add(s);
-    if (g) genera.add(g);
-    if (fam) families.add(fam);
-    const y = f.get('year') as number;
-    if (y < min) min = y;
-    if (y > max) max = y;
-  }
-  return {
-    totalSpecimens: features.length,
-    speciesCount: species.size,
-    genusCount: genera.size,
-    familyCount: families.size,
-    earliestYear: min === Infinity ? 0 : min,
-    latestYear: max === -Infinity ? 0 : max,
-  };
-}
-
-function buildTaxaOptions(features: Feature[]): TaxonOption[] {
-  const families = new Set<string>();
-  const genera = new Set<string>();
-  const species = new Set<string>();
-  for (const f of features) {
-    const fam = f.get('family') as string | null;
-    const gen = f.get('genus') as string | null;
-    const sp  = f.get('scientificName') as string | null;
-    if (fam) families.add(fam);
-    if (gen) genera.add(gen);
-    if (sp) species.add(sp);
-  }
-  return [
-    ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
-    ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
-    ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
-  ];
-}
-
-function clusterCentroid(features: Feature[]): { lon: number; lat: number } {
-  let sumLon = 0, sumLat = 0;
-  for (const f of features) {
-    const [lon, lat] = toLonLat((f.getGeometry() as Point).getCoordinates());
-    sumLon += lon!;
-    sumLat += lat!;
-  }
-  return { lon: sumLon / features.length, lat: sumLat / features.length };
-}
-
-function haversineMetres(lon1: number, lat1: number, lon2: number, lat2: number): number {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function maxRadiusMetres(features: Feature[], centroid: { lon: number; lat: number }): number {
-  let max = 0;
-  for (const f of features) {
-    const [lon, lat] = toLonLat((f.getGeometry() as Point).getCoordinates());
-    const d = haversineMetres(centroid.lon, centroid.lat, lon!, lat!);
-    if (d > max) max = d;
-  }
-  return max;
-}
-
 @customElement('bee-map')
 export class BeeMap extends LitElement {
   @query('#map')
   mapElement!: HTMLDivElement;
-
-  map?: OpenLayersMap;
 
   // --- @property inputs from bee-atlas ---
   @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
@@ -130,15 +41,19 @@ export class BeeMap extends LitElement {
 
   @state() private _regionMenuOpen = false;
 
-  // Instance OL sources/layers (moved from module-level per Phase 34-02 decision)
-  private occurrenceSource!: OccurrenceSource;
-  private clusterSource!: Cluster;
-  private occurrenceLayer!: VectorLayer;
-  // speicmenLayer typo is intentionally deferred — do not fix incidentally
-  // @ts-ignore -- intentionally unused until specimen layer is implemented
-  private speicmenLayer: VectorLayer | undefined;
+  // Mapbox GL JS map instance
+  private _map: mapboxgl.Map | null = null;
 
-  static _olCss = unsafeCSS(olCssText);
+  // Full unfiltered GeoJSON for setData-based filtering
+  private _fullGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
+
+  // speicmenLayer typo is intentionally deferred -- do not fix incidentally
+  // @ts-ignore -- intentionally unused until specimen layer is implemented
+  private speicmenLayer: unknown;
+
+  private _resizeObserver: ResizeObserver | null = null;
+
+  static _mapboxCss = unsafeCSS(mapboxCssText);
 
   static styles = css`
 :host {
@@ -205,7 +120,7 @@ export class BeeMap extends LitElement {
       : this.boundaryMode === 'counties' ? 'Counties'
       : 'Ecoregions';
     return html`
-      <style>${BeeMap._olCss}</style>
+      <style>${BeeMap._mapboxCss}</style>
       <div id="map"></div>
       <div class="region-control">
         ${this._regionMenuOpen ? html`
@@ -235,8 +150,10 @@ export class BeeMap extends LitElement {
   };
 
   disconnectedCallback() {
-    super.disconnectedCallback();
+    this._map?.remove();
+    this._resizeObserver?.disconnect();
     document.removeEventListener('click', this._onDocumentClick);
+    super.disconnectedCallback();
   }
 
   private _toggleRegionMenu() {
@@ -252,58 +169,261 @@ export class BeeMap extends LitElement {
   updated(changedProperties: PropertyValues) {
     super.updated(changedProperties);
 
-    // Repaint OL when visible ID set changes
+    // visibleIds changed: rebuild GeoJSON via setData
     if (changedProperties.has('visibleIds')) {
-      this.clusterSource?.changed();
-      this.map?.render();
-      // Compute and emit filtered summary
-      this._emitFilteredSummary();
+      this._applyVisibleIds();
     }
 
-    // Repaint clusters when selection changes (for highlight ring)
+    // selectedOccIds changed: update selection ring filter
     if (changedProperties.has('selectedOccIds')) {
-      this.clusterSource?.changed();
-      this.map?.render();
-    }
-
-    // Boundary mode and filter state changes (both affect region layer styling)
-    if (changedProperties.has('boundaryMode') || changedProperties.has('filterState')) {
-      if (this.boundaryMode === 'off') {
-        regionLayer.setVisible(false);
-      } else if (this.boundaryMode === 'counties') {
-        regionLayer.setSource(countySource);
-        regionLayer.setVisible(true);
-      } else {
-        regionLayer.setSource(ecoregionSource);
-        regionLayer.setVisible(true);
-      }
-      regionLayer.changed();
+      this._applySelection();
     }
 
     // View state restore (from popstate)
-    if (changedProperties.has('viewState') && this.viewState && this.map) {
-      this.map.getView().setCenter(fromLonLat([this.viewState.lon, this.viewState.lat]));
-      this.map.getView().setZoom(this.viewState.zoom);
+    if (changedProperties.has('viewState') && this.viewState && this._map) {
+      this._map.jumpTo({
+        center: [this.viewState.lon, this.viewState.lat],
+        zoom: this.viewState.zoom,
+      });
     }
 
-    // Pan-to animation (from sample-event-click)
-    if (changedProperties.has('panTo') && this.panTo && this.map) {
-      this.map.getView().animate({
-        center: this.panTo.coordinate,
+    // Pan-to animation (from table row click)
+    if (changedProperties.has('panTo') && this.panTo && this._map) {
+      this._map.flyTo({
+        center: this.panTo.coordinate as [number, number],
         zoom: this.panTo.zoom,
         duration: 300,
       });
     }
   }
 
-  private _emitFilteredSummary() {
-    if (this.visibleIds !== null && this.occurrenceSource) {
-      const allFeatures = this.occurrenceSource.getFeatures().filter(
-        f => String(f.getId()).startsWith('ecdysis:')
+  public firstUpdated(_changedProperties: PropertyValues): void {
+    // Set Mapbox access token from Vite env
+    (mapboxgl as unknown as { accessToken: string }).accessToken = import.meta.env.VITE_MAPBOX_TOKEN ?? '';
+
+    // Create Mapbox GL JS map
+    this._map = new mapboxgl.Map({
+      container: this.mapElement,
+      style: 'mapbox://styles/mapbox/outdoors-v12',
+      center: [this.viewState?.lon ?? DEFAULT_LON, this.viewState?.lat ?? DEFAULT_LAT],
+      zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
+      attributionControl: true,
+    });
+
+    // All source/layer setup must happen after the style loads
+    this._map.on('load', async () => {
+      try {
+        const { geojson, summary, taxaOptions } = await loadOccurrenceGeoJSON();
+        this._fullGeoJSON = geojson;
+
+        // Add clustered GeoJSON source for occurrences
+        this._map!.addSource('occurrences', {
+          type: 'geojson',
+          data: geojson,
+          cluster: true,
+          clusterRadius: 20,
+          clusterMinPoints: 2,
+          clusterMaxZoom: 14,
+          clusterProperties: {
+            freshCount:    ['+', ['case', ['==', ['get', 'recencyTier'], 'fresh'], 1, 0]],
+            thisYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'thisYear'], 1, 0]],
+            olderCount:    ['+', ['case', ['==', ['get', 'recencyTier'], 'older'], 1, 0]],
+          },
+        });
+
+        // Add unclustered ghost source for filtered-out features
+        this._map!.addSource('occurrences-ghost', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+        });
+
+        // --- Layers in render order ---
+
+        // Ghost points: low-opacity gray dots for filtered-out features
+        this._map!.addLayer({
+          id: 'ghost-points',
+          type: 'circle',
+          source: 'occurrences-ghost',
+          paint: {
+            'circle-color': '#aaaaaa',
+            'circle-opacity': 0.2,
+            'circle-radius': 4,
+            'circle-stroke-width': 0,
+          },
+        });
+
+        // Clusters: recency-colored circles
+        this._map!.addLayer({
+          id: 'clusters',
+          type: 'circle',
+          source: 'occurrences',
+          filter: ['has', 'point_count'],
+          paint: {
+            'circle-color': [
+              'case',
+              ['>', ['get', 'freshCount'], 0], RECENCY_COLORS.fresh,
+              ['>', ['get', 'thisYearCount'], 0], RECENCY_COLORS.thisYear,
+              RECENCY_COLORS.older,
+            ],
+            'circle-radius': [
+              'step', ['get', 'point_count'],
+              14,
+              10, 16,
+              50, 20,
+              200, 26,
+            ],
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff',
+          },
+        });
+
+        // Cluster count labels
+        this._map!.addLayer({
+          id: 'cluster-count',
+          type: 'symbol',
+          source: 'occurrences',
+          filter: ['has', 'point_count'],
+          layout: {
+            'text-field': ['to-string', ['get', 'point_count']],
+            'text-size': 11,
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+          },
+          paint: {
+            'text-color': '#ffffff',
+          },
+        });
+
+        // Unclustered individual points
+        this._map!.addLayer({
+          id: 'unclustered-point',
+          type: 'circle',
+          source: 'occurrences',
+          filter: ['!', ['has', 'point_count']],
+          paint: {
+            'circle-color': [
+              'match', ['get', 'recencyTier'],
+              'fresh', RECENCY_COLORS.fresh,
+              'thisYear', RECENCY_COLORS.thisYear,
+              RECENCY_COLORS.older,
+            ],
+            'circle-radius': 6,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff',
+          },
+        });
+
+        // Selection ring: yellow ring around selected unclustered features
+        this._map!.addLayer({
+          id: 'selected-ring',
+          type: 'circle',
+          source: 'occurrences',
+          filter: [
+            'all',
+            ['!', ['has', 'point_count']],
+            ['in', ['get', 'occId'], ['literal', []]],
+          ],
+          paint: {
+            'circle-radius': 10,
+            'circle-color': 'transparent',
+            'circle-stroke-width': 2.5,
+            'circle-stroke-color': '#f1c40f',
+          },
+        });
+
+        // Emit data-loaded event
+        this._emit('data-loaded', { summary, taxaOptions });
+
+        // Apply initial visibleIds if set before load completed
+        if (this.visibleIds !== null) {
+          this._applyVisibleIds();
+        }
+
+        // Apply initial selection if set before load completed
+        if (this.selectedOccIds !== null) {
+          this._applySelection();
+        }
+      } catch (err) {
+        console.error('Failed to load occurrence data:', err);
+        this._emit('data-error', { message: err instanceof Error ? err.message : String(err) });
+      }
+    });
+
+    // moveend: emit view-moved event (outside load callback -- fires for all moves)
+    this._map.on('moveend', () => {
+      const center = this._map!.getCenter();
+      const zoom = this._map!.getZoom();
+      this._emit('view-moved', { lon: center.lng, lat: center.lat, zoom });
+    });
+
+    // Click handler: Phase 71 -- all clicks emit map-click-empty
+    // Occurrence and region click handling deferred to Phase 72
+    this._map.on('click', () => {
+      this._emit('map-click-empty');
+    });
+
+    // Close region menu when clicking outside this component
+    document.addEventListener('click', this._onDocumentClick);
+
+    // ResizeObserver to handle container dimension changes (e.g., table-mode toggle)
+    this._resizeObserver = new ResizeObserver(() => this._map?.resize());
+    this._resizeObserver.observe(this.mapElement);
+  }
+
+  // --- Private helpers ---
+
+  private _applyVisibleIds() {
+    if (!this._map?.isStyleLoaded() || !this._fullGeoJSON) return;
+
+    const occSource = this._map.getSource('occurrences') as mapboxgl.GeoJSONSource | undefined;
+    const ghostSource = this._map.getSource('occurrences-ghost') as mapboxgl.GeoJSONSource | undefined;
+    if (!occSource || !ghostSource) return;
+
+    if (this.visibleIds !== null) {
+      const visibleFeatures = this._fullGeoJSON.features.filter(
+        f => this.visibleIds!.has(f.properties.occId)
       );
-      const matching = allFeatures.filter(f => this.visibleIds!.has(f.getId() as string));
-      const fSummary = computeSummary(matching);
-      const totalSummary = allFeatures.length > 0 ? computeSummary(allFeatures) : null;
+      const ghostFeatures = this._fullGeoJSON.features.filter(
+        f => !this.visibleIds!.has(f.properties.occId)
+      );
+      occSource.setData({ type: 'FeatureCollection', features: visibleFeatures });
+      ghostSource.setData({ type: 'FeatureCollection', features: ghostFeatures });
+    } else {
+      // No filter active -- restore full data and clear ghost
+      occSource.setData(this._fullGeoJSON);
+      ghostSource.setData({ type: 'FeatureCollection', features: [] });
+    }
+
+    this._emitFilteredSummary();
+  }
+
+  private _applySelection() {
+    if (!this._map?.isStyleLoaded()) return;
+
+    if (this.selectedOccIds !== null && this.selectedOccIds.size > 0) {
+      this._map.setFilter('selected-ring', [
+        'all',
+        ['!', ['has', 'point_count']],
+        ['in', ['get', 'occId'], ['literal', [...this.selectedOccIds]]],
+      ]);
+    } else {
+      this._map.setFilter('selected-ring', [
+        'all',
+        ['!', ['has', 'point_count']],
+        ['in', ['get', 'occId'], ['literal', []]],
+      ]);
+    }
+  }
+
+  private _emitFilteredSummary() {
+    if (this.visibleIds !== null && this._fullGeoJSON) {
+      const allSpecimen = this._fullGeoJSON.features.filter(
+        f => f.properties.occId.startsWith('ecdysis:')
+      );
+      const matching = allSpecimen.filter(
+        f => this.visibleIds!.has(f.properties.occId)
+      );
+      const fSummary = this._computeSummary(matching);
+      const totalSummary = allSpecimen.length > 0 ? this._computeSummary(allSpecimen) : null;
       this._emit<{ filteredSummary: FilteredSummary | null }>('filtered-summary-computed', {
         filteredSummary: totalSummary ? {
           filteredSpecimens: fSummary.totalSpecimens,
@@ -319,143 +439,31 @@ export class BeeMap extends LitElement {
     }
   }
 
-  public firstUpdated(_changedProperties: PropertyValues): void {
-    // Create instance-level OL sources and layers using factory style functions
-    this.occurrenceSource = new OccurrenceSource({
-      onError: (err) => this._emit('data-error', { message: err.message }),
-    });
-    this.clusterSource = new Cluster({
-      distance: 20,    // D-02: tighter clusters (was 40)
-      minDistance: 5,
-      source: this.occurrenceSource,
-    });
-    this.occurrenceLayer = new VectorLayer({
-      source: this.clusterSource,
-      style: makeClusterStyleFn(() => this.visibleIds, () => this.selectedOccIds),
-    });
-
-    // Create OL map
-    this.map = new OpenLayersMap({
-      layers: [
-        new TileLayer({
-          source: new StadiaMaps({
-            layer: 'outdoors',
-            retina: true,
-          }),
-        }),
-        new LayerGroup(),
-        this.occurrenceLayer,
-        regionLayer,   // added last — renders boundary strokes above data dots
-      ],
-      target: this.mapElement,
-      view: new View({
-        center: fromLonLat([this.viewState?.lon ?? DEFAULT_LON, this.viewState?.lat ?? DEFAULT_LAT]),
-        projection: sphericalMercator,
-        zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
-      }),
-    });
-
-    // Set dynamic style function so selected polygons are highlighted
-    regionLayer.setStyle(makeRegionStyleFn(
-      () => this.boundaryMode,
-      () => this.filterState,
-    ));
-
-    // Apply initial boundary mode
-    if (this.boundaryMode !== 'off') {
-      regionLayer.setSource(this.boundaryMode === 'counties' ? countySource : ecoregionSource);
-      regionLayer.setVisible(true);
+  private _computeSummary(features: FeatureCollection<Point, OccurrenceProperties>['features']): DataSummary {
+    const species = new Set<string>();
+    const genera = new Set<string>();
+    const families = new Set<string>();
+    let min = Infinity, max = -Infinity;
+    for (const f of features) {
+      const s = f.properties.scientificName as string | undefined;
+      const g = f.properties.genus as string | undefined;
+      const fam = f.properties.family as string | undefined;
+      if (s) species.add(s);
+      if (g) genera.add(g);
+      if (fam) families.add(fam);
+      const y = f.properties.year as number | undefined;
+      if (y != null) {
+        if (y < min) min = y;
+        if (y > max) max = y;
+      }
     }
-
-    // occurrenceSource: emit data-loaded when features arrive (consolidated event)
-    this.occurrenceSource.once('change', () => {
-      const features = this.occurrenceSource.getFeatures();
-      if (features.length === 0) return;
-      const specimenFeatures = features.filter(f => String(f.getId()).startsWith('ecdysis:'));
-      this._emit('data-loaded', {
-        summary: computeSummary(specimenFeatures),
-        taxaOptions: buildTaxaOptions(specimenFeatures),
-      });
-    });
-
-    // County/ecoregion options — emit when sources load
-    countySource.once('change', () => {
-      this._emit('county-options-loaded', {
-        options: [...new Set(countySource.getFeatures().map(f => f.get('NAME') as string))].sort(),
-      });
-    });
-    ecoregionSource.once('change', () => {
-      this._emit('ecoregion-options-loaded', {
-        options: [...new Set(ecoregionSource.getFeatures().map(f => f.get('NA_L3NAME') as string))].sort(),
-      });
-    });
-
-    // Close region menu when clicking outside this component
-    document.addEventListener('click', this._onDocumentClick);
-
-    // moveend: emit view-moved event
-    this.map.on('moveend', () => {
-      const center = toLonLat(this.map!.getView().getCenter()!);
-      const zoom = this.map!.getView().getZoom()!;
-      this._emit('view-moved', { lon: center[0]!, lat: center[1]!, zoom });
-    });
-
-    // click handler: unified for all occurrences
-    this.map.on('click', async (event: MapBrowserEvent) => {
-      if (event.dragging) return;
-
-      const hits = await this.occurrenceLayer.getFeatures(event.pixel);
-      if (hits.length) {
-        const inner: Feature[] = (hits[0].get('features') as Feature[]) ?? [hits[0] as unknown as Feature];
-        const toShow = this.visibleIds !== null
-          ? inner.filter(f => this.visibleIds!.has(f.getId() as string))
-          : inner;
-        if (toShow.length === 0) return;
-
-        const occIds = toShow.map(f => f.getId() as string);
-
-        const occurrences: OccurrenceRow[] = toShow.map(f => {
-          const obj: Record<string, unknown> = {};
-          for (const col of OCCURRENCE_COLUMNS) obj[col] = f.get(col);
-          return obj as unknown as OccurrenceRow;
-        });
-
-        if (toShow.length === 1) {
-          // Single feature click — D-05: emit ID directly
-          this._emit('map-click-occurrence', {
-            occurrences,
-            occIds,
-          });
-        } else {
-          // Multi-feature cluster click — D-06: compute centroid + radiusM
-          const centroid = clusterCentroid(toShow);
-          const radiusM = maxRadiusMetres(toShow, centroid);
-          this._emit('map-click-occurrence', {
-            occurrences,
-            occIds,
-            centroid,
-            radiusM,
-          });
-        }
-        return;
-      }
-
-      // No occurrence hit — check boundary overlay if active
-      if (this.boundaryMode !== 'off') {
-        const polyHits = await regionLayer.getFeatures(event.pixel);
-        if (polyHits.length) {
-          const feature = polyHits[0]! as Feature;
-          const isCounty = this.boundaryMode === 'counties';
-          this._emit('map-click-region', {
-            name: isCounty ? (feature.get('NAME') as string) : (feature.get('NA_L3NAME') as string),
-            shiftKey: (event.originalEvent as MouseEvent).shiftKey,
-          });
-          return;
-        }
-        this._emit('map-click-empty');
-        return;
-      }
-      this._emit('map-click-empty');
-    });
+    return {
+      totalSpecimens: features.length,
+      speciesCount: species.size,
+      genusCount: genera.size,
+      familyCount: families.size,
+      earliestYear: min === Infinity ? 0 : min,
+      latestYear: max === -Infinity ? 0 : max,
+    };
   }
 }
