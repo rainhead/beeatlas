@@ -426,7 +426,7 @@ Plans:
 | 69. Table Drawer | v2.9 | 2/2 | Complete | 2026-04-20 |
 | 70. Map Overlay Sidebar | v2.9 | 1/1 | Complete | 2026-04-21 |
 | 71. Base Map and Occurrence Layer | v3.0 | 3/3 | Complete | 2026-04-27 |
-| 72. Boundaries and Interaction | v3.0 | 0/0 | Planned | — |
+| 72. Boundaries and Interaction | v3.0 | 0/2 | Planned | — |
 | 73. OL Removal and Verification | v3.0 | 0/0 | Planned | — |
 
 ## Phase Details
@@ -506,16 +506,15 @@ Plans:
   1. County and ecoregion GeoJSON render as Mapbox fill+line layers with the same styling (transparent fill, gray stroke)
   2. Boundary toggle (off/counties/ecoregions) works identically to OL version
   3. Selected boundaries highlight with blue fill/stroke via Mapbox feature-state
-  4. Clicking a cluster zooms in to expand it
+  4. Clicking a cluster queries all leaves and emits map-click-occurrence with the full array (does NOT zoom — per D-01)
   5. Clicking a single occurrence emits `map-click-occurrence` with the same payload shape
   6. Clicking a region polygon emits `map-click-region` with the region name
   7. Clicking empty map emits `map-click-empty`
-  8. The `data-loaded`, `county-options-loaded`, `ecoregion-options-loaded` events fire with correct data
-**Plans**: 3 plans
+  8. `data-loaded` fires with correct data; county/ecoregion options loaded from SQLite in bee-atlas (per D-02, NOT from boundary events)
+**Plans**: 2 plans
 Plans:
-- [ ] 071-01-PLAN.md — Foundation: install Mapbox GL JS, env config, rewrite style.ts/features.ts/region-layer.ts
-- [ ] 071-02-PLAN.md — Rewrite bee-map.ts with Mapbox GL JS (clustered source, recency layers, filtering, selection)
-- [ ] 071-03-PLAN.md — Wire bee-atlas.ts, update test mocks, visual verification
+- [ ] 072-01-PLAN.md — Boundary sources/layers, click interaction chain, feature-state highlighting
+- [ ] 072-02-PLAN.md — Test mock updates, boundary/interaction tests, visual verification
 
 ### Phase 73: OL Removal and Verification
 **Goal**: Remove all OpenLayers dependencies, verify bundle size reduction and full feature parity
