@@ -27,11 +27,6 @@ vi.mock('../features.ts', () => ({
   })),
 }));
 
-vi.mock('../region-layer.ts', () => ({
-  loadBoundaries: vi.fn(),
-  makeRegionStyleFn: vi.fn(() => vi.fn()),
-}));
-
 vi.mock('mapbox-gl', () => {
   const MapMock = vi.fn().mockImplementation(() => ({
     on: vi.fn(),
