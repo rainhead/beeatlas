@@ -552,7 +552,7 @@ export class BeeMap extends LitElement {
   // --- Private helpers ---
 
   private _applyVisibleIds() {
-    if (!this._map?.isStyleLoaded() || !this._fullGeoJSON) return;
+    if (!this._map || !this._fullGeoJSON) return;
 
     const occSource = this._map.getSource('occurrences') as mapboxgl.GeoJSONSource | undefined;
     const ghostSource = this._map.getSource('occurrences-ghost') as mapboxgl.GeoJSONSource | undefined;
