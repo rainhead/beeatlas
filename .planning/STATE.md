@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.0
 milestone_name: "Mapbox GL JS Migration"
 status: in-progress
-last_updated: "2026-04-27T00:17:48Z"
-last_activity: 2026-04-27 — Completed 071-02-PLAN.md (bee-map.ts rewrite: OpenLayers to Mapbox GL JS v3)
+last_updated: "2026-04-27T00:22:00Z"
+last_activity: 2026-04-27 — Completed 071-03-PLAN.md (bee-atlas.ts wiring, test mocks, visual verification)
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 ## Current Position
 
 Phase: 71 — Base Map and Occurrence Layer
-Plan: 02 complete, 03 next
-Status: In Progress
-Last activity: 2026-04-27 — Plan 071-02 complete (bee-map.ts rewrite: OL to Mapbox GL JS v3)
+Plan: 03 complete (phase complete)
+Status: Phase 71 Complete — Ready for Phase 72
+Last activity: 2026-04-27 — Plan 071-03 complete (bee-atlas.ts wiring, test mocks, visual verification approved)
 
 ```
-Progress: [█████████████░░░░░░░] 67% (2/3 plans)
+Progress: [████████████████████] 100% (3/3 plans)
 ```
 
 ## Accumulated Context
@@ -45,6 +45,7 @@ Progress: [█████████████░░░░░░░] 67% (2/
 - region-layer.ts stubs export only loadBoundaries and makeRegionStyleFn; removed exports cause expected bee-map.ts errors until Plan 02
 - Filter-based selection highlighting (setFilter on selected-ring layer) chosen over feature-state to avoid promoteId conflicts with cluster IDs
 - TypeScript accessToken cast required: verbatimModuleSyntax + nodenext resolves mapbox-gl default import to module namespace type; runtime property exists but TS cannot see it
+- County/ecoregion filter options loaded from SQLite DISTINCT queries in bee-atlas._loadCountyEcoregionOptions, decoupled from map source events
 
 ### Pending Todos
 
