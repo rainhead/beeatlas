@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.8
-milestone_name: "Liveness: Provisional Specimen Records"
-status: completed
-last_updated: "2026-04-21T23:18:01.649Z"
-last_activity: 2026-04-22 — Completed quick task 260422-sc1: Fix specimen count mismatch between map filter panel and table view
+milestone: v3.0
+milestone_name: Mapbox GL JS Migration
+status: complete
+last_updated: "2026-04-27T03:30:00.000Z"
+last_activity: 2026-04-27 — Phase 73 complete (2/2 plans, 8/8 must-haves verified)
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 13
+  total_phases: 8
+  completed_phases: 8
+  total_plans: 20
+  completed_plans: 20
   percent: 100
 ---
 
@@ -20,16 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-17 — v2.7 milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v2.9 complete — next milestone: v3.0 Plants Tab (Phases 71–72)
+**Current focus:** v3.0 Mapbox GL JS Migration complete — next milestone: v3.1 Plants Tab (Phases 74–75)
 
 ## Current Position
 
-Phase: 70 — Map Overlay Sidebar
-Status: Complete
-Last activity: 2026-04-21 — Phase 70 complete; v2.9 milestone shipped
+Phase: 73 — OL Removal and Verification
+Plan: 2/2
+Status: Complete (verified 8/8 must-haves)
+Last activity: 2026-04-27 — Phase 73 complete, v3.0 milestone shipped
 
 ```
-Progress: [████████████████████] 100% (3/3 phases)
+Progress: [████████████████████] 100% (2/2 plans)
 ```
 
 ## Accumulated Context
@@ -40,6 +41,12 @@ Progress: [████████████████████] 100% (3
 - Renamed CollectorEntry.observer to host_inat_login to match parquet column name; collector SQL filter updated to host_inat_login IN
 - bee-filter-panel placed inside .content alongside bee-map (not inside bee-map shadow DOM) to preserve pure presenter invariant; right: calc(0.5em + 6rem) clears Regions button
 - bee-sidebar :host position: absolute follows identical pattern to bee-filter-panel; portrait media query resets to position: static so sidebar re-enters flex flow on portrait screens
+- features.ts outputs [lon, lat] WGS84 coordinates (not projected EPSG:3857) for Mapbox GL JS which expects WGS84 natively
+- region-layer.ts stubs export only loadBoundaries and makeRegionStyleFn; removed exports cause expected bee-map.ts errors until Plan 02
+- Filter-based selection highlighting (setFilter on selected-ring layer) chosen over feature-state to avoid promoteId conflicts with cluster IDs
+- TypeScript accessToken cast required: verbatimModuleSyntax + nodenext resolves mapbox-gl default import to module namespace type; runtime property exists but TS cannot see it
+- County/ecoregion filter options loaded from SQLite DISTINCT queries in bee-atlas._loadCountyEcoregionOptions, decoupled from map source events
+- Boundary layers render BELOW occurrence layers so dots remain clickable and visually prominent; _clickConsumed flag pattern guards empty-click fallback
 
 ### Pending Todos
 

@@ -1,48 +1,102 @@
+import type { FeatureCollection, Point, Feature } from 'geojson';
 import { getDB, tablesReady } from './sqlite.ts';
-import { Feature } from "ol";
-import Point from "ol/geom/Point.js";
-import { fromLonLat } from "ol/proj.js";
-import { Vector as VectorSource } from 'ol/source.js';
-import { all } from 'ol/loadingstrategy.js';
-import type { Extent } from "ol/extent.js";
-import type { Projection } from "ol/proj.js";
+import { recencyTier } from './style.ts';
 
-export class OccurrenceSource extends VectorSource {
-  constructor({ onError }: { onError?: (err: Error) => void } = {}) {
-    const load = async (_extent: Extent, _resolution: number, _projection: Projection, success: any, failure: any) => {
-      try {
-        await tablesReady;
-        const { sqlite3, db } = await getDB();
-        const rows: Record<string, unknown>[] = [];
-        await sqlite3.exec(db, `SELECT * FROM occurrences`, (rowValues: unknown[], columnNames: string[]) => {
-          const obj: Record<string, unknown> = {};
-          columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
-          rows.push(obj);
-        });
-        const features = rows.flatMap(obj => {
-          if (obj.lat == null || obj.lon == null) return [];
-          const feature = new Feature();
-          feature.setGeometry(new Point(fromLonLat([Number(obj.lon), Number(obj.lat)])));
-          if (obj.ecdysis_id != null) {
-            feature.setId('ecdysis:' + obj.ecdysis_id);
-          } else {
-            feature.setId('inat:' + Number(obj.observation_id));
-          }
-          const props: Record<string, unknown> = {};
-          for (const col of Object.keys(obj)) {
-            props[col] = obj[col] ?? null;
-          }
-          feature.setProperties(props);
-          return feature;
-        });
-        console.debug(`Adding ${features.length} occurrence features from SQLite`);
-        this.addFeatures(features);
-        if (success) success(features);
-      } catch (err: unknown) {
-        if (onError) onError(err instanceof Error ? err : new Error(String(err)));
-        failure();
-      }
-    };
-    super({ loader: load, strategy: all });
-  }
+export interface OccurrenceProperties {
+  occId: string;
+  recencyTier: 'fresh' | 'thisYear' | 'older';
+  [key: string]: unknown;
+}
+
+export interface DataSummary {
+  totalSpecimens: number;
+  speciesCount: number;
+  genusCount: number;
+  familyCount: number;
+  earliestYear: number;
+  latestYear: number;
+}
+
+export interface TaxonOption {
+  label: string;
+  name: string;
+  rank: 'family' | 'genus' | 'species';
+}
+
+export async function loadOccurrenceGeoJSON(): Promise<{
+  geojson: FeatureCollection<Point, OccurrenceProperties>;
+  summary: DataSummary;
+  taxaOptions: TaxonOption[];
+}> {
+  await tablesReady;
+  const { sqlite3, db } = await getDB();
+  const features: Feature<Point, OccurrenceProperties>[] = [];
+
+  const species = new Set<string>();
+  const genera = new Set<string>();
+  const families = new Set<string>();
+  let minYear = Infinity, maxYear = -Infinity;
+
+  await sqlite3.exec(db, `SELECT * FROM occurrences`, (rowValues: unknown[], columnNames: string[]) => {
+    const obj: Record<string, unknown> = {};
+    columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
+
+    if (obj.lat == null || obj.lon == null) return;
+
+    const occId = obj.ecdysis_id != null
+      ? 'ecdysis:' + obj.ecdysis_id
+      : 'inat:' + Number(obj.observation_id);
+
+    const year = Number(obj.year);
+    const month = Number(obj.month);
+    const tier = recencyTier(year, month);
+
+    // Build summary stats (specimens only)
+    if (obj.ecdysis_id != null) {
+      const s = obj.scientificName as string;
+      const g = obj.genus as string;
+      const fam = obj.family as string;
+      if (s) species.add(s);
+      if (g) genera.add(g);
+      if (fam) families.add(fam);
+      if (year < minYear) minYear = year;
+      if (year > maxYear) maxYear = year;
+    }
+
+    features.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [Number(obj.lon), Number(obj.lat)],
+      },
+      properties: {
+        occId,
+        recencyTier: tier,
+        ...obj,
+      },
+    });
+  });
+
+  const summary: DataSummary = {
+    totalSpecimens: features.filter(f => f.properties.occId.startsWith('ecdysis:')).length,
+    speciesCount: species.size,
+    genusCount: genera.size,
+    familyCount: families.size,
+    earliestYear: minYear === Infinity ? 0 : minYear,
+    latestYear: maxYear === -Infinity ? 0 : maxYear,
+  };
+
+  const taxaOptions: TaxonOption[] = [
+    ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
+    ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
+    ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
+  ];
+
+  console.debug(`Built GeoJSON with ${features.length} occurrence features from SQLite`);
+
+  return {
+    geojson: { type: 'FeatureCollection', features },
+    summary,
+    taxaOptions,
+  };
 }

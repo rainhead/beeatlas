@@ -3,7 +3,6 @@ import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
-import { loadBoundaries } from './region-layer.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
 import './bee-filter-panel.ts';
@@ -170,8 +169,6 @@ bee-filter-panel {
             @map-click-region=${this._onRegionClick}
             @map-click-empty=${this._onMapClickEmpty}
             @data-loaded=${this._onDataLoaded}
-            @county-options-loaded=${this._onCountyOptionsLoaded}
-            @ecoregion-options-loaded=${this._onEcoregionOptionsLoaded}
             @data-error=${this._onDataError}
             @boundary-mode-changed=${this._onBoundaryModeChanged}
           ></bee-map>
@@ -277,12 +274,11 @@ bee-filter-panel {
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
-    // Initialize SQLite, then load boundary GeoJSON (deferred to avoid
-    // competing with the parquet file for bandwidth on the critical path).
+    // Initialize SQLite (deferred to avoid competing with the parquet file
+    // for bandwidth on the critical path).
     loadOccurrencesTable(DATA_BASE_URL)
       .then(() => {
         console.debug('SQLite tables ready');
-        loadBoundaries();
         if (this._viewMode === 'table') {
           this._loadSummaryFromSQLite();
           this._runTableQuery();
@@ -415,6 +411,29 @@ bee-filter-panel {
     } catch (err) {
       console.error('Failed to load collector options:', err);
       // leave _collectorOptions unchanged
+    }
+  }
+
+  private async _loadCountyEcoregionOptions(): Promise<void> {
+    try {
+      await tablesReady;
+      const { sqlite3, db } = await getDB();
+
+      const counties: string[] = [];
+      await sqlite3.exec(db,
+        `SELECT DISTINCT county FROM occurrences WHERE county IS NOT NULL ORDER BY county`,
+        (rowValues: unknown[]) => { counties.push(String(rowValues[0])); }
+      );
+      this._countyOptions = counties;
+
+      const ecoregions: string[] = [];
+      await sqlite3.exec(db,
+        `SELECT DISTINCT ecoregion_l3 FROM occurrences WHERE ecoregion_l3 IS NOT NULL ORDER BY ecoregion_l3`,
+        (rowValues: unknown[]) => { ecoregions.push(String(rowValues[0])); }
+      );
+      this._ecoregionOptions = ecoregions;
+    } catch (err) {
+      console.error('Failed to load county/ecoregion options:', err);
     }
   }
 
@@ -753,10 +772,14 @@ bee-filter-panel {
     this._taxaOptions = e.detail.taxaOptions;
     this._loading = false;
     this._loadCollectorOptions();
+    // Load county and ecoregion options from SQLite
+    // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
+    this._loadCountyEcoregionOptions();
 
-    // If filter was restored from URL, run the filter query now that data is loaded.
-    // Guard against the case where firstUpdated already started a query that has resolved.
-    if (isFilterActive(this._filterState) && this._visibleIds === null) {
+    // If filter was restored from URL, (re-)run the filter query now that data is loaded.
+    // The generation counter in _runFilterQuery discards stale results, so this is safe
+    // even if firstUpdated already started a query.
+    if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
     }
 
@@ -859,14 +882,6 @@ bee-filter-panel {
     } catch (err) {
       console.error('Failed to restore cluster selection from URL:', err);
     }
-  }
-
-  private _onCountyOptionsLoaded(e: CustomEvent<{ options: string[] }>) {
-    this._countyOptions = e.detail.options;
-  }
-
-  private _onEcoregionOptionsLoaded(e: CustomEvent<{ options: string[] }>) {
-    this._ecoregionOptions = e.detail.options;
   }
 
   private _onDataError(e: CustomEvent<{ message: string }>) {
