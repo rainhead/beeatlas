@@ -283,13 +283,18 @@ export class BeeMap extends LitElement {
         });
 
         // --- Layers in render order ---
+        // Compute initial visibility from URL-restored boundaryMode so layers
+        // are correct from creation — avoids relying on a later setLayoutProperty
+        // call that may be blocked by isStyleLoaded() returning false.
+        const countyVis = this.boundaryMode === 'counties' ? 'visible' as const : 'none' as const;
+        const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' as const : 'none' as const;
 
         // Ecoregion fill (click target + selection highlight)
         this._map!.addLayer({
           id: 'ecoregion-fill',
           type: 'fill',
           source: 'ecoregions',
-          layout: { visibility: 'none' },
+          layout: { visibility: ecoVis },
           paint: {
             'fill-color': [
               'case',
@@ -305,7 +310,7 @@ export class BeeMap extends LitElement {
           id: 'ecoregion-line',
           type: 'line',
           source: 'ecoregions',
-          layout: { visibility: 'none' },
+          layout: { visibility: ecoVis },
           paint: {
             'line-color': [
               'case',
@@ -327,7 +332,7 @@ export class BeeMap extends LitElement {
           id: 'county-fill',
           type: 'fill',
           source: 'counties',
-          layout: { visibility: 'none' },
+          layout: { visibility: countyVis },
           paint: {
             'fill-color': [
               'case',
@@ -343,7 +348,7 @@ export class BeeMap extends LitElement {
           id: 'county-line',
           type: 'line',
           source: 'counties',
-          layout: { visibility: 'none' },
+          layout: { visibility: countyVis },
           paint: {
             'line-color': [
               'case',
@@ -450,11 +455,6 @@ export class BeeMap extends LitElement {
             'circle-stroke-color': '#f1c40f',
           },
         });
-
-        // Apply URL-restored boundary visibility now that layers exist.
-        // updated() fires before the style loads so its _applyBoundaryMode()
-        // returns early; calling here (synchronously inside 'load') is reliable.
-        this._applyBoundaryMode();
 
         // Emit data-loaded event
         this._emit('data-loaded', { summary, taxaOptions });
