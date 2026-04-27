@@ -426,7 +426,7 @@ Plans:
 | 69. Table Drawer | v2.9 | 2/2 | Complete | 2026-04-20 |
 | 70. Map Overlay Sidebar | v2.9 | 1/1 | Complete | 2026-04-21 |
 | 71. Base Map and Occurrence Layer | v3.0 | 3/3 | Complete | 2026-04-27 |
-| 72. Boundaries and Interaction | v3.0 | 1/2 | In Progress | — |
+| 72. Boundaries and Interaction | v3.0 | 2/2 | Complete | 2026-04-27 |
 | 73. OL Removal and Verification | v3.0 | 0/0 | Planned | — |
 
 ## Phase Details
@@ -514,7 +514,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 072-01-PLAN.md — Boundary sources/layers, click interaction chain, feature-state highlighting
-- [ ] 072-02-PLAN.md — Test mock updates, boundary/interaction tests, visual verification
+- [x] 072-02-PLAN.md — Test mock updates, boundary/interaction tests, visual verification
 
 ### Phase 73: OL Removal and Verification
 **Goal**: Remove all OpenLayers dependencies, verify bundle size reduction and full feature parity
