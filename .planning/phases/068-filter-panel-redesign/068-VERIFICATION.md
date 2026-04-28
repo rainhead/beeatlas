@@ -1,19 +1,21 @@
 ---
 phase: 068-filter-panel-redesign
 verified: 2026-04-20T22:00:00Z
-status: human_needed
+human_verified: 2026-04-28T00:00:00Z
+status: verified
 score: 8/8 must-haves verified
 overrides_applied: 0
-human_verification:
+human_verification_results:
   - test: "Visual layout — filter button placement and panel behavior"
-    expected: "Magnifying-glass button floats over map at top-right, to the LEFT of the Regions button; panel expands below on click; four section headers visible; filter input works; active state turns button green; panel collapses on second click"
-    why_human: "Absolute positioning with calc(0.5em + 6rem) offset relative to Regions button cannot be verified by static code inspection; browser rendering required"
+    result: pass
+    confirmed: 2026-04-28
   - test: "Table view — CSV download location"
-    expected: "In table view, no Download CSV control appears in the filter panel area; CSV button is only in the table view's own controls"
-    why_human: "Conditional rendering based on _viewMode; requires switching between map and table views in a browser"
+    result: pass
+    note: "In table view, the filter panel button moves to the bottom bar of the table area — confirmed as desired behavior"
+    confirmed: 2026-04-28
   - test: "Filter state propagation end-to-end"
-    expected: "Selecting a suggestion in the filter panel's bee-filter-controls causes the occurrence count to reflect the filtered result and the map dots to update"
-    why_human: "Requires the full app with loaded SQLite data; bubbles+composed event propagation through shadow DOM cannot be verified statically"
+    result: pass
+    confirmed: 2026-04-28
 ---
 
 # Phase 068: Filter Panel Redesign Verification Report
