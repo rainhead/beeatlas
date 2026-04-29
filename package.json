@@ -1,5 +1,6 @@
 {
   "name": "beeatlas",
+  "private": true,
   "version": "0.0.0",
   "description": "",
   "homepage": "https://github.com/rainhead/beeatlas#readme",
@@ -12,18 +13,31 @@
   },
   "license": "ISC",
   "author": "",
-  "type": "commonjs",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
+    "dev": "eleventy --serve",
     "build:data": "cd data && uv run python run.py",
-    "build": "npm run build --workspace=frontend",
     "validate-schema": "node scripts/validate-schema.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run validate-schema && npm run typecheck && eleventy",
+    "preview": "vite preview --outDir _site",
     "fetch-data": "bash scripts/fetch-data.sh"
   },
-  "workspaces": [
-    "frontend"
-  ],
   "devDependencies": {
-    "hyparquet": "^1.25.3"
+    "@11ty/eleventy": "^3.1.5",
+    "@11ty/eleventy-plugin-vite": "^7.1.1",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^22.13.14",
+    "happy-dom": "^20.8.9",
+    "hyparquet": "^1.25.6",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.3",
+    "vitest": "^4.1.2"
+  },
+  "dependencies": {
+    "lit": "^3.2.1",
+    "mapbox-gl": "^3.22.0",
+    "wa-sqlite": "^1.0.0"
   }
 }
