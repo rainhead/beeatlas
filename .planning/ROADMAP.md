@@ -23,7 +23,7 @@
 - ✅ **v2.8 Liveness: Provisional Specimen Records** — Phases 66–67 (shipped 2026-04-20)
 - ✅ **v2.9 UI Flow Redesign** — Phases 68–70 (shipped 2026-04-21)
 - ✅ **v3.0 Mapbox GL JS Migration** — Phases 71–73 (shipped 2026-04-27)
-- 🔲 **v3.1 Plants Tab** — Phases 74–75
+- 🔲 **v3.1 Eleventy Build Wrapper** — Phases 74–75
 
 ## Phases
 
@@ -306,12 +306,37 @@ See `.planning/milestones/v3.0-ROADMAP.md` for full phase details.
 
 </details>
 
-## 🔲 v3.1 Plants Tab (Phases 74–75)
+## 🔲 v3.1 Eleventy Build Wrapper (Phases 74–75)
 
-**Milestone Goal:** A Plants tab showing plant species present in Washington with per-species × H3/ecoregion × month sampling coverage — how many plant observations exist and how many times bee visitors have been sampled.
+**Milestone Goal:** Rehouse the existing Vite SPA inside an Eleventy build pipeline without changing URLs or runtime behavior. Establish the static-site-generator foundation needed for content pages (Species tab, welcome page) in v3.2 and beyond.
 
-- [ ] Phase 74: Plants Pipeline
-- [ ] Phase 75: Plants Frontend View
+**Out of scope (deferred to v3.2 Species Tab):**
+- Moving the SPA to `/collection`
+- Welcome/about page at `/`
+- Lit SSR decision for new Eleventy pages
+- Any new content pages
+
+**Pattern reference:** `~/dev/pnwmoths` ships an analogous Eleventy + Vite static site (`@11ty/eleventy-plugin-vite`).
+
+- [ ] Phase 74: Eleventy Outer Build Integration
+- [ ] Phase 75: Authoring Scaffold and Verification
+
+### Phase 74: Eleventy Outer Build Integration
+**Goal**: Eleventy wraps the existing Vite SPA build. The SPA continues to serve at `/` with no user-visible changes; npm scripts and the GitHub Actions deploy workflow run Eleventy + Vite in sequence; all 172 Vitest tests pass.
+**Depends on**: —
+**Requirements**: ELEV-01, ELEV-02, ELEV-03, ELEV-04
+**Success Criteria** (what must be TRUE):
+  1. `@11ty/eleventy` and `@11ty/eleventy-plugin-vite` are installed at the project root and configured via `eleventy.config.js`; Eleventy invokes Vite as part of its build pipeline.
+  2. Running the project's top-level build script produces a deploy artifact that, when served at `/`, renders the existing SPA with identical behavior — index.html, hashed JS/CSS bundles, public assets (favicon, parquet/geojson/db data paths), and Mapbox token wiring all work as before.
+  3. All 172 Vitest tests pass against the post-migration tree (`npm test --workspace=frontend` or its replacement) on a clean checkout; the schema-validation gate (`npm run validate-schema`) still runs in CI before build.
+  4. `.github/workflows/deploy.yml` is updated so the build job emits the new artifact location and the deploy job's `aws s3 sync` paths point at the new directory; the `assets/` long-cache rule and the everything-else short-cache rule continue to apply correctly to Eleventy + Vite output.
+  5. The dev workflow (`npm run dev` or its replacement) still starts a local server that serves the SPA with hot-reload; the developer-facing experience documented in `CLAUDE.md` (`cd frontend && npm run dev`) either continues to work or is replaced with a documented one-line equivalent.
+
+**Plans**: 3 plans
+Plans:
+- [ ] 074-01-PLAN.md — Install Eleventy + plugin, hoist frontend/ to repo root, scaffold eleventy.config.js, merge vite.config.ts, rewire root scripts (atomic Layout B move)
+- [ ] 074-02-PLAN.md — Update .github/workflows/deploy.yml: drop --workspace=frontend, shift artifact paths frontend/dist/ → _site/, update aws s3 sync sources
+- [ ] 074-03-PLAN.md — Update CLAUDE.md and .planning/PROJECT.md developer command refs; final smoke + npm run dev UAT + GitHub Actions build-job UAT
 
 ## 🔲 v3.2 Data Quality Flags (Phase 76)
 
