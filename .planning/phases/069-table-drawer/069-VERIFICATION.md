@@ -1,17 +1,18 @@
 ---
 phase: 069-table-drawer
 verified: 2026-04-20T18:10:00Z
-status: passed
+human_verified: 2026-04-28T00:00:00Z
+status: verified
 score: 6/6 must-haves verified
 overrides_applied: 0
 gaps: []
-human_verification:
+human_verification_results:
   - test: "Visual check — map strip visible above drawer in table mode"
-    expected: "Approximately 18% of the content area height shows the map above the bee-table overlay; map tiles are visible and not obscured"
-    why_human: "CSS height:82% on bee-table and flex-grow:1 on bee-map produce the layout, but actual pixel rendering cannot be verified programmatically"
+    result: pass
+    confirmed: 2026-04-28
   - test: "Row click pans map strip in browser"
-    expected: "Clicking a table row with lat/lon causes the visible map strip to visually re-center on that location"
-    why_human: "OL setCenter/setZoom is called via _viewState → bee-map.updated() path, but actual OpenLayers render requires a real browser"
+    result: pass
+    confirmed: 2026-04-28
 ---
 
 # Phase 069: Table Drawer Verification Report
