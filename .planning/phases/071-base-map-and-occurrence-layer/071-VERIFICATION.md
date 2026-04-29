@@ -1,28 +1,31 @@
 ---
 phase: 071-base-map-and-occurrence-layer
 verified: 2026-04-27T00:35:00Z
-status: human_needed
+human_verified: 2026-04-28T00:00:00Z
+status: verified
 score: 8/8
 overrides_applied: 0
-human_verification:
+human_verification_results:
   - test: "Verify basemap renders with Mapbox outdoors-v12 tiles at WA center"
-    expected: "Map shows terrain contours, green vegetation at center [-120.5, 47.5] zoom 7"
-    why_human: "Requires visual confirmation of WebGL rendering in a browser"
+    result: pass
+    confirmed: 2026-04-28
   - test: "Verify clusters display with recency coloring and count labels"
-    expected: "Green=fresh, orange=thisYear, gray=older clusters with white count text"
-    why_human: "Color perception and cluster rendering require visual inspection"
+    result: pass
+    confirmed: 2026-04-28
   - test: "Verify single unclustered points display with recency coloring"
-    expected: "Zoom in to see individual points with the same color scheme at radius 6"
-    why_human: "Requires zooming into the map and visual inspection"
+    result: pass
+    confirmed: 2026-04-28
   - test: "Verify visibleIds filtering with ghost dots"
-    expected: "Activating a filter shows matching dots in color and excluded dots as faint gray"
-    why_human: "Filter interaction and visual feedback require manual testing"
+    result: pass
+    confirmed: 2026-04-28
   - test: "Verify selectedOccIds highlighting with yellow ring"
-    expected: "Selected features display a yellow ring (stroke-width 2.5, color #f1c40f)"
-    why_human: "Selection highlighting requires clicking occurrences (deferred to Phase 72) or URL restore"
+    result: pass
+    confirmed: 2026-04-28
+    fix_applied: "bee-map.ts isStyleLoaded() guard replaced with getLayer/getSource existence checks in _applySelection, _applyBoundaryMode, _applyBoundarySelection"
+    followup: ".planning/todos/pending/cluster-selection-visual-feedback.md (cluster blobs have no selection visual feedback by design)"
   - test: "Verify URL view state round-trip"
-    expected: "Pan/zoom updates URL; pasting URL in new tab restores map position"
-    why_human: "URL state sync requires browser interaction"
+    result: pass
+    confirmed: 2026-04-28
 ---
 
 # Phase 71: Base Map and Occurrence Layer Verification Report

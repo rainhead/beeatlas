@@ -577,7 +577,7 @@ export class BeeMap extends LitElement {
   }
 
   private _applySelection() {
-    if (!this._map?.isStyleLoaded()) return;
+    if (!this._map?.getLayer('selected-ring')) return;
 
     if (this.selectedOccIds !== null && this.selectedOccIds.size > 0) {
       this._map.setFilter('selected-ring', [
@@ -681,7 +681,7 @@ export class BeeMap extends LitElement {
   }
 
   private _applyBoundaryMode() {
-    if (!this._map?.isStyleLoaded()) return;
+    if (!this._map?.getLayer('county-fill')) return;
     const countyVis = this.boundaryMode === 'counties' ? 'visible' : 'none';
     const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' : 'none';
     this._map.setLayoutProperty('county-fill', 'visibility', countyVis);
@@ -691,7 +691,7 @@ export class BeeMap extends LitElement {
   }
 
   private _applyBoundarySelection() {
-    if (!this._map?.isStyleLoaded()) return;
+    if (!this._map?.getSource('counties') || !this._map?.getSource('ecoregions')) return;
 
     // Clear all feature-state on both sources
     this._map.removeFeatureState({ source: 'counties' });
