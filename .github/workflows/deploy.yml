@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    name: Build frontend
+    name: Build site
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -25,18 +25,18 @@ jobs:
         run: npm run validate-schema
 
       - name: Run tests
-        run: npm test --workspace=frontend
+        run: npm test
 
-      - name: Build frontend
-        run: npm run build --workspace=frontend
+      - name: Build site
+        run: npm run build
         env:
           VITE_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: frontend-dist
-          path: frontend/dist/
+          name: site
+          path: _site/
           retention-days: 1
 
   deploy:
@@ -54,8 +54,8 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v8
         with:
-          name: frontend-dist
-          path: frontend/dist/
+          name: site
+          path: _site/
 
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v6
@@ -65,12 +65,12 @@ jobs:
 
       - name: Sync hashed assets (retain old versions for cached index.html)
         run: |
-          aws s3 sync frontend/dist/assets/ s3://${{ vars.S3_BUCKET_NAME }}/assets/ \
+          aws s3 sync _site/assets/ s3://${{ vars.S3_BUCKET_NAME }}/assets/ \
             --cache-control "max-age=31536000, immutable"
 
       - name: Sync everything else
         run: |
-          aws s3 sync frontend/dist/ s3://${{ vars.S3_BUCKET_NAME }} \
+          aws s3 sync _site/ s3://${{ vars.S3_BUCKET_NAME }} \
             --delete \
             --exclude "assets/*" \
             --exclude "cache/*" --exclude "data/*" --exclude "db/*" \
