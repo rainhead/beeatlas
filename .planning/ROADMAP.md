@@ -295,13 +295,16 @@ See `.planning/milestones/v2.7-ROADMAP.md` for full phase details.
 - [x] Phase 69: Table Drawer — table slides up over map rather than replacing it; spatial context preserved
 - [x] Phase 70: Map Overlay Sidebar — detail panel overlays map instead of shifting it
 
-## ✅ v3.0 Mapbox GL JS Migration (Phases 71–73) — SHIPPED 2026-04-27
-
-**Milestone Goal:** Replace OpenLayers with Mapbox GL JS v3 to cut ~400 KB from the main bundle, gain WebGL rendering for 250K+ points, and unlock 3D terrain and geocoding for future use.
+<details>
+<summary>✅ v3.0 Mapbox GL JS Migration (Phases 71–73) — SHIPPED 2026-04-27</summary>
 
 - [x] Phase 71: Base Map and Occurrence Layer (3/3 plans) — completed 2026-04-27
 - [x] Phase 72: Boundaries and Interaction (2/2 plans) — completed 2026-04-27
 - [x] Phase 73: OL Removal and Verification (2/2 plans) — completed 2026-04-27
+
+See `.planning/milestones/v3.0-ROADMAP.md` for full phase details.
+
+</details>
 
 ## 🔲 v3.1 Plants Tab (Phases 74–75)
 
@@ -479,55 +482,4 @@ Plans:
 Plans:
 - [x] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
 
-### Phase 71: Base Map and Occurrence Layer
-**Goal**: Replace OpenLayers map, tile layer, and occurrence clustering with Mapbox GL JS equivalents — basemap renders, occurrences cluster with recency colors, view state syncs with URL
-**Depends on**: Phase 70
-**Requirements**: (platform migration — no formal REQ IDs)
-**Success Criteria** (what must be TRUE):
-  1. Mapbox GL JS v3 renders the basemap with an outdoors-style tileset at the same default center/zoom as OL
-  2. Occurrence data from SQLite loads into a Mapbox GeoJSON source with `cluster: true`
-  3. Clusters display with recency-based coloring (fresh/thisYear/older) matching the current OL style
-  4. Single (unclustered) points display with the same recency coloring and size
-  5. View state (center, zoom) syncs to URL params via the existing `view-moved` event
-  6. `visibleIds` filtering works — only features matching the active filter are rendered
-  7. `selectedOccIds` highlighting works — selected features render with distinct styling
-  8. The Mapbox access token is configured without hardcoding in source (env var or config)
-**Plans**: 3 plans
-Plans:
-- [x] 071-01-PLAN.md — Foundation: install Mapbox GL JS, env config, rewrite style.ts/features.ts/region-layer.ts
-- [x] 071-02-PLAN.md — Rewrite bee-map.ts with Mapbox GL JS (clustered source, recency layers, filtering, selection)
-- [x] 071-03-PLAN.md — Wire bee-atlas.ts, update test mocks, visual verification
-
-### Phase 72: Boundaries and Interaction
-**Goal**: Port region boundary layers and all click interactions (occurrence, cluster, region, empty map) to Mapbox
-**Depends on**: Phase 71
-**Requirements**: (platform migration — no formal REQ IDs)
-**Success Criteria** (what must be TRUE):
-  1. County and ecoregion GeoJSON render as Mapbox fill+line layers with the same styling (transparent fill, gray stroke)
-  2. Boundary toggle (off/counties/ecoregions) works identically to OL version
-  3. Selected boundaries highlight with blue fill/stroke via Mapbox feature-state
-  4. Clicking a cluster queries all leaves and emits map-click-occurrence with the full array (does NOT zoom — per D-01)
-  5. Clicking a single occurrence emits `map-click-occurrence` with the same payload shape
-  6. Clicking a region polygon emits `map-click-region` with the region name
-  7. Clicking empty map emits `map-click-empty`
-  8. `data-loaded` fires with correct data; county/ecoregion options loaded from SQLite in bee-atlas (per D-02, NOT from boundary events)
-**Plans**: 2 plans
-Plans:
-- [x] 072-01-PLAN.md — Boundary sources/layers, click interaction chain, feature-state highlighting
-- [x] 072-02-PLAN.md — Test mock updates, boundary/interaction tests, visual verification
-
-### Phase 73: OL Removal and Verification
-**Goal**: Remove all OpenLayers dependencies, verify bundle size reduction and full feature parity
-**Depends on**: Phase 72
-**Requirements**: (platform migration — no formal REQ IDs)
-**Success Criteria** (what must be TRUE):
-  1. `ol`, `ol-mapbox-style`, `rbush`, `quickselect` are removed from package.json
-  2. No OL imports remain in any source file
-  3. Main JS bundle is under 200 KB minified (down from 528 KB)
-  4. All existing Vitest tests pass (updated for Mapbox where needed)
-  5. URL sharing (view state, filter state, selection state) works end-to-end
-  6. Table view row-pan still centers the map on the clicked occurrence
-**Plans**: 2 plans
-Plans:
-- [ ] 073-01-PLAN.md — Remove OL packages, delete region-layer.ts stub, clean stale test mocks
-- [ ] 073-02-PLAN.md — Bundle size verification and end-to-end feature parity checkpoint
+<!-- Phase 71-73 details archived to .planning/milestones/v3.0-ROADMAP.md -->

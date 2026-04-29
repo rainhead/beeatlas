@@ -1,5 +1,25 @@
 # Milestones
 
+## v3.0 Mapbox GL JS Migration (Shipped: 2026-04-27)
+
+**Phases completed:** 3 phases (Phases 71–73), 7 plans
+**Timeline:** 3 days (2026-04-26 → 2026-04-28)
+**LOC:** +6,301 / −3,565 across 47 files
+**Git range:** `abf6792` → `f44b3ef`
+**PR:** #11 (mapbox-migration → main)
+
+**Key accomplishments:**
+
+- Phase 71: `bee-map.ts` rewritten on Mapbox GL JS v3.22.0 with zero OL imports; clustered GeoJSON source with recency `clusterProperties`; ghost source for filtered-out features; filter-based selection ring; `setData`-based `visibleIds` filtering; ResizeObserver for resize; all 11 events preserved; `bee-atlas` loads county/ecoregion options from SQLite (decoupled from map source events); 162 tests pass
+- Phase 72: County/ecoregion fill+line layers with `feature-state` highlighting via `generateId`; full click chain via Mapbox `addInteraction` + `preventDefault` (cluster→leaves, point, region, empty); `_clickConsumed` flag pattern; D-01 cluster click emits all leaves without auto-zoom; D-02 SQLite-options loading verified by source-analysis tests; 8/8 must-haves verified
+- Phase 73: `ol`, `ol-mapbox-style`, `rbush`, `@types/rbush` removed from `package.json`; `region-layer.ts` and stale `frontend/package-lock.json` deleted; OL-era test mocks cleaned; production build succeeds (2,018 KB main JS — mapbox-gl ~1,700 KB + app ~318 KB); 172 Vitest tests pass on the OL-free dep tree
+- Bug found and fixed in human UAT: `isStyleLoaded()` returns false during async clustered GeoJSON processing in Mapbox v3, blocking URL-restored filters and click selection; replaced with source/layer existence checks across `_applyVisibleIds`, `_applySelection`, `_applyBoundaryMode`, `_applyBoundarySelection`
+- Bundle reality check: `mapbox-gl` v3 contributes ~1,700 KB to the main chunk and is not tree-shakeable; ROADMAP's "<200 KB" target was unrealistic; reframed as "app code excluding mapbox-gl"
+
+**Known deferred items at close:** 2 (cluster blob selection visual feedback; boundary edge gap/overlap — see STATE.md Pending Todos)
+
+---
+
 ## v2.7 Unified Occurrence Model (Shipped: 2026-04-17)
 
 **Phases completed:** 4 phases (Phases 62–65), 8 plans
