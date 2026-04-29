@@ -1,19 +1,21 @@
 ---
 phase: 070-map-overlay-sidebar
 verified: 2026-04-21T18:20:00Z
-status: human_needed
+human_verified: 2026-04-28T00:00:00Z
+status: verified
 score: 5/5 must-haves verified
 overrides_applied: 0
-human_verification:
+human_verification_results:
   - test: "Open sidebar on desktop — map remains full-width"
-    expected: "Clicking a map point opens the sidebar as a right-edge overlay; the map does not shrink or shift horizontally"
-    why_human: "CSS position:absolute removes the element from flex flow, preventing width change — cannot confirm visually without a browser"
+    result: pass
+    note: "Brief reflow on first cluster click is pre-existing (also occurs in production, documented in 072-02-SUMMARY.md). Accepted as known issue."
+    confirmed: 2026-04-28
   - test: "Sidebar header layout — 'Selected specimens' left, close button right"
-    expected: "Header shows 'Selected specimens' on the left and × button on the right with space-between alignment"
-    why_human: "Shadow DOM + justify-content:space-between rendering requires visual inspection in browser"
+    result: pass
+    confirmed: 2026-04-28
   - test: "Portrait orientation reverts to below-map flex layout"
-    expected: "At portrait aspect ratio the sidebar appears below the map at full width with a top border, not as an overlay"
-    why_human: "Media query application depends on actual viewport dimensions; cannot verify without browser resize"
+    result: pass
+    confirmed: 2026-04-28
 ---
 
 # Phase 70: Map Overlay Sidebar Verification Report
