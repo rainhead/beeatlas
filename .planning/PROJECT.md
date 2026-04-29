@@ -1,8 +1,22 @@
 # Washington Bee Atlas
 
-## Current Milestone: v3.1 Plants Tab (Phases 74–75)
+## Current Milestone: v3.1 Eleventy Build Wrapper
 
-**Goal:** A Plants tab showing plant species present in Washington with per-species × H3/ecoregion × month sampling coverage — how many plant observations exist and how many times bee visitors have been sampled.
+**Goal:** Rehouse the existing Vite SPA inside an Eleventy build pipeline without changing URLs or runtime behavior, establishing the static-site-generator foundation needed for content pages in subsequent milestones (Species tab, welcome page).
+
+**Target features:**
+- Eleventy added as the outer build, wrapping the existing Vite SPA build
+- SPA continues to be served at `/` with all 172 Vitest tests passing and identical user-facing behavior
+- Build pipeline (npm scripts, GitHub Actions deploy workflow, CloudFront paths) updated to run Eleventy + Vite in sequence
+- Eleventy authoring scaffold in place (input dir, layout, base template) ready for v3.2 content but with no new content pages added in this milestone
+
+**Out of scope for v3.1 (deferred to v3.2 Species Tab):**
+- Moving the SPA to `/collection`
+- Welcome/about page at `/`
+- Lit SSR decision for new Eleventy pages
+- Any new content pages
+
+**Pattern reference:** `~/dev/pnwmoths` uses Eleventy for an analogous site.
 
 ## What This Is
 
@@ -311,4 +325,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-28 after v3.0 Mapbox GL JS Migration milestone — Phases 71–73 complete; OL fully removed; bee-map rewritten on Mapbox GL JS v3.22.0; 172 Vitest tests passing; main JS chunk 2,018 KB (mapbox-gl ~1,700 KB + app ~318 KB)*
+*Last updated: 2026-04-29 — v3.1 Eleventy Build Wrapper milestone scoped; pure infrastructure (no URL or content changes); Species Tab seed planted at `.planning/seeds/species-tab.md` for v3.2*

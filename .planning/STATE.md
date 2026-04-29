@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.1
-milestone_name: Plants Tab
+milestone_name: Eleventy Build Wrapper
 status: planning
-last_updated: "2026-04-28T18:00:00.000Z"
-last_activity: 2026-04-28 — v3.0 Mapbox GL JS Migration milestone closed and tagged
+last_updated: "2026-04-29T00:00:00.000Z"
+last_activity: 2026-04-29 — v3.1 Eleventy Build Wrapper milestone started
 progress:
   total_phases: 0
   completed_phases: 0
@@ -17,17 +17,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-28 — v3.0 milestone complete)
+See: .planning/PROJECT.md (updated 2026-04-29 — v3.1 Eleventy Build Wrapper scoped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v3.1 Plants Tab (Phases 74–75) — planning not yet started
+**Current focus:** v3.1 Eleventy Build Wrapper — pure infrastructure milestone; rehouse Vite SPA inside Eleventy build pipeline; no URL or content changes
 
 ## Current Position
 
-Phase: (none — between milestones)
+Phase: Not started (defining requirements)
 Plan: —
-Status: v3.0 shipped 2026-04-27; v3.1 not yet planned
-Last activity: 2026-04-28 — v3.0 milestone closed
+Status: Defining requirements
+Last activity: 2026-04-29 — Milestone v3.1 started
 
 ## Accumulated Context
 
