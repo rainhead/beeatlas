@@ -3,7 +3,7 @@
  * Validates that parquet files have the columns the frontend expects.
  *
  * Modes:
- * - Local: if frontend/public/data/occurrences.parquet exists, validate from disk
+ * - Local: if public/data/occurrences.parquet exists, validate from disk
  *   (preserves dev workflow for anyone who runs the pipeline locally)
  * - CloudFront: otherwise, fetch from https://beeatlas.net/data/ using Range
  *   requests (only the parquet footer is fetched, not the full file)
@@ -16,7 +16,7 @@ import { asyncBufferFromFile, asyncBufferFromUrl, parquetMetadataAsync } from 'h
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ASSETS_DIR = new URL('../frontend/public/data/', import.meta.url).pathname;
+const ASSETS_DIR = new URL('../public/data/', import.meta.url).pathname;
 const CLOUDFRONT_BASE = 'https://beeatlas.net/data/';
 
 const EXPECTED = {
