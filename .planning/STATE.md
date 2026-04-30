@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Eleventy Build Wrapper
-status: Phase 75 planned; ready to execute
-last_updated: "2026-04-30T08:35:00.000Z"
-last_activity: 2026-04-30 — Phase 75 planned (2 plans, 2 waves); plan-checker passed with 1 trivial blocker (research marker) and 1 procedural warning (VALIDATION.md), both fixed inline
+status: v3.1 Eleventy Build Wrapper milestone complete; v3.2 (Species Tab) next
+last_updated: "2026-04-30T16:19:31.000Z"
+last_activity: 2026-04-30 — Phase 75 (Authoring Scaffold and Verification) complete; v3.1 milestone shippable; bee-header chrome verified at /_scaffold-check/
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 3
-  percent: 60
+  completed_plans: 5
+  percent: 100
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-04-29 — v3.1 Eleventy Build Wrapper scoped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v3.1 Eleventy Build Wrapper — pure infrastructure milestone; rehouse Vite SPA inside Eleventy build pipeline; no URL or content changes
+**Current focus:** v3.1 Eleventy Build Wrapper milestone complete (Phases 74 + 75 shipped 2026-04-30); next milestone is v3.2 Species Tab — see `.planning/seeds/species-tab.md`
 
 ## Current Position
 
-Phase: 75 of 75 — authoring-scaffold (planned, ready to execute)
-Plan: 075-01-PLAN.md (wave 1), 075-02-PLAN.md (wave 2, depends on 075-01)
-Status: Phase 75 plans created; ready for /gsd-execute-phase 75
-Last activity: 2026-04-30 — Phase 75 planned: research found Vite plugin auto-handles multi-entry via HTML script-tag rewriting (no rollupOptions.input needed); bee-header.ts self-registers via @customElement decorator with no SPA-coupled imports; orphan page at _pages/scaffold-check.njk + permalink override sidesteps Eleventy underscore-prefix ambiguity
+Phase: 75 of 75 — authoring-scaffold (complete; v3.1 ready to merge)
+Plan: 075-02 (this plan, complete)
+Status: v3.1 milestone shippable; merge to main is the next user-facing step
+Last activity: 2026-04-30 — Phase 75 plans 01 + 02 complete; manual UAT approved; phase summary written
 
 ## Accumulated Context
 
