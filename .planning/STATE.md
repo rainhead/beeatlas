@@ -51,3 +51,24 @@ CR-01 (pre-existing from Phase 67): bee-filter-controls.ts uses `observer` field
 | 260421-t1a | Table mode improvements (filter button, selection highlight, links column, collector coalesce, field# fallback) | 2026-04-21 | c9c1b8c | [260421-t1a-table-mode-improvements](./quick/260421-t1a-table-mode-improvements/) |
 | 260421-qk1 | Drop atom feeds for counties and ecoregions | 2026-04-21 | c1f196e | [260421-qk1-drop-county-ecoregion-feeds](./quick/260421-qk1-drop-county-ecoregion-feeds/) |
 | 260422-sc1 | Fix specimen count mismatch between map filter panel and table view | 2026-04-22 | 78ccd3e | [260422-sc1-fix-specimen-count-mismatch](./quick/260422-sc1-fix-specimen-count-mismatch/) |
+
+## Deferred Items
+
+Items acknowledged and deferred at v3.1 milestone close on 2026-04-30:
+
+| Category | Item | Status |
+|----------|------|--------|
+| debug | selection-ring-not-displaying | diagnosed |
+| quick_task | 1-store-full-observation-json-in-cache-wit | missing |
+| quick_task | 260408-roy-move-region-overlay-control-from-sidebar | missing |
+| quick_task | 260408-tkd-add-occurrence-observation-id-columns-to | missing |
+| quick_task | 260408-tvl-show-recent-filters-when-filter-input-is | missing |
+| quick_task | 260411-pru-unidentified-specimens-like-5611752-are- | missing |
+| quick_task | 260412-dl6-in-the-frontend-in-the-specimen-table-vi | missing |
+| quick_task | 260412-due-re-add-sort-controls-to-the-specimen-tab | missing |
+| quick_task | 260412-kpe-schema-validation-is-failing-on-build-de | missing |
+| quick_task | 260421-qk1-drop-county-ecoregion-feeds | missing |
+| quick_task | 260421-t1a-table-mode-improvements | missing |
+| quick_task | 260422-sc1-fix-specimen-count-mismatch | missing |
+| todo | boundary-edge-gaps.md | low |
+| todo | cluster-selection-visual-feedback.md | medium |

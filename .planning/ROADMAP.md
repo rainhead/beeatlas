@@ -24,6 +24,7 @@
 - ✅ **v2.9 UI Flow Redesign** — Phases 68–70 (shipped 2026-04-21)
 - ✅ **v3.0 Mapbox GL JS Migration** — Phases 71–73 (shipped 2026-04-27)
 - ✅ **v3.1 Eleventy Build Wrapper** — Phases 74–75 (shipped 2026-04-30)
+- 🔲 **v3.2 Species Tab** — Phase 76+ (planned; scoping in `.planning/seeds/species-tab.md`)
 
 ## Phases
 
@@ -306,59 +307,21 @@ See `.planning/milestones/v3.0-ROADMAP.md` for full phase details.
 
 </details>
 
-## ✅ v3.1 Eleventy Build Wrapper (Phases 74–75) — SHIPPED 2026-04-30
-
-**Milestone Goal:** Rehouse the existing Vite SPA inside an Eleventy build pipeline without changing URLs or runtime behavior. Establish the static-site-generator foundation needed for content pages (Species tab, welcome page) in v3.2 and beyond.
-
-**Out of scope (deferred to v3.2 Species Tab):**
-- Moving the SPA to `/collection`
-- Welcome/about page at `/`
-- Lit SSR decision for new Eleventy pages
-- Any new content pages
-
-**Pattern reference:** `~/dev/pnwmoths` ships an analogous Eleventy + Vite static site (`@11ty/eleventy-plugin-vite`).
+<details>
+<summary>✅ v3.1 Eleventy Build Wrapper (Phases 74–75) — SHIPPED 2026-04-30</summary>
 
 - [x] Phase 74: Eleventy Outer Build Integration (3/3 plans) — completed 2026-04-30
 - [x] Phase 75: Authoring Scaffold and Verification (2/2 plans) — completed 2026-04-30
 
-### Phase 74: Eleventy Outer Build Integration
-**Goal**: Eleventy wraps the existing Vite SPA build. The SPA continues to serve at `/` with no user-visible changes; npm scripts and the GitHub Actions deploy workflow run Eleventy + Vite in sequence; all 172 Vitest tests pass.
-**Depends on**: —
-**Requirements**: ELEV-01, ELEV-02, ELEV-03, ELEV-04
-**Success Criteria** (what must be TRUE):
-  1. `@11ty/eleventy` and `@11ty/eleventy-plugin-vite` are installed at the project root and configured via `eleventy.config.js`; Eleventy invokes Vite as part of its build pipeline.
-  2. Running the project's top-level build script produces a deploy artifact that, when served at `/`, renders the existing SPA with identical behavior — index.html, hashed JS/CSS bundles, public assets (favicon, parquet/geojson/db data paths), and Mapbox token wiring all work as before.
-  3. All 172 Vitest tests pass against the post-migration tree (`npm test --workspace=frontend` or its replacement) on a clean checkout; the schema-validation gate (`npm run validate-schema`) still runs in CI before build.
-  4. `.github/workflows/deploy.yml` is updated so the build job emits the new artifact location and the deploy job's `aws s3 sync` paths point at the new directory; the `assets/` long-cache rule and the everything-else short-cache rule continue to apply correctly to Eleventy + Vite output.
-  5. The dev workflow (`npm run dev` or its replacement) still starts a local server that serves the SPA with hot-reload; the developer-facing experience documented in `CLAUDE.md` (`cd frontend && npm run dev`) either continues to work or is replaced with a documented one-line equivalent.
+See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 
-**Plans**: 3 plans
-Plans:
-- [x] 074-01-PLAN.md — Install Eleventy + plugin, hoist frontend/ to repo root, scaffold eleventy.config.js, merge vite.config.ts, rewire root scripts (atomic Layout B move)
-- [x] 074-02-PLAN.md — Update .github/workflows/deploy.yml: drop --workspace=frontend, shift artifact paths frontend/dist/ → _site/, update aws s3 sync sources
-- [x] 074-03-PLAN.md — Update CLAUDE.md and .planning/PROJECT.md developer command refs; final smoke + npm run dev UAT + GitHub Actions build-job UAT
+</details>
 
-### Phase 75: Authoring Scaffold and Verification
-**Goal**: Lay down the empty Eleventy authoring scaffold (two-layer Nunjucks layout chain `_layouts/base.njk` + `_layouts/default.njk` with embedded `<bee-header>` chrome) and prove the Eleventy + Vite plugin pipeline emits a working `_site/` artifact via a built-but-orphan verification page at `/_scaffold-check/`. SPA at `/` continues unchanged. No new user-facing content pages.
-**Depends on**: Phase 74
-**Requirements**: D-01..D-05 (CONTEXT.md decisions; no explicit REQ-IDs in PROJECT.md)
-**Success Criteria** (what must be TRUE):
-  1. `_layouts/base.njk` (chrome-less HTML5 shell) and `_layouts/default.njk` (extends `base.njk` via front-matter `layout:` chain; emits `<bee-header>` + `<script type="module" src="/src/entries/bee-header.ts">`) exist and render without error.
-  2. `_pages/scaffold-check.njk` (with `permalink: /_scaffold-check/index.html`, `eleventyExcludeFromCollections: true`) emits to `_site/_scaffold-check/index.html` containing the build-info table.
-  3. After `npm run build`, `_site/_scaffold-check/index.html` references a hashed bee-header bundle (`grep -E 'src="/assets/bee-header-[A-Za-z0-9_-]+\.js"'` matches) — Vite's HTML processor auto-rewrites the layout-injected `<script>` tag (assumption A5, the load-bearing first-build probe).
-  4. `_site/assets/bee-header-*.js` exists and the bundle is <100 KB gzipped.
-  5. `_site/index.html` still references the SPA bundle (`/assets/index-*.js`) — Phase 74 invariant preserved.
-  6. `npm test` reports 172 tests passing (no regression).
-**Plans**: 2 plans
-Plans:
-- [x] 075-01-PLAN.md — Two-layer layout chain + `_data/build.js` + bee-header entry + orphan scaffold page; build smoke + A5 hash-rewrite probe + 172-test regression (Wave 1)
-- [x] 075-02-PLAN.md — Manual UAT (browser render of `/_scaffold-check/` + SPA regression at `/`); CLAUDE.md spot-check; ROADMAP/STATE update; phase summary (Wave 2, depends on 075-01)
+## 🔲 v3.2 Species Tab (Phase 76+)
 
-## 🔲 v3.2 Data Quality Flags (Phase 76)
+**Milestone Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. See `.planning/seeds/species-tab.md` for full scoping.
 
-**Milestone Goal:** Heuristics-based flags on occurrence records surfacing likely data issues (duplicate sample or field numbers, implausible coordinates, etc.).
-
-- [ ] Phase 76: Quality Flag Pipeline and Display
+- [ ] Phase 76: TBD (scoping in `/gsd-new-milestone`)
 
 ## Phase Details
 
