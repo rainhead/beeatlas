@@ -36,11 +36,14 @@ Use these terms precisely — ambiguity here has caused confusion before.
 ## Running Locally
 
 ```bash
-# Frontend dev server
-cd frontend && npm run dev
+# Dev server (Eleventy + Vite middleware, hot-reload)
+npm run dev
 
-# Frontend tests (Vitest)
-cd frontend && npm test
+# Tests (Vitest)
+npm test
+
+# Production build (validate-schema -> tsc --noEmit -> eleventy + Vite)
+npm run build
 
 # Data pipeline
 cd data && python run.py
