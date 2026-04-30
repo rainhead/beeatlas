@@ -1,10 +1,10 @@
 """Generate Atom feed of recent determinations from beeatlas.duckdb.
 
 Produces:
-  frontend/public/data/feeds/determinations.xml
-  frontend/public/data/feeds/collector-{slug}.xml  (one per unique collector)
-  frontend/public/data/feeds/genus-{slug}.xml       (one per unique genus)
-  frontend/public/data/feeds/index.json             (machine-readable feed index)
+  public/data/feeds/determinations.xml
+  public/data/feeds/collector-{slug}.xml  (one per unique collector)
+  public/data/feeds/genus-{slug}.xml       (one per unique genus)
+  public/data/feeds/index.json             (machine-readable feed index)
 
 Covers all determinations whose modified timestamp falls within the last 90 days,
 with blank scientific_name / identified_by rows excluded.
@@ -24,7 +24,7 @@ from pathlib import Path
 import duckdb
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
-_default_assets = str(Path(__file__).parent.parent / 'frontend' / 'public' / 'data')
+_default_assets = str(Path(__file__).parent.parent / 'public' / 'data')
 ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
 
 ATOM_NS = 'http://www.w3.org/2005/Atom'

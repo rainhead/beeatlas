@@ -1,6 +1,6 @@
 """Export frontend assets from data/beeatlas.duckdb.
 
-Produces three files in frontend/public/data/:
+Produces three files in public/data/:
   - occurrences.parquet (full outer join of ecdysis specimens and iNat samples, with spatial columns)
   - counties.geojson    (WA county boundaries, simplified)
   - ecoregions.geojson  (WA ecoregion boundaries, simplified)
@@ -16,7 +16,7 @@ from pathlib import Path
 import duckdb
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
-_default_assets = str(Path(__file__).parent.parent / 'frontend' / 'public' / 'data')
+_default_assets = str(Path(__file__).parent.parent / 'public' / 'data')
 ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
 
 
