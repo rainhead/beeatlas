@@ -78,9 +78,16 @@ export default function (eleventyConfig) {
     dir: {
       input: "_pages",
       output: "_site",
-      includes: "_includes",
-      layouts: "_layouts",
-      data: "_data",
+      // includes/layouts/data are normalized RELATIVE to dir.input by
+      // Eleventy 3.x (see node_modules/@11ty/eleventy/src/Util/ProjectDirectories.js
+      // setLayouts: TemplatePath.join(this.input, dir)). We keep the
+      // physical directories at repo root (_includes/, _layouts/, _data/)
+      // — established by Phase 74 — and use ".." traversal here so the
+      // resolved paths land at repo root rather than under _pages/.
+      // See 075-01-SUMMARY.md (Plan 075-01 Rule 1 deviation).
+      includes: "../_includes",
+      layouts: "../_layouts",
+      data: "../_data",
     },
   };
 }

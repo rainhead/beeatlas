@@ -1,0 +1,18 @@
+---
+layout: default.njk
+permalink: /_scaffold-check/index.html
+eleventyExcludeFromCollections: true
+title: BeeAtlas — Scaffold Check
+---
+<h1>Scaffold Check</h1>
+<p>Built-but-orphan verification page. Confirms the Eleventy + Vite + Lit pipeline is producing chrome correctly. Built at <code>{{ build.builtAt }}</code> (this value refreshes on dev-server restart, NOT on file change).</p>
+
+<table>
+  <tr><th>Eleventy</th><td>{{ build.eleventyVersion }}</td></tr>
+  <tr><th>Plugin (eleventy-plugin-vite)</th><td>{{ build.pluginVersion }}</td></tr>
+  <tr><th>Vite</th><td>{{ build.viteVersion }}</td></tr>
+  <tr><th>Lit</th><td>{{ build.litVersion }}</td></tr>
+  <tr><th>Node</th><td>{{ build.nodeVersion }}</td></tr>
+  <tr><th>Built at</th><td>{{ build.builtAt }}</td></tr>
+  <tr><th>Git SHA</th><td>{{ build.gitSha }}</td></tr>
+</table>
