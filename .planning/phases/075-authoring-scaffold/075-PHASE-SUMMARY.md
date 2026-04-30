@@ -15,7 +15,7 @@ completed: 2026-04-30
 | # | Title | Commit(s) | Status |
 |---|-------|-----------|--------|
 | 01 | Layout chain + bee-header entry + `_data/build.js` + orphan diagnostic page | `b86d67c` (atomic feat); `ba7eaf3` (docs) | ✅ |
-| 02 | Manual UAT + milestone-close paperwork (ROADMAP/STATE/phase-summary) | (this commit) | ✅ |
+| 02 | Manual UAT + milestone-close paperwork (ROADMAP/STATE/phase-summary) | `155b79f` | ✅ |
 
 ## Requirements Status (CONTEXT.md decisions as the requirements set)
 
