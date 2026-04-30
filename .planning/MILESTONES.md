@@ -1,5 +1,25 @@
 # Milestones
 
+## v3.1 Eleventy Build Wrapper (Shipped: 2026-04-30)
+
+**Phases completed:** 2 phases (Phases 74–75), 5 plans
+**Timeline:** 2 days (2026-04-29 → 2026-04-30)
+**LOC:** +9,360 / −333 across 73 files (most are renames from the `frontend/` → repo-root hoist)
+**Git range:** `d064e28` → `eb3d173`
+**Branch:** `gsd/phase-074-eleventy-build-wrapper` (kept across both phases per `branching_strategy: none`)
+
+**Key accomplishments:**
+
+- Phase 74: Eleventy 3.1.5 + `@11ty/eleventy-plugin-vite` 7.1.1 wrap the Vite SPA at the repo root; `frontend/` collapsed to repo root (single-package layout); `eleventy.config.js` wires Eleventy → Vite via `_site/` output; CI `deploy.yml` updated for `_site/` artifact paths; `npm run dev` from repo root with HMR confirmed; SPA URL unchanged (`/`); 172 Vitest tests green
+- Phase 75: Two-layer Nunjucks layout chain (`_layouts/base.njk` + `_layouts/default.njk`) via Eleventy front-matter `layout:` + `{{ content | safe }}` (NOT Nunjucks `{% extends %}`); `<bee-header>` Lit component embedded in `default.njk` via side-effect Vite entry (`src/entries/bee-header.ts`); orphan verification page at `/_scaffold-check/` ships permanently as a deploy diagnostic; `_data/build.js` pattern established for build-time metadata
+- Multi-entry Vite build via the plugin's HTML processor (`appType: "mpa"`) — Vite walks every emitted templated HTML page and produces a hashed bundle automatically; no `rollupOptions.input` config needed; load-bearing assumption A5 (Vite rewrites `<script src="/src/entries/bee-header.ts">` to `<script src="/assets/bee-header-[hash].js">` across every templated HTML page) verified end-to-end
+- Bee-header bundle: 22,779 B raw / **8,474 B gzipped** — well under <100 KB budget and ~half the research estimate, thanks to Rollup shared-chunk dedup with the SPA bundle
+- Pattern primer for v3.2 Species Tab: drop a new `.njk` into `_pages/` declaring `layout: default.njk` for automatic bee-header chrome; add `_data/<topic>.js` for build-time data feeds; add `src/entries/<name>.ts` for additional standalone Vite bundles
+
+**Known deferred items at close:** 14 (1 debug session, 11 quick-task SUMMARY.md backfills, 2 todos — all pre-date v3.1; see STATE.md Deferred Items)
+
+---
+
 ## v3.0 Mapbox GL JS Migration (Shipped: 2026-04-27)
 
 **Phases completed:** 3 phases (Phases 71–73), 7 plans
