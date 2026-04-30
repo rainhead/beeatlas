@@ -45,6 +45,26 @@ export default function (eleventyConfig) {
       // Do NOT set viteOptions.root or viteOptions.build.outDir —
       // the plugin overrides them at build time (research §Anti-Patterns).
       appType: "mpa",
+      // The plugin runs Vite rooted at `.11ty-vite/` (the renamed temp
+      // folder) for the dev server, so Vite's auto-discovery of
+      // repo-root `.env` files and `vite.config.ts` settings does NOT
+      // carry through to the dev pipeline. Repeat the dev-critical bits
+      // here so they reach Vite via the plugin's invocation:
+      //   - envDir: process.cwd() — let Vite read /.env at repo root so
+      //     `import.meta.env.VITE_MAPBOX_TOKEN` (and VITE_DATA_BASE_URL)
+      //     populate during `npm run dev`.
+      //   - optimizeDeps.exclude: ['wa-sqlite'] — without this, Vite's
+      //     dev pre-bundler tries to esbuild wa-sqlite.wasm into
+      //     `node_modules/.vite/deps/`, which 404s (esbuild can't
+      //     produce .wasm). Excluding from optimization makes Vite
+      //     resolve wa-sqlite to its source path and serve the .wasm
+      //     directly via /@fs.
+      // Production `vite build` discovers vite.config.ts via cwd and
+      // works without this — it's a dev-server-only concern.
+      envDir: process.cwd(),
+      optimizeDeps: {
+        exclude: ["wa-sqlite"],
+      },
       // publicDir defaults to "public" (Vite default). The plugin
       // auto-registers `addPassthroughCopy("public")` (.eleventy.js
       // line 40) so `public/` → `_site/public/` (then renamed to
