@@ -23,7 +23,7 @@
 - ✅ **v2.8 Liveness: Provisional Specimen Records** — Phases 66–67 (shipped 2026-04-20)
 - ✅ **v2.9 UI Flow Redesign** — Phases 68–70 (shipped 2026-04-21)
 - ✅ **v3.0 Mapbox GL JS Migration** — Phases 71–73 (shipped 2026-04-27)
-- 🔲 **v3.1 Eleventy Build Wrapper** — Phases 74–75
+- ✅ **v3.1 Eleventy Build Wrapper** — Phases 74–75 (shipped 2026-04-30)
 
 ## Phases
 
@@ -306,7 +306,7 @@ See `.planning/milestones/v3.0-ROADMAP.md` for full phase details.
 
 </details>
 
-## 🔲 v3.1 Eleventy Build Wrapper (Phases 74–75)
+## ✅ v3.1 Eleventy Build Wrapper (Phases 74–75) — SHIPPED 2026-04-30
 
 **Milestone Goal:** Rehouse the existing Vite SPA inside an Eleventy build pipeline without changing URLs or runtime behavior. Establish the static-site-generator foundation needed for content pages (Species tab, welcome page) in v3.2 and beyond.
 
@@ -319,7 +319,7 @@ See `.planning/milestones/v3.0-ROADMAP.md` for full phase details.
 **Pattern reference:** `~/dev/pnwmoths` ships an analogous Eleventy + Vite static site (`@11ty/eleventy-plugin-vite`).
 
 - [x] Phase 74: Eleventy Outer Build Integration (3/3 plans) — completed 2026-04-30
-- [ ] Phase 75: Authoring Scaffold and Verification (0/2 plans planned)
+- [x] Phase 75: Authoring Scaffold and Verification (2/2 plans) — completed 2026-04-30
 
 ### Phase 74: Eleventy Outer Build Integration
 **Goal**: Eleventy wraps the existing Vite SPA build. The SPA continues to serve at `/` with no user-visible changes; npm scripts and the GitHub Actions deploy workflow run Eleventy + Vite in sequence; all 172 Vitest tests pass.
@@ -351,8 +351,8 @@ Plans:
   6. `npm test` reports 172 tests passing (no regression).
 **Plans**: 2 plans
 Plans:
-- [ ] 075-01-PLAN.md — Two-layer layout chain + `_data/build.js` + bee-header entry + orphan scaffold page; build smoke + A5 hash-rewrite probe + 172-test regression (Wave 1)
-- [ ] 075-02-PLAN.md — Manual UAT (browser render of `/_scaffold-check/` + SPA regression at `/`); CLAUDE.md spot-check; ROADMAP/STATE update; phase summary (Wave 2, depends on 075-01)
+- [x] 075-01-PLAN.md — Two-layer layout chain + `_data/build.js` + bee-header entry + orphan scaffold page; build smoke + A5 hash-rewrite probe + 172-test regression (Wave 1)
+- [x] 075-02-PLAN.md — Manual UAT (browser render of `/_scaffold-check/` + SPA regression at `/`); CLAUDE.md spot-check; ROADMAP/STATE update; phase summary (Wave 2, depends on 075-01)
 
 ## 🔲 v3.2 Data Quality Flags (Phase 76)
 
@@ -473,6 +473,7 @@ Plans:
 | 72. Boundaries and Interaction | v3.0 | 2/2 | Complete | 2026-04-27 |
 | 73. OL Removal and Verification | v3.0 | 2/2 | Complete | 2026-04-27 |
 | 74. Eleventy Outer Build Integration | v3.1 | 3/3 | Complete | 2026-04-30 |
+| 75. Authoring Scaffold and Verification | v3.1 | 2/2 | Complete | 2026-04-30 |
 
 ## Phase Details
 
