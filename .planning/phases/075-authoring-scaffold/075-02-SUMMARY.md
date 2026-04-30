@@ -161,7 +161,7 @@ milestone: v3.1
 completed: 2026-04-30
 ```
 
-Documents all 5 D-XX requirements as ✅, lists both plan SHAs (075-01: `b86d67c`; 075-02: this commit), captures the bee-header bundle gzipped size (8.47 KB), and concludes with the v3.1 milestone-shippable assertion (next user-facing step is merge-to-main).
+Documents all 5 D-XX requirements as ✅, lists both plan SHAs (075-01: `b86d67c`; 075-02: `155b79f`), captures the bee-header bundle gzipped size (8.47 KB), and concludes with the v3.1 milestone-shippable assertion (next user-facing step is merge-to-main).
 
 ## Decisions Made
 
