@@ -318,8 +318,8 @@ See `.planning/milestones/v3.0-ROADMAP.md` for full phase details.
 
 **Pattern reference:** `~/dev/pnwmoths` ships an analogous Eleventy + Vite static site (`@11ty/eleventy-plugin-vite`).
 
-- [ ] Phase 74: Eleventy Outer Build Integration
-- [ ] Phase 75: Authoring Scaffold and Verification
+- [x] Phase 74: Eleventy Outer Build Integration (3/3 plans) — completed 2026-04-30
+- [ ] Phase 75: Authoring Scaffold and Verification (0/2 plans planned)
 
 ### Phase 74: Eleventy Outer Build Integration
 **Goal**: Eleventy wraps the existing Vite SPA build. The SPA continues to serve at `/` with no user-visible changes; npm scripts and the GitHub Actions deploy workflow run Eleventy + Vite in sequence; all 172 Vitest tests pass.
@@ -334,9 +334,25 @@ See `.planning/milestones/v3.0-ROADMAP.md` for full phase details.
 
 **Plans**: 3 plans
 Plans:
-- [ ] 074-01-PLAN.md — Install Eleventy + plugin, hoist frontend/ to repo root, scaffold eleventy.config.js, merge vite.config.ts, rewire root scripts (atomic Layout B move)
-- [ ] 074-02-PLAN.md — Update .github/workflows/deploy.yml: drop --workspace=frontend, shift artifact paths frontend/dist/ → _site/, update aws s3 sync sources
-- [ ] 074-03-PLAN.md — Update CLAUDE.md and .planning/PROJECT.md developer command refs; final smoke + npm run dev UAT + GitHub Actions build-job UAT
+- [x] 074-01-PLAN.md — Install Eleventy + plugin, hoist frontend/ to repo root, scaffold eleventy.config.js, merge vite.config.ts, rewire root scripts (atomic Layout B move)
+- [x] 074-02-PLAN.md — Update .github/workflows/deploy.yml: drop --workspace=frontend, shift artifact paths frontend/dist/ → _site/, update aws s3 sync sources
+- [x] 074-03-PLAN.md — Update CLAUDE.md and .planning/PROJECT.md developer command refs; final smoke + npm run dev UAT + GitHub Actions build-job UAT
+
+### Phase 75: Authoring Scaffold and Verification
+**Goal**: Lay down the empty Eleventy authoring scaffold (two-layer Nunjucks layout chain `_layouts/base.njk` + `_layouts/default.njk` with embedded `<bee-header>` chrome) and prove the Eleventy + Vite plugin pipeline emits a working `_site/` artifact via a built-but-orphan verification page at `/_scaffold-check/`. SPA at `/` continues unchanged. No new user-facing content pages.
+**Depends on**: Phase 74
+**Requirements**: D-01..D-05 (CONTEXT.md decisions; no explicit REQ-IDs in PROJECT.md)
+**Success Criteria** (what must be TRUE):
+  1. `_layouts/base.njk` (chrome-less HTML5 shell) and `_layouts/default.njk` (extends `base.njk` via front-matter `layout:` chain; emits `<bee-header>` + `<script type="module" src="/src/entries/bee-header.ts">`) exist and render without error.
+  2. `_pages/scaffold-check.njk` (with `permalink: /_scaffold-check/index.html`, `eleventyExcludeFromCollections: true`) emits to `_site/_scaffold-check/index.html` containing the build-info table.
+  3. After `npm run build`, `_site/_scaffold-check/index.html` references a hashed bee-header bundle (`grep -E 'src="/assets/bee-header-[A-Za-z0-9_-]+\.js"'` matches) — Vite's HTML processor auto-rewrites the layout-injected `<script>` tag (assumption A5, the load-bearing first-build probe).
+  4. `_site/assets/bee-header-*.js` exists and the bundle is <100 KB gzipped.
+  5. `_site/index.html` still references the SPA bundle (`/assets/index-*.js`) — Phase 74 invariant preserved.
+  6. `npm test` reports 172 tests passing (no regression).
+**Plans**: 2 plans
+Plans:
+- [ ] 075-01-PLAN.md — Two-layer layout chain + `_data/build.js` + bee-header entry + orphan scaffold page; build smoke + A5 hash-rewrite probe + 172-test regression (Wave 1)
+- [ ] 075-02-PLAN.md — Manual UAT (browser render of `/_scaffold-check/` + SPA regression at `/`); CLAUDE.md spot-check; ROADMAP/STATE update; phase summary (Wave 2, depends on 075-01)
 
 ## 🔲 v3.2 Data Quality Flags (Phase 76)
 
@@ -456,6 +472,7 @@ Plans:
 | 71. Base Map and Occurrence Layer | v3.0 | 3/3 | Complete | 2026-04-27 |
 | 72. Boundaries and Interaction | v3.0 | 2/2 | Complete | 2026-04-27 |
 | 73. OL Removal and Verification | v3.0 | 2/2 | Complete | 2026-04-27 |
+| 74. Eleventy Outer Build Integration | v3.1 | 3/3 | Complete | 2026-04-30 |
 
 ## Phase Details
 

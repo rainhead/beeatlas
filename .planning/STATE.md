@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.1
 milestone_name: Eleventy Build Wrapper
-status: planning
-last_updated: "2026-04-29T00:00:00.000Z"
-last_activity: 2026-04-29 — v3.1 Eleventy Build Wrapper milestone started
+status: Phase 75 planned; ready to execute
+last_updated: "2026-04-30T08:35:00.000Z"
+last_activity: 2026-04-30 — Phase 75 planned (2 plans, 2 waves); plan-checker passed with 1 trivial blocker (research marker) and 1 procedural warning (VALIDATION.md), both fixed inline
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 5
+  completed_plans: 3
+  percent: 60
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-04-29 — v3.1 Eleventy Build Wrapper sc
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-04-29 — Milestone v3.1 started
+Phase: 75 of 75 — authoring-scaffold (planned, ready to execute)
+Plan: 075-01-PLAN.md (wave 1), 075-02-PLAN.md (wave 2, depends on 075-01)
+Status: Phase 75 plans created; ready for /gsd-execute-phase 75
+Last activity: 2026-04-30 — Phase 75 planned: research found Vite plugin auto-handles multi-entry via HTML script-tag rewriting (no rollupOptions.input needed); bee-header.ts self-registers via @customElement decorator with no SPA-coupled imports; orphan page at _pages/scaffold-check.njk + permalink override sidesteps Eleventy underscore-prefix ambiguity
 
 ## Accumulated Context
 
