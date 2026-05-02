@@ -1,671 +1,206 @@
 # Stack Research
 
-**Domain:** Lambda + EFS pipeline execution; runtime CloudFront data fetching (v1.7 additions)
-**Researched:** 2026-03-27
-**Confidence:** HIGH for CDK constructs and Python Lambda runtime; MEDIUM for VPC networking cost decisions
+**Domain:** Static species exploration page bolted onto an Eleventy + Vite + Lit MPA fed by a DuckDB-backed Python pipeline (v3.2 Species Tab additions only)
+**Researched:** 2026-05-02
+**Confidence:** HIGH for stdlib/well-known additions (`tomllib`, `matplotlib`, Eleventy `_data/*.js`); MEDIUM for the seasonality viz choice (depends on Wiley Fig.6 fidelity bar — see Open Questions); LOW for the WA checklist file format (paywall-lite — see Open Questions)
 
 ---
 
-This file covers only NEW stack additions for v1.7. Existing decisions (CDK v2, hyparquet, Lit, OpenLayers, uv, dlt[duckdb]) are validated and not re-litigated here.
+This file covers ONLY NEW stack additions for v3.2 Species Tab. Existing decisions (TypeScript, Vite, Lit, wa-sqlite + hyparquet, Mapbox GL JS v3.22.0, Eleventy 3.1.5 + `@11ty/eleventy-plugin-vite` 7.1.1, Python 3.14+, uv, `dlt[duckdb]`, DuckDB with spatial extension, AWS CDK + S3 + CloudFront OAC) are LOCKED and not re-litigated here.
+
+The seed (`.planning/seeds/species-tab.md`) has already locked these meta-decisions: static SVG occurrence maps in Python, photo manifest as TOML in repo, taxonomy primary = Ecdysis (tribe + gaps from iNat), filter scope geography + seasonality, seasonality viz mimics Wiley `10.1002/ece3.72049`. This file picks the libraries that implement those decisions.
+
+---
 
 ## Recommended Stack
 
-### Core Technologies (New for v1.7)
+### Core Additions (Python pipeline)
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| Lambda container image (ECR) | aws-cdk-lib ^2.238.0 (already pinned) | Package Python pipeline with geopandas + duckdb for Lambda | zip archives are capped at 250 MB unzipped; geopandas + duckdb + dlt exceed this. Container images support up to 10 GB. Container image is the only viable approach. |
-| Python 3.14 Lambda runtime | managed runtime `python3.14` (GA Nov 2025) | Match `requires-python = ">=3.14"` in data/pyproject.toml | AWS added Python 3.14 managed runtime in November 2025; available in all regions. Matches existing pyproject.toml constraint exactly. |
-| Amazon EFS (`aws-cdk-lib/aws-efs`) | CDK v2 (already pinned) | Persistent DuckDB file across Lambda invocations | Lambda `/tmp` is ephemeral and wiped between invocations. EFS provides durable, cross-invocation storage for `beeatlas.duckdb`. Required for incremental dlt pipeline state. |
-| Amazon VPC (`aws-cdk-lib/aws-ec2`) | CDK v2 (already pinned) | EFS requires VPC; Lambda must be in the same VPC | EFS mount targets are VPC-internal. No way to attach EFS to Lambda without placing both in a VPC. |
-| EventBridge Scheduler (`aws-cdk-lib/aws-scheduler`) | CDK v2 (already pinned; L2 GA April 2025) | Trigger pipeline Lambda on a daily/weekly cron | Prefer Scheduler over EventBridge Rules for scheduled Lambda: Scheduler is decoupled from event buses, supports flexible time windows, and the L2 construct is now GA in CDK v2. |
-| Lambda Function URL (`aws-cdk-lib/aws-lambda`) | CDK v2 (already pinned) | HTTP endpoint for manual pipeline invocation | Simpler than API Gateway for a single-function trigger with no routing needs. Auth `NONE` is acceptable: the Lambda is a write-only operation (pipeline run) with no sensitive output — worst case is a redundant pipeline run. |
-| boto3 | bundled in Lambda runtime | Upload DuckDB backup and exported Parquets/GeoJSON to S3 | Already available in the Lambda execution environment; no additional packaging needed for S3 `upload_file` calls. |
+| `tomllib` | stdlib (3.11+) | Read photo manifest TOML at pipeline time | Already in Python 3.14 stdlib (`requires-python = ">=3.14"` in `data/pyproject.toml`). Read-only is the right contract for pipeline ingestion: humans edit the TOML, pipeline reads it. No new dep. |
+| `matplotlib` | `^3.10` (3.10.9 latest stable, Apr 2026) | Generate per-species static SVG occurrence maps from `counties.geojson` + filtered occurrence points | Bundled SVG backend (`backend_svg`) is the path-of-least-resistance: produces clean, well-formed SVG via `plt.savefig(..., format='svg')`; works with raw shapely/GeoJSON polygons without pulling in geopandas. Single-purpose, no Cairo, no headless browser. Already a transitive of nothing in the current pipeline (clean addition). |
+| `shapely` | `^2.0` | Parse GeoJSON polygons read out of DuckDB (`ST_AsGeoJSON`) into geometry objects matplotlib can plot | Already a transitive dep of `dlt`/`pyarrow` ecosystems but NOT currently a direct dep — make it explicit. v2 has the C-fast vectorized API. Avoids GeoPandas overhead (geopandas was deliberately removed in v2.2 Phase 47 because it OOM'd on maderas). |
 
-### Supporting CDK Constructs (New for v1.7)
+### Core Additions (Eleventy build)
 
-| Construct | Module | Purpose | Notes |
-|-----------|--------|---------|-------|
-| `efs.FileSystem` | `aws-cdk-lib/aws-efs` | EFS filesystem definition | Set `removalPolicy: RETAIN` — do not destroy DuckDB storage on stack update |
-| `efs.AccessPoint` | `aws-cdk-lib/aws-efs` | POSIX-scoped mount point for Lambda | Set `ownerUid/Gid: '1000'`, `permissions: '755'`; access point uid is applied at mount |
-| `lambda.FileSystem.fromEfsAccessPoint(ap, '/mnt/data')` | `aws-cdk-lib/aws-lambda` | Attach EFS to Lambda at runtime | CDK wires the `elasticfilesystem:ClientMount` permission automatically |
-| `lambda.DockerImageFunction` | `aws-cdk-lib/aws-lambda` | Lambda from container image | Use `DockerImageCode.fromImageAsset('./data')` for CDK-managed build + ECR push |
-| `ec2.Vpc` | `aws-cdk-lib/aws-ec2` | Isolated VPC for EFS + Lambda | Use `natGateways: 0` and add VPC Gateway Endpoint for S3 (free) |
-| `ec2.GatewayVpcEndpoint` (S3) | `aws-cdk-lib/aws-ec2` | Free S3 access from private subnet | S3 Gateway endpoints have no hourly or data-processing charge — eliminates need for NAT gateway for S3 uploads |
-| `cloudfront.ResponseHeadersPolicy` | `aws-cdk-lib/aws-cloudfront` | Add CORS headers to CloudFront responses | Needed for `asyncBufferFromUrl` range requests from browser to CloudFront-served Parquets in the same bucket |
-| `cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN` | `aws-cdk-lib/aws-cloudfront` | Forward `Origin` header to S3 | Required so S3 can respond with CORS headers; without this, CloudFront strips the Origin header before forwarding to S3 |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| `_data/species.js` (no new dep) | n/a | Build-time JS module that returns the species roster + per-species metadata for `.njk` page templates | `_data/build.js` (v3.1 Phase 75) established the `default-export-an-object` pattern. For v3.2, `_data/species.js` reads a static `public/data/species.json` written by the Python pipeline and exports it as a structured object. Async export is supported by Eleventy if needed. |
+| `public/data/species.json` (Python-emitted) | n/a | Static JSON snapshot of the species roster (~600–700 species), per-species summary stats (count, year range, top counties, monthly histogram), and taxonomy parents | JSON is the boring-correct format for handoff between the Python pipeline and the Node-side Eleventy build. Avoids needing a JS-side parquet reader at build-time. Pipeline already writes to `public/data/`; the export step naturally fits. |
 
-### Frontend Change (Runtime Fetching)
+### Core Additions (Frontend bundle)
 
-| Change | Current | New | Why |
-|--------|---------|-----|-----|
-| hyparquet data source | `asyncBuffer` from bundled `/assets/*.parquet` | `asyncBufferFromUrl({ url })` pointing to CloudFront | Parquets removed from build bundle; fetched at runtime from CloudFront |
-| GeoJSON loading | Vite plugin / bundled import | `fetch(url)` at runtime from CloudFront | Same reasoning — static files served from S3 via CloudFront |
-| hyparquet version | `^1.23.3` (already installed) | No change | `asyncBufferFromUrl` has been in hyparquet since early versions; no upgrade needed |
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Inline SVG via Lit templates (NO new dep) | uses existing `lit ^3.2.1` | Render seasonality viz client-side from the per-species monthly histogram in `species.json` | Bundle budget is tight (current `index-pgqDAatT.js` is 1,998 KB; mapbox-gl is ~1,700 KB of that). The species page should NOT load mapbox-gl at all (occurrence maps are static SVG), but it WILL load lit + a small species component. Adding D3/uPlot/Chart.js for ridge plots is overkill — the data is twelve numbers per species; a hand-rolled inline-SVG bar/area histogram inside a Lit `html\`<svg>...\`` template is ~50 LOC and zero new bytes. See "Alternatives Considered" for why D3 lost. |
+| Static SVG `<img>` for occurrence maps | n/a | `<img src="/species-maps/{slug}.svg" alt="...">` — pre-rendered by the pipeline | Browser handles SVG natively. No JS needed on the species page for maps. Cacheable, small (~10–30 KB each at WA-state scale with simplified counties). |
 
-## VPC Networking Decision
+### Authoring tooling (deferred, NOT shipped in v3.2 unless it falls out for free)
 
-**Use `natGateways: 0` + VPC endpoints instead of NAT gateways for S3 traffic.**
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `tomlkit` | `0.13.3` | Round-trip TOML editing (preserves comments, ordering, formatting) | ONLY if the photo-manifest authoring loop grows a CLI helper that needs to mechanically rewrite the TOML (e.g. "auto-add a candidate photo for species X but keep the human's caption edits intact"). For v3.2 first delivery, plain text editing in an editor is the right authoring story — `tomllib` reads, humans write. Adding `tomlkit` later is a one-line `pyproject.toml` change. |
 
-NAT gateways cost ~$32/month baseline (one per AZ in a multi-AZ VPC) plus $0.045/GB data processing. For a pipeline Lambda that runs once daily, this is disproportionate.
+### Development Tools (no changes)
 
-Architecture recommendation:
-- **S3 Gateway Endpoint**: Free. Routes S3 traffic (Parquet uploads, DuckDB backup) within VPC — no NAT needed.
-- **ECR Interface Endpoint**: ~$7.30/month. Needed if Lambda cold-start pulls the container image from ECR at invocation time. CDK `DockerImageFunction` manages push to ECR; whether Lambda pulls from ECR at cold-start or from a cached layer is worth confirming at implementation time.
-- **Internet access for pipeline HTTP calls** (Ecdysis, iNaturalist HTTP APIs): Lambda in a private subnet with no NAT cannot make arbitrary outbound HTTP calls. Two options:
-  1. **NAT Instance** (t3.nano, ~$3/month) — cheapest path for outbound internet using `ec2.NatProvider.instanceV2()`
-  2. **NAT Gateway** (one, single AZ, ~$32/month) — operationally simpler but expensive for this use case
-  - Recommendation: start with a single NAT gateway for simplicity; revisit with NAT instance if monthly cost is a concern. Flag as implementation-time cost decision.
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `uv` | Python dep / venv mgmt | Existing. `uv add matplotlib shapely` from `data/` — both go in the runtime deps section, NOT dev. |
+| Vitest 4.x | Frontend test runner | Existing. New seasonality viz component gets a render test in `src/`. |
+| `pytest` 9.x | Python pipeline tests | Existing. New SVG-map generator gets a unit test that asserts the SVG is well-formed and contains N circle elements for N occurrence points. |
 
-## Lambda Packaging: Container Image
+---
 
-Use `DockerImageCode.fromImageAsset('./data')` — CDK builds the image locally from `data/Dockerfile` and pushes it to ECR.
+## Installation
 
-Write a multi-stage `Dockerfile`:
+```bash
+# Python pipeline additions (run in data/)
+cd data
+uv add matplotlib shapely
 
-```
-Stage 1 (builder): FROM python:3.14-slim
-  - COPY pyproject.toml uv.lock
-  - RUN uv pip install --target /deps --python-platform x86_64-manylinux2014
-
-Stage 2 (runtime): FROM public.ecr.aws/lambda/python:3.14
-  - COPY --from=builder /deps /var/task
-  - COPY *.py /var/task/
-  - CMD ["lambda_handler.handler"]
+# Node side: NO new npm packages required for v3.2.
+# `_data/species.js` is plain Node code reading public/data/species.json with fs.
 ```
 
-Do not use `@aws-cdk/aws-lambda-python-alpha` — it is alpha-stability and adds bundling magic that obscures the Dockerfile. The alpha construct's uv support mirrors what a well-written Dockerfile achieves directly.
+`tomlkit` is intentionally NOT installed in v3.2 (deferred). `tomllib` is stdlib in 3.14, no install needed.
 
-**Why container image over zip:**
-- geopandas alone (with GDAL/GEOS native deps) exceeds the 250 MB unzipped zip limit
-- duckdb binary adds ~50 MB; dlt adds additional dependencies
-- Container images support up to 10 GB; total image will be ~800 MB–1.5 GB, well within limit
-- Multi-stage builds keep the final image lean by excluding build tools
+---
 
-**Pre-install DuckDB spatial extension in image:** The DuckDB spatial extension downloads native binaries at first `INSTALL spatial` call. In Lambda, this write path is restricted. Pre-install by running `INSTALL spatial` during the Docker build and copying the extension files into the image.
+## Integration Points
 
-## CORS for CloudFront
+### Pipeline (Python, runs on maderas nightly)
 
-The frontend fetches Parquets and GeoJSON from the CloudFront distribution via `asyncBufferFromUrl` (which uses HTTP range requests). Since the frontend is served from `beeatlas.net` and the Parquets are also served from `beeatlas.net` via the same CloudFront distribution, this is technically same-origin — no CORS is needed in production.
+`data/run.py` `STEPS` list grows TWO entries between `export` and `feeds`:
 
-However, local development (`localhost:5173`) makes cross-origin requests to CloudFront. Add CORS support preemptively:
-
-1. **S3 bucket CORS rule**: allow `GET`, `HEAD` from `https://beeatlas.net` and `http://localhost:*`
-2. **CloudFront origin request policy**: use `OriginRequestPolicy.CORS_S3_ORIGIN` managed policy to forward the `Origin` header to S3 — required for S3 to include CORS response headers
-3. **CloudFront response headers policy**: use `ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS` managed policy on the default behavior, or create a custom policy scoped to specific origins
-
-CDK managed policy names (already in `aws-cdk-lib/aws-cloudfront`):
-- `cloudfront.ResponseHeadersPolicy.CORS_ALLOW_ALL_ORIGINS` — adds `Access-Control-Allow-Origin: *`
-- `cloudfront.OriginRequestPolicy.CORS_S3_ORIGIN` — forwards `Origin`, `Access-Control-Request-Headers`, `Access-Control-Request-Method` to S3
-
-## CDK Import Summary
-
-All new constructs are in `aws-cdk-lib` (already installed at ^2.238.0). No new npm packages needed:
-
+```python
+STEPS: list[tuple[str, Callable]] = [
+    ("ecdysis", load_ecdysis),
+    ("ecdysis-links", load_links),
+    ("inaturalist", load_inaturalist_observations),
+    ("waba", load_waba_observations),
+    ("projects", load_projects),
+    ("anti-entropy", run_anti_entropy),
+    ("export", export_all),
+    ("species-export", export_species_json),   # NEW: emits public/data/species.json
+    ("species-maps",  generate_species_svgs),  # NEW: emits public/data/species-maps/{slug}.svg
+    ("feeds", generate_feeds),
+]
 ```
-aws-cdk-lib/aws-efs       → efs.FileSystem, efs.AccessPoint
-aws-cdk-lib/aws-ec2       → ec2.Vpc, ec2.SubnetType, ec2.GatewayVpcEndpoint
-aws-cdk-lib/aws-lambda    → lambda.DockerImageFunction, lambda.DockerImageCode,
-                             lambda.FileSystem, lambda.FunctionUrlAuthType
-aws-cdk-lib/aws-scheduler → scheduler.Schedule, scheduler.ScheduleExpression,
-                             scheduler.targets.LambdaInvoke
-aws-cdk-lib/aws-cloudfront → cloudfront.ResponseHeadersPolicy,
-                              cloudfront.OriginRequestPolicy
-```
+
+- `data/species_export.py` — reads `data/beeatlas.duckdb` (occurrences + ecdysis taxonomy + iNat tribe gap-fill + photo manifest TOML), aggregates per-species (count, monthly histogram, top counties/ecoregions, photo IDs), writes `public/data/species.json`.
+- `data/species_maps.py` — for each species in the roster, queries DuckDB for occurrence points, fetches WA county polygons via `ST_AsGeoJSON`, plots with matplotlib + shapely, writes `public/data/species-maps/{slug}.svg`.
+- `data/photos/photos.toml` — checked-in TOML manifest. Read once at start of `species-export` via `tomllib.load(open(path, 'rb'))`.
+- `scripts/validate-schema.mjs` — extended with a check that `species.json` parses and exposes the expected top-level shape (mirrors the existing parquet schema gate).
+
+### Eleventy build (Node, runs in CI and on `npm run dev`)
+
+- `_data/species.js` — `export default async function () { return JSON.parse(await fs.readFile(...)) }`. Pattern lifted from `_data/build.js`.
+- `_pages/species.njk` (or `_pages/species/index.njk`) — declares `layout: default.njk`, iterates `{% for sp in species.roster %}` to emit the page; image references resolve to `/species-maps/{slug}.svg` at runtime (Vite passthrough copies `public/` → `_site/` so this just works).
+- `src/entries/species-page.ts` — side-effect Vite entry that imports the species-page Lit components (e.g. `bee-species-card`, `bee-seasonality-viz`). Pattern lifted from `src/entries/bee-header.ts`. Add a `<script type="module" src="/src/entries/species-page.ts"></script>` line to the species page template.
+
+### Frontend at runtime
+
+- `<bee-species-card>` Lit component receives species data as properties from server-rendered `<bee-species-card data-species="...">` (or via a JSON island), renders the static SVG `<img>` for the map, and renders the seasonality viz inline via a `<bee-seasonality-viz months="[...]">` child component.
+- `<bee-seasonality-viz>` is a ~50 LOC Lit component that produces an inline `<svg>` from a 12-element monthly count array. No external chart library.
+- The species page does NOT import `mapbox-gl` or `wa-sqlite`. Bundle budget for the species-page entry should be well under 50 KB gzipped (lit + small components only).
+
+---
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| Container image Lambda | Zip archive | geopandas + duckdb exceed 250 MB unzipped zip limit |
-| Container image Lambda | Lambda Layers | Layers also subject to 250 MB unzipped limit; managing multiple layers for geopandas is fragile |
-| EFS for DuckDB persistence | S3 download/upload per run | DuckDB WAL and incremental dlt state require a real filesystem; S3 round-trips on every run break dlt's incremental state model. S3 backup is additive (disaster recovery), not the primary store. |
-| EventBridge Scheduler | EventBridge Rules (cron) | Scheduler L2 is now GA; Scheduler supports flexible time windows and doesn't require an event bus |
-| Lambda Function URL | API Gateway | API Gateway adds cost and complexity for a single-function, no-auth invocation endpoint |
-| `natGateways: 0` + S3 endpoint | Full NAT Gateway | NAT Gateway ~$32/month baseline is disproportionate for a once-daily pipeline Lambda |
-| `asyncBufferFromUrl` (existing hyparquet) | DuckDB WASM in browser | DuckDB WASM is planned for v1.7+ (noted in project memory) but is a separate milestone; `asyncBufferFromUrl` is the minimal change for runtime fetching with the existing hyparquet stack |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| `matplotlib` for SVG maps | `geopandas.GeoDataFrame.plot()` | If the project already used geopandas. It does NOT — geopandas was explicitly removed in v2.2 Phase 47 for OOM reasons; reintroducing it just for static map rendering is a regression. matplotlib + raw shapely covers the same surface in ~30 LOC. |
+| `matplotlib` for SVG maps | `drawsvg 2.4.1` | If you needed JS-interactive SVG (animation, hover) authored from Python. We don't — these are static informational maps. matplotlib's SVG backend is well-understood and the figure axes / projections / color ramps are mature. |
+| `matplotlib` for SVG maps | `svgwrite` 1.4.3 | If you needed extremely small SVG output and were willing to compute layout/projection by hand. svgwrite is **unmaintained** as of 2024–2025 (per its PyPI page); avoid for new projects. |
+| `matplotlib` for SVG maps | DuckDB native `ST_AsSVG` | If maps were single-shape (one polygon → SVG fragment). For multi-layer rendering (counties basemap + occurrence dots + species name annotation), you still need a layout engine. matplotlib provides one. |
+| Inline Lit SVG seasonality viz | D3.js v7 | If the seasonality viz needed brushing/zooming/transitions. The seed says "mimic Wiley Fig 6 format" — that's a static density/ridge plot. D3 adds ~70–250 KB depending on which submodules; for static output we'd be using ~5% of D3 (`d3-shape`'s `area`/`line` generators at most). Not worth the bundle hit. |
+| Inline Lit SVG seasonality viz | uPlot | uPlot is canvas-based and tuned for huge time series; per-species monthly histograms are 12 points. uPlot bundle is small (~40 KB) but still adds a runtime dep we don't need. |
+| Inline Lit SVG seasonality viz | Chart.js | Chart.js (200+ KB) is overkill for 12-point histograms and brings opinionated styling that won't match Wiley Fig 6. Reject on bundle size alone. |
+| Inline Lit SVG seasonality viz | Observable Plot | Plot has the right semantics but pulls in D3 transitively (~80 KB+). Save for a future milestone if/when the species page grows interactive multi-variable charts. |
+| Inline Lit SVG seasonality viz | Pre-render seasonality SVGs in Python (`matplotlib`) | **Plausible alternative** — generate `public/data/species-maps/{slug}-season.svg` alongside the occurrence map in the same pipeline step. Pros: zero JS, mirrors the occurrence-map approach, R/`ggridges` aesthetic translates cleanly to Python `seaborn.kdeplot`. Cons: cannot react to filter UI on the page (geography filter would not re-render seasonality). Decision criterion: does v3.2 need filter-driven seasonality reactivity? Seed says "Filter scope on the species page: geography + seasonality" — implying yes, the seasonality viz should respond to a geography filter. **If filter reactivity is dropped from MVP, switch to Python pre-render and remove `<bee-seasonality-viz>` entirely.** Mark this as the simplest-fallback path. |
+| Eleventy `_data/species.js` reading static JSON | `_data/species.js` reading parquet at build-time via `@duckdb/duckdb-wasm` Node mode | Possible but adds a heavy npm dep and ~30 MB WASM init at build time for a one-shot read. Pipeline emits JSON anyway; let Eleventy stay simple. Reject. |
+| `tomllib` (read) + manual TOML editing | `tomlkit` round-trip from day 1 | Defer. The authoring story is "humans edit the TOML in their editor"; we don't need round-trip preservation until/unless we build a CLI tool that mutates the manifest. |
+
+---
 
 ## What NOT to Use
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `@aws-cdk/aws-lambda-python-alpha` | Alpha stability; obscures packaging with magic; no advantage over a hand-written Dockerfile | `lambda.DockerImageFunction` with `DockerImageCode.fromImageAsset` |
-| Zip/layer deployment | geopandas + duckdb exceed 250 MB unzipped limit | Container image (10 GB limit) |
-| `/tmp` for DuckDB persistence | Ephemeral; wiped between Lambda invocations | EFS mount at `/mnt/data/beeatlas.duckdb` |
-| `removalPolicy: DESTROY` on EFS | Would delete `beeatlas.duckdb` on stack update | `removalPolicy: RETAIN` |
-| `OriginAccessIdentity` (OAI) | Deprecated CDK pattern; project already uses OAC | `S3BucketOrigin.withOriginAccessControl()` (already used) |
-| Lambda managed runtime (non-container) | geopandas GDAL native libs not present in managed runtime; DuckDB spatial extension installation blocked | Container image with full Python environment and pre-installed extensions |
-| `INSTALL spatial` at Lambda invocation time | DuckDB extension installer writes to filesystem; Lambda `/tmp` is limited and the extension downloads from the internet (requires NAT) | Pre-install spatial extension during Docker build, copy extension files into image |
+| `geopandas` | Removed in v2.2 Phase 47 because it OOM'd on maderas during the geographies pipeline. Reintroducing it for a small SVG-map task is a regression of a hard-won decision. | `shapely` 2.x directly + matplotlib axes; or DuckDB `ST_AsGeoJSON` → `json.loads` → matplotlib `Polygon` patches. |
+| `svgwrite` | PyPI marks it inactive; only bugfixes accepted. Don't start new code on an unmaintained library. | `matplotlib` SVG backend or `drawsvg`. |
+| Headless-browser SVG capture (Playwright/Puppeteer rendering Mapbox tiles) | Explicit anti-decision in the seed: "no new headless-browser tooling". Adds CI complexity, slow render times, and runtime fragility. | Pure-Python `matplotlib` rendering. |
+| `cartopy` | Powerful but heavy (proj4, GEOS, large native deps); overkill for a WA-state scale plot with one CRS. | `matplotlib` + `shapely`. The pipeline already operates in EPSG:4326 throughout (per v2.2 decision). |
+| Build-time iNat API queries for photos | Explicit anti-decision in the seed: "no build-time queries". Causes flaky CI and rate-limit risk. | Authored TOML manifest in repo. |
+| D3.js / Chart.js / Plotly added to the species page bundle | Bundle budget is already strained (1.998 MB main chunk). The 12-point seasonality histogram doesn't justify ANY chart library. | Inline `<svg>` inside a Lit template. |
+| `@duckdb/duckdb-wasm` re-introduced for build-time parquet reads | Removed deliberately in v2.6 SQLite migration. Reintroducing for build-time use would re-add ~30 MB of node_modules. | Pipeline emits JSON; Eleventy reads JSON. |
+| Vite `rollupOptions.input` configuration for the new species page | The plugin discovers entries automatically by scanning emitted `_site/*.html` (v3.1 D-05 confirmed end-to-end). Adding manual `input` config breaks the auto-discovery contract. | Drop the new `.njk` page in `_pages/`; Vite picks it up. Side-effect TS entries go in `src/entries/` and are referenced from the layout/page via `<script type="module" src="...">`. |
+
+---
+
+## Stack Patterns by Variant
+
+**If filter-driven seasonality reactivity is in MVP scope:**
+- Use the inline-Lit-SVG `<bee-seasonality-viz>` recommendation above.
+- Per-species `species.json` carries a 12-element monthly histogram per geography slice, OR carries the raw occurrence dates and the component computes the histogram client-side. Latter is simpler and the data is small (~50–200 dates per species typical).
+
+**If filter-driven seasonality reactivity is dropped from MVP:**
+- Pre-render `{slug}-season.svg` in Python alongside the occurrence map.
+- Skip `<bee-seasonality-viz>` Lit component entirely.
+- Saves bundle bytes and a render path; the page becomes pure server-rendered SVG.
+
+**If photo authoring grows a CLI tool:**
+- Add `tomlkit ^0.13` to `data/pyproject.toml` runtime deps.
+- Keep `tomllib` for read paths inside the pipeline (faster, stdlib).
+- Use `tomlkit` only in the helper script that mutates the manifest.
+
+**If the largest subgenus (Osmia, ~80–90 species per the seed) blows up the page:**
+- The card-grid renders client-side from `_data/species.js` data; pagination/lazy-load is a Lit-component concern, not a stack concern. Defer to design phase.
+
+---
 
 ## Version Compatibility
 
-| Package | Version | Compatibility Notes |
-|---------|---------|---------------------|
-| aws-cdk-lib | ^2.238.0 (pinned in infra/) | `aws_scheduler` L2 went GA April 2025; available in 2.238.0+ |
-| Python Lambda runtime | `python3.14` | GA November 2025; all regions |
-| hyparquet | ^1.23.3 (pinned in frontend/) | `asyncBufferFromUrl` stable API; no version change needed |
-| dlt[duckdb] | >=1.23.0 (pyproject.toml) | dlt uses `DESTINATION__FILESYSTEM__BUCKET_URL` and `PIPELINE_WORKING_DIR` env vars; set working dir to EFS mount path in Lambda env |
-| duckdb | any (pyproject.toml) | Spatial extension must be pre-installed in container image; cannot download at Lambda runtime without NAT/internet access |
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| `matplotlib ^3.10` | Python 3.14 | matplotlib 3.10 supports Python 3.10–3.13 officially per release notes; 3.14 just-released compatibility relies on no Python-3.14-incompatible C extension behavior. Verify on first install — if matplotlib breaks on 3.14, fall back to pre-rendering in a 3.13 container OR pin `matplotlib >=3.11` if it ships before v3.2 freeze. **Action:** install and run a smoke test as the first step of the implementation phase. |
+| `shapely ^2.0` | Python 3.14 | Shapely 2.x supports Python 3.9+. 2.0 series is stable; explicit dep makes the version visible in `data/pyproject.toml`. |
+| `tomllib` | Python 3.11+ | Already required by 3.14 floor. No constraint. |
+| Eleventy 3.1.5 + `_data/*.js` async export | Eleventy `^3.0` | `_data/*.js` async functions are documented and stable since v2; no version concern. |
+| Lit 3.2 inline SVG templates | n/a | Lit's `html` template literal handles `<svg>` content correctly when the root is `<svg>`. No SVG-specific tag function needed (Lit's `svg` tag exists but isn't required for this case). |
+
+---
+
+## Open Questions (flagged for downstream phases, NOT stack-blocking)
+
+1. **WA state checklist source format** — the Bartholomew, Murray, Bossert, Gardner, Looney 2024 paper (J. Hymenoptera Research 97: 1007–1121, DOI 10.3897/jhr.97.129013) is the authoritative WA bee checklist. Pensoft journals typically publish supplementary data as CSV/XLSX under each article's "Supplementary materials" section, but the article page does not currently expose direct file download URLs in HTML scrapes — they're behind a UI affordance. **Action for the requirements gatherer:** manually inspect the article supplementary section, download the species-list file, and add the format to `_data/` ingestion. If the checklist is only available as a PDF table or a Shiny app data dump (`https://phylosolving.shinyapps.io/WA_bee_catalog/`), add `pdfplumber` (PDF) or pure-`requests` HTML scraping as a one-off ingestion step. **NOT in v3.2 stack until format is confirmed.** Confidence: LOW.
+
+2. **Wiley Fig 6 fidelity bar** — the seed says "mimic format from Wiley `10.1002/ece3.72049`" (Sugden et al. 2025 *Ecology and Evolution*). The reference R code at `~/dev/BeeSearch/analyses/ridge_plots.Rmd` uses `ggridges::geom_density_ridges` over week-of-year, aggregating multiple genera into a stacked ridge plot. **A per-species seasonality viz on the species card is structurally simpler than a multi-species ridge plot** — it's effectively one density curve per card, not a ridge plot at all. Visualization design phase should confirm whether v3.2 wants (a) a single density area per card, or (b) a small ridge plot showing each species against its genus/tribe peers on the same card. (a) is trivially Lit-inline-SVG; (b) might justify a small kernel-density helper but still doesn't need a chart library — `simple-statistics` (~5 KB) would be enough if we needed gaussian KDE in JS. Confidence: MEDIUM.
+
+3. **Photo manifest TOML schema** — flagged in the seed; not a stack question (any TOML is the same TOML to `tomllib`). Surface here so the schema gets designed BEFORE the manifest is populated, to avoid round-trip-rewrite work. Recommended fields (suggestion only): `[species.<scientific-name>]` table with `inat_observation_ids: [int]`, `caption: str`, `attribution: str`, `license: str`, `order: int`. Defer to requirements phase.
+
+---
 
 ## Sources
 
-- [AWS Lambda Python 3.14 announcement (Nov 2025)](https://aws.amazon.com/about-aws/whats-new/2025/11/aws-lambda-python-314/) — HIGH confidence (official AWS announcement)
-- [AWS Lambda quotas — container image 10 GB limit](https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html) — HIGH confidence (official docs)
-- [Lambda FileSystem CDK API](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.FileSystem.html) — HIGH confidence (official CDK docs)
-- [uv AWS Lambda packaging guide](https://docs.astral.sh/uv/guides/integration/aws-lambda/) — HIGH confidence (official uv docs; covers zip and container image approaches)
-- [EventBridge Scheduler L2 GA announcement (April 2025)](https://aws.amazon.com/about-aws/whats-new/2025/04/aws-cdk-construct-library-eventbridge-scheduler/) — HIGH confidence (official AWS announcement)
-- [Lambda FunctionUrl CDK construct](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_lambda.FunctionUrl.html) — HIGH confidence (official CDK docs)
-- [S3 Gateway Endpoint — no charge](https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html) — HIGH confidence (official AWS docs)
-- [CloudFront ResponseHeadersPolicy CDK](https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.aws_cloudfront.ResponseHeadersPolicy.html) — HIGH confidence (official CDK docs)
-- [hyparquet asyncBufferFromUrl README](https://github.com/hyparam/hyparquet/blob/master/README.md) — HIGH confidence (official repo)
-- [NAT gateway vs VPC endpoint cost](https://www.vantage.sh/blog/nat-gateway-vpc-endpoint-savings) — MEDIUM confidence (third-party pricing analysis consistent with AWS pricing page)
-- [dlt on AWS Lambda (Leolytix article)](https://medium.com/leolytix/serverless-elt-with-dlt-deploying-open-source-data-pipelines-on-aws-lambda-a53294cc4089) — MEDIUM confidence (community source; confirms env var config pattern)
+- [Python `tomllib` stdlib docs (3.14)](https://docs.python.org/3/library/tomllib.html) — confirmed read-only stdlib parser, available since 3.11
+- [`tomlkit` 0.13.3 on PyPI](https://pypi.org/project/tomlkit/) — confirmed style-preserving round-trip TOML editor
+- [`tomlkit` 0.13.3 release notes on GitHub](https://github.com/python-poetry/tomlkit/releases/tag/0.13.3) — version verified
+- [Matplotlib 3.10.9 release notes](https://matplotlib.org/stable/users/release_notes.html) — confirmed latest stable as of Apr 2026; SVG backend stable
+- [Matplotlib `backend_svg` API](https://matplotlib.org/stable/api/backend_svg_api.html) — confirmed `print_svg` and metadata support
+- [`svgwrite` 1.4.3 on PyPI](https://pypi.org/project/svgwrite/) — confirmed unmaintained status
+- [`drawsvg` 2.4.1 on PyPI](https://pypi.org/project/drawsvg/) — confirmed alternative; not needed for v3.2
+- [GeoPandas mapping user guide](https://geopandas.org/en/stable/docs/user_guide/mapping.html) — confirms GeoPandas would be a regression vs. v2.2 Phase 47 decision
+- [DuckDB spatial functions (`ST_AsGeoJSON`, `ST_AsSVG`)](https://duckdb.org/docs/current/core_extensions/spatial/functions) — confirmed the SQL surface for extracting geometry into Python
+- [Eleventy JavaScript Data Files docs](https://www.11ty.dev/docs/data-js/) — confirms async export-default pattern matches `_data/build.js`
+- [Bartholomew et al. 2024, "An annotated checklist of the bees of Washington state", J. Hym. Res. 97](https://jhr.pensoft.net/article/129013/) — confirmed authoritative WA checklist source; supplementary data format requires manual inspection (Open Question 1)
+- [Sugden et al. 2025, "Structure of Bee Communities in Marginal Lands of the Puget Sound" *Ecology and Evolution*, DOI 10.1002/ece3.72049](https://onlinelibrary.wiley.com/doi/10.1002/ece3.72049) — confirms the seed's seasonality-viz reference
+- BeeSearch repo at `~/dev/BeeSearch/analyses/ridge_plots.Rmd` — confirms ridge-plot uses `ggridges` over week-of-year (HIGH confidence, direct file inspection)
+- [Casey Primozic's notes on uPlot](https://cprimozic.net/notes/posts/my-thoughts-on-the-uplot-charting-library/) — confirms uPlot is canvas-based and ill-suited to 12-point static SVG output
+- BeeAtlas internal: `.planning/PROJECT.md` Key Decisions table (rows on `geopandas` removal, EH bundle, mapbox-gl bundle size, `_data/build.js` pattern) — HIGH confidence, primary source
 
 ---
-*Stack research for: BeeAtlas v1.7 — Lambda + EFS pipeline execution, runtime CloudFront data fetching*
-*Researched: 2026-03-27*
-
----
-
-# iNat API: Observation Field Filtering (v2.3 addition)
-
-**Domain:** iNaturalist REST API — filtering observations by observation field value
-**Researched:** 2026-04-12
-**Confidence:** HIGH — all key claims verified by direct live API calls
-
-## The WABA Observation Field
-
-Field id 18116, name "WABA", datatype "numeric", description "Washington Bee Atlas Id". As of 2026-04-12 the field has 1,374 observations and 1,374 users. It was created 2024-07-16 and last updated 2026-03-18.
-
-```json
-{"id": 18116, "name": "WABA", "datatype": "numeric", "values_count": 1374, "users_count": 1374}
-```
-
-Source: `https://www.inaturalist.org/observation_fields.json?q=WABA` — verified by live API call.
-
-## Filtering Parameter: `field:WABA=`
-
-Both the v1 and v2 iNaturalist REST APIs accept the `field:FIELDNAME=VALUE` query parameter for observation field filtering. The parameter name is not listed in Swagger (`/v1/swagger.json`) — it is a pass-through from the Rails web search URL syntax. It is, however, fully functional.
-
-**Correct parameter:** `field%3AWABA=` (URL-encoded `field:WABA=`)
-
-- Omitting the value (i.e., `field:WABA=` with empty value) returns all observations that have the field set to any value. This is the correct form for the pipeline — fetch all WABA-tagged observations regardless of value.
-- Setting a specific value (e.g., `field:WABA=1`) would filter to observations where WABA equals exactly that number. Do not use this — catalog numbers are arbitrary integers, not a filter target.
-
-**Verified results (live API calls):**
-
-| Query | Total results |
-|-------|--------------|
-| `GET /v1/observations?field%3AWABA=&per_page=1` | 1374 |
-| `GET /v2/observations?field%3AWABA=&per_page=1&fields=id` | 1374 |
-| `GET /v1/observations?field%3AWABA=1&per_page=1` | 0 (specific value=1 matches nothing) |
-
-## API Version: Use v2 (Consistent with Existing Pipeline)
-
-The existing `inaturalist_pipeline.py` uses `https://api.inaturalist.org/v2/` as `base_url`. Use v2 for the new WABA pipeline too. The `field:WABA=` filter works identically on both v1 and v2 — verified by direct comparison.
-
-## Incremental Cursor: `updated_since` (Identical to Existing Pipeline)
-
-The WABA pipeline can use the same incremental pattern as the existing pipeline: `updated_since={incremental.start_value}` with `cursor_path: updated_at`. Verified working:
-
-```
-GET /v2/observations?field%3AWABA=&updated_since=2026-01-01T00%3A00%3A00%2B00%3A00&order_by=updated_at&order=asc&per_page=200
-→ total_results: 303 (observations updated since 2026-01-01)
-```
-
-The dlt RESTAPIConfig for the new pipeline is structurally identical to the existing `inaturalist_source`, with `project_id` replaced by `"field%3AWABA": ""` (or equivalent param construction).
-
-**Note on dlt RESTAPIConfig param encoding:** dlt's REST API source sends params as query string key-value pairs. The param key must be the literal string `field:WABA` (with colon, not URL-encoded) — the HTTP library handles URL encoding. Verify this during implementation; if dlt does not encode colons in param keys, pass it pre-encoded as `field%3AWABA`.
-
-## WABA Field Value Format and Join Key
-
-WABA field values are **plain integers** (datatype: numeric), e.g., `2420796`. They correspond to the numeric suffix of Ecdysis `catalog_number` values, which have the format `WSDA_{integer}`.
-
-**Join condition verified by live data:**
-
-| iNat observation | WABA value | Ecdysis catalog_number |
-|-----------------|-----------|----------------------|
-| 225243616 | 2420796 | WSDA_2420796 |
-| 229760637 | 2417133 | WSDA_2417133 |
-| 220980576 | 2414072 | WSDA_2414072 |
-
-The export join is:
-```sql
-CAST(waba_observations.waba_value AS BIGINT) = CAST(SPLIT_PART(occurrences.catalog_number, '_', 2) AS BIGINT)
-```
-
-Or equivalently:
-```sql
-occurrences.catalog_number = 'WSDA_' || waba_observations.waba_value
-```
-
-The second form is simpler — WABA values are always the raw integer suffix.
-
-## Minimum Fields Required
-
-The WABA pipeline only needs to extract: `id`, `uuid`, `updated_at`, `ofvs.field_id`, `ofvs.value`. The WABA value is in `ofvs` filtered to `field_id=18116`.
-
-Verified response shape from v2 with `fields=id,uuid,updated_at,ofvs.field_id,ofvs.value`:
-```json
-{"id": 225243616, "uuid": "0497519d-...", "updated_at": "2024-07-16T...", "ofvs": [{"field_id": 18116, "value": "2420796"}]}
-```
-
-The `value` field is a string in the API response even though the field datatype is numeric. Cast to integer in the transform or in the export SQL.
-
-## Pagination
-
-With 1,374 total observations and `per_page=200`, the full corpus spans 7 pages. The existing pipeline uses `stop_after_empty_page: true` with no `total_path` — this works correctly here too. The iNat API does not paginate beyond 10,000 results (hard cap), so the WABA corpus (1,374) is well within bounds.
-
-No pagination behavior differences between observation field queries and project queries were observed.
-
-## Rate Limiting
-
-The iNat API has an **official limit of 100 requests/minute**, with a recommendation to stay at or below 60/minute. Community reports indicate 429 errors can appear even at 60/minute for some endpoints. The existing pipeline does not implement explicit rate limiting beyond dlt's default behavior.
-
-For the WABA pipeline: 7 pages per full fetch is negligible. Incremental nightly runs will typically fetch 1-3 pages. Rate limiting is not a concern for this pipeline at its current scale.
-
-No authentication is required for read access to public observations filtered by observation field. The WABA field observations are all public.
-
-## Differences from Project-Based Queries
-
-| Aspect | Project query (existing) | Field query (new) |
-|--------|--------------------------|-------------------|
-| Filter param | `project_id=166376` | `field%3AWABA=` |
-| Auth required | No | No |
-| Incremental cursor | `updated_since` | `updated_since` (identical) |
-| Pagination behavior | `stop_after_empty_page` | `stop_after_empty_page` (identical) |
-| OFVs in response | Yes, multiple fields | Yes, at least field_id=18116 |
-| Total corpus size | ~unknown | 1,374 observations |
-| Rate limit exposure | Same | Same |
-
-The only material difference is the filter parameter. The rest of the pipeline configuration is identical.
-
-## Sources
-
-- `https://www.inaturalist.org/observation_fields.json?q=WABA` — live API call confirming field id=18116, name="WABA", datatype="numeric", values_count=1374 — HIGH confidence
-- `https://api.inaturalist.org/v1/observations?field%3AWABA=&per_page=1` — live API call confirming 1374 results — HIGH confidence
-- `https://api.inaturalist.org/v2/observations?field%3AWABA=&per_page=1&fields=id` — live API call confirming v2 support — HIGH confidence
-- `https://api.inaturalist.org/v2/observations?field%3AWABA=&updated_since=...&order_by=updated_at` — live API call confirming incremental query works — HIGH confidence
-- [iNaturalist API rate limits — forum discussion](https://forum.inaturalist.org/t/429-error-from-observations-histogram-api-when-calling-at-60-calls-minute/64709) — MEDIUM confidence (community report; documented limit is 100/min, practical safe limit ~60/min)
-- [iNaturalist API forum — field: parameter syntax](https://forum.inaturalist.org/t/query-api-by-observation-field-or-observation-field-value/39719) — MEDIUM confidence (community-confirmed syntax; not in official Swagger docs)
-
----
-*iNat API field filtering research for: BeeAtlas v2.3 — WABA observation field pipeline*
-*Researched: 2026-04-12*
-
----
-
-# DEM Elevation Annotation: Raster Stack (v2.5 addition)
-
-**Domain:** USGS 3DEP DEM download + raster point sampling in Python pipeline
-**Researched:** 2026-04-15
-**Confidence:** HIGH for rasterio capabilities and Python compatibility; MEDIUM for seamless-3dep (newer library, limited secondary sources); LOW for DuckDB-native raster sampling (community extension, not production-ready)
-
-This section covers only NEW stack additions for v2.5 elevation annotation. All existing decisions (dlt, DuckDB, uv, export.py spatial pattern) are unchanged.
-
-## Recommended Stack
-
-### New Python Dependencies
-
-| Package | Version | Purpose | Why Recommended |
-|---------|---------|---------|-----------------|
-| `seamless-3dep` | `>=0.4.1` | Download USGS 3DEP 10m DEM GeoTIFF tiles for a bounding box | Recommended successor to py3dep (v0.19.0 changelog explicitly directs users here). `get_dem(bbox, data_dir)` downloads tiles to disk; returns list of file paths. Lightweight: only requires `requests` + `rasterio`. No xarray/shapely needed for the download path alone. Latest: 0.4.1 (2026-03-13). |
-| `rasterio` | `>=1.4.4` | Sample elevation values at (lon, lat) point coordinates from GeoTIFF | Industry-standard raster I/O for Python. `rasterio.sample.sample_gen(dataset, xy_pairs)` yields one array per coordinate — the exact primitive needed. v1.4.4 explicitly supports Python 3.14 (confirmed; free-threading wheels available). Requires GDAL >=3.6 (bundled in pip wheels — no system GDAL needed). |
-
-### Integration Point: export.py
-
-No new pipeline step is needed. The DEM download and elevation sampling belongs in `export.py`, alongside the existing spatial join logic:
-
-1. Download WA DEM once per run to a local cache path (e.g., `data/dem_cache/`). Skip download if files already exist.
-2. Open the GeoTIFF with rasterio and call `sample_gen` with all (lon, lat) coordinate pairs from the ecdysis and samples tables.
-3. Add `elevation_m` as INT16 (nullable) to both `ecdysis.parquet` and `samples.parquet` output via the existing `COPY (...) TO ... (FORMAT PARQUET)` SQL.
-
-The DEM is a pipeline input, not a dlt resource — it does not need dlt wrapping.
-
-### DEM Source: USGS 3DEP 1/3 arc-second (~10m)
-
-The 1/3 arc-second (~10m horizontal resolution) seamless DEM covers all of Washington state. This is the correct product:
-- USGS dataset: "1/3rd arc-second Digital Elevation Models (DEMs) — USGS National Map 3DEP"
-- Accessed via: `seamless-3dep` calls the TNM (The National Map) staging service directly
-- WA bounding box: `(-124.85, 45.55, -116.95, 49.0)` — covers the full state
-- At 10m resolution, this covers ~760km × ~370km ≈ ~10.5 million pixels. Tile-based download is automatic.
-
-### Rasterio Sampling Pattern
-
-```python
-import rasterio
-from rasterio.sample import sample_gen
-
-with rasterio.open("path/to/dem_tile.tif") as src:
-    # xy must be in the dataset's CRS (EPSG:4326 for 3DEP)
-    # yields arrays; band 1 value is the elevation in meters
-    for val in sample_gen(src, [(lon, lat), ...], indexes=1):
-        elevation = val[0]  # INT or nodata sentinel
-```
-
-For the export use case: collect all (lon, lat) pairs from both tables, batch-sample against the merged/VRT DEM, then join elevations back by index position before writing parquet.
-
-seamless-3dep returns tiles in EPSG:4326, which matches the lat/lon stored in ecdysis and samples tables — no reprojection needed.
-
-## What NOT to Add
-
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `py3dep` | Superseded. The HyRiver changelog for v0.19.0 explicitly recommends `seamless-3dep` as the replacement. py3dep has heavier dependencies (aiohttp, async stack). | `seamless-3dep` |
-| `geopandas` | Already removed from pipeline in v2.2 (caused OOM in geographies pipeline). No vector operations needed here — sampling is coordinate-list-based. | `rasterio.sample.sample_gen` directly |
-| `xarray` / `rioxarray` | Required only by `seamless-3dep`'s `tiffs_to_da()` conversion function. That function is not needed — we want files on disk for rasterio, not an xarray array. | Omit; use `get_dem()` return value (list of file paths) directly |
-| `shapely` | Only required by `seamless-3dep`'s optional `tiffs_to_da()` path. Not needed for download + rasterio sampling. | Omit |
-| `pyproj` | Only needed for CRS reprojection. 3DEP tiles are already EPSG:4326 — same CRS as stored coordinates. | Omit |
-| `elevation` (PyPI) | Older SRTM-based library. SRTM data is 30m (3 arc-second) vs 10m for 3DEP. Lower resolution; not USGS-sourced. | `seamless-3dep` + `rasterio` |
-| DuckDB `geotiff` community extension | Exposes `read_geotiff()` as a table function returning (cell_id, value) pairs — not a point-sampling primitive. No spatial join to coordinate pairs. Community extension (not core spatial extension). Would require rebuilding the entire sampling logic in SQL against a cell-id join, which is more complex and less direct than `rasterio.sample_gen`. | `rasterio` |
-| DuckDB spatial raster prototype (`duckdb-spatial-raster`) | Early-stage community prototype; no stable API, no pip package. | `rasterio` |
-| `GDAL` system install | `rasterio` wheels from PyPI bundle GDAL internally — no system `libgdal-dev` needed. Installing system GDAL alongside pip rasterio risks version conflicts. | `pip install rasterio` only |
-
-## DEM Caching Strategy
-
-The DEM tiles (~500MB–1GB for WA at 10m) should be cached on disk between pipeline runs — consistent with the S3 caching pattern used for `links.parquet` and `samples.parquet`.
-
-Recommended approach:
-- Store tiles in `data/dem_cache/` (local, gitignored)
-- `seamless-3dep`'s `get_dem()` accepts a `data_dir` argument and skips download if files exist
-- On maderas (the nightly cron host), the cache persists between runs in the same directory — no S3 round-trip needed for the DEM
-- The DEM is a stable dataset (USGS updates are infrequent) — no incremental update logic needed
-
-If the pipeline moves to Lambda, the DEM would need S3 caching (same pattern as links.parquet). That is out of scope for v2.5 since maderas cron is the execution path.
-
-## pyproject.toml Addition
-
-```toml
-dependencies = [
-    "dlt[duckdb]>=1.23.0",
-    "duckdb",
-    "requests",
-    "beautifulsoup4",
-    "boto3>=1.42.78",
-    "seamless-3dep>=0.4.1",
-    "rasterio>=1.4.4",
-]
-```
-
-No frontend changes. The `elevation_m` column is consumed via the existing DuckDB WASM SQL query path in the browser — no new frontend libraries.
-
-## Confidence Assessment
-
-| Claim | Confidence | Basis |
-|-------|------------|-------|
-| rasterio 1.4.4 supports Python 3.14 | HIGH | Official release notes confirm Python 3.14 support and free-threading wheels |
-| `sample_gen(dataset, xy_pairs)` is the correct sampling API | HIGH | Context7 (rasterio official docs), confirmed by PyPI `rasterio.sample` module docs |
-| seamless-3dep 0.4.1 is the recommended 3DEP download library | MEDIUM | py3dep v0.19.0 changelog recommends it; PyPI page confirms 0.4.1 (2026-03-13); limited secondary sources |
-| WA bounding box covers all specimens | MEDIUM | Based on known WA state bounds; verify against actual data extent at implementation time |
-| No CRS reprojection needed (3DEP = EPSG:4326) | HIGH | seamless-3dep documentation states "downloads as GeoTIFF files in EPSG:4326" |
-| DuckDB has no production-ready ST_Value equivalent | HIGH | DuckDB spatial extension docs confirm no raster sampling functions; community extensions are prototypes only |
-
-## Sources
-
-- [rasterio 1.4.4 release — Python 3.14 support confirmed](https://sgillies.net/2025/12/12/rasterio-1-4-4.html) — HIGH confidence (author's blog; Sean Gillies is rasterio maintainer)
-- [rasterio PyPI page](https://pypi.org/project/rasterio/) — HIGH confidence (official)
-- [rasterio Context7 docs — sample_gen](https://github.com/rasterio/rasterio/blob/main/docs/api/rasterio.sample.rst) — HIGH confidence (official source)
-- [seamless-3dep PyPI page — version 0.4.1, 2026-03-13](https://pypi.org/project/seamless-3dep/) — HIGH confidence (official)
-- [seamless-3dep GitHub — get_dem API](https://github.com/hyriver/seamless-3dep) — MEDIUM confidence (official repo; limited doc depth fetched)
-- [py3dep v0.19.0 changelog — recommends seamless-3dep](https://docs.hyriver.io/changelogs/py3dep.html) — HIGH confidence (official HyRiver docs)
-- [DuckDB geotiff community extension](https://duckdb.org/community_extensions/extensions/geotiff) — HIGH confidence (official DuckDB community extensions page; confirmed limited to cell_id/value tabular output, not point sampling)
-- [USGS 3DEP 1/3 arc-second dataset catalog](https://data.usgs.gov/datacatalog/data/USGS:3a81321b-c153-416f-98b7-cc8e5f0e17c3) — HIGH confidence (official USGS data catalog)
-
----
-*DEM elevation annotation stack research for: BeeAtlas v2.5*
-*Researched: 2026-04-15*
-
----
-
-# Unified Occurrence Model (v2.7 addition)
-
-**Domain:** Collapsing ecdysis.parquet + samples.parquet into a single occurrences.parquet
-**Researched:** 2026-04-16
-**Confidence:** HIGH — all claims verified against live DuckDB 1.4.4 + actual parquet files
-
-## No New Libraries Required
-
-This milestone adds zero new dependencies. Every required capability exists in the installed stack.
-
-| Need | Already Provided By | Notes |
-|------|---------------------|-------|
-| Full outer join + parquet export | DuckDB 1.4.4 | `FULL OUTER JOIN` verified working; `COPY (...) TO (FORMAT PARQUET)` is the existing pattern |
-| Unified spatial join CTE | DuckDB spatial (bundled) | Same ST_Point/ST_Within/ST_Distance pattern already in export.py |
-| Read unified parquet in browser | hyparquet 1.25.6 | `parquetReadObjects` is schema-agnostic; column name changes drive DDL only |
-| Store unified table in browser | wa-sqlite 1.0.0 | DDL changes from two tables to one; no API changes |
-| Schema gate update | hyparquet 1.25.6 (validate-schema.mjs) | Only the `EXPECTED` dict entries change |
-
-## Join Architecture (verified against live data)
-
-**Join key:** `ecdysis_data.occurrence_links.host_observation_id = inaturalist_data.observations.id`
-
-This is the same key the existing `export_ecdysis_parquet` uses for its LEFT JOIN to `inaturalist_data.observations`. The FULL OUTER JOIN extends it to capture sample observations with no ecdysis match.
-
-**Cardinality (measured from current parquet files):**
-
-| Source | Rows |
-|--------|------|
-| ecdysis specimens (with lat/lon) | 46,132 |
-| iNat sample observations | 10,099 |
-| ecdysis joined to a sample | 43,455 |
-| ecdysis with no sample | 2,677 |
-| samples with no ecdysis match | 987 |
-| **expected occurrences.parquet rows** | **47,119** |
-
-Note: many ecdysis specimens share the same sample (many-to-one). The FULL OUTER JOIN preserves one row per specimen (not one row per sample), which is correct — a sample with 12 specimens produces 12 rows, each with the shared sample metadata alongside the specimen-specific columns.
-
-## DuckDB Full Outer Join Pattern
-
-The core SQL structure for `export_occurrences_parquet` in `export.py`:
-
-```sql
-WITH
--- Sample candidate observations (same CTE as current export_samples_parquet)
-sample_obs AS (
-    SELECT op._dlt_id, op.id AS observation_id, op.user__login AS observer,
-           op.observed_on, op.longitude, op.latitude,
-           CAST(sc.value AS INTEGER) AS specimen_count,
-           TRY_CAST(sid.value AS INTEGER) AS sample_id
-    FROM inaturalist_data.observations op
-    JOIN inaturalist_data.observations__ofvs sc
-        ON sc._dlt_root_id = op._dlt_id AND sc.field_id = 8338 AND sc.value != ''
-    LEFT JOIN inaturalist_data.observations__ofvs sid
-        ON sid._dlt_root_id = op._dlt_id AND sid.field_id = 9963
-    WHERE op.longitude IS NOT NULL AND op.latitude IS NOT NULL
-),
--- Ecdysis with geometry + occurrence link resolved
-ecdysis_linked AS (
-    SELECT o.*,
-           CAST(o.decimal_longitude AS DOUBLE) AS lon,
-           CAST(o.decimal_latitude AS DOUBLE) AS lat,
-           links.host_observation_id
-    FROM ecdysis_data.occurrences o
-    LEFT JOIN ecdysis_data.occurrence_links links
-        ON links.occurrence_id = o.occurrence_id
-    WHERE o.decimal_latitude IS NOT NULL AND o.decimal_latitude != ''
-),
--- Full outer join on the host observation link
-joined AS (
-    SELECT
-        e.id AS ecdysis_id_raw,
-        s.observation_id,
-        COALESCE(e.lon, s.longitude) AS longitude,
-        COALESCE(e.lat, s.latitude) AS latitude,
-        ST_Point(COALESCE(e.lon, s.longitude),
-                 COALESCE(e.lat, s.latitude)) AS pt,
-        e.host_observation_id,
-        -- ecdysis-side columns
-        e.catalog_number,
-        strftime(COALESCE(e.event_date, CAST(s.observed_on AS VARCHAR)), '%Y-%m-%d') AS date,
-        COALESCE(CAST(e.year AS INTEGER), YEAR(s.observed_on)) AS year,
-        COALESCE(CAST(e.month AS INTEGER), MONTH(s.observed_on)) AS month,
-        e.scientific_name AS scientificName,
-        e.recorded_by AS recordedBy,
-        e.field_number AS fieldNumber,
-        e.genus, e.family,
-        NULLIF(regexp_extract(e.associated_taxa, 'host:"([^"]+)"', 1), '') AS floralHost,
-        TRY_CAST(NULLIF(e.minimum_elevation_in_meters, '') AS INTEGER) AS elevation_m,
-        -- sample-side columns
-        s.observer,
-        s.specimen_count,
-        s.sample_id
-    FROM ecdysis_linked e
-    FULL OUTER JOIN sample_obs s
-        ON e.host_observation_id = s.observation_id
-),
--- Spatial join CTEs (applied once to the merged geometry)
-wa_counties AS (...),
-wa_eco AS (...),
--- ... same ST_Within + fallback pattern as existing export.py ...
--- Additional existing enrichment CTEs
-id_modified AS (...),
-waba_link AS (...),
-inat_enrich AS (
-    SELECT links.host_observation_id,
-           CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae'
-                THEN inat.taxon__name ELSE NULL END AS inat_host,
-           inat.quality_grade AS inat_quality_grade
-    FROM ecdysis_data.occurrence_links links
-    JOIN inaturalist_data.observations inat
-        ON inat.id = links.host_observation_id
-)
-SELECT
-    CAST(j.ecdysis_id_raw AS INTEGER) AS ecdysis_id,       -- null for sample-only rows
-    j.observation_id,                                        -- null for specimen-only rows
-    j.longitude, j.latitude,
-    j.year, j.month, j.date,
-    j.scientificName, j.recordedBy, j.fieldNumber,
-    j.genus, j.family, j.floralHost,
-    j.observer, j.specimen_count, j.sample_id,
-    fc.county, fe.ecoregion_l3,
-    j.host_observation_id,
-    ie.inat_host, ie.inat_quality_grade,
-    wl.specimen_observation_id,
-    strftime(GREATEST(e_orig.modified,
-             COALESCE(im.max_id_modified, e_orig.modified)), '%Y-%m-%d') AS modified,
-    j.elevation_m,
-    j.catalog_number
-FROM joined j
-LEFT JOIN final_county fc ON ...
-LEFT JOIN final_eco fe ON ...
-LEFT JOIN inat_enrich ie ON ie.host_observation_id = j.host_observation_id
-LEFT JOIN id_modified im ON im.coreid = j.ecdysis_id_raw
-LEFT JOIN waba_link wl ON wl.catalog_suffix = CAST(regexp_extract(j.catalog_number, '[0-9]+$', 0) AS BIGINT)
-LEFT JOIN ecdysis_data.occurrences e_orig ON CAST(e_orig.id AS INTEGER) = CAST(j.ecdysis_id_raw AS INTEGER)
-```
-
-**Date standardization:** Export `date` as VARCHAR using `strftime(..., '%Y-%m-%d')`. The existing `_insertRows` in `sqlite.ts` already converts `Date` objects to ISO strings, but standardizing as VARCHAR avoids the conversion entirely and is consistent with the current `ecdysis.date` column type. Use `COALESCE(e.event_date, CAST(s.observed_on AS VARCHAR))`.
-
-**Year/month pre-computation:** Store `year` and `month` as INTEGER using `COALESCE(CAST(e.year AS INTEGER), YEAR(s.observed_on))`. This eliminates the `CAST(strftime('%Y', date) AS INTEGER)` that `filter.ts` currently applies to the samples table — unified filter SQL becomes `year >= X` for all rows.
-
-## Frontend: sqlite.ts Changes
-
-Replace two `CREATE TABLE` statements + two `asyncBufferFromUrl` calls with one each.
-
-**Unified SQLite DDL:**
-
-```typescript
-await sqlite3.exec(db, `CREATE TABLE occurrences (
-  ecdysis_id     INTEGER,   -- null for sample-only rows
-  observation_id INTEGER,   -- null for specimen-only rows with no sample match
-  longitude      REAL,
-  latitude       REAL,
-  year           INTEGER,
-  month          INTEGER,
-  date           TEXT,
-  scientificName TEXT,      -- null for sample-only rows
-  recordedBy     TEXT,      -- null for sample-only rows
-  fieldNumber    TEXT,
-  genus          TEXT,
-  family         TEXT,
-  floralHost     TEXT,
-  observer       TEXT,      -- null for specimen-only rows
-  specimen_count INTEGER,
-  sample_id      INTEGER,
-  county         TEXT,
-  ecoregion_l3   TEXT,
-  host_observation_id    INTEGER,
-  inat_host              TEXT,
-  inat_quality_grade     TEXT,
-  specimen_observation_id INTEGER,
-  elevation_m    REAL,
-  modified       TEXT,
-  catalog_number TEXT
-)`);
-```
-
-The `_insertRows` function requires no changes — it handles nulls, bigints, and Date objects already.
-
-## Frontend: features.ts Changes
-
-Replace `EcdysisSource` + `SampleSource` with a single `OccurrenceSource`.
-
-Feature ID construction preserves the existing string format that OL, URL state, and sidebar depend on:
-
-```typescript
-// In OccurrenceSource loader:
-const id = obj.ecdysis_id != null
-  ? `ecdysis:${Number(obj.ecdysis_id)}`
-  : `inat:${Number(obj.observation_id)}`;
-feature.setId(id);
-```
-
-## Frontend: filter.ts Changes
-
-`buildFilterSQL` currently returns `{ ecdysisWhere: string; samplesWhere: string }` to query two separate tables.
-
-In the unified model it returns a single `occurrencesWhere: string` against the `occurrences` table.
-
-**Filter clause mapping (all columns now present on every row):**
-
-| Filter | Current (two tables) | Unified (one table) |
-|--------|---------------------|---------------------|
-| Taxon (family/genus/species) | ecdysis only | `family = X` — sample-only rows have null family, excluded naturally |
-| Year | `year >= X` / `strftime('%Y', date)` | `year >= X` for all rows (year pre-computed in parquet) |
-| Month | `month IN (...)` / `strftime('%m', date)` | `month IN (...)` for all rows (month pre-computed in parquet) |
-| County | separate clauses on each table | `county IN (...)` — non-null for all rows (coalesced in export) |
-| Ecoregion | separate clauses on each table | `ecoregion_l3 IN (...)` — non-null for all rows |
-| Collector | `recordedBy IN (...)` / `observer IN (...)` | `(recordedBy IN (...) OR observer IN (...))` |
-| Elevation | duplicate clauses on each table | `elevation_m IS NOT NULL AND elevation_m BETWEEN X AND Y` |
-
-**Taxon filter and sample-only rows:** When a taxon filter is active, the current code adds `1 = 0` to `samplesWhere` to ghost all sample features. In the unified model, taxon columns (family, genus, scientificName) are null on sample-only rows. `WHERE family = 'Halictidae'` already excludes null-family rows. No ghost clause needed — the nullability does the work.
-
-**Collector filter:** The current code checks `recordedBy` and `observer` separately on their respective tables. In the unified model, a matched row has both fields non-null (the Ecdysis collector's full name and the iNat observer's username are different people for most specimens). The correct unified clause is `(recordedBy IN (...) OR observer IN (...))` with an `OR` — a row should pass if either field matches the selected collector.
-
-**Downstream callers of buildFilterSQL** — `queryVisibleIds`, `queryTablePage`, `queryAllFiltered`, `queryFilteredCounts` — all need updating to use a single table name (`occurrences`) and a single WHERE clause.
-
-## scripts/validate-schema.mjs Changes
-
-Replace the two-key `EXPECTED` object with a single `'occurrences.parquet'` entry. No structural changes to the script.
-
-## What NOT to Add
-
-| Avoid | Why |
-|-------|-----|
-| pandas/polars for the join | DuckDB `FULL OUTER JOIN ... COPY TO PARQUET` handles this entirely in SQL — no Python-level data manipulation |
-| pyarrow schema enforcement in export.py | DuckDB infers nullable types automatically from FULL OUTER JOIN (unmatched sides yield null); the existing `read_parquet` + assertion block is sufficient post-export verification |
-| New parquet library on frontend | hyparquet reads any valid parquet; column changes require only DDL + feature mapping updates |
-| DuckDB WASM or Apache Arrow in browser | Removed in v2.6 for documented performance and complexity reasons; wa-sqlite remains the correct choice |
-| Separate occurrence_id synthetic key column | Feature IDs are computed at load time from `ecdysis_id` / `observation_id` — no need to store a pre-computed string key in the parquet |
-
-## Version Compatibility
-
-| Package | Version | Notes |
-|---------|---------|-------|
-| DuckDB 1.4.4 | FULL OUTER JOIN | Verified working in REPL against live parquet files |
-| DuckDB 1.4.4 | COPY ... TO PARQUET | Existing pattern; null columns from outer join are stored as nullable Parquet columns automatically |
-| hyparquet 1.25.6 | wa-sqlite 1.0.0 | No API changes; `_insertRows` handles nulls correctly |
-| DuckDB spatial 1.4.4 | FULL OUTER JOIN | ST_Point/ST_Within/ST_Distance operate on CTEs regardless of join type |
-
-## Sources
-
-- Live DuckDB 1.4.4 REPL — `FULL OUTER JOIN` syntax, nullable output, COALESCE patterns, COPY TO PARQUET — HIGH confidence (verified)
-- `/Users/rainhead/dev/beeatlas/data/export.py` — existing spatial join CTE patterns and enrichment CTEs — HIGH confidence (source of truth)
-- `/Users/rainhead/dev/beeatlas/frontend/src/sqlite.ts` — existing DDL, `_insertRows`, `loadAllTables` — HIGH confidence
-- `/Users/rainhead/dev/beeatlas/frontend/src/features.ts` — feature ID construction, OL source patterns — HIGH confidence
-- `/Users/rainhead/dev/beeatlas/frontend/src/filter.ts` — `buildFilterSQL` structure, collector filter pattern — HIGH confidence
-- Live parquet analysis: ecdysis.parquet (46,132 rows, 21 cols), samples.parquet (10,099 rows, 10 cols), join cardinality verified — HIGH confidence
-
----
-*Unified occurrence model stack research for: BeeAtlas v2.7*
-*Researched: 2026-04-16*
+*Stack research for: v3.2 Species Tab additions only*
+*Researched: 2026-05-02*
