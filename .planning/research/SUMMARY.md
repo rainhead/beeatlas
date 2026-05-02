@@ -1,102 +1,177 @@
-# Research Summary: BeeAtlas v2.5 — DEM Elevation Annotation
+# Research Summary: BeeAtlas v3.2 — Species Tab
 
-**Project:** BeeAtlas v2.5
-**Domain:** USGS 3DEP DEM sampling + parquet schema extension + frontend filter/display
-**Researched:** 2026-04-15
-**Confidence:** HIGH (pipeline integration); MEDIUM (seamless-3dep library maturity)
+**Project:** BeeAtlas v3.2
+**Domain:** Species exploration page for volunteer bee collectors — hierarchical taxonomic nav, image-forward cards, static SVG occurrence maps, Wiley-style seasonality viz, geography + month filters
+**Researched:** 2026-05-02
+**Confidence:** HIGH (Eleventy/Vite integration, BeeAtlas pipeline, occurrence schema); MEDIUM (Wiley viz fidelity, big-subgenus performance); LOW (WA checklist supplement format until manually inspected)
 
 ---
 
 ## Milestone Summary
 
-v2.5 adds an `elevation_m` (INT16, nullable) column to both `ecdysis.parquet` and `samples.parquet` by sampling the USGS 3DEP 10m seamless DEM at each specimen and sample coordinate during the nightly export step. No new pipeline stages, no dlt resources, no AWS infrastructure changes. The work slots entirely into `export.py` (consistent with how county and ecoregion are already computed at export time) plus a new `dem_pipeline.py` helper module and straightforward frontend additions: sidebar display and an elevation range filter using two number inputs. The milestone is tractable because all required tooling (`rasterio`, `seamless-3dep`) is mature, the data model change is additive (nullable column), and every integration point follows an already-established pattern in this codebase.
+v3.2 adds a single new page at `/species/` rendering one card per WA bee species. Cards combine an iNat-CDN photo, a 1–3 sentence ID-helpful description, a static Python-generated SVG occurrence map, and an inline Lit-rendered seasonality chart driven by a pre-binned monthly histogram. A left-rail taxon tree (family → subfamily → tribe → genus → subgenus when populated) drives navigation; a sticky page-level filter narrows by county or ecoregion-l3 and month range with mute-not-hide semantics. Each card deep-links to the existing SPA via `/?taxon=<scientificName>&taxonRank=species` (verified URL contract from `src/url-state.ts:35-89`).
+
+The work fits the existing BeeAtlas shape with no architectural surprises: three new pipeline steps in `data/run.py` (checklist load, species aggregation, per-species SVG generation), two new build-time `_data/*.js` modules, one new Vite entry (`src/entries/species.ts`) bundled separately from the SPA so the species page does not load `mapbox-gl` or `wa-sqlite`, and a TOML photo manifest hand-edited in `content/species-photos.toml`. No new AWS infrastructure, no new npm runtime deps, two Python additions (`matplotlib`, `shapely`).
 
 ---
 
 ## Stack Additions
 
-Two new pip dependencies; no frontend library changes, no new AWS services.
-
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `seamless-3dep` | `>=0.4.1` | Downloads USGS 3DEP 10m GeoTIFF tiles for a bounding box via the USGS National Map service. `get_dem(bbox, data_dir)` returns a list of local file paths and skips download if files already exist. Successor to py3dep (recommended explicitly in py3dep v0.19.0 changelog). Requires only `requests` + `rasterio`; no xarray or shapely needed for the download path. |
-| `rasterio` | `>=1.4.4` | Samples elevation values at (lon, lat) coordinates from GeoTIFF. `src.sample(list_of_xy_tuples)` feeds all points to the underlying GDAL C layer in one call — fast enough for 55k points. Bundles GDAL internally (no system libgdal-dev needed). Python 3.14 support confirmed in 1.4.4. |
+| `matplotlib` | `^3.10` | Render per-species static SVG occurrence maps via the SVG backend (verify Python 3.14 compatibility on first install — fall-back is a 3.13 container if `matplotlib` 3.10 hits ABI issues) |
+| `shapely` | `^2.0` | Parse WA county polygons from `ST_AsGeoJSON` into geometry objects matplotlib can plot — explicit dependency rather than a hidden transitive |
+| `tomllib` | stdlib | Read photo manifest at pipeline + Eleventy build time. No install. |
+| `@iarna/toml` | `^2.2` (dev) | Same role on the Node/Eleventy side (`_data/photos.js`, `scripts/validate-species.mjs`) |
 
-No `geopandas`, no `xarray`, no `pyproj` — consistent with v2.2 decision to drop geopandas after OOM issues.
+No new frontend runtime deps. The seasonality viz is a hand-rolled Lit `html<svg>...` template (~50 LOC) — D3, Chart.js, uPlot, and Plot are all rejected on bundle-size grounds for a 12-point histogram. `tomlkit` is intentionally deferred unless an authoring CLI tool grows.
+
+Geopandas remains explicitly excluded (regression of the v2.2 Phase 47 OOM decision). DuckDB native `ST_AsSVG` is insufficient for a multi-layer figure; matplotlib provides the layout engine. Build-time iNat photo fetch and headless-browser SVG capture are both anti-decisions in the seed.
 
 ---
 
 ## Feature Table Stakes
 
-Everything in the must-ship list is either a display change or a filter extension; all follow established patterns.
+**Must ship (v3.2):**
 
-**Must ship (v2.5):**
-- `elevation_m` in both parquet files — INT16 nullable; INT16 is large enough for WA (max 4,392 m) and small enough to stay compact
-- Schema gate updated (`validate-schema.mjs`) — enforces column presence before CI build proceeds
-- Sidebar display in `bee-specimen-detail` and `bee-sample-detail` — show elevation when non-null; omit row when null (do not show "0 m" as a null sentinel; 0 is a valid sea-level elevation)
-- Elevation range filter — two `<input type="number">` fields (min/max), not a slider; WA spans 0–4,392 m and a slider cannot achieve useful precision at that scale; follows the same year/month input pattern already in the codebase
-- URL state — `elev0`/`elev1` params via existing `buildParams`/`parseParams` pattern
-- Clear-filters resets elevation range — same as all other filter state
+- WA bee checklist ingested as committed CSV at `data/checklists/wa_bee_checklist.csv`, loaded by `data/checklist_pipeline.py` into `checklist_data.species` (Bartholomew et al. 2024, JHR 97, [DOI 10.3897/jhr.97.129013](https://jhr.pensoft.net/article/129013/) — supplement format requires manual inspection; expect XLSX or CSV).
+- Tribe / subfamily / subgenus fields populated: checklist provides primary, iNat `taxon_lineage_extended` (extension of `enrich_taxon_lineage` to walk full ancestor chain) fills gaps for non-checklist species.
+- Per-species aggregate parquet (`public/data/species.parquet`): one row per species with family/subfamily/tribe/genus/subgenus/specific_epithet, `on_checklist`, `occurrence_count`, `specimen_count`, `first/last_occurrence_date`, `month_histogram INT[12]`, `county_count`, `slug`.
+- Static SVG per-species occurrence map (`public/data/species-maps/<slug>.svg`) generated by `data/species_maps.py`: WA county outlines (simplified via `ST_SimplifyPreserveTopology`) + occurrence circles, fixed viewBox so all cards align visually.
+- Photo manifest at `content/species-photos.toml` with per-species `description` + photo array (`observation_id`, `photo_id`, `caption`, `attribution`, `license`, `ordering`). License whitelist `{cc0, cc-by, cc-by-nc, cc-by-sa, cc-by-nc-sa}`; attribution required for non-CC0; both validated by `scripts/validate-species.mjs` before Eleventy runs.
+- Hierarchical left-rail taxon nav with expand-on-click; subgenus level visible only when populated; mute-not-hide on filter (pnwmoths D-06 pattern).
+- Per-card seasonality viz: monthly bars when n ≥ 5; "no data" text when n < 5; kernel-density smoothed area as the differentiator-grade upgrade if time permits.
+- Filter scope: county multi-select, ecoregion-l3 multi-select, month range. URL params disjoint from SPA's (e.g. `?fam=Andrenidae&gen=Andrena&county=King&m0=4&m1=8`).
+- Per-card "View N occurrences →" deep-link to `/?taxon=<scientificName>&taxonRank=species`.
 
-**Add after v2.5 validation:**
-- Table view elevation column — trivially low effort once the column exists in parquet
-- CSV export — already picks up new columns automatically via DuckDB `SELECT *`
+**Defer to v3.3+:**
 
-**Out of scope:**
-- Feet/meters toggle (scientific audience; Darwin Core and GBIF both use meters)
-- Elevation as a map visual encoding (conflicts with recency-based cluster coloring)
-- Range slider (anti-pattern for wide numeric ranges per NN/G and Apache Superset issue #15605)
-- Rounding to nearest 10 m for display (raw integer is acceptable; may add as polish)
+- Photo lightbox / slideshow (single hero is enough for MVP).
+- iNat photo S3 mirroring (hot-link is acceptable initially; flagged as a hardening follow-up).
+- Cross-genus ridge plot (Wiley Fig 6 stacked form) — single-species seasonality is the MVP.
+- Sex-disaggregated phenology, year filter, year-over-year overlay.
+- "First state record" / "rediscovered" callouts (data is there; trivially additive).
+- Lazy `IntersectionObserver`-based card render (only if Osmia perf is bad in practice — `loading="lazy"` on `<img>` and `content-visibility: auto` on cards is the simpler first attempt).
+
+**Out of scope per seed lock:**
+
+- Attribute filters (eye color, ID character, ease of photo ID) — deserves its own design milestone.
+- Species detail pages.
+- Identification / dichotomous key UI.
+- Build-time iNat photo fetch.
 
 ---
 
 ## Architecture
 
-**Elevation sampling belongs in `export.py`, not a new pipeline step.** Elevation is a deterministic function of lat/lon; there is no incremental state to track and no upstream API to poll. This exactly matches how `county` and `ecoregion_l3` are already computed at export time — spatial attributes derived from coordinates, not fetched from an external system. `run.py` STEPS list does not change.
+**Aggregations are nightly, not page-load.** `data/species_export.py` runs in `data/run.py` after `export.py` and before `feeds`, joining `ecdysis_data.occurrences` against `checklist_data.species` (FULL OUTER) and `inaturalist_data.taxon_lineage_extended` (LEFT) with `COALESCE(checklist, inat)` precedence. Output: ~700-row `species.parquet`.
 
-The new code is a standalone `data/dem_pipeline.py` module with two pure functions — `ensure_dem(path)` and `sample_elevation(lons, lats, dem_path) -> list[int | None]` — imported by `export.py`. Separating the module makes it unit-testable with a synthetic 2x2 GeoTIFF fixture without downloading real DEM data in CI.
+**The species page is a separate Vite entry.** `src/entries/species.ts` registers `<bee-species-page>` and children. It does NOT import `mapbox-gl`, `wa-sqlite`, `hyparquet`, `src/sqlite.ts`, `src/filter.ts`, `src/bee-map.ts`, or `src/bee-atlas.ts`. A new ARCH-04 invariant test (extending `src/tests/arch.test.ts`) enforces the boundary.
 
-**DEM storage — note the researcher disagreement:**
+**`<bee-species-page>` is the species-page coordinator.** Mirrors the `<bee-atlas>` pattern: it owns active taxon path, geo filter, season filter, and URL state. `<bee-taxon-nav>`, `<bee-species-grid>`, `<bee-species-card>`, `<bee-species-filter>`, `<seasonality-viz>` are pure presenters receiving state via `@property` and emitting `CustomEvent`s. None may import from `bee-species-page.ts` directly.
 
-ARCHITECTURE.md recommends backing the DEM in S3 (`cache/dem/wa_10m.tif`) using the same `aws s3 cp` restore/upload pattern that `nightly.sh` already uses for `beeatlas.duckdb`. STACK.md takes the position that S3 caching is out of scope for v2.5 because maderas cron is the execution path and the file persists between runs on disk.
+**Build-time data feed format — `species.json`, not `species.parquet`.** ARCHITECTURE.md proposed reading `species.parquet` via hyparquet inside `_data/species.js`; PITFALLS #8 and #23 confirm parquet reads at every Eleventy `_data/*.js` execution kill HMR and risk swallowed errors. Resolution: emit a flat `public/data/species.json` from `data/species_export.py` (alongside `species.parquet` for any downstream tooling) and read JSON in `_data/species.js`. Cheaper, no error-swallow surface, no hyparquet dependency on the build.
 
-**Recommendation: implement S3 caching.** The S3 pattern is already in `nightly.sh`, costs nothing to add (S3 PUT/GET on a single 500 MB file), and protects against the maderas disk being wiped or the pipeline moving to Lambda later. Local-only cache is fine for development but the nightly run should be robust. The implementation cost is two lines in `nightly.sh`.
+**Pre-bin seasonality in Python.** Per-species × per-county × per-ecoregion × per-month histograms total ~6 MB of JSON for ~700 species; the species page filter becomes a Map lookup, not in-browser KDE. No SQLite needed on the species page.
 
-The implementation note about `export.py`'s `read_only=True` DuckDB connection is real: temp table injection for the elevation join requires a writable connection. The cleanest resolution is to use a second in-memory DuckDB connection for the elevation join, or to simply drop `read_only=True` (it was defensive, not structural — the nightly run is single-writer).
+**Photo URL — store the URL (or a template) in the manifest, not the renderer.** ARCHITECTURE.md proposed constructing `https://inaturalist-open-data.s3.amazonaws.com/photos/<photo_id>/medium.jpg` in `_data/photos.js`; PITFALLS #26 calls out that iNat splits photos between two CDNs (`static.inaturalist.org` + `inaturalist-open-data.s3.amazonaws.com`) and the URL pattern can change. Resolution: at manifest fill (the `seed-species-photos` script), resolve the actual URL via the iNat API and write it to the TOML; renderer reads it verbatim. S3 mirroring deferred to Phase 81 hardening.
+
+**Slug generation in Python only.** Reuse `data/feeds.py::_slugify` (already path-traversal-safe per v2.1) so SVG filenames, URL slugs, and the `slug` column in `species.parquet` agree. JS reads the precomputed slug; never re-slugifies.
+
+### File-tree diff
+
+```
+beeatlas/
+├── _data/
+│   ├── species.js               NEW (reads public/data/species.json)
+│   └── photos.js                NEW (reads content/species-photos.toml)
+├── _pages/
+│   └── species.njk              NEW (layout: default, permalink: /species/index.html)
+├── content/
+│   └── species-photos.toml      NEW (hand-edited)
+├── data/
+│   ├── checklists/
+│   │   └── wa_bee_checklist.csv NEW (committed)
+│   ├── checklist_pipeline.py    NEW
+│   ├── species_export.py        NEW (emits species.parquet + species.json + seasonality.json)
+│   ├── species_maps.py          NEW
+│   ├── inaturalist_pipeline.py  MODIFIED (taxon_lineage_extended)
+│   ├── run.py                   MODIFIED (3 new STEPS)
+│   └── tests/
+│       ├── test_species_export.py NEW
+│       └── test_species_maps.py   NEW
+├── public/data/
+│   ├── species.parquet          NEW
+│   ├── species.json             NEW (build-time data feed)
+│   ├── seasonality.json         NEW (pre-binned histograms)
+│   └── species-maps/<slug>.svg  NEW (~700 files)
+├── scripts/
+│   ├── validate-species.mjs     NEW (TOML + species.json schema gate)
+│   └── seed-species-photos.mjs  NEW (one-shot helper, NOT in CI)
+├── src/
+│   ├── species/                 NEW directory
+│   │   ├── bee-species-page.ts
+│   │   ├── bee-taxon-nav.ts
+│   │   ├── bee-species-grid.ts
+│   │   ├── bee-species-card.ts
+│   │   ├── bee-species-filter.ts
+│   │   ├── seasonality-viz.ts
+│   │   └── url-state.ts         (disjoint from SPA's url-state.ts)
+│   ├── entries/
+│   │   └── species.ts           NEW (Vite side-effect entry)
+│   └── tests/
+│       ├── arch.test.ts         MODIFIED (ARCH-04: species/** must not import mapbox-gl, wa-sqlite, bee-atlas)
+│       └── species/             NEW
+└── package.json                 MODIFIED (add @iarna/toml dev-dep; build script runs validate-species)
+```
 
 ---
 
 ## Build Order
 
-Dependencies drive the order. The DEM sampler must exist before export can produce the column; the schema gate must not be updated ahead of the pipeline change.
+Six phases starting at **Phase 76** (continues numbering from v3.1's last shipped phase 75).
 
-**Phase 1 — DEM acquisition and sampling (`dem_pipeline.py`)**
-Build `ensure_dem()` and `sample_elevation()` with unit tests using a synthetic 2x2 GeoTIFF fixture. Add `seamless-3dep` and `rasterio` to `pyproject.toml`. Validate nodata to None handling and out-of-bounds to None handling. Nothing else can proceed without a working sampler.
+**Phase 76 — Data Foundation (pipeline)**
+Land the WA checklist CSV (manually transcribed from Bartholomew et al. 2024 supplement; provenance recorded in `data/checklists/README.md`). Build `data/checklist_pipeline.py` (one-shot DuckDB load, mirrors `geographies_pipeline.py`). Extend `data/inaturalist_pipeline.py::enrich_taxon_lineage` into `taxon_lineage_extended` walking ancestors for `subfamily`, `tribe`, `subgenus`. Add reconciliation step + `data/checklist_unmatched.csv` for name-disagreement review. Synonym map at `data/checklist_synonyms.csv` (initially empty). Pytest fixtures cover known disagreements (e.g. `Lasioglossum (Dialictus) zonulum` ↔ `Lasioglossum zonulum`). Wire `("checklist", load_checklist)` into `data/run.py` STEPS before `export`.
 
-**Phase 2 — Export integration (parquet schema + schema gate)**
-Modify `export_ecdysis_parquet` and `export_samples_parquet` in `export.py` to call `sample_elevation` and join the result into the COPY output. Update `validate-schema.mjs` and `test_export.py` in the same commit/PR as the export change. Update `nightly.sh` for DEM S3 cache restore/upload. Critical path: once parquet has `elevation_m`, all frontend work can proceed.
+**Phase 77 — Pipeline Outputs**
+Build `data/species_export.py` (writes `species.parquet`, `species.json`, `seasonality.json` with per-species × per-geography monthly bins). Build `data/species_maps.py` (matplotlib + shapely + `ST_AsGeoJSON` → `public/data/species-maps/<slug>.svg`). Hash-based regeneration skip deferred unless wall time exceeds budget. Schema gate: extend `scripts/validate-schema.mjs` to verify `species.parquet` columns and `species.json` top-level shape. Pytest covers SVG well-formedness (parses, contains expected `<circle>` count for fixture data).
 
-**Phase 3 — Sidebar display (frontend)**
-Add `elevation_m` to `SpecimenRow`/`SampleRow` types and `SPECIMEN_COLUMNS`/`SAMPLE_COLUMNS`. Render elevation in `bee-specimen-detail` and `bee-sample-detail` with null-omit fallback. Highest user-visible value at lowest complexity; can be reviewed independently.
+**Phase 78 — Photo Manifest**
+Define TOML schema with required `license` ∈ {cc0, cc-by, cc-by-nc, cc-by-sa, cc-by-nc-sa} and required `attribution` for non-CC0. Build `scripts/validate-species.mjs` (parses TOML via `@iarna/toml`, cross-references `species.json`, exits nonzero on schema or referential errors). Add `validate-species` to the `npm run build` chain before Eleventy. Build `scripts/seed-species-photos.mjs` (one-shot, NOT in CI; rate-limited 1 req/sec to iNat) that writes a starter manifest by querying iNat for top-voted research-grade photos per species. Resolve actual photo URLs at fill time (per Pitfall #26); write to TOML.
 
-**Phase 4 — Elevation filter (frontend)**
-Add `elevationMin`/`elevationMax` to `FilterState`, `buildFilterSQL`, and `isFilterActive`. Add `elev0`/`elev1` to `url-state.ts`. Add min/max number inputs to `bee-filter-controls`. Add filter SQL tests and URL round-trip tests. Build last to reduce debugging surface — filter touches more files than display.
+**Phase 79 — Page Scaffolding**
+Add `_pages/species.njk` (layout: default; renders one `<bee-species-card>` per species in light DOM with `slot="photos"`, `slot="map"`, `slot="desc"`). Add `_data/species.js` (reads `species.json`, builds hierarchical tree, exposes `{ tree, flat, byScientificName }`). Add `_data/photos.js` (reads `content/species-photos.toml`, sorts by `ordering`). Add `src/entries/species.ts` (side-effect imports for `bee-header` + species components). Implement `<bee-species-page>` coordinator + skeletal child components (no filter logic yet, no nav logic yet — just render all cards). Verify Vite produces a separate `species-*.js` chunk that does NOT contain mapbox-gl. Land ARCH-04 invariant test.
+
+**Phase 80 — Filter UX & Nav**
+Implement `<bee-taxon-nav>` (expand-on-click tree, mute-not-hide on filter, image strips at collapsed levels using `_data/photos.js` photos flagged `navigational = true` if added). Implement `<bee-species-filter>` (county multi-select, ecoregion-l3 multi-select, month range). Implement species-page-specific URL state in `src/species/url-state.ts` with disjoint param namespace. Implement deep-link from card to `/?taxon=<scientificName>&taxonRank=species` via shared helper (Vitest round-trip test). Implement `<seasonality-viz>` reading the pre-binned histogram and rendering inline SVG (monthly bars MVP; KDE area as upgrade if time). Empty-state message ("No species match these filters. [Clear filters]"). Breadcrumb pill row above the cards.
+
+**Phase 81 — Hardening**
+Lighthouse pass on Osmia (largest subgenus). Add `loading="lazy"` and `content-visibility: auto` everywhere. Bundle-size CI gate for the `species-*.js` chunk. Anti-entropy script `scripts/check-photo-availability.mjs` (HEAD each manifest photo URL; flag 404s and license drifts to `data/manifest_drift_report.json`). Optional: photo CDN S3 mirror (`data/photos_pipeline.py`) if hot-linking concerns surface. Accessibility review (alt text on every photo, role/aria on the nav tree, color-contrast on density tiers). UAT against the seed's stated use cases ("Which species of *Eucera* are present in this ecoregion?").
 
 ---
 
 ## Watch Out For
 
-**1. Nodata sentinel stored as real elevation (CRITICAL)**
-USGS 3DEP GeoTIFF nodata is commonly -9999 for integer DEMs. Rasterio's `.sample()` returns the raw sentinel without masking. A naive `int(v)` cast stores -9999 in parquet as a valid elevation — it fits in INT16 with no overflow exception raised. Prevention: read `dataset.nodata`, compare before converting, assign Python `None` for sentinel values. Post-export assertion: `SELECT COUNT(*) FROM read_parquet(...) WHERE elevation_m < -500` must return 0.
+**1. Photo manifest drift (CRITICAL)** — iNat photo IDs in TOML go stale silently as photographers delete observations, hide them, or relicense. Mitigation: mandatory anti-entropy script in Phase 81 runs against iNat API, flags 404s and license changes. CC0/CC-BY/CC-BY-NC/CC-BY-SA/CC-BY-NC-SA are the only allowed licenses; all-rights-reserved or `null` rejected at validation.
 
-**2. Schema gate shipped ahead of pipeline change (HIGH)**
-If `validate-schema.mjs` is updated to require `elevation_m` before the pipeline change lands, CI will fail for all PRs until the first post-merge nightly run (production CloudFront parquets won't have the column yet). Prevention: ship the schema gate update in the same commit/PR as the `export.py` change. Established pattern from prior phases: never update EXPECTED columns ahead of the pipeline that produces them.
+**2. Checklist ↔ Ecdysis name disagreement (CRITICAL)** — naive `scientificName == scientificName` join silently drops cards. Authority strings ("Cresson, 1878"), subgenus parens, and synonymies all break exact matches. Mitigation: reconciliation step in Phase 76 strips authority + subgenus parens, consults `data/checklist_synonyms.csv`, writes unmatched names to `data/checklist_unmatched.csv` for expert review. Pytest seeds known-bad cases.
 
-**3. Out-of-bounds sampling for coastal specimens (HIGH)**
-Specimens collected near Puget Sound, San Juan Islands, or the Oregon/Idaho border may fall outside the DEM tile extent. Rasterio behavior on out-of-bounds coordinates is inconsistent across versions (may return nodata or raise `WindowError`). Prevention: bounds-check all coordinates against `dataset.bounds` before sampling; assign NULL for out-of-bounds points. A small non-zero null count is expected and correct.
+**3. mapbox-gl leaking into the species chunk (CRITICAL)** — a single accidental import from `bee-atlas.ts` or transitively via `bee-header.ts` would balloon the species-page bundle from ~50 KB to ~2 MB. Mitigation: ARCH-04 source-analysis invariant test in Phase 79 (extending the existing `src/tests/arch.test.ts` `readFileSync` pattern). CI bundle-size gate in Phase 81.
 
-**4. DEM re-downloaded every nightly run (HIGH)**
-Without caching, the 400-700 MB WA DEM downloads from USGS on every nightly run, adding 2-5 minutes and creating fragility against USGS TNM server availability. Prevention: cache in S3 under `dem/wa_10m.tif`; restore to `/tmp/wa_10m.tif` at nightly.sh start using the existing DuckDB `aws s3 cp` pattern. The DEM is stable (USGS updates quarterly at most) — no incremental logic needed.
+**4. SPA URL contract is `/?taxon=X&taxonRank=species`, NOT `/collection?taxon=...`** — the seed's example is wrong. Verified at `src/url-state.ts:35-89`: both `taxon` AND `taxonRank` are required; either-alone is silently dropped. The seed needs updating during Phase 76 documentation; the deep-link helper in Phase 80 must produce both params.
+
+**5. Authority leak in `scientificName`** — Ecdysis sometimes carries authority strings, sometimes doesn't. If a checklist row has authority and an Ecdysis row doesn't, joins fail and slugs diverge. Mitigation: introduce a `canonical_name` column at species-export time (authority stripped, lowercase, single-spaced) and use it for joins, slugs, and SPA links.
+
+**6. `_data/species.js` parquet read kills HMR (HIGH)** — root cause of the JSON-vs-parquet decision above. Even a 1.2 MB parquet read on every `_data/*.js` invocation pushes Eleventy build past 5 s. Mitigation: emit `species.json` from `species_export.py`; `_data/species.js` reads JSON.
+
+**7. Largest-subgenus weight (HIGH for Osmia ~50, Andrena ~72)** — 80+ cards each with a hero photo + SVG map could push transfer past 30 MB if photos aren't sized down. Mitigation: `loading="lazy"` on every `<img>`, `content-visibility: auto` on every card, and pull the smallest iNat thumbnail size (`square` or `small`) for the hero unless the user clicks to expand. Performance budget tracked in Phase 81.
+
+**8. Build-time iNat fetch is forbidden (HIGH)** — explicit anti-decision in the seed. The seed-species-photos script is one-shot, NOT run in CI; CI must work from a stale TOML. Mitigation: clear separation — `seed-species-photos.mjs` is in `scripts/` and never invoked by `npm run build`.
+
+**9. Tribe staleness (MEDIUM)** — iNat moves taxa between tribes occasionally; cached `taxon_lineage_extended` lags. Mitigation: nightly refresh runs as part of `inaturalist` pipeline step. Tribe is display-only (URLs are species-level), so a re-classification doesn't break bookmarks.
+
+**10. Vagrant / out-of-state inclusion** — an Ecdysis record from a Centris pallida vagrant should not produce a card asserting "occurs in WA". Mitigation: inclusion rule is checklist-driven — checklist + occurrences both render; occurrences-only renders with a "not in 2024 checklist" warning badge AND alerts maintainers via build report.
 
 ---
 
@@ -104,41 +179,48 @@ Without caching, the 400-700 MB WA DEM downloads from USGS on every nightly run,
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH (rasterio) / MEDIUM (seamless-3dep) | rasterio API and Python 3.14 support verified from maintainer release notes. seamless-3dep confirmed on PyPI with recent 0.4.1 release; limited secondary documentation depth. |
-| Features | MEDIUM-HIGH | UX guidance from NN/G and GBIF authoritative; BeeAtlas-specific UI decisions (omit null row vs. show dash) are product calls documented as such. |
-| Architecture | HIGH | Based on direct code read of export.py, nightly.sh, and validate-schema.mjs. Integration pattern matches existing county/ecoregion precedent exactly. |
-| Pitfalls | HIGH (technical) / MEDIUM (CI specifics) | Nodata, CRS, and bounds pitfalls well-documented in rasterio issues and USGS docs. Schema gate sequencing pitfall is BeeAtlas-specific and observed from prior phase patterns. |
+| Stack | HIGH (`tomllib`, `shapely`, `_data/*.js` patterns) / MEDIUM (`matplotlib` 3.10 on Python 3.14 — verify on first install; Wiley viz fidelity bar — reference R code is read-on-disk but per-card chart is structurally simpler than the multi-genus ridge plot it mimics) | Stack adds 2 Python deps, 1 dev npm dep, no runtime npm deps. |
+| Features | HIGH (BeeAtlas occurrence schema, pnwmoths reference patterns, ridge-plot R source) / MEDIUM (ALA/iNat species-page conventions; WA checklist supplement format) | pnwmoths is a near-1:1 model for taxon nav, image strips, photo CSV, phenology chart — directly portable patterns. |
+| Architecture | HIGH (every integration file read end-to-end; URL contract verified at line numbers) / MEDIUM (tribe/subfamily/subgenus from iNat ancestors — accuracy varies per genus; hyparquet build-time read DROPPED in favor of JSON) | Coordinator pattern, Vite multi-entry contract, and shared-chunk dedup all confirmed by v3.1 Phase 75. |
+| Pitfalls | HIGH | 30 pitfalls catalogued, mapped 1:1 to phases. Most prevention work has lived precedent (v1.5 schema-drift, v2.1 slugify, v3.1 multi-entry, v3.0 mapbox-gl chunk size). |
 
-**Overall confidence: HIGH** — narrow, well-scoped pipeline addition with clear precedents in the existing codebase.
+**Overall confidence: HIGH** — well-scoped feature with strong pattern precedents. Main residual risks are checklist source format (ingestion task; not architectural) and big-subgenus performance (measurable in Phase 81; mitigations are standard).
 
-### Gaps to Address
+### Gaps to Address Before Phase 76 Plan
 
-- **Exact nodata sentinel value:** Documented as -9999 but must be verified at download time with `gdalinfo`. Sampling code must read `dataset.nodata` dynamically, not hardcode -9999.
-- **Ocean/water body fill value:** Some 3DEP products fill water bodies with 0 rather than nodata. Inspect the downloaded file at pipeline development time; document the handling decision in a code comment.
-- **DEM CRS:** Tiles are documented as EPSG:4269 (NAD83) or EPSG:4326 (WGS84) depending on product variant. The horizontal offset is sub-pixel at 10m resolution and can be accepted as a known limitation. Assert CRS in `ensure_dem()` and log a warning if it is not 4326; do not attempt datum transformation.
-- **export.py read_only connection:** The `read_only=True` flag on the DuckDB connection blocks temp table injection for the elevation join. Decide during Phase 2: drop `read_only=True` (safe for single-writer nightly run) or use a second in-memory DuckDB connection for the join.
+- **WA checklist supplement format** (Bartholomew et al. 2024) — manually inspect the article supplement and choose CSV/XLSX/PDF parser. If only PDF, add `pdfplumber` for the one-shot ingestion. Document choice in `data/checklists/README.md`.
+- **Photo manifest schema final review** — confirm ordering/navigational fields, decide whether `notes` and `view` (dorsal/lateral/face) are MVP. Locked: `observation_id`, `photo_id`, `caption`, `attribution`, `license`, `ordering` are required-or-default. Reasonable to add `view` as optional now and infer "ID-helpful" later.
+- **Tribe data first source** — checklist CSV (fast path, requires checklist supplement to include tribe) versus iNat ancestor walk (slower, requires extending `inaturalist_pipeline.py`). Decision: checklist primary, iNat fallback for non-checklist species. Locked.
+- **Seasonality viz form for MVP** — bars (always works) vs kernel-density area (mimics Wiley). Default to bars; upgrade to KDE area in the same phase if budget allows.
 
 ---
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- rasterio 1.4.4 release notes — Python 3.14 support, sample_gen API
-- rasterio PyPI / official docs — sample() vectorized call pattern
-- seamless-3dep PyPI page — version 0.4.1, 2026-03-13
-- py3dep v0.19.0 changelog — explicit seamless-3dep recommendation
-- USGS 3DEP dataset catalog — 1/3 arc-second product, EPSG coverage
-- DuckDB spatial extension docs — confirmed no raster sampling primitives
-- NN/G slider design guidance — numeric inputs preferred for wide-range filters
-- Darwin Core / GBIF elevation field standards — meters, nullable
+- `~/dev/pnwmoths/src/components/{pnwm-taxon-browser.js, pnwm-phenology-chart.js, pnwm-occurrence-map.js, pnwm-image-slideshow.js, pnwm-filter-bar.js, parquet-cache.js}` — verbatim portable patterns for taxon nav, phenology chart, image slideshow, photo CSV
+- `~/dev/BeeSearch/analyses/{ridge_plots.Rmd, ridge_plots.md, genus_plots_v2.Rmd}` — concrete spec for the seasonality viz (BeeSearch is the published version of Sugden 2025)
+- `data/beeatlas.duckdb` (introspected) — confirmed taxonomy column coverage; subgenus only ~5% populated; tribe absent from both Ecdysis and current iNat lineage cache
+- `data/{export.py, ecdysis_pipeline.py, inaturalist_pipeline.py, waba_pipeline.py, run.py, feeds.py, geographies_pipeline.py}` — pipeline integration points read end-to-end
+- `src/{url-state.ts, bee-atlas.ts, sqlite.ts, entries/bee-header.ts}` — URL contract verified at `url-state.ts:35-89`; `bee-atlas.ts:16-72` coordinator pattern; v3.1 Phase 75 multi-entry contract
+- `eleventy.config.js`, `vite.config.ts`, `_layouts/default.njk`, `_data/build.js` — Eleventy + Vite multi-entry pattern reference
+- `scripts/validate-schema.mjs` — schema gate pattern reused for `validate-species.mjs`
+- `.planning/PROJECT.md` Key Decisions — v2.2 geopandas removal, v3.1 layout chain + side-effect Vite entries, v3.0 mapbox-gl bundle size
 
 ### Secondary (MEDIUM confidence)
-- seamless-3dep GitHub — get_dem() API (limited documentation depth)
-- iNaturalist community forum — GPS altitude accuracy, user expectations
-- Baymard slider UX research — numeric input preference for precise values
-- USGS 3DEP Google Earth Engine dataset page — dtype, CRS, nodata documentation
+- [Bartholomew et al. 2024, *J. Hymenoptera Research* 97](https://jhr.pensoft.net/article/129013/) — authoritative WA checklist; supplement format requires manual inspection
+- [Sugden et al. 2025, DOI 10.1002/ece3.72049](https://onlinelibrary.wiley.com/doi/10.1002/ece3.72049) — published BeeSearch ridge-plot reference
+- [Eleventy `_data/*.js` async export](https://www.11ty.dev/docs/data-js/) — pattern stable since 2.x
+- [Vite MPA build](https://vitejs.dev/guide/build.html#multi-page-app) — v3.1 Phase 75 confirmed end-to-end behavior matches docs
+- [iNat API + license model](https://api.inaturalist.org/v1/docs/) — license codes, photo URL split between `static.inaturalist.org` + `inaturalist-open-data.s3.amazonaws.com`
+- [Matplotlib SVG backend](https://matplotlib.org/stable/api/backend_svg_api.html) — stable
+- Atlas of Living Australia, GBIF, iNat species pages — search-first / faceted-search; not direct pattern matches for hierarchical browse
+
+### Internal references
+- `.planning/seeds/species-tab.md` — locked decisions and open questions
+- `.planning/research/STACK.md`, `FEATURES.md`, `ARCHITECTURE.md`, `PITFALLS.md` — full sub-agent outputs
 
 ---
 
-*Research completed: 2026-04-15*
-*Ready for roadmap: yes*
+*Research completed: 2026-05-02*
+*Ready for roadmap: yes — proceed to `REQUIREMENTS.md` then `ROADMAP.md` (continue numbering at Phase 76)*
