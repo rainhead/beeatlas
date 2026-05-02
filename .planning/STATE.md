@@ -1,33 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.1
-milestone_name: Eleventy Build Wrapper
-status: v3.1 Eleventy Build Wrapper milestone complete; v3.2 (Species Tab) next
-last_updated: "2026-04-30T16:19:31.000Z"
-last_activity: 2026-04-30 — Phase 75 (Authoring Scaffold and Verification) complete; v3.1 milestone shippable; bee-header chrome verified at /_scaffold-check/
+milestone: v3.2
+milestone_name: Species Tab
+status: planning
+last_updated: "2026-05-02T15:17:56.246Z"
+last_activity: 2026-05-02
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-29 — v3.1 Eleventy Build Wrapper scoped)
+See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v3.1 Eleventy Build Wrapper milestone complete (Phases 74 + 75 shipped 2026-04-30); next milestone is v3.2 Species Tab — see `.planning/seeds/species-tab.md`
+**Current focus:** v3.2 Species Tab — bee species exploration page (taxonomic nav, image-forward cards, occurrence maps, seasonality viz). Scoping in `.planning/seeds/species-tab.md`.
 
 ## Current Position
 
-Phase: 75 of 75 — authoring-scaffold (complete; v3.1 ready to merge)
-Plan: 075-02 (this plan, complete)
-Status: v3.1 milestone shippable; merge to main is the next user-facing step
-Last activity: 2026-04-30 — Phase 75 plans 01 + 02 complete; manual UAT approved; phase summary written
+Phase: Phase 76 (not yet started)
+Plan: —
+Status: Ready to plan Phase 76 (roadmap defined; 67 requirements mapped across Phases 76–81)
+Last activity: 2026-05-02 — v3.2 roadmap created (Phases 76–81)
 
 ## Accumulated Context
 

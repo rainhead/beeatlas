@@ -221,10 +221,10 @@ Acknowledged but out of v3.2 scope.
 | PERF-06 | Phase 81 | Pending |
 
 **Coverage:**
-- v3.2 requirements: 64 total
-- Mapped to phases: 64
+- v3.2 requirements: 67 total (CHECK 6 + TAX 4 + AGG 7 + MAP 6 + PHOTO 8 + PAGE 9 + NAV 5 + FILT 7 + VIZ 5 + LINK 4 + PERF 6)
+- Mapped to phases: 67
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-02*
-*Last updated: 2026-05-02 after initial definition*
+*Last updated: 2026-05-02 — corrected coverage count from 64 to 67 during roadmap creation (initial footer mis-counted; per-section sums verified against Traceability table)*
