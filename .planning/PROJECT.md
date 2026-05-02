@@ -1,8 +1,17 @@
 # Washington Bee Atlas
 
-## Current Milestone: v3.2 Species Tab (planned)
+## Current Milestone: v3.2 Species Tab
 
 **Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. Full scoping in `.planning/seeds/species-tab.md`.
+
+**Target features:**
+- Hierarchical taxonomic nav (family → subfamily → tribe → genus → subgenus); selecting a subgenus reveals its species as cards
+- Per-species card: short ID-helpful description, photo(s), static SVG occurrence map, seasonality viz (Wiley `10.1002/ece3.72049` format)
+- Species inclusion driven by WA state checklist + Ecdysis/iNat occurrences (taxonomy primary: Ecdysis; tribe and gaps from iNat)
+- Photo manifest as authored TOML checked into the repo (no build-time iNat queries)
+- Per-species link into the SPA pre-filtered (`/collection?taxon=...`)
+- Filter scope on the species page: geography + seasonality (occurrence-derived attributes only)
+- Static SVG occurrence maps generated in Python from existing GeoJSON + occurrences (no headless browser tooling)
 
 **Pattern reference:** v3.1 established the Eleventy + Vite foundation; v3.2 drops new `.njk` pages into `_pages/` declaring `layout: default.njk` for automatic bee-header chrome. Add `_data/<topic>.js` for build-time data feeds; add `src/entries/<name>.ts` for additional standalone Vite bundles.
 
@@ -328,4 +337,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-30 — v3.1 Eleventy Build Wrapper milestone shipped (Phases 74–75); v3.2 Species Tab next (scoping in `.planning/seeds/species-tab.md`)*
+*Last updated: 2026-05-02 — v3.2 Species Tab milestone started; requirements + roadmap to follow*

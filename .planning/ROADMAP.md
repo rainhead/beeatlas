@@ -24,7 +24,7 @@
 - ✅ **v2.9 UI Flow Redesign** — Phases 68–70 (shipped 2026-04-21)
 - ✅ **v3.0 Mapbox GL JS Migration** — Phases 71–73 (shipped 2026-04-27)
 - ✅ **v3.1 Eleventy Build Wrapper** — Phases 74–75 (shipped 2026-04-30)
-- 🔲 **v3.2 Species Tab** — Phase 76+ (planned; scoping in `.planning/seeds/species-tab.md`)
+- 🔲 **v3.2 Species Tab** — Phases 76–81 (planned; scoping in `.planning/seeds/species-tab.md`)
 
 ## Phases
 
@@ -317,11 +317,16 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 
 </details>
 
-## 🔲 v3.2 Species Tab (Phase 76+)
+## 🔲 v3.2 Species Tab (Phases 76–81)
 
 **Milestone Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. See `.planning/seeds/species-tab.md` for full scoping.
 
-- [ ] Phase 76: TBD (scoping in `/gsd-new-milestone`)
+- [ ] Phase 76: Data Foundation (0/? plans)
+- [ ] Phase 77: Pipeline Outputs (0/? plans)
+- [ ] Phase 78: Photo Manifest (0/? plans)
+- [ ] Phase 79: Page Scaffolding (0/? plans)
+- [ ] Phase 80: Filter UX & Nav (0/? plans)
+- [ ] Phase 81: Hardening (0/? plans)
 
 ## Phase Details
 
@@ -437,6 +442,12 @@ Plans:
 | 73. OL Removal and Verification | v3.0 | 2/2 | Complete | 2026-04-27 |
 | 74. Eleventy Outer Build Integration | v3.1 | 3/3 | Complete | 2026-04-30 |
 | 75. Authoring Scaffold and Verification | v3.1 | 2/2 | Complete | 2026-04-30 |
+| 76. Data Foundation | v3.2 | 0/? | Not started | — |
+| 77. Pipeline Outputs | v3.2 | 0/? | Not started | — |
+| 78. Photo Manifest | v3.2 | 0/? | Not started | — |
+| 79. Page Scaffolding | v3.2 | 0/? | Not started | — |
+| 80. Filter UX & Nav | v3.2 | 0/? | Not started | — |
+| 81. Hardening | v3.2 | 0/? | Not started | — |
 
 ## Phase Details
 
@@ -489,3 +500,77 @@ Plans:
 - [x] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
 
 <!-- Phase 71-73 details archived to .planning/milestones/v3.0-ROADMAP.md -->
+
+### Phase 76: Data Foundation
+**Goal**: The WA bee checklist and the iNat-derived taxon lineage table are loaded into DuckDB with reconciled, authority-stripped names so downstream species aggregations have a single canonical join key
+**Depends on**: Phase 75
+**Requirements**: CHECK-01, CHECK-02, CHECK-03, CHECK-04, CHECK-05, CHECK-06, TAX-01, TAX-02, TAX-03, TAX-04
+**Success Criteria** (what must be TRUE):
+  1. Running `python data/run.py` populates `checklist_data.species` from `data/checklists/wa_bee_checklist.csv` with all required columns (`scientificName`, `family`, `subfamily`, `tribe`, `genus`, `subgenus`, `specific_epithet`, `status`, `source_citation`, `notes`); `data/checklists/README.md` records the Bartholomew et al. 2024 (JHR 97) provenance and supplement format
+  2. The `("checklist", load_checklist)` step appears in `data/run.py` STEPS between `anti-entropy` and `export`, runs `CREATE OR REPLACE TABLE checklist_data.species`, and produces no error on a clean DB
+  3. After the run, `inaturalist_data.taxon_lineage_extended` contains `(taxon_id, family, subfamily, tribe, genus, subgenus)` derived from a full iNat ancestor walk; species export uses `COALESCE(checklist, inat)` precedence and `subgenus IS NULL` rows do not introduce a phantom `(no subgenus)` node when no sibling species carry a subgenus value
+  4. Reconciliation strips authority strings and subgenus parens, consults `data/checklist_synonyms.csv` for known divergences, and writes still-unmatched names to `data/checklist_unmatched.csv`; `canonical_name` (lowercase, single-spaced, authority-stripped) is computed identically for checklist and occurrence rows and used as the join key
+  5. `cd data && uv run pytest test_checklist_pipeline.py test_taxon_lineage.py` passes including the disagreement fixtures `Lasioglossum (Dialictus) zonulum` ↔ `Lasioglossum zonulum` and an authority-bearing variant
+**Plans**: TBD
+
+### Phase 77: Pipeline Outputs
+**Goal**: The nightly pipeline emits a single source of truth for per-species aggregates and per-species occurrence maps that downstream Eleventy pages can consume without ever touching parquet at request time
+**Depends on**: Phase 76
+**Requirements**: AGG-01, AGG-02, AGG-03, AGG-04, AGG-05, AGG-06, AGG-07, MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06
+**Success Criteria** (what must be TRUE):
+  1. `python data/run.py` produces `public/data/species.parquet`, `public/data/species.json`, and `public/data/seasonality.json`; the parquet carries the full AGG-02 column set including `month_histogram INT[12]`, `on_checklist`, `provisional_count`, `slug`, and zero-occurrence checklist species are present (FULL OUTER JOIN preserves them)
+  2. The same run writes one `public/data/species-maps/<slug>.svg` per species with `occurrence_count > 0`; every SVG declares `viewBox="0 0 600 320"`, uses inline fill/stroke styling so it renders via plain `<img src=".svg">`, and silently clips coordinates outside the WA viewBox while logging the clipped count
+  3. Slug generation is shared with `data/feeds.py::_slugify` (path-traversal-safe per v2.1) — the SVG filename, the `slug` column in `species.parquet`, and the URL slug all agree byte-for-byte for every species
+  4. `("species-export", export_species_parquet)` and `("species-maps", generate_species_maps)` are in `data/run.py` STEPS after `export` and before `feeds`; re-running the pipeline twice in a row produces identical artifacts (idempotent)
+  5. `node scripts/validate-schema.mjs` passes with the new `species.parquet` column expectations and `species.json` top-level shape; `cd data && uv run pytest test_species_export.py test_species_maps.py` passes including the FULL OUTER fixture (checklist-only / occurrence-only / matched) and SVG well-formedness (parses as XML, expected `<circle>` count, viewBox match)
+**Plans**: TBD
+
+### Phase 78: Photo Manifest
+**Goal**: A hand-edited TOML photo manifest is in place with required-field and license-whitelist validation wired into the build, plus a one-shot helper to seed it — without ever pulling iNat at CI time
+**Depends on**: Phase 77
+**Requirements**: PHOTO-01, PHOTO-02, PHOTO-03, PHOTO-04, PHOTO-05, PHOTO-06, PHOTO-07, PHOTO-08
+**Success Criteria** (what must be TRUE):
+  1. `content/species-photos.toml` matches the PHOTO-01 schema (`[species."<scientificName>"]` tables with optional `description` and `[[photos]]` arrays carrying `observation_id`, `photo_id`, `url`, `caption`, `attribution`, `license`, `ordering`); the `url` is stored at fill time (resolved from iNat API in PHOTO-07's `scripts/seed-species-photos.mjs`), never constructed at render time
+  2. `node scripts/validate-species.mjs` parses the TOML, cross-references `public/data/species.json`, exits nonzero when `license` is missing or outside `{cc0, cc-by, cc-by-nc, cc-by-sa, cc-by-nc-sa}`, exits nonzero when `attribution` is missing for any non-CC0 photo, and exits zero (warn-only) when an entry references a scientificName not present in `species.json`
+  3. `npm run build` runs `validate-species` after `validate-schema` and before `eleventy`; introducing a license-whitelist violation in the manifest fails the build with a clear error and a non-zero exit code; reverting the change makes the build green again
+  4. `node scripts/seed-species-photos.mjs` is exposed under `scripts/` (NOT invoked by `npm run build` and NOT in any package.json `build`/`prebuild` chain) and rate-limits iNat API calls to ≤1 req/sec while writing a starter manifest
+  5. `cd data && uv run pytest test_validate_species.py` (or the Vitest equivalent under `src/tests/`) covers a fixture that seeds bad licenses and missing attribution and asserts the validator rejects them
+**Plans**: TBD
+
+### Phase 79: Page Scaffolding
+**Goal**: A static `/species/` page renders one server-rendered card per species using the layout default chrome, ships in its own Vite chunk that does NOT pull mapbox-gl or wa-sqlite, and an architectural test enforces the boundary
+**Depends on**: Phase 78
+**Requirements**: PAGE-01, PAGE-02, PAGE-03, PAGE-04, PAGE-05, PAGE-06, PAGE-07, PAGE-08, PAGE-09
+**Success Criteria** (what must be TRUE):
+  1. `npm run dev` serves `/species/` and the page renders one `<bee-species-card>` per species in light DOM (server-rendered by Eleventy via `_pages/species.njk` declaring `layout: default.njk` and `permalink: /species/index.html`); named slots for photos, map, and description are populated from `_data/species.js` (reads `public/data/species.json`, NOT parquet — preserves HMR per Pitfall #8) and `_data/photos.js` (reads `content/species-photos.toml` via `@iarna/toml`)
+  2. `<bee-species-page>` is the species-page coordinator and the only owner of `_activeTaxonPath`, `_geoFilter`, `_seasonFilter`, and URL state; `<bee-taxon-nav>`, `<bee-species-grid>`, `<bee-species-card>`, `<bee-species-filter>`, and `<seasonality-viz>` are pure presenters that receive state via `@property`, emit `CustomEvent`s, and never import from `bee-species-page.ts` (mirrors the v1.9 `<bee-atlas>` ARCH-03 invariant)
+  3. Every photo `<img>` and the SVG occurrence map `<img>` carry `loading="lazy"`; every `<bee-species-card>` host applies `content-visibility: auto` (mitigates Osmia/Andrena ~80-card pages per PITFALLS #10)
+  4. `npm test` passes a new ARCH-04 source-analysis test in `src/tests/arch.test.ts` that asserts no file under `src/species/` imports `mapbox-gl`, `wa-sqlite`, `../sqlite.ts`, `../filter.ts`, `../bee-map.ts`, or `../bee-atlas.ts` (mitigates PITFALLS #7 — single accidental import balloons the species chunk from ~50 KB to ~2 MB)
+  5. `npm run build` succeeds with `validate-species` in the chain and produces a separate `species-*.js` chunk under `_site/assets/` distinct from the SPA's `index-*.js`; visual inspection or a CI grep confirms `mapbox-gl` does not appear in the species chunk's symbol list
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 80: Filter UX & Nav
+**Goal**: Volunteers can browse the species list via a hierarchical taxon tree, narrow by geography and month, see seasonality at a glance, and deep-link any species into the existing SPA pre-filtered
+**Depends on**: Phase 79
+**Requirements**: NAV-01, NAV-02, NAV-03, NAV-04, NAV-05, FILT-01, FILT-02, FILT-03, FILT-04, FILT-05, FILT-06, FILT-07, VIZ-01, VIZ-02, VIZ-03, VIZ-04, VIZ-05, LINK-01, LINK-02, LINK-03, LINK-04
+**Success Criteria** (what must be TRUE):
+  1. `<bee-taxon-nav>` renders a vertical left-rail tree (family → subfamily → tribe → genus → subgenus → species) with expand-on-click; subgenus level renders only when at least one species under that genus has a populated subgenus; selecting a node updates `_activeTaxonPath` and the URL; filtered-out branches are muted (opacity 0.35) rather than `display: none` (mute-not-hide preserves orientation, NAV-04); the page is server-rendered as nested `<details>`/`<ul>` so it remains navigable without the Lit bundle
+  2. `<bee-species-filter>` exposes county and ecoregion-l3 multi-selects and month-range inputs sourced from `_data/species.js` option lists; filter state round-trips through `src/species/url-state.ts` using params disjoint from the SPA (`?fam=`, `?subf=`, `?tribe=`, `?gen=`, `?subg=`, `?county=`, `?ecor=`, `?m0=`, `?m1=`); cards with zero filtered records are muted (opacity 0.35) not hidden, each card shows its filtered "N records" badge, a breadcrumb pill row above the cards reflects the active filter, an empty state ("No species match these filters. [Clear filters]") renders when zero cards have nonzero counts, and "Clear filters" resets every param
+  3. `<seasonality-viz>` renders an inline `<svg>` from a 12-element monthly histogram via Lit template with no chart-library dep; renders monthly bars when `n ≥ 5` and a text fallback ("3 records, May–June") when `n < 5`; X-axis carries J F M A M J J A S O N D labels and BeeSearch winter/spring/summer/fall season-band tints; sample-size annotation matches BeeSearch (`*` 20–49, `**` 50–99, `***` 100–999, `****` ≥1000); when the page-level geo filter is active the viz reads pre-binned `seasonality.json` slices for the selected county/ecoregion (no in-browser KDE)
+  4. Each card's "View N occurrences →" button navigates to `/?taxon=<scientificName>&taxonRank=species` via a shared `buildSpaTaxonLink()` helper (per LINK-01 — the seed example `/collection?taxon=...` is wrong; verified at `src/url-state.ts:35-89` that BOTH `taxon` AND `taxonRank` are required); a Vitest round-trip test asserts `buildSpaTaxonLink('Andrena anograe')` produces a URL that the SPA's `parseParams` resolves to `{ taxonName: 'Andrena anograe', taxonRank: 'species' }`; nav-rail genus/family deep-links use `taxonRank=genus`/`taxonRank=family`; the `taxon` + `taxonRank` contract is documented as a stable interface in the `src/url-state.ts` header comment
+  5. `npm test` passes a new species-page Vitest suite covering URL round-trip in `src/species/url-state.ts`, the `buildSpaTaxonLink` round-trip, taxon-nav mute-not-hide rendering, filter empty-state rendering, and seasonality viz bar/fallback branches
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 81: Hardening
+**Goal**: The species page meets its performance, accessibility, and durability budgets and survives a UAT pass against the seed's stated use cases
+**Depends on**: Phase 80
+**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06
+**Success Criteria** (what must be TRUE):
+  1. CI fails the build when the species-page Vite chunk (`_site/assets/species-*.js`) exceeds 100 KB gzipped; passing the gate is verified on the current build with margin (mitigates PITFALLS #7 regression risk after the ARCH-04 test)
+  2. A Lighthouse mobile run on the largest-subgenus page (Andrena, Lasioglossum, or Osmia per the production data — recorded in the phase summary) reports LCP < 3 s; the run is re-runnable from a documented command in `data/README.md` or `scripts/`
+  3. Every photo `<img>` carries `loading="lazy"` and `alt` text (caption or scientific-name fallback); iNat photo URLs use the `medium` (500px) size for the hero by default with `square`/`small` available for thumb-strip use; the nav tree exposes appropriate `role`/`aria-expanded` attributes and supports keyboard expand/collapse plus filter input; `npm test` passes axe-style or hand-rolled accessibility assertions
+  4. `scripts/check-photo-availability.mjs` runs via a weekly GitHub Actions cron (NOT every build, per PITFALLS #1), HEADs each manifest photo URL, and writes failed URLs to `data/manifest_drift_report.json`; the workflow file documents that the report is informational and does not block deploys
+  5. UAT against the seed's stated use cases ("Which species of *Eucera* are present in this ecoregion?" and "Which are most likely / frequently collected?") passes against current production data with screenshots or notes recorded in the phase summary
+**Plans**: TBD
