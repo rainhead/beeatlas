@@ -781,27 +781,19 @@ con.execute("""
 | A6 | The phrase "infraspecific markers" in D-04 covers `ssp.`, `var.`, `aff.`, `cf.`, `nr.`, plus `subsp.` (variant of `ssp.`)        | §Pattern 3                    | If `subsp.` is intentional out, plan must align tests to the strict list.                |
 | A7 | The trinomial fold is implied by D-04 (steps 3 + 4 don't explicitly cover non-marker trinomials but 6 live ecdysis rows require it) | §Pitfall 2                  | Plan must surface this to user as an explicit step-3 sub-rule and add a pytest case.     |
 
-## Open Questions
+## Open Questions (RESOLVED 2026-05-02 by gsd-planner)
 
 1. **Where does `canonicalize()` live: `data/checklist_pipeline.py` or new `data/canonical_name.py`?**
-   - What we know: D-04 says "or a new `data/canonical_name.py` if reused"; Phase 77 will reuse it for species_export.
-   - What's unclear: the planner's preference; both are viable.
-   - Recommendation: **new `data/canonical_name.py`**. Single function, single responsibility, single test file (`tests/test_canonical_name.py`). Avoids circular-import risk when Phase 77 species_export.py imports it.
+   - **RESOLVED:** new `data/canonical_name.py` (Plan 076-02). Single-function module imported by 03/05/06; tests at `data/tests/test_canonical_name.py`.
 
 2. **Does the test-command path in CONTEXT.md need updating?**
-   - What we know: existing tests live under `data/tests/`; pyproject.toml sets `testpaths = ["tests"]`.
-   - What's unclear: whether `cd data && uv run pytest test_checklist_pipeline.py test_taxon_lineage.py` (CONTEXT.md verbatim) is expected to work via testpaths discovery, or whether the planner should rewrite to `tests/test_*.py`.
-   - Recommendation: place tests at `data/tests/test_checklist_pipeline.py` and `data/tests/test_taxon_lineage.py`; rewrite the success-criteria phrasing in the plan to `cd data && uv run pytest tests/test_checklist_pipeline.py tests/test_taxon_lineage.py`. Note: `pyproject.toml`'s `testpaths = ["tests"]` may make the unprefixed form work via collection; verify in plan.
+   - **RESOLVED:** tests live at `data/tests/test_checklist_pipeline.py` and `data/tests/test_taxon_lineage.py`; canonical command form is `cd data && uv run pytest tests/test_*.py` (the `tests/`-prefixed form). ROADMAP.md Success Criterion 5's bare-filename phrasing has been amended to match.
 
 3. **Should the synonym override UPDATE the canonical_name on `checklist_data.species`?**
-   - What we know: D-05 says reconciliation overrides the join key; doesn't say whether the table column gets updated.
-   - What's unclear: Phase 77's FULL OUTER JOIN reads `checklist_data.species.canonical_name` → if not updated, the synonym override has to be re-applied at every join site.
-   - Recommendation: **UPDATE the column** at reconcile time. One UPDATE per resolved synonym; trivial cost; downstream consumers don't need to know about synonyms.csv. If user pushes back, fall back to leaving the column unchanged and applying synonyms in Phase 77.
+   - **RESOLVED:** Yes — `reconcile()` UPDATEs the column at reconcile time (Plan 076-05). Downstream consumers see no synonyms.csv complexity.
 
 4. **`checklist_unmatched.csv` git-commit cadence?**
-   - What we know: D-05 says "regenerates each pipeline run; commits represent snapshots of the unresolved set."
-   - What's unclear: nightly maderas cron does NOT commit. So the file in git represents a manually-snapshotted point in time. Does Phase 76 ship with an empty initial unmatched.csv (no specimens yet) or with the actual first-run output?
-   - Recommendation: Phase 76 plan should run the full pipeline once locally, capture the actual first-run unmatched.csv, commit it as part of the phase's last commit. This gives reviewers their first concrete worklist.
+   - **RESOLVED:** Plan 01 commits the header-only seed (no stale entries). Plan 05 Task 2 regenerates the first real snapshot at the end of the phase. The file regenerates each pipeline run; commits are manual snapshots.
 
 ## Environment Availability
 

@@ -510,7 +510,7 @@ Plans:
   2. The `("checklist", load_checklist)` step appears in `data/run.py` STEPS between `anti-entropy` and `export`, runs `CREATE OR REPLACE TABLE checklist_data.species`, and produces no error on a clean DB
   3. After the run, `inaturalist_data.taxon_lineage_extended` contains `(taxon_id, family, subfamily, tribe, genus, subgenus)` derived from a full iNat ancestor walk; species export uses `COALESCE(checklist, inat)` precedence and `subgenus IS NULL` rows do not introduce a phantom `(no subgenus)` node when no sibling species carry a subgenus value
   4. Reconciliation strips authority strings and subgenus parens, consults `data/checklist_synonyms.csv` for known divergences, and writes still-unmatched names to `data/checklist_unmatched.csv`; `canonical_name` (lowercase, single-spaced, authority-stripped) is computed identically for checklist and occurrence rows and used as the join key
-  5. `cd data && uv run pytest test_checklist_pipeline.py test_taxon_lineage.py` passes including the disagreement fixtures `Lasioglossum (Dialictus) zonulum` ↔ `Lasioglossum zonulum` and an authority-bearing variant
+  5. `cd data && uv run pytest tests/test_checklist_pipeline.py tests/test_taxon_lineage.py` passes including the disagreement fixtures `Lasioglossum (Dialictus) zonulum` ↔ `Lasioglossum zonulum` and an authority-bearing variant
 **Plans:** 6 plans
 Plans:
 - [ ] 076-01-PLAN.md — Commit checklist TSV, README provenance, REQUIREMENTS.md amendments
