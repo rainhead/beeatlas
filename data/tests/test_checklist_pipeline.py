@@ -16,13 +16,30 @@ from canonical_name import canonicalize
 
 @pytest.fixture
 def checklist_db(tmp_path, monkeypatch):
-    """Isolated DuckDB. load_checklist() reads DB_PATH env at call time."""
+    """Isolated DuckDB. load_checklist() reads DB_PATH env at call time.
+
+    Bootstraps a minimal ecdysis_data.occurrences table because Plan 05's
+    extension to load_checklist() materializes canonical_name on it; in
+    production run.py STEPS guarantees ecdysis runs first (T-76-04).
+    """
     db_path = str(tmp_path / "checklist.duckdb")
     monkeypatch.setenv("DB_PATH", db_path)
     # Reload module so module-level DB_PATH constant picks up the patched env.
     import importlib
     import checklist_pipeline
     importlib.reload(checklist_pipeline)
+    # Pre-create ecdysis_data.occurrences (mirrors prod ordering invariant).
+    con = duckdb.connect(db_path)
+    con.execute("CREATE SCHEMA ecdysis_data")
+    con.execute("CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)")
+    con.close()
+    # Redirect synonyms + unmatched paths to tmp so tests don't clobber repo files.
+    monkeypatch.setattr(
+        checklist_pipeline, "SYNONYMS_PATH", tmp_path / "checklist_synonyms.csv"
+    )
+    monkeypatch.setattr(
+        checklist_pipeline, "UNMATCHED_PATH", tmp_path / "checklist_unmatched.csv"
+    )
     return db_path, checklist_pipeline
 
 
