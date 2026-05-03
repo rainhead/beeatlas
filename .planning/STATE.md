@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: Wave 4 complete (all 6 plans), awaiting phase verification
+status: Phase 76 verified complete; ready to plan Phase 77
 last_updated: "2026-05-02T00:00:00.000Z"
-last_activity: 2026-05-02 — Phase 76 Wave 4 merged (6/6 plans), 80 tests pass
+last_activity: 2026-05-02 — Phase 76 verified end-to-end (170s clean pipeline run; 84 tests pass; iNat retry helper added to fix 429 throttling on taxon-lineage-extended)
 progress:
   total_phases: 11
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 6
   completed_plans: 6
   percent: 100
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 ## Current Position
 
-Phase: Phase 76 (executing — all waves complete, awaiting verification)
-Plan: 076-01..06 complete (6/6)
-Status: Wave 4 complete; ready for phase verification
-Last activity: 2026-05-02 — Phase 76 Wave 4 merged (6/6 plans), 80 tests pass
+Phase: Phase 76 complete; next is Phase 77 (Pipeline Outputs)
+Plan: 076-01..06 complete (6/6); UAT passed
+Status: Verified end-to-end — pipeline runs clean in 170s, all 5 SCs satisfied
+Last activity: 2026-05-02 — Phase 76 verified; iNat retry helper added (`_inat_get_with_retry` in `data/inaturalist_pipeline.py`) to fix 429 throttling discovered during UAT; v3.3+ DwC-A migration captured in seeds/inat-taxonomy-dwca.md
 
 ## Accumulated Context
 

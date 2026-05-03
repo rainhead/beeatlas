@@ -321,7 +321,7 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. See `.planning/seeds/species-tab.md` for full scoping.
 
-- [ ] Phase 76: Data Foundation (6/6 plans)
+- [x] Phase 76: Data Foundation (6/6 plans)
 - [ ] Phase 77: Pipeline Outputs (0/? plans)
 - [ ] Phase 78: Photo Manifest (0/? plans)
 - [ ] Phase 79: Page Scaffolding (0/? plans)
@@ -513,12 +513,12 @@ Plans:
   5. `cd data && uv run pytest tests/test_checklist_pipeline.py tests/test_taxon_lineage.py` passes including the disagreement fixtures `Lasioglossum (Dialictus) zonulum` ↔ `Lasioglossum zonulum` and an authority-bearing variant
 **Plans:** 6 plans
 Plans:
-- [ ] 076-01-PLAN.md — Commit checklist TSV, README provenance, REQUIREMENTS.md amendments
-- [ ] 076-02-PLAN.md — canonicalize() helper module (TDD)
-- [ ] 076-03-PLAN.md — checklist_pipeline.load_checklist() + run.py STEPS wiring
-- [ ] 076-04-PLAN.md — enrich_taxon_lineage_extended() + standalone STEP after waba
-- [ ] 076-05-PLAN.md — Occurrences canonical_name + reconcile/synonyms/unmatched flow
-- [ ] 076-06-PLAN.md — Integration tests (disagreement fixtures + mocked iNat)
+- [x] 076-01-PLAN.md — Commit checklist TSV, README provenance, REQUIREMENTS.md amendments
+- [x] 076-02-PLAN.md — canonicalize() helper module (TDD)
+- [x] 076-03-PLAN.md — checklist_pipeline.load_checklist() + run.py STEPS wiring
+- [x] 076-04-PLAN.md — enrich_taxon_lineage_extended() + standalone STEP after waba
+- [x] 076-05-PLAN.md — Occurrences canonical_name + reconcile/synonyms/unmatched flow
+- [x] 076-06-PLAN.md — Integration tests (disagreement fixtures + mocked iNat)
 
 ### Phase 77: Pipeline Outputs
 **Goal**: The nightly pipeline emits a single source of truth for per-species aggregates and per-species occurrence maps that downstream Eleventy pages can consume without ever touching parquet at request time
