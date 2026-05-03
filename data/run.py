@@ -25,6 +25,7 @@ from inaturalist_pipeline import load_observations as load_inaturalist_observati
 from waba_pipeline import load_observations as load_waba_observations
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
+from checklist_pipeline import load_checklist
 from export import main as export_all
 from feeds import main as generate_feeds
 
@@ -35,6 +36,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("waba", load_waba_observations),
     ("projects", load_projects),
     ("anti-entropy", run_anti_entropy),
+    ("checklist", load_checklist),
     ("export", export_all),
     ("feeds", generate_feeds),
 ]
