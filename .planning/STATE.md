@@ -4,13 +4,13 @@ milestone: v3.2
 milestone_name: Species Tab
 status: executing
 last_updated: "2026-05-03T05:50:00.000Z"
-last_activity: 2026-05-02 — Phase 76 Wave 2 complete (Plan 076-03; 52 tests pass)
+last_activity: 2026-05-02 — Phase 76 Wave 3 complete (Plans 076-04, 076-05; 68 tests pass)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 ## Current Position
 
-Phase: Phase 76 (executing — Wave 2 complete)
-Plan: 076-01..03 complete; 076-04, 05, 06 remaining
-Status: Wave 3 ready (Plans 076-04 + 076-05 in parallel)
-Last activity: 2026-05-02 — Phase 76 Wave 2 merged (3/6 plans), 52 tests pass
+Phase: Phase 76 (executing — Wave 3 complete)
+Plan: 076-01..05 complete; 076-06 remaining
+Status: Wave 4 ready (Plan 076-06 — integration tests)
+Last activity: 2026-05-02 — Phase 76 Wave 3 merged (5/6 plans), 68 tests pass
 
 ## Accumulated Context
 
