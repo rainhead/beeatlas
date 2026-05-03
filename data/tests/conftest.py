@@ -13,6 +13,7 @@ def _create_schemas(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("CREATE SCHEMA ecdysis_data")
     con.execute("CREATE SCHEMA inaturalist_data")
     con.execute("CREATE SCHEMA inaturalist_waba_data")
+    con.execute("CREATE SCHEMA checklist_data")
 
 
 def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
@@ -45,7 +46,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             modified TIMESTAMPTZ,
             catalog_number VARCHAR,
             _dlt_load_id VARCHAR, _dlt_id VARCHAR,
-            minimum_elevation_in_meters VARCHAR
+            minimum_elevation_in_meters VARCHAR,
+            canonical_name VARCHAR
         )
     """)
     con.execute("""
@@ -74,7 +76,8 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             longitude DOUBLE, latitude DOUBLE,
             taxon__iconic_taxon_name VARCHAR, taxon__name VARCHAR,
             quality_grade VARCHAR,
-            _dlt_load_id VARCHAR
+            _dlt_load_id VARCHAR,
+            taxon__id BIGINT
         )
     """)
     con.execute("""
@@ -109,6 +112,37 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             taxon_id BIGINT, genus VARCHAR, family VARCHAR
         )
     """)
+    con.execute("""
+        CREATE TABLE checklist_data.species (
+            scientificName VARCHAR PRIMARY KEY,
+            family VARCHAR,
+            subfamily VARCHAR,
+            tribe VARCHAR,
+            genus VARCHAR,
+            subgenus VARCHAR,
+            specific_epithet VARCHAR,
+            status VARCHAR,
+            source_citation VARCHAR,
+            notes VARCHAR,
+            canonical_name VARCHAR
+        )
+    """)
+    con.execute("""
+        CREATE TABLE checklist_data.species_counties (
+            scientificName VARCHAR,
+            county VARCHAR
+        )
+    """)
+    con.execute("""
+        CREATE TABLE inaturalist_data.taxon_lineage_extended (
+            taxon_id BIGINT,
+            family VARCHAR,
+            subfamily VARCHAR,
+            tribe VARCHAR,
+            genus VARCHAR,
+            subgenus VARCHAR
+        )
+    """)
 
 
 def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
@@ -137,7 +171,13 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     # Ecdysis specimen (lat=47.608, lon=-120.912, inside Chelan county and North Cascades)
     # catalog_number='WSDA_5594569' so WABA OFV value '5594569' joins via numeric suffix
     con.execute("""
-        INSERT INTO ecdysis_data.occurrences VALUES (
+        INSERT INTO ecdysis_data.occurrences (
+            id, occurrence_id, decimal_latitude, decimal_longitude,
+            year, month, scientific_name, recorded_by, field_number,
+            genus, family, associated_taxa, event_date,
+            modified, catalog_number, _dlt_load_id, _dlt_id,
+            minimum_elevation_in_meters
+        ) VALUES (
             '5594569', '69c258f0-7c62-4da3-b991-130ec3dde645',
             '47.608', '-120.912',
             '2024', '6', 'Eucera acerba',
@@ -161,7 +201,12 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
 
     # iNat observation (lon=-120.8, lat=47.5, inside Chelan county and North Cascades)
     con.execute("""
-        INSERT INTO inaturalist_data.observations VALUES (
+        INSERT INTO inaturalist_data.observations (
+            _dlt_id, id, uuid, user__login, observed_on,
+            longitude, latitude,
+            taxon__iconic_taxon_name, taxon__name,
+            quality_grade, _dlt_load_id
+        ) VALUES (
             'test-obs-1', 999999, 'test-uuid-1',
             'testuser', '2024-06-15'::DATE,
             -120.8, 47.5,
@@ -251,6 +296,58 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             ?, 'det-uuid-3', '1', '2024-01-15', 'load1', 'det-3'
         )
     """, [datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=100)])
+
+    # Phase 76 disagreement fixtures (TAX-04 + PITFALLS.md #1, #2).
+    # `p76-*` ID prefix avoids collisions with existing test_export PK rows.
+    SOURCE_CITATION_FIXTURE = "Bartholomew et al. 2024, JHR 97 (DOI: 10.3897/jhr.97.129013)"
+
+    # Checklist row uses the neuter epithet form (no parens, no authority).
+    con.execute("""
+        INSERT INTO checklist_data.species (
+            scientificName, family, subfamily, tribe, genus, subgenus,
+            specific_epithet, status, source_citation, notes, canonical_name
+        ) VALUES
+            ('Lasioglossum zonulum', NULL, NULL, NULL, 'Lasioglossum', NULL, 'zonulum',
+             'verified', ?, NULL, 'lasioglossum zonulum'),
+            ('Andrena fulva (Müller, 1766)', NULL, NULL, NULL, 'Andrena', NULL, 'fulva',
+             'verified', ?, NULL, 'andrena fulva'),
+            ('Bombus melanopygus', NULL, NULL, NULL, 'Bombus', NULL, 'melanopygus',
+             'verified', ?, NULL, 'bombus melanopygus')
+    """, [SOURCE_CITATION_FIXTURE, SOURCE_CITATION_FIXTURE, SOURCE_CITATION_FIXTURE])
+
+    con.execute("""
+        INSERT INTO checklist_data.species_counties VALUES
+            ('Lasioglossum zonulum', 'King'),
+            ('Andrena fulva (Müller, 1766)', 'Pierce'),
+            ('Bombus melanopygus', 'Chelan')
+    """)
+
+    # Ecdysis occurrence rows that exercise the canonicalize collapses.
+    # Use explicit column list to be robust against future column additions.
+    con.execute("""
+        INSERT INTO ecdysis_data.occurrences (
+            id, occurrence_id, decimal_latitude, decimal_longitude,
+            year, month, scientific_name, recorded_by, field_number,
+            genus, family, associated_taxa, event_date,
+            modified, catalog_number, _dlt_load_id, _dlt_id,
+            minimum_elevation_in_meters, canonical_name
+        ) VALUES
+            ('7600001', 'p76-uuid-001', '47.5', '-122.3', '2023', '6',
+             'Lasioglossum (Dialictus) zonulum', 'Test', 'TEST-1',
+             'Lasioglossum', 'Halictidae', NULL, '2023-06-15',
+             NULL, 'CAT-p76-1', 'load-p76', 'dlt-p76-1', '50', 'lasioglossum zonulum'),
+            ('7600002', 'p76-uuid-002', '47.5', '-121.0', '2023', '7',
+             'Bombus melanopygus mixtus', 'Test', 'TEST-2',
+             'Bombus', 'Apidae', NULL, '2023-07-15',
+             NULL, 'CAT-p76-2', 'load-p76', 'dlt-p76-2', '500', 'bombus melanopygus')
+    """)
+
+    # Extended-lineage seeds: one fully-populated row, one with NULL subgenus.
+    con.execute("""
+        INSERT INTO inaturalist_data.taxon_lineage_extended VALUES
+            (100001, 'Apidae', 'Apinae', 'Eucerini', 'Eucera', NULL),
+            (100002, 'Halictidae', 'Halictinae', 'Halictini', 'Lasioglossum', 'Dialictus')
+    """)
 
 
 @pytest.fixture(scope="session")
