@@ -1,4 +1,5 @@
 import os
+import time
 from pathlib import Path
 from typing import Any, Dict
 
@@ -8,6 +9,44 @@ import requests
 from dlt.sources.rest_api import RESTAPIConfig, rest_api_resources
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
+
+# iNat /v2 enforces ~60 req/min sustained; on breach it returns 429 with body
+# `{"error":"normal_throttling"}`. The new lineage walk fans out far more than the
+# narrower waba enricher (UNION of inat + waba taxa, run immediately after waba),
+# which trips the limit on a clean DB. Pace + retry rather than hope.
+_INAT_PACE_SECONDS = 1.0           # floor between successful taxa-batch requests
+_INAT_MAX_RETRIES = 5              # additional attempts on 429 / 5xx
+_INAT_BACKOFF_BASE_SECONDS = 1.0   # exponential: base * 2**attempt
+
+
+def _inat_get_with_retry(url: str, params: dict, *, timeout: int = 30) -> requests.Response:
+    """GET with iNat-aware retry on 429 / 5xx; honors Retry-After when present.
+
+    Raises HTTPError on non-retriable status or after _INAT_MAX_RETRIES exhausted.
+    Other request exceptions propagate immediately (no retry on connect/timeout —
+    those are usually upstream outages and retrying makes the failure mode noisier).
+    """
+    for attempt in range(_INAT_MAX_RETRIES + 1):
+        resp = requests.get(url, params=params, timeout=timeout)
+        if resp.status_code != 429 and resp.status_code < 500:
+            resp.raise_for_status()
+            return resp
+        if attempt == _INAT_MAX_RETRIES:
+            resp.raise_for_status()  # exhausted: surface the final error
+            return resp              # unreachable; raise_for_status raises
+        wait = _INAT_BACKOFF_BASE_SECONDS * (2 ** attempt)
+        retry_after = resp.headers.get("Retry-After")
+        if retry_after:
+            try:
+                wait = max(wait, float(retry_after))
+            except ValueError:
+                pass  # bogus header → keep exponential value
+        print(  # noqa: T201
+            f"iNat HTTP {resp.status_code}; sleeping {wait:.1f}s before retry "
+            f"{attempt + 1}/{_INAT_MAX_RETRIES}"
+        )
+        time.sleep(wait)
+    raise RuntimeError("unreachable")
 
 
 def _transform(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -179,14 +218,15 @@ def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
         lineage: dict[int, dict] = {}
         batch_size = 30
         for i in range(0, len(taxon_ids), batch_size):
+            if i > 0 and _INAT_PACE_SECONDS > 0:
+                time.sleep(_INAT_PACE_SECONDS)
             batch = taxon_ids[i : i + batch_size]
             ids_path = ",".join(map(str, batch))
-            resp = requests.get(
+            resp = _inat_get_with_retry(
                 f"https://api.inaturalist.org/v2/taxa/{ids_path}",
                 params={"fields": "id,name,rank,ancestors.id,ancestors.name,ancestors.rank"},
                 timeout=30,
             )
-            resp.raise_for_status()
             for taxon in resp.json().get("results", []):
                 row = {r: None for r in TARGET_RANKS}
                 if taxon.get("rank") in TARGET_RANKS:

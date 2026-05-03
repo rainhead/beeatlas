@@ -25,6 +25,9 @@ from inaturalist_pipeline import enrich_taxon_lineage_extended, TARGET_RANKS
 class _StubResponse:
     """Minimal requests.Response stand-in for monkeypatch."""
 
+    status_code = 200
+    headers: dict = {}
+
     def __init__(self, payload):
         self._payload = payload
 

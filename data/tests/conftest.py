@@ -372,6 +372,19 @@ def fixture_con(fixture_db):
     con.close()
 
 
+@pytest.fixture(autouse=True)
+def _zero_inat_pacing(monkeypatch):
+    """Zero iNat retry/pacing constants so tests don't real-time-sleep."""
+    try:
+        import inaturalist_pipeline
+    except ImportError:
+        return
+    monkeypatch.setattr(inaturalist_pipeline, "_INAT_PACE_SECONDS", 0.0, raising=False)
+    monkeypatch.setattr(
+        inaturalist_pipeline, "_INAT_BACKOFF_BASE_SECONDS", 0.0, raising=False
+    )
+
+
 @pytest.fixture
 def export_dir(tmp_path):
     """Temporary directory for export output files."""
