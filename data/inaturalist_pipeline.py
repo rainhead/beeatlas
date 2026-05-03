@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import Any, Dict
 
 import dlt
+import duckdb
+import requests
 from dlt.sources.rest_api import RESTAPIConfig, rest_api_resources
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
@@ -134,6 +136,90 @@ def load_observations(full_reload: bool = False) -> None:
     load_info = pipeline.run(source)
     print(load_info)  # noqa: T201
     load_info.raise_on_failed_jobs()
+
+
+# Ranks we extract from the iNat ancestor chain (TAX-01).
+TARGET_RANKS = {"family", "subfamily", "tribe", "genus", "subgenus"}
+
+
+def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
+    """Fetch full ancestor chain for every observed iNat taxon ID and write
+    inaturalist_data.taxon_lineage_extended(taxon_id, family, subfamily,
+    tribe, genus, subgenus).
+
+    Source taxon IDs = DISTINCT NOT NULL UNION of:
+      - inaturalist_data.observations.taxon__id
+      - inaturalist_waba_data.observations.taxon__id
+
+    Must run AFTER both inaturalist and waba pipelines have populated their
+    observations tables. Phase 76 / D-03 / TAX-01.
+
+    NULL is emitted (NOT a sentinel) for ranks absent from the ancestor chain
+    so downstream nav code (Phase 80 NAV-02) can render only populated levels.
+    """
+    if db_path is None:
+        db_path = DB_PATH
+    con = duckdb.connect(db_path)
+    try:
+        taxon_ids = [
+            row[0] for row in con.execute("""
+                SELECT DISTINCT taxon__id FROM (
+                    SELECT taxon__id FROM inaturalist_data.observations
+                    WHERE taxon__id IS NOT NULL
+                    UNION
+                    SELECT taxon__id FROM inaturalist_waba_data.observations
+                    WHERE taxon__id IS NOT NULL
+                )
+            """).fetchall()
+        ]
+        if not taxon_ids:
+            print("taxon_lineage_extended: no taxon IDs found, skipping")  # noqa: T201
+            return
+
+        lineage: dict[int, dict] = {}
+        batch_size = 30
+        for i in range(0, len(taxon_ids), batch_size):
+            batch = taxon_ids[i : i + batch_size]
+            ids_path = ",".join(map(str, batch))
+            resp = requests.get(
+                f"https://api.inaturalist.org/v2/taxa/{ids_path}",
+                params={"fields": "id,name,rank,ancestors.id,ancestors.name,ancestors.rank"},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            for taxon in resp.json().get("results", []):
+                row = {r: None for r in TARGET_RANKS}
+                if taxon.get("rank") in TARGET_RANKS:
+                    row[taxon["rank"]] = taxon["name"]
+                for anc in taxon.get("ancestors", []):
+                    rank = anc.get("rank")
+                    if rank in TARGET_RANKS and row[rank] is None:
+                        row[rank] = anc["name"]
+                lineage[taxon["id"]] = row
+
+        con.execute("""
+            CREATE OR REPLACE TABLE inaturalist_data.taxon_lineage_extended (
+                taxon_id BIGINT PRIMARY KEY,
+                family VARCHAR,
+                subfamily VARCHAR,
+                tribe VARCHAR,
+                genus VARCHAR,
+                subgenus VARCHAR
+            )
+        """)
+        con.executemany(
+            "INSERT INTO inaturalist_data.taxon_lineage_extended VALUES (?, ?, ?, ?, ?, ?)",
+            [
+                [tid, d["family"], d["subfamily"], d["tribe"], d["genus"], d["subgenus"]]
+                for tid, d in lineage.items()
+            ],
+        )
+        count = con.execute(
+            "SELECT count(*) FROM inaturalist_data.taxon_lineage_extended"
+        ).fetchone()[0]
+        print(f"taxon_lineage_extended: {count} rows")  # noqa: T201
+    finally:
+        con.close()
 
 
 if __name__ == "__main__":
