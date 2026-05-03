@@ -321,7 +321,7 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. See `.planning/seeds/species-tab.md` for full scoping.
 
-- [ ] Phase 76: Data Foundation (5/6 plans)
+- [ ] Phase 76: Data Foundation (6/6 plans)
 - [ ] Phase 77: Pipeline Outputs (0/? plans)
 - [ ] Phase 78: Photo Manifest (0/? plans)
 - [ ] Phase 79: Page Scaffolding (0/? plans)
