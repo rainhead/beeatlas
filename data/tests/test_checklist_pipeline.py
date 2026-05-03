@@ -193,3 +193,170 @@ def test_load_checklist_unset_columns_are_null(checklist_db):
     finally:
         con.close()
     assert nf == 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 76 Plan 06 integration tests against the shared `fixture_con` fixture.
+# Cover TAX-04 (disagreement fixture), CHECK-05 (synonyms.csv override +
+# unmatched.csv writeback), CHECK-06 (canonical_name JOIN key), and the
+# PITFALLS.md #1 (authority strings) and #2 (trinomial fold) regression
+# guards.
+# ---------------------------------------------------------------------------
+
+import csv
+
+import checklist_pipeline as checklist_mod
+
+
+def test_disagreement_fixture_canonical_join(fixture_con):
+    """TAX-04: Lasioglossum (Dialictus) zonulum (occurrence) and
+    Lasioglossum zonulum (checklist) MUST JOIN via canonical_name."""
+    rows = fixture_con.execute("""
+        SELECT cl.scientificName, occ.scientific_name
+        FROM checklist_data.species cl
+        JOIN ecdysis_data.occurrences occ
+            ON cl.canonical_name = occ.canonical_name
+        WHERE cl.canonical_name = 'lasioglossum zonulum'
+    """).fetchall()
+    assert len(rows) >= 1, "checklist↔occurrence JOIN failed for zonulum disagreement"
+    checklist_names = {r[0] for r in rows}
+    occurrence_names = {r[1] for r in rows}
+    assert "Lasioglossum zonulum" in checklist_names
+    assert "Lasioglossum (Dialictus) zonulum" in occurrence_names
+
+
+def test_authority_bearing_canonicalizes_to_binomial(fixture_con):
+    """PITFALLS.md #1: authority strings must be stripped from canonical_name."""
+    canon = fixture_con.execute("""
+        SELECT canonical_name FROM checklist_data.species
+        WHERE scientificName = 'Andrena fulva (Müller, 1766)'
+    """).fetchone()
+    assert canon is not None, "fixture missing authority-bearing seed row"
+    assert canon[0] == "andrena fulva"
+    # Confirm the algorithm (not the fixture) is the source of truth.
+    assert canonicalize("Andrena fulva (Müller, 1766)") == "andrena fulva"
+
+
+def test_trinomial_subspecies_folds_to_binomial(fixture_con):
+    """PITFALLS.md #2: trinomial scientific_name folds to binomial canonical_name."""
+    canon = fixture_con.execute("""
+        SELECT canonical_name FROM ecdysis_data.occurrences
+        WHERE scientific_name = 'Bombus melanopygus mixtus'
+    """).fetchone()
+    assert canon is not None, "fixture missing trinomial occurrence seed row"
+    assert canon[0] == "bombus melanopygus"
+    # Confirm via the canonicalize() helper too.
+    assert canonicalize("Bombus melanopygus mixtus") == "bombus melanopygus"
+
+
+def test_reconcile_synonym_override_updates_checklist(fixture_con, tmp_path, monkeypatch):
+    """CHECK-05 + D-05 (open-question-3 resolution): a synonyms.csv entry whose
+    canonical_name DOES match an occurrence MUST UPDATE
+    checklist_data.species.canonical_name to the override value, and the row
+    MUST NOT be written to unmatched.csv."""
+    # Seed: a checklist row whose initial canonical_name does NOT match any
+    # occurrence (its canonical_name is intentionally bogus).
+    fixture_con.execute("""
+        INSERT INTO checklist_data.species (
+            scientificName, family, subfamily, tribe, genus, subgenus,
+            specific_epithet, status, source_citation, notes, canonical_name
+        ) VALUES (
+            'Foo barius', NULL, NULL, NULL, 'Foo', NULL, 'barius',
+            'verified', 'test fixture', NULL, 'foo barius_will_not_join'
+        )
+    """)
+    # And an occurrence with a different canonical_name that the synonym
+    # will redirect to.
+    fixture_con.execute("""
+        INSERT INTO ecdysis_data.occurrences (
+            id, occurrence_id, scientific_name, _dlt_load_id, _dlt_id,
+            canonical_name
+        ) VALUES (
+            '7600901', 'p76-syn-uuid-1', 'Foo bara', 'load-syn', 'dlt-syn-1',
+            'foo bara'
+        )
+    """)
+
+    synonyms_csv = tmp_path / "checklist_synonyms.csv"
+    synonyms_csv.write_text(
+        "checklist_name,canonical_name,source\n"
+        "Foo barius,foo bara,test fixture\n"
+    )
+    unmatched_csv = tmp_path / "checklist_unmatched.csv"
+    monkeypatch.setattr(checklist_mod, "SYNONYMS_PATH", synonyms_csv)
+    monkeypatch.setattr(checklist_mod, "UNMATCHED_PATH", unmatched_csv)
+
+    try:
+        checklist_mod.reconcile(fixture_con)
+
+        # checklist canonical_name was UPDATEd to the override.
+        new_canon = fixture_con.execute(
+            "SELECT canonical_name FROM checklist_data.species "
+            "WHERE scientificName = 'Foo barius'"
+        ).fetchone()[0]
+        assert new_canon == "foo bara", f"override not applied: {new_canon!r}"
+
+        # And the row is NOT in unmatched.csv.
+        assert unmatched_csv.exists()
+        with unmatched_csv.open() as f:
+            rows = list(csv.DictReader(f))
+        assert all(r["checklist_name"] != "Foo barius" for r in rows), \
+            "Foo barius should not be in unmatched after override hit"
+    finally:
+        # Tear down so other tests sharing fixture_con see clean state.
+        fixture_con.execute(
+            "DELETE FROM checklist_data.species WHERE scientificName = 'Foo barius'"
+        )
+        fixture_con.execute(
+            "DELETE FROM ecdysis_data.occurrences WHERE id = '7600901'"
+        )
+
+
+def test_reconcile_unmatched_warn_only(fixture_con, tmp_path, monkeypatch):
+    """CHECK-05 + D-05: a checklist row with no synonyms entry that doesn't
+    join any occurrence MUST land in unmatched.csv WITHOUT raising."""
+    fixture_con.execute("""
+        INSERT INTO checklist_data.species (
+            scientificName, family, subfamily, tribe, genus, subgenus,
+            specific_epithet, status, source_citation, notes, canonical_name
+        ) VALUES (
+            'Phantom species', NULL, NULL, NULL, 'Phantom', NULL, 'species',
+            'verified', 'test fixture', NULL, 'phantom species'
+        )
+    """)
+
+    synonyms_csv = tmp_path / "checklist_synonyms.csv"
+    synonyms_csv.write_text("checklist_name,canonical_name,source\n")
+    unmatched_csv = tmp_path / "checklist_unmatched.csv"
+    monkeypatch.setattr(checklist_mod, "SYNONYMS_PATH", synonyms_csv)
+    monkeypatch.setattr(checklist_mod, "UNMATCHED_PATH", unmatched_csv)
+
+    try:
+        # Must not raise.
+        checklist_mod.reconcile(fixture_con)
+
+        assert unmatched_csv.exists()
+        with unmatched_csv.open() as f:
+            rows = list(csv.DictReader(f))
+        matching = [r for r in rows if r["checklist_name"] == "Phantom species"]
+        assert len(matching) == 1, f"Phantom species should appear in unmatched: {rows}"
+        assert "no occurrence" in matching[0]["reason"].lower()
+    finally:
+        fixture_con.execute(
+            "DELETE FROM checklist_data.species WHERE scientificName = 'Phantom species'"
+        )
+
+
+def test_reconcile_unmatched_csv_header(fixture_con, tmp_path, monkeypatch):
+    """D-05: unmatched.csv MUST have header `checklist_name,canonical_name,reason`."""
+    synonyms_csv = tmp_path / "checklist_synonyms.csv"
+    synonyms_csv.write_text("checklist_name,canonical_name,source\n")
+    unmatched_csv = tmp_path / "checklist_unmatched.csv"
+    monkeypatch.setattr(checklist_mod, "SYNONYMS_PATH", synonyms_csv)
+    monkeypatch.setattr(checklist_mod, "UNMATCHED_PATH", unmatched_csv)
+
+    checklist_mod.reconcile(fixture_con)
+
+    assert unmatched_csv.exists()
+    first_line = unmatched_csv.read_text().splitlines()[0]
+    assert first_line == "checklist_name,canonical_name,reason"
