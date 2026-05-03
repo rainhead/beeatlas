@@ -9,9 +9,9 @@ Each maps to one phase in `ROADMAP.md`. Categories follow the six phases identif
 
 ### CHECK — WA State Checklist Ingestion
 
-- [ ] **CHECK-01**: WA bee checklist committed at `data/checklists/wa_bee_checklist.csv` with provenance recorded in `data/checklists/README.md` (Bartholomew et al. 2024, JHR 97; supplement format documented and dated)
+- [ ] **CHECK-01**: WA bee checklist committed at `data/checklists/wa_bee_checklist.tsv` with provenance recorded in `data/checklists/README.md` (Bartholomew et al. 2024, JHR 97; supplement format documented and dated)
 - [ ] **CHECK-02**: `data/checklist_pipeline.py::load_checklist()` reads the CSV and writes `checklist_data.species` table to DuckDB via `CREATE OR REPLACE` (full refresh; no incremental cursor)
-- [ ] **CHECK-03**: Checklist table schema: `scientificName`, `family`, `subfamily`, `tribe`, `genus`, `subgenus`, `specific_epithet`, `status` (verified | likely-to-occur), `source_citation`, `notes`
+- [ ] **CHECK-03**: Checklist table schema: `scientificName`, `family`, `subfamily`, `tribe`, `genus`, `subgenus`, `specific_epithet`, `status` (verified | likely-to-occur — v3.2 populates only `verified`; `likely-to-occur` reserved for v3.3+ when a curated "expected but not yet found" set is introduced), `source_citation`, `notes`
 - [ ] **CHECK-04**: `data/run.py` STEPS list includes `("checklist", load_checklist)` between `anti-entropy` and `export`
 - [ ] **CHECK-05**: Reconciliation step strips authority strings and subgenus parens from checklist names; consults `data/checklist_synonyms.csv` for known divergences; writes unmatched names to `data/checklist_unmatched.csv` for expert review
 - [ ] **CHECK-06**: `canonical_name` derived consistently for both checklist and occurrence rows (lowercase, single-spaced, authority stripped) and used as the join key
