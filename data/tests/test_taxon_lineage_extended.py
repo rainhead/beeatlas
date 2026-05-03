@@ -30,6 +30,9 @@ def lineage_db(tmp_path, monkeypatch):
     import importlib
     import inaturalist_pipeline
     importlib.reload(inaturalist_pipeline)
+    # Zero pacing/backoff so multi-batch + retry tests stay fast.
+    monkeypatch.setattr(inaturalist_pipeline, "_INAT_PACE_SECONDS", 0.0)
+    monkeypatch.setattr(inaturalist_pipeline, "_INAT_BACKOFF_BASE_SECONDS", 0.0)
 
     con = duckdb.connect(db_path)
     con.execute("CREATE SCHEMA inaturalist_data")
@@ -51,6 +54,8 @@ def lineage_db(tmp_path, monkeypatch):
 def _fake_inat_response(taxa: list[dict]) -> MagicMock:
     """Build a MagicMock that mimics requests.Response with a results array."""
     resp = MagicMock()
+    resp.status_code = 200
+    resp.headers = {}
     resp.raise_for_status = MagicMock()
     resp.json.return_value = {"results": taxa}
     return resp
@@ -279,3 +284,93 @@ def test_enrich_handles_taxon_whose_own_rank_is_target(lineage_db):
     finally:
         con.close()
     assert row == ("Apidae", "Bombus", None)
+
+
+def _throttled_response(status: int = 429, *, retry_after: str | None = None) -> MagicMock:
+    """Build a MagicMock requests.Response that raises on raise_for_status()."""
+    import requests as _r
+    resp = MagicMock()
+    resp.status_code = status
+    resp.headers = {"Retry-After": retry_after} if retry_after else {}
+    err = _r.exceptions.HTTPError(f"{status} for testing", response=resp)
+    resp.raise_for_status = MagicMock(side_effect=err)
+    return resp
+
+
+def test_enrich_retries_on_429_then_succeeds(lineage_db):
+    """A transient 429 followed by a 200 must succeed without surfacing the error."""
+    db_path, mod = lineage_db
+    con = duckdb.connect(db_path)
+    con.execute("INSERT INTO inaturalist_data.observations VALUES (777)")
+    con.close()
+
+    fake_taxa = [{"id": 777, "name": "Bombus", "rank": "genus", "ancestors": []}]
+    responses = [
+        _throttled_response(429),
+        _throttled_response(429),
+        _fake_inat_response(fake_taxa),
+    ]
+    with patch("inaturalist_pipeline.requests.get", side_effect=responses) as mock_get:
+        mod.enrich_taxon_lineage_extended(db_path)
+
+    assert mock_get.call_count == 3
+
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        n = con.execute("SELECT count(*) FROM inaturalist_data.taxon_lineage_extended").fetchone()[0]
+    finally:
+        con.close()
+    assert n == 1
+
+
+def test_enrich_retries_on_5xx_then_succeeds(lineage_db):
+    """500/502/503/504 must also retry (treated identically to 429)."""
+    db_path, mod = lineage_db
+    con = duckdb.connect(db_path)
+    con.execute("INSERT INTO inaturalist_data.observations VALUES (888)")
+    con.close()
+
+    fake_taxa = [{"id": 888, "name": "Apis", "rank": "genus", "ancestors": []}]
+    responses = [_throttled_response(503), _fake_inat_response(fake_taxa)]
+    with patch("inaturalist_pipeline.requests.get", side_effect=responses) as mock_get:
+        mod.enrich_taxon_lineage_extended(db_path)
+    assert mock_get.call_count == 2
+
+
+def test_enrich_raises_after_exhausting_retries(lineage_db):
+    """Persistent 429 must surface as HTTPError after _INAT_MAX_RETRIES + 1 attempts."""
+    import requests as _r
+    db_path, mod = lineage_db
+    con = duckdb.connect(db_path)
+    con.execute("INSERT INTO inaturalist_data.observations VALUES (999)")
+    con.close()
+
+    # Always-throttled response.
+    with patch(
+        "inaturalist_pipeline.requests.get",
+        return_value=_throttled_response(429),
+    ) as mock_get:
+        with pytest.raises(_r.exceptions.HTTPError):
+            mod.enrich_taxon_lineage_extended(db_path)
+    # 1 initial + _INAT_MAX_RETRIES retries
+    assert mock_get.call_count == mod._INAT_MAX_RETRIES + 1
+
+
+def test_enrich_honors_retry_after_header(lineage_db, monkeypatch):
+    """If Retry-After is larger than exponential backoff, helper sleeps for the header value."""
+    db_path, mod = lineage_db
+    con = duckdb.connect(db_path)
+    con.execute("INSERT INTO inaturalist_data.observations VALUES (111)")
+    con.close()
+
+    # Restore a non-zero base so the header has something larger to overrule.
+    monkeypatch.setattr(mod, "_INAT_BACKOFF_BASE_SECONDS", 0.001)
+    sleeps: list[float] = []
+    monkeypatch.setattr(mod.time, "sleep", lambda s: sleeps.append(s))
+
+    fake_taxa = [{"id": 111, "name": "Andrena", "rank": "genus", "ancestors": []}]
+    responses = [_throttled_response(429, retry_after="7"), _fake_inat_response(fake_taxa)]
+    with patch("inaturalist_pipeline.requests.get", side_effect=responses):
+        mod.enrich_taxon_lineage_extended(db_path)
+
+    assert 7.0 in sleeps  # header value, not the 0.001 exponential value
