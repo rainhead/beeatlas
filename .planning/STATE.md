@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: Phase 76 verified complete; ready to plan Phase 77
-last_updated: "2026-05-02T00:00:00.000Z"
-last_activity: 2026-05-02 — Phase 76 verified end-to-end (170s clean pipeline run; 84 tests pass; iNat retry helper added to fix 429 throttling on taxon-lineage-extended)
+status: Phase 76 verified complete; ready to plan Phase 77 (Lineage Coverage Expansion)
+last_updated: "2026-05-03T00:00:00.000Z"
+last_activity: 2026-05-03 — inserted Phase 77 (Lineage Coverage Expansion) between Data Foundation and Pipeline Outputs after researcher surfaced ~31% iNat lineage coverage; renumbered downstream phases (Pipeline Outputs → 78, Photo Manifest → 79, Page Scaffolding → 80, Filter UX & Nav → 81, Hardening → 82); LIN-01..LIN-05 added to REQUIREMENTS.md
 progress:
-  total_phases: 11
+  total_phases: 12
   completed_phases: 1
   total_plans: 6
   completed_plans: 6
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 ## Current Position
 
-Phase: Phase 76 complete; next is Phase 77 (Pipeline Outputs)
+Phase: Phase 76 complete; next is Phase 77 (Lineage Coverage Expansion). Old Phase 77 (Pipeline Outputs) is now Phase 78; downstream phases bumped accordingly.
 Plan: 076-01..06 complete (6/6); UAT passed
 Status: Verified end-to-end — pipeline runs clean in 170s, all 5 SCs satisfied
-Last activity: 2026-05-02 — Phase 76 verified; iNat retry helper added (`_inat_get_with_retry` in `data/inaturalist_pipeline.py`) to fix 429 throttling discovered during UAT; v3.3+ DwC-A migration captured in seeds/inat-taxonomy-dwca.md
+Last activity: 2026-05-03 — inserted Phase 77 (Lineage Coverage Expansion) after researcher surfaced ~31% iNat lineage coverage gap during /gsd-plan-phase 77; existing Pipeline Outputs work preserved as Phase 78 (`.planning/phases/078-pipeline-outputs/`); ready to discuss/plan new Phase 77.
 
 ## Accumulated Context
 

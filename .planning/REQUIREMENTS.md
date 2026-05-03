@@ -23,6 +23,14 @@ Each maps to one phase in `ROADMAP.md`. Categories follow the six phases identif
 - [ ] **TAX-03**: Subgenus level renders only when populated; "(no subgenus)" placeholder collapses cleanly in the nav tree
 - [ ] **TAX-04**: pytest covers known name-disagreement cases (e.g. `Lasioglossum (Dialictus) zonulum` ↔ `Lasioglossum zonulum`)
 
+### LIN — Lineage Coverage Expansion (Phase 77)
+
+- [ ] **LIN-01**: `data/resolve_taxon_ids.py::resolve_taxon_ids` queries iNat taxon-search API for every canonical_name in the FULL OUTER union (`checklist_data.species UNION ecdysis_data.occurrences`) that does not yet have a `taxon_id`; results persisted to a bridge table (e.g. `inaturalist_data.canonical_to_taxon_id`)
+- [ ] **LIN-02**: Resolution is rate-limited to ≤1 req/sec; honors iNat 429/5xx with retry/backoff (mirror Phase 76 pattern in `data/inaturalist_pipeline.py::enrich_taxon_lineage_extended`)
+- [ ] **LIN-03**: Bridge table is the cache — re-running the pipeline twice in a row produces zero new iNat API calls; a `--refresh-lineage` flag (or equivalent config knob) forces re-resolution
+- [ ] **LIN-04**: Unresolved names (404 / ambiguous / API error) are written to `data/lineage_unresolved.csv` with `(canonical_name, reason, attempted_at)`; downstream phases can read this list to surface "lineage unknown" cards rather than silent NULLs
+- [ ] **LIN-05**: After this phase ships, ≥95% of species in the FULL OUTER union have a non-NULL `family` via `taxon_lineage_extended` LEFT JOIN; pytest fixture asserts the threshold against a representative slice
+
 ### AGG — Per-Species Aggregations
 
 - [ ] **AGG-01**: `data/species_export.py::export_species_parquet` joins `ecdysis_data.occurrences` (FULL OUTER) with `checklist_data.species` and (LEFT) with `taxon_lineage_extended`; output written to `public/data/species.parquet`
@@ -162,69 +170,74 @@ Acknowledged but out of v3.2 scope.
 | TAX-02 | Phase 76 | Pending |
 | TAX-03 | Phase 76 | Pending |
 | TAX-04 | Phase 76 | Pending |
-| AGG-01 | Phase 77 | Pending |
-| AGG-02 | Phase 77 | Pending |
-| AGG-03 | Phase 77 | Pending |
-| AGG-04 | Phase 77 | Pending |
-| AGG-05 | Phase 77 | Pending |
-| AGG-06 | Phase 77 | Pending |
-| AGG-07 | Phase 77 | Pending |
-| MAP-01 | Phase 77 | Pending |
-| MAP-02 | Phase 77 | Pending |
-| MAP-03 | Phase 77 | Pending |
-| MAP-04 | Phase 77 | Pending |
-| MAP-05 | Phase 77 | Pending |
-| MAP-06 | Phase 77 | Pending |
-| PHOTO-01 | Phase 78 | Pending |
-| PHOTO-02 | Phase 78 | Pending |
-| PHOTO-03 | Phase 78 | Pending |
-| PHOTO-04 | Phase 78 | Pending |
-| PHOTO-05 | Phase 78 | Pending |
-| PHOTO-06 | Phase 78 | Pending |
-| PHOTO-07 | Phase 78 | Pending |
-| PHOTO-08 | Phase 78 | Pending |
-| PAGE-01 | Phase 79 | Pending |
-| PAGE-02 | Phase 79 | Pending |
-| PAGE-03 | Phase 79 | Pending |
-| PAGE-04 | Phase 79 | Pending |
-| PAGE-05 | Phase 79 | Pending |
-| PAGE-06 | Phase 79 | Pending |
-| PAGE-07 | Phase 79 | Pending |
-| PAGE-08 | Phase 79 | Pending |
-| PAGE-09 | Phase 79 | Pending |
-| NAV-01 | Phase 80 | Pending |
-| NAV-02 | Phase 80 | Pending |
-| NAV-03 | Phase 80 | Pending |
-| NAV-04 | Phase 80 | Pending |
-| NAV-05 | Phase 80 | Pending |
-| FILT-01 | Phase 80 | Pending |
-| FILT-02 | Phase 80 | Pending |
-| FILT-03 | Phase 80 | Pending |
-| FILT-04 | Phase 80 | Pending |
-| FILT-05 | Phase 80 | Pending |
-| FILT-06 | Phase 80 | Pending |
-| FILT-07 | Phase 80 | Pending |
-| VIZ-01 | Phase 80 | Pending |
-| VIZ-02 | Phase 80 | Pending |
-| VIZ-03 | Phase 80 | Pending |
-| VIZ-04 | Phase 80 | Pending |
-| VIZ-05 | Phase 80 | Pending |
-| LINK-01 | Phase 80 | Pending |
-| LINK-02 | Phase 80 | Pending |
-| LINK-03 | Phase 80 | Pending |
-| LINK-04 | Phase 80 | Pending |
-| PERF-01 | Phase 81 | Pending |
-| PERF-02 | Phase 81 | Pending |
-| PERF-03 | Phase 81 | Pending |
-| PERF-04 | Phase 81 | Pending |
-| PERF-05 | Phase 81 | Pending |
-| PERF-06 | Phase 81 | Pending |
+| LIN-01 | Phase 77 | Pending |
+| LIN-02 | Phase 77 | Pending |
+| LIN-03 | Phase 77 | Pending |
+| LIN-04 | Phase 77 | Pending |
+| LIN-05 | Phase 77 | Pending |
+| AGG-01 | Phase 78 | Pending |
+| AGG-02 | Phase 78 | Pending |
+| AGG-03 | Phase 78 | Pending |
+| AGG-04 | Phase 78 | Pending |
+| AGG-05 | Phase 78 | Pending |
+| AGG-06 | Phase 78 | Pending |
+| AGG-07 | Phase 78 | Pending |
+| MAP-01 | Phase 78 | Pending |
+| MAP-02 | Phase 78 | Pending |
+| MAP-03 | Phase 78 | Pending |
+| MAP-04 | Phase 78 | Pending |
+| MAP-05 | Phase 78 | Pending |
+| MAP-06 | Phase 78 | Pending |
+| PHOTO-01 | Phase 79 | Pending |
+| PHOTO-02 | Phase 79 | Pending |
+| PHOTO-03 | Phase 79 | Pending |
+| PHOTO-04 | Phase 79 | Pending |
+| PHOTO-05 | Phase 79 | Pending |
+| PHOTO-06 | Phase 79 | Pending |
+| PHOTO-07 | Phase 79 | Pending |
+| PHOTO-08 | Phase 79 | Pending |
+| PAGE-01 | Phase 80 | Pending |
+| PAGE-02 | Phase 80 | Pending |
+| PAGE-03 | Phase 80 | Pending |
+| PAGE-04 | Phase 80 | Pending |
+| PAGE-05 | Phase 80 | Pending |
+| PAGE-06 | Phase 80 | Pending |
+| PAGE-07 | Phase 80 | Pending |
+| PAGE-08 | Phase 80 | Pending |
+| PAGE-09 | Phase 80 | Pending |
+| NAV-01 | Phase 81 | Pending |
+| NAV-02 | Phase 81 | Pending |
+| NAV-03 | Phase 81 | Pending |
+| NAV-04 | Phase 81 | Pending |
+| NAV-05 | Phase 81 | Pending |
+| FILT-01 | Phase 81 | Pending |
+| FILT-02 | Phase 81 | Pending |
+| FILT-03 | Phase 81 | Pending |
+| FILT-04 | Phase 81 | Pending |
+| FILT-05 | Phase 81 | Pending |
+| FILT-06 | Phase 81 | Pending |
+| FILT-07 | Phase 81 | Pending |
+| VIZ-01 | Phase 81 | Pending |
+| VIZ-02 | Phase 81 | Pending |
+| VIZ-03 | Phase 81 | Pending |
+| VIZ-04 | Phase 81 | Pending |
+| VIZ-05 | Phase 81 | Pending |
+| LINK-01 | Phase 81 | Pending |
+| LINK-02 | Phase 81 | Pending |
+| LINK-03 | Phase 81 | Pending |
+| LINK-04 | Phase 81 | Pending |
+| PERF-01 | Phase 82 | Pending |
+| PERF-02 | Phase 82 | Pending |
+| PERF-03 | Phase 82 | Pending |
+| PERF-04 | Phase 82 | Pending |
+| PERF-05 | Phase 82 | Pending |
+| PERF-06 | Phase 82 | Pending |
 
 **Coverage:**
-- v3.2 requirements: 67 total (CHECK 6 + TAX 4 + AGG 7 + MAP 6 + PHOTO 8 + PAGE 9 + NAV 5 + FILT 7 + VIZ 5 + LINK 4 + PERF 6)
-- Mapped to phases: 67
+- v3.2 requirements: 72 total (CHECK 6 + TAX 4 + LIN 5 + AGG 7 + MAP 6 + PHOTO 8 + PAGE 9 + NAV 5 + FILT 7 + VIZ 5 + LINK 4 + PERF 6)
+- Mapped to phases: 72
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-02*
-*Last updated: 2026-05-02 — corrected coverage count from 64 to 67 during roadmap creation (initial footer mis-counted; per-section sums verified against Traceability table)*
+*Last updated: 2026-05-03 — inserted Phase 77 (Lineage Coverage Expansion); LIN-01..LIN-05 added; downstream phase numbers bumped (AGG/MAP → 78, PHOTO → 79, PAGE → 80, NAV/FILT/VIZ/LINK → 81, PERF → 82)*

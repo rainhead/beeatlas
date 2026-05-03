@@ -317,16 +317,17 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 
 </details>
 
-## 🔲 v3.2 Species Tab (Phases 76–81)
+## 🔲 v3.2 Species Tab (Phases 76–82)
 
 **Milestone Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. See `.planning/seeds/species-tab.md` for full scoping.
 
 - [x] Phase 76: Data Foundation (6/6 plans)
-- [ ] Phase 77: Pipeline Outputs (0/? plans)
-- [ ] Phase 78: Photo Manifest (0/? plans)
-- [ ] Phase 79: Page Scaffolding (0/? plans)
-- [ ] Phase 80: Filter UX & Nav (0/? plans)
-- [ ] Phase 81: Hardening (0/? plans)
+- [ ] Phase 77: Lineage Coverage Expansion (0/? plans) (INSERTED 2026-05-03)
+- [ ] Phase 78: Pipeline Outputs (0/? plans)
+- [ ] Phase 79: Photo Manifest (0/? plans)
+- [ ] Phase 80: Page Scaffolding (0/? plans)
+- [ ] Phase 81: Filter UX & Nav (0/? plans)
+- [ ] Phase 82: Hardening (0/? plans)
 
 ## Phase Details
 
@@ -442,12 +443,13 @@ Plans:
 | 73. OL Removal and Verification | v3.0 | 2/2 | Complete | 2026-04-27 |
 | 74. Eleventy Outer Build Integration | v3.1 | 3/3 | Complete | 2026-04-30 |
 | 75. Authoring Scaffold and Verification | v3.1 | 2/2 | Complete | 2026-04-30 |
-| 76. Data Foundation | v3.2 | 5/6 | In progress | — |
-| 77. Pipeline Outputs | v3.2 | 0/? | Not started | — |
-| 78. Photo Manifest | v3.2 | 0/? | Not started | — |
-| 79. Page Scaffolding | v3.2 | 0/? | Not started | — |
-| 80. Filter UX & Nav | v3.2 | 0/? | Not started | — |
-| 81. Hardening | v3.2 | 0/? | Not started | — |
+| 76. Data Foundation | v3.2 | 6/6 | Complete | 2026-05-02 |
+| 77. Lineage Coverage Expansion | v3.2 | 0/? | Not started | — |
+| 78. Pipeline Outputs | v3.2 | 0/? | Not started | — |
+| 79. Photo Manifest | v3.2 | 0/? | Not started | — |
+| 80. Page Scaffolding | v3.2 | 0/? | Not started | — |
+| 81. Filter UX & Nav | v3.2 | 0/? | Not started | — |
+| 82. Hardening | v3.2 | 0/? | Not started | — |
 
 ## Phase Details
 
@@ -520,9 +522,21 @@ Plans:
 - [x] 076-05-PLAN.md — Occurrences canonical_name + reconcile/synonyms/unmatched flow
 - [x] 076-06-PLAN.md — Integration tests (disagreement fixtures + mocked iNat)
 
-### Phase 77: Pipeline Outputs
-**Goal**: The nightly pipeline emits a single source of truth for per-species aggregates and per-species occurrence maps that downstream Eleventy pages can consume without ever touching parquet at request time
+### Phase 77: Lineage Coverage Expansion (INSERTED 2026-05-03)
+**Goal**: Resolve every species name (checklist + ecdysis occurrences) to an iNat `taxon_id` so `inaturalist_data.taxon_lineage_extended` covers ≥95% of species in the FULL OUTER union — unblocks the next phase from emitting NULL family/subfamily/tribe for the bulk of species (currently ~70% null per Phase 78 research)
 **Depends on**: Phase 76
+**Requirements**: LIN-01, LIN-02, LIN-03, LIN-04, LIN-05
+**Success Criteria** (what must be TRUE):
+  1. After running `python data/run.py`, `inaturalist_data.taxon_lineage_extended` contains a row keyed by `taxon_id` for ≥95% of species in `(SELECT canonical_name FROM checklist_data.species UNION SELECT canonical_name FROM ecdysis_data.occurrences)`; species without an iNat `taxon_id` are listed in `data/lineage_unresolved.csv` with the canonical name and the reason (404 / ambiguous / API error)
+  2. A new pipeline step (e.g. `("resolve-taxon-ids", resolve_taxon_ids)`) runs after `checklist` and before `enrich-taxon-lineage-extended` in `data/run.py` STEPS, queries the iNat taxon-search API at ≤1 req/sec for any canonical_name that does not already have a `taxon_id`, and persists results to a name→taxon_id bridge table that subsequent runs reuse (cached, not re-queried)
+  3. Re-running the pipeline twice in a row makes zero new iNat API calls (the bridge cache is consulted first); a forced refresh path exists (e.g. `--refresh-lineage` flag or a config knob) for when the user wants to re-resolve ambiguous names
+  4. `cd data && uv run pytest tests/test_resolve_taxon_ids.py` passes with mocked iNat responses covering the matched / ambiguous / 404 / API-error cases; the tests assert the bridge table state and the contents of `lineage_unresolved.csv` after each
+  5. After this phase ships, the same query the next phase needs (`SELECT canonical_name, family, subfamily, tribe, genus, subgenus FROM <FULL OUTER union> LEFT JOIN taxon_lineage_extended ...`) produces ≤5% NULL `family` rows on current production data
+**Plans**: TBD
+
+### Phase 78: Pipeline Outputs
+**Goal**: The nightly pipeline emits a single source of truth for per-species aggregates and per-species occurrence maps that downstream Eleventy pages can consume without ever touching parquet at request time
+**Depends on**: Phase 77
 **Requirements**: AGG-01, AGG-02, AGG-03, AGG-04, AGG-05, AGG-06, AGG-07, MAP-01, MAP-02, MAP-03, MAP-04, MAP-05, MAP-06
 **Success Criteria** (what must be TRUE):
   1. `python data/run.py` produces `public/data/species.parquet`, `public/data/species.json`, and `public/data/seasonality.json`; the parquet carries the full AGG-02 column set including `month_histogram INT[12]`, `on_checklist`, `provisional_count`, `slug`, and zero-occurrence checklist species are present (FULL OUTER JOIN preserves them)
@@ -532,9 +546,9 @@ Plans:
   5. `node scripts/validate-schema.mjs` passes with the new `species.parquet` column expectations and `species.json` top-level shape; `cd data && uv run pytest test_species_export.py test_species_maps.py` passes including the FULL OUTER fixture (checklist-only / occurrence-only / matched) and SVG well-formedness (parses as XML, expected `<circle>` count, viewBox match)
 **Plans**: TBD
 
-### Phase 78: Photo Manifest
+### Phase 79: Photo Manifest
 **Goal**: A hand-edited TOML photo manifest is in place with required-field and license-whitelist validation wired into the build, plus a one-shot helper to seed it — without ever pulling iNat at CI time
-**Depends on**: Phase 77
+**Depends on**: Phase 78
 **Requirements**: PHOTO-01, PHOTO-02, PHOTO-03, PHOTO-04, PHOTO-05, PHOTO-06, PHOTO-07, PHOTO-08
 **Success Criteria** (what must be TRUE):
   1. `content/species-photos.toml` matches the PHOTO-01 schema (`[species."<scientificName>"]` tables with optional `description` and `[[photos]]` arrays carrying `observation_id`, `photo_id`, `url`, `caption`, `attribution`, `license`, `ordering`); the `url` is stored at fill time (resolved from iNat API in PHOTO-07's `scripts/seed-species-photos.mjs`), never constructed at render time
@@ -544,9 +558,9 @@ Plans:
   5. `cd data && uv run pytest test_validate_species.py` (or the Vitest equivalent under `src/tests/`) covers a fixture that seeds bad licenses and missing attribution and asserts the validator rejects them
 **Plans**: TBD
 
-### Phase 79: Page Scaffolding
+### Phase 80: Page Scaffolding
 **Goal**: A static `/species/` page renders one server-rendered card per species using the layout default chrome, ships in its own Vite chunk that does NOT pull mapbox-gl or wa-sqlite, and an architectural test enforces the boundary
-**Depends on**: Phase 78
+**Depends on**: Phase 79
 **Requirements**: PAGE-01, PAGE-02, PAGE-03, PAGE-04, PAGE-05, PAGE-06, PAGE-07, PAGE-08, PAGE-09
 **Success Criteria** (what must be TRUE):
   1. `npm run dev` serves `/species/` and the page renders one `<bee-species-card>` per species in light DOM (server-rendered by Eleventy via `_pages/species.njk` declaring `layout: default.njk` and `permalink: /species/index.html`); named slots for photos, map, and description are populated from `_data/species.js` (reads `public/data/species.json`, NOT parquet — preserves HMR per Pitfall #8) and `_data/photos.js` (reads `content/species-photos.toml` via `@iarna/toml`)
@@ -557,9 +571,9 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 80: Filter UX & Nav
+### Phase 81: Filter UX & Nav
 **Goal**: Volunteers can browse the species list via a hierarchical taxon tree, narrow by geography and month, see seasonality at a glance, and deep-link any species into the existing SPA pre-filtered
-**Depends on**: Phase 79
+**Depends on**: Phase 80
 **Requirements**: NAV-01, NAV-02, NAV-03, NAV-04, NAV-05, FILT-01, FILT-02, FILT-03, FILT-04, FILT-05, FILT-06, FILT-07, VIZ-01, VIZ-02, VIZ-03, VIZ-04, VIZ-05, LINK-01, LINK-02, LINK-03, LINK-04
 **Success Criteria** (what must be TRUE):
   1. `<bee-taxon-nav>` renders a vertical left-rail tree (family → subfamily → tribe → genus → subgenus → species) with expand-on-click; subgenus level renders only when at least one species under that genus has a populated subgenus; selecting a node updates `_activeTaxonPath` and the URL; filtered-out branches are muted (opacity 0.35) rather than `display: none` (mute-not-hide preserves orientation, NAV-04); the page is server-rendered as nested `<details>`/`<ul>` so it remains navigable without the Lit bundle
@@ -570,9 +584,9 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 81: Hardening
+### Phase 82: Hardening
 **Goal**: The species page meets its performance, accessibility, and durability budgets and survives a UAT pass against the seed's stated use cases
-**Depends on**: Phase 80
+**Depends on**: Phase 81
 **Requirements**: PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06
 **Success Criteria** (what must be TRUE):
   1. CI fails the build when the species-page Vite chunk (`_site/assets/species-*.js`) exceeds 100 KB gzipped; passing the gate is verified on the current build with margin (mitigates PITFALLS #7 regression risk after the ARCH-04 test)
