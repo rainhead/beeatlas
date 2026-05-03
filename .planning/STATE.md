@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: planning
-last_updated: "2026-05-03T01:46:55.416Z"
-last_activity: 2026-05-02 — Phase 76 planned (6 plans, 4 waves)
+status: executing
+last_updated: "2026-05-03T05:50:00.000Z"
+last_activity: 2026-05-02 — Phase 76 Wave 1 complete (Plans 076-01, 076-02)
 progress:
   total_phases: 11
   completed_phases: 0
   total_plans: 6
-  completed_plans: 0
-  percent: 0
+  completed_plans: 2
+  percent: 33
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 ## Current Position
 
-Phase: Phase 76 (planned, ready to execute)
-Plan: 076-01..076-06 (6 plans across 4 waves)
-Status: Ready to execute Phase 76
-Last activity: 2026-05-02 — Phase 76 planned (6 plans, 4 waves) via /gsd-plan-phase
+Phase: Phase 76 (executing — Wave 1 complete)
+Plan: 076-01, 076-02 complete; 076-03..06 remaining
+Status: Wave 2 ready (Plan 076-03)
+Last activity: 2026-05-02 — Phase 76 Wave 1 merged (2/6 plans), 44 tests pass
 
 ## Accumulated Context
 
