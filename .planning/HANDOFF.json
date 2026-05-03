@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-03T05:25:41.690Z",
+  "phase": "076",
+  "phase_name": "Data Foundation",
+  "phase_dir": ".planning/phases/076-data-foundation",
+  "plan": null,
+  "task": null,
+  "total_tasks": 15,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": "research", "name": "Research Phase 76 (gsd-phase-researcher)", "status": "done", "commit": "e428bcc"},
+    {"id": "validation", "name": "Scaffold 076-VALIDATION.md", "status": "done", "commit": "e428bcc"},
+    {"id": "patterns", "name": "Pattern map (gsd-pattern-mapper)", "status": "done", "commit": "57de655"},
+    {"id": "plan", "name": "Plan 6 plans (gsd-planner)", "status": "done", "commit": "99103a4"},
+    {"id": "verify", "name": "Plan checker — passed after 1 revision iter (2 blockers + 3 warnings → 0)", "status": "done", "commit": "99103a4"},
+    {"id": "coverage", "name": "Requirements + decision coverage gates (10/10 reqs, 5/5 decisions)", "status": "done", "commit": "99103a4"}
+  ],
+  "remaining_tasks": [
+    {"id": "execute", "name": "/gsd-execute-phase 76 — run all 15 tasks across 4 waves", "status": "not_started"}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {"action": "Decide whether to copy `~/Downloads/washington_bees(3).tsv` to `data/checklists/wa_bee_checklist.tsv` manually or let executor do it", "context": "Plan 076-01 Task 1 expects the source TSV to be available; the file path is in CONTEXT.md D-01", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Standalone STEP `(\"taxon-lineage-extended\", enrich_taxon_lineage_extended)` in run.py between waba and anti-entropy", "rationale": "Calling enrich_taxon_lineage_extended from inside inaturalist_pipeline.load_observations() would run BEFORE waba, violating D-03 (must run AFTER waba so UNION covers WABA taxa)", "phase": "076"},
+    {"decision": "canonicalize() lives in new data/canonical_name.py module", "rationale": "Single responsibility, single test file; avoids circular-import risk when Phase 77 species_export imports it", "phase": "076"},
+    {"decision": "Tests live at data/tests/test_*.py with `tests/`-prefixed pytest invocation", "rationale": "Matches existing data/pyproject.toml `testpaths = [\"tests\"]` convention; ROADMAP SC5 amended to match", "phase": "076"},
+    {"decision": "synonyms.csv override UPDATEs canonical_name column at reconcile time (not just at JOIN time)", "rationale": "Downstream consumers (Phase 77 species export) see no synonyms.csv complexity; one-shot UPDATE is trivial cost", "phase": "076"},
+    {"decision": "_INFRA_MARKERS is exactly 5 markers (ssp./var./aff./cf./nr.) — no subsp.", "rationale": "Strict reading of D-04 step 3; can be added in follow-up phase if a real subsp. input ever appears in production data", "phase": "076"},
+    {"decision": "Wave 0 is satisfied by Plan 02 TDD on canonicalize() only; DB-write integration tests deferred to Plan 06 by design", "rationale": "DB-write functions can't be reasonably tested without their implementations; Plan 02 covers the algorithm-critical surface that 03/05/06 all consume", "phase": "076"}
+  ],
+  "uncommitted_files": [],
+  "next_action": "/clear, then /gsd-execute-phase 76",
+  "context_notes": "Phase 76 fully planned. 6 plans (15 tasks) across 4 waves. All requirements + decisions covered. Plan checker passed. Live DB schema verified (taxon__id BIGINT exists on inaturalist_data.observations; ecdysis_data.occurrences uses scientific_name snake_case). Six trinomials found in production ecdysis data that the canonicalize() algorithm must collapse to binomials (Eucera frater frater, Colletes consors pascoensis, Bembix americana comata x2, Andrena cressonii infasciata, Melecta pacifica fulvida). The Lasioglossum zonulus/zonulum masculine/neuter mismatch is a real synonym needed for synonyms.csv."
+}
