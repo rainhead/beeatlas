@@ -321,7 +321,7 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. See `.planning/seeds/species-tab.md` for full scoping.
 
-- [ ] Phase 76: Data Foundation (3/6 plans)
+- [ ] Phase 76: Data Foundation (5/6 plans)
 - [ ] Phase 77: Pipeline Outputs (0/? plans)
 - [ ] Phase 78: Photo Manifest (0/? plans)
 - [ ] Phase 79: Page Scaffolding (0/? plans)
@@ -442,7 +442,7 @@ Plans:
 | 73. OL Removal and Verification | v3.0 | 2/2 | Complete | 2026-04-27 |
 | 74. Eleventy Outer Build Integration | v3.1 | 3/3 | Complete | 2026-04-30 |
 | 75. Authoring Scaffold and Verification | v3.1 | 2/2 | Complete | 2026-04-30 |
-| 76. Data Foundation | v3.2 | 3/6 | In progress | — |
+| 76. Data Foundation | v3.2 | 5/6 | In progress | — |
 | 77. Pipeline Outputs | v3.2 | 0/? | Not started | — |
 | 78. Photo Manifest | v3.2 | 0/? | Not started | — |
 | 79. Page Scaffolding | v3.2 | 0/? | Not started | — |
