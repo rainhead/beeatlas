@@ -13,7 +13,7 @@
  */
 
 import { asyncBufferFromFile, asyncBufferFromUrl, parquetMetadataAsync } from 'hyparquet';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ASSETS_DIR = new URL('../public/data/', import.meta.url).pathname;
@@ -37,6 +37,17 @@ const EXPECTED = {
     'specimen_inat_genus', 'specimen_inat_family', 'specimen_inat_quality_grade',
     // provisional flag
     'is_provisional',
+    // Phase 78 / Pitfall #6: canonical_name materialized for species-aggregation joins
+    'canonical_name',
+  ],
+  'species.parquet': [
+    'scientificName', 'canonical_name', 'family', 'subfamily', 'tribe',
+    'genus', 'subgenus', 'specific_epithet', 'on_checklist', 'status',
+    'occurrence_count', 'specimen_count', 'provisional_count',
+    'first_occurrence_date', 'last_occurrence_date',
+    // LIST<INT32> in parquet — column-presence check only, do not assert [12] suffix
+    'month_histogram',
+    'county_count', 'ecoregion_count', 'slug',
   ],
 };
 
@@ -76,6 +87,33 @@ for (const [filename, expectedCols] of Object.entries(EXPECTED)) {
     failed = true;
   } else {
     console.log(`ok ${filename}`);
+  }
+}
+
+// Phase 78: species.json shape check (top-level array, row[0] has required keys).
+// Local-only — CloudFront branch is feature-gated by `useLocal` (T-78-01).
+const speciesJsonPath = join(ASSETS_DIR, 'species.json');
+if (useLocal && existsSync(speciesJsonPath)) {
+  try {
+    const speciesJson = JSON.parse(readFileSync(speciesJsonPath, 'utf-8'));
+    if (!Array.isArray(speciesJson)) {
+      console.error('x species.json: expected top-level array');
+      failed = true;
+    } else if (speciesJson.length > 0) {
+      const required = ['scientificName', 'canonical_name', 'on_checklist', 'occurrence_count', 'slug'];
+      const missing = required.filter(k => !(k in speciesJson[0]));
+      if (missing.length) {
+        console.error(`x species.json: row[0] missing keys: ${missing.join(', ')}`);
+        failed = true;
+      } else {
+        console.log('ok species.json');
+      }
+    } else {
+      console.log('ok species.json (empty)');
+    }
+  } catch (e) {
+    console.error(`x species.json: could not parse (${e.message})`);
+    failed = true;
   }
 }
 
