@@ -550,7 +550,7 @@ Plans:
 **Plans**: 3 plans
 - [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
 - [x] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
-- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
+- [x] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 79: Photo Manifest
 **Goal**: A hand-edited TOML photo manifest is in place with required-field and license-whitelist validation wired into the build, plus a one-shot helper to seed it — without ever pulling iNat at CI time
@@ -564,7 +564,7 @@ Plans:
   5. `cd data && uv run pytest test_validate_species.py` (or the Vitest equivalent under `src/tests/`) covers a fixture that seeds bad licenses and missing attribution and asserts the validator rejects them
 **Plans**: 3 plans
 - [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
-- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [x] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
 - [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 80: Page Scaffolding
@@ -578,7 +578,7 @@ Plans:
   4. `npm test` passes a new ARCH-04 source-analysis test in `src/tests/arch.test.ts` that asserts no file under `src/species/` imports `mapbox-gl`, `wa-sqlite`, `../sqlite.ts`, `../filter.ts`, `../bee-map.ts`, or `../bee-atlas.ts` (mitigates PITFALLS #7 — single accidental import balloons the species chunk from ~50 KB to ~2 MB)
   5. `npm run build` succeeds with `validate-species` in the chain and produces a separate `species-*.js` chunk under `_site/assets/` distinct from the SPA's `index-*.js`; visual inspection or a CI grep confirms `mapbox-gl` does not appear in the species chunk's symbol list
 **Plans**: 3 plans
-- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
 - [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
 - [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 **UI hint**: yes
