@@ -17,8 +17,24 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 const speciesJsonPath = join(repoRoot, 'public/data/species.json');
+const seasonalityJsonPath = join(repoRoot, 'public/data/seasonality.json');
 
 const raw = JSON.parse(readFileSync(speciesJsonPath, 'utf8'));
+
+// Derive county and ecoregion_l3 option lists from seasonality.json keys.
+// Keys are shaped 'county:<name>' and 'ecoregion_l3:<name>' per Phase 78
+// pipeline (data/export.py). Phase 81 NAV/FILT widgets consume these arrays.
+const seasonality = JSON.parse(readFileSync(seasonalityJsonPath, 'utf8'));
+const countiesSet = new Set();
+const ecoregionL3Set = new Set();
+for (const speciesEntry of Object.values(seasonality)) {
+  for (const key of Object.keys(speciesEntry)) {
+    if (key.startsWith('county:')) countiesSet.add(key.slice('county:'.length));
+    else if (key.startsWith('ecoregion_l3:')) ecoregionL3Set.add(key.slice('ecoregion_l3:'.length));
+  }
+}
+const counties = [...countiesSet].sort();
+const ecoregionL3 = [...ecoregionL3Set].sort();
 
 const flat = raw
   .slice()
@@ -57,4 +73,4 @@ function toPlain(node) {
 
 const tree = buildTree(flat);
 
-export default { tree, flat, byScientificName };
+export default { tree, flat, byScientificName, counties, ecoregionL3 };
