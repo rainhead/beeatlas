@@ -17,8 +17,12 @@ export function buildSpaTaxonLink(
   scientificName: string,
   rank: TaxonRank = 'species'
 ): string {
-  const params = new URLSearchParams();
-  params.set('taxon', scientificName);
-  params.set('taxonRank', rank);
-  return '/?' + params.toString();
+  // WR-03: use encodeURIComponent (which emits %20 for spaces) to match the
+  // SSR-side `urlencode` filter in _pages/species.njk and _includes/taxon-tree.njk.
+  // URLSearchParams emits + for spaces, which is functionally equivalent for
+  // URLSearchParams.get() consumers but produces a different URL string —
+  // fragmenting analytics, cache keys, and confusing users comparing URLs.
+  const t = encodeURIComponent(scientificName);
+  const r = encodeURIComponent(rank);
+  return '/?taxon=' + t + '&taxonRank=' + r;
 }
