@@ -10,7 +10,11 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 describe('buildSpaTaxonLink (LINK-01..03)', () => {
   test('species rank: round-trips through SPA parseParams', () => {
     const link = buildSpaTaxonLink('Andrena anograe');
-    expect(link).toBe('/?taxon=Andrena+anograe&taxonRank=species');
+    // WR-03: spaces encoded as %20 to match SSR's urlencode filter output.
+    // The previous expected value used + (URLSearchParams default), which
+    // diverged from SSR-emitted hrefs in _pages/species.njk and fragmented
+    // analytics cache keys. Both encodings round-trip via URLSearchParams.
+    expect(link).toBe('/?taxon=Andrena%20anograe&taxonRank=species');
     const search = link.split('?')[1] ?? '';
     const parsed = parseParams(search);
     expect(parsed.filter?.taxonName).toBe('Andrena anograe');
