@@ -108,6 +108,14 @@ export class BeeSpeciesPage extends LitElement {
       if (!this._isRestoringFromHistory) this._pushUrlState();
       this._renderBreadcrumb();
       this._toggleEmptyState();
+      // WR-06: re-sync the filter widget's reactive properties so popstate-
+      // and pill-dismiss-driven state changes flow back into the widget UI
+      // (checkbox state, month inputs). Previously this only ran on connect
+      // and inside _clearFilters, so a back-button restore of ?county=Pierce
+      // left the checkbox visually unchecked.
+      if (changed.has('_geoFilter') || changed.has('_seasonFilter')) {
+        this._wireFilterWidgetOptions();
+      }
     }
   }
 
@@ -416,6 +424,13 @@ export class BeeSpeciesPage extends LitElement {
   private _toggleEmptyState(): void {
     const host = this.querySelector('.empty-state') as HTMLElement | null;
     if (!host) return;
+    // WR-07: short-circuit before counts have been computed. Without the
+    // load-bearing `counts.length > 0` guard below, Math.max(...[]) returns
+    // -Infinity and === 0 fails closed (false) — but the guard is brittle.
+    // A future edit dropping the length check would silently engage the
+    // empty state on first paint. Guard against both by returning early
+    // when seasonality has not loaded yet.
+    if (!this._seasonality) return;
     const counts = [...this._filteredCounts.values()];
     const isEmpty = this._isFilterActive && counts.length > 0 && Math.max(...counts) === 0;
     if (isEmpty) host.removeAttribute('hidden');
