@@ -1,0 +1,111 @@
+{# NAV-01..05, LINK-03 — recursive taxon tree (Phase 81 Plan 02).
+   Input shape: a node with { rows: SpeciesRow[], children: Record<key, Node> }.
+   Levels: 0=family, 1=subfamily, 2=tribe, 3=genus, 4=subgenus.
+   Species are stored at the leaf (subgenus) node's `rows` array.
+
+   NAV-02: at level 3 (genus), if the only subgenus key is 'null', render the
+   species rows directly under the genus (skip the subgenus level). Otherwise
+   render every subgenus key — including 'null' as a "no subgenus" leaf bucket.
+
+   LINK-03: family/genus/species hrefs use `/?taxon=<urlencoded>&taxonRank=...`
+   (matches buildSpaTaxonLink shape — see src/lib/spa-link.ts). Subfamily and
+   tribe ranks have no SPA representation (src/url-state.ts only handles
+   family|genus|species), so those summaries are plain text.
+
+   Every <li> carries data-taxon and data-rank for bee-taxon-nav decoration
+   (NAV-04 mute-not-hide). #}
+
+{% macro renderSpecies(rows) %}
+  {%- for sp in rows -%}
+    <li data-taxon="{{ sp.scientificName }}" data-rank="species"><a href="/?taxon={{ sp.scientificName | urlencode }}&taxonRank=species">{{ sp.scientificName }}</a></li>
+  {%- endfor -%}
+{% endmacro %}
+
+{% macro renderSubgenus(subgKey, subgNode) %}
+  {%- set label = '(no subgenus)' if subgKey == 'null' else subgKey -%}
+  <li data-taxon="{{ label }}" data-rank="subgenus">
+    <details>
+      <summary>{{ label }}</summary>
+      <ul>{{ renderSpecies(subgNode.rows) }}</ul>
+    </details>
+  </li>
+{% endmacro %}
+
+{% macro renderGenus(name, node) %}
+  {# NAV-02: subgenus-skip when 'null' is the sole key #}
+  {%- set keys = node.children | dictsort -%}
+  {%- set onlyNull = (keys | length == 1) and (node.children["null"] is defined) -%}
+  <li data-taxon="{{ name }}" data-rank="genus">
+    <details>
+      <summary><a href="/?taxon={{ name | urlencode }}&taxonRank=genus">{{ name }}</a></summary>
+      <ul>
+        {%- if onlyNull -%}
+          {{ renderSpecies(node.children["null"].rows) }}
+        {%- else -%}
+          {%- for subgKey, subgNode in keys -%}
+            {{ renderSubgenus(subgKey, subgNode) }}
+          {%- endfor -%}
+        {%- endif -%}
+      </ul>
+    </details>
+  </li>
+{% endmacro %}
+
+{% macro renderTribe(name, node) %}
+  <li data-taxon="{{ name }}" data-rank="tribe">
+    <details>
+      <summary>{{ name }}</summary>
+      <ul>
+        {%- for genKey, genNode in node.children | dictsort -%}
+          {{ renderGenus(genKey, genNode) }}
+        {%- endfor -%}
+      </ul>
+    </details>
+  </li>
+{% endmacro %}
+
+{% macro renderSubfamily(name, node) %}
+  <li data-taxon="{{ name }}" data-rank="subfamily">
+    <details>
+      <summary>{{ name }}</summary>
+      <ul>
+        {%- for triKey, triNode in node.children | dictsort -%}
+          {{ renderTribe(triKey, triNode) }}
+        {%- endfor -%}
+      </ul>
+    </details>
+  </li>
+{% endmacro %}
+
+{% macro renderFamily(name, node) %}
+  <li data-taxon="{{ name }}" data-rank="family">
+    <details>
+      <summary><a href="/?taxon={{ name | urlencode }}&taxonRank=family">{{ name }}</a></summary>
+      <ul>
+        {%- for subKey, subNode in node.children | dictsort -%}
+          {{ renderSubfamily(subKey, subNode) }}
+        {%- endfor -%}
+      </ul>
+    </details>
+  </li>
+{% endmacro %}
+
+{# renderNode is the generic dispatcher exposed for tests/inspection;
+   the macros above implement each level. #}
+{% macro renderNode(name, node, level) %}
+  {%- if level == 0 -%}{{ renderFamily(name, node) }}
+  {%- elif level == 1 -%}{{ renderSubfamily(name, node) }}
+  {%- elif level == 2 -%}{{ renderTribe(name, node) }}
+  {%- elif level == 3 -%}{{ renderGenus(name, node) }}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro renderTree(tree) %}
+<bee-taxon-nav>
+  <ul class="taxon-tree-root">
+    {%- for famKey, famNode in tree.children | dictsort -%}
+      {{ renderNode(famKey, famNode, 0) }}
+    {%- endfor -%}
+  </ul>
+</bee-taxon-nav>
+{% endmacro %}
