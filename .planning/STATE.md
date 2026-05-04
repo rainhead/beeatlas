@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: planned
-last_updated: "2026-05-04T16:00:00.000Z"
-last_activity: 2026-05-04
+status: executing
+last_updated: "2026-05-04T16:21:30.000Z"
+last_activity: 2026-05-04 -- Phase 079-01 complete (photo manifest validator wired into build chain)
 progress:
   total_phases: 12
   completed_phases: 3
-  total_plans: 16
-  completed_plans: 13
-  percent: 100
+  total_plans: 17
+  completed_plans: 14
+  percent: 82
 ---
 
 # Project State
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 079 — photo-manifest (planned, ready to execute)
+**Current focus:** Phase 079 — photo-manifest
 
 ## Current Position
 
-Phase: 079
-Plan: 3 plans created (079-01 validator+build wiring, 079-02 seed+iNat, 079-03 initial seed run)
-Status: Ready to execute — plan-checker passed all 12 dimensions, no blockers
-Resume file: .planning/phases/079-photo-manifest/079-01-PLAN.md
-Last activity: 2026-05-04
+Phase: 079 (photo-manifest) — EXECUTING
+Plan: 2 of 3
+Status: Executing Phase 079
+Resume file: .planning/phases/079-photo-manifest/079-02-PLAN.md
+Last activity: 2026-05-04 -- Phase 079-01 complete (3 commits: 5aca996, c9fb8db, a1c08cf)
 
 ## Accumulated Context
 
@@ -45,6 +45,8 @@ Last activity: 2026-05-04
 - [Phase 078-02]: DuckDB 1.4.x COALESCE-on-INTEGER[12] unimplemented — backfill NULL month_histogram (checklist-only rows) with [0]*12 in Python; pyarrow schema still pins list<int32>
 - [Phase 078-03]: ST_GeomFromText(geometry_wkt) instead of plan's literal `geom` column — matches existing data/export.py::export_counties_geojson idiom
 - [Phase 078-04]: SVG byte-stability via sorted attrib dicts in _write_species_svg before ET.tostring — sha256 byte-equality across consecutive runs proven on 556 SVGs at host scale
+- [Phase 079-01]: validate-species.mjs uses error-accumulator + CLI-guard pattern (fileURLToPath(import.meta.url) === resolve(process.argv[1])) so the script is both a Vitest-importable module and a stand-alone build-time CLI; speciesJsonArray=null path skips unknown-name cross-ref while keeping license/attribution gates active (graceful degradation on fresh checkouts without species.json)
+- [Phase 079-01]: build chain order is load-bearing: validate-schema (parquet gate) → validate-species (TOML gate) → typecheck → eleventy; subprocess integration test isolates the TOML gate via `npm run validate-species` rather than `npm run build` so it stays deterministic when local public/data/*.parquet is absent
 
 ### Pending Todos
 
