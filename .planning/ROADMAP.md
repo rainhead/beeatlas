@@ -534,7 +534,7 @@ Plans:
   5. After this phase ships, the same query the next phase needs (`SELECT canonical_name, family, subfamily, tribe, genus, subgenus FROM <FULL OUTER union> LEFT JOIN taxon_lineage_extended ...`) produces ≤5% NULL `family` rows on current production data
 **Plans**: 3 plans
 - [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
-- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [x] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
 - [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 78: Pipeline Outputs
@@ -548,7 +548,7 @@ Plans:
   4. `("species-export", export_species_parquet)` and `("species-maps", generate_species_maps)` are in `data/run.py` STEPS after `export` and before `feeds`; re-running the pipeline twice in a row produces identical artifacts (idempotent)
   5. `node scripts/validate-schema.mjs` passes with the new `species.parquet` column expectations and `species.json` top-level shape; `cd data && uv run pytest test_species_export.py test_species_maps.py` passes including the FULL OUTER fixture (checklist-only / occurrence-only / matched) and SVG well-formedness (parses as XML, expected `<circle>` count, viewBox match)
 **Plans**: 3 plans
-- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
 - [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
 - [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
