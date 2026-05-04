@@ -1,5 +1,13 @@
 import { test, expect, describe } from 'vitest';
+import { execSync } from 'node:child_process';
+import { writeFileSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { validateSpeciesPhotos, LICENSE_WHITELIST } from '../../scripts/validate-species.mjs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = resolve(__dirname, '../..');
+const MANIFEST = resolve(REPO_ROOT, 'content/species-photos.toml');
 
 const SPECIES_JSON = [
   { scientificName: 'Osmia lignaria', canonical_name: 'osmia lignaria', on_checklist: true, occurrence_count: 5, slug: 'osmia-lignaria' },
@@ -102,5 +110,55 @@ describe('validateSpeciesPhotos', () => {
 
   test('validateSpeciesPhotos is exported and callable', () => {
     expect(typeof validateSpeciesPhotos).toBe('function');
+  });
+});
+
+describe('validate-species npm script (PHOTO-06)', () => {
+  test('npm run validate-species exits 0 on the committed manifest', () => {
+    const result = execSync('npm run validate-species --silent', {
+      cwd: REPO_ROOT,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    expect(result).toMatch(/ok content\/species-photos\.toml/);
+  });
+
+  test('npm run validate-species exits 1 when manifest contains a bad license', () => {
+    const original = readFileSync(MANIFEST, 'utf-8');
+    const rigged = `${original}
+[species."Osmia testfaker"]
+description = ""
+[[species."Osmia testfaker".photos]]
+observation_id = 1
+photo_id = 1
+url = "https://example.com/large.jpg"
+caption = ""
+attribution = "(c) Test"
+license = "all-rights-reserved"
+ordering = 1
+`;
+    writeFileSync(MANIFEST, rigged, 'utf-8');
+    try {
+      let exitCode = 0;
+      try {
+        execSync('npm run validate-species --silent', {
+          cwd: REPO_ROOT,
+          encoding: 'utf-8',
+          stdio: 'pipe',
+        });
+      } catch (e: any) {
+        exitCode = e.status ?? 1;
+      }
+      expect(exitCode).toBe(1);
+    } finally {
+      writeFileSync(MANIFEST, original, 'utf-8'); // always restore
+    }
+  });
+
+  test('package.json build script invokes validate-species in the correct order', () => {
+    const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
+    expect(pkg.scripts['validate-species']).toBe('node scripts/validate-species.mjs');
+    // Order: validate-schema -> validate-species -> typecheck -> eleventy
+    expect(pkg.scripts.build).toBe('npm run validate-schema && npm run validate-species && npm run typecheck && eleventy');
   });
 });
