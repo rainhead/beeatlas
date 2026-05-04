@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
 status: executing
-last_updated: "2026-05-04T16:31:00.000Z"
-last_activity: 2026-05-04 -- Phase 079-02 complete (seed-species-photos helper + 31 Vitest cases; PHOTO-04 + PHOTO-07 satisfied)
+last_updated: "2026-05-04T17:08:15.000Z"
+last_activity: 2026-05-04 -- Phase 079-03 complete (live iNat seed → 735 species, 1424 photos in content/species-photos.toml; PHOTO-01..04, PHOTO-07 satisfied; Phase 79 closed)
 progress:
   total_phases: 12
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 17
-  completed_plans: 15
-  percent: 88
+  completed_plans: 16
+  percent: 94
 ---
 
 # Project State
@@ -24,11 +24,11 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 ## Current Position
 
-Phase: 079 (photo-manifest) — EXECUTING
-Plan: 3 of 3
-Status: Executing Phase 079
-Resume file: .planning/phases/079-photo-manifest/079-03-PLAN.md
-Last activity: 2026-05-04 -- Phase 079-02 complete (1 feat commit: ca2bc9f)
+Phase: 079 (photo-manifest) — COMPLETE
+Plan: 3 of 3 (done)
+Status: Phase 079 complete; ready for Phase 080 (Page Scaffolding)
+Resume file: .planning/ROADMAP.md (next phase entry)
+Last activity: 2026-05-04 -- Phase 079-03 complete (3 commits: d72382d fix loadTaxonIds, bae6f72 chore tooling, 5b7948a seed manifest)
 
 ## Accumulated Context
 
@@ -50,6 +50,9 @@ Last activity: 2026-05-04 -- Phase 079-02 complete (1 feat commit: ca2bc9f)
 - [Phase 079-02]: iNat fallback resolved — WA-preferred top-up: take all WA license-clean photos first, then fill remaining slots up to 3 from a global query, deduping by photo_id (resolves CONTEXT.md open question; minimizes "no photo" gaps for species rare in WA at the cost of one extra iNat call per under-covered species)
 - [Phase 079-02]: seed RateLimiter is a tiny class (rolling lastCall timestamp, first wait() free) tested against real Date.now()/setTimeout at 30–50ms intervals; production CLI uses 1000ms — only the constructor argument differs between test and prod, exercising the same code path
 - [Phase 079-02]: build-chain isolation regression guard — Vitest assertion that scans package.json scripts for any reference to seed-species-photos and fails the suite if found (PHOTO-07 NOT-in-CI invariant); reusable pattern for future "this must NEVER be in CI" rules
+- [Phase 079-03]: loadTaxonIds query rewritten to mirror data/species_export.py species_universe — COALESCE(checklist.scientificName, occurrences.canonical_name) keyed on LOWER(canonical_name) against the bridge; eliminates the snake_case `o.scientificName` BinderError and makes the seed's scientificName key set agree byte-for-byte with public/data/species.json (735/735 coverage)
+- [Phase 079-03]: iNat enforces a tighter effective burst limit than the documented 1 req/sec; rate-ms=1000 hit 231 HTTP 429s on a 735-species sweep but rate-ms=1500 cleared them entirely — recommendation for Phase 82 PERF-04 cron is rate-ms=1500 default
+- [Phase 079-03]: D-01 fill-only recovery loop established — programmatically delete bare entries (the 429 victims) from the manifest, then re-run the seed at slower rate; existing photo-bearing entries are preserved while only deleted bare keys get refetched. Reusable pattern for any future incremental data-fetch repair
 
 ### Pending Todos
 
