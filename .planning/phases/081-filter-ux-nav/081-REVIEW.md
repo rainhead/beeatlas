@@ -28,7 +28,45 @@ findings:
   blocker: 4
   warning: 8
   total: 12
-status: issues_found
+status: fixes_applied
+fixes_applied:
+  - id: BL-01
+    status: fixed
+    commit: 4701837
+  - id: BL-02
+    status: fixed
+    commit: c39e79f
+  - id: BL-03
+    status: fixed
+    commit: c39e79f
+  - id: BL-04
+    status: fixed
+    commit: b4369f7
+  - id: WR-01
+    status: fixed
+    commit: 6e52457
+  - id: WR-02
+    status: fixed
+    commit: 59646e0
+  - id: WR-03
+    status: fixed
+    commit: 72f233a
+    note: spa-link.test.ts updated; previous expectation encoded the bug
+  - id: WR-04
+    status: fixed
+    commit: cd44864
+  - id: WR-05
+    status: fixed
+    commit: 109cd69
+  - id: WR-06
+    status: fixed
+    commit: 0ac38ea
+  - id: WR-07
+    status: fixed
+    commit: 0ac38ea
+  - id: WR-08
+    status: fixed
+    commit: 9f6db53
 ---
 
 # Phase 081: Code Review Report
@@ -235,3 +273,40 @@ for (const req of REQUIRED) {
 _Reviewed: 2026-05-04_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+---
+
+## Fixes Applied (2026-05-04)
+
+All 4 blockers and all 8 warnings were addressed. Each fix is an atomic
+commit on branch `reviewfix-081-1777934033`. Targeted vitest suites
+pass (`bee-species-page`, `bee-taxon-nav`, `bee-species-filter`,
+`spa-link`, `arch`); the full repo run shows 297 tests pass with the
+same two pre-existing environmental failures from the baseline
+(missing `public/data/*.json` in the worktree, schema-validator gate
+on `npm run build`) — neither caused or affected by these fixes.
+
+| Finding | Commit | Files |
+|---|---|---|
+| BL-01 | 4701837 | `_pages/species.njk`, `src/species/bee-species-page.ts` |
+| BL-02 + BL-03 | c39e79f | `src/species/bee-species-page.ts` |
+| BL-04 | b4369f7 | `_includes/taxon-tree.njk` |
+| WR-01 | 6e52457 | `src/species/bee-species-filter.ts` |
+| WR-02 | 59646e0 | `_includes/taxon-tree.njk`, `_pages/species.njk` |
+| WR-03 | 72f233a | `src/lib/spa-link.ts`, `src/tests/spa-link.test.ts` |
+| WR-04 | cd44864 | `src/species/bee-species-page.ts` |
+| WR-05 | 109cd69 | `_pages/species.njk`, `src/species/bee-species-page.ts` |
+| WR-06 + WR-07 | 0ac38ea | `src/species/bee-species-page.ts` |
+| WR-08 | 9f6db53 | `src/tests/arch.test.ts` |
+
+**BL-04 sentinel choice**: standardized on the literal token `'null'`
+for the no-subgenus bucket (matching `_data/species.js`'s tree-key
+serialization). Three representations collapse to one — tree key,
+`data-taxon` attribute, and URL `subg=null` all use `'null'`. The
+visible label `(no subgenus)` remains in the `<summary>` only.
+
+**WR-03 test update**: the previous `expect(link).toBe('/?taxon=Andrena+anograe...')`
+encoded the buggy `+` encoding; updated to `%20` to match the fix.
+
+_Fixed: 2026-05-04_
+_Fixer: Claude (gsd-code-fixer)_
