@@ -569,7 +569,7 @@ Plans:
 - [x] 079-02-PLAN.md — Seed script + iNat integration (PHOTO-04/07/08): scripts/seed-species-photos.mjs with named exports (photoUrlToLarge, extractPhotos, mergeFillOnly, sortManifestSpecies, RateLimiter, loadTaxonIds), DuckDB CLI taxon_id read, square→large URL transform, photo.license_code (per-photo) filter, ≥1000ms rate limiter, fill-only merge (D-01), WA-preferred + global-top-up fallback; 31 Vitest cases including 5 build-chain isolation guards — completed 2026-05-04
 - [x] 079-03-PLAN.md — Initial seed run + commit (PHOTO-01/02/03/04/07): live iNat seed of 735 species (1424 photos across 489 species; 246 bare entries), validator green, npm run build green, manifest committed with reproducibility metadata; loadTaxonIds query bug fix + --rate-ms CLI flag added during recovery from a 231-HTTP-429 burst — completed 2026-05-04 (commits d72382d, bae6f72, 5b7948a)
 
-### Phase 80: Page Scaffolding
+### Phase 80: Page Scaffolding ✅ COMPLETE (2026-05-04)
 **Goal**: A static `/species/` page renders one server-rendered card per species using the layout default chrome, ships in its own Vite chunk that does NOT pull mapbox-gl or wa-sqlite, and an architectural test enforces the boundary
 **Depends on**: Phase 79
 **Requirements**: PAGE-01, PAGE-02, PAGE-03, PAGE-04, PAGE-05, PAGE-06, PAGE-07, PAGE-08, PAGE-09
@@ -580,10 +580,10 @@ Plans:
   4. `npm test` passes a new ARCH-04 source-analysis test in `src/tests/arch.test.ts` that asserts no file under `src/species/` imports `mapbox-gl`, `wa-sqlite`, `../sqlite.ts`, `../filter.ts`, `../bee-map.ts`, or `../bee-atlas.ts` (mitigates PITFALLS #7 — single accidental import balloons the species chunk from ~50 KB to ~2 MB)
   5. `npm run build` succeeds with `validate-species` in the chain and produces a separate `species-*.js` chunk under `_site/assets/` distinct from the SPA's `index-*.js`; visual inspection or a CI grep confirms `mapbox-gl` does not appear in the species chunk's symbol list
 **Plans**: 4 plans
-- [ ] 080-01-PLAN.md — Wave 0: SVG regen precondition + 7 RED test files including ARCH-04 source-analysis (PAGE-08)
-- [ ] 080-02-PLAN.md — Build-time data feeds: _data/species.js + _data/photos.js (PAGE-02, PAGE-03)
-- [ ] 080-03-PLAN.md — Components & template: bee-species-page + bee-species-card + species.ts entry + species.njk (PAGE-01, PAGE-04, PAGE-05, PAGE-06, PAGE-07)
-- [ ] 080-04-PLAN.md — Build verification & chunk boundary (PAGE-09)
+- [x] 080-01-PLAN.md — Wave 0: SVG regen precondition + 7 RED test files including ARCH-04 source-analysis (PAGE-08)
+- [x] 080-02-PLAN.md — Build-time data feeds: _data/species.js + _data/photos.js (PAGE-02, PAGE-03)
+- [x] 080-03-PLAN.md — Components & template: bee-species-page + bee-species-card + species.ts entry + species.njk (PAGE-01, PAGE-04, PAGE-05, PAGE-06, PAGE-07)
+- [x] 080-04-PLAN.md — Build verification & chunk boundary (PAGE-09) — 735 cards, 1.34 KB chunk, 0 mapbox tokens, 242 tests green
 **UI hint**: yes
 
 ### Phase 81: Filter UX & Nav
