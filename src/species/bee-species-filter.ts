@@ -127,6 +127,14 @@ export class BeeSpeciesFilter extends LitElement {
   private _setMonth(field: 'monthFrom' | 'monthTo', value: number): void {
     if (!Number.isFinite(value) || value < 1 || value > 12) return;
     this[field] = value;
+    // WR-01: prevent inverted ranges (e.g. from=10, to=3) which would
+    // silently zero every count and surface only as an "empty state" with
+    // no clue to the user. Auto-snap the other endpoint to keep
+    // monthFrom <= monthTo.
+    if (this.monthFrom > this.monthTo) {
+      if (field === 'monthFrom') this.monthTo = value;
+      else this.monthFrom = value;
+    }
     this._emit();
   }
 
