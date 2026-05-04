@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: context-gathered
-last_updated: "2026-05-04T08:00:00.000Z"
+status: planned
+last_updated: "2026-05-04T16:00:00.000Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 12
   completed_phases: 3
-  total_plans: 13
+  total_plans: 16
   completed_plans: 13
   percent: 100
 ---
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 079 — photo-manifest (context gathered)
+**Current focus:** Phase 079 — photo-manifest (planned, ready to execute)
 
 ## Current Position
 
 Phase: 079
-Plan: Not yet created — awaiting /gsd-plan-phase 79
-Status: Context gathered — 4 decisions locked (D-01..D-04)
-Resume file: .planning/phases/079-photo-manifest/079-CONTEXT.md
+Plan: 3 plans created (079-01 validator+build wiring, 079-02 seed+iNat, 079-03 initial seed run)
+Status: Ready to execute — plan-checker passed all 12 dimensions, no blockers
+Resume file: .planning/phases/079-photo-manifest/079-01-PLAN.md
 Last activity: 2026-05-04
 
 ## Accumulated Context

@@ -324,7 +324,7 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 - [x] Phase 76: Data Foundation (6/6 plans)
 - [ ] Phase 77: Lineage Coverage Expansion (0/? plans) (INSERTED 2026-05-03)
 - [ ] Phase 78: Pipeline Outputs (0/? plans)
-- [ ] Phase 79: Photo Manifest (0/? plans)
+- [ ] Phase 79: Photo Manifest (0/3 plans)
 - [ ] Phase 80: Page Scaffolding (0/? plans)
 - [ ] Phase 81: Filter UX & Nav (0/? plans)
 - [ ] Phase 82: Hardening (0/? plans)
@@ -564,9 +564,10 @@ Plans:
   4. `node scripts/seed-species-photos.mjs` is exposed under `scripts/` (NOT invoked by `npm run build` and NOT in any package.json `build`/`prebuild` chain) and rate-limits iNat API calls to ≤1 req/sec while writing a starter manifest
   5. `cd data && uv run pytest test_validate_species.py` (or the Vitest equivalent under `src/tests/`) covers a fixture that seeds bad licenses and missing attribution and asserts the validator rejects them
 **Plans**: 3 plans
-- [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
-- [x] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
-- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
+Plans:
+- [ ] 079-01-PLAN.md — Validator + build-chain wiring (PHOTO-01/02/03/05/06/08): scripts/validate-species.mjs (CLI + named export), Vitest coverage with inline TOML fixtures, package.json build chain extended (validate-schema → validate-species → typecheck → eleventy), @iarna/toml added to dependencies; Wave 0 stubs for Plan 02 tests
+- [ ] 079-02-PLAN.md — Seed script + iNat integration (PHOTO-04/07/08): scripts/seed-species-photos.mjs with named exports (photoUrlToLarge, extractPhotos, mergeFillOnly, RateLimiter, loadTaxonIds), DuckDB CLI taxon_id read, square→large URL transform, photo.license_code (per-photo) filter, ≥1000ms rate limiter, fill-only merge (D-01); 20+ Vitest cases + build-chain isolation guard
+- [ ] 079-03-PLAN.md — Initial seed run + commit (PHOTO-01/02/03/04/07): one-shot live iNat seed of ~735 species, validator green, npm run build green, manifest committed with reproducibility metadata; pre-flight + spot-review checkpoints (autonomous: false)
 
 ### Phase 80: Page Scaffolding
 **Goal**: A static `/species/` page renders one server-rendered card per species using the layout default chrome, ships in its own Vite chunk that does NOT pull mapbox-gl or wa-sqlite, and an architectural test enforces the boundary
