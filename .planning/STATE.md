@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
 status: executing
-last_updated: "2026-05-04T17:08:15.000Z"
-last_activity: 2026-05-04 -- Phase 079-03 complete (live iNat seed → 735 species, 1424 photos in content/species-photos.toml; PHOTO-01..04, PHOTO-07 satisfied; Phase 79 closed)
+last_updated: "2026-05-04T18:00:00.000Z"
+last_activity: 2026-05-04 -- Phase 080 context gathered (4 gray areas decided: flat alphabetical render, skeleton card depth, <img>-based SVG with empty-slot omission, light-DOM SSR via createRenderRoot override; ships bee-species-page + bee-species-card only)
 progress:
   total_phases: 12
   completed_phases: 4
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 079 — photo-manifest
+**Current focus:** Phase 080 — page-scaffolding
 
 ## Current Position
 
-Phase: 079 (photo-manifest) — COMPLETE
-Plan: 3 of 3 (done)
-Status: Phase 079 complete; ready for Phase 080 (Page Scaffolding)
-Resume file: .planning/ROADMAP.md (next phase entry)
-Last activity: 2026-05-04 -- Phase 079-03 complete (3 commits: d72382d fix loadTaxonIds, bae6f72 chore tooling, 5b7948a seed manifest)
+Phase: 080 (page-scaffolding) — context gathered, ready for planning
+Plan: 0 of ? (planning not yet started)
+Status: Phase 080 CONTEXT.md captured; next step `/gsd-plan-phase 80`
+Resume file: .planning/phases/080-page-scaffolding/080-CONTEXT.md
+Last activity: 2026-05-04 -- Phase 080 discuss-phase complete (commit 0eaf029)
 
 ## Accumulated Context
 
