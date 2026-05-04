@@ -7,7 +7,7 @@
    species rows directly under the genus (skip the subgenus level). Otherwise
    render every subgenus key — including 'null' as a "no subgenus" leaf bucket.
 
-   LINK-03: family/genus/species hrefs use `/?taxon=<urlencoded>&taxonRank=...`
+   LINK-03: family/genus/species hrefs use `/?taxon=<urlencoded>&amp;taxonRank=...`
    (matches buildSpaTaxonLink shape — see src/lib/spa-link.ts). Subfamily and
    tribe ranks have no SPA representation (src/url-state.ts only handles
    family|genus|species), so those summaries are plain text.
@@ -17,7 +17,7 @@
 
 {% macro renderSpecies(rows) %}
   {%- for sp in rows -%}
-    <li data-taxon="{{ sp.scientificName }}" data-rank="species"><a href="/?taxon={{ sp.scientificName | urlencode }}&taxonRank=species">{{ sp.scientificName }}</a></li>
+    <li data-taxon="{{ sp.scientificName }}" data-rank="species"><a href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">{{ sp.scientificName }}</a></li>
   {%- endfor -%}
 {% endmacro %}
 
@@ -41,7 +41,7 @@
   {%- set onlyNull = (keys | length == 1) and (node.children["null"] is defined) -%}
   <li data-taxon="{{ name }}" data-rank="genus">
     <details>
-      <summary><a href="/?taxon={{ name | urlencode }}&taxonRank=genus">{{ name }}</a></summary>
+      <summary><a href="/?taxon={{ name | urlencode }}&amp;taxonRank=genus">{{ name }}</a></summary>
       <ul>
         {%- if onlyNull -%}
           {{ renderSpecies(node.children["null"].rows) }}
@@ -84,7 +84,7 @@
 {% macro renderFamily(name, node) %}
   <li data-taxon="{{ name }}" data-rank="family">
     <details>
-      <summary><a href="/?taxon={{ name | urlencode }}&taxonRank=family">{{ name }}</a></summary>
+      <summary><a href="/?taxon={{ name | urlencode }}&amp;taxonRank=family">{{ name }}</a></summary>
       <ul>
         {%- for subKey, subNode in node.children | dictsort -%}
           {{ renderSubfamily(subKey, subNode) }}

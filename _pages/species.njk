@@ -41,7 +41,7 @@ title: Species — BeeAtlas
   {%- endif -%}
   <span class="count-badge">{{ sp.occurrence_count }} records</span>
   <seasonality-viz></seasonality-viz>
-  <a class="spa-link" href="/?taxon={{ sp.scientificName | urlencode }}&taxonRank=species">View {{ sp.occurrence_count }} occurrences →</a>
+  <a class="spa-link" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count }} occurrences →</a>
 </bee-species-card>
 {%- endfor -%}
 </bee-species-page>
