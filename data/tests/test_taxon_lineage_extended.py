@@ -152,6 +152,53 @@ def test_enrich_unions_both_observation_tables(lineage_db):
     assert sent_ids == {"100001", "200002", "300003"}
 
 
+def test_enrich_includes_bridge_taxon_ids(lineage_db):
+    """Pitfall #2 regression: a taxon_id present ONLY in the bridge must be walked.
+
+    Without the third UNION arm in enrich_taxon_lineage_extended's source SQL, the
+    bridge row is silently ignored and Phase 78 sees ~70% NULL family.
+    """
+    db_path, mod = lineage_db
+    con = duckdb.connect(db_path)
+    # 100001 in iNat-project observations only.
+    con.execute("INSERT INTO inaturalist_data.observations VALUES (100001)")
+    # 200002 in WABA observations only.
+    con.execute("INSERT INTO inaturalist_waba_data.observations VALUES (200002)")
+    # 300003 in the bridge ONLY — not in either observations table.
+    con.execute("""
+        INSERT INTO inaturalist_data.canonical_to_taxon_id
+            (canonical_name, taxon_id, resolved_at, source)
+        VALUES ('unique bee', 300003, current_timestamp, 'inat_species')
+    """)
+    con.close()
+
+    captured_urls: list[str] = []
+
+    def _fake_get(url, params=None, timeout=None):
+        captured_urls.append(url)
+        return _fake_inat_response([
+            {"id": 100001, "name": "Eucera",  "rank": "genus", "ancestors": []},
+            {"id": 200002, "name": "Osmia",   "rank": "genus", "ancestors": []},
+            {"id": 300003, "name": "Bombus",  "rank": "genus", "ancestors": []},
+        ])
+
+    with patch("inaturalist_pipeline.requests.get", side_effect=_fake_get):
+        mod.enrich_taxon_lineage_extended(db_path)
+
+    # The taxa-batch URL is /v2/taxa/<comma-separated-ids>; gather all IDs requested.
+    sent_ids: set[str] = set()
+    for url in captured_urls:
+        ids_path = url.rsplit("/", 1)[-1]
+        for chunk in ids_path.split(","):
+            sent_ids.add(chunk)
+    assert "100001" in sent_ids
+    assert "200002" in sent_ids
+    assert "300003" in sent_ids, (
+        "bridge-only taxon_id was NOT walked — Pitfall #2: enrich_taxon_lineage_extended "
+        "source SQL is missing the canonical_to_taxon_id UNION arm"
+    )
+
+
 def test_enrich_emits_null_for_missing_subgenus_no_sentinel(lineage_db):
     """TAX-03: ranks absent from ancestor chain must be NULL, not '(no subgenus)'."""
     db_path, mod = lineage_db
