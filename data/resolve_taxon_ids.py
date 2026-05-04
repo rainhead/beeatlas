@@ -172,7 +172,11 @@ def _resolve_one(
         )
         return
     unresolved.append(
-        (canonical_name, last_reason, dt.datetime.utcnow().isoformat())
+        (
+            canonical_name,
+            last_reason,
+            dt.datetime.now(dt.UTC).replace(tzinfo=None).isoformat(),
+        )
     )
 
 
