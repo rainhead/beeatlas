@@ -1,8 +1,7 @@
 """Integration tests for species_export.py.
 
-Covers AGG-01..05, AGG-07, idempotency. Plan 078-02 fills in the parquet +
-slug + JSON assertions; the idempotency test stays pinned to a Wave 0 stub
-until Plan 078-04 wires run.py and exercises the two-run pipeline.
+Covers AGG-01..05, AGG-07, and the success-criterion-4 idempotency contract
+(Plan 078-04: two-run byte-equality across parquet + JSON sidecars).
 
 Test names match `.planning/phases/078-pipeline-outputs/078-VALIDATION.md`
 Per-Task Verification Map exactly.
@@ -10,7 +9,6 @@ Per-Task Verification Map exactly.
 import json
 
 import duckdb
-import pytest
 
 import export as occ_export_mod
 import species_export as export_mod
