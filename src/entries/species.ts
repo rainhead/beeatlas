@@ -12,3 +12,6 @@
 import '../bee-header.ts';
 import '../species/bee-species-page.ts';
 import '../species/bee-species-card.ts';
+import '../species/bee-taxon-nav.ts';
+import '../species/bee-species-filter.ts';
+import '../species/seasonality-viz.ts';
