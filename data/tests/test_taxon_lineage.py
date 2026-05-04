@@ -39,8 +39,13 @@ class _StubResponse:
 
 
 def _snapshot_obs_state(con):
-    """Capture the current contents of the observation + lineage tables so
-    each test can restore them before yielding back to the session."""
+    """Capture the current contents of the observation + lineage + bridge tables
+    so each test can restore them before yielding back to the session.
+
+    Phase 77 added inaturalist_data.canonical_to_taxon_id as a third UNION arm in
+    enrich_taxon_lineage_extended; tests that clear observations must also clear
+    the bridge to genuinely produce a "no taxon IDs" state.
+    """
     return {
         "inat": con.execute(
             "SELECT * FROM inaturalist_data.observations"
@@ -65,6 +70,10 @@ def _snapshot_obs_state(con):
         "lineage": con.execute(
             "SELECT * FROM inaturalist_data.taxon_lineage_extended"
         ).fetchall(),
+        "bridge": con.execute(
+            "SELECT canonical_name, taxon_id, resolved_at, source "
+            "FROM inaturalist_data.canonical_to_taxon_id"
+        ).fetchall(),
     }
 
 
@@ -72,6 +81,7 @@ def _restore_obs_state(con, snap):
     """Inverse of _snapshot_obs_state. Used in finally blocks."""
     con.execute("DELETE FROM inaturalist_data.observations")
     con.execute("DELETE FROM inaturalist_waba_data.observations")
+    con.execute("DELETE FROM inaturalist_data.canonical_to_taxon_id")
     # taxon_lineage_extended may have been replaced with a different schema
     # by the function under test (Plan 04 issues CREATE OR REPLACE TABLE).
     # Drop and rebuild from the seeded shape.
@@ -105,16 +115,25 @@ def _restore_obs_state(con, snap):
             "INSERT INTO inaturalist_data.taxon_lineage_extended VALUES (?, ?, ?, ?, ?, ?)",
             snap["lineage"],
         )
+    if snap["bridge"]:
+        con.executemany(
+            "INSERT INTO inaturalist_data.canonical_to_taxon_id "
+            "(canonical_name, taxon_id, resolved_at, source) VALUES (?, ?, ?, ?)",
+            snap["bridge"],
+        )
 
 
 def _seed_observation_taxon_ids(con, ids_inat, ids_waba):
     """Replace observation tables with the supplied taxon IDs only.
 
-    Also clears the output table so the function under test sees a fresh
+    Also clears the output table AND the Phase 77 bridge table
+    (inaturalist_data.canonical_to_taxon_id is a third UNION arm in
+    enrich_taxon_lineage_extended) so the function under test sees a fresh
     starting state.
     """
     con.execute("DELETE FROM inaturalist_data.observations")
     con.execute("DELETE FROM inaturalist_waba_data.observations")
+    con.execute("DELETE FROM inaturalist_data.canonical_to_taxon_id")
     con.execute("DROP TABLE IF EXISTS inaturalist_data.taxon_lineage_extended")
     con.execute("""
         CREATE TABLE inaturalist_data.taxon_lineage_extended (
