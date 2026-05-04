@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: phase-complete
-last_updated: "2026-05-04T07:35:37.000Z"
+status: context-gathered
+last_updated: "2026-05-04T08:00:00.000Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 12
@@ -20,13 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 078 — pipeline-outputs (complete)
+**Current focus:** Phase 079 — photo-manifest (context gathered)
 
 ## Current Position
 
-Phase: 078
-Plan: All 4 plans complete (078-01..04)
-Status: Phase complete — verification passed (5/5 criteria, 121/121 tests, 13/13 requirements)
+Phase: 079
+Plan: Not yet created — awaiting /gsd-plan-phase 79
+Status: Context gathered — 4 decisions locked (D-01..D-04)
+Resume file: .planning/phases/079-photo-manifest/079-CONTEXT.md
 Last activity: 2026-05-04
 
 ## Accumulated Context
