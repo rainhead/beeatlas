@@ -4,7 +4,9 @@ Usage:
     cd data && uv run python run.py
 
 Pipelines are executed in this order:
-    ecdysis -> ecdysis-links -> inaturalist -> waba -> projects -> export -> feeds
+    ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
+    anti-entropy -> checklist -> resolve-taxon-ids -> taxon-lineage-extended ->
+    export -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
 nightly run. Load them manually: uv run python geographies_pipeline.py
@@ -12,6 +14,7 @@ nightly run. Load them manually: uv run python geographies_pipeline.py
 
 import logging
 import os
+import sys
 import time
 import traceback
 from pathlib import Path
@@ -27,18 +30,22 @@ from waba_pipeline import load_observations as load_waba_observations
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from checklist_pipeline import load_checklist
+from resolve_taxon_ids import resolve_taxon_ids
 from export import main as export_all
 from feeds import main as generate_feeds
+
+_REFRESH_LINEAGE = "--refresh-lineage" in sys.argv
 
 STEPS: list[tuple[str, Callable]] = [
     ("ecdysis", load_ecdysis),
     ("ecdysis-links", load_links),
     ("inaturalist", load_inaturalist_observations),
     ("waba", load_waba_observations),
-    ("taxon-lineage-extended", enrich_taxon_lineage_extended),
     ("projects", load_projects),
     ("anti-entropy", run_anti_entropy),
     ("checklist", load_checklist),
+    ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
+    ("taxon-lineage-extended", enrich_taxon_lineage_extended),
     ("export", export_all),
     ("feeds", generate_feeds),
 ]
