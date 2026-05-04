@@ -488,6 +488,44 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             (200019, 'Apidae',       'Xylocopinae', 'Xylocopini',  'Xylocopa',     NULL)
     """)
 
+    # Phase 78 OFFBBOX bridge + lineage: keeps LIN-05 coverage ≥0.95 after the
+    # OFFBBOX row below adds a 21st canonical_name to the union. With this
+    # bridged, coverage = 20/21 = 0.952 (was 19/20 = 0.950).
+    con.execute("""
+        INSERT INTO inaturalist_data.canonical_to_taxon_id
+            (canonical_name, taxon_id, resolved_at, source) VALUES
+            ('andrena anograe', 200020, current_timestamp, 'inat_species')
+    """)
+    con.execute("""
+        INSERT INTO inaturalist_data.taxon_lineage_extended VALUES
+            (200020, 'Andrenidae', 'Andreninae', NULL, 'Andrena', NULL)
+    """)
+
+    # Phase 78 MAP-04: one occurrence point outside the WA bbox so the
+    # species-maps clipping test (test_off_bbox_clipping) can assert the
+    # silent-clip + log behavior. Eastern Oregon coordinates (lon=-117.5,
+    # lat=44.8) are intentionally inside continental US but outside WA's
+    # bbox (-124.85, 45.54, -116.92, 49.00).
+    #
+    # `andrena anograe` is occurrence-only (no checklist row) so it also
+    # contributes to the third FULL OUTER arm (occurrence-only species).
+    #
+    # `id` must be a numeric string — export.py does `CAST(o.id AS INTEGER)`.
+    # Tag the id with `78` prefix to keep the marker readable while still
+    # parseable as an int. The OFFBBOX-01 marker lives in `occurrence_id`.
+    con.execute("""
+        INSERT INTO ecdysis_data.occurrences (
+            id, occurrence_id, decimal_latitude, decimal_longitude,
+            year, month, scientific_name, canonical_name,
+            event_date, _dlt_load_id, _dlt_id
+        ) VALUES (
+            '7800001', 'OFFBBOX-01',
+            '44.8', '-117.5',
+            '2024', '5', 'Andrena anograe', 'andrena anograe',
+            '2024-05-10', 'load-offbbox', 'off-1'
+        )
+    """)
+
 
 @pytest.fixture(scope="session")
 def fixture_db(tmp_path_factory):
