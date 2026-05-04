@@ -324,7 +324,7 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 - [x] Phase 76: Data Foundation (6/6 plans)
 - [ ] Phase 77: Lineage Coverage Expansion (0/? plans) (INSERTED 2026-05-03)
 - [ ] Phase 78: Pipeline Outputs (0/? plans)
-- [ ] Phase 79: Photo Manifest (1/3 plans)
+- [ ] Phase 79: Photo Manifest (2/3 plans)
 - [ ] Phase 80: Page Scaffolding (0/? plans)
 - [ ] Phase 81: Filter UX & Nav (0/? plans)
 - [ ] Phase 82: Hardening (0/? plans)
@@ -446,7 +446,7 @@ Plans:
 | 76. Data Foundation | v3.2 | 6/6 | Complete | 2026-05-02 |
 | 77. Lineage Coverage Expansion | v3.2 | 0/? | Not started | — |
 | 78. Pipeline Outputs | v3.2 | 0/? | Not started | — |
-| 79. Photo Manifest | v3.2 | 0/? | Not started | — |
+| 79. Photo Manifest | v3.2 | 2/3 | Executing | — |
 | 80. Page Scaffolding | v3.2 | 0/? | Not started | — |
 | 81. Filter UX & Nav | v3.2 | 0/? | Not started | — |
 | 82. Hardening | v3.2 | 0/? | Not started | — |
@@ -566,7 +566,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 079-01-PLAN.md — Validator + build-chain wiring (PHOTO-01/02/03/05/06/08): scripts/validate-species.mjs (CLI + named export), Vitest coverage with inline TOML fixtures, package.json build chain extended (validate-schema → validate-species → typecheck → eleventy), @iarna/toml added to dependencies; Wave 0 stubs for Plan 02 tests — completed 2026-05-04
-- [ ] 079-02-PLAN.md — Seed script + iNat integration (PHOTO-04/07/08): scripts/seed-species-photos.mjs with named exports (photoUrlToLarge, extractPhotos, mergeFillOnly, RateLimiter, loadTaxonIds), DuckDB CLI taxon_id read, square→large URL transform, photo.license_code (per-photo) filter, ≥1000ms rate limiter, fill-only merge (D-01); 20+ Vitest cases + build-chain isolation guard
+- [x] 079-02-PLAN.md — Seed script + iNat integration (PHOTO-04/07/08): scripts/seed-species-photos.mjs with named exports (photoUrlToLarge, extractPhotos, mergeFillOnly, sortManifestSpecies, RateLimiter, loadTaxonIds), DuckDB CLI taxon_id read, square→large URL transform, photo.license_code (per-photo) filter, ≥1000ms rate limiter, fill-only merge (D-01), WA-preferred + global-top-up fallback; 31 Vitest cases including 5 build-chain isolation guards — completed 2026-05-04
 - [ ] 079-03-PLAN.md — Initial seed run + commit (PHOTO-01/02/03/04/07): one-shot live iNat seed of ~735 species, validator green, npm run build green, manifest committed with reproducibility metadata; pre-flight + spot-review checkpoints (autonomous: false)
 
 ### Phase 80: Page Scaffolding
