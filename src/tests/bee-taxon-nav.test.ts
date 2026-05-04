@@ -5,7 +5,7 @@ describe('bee-taxon-nav (NAV-01..05)', () => {
   test('does NOT override render() — preserves Eleventy SSR tree', async () => {
     const mod = await import('../species/bee-taxon-nav.ts');
     const cls = (mod as any).BeeTaxonNav;
-    expect(cls.prototype.render).toBe(LitElement.prototype.render);
+    expect(cls.prototype.render).toBe((LitElement.prototype as any).render);
   });
 
   test('declares activeTaxonPath @property', async () => {

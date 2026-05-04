@@ -60,7 +60,7 @@ export class SeasonalityViz extends LitElement {
     // VIZ-02 fallback branch
     if (total < 5) {
       const monthsWithData: string[] = [];
-      this.data.forEach((n, i) => { if (n > 0) monthsWithData.push(MONTH_LABELS[i]); });
+      this.data.forEach((n, i) => { if (n > 0) monthsWithData.push(MONTH_LABELS[i]!); });
       const range = monthsWithData.length > 0
         ? (monthsWithData.length === 1
             ? monthsWithData[0]
