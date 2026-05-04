@@ -576,7 +576,7 @@ All files have close analogs. No entries in this section.
 | `species_maps.py` reads `slug` from `species.parquet`; never recomputes from `scientificName` | RESEARCH.md Pitfall 3 | Same slug-drift risk as above |
 | `("species-export", ...)` lands AFTER `("export", ...)` in STEPS | `data/run.py` lines 39–51 | `species_export.py` reads `occurrences.parquet` which export writes |
 | `("species-maps", ...)` lands AFTER `("species-export", ...)` in STEPS | RESEARCH.md architecture | `species_maps.py` reads `species.parquet` (slug column) |
-| Inline fill/stroke attributes on SVG elements — NO `<style>` block | D-03 + RESEARCH.md Pitfall 4 | `<img src=".svg">` renders un-styled in browsers |
+| Single `<style>` block with `.county`/`.occ` classes — no per-element `fill=`/`stroke=` attributes. `<img src=.svg>` blocks external CSS but honors inline `<style>` blocks. | D-03 + RESEARCH.md Pitfall 4 | Per-element styling bloats file size for high-occurrence species; missing `<style>` block renders un-styled in `<img>` mode |
 | Off-WA bbox clipping is SILENT + logged — never raises | MAP-04 + RESEARCH.md Pitfall 5 | Build fails on first real production run |
 | `canonical_name` must be added to `occurrences.parquet` before species aggregation | CONTEXT.md Specifics + RESEARCH.md Pitfall #6 | FULL OUTER join key is absent; all species → occurrence-only arm |
 
