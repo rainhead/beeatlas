@@ -150,6 +150,19 @@ describe('src/entries/species.ts allowlist (PAGE-04 partial)', () => {
     '../species/seasonality-viz.ts', '../species/seasonality-viz',
   ]);
 
+  // WR-08: every component listed here MUST appear in the entry file's
+  // import list. Catches silent removal of a presenter registration
+  // (allowlist alone would still pass — the absent import is "allowed").
+  // Each entry pairs the canonical .ts spelling with its bare alias.
+  const REQUIRED_GROUPS: ReadonlyArray<readonly string[]> = [
+    ['../bee-header.ts', '../bee-header'],
+    ['../species/bee-species-page.ts', '../species/bee-species-page'],
+    ['../species/bee-species-card.ts', '../species/bee-species-card'],
+    ['../species/bee-taxon-nav.ts', '../species/bee-taxon-nav'],
+    ['../species/bee-species-filter.ts', '../species/bee-species-filter'],
+    ['../species/seasonality-viz.ts', '../species/seasonality-viz'],
+  ];
+
   test('only side-effect imports of bee-header + species components', () => {
     let src: string;
     try {
@@ -167,6 +180,14 @@ describe('src/entries/species.ts allowlist (PAGE-04 partial)', () => {
     ];
     const disallowed = imports.filter(spec => !ALLOWED.has(spec));
     expect(disallowed, `unexpected imports in src/entries/species.ts: ${disallowed.join(', ')}`).toEqual([]);
+
+    // WR-08 positive assertion: each required component is actually imported
+    // (silent removal of a side-effect import would otherwise pass).
+    const importSet = new Set(imports);
+    for (const group of REQUIRED_GROUPS) {
+      const present = group.some(spec => importSet.has(spec));
+      expect(present, `src/entries/species.ts missing required import: one of ${group.join(' | ')}`).toBe(true);
+    }
   });
 });
 
