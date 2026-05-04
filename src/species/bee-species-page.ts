@@ -65,12 +65,23 @@ export class BeeSpeciesPage extends LitElement {
 
   async connectedCallback(): Promise<void> {
     super.connectedCallback();
+    // BL-02: treat the initial URL parse like a popstate restore so the
+    // willUpdate that fires from the resulting @state assignments does NOT
+    // schedule a debounced pushState (which would create a duplicate history
+    // entry 500ms after page load and break the user's Back button).
+    this._isRestoringFromHistory = true;
     this._parseUrlAndHydrate();
     window.addEventListener('popstate', this._onPopState);
     this.addEventListener('taxon-selected', this._onTaxonSelected as EventListener);
     this.addEventListener('filter-changed', this._onFilterChanged as EventListener);
     this._wireClearFiltersButton();
     this._wireFilterWidgetOptions();
+    // BL-03: wait for Lit's update cycle (which runs willUpdate + updated)
+    // to flush before clearing the guard. queueMicrotask is unsafe here —
+    // it can fire BEFORE willUpdate, leaving the guard false when the URL
+    // push check runs. updateComplete resolves AFTER updated() runs.
+    await this.updateComplete;
+    this._isRestoringFromHistory = false;
     // Pitfall #81-B: await seasonality singleton before first compute.
     this._seasonality = await loadSeasonality();
     this._computeAndPropagate();
@@ -145,14 +156,19 @@ export class BeeSpeciesPage extends LitElement {
     }, 500);
   }
 
-  private _onPopState = (): void => {
+  private _onPopState = async (): Promise<void> => {
+    // BL-03: clear the guard AFTER Lit's update cycle (willUpdate runs the
+    // _pushUrlState gate). queueMicrotask resolved unreliably relative to
+    // willUpdate's scheduling, so popstate-driven restores would re-push
+    // their own history entry and break back/forward navigation.
     this._isRestoringFromHistory = true;
     if (this._urlPushDebounce) {
       clearTimeout(this._urlPushDebounce);
       this._urlPushDebounce = null;
     }
     this._parseUrlAndHydrate();
-    queueMicrotask(() => { this._isRestoringFromHistory = false; });
+    await this.updateComplete;
+    this._isRestoringFromHistory = false;
   };
 
   // ----- Compute (D-01, D-02) -----
