@@ -501,15 +501,18 @@ def test_pick_match_filters_to_exact_name():
 # ---------------------------------------------------------------------------
 
 
-def test_genus_only_query_uses_genus_rank(resolver_db):
+def test_one_token_query_omits_rank_and_records_response_rank(resolver_db):
+    """Single-token names query iNat without a rank constraint; the bridge
+    `source` column reflects the rank returned by the API (so a family-level
+    canonical like 'apidae' lands as 'inat_family', not 'inat_genus')."""
     db_path, mod = resolver_db
     con = duckdb.connect(db_path)
-    con.execute("INSERT INTO checklist_data.species VALUES ('andrena')")
+    con.execute("INSERT INTO checklist_data.species VALUES ('apidae')")
     con.close()
 
     responses = [
         _fake_taxa_search_response(
-            [_matching_taxon(48157, "andrena", rank="genus")]
+            [_matching_taxon(47221, "Apidae", rank="family")]
         )
     ]
     with patch(
@@ -519,8 +522,16 @@ def test_genus_only_query_uses_genus_rank(resolver_db):
 
     assert mock_get.call_count == 1
     params = mock_get.call_args_list[0].kwargs["params"]
-    assert params["rank"] == "genus"
-    assert params["q"] == "andrena"
+    assert "rank" not in params
+    assert params["q"] == "apidae"
+
+    con = duckdb.connect(db_path)
+    rows = con.execute(
+        "SELECT canonical_name, taxon_id, source FROM "
+        "inaturalist_data.canonical_to_taxon_id"
+    ).fetchall()
+    con.close()
+    assert rows == [("apidae", 47221, "inat_family")]
 
 
 def test_species_404_falls_back_to_genus(resolver_db):
@@ -541,9 +552,9 @@ def test_species_404_falls_back_to_genus(resolver_db):
         mod.resolve_taxon_ids()
 
     assert mock_get.call_count == 2
-    # Verify second call used rank=genus with q=tokens[0].
+    # Second call is the genus-fallback: rank-unconstrained, q=tokens[0].
     second_params = mock_get.call_args_list[1].kwargs["params"]
-    assert second_params["rank"] == "genus"
+    assert "rank" not in second_params
     assert second_params["q"] == "andrena"
 
     con = duckdb.connect(db_path)

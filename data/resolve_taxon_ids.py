@@ -88,14 +88,17 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
     return names
 
 
-def _pick_match(results: list[dict], query: str, requested_rank: str) -> dict | None:
+def _pick_match(
+    results: list[dict], query: str, requested_rank: str | None
+) -> dict | None:
     """D-02 ambiguous-match policy. Returns the unique winner or None (= 'ambiguous').
 
     Filter ladder (stop at first non-empty subset that yields exactly one survivor):
       1. lower(matched_term) == lower(query) OR lower(name) == lower(query)
       2. is_active == true
       3. iconic_taxon_name == 'Insecta'
-      4. rank == requested_rank
+      4. rank == requested_rank   (skipped when requested_rank is None — caller did
+         not constrain rank server-side and accepts whichever rank the API returns)
     """
     q = query.lower()
     survivors = [
@@ -112,9 +115,10 @@ def _pick_match(results: list[dict], query: str, requested_rank: str) -> dict | 
     insecta = [r for r in survivors if r.get("iconic_taxon_name") == "Insecta"]
     if insecta:
         survivors = insecta
-    rank_match = [r for r in survivors if r.get("rank") == requested_rank]
-    if rank_match:
-        survivors = rank_match
+    if requested_rank is not None:
+        rank_match = [r for r in survivors if r.get("rank") == requested_rank]
+        if rank_match:
+            survivors = rank_match
     return survivors[0] if len(survivors) == 1 else None
 
 
@@ -125,28 +129,32 @@ def _resolve_one(
 ) -> None:
     """Resolve a single canonical_name through the rank ladder; UPSERT on success.
 
-    D-03 rank ladder:
-      - 1-token name → ['genus']
-      - 2-token name → ['species', 'genus']  (genus query uses tokens[0] only)
-      - 3+-token name → ['species'] using first 2 tokens (canonicalize() should
-        prevent this, but guard defensively)
+    Rank ladder:
+      - 1-token name → [(None, name)]                  (rank unconstrained — accept
+        whatever rank iNat returns: family, subfamily, order, genus, etc.)
+      - 2-token name → [('species', binomial), (None, tokens[0])]
+      - 3+-token name → [('species', first 2 tokens)]  (canonicalize() should fold
+        to binomial; guard defensively)
+
+    When the request rank is None, params['rank'] is omitted and `source` is taken
+    from the matched result's own `rank` field (e.g. 'inat_family', 'inat_order').
     """
     tokens = canonical_name.split()
     if len(tokens) == 1:
-        rank_ladder = [("genus", tokens[0])]
+        rank_ladder = [(None, tokens[0])]
     elif len(tokens) == 2:
-        rank_ladder = [("species", canonical_name), ("genus", tokens[0])]
+        rank_ladder = [("species", canonical_name), (None, tokens[0])]
     else:
-        # canonicalize() should have folded to binomial; treat as species lookup.
         rank_ladder = [("species", " ".join(tokens[:2]))]
 
     last_reason = "404"
     for rank, q in rank_ladder:
         time.sleep(_INAT_PACE_SECONDS)
+        params: dict = {"q": q}
+        if rank is not None:
+            params["rank"] = rank
         try:
-            resp = _inat_get_with_retry(
-                INAT_TAXA_URL, params={"q": q, "rank": rank}, timeout=30
-            )
+            resp = _inat_get_with_retry(INAT_TAXA_URL, params=params, timeout=30)
         except requests.HTTPError:
             last_reason = "api_error"
             continue
@@ -158,6 +166,7 @@ def _resolve_one(
         if match is None:
             last_reason = "ambiguous"
             continue
+        source = f"inat_{match.get('rank') or rank or 'unknown'}"
         con.execute(
             """
             INSERT INTO inaturalist_data.canonical_to_taxon_id
@@ -168,7 +177,7 @@ def _resolve_one(
                 resolved_at = EXCLUDED.resolved_at,
                 source = EXCLUDED.source
             """,
-            [canonical_name, match["id"], f"inat_{rank}"],
+            [canonical_name, match["id"], source],
         )
         return
     unresolved.append(
