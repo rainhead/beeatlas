@@ -551,7 +551,7 @@ Plans:
 - [x] 078-01-PLAN.md — Wave 0 scaffolding: [tool.beeatlas] config, canonical_name on occurrences.parquet, test stubs (test_species_export.py + test_species_maps.py), validate-schema.mjs extension
 - [x] 078-02-PLAN.md — data/species_export.py: FULL OUTER + Phase-77 bridge lineage CTE + species.parquet/species.json/seasonality.json emission
 - [x] 078-03-PLAN.md — data/species_maps.py: WA county backdrop + per-species SVG with single <style> block (D-03), wipe-and-rewrite (D-04), silent clip + log (MAP-04)
-- [ ] 078-04-PLAN.md — run.py STEPS wiring (species-export + species-maps between export and feeds), idempotency (sha256 byte-equality), slug-agreement E2E
+- [x] 078-04-PLAN.md — run.py STEPS wiring (species-export + species-maps between export and feeds), idempotency (sha256 byte-equality), slug-agreement E2E
 
 ### Phase 79: Photo Manifest
 **Goal**: A hand-edited TOML photo manifest is in place with required-field and license-whitelist validation wired into the build, plus a one-shot helper to seed it — without ever pulling iNat at CI time
