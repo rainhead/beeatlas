@@ -76,7 +76,7 @@ function extractImports(src: string, re: RegExp): string[] {
     .replace(/^\s*\/\/.*$/gm, '');
   // Re-clone the regex per call: global RegExps are stateful (lastIndex).
   const localRe = new RegExp(re.source, re.flags);
-  return [...stripped.matchAll(localRe)].map(m => m[1]);
+  return [...stripped.matchAll(localRe)].map(m => m[1]).filter((s): s is string => s !== undefined);
 }
 
 describe('ARCH-04: src/species boundary (PAGE-08)', () => {
