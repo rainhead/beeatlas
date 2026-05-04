@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: Phase 76 verified complete; ready to plan Phase 77 (Lineage Coverage Expansion)
-last_updated: "2026-05-03T00:00:00.000Z"
-last_activity: 2026-05-03 — inserted Phase 77 (Lineage Coverage Expansion) between Data Foundation and Pipeline Outputs after researcher surfaced ~31% iNat lineage coverage; renumbered downstream phases (Pipeline Outputs → 78, Photo Manifest → 79, Page Scaffolding → 80, Filter UX & Nav → 81, Hardening → 82); LIN-01..LIN-05 added to REQUIREMENTS.md
+status: executing
+last_updated: "2026-05-04T04:46:41.567Z"
+last_activity: 2026-05-04
 progress:
   total_phases: 12
   completed_phases: 1
-  total_plans: 6
-  completed_plans: 6
-  percent: 100
+  total_plans: 9
+  completed_plans: 7
+  percent: 78
 ---
 
 # Project State
@@ -20,20 +20,23 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v3.2 Species Tab — bee species exploration page (taxonomic nav, image-forward cards, occurrence maps, seasonality viz). Scoping in `.planning/seeds/species-tab.md`.
+**Current focus:** Phase 077 — lineage-coverage-expansion
 
 ## Current Position
 
-Phase: Phase 76 complete; next is Phase 77 (Lineage Coverage Expansion). Old Phase 77 (Pipeline Outputs) is now Phase 78; downstream phases bumped accordingly.
-Plan: 076-01..06 complete (6/6); UAT passed
-Status: Verified end-to-end — pipeline runs clean in 170s, all 5 SCs satisfied
-Last activity: 2026-05-03 — inserted Phase 77 (Lineage Coverage Expansion) after researcher surfaced ~31% iNat lineage coverage gap during /gsd-plan-phase 77; existing Pipeline Outputs work preserved as Phase 78 (`.planning/phases/078-pipeline-outputs/`); ready to discuss/plan new Phase 77.
+Phase: 077 (lineage-coverage-expansion) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-05-04
 
 ## Accumulated Context
 
 ### Decisions
 
 (decisions log cleared at v3.0 close — full history in .planning/PROJECT.md Key Decisions table)
+
+- [Phase ?]: Phase 077-01: skip 'Lasioglossum zonulum' from new LIN-05 seed; PK conflict with existing scientificName
+- [Phase ?]: Phase 077-01: trim plan's 11-row occurrence seed to 8 so union of canonical_names is exactly 20 once existing seed's 3 names are accounted for
 
 ### Pending Todos
 

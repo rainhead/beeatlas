@@ -532,7 +532,10 @@ Plans:
   3. Re-running the pipeline twice in a row makes zero new iNat API calls (the bridge cache is consulted first); a forced refresh path exists (e.g. `--refresh-lineage` flag or a config knob) for when the user wants to re-resolve ambiguous names
   4. `cd data && uv run pytest tests/test_resolve_taxon_ids.py` passes with mocked iNat responses covering the matched / ambiguous / 404 / API-error cases; the tests assert the bridge table state and the contents of `lineage_unresolved.csv` after each
   5. After this phase ships, the same query the next phase needs (`SELECT canonical_name, family, subfamily, tribe, genus, subgenus FROM <FULL OUTER union> LEFT JOIN taxon_lineage_extended ...`) produces ≤5% NULL `family` rows on current production data
-**Plans**: TBD
+**Plans**: 3 plans
+- [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 78: Pipeline Outputs
 **Goal**: The nightly pipeline emits a single source of truth for per-species aggregates and per-species occurrence maps that downstream Eleventy pages can consume without ever touching parquet at request time
@@ -544,7 +547,10 @@ Plans:
   3. Slug generation is shared with `data/feeds.py::_slugify` (path-traversal-safe per v2.1) — the SVG filename, the `slug` column in `species.parquet`, and the URL slug all agree byte-for-byte for every species
   4. `("species-export", export_species_parquet)` and `("species-maps", generate_species_maps)` are in `data/run.py` STEPS after `export` and before `feeds`; re-running the pipeline twice in a row produces identical artifacts (idempotent)
   5. `node scripts/validate-schema.mjs` passes with the new `species.parquet` column expectations and `species.json` top-level shape; `cd data && uv run pytest test_species_export.py test_species_maps.py` passes including the FULL OUTER fixture (checklist-only / occurrence-only / matched) and SVG well-formedness (parses as XML, expected `<circle>` count, viewBox match)
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 79: Photo Manifest
 **Goal**: A hand-edited TOML photo manifest is in place with required-field and license-whitelist validation wired into the build, plus a one-shot helper to seed it — without ever pulling iNat at CI time
@@ -556,7 +562,10 @@ Plans:
   3. `npm run build` runs `validate-species` after `validate-schema` and before `eleventy`; introducing a license-whitelist violation in the manifest fails the build with a clear error and a non-zero exit code; reverting the change makes the build green again
   4. `node scripts/seed-species-photos.mjs` is exposed under `scripts/` (NOT invoked by `npm run build` and NOT in any package.json `build`/`prebuild` chain) and rate-limits iNat API calls to ≤1 req/sec while writing a starter manifest
   5. `cd data && uv run pytest test_validate_species.py` (or the Vitest equivalent under `src/tests/`) covers a fixture that seeds bad licenses and missing attribution and asserts the validator rejects them
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 80: Page Scaffolding
 **Goal**: A static `/species/` page renders one server-rendered card per species using the layout default chrome, ships in its own Vite chunk that does NOT pull mapbox-gl or wa-sqlite, and an architectural test enforces the boundary
@@ -568,7 +577,10 @@ Plans:
   3. Every photo `<img>` and the SVG occurrence map `<img>` carry `loading="lazy"`; every `<bee-species-card>` host applies `content-visibility: auto` (mitigates Osmia/Andrena ~80-card pages per PITFALLS #10)
   4. `npm test` passes a new ARCH-04 source-analysis test in `src/tests/arch.test.ts` that asserts no file under `src/species/` imports `mapbox-gl`, `wa-sqlite`, `../sqlite.ts`, `../filter.ts`, `../bee-map.ts`, or `../bee-atlas.ts` (mitigates PITFALLS #7 — single accidental import balloons the species chunk from ~50 KB to ~2 MB)
   5. `npm run build` succeeds with `validate-species` in the chain and produces a separate `species-*.js` chunk under `_site/assets/` distinct from the SPA's `index-*.js`; visual inspection or a CI grep confirms `mapbox-gl` does not appear in the species chunk's symbol list
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 **UI hint**: yes
 
 ### Phase 81: Filter UX & Nav
@@ -581,7 +593,10 @@ Plans:
   3. `<seasonality-viz>` renders an inline `<svg>` from a 12-element monthly histogram via Lit template with no chart-library dep; renders monthly bars when `n ≥ 5` and a text fallback ("3 records, May–June") when `n < 5`; X-axis carries J F M A M J J A S O N D labels and BeeSearch winter/spring/summer/fall season-band tints; sample-size annotation matches BeeSearch (`*` 20–49, `**` 50–99, `***` 100–999, `****` ≥1000); when the page-level geo filter is active the viz reads pre-binned `seasonality.json` slices for the selected county/ecoregion (no in-browser KDE)
   4. Each card's "View N occurrences →" button navigates to `/?taxon=<scientificName>&taxonRank=species` via a shared `buildSpaTaxonLink()` helper (per LINK-01 — the seed example `/collection?taxon=...` is wrong; verified at `src/url-state.ts:35-89` that BOTH `taxon` AND `taxonRank` are required); a Vitest round-trip test asserts `buildSpaTaxonLink('Andrena anograe')` produces a URL that the SPA's `parseParams` resolves to `{ taxonName: 'Andrena anograe', taxonRank: 'species' }`; nav-rail genus/family deep-links use `taxonRank=genus`/`taxonRank=family`; the `taxon` + `taxonRank` contract is documented as a stable interface in the `src/url-state.ts` header comment
   5. `npm test` passes a new species-page Vitest suite covering URL round-trip in `src/species/url-state.ts`, the `buildSpaTaxonLink` round-trip, taxon-nav mute-not-hide rendering, filter empty-state rendering, and seasonality viz bar/fallback branches
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 **UI hint**: yes
 
 ### Phase 82: Hardening
@@ -594,4 +609,7 @@ Plans:
   3. Every photo `<img>` carries `loading="lazy"` and `alt` text (caption or scientific-name fallback); iNat photo URLs use the `medium` (500px) size for the hero by default with `square`/`small` available for thumb-strip use; the nav tree exposes appropriate `role`/`aria-expanded` attributes and supports keyboard expand/collapse plus filter input; `npm test` passes axe-style or hand-rolled accessibility assertions
   4. `scripts/check-photo-availability.mjs` runs via a weekly GitHub Actions cron (NOT every build, per PITFALLS #1), HEADs each manifest photo URL, and writes failed URLs to `data/manifest_drift_report.json`; the workflow file documents that the report is informational and does not block deploys
   5. UAT against the seed's stated use cases ("Which species of *Eucera* are present in this ecoregion?" and "Which are most likely / frequently collected?") passes against current production data with screenshots or notes recorded in the phase summary
-**Plans**: TBD
+**Plans**: 3 plans
+- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
