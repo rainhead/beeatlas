@@ -201,8 +201,36 @@ def test_seasonality_shape_and_budget(fixture_con, export_dir, monkeypatch):
 
 
 def test_idempotency_two_runs(fixture_con, export_dir, monkeypatch):
-    """Success crit 4: two consecutive runs produce identical artifact bytes (parquet + JSON).
-
-    Wave 0 stub — Plan 078-04 wires run.py STEPS and exercises the full two-run pipeline.
+    """Success crit 4 / Pitfall #6: two consecutive runs produce byte-identical
+    artifacts (parquet + JSON sidecars). sha256 over each artifact across runs
+    must match; time.sleep between runs makes any time-dependent non-determinism
+    observable.
     """
-    pytest.fail("Wave 0 stub — Plan 078-04 implements idempotency_two_runs")
+    import hashlib
+    import time
+
+    monkeypatch.setattr(occ_export_mod, 'ASSETS_DIR', export_dir)
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+
+    artifacts = ['species.parquet', 'species.json', 'seasonality.json']
+
+    occ_export_mod.export_occurrences_parquet(fixture_con)
+    export_mod.export_species_parquet(fixture_con)
+    first = {
+        name: hashlib.sha256((export_dir / name).read_bytes()).hexdigest()
+        for name in artifacts
+    }
+
+    time.sleep(1.5)  # observable gap so time-dependent non-determinism would surface
+
+    occ_export_mod.export_occurrences_parquet(fixture_con)
+    export_mod.export_species_parquet(fixture_con)
+    second = {
+        name: hashlib.sha256((export_dir / name).read_bytes()).hexdigest()
+        for name in artifacts
+    }
+
+    for name in artifacts:
+        assert first[name] == second[name], (
+            f"{name} differs between runs (first={first[name]}, second={second[name]})"
+        )
