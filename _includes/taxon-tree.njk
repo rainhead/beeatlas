@@ -22,8 +22,12 @@
 {% endmacro %}
 
 {% macro renderSubgenus(subgKey, subgNode) %}
+  {# BL-04: data-taxon carries the raw tree key ('null' for the no-subgenus
+     bucket, matching _data/species.js's serialized key); the visible label
+     (no subgenus) is display-only. This keeps URL state, click-path values,
+     and tree keys aligned on a single sentinel. #}
   {%- set label = '(no subgenus)' if subgKey == 'null' else subgKey -%}
-  <li data-taxon="{{ label }}" data-rank="subgenus">
+  <li data-taxon="{{ subgKey }}" data-rank="subgenus">
     <details>
       <summary>{{ label }}</summary>
       <ul>{{ renderSpecies(subgNode.rows) }}</ul>
