@@ -176,3 +176,41 @@ def test_svg_filename_matches_slug_column(fixture_con, export_dir, monkeypatch):
         assert (maps_dir / f"{slug}.svg").exists(), (
             f"missing SVG for {sci!r} at slug {slug!r}"
         )
+
+
+def test_svg_idempotency(fixture_con, export_dir, monkeypatch):
+    """Success crit 4 (SVG arm): two consecutive generate_species_maps runs produce
+    byte-identical SVGs for every species. Fails the run on any drift —
+    no WARN-only escape hatch.
+    """
+    import hashlib
+    import time
+
+    import species_maps
+
+    _setup_artifacts(fixture_con, export_dir, monkeypatch)
+    maps_dir = export_dir / "species-maps"
+    first = {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(maps_dir.glob("*.svg"))
+    }
+    assert first, "expected at least one SVG from fixture run"
+
+    time.sleep(1.5)  # observable gap so time-dependent non-determinism would surface
+
+    species_maps.generate_species_maps(fixture_con)
+    second = {
+        p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+        for p in sorted(maps_dir.glob("*.svg"))
+    }
+
+    assert set(first.keys()) == set(second.keys()), (
+        f"SVG filename set differs between runs: "
+        f"first - second = {set(first) - set(second)}, "
+        f"second - first = {set(second) - set(first)}"
+    )
+    for name in first:
+        assert first[name] == second[name], (
+            f"{name} drifted between runs (first={first[name]}, second={second[name]}) — "
+            f"check _write_species_svg attribute ordering / ET.canonicalize"
+        )
