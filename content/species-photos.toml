@@ -1,0 +1,17 @@
+# BeeAtlas species photo manifest.
+# Hand-edited; seeded once by scripts/seed-species-photos.mjs (fill-only — D-01).
+# @iarna/toml writes integers with underscore separators (e.g. 33_289_514) — this is valid TOML.
+#
+# Schema (PHOTO-01):
+#   [species."<scientificName>"]
+#   description = ""           # optional
+#   [[species."<scientificName>".photos]]
+#   observation_id = INT       # required
+#   photo_id = INT             # required
+#   url = "..."                # required (large variant, stored verbatim)
+#   caption = ""               # required
+#   attribution = "..."        # required for non-CC0
+#   license = "cc0"            # required; must be in {cc0, cc-by, cc-by-nc, cc-by-sa, cc-by-nc-sa}
+#   ordering = 1               # required
+
+[species]
