@@ -548,7 +548,7 @@ Plans:
   4. `("species-export", export_species_parquet)` and `("species-maps", generate_species_maps)` are in `data/run.py` STEPS after `export` and before `feeds`; re-running the pipeline twice in a row produces identical artifacts (idempotent)
   5. `node scripts/validate-schema.mjs` passes with the new `species.parquet` column expectations and `species.json` top-level shape; `cd data && uv run pytest test_species_export.py test_species_maps.py` passes including the FULL OUTER fixture (checklist-only / occurrence-only / matched) and SVG well-formedness (parses as XML, expected `<circle>` count, viewBox match)
 **Plans**: 4 plans
-- [ ] 078-01-PLAN.md — Wave 0 scaffolding: [tool.beeatlas] config, canonical_name on occurrences.parquet, test stubs (test_species_export.py + test_species_maps.py), validate-schema.mjs extension
+- [x] 078-01-PLAN.md — Wave 0 scaffolding: [tool.beeatlas] config, canonical_name on occurrences.parquet, test stubs (test_species_export.py + test_species_maps.py), validate-schema.mjs extension
 - [ ] 078-02-PLAN.md — data/species_export.py: FULL OUTER + Phase-77 bridge lineage CTE + species.parquet/species.json/seasonality.json emission
 - [ ] 078-03-PLAN.md — data/species_maps.py: WA county backdrop + per-species SVG with single <style> block (D-03), wipe-and-rewrite (D-04), silent clip + log (MAP-04)
 - [ ] 078-04-PLAN.md — run.py STEPS wiring (species-export + species-maps between export and feeds), idempotency (sha256 byte-equality), slug-agreement E2E
