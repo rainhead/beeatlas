@@ -28,6 +28,8 @@ EXPECTED_OCCURRENCES_COLS = [
     'specimen_inat_genus', 'specimen_inat_family',
     # provisional flag
     'is_provisional',
+    # Phase 78 / Pitfall #6: canonical_name materialized for species-aggregation joins
+    'canonical_name',
 ]
 
 
@@ -191,6 +193,45 @@ def test_provisional_rows_appear(fixture_con, export_dir, monkeypatch):
         assert host_obs_id == 999999, f"host_observation_id from OFV 1718 must be 999999, got {host_obs_id!r}"
         # observation 999999 is a known sample with specimen_count=3
         assert spec_count == 3, f"specimen_count from sample join must be 3, got {spec_count!r}"
+
+
+def test_occurrences_canonical_name_arm1(fixture_con, export_dir, monkeypatch):
+    """ARM 1 (matched ecdysis rows) carries canonical_name from ecdysis_data.occurrences.
+
+    Phase 78 / Pitfall #6: canonical_name is load-bearing for per-species
+    county_count / ecoregion_count joins in species_export.py.
+    """
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_occurrences_parquet(fixture_con)
+    parquet_path = str(export_dir / 'occurrences.parquet')
+
+    # The Phase 76 seed rows for canonical-name collapses (id=7600001/7600002)
+    # have known canonical_name values. They land on ARM 1.
+    rows = duckdb.execute(f"""
+        SELECT ecdysis_id, canonical_name
+        FROM read_parquet('{parquet_path}')
+        WHERE ecdysis_id IN (7600001, 7600002)
+        ORDER BY ecdysis_id
+    """).fetchall()
+    assert len(rows) == 2, f"Expected both p76 rows on ARM 1, got {len(rows)}"
+    assert rows[0] == (7600001, 'lasioglossum zonulum'), rows[0]
+    assert rows[1] == (7600002, 'bombus melanopygus'), rows[1]
+
+
+def test_occurrences_canonical_name_arm2_null(fixture_con, export_dir, monkeypatch):
+    """ARM 2 (provisional WABA-only rows) has NULL canonical_name (no ecdysis source)."""
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+    export_mod.export_occurrences_parquet(fixture_con)
+    parquet_path = str(export_dir / 'occurrences.parquet')
+
+    rows = duckdb.execute(f"""
+        SELECT canonical_name
+        FROM read_parquet('{parquet_path}')
+        WHERE is_provisional = TRUE
+    """).fetchall()
+    assert len(rows) >= 1, "expected at least one ARM 2 provisional row"
+    for (canon,) in rows:
+        assert canon is None, f"ARM 2 must have NULL canonical_name, got {canon!r}"
 
 
 def test_matched_waba_not_provisional(fixture_con, export_dir, monkeypatch):
