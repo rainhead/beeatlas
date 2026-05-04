@@ -595,3 +595,31 @@ def test_bridge_source_distinguishes_rank(resolver_db):
         ("andrena nigrocaerulea", "inat_genus"),
         ("apis mellifera", "inat_species"),
     ]
+
+
+def test_lineage_coverage_threshold(fixture_con):
+    """LIN-05: ≥95% of FULL OUTER union species have non-NULL family via taxon_lineage_extended.
+
+    Asserts the SQL gate that Phase 78 (Pipeline Outputs) depends on. The Plan 01
+    fixture in conftest.py seeds 20 canonical_names with 19 mapped to non-NULL family
+    (= 0.95 exactly); this test pins that ratio.
+    """
+    coverage = fixture_con.execute("""
+        SELECT
+            count(*) FILTER (WHERE tle.family IS NOT NULL) * 1.0 / count(*)
+        FROM (
+            SELECT DISTINCT canonical_name FROM checklist_data.species
+            WHERE canonical_name IS NOT NULL
+            UNION
+            SELECT DISTINCT canonical_name FROM ecdysis_data.occurrences
+            WHERE canonical_name IS NOT NULL
+        ) u
+        LEFT JOIN inaturalist_data.canonical_to_taxon_id b USING (canonical_name)
+        LEFT JOIN inaturalist_data.taxon_lineage_extended tle ON tle.taxon_id = b.taxon_id
+    """).fetchone()[0]
+
+    assert coverage >= 0.95, (
+        f"LIN-05 threshold not met: {coverage:.3f} < 0.95. "
+        "Check the Plan 01 fixture in conftest.py — 19/20 canonical_names "
+        "must resolve to a taxon_lineage_extended row with non-NULL family."
+    )
