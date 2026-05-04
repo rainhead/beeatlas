@@ -357,6 +357,137 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
             (100002, 'Halictidae', 'Halictinae', 'Halictini', 'Lasioglossum', 'Dialictus')
     """)
 
+    # ------------------------------------------------------------------
+    # LIN-05 ≥95% coverage fixture (Phase 77 plan 01).
+    #
+    # Goal: 20 distinct canonical_names in
+    #   (checklist_data.species ∪ ecdysis_data.occurrences),
+    # with exactly 19 of them resolvable via the bridge to a
+    # taxon_lineage_extended row with non-NULL family. Coverage =
+    # 19/20 = 0.95 — the LIN-05 threshold.
+    #
+    # Existing seed already contributes 3 distinct canonical_names:
+    #   - 'lasioglossum zonulum' (checklist + occurrences)
+    #   - 'andrena fulva'        (checklist only)
+    #   - 'bombus melanopygus'   (checklist + occurrences)
+    # We add 14 new checklist names + 3 net-new occurrence names
+    # (= 17 new distinct), giving 20 total. The 'lasioglossum zonulum'
+    # row from plan 01 step 2a is omitted because checklist_data.species
+    # has scientificName as PRIMARY KEY and that scientificName already
+    # exists; canonical_name is unconstrained and is what the resolver
+    # keys on, so the existing row covers that name.
+    #
+    # `xylocopa virginica` and `'zzzzz nonexistensia'` are the two
+    # unresolved-by-checklist names sourced only from occurrences;
+    # `xylocopa virginica` IS bridged (taxon_id 200019) so it has a
+    # family, while `zzzzz nonexistensia` is the 1/20 unresolvable
+    # case mirroring iNat 404.
+    # ------------------------------------------------------------------
+
+    # 2a — checklist seed: 14 new species with unique scientificName values.
+    # Column order matches checklist_data.species CREATE TABLE:
+    #   (scientificName, family, subfamily, tribe, genus, subgenus,
+    #    specific_epithet, status, source_citation, notes, canonical_name)
+    con.execute("""
+        INSERT INTO checklist_data.species (
+            scientificName, family, subfamily, tribe, genus, subgenus,
+            specific_epithet, status, source_citation, notes, canonical_name
+        ) VALUES
+            ('Andrena nigrocaerulea',  NULL, NULL, NULL, 'Andrena',      NULL, 'nigrocaerulea', NULL, NULL, NULL, 'andrena nigrocaerulea'),
+            ('Andrena prunorum',       NULL, NULL, NULL, 'Andrena',      NULL, 'prunorum',      NULL, NULL, NULL, 'andrena prunorum'),
+            ('Bombus impatiens',       NULL, NULL, NULL, 'Bombus',       NULL, 'impatiens',     NULL, NULL, NULL, 'bombus impatiens'),
+            ('Bombus vosnesenskii',    NULL, NULL, NULL, 'Bombus',       NULL, 'vosnesenskii',  NULL, NULL, NULL, 'bombus vosnesenskii'),
+            ('Halictus ligatus',       NULL, NULL, NULL, 'Halictus',     NULL, 'ligatus',       NULL, NULL, NULL, 'halictus ligatus'),
+            ('Halictus tripartitus',   NULL, NULL, NULL, 'Halictus',     NULL, 'tripartitus',   NULL, NULL, NULL, 'halictus tripartitus'),
+            ('Hylaeus mesillae',       NULL, NULL, NULL, 'Hylaeus',      NULL, 'mesillae',      NULL, NULL, NULL, 'hylaeus mesillae'),
+            ('Megachile rotundata',    NULL, NULL, NULL, 'Megachile',    NULL, 'rotundata',     NULL, NULL, NULL, 'megachile rotundata'),
+            ('Osmia lignaria',         NULL, NULL, NULL, 'Osmia',        NULL, 'lignaria',      NULL, NULL, NULL, 'osmia lignaria'),
+            ('Agapostemon virescens',  NULL, NULL, NULL, 'Agapostemon',  NULL, 'virescens',     NULL, NULL, NULL, 'agapostemon virescens'),
+            ('Anthidium manicatum',    NULL, NULL, NULL, 'Anthidium',    NULL, 'manicatum',     NULL, NULL, NULL, 'anthidium manicatum'),
+            ('Ceratina nanula',        NULL, NULL, NULL, 'Ceratina',     NULL, 'nanula',        NULL, NULL, NULL, 'ceratina nanula'),
+            ('Eucera frater',          NULL, NULL, NULL, 'Eucera',       NULL, 'frater',        NULL, NULL, NULL, 'eucera frater'),
+            ('Nomada vegana',          NULL, NULL, NULL, 'Nomada',       NULL, 'vegana',        NULL, NULL, NULL, 'nomada vegana')
+    """)
+
+    # 2b — occurrences seed: rows backing the 5 names that appear in BOTH
+    # checklist and occurrences (the planner's "shared" set), plus 3
+    # net-new occurrence-only names. Existing seed already has rows for
+    # 'lasioglossum zonulum' and 'bombus melanopygus', so we add:
+    #   shared (5):       bombus impatiens, osmia lignaria, lasioglossum zonulum,
+    #                     megachile rotundata, halictus ligatus
+    #   net-new (3):      osmia californica, xylocopa virginica, zzzzz nonexistensia
+    # `'zzzzz nonexistensia'` is the LIN-05 1-of-20 unresolvable case.
+    #
+    # Use distinct id values (LIN05-01..LIN05-08) to avoid collisions
+    # with existing rows. All ecdysis_data.occurrences columns default
+    # to NULL where unspecified.
+    con.execute("""
+        INSERT INTO ecdysis_data.occurrences (
+            id, scientific_name, canonical_name, _dlt_load_id, _dlt_id
+        ) VALUES
+            ('LIN05-01', 'Bombus impatiens',     'bombus impatiens',     'load-lin05', 'lin05-1'),
+            ('LIN05-02', 'Osmia lignaria',       'osmia lignaria',       'load-lin05', 'lin05-2'),
+            ('LIN05-03', 'Lasioglossum zonulum', 'lasioglossum zonulum', 'load-lin05', 'lin05-3'),
+            ('LIN05-04', 'Megachile rotundata',  'megachile rotundata',  'load-lin05', 'lin05-4'),
+            ('LIN05-05', 'Halictus ligatus',     'halictus ligatus',     'load-lin05', 'lin05-5'),
+            ('LIN05-06', 'Osmia californica',    'osmia californica',    'load-lin05', 'lin05-6'),
+            ('LIN05-07', 'Xylocopa virginica',   'xylocopa virginica',   'load-lin05', 'lin05-7'),
+            ('LIN05-08', 'Zzzzz nonexistensia',  'zzzzz nonexistensia',  'load-lin05', 'lin05-8')
+    """)
+
+    # 2c — bridge seed: 19 of the 20 union canonical_names mapped to
+    # fictional taxon_ids (200001..200019). 'zzzzz nonexistensia' is
+    # intentionally absent → LEFT JOIN yields NULL family → the 1/20
+    # unresolved case (coverage = 19/20 = 0.95).
+    con.execute("""
+        INSERT INTO inaturalist_data.canonical_to_taxon_id
+            (canonical_name, taxon_id, resolved_at, source) VALUES
+            ('lasioglossum zonulum',  200001, current_timestamp, 'inat_species'),
+            ('andrena fulva',         200002, current_timestamp, 'inat_species'),
+            ('bombus melanopygus',    200003, current_timestamp, 'inat_species'),
+            ('andrena nigrocaerulea', 200004, current_timestamp, 'inat_species'),
+            ('andrena prunorum',      200005, current_timestamp, 'inat_species'),
+            ('bombus impatiens',      200006, current_timestamp, 'inat_species'),
+            ('bombus vosnesenskii',   200007, current_timestamp, 'inat_species'),
+            ('halictus ligatus',      200008, current_timestamp, 'inat_species'),
+            ('halictus tripartitus',  200009, current_timestamp, 'inat_species'),
+            ('hylaeus mesillae',      200010, current_timestamp, 'inat_species'),
+            ('megachile rotundata',   200011, current_timestamp, 'inat_species'),
+            ('osmia lignaria',        200012, current_timestamp, 'inat_species'),
+            ('agapostemon virescens', 200013, current_timestamp, 'inat_species'),
+            ('anthidium manicatum',   200014, current_timestamp, 'inat_species'),
+            ('ceratina nanula',       200015, current_timestamp, 'inat_species'),
+            ('eucera frater',         200016, current_timestamp, 'inat_species'),
+            ('nomada vegana',         200017, current_timestamp, 'inat_species'),
+            ('osmia californica',     200018, current_timestamp, 'inat_species'),
+            ('xylocopa virginica',    200019, current_timestamp, 'inat_species')
+    """)
+
+    # 2d — taxon_lineage_extended rows for the 19 bridged taxon_ids.
+    # All have non-NULL family so coverage SQL returns exactly 0.95.
+    con.execute("""
+        INSERT INTO inaturalist_data.taxon_lineage_extended VALUES
+            (200001, 'Halictidae',   'Halictinae',  'Halictini',   'Lasioglossum', 'Dialictus'),
+            (200002, 'Andrenidae',   'Andreninae',  NULL,          'Andrena',      NULL),
+            (200003, 'Apidae',       'Apinae',      'Bombini',     'Bombus',       NULL),
+            (200004, 'Andrenidae',   'Andreninae',  NULL,          'Andrena',      NULL),
+            (200005, 'Andrenidae',   'Andreninae',  NULL,          'Andrena',      NULL),
+            (200006, 'Apidae',       'Apinae',      'Bombini',     'Bombus',       NULL),
+            (200007, 'Apidae',       'Apinae',      'Bombini',     'Bombus',       NULL),
+            (200008, 'Halictidae',   'Halictinae',  'Halictini',   'Halictus',     NULL),
+            (200009, 'Halictidae',   'Halictinae',  'Halictini',   'Halictus',     NULL),
+            (200010, 'Colletidae',   'Hylaeinae',   NULL,          'Hylaeus',      NULL),
+            (200011, 'Megachilidae', 'Megachilinae','Megachilini', 'Megachile',    NULL),
+            (200012, 'Megachilidae', 'Megachilinae','Osmiini',     'Osmia',        NULL),
+            (200013, 'Halictidae',   'Halictinae',  'Halictini',   'Agapostemon',  NULL),
+            (200014, 'Megachilidae', 'Megachilinae','Anthidiini',  'Anthidium',    NULL),
+            (200015, 'Apidae',       'Xylocopinae', 'Ceratinini',  'Ceratina',     NULL),
+            (200016, 'Apidae',       'Apinae',      'Eucerini',    'Eucera',       NULL),
+            (200017, 'Apidae',       'Nomadinae',   'Nomadini',    'Nomada',       NULL),
+            (200018, 'Megachilidae', 'Megachilinae','Osmiini',     'Osmia',        NULL),
+            (200019, 'Apidae',       'Xylocopinae', 'Xylocopini',  'Xylocopa',     NULL)
+    """)
+
 
 @pytest.fixture(scope="session")
 def fixture_db(tmp_path_factory):
