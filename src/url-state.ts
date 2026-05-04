@@ -1,3 +1,18 @@
+// LINK-04 — Stable URL contract for cross-route deep-links into the SPA.
+//
+// The SPA at `/` is canonically navigated via two query params:
+//
+//   ?taxon=<scientificName>&taxonRank=<'family' | 'genus' | 'species'>
+//
+// BOTH params MUST be present. parseParams (below, lines 83-89) silently
+// drops the taxon filter if either is missing — verified by
+// src/tests/spa-link.test.ts.
+//
+// Cross-route deep-links from /species/ MUST use buildSpaTaxonLink()
+// from src/lib/spa-link.ts (Phase 81 D-05). Other params (x, y, z, yr0,
+// yr1, months, counties, ecor, collectors, elev_min, elev_max, o, bm,
+// view) are SPA-internal and not part of the cross-route contract.
+
 import type { FilterState, CollectorEntry } from './filter.ts';
 
 export interface ViewState {
