@@ -74,7 +74,8 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             inat.quality_grade AS inat_quality_grade,
             strftime(GREATEST(o.modified, COALESCE(im.max_id_modified, o.modified)), '%Y-%m-%d') AS modified,
             wl.specimen_observation_id,
-            TRY_CAST(NULLIF(o.minimum_elevation_in_meters, '') AS INTEGER) AS elevation_m
+            TRY_CAST(NULLIF(o.minimum_elevation_in_meters, '') AS INTEGER) AS elevation_m,
+            o.canonical_name
         FROM ecdysis_data.occurrences o
         LEFT JOIN ecdysis_data.occurrence_links links ON links.occurrence_id = o.occurrence_id
         LEFT JOIN inaturalist_data.observations inat ON inat.id = links.host_observation_id
@@ -151,7 +152,8 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             sob.specimen_inat_genus,
             sob.specimen_inat_family,
             sob.quality_grade AS specimen_inat_quality_grade,
-            FALSE AS is_provisional
+            FALSE AS is_provisional,
+            e.canonical_name
         FROM ecdysis_base e
         FULL OUTER JOIN samples_base s ON e.host_observation_id = s.observation_id
         LEFT JOIN specimen_obs_base sob ON sob.waba_obs_id = e.specimen_observation_id
@@ -184,7 +186,8 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
             sob.specimen_inat_genus,
             sob.specimen_inat_family,
             sob.quality_grade AS specimen_inat_quality_grade,
-            TRUE AS is_provisional
+            TRUE AS is_provisional,
+            NULL AS canonical_name
         FROM provisional_waba_ids p
         JOIN specimen_obs_base sob ON sob.waba_obs_id = p.waba_obs_id
         LEFT JOIN inaturalist_waba_data.observations__ofvs ofv1718
@@ -251,6 +254,7 @@ def export_occurrences_parquet(con: duckdb.DuckDBPyConnection) -> None:
         j.specimen_inat_login, j.specimen_inat_taxon_name,
         j.specimen_inat_genus, j.specimen_inat_family, j.specimen_inat_quality_grade,
         j.is_provisional,
+        j.canonical_name,
         fc.county, fe.ecoregion_l3
     FROM joined j
     JOIN final_county fc ON fc._row_id = j._row_id
