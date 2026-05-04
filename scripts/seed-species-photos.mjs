@@ -218,6 +218,8 @@ async function main() {
 
   const argLimit = process.argv.indexOf('--limit');
   const limit = argLimit !== -1 ? parseInt(process.argv[argLimit + 1], 10) : Infinity;
+  const argRate = process.argv.indexOf('--rate-ms');
+  const rateMs = argRate !== -1 ? parseInt(process.argv[argRate + 1], 10) : 1000;
   const dryRun = process.argv.includes('--dry-run');
 
   const speciesJson = JSON.parse(readFileSync(SPECIES_JSON, 'utf-8'));
@@ -234,7 +236,11 @@ async function main() {
     : { species: {} };
   manifest.species ??= {};
 
-  const rateLimiter = new RateLimiter(1000); // PHOTO-07: <=1 req/sec
+  // PHOTO-07: <=1 req/sec by default. Override via --rate-ms <int> when iNat
+  // tightens enforcement (live API has emitted bursts of 429s at the 1000 ms
+  // floor — bumping to 1500–2000 ms typically clears the rate gate).
+  console.log(`Rate limit: >=${rateMs} ms between iNat calls`);
+  const rateLimiter = new RateLimiter(rateMs);
   let processed = 0;
   let added = 0;
   let skipped = 0;
