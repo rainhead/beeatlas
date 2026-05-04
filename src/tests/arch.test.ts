@@ -145,6 +145,9 @@ describe('src/entries/species.ts allowlist (PAGE-04 partial)', () => {
     '../bee-header.ts', '../bee-header',
     '../species/bee-species-page.ts', '../species/bee-species-page',
     '../species/bee-species-card.ts', '../species/bee-species-card',
+    '../species/bee-taxon-nav.ts', '../species/bee-taxon-nav',
+    '../species/bee-species-filter.ts', '../species/bee-species-filter',
+    '../species/seasonality-viz.ts', '../species/seasonality-viz',
   ]);
 
   test('only side-effect imports of bee-header + species components', () => {
