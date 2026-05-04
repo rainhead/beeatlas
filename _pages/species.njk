@@ -4,8 +4,10 @@ permalink: /species/index.html
 title: Species — BeeAtlas
 ---
 {% from "taxon-tree.njk" import renderTree %}
-{{ renderTree(species.tree) }}
 <bee-species-page>
+{# WR-05: nav is a descendant of the coordinator so state flows down via
+   @property without document.querySelector lookups across siblings. #}
+{{ renderTree(species.tree) }}
 <bee-species-filter
   data-county-options='{{ species.counties | dump | safe }}'
   data-ecoregion-options='{{ species.ecoregionL3 | dump | safe }}'

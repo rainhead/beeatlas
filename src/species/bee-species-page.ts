@@ -287,12 +287,10 @@ export class BeeSpeciesPage extends LitElement {
     // Propagate _activeTaxonPath to <bee-taxon-nav> so NAV-04 mute-not-hide
     // fires on click-driven taxon selection (the nav element has no
     // back-channel to read coordinator state; we push it down explicitly).
+    // WR-05: nav now lives inside <bee-species-page>, so a single
+    // this.querySelector lookup suffices — no document-level fallback.
     const nav = this.querySelector('bee-taxon-nav') as { activeTaxonPath?: string[] } | null;
     if (nav) nav.activeTaxonPath = [...this._activeTaxonPath];
-    // Also check siblings/document — Plan 02's renderTree macro emits
-    // <bee-taxon-nav> ABOVE <bee-species-page>, so the nav is not a child.
-    const navSibling = document.querySelector('bee-taxon-nav') as { activeTaxonPath?: string[] } | null;
-    if (navSibling && navSibling !== nav) navSibling.activeTaxonPath = [...this._activeTaxonPath];
   }
 
   // ----- Event handlers -----
