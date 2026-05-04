@@ -47,6 +47,14 @@ def lineage_db(tmp_path, monkeypatch):
             taxon__id BIGINT
         )
     """)
+    con.execute("""
+        CREATE TABLE inaturalist_data.canonical_to_taxon_id (
+            canonical_name TEXT PRIMARY KEY,
+            taxon_id INTEGER,
+            resolved_at TIMESTAMP,
+            source TEXT
+        )
+    """)
     con.close()
     return db_path, inaturalist_pipeline
 

@@ -189,9 +189,13 @@ def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
     Source taxon IDs = DISTINCT NOT NULL UNION of:
       - inaturalist_data.observations.taxon__id
       - inaturalist_waba_data.observations.taxon__id
+      - inaturalist_data.canonical_to_taxon_id.taxon_id
+        (the Phase 77 name→taxon_id bridge — supplies taxon IDs for species
+        with zero observations in the WABA project)
 
     Must run AFTER both inaturalist and waba pipelines have populated their
-    observations tables. Phase 76 / D-03 / TAX-01.
+    observations tables AND after resolve-taxon-ids has populated the bridge
+    (per data/run.py STEPS ordering). Phase 76 / D-03 / TAX-01; Phase 77 LIN-05.
 
     NULL is emitted (NOT a sentinel) for ranks absent from the ancestor chain
     so downstream nav code (Phase 80 NAV-02) can render only populated levels.
@@ -208,6 +212,10 @@ def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
                     UNION
                     SELECT taxon__id FROM inaturalist_waba_data.observations
                     WHERE taxon__id IS NOT NULL
+                    UNION
+                    SELECT taxon_id AS taxon__id
+                    FROM inaturalist_data.canonical_to_taxon_id
+                    WHERE taxon_id IS NOT NULL
                 )
             """).fetchall()
         ]
