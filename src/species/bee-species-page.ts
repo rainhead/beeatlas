@@ -33,9 +33,14 @@ export interface SeasonFilter {
 export class BeeSpeciesPage extends LitElement {
   // D-07 locked defaults — Phase 81 wires events/URL parsing onto these
   // existing fields rather than introducing them mid-flight.
-  @state() private _activeTaxonPath: string[] = [];
-  @state() private _geoFilter: GeoFilter | null = null;
-  @state() private _seasonFilter: SeasonFilter | null = null;
+  // Declared without `private` so noUnusedLocals doesn't flag the
+  // forward-looking fields before Phase 81 wires them into a render()
+  // override or event handlers. The tests access them via `(el as any)`
+  // regardless, and the underscore-prefix convention still signals
+  // "internal — do not depend on from outside the class."
+  @state() _activeTaxonPath: string[] = [];
+  @state() _geoFilter: GeoFilter | null = null;
+  @state() _seasonFilter: SeasonFilter | null = null;
 
   protected createRenderRoot(): HTMLElement {
     return this;
