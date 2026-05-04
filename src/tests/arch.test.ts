@@ -166,3 +166,33 @@ describe('src/entries/species.ts allowlist (PAGE-04 partial)', () => {
     expect(disallowed, `unexpected imports in src/entries/species.ts: ${disallowed.join(', ')}`).toEqual([]);
   });
 });
+
+// Phase 81 D-05 — src/lib/spa-link.ts boundary.
+// The file is consumed by src/species/** (subject to ARCH-04) AND by
+// the SPA's src/url-state.ts (LINK-04 documentation only). To prevent
+// it from becoming a Trojan that lets src/species/** transitively pull
+// mapbox-gl / wa-sqlite / filter.ts, this file MUST itself import
+// nothing from the forbidden list — plus '../url-state.ts' to forbid
+// the SPA-side import that would re-introduce src/filter.ts.
+describe('ARCH-04: src/lib/spa-link.ts boundary (D-05)', () => {
+  const file = resolve(ROOT, 'src/lib/spa-link.ts');
+  const FORBIDDEN_FOR_LIB = [...FORBIDDEN, '../url-state.ts', '../url-state'];
+
+  test('src/lib/spa-link.ts exists', () => {
+    expect(() => readFileSync(file, 'utf8')).not.toThrow();
+  });
+
+  test('src/lib/spa-link.ts contains no forbidden static imports', () => {
+    const src = readFileSync(file, 'utf8');
+    const imports = extractImports(src, STATIC_IMPORT_RE);
+    const violations = imports.filter(s => FORBIDDEN_FOR_LIB.some(bad => s === bad || s.startsWith(bad + '/')));
+    expect(violations, `forbidden imports: ${violations.join(', ')}`).toEqual([]);
+  });
+
+  test('src/lib/spa-link.ts contains no forbidden dynamic imports', () => {
+    const src = readFileSync(file, 'utf8');
+    const imports = extractImports(src, DYNAMIC_IMPORT_RE);
+    const violations = imports.filter(s => FORBIDDEN_FOR_LIB.some(bad => s === bad || s.startsWith(bad + '/')));
+    expect(violations, `forbidden dynamic imports: ${violations.join(', ')}`).toEqual([]);
+  });
+});
