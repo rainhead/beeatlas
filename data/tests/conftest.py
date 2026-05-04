@@ -522,6 +522,17 @@ def _zero_inat_pacing(monkeypatch):
     monkeypatch.setattr(
         inaturalist_pipeline, "_INAT_BACKOFF_BASE_SECONDS", 0.0, raising=False
     )
+    # `from inaturalist_pipeline import _INAT_PACE_SECONDS` snapshots the
+    # value at import time (Pitfall #4 / RESEARCH A4) — patching the
+    # source module is insufficient. Also patch the local binding in
+    # resolve_taxon_ids when that module exists (added in plan 02).
+    try:
+        import resolve_taxon_ids
+        monkeypatch.setattr(
+            resolve_taxon_ids, "_INAT_PACE_SECONDS", 0.0, raising=False
+        )
+    except ImportError:
+        pass
 
 
 @pytest.fixture
