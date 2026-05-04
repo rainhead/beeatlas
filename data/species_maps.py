@@ -157,6 +157,13 @@ def _write_species_svg(
                 "r": "2.5",
             },
         )
+    # Idempotency (Phase 78 success criterion 4): sort attribute dicts so
+    # ET.tostring emits stable byte output across Python invocations.
+    # ET stores attrib as a regular dict and serializes in insertion order;
+    # sorting by key gives deterministic output regardless of construction order.
+    for elem in root.iter():
+        if elem.attrib:
+            elem.attrib = dict(sorted(elem.attrib.items()))
     out_path = out_dir / f"{slug}.svg"
     out_path.write_text(
         ET.tostring(root, xml_declaration=True, encoding="unicode"),

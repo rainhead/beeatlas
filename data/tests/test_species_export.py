@@ -1,8 +1,7 @@
 """Integration tests for species_export.py.
 
-Covers AGG-01..05, AGG-07, idempotency. Plan 078-02 fills in the parquet +
-slug + JSON assertions; the idempotency test stays pinned to a Wave 0 stub
-until Plan 078-04 wires run.py and exercises the two-run pipeline.
+Covers AGG-01..05, AGG-07, and the success-criterion-4 idempotency contract
+(Plan 078-04: two-run byte-equality across parquet + JSON sidecars).
 
 Test names match `.planning/phases/078-pipeline-outputs/078-VALIDATION.md`
 Per-Task Verification Map exactly.
@@ -10,7 +9,6 @@ Per-Task Verification Map exactly.
 import json
 
 import duckdb
-import pytest
 
 import export as occ_export_mod
 import species_export as export_mod
@@ -201,8 +199,36 @@ def test_seasonality_shape_and_budget(fixture_con, export_dir, monkeypatch):
 
 
 def test_idempotency_two_runs(fixture_con, export_dir, monkeypatch):
-    """Success crit 4: two consecutive runs produce identical artifact bytes (parquet + JSON).
-
-    Wave 0 stub — Plan 078-04 wires run.py STEPS and exercises the full two-run pipeline.
+    """Success crit 4 / Pitfall #6: two consecutive runs produce byte-identical
+    artifacts (parquet + JSON sidecars). sha256 over each artifact across runs
+    must match; time.sleep between runs makes any time-dependent non-determinism
+    observable.
     """
-    pytest.fail("Wave 0 stub — Plan 078-04 implements idempotency_two_runs")
+    import hashlib
+    import time
+
+    monkeypatch.setattr(occ_export_mod, 'ASSETS_DIR', export_dir)
+    monkeypatch.setattr(export_mod, 'ASSETS_DIR', export_dir)
+
+    artifacts = ['species.parquet', 'species.json', 'seasonality.json']
+
+    occ_export_mod.export_occurrences_parquet(fixture_con)
+    export_mod.export_species_parquet(fixture_con)
+    first = {
+        name: hashlib.sha256((export_dir / name).read_bytes()).hexdigest()
+        for name in artifacts
+    }
+
+    time.sleep(1.5)  # observable gap so time-dependent non-determinism would surface
+
+    occ_export_mod.export_occurrences_parquet(fixture_con)
+    export_mod.export_species_parquet(fixture_con)
+    second = {
+        name: hashlib.sha256((export_dir / name).read_bytes()).hexdigest()
+        for name in artifacts
+    }
+
+    for name in artifacts:
+        assert first[name] == second[name], (
+            f"{name} differs between runs (first={first[name]}, second={second[name]})"
+        )
