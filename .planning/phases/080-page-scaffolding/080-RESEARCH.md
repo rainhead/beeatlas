@@ -589,24 +589,28 @@ strings _site/assets/species-*.js 2>/dev/null | grep -c mapboxgl
 | A4 | `_data/photos.js`'s synchronous `TOML.parse(readFileSync(...))` of a 15K-line manifest takes < 200ms at Eleventy startup | Pitfall 5 | Mostly informational; if violated, profile and precompute. |
 | A5 | The `species-maps/` directory will be populated by running `cd data && uv run python species_maps.py` against the current `data/beeatlas.duckdb` and that the SVGs produced will agree byte-for-byte with the `slug` column in `species.json` | Open Question Q1 | Verified by Phase 78 success criterion 4 (idempotent two-runs) and AGG-03 (slug agreement). Risk LOW. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`public/data/species-maps/` is empty on disk. Should this be a Phase-80 task or a precondition check?**
    - What we know: Phase 78 wipe-and-rewrites this directory (D-04) so it's intentionally not committed; the pipeline must run before any consumer references it. Currently the directory does not exist.
    - What's unclear: whether Phase 80 should include "run the pipeline" as a Wave 0 task, or treat it as an environmental prerequisite (out of scope for the planner).
    - Recommendation: **Wave 0 task** — `cd data && uv run python species_maps.py` (or full `run.py`), assert `ls public/data/species-maps/*.svg | wc -l` ≥ 1, commit no SVGs (gitignored / build artifact). This makes Phase 80 self-contained: re-running it on a fresh checkout works.
+   - RESOLVED: Phase 80 ships a Wave 0 task (Plan 01 Task 1) that regenerates `public/data/species-maps/` via the pipeline; SVGs remain gitignored.
 
 2. **Does Eleventy 3.x's data cascade pass `default` exports correctly when the `_data/*.js` file is ESM (not CJS)?**
    - What we know: `_data/build.js` uses `export default { ... }` and works. Phase 80 mirrors this.
    - What's unclear: nothing — answered by precedent. Listed only for the planner's benefit.
+   - RESOLVED: ESM `export default` works in the Eleventy 3.x data cascade; `_data/species.js` and `_data/photos.js` use it directly per Plan 02.
 
 3. **Should the architectural test also assert that `src/species/*` files do NOT import via `import('...')` (dynamic)?**
    - What we know: Vite still bundles `import('...')` calls; a dynamic mapbox-gl import would still pull mapbox-gl into a code-split chunk that the species page would fetch.
    - Recommendation: **Yes** — extend the regex to cover `import\s*\(\s*['"]([^'"]+)['"]`. Pitfall 3 above. The cost is one extra regex; the benefit is the test's claim ("no forbidden import") becomes true.
+   - RESOLVED: `src/tests/arch.test.ts` (Plan 01 Task 2) covers BOTH static `from '...'` and dynamic `import('...')` shapes via separate regexes (`STATIC_IMPORT_RE` and `DYNAMIC_IMPORT_RE`).
 
 4. **Should `bee-species-page` lift the `<bee-header>` registration into `src/entries/species.ts`, or import it from inside `bee-species-page.ts`?**
    - What we know: D-06 says only `bee-species-page` and `bee-species-card` ship in Phase 80. ARCH-04 forbids `src/species/**` importing `../bee-atlas.ts` etc. but NOT `../bee-header.ts` (header is a leaf).
    - Recommendation: **Lift to entry**. `src/entries/species.ts` imports `'../bee-header.ts'` directly (mirrors the `bee-header.ts` entry). Keeps `src/species/` strictly bounded to species-tab concerns. Plays well with Phase 81 when more components join.
+   - RESOLVED: `src/entries/species.ts` (Plan 03 Task 2) imports `'../bee-header.ts'` directly; `src/species/**.ts` never imports the header.
 
 ## Environment Availability
 
