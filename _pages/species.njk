@@ -1,0 +1,26 @@
+---
+layout: default.njk
+permalink: /species/index.html
+title: Species — BeeAtlas
+---
+<bee-species-page>
+{%- for sp in species.flat -%}
+<bee-species-card>
+  <h2>{{ sp.scientificName }}</h2>
+  {%- set photoEntry = photos[sp.scientificName] -%}
+  {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
+    {%- set p = photoEntry.photos[0] -%}
+    <img loading="lazy" src="{{ p.url }}" alt="{{ sp.scientificName }}">
+    <p class="attribution">{{ p.attribution }}</p>
+  {%- endif -%}
+  {%- if sp.occurrence_count > 0 -%}
+    <img loading="lazy" src="/data/species-maps/{{ sp.slug }}.svg" alt="Occurrence map for {{ sp.scientificName }}">
+  {%- endif -%}
+  {%- if photoEntry and photoEntry.description -%}
+    <p class="description">{{ photoEntry.description }}</p>
+  {%- endif -%}
+  <a href="/?taxon={{ sp.scientificName | urlencode }}">Open in atlas</a>
+</bee-species-card>
+{%- endfor -%}
+</bee-species-page>
+<script type="module" src="/src/entries/species.ts"></script>
