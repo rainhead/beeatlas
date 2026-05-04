@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
 status: executing
-last_updated: "2026-05-04T16:21:30.000Z"
-last_activity: 2026-05-04 -- Phase 079-01 complete (photo manifest validator wired into build chain)
+last_updated: "2026-05-04T16:31:00.000Z"
+last_activity: 2026-05-04 -- Phase 079-02 complete (seed-species-photos helper + 31 Vitest cases; PHOTO-04 + PHOTO-07 satisfied)
 progress:
   total_phases: 12
   completed_phases: 3
   total_plans: 17
-  completed_plans: 14
-  percent: 82
+  completed_plans: 15
+  percent: 88
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 ## Current Position
 
 Phase: 079 (photo-manifest) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Executing Phase 079
-Resume file: .planning/phases/079-photo-manifest/079-02-PLAN.md
-Last activity: 2026-05-04 -- Phase 079-01 complete (3 commits: 5aca996, c9fb8db, a1c08cf)
+Resume file: .planning/phases/079-photo-manifest/079-03-PLAN.md
+Last activity: 2026-05-04 -- Phase 079-02 complete (1 feat commit: ca2bc9f)
 
 ## Accumulated Context
 
@@ -47,6 +47,9 @@ Last activity: 2026-05-04 -- Phase 079-01 complete (3 commits: 5aca996, c9fb8db,
 - [Phase 078-04]: SVG byte-stability via sorted attrib dicts in _write_species_svg before ET.tostring — sha256 byte-equality across consecutive runs proven on 556 SVGs at host scale
 - [Phase 079-01]: validate-species.mjs uses error-accumulator + CLI-guard pattern (fileURLToPath(import.meta.url) === resolve(process.argv[1])) so the script is both a Vitest-importable module and a stand-alone build-time CLI; speciesJsonArray=null path skips unknown-name cross-ref while keeping license/attribution gates active (graceful degradation on fresh checkouts without species.json)
 - [Phase 079-01]: build chain order is load-bearing: validate-schema (parquet gate) → validate-species (TOML gate) → typecheck → eleventy; subprocess integration test isolates the TOML gate via `npm run validate-species` rather than `npm run build` so it stays deterministic when local public/data/*.parquet is absent
+- [Phase 079-02]: iNat fallback resolved — WA-preferred top-up: take all WA license-clean photos first, then fill remaining slots up to 3 from a global query, deduping by photo_id (resolves CONTEXT.md open question; minimizes "no photo" gaps for species rare in WA at the cost of one extra iNat call per under-covered species)
+- [Phase 079-02]: seed RateLimiter is a tiny class (rolling lastCall timestamp, first wait() free) tested against real Date.now()/setTimeout at 30–50ms intervals; production CLI uses 1000ms — only the constructor argument differs between test and prod, exercising the same code path
+- [Phase 079-02]: build-chain isolation regression guard — Vitest assertion that scans package.json scripts for any reference to seed-species-photos and fails the suite if found (PHOTO-07 NOT-in-CI invariant); reusable pattern for future "this must NEVER be in CI" rules
 
 ### Pending Todos
 

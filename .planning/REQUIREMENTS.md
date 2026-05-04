@@ -55,10 +55,10 @@ Each maps to one phase in `ROADMAP.md`. Categories follow the six phases identif
 - [x] **PHOTO-01**: `content/species-photos.toml` schema: `[species."<scientificName>"]` table with optional `description` (1–3 sentence ID-helpful note) and `[[photos]]` array of `observation_id`, `photo_id`, `url`, `caption`, `attribution`, `license`, `ordering` (and optional `view`, `navigational`)
 - [x] **PHOTO-02**: `license` field required for every photo; allowed values `{cc0, cc-by, cc-by-nc, cc-by-sa, cc-by-nc-sa}`; `null`, missing, or `all-rights-reserved` rejected
 - [x] **PHOTO-03**: `attribution` field required for non-CC0 photos; rendered verbatim adjacent to the photo (never `innerHTML`)
-- [ ] **PHOTO-04**: Photo URL stored in TOML at fill time (resolved from iNat API), not constructed at render time; renderer reads URL verbatim
+- [x] **PHOTO-04**: Photo URL stored in TOML at fill time (resolved from iNat API), not constructed at render time; renderer reads URL verbatim
 - [x] **PHOTO-05**: `scripts/validate-species.mjs` parses TOML, cross-references `species.json`, validates required fields and license whitelist, exits nonzero on errors; warns (not fails) for unknown species names (allows transitional state)
 - [x] **PHOTO-06**: `npm run build` chain runs `validate-species` after `validate-schema` and before `eleventy`
-- [ ] **PHOTO-07**: `scripts/seed-species-photos.mjs` (one-shot helper, NOT in CI) populates a starter manifest from iNat top-voted research-grade photos at ≤1 req/sec
+- [x] **PHOTO-07**: `scripts/seed-species-photos.mjs` (one-shot helper, NOT in CI) populates a starter manifest from iNat top-voted research-grade photos at ≤1 req/sec
 - [x] **PHOTO-08**: pytest fixture seeds bad licenses and missing attribution; asserts validation rejects them
 
 ### PAGE — Page Scaffolding & Architecture
@@ -191,10 +191,10 @@ Acknowledged but out of v3.2 scope.
 | PHOTO-01 | Phase 79-01 | Complete |
 | PHOTO-02 | Phase 79-01 | Complete |
 | PHOTO-03 | Phase 79-01 | Complete |
-| PHOTO-04 | Phase 79 | Pending |
+| PHOTO-04 | Phase 79-02 | Complete |
 | PHOTO-05 | Phase 79-01 | Complete |
 | PHOTO-06 | Phase 79-01 | Complete |
-| PHOTO-07 | Phase 79 | Pending |
+| PHOTO-07 | Phase 79-02 | Complete |
 | PHOTO-08 | Phase 79-01 | Complete |
 | PAGE-01 | Phase 80 | Pending |
 | PAGE-02 | Phase 80 | Pending |
