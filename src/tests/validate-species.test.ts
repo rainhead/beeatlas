@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process';
 import { writeFileSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// @ts-expect-error -- .mjs source has no .d.ts; named exports are the contract (mirrors seed-species-photos.test.ts)
 import { validateSpeciesPhotos, LICENSE_WHITELIST } from '../../scripts/validate-species.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
