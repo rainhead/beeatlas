@@ -143,6 +143,14 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             subgenus VARCHAR
         )
     """)
+    con.execute("""
+        CREATE TABLE inaturalist_data.canonical_to_taxon_id (
+            canonical_name TEXT PRIMARY KEY,
+            taxon_id INTEGER,
+            resolved_at TIMESTAMP,
+            source TEXT
+        )
+    """)
 
 
 def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
