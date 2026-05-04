@@ -194,11 +194,32 @@ export class BeeSpeciesPage extends LitElement {
     // is active (per critical pitfall #6). When NO filter is active,
     // checklist-only species fall back to their SSR'd occurrence_count
     // because we leave their filteredCount at the sentinel -1.
+    // BL-01: project _activeTaxonPath into the same level order Eleventy
+    // emits as data-* on each card. The path is a prefix: a card matches
+    // if every set level in the path equals the card's corresponding
+    // ancestor. taxonPath = [] (no taxon filter) trivially matches all.
+    const taxonLevels = ['family', 'subfamily', 'tribe', 'genus', 'subgenus'];
+    const activePath = this._activeTaxonPath;
+
     const cards = this.querySelectorAll<HTMLElement>('bee-species-card');
     for (const card of cards) {
       const h2 = card.querySelector('h2');
       const name = h2?.textContent?.trim() ?? '';
       if (!name) continue;
+
+      // BL-01: gate by taxon ancestry. Mismatch -> count 0 + zeroed slice
+      // (mute via filteredCount=0; cards with count 0 already render muted).
+      let taxonMatches = true;
+      for (let i = 0; i < activePath.length && i < taxonLevels.length; i++) {
+        const cardVal = card.getAttribute('data-' + taxonLevels[i]) ?? '';
+        if (cardVal !== activePath[i]) { taxonMatches = false; break; }
+      }
+      if (!taxonMatches) {
+        newCounts.set(name, 0);
+        newSlices.set(name, new Array(12).fill(0));
+        continue;
+      }
+
       const lower = name.toLowerCase();
       const slices = this._seasonality[lower];
 
