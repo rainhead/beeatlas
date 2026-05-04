@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: executing
-last_updated: "2026-05-04T04:55:00.660Z"
+status: verifying
+last_updated: "2026-05-04T05:03:59.070Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 12
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
-  completed_plans: 8
-  percent: 89
+  completed_plans: 9
+  percent: 100
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 Phase: 077 (lineage-coverage-expansion) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-04
 
 ## Accumulated Context
@@ -39,6 +39,7 @@ Last activity: 2026-05-04
 - [Phase ?]: Phase 077-01: trim plan's 11-row occurrence seed to 8 so union of canonical_names is exactly 20 once existing seed's 3 names are accounted for
 - [Phase ?]: Phase 077-02: utcnow() deprecated in Python 3.14 — replaced with dt.datetime.now(dt.UTC).replace(tzinfo=None) to preserve tz-naive ISO 8601 output without DeprecationWarning
 - [Phase ?]: Phase 077-02: refresh=True reads UNRESOLVED_CSV but never deletes bridge rows (D-A6) — successful resolutions are durable across refresh reruns
+- [Phase ?]: Phase 77 lineage coverage expansion complete: bridge populated via resolve-taxon-ids step, walked via enrich_taxon_lineage_extended UNION arm, LIN-05 coverage pinned at >=0.95 by deterministic fixture
 
 ### Pending Todos
 
