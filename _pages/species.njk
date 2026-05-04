@@ -3,6 +3,8 @@ layout: default.njk
 permalink: /species/index.html
 title: Species — BeeAtlas
 ---
+{% from "taxon-tree.njk" import renderTree %}
+{{ renderTree(species.tree) }}
 <bee-species-page>
 {%- for sp in species.flat -%}
 <bee-species-card>
