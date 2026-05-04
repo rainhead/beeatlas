@@ -325,7 +325,7 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 - [x] Phase 77: Lineage Coverage Expansion (3/3 plans) (INSERTED 2026-05-03)
 - [x] Phase 78: Pipeline Outputs (4/4 plans)
 - [x] Phase 79: Photo Manifest (3/3 plans) — completed 2026-05-04
-- [ ] Phase 80: Page Scaffolding (0/? plans)
+- [ ] Phase 80: Page Scaffolding (0/4 plans)
 - [ ] Phase 81: Filter UX & Nav (0/? plans)
 - [ ] Phase 82: Hardening (0/? plans)
 
@@ -579,10 +579,11 @@ Plans:
   3. Every photo `<img>` and the SVG occurrence map `<img>` carry `loading="lazy"`; every `<bee-species-card>` host applies `content-visibility: auto` (mitigates Osmia/Andrena ~80-card pages per PITFALLS #10)
   4. `npm test` passes a new ARCH-04 source-analysis test in `src/tests/arch.test.ts` that asserts no file under `src/species/` imports `mapbox-gl`, `wa-sqlite`, `../sqlite.ts`, `../filter.ts`, `../bee-map.ts`, or `../bee-atlas.ts` (mitigates PITFALLS #7 — single accidental import balloons the species chunk from ~50 KB to ~2 MB)
   5. `npm run build` succeeds with `validate-species` in the chain and produces a separate `species-*.js` chunk under `_site/assets/` distinct from the SPA's `index-*.js`; visual inspection or a CI grep confirms `mapbox-gl` does not appear in the species chunk's symbol list
-**Plans**: 3 plans
-- [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
-- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
-- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
+**Plans**: 4 plans
+- [ ] 080-01-PLAN.md — Wave 0: SVG regen precondition + 7 RED test files including ARCH-04 source-analysis (PAGE-08)
+- [ ] 080-02-PLAN.md — Build-time data feeds: _data/species.js + _data/photos.js (PAGE-02, PAGE-03)
+- [ ] 080-03-PLAN.md — Components & template: bee-species-page + bee-species-card + species.ts entry + species.njk (PAGE-01, PAGE-04, PAGE-05, PAGE-06, PAGE-07)
+- [ ] 080-04-PLAN.md — Build verification & chunk boundary (PAGE-09)
 **UI hint**: yes
 
 ### Phase 81: Filter UX & Nav
