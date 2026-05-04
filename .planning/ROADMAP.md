@@ -535,7 +535,7 @@ Plans:
 **Plans**: 3 plans
 - [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
 - [x] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
-- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
+- [x] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 78: Pipeline Outputs
 **Goal**: The nightly pipeline emits a single source of truth for per-species aggregates and per-species occurrence maps that downstream Eleventy pages can consume without ever touching parquet at request time
@@ -549,7 +549,7 @@ Plans:
   5. `node scripts/validate-schema.mjs` passes with the new `species.parquet` column expectations and `species.json` top-level shape; `cd data && uv run pytest test_species_export.py test_species_maps.py` passes including the FULL OUTER fixture (checklist-only / occurrence-only / matched) and SVG well-formedness (parses as XML, expected `<circle>` count, viewBox match)
 **Plans**: 3 plans
 - [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
-- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
+- [x] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
 - [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
 ### Phase 79: Photo Manifest
@@ -563,7 +563,7 @@ Plans:
   4. `node scripts/seed-species-photos.mjs` is exposed under `scripts/` (NOT invoked by `npm run build` and NOT in any package.json `build`/`prebuild` chain) and rate-limits iNat API calls to ≤1 req/sec while writing a starter manifest
   5. `cd data && uv run pytest test_validate_species.py` (or the Vitest equivalent under `src/tests/`) covers a fixture that seeds bad licenses and missing attribution and asserts the validator rejects them
 **Plans**: 3 plans
-- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
+- [x] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
 - [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
 - [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
 
