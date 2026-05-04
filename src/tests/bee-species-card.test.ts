@@ -9,11 +9,11 @@ import { BeeSpeciesCard } from '../species/bee-species-card.ts';
 
 describe('bee-species-card (D-05)', () => {
   test('does NOT override render() — preserves Eleventy SSR children', () => {
-    expect(BeeSpeciesCard.prototype.render).toBe(LitElement.prototype.render);
+    expect((BeeSpeciesCard.prototype as any).render).toBe((LitElement.prototype as any).render);
   });
 
   test('createRenderRoot returns this (light DOM)', () => {
     const fakeHost = {} as HTMLElement;
-    expect(BeeSpeciesCard.prototype.createRenderRoot.call(fakeHost)).toBe(fakeHost);
+    expect((BeeSpeciesCard.prototype as any).createRenderRoot.call(fakeHost)).toBe(fakeHost);
   });
 });
