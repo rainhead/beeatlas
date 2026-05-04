@@ -426,5 +426,10 @@ export class BeeSpeciesPage extends LitElement {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // WR-04: escape ' as &#39; in addition to & < > ". The breadcrumb pill row
+  // uses double-quoted attributes today, but interpolating user-derived
+  // values (URL-parsed county/ecoregion/taxon names) into HTML without
+  // covering ' is brittle — any future edit that switches to single-quoted
+  // attributes would silently introduce XSS via attacker-crafted URLs.
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
