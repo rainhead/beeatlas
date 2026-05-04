@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: verifying
-last_updated: "2026-05-04T05:48:33.973Z"
+status: phase-complete
+last_updated: "2026-05-04T07:35:37.000Z"
 last_activity: 2026-05-04
 progress:
   total_phases: 12
-  completed_phases: 2
-  total_plans: 9
-  completed_plans: 9
+  completed_phases: 3
+  total_plans: 13
+  completed_plans: 13
   percent: 100
 ---
 
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 077 — lineage-coverage-expansion
+**Current focus:** Phase 078 — pipeline-outputs (complete)
 
 ## Current Position
 
 Phase: 078
-Plan: Not started
-Status: Phase complete — ready for verification
+Plan: All 4 plans complete (078-01..04)
+Status: Phase complete — verification passed (5/5 criteria, 121/121 tests, 13/13 requirements)
 Last activity: 2026-05-04
 
 ## Accumulated Context
@@ -40,6 +40,10 @@ Last activity: 2026-05-04
 - [Phase ?]: Phase 077-02: utcnow() deprecated in Python 3.14 — replaced with dt.datetime.now(dt.UTC).replace(tzinfo=None) to preserve tz-naive ISO 8601 output without DeprecationWarning
 - [Phase ?]: Phase 077-02: refresh=True reads UNRESOLVED_CSV but never deletes bridge rows (D-A6) — successful resolutions are durable across refresh reruns
 - [Phase ?]: Phase 77 lineage coverage expansion complete: bridge populated via resolve-taxon-ids step, walked via enrich_taxon_lineage_extended UNION arm, LIN-05 coverage pinned at >=0.95 by deterministic fixture
+- [Phase 078]: Wave 0 scaffolding extends occurrences.parquet with canonical_name (load-bearing for per-species county_count / ecoregion_count), introduces [tool.beeatlas] config for STATE_FIPS, lays test stubs that go red until Plans 02/03 land
+- [Phase 078-02]: DuckDB 1.4.x COALESCE-on-INTEGER[12] unimplemented — backfill NULL month_histogram (checklist-only rows) with [0]*12 in Python; pyarrow schema still pins list<int32>
+- [Phase 078-03]: ST_GeomFromText(geometry_wkt) instead of plan's literal `geom` column — matches existing data/export.py::export_counties_geojson idiom
+- [Phase 078-04]: SVG byte-stability via sorted attrib dicts in _write_species_svg before ET.tostring — sha256 byte-equality across consecutive runs proven on 556 SVGs at host scale
 
 ### Pending Todos
 
