@@ -37,6 +37,8 @@ const EXPECTED = {
     'specimen_inat_genus', 'specimen_inat_family', 'specimen_inat_quality_grade',
     // provisional flag
     'is_provisional',
+    // Phase 78 / Pitfall #6: canonical_name materialized for species-aggregation joins
+    'canonical_name',
   ],
 };
 
