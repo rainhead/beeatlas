@@ -125,19 +125,33 @@ export class RateLimiter {
 
 /**
  * Shell out to the duckdb CLI to load the scientificName -> taxon_id map
- * from the canonical lineage bridge. Joined across checklist + occurrences
- * so all ~735 species in species.json are covered.
+ * from the canonical lineage bridge.
+ *
+ * Mirrors the species_universe construction in data/species_export.py: the
+ * scientificName key in species.json is COALESCE(checklist.scientificName,
+ * occurrences.canonical_name) and the canonical_name (lowercase) is the
+ * shared join key against inaturalist_data.canonical_to_taxon_id. Joining
+ * on canonical_name (not scientificName) avoids both the case-mismatch and
+ * the snake_case column-name issue on ecdysis_data.occurrences (which has
+ * scientific_name, not scientificName).
  */
 export function loadTaxonIds(dbPath) {
   const sql = `
-    SELECT s.scientificName, b.taxon_id
-    FROM checklist_data.species s
-    LEFT JOIN inaturalist_data.canonical_to_taxon_id b ON LOWER(s.scientificName) = b.canonical_name
-    UNION
-    SELECT DISTINCT o.scientificName, b.taxon_id
-    FROM ecdysis_data.occurrences o
-    LEFT JOIN inaturalist_data.canonical_to_taxon_id b ON o.canonical_name = b.canonical_name
-    WHERE o.canonical_name IS NOT NULL
+    WITH species_universe AS (
+      SELECT
+        COALESCE(c.scientificName, oa.canonical_name) AS scientificName,
+        COALESCE(c.canonical_name, oa.canonical_name) AS canonical_name
+      FROM checklist_data.species c
+      FULL OUTER JOIN (
+        SELECT DISTINCT canonical_name
+        FROM ecdysis_data.occurrences
+        WHERE canonical_name IS NOT NULL
+      ) oa ON oa.canonical_name = c.canonical_name
+    )
+    SELECT DISTINCT s.scientificName, b.taxon_id
+    FROM species_universe s
+    LEFT JOIN inaturalist_data.canonical_to_taxon_id b
+      ON LOWER(s.canonical_name) = b.canonical_name
   `.replace(/\n\s+/g, ' ').trim();
   const json = execSync(`duckdb "${dbPath}" -json "${sql}"`, { encoding: 'utf-8' });
   const rows = JSON.parse(json);
