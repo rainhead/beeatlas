@@ -42,7 +42,7 @@ created: 2026-05-03
 |--------|----------|-----------|-------------------|-------------|
 | AGG-01 | FULL OUTER JOIN preserves checklist-only AND occurrence-only species | unit (fixture) | `cd data && uv run pytest tests/test_species_export.py::test_full_outer_three_arms -x` | ❌ W0 |
 | AGG-02 | `species.parquet` has all required columns including `month_histogram INT[12]` | unit (schema) | `cd data && uv run pytest tests/test_species_export.py::test_species_parquet_schema -x` | ❌ W0 |
-| AGG-03 | `_slugify(canonical_name)` matches the `slug` column byte-for-byte for every row | unit (invariant) | `cd data && uv run pytest tests/test_species_export.py::test_slug_invariant -x` | ❌ W0 |
+| AGG-03 | `_slugify(scientificName)` matches the `slug` column byte-for-byte for every row. | unit (invariant) | `cd data && uv run pytest tests/test_species_export.py::test_slug_invariant -x` | ❌ W0 |
 | AGG-04 | `species.json` is a flat array; row[0] has expected keys | unit (shape) | `cd data && uv run pytest tests/test_species_export.py::test_species_json_shape -x` | ❌ W0 |
 | AGG-05 | `seasonality.json` keys species → bucket → 12-int array; size < 6 MB | unit (shape + budget) | `cd data && uv run pytest tests/test_species_export.py::test_seasonality_shape_and_budget -x` | ❌ W0 |
 | AGG-06 | `validate-schema.mjs` passes with new column expectations | integration | `node scripts/validate-schema.mjs` | ✅ (extended in plan) |
@@ -53,8 +53,8 @@ created: 2026-05-03
 | MAP-04 | Off-WA points clipped silently; clipped count is logged; no exception | unit (capsys) | `cd data && uv run pytest tests/test_species_maps.py::test_off_bbox_clipping -x` | ❌ W0 |
 | MAP-05 | `STEPS` contains `species-export` then `species-maps` between `export` and `feeds` | unit (import) | `cd data && uv run python -c "import run; n=[s[0] for s in run.STEPS]; i=n.index('export'); assert n[i+1]=='species-export' and n[i+2]=='species-maps' and n[i+3]=='feeds', n"` | ✅ |
 | MAP-06 | All emitted SVGs parse as valid XML | unit (XML parse) | `cd data && uv run pytest tests/test_species_maps.py::test_all_svgs_parse -x` | ❌ W0 |
-| Idempotency (success crit 4) | Two consecutive runs produce identical artifact bytes | integration | `cd data && uv run pytest tests/test_species_export.py::test_idempotency_two_runs -x` | ❌ W0 |
-| Slug agreement (success crit 3) | SVG filename · `slug` column · `_slugify(canonical_name)` agree byte-for-byte | unit (cross-artifact) | `cd data && uv run pytest tests/test_species_maps.py::test_svg_filename_matches_slug_column -x` | ❌ W0 |
+| Idempotency (success crit 4) | Two consecutive runs produce identical artifact bytes (parquet, JSON, AND SVG) | integration | `cd data && uv run pytest tests/test_species_export.py::test_idempotency_two_runs tests/test_species_maps.py::test_svg_idempotency -x` | ❌ W0 |
+| Slug agreement (success crit 3) | SVG filename · `slug` column · `_slugify(scientificName)` agree byte-for-byte | unit (cross-artifact) | `cd data && uv run pytest tests/test_species_maps.py::test_svg_filename_matches_slug_column -x` | ❌ W0 |
 
 *Status legend: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
