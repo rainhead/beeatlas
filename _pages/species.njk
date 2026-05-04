@@ -16,7 +16,16 @@ title: Species — BeeAtlas
   <button type="button" class="clear-filters">Clear filters</button>
 </div>
 {%- for sp in species.flat -%}
-<bee-species-card>
+{# BL-01: data-* taxon ancestors let the coordinator gate cards by
+   _activeTaxonPath without a sidecar JSON. 'null' is the canonical
+   no-subgenus sentinel (BL-04, matches _data/species.js tree key). #}
+<bee-species-card
+  data-family="{{ sp.family }}"
+  data-subfamily="{{ sp.subfamily }}"
+  data-tribe="{{ sp.tribe }}"
+  data-genus="{{ sp.genus }}"
+  data-subgenus="{% if sp.subgenus %}{{ sp.subgenus }}{% else %}null{% endif %}"
+>
   <h2>{{ sp.scientificName }}</h2>
   {%- set photoEntry = photos[sp.scientificName] -%}
   {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
