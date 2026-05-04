@@ -44,7 +44,7 @@ created: 2026-05-04
 | PAGE-03 | `_data/photos.js` reads TOML, sorts by `ordering`, exports `Record<scientificName, {description, photos[]}>` | unit | `npm test -- src/tests/data-photos.test.ts` (fixture-TOML scrambled `ordering`, asserts sorted) | ❌ W0 |
 | PAGE-04 | `src/entries/species.ts` exists; only side-effect imports of `bee-header`, `bee-species-page`, `bee-species-card` | unit | `npm test -- src/tests/arch.test.ts` (entry allowlist branch) | ❌ W0 |
 | PAGE-05 | `<bee-species-page>` declares `_activeTaxonPath`, `_geoFilter`, `_seasonFilter` with empty defaults | unit | `npm test -- src/tests/bee-species-page.test.ts` (instance shape assertions) | ❌ W0 |
-| PAGE-06 (partial) | `<bee-species-card>` does NOT import from `bee-species-page.ts` | unit | `src/tests/arch.test.ts` (cross-file import regex) | ❌ W0 |
+| PAGE-06 | Every `src/species/**.ts` whose basename is NOT `bee-species-page.ts` does NOT import the coordinator (static or dynamic) | unit | `npm test -- src/tests/arch.test.ts` (`PAGE-06: presenter→coordinator non-import` describe block) | ❌ W0 |
 | PAGE-07 | Every `<img>` carries `loading="lazy"`; `<bee-species-card>` host applies `content-visibility: auto` | unit + integration | post-build: `[ $(grep -c 'loading="lazy"' _site/species/index.html) -ge $((n_with_photo + n_with_map)) ]`; `grep -q 'content-visibility' src/species/bee-species-card.ts` | ❌ W0 |
 | PAGE-08 | No `src/species/**.ts` imports `mapbox-gl`, `wa-sqlite`, `../sqlite.ts`, `../filter.ts`, `../bee-map.ts`, `../bee-atlas.ts` (static AND dynamic) | unit | `npm test -- src/tests/arch.test.ts` | ❌ W0 |
 | PAGE-09 | `_site/assets/species-*.js` exists; mapbox-gl symbols absent | integration | `npm run build && ls _site/assets/species-*.js && ! grep -l mapboxgl _site/assets/species-*.js` | ❌ W0 |
@@ -59,7 +59,7 @@ created: 2026-05-04
 
 ## Wave 0 Requirements
 
-- [ ] `src/tests/arch.test.ts` — PAGE-08 + partial PAGE-06 (import allowlist regex over `src/species/**.ts` and `src/entries/species.ts`; covers static `from '...'` AND dynamic `import('...')`)
+- [ ] `src/tests/arch.test.ts` — PAGE-08 (forbidden imports under `src/species/**.ts`) + PAGE-06 (presenter→coordinator non-import, dedicated describe block) + entry allowlist over `src/entries/species.ts`; covers static `from '...'` AND dynamic `import('...')`
 - [ ] `src/tests/bee-species-card.test.ts` — D-05 prototype identity + `content-visibility` style presence
 - [ ] `src/tests/bee-species-page.test.ts` — PAGE-05 state-shape assertions
 - [ ] `src/tests/data-species.test.ts` — PAGE-02 (`{ tree, flat, byScientificName }` shape; no parquet import)
