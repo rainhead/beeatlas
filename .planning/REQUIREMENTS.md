@@ -25,11 +25,11 @@ Each maps to one phase in `ROADMAP.md`. Categories follow the six phases identif
 
 ### LIN — Lineage Coverage Expansion (Phase 77)
 
-- [ ] **LIN-01**: `data/resolve_taxon_ids.py::resolve_taxon_ids` queries iNat taxon-search API for every canonical_name in the FULL OUTER union (`checklist_data.species UNION ecdysis_data.occurrences`) that does not yet have a `taxon_id`; results persisted to a bridge table (e.g. `inaturalist_data.canonical_to_taxon_id`)
+- [x] **LIN-01**: `data/resolve_taxon_ids.py::resolve_taxon_ids` queries iNat taxon-search API for every canonical_name in the FULL OUTER union (`checklist_data.species UNION ecdysis_data.occurrences`) that does not yet have a `taxon_id`; results persisted to a bridge table (e.g. `inaturalist_data.canonical_to_taxon_id`)
 - [ ] **LIN-02**: Resolution is rate-limited to ≤1 req/sec; honors iNat 429/5xx with retry/backoff (mirror Phase 76 pattern in `data/inaturalist_pipeline.py::enrich_taxon_lineage_extended`)
 - [ ] **LIN-03**: Bridge table is the cache — re-running the pipeline twice in a row produces zero new iNat API calls; a `--refresh-lineage` flag (or equivalent config knob) forces re-resolution
 - [ ] **LIN-04**: Unresolved names (404 / ambiguous / API error) are written to `data/lineage_unresolved.csv` with `(canonical_name, reason, attempted_at)`; downstream phases can read this list to surface "lineage unknown" cards rather than silent NULLs
-- [ ] **LIN-05**: After this phase ships, ≥95% of species in the FULL OUTER union have a non-NULL `family` via `taxon_lineage_extended` LEFT JOIN; pytest fixture asserts the threshold against a representative slice
+- [x] **LIN-05**: After this phase ships, ≥95% of species in the FULL OUTER union have a non-NULL `family` via `taxon_lineage_extended` LEFT JOIN; pytest fixture asserts the threshold against a representative slice
 
 ### AGG — Per-Species Aggregations
 
@@ -170,11 +170,11 @@ Acknowledged but out of v3.2 scope.
 | TAX-02 | Phase 76 | Pending |
 | TAX-03 | Phase 76 | Pending |
 | TAX-04 | Phase 76 | Pending |
-| LIN-01 | Phase 77 | Pending |
+| LIN-01 | Phase 77 | Complete |
 | LIN-02 | Phase 77 | Pending |
 | LIN-03 | Phase 77 | Pending |
 | LIN-04 | Phase 77 | Pending |
-| LIN-05 | Phase 77 | Pending |
+| LIN-05 | Phase 77 | Complete |
 | AGG-01 | Phase 78 | Pending |
 | AGG-02 | Phase 78 | Pending |
 | AGG-03 | Phase 78 | Pending |
