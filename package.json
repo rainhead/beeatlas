@@ -19,9 +19,10 @@
     "build:data": "cd data && uv run python run.py",
     "validate-schema": "node scripts/validate-schema.mjs",
     "validate-species": "node scripts/validate-species.mjs",
+    "validate-bundle-size": "node scripts/validate-bundle-size.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "npm run validate-schema && npm run validate-species && npm run typecheck && eleventy",
+    "build": "npm run validate-schema && npm run validate-species && npm run typecheck && eleventy && npm run validate-bundle-size",
     "preview": "vite preview --outDir _site",
     "fetch-data": "bash scripts/fetch-data.sh"
   },
