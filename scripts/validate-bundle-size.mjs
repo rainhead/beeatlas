@@ -18,8 +18,8 @@ import { fileURLToPath } from 'node:url';
 // PERF-01: 100 KB gzipped budget for the species-page chunk.
 const BUDGET_BYTES = 100 * 1024;
 const ASSETS_DIR = new URL('../_site/assets/', import.meta.url).pathname;
-const GLOB_PREFIX = 'species-';
-const GLOB_SUFFIX = '.js';
+const SPECIES_SUBDIR = 'species';
+const CHUNK_SUFFIX = '.js';
 
 function fmtKB(bytes) {
   return `${(bytes / 1024).toFixed(1)} KB`;
@@ -29,8 +29,17 @@ function findSpeciesChunks(dir) {
   if (!existsSync(dir)) {
     throw new Error(`_site/assets/ does not exist — run eleventy first`);
   }
+  // Vite emits the species entry under `_site/assets/species/index-*.js`
+  // (own environment / output dir). Tolerate the flat `species-*.js` shape
+  // too in case Vite output naming reverts.
+  const speciesDir = join(dir, SPECIES_SUBDIR);
+  if (existsSync(speciesDir)) {
+    return readdirSync(speciesDir)
+      .filter(n => n.endsWith(CHUNK_SUFFIX))
+      .map(n => join(speciesDir, n));
+  }
   return readdirSync(dir)
-    .filter(n => n.startsWith(GLOB_PREFIX) && n.endsWith(GLOB_SUFFIX))
+    .filter(n => n.startsWith(`${SPECIES_SUBDIR}-`) && n.endsWith(CHUNK_SUFFIX))
     .map(n => join(dir, n));
 }
 
@@ -42,7 +51,7 @@ export function validateBundleSize(assetsDir = ASSETS_DIR) {
   if (chunks.length === 0) {
     // D-05: catch Vite output-naming drift.
     throw new Error(
-      `No files matched _site/assets/${GLOB_PREFIX}*${GLOB_SUFFIX} — Vite output naming may have drifted (PERF-01 / D-05)`
+      `No files matched _site/assets/${SPECIES_SUBDIR}/*${CHUNK_SUFFIX} or _site/assets/${SPECIES_SUBDIR}-*${CHUNK_SUFFIX} — Vite output naming may have drifted (PERF-01 / D-05)`
     );
   }
   const results = [];

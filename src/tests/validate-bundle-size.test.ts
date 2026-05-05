@@ -50,11 +50,11 @@ describe('validateBundleSize (PERF-01)', () => {
     expect(() => validateBundleSize(missingDir)).toThrow(/run eleventy first/i);
   });
 
-  test('throws when zero species-*.js files match (D-05)', () => {
+  test('throws when zero species chunk files match (D-05)', () => {
     mkdirSync(TEST_ASSETS_DIR, { recursive: true });
-    // Write a non-matching file
+    // Write a non-matching file at the assets-dir root and ensure no species/ subdir exists
     writeFileSync(join(TEST_ASSETS_DIR, 'index-abc.js'), 'x');
-    expect(() => validateBundleSize(TEST_ASSETS_DIR)).toThrow(/species-/);
+    expect(() => validateBundleSize(TEST_ASSETS_DIR)).toThrow(/species/);
   });
 
   test('returns failed=false when file is under budget', () => {

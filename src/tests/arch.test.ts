@@ -148,6 +148,8 @@ describe('src/entries/species.ts allowlist (PAGE-04 partial)', () => {
     '../species/bee-taxon-nav.ts', '../species/bee-taxon-nav',
     '../species/bee-species-filter.ts', '../species/bee-species-filter',
     '../species/seasonality-viz.ts', '../species/seasonality-viz',
+    // Plan 082-02 (D-02): species page CSS imported as a side-effect so Vite bundles it into the species chunk.
+    '../styles/species.css',
   ]);
 
   // WR-08: every component listed here MUST appear in the entry file's
