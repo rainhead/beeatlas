@@ -91,6 +91,7 @@ export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
     specimen_inat_family TEXT,
     specimen_inat_quality_grade TEXT,
     is_provisional INTEGER,
+    canonical_name TEXT,
     lat REAL,
     lon REAL,
     date TEXT,
