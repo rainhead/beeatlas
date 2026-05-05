@@ -124,11 +124,13 @@ export class BeeSpeciesFilter extends LitElement {
   // visible selection matches monthFrom/monthTo regardless of render order.
   protected updated(_changed: PropertyValues<this>): void {
     const selects = this.querySelectorAll<HTMLSelectElement>('.month-range select');
-    if (selects.length >= 2) {
+    const fromSel = selects[0];
+    const toSel = selects[1];
+    if (fromSel && toSel) {
       const fromVal = String(this.monthFrom);
       const toVal = String(this.monthTo);
-      if (selects[0].value !== fromVal) selects[0].value = fromVal;
-      if (selects[1].value !== toVal) selects[1].value = toVal;
+      if (fromSel.value !== fromVal) fromSel.value = fromVal;
+      if (toSel.value !== toVal) toSel.value = toVal;
     }
   }
 

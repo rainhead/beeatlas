@@ -64,8 +64,8 @@ describe('bee-species-filter (FILT-01, FILT-04..07)', () => {
         expect((opt.textContent ?? '').trim()).not.toMatch(/^\d+$/);
       });
     }
-    expect(selects[0].value).toBe('4');
-    expect(selects[1].value).toBe('8');
+    expect(selects[0]!.value).toBe('4');
+    expect(selects[1]!.value).toBe('8');
   });
 
   test('FILT-04 inversion guard via select: from=10 with to=7 snaps to=10', async () => {
@@ -78,7 +78,7 @@ describe('bee-species-filter (FILT-01, FILT-04..07)', () => {
     let detail: any = null;
     el.addEventListener('filter-changed', (e: Event) => { detail = (e as CustomEvent).detail; });
     const selects = el.querySelectorAll('.month-range select') as NodeListOf<HTMLSelectElement>;
-    const fromSel = selects[0];
+    const fromSel = selects[0]!;
     fromSel.value = '10';
     fromSel.dispatchEvent(new Event('change', { bubbles: true }));
     await el.updateComplete;
@@ -97,7 +97,7 @@ describe('bee-species-filter (FILT-01, FILT-04..07)', () => {
     let detail: any = null;
     el.addEventListener('filter-changed', (e: Event) => { detail = (e as CustomEvent).detail; });
     const selects = el.querySelectorAll('.month-range select') as NodeListOf<HTMLSelectElement>;
-    const toSel = selects[1];
+    const toSel = selects[1]!;
     toSel.value = '6';
     toSel.dispatchEvent(new Event('change', { bubbles: true }));
     await el.updateComplete;
