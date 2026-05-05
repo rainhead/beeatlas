@@ -11,6 +11,13 @@
 //   - downward: activeTaxonPath @property set by <bee-species-page>
 //   - upward: taxon-selected CustomEvent on click (NAV-03)
 //
+// NAV-03 contract (Phase 81 Plan 06): clicks inside the nav rail are
+// IN-PLACE filter triggers. _onClick dispatches taxon-selected and
+// then preventDefault()s the event so any embedded element (e.g. a
+// <span> label) cannot trigger native navigation. Cross-route deep
+// links to the SPA atlas are provided exclusively by the species-card
+// "View N occurrences →" button — never by the nav tree.
+//
 // PAGE-06: this file MUST NOT import bee-species-page.ts.
 // ARCH-04: this file MUST NOT import mapbox-gl, wa-sqlite, ../sqlite.ts,
 //   ../filter.ts, ../bee-map.ts, ../bee-atlas.ts, ../url-state.ts.
@@ -71,7 +78,11 @@ export class BeeTaxonNav extends LitElement {
       composed: true,
       detail: { path, rank },
     }));
-    // Allow native <a> click for LINK-03 deep-link to SPA. Do NOT preventDefault.
+    // NAV-03 (Plan 06 gap T3 fix): clicks in the nav rail are in-place
+    // filter triggers. preventDefault keeps any embedded element from
+    // triggering navigation; the species-card "View N occurrences →"
+    // button is the sanctioned cross-route deep-link path.
+    e.preventDefault();
   };
 
   private _applyMuteClasses(): void {
