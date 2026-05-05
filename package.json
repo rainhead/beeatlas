@@ -24,7 +24,8 @@
     "test": "vitest run",
     "build": "npm run validate-schema && npm run validate-species && npm run typecheck && eleventy && npm run validate-bundle-size",
     "preview": "vite preview --outDir _site",
-    "fetch-data": "bash scripts/fetch-data.sh"
+    "fetch-data": "bash scripts/fetch-data.sh",
+    "measure-lcp": "bash scripts/measure-lcp.sh"
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.1.5",
