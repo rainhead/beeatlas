@@ -61,10 +61,11 @@ export class SeasonalityViz extends LitElement {
     if (total < 5) {
       const monthsWithData: string[] = [];
       this.data.forEach((n, i) => { if (n > 0) monthsWithData.push(MONTH_LABELS[i]!); });
-      const range = monthsWithData.length > 0
-        ? (monthsWithData.length === 1
-            ? monthsWithData[0]
-            : `${monthsWithData[0]}–${monthsWithData[monthsWithData.length - 1]}`)
+      // D-08 (Phase 82): drop the ambiguous single-letter month suffix when
+      // only one month has data ('A' is April or August). Multi-month ranges
+      // stay because the dash gives context.
+      const range = monthsWithData.length > 1
+        ? `${monthsWithData[0]}–${monthsWithData[monthsWithData.length - 1]}`
         : '';
       const recordLabel = `${total} record${total === 1 ? '' : 's'}`;
       return html`<p class="viz-fallback">${recordLabel}${range ? `, ${range}` : ''}</p>`;
