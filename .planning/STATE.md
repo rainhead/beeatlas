@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
 status: executing
-last_updated: "2026-05-04T20:00:00.000Z"
-last_activity: 2026-05-04 -- Phase 080 page-scaffolding executed and verified PASS (10/10 must-haves; 4 plans across 3 waves; 242 tests green; species chunk 1.34 KB / 0 mapbox tokens)
+last_updated: "2026-05-05T06:33:33.610Z"
+last_activity: 2026-05-05 -- Phase 82 planning complete
 progress:
   total_phases: 12
-  completed_phases: 5
-  total_plans: 21
-  completed_plans: 20
-  percent: 95
+  completed_phases: 6
+  total_plans: 34
+  completed_plans: 26
+  percent: 76
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 Phase: 080 (page-scaffolding) — COMPLETE (verified PASS 2026-05-04, commit 55e6fd4)
 Plan: 4 of 4 complete
-Status: Phase 080 shipped — `/species/` page renders 735 cards, separate <2 KB chunk, ARCH-04 boundary held. Ready for next phase.
+Status: Ready to execute
 Resume file: .planning/phases/080-page-scaffolding/080-VERIFICATION.md
-Last activity: 2026-05-04 -- Phase 080 discuss-phase complete (commit 0eaf029)
+Last activity: 2026-05-05 -- Phase 82 planning complete
 
 ## Accumulated Context
 
