@@ -327,7 +327,7 @@ See `.planning/milestones/v3.1-ROADMAP.md` for full phase details.
 - [x] Phase 79: Photo Manifest (3/3 plans) — completed 2026-05-04
 - [ ] Phase 80: Page Scaffolding (0/4 plans)
 - [ ] Phase 81: Filter UX & Nav (0/? plans)
-- [ ] Phase 82: Hardening (0/? plans)
+- [ ] Phase 82: Hardening (0/8 plans)
 
 ## Phase Details
 
@@ -596,10 +596,14 @@ Plans:
   3. `<seasonality-viz>` renders an inline `<svg>` from a 12-element monthly histogram via Lit template with no chart-library dep; renders monthly bars when `n ≥ 5` and a text fallback ("3 records, May–June") when `n < 5`; X-axis carries J F M A M J J A S O N D labels and BeeSearch winter/spring/summer/fall season-band tints; sample-size annotation matches BeeSearch (`*` 20–49, `**` 50–99, `***` 100–999, `****` ≥1000); when the page-level geo filter is active the viz reads pre-binned `seasonality.json` slices for the selected county/ecoregion (no in-browser KDE)
   4. Each card's "View N occurrences →" button navigates to `/?taxon=<scientificName>&taxonRank=species` via a shared `buildSpaTaxonLink()` helper (per LINK-01 — the seed example `/collection?taxon=...` is wrong; verified at `src/url-state.ts:35-89` that BOTH `taxon` AND `taxonRank` are required); a Vitest round-trip test asserts `buildSpaTaxonLink('Andrena anograe')` produces a URL that the SPA's `parseParams` resolves to `{ taxonName: 'Andrena anograe', taxonRank: 'species' }`; nav-rail genus/family deep-links use `taxonRank=genus`/`taxonRank=family`; the `taxon` + `taxonRank` contract is documented as a stable interface in the `src/url-state.ts` header comment
   5. `npm test` passes a new species-page Vitest suite covering URL round-trip in `src/species/url-state.ts`, the `buildSpaTaxonLink` round-trip, taxon-nav mute-not-hide rendering, filter empty-state rendering, and seasonality viz bar/fallback branches
-**Plans**: 3 plans
-- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
-- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
-- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
+**Plans**: 6 plans
+Plans:
+- [x] 081-01-PLAN.md — Wave 1 foundation: spa-link.ts, src/species/url-state.ts, seasonality fetch singleton, RED test stubs
+- [x] 081-02-PLAN.md — bee-taxon-nav: SSR <details>/<ul> tree decorated by light-DOM Lit (NAV-01..05)
+- [x] 081-03-PLAN.md — bee-species-filter: county/ecoregion multi-selects + month-range (FILT-01..07)
+- [x] 081-04-PLAN.md — seasonality-viz: inline SVG via Lit svg template (VIZ-01..05)
+- [x] 081-05-PLAN.md — Wave 3 wiring: URL state, filteredCount compute, breadcrumb, empty state, ARCH-04 test
+- [ ] 081-06-PLAN.md — Gap closure: drop cross-route anchors from taxon-tree.njk + month-name selects (UAT T3 + T5)
 **UI hint**: yes
 
 ### Phase 82: Hardening
@@ -612,7 +616,13 @@ Plans:
   3. Every photo `<img>` carries `loading="lazy"` and `alt` text (caption or scientific-name fallback); iNat photo URLs use the `medium` (500px) size for the hero by default with `square`/`small` available for thumb-strip use; the nav tree exposes appropriate `role`/`aria-expanded` attributes and supports keyboard expand/collapse plus filter input; `npm test` passes axe-style or hand-rolled accessibility assertions
   4. `scripts/check-photo-availability.mjs` runs via a weekly GitHub Actions cron (NOT every build, per PITFALLS #1), HEADs each manifest photo URL, and writes failed URLs to `data/manifest_drift_report.json`; the workflow file documents that the report is informational and does not block deploys
   5. UAT against the seed's stated use cases ("Which species of *Eucera* are present in this ecoregion?" and "Which are most likely / frequently collected?") passes against current production data with screenshots or notes recorded in the phase summary
-**Plans**: 3 plans
-- [ ] 077-01-PLAN.md — Test scaffolding: bridge table DDL + 20-row LIN-05 fixture in conftest.py + _zero_inat_pacing extension
-- [ ] 077-02-PLAN.md — data/resolve_taxon_ids.py module (D-02 ladder, D-03 rank fallback, UPSERT, CSV writer) + test_resolve_taxon_ids.py (17 tests covering LIN-01..04 + Pitfalls #5/6)
-- [ ] 077-03-PLAN.md — Pipeline wiring: run.py STEPS reorder + --refresh-lineage flag, enrich_taxon_lineage_extended UNION-arm extension, bridge-arm regression test, LIN-05 coverage threshold test
+**Plans**: 8 plans
+Plans:
+- [ ] 082-01-PLAN.md — Bundle-size gate (PERF-01) — scripts/validate-bundle-size.mjs + build-chain wiring
+- [ ] 082-02-PLAN.md — Layout CSS + carry-in T2 (PERF-02/03) — src/styles/species.css imported from species entry
+- [ ] 082-03-PLAN.md — Photo srcset + lazy + alt audit (PERF-03) — _data/photos.js helper + species.njk template
+- [ ] 082-04-PLAN.md — Lighthouse runner (PERF-02) — scripts/measure-lcp.sh + data/README.md Performance section
+- [ ] 082-05-PLAN.md — Weekly photo-availability cron (PERF-04) — scripts/check-photo-availability.mjs + workflow
+- [ ] 082-06-PLAN.md — A11y tests + nav tree aria + keyboard (PERF-05) — taxon-tree.njk roles + bee-taxon-nav toggle sync + a11y test
+- [ ] 082-07-PLAN.md — Seasonality month-letter fix (PERF-05 / T7) — drop ambiguous single-letter suffix in fallback
+- [ ] 082-08-PLAN.md — UAT against seed use cases (PERF-06) — 082-UAT.md recording
