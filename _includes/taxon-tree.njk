@@ -21,12 +21,15 @@
   {%- endfor -%}
 {% endmacro %}
 
+{# BL-04 + post-UAT extension: _data/species.js emits the literal 'null'
+   sentinel at every taxon level (family/subfamily/tribe/genus/subgenus) when
+   the source row lacks that rank. data-taxon must keep the raw key so URL
+   state, click handlers, and tree keys stay aligned on a single sentinel;
+   only the visible <summary> gets the human label. #}
+{% macro nullLabel(rank) %}{% if rank == 'subgenus' %}(no subgenus){% elif rank == 'genus' %}(no genus){% elif rank == 'tribe' %}(no tribe){% elif rank == 'subfamily' %}(no subfamily){% else %}(no {{ rank }}){% endif %}{% endmacro %}
+
 {% macro renderSubgenus(subgKey, subgNode) %}
-  {# BL-04: data-taxon carries the raw tree key ('null' for the no-subgenus
-     bucket, matching _data/species.js's serialized key); the visible label
-     (no subgenus) is display-only. This keeps URL state, click-path values,
-     and tree keys aligned on a single sentinel. #}
-  {%- set label = '(no subgenus)' if subgKey == 'null' else subgKey -%}
+  {%- set label = nullLabel('subgenus') if subgKey == 'null' else subgKey -%}
   <li data-taxon="{{ subgKey }}" data-rank="subgenus">
     <details>
       <summary>{{ label }}</summary>
@@ -39,9 +42,14 @@
   {# NAV-02: subgenus-skip when 'null' is the sole key #}
   {%- set keys = node.children | dictsort -%}
   {%- set onlyNull = (keys | length == 1) and (node.children["null"] is defined) -%}
+  {%- set label = nullLabel('genus') if name == 'null' else name -%}
   <li data-taxon="{{ name }}" data-rank="genus">
     <details>
+      {%- if name == 'null' -%}
+      <summary>{{ label }}</summary>
+      {%- else -%}
       <summary><a href="/?taxon={{ name | urlencode }}&amp;taxonRank=genus">{{ name }}</a></summary>
+      {%- endif -%}
       <ul>
         {%- if onlyNull -%}
           {{ renderSpecies(node.children["null"].rows) }}
@@ -56,9 +64,10 @@
 {% endmacro %}
 
 {% macro renderTribe(name, node) %}
+  {%- set label = nullLabel('tribe') if name == 'null' else name -%}
   <li data-taxon="{{ name }}" data-rank="tribe">
     <details>
-      <summary>{{ name }}</summary>
+      <summary>{{ label }}</summary>
       <ul>
         {%- for genKey, genNode in node.children | dictsort -%}
           {{ renderGenus(genKey, genNode) }}
@@ -69,9 +78,10 @@
 {% endmacro %}
 
 {% macro renderSubfamily(name, node) %}
+  {%- set label = nullLabel('subfamily') if name == 'null' else name -%}
   <li data-taxon="{{ name }}" data-rank="subfamily">
     <details>
-      <summary>{{ name }}</summary>
+      <summary>{{ label }}</summary>
       <ul>
         {%- for triKey, triNode in node.children | dictsort -%}
           {{ renderTribe(triKey, triNode) }}
@@ -82,9 +92,14 @@
 {% endmacro %}
 
 {% macro renderFamily(name, node) %}
+  {%- set label = nullLabel('family') if name == 'null' else name -%}
   <li data-taxon="{{ name }}" data-rank="family">
     <details>
+      {%- if name == 'null' -%}
+      <summary>{{ label }}</summary>
+      {%- else -%}
       <summary><a href="/?taxon={{ name | urlencode }}&amp;taxonRank=family">{{ name }}</a></summary>
+      {%- endif -%}
       <ul>
         {%- for subKey, subNode in node.children | dictsort -%}
           {{ renderSubfamily(subKey, subNode) }}
