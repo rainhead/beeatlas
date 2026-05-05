@@ -45,15 +45,15 @@ done
 URL="http://localhost:${PORT}${CANARY_PATH}"
 echo "==> Lighthouse mobile run against ${URL}"
 npx --yes lighthouse "${URL}" \
-  --preset=desktop \
   --form-factor=mobile \
+  --screenEmulation.mobile=true \
   --throttling.cpuSlowdownMultiplier=4 \
   --output=json \
   --output-path="${OUT_JSON}" \
   --quiet \
   --chrome-flags='--headless=new --no-sandbox'
 
-LCP_MS=$(node -e "const r=require('${OUT_JSON}'); const v=r.audits['largest-contentful-paint'].numericValue; console.log(Math.round(v));")
+LCP_MS=$(node -e "const fs=require('fs'); const r=JSON.parse(fs.readFileSync('${OUT_JSON}','utf8')); const v=r.audits['largest-contentful-paint'].numericValue; console.log(Math.round(v));")
 echo "==> LCP: ${LCP_MS} ms (budget: ${BUDGET_MS} ms)"
 
 if [ "${LCP_MS}" -ge "${BUDGET_MS}" ]; then
