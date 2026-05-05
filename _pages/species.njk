@@ -32,7 +32,10 @@ title: Species — BeeAtlas
   {%- set photoEntry = photos[sp.scientificName] -%}
   {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
     {%- set p = photoEntry.photos[0] -%}
-    <img loading="lazy" src="{{ p.url }}" alt="{{ sp.scientificName }}">
+    <img loading="lazy"
+         src="{{ p.src or p.url }}"
+         {%- if p.srcset %} srcset="{{ p.srcset }}" sizes="(min-width: 768px) 500px, 100vw"{% endif %}
+         alt="{{ p.caption or sp.scientificName }}">
     <p class="attribution">{{ p.attribution }}</p>
   {%- endif -%}
   {%- if sp.occurrence_count > 0 -%}
