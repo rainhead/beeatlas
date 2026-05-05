@@ -89,3 +89,19 @@ uv run python inaturalist_pipeline.py --full-reload
 ```
 
 The geographies pipeline always does a full reload. The projects pipeline skips already-loaded projects automatically.
+
+## Performance
+
+### Species page LCP (PERF-02)
+
+The species page (`/species/`) has a Largest Contentful Paint budget of < 3000 ms on a mobile-throttled measurement. To re-run the measurement locally:
+
+```bash
+npm run measure-lcp
+```
+
+This builds the site, serves `_site` on `localhost:8080`, runs Lighthouse with `--form-factor=mobile --throttling.cpuSlowdownMultiplier=4`, parses the `largest-contentful-paint` audit, and exits non-zero if it exceeds 3000 ms.
+
+The canary URL is pinned in `scripts/measure-lcp.sh` as `CANARY_PATH`. Re-derive it (after data shifts or per-species page work) via the DuckDB query recorded as a comment at the top of the script.
+
+This check is intentionally NOT part of CI — Lighthouse on shared runners is ±15% noisy on mobile throttle and would burn trust. Run it before tagging a release.
