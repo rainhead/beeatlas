@@ -618,11 +618,11 @@ Plans:
   5. UAT against the seed's stated use cases ("Which species of *Eucera* are present in this ecoregion?" and "Which are most likely / frequently collected?") passes against current production data with screenshots or notes recorded in the phase summary
 **Plans**: 8 plans
 Plans:
-- [ ] 082-01-PLAN.md — Bundle-size gate (PERF-01) — scripts/validate-bundle-size.mjs + build-chain wiring
-- [ ] 082-02-PLAN.md — Layout CSS + carry-in T2 (PERF-02/03) — src/styles/species.css imported from species entry
-- [ ] 082-03-PLAN.md — Photo srcset + lazy + alt audit (PERF-03) — _data/photos.js helper + species.njk template
+- [x] 082-01-PLAN.md — Bundle-size gate (PERF-01) — scripts/validate-bundle-size.mjs + build-chain wiring
+- [x] 082-02-PLAN.md — Layout CSS + carry-in T2 (PERF-02/03) — src/styles/species.css imported from species entry
+- [x] 082-03-PLAN.md — Photo srcset + lazy + alt audit (PERF-03) — _data/photos.js helper + species.njk template
 - [ ] 082-04-PLAN.md — Lighthouse runner (PERF-02) — scripts/measure-lcp.sh + data/README.md Performance section
-- [ ] 082-05-PLAN.md — Weekly photo-availability cron (PERF-04) — scripts/check-photo-availability.mjs + workflow
-- [ ] 082-06-PLAN.md — A11y tests + nav tree aria + keyboard (PERF-05) — taxon-tree.njk roles + bee-taxon-nav toggle sync + a11y test
-- [ ] 082-07-PLAN.md — Seasonality month-letter fix (PERF-05 / T7) — drop ambiguous single-letter suffix in fallback
+- [x] 082-05-PLAN.md — Weekly photo-availability cron (PERF-04) — scripts/check-photo-availability.mjs + workflow
+- [x] 082-06-PLAN.md — A11y tests + nav tree aria + keyboard (PERF-05) — taxon-tree.njk roles + bee-taxon-nav toggle sync + a11y test
+- [x] 082-07-PLAN.md — Seasonality month-letter fix (PERF-05 / T7) — drop ambiguous single-letter suffix in fallback
 - [ ] 082-08-PLAN.md — UAT against seed use cases (PERF-06) — 082-UAT.md recording
