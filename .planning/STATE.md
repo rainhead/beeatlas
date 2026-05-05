@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
 status: executing
-last_updated: "2026-05-05T06:33:33.610Z"
-last_activity: 2026-05-05 -- Phase 82 planning complete
+last_updated: "2026-05-05T06:38:52.922Z"
+last_activity: 2026-05-05 -- Phase 082 execution started
 progress:
   total_phases: 12
   completed_phases: 6
@@ -20,15 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 080 complete — next phase 081 (visual polish / Phase 81 builds atop scaffolding)
+**Current focus:** Phase 082 — hardening
 
 ## Current Position
 
-Phase: 080 (page-scaffolding) — COMPLETE (verified PASS 2026-05-04, commit 55e6fd4)
-Plan: 4 of 4 complete
-Status: Ready to execute
+Phase: 082 (hardening) — EXECUTING
+Plan: 1 of 8
+Status: Executing Phase 082
 Resume file: .planning/phases/080-page-scaffolding/080-VERIFICATION.md
-Last activity: 2026-05-05 -- Phase 82 planning complete
+Last activity: 2026-05-05 -- Phase 082 execution started
 
 ## Accumulated Context
 
