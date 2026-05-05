@@ -38,19 +38,59 @@ describe('bee-taxon-nav (NAV-01..05)', () => {
     expect(getComputedStyle(andrenidae).display).not.toBe('none');
   });
 
-  test('clicking a node dispatches taxon-selected CustomEvent with path (NAV-03)', async () => {
+  test('NAV-03 genus click: dispatches taxon-selected and prevents default (in-place filter)', async () => {
     await import('../species/bee-taxon-nav.ts');
     document.body.innerHTML = `
       <bee-taxon-nav>
-        <ul><li data-taxon="Bombus" data-rank="genus"><a href="#">Bombus</a></li></ul>
+        <ul><li data-taxon="Bombus" data-rank="genus"><span class="taxon-label">Bombus</span></li></ul>
       </bee-taxon-nav>`;
     const nav = document.querySelector('bee-taxon-nav') as HTMLElement;
     let detail: any = null;
     nav.addEventListener('taxon-selected', (e: Event) => { detail = (e as CustomEvent).detail; });
-    const link = nav.querySelector('a') as HTMLAnchorElement;
-    link.click();
+    const li = nav.querySelector('li[data-taxon="Bombus"]') as HTMLElement;
+    const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
+    li.dispatchEvent(evt);
     expect(detail).not.toBeNull();
-    expect(detail.path).toBeDefined();
+    expect(Array.isArray(detail.path)).toBe(true);
+    expect(detail.path).toContain('Bombus');
+    expect(detail.rank).toBe('genus');
+    expect(evt.defaultPrevented).toBe(true);
+  });
+
+  test('NAV-03 family click: dispatches taxon-selected with rank=family and prevents default', async () => {
+    await import('../species/bee-taxon-nav.ts');
+    document.body.innerHTML = `
+      <bee-taxon-nav>
+        <ul><li data-taxon="Apidae" data-rank="family"><span class="taxon-label">Apidae</span></li></ul>
+      </bee-taxon-nav>`;
+    const nav = document.querySelector('bee-taxon-nav') as HTMLElement;
+    let detail: any = null;
+    nav.addEventListener('taxon-selected', (e: Event) => { detail = (e as CustomEvent).detail; });
+    const li = nav.querySelector('li[data-taxon="Apidae"]') as HTMLElement;
+    const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
+    li.dispatchEvent(evt);
+    expect(detail).not.toBeNull();
+    expect(detail.path).toContain('Apidae');
+    expect(detail.rank).toBe('family');
+    expect(evt.defaultPrevented).toBe(true);
+  });
+
+  test('NAV-03 species click: dispatches taxon-selected with rank=species and prevents default', async () => {
+    await import('../species/bee-taxon-nav.ts');
+    document.body.innerHTML = `
+      <bee-taxon-nav>
+        <ul><li data-taxon="Bombus vosnesenskii" data-rank="species"><span class="taxon-label">Bombus vosnesenskii</span></li></ul>
+      </bee-taxon-nav>`;
+    const nav = document.querySelector('bee-taxon-nav') as HTMLElement;
+    let detail: any = null;
+    nav.addEventListener('taxon-selected', (e: Event) => { detail = (e as CustomEvent).detail; });
+    const li = nav.querySelector('li[data-taxon="Bombus vosnesenskii"]') as HTMLElement;
+    const evt = new MouseEvent('click', { bubbles: true, cancelable: true });
+    li.dispatchEvent(evt);
+    expect(detail).not.toBeNull();
+    expect(detail.path).toContain('Bombus vosnesenskii');
+    expect(detail.rank).toBe('species');
+    expect(evt.defaultPrevented).toBe(true);
   });
 
   test('NAV-05: light-DOM (createRenderRoot returns this) preserves SSR markup', async () => {
