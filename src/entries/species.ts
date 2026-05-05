@@ -8,6 +8,10 @@
 // The header lives here (not under src/species/) so the ARCH-04 boundary
 // stays clean — see RESEARCH.md Open Question 4. Allowed import set is
 // pinned by src/tests/arch.test.ts.
+//
+// CSS side-effect: species.css is imported here so Vite includes the
+// species layout stylesheet in the species chunk only (D-02 from Phase 82).
+import '../styles/species.css';
 
 import '../bee-header.ts';
 import '../species/bee-species-page.ts';
