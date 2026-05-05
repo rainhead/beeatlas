@@ -1,0 +1,48 @@
+# PERF-04 (D-10): weekly HEAD-check of every URL in content/species-photos.toml.
+# Writes data/manifest_drift_report.json; commits the report if non-empty.
+# Informational only — never blocks deploys (deploy.yml is a sibling workflow
+# triggered by push, this one runs on schedule + manual dispatch only).
+name: photo-availability
+
+on:
+  schedule:
+    # Weekly, Mondays 13:00 UTC (early-morning Pacific). Adjust if it
+    # collides with deploy.yml — they are independent but share runner quota.
+    - cron: '0 13 * * 1'
+  workflow_dispatch: {}
+
+# D-10: skip overlapping runs rather than cancel — each run is informational.
+concurrency:
+  group: photo-availability
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # required to commit data/manifest_drift_report.json
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: HEAD-check photo manifest
+        run: node scripts/check-photo-availability.mjs
+
+      - name: Commit drift report if changed
+        run: |
+          if [ -n "$(git status --porcelain data/manifest_drift_report.json)" ]; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add data/manifest_drift_report.json
+            git commit -m "chore(82): refresh manifest_drift_report.json [skip ci]"
+            git push
+          else
+            echo 'No drift change to commit.'
+          fi
