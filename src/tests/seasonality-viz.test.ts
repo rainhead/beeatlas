@@ -75,4 +75,49 @@ describe('seasonality-viz (VIZ-01..05)', () => {
     const src = readFileSync(resolve(ROOT, 'src/species/seasonality-viz.ts'), 'utf8');
     expect(src.toLowerCase()).not.toMatch(/\b(kde|kernel)\b/);
   });
+
+  describe('VIZ-02 fallback D-08: single-month omits ambiguous letter suffix', () => {
+    test('single month (3 records in April): renders "3 records" with no comma', async () => {
+      await import('../species/seasonality-viz.ts');
+      document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+      const el = document.querySelector('seasonality-viz') as any;
+      el.data = [0,0,0,3,0,0,0,0,0,0,0,0];
+      await el.updateComplete;
+      const text = el.querySelector('p.viz-fallback')?.textContent ?? '';
+      expect(text).toBe('3 records');
+      expect(text).not.toContain(',');
+    });
+
+    test('single month (1 record in April): renders "1 record" with no comma', async () => {
+      await import('../species/seasonality-viz.ts');
+      document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+      const el = document.querySelector('seasonality-viz') as any;
+      el.data = [0,0,0,1,0,0,0,0,0,0,0,0];
+      await el.updateComplete;
+      const text = el.querySelector('p.viz-fallback')?.textContent ?? '';
+      expect(text).toBe('1 record');
+      expect(text).not.toContain(',');
+    });
+
+    test('multi-month (April + May, 3 records): renders "3 records, A–M"', async () => {
+      await import('../species/seasonality-viz.ts');
+      document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+      const el = document.querySelector('seasonality-viz') as any;
+      el.data = [0,0,0,2,1,0,0,0,0,0,0,0];
+      await el.updateComplete;
+      const text = el.querySelector('p.viz-fallback')?.textContent ?? '';
+      expect(text).toBe('3 records, A–M');
+    });
+
+    test('zero records: renders "0 records" with no comma', async () => {
+      await import('../species/seasonality-viz.ts');
+      document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+      const el = document.querySelector('seasonality-viz') as any;
+      el.data = new Array(12).fill(0);
+      await el.updateComplete;
+      const text = el.querySelector('p.viz-fallback')?.textContent ?? '';
+      expect(text).toBe('0 records');
+      expect(text).not.toContain(',');
+    });
+  });
 });
