@@ -20,7 +20,7 @@
 
 {% macro renderSpecies(rows) %}
   {%- for sp in rows -%}
-    <li data-taxon="{{ sp.scientificName }}" data-rank="species"><span class="taxon-label">{{ sp.scientificName }}</span></li>
+    <li data-taxon="{{ sp.scientificName }}" data-rank="species" role="treeitem"><span class="taxon-label">{{ sp.scientificName }}</span></li>
   {%- endfor -%}
 {% endmacro %}
 
@@ -33,10 +33,10 @@
 
 {% macro renderSubgenus(subgKey, subgNode) %}
   {%- set label = nullLabel('subgenus') if subgKey == 'null' else subgKey -%}
-  <li data-taxon="{{ subgKey }}" data-rank="subgenus">
+  <li data-taxon="{{ subgKey }}" data-rank="subgenus" role="treeitem" aria-expanded="false">
     <details>
       <summary>{{ label }}</summary>
-      <ul>{{ renderSpecies(subgNode.rows) }}</ul>
+      <ul role="group">{{ renderSpecies(subgNode.rows) }}</ul>
     </details>
   </li>
 {% endmacro %}
@@ -46,14 +46,14 @@
   {%- set keys = node.children | dictsort -%}
   {%- set onlyNull = (keys | length == 1) and (node.children["null"] is defined) -%}
   {%- set label = nullLabel('genus') if name == 'null' else name -%}
-  <li data-taxon="{{ name }}" data-rank="genus">
+  <li data-taxon="{{ name }}" data-rank="genus" role="treeitem" aria-expanded="false">
     <details>
       {%- if name == 'null' -%}
       <summary>{{ label }}</summary>
       {%- else -%}
       <summary><span class="taxon-label">{{ name }}</span></summary>
       {%- endif -%}
-      <ul>
+      <ul role="group">
         {%- if onlyNull -%}
           {{ renderSpecies(node.children["null"].rows) }}
         {%- else -%}
@@ -68,10 +68,10 @@
 
 {% macro renderTribe(name, node) %}
   {%- set label = nullLabel('tribe') if name == 'null' else name -%}
-  <li data-taxon="{{ name }}" data-rank="tribe">
+  <li data-taxon="{{ name }}" data-rank="tribe" role="treeitem" aria-expanded="false">
     <details>
       <summary>{{ label }}</summary>
-      <ul>
+      <ul role="group">
         {%- for genKey, genNode in node.children | dictsort -%}
           {{ renderGenus(genKey, genNode) }}
         {%- endfor -%}
@@ -82,10 +82,10 @@
 
 {% macro renderSubfamily(name, node) %}
   {%- set label = nullLabel('subfamily') if name == 'null' else name -%}
-  <li data-taxon="{{ name }}" data-rank="subfamily">
+  <li data-taxon="{{ name }}" data-rank="subfamily" role="treeitem" aria-expanded="false">
     <details>
       <summary>{{ label }}</summary>
-      <ul>
+      <ul role="group">
         {%- for triKey, triNode in node.children | dictsort -%}
           {{ renderTribe(triKey, triNode) }}
         {%- endfor -%}
@@ -96,14 +96,14 @@
 
 {% macro renderFamily(name, node) %}
   {%- set label = nullLabel('family') if name == 'null' else name -%}
-  <li data-taxon="{{ name }}" data-rank="family">
+  <li data-taxon="{{ name }}" data-rank="family" role="treeitem" aria-expanded="false">
     <details>
       {%- if name == 'null' -%}
       <summary>{{ label }}</summary>
       {%- else -%}
       <summary><span class="taxon-label">{{ name }}</span></summary>
       {%- endif -%}
-      <ul>
+      <ul role="group">
         {%- for subKey, subNode in node.children | dictsort -%}
           {{ renderSubfamily(subKey, subNode) }}
         {%- endfor -%}
@@ -124,7 +124,7 @@
 
 {% macro renderTree(tree) %}
 <bee-taxon-nav>
-  <ul class="taxon-tree-root">
+  <ul class="taxon-tree-root" role="tree" aria-label="Species taxonomy">
     {%- for famKey, famNode in tree.children | dictsort -%}
       {{ renderNode(famKey, famNode, 0) }}
     {%- endfor -%}
