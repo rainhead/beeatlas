@@ -11,8 +11,16 @@
 // ARCH-04: this file MUST NOT import mapbox-gl, wa-sqlite, ../sqlite.ts,
 //   ../filter.ts, ../bee-map.ts, ../bee-atlas.ts, ../url-state.ts.
 
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, type PropertyValues } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+
+// Plan 06 gap T5: month-range labels are locale-derived short month names
+// ("Jan".."Dec" in en-US). Computed once at module load — labels are stable
+// for the user's locale. Numeric monthFrom/monthTo (1..12) remain the wire
+// format, so downstream filter pipeline is unchanged.
+const MONTH_LABELS: readonly string[] = Array.from({ length: 12 }, (_, i) =>
+  new Intl.DateTimeFormat(undefined, { month: 'short' }).format(new Date(2000, i, 1))
+);
 
 @customElement('bee-species-filter')
 export class BeeSpeciesFilter extends LitElement {
@@ -40,7 +48,7 @@ export class BeeSpeciesFilter extends LitElement {
     }
     details > ul > li { padding: 0.15rem 0; }
     .month-range { display: flex; gap: 0.5rem; align-items: center; }
-    .month-range input[type="number"] { width: 4em; }
+    .month-range select { min-width: 4.5em; }
   `;
 
   render() {
@@ -88,26 +96,40 @@ export class BeeSpeciesFilter extends LitElement {
       <div class="month-range" aria-label="Month range filter">
         <label>
           From
-          <input
-            type="number"
-            min="1"
-            max="12"
-            .value=${String(this.monthFrom)}
-            @change=${(e: Event) => this._setMonth('monthFrom', Number((e.target as HTMLInputElement).value))}
-          />
+          <select
+            @change=${(e: Event) => this._setMonth('monthFrom', Number((e.target as HTMLSelectElement).value))}
+          >
+            ${MONTH_LABELS.map((label, i) => html`
+              <option value=${String(i + 1)} ?selected=${this.monthFrom === i + 1}>${label}</option>
+            `)}
+          </select>
         </label>
         <label>
           To
-          <input
-            type="number"
-            min="1"
-            max="12"
-            .value=${String(this.monthTo)}
-            @change=${(e: Event) => this._setMonth('monthTo', Number((e.target as HTMLInputElement).value))}
-          />
+          <select
+            @change=${(e: Event) => this._setMonth('monthTo', Number((e.target as HTMLSelectElement).value))}
+          >
+            ${MONTH_LABELS.map((label, i) => html`
+              <option value=${String(i + 1)} ?selected=${this.monthTo === i + 1}>${label}</option>
+            `)}
+          </select>
         </label>
       </div>
     `;
+  }
+
+  // Plan 06 gap T5: jsdom (and some real browsers) don't always pick up the
+  // `selected` attribute on a freshly rendered <option> when computing the
+  // owning <select>'s .value. Force-sync .value after each render so the
+  // visible selection matches monthFrom/monthTo regardless of render order.
+  protected updated(_changed: PropertyValues<this>): void {
+    const selects = this.querySelectorAll<HTMLSelectElement>('.month-range select');
+    if (selects.length >= 2) {
+      const fromVal = String(this.monthFrom);
+      const toVal = String(this.monthTo);
+      if (selects[0].value !== fromVal) selects[0].value = fromVal;
+      if (selects[1].value !== toVal) selects[1].value = toVal;
+    }
   }
 
   private _toggleCounty(name: string, checked: boolean): void {
