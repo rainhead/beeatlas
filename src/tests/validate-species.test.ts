@@ -160,6 +160,7 @@ ordering = 1
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     expect(pkg.scripts['validate-species']).toBe('node scripts/validate-species.mjs');
     // Order: validate-schema -> validate-species -> typecheck -> eleventy
-    expect(pkg.scripts.build).toBe('npm run validate-schema && npm run validate-species && npm run typecheck && eleventy');
+    // validate-bundle-size appended after eleventy in 082-01
+    expect(pkg.scripts.build).toBe('npm run validate-schema && npm run validate-species && npm run typecheck && eleventy && npm run validate-bundle-size');
   });
 });

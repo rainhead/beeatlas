@@ -277,10 +277,11 @@ describe('build-chain isolation (PHOTO-07: seed NOT in CI)', () => {
     }
   });
 
-  test('package.json build script is the expected shape (validate-schema && validate-species && typecheck && eleventy)', () => {
+  test('package.json build script is the expected shape (validate-schema && validate-species && typecheck && eleventy && validate-bundle-size)', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'));
+    // validate-bundle-size appended after eleventy in 082-01
     expect(pkg.scripts.build).toBe(
-      'npm run validate-schema && npm run validate-species && npm run typecheck && eleventy',
+      'npm run validate-schema && npm run validate-species && npm run typecheck && eleventy && npm run validate-bundle-size',
     );
   });
 
