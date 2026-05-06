@@ -1,6 +1,10 @@
 # Washington Bee Atlas
 
-## Current Milestone: v3.2 Species Tab
+## Current State
+
+**v3.2 Species Tab — SHIPPED 2026-05-05.** All 72 requirements satisfied; audit PASSED. Next milestone TBD via `/gsd-new-milestone`.
+
+## Previous Milestone: v3.2 Species Tab (shipped 2026-05-05)
 
 **Goal:** Bee species exploration page — hierarchical taxonomic nav, image-forward content, occurrence maps, seasonality viz; volunteer-learning oriented. Full scoping in `.planning/seeds/species-tab.md`.
 
@@ -170,6 +174,7 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - v2.9 UI Flow Redesign — COMPLETE (2026-04-21)
 - v3.0 Mapbox GL JS Migration — COMPLETE (2026-04-27)
 - v3.1 Eleventy Build Wrapper — COMPLETE (2026-04-30)
+- v3.2 Species Tab — COMPLETE (2026-05-05)
 
 ### Active (future)
 
@@ -337,4 +342,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-02 — v3.2 Species Tab milestone started; requirements + roadmap to follow*
+*Last updated: 2026-05-05 — v3.2 Species Tab milestone shipped (7 phases, 34 plans, 72/72 reqs, audit PASSED)*

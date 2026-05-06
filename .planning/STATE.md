@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.2
 milestone_name: Species Tab
-status: executing
-last_updated: "2026-05-05T06:38:52.922Z"
-last_activity: 2026-05-05 -- Phase 082 execution started
+status: shipped
+last_updated: "2026-05-05T00:00:00.000Z"
+last_activity: 2026-05-05 -- v3.2 milestone closed (tagged v3.2; 72/72 reqs; audit PASSED)
 progress:
-  total_phases: 12
-  completed_phases: 6
+  total_phases: 7
+  completed_phases: 7
   total_plans: 34
-  completed_plans: 26
-  percent: 76
+  completed_plans: 34
+  percent: 100
 ---
 
 # Project State
@@ -20,15 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 082 — hardening
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 082 (hardening) — EXECUTING
-Plan: 1 of 8
-Status: Executing Phase 082
-Resume file: .planning/phases/080-page-scaffolding/080-VERIFICATION.md
-Last activity: 2026-05-05 -- Phase 082 execution started
+Milestone: v3.2 Species Tab — SHIPPED (2026-05-05)
+Status: Awaiting `/gsd-new-milestone` to scope next cycle
+Resume file: None
+Last activity: 2026-05-05 -- v3.2 milestone closed
 
 ## Accumulated Context
 
@@ -73,10 +72,11 @@ CR-01 (pre-existing from Phase 67): bee-filter-controls.ts uses `observer` field
 
 ## Deferred Items
 
-Items acknowledged and deferred at v3.1 milestone close on 2026-04-30:
+Items acknowledged and deferred at v3.2 milestone close on 2026-05-05 (20 total):
 
 | Category | Item | Status |
 |----------|------|--------|
+| debug | nav-routes-to-atlas-instead-of-filter | diagnosed |
 | debug | selection-ring-not-displaying | diagnosed |
 | quick_task | 1-store-full-observation-json-in-cache-wit | missing |
 | quick_task | 260408-roy-move-region-overlay-control-from-sidebar | missing |
@@ -91,3 +91,8 @@ Items acknowledged and deferred at v3.1 milestone close on 2026-04-30:
 | quick_task | 260422-sc1-fix-specimen-count-mismatch | missing |
 | todo | boundary-edge-gaps.md | low |
 | todo | cluster-selection-visual-feedback.md | medium |
+| uat_gap | 077-HUMAN-UAT.md | partial (live-DB ≥95% periodic re-verify) |
+| uat_gap | 081-UAT.md | partial (visual UX flows recorded) |
+| uat_gap | 082-UAT.md | unknown (both seed use cases PASS recorded) |
+| verification_gap | 077-VERIFICATION.md | human_needed |
+| verification_gap | 081-VERIFICATION.md | human_needed |

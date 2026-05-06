@@ -2,6 +2,64 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.2 — Species Tab
+
+**Shipped:** 2026-05-05
+**Phases:** 7 (Phases 76–82, with INSERTED Phase 77) | **Plans:** 34 | **Timeline:** 4 days (2026-05-02 → 2026-05-05)
+
+### What Was Built
+
+- **Phase 76 Data Foundation**: `canonicalize()` 5-step pure helper as universal join key; checklist ingestion with reconcile-and-warn synonym pattern; full iNat ancestor walk → `taxon_lineage_extended`
+- **Phase 77 Lineage Coverage Expansion (INSERTED)**: iNat taxon resolver with D-02 filter ladder + D-03 rank fallback; bridge table as durable cache; `--refresh-lineage` flag; LIN-05 ≥95% threshold pinned by deterministic fixture
+- **Phase 78 Pipeline Outputs**: `species.parquet` / `species.json` / `seasonality.json` (single source of truth for downstream Eleventy); 556 byte-stable SVGs (sha256 idempotent); slug-byte-equal across SVG / parquet / URL
+- **Phase 79 Photo Manifest**: TOML manifest with license whitelist; build-time validator; one-shot seed script with bare-entry repurge recovery loop after 429 burst
+- **Phase 80 Page Scaffolding**: `/species/` page in own Vite chunk (1.34 KB / 100 KB gate); ARCH-04 source-analysis test enforces species/SPA boundary
+- **Phase 81 Filter UX & Nav**: SSR `<details>`/`<ul>` taxon tree (no-JS navigable) decorated by light-DOM Lit; mute-not-hide filtering; inline-SVG seasonality viz with no chart library; SPA deep-link via shared `buildSpaTaxonLink()` helper with stable `taxon`+`taxonRank` contract
+- **Phase 82 Hardening**: bundle-size CI gate; Lighthouse runner (LCP 1312 ms); srcset; a11y; weekly photo-availability cron; UAT both seed use cases PASS
+
+### What Worked
+
+- **Inserting Phase 77 mid-milestone** when Phase 78 research surfaced ~70% NULL family coverage was the right call — fixing the data quality issue first prevented downstream NULL pollution; downstream phase-number bumps (78→ pipeline outputs etc.) cleanly handled by `/gsd-phase --insert`
+- **Bridge table as durable cache** (Phase 77) rather than re-fetching every run — `--refresh-lineage` provides escape hatch; rerun produces zero new API calls (verified by test)
+- **Shared `_slugify`** between feeds.py and species_export.py — byte-equal slugs across SVG filename, parquet column, and URL eliminated an entire class of routing bugs
+- **`canonicalize()` as a pure function with module-level pre-compiled regexes** (mirrors `data/feeds.py::_slugify`) — TDD RED → GREEN with 16 unit tests covering per-step behavior, idempotence, and TAX-04 disagreement fixture
+- **ARCH-04 source-analysis test** before any species-page code shipped — caught the species/SPA boundary regression risk at the test layer rather than at bundle inspection (PITFALLS #7 mitigation: one accidental import balloons chunk from ~50 KB to ~2 MB)
+- **SSR-first taxon tree** (`<details>`/`<ul>`) decorated by light-DOM Lit — preserves no-JS navigability, prototype-identity test confirmed Lit upgrade preserves SSR markup; pnwmoths pattern verbatim
+- **Bare-entry repurge-and-rerun recovery loop** when iNat enforced tighter rate limits than documented (231 HTTP 429s at 1000ms; cleared at 1500ms) — programmatic fix-only-the-broken-rows pattern is reusable for any future incremental data-fetch repair
+- **Light-DOM Lit + `createRenderRoot() → this`** preserves SSR-rendered markup across upgrade — a real-world pattern enabled by v3.1's Eleventy + Vite scaffolding
+- **Mute-not-hide (opacity 0.35) for filtered cards/branches** — UAT validated this preserves volunteer orientation vs `display: none`; principle worth carrying forward
+
+### What Was Inefficient
+
+- **The `:host` selector mismatch on filtered card muting** (commit 195232d) wasn't caught until UAT — descendant selector targets card hosts, NOT the page's `:host`; the original CSS was applied at the wrong shadow boundary, a pattern that the v1.9 ARCH tests don't cover
+- **Photo seed at 1000ms pacing hit a 231-HTTP-429 burst** (against documented iNat 1 req/sec limit) — discovery during live seed run; required the `--rate-ms` CLI flag and recovery loop. A pre-emptive rate-test against a small species set would have caught it
+- **Species cards stacking via grid-area collision** (commit 032a29c) was a CSS regression introduced by the layout CSS in 082-02; would have been caught earlier with a Percy-style visual test
+- **UAT surfaced three issues** (T3 cross-route anchors, T5 number-input months, T7 ambiguous month suffix) requiring three follow-up patches — earlier playthroughs against the seed use cases during Phase 81 execution would have surfaced these before "execute" closed; the `gsd-discuss` round caught taxonomy-quality risks but not UX-flow risks
+- **`data/manifest_drift_report.json` is absent at milestone close** because the cron runs weekly — PERF-04 SC explicitly accepts this as informational, but the artifact's first appearance is post-ship
+
+### Patterns Established
+
+- **Inserting a coverage/quality phase between research and implementation** when a downstream research surfaces a data-quality showstopper — the bridge-cache pattern (Phase 77) generalizes to any future `--refresh-X` cache that benefits from zero-API-call reruns
+- **Pure-function pipeline helpers with TDD-first** (canonicalize, _slugify) — the join key is the contract; making it a single pure function with shared regexes prevents drift between consumers
+- **SSR-then-decorate** for accessibility-critical UI — server-render the navigable structure, then upgrade with Lit; `createRenderRoot() → this` for shadow-DOM-free decoration; aria attributes synced via `details` toggle event
+- **Source-analysis tests for bundle isolation invariants** (ARCH-04 extends ARCH-03 from v1.9) — `readFileSync` + import grep is fast, deterministic, and catches the regression at the test layer
+- **TOML manifest authored, not fetched** — for any data that depends on iNat or another rate-limited source, the manifest pattern (validator + seed script + license whitelist) decouples the build from third-party uptime; `validate-X` build-chain step gates the manifest
+
+### Key Lessons
+
+- **Pre-emptive rate testing pays off**: when integrating with a documented-rate-limited API, run a small probe before a full sweep — the documented rate may not be the enforced rate
+- **Architectural invariants belong at the test layer**: ARCH-04 protects v3.2's chunk-isolation contract against future drift the same way ARCH-03 protects v1.9's coordinator/presenter boundary; both are cheap, deterministic, and impossible to "forget" at review time
+- **UAT against the seed use cases should run during phase execution**, not just at milestone close — the seed use cases ARE the success criteria; running them earlier would have surfaced T3/T5/T7 with one fewer roundtrip
+- **`gsd-tools summary-extract` remains unreliable** (sixth consecutive milestone with this issue) — write MILESTONES.md and RETROSPECTIVE.md accomplishments directly from reading SUMMARY.md frontmatter; CLI extraction is not the path
+
+### Cost Observations
+
+- 218 commits across 4 days at very high cadence (Phase 80–82 in single day each)
+- Tooling enabled the cadence: `/gsd-phase --insert`, ARCH-04 source-analysis pattern reused from v1.9, light-DOM Lit pattern reused from v3.1 bee-header
+- Reuse of v2.1 `_slugify`, v3.1 layout chain, and v1.9 ARCH test pattern represents the largest efficiency win — none of these patterns required re-design
+
+---
+
 ## Milestone: v2.7 — Unified Occurrence Model
 
 **Shipped:** 2026-04-17
