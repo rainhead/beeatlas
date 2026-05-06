@@ -123,22 +123,25 @@ bee-species-page bee-species-card .spa-link {
   margin-top: 0.5rem;
 }
 
-/* --- >= 768px: two-column grid with sticky left nav --- */
+/* --- >= 768px: two-column grid with sticky left nav. Nav fills column 1
+ * across all rows; filter, breadcrumb, empty-state, and every card flow
+ * into successive auto rows in column 2. Earlier revisions used
+ * `grid-template-areas` with `grid-area: cards` on every card, but
+ * multiple items sharing one named area overlap in the same cell — that
+ * is exactly what CSS Grid does — so all 735 cards rendered on top of
+ * each other. Use `grid-column: 2` instead and let auto-row placement
+ * stack the children. */
 @media (min-width: 768px) {
   bee-species-page {
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
-    grid-template-areas:
-      "nav    filter"
-      "nav    breadcrumb"
-      "nav    empty"
-      "nav    cards";
     gap: 1.5rem;
     align-items: start;
   }
 
   bee-species-page bee-taxon-nav {
-    grid-area: nav;
+    grid-column: 1;
+    grid-row: 1 / -1;
     position: sticky;
     top: 1rem;
     align-self: start;
@@ -148,28 +151,18 @@ bee-species-page bee-species-card .spa-link {
     padding-right: 0.5rem;
   }
 
-  bee-species-page bee-species-filter {
-    grid-area: filter;
-    margin-bottom: 0;
+  bee-species-page bee-species-filter,
+  bee-species-page .breadcrumb-pills,
+  bee-species-page .empty-state,
+  bee-species-page > bee-species-card {
+    grid-column: 2;
   }
 
+  bee-species-page bee-species-filter,
   bee-species-page .breadcrumb-pills {
-    grid-area: breadcrumb;
     margin: 0;
   }
 
-  bee-species-page .empty-state {
-    grid-area: empty;
-  }
-
-  /* All <bee-species-card> children share the cards area in document flow. */
-  bee-species-page > bee-species-card {
-    grid-area: cards;
-  }
-
-  /* Stack cards vertically inside the cards area. Achieved by giving each
-   * card the same grid-area: it auto-stacks, but to be safe also constrain
-   * the max-width of the cards column. */
   bee-species-page > bee-species-card:not(:first-of-type) {
     margin-top: 0.75rem;
   }
