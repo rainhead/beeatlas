@@ -32,24 +32,15 @@ export class BeeSpeciesCard extends LitElement {
   // value and triggers a clean willUpdate.
   @property({ type: Number }) filteredCount = -1;
 
-  // Light-DOM elements have no shadow tree, but Lit's `static styles`
-  // are still emitted as a <style> tag inside the element on connect
-  // when createRenderRoot returns `this`. The selector `:host` works
-  // against the host element directly. Verified pattern on existing
-  // shadow-DOM components, applied here to the light-DOM root.
-  //
-  // Phase 80 ships ONLY content-visibility (PAGE-07). Phase 81 adds the
-  // .muted state for FILT-04 (filteredCount === 0).
-  static styles = css`
-    :host {
-      content-visibility: auto;
-      contain-intrinsic-size: 1px 400px; /* hint to layout for off-screen cards */
-      display: block;
-    }
-    :host(.muted) {
-      opacity: 0.35;
-    }
-  `;
+  // `:host` only matches inside a shadow root. With light-DOM
+  // (createRenderRoot returns `this`), the static-styles block is
+  // emitted as a regular <style> tag and `:host` rules never match.
+  // Layout-affecting rules for the card live in src/styles/species.css
+  // under `bee-species-page bee-species-card[.muted]`. This block is
+  // intentionally empty — kept so the precedent of static-styles on a
+  // light-DOM element does not get re-added with non-functional `:host`
+  // selectors. Do NOT add `:host(...)` rules here.
+  static styles = css``;
 
   protected createRenderRoot(): HTMLElement {
     return this;
