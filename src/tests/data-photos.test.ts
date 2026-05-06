@@ -6,7 +6,9 @@
 
 import { describe, test, expect } from 'vitest';
 // @ts-expect-error -- _data/*.js is plain ESM consumed by Eleventy; no .d.ts
-import photos, { deriveSrcset } from '../../_data/photos.js';
+import photos from '../../_data/photos.js';
+// @ts-expect-error -- lib/*.js is plain ESM; no .d.ts
+import { deriveSrcset } from '../../lib/inat-srcset.js';
 
 describe('_data/photos.js (PAGE-03)', () => {
   test('exports Record<scientificName, { description: string, photos: any[] }>', () => {
