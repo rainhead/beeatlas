@@ -7,40 +7,18 @@
 // node_modules/@iarna/toml/toml.js. Eleventy 3.x caches the export across
 // page builds, so this 15K-line parse runs once per `npm run dev` startup
 // (Pitfall 5).
+//
+// Default-export ONLY: Eleventy 3 auto-unwraps the default export of an
+// _data/*.js file iff the module has no other named exports. The
+// deriveSrcset helper therefore lives in lib/inat-srcset.js — adding a
+// named export here would cause Eleventy to expose the module namespace
+// to templates, hiding the data table behind `photos.default`.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import TOML from '@iarna/toml';
-
-// Phase 82 PERF-03 / D-09: derive a width-descriptor srcset from the
-// iNat URL pattern (.../photos/<id>/<size>.<ext>). Stable enough that
-// we avoid extending the TOML schema for three URLs per photo.
-//
-// Recognized size tokens: square (75 px), small (240 px), medium (500 px),
-// large (~1024 px), original.
-//
-// Hero default = medium (500w) per D-09.
-// Non-iNat URLs (no recognized size token) → no srcset.
-
-const SIZE_TOKENS = ['square', 'small', 'medium', 'large', 'original'];
-// Match a trailing /<size>.<ext> segment with the size token captured.
-const SIZE_RE = new RegExp(`/(${SIZE_TOKENS.join('|')})(\\.[a-zA-Z0-9]+)$`);
-
-export function deriveSrcset(url) {
-  if (typeof url !== 'string') return { src: url, srcset: '' };
-  const m = url.match(SIZE_RE);
-  if (!m) return { src: url, srcset: '' };
-  const ext = m[2];
-  const swap = (size) => url.replace(SIZE_RE, `/${size}${ext}`);
-  const square = swap('square');
-  const small = swap('small');
-  const medium = swap('medium');
-  return {
-    src: medium,
-    srcset: `${square} 75w, ${small} 240w, ${medium} 500w`,
-  };
-}
+import { deriveSrcset } from '../lib/inat-srcset.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
