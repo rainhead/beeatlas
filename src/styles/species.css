@@ -44,6 +44,14 @@ bee-species-page bee-taxon-nav li.muted {
   opacity: 0.35;
 }
 
+/* Card mute (FILT-04). bee-species-card uses light DOM, so the
+ * `:host(.muted)` rule in its static styles is inert (`:host` only
+ * matches inside shadow roots). Apply via descendant selector here.
+ * willUpdate in bee-species-card.ts toggles .muted when filteredCount=0. */
+bee-species-page bee-species-card.muted {
+  opacity: 0.35;
+}
+
 bee-species-page bee-species-filter {
   display: block;
   margin-bottom: 1rem;
