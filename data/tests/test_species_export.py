@@ -49,7 +49,10 @@ def test_full_outer_three_arms(fixture_con, export_dir, monkeypatch):
     Fixture canonical names (from data/tests/conftest.py LIN-05 seed):
       - 'lasioglossum zonulum'   -> matched (checklist + ecdysis occurrences)
       - 'andrena fulva'          -> checklist-only (no ecdysis row)
-      - 'zzzzz nonexistensia'    -> occurrence-only (no checklist row)
+      - 'xylocopa virginica'     -> occurrence-only, family resolved via iNat lineage
+      - 'zzzzz nonexistensia'    -> occurrence-only with no resolvable family;
+        excluded by the family-not-null filter (see species_export.py — order-rank
+        and unresolvable rows are dropped from species artifacts).
     """
     _run_full_export(fixture_con, export_dir, monkeypatch)
     parquet_path = str(export_dir / 'species.parquet')
@@ -73,14 +76,28 @@ def test_full_outer_three_arms(fixture_con, export_dir, monkeypatch):
     assert checklist_only[0][1] == 0, "checklist-only arm: occurrence_count must be 0"
 
     occurrence_only = duckdb.execute(f"""
-        SELECT on_checklist, occurrence_count
+        SELECT on_checklist, occurrence_count, family
         FROM read_parquet('{parquet_path}')
-        WHERE canonical_name = 'zzzzz nonexistensia'
+        WHERE canonical_name = 'xylocopa virginica'
     """).fetchall()
     assert len(occurrence_only) == 1, \
-        "occurrence-only arm: expected 1 row for 'zzzzz nonexistensia'"
+        "occurrence-only arm: expected 1 row for 'xylocopa virginica'"
     assert occurrence_only[0][0] is False, "occurrence-only arm: on_checklist must be False"
     assert occurrence_only[0][1] > 0, "occurrence-only arm: occurrence_count must be > 0"
+    assert occurrence_only[0][2] == 'Apidae', \
+        "occurrence-only arm: family must be backfilled from iNat lineage"
+
+    # Family-not-null filter: occurrence-only rows whose iNat lineage cannot
+    # resolve a family are excluded from species artifacts (otherwise the
+    # genus COALESCE fallback surfaces order-rank canonical_names as genera
+    # in the species tree).
+    unresolved = duckdb.execute(f"""
+        SELECT COUNT(*)
+        FROM read_parquet('{parquet_path}')
+        WHERE canonical_name = 'zzzzz nonexistensia'
+    """).fetchone()
+    assert unresolved[0] == 0, \
+        "family-not-null filter: 'zzzzz nonexistensia' (no resolvable family) must be excluded"
 
 
 def test_species_parquet_schema(fixture_con, export_dir, monkeypatch):
