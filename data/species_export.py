@@ -182,8 +182,17 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
         )
         -- Pitfall #7: collapse any accidental duplicate canonical_name rows,
         -- preferring the checklist-favoring row when both arms produce one.
+        --
+        -- Drop rows with no family — these are occurrence-only records whose
+        -- iNat identification never reached family rank (e.g. order-level IDs
+        -- like "diptera", "hymenoptera"). The genus COALESCE above falls back
+        -- to split_part(canonical_name, ' ', 1), which surfaces the order name
+        -- as a genus in the species tree. Excluding them keeps the species
+        -- artifacts bee-taxonomy-only; the underlying occurrences still flow
+        -- through occurrences.parquet for the map.
         SELECT DISTINCT ON (canonical_name) *
         FROM species_universe
+        WHERE family IS NOT NULL
         ORDER BY canonical_name, on_checklist DESC
     """
 
