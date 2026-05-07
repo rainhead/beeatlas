@@ -187,7 +187,7 @@ describe('LINK-01: SSR HTML emits taxonRank=species on every spa-link (build art
     }
     const html = readFileSync(path, 'utf8');
     const spaLinks = html.match(/class="spa-link"[^>]*href="[^"]*"/g) ?? [];
-    expect(spaLinks.length).toBeGreaterThan(700);  // ~735 cards
+    expect(spaLinks.length).toBeGreaterThan(500);  // ~629 bee species cards (Anthophila only)
     // Every spa-link must carry taxonRank=species.
     const missing = spaLinks.filter(l => !l.includes('taxonRank=species'));
     expect(missing, `${missing.length} spa-links missing taxonRank=species`).toEqual([]);

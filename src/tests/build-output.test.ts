@@ -20,7 +20,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   test('emits _site/species/index.html with one <bee-species-card> per species (PAGE-01)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
     const cardCount = (html.match(/<bee-species-card\b/g) ?? []).length;
-    expect(cardCount).toBeGreaterThan(700); // ~735 species
+    expect(cardCount).toBeGreaterThan(500); // ~629 bee species (Anthophila only)
   });
 
   test('every <img> tag has loading="lazy" (PAGE-07)', () => {

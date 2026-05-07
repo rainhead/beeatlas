@@ -51,8 +51,8 @@ def test_full_outer_three_arms(fixture_con, export_dir, monkeypatch):
       - 'andrena fulva'          -> checklist-only (no ecdysis row)
       - 'xylocopa virginica'     -> occurrence-only, family resolved via iNat lineage
       - 'zzzzz nonexistensia'    -> occurrence-only with no resolvable family;
-        excluded by the family-not-null filter (see species_export.py — order-rank
-        and unresolvable rows are dropped from species artifacts).
+        excluded by the bee-family filter (see species_export.BEE_FAMILIES —
+        non-bee and unresolvable rows are dropped from species artifacts).
     """
     _run_full_export(fixture_con, export_dir, monkeypatch)
     parquet_path = str(export_dir / 'species.parquet')
@@ -87,17 +87,16 @@ def test_full_outer_three_arms(fixture_con, export_dir, monkeypatch):
     assert occurrence_only[0][2] == 'Apidae', \
         "occurrence-only arm: family must be backfilled from iNat lineage"
 
-    # Family-not-null filter: occurrence-only rows whose iNat lineage cannot
-    # resolve a family are excluded from species artifacts (otherwise the
-    # genus COALESCE fallback surfaces order-rank canonical_names as genera
-    # in the species tree).
+    # Bee-family filter: rows whose family is outside species_export.BEE_FAMILIES
+    # (or is NULL) are excluded from species artifacts. 'zzzzz nonexistensia'
+    # has no resolvable family, so it lands in the NULL bucket and is dropped.
     unresolved = duckdb.execute(f"""
         SELECT COUNT(*)
         FROM read_parquet('{parquet_path}')
         WHERE canonical_name = 'zzzzz nonexistensia'
     """).fetchone()
     assert unresolved[0] == 0, \
-        "family-not-null filter: 'zzzzz nonexistensia' (no resolvable family) must be excluded"
+        "bee-family filter: 'zzzzz nonexistensia' (no resolvable family) must be excluded"
 
 
 def test_species_parquet_schema(fixture_con, export_dir, monkeypatch):
