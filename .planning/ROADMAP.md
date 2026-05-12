@@ -443,7 +443,7 @@ Plans:
 Plans:
 - [x] 083-01-scaffold-PLAN.md — Wave 0: pyproject dep, gitignore, run.sh wrapper, dbt_project.yml, profiles.yml, sources.yml, test scaffold
 - [x] 083-02-staging-models-PLAN.md — Wave 1: ~11 staging models wrapping the four source schemas via source()
-- [ ] 083-03-intermediate-models-PLAN.md — Wave 2: ~9 intermediate models (int_id_modified..int_combined) translating export.py mid-CTEs
+- [x] 083-03-intermediate-models-PLAN.md — Wave 2: ~9 intermediate models (int_id_modified..int_combined) translating export.py mid-CTEs
 - [ ] 083-04-marts-and-findings-PLAN.md — Wave 3: marts/occurrences (external parquet), counties_geo + ecoregions_geo (table + post-hook macro), findings seed, end-to-end green build
 
 ### Phase 84: Tests, Diff & Findings
