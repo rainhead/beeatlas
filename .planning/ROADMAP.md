@@ -444,7 +444,7 @@ Plans:
 - [x] 083-01-scaffold-PLAN.md — Wave 0: pyproject dep, gitignore, run.sh wrapper, dbt_project.yml, profiles.yml, sources.yml, test scaffold
 - [x] 083-02-staging-models-PLAN.md — Wave 1: ~11 staging models wrapping the four source schemas via source()
 - [x] 083-03-intermediate-models-PLAN.md — Wave 2: ~9 intermediate models (int_id_modified..int_combined) translating export.py mid-CTEs
-- [ ] 083-04-marts-and-findings-PLAN.md — Wave 3: marts/occurrences (external parquet), counties_geo + ecoregions_geo (table + post-hook macro), findings seed, end-to-end green build
+- [x] 083-04-marts-and-findings-PLAN.md — Wave 3: marts/occurrences (external parquet), counties_geo + ecoregions_geo (table + post-hook macro), findings seed, end-to-end green build
 
 ### Phase 84: Tests, Diff & Findings
 **Goal**: The spike's learning outcomes are captured — dbt's test/contract surface is exercised, sandbox outputs are diffed against `export.py`, partial-run behavior is documented, and a go/no-go recommendation is written grounded in evidence
