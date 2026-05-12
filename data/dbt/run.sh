@@ -14,6 +14,10 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export DBT_PROFILES_DIR="${DBT_PROFILES_DIR:-$DIR}"
 export DBT_PROJECT_DIR="${DBT_PROJECT_DIR:-$DIR}"
 
+# cd into the project dir so the relative `path: ../beeatlas.duckdb` in profiles.yml
+# resolves to data/beeatlas.duckdb regardless of where the wrapper was invoked from.
+cd "$DIR"
+
 # Also pass explicit flags for commands that accept them (belt-and-suspenders per
 # dbt-core profile-search-order pitfall; --version passes without them via the env vars).
 case "${1:-}" in
