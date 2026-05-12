@@ -1,0 +1,20 @@
+name: beeatlas
+version: '0.1.0'
+config-version: 2
+profile: beeatlas
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages", "logs"]
+
+models:
+  beeatlas:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+      int_combined:
+        +materialized: table          # override: prevent re-evaluating full UNION ALL on every spatial join
+    marts:
+      +materialized: table            # default; occurrences.sql overrides to 'external'
