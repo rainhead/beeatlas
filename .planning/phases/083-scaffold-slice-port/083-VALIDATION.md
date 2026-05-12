@@ -1,10 +1,11 @@
 ---
 phase: 83
 slug: scaffold-slice-port
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-05-12
+approved: 2026-05-12
 ---
 
 # Phase 83 — Validation Strategy
@@ -53,7 +54,7 @@ Note: `dbt build` itself is the load-bearing integration check — full suite ru
 | ID | Requirement | Type | Command |
 |----|------------|------|---------|
 | V-SCAFFOLD-01 | SCAFFOLD-01 | integration | `cd data && bash dbt/run.sh build` exits 0 from clean checkout |
-| V-SCAFFOLD-02 | SCAFFOLD-02 | unit (yaml shape) | `python -c "import yaml,sys; p=yaml.safe_load(open('data/dbt/profiles.yml')); assert 'spatial' in p['beeatlas']['outputs']['dev']['extensions']"` |
+| V-SCAFFOLD-02 | SCAFFOLD-02 | unit (yaml shape) | `python -c "import yaml,sys; p=yaml.safe_load(open('data/dbt/profiles.yml')); assert 'spatial' in p['beeatlas']['outputs']['sandbox']['extensions']"` |
 | V-SCAFFOLD-03a | SCAFFOLD-03 | shell | `! git grep -E 'data/dbt' -- data/run.py data/nightly.sh .github/workflows/` |
 | V-SCAFFOLD-03b | SCAFFOLD-03 | shell | `grep -E '^data/dbt/(target\|logs)/?$' .gitignore` (or `data/dbt/.gitignore` covers both) |
 | V-PORT-01 | PORT-01 | integration | `cd data && bash dbt/run.sh ls --resource-type model --output json` lists ≥3 marts and ≥1 staging model per `source()` schema |
