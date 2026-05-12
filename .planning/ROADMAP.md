@@ -439,7 +439,12 @@ Plans:
   3. `git grep` confirms `data/run.py`, `data/nightly.sh`, and `.github/workflows/` contain no reference to the dbt project; `target/` and dbt logs are gitignored
   4. The model DAG declares `source()` and `ref()` dependencies that match the Python module's input/output shape; outputs land under `data/dbt/target/sandbox/` (not `public/data/`)
   5. Spatial-join semantics (`ST_Within` + nearest-polygon fallback) are expressed in model SQL, with any deviation from `export.py` behavior captured as a note for the findings doc
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 083-01-scaffold-PLAN.md — Wave 0: pyproject dep, gitignore, run.sh wrapper, dbt_project.yml, profiles.yml, sources.yml, test scaffold
+- [ ] 083-02-staging-models-PLAN.md — Wave 1: ~11 staging models wrapping the four source schemas via source()
+- [ ] 083-03-intermediate-models-PLAN.md — Wave 2: ~9 intermediate models (int_id_modified..int_combined) translating export.py mid-CTEs
+- [ ] 083-04-marts-and-findings-PLAN.md — Wave 3: marts/occurrences (external parquet), counties_geo + ecoregions_geo (table + post-hook macro), findings seed, end-to-end green build
 
 ### Phase 84: Tests, Diff & Findings
 **Goal**: The spike's learning outcomes are captured — dbt's test/contract surface is exercised, sandbox outputs are diffed against `export.py`, partial-run behavior is documented, and a go/no-go recommendation is written grounded in evidence
