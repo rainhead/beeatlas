@@ -2,14 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: dbt Spike
-status: Roadmap drafted; ready for `/gsd-plan-phase 83`
-last_updated: "2026-05-12T18:53:02.499Z"
-last_activity: 2026-05-12 — Roadmap written; 18 requirements mapped across Phases 83–84
+status: executing
+last_updated: "2026-05-12T19:18:04.663Z"
+last_activity: 2026-05-12 -- Phase 083 execution started
 progress:
   total_phases: 7
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -19,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v3.3 dbt Spike milestone planning)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v3.3 dbt Spike — exploratory port of one pipeline slice to dbt-duckdb on a branch; produce go/no-go findings for a future rewrite milestone
+**Current focus:** Phase 083 — scaffold-slice-port
 
 ## Current Position
 
-Phase: 83 (Scaffold & Slice Port) — not started
-Plan: —
-Status: Roadmap drafted; ready for `/gsd-plan-phase 83`
-Last activity: 2026-05-12 — Roadmap written; 18 requirements mapped across Phases 83–84
+Phase: 083 (scaffold-slice-port) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 083
+Last activity: 2026-05-12 -- Phase 083 execution started
 
 ## Accumulated Context
 
