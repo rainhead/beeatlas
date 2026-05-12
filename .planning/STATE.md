@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.2
-milestone_name: Species Tab
-status: shipped
-last_updated: "2026-05-05T00:00:00.000Z"
-last_activity: 2026-05-05 -- v3.2 milestone closed (tagged v3.2; 72/72 reqs; audit PASSED)
+milestone: v3.3
+milestone_name: dbt Spike
+status: planning
+last_updated: "2026-05-12T18:11:38.704Z"
+last_activity: 2026-05-12
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 34
-  completed_plans: 34
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-02 — v3.2 Species Tab milestone sta
 
 ## Current Position
 
-Milestone: v3.2 Species Tab — SHIPPED (2026-05-05)
-Status: Awaiting `/gsd-new-milestone` to scope next cycle
-Resume file: None
-Last activity: 2026-05-05 -- v3.2 milestone closed
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-12 — Milestone v3.3 started
 
 ## Accumulated Context
 

@@ -2,7 +2,27 @@
 
 ## Current State
 
-**v3.2 Species Tab — SHIPPED 2026-05-05.** All 72 requirements satisfied; audit PASSED. Next milestone TBD via `/gsd-new-milestone`.
+**v3.3 dbt Spike — in planning (started 2026-05-12).** Exploratory milestone: port one slice of the data pipeline to `dbt-duckdb` on a branch, produce findings, decide whether v3.4+ pursues a full migration. No production surfaces touched.
+
+## Current Milestone: v3.3 dbt Spike
+
+**Goal:** Learn whether `dbt-duckdb` is the right shape for the BeeAtlas data layer by porting one representative slice end-to-end on a branch — diffing outputs against `export.py`, exercising tests/contracts, and producing a go/no-go writeup for a follow-up rewrite milestone.
+
+**Target features:**
+- Local `data/dbt/` scaffolding (project, profile, sources pointing at a copy of `beeatlas.duckdb`) — checked into the repo but NOT wired into `run.py` or `nightly.sh`
+- One real slice (recommended: `export.py` → ecdysis.parquet + samples.parquet + counties.geojson + ecoregions.geojson) ported as dbt models with `external` materialization to a sandbox directory (`data/dbt/target/sandbox/`), NOT `public/data/`
+- Side-by-side diff between dbt outputs and current `export.py` outputs — row counts, schema, sample-row equality, spatial-join behavior at polygon boundaries
+- Exploratory dbt tests (`not_null`, `unique`, `relationships`, model contracts) on the slice — record which invariants land cleanly and which don't fit
+- Try `dbt run --select` partial runs and document what parallelizes
+- Findings writeup (`.planning/research/dbt-spike-findings.md`): what worked, what didn't, what a full-migration milestone would have to look like, recommended go/no-go
+
+**Explicitly out of scope:**
+- Changes to `data/run.py`, `data/nightly.sh`, `public/data/`, `validate-schema.mjs`, or frontend consumers
+- Replacing or deleting any existing Python pipeline code
+- Anti-entropy, ingestion, or artifact-generation (`species_maps`, `feeds`) restructuring
+- Multi-slice porting (deferred to follow-up milestone if findings warrant)
+
+**Motivators (ordered):** schema drift / migration brittleness; partial + parallel runs; curiosity about lineage and contract surfaces.
 
 ## Previous Milestone: v3.2 Species Tab (shipped 2026-05-05)
 
@@ -342,4 +362,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-05 — v3.2 Species Tab milestone shipped (7 phases, 34 plans, 72/72 reqs, audit PASSED)*
+*Last updated: 2026-05-12 — v3.3 dbt Spike milestone started (planning)*
