@@ -66,4 +66,23 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| (populated by roadmap) | | |
+| SCAFFOLD-01 | Phase 83 | Pending |
+| SCAFFOLD-02 | Phase 83 | Pending |
+| SCAFFOLD-03 | Phase 83 | Pending |
+| PORT-01 | Phase 83 | Pending |
+| PORT-02 | Phase 83 | Pending |
+| PORT-03 | Phase 83 | Pending |
+| PORT-04 | Phase 83 | Pending |
+| TEST-01 | Phase 84 | Pending |
+| TEST-02 | Phase 84 | Pending |
+| TEST-03 | Phase 84 | Pending |
+| DIFF-01 | Phase 84 | Pending |
+| DIFF-02 | Phase 84 | Pending |
+| DIFF-03 | Phase 84 | Pending |
+| PART-01 | Phase 84 | Pending |
+| PART-02 | Phase 84 | Pending |
+| FIND-01 | Phase 84 | Pending |
+| FIND-02 | Phase 84 | Pending |
+| FIND-03 | Phase 84 | Pending |
+
+**Coverage:** 18/18 v3.3 requirements mapped to exactly one phase. No orphans. No duplicates.
