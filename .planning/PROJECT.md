@@ -2,7 +2,7 @@
 
 ## Current State
 
-**v3.3 dbt Spike — in planning (started 2026-05-12).** Exploratory milestone: port one slice of the data pipeline to `dbt-duckdb` on a branch, produce findings, decide whether v3.4+ pursues a full migration. No production surfaces touched.
+**v3.3 dbt Spike — Phase 83 (Scaffold & Slice Port) complete; Phase 84 (Tests, Diff & Findings) next.** Exploratory milestone: port one slice of the data pipeline to `dbt-duckdb` on a branch, produce findings, decide whether v3.4+ pursues a full migration. No production surfaces touched.
 
 ## Current Milestone: v3.3 dbt Spike
 
@@ -362,4 +362,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-12 — v3.3 dbt Spike milestone started (planning)*
+*Last updated: 2026-05-12 — Phase 83 (Scaffold & Slice Port) complete; full dbt DAG green, no production surfaces touched*
