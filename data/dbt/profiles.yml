@@ -1,0 +1,15 @@
+# data/dbt/profiles.yml
+# Committed in-repo (no secrets — path points at a local DuckDB file).
+# DBT_PROFILES_DIR is set to data/dbt/ via data/dbt/run.sh wrapper.
+beeatlas:
+  target: sandbox
+  outputs:
+    sandbox:
+      type: duckdb
+      path: ../beeatlas.duckdb          # relative to data/dbt/ — resolves to data/beeatlas.duckdb
+      schema: dbt_sandbox               # default schema for intermediates/views inside beeatlas.duckdb
+      threads: 4
+      extensions:
+        - spatial                       # declarative: INSTALL + LOAD spatial on each connection
+        - json                          # defensive add (Pitfall 6 / Assumption A2): needed for to_json()
+      external_root: target/sandbox     # base path for materialized='external' relative locations
