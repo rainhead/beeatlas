@@ -1,0 +1,28 @@
+version: 2
+sources:
+  - name: ecdysis_data
+    schema: ecdysis_data
+    tables:
+      - name: occurrences
+      - name: identifications
+      - name: occurrence_links
+
+  - name: inaturalist_data
+    schema: inaturalist_data
+    tables:
+      - name: observations
+      - name: observations__ofvs
+
+  - name: inaturalist_waba_data
+    schema: inaturalist_waba_data
+    tables:
+      - name: observations
+      - name: observations__ofvs
+      - name: taxon_lineage
+
+  - name: geographies
+    schema: geographies
+    tables:
+      - name: us_counties
+      - name: us_states
+      - name: ecoregions
