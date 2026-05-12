@@ -441,8 +441,8 @@ Plans:
   5. Spatial-join semantics (`ST_Within` + nearest-polygon fallback) are expressed in model SQL, with any deviation from `export.py` behavior captured as a note for the findings doc
 **Plans**: 4 plans
 Plans:
-- [ ] 083-01-scaffold-PLAN.md — Wave 0: pyproject dep, gitignore, run.sh wrapper, dbt_project.yml, profiles.yml, sources.yml, test scaffold
-- [ ] 083-02-staging-models-PLAN.md — Wave 1: ~11 staging models wrapping the four source schemas via source()
+- [x] 083-01-scaffold-PLAN.md — Wave 0: pyproject dep, gitignore, run.sh wrapper, dbt_project.yml, profiles.yml, sources.yml, test scaffold
+- [x] 083-02-staging-models-PLAN.md — Wave 1: ~11 staging models wrapping the four source schemas via source()
 - [ ] 083-03-intermediate-models-PLAN.md — Wave 2: ~9 intermediate models (int_id_modified..int_combined) translating export.py mid-CTEs
 - [ ] 083-04-marts-and-findings-PLAN.md — Wave 3: marts/occurrences (external parquet), counties_geo + ecoregions_geo (table + post-hook macro), findings seed, end-to-end green build
 
