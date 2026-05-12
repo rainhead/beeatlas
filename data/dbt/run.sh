@@ -18,6 +18,11 @@ export DBT_PROJECT_DIR="${DBT_PROJECT_DIR:-$DIR}"
 # resolves to data/beeatlas.duckdb regardless of where the wrapper was invoked from.
 cd "$DIR"
 
+# Ensure the sandbox output directory exists. `dbt clean` removes target/ including
+# target/sandbox/, and DuckDB's COPY statement cannot create directories — only files.
+# This mkdir is idempotent and safe to run before every dbt invocation.
+mkdir -p "$DIR/target/sandbox"
+
 # Also pass explicit flags for commands that accept them (belt-and-suspenders per
 # dbt-core profile-search-order pitfall; --version passes without them via the env vars).
 case "${1:-}" in
