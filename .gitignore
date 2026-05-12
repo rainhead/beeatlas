@@ -143,6 +143,7 @@ dist
 data/dbt/target/
 data/dbt/logs/
 data/dbt/dbt_packages/
+data/dbt/.user.yml
 
 # Claude Code worktrees (temporary isolated repo copies for agent execution)
 .claude/worktrees/
