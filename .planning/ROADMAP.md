@@ -25,6 +25,7 @@
 - ✅ **v3.0 Mapbox GL JS Migration** — Phases 71–73 (shipped 2026-04-27)
 - ✅ **v3.1 Eleventy Build Wrapper** — Phases 74–75 (shipped 2026-04-30)
 - ✅ **v3.2 Species Tab** — Phases 76–82 (shipped 2026-05-05)
+- 🚧 **v3.3 dbt Spike** — Phases 83–84 (in planning, started 2026-05-12)
 
 ## Phases
 
@@ -332,6 +333,15 @@ See `.planning/milestones/v3.2-ROADMAP.md` for full phase details.
 
 </details>
 
+## 🚧 v3.3 dbt Spike (Phases 83–84) — IN PLANNING (started 2026-05-12)
+
+**Milestone Goal:** Learn whether `dbt-duckdb` is the right shape for the BeeAtlas data layer by porting one representative slice end-to-end on a branch. Produce a go / no-go / go-with-conditions writeup that informs a *separate, future* rewrite milestone.
+
+**Scope discipline (per `feedback_spike_scope`):** No phase modifies production-facing surfaces (`data/run.py`, `data/nightly.sh`, `public/data/`, `scripts/validate-schema.mjs`, frontend code, CI workflows). No phase replaces or deletes existing Python pipeline code. All work happens on a branch; dbt outputs materialize to `data/dbt/target/sandbox/`.
+
+- [ ] Phase 83: Scaffold & Slice Port — Stand up local `data/dbt/` project, select the spike slice, and express it as dbt models materializing to a sandbox path
+- [ ] Phase 84: Tests, Diff & Findings — Exercise dbt tests/contracts, diff sandbox outputs against `export.py`, explore partial-run behavior, write go/no-go findings
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -366,6 +376,82 @@ Plans:
 - [x] 067-01-PLAN.md — Schema + data layer: add specimen_inat_quality_grade to export.py and validate-schema.mjs; rename observer to host_inat_login in filter.ts; add is_provisional, specimen_inat_taxon_name, specimen_inat_quality_grade to OccurrenceRow and OCCURRENCE_COLUMNS
 - [x] 067-02-PLAN.md — Rendering + tests: _renderProvisional method and updated _renderSampleOnly in bee-occurrence-detail.ts; two new Vitest render tests in bee-sidebar.test.ts
 **UI hint**: yes
+
+### Phase 68: Filter Panel Redesign
+**Goal**: Replace the always-visible filter toolbar with a floating map overlay control (magnifying glass + count) that expands into a structured what/who/where/when filter panel
+**Depends on**: Phase 67
+**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
+**Success Criteria** (what must be TRUE):
+  1. The filter toolbar row is gone; the map fills the full content area
+  2. A floating button overlays the map at top: 0.5em, to the left of the Regions button — shows magnifying-glass icon + specimen count
+  3. When any filter is active, the button turns green (active coloring)
+  4. Clicking the button opens a panel; clicking again closes it
+  5. The panel has four icon-headed sections: What (taxon), Who (collector), Where (county/ecoregion/elevation), When (year/month)
+  6. Filter changes propagate to bee-atlas and update the map identically to before
+  7. localStorage recents (beeatlas.recentFilters) are no longer written
+  8. CSV download is only accessible from table view
+**Plans**: 3 plans
+Plans:
+- [x] 068-01-PLAN.md — Create bee-filter-panel.ts (floating overlay, trigger button, four section headers, bee-filter-controls embedded)
+- [x] 068-02-PLAN.md — Remove localStorage recents from bee-filter-controls.ts (D-09)
+- [x] 068-03-PLAN.md — Wire bee-atlas.ts: swap toolbar for panel, update tests
+
+### Phase 69: Table Drawer
+**Goal**: Table slides up over map rather than replacing it; spatial context preserved
+**Depends on**: Phase 68
+**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
+**Success Criteria** (what must be TRUE):
+  1. In table mode, the map remains visible as a ~18% strip above the drawer; bee-map is never removed from the DOM
+  2. The table drawer covers ~82% of the content area height, positioned absolute at bottom: 0
+  3. In table mode, the filter panel and sidebar are not rendered
+  4. Switching to table mode closes any open sidebar (_sidebarOpen → false)
+  5. Clicking a table row pans the map strip to center on that occurrence's lat/lon
+  6. Rows without lat/lon are silently skipped (no error or sidebar open)
+**Plans**: 2 plans
+Plans:
+- [x] 069-01-PLAN.md — Add _onRowClick handler and row-pan event dispatch to bee-table.ts
+- [x] 069-02-PLAN.md — Restructure bee-atlas.ts: drawer layout, mode gating, _onRowPan handler
+
+### Phase 70: Map Overlay Sidebar
+**Goal**: Detail panel overlays map instead of shifting it; map always full-width
+**Depends on**: Phase 69
+**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
+**Success Criteria** (what must be TRUE):
+  1. Opening the sidebar does not change the map's width — it always occupies the full .content area
+  2. The sidebar panel appears as a right-edge overlay anchored below the filter button with a drop shadow
+  3. The sidebar header reads "Selected specimens" alongside the existing close button
+  4. On portrait screens the sidebar reverts to the below-map flex layout (width: 100%, border-top)
+**Plans**: 1 plan
+Plans:
+- [x] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
+
+<!-- Phase 71-73 details archived to .planning/milestones/v3.0-ROADMAP.md -->
+
+<!-- Phase 76-82 details archived to .planning/milestones/v3.2-ROADMAP.md -->
+
+### Phase 83: Scaffold & Slice Port
+**Goal**: A working `dbt-duckdb` project exists on the branch with the spike slice expressed as a DAG of models, materializing logical outputs equivalent to the chosen Python module — without touching any production surface
+**Depends on**: Phase 82 (v3.2 close)
+**Requirements**: SCAFFOLD-01, SCAFFOLD-02, SCAFFOLD-03, PORT-01, PORT-02, PORT-03, PORT-04
+**Success Criteria** (observable learning outcomes):
+  1. `cd data/dbt && dbt build` exits 0 from a clean local checkout against a copy of `beeatlas.duckdb`, exercising the slice end-to-end
+  2. The chosen slice (recommended `export.py` → ecdysis.parquet + samples.parquet + counties.geojson + ecoregions.geojson) and its rationale are recorded in `.planning/research/dbt-spike-findings.md`
+  3. `git grep` confirms `data/run.py`, `data/nightly.sh`, and `.github/workflows/` contain no reference to the dbt project; `target/` and dbt logs are gitignored
+  4. The model DAG declares `source()` and `ref()` dependencies that match the Python module's input/output shape; outputs land under `data/dbt/target/sandbox/` (not `public/data/`)
+  5. Spatial-join semantics (`ST_Within` + nearest-polygon fallback) are expressed in model SQL, with any deviation from `export.py` behavior captured as a note for the findings doc
+**Plans**: TBD
+
+### Phase 84: Tests, Diff & Findings
+**Goal**: The spike's learning outcomes are captured — dbt's test/contract surface is exercised, sandbox outputs are diffed against `export.py`, partial-run behavior is documented, and a go/no-go recommendation is written grounded in evidence
+**Depends on**: Phase 83
+**Requirements**: TEST-01, TEST-02, TEST-03, DIFF-01, DIFF-02, DIFF-03, PART-01, PART-02, FIND-01, FIND-02, FIND-03
+**Success Criteria** (observable learning outcomes):
+  1. At least three dbt generic-test classes (`not_null`, `unique`, `relationships`) are attempted on slice models with per-test pass/fail/awkward-fit results recorded in findings; at least one model `contract` is enforced and its behavior on intentional schema drift is documented
+  2. A reproducible diff script compares dbt sandbox outputs vs current `public/data/` outputs across row counts, schema, and key-set equality on `ecdysis_id` / `inat:<id>`; spatial-join discrepancies (county/ecoregion_l3 reassignments, if any) are enumerated and root-caused
+  3. Every material output difference is classified as one of: schema-design improvement, latent bug uncovered, semantic divergence to investigate, or neutral/cosmetic
+  4. `dbt run --select` is exercised on at least two subgraphs of the slice; observed parallelism (or its absence) and a captured lineage artifact (`dbt docs generate` output, `dbt ls --resource-type model`, or screenshot) are referenced from findings
+  5. `.planning/research/dbt-spike-findings.md` ends with a concrete go / no-go / go-with-conditions recommendation and an explicit prerequisites list covering test coverage, schema decisions, ingestion-vs-transform boundaries, parallel-run/orchestration story, and impact on the DuckDB-WASM frontend direction
+**Plans**: TBD
 
 ## Progress
 
@@ -453,57 +539,5 @@ Plans:
 | 80. Page Scaffolding | v3.2 | 4/4 | Complete | 2026-05-04 |
 | 81. Filter UX & Nav | v3.2 | 6/6 | Complete | 2026-05-05 |
 | 82. Hardening | v3.2 | 8/8 | Complete | 2026-05-05 |
-
-## Phase Details
-
-### Phase 68: Filter Panel Redesign
-**Goal**: Replace the always-visible filter toolbar with a floating map overlay control (magnifying glass + count) that expands into a structured what/who/where/when filter panel
-**Depends on**: Phase 67
-**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
-**Success Criteria** (what must be TRUE):
-  1. The filter toolbar row is gone; the map fills the full content area
-  2. A floating button overlays the map at top: 0.5em, to the left of the Regions button — shows magnifying-glass icon + specimen count
-  3. When any filter is active, the button turns green (active coloring)
-  4. Clicking the button opens a panel; clicking again closes it
-  5. The panel has four icon-headed sections: What (taxon), Who (collector), Where (county/ecoregion/elevation), When (year/month)
-  6. Filter changes propagate to bee-atlas and update the map identically to before
-  7. localStorage recents (beeatlas.recentFilters) are no longer written
-  8. CSV download is only accessible from table view
-**Plans**: 3 plans
-Plans:
-- [x] 068-01-PLAN.md — Create bee-filter-panel.ts (floating overlay, trigger button, four section headers, bee-filter-controls embedded)
-- [x] 068-02-PLAN.md — Remove localStorage recents from bee-filter-controls.ts (D-09)
-- [x] 068-03-PLAN.md — Wire bee-atlas.ts: swap toolbar for panel, update tests
-
-### Phase 69: Table Drawer
-**Goal**: Table slides up over map rather than replacing it; spatial context preserved
-**Depends on**: Phase 68
-**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
-**Success Criteria** (what must be TRUE):
-  1. In table mode, the map remains visible as a ~18% strip above the drawer; bee-map is never removed from the DOM
-  2. The table drawer covers ~82% of the content area height, positioned absolute at bottom: 0
-  3. In table mode, the filter panel and sidebar are not rendered
-  4. Switching to table mode closes any open sidebar (_sidebarOpen → false)
-  5. Clicking a table row pans the map strip to center on that occurrence's lat/lon
-  6. Rows without lat/lon are silently skipped (no error or sidebar open)
-**Plans**: 2 plans
-Plans:
-- [x] 069-01-PLAN.md — Add _onRowClick handler and row-pan event dispatch to bee-table.ts
-- [x] 069-02-PLAN.md — Restructure bee-atlas.ts: drawer layout, mode gating, _onRowPan handler
-
-### Phase 70: Map Overlay Sidebar
-**Goal**: Detail panel overlays map instead of shifting it; map always full-width
-**Depends on**: Phase 69
-**Requirements**: (UI flow redesign — no formal REQ IDs assigned)
-**Success Criteria** (what must be TRUE):
-  1. Opening the sidebar does not change the map's width — it always occupies the full .content area
-  2. The sidebar panel appears as a right-edge overlay anchored below the filter button with a drop shadow
-  3. The sidebar header reads "Selected specimens" alongside the existing close button
-  4. On portrait screens the sidebar reverts to the below-map flex layout (width: 100%, border-top)
-**Plans**: 1 plan
-Plans:
-- [x] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
-
-<!-- Phase 71-73 details archived to .planning/milestones/v3.0-ROADMAP.md -->
-
-<!-- Phase 76-82 details archived to .planning/milestones/v3.2-ROADMAP.md -->
+| 83. Scaffold & Slice Port | v3.3 | 0/0 | Not started | — |
+| 84. Tests, Diff & Findings | v3.3 | 0/0 | Not started | — |
