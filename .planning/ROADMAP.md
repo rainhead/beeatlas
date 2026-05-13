@@ -456,7 +456,11 @@ Plans:
   3. Every material output difference is classified as one of: schema-design improvement, latent bug uncovered, semantic divergence to investigate, or neutral/cosmetic
   4. `dbt run --select` is exercised on at least two subgraphs of the slice; observed parallelism (or its absence) and a captured lineage artifact (`dbt docs generate` output, `dbt ls --resource-type model`, or screenshot) are referenced from findings
   5. `.planning/research/dbt-spike-findings.md` ends with a concrete go / no-go / go-with-conditions recommendation and an explicit prerequisites list covering test coverage, schema decisions, ingestion-vs-transform boundaries, parallel-run/orchestration story, and impact on the DuckDB-WASM frontend direction
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 084-01-dbt-tests-PLAN.md — schema.yml + contract + drift demo + TEST-03 comparison (TEST-01, TEST-02, TEST-03)
+- [ ] 084-02-diff-harness-PLAN.md — data/tests/test_dbt_diff.py + DIFF-03 classification table (DIFF-01, DIFF-02, DIFF-03)
+- [ ] 084-03-partial-runs-and-findings-PLAN.md — partial runs + lineage + consolidated findings + verdict (PART-01, PART-02, FIND-01, FIND-02, FIND-03)
 
 ## Progress
 
@@ -545,4 +549,4 @@ Plans:
 | 81. Filter UX & Nav | v3.2 | 6/6 | Complete | 2026-05-05 |
 | 82. Hardening | v3.2 | 8/8 | Complete | 2026-05-05 |
 | 83. Scaffold & Slice Port | v3.3 | 4/4 | Complete | 2026-05-12 |
-| 84. Tests, Diff & Findings | v3.3 | 0/0 | Not started | — |
+| 84. Tests, Diff & Findings | v3.3 | 0/3 | Planned | — |
