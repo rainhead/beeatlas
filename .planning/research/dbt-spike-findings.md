@@ -383,9 +383,9 @@ Before cutover, the cron orchestration story for `data/nightly.sh` must be desig
 - Wall-clock cost: as observed in §PART-01, the 23-model full graph builds in approximately 0.5 seconds. This is significantly faster than the Python pipeline. However, incremental materialization (`materialized='incremental'`) was not tested in this spike -- that is the mechanism for avoiding full rebuilds on nightly runs. Incremental behavior on dbt-duckdb with external materializations is a known unknown.
 - dbt has its own exit-code surface (0 = all pass, 1 = any fail/error) which differs from `export.py`'s Python exception-based error handling. The nightly cron must be adapted to interpret dbt exit codes correctly.
 
-### DuckDB-WASM frontend impact
+### Frontend impact
 
-Before cutover, confirm the output schema of `occurrences.parquet` is unchanged so the wa-sqlite frontend (per the `project_duckdb_wasm_direction.md` project memory, which documents the planned DuckDB DB to parquet to DuckDB WASM browser path) keeps working.
+Before cutover, confirm the output schema of `occurrences.parquet` is unchanged so the wa-sqlite + hyparquet frontend keeps loading it without drift. (DuckDB-WASM was retired in the v2.6 SQLite migration for page-weight reasons; it is not on any forward path.)
 
 - The dbt contract on `occurrences` (§TEST-02) becomes the schema gate for the frontend: if the 33-column contract is in place and green, the parquet schema is stable. The contract must remain in the build pipeline after cutover -- removing it would eliminate the primary schema-correctness guarantee.
 - `validate-schema.mjs` currently runs on the actual production file at CI time (§TEST-03). This gate should either be preserved as a production-side check or formally retired in favor of the dbt contract. It should not be silently abandoned -- its role as the last defense before CloudFront deployment is distinct from the contract's sandbox-time role.
