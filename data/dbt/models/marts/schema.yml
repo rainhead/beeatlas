@@ -1,3 +1,74 @@
 version: 2
 
-models: []
+models:
+  - name: occurrences
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: ecdysis_id
+        data_type: integer
+      - name: catalog_number
+        data_type: varchar
+      - name: lon
+        data_type: double
+      - name: lat
+        data_type: double
+      - name: date
+        data_type: varchar
+      - name: year
+        data_type: bigint
+      - name: month
+        data_type: bigint
+      - name: scientificName
+        data_type: varchar
+      - name: recordedBy
+        data_type: varchar
+      - name: fieldNumber
+        data_type: varchar
+      - name: genus
+        data_type: varchar
+      - name: family
+        data_type: varchar
+      - name: floralHost
+        data_type: varchar
+      - name: host_observation_id
+        data_type: bigint
+      - name: inat_host
+        data_type: varchar
+      - name: inat_quality_grade
+        data_type: varchar
+      - name: modified
+        data_type: varchar
+      - name: specimen_observation_id
+        data_type: bigint
+      - name: elevation_m
+        data_type: integer
+      - name: observation_id
+        data_type: bigint
+      - name: host_inat_login
+        data_type: varchar
+      - name: specimen_count
+        data_type: integer
+      - name: sample_id
+        data_type: integer
+      - name: sample_host
+        data_type: varchar
+      - name: specimen_inat_login
+        data_type: varchar
+      - name: specimen_inat_taxon_name
+        data_type: varchar
+      - name: specimen_inat_genus
+        data_type: varchar
+      - name: specimen_inat_family
+        data_type: varchar
+      - name: specimen_inat_quality_grade
+        data_type: varchar
+      - name: is_provisional
+        data_type: boolean
+      - name: canonical_name
+        data_type: varchar
+      - name: county
+        data_type: varchar
+      - name: ecoregion_l3
+        data_type: varchar
