@@ -18,7 +18,7 @@
 ## Key Libraries
 
 **Frontend:**
-- `@duckdb/duckdb-wasm` — in-browser DuckDB via Web Workers (EH bundle, no SharedArrayBuffer)
+- `wa-sqlite` — in-browser SQLite (MemoryVFS); replaced `@duckdb/duckdb-wasm` in v2.6 to cut tens of MB of page weight
 - `ol` — OpenLayers map engine
 - `lit` — web component base
 - `temporal-polyfill` — TC39 Temporal API for recency coloring
@@ -53,6 +53,6 @@
 
 ## Runtime Environments
 
-- **Frontend:** Browser — DuckDB WASM runs in a Web Worker
+- **Frontend:** Browser — wa-sqlite (MemoryVFS) runs in-browser
 - **Data pipeline:** Python 3.14+, DuckDB native; Lambda uses Docker image from `data/Dockerfile`
 - **Infra:** Node.js (CDK deploy)
