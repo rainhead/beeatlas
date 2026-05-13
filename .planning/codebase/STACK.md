@@ -11,7 +11,7 @@
 ## Frameworks
 
 - **Lit** — web components (`LitElement`, `@customElement`)
-- **OpenLayers** — interactive map rendering
+- **Mapbox GL JS** — interactive map rendering (WebGL, clustered); replaced OpenLayers in v3.0
 - **dlt (data load tool)** — pipeline orchestration and DuckDB loading
 - **AWS CDK v2 (TypeScript)** — infrastructure as code
 
@@ -19,9 +19,8 @@
 
 **Frontend:**
 - `wa-sqlite` — in-browser SQLite (MemoryVFS); replaced `@duckdb/duckdb-wasm` in v2.6 to cut tens of MB of page weight
-- `ol` — OpenLayers map engine
+- `mapbox-gl` — WebGL map engine (replaced `ol` in v3.0)
 - `lit` — web component base
-- `temporal-polyfill` — TC39 Temporal API for recency coloring
 - `hyparquet` — parquet footer reading (schema validation script only; not in frontend runtime)
 
 **Data pipeline:**
