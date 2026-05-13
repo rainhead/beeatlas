@@ -458,8 +458,8 @@ Plans:
   5. `.planning/research/dbt-spike-findings.md` ends with a concrete go / no-go / go-with-conditions recommendation and an explicit prerequisites list covering test coverage, schema decisions, ingestion-vs-transform boundaries, parallel-run/orchestration story, and impact on the DuckDB-WASM frontend direction
 **Plans**: 3 plans
 Plans:
-- [ ] 084-01-dbt-tests-PLAN.md — schema.yml + contract + drift demo + TEST-03 comparison (TEST-01, TEST-02, TEST-03)
-- [ ] 084-02-diff-harness-PLAN.md — data/tests/test_dbt_diff.py + DIFF-03 classification table (DIFF-01, DIFF-02, DIFF-03)
+- [x] 084-01-dbt-tests-PLAN.md — schema.yml + contract + drift demo + TEST-03 comparison (TEST-01, TEST-02, TEST-03)
+- [x] 084-02-diff-harness-PLAN.md — data/tests/test_dbt_diff.py + DIFF-03 classification table (DIFF-01, DIFF-02, DIFF-03)
 - [ ] 084-03-partial-runs-and-findings-PLAN.md — partial runs + lineage + consolidated findings + verdict (PART-01, PART-02, FIND-01, FIND-02, FIND-03)
 
 ## Progress
