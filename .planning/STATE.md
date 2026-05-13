@@ -60,7 +60,7 @@ Last activity: 2026-05-13 -- v3.3 dbt Spike milestone archived
 
 ### Blockers/Concerns
 
-CR-01 (pre-existing from Phase 67): bee-filter-controls.ts uses `observer` field in CollectorToken but filter.ts CollectorEntry defines `host_inat_login` — collector filtering by iNat username silently non-functional until resolved.
+None. (CR-01, recorded Phase 67, was silently resolved — both interfaces now use `host_inat_login` and `filter.ts:245–255` has the WHERE clause. Verified 2026-05-13 during codebase remap; full history in `.planning/codebase/CONCERNS.md` §Tech Debt.)
 
 ### Quick Tasks Completed
 
