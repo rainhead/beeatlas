@@ -20,10 +20,10 @@ models:
     columns:
       - name: id
         description: >
-          iNaturalist observation ID. NOTE: Expected to FAIL the unique test —
-          10,845 distinct values vs 10,846 rows (one duplicate inat observation_id
-          exists). Documented as awkward-fit: the iNat pipeline does not guarantee
-          deduplication at source. The failure IS the TEST-01 finding.
+          iNaturalist observation ID. TEST-01 outcome (awkward-fit): not_null FAILS
+          with 1 null id; unique PASSES (10,846 rows, all distinct). The iNat pipeline
+          does not guarantee non-null source IDs — the not_null failure IS the finding.
+          See .planning/phases/084-tests-diff-findings/084-TEST-FINDINGS.md.
         data_tests:
-          - not_null
-          - unique    # EXPECTED FAIL: 10,845 distinct / 10,846 rows — awkward-fit finding
+          - not_null    # OBSERVED FAIL (1 null id) — awkward-fit finding, kept as a tripwire
+          - unique      # PASSED: 10,846 distinct / 10,846 rows

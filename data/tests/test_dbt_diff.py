@@ -129,6 +129,44 @@ def test_occurrences_ecdysis_id_join_full():
     )
 
 
+@_SANDBOX_GUARD
+def test_occurrences_host_observation_id_join_full():
+    """Full anti-join on host_observation_id (the `inat:<id>` sample key) — 0 in both directions.
+
+    DIFF-01 names both ecdysis_id and inat:<id> as required key-set equality checks.
+    Verified baseline: 43,776 non-null host_observation_id values in both files; 0 rows
+    in either EXCEPT direction.
+    """
+    only_in_sandbox = duckdb.execute(
+        f"""
+        SELECT COUNT(*) FROM (
+            SELECT host_observation_id FROM read_parquet('{SANDBOX}/occurrences.parquet')
+            WHERE host_observation_id IS NOT NULL
+            EXCEPT
+            SELECT host_observation_id FROM read_parquet('{PUBLIC}/occurrences.parquet')
+            WHERE host_observation_id IS NOT NULL
+        )
+        """
+    ).fetchone()[0]
+    only_in_public = duckdb.execute(
+        f"""
+        SELECT COUNT(*) FROM (
+            SELECT host_observation_id FROM read_parquet('{PUBLIC}/occurrences.parquet')
+            WHERE host_observation_id IS NOT NULL
+            EXCEPT
+            SELECT host_observation_id FROM read_parquet('{SANDBOX}/occurrences.parquet')
+            WHERE host_observation_id IS NOT NULL
+        )
+        """
+    ).fetchone()[0]
+    assert only_in_sandbox == 0, (
+        f"{only_in_sandbox} host_observation_ids are in sandbox but not public (expected 0)"
+    )
+    assert only_in_public == 0, (
+        f"{only_in_public} host_observation_ids are in public but not sandbox (expected 0)"
+    )
+
+
 # ---------------------------------------------------------------------------
 # DIFF-02: Spatial join discrepancies and GeoJSON parity
 # ---------------------------------------------------------------------------
