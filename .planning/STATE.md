@@ -2,32 +2,32 @@
 gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: dbt Spike
-status: executing
-last_updated: "2026-05-13T21:48:59.416Z"
-last_activity: 2026-05-13 -- Phase 084 execution started
+status: shipped
+last_updated: "2026-05-13T22:45:00Z"
+last_activity: 2026-05-13 -- v3.3 dbt Spike milestone archived
 progress:
-  total_phases: 7
-  completed_phases: 1
+  total_phases: 2
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 4
-  percent: 57
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-12 — v3.3 dbt Spike milestone planning)
+See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 084 — tests-diff-findings
+**Current focus:** Between milestones — v3.3 archived; v3.4 direction pending.
 
 ## Current Position
 
-Phase: 084 (tests-diff-findings) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 084
-Last activity: 2026-05-13 -- Phase 084 execution started
+Milestone: v3.3 dbt Spike — SHIPPED 2026-05-13
+Verdict: GO-WITH-CONDITIONS (5-prerequisite checklist in .planning/research/dbt-spike-findings.md)
+Next: `/gsd-new-milestone` once v3.4 direction is decided
+Last activity: 2026-05-13 -- v3.3 dbt Spike milestone archived
 
 ## Accumulated Context
 
