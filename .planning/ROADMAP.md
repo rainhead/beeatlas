@@ -25,7 +25,7 @@
 - ✅ **v3.0 Mapbox GL JS Migration** — Phases 71–73 (shipped 2026-04-27)
 - ✅ **v3.1 Eleventy Build Wrapper** — Phases 74–75 (shipped 2026-04-30)
 - ✅ **v3.2 Species Tab** — Phases 76–82 (shipped 2026-05-05)
-- 🚧 **v3.3 dbt Spike** — Phases 83–84 (in planning, started 2026-05-12)
+- ✅ **v3.3 dbt Spike** — Phases 83–84 (shipped 2026-05-13). Verdict: GO-WITH-CONDITIONS. See [.planning/milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md).
 
 ## Phases
 
@@ -333,14 +333,19 @@ See `.planning/milestones/v3.2-ROADMAP.md` for full phase details.
 
 </details>
 
-## 🚧 v3.3 dbt Spike (Phases 83–84) — IN PLANNING (started 2026-05-12)
+<details>
+<summary>✅ v3.3 dbt Spike (Phases 83–84) — SHIPPED 2026-05-13</summary>
 
 **Milestone Goal:** Learn whether `dbt-duckdb` is the right shape for the BeeAtlas data layer by porting one representative slice end-to-end on a branch. Produce a go / no-go / go-with-conditions writeup that informs a *separate, future* rewrite milestone.
 
-**Scope discipline (per `feedback_spike_scope`):** No phase modifies production-facing surfaces (`data/run.py`, `data/nightly.sh`, `public/data/`, `scripts/validate-schema.mjs`, frontend code, CI workflows). No phase replaces or deletes existing Python pipeline code. All work happens on a branch; dbt outputs materialize to `data/dbt/target/sandbox/`.
+**Verdict:** GO-WITH-CONDITIONS — 5-prerequisite checklist for v3.4+ in `.planning/research/dbt-spike-findings.md`.
 
-- [x] Phase 83: Scaffold & Slice Port — Stand up local `data/dbt/` project, select the spike slice, and express it as dbt models materializing to a sandbox path
-- [ ] Phase 84: Tests, Diff & Findings — Exercise dbt tests/contracts, diff sandbox outputs against `export.py`, explore partial-run behavior, write go/no-go findings
+- [x] Phase 83: Scaffold & Slice Port (4/4 plans) — completed 2026-05-12
+- [x] Phase 84: Tests, Diff & Findings (3/3 plans) — completed 2026-05-13
+
+See `.planning/milestones/v3.3-ROADMAP.md` for full phase details.
+
+</details>
 
 ## Phase Details
 
@@ -429,38 +434,7 @@ Plans:
 
 <!-- Phase 76-82 details archived to .planning/milestones/v3.2-ROADMAP.md -->
 
-### Phase 83: Scaffold & Slice Port
-**Goal**: A working `dbt-duckdb` project exists on the branch with the spike slice expressed as a DAG of models, materializing logical outputs equivalent to the chosen Python module — without touching any production surface
-**Depends on**: Phase 82 (v3.2 close)
-**Requirements**: SCAFFOLD-01, SCAFFOLD-02, SCAFFOLD-03, PORT-01, PORT-02, PORT-03, PORT-04
-**Success Criteria** (observable learning outcomes):
-  1. `cd data/dbt && dbt build` exits 0 from a clean local checkout against a copy of `beeatlas.duckdb`, exercising the slice end-to-end
-  2. The chosen slice (recommended `export.py` → ecdysis.parquet + samples.parquet + counties.geojson + ecoregions.geojson) and its rationale are recorded in `.planning/research/dbt-spike-findings.md`
-  3. `git grep` confirms `data/run.py`, `data/nightly.sh`, and `.github/workflows/` contain no reference to the dbt project; `target/` and dbt logs are gitignored
-  4. The model DAG declares `source()` and `ref()` dependencies that match the Python module's input/output shape; outputs land under `data/dbt/target/sandbox/` (not `public/data/`)
-  5. Spatial-join semantics (`ST_Within` + nearest-polygon fallback) are expressed in model SQL, with any deviation from `export.py` behavior captured as a note for the findings doc
-**Plans**: 4 plans
-Plans:
-- [x] 083-01-scaffold-PLAN.md — Wave 0: pyproject dep, gitignore, run.sh wrapper, dbt_project.yml, profiles.yml, sources.yml, test scaffold
-- [x] 083-02-staging-models-PLAN.md — Wave 1: ~11 staging models wrapping the four source schemas via source()
-- [x] 083-03-intermediate-models-PLAN.md — Wave 2: ~9 intermediate models (int_id_modified..int_combined) translating export.py mid-CTEs
-- [x] 083-04-marts-and-findings-PLAN.md — Wave 3: marts/occurrences (external parquet), counties_geo + ecoregions_geo (table + post-hook macro), findings seed, end-to-end green build
-
-### Phase 84: Tests, Diff & Findings
-**Goal**: The spike's learning outcomes are captured — dbt's test/contract surface is exercised, sandbox outputs are diffed against `export.py`, partial-run behavior is documented, and a go/no-go recommendation is written grounded in evidence
-**Depends on**: Phase 83
-**Requirements**: TEST-01, TEST-02, TEST-03, DIFF-01, DIFF-02, DIFF-03, PART-01, PART-02, FIND-01, FIND-02, FIND-03
-**Success Criteria** (observable learning outcomes):
-  1. At least three dbt generic-test classes (`not_null`, `unique`, `relationships`) are attempted on slice models with per-test pass/fail/awkward-fit results recorded in findings; at least one model `contract` is enforced and its behavior on intentional schema drift is documented
-  2. A reproducible diff script compares dbt sandbox outputs vs current `public/data/` outputs across row counts, schema, and key-set equality on `ecdysis_id` / `inat:<id>`; spatial-join discrepancies (county/ecoregion_l3 reassignments, if any) are enumerated and root-caused
-  3. Every material output difference is classified as one of: schema-design improvement, latent bug uncovered, semantic divergence to investigate, or neutral/cosmetic
-  4. `dbt run --select` is exercised on at least two subgraphs of the slice; observed parallelism (or its absence) and a captured lineage artifact (`dbt docs generate` output, `dbt ls --resource-type model`, or screenshot) are referenced from findings
-  5. `.planning/research/dbt-spike-findings.md` ends with a concrete go / no-go / go-with-conditions recommendation and an explicit prerequisites list covering test coverage, schema decisions, ingestion-vs-transform boundaries, parallel-run/orchestration story, and impact on the DuckDB-WASM frontend direction
-**Plans**: 3 plans
-Plans:
-- [x] 084-01-dbt-tests-PLAN.md — schema.yml + contract + drift demo + TEST-03 comparison (TEST-01, TEST-02, TEST-03)
-- [x] 084-02-diff-harness-PLAN.md — data/tests/test_dbt_diff.py + DIFF-03 classification table (DIFF-01, DIFF-02, DIFF-03)
-- [x] 084-03-partial-runs-and-findings-PLAN.md — partial runs + lineage + consolidated findings + verdict (PART-01, PART-02, FIND-01, FIND-02, FIND-03)
+<!-- Phase 83-84 details archived to .planning/milestones/v3.3-ROADMAP.md -->
 
 ## Progress
 
@@ -549,4 +523,4 @@ Plans:
 | 81. Filter UX & Nav | v3.2 | 6/6 | Complete | 2026-05-05 |
 | 82. Hardening | v3.2 | 8/8 | Complete | 2026-05-05 |
 | 83. Scaffold & Slice Port | v3.3 | 4/4 | Complete | 2026-05-12 |
-| 84. Tests, Diff & Findings | v3.3 | 0/3 | Planned | — |
+| 84. Tests, Diff & Findings | v3.3 | 3/3 | Complete | 2026-05-13 |
