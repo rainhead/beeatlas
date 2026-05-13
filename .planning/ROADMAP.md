@@ -339,7 +339,7 @@ See `.planning/milestones/v3.2-ROADMAP.md` for full phase details.
 
 **Scope discipline (per `feedback_spike_scope`):** No phase modifies production-facing surfaces (`data/run.py`, `data/nightly.sh`, `public/data/`, `scripts/validate-schema.mjs`, frontend code, CI workflows). No phase replaces or deletes existing Python pipeline code. All work happens on a branch; dbt outputs materialize to `data/dbt/target/sandbox/`.
 
-- [ ] Phase 83: Scaffold & Slice Port — Stand up local `data/dbt/` project, select the spike slice, and express it as dbt models materializing to a sandbox path
+- [x] Phase 83: Scaffold & Slice Port — Stand up local `data/dbt/` project, select the spike slice, and express it as dbt models materializing to a sandbox path
 - [ ] Phase 84: Tests, Diff & Findings — Exercise dbt tests/contracts, diff sandbox outputs against `export.py`, explore partial-run behavior, write go/no-go findings
 
 ## Phase Details
@@ -544,5 +544,5 @@ Plans:
 | 80. Page Scaffolding | v3.2 | 4/4 | Complete | 2026-05-04 |
 | 81. Filter UX & Nav | v3.2 | 6/6 | Complete | 2026-05-05 |
 | 82. Hardening | v3.2 | 8/8 | Complete | 2026-05-05 |
-| 83. Scaffold & Slice Port | v3.3 | 0/0 | Not started | — |
+| 83. Scaffold & Slice Port | v3.3 | 4/4 | Complete | 2026-05-12 |
 | 84. Tests, Diff & Findings | v3.3 | 0/0 | Not started | — |
