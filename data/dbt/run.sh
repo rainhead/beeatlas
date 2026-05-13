@@ -27,9 +27,9 @@ mkdir -p "$DIR/target/sandbox"
 # dbt-core profile-search-order pitfall; --version passes without them via the env vars).
 case "${1:-}" in
   --version|--help|-h|"")
-    exec uvx --from dbt-core==1.10.* --with dbt-duckdb==1.10.1 dbt "$@"
+    exec uvx --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@"
     ;;
   *)
-    exec uvx --from dbt-core==1.10.* --with dbt-duckdb==1.10.1 dbt "$@" --profiles-dir "$DIR" --project-dir "$DIR"
+    exec uvx --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@" --profiles-dir "$DIR" --project-dir "$DIR"
     ;;
 esac
