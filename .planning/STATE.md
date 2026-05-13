@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.3
 milestone_name: dbt Spike
 status: executing
-last_updated: "2026-05-13T21:41:22.205Z"
-last_activity: 2026-05-13 -- Phase 84 planning complete
+last_updated: "2026-05-13T21:48:59.416Z"
+last_activity: 2026-05-13 -- Phase 084 execution started
 progress:
   total_phases: 7
   completed_phases: 1
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-12 — v3.3 dbt Spike milestone planning)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 083 — scaffold-slice-port
+**Current focus:** Phase 084 — tests-diff-findings
 
 ## Current Position
 
-Phase: 84
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-13 -- Phase 84 planning complete
+Phase: 084 (tests-diff-findings) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 084
+Last activity: 2026-05-13 -- Phase 084 execution started
 
 ## Accumulated Context
 
