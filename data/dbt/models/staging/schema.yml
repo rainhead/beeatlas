@@ -1,0 +1,29 @@
+version: 2
+
+models:
+  - name: stg_ecdysis__occurrences
+    columns:
+      - name: catalog_number
+        description: Ecdysis catalog number — unique primary key in this dataset
+        data_tests:
+          - not_null
+          - unique    # VERIFIED unique: 46,090 rows, 46,090 distinct catalog_numbers
+
+  - name: stg_waba__observations
+    columns:
+      - name: id
+        data_tests:
+          - not_null
+          - unique    # VERIFIED unique: 1,408 rows, 1,408 distinct ids
+
+  - name: stg_inat__observations
+    columns:
+      - name: id
+        description: >
+          iNaturalist observation ID. NOTE: Expected to FAIL the unique test —
+          10,845 distinct values vs 10,846 rows (one duplicate inat observation_id
+          exists). Documented as awkward-fit: the iNat pipeline does not guarantee
+          deduplication at source. The failure IS the TEST-01 finding.
+        data_tests:
+          - not_null
+          - unique    # EXPECTED FAIL: 10,845 distinct / 10,846 rows — awkward-fit finding
