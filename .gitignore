@@ -162,3 +162,6 @@ data/dbt/.user.yml
 # DEM tile cache (~200-500 MB WA DEM file)
 data/_dem_cache/
 .aider*
+
+# Playwright MCP scratch (screenshots, snapshots, console logs)
+.playwright-mcp/
