@@ -26,3 +26,23 @@ models:
         data_tests:
           - not_null    # VERIFIED: 10,845 rows post-filter (tombstone excluded in staging view)
           - unique      # VERIFIED unique: 10,845 distinct / 10,845 rows
+
+  - name: stg_inat__canonical_to_taxon_id
+    columns:
+      - name: canonical_name
+        data_tests:
+          - not_null
+          - unique    # VERIFIED: 735 rows, 735 distinct canonical_names
+
+  - name: stg_inat__taxon_lineage_extended
+    columns:
+      - name: taxon_id
+        data_tests:
+          - not_null
+          - unique    # VERIFIED: 2196 rows, 2196 distinct taxon_ids
+
+  - name: stg_checklist__species
+    columns:
+      - name: canonical_name
+        data_tests:
+          - not_null
