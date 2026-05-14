@@ -1,8 +1,8 @@
 -- Counties GeoJSON mart. Materializes WA counties as a table in dbt_sandbox,
 -- then the post-hook emits the FeatureCollection JSON to target/sandbox/counties.geojson.
--- Mirrors export.py:280-294 (export_counties_geojson).
--- Property name: NAME (matches export.py:289 and GeoJSON consumer expectations).
--- Simplification tolerance 0.001 matches export.py:284.
+-- Property name: NAME (matches GeoJSON consumer expectations).
+-- Source is Census Cartographic Boundary 1:5M (cb_2024_us_county_5m), which is
+-- topology-clean from the source — no post-process needed (#14, fp3).
 {{ config(
     materialized='table',
     post_hook=[

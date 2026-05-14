@@ -5,8 +5,10 @@ Sources:
   https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip
 - US States: US Census Bureau TIGER 2024
   https://www2.census.gov/geo/tiger/TIGER2024/STATE/tl_2024_us_state.zip
-- US Counties: US Census Bureau TIGER 2024
-  https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip
+- US Counties: US Census Bureau Cartographic Boundary 2024 (1:5M)
+  https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_5m.zip
+  (Cartographic Boundary 1:5M — topology-clean, unlike the tl_ TIGER file which has
+  ~190 km² of inter-county overlaps in WA. See quick task 260514-fp3 / issue #14.)
 - Canadian Provinces/Territories: Statistics Canada 2021 Census
   https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000b21a_e.zip
 - Canadian Census Divisions (county equivalent): Statistics Canada 2021 Census
@@ -27,7 +29,7 @@ CACHE_DIR = Path(os.environ.get('GEOGRAPHY_CACHE_DIR', '.geography_cache'))
 SOURCES = {
     "ecoregions": "https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip",
     "us_states": "https://www2.census.gov/geo/tiger/TIGER2024/STATE/tl_2024_us_state.zip",
-    "us_counties": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
+    "us_counties": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_5m.zip",
     "ca_provinces": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000b21a_e.zip",
     "ca_census_divisions": "https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcd_000b21a_e.zip",
 }
@@ -113,7 +115,7 @@ def load_geographies() -> None:
         CREATE OR REPLACE TABLE geographies.us_counties AS
         SELECT GEOID AS geoid, NAME AS name, STATEFP AS state_fips, geom
         FROM ST_Read(?)
-    """, [f"/vsizip/{path}/tl_2024_us_county.shp"])
+    """, [f"/vsizip/{path}/cb_2024_us_county_5m.shp"])
     print("  us_counties: done")  # noqa: T201
 
     # --- ca_provinces (Stats Canada Lambert, needs ST_Transform to WGS84) ---

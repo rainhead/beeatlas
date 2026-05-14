@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
 status: completed
-last_updated: "2026-05-14T18:30:00.000Z"
+last_updated: "2026-05-14T19:40:00.000Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 9
@@ -28,7 +28,7 @@ Phase: 88 (Production Cutover) — COMPLETE
 Plan: 3 of 3 (all complete)
 Plans: 3 of 3 drafted across 3 waves; all executed
 Status: Phase 88 complete; v3.4 dbt Full Rewrite milestone ready to mark SHIPPED
-Last activity: 2026-05-14 — Completed quick task 260514-fp2: fixed mobile sidebar close button obscured by Regions button (#12)
+Last activity: 2026-05-14 — Completed quick task 260514-fp3: fixed region boundary gaps/overlaps via CB 5m county source swap + mapshaper topology cleanup (#14)
 
 ## Accumulated Context
 
@@ -84,6 +84,7 @@ None. (CR-01, recorded Phase 67, was silently resolved — both interfaces now u
 | 260514-f7c | dlt pipeline state housekeeping — audit only, no action (≤106 _dlt_* rows total over 58 days, <1% of 111 MB DB) | 2026-05-14 | — | [260514-f7c-dlt-pipeline-state-housekeeping-audit-dl](./quick/260514-f7c-dlt-pipeline-state-housekeeping-audit-dl/) |
 | 260514-fcq | Retire Lambda execution path — removed PipelineFunction + EventBridge schedulers + Function URL from BeeAtlasStack via cdk deploy; deleted stub_handler.py + Dockerfile; CloudFront access logging activated as a side-effect (intentional pending change) | 2026-05-14 | b58b35b | [260514-fcq-retire-stub-handler-delete-data-stub-han](./quick/260514-fcq-retire-stub-handler-delete-data-stub-han/) |
 | 260514-fp2 | Fix mobile sidebar close button obscured by Regions button (#12) — keep a sliver of map visible above the sidebar in narrow viewports so the Regions button has its own real estate | 2026-05-14 | be01acb | [260514-fp2-fix-mobile-sidebar-close-button-obscured](./quick/260514-fp2-fix-mobile-sidebar-close-button-obscured/) |
+| 260514-fp3 | Fix region boundary gaps/overlaps (#14) — switch county source from TIGER tl_ to Census CB 5m (0 vs 192 km² of overlap); add mapshaper -clean -simplify post-process for EPA L3 ecoregions; clip ecoregions to WA in the dbt mart. Side benefit: 84 boundary-nondeterminism rows in occurrence→county assignment dropped to 0. | 2026-05-14 | 62db87e | [260514-fp3-fix-region-boundary-gaps-overlaps](./quick/260514-fp3-fix-region-boundary-gaps-overlaps/) |
 
 ## Deferred Items
 

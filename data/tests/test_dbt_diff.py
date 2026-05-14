@@ -5,7 +5,8 @@ Scope: occurrences.parquet (row count, schema, ecdysis_id key set, spatial assig
 
 Requirements covered:
   DIFF-01: Row count, column schema (names + types), and ecdysis_id key-set equality.
-  DIFF-02: County spatial diff (84 boundary-nondeterminism rows), ecoregion_l3 diff (0 rows),
+  DIFF-02: County spatial diff (0 rows after #14 switched counties to CB 5m;
+           was 84 boundary-nondeterminism rows on TIGER tl_), ecoregion_l3 diff (0 rows),
            GeoJSON feature counts, and property-name parity.
 
 Workflow:
@@ -174,17 +175,19 @@ def test_occurrences_host_observation_id_join_full():
 
 @_SANDBOX_GUARD
 def test_occurrences_county_spatial_diff():
-    """Rows where sandbox.county != public.county (joined on ecdysis_id) must equal 84.
+    """Rows where sandbox.county != public.county (joined on ecdysis_id) must equal 0.
 
-    DIFF-03 classification: semantic divergence to investigate.
-    Root cause: ST_Within returns True for two polygons simultaneously at the
-    Benton/Grant and Chelan/King county boundaries. Neither export.py nor dbt
-    deduplicates the with_county LEFT JOIN before the fallback path — both
-    implementations are nondeterministic at these boundary edges.
+    Issue #14 / quick task 260514-fp3 switched the county data source from
+    TIGER tl_2024_us_county (which had ~192 km² of overlap polygons between
+    adjacent WA counties at the Benton/Grant and Chelan/King boundaries,
+    plus 69 other adjacencies) to Census Cartographic Boundary 1:5M (cb_5m),
+    which is topology-clean. The 84 boundary-nondeterminism rows that were
+    pinned empirically before that switch are now 0.
 
-    The expected value 84 is pinned empirically (pre-research baseline). If this
-    count changes, investigate new boundary-overlap cases or a change in the
-    geometry data.
+    If this count grows above 0 again, investigate whether: (1) a new
+    boundary-overlap case has been introduced upstream, (2) the spatial
+    extension's ST_Within tiebreaking has changed, or (3) the WA county
+    set has changed.
     """
     n = duckdb.execute(
         f"""
@@ -198,8 +201,7 @@ def test_occurrences_county_spatial_diff():
         """
     ).fetchone()[0]
 
-    if n != 84:
-        # Diagnostic: show up to 10 divergent rows for investigation.
+    if n != 0:
         sample = duckdb.execute(
             f"""
             SELECT s.ecdysis_id, s.county AS sandbox_county, p.county AS public_county
@@ -212,15 +214,11 @@ def test_occurrences_county_spatial_diff():
             LIMIT 10
             """
         ).fetchall()
-        assert n == 84, (
-            f"County diff count is {n}, expected 84 boundary-nondeterminism rows.\n"
+        raise AssertionError(
+            f"County diff count is {n}, expected 0 (post-#14 CB 5m clean topology).\n"
             f"Sample divergent rows (ecdysis_id, sandbox_county, public_county):\n"
             f"{sample}"
         )
-
-    assert n == 84, (
-        f"County diff count is {n}, expected 84 boundary-nondeterminism rows."
-    )
 
 
 @_SANDBOX_GUARD

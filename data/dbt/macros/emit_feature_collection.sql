@@ -1,6 +1,12 @@
 -- Shared macro: writes a GeoJSON FeatureCollection to out_path via a DuckDB COPY statement.
 -- Called from post-hooks in counties_geo.sql and ecoregions_geo.sql.
--- Mirrors export.py:280-314 (ST_AsGeoJSON + ST_SimplifyPreserveTopology with tolerance 0.001).
+--
+-- Raw geometry is emitted (no ST_SimplifyPreserveTopology) — the per-feature
+-- simplification was retired in quick task 260514-fp3 (#14). Counties now come
+-- from the Census Cartographic Boundary 1:5M file (cb_2024_us_county_5m),
+-- which is already cartographically generalized and topology-clean. Ecoregions
+-- get a topology-aware cleanup via mapshaper in the run.py post-step (which
+-- also runs simplification across shared arcs, not per-feature).
 --
 -- CLEAN-01 (Phase 85): the FORMAT CSV workaround below is intentional and documented.
 --
@@ -28,7 +34,7 @@ COPY (
       SELECT to_json(list({
         'type': 'Feature',
         'properties': {{ "{" }} {{ "'" ~ property_name ~ "'" }}: name {{ "}" }},
-        'geometry': ST_AsGeoJSON(ST_SimplifyPreserveTopology(geom, 0.001))::JSON
+        'geometry': ST_AsGeoJSON(geom)::JSON
       }))
       FROM {{ model_relation }}
     )
