@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write   # OIDC, needed for AWS S3 read in the data-fetch step
     steps:
       - uses: actions/checkout@v6
 
@@ -20,6 +21,22 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOYER_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Fetch build-time data from S3
+        # Eleventy `_data/species.js` reads species.json + seasonality.json
+        # synchronously at build time. Other artifacts (occurrences.parquet etc.)
+        # are fetched by the frontend at runtime; only these two must be present
+        # in the working tree for the build to succeed.
+        run: |
+          mkdir -p public/data
+          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/species.json public/data/species.json
+          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/seasonality.json public/data/seasonality.json
 
       - name: Run tests
         run: npm test
