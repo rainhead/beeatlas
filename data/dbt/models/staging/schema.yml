@@ -20,10 +20,9 @@ models:
     columns:
       - name: id
         description: >
-          iNaturalist observation ID. TEST-01 outcome (awkward-fit): not_null FAILS
-          with 1 null id; unique PASSES (10,846 rows, all distinct). The iNat pipeline
-          does not guarantee non-null source IDs — the not_null failure IS the finding.
-          See .planning/phases/084-tests-diff-findings/084-TEST-FINDINGS.md.
+          iNaturalist observation ID. The dlt soft-delete tombstone row (id=NULL) is
+          filtered upstream in stg_inat__observations.sql; this view contains 10,845
+          rows post-filter. Both not_null and unique now pass cleanly.
         data_tests:
-          - not_null    # OBSERVED FAIL (1 null id) — awkward-fit finding, kept as a tripwire
-          - unique      # PASSED: 10,846 distinct / 10,846 rows
+          - not_null    # VERIFIED: 10,845 rows post-filter (tombstone excluded in staging view)
+          - unique      # VERIFIED unique: 10,845 distinct / 10,845 rows
