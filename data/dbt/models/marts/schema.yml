@@ -54,13 +54,7 @@ models:
         data_type: integer
       - name: sample_host
         data_type: varchar
-      - name: specimen_inat_login
-        data_type: varchar
       - name: specimen_inat_taxon_name
-        data_type: varchar
-      - name: specimen_inat_genus
-        data_type: varchar
-      - name: specimen_inat_family
         data_type: varchar
       - name: specimen_inat_quality_grade
         data_type: varchar
