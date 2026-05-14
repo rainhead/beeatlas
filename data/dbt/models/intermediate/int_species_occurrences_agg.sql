@@ -12,7 +12,7 @@
 SELECT
     canonical_name,
     COUNT(*) AS occurrence_count,
-    SUM(CASE WHEN id IS NOT NULL THEN 1 ELSE 0 END) AS specimen_count,
+    CAST(SUM(CASE WHEN id IS NOT NULL THEN 1 ELSE 0 END) AS BIGINT) AS specimen_count,
     MIN(TRY_CAST(event_date AS DATE)) AS first_occurrence_date,
     MAX(TRY_CAST(event_date AS DATE)) AS last_occurrence_date,
     list_value(

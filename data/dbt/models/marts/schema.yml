@@ -66,3 +66,45 @@ models:
         data_type: varchar
       - name: ecoregion_l3
         data_type: varchar
+
+  - name: species
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: scientificName
+        data_type: varchar
+      - name: canonical_name
+        data_type: varchar
+      - name: family
+        data_type: varchar
+      - name: subfamily
+        data_type: varchar
+      - name: tribe
+        data_type: varchar
+      - name: genus
+        data_type: varchar
+      - name: subgenus
+        data_type: varchar
+      - name: specific_epithet
+        data_type: varchar
+      - name: on_checklist
+        data_type: boolean
+      - name: status
+        data_type: varchar
+      - name: occurrence_count
+        data_type: bigint
+      - name: specimen_count
+        data_type: bigint
+      - name: provisional_count
+        data_type: bigint
+      - name: first_occurrence_date
+        data_type: date
+      - name: last_occurrence_date
+        data_type: date
+      - name: month_histogram
+        data_type: integer[12]
+      - name: county_count
+        data_type: bigint
+      - name: ecoregion_count
+        data_type: bigint
