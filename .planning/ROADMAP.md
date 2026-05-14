@@ -356,7 +356,7 @@ See `.planning/milestones/v3.3-ROADMAP.md` for full phase details.
 - [ ] Phase 85: Pre-Cutover Groundwork — resolve awkward-fit tests, replace FORMAT CSV macro, drop 3 unused columns
 - [ ] Phase 86: Port Remaining Transforms — port species_export, occurrence-links, taxon-lineage, and resolve_taxon_ids to dbt
 - [x] Phase 87: Incremental Materialization Experiment — tested and documented; recommendation: keep full rebuilds (see 087-FINDINGS.md)
-- [ ] Phase 88: Production Cutover — switch run.py to dbt, retire _apply_migrations and validate-schema.mjs, adapt nightly.sh, smoke-test frontend
+- [x] Phase 88: Production Cutover — switch run.py to dbt, retire _apply_migrations and validate-schema.mjs, adapt nightly.sh, smoke-test frontend
 
 </details>
 
@@ -511,7 +511,7 @@ Plans:
 Plans:
 - [x] 088-01-PLAN.md — Retire validate-schema.mjs gate (CUTOVER-03) + capture pre-cutover rollback SHA + update CLAUDE.md
 - [x] 088-02-PLAN.md — Rewrite data/run.py with _run_dbt_build STEPS entry; delete _apply_migrations and data/export.py (CUTOVER-01, CUTOVER-02)
-- [ ] 088-03-PLAN.md — Confirm nightly.sh unchanged; frontend smoke check; write 088-CUTOVER-LOG.md (CUTOVER-04, VALIDATE-02)
+- [x] 088-03-PLAN.md — Confirm nightly.sh unchanged; frontend smoke check; write 088-CUTOVER-LOG.md (CUTOVER-04, VALIDATE-02)
 
 ## Progress
 
@@ -604,4 +604,4 @@ Plans:
 | 85. Pre-Cutover Groundwork | v3.4 | 0/4 | Not started | - |
 | 86. Port Remaining Transforms | v3.4 | 0/5 | Not started | - |
 | 87. Incremental Materialization Experiment | v3.4 | 2/2 | Complete | 2026-05-13 |
-| 88. Production Cutover | v3.4 | 0/TBD | Not started | - |
+| 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |

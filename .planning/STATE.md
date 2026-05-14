@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
 status: executing
-last_updated: "2026-05-14T15:44:27.352Z"
+last_updated: "2026-05-14T16:30:00.000Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 9
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 14
-  completed_plans: 13
-  percent: 93
+  completed_plans: 14
+  percent: 100
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 ## Current Position
 
-Phase: 88 (Production Cutover) — EXECUTING
-Plan: 3 of 3
-Plans: 3 of 3 drafted across 3 waves; verified iter 2/3
-Status: Ready to execute
+Phase: 88 (Production Cutover) — COMPLETE
+Plan: 3 of 3 (all complete)
+Plans: 3 of 3 drafted across 3 waves; all executed
+Status: Phase 88 complete; v3.4 dbt Full Rewrite milestone ready to mark SHIPPED
 Last activity: 2026-05-14
 
 ## Accumulated Context
@@ -57,6 +57,7 @@ Last activity: 2026-05-14
 - [Phase ?]: Phase 087-02: Rollback via git checkout <pre-experiment-sha> -- <file> (direct working-tree revert, no commit-then-revert); byte-identical verified; belt-and-suspenders --full-refresh PASS=6 exit 0; row count 47840 matches baseline
 - [Phase ?]: Phase 88 cutover: dbt 30-column contract on marts/occurrences is the canonical schema gate; JS validate-schema.mjs retired (pre-cutover SHA 44a967c)
 - [Phase ?]: Wave 2 cutover: dbt is the sole transform producer
+- [Phase 088-03]: Phase 88 closed — CUTOVER-LOG records migration→dbt mapping (host_observation_id source contract; native geom GEOMETRY column), VALIDATE-02 smoke sign-off (4 UI surfaces green 2026-05-14), CUTOVER-04 nightly.sh no-op confirmation, rollback pinned at 44a967c
 
 ### Pending Todos
 
