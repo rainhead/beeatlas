@@ -1,16 +1,21 @@
 """Export per-species aggregates and JSON sidecars for the Species Tab.
 
-Produces three artifacts in public/data/:
-  - species.parquet    (one row per species in the FULL OUTER union)
+Reads dbt-produced sandbox/species.parquet and sandbox/occurrences.parquet,
+adds slug via feeds._slugify, emits three artifacts:
+  - species.parquet    (19 cols incl. slug)
   - species.json       (flat array — Eleventy _data/species.js consumer)
   - seasonality.json   (species → bucket → INT[12] — VIZ-04 lookup)
 
-Runs in run.py STEPS as ("species-export", export_species_parquet) AFTER
-"export" (which writes occurrences.parquet w/ canonical_name) and BEFORE
-"feeds" (which uses public/data/feeds/).
+Run AFTER ``bash data/dbt/run.sh build`` (which writes
+DBT_SANDBOX_DIR/species.parquet and DBT_SANDBOX_DIR/occurrences.parquet).
+
+In run.py STEPS this is called as ("species-export", export_species_parquet)
+BEFORE "feeds" (which uses public/data/feeds/).
 
 Usage:
     cd data && uv run python species_export.py
+    # or, for diff-harness verification:
+    EXPORT_DIR=data/dbt/target/sandbox uv run python species_export.py
 """
 
 import json
@@ -28,6 +33,15 @@ from feeds import _slugify  # Phase 78 D-01: byte-for-byte slug invariant
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 _default_assets = str(Path(__file__).parent.parent / 'public' / 'data')
 ASSETS_DIR = Path(os.environ.get('EXPORT_DIR', _default_assets))
+
+# DBT_SANDBOX_DIR: the directory where dbt writes its external mart outputs.
+# Independent of EXPORT_DIR (the write path). In production, dbt builds to
+# data/dbt/target/sandbox/ and species_export.py writes to public/data/.
+# In the diff harness (EXPORT_DIR=data/dbt/target/sandbox), both paths coincide.
+DBT_SANDBOX_DIR = Path(os.environ.get(
+    'DBT_SANDBOX_DIR',
+    str(Path(__file__).parent / 'dbt' / 'target' / 'sandbox'),
+))
 
 
 # Anthophila — the seven recognized bee families. Non-bee Hymenoptera
@@ -49,6 +63,8 @@ SPECIES_COLUMNS = [
     'first_occurrence_date', 'last_occurrence_date', 'month_histogram',
     'county_count', 'ecoregion_count', 'slug',
 ]
+
+_ZERO_HIST = [0] * 12
 
 
 def _jsonify_rows(rows: list[dict]) -> list[dict]:
@@ -76,138 +92,42 @@ def _jsonify_rows(rows: list[dict]) -> list[dict]:
 def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     """Build species.parquet + species.json + seasonality.json.
 
-    Reads ``ecdysis_data.occurrences`` for the per-species temporal aggregates
-    and ``public/data/occurrences.parquet`` (written by export.py) for the
-    geographic aggregates (county / ecoregion counts) and seasonality buckets.
-    Joins the FULL OUTER union of checklist + ecdysis with the Phase 77
-    canonical_name → taxon_id bridge and the Phase 76 taxon_lineage_extended
-    table to backfill family / subfamily / tribe / genus / subgenus per the
-    TAX-02 / D-01 precedence (checklist first, iNat lineage second, fallback
-    third).
+    Reads ``DBT_SANDBOX_DIR/species.parquet`` (18 cols, produced by
+    ``bash data/dbt/run.sh build``) and appends a ``slug`` column via
+    ``feeds._slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
+    for the per-occurrence seasonality bucket accumulation.
+
+    Writes three artifacts to ASSETS_DIR:
+      - species.parquet  (19 cols including slug)
+      - species.json     (json.dumps sort_keys=True, indent=2)
+      - seasonality.json (json.dumps sort_keys=True, separators=(',', ':'))
+
+    The write path (ASSETS_DIR) is controlled by the EXPORT_DIR env var.
+    The read path (DBT_SANDBOX_DIR) defaults to data/dbt/target/sandbox and
+    is controlled by the DBT_SANDBOX_DIR env var. The two are independent.
     """
-    occurrences_parquet = ASSETS_DIR / "occurrences.parquet"
-    if not occurrences_parquet.exists():
-        # Pitfall #8: clear failure when run before export.py has written its parquet.
+    species_parquet_in = DBT_SANDBOX_DIR / 'species.parquet'
+    if not species_parquet_in.exists():
         raise FileNotFoundError(
-            f"species_export requires {occurrences_parquet}; run export.export_occurrences_parquet first"
+            f"species_export requires {species_parquet_in}; "
+            f"run `bash data/dbt/run.sh build` first to produce the dbt mart"
+        )
+
+    occurrences_parquet_in = DBT_SANDBOX_DIR / 'occurrences.parquet'
+    if not occurrences_parquet_in.exists():
+        raise FileNotFoundError(
+            f"species_export requires {occurrences_parquet_in}; "
+            f"run `bash data/dbt/run.sh build` first to produce the dbt mart"
         )
 
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # CTE 1: occ_with_geo — county / ecoregion / month per occurrence (from parquet).
-    con.execute(
-        f"""
-        CREATE OR REPLACE TEMP VIEW occ_with_geo AS
-        SELECT canonical_name, county, ecoregion_l3, year, month
-        FROM read_parquet('{occurrences_parquet}')
-        WHERE canonical_name IS NOT NULL
-        """
-    )
-
-    # SQL-quoted IN-list of bee families for the species_universe filter.
-    _bee_families_sql = ", ".join(f"'{f}'" for f in BEE_FAMILIES)
-
-    # The aggregation query — single multi-CTE producing the final per-species row.
-    #
-    # Note: provisional_count is 0 until the WABA pipeline materializes
-    # canonical_name on provisional rows (deferred per CONTEXT). When that
-    # lands, the provisional_agg CTE picks it up automatically.
-    species_query = f"""
-        WITH occurrences_agg AS (
-            SELECT
-                canonical_name,
-                COUNT(*) AS occurrence_count,
-                SUM(CASE WHEN id IS NOT NULL THEN 1 ELSE 0 END) AS specimen_count,
-                MIN(TRY_CAST(event_date AS DATE)) AS first_occurrence_date,
-                MAX(TRY_CAST(event_date AS DATE)) AS last_occurrence_date,
-                list_value(
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  1 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  2 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  3 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  4 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  5 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  6 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  7 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  8 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) =  9 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) = 10 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) = 11 THEN 1 ELSE 0 END),
-                    SUM(CASE WHEN TRY_CAST(month AS INT) = 12 THEN 1 ELSE 0 END)
-                )::INTEGER[12] AS month_histogram
-            FROM ecdysis_data.occurrences
-            WHERE canonical_name IS NOT NULL
-            GROUP BY canonical_name
-        ),
-        provisional_agg AS (
-            -- provisional_count is 0 until WABA pipeline materializes
-            -- canonical_name on provisional rows (deferred per CONTEXT).
-            SELECT canonical_name, COUNT(*) AS provisional_count
-            FROM read_parquet('{occurrences_parquet}')
-            WHERE is_provisional = TRUE AND canonical_name IS NOT NULL
-            GROUP BY canonical_name
-        ),
-        geo_agg AS (
-            SELECT
-                canonical_name,
-                COUNT(DISTINCT county) AS county_count,
-                COUNT(DISTINCT ecoregion_l3) AS ecoregion_count
-            FROM occ_with_geo
-            GROUP BY canonical_name
-        ),
-        species_universe AS (
-            SELECT
-                COALESCE(c.scientificName, oa.canonical_name) AS scientificName,
-                COALESCE(c.canonical_name, oa.canonical_name) AS canonical_name,
-                COALESCE(c.family, tle.family) AS family,
-                COALESCE(c.subfamily, tle.subfamily) AS subfamily,
-                COALESCE(c.tribe, tle.tribe) AS tribe,
-                COALESCE(
-                    c.genus,
-                    tle.genus,
-                    split_part(COALESCE(c.canonical_name, oa.canonical_name), ' ', 1)
-                ) AS genus,
-                COALESCE(c.subgenus, tle.subgenus) AS subgenus,
-                c.specific_epithet AS specific_epithet,
-                c.scientificName IS NOT NULL AS on_checklist,
-                c.status AS status,
-                COALESCE(oa.occurrence_count, 0) AS occurrence_count,
-                COALESCE(oa.specimen_count, 0) AS specimen_count,
-                COALESCE(pa.provisional_count, 0) AS provisional_count,
-                oa.first_occurrence_date AS first_occurrence_date,
-                oa.last_occurrence_date AS last_occurrence_date,
-                -- NULL histograms (checklist-only rows) are filled with [0]*12
-                -- in Python before parquet write — DuckDB COALESCE on
-                -- INTEGER[12] is not implemented (1.4.x).
-                oa.month_histogram AS month_histogram,
-                COALESCE(ga.county_count, 0) AS county_count,
-                COALESCE(ga.ecoregion_count, 0) AS ecoregion_count
-            FROM checklist_data.species c
-            FULL OUTER JOIN occurrences_agg oa
-                ON oa.canonical_name = c.canonical_name
-            LEFT JOIN inaturalist_data.canonical_to_taxon_id ctt
-                ON ctt.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
-            LEFT JOIN inaturalist_data.taxon_lineage_extended tle
-                ON tle.taxon_id = ctt.taxon_id
-            LEFT JOIN provisional_agg pa
-                ON pa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
-            LEFT JOIN geo_agg ga
-                ON ga.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
-        )
-        -- Pitfall #7: collapse any accidental duplicate canonical_name rows,
-        -- preferring the checklist-favoring row when both arms produce one.
-        --
-        -- Restrict to the seven Anthophila families (BEE_FAMILIES). Non-bee
-        -- byproducts of sample collection (other Hymenoptera, beetles, flies,
-        -- moths, etc., plus order-rank-only IDs whose family never resolved)
-        -- have no place in a bee species tree. The underlying occurrences
-        -- still flow through occurrences.parquet for the map.
-        SELECT DISTINCT ON (canonical_name) *
-        FROM species_universe
-        WHERE family IN ({_bee_families_sql})
-        ORDER BY canonical_name, on_checklist DESC
-    """
-
-    fetched = con.execute(species_query).fetchall()
+    # Read the 18-col dbt mart (no slug). Exclude the last SPECIES_COLUMNS entry
+    # ('slug') since the dbt mart does not have it yet.
+    mart_cols = ', '.join(SPECIES_COLUMNS[:-1])
+    fetched = con.execute(
+        f"SELECT {mart_cols} FROM read_parquet('{species_parquet_in}') ORDER BY canonical_name"
+    ).fetchall()
     fetched_cols = [d[0] for d in con.description]
     species_rows = [dict(zip(fetched_cols, row)) for row in fetched]
 
@@ -215,7 +135,8 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     # avoids drift from the path-traversal-safe Python implementation).
     # Backfill NULL month_histogram (checklist-only rows) with [0]*12 — DuckDB
     # COALESCE on INTEGER[12] is unimplemented in 1.4.x, so fix in Python.
-    _ZERO_HIST = [0] * 12
+    # (The dbt CASE expression in int_species_universe should handle this now,
+    # but the defensive backfill stays in case any row slips through with NULL.)
     for r in species_rows:
         r['slug'] = _slugify(r['scientificName'])
         if r.get('month_histogram') is None:
@@ -283,13 +204,16 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     # ---- AGG-05: seasonality.json -------------------------------------------
     # Nested species → bucket → INT[12] for VIZ-04 lookup. Tight separators
     # (Pattern 3) shave ~30% off the on-disk size.
+    # Pitfall #4: reads from DBT_SANDBOX_DIR/occurrences.parquet (the dbt mart),
+    # NOT from ASSETS_DIR/occurrences.parquet, to keep diff comparison clean
+    # (production ASSETS_DIR = public/data/ which may differ from the sandbox).
     seasonality: dict[str, dict[str, list[int]]] = defaultdict(
         lambda: defaultdict(lambda: [0] * 12)
     )
     seas_rows = con.execute(
         f"""
         SELECT canonical_name, county, ecoregion_l3, TRY_CAST(month AS INT) - 1 AS m_idx
-        FROM read_parquet('{occurrences_parquet}')
+        FROM read_parquet('{occurrences_parquet_in}')
         WHERE canonical_name IS NOT NULL AND month IS NOT NULL
         """
     ).fetchall()
