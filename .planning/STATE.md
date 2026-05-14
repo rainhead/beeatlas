@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
-status: planning
-last_updated: "2026-05-14T00:05:06.617Z"
-last_activity: 2026-05-14
+status: executing
+last_updated: "2026-05-14T01:09:44.026Z"
+last_activity: 2026-05-14 -- Phase 085 execution started
 progress:
-  total_phases: 0
+  total_phases: 9
   completed_phases: 0
-  total_plans: 0
+  total_plans: 4
   completed_plans: 0
   percent: 0
 ---
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Between milestones — v3.3 archived; v3.4 direction pending.
+**Current focus:** Phase 085 — Pre-Cutover Groundwork
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-14 — Milestone v3.4 started
+Phase: 085 (Pre-Cutover Groundwork) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 085
+Last activity: 2026-05-14 -- Phase 085 execution started
 
 ## Accumulated Context
 
