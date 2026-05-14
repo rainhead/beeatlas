@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
-status: verifying
-last_updated: "2026-05-14T05:25:30.430Z"
-last_activity: 2026-05-14
+status: executing
+last_updated: "2026-05-14T06:01:31.794Z"
+last_activity: 2026-05-14 -- Phase 88 planning complete
 progress:
   total_phases: 9
   completed_phases: 3
-  total_plans: 11
+  total_plans: 14
   completed_plans: 11
-  percent: 100
+  percent: 79
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 87 complete — recommendation "keep full rebuilds" recorded in 087-FINDINGS.md; ready for Phase 88 (Production Cutover)
+**Current focus:** Phase 88 (Production Cutover) — planned (3 plans, 3 waves); ready for execution
 
 ## Current Position
 
-Phase: 87 (Incremental Materialization Experiment) — COMPLETE
-Plan: 2 of 2 — both committed (6da1df5, 2916ded)
-Status: Phase 87 VERIFIED (087-VERIFICATION.md, 8/8 must-haves) — ready for Phase 88
-Last activity: 2026-05-14
+Phase: 88 (Production Cutover) — PLANNED
+Plans: 3 of 3 drafted across 3 waves; verified iter 2/3
+Status: Ready to execute (`/gsd-execute-phase 088`)
+Last activity: 2026-05-14 -- Phase 88 planning complete
 
 ## Accumulated Context
 
