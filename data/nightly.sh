@@ -54,7 +54,20 @@ else
     echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
 fi
 git pull --ff-only
-npm ci
+# Cache node_modules between runs keyed on package-lock.json hash. npm ci wipes
+# node_modules and reinstalls everything every call, which on this repo means
+# rebuilding the msgpackr-extract native addon (transitive via mapshaper) — a
+# multi-minute hit even when nothing has changed. The cache file lives outside
+# node_modules so `npm ci` can't blow it away.
+_LOCK_HASH=$(sha256sum package-lock.json | awk '{print $1}')
+_LOCK_CACHE="$REPO_ROOT/.npm-lock-hash"
+if [[ -d node_modules && -f "$_LOCK_CACHE" && "$(cat "$_LOCK_CACHE")" == "$_LOCK_HASH" ]]; then
+    echo "  npm: package-lock.json unchanged (hash $(echo "$_LOCK_HASH" | cut -c1-12)…); skipping reinstall"
+else
+    echo "  npm: lockfile changed or node_modules missing; running npm ci"
+    npm ci
+    echo "$_LOCK_HASH" > "$_LOCK_CACHE"
+fi
 cd "$SCRIPT_DIR"
 uv sync
 echo "sync done in $(_elapsed $_t0)"
