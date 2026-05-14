@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
-status: executing
+status: ready_to_plan
 last_updated: "2026-05-14T01:09:44.026Z"
 last_activity: 2026-05-14 -- Phase 085 execution started
 progress:
   total_phases: 9
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
   completed_plans: 0
-  percent: 0
+  percent: 11
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 ## Current Position
 
-Phase: 085 (Pre-Cutover Groundwork) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 085
-Last activity: 2026-05-14 -- Phase 085 execution started
+Phase: 86
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-14
 
 ## Accumulated Context
 
