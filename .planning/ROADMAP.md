@@ -478,7 +478,7 @@ Plans:
   5. `test_dbt_diff.py` continues to pass against `public/data/` outputs throughout this phase (VALIDATE-01 constraint: dbt models produce identical outputs to the current Python pipeline)
 **Plans**: 5 plans
 Plans:
-- [ ] 086-01-PLAN.md — VALIDATE-01: extend test_dbt_diff.py with 5 SKIP-guarded species artifact diff tests (Wave 0)
+- [x] 086-01-PLAN.md — VALIDATE-01: extend test_dbt_diff.py with 5 SKIP-guarded species artifact diff tests (Wave 0)
 - [ ] 086-02-PLAN.md — PORT-03: add canonical_to_taxon_id + taxon_lineage_extended + checklist_data sources, 3 staging views, LIN-05 singular test
 - [ ] 086-03-PLAN.md — PORT-02 + PORT-04: ingestion-boundary.md decision record (load_links + resolve_taxon_ids stay in Python; consumed via source())
 - [ ] 086-04-PLAN.md — PORT-01 (parquet half): int_species_occurrences_agg + int_species_geo_agg + int_species_universe + marts/species (18-col contract)
