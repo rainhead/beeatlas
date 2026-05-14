@@ -42,7 +42,7 @@ npm run dev
 # Tests (Vitest)
 npm test
 
-# Production build (validate-schema -> tsc --noEmit -> eleventy + Vite)
+# Production build (tsc --noEmit -> eleventy + Vite)
 npm run build
 
 # Data pipeline
@@ -55,4 +55,4 @@ cd data && uv run pytest
 ## Known State
 
 - Lambda CDK artifacts exist in AWS but the active execution path is `data/nightly.sh` on maderas (nightly cron)
-- `scripts/validate-schema.mjs` runs before every CI build as a parquet schema gate
+- The dbt 30-column contract on `marts/occurrences` is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator.
