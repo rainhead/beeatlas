@@ -6,4 +6,5 @@ last_fetch.txt
 beeatlas.duckdb
 beeatlas.duckdb.wal
 .geography_cache/
+.ecdysis_cache/
 raw/ecdysis_cache/
