@@ -482,7 +482,7 @@ Plans:
 - [x] 086-02-PLAN.md — PORT-03: add canonical_to_taxon_id + taxon_lineage_extended + checklist_data sources, 3 staging views, LIN-05 singular test
 - [x] 086-03-PLAN.md — PORT-02 + PORT-04: ingestion-boundary.md decision record (load_links + resolve_taxon_ids stay in Python; consumed via source())
 - [x] 086-04-PLAN.md — PORT-01 (parquet half): int_species_occurrences_agg + int_species_geo_agg + int_species_universe + marts/species (18-col contract)
-- [ ] 086-05-PLAN.md — PORT-01 (JSON half): rewrite species_export.py to read dbt mart, add slug via feeds._slugify, emit species.json + seasonality.json byte-comparable
+- [x] 086-05-PLAN.md — PORT-01 (JSON half): rewrite species_export.py to read dbt mart, add slug via feeds._slugify, emit species.json + seasonality.json byte-comparable
 
 ### Phase 87: Incremental Materialization Experiment
 **Goal**: The question of whether `materialized='incremental'` works with dbt-duckdb external materializations is answered with observed evidence, documented to inform the nightly.sh cutover decision
