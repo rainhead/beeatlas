@@ -6,8 +6,9 @@
     "cdk": "cdk",
     "build": "tsc",
     "watch": "tsc -w",
-    "synth": "cdk synth",
-    "deploy": "cdk deploy"
+    "synth": "cdk synth --all",
+    "diff": "cdk diff --all",
+    "deploy": "cdk deploy --all"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.238.0",
