@@ -54,9 +54,9 @@ else
     echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
 fi
 git pull --ff-only
-npm ci --silent
+npm ci
 cd "$SCRIPT_DIR"
-uv sync --quiet
+uv sync
 echo "sync done in $(_elapsed $_t0)"
 
 # Always back up DuckDB on exit (success or failure) so pipeline progress
