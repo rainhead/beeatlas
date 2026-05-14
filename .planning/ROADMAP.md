@@ -476,7 +476,13 @@ Plans:
   3. Taxon-lineage enrichment is expressed as dbt models; LIN-05 lineage coverage (≥0.95 ratio) is enforced via a dbt test that passes
   4. A documented porting decision exists for `resolve_taxon_ids.py`: either a dbt model exists and the Python file is deleted, or an ingestion-boundary document explains why it stays in Python
   5. `test_dbt_diff.py` continues to pass against `public/data/` outputs throughout this phase (VALIDATE-01 constraint: dbt models produce identical outputs to the current Python pipeline)
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+- [ ] 086-01-PLAN.md — VALIDATE-01: extend test_dbt_diff.py with 5 SKIP-guarded species artifact diff tests (Wave 0)
+- [ ] 086-02-PLAN.md — PORT-03: add canonical_to_taxon_id + taxon_lineage_extended + checklist_data sources, 3 staging views, LIN-05 singular test
+- [ ] 086-03-PLAN.md — PORT-02 + PORT-04: ingestion-boundary.md decision record (load_links + resolve_taxon_ids stay in Python; consumed via source())
+- [ ] 086-04-PLAN.md — PORT-01 (parquet half): int_species_occurrences_agg + int_species_geo_agg + int_species_universe + marts/species (18-col contract)
+- [ ] 086-05-PLAN.md — PORT-01 (JSON half): rewrite species_export.py to read dbt mart, add slug via feeds._slugify, emit species.json + seasonality.json byte-comparable
 
 ### Phase 87: Incremental Materialization Experiment
 **Goal**: The question of whether `materialized='incremental'` works with dbt-duckdb external materializations is answered with observed evidence, documented to inform the nightly.sh cutover decision
@@ -589,6 +595,6 @@ Plans:
 | 83. Scaffold & Slice Port | v3.3 | 4/4 | Complete | 2026-05-12 |
 | 84. Tests, Diff & Findings | v3.3 | 3/3 | Complete | 2026-05-13 |
 | 85. Pre-Cutover Groundwork | v3.4 | 0/4 | Not started | - |
-| 86. Port Remaining Transforms | v3.4 | 0/TBD | Not started | - |
+| 86. Port Remaining Transforms | v3.4 | 0/5 | Not started | - |
 | 87. Incremental Materialization Experiment | v3.4 | 0/TBD | Not started | - |
 | 88. Production Cutover | v3.4 | 0/TBD | Not started | - |
