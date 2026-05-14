@@ -305,12 +305,14 @@ export class BeeMap extends LitElement {
           },
         });
 
-        // Ecoregion line (visible stroke)
+        // Ecoregion line (visible stroke).
+        // line-join: round avoids miter extension at sharp three-way corners
+        // (#14 — small visible artifacts at Pierce/Lewis/Yakima-style junctions).
         this._map!.addLayer({
           id: 'ecoregion-line',
           type: 'line',
           source: 'ecoregions',
-          layout: { visibility: ecoVis },
+          layout: { visibility: ecoVis, 'line-join': 'round', 'line-cap': 'round' },
           paint: {
             'line-color': [
               'case',
@@ -343,12 +345,14 @@ export class BeeMap extends LitElement {
           },
         });
 
-        // County line (visible stroke)
+        // County line (visible stroke).
+        // line-join: round avoids miter extension at sharp three-way corners
+        // (#14 — small visible artifacts at Pierce/Lewis/Yakima-style junctions).
         this._map!.addLayer({
           id: 'county-line',
           type: 'line',
           source: 'counties',
-          layout: { visibility: countyVis },
+          layout: { visibility: countyVis, 'line-join': 'round', 'line-cap': 'round' },
           paint: {
             'line-color': [
               'case',
