@@ -49,10 +49,14 @@ cp "$SCRIPT_DIR/dbt/target/sandbox/ecoregions.geojson" "$EXPORT_DIR/ecoregions.g
 echo "--- topology-postprocess ---"
 uv run python topology_postprocess.py
 
-# 5. Upload to S3.
+# 5. Upload to S3. Pre-gzip because CloudFront's auto-compression doesn't cover
+# application/geo+json. ~67% smaller on the wire; browsers decompress transparently.
 echo "--- uploading to s3://$BUCKET/data/ ---"
 for f in counties.geojson ecoregions.geojson; do
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
+    gzip -9 -c "$EXPORT_DIR/$f" > "$EXPORT_DIR/$f.gz"
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f.gz" "s3://$BUCKET/data/$f" \
+        --content-encoding gzip \
+        --content-type application/geo+json
 done
 
 # 6. Invalidate CloudFront paths.
