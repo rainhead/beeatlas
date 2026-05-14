@@ -494,7 +494,7 @@ Plans:
   3. A clear recommendation is recorded for Phase 88: either "nightly.sh should use incremental" with the selector command, or "full rebuilds are the right approach because [reason]"
 **Plans**: 2 plans
 Plans:
-- [ ] 087-01-PLAN.md — Capture baseline + apply experimental incremental config to int_combined (ARM 1 watermark + ARM 2 skip) + capture 3 incremental runs (full-refresh, no-op, data-change) into run_results-*.json + timings.md
+- [x] 087-01-PLAN.md — Capture baseline + apply experimental incremental config to int_combined (ARM 1 watermark + ARM 2 skip) + capture 3 incremental runs (full-refresh, no-op, data-change) into run_results-*.json + timings.md
 - [ ] 087-02-PLAN.md — Write 087-FINDINGS.md with evidence-anchored recommendation for Phase 88, then revert int_combined.sql to pre-experiment materialized=table state
 
 ### Phase 88: Production Cutover

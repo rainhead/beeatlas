@@ -39,7 +39,7 @@
 
 - [ ] **TEST-01**: The `stg_inat__observations.id` `not_null` awkward-fit (1 null id) is resolved by one of: (a) filtering the null row at staging with a documented WHERE clause, (b) fixing the iNat pipeline upstream to ensure non-null IDs, or (c) converting the failing test into a singular tripwire test whose intentional failure is excluded from `dbt build` exit semantics. The chosen approach and rationale are recorded.
 - [ ] **TEST-02**: The `int_ecdysis_base.ecdysis_id` `relationships` cross-type ERROR (DuckDB cannot auto-cast `WSDA_2303966` VARCHAR to INT32) is resolved by replacing the generic `relationships` test with a custom singular test that performs an explicit `CAST(ecdysis_id AS VARCHAR) = catalog_number` check. The new test passes against production data.
-- [ ] **TEST-03**: `materialized='incremental'` is tested on dbt-duckdb with external materializations on at least one model in the slice (a known unknown in v3.3 findings). Observed behavior — does incremental work? does it actually speed up nightly builds? — is documented. If incremental does not work for external materializations, the limitation is documented and the cron continues to run full rebuilds.
+- [x] **TEST-03**: `materialized='incremental'` is tested on dbt-duckdb with external materializations on at least one model in the slice (a known unknown in v3.3 findings). Observed behavior — does incremental work? does it actually speed up nightly builds? — is documented. If incremental does not work for external materializations, the limitation is documented and the cron continues to run full rebuilds.
 
 ### Artifact Cleanup (CLEAN)
 
@@ -76,7 +76,7 @@
 | CUTOVER-04 | Phase 88 | Pending |
 | TEST-01 | Phase 85 | Pending |
 | TEST-02 | Phase 85 | Pending |
-| TEST-03 | Phase 87 | Pending |
+| TEST-03 | Phase 87 | Complete |
 | CLEAN-01 | Phase 85 | Pending |
 | CLEAN-02 | Phase 85 | Pending |
 | VALIDATE-01 | Phase 86 | Pending |
