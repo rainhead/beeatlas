@@ -325,16 +325,28 @@ def test_species_parquet_row_count_matches():
 
 @SANDBOX_SPECIES_PARQUET_GUARD
 def test_species_parquet_schema_matches():
-    """19-column schema (names + types) identical between sandbox and public (19 cols)."""
+    """Public schema equals sandbox schema PLUS appended slug column.
+
+    The dbt mart writes an 18-column species.parquet to data/dbt/target/sandbox/.
+    species_export.py reads it, appends a slug column via feeds._slugify, and
+    writes the resulting 19-column file to public/data/species.parquet
+    (Phase 86 Plan 05 contract). This test asserts the 18 sandbox cols equal
+    the first 18 public cols in order and types, and that the 19th public col
+    is ('slug', 'VARCHAR').
+    """
     s_cols = [(r[0], r[1]) for r in duckdb.execute(
         f"DESCRIBE SELECT * FROM read_parquet('{SANDBOX}/species.parquet')"
     ).fetchall()]
     p_cols = [(r[0], r[1]) for r in duckdb.execute(
         f"DESCRIBE SELECT * FROM read_parquet('{PUBLIC}/species.parquet')"
     ).fetchall()]
-    assert s_cols == p_cols, (
-        f"Schema mismatch.\nSandbox only: {[c for c in s_cols if c not in p_cols]}\n"
-        f"Public only:  {[c for c in p_cols if c not in s_cols]}"
+    assert p_cols[:-1] == s_cols, (
+        f"Sandbox/public column prefix mismatch.\n"
+        f"Sandbox only: {[c for c in s_cols if c not in p_cols]}\n"
+        f"Public[:-1] only: {[c for c in p_cols[:-1] if c not in s_cols]}"
+    )
+    assert p_cols[-1] == ('slug', 'VARCHAR'), (
+        f"Expected last public column to be ('slug', 'VARCHAR'); got {p_cols[-1]!r}"
     )
 
 
