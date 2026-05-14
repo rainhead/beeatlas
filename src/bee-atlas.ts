@@ -142,6 +142,18 @@ bee-filter-panel {
     border-left: none;
     border-top: 1px solid var(--border-input);
     flex-grow: 1;
+    /* Without this, the sidebar's min-content height pushes bee-map to ~0,
+       which moves the absolutely-positioned Regions button onto the close
+       button (#12). */
+    min-height: 0;
+  }
+  /* Keep a sliver of map visible when the sidebar is open so the Regions
+     button has its own real estate above the sidebar's close button (#12). */
+  .content.sidebar-open bee-map {
+    height: 3.5rem;
+    flex-grow: 0;
+    flex-shrink: 0;
+    min-height: 0;
   }
 }
   `;
@@ -155,7 +167,11 @@ bee-filter-panel {
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
       ${this._error ? '' : html`
-        <div class="${this._viewMode === 'table' ? 'content table-mode' : 'content'}">
+        <div class=${[
+          'content',
+          this._viewMode === 'table' ? 'table-mode' : '',
+          this._viewMode === 'map' && this._sidebarOpen ? 'sidebar-open' : '',
+        ].filter(Boolean).join(' ')}>
           <bee-map
             .boundaryMode=${this._boundaryMode}
             .visibleIds=${this._visibleIds}
