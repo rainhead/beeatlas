@@ -26,6 +26,7 @@
 - ✅ **v3.1 Eleventy Build Wrapper** — Phases 74–75 (shipped 2026-04-30)
 - ✅ **v3.2 Species Tab** — Phases 76–82 (shipped 2026-05-05)
 - ✅ **v3.3 dbt Spike** — Phases 83–84 (shipped 2026-05-13). Verdict: GO-WITH-CONDITIONS. See [.planning/milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md).
+- 🔄 **v3.4 dbt Full Rewrite** — Phases 85–88 (in planning). Cut over from `export.py` + ad-hoc Python to `dbt build` as the canonical pipeline.
 
 ## Phases
 
@@ -347,6 +348,18 @@ See `.planning/milestones/v3.3-ROADMAP.md` for full phase details.
 
 </details>
 
+<details>
+<summary>🔄 v3.4 dbt Full Rewrite (Phases 85–88) — IN PLANNING</summary>
+
+**Milestone Goal:** Cut over the BeeAtlas data pipeline from `data/export.py` + ad-hoc Python transforms to `data/dbt/` as the canonical producer of `occurrences.parquet`, `counties.geojson`, `ecoregions.geojson`, `species.json`, and species count artifacts. After v3.4, `dbt build` is the only way these outputs are produced.
+
+- [ ] Phase 85: Pre-Cutover Groundwork — resolve awkward-fit tests, replace FORMAT CSV macro, drop 3 unused columns
+- [ ] Phase 86: Port Remaining Transforms — port species_export, occurrence-links, taxon-lineage, and resolve_taxon_ids to dbt
+- [ ] Phase 87: Incremental Materialization Experiment — test and document `materialized='incremental'` on dbt-duckdb with external materializations
+- [ ] Phase 88: Production Cutover — switch run.py to dbt, retire _apply_migrations and validate-schema.mjs, adapt nightly.sh, smoke-test frontend
+
+</details>
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -436,6 +449,52 @@ Plans:
 
 <!-- Phase 83-84 details archived to .planning/milestones/v3.3-ROADMAP.md -->
 
+### Phase 85: Pre-Cutover Groundwork
+**Goal**: The dbt test suite exits 0 cleanly and the new 30-column schema contract is in place before any production code is touched
+**Depends on**: Phase 84
+**Requirements**: TEST-01, TEST-02, CLEAN-01, CLEAN-02
+**Success Criteria** (what must be TRUE):
+  1. `dbt build` exits 0 with 0 ERROR and 0 FAIL (the two awkward-fit tests — iNat not_null and ecdysis_id relationships — are resolved via staging filter or singular test replacement)
+  2. `data/dbt/macros/emit_feature_collection.sql` no longer uses `FORMAT CSV, DELIMITER '', QUOTE '', HEADER false`; the replacement (GDAL driver or Python post-hook) produces GeoJSON files that pass `test_dbt_diff.py`
+  3. The `marts/occurrences` dbt contract declares exactly 30 columns (not 33); `specimen_inat_login`, `specimen_inat_family`, `specimen_inat_genus` are absent from the SELECT and schema.yml
+  4. `src/sqlite.ts` column declarations for the 3 dropped columns are removed; `npm test` passes
+  5. `test_dbt_diff.py` schema assertion is updated to assert 30 columns and still passes
+**Plans**: TBD
+
+### Phase 86: Port Remaining Transforms
+**Goal**: Every Python transform in the data pipeline (species_export.py, occurrence-links derivation, taxon-lineage enrichment, resolve_taxon_ids.py) is expressed as dbt models with declared ref()/source() dependencies, and the diff harness stays green throughout
+**Depends on**: Phase 85
+**Requirements**: PORT-01, PORT-02, PORT-03, PORT-04, VALIDATE-01
+**Success Criteria** (what must be TRUE):
+  1. `data/dbt/` contains mart models for `species.json` and species count artifacts (county_count, ecoregion_count, recency tiers); outputs are byte-comparable to current `public/data/species.json` as asserted by the diff harness
+  2. Occurrence-links derivation (specimen_observation_id join + projection) is a dbt model consuming a `source()` declaration; Python scraping remains but the join/projection logic is removed from Python
+  3. Taxon-lineage enrichment is expressed as dbt models; LIN-05 lineage coverage (≥0.95 ratio) is enforced via a dbt test that passes
+  4. A documented porting decision exists for `resolve_taxon_ids.py`: either a dbt model exists and the Python file is deleted, or an ingestion-boundary document explains why it stays in Python
+  5. `test_dbt_diff.py` continues to pass against `public/data/` outputs throughout this phase (VALIDATE-01 constraint: dbt models produce identical outputs to the current Python pipeline)
+**Plans**: TBD
+
+### Phase 87: Incremental Materialization Experiment
+**Goal**: The question of whether `materialized='incremental'` works with dbt-duckdb external materializations is answered with observed evidence, documented to inform the nightly.sh cutover decision
+**Depends on**: Phase 86
+**Requirements**: TEST-03
+**Success Criteria** (what must be TRUE):
+  1. At least one model in the dbt project is configured with `materialized='incremental'` and `dbt build` is run twice; the second run's behavior (full rebuild vs. incremental diff) is observed and recorded
+  2. A written finding documents: does incremental work with external materializations? does it measurably speed up nightly builds? what is the wall-clock comparison?
+  3. A clear recommendation is recorded for Phase 88: either "nightly.sh should use incremental" with the selector command, or "full rebuilds are the right approach because [reason]"
+**Plans**: TBD
+
+### Phase 88: Production Cutover
+**Goal**: `dbt build` is the sole producer of all pipeline outputs; legacy Python transform code, `_apply_migrations()`, and `validate-schema.mjs` are retired; nightly.sh runs dbt and interprets exit codes correctly; the frontend loads dbt-produced occurrences.parquet without code changes
+**Depends on**: Phase 87
+**Requirements**: CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04, VALIDATE-02
+**Success Criteria** (what must be TRUE):
+  1. `data/run.py` invokes `bash data/dbt/run.sh build` (or equivalent); `data/export.py` and `data/species_export.py` are no longer called in the transform path; `data/run.py` exits non-zero on dbt failure with a meaningful error message
+  2. `_apply_migrations()` is deleted from `data/run.py`; a written mapping documents each migration invariant and its dbt replacement (contract column, generic test, or singular test)
+  3. `scripts/validate-schema.mjs` is deleted; the `validate-schema` npm script is removed from `package.json`; the GitHub Actions workflow no longer references it; `npm run build` succeeds
+  4. `data/nightly.sh` invokes `dbt build` (with `--exclude` for any remaining documented awkward-fits) and exits non-zero only on true failures, not on documented/excluded test anomalies
+  5. End-to-end smoke check after cutover: `npm run dev`, map renders, filters work, table populates, species page works — all with `occurrences.parquet` produced entirely by dbt (30-column schema, no frontend code changes)
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -524,3 +583,7 @@ Plans:
 | 82. Hardening | v3.2 | 8/8 | Complete | 2026-05-05 |
 | 83. Scaffold & Slice Port | v3.3 | 4/4 | Complete | 2026-05-12 |
 | 84. Tests, Diff & Findings | v3.3 | 3/3 | Complete | 2026-05-13 |
+| 85. Pre-Cutover Groundwork | v3.4 | 0/TBD | Not started | - |
+| 86. Port Remaining Transforms | v3.4 | 0/TBD | Not started | - |
+| 87. Incremental Materialization Experiment | v3.4 | 0/TBD | Not started | - |
+| 88. Production Cutover | v3.4 | 0/TBD | Not started | - |

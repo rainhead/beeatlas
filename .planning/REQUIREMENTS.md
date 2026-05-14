@@ -66,20 +66,20 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| PORT-01 | TBD | Pending |
-| PORT-02 | TBD | Pending |
-| PORT-03 | TBD | Pending |
-| PORT-04 | TBD | Pending |
-| CUTOVER-01 | TBD | Pending |
-| CUTOVER-02 | TBD | Pending |
-| CUTOVER-03 | TBD | Pending |
-| CUTOVER-04 | TBD | Pending |
-| TEST-01 | TBD | Pending |
-| TEST-02 | TBD | Pending |
-| TEST-03 | TBD | Pending |
-| CLEAN-01 | TBD | Pending |
-| CLEAN-02 | TBD | Pending |
-| VALIDATE-01 | TBD | Pending |
-| VALIDATE-02 | TBD | Pending |
+| PORT-01 | Phase 86 | Pending |
+| PORT-02 | Phase 86 | Pending |
+| PORT-03 | Phase 86 | Pending |
+| PORT-04 | Phase 86 | Pending |
+| CUTOVER-01 | Phase 88 | Pending |
+| CUTOVER-02 | Phase 88 | Pending |
+| CUTOVER-03 | Phase 88 | Pending |
+| CUTOVER-04 | Phase 88 | Pending |
+| TEST-01 | Phase 85 | Pending |
+| TEST-02 | Phase 85 | Pending |
+| TEST-03 | Phase 87 | Pending |
+| CLEAN-01 | Phase 85 | Pending |
+| CLEAN-02 | Phase 85 | Pending |
+| VALIDATE-01 | Phase 86 | Pending |
+| VALIDATE-02 | Phase 88 | Pending |
 
 **Coverage:** 15 requirements covering all 9 PROJECT.md deliverables plus 2 transitional safety-net requirements. Phase assignments will be filled in by the roadmapper.
