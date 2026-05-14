@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
 status: executing
-last_updated: "2026-05-14T15:38:02.258Z"
+last_updated: "2026-05-14T15:44:27.352Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 14
-  completed_plans: 12
-  percent: 86
+  completed_plans: 13
+  percent: 93
 ---
 
 # Project State
@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 ## Current Position
 
 Phase: 88 (Production Cutover) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Plans: 3 of 3 drafted across 3 waves; verified iter 2/3
 Status: Ready to execute
 Last activity: 2026-05-14
@@ -56,6 +56,7 @@ Last activity: 2026-05-14
 - [Phase ?]: Phase 087-02: KEEP FULL REBUILDS for Phase 88 — dbt-duckdb 1.10.1 does not support incremental + external (issue #74); wall-clock savings ~3-17% below 30% threshold; ARM 2 NULL-key complexity tax; external mart dominates wall-clock. See 087-FINDINGS.md
 - [Phase ?]: Phase 087-02: Rollback via git checkout <pre-experiment-sha> -- <file> (direct working-tree revert, no commit-then-revert); byte-identical verified; belt-and-suspenders --full-refresh PASS=6 exit 0; row count 47840 matches baseline
 - [Phase ?]: Phase 88 cutover: dbt 30-column contract on marts/occurrences is the canonical schema gate; JS validate-schema.mjs retired (pre-cutover SHA 44a967c)
+- [Phase ?]: Wave 2 cutover: dbt is the sole transform producer
 
 ### Pending Todos
 
