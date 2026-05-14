@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Download the four data files from S3 into public/data/ for local development.
+# Download canonical data artifacts from S3 into public/data/ for local development.
+# Mirrors the upload list in data/nightly.sh.
 # Usage: scripts/fetch-data.sh [--profile <profile>] [--bucket <bucket>]
 
 set -euo pipefail
@@ -18,10 +19,13 @@ done
 
 mkdir -p "$DEST"
 
-for f in ecdysis.parquet samples.parquet counties.geojson ecoregions.geojson; do
+for f in occurrences.parquet counties.geojson ecoregions.geojson species.json seasonality.json; do
   echo "Downloading $f..."
   aws --profile "$AWS_PROFILE" s3 cp --no-progress "s3://$BUCKET/data/$f" "$DEST/$f"
 done
+
+echo "Syncing feeds/..."
+aws --profile "$AWS_PROFILE" s3 sync --no-progress "s3://$BUCKET/data/feeds/" "$DEST/feeds/"
 
 echo "Done. Files are in $DEST"
 echo "Set VITE_DATA_BASE_URL=/data in .env.local to use them."
