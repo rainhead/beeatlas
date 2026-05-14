@@ -1,11 +1,33 @@
 #!/usr/bin/env bash
-# Nightly pipeline: pull DuckDB from S3, run pipelines, push exports + DB, invalidate CloudFront.
-# Runs: ecdysis -> ecdysis-links -> inaturalist -> projects -> export -> feeds
-# Designed for cron on maderas. Logs to stdout/stderr (capture with cron's MAILTO or redirect).
+# Single entry point for the BeeAtlas data pipeline.
+#
+# Cron invokes this directly. Crontab owns only host-specific knowledge
+# (repo location, log path, schedule). Everything else — dependency
+# management, source sync, pipeline orchestration, S3 + CloudFront — is
+# owned in-repo and version-controlled here.
+#
+# What this script does, in order:
+#   1. cd to repo root (derived from $0 — host-agnostic).
+#   2. Source NVM if available, `nvm use` to pick the .nvmrc-pinned node.
+#   3. `git pull --ff-only` so the next steps see the latest code.
+#   4. `npm ci` so mapshaper (and any other node-side tooling) is present.
+#   5. `uv sync` in data/ so the Python pipeline deps are present.
+#   6. Pull the DuckDB snapshot from S3 to /tmp.
+#   7. Run the Python pipeline (`run.py` — pure data transformation).
+#   8. Push exports to S3 + invalidate CloudFront.
+#   9. EXIT trap: back up the DuckDB to S3 even on failure so partial
+#      progress (e.g. occurrence_links) isn't lost.
+#
+# Relationship to run.py: run.py is the pure pipeline orchestrator (STEPS
+# list, env-driven via DB_PATH + EXPORT_DIR). It knows nothing about S3,
+# git, cron, or hosting. nightly.sh wraps run.py with the deployment-time
+# concerns above. Local dev typically runs `uv run python run.py` directly
+# (against data/beeatlas.duckdb) and skips this whole wrapper.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUCKET="${BUCKET:-beeatlasstack-sitebucket397a1860-h5dtjzkld3yv}"
 DISTRIBUTION_ID="${DISTRIBUTION_ID:-E3SAI2PQ8FN0E7}"
 DB_S3_KEY="db/beeatlas.duckdb"
@@ -18,6 +40,24 @@ _hash() { sha256sum "$1" | awk '{print $1}'; }
 _elapsed() { echo $(( $(date +%s) - $1 ))s; }
 
 echo "=== BeeAtlas nightly pipeline $(_ts) ==="
+
+# 0. Sync source + dependencies. NVM is required for node tooling
+# (mapshaper, called by data/topology_postprocess.py).
+echo "--- syncing source + dependencies ---"
+_t0=$(date +%s)
+cd "$REPO_ROOT"
+if [[ -s "$HOME/.nvm/nvm.sh" ]]; then
+    # shellcheck disable=SC1091
+    . "$HOME/.nvm/nvm.sh"
+    nvm use --silent
+else
+    echo "WARN: $HOME/.nvm/nvm.sh not found — node tooling may not resolve" >&2
+fi
+git pull --ff-only
+npm ci --silent
+cd "$SCRIPT_DIR"
+uv sync --quiet
+echo "sync done in $(_elapsed $_t0)"
 
 # Always back up DuckDB on exit (success or failure) so pipeline progress
 # (e.g. occurrence_links) is not lost if a later step fails.
