@@ -67,6 +67,7 @@ Last activity: 2026-05-14
 - Stale `public/data/` artifacts cleanup (samples.parquet, ecdysis.parquet) — `.planning/todos/pending/stale-public-data-cleanup.md`
 - Retire `data/stub_handler.py` and dormant Lambda surface — `.planning/todos/pending/retire-stub-handler.md`
 - `_dlt_pipeline_state` housekeeping audit — `.planning/todos/pending/dlt-pipeline-state-housekeeping.md`
+- Hash-versioned URLs for `public/data/` artifacts (pairs offline-friendly caching with schema-migration safety) — `.planning/todos/pending/hash-versioned-parquet-urls.md`
 
 ### Blockers/Concerns
 
