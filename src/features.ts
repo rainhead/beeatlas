@@ -4,7 +4,7 @@ import { recencyTier } from './style.ts';
 
 export interface OccurrenceProperties {
   occId: string;
-  recencyTier: 'fresh' | 'thisYear' | 'older';
+  recencyTier: 'thisYear' | 'lastYear' | 'earlier';
   [key: string]: unknown;
 }
 
