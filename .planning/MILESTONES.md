@@ -1,5 +1,25 @@
 # Milestones
 
+## v3.4 dbt Full Rewrite (Shipped: 2026-05-14)
+
+**Phases completed:** 4 phases, 14 plans, 27 tasks
+
+**Key accomplishments:**
+
+- WHERE id IS NOT NULL added to stg_inat__observations staging view, dropping dlt tombstone row from 10,846 to 10,845 rows; dbt not_null and unique tests both PASS (TEST-01 resolved)
+- FORMAT CSV workaround in emit_feature_collection locked and documented with three-section rationale: FORMAT JSON wraps scalar incorrectly, FORMAT GDAL adds incompatible "name" key and indented output, FORMAT CSV is the only path that emits raw VARCHAR verbatim
+- Drop specimen_inat_login, specimen_inat_genus, specimen_inat_family from the mart contract (33 → 30 columns): schema.yml, occurrences.sql, sqlite.ts, validate-schema.mjs, and test_dbt_diff.py docstring all updated; dbt build exits 0 with PASS=33
+- Three dbt staging views for the species mart DAG (canonical_to_taxon_id, taxon_lineage_extended, checklist.species) plus a LIN-05 singular test asserting 735/735 = 100% lineage coverage
+- 1. [Rule 1 - Bug] specimen_count HUGEINT vs BIGINT contract mismatch
+- species_export.py rewritten as thin dbt-mart consumer: reads 18-col sandbox/species.parquet, appends slug via feeds._slugify, emits 19-col species.parquet + byte-comparable species.json + seasonality.json; all 5 species diff tests PASS
+- Captured 4 timed `dbt build` runs converting `int_combined` from `materialized='table'` to `materialized='incremental'` with ARM 1 watermark + ARM 2 `AND FALSE` skip; measured int_combined node drop from 0.236s baseline to 0.132s incremental no-op (~0.10s saved on the node, capped by downstream external mart still rebuilding fully).
+- Recorded the evidence-anchored "keep full rebuilds" recommendation in 087-FINDINGS.md and reverted `int_combined.sql` byte-identically to pre-experiment SHA 78de3f5 — Phase 88's planner can now read one section (`## Recommendation`) and act without re-running the experiment.
+- Deleted the legacy JS parquet-schema gate (validate-schema.mjs + package.json script + deploy.yml step) and replaced the CLAUDE.md bullet with a positive statement naming the dbt 30-column contract as the canonical schema gate; pre-cutover SHA 44a967c captured as the phase rollback marker.
+- Rewrote `data/run.py` so `bash data/dbt/run.sh build` is the only path that produces `occurrences.parquet`, `counties.geojson`, and `ecoregions.geojson`; deleted `data/export.py` and its three orphaned test files; deleted `_apply_migrations` (both migrations are now obviated by dbt staging models).
+- Closed out Phase 88 by confirming `data/nightly.sh` requires no edits (all invariants for dbt exit-code propagation + 3-artifact S3 upload already in place), recording the user's `approved — all 4 surfaces green` smoke check, and writing `088-CUTOVER-LOG.md` with the CUTOVER-02 migration → dbt mapping (cited by file:line), the VALIDATE-02 sign-off, the CUTOVER-04 no-op confirmation, and the single-commit rollback procedure pinned at SHA `44a967c`.
+
+---
+
 ## v3.2 Species Tab (Shipped: 2026-05-05)
 
 **Phases completed:** 7 phases (Phases 76–82, including INSERTED Phase 77), 34 plans
