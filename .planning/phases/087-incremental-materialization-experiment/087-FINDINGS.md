@@ -82,7 +82,7 @@ Per `087-RESEARCH.md` Pitfall 4: if Phase 88 ever revisits this decision and ado
 
 ## Rollback Status
 
-- [ ] `data/dbt/models/intermediate/int_combined.sql` reverted to `materialized='table'` (single-line config, no `is_incremental()`, no `AND FALSE`, no `-- EXPERIMENTAL` marker)
-- [ ] `git diff $(cat .planning/phases/087-incremental-materialization-experiment/pre-experiment-sha.txt) -- data/dbt/models/intermediate/int_combined.sql` produces empty output (byte-identical to pre-experiment SHA `78de3f5`)
-- [ ] `bash data/dbt/run.sh build --select int_combined+ --full-refresh` succeeded post-revert (exit 0; belt-and-suspenders rebuild per `087-RESEARCH.md` `## Rollback Path`)
-- [ ] Post-revert `dbt_sandbox.int_combined` row count matches `baseline-rowcount.txt` (47,840)
+- [x] `data/dbt/models/intermediate/int_combined.sql` reverted to `materialized='table'` (single-line config, no `is_incremental()`, no `AND FALSE`, no `-- EXPERIMENTAL` marker) — via `git checkout 78de3f5 -- data/dbt/models/intermediate/int_combined.sql`
+- [x] `git diff $(cat .planning/phases/087-incremental-materialization-experiment/pre-experiment-sha.txt) -- data/dbt/models/intermediate/int_combined.sql` produces empty output (byte-identical to pre-experiment SHA `78de3f5`)
+- [x] `bash data/dbt/run.sh build --select int_combined+ --full-refresh` succeeded post-revert (exit 0; PASS=6 WARN=0 ERROR=0 SKIP=0; int_combined logged as `sql table model`; finished in 0.79s)
+- [x] Post-revert `dbt_sandbox.int_combined` row count: **47840** (matches `baseline-rowcount.txt`: **47840**, diff 0). Also `bash data/dbt/run.sh test --select int_combined` PASS=1.
