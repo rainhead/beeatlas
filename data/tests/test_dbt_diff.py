@@ -298,3 +298,84 @@ def test_geojson_property_names_match(filename, prop):
         f"Only in sandbox: {[n for n in s_names if n not in p_names]}\n"
         f"Only in public:  {[n for n in p_names if n not in s_names]}"
     )
+
+
+# PORT-01: Species artifact diff tests
+
+SANDBOX_SPECIES_PARQUET_GUARD = pytest.mark.skipif(
+    not (SANDBOX / "species.parquet").exists(),
+    reason="run `bash data/dbt/run.sh build` first to produce sandbox species.parquet",
+)
+
+
+@SANDBOX_SPECIES_PARQUET_GUARD
+def test_species_parquet_row_count_matches():
+    """Sandbox species.parquet has same row count as public/data/species.parquet.
+
+    Verified baseline: both 629 rows.
+    """
+    s = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{SANDBOX}/species.parquet')"
+    ).fetchone()[0]
+    p = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{PUBLIC}/species.parquet')"
+    ).fetchone()[0]
+    assert s == p, f"Row count mismatch: sandbox={s}, public={p}"
+
+
+@SANDBOX_SPECIES_PARQUET_GUARD
+def test_species_parquet_schema_matches():
+    """19-column schema (names + types) identical between sandbox and public (19 cols)."""
+    s_cols = [(r[0], r[1]) for r in duckdb.execute(
+        f"DESCRIBE SELECT * FROM read_parquet('{SANDBOX}/species.parquet')"
+    ).fetchall()]
+    p_cols = [(r[0], r[1]) for r in duckdb.execute(
+        f"DESCRIBE SELECT * FROM read_parquet('{PUBLIC}/species.parquet')"
+    ).fetchall()]
+    assert s_cols == p_cols, (
+        f"Schema mismatch.\nSandbox only: {[c for c in s_cols if c not in p_cols]}\n"
+        f"Public only:  {[c for c in p_cols if c not in s_cols]}"
+    )
+
+
+@SANDBOX_SPECIES_PARQUET_GUARD
+def test_species_canonical_name_key_set_matches():
+    """Full anti-join on canonical_name: 0 rows in both EXCEPT directions."""
+    only_in_sandbox = duckdb.execute(f"""
+        SELECT COUNT(*) FROM (
+            SELECT canonical_name FROM read_parquet('{SANDBOX}/species.parquet')
+            EXCEPT
+            SELECT canonical_name FROM read_parquet('{PUBLIC}/species.parquet')
+        )
+    """).fetchone()[0]
+    only_in_public = duckdb.execute(f"""
+        SELECT COUNT(*) FROM (
+            SELECT canonical_name FROM read_parquet('{PUBLIC}/species.parquet')
+            EXCEPT
+            SELECT canonical_name FROM read_parquet('{SANDBOX}/species.parquet')
+        )
+    """).fetchone()[0]
+    assert only_in_sandbox == 0, f"{only_in_sandbox} canonical_names in sandbox but not public"
+    assert only_in_public == 0, f"{only_in_public} canonical_names in public but not sandbox"
+
+
+@pytest.mark.skipif(
+    not (SANDBOX / "species.json").exists(),
+    reason="run species JSON post-step first",
+)
+def test_species_json_matches():
+    """sandbox/species.json content == public/data/species.json (byte-comparable)."""
+    s = (SANDBOX / "species.json").read_bytes()
+    p = (PUBLIC / "species.json").read_bytes()
+    assert s == p, "species.json content differs between sandbox and public"
+
+
+@pytest.mark.skipif(
+    not (SANDBOX / "seasonality.json").exists(),
+    reason="run species JSON post-step first",
+)
+def test_seasonality_json_matches():
+    """sandbox/seasonality.json content == public/data/seasonality.json (byte-comparable)."""
+    s = (SANDBOX / "seasonality.json").read_bytes()
+    p = (PUBLIC / "seasonality.json").read_bytes()
+    assert s == p, "seasonality.json content differs between sandbox and public"
