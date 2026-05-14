@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
 status: executing
-last_updated: "2026-05-14T06:01:31.794Z"
-last_activity: 2026-05-14 -- Phase 88 planning complete
+last_updated: "2026-05-14T15:38:02.258Z"
+last_activity: 2026-05-14
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 14
-  completed_plans: 11
-  percent: 79
+  completed_plans: 12
+  percent: 86
 ---
 
 # Project State
@@ -20,14 +20,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 88 (Production Cutover) — planned (3 plans, 3 waves); ready for execution
+**Current focus:** Phase 88 — Production Cutover
 
 ## Current Position
 
-Phase: 88 (Production Cutover) — PLANNED
+Phase: 88 (Production Cutover) — EXECUTING
+Plan: 2 of 3
 Plans: 3 of 3 drafted across 3 waves; verified iter 2/3
-Status: Ready to execute (`/gsd-execute-phase 088`)
-Last activity: 2026-05-14 -- Phase 88 planning complete
+Status: Ready to execute
+Last activity: 2026-05-14
 
 ## Accumulated Context
 
@@ -54,6 +55,7 @@ Last activity: 2026-05-14 -- Phase 88 planning complete
 - [Phase 079-03]: D-01 fill-only recovery loop established — programmatically delete bare entries (the 429 victims) from the manifest, then re-run the seed at slower rate; existing photo-bearing entries are preserved while only deleted bare keys get refetched. Reusable pattern for any future incremental data-fetch repair
 - [Phase ?]: Phase 087-02: KEEP FULL REBUILDS for Phase 88 — dbt-duckdb 1.10.1 does not support incremental + external (issue #74); wall-clock savings ~3-17% below 30% threshold; ARM 2 NULL-key complexity tax; external mart dominates wall-clock. See 087-FINDINGS.md
 - [Phase ?]: Phase 087-02: Rollback via git checkout <pre-experiment-sha> -- <file> (direct working-tree revert, no commit-then-revert); byte-identical verified; belt-and-suspenders --full-refresh PASS=6 exit 0; row count 47840 matches baseline
+- [Phase ?]: Phase 88 cutover: dbt 30-column contract on marts/occurrences is the canonical schema gate; JS validate-schema.mjs retired (pre-cutover SHA 44a967c)
 
 ### Pending Todos
 
