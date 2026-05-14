@@ -32,7 +32,7 @@
 
 - [ ] **CUTOVER-01**: `data/run.py` invokes `bash data/dbt/run.sh build` (or equivalent) instead of `export.py` and `species_export.py`. After cutover, the only Python in the transform path is dlt ingestion. `data/run.py` exits non-zero on dbt failure with a useful error message.
 - [ ] **CUTOVER-02**: `_apply_migrations()` is deleted. Every invariant it enforced is verifiably covered by a dbt contract column, generic test, or singular test. A side-by-side comparison documenting each migration → dbt-replacement mapping is recorded in the phase summary.
-- [ ] **CUTOVER-03**: `scripts/validate-schema.mjs` is deleted, the `validate-schema` npm script is removed from `package.json`, the `npm run build` chain no longer references it, and the GitHub Actions workflow is updated accordingly. The dbt 30-column contract on `occurrences` is the sole schema gate.
+- [x] **CUTOVER-03**: `scripts/validate-schema.mjs` is deleted, the `validate-schema` npm script is removed from `package.json`, the `npm run build` chain no longer references it, and the GitHub Actions workflow is updated accordingly. The dbt 30-column contract on `occurrences` is the sole schema gate.
 - [ ] **CUTOVER-04**: `data/nightly.sh` is restructured to interpret dbt exit codes correctly. Either (a) the v3.3 awkward-fit tests are resolved per TEST-01/02 below and dbt exits 0 cleanly, or (b) `dbt build --exclude test:<known-fail>` is used with the excluded tests documented inline. The script distinguishes "true failure" from "documented awkward-fit" without ambiguity.
 
 ### Test Surface Resolution (TEST)
@@ -72,7 +72,7 @@
 | PORT-04 | Phase 86 | Pending |
 | CUTOVER-01 | Phase 88 | Pending |
 | CUTOVER-02 | Phase 88 | Pending |
-| CUTOVER-03 | Phase 88 | Pending |
+| CUTOVER-03 | Phase 88 | Complete |
 | CUTOVER-04 | Phase 88 | Pending |
 | TEST-01 | Phase 85 | Pending |
 | TEST-02 | Phase 85 | Pending |
