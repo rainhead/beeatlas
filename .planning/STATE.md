@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
-status: executing
-last_updated: "2026-05-14T05:18:42.794Z"
+status: verifying
+last_updated: "2026-05-14T05:25:30.430Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 10
-  percent: 91
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 87 — Incremental Materialization Experiment
+**Current focus:** Phase 87 complete — recommendation "keep full rebuilds" recorded in 087-FINDINGS.md; ready for Phase 88 (Production Cutover)
 
 ## Current Position
 
-Phase: 87 (Incremental Materialization Experiment) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
+Phase: 87 (Incremental Materialization Experiment) — COMPLETE
+Plan: 2 of 2 — both committed (6da1df5, 2916ded)
+Status: Phase complete — ready for verification / Phase 88
 Last activity: 2026-05-14
 
 ## Accumulated Context
@@ -52,6 +52,8 @@ Last activity: 2026-05-14
 - [Phase 079-03]: loadTaxonIds query rewritten to mirror data/species_export.py species_universe — COALESCE(checklist.scientificName, occurrences.canonical_name) keyed on LOWER(canonical_name) against the bridge; eliminates the snake_case `o.scientificName` BinderError and makes the seed's scientificName key set agree byte-for-byte with public/data/species.json (735/735 coverage)
 - [Phase 079-03]: iNat enforces a tighter effective burst limit than the documented 1 req/sec; rate-ms=1000 hit 231 HTTP 429s on a 735-species sweep but rate-ms=1500 cleared them entirely — recommendation for Phase 82 PERF-04 cron is rate-ms=1500 default
 - [Phase 079-03]: D-01 fill-only recovery loop established — programmatically delete bare entries (the 429 victims) from the manifest, then re-run the seed at slower rate; existing photo-bearing entries are preserved while only deleted bare keys get refetched. Reusable pattern for any future incremental data-fetch repair
+- [Phase ?]: Phase 087-02: KEEP FULL REBUILDS for Phase 88 — dbt-duckdb 1.10.1 does not support incremental + external (issue #74); wall-clock savings ~3-17% below 30% threshold; ARM 2 NULL-key complexity tax; external mart dominates wall-clock. See 087-FINDINGS.md
+- [Phase ?]: Phase 087-02: Rollback via git checkout <pre-experiment-sha> -- <file> (direct working-tree revert, no commit-then-revert); byte-identical verified; belt-and-suspenders --full-refresh PASS=6 exit 0; row count 47840 matches baseline
 
 ### Pending Todos
 
