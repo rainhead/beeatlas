@@ -459,7 +459,12 @@ Plans:
   3. The `marts/occurrences` dbt contract declares exactly 30 columns (not 33); `specimen_inat_login`, `specimen_inat_family`, `specimen_inat_genus` are absent from the SELECT and schema.yml
   4. `src/sqlite.ts` column declarations for the 3 dropped columns are removed; `npm test` passes
   5. `test_dbt_diff.py` schema assertion is updated to assert 30 columns and still passes
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 85-01-PLAN.md — TEST-01: add WHERE id IS NOT NULL filter to stg_inat__observations + update staging/schema.yml
+- [ ] 85-02-PLAN.md — TEST-02: replace broken relationships test with singular SQL test joining ecdysis_id to stg_ecdysis__occurrences.id
+- [ ] 85-03-PLAN.md — CLEAN-01: document FORMAT CSV rationale in emit_feature_collection macro (locked decision D-03 — replacement deferred)
+- [ ] 85-04-PLAN.md — CLEAN-02: drop 3 columns from marts contract + SQL + sqlite.ts + diff harness docstring (30-col contract)
 
 ### Phase 86: Port Remaining Transforms
 **Goal**: Every Python transform in the data pipeline (species_export.py, occurrence-links derivation, taxon-lineage enrichment, resolve_taxon_ids.py) is expressed as dbt models with declared ref()/source() dependencies, and the diff harness stays green throughout
@@ -583,7 +588,7 @@ Plans:
 | 82. Hardening | v3.2 | 8/8 | Complete | 2026-05-05 |
 | 83. Scaffold & Slice Port | v3.3 | 4/4 | Complete | 2026-05-12 |
 | 84. Tests, Diff & Findings | v3.3 | 3/3 | Complete | 2026-05-13 |
-| 85. Pre-Cutover Groundwork | v3.4 | 0/TBD | Not started | - |
+| 85. Pre-Cutover Groundwork | v3.4 | 0/4 | Not started | - |
 | 86. Port Remaining Transforms | v3.4 | 0/TBD | Not started | - |
 | 87. Incremental Materialization Experiment | v3.4 | 0/TBD | Not started | - |
 | 88. Production Cutover | v3.4 | 0/TBD | Not started | - |
