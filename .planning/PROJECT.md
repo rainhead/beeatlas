@@ -2,14 +2,33 @@
 
 ## Current State
 
-**v3.3 dbt Spike shipped 2026-05-13 — verdict: GO-WITH-CONDITIONS.** The spike ported one slice of `export.py` (occurrences.parquet + counties/ecoregions GeoJSON) to `dbt-duckdb` end-to-end on a branch. dbt's test/contract surface, partial-run behavior, and lineage were exercised; outputs diffed against `export.py` (only material divergence: 84 county-boundary rows from ST_Within nondeterminism that exists in *both* implementations). Awaiting decision on v3.4 (full-rewrite milestone vs. other direction).
+**v3.4 dbt Full Rewrite — defining requirements (started 2026-05-13).** Cutting the BeeAtlas data pipeline over from `data/export.py` + ad-hoc Python to the `data/dbt/` project shipped in v3.3. Production runs dbt; legacy transform code, `_apply_migrations()`, and `validate-schema.mjs` are retired. The frontend continues to consume an unchanged `occurrences.parquet` schema (33-column dbt contract becomes the production schema gate, slimmed to 30 by dropping three unused `specimen_inat_*` columns the frontend never reads).
 
-## Next Milestone Candidates
+## Current Milestone: v3.4 dbt Full Rewrite
 
-- **v3.4 dbt Full Rewrite** — convert remaining `export.py` / `species_export.py` transforms to dbt models; retire `_apply_migrations()` and `validate-schema.mjs`; adapt `data/nightly.sh` to dbt exit-code semantics. Prerequisites enumerated in `.planning/research/dbt-spike-findings.md` §Prerequisites (test surface, samples.parquet shape, ingestion-vs-transform boundary, parallel-run/orchestration story, frontend impact).
-- **Backlog alternatives** — deferred verification work (077/081 human_needed), open todos (cluster-selection-visual-feedback, boundary edge gaps), `/gsd-map-codebase` refresh to catch up `.planning/codebase/` after v3.0 Mapbox + v3.1 Eleventy hoist + v2.6 SQLite migration.
+**Goal:** Cut over from `export.py` + ad-hoc Python transforms to `data/dbt/` as the production pipeline. After v3.4, `dbt build` is the canonical way to produce `occurrences.parquet`, `counties.geojson`, `ecoregions.geojson`, `species.json`, and `species_counts.*`. No transform code lives outside dbt.
 
-Decision pending — `/gsd-new-milestone` when direction is chosen.
+**Target deliverables:**
+
+1. Port remaining transforms to dbt models (`species_export.py`, occurrence-links derivation, taxon-lineage enrichment, `resolve_taxon_ids.py` if SQL-shaped).
+2. Hard cutover in `data/run.py` — `dbt build` replaces `export.py`/`species_export.py` invocations.
+3. Retire `_apply_migrations()` — its invariants live in dbt contracts and generic tests.
+4. Retire `scripts/validate-schema.mjs` — replaced by the dbt contract on `occurrences`.
+5. `data/nightly.sh` adapted to dbt exit-code semantics (resolve awkward-fits or `--exclude` known-failing tests).
+6. Resolve v3.3 awkward-fits: `stg_inat__observations.id` `not_null` (1 null id) and `int_ecdysis_base.ecdysis_id` cross-type `relationships`.
+7. Test `materialized='incremental'` on dbt-duckdb + external materializations (spike's known unknown).
+8. Replace the `FORMAT CSV` GeoJSON emission macro with a clean alternative (GDAL driver or Python post-hook).
+9. Drop unused `specimen_inat_login`, `specimen_inat_family`, `specimen_inat_genus` from the contract (frontend never reads them; 33→30 columns).
+
+**Explicitly out of scope:**
+- New end-user features (internal pipeline rewrite only).
+- `samples.parquet` as a separate output — single `occurrences.parquet` stays canonical.
+- 84-row ST_Within county-boundary nondeterminism — deferred; documented as known semantic divergence.
+- Anti-entropy / ingestion (dlt pipelines stay in Python; dbt consumes them as `source()`).
+- Multi-state expansion.
+- Nightly-failure notification (captured at `.planning/todos/pending/nightly-run-failure-notification.md` as a natural follow-on once `nightly.sh` is rewritten).
+
+**Risk posture:** Solo-user context permits breakage during cutover. Safety nets: `test_dbt_diff.py` from v3.3 stays as merge gate during transition; dbt contract is runtime gate post-cutover.
 
 ## Previous Milestone: v3.3 dbt Spike (shipped 2026-05-13)
 

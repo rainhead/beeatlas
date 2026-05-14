@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.3
-milestone_name: dbt Spike
-status: shipped
-last_updated: "2026-05-13T22:45:00Z"
-last_activity: 2026-05-13 -- v3.3 dbt Spike milestone archived
+milestone: v3.4
+milestone_name: dbt Full Rewrite
+status: planning
+last_updated: "2026-05-14T00:05:06.617Z"
+last_activity: 2026-05-14
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 7
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 ## Current Position
 
-Milestone: v3.3 dbt Spike — SHIPPED 2026-05-13
-Verdict: GO-WITH-CONDITIONS (5-prerequisite checklist in .planning/research/dbt-spike-findings.md)
-Next: `/gsd-new-milestone` once v3.4 direction is decided
-Last activity: 2026-05-13 -- v3.3 dbt Spike milestone archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-14 — Milestone v3.4 started
 
 ## Accumulated Context
 
