@@ -258,9 +258,9 @@ export class BeeMap extends LitElement {
           clusterMinPoints: 2,
           clusterMaxZoom: 14,
           clusterProperties: {
-            freshCount:    ['+', ['case', ['==', ['get', 'recencyTier'], 'fresh'], 1, 0]],
             thisYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'thisYear'], 1, 0]],
-            olderCount:    ['+', ['case', ['==', ['get', 'recencyTier'], 'older'], 1, 0]],
+            lastYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'lastYear'], 1, 0]],
+            earlierCount:  ['+', ['case', ['==', ['get', 'recencyTier'], 'earlier'], 1, 0]],
           },
         });
 
@@ -387,9 +387,9 @@ export class BeeMap extends LitElement {
           paint: {
             'circle-color': [
               'case',
-              ['>', ['get', 'freshCount'], 0], RECENCY_COLORS.fresh,
               ['>', ['get', 'thisYearCount'], 0], RECENCY_COLORS.thisYear,
-              RECENCY_COLORS.older,
+              ['>', ['get', 'lastYearCount'], 0], RECENCY_COLORS.lastYear,
+              RECENCY_COLORS.earlier,
             ],
             'circle-radius': [
               'step', ['get', 'point_count'],
@@ -428,9 +428,9 @@ export class BeeMap extends LitElement {
           paint: {
             'circle-color': [
               'match', ['get', 'recencyTier'],
-              'fresh', RECENCY_COLORS.fresh,
               'thisYear', RECENCY_COLORS.thisYear,
-              RECENCY_COLORS.older,
+              'lastYear', RECENCY_COLORS.lastYear,
+              RECENCY_COLORS.earlier,
             ],
             'circle-radius': 6,
             'circle-stroke-width': 1,
