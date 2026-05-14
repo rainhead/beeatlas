@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Wrapper: ensures dbt finds in-repo profiles.yml regardless of cwd.
 # A1 fallback: dbt-duckdb 1.10.1 is incompatible with Python 3.14 (mashumaro class-var
-# changes in CPython 3.14); invokes dbt via uvx which uses an isolated Python 3.13 tool env.
+# changes in CPython 3.14); invokes dbt via uvx with an explicit --python 3.13 pin so
+# uvx provisions Python 3.13 in its tool env regardless of what's installed on the host.
+# Without the explicit pin uvx picks the newest interpreter available (3.14 on maderas),
+# which breaks at JSONObjectSchema import with UnserializableField.
 # Usage: bash data/dbt/run.sh build [options]
 #        bash data/dbt/run.sh debug
 #        bash data/dbt/run.sh --version
@@ -27,9 +30,9 @@ mkdir -p "$DIR/target/sandbox"
 # dbt-core profile-search-order pitfall; --version passes without them via the env vars).
 case "${1:-}" in
   --version|--help|-h|"")
-    exec uvx --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@"
+    exec uvx --python 3.13 --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@"
     ;;
   *)
-    exec uvx --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@" --profiles-dir "$DIR" --project-dir "$DIR"
+    exec uvx --python 3.13 --from dbt-core==1.10.1 --with dbt-duckdb==1.10.1 dbt "$@" --profiles-dir "$DIR" --project-dir "$DIR"
     ;;
 esac
