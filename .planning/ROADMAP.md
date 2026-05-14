@@ -355,7 +355,7 @@ See `.planning/milestones/v3.3-ROADMAP.md` for full phase details.
 
 - [ ] Phase 85: Pre-Cutover Groundwork — resolve awkward-fit tests, replace FORMAT CSV macro, drop 3 unused columns
 - [ ] Phase 86: Port Remaining Transforms — port species_export, occurrence-links, taxon-lineage, and resolve_taxon_ids to dbt
-- [ ] Phase 87: Incremental Materialization Experiment — test and document `materialized='incremental'` on dbt-duckdb with external materializations
+- [x] Phase 87: Incremental Materialization Experiment — tested and documented; recommendation: keep full rebuilds (see 087-FINDINGS.md)
 - [ ] Phase 88: Production Cutover — switch run.py to dbt, retire _apply_migrations and validate-schema.mjs, adapt nightly.sh, smoke-test frontend
 
 </details>
@@ -495,7 +495,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 087-01-PLAN.md — Capture baseline + apply experimental incremental config to int_combined (ARM 1 watermark + ARM 2 skip) + capture 3 incremental runs (full-refresh, no-op, data-change) into run_results-*.json + timings.md
-- [ ] 087-02-PLAN.md — Write 087-FINDINGS.md with evidence-anchored recommendation for Phase 88, then revert int_combined.sql to pre-experiment materialized=table state
+- [x] 087-02-PLAN.md — Write 087-FINDINGS.md with evidence-anchored recommendation for Phase 88, then revert int_combined.sql to pre-experiment materialized=table state
 
 ### Phase 88: Production Cutover
 **Goal**: `dbt build` is the sole producer of all pipeline outputs; legacy Python transform code, `_apply_migrations()`, and `validate-schema.mjs` are retired; nightly.sh runs dbt and interprets exit codes correctly; the frontend loads dbt-produced occurrences.parquet without code changes
@@ -599,5 +599,5 @@ Plans:
 | 84. Tests, Diff & Findings | v3.3 | 3/3 | Complete | 2026-05-13 |
 | 85. Pre-Cutover Groundwork | v3.4 | 0/4 | Not started | - |
 | 86. Port Remaining Transforms | v3.4 | 0/5 | Not started | - |
-| 87. Incremental Materialization Experiment | v3.4 | 0/2 | Not started | - |
+| 87. Incremental Materialization Experiment | v3.4 | 2/2 | Complete | 2026-05-13 |
 | 88. Production Cutover | v3.4 | 0/TBD | Not started | - |
