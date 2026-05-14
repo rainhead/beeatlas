@@ -2,6 +2,65 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.4 — dbt Full Rewrite
+
+**Shipped:** 2026-05-14
+**Phases:** 4 (85–88) | **Plans:** 14 | **Tasks:** 27 | **Timeline:** ~2 days (2026-05-13 18:08 → 2026-05-14 09:43)
+
+### What Was Built
+
+- **Phase 85 Pre-Cutover Groundwork**: resolved the v3.3 awkward-fit tests — `WHERE id IS NOT NULL` filter in `stg_inat__observations` (TEST-01); replaced `int_ecdysis_base.ecdysis_id` cross-type `relationships` test with a custom singular test (TEST-02). CLEAN-01 FORMAT CSV macro retained with documented override D-03 (FORMAT GDAL adds incompatible `name` key; FORMAT JSON breaks bare-scalar structure; FORMAT CSV is the only DuckDB COPY path emitting raw VARCHAR verbatim). 33→30 column drop landed atomically across `marts/schema.yml`, `marts/occurrences.sql`, `src/sqlite.ts`, and `test_dbt_diff.py` (CLEAN-02).
+- **Phase 86 Port Remaining Transforms**: `species_export.py` rewritten as a thin dbt-mart consumer (reads 18-col `sandbox/species.parquet`, appends slug via `feeds._slugify`, emits 19-col public parquet + byte-comparable `species.json` + `seasonality.json`). Occurrence-links join + projection moved to dbt (`int_ecdysis_base` LEFT JOINs `stg_ecdysis__occurrence_links` source; `int_waba_link` computes `specimen_observation_id`). LIN-05 lineage coverage enforced via `test_lin05_lineage_coverage.sql` singular test (≥0.95 ratio; 100% in prod). PORT-04 ingestion-boundary doc codifies that HTTP API + procedural policy + rate-limited side-effect work stays Python; pure SQL transforms move to dbt.
+- **Phase 87 Incremental Materialization Experiment**: 4 timed `dbt build` runs converted `int_combined` from `materialized='table'` → `materialized='incremental'` with ARM 1 watermark + ARM 2 `AND FALSE` skip (the dedup trap). Measured int_combined node 0.236s → 0.132s (~44% local) but wall-clock ~3% on `time` total / ~17% on dbt `Finished` — both below the 30% decision threshold. Recommendation locked in `087-FINDINGS.md`: **keep full rebuilds.** dbt-duckdb 1.10.1 does not support incremental + external materializations (upstream issue #74 open since 2022); the marts (the largest items per build) can't benefit at all.
+- **Phase 88 Production Cutover**: `data/run.py` STEPS rewired — `_run_dbt_build` (`subprocess.run(["bash", str(_DBT_SCRIPT), "build"], check=True)` + `shutil.copy2` of `occurrences.parquet`/`counties.geojson`/`ecoregions.geojson` from `target/sandbox/` to `EXPORT_DIR`) replaces the `export.py` callsite. `species_export.py` kept as a non-transform post-step. `_apply_migrations` deleted (both schema-rename invariants from Phases 47/48 now live in dbt `sources.yml` contracts — compile-time `Binder Error` on regression). `scripts/validate-schema.mjs` retired end-to-end (file + `package.json` + `.github/workflows/deploy.yml`). `data/nightly.sh` confirmed correct (no functional changes needed). Manual frontend smoke approved 2026-05-14 against dbt-produced parquet (map/filters/table/species page all green; zero console errors).
+
+### What Worked
+
+- **The pre-experiment-SHA rollback marker pattern composed cleanly across phases** — Phase 87 invented `pre-experiment-sha.txt` as a single-file rollback target; Phase 88 reused the same shape as `pre-cutover-sha.txt` (44a967c) for the entire milestone. Both phases' verification asserts `git diff $PRE_SHA -- <file>` empty as the strongest possible rollback gate. Promote to standard for any phase that mutates production-relevant files.
+- **Phase 87 as a deliberately small spike paid off** — single SQL file edit + 4 timed builds + 1-section recommendation doc; 2 plans / 2 waves. The recommendation was readable as one section by Phase 88's planner without re-running anything. The temptation to add `int_species_universe` as a secondary subject was deliberately resisted (research called it zero-signal, planner agreed) and that discipline kept the phase to 17 minutes of measurement work.
+- **Audit-before-archive caught a real bookkeeping drift** — `/gsd-audit-milestone 3.4` surfaced that Phase 85 and 86 checkboxes in ROADMAP.md's v3.4 `<details>` block were still unchecked despite both phases being on-disk-complete with passing VERIFICATIONs. The on-disk state was correct; the ROADMAP display was wrong. The audit also confirmed all 15 REQ-IDs satisfied via 3-source cross-reference and walked end-to-end integration (nightly.sh → run.py → dlt → dbt → species_export → feeds → S3 → frontend) with zero blockers found.
+- **The human-verify checkpoint pattern was correctly used in Phase 88 Wave 3** — Plan 088-03 declared Task 2 as `checkpoint:human-verify` with a clear 4-surface protocol (map renders / filters work / table populates / species page works). The executor properly stopped at `## CHECKPOINT REACHED` and waited for sign-off. The frontend smoke genuinely can't be automated (it requires human eyes on a real map render); making it an explicit gate rather than hand-waving past it was load-bearing.
+- **dbt source contracts replaced runtime migration checks with stronger compile-time gates** — `_apply_migrations()` ran at runtime, detecting drift after the fact. `sources.yml` + staging models give `Binder Error` at `dbt build` time, before any data is written. Strictly stronger gate; this pattern carries forward to any future schema rename.
+
+### What Was Inefficient
+
+- **The Phase 88 plan-checker didn't include CI as a verification surface** — local invariants passed but two real defects landed in main and broke the first deploy: (a) `_data/species.js` reads `public/data/species.json` at Eleventy build time, but `public/data/` is gitignored and `data/nightly.sh` was only uploading 3 artifacts to S3 (not `species.json` / `seasonality.json`), so CI had nothing to fetch; (b) two stale tests (`src/tests/seed-species-photos.test.ts:280`, `src/tests/validate-species.test.ts:159`) still asserted the pre-CUTOVER-03 build chain. Hotfix (`4bb79c7`) was small but the cost was a failed CI run + ~15 min of diagnostic. A planner pre-check that runs `npm run build` against a clean checkout would have caught both.
+- **SKIP-guarded tests masked a long-standing assertion bug** — `test_species_parquet_schema_matches` (added Phase 086-01) asserted `sandbox == public` schema equality for `species.parquet`, ignoring that `species_export.py` deliberately appends the `slug` column post-dbt (sandbox=18 cols, public=19 cols). SKIP guard kept it green because the sandbox/public split didn't always have both files. When Phase 88 Wave 2 made both files coexist, the SKIP cleared and the executor surfaced a Rule-1 fix mid-execution rather than a clean run. Recoverable but worth flagging — a SKIP-guarded test is silent failure waiting to happen.
+- **`state.complete-phase` SDK call mangled STATE.md twice** — once after Phase 87 (set `milestone_name: milestone`, dropped the phase-name suffix from Current Position), once during milestone-close. Both needed hand-reverts. The SDK call reports `updated: [Status, Last Activity]` but also rewrites frontmatter fields not in that list. Worth filing upstream.
+- **Big push gap aggregated three milestones at once** — 385 commits between `origin/main` (Phase 75 / v3.1 / 2026-04-30) and HEAD. v3.2 (Species Tab) and v3.3 (dbt Spike) had never been deployed. The first deploy of v3.4 was thus the first integration test of v3.2's `_data/species.js` build-time data dependency in CI. The CI gap had been latent for three milestones; pushing v3.2 alone would have caught it when the fix was small and isolated.
+- **Browser HTTP cache collided with the 33→30 column schema migration** — at deploy time, users with cached pre-migration parquet ran the new frontend (CREATE TABLE has 30 cols) against the cached old parquet (33 cols including `specimen_inat_login`), producing `INSERT INTO occurrences (..., specimen_inat_login, ...) → "table has no column named specimen_inat_login"`. Shift-reload + disable-cache fixed it; the durable fix is hash-versioned URLs (tracked at `.planning/todos/pending/hash-versioned-parquet-urls.md`). This will recur at every milestone schema migration until that todo lands.
+
+### Patterns Established
+
+- **Pre-cutover SHA rollback marker** — `git rev-parse HEAD > .planning/phases/<N>/pre-<X>-sha.txt` in the first task of a risky phase; verification asserts byte-identical restore against that SHA. Single-commit rollback target. Reused Phase 87 → Phase 88.
+- **Worktree-off for phases touching untracked binary state** — `workflow.use_worktrees=false` for phases that read/write `data/beeatlas.duckdb` (untracked, 117 MB, lives in workspace but not in git). Phase 87 and 88 both used this. Should become a per-phase planner flag, not a session-level config mutation (the manual revert at end of session is fragile).
+- **Standalone findings/cutover doc as the durable deliverable** — `087-FINDINGS.md` and `088-CUTOVER-LOG.md` are artifacts the next phase's planner reads directly. Separate from `VERIFICATION.md` (about the phase meeting its own goal) and `SUMMARY.md` (per-plan execution recap). For phases whose output is a decision or a mapping, this is the right shape.
+- **dbt source contracts as schema-rename gates** — runtime `_apply_migrations()` → compile-time `Binder Error` via `sources.yml`. Stricter, earlier, automatic.
+
+### Key Lessons
+
+- **CI is a verification surface that plan-checkers should consider** — a `npm run build` dry-run on a clean checkout would have caught both v3.4 deploy defects. Worth promoting to a checker dimension, especially for phases that touch package.json, .github/workflows/, or Eleventy `_data/`.
+- **Browser HTTP cache + schema migrations don't mix without explicit URL versioning** — every milestone schema migration will require users to shift-reload until hash-versioned URLs ship. The current heuristic-cache behavior is correct for offline use; the fix is to version the schema-bound URLs, not to tighten cache headers.
+- **Don't let executor config mutations leak across phase boundaries** — `workflow.use_worktrees=false` was manually restored after each of Phase 87 and 88. An executor crash between disable and restore would corrupt the next phase's run. Better shape: per-run flag (`--no-worktrees`) that lives in spawn context, or executor-cleanup hook that restores on exit.
+- **Push at every milestone close, not only the *important* ones** — v3.2 alone, even with no live user-visible change, would have surfaced the `_data/species.js` ⇄ CI ⇄ S3 dependency two milestones ago when the fix was isolated to that milestone's diff. Three-milestone push aggregation is brittle.
+- **Audit-before-complete is cheap insurance** — 5 minutes of `/gsd-audit-milestone` at close prevents 30 minutes of "wait, was Phase 86 finished?" Default to running it.
+- **SKIP-guarded transitional tests are latent bugs** — if a test SKIPs because preconditions aren't met, it's not asserting; the moment preconditions are met you discover whatever assertion bug was already there. Acceptable for short-lived transitional tests, but the lifetime should be bounded.
+
+### Cost Observations
+
+- ~25 subagent dispatches across the milestone (researcher × 4, pattern-mapper × 4, planner × 5 incl. revisions, plan-checker × 6 incl. revisions, executor × 10 incl. resumption, verifier × 4, integration-checker × 1).
+- Model mix: planner on Opus 4.7 (per init config); researcher / pattern-mapper / plan-checker / executor / verifier on Sonnet 4.6; orchestrator on Opus 4.7. Zero Haiku usage.
+- Notable inefficiency: failed first deploy + hotfix loop cost ~15 min triage + a second CI build run. Would have been avoided by a CI-aware plan-checker.
+- Notable efficiency: Phase 87's 2-plan scope held against the temptation to bundle a second optimization. Single-subject spikes converge fast.
+- Operational footnote: nightly.sh local re-run took 17 min, with **838s (14 min) spent in `resolve-taxon-ids`** — the iNat taxon-resolution step is the unambiguous bottleneck on cold or stale-cursor runs. Matches the rate-limit pattern v3.2 documented for the photo-seed script. No action item; just data.
+
+### Carry-forward Notes for v3.5+
+
+- The v3.4 close-out generated 4 new pending todos (`stale-public-data-cleanup`, `retire-stub-handler`, `dlt-pipeline-state-housekeeping`, `hash-versioned-parquet-urls`) plus inherits the pre-existing 2 (`nightly-run-failure-notification`, `cluster-selection-visual-feedback`, `boundary-edge-gaps`). All low/medium priority. The hash-versioned-URLs todo has the most user-visible payoff (eliminates the milestone-deploy hard-refresh requirement); the others are pure housekeeping.
+- v3.3 retrospective is missing from this file — recorded directly in `.planning/milestones/v3.3-ROADMAP.md` instead but never made it here. Worth backfilling at some point.
+
+---
+
 ## Milestone: v3.2 — Species Tab
 
 **Shipped:** 2026-05-05
