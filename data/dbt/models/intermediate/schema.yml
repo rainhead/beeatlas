@@ -18,11 +18,8 @@ models:
   - name: int_ecdysis_base
     columns:
       - name: ecdysis_id
-        data_tests:
-          - relationships:
-              to: ref('stg_ecdysis__occurrences')
-              field: catalog_number
-              # NOTE: ecdysis_id is INTEGER; catalog_number is VARCHAR — type mismatch.
-              # Expected to ERROR with BinderError (INTEGER vs VARCHAR comparison).
-              # Documented as awkward-fit: relationships test requires explicit CAST
-              # for cross-type keys. The error IS the TEST-01 finding.
+        # TEST-02: relationships test removed. The generic relationships test ERRORed
+        # with "Could not convert string 'WSDA_2303966' to INT32" AND was semantically
+        # wrong: ecdysis_id (INTEGER) joins to stg_ecdysis__occurrences.id (VARCHAR),
+        # not catalog_number (different namespace). Replaced by singular test:
+        # data/dbt/tests/test_ecdysis_id_references_source.sql
