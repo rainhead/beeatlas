@@ -5,6 +5,16 @@
       "args": [
         "-y",
         "@playwright/mcp@latest",
+        "--browser=chromium",
+        "--isolated",
+        "--headless"
+      ]
+    },
+    "playwright-mobile": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
         "--browser=webkit",
         "--device=iPhone 15",
         "--isolated",
