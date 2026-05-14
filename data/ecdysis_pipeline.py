@@ -16,8 +16,30 @@ DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb
 ECDYSIS_BASE = "https://ecdysis.org/collections/individual/index.php"
 RATE_LIMIT_SECONDS = 1 / 20  # max 20 req/sec
 
+# On-disk cache for the Ecdysis ZIP download. The server-side ZIP build takes
+# ~2 minutes which dominates the pipeline runtime during dev iteration. The
+# cache is keyed by dataset_id and expires by mtime. Default TTL is 6 hours so
+# the nightly cron (24h interval) always sees fresh data, while same-day dev
+# iteration reuses the cached ZIP. Set ECDYSIS_CACHE_TTL_SECONDS=0 to force a
+# refetch on the next call.
+ECDYSIS_CACHE_DIR = Path(os.environ.get(
+    "ECDYSIS_CACHE_DIR",
+    str(Path(__file__).parent / ".ecdysis_cache"),
+))
+ECDYSIS_CACHE_TTL_SECONDS = int(os.environ.get("ECDYSIS_CACHE_TTL_SECONDS", "21600"))
+
 
 def _download_zip(dataset_id: int) -> bytes:
+    cache_path = ECDYSIS_CACHE_DIR / f"{dataset_id}.zip"
+    if ECDYSIS_CACHE_TTL_SECONDS > 0 and cache_path.exists():
+        age = time.time() - cache_path.stat().st_mtime
+        if age < ECDYSIS_CACHE_TTL_SECONDS:
+            print(  # noqa: T201
+                f"  Using cached Ecdysis ZIP ({cache_path.stat().st_size / 1024**2:.1f} MB, "
+                f"age {age/60:.0f}min, TTL {ECDYSIS_CACHE_TTL_SECONDS/60:.0f}min)"
+            )
+            return cache_path.read_bytes()
+
     params = {
         "schema": "symbiota",
         "identifications": "1",
@@ -48,6 +70,12 @@ def _download_zip(dataset_id: int) -> bytes:
         timeout=120,
     )
     response.raise_for_status()
+
+    # Atomic write so a kill mid-download can't leave a half-written cache file.
+    ECDYSIS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_path = cache_path.with_suffix(".zip.tmp")
+    tmp_path.write_bytes(response.content)
+    tmp_path.replace(cache_path)
     return response.content
 
 
