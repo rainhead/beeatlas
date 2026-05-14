@@ -461,10 +461,10 @@ Plans:
   5. `test_dbt_diff.py` schema assertion is updated to assert 30 columns and still passes
 **Plans**: 4 plans
 Plans:
-- [ ] 85-01-PLAN.md — TEST-01: add WHERE id IS NOT NULL filter to stg_inat__observations + update staging/schema.yml
-- [ ] 85-02-PLAN.md — TEST-02: replace broken relationships test with singular SQL test joining ecdysis_id to stg_ecdysis__occurrences.id
-- [ ] 85-03-PLAN.md — CLEAN-01: document FORMAT CSV rationale in emit_feature_collection macro (locked decision D-03 — replacement deferred)
-- [ ] 85-04-PLAN.md — CLEAN-02: drop 3 columns from marts contract + SQL + sqlite.ts + diff harness docstring (30-col contract)
+- [ ] 085-01-PLAN.md — TEST-01: add WHERE id IS NOT NULL filter to stg_inat__observations + update staging/schema.yml
+- [ ] 085-02-PLAN.md — TEST-02: replace broken relationships test with singular SQL test joining ecdysis_id to stg_ecdysis__occurrences.id
+- [ ] 085-03-PLAN.md — CLEAN-01: document FORMAT CSV rationale in emit_feature_collection macro (locked decision D-03 — replacement deferred)
+- [ ] 085-04-PLAN.md — CLEAN-02: drop 3 columns from marts contract + SQL + sqlite.ts + diff harness docstring (30-col contract)
 
 ### Phase 86: Port Remaining Transforms
 **Goal**: Every Python transform in the data pipeline (species_export.py, occurrence-links derivation, taxon-lineage enrichment, resolve_taxon_ids.py) is expressed as dbt models with declared ref()/source() dependencies, and the diff harness stays green throughout
