@@ -510,7 +510,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 - [x] 088-01-PLAN.md — Retire validate-schema.mjs gate (CUTOVER-03) + capture pre-cutover rollback SHA + update CLAUDE.md
-- [ ] 088-02-PLAN.md — Rewrite data/run.py with _run_dbt_build STEPS entry; delete _apply_migrations and data/export.py (CUTOVER-01, CUTOVER-02)
+- [x] 088-02-PLAN.md — Rewrite data/run.py with _run_dbt_build STEPS entry; delete _apply_migrations and data/export.py (CUTOVER-01, CUTOVER-02)
 - [ ] 088-03-PLAN.md — Confirm nightly.sh unchanged; frontend smoke check; write 088-CUTOVER-LOG.md (CUTOVER-04, VALIDATE-02)
 
 ## Progress
