@@ -63,6 +63,10 @@ Last activity: 2026-05-14
 
 - Cluster blob selection visual feedback — `.planning/todos/pending/cluster-selection-visual-feedback.md`
 - Boundary edge gap/overlap rendering (from Phase 73 verification, commit 193a57b)
+- Nightly run failure notification — `.planning/todos/pending/nightly-run-failure-notification.md`
+- Stale `public/data/` artifacts cleanup (samples.parquet, ecdysis.parquet) — `.planning/todos/pending/stale-public-data-cleanup.md`
+- Retire `data/stub_handler.py` and dormant Lambda surface — `.planning/todos/pending/retire-stub-handler.md`
+- `_dlt_pipeline_state` housekeeping audit — `.planning/todos/pending/dlt-pipeline-state-housekeeping.md`
 
 ### Blockers/Concerns
 
