@@ -94,21 +94,19 @@ cd "$SCRIPT_DIR"
 uv run python run.py
 echo "--- pipelines done in $(_elapsed $_t0) ---"
 
-# 3. Push exports to S3 /data/. GeoJSON files are pre-gzipped because CloudFront's
-# auto-compression doesn't cover application/geo+json (only application/json and
-# a fixed list — see AWS docs). The .gz bytes ship with Content-Encoding: gzip
-# so browsers decompress transparently and CDN caching stays intact. ~67% bandwidth
-# reduction on counties (511 KB → 167 KB) and ecoregions (193 KB → 71 KB).
+# 3. Push exports to S3 /data/. GeoJSON files are uploaded with Content-Type
+# application/json (not application/geo+json) so CloudFront's auto-compression
+# fires on them — AWS's allowlist covers application/json but not the geo+json
+# subtype, and the allowlist isn't configurable. Mapbox + frontend don't care
+# about the exact subtype; they parse by content.
 echo "--- uploading exports ---"
 _t0=$(date +%s)
 for f in occurrences.parquet species.json seasonality.json; do
     aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
 done
 for f in counties.geojson ecoregions.geojson; do
-    gzip -9 -c "$EXPORT_DIR/$f" > "$EXPORT_DIR/$f.gz"
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f.gz" "s3://$BUCKET/data/$f" \
-        --content-encoding gzip \
-        --content-type application/geo+json
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f" \
+        --content-type application/json
 done
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
 echo "exports uploaded in $(_elapsed $_t0)"
