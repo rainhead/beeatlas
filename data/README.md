@@ -44,7 +44,7 @@ Loads polygon boundaries for spatial annotation from the following upstream sour
 |---|---|
 | `geographies.ecoregions` | [EPA Level III Ecoregions (North America)](https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level3.zip) |
 | `geographies.us_states` | [US Census TIGER 2024](https://www2.census.gov/geo/tiger/TIGER2024/STATE/tl_2024_us_state.zip) |
-| `geographies.us_counties` | [US Census TIGER 2024](https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip) |
+| `geographies.us_counties` | [US Census Cartographic Boundary 1:500k 2024](https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_500k.zip) |
 | `geographies.ca_provinces` | [Statistics Canada 2021 Census](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lpr_000b21a_e.zip) |
 | `geographies.ca_census_divisions` | [Statistics Canada 2021 Census](https://www12.statcan.gc.ca/census-recensement/2021/geo/sip-pis/boundary-limites/files-fichiers/lcd_000b21a_e.zip) |
 
