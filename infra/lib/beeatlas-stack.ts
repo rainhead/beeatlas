@@ -38,6 +38,10 @@ export class BeeAtlasStack extends cdk.Stack {
         origin: origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        // Auto-gzip/brotli responses whose Content-Type is on AWS's allowlist
+        // (text/*, application/json, application/javascript, etc.) and which are
+        // > 1 KB. Default in CDK is false; we want it on for the bundled JS.
+        compress: true,
       },
       defaultRootObject: 'index.html',
       domainNames: ['beeatlas.net', 'www.beeatlas.net'],
@@ -56,6 +60,12 @@ export class BeeAtlasStack extends cdk.Stack {
       defaultTtl: cdk.Duration.days(1),
       maxTtl: cdk.Duration.days(365),
       minTtl: cdk.Duration.seconds(0),
+      // Required for CloudFront's auto-compression to fire on this behavior —
+      // without these, `compress: true` on the behavior is silently a no-op.
+      // The cache key varies by Accept-Encoding so compressed and uncompressed
+      // versions get separate cache entries.
+      enableAcceptEncodingGzip: true,
+      enableAcceptEncodingBrotli: true,
     });
 
     // Response headers policy: expose CORS + Range/ETag headers to the browser.
@@ -77,6 +87,11 @@ export class BeeAtlasStack extends cdk.Stack {
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: dataCachePolicy,
         responseHeadersPolicy: dataCorsPolicy,
+        // species.json + region GeoJSONs are large and compressible. AWS's
+        // allowlist covers application/json — we upload .geojson with that
+        // content-type so CloudFront compresses them too (allowlist doesn't
+        // include application/geo+json; not configurable).
+        compress: true,
       }
     );
 
