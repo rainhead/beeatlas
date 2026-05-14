@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v3.4
 milestone_name: dbt Full Rewrite
 status: completed
-last_updated: "2026-05-14T16:37:13.125Z"
+last_updated: "2026-05-14T18:30:00.000Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 9
@@ -28,7 +28,7 @@ Phase: 88 (Production Cutover) — COMPLETE
 Plan: 3 of 3 (all complete)
 Plans: 3 of 3 drafted across 3 waves; all executed
 Status: Phase 88 complete; v3.4 dbt Full Rewrite milestone ready to mark SHIPPED
-Last activity: 2026-05-14 — Completed quick task 260514-fcq: retired Lambda execution path (CDK + handler + Dockerfile)
+Last activity: 2026-05-14 — Completed quick task 260514-fp2: fixed mobile sidebar close button obscured by Regions button (#12)
 
 ## Accumulated Context
 
@@ -83,6 +83,7 @@ None. (CR-01, recorded Phase 67, was silently resolved — both interfaces now u
 | 260514-f2z | Stale public/data artifact cleanup (fetch-data.sh + BENCHMARK.md to canonical set; deleted samples.parquet/ecdysis.parquet from S3 + local) | 2026-05-14 | 36ce8bc | [260514-f2z-stale-public-data-cleanup-drop-samples-p](./quick/260514-f2z-stale-public-data-cleanup-drop-samples-p/) |
 | 260514-f7c | dlt pipeline state housekeeping — audit only, no action (≤106 _dlt_* rows total over 58 days, <1% of 111 MB DB) | 2026-05-14 | — | [260514-f7c-dlt-pipeline-state-housekeeping-audit-dl](./quick/260514-f7c-dlt-pipeline-state-housekeeping-audit-dl/) |
 | 260514-fcq | Retire Lambda execution path — removed PipelineFunction + EventBridge schedulers + Function URL from BeeAtlasStack via cdk deploy; deleted stub_handler.py + Dockerfile; CloudFront access logging activated as a side-effect (intentional pending change) | 2026-05-14 | b58b35b | [260514-fcq-retire-stub-handler-delete-data-stub-han](./quick/260514-fcq-retire-stub-handler-delete-data-stub-han/) |
+| 260514-fp2 | Fix mobile sidebar close button obscured by Regions button (#12) — keep a sliver of map visible above the sidebar in narrow viewports so the Regions button has its own real estate | 2026-05-14 | be01acb | [260514-fp2-fix-mobile-sidebar-close-button-obscured](./quick/260514-fp2-fix-mobile-sidebar-close-button-obscured/) |
 
 ## Deferred Items
 
