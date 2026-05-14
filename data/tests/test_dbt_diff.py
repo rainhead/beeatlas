@@ -50,10 +50,10 @@ def test_occurrences_row_count_matches():
 
 @_SANDBOX_GUARD
 def test_occurrences_schema_matches():
-    """Column names AND types from DESCRIBE match exactly between sandbox and public (33 cols).
+    """Column names AND types from DESCRIBE match exactly between sandbox and public (30 cols).
 
     Asserts the full ordered list of (column_name, data_type) pairs is identical.
-    Verified baseline: 33 columns with identical names and types in both files.
+    Verified baseline: 30 columns with identical names and types in both files.
     """
     s_cols = [
         (r[0], r[1])
