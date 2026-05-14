@@ -5,6 +5,7 @@ re-fetches them from the iNaturalist API. Changed observations are updated via
 merge; observations no longer returned by the API (deleted or no longer matching
 project criteria) are soft-deleted by setting is_deleted=True.
 """
+import os
 from pathlib import Path
 from typing import Iterator
 
@@ -13,7 +14,7 @@ import requests
 
 from inaturalist_pipeline import DEFAULT_FIELDS, _transform
 
-DB_PATH = str(Path(__file__).parent / "beeatlas.duckdb")
+DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 
 INAT_BASE_URL = "https://api.inaturalist.org/v2/"
 
