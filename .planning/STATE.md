@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 Phase: 87 (Incremental Materialization Experiment) — COMPLETE
 Plan: 2 of 2 — both committed (6da1df5, 2916ded)
-Status: Phase complete — ready for verification / Phase 88
+Status: Phase 87 VERIFIED (087-VERIFICATION.md, 8/8 must-haves) — ready for Phase 88
 Last activity: 2026-05-14
 
 ## Accumulated Context
