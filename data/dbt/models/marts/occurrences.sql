@@ -73,8 +73,7 @@ SELECT
     j.modified, j.specimen_observation_id, j.elevation_m,
     j.observation_id, j.host_inat_login, j.specimen_count, j.sample_id,
     j.sample_host,
-    j.specimen_inat_login, j.specimen_inat_taxon_name,
-    j.specimen_inat_genus, j.specimen_inat_family, j.specimen_inat_quality_grade,
+    j.specimen_inat_taxon_name, j.specimen_inat_quality_grade,
     j.is_provisional,
     j.canonical_name,
     fc.county, fe.ecoregion_l3
