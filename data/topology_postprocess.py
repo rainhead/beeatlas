@@ -21,6 +21,8 @@ retained; all 8 distinct L3 names preserved.
 
 from __future__ import annotations
 
+import datetime
+import json
 import os
 import shutil
 import subprocess
@@ -42,6 +44,33 @@ _SIMPLIFY_PCT: dict[str, str | None] = {
     "counties.geojson": None,
     "ecoregions.geojson": "3%",
 }
+
+
+def _resolve_git_sha() -> str:
+    """Best-effort current commit SHA. Returns 'unknown' if not in a git checkout."""
+    sha = os.environ.get("GIT_SHA")
+    if sha:
+        return sha
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=str(_REPO_ROOT), text=True,
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return "unknown"
+
+
+def _inject_meta(path: Path) -> None:
+    """Add a `_meta` field to the FeatureCollection root with provenance.
+
+    Lets us identify which commit produced any deployed asset:
+        curl https://beeatlas.net/data/counties.geojson | jq ._meta
+    """
+    obj = json.loads(path.read_text())
+    obj["_meta"] = {
+        "git_sha": _resolve_git_sha(),
+        "built_at": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
+    path.write_text(json.dumps(obj, separators=(",", ":")))
 
 
 def _run_mapshaper(path: Path) -> None:
@@ -85,6 +114,7 @@ def main() -> None:
             raise FileNotFoundError(f"{path} not found — run dbt build first")
         before = path.stat().st_size
         _run_mapshaper(path)
+        _inject_meta(path)
         after = path.stat().st_size
         print(f"  {name}: {before:,} -> {after:,} bytes")  # noqa: T201
 

@@ -38,12 +38,25 @@ SOURCES = {
 
 
 def _download(name: str, url: str) -> Path:
-    """Download a zip to cache, resuming a partial download if present."""
+    """Download a zip to cache, resuming a partial download if present.
+
+    Cache invalidates when the source URL changes. A sidecar `.url` file
+    records the URL that produced the cached zip; if it doesn't match the
+    current SOURCES entry, the cache is discarded and re-downloaded. This
+    prevents stale caches from masking source swaps (#14 fp3 — switching
+    counties from cb_5m to cb_500k didn't invalidate the cached zip).
+    """
     CACHE_DIR.mkdir(exist_ok=True)
     dest = CACHE_DIR / f"{name}.zip"
+    url_marker = dest.with_suffix(".zip.url")
     if dest.exists():
-        print(f"  Using cached {dest}")  # noqa: T201
-        return dest
+        cached_url = url_marker.read_text().strip() if url_marker.exists() else None
+        if cached_url == url:
+            print(f"  Using cached {dest}")  # noqa: T201
+            return dest
+        was = cached_url or "(no .url sidecar — pre-#14-fp3 cache)"
+        print(f"  Source URL changed for {name}; was {was}, now {url}. Re-downloading.")  # noqa: T201
+        dest.unlink()
 
     tmp = dest.with_suffix(".tmp")
     existing_size = tmp.stat().st_size if tmp.exists() else 0
@@ -71,6 +84,7 @@ def _download(name: str, url: str) -> Path:
     print()  # noqa: T201
 
     tmp.rename(dest)
+    url_marker.write_text(url)
     return dest
 
 
