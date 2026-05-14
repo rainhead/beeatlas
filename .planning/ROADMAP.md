@@ -492,7 +492,10 @@ Plans:
   1. At least one model in the dbt project is configured with `materialized='incremental'` and `dbt build` is run twice; the second run's behavior (full rebuild vs. incremental diff) is observed and recorded
   2. A written finding documents: does incremental work with external materializations? does it measurably speed up nightly builds? what is the wall-clock comparison?
   3. A clear recommendation is recorded for Phase 88: either "nightly.sh should use incremental" with the selector command, or "full rebuilds are the right approach because [reason]"
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 087-01-PLAN.md — Capture baseline + apply experimental incremental config to int_combined (ARM 1 watermark + ARM 2 skip) + capture 3 incremental runs (full-refresh, no-op, data-change) into run_results-*.json + timings.md
+- [ ] 087-02-PLAN.md — Write 087-FINDINGS.md with evidence-anchored recommendation for Phase 88, then revert int_combined.sql to pre-experiment materialized=table state
 
 ### Phase 88: Production Cutover
 **Goal**: `dbt build` is the sole producer of all pipeline outputs; legacy Python transform code, `_apply_migrations()`, and `validate-schema.mjs` are retired; nightly.sh runs dbt and interprets exit codes correctly; the frontend loads dbt-produced occurrences.parquet without code changes
@@ -596,5 +599,5 @@ Plans:
 | 84. Tests, Diff & Findings | v3.3 | 3/3 | Complete | 2026-05-13 |
 | 85. Pre-Cutover Groundwork | v3.4 | 0/4 | Not started | - |
 | 86. Port Remaining Transforms | v3.4 | 0/5 | Not started | - |
-| 87. Incremental Materialization Experiment | v3.4 | 0/TBD | Not started | - |
+| 87. Incremental Materialization Experiment | v3.4 | 0/2 | Not started | - |
 | 88. Production Cutover | v3.4 | 0/TBD | Not started | - |
