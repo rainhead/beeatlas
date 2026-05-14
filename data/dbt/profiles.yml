@@ -6,7 +6,10 @@ beeatlas:
   outputs:
     sandbox:
       type: duckdb
-      path: ../beeatlas.duckdb          # relative to data/dbt/ — resolves to data/beeatlas.duckdb
+      # DB_PATH env var lets nightly.sh point dbt at /tmp/beeatlas.duckdb (the
+      # S3-restored snapshot). Local dev leaves DB_PATH unset and gets the
+      # default, which is relative to data/dbt/ and resolves to data/beeatlas.duckdb.
+      path: "{{ env_var('DB_PATH', '../beeatlas.duckdb') }}"
       schema: dbt_sandbox               # default schema for intermediates/views inside beeatlas.duckdb
       threads: 4
       extensions:
