@@ -28,13 +28,15 @@ _EXPORT_DIR = Path(os.environ.get(
 ))
 
 
-# Per-layer simplification retention. Counties (CB 5m) have moderate vertex
-# density and tolerate 10% well. Ecoregions are dominated by dense Puget Sound
-# coastlines (22 KB of verts on one feature) and need 3% to land near the
-# pre-fix ~194 KB target file size. Values picked empirically against visual
-# fidelity at zoom 7-10.
+# Per-layer simplification retention. Counties (CB 500k) have ~1200 verts per
+# county and tolerate 20% — preserves small islands like Vashon at near-actual
+# area (97 km² vs the ~95 km² real). Tried 10% on the earlier CB 5m source and
+# Vashon got chopped to 70 km², visible as "half of Vashon missing from King".
+# Ecoregions are dominated by dense Puget Sound coastlines (22 KB of verts on
+# one feature) and need 3% to land near the pre-fix ~194 KB target file size.
+# Values picked empirically against visual fidelity at zoom 7-10.
 _SIMPLIFY_PCT = {
-    "counties.geojson": "10%",
+    "counties.geojson": "20%",
     "ecoregions.geojson": "3%",
 }
 
