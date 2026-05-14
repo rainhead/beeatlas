@@ -507,20 +507,19 @@ None. The existing test infrastructure (dbt's `test` command + `test_dbt_diff.py
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the experimental incremental config be committed (then reverted) or kept uncommitted?**
    - What we know: the change is a single file; either pattern works.
-   - What's unclear: user's preference for git history shape on spike phases.
-   - Recommendation: commit the experimental change in its own commit (so the experiment is reproducible from history), then commit the revert in a follow-up commit. This preserves a "this was tried" record that Phase 88's planner can inspect. Defer to planner to confirm.
+   - **RESOLVED:** Plan 01 leaves the experimental SQL change *uncommitted* during measurement; Plan 02 captures the pre-experiment SHA and reverts via direct edit (no commit-then-revert in git history). Keeps the experiment as a clean "tried and reverted, no trace" pattern. The findings doc carries the historical record instead of git history.
 
 2. **Should the findings doc live as `087-FINDINGS.md` or be folded into the phase's verification report?**
    - What we know: the ROADMAP says "a written finding documents…" — a standalone doc is the cleanest fit.
-   - Recommendation: a standalone `.planning/phases/087-incremental-materialization-experiment/087-FINDINGS.md` consumed by Phase 88's planner via direct reference. Defer to planner.
+   - **RESOLVED:** Standalone `.planning/phases/087-incremental-materialization-experiment/087-FINDINGS.md`, consumed by Phase 88's planner via direct reference. Skeleton follows the `086-VERIFICATION.md` shape per 087-PATTERNS.md.
 
 3. **Does the planner want to include `int_species_universe` as a secondary experimental subject?**
    - What we know: 629 rows means no measurable timing signal.
-   - Recommendation: NO — adds two more `dbt build` runs and a second incremental config edit for zero additional information. Defer to planner.
+   - **RESOLVED:** NO. Single subject `int_combined` only. Adding `int_species_universe` would double the work for zero additional signal.
 
 ---
 
