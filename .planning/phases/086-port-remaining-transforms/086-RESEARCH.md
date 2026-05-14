@@ -616,6 +616,8 @@ WHERE CAST(resolved AS DOUBLE) / NULLIF(total, 0) < 0.95
 
 ### Species mart contract additions (schema.yml)
 
+> **Note:** the dbt contract enforces **18 columns** (slug excluded — slug is added by the Python post-step in Plan 086-05). The 19-column block below is the *final* species.json shape, not the dbt contract. See PATTERNS.md for the authoritative 18-column target.
+
 ```yaml
   - name: species
     config:
@@ -735,22 +737,16 @@ WHERE CAST(resolved AS DOUBLE) / NULLIF(total, 0) < 0.95
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`_slugify` re-implementation feasibility**
-   - What we know: `feeds._slugify` is a Python function imported by `species_export.py` (Phase 78 D-01)
-   - What's unclear: whether a SQL `lower(regexp_replace(...))` chain produces byte-identical slugs
-   - Recommendation: inspect `data/feeds.py::_slugify` during planning; if it is only `lower + regexp_replace + strip`, a SQL UDF or macro can replicate it; if it uses Python-specific logic, add to the Python post-step
+1. **`_slugify` re-implementation feasibility — RESOLVED: NOT viable in SQL.**
+   - Resolution: Pattern-mapper inspected `data/feeds.py::_slugify` and found it uses `unicodedata.normalize('NFKD')`, which has no DuckDB equivalent. Slug column MUST be added by the Python post-step (Plan 086-05) consuming the 18-column dbt mart. Recorded as PATTERNS.md "Surprises".
 
-2. **Whether to clean up `int_combined` and `int_specimen_obs_base` in Phase 086**
-   - What we know: 085-04 explicitly deferred removal of the 3 dropped columns from intermediate models to Phase 086
-   - What's unclear: whether the planner wants to include that cleanup in Phase 086 plans or defer to Phase 88 (where all Python export code is retired anyway)
-   - Recommendation: include as an optional wave 2 task (clean up intermediates) if timing permits; it is not required for VALIDATE-01 to pass
+2. **Cleanup of `int_combined` / `int_specimen_obs_base` carry-along — RESOLVED: deferred to Phase 88.**
+   - Resolution: Phase 88 retires the Python export pipeline entirely; cleaning the 3 dropped columns from intermediate models there is cheaper than touching them twice. No cleanup task is included in Phase 086 plans.
 
-3. **Python post-step location for species JSON files**
-   - What we know: a Python step must read `sandbox/species.parquet` and `sandbox/occurrences.parquet` and write `sandbox/species.json` and `sandbox/seasonality.json`
-   - What's unclear: should this be (a) a dbt Python model, (b) a post-hook in `species.sql`, or (c) a standalone Python script called after `dbt build`?
-   - Recommendation: option (c) — a standalone script (or an updated `species_export.py` with an `export_species_json(sandbox_dir)` function) called after `dbt build`. This keeps dbt model SQL pure and avoids the pandas dependency that dbt Python models require.
+3. **Python post-step location — RESOLVED: standalone `species_export.py` rewrite (Plan 086-05).**
+   - Resolution: Option (c) chosen — Plan 086-05 rewrites `data/species_export.py` to consume the dbt-produced `species.parquet` from `DBT_SANDBOX_DIR`, append `slug` via `feeds._slugify`, and emit `species.json` + `seasonality.json` to `ASSETS_DIR` (controlled by existing `EXPORT_DIR` env var). Avoids dbt Python models (pandas dep) and post-hooks (impure SQL).
 
 ---
 
