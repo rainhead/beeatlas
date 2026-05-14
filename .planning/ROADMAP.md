@@ -502,12 +502,16 @@ Plans:
 **Depends on**: Phase 87
 **Requirements**: CUTOVER-01, CUTOVER-02, CUTOVER-03, CUTOVER-04, VALIDATE-02
 **Success Criteria** (what must be TRUE):
-  1. `data/run.py` invokes `bash data/dbt/run.sh build` (or equivalent); `data/export.py` and `data/species_export.py` are no longer called in the transform path; `data/run.py` exits non-zero on dbt failure with a meaningful error message
+  1. `data/run.py` invokes `bash data/dbt/run.sh build` (or equivalent); `data/export.py` is deleted (its CTE transforms now live in dbt); `data/species_export.py` remains as a non-transform post-step that reads from the dbt sandbox (per Phase 86 Plan 05); `data/run.py` exits non-zero on dbt failure with a meaningful error message
   2. `_apply_migrations()` is deleted from `data/run.py`; a written mapping documents each migration invariant and its dbt replacement (contract column, generic test, or singular test)
   3. `scripts/validate-schema.mjs` is deleted; the `validate-schema` npm script is removed from `package.json`; the GitHub Actions workflow no longer references it; `npm run build` succeeds
   4. `data/nightly.sh` invokes `dbt build` (with `--exclude` for any remaining documented awkward-fits) and exits non-zero only on true failures, not on documented/excluded test anomalies
   5. End-to-end smoke check after cutover: `npm run dev`, map renders, filters work, table populates, species page works — all with `occurrences.parquet` produced entirely by dbt (30-column schema, no frontend code changes)
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 088-01-PLAN.md — Retire validate-schema.mjs gate (CUTOVER-03) + capture pre-cutover rollback SHA + update CLAUDE.md
+- [ ] 088-02-PLAN.md — Rewrite data/run.py with _run_dbt_build STEPS entry; delete _apply_migrations and data/export.py (CUTOVER-01, CUTOVER-02)
+- [ ] 088-03-PLAN.md — Confirm nightly.sh unchanged; frontend smoke check; write 088-CUTOVER-LOG.md (CUTOVER-04, VALIDATE-02)
 
 ## Progress
 

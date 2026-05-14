@@ -556,37 +556,16 @@ conversion or by the dbt source declaration's implicit schema contract. Deletion
 **Read this column for risk gating:** items tagged `[ASSUMED]` should be verified before
 deletion; items tagged `[VERIFIED]` or `[CITED]` are confirmed by tool output this session.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should `_apply_migrations` be deleted in the same commit as `export.py`, or kept one
-   wave earlier as a safety net?**
-   - What we know: Both are dead code. `_apply_migrations` is more dead — both renames
-     already applied to the prod DB. `export.py` is one merge away from being removed by
-     CUTOVER-01.
-   - What's unclear: Whether having `_apply_migrations` as a no-op safety net for one
-     more nightly cycle has any value.
-   - Recommendation: Delete in the same commit/wave as the run.py rewrite. Both are
-     symbolic-only deletions once dbt build is wired in. Keeping dead code "just in case"
-     contradicts the v3.4 cleanup goal.
+1. **Should `_apply_migrations` be deleted in the same commit as `export.py`, or kept one wave earlier as a safety net?**
+   - **RESOLVED:** Delete in the same wave (W2) as the `run.py` rewrite. Both are symbolic-only deletions once dbt build is wired in; keeping dead code "just in case" contradicts the v3.4 cleanup goal. Implemented by Plan 088-02 Tasks 2–4.
 
-2. **Should `public/data/samples.parquet` and `public/data/ecdysis.parquet` (gitignored
-   stale artifacts from pre-v3.0) be cleaned out of S3?**
-   - What we know: They exist in local `public/data/` from old runs; they likely sit
-     in S3 too. Not consumed by current frontend.
-   - What's unclear: Whether stale presence in S3 affects anything.
-   - Recommendation: **Out of scope for Phase 88.** File a follow-on todo
-     (`.planning/todos/pending/stale-public-data-cleanup.md`) for a future deletion pass.
-     `scripts/fetch-data.sh` lists them in its sync; that script needs updating too but
-     is also out of scope.
+2. **Should `public/data/samples.parquet` and `public/data/ecdysis.parquet` (stale artifacts from pre-v3.0) be cleaned out of S3?**
+   - **RESOLVED:** OUT OF SCOPE for Phase 88. File a follow-on todo (`.planning/todos/pending/stale-public-data-cleanup.md`) for a future deletion pass. `scripts/fetch-data.sh` listing also out of scope. The CUTOVER-LOG `## Out of Scope` section captures this.
 
-3. **Should the cutover include a rollback marker (git tag) at the pre-cutover SHA?**
-   - What we know: Phase 87 already left
-     `.planning/phases/087-incremental-materialization-experiment/pre-experiment-sha.txt`
-     as a rollback marker.
-   - What's unclear: Whether to do the same for Phase 88.
-   - Recommendation: **Yes**, follow the Phase-87 pattern. Capture `git rev-parse HEAD`
-     to `.planning/phases/088-production-cutover/pre-cutover-sha.txt` in the FIRST plan
-     of the phase. Single-commit rollback = `git revert <merge-commit>`.
+3. **Should the cutover include a rollback marker at the pre-cutover SHA?**
+   - **RESOLVED:** YES — mirror the Phase 87 pattern. Plan 088-01 Task 1 captures `git rev-parse HEAD > .planning/phases/088-production-cutover/pre-cutover-sha.txt` before any deletion lands. Single-commit rollback = `git revert <merge-commit>` against that SHA.
 
 ## Environment Availability
 
