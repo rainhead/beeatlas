@@ -54,5 +54,5 @@ cd data && uv run pytest
 
 ## Known State
 
-- Lambda CDK artifacts exist in AWS but the active execution path is `data/nightly.sh` on maderas (nightly cron)
+- Pipeline runs as `data/nightly.sh` on maderas (nightly cron) — the sole execution path. The dormant Lambda surface (DockerImageFunction + EventBridge schedulers + Function URL) was retired 2026-05-14 (quick task `260514-fcq`).
 - The dbt 30-column contract on `marts/occurrences` is enforced at every `bash data/dbt/run.sh build`; there is no separate JS schema validator.
