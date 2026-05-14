@@ -1,9 +1,14 @@
 """Topology-aware cleanup of region GeoJSON via mapshaper.
 
-Counties from cb_2024_us_county_5m are already topology-clean (Census builds CB
-files from the topology database). Ecoregions from EPA Level III have ~160 km²
-of inter-feature overlaps in WA that mapshaper -clean resolves; -simplify then
-removes redundant vertices on shared arcs without re-introducing gaps.
+Counties (Census CB 500k) are already topology-clean and cartographically
+generalized to ~1:500k from the topology database. Don't further simplify —
+mapshaper's -simplify at any aggressive retention chops small islands like
+Vashon by the perimeter (NW edge of Vashon ends up uncountied at percentage=20%).
+Just -clean to format consistently; that's a no-op on already-clean data.
+
+Ecoregions (EPA Level III) have ~160 km² of inter-feature overlaps in WA that
+mapshaper -clean resolves; -simplify then removes redundant vertices on shared
+arcs to keep the file in the ~200 KB range.
 
 Reads from EXPORT_DIR (the same path run.py copies dbt outputs to), writes back
 in place. Idempotent.
@@ -28,21 +33,19 @@ _EXPORT_DIR = Path(os.environ.get(
 ))
 
 
-# Per-layer simplification retention. Counties (CB 500k) have ~1200 verts per
-# county and tolerate 20% — preserves small islands like Vashon at near-actual
-# area (97 km² vs the ~95 km² real). Tried 10% on the earlier CB 5m source and
-# Vashon got chopped to 70 km², visible as "half of Vashon missing from King".
-# Ecoregions are dominated by dense Puget Sound coastlines (22 KB of verts on
-# one feature) and need 3% to land near the pre-fix ~194 KB target file size.
-# Values picked empirically against visual fidelity at zoom 7-10.
-_SIMPLIFY_PCT = {
-    "counties.geojson": "20%",
+# Per-layer mapshaper recipe. None means "skip -simplify entirely; just -clean".
+# Counties (CB 500k) are already cartographically scaled — any further simplify
+# eats small-feature perimeter detail (Vashon, San Juans) before it touches
+# redundant inland vertices. Ecoregions are dominated by dense Puget Sound
+# coastlines and tolerate 3% retention, landing the file ~193 KB.
+_SIMPLIFY_PCT: dict[str, str | None] = {
+    "counties.geojson": None,
     "ecoregions.geojson": "3%",
 }
 
 
 def _run_mapshaper(path: Path) -> None:
-    """Run mapshaper -clean -simplify on a GeoJSON file, in place.
+    """Run mapshaper -clean (and optionally -simplify) on a GeoJSON file, in place.
 
     Mapshaper refuses to overwrite its input directly; write to a sibling
     temp file then atomically rename over the original.
@@ -52,16 +55,14 @@ def _run_mapshaper(path: Path) -> None:
             "npx not on PATH — topology_postprocess requires Node.js + mapshaper. "
             "Install Node and run `npm install` at the repo root."
         )
-    pct = _SIMPLIFY_PCT.get(path.name)
-    if pct is None:
-        raise ValueError(f"no simplify percentage configured for {path.name}")
+    if path.name not in _SIMPLIFY_PCT:
+        raise ValueError(f"no mapshaper recipe configured for {path.name}")
+    pct = _SIMPLIFY_PCT[path.name]
     tmp = path.with_suffix(path.suffix + ".tmp")
-    cmd = [
-        "npx", "mapshaper", str(path),
-        "-clean", "gap-fill-area=0.01km2",
-        "-simplify", f"percentage={pct}", "planar", "keep-shapes",
-        "-o", str(tmp), "format=geojson",
-    ]
+    cmd = ["npx", "mapshaper", str(path), "-clean", "gap-fill-area=0.01km2"]
+    if pct is not None:
+        cmd += ["-simplify", f"percentage={pct}", "planar", "keep-shapes"]
+    cmd += ["-o", str(tmp), "format=geojson"]
     subprocess.run(cmd, check=True, cwd=str(_REPO_ROOT))
     tmp.replace(path)
 
