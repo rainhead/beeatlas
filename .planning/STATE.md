@@ -28,7 +28,7 @@ Phase: 88 (Production Cutover) — COMPLETE
 Plan: 3 of 3 (all complete)
 Plans: 3 of 3 drafted across 3 waves; all executed
 Status: Phase 88 complete; v3.4 dbt Full Rewrite milestone ready to mark SHIPPED
-Last activity: 2026-05-14 — Completed quick task 260514-f2z: stale public/data artifact cleanup
+Last activity: 2026-05-14 — Completed quick task 260514-f7c: dlt pipeline state housekeeping audit (no action)
 
 ## Accumulated Context
 
@@ -81,6 +81,7 @@ None. (CR-01, recorded Phase 67, was silently resolved — both interfaces now u
 | 260421-qk1 | Drop atom feeds for counties and ecoregions | 2026-04-21 | c1f196e | [260421-qk1-drop-county-ecoregion-feeds](./quick/260421-qk1-drop-county-ecoregion-feeds/) |
 | 260422-sc1 | Fix specimen count mismatch between map filter panel and table view | 2026-04-22 | 78ccd3e | [260422-sc1-fix-specimen-count-mismatch](./quick/260422-sc1-fix-specimen-count-mismatch/) |
 | 260514-f2z | Stale public/data artifact cleanup (fetch-data.sh + BENCHMARK.md to canonical set; deleted samples.parquet/ecdysis.parquet from S3 + local) | 2026-05-14 | 36ce8bc | [260514-f2z-stale-public-data-cleanup-drop-samples-p](./quick/260514-f2z-stale-public-data-cleanup-drop-samples-p/) |
+| 260514-f7c | dlt pipeline state housekeeping — audit only, no action (≤106 _dlt_* rows total over 58 days, <1% of 111 MB DB) | 2026-05-14 | — | [260514-f7c-dlt-pipeline-state-housekeeping-audit-dl](./quick/260514-f7c-dlt-pipeline-state-housekeeping-audit-dl/) |
 
 ## Deferred Items
 
