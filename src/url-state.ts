@@ -23,7 +23,8 @@ export interface ViewState {
 
 export type SelectionState =
   | { type: 'ids'; ids: string[] }
-  | { type: 'cluster'; lon: number; lat: number; radiusM: number };
+  | { type: 'cluster'; lon: number; lat: number; radiusM: number }
+  | { type: 'bounds'; west: number; south: number; east: number; north: number };
 
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions';
@@ -60,6 +61,13 @@ export function buildParams(
     params.set('o', selection.ids.join(','));
   } else if (selection.type === 'cluster') {
     params.set('o', `@${selection.lon.toFixed(4)},${selection.lat.toFixed(4)},${Math.ceil(selection.radiusM)}`);
+  } else if (selection.type === 'bounds') {
+    params.set('sel', [
+      selection.west.toFixed(4),
+      selection.south.toFixed(4),
+      selection.east.toFixed(4),
+      selection.north.toFixed(4),
+    ].join(','));
   }
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
@@ -173,6 +181,25 @@ export function parseParams(search: string): Partial<AppState> {
       .filter(s => (s.startsWith('ecdysis:') || s.startsWith('inat:')) && s.length > 5);
     if (ids.length > 0) {
       result.selection = { type: 'ids', ids };
+    }
+  }
+
+  // Bounds selection — sel=west,south,east,north (SEL-06)
+  const selRaw = p.get('sel') ?? '';
+  if (selRaw) {
+    const parts = selRaw.split(',');
+    if (parts.length === 4) {
+      const west  = parseFloat(parts[0]!);
+      const south = parseFloat(parts[1]!);
+      const east  = parseFloat(parts[2]!);
+      const north = parseFloat(parts[3]!);
+      if (isFinite(west)  && west  >= -180 && west  <= 180 &&
+          isFinite(east)  && east  >= -180 && east  <= 180 &&
+          isFinite(south) && south >= -90  && south <= 90  &&
+          isFinite(north) && north >= -90  && north <= 90  &&
+          south < north) {
+        result.selection = { type: 'bounds', west, south, east, north };
+      }
     }
   }
 
