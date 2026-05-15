@@ -505,7 +505,13 @@ Plans:
   2. `species_maps.py` generates one multi-color SVG per subgenus where defined (e.g. `maps/subgenus/Andrena/Melandrena.svg`)
   3. `species_maps.py` generates one multi-color SVG per tribe (e.g. `maps/tribe/Andrenini.svg`)
   4. Color assignment is deterministic across runs (same species always gets the same color within a group)
-**Plans**: TBD
+**Plans**: 2 plans
+
+**Wave 1**
+- [ ] 93-01-PLAN.md — Add _group_colors HSL→hex helper + Wave 0 test scaffolding (color determinism, skip-guarded group-output assertions)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 93-02-PLAN.md — Implement _generate_group_maps + _write_group_svg, wire into generate_species_maps, activate group-output tests, human pipeline verification
 
 ### Phase 94: Species & Genus Pages
 **Goal**: Users can navigate to a dedicated static page for any species or genus and see occurrence data and photos
@@ -639,7 +645,7 @@ Plans:
 | 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 91. URL State | v3.5 | 2/2 | Complete    | 2026-05-15 |
 | 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete    | 2026-05-15 |
-| 93. Multi-Color SVG Map Generation | v3.6 | 0/? | Not started | - |
+| 93. Multi-Color SVG Map Generation | v3.6 | 0/2 | Not started | - |
 | 94. Species & Genus Pages | v3.6 | 0/? | Not started | - |
 | 95. Subgenus & Tribe Pages | v3.6 | 0/? | Not started | - |
 | 96. Index Page Replacement | v3.6 | 0/? | Not started | - |
