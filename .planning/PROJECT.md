@@ -12,7 +12,7 @@
 
 ## Current State
 
-**v3.5 Selection Rectangle — IN PROGRESS.** Milestone launched 2026-05-14. Frontend-only milestone adding rubber-band selection to the Mapbox map. Builds on existing `_selectedOccIds` / `queryVisibleIds` infrastructure in `bee-atlas.ts` + `filter.ts`. Post-v3.4 housekeeping (Lambda retirement, stale S3 cleanup, dlt pipeline state audit) resolved as quick tasks 260514-fcq, 260514-f2z, 260514-f7c respectively.
+**v3.5 Selection Rectangle — COMPLETE (2026-05-15).** All 3 phases shipped: Phase 89 (rectangle drawing + SQLite query), Phase 90 (occurrence query + sidebar wiring), Phase 91 (URL state: SEL-06 bounds round-trip + SEL-07 dismiss clearing). `sel=west,south,east,north` round-trips through the URL on selection, fresh-tab restore, and browser back/forward. All SEL-01–SEL-07 requirements verified.
 
 ## Previous Milestone: v3.4 dbt Full Rewrite (shipped 2026-05-14)
 
