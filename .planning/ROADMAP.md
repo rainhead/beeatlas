@@ -365,11 +365,11 @@ See `.planning/milestones/v3.4-ROADMAP.md` for full phase details.
 
 </details>
 
-**v3.5 Selection Rectangle (Phases 89–91) — IN PROGRESS**
+**v3.5 Selection Rectangle (Phases 89–91) — COMPLETE (2026-05-15)**
 
 - [x] **Phase 89: Rectangle Drawing** — shift-drag gesture + visual rectangle on map canvas (completed 2026-05-15)
 - [x] **Phase 90: Occurrence Query & Sidebar** — lat/lon bounds query + sidebar open (completed 2026-05-15)
-- [ ] **Phase 91: URL State** — `sel=` param encode/decode + clear on dismiss
+- [x] **Phase 91: URL State** — `sel=` param encode/decode + clear on dismiss (completed 2026-05-15)
 
 ## Phase Details
 
@@ -505,7 +505,7 @@ Plans:
 - [x] 91-01-PLAN.md — Extend SelectionState union with bounds variant + buildParams/parseParams sel= support (TDD)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 91-02-PLAN.md — Wire _selectionBounds into _pushUrlState + clear sites + _restoreBoundsSelection for firstUpdated/_onPopState restore
+- [x] 91-02-PLAN.md — Wire _selectionBounds into _pushUrlState + clear sites + _restoreBoundsSelection for firstUpdated/_onPopState restore
 **UI hint**: yes
 
 ## Progress
@@ -602,4 +602,4 @@ Plans:
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
 | 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
-| 91. URL State | v3.5 | 1/2 | In Progress|  |
+| 91. URL State | v3.5 | 2/2 | Complete    | 2026-05-15 |
