@@ -8,10 +8,10 @@ files_reviewed_list:
   - src/bee-atlas.ts
   - src/tests/bee-atlas.test.ts
 findings:
-  critical: 1
-  warning: 3
-  info: 2
-  total: 6
+  critical: 0
+  warning: 2
+  info: 3
+  total: 5
 status: issues_found
 ---
 
@@ -24,71 +24,78 @@ status: issues_found
 
 ## Summary
 
-Phase 89 adds a shift-drag rectangle gesture to the Mapbox map: a capture-phase `mousedown` listener on the canvas container starts drawing an overlay `<div>`, document-level `mousemove`/`mouseup` listeners track drag progress, and `mouseup` fires a `selection-drawn` CustomEvent with geographic bounds. `bee-atlas` receives the event and stores bounds in `_selectionBounds` (to be queried in Phase 90).
+Phase 89 adds a shift-drag rectangle gesture to the Mapbox map. A capture-phase `mousedown` listener on the canvas container detects shift+left-button, disables `dragPan`, and registers `document`-level `mousemove`/`mouseup` handlers. An overlay `<div class="selection-box">` is drawn as the user drags, then removed on `mouseup`. If the drag exceeds a 5 px threshold, a `selection-drawn` CustomEvent is emitted with geographic bounds (west/south/east/north). `bee-atlas` receives the event and stores bounds in a `_selectionBounds` stub field; the SQLite bounds query is deferred to Phase 90.
 
-The implementation is structurally sound and matches the architecture invariants. However, there is one correctness bug in `_mousePos` that produces wrong coordinates in scrolled or CSS-scaled viewports, one interaction-ordering bug where a completed rectangle still fires `map-click-empty`, and two missing-cleanup/leak risks.
+The implementation is structurally correct and follows the architecture invariants. Two warnings surfaced: a deviation from the Mapbox reference `mousePos` implementation that will produce wrong coordinates under CSS scaling, and missing mid-drag cleanup in `disconnectedCallback`. Three info items cover a wasteful `@state()` on an unread field, missing behavioral test coverage, and a pre-existing unnecessary `as any` cast.
+
+No critical (blocker) issues were found.
 
 ---
 
-## Critical Issues
+## Warnings
 
-### CR-01: `_mousePos` double-subtracts border width from `getBoundingClientRect`
+### WR-01: `_mousePos` deviates from Mapbox reference — wrong coordinates under CSS scaling
 
 **File:** `src/bee-map.ts:260-266`
 
-`getBoundingClientRect()` already returns coordinates relative to the viewport that account for CSS borders — `rect.left` and `rect.top` include the element's border. Subtracting `canvas.clientLeft` and `canvas.clientTop` (which are the element's left/top border widths) again produces pixel offsets that are shifted inward by the border thickness for every mouse event. When the canvas container has no border the error is zero, but if Mapbox or any applied CSS ever adds even a 1 px border the rectangle start/end points will be offset from where the user actually clicked.
+The implementation is:
 
-The canonical Mapbox GL JS implementation of this helper (used internally in `BoxZoomHandler`) uses only `rect.left`/`rect.top`:
+```typescript
+return new mapboxgl.Point(
+  e.clientX - rect.left - canvas.clientLeft,
+  e.clientY - rect.top - canvas.clientTop,
+);
+```
+
+Mapbox GL JS's internal `getScaledPoint` (the authoritative reference used by every other handler in the library) is:
+
+```typescript
+const scaling = el.offsetWidth === rect.width ? 1 : el.offsetWidth / rect.width;
+return new Point(
+  (e.clientX - rect.left) * scaling,
+  (e.clientY - rect.top) * scaling,
+);
+```
+
+Two concrete deviations:
+
+1. **Spurious `clientLeft`/`clientTop` subtraction.** `getBoundingClientRect().left` already gives the viewport-relative left edge of the border box. `clientLeft` is the left CSS border width. Subtracting it shifts every coordinate inward by the border thickness. Mapbox's own `getCanvasContainer()` has no border today, so `clientLeft === 0` and the bug is latent — but any future CSS border on the map div will silently corrupt all rectangle coordinates.
+
+2. **Missing CSS-scaling correction.** When the canvas container's CSS layout width differs from its `offsetWidth` (e.g., a parent uses `transform: scale(…)` or `zoom`), `getBoundingClientRect().width` diverges from `offsetWidth` and the `scaling` factor becomes non-1. Without this correction, every drawn rectangle is offset by the scale factor, so `sw`/`ne` bounds fed to `unproject` are computed from wrong pixel positions.
+
+**Fix:** Replace `_mousePos` with the Mapbox reference pattern:
 
 ```typescript
 private _mousePos(e: MouseEvent): mapboxgl.Point {
   const canvas = this._map!.getCanvasContainer();
   const rect = canvas.getBoundingClientRect();
+  const scaling = canvas.offsetWidth === rect.width ? 1 : canvas.offsetWidth / rect.width;
   return new mapboxgl.Point(
-    e.clientX - rect.left,
-    e.clientY - rect.top,
+    (e.clientX - rect.left) * scaling,
+    (e.clientY - rect.top) * scaling,
   );
 }
 ```
 
 ---
 
-## Warnings
-
-### WR-01: Completed rectangle still fires `map-click-empty`
-
-**File:** `src/bee-map.ts:196-205` and `657`
-
-`_onRectMouseDown` sets `this._clickConsumed = true` on line 198 to suppress the click fallback. However, `this._map.on('mousedown', ...)` on line 657 resets `_clickConsumed = false` on every `mousedown` — and the Mapbox `mousedown` event fires for the same native event as the capture-phase listener. Whether the Mapbox internal `mousedown` fires before or after the capture listener is not guaranteed across Mapbox GL JS versions, but in practice the Mapbox listener fires after (it is a bubbling-phase handler registered on the canvas container). This means:
-
-1. Native `mousedown` fires.
-2. Capture listener (`_onRectMouseDown`) sets `_clickConsumed = true`.
-3. Mapbox bubbling `mousedown` listener sets `_clickConsumed = false` — overwriting step 2.
-
-After the user releases with a large enough drag, `_rectFinish` emits `selection-drawn` but the subsequent Mapbox `click` event (which fires at the `mouseup` location) will see `_clickConsumed === false` and also emit `map-click-empty`, which in `bee-atlas._onMapClickEmpty` clears region filters and selection state. The race may be masked today because Mapbox `click` only fires when there is no significant mouse movement between `mousedown` and `mouseup`, but the handler ordering itself is fragile.
-
-**Fix:** In `_onRectMouseDown`, call `e.stopPropagation()` (in addition to the existing guard) so the native event does not reach the Mapbox canvas listener at all. Alternatively, restore `_clickConsumed = true` at the end of `_rectFinish` before returning, so the flag stays set through the subsequent click event loop.
-
-```typescript
-private _onRectMouseDown = (e: MouseEvent) => {
-  if (!(e.shiftKey && e.button === 0)) return;
-  e.stopPropagation(); // prevent Mapbox's own mousedown handler from resetting _clickConsumed
-  this._clickConsumed = true;
-  // ... rest unchanged
-};
-```
-
-### WR-02: Document-level listeners leak when `_map` is null at disconnect time
+### WR-02: `disconnectedCallback` does not restore `dragPan` or remove `_rectBox` for mid-drag disconnect
 
 **File:** `src/bee-map.ts:269-282`
 
-`disconnectedCallback` only removes the canvas `mousedown` listener when `this._map` is non-null (the optional chain on line 274-275 silently skips removal if `_map` is null). The `document` listeners for `mousemove` and `mouseup` are removed unconditionally on lines 276-277, which is correct. However, if `disconnectedCallback` fires while a drag is in progress (component removed from DOM mid-gesture), `_rectStart` is non-null and `_rectBox` has been appended to the canvas container. The box is not removed in `disconnectedCallback` — it orphans in the DOM of the (now-detached) canvas container. The `dragPan` is also left disabled.
+`disconnectedCallback` removes the `document` `mousemove`/`mouseup` listeners correctly, but does not handle a mid-drag disconnect:
 
-**Fix:** Add cleanup for in-progress gesture state to `disconnectedCallback`:
+- `_rectBox` — if a drag is in progress when the component is removed from the DOM, the overlay `<div>` has already been appended to the canvas container and is never cleaned up. The Mapbox `_map?.remove()` call on line 278 destroys the container and takes the div with it, so in the destruction path this is benign. If the element is reconnected (`connectedCallback` is not overridden and not shown to re-initialize), the orphaned state could interfere.
+- `dragPan` — `dragPan.disable()` was called on `mousedown` but `dragPan.enable()` is only called in `_rectFinish`. If the component is disconnected before `mouseup` fires, `dragPan` is left disabled. Again, `_map?.remove()` destroys the map so it is harmless in the full teardown path.
+
+**Fix:** Add mid-gesture cleanup before `_map?.remove()`:
 
 ```typescript
 disconnectedCallback() {
-  // ... existing haloRafToken cancel ...
+  if (this._haloRafToken !== null) {
+    cancelAnimationFrame(this._haloRafToken);
+    this._haloRafToken = null;
+  }
   // Clean up any in-progress rectangle gesture
   if (this._rectBox) {
     this._rectBox.remove();
@@ -100,48 +107,72 @@ disconnectedCallback() {
   }
   const canvas = this._map?.getCanvasContainer();
   canvas?.removeEventListener('mousedown', this._onRectMouseDown, true);
-  // ... rest unchanged
+  document.removeEventListener('mousemove', this._onRectMouseMove);
+  document.removeEventListener('mouseup', this._onRectMouseUp);
+  this._map?.remove();
+  this._resizeObserver?.disconnect();
+  document.removeEventListener('click', this._onDocumentClick);
+  super.disconnectedCallback();
 }
-```
-
-### WR-03: `selection-box` CSS is in Shadow DOM but `_rectBox` is appended outside it
-
-**File:** `src/bee-map.ts:142-151`, `209-212`
-
-The `.selection-box` CSS rule is defined in `BeeMap.styles` (line 90), which scopes into the Shadow DOM. The `_rectBox` `<div>` is created as a plain `document.createElement('div')` and appended to `this._map!.getCanvasContainer()` (line 212). Mapbox's canvas container is a child of `this.mapElement` (`#map`), which lives inside the Shadow DOM — so the element is technically within the shadow tree and the shadow-scoped style should apply in most browsers. However, if Mapbox ever moves the canvas container outside the shadow host (e.g., via a Mapbox API call or future Mapbox version change) the style would silently stop applying and the overlay would be invisible. The current code also relies on the implicit fact that `getCanvasContainer()` returns a descendant of the shadow root, which is not documented as a Mapbox guarantee.
-
-**Fix:** Apply inline styles as a fallback alongside the class:
-
-```typescript
-this._rectBox = document.createElement('div');
-this._rectBox.className = 'selection-box';
-// Fallback inline style ensures visibility even if shadow CSS doesn't reach this node:
-Object.assign(this._rectBox.style, {
-  background: 'rgba(56,135,190,0.1)',
-  border: '2px solid #3887be',
-  position: 'absolute',
-  top: '0', left: '0',
-  pointerEvents: 'none',
-});
 ```
 
 ---
 
 ## Info
 
-### IN-01: `_onSelectionDrawn` stub comment is inaccurate about where the work happens
+### IN-01: `_selectionBounds` is `@state()` but never read in `render()` — triggers wasteful re-renders
 
-**File:** `src/bee-atlas.ts:655-658`
+**File:** `src/bee-atlas.ts:55-56`
 
-The stub comment says "Phase 90: dispatch SQLite bounds query and open sidebar with matched occurrences." The `@ts-ignore` on `_selectionBounds` says it is intentionally unused until Phase 90. This is intentional scaffolding, but the `@state()` decorator on `_selectionBounds` (line 56) will cause a Lit re-render on every completed rectangle gesture even though the value is never consumed by `render()`. This wastes a render cycle per gesture. Since Phase 90 will wire this field into the template, this is low-priority — but note the unnecessary re-render is present.
+```typescript
+// @ts-ignore -- intentionally unused until Phase 90 wires the SQLite bounds query
+@state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
+```
 
-### IN-02: Tests are static-grep only — no behavioral coverage of the gesture
+Every time `_onSelectionDrawn` runs, assigning `this._selectionBounds = e.detail` schedules a Lit re-render. Since `_selectionBounds` is not read in `render()`, the re-render does nothing and is wasted. If Phase 90 will wire this field into the template, `@state()` is correct at that point. For the stub, a plain private field would avoid the spurious re-render. Low-priority since one extra re-render per gesture completion is negligible.
+
+**Fix (optional until Phase 90):** Remove `@state()` from the field declaration and drop the `@ts-ignore`:
+
+```typescript
+private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
+```
+
+Restore `@state()` when Phase 90 adds template bindings that read the field.
+
+---
+
+### IN-02: Tests cover gesture setup by static grep only — no behavioral event-sequence coverage
 
 **File:** `src/tests/bee-atlas.test.ts:305-352`
 
-`SEL-01` and `SEL-02` grep the source text for token presence (`boxZoom.disable()`, `dragPan.disable()`, etc.). This is useful for catching regressions in the setup code, but no test fires a synthetic `mousedown`/`mousemove`/`mouseup` event sequence and verifies that `selection-drawn` is emitted with correct bounds, or that accidental-click suppression (dx/dy < 5) prevents emission. The mock for `mapboxgl.Map` already provides stubs for `boxZoom` and `dragPan` (missing — see below), so a behavioral test would require extending the mock. The existing approach is acceptable for a phase stub, but behavioral coverage should be added before Phase 90 ships the query.
+`SEL-01` and `SEL-02` verify gesture tokens are present in source (e.g., `boxZoom.disable()`, `dragPan.disable()`, `selection-drawn`). This is useful as a specification guard but does not verify:
 
-Note: the mapbox-gl mock (lines 31-63) does not stub `boxZoom.disable()`, `dragPan.disable()`, `dragPan.enable()`, or `getCanvasContainer()`. If a test ever tries to instantiate `BeeMap` and call `firstUpdated`, it will throw. This is a latent gap in the mock, not a test regression today since no test does so.
+- A synthetic mousedown+mousemove+mouseup sequence produces a `selection-drawn` event with correct bounds.
+- The accidental-click suppression (`dx < 5 && dy < 5`) actually prevents event emission.
+- The coordinate values passed to `unproject` and then to `_emit` are correct.
+- `bee-atlas` binds and handles `selection-drawn` (no test checks this from the `bee-atlas` side).
+
+The Mapbox mock (lines 31-63) is also missing stubs for `boxZoom.disable()`, `dragPan.disable()/enable()`, `getCanvasContainer()`, and `unproject()`. If any future test tries to instantiate `BeeMap` and trigger `firstUpdated`, those calls will throw. Suggest extending the mock when adding behavioral tests in Phase 90.
+
+---
+
+### IN-03: Unnecessary `as any` casts for `elevMin`/`elevMax` in `_onFilterChanged` (pre-existing)
+
+**File:** `src/bee-atlas.ts:699-700`
+
+```typescript
+elevMin: (detail as any).elevMin ?? null,
+elevMax: (detail as any).elevMax ?? null,
+```
+
+`detail` is typed `FilterChangedEvent`, which is imported from `bee-sidebar.ts` and already declares `elevMin: number | null` and `elevMax: number | null` (lines 40-41 of `bee-sidebar.ts`). The `as any` cast is unnecessary and defeats type-checking for these fields. This predates phase 89 but is in scope since the file is under review.
+
+**Fix:**
+
+```typescript
+elevMin: detail.elevMin,
+elevMax: detail.elevMax,
+```
 
 ---
 
