@@ -485,7 +485,9 @@ Plans:
   2. The sidebar opens showing the matched occurrences using the same `bee-occurrence-detail` presentation as a cluster click
   3. If zero filter-passing occurrences fall within the bounds the sidebar does not open and no error is shown
   4. The query respects the existing filter state — the same set returned would be visible as dots on the map
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 90-01-PLAN.md — Add queryOccurrencesByBounds to filter.ts; expand _onSelectionDrawn in bee-atlas.ts (async, snapshot filter, clear-then-query-then-open, SEL-05 empty guard); SEL-03/SEL-04/SEL-05 static-grep tests
 **UI hint**: yes
 
 ### Phase 91: URL State
