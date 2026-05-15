@@ -7,8 +7,8 @@
 
 ### Selection Drawing
 
-- [ ] **SEL-01**: User can shift-drag on the map to draw a rectangular selection area (Mapbox BoxZoomHandler disabled; custom shift-drag listener)
-- [ ] **SEL-02**: A rectangle outline tracks the drag in real-time as visual feedback
+- [x] **SEL-01**: User can shift-drag on the map to draw a rectangular selection area (Mapbox BoxZoomHandler disabled; custom shift-drag listener)
+- [x] **SEL-02**: A rectangle outline tracks the drag in real-time as visual feedback
 
 ### Occurrence Query
 
@@ -42,8 +42,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEL-01 | Phase 89 | Pending |
-| SEL-02 | Phase 89 | Pending |
+| SEL-01 | Phase 89 | Complete |
+| SEL-02 | Phase 89 | Complete |
 | SEL-03 | Phase 90 | Pending |
 | SEL-04 | Phase 90 | Pending |
 | SEL-05 | Phase 90 | Pending |

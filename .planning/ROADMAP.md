@@ -367,7 +367,7 @@ See `.planning/milestones/v3.4-ROADMAP.md` for full phase details.
 
 **v3.5 Selection Rectangle (Phases 89–91) — IN PROGRESS**
 
-- [ ] **Phase 89: Rectangle Drawing** — shift-drag gesture + visual rectangle on map canvas
+- [x] **Phase 89: Rectangle Drawing** — shift-drag gesture + visual rectangle on map canvas (completed 2026-05-15)
 - [ ] **Phase 90: Occurrence Query & Sidebar** — lat/lon bounds query + sidebar open
 - [ ] **Phase 91: URL State** — `sel=` param encode/decode + clear on dismiss
 
@@ -473,7 +473,7 @@ Plans:
   4. Plain dragging (without shift) continues to pan the map normally
 **Plans**: 1 plan
 Plans:
-- [ ] 89-01-PLAN.md — Shift-drag rectangle gesture in bee-map.ts (boxZoom disable, capture-phase listener, overlay div, selection-drawn event) + _selectionBounds state in bee-atlas.ts + SEL-01/SEL-02 static-grep tests
+- [x] 89-01-PLAN.md — Shift-drag rectangle gesture in bee-map.ts (boxZoom disable, capture-phase listener, overlay div, selection-drawn event) + _selectionBounds state in bee-atlas.ts + SEL-01/SEL-02 static-grep tests
 **UI hint**: yes
 
 ### Phase 90: Occurrence Query & Sidebar
@@ -592,6 +592,6 @@ Plans:
 | 86. Port Remaining Transforms | v3.4 | 5/5 | Complete | 2026-05-13 |
 | 87. Incremental Materialization Experiment | v3.4 | 2/2 | Complete | 2026-05-13 |
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
-| 89. Rectangle Drawing | v3.5 | 0/1 | Not started | - |
+| 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 90. Occurrence Query & Sidebar | v3.5 | 0/? | Not started | - |
 | 91. URL State | v3.5 | 0/? | Not started | - |
