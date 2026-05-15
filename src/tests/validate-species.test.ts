@@ -11,7 +11,7 @@ const REPO_ROOT = resolve(__dirname, '../..');
 const MANIFEST = resolve(REPO_ROOT, 'content/species-photos.toml');
 
 const SPECIES_JSON = [
-  { scientificName: 'Osmia lignaria', canonical_name: 'osmia lignaria', on_checklist: true, occurrence_count: 5, slug: 'osmia-lignaria' },
+  { scientificName: 'Osmia lignaria', canonical_name: 'osmia lignaria', on_checklist: true, occurrence_count: 5, slug: 'Osmia/lignaria' },
 ];
 
 const validPhoto = (overrides: Record<string, unknown> = {}) => {
