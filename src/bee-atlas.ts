@@ -552,10 +552,14 @@ bee-filter-panel {
       this._selectedOccIds = parsedSel.ids;
       this._selectedCluster = null;
       this._sidebarOpen = true;
+      this._selectedOccurrences = null;
+      this._restoreSelectionOccurrences(parsedSel.ids);
     } else if (parsedSel?.type === 'cluster') {
       this._selectedCluster = { lon: parsedSel.lon, lat: parsedSel.lat, radiusM: parsedSel.radiusM };
       this._selectedOccIds = null;
       this._sidebarOpen = true;
+      this._selectedOccurrences = null;
+      this._restoreClusterSelection(this._selectedCluster);
     } else {
       this._selectedOccurrences = null;
       this._selectedOccIds = null;
