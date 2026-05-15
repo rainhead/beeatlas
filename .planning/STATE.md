@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Simpler Species Index
-status: planning
-last_updated: "2026-05-15T00:00:00.000Z"
-last_activity: 2026-05-15
+status: executing
+last_updated: "2026-05-15T21:41:19.594Z"
+last_activity: 2026-05-15 -- Phase 92 planning complete
 progress:
-  total_phases: 5
+  total_phases: 10
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-05-15 — v3.6 Simpler Species Index mil
 
 Phase: 92 (not started)
 Plan: —
-Status: Roadmap complete, ready to plan
-Last activity: 2026-05-15 — Roadmap created for v3.6
+Status: Ready to execute
+Last activity: 2026-05-15 -- Phase 92 planning complete
 
 Progress: [##########] 100% (3/3 phases complete)
 
