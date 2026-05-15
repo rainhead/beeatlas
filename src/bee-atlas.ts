@@ -282,6 +282,10 @@ bee-filter-panel {
       import('./bee-sidebar.ts');
       this._selectedCluster = { lon: initSel.lon, lat: initSel.lat, radiusM: initSel.radiusM };
       this._sidebarOpen = true;
+    } else if (initSel?.type === 'bounds') {
+      import('./bee-sidebar.ts');
+      this._selectionBounds = { west: initSel.west, south: initSel.south, east: initSel.east, north: initSel.north };
+      this._restoreBoundsSelection(this._selectionBounds);
     }
 
     // Write initial URL state (covers fresh loads — makes URL bar show params immediately)
@@ -563,10 +567,18 @@ bee-filter-panel {
       this._sidebarOpen = true;
       this._selectedOccurrences = null;
       this._restoreClusterSelection(this._selectedCluster);
+    } else if (parsedSel?.type === 'bounds') {
+      this._selectionBounds = { west: parsedSel.west, south: parsedSel.south, east: parsedSel.east, north: parsedSel.north };
+      this._selectedOccIds = null;
+      this._selectedCluster = null;
+      this._selectedOccurrences = null;
+      this._sidebarOpen = true;
+      this._restoreBoundsSelection(this._selectionBounds);
     } else {
       this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
+      this._selectionBounds = null;
       this._sidebarOpen = false;
     }
 
@@ -938,6 +950,24 @@ bee-filter-panel {
       this._selectedOccurrences = filtered.sort((a, b) => b.date.localeCompare(a.date));
     } catch (err) {
       console.error('Failed to restore cluster selection from URL:', err);
+    }
+  }
+
+  private async _restoreBoundsSelection(bounds: { west: number; south: number; east: number; north: number }) {
+    this._sidebarOpen = true;
+    const generation = ++this._selectionDrawnGeneration;
+    try {
+      await tablesReady;
+      const rows = await queryOccurrencesByBounds(this._filterState, bounds);
+      if (generation !== this._selectionDrawnGeneration) return;
+      if (rows.length === 0) return;
+      import('./bee-sidebar.ts');
+      this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
+      this._selectedOccIds = rows.map(r =>
+        r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}`
+      );
+    } catch (err) {
+      console.error('Failed to restore bounds selection from URL:', err);
     }
   }
 
