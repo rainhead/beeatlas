@@ -1,0 +1,748 @@
+{
+  "dispositions": [
+    {
+      "original_key": "ammophila",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ammoplanops",
+      "photo_count": 0,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "aphilanthops",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "arigorytes",
+      "photo_count": 0,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "astata",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "belomicrus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "belomicrus costalis",
+      "photo_count": 0,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "belomicrus forbesii",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "bembix",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "bembix americana",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "bembix amoena",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "bicyrtes",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "blattodea",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "bombyliidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "bombylius albicapillus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "bombylius major",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "braconidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "buprestidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "cerceris",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "chrysididae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "chrysomelidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "cicadidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "cleridae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "clypeadon laticinctus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "coccinellidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "coleoptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "conopidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "crabro",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "crossocerus",
+      "photo_count": 2,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "curculionidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "diodontus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "diploplectron",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "diptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "dolichovespula arenaria",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "dolichovespula maculata",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "dolichovespula norvegicoides",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "dryudella",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ectemnius arcuatus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ectemnius borealis",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ectemnius dilectus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ectemnius lapidarius",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ectemnius nigellus",
+      "photo_count": 0,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ectemnius ruficornis",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ectemnius spiniferus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "elasmostethus cruciatus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "eucerceris",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "eumeninae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "formicidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "glenostictia",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "gorytes",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "hemipenthes sinuosa",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "heteroptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "hymenoptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ichneumonoidea",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "isodontia",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "larropsis",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "lepidoptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "lestica confluenta",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "meloidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "mimesa",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "neotephritis",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "neotephritis finalis",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "nysson",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "oxybelus californicus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "oxybelus pacificus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "oxybelus similis",
+      "photo_count": 0,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "oxybelus uniglumis",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "palmodes",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "passaloecus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "pemphredon",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "perilampidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "perilampus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "philanthus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "philanthus multimaculatus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "physocephala burgessi",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "plecoptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "podalonia",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "podalonia mexicana",
+      "photo_count": 0,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "polistes aurifer",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "polistes dominula",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "pompilidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "prionyx",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "psocoptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "raphidioptera",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "ripiphoridae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "sceliphron",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "scoliidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "solierella",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "sphex ichneumoneus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "sphex lucae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "steniolia",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "stigmus",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "stizoides",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "symphyta",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "tachysphex",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "tachytes",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "tephritidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "tiphiidae",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "trypoxylon",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "vespula acadica",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "vespula alascensis",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "vespula atropilosa",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "vespula consobrina",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "vespula pensylvanica",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "villa",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    },
+    {
+      "original_key": "zanysson",
+      "photo_count": 3,
+      "proposed_action": "remove",
+      "rationale": "no matching scientificName under any capitalization or spacing",
+      "target_key": null
+    }
+  ],
+  "total_orphans": 106,
+  "total_toml_keys": 735
+}
