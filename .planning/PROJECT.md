@@ -274,4 +274,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-15 — v3.6 Simpler Species Index milestone started*
+*Last updated: 2026-05-15 — Phase 92 complete: hierarchical slug format (`Genus/epithet`) emitted by pipeline; species-photos.toml cleaned to zero orphan warnings*
