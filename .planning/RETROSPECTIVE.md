@@ -2,6 +2,42 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.5 — Selection Rectangle
+
+**Shipped:** 2026-05-15
+**Phases:** 3 | **Plans:** 4 | **Commits:** ~61
+
+### What Was Built
+
+- Shift-drag rectangle gesture in bee-map.ts — BoxZoom disabled, capture-phase mousedown, real-time `.selection-box` overlay, `selection-drawn` CustomEvent
+- `queryOccurrencesByBounds(f, bounds)` in filter.ts — active filter + lat/lon BETWEEN clause intersection
+- Sidebar open/closed contract — synchronous pre-clear, stale-filter snapshot guard, empty-result early return
+- `sel=west,south,east,north` URL round-trip — 4-decimal encoding, full validation, `_restoreBoundsSelection` on page load and popstate
+- 5 post-execution code-review fixes — including critical `_selectionBounds` stale-state corruption in `_onPopState` ids/cluster branches (CR-01) and sidebar never closing on empty restore (CR-02)
+
+### What Worked
+
+- Phase decomposition was clean: gesture → query → URL state in strict order with clear dependencies
+- TDD for url-state.ts (Phase 91 Plan 1) — test-first caught the `parseInt(0) || null` elevation bug before code review found it independently
+- Code review as a mandatory final gate caught 2 critical bugs and 3 warnings that static grep tests and type checking didn't surface
+
+### What Was Inefficient
+
+- The `_restoreBoundsSelection` sidebarOpen-first pattern was planned as a feature (91-02-SUMMARY key decisions) but the code reviewer correctly flagged it as a bug (CR-02) — planning and review contradicted each other; the reviewer was right
+- SUMMARY.md `requirements-completed` frontmatter not populated for Phases 89/90/91-01 — degraded 3-source cross-reference to "partial" for SEL-01–SEL-05 despite those requirements being satisfied
+
+### Patterns Established
+
+- `_clickConsumed` flag for suppressing ghost map-click events after gesture sub-threshold release — reusable for any future gesture handler
+- Generation counter reuse (`_selectionDrawnGeneration`) for a second async path's race guard — avoids separate counters when semantics align
+
+### Key Lessons
+
+- When a SUMMARY.md decision contradicts a code review finding, trust the reviewer over the plan doc — planning documents encode intent; review documents encode reality
+- Populate `requirements-completed` in every SUMMARY.md plan, even for "obvious" completions — the 3-source cross-reference at audit time depends on it
+
+---
+
 ## Milestone: v3.4 — dbt Full Rewrite
 
 **Shipped:** 2026-05-14
