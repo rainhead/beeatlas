@@ -379,7 +379,7 @@ See `.planning/milestones/v3.5-ROADMAP.md` for full phase details.
 
 ## v3.6 Simpler Species Index (Phases 92–96) — IN PROGRESS
 
-- [ ] **Phase 92: Slug Migration & Pipeline Prep** — Update slug format to hierarchical paths; migrate species-photos.toml keys
+- [x] **Phase 92: Slug Migration & Pipeline Prep** — Update slug format to hierarchical paths; migrate species-photos.toml keys (completed 2026-05-15)
 - [ ] **Phase 93: Multi-Color SVG Map Generation** — Extend species_maps.py to generate genus, subgenus, and tribe occurrence maps with per-species colors
 - [ ] **Phase 94: Species & Genus Pages** — Eleventy static pages for all species and genera; photo, SVG map, and seasonality on species pages
 - [ ] **Phase 95: Subgenus & Tribe Pages** — Eleventy static pages for all subgenera and tribes with multi-color SVG maps
@@ -494,7 +494,7 @@ Plans:
 - [x] 92-02-PLAN.md — Slug emission + SVG subdir writes (species_export.py, species_maps.py, pipeline run)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 92-03-PLAN.md — TOML key audit and cleanup (content/species-photos.toml)
+- [x] 92-03-PLAN.md — TOML key audit and cleanup (content/species-photos.toml)
 
 ### Phase 93: Multi-Color SVG Map Generation
 **Goal**: The pipeline generates per-genus, per-subgenus, and per-tribe SVG occurrence maps with each species rendered in a distinct color
@@ -638,7 +638,7 @@ Plans:
 | 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 91. URL State | v3.5 | 2/2 | Complete    | 2026-05-15 |
-| 92. Slug Migration & Pipeline Prep | v3.6 | 2/3 | In Progress|  |
+| 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete   | 2026-05-15 |
 | 93. Multi-Color SVG Map Generation | v3.6 | 0/? | Not started | - |
 | 94. Species & Genus Pages | v3.6 | 0/? | Not started | - |
 | 95. Subgenus & Tribe Pages | v3.6 | 0/? | Not started | - |

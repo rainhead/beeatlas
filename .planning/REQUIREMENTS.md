@@ -51,7 +51,7 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 
 - [ ] **PIPE-01**: Eleventy generates one static page per species, genus, subgenus, and tribe from `species.json` data
 - [ ] **PIPE-02**: `species_maps.py` generates multi-color SVG occurrence maps for genus, subgenus, and tribe pages (each species assigned a distinct color within the group)
-- [ ] **PIPE-03**: `species_export.py` updates the `slug` field to the new hierarchical path format (`Genus/specificEpithet`); `content/species-photos.toml` keys are migrated to match
+- [x] **PIPE-03**: `species_export.py` updates the `slug` field to the new hierarchical path format (`Genus/specificEpithet`); `content/species-photos.toml` keys are migrated to match
 
 ## Future Requirements
 
@@ -94,7 +94,7 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 | SPE-04 | Phase 94 | Pending |
 | PIPE-01 | Phase 94 | Pending |
 | PIPE-02 | Phase 93 | Pending |
-| PIPE-03 | Phase 92 | Pending |
+| PIPE-03 | Phase 92 | Complete |
 
 **Coverage:**
 - v3.6 requirements: 25 total
