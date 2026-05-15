@@ -203,6 +203,147 @@ def _write_species_svg(
     return clipped
 
 
+def _write_group_svg(
+    slug_path: str,
+    species_points: dict[str, list[tuple[float, float]]],
+    colors: dict[str, str],
+    backdrop: ET.Element,
+    out_dir: Path,
+) -> int:
+    """Emit out_dir/<slug_path>.svg with per-species colored circle groups.
+
+    Each species gets a <g fill="{color}"> wrapper containing one <circle>
+    per in-bbox occurrence point.  Species with no points are skipped (no
+    empty <g> emitted).
+
+    D-01: species are rendered in alphabetical canonical_name order so the
+    hue assigned by _group_colors matches the visual rendering order in
+    Phase 94 HTML swatches.
+
+    Returns the total number of points dropped outside WA_BBOX (MAP-04).
+    """
+    root = copy.deepcopy(backdrop)
+    clipped = 0
+    for canon in sorted(species_points.keys()):
+        pts = species_points[canon]
+        in_bbox_pts = []
+        for lon, lat in pts:
+            if not _in_bbox(lon, lat):
+                clipped += 1
+            else:
+                in_bbox_pts.append((lon, lat))
+        if not in_bbox_pts:
+            continue  # skip empty groups — no <g> emitted
+        g = ET.SubElement(root, f"{{{SVG_NS}}}g", attrib={"fill": colors[canon]})
+        for lon, lat in in_bbox_pts:
+            x, y = _project(lon, lat)
+            ET.SubElement(
+                g,
+                f"{{{SVG_NS}}}circle",
+                attrib={
+                    "cx": f"{x:.2f}",
+                    "cy": f"{y:.2f}",
+                    "r": "2.5",
+                },
+            )
+    # Idempotency: sort attribute dicts so ET.tostring emits stable byte output.
+    for elem in root.iter():
+        if elem.attrib:
+            elem.attrib = dict(sorted(elem.attrib.items()))
+    out_path = out_dir / f"{slug_path}.svg"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        ET.tostring(root, xml_declaration=True, encoding="unicode"),
+        encoding="utf-8",
+    )
+    return clipped
+
+
+def _generate_group_maps(
+    con: duckdb.DuckDBPyConnection,
+    occ_by_canon: dict[str, list[tuple[float, float]]],
+    backdrop: ET.Element,
+    maps_dir: Path,
+) -> None:
+    """Emit multi-color SVGs under maps_dir/{genus,subgenus,tribe}/.
+
+    Reads species.parquet for group membership; uses occ_by_canon
+    for points (no second DB sweep). MUST NOT wipe maps_dir.
+
+    D-02 coordination: species are rendered in alphabetical canonical_name
+    order within each group — Phase 94's Eleventy template must use the same
+    sort key for HTML swatch ordering so colors match the SVG dots.
+    """
+    species_parquet = ASSETS_DIR / "species.parquet"
+    if not species_parquet.exists():
+        raise FileNotFoundError(
+            f"{species_parquet} not found — run species-export STEP first"
+        )
+
+    rows = con.execute(
+        f"""
+        SELECT canonical_name, genus, subgenus, tribe
+        FROM read_parquet('{species_parquet}')
+        WHERE occurrence_count > 0
+        ORDER BY canonical_name
+        """
+    ).fetchall()
+
+    # Build group membership dicts.
+    genus_members: dict[str, list[str]] = defaultdict(list)
+    subgenus_members: dict[tuple[str, str], list[str]] = defaultdict(list)
+    tribe_members: dict[str, list[str]] = defaultdict(list)
+
+    for canonical_name, genus, subgenus, tribe in rows:
+        if genus:
+            genus_members[genus].append(canonical_name)
+            # Subgenus null guard (PATTERNS observation #3): filter in Python,
+            # not SQL, to catch both NULL and empty-string values.
+            if subgenus is not None and subgenus.strip() != '':
+                subgenus_members[(genus, subgenus)].append(canonical_name)
+        if tribe:
+            tribe_members[tribe].append(canonical_name)
+
+    total_clipped = 0
+    n_genus = 0
+    n_subgenus = 0
+    n_tribe = 0
+
+    # Genus maps: genus/<Genus>.svg
+    genus_dir = maps_dir / "genus"
+    for genus_name in sorted(genus_members.keys()):
+        members = genus_members[genus_name]
+        species_points = {c: occ_by_canon.get(c, []) for c in members}
+        colors = _group_colors(members)
+        total_clipped += _write_group_svg(genus_name, species_points, colors, backdrop, genus_dir)
+        n_genus += 1
+
+    # Subgenus maps: subgenus/<Genus>/<Subgenus>.svg
+    subgenus_dir = maps_dir / "subgenus"
+    for (genus_name, subgenus_name) in sorted(subgenus_members.keys()):
+        members = subgenus_members[(genus_name, subgenus_name)]
+        species_points = {c: occ_by_canon.get(c, []) for c in members}
+        colors = _group_colors(members)
+        slug_path = f"{genus_name}/{subgenus_name}"
+        total_clipped += _write_group_svg(slug_path, species_points, colors, backdrop, subgenus_dir)
+        n_subgenus += 1
+
+    # Tribe maps: tribe/<Tribe>.svg
+    tribe_dir = maps_dir / "tribe"
+    for tribe_name in sorted(tribe_members.keys()):
+        members = tribe_members[tribe_name]
+        species_points = {c: occ_by_canon.get(c, []) for c in members}
+        colors = _group_colors(members)
+        total_clipped += _write_group_svg(tribe_name, species_points, colors, backdrop, tribe_dir)
+        n_tribe += 1
+
+    print(
+        f"  species-maps/groups: {n_genus + n_subgenus + n_tribe:,} files "
+        f"({n_genus} genus, {n_subgenus} subgenus, {n_tribe} tribe), "
+        f"{total_clipped:,} total points clipped"
+    )
+
+
 def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
     """Emit one <slug>.svg per species with occurrence_count > 0.
 
@@ -279,6 +420,8 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
             f"  species-maps/: {written:,} files, {total_size:,} bytes, "
             f"{total_clipped:,} total points clipped"
         )
+
+        _generate_group_maps(con, occ_by_canon, backdrop, maps_dir)
     finally:
         if own_con:
             con.close()
