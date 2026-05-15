@@ -322,12 +322,12 @@ this._emit('selection-drawn', {
 | A1 | Setting `_clickConsumed = true` in `_onRectMouseDown` prevents `map-click-empty` from firing after a sub-threshold shift-drag | Common Pitfalls 5 | Sub-threshold shift-drags unexpectedly clear sidebar; easy to fix in execution |
 | A2 | `getCanvasContainer()` returns an element inside the shadow root (child of `this.mapElement`) so the overlay div is within the same shadow tree | Architecture Patterns 4 | If wrong, CSS from `static styles` won't reach the div and rectangle will be invisible |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should shift-drag be blocked when a cluster or point is under the cursor?**
    - What we know: The capture-phase `mousedown` fires before `addInteraction` click handlers. If a user shift-clicks a cluster, both the rectangle gesture (starts, threshold guard fires, no emit) and the cluster click handler may fire.
    - What's unclear: Whether the cluster click fires when `shiftKey` is held — `addInteraction` handlers receive the full event including `shiftKey`. Currently `_handleClusterClick` doesn't check `shiftKey`.
-   - Recommendation: Accept that shift-clicking a cluster starts a rectangle attempt (sub-threshold) and also triggers the cluster click. This is unlikely to be disruptive. If it is, add `if (e.shiftKey) return;` at the top of cluster/point interaction handlers.
+   - RESOLVED: Accept that shift-clicking a cluster starts a rectangle attempt (sub-threshold) and also triggers the cluster click. This is unlikely to be disruptive. If it is, add `if (e.shiftKey) return;` at the top of cluster/point interaction handlers.
 
 ## Environment Availability
 
