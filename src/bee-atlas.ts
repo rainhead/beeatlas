@@ -665,18 +665,22 @@ bee-filter-panel {
     this._sidebarOpen = false;
     // Snapshot filter state before first await to prevent stale-filter race (T-90-04)
     const f = this._filterState;
-    // Read _selectionBounds (set synchronously above; Phase 91 will also read it for sel= URL encoding)
-    const rows = await queryOccurrencesByBounds(f, this._selectionBounds!);
-    if (generation !== this._selectionDrawnGeneration) return;
-    if (rows.length === 0) return;
-    import('./bee-sidebar.ts');
-    this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
-    this._selectedOccIds = rows.map(r =>
-      r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}`
-    );
-    this._selectedCluster = null;
-    this._sidebarOpen = true;
-    // Phase 91 will call this._pushUrlState() here to encode sel= in the URL
+    try {
+      // Read _selectionBounds (set synchronously above; Phase 91 will also read it for sel= URL encoding)
+      const rows = await queryOccurrencesByBounds(f, this._selectionBounds!);
+      if (generation !== this._selectionDrawnGeneration) return;
+      if (rows.length === 0) return;
+      import('./bee-sidebar.ts');
+      this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
+      this._selectedOccIds = rows.map(r =>
+        r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}`
+      );
+      this._selectedCluster = null;
+      this._sidebarOpen = true;
+      // Phase 91 will call this._pushUrlState() here to encode sel= in the URL
+    } catch (err) {
+      console.error('Bounds query failed:', err);
+    }
   }
 
   private _onMapClickEmpty() {
