@@ -85,7 +85,7 @@ def _load_county_geojsons(con: duckdb.DuckDBPyConnection) -> list[dict]:
     rows = con.execute(
         """
         SELECT ST_AsGeoJSON(
-                   ST_SimplifyPreserveTopology(ST_GeomFromText(geometry_wkt), 0.005)
+                   ST_SimplifyPreserveTopology(geom, 0.005)
                )
         FROM geographies.us_counties
         WHERE state_fips = ?
