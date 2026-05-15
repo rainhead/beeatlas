@@ -48,9 +48,9 @@ export function buildParams(
   params.set('x', view.lon.toFixed(4));
   params.set('y', view.lat.toFixed(4));
   params.set('z', view.zoom.toFixed(2));
-  if (filter.taxonName !== null) {
+  if (filter.taxonName !== null && filter.taxonRank !== null) {
     params.set('taxon', filter.taxonName);
-    params.set('taxonRank', filter.taxonRank!);
+    params.set('taxonRank', filter.taxonRank);
   }
   if (filter.yearFrom !== null) params.set('yr0', String(filter.yearFrom));
   if (filter.yearTo   !== null) params.set('yr1', String(filter.yearTo));
