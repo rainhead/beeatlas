@@ -350,3 +350,21 @@ describe('SEL-02: bee-map rectangle overlay DOM lifecycle', () => {
     expect(src).toMatch(/dx\s*<\s*5\s*&&\s*dy\s*<\s*5/);
   });
 });
+
+describe('SEL-03: queryOccurrencesByBounds in filter.ts', () => {
+  const filterSrc = readFileSync(resolve(__dirname, '../filter.ts'), 'utf-8');
+
+  test('filter.ts exports queryOccurrencesByBounds', () => {
+    expect(filterSrc).toMatch(/export async function queryOccurrencesByBounds/);
+  });
+
+  test('filter.ts uses buildFilterSQL and BETWEEN clauses inside queryOccurrencesByBounds', () => {
+    expect(filterSrc).toMatch(/buildFilterSQL/);
+    expect(filterSrc).toMatch(/BETWEEN.*AND.*BETWEEN/);
+  });
+
+  test('bee-atlas.ts references queryOccurrencesByBounds', () => {
+    const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(atlasSrc).toMatch(/queryOccurrencesByBounds/);
+  });
+});
