@@ -301,3 +301,52 @@ describe('HALO-01: cluster selection halo layer (260514-ndp)', () => {
     expect(haloSrcIdx).toBeGreaterThan(loadIdx);
   });
 });
+
+describe('SEL-01: bee-map shift-drag rectangle gesture setup', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+
+  test('bee-map.ts disables boxZoom at map init', () => {
+    expect(src).toMatch(/boxZoom\.disable\(\)/);
+  });
+
+  test('bee-map.ts registers canvas mousedown listener in capture phase', () => {
+    expect(src).toMatch(/addEventListener\s*\(\s*['"]mousedown['"],\s*this\._onRectMouseDown,\s*true\s*\)/);
+  });
+
+  test('bee-map.ts emits selection-drawn custom event', () => {
+    expect(src).toMatch(/selection-drawn/);
+  });
+
+  test('bee-map.ts disables and re-enables dragPan around the gesture', () => {
+    expect(src).toMatch(/dragPan\.disable\(\)/);
+    expect(src).toMatch(/dragPan\.enable\(\)/);
+  });
+
+  test('bee-map.ts guards gesture with shiftKey and button === 0 check', () => {
+    expect(src).toMatch(/e\.shiftKey\s*&&\s*e\.button\s*===\s*0/);
+  });
+});
+
+describe('SEL-02: bee-map rectangle overlay DOM lifecycle', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+
+  test('bee-map.ts assigns selection-box class to the overlay div', () => {
+    expect(src).toMatch(/className\s*=\s*['"]selection-box['"]/);
+  });
+
+  test('bee-map.ts appends overlay div to getCanvasContainer()', () => {
+    expect(src).toMatch(/getCanvasContainer\(\)\.appendChild/);
+  });
+
+  test('bee-map.ts removes the rect box on mouseup', () => {
+    expect(src).toMatch(/_rectBox\.remove\(\)/);
+  });
+
+  test('bee-map.ts has .selection-box CSS rule in static styles', () => {
+    expect(src).toMatch(/\.selection-box\s*\{/);
+  });
+
+  test('bee-map.ts uses sub-threshold guard to suppress accidental-click emission', () => {
+    expect(src).toMatch(/dx\s*<\s*5\s*&&\s*dy\s*<\s*5/);
+  });
+});
