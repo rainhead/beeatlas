@@ -111,10 +111,14 @@ export function parseParams(search: string): Partial<AppState> {
   const resolvedTaxonName = (taxonName && taxonRank) ? taxonName : null;
   const resolvedTaxonRank = (taxonName && taxonRank) ? taxonRank : null;
 
-  const yearFrom = parseInt(p.get('yr0') ?? '') || null;
-  const yearTo   = parseInt(p.get('yr1') ?? '') || null;
-  const elevMin = parseInt(p.get('elev_min') ?? '') || null;
-  const elevMax = parseInt(p.get('elev_max') ?? '') || null;
+  const yearFromRaw = parseInt(p.get('yr0') ?? '', 10);
+  const yearFrom = isNaN(yearFromRaw) ? null : yearFromRaw;
+  const yearToRaw = parseInt(p.get('yr1') ?? '', 10);
+  const yearTo = isNaN(yearToRaw) ? null : yearToRaw;
+  const elevMinRaw = parseInt(p.get('elev_min') ?? '', 10);
+  const elevMin = isNaN(elevMinRaw) ? null : elevMinRaw;
+  const elevMaxRaw = parseInt(p.get('elev_max') ?? '', 10);
+  const elevMax = isNaN(elevMaxRaw) ? null : elevMaxRaw;
   const monthsStr = p.get('months') ?? '';
   const months = new Set(
     monthsStr ? monthsStr.split(',').map(Number).filter(n => n >= 1 && n <= 12) : []

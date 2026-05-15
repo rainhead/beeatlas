@@ -248,6 +248,11 @@ describe('elevation param round-trip', () => {
     expect(result.filter?.elevMin ?? null).toBeNull();
   });
 
+  test('elevMin=0 (sea level): round-trips as 0 not null', () => {
+    const result = parseParams('elev_min=0');
+    expect(result.filter?.elevMin).toBe(0);
+  });
+
   test('elevMin alone triggers hasFilter: result.filter is defined', () => {
     const result = parseParams('elev_min=500');
     expect(result.filter).toBeDefined();
