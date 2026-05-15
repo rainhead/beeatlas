@@ -51,6 +51,8 @@ vi.mock('mapbox-gl', () => {
     setLayoutProperty: vi.fn(),
     setFeatureState: vi.fn(),
     removeFeatureState: vi.fn(),
+    // 260514-ndp HALO-01: cluster selection halo recompute path
+    querySourceFeatures: vi.fn(() => []),
   }));
   return {
     default: {
@@ -249,5 +251,53 @@ describe('D-02: county/ecoregion options from SQLite not boundary events', () =>
     expect(src).toMatch(/_loadCountyEcoregionOptions/);
     expect(src).toMatch(/SELECT DISTINCT county FROM occurrences/);
     expect(src).toMatch(/SELECT DISTINCT ecoregion_l3 FROM occurrences/);
+  });
+});
+
+describe('HALO-01: cluster selection halo layer (260514-ndp)', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+
+  test('bee-map.ts adds the selected-cluster-halo source', () => {
+    expect(src).toMatch(/addSource\s*\(\s*['"]selected-cluster-halo['"]/);
+  });
+
+  test('bee-map.ts adds a layer with id selected-cluster-halo', () => {
+    expect(src).toMatch(/id:\s*['"]selected-cluster-halo['"]/);
+  });
+
+  test('bee-map.ts has a halo race-guard generation counter', () => {
+    expect(src).toMatch(/_haloGeneration/);
+  });
+
+  test('bee-map.ts has a requestAnimationFrame coalescing token', () => {
+    expect(src).toMatch(/_haloRafToken/);
+    expect(src).toMatch(/requestAnimationFrame/);
+  });
+
+  test('bee-map.ts wires moveend to the halo recompute scheduler', () => {
+    // Phase 071 already has a moveend listener for view-moved; the same or
+    // a sibling listener must call _scheduleHaloRecompute. Per-line scan
+    // not needed — both tokens must be present in the file.
+    expect(src).toMatch(/moveend/);
+    expect(src).toMatch(/_scheduleHaloRecompute/);
+  });
+
+  test('halo layer stroke colour matches selected-ring (#f1c40f)', () => {
+    // Both selected-ring and the halo use the same yellow; assert the halo
+    // block specifically by anchoring near the halo layer id.
+    const haloBlock = src.match(/id:\s*['"]selected-cluster-halo['"][\s\S]{0,800}/);
+    expect(haloBlock).not.toBeNull();
+    expect(haloBlock![0]).toMatch(/circle-stroke-color['"]?\s*:\s*['"]#f1c40f['"]/);
+  });
+
+  test('selected-cluster-halo source/layer are added inside an on(\'load\') handler', () => {
+    // Sanity: there must be no top-level addSource/addLayer for the halo
+    // outside of the load callback. We verify by checking that the
+    // addSource('selected-cluster-halo' call appears AFTER an on('load',
+    // occurrence in the source.
+    const loadIdx = src.search(/this\._map(!|)?\.on\(\s*['"]load['"]/);
+    const haloSrcIdx = src.search(/addSource\s*\(\s*['"]selected-cluster-halo['"]/);
+    expect(loadIdx).toBeGreaterThanOrEqual(0);
+    expect(haloSrcIdx).toBeGreaterThan(loadIdx);
   });
 });
