@@ -2,7 +2,7 @@
 
 ## What This Is
 
-An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, OpenLayers, Lit, hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Five dlt pipelines write to a local DuckDB store (`data/beeatlas.duckdb`); a single export script (`data/export.py`) produces ecdysis.parquet, samples.parquet, counties.geojson, and ecoregions.geojson with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline execution is Lambda-based (v1.7 complete); CI runs frontend build only.
+An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, Mapbox GL JS, Lit, wa-sqlite, hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Users can filter occurrences by taxon, date, region, and draw selection rectangles on the map to browse records by area. A dbt pipeline writes to a local DuckDB store (`data/beeatlas.duckdb`); `data/export.py` produces parquet and GeoJSON exports with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline runs nightly via cron on maderas server.
 
 ## Core Value
 
@@ -96,6 +96,13 @@ Collectors can see where bees have been collected and where target host plants g
 - ✓ FILT-01–05: Taxon / year / month / county / ecoregion filters expressed as SQL WHERE clauses in DuckDB — v1.8
 - ✓ FILT-06: Filter query returns Set&lt;featureId&gt;; OL style callbacks use Set.has() in place of matchesFilter() — v1.8
 - ✓ FILT-07: URL round-trip, clear filters, boundary highlight, and autocomplete all preserved — v1.8
+- ✓ SEL-01: User can shift-drag on the map to draw a rectangular selection area (BoxZoom disabled; custom shift-drag listener) — v3.5
+- ✓ SEL-02: A rectangle outline tracks the drag in real-time as visual feedback — v3.5
+- ✓ SEL-03: On drag release, occurrences whose lat/lon fall within the rectangle bounds AND pass current active filters are identified — v3.5
+- ✓ SEL-04: Sidebar opens showing the matched occurrences (same `bee-occurrence-detail` presentation as a cluster click) — v3.5
+- ✓ SEL-05: If zero filter-passing occurrences fall within the bounds, the sidebar is not opened — v3.5
+- ✓ SEL-06: Rectangle bounds are encoded in the URL as a `sel=west,south,east,north` param (4 decimal places); restored on page load to re-run the query and open the sidebar — v3.5
+- ✓ SEL-07: When the sidebar is dismissed (empty-click), the `sel=` param is cleared from the URL — v3.5
 
 ## Previous Milestones
 
@@ -129,8 +136,8 @@ Collectors can see where bees have been collected and where target host plants g
 Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans.
 
 **Tech stack:**
-- Frontend: TypeScript, Vite, OpenLayers, Lit (LitElement), @duckdb/duckdb-wasm, temporal-polyfill
-- Pipeline: Python 3.14+, uv, dlt[duckdb], duckdb, requests, beautifulsoup4, geopandas
+- Frontend: TypeScript, Vite, Mapbox GL JS, Lit (LitElement), wa-sqlite, hyparquet, temporal-polyfill
+- Pipeline: Python 3.14+, uv, dbt-duckdb, duckdb, requests, beautifulsoup4, geopandas
 - Infrastructure: AWS CDK v2 (TypeScript), S3 + CloudFront OAC, OIDC IAM role
 - CI/CD: GitHub Actions (build on all pushes, deploy on push to main)
 
@@ -140,7 +147,9 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 - `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly). Trivially fixable but deferred.
 - EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
 - dlt pipeline write-path tests deferred (TEST-03 scope): dlt resource tests skipped in v1.7; only pure-function unit tests and export integration tests covered.
-- Lambda infrastructure deployed but not the execution path: CDK/Lambda artifacts live in AWS; maderas cron is authoritative. Lambda will need cleanup or repurposing if execution path changes.
+- Lambda execution path retired (quick task 260514-fcq, 2026-05-14): PipelineFunction + EventBridge schedulers + Function URL removed from BeeAtlasStack; maderas nightly cron is authoritative.
+- v3.5 Nyquist gaps: Phase 90 VALIDATION.md exists with `nyquist_compliant=false`; Phase 91 has no VALIDATION.md. Run `/gsd-validate-phase 90` and `/gsd-validate-phase 91` next milestone.
+- v3.5 SUMMARY.md frontmatter: `requirements-completed` not listed in 89-01, 90-01, 91-01 SUMMARY files (SEL-01 through SEL-05 satisfied but unlisted).
 
 ## Constraints
 
@@ -208,6 +217,14 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `bee-map.updated()` as synchronization boundary between coordinator state and OL canvas | `updated()` fires after every Lit property change; `changedProperties.has()` drives targeted OL operations without over-triggering | ✓ Good — Phase 36; replaces ad-hoc property watchers |
 | `readFileSync` source analysis in Vitest for architectural invariants | Avoids DuckDB WASM/OL canvas/happy-dom incompatibility while reliably verifying import graph contracts | ✓ Good — Phase 36; ARCH-03 tests run fast and are not flaky |
 | Monotonic generation counter in `_runFilterQuery` discards stale DuckDB async results | Async filter queries can race when chips removed quickly; last-write-wins causes flash of unfiltered state | ✓ Good — Phase 37-03 gap fix; flicker eliminated |
+| BoxZoom disabled at map init; capture-phase mousedown for shift-drag interception | Mapbox BoxZoomHandler handles shift-drag natively — must disable before installing custom handler; capture phase ensures gesture reaches handler before map's own listeners | ✓ Good — Phase 89; Mapbox official pattern |
+| Rectangle overlay in `getCanvasContainer()`, removed on mouseup | `.selection-box` div appended to canvas container, not map container — stays pixel-locked to canvas during resize; removed synchronously in `_rectFinish()` via `.remove()` | ✓ Good — Phase 89; instant removal, no flicker |
+| `_clickConsumed` flag suppresses map-click-empty on sub-threshold shift-drags | Without the flag, a shift-click-release (no drag) fires `_onRectMouseDown` then the map's click handler; sidebar would flash open then close | ✓ Good — Phase 89; required for clean sub-threshold behavior |
+| `queryOccurrencesByBounds` interpolates numeric bounds as SQL literals | `buildFilterSQL` already uses string interpolation for trusted client-side input; bounds are parsed floats — safe for SQL literal interpolation; matches existing `_restoreClusterSelection` pattern | ✓ Good — Phase 90; confirmed safe in threat model |
+| `_selectionBounds` cleared synchronously before first `await` in `_onSelectionDrawn` | Prevents stale results from prior selection being visible while new async query runs; sidebar closes immediately on redraw | ✓ Good — Phase 90; Pitfall 3 guard |
+| `sel=` param mutually exclusive with `o=` in `buildParams` | Both encode a "what's selected" state; `_selectionBounds && _sidebarOpen` takes precedence in 3-way ternary; cluster/ids fall through | ✓ Good — Phase 91; clean URL — no mixed selection state |
+| `_selectionDrawnGeneration` counter reused for bounds restore race guard | Avoids a separate counter; any new rectangle draw cancels in-flight restore (same generation semantics) | ✓ Good — Phase 91; minimal surface area |
+| `west < east` NOT required in `parseParams` validation | Antimeridian-crossing bounds (west > east) are geographically valid; validation only enforces `south < north` (degenerate north/south would always be empty) | ✓ Good — Phase 91; explicit decision after spec review |
 
 ## Evolution
 
@@ -227,4 +244,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after v1.9 milestone complete (Component Architecture & Test Suite — coordinator pattern, sidebar decomposition, 61 Vitest tests)*
+*Last updated: 2026-05-15 after v3.5 milestone complete (Selection Rectangle — shift-drag bounds query + URL round-trip)*
