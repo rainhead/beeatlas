@@ -21,6 +21,7 @@ Usage:
     cd data && uv run python species_maps.py
 """
 
+import colorsys
 import copy
 import json
 import os
@@ -127,6 +128,35 @@ def _build_county_backdrop(county_geojsons: list[dict]) -> ET.Element:
             attrib={"class": "county", "d": d},
         )
     return root
+
+
+def _group_colors(canonical_names: list[str]) -> dict[str, str]:
+    """Return a deterministic canonical_name -> '#rrggbb' mapping.
+
+    D-01: Sort input alphabetically by canonical_name, assign evenly-spaced
+    HSL hues (hue = i * 360 / n, lightness=0.5, saturation=0.7) via
+    colorsys.hls_to_rgb, format as lowercase '#rrggbb'.
+
+    Pure and deterministic: identical input always yields identical output,
+    regardless of the order names are supplied. The sort order determines hue
+    assignment — the alphabetically-first name always receives hue 0.
+    """
+    if not canonical_names:
+        return {}
+    sorted_names = sorted(canonical_names)
+    n = len(sorted_names)
+    result: dict[str, str] = {}
+    for i, canon in enumerate(sorted_names):
+        hue = i * 360.0 / n
+        # Note: colorsys uses HLS order (hue, lightness, saturation), not HSL.
+        r, g, b = colorsys.hls_to_rgb(hue / 360.0, 0.5, 0.7)
+        hex_color = "#{:02x}{:02x}{:02x}".format(
+            int(round(r * 255)),
+            int(round(g * 255)),
+            int(round(b * 255)),
+        )
+        result[canon] = hex_color
+    return result
 
 
 def _write_species_svg(
