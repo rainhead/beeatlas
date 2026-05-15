@@ -12,9 +12,9 @@
 
 ### Occurrence Query
 
-- [ ] **SEL-03**: On drag release, occurrences whose lat/lon fall within the rectangle bounds AND pass current active filters are identified
-- [ ] **SEL-04**: Sidebar opens showing the matched occurrences (same `bee-occurrence-detail` presentation as a cluster click)
-- [ ] **SEL-05**: If zero filter-passing occurrences fall within the bounds, the sidebar is not opened
+- [x] **SEL-03**: On drag release, occurrences whose lat/lon fall within the rectangle bounds AND pass current active filters are identified
+- [x] **SEL-04**: Sidebar opens showing the matched occurrences (same `bee-occurrence-detail` presentation as a cluster click)
+- [x] **SEL-05**: If zero filter-passing occurrences fall within the bounds, the sidebar is not opened
 
 ### URL State
 
@@ -44,9 +44,9 @@
 |-------------|-------|--------|
 | SEL-01 | Phase 89 | Complete |
 | SEL-02 | Phase 89 | Complete |
-| SEL-03 | Phase 90 | Pending |
-| SEL-04 | Phase 90 | Pending |
-| SEL-05 | Phase 90 | Pending |
+| SEL-03 | Phase 90 | Complete |
+| SEL-04 | Phase 90 | Complete |
+| SEL-05 | Phase 90 | Complete |
 | SEL-06 | Phase 91 | Pending |
 | SEL-07 | Phase 91 | Pending |
 

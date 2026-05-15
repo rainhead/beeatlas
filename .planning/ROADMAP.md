@@ -595,5 +595,5 @@ Plans:
 | 87. Incremental Materialization Experiment | v3.4 | 2/2 | Complete | 2026-05-13 |
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
 | 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
-| 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete   | 2026-05-15 |
+| 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 91. URL State | v3.5 | 0/? | Not started | - |
