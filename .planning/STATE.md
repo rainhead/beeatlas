@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Selection Rectangle
-status: executing
+status: ready_to_plan
 last_updated: "2026-05-15T15:31:17.211Z"
 last_activity: 2026-05-15 -- Phase 90 execution started
 progress:
   total_phases: 8
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 2
   completed_plans: 1
-  percent: 50
+  percent: 25
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-14 — v3.5 Selection Rectangle miles
 
 ## Current Position
 
-Phase: 90 (occurrence-query-sidebar) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 90
-Last activity: 2026-05-15 -- Phase 90 execution started
+Phase: 91
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-15
 
 Progress: [----------] 0% (0/3 phases complete)
 
