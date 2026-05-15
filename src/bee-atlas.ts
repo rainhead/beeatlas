@@ -497,9 +497,11 @@ bee-filter-panel {
     const params = buildParams(
       this._currentView,
       this._filterState,
-      this._selectedCluster
-        ? { type: 'cluster' as const, ...this._selectedCluster }
-        : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
+      this._selectionBounds && this._sidebarOpen
+        ? { type: 'bounds' as const, ...this._selectionBounds }
+        : this._selectedCluster
+          ? { type: 'cluster' as const, ...this._selectedCluster }
+          : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
       { boundaryMode: this._boundaryMode, viewMode: this._viewMode }
     );
     window.history.replaceState({}, '', '?' + params.toString());
@@ -677,7 +679,7 @@ bee-filter-panel {
       );
       this._selectedCluster = null;
       this._sidebarOpen = true;
-      // Phase 91 will call this._pushUrlState() here to encode sel= in the URL
+      this._pushUrlState();
     } catch (err) {
       console.error('Bounds query failed:', err);
     }
@@ -694,6 +696,7 @@ bee-filter-panel {
       this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
+      this._selectionBounds = null;
       this._sidebarOpen = false;
       this._runFilterQuery().then(() => {
         this._pushUrlState();
@@ -705,6 +708,7 @@ bee-filter-panel {
       this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
+      this._selectionBounds = null;
       this._sidebarOpen = false;
       this._pushUrlState();
     }
@@ -730,6 +734,7 @@ bee-filter-panel {
     this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
+    this._selectionBounds = null;
     this._sidebarOpen = false;
 
     this._tablePage = 1;  // per D-09
@@ -814,6 +819,7 @@ bee-filter-panel {
     this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
+    this._selectionBounds = null;
     this._sidebarOpen = false;
     this._pushUrlState();
   }
