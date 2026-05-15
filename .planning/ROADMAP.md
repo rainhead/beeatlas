@@ -368,7 +368,7 @@ See `.planning/milestones/v3.4-ROADMAP.md` for full phase details.
 **v3.5 Selection Rectangle (Phases 89–91) — IN PROGRESS**
 
 - [x] **Phase 89: Rectangle Drawing** — shift-drag gesture + visual rectangle on map canvas (completed 2026-05-15)
-- [ ] **Phase 90: Occurrence Query & Sidebar** — lat/lon bounds query + sidebar open
+- [x] **Phase 90: Occurrence Query & Sidebar** — lat/lon bounds query + sidebar open (completed 2026-05-15)
 - [ ] **Phase 91: URL State** — `sel=` param encode/decode + clear on dismiss
 
 ## Phase Details
@@ -487,7 +487,7 @@ Plans:
   4. The query respects the existing filter state — the same set returned would be visible as dots on the map
 **Plans**: 1 plan
 Plans:
-- [ ] 90-01-PLAN.md — Add queryOccurrencesByBounds to filter.ts; expand _onSelectionDrawn in bee-atlas.ts (async, snapshot filter, clear-then-query-then-open, SEL-05 empty guard); SEL-03/SEL-04/SEL-05 static-grep tests
+- [x] 90-01-PLAN.md — Add queryOccurrencesByBounds to filter.ts; expand _onSelectionDrawn in bee-atlas.ts (async, snapshot filter, clear-then-query-then-open, SEL-05 empty guard); SEL-03/SEL-04/SEL-05 static-grep tests
 **UI hint**: yes
 
 ### Phase 91: URL State
@@ -595,5 +595,5 @@ Plans:
 | 87. Incremental Materialization Experiment | v3.4 | 2/2 | Complete | 2026-05-13 |
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
 | 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
-| 90. Occurrence Query & Sidebar | v3.5 | 0/? | Not started | - |
+| 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete   | 2026-05-15 |
 | 91. URL State | v3.5 | 0/? | Not started | - |

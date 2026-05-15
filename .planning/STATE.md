@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Selection Rectangle
 status: executing
-last_updated: "2026-05-15T05:54:28.474Z"
-last_activity: 2026-05-15 -- Phase 90 planning complete
+last_updated: "2026-05-15T15:31:17.211Z"
+last_activity: 2026-05-15 -- Phase 90 execution started
 progress:
   total_phases: 8
   completed_phases: 1
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-14 — v3.5 Selection Rectangle milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 89 — Rectangle Drawing
+**Current focus:** Phase 90 — occurrence-query-sidebar
 
 ## Current Position
 
-Phase: 90
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-15 -- Phase 90 planning complete
+Phase: 90 (occurrence-query-sidebar) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 90
+Last activity: 2026-05-15 -- Phase 90 execution started
 
 Progress: [----------] 0% (0/3 phases complete)
 
