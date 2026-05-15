@@ -51,6 +51,9 @@ export class BeeAtlas extends LitElement {
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
   @state() private _sidebarOpen = false;
   @state() private _tableFilterOpen = false;
+  // Phase 90 will read _selectionBounds to query occurrences in the drawn rectangle
+  // @ts-ignore -- intentionally unused until Phase 90 wires the SQLite bounds query
+  @state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
 
   // Non-reactive private fields
   private _isRestoringFromHistory = false;
@@ -187,6 +190,7 @@ bee-filter-panel {
             @data-loaded=${this._onDataLoaded}
             @data-error=${this._onDataError}
             @boundary-mode-changed=${this._onBoundaryModeChanged}
+            @selection-drawn=${this._onSelectionDrawn}
           ></bee-map>
           ${this._viewMode === 'table' ? html`<bee-table
             .rows=${this._tableRows}
@@ -646,6 +650,11 @@ bee-filter-panel {
     });
     this._tablePage = 1;
     this._runTableQuery();
+  }
+
+  private _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
+    this._selectionBounds = e.detail;
+    /* Phase 90: dispatch SQLite bounds query and open sidebar with matched occurrences. */
   }
 
   private _onMapClickEmpty() {
