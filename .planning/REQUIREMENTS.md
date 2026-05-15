@@ -18,8 +18,8 @@
 
 ### URL State
 
-- [ ] **SEL-06**: Rectangle bounds are encoded in the URL as a `sel=west,south,east,north` param (4 decimal places); restored on page load to re-run the query and open the sidebar
-- [ ] **SEL-07**: When the sidebar is dismissed (empty-click), the `sel=` param is cleared from the URL
+- [x] **SEL-06**: Rectangle bounds are encoded in the URL as a `sel=west,south,east,north` param (4 decimal places); restored on page load to re-run the query and open the sidebar
+- [x] **SEL-07**: When the sidebar is dismissed (empty-click), the `sel=` param is cleared from the URL
 
 ## Future Requirements
 
@@ -47,8 +47,8 @@
 | SEL-03 | Phase 90 | Complete |
 | SEL-04 | Phase 90 | Complete |
 | SEL-05 | Phase 90 | Complete |
-| SEL-06 | Phase 91 | Pending |
-| SEL-07 | Phase 91 | Pending |
+| SEL-06 | Phase 91 | Complete |
+| SEL-07 | Phase 91 | Complete |
 
 **Coverage:**
 - v3.5 requirements: 7 total
@@ -57,4 +57,4 @@
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-14 after initial definition*
+*Last updated: 2026-05-15 after Phase 91 completion (SEL-06, SEL-07 complete)*
