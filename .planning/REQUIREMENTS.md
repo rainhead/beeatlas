@@ -70,36 +70,36 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| URL-01 | — | Pending |
-| URL-02 | — | Pending |
-| URL-03 | — | Pending |
-| URL-04 | — | Pending |
-| URL-05 | — | Pending |
-| IDX-01 | — | Pending |
-| IDX-02 | — | Pending |
-| IDX-03 | — | Pending |
-| IDX-04 | — | Pending |
-| GEN-01 | — | Pending |
-| GEN-02 | — | Pending |
-| GEN-03 | — | Pending |
-| SUBG-01 | — | Pending |
-| SUBG-02 | — | Pending |
-| SUBG-03 | — | Pending |
-| TRIBE-01 | — | Pending |
-| TRIBE-02 | — | Pending |
-| TRIBE-03 | — | Pending |
-| SPE-01 | — | Pending |
-| SPE-02 | — | Pending |
-| SPE-03 | — | Pending |
-| SPE-04 | — | Pending |
-| PIPE-01 | — | Pending |
-| PIPE-02 | — | Pending |
-| PIPE-03 | — | Pending |
+| URL-01 | Phase 94 | Pending |
+| URL-02 | Phase 94 | Pending |
+| URL-03 | Phase 95 | Pending |
+| URL-04 | Phase 95 | Pending |
+| URL-05 | Phase 96 | Pending |
+| IDX-01 | Phase 96 | Pending |
+| IDX-02 | Phase 96 | Pending |
+| IDX-03 | Phase 96 | Pending |
+| IDX-04 | Phase 96 | Pending |
+| GEN-01 | Phase 94 | Pending |
+| GEN-02 | Phase 94 | Pending |
+| GEN-03 | Phase 94 | Pending |
+| SUBG-01 | Phase 95 | Pending |
+| SUBG-02 | Phase 95 | Pending |
+| SUBG-03 | Phase 95 | Pending |
+| TRIBE-01 | Phase 95 | Pending |
+| TRIBE-02 | Phase 95 | Pending |
+| TRIBE-03 | Phase 95 | Pending |
+| SPE-01 | Phase 94 | Pending |
+| SPE-02 | Phase 94 | Pending |
+| SPE-03 | Phase 94 | Pending |
+| SPE-04 | Phase 94 | Pending |
+| PIPE-01 | Phase 94 | Pending |
+| PIPE-02 | Phase 93 | Pending |
+| PIPE-03 | Phase 92 | Pending |
 
 **Coverage:**
 - v3.6 requirements: 25 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 25 ⚠️
+- Mapped to phases: 25 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-15*
