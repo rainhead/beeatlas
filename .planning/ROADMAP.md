@@ -471,7 +471,9 @@ Plans:
   2. Mapbox BoxZoomHandler (default shift-drag behavior) is disabled so the rectangle gesture is captured by the custom handler instead
   3. Releasing the drag removes the rectangle from the canvas (ephemeral gesture)
   4. Plain dragging (without shift) continues to pan the map normally
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 89-01-PLAN.md — Shift-drag rectangle gesture in bee-map.ts (boxZoom disable, capture-phase listener, overlay div, selection-drawn event) + _selectionBounds state in bee-atlas.ts + SEL-01/SEL-02 static-grep tests
 **UI hint**: yes
 
 ### Phase 90: Occurrence Query & Sidebar
@@ -590,6 +592,6 @@ Plans:
 | 86. Port Remaining Transforms | v3.4 | 5/5 | Complete | 2026-05-13 |
 | 87. Incremental Materialization Experiment | v3.4 | 2/2 | Complete | 2026-05-13 |
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
-| 89. Rectangle Drawing | v3.5 | 0/? | Not started | - |
+| 89. Rectangle Drawing | v3.5 | 0/1 | Not started | - |
 | 90. Occurrence Query & Sidebar | v3.5 | 0/? | Not started | - |
 | 91. URL State | v3.5 | 0/? | Not started | - |

@@ -2,8 +2,8 @@
 phase: 89
 slug: rectangle-drawing
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-14
 ---
 
@@ -38,9 +38,10 @@ created: 2026-05-14
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 89-01-01 | 01 | 1 | SEL-01 | — | N/A | manual | n/a | ❌ W0 | ⬜ pending |
-| 89-01-02 | 01 | 1 | SEL-01 | — | N/A | manual | n/a | ❌ W0 | ⬜ pending |
-| 89-01-03 | 01 | 1 | SEL-02 | — | N/A | manual | n/a | ❌ W0 | ⬜ pending |
+| 89-01-01 | 01 | 1 | SEL-01, SEL-02 | — | N/A | tdd | `npm test -- --run 2>&1 \| grep -E "(SEL-01\|SEL-02)" \| head -20` | ✅ | ⬜ pending |
+| 89-01-02 | 01 | 1 | SEL-01, SEL-02 | — | N/A | tdd | `npm test -- --run 2>&1 \| tail -40` | ✅ | ⬜ pending |
+| 89-01-03 | 01 | 1 | SEL-01 | — | N/A | unit | `npm test -- --run 2>&1 \| tail -20 && npx tsc --noEmit 2>&1 \| tail -20` | ✅ | ⬜ pending |
+| 89-01-04 | 01 | 1 | SEL-01, SEL-02 | — | N/A | manual | n/a (human verify checkpoint) | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
