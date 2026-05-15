@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.4
-milestone_name: dbt Full Rewrite
-status: completed
-last_updated: "2026-05-14T23:55:00.000Z"
-last_activity: 2026-05-14
+milestone: v3.5
+milestone_name: Selection Rectangle
+status: planning
+last_updated: "2026-05-15T00:21:06.972Z"
+last_activity: 2026-05-15
 progress:
-  total_phases: 9
-  completed_phases: 4
-  total_plans: 14
-  completed_plans: 14
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -24,11 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-13 — v3.3 dbt Spike shipped)
 
 ## Current Position
 
-Phase: 88 (Production Cutover) — COMPLETE
-Plan: 3 of 3 (all complete)
-Plans: 3 of 3 drafted across 3 waves; all executed
-Status: Phase 88 complete; v3.4 dbt Full Rewrite milestone ready to mark SHIPPED
-Last activity: 2026-05-14 — Completed quick task 260514-ndp: added halo overlay layer for cluster selection visual feedback (yellow ring around clusters whose leaves intersect selectedOccIds)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-15 — Milestone v3.5 started
 
 ## Accumulated Context
 
