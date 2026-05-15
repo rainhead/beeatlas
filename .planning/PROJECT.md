@@ -1,8 +1,18 @@
 # Washington Bee Atlas
 
+## Current Milestone: v3.5 Selection Rectangle
+
+**Goal:** Let users shift-drag a rectangle on the map to see all filter-passing occurrences in that area in the sidebar.
+
+**Target features:**
+- Shift-drag on the Mapbox canvas draws a rectangle
+- Visual rectangle shown while dragging (then cleared)
+- SQLite query identifies which visible (filter-passing) occurrences fall within the rectangle bounds
+- Sidebar opens with those occurrences — same `occurrence-clicked` path as a cluster click, reusing `bee-occurrence-detail`
+
 ## Current State
 
-**v3.4 dbt Full Rewrite — SHIPPED 2026-05-14.** dbt is now the sole producer of all pipeline outputs: `data/run.py` invokes `bash data/dbt/run.sh build` (which produces `occurrences.parquet`, `counties.geojson`, `ecoregions.geojson` via external materializations); `data/species_export.py` is a non-transform post-step that reads from the dbt sandbox and writes `species.json`/`seasonality.json` with the slug column appended. `data/export.py`, `_apply_migrations()`, and `scripts/validate-schema.mjs` are deleted — their invariants live in dbt source contracts and generic/singular tests. The dbt 30-column contract on `marts/occurrences` is the canonical schema gate. The frontend works unchanged against dbt-produced parquet beyond the documented 3-column drop in `src/sqlite.ts`. Phase 87's experiment settled the incremental question: no `materialized='incremental'` anywhere — full rebuilds every nightly run. The next milestone (v3.5+) is undefined; candidates include retiring `data/stub_handler.py` + the dormant Lambda surface, stale S3 parquet cleanup, and `_dlt_pipeline_state` housekeeping — all captured in `.planning/todos/pending/`.
+**v3.5 Selection Rectangle — IN PROGRESS.** Milestone launched 2026-05-14. Frontend-only milestone adding rubber-band selection to the Mapbox map. Builds on existing `_selectedOccIds` / `queryVisibleIds` infrastructure in `bee-atlas.ts` + `filter.ts`. Post-v3.4 housekeeping (Lambda retirement, stale S3 cleanup, dlt pipeline state audit) resolved as quick tasks 260514-fcq, 260514-f2z, 260514-f7c respectively.
 
 ## Previous Milestone: v3.4 dbt Full Rewrite (shipped 2026-05-14)
 
@@ -206,6 +216,12 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - v3.3 dbt Spike — COMPLETE (2026-05-13)
 - v3.4 dbt Full Rewrite — COMPLETE (2026-05-14)
 
+### Active
+
+- [ ] **SEL-01**: User can shift-drag a rectangle on the map to draw a selection area
+- [ ] **SEL-02**: Rectangle selection identifies all filter-passing occurrences within the bounds
+- [ ] **SEL-03**: Sidebar opens with the selected occurrences (same presentation as cluster click)
+
 ### Active (future)
 
 - [ ] **TAB-01**: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline
@@ -389,4 +405,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-14 — v3.4 dbt Full Rewrite milestone shipped; dbt is the sole transform producer for all pipeline outputs; `_apply_migrations` and `validate-schema.mjs` retired*
+*Last updated: 2026-05-14 — v3.5 Selection Rectangle milestone started*
