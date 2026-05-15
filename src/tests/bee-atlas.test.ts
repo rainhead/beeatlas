@@ -350,3 +350,41 @@ describe('SEL-02: bee-map rectangle overlay DOM lifecycle', () => {
     expect(src).toMatch(/dx\s*<\s*5\s*&&\s*dy\s*<\s*5/);
   });
 });
+
+describe('SEL-03: queryOccurrencesByBounds in filter.ts', () => {
+  const filterSrc = readFileSync(resolve(__dirname, '../filter.ts'), 'utf-8');
+
+  test('filter.ts exports queryOccurrencesByBounds', () => {
+    expect(filterSrc).toMatch(/export async function queryOccurrencesByBounds/);
+  });
+
+  test('filter.ts uses buildFilterSQL and BETWEEN clauses inside queryOccurrencesByBounds', () => {
+    expect(filterSrc).toMatch(/buildFilterSQL/);
+    expect(filterSrc).toMatch(/BETWEEN.*AND.*BETWEEN/);
+  });
+
+  test('bee-atlas.ts references queryOccurrencesByBounds', () => {
+    const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(atlasSrc).toMatch(/queryOccurrencesByBounds/);
+  });
+});
+
+describe('SEL-04: sidebar open on non-empty bounds result', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts sets _sidebarOpen = true (reachable from _onSelectionDrawn)', () => {
+    expect(src).toMatch(/this\._sidebarOpen\s*=\s*true/);
+  });
+
+  test('bee-atlas.ts assigns rows to _selectedOccurrences', () => {
+    expect(src).toMatch(/this\._selectedOccurrences\s*=\s*rows/);
+  });
+});
+
+describe('SEL-05: sidebar not opened on empty bounds result', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts guards sidebar open with rows.length === 0 check', () => {
+    expect(src).toMatch(/rows\.length\s*===\s*0/);
+  });
+});

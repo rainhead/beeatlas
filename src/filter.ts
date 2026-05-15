@@ -317,3 +317,22 @@ export async function queryVisibleIds(f: FilterState): Promise<{ ids: Set<string
   );
   return { ids, rowCount };
 }
+
+export async function queryOccurrencesByBounds(
+  f: FilterState,
+  bounds: { west: number; south: number; east: number; north: number }
+): Promise<OccurrenceRow[]> {
+  const { west, south, east, north } = bounds;
+  const { occurrenceWhere } = buildFilterSQL(f);
+  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+  await tablesReady;
+  const { sqlite3, db } = await getDB();
+  const rows: OccurrenceRow[] = [];
+  await sqlite3.exec(db,
+    `SELECT ${selectCols} FROM occurrences WHERE (${occurrenceWhere}) AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east} ORDER BY date DESC, recordedBy ASC`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
+    }
+  );
+  return rows;
+}
