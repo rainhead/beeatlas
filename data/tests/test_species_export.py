@@ -47,15 +47,22 @@ def test_slug_hierarchical(tmp_path, monkeypatch):
 
 @_SANDBOX_GUARD
 def test_no_old_slug_format(tmp_path, monkeypatch):
-    """No slug contains the old lowercase-dash format for species rows (PIPE-03b)."""
+    """No slug uses the old flat lowercase-dash format for species rows (PIPE-03b).
+
+    The old format was 'genus-epithet' (no slash, all lowercase), e.g. 'andrena-milwaukeensis'.
+    The new format is 'Genus/epithet' (slash separator, genus capitalized).
+    Detection: old format has no slash; new format always has a slash for species rows.
+    Note: the epithet itself may contain hyphens (e.g. 'w-scripta'), so checking for
+    dash presence is insufficient — we check for absence of slash instead.
+    """
     monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
     monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
     con = duckdb.connect()
     export_species_parquet(con)
     old_pattern_count = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{tmp_path}/species.parquet')"
-        " WHERE slug LIKE '%-%' AND specific_epithet IS NOT NULL"
+        " WHERE slug NOT LIKE '%/%' AND specific_epithet IS NOT NULL"
     ).fetchone()[0]
     assert old_pattern_count == 0, (
-        f"Found {old_pattern_count} slugs with old genus-epithet flat format"
+        f"Found {old_pattern_count} species-level slugs missing the Genus/epithet slash separator"
     )
