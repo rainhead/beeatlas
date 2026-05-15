@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Simpler Species Index
 status: executing
-last_updated: "2026-05-15T21:41:19.594Z"
-last_activity: 2026-05-15 -- Phase 92 planning complete
+last_updated: "2026-05-15T21:43:40.053Z"
+last_activity: 2026-05-15 -- Phase 92 execution started
 progress:
   total_phases: 10
   completed_phases: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-15 — v3.6 Simpler Species Index milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 92 — Slug Migration & Pipeline Prep
+**Current focus:** Phase 92 — slug-migration-pipeline-prep
 
 ## Current Position
 
-Phase: 92 (not started)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-05-15 -- Phase 92 planning complete
+Phase: 92 (slug-migration-pipeline-prep) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 92
+Last activity: 2026-05-15 -- Phase 92 execution started
 
 Progress: [##########] 100% (3/3 phases complete)
 
