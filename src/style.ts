@@ -1,6 +1,6 @@
 export const RECENCY_COLORS = {
-  thisYear: '#2ecc71',
-  lastYear: '#f39c12',
+  thisYear: '#c8cccd',
+  lastYear: '#7f8c8d',
   earlier:  '#7f8c8d',
 } as const;
 

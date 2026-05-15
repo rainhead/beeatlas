@@ -408,10 +408,10 @@ export class BeeMap extends LitElement {
             ],
             'circle-radius': [
               'step', ['get', 'point_count'],
-              14,
-              10, 16,
-              50, 20,
-              200, 26,
+              12,
+              25, 14,
+              100, 17,
+              500, 20,
             ],
             'circle-stroke-width': 1,
             'circle-stroke-color': '#ffffff',
@@ -430,7 +430,11 @@ export class BeeMap extends LitElement {
             'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
           },
           paint: {
-            'text-color': '#ffffff',
+            'text-color': [
+              'case',
+              ['>', ['get', 'thisYearCount'], 0], '#ffffff',
+              '#d0d6d7',
+            ],
           },
         });
 
@@ -491,10 +495,10 @@ export class BeeMap extends LitElement {
             // ~4px halo padding so the ring wraps the blob outline.
             'circle-radius': [
               'step', ['get', 'leaf_count'],
-              18,
-              10, 20,
-              50, 24,
-              200, 30,
+              16,
+              25, 18,
+              100, 21,
+              500, 24,
             ],
           },
         });
