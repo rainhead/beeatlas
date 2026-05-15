@@ -609,6 +609,7 @@ bee-filter-panel {
     import('./bee-sidebar.ts');
     this._selectedOccurrences = e.detail.occurrences.sort((a, b) => b.date.localeCompare(a.date));
     this._selectedOccIds = e.detail.occIds;
+    this._selectionBounds = null;
     if (e.detail.centroid && e.detail.radiusM != null) {
       this._selectedCluster = { lon: e.detail.centroid.lon, lat: e.detail.centroid.lat, radiusM: e.detail.radiusM };
     } else {
@@ -685,7 +686,10 @@ bee-filter-panel {
       // Read _selectionBounds (set synchronously above; Phase 91 will also read it for sel= URL encoding)
       const rows = await queryOccurrencesByBounds(f, this._selectionBounds!);
       if (generation !== this._selectionDrawnGeneration) return;
-      if (rows.length === 0) return;
+      if (rows.length === 0) {
+        this._selectionBounds = null;
+        return;
+      }
       import('./bee-sidebar.ts');
       this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
       this._selectedOccIds = rows.map(r =>
