@@ -499,7 +499,13 @@ Plans:
   2. Pasting the URL in a new tab re-runs the bounds query and opens the sidebar with the same occurrences
   3. Clicking anywhere on the map to dismiss the sidebar removes the `sel=` param from the URL
   4. The `sel=` param integrates cleanly with existing filter params — both are preserved simultaneously in the URL
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+- [ ] 91-01-PLAN.md — Extend SelectionState union with bounds variant + buildParams/parseParams sel= support (TDD)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 91-02-PLAN.md — Wire _selectionBounds into _pushUrlState + clear sites + _restoreBoundsSelection for firstUpdated/_onPopState restore
 **UI hint**: yes
 
 ## Progress
@@ -596,4 +602,4 @@ Plans:
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
 | 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
-| 91. URL State | v3.5 | 0/? | Not started | - |
+| 91. URL State | v3.5 | 0/2 | Planning | - |
