@@ -260,9 +260,10 @@ export class BeeMap extends LitElement {
   private _mousePos(e: MouseEvent): mapboxgl.Point {
     const canvas = this._map!.getCanvasContainer();
     const rect = canvas.getBoundingClientRect();
+    const scaling = canvas.offsetWidth === rect.width ? 1 : canvas.offsetWidth / rect.width;
     return new mapboxgl.Point(
-      e.clientX - rect.left - canvas.clientLeft,
-      e.clientY - rect.top - canvas.clientTop,
+      (e.clientX - rect.left) * scaling,
+      (e.clientY - rect.top) * scaling,
     );
   }
 
