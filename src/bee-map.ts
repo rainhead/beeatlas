@@ -81,6 +81,10 @@ export class BeeMap extends LitElement {
   private _haloGeneration = 0;
   private _haloRafToken: number | null = null;
 
+  // Shift-drag rectangle gesture (SEL-01, SEL-02)
+  private _rectStart: mapboxgl.Point | null = null;
+  private _rectBox: HTMLDivElement | null = null;
+
   static _mapboxCss = unsafeCSS(mapboxCssText);
 
   static styles = css`
@@ -135,6 +139,16 @@ export class BeeMap extends LitElement {
 }
 .region-menu button:hover { background: #f0f0f0; }
 .region-menu button.active { font-weight: 600; color: var(--accent, #2c7be5); }
+.selection-box {
+  background: rgba(56, 135, 190, 0.1);
+  border: 2px solid #3887be;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
   `;
 
   private _emit<T>(name: string, detail?: T) {
@@ -177,11 +191,90 @@ export class BeeMap extends LitElement {
     }
   };
 
+  // --- Shift-drag rectangle gesture handlers (SEL-01, SEL-02) ---
+
+  private _onRectMouseDown = (e: MouseEvent) => {
+    if (!(e.shiftKey && e.button === 0)) return;
+    this._clickConsumed = true;
+    this._map!.dragPan.disable();
+    this._map!.getCanvasContainer().style.cursor = 'crosshair';
+    document.addEventListener('mousemove', this._onRectMouseMove);
+    document.addEventListener('mouseup', this._onRectMouseUp);
+    this._rectStart = this._mousePos(e);
+  };
+
+  private _onRectMouseMove = (e: MouseEvent) => {
+    if (!this._rectStart) return;
+    const current = this._mousePos(e);
+    if (!this._rectBox) {
+      this._rectBox = document.createElement('div');
+      this._rectBox.className = 'selection-box';
+      this._map!.getCanvasContainer().appendChild(this._rectBox);
+    }
+    const minX = Math.min(this._rectStart.x, current.x);
+    const maxX = Math.max(this._rectStart.x, current.x);
+    const minY = Math.min(this._rectStart.y, current.y);
+    const maxY = Math.max(this._rectStart.y, current.y);
+    this._rectBox.style.transform = `translate(${minX}px, ${minY}px)`;
+    this._rectBox.style.width = `${maxX - minX}px`;
+    this._rectBox.style.height = `${maxY - minY}px`;
+  };
+
+  private _onRectMouseUp = (e: MouseEvent) => {
+    this._rectFinish(e);
+  };
+
+  private _rectFinish(e: MouseEvent) {
+    document.removeEventListener('mousemove', this._onRectMouseMove);
+    document.removeEventListener('mouseup', this._onRectMouseUp);
+    if (this._rectBox) {
+      this._rectBox.remove();
+      this._rectBox = null;
+    }
+    this._map!.dragPan.enable();
+    this._map!.getCanvasContainer().style.cursor = '';
+
+    if (!this._rectStart) return;
+    const end = this._mousePos(e);
+    const dx = Math.abs(end.x - this._rectStart.x);
+    const dy = Math.abs(end.y - this._rectStart.y);
+    if (dx < 5 && dy < 5) {
+      this._rectStart = null;
+      return; // accidental click — no emission
+    }
+
+    const minX = Math.min(this._rectStart.x, end.x);
+    const maxX = Math.max(this._rectStart.x, end.x);
+    const minY = Math.min(this._rectStart.y, end.y);
+    const maxY = Math.max(this._rectStart.y, end.y);
+
+    // Y-axis inversion: SW = (minX, maxY), NE = (maxX, minY)
+    const sw = this._map!.unproject([minX, maxY]);
+    const ne = this._map!.unproject([maxX, minY]);
+    this._emit('selection-drawn', {
+      west: sw.lng, south: sw.lat, east: ne.lng, north: ne.lat,
+    });
+    this._rectStart = null;
+  }
+
+  private _mousePos(e: MouseEvent): mapboxgl.Point {
+    const canvas = this._map!.getCanvasContainer();
+    const rect = canvas.getBoundingClientRect();
+    return new mapboxgl.Point(
+      e.clientX - rect.left - canvas.clientLeft,
+      e.clientY - rect.top - canvas.clientTop,
+    );
+  }
+
   disconnectedCallback() {
     if (this._haloRafToken !== null) {
       cancelAnimationFrame(this._haloRafToken);
       this._haloRafToken = null;
     }
+    const canvas = this._map?.getCanvasContainer();
+    canvas?.removeEventListener('mousedown', this._onRectMouseDown, true);
+    document.removeEventListener('mousemove', this._onRectMouseMove);
+    document.removeEventListener('mouseup', this._onRectMouseUp);
     this._map?.remove();
     this._resizeObserver?.disconnect();
     document.removeEventListener('click', this._onDocumentClick);
@@ -253,6 +346,13 @@ export class BeeMap extends LitElement {
       zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
       attributionControl: true,
     });
+
+    // Disable default shift-drag box-zoom so the custom rectangle gesture can claim it
+    this._map.boxZoom.disable();
+
+    // Attach canvas mousedown in capture phase to intercept shift-drag before other handlers
+    const rectCanvas = this._map.getCanvasContainer();
+    rectCanvas.addEventListener('mousedown', this._onRectMouseDown, true);
 
     // All source/layer setup must happen after the style loads
     this._map.on('load', async () => {
