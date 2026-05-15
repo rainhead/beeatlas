@@ -307,3 +307,76 @@ describe('validation and rejection', () => {
     expect(result.ui!.viewMode).toBe('table');
   });
 });
+
+describe('bounds selection (SEL-06)', () => {
+  test('bounds round-trip: encodes as sel=west,south,east,north with toFixed(4)', () => {
+    const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.get('sel')).toBe('-122.3456,47.1234,-122.1234,47.5678');
+    const result = parseParams(params.toString());
+    expect(result.selection).toEqual({ type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
+  });
+
+  test('bounds with positive longitudes: toFixed(4) applied (e.g. 120 becomes "120.0000")', () => {
+    const selection: SelectionState = { type: 'bounds', west: 120, south: 30, east: 121, north: 31 };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.get('sel')).toBe('120.0000,30.0000,121.0000,31.0000');
+    const result = parseParams(params.toString());
+    expect(result.selection).toEqual({ type: 'bounds', west: 120, south: 30, east: 121, north: 31 });
+  });
+
+  test('bounds does NOT emit o= — params.has("o") is false when selection.type === "bounds"', () => {
+    const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.has('o')).toBe(false);
+    expect(params.has('sel')).toBe(true);
+  });
+
+  test('sel= does NOT emit when selection.type === "ids" (empty)', () => {
+    const selection: SelectionState = { type: 'ids', ids: [] };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.has('sel')).toBe(false);
+  });
+
+  test('sel= does NOT emit when selection.type === "cluster"', () => {
+    const selection: SelectionState = { type: 'cluster', lon: -120.5, lat: 47.3, radiusM: 500 };
+    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+    expect(params.has('sel')).toBe(false);
+  });
+
+  test('malformed sel: not four values — selection undefined', () => {
+    const result = parseParams('sel=not,four,values');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('out-of-range west (999): selection undefined', () => {
+    const result = parseParams('sel=999,47,-120,48');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('out-of-range north (999): selection undefined', () => {
+    const result = parseParams('sel=-122,47,-121,999');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('south >= north (inverted/degenerate): selection undefined', () => {
+    const result = parseParams('sel=-122,48,-121,47');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('non-finite value (NaN west): selection undefined', () => {
+    const result = parseParams('sel=NaN,47,-121,48');
+    expect(result.selection).toBeUndefined();
+  });
+
+  test('combined params: bounds selection + filter coexist on round-trip (SEL-06)', () => {
+    const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
+    const filter = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
+    const params = buildParams(defaultView, filter, selection, defaultUi);
+    expect(params.get('sel')).toBe('-122.3456,47.1234,-122.1234,47.5678');
+    expect(params.get('taxon')).toBe('Bombus');
+    const result = parseParams(params.toString());
+    expect(result.selection).toEqual({ type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
+    expect(result.filter?.taxonName).toBe('Bombus');
+  });
+});
