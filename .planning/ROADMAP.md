@@ -502,7 +502,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 **Wave 1**
-- [ ] 91-01-PLAN.md — Extend SelectionState union with bounds variant + buildParams/parseParams sel= support (TDD)
+- [x] 91-01-PLAN.md — Extend SelectionState union with bounds variant + buildParams/parseParams sel= support (TDD)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 91-02-PLAN.md — Wire _selectionBounds into _pushUrlState + clear sites + _restoreBoundsSelection for firstUpdated/_onPopState restore
@@ -602,4 +602,4 @@ Plans:
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
 | 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
-| 91. URL State | v3.5 | 0/2 | Planning | - |
+| 91. URL State | v3.5 | 1/2 | In Progress|  |
