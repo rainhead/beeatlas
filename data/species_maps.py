@@ -385,16 +385,20 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
         ).fetchall()
 
         # Single sweep through occurrences — group by canonical_name in Python
-        # so we never round-trip per species. Casts ignore empty-string lat/lon.
+        # so we never round-trip per species. Use the dbt mart (occurrences.parquet)
+        # so both Ecdysis and iNat-only records are included, matching the main map.
+        occurrences_parquet = ASSETS_DIR / "occurrences.parquet"
+        if not occurrences_parquet.exists():
+            raise FileNotFoundError(
+                f"{occurrences_parquet} not found — run dbt before species-maps"
+            )
         occ_rows = con.execute(
-            """
-            SELECT canonical_name,
-                   CAST(decimal_longitude AS DOUBLE),
-                   CAST(decimal_latitude  AS DOUBLE)
-            FROM ecdysis_data.occurrences
+            f"""
+            SELECT canonical_name, lon, lat
+            FROM read_parquet('{occurrences_parquet}')
             WHERE canonical_name IS NOT NULL
-              AND decimal_latitude IS NOT NULL AND decimal_latitude != ''
-              AND decimal_longitude IS NOT NULL AND decimal_longitude != ''
+              AND lat IS NOT NULL
+              AND lon IS NOT NULL
             """
         ).fetchall()
 
