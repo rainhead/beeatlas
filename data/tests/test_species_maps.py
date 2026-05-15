@@ -1,38 +1,24 @@
-"""Unit tests for species_maps.py subdirectory write behavior (Phase 92 PIPE-03c).
+"""Unit tests for species_maps.py subdirectory write behavior (PIPE-03).
 
-Tests assert that _write_species_svg creates the parent subdirectory when the
-slug contains a '/' character (i.e., the new Genus/epithet format).
+Tests assert that _write_species_svg creates the parent Genus/ subdirectory
+before writing the SVG file.
 
-RED state: test FAILS with FileNotFoundError because the current _write_species_svg
-implementation at line 167 of species_maps.py does:
-    out_path = out_dir / f"{slug}.svg"
-    out_path.write_text(...)
-without creating the parent directory. After Plan 02 adds:
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-the test passes GREEN.
+Run:
+    cd data && uv run pytest tests/test_species_maps.py -x
 """
 
 import xml.etree.ElementTree as ET
-
-import pytest
 
 from species_maps import _write_species_svg, SVG_NS
 
 
 def test_write_species_svg_creates_subdir(tmp_path):
-    """_write_species_svg creates the parent subdirectory when slug contains '/'.
-
-    Call _write_species_svg with slug="Andrena/milwaukeensis" and assert that
-    tmp_path / "Andrena" / "milwaukeensis.svg" exists after the call.
-
-    Currently raises FileNotFoundError because _write_species_svg does not
-    call out_path.parent.mkdir() before writing — that is the RED state.
-    After Plan 02 adds the mkdir line, this test passes GREEN.
-    """
+    """_write_species_svg creates the parent subdirectory if it doesn't exist (PIPE-03c)."""
     backdrop = ET.Element(f"{{{SVG_NS}}}svg")
     slug = "Andrena/milwaukeensis"
     _write_species_svg(slug, [], backdrop, tmp_path)
     out = tmp_path / "Andrena" / "milwaukeensis.svg"
     assert out.exists(), (
-        f"Expected {out} to exist after _write_species_svg(slug={slug!r}, ...)"
+        f"Expected {out} to exist — _write_species_svg must create parent subdir "
+        f"via out_path.parent.mkdir(parents=True, exist_ok=True)"
     )

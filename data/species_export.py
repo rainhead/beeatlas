@@ -138,7 +138,13 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     # (The dbt CASE expression in int_species_universe should handle this now,
     # but the defensive backfill stays in case any row slips through with NULL.)
     for r in species_rows:
-        r['slug'] = _slugify(r['scientificName'])
+        genus = r.get('genus') or ''
+        epithet = r.get('specific_epithet') or ''
+        if genus and epithet:
+            r['slug'] = f"{genus}/{epithet}"
+        else:
+            # Genus-only rows (102 rows in production, none on_checklist)
+            r['slug'] = genus if genus else _slugify(r['scientificName'])
         if r.get('month_histogram') is None:
             r['month_histogram'] = list(_ZERO_HIST)
 
