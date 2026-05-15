@@ -368,3 +368,23 @@ describe('SEL-03: queryOccurrencesByBounds in filter.ts', () => {
     expect(atlasSrc).toMatch(/queryOccurrencesByBounds/);
   });
 });
+
+describe('SEL-04: sidebar open on non-empty bounds result', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts sets _sidebarOpen = true (reachable from _onSelectionDrawn)', () => {
+    expect(src).toMatch(/this\._sidebarOpen\s*=\s*true/);
+  });
+
+  test('bee-atlas.ts assigns rows to _selectedOccurrences', () => {
+    expect(src).toMatch(/this\._selectedOccurrences\s*=\s*rows/);
+  });
+});
+
+describe('SEL-05: sidebar not opened on empty bounds result', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts guards sidebar open with rows.length === 0 check', () => {
+    expect(src).toMatch(/rows\.length\s*===\s*0/);
+  });
+});
