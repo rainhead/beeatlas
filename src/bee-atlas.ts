@@ -1,6 +1,6 @@
 import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy, queryOccurrencesByBounds } from './filter.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
@@ -51,8 +51,6 @@ export class BeeAtlas extends LitElement {
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
   @state() private _sidebarOpen = false;
   @state() private _tableFilterOpen = false;
-  // Phase 90 will read _selectionBounds to query occurrences in the drawn rectangle
-  // @ts-ignore -- intentionally unused until Phase 90 wires the SQLite bounds query
   @state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
 
   // Non-reactive private fields
@@ -652,9 +650,26 @@ bee-filter-panel {
     this._runTableQuery();
   }
 
-  private _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
+  private async _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
     this._selectionBounds = e.detail;
-    /* Phase 90: dispatch SQLite bounds query and open sidebar with matched occurrences. */
+    // Synchronously clear prior selection state before any await
+    this._selectedOccurrences = null;
+    this._selectedOccIds = null;
+    this._selectedCluster = null;
+    this._sidebarOpen = false;
+    // Snapshot filter state before first await to prevent stale-filter race (T-90-04)
+    const f = this._filterState;
+    // Read _selectionBounds (set synchronously above; Phase 91 will also read it for sel= URL encoding)
+    const rows = await queryOccurrencesByBounds(f, this._selectionBounds!);
+    if (rows.length === 0) return;
+    import('./bee-sidebar.ts');
+    this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
+    this._selectedOccIds = rows.map(r =>
+      r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}`
+    );
+    this._selectedCluster = null;
+    this._sidebarOpen = true;
+    // Phase 91 will call this._pushUrlState() here to encode sel= in the URL
   }
 
   private _onMapClickEmpty() {
