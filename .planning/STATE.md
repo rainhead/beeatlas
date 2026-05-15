@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.5
 milestone_name: Selection Rectangle
-status: milestone_complete
-last_updated: "2026-05-15T19:00:00.000Z"
-last_activity: 2026-05-15 -- Phase 91 plan 02 complete (SEL-06/SEL-07)
+status: completed
+last_updated: "2026-05-15T21:05:56.027Z"
+last_activity: 2026-05-15
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 3
   total_plans: 4
   completed_plans: 4
-  percent: 50
+  percent: 100
 ---
 
 # Project State
@@ -74,12 +74,18 @@ None.
 
 ## Deferred Items
 
-Items carried forward from v3.2 milestone close on 2026-05-05 (subset still pending):
+Items acknowledged and deferred at v3.5 milestone close on 2026-05-15:
+Known deferred items at close: 26 (see below)
 
 | Category | Item | Status |
 |----------|------|--------|
 | debug | nav-routes-to-atlas-instead-of-filter | diagnosed |
 | debug | selection-ring-not-displaying | diagnosed |
+| uat_gap | 89-HUMAN-UAT.md | partial (5 pending browser scenarios) |
+| uat_gap | 90-HUMAN-UAT.md | partial (4 pending browser scenarios) |
+| verification_gap | 89-VERIFICATION.md | human_needed |
+| verification_gap | 90-VERIFICATION.md | human_needed |
+| quick_task | 1-store-full-observation-json-in-cache-wit | missing |
 | quick_task | 260408-roy-move-region-overlay-control-from-sidebar | missing |
 | quick_task | 260408-tkd-add-occurrence-observation-id-columns-to | missing |
 | quick_task | 260408-tvl-show-recent-filters-when-filter-input-is | missing |
@@ -87,9 +93,15 @@ Items carried forward from v3.2 milestone close on 2026-05-05 (subset still pend
 | quick_task | 260412-dl6-in-the-frontend-in-the-specimen-table-vi | missing |
 | quick_task | 260412-due-re-add-sort-controls-to-the-specimen-tab | missing |
 | quick_task | 260412-kpe-schema-validation-is-failing-on-build-de | missing |
-| todo | boundary-edge-gaps.md | low |
-| uat_gap | 077-HUMAN-UAT.md | partial (live-DB ≥95% periodic re-verify) |
-| uat_gap | 081-UAT.md | partial (visual UX flows recorded) |
-| uat_gap | 082-UAT.md | unknown (both seed use cases PASS recorded) |
-| verification_gap | 077-VERIFICATION.md | human_needed |
-| verification_gap | 081-VERIFICATION.md | human_needed |
+| quick_task | 260421-qk1-drop-county-ecoregion-feeds | missing |
+| quick_task | 260421-t1a-table-mode-improvements | missing |
+| quick_task | 260422-sc1-fix-specimen-count-mismatch | missing |
+| quick_task | 260514-f2z-stale-public-data-cleanup-drop-samples-p | missing |
+| quick_task | 260514-f7c-dlt-pipeline-state-housekeeping-audit-dl | missing |
+| quick_task | 260514-fcq-retire-stub-handler-delete-data-stub-han | missing |
+| quick_task | 260514-fp2-fix-mobile-sidebar-close-button-obscured | missing |
+| quick_task | 260514-fp3-fix-region-boundary-gaps-overlaps | missing |
+| quick_task | 260514-ndp-cluster-selection-visual-feedback-halo-o | missing |
+| todo | cluster-selection-visual-feedback.md | medium |
+| todo | hash-versioned-parquet-urls.md | medium |
+| todo | nightly-run-failure-notification.md | medium |

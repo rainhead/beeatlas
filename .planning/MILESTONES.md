@@ -1,5 +1,18 @@
 # Milestones
 
+## v3.5 Selection Rectangle (Shipped: 2026-05-15)
+
+**Phases completed:** 3 phases, 4 plans, 3 tasks
+
+**Key accomplishments:**
+
+- Static-grep gate:
+- 1. [Rule 1 - Bug] Used this._selectionBounds! instead of e.detail in queryOccurrencesByBounds call
+- One-liner:
+- Wires `_selectionBounds` into `_pushUrlState`, `_restoreBoundsSelection`, `firstUpdated`, `_onPopState`, and 4 clear sites in `src/bee-atlas.ts` so rectangle-selection bounds round-trip through `?sel=` — completing SEL-06 and SEL-07.
+
+---
+
 ## v3.4 dbt Full Rewrite (Shipped: 2026-05-14)
 
 **Phases completed:** 4 phases, 14 plans, 27 tasks
