@@ -165,6 +165,7 @@ def _write_species_svg(
         if elem.attrib:
             elem.attrib = dict(sorted(elem.attrib.items()))
     out_path = out_dir / f"{slug}.svg"
+    out_path.parent.mkdir(parents=True, exist_ok=True)  # NEW: create Genus/ subdir
     out_path.write_text(
         ET.tostring(root, xml_declaration=True, encoding="unicode"),
         encoding="utf-8",
@@ -243,7 +244,7 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 total_clipped += clipped
             written += 1
 
-        total_size = sum(p.stat().st_size for p in maps_dir.glob('*.svg'))
+        total_size = sum(p.stat().st_size for p in maps_dir.rglob('*.svg'))
         print(
             f"  species-maps/: {written:,} files, {total_size:,} bytes, "
             f"{total_clipped:,} total points clipped"
