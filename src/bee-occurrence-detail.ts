@@ -253,7 +253,7 @@ export class BeeOccurrenceDetail extends LitElement {
       ${dateGroups.length > 0 && sampleOnly.length > 0
         ? html`<hr class="separator">` : ''}
       ${sampleOnly.map(row =>
-        row.is_provisional === true
+        row.is_provisional
           ? this._renderProvisional(row)
           : this._renderSampleOnly(row)
       )}

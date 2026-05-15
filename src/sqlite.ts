@@ -122,6 +122,7 @@ export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
 
 function _escapeSqlValue(v: unknown): string {
   if (v == null) return 'NULL';
+  if (typeof v === 'boolean') return v ? '1' : '0';
   if (typeof v === 'number') return String(v);
   if (typeof v === 'bigint') return String(Number(v));
   if (v instanceof Date) return `'${v.toISOString().slice(0, 10)}'`;
