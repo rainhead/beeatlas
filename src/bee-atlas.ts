@@ -722,8 +722,8 @@ bee-filter-panel {
       selectedCounties: detail.selectedCounties,
       selectedEcoregions: detail.selectedEcoregions,
       selectedCollectors: detail.selectedCollectors,
-      elevMin: (detail as any).elevMin ?? null,
-      elevMax: (detail as any).elevMax ?? null,
+      elevMin: detail.elevMin ?? null,
+      elevMax: detail.elevMax ?? null,
     };
 
     // Clear selections when filter changes
