@@ -388,3 +388,80 @@ describe('SEL-05: sidebar not opened on empty bounds result', () => {
     expect(src).toMatch(/rows\.length\s*===\s*0/);
   });
 });
+
+describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('SEL-06: _pushUrlState gives _selectionBounds precedence over cluster/ids', () => {
+    expect(src).toContain('this._selectionBounds && this._sidebarOpen');
+  });
+
+  test('SEL-06: _pushUrlState emits bounds via buildParams', () => {
+    expect(src).toContain("type: 'bounds' as const");
+  });
+
+  test('SEL-06: _onSelectionDrawn calls _pushUrlState after sidebar opens (placeholder removed)', () => {
+    expect(src).not.toContain('Phase 91 will call this._pushUrlState() here');
+  });
+
+  test('SEL-06: _restoreBoundsSelection is defined', () => {
+    expect(src).toMatch(/private async _restoreBoundsSelection\b/);
+  });
+
+  test('SEL-06: firstUpdated routes bounds selection to _restoreBoundsSelection', () => {
+    expect(src).toContain("initSel?.type === 'bounds'");
+    expect(src).toMatch(/initSel\?\.type === 'bounds'[\s\S]{0,300}_restoreBoundsSelection\(/);
+  });
+
+  test('SEL-06: _onPopState routes bounds selection to _restoreBoundsSelection', () => {
+    expect(src).toContain("parsedSel?.type === 'bounds'");
+  });
+
+  test('SEL-06: _restoreBoundsSelection uses generation guard', () => {
+    const matches = src.match(/\+\+this\._selectionDrawnGeneration/g);
+    expect(matches).not.toBeNull();
+    expect(matches!.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('SEL-06: _restoreBoundsSelection awaits tablesReady before query', () => {
+    const methodStart = src.indexOf('private async _restoreBoundsSelection');
+    expect(methodStart).toBeGreaterThan(-1);
+    // Find the next private method declaration after _restoreBoundsSelection
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = nextPrivate > methodStart
+      ? src.slice(methodStart, nextPrivate)
+      : src.slice(methodStart);
+    expect(methodBody).toContain('await tablesReady');
+    expect(methodBody).toContain('queryOccurrencesByBounds(');
+  });
+
+  test('SEL-07: _onClose clears _selectionBounds', () => {
+    const methodStart = src.indexOf('private _onClose()');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('this._selectionBounds = null');
+  });
+
+  test('SEL-07: _onMapClickEmpty clears _selectionBounds in both branches', () => {
+    const methodStart = src.indexOf('private _onMapClickEmpty()');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    const clearCount = (methodBody.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
+    expect(clearCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test('SEL-07: _onFilterChanged clears _selectionBounds', () => {
+    const methodStart = src.indexOf('private _onFilterChanged(');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('this._selectionBounds = null');
+  });
+
+  test('SEL-07: _onPopState clears _selectionBounds in fallback else branch — exactly 5 total null clears', () => {
+    const allClears = (src.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
+    expect(allClears).toBe(5);
+  });
+});
