@@ -27,6 +27,7 @@
 - ✅ **v3.2 Species Tab** — Phases 76–82 (shipped 2026-05-05)
 - ✅ **v3.3 dbt Spike** — Phases 83–84 (shipped 2026-05-13). Verdict: GO-WITH-CONDITIONS. See [.planning/milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md).
 - ✅ **v3.4 dbt Full Rewrite** — Phases 85–88 (shipped 2026-05-14). dbt is the sole producer of pipeline outputs; legacy Python transforms and validate-schema.mjs retired. See [.planning/milestones/v3.4-ROADMAP.md](milestones/v3.4-ROADMAP.md).
+- **v3.5 Selection Rectangle** — Phases 89–91 (in progress)
 
 ## Phases
 
@@ -364,6 +365,12 @@ See `.planning/milestones/v3.4-ROADMAP.md` for full phase details.
 
 </details>
 
+**v3.5 Selection Rectangle (Phases 89–91) — IN PROGRESS**
+
+- [ ] **Phase 89: Rectangle Drawing** — shift-drag gesture + visual rectangle on map canvas
+- [ ] **Phase 90: Occurrence Query & Sidebar** — lat/lon bounds query + sidebar open
+- [ ] **Phase 91: URL State** — `sel=` param encode/decode + clear on dismiss
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -454,6 +461,42 @@ Plans:
 <!-- Phase 83-84 details archived to .planning/milestones/v3.3-ROADMAP.md -->
 
 <!-- Phase 85-88 details archived to .planning/milestones/v3.4-ROADMAP.md -->
+
+### Phase 89: Rectangle Drawing
+**Goal**: Users can shift-drag on the Mapbox canvas to draw a visible selection rectangle
+**Depends on**: Phase 88
+**Requirements**: SEL-01, SEL-02
+**Success Criteria** (what must be TRUE):
+  1. Holding shift and dragging on the map draws a rectangle outline that tracks the cursor in real time
+  2. Mapbox BoxZoomHandler (default shift-drag behavior) is disabled so the rectangle gesture is captured by the custom handler instead
+  3. Releasing the drag removes the rectangle from the canvas (ephemeral gesture)
+  4. Plain dragging (without shift) continues to pan the map normally
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 90: Occurrence Query & Sidebar
+**Goal**: Releasing the selection rectangle queries the SQLite occurrence table and opens the sidebar with matched results
+**Depends on**: Phase 89
+**Requirements**: SEL-03, SEL-04, SEL-05
+**Success Criteria** (what must be TRUE):
+  1. Releasing the rectangle triggers a SQLite query that returns all occurrences whose lat/lon fall within the bounding box AND pass the current active filters
+  2. The sidebar opens showing the matched occurrences using the same `bee-occurrence-detail` presentation as a cluster click
+  3. If zero filter-passing occurrences fall within the bounds the sidebar does not open and no error is shown
+  4. The query respects the existing filter state — the same set returned would be visible as dots on the map
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 91: URL State
+**Goal**: Rectangle selection bounds are round-tripped through the URL so selections are shareable and survive page refresh
+**Depends on**: Phase 90
+**Requirements**: SEL-06, SEL-07
+**Success Criteria** (what must be TRUE):
+  1. After a rectangle selection the URL gains a `sel=west,south,east,north` param with 4 decimal places
+  2. Pasting the URL in a new tab re-runs the bounds query and opens the sidebar with the same occurrences
+  3. Clicking anywhere on the map to dismiss the sidebar removes the `sel=` param from the URL
+  4. The `sel=` param integrates cleanly with existing filter params — both are preserved simultaneously in the URL
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
@@ -547,3 +590,6 @@ Plans:
 | 86. Port Remaining Transforms | v3.4 | 5/5 | Complete | 2026-05-13 |
 | 87. Incremental Materialization Experiment | v3.4 | 2/2 | Complete | 2026-05-13 |
 | 88. Production Cutover | v3.4 | 3/3 | Complete | 2026-05-14 |
+| 89. Rectangle Drawing | v3.5 | 0/? | Not started | - |
+| 90. Occurrence Query & Sidebar | v3.5 | 0/? | Not started | - |
+| 91. URL State | v3.5 | 0/? | Not started | - |
