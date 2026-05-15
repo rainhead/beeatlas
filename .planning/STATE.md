@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-05-15T00:00:00.000Z"
 last_activity: 2026-05-15
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-15 — v3.6 Simpler Species Index milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Defining requirements for v3.6
+**Current focus:** Phase 92 — Slug Migration & Pipeline Prep
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 92 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-15 — Milestone v3.6 started
+Status: Roadmap complete, ready to plan
+Last activity: 2026-05-15 — Roadmap created for v3.6
 
 Progress: [##########] 100% (3/3 phases complete)
 
