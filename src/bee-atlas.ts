@@ -956,7 +956,6 @@ bee-filter-panel {
   }
 
   private async _restoreBoundsSelection(bounds: { west: number; south: number; east: number; north: number }) {
-    this._sidebarOpen = true;
     const generation = ++this._selectionDrawnGeneration;
     try {
       await tablesReady;
@@ -964,6 +963,7 @@ bee-filter-panel {
       if (generation !== this._selectionDrawnGeneration) return;
       if (rows.length === 0) return;
       import('./bee-sidebar.ts');
+      this._sidebarOpen = true;
       this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
       this._selectedOccIds = rows.map(r =>
         r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}`
