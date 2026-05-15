@@ -56,6 +56,7 @@ export class BeeAtlas extends LitElement {
   // Non-reactive private fields
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
+  private _selectionDrawnGeneration = 0;
   // Monotonic counter used to discard stale async filter-query results.
   // Root cause of chip-removal flicker: _filterState updates synchronously (Lit
   // re-render + bee-map.updated() → regionLayer.changed() → OL canvas repaint)
@@ -655,6 +656,7 @@ bee-filter-panel {
   }
 
   private async _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
+    const generation = ++this._selectionDrawnGeneration;
     this._selectionBounds = e.detail;
     // Synchronously clear prior selection state before any await
     this._selectedOccurrences = null;
@@ -665,6 +667,7 @@ bee-filter-panel {
     const f = this._filterState;
     // Read _selectionBounds (set synchronously above; Phase 91 will also read it for sel= URL encoding)
     const rows = await queryOccurrencesByBounds(f, this._selectionBounds!);
+    if (generation !== this._selectionDrawnGeneration) return;
     if (rows.length === 0) return;
     import('./bee-sidebar.ts');
     this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
