@@ -638,7 +638,7 @@ Plans:
 | 89. Rectangle Drawing | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 91. URL State | v3.5 | 2/2 | Complete    | 2026-05-15 |
-| 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete   | 2026-05-15 |
+| 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete    | 2026-05-15 |
 | 93. Multi-Color SVG Map Generation | v3.6 | 0/? | Not started | - |
 | 94. Species & Genus Pages | v3.6 | 0/? | Not started | - |
 | 95. Subgenus & Tribe Pages | v3.6 | 0/? | Not started | - |
