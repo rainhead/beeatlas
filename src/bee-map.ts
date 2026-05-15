@@ -272,6 +272,15 @@ export class BeeMap extends LitElement {
       cancelAnimationFrame(this._haloRafToken);
       this._haloRafToken = null;
     }
+    // Clean up any in-progress rectangle gesture
+    if (this._rectBox) {
+      this._rectBox.remove();
+      this._rectBox = null;
+    }
+    if (this._rectStart) {
+      this._map?.dragPan.enable();
+      this._rectStart = null;
+    }
     const canvas = this._map?.getCanvasContainer();
     canvas?.removeEventListener('mousedown', this._onRectMouseDown, true);
     document.removeEventListener('mousemove', this._onRectMouseMove);
