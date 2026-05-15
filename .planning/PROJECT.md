@@ -1,12 +1,22 @@
 # Washington Bee Atlas
 
+## Current Milestone: v3.6 Simpler Species Index
+
+**Goal:** Replace the monolithic /species/ all-cards page with a proper per-taxon page architecture — a searchable family→genus index as the entry point, plus individual genus and species pages.
+
+**Target features:**
+- Index page (/species/) replaces the existing tree-nav + all-cards layout entirely; species grouped by family then genus; type-to-filter text search narrows the listing as you type
+- Per-genus pages (/species/Andrena/) showing species roster with aggregate occurrence data and a multi-color occurrence map (each species a distinct color)
+- Per-species pages (/species/Andrena/milwaukeensis/) with content equivalent to current species cards (photo, SVG occurrence map, seasonality)
+- URL slug fix: hierarchical case-preserving paths (/species/Genus/specific-epithet/) replace flat slugs (`andrena-milwaukeensis`); specific epithets may contain hyphens
+
 ## What This Is
 
 An interactive web map displaying Ecdysis specimen records and iNaturalist collection events for volunteer collectors participating in the Washington Bee Atlas. The site is a static frontend (TypeScript, Mapbox GL JS, Lit, wa-sqlite, hyparquet) that fetches Parquet and GeoJSON data from CloudFront at runtime — no data files bundled with the build. Users can filter occurrences by taxon, date, region, and draw selection rectangles on the map to browse records by area. A dbt pipeline writes to a local DuckDB store (`data/beeatlas.duckdb`); `data/export.py` produces parquet and GeoJSON exports with spatial joins. Infrastructure is CDK on AWS (S3 + CloudFront), deployed automatically via GitHub Actions OIDC. Pipeline runs nightly via cron on maderas server.
 
 ## Core Value
 
-Collectors can see where bees have been collected and where target host plants grow, enabling informed planning of future collecting events.
+Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
 ## Requirements
 
@@ -110,6 +120,26 @@ Collectors can see where bees have been collected and where target host plants g
 - v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
 - v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
 - v1.9 Component Architecture & Test Suite — COMPLETE (2026-04-04)
+- v2.0 Tabular Data View — COMPLETE (2026-04-09)
+- v2.1 Determination Feeds — COMPLETE (2026-04-11)
+- v2.2 Feed Discoverability & Pipeline — COMPLETE (2026-04-12)
+- v2.3 Specimen iNat Observation Links — COMPLETE (2026-04-13)
+- v2.4 Header Navigation & Toolbar — COMPLETE (2026-04-14)
+- v2.5 Elevation Data — COMPLETE (2026-04-16)
+- v2.6 SQLite WASM Migration — COMPLETE (2026-04-17)
+- v2.7 Unified Occurrence Model — COMPLETE (2026-04-17)
+- v2.8 Liveness: Provisional Specimen Records — COMPLETE (2026-04-20)
+- v2.9 UI Flow Redesign — COMPLETE (2026-04-21)
+- v3.0 Mapbox GL JS Migration — COMPLETE (2026-04-27)
+- v3.1 Eleventy Build Wrapper — COMPLETE (2026-04-30)
+- v3.2 Species Tab — COMPLETE (2026-05-05)
+- v3.3 dbt Spike — COMPLETE (2026-05-13)
+- v3.4 dbt Full Rewrite — COMPLETE (2026-05-14)
+- v3.5 Selection Rectangle — COMPLETE (2026-05-15)
+
+### Active
+
+*(requirements to be defined — see REQUIREMENTS.md)*
 
 ### Active (future)
 
@@ -244,4 +274,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-15 after v3.5 milestone complete (Selection Rectangle — shift-drag bounds query + URL round-trip)*
+*Last updated: 2026-05-15 — v3.6 Simpler Species Index milestone started*

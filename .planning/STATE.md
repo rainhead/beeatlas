@@ -1,33 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.5
-milestone_name: Selection Rectangle
-status: completed
-last_updated: "2026-05-15T21:05:56.027Z"
+milestone: v3.6
+milestone_name: Simpler Species Index
+status: planning
+last_updated: "2026-05-15T00:00:00.000Z"
 last_activity: 2026-05-15
 progress:
-  total_phases: 8
-  completed_phases: 3
-  total_plans: 4
-  completed_plans: 4
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-14 — v3.5 Selection Rectangle milestone started)
+See: .planning/PROJECT.md (updated 2026-05-15 — v3.6 Simpler Species Index milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 91 — url-state
+**Current focus:** Defining requirements for v3.6
 
 ## Current Position
 
-Phase: 91
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-05-15
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-15 — Milestone v3.6 started
 
 Progress: [##########] 100% (3/3 phases complete)
 
