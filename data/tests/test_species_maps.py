@@ -1,9 +1,10 @@
 """Unit tests for species_maps.py subdirectory write behavior (PIPE-03)
-and color-assignment helper (D-01).
+and color-assignment helper (D-01), and group-map generation (PIPE-02).
 
 Tests assert that _write_species_svg creates the parent Genus/ subdirectory
-before writing the SVG file, and that _group_colors is pure, deterministic,
-and meets the D-01 contract.
+before writing the SVG file, that _group_colors is pure, deterministic, and
+meets the D-01 contract, and that _generate_group_maps emits the correct
+output file tree with multi-color SVGs.
 
 Run:
     cd data && uv run pytest tests/test_species_maps.py -x
@@ -12,10 +13,13 @@ Run:
 import re
 import xml.etree.ElementTree as ET
 
+import duckdb
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
 import species_maps as species_maps_module
-from species_maps import _write_species_svg, _group_colors, SVG_NS
+from species_maps import _write_species_svg, _group_colors, _generate_group_maps, SVG_NS
 
 
 def test_write_species_svg_creates_subdir(tmp_path):
@@ -102,27 +106,148 @@ def test_group_colors_large_group_distinct():
     )
 
 
-@pytest.mark.skipif(
-    not hasattr(species_maps_module, '_generate_group_maps'),
-    reason="Plan 02 implements _generate_group_maps — this test activates when that function is added",
-)
-def test_group_map_output_paths_skip_guarded(tmp_path, monkeypatch):
-    """Group SVG output follows genus/<Genus>.svg, subgenus/<Genus>/<Subgenus>.svg,
-    tribe/<Tribe>.svg path shapes (activates when Plan 02 lands _generate_group_maps).
+def _write_test_species_parquet(tmp_path):
+    """Write a minimal species.parquet to tmp_path for group-map tests.
+
+    4 species covering:
+    - genus Andrena with a mix of subgenus (one set, two unset)
+    - genus Bombus with a subgenus
+    - two tribes: Andrenini and Bombini
     """
-    # This body is only reached when _generate_group_maps exists.
-    # Assert the output path conventions — exact shape not content.
+    table = pa.table({
+        'canonical_name': ['Andrena milwaukeensis', 'Andrena prunorum', 'Andrena vicina', 'Bombus mixtus'],
+        'genus': ['Andrena', 'Andrena', 'Andrena', 'Bombus'],
+        'subgenus': ['Melandrena', '', None, 'Pyrobombus'],
+        'tribe': ['Andrenini', 'Andrenini', 'Andrenini', 'Bombini'],
+        'occurrence_count': [2, 1, 1, 3],
+        # Remaining SPECIES_COLUMNS with placeholder values so read_parquet works
+        'scientificName': ['Andrena milwaukeensis Viereck', 'Andrena prunorum Cockerell',
+                           'Andrena vicina Smith', 'Bombus mixtus Cresson'],
+        'family': ['Andrenidae', 'Andrenidae', 'Andrenidae', 'Apidae'],
+        'subfamily': ['Andreninae', 'Andreninae', 'Andreninae', 'Apinae'],
+        'specific_epithet': ['milwaukeensis', 'prunorum', 'vicina', 'mixtus'],
+        'on_checklist': [True, True, True, True],
+        'status': ['verified', 'verified', 'verified', 'verified'],
+        'specimen_count': [2, 1, 1, 3],
+        'provisional_count': [0, 0, 0, 0],
+        'first_occurrence_date': [None, None, None, None],
+        'last_occurrence_date': [None, None, None, None],
+        'month_histogram': [[0]*12, [0]*12, [0]*12, [0]*12],
+        'county_count': [1, 1, 1, 1],
+        'ecoregion_count': [1, 1, 1, 1],
+        'slug': ['Andrena/milwaukeensis', 'Andrena/prunorum', 'Andrena/vicina', 'Bombus/mixtus'],
+    })
+    parquet_path = tmp_path / "species.parquet"
+    pq.write_table(table, parquet_path)
+    return parquet_path
+
+
+def test_generate_group_maps_emits_expected_files(tmp_path, monkeypatch):
+    """_generate_group_maps emits genus/subgenus/tribe SVGs with correct path shapes
+    and multi-color circle content (Plan 02 / PIPE-02).
+    """
     monkeypatch.setattr(species_maps_module, 'ASSETS_DIR', tmp_path)
+    _write_test_species_parquet(tmp_path)
+
+    con = duckdb.connect()
+    backdrop = ET.Element(f"{{{SVG_NS}}}svg")
+
+    # In-WA-bbox point (lon=-120.5, lat=47.5); out-of-bbox point (lon=-100, lat=40).
+    WA_IN = (-120.5, 47.5)
+    WA_OUT = (-100.0, 40.0)
+
+    occ_by_canon = {
+        'Andrena milwaukeensis': [WA_IN, WA_OUT],  # 1 in-bbox, 1 clipped
+        'Andrena prunorum': [WA_IN],
+        'Andrena vicina': [WA_IN],
+        'Bombus mixtus': [WA_IN],
+    }
+
     maps_dir = tmp_path / "species-maps"
-    maps_dir.mkdir(parents=True)
+    maps_dir.mkdir()
 
-    # Verify the path shape conventions only (test body is scaffolded for Plan 02).
-    # When Plan 02 wires up _generate_group_maps, fill in a minimal con fixture here.
-    genus_path = maps_dir / "genus" / "Andrena.svg"
-    subgenus_path = maps_dir / "subgenus" / "Andrena" / "Andrena.svg"
-    tribe_path = maps_dir / "tribe" / "Andrenini.svg"
+    _generate_group_maps(con, occ_by_canon, backdrop, maps_dir)
 
-    # Verify path shapes are under species-maps/ with the expected subdirectory layout.
-    assert str(genus_path).endswith("species-maps/genus/Andrena.svg")
-    assert str(subgenus_path).endswith("species-maps/subgenus/Andrena/Andrena.svg")
-    assert str(tribe_path).endswith("species-maps/tribe/Andrenini.svg")
+    # Genus files
+    assert (maps_dir / "genus" / "Andrena.svg").exists(), "genus/Andrena.svg missing"
+    assert (maps_dir / "genus" / "Bombus.svg").exists(), "genus/Bombus.svg missing"
+
+    # Subgenus files — nested under Genus/
+    assert (maps_dir / "subgenus" / "Andrena" / "Melandrena.svg").exists(), (
+        "subgenus/Andrena/Melandrena.svg missing"
+    )
+    assert (maps_dir / "subgenus" / "Bombus" / "Pyrobombus.svg").exists(), (
+        "subgenus/Bombus/Pyrobombus.svg missing"
+    )
+
+    # No subgenus file for Andrena prunorum (empty subgenus) or Andrena vicina (None)
+    assert not any(
+        p.name == 'prunorum.svg' for p in (maps_dir / 'subgenus').rglob('*.svg')
+    ), "No subgenus file should exist for empty/null subgenus species"
+
+    # Tribe files
+    assert (maps_dir / "tribe" / "Andrenini.svg").exists(), "tribe/Andrenini.svg missing"
+    assert (maps_dir / "tribe" / "Bombini.svg").exists(), "tribe/Bombini.svg missing"
+
+    # Genus SVG content: at least one <circle> with fill attribute, no class="occ"
+    tree = ET.parse(str(maps_dir / "genus" / "Andrena.svg"))
+    root = tree.getroot()
+    ns = {'s': SVG_NS}
+    circles = root.findall('.//s:circle', ns)
+    assert len(circles) > 0, "genus/Andrena.svg must contain at least one <circle>"
+    for c in circles:
+        assert 'class' not in c.attrib, (
+            f"Group SVG circles must not use class='occ'; found class attrib on circle"
+        )
+    # All circles must be inside a <g fill="..."> element
+    g_elements = root.findall('.//s:g', ns)
+    assert any('fill' in g.attrib for g in g_elements), (
+        "genus/Andrena.svg must have at least one <g fill='...'> element"
+    )
+
+
+def test_generate_group_maps_deterministic(tmp_path, monkeypatch):
+    """Two consecutive calls to _generate_group_maps with identical inputs
+    produce byte-identical SVG output (D-01 determinism).
+    """
+    # First run
+    tmp_a = tmp_path / "run_a"
+    tmp_a.mkdir()
+    monkeypatch.setattr(species_maps_module, 'ASSETS_DIR', tmp_a)
+    _write_test_species_parquet(tmp_a)
+    maps_dir_a = tmp_a / "species-maps"
+    maps_dir_a.mkdir()
+    con = duckdb.connect()
+    backdrop = ET.Element(f"{{{SVG_NS}}}svg")
+    WA_IN = (-120.5, 47.5)
+    occ_by_canon = {
+        'Andrena milwaukeensis': [WA_IN],
+        'Andrena prunorum': [WA_IN],
+        'Andrena vicina': [WA_IN],
+        'Bombus mixtus': [WA_IN],
+    }
+    _generate_group_maps(con, occ_by_canon, backdrop, maps_dir_a)
+
+    # Second run with identical inputs
+    tmp_b = tmp_path / "run_b"
+    tmp_b.mkdir()
+    monkeypatch.setattr(species_maps_module, 'ASSETS_DIR', tmp_b)
+    _write_test_species_parquet(tmp_b)
+    maps_dir_b = tmp_b / "species-maps"
+    maps_dir_b.mkdir()
+    con2 = duckdb.connect()
+    backdrop2 = ET.Element(f"{{{SVG_NS}}}svg")
+    _generate_group_maps(con2, occ_by_canon, backdrop2, maps_dir_b)
+
+    # Compare byte-identical output for each SVG
+    svg_pairs = [
+        (maps_dir_a / "genus" / "Andrena.svg", maps_dir_b / "genus" / "Andrena.svg"),
+        (maps_dir_a / "genus" / "Bombus.svg", maps_dir_b / "genus" / "Bombus.svg"),
+        (maps_dir_a / "subgenus" / "Andrena" / "Melandrena.svg",
+         maps_dir_b / "subgenus" / "Andrena" / "Melandrena.svg"),
+        (maps_dir_a / "tribe" / "Andrenini.svg", maps_dir_b / "tribe" / "Andrenini.svg"),
+    ]
+    for path_a, path_b in svg_pairs:
+        assert path_a.read_bytes() == path_b.read_bytes(), (
+            f"Non-deterministic output: {path_a.name} differs between two runs"
+        )
