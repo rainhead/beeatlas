@@ -47,6 +47,18 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     return undefined;
   }
 
+  function findTaxonChunk(): string | undefined {
+    const assetsDir = resolve(ROOT, '_site/assets');
+    const flat = readdirSync(assetsDir).filter(f => /^taxon-page-.*\.js$/.test(f));
+    if (flat.length > 0) return resolve(assetsDir, flat[0]!);
+    const nestedDir = resolve(assetsDir, 'taxon-page');
+    try {
+      const nested = readdirSync(nestedDir).filter(f => /\.js$/.test(f));
+      if (nested.length > 0) return resolve(nestedDir, nested[0]!);
+    } catch { /* directory absent */ }
+    return undefined;
+  }
+
   test('emits a species-page chunk distinct from index-*.js (PAGE-09)', () => {
     const speciesChunk = findSpeciesChunk();
     expect(speciesChunk, 'no species page chunk emitted under _site/assets/').toBeDefined();
@@ -59,5 +71,56 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(speciesChunk).toBeDefined();
     const src = readFileSync(speciesChunk!, 'utf-8');
     expect(src).not.toMatch(/mapboxgl/);
+  });
+
+  test('emits _site/species/Agapostemon/femoratus/index.html (SPE-01, URL-01, PIPE-01)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Agapostemon/femoratus/index.html'), 'utf-8'
+    );
+    expect(html).toContain('<em>Agapostemon femoratus</em>');
+    expect(html).toContain('<seasonality-viz');
+    expect(html).toContain('/data/species-maps/Agapostemon/femoratus.svg');
+    expect(html).toMatch(/View \d+ occurrences on the atlas/);
+  });
+
+  test('every <img> on a species page has loading="lazy" (PAGE-07 carry-forward, SPE-02/SPE-03)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Agapostemon/femoratus/index.html'), 'utf-8'
+    );
+    const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+    for (const img of imgs) {
+      expect(img, img).toMatch(/loading="lazy"/);
+    }
+  });
+
+  test('emits _site/species/Agapostemon/index.html (GEN-01, URL-02, PIPE-01)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Agapostemon/index.html'), 'utf-8'
+    );
+    expect(html).toContain('<em>Agapostemon</em>');
+    expect(html).toContain('/data/species-maps/genus/Agapostemon.svg');
+    expect(html).toContain('class="species-list"');
+    expect(html).toMatch(/background:\s*#d92626/);
+  });
+
+  test('genus page links each species to its species page (GEN-03)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Agapostemon/index.html'), 'utf-8'
+    );
+    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/"/);
+  });
+
+  test('emits a taxon-page chunk distinct from species chunk (Pattern 4)', () => {
+    const taxonChunk = findTaxonChunk();
+    const assetsDir = resolve(ROOT, '_site/assets');
+    const hasFlatTaxon = readdirSync(assetsDir).some(f => /^taxon-page-.*\.js$/.test(f));
+    let hasNestedTaxon = false;
+    try {
+      const nestedDir = resolve(assetsDir, 'taxon-page');
+      hasNestedTaxon = readdirSync(nestedDir).some(f => /\.js$/.test(f));
+    } catch { /* directory absent */ }
+    // taxonChunk defined => at least one layout found; check both layouts explicitly
+    expect(taxonChunk, 'no taxon-page chunk emitted').toBeDefined();
+    expect(hasFlatTaxon || hasNestedTaxon, 'no taxon-page chunk emitted').toBe(true);
   });
 });
