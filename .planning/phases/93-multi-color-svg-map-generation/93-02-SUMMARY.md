@@ -54,7 +54,7 @@ completed: 2026-05-15
 
 **_generate_group_maps and _write_group_svg implemented in species_maps.py; wired into generate_species_maps; emits genus/<G>.svg, subgenus/<G>/<S>.svg, tribe/<T>.svg with per-species colored circles sorted alphabetically (D-01/D-02)**
 
-**Status: PARTIAL — pending human verification checkpoint (Task 3)**
+**Status: COMPLETE — human verification approved 2026-05-15**
 
 ## Performance
 
@@ -78,9 +78,12 @@ Each task was committed atomically:
 
 1. **Task 1: Add _write_group_svg and _generate_group_maps, wire into generate_species_maps** - `11f9f52` (feat)
 2. **Task 2: Activate group-map tests; add determinism test and synthetic-parquet fixture** - `38de977` (test)
-3. **Task 3: Human verification** - PENDING
+3. **Task 3: Human verification** - APPROVED 2026-05-15
 
-**Plan metadata:** (to be committed with SUMMARY.md)
+Additional post-checkpoint fixes committed by orchestrator:
+- `fix(93)`: switched occurrence sweep from `ecdysis_data.occurrences` to `occurrences.parquet` dbt mart — now includes both Ecdysis and iNat-only records, matching the main map
+- `fix(93)`: filter per-species SVGs with `specific_epithet IS NOT NULL` — excludes 102 genus-only occurrence records from getting their own SVG
+- `fix(93)`: grey (`#aaaaaa`) for unresolved members on group maps — taxa identified only to genus/subgenus/tribe level shown as grey dots rather than a hue
 
 ## Files Created/Modified
 - `data/species_maps.py` - Added `_write_group_svg` (51 lines) and `_generate_group_maps` (91 lines) before `generate_species_maps`; added call to `_generate_group_maps` at end of `generate_species_maps` body
@@ -94,7 +97,10 @@ Each task was committed atomically:
 
 ## Deviations from Plan
 
-None - plan executed exactly as written.
+Three fixes applied during human verification (Task 3):
+1. **Occurrence data source**: plan assumed `ecdysis_data.occurrences`; switched to `occurrences.parquet` dbt mart to match the main map (both Ecdysis + iNat arms).
+2. **Per-species SVG filter**: added `AND specific_epithet IS NOT NULL` — 102 genus-only records were getting spurious per-species SVG files.
+3. **Unresolved color**: taxa identified only to group level (no `specific_epithet`) now render grey (`#aaaaaa`) on group maps rather than a hue color.
 
 ## Issues Encountered
 
@@ -123,4 +129,4 @@ None — pure file-system output, no network or DB writes.
 
 ---
 *Phase: 93-multi-color-svg-map-generation*
-*Completed: 2026-05-15 (partial — Task 3 checkpoint pending)*
+*Completed: 2026-05-15*
