@@ -73,4 +73,53 @@ function toPlain(node) {
 
 const tree = buildTree(flat);
 
-export default { tree, flat, byScientificName, counties, ecoregionL3 };
+// Phase 93 D-01: HSL→hex formula matching Python colorsys.hls_to_rgb exactly.
+// Color index i is derived from alphabetical-by-canonical_name sort within each
+// genus group (D-02). Formula verified numerically for hue=0→#d92626, hue=120→#26d926,
+// hue=240→#2626d9. Do NOT refactor — numerical equivalence is load-bearing.
+function hslToHex(h, s, l) {
+  s /= 100; l /= 100;
+  const c = (1 - Math.abs(2*l - 1)) * s;
+  const x = c * (1 - Math.abs((h/60) % 2 - 1));
+  const m = l - c/2;
+  let r=0, g=0, b=0;
+  if (h < 60)       { r=c; g=x; b=0; }
+  else if (h < 120) { r=x; g=c; b=0; }
+  else if (h < 180) { r=0; g=c; b=x; }
+  else if (h < 240) { r=0; g=x; b=c; }
+  else if (h < 300) { r=x; g=0; b=c; }
+  else              { r=c; g=0; b=x; }
+  const toHex = n => Math.round((n+m)*255).toString(16).padStart(2,'0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+// Filter to actual species entries (excludes genus-level records where specific_epithet is null)
+const speciesList = flat.filter(s => s.specific_epithet !== null);
+
+// Build genus groupings with HSL colors matching Phase 93 D-01 / D-02 sort order.
+const genusMap = {};
+for (const sp of speciesList) {
+  if (!genusMap[sp.genus]) {
+    genusMap[sp.genus] = { genus: sp.genus, family: sp.family, subfamily: sp.subfamily, species: [] };
+  }
+  genusMap[sp.genus].species.push(sp);
+}
+const genusList = Object.values(genusMap)
+  .sort((a, b) => a.genus.localeCompare(b.genus))
+  .map(g => {
+    // D-01/D-02: sort alphabetically by canonical_name — matches SVG color assignment order
+    const sorted = g.species.slice().sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
+    const n = sorted.length;
+    const speciesWithColors = sorted.map((sp, i) => ({
+      ...sp,
+      hexColor: sp.occurrence_count > 0 ? hslToHex(i * 360 / n, 70, 50) : '#cccccc',
+    }));
+    return {
+      ...g,
+      species: speciesWithColors,
+      speciesCount: sorted.length,
+      totalOccurrences: sorted.reduce((acc, sp) => acc + sp.occurrence_count, 0),
+    };
+  });
+
+export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList };
