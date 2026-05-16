@@ -274,4 +274,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-16 — Phase 94 complete: 527 species detail pages + 42 genus pages at /species/{Genus}/{epithet}/ and /species/{Genus}/; hex swatch colors match SVG dot colors (D-01/D-02); seasonality chart, occurrence map, and species roster on each page*
+*Last updated: 2026-05-16 — Phase 95 complete: 103 subgenus pages at /species/{Genus}/{Subgenus}/ and 19 tribe pages at /species/tribe/{TribeName}/; multi-color SVG occurrence maps with swatch-decorated species lists; color indices parity-correct with Phase 93 SVGs (URL-03, URL-04, SUBG-01–03, TRIBE-01–03)*
