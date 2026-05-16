@@ -662,5 +662,5 @@ Plans:
 | 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete    | 2026-05-15 |
 | 93. Multi-Color SVG Map Generation | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 94. Species & Genus Pages | v3.6 | 3/3 | Complete    | 2026-05-16 |
-| 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete   | 2026-05-16 |
+| 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 96. Index Page Replacement | v3.6 | 0/? | Not started | - |

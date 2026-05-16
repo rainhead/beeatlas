@@ -11,8 +11,8 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 
 - [x] **URL-01**: Each species has a dedicated page at `/species/{Genus}/{specificEpithet}/` where Genus preserves original capitalization and specificEpithet is lowercase (hyphens permitted in epithet)
 - [x] **URL-02**: Each genus has a dedicated page at `/species/{Genus}/`
-- [ ] **URL-03**: Each subgenus has a dedicated page at `/species/{Genus}/{Subgenus}/` (both capitalized, distinguishing it from lowercase specific epithets)
-- [ ] **URL-04**: Each tribe has a dedicated page at `/species/tribe/{TribeName}/`
+- [x] **URL-03**: Each subgenus has a dedicated page at `/species/{Genus}/{Subgenus}/` (both capitalized, distinguishing it from lowercase specific epithets)
+- [x] **URL-04**: Each tribe has a dedicated page at `/species/tribe/{TribeName}/`
 - [ ] **URL-05**: The existing `/species/` all-cards single-page layout (tree-nav + per-species card wall) is replaced entirely by the new index page
 
 ### Index Page
@@ -30,15 +30,15 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 
 ### Subgenus Pages
 
-- [ ] **SUBG-01**: Subgenus page lists species belonging to that subgenus with specimen counts
-- [ ] **SUBG-02**: Subgenus page displays a multi-color static SVG occurrence map for species in the subgenus
-- [ ] **SUBG-03**: Each species entry links to its individual species page
+- [x] **SUBG-01**: Subgenus page lists species belonging to that subgenus with specimen counts
+- [x] **SUBG-02**: Subgenus page displays a multi-color static SVG occurrence map for species in the subgenus
+- [x] **SUBG-03**: Each species entry links to its individual species page
 
 ### Tribe Pages
 
-- [ ] **TRIBE-01**: Tribe page lists all genera belonging to that tribe
-- [ ] **TRIBE-02**: Tribe page displays a multi-color static SVG occurrence map for all species in the tribe
-- [ ] **TRIBE-03**: Each genus entry links to its genus page
+- [x] **TRIBE-01**: Tribe page lists all genera belonging to that tribe
+- [x] **TRIBE-02**: Tribe page displays a multi-color static SVG occurrence map for all species in the tribe
+- [x] **TRIBE-03**: Each genus entry links to its genus page
 
 ### Species Pages
 
@@ -72,8 +72,8 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 |-------------|-------|--------|
 | URL-01 | Phase 94 | Complete |
 | URL-02 | Phase 94 | Complete |
-| URL-03 | Phase 95 | Pending |
-| URL-04 | Phase 95 | Pending |
+| URL-03 | Phase 95 | Complete |
+| URL-04 | Phase 95 | Complete |
 | URL-05 | Phase 96 | Pending |
 | IDX-01 | Phase 96 | Pending |
 | IDX-02 | Phase 96 | Pending |
@@ -82,12 +82,12 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 | GEN-01 | Phase 94 | Complete |
 | GEN-02 | Phase 94 | Complete |
 | GEN-03 | Phase 94 | Complete |
-| SUBG-01 | Phase 95 | Pending |
-| SUBG-02 | Phase 95 | Pending |
-| SUBG-03 | Phase 95 | Pending |
-| TRIBE-01 | Phase 95 | Pending |
-| TRIBE-02 | Phase 95 | Pending |
-| TRIBE-03 | Phase 95 | Pending |
+| SUBG-01 | Phase 95 | Complete |
+| SUBG-02 | Phase 95 | Complete |
+| SUBG-03 | Phase 95 | Complete |
+| TRIBE-01 | Phase 95 | Complete |
+| TRIBE-02 | Phase 95 | Complete |
+| TRIBE-03 | Phase 95 | Complete |
 | SPE-01 | Phase 94 | Complete |
 | SPE-02 | Phase 94 | Complete |
 | SPE-03 | Phase 94 | Complete |
