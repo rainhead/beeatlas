@@ -16,7 +16,7 @@ findings:
   warning: 1
   info: 0
   total: 2
-status: issues_found
+status: fixed
 ---
 
 # Phase 96: Code Review Report
@@ -24,7 +24,7 @@ status: issues_found
 **Reviewed:** 2026-05-16
 **Depth:** standard
 **Files Reviewed:** 7
-**Status:** issues_found
+**Status:** fixed
 
 ## Summary
 
@@ -58,6 +58,8 @@ The peer template `_pages/species-detail.njk` correctly uses `species.speciesLis
 
 No other template change is needed. After this fix, the genus-level rows will no longer appear in the species list, and the duplicate `/species/{Genus}/` links will be eliminated.
 
+**Fix status:** fixed — commit `0f54a8d`
+
 ---
 
 ## Warnings
@@ -87,6 +89,8 @@ emptyMsg.hidden = !query || anyVisible;
 ```
 
 This is semantically identical for all non-empty datasets but makes the intent explicit and is less likely to be incorrectly modified in future edits (the current form requires knowing that `||` short-circuits and that `anyVisible` precedes `!query` in logical evaluation priority).
+
+**Fix status:** fixed — commit `d95cab9`
 
 ---
 
