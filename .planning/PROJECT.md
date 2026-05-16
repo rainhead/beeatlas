@@ -274,4 +274,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-15 — Phase 92 complete: hierarchical slug format (`Genus/epithet`) emitted by pipeline; species-photos.toml cleaned to zero orphan warnings*
+*Last updated: 2026-05-16 — Phase 93 complete: multi-color SVG maps for genus/subgenus/tribe pages; occurrence source unified to dbt mart (Ecdysis + iNat); unresolved taxa shown as grey dots*
