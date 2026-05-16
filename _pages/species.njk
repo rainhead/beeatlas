@@ -10,7 +10,7 @@ title: Species — BeeAtlas
          placeholder="Filter genera and species…"
          autocomplete="off">
   <p id="filter-empty" hidden>No genera or species match "<span id="filter-query"></span>".</p>
-  {%- for family, familyGroup in species.flat | groupby("family") -%}
+  {%- for family, familyGroup in species.speciesList | groupby("family") -%}
   <section class="family-section" data-family="{{ family }}">
     <h2>{{ family }}</h2>
     {%- for genus, genusGroup in familyGroup | groupby("genus") -%}
