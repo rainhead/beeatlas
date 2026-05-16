@@ -3,6 +3,15 @@
  * custom elements wrapping the page body). Design tokens from src/index.css.
  */
 
+/* seasonality-viz runs in light DOM on taxon pages — static styles don't apply,
+ * so the SVG fill rules must live here instead of in the component's static styles. */
+seasonality-viz .band-winter { fill: #f0f4ff; }
+seasonality-viz .band-spring { fill: #e8f5e8; }
+seasonality-viz .band-summer { fill: #fff4dc; }
+seasonality-viz .band-fall   { fill: #fde8d8; }
+seasonality-viz .bar         { fill: #2a5a8a; }
+seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
+
 .taxon-page {
   max-width: 1100px;
   margin: 0 auto;
