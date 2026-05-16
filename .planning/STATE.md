@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.6
 milestone_name: Simpler Species Index
-status: executing
+status: milestone_complete
 last_updated: "2026-05-16T15:20:36.668Z"
 last_activity: 2026-05-16 -- Phase 96 execution started
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 13
   completed_plans: 10
-  percent: 77
+  percent: 50
 ---
 
 # Project State
@@ -24,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-15 — v3.6 Simpler Species Index mil
 
 ## Current Position
 
-Phase: 96 (index-page-replacement) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 96
-Last activity: 2026-05-16 -- Phase 96 execution started
+Phase: 96
+Plan: Not started
+Status: Milestone complete
+Last activity: 2026-05-16
 
 Progress: [██████████] 100%
 
