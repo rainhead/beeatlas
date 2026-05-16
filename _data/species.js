@@ -136,4 +136,56 @@ const genusList = Object.values(genusMap)
     };
   });
 
-export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList };
+// Build subgenus groupings. Color indices must be computed over ALL members with
+// occurrence_count > 0 (including unresolved records where specific_epithet is null),
+// matching Python's _group_colors input: `WHERE occurrence_count > 0 ORDER BY canonical_name`.
+// This is the same approach as genusList (Pitfall 1 in 95-RESEARCH.md).
+const subgenusMap = {};
+for (const sp of flat) {
+  if (!sp.subgenus || sp.subgenus.trim() === '') continue;
+  const key = `${sp.genus}::${sp.subgenus}`;
+  if (!subgenusMap[key]) {
+    subgenusMap[key] = {
+      genus: sp.genus,
+      subgenus: sp.subgenus,
+      family: sp.family,
+      subfamily: sp.subfamily,
+      tribe: sp.tribe,
+      allMembers: [],
+    };
+  }
+  subgenusMap[key].allMembers.push(sp);
+}
+const subgenusList = Object.values(subgenusMap)
+  .sort((a, b) => a.genus.localeCompare(b.genus) || a.subgenus.localeCompare(b.subgenus))
+  .map(g => {
+    // All members with occurrences, sorted by canonical_name — matches Python _group_colors input.
+    const withOcc = g.allMembers
+      .filter(sp => sp.occurrence_count > 0)
+      .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
+    const n = withOcc.length;
+    // Unresolved records (specific_epithet null) get #aaaaaa, matching Python's _UNRESOLVED_COLOR.
+    const colorByCanon = Object.fromEntries(
+      withOcc.map((sp, i) => [
+        sp.canonical_name,
+        sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
+      ])
+    );
+    // Display only species (specific_epithet != null) on the subgenus page.
+    const species = withOcc
+      .filter(sp => sp.specific_epithet !== null)
+      .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
+    return {
+      genus: g.genus,
+      subgenus: g.subgenus,
+      family: g.family,
+      subfamily: g.subfamily,
+      tribe: g.tribe,
+      species,
+      speciesCount: species.length,
+      totalOccurrences: withOcc.reduce((acc, sp) => acc + sp.occurrence_count, 0),
+    };
+  })
+  .filter(g => g.totalOccurrences > 0);
+
+export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList };
