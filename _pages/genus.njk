@@ -1,0 +1,33 @@
+---
+pagination:
+  data: species.genusList
+  size: 1
+  alias: genus
+permalink: "/species/{{ genus.genus }}/"
+eleventyComputed:
+  title: "{{ genus.genus }} — BeeAtlas"
+layout: default.njk
+---
+<article class="taxon-page">
+  <nav class="breadcrumb">
+    {{ genus.family }}<span class="sep">/</span>{{ genus.genus }}
+  </nav>
+  <h1><em>{{ genus.genus }}</em></h1>
+  <p class="metadata">{{ genus.speciesCount }} species · {{ genus.totalOccurrences }} records</p>
+  <div class="media-grid">
+    <img loading="lazy"
+         src="/data/species-maps/genus/{{ genus.genus }}.svg"
+         alt="Occurrence map for genus {{ genus.genus }}"
+         style="aspect-ratio: 15/8; width: 100%;">
+    <ul class="species-list">
+    {%- for sp in genus.species -%}
+      <li>
+        <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
+        <a href="/species/{{ sp.slug }}/"><em>{{ sp.scientificName }}</em></a>
+        <span class="count">{{ sp.occurrence_count }} records</span>
+      </li>
+    {%- endfor -%}
+    </ul>
+  </div>
+</article>
+<script type="module" src="/src/entries/taxon-page.ts"></script>

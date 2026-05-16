@@ -1,0 +1,103 @@
+/* Phase 94: layout for /species/{Genus}/{epithet}/ and /species/{Genus}/ pages.
+ * Extends species.css conventions; light-DOM patterns not needed here (no
+ * custom elements wrapping the page body). Design tokens from src/index.css.
+ */
+
+.taxon-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* First <img> child — photo hero. Reserve 4:3 box. */
+.taxon-page > img:first-of-type,
+.taxon-page .photo-hero {
+  aspect-ratio: 4 / 3;
+  max-height: 360px;
+  width: 100%;
+  object-fit: contain;
+  background: var(--surface-subtle, #f5f5f5);
+}
+
+/* SVG occurrence map: viewBox 600x320 = 15:8 aspect. */
+.taxon-page img[src*="/species-maps/"] {
+  aspect-ratio: 15 / 8;
+  width: 100%;
+  max-width: 600px;
+}
+
+.taxon-page .attribution {
+  font-size: 0.75rem;
+  color: var(--text-muted, #666);
+  margin: 0.25rem 0 0.5rem;
+}
+
+.taxon-page .metadata {
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+}
+
+.breadcrumb {
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+  margin-bottom: 0.5rem;
+}
+
+.breadcrumb a {
+  color: var(--link, #646cff);
+}
+
+.breadcrumb .sep {
+  padding: 0 4px;
+}
+
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.species-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.species-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border, #ddd);
+}
+
+.species-list .count {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+}
+
+.photo-placeholder {
+  aspect-ratio: 4 / 3;
+  max-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-subtle, #f5f5f5);
+  color: var(--text-hint, #767676);
+  font-style: italic;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .taxon-page .media-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+}

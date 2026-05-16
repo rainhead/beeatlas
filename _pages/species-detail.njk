@@ -1,0 +1,40 @@
+---
+pagination:
+  data: species.speciesList
+  size: 1
+  alias: sp
+permalink: "/species/{{ sp.slug }}/"
+eleventyComputed:
+  title: "{{ sp.scientificName }} — BeeAtlas"
+layout: default.njk
+---
+<article class="taxon-page">
+  <nav class="breadcrumb">
+    {{ sp.family }}<span class="sep">/</span><a href="/species/{{ sp.genus }}/">{{ sp.genus }}</a><span class="sep">/</span>{{ sp.specific_epithet }}
+  </nav>
+  <h1><em>{{ sp.scientificName }}</em></h1>
+  <div class="media-grid">
+    {%- set photoEntry = photos[sp.scientificName] -%}
+    {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
+      {%- set p = photoEntry.photos[0] -%}
+      <img loading="lazy" src="{{ p.src or p.url }}" alt="{{ p.caption or sp.scientificName }}">
+    {%- else -%}
+      <div class="photo-placeholder">No photo available</div>
+    {%- endif -%}
+    {%- if sp.occurrence_count > 0 -%}
+      <img loading="lazy" src="/data/species-maps/{{ sp.slug }}.svg" alt="Occurrence map for {{ sp.scientificName }}">
+    {%- endif -%}
+  </div>
+  {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
+    {%- set p = photoEntry.photos[0] -%}
+    {%- if p.attribution -%}
+      <p class="attribution">{{ p.attribution }}</p>
+    {%- endif -%}
+  {%- endif -%}
+  <seasonality-viz id="sviz">
+  </seasonality-viz>
+  <script>document.getElementById('sviz').data = {{ sp.month_histogram | dump | safe }};</script>
+  <p class="metadata">{{ sp.occurrence_count }} records · {{ sp.county_count }} counties · {{ sp.ecoregion_count }} ecoregions</p>
+  <a href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count }} occurrences on the atlas →</a>
+</article>
+<script type="module" src="/src/entries/taxon-page.ts"></script>
