@@ -97,28 +97,42 @@ function hslToHex(h, s, l) {
 const speciesList = flat.filter(s => s.specific_epithet !== null);
 
 // Build genus groupings with HSL colors matching Phase 93 D-01 / D-02 sort order.
+// Color indices must be computed over ALL genus members with occurrence_count > 0
+// (including unresolved records where specific_epithet is null), matching Python's
+// _group_colors input: `WHERE occurrence_count > 0 ORDER BY canonical_name`.
 const genusMap = {};
-for (const sp of speciesList) {
+for (const sp of flat) {
   if (!genusMap[sp.genus]) {
-    genusMap[sp.genus] = { genus: sp.genus, family: sp.family, subfamily: sp.subfamily, species: [] };
+    genusMap[sp.genus] = { genus: sp.genus, family: sp.family, subfamily: sp.subfamily, allMembers: [] };
   }
-  genusMap[sp.genus].species.push(sp);
+  genusMap[sp.genus].allMembers.push(sp);
 }
 const genusList = Object.values(genusMap)
   .sort((a, b) => a.genus.localeCompare(b.genus))
   .map(g => {
-    // D-01/D-02: sort alphabetically by canonical_name — matches SVG color assignment order
-    const sorted = g.species.slice().sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
-    const n = sorted.length;
-    const speciesWithColors = sorted.map((sp, i) => ({
-      ...sp,
-      hexColor: sp.occurrence_count > 0 ? hslToHex(i * 360 / n, 70, 50) : '#cccccc',
-    }));
+    // All members with occurrences, sorted by canonical_name — matches Python _group_colors input.
+    const withOcc = g.allMembers
+      .filter(sp => sp.occurrence_count > 0)
+      .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
+    const n = withOcc.length;
+    // Unresolved records (specific_epithet null) get #aaaaaa, matching Python's _UNRESOLVED_COLOR.
+    const colorByCanon = Object.fromEntries(
+      withOcc.map((sp, i) => [
+        sp.canonical_name,
+        sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
+      ])
+    );
+    // Display only species (specific_epithet != null) on the genus page.
+    const species = withOcc
+      .filter(sp => sp.specific_epithet !== null)
+      .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
     return {
-      ...g,
-      species: speciesWithColors,
-      speciesCount: sorted.length,
-      totalOccurrences: sorted.reduce((acc, sp) => acc + sp.occurrence_count, 0),
+      genus: g.genus,
+      family: g.family,
+      subfamily: g.subfamily,
+      species,
+      speciesCount: species.length,
+      totalOccurrences: species.reduce((acc, sp) => acc + sp.occurrence_count, 0),
     };
   });
 
