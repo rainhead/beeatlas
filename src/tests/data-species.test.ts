@@ -29,4 +29,47 @@ describe('_data/species.js (PAGE-02)', () => {
     const src = readFileSync(resolve(ROOT, '_data/species.js'), 'utf-8');
     expect(src).not.toMatch(/parquet/i);
   });
+
+  test('exports speciesList (only entries with specific_epithet)', () => {
+    const list = (species as any).speciesList;
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBeGreaterThan(500); // 527 confirmed
+    expect(list.every((s: any) => s.specific_epithet !== null)).toBe(true);
+  });
+
+  test('exports genusList with speciesCount and totalOccurrences', () => {
+    const list = (species as any).genusList;
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBeGreaterThan(0); // 42 genera
+    const agapostemon = list.find((g: any) => g.genus === 'Agapostemon');
+    expect(agapostemon).toBeDefined();
+    expect(typeof agapostemon.speciesCount).toBe('number');
+    expect(typeof agapostemon.totalOccurrences).toBe('number');
+  });
+
+  test('genusList species sorted alphabetically by canonical_name (D-02)', () => {
+    const list = (species as any).genusList;
+    const agapostemon = list.find((g: any) => g.genus === 'Agapostemon');
+    const names = agapostemon.species.map((s: any) => s.canonical_name);
+    const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
+    expect(names).toEqual(sorted);
+  });
+
+  test('first Agapostemon species has hexColor #d92626 (hue=0, D-01)', () => {
+    const list = (species as any).genusList;
+    const agapostemon = list.find((g: any) => g.genus === 'Agapostemon');
+    // First species alphabetically = hue 0 → #d92626 (verified numerically in RESEARCH.md)
+    expect(agapostemon.species[0].hexColor).toBe('#d92626');
+  });
+
+  test('zero-occurrence species gets grey swatch #cccccc', () => {
+    const list = (species as any).genusList;
+    for (const g of list) {
+      for (const sp of g.species) {
+        if (sp.occurrence_count === 0) {
+          expect(sp.hexColor).toBe('#cccccc');
+        }
+      }
+    }
+  });
 });
