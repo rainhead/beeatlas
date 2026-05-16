@@ -381,7 +381,7 @@ See `.planning/milestones/v3.5-ROADMAP.md` for full phase details.
 
 - [x] **Phase 92: Slug Migration & Pipeline Prep** — Update slug format to hierarchical paths; migrate species-photos.toml keys (completed 2026-05-15)
 - [x] **Phase 93: Multi-Color SVG Map Generation** — Extend species_maps.py to generate genus, subgenus, and tribe occurrence maps with per-species colors (completed 2026-05-16)
-- [ ] **Phase 94: Species & Genus Pages** — Eleventy static pages for all species and genera; photo, SVG map, and seasonality on species pages
+- [x] **Phase 94: Species & Genus Pages** — Eleventy static pages for all species and genera; photo, SVG map, and seasonality on species pages (completed 2026-05-16)
 - [ ] **Phase 95: Subgenus & Tribe Pages** — Eleventy static pages for all subgenera and tribes with multi-color SVG maps
 - [ ] **Phase 96: Index Page Replacement** — Replace monolithic /species/ all-cards page with searchable family→genus index
 
@@ -531,7 +531,7 @@ Plans:
 - [x] 94-02-PLAN.md — Create _pages/species-detail.njk, _pages/genus.njk, src/styles/taxon-pages.css, src/entries/taxon-page.ts
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 94-03-PLAN.md — Extend src/tests/build-output.test.ts with taxon-page assertions, run production build, human verification of photo/seasonality/swatch-to-SVG color match
+- [x] 94-03-PLAN.md — Extend src/tests/build-output.test.ts with taxon-page assertions, run production build, human verification of photo/seasonality/swatch-to-SVG color match
 **UI hint**: yes
 
 ### Phase 95: Subgenus & Tribe Pages
@@ -655,6 +655,6 @@ Plans:
 | 91. URL State | v3.5 | 2/2 | Complete    | 2026-05-15 |
 | 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete    | 2026-05-15 |
 | 93. Multi-Color SVG Map Generation | v3.6 | 2/2 | Complete    | 2026-05-16 |
-| 94. Species & Genus Pages | v3.6 | 2/3 | In Progress|  |
+| 94. Species & Genus Pages | v3.6 | 3/3 | Complete   | 2026-05-16 |
 | 95. Subgenus & Tribe Pages | v3.6 | 0/? | Not started | - |
 | 96. Index Page Replacement | v3.6 | 0/? | Not started | - |
