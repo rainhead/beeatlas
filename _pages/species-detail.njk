@@ -33,7 +33,7 @@ layout: default.njk
   {%- endif -%}
   <seasonality-viz id="sviz">
   </seasonality-viz>
-  <script>document.getElementById('sviz').data = {{ sp.month_histogram | dump | safe }};</script>
+  <script>customElements.whenDefined('seasonality-viz').then(function(){document.getElementById('sviz').data={{ sp.month_histogram | dump | safe }};});</script>
   <p class="metadata">{{ sp.occurrence_count }} records · {{ sp.county_count }} counties · {{ sp.ecoregion_count }} ecoregions</p>
   <a href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count }} occurrences on the atlas →</a>
 </article>

@@ -55,11 +55,13 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(names).toEqual(sorted);
   });
 
-  test('first Agapostemon species has hexColor #d92626 (hue=0, D-01)', () => {
+  test('first Agapostemon species has hexColor matching Python _group_colors (D-01)', () => {
     const list = (species as any).genusList;
     const agapostemon = list.find((g: any) => g.genus === 'Agapostemon');
-    // First species alphabetically = hue 0 → #d92626 (verified numerically in RESEARCH.md)
-    expect(agapostemon.species[0].hexColor).toBe('#d92626');
+    // Python includes unresolved records in color index computation (occurrence_count > 0).
+    // Agapostemon: n=4 (agapostemon null, femoratus, agapostemon subtilior null, virescens).
+    // femoratus is i=1 → hue=90 → #80d926. Unresolved get #aaaaaa.
+    expect(agapostemon.species[0].hexColor).toBe('#80d926');
   });
 
   test('zero-occurrence species gets grey swatch #cccccc', () => {
