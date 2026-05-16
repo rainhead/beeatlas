@@ -234,7 +234,7 @@ def _write_group_svg(
                 in_bbox_pts.append((lon, lat))
         if not in_bbox_pts:
             continue  # skip empty groups — no <g> emitted
-        g = ET.SubElement(root, f"{{{SVG_NS}}}g", attrib={"fill": colors[canon]})
+        g = ET.SubElement(root, f"{{{SVG_NS}}}g", attrib={"fill": colors.get(canon, '#aaaaaa')})
         for lon, lat in in_bbox_pts:
             x, y = _project(lon, lat)
             ET.SubElement(
@@ -314,6 +314,10 @@ def _generate_group_maps(
     n_tribe = 0
 
     _UNRESOLVED_COLOR = '#aaaaaa'
+
+    # Unresolved records (specific_epithet IS NULL) are intentionally included in
+    # group maps as grey dots — they show collection effort even when specimens
+    # aren't identified to species. Per-species SVGs exclude them via SQL filter.
 
     # Genus maps: genus/<Genus>.svg
     genus_dir = maps_dir / "genus"
