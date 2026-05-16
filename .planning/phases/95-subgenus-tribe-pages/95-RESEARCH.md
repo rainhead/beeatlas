@@ -493,12 +493,13 @@ The assumption A1 was verified by querying species.json directly. [VERIFIED: cod
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Unresolved-only subgenus pages (14 groups)**
    - What we know: 14 (genus, subgenus) groups (e.g., Apis/Apis, Bombus/Thoracobombus) have SVG maps with occurrence dots but zero named species in the display list.
    - What's unclear: Should these pages be generated? If yes, what copy appears in the species list area?
    - Recommendation: Generate the pages (omit the `<ul>` when `speciesCount === 0`; the SVG map still shows where occurrences are). The UI-SPEC empty state copy ("No occurrence records for this subgenus yet.") doesn't fit these cases — occurrences exist, just no identified species. Omitting the list entirely (no copy) is cleaner. Planner should decide whether to add a note or silently omit.
+   - RESOLVED: Silently omit `<ul>` when `speciesCount === 0` (wrap in `{%- if subgenus.speciesCount > 0 -%}` guard). No additional copy. Decision adopted in 95-01 Task 2.
 
 ---
 
