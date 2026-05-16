@@ -1,0 +1,35 @@
+---
+pagination:
+  data: species.subgenusList
+  size: 1
+  alias: subgenus
+permalink: "/species/{{ subgenus.genus }}/{{ subgenus.subgenus }}/"
+eleventyComputed:
+  title: "{{ subgenus.subgenus }} ({{ subgenus.genus }}) — BeeAtlas"
+layout: default.njk
+---
+<article class="taxon-page">
+  <nav class="breadcrumb">
+    {{ subgenus.family }}<span class="sep">/</span><a href="/species/{{ subgenus.genus }}/">{{ subgenus.genus }}</a><span class="sep">/</span>{{ subgenus.subgenus }}
+  </nav>
+  <h1><em>{{ subgenus.subgenus }}</em></h1>
+  <p class="metadata">{{ subgenus.speciesCount }} species · {{ subgenus.totalOccurrences }} records</p>
+  <div class="media-grid">
+    <img loading="lazy"
+         src="/data/species-maps/subgenus/{{ subgenus.genus }}/{{ subgenus.subgenus }}.svg"
+         alt="Occurrence map for subgenus {{ subgenus.subgenus }} ({{ subgenus.genus }})"
+         style="aspect-ratio: 15/8; width: 100%;">
+    {%- if subgenus.speciesCount > 0 -%}
+    <ul class="species-list">
+    {%- for sp in subgenus.species -%}
+      <li>
+        <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
+        <a href="/species/{{ sp.slug }}/"><em>{{ sp.scientificName }}</em></a>
+        <span class="count">{{ sp.occurrence_count }} records</span>
+      </li>
+    {%- endfor -%}
+    </ul>
+    {%- endif -%}
+  </div>
+</article>
+<script type="module" src="/src/entries/taxon-page.ts"></script>
