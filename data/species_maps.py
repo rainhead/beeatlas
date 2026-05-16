@@ -282,7 +282,7 @@ def _generate_group_maps(
 
     rows = con.execute(
         f"""
-        SELECT canonical_name, genus, subgenus, tribe
+        SELECT canonical_name, genus, subgenus, tribe, specific_epithet
         FROM read_parquet('{species_parquet}')
         WHERE occurrence_count > 0
         ORDER BY canonical_name
@@ -290,11 +290,15 @@ def _generate_group_maps(
     ).fetchall()
 
     # Build group membership dicts.
+    # unresolved: canonical_names with no species epithet (genus/subgenus/tribe-only IDs).
     genus_members: dict[str, list[str]] = defaultdict(list)
     subgenus_members: dict[tuple[str, str], list[str]] = defaultdict(list)
     tribe_members: dict[str, list[str]] = defaultdict(list)
+    unresolved: set[str] = set()
 
-    for canonical_name, genus, subgenus, tribe in rows:
+    for canonical_name, genus, subgenus, tribe, specific_epithet in rows:
+        if specific_epithet is None:
+            unresolved.add(canonical_name)
         if genus:
             genus_members[genus].append(canonical_name)
             # Subgenus null guard (PATTERNS observation #3): filter in Python,
@@ -309,12 +313,17 @@ def _generate_group_maps(
     n_subgenus = 0
     n_tribe = 0
 
+    _UNRESOLVED_COLOR = '#aaaaaa'
+
     # Genus maps: genus/<Genus>.svg
     genus_dir = maps_dir / "genus"
     for genus_name in sorted(genus_members.keys()):
         members = genus_members[genus_name]
         species_points = {c: occ_by_canon.get(c, []) for c in members}
         colors = _group_colors(members)
+        for c in members:
+            if c in unresolved:
+                colors[c] = _UNRESOLVED_COLOR
         total_clipped += _write_group_svg(genus_name, species_points, colors, backdrop, genus_dir)
         n_genus += 1
 
@@ -324,6 +333,9 @@ def _generate_group_maps(
         members = subgenus_members[(genus_name, subgenus_name)]
         species_points = {c: occ_by_canon.get(c, []) for c in members}
         colors = _group_colors(members)
+        for c in members:
+            if c in unresolved:
+                colors[c] = _UNRESOLVED_COLOR
         slug_path = f"{genus_name}/{subgenus_name}"
         total_clipped += _write_group_svg(slug_path, species_points, colors, backdrop, subgenus_dir)
         n_subgenus += 1
@@ -334,6 +346,9 @@ def _generate_group_maps(
         members = tribe_members[tribe_name]
         species_points = {c: occ_by_canon.get(c, []) for c in members}
         colors = _group_colors(members)
+        for c in members:
+            if c in unresolved:
+                colors[c] = _UNRESOLVED_COLOR
         total_clipped += _write_group_svg(tribe_name, species_points, colors, backdrop, tribe_dir)
         n_tribe += 1
 
@@ -380,6 +395,7 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
             SELECT canonical_name, slug
             FROM read_parquet('{species_parquet}')
             WHERE occurrence_count > 0
+              AND specific_epithet IS NOT NULL
             ORDER BY canonical_name
             """
         ).fetchall()
