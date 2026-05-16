@@ -13,14 +13,14 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 - [x] **URL-02**: Each genus has a dedicated page at `/species/{Genus}/`
 - [x] **URL-03**: Each subgenus has a dedicated page at `/species/{Genus}/{Subgenus}/` (both capitalized, distinguishing it from lowercase specific epithets)
 - [x] **URL-04**: Each tribe has a dedicated page at `/species/tribe/{TribeName}/`
-- [ ] **URL-05**: The existing `/species/` all-cards single-page layout (tree-nav + per-species card wall) is replaced entirely by the new index page
+- [x] **URL-05**: The existing `/species/` all-cards single-page layout (tree-nav + per-species card wall) is replaced entirely by the new index page
 
 ### Index Page
 
-- [ ] **IDX-01**: `/species/` lists all species grouped by family, then by genus within each family
-- [ ] **IDX-02**: A type-to-filter text input narrows the displayed genera and species as the user types
-- [ ] **IDX-03**: Clicking a genus name navigates to `/species/{Genus}/`
-- [ ] **IDX-04**: Clicking a species name navigates to `/species/{Genus}/{specificEpithet}/`
+- [x] **IDX-01**: `/species/` lists all species grouped by family, then by genus within each family
+- [x] **IDX-02**: A type-to-filter text input narrows the displayed genera and species as the user types
+- [x] **IDX-03**: Clicking a genus name navigates to `/species/{Genus}/`
+- [x] **IDX-04**: Clicking a species name navigates to `/species/{Genus}/{specificEpithet}/`
 
 ### Genus Pages
 
@@ -74,11 +74,11 @@ Replace the monolithic /species/ all-cards page with a proper per-taxon page arc
 | URL-02 | Phase 94 | Complete |
 | URL-03 | Phase 95 | Complete |
 | URL-04 | Phase 95 | Complete |
-| URL-05 | Phase 96 | Pending |
-| IDX-01 | Phase 96 | Pending |
-| IDX-02 | Phase 96 | Pending |
-| IDX-03 | Phase 96 | Pending |
-| IDX-04 | Phase 96 | Pending |
+| URL-05 | Phase 96 | Complete |
+| IDX-01 | Phase 96 | Complete |
+| IDX-02 | Phase 96 | Complete |
+| IDX-03 | Phase 96 | Complete |
+| IDX-04 | Phase 96 | Complete |
 | GEN-01 | Phase 94 | Complete |
 | GEN-02 | Phase 94 | Complete |
 | GEN-03 | Phase 94 | Complete |
