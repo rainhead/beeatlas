@@ -129,4 +129,54 @@ describe('_data/species.js (PAGE-02)', () => {
     const list = (species as any).subgenusList;
     expect(list.every((g: any) => g.totalOccurrences > 0)).toBe(true);
   });
+
+  // Phase 95 Plan 02 — tribeList tests (TRIBE-01, TRIBE-02, TRIBE-03, URL-04)
+
+  test('exports tribeList as array with length > 10 (19 expected tribes)', () => {
+    const list = (species as any).tribeList;
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBeGreaterThan(10);
+  });
+
+  test('tribeList Andrenini entry has numeric generaCount and totalOccurrences > 0', () => {
+    const list = (species as any).tribeList;
+    const andrenini = list.find((t: any) => t.tribe === 'Andrenini');
+    expect(andrenini).toBeDefined();
+    expect(typeof andrenini.generaCount).toBe('number');
+    expect(andrenini.generaCount).toBeGreaterThan(0);
+    expect(typeof andrenini.totalOccurrences).toBe('number');
+    expect(andrenini.totalOccurrences).toBeGreaterThan(0);
+  });
+
+  test('tribeList Halictini genera sorted alphabetically by genus', () => {
+    const list = (species as any).tribeList;
+    const halictini = list.find((t: any) => t.tribe === 'Halictini');
+    expect(halictini).toBeDefined();
+    const names = halictini.genera.map((g: any) => g.genus);
+    const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
+    expect(names).toEqual(sorted);
+  });
+
+  test('tribeList every genus entry has occurrence_count > 0', () => {
+    const list = (species as any).tribeList;
+    const allGenera = list.flatMap((t: any) => t.genera);
+    expect(allGenera.every((g: any) => g.occurrence_count > 0)).toBe(true);
+  });
+
+  test('tribeList.every(t => t.totalOccurrences > 0) — zero-occurrence tribes excluded', () => {
+    const list = (species as any).tribeList;
+    expect(list.every((t: any) => t.totalOccurrences > 0)).toBe(true);
+  });
+
+  test('tribeList Ammobatini is excluded (zero occurrences)', () => {
+    const list = (species as any).tribeList;
+    expect(list.find((t: any) => t.tribe === 'Ammobatini')).toBeUndefined();
+  });
+
+  test('tribeList Andrenini has family === Andrenidae', () => {
+    const list = (species as any).tribeList;
+    const andrenini = list.find((t: any) => t.tribe === 'Andrenini');
+    expect(andrenini).toBeDefined();
+    expect(andrenini.family).toBe('Andrenidae');
+  });
 });
