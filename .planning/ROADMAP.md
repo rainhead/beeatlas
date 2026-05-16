@@ -383,7 +383,7 @@ See `.planning/milestones/v3.5-ROADMAP.md` for full phase details.
 - [x] **Phase 93: Multi-Color SVG Map Generation** — Extend species_maps.py to generate genus, subgenus, and tribe occurrence maps with per-species colors (completed 2026-05-16)
 - [x] **Phase 94: Species & Genus Pages** — Eleventy static pages for all species and genera; photo, SVG map, and seasonality on species pages (completed 2026-05-16)
 - [x] **Phase 95: Subgenus & Tribe Pages** — Eleventy static pages for all subgenera and tribes with multi-color SVG maps (completed 2026-05-16)
-- [ ] **Phase 96: Index Page Replacement** — Replace monolithic /species/ all-cards page with searchable family→genus index
+- [x] **Phase 96: Index Page Replacement** — Replace monolithic /species/ all-cards page with searchable family→genus index (completed 2026-05-16)
 
 ## Phase Details
 
@@ -570,7 +570,7 @@ Plans:
 - [x] 96-02-PLAN.md — Rewrite _pages/species.njk + create src/entries/species-index.ts + .species-index CSS
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 96-03-PLAN.md — Delete old monolith files + arch.test.ts surgery (URL-05 closure)
+- [x] 96-03-PLAN.md — Delete old monolith files + arch.test.ts surgery (URL-05 closure)
 **UI hint**: yes
 
 ## Progress
@@ -672,4 +672,4 @@ Plans:
 | 93. Multi-Color SVG Map Generation | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 94. Species & Genus Pages | v3.6 | 3/3 | Complete    | 2026-05-16 |
 | 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
-| 96. Index Page Replacement | v3.6 | 2/3 | In Progress|  |
+| 96. Index Page Replacement | v3.6 | 3/3 | Complete   | 2026-05-16 |
