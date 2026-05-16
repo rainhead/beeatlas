@@ -1,5 +1,25 @@
 # Milestones
 
+## v3.6 Simpler Species Index (Shipped: 2026-05-16)
+
+**Phases completed:** 5 phases (92–96), 13 plans
+**Timeline:** 2 days (2026-05-15 → 2026-05-16)
+**LOC:** +5,418 / −23,155 across 154 files (large net deletion — monolith removed)
+**Requirements:** 25/25 complete; audit PASSED 2026-05-16
+**Known deferred items at close:** 26 (carried from v3.5 close — see STATE.md Deferred Items)
+
+**Key accomplishments:**
+
+- Hierarchical `Genus/specificEpithet` slug format implemented in pipeline; 106 non-bee orphan TOML entries removed (735 → 629 species-photos.toml keys, 0 validate-species warnings)
+- Multi-color SVG occurrence maps generated for 44 genera, 103 subgenera, and 19 tribes; D-01/D-02 alphabetical canonical_name sort binds Python SVG colors to JS swatch colors deterministically
+- 527 species pages + 42 genus pages generated as static Eleventy pages with photo, SVG map, and seasonality; lean taxon-page.ts entry (4 imports) distinct from the heavier species chunk
+- 103 subgenus pages at `/species/{Genus}/{Subgenus}/` and 19 tribe pages at `/species/tribe/{TribeName}/` with multi-color SVG maps
+- Monolithic `/species/` all-cards layout (8 production files + 6 test files) replaced with searchable family→genus index; type-to-filter JS search narrows genus/species entries without page reload
+
+**BLOCKER closed at milestone:** `nightly.sh` never uploaded `species-maps/` to S3 — fixed inline (commit `e9c3eed`) before milestone close.
+
+---
+
 ## v3.5 Selection Rectangle (Shipped: 2026-05-15)
 
 **Phases completed:** 3 phases, 4 plans, 3 tasks

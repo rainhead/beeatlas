@@ -1,14 +1,8 @@
 # Washington Bee Atlas
 
-## Current Milestone: v3.6 Simpler Species Index
+## Milestone: v3.6 Simpler Species Index — COMPLETE (2026-05-16)
 
-**Goal:** Replace the monolithic /species/ all-cards page with a proper per-taxon page architecture — a searchable family→genus index as the entry point, plus individual genus and species pages.
-
-**Target features:**
-- Index page (/species/) replaces the existing tree-nav + all-cards layout entirely; species grouped by family then genus; type-to-filter text search narrows the listing as you type
-- Per-genus pages (/species/Andrena/) showing species roster with aggregate occurrence data and a multi-color occurrence map (each species a distinct color)
-- Per-species pages (/species/Andrena/milwaukeensis/) with content equivalent to current species cards (photo, SVG occurrence map, seasonality)
-- URL slug fix: hierarchical case-preserving paths (/species/Genus/specific-epithet/) replace flat slugs (`andrena-milwaukeensis`); specific epithets may contain hyphens
+**Shipped:** Per-taxon page architecture — 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages. Multi-color SVG occurrence maps for all taxon levels. Searchable family→genus index at `/species/`. Hierarchical `Genus/specificEpithet` slug format throughout. 8 monolith files deleted. BLOCKER-01 (SVG maps never reached S3) closed inline.
 
 ## What This Is
 
@@ -136,10 +130,23 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - v3.3 dbt Spike — COMPLETE (2026-05-13)
 - v3.4 dbt Full Rewrite — COMPLETE (2026-05-14)
 - v3.5 Selection Rectangle — COMPLETE (2026-05-15)
+- v3.6 Simpler Species Index — COMPLETE (2026-05-16)
 
-### Active
+### Validated (v3.6)
 
-*(requirements to be defined — see REQUIREMENTS.md)*
+- ✓ URL-01: Each species has a dedicated page at `/species/{Genus}/{specificEpithet}/` — v3.6
+- ✓ URL-02: Each genus has a dedicated page at `/species/{Genus}/` — v3.6
+- ✓ URL-03: Each subgenus has a dedicated page at `/species/{Genus}/{Subgenus}/` — v3.6
+- ✓ URL-04: Each tribe has a dedicated page at `/species/tribe/{TribeName}/` — v3.6
+- ✓ URL-05: `/species/` all-cards layout replaced by family→genus index — v3.6
+- ✓ IDX-01–04: Searchable index groups by family then genus; links navigate to genus and species pages — v3.6
+- ✓ GEN-01–03: Genus pages list species with counts, multi-color SVG map, links to species pages — v3.6
+- ✓ SUBG-01–03: Subgenus pages with species list, multi-color SVG map, links — v3.6
+- ✓ TRIBE-01–03: Tribe pages with genus list, multi-color SVG map, links — v3.6
+- ✓ SPE-01–04: Per-species pages with photo (or fallback), SVG map, seasonality — v3.6
+- ✓ PIPE-01: Eleventy generates all taxon pages from species.json — v3.6
+- ✓ PIPE-02: species_maps.py generates multi-color SVG maps for genus/subgenus/tribe — v3.6
+- ✓ PIPE-03: Hierarchical slug format in species_export.py; species-photos.toml migrated — v3.6
 
 ### Active (future)
 
@@ -163,7 +170,7 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v3.6 on 2026-05-16 — Simpler Species Index (+5,418/−23,155 lines across 154 files, 2 days): 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages generated via Eleventy pagination; multi-color SVG occurrence maps at all taxon levels; monolithic `/species/` all-cards layout (8 files) replaced with searchable family→genus index; hierarchical `Genus/specificEpithet` slug format; BLOCKER-01 closed (species-maps/ S3 upload); 5 phases, 13 plans.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, Mapbox GL JS, Lit (LitElement), wa-sqlite, hyparquet, temporal-polyfill
@@ -255,6 +262,14 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `sel=` param mutually exclusive with `o=` in `buildParams` | Both encode a "what's selected" state; `_selectionBounds && _sidebarOpen` takes precedence in 3-way ternary; cluster/ids fall through | ✓ Good — Phase 91; clean URL — no mixed selection state |
 | `_selectionDrawnGeneration` counter reused for bounds restore race guard | Avoids a separate counter; any new rectangle draw cancels in-flight restore (same generation semantics) | ✓ Good — Phase 91; minimal surface area |
 | `west < east` NOT required in `parseParams` validation | Antimeridian-crossing bounds (west > east) are geographically valid; validation only enforces `south < north` (degenerate north/south would always be empty) | ✓ Good — Phase 91; explicit decision after spec review |
+| Hierarchical `Genus/specificEpithet` slug (not flat `genus-epithet`) | Case-preserving, path-component-friendly, supports hyphens in epithets; old-slug detection uses `NOT LIKE '%/%'` not `LIKE '%-%'` to avoid false positives | ✓ Good — Phase 92; all 527 species slugs match hierarchical pattern |
+| D-01/D-02 alphabetical `canonical_name` sort as color index | Binds Python SVG hue assignment to JS swatch rendering; templates must use the same sort — violating the contract produces color mismatches | ✓ Good — Phase 93; determinism test passes |
+| `occurrences.parquet` dbt mart (not `ecdysis_data.occurrences`) for group SVG maps | Includes both Ecdysis and iNat-only occurrence arms; matches what the main map renders | ✓ Good — Phase 93; fix applied during human verification |
+| `hslToHex` local function in `_data/species.js` (not named export) | Eleventy data cascade requires default export; named exports break the cascade | ✓ Good — Phase 94; Assumption A2 resolved |
+| `eleventyComputed` YAML form for per-page dynamic `<title>` | YAML template string with pagination alias resolves correctly; no JS function fallback needed | ✓ Good — Phase 94; confirmed in dry-run |
+| Lean `taxon-page.ts` Vite entry (4 imports only) | Avoids pulling in heavier species chunk machinery; taxon pages don't need OccurrenceSource or filter controls | ✓ Good — Phase 94; distinct chunk in build output |
+| `subgenusList[].totalOccurrences` includes unresolved records | Known inaccuracy — some subgenus pages show "N records · 0 species"; fixing requires more complex SQL not worth Phase 95 scope | ⚠️ Revisit — Phase 95; documented WARNING-02 |
+| `species-index.ts` type-to-filter uses `data-search` dataset attribute walk | No import of bee-atlas or occurrence machinery; pure DOM string matching; idiomatic for server-rendered Eleventy + minimal JS enhancement | ✓ Good — Phase 96; monolith deleted cleanly |
 
 ## Evolution
 
@@ -274,4 +289,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-16 — Phase 95 complete: 103 subgenus pages at /species/{Genus}/{Subgenus}/ and 19 tribe pages at /species/tribe/{TribeName}/; multi-color SVG occurrence maps with swatch-decorated species lists; color indices parity-correct with Phase 93 SVGs (URL-03, URL-04, SUBG-01–03, TRIBE-01–03)*
+*Last updated: 2026-05-16 after v3.6 milestone — Simpler Species Index complete; 527 species + 42 genus + 103 subgenus + 19 tribe static pages; monolith retired; hierarchical slug format throughout*

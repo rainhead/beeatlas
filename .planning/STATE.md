@@ -1,32 +1,32 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.6
-milestone_name: Simpler Species Index
-status: milestone_complete
-last_updated: "2026-05-16T15:20:36.668Z"
-last_activity: 2026-05-16 -- Phase 96 execution started
+milestone: v3.7
+milestone_name: TBD
+status: planning
+last_updated: "2026-05-16T00:00:00Z"
+last_activity: 2026-05-16 -- v3.6 milestone archived; ready for next milestone
 progress:
-  total_phases: 10
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 10
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-15 — v3.6 Simpler Species Index milestone started)
+See: .planning/PROJECT.md (updated 2026-05-16 — v3.6 Simpler Species Index complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 96 — index-page-replacement
+**Current focus:** Planning v3.7 — run `/gsd-new-milestone`
 
 ## Current Position
 
-Phase: 96
-Plan: Not started
-Status: Milestone complete
+Phase: —
+Plan: —
+Status: Milestone v3.6 archived; ready for next milestone
 Last activity: 2026-05-16
 
 Progress: [██████████] 100%
