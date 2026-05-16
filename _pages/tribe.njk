@@ -1,0 +1,32 @@
+---
+pagination:
+  data: species.tribeList
+  size: 1
+  alias: tribe
+permalink: "/species/tribe/{{ tribe.tribe }}/"
+eleventyComputed:
+  title: "{{ tribe.tribe }} — BeeAtlas"
+layout: default.njk
+---
+<article class="taxon-page">
+  <nav class="breadcrumb">
+    {{ tribe.family }}<span class="sep">/</span>{{ tribe.tribe }}
+  </nav>
+  <h1>{{ tribe.tribe }}</h1>
+  <p class="metadata">{{ tribe.generaCount }} genera · {{ tribe.totalOccurrences }} records</p>
+  <div class="media-grid">
+    <img loading="lazy"
+         src="/data/species-maps/tribe/{{ tribe.tribe }}.svg"
+         alt="Occurrence map for tribe {{ tribe.tribe }}"
+         style="aspect-ratio: 15/8; width: 100%;">
+    <ul class="species-list">
+    {%- for g in tribe.genera -%}
+      <li>
+        <a href="/species/{{ g.genus }}/"><em>{{ g.genus }}</em></a>
+        <span class="count">{{ g.occurrence_count }} records</span>
+      </li>
+    {%- endfor -%}
+    </ul>
+  </div>
+</article>
+<script type="module" src="/src/entries/taxon-page.ts"></script>

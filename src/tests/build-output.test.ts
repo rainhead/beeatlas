@@ -5,7 +5,7 @@
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { execSync } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -165,5 +165,52 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
       resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
     );
     expect(html).not.toContain('<seasonality-viz');
+  });
+
+  // Phase 95 Plan 02 — tribe page tests (TRIBE-01, TRIBE-02, TRIBE-03, URL-04)
+
+  test('emits _site/species/tribe/Andrenini/index.html (TRIBE-01, URL-04, PIPE-01)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/tribe/Andrenini/index.html'), 'utf-8'
+    );
+    expect(html).toContain('<h1>Andrenini</h1>');
+    expect(html).not.toMatch(/<h1><em>Andrenini<\/em><\/h1>/);
+    expect(html).toContain('/data/species-maps/tribe/Andrenini.svg');
+    expect(html).toContain('class="species-list"');
+  });
+
+  test('tribe page links each genus to its genus page (TRIBE-03)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/tribe/Andrenini/index.html'), 'utf-8'
+    );
+    expect(html).toMatch(/href="\/species\/Andrena\/"/);
+  });
+
+  test('tribe page has no swatches (genera-only listing)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/tribe/Andrenini/index.html'), 'utf-8'
+    );
+    expect(html).not.toMatch(/<span class="swatch"/);
+  });
+
+  test('tribe page does not embed seasonality-viz', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/tribe/Andrenini/index.html'), 'utf-8'
+    );
+    expect(html).not.toContain('<seasonality-viz');
+  });
+
+  test('every <img> on a tribe page has loading="lazy" (TRIBE-02 carry-forward)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/tribe/Andrenini/index.html'), 'utf-8'
+    );
+    const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+    for (const img of imgs) {
+      expect(img, img).toMatch(/loading="lazy"/);
+    }
+  });
+
+  test('no tribe page emitted for Ammobatini (zero occurrences)', () => {
+    expect(existsSync(resolve(ROOT, '_site/species/tribe/Ammobatini/index.html'))).toBe(false);
   });
 });
