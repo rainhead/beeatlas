@@ -561,7 +561,16 @@ Plans:
   2. Typing in the search input narrows the displayed genera and species in real time without a page reload
   3. Clicking a genus name navigates to `/species/{Genus}/`
   4. Clicking a species name navigates to `/species/{Genus}/{specificEpithet}/`
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+**Wave 1**
+- [ ] 96-01-PLAN.md — Wave 0 test scaffolding (build-output IDX-01..04+URL-05, page-scaffold entry path, new species-index.test.ts)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 96-02-PLAN.md — Rewrite _pages/species.njk + create src/entries/species-index.ts + .species-index CSS
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 96-03-PLAN.md — Delete old monolith files + arch.test.ts surgery (URL-05 closure)
 **UI hint**: yes
 
 ## Progress
