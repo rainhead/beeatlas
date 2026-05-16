@@ -382,7 +382,7 @@ See `.planning/milestones/v3.5-ROADMAP.md` for full phase details.
 - [x] **Phase 92: Slug Migration & Pipeline Prep** — Update slug format to hierarchical paths; migrate species-photos.toml keys (completed 2026-05-15)
 - [x] **Phase 93: Multi-Color SVG Map Generation** — Extend species_maps.py to generate genus, subgenus, and tribe occurrence maps with per-species colors (completed 2026-05-16)
 - [x] **Phase 94: Species & Genus Pages** — Eleventy static pages for all species and genera; photo, SVG map, and seasonality on species pages (completed 2026-05-16)
-- [ ] **Phase 95: Subgenus & Tribe Pages** — Eleventy static pages for all subgenera and tribes with multi-color SVG maps
+- [x] **Phase 95: Subgenus & Tribe Pages** — Eleventy static pages for all subgenera and tribes with multi-color SVG maps (completed 2026-05-16)
 - [ ] **Phase 96: Index Page Replacement** — Replace monolithic /species/ all-cards page with searchable family→genus index
 
 ## Phase Details
@@ -549,7 +549,7 @@ Plans:
 - [x] 95-01-PLAN.md — Add subgenusList to _data/species.js + create _pages/subgenus.njk (URL-03, SUBG-01, SUBG-02, SUBG-03)
 
 **Wave 2** *(blocked on Wave 1 completion — shared file ownership of _data/species.js and both test files)*
-- [ ] 95-02-PLAN.md — Add tribeList to _data/species.js + create _pages/tribe.njk (URL-04, TRIBE-01, TRIBE-02, TRIBE-03)
+- [x] 95-02-PLAN.md — Add tribeList to _data/species.js + create _pages/tribe.njk (URL-04, TRIBE-01, TRIBE-02, TRIBE-03)
 **UI hint**: yes
 
 ### Phase 96: Index Page Replacement
@@ -662,5 +662,5 @@ Plans:
 | 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete    | 2026-05-15 |
 | 93. Multi-Color SVG Map Generation | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 94. Species & Genus Pages | v3.6 | 3/3 | Complete    | 2026-05-16 |
-| 95. Subgenus & Tribe Pages | v3.6 | 1/2 | In Progress|  |
+| 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete   | 2026-05-16 |
 | 96. Index Page Replacement | v3.6 | 0/? | Not started | - |
