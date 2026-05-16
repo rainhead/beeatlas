@@ -380,7 +380,7 @@ See `.planning/milestones/v3.5-ROADMAP.md` for full phase details.
 ## v3.6 Simpler Species Index (Phases 92–96) — IN PROGRESS
 
 - [x] **Phase 92: Slug Migration & Pipeline Prep** — Update slug format to hierarchical paths; migrate species-photos.toml keys (completed 2026-05-15)
-- [ ] **Phase 93: Multi-Color SVG Map Generation** — Extend species_maps.py to generate genus, subgenus, and tribe occurrence maps with per-species colors
+- [x] **Phase 93: Multi-Color SVG Map Generation** — Extend species_maps.py to generate genus, subgenus, and tribe occurrence maps with per-species colors (completed 2026-05-16)
 - [ ] **Phase 94: Species & Genus Pages** — Eleventy static pages for all species and genera; photo, SVG map, and seasonality on species pages
 - [ ] **Phase 95: Subgenus & Tribe Pages** — Eleventy static pages for all subgenera and tribes with multi-color SVG maps
 - [ ] **Phase 96: Index Page Replacement** — Replace monolithic /species/ all-cards page with searchable family→genus index
@@ -508,10 +508,10 @@ Plans:
 **Plans**: 2 plans
 
 **Wave 1**
-- [ ] 93-01-PLAN.md — Add _group_colors HSL→hex helper + Wave 0 test scaffolding (color determinism, skip-guarded group-output assertions)
+- [x] 93-01-PLAN.md — Add _group_colors HSL→hex helper + Wave 0 test scaffolding (color determinism, skip-guarded group-output assertions)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 93-02-PLAN.md — Implement _generate_group_maps + _write_group_svg, wire into generate_species_maps, activate group-output tests, human pipeline verification
+- [x] 93-02-PLAN.md — Implement _generate_group_maps + _write_group_svg, wire into generate_species_maps, activate group-output tests, human pipeline verification
 
 ### Phase 94: Species & Genus Pages
 **Goal**: Users can navigate to a dedicated static page for any species or genus and see occurrence data and photos
@@ -645,7 +645,7 @@ Plans:
 | 90. Occurrence Query & Sidebar | v3.5 | 1/1 | Complete    | 2026-05-15 |
 | 91. URL State | v3.5 | 2/2 | Complete    | 2026-05-15 |
 | 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete    | 2026-05-15 |
-| 93. Multi-Color SVG Map Generation | v3.6 | 0/2 | Not started | - |
+| 93. Multi-Color SVG Map Generation | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 94. Species & Genus Pages | v3.6 | 0/? | Not started | - |
 | 95. Subgenus & Tribe Pages | v3.6 | 0/? | Not started | - |
 | 96. Index Page Replacement | v3.6 | 0/? | Not started | - |
