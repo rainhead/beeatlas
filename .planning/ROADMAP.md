@@ -522,7 +522,16 @@ Plans:
   2. Visiting `/species/Andrena/` shows the genus page listing all species with specimen counts and the multi-color genus SVG map
   3. Each species entry on the genus page links to its individual species page
   4. Eleventy generates one static page per species and genus from `species.json` at build time — the output files exist at the correct paths
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 1**
+- [ ] 94-01-PLAN.md — Extend _data/species.js with speciesList, genusList, and per-species hexColor (Phase 93 D-01 HSL formula)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 94-02-PLAN.md — Create _pages/species-detail.njk, _pages/genus.njk, src/styles/taxon-pages.css, src/entries/taxon-page.ts
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 94-03-PLAN.md — Extend src/tests/build-output.test.ts with taxon-page assertions, run production build, human verification of photo/seasonality/swatch-to-SVG color match
 **UI hint**: yes
 
 ### Phase 95: Subgenus & Tribe Pages
