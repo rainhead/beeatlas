@@ -109,6 +109,7 @@ for f in counties.geojson ecoregions.geojson; do
         --content-type application/json
 done
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
+aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/species-maps/" "s3://$BUCKET/data/species-maps/"
 echo "exports uploaded in $(_elapsed $_t0)"
 
 # 4. Invalidate CloudFront /data/*
