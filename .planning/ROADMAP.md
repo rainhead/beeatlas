@@ -528,7 +528,7 @@ Plans:
 - [x] 94-01-PLAN.md — Extend _data/species.js with speciesList, genusList, and per-species hexColor (Phase 93 D-01 HSL formula)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 94-02-PLAN.md — Create _pages/species-detail.njk, _pages/genus.njk, src/styles/taxon-pages.css, src/entries/taxon-page.ts
+- [x] 94-02-PLAN.md — Create _pages/species-detail.njk, _pages/genus.njk, src/styles/taxon-pages.css, src/entries/taxon-page.ts
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 94-03-PLAN.md — Extend src/tests/build-output.test.ts with taxon-page assertions, run production build, human verification of photo/seasonality/swatch-to-SVG color match
@@ -655,6 +655,6 @@ Plans:
 | 91. URL State | v3.5 | 2/2 | Complete    | 2026-05-15 |
 | 92. Slug Migration & Pipeline Prep | v3.6 | 3/3 | Complete    | 2026-05-15 |
 | 93. Multi-Color SVG Map Generation | v3.6 | 2/2 | Complete    | 2026-05-16 |
-| 94. Species & Genus Pages | v3.6 | 1/3 | In Progress|  |
+| 94. Species & Genus Pages | v3.6 | 2/3 | In Progress|  |
 | 95. Subgenus & Tribe Pages | v3.6 | 0/? | Not started | - |
 | 96. Index Page Replacement | v3.6 | 0/? | Not started | - |
