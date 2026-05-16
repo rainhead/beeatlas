@@ -1,4 +1,5 @@
 // Phase 80 Wave 0 — RED contract for PAGE-07 / PAGE-09 + D-04 skip-slot.
+// Phase 96 — IDX-01..04 + URL-05 assertions (index page replacement).
 // Post-build assertions on _site/. Wraps the whole describe block in a guard
 // so it can be skipped via VITEST_SKIP_BUILD=1 when local feedback latency
 // matters; CI runs without the flag.
@@ -17,18 +18,25 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     execSync('npm run build', { cwd: ROOT, stdio: 'pipe' });
   }, 180_000);
 
-  test('emits _site/species/index.html with one <bee-species-card> per species (PAGE-01)', () => {
+  test('emits _site/species/index.html with .family-section elements (IDX-01, URL-05)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    const cardCount = (html.match(/<bee-species-card\b/g) ?? []).length;
-    expect(cardCount).toBeGreaterThan(500); // ~629 bee species (Anthophila only)
+    expect(html).toMatch(/class="family-section"/);
+    expect(html).not.toContain('<bee-species-page');
   });
 
-  test('every <img> tag has loading="lazy" (PAGE-07)', () => {
+  test('index page has #species-filter input (IDX-02)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    const imgs = html.match(/<img\b[^>]*>/g) ?? [];
-    for (const img of imgs) {
-      expect(img, img).toMatch(/loading="lazy"/);
-    }
+    expect(html).toMatch(/id="species-filter"/);
+  });
+
+  test('index page has genus links to /species/{Genus}/ (IDX-03)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
+    expect(html).toMatch(/href="\/species\/Agapostemon\/"/);
+  });
+
+  test('index page has species links to /species/{Genus}/{epithet}/ (IDX-04)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
+    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/"/);
   });
 
   // plugin-vite (MPA mode) emits the species page entry under either:
@@ -59,14 +67,14 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     return undefined;
   }
 
-  test('emits a species-page chunk distinct from index-*.js (PAGE-09)', () => {
+  test('emits a species-index chunk distinct from index-*.js (Phase 96, IDX-02)', () => {
     const speciesChunk = findSpeciesChunk();
-    expect(speciesChunk, 'no species page chunk emitted under _site/assets/').toBeDefined();
+    expect(speciesChunk, 'no species-index chunk emitted under _site/assets/').toBeDefined();
     const indexChunks = readdirSync(resolve(ROOT, '_site/assets')).filter(f => /^index-.*\.js$/.test(f));
-    expect(indexChunks.length, 'SPA index chunk missing — cannot prove distinctness').toBeGreaterThan(0);
+    expect(indexChunks.length, 'SPA index chunk missing').toBeGreaterThan(0);
   });
 
-  test('species chunk does NOT contain mapboxgl symbol (PAGE-09)', () => {
+  test('species-index chunk does NOT contain mapboxgl symbol (Phase 96)', () => {
     const speciesChunk = findSpeciesChunk();
     expect(speciesChunk).toBeDefined();
     const src = readFileSync(speciesChunk!, 'utf-8');
