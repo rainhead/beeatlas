@@ -31,7 +31,7 @@ input?.addEventListener('input', () => {
     if (sectionVisible) anyVisible = true;
   }
   if (emptyMsg) {
-    emptyMsg.hidden = anyVisible || !query;
+    emptyMsg.hidden = !query || anyVisible;
     const querySpan = document.getElementById('filter-query');
     if (querySpan) querySpan.textContent = input.value.trim();
   }
