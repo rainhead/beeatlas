@@ -188,4 +188,40 @@ const subgenusList = Object.values(subgenusMap)
   })
   .filter(g => g.totalOccurrences > 0);
 
-export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList };
+// Build tribe groupings. Each tribe lists its genera aggregated by occurrence count.
+// Tribes spanning multiple genera aggregate per-genus counts independently.
+// All WA tribes are single-family per Data Inventory A1; family captured from first member.
+const tribeMap = {};
+for (const sp of flat) {
+  if (!sp.tribe || sp.tribe.trim() === '') continue;
+  if (!tribeMap[sp.tribe]) {
+    tribeMap[sp.tribe] = {
+      tribe: sp.tribe,
+      family: sp.family,  // first encountered is authoritative (all WA tribes are single-family)
+      generaMap: {},
+    };
+  }
+  if (!tribeMap[sp.tribe].generaMap[sp.genus]) {
+    tribeMap[sp.tribe].generaMap[sp.genus] = 0;
+  }
+  tribeMap[sp.tribe].generaMap[sp.genus] += sp.occurrence_count;
+}
+const tribeList = Object.values(tribeMap)
+  .sort((a, b) => a.tribe.localeCompare(b.tribe))
+  .map(t => {
+    const genera = Object.entries(t.generaMap)
+      .filter(([, occ]) => occ > 0)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([genus, occurrence_count]) => ({ genus, occurrence_count }));
+    const totalOccurrences = genera.reduce((acc, g) => acc + g.occurrence_count, 0);
+    return {
+      tribe: t.tribe,
+      family: t.family,
+      genera,
+      generaCount: genera.length,
+      totalOccurrences,
+    };
+  })
+  .filter(t => t.totalOccurrences > 0);
+
+export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList };
