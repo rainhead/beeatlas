@@ -2,6 +2,47 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.6 — Simpler Species Index
+
+**Shipped:** 2026-05-16
+**Phases:** 5 (92–96) | **Plans:** 13 | **Timeline:** 2 days
+
+### What Was Built
+
+- Phase 92: Hierarchical `Genus/specificEpithet` slug migration in `species_export.py` and `species_maps.py`; tomlkit-based audit removed 106 non-bee orphan entries from `species-photos.toml`
+- Phase 93: `_group_colors` D-01 HSL helper and `_generate_group_maps` in `species_maps.py`; 44 genus + 103 subgenus + 19 tribe multi-color SVG occurrence maps
+- Phase 94: `speciesList`, `genusList`, `hslToHex` in `_data/species.js`; `species-detail.njk` and `genus.njk` Eleventy pagination templates; lean `taxon-page.ts` Vite entry; 527 species pages + 42 genus pages
+- Phase 95: `subgenusList` and `tribeList` in `_data/species.js`; `subgenus.njk` and `tribe.njk` templates; 103 subgenus pages + 19 tribe pages
+- Phase 96: `species.njk` rewritten as family→genus index; `species-index.ts` thin filter entry; 8 monolith production files + 6 test files deleted; arch.test.ts allowlist updated
+
+### What Worked
+
+- Wave 0 TDD scaffolding (RED-before-GREEN) caught the slug old-format detection false positive (`LIKE '%-%'` vs `NOT LIKE '%/%'`) in Phase 92 before it shipped
+- D-01/D-02 alphabetical canonical_name sort as the binding contract between Python SVG hue assignment and JS swatch rendering — one invariant, two test surfaces
+- `gsd-audit-milestone` ran before close and correctly caught BLOCKER-01 (species-maps/ never uploaded to S3); the fix was a one-liner that closed 4 requirements
+- Phase 96 cleanup left the repo cleaner than it started: net −17,737 lines across 154 files
+
+### What Was Inefficient
+
+- Phase 94 human checkpoint auto-approved — 4 browser verifications (photo CSS hero, seasonality render, mobile layout, swatch-to-SVG D-02 cross-check) never happened; will need manual verification or a gap-closure plan
+- `requirements-completed` frontmatter missing from Phase 95 SUMMARY files for the second milestone running (same gap as v3.5 SEL-01–SEL-05) — post-execution docs remain a weak point
+- BLOCKER-01 should have been caught earlier (during Phase 94 execution) when SVG URLs were first embedded in templates; it took the audit to surface it
+
+### Patterns Established
+
+- `tomlkit` for round-trip TOML mutation (audit-then-apply with JSON disposition report) — reusable for any future content migration requiring auditable change trail
+- `hasattr` skip-guard pattern for forward-looking test scaffolding (Phase 93 Plan 01) — tests activate automatically when the implementation lands
+- Lean Vite MPA entry pattern: `taxon-page.ts` with 4 imports keeps taxon-page chunk separate from the heavier SPA entry; reuse for any future standalone page type
+- `data-search` dataset attribute walk for server-rendered filter UX — idiomatic for Eleventy + minimal JS without pulling in framework overhead
+
+### Key Lessons
+
+- Populate `requirements-completed` in every SUMMARY.md plan at time of execution, not retroactively — two milestones in a row this was a documentation gap at audit time
+- Browser-verifiable behaviors (CSS layout, chart renders, mobile breakpoints) need human checkpoints that aren't auto-approved — mark `auto_advance: false` for plans with meaningful UI output
+- Pre-flight audit should check for S3 upload completeness whenever the pipeline emits new file trees; a new output type without an S3 upload line is a structural gap
+
+---
+
 ## Milestone: v3.5 — Selection Rectangle
 
 **Shipped:** 2026-05-15

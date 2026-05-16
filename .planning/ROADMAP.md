@@ -28,7 +28,7 @@
 - ✅ **v3.3 dbt Spike** — Phases 83–84 (shipped 2026-05-13). Verdict: GO-WITH-CONDITIONS. See [.planning/milestones/v3.3-ROADMAP.md](milestones/v3.3-ROADMAP.md).
 - ✅ **v3.4 dbt Full Rewrite** — Phases 85–88 (shipped 2026-05-14). dbt is the sole producer of pipeline outputs; legacy Python transforms and validate-schema.mjs retired. See [.planning/milestones/v3.4-ROADMAP.md](milestones/v3.4-ROADMAP.md).
 - ✅ **v3.5 Selection Rectangle** — Phases 89–91 (shipped 2026-05-15)
-- **v3.6 Simpler Species Index** — Phases 92–96 (in progress)
+- ✅ **v3.6 Simpler Species Index** — Phases 92–96 (shipped 2026-05-16)
 
 ## Phases
 
@@ -377,13 +377,20 @@ See `.planning/milestones/v3.5-ROADMAP.md` for full phase details.
 
 </details>
 
-## v3.6 Simpler Species Index (Phases 92–96) — IN PROGRESS
+<details>
+<summary>✅ v3.6 Simpler Species Index (Phases 92–96) — SHIPPED 2026-05-16</summary>
 
-- [x] **Phase 92: Slug Migration & Pipeline Prep** — Update slug format to hierarchical paths; migrate species-photos.toml keys (completed 2026-05-15)
-- [x] **Phase 93: Multi-Color SVG Map Generation** — Extend species_maps.py to generate genus, subgenus, and tribe occurrence maps with per-species colors (completed 2026-05-16)
-- [x] **Phase 94: Species & Genus Pages** — Eleventy static pages for all species and genera; photo, SVG map, and seasonality on species pages (completed 2026-05-16)
-- [x] **Phase 95: Subgenus & Tribe Pages** — Eleventy static pages for all subgenera and tribes with multi-color SVG maps (completed 2026-05-16)
-- [x] **Phase 96: Index Page Replacement** — Replace monolithic /species/ all-cards page with searchable family→genus index (completed 2026-05-16)
+- [x] Phase 92: Slug Migration & Pipeline Prep (3/3 plans) — completed 2026-05-15
+- [x] Phase 93: Multi-Color SVG Map Generation (2/2 plans) — completed 2026-05-15
+- [x] Phase 94: Species & Genus Pages (3/3 plans) — completed 2026-05-16
+- [x] Phase 95: Subgenus & Tribe Pages (2/2 plans) — completed 2026-05-16
+- [x] Phase 96: Index Page Replacement (3/3 plans) — completed 2026-05-16
+
+See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
+
+</details>
+
+<!-- Phase 92-96 details archived to .planning/milestones/v3.6-ROADMAP.md -->
 
 ## Phase Details
 
@@ -478,100 +485,7 @@ Plans:
 
 <!-- Phase 89-91 details archived to .planning/milestones/v3.5-ROADMAP.md -->
 
-### Phase 92: Slug Migration & Pipeline Prep
-**Goal**: The data pipeline produces hierarchical slugs and all per-species references use the new format
-**Depends on**: Phase 91
-**Requirements**: PIPE-03
-**Success Criteria** (what must be TRUE):
-  1. `species_export.py` writes slug values in `Genus/specificEpithet` format (e.g. `Andrena/milwaukeensis`) instead of flat `andrena-milwaukeensis`
-  2. `content/species-photos.toml` keys match the new hierarchical slug format — no orphaned photo entries
-  3. Running the export pipeline end-to-end produces `species.json` where every species slug matches the hierarchical pattern
-  4. CI passes with the updated slug format (no broken references in existing templates)
-**Plans**: 3 plans
-Plans:
-**Wave 1**
-- [x] 92-01-PLAN.md — Wave 0 test scaffolding (test_species_export.py, test_species_maps.py, validate-species.test.ts fixture)
-- [x] 92-02-PLAN.md — Slug emission + SVG subdir writes (species_export.py, species_maps.py, pipeline run)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-- [x] 92-03-PLAN.md — TOML key audit and cleanup (content/species-photos.toml)
-
-### Phase 93: Multi-Color SVG Map Generation
-**Goal**: The pipeline generates per-genus, per-subgenus, and per-tribe SVG occurrence maps with each species rendered in a distinct color
-**Depends on**: Phase 92
-**Requirements**: PIPE-02
-**Success Criteria** (what must be TRUE):
-  1. `species_maps.py` generates one multi-color SVG per genus (e.g. `maps/genus/Andrena.svg`) where each species within the genus is a distinct color
-  2. `species_maps.py` generates one multi-color SVG per subgenus where defined (e.g. `maps/subgenus/Andrena/Melandrena.svg`)
-  3. `species_maps.py` generates one multi-color SVG per tribe (e.g. `maps/tribe/Andrenini.svg`)
-  4. Color assignment is deterministic across runs (same species always gets the same color within a group)
-**Plans**: 2 plans
-
-**Wave 1**
-- [x] 93-01-PLAN.md — Add _group_colors HSL→hex helper + Wave 0 test scaffolding (color determinism, skip-guarded group-output assertions)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-- [x] 93-02-PLAN.md — Implement _generate_group_maps + _write_group_svg, wire into generate_species_maps, activate group-output tests, human pipeline verification
-
-### Phase 94: Species & Genus Pages
-**Goal**: Users can navigate to a dedicated static page for any species or genus and see occurrence data and photos
-**Depends on**: Phase 93
-**Requirements**: URL-01, URL-02, SPE-01, SPE-02, SPE-03, SPE-04, GEN-01, GEN-02, GEN-03, PIPE-01
-**Success Criteria** (what must be TRUE):
-  1. Visiting `/species/Andrena/milwaukeensis/` shows the species page with photo (or fallback), per-species SVG occurrence map, and seasonality visualization
-  2. Visiting `/species/Andrena/` shows the genus page listing all species with specimen counts and the multi-color genus SVG map
-  3. Each species entry on the genus page links to its individual species page
-  4. Eleventy generates one static page per species and genus from `species.json` at build time — the output files exist at the correct paths
-**Plans**: 3 plans
-
-**Wave 1**
-- [x] 94-01-PLAN.md — Extend _data/species.js with speciesList, genusList, and per-species hexColor (Phase 93 D-01 HSL formula)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-- [x] 94-02-PLAN.md — Create _pages/species-detail.njk, _pages/genus.njk, src/styles/taxon-pages.css, src/entries/taxon-page.ts
-
-**Wave 3** *(blocked on Wave 2 completion)*
-- [x] 94-03-PLAN.md — Extend src/tests/build-output.test.ts with taxon-page assertions, run production build, human verification of photo/seasonality/swatch-to-SVG color match
-**UI hint**: yes
-
-### Phase 95: Subgenus & Tribe Pages
-**Goal**: Users can navigate to dedicated static pages for subgenera and tribes with multi-color occurrence maps
-**Depends on**: Phase 94
-**Requirements**: URL-03, URL-04, SUBG-01, SUBG-02, SUBG-03, TRIBE-01, TRIBE-02, TRIBE-03
-**Success Criteria** (what must be TRUE):
-  1. Visiting `/species/Andrena/Melandrena/` (capitalized subgenus) shows the subgenus page listing species with specimen counts and the multi-color subgenus SVG map
-  2. Visiting `/species/tribe/Andrenini/` shows the tribe page listing all genera in the tribe and the multi-color tribe SVG map
-  3. Each genus entry on the tribe page links to its genus page
-  4. Each species entry on the subgenus page links to its individual species page
-**Plans**: 2 plans
-
-**Wave 1**
-- [x] 95-01-PLAN.md — Add subgenusList to _data/species.js + create _pages/subgenus.njk (URL-03, SUBG-01, SUBG-02, SUBG-03)
-
-**Wave 2** *(blocked on Wave 1 completion — shared file ownership of _data/species.js and both test files)*
-- [x] 95-02-PLAN.md — Add tribeList to _data/species.js + create _pages/tribe.njk (URL-04, TRIBE-01, TRIBE-02, TRIBE-03)
-**UI hint**: yes
-
-### Phase 96: Index Page Replacement
-**Goal**: The /species/ entry point is a searchable family→genus index that replaces the monolithic all-cards layout
-**Depends on**: Phase 95
-**Requirements**: URL-05, IDX-01, IDX-02, IDX-03, IDX-04
-**Success Criteria** (what must be TRUE):
-  1. Visiting `/species/` shows species grouped by family then genus — the old tree-nav + all-cards layout is gone
-  2. Typing in the search input narrows the displayed genera and species in real time without a page reload
-  3. Clicking a genus name navigates to `/species/{Genus}/`
-  4. Clicking a species name navigates to `/species/{Genus}/{specificEpithet}/`
-**Plans**: 3 plans
-Plans:
-**Wave 1**
-- [x] 96-01-PLAN.md — Wave 0 test scaffolding (build-output IDX-01..04+URL-05, page-scaffold entry path, new species-index.test.ts)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-- [x] 96-02-PLAN.md — Rewrite _pages/species.njk + create src/entries/species-index.ts + .species-index CSS
-
-**Wave 3** *(blocked on Wave 2 completion)*
-- [x] 96-03-PLAN.md — Delete old monolith files + arch.test.ts surgery (URL-05 closure)
-**UI hint**: yes
+<!-- Phase 92-96 details archived to .planning/milestones/v3.6-ROADMAP.md -->
 
 ## Progress
 
