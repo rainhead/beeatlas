@@ -17,7 +17,7 @@ layout: default.njk
     {%- set photoEntry = photos[sp.scientificName] -%}
     {%- if photoEntry and photoEntry.photos and photoEntry.photos.length > 0 -%}
       {%- set p = photoEntry.photos[0] -%}
-      <img loading="lazy" src="{{ p.src or p.url }}" alt="{{ p.caption or sp.scientificName }}">
+      <img class="photo-hero" loading="lazy" src="{{ p.src or p.url }}" alt="{{ p.caption or sp.scientificName }}">
     {%- else -%}
       <div class="photo-placeholder">No photo available</div>
     {%- endif -%}

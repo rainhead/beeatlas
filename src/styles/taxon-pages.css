@@ -10,8 +10,7 @@
   box-sizing: border-box;
 }
 
-/* First <img> child — photo hero. Reserve 4:3 box. */
-.taxon-page > img:first-of-type,
+/* Photo hero — 4:3 reserved box. Applied via .photo-hero class on the <img>. */
 .taxon-page .photo-hero {
   aspect-ratio: 4 / 3;
   max-height: 360px;
