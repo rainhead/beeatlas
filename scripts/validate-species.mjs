@@ -75,7 +75,7 @@ const isCli =
 
 if (isCli) {
   const ROOT = new URL('..', import.meta.url).pathname;
-  const MANIFEST = join(ROOT, 'content/species-photos.toml');
+  const MANIFEST = process.argv[2] ? resolve(process.argv[2]) : join(ROOT, 'content/species-photos.toml');
   const SPECIES_JSON = join(ROOT, 'public/data/species.json');
 
   if (!existsSync(MANIFEST)) {

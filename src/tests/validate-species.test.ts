@@ -1,14 +1,14 @@
 import { test, expect, describe } from 'vitest';
 import { execSync } from 'node:child_process';
-import { writeFileSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { writeFileSync, readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 // @ts-expect-error -- .mjs source has no .d.ts; named exports are the contract (mirrors seed-species-photos.test.ts)
 import { validateSpeciesPhotos, LICENSE_WHITELIST } from '../../scripts/validate-species.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(__dirname, '../..');
-const MANIFEST = resolve(REPO_ROOT, 'content/species-photos.toml');
 
 const SPECIES_JSON = [
   { scientificName: 'Osmia lignaria', canonical_name: 'osmia lignaria', on_checklist: true, occurrence_count: 5, slug: 'Osmia/lignaria' },
@@ -125,8 +125,7 @@ describe('validate-species npm script (PHOTO-06)', () => {
   });
 
   test('npm run validate-species exits 1 when manifest contains a bad license', () => {
-    const original = readFileSync(MANIFEST, 'utf-8');
-    const rigged = `${original}
+    const rigged = `
 [species."Osmia testfaker"]
 description = ""
 [[species."Osmia testfaker".photos]]
@@ -138,11 +137,13 @@ attribution = "(c) Test"
 license = "all-rights-reserved"
 ordering = 1
 `;
-    writeFileSync(MANIFEST, rigged, 'utf-8');
+    const tmpDir = mkdtempSync(join(tmpdir(), 'validate-species-'));
+    const tmpManifest = join(tmpDir, 'species-photos.toml');
+    writeFileSync(tmpManifest, rigged, 'utf-8');
     try {
       let exitCode = 0;
       try {
-        execSync('npm run validate-species --silent', {
+        execSync(`node scripts/validate-species.mjs ${tmpManifest}`, {
           cwd: REPO_ROOT,
           encoding: 'utf-8',
           stdio: 'pipe',
@@ -152,7 +153,7 @@ ordering = 1
       }
       expect(exitCode).toBe(1);
     } finally {
-      writeFileSync(MANIFEST, original, 'utf-8'); // always restore
+      rmSync(tmpDir, { recursive: true });
     }
   });
 
