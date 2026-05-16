@@ -81,7 +81,7 @@ a new `src/entries/taxon-page.ts` entry that imports `src/index.css` and
 | GEN-01 | Genus page lists all species with specimen counts | `genusList[i].species` sorted by `canonical_name`; each item has `occurrence_count` |
 | GEN-02 | Genus page displays static multi-color SVG map | `/data/species-maps/genus/{{ genus.genus }}.svg` — confirmed at `public/data/species-maps/genus/Agapostemon.svg` |
 | GEN-03 | Each species entry on genus page links to its species page | `<a href="/species/{{ sp.slug }}/">` |
-| PIPE-01 | Eleventy generates one static page per species and genus | Eleventy `pagination: size: 1` over `species.speciesList` (527 pages) and `species.genusList` (42 pages) |
+| PIPE-01 | Eleventy generates one static page per species and genus | Eleventy `pagination: size: 1` over `species.speciesList` (527 pages) and `species.genusList` (42 pages). **Note:** PIPE-01 in REQUIREMENTS.md spans species + genus + subgenus + tribe; Phase 94 delivers only the species + genus portion. Subgenus + tribe pages are Phase 95 scope. |
 </phase_requirements>
 
 ---
@@ -534,9 +534,8 @@ only to genus, NOT genus summary rows):
 ```
 
 The `occurrence_count` in genus-level entries represents records identified only to genus
-(not summed species counts). The `genusList` computation in `species.js` must sum species
-`occurrence_count` values PLUS the genus-level entry's `occurrence_count` for the total
-records displayed on the genus page.
+(not summed species counts). See Open Question 1 (RESOLVED below) for the Phase 94 decision
+on how these entries factor into `totalOccurrences`.
 
 **Unique genera from species entries:** 42 genera → 42 genus pages.
 **Species entries:** 527 → 527 species pages.
@@ -647,14 +646,19 @@ body instead of template string. Eleventy supports both.
 
 ## Open Questions
 
-1. **Genus page `totalOccurrences` — include genus-level records?**
+1. **Genus page `totalOccurrences` — include genus-level records? (RESOLVED)**
    - What we know: `species.json` has 103 genus-level entries (records identified only to
      genus). Agapostemon genus-level entry has `occurrence_count: 18`. The 3 Agapostemon
      species sum to 185 occurrences. Total = 203 or 185 depending on interpretation.
-   - What's unclear: Should the genus page subheading show 203 (all Agapostemon occurrences
-     including unidentified) or 185 (only species-level)?
-   - Recommendation: Include genus-level count in total for UI accuracy (203 = all bees in
-     genus). But this is a presentation decision for the planner/user.
+   - **RESOLVED:** Use species-only sum for `totalOccurrences`. Genus-level records
+     (`specific_epithet: null`) are excluded so the genus page total stays consistent with
+     the sum of its species page counts. Rationale: the species page occurrence_count column
+     reflects species-level counts; the genus subheading must agree with the sum a user sees
+     by adding up the species rows below it. The 18 genus-only Agapostemon records remain
+     accessible via the atlas filter but are not counted in `genus.totalOccurrences`.
+   - **Implemented in:** Plan 01 Task 1 `<behavior>` (`totalOccurrences = species-only sum`)
+     and PATTERNS.md `_data/species.js` excerpt
+     (`sorted.reduce((acc, sp) => acc + sp.occurrence_count, 0)` over the species-only list).
 
 2. **`eleventyComputed` title with Nunjucks alias scope**
    - What we know: The pattern works per Eleventy docs; `sp` is the pagination alias.
