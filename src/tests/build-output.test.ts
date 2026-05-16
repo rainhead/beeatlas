@@ -123,4 +123,47 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(taxonChunk, 'no taxon-page chunk emitted').toBeDefined();
     expect(hasFlatTaxon || hasNestedTaxon, 'no taxon-page chunk emitted').toBe(true);
   });
+
+  // Phase 95 — subgenus page tests (SUBG-01, SUBG-02, SUBG-03, URL-03)
+
+  test('emits _site/species/Andrena/Melandrena/index.html (SUBG-01, URL-03, PIPE-01)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
+    );
+    expect(html).toContain('<em>Melandrena</em>');
+    expect(html).toContain('/data/species-maps/subgenus/Andrena/Melandrena.svg');
+    expect(html).toContain('class="species-list"');
+  });
+
+  test('subgenus page links each species to its species page (SUBG-03)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
+    );
+    // Andrena commoda is a Melandrena species verified in species.json
+    expect(html).toMatch(/href="\/species\/Andrena\/commoda\/"/);
+  });
+
+  test('subgenus page breadcrumb links to genus (SUBG-03)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
+    );
+    expect(html).toMatch(/<a href="\/species\/Andrena\/">Andrena<\/a>/);
+  });
+
+  test('every <img> on a subgenus page has loading="lazy" (SUBG-02 carry-forward)', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
+    );
+    const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+    for (const img of imgs) {
+      expect(img, img).toMatch(/loading="lazy"/);
+    }
+  });
+
+  test('subgenus page does not embed seasonality-viz', () => {
+    const html = readFileSync(
+      resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
+    );
+    expect(html).not.toContain('<seasonality-viz');
+  });
 });
