@@ -567,7 +567,7 @@ Plans:
 - [x] 96-01-PLAN.md — Wave 0 test scaffolding (build-output IDX-01..04+URL-05, page-scaffold entry path, new species-index.test.ts)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 96-02-PLAN.md — Rewrite _pages/species.njk + create src/entries/species-index.ts + .species-index CSS
+- [x] 96-02-PLAN.md — Rewrite _pages/species.njk + create src/entries/species-index.ts + .species-index CSS
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 96-03-PLAN.md — Delete old monolith files + arch.test.ts surgery (URL-05 closure)
@@ -672,4 +672,4 @@ Plans:
 | 93. Multi-Color SVG Map Generation | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 94. Species & Genus Pages | v3.6 | 3/3 | Complete    | 2026-05-16 |
 | 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
-| 96. Index Page Replacement | v3.6 | 1/3 | In Progress|  |
+| 96. Index Page Replacement | v3.6 | 2/3 | In Progress|  |
