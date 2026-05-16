@@ -274,4 +274,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-16 — Phase 93 complete: multi-color SVG maps for genus/subgenus/tribe pages; occurrence source unified to dbt mart (Ecdysis + iNat); unresolved taxa shown as grey dots*
+*Last updated: 2026-05-16 — Phase 94 complete: 527 species detail pages + 42 genus pages at /species/{Genus}/{epithet}/ and /species/{Genus}/; hex swatch colors match SVG dot colors (D-01/D-02); seasonality chart, occurrence map, and species roster on each page*
