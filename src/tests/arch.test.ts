@@ -1,27 +1,20 @@
-// Phase 80 Wave 0 — RED architectural test.
-// Encodes the contract from RESEARCH.md Pattern 4 (lines 351-412):
-//   - ARCH-04 / PAGE-08: no src/species/**.ts file may import the SPA's
-//     mapbox-gl / wa-sqlite / sqlite / filter / bee-map / bee-atlas modules
-//     (static OR dynamic — Pitfall 3 mitigation).
-//   - PAGE-06: presenter files under src/species/ (any file whose basename is
-//     NOT bee-species-page.ts) MUST NOT import the coordinator
-//     bee-species-page.ts, statically OR dynamically.
-//   - PAGE-04 (partial): src/entries/species.ts is restricted to side-effect
-//     imports of bee-header + species components.
-//
-// RED state: src/species/ and src/entries/species.ts do not exist yet
-// (Plan 03 creates them). Tests asserting "directory contains files" fail
-// until then; that is desired.
+// Phase 80/96 architectural boundary tests.
+// Guards three boundaries:
+//   (a) ARCH-04 / PAGE-08: no src/species/**.ts file (seasonality-viz.ts,
+//       seasonality-cache.ts) may import the SPA's mapbox-gl / wa-sqlite /
+//       sqlite / filter / bee-map / bee-atlas modules (static OR dynamic).
+//   (b) ARCH-04 / D-05: src/lib/spa-link.ts must not pull in forbidden SPA deps.
+//   (c) IDX-02 (Phase 96): src/entries/species-index.ts is restricted to
+//       CSS side-effects + bee-header — no SPA modules allowed.
 
 import { describe, test, expect } from 'vitest';
 import { readFileSync, readdirSync } from 'node:fs';
-import { resolve, dirname, join, basename } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '../..');
 const SPECIES_DIR = resolve(ROOT, 'src/species');
-const ENTRY_FILE = resolve(ROOT, 'src/entries/species.ts');
 
 // ARCH-04 / PAGE-08 — forbidden imports under src/species/**.ts
 const FORBIDDEN = [
@@ -31,15 +24,6 @@ const FORBIDDEN = [
   '../filter.ts', '../filter',
   '../bee-map.ts', '../bee-map',
   '../bee-atlas.ts', '../bee-atlas',
-];
-
-// PAGE-06 — presenters must never import the coordinator.
-// Match every spelling that could resolve to bee-species-page.ts:
-//   './bee-species-page', './bee-species-page.ts'              (sibling, the common case)
-//   '../species/bee-species-page', '../species/bee-species-page.ts' (from outside src/species/)
-const PAGE_COORDINATOR_FORBIDDEN = [
-  './bee-species-page', './bee-species-page.ts',
-  '../species/bee-species-page', '../species/bee-species-page.ts',
 ];
 
 // Static `from '...'` and bare `import '...'` (side-effect)
@@ -65,10 +49,6 @@ function isForbidden(spec: string): boolean {
   return FORBIDDEN.some(bad => spec === bad || spec.startsWith(bad + '/'));
 }
 
-function isCoordinatorImport(spec: string): boolean {
-  return PAGE_COORDINATOR_FORBIDDEN.some(bad => spec === bad);
-}
-
 function extractImports(src: string, re: RegExp): string[] {
   // Strip line comments and block comments to avoid false positives.
   const stripped = src
@@ -82,9 +62,9 @@ function extractImports(src: string, re: RegExp): string[] {
 describe('ARCH-04: src/species boundary (PAGE-08)', () => {
   const files = listTsFiles(SPECIES_DIR);
 
-  // RED until Plan 03 creates src/species/. This test PINS the contract:
-  // once src/species/ has at least one .ts file, every file is checked.
-  test('src/species/ contains at least one TypeScript file (after Plan 03)', () => {
+  // After Phase 96, src/species/ contains only seasonality-viz.ts and
+  // seasonality-cache.ts. The ARCH-04 boundary still applies to those files.
+  test('src/species/ contains at least one TypeScript file', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
@@ -104,93 +84,6 @@ describe('ARCH-04: src/species boundary (PAGE-08)', () => {
       expect(violations, `${rel} forbidden dynamic imports: ${violations.join(', ')}`).toEqual([]);
     });
   }
-});
-
-// PAGE-06 — presenters under src/species/ must never import the coordinator
-// bee-species-page.ts. Per REQUIREMENTS.md line 71 verbatim: "never import
-// from bee-species-page.ts". Phase 80 ships only bee-species-card.ts as a
-// presenter, but this contract pre-empts every Phase 81 presenter
-// (bee-taxon-nav, bee-species-grid, bee-species-filter, seasonality-viz).
-describe('PAGE-06: presenter→coordinator non-import', () => {
-  const files = listTsFiles(SPECIES_DIR).filter(
-    f => basename(f) !== 'bee-species-page.ts'
-  );
-
-  // RED until Plan 03 creates at least one presenter file in src/species/.
-  test('src/species/ contains at least one presenter file (non-coordinator)', () => {
-    expect(files.length).toBeGreaterThan(0);
-  });
-
-  for (const file of files) {
-    const rel = file.slice(ROOT.length + 1);
-    const src = readFileSync(file, 'utf8');
-
-    test(`${rel} does not import bee-species-page (static)`, () => {
-      const imports = extractImports(src, STATIC_IMPORT_RE);
-      const violations = imports.filter(isCoordinatorImport);
-      expect(violations, `${rel} static-imports coordinator: ${violations.join(', ')}`).toEqual([]);
-    });
-
-    test(`${rel} does not import bee-species-page (dynamic)`, () => {
-      const imports = extractImports(src, DYNAMIC_IMPORT_RE);
-      const violations = imports.filter(isCoordinatorImport);
-      expect(violations, `${rel} dynamic-imports coordinator: ${violations.join(', ')}`).toEqual([]);
-    });
-  }
-});
-
-describe('src/entries/species.ts allowlist (PAGE-04 partial)', () => {
-  // RED until Plan 03 creates src/entries/species.ts.
-  const ALLOWED = new Set([
-    '../bee-header.ts', '../bee-header',
-    '../species/bee-species-page.ts', '../species/bee-species-page',
-    '../species/bee-species-card.ts', '../species/bee-species-card',
-    '../species/bee-taxon-nav.ts', '../species/bee-taxon-nav',
-    '../species/bee-species-filter.ts', '../species/bee-species-filter',
-    '../species/seasonality-viz.ts', '../species/seasonality-viz',
-    // Plan 082-02 (D-02): species page CSS imported as a side-effect so Vite bundles it into the species chunk.
-    '../styles/species.css',
-  ]);
-
-  // WR-08: every component listed here MUST appear in the entry file's
-  // import list. Catches silent removal of a presenter registration
-  // (allowlist alone would still pass — the absent import is "allowed").
-  // Each entry pairs the canonical .ts spelling with its bare alias.
-  const REQUIRED_GROUPS: ReadonlyArray<readonly string[]> = [
-    ['../bee-header.ts', '../bee-header'],
-    ['../species/bee-species-page.ts', '../species/bee-species-page'],
-    ['../species/bee-species-card.ts', '../species/bee-species-card'],
-    ['../species/bee-taxon-nav.ts', '../species/bee-taxon-nav'],
-    ['../species/bee-species-filter.ts', '../species/bee-species-filter'],
-    ['../species/seasonality-viz.ts', '../species/seasonality-viz'],
-  ];
-
-  test('only side-effect imports of bee-header + species components', () => {
-    let src: string;
-    try {
-      src = readFileSync(ENTRY_FILE, 'utf8');
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
-        // Will fail until Plan 03 creates the file; that is desired RED state.
-        throw new Error('src/entries/species.ts does not exist yet (Plan 03 creates it)');
-      }
-      throw e;
-    }
-    const imports = [
-      ...extractImports(src, STATIC_IMPORT_RE),
-      ...extractImports(src, DYNAMIC_IMPORT_RE),
-    ];
-    const disallowed = imports.filter(spec => !ALLOWED.has(spec));
-    expect(disallowed, `unexpected imports in src/entries/species.ts: ${disallowed.join(', ')}`).toEqual([]);
-
-    // WR-08 positive assertion: each required component is actually imported
-    // (silent removal of a side-effect import would otherwise pass).
-    const importSet = new Set(imports);
-    for (const group of REQUIRED_GROUPS) {
-      const present = group.some(spec => importSet.has(spec));
-      expect(present, `src/entries/species.ts missing required import: one of ${group.join(' | ')}`).toBe(true);
-    }
-  });
 });
 
 // Phase 81 D-05 — src/lib/spa-link.ts boundary.
@@ -220,5 +113,34 @@ describe('ARCH-04: src/lib/spa-link.ts boundary (D-05)', () => {
     const imports = extractImports(src, DYNAMIC_IMPORT_RE);
     const violations = imports.filter(s => FORBIDDEN_FOR_LIB.some(bad => s === bad || s.startsWith(bad + '/')));
     expect(violations, `forbidden dynamic imports: ${violations.join(', ')}`).toEqual([]);
+  });
+});
+
+// Phase 96 IDX-02 — species-index.ts entry allowlist.
+// The new species index entry must only import CSS side-effects and bee-header;
+// it must not pull in any SPA modules or old monolith components.
+describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
+  const ENTRY_FILE_INDEX = resolve(ROOT, 'src/entries/species-index.ts');
+  const ALLOWED_INDEX = new Set([
+    '../index.css',
+    '../styles/taxon-pages.css',
+    '../bee-header.ts', '../bee-header',
+  ]);
+  const FORBIDDEN_PATTERNS = [
+    'bee-species-page', 'bee-species-filter', 'bee-atlas',
+    'wa-sqlite', 'mapbox-gl',
+  ];
+
+  test('only imports CSS side-effects + bee-header (no SPA modules)', () => {
+    const src = readFileSync(ENTRY_FILE_INDEX, 'utf8');
+    const imports = [
+      ...extractImports(src, STATIC_IMPORT_RE),
+      ...extractImports(src, DYNAMIC_IMPORT_RE),
+    ];
+    const disallowed = imports.filter(spec => !ALLOWED_INDEX.has(spec));
+    expect(disallowed, `unexpected imports: ${disallowed.join(', ')}`).toEqual([]);
+    for (const pattern of FORBIDDEN_PATTERNS) {
+      expect(src, `src contains forbidden pattern '${pattern}'`).not.toContain(pattern);
+    }
   });
 });
