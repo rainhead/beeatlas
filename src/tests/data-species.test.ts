@@ -74,4 +74,59 @@ describe('_data/species.js (PAGE-02)', () => {
       }
     }
   });
+
+  // Phase 95 — subgenusList tests (SUBG-01, SUBG-02, SUBG-03, URL-03)
+
+  test('exports subgenusList as array with length > 50 (103 expected groups)', () => {
+    const list = (species as any).subgenusList;
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBeGreaterThan(50);
+  });
+
+  test('subgenusList Andrena/Melandrena entry has numeric speciesCount and totalOccurrences', () => {
+    const list = (species as any).subgenusList;
+    const melandrena = list.find((g: any) => g.genus === 'Andrena' && g.subgenus === 'Melandrena');
+    expect(melandrena).toBeDefined();
+    expect(typeof melandrena.speciesCount).toBe('number');
+    expect(typeof melandrena.totalOccurrences).toBe('number');
+  });
+
+  test('subgenusList display list excludes unresolved records (specific_epithet !== null)', () => {
+    const list = (species as any).subgenusList;
+    const allSpecies = list.flatMap((g: any) => g.species);
+    expect(allSpecies.every((sp: any) => sp.specific_epithet !== null)).toBe(true);
+  });
+
+  test('subgenusList Andrena/Melandrena species sorted alphabetically by canonical_name', () => {
+    const list = (species as any).subgenusList;
+    const melandrena = list.find((g: any) => g.genus === 'Andrena' && g.subgenus === 'Melandrena');
+    const names = melandrena.species.map((s: any) => s.canonical_name);
+    const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
+    expect(names).toEqual(sorted);
+  });
+
+  test('subgenusList Andrena/Melandrena species all have valid hexColor', () => {
+    const list = (species as any).subgenusList;
+    const melandrena = list.find((g: any) => g.genus === 'Andrena' && g.subgenus === 'Melandrena');
+    for (const sp of melandrena.species) {
+      expect(sp.hexColor).toMatch(/^#[0-9a-f]{6}$/);
+    }
+  });
+
+  test('subgenusList color parity: first resolved Andrena/Melandrena species matches index in withOcc array (Pitfall 1)', () => {
+    const list = (species as any).subgenusList;
+    const melandrena = list.find((g: any) => g.genus === 'Andrena' && g.subgenus === 'Melandrena');
+    // From species.json analysis:
+    // withOcc (n=9) sorted by canonical_name:
+    //   i=0: andrena commoda (resolved) -> hslToHex(0 * 360 / 9, 70, 50) = #d92626
+    //   i=4: andrena pertristis (null) -> #aaaaaa
+    // First resolved species is 'andrena commoda commoda' at i=0 -> #d92626
+    const firstResolved = melandrena.species[0];
+    expect(firstResolved.hexColor).toBe('#d92626');
+  });
+
+  test('subgenusList.every(g => g.totalOccurrences > 0) — zero-occurrence groups excluded', () => {
+    const list = (species as any).subgenusList;
+    expect(list.every((g: any) => g.totalOccurrences > 0)).toBe(true);
+  });
 });
