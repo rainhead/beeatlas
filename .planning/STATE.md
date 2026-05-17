@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Places
-status: planning
-last_updated: "2026-05-17T18:42:21.119Z"
+status: active
+last_updated: "2026-05-17T00:00:00.000Z"
 last_activity: 2026-05-17
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,35 +17,40 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-16 — v3.6 Simpler Species Index complete)
+See: .planning/PROJECT.md (updated 2026-05-17 — v3.7 Places milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning v3.7 — run `/gsd-new-milestone`
+**Current focus:** v3.7 Places — Phase 97: Place Data Model
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 97 — Place Data Model
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-17 — Milestone v3.7 started
+Status: Not started
+Last activity: 2026-05-17 — Roadmap created for v3.7 Places
+
+```
+Progress: [          ] 0% (0/4 phases)
+```
 
 ## Accumulated Context
 
 ### Decisions
 
-(decisions log cleared at v3.4 close — full history in .planning/PROJECT.md Key Decisions table)
+(decisions log cleared at v3.6 close — full history in .planning/PROJECT.md Key Decisions table)
 
-- [91-02] `_selectionBounds && _sidebarOpen` takes precedence over cluster/ids in `_pushUrlState` ternary — when sidebar is closed (zero-rows selection) no `sel=` emitted
-- [91-02] `_restoreBoundsSelection` opens sidebar synchronously before awaiting data (sidebarOpen-first pattern) so empty-state copy renders immediately
-- [91-02] `_selectionDrawnGeneration` counter reused for bounds restore — any new draw/restore cancels prior in-flight query
+### Key Architecture Notes for v3.7
 
-### Key Constraints for v3.5
-
-- Mapbox BoxZoomHandler handles shift-drag by default for zoom-to-box; must be explicitly disabled before the custom shift-drag selection handler can be installed
-- Rectangle is ephemeral — it disappears on drag release; sidebar presence implies active selection
-- Occurrence query uses bounds (west, south, east, north) intersected with the current active filter via the existing `queryVisibleIds` / `buildFilterSQL` infrastructure in `filter.ts`
-- URL state integrates with the existing `url-state.ts` `buildParams`/`parseParams` pattern and the `bee-atlas.ts` URL round-trip; `sel=` param is 4 comma-separated decimals
-- State ownership: `bee-atlas` owns `_selectionBounds`; `bee-map` is a pure presenter that emits a `selection-drawn` custom event with the bounds; sidebar opens via the existing `occurrence-clicked` path reusing `bee-occurrence-detail`
+- **Phase ordering is fixed:** PLC (TOML + validation) → PPIPE (pipeline + dbt + exports) → PPAGE + PMAP (can overlap but PMAP has no PPAGE dependency)
+- **No nearest-polygon fallback:** `place_slug IS NULL` is semantically correct — most occurrences are not at any named place. Do NOT copy the county nearest-polygon CTE.
+- **promoteId: 'slug'** for places GeoJSON source in Mapbox (not generateId: true) — stable feature IDs across source reloads
+- **Two export artifacts:** `places.geojson` (slim: slug + geometry, for Mapbox) and `places.json` (rich: all metadata + counts, no geometry, for Eleventy)
+- **dbt contract: 31 columns** — `place_slug` added atomically to `occurrences.sql` + `schema.yml` per project_schema_validation.md procedure
+- **CloudFront does not serve /foo/ → /foo/index.html** — Eleventy permalink config for place pages must produce direct-path URLs (e.g. `/places/slug.html` or `/places.html` for the index)
+- **Slug policy:** slug is a curated TOML field, never auto-generated; uniqueness + `[a-z0-9-]` regex + overlap (ST_Intersects) validation in run.py (Phase 97)
+- **SVG occurrence maps** generated at pipeline time following species_maps.py pattern (Phase 98, same phase as pipeline)
+- **places.geojson + places.json committed to git** so CI frontend-only builds succeed without running the pipeline (PPIPE-05)
+- **Geometry validation pitfall:** WA GIS portals default to State Plane CRS; `ST_Within` silently fails with wrong CRS. Pytest must assert `crs.to_epsg() == 4326` and `is_valid.all()`.
 
 ### Pending Todos
 

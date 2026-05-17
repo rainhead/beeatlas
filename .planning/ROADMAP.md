@@ -29,6 +29,7 @@
 - ✅ **v3.4 dbt Full Rewrite** — Phases 85–88 (shipped 2026-05-14). dbt is the sole producer of pipeline outputs; legacy Python transforms and validate-schema.mjs retired. See [.planning/milestones/v3.4-ROADMAP.md](milestones/v3.4-ROADMAP.md).
 - ✅ **v3.5 Selection Rectangle** — Phases 89–91 (shipped 2026-05-15)
 - ✅ **v3.6 Simpler Species Index** — Phases 92–96 (shipped 2026-05-16)
+- 🚧 **v3.7 Places** — Phases 97–100 (in progress)
 
 ## Phases
 
@@ -159,51 +160,7 @@ See `.planning/milestones/v1.9-ROADMAP.md` for full phase details.
 - [x] Phase 40: bee-table Component (2/2 plans) — completed 2026-04-08
 - [x] Phase 41: CSV Export (1/1 plans) — completed 2026-04-09
 
-**Milestone Goal:** Add a table-centric alternative to the map view so users can sort, browse, and export the filtered specimen/sample dataset.
-
-### Phase 39: View Mode Toggle
-**Goal**: Users can switch between map view and table view, with the choice bookmarkable in the URL
-**Depends on**: Phase 38
-**Requirements**: VIEW-01, VIEW-02, VIEW-03
-**Success Criteria** (what must be TRUE):
-  1. User can click a toggle control in the main UI to switch from map view to table view and back
-  2. In table view, the map is not visible and the table area occupies the full content space
-  3. Navigating to a URL with `view=table` param opens directly in table view
-  4. Copying a table-view URL and pasting it in a new tab restores the table view
-**Plans**: 3 plans
-Plans:
-- [x] 39-01-PLAN.md — Extend url-state.ts with viewMode field and round-trip serialization
-- [x] 39-02-PLAN.md — Add view mode toggle row to bee-sidebar (view-changed event)
-- [x] 39-03-PLAN.md — Wire _viewMode state into bee-atlas (conditional render, URL push, popstate restore)
-**UI hint**: yes
-
-### Phase 40: bee-table Component
-**Goal**: Users can browse, sort, and paginate the filtered dataset as a table
-**Depends on**: Phase 39
-**Requirements**: TABLE-01, TABLE-02, TABLE-03, TABLE-04, TABLE-05, TABLE-06, TABLE-07
-**Success Criteria** (what must be TRUE):
-  1. Table shows specimen rows (species, collector, year, month, county, ecoregion, field number) when layer mode is "specimens", and sample rows (observer, date, specimen count, county, ecoregion) when layer mode is "samples"
-  2. Applying a filter updates the table to show only rows matching the active filter — the same set visible as dots on the map
-  3. A row count indicator reads "showing 1–100 of N specimens" (or samples), accurately reflecting the filtered total
-  4. Previous/next page controls navigate through the result set, with current page shown; each page shows up to 100 rows
-  5. Clicking a column header sorts the table by that column; clicking again reverses sort direction
-**Plans**: 2 plans
-Plans:
-- [x] 40-01-PLAN.md — Data layer: extend UiState with sort params, add queryTablePage function and column constants
-- [x] 40-02-PLAN.md — Presenter + wiring: create bee-table component, integrate into bee-atlas with state management
-**UI hint**: yes
-
-### Phase 41: CSV Export
-**Goal**: Users can download the full filtered result set as a CSV file with a descriptive filename
-**Depends on**: Phase 40
-**Requirements**: CSV-01, CSV-02
-**Success Criteria** (what must be TRUE):
-  1. Clicking "Download CSV" triggers a browser file download of the complete filtered result set (not just the current page)
-  2. The downloaded filename reflects the active filter state (e.g. `specimens-bombus-2023.csv` or `samples-all.csv`)
-**Plans**: 1 plan
-Plans:
-- [x] 41-01-PLAN.md — Add CSV export: queryAllFiltered, buildCsvFilename, Download CSV button, bee-atlas handler
-**UI hint**: yes
+See `.planning/milestones/v2.0-ROADMAP.md` for full phase details.
 
 </details>
 
@@ -390,7 +347,14 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 
 </details>
 
-<!-- Phase 92-96 details archived to .planning/milestones/v3.6-ROADMAP.md -->
+### 🚧 v3.7 Places (In Progress)
+
+**Milestone Goal:** Add a curated directory of collecting locations with permit status, land owner info, specimen counts, and full map integration.
+
+- [ ] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation
+- [ ] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit
+- [ ] **Phase 99: Place Static Pages** — Eleventy index and per-place pages
+- [ ] **Phase 100: Map & Filter Integration** — boundary toggle, filter chip, URL param
 
 ## Phase Details
 
@@ -486,6 +450,56 @@ Plans:
 <!-- Phase 89-91 details archived to .planning/milestones/v3.5-ROADMAP.md -->
 
 <!-- Phase 92-96 details archived to .planning/milestones/v3.6-ROADMAP.md -->
+
+### Phase 97: Place Data Model
+**Goal**: The coordinator can define curated collecting locations in a TOML file that the build validates for correctness before the pipeline runs
+**Depends on**: Phase 96
+**Requirements**: PLC-01, PLC-02, PLC-03, PLC-04
+**Success Criteria** (what must be TRUE):
+  1. A coordinator can add an entry to `content/places.toml` with slug, name, land_owner, geometry_wkt (WGS84), and a permits array; the build accepts it
+  2. Each permit record carries issuing_authority, optional permit_number, nullable expiry_date, and type (project-level vs site-level)
+  3. The build fails with a descriptive error if any place has an invalid geometry, non-WGS84 CRS, duplicate slug, or slug characters outside `[a-z0-9-]`
+  4. The build fails if any two place polygons overlap (ST_Intersects check)
+  5. A pytest fixture with one valid and one invalid place entry verifies the pass/fail boundary
+**Plans**: TBD
+
+### Phase 98: Pipeline Integration
+**Goal**: occurrences.parquet carries a place_slug column from a spatial join; places.geojson and places.json are exported and committed so CI builds succeed without running the pipeline
+**Depends on**: Phase 97
+**Requirements**: PPIPE-01, PPIPE-02, PPIPE-03, PPIPE-04, PPIPE-05, PPAGE-03
+**Success Criteria** (what must be TRUE):
+  1. Running the pipeline loads places.toml into a `geographies.places` DuckDB table before dbt runs; `dbt build` exits 0 with the 31-column contract
+  2. occurrences.parquet contains a `place_slug` VARCHAR column; occurrences at a known place carry its slug; occurrences outside all places carry NULL (no nearest-polygon fallback)
+  3. `public/data/places.geojson` is produced containing slug + geometry (suitable for Mapbox `promoteId: 'slug'`)
+  4. `public/data/places.json` is produced containing all metadata (name, land_owner, permits, specimen count, sample count) with no geometry
+  5. Per-place SVG occurrence maps are generated following the species_maps.py pattern (WA county backdrop, occurrence dots, byte-stable output)
+  6. places.geojson and places.json are committed to git; `npm run build` succeeds in CI without running the pipeline
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 99: Place Static Pages
+**Goal**: Users can browse a directory of collecting locations and view detailed information for each place
+**Depends on**: Phase 98
+**Requirements**: PPAGE-01, PPAGE-02
+**Success Criteria** (what must be TRUE):
+  1. `/places.html` (or equivalent direct-path URL) lists all places with name, land owner, permit status summary, and specimen count
+  2. Each place has a dedicated page at a direct-path URL (e.g. `/places/{slug}.html`) accessible without a trailing-slash redirect
+  3. The per-place page shows name, land owner, a permit table with active/inactive/no-expiry status, specimen count, the SVG occurrence map, and a link that opens the main map with that place's filter applied
+  4. The deep-link from a place page opens the main map with that place pre-filtered (occurrence dots outside the polygon are ghosted)
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 100: Map & Filter Integration
+**Goal**: Users can toggle a places boundary overlay on the map, click a place polygon to filter by it, and share filtered map URLs that restore the place selection
+**Depends on**: Phase 98
+**Requirements**: PMAP-01, PMAP-02, PMAP-03, PMAP-04
+**Success Criteria** (what must be TRUE):
+  1. The boundary mode toggle includes a Places option; selecting it renders place polygons in a visually distinct color from counties and ecoregions; the modes remain mutually exclusive
+  2. Clicking a place polygon in the boundary layer applies that place as the active filter (occurrence dots outside the polygon are ghosted)
+  3. A removable place filter chip appears in the filter panel when a place is active; removing it clears the filter and shows all occurrences
+  4. The active place slug is encoded as `place=` in the URL; pasting the URL in a new tab restores the place filter
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
@@ -587,3 +601,7 @@ Plans:
 | 94. Species & Genus Pages | v3.6 | 3/3 | Complete    | 2026-05-16 |
 | 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 96. Index Page Replacement | v3.6 | 3/3 | Complete    | 2026-05-16 |
+| 97. Place Data Model | v3.7 | 0/TBD | Not started | - |
+| 98. Pipeline Integration | v3.7 | 0/TBD | Not started | - |
+| 99. Place Static Pages | v3.7 | 0/TBD | Not started | - |
+| 100. Map & Filter Integration | v3.7 | 0/TBD | Not started | - |

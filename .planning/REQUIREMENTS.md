@@ -61,28 +61,28 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLC-01 | — | Pending |
-| PLC-02 | — | Pending |
-| PLC-03 | — | Pending |
-| PLC-04 | — | Pending |
-| PPIPE-01 | — | Pending |
-| PPIPE-02 | — | Pending |
-| PPIPE-03 | — | Pending |
-| PPIPE-04 | — | Pending |
-| PPIPE-05 | — | Pending |
-| PMAP-01 | — | Pending |
-| PMAP-02 | — | Pending |
-| PMAP-03 | — | Pending |
-| PMAP-04 | — | Pending |
-| PPAGE-01 | — | Pending |
-| PPAGE-02 | — | Pending |
-| PPAGE-03 | — | Pending |
+| PLC-01 | Phase 97 | Pending |
+| PLC-02 | Phase 97 | Pending |
+| PLC-03 | Phase 97 | Pending |
+| PLC-04 | Phase 97 | Pending |
+| PPIPE-01 | Phase 98 | Pending |
+| PPIPE-02 | Phase 98 | Pending |
+| PPIPE-03 | Phase 98 | Pending |
+| PPIPE-04 | Phase 98 | Pending |
+| PPIPE-05 | Phase 98 | Pending |
+| PPAGE-03 | Phase 98 | Pending |
+| PMAP-01 | Phase 100 | Pending |
+| PMAP-02 | Phase 100 | Pending |
+| PMAP-03 | Phase 100 | Pending |
+| PMAP-04 | Phase 100 | Pending |
+| PPAGE-01 | Phase 99 | Pending |
+| PPAGE-02 | Phase 99 | Pending |
 
 **Coverage:**
 - v3.7 requirements: 16 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 16 ⚠️
+- Mapped to phases: 16 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-17*
-*Last updated: 2026-05-17 after initial definition*
+*Last updated: 2026-05-17 — traceability updated after roadmap creation*
