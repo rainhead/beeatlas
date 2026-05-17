@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-17 — v3.7 Places milestone started)
 ## Current Position
 
 Phase: 97 — Place Data Model
-Plan: —
-Status: Not started
-Last activity: 2026-05-17 — Roadmap created for v3.7 Places
+Plan: 2 plans (097-01, 097-02)
+Status: Ready to execute
+Last activity: 2026-05-17 — Phase 97 planned (2 plans, 2 waves)
 
 ```
 Progress: [          ] 0% (0/4 phases)
