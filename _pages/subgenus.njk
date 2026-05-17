@@ -10,7 +10,7 @@ layout: default.njk
 ---
 <article class="taxon-page">
   <nav class="breadcrumb">
-    {{ subgenus.family }}<span class="sep">/</span><a href="/species/{{ subgenus.genus }}/">{{ subgenus.genus }}</a><span class="sep">/</span>{{ subgenus.subgenus }}
+    {{ subgenus.family }}<span class="sep">/</span><a href="/species/{{ subgenus.genus }}/index.html">{{ subgenus.genus }}</a><span class="sep">/</span>{{ subgenus.subgenus }}
   </nav>
   <h1><em>{{ subgenus.subgenus }}</em></h1>
   <p class="metadata">{{ subgenus.speciesCount }} species · {{ subgenus.totalOccurrences }} records</p>
@@ -24,7 +24,7 @@ layout: default.njk
     {%- for sp in subgenus.species -%}
       <li>
         <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
-        <a href="/species/{{ sp.slug }}/"><em>{{ sp.scientificName }}</em></a>
+        <a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>
         <span class="count">{{ sp.occurrence_count }} records</span>
       </li>
     {%- endfor -%}

@@ -22,7 +22,7 @@ layout: default.njk
     <ul class="species-list">
     {%- for g in tribe.genera -%}
       <li>
-        <a href="/species/{{ g.genus }}/"><em>{{ g.genus }}</em></a>
+        <a href="/species/{{ g.genus }}/index.html"><em>{{ g.genus }}</em></a>
         <span class="count">{{ g.occurrence_count }} records</span>
       </li>
     {%- endfor -%}

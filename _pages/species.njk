@@ -15,11 +15,11 @@ title: Species — BeeAtlas
     <h2>{{ family }}</h2>
     {%- for genus, genusGroup in familyGroup | groupby("genus") -%}
     <div class="genus-row" data-genus="{{ genus }}">
-      <a href="/species/{{ genus }}/"><em>{{ genus }}</em></a>
+      <a href="/species/{{ genus }}/index.html"><em>{{ genus }}</em></a>
       <ul class="species-list">
         {%- for sp in genusGroup -%}
         <li data-name="{{ sp.scientificName | lower }}">
-          <a href="/species/{{ sp.slug }}/"><em>{{ sp.scientificName }}</em></a>
+          <a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>
           <span class="count">{{ sp.occurrence_count }} records</span>
         </li>
         {%- endfor -%}
