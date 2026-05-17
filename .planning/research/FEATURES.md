@@ -1,555 +1,275 @@
-# Feature Landscape — v3.2 Species Tab
+# Feature Landscape — v3.7 Places Tab
 
-**Domain:** Biodiversity / atlas / field-guide species exploration page
-**Researched:** 2026-05-02
-**Confidence:** HIGH for pnwmoths-pattern (read on disk), Wiley/BeeSearch viz format (R source read on disk), and BeeAtlas data schema (DuckDB introspection); MEDIUM for WA checklist ingestion specifics (paper supplements not directly fetched); MEDIUM for ALA/iNat species-page conventions (web research only, no direct repo access)
+**Domain:** Curated collecting-location directory with permit tracking and map integration for a citizen science bee atlas
+**Researched:** 2026-05-17
+**Confidence:** HIGH for iNat/eBird place-page conventions (web research + official docs fetched), WA permit fields (WDFW page fetched + WA Native Bee Society), and Mapbox GL JS polygon filtering (official docs + GitHub issues); MEDIUM for permit metadata field norms (inferential from NPS/WDFW permit guidance, no authoritative collector field-data standard found); LOW for what other entomology atlases expose on per-site pages (no direct comparanda found — field is sparse)
 
-> Scope of this research: ONLY the new Species Tab page. Existing SPA features (map, filters, drawer, feeds) are out of scope and intentionally not re-investigated.
-
----
-
-## Confirmed Reference Materials
-
-These were read directly, not just cited:
-
-| Source | Path | What it gives us |
-|--------|------|------------------|
-| BeeSearch ridge plots | `~/dev/BeeSearch/analyses/ridge_plots.Rmd`, `ridge_plots.md` | Concrete x/y/encoding/threshold spec for the seasonality viz |
-| BeeSearch genus plots v2 | `~/dev/BeeSearch/analyses/genus_plots_v2.Rmd` | Per-genus species-richness + proportion-abundance bar viz (interesting differentiator) |
-| BeeSearch data | `~/dev/BeeSearch/data/CABS1.csv`, `Eli/EB_*.csv` | CABS schema (Date, Genus, Short.label.name, Count, Sex, Site, Station) |
-| pnwmoths repo | `~/dev/pnwmoths/src/components/*.js`, `src/_data/*.js`, `src/species/species.njk`, `src/browse/index.njk`, `data/species.csv`, `data/images.csv` | Verbatim taxon-browser, phenology-chart, occurrence-map, image-slideshow, filter-bar, parquet-cache patterns; species/images CSV authoring schema |
-| BeeAtlas Ecdysis schema | `data/beeatlas.duckdb` (introspected) | Confirmed taxonomy columns: family/genus/subgenus/specific_epithet/scientific_name; tribe NOT present |
-| BeeAtlas iNat schema | `data/inaturalist_pipeline.py`, `data/waba_pipeline.py` | iNat v2 fields currently fetched; **photos and observation_photos NOT in DEFAULT_FIELDS** |
-| BeeAtlas occurrences.parquet | `data/export.py`, `scripts/validate-schema.mjs` | Existing 32 columns; per-occurrence taxon labels (genus/family) but no tribe, no subgenus |
-| Wiley paper Sugden 2025 | DOI 10.1002/ece3.72049 | Same authors / same data / same code as BeeSearch; ridge plots ARE the figure |
-
-The Wiley paper (`10.1002/ece3.72049`) is **the published version of BeeSearch** — Riley M. Anderson, Sugden et al., "Structure of Bee Communities in Marginal Lands of the Puget Sound, USA" (2025). The "ridge plots" Rmd is the figure-generation source. We have the exact ggridges R code, so the format is fully specified.
+> Scope: ONLY the new Places tab / feature set for v3.7. Existing SPA, species pages, and occurrence pipeline are context, not research subjects.
 
 ---
 
-## Existing Data — What's Available Per Occurrence
+## How "Place" Features Work in Citizen Science Tools
 
-From `occurrences.parquet` (verified by introspecting the column list in `validate-schema.mjs` and `export.py`):
+### iNaturalist Places
 
-**Already populated, ready for v3.2:**
-- `family`, `genus`, `scientificName` — taxonomic labels (specimen-side; iNat-side has `specimen_inat_family`, `specimen_inat_genus`, `specimen_inat_taxon_name` for provisional rows)
-- `lat`, `lon` — coordinates (COALESCE of ecdysis + iNat)
-- `date`, `year`, `month` — for seasonality
-- `county`, `ecoregion_l3` — for geographic filtering
-- `host_observation_id`, `specimen_observation_id` — link out to iNat
-- `is_provisional` — distinguishes WABA-only vs Ecdysis-confirmed
-- `inat_quality_grade`, `specimen_inat_quality_grade` — research-grade vs needs-id
+iNat Places are geographic boundaries stored in the database. A place page shows:
+- Polygon boundary on a map
+- Species checklist (taxa observed or known to be present)
+- Establishment means per taxon (native / introduced / endemic)
+- Parent / child place hierarchy
+- Observation count
 
-**Available in source DB but not exported:**
-- `subgenus` (Ecdysis): present but ~5% coverage globally — heavily Lasioglossum and Andrena. NOT reliable as a primary nav rung.
-- `specific_epithet`, `infraspecific_epithet` — needed to display species-without-genus-prefix
-- `taxon_id` (Ecdysis), `taxon__id` (iNat) — could anchor a species table
+**What iNat does well:** Linking occurrence data to a named geography. Checklist-based species tracking. Nested place hierarchies (state → county → reserve).
 
-**NOT in either source — must be added or sourced separately:**
-- **Tribe** — neither Ecdysis DC export nor `inaturalist_waba_data.taxon_lineage` has it. The seed says "Tribe (and other gaps) filled from iNaturalist" — that gap-fill IS NOT YET BUILT. Currently `taxon_lineage` only has `(taxon_id, genus, family)`. Adding tribe means re-fetching iNat `/v2/taxa/{ids}` with `ancestors.rank` and extracting tribe from the lineage.
-- **Photos** — neither pipeline includes photo fields. Current `DEFAULT_FIELDS` in `inaturalist_pipeline.py` and `waba_pipeline.py` have no `taxon.default_photo`, no `photos.url`, no `observation_photos`. Adding photos requires a fields change AND new dlt resources for the nested photo arrays.
-- **WA state checklist** (which species exist in the state list independent of occurrences) — must be ingested from Bartholomew, Murray, Bossert, Gardner, Looney 2024 (Journal of Hymenoptera Research, [https://jhr.pensoft.net/article/129013/](https://jhr.pensoft.net/article/129013/)). Paper indicates 565 high-confidence species + 102 likely, with family/subfamily/tribe/genus hierarchy. Supplement format unconfirmed; likely XLSX/CSV.
+**What iNat does poorly:** No operational metadata (permit info, access restrictions, land manager contact). Boundaries are community-curated and inconsistent. Place checklist counts can lag reality due to indexing quirks (documented bug: "place checklist doesn't show all research grade species"). No per-place specimen count distinct from observation count.
 
-**Genus species-richness ground truth** (top genera by distinct `scientific_name` in current DB):
+**Relevance to v3.7:** iNat's place-polygon model is the reference for what to store (GeoJSON boundary, checklist-style occurrence count). Its absence of operational metadata is precisely the gap v3.7 fills for bee atlas volunteers.
 
-| Genus | Family | Specimens | Distinct species |
-|-------|--------|-----------|------------------|
-| Andrena | Andrenidae | 3,354 | **72** |
-| Lasioglossum | Halictidae | 2,878 | **55** |
-| Osmia | Megachilidae | 2,435 | **50** |
-| Megachile | Megachilidae | 1,634 | 26 |
-| Bombus | Apidae | 1,984 | 21 |
-| Melissodes | Apidae | 1,431 | 19 |
-| Hylaeus | Colletidae | 769 | 14 |
-| Coelioxys | Megachilidae | 123 | 13 |
-| Colletes | Colletidae | 643 | 12 |
-| Eucera | Apidae | 464 | 11 |
+### eBird Hotspots
 
-Andrena (72), Lasioglossum (55), and Osmia (50) are the rendering-stress cases. Sub-genus rendering would split Andrena and Lasioglossum into manageable bins, but only IF subgenus is populated — which it isn't for most records. **Most species cards will appear directly under their genus, not under a subgenus.**
+eBird hotspots are shared birding locations with a dedicated About page. Relevant fields:
 
----
+| Section | Fields |
+|---------|--------|
+| Plan Your Visit | Entrance fees, permit requirements, operating hours, directions, parking, accessibility |
+| How to Bird Here | Notable trails, key habitats, target species, birding strategies |
+| About This Place | History, ownership and management, conservation context |
+| Hotspot Features | Structured boolean flags: restrooms, beginner-friendly, restricted access, seasonal closure |
+| Links | Official website + supplemental URLs |
 
-## Capability 1 — Hierarchical Taxonomic Nav (Left Rail)
+**What eBird does well:** Structured operational metadata (restricted access flag, fee, hours). Community-wiki authoring model. Hotspot Groups aggregate related sub-sites under one overview.
 
-**The pnwmoths reference is the closest match to v3.2 ambitions** — `~/dev/pnwmoths/src/components/pnwm-taxon-browser.js` is a Lit component with expand-on-click family→subfamily→genus→species, image strips at each level, and a state filter that mutes (rather than hides) taxa with zero records in the selected state. It IS the pattern.
+**What eBird does poorly for bees:** No permit tracking per se — "restricted access" is a yes/no flag, not a structured permit record with number, issuing agency, expiration. No specimen counts (birding is observational, not lethal-collection). No polygon boundaries at the hotspot level (eBird hotspots are points).
 
-### Findings (cross-site)
+**Relevance to v3.7:** The "restricted access" flag is table-stakes on any collecting-site directory. eBird's structured content sections (Plan Your Visit / How to Bird Here / About) map well to a Bee Atlas place page, adapted for collectors rather than birders.
 
-- **Atlas of Living Australia, GBIF, iNaturalist** — none of these have a single-page hierarchical browser comparable to pnwmoths. They all use search-first / faceted-search interfaces; species pages are reached by name search or taxon-ID URL. Not a direct pattern match.
-- **BugGuide** — the canonical model for an always-visible taxonomic tree, but the UX is widely considered creaky (scroll-heavy, never-ends pages). Not worth emulating.
-- **pnwmoths** — expand-on-click tree, image strips visible at collapsed-genus level, click-image-to-jump-into-tree. Volunteer-friendly.
+### GBIF
 
-### Tribe handling — concrete proposal
+GBIF does not have a "place page" concept. Occurrence search can be filtered by country, admin region, or a dataset's locality field, but there is no curated location directory. Not a relevant comparand.
 
-Ecdysis has no tribe column; current `taxon_lineage` has no tribe column. Two options:
+### iDigBio
 
-1. **Hard-code a tribe table** (Apidae has Bombini, Eucerini, Anthophorini, etc.) — small lookup, ~30 tribes for WA, can be a CSV checked into `_data/`. LOW complexity, immediate.
-2. **Re-fetch iNat taxa with full ancestor lineage and extract tribe** — extends `enrich_taxon_lineage` in `waba_pipeline.py` to walk `ancestors[]` for `rank == 'tribe'`. MEDIUM complexity (touches pipeline + export). Higher fidelity going forward; reusable for any future ranks.
-
-Recommendation: **option 1 (hard-coded CSV) for v3.2**, gate on whether the WA checklist supplement already contains tribe (it does, per pensoft TOC — "Andrenidae: Andreninae: Andrenini"). If yes, the checklist IS the tribe table — single source of truth.
-
-### Recommendation for v3.2 nav
-
-| Aspect | Recommendation | Rationale |
-|--------|----------------|-----------|
-| Layout | Vertical left rail, expand-on-click (not always-expanded) | pnwmoths-pattern; 6 families × ~30 tribes × ~50 genera doesn't fit always-expanded |
-| Levels | family → subfamily → tribe → genus → (subgenus when populated) → species cards | Matches the seed's locked decision; subgenus level only renders when records have subgenus filled |
-| Image strips | Show 3–4 thumbnails per collapsed level | pnwmoths' `pickNavImages()` pattern; visual orientation for non-experts |
-| Filter-as-you-type | Defer to differentiator | Adds JS complexity; v3.2 ships with click-to-expand only |
-| Click image in strip | Jump to expanded-genus view of that species | pnwmoths' `_expandToSpecies()` pattern; volunteers can browse by photo |
-| Mute-not-hide | Apply 0.35 opacity to filtered-out branches | pnwmoths D-06; preserves orientation when geo/season filters narrow results |
-
-### Table stakes vs differentiators vs anti-features
-
-**Table stakes (v3.2 must ship):**
-- Family / tribe / genus / species hierarchy, expand-on-click — COMPLEXITY: MEDIUM. Depends on tribe data.
-- Tribe rung populated for all WA bee genera — COMPLEXITY: LOW (CSV from checklist) or MEDIUM (iNat ancestor re-fetch).
-- Subgenus level visible only where data supports it — COMPLEXITY: LOW. Conditional rendering.
-- Static fallback (no-JS noscript with all species linked) — COMPLEXITY: LOW. Eleventy renders the tree at build time. pnwmoths-verbatim pattern.
-
-**Differentiators (worth doing if cheap):**
-- Image strips at collapsed levels — MEDIUM complexity (depends on photo manifest existing). Strong pedagogical value for volunteers building "what's in this group" mental models.
-- Click-image-to-jump — LOW once strips exist.
-- Filter-as-you-type by genus/species name — LOW-MEDIUM. Useful but the tree fits on one screen at family level.
-- Mute-not-hide on filtered taxa — LOW. Critical for orientation; recommend treating as table-stakes-adjacent.
-
-**Anti-features (do NOT build for v3.2):**
-- Identification key / dichotomous key UI — out of scope; deserves its own milestone.
-- Drag-and-drop tree reordering — solves nothing.
-- Favoriting / collections — community-feature territory; cold-start risk per `project-goals-liveness-community.md`.
-- Per-tribe detail pages — seed locks species detail pages OUT; same logic applies to higher ranks.
+iDigBio similarly has no site/place directory. Records have lat/lon and locality text, but there is no aggregate place entity. Not relevant.
 
 ---
 
-## Capability 2 — Species Cards (Grid Layout)
+## Feature Landscape
 
-### Findings
+### Table Stakes (Users Expect These)
 
-The pnwmoths species browser renders species as a 2-column responsive grid (`grid-template-columns: 1fr 1fr` at >=600px) where each card is `<a class="pnwm-tb-species-card">` containing one cropped hero image (`aspect-ratio: 376/249; object-fit: cover`) and italic genus + species + optional common name. Clicking the card navigates to a species detail page — but our seed locks detail pages OUT of v3.2. So v3.2 cards must be self-contained: the card IS the surface.
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Place name + slug + static page at `/places/{slug}/` | Any directory needs per-place pages; this is the URL structure that makes sharing work | LOW | Eleventy pagination from a places data file; matches species-page pattern already shipped |
+| Land owner / managing agency | Every collecting permit is issued by or contingent on approval from the land manager; volunteers need to know who manages the land before planning a trip | LOW | One string field: e.g. "WA DNR", "WDFW", "NPS - Hanford Reach", "Clallam County Parks" |
+| Active / inactive permit status | Volunteers must know whether the program has current authorization to collect at this site; wrong status = regulatory violation | LOW | Boolean or enum: `active` / `expired` / `no-permit-needed` / `access-denied` |
+| Permit expiration date | An active permit becomes inactive on a specific date; volunteers use this to understand validity window | LOW | ISO date field; `null` if no permit required or open-ended |
+| Specimen count per place | Conveys how productive the site has been; volunteers choose sites partly by prior collection volume | MEDIUM | Requires spatial join: `ST_Within(occurrence.lat/lon, place.polygon)` in pipeline → `specimen_count` column on places export |
+| Place boundary polygon on map (toggleable layer) | Without visible boundaries, the place filter is not spatially grounded for the user | MEDIUM | places.geojson with polygon geometries; Mapbox GL JS fill + stroke layer, toggle via chip or button |
+| Place filter chip on main map (ghost/dim occurrences outside polygon) | Core use case: volunteers want to see "what has been collected at this site?" by restricting the view to the polygon | MEDIUM | Filter pattern: collect IDs of occurrences within polygon, apply dim/ghost to points outside; extends existing filter chip system |
+| /places/ index page | Without an index, individual place pages are undiscoverable | LOW | Eleventy template listing all places with name, land owner, active status, specimen count |
+| Deep-link from place page to filtered map view | Closes the loop: collector reads about a site, clicks "View on map", arrives at main map filtered to that place | LOW | URL param `pl={slug}` encodes the place filter; `bee-atlas` restores it on load |
 
-Per-card content load for v3.2 (locked in seed):
-- Photo(s)
-- Short ID-helpful description (authored, not extracted)
-- Static SVG occurrence map
-- Seasonality viz
+### Differentiators (Worth Doing in v3.7 if Cheap)
 
-### Concrete recommendations
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Issuing agency on permit record | Distinguishes "WDFW SCP" from "NPS research permit" from "State Parks Special Use Permit"; different agencies have different renewal processes | LOW | One string field alongside permit status; e.g. "WDFW", "NPS", "WA State Parks" |
+| Permit number | Volunteers often need to cite the permit number when reporting collections; having it in the atlas saves a look-up | LOW | String field; nullable. Not all sites need one. |
+| Multiple permit records per place | A site on both DNR land and WDFW-managed area may require two separate permits | LOW | Permits as an array of objects in the data model, not a single flat field |
+| Access notes (free text) | Operational details that don't fit structured fields: gate codes, seasonal road closures, "park at trailhead 2, not trailhead 1" | LOW | Unstructured text field rendered as a prose paragraph on the place page; markdown acceptable |
+| Place active/inactive filtering on /places/ index | Volunteers planning trips only care about active sites; inactive ones are reference only | LOW | Filter toggle on the index page |
+| Specimen count by taxon for a place | "This site is productive for Osmia" is more useful than a raw total | HIGH | Requires per-place species aggregation; join complexity and storage cost are significant. Defer. |
+| iNat link-out from place page | The iNat project already tracks WABA observations; linking to `inaturalist.org/observations?place_id=...` gives volunteers a complementary view | LOW | One URL field per place, or computed from iNat API |
+| "Collecting season" annotation | Some sites are only accessible / productive May–August (flowering phenology + permit windows); surfacing this helps trip planning | LOW | Start-month / end-month fields; rendered as a calendar strip on the place page |
 
-| Element | Recommendation | Complexity |
-|---------|---------------|-----------|
-| Photo treatment | Single cropped hero on the card; click-to-expand to gallery | Hero is LOW; gallery (slideshow with prev/next/dots/lightbox per pnwmoths) is MEDIUM |
-| Description length | 1–3 sentences, ID-cue focused (e.g. "male hind femur width >= height") | LOW (pure authoring) |
-| Static map | Inline SVG, ~300×200px, WA outline + ecoregions in faint gray + dots for occurrences | MEDIUM (Python SVG generation in export.py); volunteers familiar with WA shape recognize ecoregions |
-| Seasonality viz | Small inline chart, ~300×80px, see Capability 4 | MEDIUM |
-| Frequency / rarity | Specimen count + WA-checklist status badge ("WSDA 2024 verified" / "likely-to-occur" / "first state record") | LOW once checklist is ingested |
-| Link to SPA | "View N occurrences →" or photo-overlay button → `/collection?taxon=...` | LOW |
-| Cards-per-row | 1 column on mobile, 2 columns on tablet, 3 on desktop wide | LOW (CSS grid) |
-| Per-genus pagination | NOT NEEDED for genera ≤30 species; needed for Andrena (72), Lasioglossum (55), Osmia (50) | See below |
+### Anti-Features (Explicitly Do Not Build)
 
-### Big-genus rendering — concrete options
-
-**Andrena 72, Lasioglossum 55, Osmia 50.** A 3-column grid with ~360px-tall cards yields ~24 cards per scroll-screen. Andrena would be 3 scrolls. Options:
-
-1. **No pagination, just scroll** — simplest. Anchor offset behavior matters (browser back-button must restore scroll position). LOW complexity.
-2. **Subgenus collapse-by-default with "expand all" toggle** — Andrena has 6+ subgenera in WA; collapse each. Works only where subgenus is populated; fragile for partial data. MEDIUM.
-3. **Lazy-render with IntersectionObserver** — render visible cards eagerly; defer SVG map / phenology chart until scrolled into view. MEDIUM. Performance win for big genera.
-4. **Alphabetical in-page index** — ribbon of letters at top of genus, jump-to-letter. LOW.
-
-Recommendation: **(1) + (3)**: render all cards but defer the map/chart rendering to first-paint when each card scrolls into view. This is straightforward with IntersectionObserver and matches what large-genus browsers (e.g. iNat taxon page galleries) do.
-
-### Table stakes vs differentiators vs anti-features
-
-**Table stakes:**
-- Single hero photo per card — LOW once manifest exists.
-- 1–3 sentence ID description — LOW (authored).
-- Static SVG occurrence map per species — MEDIUM (Python codegen in export.py; one SVG per species per export).
-- Inline seasonality viz per species — MEDIUM (see Capability 4).
-- "View N occurrences in map" link to `/collection?taxon=...` — LOW.
-- Specimen count badge — LOW.
-- WA checklist status badge (verified / likely / new record) — LOW once checklist ingested.
-
-**Differentiators:**
-- Photo gallery with prev/next/lightbox (vs. single hero) — MEDIUM. Pnwmoths' `pnwm-image-slideshow.js` is portable.
-- Lazy SVG/chart rendering via IntersectionObserver for big genera — MEDIUM. Worth it for Andrena/Lasioglossum/Osmia.
-- "First WA record" / "rediscovered after N years" callouts on cards — LOW once checklist + first-record dates ingested. Strong narrative payoff (matches the WSDA news angle: "26 new or rare species").
-- Sort cards by frequency (most-collected first) within a genus — LOW. Volunteers can build "what to expect" intuition faster.
-- Click-photo-to-lightbox — LOW.
-
-**Anti-features:**
-- Per-card filtering UI (filter scope is page-level, not card-level) — would multiply state.
-- Card flipping / 3D effects — fluff.
-- Auto-playing image carousel — accessibility regression.
-- Per-card comments / community discussion — cold-start.
-- Embedding the SPA map inside a card — performance death; the link to `/collection?taxon=...` is the right affordance.
+| Feature | Why Requested | Why Problematic | What to Do Instead |
+|---------|---------------|-----------------|-------------------|
+| User-submitted place edits (wiki-style) | eBird uses community-wiki for hotspot content | Static hosting constraint eliminates server-side write path; also, permit data is legally sensitive and must be authoritative | Hand-curate in a TOML/JSON file in the repo; PR-based edit process is the right governance model |
+| Per-place comments / trip reports | eBird hotspot "How to Bird Here" is community-edited | Cold-start problem; managing legally-sensitive access information via community edits is a liability; Facebook/iNat projects already serve this social function | Access notes field (free text, maintainer-curated) covers the informational need |
+| Map layer showing all WA public lands | Seems like context for the Places tab | Not scoped to bee collecting; WA DNR public lands GeoJSON is ~50 MB; loads the map with irrelevant geometry | Places layer only shows the 20–100 hand-curated polygons |
+| Real-time permit status check via agency API | "Always current" | No public API exists for WDFW/NPS permit status; scraping is brittle; permits change infrequently | Nightly pipeline re-reads a local TOML; maintainer updates TOML when permits change; GitHub PR = audit trail |
+| Species rarity / difficulty ratings per place | Appealing for planning | Requires significant editorial effort and will drift; volunteers already have species pages | Link from place page to species pages filtered by ecoregion; let existing data answer the question |
+| GPS track upload / trail map embed | eBird does this | Scope creep; not a bee-collecting concern (bees are not trail-bound); adds storage + CDN complexity | Access notes field can reference a trail map URL |
+| Permit application wizard / form submission | Natural extension of permit tracking | Far outside static-hosting constraint; also not the atlas's role — the atlas records what's collected, not administers permits | Permit agency website URL field; link out to agency |
+| Specimen count broken down by year | Useful for trend analysis | Requires substantially more pipeline complexity (per-place per-year join); better served by a future analytics milestone | Total specimen count is sufficient for v3.7 |
 
 ---
 
-## Capability 3 — Photo Manifest Authoring Loop
+## Feature Dependencies
 
-### Findings
+```
+[Pipeline spatial join: place_name in occurrences]
+    └──required by──> [Specimen count per place]
+    └──required by──> [Place filter chip (ghost outside polygon)]
 
-The pnwmoths repo authors photos via a flat CSV checked into the repo:
+[places.geojson export with polygon + metadata]
+    └──required by──> [Map: toggleable place boundaries layer]
+    └──required by──> [Place filter chip]
+    └──required by──> [/places/ index: live specimen count]
 
-```csv
-species_slug,filename,photographer,weight,license,view,specimen,navigational
-abagrotis-apposita,Abagrotis apposita-A-D.jpg,Merrill A. Peterson,1,CC BY-NC-SA 4.0,dorsal,A,
-abagrotis-apposita,Abagrotis apposita-A-V.jpg,Merrill A. Peterson,2,CC BY-NC-SA 4.0,ventral,A,
+[Eleventy place pages]
+    └──required by──> [/places/{slug}/ static page]
+    └──required by──> [/places/ index page]
+    └──requires──> [places data source (TOML or JSON in repo)]
+
+[URL param pl={slug}]
+    └──required by──> [Deep-link from place page to filtered map]
+    └──required by──> [Place filter chip state encoded in URL]
+    └──must coexist with──> [Existing URL params: bm=, counties=, ecor=, taxon=, sel=]
 ```
 
-Files are hosted on a CDN (`https://pnwmoths.b-cdn.net/<slug>/<filename>`) — manifest entries are pure metadata. `weight` is sort order, `navigational: true` flags images suitable for the strips at collapsed levels. The species CSV is the source of truth for the taxonomic structure as well; both are joined at build time in `_data/species.js` and `_data/images.js` via in-memory DuckDB CSV reads.
+### Dependency Notes
 
-**Implications for BeeAtlas** — the seed locks "TOML manifest checked into repo, photos via CDN, populated by query/algorithm at species-add time then manually editable, WABA + non-WABA CC-licensed acceptable." Pnwmoths confirms this is a working pattern at 1,348-species scale. TOML vs CSV is taste; CSV has the advantage that pnwmoths' DuckDB-backed `_data/*.js` pattern is directly portable.
+- **Specimen count requires spatial join first:** The pipeline must assign `place_name` (or `place_slug`) to each occurrence row before `places.geojson` can be exported with accurate counts. This is the first pipeline step to implement.
+- **Place filter chip depends on places.geojson being loaded at runtime:** The chip must know the polygon to do inside/outside classification. The GeoJSON is fetched at startup alongside counties/ecoregions.
+- **Place filter and county/ecoregion filters must coexist:** The existing AND-across-types / OR-within-type semantics apply; a place filter should AND with any active county or taxon filter, not replace it.
+- **`pl=` URL param must not conflict with `sel=`:** The selection rectangle and place filter are compatible (select within the already-filtered view); both should encode simultaneously. This differs from the `sel=` / `o=` mutual exclusivity already in the codebase.
 
-### Photo source in the BeeAtlas world
+---
 
-- **WABA observations** (already in `inaturalist_waba_data.observations`): 1,374 observations, but the dlt pipeline does NOT currently capture photo arrays. `DEFAULT_FIELDS` in `waba_pipeline.py` has no `photos.*` or `observation_photos.*`. Adding them = field-list change + new dlt resource for the nested array. License is per-observation in `license_code` and per-photo (different field).
-- **Generic iNat WA observations**: `inaturalist_data.observations` likewise has no photos. Same fix.
-- **iNat default-photo for taxon**: `taxa/{id}` returns `default_photo` with attribution and url. This is the cheapest way to get one curated thumbnail per species (used by Atlas of Living Australia, GBIF and iNat species pages).
+## Permit Data Model
 
-### License handling
+This is the core novel data structure for v3.7. Based on WA permit practice:
 
-- Default iNat license is **CC BY-NC**. Many users use CC BY, CC BY-SA, CC BY-NC-SA. All-rights-reserved is not usable.
-- iNat photo URL pattern: `https://inaturalist-open-data.s3.amazonaws.com/photos/<photo_id>/<size>.<ext>` where size ∈ `square` (75px), `small` (240px), `medium` (500px), `large` (1024px), `original`.
-- Attribution requirement (per iNat help): "© [name], some rights reserved (CC-BY-NC-SA)" plus link to license. Compositionally per-photo on the card.
-- BeeAtlas constraint per seed: "WABA + non-WABA CC-licensed photos acceptable" — the manifest must accept BOTH sources. Photos external to iNat (e.g., specimen photos taken by Looney's lab) are also in scope.
-
-### Concrete manifest schema (proposal)
-
-```toml
-# .planning/ or _data/species_photos/Andrena_milwaukeensis.toml — one file per species
-species_slug = "andrena-milwaukeensis"
-notes = "Optional. Internal-only authoring notes."
-
-[[photo]]
-source = "inat"            # one of: "inat", "external"
-inat_observation_id = 12345678
-inat_photo_id = 87654321   # specific photo within the observation
-size = "medium"            # which size to use (square/small/medium/large/original)
-caption = "Female on Salix sp., King Co., May 2024"
-attribution = "© rainhead, some rights reserved (CC-BY-NC)"
-license = "CC BY-NC 4.0"
-order = 1                  # sort key
-navigational = true        # show in collapsed-tree strips
-
-[[photo]]
-source = "external"
-url = "https://example.org/path/to/specimen.jpg"
-caption = "Pinned specimen, dorsal view"
-attribution = "Photo: Joel Gardner"
-license = "CC BY 4.0"
-order = 2
-navigational = false
+```
+Place {
+  slug: string                  # URL-safe identifier, stable
+  name: string                  # Display name
+  land_owner: string            # Managing agency: "WA DNR", "NPS", "WDFW", "Clallam County Parks"
+  polygon: GeoJSON Polygon      # Boundary; source: hand-digitized or from agency GIS
+  active: boolean               # Whether any permit is currently active
+  access_notes: string|null     # Markdown prose; operational details
+  collecting_season_start: int|null  # Month (1-12); null = year-round
+  collecting_season_end: int|null
+  inat_place_url: string|null   # Link to iNat place or project
+  permits: [
+    {
+      issuing_agency: string    # "WDFW", "NPS", "WA State Parks"
+      permit_number: string|null
+      status: "active"|"expired"|"pending"
+      issued_date: ISO date|null
+      expiration_date: ISO date|null
+      notes: string|null        # e.g., "Annual renewal required; contact Area Manager"
+    }
+  ]
+}
 ```
 
-Per-species TOML files (vs one giant manifest) keep diffs small and tractable for human edits.
+**Why permits as an array:** WA sites frequently require both a WDFW Scientific Collection Permit AND a separate land-manager authorization (e.g., a State Parks Special Use Permit). These are distinct instruments with distinct expiration dates. Flattening them to one field would lose this.
 
-### Authoring loop
+**What the WDFW SCP tracks (verified from WDFW page and WA Native Bee Society guidance):** Permit is issued per project (temporal + geographic scope). Annual report required within 45 days of expiration. Does not authorize entry onto private or restricted public land — so the site's access authorization is a SEPARATE instrument from the SCP. Both must be active.
 
-1. **Auto-populate**: Python script (`scripts/seed_photos.py` or pipeline step) iterates each species in the WA checklist, queries iNat `/v2/taxa/{id}` for `default_photo` (1 image) plus `/v2/observations?taxon_id=X&quality_grade=research&photo_license=cc-by,cc-by-sa,cc-by-nc,cc-by-nc-sa&order=desc&order_by=votes&per_page=8` (top-voted research-grade photos), writes a baseline TOML per species.
-2. **Manual edit**: maintainers open the TOML, reorder, swap, add captions, drop photos that don't help with ID.
-3. **Build-time validation**: an Eleventy `_data/photos.js` reader (DuckDB-CSV pattern from pnwmoths, or just `@iarna/toml` since the manifest is small) loads all TOMLs, validates required fields, fails the build on missing license.
-4. **Render**: `_data/photos.js` exposes a `bySpeciesSlug` map; the species card template reads `photos[slug]` and emits the hero + slideshow markup.
-
-### Table stakes vs differentiators vs anti-features
-
-**Table stakes:**
-- TOML-per-species manifest checked into repo — LOW complexity for the schema; depends on photo provisioning.
-- Build-time validation (required fields, license non-empty) — LOW.
-- Attribution rendered on every photo display — LOW.
-- License field captured per photo — LOW.
-
-**Differentiators:**
-- Auto-seed script that populates a starter manifest from iNat queries — MEDIUM. Saves enormous time for 565+ species.
-- Per-photo `view` (dorsal/lateral/face) and `specimen` (live/pinned/in-flight) tags — LOW. Lets the gallery group "ID-helpful angles" first.
-- "Best photo for ID" flag separate from `navigational` — LOW. Pnwmoths conflates the two.
-- Caching the iNat thumbnails to S3 / CloudFront so the site doesn't depend on iNat uptime — MEDIUM. Mirrors what we already do for parquet + GeoJSON; consistent with static-hosting constraint.
-
-**Anti-features:**
-- Build-time iNat fetch (locked OUT in seed) — would create rate limits and flaky builds.
-- Photo upload UI on the live site — community-feature territory; cold-start risk.
-- Auto-rotating photo selection by popularity — non-determinism breaks reproducible builds and is not what curation means.
-- Embedding the iNat photo via iframe — performance + reliability + license-display headaches.
+**What the NPS tracks (for Hanford Reach, etc.):** NPS research permits use year/park-acronym/sequential format. Must be renewed annually; zero-take policy in NPS units without explicit permit.
 
 ---
 
-## Capability 4 — Seasonality Viz (Wiley / BeeSearch Format)
+## Spatial Filter UX: Ghosting Points Outside a Polygon
 
-### What the BeeSearch ridge plots actually do (verbatim from `ridge_plots.Rmd`)
+This is the key interactive behavior. Evidence from research:
 
-```r
-geom_density_ridges(aes(height = stat(density)),
-                    scale = 5,
-                    rel_min_height = 0.01,
-                    stat = "density",
-                    bw = "bcv")  # biased cross-validation
-```
+**Pattern:** When a place filter is active, occurrences within the polygon render at full opacity; occurrences outside render at ~25% opacity ("ghosted"). The polygon boundary itself renders as a stroke with a light fill, making the active zone obvious.
 
-**Concrete spec:**
+**Mapbox GL JS implementation approach:** No native "inverted polygon fill" in Mapbox GL JS style spec as of 2026 (GitHub issue #6267, open). Two practical approaches:
 
-| Aspect | Value |
-|--------|-------|
-| **X-axis** | `week = lubridate::week(Date)` — week of year, 1–53 |
-| **X-axis labels** | "3 March" (week 10), "15 May" (week 20), "24 July" (week 30), "3 October" (week 40) |
-| **Y-axis** | Stat density (kernel-smoothed proportion of records). NOT raw count. |
-| **Grouping** | One ridge per genus (or species, or subgenus) |
-| **Ordering** | Sorted by `peak = Mode(week)` descending — earliest-peaking taxa at top |
-| **Encoding** | Density ridges via `ggridges::geom_density_ridges` — overlapping translucent areas, like a stacked phenology |
-| **Smoothing** | Genus-level: `bw = "bcv"` (biased cross-validation; better for multi-modal multivoltine species). Species-level: Silverman's rule of thumb (Gaussian-assumption default). The paper uses "Scott's method for univoltine, bcv for multivoltine"; the published Rmd unconditionally uses bcv at genus level. |
-| **Sample size threshold** | Genus-level: `n > 19` (i.e. ≥20 records per genus). Species-level: `n >= 20`. Below threshold = exclude. |
-| **Sample size annotation** | Right-margin text label: "*" 20–49, "**" 50–99, "***" 100–999, "****" ≥1000, plus the raw `n`. |
-| **Season markers** | Vertical dashed lines at week 12.6 (~21 March), 25.3 (~21 June), 38.4 (~21 September) — equinoxes/solstices. Annotations: "Winter / Spring / Summer / Fall." |
-| **Y-axis style** | Italic text (`element_text(face = "italic")`) for genus/species names. |
-| **Color** | Per-genus color palette (`c24` 24-color qualitative). Phenology-by-phylogeny variant uses family color instead. |
+1. **Point opacity via `circle-opacity` expression:** Load all occurrences; when place filter is active, set `circle-opacity` to `["case", ["in", ["get", "id"], ["literal", [... ids within polygon ...]]], 1.0, 0.2]`. This requires knowing all IDs within the polygon — i.e., the spatial join must happen at query time.
 
-### How this maps to v3.2 species cards
+2. **Two-layer approach:** A "ghost" layer renders all points at low opacity unconditionally; a "live" layer renders only points within the polygon at full opacity using a filter. The ghost layer is always present; the live layer activates when a place filter is set.
 
-The BeeSearch ridge plot is a **multi-taxon comparative chart** (one figure with 19 genera). On a species CARD, we have one taxon. So the per-card seasonality viz is closer to **a single ridge** or, equivalently, **a kernel-smoothed area chart**:
+The two-layer approach is cleaner for Mapbox GL JS because `setFilter` is synchronous (no expression evaluation per frame). It extends naturally to the existing layer architecture where specimen and sample layers are already separate.
 
-- X-axis: week of year, 1–53 (or month, if simpler)
-- Y-axis: density (smoothed proportion) OR raw count
-- Encoding: filled area under a smoothed line (Bezier or kernel density)
-- Sample size guard: do not render if `n < 20`; show "Insufficient data (n=4)" instead
+**ID-based filter alternative:** Run a DuckDB query `WHERE ST_Within(point, polygon)` in-browser at place-selection time; collect the result as a Set of IDs; apply as a `visibleIds`-style filter. This matches the existing filter-query pattern (`_filterQueryGeneration` guard, `visibleEcdysisIds` Set). **This is the recommended approach** — it reuses the existing filter architecture rather than adding a new Mapbox layer management pattern.
 
-For the per-card use, simpler may be better than ridges:
+**Performance:** A polygon point-in-polygon query over ~45K points in wa-sqlite with a pre-indexed spatial column runs in <100ms. However, BeeAtlas currently does NOT use spatial SQL — it uses pre-joined `county` / `ecoregion_l3` columns. For place filtering, the polygon is small (park scale), and there are only 20–100 places. Options:
+- Pre-join at pipeline time: add `place_slug` column to `occurrences.parquet` (same pattern as `county`). Fast at runtime; ~0ms filter cost. Requires pipeline spatial join.
+- Client-side point-in-polygon: use Mapbox's `queryRenderedFeatures` or turf.js `booleanPointInPolygon`. Works without pipeline changes; higher runtime cost (~100–500ms for 45K points in JS). Viable for 20–100 small polygons.
 
-| Encoding option | Pros | Cons |
-|-----------------|------|------|
-| Monthly bar chart (12 bars) | Simple, no smoothing decisions, pnwmoths-pattern (`pnwm-phenology-chart.js` does exactly this with Chart.js) | Lower resolution; smooths over sub-month timing |
-| Weekly bar chart (53 bars) | Higher resolution | Visually noisy at card scale (~300×80px) |
-| Kernel-density area (BeeSearch ridge w/o ridges) | Captures bimodal multivoltine species elegantly | Needs density estimation in JS or pre-computed at build |
-| Heatmap strip (single row, 52 cells) | Compact, comparable across cards | Low pop-out for peaks |
-| Cumulative emergence curve | Highlights early/late species | Less intuitive for "when do I find this?" |
-
-Recommendation: **kernel-density area chart** for v3.2 cards (matches the seed's "mimic Wiley format" ask) with **monthly bars as a fallback when n < 20 and ≥5** — the bar form survives small samples; the smoothed area becomes meaningless. Below n=5, render text only ("3 records, May–June").
-
-### Computation strategy
-
-Two options for computing the density per species:
-
-1. **Pre-compute at export time in Python** — `data/export.py` generates a `seasonality.json` with `{species_slug: { density: [53 floats], n: int }}`. KDE in scipy or numpy. Static JSON loaded once on the species page. Build-time cost; simple frontend. **Recommended for v3.2.**
-2. **Compute in-browser** — load occurrences, filter by species, KDE in JS. Reuses existing in-browser SQLite. Higher CPU; lazy-render-on-scroll mitigates cost. Defer to a future milestone.
-
-The same `seasonality.json` powers both (a) per-card single-species charts and (b) a future cross-genus ridge plot (a-la BeeSearch) if added later.
-
-### Filter interaction
-
-When the page-level geographic filter narrows occurrences (e.g. King County only), per-species seasonality should re-compute against the filtered subset. **This forces option 2 (in-browser KDE)** unless we accept that v3.2 ships with seasonality only over the full WA dataset, ignoring geo filters. Per the seed's emphasis on "Which species of *Eucera* are present in this ecoregion?" — geographic filtering is core, so seasonality SHOULD respond. But interactive re-KDE per filter change for 565 species is an emerging performance concern.
-
-Tractable middle ground: **pre-compute seasonality per species per ecoregion-l3 (≤11 ecoregions)** as well as per-county (≤39 counties) at export time. Storage cost: 565 species × (1 + 11 + 39) × 53 weeks × 4 bytes ≈ 6 MB. Fine. Filter logic looks up the right pre-computed bin. NO in-browser KDE.
-
-### Table stakes vs differentiators vs anti-features
-
-**Table stakes:**
-- Per-species seasonality chart on each card — MEDIUM complexity (export-time JSON + Lit chart component).
-- Sample-size guard (n<20: bars; n<5: text only) — LOW.
-- Compatible with page-level geographic filter (full WA, per ecoregion, per county pre-computed) — MEDIUM.
-- X-axis labels with month names (or BeeSearch-style "3 March / 15 May / ...") — LOW.
-
-**Differentiators:**
-- Kernel-density smoothed area encoding (true Wiley/BeeSearch mimicry) — MEDIUM. Bars are the safer fallback.
-- Season-band background tinting (winter/spring/summer/fall) — LOW. Strong visual orientation per BeeSearch.
-- Per-card sample-size badge with star ratings (`***` 100+, etc., per BeeSearch) — LOW. Conveys data quality at a glance.
-- Cross-species ridge plot at the genus level (when a genus is expanded) — MEDIUM. Direct BeeSearch parity; volunteers can compare congeners.
-- Sex-disaggregated seasonality (males emerge first in many genera) — LOW data, MEDIUM viz complexity. Defer.
-- Year-over-year overlay or year filter — defer.
-
-**Anti-features:**
-- 3D temporal heatmap — overkill.
-- Animated phenology over years — fluff at this scale.
-- Phylogenetic tree alongside the timeline — out of scope; pretty in BeeSearch but a research output, not a volunteer affordance.
-- Comparing all 565 species on one chart — useless density.
+**Recommendation:** Pre-join at pipeline time (add `place_slug` to `occurrences.parquet`). This is the same approach used for county and ecoregion. Runtime filter is a Set lookup — O(1) per feature. The `places.geojson` export also gets an accurate `specimen_count` from the same join. One pipeline change, two benefits.
 
 ---
 
-## Capability 5 — WA State Checklist Integration
+## MVP Definition
 
-### Findings
+### Launch With (v3.7)
 
-The authoritative source is **Bartholomew, Murray, Bossert, Gardner & Looney (2024). An annotated checklist of the bees of Washington state. *Journal of Hymenoptera Research*.** [https://jhr.pensoft.net/article/129013/](https://jhr.pensoft.net/article/129013/). 565 high-confidence species + 102 likely. Pensoft TOC indicates family / subfamily / tribe / genus structure, plus a "likely to occur" appendix. Supplementary data downloads listed as XML / PDF (CSV unconfirmed but commonly available on Pensoft articles).
+Core loop: volunteer plans a trip to a known site → views the place page (permit status, land owner, access notes) → clicks "View on map" → map filtered to that site's polygon.
 
-The Washington Bee Atlas project itself (WSDA) is the volunteer-collection effort; it does NOT publish a separate checklist — it cites the 2024 paper. So the checklist source is unambiguous: **the 2024 paper supplement.**
+- [x] Places data file in repo (TOML or GeoJSON with properties) for 20–100 sites
+- [x] Pipeline spatial join: `place_slug` column added to `occurrences.parquet`
+- [x] `places.geojson` export with polygon + `name`, `slug`, `land_owner`, `active`, `specimen_count` properties
+- [x] Nightly pipeline produces `places.geojson` uploaded to S3
+- [x] Eleventy generates `/places/` index from `places.geojson` (or `places.json`)
+- [x] Eleventy generates `/places/{slug}/` static pages with name, land owner, permits table, access notes, specimen count, link to map
+- [x] Map: toggleable place boundaries layer (fill-opacity 0.05, stroke, toggle chip)
+- [x] Map: place filter (ghosting occurrences outside polygon via `place_slug` Set filter)
+- [x] URL param `pl={slug}` encodes active place filter; restored on page load
 
-### Inclusion semantics — proposal
+### Add After Validation (v3.7.x)
 
-| Case | Treatment |
-|------|-----------|
-| On checklist (verified) AND has occurrences | Card rendered. Default state. |
-| On checklist (verified) AND no occurrences in our data | Card rendered with "WA-listed; not yet in atlas" badge. Map blank or shows ecoregion-suitability silhouette. Phenology says "no records yet." |
-| On checklist (likely-to-occur) AND has occurrences | Card rendered with "Range expansion / first state record" badge. High-narrative-value (matches WSDA news framing). |
-| On checklist (likely-to-occur) AND no occurrences | Card rendered with "Possible in WA" badge; deprioritized in sort order. |
-| NOT on checklist AND has occurrences | Card rendered with "Unverified — not in 2024 checklist" warning. Alert maintainers via build report. |
-| NOT on checklist AND no occurrences | Not rendered. (Trivially true.) |
+- [ ] Collecting season (start/end month) displayed on place page and index — data model supports it; LOW effort
+- [ ] iNat place URL link-out — LOW effort once data field exists
+- [ ] "Permit expires soon" warning (30-day lookahead) on the index — LOW; useful for admins
 
-This treats the checklist as the **set of cards** and occurrence data as the **content of cards**, NOT the other way around. The seed implicitly endorses this: "selecting a subgenus shows all species under it (with specimen data **or** in the WA state checklist)."
+### Future Consideration (v3.8+)
 
-### Ingestion
-
-- Add a fifth dlt-or-sql data source: `data/checklist_pipeline.py` reads the supplement (CSV or XLSX from Pensoft), populates `beeatlas.duckdb.checklist.species(family, subfamily, tribe, genus, subgenus, specific_epithet, status, first_state_record_year, source_url)`.
-- `export.py` joins occurrences against the checklist and produces `species.parquet` (or JSON) with one row per checklist species, plus aggregates: `n_occurrences`, `n_counties`, `n_ecoregions`, `first_observed_date`, `most_recent_date`.
-- Eleventy `_data/species.js` loads `species.parquet` (DuckDB-CSV pattern from pnwmoths, but with parquet) → exposes hierarchical tree to templates and Lit components.
-
-### Table stakes vs differentiators vs anti-features
-
-**Table stakes:**
-- Ingest the 2024 checklist as a structured table — MEDIUM complexity (depends on supplement format; XLSX needs a parser; CSV is trivial).
-- "WA-listed, no records yet" cards rendered — LOW once ingested.
-- "First state record" / "rediscovered" badges — LOW once status field exists.
-- Hierarchy from checklist (family/subfamily/tribe/genus) feeds the left-rail nav — LOW once ingested.
-
-**Differentiators:**
-- Phenology badges on checklist-only cards (silhouette suitability based on neighboring-state data) — out-of-scope speculation; defer.
-- Auto-flag occurrence records with species missing from checklist — LOW. Build report only; valuable for data hygiene.
-- Show "next likely species" recommendations on the page (likely-to-occur not-yet-found) — LOW; matches the WSDA "27 new records" narrative; high engagement value.
-
-**Anti-features:**
-- Manual species-list editing in the repo (i.e., bypassing the checklist) — would diverge from authoritative source; introduces drift.
-- Per-volunteer custom checklists — community feature; cold-start risk.
+- [ ] Per-place species breakdown (which species have been collected here) — HIGH pipeline complexity; HIGH user value for experienced collectors
+- [ ] Multiple place filter chips (OR semantics: show occurrences at site A OR site B) — current architecture assumes single place filter
+- [ ] Place pages showing seasonality charts based on place-filtered data — requires per-place pre-computed aggregates
+- [ ] Automatic permit expiration monitoring / GitHub issue creation — operational tooling, not atlas feature
 
 ---
 
-## Capability 6 — Filter UX on a Single Page
+## Feature Prioritization Matrix
 
-### Constraints
-
-- Up to 565 cards rendered (all WA species). Realistically ~100–200 visible at any time once a tribe or genus is expanded.
-- Existing filter infrastructure: 250K+ specimens already in SQLite WASM in-browser (`v2.6 SQLite WASM Migration`); occurrence data available; geographic + temporal filtering already implemented in the SPA.
-- Seed locks filter scope to **geography + seasonality only** for v3.2. Attribute filters (eye color, ID character) deferred.
-
-### Findings
-
-Single-page filter UX patterns from biodiversity sites:
-
-1. **Filter bar at top, cards reflow below** — most common (ALA, GBIF, BugGuide). Simple. No URL-anchoring complexity.
-2. **Sticky left rail nav + sticky top filter bar** — pnwmoths uses the inline rail-as-content pattern (filter is in the rail, not a separate bar). Works because pnwmoths filters by state only.
-3. **Breadcrumb trail** — for "Andrena → spring → King County" trail visibility. Low complexity.
-4. **Mute-not-hide** — pnwmoths' D-06; preserves orientation.
-
-### Recommendation
-
-| Aspect | Recommendation | Complexity |
-|--------|---------------|-----------|
-| Filter scope | Geographic (county OR ecoregion-l3) + seasonality (month range) | LOW (matches existing SPA idioms) |
-| Filter placement | Sticky top bar on the species page (separate from left rail) | LOW |
-| Filter result encoding | URL-encoded params: `?county=King&ecor=Cascades&m0=4&m1=8` (subset of existing SPA URL grammar) | LOW |
-| Cards behavior | Mute-not-hide (opacity 0.35 on cards with zero records under filter) | LOW |
-| Counts on cards | Always show "N records" (filtered count, not total) | LOW |
-| Breadcrumb | "Andrena · April–August · King County" pill row above the cards, dismissable per-pill | LOW |
-| Empty state | If 0 species match, show "No bee species recorded in [filter]. Try broadening." | LOW |
-| In-browser performance | Pre-computed per-county / per-ecoregion / per-month aggregates per species; filter = lookup, not query | LOW–MEDIUM |
-| Scroll behavior | Anchor preserved on filter change | LOW (browser default if no DOM removal; mute-not-hide guarantees this) |
-
-### Why no in-browser SQLite query for the species-page filter
-
-The SPA filter uses SQLite WASM because it queries 250K rows. The species page renders 565 cards; each card needs `n_records_under_filter`. If we pre-compute aggregates as `species_counts.parquet` with keys `(species_slug, county, ecoregion_l3, month)` or as a JSON flattened lookup, the filter becomes a Map lookup at ~5ms total — no SQLite needed. This is a cleaner separation: the species page's data needs are fundamentally smaller, and re-using the SQLite layer would over-engineer it.
-
-That said, **for the per-species seasonality chart re-rendering under filter** (Capability 4), the same pre-computed lookup table covers the case if we pre-bin by week-of-year across ecoregion / county dimensions.
-
-### Table stakes vs differentiators vs anti-features
-
-**Table stakes:**
-- County multi-select OR ecoregion-l3 multi-select — LOW (existing SPA filter idioms).
-- Month range — LOW (existing SPA filter).
-- URL round-trip — LOW (existing SPA URL grammar to extend).
-- Mute-not-hide cards — LOW.
-- Per-card filtered record count — LOW.
-- Pre-computed aggregates — MEDIUM (export.py extension).
-
-**Differentiators:**
-- Breadcrumb pill trail — LOW. High UX value.
-- "Snapshot" share button (copy filtered URL) — already an SPA capability; portable. LOW.
-- Sort-by-frequency under current filter — LOW.
-- Group-by-tribe toggle (vs. flat by genus) — LOW.
-
-**Anti-features (per seed lock):**
-- Attribute filters (eye color, ID character, ease of photo ID) — DEFERRED to a later milestone. Deserves its own design activity per the seed.
-- Cross-table joins to floral hosts — out of scope for v3.2 (cool but feature creep).
-- Year filter — out of scope (the species page is about "where + when of year"; year filtering is for the SPA).
-- Free-text search (already in SPA via taxon datalist) — duplicating the SPA.
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Place static pages with permit/owner info | HIGH — directly answers "can I collect here?" | LOW | P1 |
+| /places/ index | HIGH — discoverability | LOW | P1 |
+| Spatial join → specimen count | HIGH — productivity signal | MEDIUM | P1 |
+| Map: places layer (boundaries) | HIGH — spatial orientation | MEDIUM | P1 |
+| Map: place filter chip (ghost outside) | HIGH — core interactive use case | MEDIUM | P1 |
+| URL param pl= with restore | MEDIUM — shareability | LOW | P1 |
+| Permit number + issuing agency fields | MEDIUM — collectors need this for reporting | LOW | P1 (data model only, LOW cost) |
+| Multiple permits per place | MEDIUM — some sites require two permits | LOW (data model) | P1 |
+| Access notes (free text) | MEDIUM — operational detail not captured by structured fields | LOW | P1 |
+| Collecting season dates | LOW-MEDIUM — useful for planning | LOW | P2 |
+| iNat place link-out | LOW — supplementary | LOW | P2 |
+| Active/inactive filter on index | LOW — most users want all sites | LOW | P2 |
+| Per-place species breakdown | HIGH — valuable for experienced collectors | HIGH | P3 |
 
 ---
 
-## Cross-Cutting: Dependencies on Existing BeeAtlas Data
+## Competitor Feature Analysis
 
-### Already available — use as-is
-
-- `occurrences.parquet`: family, genus, scientificName, lat, lon, year, month, county, ecoregion_l3, host_observation_id, specimen_observation_id, is_provisional, inat_quality_grade — directly usable.
-- `counties.geojson`, `ecoregions.geojson`: usable for static SVG occurrence-map generation.
-- iNat WABA observations (`inaturalist_waba_data.observations`): available; could be primary photo source via re-fetched photo arrays.
-- iNat WABA `taxon_lineage`: has `(taxon_id, genus, family)` only — needs tribe added.
-
-### Must be added in v3.2
-
-| Dependency | What's needed | Complexity | Impact if not done |
-|------------|---------------|-----------|-------------------|
-| WA checklist ingestion | `checklist_pipeline.py` reads Bartholomew et al. 2024 supplement; populates checklist table | MEDIUM (paper supplement parsing + schema mapping) | No way to render "listed but not collected" cards; tree is incomplete |
-| Tribe data | Hard-coded CSV from checklist OR iNat ancestor-walk in `enrich_taxon_lineage` | LOW or MEDIUM | Tree skips a level; volunteers can't browse by tribe |
-| Photo manifest schema | TOML files in `_data/species_photos/` + Eleventy `_data/photos.js` reader | LOW | No photos on cards; cards are text-only |
-| Photo provisioning | `scripts/seed_photos.py` populates baseline manifest from iNat | MEDIUM | Authoring 565 manifests by hand is a job; auto-seed is the MVP unblocker |
-| iNat photo capture in pipeline | Add `taxon.default_photo`, `photos`, `observation_photos` to `inat_pipeline.py` and `waba_pipeline.py` DEFAULT_FIELDS | MEDIUM | If photos are ONLY external-CDN, no fallback; site uptime depends on iNat |
-| Photo CDN strategy | S3 mirroring (a-la pnwmoths' bunny.net) OR direct iNat URLs OR mix | LOW–MEDIUM | iNat URLs work but couple to iNat uptime; mirroring matches our data-pipeline static-asset pattern |
-| Per-species aggregate parquet | `species.parquet` with n_occurrences, n_counties, n_ecoregions, first/last dates, per-(county,ecoregion,month) counts | MEDIUM | Filter UX has to query SQLite per-card (slow) instead of doing Map lookups |
-| Per-species seasonality JSON | `seasonality.json` with KDE arrays per species per geography slice | MEDIUM | No phenology viz on cards (deal-breaker per seed) |
-| Static SVG occurrence maps | `data/export_species_maps.py` or extension of `export.py` generates one SVG per species | MEDIUM | No per-species map (deal-breaker per seed) |
-| Subgenus completion | Either (a) iNat-driven gap-fill, (b) checklist-driven (Bartholomew supplement has it), or (c) skip the subgenus level | LOW–MEDIUM | If skipped, big-genus rendering relies on scroll only (acceptable per Capability 2 recommendation) |
-
-### Pipeline ordering
-
-The `data/run.py` STEPS sequence currently is `geographies → ecdysis → inat → projects → export`. v3.2 inserts:
-1. `checklist` (after geographies) — independent of occurrences; can run early.
-2. `enrich_taxon_lineage` for tribe — extends WABA pipeline; runs after waba.
-3. Photo seed/refresh — separate manual-trigger script; not on the nightly cron path.
-4. `export_species_artifacts` (species.parquet, seasonality.json, per-species SVG maps) — runs in `export.py` after `export_occurrences_parquet`.
-
----
-
-## MVP Recommendation
-
-For v3.2, ship in this order:
-
-1. **Checklist ingestion + WA species table** (P1 — gates everything).
-2. **Tribe data** (CSV from checklist supplement, fast path).
-3. **Left-rail taxon browser** (pnwmoths-pattern, expand-on-click, no-JS fallback).
-4. **Species cards with hero photo + 1–3 sentence description** (text-and-photo MVP).
-5. **Photo manifest** (TOML schema + auto-seed script + manual-edit loop).
-6. **Static SVG per-species occurrence maps** (Python-generated, embedded inline).
-7. **Per-species seasonality chart** (monthly bars first, kernel-density area as upgrade).
-8. **Page-level filter** (county + ecoregion + month range; URL round-trip; mute-not-hide).
-9. **Per-card link to SPA pre-filtered** (`/collection?taxon=...`).
-
-**Defer to v3.3+:**
-- Photo lightbox/slideshow (single hero is fine for MVP).
-- Photo S3 mirroring (direct iNat URLs are acceptable initially).
-- Cross-genus ridge plot at genus level (single-species seasonality is the MVP).
-- Sex-disaggregated phenology.
-- "First state record" callouts (data is there; LOW polish; trivially additive in v3.3).
-- Subgenus tree level (rendering only when populated; most genera don't qualify).
-- Lazy-render-on-scroll for big genera (only needed if Andrena page perf is bad).
-- Year filter / year-over-year overlay.
-
-**Explicitly deferred per seed (do NOT build in v3.2):**
-- Attribute filters (eye color, ID character, ease of photo ID).
-- Species detail pages.
-- Build-time iNat photo fetch.
-- Identification key.
+| Feature | iNaturalist Places | eBird Hotspots | Our Approach |
+|---------|-------------------|----------------|--------------|
+| Polygon boundary on map | Yes (community-curated, inconsistent quality) | No (point only) | Yes — hand-digitized, authoritative |
+| Specimen / occurrence count | Observation count (checklist-based, can lag) | Checklist count (species, not specimens) | Pipeline spatial join → exact specimen count |
+| Land owner / managing agency | No | Partial ("ownership and management" in About) | Explicit structured field |
+| Permit status | No | "Restricted access" boolean only | Full permit record (status, agency, number, expiry) |
+| Permit number | No | No | Yes — nullable string field |
+| Multiple permits per site | No | No | Yes — permits array |
+| Access notes | No | Yes (Plan Your Visit section, community-edited) | Yes — maintainer-curated free text |
+| Collecting season | No | Seasonal closure flag only | Optional start/end month fields |
+| Deep-link to filtered occurrence map | Filters observations within place via URL | Links to species checklists | `pl={slug}` URL param; restores filter on load |
+| Community-editable | Yes (requires 50+ verifiable obs) | Yes (wiki-style) | No — PR-based maintainer edit |
 
 ---
 
 ## Sources
 
-Direct on-disk reads:
-- `~/dev/BeeSearch/analyses/ridge_plots.Rmd`, `analyses/ridge_plots.md`, `analyses/genus_plots_v2.Rmd`
-- `~/dev/pnwmoths/src/components/{pnwm-taxon-browser.js,pnwm-phenology-chart.js,pnwm-occurrence-map.js,pnwm-image-slideshow.js,pnwm-filter-bar.js,parquet-cache.js}`
-- `~/dev/pnwmoths/src/_data/{species.js,images.js,taxon.js}`
-- `~/dev/pnwmoths/src/{species/species.njk,browse/index.njk}`
-- `~/dev/pnwmoths/data/{species.csv,images.csv}`
-- `~/dev/beeatlas/data/{export.py,ecdysis_pipeline.py,inaturalist_pipeline.py,waba_pipeline.py,beeatlas.duckdb}` (DuckDB introspected)
-- `~/dev/beeatlas/scripts/validate-schema.mjs`
+- [What is an iNaturalist Place?](https://help.inaturalist.org/en/support/solutions/articles/151000175028-what-is-an-inaturalist-place-) — fetched; fields and two-type model confirmed
+- [iNaturalist community forum: Explore vs. Places boundary differences](https://forum.inaturalist.org/t/explore-vs-places-different-boundaries-why/21358) — evidence that place boundary quality varies
+- [eBird Hotspot About Pages](https://support.ebird.org/en/support/solutions/articles/48001281732-ebird-hotspot-about-pages) — fetched; three-section content model, structured boolean features confirmed
+- [eBird Community-sourced Hotspot Descriptions and Hotspot Groups](https://ebird.org/news/new-hotspot-about-pages-and-groups) — Plan Your Visit / How to Bird Here / About This Place sections; Hotspot Groups model
+- [Scientific Collection Permits — WDFW](https://wdfw.wa.gov/licenses/environmental/scientific-collection) — fetched; per-project permit, annual report requirement, land access restriction confirmed
+- [Can I catch bees? WA Native Bee Society](https://www.wanativebeesociety.org/post/can-i-catch-bees-in-washington) — WA permit landscape: WDFW SCP + separate land-manager authorization required; specific agencies (WDFW, DNR, State Parks, NPS, county parks) named
+- [NPS Research and Collecting Permit Overview](https://www.nps.gov/subjects/science/research-and-collecting-permit-overview.htm) — year/acronym/sequential permit ID format; zero-take policy without permit
+- [Washington Bee Atlas collecting land access (via news search)](https://www.myclallamcounty.com/2026/03/30/washington-bee-atlas-needs-volunteers-in-the-field-collecting-bees/) — confirms WDFW, DNR, Clallam County Parks have granted WABA access; named sites include Ginkgo Petrified Forest, Wanapum, Hanford Reach
+- [Mapbox GL JS issue #6267: fill-region / inverted polygon](https://github.com/mapbox/mapbox-gl-js/issues/6267) — no native inverted-polygon support confirmed; workaround via world-with-hole polygon documented
+- [Mapbox GL JS: Filter features within map view example](https://docs.mapbox.com/mapbox-gl-js/example/filter-features-within-map-view/) — `setFilter` approach for boundary-based feature filtering confirmed
 
-Web research:
-- [PNW Moths field guide](https://pnwmoths.biol.wwu.edu/) — site front-end
-- [An annotated checklist of the bees of Washington state (Bartholomew, Murray, Bossert, Gardner, Looney 2024)](https://jhr.pensoft.net/article/129013/) — 565 species + 102 likely; family/subfamily/tribe/genus hierarchy in supplement
-- [Structure of Bee Communities in Marginal Lands of the Puget Sound, USA (Sugden 2025)](https://onlinelibrary.wiley.com/doi/10.1002/ece3.72049) — published BeeSearch paper; ridge plot is Figure 3 / 4 / etc.
-- [Atlas of Living Australia](https://www.ala.org.au/) — species-page conventions (occurrence map + classification tabs + spatial-layer overlays)
-- [WSDA Bee Atlas](https://agr.wa.gov/departments/insects-pests-and-weeds/insects/apiary-pollinators/pollinator-health/bee-atlas) — context for project framing
-- [iNaturalist photo licensing & API](https://www.inaturalist.org/posts/10306-creative-commons-licensing-on-images) and [iNat help on photo reuse](https://help.inaturalist.org/en/support/solutions/articles/151000169918-can-i-use-the-photos-and-sounds-that-are-posted-on-inaturalist-) — license codes, attribution format, photo URL patterns
-- [Discover Life bee species guide and world checklist (Ascher & Pickering, 2024)](https://www.discoverlife.org/mp/20q?guide=Apoidea_species) — bee species browser conventions
+---
+*Feature research for: v3.7 Places tab — collecting location directory with permit tracking and map integration*
+*Researched: 2026-05-17*
