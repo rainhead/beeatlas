@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.7
-milestone_name: TBD
+milestone_name: Places
 status: planning
-last_updated: "2026-05-16T00:00:00Z"
-last_activity: 2026-05-17 - Completed quick task 260516-p0i: Add grey "Genus sp." key entry on genus/subgenus pages
+last_updated: "2026-05-17T18:42:21.119Z"
+last_activity: 2026-05-17
 progress:
   total_phases: 0
   completed_phases: 0
@@ -24,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-16 — v3.6 Simpler Species Index com
 
 ## Current Position
 
-Phase: —
+Phase: Not started (defining requirements)
 Plan: —
-Status: Milestone v3.6 archived; ready for next milestone
-Last activity: 2026-05-16
-
-Progress: [██████████] 100%
+Status: Defining requirements
+Last activity: 2026-05-17 — Milestone v3.7 started
 
 ## Accumulated Context
 
@@ -50,7 +48,6 @@ Progress: [██████████] 100%
 - State ownership: `bee-atlas` owns `_selectionBounds`; `bee-map` is a pure presenter that emits a `selection-drawn` custom event with the bounds; sidebar opens via the existing `occurrence-clicked` path reusing `bee-occurrence-detail`
 
 ### Pending Todos
-
 
 ### Blockers/Concerns
 

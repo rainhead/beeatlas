@@ -1,5 +1,15 @@
 # Washington Bee Atlas
 
+## Current Milestone: v3.7 Places
+
+**Goal:** Add a curated directory of collecting locations (parks, reserves) with permit status, land owner info, specimen counts, and full map integration.
+
+**Target features:**
+- Hand-curated places data model in repo (name, slug, land owner, permit records, polygon geometry)
+- Pipeline spatial join — place_name column in occurrences.parquet; places.geojson exported with per-place counts
+- Static place pages at /places/{slug}/ with owner, active/inactive permits, specimen count, deep-link to filtered map
+- Map integration — place filter chip (ghost outside polygon); toggleable place boundaries overlay layer
+
 ## Milestone: v3.6 Simpler Species Index — COMPLETE (2026-05-16)
 
 **Shipped:** Per-taxon page architecture — 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages. Multi-color SVG occurrence maps for all taxon levels. Searchable family→genus index at `/species/`. Hierarchical `Genus/specificEpithet` slug format throughout. 8 monolith files deleted. BLOCKER-01 (SVG maps never reached S3) closed inline.
@@ -289,4 +299,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-16 after v3.6 milestone — Simpler Species Index complete; 527 species + 42 genus + 103 subgenus + 19 tribe static pages; monolith retired; hierarchical slug format throughout*
+*Last updated: 2026-05-17 — v3.7 Places milestone started*
