@@ -1,1058 +1,533 @@
-# Pitfalls Research: Species Tab (v3.2)
+# Pitfalls Research: Places / Collecting Location Directory (v3.7)
 
-**Domain:** Adding a Species Tab page to the BeeAtlas static site — hierarchical taxonomic nav, image-forward species cards, static SVG occurrence maps, seasonality viz, photo TOML manifest, WA state checklist ingestion. Eleventy MPA + Vite + Python pipeline integration.
-**Researched:** 2026-05-02
-**Confidence:** HIGH — pitfalls grounded in BeeAtlas's specific codebase (Eleventy 3.1 wrapper, wa-sqlite + occurrences.parquet, maderas nightly cron, mapbox-gl 1,700 KB chunk constraint), in retrospective lessons from v1.2/v1.5/v1.7/v3.1, and in iNaturalist API license/taxonomy semantics.
+**Domain:** Adding a curated Places feature to an existing static-hosted nightly-pipeline bee atlas — hand-curated GeoJSON/TOML, dbt spatial join, permit date handling, Eleventy static pages, Mapbox GL JS polygon layer.
+**Researched:** 2026-05-17
+**Confidence:** HIGH — pitfalls grounded in this specific codebase (dbt occurrences.sql spatial join pattern, topology_postprocess.py mapshaper pipeline, Mapbox GL JS `generateId` + feature-state pattern, Eleventy pagination, dbt 30-column contract on `marts/occurrences`).
 
 ---
 
 ## Pitfall Summary Table
 
-| #  | Pitfall                                                                              | Risk      | Prevention Phase                  |
-| -- | ------------------------------------------------------------------------------------ | --------- | --------------------------------- |
-| 1  | Photo manifest references iNat photo IDs that 404, are hidden, or relicensed silently | CRITICAL  | Manifest schema + nightly anti-entropy |
-| 2  | All-rights-reserved or NC-incompatible photos slip into manifest; CC attribution missing | CRITICAL | Manifest schema validation       |
-| 3  | WA state checklist source is stale or non-canonical; cards drift from reality       | CRITICAL  | Checklist ingestion               |
-| 4  | Checklist ↔ Ecdysis name disagreement silently drops cards or duplicates them       | CRITICAL  | Checklist ingestion + reconciliation |
-| 5  | Vagrant / out-of-state observation produces a card for a species not actually in WA | HIGH      | Inclusion rule                    |
-| 6  | Tribe gap-fill from iNat goes stale; cached tribe assignments lag taxonomy moves    | HIGH      | Tribe ingestion + refresh strategy |
-| 7  | Species page bundle accidentally pulls in mapbox-gl (~1,700 KB)                     | CRITICAL  | Vite multi-entry boundary         |
-| 8  | `_data/species.js` reads parquet at every HMR reload, killing dev loop              | HIGH      | Build-time data feed              |
-| 9  | `_data/species.js` requires occurrences.parquet to exist at build time; CI breaks   | HIGH      | Build-time data feed              |
-| 10 | Largest-subgenus card list (Osmia ~80 species) ships 50+ MB of photo bytes per page | CRITICAL  | Card rendering + asset strategy   |
-| 11 | SVG map for 1-record species visually identical to 1000-record species              | MEDIUM    | SVG generator                     |
-| 12 | SVG maps regenerated nightly even when species occurrences unchanged                | MEDIUM    | SVG generator + caching           |
-| 13 | SVG map ships points outside the WA viewBox (no clip)                               | MEDIUM    | SVG generator                     |
-| 14 | One SVG per species × 800+ species bloats `public/data/` and CloudFront invalidation | MEDIUM   | SVG generator + caching           |
-| 15 | Filter on species page hides cards with no "0 species" empty state                  | MEDIUM    | Species filter UX                 |
-| 16 | Species-page filter URL schema collides or diverges from SPA `/collection?...`      | MEDIUM    | URL contract                      |
-| 17 | Pre-filtered SPA link uses wrong query param; silently loads unfiltered map         | HIGH      | URL contract                      |
-| 18 | Slug for species name diverges between species page and SPA pre-filtered link       | HIGH      | URL contract + slugify utility    |
-| 19 | scientificName authority suffix ("Bombus mixtus Cresson, 1878") leaks into slugs and links | HIGH | Name normalization               |
-| 20 | TOML round-trip with `tomlkit` reformats the file on every save; spurious diffs     | MEDIUM    | Authoring workflow                |
-| 21 | Manifest authoring tool lets bad data in (no schema validation in `data/run.py`)    | HIGH      | Manifest schema validation        |
-| 22 | Eleventy + Vite multi-entry: layout chain renders but Lit component never registers | HIGH      | Page scaffolding                  |
-| 23 | `_data/species.js` swallows parquet read error; Eleventy ships empty species page   | HIGH      | Build-time data feed              |
-| 24 | Vite shared-chunk dedup misses because of import shape (default vs named) drift     | MEDIUM    | Multi-entry build                 |
-| 25 | Production build differs from dev (HMR works; `npm run build` breaks)              | MEDIUM    | Multi-entry build                 |
-| 26 | iNat photo URL pattern changes between size variants; hard-coded URLs break        | MEDIUM    | Photo URL strategy                |
-| 27 | Hot-linking iNat photos at scale violates iNat TOS / CDN gets rate-limited         | HIGH      | Photo URL strategy                |
-| 28 | Coordinate jitter for stacked specimens at same lat/lon distorts perceived density | LOW       | SVG generator                     |
-| 29 | Color choice for SVG occurrence dots fails colorblind / print rendering            | LOW       | SVG generator                     |
-| 30 | Page weight regression: per-card photos + DOM + JS exceeds budget without measurement | HIGH    | Performance budget                |
+| #  | Pitfall | Risk | Prevention Phase |
+|----|---------|------|-----------------|
+| 1  | Hand-curated place GeoJSON has invalid polygons, self-intersections, or overlapping geometries that corrupt the spatial join | CRITICAL | Data model + pipeline validation phase |
+| 2  | Many-to-one spatial join (occurrence in multiple places) produces duplicate rows, inflating per-place counts | CRITICAL | dbt spatial join phase |
+| 3  | Nearest-polygon fallback assigns occurrences outside all places to the closest place, giving wrong counts | HIGH | dbt spatial join phase |
+| 4  | `place_slug` column added to `occurrences.parquet` but not to dbt contract → build fails or schema silently expands | CRITICAL | dbt schema phase |
+| 5  | Slug stability broken: renaming a place or changing slug convention breaks existing URLs and S3 permalinks | CRITICAL | Data model phase |
+| 6  | Permit expiry dates checked at nightly-build time only; stale "active" status ships all day after a permit lapses | HIGH | Permit model phase |
+| 7  | Place GeoJSON committed to repo grows large (high-resolution park boundaries); bloats clone, CI, and CloudFront transfer | MEDIUM | Data model phase |
+| 8  | Mapbox GL JS `generateId` + feature-state pattern breaks when places source is reloaded or updated dynamically | HIGH | Map layer phase |
+| 9  | Places boundary layer z-order covers occurrence clusters; clicks on clusters silently intercepted by place layer | HIGH | Map layer phase |
+| 10 | 100-polygon places layer triggers per-feature `setFeatureState` loop on every filter change, causing jank | MEDIUM | Map layer phase |
+| 11 | Eleventy pagination for 100 place pages causes `_data/places.js` to re-run full JSON parse on every HMR reload | MEDIUM | Eleventy data phase |
+| 12 | "Ghost outside polygon" filter chip omits occurrences collected just outside the place boundary (GPS drift, boundary inaccuracy) | HIGH | Filter semantics phase |
+| 13 | Per-place occurrence counts in `places.geojson` go stale relative to `occurrences.parquet` when pipeline step order changes | HIGH | Pipeline ordering phase |
+| 14 | CRS mismatch: place polygons authored in a projected CRS (e.g., WA State Plane) and not reprojected before DuckDB `ST_Within` | CRITICAL | Geometry ingestion phase |
+| 15 | Place pages linked from the map but slug used in the link differs from the Eleventy-generated URL (deep-link contract breakage) | HIGH | URL contract phase |
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Photo manifest TOML drifts as iNat photos disappear, get hidden, or get relicensed
+### Pitfall 1: Hand-curated place GeoJSON has invalid geometries that corrupt the spatial join
 
 **What goes wrong:**
-The TOML manifest references iNat photo IDs by integer. Over time:
-- A photographer deletes the observation (404 on the photo URL)
-- An iNat moderator hides the observation for misidentification or copyright complaint
-- A photographer changes the license from CC-BY to all-rights-reserved (no longer hot-linkable)
-- iNat re-encodes photo URL paths (a CDN migration would break hard-coded URLs)
-- The photographer renames their account (URL with username embedded breaks)
+A curator draws a place boundary in QGIS or geojson.io and exports it. The polygon has:
+- A self-intersection (bowtie shape) — DuckDB's `ST_Within` returns unpredictable results for points near the intersection
+- Coordinates listed in clockwise order instead of counter-clockwise (wrong ring winding) — some implementations silently invert; others treat the polygon as its exterior complement
+- A tiny sliver gap between two adjacent place polygons (a park and a reserve with shared boundary) — points in the gap fall in neither place
 
-The site keeps shipping cards with broken images, missing alt text, or worse — an attribution that says "CC-BY" for a photo that has been relicensed to all-rights-reserved (a TOS violation).
+DuckDB's spatial extension follows the OGC spec for `ST_Within`: it requires valid geometries. An invalid input polygon produces `NULL` or `false` for all points, silently producing zero occurrences for that place — a bug that looks like "no collections here."
 
-**Why it happens in BeeAtlas's context:**
-- The manifest is checked-into-git static data. Without a nightly check, drift accumulates silently between manual edits.
-- Photo manifest entries were "filled at species-add time, then manually editable" (seed). There is no enforced lifecycle for invalidation.
-- The site has no server runtime, so 404 detection cannot happen at request time — it has to happen at pipeline time.
+**Why it happens in this system:**
+- The existing pipeline handles `ecoregions.geojson` (EPA Level III) using `mapshaper -clean` to fix overlaps. That step is in `topology_postprocess.py` for the two generated GeoJSON files. A new `places.geojson` authored by hand bypasses that step by default.
+- The pipeline is additive: the `places.geojson` file would be a new input committed to the repo, not generated by dbt. Nothing currently validates committed GeoJSON geometry.
+- `ST_Within` failures are silent — they produce `NULL`, which downstream code treats as "not in any place," never raising an error.
 
 **How to avoid:**
-- **Anti-entropy step in `data/run.py` after `feeds`:** for each photo ID in the manifest, fetch `GET https://api.inaturalist.org/v1/photos/{id}` (cheap HEAD-style; the API returns metadata including license and observation visibility). Compare:
-  - HTTP 404 → flag in `data/manifest_drift_report.json` and emit nonzero exit on `--strict` (CI gate later) or warning on default (nightly informational).
-  - License changed → flag with old/new pair.
-  - Observation hidden / quality_grade changed to `casual` → flag.
-- **Cache the photo metadata response** in the same `inaturalist_waba_data`-style isolated dlt schema (e.g., `species_photos_cache`) so a single nightly run scans only deltas via `updated_at`.
-- **CI smoke test (`npm run validate-schema`-adjacent):** for a small representative subset of manifest photos (say 20 random IDs), HEAD the photo URL and assert 200. Catches CDN-wide breakage early.
-- **Sentinel rendering:** if a photo entry has `status = "drift"` in the manifest, the species card omits that photo and falls back to the next (or shows a placeholder) rather than rendering a broken `<img>`.
+- Run `mapshaper -clean` on `places.geojson` as a validation/normalization step in `topology_postprocess.py` before the spatial join runs. Add it to `_SIMPLIFY_PCT` with `simplify_pct=None` (clean only; don't simplify authoritative boundaries).
+- Add a pytest fixture that loads `places.geojson` via `geopandas.read_file`, calls `gdf.is_valid.all()`, and asserts `True`. Wire into `data/tests/` and run in CI. Failing validity check blocks the pipeline before corrupt data reaches `occurrences.parquet`.
+- Optionally: use `ST_IsValid(geom)` in a dbt test (`dbt test`) on the places staging model. If any place geometry is invalid, `dbt build` fails before the spatial join runs.
+- Document the geometry requirement in the place data model spec (winding order, no self-intersections, EPSG:4326).
 
 **Warning signs:**
-- Broken-image icons in production cards
-- 404s in CloudFront access logs for `/static.inaturalist.org/...` (if hot-linked) or for the manifest's own image URLs
-- Lighthouse "broken-link" warnings on the species page
-- A photographer or moderator opens an issue saying "you're using my photo without permission"
+- A known collecting site shows 0 occurrences on its place page, while the SPA map shows occurrence points visually inside the polygon
+- `ST_IsValid(geom)` returns `false` for any row in the places staging table
+- `mapshaper -clean` on the committed GeoJSON reports intersection or ring errors
 
-**Phase to address:**
-**Manifest schema phase** (define drift status fields) + **Nightly anti-entropy phase** (verifier script wired into `data/run.py` after `feeds`).
+**Phase to address:** Data model + geometry validation phase (before the dbt spatial join phase). Validation must ship before any place boundary is committed.
 
 ---
 
-### Pitfall 2: All-rights-reserved or NC-incompatible photos in manifest; CC attribution rendered incorrectly or absent
+### Pitfall 2: Many-to-one spatial join produces duplicate rows for overlapping places
 
 **What goes wrong:**
-iNat photos carry one of: CC0, CC-BY, CC-BY-NC, CC-BY-SA, CC-BY-NC-SA, or "all rights reserved." The manifest authoring workflow accepts any photo URL the curator pastes in, including:
-- All-rights-reserved photos that legally cannot be hot-linked or cached and re-served
-- CC-BY-NC photos on a site that has any commercial flavor (BeeAtlas is non-commercial, so NC is fine — but the constraint is rarely visible to authors)
-- CC-BY photos rendered without the required attribution string ("Photo by X, CC-BY 4.0, via iNaturalist") next to the image
+Two places have overlapping geometries (e.g., "Capitol State Forest" and "Black Hills Unit" are both valid describing the same general area; their polygons overlap). An occurrence at lat/lon inside both polygons produces two rows in the spatial join — one for each place. Aggregating `COUNT(*)` per place gives correct per-place counts, but `occurrences.parquet` is now wider than the occurrence set: 57,000 occurrences × 2 overlapping places = 57,002+ rows. Downstream queries and frontend row counts are wrong.
 
-The site goes live with attribution missing, photographers complain, the project loses goodwill, and (worst case) a copyright claim forces takedown of the page.
+The existing county join avoids this because the Census CB 500k counties are non-overlapping by construction. Ecoregions had overlaps in the source data, which `mapshaper -clean` resolved. Hand-curated places won't have the same authoritative topology guarantee.
 
-**Why it happens in BeeAtlas's context:**
-- The seed says "WABA + non-WABA CC-licensed photos acceptable" but does NOT list specific licenses to allow/exclude.
-- The manifest schema is being designed in this milestone — easy to omit license as a required field.
-- TOML is permissive — no validation runs without explicit code.
-- iNat API exposes license codes as strings (`cc-by`, `cc-by-nc`, `cc0`, `null`) but `null` means all-rights-reserved, which is easy to forget and let through.
+**Why it happens in this system:**
+- The ecoregions spatial join uses `DISTINCT ON (_row_id)` (`eco_dedup` CTE in `occurrences.sql`) to handle the EPA L3 source overlaps. But the comment says "DuckDB-specific feature" and its presence is load-bearing. If the places join is added naively without `DISTINCT ON`, overlapping places explode row count.
+- The places join is conceptually different from county/ecoregion: a specimen can legitimately be "at place A AND place B" (a park within a reserve). The data model must decide: does `place_slug` hold one value or a list?
 
 **How to avoid:**
-- **Required `license` field in the TOML schema:** every photo entry must have `license = "cc0" | "cc-by" | "cc-by-nc" | "cc-by-sa" | "cc-by-nc-sa"`. Reject all other values (including `"all-rights-reserved"`, `null`, missing) with a clear error.
-- **Required `attribution` field for non-CC0:** the renderer reads the attribution string verbatim and places it adjacent to the photo. CC0 photos may have it omitted.
-- **Validation in `data/run.py` (export step or anti-entropy step):**
-  ```python
-  ALLOWED_LICENSES = {"cc0", "cc-by", "cc-by-nc", "cc-by-sa", "cc-by-nc-sa"}
-  for species, photos in manifest.items():
-      for p in photos:
-          if p.get("license") not in ALLOWED_LICENSES:
-              raise ValueError(f"{species} photo {p['id']}: invalid or missing license {p.get('license')!r}")
-          if p["license"] != "cc0" and not p.get("attribution"):
-              raise ValueError(f"{species} photo {p['id']}: attribution required for {p['license']}")
-  ```
-- **Schema test in pytest:** load a fixture manifest with bad licenses and assert validation rejects them.
-- **Render-side license badge:** the species card renders a small "CC-BY" / "CC0" pill near the photo. Forces the renderer to read the field, which forces the field to exist.
+- **Decision required before writing the dbt model:** pick one of:
+  1. `place_slug VARCHAR` (single, first-match semantics): occurrence gets the "most specific" (smallest area) place. Use `DISTINCT ON (_row_id)` + `ORDER BY ST_Area(geom) ASC LIMIT 1`. Simpler; loses information about secondary place membership.
+  2. `place_slugs VARCHAR[]` (array, all-containing places): use `ARRAY_AGG`. More accurate; requires frontend to handle array column.
+  - Option 1 is strongly recommended to match the county/ecoregion pattern already in `occurrences.sql`. It keeps the dbt contract clean (VARCHAR, not VARCHAR[]).
+- If option 1: add `ORDER BY ST_Area(geom) ASC` to the places join CTE so "most specific" (smallest polygon) wins when multiple places contain the same point. Document this ordering decision in the CTE comment.
+- Add a post-join dbt test: `assert COUNT(*) FROM places_joined = COUNT(*) FROM int_combined` (row counts must be equal after the join, just like county and ecoregion joins produce 1:1 mappings).
 
 **Warning signs:**
-- A photo entry with `license = "all-rights-reserved"` slipped through git review
-- Attribution line missing under a photo on production
-- An iNat user emails to ask why their photo is being used
+- `occurrences.parquet` row count exceeds source row count from `int_combined`
+- A place page shows 65,000 occurrences when the whole atlas has 57,000
+- Two place chips appear for the same occurrence in the sidebar detail
 
-**Phase to address:**
-**Manifest schema phase** — schema definition + validation in `data/run.py`. Schema test in pytest.
+**Phase to address:** dbt spatial join design phase (must settle overlapping-polygon semantics before writing SQL).
 
 ---
 
-### Pitfall 3: WA state checklist source is stale or non-canonical; cards drift from current consensus
+### Pitfall 3: Nearest-polygon fallback assigns out-of-place occurrences to the closest place
 
 **What goes wrong:**
-The seed says "WA state checklist source — TBD." Picking the wrong source means:
-- Using a personal blog post or PDF list that hasn't been updated in 5 years (missing recent introductions, missing recent splits)
-- Using an older checklist (e.g., Roberts 1996 for *Andrena*) when GBIF / Discover Life / OSU has a more current one
-- Using a list that includes species that have been synonymized since publication
-- Using a list that lacks authority strings, making it impossible to disambiguate names from Ecdysis (which has authority)
-- The chosen source has no "last modified" metadata, so detecting future drift is impossible
+The existing county and ecoregion joins use a nearest-polygon fallback for occurrences that don't `ST_Within` any polygon. This is correct for counties (every WA specimen is in *some* county; the fallback handles GPS points that land just offshore or on a county boundary). But for places, a nearest-polygon fallback is wrong: most occurrences are NOT at any collecting site. Applying the same fallback would assign 50,000 field-collected specimens to the nearest park boundary they happen to be geometrically close to, badly corrupting per-place counts.
 
-The site advertises that species exist in WA when they don't, or omits species that do — both undermine its educational mission.
-
-**Why it happens in BeeAtlas's context:**
-- The seed defers source selection to v3.2 spec — easy to short-circuit with the first list found
-- Volunteer collectors will be the audience; getting the species set wrong directly damages credibility
-- BeeAtlas already has Ecdysis as the taxonomy-of-record, but Ecdysis is *what's been collected*, not *what occurs in WA* — different sets
+**Why it happens in this system:**
+- The `county_fallback` and `eco_fallback` CTEs in `occurrences.sql` are load-bearing and explicitly documented as PORT-02 invariants. Copy-pasting this pattern for places without removing the fallback would be a straightforward and hard-to-spot bug.
+- The fallback is only exercised for a small fraction of occurrences (those with GPS points just offshore, etc.). In a test, if all test points happen to be within a place polygon, the fallback path is never exercised and the bug is invisible.
 
 **How to avoid:**
-- **Sourcing decision is explicit in research, not in implementation:** the research milestone (this one) and a follow-up checklist-source decision must produce a written rationale before code is written. Candidate sources to evaluate (NOT to be assumed):
-  - Best (Ascher) Discover Life regional checklist
-  - GBIF "Washington, US" species list filtered to Apoidea
-  - OSU PNW Bee Atlas project list
-  - Williams/Thorp/Richardson *Bumble Bees of North America* (2014) for Bombus only
-  - Jha et al. WA state list (if one exists in primary literature)
-- **Track checklist provenance in `data/`:** commit the checklist source as a versioned file (CSV with columns: `scientificName`, `authority`, `source`, `source_url`, `last_modified`, `notes`). When the checklist updates, commit a diff. Maintains audit trail.
-- **Refresh policy:** quarterly review at minimum; track in PROJECT.md as a recurring task.
-- **`last_modified` metadata required:** the source must publish a date. If it doesn't, that's a red flag — pick a different source.
-- **Document explicitly in PROJECT.md:** "WA bee checklist as of {date}, sourced from {citation}, with WABA project corrections applied."
+- **Do not use a nearest-polygon fallback for places.** The places join must use `LEFT JOIN` and allow `place_slug IS NULL` (the expected state for the vast majority of occurrences). Document this explicitly in the dbt CTE comment.
+- Use `NULL` as the sentinel for "not at a curated place." The frontend filter `place_slug = 'rattlesnake-ledge'` works correctly with `NULL` values present.
+- Write a pytest fixture: seed one point inside a place polygon and one point 50 km away. Assert the 50-km point gets `place_slug IS NULL` (not assigned to the nearest place).
 
 **Warning signs:**
-- Volunteer reports "you list X but I've never seen one in WA"
-- An expert reviewer points out a species missing from the list that is well-documented in WA
-- Checklist source URL 404s or returns "last updated 2018"
-- New WABA-collected species that the checklist doesn't include
+- `places.geojson` per-place occurrence counts equal the total atlas occurrence count (fallback fired for everything)
+- A place in eastern WA has thousands of occurrences that include specimens from King County collection events
 
-**Phase to address:**
-**Checklist ingestion phase** — formal source selection (with rationale documented in the phase summary), CSV in `data/`, and a `data/checklist_pipeline.py` that loads it into DuckDB.
+**Phase to address:** dbt spatial join design phase. The "no fallback" decision must be explicit in the plan, not left to the implementer.
 
 ---
 
-### Pitfall 4: Checklist ↔ Ecdysis name disagreement silently drops cards or duplicates them
+### Pitfall 4: `place_slug` column added to `occurrences.parquet` but dbt contract not updated
 
 **What goes wrong:**
-The checklist says `Bombus mixtus`. Ecdysis says `Bombus melanopygus mixtus` (subspecies form). Or vice versa. Or:
-- Checklist: `Lasioglossum (Dialictus) zonulum`. Ecdysis: `Lasioglossum zonulum` (no subgenus).
-- Checklist: `Hylaeus mesillae cressoni`. Ecdysis: `Hylaeus cressoni` (subspecies elevated to species).
-- Checklist has authority "Cresson, 1878"; Ecdysis omits authority.
-- A species was synonymized: checklist has the new name; Ecdysis has the old; specimens never link to the checklist card.
+The dbt model `marts/occurrences` has a `contract: enforced: true` block in `schema.yml`. Currently 30 columns. Adding `place_slug` to the SELECT in `occurrences.sql` without adding it to `schema.yml` causes `dbt build` to fail with a schema contract violation — the column appears in the output but isn't in the contract. Conversely, adding it to `schema.yml` without adding it to the SELECT produces the same failure (column declared but not produced).
 
-**Naive `scientificName == scientificName`** join produces:
-- Cards for species in the checklist with **zero linked occurrences** (because the join failed, not because no specimens exist)
-- Cards never created for Ecdysis species not in the checklist (the inclusion rule may or may not want this)
-- Two cards for the same biological entity if both names slip through
+Either way, the nightly pipeline fails and `occurrences.parquet` is not regenerated.
 
-Volunteer collectors see "Bombus mixtus has 0 records in WA" while staring at their Bombus mixtus specimen — they conclude the site is broken.
-
-**Why it happens in BeeAtlas's context:**
-- BeeAtlas already canonically uses Ecdysis as the taxonomy of record (key decision), so the fix is "reconcile checklist names *to* Ecdysis", not the other way
-- Authority strings (`Cresson, 1878`) are present sometimes and not others — the existing `scientificName` field in `occurrences.parquet` does NOT include authority (validated by reading existing pipeline output)
-- Subgenus parens — Ecdysis's `scientificName` may or may not have them depending on the determination chain
-- v1.5 / v1.6 / v2.7 retrospectives all show that schema drift between sources causes silent wrong-result bugs (not loud failures)
+**Why it happens in this system:**
+- The dbt contract is "enforced at every `bash data/dbt/run.sh build`" per `CLAUDE.md`. This is a protective constraint, not optional. Any schema change must touch both `occurrences.sql` AND `schema.yml` atomically.
+- `project_schema_validation.md` (in memory) documents the steps for changing an occurrences column. That procedure must be followed.
+- During development it's tempting to iterate on the SQL first and add the schema entry later. That pattern will fail the build immediately.
 
 **How to avoid:**
-- **Synonym table in `data/checklist_synonyms.csv`:** explicit two-column map `checklist_name → ecdysis_canonical_name`, manually curated by an expert. Empty when ingestion starts; entries added as discrepancies are discovered. Treat as living data.
-- **Reconciliation step in `data/checklist_pipeline.py`:**
-  1. Strip authority from checklist names: `re.sub(r'\s+[A-Z][a-z]+,?\s*\d{4}.*$', '', name)` — careful, fails for some authorities.
-  2. Strip subgenus parens: `re.sub(r'\s+\([^)]+\)\s+', ' ', name)`.
-  3. Match the result against the synonym table → canonical Ecdysis form.
-  4. Match the result against `SELECT DISTINCT scientificName FROM occurrences`.
-  5. **Anything that doesn't match goes into `data/checklist_unmatched.csv`** — exit nonzero on first run, or accept-and-warn on subsequent runs (developer choice). The unmatched file is reviewed by an expert and either added to the synonym table or accepted as "checklist-only species, no specimens yet" (still gets a card, with empty occurrence map).
-- **Frontend behavior on zero-occurrence species:** show the card with an empty SVG map and a clear note ("No specimen records yet — be the first collector!"). Distinguishes "no occurrences" from "join broken."
-- **Unit test:** seed a fixture with `Lasioglossum zonulum` in checklist and `Lasioglossum (Dialictus) zonulum` in occurrences; assert the join produces one card with N records.
+- Follow the `project_schema_validation.md` procedure: add `place_slug` to `schema.yml` (as `data_type: varchar`) in the same commit that adds it to the `occurrences.sql` SELECT.
+- Add a pytest test that runs `dbt build --select occurrences` (or uses the dbt Python API) and asserts exit code 0. This already runs in CI; don't skip it during local development.
+- The `is_nullable: true` constraint should be set (most occurrences will have `place_slug IS NULL`). Check if dbt-duckdb supports `is_nullable` in the contract or if `VARCHAR` already implies nullable.
 
 **Warning signs:**
-- `data/checklist_unmatched.csv` has rows that an expert recognizes as already-collected species
-- Two cards for the same biological entity on the species page
-- A card with 0 records when the SPA filter for that name returns 50
+- `dbt build` exits nonzero with "Schema contract violation" mentioning `place_slug`
+- Nightly pipeline fails silently (nightly.sh exits nonzero; no new `occurrences.parquet` uploaded to S3)
+- The frontend loads the previous night's parquet (no `place_slug` column) but the filter UI expects it
 
-**Phase to address:**
-**Checklist ingestion + reconciliation phase** — synonym CSV + reconciliation script. Pytest fixture for at least 3 known-divergent name pairs (Bombus mixtus, Lasioglossum subgenus form, Osmia synonym).
+**Phase to address:** dbt schema phase (the first phase that touches `occurrences.sql`). Both files must change atomically.
 
 ---
 
-### Pitfall 5: Vagrant or out-of-state observations produce a card for a species that's not actually in WA
+### Pitfall 5: Slug stability broken by place renames or slug convention changes
 
 **What goes wrong:**
-A specimen lat/lon barely inside WA (or actually in OR/ID/BC, depending on the dataset boundary) creates a single occurrence record. Inclusion rule "any species with at least one WA occurrence" includes vagrants alongside resident species. A volunteer who sees a card for *Centris pallida* (a desert species; should never occur in WA) loses trust in the inclusion list.
+A place is initially given slug `rattlesnake-ledge`. The page is published at `/places/rattlesnake-ledge/`. Volunteers bookmark it; other sites link to it. Six months later, someone renames the place to "Rattlesnake Ledge Recreation Area" and regenerates the slug as `rattlesnake-ledge-recreation-area`. The old URL 404s. CloudFront has no redirect rules (static hosting; no server-side redirect capability without a Lambda@Edge function that doesn't exist).
 
-Worse: an Ecdysis record might be a museum specimen *labeled* WA but actually mis-georeferenced. Naive lat/lon-in-WA filtering leaks them.
+The same problem occurs if the slugify convention changes (e.g., currently `slugify("McNeil Island")` → `mcneil-island`, then someone switches to a different slugifier that strips the apostrophe differently or truncates differently).
 
-**Why it happens in BeeAtlas's context:**
-- BeeAtlas already has `county` and `ecoregion_l3` columns from the v1.5 spatial join — county null implies "off the WA map" (handled by nearest-polygon fallback in v1.5, but the fallback can put truly-out-of-state records on a WA county)
-- The checklist source is the authoritative "in WA" answer; specimen-only inclusion would produce vagrant cards
-- iNat photo IDs from outside WA may also be in the manifest (a Bombus rufocinctus photo from Idaho is fine for the photo, but doesn't make the species a WA resident)
-
-**How to avoid:**
-- **Inclusion rule = (in checklist) OR (≥ N specimens in Ecdysis WA)** — set N = 3 (or whatever an expert recommends; document rationale). Single specimens are insufficient evidence on their own.
-- **Decouple "photo source" from "occurrence source":** the photo manifest may pull from anywhere with appropriate license; the inclusion rule is purely about WA presence.
-- **Surface vagrant indication in the card:** if a species is checklist-absent but specimen-present, render with a "rare in WA — N records" badge instead of hiding it. (Better UX than silent omission.)
-- **Spot-check pipeline output:** at first ingestion, list the species set; an expert reviewer flags anything that doesn't belong.
-
-**Warning signs:**
-- The species page lists more species than the WA checklist contains
-- An expert reviewer sees a desert / coastal / boreal species in the WA list with no plausible explanation
-- A "0 occurrences" card for a checklist species feels suspicious (could be a join bug, or could be a checklist-only species — easy to confuse)
-
-**Phase to address:**
-**Inclusion rule phase** — explicitly choose the rule, document threshold, code it in `data/checklist_pipeline.py`, surface vagrancy in the card UI.
-
----
-
-### Pitfall 6: Tribe gap-fill from iNat goes stale; cached tribe assignments lag taxonomy moves
-
-**What goes wrong:**
-Ecdysis DarwinCore lacks tribe (constraint locked in seed). Filling tribe from iNat at species-add time produces a snapshot. Six months later, iNat curators (driven by GBIF/POW/community consensus) move *Eucera* from tribe Eucerini sensu lato to a finer subdivision. The species page nav shows the old tribe; an expert volunteer notices the discrepancy and loses confidence.
-
-Worse: the tribe is included in the URL (e.g., `/species/eucerini/`) and has been bookmarked. A taxonomy change breaks bookmarks.
-
-**Why it happens in BeeAtlas's context:**
-- iNat taxonomy is **community-curated** — it evolves continuously, sometimes in batches when curators import GBIF or POW updates
-- BeeAtlas's existing iNat fetch caches observation-level data, but not taxon-level metadata
-- "Tribe" sits at a level not present in any other BeeAtlas data source; iNat is the only feasible source
+**Why it happens in this system:**
+- BeeAtlas has static hosting only. There is no server to issue 301 redirects. Broken URLs stay broken permanently.
+- The existing species pages use a hierarchical `Genus/specificEpithet` slug format that is stable because scientific names rarely change. Place common names are less stable.
+- The slugify function in `filter.ts` (lines 72–79) already exists and is used for CSV filenames, but it strips to 20 characters (`slice(0, 20)`). A full place name slug must NOT use this truncation, or two long place names truncate to the same 20-character prefix.
 
 **How to avoid:**
-- **Cache tribe in DuckDB, refresh nightly:** add a `data/inat_taxa_pipeline.py` (similar shape to `waba_pipeline.py`) that fetches `GET /v1/taxa/{id}` for each genus in the species list and walks the `ancestors` array to extract tribe. Cache in `inaturalist_taxa_data.taxa` schema. Refresh nightly via `data/run.py`; ride the existing maderas cron.
-- **Tribe is not in URLs:** species-page nav uses tribe as a *display* category; URLs / slugs are species-level only. A tribe rename moves the species visually but doesn't break links.
-- **Sentinel "unknown tribe":** when the iNat fetch returns no tribe ancestor (rare, but possible for genera that lack curation), render the species under "Unassigned" rather than crash. Test fixture for this case.
-- **Diff alerting:** if the tribe of a previously-known genus changes in a nightly refresh, log a one-line warning. Doesn't fail the build but visible in the cron output.
+- **Slugs are curated, not generated.** Each place record in the TOML/YAML data model has an explicit `slug` field that the curator sets manually and never changes once published. The slug is not derived from the name at build time. This is the single most important design decision for slug stability.
+- The display name can change freely; the `slug` field is immutable after first publication.
+- Add a validation step: `slug` must match `/^[a-z0-9-]+$/`; no truncation; must be unique across all places. Assert in `data/run.py` before export.
+- Collision detection: maintain a `data/place-slugs-retired.txt` list (analogous to the species slug approach in the codebase). When a slug is retired, record it with the date so future curation doesn't accidentally reuse it.
+- Document in the place data model spec: "slug is permanent; changing it breaks existing URLs with no recovery path."
 
 **Warning signs:**
-- An expert says "*Eucera* is no longer in Eucerini"
-- iNat genus page shows a different tribe than the BeeAtlas nav
-- Empty "Unassigned" tribe section grows over time (suggests new genera added to checklist with no iNat curation)
+- A place's `slug` field in the TOML is edited after the page has been deployed
+- `slugify(place.name)` is called at build time (instead of reading `place.slug` directly)
+- Two places produce the same slug (validation not running)
 
-**Phase to address:**
-**Tribe ingestion phase** — `data/inat_taxa_pipeline.py` + integration into `data/run.py` + sentinel + nav rendering rule.
-
----
-
-### Pitfall 7: Species page bundle accidentally pulls in mapbox-gl (~1,700 KB)
-
-**What goes wrong:**
-A developer adds an `import` to a shared utility (e.g., `formatLatLon` in a shared `geo.ts` that also imports `mapbox-gl`). Or imports `bee-atlas` for "just the slug helper." Vite's MPA build pulls the full transitive closure into the species page bundle, inflating it to 2 MB and torpedoing time-to-interactive.
-
-The species page is image-heavy and DOM-heavy already; an extra 1,700 KB of unused JS is unacceptable.
-
-**Why it happens in BeeAtlas's context:**
-- mapbox-gl is the largest dep (1,700 KB of the SPA's 2,018 KB main chunk) — confirmed in v3.0 retrospective
-- The Eleventy + Vite multi-entry pattern is *new* (v3.1, only orphan `/_scaffold-check/` exercises it). Patterns aren't yet enforced.
-- `src/entries/bee-header.ts` exists and is used by the `default.njk` layout — already a side-effect entry pattern. Easy to add the species entry alongside it but easy to accidentally co-import map code.
-- The seed says "Static SVG occurrence maps generated in Python" — explicitly NOT mapbox-gl on the species page. But nothing enforces that.
-
-**How to avoid:**
-- **Architectural invariant test (`tests/architecture.test.ts` extension):** use the v1.9 `readFileSync` source-analysis pattern. Add a test that asserts `src/entries/species.ts` (and its transitive imports, walked via simple regex on `import ... from`) does NOT include `mapbox-gl`, `bee-map`, or any module that does. The pattern is established and runs in <1ms.
-- **Bundle size budget in CI:** after `npm run build`, the species page chunk in `_site/assets/` must be `<` budget (suggest 100 KB gzipped initial; tighten as we measure). Fail CI on regression. Use a small Node script — Vite plugin `rollup-plugin-visualizer` can emit JSON.
-- **Separate the slug utility into a leaf module:** anything shared between `bee-atlas` (SPA) and `species` page lives in a leaf file (e.g., `src/lib/taxon-slug.ts`) with no transitive imports of OL/Mapbox/SQLite. Document in the species page entry comment.
-- **Code review checkbox:** "does the species entry's import graph include any of: mapbox-gl, wa-sqlite, hyparquet, ol, ol-mapbox-style?"
-
-**Warning signs:**
-- `_site/assets/species-*.js` size > 200 KB
-- `npm run build` output shows "warning: chunk size > 500 KB" for the species page
-- Lighthouse warns about main-thread JS on the species page
-- HMR slows down on `_pages/species.njk` edits (suggests Vite is processing more code than expected)
-
-**Phase to address:**
-**Page scaffolding phase + architectural-invariant test phase** — invariant test must ship in the same commit that introduces the species entry.
-
----
-
-### Pitfall 10: Largest-subgenus card list (Osmia ~80 species) ships 50+ MB of photo bytes per page
-
-**What goes wrong:**
-Selecting the Osmia subgenus reveals 80 species cards. Each card has 1–3 photos. Naive rendering:
-```
-80 species × 3 photos × 200 KB JPEG = 48 MB
-```
-On a fast desktop connection this is annoying; on volunteer field tablets / phones over LTE this is unacceptable. Page weight regressions like this are how mobile-friendly intentions die quietly.
-
-The issue compounds: 80 × DOM `<article>` elements with all their metadata, plus 80 × static SVG maps inlined or fetched, plus seasonality viz... cumulative layout shift becomes catastrophic.
-
-**Why it happens in BeeAtlas's context:**
-- Osmia, Andrena, Lasioglossum (the project's biggest genera) all have 50+ WA species
-- iNat photos are typically 1024px JPEGs (≈ 200 KB) when fetched at "medium" size
-- The seed explicitly calls this out: "Osmia has 80–90 species; need to verify largest subgenus and decide pagination/lazy-load"
-- BeeAtlas's existing pages (the SPA at `/`) are interactive but static-content-light; the species page inverts that ratio and the project hasn't yet had to engineer for image-heavy pages
-
-**How to avoid:**
-- **`loading="lazy"` on every `<img>`:** native browser lazy-load; supported everywhere we care about. Single-line addition; massive impact.
-- **`<img srcset>` with multiple sizes:** iNat's CDN exposes `square` (75px), `small` (240px), `medium` (500px), `large` (1024px). Use `square` as the smallest source and `medium` for full card display:
-  ```html
-  <img
-    src="https://inaturalist-open-data.s3.amazonaws.com/photos/{id}/medium.jpg"
-    srcset="…/square.jpg 75w, …/small.jpg 240w, …/medium.jpg 500w"
-    sizes="(max-width: 600px) 240px, 500px"
-    loading="lazy"
-    width="500" height="500"
-    alt="{species_name}, photo by {photographer}, {license}">
-  ```
-  `width`/`height` reserve layout space → zero CLS.
-- **Photo budget per card:** 1 hero photo by default, 2 additional revealed on click ("Show more photos"). Reduces initial weight by 3×.
-- **Cap initial render to N cards (~20):** if the subgenus has more, render an "Load more" button or implement IntersectionObserver-based pagination. The pattern is small (no need for a virtualization library; this is a static page).
-- **Performance budget in CI:** Lighthouse CI on `/species/osmia/` (or whichever subgenus is biggest) — fail if LCP > 3s on simulated 4G.
-
-**Warning signs:**
-- Lighthouse mobile score drops below 70 on the species page
-- Real-user reports of slow loading or browser hangs on Osmia
-- Network panel shows 30+ MB transferred on initial load
-
-**Phase to address:**
-**Card rendering phase** — lazy-load + srcset + photo budget. **Performance budget phase** — Lighthouse CI gate (or a simpler size budget script).
-
----
-
-### Pitfall 17: Pre-filtered SPA link uses wrong query param; silently loads unfiltered map
-
-**What goes wrong:**
-The species card links to the SPA with `/collection?taxon=Bombus+mixtus`. But the SPA URL contract (per `src/url-state.ts` line 34–38) is:
-```ts
-if (filter.taxonName !== null) {
-  params.set('taxon', filter.taxonName);
-  params.set('taxonRank', filter.taxonRank!);   // <-- both required
-}
-```
-And `parseParams` (line 88) explicitly checks: `const resolvedTaxonName = (taxonName && taxonRank) ? taxonName : null;` — **missing `taxonRank` silently drops the taxon filter**. The user clicks "View on map" expecting Bombus mixtus highlighted; gets the full 250K-record map instead. No error, no warning.
-
-Same trap for other params: SPA uses `/` (root path), not `/collection` — wrong path also produces "no error, just bad UX."
-
-**Why it happens in BeeAtlas's context:**
-- The species card link is defined in a *different file* from the SPA URL contract; drift is easy
-- The SPA URL contract has 9 params (x, y, z, taxon, taxonRank, yr0, yr1, months, o, bm, view, counties, ecor, collectors, elev_min, elev_max) — easy to miss `taxonRank`
-- v1.1 retrospective: "URL param stripping on initial load is an easy-to-miss bug" — same family of issue
-- The SPA itself is at `/` (per `_pages/index.html`), not `/collection` — the seed says `/collection?taxon=...` which is incorrect for the current codebase
-
-**How to avoid:**
-- **Single source of truth for the link builder:** export a function `buildSpaTaxonLink(name, rank)` from a shared leaf module that calls into `buildParams` (or a thin wrapper). The species card imports this; if the SPA URL contract changes, the species card updates automatically.
-- **Verify the SPA path in the species card pipeline (not in seed):** the SPA mounts at `/` per `_pages/index.html` ; the link is `/?taxon=...&taxonRank=species`, NOT `/collection?...`. Cross-check before writing the card template.
-- **Round-trip test:** Vitest test that builds a species link, parses with `parseParams`, asserts the filter survives.
-- **Error rendering on the SPA:** if the SPA receives `taxon` without `taxonRank`, log a console warning. Surfaces silent breakage during developer testing. (Optional; the round-trip test should catch it.)
-
-**Warning signs:**
-- Click a "view on map" link, get the full unfiltered map
-- The SPA URL has `taxon=...` but the filter chip is empty
-- A new SPA URL param is added without updating the species link builder
-
-**Phase to address:**
-**URL contract phase** — shared `buildSpaTaxonLink` utility, round-trip test, SPA path verification (`/` not `/collection`).
-
----
-
-### Pitfall 18: Slug for species name diverges between species page and SPA pre-filtered link
-
-**What goes wrong:**
-The species page URL is `/species/bombus-mixtus/`. The SPA link is built from `Bombus mixtus`. Two slugifiers exist:
-- `data/feeds.py::_slugify` (lowercases, strips non-alphanumeric, collapses hyphens; designed for path-traversal safety)
-- A new slugifier in `_data/species.js` for URL paths
-
-These drift: feeds.py uses `unicodedata.normalize('NFKD').encode('ascii', 'ignore').decode('ascii')` (transliterates ö → o), while the new one might not. So `Andrena haemorrhoa` → `andrena-haemorrhoa` in feeds.py and `andrena-h%C3%A6morrhoa` in the new one. Card link: `/species/andrena-haemorrhoa/`. SPA filter: searches for `Andrena hæmorrhoa` (which doesn't match `Andrena haemorrhoa` in occurrences). Card shows "0 records"; map shows nothing.
-
-**Why it happens in BeeAtlas's context:**
-- `data/feeds.py::_slugify` already exists with battle-tested behavior (collision tracking, path-traversal safety) per v2.1 retrospective
-- A naive `name.toLowerCase().replace(' ', '-')` in JS produces different results from the Python version
-- Multiple slugifiers in a codebase always drift
-
-**How to avoid:**
-- **Slugify in Python at build time:** generate the slug in `_data/species.js` by reading a precomputed `species_index.json` produced by `data/run.py`. The Python slugifier is the only one. JS just reads the value.
-- **Or: port `_slugify` exactly to TypeScript** in a leaf utility (`src/lib/slugify.ts`) and unit-test against the Python output for a battery of edge cases (accented characters, parentheses, apostrophes, hyphens-already-present).
-- **Round-trip test:** for every species in the checklist, assert `slugify(name)` is unique (no collisions) — feeds.py already does this with `seen_slugs` collision tracking.
-- **Encoded/raw consistency:** the SPA filter string passes through `URLSearchParams`, which URL-encodes for transport but matches against raw `scientificName` in DuckDB. Don't slugify *inputs to the SPA filter*; slugify only file paths.
-
-**Warning signs:**
-- A species card link 404s
-- A species card opens the SPA but the filter chip shows a weird-looking name
-- Two species with similar names produce the same slug (collision)
-
-**Phase to address:**
-**URL contract / slugify utility phase** — ship the Python-or-TS slugifier with explicit edge-case tests.
-
----
-
-### Pitfall 19: scientificName authority suffix leaks into slugs and SPA filter
-
-**What goes wrong:**
-Some Ecdysis records have authority in `scientificName`: `Bombus mixtus Cresson, 1878`. Most don't. Naive use of `scientificName` as the species identity:
-- Produces slug `bombus-mixtus-cresson-1878` (different from `bombus-mixtus`) — two cards for the same species
-- SPA filter built from authority-bearing string fails to match authority-less occurrences (Ecdysis pipeline has been observed to produce both forms across milestones)
-- The SPA's autocomplete datalist (specimen-derived) has both forms; user types "Bombus mixtus" and gets two completions
-
-**Why it happens in BeeAtlas's context:**
-- Ecdysis's underlying DwC-A is curator-driven; some catalogers include authority and some don't
-- `scientificName` is the canonical taxon-name column in BeeAtlas (per `validate-schema.mjs`); BeeAtlas does not currently maintain a separate authority-stripped column
-- A v3.2 species page reading `scientificName` directly inherits this drift
-
-**How to avoid:**
-- **Strip authority in `data/export.py` once, into a new column `canonical_name`:**
-  ```sql
-  -- In the export CTE
-  regexp_replace(scientificName, '\s+[A-Z][a-zæ\-]+(\s+et\s+[A-Z][a-zæ\-]+)?,?\s*\d{4}.*$', '') AS canonical_name
-  ```
-  (Inspect actual data first — write a script to print all scientificName values matching `\d{4}` and confirm the regex covers them.)
-- **Add `canonical_name` to `validate-schema.mjs` EXPECTED columns** for `occurrences.parquet`. Force the discipline.
-- **Species page joins on `canonical_name`, NOT `scientificName`:** the cards are keyed by canonical form; specimen counts aggregate over the authority variants.
-- **Display original `scientificName` in the card header** (volunteers learn the formal form), but use `canonical_name` for slugs, SPA links, and joins.
-- **Unit test:** seed `Bombus mixtus` and `Bombus mixtus Cresson, 1878` in test data; assert the species page produces one card.
-
-**Warning signs:**
-- Two cards for the same species
-- Species page card shows "47 records" but SPA filter shows 50 (3 records had authority and didn't join)
-- The autocomplete datalist on the SPA shows two entries for the same name
-
-**Phase to address:**
-**Name normalization phase** — `canonical_name` column in `data/export.py`; schema gate updated; pytest fixture covering at least one authority-bearing and one authority-less record for the same species.
+**Phase to address:** Data model phase (slug is curated, not generated). Validation step in `data/run.py` blocks bad slugs before deploy.
 
 ---
 
 ## High-Priority Pitfalls
 
-### Pitfall 8: `_data/species.js` reads parquet at every HMR reload, killing dev loop
+### Pitfall 6: Permit expiry checked at nightly-build time only; stale "active" status ships all day
 
 **What goes wrong:**
-`_data/species.js` reads `public/data/occurrences.parquet` (250K+ rows) and aggregates per species at import time. Eleventy's data pipeline re-runs `_data/*.js` on every Eleventy build (which is every page change in dev mode + every server reload). HMR latency goes from <100 ms to several seconds. Developer loop becomes painful; people start working around the system (committing static JSON, etc.).
+A place has permits with `expiry_date: "2026-07-31"`. The nightly pipeline runs at 2 AM; at build time the permit is active. The following night (August 1), the pipeline runs, detects expiry, and marks the permit inactive in the next `places.geojson`. But for all of July 31 (and any day the nightly cron is skipped due to machine downtime), the site shows an expired permit as active. Worse, if a permit expires mid-year and the nightly run happens to fail on that night (network issue, etc.), the stale "active" badge ships until the next successful run.
 
-**Why it happens in BeeAtlas's context:**
-- `_data/build.js` is a fast-running module (just version reads + `git rev-parse`) — sets a precedent that misleads
-- 250K-row parquet aggregation in JS via hyparquet takes seconds of cold work
-- Eleventy 3.x does cache `_data/*.js` results, but only across requests within a single server lifetime; a config change or `eleventy.config.js` edit invalidates everything
+For a site used by volunteer collectors who need accurate permit status before driving to a site, a stale "active" badge on an expired permit is a real-world problem (trespassing risk, confrontation with land managers).
+
+**Why it happens in this system:**
+- Static hosting: permit status can't be computed at request time. The build artifact is static; once `places.geojson` is uploaded to S3, its content doesn't change until the next pipeline run.
+- Nightly cron on maderas is the sole pipeline. If maderas has downtime, the artifact is stale for the duration.
+- The TOML permit record stores an `expiry_date` string. The pipeline must evaluate `expiry_date < today` at build time to produce `is_active`. This is correct for most days; the staleness window is one pipeline cycle.
 
 **How to avoid:**
-- **Pre-aggregate in Python:** `data/run.py` produces `public/data/species.json` (or `.parquet`) — already-aggregated rows ready to feed the page. `_data/species.js` becomes a single `readFileSync` of a small JSON. <10 ms.
-- **Schema for the precomputed file:** array of `{slug, scientificName, canonical_name, family, genus, subgenus, tribe, occurrence_count, first_year, last_year, county_count, ecoregion_count, photos: [...], description: "..."}`. Designed once, updated via pipeline.
-- **Schema gate extension:** `validate-schema.mjs` checks `species.json` exists and has expected fields.
-- **Pattern reuse:** the v2.1 feeds.py + index.json pattern is precisely this shape — `data/run.py` produces a JSON manifest at build time; the frontend reads it. Direct precedent.
+- **Show the expiry date prominently on the place page, not just "active/expired" badge.** A badge computed at build time can be wrong; the raw date is always correct. Visitors can compute their own status from the date. Use both: badge for convenience, date for accuracy.
+- **Build-time badge uses the pipeline's `built_at` timestamp** (already injected into `_meta` by `topology_postprocess.py`). The frontend can display "Status as of {built_at}" so visitors know when the data was last refreshed.
+- **Pipeline exit alert on expiring permits:** if any permit expires within the next 7 days, log a prominent warning in `nightly.sh` output. This gets captured in the cron log on maderas; the project maintainer sees it the next morning.
+- **No server-side runtime check needed** (and none available). The design is correct; the risk is managed by displaying the date and the freshness timestamp.
+- **Do not attempt to compute permit status in the frontend from today's date** against a stored expiry date. The expiry date in the GeoJSON could be missing or malformed; a client-side comparison silently fails. Pipeline is the right place to compute `is_active`.
 
 **Warning signs:**
-- `npm run dev` startup time > 5 seconds after change
-- HMR feels sluggish on `_pages/species.njk` edits
-- Eleventy build log shows multi-second `_data/species.js` step
+- A place page shows "permit active" on a date past the expiry date in the TOML
+- The `built_at` timestamp in `places.geojson._meta` is more than 30 hours old (maderas cron failed or was not run)
+- A volunteer reports driving to a site only to find the permit had expired
 
-**Phase to address:**
-**Build-time data feed phase** — `data/run.py` produces `species.json`; `_data/species.js` reads it; schema gate covers it.
+**Phase to address:** Permit data model phase (design the TOML permit schema with explicit expiry date + build-time badge computation). Map + place page display phase (show expiry date alongside badge, show `built_at` timestamp).
 
 ---
 
-### Pitfall 9: `_data/species.js` requires occurrences.parquet to exist at build time; CI breaks
+### Pitfall 7: Place GeoJSON committed to repo is high-resolution and bloats clone/CI
 
 **What goes wrong:**
-A clean CI runner has no `public/data/occurrences.parquet` (it's deployed from the maderas pipeline to S3, not committed). If `_data/species.js` reads from local disk, the build fails. If it reads from CloudFront via Range — works for `validate-schema.mjs` but slower at every dev/CI build.
+A curator exports a park boundary from a GIS source at full resolution: 10,000+ vertices for a park with a detailed coastline (e.g., McNeil Island). The `places.geojson` committed to the repo is 2 MB. Multiply by 100 places and the repo gains 50 MB of binary-ish JSON. Git clone time increases; GitHub Actions downloads 50+ MB on every CI run. The file is large enough to make `git diff` on boundary edits unreadable.
 
-**Why it happens in BeeAtlas's context:**
-- `validate-schema.mjs` already established a precedent: read from CloudFront via Range request when local file absent. It works but is network-dependent.
-- The species precomputed JSON (Pitfall 8) doesn't help here unless it's *also* in CloudFront.
-- CI runs `npm run build` → triggers Eleventy → triggers `_data/species.js`. If that file fetches from network, CI now depends on CloudFront.
+**Why it happens in this system:**
+- The existing `counties.geojson` (56 KB) and `ecoregions.geojson` (357 KB) are committed because they're small and generated by the pipeline (already simplified by mapshaper). A hand-authored `places.geojson` bypasses mapshaper simplification by default.
+- GIS export tools default to full precision (6 decimal places = 11 cm resolution at the equator; unnecessary for visual display on a web map at zoom 10–14).
 
 **How to avoid:**
-- **Commit `public/data/species.json` to git.** It's small (a few KB to maybe 1 MB at full WA list with photo refs), changes only when checklist or photo manifest changes (≪ daily), and the v1.5 pattern of "commit static reference data" is established (counties.geojson, ecoregions.geojson are already committed).
-- **OR: produce the JSON in `data/run.py` and fetch from CloudFront in CI** if commit-to-git is rejected. Mirror `validate-schema.mjs`'s logic precisely (local fallback, CloudFront primary).
-- **Decision rule:** if the precomputed JSON is < 200 KB and changes < 1×/week, commit. Otherwise, fetch.
-- **Document the choice in the phase summary.** Future developers will revisit this decision.
+- **Run `mapshaper -clean -simplify percentage=5% -o format=geojson` on authored boundaries before committing.** The topology_postprocess.py script is the right place; add a `places.geojson` entry with a conservative simplification percentage (3–5%). This is already the pattern for ecoregions.
+- **Coordinate precision cap:** 5 decimal places (1 m accuracy) is sufficient for visual map display. Truncate in the mapshaper invocation using `-o precision=0.00001`.
+- **Set a file-size budget for `places.geojson`**: < 500 KB for 100 places. Assert in CI via a small Node script or in the pytest suite (`assert path.stat().st_size < 500_000`).
+- **Don't commit source boundary files** (the high-resolution shapefile or KMZ). Only commit the simplified and cleaned GeoJSON.
 
 **Warning signs:**
-- CI fails on a fresh clone with "ENOENT: occurrences.parquet"
-- Local `npm run build` requires having run the data pipeline first
-- `npm run dev` works on the maintainer's machine but not on a contributor's
+- `git ls-files --others places.geojson | xargs wc -c` > 500 KB
+- `git diff places.geojson` is unreadable (100+ coordinate changes for a tiny boundary edit)
+- CI download step takes > 10 extra seconds compared to baseline
 
-**Phase to address:**
-**Build-time data feed phase** — decide commit-vs-fetch with documented rationale.
+**Phase to address:** Data model phase (establish file size budget and mapshaper recipe before any boundaries are committed).
 
 ---
 
-### Pitfall 21: Manifest authoring tool lets bad data in; no schema validation in `data/run.py`
+### Pitfall 8: Mapbox GL JS `generateId` + feature-state breaks when places source is reloaded
 
 **What goes wrong:**
-The species photo manifest is hand-edited TOML. A curator typos `licence` for `license`, or pastes a photo ID that's not an integer, or omits `attribution` for a CC-BY photo. The site builds and ships with broken / non-compliant content because nothing validated the file.
+The existing county and ecoregion boundary layers use `generateId: true` on the source and `setFeatureState` for selection highlighting (see `bee-map.ts` line 399, 404). `generateId: true` assigns sequential integer IDs to features in the order they appear in the GeoJSON. If the source is reloaded (e.g., places GeoJSON fetched asynchronously, or the source is removed and re-added), Mapbox reassigns IDs starting from 0. Any stored `featureId` references (e.g., "currently selected place") now point to the wrong feature.
 
-**Why it happens in BeeAtlas's context:**
-- TOML is permissive; without explicit validation, anything parseable is "valid"
-- Eleventy and Vite don't know about manifest semantics; they just pass data through
-- Existing pipelines validate parquet schemas (`validate-schema.mjs`) but not TOML
+This is a known Mapbox GL JS gotcha: `generateId` IDs are not stable across source reloads.
+
+**Why it happens in this system:**
+- The county and ecoregion sources are added once at map load (in the `style.on('load')` callback) and never reloaded. Their `generateId` IDs are stable for the session. If places are treated differently (e.g., reloaded when a filter changes, or fetched lazily after initial map load), ID stability breaks.
+- The pattern already works for counties and ecoregions because both GeoJSON files are small and loaded eagerly at map init. Places could be tempted toward lazy loading (fetching `places.geojson` only when the places layer is toggled on). Lazy loading + `generateId` = non-deterministic IDs.
 
 **How to avoid:**
-- **Pydantic / dataclass model in `data/manifest_schema.py`:**
-  ```python
-  from typing import Literal
-  from pydantic import BaseModel, Field, field_validator
-
-  class PhotoEntry(BaseModel):
-      id: int
-      license: Literal["cc0", "cc-by", "cc-by-nc", "cc-by-sa", "cc-by-nc-sa"]
-      attribution: str = ""
-      caption: str = ""
-      observation_id: int | None = None  # for traceback to iNat
-
-      @field_validator("attribution")
-      def attribution_required_for_non_cc0(cls, v, info):
-          if info.data.get("license") != "cc0" and not v:
-              raise ValueError("attribution required for non-CC0 license")
-          return v
-
-  class SpeciesManifest(BaseModel):
-      species: dict[str, list[PhotoEntry]]  # key = canonical_name
-  ```
-- **Validation step in `data/run.py`:** load the TOML, parse through Pydantic, raise on first error. Hard fail; the nightly pipeline aborts before producing an invalid `species.json`.
-- **Pre-commit hook (optional):** the same validator runs as a git pre-commit on the TOML file. Catches errors before they reach maderas.
-- **Pytest fixtures** with valid + invalid TOML samples; assert validation accepts/rejects appropriately.
+- **Load `places.geojson` eagerly at map init**, the same way counties and ecoregions are loaded. If the file is small (< 500 KB per Pitfall 7's budget), eager loading is fine.
+- **Alternatively: add a stable `id` property to each place feature** in the GeoJSON (e.g., the `place_slug` string). Then use `promoteId: 'place_slug'` instead of `generateId: true`. `promoteId` uses the feature's own property as the feature ID, which is stable across reloads and between sessions. This is more robust and aligns with how place identities are tracked elsewhere (slug is the canonical ID).
+- **Recommendation: use `promoteId: 'slug'`.** This avoids the `generateId` race condition entirely and makes debugging easier (the feature ID in DevTools is a readable slug, not an integer).
 
 **Warning signs:**
-- Manifest entries with typos (`licence`, `attrib`, `obs_id`)
-- Photo IDs as strings instead of integers
-- Missing required fields that no one notices until the species card renders blank
+- Clicking a place on the map selects the wrong place after the source was reloaded
+- `setFeatureState` calls throw "feature not found" errors in the console after the source is refreshed
+- Selected place highlight appears on a different polygon than the one clicked
 
-**Phase to address:**
-**Manifest schema phase** — Pydantic model + `data/run.py` integration + pytest fixtures.
+**Phase to address:** Map layer phase (source configuration must specify `promoteId: 'slug'` from the start; retrofitting after feature-state interactions are built is tedious).
 
 ---
 
-### Pitfall 22: Eleventy + Vite multi-entry: layout chain renders but the Lit component never registers
+### Pitfall 9: Places boundary layer z-order covers occurrence clusters; clicks intercepted by place layer
 
 **What goes wrong:**
-The species page declares `layout: default.njk`; the layout includes `<bee-header>`. The species page also uses `<bee-species-card>` (a new Lit component). Developer creates `_pages/species.njk` with `<bee-species-card>` markup and adds the import to ... where? If they forget to add a `src/entries/species.ts` (or to import the species-card module from there), the markup renders as-is — `<bee-species-card>` is just an unknown HTML element. No error, no warning, just a blank card area.
+The existing layer stack in `bee-map.ts` (set up in the `style.on('load')` callback) adds county/ecoregion fill layers before the cluster layers, so clusters render above boundaries. A new places layer added *after* cluster layers in the `addLayer` calls would render on top of clusters. The Mapbox GL JS interaction system fires `click-cluster` and `click-point` interactions (registered with `addInteraction`) before falling through to `click-place`. But if the places fill layer occludes the cluster visually, the user experience degrades even if the interaction priority is correct: clicking what looks like a cluster actually hits the transparent place fill underneath, not the cluster point.
 
-**Why it happens in BeeAtlas's context:**
-- v3.1's `<bee-header>` works because `src/entries/bee-header.ts` exists AND is referenced from `_layouts/default.njk` (via `<script type="module" src="/src/entries/bee-header.ts">` or similar — let's verify the exact mechanism in execution).
-- Vite's MPA mode auto-discovers entries from `<script type="module" src=...>` in HTML. If the species page doesn't have that script tag, the bundle never includes the component.
-- v3.1 retrospective: `_scaffold-check/` was added precisely as a permanent diagnostic for this kind of breakage. The species page introduces a *new* multi-entry; same trap recurs.
+A more serious variant: if the place fill layer is added with `fill-opacity > 0` (a colored semi-transparent fill to show place extent), every click inside the fill area is intercepted by `click-place` before `click-point`, making it impossible to click individual specimens inside a place.
+
+**Why it happens in this system:**
+- The current `addInteraction` registration order is: cluster → unclustered point → county fill → ecoregion fill. A new `click-place` interaction must be inserted with lower priority than `click-point` and `click-cluster`, or occurrences inside place polygons become unclickable.
+- `addInteraction` priority is determined by registration order in Mapbox GL JS v3 (earlier registrations have priority). Adding place interactions at the end of the init block preserves cluster priority.
+- The fill layer `fill-opacity` matters: `0` (invisible; click-target only) vs `> 0` (visible overlay). The county and ecoregion fills use `fill-opacity: 0.1` when selected and `0` otherwise. Places should use the same pattern.
 
 **How to avoid:**
-- **Mirror the bee-header pattern verbatim:** `src/entries/species.ts` is a side-effect module that imports `<bee-species-card>` (and any other species-page-specific components). `_pages/species.njk` includes `<script type="module" src="/src/entries/species.ts"></script>` (exact path TBD per v3.1 mechanics — verify against `bee-header` reference in `default.njk`).
-- **Verification step in the phase:** `npm run build` then `grep "bee-species-card" _site/_pages/species/index.html` and assert a hashed `assets/species-*.js` script tag exists.
-- **Smoke test page during execution:** before populating real species data, scaffold one minimal species card and load `npm run dev` — confirm the custom element renders. Catches registration breakage early.
+- **Register `click-place` interaction after `click-cluster` and `click-point`**, not before. Document the ordering constraint in a code comment.
+- **Place fill layer must be added before cluster layers** in the `addLayer` call sequence (lower in the layer stack = below clusters visually). County and ecoregion layers already follow this pattern.
+- **Default `fill-opacity: 0`** for places (invisible fill, used only as click target + selection highlight). On selection, set `fill-opacity: 0.15`. Matches the existing boundary behavior.
+- **Write an interaction priority test**: in a Vitest test (using `readFileSync` source analysis per the ARCH-03 pattern), assert the order of `addInteraction` calls in `bee-map.ts` matches the documented priority.
 
 **Warning signs:**
-- The species page renders the layout (header visible) but the species cards are visually empty
-- DevTools shows `<bee-species-card>` rendered as `HTMLElement` not `BeeSpeciesCard`
-- `_site/_pages/species/index.html` doesn't reference `assets/species-*.js`
+- Clicking an occurrence cluster inside a place boundary opens the place sidebar instead of the specimen detail
+- The places fill renders as a solid overlay that obscures cluster dots
+- Interaction events logged in the console show place click firing before cluster click
 
-**Phase to address:**
-**Page scaffolding phase** — entry file + script tag + build-time grep verification.
+**Phase to address:** Map layer phase (interaction priority and layer insertion order must be decided at design time, not discovered during bug triage).
 
 ---
 
-### Pitfall 23: `_data/species.js` swallows parquet read error; Eleventy ships empty species page
+### Pitfall 10: 100-polygon places layer triggers per-feature `setFeatureState` loop causing jank
 
 **What goes wrong:**
-`_data/species.js` wraps its parquet read in `try/catch` (defensive) but on error returns `[]`. Eleventy successfully builds the species page with zero species. CI passes (no exception). Site ships blank.
+When the user selects a filter (e.g., clicks a place chip to remove it), `bee-atlas` may need to update feature state across the places source — clearing the selected state on the previously-selected place. If the implementation loops over all place features to clear state (common pattern: iterate `places.geojson.features`, call `map.setFeatureState(...)` for each), 100 `setFeatureState` calls fire synchronously, triggering 100 repaints. At 60 fps, 100 style recomputations per interaction causes a visible frame drop.
 
-This is the JS-ecosystem version of v1.2's "raw dict vs model object" silent-fail family.
-
-**Why it happens in BeeAtlas's context:**
-- Eleventy's data cascade is silent on errors in `_data/*.js` modules — a thrown error fails the build, but a returned `[]` doesn't
-- `try/catch` is reflexive defensive coding for many JS developers
-- CI's only check is "does the build succeed," not "does the species page have content"
+**Why it happens in this system:**
+- The county boundary highlight uses `setFeatureState` with a feature-level boolean. The existing implementation clears all county selections by iterating over county features and calling `setFeatureState` for each (see `bee-map.ts` `updated()` handling for `selectedCounties`). With 39 WA counties, this is fine. With 100 places, it may be marginally acceptable; at 200 places it would degrade.
+- The pattern is already established; the new places layer inherits it.
 
 **How to avoid:**
-- **Don't swallow errors in `_data/*.js`:** let exceptions propagate. A failed data load should fail the build — that's the right semantics.
-- **Build-time assertion:** `_data/species.js` ends with `if (data.length === 0) throw new Error("species data empty");`. Defends against soft-empty failure modes (e.g., file present but malformed JSON).
-- **Smoke test in CI:** after build, grep `_site/_pages/species/index.html` for at least N species names. Trivial; high signal.
+- **Track the previously-selected place ID** (slug). On deselection, call `setFeatureState` only on the previously-selected feature — one call, not 100.
+- Use `map.removeFeatureState({ source: 'places' })` (without a specific featureId) to clear all feature state on the places source in one call, rather than iterating. This is O(1) regardless of feature count.
+- The `removeFeatureState` approach is the correct pattern: clear all at once, then set the single selected feature. No loop needed.
+- Performance test: with 100 place features, time the interaction from click to next frame. If > 16ms (one frame budget at 60fps), optimize.
 
 **Warning signs:**
-- Species page deploys but is empty
-- Build logs show no error but the rendered page has no cards
-- A species name that should always be present (e.g., *Apis mellifera*, ubiquitous) is missing
+- Clicking a place chip causes a visible frame drop (60 → 30 fps stutter)
+- Chrome DevTools flame graph shows `setFeatureState` called 100 times in one frame
+- Users report the map feeling "laggy" when place filters are active
 
-**Phase to address:**
-**Build-time data feed phase** — explicit error propagation + post-build smoke check.
+**Phase to address:** Map layer phase (use `removeFeatureState` from the start; don't loop over features).
 
 ---
 
-### Pitfall 27: Hot-linking iNat photos at scale violates iNat TOS / triggers rate-limiting
+### Pitfall 11: Eleventy pagination for 100 place pages causes `_data/places.js` to slow HMR
 
 **What goes wrong:**
-The naive approach is `<img src="https://static.inaturalist.org/photos/{id}/medium.jpg">`. This works for a few cards but at scale (a 90-card Osmia page × volunteer traffic × repeat visits) hits iNat's CDN. Two problems:
-1. iNat's [Terms of Service](https://www.inaturalist.org/pages/terms) and developer guidelines discourage heavy hot-linking; large-scale embedded use should cache locally.
-2. CDN rate limits or 403s on excess traffic produce broken images at the worst possible time.
+`_data/places.js` reads `places.json` (the pipeline-generated place data including per-place occurrence counts). Eleventy's HMR re-runs `_data/*.js` on every file change. If `places.json` is large (100 places × occurrence counts × GeoJSON properties), the read-and-parse takes non-trivial time. For 527 species pages, `_data/species.js` is already documented as potentially slow if it reads from parquet directly (Pitfall 8 in the v3.2 research). The same shape of problem occurs here.
 
-**Why it happens in BeeAtlas's context:**
-- The seed says photo manifest holds iNat photo IDs — implies hot-link
-- BeeAtlas already pulls from iNat via the API (rate-limited at < 60 req/min for the WABA pipeline); image traffic is separate but same vendor
-- Static site has no server-side image proxy
+**Why it happens in this system:**
+- Species pages solved this by reading a pre-aggregated `species.json` (not the parquet). The places feature needs the same discipline.
+- Eleventy 3.x caches `_data/*.js` results within a single server session, but invalidates on config changes. A large JSON is fine as long as it's < 5 MB and the parse is fast. The risk is that `places.json` includes embedded GeoJSON geometries (polygons), which are large.
 
 **How to avoid:**
-- **Cache photos to BeeAtlas S3 at species-add time** (or in nightly anti-entropy). The pipeline downloads each photo, stores at `s3://bucket/species-photos/{license}/{id}/{size}.jpg`, and the site references those URLs. iNat's TOS allows local caching for reuse with attribution.
-- **Pipeline step:** `data/photos_pipeline.py` reads the manifest, fetches new photo IDs (skip cached), uploads to S3 with the correct prefix + content-type. Mirrors the v1.2 cache pattern.
-- **CloudFront serves `/photos/...`** with long cache TTL (photos are immutable per ID).
-- **Attribution unaffected** — the manifest still carries license + photographer; the URL just points to BeeAtlas's CDN.
-- **License compliance:** CC-BY-NC explicitly allows non-commercial caching with attribution; CC0 is unrestricted; CC-BY needs attribution (which we have). Document allowed licenses (Pitfall 2).
+- **Split the data**: `places.json` for page metadata (name, slug, owner, permit status, counts) — small, fast to parse. `places.geojson` for map geometry — loaded by the frontend, not Eleventy.
+- `_data/places.js` reads only `places.json` (the slim metadata file). It never reads the GeoJSON.
+- `places.json` should be < 100 KB for 100 places with full metadata. Parse time is negligible.
+- **Post-build assertion**: `public/data/places.json` file size < 200 KB. `public/data/places.geojson` size < 500 KB. Fail the pipeline if either exceeds budget.
 
 **Warning signs:**
-- iNat support emails complaining about traffic patterns
-- 403/429 errors in CloudFront access logs from `static.inaturalist.org`
-- Photos sporadically fail to load on the live site
+- `npm run dev` startup takes > 3 seconds after adding `_data/places.js`
+- Eleventy build log shows `_data/places.js` as a slow step
+- `places.json` on disk is > 1 MB (geometry has leaked into the metadata file)
 
-**Phase to address:**
-**Photo URL strategy phase** — `data/photos_pipeline.py` + S3 cache + CDN URL contract + Pitfall-2 license validation.
+**Phase to address:** Eleventy data phase (design the two-file split before implementing `_data/places.js`).
 
 ---
 
-### Pitfall 30: Page weight regression: per-card photos + DOM + JS exceeds budget without measurement
+### Pitfall 12: "Ghost outside polygon" filter omits valid occurrences due to GPS drift and boundary inaccuracy
 
 **What goes wrong:**
-The species page lands under budget. Three weeks later, a developer adds a 200 KB chart library to the seasonality viz. Two weeks after that, photos get bumped from medium to large size. Six weeks after that, no one remembers what the budget was, and the page is 8 MB. Volunteer in the field opens it, gives up, never returns.
+The planned "ghost outside polygon" map behavior dims occurrences outside the selected place. This requires the frontend to know which occurrence IDs are inside the place polygon. The current approach for county/ecoregion filters uses the pre-joined `place_slug` column in SQLite: `WHERE place_slug = 'rattlesnake-ledge'`. An occurrence collected at Rattlesnake Ledge but with GPS coordinates 10 meters outside the boundary (GPS drift, or the curated boundary doesn't match the actual fence line) has `place_slug IS NULL` in the parquet and is excluded by the filter.
 
-**Why it happens in BeeAtlas's context:**
-- BeeAtlas already has the mapbox-gl 1,700 KB precedent (key decision marked "⚠️ Revisit if main-thread budget becomes a concern") — past the team's sensitivity threshold once before
-- v3.1 introduced the multi-entry pattern with bee-header at 8 KB gzipped — currently well under budget, but the budget is implicit
-- Without an explicit number in CI, regression is silent
+From the collector's perspective: they collected at Rattlesnake Ledge, the specimen is excluded from the place filter, and the place shows N-1 occurrences instead of N. The discrepancy is invisible unless they know to check.
+
+**Why it happens in this system:**
+- The spatial join at pipeline time is the authoritative gate. It uses `ST_Within`, which requires the point to be strictly inside the polygon. GPS units are accurate to 3–10 meters; park boundary polygons are often simplified (per Pitfall 7); together they produce a meaningful exclusion zone along the boundary.
+- The existing county fallback uses nearest-polygon to handle boundary-edge cases. But for places, the fallback is explicitly excluded (Pitfall 3) because most occurrences are NOT at any place. There is no equivalent safe fallback.
 
 **How to avoid:**
-- **Set an explicit budget at milestone planning:** "species page initial transfer ≤ 500 KB gzipped (excluding lazy-loaded images)." Document in `PROJECT.md` Decisions table.
-- **CI gate:** a small Node script reads `_site/_pages/species/index.html`, sums sizes of each `<script>` and inline CSS, fails if budget exceeded. Or use Lighthouse CI thresholds.
-- **Track per-milestone:** add a row to a `BUDGETS.md` file (or `BENCHMARK.md`, established in v2.6) showing the species page initial transfer over time. Visible regressions get caught.
-- **Lazy-load anything not visible on initial paint** — images, off-screen cards, secondary photos.
+- **Buffer the place polygon slightly in the spatial join**: `ST_Within(pt, ST_Buffer(place.geom, 0.0001))` (approximately 10 meters at WA latitude). This captures GPS-drifted points that the collector intended to be at the place. The buffer amount should match expected GPS error (5–10 meters; 0.0001 degrees ≈ 9 meters).
+- **Or: use `ST_DWithin(pt, place.geom, 0.0001)` instead of `ST_Within`** — matches both interior points and points within the buffer distance. Equivalent effect.
+- Document the buffer choice in the dbt SQL comment with the rationale.
+- **This is a design decision for the dbt phase**, not a fix-it-later issue. The buffer value affects all downstream occurrence counts and cannot be changed retroactively without rerunning the full pipeline.
 
 **Warning signs:**
-- Lighthouse mobile score regression (especially LCP / TBT)
-- Bundle visualizer shows new dep on the species chunk
-- A user says "the species page got slow"
+- A collector reports "I collected at Rattlesnake Ledge but the place page shows 0 for my specimens"
+- Inspecting the occurrence lat/lon and the place boundary in QGIS shows the point 8 meters outside the polygon ring
+- Per-place occurrence count is systematically lower than the volunteer's field notes
 
-**Phase to address:**
-**Performance budget phase** — explicit budget number + CI script + initial measurement recorded.
-
----
-
-## Medium-Priority Pitfalls
-
-### Pitfall 11: SVG occurrence map for 1-record species visually identical to 1000-record species
-
-**What goes wrong:**
-A single 4-pixel dot for *Centris pallida* (1 vagrant record) looks the same as a single 4-pixel dot for *Bombus vosnesenskii* (1000 records, all overlapping). The volunteer can't tell rare from common at a glance — defeats the visualization's purpose.
-
-**Why it happens in BeeAtlas's context:**
-- "Static SVG occurrence maps generated in Python from existing GeoJSON + occurrences" (seed) — implies dot-per-record but doesn't enforce density encoding
-- BeeAtlas's main map (mapbox-gl) uses cluster-by-count; a static SVG can't easily reuse that
-- The educational mission depends on conveying "common vs rare"
-
-**How to avoid:**
-- **Aggregate by hex bin or county before rendering:** count records per H3 hex (or per county); style dot/fill by count (1 / 2–9 / 10–99 / 100+ tiers). 4 tiers is enough for perceptual clarity.
-- **Or: alpha-stack dots:** render each record as a `fill-opacity="0.2"` dot. Stacked dots at the same location compound to opaque; isolated dots are translucent. Cheaper, no aggregation.
-- **Decide once, document:** the SVG generator's design spec belongs in the phase plan.
-
-**Phase to address:**
-**SVG generator phase**.
+**Phase to address:** dbt spatial join design phase (buffer distance must be decided and documented before the join SQL is written).
 
 ---
 
-### Pitfall 12: SVG maps regenerated nightly even when species occurrences unchanged
+### Pitfall 13: Per-place occurrence counts in `places.geojson` go stale when pipeline step order changes
 
 **What goes wrong:**
-800+ species × 1 SVG each × regenerated every nightly run = wasted compute on maderas, wasted CloudFront invalidation budget (CloudFront charges per invalidation path; a wildcard invalidates everything but obscures change tracking). For a species whose record set hasn't changed in 3 weeks, the SVG byte content is identical — but the nightly run rewrites it anyway.
+`places.geojson` includes per-place occurrence counts as feature properties (e.g., `"occurrence_count": 142`). These counts are computed in the pipeline *after* the spatial join populates `place_slug` in `occurrences.parquet`. If the pipeline step that generates `places.geojson` runs *before* the `occurrences` dbt mart (which computes `place_slug`), the counts in `places.geojson` reflect yesterday's data. The place page shows "142 records" but clicking "view on map" shows 145 records (3 new ones from overnight iNat sync).
 
-**Why it happens in BeeAtlas's context:**
-- `nightly.sh` is dumb: it re-runs the full pipeline → re-exports → re-syncs to S3
-- `aws s3 sync` already detects no-op file changes (etag comparison) — actually mitigates the upload cost
-- But the *generation* time is still spent
-- Nightly runs in 2.5 min today; bloating to 10+ min would push into Lambda-timeout territory if the team ever revisits Lambda
+**Why it happens in this system:**
+- `data/run.py` sequences pipeline steps via the `STEPS` list. Adding a `places_export` step requires deliberate placement: it must come *after* `("dbt-build", ...)` completes. The existing `STEPS` list (geographies → ecdysis → inat → projects → export) has a single export step at the end. Adding a places export step at the wrong position (e.g., before dbt build) produces stale counts.
+- The topology_postprocess step (mapshaper) runs after dbt export. Places GeoJSON also needs mapshaper (Pitfall 1). The order: dbt build → export → mapshaper (places + counties + ecoregions) → upload.
 
 **How to avoid:**
-- **Per-species occurrence-set hash stored alongside the SVG:** `data/run.py` computes `hash = sha1(sorted(records.json))` per species; if the existing `species-{slug}.svg` has the same hash in a sidecar (`.hash` file or in the SVG metadata), skip regeneration.
-- **Or: compute all hashes; only regenerate the diff set.** Cleaner separation; still requires a tracking file.
-- **`aws s3 sync` will skip identical files anyway** — the cost saved is generation time, not upload bandwidth.
-- **Acceptable shortcut for v3.2 if scale is small:** if 800 species × 50 ms each = 40 s, just regenerate everything. Document the scale assumption and revisit if it gets painful.
+- **Places count computation must happen in the same dbt build that populates `place_slug`**, or immediately after. Options:
+  1. Compute per-place counts in a new dbt mart (`places_agg.sql`): `SELECT place_slug, COUNT(*) AS occurrence_count FROM occurrences WHERE place_slug IS NOT NULL GROUP BY place_slug`. Export this to `places.json` (the slim metadata file, per Pitfall 11). Counts are always consistent with `occurrences.parquet` because they're computed from the same dbt run.
+  2. Compute in `export.py` / `species_export.py` (existing Python export step) after dbt completes. Same pipeline run; consistent.
+- **Do not compute counts in a separate pipeline step** that runs at a different time from dbt build.
+- Add a pipeline integration test: run the full pipeline on test fixtures; assert `places.json[0].occurrence_count == SELECT COUNT(*) FROM occurrences WHERE place_slug = places.json[0].slug`.
 
-**Phase to address:**
-**SVG generator phase** — generation incremental or full, with documented scale assumption.
+**Warning signs:**
+- Place page shows a count that differs from the SPA's filtered occurrence count for the same place
+- `places.json` `occurrence_count` matches yesterday's total, not today's (after a known new occurrence was added)
+- The discrepancy grows over time without explanation
+
+**Phase to address:** Pipeline ordering phase (step placement in `run.py` STEPS list is explicit; places count must be computed in the same dbt build as `occurrences`).
 
 ---
 
-### Pitfall 13: SVG map ships points outside the WA viewBox (no clip)
+### Pitfall 14: CRS mismatch — place polygons authored in a projected CRS cause silent wrong spatial join results
 
 **What goes wrong:**
-A specimen lat/lon barely outside WA (mis-georeferenced, or actually in OR/ID/BC) is plotted; if the SVG `viewBox` is set to WA's bounding box, the point renders outside the visible area but still inflates the SVG file. Worse, if the viewBox is set to "data extent," WA's outline shrinks and the page layout shifts.
+A curator downloads a park boundary from Washington State GIS Data Portal in NAD83 / Washington State Plane North (EPSG:32148) and commits it directly to the repo without reprojecting to WGS84 (EPSG:4326). DuckDB's `ST_Within` operates on raw coordinate values. In State Plane coordinates, a point at "King County" has easting/northing values in the hundreds of thousands of meters — completely different numeric range from WGS84 lat/lon (47°, -122°). The join produces no matches (all occurrences appear to be "outside" all place polygons). The failure is silent: `place_slug` is NULL for all 57,000 occurrences.
 
-**Why it happens in BeeAtlas's context:**
-- v1.5 already taught this lesson with the spatial join: nearest-polygon fallback assigns out-of-WA records to a WA county anyway, but their lat/lon is still off-map
-- A naive SVG generator that loops over `(lon, lat)` → `(svg_x, svg_y)` ignores the viewBox boundary
+This exact risk is documented in the existing codebase: `CLAUDE.md` notes "EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins."
+
+**Why it happens in this system:**
+- Place boundaries are authored or sourced from GIS portals that default to projected CRS. GeoJSON spec requires WGS84 (EPSG:4326) by RFC 7946, but many export tools ignore this.
+- The spatial join assumes WGS84. There is no CRS check at join time.
 
 **How to avoid:**
-- **Filter records to within WA polygon before plotting:** use the existing `counties.geojson` to test; or check `county IS NOT NULL` (post-spatial-join) — the latter is cheaper but includes the nearest-polygon fallbacks.
-- **Set `viewBox` to WA's bounding box explicitly** — don't compute from data extent; compute once from `counties.geojson` and hard-code (commented).
-- **Add `overflow="hidden"` on the SVG root** as a belt-and-suspenders.
+- **Validate CRS before committing**: add a pytest test that reads `places.geojson` with geopandas and asserts `gdf.crs == "EPSG:4326"` (or `gdf.crs.to_epsg() == 4326`). Fail CI if non-WGS84.
+- **Add CRS check to the topology_postprocess.py mapshaper invocation**: mapshaper reads GeoJSON and assumes WGS84; if the input is in a projected CRS, coordinates look wrong and mapshaper outputs garbage. The CI failure from a bad-CRS places file would manifest as mapshaper producing a ~10-byte empty GeoJSON or coordinates in the millions.
+- **Document in the place data authoring guide**: "All geometry must be in EPSG:4326 (WGS84). Export GeoJSON from QGIS or ArcGIS Pro with CRS = WGS84."
+- **If sourcing from official GIS portals**: run `geopandas.read_file(...).to_crs('EPSG:4326').to_file('places.geojson', driver='GeoJSON')` before committing. Document this preprocessing requirement.
 
-**Phase to address:**
-**SVG generator phase**.
+**Warning signs:**
+- All `place_slug` values in `occurrences.parquet` are NULL after the dbt build
+- `places.geojson` coordinates are in the hundreds of thousands (State Plane) rather than degrees
+- A point clearly inside a park polygon (visually on the map) has `ST_Within = false`
+
+**Phase to address:** Geometry ingestion phase (validation must run before any geometry is committed, not after the spatial join produces wrong results).
 
 ---
 
-### Pitfall 14: One SVG per species × 800+ species bloats `public/data/` and CloudFront invalidation
+### Pitfall 15: Place page deep-link contract broken — slug used in link differs from Eleventy-generated URL
 
 **What goes wrong:**
-800 SVGs at ~5 KB each = 4 MB on disk and 800 cache invalidation paths on CloudFront. If the nightly run rewrites all 800, an `aws s3 sync` followed by a wildcard CloudFront invalidation churns paths unnecessarily. `git status` (if SVGs ever committed) becomes noisy.
+The SPA emits a deep-link from the selected-place chip: "View Rattlesnake Ledge page →" linking to `/places/rattlesnake-ledge/`. The Eleventy pagination generates the page at `/places/{{ place.slug }}/`. If the slug value in `places.json` (produced by the pipeline) differs from the slug value in the TOML (the curated source), the link 404s. Specifically: the pipeline slugifies the name dynamically (produces `rattlesnake-ledge-recreation-area`) while the TOML has `slug: rattlesnake-ledge`. Two values for one place.
 
-**Why it happens in BeeAtlas's context:**
-- BeeAtlas's `public/data/` currently holds counties.geojson, ecoregions.geojson, occurrences.parquet, samples.parquet, and feeds — single-digit count of files. 800+ would change the directory's character.
-- CloudFront wildcard invalidation costs per-path; 800 paths is non-trivial.
-- v2.1 retrospective: feeds.py also produces many files (one per collector / genus / county) — same shape; precedent exists.
+The species page solved this with `buildSpaTaxonLink()` and a shared `spa-link.ts`. A similar contract must exist for places.
 
-**How to avoid:**
-- **Embed SVGs inline in `species.json`** (or in the page HTML at build time): the SVG byte size is small (≤5 KB); inlining avoids the per-file overhead.
-  - Tradeoff: bloats `species.json` to a few MB. Acceptable if the page does code-splitting and only loads the active subgenus's data.
-- **Or: emit SVGs to `public/data/species-maps/` and accept the file count.** Mirror the feeds.py pattern.
-- **CloudFront invalidation:** keep using wildcard `/data/*` (already in use) — no per-file cost.
-- **Don't commit SVGs to git** — they're build artifacts, regenerated nightly, in `.gitignore`d `public/data/`.
-
-**Phase to address:**
-**SVG generator phase + asset strategy decision**.
-
----
-
-### Pitfall 15: Filter on species page hides cards with no "0 species" empty state
-
-**What goes wrong:**
-Volunteer applies filter "Counties: King" + "Months: 7" on the Osmia page. No Osmia species match. Cards all disappear; page shows blank space. Volunteer thinks the site is broken.
-
-**Why it happens in BeeAtlas's context:**
-- The SPA already has filter chips and clear UI; species page filter UX is being designed fresh
-- Empty states are the most-skipped UX consideration in MVP
+**Why it happens in this system:**
+- `url-state.ts` currently has no place-slug encoding. Adding `?place=rattlesnake-ledge` to `AppState` and `buildParams` is straightforward, but the value must match the Eleventy-generated permalink exactly.
+- The Eleventy permalink is `"/places/{{ place.slug }}/"`. The SPA's URL param is whatever `buildParams` writes. If they use different sources (TOML slug vs pipeline-computed slug), the mismatch is invisible until a user clicks the link and gets a 404.
 
 **How to avoid:**
-- **Always render an empty state** when the filtered set is empty: "No Osmia species match these filters. [Clear filters]".
-- **Show filter active state visibly** (chips) so the user knows filters are on.
+- **Single source of truth**: the curated TOML `slug` field flows through the pipeline unmodified into `places.json`, into the Eleventy data cascade, and into the `buildParams` output. Never re-slugify at any step.
+- **Cross-link test**: Eleventy post-build, grep `_site/places/` for subdirectory names. Assert each name matches a `slug` in `places.json`. Fails if Eleventy pagination uses a different field.
+- **Round-trip test**: Vitest test that builds a place link from `buildParams` with `placeSlug: 'rattlesnake-ledge'`, parses with `parseParams`, asserts `filter.selectedPlaceSlug === 'rattlesnake-ledge'`. Same pattern as the species SPA link round-trip test (Pitfall 17 in v3.2 research).
+- **Use `buildSpaPlaceLink(slug)` function** (leaf module, analogous to `buildSpaTaxonLink`) rather than constructing the URL inline.
 
-**Phase to address:**
-**Species filter UX phase**.
+**Warning signs:**
+- Clicking "View place page" from the SPA results in a 404
+- `_site/places/` contains a directory named differently from the slug in `places.json`
+- `parseParams` returns a place slug that doesn't match any known place
 
----
-
-### Pitfall 16: Species-page filter URL schema collides or diverges from SPA `/?...`
-
-**What goes wrong:**
-The species page uses `?counties=King&months=7` to encode its filter. The SPA also uses `counties=` and `months=`. A volunteer copies a URL from the species page and pastes into the SPA — the SPA parses correctly, *but the species page URL also has `subgenus=Osmia` which the SPA ignores*. Or the species page evolves to use `region=King` (different param) and now the schemas diverge for no reason.
-
-**Why it happens in BeeAtlas's context:**
-- `src/url-state.ts` is the SPA URL contract; it's well-tested but specific to the SPA
-- The species page is a different page with different state — keeping schemas identical is over-engineering, but keeping them *consistent* is good UX
-
-**How to avoid:**
-- **Use the same param names where the semantic is the same:** `months`, `counties`, `ecor` — copy verbatim. Different semantic? Different param name.
-- **Don't try to round-trip species page state through the SPA URL:** a "share this view" button on the species page builds a species-page URL, not an SPA URL.
-- **Document the species page URL schema in a comment in `_pages/species.njk` (or in a leaf TS module):** future maintainers see the contract.
-
-**Phase to address:**
-**URL contract phase**.
-
----
-
-### Pitfall 20: TOML round-trip with `tomlkit` reformats the file on every save; spurious diffs
-
-**What goes wrong:**
-The manifest authoring tool reads the TOML with `tomlkit` (preserves comments + formatting) or with `toml`/`tomllib` (round-trips lose formatting). On save, the file's quote style, indentation, or key order changes — every edit produces a 200-line diff for a 1-line change. PR review becomes painful; bad changes hide in the noise.
-
-**Why it happens in BeeAtlas's context:**
-- The seed implies a future "authoring tool" for the manifest (whether CLI or web). Default Python `tomllib` (read-only) avoids this entirely; `toml` and `tomlkit` have different round-trip behaviors.
-- BeeAtlas has no precedent for editable TOML in the codebase — the team doesn't yet have a tooling answer.
-
-**How to avoid:**
-- **Manual edits + Pydantic validation as the primary workflow.** No round-trip tool.
-- **If tooling needed:** use `tomlkit` (preserves formatting) and benchmark the diff size on a real edit before committing to it. If diffs are noisy, fall back to writing TOML serialization explicitly with consistent formatting.
-- **`.editorconfig` for the TOML file** to lock indent/quote style across editors.
-- **Pre-commit hook to run the validator** but NOT to reformat.
-
-**Phase to address:**
-**Authoring workflow phase** (likely a small task within manifest schema phase).
-
----
-
-### Pitfall 24: Vite shared-chunk dedup misses because of import shape (default vs named) drift
-
-**What goes wrong:**
-`bee-header` is imported as `import './bee-header.ts'` (side-effect) in one entry. The species page imports `import { BeeHeader } from './bee-header.ts'` somewhere by accident. Vite/Rollup may treat these as different modules for shared-chunk extraction, duplicating bee-header into both `bee-header-*.js` and `species-*.js` chunks. Unnecessary bytes.
-
-**Why it happens in BeeAtlas's context:**
-- v3.1 retrospective explicitly noted that bee-header bundle came in at 8 KB gzipped *thanks to Rollup shared-chunk dedup*. The dedup is the reason the budget was met.
-- Rollup's shared-chunk extraction is sensitive to module identity but the rules are not always intuitive.
-
-**How to avoid:**
-- **Side-effect entry pattern only:** `src/entries/*.ts` are import-for-side-effect modules. Real components live in `src/components/` and are imported by exactly one entry (or by the layout).
-- **Bundle visualizer in CI:** `rollup-plugin-visualizer` produces a stats.json; spot-check that bee-header appears in exactly one chunk.
-- **Production build verification step:** after `npm run build`, grep for `bee-header` references across chunks. If duplicated, fail.
-
-**Phase to address:**
-**Multi-entry build phase**.
-
----
-
-### Pitfall 25: Production build differs from dev (HMR works; `npm run build` breaks)
-
-**What goes wrong:**
-`npm run dev` works perfectly — species page renders, components register, photos load. `npm run build` produces a `_site/` where `<bee-species-card>` is unregistered, or a script tag points to a 404, or the photo URLs are wrong (relative path resolves differently in build vs dev).
-
-**Why it happens in BeeAtlas's context:**
-- v3.1 deferred "feedback_hoist_plan_coverage": "Hoist plans must grep entire repo for moved path segment + route Vite wrapper dev config through wrapper options (not vite.config.ts)" — the dev pass and build pass read different config sources. Same trap recurs for any new feature.
-- Eleventy + Vite plugin runs Vite rooted at `.11ty-vite/` for dev but at the repo root for build (per `eleventy.config.js` comments). Subtle path differences.
-- HMR's relaxed module resolution masks errors that only surface when Rollup tree-shakes.
-
-**How to avoid:**
-- **Run `npm run build` early and often** during species-page development. Don't rely on `npm run dev` exclusively.
-- **CI runs the full build** (already does) — ensures the production path is exercised on every PR.
-- **Diagnostic page (`_scaffold-check/` precedent):** the species page is tested on every deploy via the existing `_scaffold-check` mechanism (a permanent fixture that catches multi-entry breakage). Extend `_scaffold-check` to also verify the species page entry.
-- **Write a smoke test:** Vitest test that starts a small Node server against `_site/`, fetches `/species/<slug>/`, asserts the response contains `<bee-species-card>` with hashed JS reference.
-
-**Phase to address:**
-**Multi-entry build phase + page scaffolding phase** — build verification in CI; smoke test in Vitest.
-
----
-
-### Pitfall 26: iNat photo URL pattern changes between size variants; hard-coded URLs break
-
-**What goes wrong:**
-The site hard-codes `https://inaturalist-open-data.s3.amazonaws.com/photos/{id}/medium.jpg`. iNat changes their CDN host or URL structure; all images break overnight. Or the photographer's photo is on `static.inaturalist.org` (older photos) instead of the open-data S3 bucket — same id, different URL, hard-coded version 404s.
-
-**Why it happens in BeeAtlas's context:**
-- iNat has at least two photo CDNs (the older `static.inaturalist.org` and the newer `inaturalist-open-data.s3.amazonaws.com`). Photos move between them based on license and age.
-- A naive "all photos are on the open-data bucket" assumption is wrong for older CC-BY-NC photos.
-
-**How to avoid:**
-- **Resolve photo URL at manifest-fill time, not at render time:** the photo metadata fetched from `GET /v1/photos/{id}` includes the actual URL. Store it in the manifest.
-- **Schema: `url_template` field per photo** with `{size}` placeholder. Render code replaces with actual size.
-- **OR: cache to BeeAtlas S3 (Pitfall 27)** and bypass the issue entirely — BeeAtlas owns the URL.
-
-**Phase to address:**
-**Photo URL strategy phase**.
-
----
-
-## Low-Priority Pitfalls
-
-### Pitfall 28: Coordinate jitter for stacked specimens at same lat/lon distorts perceived density
-
-**What goes wrong:**
-A locality (e.g., "Olympia, WA — central park") has 20 specimens collected on different dates by different collectors, all at lat/lon 47.0379, -122.9007. Naive plotting paints all 20 dots on top of each other; the SVG appears to have 1 dot when it has 20.
-
-Adding small random jitter (±0.001°) reveals the count but creates a misleading "spread" in the visualization. Both extremes are wrong.
-
-**How to avoid:**
-- **Aggregation tier (Pitfall 11)** addresses this naturally: count records per hex/county, style by tier.
-- **If using alpha-stacking:** stacked dots compound to opaque — same outcome as Pitfall 11 mitigation.
-- **Don't add random jitter to coordinates** — it's misleading and fundamentally wrong.
-
-**Phase to address:** **SVG generator phase** (combine with Pitfall 11).
-
----
-
-### Pitfall 29: Color choice for SVG dots fails colorblind / print rendering
-
-**What goes wrong:**
-The site uses red dots on green WA polygons. Deuteranopic users (8% of men) see them as low-contrast brown-on-brown. Or red prints as gray on a B&W printer used by an extension agent making a field handout.
-
-**How to avoid:**
-- **Use a colorblind-safe palette:** ColorBrewer's "YlOrRd" or "Blues" sequential schemes for density tiers (Pitfall 11). Avoid red/green pairs.
-- **Test with a colorblind simulator** during development.
-- **Print-test:** render to grayscale (CSS `filter: grayscale(100%)`) and verify dots remain visible.
-
-**Phase to address:** **SVG generator phase**.
+**Phase to address:** URL contract phase (the `buildSpaPlaceLink` function and `parseParams` extension must be implemented and tested together, before any place-chip → place-page navigation is wired up).
 
 ---
 
 ## Technical Debt Patterns
 
-| Shortcut                                                               | Immediate Benefit                  | Long-term Cost                                                                | When Acceptable           |
-| ---------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------- | ------------------------- |
-| Hot-link iNat photos rather than caching to BeeAtlas S3                | No new pipeline step               | TOS risk, rate limits, CDN-migration breakage                                 | Never (>10 photos)        |
-| Skip license validation in TOML; trust manual review                   | No schema code to write            | Non-compliant CC-BY pages; TOS violations                                     | Never                     |
-| Naive `scientificName` join for checklist matching                     | No reconciliation table            | Silent zero-card species; duplicate cards                                     | Never                     |
-| One SVG per species committed to git                                   | Simple deploy                      | Repo bloat, noisy diffs, drift from data                                      | Never                     |
-| Render all 80+ Osmia cards on initial paint, no lazy-load              | Simpler initial code               | 50+ MB page, mobile abandonment                                               | Never (>20 cards)         |
-| `_data/species.js` reads occurrences.parquet directly                  | No new pipeline output             | Slow HMR; build depends on parquet existing                                   | Never (>100 species)      |
-| Skip authority normalization (use `scientificName` raw)                | No `canonical_name` column         | Drift between cards; broken SPA links for some species                        | Never                     |
-| Slugify in JS without testing against feeds.py output                  | Faster initial implementation      | Drift between species page URLs and other slugified URLs                      | Never                     |
-| Per-species SVG generation runs full nightly without incremental skip  | Simpler generator                  | Wasted compute; breaks if nightly runtime budget tightens                     | If species count < 200    |
-| Hard-code SPA path as `/collection?...` from seed without verifying    | Faster initial draft               | Broken links shipping to prod                                                 | Never                     |
-| Skip license badge in card UI                                          | Less visual clutter                | Attribution unreadable; reviewer can't spot non-compliant photos              | Never                     |
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Generate slug from place name at build time (don't require curated slug field) | No TOML discipline needed | Slug changes when name changes; breaking URL changes with no redirect recovery | Never (static hosting; no redirects) |
+| Use nearest-polygon fallback for places (copy county/ecoregion pattern verbatim) | Less dbt SQL to write | Assigns most occurrences to the wrong place; corrupts per-place counts | Never |
+| Show permit status as "active/expired" badge with no expiry date displayed | Simpler UI | Badge goes stale within one pipeline cycle; visitor can't independently verify | Never (expiry date must always accompany the badge) |
+| Commit full-resolution GeoJSON without mapshaper simplification | No extra tooling step | Repo bloat; CI slowdown; CloudFront transfer cost | Never (> 100 KB GeoJSON) |
+| Skip dbt schema.yml update when adding `place_slug` column | Faster iteration | dbt contract violation; pipeline fails on next nightly run | Never |
+| Load places.geojson lazily (only when places layer toggled on) | Slightly faster initial map load | `generateId` IDs become unstable; feature-state selection highlights wrong feature | Never (use `promoteId: 'slug'` + eager load instead) |
+| Compute per-place occurrence counts in a separate nightly step from dbt build | Decoupled steps | Counts lag occurrences.parquet by one pipeline cycle; stale place pages | Never (must be same dbt run) |
+| Skip geometry validation (no `ST_IsValid` check, no CRS assertion) | No extra code | Invalid geometries silently produce 0 occurrences; CRS mismatch silently excludes all occurrences | Never |
 
 ---
 
 ## Integration Gotchas
 
-| Integration                  | Common Mistake                                                                              | Correct Approach                                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| iNat API (photos)            | Match license by name; assume URL structure is stable                                       | Match by `license` code from API; resolve URL from API response, store in manifest                        |
-| iNat API (taxa for tribe)    | Fetch on every build                                                                        | Cache in DuckDB `inaturalist_taxa_data` schema; refresh nightly; ride existing maderas cron               |
-| Eleventy `_data/*.js`        | Swallow errors, return `[]`                                                                 | Let exceptions propagate; assert non-empty result                                                         |
-| Eleventy + Vite multi-entry  | Add `<bee-foo>` markup without a corresponding `src/entries/foo.ts`                         | Mirror the bee-header pattern: side-effect entry + `<script type="module" src="...">` in the page         |
-| Vite production build        | Trust `npm run dev` HMR as confirmation                                                     | Run `npm run build` early; use `_scaffold-check`-style fixture pages for deploy-time verification         |
-| TOML manifest                | Edit raw TOML without validation                                                            | Pydantic schema in `data/manifest_schema.py`; validation in `data/run.py`; pytest fixtures                |
-| Photo CDN at scale           | Hot-link to iNat                                                                            | Cache to BeeAtlas S3 with proper attribution                                                              |
-| WA state checklist           | Assume names match Ecdysis exactly                                                          | Synonym CSV; reconciliation script; flag unmatched names; expert review                                   |
-| SPA pre-filtered link        | Hand-construct URL; assume seed is correct                                                  | Shared `buildSpaTaxonLink()` function; round-trip Vitest test                                             |
-| Slug generation              | Reimplement in JS                                                                           | Generate in Python (build time); JS reads precomputed slug                                                |
-| `aws s3 sync`                | Assume changed-file detection saves all costs                                               | Saves upload, NOT generation; track regenerate cost separately                                            |
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|-----------------|
+| dbt contract (`schema.yml`) | Add column to SQL SELECT without adding to schema.yml (or vice versa) | Change both files atomically in the same commit; follow `project_schema_validation.md` procedure |
+| Mapbox GL JS `generateId` | Use `generateId: true` on places source then reload source dynamically | Use `promoteId: 'slug'` for stable place feature IDs across source reloads |
+| Mapbox `addInteraction` priority | Register `click-place` before `click-cluster` | Register cluster → unclustered point → place → empty-click; later registrations have lower priority |
+| `ST_Within` for spatial join | Copy county fallback pattern (nearest-polygon) for places | Explicitly omit fallback; allow `place_slug IS NULL` for the majority of occurrences |
+| `ST_Within` precision | Strict polygon boundary excludes GPS-drifted points near park edges | Use `ST_DWithin(pt, geom, 0.0001)` or buffered polygon (~10m) to capture boundary-edge occurrences |
+| Eleventy pagination | Include GeoJSON geometry in `places.json` (fed to Eleventy) | Split: `places.json` (slim metadata) for Eleventy; `places.geojson` (with geometry) for the map |
+| Pipeline step ordering | Compute per-place counts before `dbt build` completes | Per-place counts must be computed after dbt populates `place_slug`; use a dbt mart or post-dbt export step |
+| CRS | Commit place GeoJSON in projected CRS (State Plane, UTM) | Assert EPSG:4326 in pytest before committing; run `.to_crs('EPSG:4326')` if sourcing from GIS portal |
 
 ---
 
 ## Performance Traps
 
-| Trap                                                          | Symptoms                                          | Prevention                                                       | When It Breaks                          |
-| ------------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------- |
-| All photos load eagerly                                       | LCP > 4s on mobile; 50+ MB transfer               | `loading="lazy"` on every `<img>`; srcset with sizes hint        | Subgenus with > 20 species              |
-| `_data/species.js` reads parquet on every build               | HMR slow; `npm run dev` startup > 5s              | Pre-aggregate in `data/run.py`; emit `species.json`              | > 50K rows                              |
-| mapbox-gl pulled into species chunk                           | Species chunk > 1 MB                              | Architectural-invariant test; bundle size CI gate                | Any cross-import                        |
-| Nightly regenerates all 800 SVGs even when unchanged          | Nightly runtime > 5 min                           | Per-species occurrence-set hash; skip on match                   | Pipeline grows; > 200 species           |
-| Photo manifest references 1024px photos for thumbnail display | Per-card transfer 200 KB even for thumbnails      | srcset with multiple sizes; iNat CDN supports `square`/`small`   | Always (no benefit to oversize)         |
-| Inline SVG maps for all species in `species.json`             | `species.json` > 5 MB                             | Per-subgenus code-split; separate SVG fetch                      | > 100 species in active subgenus        |
-| All 80 Osmia cards in DOM at once                             | INP > 500ms on click; scrolling janky             | IntersectionObserver-based progressive render                    | > 50 cards                              |
-| Seasonality viz in heavy charting library                     | Chart lib > 100 KB; slows page                    | Hand-rolled SVG (Wiley paper format is simple); no chart lib     | Anytime                                 |
-| Tribe iNat fetch synchronous on every page render             | Build hangs                                       | Cache in DuckDB; refresh nightly                                 | > 50 genera                             |
-| Photo cache without S3 (hot-link to iNat at scale)            | iNat 429s; broken images                          | `data/photos_pipeline.py` to S3                                  | Public traffic > nominal volunteer use  |
-
----
-
-## Security Mistakes
-
-| Mistake                                                                              | Risk                                                                              | Prevention                                                                          |
-| ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Hot-link all-rights-reserved iNat photos                                             | Copyright violation; takedown demand; project credibility                         | License whitelist (CC0, CC-BY, CC-BY-NC, CC-BY-SA, CC-BY-NC-SA only); validation    |
-| Render attribution as user-controlled HTML (`innerHTML = attribution`)               | XSS via malicious photographer name in iNat data                                  | Render attribution as text content (`textContent`); never `innerHTML`               |
-| Slug generation accepts arbitrary path segments                                      | Path traversal in `species-{slug}.svg` write or in URL routing                    | Reuse `data/feeds.py::_slugify` exactly (already path-traversal-safe per v2.1)      |
-| TOML edited via web tool that doesn't sanitize                                       | Malicious authoring input → broken site                                           | Pydantic validation in `data/run.py` is the authoritative check                     |
-| Exposed iNat API token (if used) in client-side bundle                               | Token theft; rate-limit abuse                                                     | iNat API calls happen at build time only (Python pipeline); no client-side calls    |
-| `species.json` contains private data (collector names, exact lat/lon of rare species) | Threatened-species poaching; collector privacy                                    | Aggregate to county or hex; never expose individual rare-species lat/lons publicly  |
-
----
-
-## UX Pitfalls
-
-| Pitfall                                                                  | User Impact                                              | Better Approach                                                                                |
-| ------------------------------------------------------------------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Empty filtered card list with no message                                 | Volunteer thinks site is broken                          | "No species match these filters. [Clear filters]" empty state                                  |
-| 0-record species card looks identical to 1000-record card                | Common vs rare indistinguishable                         | Density tier in SVG map; record-count badge on card                                            |
-| Card link to SPA filters silently misfires                               | "View on map" loads unfiltered map                       | Round-trip Vitest test; shared link builder                                                    |
-| Filter state not preserved across nav                                    | Click subgenus, filter, navigate away, come back: lost   | Filter state in URL; restored on load                                                          |
-| Photo without attribution                                                | License violation (and photographer goodwill loss)       | License badge near photo; required attribution field for non-CC0                               |
-| 80 cards loaded at once                                                  | Mobile pages crash or hang                               | IntersectionObserver-based progressive render; lazy-load photos                                |
-| Tribe nav uses live iNat tribe; updates silently break bookmarks         | Bookmarked URL no longer works after a taxonomic move    | Tribe is display-only; URL is species-level                                                    |
-| "0 records" card with no explanation                                     | Could be join bug, vagrant, checklist-only — ambiguous   | Distinct messages: "checklist only — no records yet" vs "filter excludes — clear filters"      |
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| `setFeatureState` loop over all 100 place features to clear selection | Frame drop on place chip deselect; 100 style recomputations | Use `map.removeFeatureState({ source: 'places' })` (O(1)) then set single selected feature | > 50 places |
+| Full-resolution place GeoJSON committed to repo and served from CloudFront | Slow map tile loading; large S3 transfer per invalidation | mapshaper simplification in topology_postprocess.py; < 500 KB GeoJSON budget | > 30 high-res boundaries |
+| Place boundary spatial join without geometry validation | Silent 0-occurrence results for a place; corrupt per-place counts | `ST_IsValid` check before join; mapshaper -clean normalization | Any invalid polygon |
+| Embedding GeoJSON geometry in `places.json` (Eleventy data file) | Eleventy data parse slow; HMR delayed | Keep geometry in `places.geojson` only; `places.json` holds only scalar metadata | > 10 KB of geometry |
+| 3rd spatial join (places) on 57,000 occurrences runs sequentially after county + ecoregion | dbt build time grows beyond nightly window | Materialized `int_combined` (already done per Pitfall 5 in occurrences.sql comments) prevents re-evaluating UNION ALL; places join re-uses the same materialized CTE | > 100,000 occurrences |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Photo attribution:** verify each non-CC0 photo on the live page renders the photographer + license string
-- [ ] **License compliance:** grep manifest for `license = ` and confirm only allowed values present
-- [ ] **SPA pre-filtered link:** click "View on map" for 5 random species; confirm filter chip appears with correct taxon name
-- [ ] **Empty filter state:** apply a filter that matches zero species; confirm empty state message renders
-- [ ] **Largest subgenus:** open Osmia (or actual largest); measure transfer size and LCP on simulated 4G; confirm under budget
-- [ ] **Mobile rendering:** open species page on a real phone over LTE; confirm no 30+ MB transfer; cards readable
-- [ ] **Out-of-WA records:** confirm `*Centris pallida*` (or known vagrant) doesn't get a card unless explicitly intended
-- [ ] **Authority handling:** species with authority-bearing scientificName produce one card, not two
-- [ ] **Slug round-trip:** species page link `/species/{slug}/` resolves; SPA link from card resolves with filter applied
-- [ ] **Tribe sentinel:** confirm "Unassigned" tribe section renders if any species is missing tribe data
-- [ ] **Schema gate:** `species.json` (or whatever feed) is in `validate-schema.mjs` EXPECTED list
-- [ ] **Manifest validation:** delete a `license` field; confirm `data/run.py` exits nonzero before producing artifacts
-- [ ] **Architectural test:** confirm species entry's import graph doesn't include mapbox-gl
-- [ ] **CI bundle budget:** confirm species chunk size is under documented budget
-- [ ] **`_scaffold-check` extended:** the diagnostic page also covers the species multi-entry
-- [ ] **`npm run build` (not just dev):** species page renders correctly in `_site/`
-- [ ] **iNat 404 anti-entropy:** delete a manifest photo from iNat; confirm nightly run flags it within 24h
-- [ ] **Photo cache:** if S3-hosted, confirm hot-link fallback path doesn't accidentally serve from iNat in production
-- [ ] **CC-licensed photos:** confirm photo URL doesn't include personally identifying info that would change if user renames
+- [ ] **Geometry validity**: `gdf.is_valid.all()` passes for `places.geojson` before pipeline runs
+- [ ] **CRS assertion**: `gdf.crs.to_epsg() == 4326` passes in pytest
+- [ ] **dbt contract**: `place_slug VARCHAR` present in both `occurrences.sql` SELECT and `schema.yml` columns list
+- [ ] **No nearest-polygon fallback**: `place_slug IS NULL` for > 99% of occurrences in test fixtures (not 0%)
+- [ ] **Slug immutability**: `slug` field is read from TOML, never re-generated from name; validation asserts uniqueness
+- [ ] **Expiry date displayed**: place page shows raw `expiry_date` string alongside active/expired badge
+- [ ] **`built_at` timestamp displayed**: place page shows pipeline freshness timestamp
+- [ ] **`promoteId: 'slug'` on places source**: not `generateId: true`
+- [ ] **Interaction priority**: `click-cluster` and `click-point` registered before `click-place`
+- [ ] **Places fill layer below clusters**: `addLayer` for places fill called before cluster layers
+- [ ] **Pipeline step order**: places count computation comes after dbt build in `run.py` STEPS
+- [ ] **`places.json` size**: < 200 KB; no geometry coordinates in the file
+- [ ] **`places.geojson` size**: < 500 KB after mapshaper simplification
+- [ ] **Round-trip test**: `buildSpaPlaceLink('rattlesnake-ledge')` → `parseParams` → `filter.selectedPlaceSlug === 'rattlesnake-ledge'`
+- [ ] **Deep-link 200**: `_site/places/rattlesnake-ledge/index.html` exists and contains the place name
 
 ---
 
 ## Recovery Strategies
 
-| Pitfall                                              | Recovery Cost | Recovery Steps                                                                                                                                  |
-| ---------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Manifest photo 404s in production                    | LOW           | Anti-entropy script flags entry; manual edit removes broken photo or replaces; nightly run regenerates                                         |
-| All-rights-reserved photo shipped                    | MEDIUM        | Hard-revert manifest commit; redeploy; investigate authoring workflow gap                                                                       |
-| Checklist source is stale and missing recent species | MEDIUM        | Update `data/checklist_*.csv`; nightly run includes new species; cards appear next deploy                                                       |
-| Synonym mismatch produces duplicate cards            | LOW           | Add to `data/checklist_synonyms.csv`; rerun reconciliation                                                                                      |
-| mapbox-gl leaked into species chunk                  | MEDIUM        | Locate the offending import (bundle visualizer); refactor to leaf-only; architectural test catches regression                                   |
-| `_data/species.js` swallowed an error and shipped empty | MEDIUM     | Remove `try/catch`; build now fails fast; investigate underlying issue (parquet schema drift, missing file)                                     |
-| Species page bundle exploded (Osmia 50+ MB)          | LOW           | Add lazy-load + srcset; pagination at 20-card threshold; deploy                                                                                 |
-| SPA pre-filtered link broken                         | LOW           | Update shared `buildSpaTaxonLink`; round-trip test catches recurrence                                                                           |
-| Slug collision on two species                        | LOW           | feeds.py `seen_slugs` pattern handles automatically (`-2`, `-3` suffix); confirm logging surfaces the collision                                 |
-| Authority drift (two cards for one species)          | MEDIUM        | Add `canonical_name` column; update species page join; rerun                                                                                    |
-| Eleventy + Vite multi-entry breaks production        | HIGH          | `_scaffold-check`-style diagnostic catches it on deploy; rollback via `git revert` of the offending commit                                      |
-| Tribe assignment goes stale                          | LOW           | Nightly fetch updates DuckDB cache; species page rerenders next build                                                                           |
-| Performance budget regression                        | LOW           | CI gate catches it; require a milestone-level decision to raise the budget                                                                       |
-| Photo CDN URL pattern changes                        | MEDIUM        | If hot-linked: bulk-update manifest URLs. If S3-cached: no impact (we own URLs)                                                                 |
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Invalid place polygon (0 occurrences for a place) | LOW | Fix geometry in TOML/GeoJSON; rerun mapshaper -clean; rerun dbt build; redeploy |
+| Overlapping places inflated occurrence counts | MEDIUM | Decide on single-slug semantics; add `DISTINCT ON` to dbt CTE; rerun pipeline |
+| Slug collision or slug change breaking URLs | HIGH | If unpublished: fix before deploy. If published: add Lambda@Edge redirect rule (or accept permanent 404 — static hosting has no other option). Prevention is the only real mitigation. |
+| dbt contract violation (column not in schema.yml) | LOW | Add column to schema.yml; rerun `dbt build`; verify |
+| CRS mismatch (all place_slug = NULL) | LOW | Reproject GeoJSON to EPSG:4326; rerun pipeline |
+| Permit badge stale due to cron failure | LOW | Rerun `data/nightly.sh` manually on maderas; stale badge resolves within one run |
+| `generateId` IDs unstable after source reload | MEDIUM | Switch to `promoteId: 'slug'`; audit all `setFeatureState` calls for hardcoded integer IDs |
+| Per-place counts lag occurrences.parquet | LOW | Ensure places count step comes after dbt build in run.py; rerun pipeline |
 
 ---
 
 ## Pitfall-to-Phase Mapping
 
-| Pitfall                                       | Prevention Phase                              | Verification                                                       |
-| --------------------------------------------- | --------------------------------------------- | ------------------------------------------------------------------ |
-| 1. Photo manifest drift                       | Manifest schema + nightly anti-entropy        | Anti-entropy report file populated; nightly run output             |
-| 2. License violations                         | Manifest schema validation                    | Pytest fixture; `data/run.py` exits nonzero on bad license         |
-| 3. Stale checklist source                     | Checklist ingestion                           | `last_modified` field present; expert review of species set        |
-| 4. Synonym disagreement                       | Checklist ingestion + reconciliation          | `checklist_unmatched.csv` reviewed; pytest covers known divergences|
-| 5. Vagrant inclusion                          | Inclusion rule                                | Pipeline output reviewed; vagrant indication in card               |
-| 6. Tribe staleness                            | Tribe ingestion + refresh                     | Nightly cache refresh; sentinel rendering verified                 |
-| 7. mapbox-gl in species bundle                | Architectural-invariant test + bundle gate    | `readFileSync` import-graph test; CI size budget                   |
-| 8. `_data/species.js` HMR slowness            | Build-time data feed (precompute)             | HMR < 100 ms after change                                          |
-| 9. CI requires occurrences.parquet            | Build-time data feed (commit-or-fetch)        | Fresh-clone CI build succeeds                                      |
-| 10. Largest-subgenus weight                   | Card rendering + asset strategy               | Lighthouse mobile LCP < 3 s on Osmia                               |
-| 11. SVG density blindness                     | SVG generator                                 | Visual review; density tiers documented                            |
-| 12. Wasted SVG regen                          | SVG generator + caching                       | Hash-based skip in `data/run.py`                                   |
-| 13. Off-WA points in SVG                      | SVG generator                                 | viewBox + clip; visual review                                      |
-| 14. SVG file count                            | Asset strategy                                | Inline-vs-file decision documented; CloudFront budget             |
-| 15. Empty filter state                        | Species filter UX                             | UAT; visual review                                                 |
-| 16. URL schema drift                          | URL contract                                  | Documented schema; param-name consistency review                   |
-| 17. SPA link silently misfires                | URL contract                                  | Round-trip Vitest test; sample 5 species manually                  |
-| 18. Slug divergence                           | URL contract + slugify utility                | Python-only slugifier; round-trip test for all checklist species   |
-| 19. Authority leak                            | Name normalization                            | `canonical_name` column; pytest fixture                            |
-| 20. TOML round-trip noise                     | Authoring workflow                            | Diff size measured on real edit                                    |
-| 21. Manifest validation absent                | Manifest schema validation                    | Pytest fixtures; `data/run.py` integration                         |
-| 22. Multi-entry component non-registration    | Page scaffolding                              | Build-time grep for hashed JS reference                            |
-| 23. Build-time data error swallowed           | Build-time data feed                          | No `try/catch` around critical reads; post-build grep              |
-| 24. Vite shared-chunk dedup miss              | Multi-entry build                             | Bundle visualizer review                                           |
-| 25. Prod build differs from dev               | Multi-entry build                             | CI builds production; `_scaffold-check`-style smoke                |
-| 26. iNat photo URL pattern changes            | Photo URL strategy                            | Resolve URL at manifest fill; cache to S3                          |
-| 27. Hot-link rate limits / TOS                | Photo URL strategy                            | `data/photos_pipeline.py` + S3 cache                               |
-| 28. Coordinate jitter                         | SVG generator                                 | Aggregation tier or alpha-stack; no random jitter                  |
-| 29. Color choice                              | SVG generator                                 | Colorblind simulator; print test                                   |
-| 30. Performance budget regression             | Performance budget                            | CI gate with budget number; tracked in BUDGETS.md                  |
+| Pitfall | Prevention Phase | Verification |
+|---------|-----------------|--------------|
+| 1. Invalid geometry | Data model + geometry validation phase | pytest `gdf.is_valid.all()`; mapshaper -clean in topology_postprocess |
+| 2. Overlapping places inflate row count | dbt spatial join design phase | Post-join row count assertion in pytest |
+| 3. Nearest-polygon fallback assigns non-place occurrences | dbt spatial join design phase | Fixture: out-of-place point gets `place_slug IS NULL` |
+| 4. dbt contract not updated | dbt schema phase | `dbt build` exits 0; schema.yml and SELECT updated atomically |
+| 5. Slug instability | Data model phase | Slug is curated field; uniqueness validation in run.py |
+| 6. Permit expiry staleness | Permit data model + display phase | Expiry date displayed; `built_at` timestamp visible on page |
+| 7. High-resolution GeoJSON bloat | Data model phase | File size assertion in pytest; mapshaper recipe in topology_postprocess |
+| 8. `generateId` ID instability | Map layer phase | `promoteId: 'slug'` in source config; no `generateId` |
+| 9. Places layer z-order / interaction priority | Map layer phase | Interaction registration order; fill layer insertion order |
+| 10. Feature-state loop jank | Map layer phase | `removeFeatureState` (O(1)); no per-feature loop |
+| 11. Eleventy HMR slowness from places data | Eleventy data phase | `places.json` < 200 KB; no geometry in Eleventy data file |
+| 12. GPS-drifted occurrences excluded from place filter | dbt spatial join design phase | Buffer distance documented; fixture with boundary-edge point |
+| 13. Per-place counts stale vs occurrences.parquet | Pipeline ordering phase | run.py STEPS list: places count after dbt build |
+| 14. CRS mismatch silences all spatial join results | Geometry ingestion phase | pytest CRS assertion; fail CI on non-WGS84 input |
+| 15. Deep-link slug mismatch → 404 | URL contract phase | `buildSpaPlaceLink` round-trip test; post-build directory name assertion |
 
 ---
 
 ## Sources
 
-- BeeAtlas codebase: `src/url-state.ts`, `data/run.py`, `data/feeds.py`, `scripts/validate-schema.mjs`, `eleventy.config.js`, `vite.config.ts`, `_data/build.js` — read directly to ground frontend/pipeline contracts.
-- BeeAtlas project memory: `.planning/PROJECT.md` (Key Decisions, Validated Requirements, Tech Stack, Known Tech Debt) — verified mapbox-gl 1,700 KB constraint, v3.1 multi-entry pattern, v3.0 SPA mounted at `/`.
-- BeeAtlas retrospective: `.planning/RETROSPECTIVE.md` — drew on v1.2 (raw-dict vs model-object family of silent failures), v1.5 (CRS / spatial join silent wrong results, commit-static-reference-data pattern), v1.7 (Lambda viability constraints; CDN config two-part pitfall), v2.1 (slugify path-traversal safety; always-write empty Atom feeds), v3.0 (mapbox-gl chunk size revisit), v3.1 (HMR vs build divergence flagged).
-- BeeAtlas seed: `.planning/seeds/species-tab.md` — locked decisions on static SVG, photo TOML manifest, Ecdysis primary taxonomy, iNat tribe gap-fill, geography+seasonality filter scope.
-- iNaturalist API & licensing: [iNat API docs (`/v1/photos/{id}`, `/v1/taxa/{id}`)](https://api.inaturalist.org/v1/docs/) and [iNat license model](https://www.inaturalist.org/pages/help#cclicense) — verified license codes (`cc0`, `cc-by`, `cc-by-nc`, `cc-by-sa`, `cc-by-nc-sa`, `null`); confirmed photo URL split between `static.inaturalist.org` and `inaturalist-open-data.s3.amazonaws.com`.
-- Web standards: [`<img loading="lazy">`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#loading) and [`<img srcset>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#srcset) — native browser support, no JS.
-- Vite MPA: [Vite multi-page app docs](https://vitejs.dev/guide/build.html#multi-page-app) — entries discovered via `<script type="module" src=...>` in HTML; behavior matches v3.1 implementation.
-- Eleventy: [`@11ty/eleventy-plugin-vite` source](https://github.com/11ty/eleventy-plugin-vite) — confirmed dev/build config-source split (per `eleventy.config.js` inline comments).
+- BeeAtlas codebase read directly: `data/dbt/models/marts/occurrences.sql` (spatial join pattern, `DISTINCT ON`, nearest-polygon fallback, `int_combined` materialization); `data/dbt/models/marts/schema.yml` (dbt contract enforcement); `data/topology_postprocess.py` (mapshaper -clean recipe, simplification percentages, file size before/after); `src/bee-map.ts` (Mapbox `generateId`, `promoteId`, `addInteraction` registration order, `setFeatureState` pattern, layer insertion order); `src/filter.ts` (`buildFilterSQL` SQL WHERE pattern, `place_slug` extension point); `src/url-state.ts` (URL param encoding, `parseParams` silent-drop behavior); `data/geographies_pipeline.py` (CRS handling, `.to_crs('EPSG:4326')` prior art); `data/run.py` (STEPS list, pipeline ordering); `eleventy.config.js` (pagination pattern); `_data/species.js` (Eleventy data file shape, pre-aggregated JSON pattern); `_pages/species-detail.njk` (pagination + permalink template).
+- Project memory: `project_schema_validation.md` (dbt contract change procedure); `CLAUDE.md` (EPA L3 CRS risk warning — directly applicable to places geometry ingestion); `PROJECT.md` (Key Decisions table — CRS risk documented as known tech debt; `specimenLayer` typo deferred).
+- Mapbox GL JS v3 documentation: `promoteId` vs `generateId` behavior; `removeFeatureState` API; `addInteraction` priority semantics.
+- DuckDB spatial extension: `ST_Within`, `ST_DWithin`, `ST_Buffer`, `ST_IsValid` semantics for OGC-compliant geometry validation.
 
 ---
 
-*Pitfalls research for: BeeAtlas v3.2 Species Tab*
-*Researched: 2026-05-02*
+*Pitfalls research for: BeeAtlas v3.7 Places / Collecting Location Directory*
+*Researched: 2026-05-17*
