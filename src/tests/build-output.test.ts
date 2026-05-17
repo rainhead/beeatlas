@@ -31,12 +31,12 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
 
   test('index page has genus links to /species/{Genus}/ (IDX-03)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toMatch(/href="\/species\/Agapostemon\/"/);
+    expect(html).toMatch(/href="\/species\/Agapostemon\/index\.html"/);
   });
 
-  test('index page has species links to /species/{Genus}/{epithet}/ (IDX-04)', () => {
+  test('index page has species links to /species/{Genus}/{epithet}/index.html (IDX-04)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/"/);
+    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/index\.html"/);
   });
 
   // plugin-vite (MPA mode) emits the species page entry under either:
@@ -115,7 +115,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     const html = readFileSync(
       resolve(ROOT, '_site/species/Agapostemon/index.html'), 'utf-8'
     );
-    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/"/);
+    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/index\.html"/);
   });
 
   test('emits a taxon-page chunk distinct from species chunk (Pattern 4)', () => {
@@ -148,14 +148,14 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
       resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
     );
     // Andrena commoda is a Melandrena species verified in species.json
-    expect(html).toMatch(/href="\/species\/Andrena\/commoda\/"/);
+    expect(html).toMatch(/href="\/species\/Andrena\/commoda\/index\.html"/);
   });
 
   test('subgenus page breadcrumb links to genus (SUBG-03)', () => {
     const html = readFileSync(
       resolve(ROOT, '_site/species/Andrena/Melandrena/index.html'), 'utf-8'
     );
-    expect(html).toMatch(/<a href="\/species\/Andrena\/">Andrena<\/a>/);
+    expect(html).toMatch(/<a href="\/species\/Andrena\/index\.html">Andrena<\/a>/);
   });
 
   test('every <img> on a subgenus page has loading="lazy" (SUBG-02 carry-forward)', () => {
@@ -191,7 +191,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     const html = readFileSync(
       resolve(ROOT, '_site/species/tribe/Andrenini/index.html'), 'utf-8'
     );
-    expect(html).toMatch(/href="\/species\/Andrena\/"/);
+    expect(html).toMatch(/href="\/species\/Andrena\/index\.html"/);
   });
 
   test('tribe page has no swatches (genera-only listing)', () => {

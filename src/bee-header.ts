@@ -191,7 +191,7 @@ export class BeeHeader extends LitElement {
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-12.75M3.375 5.625c0-.621.504-1.125 1.125-1.125h16.5c.621 0 1.125.504 1.125 1.125v12.75c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m9.75 0h-9.75m9.75 0V5.625m0 12.75V5.625m0 0H10.875M3.375 5.625h7.5m0 0v12.75m0-12.75h9.75"/>
           </svg>
         </button>
-        <a href="/species/" class="icon-btn ${window.location.pathname.startsWith('/species') ? 'active' : ''}" aria-label="Species index">
+        <a href="/species/index.html" class="icon-btn ${window.location.pathname.startsWith('/species') ? 'active' : ''}" aria-label="Species index">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
             <rect x="8.5" y="2" width="7" height="4.5" rx="0.75"/>
             <path stroke-linecap="round" d="M12 6.5v3M6.5 9.5H17.5M6.5 9.5v3.5M17.5 9.5v3.5"/>
