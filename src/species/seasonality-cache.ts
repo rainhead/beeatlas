@@ -3,11 +3,14 @@
 // per page load. Errors degrade gracefully to null (cards stay
 // un-muted, filteredCount = occurrence_count fallback).
 
+import { resolveDataUrl } from '../manifest.ts';
+
 let promise: Promise<Record<string, Record<string, number[]>> | null> | null = null;
 
 export function loadSeasonality(): Promise<Record<string, Record<string, number[]>> | null> {
   if (!promise) {
-    promise = fetch('/data/seasonality.json')
+    promise = resolveDataUrl('seasonality')
+      .then(url => fetch(url))
       .then(r => r.ok ? r.json() : null)
       .catch((err: unknown) => {
         console.warn('seasonality.json fetch failed', err);

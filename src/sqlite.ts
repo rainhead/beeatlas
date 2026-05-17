@@ -2,6 +2,7 @@ import SQLiteESMFactory from 'wa-sqlite/dist/wa-sqlite.mjs';
 import * as SQLite from 'wa-sqlite';
 import { MemoryVFS } from 'wa-sqlite/src/examples/MemoryVFS.js';
 import { parquetReadObjects } from 'hyparquet';
+import { resolveDataUrl } from './manifest.ts';
 
 type SQLiteAPI = ReturnType<typeof SQLite.Factory>;
 
@@ -60,7 +61,7 @@ export function getDB(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
   return _dbPromise;
 }
 
-export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
+export async function loadOccurrencesTable(): Promise<void> {
   const { sqlite3, db } = await getDB();
 
   await sqlite3.exec(db, `CREATE TABLE occurrences (
@@ -96,7 +97,7 @@ export async function loadOccurrencesTable(baseUrl: string): Promise<void> {
     ecoregion_l3 TEXT
   )`);
 
-  const resp = await fetch(`${baseUrl}/occurrences.parquet`);
+  const resp = await fetch(await resolveDataUrl('occurrences'));
   const buffer = await resp.arrayBuffer();
   const file = { byteLength: buffer.byteLength, slice: (start: number, end: number) => buffer.slice(start, end) };
   const occRows = await parquetReadObjects({ file });
