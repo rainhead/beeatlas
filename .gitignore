@@ -169,3 +169,6 @@ data/_dem_cache/
 
 # Playwright MCP scratch (screenshots, snapshots, console logs)
 .playwright-mcp/
+
+# lychee link-checker cache
+.lycheecache

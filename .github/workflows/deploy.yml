@@ -41,10 +41,25 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - uses: ./.github/actions/install-lychee
+        with:
+          version: '0.23.0'
+
+      - name: Cache lychee URL results
+        uses: actions/cache@v4
+        with:
+          path: .lycheecache
+          key: lychee-cache-${{ github.run_id }}
+          restore-keys: lychee-cache-
+
       - name: Build site
         run: npm run build
         env:
           VITE_MAPBOX_TOKEN: ${{ secrets.MAPBOX_TOKEN }}
+
+      - name: Check links (non-blocking)
+        run: npm run build:validate-links
+        continue-on-error: true
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
