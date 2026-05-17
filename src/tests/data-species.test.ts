@@ -91,6 +91,7 @@ describe('_data/species.js (PAGE-02)', () => {
         ])
       );
       for (const sp of g.species) {
+        if (sp.slug === null) continue; // synthetic "Genus sp." key entry — no canonical_name
         expect(sp.hexColor, `${g.genus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
       }
     }
@@ -162,6 +163,7 @@ describe('_data/species.js (PAGE-02)', () => {
         ])
       );
       for (const sp of g.species) {
+        if (sp.slug === null) continue; // synthetic "Genus sp." key entry — no canonical_name
         expect(sp.hexColor, `${g.genus}/${g.subgenus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
       }
     }
