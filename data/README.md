@@ -92,6 +92,29 @@ The geographies pipeline always does a full reload. The projects pipeline skips 
 
 ## Performance
 
+### Nightly pipeline timing
+
+Measured 2026-05-17 on maderas (two consecutive runs):
+
+| Stage | Typical time |
+|---|---|
+| sync + deps (npm cache hit) | ~1s |
+| DuckDB pull from S3 | ~3s |
+| ecdysis (dlt load) | 90–115s |
+| resolve-taxon-ids | ~50s |
+| taxon-lineage-extended | 135–155s |
+| waba | ~9s |
+| checklist | ~7s |
+| anti-entropy | ~2s |
+| inaturalist / projects / ecdysis-links | <2s each |
+| dbt-build | 10–13s |
+| topology-postprocess | ~2s |
+| species-export / species-maps / feeds | <2s each |
+| S3 upload + CloudFront invalidation | ~30s |
+| **Total** | **~6 min** |
+
+Dominant costs: `taxon-lineage-extended` (~2.5 min) and `ecdysis` (~1.5–2 min) together account for ~75% of runtime. `dbt-build` is fast (10–13s) despite rebuilding the full mart. The ecdysis load varies with daily record volume.
+
 ### Species page LCP (PERF-02)
 
 The species page (`/species/`) has a Largest Contentful Paint budget of < 3000 ms on a mobile-throttled measurement. To re-run the measurement locally:
