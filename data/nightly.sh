@@ -30,6 +30,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 BUCKET="${BUCKET:-beeatlasstack-sitebucket397a1860-h5dtjzkld3yv}"
 DISTRIBUTION_ID="${DISTRIBUTION_ID:-E3SAI2PQ8FN0E7}"
+HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://hc-ping.com/411cd80a-965b-408c-8f89-b2b3afda0286}"
 DB_S3_KEY="db/beeatlas.duckdb"
 DB_PATH="/tmp/beeatlas.duckdb"
 EXPORT_DIR="/tmp/beeatlas-export"
@@ -122,3 +123,5 @@ aws --profile "$AWS_PROFILE" cloudfront create-invalidation \
 echo "invalidation requested in $(_elapsed $_t0)"
 
 echo "=== pipeline complete $(_ts) ==="
+
+[[ -n "$HEALTHCHECK_URL" ]] && curl -fsS --retry 3 --max-time 10 "$HEALTHCHECK_URL" > /dev/null

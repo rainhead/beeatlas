@@ -51,7 +51,6 @@ Progress: [██████████] 100%
 
 ### Pending Todos
 
-- Nightly run failure notification — `.planning/todos/pending/nightly-run-failure-notification.md`
 - Hash-versioned URLs for `public/data/` artifacts — `.planning/todos/pending/hash-versioned-parquet-urls.md`
 
 ### Blockers/Concerns
