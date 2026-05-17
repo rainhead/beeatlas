@@ -1,7 +1,9 @@
 ---
 created: 2026-05-14
+completed: 2026-05-17
 priority: medium
 context: surfaced during v3.4 deploy — schema migration (33→30 cols) collided with browser cache of pre-migration parquet, breaking the live site until users hard-refreshed
+verified: live site confirmed healthy after first nightly run with manifest
 ---
 
 # Hash-versioned URLs for `public/data/` artifacts
