@@ -8,3 +8,6 @@ beeatlas.duckdb.wal
 .geography_cache/
 .ecdysis_cache/
 raw/ecdysis_cache/
+# Pipeline writeback files — regenerated each run, not version-controlled
+checklist_unmatched.csv
+lineage_unresolved.csv
