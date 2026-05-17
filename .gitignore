@@ -149,6 +149,9 @@ data/dbt/.user.yml
 # Claude Code worktrees (temporary isolated repo copies for agent execution)
 .claude/worktrees/
 
+# Claude Code runtime files (lock files, cached state)
+.claude/*.lock
+
 # Local agent/tool scratch dirs (per-checkout, not project artifacts)
 .agents/
 .claire/
