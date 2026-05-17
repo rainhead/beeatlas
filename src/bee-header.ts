@@ -75,6 +75,7 @@ export class BeeHeader extends LitElement {
       text-decoration: none;
       opacity: 0.6;
       padding: 10px;
+      box-sizing: border-box;
       min-width: 44px;
       min-height: 44px;
       display: flex;
@@ -193,10 +194,12 @@ export class BeeHeader extends LitElement {
         </button>
         <a href="/species/index.html" class="icon-btn ${window.location.pathname.startsWith('/species') ? 'active' : ''}" aria-label="Species index">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
-            <rect x="8.5" y="2" width="7" height="4.5" rx="0.75"/>
-            <path stroke-linecap="round" d="M12 6.5v3M6.5 9.5H17.5M6.5 9.5v3.5M17.5 9.5v3.5"/>
-            <rect x="3" y="13" width="7" height="4.5" rx="0.75"/>
-            <rect x="14" y="13" width="7" height="4.5" rx="0.75"/>
+            <g transform="translate(0, 2.25)">
+              <rect x="8.5" y="2" width="7" height="4.5" rx="0.75"/>
+              <path stroke-linecap="round" d="M12 6.5v3M6.5 9.5H17.5M6.5 9.5v3.5M17.5 9.5v3.5"/>
+              <rect x="3" y="13" width="7" height="4.5" rx="0.75"/>
+              <rect x="14" y="13" width="7" height="4.5" rx="0.75"/>
+            </g>
           </svg>
         </a>
       </div>
