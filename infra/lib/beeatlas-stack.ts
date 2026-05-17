@@ -30,6 +30,23 @@ export class BeeAtlasStack extends cdk.Stack {
     // Manually created 2026-04-25; imported here so CDK manages the reference.
     const logBucket = s3.Bucket.fromBucketName(this, 'CfLogBucket', 'beeatlas-cf-logs');
 
+    // ── Index rewrite: /foo/ → /foo/index.html ────────────────────────────
+    // Private S3 buckets (OAC) don't do directory→index mapping. defaultRootObject
+    // only covers the bare "/" path. Every other trailing-slash URL (e.g. /species/)
+    // must be rewritten at the viewer-request stage before CloudFront contacts S3.
+    const indexRewriteFn = new cloudfront.Function(this, 'IndexRewriteFn', {
+      code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var uri = event.request.uri;
+  if (uri.endsWith('/')) {
+    event.request.uri = uri + 'index.html';
+  }
+  return event.request;
+}
+`),
+      runtime: cloudfront.FunctionRuntime.JS_2_0,
+    });
+
     // ── Main CloudFront Distribution (beeatlas.net) ───────────────────────
     // Use S3BucketOrigin.withOriginAccessControl() (stable since CDK v2.156.0).
     // Do NOT use deprecated S3Origin (OAI). Do NOT set websiteIndexDocument on bucket.
@@ -42,6 +59,10 @@ export class BeeAtlasStack extends cdk.Stack {
         // (text/*, application/json, application/javascript, etc.) and which are
         // > 1 KB. Default in CDK is false; we want it on for the bundled JS.
         compress: true,
+        functionAssociations: [{
+          function: indexRewriteFn,
+          eventType: cloudfront.FunctionEventType.VIEWER_REQUEST,
+        }],
       },
       defaultRootObject: 'index.html',
       domainNames: ['beeatlas.net', 'www.beeatlas.net'],
