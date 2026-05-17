@@ -122,17 +122,26 @@ const genusList = Object.values(genusMap)
         sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
       ])
     );
-    // Display only species (specific_epithet != null) on the genus page.
-    const species = withOcc
+    // Display species (specific_epithet != null) on the genus page.
+    const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
+    // Append a grey "Genus sp." entry when genus-level records exist, so the
+    // key matches the grey dots rendered in the SVG map.
+    const unresolvedOccurrences = withOcc
+      .filter(sp => sp.specific_epithet === null)
+      .reduce((acc, sp) => acc + sp.occurrence_count, 0);
+    const species = [...speciesOnly];
+    if (unresolvedOccurrences > 0) {
+      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, slug: null });
+    }
     return {
       genus: g.genus,
       family: g.family,
       subfamily: g.subfamily,
       species,
-      speciesCount: species.length,
-      totalOccurrences: species.reduce((acc, sp) => acc + sp.occurrence_count, 0),
+      speciesCount: speciesOnly.length,
+      totalOccurrences: speciesOnly.reduce((acc, sp) => acc + sp.occurrence_count, 0) + unresolvedOccurrences,
     };
   });
 
@@ -171,10 +180,18 @@ const subgenusList = Object.values(subgenusMap)
         sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
       ])
     );
-    // Display only species (specific_epithet != null) on the subgenus page.
-    const species = withOcc
+    // Display species (specific_epithet != null) on the subgenus page.
+    const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
+    // Append a grey "Subgenus sp." entry when subgenus-level records exist.
+    const unresolvedOccurrences = withOcc
+      .filter(sp => sp.specific_epithet === null)
+      .reduce((acc, sp) => acc + sp.occurrence_count, 0);
+    const species = [...speciesOnly];
+    if (unresolvedOccurrences > 0) {
+      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, slug: null });
+    }
     return {
       genus: g.genus,
       subgenus: g.subgenus,
@@ -182,7 +199,7 @@ const subgenusList = Object.values(subgenusMap)
       subfamily: g.subfamily,
       tribe: g.tribe,
       species,
-      speciesCount: species.length,
+      speciesCount: speciesOnly.length,
       totalOccurrences: withOcc.reduce((acc, sp) => acc + sp.occurrence_count, 0),
     };
   })
