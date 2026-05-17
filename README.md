@@ -5,3 +5,41 @@ Sorry, there isn't much documentation yet. Feel free to reach out by filing an i
 Data sources:
 - [Ecdysis](https://ecdysis.org/collections/list.php?datasetid=44)
 - [iNaturalist](https://www.inaturalist.org/projects/washington-bee-atlas-waba-plant-images-sample-ids-1854c0dc-0780-41e9-93f7-1f582b4df096)
+
+## Data flow
+
+```mermaid
+flowchart LR
+    subgraph sources["Data Sources"]
+        EC["Ecdysis\n(specimens)"]
+        IN["iNaturalist\n(observations & samples)"]
+        GB["GBIF\n(taxonomy backbone)"]
+        CH["Curated checklists"]
+    end
+
+    subgraph pipeline["Nightly Pipeline  (data/)"]
+        DB[(DuckDB)]
+        DBT["dbt\nmarts/occurrences"]
+        EX["species-export\nspecies-maps\nfeeds"]
+    end
+
+    subgraph hosting["Hosting"]
+        S3[("S3\n(static site + data)")]
+        CF["CloudFront CDN"]
+    end
+
+    subgraph browser["Browser"]
+        PQ["hyparquet\n(Parquet reader)"]
+        UI["Map + sidebar"]
+    end
+
+    EC & IN --> DB
+    GB & CH --> DB
+    DB --> DBT
+    DBT -->|"occurrences.parquet\ncounties/ecoregions GeoJSON"| S3
+    DB --> EX
+    EX -->|"species.json\nspecies-maps/\nfeeds/"| S3
+    S3 --> CF
+    CF --> PQ & UI
+    PQ --> UI
+```
