@@ -461,7 +461,10 @@ Plans:
   3. The build fails with a descriptive error if any place has an invalid geometry, non-WGS84 CRS, duplicate slug, or slug characters outside `[a-z0-9-]`
   4. The build fails if any two place polygons overlap (ST_Intersects check)
   5. A pytest fixture with one valid and one invalid place entry verifies the pass/fail boundary
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 097-01-PLAN.md — Create content/places.toml seed entries and data/places_validation.py validation module
+- [ ] 097-02-PLAN.md — Wire validation step into run.py STEPS and write pytest tests
 
 ### Phase 98: Pipeline Integration
 **Goal**: occurrences.parquet carries a place_slug column from a spatial join; places.geojson and places.json are exported and committed so CI builds succeed without running the pipeline
@@ -601,7 +604,7 @@ Plans:
 | 94. Species & Genus Pages | v3.6 | 3/3 | Complete    | 2026-05-16 |
 | 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 96. Index Page Replacement | v3.6 | 3/3 | Complete    | 2026-05-16 |
-| 97. Place Data Model | v3.7 | 0/TBD | Not started | - |
+| 97. Place Data Model | v3.7 | 0/2 | Not started | - |
 | 98. Pipeline Integration | v3.7 | 0/TBD | Not started | - |
 | 99. Place Static Pages | v3.7 | 0/TBD | Not started | - |
 | 100. Map & Filter Integration | v3.7 | 0/TBD | Not started | - |
