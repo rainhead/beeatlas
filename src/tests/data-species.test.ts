@@ -9,6 +9,24 @@ import { fileURLToPath } from 'node:url';
 // @ts-expect-error -- _data/*.js is plain ESM consumed by Eleventy; no .d.ts
 import species from '../../_data/species.js';
 
+// Reference re-implementation of hslToHex — must match species.js exactly.
+// Used by color-algorithm tests to independently verify computed hexColors.
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100; l /= 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  let r = 0, g = 0, b = 0;
+  if (h < 60)       { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else              { r = c; g = 0; b = x; }
+  const toHex = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, '0');
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('_data/species.js (PAGE-02)', () => {
@@ -55,13 +73,27 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(names).toEqual(sorted);
   });
 
-  test('first Agapostemon species has hexColor matching Python _group_colors (D-01)', () => {
+  test('genusList hexColors match the Python _group_colors algorithm for all genera (D-01)', () => {
+    // Verifies color index computation across the full withOcc (including unresolved records),
+    // matching Python's `WHERE occurrence_count > 0 ORDER BY canonical_name` input. Data-driven
+    // so it stays green regardless of which species have occurrences in the current pipeline run.
+    const flat = (species as any).flat;
     const list = (species as any).genusList;
-    const agapostemon = list.find((g: any) => g.genus === 'Agapostemon');
-    // Python includes unresolved records in color index computation (occurrence_count > 0).
-    // Agapostemon: n=4 (agapostemon null, femoratus, agapostemon subtilior null, virescens).
-    // femoratus is i=1 → hue=90 → #80d926. Unresolved get #aaaaaa.
-    expect(agapostemon.species[0].hexColor).toBe('#80d926');
+    for (const g of list) {
+      const withOcc = flat
+        .filter((s: any) => s.genus === g.genus && s.occurrence_count > 0)
+        .sort((a: any, b: any) => a.canonical_name.localeCompare(b.canonical_name));
+      const n = withOcc.length;
+      const colorByCanon = Object.fromEntries(
+        withOcc.map((sp: any, i: number) => [
+          sp.canonical_name,
+          sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
+        ])
+      );
+      for (const sp of g.species) {
+        expect(sp.hexColor, `${g.genus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
+      }
+    }
   });
 
   test('zero-occurrence species gets grey swatch #cccccc', () => {
@@ -113,16 +145,26 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('subgenusList color parity: first resolved Andrena/Melandrena species matches index in withOcc array (Pitfall 1)', () => {
+  test('subgenusList hexColors match the Python _group_colors algorithm for all groups, unresolved counted in index (Pitfall 1)', () => {
+    // Verifies color index is computed over the full withOcc (including specific_epithet=null records),
+    // not just the resolved-species subset. Data-driven across all subgenus groups.
+    const flat = (species as any).flat;
     const list = (species as any).subgenusList;
-    const melandrena = list.find((g: any) => g.genus === 'Andrena' && g.subgenus === 'Melandrena');
-    // From species.json analysis:
-    // withOcc (n=9) sorted by canonical_name:
-    //   i=0: andrena commoda (resolved) -> hslToHex(0 * 360 / 9, 70, 50) = #d92626
-    //   i=4: andrena pertristis (null) -> #aaaaaa
-    // First resolved species is 'andrena commoda commoda' at i=0 -> #d92626
-    const firstResolved = melandrena.species[0];
-    expect(firstResolved.hexColor).toBe('#d92626');
+    for (const g of list) {
+      const withOcc = flat
+        .filter((s: any) => s.genus === g.genus && s.subgenus === g.subgenus && s.occurrence_count > 0)
+        .sort((a: any, b: any) => a.canonical_name.localeCompare(b.canonical_name));
+      const n = withOcc.length;
+      const colorByCanon = Object.fromEntries(
+        withOcc.map((sp: any, i: number) => [
+          sp.canonical_name,
+          sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
+        ])
+      );
+      for (const sp of g.species) {
+        expect(sp.hexColor, `${g.genus}/${g.subgenus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
+      }
+    }
   });
 
   test('subgenusList.every(g => g.totalOccurrences > 0) — zero-occurrence groups excluded', () => {

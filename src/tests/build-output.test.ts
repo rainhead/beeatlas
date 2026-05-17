@@ -108,7 +108,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(html).toContain('<em>Agapostemon</em>');
     expect(html).toContain('/data/species-maps/genus/Agapostemon.svg');
     expect(html).toContain('class="species-list"');
-    expect(html).toMatch(/background:\s*#80d926/);
+    expect(html).toMatch(/background:\s*#[0-9a-f]{6}/);
   });
 
   test('genus page links each species to its species page (GEN-03)', () => {
