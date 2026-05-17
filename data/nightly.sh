@@ -114,7 +114,7 @@ _upload_hashed() {
     local hashed_name="${basename}-${hash}.${ext}"
     aws --profile "$AWS_PROFILE" s3 cp --no-progress \
         --cache-control "public, max-age=31536000, immutable" \
-        "$@" "$src" "s3://$BUCKET/data/$hashed_name"
+        "$@" "$src" "s3://$BUCKET/data/$hashed_name" >&2
     echo "$hashed_name"
 }
 
