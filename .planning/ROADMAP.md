@@ -351,7 +351,7 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Add a curated directory of collecting locations with permit status, land owner info, specimen counts, and full map integration.
 
-- [ ] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation
+- [ ] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation (2 plans)
 - [ ] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit
 - [ ] **Phase 99: Place Static Pages** — Eleventy index and per-place pages
 - [ ] **Phase 100: Map & Filter Integration** — boundary toggle, filter chip, URL param
