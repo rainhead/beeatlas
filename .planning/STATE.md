@@ -4,7 +4,7 @@ milestone: v3.7
 milestone_name: TBD
 status: planning
 last_updated: "2026-05-16T00:00:00Z"
-last_activity: 2026-05-16 -- v3.6 milestone archived; ready for next milestone
+last_activity: 2026-05-17 - Completed quick task 260516-p0i: Add grey "Genus sp." key entry on genus/subgenus pages
 progress:
   total_phases: 0
   completed_phases: 0
@@ -71,6 +71,7 @@ None.
 | 260514-fp2 | Fix mobile sidebar close button obscured by Regions button (#12) — keep a sliver of map visible above the sidebar in narrow viewports so the Regions button has its own real estate | 2026-05-14 | be01acb | [260514-fp2-fix-mobile-sidebar-close-button-obscured](./quick/260514-fp2-fix-mobile-sidebar-close-button-obscured/) |
 | 260514-fp3 | Fix region boundary gaps/overlaps (#14) — switch county source from TIGER tl_ to Census CB 5m (0 vs 192 km² of overlap); add mapshaper -clean -simplify post-process for EPA L3 ecoregions; clip ecoregions to WA in the dbt mart. Side benefit: 84 boundary-nondeterminism rows in occurrence→county assignment dropped to 0. | 2026-05-14 | 62db87e | [260514-fp3-fix-region-boundary-gaps-overlaps](./quick/260514-fp3-fix-region-boundary-gaps-overlaps/) |
 | 260514-ndp | Cluster selection visual feedback (halo overlay layer) — yellow halo ring around any rendered cluster blob whose leaves intersect `selectedOccIds`; new GeoJSON source + circle layer in bee-map.ts; reactive recompute on selection change / moveend / sourcedata; `_haloGeneration` race guard mirrors `_filterQueryGeneration`; rAF-coalesced; 7 HALO-01 static-grep tests added | 2026-05-14 | c335135 | [260514-ndp-cluster-selection-visual-feedback-halo-o](./quick/260514-ndp-cluster-selection-visual-feedback-halo-o/) |
+| 260516-p0i | Add grey "Genus sp." key entry on genus/subgenus pages for genus-level specimens | 2026-05-17 | a260df7 | [260516-p0i-genus-pages-show-specimens-identified-to](./quick/260516-p0i-genus-pages-show-specimens-identified-to/) |
 
 ## Deferred Items
 
