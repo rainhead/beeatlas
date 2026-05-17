@@ -51,7 +51,6 @@ Progress: [██████████] 100%
 
 ### Pending Todos
 
-- Hash-versioned URLs for `public/data/` artifacts — `.planning/todos/pending/hash-versioned-parquet-urls.md`
 
 ### Blockers/Concerns
 

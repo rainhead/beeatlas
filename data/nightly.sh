@@ -95,30 +95,61 @@ cd "$SCRIPT_DIR"
 uv run python run.py
 echo "--- pipelines done in $(_elapsed $_t0) ---"
 
-# 3. Push exports to S3 /data/. GeoJSON files are uploaded with Content-Type
-# application/json (not application/geo+json) so CloudFront's auto-compression
-# fires on them — AWS's allowlist covers application/json but not the geo+json
-# subtype, and the allowlist isn't configurable. Mapbox + frontend don't care
-# about the exact subtype; they parse by content.
-echo "--- uploading exports ---"
+# 3. Hash artifacts, write manifest.json, push to S3.
+#
+# Content-hashed filenames (e.g. occurrences-abc123def456.parquet) get
+# Cache-Control: immutable so browsers never re-validate them. The manifest
+# is uploaded no-cache so browsers always fetch the latest hash list.
+# GeoJSON files are uploaded with Content-Type application/json (not
+# application/geo+json) so CloudFront's auto-compression fires on them —
+# AWS's allowlist covers application/json but not the geo+json subtype.
+echo "--- hashing and uploading exports ---"
 _t0=$(date +%s)
-for f in occurrences.parquet species.json seasonality.json; do
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f"
-done
-for f in counties.geojson ecoregions.geojson; do
-    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$EXPORT_DIR/$f" "s3://$BUCKET/data/$f" \
-        --content-type application/json
-done
+
+# Upload a file with a content-hash suffix; print the hashed filename.
+_upload_hashed() {
+    local src="$1" basename="$2"; shift 2
+    local ext="${src##*.}"
+    local hash; hash=$(sha256sum "$src" | awk '{print $1}' | cut -c1-12)
+    local hashed_name="${basename}-${hash}.${ext}"
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+        --cache-control "public, max-age=31536000, immutable" \
+        "$@" "$src" "s3://$BUCKET/data/$hashed_name"
+    echo "$hashed_name"
+}
+
+occ_name=$(_upload_hashed "$EXPORT_DIR/occurrences.parquet" "occurrences")
+species_name=$(_upload_hashed "$EXPORT_DIR/species.json" "species")
+seasonality_name=$(_upload_hashed "$EXPORT_DIR/seasonality.json" "seasonality")
+counties_name=$(_upload_hashed "$EXPORT_DIR/counties.geojson" "counties" --content-type application/json)
+ecoregions_name=$(_upload_hashed "$EXPORT_DIR/ecoregions.geojson" "ecoregions" --content-type application/json)
+
+cat > "$EXPORT_DIR/manifest.json" <<JSON
+{
+  "occurrences": "$occ_name",
+  "species": "$species_name",
+  "seasonality": "$seasonality_name",
+  "counties": "$counties_name",
+  "ecoregions": "$ecoregions_name",
+  "generated_at": "$(_ts)"
+}
+JSON
+aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+    --cache-control "no-cache" \
+    "$EXPORT_DIR/manifest.json" "s3://$BUCKET/data/manifest.json"
+
+# Feeds and species-maps use stable (non-hashed) URLs for external consumers.
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/species-maps/" "s3://$BUCKET/data/species-maps/"
 echo "exports uploaded in $(_elapsed $_t0)"
 
-# 4. Invalidate CloudFront /data/*
+# 4. Invalidate CloudFront. Hashed artifacts are new URLs each run — no
+# edge cache to clear. Only the manifest and the stable-URL paths need it.
 echo "--- invalidating CloudFront ---"
 _t0=$(date +%s)
 aws --profile "$AWS_PROFILE" cloudfront create-invalidation \
     --distribution-id "$DISTRIBUTION_ID" \
-    --paths "/data/*" \
+    --paths "/data/manifest.json" "/data/feeds/*" "/data/species-maps/*" \
     --query "Invalidation.Id" --output text
 echo "invalidation requested in $(_elapsed $_t0)"
 

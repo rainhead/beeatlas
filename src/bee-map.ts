@@ -7,6 +7,7 @@ import { RECENCY_COLORS } from './style.ts';
 import { type FilterState, OCCURRENCE_COLUMNS, type OccurrenceRow } from './filter.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import type { DataSummary, FilteredSummary } from './bee-sidebar.ts';
+import { resolveDataUrl } from './manifest.ts';
 
 // Default Washington State view
 const DEFAULT_LON = -120.5;
@@ -931,11 +932,10 @@ export class BeeMap extends LitElement {
   }
 
   private async _loadBoundaryData() {
-    const baseUrl = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? '/data';
     try {
       const [countiesResp, ecoregionsResp] = await Promise.all([
-        fetch(`${baseUrl}/counties.geojson`),
-        fetch(`${baseUrl}/ecoregions.geojson`),
+        resolveDataUrl('counties').then(url => fetch(url)),
+        resolveDataUrl('ecoregions').then(url => fetch(url)),
       ]);
       const countiesData = await countiesResp.json();
       const ecoregionsData = await ecoregionsResp.json();

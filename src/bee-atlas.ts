@@ -8,7 +8,6 @@ import './bee-header.ts';
 import './bee-filter-panel.ts';
 import './bee-map.ts';
 
-const DATA_BASE_URL = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'https://beeatlas.net/data';
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
@@ -299,7 +298,7 @@ bee-filter-panel {
 
     // Initialize SQLite (deferred to avoid competing with the parquet file
     // for bandwidth on the critical path).
-    loadOccurrencesTable(DATA_BASE_URL)
+    loadOccurrencesTable()
       .then(() => {
         console.debug('SQLite tables ready');
         if (this._viewMode === 'table') {
