@@ -64,6 +64,17 @@ eco_fallback AS (
 final_eco AS (
     SELECT * FROM eco_dedup WHERE ecoregion_l3 IS NOT NULL
     UNION ALL SELECT * FROM eco_fallback
+),
+-- PPIPE-02: place_slug via ST_Within LEFT JOIN; no fallback (NULL is correct outside all named places).
+wa_places AS (SELECT * FROM {{ source('geographies', 'places') }}),
+with_place AS (
+    SELECT occ_pt._row_id, p.slug AS place_slug
+    FROM occ_pt
+    LEFT JOIN wa_places p ON ST_Within(occ_pt.pt, p.geom)
+),
+place_dedup AS (
+    SELECT DISTINCT ON (_row_id) _row_id, place_slug
+    FROM with_place
 )
 SELECT
     j.ecdysis_id, j.catalog_number,
@@ -76,7 +87,9 @@ SELECT
     j.specimen_inat_taxon_name, j.specimen_inat_quality_grade,
     j.is_provisional,
     j.canonical_name,
-    fc.county, fe.ecoregion_l3
+    fc.county, fe.ecoregion_l3,
+    fp.place_slug
 FROM joined j
 JOIN final_county fc ON fc._row_id = j._row_id
 JOIN final_eco    fe ON fe._row_id = j._row_id
+LEFT JOIN place_dedup fp ON fp._row_id = j._row_id
