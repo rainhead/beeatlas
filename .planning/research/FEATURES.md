@@ -1,275 +1,249 @@
-# Feature Landscape — v3.7 Places Tab
+# Feature Landscape — v3.8 Conceptual Tidying
 
-**Domain:** Curated collecting-location directory with permit tracking and map integration for a citizen science bee atlas
-**Researched:** 2026-05-17
-**Confidence:** HIGH for iNat/eBird place-page conventions (web research + official docs fetched), WA permit fields (WDFW page fetched + WA Native Bee Society), and Mapbox GL JS polygon filtering (official docs + GitHub issues); MEDIUM for permit metadata field norms (inferential from NPS/WDFW permit guidance, no authoritative collector field-data standard found); LOW for what other entomology atlases expose on per-site pages (no direct comparanda found — field is sparse)
+**Domain:** Domain model centralization for a multi-language citizen-science bee atlas (Python pipeline, dbt SQL models, TypeScript frontend)
+**Researched:** 2026-05-18
+**Confidence:** HIGH — findings are based on direct codebase inspection, not speculation. Every assertion maps to a specific file and line range.
 
-> Scope: ONLY the new Places tab / feature set for v3.7. Existing SPA, species pages, and occurrence pipeline are context, not research subjects.
-
----
-
-## How "Place" Features Work in Citizen Science Tools
-
-### iNaturalist Places
-
-iNat Places are geographic boundaries stored in the database. A place page shows:
-- Polygon boundary on a map
-- Species checklist (taxa observed or known to be present)
-- Establishment means per taxon (native / introduced / endemic)
-- Parent / child place hierarchy
-- Observation count
-
-**What iNat does well:** Linking occurrence data to a named geography. Checklist-based species tracking. Nested place hierarchies (state → county → reserve).
-
-**What iNat does poorly:** No operational metadata (permit info, access restrictions, land manager contact). Boundaries are community-curated and inconsistent. Place checklist counts can lag reality due to indexing quirks (documented bug: "place checklist doesn't show all research grade species"). No per-place specimen count distinct from observation count.
-
-**Relevance to v3.7:** iNat's place-polygon model is the reference for what to store (GeoJSON boundary, checklist-style occurrence count). Its absence of operational metadata is precisely the gap v3.7 fills for bee atlas volunteers.
-
-### eBird Hotspots
-
-eBird hotspots are shared birding locations with a dedicated About page. Relevant fields:
-
-| Section | Fields |
-|---------|--------|
-| Plan Your Visit | Entrance fees, permit requirements, operating hours, directions, parking, accessibility |
-| How to Bird Here | Notable trails, key habitats, target species, birding strategies |
-| About This Place | History, ownership and management, conservation context |
-| Hotspot Features | Structured boolean flags: restrooms, beginner-friendly, restricted access, seasonal closure |
-| Links | Official website + supplemental URLs |
-
-**What eBird does well:** Structured operational metadata (restricted access flag, fee, hours). Community-wiki authoring model. Hotspot Groups aggregate related sub-sites under one overview.
-
-**What eBird does poorly for bees:** No permit tracking per se — "restricted access" is a yes/no flag, not a structured permit record with number, issuing agency, expiration. No specimen counts (birding is observational, not lethal-collection). No polygon boundaries at the hotspot level (eBird hotspots are points).
-
-**Relevance to v3.7:** The "restricted access" flag is table-stakes on any collecting-site directory. eBird's structured content sections (Plan Your Visit / How to Bird Here / About) map well to a Bee Atlas place page, adapted for collectors rather than birders.
-
-### GBIF
-
-GBIF does not have a "place page" concept. Occurrence search can be filtered by country, admin region, or a dataset's locality field, but there is no curated location directory. Not a relevant comparand.
-
-### iDigBio
-
-iDigBio similarly has no site/place directory. Records have lat/lon and locality text, but there is no aggregate place entity. Not relevant.
+> Scope: What domain logic to extract, where it is currently scattered, and what the boundaries of well-bounded modules look like for this codebase. This is a refactoring milestone, not a feature-addition milestone.
 
 ---
 
-## Feature Landscape
+## The Actual Problem: Where Domain Intelligence Lives Today
 
-### Table Stakes (Users Expect These)
+### Occurrence ID Construction (SCATTERED, HIGH IMPACT)
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Place name + slug + static page at `/places/{slug}/` | Any directory needs per-place pages; this is the URL structure that makes sharing work | LOW | Eleventy pagination from a places data file; matches species-page pattern already shipped |
-| Land owner / managing agency | Every collecting permit is issued by or contingent on approval from the land manager; volunteers need to know who manages the land before planning a trip | LOW | One string field: e.g. "WA DNR", "WDFW", "NPS - Hanford Reach", "Clallam County Parks" |
-| Active / inactive permit status | Volunteers must know whether the program has current authorization to collect at this site; wrong status = regulatory violation | LOW | Boolean or enum: `active` / `expired` / `no-permit-needed` / `access-denied` |
-| Permit expiration date | An active permit becomes inactive on a specific date; volunteers use this to understand validity window | LOW | ISO date field; `null` if no permit required or open-ended |
-| Specimen count per place | Conveys how productive the site has been; volunteers choose sites partly by prior collection volume | MEDIUM | Requires spatial join: `ST_Within(occurrence.lat/lon, place.polygon)` in pipeline → `specimen_count` column on places export |
-| Place boundary polygon on map (toggleable layer) | Without visible boundaries, the place filter is not spatially grounded for the user | MEDIUM | places.geojson with polygon geometries; Mapbox GL JS fill + stroke layer, toggle via chip or button |
-| Place filter chip on main map (ghost/dim occurrences outside polygon) | Core use case: volunteers want to see "what has been collected at this site?" by restricting the view to the polygon | MEDIUM | Filter pattern: collect IDs of occurrences within polygon, apply dim/ghost to points outside; extends existing filter chip system |
-| /places/ index page | Without an index, individual place pages are undiscoverable | LOW | Eleventy template listing all places with name, land owner, active status, specimen count |
-| Deep-link from place page to filtered map view | Closes the loop: collector reads about a site, clicks "View on map", arrives at main map filtered to that place | LOW | URL param `pl={slug}` encodes the place filter; `bee-atlas` restores it on load |
+The canonical occurrence ID is `"ecdysis:{ecdysis_id}"` for Ecdysis specimen rows and `"inat:{observation_id}"` for iNat-only sample rows. This construction appears in at least **six different places** in the TypeScript layer alone:
 
-### Differentiators (Worth Doing in v3.7 if Cheap)
+| Site | Pattern | File |
+|------|---------|------|
+| GeoJSON feature builder | `obj.ecdysis_id != null ? 'ecdysis:' + obj.ecdysis_id : 'inat:' + Number(obj.observation_id)` | `features.ts:46-48` |
+| Table row ID helper | `if (row.ecdysis_id != null) return 'ecdysis:${row.ecdysis_id}'` | `bee-table.ts:39-41` |
+| Bounds query results | `` r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}` `` | `bee-atlas.ts:748` |
+| Cluster restore | same pattern | `bee-atlas.ts:1006, 1026` |
+| ID parsing (ecdysis branch) | `id.slice('ecdysis:'.length)` | `bee-atlas.ts:474, 933-934` |
+| ID parsing (inat branch) | `id.slice('inat:'.length)` | `bee-atlas.ts:476, 937-938` |
+| Filter via visible IDs | same pattern | `filter.ts:322-324` |
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| Issuing agency on permit record | Distinguishes "WDFW SCP" from "NPS research permit" from "State Parks Special Use Permit"; different agencies have different renewal processes | LOW | One string field alongside permit status; e.g. "WDFW", "NPS", "WA State Parks" |
-| Permit number | Volunteers often need to cite the permit number when reporting collections; having it in the atlas saves a look-up | LOW | String field; nullable. Not all sites need one. |
-| Multiple permit records per place | A site on both DNR land and WDFW-managed area may require two separate permits | LOW | Permits as an array of objects in the data model, not a single flat field |
-| Access notes (free text) | Operational details that don't fit structured fields: gate codes, seasonal road closures, "park at trailhead 2, not trailhead 1" | LOW | Unstructured text field rendered as a prose paragraph on the place page; markdown acceptable |
-| Place active/inactive filtering on /places/ index | Volunteers planning trips only care about active sites; inactive ones are reference only | LOW | Filter toggle on the index page |
-| Specimen count by taxon for a place | "This site is productive for Osmia" is more useful than a raw total | HIGH | Requires per-place species aggregation; join complexity and storage cost are significant. Defer. |
-| iNat link-out from place page | The iNat project already tracks WABA observations; linking to `inaturalist.org/observations?place_id=...` gives volunteers a complementary view | LOW | One URL field per place, or computed from iNat API |
-| "Collecting season" annotation | Some sites are only accessible / productive May–August (flowering phenology + permit windows); surfacing this helps trip planning | LOW | Start-month / end-month fields; rendered as a calendar strip on the place page |
+And in `features.ts:81`, counting specimens uses `f.properties.occId.startsWith('ecdysis:')` — the prefix again.
 
-### Anti-Features (Explicitly Do Not Build)
+**What a centralized module gives:** A single `occId(row)` function in `src/occurrence.ts`, a `parseOccId(id)` function returning `{source: 'ecdysis'|'inat', numericId: number}`, and an `isSpecimen(row)` predicate. Every caller imports from one place. The prefix strings become constants (`ECDYSIS_PREFIX`, `INAT_PREFIX`).
 
-| Feature | Why Requested | Why Problematic | What to Do Instead |
-|---------|---------------|-----------------|-------------------|
-| User-submitted place edits (wiki-style) | eBird uses community-wiki for hotspot content | Static hosting constraint eliminates server-side write path; also, permit data is legally sensitive and must be authoritative | Hand-curate in a TOML/JSON file in the repo; PR-based edit process is the right governance model |
-| Per-place comments / trip reports | eBird hotspot "How to Bird Here" is community-edited | Cold-start problem; managing legally-sensitive access information via community edits is a liability; Facebook/iNat projects already serve this social function | Access notes field (free text, maintainer-curated) covers the informational need |
-| Map layer showing all WA public lands | Seems like context for the Places tab | Not scoped to bee collecting; WA DNR public lands GeoJSON is ~50 MB; loads the map with irrelevant geometry | Places layer only shows the 20–100 hand-curated polygons |
-| Real-time permit status check via agency API | "Always current" | No public API exists for WDFW/NPS permit status; scraping is brittle; permits change infrequently | Nightly pipeline re-reads a local TOML; maintainer updates TOML when permits change; GitHub PR = audit trail |
-| Species rarity / difficulty ratings per place | Appealing for planning | Requires significant editorial effort and will drift; volunteers already have species pages | Link from place page to species pages filtered by ecoregion; let existing data answer the question |
-| GPS track upload / trail map embed | eBird does this | Scope creep; not a bee-collecting concern (bees are not trail-bound); adds storage + CDN complexity | Access notes field can reference a trail map URL |
-| Permit application wizard / form submission | Natural extension of permit tracking | Far outside static-hosting constraint; also not the atlas's role — the atlas records what's collected, not administers permits | Permit agency website URL field; link out to agency |
-| Specimen count broken down by year | Useful for trend analysis | Requires substantially more pipeline complexity (per-place per-year join); better served by a future analytics milestone | Total specimen count is sufficient for v3.7 |
+### Occurrence Type Discrimination (SCATTERED, HIGH IMPACT)
+
+Three distinct occurrence sub-types are rendered differently but their classification logic is not centralized:
+
+| Type | Discriminator | Used In |
+|------|--------------|---------|
+| Specimen-backed (Ecdysis row) | `r.ecdysis_id != null` | `bee-occurrence-detail.ts:247`, `filter.ts:288-297 (queryFilteredCounts)` |
+| Sample-only (iNat observation without Ecdysis match) | `r.ecdysis_id == null && !r.is_provisional` | `bee-occurrence-detail.ts:248, 255` |
+| Provisional WABA (iNat observation, no Ecdysis catalog match yet) | `r.is_provisional` | `bee-occurrence-detail.ts:256`, `int_combined.sql:50 (ARM 2)` |
+
+The discriminators `ecdysis_id != null`, `ecdysis_id == null`, and `is_provisional` appear inline at render sites. `bee-occurrence-detail.ts:247-256` partitions rows into `specimenBacked` and `sampleOnly` then further branches on `is_provisional` — all at the render call site. In `bee-atlas.ts`, the `WHERE ecdysis_id IS NOT NULL` SQL appears three times (lines 356, 373, 426) for specimen-specific queries.
+
+**What a centralized module gives:** Three named predicates: `isSpecimenBacked(row)`, `isSampleOnly(row)`, `isProvisional(row)`. The SQL fragment `ecdysis_id IS NOT NULL` becomes a constant `SPECIMEN_WHERE`. Callers no longer need to know the discriminating column.
+
+### Floral Host URL Construction (SCATTERED, MEDIUM IMPACT)
+
+External links to iNat observations are built inline at four sites:
+- `bee-occurrence-detail.ts:185` — `https://www.inaturalist.org/observations/${row.host_observation_id}` (host plant)
+- `bee-occurrence-detail.ts:188` — `https://www.inaturalist.org/observations/${row.specimen_observation_id}` (specimen photo)
+- `bee-occurrence-detail.ts:218` — `https://www.inaturalist.org/observations/${row.observation_id}` (sample observation)
+- `bee-occurrence-detail.ts:238` — same pattern (provisional WABA)
+- `bee-table.ts:57-58` — same pattern
+- `bee-table.ts:357-358` — `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}` (Ecdysis page)
+
+**What a centralized module gives:** `inatObservationUrl(id)` and `ecdysisOccurrenceUrl(ecdysisId)` in `src/occurrence.ts`. If URL structure ever changes, one edit.
+
+### Slug Construction (SPLIT ACROSS LANGUAGES, MEDIUM IMPACT)
+
+The `_slugify` function in `data/feeds.py:132-148` (NFKD normalization → ASCII → lowercase → hyphens → strip) is used for collector and genus feed slugs. A separate slug pattern for species is in `data/species_export.py:143-147`: `"{genus}/{epithet}"` for binomial species, falling back to `_slugify(scientificName)` for genus-only rows. `data/feeds.py` exports `_slugify` (by import convention) and `data/species_export.py` imports it directly. There is no single `slug.py` module that owns all slug logic.
+
+In the TypeScript layer, `buildCsvFilename` in `filter.ts:74-80` has its own local `slugify()` function that is NOT the same algorithm as the Python one (no NFKD normalization). These are separate use cases (filename segment vs. URL path) but the split is implicit.
+
+**What a centralized module gives:** A `data/slugs.py` module holding both `general_slug(value)` (the NFKD-normalize-then-lowercase algorithm) and `taxon_slug(genus, epithet)` (the `{genus}/{epithet}` pattern). Everything that produces a URL-path slug imports from `slugs.py`.
+
+### Bee Family Filter (IN ONE PLACE, GOOD)
+
+`BEE_FAMILIES` tuple in `data/species_export.py:51-54` is the canonical list of bee families. It is only used in one place. This is already well-bounded and should stay where it is unless `species_export.py` grows large enough to warrant splitting.
+
+### Name Canonicalization (WELL-BOUNDED, KEEP AS-IS)
+
+`data/canonical_name.py` is an example of what a well-bounded domain module looks like: single file, single algorithm, clear docstring pinning the algorithm steps, idempotence property stated, imported by several pipeline modules. No changes needed here.
+
+### `OccurrenceRow` Type and Column List (CENTRALIZED, ALREADY GOOD)
+
+`OccurrenceRow` interface and `OCCURRENCE_COLUMNS` constant in `filter.ts:25-65` are already the single definition. `bee-occurrence-detail.ts`, `bee-table.ts`, and `bee-atlas.ts` all import from `filter.ts`. This is the right shape.
+
+**One weakness:** `filter.ts` is named after its function (filter SQL building), but it also owns the occurrence data shape. This naming mismatch means new developers look for the type definition in the wrong file. Renaming or re-exporting from a more semantically appropriate file (`src/occurrence.ts`) would clarify intent without changing behavior.
+
+### SQL Field Extraction Logic (IMPLICIT DUPLICATION ACROSS LAYERS)
+
+The same semantic operation — "is this a plant taxon?" — appears in both dbt SQL and the pipeline:
+
+- `int_ecdysis_base.sql:21`: `CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host`
+- `int_samples_base.sql:12`: `CASE WHEN op.taxon__iconic_taxon_name = 'Plantae' THEN op.taxon__name ELSE NULL END AS sample_host`
+
+The same CASE expression appears twice in two different intermediates. In dbt, this is addressable with a macro. A macro `is_plant_taxon(table_alias)` or just inlining the condition into a staging view `stg_inat__plant_obs` would eliminate the duplication.
+
+---
+
+## Table Stakes for This Refactoring Milestone
+
+Features (conceptual moves) that must happen or the milestone fails its stated goal.
+
+| Extraction | Why Required | Current Location | Target Location | Complexity |
+|------------|-------------|-----------------|-----------------|------------|
+| `occId(row)` constructor function | Used 6+ times inline; prefix strings scattered | `features.ts`, `bee-atlas.ts`, `bee-table.ts`, `filter.ts` | `src/occurrence.ts` | LOW |
+| `parseOccId(id)` parser | ID splitting/prefix-stripping at 4+ sites | `bee-atlas.ts:473-478, 933-938` | `src/occurrence.ts` | LOW |
+| `isSpecimenBacked`, `isSampleOnly`, `isProvisional` predicates | Discriminator logic at render and query sites | `bee-occurrence-detail.ts:247-256`, `bee-atlas.ts:356,373,426` | `src/occurrence.ts` | LOW |
+| `inatObservationUrl`, `ecdysisOccurrenceUrl` | URL templates at 5+ sites | `bee-occurrence-detail.ts`, `bee-table.ts` | `src/occurrence.ts` | LOW |
+| `data/slugs.py` module | `_slugify` used across pipeline; `taxon_slug` pattern in species_export | `feeds.py:132-148`, `species_export.py:143-147` | `data/slugs.py` | LOW |
+| dbt `is_plant_taxon` macro | Same CASE expression in two SQL intermediates | `int_ecdysis_base.sql:21`, `int_samples_base.sql:12` | `data/dbt/macros/` | LOW |
+
+---
+
+## Differentiators (Worth Doing in v3.8 if Cheap)
+
+Features that go beyond table stakes but would leave the codebase materially better.
+
+| Extraction | Value | Complexity | Notes |
+|------------|-------|------------|-------|
+| `SPECIMEN_WHERE` SQL constant | Three occurrences of `ecdysis_id IS NOT NULL` in `bee-atlas.ts` | LOW | Could live in `filter.ts` or a new `src/sql-fragments.ts` |
+| TypeScript `OccurrenceRow` import consolidation | The type is already in `filter.ts` but the module name misleads; re-export from a stable `occurrence.ts` | LOW | `filter.ts` stays; `occurrence.ts` re-exports `OccurrenceRow` and adds behavior |
+| `canonicalize()` Python — move from `canonical_name.py` to `taxon.py` | The module correctly centralizes canonicalization but is not explicitly a "taxon" module; a `taxon.py` with `canonicalize`, `BEE_FAMILIES`, `taxon_slug` would be the correct boundary | LOW–MEDIUM | Requires updating ~4 importers |
+
+---
+
+## Anti-Features (Explicitly Do Not Build)
+
+| Anti-Feature | Why Tempting | Why Wrong | What to Do Instead |
+|--------------|-------------|-----------|-------------------|
+| `OccurrenceRow` class with methods | OOP feels natural for entity logic | wa-sqlite returns plain dicts; wrapping would require a conversion step everywhere rows are fetched; adds allocations and complexity | Keep `OccurrenceRow` as a plain interface; put functions in a module that takes `OccurrenceRow` as a parameter |
+| Abstract base class / dataclass for Occurrence in Python | Seem to mirror TypeScript interface | Pipeline rows are DuckDB result tuples; a class hierarchy would require wrapping at the DuckDB boundary; DuckDB structs / Polars DataFrames don't need wrapping | Pure functions taking dict/tuple are the right level of abstraction |
+| Shared schema contract file (JSON Schema or protobuf) across Python and TypeScript | Seems like "one source of truth" | The dbt 31-column contract already enforces schema at build time; adding a separate schema definition layer creates a third point of truth, not fewer | dbt contract IS the schema; the TypeScript `OCCURRENCE_COLUMNS` array MUST match it; document this explicitly, enforce with a test |
+| Domain object layer in dbt (e.g., a "specimen" and "sample" mart as separate tables) | Clean separation at the SQL level | The unified `occurrences` mart is already the correct shape for the frontend's flat query model; splitting it would force a UNION ALL at query time on every client request | The discriminating columns (`ecdysis_id`, `is_provisional`) remain in the unified mart; classification happens in consumer code |
+| Moving `buildFilterSQL` to a separate domain module | "Separation of concerns" | Filter SQL construction IS domain logic, but it is already well-bounded in `filter.ts`; moving it adds indirection without clarity | Keep `buildFilterSQL` in `filter.ts`; extract the `SPECIMEN_WHERE` constant from it |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Pipeline spatial join: place_name in occurrences]
-    └──required by──> [Specimen count per place]
-    └──required by──> [Place filter chip (ghost outside polygon)]
+src/occurrence.ts (new module)
+    provides --> occId(), parseOccId(), isSpecimenBacked(), isSampleOnly(), isProvisional()
+    provides --> inatObservationUrl(), ecdysisOccurrenceUrl()
+    re-exports --> OccurrenceRow (source remains filter.ts)
+    consumed by --> bee-atlas.ts, bee-occurrence-detail.ts, bee-table.ts, features.ts, filter.ts
 
-[places.geojson export with polygon + metadata]
-    └──required by──> [Map: toggleable place boundaries layer]
-    └──required by──> [Place filter chip]
-    └──required by──> [/places/ index: live specimen count]
+data/slugs.py (new module)
+    provides --> general_slug(), taxon_slug()
+    consumed by --> feeds.py, species_export.py, (and any future slug-producing pipeline code)
 
-[Eleventy place pages]
-    └──required by──> [/places/{slug}/ static page]
-    └──required by──> [/places/ index page]
-    └──requires──> [places data source (TOML or JSON in repo)]
-
-[URL param pl={slug}]
-    └──required by──> [Deep-link from place page to filtered map]
-    └──required by──> [Place filter chip state encoded in URL]
-    └──must coexist with──> [Existing URL params: bm=, counties=, ecor=, taxon=, sel=]
+data/dbt/macros/is_plant_taxon.sql (new macro)
+    consumed by --> int_ecdysis_base.sql, int_samples_base.sql
 ```
 
-### Dependency Notes
-
-- **Specimen count requires spatial join first:** The pipeline must assign `place_name` (or `place_slug`) to each occurrence row before `places.geojson` can be exported with accurate counts. This is the first pipeline step to implement.
-- **Place filter chip depends on places.geojson being loaded at runtime:** The chip must know the polygon to do inside/outside classification. The GeoJSON is fetched at startup alongside counties/ecoregions.
-- **Place filter and county/ecoregion filters must coexist:** The existing AND-across-types / OR-within-type semantics apply; a place filter should AND with any active county or taxon filter, not replace it.
-- **`pl=` URL param must not conflict with `sel=`:** The selection rectangle and place filter are compatible (select within the already-filtered view); both should encode simultaneously. This differs from the `sel=` / `o=` mutual exclusivity already in the codebase.
+No cross-language dependencies. Each module is internal to its runtime (TypeScript, Python, SQL).
 
 ---
 
-## Permit Data Model
+## Extraction Impact Ranking
 
-This is the core novel data structure for v3.7. Based on WA permit practice:
+Which kinds of extraction are most impactful for this codebase?
 
-```
-Place {
-  slug: string                  # URL-safe identifier, stable
-  name: string                  # Display name
-  land_owner: string            # Managing agency: "WA DNR", "NPS", "WDFW", "Clallam County Parks"
-  polygon: GeoJSON Polygon      # Boundary; source: hand-digitized or from agency GIS
-  active: boolean               # Whether any permit is currently active
-  access_notes: string|null     # Markdown prose; operational details
-  collecting_season_start: int|null  # Month (1-12); null = year-round
-  collecting_season_end: int|null
-  inat_place_url: string|null   # Link to iNat place or project
-  permits: [
-    {
-      issuing_agency: string    # "WDFW", "NPS", "WA State Parks"
-      permit_number: string|null
-      status: "active"|"expired"|"pending"
-      issued_date: ISO date|null
-      expiration_date: ISO date|null
-      notes: string|null        # e.g., "Annual renewal required; contact Area Manager"
-    }
-  ]
-}
-```
+### 1. Predicates and classifiers — highest ROI
 
-**Why permits as an array:** WA sites frequently require both a WDFW Scientific Collection Permit AND a separate land-manager authorization (e.g., a State Parks Special Use Permit). These are distinct instruments with distinct expiration dates. Flattening them to one field would lose this.
+The occurrence type discriminators (`isSpecimenBacked`, `isSampleOnly`, `isProvisional`) are the most impactful extraction because:
+- They are consulted at both render time and query time
+- The inline conditions (`ecdysis_id != null`, `is_provisional`) require readers to understand the data model from context; named predicates make intent explicit
+- Tests for predicates are trivially short and do not require DOM or DuckDB setup
 
-**What the WDFW SCP tracks (verified from WDFW page and WA Native Bee Society guidance):** Permit is issued per project (temporal + geographic scope). Annual report required within 45 days of expiration. Does not authorize entry onto private or restricted public land — so the site's access authorization is a SEPARATE instrument from the SCP. Both must be active.
+### 2. Constructor/formatter functions — medium ROI
 
-**What the NPS tracks (for Hanford Reach, etc.):** NPS research permits use year/park-acronym/sequential format. Must be renewed annually; zero-take policy in NPS units without explicit permit.
+`occId(row)` and URL builders eliminate concrete duplication and make the prefix strings refactorable. Medium ROI because the existing duplication is copy-pasteable and has not caused bugs. But the `Number(obj.observation_id)` cast in `features.ts:48` is absent in `bee-table.ts:41` — a real inconsistency that a single function would prevent.
+
+### 3. Field-mapping centralization — medium ROI across the pipeline boundary
+
+The `_slugify` duplication across Python modules is the clearest cross-file field-mapping problem. The SQL `is_plant_taxon` CASE expression duplication is smaller but equally obvious.
+
+### 4. Module renaming / re-export — lowest ROI, but worth doing
+
+`filter.ts` owning `OccurrenceRow` type is not causing bugs, but it creates discoverability friction. A re-export from `occurrence.ts` fixes the naming without a migration cost.
 
 ---
 
-## Spatial Filter UX: Ghosting Points Outside a Polygon
+## The Right Shape of a Well-Bounded Domain Module (for This Project)
 
-This is the key interactive behavior. Evidence from research:
+Based on `canonical_name.py` as the working example:
 
-**Pattern:** When a place filter is active, occurrences within the polygon render at full opacity; occurrences outside render at ~25% opacity ("ghosted"). The polygon boundary itself renders as a stroke with a light fill, making the active zone obvious.
+**Attributes of a good domain module in this codebase:**
+1. Single file with a docstring that states its purpose and the invariants it enforces
+2. Pure functions only — no database connections, no I/O, no side effects
+3. Input types are primitives or the project's plain-dict/plain-interface types
+4. Tests are unit tests that require no fixtures, mocks, or async setup
+5. Every function that embeds a domain assumption (string comparison, column name, URL template) lives here and nowhere else
 
-**Mapbox GL JS implementation approach:** No native "inverted polygon fill" in Mapbox GL JS style spec as of 2026 (GitHub issue #6267, open). Two practical approaches:
+**In TypeScript:** A module like `src/occurrence.ts` exports named functions and constants. It does NOT import from `filter.ts`, `features.ts`, or any Lit component. Lit components and `filter.ts` import from it.
 
-1. **Point opacity via `circle-opacity` expression:** Load all occurrences; when place filter is active, set `circle-opacity` to `["case", ["in", ["get", "id"], ["literal", [... ids within polygon ...]]], 1.0, 0.2]`. This requires knowing all IDs within the polygon — i.e., the spatial join must happen at query time.
+**In Python:** A module like `data/slugs.py` or `data/taxon.py` exports named functions. It does NOT import from `duckdb`, `requests`, or any pipeline module. Pipeline modules import from it.
 
-2. **Two-layer approach:** A "ghost" layer renders all points at low opacity unconditionally; a "live" layer renders only points within the polygon at full opacity using a filter. The ghost layer is always present; the live layer activates when a place filter is set.
-
-The two-layer approach is cleaner for Mapbox GL JS because `setFilter` is synchronous (no expression evaluation per frame). It extends naturally to the existing layer architecture where specimen and sample layers are already separate.
-
-**ID-based filter alternative:** Run a DuckDB query `WHERE ST_Within(point, polygon)` in-browser at place-selection time; collect the result as a Set of IDs; apply as a `visibleIds`-style filter. This matches the existing filter-query pattern (`_filterQueryGeneration` guard, `visibleEcdysisIds` Set). **This is the recommended approach** — it reuses the existing filter architecture rather than adding a new Mapbox layer management pattern.
-
-**Performance:** A polygon point-in-polygon query over ~45K points in wa-sqlite with a pre-indexed spatial column runs in <100ms. However, BeeAtlas currently does NOT use spatial SQL — it uses pre-joined `county` / `ecoregion_l3` columns. For place filtering, the polygon is small (park scale), and there are only 20–100 places. Options:
-- Pre-join at pipeline time: add `place_slug` column to `occurrences.parquet` (same pattern as `county`). Fast at runtime; ~0ms filter cost. Requires pipeline spatial join.
-- Client-side point-in-polygon: use Mapbox's `queryRenderedFeatures` or turf.js `booleanPointInPolygon`. Works without pipeline changes; higher runtime cost (~100–500ms for 45K points in JS). Viable for 20–100 small polygons.
-
-**Recommendation:** Pre-join at pipeline time (add `place_slug` to `occurrences.parquet`). This is the same approach used for county and ecoregion. Runtime filter is a Set lookup — O(1) per feature. The `places.geojson` export also gets an accurate `specimen_count` from the same join. One pipeline change, two benefits.
+**In SQL (dbt):** A macro in `data/dbt/macros/` encapsulates a repeating SQL fragment. Intermediate models reference the macro by name rather than duplicating the expression.
 
 ---
 
-## MVP Definition
+## MVP Definition for v3.8
 
-### Launch With (v3.7)
+### Must Do
 
-Core loop: volunteer plans a trip to a known site → views the place page (permit status, land owner, access notes) → clicks "View on map" → map filtered to that site's polygon.
+1. **`src/occurrence.ts`** — new TypeScript module with:
+   - `ECDYSIS_PREFIX`, `INAT_PREFIX` constants
+   - `occId(row: OccurrenceRow): string` — builds `"ecdysis:N"` or `"inat:N"`
+   - `parseOccId(id: string): {source: 'ecdysis'|'inat', numericId: number} | null`
+   - `isSpecimenBacked(row: OccurrenceRow): boolean` — `row.ecdysis_id != null`
+   - `isSampleOnly(row: OccurrenceRow): boolean` — `!isSpecimenBacked(row) && !row.is_provisional`
+   - `isProvisional(row: OccurrenceRow): boolean` — `row.is_provisional === true`
+   - `inatObservationUrl(id: number): string`
+   - `ecdysisOccurrenceUrl(ecdysisId: number): string`
 
-- [x] Places data file in repo (TOML or GeoJSON with properties) for 20–100 sites
-- [x] Pipeline spatial join: `place_slug` column added to `occurrences.parquet`
-- [x] `places.geojson` export with polygon + `name`, `slug`, `land_owner`, `active`, `specimen_count` properties
-- [x] Nightly pipeline produces `places.geojson` uploaded to S3
-- [x] Eleventy generates `/places/` index from `places.geojson` (or `places.json`)
-- [x] Eleventy generates `/places/{slug}/` static pages with name, land owner, permits table, access notes, specimen count, link to map
-- [x] Map: toggleable place boundaries layer (fill-opacity 0.05, stroke, toggle chip)
-- [x] Map: place filter (ghosting occurrences outside polygon via `place_slug` Set filter)
-- [x] URL param `pl={slug}` encodes active place filter; restored on page load
+2. **Callers updated** — `features.ts`, `bee-atlas.ts`, `bee-occurrence-detail.ts`, `bee-table.ts`, `filter.ts` all import the above from `src/occurrence.ts`
 
-### Add After Validation (v3.7.x)
+3. **`data/slugs.py`** — new Python module with:
+   - `general_slug(value: str) -> str` — the NFKD algorithm from `feeds.py:132-148`
+   - `taxon_slug(genus: str, epithet: str | None) -> str` — `"{genus}/{epithet}"` or genus-only fallback
 
-- [ ] Collecting season (start/end month) displayed on place page and index — data model supports it; LOW effort
-- [ ] iNat place URL link-out — LOW effort once data field exists
-- [ ] "Permit expires soon" warning (30-day lookahead) on the index — LOW; useful for admins
+4. **`feeds.py` and `species_export.py`** — import from `slugs.py`; remove their local slug definitions
 
-### Future Consideration (v3.8+)
+5. **dbt macro `is_plant_taxon`** or inline staging view — eliminate the duplicated CASE expression
 
-- [ ] Per-place species breakdown (which species have been collected here) — HIGH pipeline complexity; HIGH user value for experienced collectors
-- [ ] Multiple place filter chips (OR semantics: show occurrences at site A OR site B) — current architecture assumes single place filter
-- [ ] Place pages showing seasonality charts based on place-filtered data — requires per-place pre-computed aggregates
-- [ ] Automatic permit expiration monitoring / GitHub issue creation — operational tooling, not atlas feature
+### Should Do (if straightforward)
 
----
+6. **`SPECIMEN_WHERE`** SQL constant extracted from `filter.ts` — or at minimum documented as a constant string rather than a repeated literal
+7. **`OccurrenceRow` re-export** from `src/occurrence.ts` with `filter.ts` as the authoritative definition (avoids migration cost)
 
-## Feature Prioritization Matrix
+### Defer
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Place static pages with permit/owner info | HIGH — directly answers "can I collect here?" | LOW | P1 |
-| /places/ index | HIGH — discoverability | LOW | P1 |
-| Spatial join → specimen count | HIGH — productivity signal | MEDIUM | P1 |
-| Map: places layer (boundaries) | HIGH — spatial orientation | MEDIUM | P1 |
-| Map: place filter chip (ghost outside) | HIGH — core interactive use case | MEDIUM | P1 |
-| URL param pl= with restore | MEDIUM — shareability | LOW | P1 |
-| Permit number + issuing agency fields | MEDIUM — collectors need this for reporting | LOW | P1 (data model only, LOW cost) |
-| Multiple permits per place | MEDIUM — some sites require two permits | LOW (data model) | P1 |
-| Access notes (free text) | MEDIUM — operational detail not captured by structured fields | LOW | P1 |
-| Collecting season dates | LOW-MEDIUM — useful for planning | LOW | P2 |
-| iNat place link-out | LOW — supplementary | LOW | P2 |
-| Active/inactive filter on index | LOW — most users want all sites | LOW | P2 |
-| Per-place species breakdown | HIGH — valuable for experienced collectors | HIGH | P3 |
-
----
-
-## Competitor Feature Analysis
-
-| Feature | iNaturalist Places | eBird Hotspots | Our Approach |
-|---------|-------------------|----------------|--------------|
-| Polygon boundary on map | Yes (community-curated, inconsistent quality) | No (point only) | Yes — hand-digitized, authoritative |
-| Specimen / occurrence count | Observation count (checklist-based, can lag) | Checklist count (species, not specimens) | Pipeline spatial join → exact specimen count |
-| Land owner / managing agency | No | Partial ("ownership and management" in About) | Explicit structured field |
-| Permit status | No | "Restricted access" boolean only | Full permit record (status, agency, number, expiry) |
-| Permit number | No | No | Yes — nullable string field |
-| Multiple permits per site | No | No | Yes — permits array |
-| Access notes | No | Yes (Plan Your Visit section, community-edited) | Yes — maintainer-curated free text |
-| Collecting season | No | Seasonal closure flag only | Optional start/end month fields |
-| Deep-link to filtered occurrence map | Filters observations within place via URL | Links to species checklists | `pl={slug}` URL param; restores filter on load |
-| Community-editable | Yes (requires 50+ verifiable obs) | Yes (wiki-style) | No — PR-based maintainer edit |
+- Any changes to the `OccurrenceRow` interface shape (milestone: taxon ID refactor, per MEMORY.md)
+- Adding taxon predicates (`isGenus`, `isSubgenus`) — different concern from occurrence typing
+- Changes to the dbt mart schema — separate milestone boundary
 
 ---
 
 ## Sources
 
-- [What is an iNaturalist Place?](https://help.inaturalist.org/en/support/solutions/articles/151000175028-what-is-an-inaturalist-place-) — fetched; fields and two-type model confirmed
-- [iNaturalist community forum: Explore vs. Places boundary differences](https://forum.inaturalist.org/t/explore-vs-places-different-boundaries-why/21358) — evidence that place boundary quality varies
-- [eBird Hotspot About Pages](https://support.ebird.org/en/support/solutions/articles/48001281732-ebird-hotspot-about-pages) — fetched; three-section content model, structured boolean features confirmed
-- [eBird Community-sourced Hotspot Descriptions and Hotspot Groups](https://ebird.org/news/new-hotspot-about-pages-and-groups) — Plan Your Visit / How to Bird Here / About This Place sections; Hotspot Groups model
-- [Scientific Collection Permits — WDFW](https://wdfw.wa.gov/licenses/environmental/scientific-collection) — fetched; per-project permit, annual report requirement, land access restriction confirmed
-- [Can I catch bees? WA Native Bee Society](https://www.wanativebeesociety.org/post/can-i-catch-bees-in-washington) — WA permit landscape: WDFW SCP + separate land-manager authorization required; specific agencies (WDFW, DNR, State Parks, NPS, county parks) named
-- [NPS Research and Collecting Permit Overview](https://www.nps.gov/subjects/science/research-and-collecting-permit-overview.htm) — year/acronym/sequential permit ID format; zero-take policy without permit
-- [Washington Bee Atlas collecting land access (via news search)](https://www.myclallamcounty.com/2026/03/30/washington-bee-atlas-needs-volunteers-in-the-field-collecting-bees/) — confirms WDFW, DNR, Clallam County Parks have granted WABA access; named sites include Ginkgo Petrified Forest, Wanapum, Hanford Reach
-- [Mapbox GL JS issue #6267: fill-region / inverted polygon](https://github.com/mapbox/mapbox-gl-js/issues/6267) — no native inverted-polygon support confirmed; workaround via world-with-hole polygon documented
-- [Mapbox GL JS: Filter features within map view example](https://docs.mapbox.com/mapbox-gl-js/example/filter-features-within-map-view/) — `setFilter` approach for boundary-based feature filtering confirmed
+All findings are from direct inspection of:
+- `/Users/rainhead/dev/beeatlas/src/features.ts` — occurrence ID construction
+- `/Users/rainhead/dev/beeatlas/src/filter.ts` — `OccurrenceRow`, `OCCURRENCE_COLUMNS`, `buildFilterSQL`, `isFilterActive`
+- `/Users/rainhead/dev/beeatlas/src/url-state.ts` — occurrence ID parsing in `parseParams`
+- `/Users/rainhead/dev/beeatlas/src/bee-atlas.ts` — inline discriminators at lines 356, 373, 426, 473-478, 748, 933-938, 1006, 1026
+- `/Users/rainhead/dev/beeatlas/src/bee-occurrence-detail.ts` — occurrence type branching at render time
+- `/Users/rainhead/dev/beeatlas/src/bee-table.ts` — `rowOccId` and URL construction
+- `/Users/rainhead/dev/beeatlas/src/style.ts` — `recencyTier` predicate (already well-bounded)
+- `/Users/rainhead/dev/beeatlas/data/canonical_name.py` — reference example of a well-bounded module
+- `/Users/rainhead/dev/beeatlas/data/feeds.py` — `_slugify` definition
+- `/Users/rainhead/dev/beeatlas/data/species_export.py` — `BEE_FAMILIES`, `taxon_slug` pattern, `_slugify` import
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_ecdysis_base.sql` — duplicated `is_plant_taxon` CASE
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_samples_base.sql` — same CASE expression
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/occurrences.sql` — unified occurrence mart structure
 
----
-*Feature research for: v3.7 Places tab — collecting location directory with permit tracking and map integration*
-*Researched: 2026-05-17*
+*Feature research for: v3.8 Conceptual Tidying*
+*Researched: 2026-05-18*

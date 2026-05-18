@@ -1,798 +1,326 @@
-# Architecture Research — v3.7 Places Feature Integration
+# Architecture Audit — Domain Logic Scatter (v3.8 Conceptual Tidying)
 
-**Domain:** Hand-curated collecting locations integrated into a static-hosted BeeAtlas (Eleventy + Vite + Lit + wa-sqlite SPA + dbt/DuckDB pipeline)
-**Researched:** 2026-05-17
-**Confidence:** HIGH — all referenced files read end-to-end; patterns derived from existing analogue (county/ecoregion) already shipping
-
-This document traces the Places feature end-to-end across all five architecture layers: (1) hand-curated source file, (2) Python/dbt pipeline, (3) export artifacts, (4) Eleventy build-time, (5) frontend filter and Mapbox layer. The county/ecoregion filter is the direct analogue for every integration point; differences are called out explicitly.
+**Domain:** Washington Bee Atlas — occurrence data pipeline + static SPA
+**Audited:** 2026-05-18
+**Confidence:** HIGH — all referenced files read end-to-end; scatter evidence is cited with file and line numbers
 
 ---
 
-## 1. System Overview
+## Overview
 
-```
-  REPO (hand-curated)
-  ─────────────────────────────────────────────────────────────────
-  content/places.toml   (name, slug, owner, permits, polygon GeoJSON)
-       │
-       ▼
-  DATA PIPELINE  (maderas nightly cron — data/run.py)
-  ─────────────────────────────────────────────────────────────────
-  data/places_pipeline.py         NEW
-       │  reads places.toml, writes geographies.places table in DuckDB
-       │
-  data/dbt/models/staging/
-       stg_geo__places.sql        NEW  (SELECT from geographies.places)
-       │
-  data/dbt/models/marts/
-       places_geo.sql             NEW  (per-place occurrence count + GeoJSON emit)
-       occurrences.sql            MODIFIED  (add place_slug column via ST_Within join)
-       │
-  data/run.py                     MODIFIED  (add places-pipeline step before dbt-build)
-  data/species_export.py          UNCHANGED
-  data/species_maps.py            UNCHANGED
-       │
-       ▼
-  EXPORTS  (public/data/ → S3 → CloudFront)
-  ─────────────────────────────────────────────────────────────────
-  public/data/occurrences.parquet   MODIFIED  (+place_slug column)
-  public/data/places.geojson        NEW  (FeatureCollection with per-place properties)
-  public/data/places.json           NEW  (flat array for Eleventy _data loader)
-       │
-       ▼
-  ELEVENTY BUILD
-  ─────────────────────────────────────────────────────────────────
-  _data/places.js                   NEW  (reads places.json)
-  _pages/places/index.njk           NEW  (directory listing at /places/)
-  _pages/places/place.njk           NEW  (per-place page; Eleventy pagination)
-       │
-       ▼
-  FRONTEND (SPA at /)
-  ─────────────────────────────────────────────────────────────────
-  src/filter.ts                     MODIFIED  (FilterState + buildFilterSQL)
-  src/url-state.ts                  MODIFIED  (place= param)
-  src/sqlite.ts                     MODIFIED  (CREATE TABLE occurrences +place_slug)
-  src/bee-atlas.ts                  MODIFIED  (placeOptions state + _onPlaceClick handler)
-  src/bee-map.ts                    MODIFIED  (places source + layer + boundary toggle)
-  src/bee-filter-panel.ts (or controls)  MODIFIED  (place chip)
+This audit traces domain intelligence (predicates, entity construction, field-mapping) across five layers:
+
+- `data/dbt/models/` — SQL staging views and mart models
+- `data/*.py` — Python pipeline modules
+- `src/sqlite.ts` — SQLite table DDL (inline schema definition)
+- `src/filter.ts` — TypeScript OccurrenceRow type + OCCURRENCE_COLUMNS + buildFilterSQL
+- `src/bee-occurrence-detail.ts`, `src/bee-atlas.ts`, `src/bee-table.ts`, `src/features.ts` — rendering and coordination
+
+The five domain entities to trace are: **Specimen**, **Sample**, **Occurrence**, **Place**, **Taxon**.
+
+---
+
+## Refactoring Target 1 (Highest Impact): occId Construction Inline at Every Call Site
+
+### What is scattered
+
+The logic for constructing an occurrence ID string (`"ecdysis:<N>"` vs `"inat:<N>"`) — the discriminant predicate for the entire Occurrence entity — is repeated inline at **six separate call sites** across the TypeScript layer, with no named function.
+
+| File | Line(s) | Pattern |
+|------|---------|---------|
+| `src/features.ts` | 46–48 | `obj.ecdysis_id != null ? 'ecdysis:' + obj.ecdysis_id : 'inat:' + Number(obj.observation_id)` |
+| `src/features.ts` | 81 | `f.properties.occId.startsWith('ecdysis:')` (totalSpecimens count) |
+| `src/bee-atlas.ts` | 748 | `r.ecdysis_id != null ? \`ecdysis:${r.ecdysis_id}\` : \`inat:${Number(r.observation_id)}\`` |
+| `src/bee-atlas.ts` | 1006 | identical construction |
+| `src/bee-atlas.ts` | 1026 | identical construction |
+| `src/bee-table.ts` | 40–41 | `rowOccId()` function — but defined locally and not exported |
+| `src/bee-atlas.ts` | 473–477 | Inverse: parse `"ecdysis:"` prefix to extract integer ID |
+| `src/bee-atlas.ts` | 933–938 | Inverse: split `_selectedOccIds` by prefix into ecdysis/inat int arrays |
+| `src/url-state.ts` | 192 | Validation: `.startsWith('ecdysis:') || .startsWith('inat:')` |
+| `src/bee-map.ts` | 966 | `f.properties.occId.startsWith('ecdysis:')` |
+
+The entity predicate "is this a specimen-backed occurrence vs. sample-only?" is expressed in three different forms:
+- `ecdysis_id != null` (SQL/TS row field test)
+- `occId.startsWith('ecdysis:')` (string prefix test on the derived ID)
+- `is_provisional === true` (a third path for WABA provisional rows with no ecdysis_id AND no sample observation_id in the iNat collection arm)
+
+The three-way classification (specimen / sample-only / provisional) is reasoned about in `bee-occurrence-detail.ts` render() (lines 247–259) and implicitly in `queryFilteredCounts` (filter.ts line 297: `WHERE ecdysis_id IS NOT NULL`), but neither place defines it with a name.
+
+### Why this matters
+
+Adding a new occurrence arm (e.g., a future data source) currently requires hunting down and updating all six construction sites and every predicate. A named pair of functions — `occIdFromRow(row)` and `parseOccId(id)` — in `filter.ts` (where `OccurrenceRow` is already defined) would be the single source of truth.
+
+### What the fix looks like
+
+```typescript
+// In filter.ts (alongside OccurrenceRow)
+export function occIdFromRow(row: Pick<OccurrenceRow, 'ecdysis_id' | 'observation_id'>): string {
+  if (row.ecdysis_id != null) return `ecdysis:${row.ecdysis_id}`;
+  return `inat:${Number(row.observation_id)}`;
+}
+
+export function parseOccId(id: string): { source: 'ecdysis'; id: number } | { source: 'inat'; id: number } | null {
+  if (id.startsWith('ecdysis:')) { const n = parseInt(id.slice(8), 10); return isNaN(n) ? null : { source: 'ecdysis', id: n }; }
+  if (id.startsWith('inat:'))    { const n = parseInt(id.slice(5),  10); return isNaN(n) ? null : { source: 'inat',    id: n }; }
+  return null;
+}
+
+export type OccurrenceKind = 'specimen' | 'sample-only' | 'provisional';
+
+export function occurrenceKind(row: Pick<OccurrenceRow, 'ecdysis_id' | 'is_provisional'>): OccurrenceKind {
+  if (row.ecdysis_id != null)  return 'specimen';
+  if (row.is_provisional)      return 'provisional';
+  return 'sample-only';
+}
 ```
 
 ---
 
-## 2. Layer 1 — Hand-Curated Source File
+## Refactoring Target 2 (High Impact): Occurrence Schema Defined in Three Places
 
-### Format decision: TOML (not GeoJSON, not JSON)
+### What is scattered
 
-Use `content/places.toml`. Reasons:
+The canonical column list for an occurrence row is written out three times, in three languages, with slightly different names and types:
 
-**TOML wins over GeoJSON:**
-- GeoJSON has no natural place for structured metadata alongside geometry. `properties` is flat. Permit arrays, nested owner fields, and multi-record permit history are difficult to express cleanly.
-- GeoJSON polygon coordinates are thousands of numbers — impossible for a human editor to verify or diff. TOML with an embedded WKT string or an `[[places.slug.geometry]]` section is equally unreadable for geometry. Neither TOML nor GeoJSON solves the geometry-editing problem; the actual polygon is drawn in a tool (geojson.io, QGIS) and copy-pasted. Given that, GeoJSON provides no ergonomic advantage for editing.
-- The existing `content/species-photos.toml` proves TOML is the project's established format for hand-curated editorial content. Using the same format keeps the `_data/` loader pattern consistent.
+| Location | Form | Lines |
+|----------|------|-------|
+| `data/dbt/models/marts/schema.yml` | YAML dbt contract (31 columns) | 9–70 |
+| `src/sqlite.ts` `CREATE TABLE occurrences` | SQL DDL string literal | 67–99 |
+| `src/filter.ts` `OCCURRENCE_COLUMNS` const | TypeScript `as const` string array | 58–65 |
+| `src/filter.ts` `OccurrenceRow` interface | TypeScript interface with types | 25–56 |
 
-**TOML wins over plain JSON:**
-- TOML supports comments (key for permit notes, caveats, source citations).
-- TOML handles multi-line strings cleanly for WKT geometry.
-- JSON editing is error-prone for nested structures (trailing commas, mismatched braces).
+These four definitions must be kept in sync manually. The dbt contract is the authoritative schema gate for the parquet file; the SQLite DDL is a load-time materialization of the same schema in the browser; `OCCURRENCE_COLUMNS` is an ordered projection list; `OccurrenceRow` adds TypeScript types.
 
-**Schema:**
+**Drift already present:**
+- `is_provisional` is `BOOLEAN` in dbt schema.yml (line 62) but `INTEGER` in `sqlite.ts` (line 91), because SQLite has no boolean. The mapping is implicit.
+- `year` and `month` are `BIGINT` in dbt (from DuckDB arithmetic) but `INTEGER` in SQLite — mapping is implicit.
+- `host_observation_id`, `observation_id`, `specimen_observation_id`, `sample_id` are `BIGINT` in dbt but `INTEGER` in SQLite — acceptable coercion but undocumented.
+- `OCCURRENCE_COLUMNS` (filter.ts:58–65) lists 30 column names, but `OccurrenceRow` (filter.ts:25–56) has 31 fields including `canonical_name` which is NOT in OCCURRENCE_COLUMNS. This means `canonical_name` is loaded into the SQLite table but never SELECT'd by any filter query — it exists as dead weight.
 
-```toml
-[[places]]
-name = "Skagit Wildlife Area — Headquarters Unit"
-slug = "skagit-wra-hq"
-owner = "Washington Department of Fish and Wildlife"
-permits = [
-  { type = "collect", status = "active", note = "Scientific collecting permit required" },
-  { type = "access",  status = "active", note = "Day use, no fee" },
-]
-# WKT polygon in WGS84. Generate with geojson.io, paste here.
-geometry_wkt = """
-POLYGON((-122.45 48.42, -122.44 48.42, -122.44 48.41, -122.45 48.41, -122.45 48.42))
-"""
+### Why this matters
 
-[[places]]
-name = "Tiger Mountain State Forest"
-slug = "tiger-mountain"
-owner = "Washington Department of Natural Resources"
-permits = [
-  { type = "collect", status = "inactive", note = "Permit currently suspended (2025)" },
-]
-geometry_wkt = """
-POLYGON(...)
-"""
-```
+Every time a new column is added to the dbt mart (e.g., `place_slug` in v3.7), three other files must be updated by hand: `sqlite.ts`, `OCCURRENCE_COLUMNS`, and `OccurrenceRow`. This is the most common source of "31-column contract" work and the most likely source of subtle bugs from omission.
 
-**Key decisions:**
-- `geometry_wkt` stores WKT in WGS84, not GeoJSON. WKT is compact and DuckDB reads it directly via `ST_GeomFromText()`, avoiding a JSON parse step. Equivalent GeoJSON polygon strings are 30–40% longer.
-- `slug` is the stable join key throughout the system. It is the `place_slug` column in `occurrences.parquet` and the Eleventy page URL path segment.
-- `permits` is an array of inline tables. This handles the common case of a place having both a collect permit and an access permit with different statuses.
-- Geometry is stored in the TOML (not a sidecar `.geojson` file) to keep each place record self-contained and to avoid a secondary file per place.
+### What the fix looks like
+
+A TypeScript module `src/occurrence-schema.ts` that is the single source of truth for the column list, the SQLite DDL fragment, and the TypeScript type. The dbt contract (YAML) necessarily stays separate — it lives in the Python/SQL layer — but the three TypeScript definitions can be collapsed. The DDL generation can be driven from the column list: `OCCURRENCE_COLUMNS.map(col => `${col} ${SQL_TYPE[col]}`).join(', ')`.
+
+This is medium-complexity refactoring (touching sqlite.ts, filter.ts, and any tests that inspect the DDL), but the payoff is that future column additions require one edit instead of four.
 
 ---
 
-## 3. Layer 2 — Pipeline
+## Refactoring Target 3 (High Impact): `BEE_FAMILIES` List Duplicated Between Python and SQL
 
-### 3.1 `data/places_pipeline.py` (NEW)
+### What is scattered
 
-Analogous to `data/geographies_pipeline.py`, but reads from `content/places.toml` instead of downloading shapefiles.
+The canonical set of seven bee families (the Anthophila predicate) is defined independently in two places:
 
-```
-places_pipeline.py responsibilities:
-  1. Read content/places.toml (tomllib, stdlib in Python 3.11+)
-  2. Parse each [[places]] record
-  3. Write to geographies.places table in DuckDB via
-     ST_GeomFromText(geometry_wkt) for the polygon column
-  4. Schema: (slug TEXT, name TEXT, owner TEXT, permits JSON, geom GEOMETRY)
-  5. Full-replace each run (CREATE OR REPLACE TABLE) — places.toml is small
-
-Table schema in DuckDB:
-  geographies.places (
-    slug TEXT PRIMARY KEY,
-    name TEXT,
-    owner TEXT,
-    permits JSON,     -- serialized array of {type, status, note}
-    geom GEOMETRY
-  )
-```
-
-The `permits` column stores the full array as JSON text. This is intentional: the pipeline doesn't need to query permit fields; they pass through to `places.geojson` as-is for the frontend and Eleventy pages to render. Storing as JSON avoids a schema-breaking migration every time the permit structure evolves.
-
-### 3.2 dbt staging model: `stg_geo__places.sql` (NEW)
-
-```sql
-{{ config(materialized='view') }}
-
-SELECT slug, name, owner, permits, geom
-FROM {{ source('geographies', 'places') }}
-```
-
-Mirrors `stg_geo__us_counties.sql` exactly. The spatial source extension is already loaded by the existing spatial join pattern.
-
-### 3.3 dbt mart: `occurrences.sql` (MODIFIED)
-
-Add a `place_slug` column via a new CTE block, following the exact pattern of the existing `with_county` / `county_fallback` / `final_county` chain:
-
-```sql
--- After final_county and final_eco CTEs, add:
-wa_places AS (SELECT * FROM {{ ref('stg_geo__places') }}),
-with_place AS (
-    SELECT occ_pt._row_id, p.slug AS place_slug
-    FROM occ_pt
-    LEFT JOIN wa_places p ON ST_Within(occ_pt.pt, p.geom)
-),
--- No fallback: occurrences OUTSIDE all places get NULL place_slug.
--- Unlike county (which uses nearest-polygon fallback), a NULL place_slug
--- is semantically correct — the occurrence was not collected inside any
--- curated place. Do NOT apply nearest-polygon fallback here.
-
--- In the final SELECT:
-SELECT
-    ...,   -- existing columns
-    wp.place_slug
-FROM joined j
-JOIN final_county fc ON fc._row_id = j._row_id
-JOIN final_eco    fe ON fe._row_id = j._row_id
-LEFT JOIN with_place wp ON wp._row_id = j._row_id
-```
-
-**Critical difference from county/ecoregion:** No nearest-polygon fallback for `place_slug`. A `NULL` place_slug means "not inside any curated place" — that is correct and expected for most occurrences. Applying a nearest-place fallback would spuriously assign occurrences to places they weren't collected in. This diverges intentionally from the county/ecoregion pattern where every point is assigned to the nearest region.
-
-**dbt column contract:** The 30-column contract on `marts/occurrences` enforced by `bash data/dbt/run.sh build` must be updated to 31 columns (add `place_slug TEXT`). Update `data/dbt/dbt_project.yml` or the schema test accordingly.
-
-### 3.4 dbt mart: `places_geo.sql` (NEW)
-
-Emits `places.geojson`. Follows the `counties_geo.sql` pattern with the `emit_feature_collection` macro, but also joins occurrence counts:
-
-```sql
-{{ config(
-    materialized='table',
-    post_hook=[
-      emit_feature_collection(this, 'slug', 'target/sandbox/places.geojson')
-    ]
-) }}
-
-SELECT
-    p.slug AS name,   -- macro uses 'name' column as the GeoJSON feature property key
-    p.geom,
-    p.owner,
-    p.permits,
-    COUNT(o.ecdysis_id) AS specimen_count,
-    COUNT(o.observation_id) AS sample_count
-FROM {{ ref('stg_geo__places') }} p
-LEFT JOIN {{ ref('int_combined') }} o ON o.place_slug = p.slug
-GROUP BY p.slug, p.geom, p.owner, p.permits
-```
-
-Wait — the `emit_feature_collection` macro only projects `name` and `geom` into the GeoJSON properties. It needs to be extended (or overridden) to include `owner`, `permits`, `specimen_count`, `sample_count`.
-
-**Recommendation:** Create a new macro `emit_places_feature_collection` that projects all needed properties, or add a `properties` parameter to the existing macro. The existing macro projects only `name`; places need richer properties for the static pages. Given that the macro is already project-specific (not a dbt package), extend it.
-
-Alternatively, the `places.geojson` can be emitted with only geometry + slug in its GeoJSON properties (to feed the Mapbox layer), and a separate `places.json` flat array (with all metadata) can be emitted for Eleventy consumption. This separates concerns cleanly.
-
-**Recommended approach: two artifacts:**
-
-1. `places.geojson` — polygon + `slug` property only. Used by Mapbox GL JS for the boundary layer. Small, cached.
-2. `places.json` — flat array of all place metadata (slug, name, owner, permits, specimen_count, sample_count). Used by Eleventy `_data/places.js` at build time. Emitted by a new `data/places_export.py` step.
-
-This mirrors the pattern where `counties.geojson` feeds Mapbox and `species.json` feeds Eleventy — each consumer gets the format optimized for its use.
-
-### 3.5 `data/places_export.py` (NEW)
-
-Runs after dbt-build, reads from `int_combined` (or `occurrences.parquet`), counts occurrences per slug, and merges with the TOML metadata:
+| Location | Form | Lines |
+|----------|------|-------|
+| `data/species_export.py` | Python tuple `BEE_FAMILIES` | 51–54 |
+| `data/dbt/models/intermediate/int_species_universe.sql` | SQL `WHERE family IN (...)` literal | 73–75 |
 
 ```python
-"""Export places.geojson and places.json.
-
-- places.geojson: polygon features with slug property (for Mapbox layer)
-- places.json: flat array with all metadata (for Eleventy _data/places.js)
-"""
+# species_export.py:51
+BEE_FAMILIES = (
+    'Andrenidae', 'Apidae', 'Colletidae', 'Halictidae',
+    'Megachilidae', 'Melittidae', 'Stenotritidae',
+)
 ```
 
-Rationale for a Python step (not a dbt macro): the `permits` TOML array needs to pass through verbatim to `places.json` without SQL JSON gymnastics. The Python step reads `content/places.toml` directly alongside the dbt output, merges them, and emits both artifacts.
-
-### 3.6 `data/run.py` modifications
-
-```python
-STEPS: list[tuple[str, Callable]] = [
-    ("ecdysis",              load_ecdysis),
-    ("ecdysis-links",        load_links),
-    ("inaturalist",          load_inaturalist_observations),
-    ("waba",                 load_waba_observations),
-    ("projects",             load_projects),
-    ("anti-entropy",         run_anti_entropy),
-    ("checklist",            load_checklist),
-    ("resolve-taxon-ids",    resolve_taxon_ids),
-    ("taxon-lineage-extended", enrich_taxon_lineage_extended),
-    ("places-pipeline",      load_places),       # NEW — must precede dbt-build
-    ("dbt-build",            _run_dbt_build),
-    ("topology-postprocess", clean_region_topology),
-    ("species-export",       export_species_parquet),
-    ("places-export",        export_places),     # NEW — must follow dbt-build
-    ("species-maps",         generate_species_maps),
-    ("feeds",                generate_feeds),
-]
+```sql
+-- int_species_universe.sql:73
+WHERE family IN ('Andrenidae', 'Apidae', 'Colletidae', 'Halictidae',
+                 'Megachilidae', 'Melittidae', 'Stenotritidae')
 ```
 
-`places-pipeline` must precede `dbt-build` because dbt reads `geographies.places`. `places-export` must follow `dbt-build` because it reads the `int_combined` mart (for occurrence counts).
+`species_export.py` actually does not use `BEE_FAMILIES` to filter — it is defined as a comment/documentation constant (the actual filter is in the SQL). This means the Python constant is currently dead code, and the SQL literal is the only live gate.
 
-Geographies (`load_geographies`) is excluded from the nightly run and run manually — `load_places` is different because `places.toml` can change with any commit and must be picked up nightly. It runs in-process (no subprocess), takes under 1 second.
+**Consequence:** If a taxonomist recognizes a new bee family (rare, but happens — Melittidae has been split historically), the SQL is the only place that needs updating today, and the Python constant silently diverges.
+
+### Why this matters
+
+The bee-vs-non-bee predicate determines what appears in the species tree and what is excluded. A silent drift between the two definitions would produce a species tree that disagrees with the occurrence map for edge-case taxa.
+
+### What the fix looks like
+
+A dbt macro `bee_families()` that returns the SQL-safe IN-list string, used in `int_species_universe.sql`. The Python constant either becomes a reference import from a shared `domain.py` module (if the filter is ever needed in Python) or is deleted (since the SQL is the only gate). The recommended approach for this codebase: keep the predicate in SQL (where it is enforced), delete the dead Python constant, and add a comment in `int_species_universe.sql` that this list is the sole definition.
 
 ---
 
-## 4. Layer 3 — Export Artifacts
+## Refactoring Target 4 (Medium Impact): iNat Field-ID Constants Inline in SQL, No Named Home
 
-Three artifacts land in `public/data/` (and sync to S3):
+### What is scattered
 
-| File | Producer | Consumer | Size estimate |
-|------|----------|----------|---------------|
-| `occurrences.parquet` | dbt `occurrences.sql` | wa-sqlite frontend | +1 col, negligible size change |
-| `places.geojson` | `places_export.py` | Mapbox GL JS source | ~50–200 KB depending on polygon complexity |
-| `places.json` | `places_export.py` | Eleventy `_data/places.js` | ~5–20 KB |
+iNaturalist observation field IDs are magic integers embedded directly in SQL JOINs across three dbt models. There is no named constant file or macro:
 
-`places.geojson` carries only `slug` in GeoJSON properties — just enough for the click-to-filter interaction. `places.json` carries all display fields (name, owner, permits, counts).
+| field_id | Meaning | Location |
+|---------|---------|---------|
+| `8338` | Specimen count (number of bees collected) | `int_samples_base.sql:15` |
+| `9963` | Sample ID (sequential per-person-per-day) | `int_samples_base.sql:17` |
+| `18116` | Ecdysis catalog suffix (links WABA obs → specimen) | `int_waba_link.sql:9` |
+| `1718` | Host observation URL (WABA → iNat collection obs) | `int_combined.sql:83` |
 
-`occurrences.parquet` gains one column: `place_slug TEXT NULLABLE`. The existing column order is append-only to avoid breaking the dbt contract test numbering. The manifest.json hashing system (content-hash URLs) means the frontend always fetches the freshest parquet — no CDN stale-cache concern.
+The only documentation for these values lives in inline SQL comments. The `waba_pipeline.py` file (line 54) mentions `field_id=18116` in a docstring but does not define a named constant.
+
+The semantics of field 8338 are particularly load-bearing: v1.2 Key Decisions notes "Match iNat ofvs by field_id not name — Field renamed ... name matching drops ~40% of historical data." The field ID is the stable identifier, and there is exactly one place to change it if iNat ever retires it — but that one place is an anonymous integer in a SQL JOIN condition.
+
+### Why this matters
+
+If any field_id needs updating, a grep for the integer is the only discovery mechanism. There is no index of "these are the iNat field IDs this project depends on." This is a documentation and maintenance hazard, not a correctness hazard today.
+
+### What the fix looks like
+
+A dbt variables file (`dbt_project.yml` `vars:` block) or a `macros/inat_field_ids.sql` macro that defines named references:
+
+```sql
+-- macros/inat_field_ids.sql
+{% macro inat_field_specimen_count() %}8338{% endmacro %}
+{% macro inat_field_sample_id() %}9963{% endmacro %}
+{% macro inat_field_ecdysis_catalog_suffix() %}18116{% endmacro %}
+{% macro inat_field_waba_host_obs_url() %}1718{% endmacro %}
+```
+
+Then `int_samples_base.sql:15` becomes `AND sc.field_id = {{ inat_field_specimen_count() }}`. This is low-risk, purely additive, and makes future field_id changes one-touch.
 
 ---
 
-## 5. Layer 4 — Eleventy
+## Refactoring Target 5 (Medium Impact): `_slugify` / `slugify` Duplicated Between Python and TypeScript
 
-### 5.1 `_data/places.js` (NEW)
+### What is scattered
 
-```javascript
-// _data/places.js — build-time data loader for places pages
-import { readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+A URL-safe slug function exists in two languages with slightly different behavior:
 
-const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = join(here, '..');
-const placesJsonPath = join(repoRoot, 'public/data/places.json');
+| Location | Function | Lines | Behavior |
+|----------|----------|-------|---------|
+| `data/feeds.py` | `_slugify(value)` | 132–148 | Unicode NFKD normalize → ASCII → lowercase → spaces/dots → hyphens → strip non-alphanum → collapse hyphens; fallback `'unknown'` |
+| `src/filter.ts` | `slugify(s)` (unexported) | 74–81 | lowercase → collapse whitespace → strip non-`a-z0-9-` → collapse hyphens → strip leading/trailing → slice to 20 chars |
 
-const raw = JSON.parse(readFileSync(placesJsonPath, 'utf8'));
+`species_export.py` imports `_slugify` from `feeds.py` (line 30) for the species slug, establishing `feeds._slugify` as the Python canonical. The TypeScript `slugify` in `filter.ts` is used only for `buildCsvFilename` (the export filename), not for any URL-path slug. The two functions are not byte-for-byte identical: Python does Unicode normalization; TypeScript does not. TypeScript truncates to 20 characters; Python does not.
 
-// raw is a flat array: [{ slug, name, owner, permits, specimen_count, sample_count }, ...]
-export default raw;
-```
+**Impact:** Low for correctness today (the TypeScript version is only used for CSV filenames, never for URL paths that must round-trip with Python). The divergence becomes a problem if `slugify` is ever needed for URL generation on the TypeScript side, because species page slugs (`/species/Genus/epithet/`) are built by Python `_slugify` and the TypeScript implementation would not produce the same output for accented names.
 
-**Why read `places.json` (not `places.toml`):** `places.json` is the pipeline-produced artifact that includes specimen counts. Reading TOML at Eleventy build time would skip the pipeline and produce pages without counts. `places.json` is the single source of truth for Eleventy. It's analogous to `species.json` for species pages.
+**Separate issue:** `_slugify` lives in `feeds.py`, which is primarily an Atom feed generator. `species_export.py` imports it from there solely because that is where it was first defined. This is an implicit coupling between two unrelated concerns: slug canonicalization and feed generation.
 
-**Local dev without pipeline output:** If `places.json` is missing (fresh checkout before first pipeline run), `readFileSync` throws and Eleventy fails. Follow the `species.js` pattern — if the file doesn't exist, return an empty array with a console warning. Alternatively, commit a minimal `places.json` seed with zero-count entries (matches the TOML content at commit time) so CI always succeeds.
+### What the fix looks like
 
-### 5.2 `_pages/places/index.njk` (NEW)
-
-Directory listing at `/places/`:
-
-```nunjucks
----
-layout: default.njk
-permalink: /places/index.html
-title: Collecting Places — BeeAtlas
----
-<article>
-  <h1>Collecting Places</h1>
-  <ul>
-  {%- for place in places -%}
-    <li>
-      <a href="/places/{{ place.slug }}/"><strong>{{ place.name }}</strong></a>
-      <span class="owner">{{ place.owner }}</span>
-      <span class="count">{{ place.specimen_count }} specimens</span>
-    </li>
-  {%- endfor -%}
-  </ul>
-</article>
-```
-
-The `places` global comes from `_data/places.js` via Eleventy's data cascade.
-
-### 5.3 `_pages/places/place.njk` (NEW)
-
-Per-place page via Eleventy pagination, following the `_pages/species-detail.njk` pattern:
-
-```nunjucks
----
-pagination:
-  data: places
-  size: 1
-  alias: place
-permalink: "/places/{{ place.slug }}/"
-eleventyComputed:
-  title: "{{ place.name }} — BeeAtlas"
-layout: default.njk
----
-<article>
-  <h1>{{ place.name }}</h1>
-  <dl>
-    <dt>Land owner</dt><dd>{{ place.owner }}</dd>
-  </dl>
-
-  <h2>Permits</h2>
-  <ul>
-  {%- for permit in place.permits -%}
-    <li class="permit-{{ permit.status }}">
-      {{ permit.type | capitalize }}: {{ permit.note }}
-      <span class="status">{{ permit.status }}</span>
-    </li>
-  {%- endfor -%}
-  </ul>
-
-  <p>{{ place.specimen_count }} specimens collected · {{ place.sample_count }} collection events</p>
-
-  <a href="/?place={{ place.slug | urlencode }}">
-    View {{ place.specimen_count }} occurrences on the atlas →
-  </a>
-</article>
-```
-
-The deep-link `/?place={{ place.slug }}` drives the SPA's place filter via URL state (see §6.4).
+Extract `_slugify` from `feeds.py` into a new `data/domain.py` module. Both `feeds.py` and `species_export.py` import from `domain.py`. This also provides a home for `BEE_FAMILIES` (Target 3) and the iNat field ID constants if they are moved to Python rather than dbt macros. The TypeScript `slugify` in `filter.ts` is not worth unifying across languages — keep it local and document that it is only for CSV filenames.
 
 ---
 
-## 6. Layer 5 — Frontend
+## Refactoring Target 6 (Lower Impact): "Plantae" Host Detection Written Twice in SQL
 
-### 6.1 `src/filter.ts` modifications
+### What is scattered
 
-**FilterState** gains one field:
+The predicate "is this iNat observation a plant?" — used to derive the display name of the floral host — appears as an identical `CASE` expression in two separate dbt intermediate models:
 
-```typescript
-export interface FilterState {
-  // ... existing fields ...
-  selectedPlaces: Set<string>;   // set of place slugs; empty = no place filter
-}
-```
+| Location | Expression | Lines |
+|----------|-----------|-------|
+| `int_ecdysis_base.sql` | `CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host` | 21 |
+| `int_samples_base.sql` | `CASE WHEN op.taxon__iconic_taxon_name = 'Plantae' THEN op.taxon__name ELSE NULL END AS sample_host` | 12 |
 
-**isFilterActive** gains one clause:
-```typescript
-|| f.selectedPlaces.size > 0
-```
+The two expressions are semantically identical but applied to different source columns (`inat.taxon__name` vs. `op.taxon__name`) and produce different output column names (`inat_host` vs. `sample_host`). A macro or Jinja expression `{{ is_plant_host('obs') }}` could encapsulate the predicate while allowing the alias to differ.
 
-**buildFilterSQL** gains one clause (after the ecoregion block):
-```typescript
-if (f.selectedPlaces.size > 0) {
-  const slugs = [...f.selectedPlaces].map(s => `'${s.replace(/'/g, "''")}'`).join(',');
-  occurrenceClauses.push(`place_slug IN (${slugs})`);
-}
-```
-
-The `place_slug` column is a string in `occurrences.parquet` (like `county`) — no coercion needed. The filter semantics are: occurrences whose `place_slug` matches any of the selected slugs. If a user selects "Skagit WRA" and also has a county filter active, they get AND semantics (occurrences in Skagit WRA AND in the selected county) — consistent with existing cross-type filter behavior.
-
-**OccurrenceRow** gains `place_slug: string | null` for completeness, though the sidebar and detail views don't need to display it.
-
-### 6.2 `src/sqlite.ts` modifications
-
-The `CREATE TABLE occurrences` DDL gains `place_slug TEXT`. Position: append after `ecoregion_l3`:
-
-```typescript
-await sqlite3.exec(db, `CREATE TABLE occurrences (
-  ...
-  county TEXT,
-  ecoregion_l3 TEXT,
-  place_slug TEXT       -- NEW
-)`);
-```
-
-The `OCCURRENCE_COLUMNS` constant in `filter.ts` gains `'place_slug'` — this drives both the INSERT column list and all SELECT queries. Adding it here ensures existing query functions (queryTablePage, queryAllFiltered, queryOccurrencesByBounds) carry the new column forward without individual changes.
-
-### 6.3 `src/bee-atlas.ts` modifications
-
-State additions (analogous to `_countyOptions` / `_ecoregionOptions`):
-
-```typescript
-@state() private _placeOptions: Array<{ slug: string; name: string }> = [];
-```
-
-Initial FilterState object gains `selectedPlaces: new Set()`.
-
-A `_loadPlaceOptions()` method reads distinct place_slug values from wa-sqlite (same pattern as `_loadCountyEcoregionOptions`), but also cross-references with `places.json` to get display names. Since `places.json` is small, it is fetched once at startup and cached in `_placeOptions`.
-
-`_onRegionClick` in `bee-atlas.ts` handles county and ecoregion clicks from `bee-map`. A new `_onPlaceClick` handler handles place boundary clicks:
-
-```typescript
-private _onPlaceClick(e: CustomEvent<{ slug: string; shiftKey: boolean }>) {
-  const { slug, shiftKey } = e.detail;
-  // Single-select/toggle pattern matching county behavior
-  if (!shiftKey) {
-    const wasOnlySelection = this._filterState.selectedPlaces.size === 1
-      && this._filterState.selectedPlaces.has(slug);
-    this._filterState = {
-      ...this._filterState,
-      selectedPlaces: wasOnlySelection ? new Set() : new Set([slug]),
-    };
-  } else {
-    const newSet = new Set(this._filterState.selectedPlaces);
-    if (newSet.has(slug)) newSet.delete(slug);
-    else newSet.add(slug);
-    this._filterState = { ...this._filterState, selectedPlaces: newSet };
-  }
-  this._runFilterQuery().then(() => this._pushUrlState());
-}
-```
-
-`_onMapClickEmpty` already clears counties and ecoregions; it must also clear `selectedPlaces` when the boundary mode is `places`.
-
-`_onFilterChanged` must propagate `selectedPlaces` from the filter panel event.
-
-The filter panel receives `placeOptions` via `@property`. The filter panel emits `selectedPlaces` in its `filter-changed` event.
-
-### 6.4 `src/url-state.ts` modifications
-
-New param: `place=slug1,slug2` (comma-separated slugs). Follows the same pattern as `counties=` and `ecor=`.
-
-**In `buildParams`:**
-```typescript
-if (filter.selectedPlaces.size > 0) {
-  params.set('place', [...filter.selectedPlaces].sort().join(','));
-}
-```
-
-**In `parseParams`:**
-```typescript
-const placeRaw = p.get('place') ?? '';
-const selectedPlaces = new Set<string>(
-  placeRaw ? placeRaw.split(',').map(s => s.trim()).filter(Boolean) : []
-);
-```
-
-`hasFilter` check and `result.filter` object both gain `selectedPlaces`.
-
-The deep-link from `/places/{slug}/` is `/?place={slug}` — this matches `parseParams` exactly and will set `selectedPlaces` on page load.
-
-The `bm=` boundary mode param gains `places` as a valid value: `'off' | 'counties' | 'ecoregions' | 'places'`. This controls which boundary overlay is visible in the map. A user who arrives via a deep-link from a place page should probably have `bm=places` auto-set so the boundary is visible — the deep-link from the Eleventy page includes it:
-```
-/?place=skagit-wra-hq&bm=places
-```
-
-### 6.5 `src/bee-map.ts` modifications
-
-**Places source and layers** follow the county/ecoregion pattern exactly:
-
-```typescript
-// Source (added in the 'load' handler alongside counties and ecoregions):
-this._map!.addSource('places', {
-  type: 'geojson',
-  data: { type: 'FeatureCollection', features: [] },
-  generateId: true,
-});
-
-// Layers: place-fill and place-line (identical paint expressions to county-fill/county-line)
-this._map!.addLayer({
-  id: 'place-fill',
-  type: 'fill',
-  source: 'places',
-  layout: { visibility: 'none' },
-  paint: {
-    'fill-color': ['case',
-      ['boolean', ['feature-state', 'selected'], false],
-      'rgba(44, 123, 229, 0.12)',
-      'rgba(0, 0, 0, 0)',
-    ],
-  },
-});
-this._map!.addLayer({
-  id: 'place-line',
-  type: 'line',
-  source: 'places',
-  layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' },
-  paint: {
-    'line-color': ['case',
-      ['boolean', ['feature-state', 'selected'], false],
-      'rgba(44, 123, 229, 0.85)',
-      'rgba(120, 60, 180, 0.65)',   // distinct from county/ecoregion (purple tint)
-    ],
-    'line-width': ['case',
-      ['boolean', ['feature-state', 'selected'], false],
-      2.5, 1.5,
-    ],
-  },
-});
-```
-
-**Click interaction** (added alongside click-county and click-ecoregion):
-```typescript
-this._map.addInteraction('click-place', {
-  type: 'click',
-  target: { layerId: 'place-fill' },
-  handler: (e) => {
-    this._clickConsumed = true;
-    e.preventDefault();
-    this._handleRegionClick(e, 'slug');  // property name in places.geojson
-  },
-});
-```
-
-`_handleRegionClick` reads the named property and emits `map-click-region` with `{ name: slug, shiftKey }` — identical to county/ecoregion. The slug value flows as the "name" through the existing event; `bee-atlas._onRegionClick` routes it based on boundary mode. Because `boundaryMode === 'places'`, it calls `_onPlaceClick` instead of the county/ecoregion path.
-
-Actually — `_onRegionClick` in `bee-atlas` currently routes based on `this._boundaryMode === 'counties'`. With three boundary types, this becomes:
-
-```typescript
-private _onRegionClick(e: CustomEvent<{ name: string; shiftKey: boolean }>) {
-  const { name, shiftKey } = e.detail;
-  if (this._boundaryMode === 'counties') { /* ... county logic ... */ }
-  else if (this._boundaryMode === 'ecoregions') { /* ... ecoregion logic ... */ }
-  else if (this._boundaryMode === 'places') { /* ... place logic (slug-based) ... */ }
-}
-```
-
-**Boundary GeoJSON loading** in `_loadBoundaryData()` (already loads counties and ecoregions from CloudFront): add a third fetch for `places.geojson`, storing features in `_placesIdMap: Map<number, string>` (Mapbox numeric feature ID → slug).
-
-**Boundary mode toggle** in the Regions menu: add "Places" as a fourth option. The `_applyBoundaryMode` private method sets `visibility: visible/none` per layer based on `this.boundaryMode`; extend to handle `'places'`.
-
-**`_applyBoundarySelection`** must also handle `'places'`: read `this.filterState.selectedPlaces` (set of slugs), iterate `_placesIdMap`, and call `setFeatureState` with `{ selected: slugs.has(slug) }`.
-
-The `@property boundaryMode` type annotation in `bee-map.ts` widens from `'off' | 'counties' | 'ecoregions'` to `'off' | 'counties' | 'ecoregions' | 'places'`. Same widening in `url-state.ts`, `bee-atlas.ts`, and any test files.
+**Impact:** Very low today. The two call sites are easy to find and update together. Worth doing as part of a broader macro cleanup rather than standalone.
 
 ---
 
-## 7. Component Responsibilities Summary
+## Secondary Scatter Findings (Not Top-5, But Documented)
 
-| Component | Responsibility | New/Modified |
-|-----------|---------------|-------------|
-| `content/places.toml` | Hand-curated place records (geometry + metadata) | NEW |
-| `data/places_pipeline.py` | Load TOML → `geographies.places` in DuckDB | NEW |
-| `data/dbt/staging/stg_geo__places.sql` | Expose `geographies.places` to dbt | NEW |
-| `data/dbt/marts/occurrences.sql` | Add `place_slug` via ST_Within join | MODIFIED |
-| `data/places_export.py` | Emit `places.geojson` + `places.json` to `public/data/` | NEW |
-| `data/run.py` | Add `places-pipeline` + `places-export` steps | MODIFIED |
-| `_data/places.js` | Read `places.json`, expose to Eleventy templates | NEW |
-| `_pages/places/index.njk` | Directory listing at `/places/` | NEW |
-| `_pages/places/place.njk` | Per-place static page via pagination | NEW |
-| `src/filter.ts` | Add `selectedPlaces: Set<string>` to FilterState + SQL clause | MODIFIED |
-| `src/sqlite.ts` | Add `place_slug TEXT` to CREATE TABLE | MODIFIED |
-| `src/url-state.ts` | Add `place=` param + widen `boundaryMode` type | MODIFIED |
-| `src/bee-atlas.ts` | Add `_placeOptions` state + `_onPlaceClick` handler | MODIFIED |
-| `src/bee-map.ts` | Add `places` source/layers + click interaction + load | MODIFIED |
-| `src/bee-filter-panel.ts` | Add place chip/autocomplete | MODIFIED |
+### Year-Bucket Logic in `bee-filter-panel.ts`
 
-No new Lit components are required. The places feature reuses all existing coordinator/presenter patterns.
+The functions `yearBucketsToFilter` and `filterToYearBuckets` (lines 13–36) encode the business rule "thisYear = current calendar year, lastYear = CY−1, earlier = everything before." This is domain logic (recency bucketing) embedded in a Lit component. It references `CY` / `PY` which mirror the `recencyTier` logic in `style.ts` (lines 10–13). The two definitions use the same concept but are not connected: `style.ts` computes `_thisYear` and `_lastYear` as module-level constants; `bee-filter-panel.ts` computes `CY` and `PY` independently. These could share a single `CURRENT_YEAR` / `PREVIOUS_YEAR` export from `style.ts`.
+
+### `is_provisional` Predicate in `places_export.py`
+
+`places_export.py` (line 54) contains:
+```sql
+COUNT(CASE WHEN is_provisional = false OR is_provisional IS NULL THEN 1 END) AS specimen_count
+```
+
+This is a definition of "what counts as a specimen for place statistics" — a domain predicate embedded in a one-off SQL string inside a Python function. The same question is answered differently in `filter.ts` (line 297):
+```sql
+WHERE ecdysis_id IS NOT NULL AND ${occurrenceWhere}
+```
+
+These two predicates are not the same: `ecdysis_id IS NOT NULL` is a tighter constraint (only Ecdysis-backed rows) while `is_provisional = false` admits sample-linked iNat rows that have an Ecdysis record via the ARM 1 full-outer-join. The intent is probably the same (count confirmed specimens, not provisional WABA-only rows), but the expressions diverge. This is a subtle semantic inconsistency hiding behind two independent inline SQL fragments.
+
+### `sample_host` and `inat_host` as Parallel Columns
+
+The occurrence mart has both `floralHost` (from Ecdysis `associated_taxa` regex extraction) and `inat_host` (from iNat observation Plantae check) for the ARM 1 ecdysis rows, and `sample_host` (from iNat observation Plantae check) for the iNat-only arm. The frontend `_renderHostInfo` in `bee-occurrence-detail.ts` (lines 157–167) knows about this three-way structure and resolves display priority: Ecdysis floralHost > iNat host, with conflict display if they disagree. This host-resolution logic is a domain rule embedded in a render method.
 
 ---
 
-## 8. Data Flow — End to End
-
-### 8.1 Nightly pipeline
+## Architecture Layer Map
 
 ```
-places.toml (repo)
-    │ places_pipeline.py: tomllib.load → ST_GeomFromText → INSERT
-    ▼
-geographies.places (DuckDB)
-    │ dbt stg_geo__places.sql
-    ▼
-stg_geo__places (DuckDB view)
-    │ dbt occurrences.sql: LEFT JOIN on ST_Within(pt, p.geom)
-    ▼
-occurrences.parquet (+place_slug column)  →  S3 → CloudFront
-    │
-    │ places_export.py: reads int_combined → COUNT per slug
-    │                   merges with places.toml metadata
-    ▼
-places.geojson  →  S3 → CloudFront
-places.json     →  S3 → CloudFront
-```
+dbt SQL models                Python pipeline               TypeScript frontend
+──────────────────────        ──────────────────────        ──────────────────────
+int_ecdysis_base.sql          canonical_name.py             filter.ts
+  floralHost (regex)            canonicalize()                OccurrenceRow (type)
+  inat_host (Plantae CASE)                                    OCCURRENCE_COLUMNS
+  elevation_m (TRY_CAST)      feeds.py                        buildFilterSQL()
+                                _slugify()                    occIdFromRow (MISSING)
+int_samples_base.sql                                          isFilterActive()
+  sample_host (Plantae CASE)  species_export.py
+  field_id 8338, 9963           BEE_FAMILIES (dead const)   sqlite.ts
+                                _slugify (imported)           CREATE TABLE occurrences
+int_combined.sql                                              (31 columns, inline DDL)
+  is_provisional = TRUE/FALSE   [no shared domain module]
+  field_id 18116, 1718                                      features.ts
+                              [field_ids as bare integers     occIdFromRow (inline)
+int_specimen_obs_base.sql      in SQL, no Python names]       isSpecimen (inline)
+  Plantae check ABSENT
+  (taxon__name passes through)                              bee-occurrence-detail.ts
+                                                              occurrenceKind (inline)
+occurrences.sql (mart)                                        hostDisplay (inline)
+  31-column SELECT                                            is_provisional branch
 
-### 8.2 Eleventy build
-
-```
-places.json (public/data/)
-    │ _data/places.js: JSON.parse → flat array
-    ▼
-places (Eleventy global)
-    │ _pages/places/index.njk: iteration → static HTML
-    │ _pages/places/place.njk: pagination → N static pages
-    ▼
-_site/places/index.html
-_site/places/{slug}/index.html
-```
-
-### 8.3 Frontend runtime
-
-```
-User loads /?place=skagit-wra-hq&bm=places
-    │ parseParams → selectedPlaces = Set(["skagit-wra-hq"]), boundaryMode = 'places'
-    ▼
-bee-atlas.firstUpdated:
-    filterState.selectedPlaces = { "skagit-wra-hq" }
-    boundaryMode = 'places'
-    _runFilterQuery() → queryVisibleIds() →
-      buildFilterSQL: "place_slug IN ('skagit-wra-hq')"
-      → wa-sqlite → Set<featureId>
-    ▼
-bee-map receives visibleIds, boundaryMode='places'
-    _loadBoundaryData: fetch places.geojson → setData on 'places' source
-    _applyBoundaryMode: place-fill/place-line layers set to visible
-    _applyBoundarySelection: setFeatureState({ selected: true }) on matching slug
-    _applyVisibleIds: occurrences source filtered to place specimens
-    ▼
-User sees: place boundary highlighted in purple, ghost dots outside boundary
+                                                            bee-atlas.ts
+schema.yml (dbt contract)                                     occIdFromRow (×3 inline)
+  31 YAML column entries                                      parseOccId (×4 inline)
 ```
 
 ---
 
-## 9. Differences from County/Ecoregion Analogue
+## Ranking by Impact
 
-| Aspect | County/Ecoregion | Places |
-|--------|------------------|--------|
-| Source | Downloaded shapefile (geographies_pipeline.py) | Hand-curated TOML (places_pipeline.py) |
-| Geometry source | External (Census/EPA) | Drawn by maintainer, stored in repo |
-| NULL fallback | Nearest-polygon for every occurrence | NULL = not in any place (correct; no fallback) |
-| Display name | Property from GeoJSON (NAME / NA_L3NAME) | `slug` in GeoJSON, `name` in places.json |
-| Eleventy pages | None | /places/ + /places/{slug}/ |
-| URL param | `counties=` / `ecor=` | `place=` |
-| Boundary color | Gray (#808080) | Purple tint (distinct from counties/ecoregions) |
-| Click → filter | `map-click-region` event → `_onRegionClick` | Same event, same handler, routes by `boundaryMode` |
-| Filter chip label | County/ecoregion name | Place name (looked up from `_placeOptions`) |
-| Extra metadata | None | permits, owner, specimen/sample counts |
+| Rank | Target | Files Touched | Risk of Fix |
+|------|--------|--------------|-------------|
+| 1 | `occIdFromRow` / `parseOccId` / `occurrenceKind` — extract named functions | `filter.ts`, `features.ts`, `bee-atlas.ts`, `bee-table.ts`, `bee-map.ts`, `url-state.ts` | LOW — pure refactor, no behavior change |
+| 2 | Occurrence schema single source — `occurrence-schema.ts` | `sqlite.ts`, `filter.ts`, tests | MEDIUM — touches DDL generation |
+| 3 | `BEE_FAMILIES` dead constant + SQL duplicate | `species_export.py`, `int_species_universe.sql` | LOW — delete Python constant; SQL unchanged |
+| 4 | iNat field_id constants as named dbt macros | `int_samples_base.sql`, `int_waba_link.sql`, `int_combined.sql`, `macros/` | LOW — purely additive, no logic change |
+| 5 | `_slugify` moved to `data/domain.py` | `feeds.py`, `species_export.py`, new `domain.py` | LOW — import path change only |
+| 6 | `is_provisional` predicate inconsistency (places_export vs filter.ts) | `places_export.py`, `filter.ts` | MEDIUM — requires semantic decision |
+| 7 | Year-bucket / recency-tier constants shared | `style.ts`, `bee-filter-panel.ts` | LOW — trivially extractable |
+| 8 | Plantae host CASE → dbt macro | `int_ecdysis_base.sql`, `int_samples_base.sql`, new macro | LOW — cosmetic, no behavior change |
 
 ---
 
-## 10. Build Order Dependencies
+## Sources (all read end-to-end)
 
-```
-places.toml (in repo, always present)
-    │
-    ├──▶ places-pipeline  (write geographies.places to DuckDB)
-    │         │
-    │         ▼
-    │    dbt-build  (reads geographies.places for occurrences.sql join)
-    │         │
-    │         ├──▶ occurrences.parquet (+place_slug)  → frontend filter
-    │         │
-    │         └──▶ places-export  (reads int_combined for counts + TOML for metadata)
-    │                   │
-    │                   ├──▶ places.geojson  → Mapbox layer
-    │                   └──▶ places.json     → Eleventy build
-    │
-    └──▶ Eleventy build (reads places.json from public/data/)
-              │
-              └──▶ _site/places/**  (static pages)
-```
-
-Critical constraint: `places-pipeline` must run before `dbt-build`. `places-export` must run after `dbt-build`. Eleventy reads `places.json` which is output of `places-export` — on a CI build that skips the data pipeline (frontend-only CI), `places.json` must already be committed or fetched from S3. Follow the `species.json` precedent: the file is committed to git at its last-known-good value so CI doesn't need the full pipeline.
-
----
-
-## 11. Architectural Risks
-
-### Risk 1: Polygon complexity and Mapbox performance
-
-**What:** A place boundary could be a complex polygon (e.g., Tiger Mountain with irregular forest boundaries) with thousands of vertices. Loading all places as one GeoJSON source could increase tile rendering time.
-
-**Mitigation:** Simplify polygon geometry in `places_pipeline.py` before storing in DuckDB using `ST_SimplifyPreserveTopology(geom, 0.0005)`. This preserves topology while reducing vertex count to ~hundreds. Target: each polygon < 100 KB in GeoJSON. If a place boundary requires higher fidelity, add a `simplification_tolerance` field to the TOML schema and apply it per-place.
-
-### Risk 2: `place_slug` column and the dbt 30-column contract
-
-**What:** The dbt mart enforces exactly 30 columns on `occurrences`. Adding `place_slug` makes it 31. The contract check will fail until updated.
-
-**Prevention:** Update the column count assertion in `dbt_project.yml` (or wherever the contract is enforced) as part of the same PR that adds the column to `occurrences.sql`. These are inseparable.
-
-### Risk 3: Stale `places.json` in CI (frontend-only build)
-
-**What:** CI builds run Eleventy without the data pipeline. If `places.json` isn't committed or isn't in S3, `_data/places.js` throws and the build fails.
-
-**Prevention:** Commit a canonical `public/data/places.json` alongside `places.toml`. The nightly cron updates it; CI uses the committed version. This matches what happens with `counties.geojson` and `ecoregions.geojson` (committed to git per the v1.5 Key Decision). Document in `data/README.md`.
-
-### Risk 4: Place slug stability
-
-**What:** If a slug changes (typo fix, rename), all deep-links from place pages break and `place=` URL params in shared links 404 on the filter (the slug won't match any `place_slug` in occurrences.parquet until the next pipeline run).
-
-**Prevention:** Treat slugs as immutable once published. If a place is renamed, add the old slug as an `alias` field in the TOML and handle redirects or alias filtering in `buildFilterSQL`. Document the slug-stability commitment in `content/places.toml` header comments.
-
-### Risk 5: `boundaryMode` type widening across test files
-
-**What:** Widening `'off' | 'counties' | 'ecoregions'` to include `'places'` touches `url-state.ts`, `bee-atlas.ts`, `bee-map.ts`. TypeScript will catch missing cases in switch/ternary chains, but Vitest url-state.test.ts has explicit round-trip tests for `bm=` values — those tests need updating.
-
-**Prevention:** The TypeScript compiler will flag exhaustive checks at build time. In `parseParams`, the `bm=` validation expression must include `|| bmRaw === 'places'`. Add a `bm=places` round-trip test to `url-state.test.ts`.
+- `/Users/rainhead/dev/beeatlas/src/filter.ts` — OccurrenceRow, OCCURRENCE_COLUMNS, buildFilterSQL, occIdFromRow scatter
+- `/Users/rainhead/dev/beeatlas/src/features.ts` — occId construction + isSpecimen inline
+- `/Users/rainhead/dev/beeatlas/src/bee-atlas.ts` — occId construction ×3, parseOccId ×2, 1073 lines
+- `/Users/rainhead/dev/beeatlas/src/bee-table.ts` — rowOccId local function (lines 39–43)
+- `/Users/rainhead/dev/beeatlas/src/bee-occurrence-detail.ts` — occurrenceKind inline (lines 247–259), hostDisplay
+- `/Users/rainhead/dev/beeatlas/src/bee-filter-panel.ts` — yearBuckets domain logic
+- `/Users/rainhead/dev/beeatlas/src/sqlite.ts` — CREATE TABLE occurrences DDL (lines 67–99)
+- `/Users/rainhead/dev/beeatlas/src/style.ts` — recencyTier, CY/PY constants
+- `/Users/rainhead/dev/beeatlas/src/url-state.ts` — occId prefix validation (line 192)
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/occurrences.sql` — 31-column SELECT
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/schema.yml` — dbt enforced contract (31 columns)
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_combined.sql` — is_provisional arms, field_id 1718/18116
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_ecdysis_base.sql` — floralHost regex, inat_host Plantae CASE
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_samples_base.sql` — sample_host Plantae CASE, field_id 8338/9963
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_waba_link.sql` — field_id 18116
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_species_universe.sql` — BEE_FAMILIES SQL literal (lines 73–75)
+- `/Users/rainhead/dev/beeatlas/data/species_export.py` — BEE_FAMILIES Python const (lines 51–54), _slugify import
+- `/Users/rainhead/dev/beeatlas/data/feeds.py` — _slugify definition (lines 132–148)
+- `/Users/rainhead/dev/beeatlas/data/canonical_name.py` — canonicalize() — a well-structured single-source-of-truth example
+- `/Users/rainhead/dev/beeatlas/data/places_export.py` — is_provisional predicate (line 54)
 
 ---
-
-## 12. Project Structure Diff
-
-```
-beeatlas/
-├── content/
-│   ├── species-photos.toml          UNCHANGED
-│   └── places.toml                  NEW (hand-curated place records)
-├── data/
-│   ├── places_pipeline.py           NEW
-│   ├── places_export.py             NEW
-│   ├── run.py                       MODIFIED (2 new STEPS)
-│   ├── dbt/models/
-│   │   ├── staging/
-│   │   │   └── stg_geo__places.sql  NEW
-│   │   └── marts/
-│   │       └── occurrences.sql      MODIFIED (+place_slug column + CTE)
-│   └── tests/
-│       └── test_places_export.py    NEW
-├── public/data/
-│   ├── occurrences.parquet          MODIFIED (+place_slug column)
-│   ├── places.geojson               NEW (committed seed + nightly update)
-│   └── places.json                  NEW (committed seed + nightly update)
-├── _data/
-│   ├── species.js                   UNCHANGED
-│   └── places.js                    NEW
-├── _pages/
-│   ├── index.html                   UNCHANGED
-│   ├── species/                     UNCHANGED
-│   └── places/
-│       ├── index.njk                NEW (directory listing)
-│       └── place.njk                NEW (per-place page via pagination)
-└── src/
-    ├── filter.ts                    MODIFIED (FilterState, buildFilterSQL, isFilterActive)
-    ├── sqlite.ts                    MODIFIED (CREATE TABLE +place_slug)
-    ├── url-state.ts                 MODIFIED (place= param, boundaryMode widening)
-    ├── bee-atlas.ts                 MODIFIED (_placeOptions, _onPlaceClick, filterState init)
-    ├── bee-map.ts                   MODIFIED (places source/layers/click/load)
-    ├── bee-filter-panel.ts          MODIFIED (place chip)
-    └── tests/
-        ├── url-state.test.ts        MODIFIED (bm=places round-trip)
-        └── filter.test.ts           MODIFIED (place_slug IN clause)
-```
-
-No new Vite entries. No new Lit component files. No new Eleventy layouts.
-
----
-
-## 13. Sources
-
-- `/Users/rainhead/dev/beeatlas/.planning/PROJECT.md` — v3.7 milestone context, constraints, existing Key Decisions
-- `/Users/rainhead/dev/beeatlas/src/filter.ts` — FilterState shape, buildFilterSQL pattern for county/ecoregion; exact extension points for places
-- `/Users/rainhead/dev/beeatlas/src/url-state.ts` — `counties=`/`ecor=` encoding pattern; boundaryMode type definition
-- `/Users/rainhead/dev/beeatlas/src/bee-atlas.ts` — `_onRegionClick` routing, filterState init, placeOptions load pattern
-- `/Users/rainhead/dev/beeatlas/src/bee-map.ts` — county/ecoregion source + layer setup; `_handleRegionClick`; `_applyBoundaryMode`; `_applyBoundarySelection`; `_loadBoundaryData`
-- `/Users/rainhead/dev/beeatlas/src/sqlite.ts` — `CREATE TABLE occurrences` DDL; OCCURRENCE_COLUMNS pattern
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/occurrences.sql` — ST_Within join pattern; `with_county`/`final_county` CTE chain to mirror for places
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/counties_geo.sql` — `emit_feature_collection` macro usage pattern
-- `/Users/rainhead/dev/beeatlas/data/dbt/macros/emit_feature_collection.sql` — macro internals; property projection limitation (projects only `name`)
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/staging/stg_geo__us_counties.sql` — staging view pattern for places
-- `/Users/rainhead/dev/beeatlas/data/geographies_pipeline.py` — DuckDB-native geometry load pattern
-- `/Users/rainhead/dev/beeatlas/data/run.py` — STEPS list; placement constraints for new steps
-- `/Users/rainhead/dev/beeatlas/data/species_export.py` — Python export step pattern (reads dbt sandbox + TOML, writes to public/data/)
-- `/Users/rainhead/dev/beeatlas/_data/species.js` — Eleventy data loader pattern (readFileSync JSON)
-- `/Users/rainhead/dev/beeatlas/_pages/species-detail.njk` — Eleventy pagination pattern for per-item pages
-- `/Users/rainhead/dev/beeatlas/content/species-photos.toml` — established TOML format for hand-curated repo content
-- `/Users/rainhead/dev/beeatlas/eleventy.config.js` — `dir.input = "_pages"`, `data = "../_data"` traversal
-
----
-*Architecture research for: v3.7 Places feature integration into BeeAtlas static site*
-*Researched: 2026-05-17*
+*Audit for: v3.8 Conceptual Tidying milestone*
+*Audited: 2026-05-18*
