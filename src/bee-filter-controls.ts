@@ -45,6 +45,7 @@ function tokensToFilterState(tokens: Token[]): FilterState {
     selectedCollectors: [],
     elevMin: null,
     elevMax: null,
+    selectedPlace: null,
   };
   for (const t of tokens) {
     switch (t.type) {

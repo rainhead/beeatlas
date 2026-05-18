@@ -56,6 +56,7 @@ export class BeeMap extends LitElement {
     selectedCollectors: [],
     elevMin: null,
     elevMax: null,
+    selectedPlace: null,
   };
 
   @state() private _regionMenuOpen = false;
