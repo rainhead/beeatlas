@@ -1014,14 +1014,16 @@ export class BeeMap extends LitElement {
 
   private async _loadBoundaryData() {
     try {
-      const [countiesResp, ecoregionsResp, placesResp] = await Promise.all([
-        resolveDataUrl('counties').then(url => fetch(url)),
-        resolveDataUrl('ecoregions').then(url => fetch(url)),
-        resolveDataUrl('places').then(url => fetch(url)),
+      const [countiesResp, ecoregionsResp, placesUrl] = await Promise.all([
+        resolveDataUrl('counties').then(url => fetch(url!)),
+        resolveDataUrl('ecoregions').then(url => fetch(url!)),
+        resolveDataUrl('places'),
       ]);
       const countiesData = await countiesResp.json();
       const ecoregionsData = await ecoregionsResp.json();
-      const placesData = await placesResp.json();
+      const placesData = placesUrl
+        ? await fetch(placesUrl).then(r => r.json())
+        : { type: 'FeatureCollection', features: [] };
 
       // Build ID-to-name maps (generateId assigns sequential integers)
       this._countyIdMap = new Map(

@@ -10,7 +10,7 @@ let promise: Promise<Record<string, Record<string, number[]>> | null> | null = n
 export function loadSeasonality(): Promise<Record<string, Record<string, number[]>> | null> {
   if (!promise) {
     promise = resolveDataUrl('seasonality')
-      .then(url => fetch(url))
+      .then(url => fetch(url!))
       .then(r => r.ok ? r.json() : null)
       .catch((err: unknown) => {
         console.warn('seasonality.json fetch failed', err);
