@@ -30,17 +30,21 @@ with_county AS (
     FROM occ_pt
     LEFT JOIN wa_counties c ON ST_Within(occ_pt.pt, c.geom)
 ),
+county_dedup AS (
+    SELECT DISTINCT ON (_row_id) _row_id, county
+    FROM with_county
+),
 county_fallback AS (
     SELECT _row_id,
         (SELECT county FROM wa_counties
          ORDER BY ST_Distance(geom,
-             (SELECT pt FROM occ_pt o2 WHERE o2._row_id = with_county._row_id))
+             (SELECT pt FROM occ_pt o2 WHERE o2._row_id = county_dedup._row_id))
          LIMIT 1) AS county
-    FROM with_county
+    FROM county_dedup
     WHERE county IS NULL
 ),
 final_county AS (
-    SELECT * FROM with_county WHERE county IS NOT NULL
+    SELECT * FROM county_dedup WHERE county IS NOT NULL
     UNION ALL SELECT * FROM county_fallback
 ),
 with_eco AS (
