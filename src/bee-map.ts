@@ -388,6 +388,7 @@ export class BeeMap extends LitElement {
             lastYearCount: ['+', ['case', ['==', ['get', 'recencyTier'], 'lastYear'], 1, 0]],
             earlierCount:  ['+', ['case', ['==', ['get', 'recencyTier'], 'earlier'], 1, 0]],
           },
+          attribution: '<a href="https://agr.wa.gov/departments/insects-pests-and-weeds/insects/apiary-pollinators/pollinator-health/bee-atlas/" target="_blank">Washington Bee Atlas</a>',
         });
 
         // Add unclustered ghost source for filtered-out features
