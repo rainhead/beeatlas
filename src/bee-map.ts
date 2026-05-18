@@ -540,6 +540,26 @@ export class BeeMap extends LitElement {
           },
         });
 
+        // Place name labels at polygon centroids
+        this._map!.addLayer({
+          id: 'place-label',
+          type: 'symbol',
+          source: 'places',
+          layout: {
+            visibility: placesVis,
+            'text-field': ['get', 'name'],
+            'text-size': 12,
+            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+            'text-max-width': 10,
+            'symbol-placement': 'point',
+          },
+          paint: {
+            'text-color': '#7a4a00',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1.5,
+          },
+        });
+
         // Ghost points: low-opacity gray dots for filtered-out features
         this._map!.addLayer({
           id: 'ghost-points',
@@ -1044,6 +1064,7 @@ export class BeeMap extends LitElement {
     this._map.setLayoutProperty('ecoregion-line', 'visibility', ecoVis);
     this._map.setLayoutProperty('place-fill', 'visibility', placesVis);
     this._map.setLayoutProperty('place-line', 'visibility', placesVis);
+    this._map.setLayoutProperty('place-label', 'visibility', placesVis);
   }
 
   private _applyBoundarySelection() {
