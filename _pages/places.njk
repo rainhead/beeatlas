@@ -1,0 +1,18 @@
+---
+layout: base.njk
+permalink: /places.html
+title: Places — BeeAtlas
+---
+<link rel="stylesheet" href="/src/styles/places.css">
+<article class="places-page places-index">
+  <h1>Places</h1>
+  <ul class="places-list">
+    {%- for place in places.placesArray -%}
+    <li>
+      <a href="/places/{{ place.slug }}.html">{{ place.name }}</a>
+      <span class="owner">{{ place.land_owner }}</span>
+      <span class="count">{{ place.specimen_count }} specimens</span>
+    </li>
+    {%- endfor -%}
+  </ul>
+</article>
