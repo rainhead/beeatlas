@@ -354,7 +354,7 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 - [x] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation (2 plans) (completed 2026-05-18)
 - [x] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit (completed 2026-05-18)
 - [x] **Phase 99: Place Static Pages** — Eleventy index and per-place pages (completed 2026-05-18)
-- [ ] **Phase 100: Map & Filter Integration** — boundary toggle, filter chip, URL param
+- [x] **Phase 100: Map & Filter Integration** — boundary toggle, filter chip, URL param
 
 ## Phase Details
 
@@ -561,15 +561,15 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 100-01-PLAN.md — Data plumbing: FilterState.selectedPlace, OccurrenceRow.place_slug, buildFilterSQL clause, url-state place= encode/decode (with D-01 boundaryMode implication), SQLite schema widening, Manifest interface + nightly.sh hashing, FilterChangedEvent extension, Vitest coverage for filter.ts and url-state.ts (PMAP-03 SQL ghosting, PMAP-04 URL encode/decode)
+- [x] 100-01-PLAN.md — Data plumbing: FilterState.selectedPlace, OccurrenceRow.place_slug, buildFilterSQL clause, url-state place= encode/decode (with D-01 boundaryMode implication), SQLite schema widening, Manifest interface + nightly.sh hashing, FilterChangedEvent extension, Vitest coverage for filter.ts and url-state.ts (PMAP-03 SQL ghosting, PMAP-04 URL encode/decode)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 100-02-PLAN.md — Map + chip UI: bee-map Places mode (menu button, amber GeoJSON source + place-fill/place-line layers, click-place interaction, _placeIdMap, _handlePlaceClick emitting place-selected, _loadBoundaryData / _applyBoundaryMode / _applyBoundarySelection extensions); bee-filter-panel removable place chip with display-name lookup (PMAP-01, PMAP-02 event, PMAP-03 chip)
+- [x] 100-02-PLAN.md — Map + chip UI: bee-map Places mode (menu button, amber GeoJSON source + place-fill/place-line layers, click-place interaction, _placeIdMap, _handlePlaceClick emitting place-selected, _loadBoundaryData / _applyBoundaryMode / _applyBoundarySelection extensions); bee-filter-panel removable place chip with display-name lookup (PMAP-01, PMAP-02 event, PMAP-03 chip)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 100-03-PLAN.md — bee-atlas event wiring: _onPlaceSelected handler, three FilterState literals extended with selectedPlace, _boundaryMode union widened, @place-selected template binding, popstate restoration, Vitest integration tests (PMAP-02 click-to-filter, PMAP-04 URL deep-link end-to-end)
+- [x] 100-03-PLAN.md — bee-atlas event wiring: _onPlaceSelected handler, three FilterState literals extended with selectedPlace, _boundaryMode union widened, @place-selected template binding, popstate restoration, Vitest integration tests (PMAP-02 click-to-filter, PMAP-04 URL deep-link end-to-end)
 
 **UI hint**: yes
 
@@ -676,4 +676,4 @@ Plans:
 | 97. Place Data Model | v3.7 | 2/2 | Complete   | 2026-05-18 |
 | 98. Pipeline Integration | v3.7 | 3/3 | Complete   | 2026-05-18 |
 | 99. Place Static Pages | v3.7 | 2/2 | Complete   | 2026-05-18 |
-| 100. Map & Filter Integration | v3.7 | 0/3 | Not started | - |
+| 100. Map & Filter Integration | v3.7 | 3/3 | Complete | 2026-05-18 |
