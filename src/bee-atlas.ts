@@ -189,6 +189,7 @@ bee-filter-panel {
             @data-loaded=${this._onDataLoaded}
             @data-error=${this._onDataError}
             @boundary-mode-changed=${this._onBoundaryModeChanged}
+            @place-selected=${this._onPlaceSelected}
             @selection-drawn=${this._onSelectionDrawn}
           ></bee-map>
           ${this._viewMode === 'table' ? html`<bee-table
@@ -674,6 +675,27 @@ bee-filter-panel {
     this._runTableQuery();
   }
 
+  private _onPlaceSelected(e: CustomEvent<{ slug: string }>) {
+    const { slug } = e.detail;
+    // Toggle off if the same place is clicked again (mirrors _onRegionClick single-select behavior)
+    const wasSelected = this._filterState.selectedPlace === slug;
+    this._filterState = {
+      ...this._filterState,
+      selectedPlace: wasSelected ? null : slug,
+    };
+    // Clear any open selection sidebar state
+    this._selectedOccurrences = null;
+    this._selectedOccIds = null;
+    this._selectedCluster = null;
+    this._selectionBounds = null;
+    this._sidebarOpen = false;
+    this._tablePage = 1;
+    this._runFilterQuery().then(() => {
+      this._pushUrlState();
+    });
+    this._runTableQuery();
+  }
+
   private async _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
     const generation = ++this._selectionDrawnGeneration;
     this._selectionBounds = e.detail;
@@ -985,7 +1007,7 @@ bee-filter-panel {
     this._loading = false;
   }
 
-  private _onBoundaryModeChanged(e: CustomEvent<'off' | 'counties' | 'ecoregions'>) {
+  private _onBoundaryModeChanged(e: CustomEvent<'off' | 'counties' | 'ecoregions' | 'places'>) {
     this._boundaryMode = e.detail;
     this._pushUrlState();
   }
