@@ -47,15 +47,18 @@ def _query_counts(con: duckdb.DuckDBPyConnection, parquet_path: Path) -> dict[st
         raise FileNotFoundError(
             f"{parquet_path} not found — run dbt before places-export"
         )
-    rows = con.execute(f"""
+    rows = con.execute(
+        """
         SELECT
             place_slug,
             COUNT(CASE WHEN is_provisional = false OR is_provisional IS NULL THEN 1 END) AS specimen_count,
             COUNT(DISTINCT CASE WHEN sample_id IS NOT NULL THEN sample_id END) AS sample_count
-        FROM read_parquet('{parquet_path}')
+        FROM read_parquet(?)
         WHERE place_slug IS NOT NULL
         GROUP BY place_slug
-    """).fetchall()
+        """,
+        [str(parquet_path)],
+    ).fetchall()
     return {row[0]: {"specimen_count": int(row[1]), "sample_count": int(row[2])} for row in rows}
 
 
