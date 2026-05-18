@@ -3,7 +3,7 @@ places.json record/count shape (PPIPE-04).
 
 Covers:
     test_places_geojson_structure: GeoJSON FeatureCollection with one feature, slug property, Polygon geometry
-    test_places_json_structure: JSON array with required keys per record (no permits — not a per-place property)
+    test_places_json_structure: JSON array with 5 required keys per record (no permits — not a per-place property)
     test_places_json_counts: specimen_count and sample_count derived correctly from occurrences.parquet
 """
 
@@ -128,7 +128,7 @@ def test_places_geojson_structure(tmp_path, monkeypatch):
 
 
 def test_places_json_structure(tmp_path, monkeypatch):
-    """places.json is a JSON list with all 6 required keys per record (PPIPE-04)."""
+    """places.json is a JSON list with all 5 required keys per record (PPIPE-04)."""
     pe_mod = _setup_env(tmp_path, monkeypatch)
     pe_mod.export_places_step()
 
