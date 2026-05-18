@@ -221,4 +221,52 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   test('no tribe page emitted for Ammobatini (zero occurrences)', () => {
     expect(existsSync(resolve(ROOT, '_site/species/tribe/Ammobatini/index.html'))).toBe(false);
   });
+
+  // Phase 99 — place page tests (PPAGE-01, PPAGE-02)
+
+  test('_site/places.html has places-list class and per-place links (PPAGE-01)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/places.html'), 'utf-8');
+    expect(html).toMatch(/class="places-list"/);
+    expect(html).toMatch(/href="\/places\/[a-z0-9-]+\.html"/);
+  });
+
+  test('_site/places.html contains seed place name and owner (PPAGE-01)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/places.html'), 'utf-8');
+    expect(html).toContain('Rattlesnake Ledge Recreation Area');
+    expect(html).toContain('Washington Department of Natural Resources');
+  });
+
+  test('_site/places/rattlesnake-ledge.html exists with name, owner, specimen count, deep-link (PPAGE-02)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/places/rattlesnake-ledge.html'), 'utf-8');
+    expect(html).toContain('Rattlesnake Ledge Recreation Area');
+    expect(html).toContain('Washington Department of Natural Resources');
+    expect(html).toMatch(/\d+ specimens/);
+    expect(html).toMatch(/href="\/\?place=rattlesnake-ledge"/);
+  });
+
+  test('_site/places/rattlesnake-ledge.html has no SVG map reference when specimen_count is 0 (PPAGE-02)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/places/rattlesnake-ledge.html'), 'utf-8');
+    expect(html).not.toMatch(/place-maps/);
+    expect(html).not.toMatch(/places-maps/);
+  });
+
+  test('every <img> on _site/places/rattlesnake-ledge.html has loading="lazy" (PPAGE-02)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/places/rattlesnake-ledge.html'), 'utf-8');
+    const imgs = html.match(/<img\b[^>]*>/g) ?? [];
+    for (const img of imgs) {
+      expect(img, img).toMatch(/loading="lazy"/);
+    }
+  });
+
+  test('place pages contain no <script type="module" tags (D-09 — no JS entry) (PPAGE-01) (PPAGE-02)', () => {
+    const indexHtml = readFileSync(resolve(ROOT, '_site/places.html'), 'utf-8');
+    const detailHtml = readFileSync(resolve(ROOT, '_site/places/rattlesnake-ledge.html'), 'utf-8');
+    expect(indexHtml).not.toMatch(/<script\s+type="module"/);
+    expect(detailHtml).not.toMatch(/<script\s+type="module"/);
+  });
+
+  test('_site/places/rattlesnake-ledge.html is a flat file, not a directory index (D-02 — direct-path URL) (PPAGE-02)', () => {
+    expect(existsSync(resolve(ROOT, '_site/places/rattlesnake-ledge.html'))).toBe(true);
+    expect(existsSync(resolve(ROOT, '_site/places/rattlesnake-ledge/index.html'))).toBe(false);
+  });
 });
