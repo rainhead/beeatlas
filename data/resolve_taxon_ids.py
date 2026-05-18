@@ -33,11 +33,27 @@ def _ensure_bridge_table(con: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
+def _read_unresolved_csv() -> set[str]:
+    """Return the set of canonical_names from lineage_unresolved.csv, or empty set."""
+    if not UNRESOLVED_CSV.exists():
+        return set()
+    with UNRESOLVED_CSV.open("r", newline="") as f:
+        reader = csv.reader(f)
+        try:
+            next(reader)  # skip header
+        except StopIteration:
+            return set()
+        return {row[0] for row in reader if row}
+
+
 def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str]:
     """FULL OUTER union of canonical names LEFT JOIN bridge, filtered by what's missing.
 
-    When refresh=True, ALSO include canonical_names listed in lineage_unresolved.csv
-    (re-attempt previously failed names without disturbing already-resolved bridge rows).
+    Default run: skips names already recorded in lineage_unresolved.csv — they are
+    known failures and retrying them nightly wastes ~1s per name with no benefit.
+
+    When refresh=True: include those previously-failed names so they get another
+    attempt (useful after iNat taxonomy updates or manual CSV edits).
     """
     sql = """
         WITH u AS (
@@ -54,36 +70,19 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
         ORDER BY u.canonical_name
     """
     names = [r[0] for r in con.execute(sql).fetchall()]
-    if refresh and UNRESOLVED_CSV.exists():
-        with UNRESOLVED_CSV.open("r", newline="") as f:
-            reader = csv.reader(f)
-            try:
-                next(reader)  # skip header
-            except StopIteration:
-                return names
-            previously_unresolved = {row[0] for row in reader if row}
-        # Add previously-unresolved names that are still in the union but absent
-        # from the bridge. Already-resolved names are NOT re-attempted
-        # (recommendation D-A6 in RESEARCH).
-        union_names = {
-            r[0]
-            for r in con.execute(
-                """
-            SELECT DISTINCT canonical_name FROM checklist_data.species
-            WHERE canonical_name IS NOT NULL
-            UNION
-            SELECT DISTINCT canonical_name FROM ecdysis_data.occurrences
-            WHERE canonical_name IS NOT NULL
-        """
-            ).fetchall()
-        }
+    previously_unresolved = _read_unresolved_csv()
+    if not refresh:
+        # Skip known failures on normal runs
+        names = [n for n in names if n not in previously_unresolved]
+    else:
+        # On refresh: also retry previously-failed names still absent from bridge
         bridge_names = {
             r[0]
             for r in con.execute(
                 "SELECT canonical_name FROM inaturalist_data.canonical_to_taxon_id"
             ).fetchall()
         }
-        retry = (previously_unresolved & union_names) - bridge_names
+        retry = previously_unresolved - bridge_names
         names = sorted(set(names) | retry)
     return names
 
