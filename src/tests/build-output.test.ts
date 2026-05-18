@@ -258,11 +258,11 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     }
   });
 
-  test('place pages contain no <script type="module" tags (D-09 — no JS entry) (PPAGE-01) (PPAGE-02)', () => {
+  test('place pages load bee-header module entry (PPAGE-01) (PPAGE-02)', () => {
     const indexHtml = readFileSync(resolve(ROOT, '_site/places.html'), 'utf-8');
     const detailHtml = readFileSync(resolve(ROOT, '_site/places/rattlesnake-ledge.html'), 'utf-8');
-    expect(indexHtml).not.toMatch(/<script\s+type="module"/);
-    expect(detailHtml).not.toMatch(/<script\s+type="module"/);
+    expect(indexHtml).toMatch(/src="\/assets\/bee-header-[^"]+\.js"/);
+    expect(detailHtml).toMatch(/src="\/assets\/bee-header-[^"]+\.js"/);
   });
 
   test('_site/places/rattlesnake-ledge.html is a flat file, not a directory index (D-02 — direct-path URL) (PPAGE-02)', () => {
