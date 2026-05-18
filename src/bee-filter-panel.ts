@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { isFilterActive } from './filter.ts';
 import type { FilterState, CollectorEntry } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
+import { resolveDataUrl } from './manifest.ts';
 
 // ---------- year-bucket helpers ----------
 
@@ -71,6 +72,8 @@ export class BeeFilterPanel extends LitElement {
   @state() private _whereInput = '';
   @state() private _selectedCounties: Set<string> = new Set();
   @state() private _selectedEcoregions: Set<string> = new Set();
+  @state() private _selectedPlace: string | null = null;
+  @state() private _placeNameBySlug: Map<string, string> = new Map();
 
   // Elevation
   @state() private _elevMin: number | null = null;
@@ -330,6 +333,14 @@ export class BeeFilterPanel extends LitElement {
     const fsEcor = [...f.selectedEcoregions].sort().join('\0');
     if (localEcor !== fsEcor) this._selectedEcoregions = new Set(f.selectedEcoregions);
 
+    // Place (singular)
+    const localPlace = this._selectedPlace;
+    const fsPlace = f.selectedPlace;
+    if (localPlace !== fsPlace) {
+      this._selectedPlace = fsPlace;
+      if (this._selectedPlace !== null) void this._ensurePlaceNamesLoaded();
+    }
+
     // Elevation
     if (this._elevMin !== f.elevMin) this._elevMin = f.elevMin;
     if (this._elevMax !== f.elevMax) this._elevMax = f.elevMax;
@@ -363,6 +374,7 @@ export class BeeFilterPanel extends LitElement {
         selectedCollectors: this._selectedCollectors,
         elevMin: this._elevMin,
         elevMax: this._elevMax,
+        selectedPlace: this._selectedPlace,
       } as FilterChangedEvent,
     }));
   }
@@ -558,6 +570,28 @@ export class BeeFilterPanel extends LitElement {
     this._emitFilter();
   }
 
+  private _removePlace() {
+    this._selectedPlace = null;
+    this._emitFilter();
+  }
+
+  private async _ensurePlaceNamesLoaded() {
+    if (this._placeNameBySlug.size > 0) return;
+    try {
+      const url = await resolveDataUrl('places_meta');
+      const resp = await fetch(url);
+      const records = await resp.json() as { slug: string; name: string }[];
+      const map = new Map<string, string>();
+      for (const r of records) {
+        if (r.slug && r.name) map.set(r.slug, r.name);
+      }
+      this._placeNameBySlug = map;
+      this.requestUpdate();
+    } catch {
+      // silently swallow — chip falls back to the slug
+    }
+  }
+
   // --- Elevation ---
 
   private _onElevMinInput(e: Event) {
@@ -676,7 +710,7 @@ export class BeeFilterPanel extends LitElement {
   private _renderWhere() {
     const counties = [...this._selectedCounties];
     const ecoregions = [...this._selectedEcoregions];
-    const hasChips = counties.length > 0 || ecoregions.length > 0;
+    const hasChips = counties.length > 0 || ecoregions.length > 0 || this._selectedPlace !== null;
     return html`
       <div class="filter-row">
         <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -700,6 +734,13 @@ export class BeeFilterPanel extends LitElement {
                     aria-label="Remove ${e}">&#x2715;</button>
                 </span>
               `)}
+              ${this._selectedPlace !== null ? html`
+                <span class="chip">
+                  ${this._placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}
+                  <button class="chip-remove" @click=${() => this._removePlace()}
+                    aria-label="Remove ${this._placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}">&#x2715;</button>
+                </span>
+              ` : nothing}
             </div>
           ` : nothing}
           <div class="input-wrap">
