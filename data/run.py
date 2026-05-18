@@ -24,7 +24,7 @@ from typing import Callable
 
 logging.basicConfig(level=logging.WARNING, format="%(name)s %(levelname)s %(message)s")
 
-from geographies_pipeline import load_geographies
+# Geographies loaded manually: uv run python geographies_pipeline.py
 from ecdysis_pipeline import load_ecdysis, load_links
 from inaturalist_pipeline import load_observations as load_inaturalist_observations
 from inaturalist_pipeline import enrich_taxon_lineage_extended
