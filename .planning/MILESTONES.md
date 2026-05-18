@@ -1,5 +1,26 @@
 # Milestones
 
+## v3.7 Places (Shipped: 2026-05-18)
+
+**Phases completed:** 5 phases (97–100.1, including INSERTED Phase 100.1), 11 plans
+**Timeline:** 2 days (2026-05-16 → 2026-05-18)
+**LOC:** +12,314 / −2,566 across 103 files (97 commits)
+**Requirements:** 16/16 complete; audit gaps_found at close (procedural gaps — see deferred items)
+**Known deferred items at close:** Phase 98 VERIFICATION.md missing; W-02 permit field validation not runtime-enforced; Nyquist compliance for phases 97, 98, 100; stale run.py docstring (W-03)
+
+**Key accomplishments:**
+
+- Hand-curated `content/places.toml` TOML schema for collecting locations with slugs, WGS84 polygon geometry, and permit records; validation pipeline enforces slug format, WGS84 CRS, and polygon non-overlap (ST_Intersects)
+- Pipeline spatial join: `place_slug` column in `occurrences.parquet` via ST_Within LEFT JOIN (dbt 31-column contract); `places.geojson` and `places.json` exported and committed to git so CI builds succeed without running the pipeline
+- Per-place SVG occurrence maps generated at pipeline time following `species_maps.py` byte-stable pattern
+- Static place pages: `/places.html` index and per-place pages at `/places/{slug}.html` with name, land owner, specimen count, SVG occurrence map, and deep-link to filtered map
+- Places boundary mode (4th toggle: Off/Counties/Ecoregions/Places); click place polygon to apply filter; removable place chip in filter panel; `place=` URL round-trip and deep-link from place pages
+- Phase 100.1 gap closure: nightly.sh uploads place-maps to S3 and invalidates CloudFront; `_onBoundaryModeChanged` clears `selectedPlace` filter when leaving places mode
+
+**BLOCKER closed at milestone:** B-01 (place-maps not uploaded to S3) fixed in Phase 100.1 (commit c7d7a31); W-01 (`_onBoundaryModeChanged` didn't clear selectedPlace) fixed in Phase 100.1 (commit 1ce1e40).
+
+---
+
 ## v3.6 Simpler Species Index (Shipped: 2026-05-16)
 
 **Phases completed:** 5 phases (92–96), 13 plans

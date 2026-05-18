@@ -29,7 +29,7 @@
 - ✅ **v3.4 dbt Full Rewrite** — Phases 85–88 (shipped 2026-05-14). dbt is the sole producer of pipeline outputs; legacy Python transforms and validate-schema.mjs retired. See [.planning/milestones/v3.4-ROADMAP.md](milestones/v3.4-ROADMAP.md).
 - ✅ **v3.5 Selection Rectangle** — Phases 89–91 (shipped 2026-05-15)
 - ✅ **v3.6 Simpler Species Index** — Phases 92–96 (shipped 2026-05-16)
-- 🚧 **v3.7 Places** — Phases 97–100 (in progress)
+- ✅ **v3.7 Places** — Phases 97–100.1 (shipped 2026-05-18)
 
 ## Phases
 
@@ -347,14 +347,20 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 
 </details>
 
-### 🚧 v3.7 Places (In Progress)
+<details>
+<summary>✅ v3.7 Places (Phases 97–100.1) — SHIPPED 2026-05-18</summary>
 
-**Milestone Goal:** Add a curated directory of collecting locations with land owner info, specimen counts, and full map integration.
+- [x] Phase 97: Place Data Model (2/2 plans) — completed 2026-05-18
+- [x] Phase 98: Pipeline Integration (3/3 plans) — completed 2026-05-18
+- [x] Phase 99: Place Static Pages (2/2 plans) — completed 2026-05-18
+- [x] Phase 100: Map & Filter Integration (3/3 plans) — completed 2026-05-18
+- [x] Phase 100.1: Close v3.7 Gaps (INSERTED, 1/1 plan) — completed 2026-05-18
 
-- [x] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation (2 plans) (completed 2026-05-18)
-- [x] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit (completed 2026-05-18)
-- [x] **Phase 99: Place Static Pages** — Eleventy index and per-place pages (completed 2026-05-18)
-- [x] **Phase 100: Map & Filter Integration** — boundary toggle, filter chip, URL param
+See `.planning/milestones/v3.7-ROADMAP.md` for full phase details.
+
+</details>
+
+<!-- Phase 97-100.1 details archived to .planning/milestones/v3.7-ROADMAP.md -->
 
 ## Phase Details
 
@@ -472,107 +478,6 @@ Plans:
 
 <!-- Phase 92-96 details archived to .planning/milestones/v3.6-ROADMAP.md -->
 
-### Phase 97: Place Data Model
-
-**Goal**: The coordinator can define curated collecting locations in a TOML file that the build validates for correctness before the pipeline runs
-**Depends on**: Phase 96
-**Requirements**: PLC-01, PLC-02, PLC-03, PLC-04
-**Success Criteria** (what must be TRUE):
-
-  1. A coordinator can add an entry to `content/places.toml` with slug, name, land_owner, geometry_wkt (WGS84), and a permits array; the build accepts it
-  2. Each permit record carries issuing_authority, optional permit_number, nullable expiry_date, and type (project-level vs site-level)
-  3. The build fails with a descriptive error if any place has an invalid geometry, non-WGS84 CRS, duplicate slug, or slug characters outside `[a-z0-9-]`
-  4. The build fails if any two place polygons overlap (ST_Intersects check)
-  5. A pytest fixture with one valid and one invalid place entry verifies the pass/fail boundary
-
-**Plans**: 2 plans
-Plans:
-
-- [x] 097-01-PLAN.md — Create content/places.toml seed entries and data/places_validation.py validation module
-- [x] 097-02-PLAN.md — Wire validation step into run.py STEPS and write pytest tests
-
-### Phase 98: Pipeline Integration
-
-**Goal**: occurrences.parquet carries a place_slug column from a spatial join; places.geojson and places.json are exported and committed so CI builds succeed without running the pipeline
-**Depends on**: Phase 97
-**Requirements**: PPIPE-01, PPIPE-02, PPIPE-03, PPIPE-04, PPIPE-05, PPAGE-03
-**Success Criteria** (what must be TRUE):
-
-  1. Running the pipeline loads places.toml into a `geographies.places` DuckDB table before dbt runs; `dbt build` exits 0 with the 31-column contract
-  2. occurrences.parquet contains a `place_slug` VARCHAR column; occurrences at a known place carry its slug; occurrences outside all places carry NULL (no nearest-polygon fallback)
-  3. `public/data/places.geojson` is produced containing slug + geometry (suitable for Mapbox `promoteId: 'slug'`)
-  4. `public/data/places.json` is produced containing all metadata (name, land_owner, permits, specimen count, sample count) with no geometry
-  5. Per-place SVG occurrence maps are generated following the species_maps.py pattern (WA county backdrop, occurrence dots, byte-stable output)
-  6. places.geojson and places.json are committed to git; `npm run build` succeeds in CI without running the pipeline
-
-**Plans**: 3 plans
-Plans:
-**Wave 1**
-
-- [x] 098-01-PLAN.md — Load places.toml into geographies.places + dbt 31-col contract with place_slug
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 098-02-PLAN.md — Export places.geojson + places.json and commit (PPIPE-04, PPIPE-05)
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 098-03-PLAN.md — Per-place SVG occurrence maps (PPAGE-03)
-
-**UI hint**: yes
-
-### Phase 99: Place Static Pages
-
-**Goal**: Users can browse a directory of collecting locations and view detailed information for each place
-**Depends on**: Phase 98
-**Requirements**: PPAGE-01, PPAGE-02
-**Success Criteria** (what must be TRUE):
-
-  1. `/places.html` (or equivalent direct-path URL) lists all places with name, land owner, and specimen count
-  2. Each place has a dedicated page at a direct-path URL (e.g. `/places/{slug}.html`) accessible without a trailing-slash redirect
-  3. The per-place page shows name, land owner, specimen count, the SVG occurrence map, and a link that opens the main map with that place's filter applied
-  4. The deep-link from a place page opens the main map with that place pre-filtered (occurrence dots outside the polygon are ghosted)
-
-**Plans**: 2 plans
-Plans:
-**Wave 1**
-
-- [x] 99-01-PLAN.md — Update REQUIREMENTS/ROADMAP per D-01 (drop permit references) and add Wave 0 RED tests for _data/places.js and place-page build output
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 99-02-PLAN.md — Implement _data/places.js, _pages/places.njk, _pages/place-detail.njk, and src/styles/places.css (PPAGE-01, PPAGE-02)
-
-**UI hint**: yes
-
-### Phase 100: Map & Filter Integration
-
-**Goal**: Users can toggle a places boundary overlay on the map, click a place polygon to filter by it, and share filtered map URLs that restore the place selection
-**Depends on**: Phase 98
-**Requirements**: PMAP-01, PMAP-02, PMAP-03, PMAP-04
-**Success Criteria** (what must be TRUE):
-
-  1. The boundary mode toggle includes a Places option; selecting it renders place polygons in a visually distinct color from counties and ecoregions; the modes remain mutually exclusive
-  2. Clicking a place polygon in the boundary layer applies that place as the active filter (occurrence dots outside the polygon are ghosted)
-  3. A removable place filter chip appears in the filter panel when a place is active; removing it clears the filter and shows all occurrences
-  4. The active place slug is encoded as `place=` in the URL; pasting the URL in a new tab restores the place filter
-
-**Plans**: 3 plans
-Plans:
-**Wave 1**
-
-- [x] 100-01-PLAN.md — Data plumbing: FilterState.selectedPlace, OccurrenceRow.place_slug, buildFilterSQL clause, url-state place= encode/decode (with D-01 boundaryMode implication), SQLite schema widening, Manifest interface + nightly.sh hashing, FilterChangedEvent extension, Vitest coverage for filter.ts and url-state.ts (PMAP-03 SQL ghosting, PMAP-04 URL encode/decode)
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 100-02-PLAN.md — Map + chip UI: bee-map Places mode (menu button, amber GeoJSON source + place-fill/place-line layers, click-place interaction, _placeIdMap, _handlePlaceClick emitting place-selected, _loadBoundaryData / _applyBoundaryMode / _applyBoundarySelection extensions); bee-filter-panel removable place chip with display-name lookup (PMAP-01, PMAP-02 event, PMAP-03 chip)
-
-**Wave 3** *(blocked on Wave 2 completion)*
-
-- [x] 100-03-PLAN.md — bee-atlas event wiring: _onPlaceSelected handler, three FilterState literals extended with selectedPlace, _boundaryMode union widened, @place-selected template binding, popstate restoration, Vitest integration tests (PMAP-02 click-to-filter, PMAP-04 URL deep-link end-to-end)
-
-**UI hint**: yes
-
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -677,13 +582,4 @@ Plans:
 | 98. Pipeline Integration | v3.7 | 3/3 | Complete   | 2026-05-18 |
 | 99. Place Static Pages | v3.7 | 2/2 | Complete   | 2026-05-18 |
 | 100. Map & Filter Integration | v3.7 | 3/3 | Complete | 2026-05-18 |
-
-### Phase 100.1: Close v3.7 gaps: nightly.sh place-maps upload + _onBoundaryModeChanged selectedPlace clear (INSERTED)
-
-**Goal:** Close two gaps left open at the end of v3.7 — nightly.sh must upload place-maps to S3 and invalidate them in CloudFront, and `_onBoundaryModeChanged` must clear `_filterState.selectedPlace` when the user leaves places boundary mode.
-**Requirements**: GAP-100-01 (nightly.sh place-maps upload + CloudFront invalidation), GAP-100-02 (_onBoundaryModeChanged clears selectedPlace when leaving places mode)
-**Depends on:** Phase 100
-**Plans:** 1/1 plans complete
-
-Plans:
-- [x] 100.1-01-PLAN.md — nightly.sh place-maps upload + _onBoundaryModeChanged selectedPlace clear
+| 100.1. Close v3.7 Gaps (INSERTED) | v3.7 | 1/1 | Complete | 2026-05-18 |

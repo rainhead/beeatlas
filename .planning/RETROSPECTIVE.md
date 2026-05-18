@@ -2,6 +2,46 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.7 — Places
+
+**Shipped:** 2026-05-18
+**Phases:** 5 (97–100.1, including INSERTED 100.1) | **Plans:** 11 | **Timeline:** 2 days
+
+### What Was Built
+
+- Phase 97: `content/places.toml` TOML schema; `places_validation.py` with slug/WGS84/overlap validation; pytest tests
+- Phase 98: `places_load.py` pipeline step; dbt 31-column contract with `place_slug`; `places_export.py` producing `places.geojson` + `places.json`; `places_maps.py` per-place SVG occurrence maps; git-committed artifacts
+- Phase 99: TDD RED tests; `_data/places.js`, `_pages/places.njk`, `_pages/place-detail.njk`, `src/styles/places.css`; permit references removed (D-01)
+- Phase 100: `FilterState.selectedPlace`; `place=` URL round-trip; bee-map Places mode (amber polygons, `promoteId:'slug'`); bee-filter-panel place chip; bee-atlas `_onPlaceSelected` wiring; 6 Vitest integration tests
+- Phase 100.1: nightly.sh place-maps S3 upload + CloudFront invalidation; `_onBoundaryModeChanged` clears `selectedPlace` when leaving places mode
+
+### What Worked
+
+- gsd-audit-milestone before close caught B-01 (place-maps S3 upload missing) — same pattern as BLOCKER-01 in v3.6 — Phase 100.1 fixed it cleanly in ~10 minutes
+- Two-artifact export split (places.geojson slim / places.json rich) kept concerns well-separated between Mapbox and Eleventy
+- `promoteId: 'slug'` decision made early eliminated downstream slug-lookup code in click handlers
+- TDD RED tests in Phase 99 gave clean implementation targets for _data/places.js and build output
+
+### What Was Inefficient
+
+- Phase 98 VERIFICATION.md never created — third milestone running where a phase's procedural verification artifacts are missing despite implementation being correct
+- Nyquist Wave 0 RED tests bypassed for phases 97, 98, 100 — same pattern as v3.6; becoming a recurring gap
+- `requirements-completed` frontmatter missing from Phase 97 and 100 SUMMARY files — same recurring documentation gap
+
+### Patterns Established
+
+- `places_load.py` zero-arg STEPS wrapper pattern (mirrors places_validation.py) — reusable for any future TOML-to-DuckDB pipeline step
+- `leavingPlaces` conditional in boundary-mode change handler — reusable pattern for mode switches where one mode implies a filter state
+- `placeImplied` bm= derivation in `parseParams` — reusable for any future URL param that implies a companion UI mode
+
+### Key Lessons
+
+- Commit to writing VERIFICATION.md at phase execution time, not retroactively — three milestones with this gap now
+- Pre-flight audit catches S3 upload gaps reliably; the audit workflow is earning its keep
+- Nyquist Wave 0 tests should be written as an explicit plan step, not a "should do" note — when plans are dense, they get skipped
+
+---
+
 ## Milestone: v3.6 — Simpler Species Index
 
 **Shipped:** 2026-05-16
