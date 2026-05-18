@@ -7,10 +7,10 @@
 
 ### PLC — Place Data Model
 
-- [ ] **PLC-01**: Coordinator can define a place via a `content/places.toml` entry with slug, name, land_owner, geometry_wkt (WGS84), and a permits array
-- [ ] **PLC-02**: Each permit record carries: issuing_authority, permit_number (optional), expiry_date (nullable ISO date), and type (project-level vs site-level)
-- [ ] **PLC-03**: Build fails if any place has an invalid or non-WGS84 geometry, a duplicate slug, or a slug with characters outside `[a-z0-9-]`
-- [ ] **PLC-04**: Build fails if any two place polygons overlap (ST_Intersects check at validation time)
+- [x] **PLC-01**: Coordinator can define a place via a `content/places.toml` entry with slug, name, land_owner, geometry_wkt (WGS84), and a permits array
+- [x] **PLC-02**: Each permit record carries: issuing_authority, permit_number (optional), expiry_date (nullable ISO date), and type (project-level vs site-level)
+- [x] **PLC-03**: Build fails if any place has an invalid or non-WGS84 geometry, a duplicate slug, or a slug with characters outside `[a-z0-9-]`
+- [x] **PLC-04**: Build fails if any two place polygons overlap (ST_Intersects check at validation time)
 
 ### PPIPE — Pipeline Integration
 
@@ -61,10 +61,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLC-01 | Phase 97 | Pending |
-| PLC-02 | Phase 97 | Pending |
-| PLC-03 | Phase 97 | Pending |
-| PLC-04 | Phase 97 | Pending |
+| PLC-01 | Phase 97 | Complete |
+| PLC-02 | Phase 97 | Complete |
+| PLC-03 | Phase 97 | Complete |
+| PLC-04 | Phase 97 | Complete |
 | PPIPE-01 | Phase 98 | Pending |
 | PPIPE-02 | Phase 98 | Pending |
 | PPIPE-03 | Phase 98 | Pending |
