@@ -15,6 +15,7 @@ function emptyFilter(): FilterState {
     selectedCollectors: [],
     elevMin: null,
     elevMax: null,
+    selectedPlace: null,
   };
 }
 
@@ -181,6 +182,7 @@ describe('combined round-trip', () => {
       selectedCollectors: [],
       elevMin: null,
       elevMax: null,
+      selectedPlace: null,
     };
     const selection: SelectionState = { type: 'ids', ids: ['ecdysis:999'] };
     const ui = { boundaryMode: 'counties' as const, viewMode: 'table' as const };
@@ -310,6 +312,46 @@ describe('validation and rejection', () => {
     const result = parseParams('view=table');
     expect(result.ui).toBeDefined();
     expect(result.ui!.viewMode).toBe('table');
+  });
+});
+
+describe('place filter param', () => {
+  test('buildParams with selectedPlace emits place= param', () => {
+    const filter = { ...emptyFilter(), selectedPlace: 'ebeys-landing' };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('place')).toBe('ebeys-landing');
+  });
+
+  test('buildParams with selectedPlace=null does not emit place= param', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('place')).toBe(false);
+  });
+
+  test('parseParams with place= sets selectedPlace and forces boundaryMode=places (D-01)', () => {
+    const result = parseParams('place=ebeys-landing');
+    expect(result.filter?.selectedPlace).toBe('ebeys-landing');
+    expect(result.ui?.boundaryMode).toBe('places');
+  });
+
+  test('parseParams with place=+ bm=counties still returns boundaryMode=places (D-01 precedence)', () => {
+    const result = parseParams('place=ebeys-landing&bm=counties');
+    expect(result.filter?.selectedPlace).toBe('ebeys-landing');
+    expect(result.ui?.boundaryMode).toBe('places');
+  });
+
+  test('parseParams with bm=ecoregions and no place= returns ecoregions, no selectedPlace implication', () => {
+    const result = parseParams('bm=ecoregions');
+    expect(result.ui?.boundaryMode).toBe('ecoregions');
+    expect(result.filter?.selectedPlace ?? null).toBeNull();
+  });
+
+  test('full round-trip: selectedPlace + boundaryMode=places encode and decode', () => {
+    const filter = { ...emptyFilter(), selectedPlace: 'ebeys-landing' };
+    const ui = { boundaryMode: 'places' as const, viewMode: 'map' as const };
+    const params = buildParams(defaultView, filter, defaultSelection, ui);
+    const result = parseParams(params.toString());
+    expect(result.filter?.selectedPlace).toBe('ebeys-landing');
+    expect(result.ui?.boundaryMode).toBe('places');
   });
 });
 

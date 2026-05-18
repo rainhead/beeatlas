@@ -31,7 +31,7 @@ export class BeeAtlas extends LitElement {
 
   @state() private _visibleIds: Set<string> | null = null;
   @state() private _filteredRowCount: number | null = null;
-  @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
+  @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @state() private _viewMode: 'map' | 'table' = 'map';
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
