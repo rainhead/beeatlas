@@ -98,7 +98,7 @@ export async function loadOccurrencesTable(): Promise<void> {
     place_slug TEXT
   )`);
 
-  const resp = await fetch(await resolveDataUrl('occurrences'));
+  const resp = await fetch((await resolveDataUrl('occurrences'))!);
   const buffer = await resp.arrayBuffer();
   const file = { byteLength: buffer.byteLength, slice: (start: number, end: number) => buffer.slice(start, end) };
   const occRows = await parquetReadObjects({ file });

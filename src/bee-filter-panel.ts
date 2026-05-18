@@ -579,6 +579,7 @@ export class BeeFilterPanel extends LitElement {
     if (this._placeNameBySlug.size > 0) return;
     try {
       const url = await resolveDataUrl('places_meta');
+      if (!url) return;
       const resp = await fetch(url);
       const records = await resp.json() as { slug: string; name: string }[];
       const map = new Map<string, string>();

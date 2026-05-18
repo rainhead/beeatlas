@@ -23,7 +23,8 @@ function loadManifest(): Promise<Manifest> {
 
 type DataKey = keyof Omit<Manifest, 'generated_at'>;
 
-export async function resolveDataUrl(key: DataKey): Promise<string> {
+export async function resolveDataUrl(key: DataKey): Promise<string | null> {
   const m = await loadManifest();
-  return `${_BASE}/${m[key]}`;
+  const file = m[key];
+  return file ? `${_BASE}/${file}` : null;
 }
