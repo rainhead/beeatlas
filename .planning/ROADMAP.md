@@ -349,7 +349,7 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 
 ### 🚧 v3.7 Places (In Progress)
 
-**Milestone Goal:** Add a curated directory of collecting locations with permit status, land owner info, specimen counts, and full map integration.
+**Milestone Goal:** Add a curated directory of collecting locations with land owner info, specimen counts, and full map integration.
 
 - [x] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation (2 plans) (completed 2026-05-18)
 - [x] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit (completed 2026-05-18)
@@ -528,9 +528,9 @@ Plans:
 **Requirements**: PPAGE-01, PPAGE-02
 **Success Criteria** (what must be TRUE):
 
-  1. `/places.html` (or equivalent direct-path URL) lists all places with name, land owner, permit status summary, and specimen count
+  1. `/places.html` (or equivalent direct-path URL) lists all places with name, land owner, and specimen count
   2. Each place has a dedicated page at a direct-path URL (e.g. `/places/{slug}.html`) accessible without a trailing-slash redirect
-  3. The per-place page shows name, land owner, a permit table with active/inactive/no-expiry status, specimen count, the SVG occurrence map, and a link that opens the main map with that place's filter applied
+  3. The per-place page shows name, land owner, specimen count, the SVG occurrence map, and a link that opens the main map with that place's filter applied
   4. The deep-link from a place page opens the main map with that place pre-filtered (occurrence dots outside the polygon are ghosted)
 
 **Plans**: 2 plans
