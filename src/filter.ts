@@ -19,6 +19,7 @@ export interface FilterState {
   selectedCollectors: CollectorEntry[];
   elevMin: number | null;
   elevMax: number | null;
+  selectedPlace: string | null;  // D-07 — singular; multi-place is deferred PRICH-02
 }
 
 export interface OccurrenceRow {
@@ -27,6 +28,7 @@ export interface OccurrenceRow {
   date: string;
   county: string | null;
   ecoregion_l3: string | null;
+  place_slug: string | null;
   ecdysis_id: number | null;
   catalog_number: string | null;
   scientificName: string | null;
@@ -54,7 +56,7 @@ export interface OccurrenceRow {
 }
 
 export const OCCURRENCE_COLUMNS = [
-  'lat', 'lon', 'date', 'county', 'ecoregion_l3',
+  'lat', 'lon', 'date', 'county', 'ecoregion_l3', 'place_slug',
   'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber',
   'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host',
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
@@ -198,7 +200,8 @@ export function isFilterActive(f: FilterState): boolean {
     || f.selectedEcoregions.size > 0
     || f.selectedCollectors.length > 0
     || f.elevMin !== null
-    || f.elevMax !== null;
+    || f.elevMax !== null
+    || f.selectedPlace !== null;
 }
 
 export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
@@ -240,6 +243,12 @@ export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
   if (f.selectedEcoregions.size > 0) {
     const ecors = [...f.selectedEcoregions].map(e => `'${e.replace(/'/g, "''")}'`).join(',');
     occurrenceClauses.push(`ecoregion_l3 IN (${ecors})`);
+  }
+
+  // Place filter — singular value (D-08); multi-place is deferred PRICH-02
+  if (f.selectedPlace !== null) {
+    const escaped = f.selectedPlace.replace(/'/g, "''");
+    occurrenceClauses.push(`place_slug = '${escaped}'`);
   }
 
   // Collector filter — single OR clause combining recordedBy (ecdysis) and host_inat_login (iNat)

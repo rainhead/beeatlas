@@ -39,6 +39,7 @@ export interface FilterChangedEvent {
   selectedCollectors: CollectorEntry[];
   elevMin: number | null;
   elevMax: number | null;
+  selectedPlace: string | null;
 }
 
 @customElement('bee-sidebar')

@@ -94,7 +94,8 @@ export async function loadOccurrencesTable(): Promise<void> {
     lon REAL,
     date TEXT,
     county TEXT,
-    ecoregion_l3 TEXT
+    ecoregion_l3 TEXT,
+    place_slug TEXT
   )`);
 
   const resp = await fetch(await resolveDataUrl('occurrences'));

@@ -25,6 +25,7 @@ function emptyFilter(): FilterState {
     selectedCollectors: [],
     elevMin: null,
     elevMax: null,
+    selectedPlace: null,
   };
 }
 
@@ -110,6 +111,7 @@ describe('combined filters', () => {
       selectedCollectors: [],
       elevMin: null,
       elevMax: null,
+      selectedPlace: null,
     };
     const { occurrenceWhere } = buildFilterSQL(f);
 
@@ -231,6 +233,39 @@ describe('OCCURRENCE_COLUMNS', () => {
     expect(OCCURRENCE_COLUMNS).toContain('host_inat_login');
     expect(OCCURRENCE_COLUMNS).toContain('specimen_count');
     expect(OCCURRENCE_COLUMNS).toContain('elevation_m');
+  });
+
+  test('OCCURRENCE_COLUMNS includes place_slug', () => {
+    expect(OCCURRENCE_COLUMNS).toContain('place_slug');
+  });
+});
+
+describe('place filter', () => {
+  test('emptyFilter() includes selectedPlace: null', () => {
+    const f = emptyFilter();
+    expect(f.selectedPlace).toBeNull();
+  });
+
+  test('isFilterActive: selectedPlace set returns true', () => {
+    expect(isFilterActive({ ...emptyFilter(), selectedPlace: 'ebeys-landing' })).toBe(true);
+  });
+
+  test('buildFilterSQL with selectedPlace emits place_slug = clause', () => {
+    const f = { ...emptyFilter(), selectedPlace: 'ebeys-landing' };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain("place_slug = 'ebeys-landing'");
+  });
+
+  test('buildFilterSQL with selectedPlace null does not mention place_slug', () => {
+    const f = { ...emptyFilter(), selectedPlace: null };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).not.toContain('place_slug');
+  });
+
+  test("buildFilterSQL escapes single quotes in selectedPlace (o'brien-ranch)", () => {
+    const f = { ...emptyFilter(), selectedPlace: "o'brien-ranch" };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain("place_slug = 'o''brien-ranch'");
   });
 });
 

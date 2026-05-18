@@ -26,6 +26,7 @@ export class BeeAtlas extends LitElement {
     selectedCollectors: [],
     elevMin: null,
     elevMax: null,
+    selectedPlace: null,
   };
 
   @state() private _visibleIds: Set<string> | null = null;
@@ -256,6 +257,7 @@ bee-filter-panel {
         selectedCollectors: initFilter.selectedCollectors ?? [],
         elevMin: initFilter.elevMin ?? null,
         elevMax: initFilter.elevMax ?? null,
+        selectedPlace: initFilter.selectedPlace ?? null,
       };
     }
 
@@ -542,6 +544,7 @@ bee-filter-panel {
       selectedCollectors: parsed.filter?.selectedCollectors ?? [],
       elevMin: parsed.filter?.elevMin ?? null,
       elevMax: parsed.filter?.elevMax ?? null,
+      selectedPlace: parsed.filter?.selectedPlace ?? null,
     };
 
     // Restore UI state
@@ -745,6 +748,7 @@ bee-filter-panel {
       selectedCollectors: detail.selectedCollectors,
       elevMin: detail.elevMin ?? null,
       elevMax: detail.elevMax ?? null,
+      selectedPlace: detail.selectedPlace ?? null,
     };
 
     // Clear selections when filter changes
