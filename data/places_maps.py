@@ -85,8 +85,10 @@ def main() -> None:
     """Zero-arg wrapper for run.py STEPS — opens DB, loads spatial, generates maps."""
     con = duckdb.connect(DB_PATH)
     con.execute("LOAD spatial")
-    generate_place_maps(con)
-    con.close()
+    try:
+        generate_place_maps(con)
+    finally:
+        con.close()
 
 
 if __name__ == "__main__":
