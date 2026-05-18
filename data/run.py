@@ -38,6 +38,7 @@ from species_maps import main as generate_species_maps
 from feeds import main as generate_feeds
 from topology_postprocess import main as clean_region_topology
 from places_validation import validate_places_step
+from places_load import load_places_step
 
 _REFRESH_LINEAGE = "--refresh-lineage" in sys.argv
 
@@ -84,6 +85,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
     ("taxon-lineage-extended", enrich_taxon_lineage_extended),
     ("places-validation", validate_places_step),
+    ("places-load", load_places_step),
     ("dbt-build", _run_dbt_build),
     ("topology-postprocess", clean_region_topology),
     ("species-export", export_species_parquet),
