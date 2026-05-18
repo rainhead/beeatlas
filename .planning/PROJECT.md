@@ -1,14 +1,8 @@
 # Washington Bee Atlas
 
-## Current Milestone: v3.7 Places
+## Milestone: v3.7 Places — COMPLETE (2026-05-18)
 
-**Goal:** Add a curated directory of collecting locations (parks, reserves) with permit status, land owner info, specimen counts, and full map integration.
-
-**Target features:**
-- Hand-curated places data model in repo (name, slug, land owner, permit records, polygon geometry)
-- Pipeline spatial join — place_name column in occurrences.parquet; places.geojson exported with per-place counts
-- Static place pages at /places/{slug}/ with owner, active/inactive permits, specimen count, deep-link to filtered map
-- Map integration — place filter chip (ghost outside polygon); toggleable place boundaries overlay layer
+**Shipped:** Hand-curated `content/places.toml` TOML data model for collecting locations; pipeline spatial join with `place_slug` in `occurrences.parquet` (dbt 31-column contract); per-place SVG occurrence maps; static `/places.html` index and per-place pages at `/places/{slug}.html`; Places boundary mode in Mapbox (4th toggle), click-to-filter, removable place chip, `place=` URL round-trip. Phase 100.1 closed B-01 (place-maps S3 upload) and W-01 (selectedPlace clear on mode switch).
 
 ## Milestone: v3.6 Simpler Species Index — COMPLETE (2026-05-16)
 
@@ -157,6 +151,11 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ PIPE-01: Eleventy generates all taxon pages from species.json — v3.6
 - ✓ PIPE-02: species_maps.py generates multi-color SVG maps for genus/subgenus/tribe — v3.6
 - ✓ PIPE-03: Hierarchical slug format in species_export.py; species-photos.toml migrated — v3.6
+- ✓ PLC-01–04: Coordinator can define places via `content/places.toml` with slug, land_owner, WGS84 geometry, permit records; validation pipeline enforces format and non-overlap — v3.7
+- ✓ PPIPE-01–05: Pipeline loads places.toml into DuckDB, joins `place_slug` into `occurrences.parquet` (31-column dbt contract), exports `places.geojson` + `places.json`, commits both to git — v3.7
+- ✓ PMAP-01–04: Boundary mode toggle extended to Places; click polygon to filter; removable place chip; `place=` URL round-trip and deep-link — v3.7
+- ✓ PPAGE-01–02: `/places.html` index and per-place pages at `/places/{slug}.html` with name, owner, count, SVG map, deep-link — v3.7
+- ✓ PPAGE-03: Per-place SVG occurrence maps generated at pipeline time; uploaded to S3/CDN via nightly.sh — v3.7
 
 ### Active (future)
 
@@ -177,10 +176,13 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 | iNaturalist host plant display layer | v1.2 uses iNat data for collection event samples, not a visual plant layer |
 | Location search / pan-to-place | Deferred to v2 (NAV-02) |
 | OR project (id=18521) | Out of scope; stub exists in projects.py |
+| Permit display on place pages | Removed from v3.7 per Phase 99 D-01; static hosting + legal sensitivity; revisit v3.8+ |
+| All-WA public lands layer | Thousands of polygons beyond curated collecting sites; out of scope |
+| Community-editable place metadata | Static hosting + legal sensitivity; maintainer-curated TOML is governance model |
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v3.6 on 2026-05-16 — Simpler Species Index (+5,418/−23,155 lines across 154 files, 2 days): 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages generated via Eleventy pagination; multi-color SVG occurrence maps at all taxon levels; monolithic `/species/` all-cards layout (8 files) replaced with searchable family→genus index; hierarchical `Genus/specificEpithet` slug format; BLOCKER-01 closed (species-maps/ S3 upload); 5 phases, 13 plans.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v3.6 on 2026-05-16 — Simpler Species Index (+5,418/−23,155 lines across 154 files, 2 days): 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages generated via Eleventy pagination; multi-color SVG occurrence maps at all taxon levels; monolithic `/species/` all-cards layout (8 files) replaced with searchable family→genus index; hierarchical `Genus/specificEpithet` slug format; BLOCKER-01 closed (species-maps/ S3 upload); 5 phases, 13 plans. Shipped v3.7 on 2026-05-18 — Places (+12,314/−2,566 lines across 103 files, 2 days): hand-curated `content/places.toml` TOML schema with WGS84 polygon geometry and validation pipeline (slug format, CRS, non-overlap); pipeline spatial join adds `place_slug` to `occurrences.parquet` (dbt 31-column contract); `places.geojson` + `places.json` committed to git; per-place SVG occurrence maps; `/places.html` index + per-place pages at `/places/{slug}.html`; Places boundary mode in Mapbox (4th toggle), click-to-filter, removable chip, `place=` URL round-trip; B-01 + W-01 closed in Phase 100.1; 5 phases (including INSERTED 100.1), 11 plans.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, Mapbox GL JS, Lit (LitElement), wa-sqlite, hyparquet, temporal-polyfill
@@ -197,6 +199,10 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 - Lambda execution path retired (quick task 260514-fcq, 2026-05-14): PipelineFunction + EventBridge schedulers + Function URL removed from BeeAtlasStack; maderas nightly cron is authoritative.
 - v3.5 Nyquist gaps: Phase 90 VALIDATION.md exists with `nyquist_compliant=false`; Phase 91 has no VALIDATION.md. Run `/gsd-validate-phase 90` and `/gsd-validate-phase 91` next milestone.
 - v3.5 SUMMARY.md frontmatter: `requirements-completed` not listed in 89-01, 90-01, 91-01 SUMMARY files (SEL-01 through SEL-05 satisfied but unlisted).
+- v3.7 Nyquist gaps: phases 97, 98, 100 have missing/incomplete VALIDATION.md files; Phase 98 Wave 0 RED tests were not written. Run `/gsd-validate-phase 97`, `/gsd-validate-phase 98`, `/gsd-validate-phase 100` next milestone.
+- v3.7 Phase 98 VERIFICATION.md missing: procedural gap only — all code verified via SUMMARY files and code inspection.
+- v3.7 W-02: `places_validation.py` does not enforce PLC-02 required permit fields at runtime (issuing_authority, type) — a malformed permit record loads silently.
+- v3.7 W-03: `run.py` module docstring is stale — omits places-load, places-export, places-maps, topology-postprocess pipeline steps.
 
 ## Constraints
 
@@ -280,6 +286,13 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | Lean `taxon-page.ts` Vite entry (4 imports only) | Avoids pulling in heavier species chunk machinery; taxon pages don't need OccurrenceSource or filter controls | ✓ Good — Phase 94; distinct chunk in build output |
 | `subgenusList[].totalOccurrences` includes unresolved records | Known inaccuracy — some subgenus pages show "N records · 0 species"; fixing requires more complex SQL not worth Phase 95 scope | ⚠️ Revisit — Phase 95; documented WARNING-02 |
 | `species-index.ts` type-to-filter uses `data-search` dataset attribute walk | No import of bee-atlas or occurrence machinery; pure DOM string matching; idiomatic for server-rendered Eleventy + minimal JS enhancement | ✓ Good — Phase 96; monolith deleted cleanly |
+| `land_owner` field name (not `owner`) in places.toml | Avoids ambiguity between organizational and legal ownership | ✓ Good — Phase 97; all references consistent |
+| `LOAD spatial` only in places_validation.py (not `INSTALL spatial`) | Extension already installed in pipeline DuckDB env; INSTALL is one-time setup inappropriate for nightly modules | ✓ Good — Phase 97; pattern mirrors pipeline modules |
+| Two export artifacts: `places.geojson` (slim: slug + geometry) and `places.json` (rich: metadata + counts, no geometry) | Mapbox needs geometry; Eleventy needs metadata; a single file can't serve both without either bundling geometry into pages or omitting metadata from Mapbox | ✓ Good — Phase 98; clear responsibility split |
+| `promoteId: 'slug'` for places GeoJSON source in Mapbox (not `generateId: true`) | Stable feature IDs across source reloads; click events carry the slug directly for `place-selected` dispatch | ✓ Good — Phase 100; eliminates extra slug lookup |
+| `placeImplied` logic in `parseParams` derives `bm=places` when `place=` present and no explicit `bm=` | Deep-links from place pages omit `bm=` but should land in Places mode; the implication avoids requiring two URL params for what reads as one user intent | ✓ Good — Phase 100; explicit decision after spec review |
+| `leavingPlaces` conditional in `_onBoundaryModeChanged` skips filter query when not leaving places | Avoids redundant SQL query + URL push when switching between non-places modes where no filter was active | ✓ Good — Phase 100.1; selection state intentionally preserved |
+| D-01 (Phase 99): Permit display removed from place pages | Static hosting + legal sensitivity of permit data; maintainer-curated TOML with git history is the governance model | ✓ Good — Phase 99; simplifies pages and avoids permit-staleness UX |
 
 ## Evolution
 
@@ -299,4 +312,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-17 — v3.7 Places milestone started*
+*Last updated: 2026-05-18 after v3.7 milestone*
