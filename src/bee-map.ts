@@ -38,7 +38,7 @@ export class BeeMap extends LitElement {
   mapElement!: HTMLDivElement;
 
   // --- @property inputs from bee-atlas ---
-  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' = 'off';
+  @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @property({ attribute: false }) visibleIds: Set<string> | null = null;
   @property({ attribute: false }) selectedOccIds: Set<string> | null = null;
   @property({ attribute: false }) countyOptions: string[] = [];
@@ -75,6 +75,7 @@ export class BeeMap extends LitElement {
 
   private _countyIdMap: Map<number, string> = new Map();
   private _ecoregionIdMap: Map<number, string> = new Map();
+  private _placeIdMap: Map<number, string> = new Map();
   private _clickConsumed = false;
 
   // Cluster selection halo (HALO-01): race guard + rAF coalescing.
@@ -162,7 +163,8 @@ export class BeeMap extends LitElement {
   render() {
     const label = this.boundaryMode === 'off' ? 'Regions'
       : this.boundaryMode === 'counties' ? 'Counties'
-      : 'Ecoregions';
+      : this.boundaryMode === 'ecoregions' ? 'Ecoregions'
+      : 'Places';
     return html`
       <style>${BeeMap._mapboxCss}</style>
       <div id="map"></div>
@@ -172,6 +174,7 @@ export class BeeMap extends LitElement {
             <button class=${this.boundaryMode === 'off' ? 'active' : ''} @click=${() => this._selectBoundary('off')}>Off</button>
             <button class=${this.boundaryMode === 'counties' ? 'active' : ''} @click=${() => this._selectBoundary('counties')}>Counties</button>
             <button class=${this.boundaryMode === 'ecoregions' ? 'active' : ''} @click=${() => this._selectBoundary('ecoregions')}>Ecoregions</button>
+            <button class=${this.boundaryMode === 'places' ? 'active' : ''} @click=${() => this._selectBoundary('places')}>Places</button>
           </div>
         ` : ''}
         <button class="region-btn" @click=${this._toggleRegionMenu}>
@@ -297,10 +300,10 @@ export class BeeMap extends LitElement {
     this._regionMenuOpen = !this._regionMenuOpen;
   }
 
-  private _selectBoundary(mode: 'off' | 'counties' | 'ecoregions') {
+  private _selectBoundary(mode: 'off' | 'counties' | 'ecoregions' | 'places') {
     this._regionMenuOpen = false;
     if (mode === this.boundaryMode) return;
-    this._emit<'off' | 'counties' | 'ecoregions'>('boundary-mode-changed', mode);
+    this._emit<'off' | 'counties' | 'ecoregions' | 'places'>('boundary-mode-changed', mode);
   }
 
   updated(changedProperties: PropertyValues) {
@@ -404,6 +407,11 @@ export class BeeMap extends LitElement {
           data: { type: 'FeatureCollection', features: [] },
           generateId: true,
         });
+        this._map!.addSource('places', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] },
+          generateId: true,
+        });
 
         // --- Layers in render order ---
         // Compute initial visibility from URL-restored boundaryMode so layers
@@ -411,6 +419,7 @@ export class BeeMap extends LitElement {
         // call that may be blocked by isStyleLoaded() returning false.
         const countyVis = this.boundaryMode === 'counties' ? 'visible' as const : 'none' as const;
         const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' as const : 'none' as const;
+        const placesVis = this.boundaryMode === 'places' ? 'visible' as const : 'none' as const;
 
         // Ecoregion fill (click target + selection highlight)
         this._map!.addLayer({
@@ -482,6 +491,45 @@ export class BeeMap extends LitElement {
               ['boolean', ['feature-state', 'selected'], false],
               'rgba(44, 123, 229, 0.85)',
               'rgba(80, 80, 80, 0.55)',
+            ],
+            'line-width': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false],
+              2.5,
+              1.5,
+            ],
+          },
+        });
+
+        // Place fill (click target + selection highlight) — warm amber, D-06
+        this._map!.addLayer({
+          id: 'place-fill',
+          type: 'fill',
+          source: 'places',
+          layout: { visibility: placesVis },
+          paint: {
+            'fill-color': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false],
+              'rgba(220, 130, 30, 0.12)',   // D-06 selected fill
+              'rgba(0, 0, 0, 0)',           // D-06 unselected: transparent
+            ],
+          },
+        });
+
+        // Place line (visible stroke) — warm amber, D-06
+        // line-join: round avoids miter extension at sharp corners
+        this._map!.addLayer({
+          id: 'place-line',
+          type: 'line',
+          source: 'places',
+          layout: { visibility: placesVis, 'line-join': 'round', 'line-cap': 'round' },
+          paint: {
+            'line-color': [
+              'case',
+              ['boolean', ['feature-state', 'selected'], false],
+              'rgba(220, 130, 30, 0.85)',   // D-06 selected line
+              'rgba(180, 100, 30, 0.65)',   // D-06 unselected line
             ],
             'line-width': [
               'case',
@@ -712,7 +760,19 @@ export class BeeMap extends LitElement {
       },
     });
 
-    // 5. Fallback: empty map click
+    // 5. Place fill click — fires only when place-fill layer is visible (D-03)
+    // Emits 'place-selected' with { slug } via _handlePlaceClick
+    this._map.addInteraction('click-place', {
+      type: 'click',
+      target: { layerId: 'place-fill' },
+      handler: (e) => {
+        this._clickConsumed = true;
+        e.preventDefault();
+        this._handlePlaceClick(e);
+      },
+    });
+
+    // 6. Fallback: empty map click
     this._map.on('click', () => {
       if (this._clickConsumed) return;
       this._emit('map-click-empty');
@@ -934,12 +994,14 @@ export class BeeMap extends LitElement {
 
   private async _loadBoundaryData() {
     try {
-      const [countiesResp, ecoregionsResp] = await Promise.all([
+      const [countiesResp, ecoregionsResp, placesResp] = await Promise.all([
         resolveDataUrl('counties').then(url => fetch(url)),
         resolveDataUrl('ecoregions').then(url => fetch(url)),
+        resolveDataUrl('places').then(url => fetch(url)),
       ]);
       const countiesData = await countiesResp.json();
       const ecoregionsData = await ecoregionsResp.json();
+      const placesData = await placesResp.json();
 
       // Build ID-to-name maps (generateId assigns sequential integers)
       this._countyIdMap = new Map(
@@ -952,9 +1014,16 @@ export class BeeMap extends LitElement {
           (f, i) => [i, f.properties?.NA_L3NAME ?? '']
         )
       );
+      // _placeIdMap maps feature id (generateId sequential int) → slug
+      this._placeIdMap = new Map(
+        (placesData.features as { properties?: { slug?: string } }[]).map(
+          (f, i) => [i, f.properties?.slug ?? '']
+        )
+      );
 
       (this._map!.getSource('counties') as mapboxgl.GeoJSONSource).setData(countiesData);
       (this._map!.getSource('ecoregions') as mapboxgl.GeoJSONSource).setData(ecoregionsData);
+      (this._map!.getSource('places') as mapboxgl.GeoJSONSource).setData(placesData);
 
       // Apply visibility and selection for URL-restored state
       this._applyBoundaryMode();
@@ -968,18 +1037,22 @@ export class BeeMap extends LitElement {
     if (!this._map?.getLayer('county-fill')) return;
     const countyVis = this.boundaryMode === 'counties' ? 'visible' : 'none';
     const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' : 'none';
+    const placesVis = this.boundaryMode === 'places' ? 'visible' : 'none';
     this._map.setLayoutProperty('county-fill', 'visibility', countyVis);
     this._map.setLayoutProperty('county-line', 'visibility', countyVis);
     this._map.setLayoutProperty('ecoregion-fill', 'visibility', ecoVis);
     this._map.setLayoutProperty('ecoregion-line', 'visibility', ecoVis);
+    this._map.setLayoutProperty('place-fill', 'visibility', placesVis);
+    this._map.setLayoutProperty('place-line', 'visibility', placesVis);
   }
 
   private _applyBoundarySelection() {
     if (!this._map?.getSource('counties') || !this._map?.getSource('ecoregions')) return;
 
-    // Clear all feature-state on both sources
+    // Clear all feature-state on all boundary sources
     this._map.removeFeatureState({ source: 'counties' });
     this._map.removeFeatureState({ source: 'ecoregions' });
+    this._map.removeFeatureState({ source: 'places' });
 
     if (this.boundaryMode === 'counties') {
       for (const [id, name] of this._countyIdMap.entries()) {
@@ -991,6 +1064,13 @@ export class BeeMap extends LitElement {
       for (const [id, name] of this._ecoregionIdMap.entries()) {
         if (this.filterState.selectedEcoregions.has(name)) {
           this._map.setFeatureState({ source: 'ecoregions', id }, { selected: true });
+        }
+      }
+    } else if (this.boundaryMode === 'places') {
+      // D-05: highlight matching polygon when mode=places and filter active
+      for (const [id, slug] of this._placeIdMap.entries()) {
+        if (this.filterState.selectedPlace === slug) {
+          this._map.setFeatureState({ source: 'places', id }, { selected: true });
         }
       }
     }
@@ -1073,5 +1153,17 @@ export class BeeMap extends LitElement {
       name,
       shiftKey: (e.originalEvent as MouseEvent).shiftKey,
     });
+  }
+
+  private _handlePlaceClick(e: mapboxgl.InteractionEvent) {
+    this._clickConsumed = true;
+    e.preventDefault();
+    const feature = e.feature;
+    if (!feature) return;
+
+    const slug = feature.properties?.['slug'] as string | undefined;
+    if (!slug) return;
+
+    this._emit('place-selected', { slug });
   }
 }
