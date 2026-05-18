@@ -6,6 +6,8 @@ interface Manifest {
   seasonality: string;
   counties: string;
   ecoregions: string;
+  places: string;        // points to hashed places.geojson
+  places_meta: string;   // points to hashed places.json
   generated_at: string;
 }
 
