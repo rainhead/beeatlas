@@ -6,7 +6,7 @@ Usage:
 Pipelines are executed in this order:
     ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
     anti-entropy -> checklist -> resolve-taxon-ids -> taxon-lineage-extended ->
-    dbt-build -> species-export -> species-maps -> feeds
+    places-validation -> dbt-build -> species-export -> species-maps -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
 nightly run. Load them manually: uv run python geographies_pipeline.py
@@ -37,6 +37,7 @@ from species_export import main as export_species_parquet
 from species_maps import main as generate_species_maps
 from feeds import main as generate_feeds
 from topology_postprocess import main as clean_region_topology
+from places_validation import validate_places_step
 
 _REFRESH_LINEAGE = "--refresh-lineage" in sys.argv
 
@@ -82,6 +83,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("checklist", load_checklist),
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
     ("taxon-lineage-extended", enrich_taxon_lineage_extended),
+    ("places-validation", validate_places_step),
     ("dbt-build", _run_dbt_build),
     ("topology-postprocess", clean_region_topology),
     ("species-export", export_species_parquet),
