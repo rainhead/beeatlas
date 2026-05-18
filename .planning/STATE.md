@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Places
-status: active
-last_updated: "2026-05-17T00:00:00.000Z"
-last_activity: 2026-05-17
+status: executing
+last_updated: "2026-05-18T00:18:15.742Z"
+last_activity: 2026-05-18
 progress:
-  total_phases: 4
+  total_phases: 9
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -20,17 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-17 — v3.7 Places milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v3.7 Places — Phase 97: Place Data Model
+**Current focus:** Phase 97 — place-data-model
 
 ## Current Position
 
-Phase: 97 — Place Data Model
-Plan: 2 plans (097-01, 097-02)
+Phase: 97 (place-data-model) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-05-17 — Phase 97 planned (2 plans, 2 waves)
+Last activity: 2026-05-18
 
 ```
-Progress: [          ] 0% (0/4 phases)
+Progress: [█████░░░░░] 50%
 ```
 
 ## Accumulated Context
@@ -38,6 +38,10 @@ Progress: [          ] 0% (0/4 phases)
 ### Decisions
 
 (decisions log cleared at v3.6 close — full history in .planning/PROJECT.md Key Decisions table)
+
+**97-01 (2026-05-18):**
+- `land_owner` field name (not `owner`) per PLC-01 — avoids ambiguity between organizational and legal ownership
+- `LOAD spatial` only in places_validation.py (not `INSTALL spatial`) — spatial extension already installed in pipeline DuckDB environment; INSTALL is a one-time setup step inappropriate for nightly pipeline modules
 
 ### Key Architecture Notes for v3.7
 
