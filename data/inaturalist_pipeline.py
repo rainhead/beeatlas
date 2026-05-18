@@ -204,6 +204,17 @@ def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
         db_path = DB_PATH
     con = duckdb.connect(db_path)
     try:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS inaturalist_data.taxon_lineage_extended (
+                taxon_id BIGINT PRIMARY KEY,
+                family VARCHAR,
+                subfamily VARCHAR,
+                tribe VARCHAR,
+                genus VARCHAR,
+                subgenus VARCHAR
+            )
+        """)
+
         taxon_ids = [
             row[0] for row in con.execute("""
                 SELECT DISTINCT taxon__id FROM (
@@ -217,10 +228,15 @@ def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
                     FROM inaturalist_data.canonical_to_taxon_id
                     WHERE taxon_id IS NOT NULL
                 )
+                EXCEPT
+                SELECT taxon_id FROM inaturalist_data.taxon_lineage_extended
             """).fetchall()
         ]
         if not taxon_ids:
-            print("taxon_lineage_extended: no taxon IDs found, skipping")  # noqa: T201
+            count = con.execute(
+                "SELECT count(*) FROM inaturalist_data.taxon_lineage_extended"
+            ).fetchone()[0]
+            print(f"taxon_lineage_extended: {count} rows (all cached)")  # noqa: T201
             return
 
         lineage: dict[int, dict] = {}
@@ -245,16 +261,6 @@ def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
                         row[rank] = anc["name"]
                 lineage[taxon["id"]] = row
 
-        con.execute("""
-            CREATE OR REPLACE TABLE inaturalist_data.taxon_lineage_extended (
-                taxon_id BIGINT PRIMARY KEY,
-                family VARCHAR,
-                subfamily VARCHAR,
-                tribe VARCHAR,
-                genus VARCHAR,
-                subgenus VARCHAR
-            )
-        """)
         con.executemany(
             "INSERT INTO inaturalist_data.taxon_lineage_extended VALUES (?, ?, ?, ?, ?, ?)",
             [
@@ -265,7 +271,7 @@ def enrich_taxon_lineage_extended(db_path: str | None = None) -> None:
         count = con.execute(
             "SELECT count(*) FROM inaturalist_data.taxon_lineage_extended"
         ).fetchone()[0]
-        print(f"taxon_lineage_extended: {count} rows")  # noqa: T201
+        print(f"taxon_lineage_extended: {count} rows ({len(lineage)} new)")  # noqa: T201
     finally:
         con.close()
 

@@ -288,7 +288,7 @@ def test_enrich_idempotent_create_or_replace(lineage_db):
 
 
 def test_enrich_skips_when_no_taxon_ids(lineage_db, capsys):
-    """No taxon IDs → print skip message, no table created, no API call."""
+    """No taxon IDs → print skip message, no API call, table exists but is empty."""
     db_path, mod = lineage_db
     # Both observation tables empty.
 
@@ -297,17 +297,16 @@ def test_enrich_skips_when_no_taxon_ids(lineage_db, capsys):
         mock_get.assert_not_called()
 
     captured = capsys.readouterr()
-    assert "no taxon IDs found" in captured.out
+    assert "all cached" in captured.out or "no taxon IDs found" in captured.out
 
     con = duckdb.connect(db_path, read_only=True)
     try:
-        tables = con.execute(
-            "SELECT table_name FROM information_schema.tables "
-            "WHERE table_schema='inaturalist_data' AND table_name='taxon_lineage_extended'"
-        ).fetchall()
+        count = con.execute(
+            "SELECT count(*) FROM inaturalist_data.taxon_lineage_extended"
+        ).fetchone()[0]
     finally:
         con.close()
-    assert tables == []  # no empty table created
+    assert count == 0
 
 
 def test_enrich_handles_taxon_whose_own_rank_is_target(lineage_db):
