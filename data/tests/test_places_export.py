@@ -3,7 +3,7 @@ places.json record/count shape (PPIPE-04).
 
 Covers:
     test_places_geojson_structure: GeoJSON FeatureCollection with one feature, slug property, Polygon geometry
-    test_places_json_structure: JSON array with all 6 required keys per record
+    test_places_json_structure: JSON array with required keys per record (no permits — not a per-place property)
     test_places_json_counts: specimen_count and sample_count derived correctly from occurrences.parquet
 """
 
@@ -140,12 +140,12 @@ def test_places_json_structure(tmp_path, monkeypatch):
     assert len(records) == 1
 
     r = records[0]
-    required_keys = {"slug", "name", "land_owner", "permits", "specimen_count", "sample_count"}
+    required_keys = {"slug", "name", "land_owner", "specimen_count", "sample_count"}
     assert required_keys <= set(r.keys()), f"Missing keys: {required_keys - set(r.keys())}"
+    assert "permits" not in r, "permits must not appear in places.json (not a per-place property)"
 
     assert isinstance(r["specimen_count"], int)
     assert isinstance(r["sample_count"], int)
-    assert isinstance(r["permits"], list)
 
 
 def test_places_json_counts(tmp_path, monkeypatch):

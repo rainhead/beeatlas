@@ -98,7 +98,6 @@ def _write_places_json(
                 "slug": slug,
                 "name": meta["name"],
                 "land_owner": meta["land_owner"],
-                "permits": meta.get("permits", []),
                 "specimen_count": c["specimen_count"],
                 "sample_count": c["sample_count"],
             }
