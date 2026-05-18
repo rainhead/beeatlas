@@ -107,7 +107,7 @@ def validate_places(toml_path: "Path | str") -> None:
             """
             SELECT a.slug, b.slug
             FROM places_geom a, places_geom b
-            WHERE a.slug < b.slug AND ST_Intersects(a.geom, b.geom)
+            WHERE a.slug < b.slug AND ST_Overlaps(a.geom, b.geom)
             """
         ).fetchall()
         if overlaps:

@@ -1,5 +1,432 @@
 [
   {
+    "slug": "alta-lake-state-park",
+    "name": "Alta Lake State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "anderson-lake-state-park",
+    "name": "Anderson Lake State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "beacon-rock-state-park",
+    "name": "Beacon Rock State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 5,
+    "sample_count": 1
+  },
+  {
+    "slug": "birch-bay-state-park",
+    "name": "Birch Bay State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 22,
+    "sample_count": 3
+  },
+  {
+    "slug": "blake-island-marine-state-park",
+    "name": "Blake Island Marine State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "bogachiel-state-park",
+    "name": "Bogachiel State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "bottle-beach-state-park",
+    "name": "Bottle Beach State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "bridgeport-state-park",
+    "name": "Bridgeport State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "brooks-memorial-state-park",
+    "name": "Brooks Memorial State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "cape-disappointment-state-park",
+    "name": "Cape Disappointment State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "columbia-hills-state-park",
+    "name": "Columbia Hills State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 94,
+    "sample_count": 6
+  },
+  {
+    "slug": "conboy-lake-nwr",
+    "name": "Conboy Lake National Wildlife Refuge",
+    "land_owner": "US Fish & Wildlife Service",
+    "specimen_count": 207,
+    "sample_count": 7
+  },
+  {
+    "slug": "conconully-state-park",
+    "name": "Conconully State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "cougar-mountain-regional-wildland-park",
+    "name": "Cougar Mountain Regional Wildland Park",
+    "land_owner": "King County Parks",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "cowiche-canyon-conservancy",
+    "name": "Cowiche Canyon Conservancy",
+    "land_owner": "Cowiche Canyon Conservancy",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "crawford-state-park",
+    "name": "Crawford State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "curlew-lake-state-park",
+    "name": "Curlew Lake State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "daroga-state-park",
+    "name": "Daroga State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "deception-pass-state-park",
+    "name": "Deception Pass State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 133,
+    "sample_count": 7
+  },
+  {
+    "slug": "discovery-park",
+    "name": "Discovery Park",
+    "land_owner": "Seattle Parks and Recreation",
+    "specimen_count": 160,
+    "sample_count": 8
+  },
+  {
+    "slug": "dosewallips-state-park",
+    "name": "Dosewallips State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 5,
+    "sample_count": 1
+  },
+  {
+    "slug": "fields-spring-state-park",
+    "name": "Fields Spring State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "fort-flagler-state-park",
+    "name": "Fort Flagler State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 164,
+    "sample_count": 15
+  },
+  {
+    "slug": "fort-simcoe-state-park",
+    "name": "Fort Simcoe State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "fort-townsend-state-park",
+    "name": "Fort Townsend State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "fort-worden-state-park",
+    "name": "Fort Worden State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 19,
+    "sample_count": 10
+  },
+  {
+    "slug": "ginkgo-petrified-forest-state-park",
+    "name": "Ginkgo Petrified Forest State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 121,
+    "sample_count": 18
+  },
+  {
+    "slug": "grayland-beach-state-park",
+    "name": "Grayland Beach State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "griffiths-priday-state-park",
+    "name": "Griffiths-Priday State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "hanford-reach-national-monument",
+    "name": "Hanford Reach National Monument",
+    "land_owner": "US Fish & Wildlife Service",
+    "specimen_count": 638,
+    "sample_count": 21
+  },
+  {
+    "slug": "helen-mccabe-state-park",
+    "name": "Helen McCabe State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "illahee-state-park",
+    "name": "Illahee State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "jones-island-marine-state-park",
+    "name": "Jones Island Marine State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "kinney-point-state-park",
+    "name": "Kinney Point State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "klickitat-trail-state-park",
+    "name": "Klickitat Trail State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 95,
+    "sample_count": 11
+  },
+  {
+    "slug": "lake-easton-state-park",
+    "name": "Lake Easton State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "lake-sammamish-state-park",
+    "name": "Lake Sammamish State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 69,
+    "sample_count": 4
+  },
+  {
+    "slug": "lake-sylvia-state-park",
+    "name": "Lake Sylvia State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "lake-wenatchee-state-park",
+    "name": "Lake Wenatchee State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 7,
+    "sample_count": 1
+  },
+  {
+    "slug": "larrabee-state-park",
+    "name": "Larrabee State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 15,
+    "sample_count": 4
+  },
+  {
+    "slug": "lewis-creek-park",
+    "name": "Lewis Creek Park",
+    "land_owner": "City of Bellevue",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "lincoln-rock-state-park",
+    "name": "Lincoln Rock State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "little-pend-oreille-nwr",
+    "name": "Little Pend Oreille National Wildlife Refuge",
+    "land_owner": "US Fish & Wildlife Service",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "lummi-island-heritage-trust",
+    "name": "Lummi Island Heritage Trust",
+    "land_owner": "Lummi Island Heritage Trust",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "magnuson-park",
+    "name": "Warren G. Magnuson Park",
+    "land_owner": "Seattle Parks and Recreation",
+    "specimen_count": 177,
+    "sample_count": 8
+  },
+  {
+    "slug": "miller-peninsula-state-park",
+    "name": "Miller Peninsula State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "moran-state-park",
+    "name": "Moran State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 22,
+    "sample_count": 2
+  },
+  {
+    "slug": "mount-pilchuck-state-park",
+    "name": "Mount Pilchuck State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "mount-rainier-national-park",
+    "name": "Mount Rainier National Park",
+    "land_owner": "National Park Service",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "mount-spokane-state-park",
+    "name": "Mount Spokane State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 72,
+    "sample_count": 9
+  },
+  {
+    "slug": "nisqually-national-wildlife-refuge",
+    "name": "Billy Frank Jr. Nisqually National Wildlife Refuge",
+    "land_owner": "US Fish & Wildlife Service",
+    "specimen_count": 37,
+    "sample_count": 5
+  },
+  {
+    "slug": "ocean-city-state-park",
+    "name": "Ocean City State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "olmstead-place-state-park",
+    "name": "Olmstead Place State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "olympic-national-park",
+    "name": "Olympic National Park",
+    "land_owner": "National Park Service",
+    "specimen_count": 12,
+    "sample_count": 3
+  },
+  {
+    "slug": "pacific-beach-state-park",
+    "name": "Pacific Beach State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 1,
+    "sample_count": 1
+  },
+  {
+    "slug": "padilla-bay-nerr",
+    "name": "Padilla Bay National Estuarine Research Reserve",
+    "land_owner": "Washington Department of Ecology",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "palouse-falls-state-park",
+    "name": "Palouse Falls State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "pearrygin-lake-state-park",
+    "name": "Pearrygin Lake State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "peshastin-pinnacles-state-park",
+    "name": "Peshastin Pinnacles State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "potholes-state-park",
+    "name": "Potholes State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 320,
+    "sample_count": 8
+  },
+  {
+    "slug": "potlatch-state-park",
+    "name": "Potlatch State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "rattlesnake-ledge",
     "name": "Rattlesnake Ledge Recreation Area",
     "land_owner": "Washington Department of Natural Resources",
@@ -7,10 +434,339 @@
     "sample_count": 0
   },
   {
+    "slug": "ridgefield-nwr",
+    "name": "Ridgefield National Wildlife Refuge",
+    "land_owner": "US Fish & Wildlife Service",
+    "specimen_count": 2130,
+    "sample_count": 13
+  },
+  {
+    "slug": "riverside-state-park",
+    "name": "Riverside State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 9,
+    "sample_count": 4
+  },
+  {
+    "slug": "schafer-state-park",
+    "name": "Schafer State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sequim-bay-state-park",
+    "name": "Sequim Bay State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "seward-park",
+    "name": "Seward Park",
+    "land_owner": "Seattle Parks and Recreation",
+    "specimen_count": 29,
+    "sample_count": 7
+  },
+  {
+    "slug": "shine-tidelands-state-park",
+    "name": "Shine Tidelands State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-beaverton-marsh",
+    "name": "Beaverton Marsh Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-cady-mountain",
+    "name": "Cady Mountain Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-channel",
+    "name": "Channel Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-coffelt-farm",
+    "name": "Coffelt Farm Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-coho",
+    "name": "Coho Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-crescent-beach",
+    "name": "Crescent Beach Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-deer-harbor",
+    "name": "Deer Harbor Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-diamond-hill",
+    "name": "Diamond Hill Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-driggs-park",
+    "name": "Driggs Park Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-eastsound-waterfront-park",
+    "name": "Eastsound Waterfront Park",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-entrance-mountain",
+    "name": "Entrance Mountain Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-false-bay-creek",
+    "name": "False Bay Creek Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-fisherman-bay",
+    "name": "Fisherman Bay Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-frazer-homestead",
+    "name": "Frazer Homestead Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-hummel-lake",
+    "name": "Hummel Lake Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-judd-cove",
+    "name": "Judd Cove Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-kellett-bluff",
+    "name": "Kellett Bluff Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-limekiln",
+    "name": "Limekiln Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-lopez-hill",
+    "name": "Lopez Hill Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-middlewood",
+    "name": "Middlewood Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-mount-grant",
+    "name": "Mount Grant Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-richardson-marsh",
+    "name": "Richardson Marsh Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-spencer-spit",
+    "name": "Spencer Spit Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-stonebridge-terrill",
+    "name": "Stonebridge Terrill Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-third-lagoon",
+    "name": "Third Lagoon Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-turtleback-mountain",
+    "name": "Turtleback Mountain Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-upright-head",
+    "name": "Upright Head Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-watmough-bay",
+    "name": "Watmough Bay Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-westside",
+    "name": "Westside Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sjcclb-zylstra-lake",
+    "name": "Zylstra Lake Preserve",
+    "land_owner": "San Juan County Land Bank",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "squilchuck-state-park",
+    "name": "Squilchuck State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 30,
+    "sample_count": 6
+  },
+  {
+    "slug": "steamboat-rock-state-park",
+    "name": "Steamboat Rock State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 391,
+    "sample_count": 9
+  },
+  {
+    "slug": "steptoe-butte-state-park",
+    "name": "Steptoe Butte State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sun-lakes-dry-falls-state-park",
+    "name": "Sun Lakes-Dry Falls State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 603,
+    "sample_count": 19
+  },
+  {
     "slug": "tiger-mountain",
     "name": "Tiger Mountain State Forest",
     "land_owner": "Washington Department of Natural Resources",
     "specimen_count": 0,
     "sample_count": 0
+  },
+  {
+    "slug": "toppenish-nwr",
+    "name": "Toppenish National Wildlife Refuge",
+    "land_owner": "US Fish & Wildlife Service",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "triton-cove-state-park",
+    "name": "Triton Cove State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "twin-harbors-state-park",
+    "name": "Twin Harbors State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 2,
+    "sample_count": 1
+  },
+  {
+    "slug": "wenatchee-confluence-state-park",
+    "name": "Wenatchee Confluence State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 1,
+    "sample_count": 1
+  },
+  {
+    "slug": "westport-light-state-park",
+    "name": "Westport Light State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 14,
+    "sample_count": 3
+  },
+  {
+    "slug": "willapa-hills-trail-state-park",
+    "name": "Willapa Hills Trail State Park",
+    "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 8,
+    "sample_count": 4
+  },
+  {
+    "slug": "willapa-nwr",
+    "name": "Willapa National Wildlife Refuge",
+    "land_owner": "US Fish & Wildlife Service",
+    "specimen_count": 1,
+    "sample_count": 1
   }
 ]
