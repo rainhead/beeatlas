@@ -36,6 +36,7 @@ All values match the established 8-point scale already in use across bee-map.ts 
 |-------|-------|-------|
 | xs | 4px | Icon gaps, chip internal gap (0.25rem) |
 | sm | 8px | Panel padding, toolbar horizontal gutter |
+| sm-h | 12px | Menu button horizontal padding (existing `.region-menu button` pattern) |
 | md | 16px | Default element spacing, filter-row gap |
 | lg | 24px | Section separation within filter panel |
 | xl | 32px | Layout-level gaps |
@@ -43,7 +44,7 @@ All values match the established 8-point scale already in use across bee-map.ts 
 | 3xl | 64px | Page-level spacing |
 
 Exceptions:
-- Boundary mode menu buttons: 8px vertical × 12px horizontal padding (0.5rem × 0.75rem) — matches existing `.region-menu button` pattern
+- Boundary mode menu buttons: `sm` (8px) vertical × `sm-h` (12px) horizontal padding (0.5rem × 0.75rem) — matches existing `.region-menu button` pattern
 - Touch targets: minimum 36×36px for icon buttons (established in bee-filter-toolbar.ts `.download-btn`)
 
 ---
