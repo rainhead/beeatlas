@@ -460,9 +460,47 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(methodBody).toContain('this._selectionBounds = null');
   });
 
-  test('SEL-07: _selectionBounds cleared in ids, cluster, else (popstate), occurrenceClick, zero-result draw, place selection, and region sidebar open/close — exactly 12 total null clears', () => {
-    const allClears = (src.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
-    expect(allClears).toBe(12);
+  test('SEL-07: _onPopState clears _selectionBounds in all three branches (ids, cluster, else)', () => {
+    const methodStart = src.indexOf('private _onPopState');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    const clearCount = (methodBody.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
+    expect(clearCount).toBeGreaterThanOrEqual(3);
+  });
+
+  test('SEL-07: _onOccurrenceClick clears _selectionBounds', () => {
+    const methodStart = src.indexOf('private _onOccurrenceClick(');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('this._selectionBounds = null');
+  });
+
+  test('SEL-07: _onSelectionDrawn clears _selectionBounds on zero-result', () => {
+    const methodStart = src.indexOf('private async _onSelectionDrawn(');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('this._selectionBounds = null');
+  });
+
+  test('SEL-07: _onRegionClick clears _selectionBounds on deselect', () => {
+    const methodStart = src.indexOf('private _onRegionClick(');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('this._selectionBounds = null');
+  });
+
+  test('SEL-07: _onPlaceSelected clears _selectionBounds on deselect', () => {
+    const methodStart = src.indexOf('private _onPlaceSelected(');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('this._selectionBounds = null');
+  });
+
+  test('SEL-07: _openSidebarForFilter clears _selectionBounds', () => {
+    const methodStart = src.indexOf('private async _openSidebarForFilter(');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('this._selectionBounds = null');
   });
 });
 
