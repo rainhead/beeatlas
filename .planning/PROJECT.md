@@ -1,5 +1,16 @@
 # Washington Bee Atlas
 
+## Current Milestone: v3.8 Conceptual Tidying
+
+**Goal:** Centralize scattered domain intelligence (definitions, predicates, transformations) into well-bounded modules across Python, SQL, and TypeScript — replacing ad-hoc assumptions spread throughout the codebase with pure functions in named conceptual homes.
+
+**Target features:**
+- Domain entity audit: locate where logic for Observation, Specimen, Sample, Place, Occurrence actually lives vs. where it is silently assumed
+- Predicate / classifier extraction: thin, named, testable functions for per-record decisions scattered inline today
+- Field-mapping centralization: entity construction logic duplicated between Python pipeline, dbt SQL, and TypeScript frontend
+- Module splits along conceptual domain boundaries, preferring pure functions over large classes
+- Test simplification: tests compensating for scattered logic may be dropped or rewritten as refactoring brings structure; better-structured code, not necessarily more coverage
+
 ## Milestone: v3.7 Places — COMPLETE (2026-05-18)
 
 **Shipped:** Hand-curated `content/places.toml` TOML data model for collecting locations; pipeline spatial join with `place_slug` in `occurrences.parquet` (dbt 31-column contract); per-place SVG occurrence maps; static `/places.html` index and per-place pages at `/places/{slug}.html`; Places boundary mode in Mapbox (4th toggle), click-to-filter, removable place chip, `place=` URL round-trip. Phase 100.1 closed B-01 (place-maps S3 upload) and W-01 (selectedPlace clear on mode switch).

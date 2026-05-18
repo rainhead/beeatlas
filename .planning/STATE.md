@@ -1,11 +1,12 @@
 ---
 gsd_state_version: 1.0
 milestone: v3.8
-milestone_name: milestone
-status: v3.7 milestone complete — planning next milestone
-last_updated: "2026-05-18T16:15:00.491Z"
+milestone_name: Conceptual Tidying
+status: planning
+last_updated: "2026-05-18T22:58:58.812Z"
+last_activity: 2026-05-18
 progress:
-  total_phases: 5
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -23,9 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete
 
 ## Current Position
 
-v3.7 Places milestone COMPLETE (2026-05-18)
-
-Next: Run `/gsd-new-milestone` to define v3.8 goals and requirements
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-18 — Milestone v3.8 started
 
 ## Accumulated Context
 
