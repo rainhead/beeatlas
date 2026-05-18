@@ -621,21 +621,16 @@ def generate_place_maps(con) -> None:
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **should places_export.py read permits from TOML or store them in DuckDB?**
-   - What we know: permits data is already in TOML; the DuckDB table schema for places doesn't include permits; places.json must include permits for Eleventy
-   - What's unclear: whether there's a preference for one authoritative source
-   - Recommendation: Read permits directly from TOML in places_export.py (avoids JSON-in-DuckDB complexity and keeps TOML as single source of truth)
+   - RESOLVED: Read permits directly from TOML in places_export.py — keeps TOML as single source of truth, avoids JSON-in-DuckDB complexity. Plan 02 implements this.
 
 2. **Import helpers from species_maps.py vs. duplicate them?**
-   - What we know: `species_maps.py` contains all needed SVG helpers as private functions
-   - What's unclear: whether places_maps.py should import from species_maps (tight coupling) or duplicate
-   - Recommendation: Import from species_maps for now; if divergence happens later, split into map_utils.py
+   - RESOLVED: Import from species_maps.py directly (`_load_county_geojsons`, `_build_county_backdrop`, `_write_species_svg`). If divergence happens later, split into map_utils.py. Plan 03 implements this.
 
 3. **Should places.geojson use compact JSON (no spaces) or pretty-printed?**
-   - What we know: `emit_feature_collection` uses compact JSON; `species.json` uses `indent=2`; `counties.geojson` and `ecoregions.geojson` are compact
-   - Recommendation: Match counties.geojson format — compact JSON (`separators=(',', ':')`) for places.geojson, since it's a Mapbox source
+   - RESOLVED: Compact JSON (`separators=(',', ':')`) for places.geojson (matches counties.geojson, is a Mapbox source); `indent=2` for places.json (readable by Eleventy templates). Plan 02 implements this.
 
 ---
 
