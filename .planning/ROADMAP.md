@@ -494,11 +494,22 @@ Plans:
 **Depends on**: Phase 100.1
 **Requirements**: TS-01, TS-02, TS-03
 **Success Criteria** (what must be TRUE):
+
   1. `grep -r '"ecdysis:"' src/` returns only `src/occurrence.ts`; no other file constructs the prefixed ID inline
   2. `grep -r '"inat:"' src/` returns only `src/occurrence.ts`
   3. `isSpecimenBacked`, `isSampleOnly`, and `isProvisional` are named exports of `src/occurrence.ts`; no inline discriminant condition for occurrence type exists in any other file
   4. All existing Vitest tests continue to pass; new unit tests cover `occIdFromRow`, `parseOccId`, and the three predicates
-**Plans**: TBD
+
+**Plans**: 2 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 101-01-PLAN.md — Create src/occurrence.ts (six named exports) + Vitest unit tests in src/tests/occurrence.test.ts
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 101-02-PLAN.md — Migrate six caller files (bee-atlas, bee-table, features, filter, bee-occurrence-detail, bee-map) to import from occurrence.ts; phase grep-gate verification
 
 ### Phase 102: Python Slug Module & Dead Constant
 
@@ -506,10 +517,12 @@ Plans:
 **Depends on**: Phase 100.1
 **Requirements**: PY-01, PY-02
 **Success Criteria** (what must be TRUE):
+
   1. `data/domain.py` exports `slugify(text: str) -> str`; `feeds.py`'s `_slugify` private function is absent from the file
   2. `feeds.py` and `species_export.py` both import `slugify` from `data/domain.py` (or `domain`)
   3. `BEE_FAMILIES` does not appear in `species_export.py`; `int_species_universe.sql` contains a comment naming it as the sole gate for bee family filtering
   4. `uv run pytest data/tests/` passes; new pytest tests confirm slug output byte-equivalence with the prior implementation
+
 **Plans**: TBD
 
 ### Phase 103: dbt iNat Field ID Constants & Plantae Macro
@@ -518,9 +531,11 @@ Plans:
 **Depends on**: Phase 100.1
 **Requirements**: DBT-01, DBT-02
 **Success Criteria** (what must be TRUE):
+
   1. The integer literals `8338`, `9963`, `18116`, `1718` do not appear as anonymous SQL JOIN conditions in any intermediate model — each is referenced via its named macro
   2. A single `is_plant_taxon` macro exists; the `CASE WHEN taxon__iconic_taxon_name = 'Plantae'` expression does not appear in more than one `.sql` file
   3. `bash data/dbt/run.sh build` exits 0 with all tests PASS after every SQL change
+
 **Plans**: TBD
 
 ### Phase 104: Semantic Reconciliation
@@ -529,9 +544,11 @@ Plans:
 **Depends on**: Phases 101, 102, 103
 **Requirements**: SEM-01
 **Success Criteria** (what must be TRUE):
+
   1. A single documented definition of "confirmed (non-provisional) specimen" is in a code comment citing which layer is authoritative
   2. `places_export.py` specimen count and the dbt/TypeScript equivalent use the same predicate (or the divergence is explicitly logged as a known TODO with a reason)
   3. A pytest or Vitest test asserts the chosen predicate against a fixture containing known provisional and non-provisional rows
+
 **Plans**: TBD
 
 ## Progress
