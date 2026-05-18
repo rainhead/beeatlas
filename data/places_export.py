@@ -69,15 +69,15 @@ def _write_places_geojson(con: duckdb.DuckDBPyConnection, out_path: Path) -> Non
     pattern — compact output suitable for a Mapbox source with promoteId: 'slug'.
     """
     rows = con.execute(
-        "SELECT slug, ST_AsGeoJSON(geom) FROM geographies.places ORDER BY slug"
+        "SELECT slug, name, ST_AsGeoJSON(geom) FROM geographies.places ORDER BY slug"
     ).fetchall()
     features = [
         {
             "type": "Feature",
-            "properties": {"slug": slug},
+            "properties": {"slug": slug, "name": name},
             "geometry": json.loads(geom_json),
         }
-        for slug, geom_json in rows
+        for slug, name, geom_json in rows
     ]
     fc = {"type": "FeatureCollection", "features": features}
     out_path.write_text(json.dumps(fc, separators=(",", ":")), encoding="utf-8")

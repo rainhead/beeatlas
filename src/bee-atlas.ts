@@ -668,6 +668,19 @@ bee-filter-panel {
       }
     }
 
+    const newFilter = this._filterState;
+    const hasSelection = isCounty
+      ? newFilter.selectedCounties.size > 0
+      : newFilter.selectedEcoregions.size > 0;
+    if (hasSelection) {
+      this._openSidebarForFilter(newFilter);
+    } else {
+      this._selectedOccurrences = null;
+      this._selectedOccIds = null;
+      this._selectedCluster = null;
+      this._selectionBounds = null;
+      this._sidebarOpen = false;
+    }
     this._runFilterQuery().then(() => {
       this._pushUrlState();
     });
@@ -683,17 +696,32 @@ bee-filter-panel {
       ...this._filterState,
       selectedPlace: wasSelected ? null : slug,
     };
-    // Clear any open selection sidebar state
-    this._selectedOccurrences = null;
-    this._selectedOccIds = null;
-    this._selectedCluster = null;
-    this._selectionBounds = null;
-    this._sidebarOpen = false;
     this._tablePage = 1;
+    if (!wasSelected) {
+      this._openSidebarForFilter(this._filterState);
+    } else {
+      this._selectedOccurrences = null;
+      this._selectedOccIds = null;
+      this._selectedCluster = null;
+      this._selectionBounds = null;
+      this._sidebarOpen = false;
+    }
     this._runFilterQuery().then(() => {
       this._pushUrlState();
     });
     this._runTableQuery();
+  }
+
+  private async _openSidebarForFilter(filterState: FilterState): Promise<void> {
+    import('./bee-sidebar.ts');
+    this._selectedOccurrences = null;
+    this._selectedOccIds = null;
+    this._selectedCluster = null;
+    this._selectionBounds = null;
+    this._sidebarOpen = true;
+    const rows = await queryAllFiltered(filterState, this._tableSortBy);
+    if (this._filterState !== filterState) return;
+    this._selectedOccurrences = rows as unknown as OccurrenceRow[];
   }
 
   private async _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
