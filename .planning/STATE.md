@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Places
-status: Phase 100.1 pending (audit gap closure)
-last_updated: "2026-05-18T15:55:08.952Z"
-last_activity: 2026-05-18 -- Phase 100.1 planning complete
+status: Phase 100.1 complete
+last_updated: "2026-05-18T16:02:48.273Z"
+last_activity: 2026-05-18 -- Phase 100.1 marked complete
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
-  percent: 40
+  completed_plans: 11
+  percent: 50
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-17 — v3.7 Places milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 100.1 — close-v3-7-gaps (INSERTED)
+**Current focus:** Phase 100.1 — close-v3-7-gaps-nightly-sh-place-maps-upload-onboundarymodec
 
 ## Current Position
 
-Phase: 100.1 (close-v3-7-gaps) — NOT STARTED (audit insertion)
-Plan: 0 of ?
+Phase: 100.1 — COMPLETE
+Plan: 1 of 1
 Next: Phase 100.1 — plan and execute gap closure
-Last activity: 2026-05-18 -- Phase 100.1 planning complete
+Last activity: 2026-05-18 -- Phase 100.1 marked complete
 
 ```
 Progress: Phase 97 of 100 complete
