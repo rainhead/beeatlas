@@ -351,7 +351,7 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Add a curated directory of collecting locations with permit status, land owner info, specimen counts, and full map integration.
 
-- [ ] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation (2 plans)
+- [x] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation (2 plans) (completed 2026-05-18)
 - [ ] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit
 - [ ] **Phase 99: Place Static Pages** — Eleventy index and per-place pages
 - [ ] **Phase 100: Map & Filter Integration** — boundary toggle, filter chip, URL param
@@ -464,7 +464,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 097-01-PLAN.md — Create content/places.toml seed entries and data/places_validation.py validation module
-- [ ] 097-02-PLAN.md — Wire validation step into run.py STEPS and write pytest tests
+- [x] 097-02-PLAN.md — Wire validation step into run.py STEPS and write pytest tests
 
 ### Phase 98: Pipeline Integration
 **Goal**: occurrences.parquet carries a place_slug column from a spatial join; places.geojson and places.json are exported and committed so CI builds succeed without running the pipeline
@@ -604,7 +604,7 @@ Plans:
 | 94. Species & Genus Pages | v3.6 | 3/3 | Complete    | 2026-05-16 |
 | 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 96. Index Page Replacement | v3.6 | 3/3 | Complete    | 2026-05-16 |
-| 97. Place Data Model | v3.7 | 1/2 | In Progress|  |
+| 97. Place Data Model | v3.7 | 2/2 | Complete   | 2026-05-18 |
 | 98. Pipeline Integration | v3.7 | 0/TBD | Not started | - |
 | 99. Place Static Pages | v3.7 | 0/TBD | Not started | - |
 | 100. Map & Filter Integration | v3.7 | 0/TBD | Not started | - |
