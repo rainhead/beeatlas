@@ -1,0 +1,35 @@
+# places.toml — WA Bee Atlas named collecting locations
+#
+# Schema rules:
+#   slug       Immutable after first publish. Use [a-z0-9-] only (no underscores,
+#              no uppercase). Changing a slug after publication breaks deep links.
+#   geometry_wkt
+#              WGS84 (EPSG:4326) WKT polygon. Coordinates must be (longitude latitude).
+#              Validate visually at https://geojson.io before committing.
+#   permits[].type
+#              "project-level" — a single permit covers all collections at this site
+#              regardless of individual outing.
+#              "site-level" — a permit specific to a named site (may need renewal
+#              per-visit with some agencies).
+
+[[places]]
+slug        = "rattlesnake-ledge"
+name        = "Rattlesnake Ledge Recreation Area"
+land_owner  = "Washington Department of Natural Resources"
+geometry_wkt = """
+POLYGON((-121.78 47.43, -121.76 47.43, -121.76 47.44, -121.78 47.44, -121.78 47.43))
+"""
+permits = [
+  { issuing_authority = "Washington Department of Natural Resources", type = "project-level" },
+]
+
+[[places]]
+slug        = "tiger-mountain"
+name        = "Tiger Mountain State Forest"
+land_owner  = "Washington Department of Natural Resources"
+geometry_wkt = """
+POLYGON((-121.95 47.41, -121.93 47.41, -121.93 47.43, -121.95 47.43, -121.95 47.41))
+"""
+permits = [
+  { issuing_authority = "Washington Department of Natural Resources", permit_number = "DNR-TM-2025-001", expiry_date = "2025-12-31", type = "site-level" },
+]
