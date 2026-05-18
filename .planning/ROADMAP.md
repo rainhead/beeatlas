@@ -477,7 +477,11 @@ Plans:
   4. `public/data/places.json` is produced containing all metadata (name, land_owner, permits, specimen count, sample count) with no geometry
   5. Per-place SVG occurrence maps are generated following the species_maps.py pattern (WA county backdrop, occurrence dots, byte-stable output)
   6. places.geojson and places.json are committed to git; `npm run build` succeeds in CI without running the pipeline
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 098-01-PLAN.md — Load places.toml into geographies.places + dbt 31-col contract with place_slug
+- [ ] 098-02-PLAN.md — Export places.geojson + places.json and commit (PPIPE-04, PPIPE-05)
+- [ ] 098-03-PLAN.md — Per-place SVG occurrence maps (PPAGE-03)
 **UI hint**: yes
 
 ### Phase 99: Place Static Pages
@@ -605,6 +609,6 @@ Plans:
 | 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 96. Index Page Replacement | v3.6 | 3/3 | Complete    | 2026-05-16 |
 | 97. Place Data Model | v3.7 | 2/2 | Complete   | 2026-05-18 |
-| 98. Pipeline Integration | v3.7 | 0/TBD | Not started | - |
+| 98. Pipeline Integration | v3.7 | 0/3 | Planning | - |
 | 99. Place Static Pages | v3.7 | 0/TBD | Not started | - |
 | 100. Map & Filter Integration | v3.7 | 0/TBD | Not started | - |
