@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v3.8
 milestone_name: Conceptual Tidying
 status: planning
-last_updated: "2026-05-18T22:58:58.812Z"
+last_updated: "2026-05-18"
 last_activity: 2026-05-18
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone — run `/gsd-new-milestone` to define v3.8
+**Current focus:** v3.8 Conceptual Tidying — Phase 101 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-18 — Milestone v3.8 started
+Phase: 101 of 104 (TypeScript Occurrence Domain Module)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-05-18 — Roadmap created for v3.8
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
@@ -35,11 +37,16 @@ Last activity: 2026-05-18 — Milestone v3.8 started
 
 (decisions log cleared at v3.7 close — full history in .planning/PROJECT.md Key Decisions table)
 
-### Key Architecture Notes for next milestone
+### Key Guardrails for v3.8
 
-(cleared at v3.7 close — decisions logged in .planning/PROJECT.md Key Decisions table)
+- `dbt build` required after ANY `.sql` change under `data/dbt/` — pytest does not run dbt
+- Scope creep: any noticed behavior gap gets a TODO comment, not a fix in the same commit
+- `OccurrenceRow` (in `filter.ts`) is the authoritative TypeScript type; `occurrence.ts` re-exports it, not redefines it
+- Phase 104 (SEM-01) should run after 101-103: all call sites are visible once named predicates exist
 
 ### Pending Todos
+
+None for v3.8.
 
 ### Blockers/Concerns
 
@@ -105,3 +112,9 @@ Known deferred items at close: 5
 | tech_debt | W-03: run.py module docstring stale | omits places-load, places-export, places-maps, topology-postprocess |
 | nyquist_gap | phases 97, 98, 100 VALIDATION.md missing/incomplete | run /gsd-validate-phase retroactively |
 | nyquist_gap | Phase 98 Wave 0 RED tests never written | Nyquist protocol bypassed |
+
+## Session Continuity
+
+Last session: 2026-05-18
+Stopped at: Roadmap created for v3.8 — 4 phases (101-104), 8 requirements mapped
+Resume file: None

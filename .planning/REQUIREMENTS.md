@@ -43,9 +43,13 @@ Centralize scattered domain intelligence (definitions, predicates, field-mapping
 
 ## Traceability
 
-| Req | Phase |
-|-----|-------|
-| TS-01, TS-02, TS-03 | TBD |
-| PY-01, PY-02 | TBD |
-| DBT-01, DBT-02 | TBD |
-| SEM-01 | TBD |
+| Req | Phase | Status |
+|-----|-------|--------|
+| TS-01 | Phase 101 | Pending |
+| TS-02 | Phase 101 | Pending |
+| TS-03 | Phase 101 | Pending |
+| PY-01 | Phase 102 | Pending |
+| PY-02 | Phase 102 | Pending |
+| DBT-01 | Phase 103 | Pending |
+| DBT-02 | Phase 103 | Pending |
+| SEM-01 | Phase 104 | Pending |
