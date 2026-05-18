@@ -460,8 +460,54 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(methodBody).toContain('this._selectionBounds = null');
   });
 
-  test('SEL-07: _selectionBounds cleared in ids, cluster, else (popstate), occurrenceClick, and zero-result draw — exactly 9 total null clears', () => {
+  test('SEL-07: _selectionBounds cleared in ids, cluster, else (popstate), occurrenceClick, zero-result draw, and place selection — exactly 10 total null clears', () => {
     const allClears = (src.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
-    expect(allClears).toBe(9);
+    expect(allClears).toBe(10);
+  });
+});
+
+describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts declares _onPlaceSelected method', () => {
+    expect(src).toMatch(/private _onPlaceSelected\b/);
+  });
+
+  test('bee-atlas.ts template wires @place-selected on bee-map', () => {
+    expect(src).toMatch(/@place-selected=\$\{this\._onPlaceSelected\}/);
+  });
+
+  test('_onPlaceSelected reads e.detail.slug and sets _filterState.selectedPlace', () => {
+    const methodStart = src.indexOf('private _onPlaceSelected(');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('e.detail');
+    expect(methodBody).toContain('slug');
+    expect(methodBody).toContain('selectedPlace');
+    expect(methodBody).toContain('_runFilterQuery');
+    expect(methodBody).toContain('_pushUrlState');
+  });
+
+  test('_onPlaceSelected implements toggle-off (wasSelected branch)', () => {
+    const methodStart = src.indexOf('private _onPlaceSelected(');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    // Must have a toggle check: wasSelected pattern
+    expect(methodBody).toMatch(/wasSelected|=== slug|selectedPlace.*null/);
+    expect(methodBody).toContain('null');
+  });
+
+  test('bee-atlas.ts _onBoundaryModeChanged parameter type includes places', () => {
+    expect(src).toMatch(/_onBoundaryModeChanged\(e:\s*CustomEvent<'off'\s*\|\s*'counties'\s*\|\s*'ecoregions'\s*\|\s*'places'>/);
+  });
+
+  test('_onFilterChanged passes selectedPlace through from FilterChangedEvent', () => {
+    const methodStart = src.indexOf('private _onFilterChanged(');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('selectedPlace');
   });
 });
