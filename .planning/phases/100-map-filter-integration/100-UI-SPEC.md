@@ -44,7 +44,6 @@ All values match the established 8-point scale already in use across bee-map.ts 
 
 Exceptions:
 - Boundary mode menu buttons: 8px vertical × 12px horizontal padding (0.5rem × 0.75rem) — matches existing `.region-menu button` pattern
-- Filter button: 6.4px vertical × 9.6px horizontal padding (0.4rem × 0.6rem) — matches existing `.region-btn` pattern
 - Touch targets: minimum 36×36px for icon buttons (established in bee-filter-toolbar.ts `.download-btn`)
 
 ---
