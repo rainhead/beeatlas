@@ -40,6 +40,7 @@ from topology_postprocess import main as clean_region_topology
 from places_validation import validate_places_step
 from places_load import load_places_step
 from places_export import export_places_step
+from places_maps import main as generate_place_maps_step
 
 _REFRESH_LINEAGE = "--refresh-lineage" in sys.argv
 
@@ -92,6 +93,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("species-export", export_species_parquet),
     ("species-maps", generate_species_maps),
     ("places-export", export_places_step),
+    ("places-maps", generate_place_maps_step),
     ("feeds", generate_feeds),
 ]
 
