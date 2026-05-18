@@ -27,7 +27,7 @@ export type SelectionState =
   | { type: 'bounds'; west: number; south: number; east: number; north: number };
 
 export interface UiState {
-  boundaryMode: 'off' | 'counties' | 'ecoregions';
+  boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
   viewMode: 'map' | 'table';
 }
 
@@ -77,6 +77,9 @@ export function buildParams(
   }
   if (filter.selectedEcoregions.size > 0) {
     params.set('ecor', [...filter.selectedEcoregions].sort().join(','));
+  }
+  if (filter.selectedPlace !== null) {
+    params.set('place', filter.selectedPlace);
   }
   if (filter.selectedCollectors.length > 0) {
     // Each entry encoded as "recordedBy:host_inat_login" (either part may be empty)
@@ -134,6 +137,8 @@ export function parseParams(search: string): Partial<AppState> {
     ecorRaw ? ecorRaw.split(',').map(s => s.trim()).filter(Boolean) : []
   );
 
+  const selectedPlace = p.get('place') ?? null;
+
   const collectorsRaw = p.get('collectors') ?? '';
   const selectedCollectors: CollectorEntry[] = collectorsRaw
     ? collectorsRaw.split('|').flatMap(part => {
@@ -150,7 +155,8 @@ export function parseParams(search: string): Partial<AppState> {
   // Include filter sub-object when any filter param is present
   const hasFilter = resolvedTaxonName !== null || yearFrom !== null || yearTo !== null
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
-    || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null;
+    || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null
+    || selectedPlace !== null;
   if (hasFilter) {
     result.filter = {
       taxonName: resolvedTaxonName,
@@ -163,6 +169,7 @@ export function parseParams(search: string): Partial<AppState> {
       selectedCollectors,
       elevMin,
       elevMax,
+      selectedPlace,
     };
   }
 
@@ -209,8 +216,11 @@ export function parseParams(search: string): Partial<AppState> {
 
   // UI state
   const bmRaw = p.get('bm') ?? '';
-  const boundaryMode: 'off' | 'counties' | 'ecoregions' =
-    (bmRaw === 'counties' || bmRaw === 'ecoregions') ? bmRaw : 'off';
+  // D-01/D-09: any non-empty place= forces boundaryMode='places', overriding bm=
+  const placeImplied = selectedPlace !== null && selectedPlace !== '';
+  const boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = placeImplied
+    ? 'places'
+    : (bmRaw === 'counties' || bmRaw === 'ecoregions' || bmRaw === 'places') ? bmRaw : 'off';
   const viewRaw = p.get('view') ?? '';
   const viewMode: 'map' | 'table' = viewRaw === 'table' ? 'table' : 'map';
   // Include UI when non-default values present
