@@ -34,3 +34,4 @@ sources:
       - name: us_counties
       - name: us_states
       - name: ecoregions
+      - name: places
