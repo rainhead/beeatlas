@@ -683,7 +683,7 @@ Plans:
 **Goal:** Close two gaps left open at the end of v3.7 — nightly.sh must upload place-maps to S3 and invalidate them in CloudFront, and `_onBoundaryModeChanged` must clear `_filterState.selectedPlace` when the user leaves places boundary mode.
 **Requirements**: GAP-100-01 (nightly.sh place-maps upload + CloudFront invalidation), GAP-100-02 (_onBoundaryModeChanged clears selectedPlace when leaving places mode)
 **Depends on:** Phase 100
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 100.1-01-PLAN.md — nightly.sh place-maps upload + _onBoundaryModeChanged selectedPlace clear
+- [x] 100.1-01-PLAN.md — nightly.sh place-maps upload + _onBoundaryModeChanged selectedPlace clear
