@@ -1008,7 +1008,18 @@ bee-filter-panel {
   }
 
   private _onBoundaryModeChanged(e: CustomEvent<'off' | 'counties' | 'ecoregions' | 'places'>) {
-    this._boundaryMode = e.detail;
-    this._pushUrlState();
+    const newMode = e.detail;
+    this._boundaryMode = newMode;
+    const leavingPlaces = newMode !== 'places' && this._filterState.selectedPlace !== null;
+    if (leavingPlaces) {
+      this._filterState = { ...this._filterState, selectedPlace: null };
+      this._tablePage = 1;
+      this._runFilterQuery().then(() => {
+        this._pushUrlState();
+      });
+      this._runTableQuery();
+    } else {
+      this._pushUrlState();
+    }
   }
 }
