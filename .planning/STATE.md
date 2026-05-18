@@ -1,65 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.7
-milestone_name: Places
-status: Phase 100.1 complete
-last_updated: "2026-05-18T16:02:48.273Z"
-last_activity: 2026-05-18 -- Phase 100.1 marked complete
+milestone: v3.8
+milestone_name: TBD
+status: v3.7 milestone complete — planning next milestone
+last_updated: "2026-05-18T00:00:00.000Z"
+last_activity: 2026-05-18 -- v3.7 Places milestone archived
 progress:
-  total_phases: 10
-  completed_phases: 5
-  total_plans: 11
-  completed_plans: 11
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-17 — v3.7 Places milestone started)
+See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 100.1 — close-v3-7-gaps-nightly-sh-place-maps-upload-onboundarymodec
+**Current focus:** Planning next milestone — run `/gsd-new-milestone` to define v3.8
 
 ## Current Position
 
-Phase: 100.1 — COMPLETE
-Plan: 1 of 1
-Next: Phase 100.1 — plan and execute gap closure
-Last activity: 2026-05-18 -- Phase 100.1 marked complete
+v3.7 Places milestone COMPLETE (2026-05-18)
 
-```
-Progress: Phase 97 of 100 complete
-```
+Next: Run `/gsd-new-milestone` to define v3.8 goals and requirements
 
 ## Accumulated Context
 
-### Roadmap Evolution
-
-- Phase 100.1 inserted after Phase 100: Close v3.7 gaps: nightly.sh place-maps upload + _onBoundaryModeChanged selectedPlace clear (URGENT)
-
 ### Decisions
 
-(decisions log cleared at v3.6 close — full history in .planning/PROJECT.md Key Decisions table)
+(decisions log cleared at v3.7 close — full history in .planning/PROJECT.md Key Decisions table)
 
-**97-01 (2026-05-18):**
+### Key Architecture Notes for next milestone
 
-- `land_owner` field name (not `owner`) per PLC-01 — avoids ambiguity between organizational and legal ownership
-- `LOAD spatial` only in places_validation.py (not `INSTALL spatial`) — spatial extension already installed in pipeline DuckDB environment; INSTALL is a one-time setup step inappropriate for nightly pipeline modules
-
-### Key Architecture Notes for v3.7
-
-- **Phase ordering is fixed:** PLC (TOML + validation) → PPIPE (pipeline + dbt + exports) → PPAGE + PMAP (can overlap but PMAP has no PPAGE dependency)
-- **No nearest-polygon fallback:** `place_slug IS NULL` is semantically correct — most occurrences are not at any named place. Do NOT copy the county nearest-polygon CTE.
-- **promoteId: 'slug'** for places GeoJSON source in Mapbox (not generateId: true) — stable feature IDs across source reloads
-- **Two export artifacts:** `places.geojson` (slim: slug + geometry, for Mapbox) and `places.json` (rich: all metadata + counts, no geometry, for Eleventy)
-- **dbt contract: 31 columns** — `place_slug` added atomically to `occurrences.sql` + `schema.yml` per project_schema_validation.md procedure
-- **CloudFront does not serve /foo/ → /foo/index.html** — Eleventy permalink config for place pages must produce direct-path URLs (e.g. `/places/slug.html` or `/places.html` for the index)
-- **Slug policy:** slug is a curated TOML field, never auto-generated; uniqueness + `[a-z0-9-]` regex + overlap (ST_Intersects) validation in run.py (Phase 97)
-- **SVG occurrence maps** generated at pipeline time following species_maps.py pattern (Phase 98, same phase as pipeline)
-- **places.geojson + places.json committed to git** so CI frontend-only builds succeed without running the pipeline (PPIPE-05)
-- **Geometry validation pitfall:** WA GIS portals default to State Plane CRS; `ST_Within` silently fails with wrong CRS. Pytest must assert `crs.to_epsg() == 4326` and `is_valid.all()`.
+(cleared at v3.7 close — decisions logged in .planning/PROJECT.md Key Decisions table)
 
 ### Pending Todos
 
@@ -115,3 +92,14 @@ Known deferred items at close: 26 (see below)
 | todo | cluster-selection-visual-feedback.md | medium |
 | todo | hash-versioned-parquet-urls.md | medium |
 | todo | nightly-run-failure-notification.md | medium |
+
+Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
+Known deferred items at close: 5
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification_gap | 98-VERIFICATION.md | missing — all code verified via SUMMARY + code inspection |
+| tech_debt | W-02: PLC-02 permit field validation not runtime-enforced | places_validation.py does not check issuing_authority/type |
+| tech_debt | W-03: run.py module docstring stale | omits places-load, places-export, places-maps, topology-postprocess |
+| nyquist_gap | phases 97, 98, 100 VALIDATION.md missing/incomplete | run /gsd-validate-phase retroactively |
+| nyquist_gap | Phase 98 Wave 0 RED tests never written | Nyquist protocol bypassed |
