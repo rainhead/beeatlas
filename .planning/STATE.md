@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Places
-status: Phase 100 complete
-last_updated: "2026-05-18T15:40:00.000Z"
-last_activity: 2026-05-18 -- Phase 100 execution complete
+status: Phase 100.1 pending (audit gap closure)
+last_updated: "2026-05-18T15:55:08.952Z"
+last_activity: 2026-05-18 -- Phase 100.1 planning complete
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 4
-  total_plans: 13
+  total_plans: 11
   completed_plans: 10
-  percent: 44
+  percent: 40
 ---
 
 # Project State
@@ -20,20 +20,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-17 — v3.7 Places milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 100 — map-filter-integration
+**Current focus:** Phase 100.1 — close-v3-7-gaps (INSERTED)
 
 ## Current Position
 
-Phase: 100 (map-filter-integration) — COMPLETE
-Plan: 3 of 3
-Next: Phase 98 (pipeline-integration) — not started
-Last activity: 2026-05-18 -- Phase 100 execution complete
+Phase: 100.1 (close-v3-7-gaps) — NOT STARTED (audit insertion)
+Plan: 0 of ?
+Next: Phase 100.1 — plan and execute gap closure
+Last activity: 2026-05-18 -- Phase 100.1 planning complete
 
 ```
 Progress: Phase 97 of 100 complete
 ```
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 100.1 inserted after Phase 100: Close v3.7 gaps: nightly.sh place-maps upload + _onBoundaryModeChanged selectedPlace clear (URGENT)
 
 ### Decisions
 
