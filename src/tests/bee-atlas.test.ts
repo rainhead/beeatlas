@@ -460,9 +460,9 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(methodBody).toContain('this._selectionBounds = null');
   });
 
-  test('SEL-07: _selectionBounds cleared in ids, cluster, else (popstate), occurrenceClick, zero-result draw, and place selection — exactly 10 total null clears', () => {
+  test('SEL-07: _selectionBounds cleared in ids, cluster, else (popstate), occurrenceClick, zero-result draw, place selection, and region sidebar open/close — exactly 12 total null clears', () => {
     const allClears = (src.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
-    expect(allClears).toBe(10);
+    expect(allClears).toBe(12);
   });
 });
 
