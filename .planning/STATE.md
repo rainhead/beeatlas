@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.7
 milestone_name: Places
-status: planning
-last_updated: "2026-05-18T03:29:50.302Z"
-last_activity: 2026-05-18 -- Phase 99 planning complete
+status: Phase 99 complete
+last_updated: "2026-05-18T05:35:58.455Z"
+last_activity: 2026-05-18 -- Phase 99 marked complete
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 5
-  percent: 22
+  completed_plans: 7
+  percent: 33
 ---
 
 # Project State
@@ -20,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-17 — v3.7 Places milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 98 — pipeline-integration
+**Current focus:** Phase 99 — place-static-pages
 
 ## Current Position
 
-Phase: 98 (pipeline-integration) — EXECUTING
-Plan: 1 of 3
+Phase: 99 — COMPLETE
+Plan: 1 of 2
 Next: Phase 98 (pipeline-integration) — not started
-Last activity: 2026-05-18 -- Phase 99 planning complete
+Last activity: 2026-05-18 -- Phase 99 marked complete
 
 ```
 Progress: Phase 97 of 100 complete
