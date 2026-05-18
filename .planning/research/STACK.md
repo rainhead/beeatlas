@@ -1,188 +1,118 @@
-# Stack Research
+# Technology Stack: v3.8 Conceptual Tidying
 
-**Domain:** Static bee atlas — v3.7 Places feature additions only
-**Researched:** 2026-05-17
-**Confidence:** HIGH — all five sub-problems map onto patterns already running in production in this codebase
-
----
-
-This file covers ONLY NEW stack additions for v3.7 Places. Existing decisions (TypeScript, Vite, Mapbox GL JS v3.22.0, Lit 3.2.1, wa-sqlite 1.0.0, Eleventy 3.1.5 + `@11ty/eleventy-plugin-vite` 7.1.1, Python 3.14+, uv, `dlt[duckdb]`, DuckDB 1.4 with spatial extension, dbt-duckdb 1.10.1, AWS CDK v2 + S3 + CloudFront) are LOCKED and not re-litigated here.
+**Project:** Washington Bee Atlas — Refactoring Milestone
+**Researched:** 2026-05-18
+**Mode:** Existing stack audit for predicate centralization refactoring
 
 ---
 
-## Summary Verdict: No New Libraries Needed
+## What This Milestone Needs From the Stack
 
-Every sub-problem in the Places feature maps to a pattern already running in production:
+v3.8 is a pure refactoring milestone — no new user-facing behavior, no new data sources. The question is not "what stack should we adopt?" but "what does the existing stack already provide that aids extraction of pure domain predicates, and is anything genuinely missing?"
 
-| Sub-problem | Existing pattern it reuses |
-|-------------|---------------------------|
-| Hand-curated GeoJSON source file in repo | `counties.geojson` / `ecoregions.geojson` committed to git |
-| Pipeline spatial join → `place_name` column | DuckDB `ST_Within` + fallback in `occurrences.sql` dbt mart |
-| Export `places.geojson` with per-place counts | dbt `emit_feature_collection` macro + `run.py` copy step |
-| Eleventy static place pages at `/places/{slug}/` | `_pages/species-detail.njk` pagination pattern; `_data/species.js` reader pattern |
-| Mapbox GL JS place boundary overlay + click | `addSource('counties')` + `addLayer` + `addInteraction('click-county')` pattern |
-| wa-sqlite `place_name` filter chip | `selectedCounties`/`buildFilterSQL` IN-clause pattern |
+The short answer: the existing stack is fully sufficient. No new dependencies are justified. The established patterns in `canonical_name.py`, `filter.test.ts`, and `arch.test.ts` are the templates for all v3.8 work.
 
 ---
 
-## Recommended Stack
+## Existing Stack Assessment
 
-### Core Additions (pipeline)
+### TypeScript / Vitest (Frontend Predicate Tests)
 
-None. DuckDB spatial extension is already installed and used for `ST_Within` county/ecoregion joins. The places spatial join is an additional CTE in the existing `occurrences.sql` mart, identical in structure to the county and ecoregion CTEs already there.
+**Confidence:** HIGH — direct codebase inspection.
 
-No new Python packages. `geopandas` is intentionally absent (removed v2.2 Phase 47 — OOM on maderas); the places spatial join happens in DuckDB SQL, not Python, exactly as county/ecoregion do.
+Vitest is already configured inline in `vite.config.ts` with `happy-dom` environment. The test suite is substantial: 47+ test files under `src/tests/`. Key patterns already established:
 
-### Core Additions (Eleventy build)
+- `filter.test.ts` — pure function tests for `buildFilterSQL`, `isFilterActive`, `buildCsvFilename`. Uses an `emptyFilter()` factory and spread for variants. No DOM, no mocking except `sqlite.ts`.
+- `url-state.test.ts` — round-trip tests for `buildParams`/`parseParams`.
+- `arch.test.ts` — file-system source analysis using `readFileSync` to enforce import boundary invariants without loading the modules.
 
-| Addition | What it is | Existing pattern |
-|----------|-----------|-----------------|
-| `_data/places.js` | Node module that reads `public/data/places.json` (emitted by pipeline) and returns structured place list | Mirrors `_data/species.js` reading `public/data/species.json` |
-| `_pages/place-detail.njk` | Eleventy pagination template; one page per place at `/places/{slug}/` | Mirrors `_pages/species-detail.njk` with `pagination: data: places.placeList size: 1` |
-| `_pages/places.njk` | Index page listing all places | Mirrors `_pages/species.njk` index |
+Vitest is the right tool for testing extracted predicate functions. Pure predicate functions (e.g., `occurrenceId(row)`, `isSpecimen(row)`, `isSample(row)`) require zero additional setup — no mock, no fixture, no DOM. The `emptyFilter()` helper pattern from `filter.test.ts` is the correct model for any new domain object factory needed in tests.
 
-No new npm packages. Eleventy's `_data/*.js` JS data files and pagination are stable documented features already exercised by the species pages.
+**What is NOT needed:** No new test runner, no additional assertion library, no snapshot testing framework. Vitest's `expect().toBe()` and `expect().toContain()` are sufficient for all predicate tests.
 
-### Core Additions (frontend)
+### Python / pytest (Pipeline Predicate Tests)
 
-| Addition | What it is | Existing pattern |
-|----------|-----------|-----------------|
-| `place_name` column in `occurrences` wa-sqlite table | New `VARCHAR` column, null for occurrences outside any place | Mirrors `county`, `ecoregion_l3` columns |
-| `selectedPlaces: Set<string>` in `FilterState` | New filter dimension in `filter.ts` | Mirrors `selectedCounties: Set<string>` |
-| `place_name IN (...)` clause in `buildFilterSQL` | New SQL clause in the `occurrenceClauses` array | Identical to county IN clause (lines 234–237 of `filter.ts`) |
-| `places` Mapbox GL JS source + fill/line layers | `addSource('places', { type: 'geojson', data: ..., generateId: true })` | Mirrors `counties` and `ecoregions` sources |
-| `click-place` Mapbox GL JS interaction | `addInteraction('click-place', { type: 'click', target: { layerId: 'place-fill' }, handler: ... })` | Mirrors `click-county` interaction |
-| Place filter chip in `<bee-filter-controls>` | Removable chip for selected place | Mirrors county/ecoregion chips |
+**Confidence:** HIGH — direct codebase inspection.
 
-No new npm packages.
+pytest is already in `[dependency-groups] dev` in `pyproject.toml`. The session-scoped `fixture_db` / `fixture_con` DuckDB fixtures in `conftest.py` are the right foundation for integration tests. `test_transforms.py` and `test_canonical_name.py` show the established pattern for pure-function unit tests: no fixture, no DB, just `import` and `assert`.
 
----
+`canonical_name.py` is the exemplar of what v3.8 wants to produce everywhere: a single-purpose module with a named algorithm, a docstring that states invariants, locked constants with explicit "DO NOT change without amending CONTEXT.md" guards, and a dedicated `tests/test_canonical_name.py` with per-step coverage plus an idempotence test. Every Python predicate extracted in v3.8 should match this structure.
 
-## Integration Points
+**What is NOT needed:** No additional pytest plugins. `monkeypatch` (used in `conftest.py` for rate-limiting constants) is built into pytest and is the right tool for any import-time module constant that needs patching in tests.
 
-### Pipeline changes
+### dbt-duckdb (SQL Predicate Organization)
 
-1. **Source file**: `data/places.geojson` — hand-curated GeoJSON FeatureCollection committed to the repo. Properties per feature: `name` (string), `slug` (string, URL-safe), `land_owner` (string), `permits` (array of `{ type, status, expires }` objects). Geometry: polygon or multipolygon in EPSG:4326.
+**Confidence:** HIGH — direct codebase inspection.
 
-2. **DuckDB load step**: A new `load_places()` function (analogous to `load_geographies()`) reads `data/places.geojson` into `geographies.places` table using DuckDB's `ST_Read` or `read_json` + `ST_GeomFromGeoJSON`. Because places are a small, hand-curated file (expected <100 polygons), this runs fast and can be included in the nightly `run.py` STEPS — unlike the heavy geography downloads, no HTTP download or caching is needed.
+dbt provides the contract enforcement mechanism (`schema.yml` with `contract: enforced: true`), already used for the 31-column `occurrences` mart and the `species` mart. The contract is enforced at every `bash data/dbt/run.sh build`.
 
-3. **dbt staging model**: `stg_geo__places.sql` — selects `slug`, `name`, `land_owner`, `geom` from `geographies.places`. Mirrors `stg_geo__us_counties.sql`.
+dbt `tests:` blocks in `schema.yml` can express lightweight SQL-layer predicates (existing examples: `not_null_int_combined_is_provisional`, `unique_stg_inat__observations_id`). For v3.8, the natural approach for SQL invariants is a dbt singular test — a `.sql` file under `data/dbt/tests/` that asserts the condition holds across the model. The existing `test_ecdysis_id_references_source.sql` and `test_lin05_lineage_coverage.sql` show the pattern.
 
-4. **dbt mart**: `occurrences.sql` gains a `with_place` CTE and `place_name` column using the same ST_Within + ST_Distance fallback pattern. Because places are named parks/reserves that cover only a fraction of WA, the fallback (nearest-polygon) should NOT apply — occurrences outside all place polygons should be NULL (not forced to the nearest place). The county/ecoregion fallback exists because every point in WA is in a county; places are opt-in. The CTE uses LEFT JOIN and no fallback.
+**One lightweight addition worth considering:** The OFV field IDs that define what counts as a "specimen count" (`8338`), a "sample ID" (`9963`), a "WABA catalog link" (`18116`), and a "host observation URL" (`1718`) are magic numbers appearing only as SQL literals and SQL comments. dbt supports `vars:` in `dbt_project.yml` for named constants (`{{ var('ofv_specimen_count_field_id') }}`). This makes the intent named and single-sourced. It is a one-line-per-constant YAML addition, no dependency change.
 
-5. **dbt mart schema.yml**: `place_name` column added to the `occurrences` model contract (`data_type: varchar`). This is the dbt 30-column contract enforcement point — adding the column is a deliberate schema migration.
+**What is NOT needed:** No new dbt packages. No dbt macros for predicate centralization — the existing `emit_feature_collection.sql` macro shows the pattern is available, but named CTEs and staging models are the better expression of domain predicates in SQL.
 
-6. **dbt mart**: `places_geo.sql` — new mart analogous to `counties_geo.sql`, emits `public/data/places.geojson` with per-place occurrence counts as a feature property. Uses the existing `emit_feature_collection` macro.
+### Lit / LitElement (Frontend Component Boundaries)
 
-7. **`public/data/places.json`**: A separate JSON export (simpler than GeoJSON for the Eleventy data cascade) containing the curated metadata (name, slug, land_owner, permits, occurrence_count) for each place. Written by a new `place_export.py` step or directly from a dbt model with a post-hook. Places.geojson is used by Mapbox; places.json is used by Eleventy.
+**Confidence:** HIGH.
 
-8. **`run.py` STEPS**: Add a `("places", load_places)` step before `dbt-build`, and copy `places.geojson` from the dbt sandbox in `_run_dbt_build()` alongside `counties.geojson` and `ecoregions.geojson`.
-
-### Mapbox GL JS changes (`bee-map.ts`)
-
-The existing pattern is the spec:
-
-```
-addSource('places', { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, generateId: true })
-addLayer({ id: 'place-fill', type: 'fill', source: 'places', ... })  // fill-color: transparent + feature-state selected highlight
-addLayer({ id: 'place-line', type: 'line', source: 'places', ... })  // stroke, line-join: round
-addInteraction('click-place', { type: 'click', target: { layerId: 'place-fill' }, handler: _handleRegionClick(e, 'slug') })
-```
-
-The boundary toggle menu (currently Off / Counties / Ecoregions) gains a "Places" option. Places visibility follows `boundaryMode` extended to `'off' | 'counties' | 'ecoregions' | 'places'`.
-
-Alternatively — since places are a curated overlay (not a region-type selector like counties/ecoregions) — places could be a separate always-on toggle independent of the existing boundary mode. This is a design decision for the plan phase, not a stack question. Either way the Mapbox GL JS mechanics are identical.
-
-### Filter model changes (`filter.ts`)
-
-```typescript
-// FilterState gains:
-selectedPlaces: Set<string>;
-
-// buildFilterSQL gains:
-if (f.selectedPlaces.size > 0) {
-  const places = [...f.selectedPlaces].map(p => `'${p.replace(/'/g, "''")}'`).join(',');
-  occurrenceClauses.push(`place_name IN (${places})`);
-}
-
-// isFilterActive gains:
-|| f.selectedPlaces.size > 0
-```
-
-### URL state changes (`url-state.ts`)
-
-A new `place=` query param (analogous to `counties=`, `ecor=`) encodes selected places as a comma-separated slug list.
-
-### Eleventy data cascade (`_data/places.js`)
-
-```javascript
-import { readFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const here = dirname(fileURLToPath(import.meta.url));
-const placesJsonPath = join(here, '..', 'public', 'data', 'places.json');
-const raw = JSON.parse(readFileSync(placesJsonPath, 'utf8'));
-
-export default {
-  placeList: raw,                                  // array for pagination
-  bySlug: Object.fromEntries(raw.map(p => [p.slug, p])),
-};
-```
-
-### Eleventy page template (`_pages/place-detail.njk`)
-
-```yaml
----
-pagination:
-  data: places.placeList
-  size: 1
-  alias: place
-permalink: "/places/{{ place.slug }}/"
-eleventyComputed:
-  title: "{{ place.name }} — BeeAtlas"
-layout: default.njk
----
-```
-
-The page body follows the species-detail pattern: name, land owner, permit table (static HTML from template data), occurrence count, deep-link to the map with `?place={{ place.slug }}&bm=places` params.
+Lit's `@property` and `@state` decorators already enforce the component boundary pattern from v1.9. The `arch.test.ts` import-boundary tests are directly reusable for v3.8: if new domain modules are created (e.g., `src/occurrence.ts`), an additional `describe` block in `arch.test.ts` can verify they contain no imports from `mapbox-gl`, `wa-sqlite`, or component files — keeping them independently testable.
 
 ---
 
-## What NOT to Use
+## No New Dependencies
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `geopandas` for the places spatial join | Removed in v2.2 Phase 47 for OOM reasons. DuckDB spatial extension handles ST_Within for small polygon sets with zero memory risk. | DuckDB `ST_Within` in the dbt mart, same as county/ecoregion |
-| Python `shapely` for spatial join | Unnecessary — DuckDB spatial extension already does ST_Within in SQL; Python only sees the result. | DuckDB SQL |
-| DuckDB-WASM re-introduced | Removed in v2.6; rejected for page weight. wa-sqlite handles the `place_name IN (...)` filter query identically to county. | wa-sqlite (existing) |
-| New Eleventy plugin for place pages | Pagination is a built-in Eleventy feature, already exercised for 672 species/genus/etc. pages. No plugin needed. | Eleventy built-in `pagination` |
-| Client-side polygon intersection to determine if an occurrence is in a place | Adds JS geometry library; incorrect anyway (polygon containment must be computed at pipeline time for correctness and performance). | `place_name` column in `occurrences.parquet` set at pipeline time |
-| A separate "places" parquet file loaded client-side | The frontend needs the place name as a filter string, not the geometry. `place_name` column in the existing `occurrences` table covers this completely. | `place_name` column in `occurrences` (wa-sqlite virtual table already loaded) |
+Every v3.8 task maps to an already-established pattern:
+
+| Task | Tool | Pattern to Follow |
+|------|------|-------------------|
+| Extract `occurrenceId(row)` / `parseOccId(id)` to named TS function | TypeScript module | `src/occurrence.ts`; tested like `filter.test.ts` pure functions |
+| Extract `isSpecimen(row)` / `isSample(row)` discriminators | TypeScript module | Same; `ecdysis_id != null` is the current inline test |
+| Centralize OFV field IDs as named Python constants | New `data/domain.py` | Mirrors `data/config.py`; tested with trivial value-locking assertions |
+| Name OFV field IDs in dbt SQL | dbt `vars:` in `dbt_project.yml` | `{{ var('ofv_specimen_count') }}` replacing integer literals |
+| Enforce new module boundaries | Vitest + `readFileSync` | Extend or mirror `arch.test.ts` ARCH-04 block |
+| Lock domain invariants in SQL | dbt singular tests | Mirrors `test_ecdysis_id_references_source.sql` |
 
 ---
 
-## Alternatives Considered
+## Scattered Domain Logic That v3.8 Should Centralize
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| Commit `data/places.geojson` to repo as source of truth | Load from an external API (iNaturalist places, OpenStreetMap, etc.) | If places were discovered programmatically at scale. Curated collecting locations with permit metadata are hand-maintained — repo is the right home. |
-| DuckDB `ST_Within` spatial join at pipeline time | ST_Within query client-side in wa-sqlite | wa-sqlite does not have a spatial extension. Client-side geometry libraries would add tens of KB and introduce a new test surface. Rejected. |
-| `place_name` as a VARCHAR in occurrences | Store `place_id` integer FK | Slug string matches how county and ecoregion_l3 are stored; avoids a join in every filter query; consistent with existing pattern. |
-| LEFT JOIN with NULL for out-of-place occurrences | Nearest-polygon fallback (same as county/ecoregion) | County/ecoregion fallback exists because every point in WA must be in a county/ecoregion. A place is opt-in — occurrences outside all places should be NULL, not forced to the nearest park. |
-| Extend `boundaryMode` type to include `'places'` | Separate boolean toggle for places overlay | Either works mechanically. Design preference; recommend a separate toggle so users can show both a place boundary and a county grid simultaneously if useful. Flag for plan phase. |
+The following were found by direct codebase inspection and are the concrete targets:
+
+**TypeScript — `occId` construction (5 sites):**
+The expression `ecdysis_id != null ? 'ecdysis:' + ecdysis_id : 'inat:' + Number(observation_id)` appears identically in `features.ts:46-48`, `bee-atlas.ts:748`, `bee-atlas.ts:1006`, `bee-atlas.ts:1026`, and `bee-table.ts:40-41`. The parse inverse (`id.startsWith('ecdysis:')` / `id.slice(...)`) appears in at least three places in `bee-atlas.ts` (lines 473-477, 933-938). A named `occurrenceId(row: OccurrenceRow): string` and `parseOccId(id: string): { source: 'ecdysis' | 'inat'; numericId: number }` pair would be trivially testable with Vitest and would close this.
+
+**TypeScript — specimen vs. sample discrimination (4+ sites):**
+`ecdysis_id != null` (specimen check) and `ecdysis_id == null` (sample-only check) appear inline in `bee-occurrence-detail.ts:247-248`, `filter.ts:297`, `filter.ts:318-324`, and `features.ts:55`. These are unnamed predicates. Named `isSpecimen(row)` and `isSample(row)` functions in a domain module would be self-documenting and testable.
+
+**Python — OFV field IDs (4 magic numbers in SQL, 1 in `conftest.py`):**
+`8338` (specimen count), `9963` (sample ID), `18116` (WABA catalog number), `1718` (host observation URL) appear as literals in `int_samples_base.sql`, `int_waba_link.sql`, `int_combined.sql`, and in `conftest.py` seed data. A `data/domain.py` module with named constants and a `tests/test_domain.py` that asserts the values are locked would make these discoverable and intentionally guarded.
+
+**Python — `BEE_FAMILIES` tuple (1 site):**
+The tuple `('Andrenidae', 'Apidae', 'Colletidae', 'Halictidae', 'Megachilidae', 'Melittidae', 'Stenotritidae')` appears only in `species_export.py:51-54`. It is not imported anywhere else. If pipeline steps other than species export need to filter to bee families, this would be duplicated. Centralizing it to `data/domain.py` is low-risk and improves discoverability.
+
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Existing test tooling (Vitest, pytest) | HIGH | Both active; patterns established; inspected directly |
+| Refactoring fit for existing tools | HIGH | Pure function extraction is exactly what both tools are already exercised for |
+| dbt vars for SQL constants | MEDIUM | Standard dbt pattern; not currently used in this project; no risk, requires ~4 lines in `dbt_project.yml` |
+| No new dependencies needed | HIGH | Every required capability is already present |
 
 ---
 
 ## Sources
 
-- BeeAtlas codebase — `src/bee-map.ts` lines 396–405, 455–491, 692–724: existing `counties`/`ecoregions` source/layer/interaction pattern (HIGH confidence, direct read)
-- BeeAtlas codebase — `src/filter.ts` lines 234–241: existing county/ecoregion IN-clause pattern (HIGH confidence, direct read)
-- BeeAtlas codebase — `data/dbt/models/marts/occurrences.sql`: existing ST_Within CTE structure for county and ecoregion spatial joins (HIGH confidence, direct read)
-- BeeAtlas codebase — `data/dbt/models/marts/counties_geo.sql` + `emit_feature_collection` macro: existing GeoJSON export pattern from dbt (HIGH confidence, direct read)
-- BeeAtlas codebase — `_data/species.js` + `_pages/species-detail.njk`: existing Eleventy data-file + pagination pattern (HIGH confidence, direct read)
-- BeeAtlas codebase — `.planning/PROJECT.md` Key Decisions (geopandas removal, DuckDB-WASM rejection, wa-sqlite migration): locked decisions carried forward (HIGH confidence)
-
----
-*Stack research for: v3.7 Places feature additions only*
-*Researched: 2026-05-17*
+- Direct inspection: `/Users/rainhead/dev/beeatlas/data/pyproject.toml` (pytest in dev deps, Python 3.14+)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/vite.config.ts` (Vitest inline config, happy-dom)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/src/tests/filter.test.ts` (pure-function test pattern)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/src/tests/arch.test.ts` (import boundary test pattern)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/data/canonical_name.py` + `data/tests/test_canonical_name.py` (Python predicate module + test exemplar)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/data/tests/conftest.py` (OFV field ID hardcoding, fixture pattern)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_samples_base.sql`, `int_waba_link.sql`, `int_combined.sql` (magic OFV IDs in SQL)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/schema.yml` (dbt contract enforcement)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/src/filter.ts`, `features.ts`, `bee-atlas.ts`, `bee-table.ts` (scattered `occId` construction and `isSpecimen`/`isSample` predicates)
+- Direct inspection: `/Users/rainhead/dev/beeatlas/data/species_export.py:51-54` (BEE_FAMILIES tuple, single-site)

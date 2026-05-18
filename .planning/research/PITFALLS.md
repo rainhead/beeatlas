@@ -1,533 +1,646 @@
-# Pitfalls Research: Places / Collecting Location Directory (v3.7)
+# Pitfalls Research: v3.8 Conceptual Tidying — Domain Model Extraction
 
-**Domain:** Adding a curated Places feature to an existing static-hosted nightly-pipeline bee atlas — hand-curated GeoJSON/TOML, dbt spatial join, permit date handling, Eleventy static pages, Mapbox GL JS polygon layer.
-**Researched:** 2026-05-17
-**Confidence:** HIGH — pitfalls grounded in this specific codebase (dbt occurrences.sql spatial join pattern, topology_postprocess.py mapshaper pipeline, Mapbox GL JS `generateId` + feature-state pattern, Eleventy pagination, dbt 30-column contract on `marts/occurrences`).
+**Domain:** Pure structural refactoring — extracting domain predicates, entity constructors, and
+field-mapping logic into named modules across a three-language codebase (Python pipeline, dbt/SQL,
+TypeScript frontend). No new features.
+**Researched:** 2026-05-18
+**Confidence:** HIGH — all pitfalls grounded in the actual BeeAtlas codebase (files read directly:
+`src/filter.ts`, `src/features.ts`, `src/url-state.ts`, `src/style.ts`, `data/canonical_name.py`,
+`data/checklist_pipeline.py`, `data/dbt/models/marts/occurrences.sql`,
+`data/dbt/models/marts/schema.yml`, `data/dbt/models/intermediate/int_combined.sql`,
+`src/tests/arch.test.ts`, `PROJECT.md`, `CLAUDE.md`).
 
 ---
 
 ## Pitfall Summary Table
 
-| #  | Pitfall | Risk | Prevention Phase |
-|----|---------|------|-----------------|
-| 1  | Hand-curated place GeoJSON has invalid polygons, self-intersections, or overlapping geometries that corrupt the spatial join | CRITICAL | Data model + pipeline validation phase |
-| 2  | Many-to-one spatial join (occurrence in multiple places) produces duplicate rows, inflating per-place counts | CRITICAL | dbt spatial join phase |
-| 3  | Nearest-polygon fallback assigns occurrences outside all places to the closest place, giving wrong counts | HIGH | dbt spatial join phase |
-| 4  | `place_slug` column added to `occurrences.parquet` but not to dbt contract → build fails or schema silently expands | CRITICAL | dbt schema phase |
-| 5  | Slug stability broken: renaming a place or changing slug convention breaks existing URLs and S3 permalinks | CRITICAL | Data model phase |
-| 6  | Permit expiry dates checked at nightly-build time only; stale "active" status ships all day after a permit lapses | HIGH | Permit model phase |
-| 7  | Place GeoJSON committed to repo grows large (high-resolution park boundaries); bloats clone, CI, and CloudFront transfer | MEDIUM | Data model phase |
-| 8  | Mapbox GL JS `generateId` + feature-state pattern breaks when places source is reloaded or updated dynamically | HIGH | Map layer phase |
-| 9  | Places boundary layer z-order covers occurrence clusters; clicks on clusters silently intercepted by place layer | HIGH | Map layer phase |
-| 10 | 100-polygon places layer triggers per-feature `setFeatureState` loop on every filter change, causing jank | MEDIUM | Map layer phase |
-| 11 | Eleventy pagination for 100 place pages causes `_data/places.js` to re-run full JSON parse on every HMR reload | MEDIUM | Eleventy data phase |
-| 12 | "Ghost outside polygon" filter chip omits occurrences collected just outside the place boundary (GPS drift, boundary inaccuracy) | HIGH | Filter semantics phase |
-| 13 | Per-place occurrence counts in `places.geojson` go stale relative to `occurrences.parquet` when pipeline step order changes | HIGH | Pipeline ordering phase |
-| 14 | CRS mismatch: place polygons authored in a projected CRS (e.g., WA State Plane) and not reprojected before DuckDB `ST_Within` | CRITICAL | Geometry ingestion phase |
-| 15 | Place pages linked from the map but slug used in the link differs from the Eleventy-generated URL (deep-link contract breakage) | HIGH | URL contract phase |
+| # | Pitfall | Risk | Most Relevant Phase |
+|---|---------|------|---------------------|
+| 1 | Refactoring bleeds into feature work — "while I'm here" additions | CRITICAL | Every phase |
+| 2 | dbt 31-column contract broken by intermediate model restructuring | CRITICAL | SQL predicate phases |
+| 3 | Cross-language predicate drift — Python and TypeScript diverge after extraction | HIGH | Any phase touching shared predicates |
+| 4 | Filter regression from `buildFilterSQL` restructuring | HIGH | TypeScript filter phases |
+| 5 | Over-abstraction: shared utilities harder to understand than inline code | HIGH | Any module-split phase |
+| 6 | Test complexity increases instead of decreasing after extraction | MEDIUM | Any phase that touches tests |
+| 7 | URL state regression from `parseParams`/`buildParams` refactoring | HIGH | URL state phases |
+| 8 | Architecture boundary tests break when file locations change | MEDIUM | Any module reorganization phase |
+| 9 | `canonical_name` diverges between Python `canonicalize()` and SQL column | HIGH | Species/checklist phases |
+| 10 | `OccurrenceRow`/`OCCURRENCE_COLUMNS` out of sync with dbt mart columns | HIGH | Any TS ↔ SQL alignment phase |
+| 11 | Style cache bypass logic silently dropped during `recencyTier` extraction | MEDIUM | Style/recency phases |
+| 12 | `is_provisional` semantics assumed inline, broken when centralized | MEDIUM | ARM-1/ARM-2 boundary phases |
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Hand-curated place GeoJSON has invalid geometries that corrupt the spatial join
+### Pitfall 1: Refactoring bleeds into feature work — "while I'm here" additions
 
 **What goes wrong:**
-A curator draws a place boundary in QGIS or geojson.io and exports it. The polygon has:
-- A self-intersection (bowtie shape) — DuckDB's `ST_Within` returns unpredictable results for points near the intersection
-- Coordinates listed in clockwise order instead of counter-clockwise (wrong ring winding) — some implementations silently invert; others treat the polygon as its exterior complement
-- A tiny sliver gap between two adjacent place polygons (a park and a reserve with shared boundary) — points in the gap fall in neither place
+While extracting a domain predicate (e.g., "is this occurrence a specimen?"), the implementer
+notices a related gap — "we should also classify provisional occurrences differently" — and
+adds new behavior alongside the extraction. The refactoring commit now mixes structural change
+(safe, pure rename/move) with semantic change (new logic). Test failures become ambiguous:
+did the extraction break something, or did the new behavior change the output?
 
-DuckDB's spatial extension follows the OGC spec for `ST_Within`: it requires valid geometries. An invalid input polygon produces `NULL` or `false` for all points, silently producing zero occurrences for that place — a bug that looks like "no collections here."
+In this codebase the risk is acute because `filter.ts`, `features.ts`, `int_combined.sql`, and
+`checklist_pipeline.py` all contain business logic that has obvious gaps and missing cases.
+The temptation to close those gaps mid-refactoring is high.
 
-**Why it happens in this system:**
-- The existing pipeline handles `ecoregions.geojson` (EPA Level III) using `mapshaper -clean` to fix overlaps. That step is in `topology_postprocess.py` for the two generated GeoJSON files. A new `places.geojson` authored by hand bypasses that step by default.
-- The pipeline is additive: the `places.geojson` file would be a new input committed to the repo, not generated by dbt. Nothing currently validates committed GeoJSON geometry.
-- `ST_Within` failures are silent — they produce `NULL`, which downstream code treats as "not in any place," never raising an error.
+**Why it happens in this codebase:**
+- `filter.ts` `queryVisibleIds` produces IDs using `ecdysis:` and `inat:` prefixes inline.
+  These prefix-construction rules are scattered; any "centralization" of them could be tempted
+  to also fix the `is_provisional` edge case at the same time.
+- `int_combined.sql` ARM-2 (provisional WABA rows) has `canonical_name = NULL`. A refactoring
+  phase that extracts "what fields does a provisional occurrence have?" could be tempted to
+  also add a canonical_name derivation for ARM-2 rows.
+- `species_export.py` `BEE_FAMILIES` constant could be tempted to grow during centralization
+  (add Stenotritidae, update comment) even if that's a content change, not a structural one.
 
-**How to avoid:**
-- Run `mapshaper -clean` on `places.geojson` as a validation/normalization step in `topology_postprocess.py` before the spatial join runs. Add it to `_SIMPLIFY_PCT` with `simplify_pct=None` (clean only; don't simplify authoritative boundaries).
-- Add a pytest fixture that loads `places.geojson` via `geopandas.read_file`, calls `gdf.is_valid.all()`, and asserts `True`. Wire into `data/tests/` and run in CI. Failing validity check blocks the pipeline before corrupt data reaches `occurrences.parquet`.
-- Optionally: use `ST_IsValid(geom)` in a dbt test (`dbt test`) on the places staging model. If any place geometry is invalid, `dbt build` fails before the spatial join runs.
-- Document the geometry requirement in the place data model spec (winding order, no self-intersections, EPSG:4326).
+**Prevention:**
+- **Refactoring commits must be behavior-preserving.** Before merging any refactoring phase,
+  diff the old and new outputs: `pytest` suite passes with identical coverage; SQLite query
+  results for the same input are byte-identical.
+- **"Noticed a gap" → file a TODO comment with a ticket reference, do not fix it.**
+  The GSD milestone has an explicit out-of-scope mechanism. Use it.
+- **Plans must state the exact lines being moved** (not "improve the logic"). When the plan
+  says "extract lines 74–82 of filter.ts into a named function," the review checks only that
+  those lines moved and no logic changed.
+- Each refactoring phase plan must list `behavior_preserved: true` in its success criteria.
 
-**Warning signs:**
-- A known collecting site shows 0 occurrences on its place page, while the SPA map shows occurrence points visually inside the polygon
-- `ST_IsValid(geom)` returns `false` for any row in the places staging table
-- `mapshaper -clean` on the committed GeoJSON reports intersection or ring errors
-
-**Phase to address:** Data model + geometry validation phase (before the dbt spatial join phase). Validation must ship before any place boundary is committed.
+**Detection:**
+- PR diff shows added branches, new conditionals, changed default values, or new constants with
+  real values (not just renamed ones).
+- Test output changes (different counts, different SQL output) when old and new code run on the
+  same fixture.
 
 ---
 
-### Pitfall 2: Many-to-one spatial join produces duplicate rows for overlapping places
+### Pitfall 2: dbt 31-column contract broken by intermediate model restructuring
 
 **What goes wrong:**
-Two places have overlapping geometries (e.g., "Capitol State Forest" and "Black Hills Unit" are both valid describing the same general area; their polygons overlap). An occurrence at lat/lon inside both polygons produces two rows in the spatial join — one for each place. Aggregating `COUNT(*)` per place gives correct per-place counts, but `occurrences.parquet` is now wider than the occurrence set: 57,000 occurrences × 2 overlapping places = 57,002+ rows. Downstream queries and frontend row counts are wrong.
+The `data/dbt/models/marts/schema.yml` enforces a `contract: enforced: true` on the
+`occurrences` mart (31 columns: ecdysis_id, catalog_number, lon, lat, date, year, month,
+scientificName, recordedBy, fieldNumber, genus, family, floralHost, host_observation_id,
+inat_host, inat_quality_grade, modified, specimen_observation_id, elevation_m, observation_id,
+host_inat_login, specimen_count, sample_id, sample_host, specimen_inat_taxon_name,
+specimen_inat_quality_grade, is_provisional, canonical_name, county, ecoregion_l3, place_slug).
 
-The existing county join avoids this because the Census CB 500k counties are non-overlapping by construction. Ecoregions had overlaps in the source data, which `mapshaper -clean` resolved. Hand-curated places won't have the same authoritative topology guarantee.
+A refactoring that reorganizes `int_combined.sql` — e.g., extracting ARM-1 / ARM-2 logic into
+named sub-models, or renaming intermediate columns — can accidentally drop or rename a column
+that the mart's final SELECT passes through. dbt's contract check catches the mismatch and
+fails the build, but only if `dbt build` is run. If the implementer runs only unit tests and
+skips `dbt build`, the pipeline fails silently on the next nightly run.
 
-**Why it happens in this system:**
-- The ecoregions spatial join uses `DISTINCT ON (_row_id)` (`eco_dedup` CTE in `occurrences.sql`) to handle the EPA L3 source overlaps. But the comment says "DuckDB-specific feature" and its presence is load-bearing. If the places join is added naively without `DISTINCT ON`, overlapping places explode row count.
-- The places join is conceptually different from county/ecoregion: a specimen can legitimately be "at place A AND place B" (a park within a reserve). The data model must decide: does `place_slug` hold one value or a list?
+**Why it happens in this codebase:**
+- `int_combined.sql` contains both ARM-1 (Ecdysis FULL OUTER JOIN iNat samples) and ARM-2
+  (provisional WABA rows). These arms have different column semantics (e.g., `ecdysis_id` is
+  NULL in ARM-2; `is_provisional` is always TRUE in ARM-2). Splitting them into separate
+  intermediate models is a natural refactoring target — but the UNION ALL must produce exactly
+  the same 31+ column list.
+- `int_ecdysis_base.sql` currently does the column alias renaming (e.g., `scientific_name →
+  scientificName`, `recorded_by → recordedBy`). Moving this aliasing to a different layer
+  changes column names visible to downstream models.
+- The dbt contract is enforced by `dbt build`, not by pytest. Developers may run only `pytest`
+  during iteration and not discover the contract violation until the nightly run.
 
-**How to avoid:**
-- **Decision required before writing the dbt model:** pick one of:
-  1. `place_slug VARCHAR` (single, first-match semantics): occurrence gets the "most specific" (smallest area) place. Use `DISTINCT ON (_row_id)` + `ORDER BY ST_Area(geom) ASC LIMIT 1`. Simpler; loses information about secondary place membership.
-  2. `place_slugs VARCHAR[]` (array, all-containing places): use `ARRAY_AGG`. More accurate; requires frontend to handle array column.
-  - Option 1 is strongly recommended to match the county/ecoregion pattern already in `occurrences.sql`. It keeps the dbt contract clean (VARCHAR, not VARCHAR[]).
-- If option 1: add `ORDER BY ST_Area(geom) ASC` to the places join CTE so "most specific" (smallest polygon) wins when multiple places contain the same point. Document this ordering decision in the CTE comment.
-- Add a post-join dbt test: `assert COUNT(*) FROM places_joined = COUNT(*) FROM int_combined` (row counts must be equal after the join, just like county and ecoregion joins produce 1:1 mappings).
+**Prevention:**
+- **Run `bash data/dbt/run.sh build` before every commit** that touches any `.sql` file under
+  `data/dbt/`. This is the only gate that catches contract violations.
+- **Never rename a column in any intermediate model without tracing every SELECT that references
+  it downstream** (use grep through all `.sql` files).
+- **Do not split `int_combined.sql`** without explicitly verifying the UNION ALL column list
+  is identical across both arms (column name, position, data type). Use a dbt test:
+  `assert column_count(int_combined) = 31`.
+- Follow the `project_schema_validation.md` memory file procedure for any occurrences column
+  change — it was designed exactly for this scenario.
+- Add a phase-level check: after any dbt restructuring phase, run `dbt build` as a mandatory
+  verification step before marking the phase complete.
 
-**Warning signs:**
-- `occurrences.parquet` row count exceeds source row count from `int_combined`
-- A place page shows 65,000 occurrences when the whole atlas has 57,000
-- Two place chips appear for the same occurrence in the sidebar detail
-
-**Phase to address:** dbt spatial join design phase (must settle overlapping-polygon semantics before writing SQL).
-
----
-
-### Pitfall 3: Nearest-polygon fallback assigns out-of-place occurrences to the closest place
-
-**What goes wrong:**
-The existing county and ecoregion joins use a nearest-polygon fallback for occurrences that don't `ST_Within` any polygon. This is correct for counties (every WA specimen is in *some* county; the fallback handles GPS points that land just offshore or on a county boundary). But for places, a nearest-polygon fallback is wrong: most occurrences are NOT at any collecting site. Applying the same fallback would assign 50,000 field-collected specimens to the nearest park boundary they happen to be geometrically close to, badly corrupting per-place counts.
-
-**Why it happens in this system:**
-- The `county_fallback` and `eco_fallback` CTEs in `occurrences.sql` are load-bearing and explicitly documented as PORT-02 invariants. Copy-pasting this pattern for places without removing the fallback would be a straightforward and hard-to-spot bug.
-- The fallback is only exercised for a small fraction of occurrences (those with GPS points just offshore, etc.). In a test, if all test points happen to be within a place polygon, the fallback path is never exercised and the bug is invisible.
-
-**How to avoid:**
-- **Do not use a nearest-polygon fallback for places.** The places join must use `LEFT JOIN` and allow `place_slug IS NULL` (the expected state for the vast majority of occurrences). Document this explicitly in the dbt CTE comment.
-- Use `NULL` as the sentinel for "not at a curated place." The frontend filter `place_slug = 'rattlesnake-ledge'` works correctly with `NULL` values present.
-- Write a pytest fixture: seed one point inside a place polygon and one point 50 km away. Assert the 50-km point gets `place_slug IS NULL` (not assigned to the nearest place).
-
-**Warning signs:**
-- `places.geojson` per-place occurrence counts equal the total atlas occurrence count (fallback fired for everything)
-- A place in eastern WA has thousands of occurrences that include specimens from King County collection events
-
-**Phase to address:** dbt spatial join design phase. The "no fallback" decision must be explicit in the plan, not left to the implementer.
-
----
-
-### Pitfall 4: `place_slug` column added to `occurrences.parquet` but dbt contract not updated
-
-**What goes wrong:**
-The dbt model `marts/occurrences` has a `contract: enforced: true` block in `schema.yml`. Currently 30 columns. Adding `place_slug` to the SELECT in `occurrences.sql` without adding it to `schema.yml` causes `dbt build` to fail with a schema contract violation — the column appears in the output but isn't in the contract. Conversely, adding it to `schema.yml` without adding it to the SELECT produces the same failure (column declared but not produced).
-
-Either way, the nightly pipeline fails and `occurrences.parquet` is not regenerated.
-
-**Why it happens in this system:**
-- The dbt contract is "enforced at every `bash data/dbt/run.sh build`" per `CLAUDE.md`. This is a protective constraint, not optional. Any schema change must touch both `occurrences.sql` AND `schema.yml` atomically.
-- `project_schema_validation.md` (in memory) documents the steps for changing an occurrences column. That procedure must be followed.
-- During development it's tempting to iterate on the SQL first and add the schema entry later. That pattern will fail the build immediately.
-
-**How to avoid:**
-- Follow the `project_schema_validation.md` procedure: add `place_slug` to `schema.yml` (as `data_type: varchar`) in the same commit that adds it to the `occurrences.sql` SELECT.
-- Add a pytest test that runs `dbt build --select occurrences` (or uses the dbt Python API) and asserts exit code 0. This already runs in CI; don't skip it during local development.
-- The `is_nullable: true` constraint should be set (most occurrences will have `place_slug IS NULL`). Check if dbt-duckdb supports `is_nullable` in the contract or if `VARCHAR` already implies nullable.
-
-**Warning signs:**
-- `dbt build` exits nonzero with "Schema contract violation" mentioning `place_slug`
-- Nightly pipeline fails silently (nightly.sh exits nonzero; no new `occurrences.parquet` uploaded to S3)
-- The frontend loads the previous night's parquet (no `place_slug` column) but the filter UI expects it
-
-**Phase to address:** dbt schema phase (the first phase that touches `occurrences.sql`). Both files must change atomically.
-
----
-
-### Pitfall 5: Slug stability broken by place renames or slug convention changes
-
-**What goes wrong:**
-A place is initially given slug `rattlesnake-ledge`. The page is published at `/places/rattlesnake-ledge/`. Volunteers bookmark it; other sites link to it. Six months later, someone renames the place to "Rattlesnake Ledge Recreation Area" and regenerates the slug as `rattlesnake-ledge-recreation-area`. The old URL 404s. CloudFront has no redirect rules (static hosting; no server-side redirect capability without a Lambda@Edge function that doesn't exist).
-
-The same problem occurs if the slugify convention changes (e.g., currently `slugify("McNeil Island")` → `mcneil-island`, then someone switches to a different slugifier that strips the apostrophe differently or truncates differently).
-
-**Why it happens in this system:**
-- BeeAtlas has static hosting only. There is no server to issue 301 redirects. Broken URLs stay broken permanently.
-- The existing species pages use a hierarchical `Genus/specificEpithet` slug format that is stable because scientific names rarely change. Place common names are less stable.
-- The slugify function in `filter.ts` (lines 72–79) already exists and is used for CSV filenames, but it strips to 20 characters (`slice(0, 20)`). A full place name slug must NOT use this truncation, or two long place names truncate to the same 20-character prefix.
-
-**How to avoid:**
-- **Slugs are curated, not generated.** Each place record in the TOML/YAML data model has an explicit `slug` field that the curator sets manually and never changes once published. The slug is not derived from the name at build time. This is the single most important design decision for slug stability.
-- The display name can change freely; the `slug` field is immutable after first publication.
-- Add a validation step: `slug` must match `/^[a-z0-9-]+$/`; no truncation; must be unique across all places. Assert in `data/run.py` before export.
-- Collision detection: maintain a `data/place-slugs-retired.txt` list (analogous to the species slug approach in the codebase). When a slug is retired, record it with the date so future curation doesn't accidentally reuse it.
-- Document in the place data model spec: "slug is permanent; changing it breaks existing URLs with no recovery path."
-
-**Warning signs:**
-- A place's `slug` field in the TOML is edited after the page has been deployed
-- `slugify(place.name)` is called at build time (instead of reading `place.slug` directly)
-- Two places produce the same slug (validation not running)
-
-**Phase to address:** Data model phase (slug is curated, not generated). Validation step in `data/run.py` blocks bad slugs before deploy.
+**Detection:**
+- `dbt build` exits nonzero with "Schema contract violation" or "Column not found in SELECT".
+- Nightly pipeline fails silently; `occurrences.parquet` on S3 is stale (last modified
+  timestamp does not advance).
+- pytest suite passes (because Python tests don't run dbt) while dbt itself fails.
 
 ---
 
 ## High-Priority Pitfalls
 
-### Pitfall 6: Permit expiry checked at nightly-build time only; stale "active" status ships all day
+### Pitfall 3: Cross-language predicate drift — Python and TypeScript diverge after extraction
 
 **What goes wrong:**
-A place has permits with `expiry_date: "2026-07-31"`. The nightly pipeline runs at 2 AM; at build time the permit is active. The following night (August 1), the pipeline runs, detects expiry, and marks the permit inactive in the next `places.geojson`. But for all of July 31 (and any day the nightly cron is skipped due to machine downtime), the site shows an expired permit as active. Worse, if a permit expires mid-year and the nightly run happens to fail on that night (network issue, etc.), the stale "active" badge ships until the next successful run.
+A domain predicate exists in both Python (pipeline) and TypeScript (frontend). Extracting it to
+a named function in one language without updating the other creates a divergence. The two
+implementations silently produce different results for edge cases.
 
-For a site used by volunteer collectors who need accurate permit status before driving to a site, a stale "active" badge on an expired permit is a real-world problem (trespassing risk, confrontation with land managers).
+Concrete examples in this codebase:
+- **`is_provisional`**: `int_combined.sql` sets `is_provisional = TRUE` for ARM-2 rows (WABA
+  obs with no Ecdysis match). The frontend `filter.ts` `OccurrenceRow` has `is_provisional:
+  boolean`. If a refactoring adds a new condition for provisionality in SQL (e.g., "also treat
+  catalog-number-only rows as provisional") without updating the frontend display logic, the
+  map shows provisional dots incorrectly.
+- **`occId` construction**: `features.ts` constructs `ecdysis:${id}` or `inat:${id}` inline.
+  `filter.ts` `queryVisibleIds` constructs the same IDs. If a refactoring centralizes one but
+  not the other, a query might return `ecdysis:12345` while the map feature is keyed as
+  `inat:12345` — invisible mismatch (the feature is always "unfiltered" for one source arm).
+- **`canonicalize()`**: `canonical_name.py` implements D-04 (5-step algorithm). The dbt staging
+  model `stg_ecdysis__occurrences` does not re-canonicalize — it passes `canonical_name` through
+  from the pre-computed column. But the TypeScript species page uses `canonical_name` from the
+  parquet as a JOIN key. If a refactoring in Python changes step 3 of D-04 without a full
+  pipeline rerun, the JOIN key in the parquet is stale.
 
-**Why it happens in this system:**
-- Static hosting: permit status can't be computed at request time. The build artifact is static; once `places.geojson` is uploaded to S3, its content doesn't change until the next pipeline run.
-- Nightly cron on maderas is the sole pipeline. If maderas has downtime, the artifact is stale for the duration.
-- The TOML permit record stores an `expiry_date` string. The pipeline must evaluate `expiry_date < today` at build time to produce `is_active`. This is correct for most days; the staleness window is one pipeline cycle.
+**Why it happens in this codebase:**
+- Python pipeline → dbt SQL → TypeScript frontend is a unidirectional pipeline, not a shared
+  module. There is no code-generation or schema-sharing mechanism that enforces consistency.
+  Each language has its own implementation of any shared concept.
+- The only cross-language contract is the parquet schema (31 columns), enforced by dbt. Logic
+  expressed in column values (e.g., `is_provisional`, `canonical_name`) is NOT enforced.
+- The CLAUDE.md architecture invariants cover component state boundaries in the frontend but
+  say nothing about Python ↔ TypeScript semantic alignment.
 
-**How to avoid:**
-- **Show the expiry date prominently on the place page, not just "active/expired" badge.** A badge computed at build time can be wrong; the raw date is always correct. Visitors can compute their own status from the date. Use both: badge for convenience, date for accuracy.
-- **Build-time badge uses the pipeline's `built_at` timestamp** (already injected into `_meta` by `topology_postprocess.py`). The frontend can display "Status as of {built_at}" so visitors know when the data was last refreshed.
-- **Pipeline exit alert on expiring permits:** if any permit expires within the next 7 days, log a prominent warning in `nightly.sh` output. This gets captured in the cron log on maderas; the project maintainer sees it the next morning.
-- **No server-side runtime check needed** (and none available). The design is correct; the risk is managed by displaying the date and the freshness timestamp.
-- **Do not attempt to compute permit status in the frontend from today's date** against a stored expiry date. The expiry date in the GeoJSON could be missing or malformed; a client-side comparison silently fails. Pipeline is the right place to compute `is_active`.
+**Prevention:**
+- **For each extracted predicate, explicitly decide: which language is authoritative?**
+  - `canonical_name`: Python `canonicalize()` is authoritative. The SQL column is derived from
+    it. The TypeScript reads the SQL column. Never re-implement in TypeScript.
+  - `is_provisional`: SQL (dbt) is authoritative. The TypeScript reads the boolean. Never
+    re-implement as a TypeScript function.
+  - `occId` prefixes: TypeScript is authoritative. The prefix convention is a frontend concern;
+    the pipeline never uses `ecdysis:` or `inat:` prefixes.
+- **Document the authority assignment in a code comment at the extraction site.** Example:
+  `// AUTHORITATIVE: this predicate is computed in SQL (int_combined.sql is_provisional).`
+  `// TypeScript only reads the result — do not re-implement here.`
+- **Add a cross-language integration test** for any predicate where drift would be silent:
+  run the Python pipeline on a fixture, export parquet, read it in TypeScript test, assert the
+  TypeScript interpretation matches the Python/SQL computation.
 
-**Warning signs:**
-- A place page shows "permit active" on a date past the expiry date in the TOML
-- The `built_at` timestamp in `places.geojson._meta` is more than 30 hours old (maderas cron failed or was not run)
-- A volunteer reports driving to a site only to find the permit had expired
-
-**Phase to address:** Permit data model phase (design the TOML permit schema with explicit expiry date + build-time badge computation). Map + place page display phase (show expiry date alongside badge, show `built_at` timestamp).
+**Detection:**
+- Provisional occurrences appear in non-provisional queries (or vice versa).
+- Species JOIN returns 0 results for a known species (canonical_name mismatch).
+- `visibleIds` Set includes/excludes IDs that don't match what the map features expect.
 
 ---
 
-### Pitfall 7: Place GeoJSON committed to repo is high-resolution and bloats clone/CI
+### Pitfall 4: Filter regression from `buildFilterSQL` restructuring
 
 **What goes wrong:**
-A curator exports a park boundary from a GIS source at full resolution: 10,000+ vertices for a park with a detailed coastline (e.g., McNeil Island). The `places.geojson` committed to the repo is 2 MB. Multiply by 100 places and the repo gains 50 MB of binary-ish JSON. Git clone time increases; GitHub Actions downloads 50+ MB on every CI run. The file is large enough to make `git diff` on boundary edits unreadable.
+`buildFilterSQL` in `filter.ts` is the core of all filter logic: taxon, year, month, county,
+ecoregion, place, collector, elevation. It returns a SQL WHERE clause string. A refactoring that
+extracts individual filter clauses into named helpers can break the overall logic in subtle ways:
 
-**Why it happens in this system:**
-- The existing `counties.geojson` (56 KB) and `ecoregions.geojson` (357 KB) are committed because they're small and generated by the pipeline (already simplified by mapshaper). A hand-authored `places.geojson` bypasses mapshaper simplification by default.
-- GIS export tools default to full precision (6 decimal places = 11 cm resolution at the equator; unnecessary for visual display on a web map at zoom 10–14).
+- Changing the AND/OR combination order (county and ecoregion are separately ANDed; a refactoring
+  that groups them into a "region clause" might introduce an implicit OR between them).
+- Null semantics: the month filter uses `month IN (${monthList})` which naturally excludes
+  `NULL` months (sample-only rows). A refactoring that wraps this in a helper and adds
+  `IS NOT NULL` protection changes the semantics.
+- The collector filter uses `recordedBy IN (...) OR host_inat_login IN (...)` — a single OR
+  clause combining two arms. Splitting into separate clauses and then ANDing them would
+  silently exclude all occurrences that have only one arm populated.
+- The elevation filter has three branches (both bounds, min only with null-inclusive semantics,
+  max only with null-inclusive semantics). A simplification that loses the null-inclusive cases
+  would silently exclude unelation-tagged specimens when an elevation range is active.
 
-**How to avoid:**
-- **Run `mapshaper -clean -simplify percentage=5% -o format=geojson` on authored boundaries before committing.** The topology_postprocess.py script is the right place; add a `places.geojson` entry with a conservative simplification percentage (3–5%). This is already the pattern for ecoregions.
-- **Coordinate precision cap:** 5 decimal places (1 m accuracy) is sufficient for visual map display. Truncate in the mapshaper invocation using `-o precision=0.00001`.
-- **Set a file-size budget for `places.geojson`**: < 500 KB for 100 places. Assert in CI via a small Node script or in the pytest suite (`assert path.stat().st_size < 500_000`).
-- **Don't commit source boundary files** (the high-resolution shapefile or KMZ). Only commit the simplified and cleaned GeoJSON.
+**Why it happens in this codebase:**
+- `buildFilterSQL` is 80 lines of carefully written SQL-string construction with documented
+  null semantics comments. The test suite covers 13 cases in `filter.test.ts`. But the tests
+  check SQL string output, not actual query results — a regression that produces valid SQL with
+  wrong semantics would pass the unit tests.
+- The function is pure (no side effects), making it a natural refactoring target. But "pure"
+  does not mean "simple" — the null semantics comments are load-bearing.
 
-**Warning signs:**
-- `git ls-files --others places.geojson | xargs wc -c` > 500 KB
-- `git diff places.geojson` is unreadable (100+ coordinate changes for a tiny boundary edit)
-- CI download step takes > 10 extra seconds compared to baseline
+**Prevention:**
+- **The filter tests must be expanded before any `buildFilterSQL` refactoring begins.** Add
+  integration tests that run actual SQLite queries against a fixture database and assert
+  result counts. Unit tests (SQL string matching) are insufficient to catch semantic regressions.
+- **Refactor one clause at a time.** Extract the taxon clause helper, run the full test suite,
+  verify identical SQL output. Then extract the month clause. Never extract multiple clauses
+  in the same commit.
+- **Document the null semantics in the extracted function's JSDoc**, not just at the call site.
+  "month IN (...): NULL month rows are naturally excluded — this is intentional for sample-only
+  rows" must travel with the extracted function.
+- **The AND/OR combination logic must stay in `buildFilterSQL`**, not be distributed into the
+  extracted helpers. Helpers should return a clause string; the combinator stays at the top level.
 
-**Phase to address:** Data model phase (establish file size budget and mapshaper recipe before any boundaries are committed).
+**Detection:**
+- Filter test SQL strings change (any change is a regression signal, not just failures).
+- Integration test: applying a month filter produces different result counts than before the
+  refactoring.
+- Collector-filtered queries return 0 results for collectors who only have Ecdysis records (OR
+  collapsed to AND).
 
 ---
 
-### Pitfall 8: Mapbox GL JS `generateId` + feature-state breaks when places source is reloaded
+### Pitfall 5: Over-abstraction — shared utilities harder to understand than inline code
 
 **What goes wrong:**
-The existing county and ecoregion boundary layers use `generateId: true` on the source and `setFeatureState` for selection highlighting (see `bee-map.ts` line 399, 404). `generateId: true` assigns sequential integer IDs to features in the order they appear in the GeoJSON. If the source is reloaded (e.g., places GeoJSON fetched asynchronously, or the source is removed and re-added), Mapbox reassigns IDs starting from 0. Any stored `featureId` references (e.g., "currently selected place") now point to the wrong feature.
+The refactoring creates a new module (e.g., `occurrence-predicates.ts`) containing functions
+like `isSpecimen(row: OccurrenceRow): boolean`, `isProvisional(row: OccurrenceRow): boolean`,
+`occurrenceSourceId(row: OccurrenceRow): string`. These are thin wrappers around one or two
+properties. The resulting code is:
 
-This is a known Mapbox GL JS gotcha: `generateId` IDs are not stable across source reloads.
+```typescript
+// Before (inline, 1 line):
+if (row.ecdysis_id != null) { ... }
 
-**Why it happens in this system:**
-- The county and ecoregion sources are added once at map load (in the `style.on('load')` callback) and never reloaded. Their `generateId` IDs are stable for the session. If places are treated differently (e.g., reloaded when a filter changes, or fetched lazily after initial map load), ID stability breaks.
-- The pattern already works for counties and ecoregions because both GeoJSON files are small and loaded eagerly at map init. Places could be tempted toward lazy loading (fetching `places.geojson` only when the places layer is toggled on). Lazy loading + `generateId` = non-deterministic IDs.
+// After (2 files, 1 function call, 1 import):
+if (isSpecimen(row)) { ... }  // requires reading occurrence-predicates.ts to understand
+```
 
-**How to avoid:**
-- **Load `places.geojson` eagerly at map init**, the same way counties and ecoregions are loaded. If the file is small (< 500 KB per Pitfall 7's budget), eager loading is fine.
-- **Alternatively: add a stable `id` property to each place feature** in the GeoJSON (e.g., the `place_slug` string). Then use `promoteId: 'place_slug'` instead of `generateId: true`. `promoteId` uses the feature's own property as the feature ID, which is stable across reloads and between sessions. This is more robust and aligns with how place identities are tracked elsewhere (slug is the canonical ID).
-- **Recommendation: use `promoteId: 'slug'`.** This avoids the `generateId` race condition entirely and makes debugging easier (the feature ID in DevTools is a readable slug, not an integer).
+The indirection adds a file to read without adding conceptual clarity, because `ecdysis_id !=
+null` is self-documenting for anyone who understands the data model. Readers now need to check
+whether `isSpecimen` has any logic beyond the property check — it doesn't, but they can't know
+that without reading it.
 
-**Warning signs:**
-- Clicking a place on the map selects the wrong place after the source was reloaded
-- `setFeatureState` calls throw "feature not found" errors in the console after the source is refreshed
-- Selected place highlight appears on a different polygon than the one clicked
+**Why it happens in this codebase:**
+- The milestone goal is "named, testable predicates" — this is a legitimate goal when the
+  predicates have real logic (e.g., `canonicalize()`, `recencyTier()`, `buildFilterSQL()`).
+  But it can produce pure-rename extractions that add noise instead of clarity.
+- `OccurrenceRow` has 31 fields. The temptation to wrap every discriminator (`ecdysis_id !=
+  null`, `observation_id != null`, `is_provisional`, `canonical_name != null`) in a named
+  predicate is real, but most of these are better left inline.
+- The rule of three applies: extract when the same expression appears in three or more places.
+  A predicate used once should stay inline; a predicate used in five files earns extraction.
 
-**Phase to address:** Map layer phase (source configuration must specify `promoteId: 'slug'` from the start; retrofitting after feature-state interactions are built is tedious).
+**Prevention:**
+- **Extract only when there is real logic** (non-trivial computation, multi-step algorithm,
+  or branching) **or when the same expression appears in 3+ independent call sites.**
+  Property access is not logic.
+- **Test the "simpler code" criterion explicitly.** Before extracting a predicate, write out
+  both the before and after versions. If the after version requires the reader to open an
+  additional file to understand what the function does, the extraction adds indirection without
+  adding clarity. Don't extract it.
+- **Prefer well-named local variables over extracted functions for single-use predicates.**
+  `const isSpecimen = row.ecdysis_id != null;` is better than a module-level function when
+  used only in one place.
+- Functions worth extracting in this codebase: `canonicalize()` (real algorithm, multi-step),
+  `buildFilterSQL()` (already extracted, justified by complexity), `recencyTier()` (already
+  extracted, justified by time-dependent logic), `isFilterActive()` (already extracted,
+  justified by 10-field conjunction). New functions need the same justification.
+
+**Detection:**
+- The extracted function body is a single `return` statement with one property access or
+  one-line comparison.
+- The function is called from only one location.
+- Reading the call site is LESS clear after extraction (reader must open a second file).
 
 ---
 
-### Pitfall 9: Places boundary layer z-order covers occurrence clusters; clicks intercepted by place layer
+### Pitfall 6: Test complexity increases instead of decreasing after extraction
 
 **What goes wrong:**
-The existing layer stack in `bee-map.ts` (set up in the `style.on('load')` callback) adds county/ecoregion fill layers before the cluster layers, so clusters render above boundaries. A new places layer added *after* cluster layers in the `addLayer` calls would render on top of clusters. The Mapbox GL JS interaction system fires `click-cluster` and `click-point` interactions (registered with `addInteraction`) before falling through to `click-place`. But if the places fill layer occludes the cluster visually, the user experience degrades even if the interaction priority is correct: clicking what looks like a cluster actually hits the transparent place fill underneath, not the cluster point.
+The milestone goal includes "test simplification: tests compensating for scattered logic may
+be dropped or rewritten as refactoring brings structure; better-structured code, not necessarily
+more coverage."
 
-A more serious variant: if the place fill layer is added with `fill-opacity > 0` (a colored semi-transparent fill to show place extent), every click inside the fill area is intercepted by `click-place` before `click-point`, making it impossible to click individual specimens inside a place.
+The failure mode: instead of deleting or simplifying integration tests that compensated for
+scattered logic, the refactoring adds new unit tests for each extracted function. The result
+is MORE tests with higher total complexity — more fixtures, more mock setup, more assertion
+files — even though the underlying logic didn't change.
 
-**Why it happens in this system:**
-- The current `addInteraction` registration order is: cluster → unclustered point → county fill → ecoregion fill. A new `click-place` interaction must be inserted with lower priority than `click-point` and `click-cluster`, or occurrences inside place polygons become unclickable.
-- `addInteraction` priority is determined by registration order in Mapbox GL JS v3 (earlier registrations have priority). Adding place interactions at the end of the init block preserves cluster priority.
-- The fill layer `fill-opacity` matters: `0` (invisible; click-target only) vs `> 0` (visible overlay). The county and ecoregion fills use `fill-opacity: 0.1` when selected and `0` otherwise. Places should use the same pattern.
+A related failure: the existing `filter.test.ts` (13 tests) mocks `sqlite.ts` to avoid DB
+setup. After extraction, a new `predicates.test.ts` is added with similar mocks. Now there
+are two test files for related logic, with overlapping mock infrastructure and no clear
+boundary between what each file tests.
 
-**How to avoid:**
-- **Register `click-place` interaction after `click-cluster` and `click-point`**, not before. Document the ordering constraint in a code comment.
-- **Place fill layer must be added before cluster layers** in the `addLayer` call sequence (lower in the layer stack = below clusters visually). County and ecoregion layers already follow this pattern.
-- **Default `fill-opacity: 0`** for places (invisible fill, used only as click target + selection highlight). On selection, set `fill-opacity: 0.15`. Matches the existing boundary behavior.
-- **Write an interaction priority test**: in a Vitest test (using `readFileSync` source analysis per the ARCH-03 pattern), assert the order of `addInteraction` calls in `bee-map.ts` matches the documented priority.
+**Why it happens in this codebase:**
+- The refactoring goal says "add tests for extracted predicates." This is correct for functions
+  with real logic (`canonicalize()` already has `test_canonical_name.py` — 16 tests). But for
+  trivial extractions (thin wrappers), the tests become more complex than the code.
+- The existing `arch.test.ts` pattern (source analysis via `readFileSync`) is powerful but
+  brittle: it checks import strings rather than runtime behavior. Adding new architectural
+  boundaries via new modules means adding more `arch.test.ts` cases — but each new boundary
+  check is another regex pattern to maintain.
 
-**Warning signs:**
-- Clicking an occurrence cluster inside a place boundary opens the place sidebar instead of the specimen detail
-- The places fill renders as a solid overlay that obscures cluster dots
-- Interaction events logged in the console show place click firing before cluster click
+**Prevention:**
+- **For each extracted function, ask: does the new unit test cover logic not already covered
+  by existing integration/component tests?** If the integration test already exercises the
+  extracted function indirectly, adding a new unit test for it is redundant duplication.
+- **Drop integration tests that exist only because logic was scattered.** If a test was written
+  to verify "the filter in bee-atlas.ts correctly handles the nulls in filter.ts" and the
+  refactoring moves that logic to a single well-named function, the integration test can be
+  replaced by a simpler unit test — not supplemented.
+- **Keep mock infrastructure shared and minimal.** Do not duplicate the `sqlite.ts` mock
+  from `filter.test.ts` into a new file. Extend the existing file or use a shared mock fixture.
+- **Before adding any test file, check whether an existing test file already has the right
+  scope.** New test files should correspond to new conceptual modules, not new functions.
 
-**Phase to address:** Map layer phase (interaction priority and layer insertion order must be decided at design time, not discovered during bug triage).
+**Detection:**
+- Total test count increases by more than 10% without a corresponding decrease in integration
+  test complexity.
+- New test files repeat mock setup already present in existing test files.
+- An extracted function's test duplicates assertions already in a higher-level test.
 
 ---
 
-### Pitfall 10: 100-polygon places layer triggers per-feature `setFeatureState` loop causing jank
+### Pitfall 7: URL state regression from `parseParams`/`buildParams` refactoring
 
 **What goes wrong:**
-When the user selects a filter (e.g., clicks a place chip to remove it), `bee-atlas` may need to update feature state across the places source — clearing the selected state on the previously-selected place. If the implementation loops over all place features to clear state (common pattern: iterate `places.geojson.features`, call `map.setFeatureState(...)` for each), 100 `setFeatureState` calls fire synchronously, triggering 100 repaints. At 60 fps, 100 style recomputations per interaction causes a visible frame drop.
+`url-state.ts` `parseParams` and `buildParams` are the URL serialization contract (LINK-04).
+They are tested by 20+ round-trip tests in `url-state.test.ts`. A refactoring that extracts
+sub-parsers (e.g., `parseViewState`, `parseFilterState`, `parseSelectionState`) can introduce
+regressions if:
 
-**Why it happens in this system:**
-- The county boundary highlight uses `setFeatureState` with a feature-level boolean. The existing implementation clears all county selections by iterating over county features and calling `setFeatureState` for each (see `bee-map.ts` `updated()` handling for `selectedCounties`). With 39 WA counties, this is fine. With 100 places, it may be marginally acceptable; at 200 places it would degrade.
-- The pattern is already established; the new places layer inherits it.
+- A field is silently dropped during the extraction (a parameter parsed in one place stops
+  being included in the result).
+- The `hasFilter` detection logic (which decides whether to include a `filter` sub-object)
+  is moved but a field check is missed — resulting in `filter` being absent when it should
+  be present, or present when it should be absent.
+- The `placeImplied` logic (`selectedPlace !== null → bm='places'`) is split from the
+  `boundaryMode` parsing and the implication is lost.
 
-**How to avoid:**
-- **Track the previously-selected place ID** (slug). On deselection, call `setFeatureState` only on the previously-selected feature — one call, not 100.
-- Use `map.removeFeatureState({ source: 'places' })` (without a specific featureId) to clear all feature state on the places source in one call, rather than iterating. This is O(1) regardless of feature count.
-- The `removeFeatureState` approach is the correct pattern: clear all at once, then set the single selected feature. No loop needed.
-- Performance test: with 100 place features, time the interaction from click to next frame. If > 16ms (one frame budget at 60fps), optimize.
+URL state regressions are particularly damaging because they break shareable links — a user
+pastes a URL that was valid before the refactoring and the filter state is silently dropped.
 
-**Warning signs:**
-- Clicking a place chip causes a visible frame drop (60 → 30 fps stutter)
-- Chrome DevTools flame graph shows `setFeatureState` called 100 times in one frame
-- Users report the map feeling "laggy" when place filters are active
+**Why it happens in this codebase:**
+- `parseParams` is 140 lines of careful null-safe parsing with validation (coordinate bounds,
+  zoom range, month range, ID prefix checks). It is already well-organized and the 20+
+  round-trip tests provide good coverage.
+- The function is large enough to be a refactoring target but dense enough that any extraction
+  must be exact. The `placeImplied` logic on line 220 couples `selectedPlace` and
+  `boundaryMode` — an extraction that splits them would need to reconstruct that coupling.
+- `buildParams` has the inverse coupling: `sel=` and `o=` are mutually exclusive (enforced by
+  the three-way ternary). Any extraction that separates selection type handling could remove
+  that mutual exclusion check.
 
-**Phase to address:** Map layer phase (use `removeFeatureState` from the start; don't loop over features).
+**Prevention:**
+- **Run the full `url-state.test.ts` suite after every change to `url-state.ts`.** The 20+
+  round-trip tests are the safety net; they catch dropped fields immediately.
+- **Do not split `parseParams` into sub-functions** unless each sub-function receives and
+  returns exactly the fields it handles, with no cross-field coupling. The `placeImplied`
+  coupling is a strong signal that the function is already at the right level of abstraction.
+- **If extraction is needed, use a single extraction pass with a behavior-preserving refactoring
+  tool** (TypeScript LSP rename/extract) rather than manual copy-paste. Manual extraction is
+  more likely to drop a field.
+- **Add a round-trip test for the `placeImplied` edge case** before any refactoring: a URL
+  with `place=rattlesnake-ledge` and no explicit `bm=` should produce `boundaryMode='places'`.
+  This edge case is the most likely to break under extraction.
+
+**Detection:**
+- `url-state.test.ts` failures (any failure is a regression, not a test to update).
+- A URL with `?place=slug` in the bar correctly shows the place filter but the map doesn't
+  switch to Places mode (placeImplied logic lost).
+- A URL with `sel=` and `o=` both present in the output (mutual exclusion broken).
 
 ---
 
-### Pitfall 11: Eleventy pagination for 100 place pages causes `_data/places.js` to slow HMR
+### Pitfall 8: Architecture boundary tests break when file locations change
 
 **What goes wrong:**
-`_data/places.js` reads `places.json` (the pipeline-generated place data including per-place occurrence counts). Eleventy's HMR re-runs `_data/*.js` on every file change. If `places.json` is large (100 places × occurrence counts × GeoJSON properties), the read-and-parse takes non-trivial time. For 527 species pages, `_data/species.js` is already documented as potentially slow if it reads from parquet directly (Pitfall 8 in the v3.2 research). The same shape of problem occurs here.
+`src/tests/arch.test.ts` enforces import boundaries using `readFileSync` + regex on source
+file content. It checks:
+- `src/species/**` cannot import mapbox-gl, wa-sqlite, filter.ts, bee-map.ts, bee-atlas.ts
+- `src/lib/spa-link.ts` cannot import from a forbidden list + url-state.ts
+- `src/entries/species-index.ts` has a strict allowlist
 
-**Why it happens in this system:**
-- Species pages solved this by reading a pre-aggregated `species.json` (not the parquet). The places feature needs the same discipline.
-- Eleventy 3.x caches `_data/*.js` results within a single server session, but invalidates on config changes. A large JSON is fine as long as it's < 5 MB and the parse is fast. The risk is that `places.json` includes embedded GeoJSON geometries (polygons), which are large.
+A refactoring that moves domain logic into a new module (e.g., `src/domain/occurrence.ts`) and
+then imports it from `bee-atlas.ts` could accidentally make the new module path appear in
+`src/species/seasonality-viz.ts` through a transitive import — which would not be caught by
+the arch tests (they check direct imports, not transitive ones).
 
-**How to avoid:**
-- **Split the data**: `places.json` for page metadata (name, slug, owner, permit status, counts) — small, fast to parse. `places.geojson` for map geometry — loaded by the frontend, not Eleventy.
-- `_data/places.js` reads only `places.json` (the slim metadata file). It never reads the GeoJSON.
-- `places.json` should be < 100 KB for 100 places with full metadata. Parse time is negligible.
-- **Post-build assertion**: `public/data/places.json` file size < 200 KB. `public/data/places.geojson` size < 500 KB. Fail the pipeline if either exceeds budget.
+Conversely, a refactoring that renames `filter.ts` to `src/domain/filter.ts` would break
+the arch test's hardcoded path `'../filter.ts'` — a false failure that obscures real failures.
 
-**Warning signs:**
-- `npm run dev` startup takes > 3 seconds after adding `_data/places.js`
-- Eleventy build log shows `_data/places.js` as a slow step
-- `places.json` on disk is > 1 MB (geometry has leaked into the metadata file)
+**Why it happens in this codebase:**
+- The arch tests use string matching (`spec === bad || spec.startsWith(bad + '/')`) on the raw
+  import specifiers. A rename changes the specifier, breaking the pattern without changing the
+  actual behavior.
+- The arch tests were designed for the current file structure. Any reorganization requires
+  updating the forbidden path list — an easy step to miss.
 
-**Phase to address:** Eleventy data phase (design the two-file split before implementing `_data/places.js`).
+**Prevention:**
+- **Update `arch.test.ts` as the first step in any phase that moves source files**, before the
+  move. Verify the tests still pass with the updated paths on the new location.
+- **Any new module that contains SPA-level dependencies** (mapbox-gl, wa-sqlite, filter.ts)
+  must be added to the `FORBIDDEN` list in `arch.test.ts` immediately.
+- **Do not rename existing modules** without checking whether their paths appear in arch tests,
+  url-state tests, or any other test that uses `readFileSync` string matching.
+- **After any file move, run `npm test` before considering the move complete.** The arch tests
+  are the primary signal for boundary violations introduced by file moves.
+
+**Detection:**
+- `arch.test.ts` failures with "forbidden static imports" on a module that previously passed.
+- An arch test that should fail (module importing a forbidden dep) passes because the forbidden
+  path string is stale after a rename.
 
 ---
 
-### Pitfall 12: "Ghost outside polygon" filter omits valid occurrences due to GPS drift and boundary inaccuracy
+### Pitfall 9: `canonical_name` diverges between Python `canonicalize()` and SQL column
 
 **What goes wrong:**
-The planned "ghost outside polygon" map behavior dims occurrences outside the selected place. This requires the frontend to know which occurrence IDs are inside the place polygon. The current approach for county/ecoregion filters uses the pre-joined `place_slug` column in SQLite: `WHERE place_slug = 'rattlesnake-ledge'`. An occurrence collected at Rattlesnake Ledge but with GPS coordinates 10 meters outside the boundary (GPS drift, or the curated boundary doesn't match the actual fence line) has `place_slug IS NULL` in the parquet and is excluded by the filter.
+`canonical_name.py` implements the D-04 5-step algorithm and is the authoritative source for
+`canonical_name` values in `ecdysis_data.occurrences`. `checklist_pipeline.py` calls
+`canonicalize()` and UPDATE-sets the column on every run. The dbt models read this column
+directly — they do not re-canonicalize.
 
-From the collector's perspective: they collected at Rattlesnake Ledge, the specimen is excluded from the place filter, and the place shows N-1 occurrences instead of N. The discrepancy is invisible unless they know to check.
+A refactoring that moves `canonicalize()` to a new location (e.g., `data/domain/taxon.py`)
+and updates the import in `checklist_pipeline.py` is safe. A refactoring that modifies the
+D-04 algorithm (even "fixing" it) produces new `canonical_name` values without rerunning
+the pipeline, creating a divergence between the live parquet and the new code.
 
-**Why it happens in this system:**
-- The spatial join at pipeline time is the authoritative gate. It uses `ST_Within`, which requires the point to be strictly inside the polygon. GPS units are accurate to 3–10 meters; park boundary polygons are often simplified (per Pitfall 7); together they produce a meaningful exclusion zone along the boundary.
-- The existing county fallback uses nearest-polygon to handle boundary-edge cases. But for places, the fallback is explicitly excluded (Pitfall 3) because most occurrences are NOT at any place. There is no equivalent safe fallback.
+The D-04 algorithm has a specific constraint: `_INFRA_MARKERS` is locked to exactly 5 markers.
+Any addition requires a CONTEXT.md amendment (documented in `canonical_name.py` line 38–39).
 
-**How to avoid:**
-- **Buffer the place polygon slightly in the spatial join**: `ST_Within(pt, ST_Buffer(place.geom, 0.0001))` (approximately 10 meters at WA latitude). This captures GPS-drifted points that the collector intended to be at the place. The buffer amount should match expected GPS error (5–10 meters; 0.0001 degrees ≈ 9 meters).
-- **Or: use `ST_DWithin(pt, place.geom, 0.0001)` instead of `ST_Within`** — matches both interior points and points within the buffer distance. Equivalent effect.
-- Document the buffer choice in the dbt SQL comment with the rationale.
-- **This is a design decision for the dbt phase**, not a fix-it-later issue. The buffer value affects all downstream occurrence counts and cannot be changed retroactively without rerunning the full pipeline.
+**Why it happens in this codebase:**
+- `canonical_name` is the JOIN key between `checklist_data.species` and
+  `ecdysis_data.occurrences` for the species mart. If the key changes in Python but not in
+  the parquet (because the pipeline hasn't rerun), species pages show 0 occurrences for all
+  species.
+- `canonical_name.py` is already well-bounded and tested (16 tests in `test_canonical_name.py`).
+  It does not need refactoring for its own sake. Any refactoring touching it risks the D-04
+  constraint.
 
-**Warning signs:**
-- A collector reports "I collected at Rattlesnake Ledge but the place page shows 0 for my specimens"
-- Inspecting the occurrence lat/lon and the place boundary in QGIS shows the point 8 meters outside the polygon ring
-- Per-place occurrence count is systematically lower than the volunteer's field notes
+**Prevention:**
+- **Treat `canonical_name.py` as a locked contract module** during v3.8. Do not modify the
+  algorithm. Only permitted change: moving the file to a new location (import path update).
+- **If a move is necessary**, update all imports and run `pytest data/tests/test_canonical_name.py`
+  to verify the algorithm is unchanged.
+- **Do not add new canonical_name logic in SQL.** The SQL column is always derived from
+  Python. Any canonicalization that happens in SQL is a second implementation that will drift.
+- If `_INFRA_MARKERS` must change (outside v3.8 scope), require a full pipeline rerun after
+  the change before considering the work complete.
 
-**Phase to address:** dbt spatial join design phase (buffer distance must be decided and documented before the join SQL is written).
+**Detection:**
+- Species pages show 0 occurrences after a pipeline run (JOIN on `canonical_name` fails).
+- `test_canonical_name.py` assertions change (any change to expected output is a D-04 violation).
+- `checklist_unmatched.csv` count increases dramatically (more names fail to match after
+  a canonicalization change).
 
 ---
 
-### Pitfall 13: Per-place occurrence counts in `places.geojson` go stale when pipeline step order changes
+### Pitfall 10: `OccurrenceRow`/`OCCURRENCE_COLUMNS` out of sync with dbt mart columns
 
 **What goes wrong:**
-`places.geojson` includes per-place occurrence counts as feature properties (e.g., `"occurrence_count": 142`). These counts are computed in the pipeline *after* the spatial join populates `place_slug` in `occurrences.parquet`. If the pipeline step that generates `places.geojson` runs *before* the `occurrences` dbt mart (which computes `place_slug`), the counts in `places.geojson` reflect yesterday's data. The place page shows "142 records" but clicking "view on map" shows 145 records (3 new ones from overnight iNat sync).
+`filter.ts` exports both:
+- `OccurrenceRow` (TypeScript interface with 31 fields)
+- `OCCURRENCE_COLUMNS` (constant array of column names used in SQL SELECT)
 
-**Why it happens in this system:**
-- `data/run.py` sequences pipeline steps via the `STEPS` list. Adding a `places_export` step requires deliberate placement: it must come *after* `("dbt-build", ...)` completes. The existing `STEPS` list (geographies → ecdysis → inat → projects → export) has a single export step at the end. Adding a places export step at the wrong position (e.g., before dbt build) produces stale counts.
-- The topology_postprocess step (mapshaper) runs after dbt export. Places GeoJSON also needs mapshaper (Pitfall 1). The order: dbt build → export → mapshaper (places + counties + ecoregions) → upload.
+These must match the 31-column dbt mart contract exactly. A refactoring that extracts entity
+construction logic (e.g., "move `OccurrenceRow` to a dedicated `types.ts`") can introduce
+a desync if:
+- A field is added to `OccurrenceRow` but not to `OCCURRENCE_COLUMNS` (TypeScript type has it
+  but the SQL SELECT doesn't fetch it — the field is always `undefined`).
+- A field is removed from `OCCURRENCE_COLUMNS` but not from `OccurrenceRow` (the SQL no longer
+  fetches it; the type still declares it — silent data loss on every fetch).
+- A field is renamed in the interface (`scientificName` → `scientificname`) but the SQL column
+  is still `scientificName` — case mismatch in SQLite (case-insensitive) may not surface
+  as an error, but TypeScript property accesses break.
 
-**How to avoid:**
-- **Places count computation must happen in the same dbt build that populates `place_slug`**, or immediately after. Options:
-  1. Compute per-place counts in a new dbt mart (`places_agg.sql`): `SELECT place_slug, COUNT(*) AS occurrence_count FROM occurrences WHERE place_slug IS NOT NULL GROUP BY place_slug`. Export this to `places.json` (the slim metadata file, per Pitfall 11). Counts are always consistent with `occurrences.parquet` because they're computed from the same dbt run.
-  2. Compute in `export.py` / `species_export.py` (existing Python export step) after dbt completes. Same pipeline run; consistent.
-- **Do not compute counts in a separate pipeline step** that runs at a different time from dbt build.
-- Add a pipeline integration test: run the full pipeline on test fixtures; assert `places.json[0].occurrence_count == SELECT COUNT(*) FROM occurrences WHERE place_slug = places.json[0].slug`.
+**Why it happens in this codebase:**
+- `OCCURRENCE_COLUMNS` is a `const` array that is used literally in SQL queries
+  (`SELECT ${OCCURRENCE_COLUMNS.join(', ')} FROM occurrences`). It is the bridge between the
+  TypeScript type system and the SQL schema. The two are not linked by any compile-time check.
+- SQLite (wa-sqlite) returns column values as an array indexed by column name. If the column
+  name in SQLite doesn't match the interface field name, the field is silently `undefined`.
+- The only runtime check is whether the parquet file has the column — not whether TypeScript
+  reads it correctly.
 
-**Warning signs:**
-- Place page shows a count that differs from the SPA's filtered occurrence count for the same place
-- `places.json` `occurrence_count` matches yesterday's total, not today's (after a known new occurrence was added)
-- The discrepancy grows over time without explanation
+**Prevention:**
+- **`OccurrenceRow` and `OCCURRENCE_COLUMNS` must always move together.** If one moves to a
+  new file, the other must move to the same file in the same commit.
+- **Add a compile-time check** (or a Vitest test) that `OCCURRENCE_COLUMNS` is a subset of
+  `keyof OccurrenceRow`. TypeScript cannot enforce this at compile time without a helper type,
+  but a test can: `OCCURRENCE_COLUMNS.forEach(col => expect(col in emptyRow).toBe(true))`.
+- **Do not rename fields in `OccurrenceRow`** without also updating `OCCURRENCE_COLUMNS` and
+  verifying the dbt mart schema.yml uses the same name.
+- Treat `OCCURRENCE_COLUMNS` as the canonical list; `OccurrenceRow` must agree with it.
 
-**Phase to address:** Pipeline ordering phase (step placement in `run.py` STEPS list is explicit; places count must be computed in the same dbt build as `occurrences`).
+**Detection:**
+- Occurrence fields are `undefined` in the sidebar detail view after a refactoring.
+- TypeScript compiler reports type errors on `row.scientificName` (field not in type).
+- SQLite returns columns not present in the interface (new columns added to SQL but not TS).
 
 ---
 
-### Pitfall 14: CRS mismatch — place polygons authored in a projected CRS cause silent wrong spatial join results
+## Moderate Pitfalls
+
+### Pitfall 11: Style cache bypass logic silently dropped during `recencyTier` extraction
 
 **What goes wrong:**
-A curator downloads a park boundary from Washington State GIS Data Portal in NAD83 / Washington State Plane North (EPSG:32148) and commits it directly to the repo without reprojecting to WGS84 (EPSG:4326). DuckDB's `ST_Within` operates on raw coordinate values. In State Plane coordinates, a point at "King County" has easting/northing values in the hundreds of thousands of meters — completely different numeric range from WGS84 lat/lon (47°, -122°). The join produces no matches (all occurrences appear to be "outside" all place polygons). The failure is silent: `place_slug` is NULL for all 57,000 occurrences.
+`style.ts` exports `recencyTier(year, month)` and `RECENCY_COLORS`. The CLAUDE.md architecture
+invariants state: "OL style functions must bypass the cache when `filterState` is active or
+`selectedOccIds` is non-empty. Cache only when nothing is selected or filtered."
 
-This exact risk is documented in the existing codebase: `CLAUDE.md` notes "EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins."
+A refactoring that moves style-related logic (coloring, tier classification) into a dedicated
+module could accidentally move the cache key computation without moving the cache bypass check,
+or vice versa. The bypass check is in `bee-map.ts` (Mapbox GL JS layer paint expressions), not
+in `style.ts`. Moving `recencyTier` without moving the bypass guard leaves the guard disconnected
+from the function it guards.
 
-**Why it happens in this system:**
-- Place boundaries are authored or sourced from GIS portals that default to projected CRS. GeoJSON spec requires WGS84 (EPSG:4326) by RFC 7946, but many export tools ignore this.
-- The spatial join assumes WGS84. There is no CRS check at join time.
+**Prevention:**
+- **`recencyTier` and `RECENCY_COLORS` stay in `style.ts`** unless the entire cache bypass
+  logic also moves. Do not split them across files.
+- If `style.ts` is refactored, grep `bee-map.ts` for every reference to `style.ts` exports
+  and verify each reference's surrounding logic (the bypass check) is still coherent.
+- The `feedback_style_cache_selection.md` memory item documents a previous bug caused by cache
+  bypass removal — reference it before any style.ts change.
 
-**How to avoid:**
-- **Validate CRS before committing**: add a pytest test that reads `places.geojson` with geopandas and asserts `gdf.crs == "EPSG:4326"` (or `gdf.crs.to_epsg() == 4326`). Fail CI if non-WGS84.
-- **Add CRS check to the topology_postprocess.py mapshaper invocation**: mapshaper reads GeoJSON and assumes WGS84; if the input is in a projected CRS, coordinates look wrong and mapshaper outputs garbage. The CI failure from a bad-CRS places file would manifest as mapshaper producing a ~10-byte empty GeoJSON or coordinates in the millions.
-- **Document in the place data authoring guide**: "All geometry must be in EPSG:4326 (WGS84). Export GeoJSON from QGIS or ArcGIS Pro with CRS = WGS84."
-- **If sourcing from official GIS portals**: run `geopandas.read_file(...).to_crs('EPSG:4326').to_file('places.geojson', driver='GeoJSON')` before committing. Document this preprocessing requirement.
-
-**Warning signs:**
-- All `place_slug` values in `occurrences.parquet` are NULL after the dbt build
-- `places.geojson` coordinates are in the hundreds of thousands (State Plane) rather than degrees
-- A point clearly inside a park polygon (visually on the map) has `ST_Within = false`
-
-**Phase to address:** Geometry ingestion phase (validation must run before any geometry is committed, not after the spatial join produces wrong results).
+**Detection:**
+- After a filter is applied, occurrence points that should be dimmed appear with their original
+  colors (cache bypass lost; stale cached styles returned).
+- Selected clusters don't highlight correctly (same root cause).
 
 ---
 
-### Pitfall 15: Place page deep-link contract broken — slug used in link differs from Eleventy-generated URL
+### Pitfall 12: `is_provisional` semantics assumed inline, broken when centralized
 
 **What goes wrong:**
-The SPA emits a deep-link from the selected-place chip: "View Rattlesnake Ledge page →" linking to `/places/rattlesnake-ledge/`. The Eleventy pagination generates the page at `/places/{{ place.slug }}/`. If the slug value in `places.json` (produced by the pipeline) differs from the slug value in the TOML (the curated source), the link 404s. Specifically: the pipeline slugifies the name dynamically (produces `rattlesnake-ledge-recreation-area`) while the TOML has `slug: rattlesnake-ledge`. Two values for one place.
+ARM-2 of `int_combined.sql` sets `is_provisional = TRUE` for unmatched WABA observations.
+Several places in the frontend assume this without an explicit function:
+- `features.ts` uses `obj.ecdysis_id != null` to classify specimens for summary stats.
+- `filter.ts` `queryFilteredCounts` counts only `ecdysis_id IS NOT NULL` rows.
+- The sidebar detail uses `is_provisional` to show a badge.
 
-The species page solved this with `buildSpaTaxonLink()` and a shared `spa-link.ts`. A similar contract must exist for places.
+These are three separate, partially-redundant ways of expressing "is this a real Ecdysis record?"
+vs "is this provisional?" A refactoring that centralizes these into a named predicate must handle
+the fact that `ecdysis_id != null` and `is_provisional = false` are correlated but NOT equivalent
+in the current schema: ARM-1 rows have both `ecdysis_id != null` AND `is_provisional = false`;
+ARM-2 rows have `ecdysis_id = null` AND `is_provisional = true`. But a future occurrence type
+could have `ecdysis_id = null` AND `is_provisional = false` (pure iNat sample, not provisional
+at all). Conflating the two checks in a "centralized predicate" would break when that new type
+appears.
 
-**Why it happens in this system:**
-- `url-state.ts` currently has no place-slug encoding. Adding `?place=rattlesnake-ledge` to `AppState` and `buildParams` is straightforward, but the value must match the Eleventy-generated permalink exactly.
-- The Eleventy permalink is `"/places/{{ place.slug }}/"`. The SPA's URL param is whatever `buildParams` writes. If they use different sources (TOML slug vs pipeline-computed slug), the mismatch is invisible until a user clicks the link and gets a 404.
+**Prevention:**
+- **Do not conflate `ecdysis_id IS NOT NULL` with `is_provisional = false`.** These are
+  correlated today but semantically distinct. Each check site should use the semantically
+  correct field for its purpose.
+- If a predicate is extracted, it must express the correct semantic: `isEcdysisSpecimen(row)`
+  checks `ecdysis_id != null`; `isProvisional(row)` checks `is_provisional`. Do not unify them.
+- Before extracting either predicate, verify all call sites agree on which field they should
+  be using (some sites may be using the wrong proxy today — that's a separate bug to log, not
+  to "fix" during the refactoring).
 
-**How to avoid:**
-- **Single source of truth**: the curated TOML `slug` field flows through the pipeline unmodified into `places.json`, into the Eleventy data cascade, and into the `buildParams` output. Never re-slugify at any step.
-- **Cross-link test**: Eleventy post-build, grep `_site/places/` for subdirectory names. Assert each name matches a `slug` in `places.json`. Fails if Eleventy pagination uses a different field.
-- **Round-trip test**: Vitest test that builds a place link from `buildParams` with `placeSlug: 'rattlesnake-ledge'`, parses with `parseParams`, asserts `filter.selectedPlaceSlug === 'rattlesnake-ledge'`. Same pattern as the species SPA link round-trip test (Pitfall 17 in v3.2 research).
-- **Use `buildSpaPlaceLink(slug)` function** (leaf module, analogous to `buildSpaTaxonLink`) rather than constructing the URL inline.
-
-**Warning signs:**
-- Clicking "View place page" from the SPA results in a 404
-- `_site/places/` contains a directory named differently from the slug in `places.json`
-- `parseParams` returns a place slug that doesn't match any known place
-
-**Phase to address:** URL contract phase (the `buildSpaPlaceLink` function and `parseParams` extension must be implemented and tested together, before any place-chip → place-page navigation is wired up).
-
----
-
-## Technical Debt Patterns
-
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Generate slug from place name at build time (don't require curated slug field) | No TOML discipline needed | Slug changes when name changes; breaking URL changes with no redirect recovery | Never (static hosting; no redirects) |
-| Use nearest-polygon fallback for places (copy county/ecoregion pattern verbatim) | Less dbt SQL to write | Assigns most occurrences to the wrong place; corrupts per-place counts | Never |
-| Show permit status as "active/expired" badge with no expiry date displayed | Simpler UI | Badge goes stale within one pipeline cycle; visitor can't independently verify | Never (expiry date must always accompany the badge) |
-| Commit full-resolution GeoJSON without mapshaper simplification | No extra tooling step | Repo bloat; CI slowdown; CloudFront transfer cost | Never (> 100 KB GeoJSON) |
-| Skip dbt schema.yml update when adding `place_slug` column | Faster iteration | dbt contract violation; pipeline fails on next nightly run | Never |
-| Load places.geojson lazily (only when places layer toggled on) | Slightly faster initial map load | `generateId` IDs become unstable; feature-state selection highlights wrong feature | Never (use `promoteId: 'slug'` + eager load instead) |
-| Compute per-place occurrence counts in a separate nightly step from dbt build | Decoupled steps | Counts lag occurrences.parquet by one pipeline cycle; stale place pages | Never (must be same dbt run) |
-| Skip geometry validation (no `ST_IsValid` check, no CRS assertion) | No extra code | Invalid geometries silently produce 0 occurrences; CRS mismatch silently excludes all occurrences | Never |
+**Detection:**
+- Provisional occurrences appear in "specimen-only" queries or counts.
+- iNat-only samples (not provisional) are shown with a provisional badge.
 
 ---
 
-## Integration Gotchas
+## Phase-Specific Warnings
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|-----------------|
-| dbt contract (`schema.yml`) | Add column to SQL SELECT without adding to schema.yml (or vice versa) | Change both files atomically in the same commit; follow `project_schema_validation.md` procedure |
-| Mapbox GL JS `generateId` | Use `generateId: true` on places source then reload source dynamically | Use `promoteId: 'slug'` for stable place feature IDs across source reloads |
-| Mapbox `addInteraction` priority | Register `click-place` before `click-cluster` | Register cluster → unclustered point → place → empty-click; later registrations have lower priority |
-| `ST_Within` for spatial join | Copy county fallback pattern (nearest-polygon) for places | Explicitly omit fallback; allow `place_slug IS NULL` for the majority of occurrences |
-| `ST_Within` precision | Strict polygon boundary excludes GPS-drifted points near park edges | Use `ST_DWithin(pt, geom, 0.0001)` or buffered polygon (~10m) to capture boundary-edge occurrences |
-| Eleventy pagination | Include GeoJSON geometry in `places.json` (fed to Eleventy) | Split: `places.json` (slim metadata) for Eleventy; `places.geojson` (with geometry) for the map |
-| Pipeline step ordering | Compute per-place counts before `dbt build` completes | Per-place counts must be computed after dbt populates `place_slug`; use a dbt mart or post-dbt export step |
-| CRS | Commit place GeoJSON in projected CRS (State Plane, UTM) | Assert EPSG:4326 in pytest before committing; run `.to_crs('EPSG:4326')` if sourcing from GIS portal |
-
----
-
-## Performance Traps
-
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| `setFeatureState` loop over all 100 place features to clear selection | Frame drop on place chip deselect; 100 style recomputations | Use `map.removeFeatureState({ source: 'places' })` (O(1)) then set single selected feature | > 50 places |
-| Full-resolution place GeoJSON committed to repo and served from CloudFront | Slow map tile loading; large S3 transfer per invalidation | mapshaper simplification in topology_postprocess.py; < 500 KB GeoJSON budget | > 30 high-res boundaries |
-| Place boundary spatial join without geometry validation | Silent 0-occurrence results for a place; corrupt per-place counts | `ST_IsValid` check before join; mapshaper -clean normalization | Any invalid polygon |
-| Embedding GeoJSON geometry in `places.json` (Eleventy data file) | Eleventy data parse slow; HMR delayed | Keep geometry in `places.geojson` only; `places.json` holds only scalar metadata | > 10 KB of geometry |
-| 3rd spatial join (places) on 57,000 occurrences runs sequentially after county + ecoregion | dbt build time grows beyond nightly window | Materialized `int_combined` (already done per Pitfall 5 in occurrences.sql comments) prevents re-evaluating UNION ALL; places join re-uses the same materialized CTE | > 100,000 occurrences |
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Extract entity type definitions (OccurrenceRow, FilterState) to shared types file | Pitfall 10 (OCCURRENCE_COLUMNS desync) | Move OccurrenceRow and OCCURRENCE_COLUMNS together; add test |
+| Extract `isFilterActive` and filter clauses into helpers | Pitfall 4 (filter regression), Pitfall 5 (over-abstraction) | Expand integration tests first; keep clause combinator inline |
+| Split `int_combined.sql` into ARM-1 and ARM-2 sub-models | Pitfall 2 (dbt contract), Pitfall 12 (is_provisional) | Run `dbt build` after every SQL change; document ARM semantics |
+| Move `canonicalize()` to a domain subpackage | Pitfall 9 (canonical_name drift) | Only move the file; do NOT modify the algorithm |
+| Extract taxon predicates in TypeScript | Pitfall 3 (cross-language drift), Pitfall 5 (over-abstraction) | Only extract if used in 3+ call sites; SQL is authoritative for is_provisional |
+| Reorganize src/ directory structure | Pitfall 8 (arch tests), Pitfall 7 (url-state paths) | Update arch.test.ts first; run npm test before any move |
+| Refactor `buildFilterSQL` into clause helpers | Pitfall 4 (filter regression) | Add integration tests before extraction; null semantics must travel with clause functions |
+| Unify `occId` construction | Pitfall 3 (cross-language), Pitfall 5 (over-abstraction) | Confirm single call-site pattern; document which language owns the prefix convention |
+| Consolidate `recencyTier` / `RECENCY_COLORS` usage | Pitfall 11 (style cache bypass) | Verify cache bypass guard moves with the function; test selected-filter repaint |
+| Simplify or delete tests compensating for scattered logic | Pitfall 6 (test complexity) | Verify integration coverage before deleting; don't add unit tests for trivial extractions |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Geometry validity**: `gdf.is_valid.all()` passes for `places.geojson` before pipeline runs
-- [ ] **CRS assertion**: `gdf.crs.to_epsg() == 4326` passes in pytest
-- [ ] **dbt contract**: `place_slug VARCHAR` present in both `occurrences.sql` SELECT and `schema.yml` columns list
-- [ ] **No nearest-polygon fallback**: `place_slug IS NULL` for > 99% of occurrences in test fixtures (not 0%)
-- [ ] **Slug immutability**: `slug` field is read from TOML, never re-generated from name; validation asserts uniqueness
-- [ ] **Expiry date displayed**: place page shows raw `expiry_date` string alongside active/expired badge
-- [ ] **`built_at` timestamp displayed**: place page shows pipeline freshness timestamp
-- [ ] **`promoteId: 'slug'` on places source**: not `generateId: true`
-- [ ] **Interaction priority**: `click-cluster` and `click-point` registered before `click-place`
-- [ ] **Places fill layer below clusters**: `addLayer` for places fill called before cluster layers
-- [ ] **Pipeline step order**: places count computation comes after dbt build in `run.py` STEPS
-- [ ] **`places.json` size**: < 200 KB; no geometry coordinates in the file
-- [ ] **`places.geojson` size**: < 500 KB after mapshaper simplification
-- [ ] **Round-trip test**: `buildSpaPlaceLink('rattlesnake-ledge')` → `parseParams` → `filter.selectedPlaceSlug === 'rattlesnake-ledge'`
-- [ ] **Deep-link 200**: `_site/places/rattlesnake-ledge/index.html` exists and contains the place name
+For every refactoring phase in v3.8, before marking COMPLETE:
 
----
-
-## Recovery Strategies
-
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| Invalid place polygon (0 occurrences for a place) | LOW | Fix geometry in TOML/GeoJSON; rerun mapshaper -clean; rerun dbt build; redeploy |
-| Overlapping places inflated occurrence counts | MEDIUM | Decide on single-slug semantics; add `DISTINCT ON` to dbt CTE; rerun pipeline |
-| Slug collision or slug change breaking URLs | HIGH | If unpublished: fix before deploy. If published: add Lambda@Edge redirect rule (or accept permanent 404 — static hosting has no other option). Prevention is the only real mitigation. |
-| dbt contract violation (column not in schema.yml) | LOW | Add column to schema.yml; rerun `dbt build`; verify |
-| CRS mismatch (all place_slug = NULL) | LOW | Reproject GeoJSON to EPSG:4326; rerun pipeline |
-| Permit badge stale due to cron failure | LOW | Rerun `data/nightly.sh` manually on maderas; stale badge resolves within one run |
-| `generateId` IDs unstable after source reload | MEDIUM | Switch to `promoteId: 'slug'`; audit all `setFeatureState` calls for hardcoded integer IDs |
-| Per-place counts lag occurrences.parquet | LOW | Ensure places count step comes after dbt build in run.py; rerun pipeline |
-
----
-
-## Pitfall-to-Phase Mapping
-
-| Pitfall | Prevention Phase | Verification |
-|---------|-----------------|--------------|
-| 1. Invalid geometry | Data model + geometry validation phase | pytest `gdf.is_valid.all()`; mapshaper -clean in topology_postprocess |
-| 2. Overlapping places inflate row count | dbt spatial join design phase | Post-join row count assertion in pytest |
-| 3. Nearest-polygon fallback assigns non-place occurrences | dbt spatial join design phase | Fixture: out-of-place point gets `place_slug IS NULL` |
-| 4. dbt contract not updated | dbt schema phase | `dbt build` exits 0; schema.yml and SELECT updated atomically |
-| 5. Slug instability | Data model phase | Slug is curated field; uniqueness validation in run.py |
-| 6. Permit expiry staleness | Permit data model + display phase | Expiry date displayed; `built_at` timestamp visible on page |
-| 7. High-resolution GeoJSON bloat | Data model phase | File size assertion in pytest; mapshaper recipe in topology_postprocess |
-| 8. `generateId` ID instability | Map layer phase | `promoteId: 'slug'` in source config; no `generateId` |
-| 9. Places layer z-order / interaction priority | Map layer phase | Interaction registration order; fill layer insertion order |
-| 10. Feature-state loop jank | Map layer phase | `removeFeatureState` (O(1)); no per-feature loop |
-| 11. Eleventy HMR slowness from places data | Eleventy data phase | `places.json` < 200 KB; no geometry in Eleventy data file |
-| 12. GPS-drifted occurrences excluded from place filter | dbt spatial join design phase | Buffer distance documented; fixture with boundary-edge point |
-| 13. Per-place counts stale vs occurrences.parquet | Pipeline ordering phase | run.py STEPS list: places count after dbt build |
-| 14. CRS mismatch silences all spatial join results | Geometry ingestion phase | pytest CRS assertion; fail CI on non-WGS84 input |
-| 15. Deep-link slug mismatch → 404 | URL contract phase | `buildSpaPlaceLink` round-trip test; post-build directory name assertion |
+- [ ] **Behavior preserved**: old and new code produce identical output for all pytest fixtures
+- [ ] **dbt contract intact**: `bash data/dbt/run.sh build` exits 0 with no schema warnings
+- [ ] **`npm test` passes**: all Vitest tests (filter, url-state, arch, etc.) pass without modification
+- [ ] **No new features**: diff contains zero new branches, no new conditionals, no new constants
+  with non-trivial values
+- [ ] **Authority documented**: any extracted predicate has a comment stating which language owns
+  the authoritative computation
+- [ ] **OCCURRENCE_COLUMNS and OccurrenceRow in sync**: if either changed, both changed in the
+  same commit
+- [ ] **Arch tests updated**: if file locations changed, arch.test.ts updated in the same commit
+- [ ] **Cross-language drift checked**: for any predicate that exists in multiple languages,
+  both implementations produce the same result for the same input
+- [ ] **Test count delta is neutral or negative**: refactoring should not increase total test
+  complexity; deleting compensating integration tests is acceptable if a targeted unit test
+  replaces them
 
 ---
 
 ## Sources
 
-- BeeAtlas codebase read directly: `data/dbt/models/marts/occurrences.sql` (spatial join pattern, `DISTINCT ON`, nearest-polygon fallback, `int_combined` materialization); `data/dbt/models/marts/schema.yml` (dbt contract enforcement); `data/topology_postprocess.py` (mapshaper -clean recipe, simplification percentages, file size before/after); `src/bee-map.ts` (Mapbox `generateId`, `promoteId`, `addInteraction` registration order, `setFeatureState` pattern, layer insertion order); `src/filter.ts` (`buildFilterSQL` SQL WHERE pattern, `place_slug` extension point); `src/url-state.ts` (URL param encoding, `parseParams` silent-drop behavior); `data/geographies_pipeline.py` (CRS handling, `.to_crs('EPSG:4326')` prior art); `data/run.py` (STEPS list, pipeline ordering); `eleventy.config.js` (pagination pattern); `_data/species.js` (Eleventy data file shape, pre-aggregated JSON pattern); `_pages/species-detail.njk` (pagination + permalink template).
-- Project memory: `project_schema_validation.md` (dbt contract change procedure); `CLAUDE.md` (EPA L3 CRS risk warning — directly applicable to places geometry ingestion); `PROJECT.md` (Key Decisions table — CRS risk documented as known tech debt; `specimenLayer` typo deferred).
-- Mapbox GL JS v3 documentation: `promoteId` vs `generateId` behavior; `removeFeatureState` API; `addInteraction` priority semantics.
-- DuckDB spatial extension: `ST_Within`, `ST_DWithin`, `ST_Buffer`, `ST_IsValid` semantics for OGC-compliant geometry validation.
+- BeeAtlas codebase read directly: `src/filter.ts` (buildFilterSQL, OccurrenceRow,
+  OCCURRENCE_COLUMNS, isFilterActive, queryVisibleIds — null semantics, collector OR logic,
+  elevation three-branch logic); `src/features.ts` (inline occId construction, ecdysis_id
+  null-check for summary stats); `src/url-state.ts` (parseParams placeImplied coupling,
+  buildParams sel/o mutual exclusion); `src/style.ts` (recencyTier, RECENCY_COLORS);
+  `data/canonical_name.py` (D-04 algorithm, _INFRA_MARKERS lock);
+  `data/checklist_pipeline.py` (_update_occurrences_canonical_name — UPDATE path, not dbt);
+  `data/dbt/models/marts/occurrences.sql` (31-column final SELECT);
+  `data/dbt/models/marts/schema.yml` (contract enforced: true, all 31 column names and types);
+  `data/dbt/models/intermediate/int_combined.sql` (ARM-1 FULL OUTER JOIN, ARM-2 UNION ALL,
+  is_provisional=TRUE for ARM-2); `src/tests/arch.test.ts` (readFileSync boundary enforcement,
+  forbidden path strings, static + dynamic import regex).
+- Project memory: `project_schema_validation.md` (dbt contract change procedure);
+  `feedback_style_cache_selection.md` (prior bug: cache bypass removal caused incorrect styling);
+  `CLAUDE.md` architecture invariants (style cache bypass requirement; filter race guard;
+  ID format `ecdysis:` and `inat:` prefixes are load-bearing).
+- `PROJECT.md` Key Decisions table: `buildFilterSQL()` returns plain SQL string (not
+  parameterized); `visibleIds Set` replaces per-feature matchesFilter(); `bee-atlas` coordinator
+  does not import OpenLayers.
+- Research: [How to Avoid Scope Creep During Refactoring](https://andreigridnev.com/blog/2019-01-20-four-tips-to-avoid-scope-creep-during-refactoring/);
+  [Don't make Clean Code harder to maintain, use the Rule of Three](https://understandlegacycode.com/blog/refactoring-rule-of-three/);
+  [dbt Model contracts](https://docs.getdbt.com/docs/mesh/govern/model-contracts);
+  [The False Promise of dbt Contracts](https://www.tobikodata.com/blog/the-false-promise-of-dbt-contracts);
+  [An Empirical Investigation into the Impact of Refactoring on Regression Testing](https://web.cs.ucla.edu/~miryung/Publications/icsm2012-RefRT.pdf).
 
 ---
 
-*Pitfalls research for: BeeAtlas v3.7 Places / Collecting Location Directory*
-*Researched: 2026-05-17*
+*Pitfalls research for: BeeAtlas v3.8 Conceptual Tidying — Domain Model Extraction*
+*Researched: 2026-05-18*
