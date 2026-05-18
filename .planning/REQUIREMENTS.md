@@ -29,8 +29,8 @@
 
 ### PPAGE — Place Static Pages
 
-- [ ] **PPAGE-01**: `/places.html` index page (or equivalent direct-path URL per Eleventy permalink config) lists all places with name, land owner, permit status summary, and specimen count
-- [ ] **PPAGE-02**: Per-place page at a direct-path URL (e.g. `/places/{slug}.html`) shows name, owner, permit table with active/inactive/no-expiry status, specimen count, SVG occurrence map, and a link that opens the main map with that place's filter applied
+- [ ] **PPAGE-01**: `/places.html` index page (or equivalent direct-path URL per Eleventy permalink config) lists all places with name, land owner, and specimen count
+- [ ] **PPAGE-02**: Per-place page at a direct-path URL (e.g. `/places/{slug}.html`) shows name, owner, specimen count, SVG occurrence map, and a link that opens the main map with that place's filter applied
 - [ ] **PPAGE-03**: Per-place SVG occurrence map generated at pipeline time, following the `species_maps.py` pattern
 
 ## Future Requirements
@@ -56,6 +56,7 @@
 | All-WA public lands layer | Scope and dataset size; would pull in thousands of polygons beyond curated collecting sites |
 | Annual specimen trend charts per place | HIGH pipeline complexity; defer to v3.8+ |
 | Nearest-polygon fallback for unmatched occurrences | Semantically wrong for places — most occurrences are not at any named site |
+| Permit display (table or summary) | Removed from v3.7 milestone per Phase 99 decision D-01; revisit in v3.8+ when permit tracking resurfaces |
 
 ## Traceability
 
