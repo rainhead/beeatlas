@@ -1,0 +1,23 @@
+---
+pagination:
+  data: places.placesArray
+  size: 1
+  alias: place
+permalink: "/places/{{ place.slug }}.html"
+eleventyComputed:
+  title: "{{ place.name }} — BeeAtlas"
+layout: base.njk
+---
+<link rel="stylesheet" href="/src/styles/places.css">
+<article class="places-page place-detail">
+  <h1>{{ place.name }}</h1>
+  <div class="media-grid">
+    {%- if place.specimen_count > 0 -%}
+      <img loading="lazy"
+           src="/data/place-maps/{{ place.slug }}.svg"
+           alt="Occurrence map for {{ place.name }}">
+    {%- endif -%}
+  </div>
+  <p class="metadata">{{ place.specimen_count }} specimens · {{ place.land_owner }}</p>
+  <a href="/?place={{ place.slug }}">View occurrences on the atlas →</a>
+</article>
