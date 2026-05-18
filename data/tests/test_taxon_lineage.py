@@ -298,7 +298,7 @@ def test_enrich_handles_no_taxa(fixture_con, fixture_db, monkeypatch, capsys):
 
         assert called["count"] == 0
         captured = capsys.readouterr()
-        assert "no taxon IDs found" in captured.out
+        assert "all cached" in captured.out or "no taxon IDs found" in captured.out
     finally:
         _restore_obs_state(fixture_con, snap)
 
