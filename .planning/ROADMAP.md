@@ -359,17 +359,21 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
+
 **Goal**: The export pipeline surfaces WABA observations that have no Ecdysis match as provisional occurrence rows, complete with iNat taxon, observer, and host sample context
 **Depends on**: Phase 65
 **Requirements**: PROV-01, PROV-02, PROV-03, PROV-04, PROV-05
 **Success Criteria** (what must be TRUE):
+
   1. Running `export.py` against a DuckDB with WABA observations produces `occurrences.parquet` rows where `ecdysis_id` is null and `is_provisional` is true for unmatched WABA observations
   2. Provisional rows carry `scientificName`, `genus`, `family` from the iNat community taxon, `observer` from the iNat user login, and `specimen_observation_id` equal to the WABA observation ID
   3. Provisional rows whose WABA observation has OFV field_id 1718 carry a populated `host_observation_id`; where that host observation is a known sample, `specimen_count` and `sample_id` are also populated
   4. WABA observations that do have an Ecdysis catalog-number match are absent from the provisional rows (matched rows remain as specimen rows only)
   5. `validate-schema.mjs` passes with the new `is_provisional` column; 2 pytest integration tests confirm the above inclusion/exclusion behavior
+
 **Plans**: 5 plans
 Plans:
+
 - [x] 066-01-PLAN.md — Add taxon.ancestors to waba_pipeline.py DEFAULT_FIELDS and run pipeline
 - [x] 066-02-PLAN.md — Extend conftest.py fixtures and add integration test stubs (Wave 0)
 - [x] 066-03-PLAN.md — Restructure export.py joined CTE into UNION ALL with provisional rows and new columns
@@ -377,25 +381,32 @@ Plans:
 - [x] 066-05-PLAN.md — Fix taxon_lineage table mismatch (gap closure)
 
 ### Phase 67: Provisional Row Display in Sidebar
+
 **Goal**: Users see meaningful labels and links for sample-only and provisional rows in the occurrence detail sidebar
 **Depends on**: Phase 66
 **Requirements**: SID-01, SID-02
 **Success Criteria** (what must be TRUE):
+
   1. Clicking a sample-only occurrence (ecdysis_id null, is_provisional falsy) shows "N specimens collected, identification pending" in the sidebar — no blank species name
   2. Clicking a provisional occurrence (is_provisional true) shows a provisional identification label with the iNat community taxon name and a link to the WABA observation via `specimen_observation_id`
   3. A Vitest render test mounts `bee-occurrence-detail` with a provisional row fixture and asserts the provisional label and observation link are present
   4. Existing specimen and sample-only render tests continue to pass
+
 **Plans**: 2 plans
 Plans:
+
 - [x] 067-01-PLAN.md — Schema + data layer: add specimen_inat_quality_grade to export.py and validate-schema.mjs; rename observer to host_inat_login in filter.ts; add is_provisional, specimen_inat_taxon_name, specimen_inat_quality_grade to OccurrenceRow and OCCURRENCE_COLUMNS
 - [x] 067-02-PLAN.md — Rendering + tests: _renderProvisional method and updated _renderSampleOnly in bee-occurrence-detail.ts; two new Vitest render tests in bee-sidebar.test.ts
+
 **UI hint**: yes
 
 ### Phase 68: Filter Panel Redesign
+
 **Goal**: Replace the always-visible filter toolbar with a floating map overlay control (magnifying glass + count) that expands into a structured what/who/where/when filter panel
 **Depends on**: Phase 67
 **Requirements**: (UI flow redesign — no formal REQ IDs assigned)
 **Success Criteria** (what must be TRUE):
+
   1. The filter toolbar row is gone; the map fills the full content area
   2. A floating button overlays the map at top: 0.5em, to the left of the Regions button — shows magnifying-glass icon + specimen count
   3. When any filter is active, the button turns green (active coloring)
@@ -404,39 +415,49 @@ Plans:
   6. Filter changes propagate to bee-atlas and update the map identically to before
   7. localStorage recents (beeatlas.recentFilters) are no longer written
   8. CSV download is only accessible from table view
+
 **Plans**: 3 plans
 Plans:
+
 - [x] 068-01-PLAN.md — Create bee-filter-panel.ts (floating overlay, trigger button, four section headers, bee-filter-controls embedded)
 - [x] 068-02-PLAN.md — Remove localStorage recents from bee-filter-controls.ts (D-09)
 - [x] 068-03-PLAN.md — Wire bee-atlas.ts: swap toolbar for panel, update tests
 
 ### Phase 69: Table Drawer
+
 **Goal**: Table slides up over map rather than replacing it; spatial context preserved
 **Depends on**: Phase 68
 **Requirements**: (UI flow redesign — no formal REQ IDs assigned)
 **Success Criteria** (what must be TRUE):
+
   1. In table mode, the map remains visible as a ~18% strip above the drawer; bee-map is never removed from the DOM
   2. The table drawer covers ~82% of the content area height, positioned absolute at bottom: 0
   3. In table mode, the filter panel and sidebar are not rendered
   4. Switching to table mode closes any open sidebar (_sidebarOpen → false)
   5. Clicking a table row pans the map strip to center on that occurrence's lat/lon
   6. Rows without lat/lon are silently skipped (no error or sidebar open)
+
 **Plans**: 2 plans
 Plans:
+
 - [x] 069-01-PLAN.md — Add _onRowClick handler and row-pan event dispatch to bee-table.ts
 - [x] 069-02-PLAN.md — Restructure bee-atlas.ts: drawer layout, mode gating, _onRowPan handler
 
 ### Phase 70: Map Overlay Sidebar
+
 **Goal**: Detail panel overlays map instead of shifting it; map always full-width
 **Depends on**: Phase 69
 **Requirements**: (UI flow redesign — no formal REQ IDs assigned)
 **Success Criteria** (what must be TRUE):
+
   1. Opening the sidebar does not change the map's width — it always occupies the full .content area
   2. The sidebar panel appears as a right-edge overlay anchored below the filter button with a drop shadow
   3. The sidebar header reads "Selected specimens" alongside the existing close button
   4. On portrait screens the sidebar reverts to the below-map flex layout (width: 100%, border-top)
+
 **Plans**: 1 plan
 Plans:
+
 - [x] 070-01-PLAN.md — Update bee-sidebar.ts (overlay host styles, header label) and bee-atlas.ts (sidebar CSS to overlay positioning)
 
 <!-- Phase 71-73 details archived to .planning/milestones/v3.0-ROADMAP.md -->
@@ -452,59 +473,81 @@ Plans:
 <!-- Phase 92-96 details archived to .planning/milestones/v3.6-ROADMAP.md -->
 
 ### Phase 97: Place Data Model
+
 **Goal**: The coordinator can define curated collecting locations in a TOML file that the build validates for correctness before the pipeline runs
 **Depends on**: Phase 96
 **Requirements**: PLC-01, PLC-02, PLC-03, PLC-04
 **Success Criteria** (what must be TRUE):
+
   1. A coordinator can add an entry to `content/places.toml` with slug, name, land_owner, geometry_wkt (WGS84), and a permits array; the build accepts it
   2. Each permit record carries issuing_authority, optional permit_number, nullable expiry_date, and type (project-level vs site-level)
   3. The build fails with a descriptive error if any place has an invalid geometry, non-WGS84 CRS, duplicate slug, or slug characters outside `[a-z0-9-]`
   4. The build fails if any two place polygons overlap (ST_Intersects check)
   5. A pytest fixture with one valid and one invalid place entry verifies the pass/fail boundary
+
 **Plans**: 2 plans
 Plans:
+
 - [x] 097-01-PLAN.md — Create content/places.toml seed entries and data/places_validation.py validation module
 - [x] 097-02-PLAN.md — Wire validation step into run.py STEPS and write pytest tests
 
 ### Phase 98: Pipeline Integration
+
 **Goal**: occurrences.parquet carries a place_slug column from a spatial join; places.geojson and places.json are exported and committed so CI builds succeed without running the pipeline
 **Depends on**: Phase 97
 **Requirements**: PPIPE-01, PPIPE-02, PPIPE-03, PPIPE-04, PPIPE-05, PPAGE-03
 **Success Criteria** (what must be TRUE):
+
   1. Running the pipeline loads places.toml into a `geographies.places` DuckDB table before dbt runs; `dbt build` exits 0 with the 31-column contract
   2. occurrences.parquet contains a `place_slug` VARCHAR column; occurrences at a known place carry its slug; occurrences outside all places carry NULL (no nearest-polygon fallback)
   3. `public/data/places.geojson` is produced containing slug + geometry (suitable for Mapbox `promoteId: 'slug'`)
   4. `public/data/places.json` is produced containing all metadata (name, land_owner, permits, specimen count, sample count) with no geometry
   5. Per-place SVG occurrence maps are generated following the species_maps.py pattern (WA county backdrop, occurrence dots, byte-stable output)
   6. places.geojson and places.json are committed to git; `npm run build` succeeds in CI without running the pipeline
+
 **Plans**: 3 plans
 Plans:
+**Wave 1**
+
 - [ ] 098-01-PLAN.md — Load places.toml into geographies.places + dbt 31-col contract with place_slug
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 098-02-PLAN.md — Export places.geojson + places.json and commit (PPIPE-04, PPIPE-05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 098-03-PLAN.md — Per-place SVG occurrence maps (PPAGE-03)
+
 **UI hint**: yes
 
 ### Phase 99: Place Static Pages
+
 **Goal**: Users can browse a directory of collecting locations and view detailed information for each place
 **Depends on**: Phase 98
 **Requirements**: PPAGE-01, PPAGE-02
 **Success Criteria** (what must be TRUE):
+
   1. `/places.html` (or equivalent direct-path URL) lists all places with name, land owner, permit status summary, and specimen count
   2. Each place has a dedicated page at a direct-path URL (e.g. `/places/{slug}.html`) accessible without a trailing-slash redirect
   3. The per-place page shows name, land owner, a permit table with active/inactive/no-expiry status, specimen count, the SVG occurrence map, and a link that opens the main map with that place's filter applied
   4. The deep-link from a place page opens the main map with that place pre-filtered (occurrence dots outside the polygon are ghosted)
+
 **Plans**: TBD
 **UI hint**: yes
 
 ### Phase 100: Map & Filter Integration
+
 **Goal**: Users can toggle a places boundary overlay on the map, click a place polygon to filter by it, and share filtered map URLs that restore the place selection
 **Depends on**: Phase 98
 **Requirements**: PMAP-01, PMAP-02, PMAP-03, PMAP-04
 **Success Criteria** (what must be TRUE):
+
   1. The boundary mode toggle includes a Places option; selecting it renders place polygons in a visually distinct color from counties and ecoregions; the modes remain mutually exclusive
   2. Clicking a place polygon in the boundary layer applies that place as the active filter (occurrence dots outside the polygon are ghosted)
   3. A removable place filter chip appears in the filter panel when a place is active; removing it clears the filter and shows all occurrences
   4. The active place slug is encoded as `place=` in the URL; pasting the URL in a new tab restores the place filter
+
 **Plans**: TBD
 **UI hint**: yes
 
