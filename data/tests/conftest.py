@@ -151,6 +151,11 @@ def _create_tables(con: duckdb.DuckDBPyConnection) -> None:
             source TEXT
         )
     """)
+    con.execute("""
+        CREATE TABLE geographies.places (
+            slug VARCHAR, name VARCHAR, land_owner VARCHAR, geom GEOMETRY
+        )
+    """)
 
 
 def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
@@ -499,6 +504,16 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
     con.execute("""
         INSERT INTO inaturalist_data.taxon_lineage_extended VALUES
             (200020, 'Andrenidae', 'Andreninae', NULL, 'Andrena', NULL)
+    """)
+
+    # Test place covering BOTH canonical test occurrence coordinates:
+    # Ecdysis specimen (-120.912, 47.608) and iNat observation (-120.8, 47.5)
+    # Bounding box: lon -121.1..-120.7, lat 47.4..47.8
+    con.execute("""
+        INSERT INTO geographies.places VALUES (
+            'test-place', 'Test Place', 'DNR',
+            ST_GeomFromText('POLYGON((-121.1 47.4, -120.7 47.4, -120.7 47.8, -121.1 47.8, -121.1 47.4))')
+        )
     """)
 
     # Phase 78 MAP-04: one occurrence point outside the WA bbox so the
