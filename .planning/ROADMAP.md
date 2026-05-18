@@ -533,7 +533,16 @@ Plans:
   3. The per-place page shows name, land owner, a permit table with active/inactive/no-expiry status, specimen count, the SVG occurrence map, and a link that opens the main map with that place's filter applied
   4. The deep-link from a place page opens the main map with that place pre-filtered (occurrence dots outside the polygon are ghosted)
 
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+
+- [ ] 99-01-PLAN.md — Update REQUIREMENTS/ROADMAP per D-01 (drop permit references) and add Wave 0 RED tests for _data/places.js and place-page build output
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 99-02-PLAN.md — Implement _data/places.js, _pages/places.njk, _pages/place-detail.njk, and src/styles/places.css (PPAGE-01, PPAGE-02)
+
 **UI hint**: yes
 
 ### Phase 100: Map & Filter Integration
