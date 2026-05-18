@@ -352,7 +352,7 @@ See `.planning/milestones/v3.6-ROADMAP.md` for full phase details.
 **Milestone Goal:** Add a curated directory of collecting locations with permit status, land owner info, specimen counts, and full map integration.
 
 - [x] **Phase 97: Place Data Model** — TOML schema, permit structure, build-time validation (2 plans) (completed 2026-05-18)
-- [ ] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit
+- [x] **Phase 98: Pipeline Integration** — DuckDB table, place_slug column, dbt schema update, dual export, SVG maps, git commit (completed 2026-05-18)
 - [ ] **Phase 99: Place Static Pages** — Eleventy index and per-place pages
 - [ ] **Phase 100: Map & Filter Integration** — boundary toggle, filter chip, URL param
 
@@ -517,7 +517,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 098-03-PLAN.md — Per-place SVG occurrence maps (PPAGE-03)
+- [x] 098-03-PLAN.md — Per-place SVG occurrence maps (PPAGE-03)
 
 **UI hint**: yes
 
@@ -652,6 +652,6 @@ Plans:
 | 95. Subgenus & Tribe Pages | v3.6 | 2/2 | Complete    | 2026-05-16 |
 | 96. Index Page Replacement | v3.6 | 3/3 | Complete    | 2026-05-16 |
 | 97. Place Data Model | v3.7 | 2/2 | Complete   | 2026-05-18 |
-| 98. Pipeline Integration | v3.7 | 2/3 | In Progress|  |
+| 98. Pipeline Integration | v3.7 | 3/3 | Complete   | 2026-05-18 |
 | 99. Place Static Pages | v3.7 | 0/TBD | Not started | - |
 | 100. Map & Filter Integration | v3.7 | 0/TBD | Not started | - |
