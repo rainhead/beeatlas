@@ -131,10 +131,10 @@ _data/places.js  [build-time ESM module, reads JSON with readFileSync]
         +---> _pages/place-detail.njk     → _site/places/{slug}.html (N pages)
               (pagination size:1, alias:place)
 
-public/data/places-maps/{slug}.svg        → _site/data/places-maps/{slug}.svg
+public/data/place-maps/{slug}.svg         → _site/data/place-maps/{slug}.svg
         |                                    (passthrough via Vite publicDir)
         |
-        referenced from place-detail.njk as <img src="/data/places-maps/{{ place.slug }}.svg">
+        referenced from place-detail.njk as <img src="/data/place-maps/{{ place.slug }}.svg">
 
 src/styles/places.css
         |
@@ -156,7 +156,7 @@ src/styles/
   taxon-pages.css      # existing — do not modify
 public/data/
   places.json          # existing (Phase 98) — slug, name, land_owner, specimen_count
-  places-maps/         # existing (Phase 98) — {slug}.svg files
+  place-maps/          # existing (Phase 98) — {slug}.svg files
 ```
 
 ### Pattern 1: _data Module (mirrors `_data/species.js`)
@@ -384,7 +384,7 @@ layout: default.njk
   <div class="media-grid">
     {%- if place.specimen_count > 0 -%}
       <img loading="lazy"
-           src="/data/places-maps/{{ place.slug }}.svg"
+           src="/data/place-maps/{{ place.slug }}.svg"
            alt="Occurrence map for {{ place.name }}">
     {%- endif -%}
   </div>
@@ -407,7 +407,7 @@ layout: default.njk
 }
 
 /* SVG occurrence map: viewBox 600x320 = 15:8 aspect (matching species-maps). */
-.places-page img[src*="/places-maps/"] {
+.places-page img[src*="/place-maps/"] {
   aspect-ratio: 15 / 8;
   width: 100%;
   max-width: 600px;
@@ -464,24 +464,18 @@ layout: default.njk
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | SVG maps are at `/data/places-maps/{slug}.svg` per CONTEXT.md D-07 | Code Examples, Pitfall 1 | Broken `<img>` links; need to match actual Phase 98 output path which is currently `place-maps/` (no trailing s) |
+| A1 | SVG maps are at `/data/place-maps/{slug}.svg` — canonical Phase 98 pipeline output (CONTEXT.md D-07 `places-maps/` plural is a typo) | Code Examples, Pitfall 1 | Broken `<img>` links if path mismatches; resolved by verifying `data/places_maps.py` output |
 | A2 | `places.placesArray` as the export key (following species pattern) | Pattern 1, Code Examples | Templates reference wrong key; Eleventy silently outputs nothing in for-loop |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **SVG map directory name**
-   - What we know: CONTEXT.md D-07 says `/data/places-maps/`. Current disk has `public/data/place-maps/` (different — singular "map").
-   - What's unclear: Which path will Phase 98 actually write to in final form? The plan must
-     confirm the exact directory name before writing the `<img src>` attribute.
-   - Recommendation: Add a task in Wave 0 to check the Phase 98 pipeline output and set the
-     correct path. If Phase 98 is still in flight, read its plan for the export path.
+1. **SVG map directory name** — RESOLVED: Phase 98 pipeline (`data/places_maps.py`) writes to
+   `public/data/place-maps/` (singular "map"). All templates and CSS selectors use
+   `/data/place-maps/{{ place.slug }}.svg`. CONTEXT.md D-07's `places-maps/` (plural) is a
+   typo — the canonical path is singular `place-maps/`.
 
-2. **REQUIREMENTS.md / ROADMAP.md permit table removal (D-01)**
-   - What we know: D-01 says to update REQUIREMENTS.md and ROADMAP.md to remove the permit table.
-   - What's unclear: Is this a planner task (Wave 0 doc update) or a prerequisite that should
-     already be done?
-   - Recommendation: Include a Wave 0 task to update REQUIREMENTS.md §PPAGE-02 and ROADMAP.md
-     §Phase 99 success criteria before the main implementation tasks.
+2. **REQUIREMENTS.md / ROADMAP.md permit table removal (D-01)** — RESOLVED: Plan 99-01 Task 1
+   handles this as a Wave 1 doc-cleanup task before implementation begins.
 
 ## Environment Availability
 
