@@ -126,6 +126,8 @@ species_name=$(_upload_hashed "$EXPORT_DIR/species.json" "species")
 seasonality_name=$(_upload_hashed "$EXPORT_DIR/seasonality.json" "seasonality")
 counties_name=$(_upload_hashed "$EXPORT_DIR/counties.geojson" "counties" --content-type application/json)
 ecoregions_name=$(_upload_hashed "$EXPORT_DIR/ecoregions.geojson" "ecoregions" --content-type application/json)
+places_name=$(_upload_hashed "$EXPORT_DIR/places.geojson" "places" --content-type application/json)
+places_meta_name=$(_upload_hashed "$EXPORT_DIR/places.json" "places_meta" --content-type application/json)
 
 cat > "$EXPORT_DIR/manifest.json" <<JSON
 {
@@ -134,6 +136,8 @@ cat > "$EXPORT_DIR/manifest.json" <<JSON
   "seasonality": "$seasonality_name",
   "counties": "$counties_name",
   "ecoregions": "$ecoregions_name",
+  "places": "$places_name",
+  "places_meta": "$places_meta_name",
   "generated_at": "$(_ts)"
 }
 JSON
