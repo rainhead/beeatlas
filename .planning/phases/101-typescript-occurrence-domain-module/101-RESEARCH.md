@@ -423,13 +423,14 @@ trusted internal SQLite queries.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`occIdFromRow` return type: `string` or `string | null`?**
    - What we know: Current inline patterns produce `inat:0` when `observation_id` is null (via `Number(null)`). The `bee-table.ts` `rowOccId` function explicitly returns `string | null`.
    - What's unclear: Should the new function throw, return null, or silently produce `inat:0`?
    - Recommendation: Return `string | null` to match `bee-table.ts` semantics and avoid silent
      `inat:0` bugs. Document that `inat:0` is a sentinel that means "no ID available".
+   - **RESOLVED: `string | null` — matches `bee-table.ts` `rowOccId` contract; avoids silent `inat:0` bug for null `observation_id` rows.**
 
 2. **`features.ts` uses `obj: Record<string, unknown>`, not `OccurrenceRow`**
    - What we know: `loadOccurrenceGeoJSON` builds rows from raw SQLite callbacks and never
@@ -438,6 +439,7 @@ trusted internal SQLite queries.
      cast to `OccurrenceRow` before calling?
    - Recommendation: Cast to `OccurrenceRow` at the call site in `features.ts` — this is the
      pattern used in `bee-atlas.ts:965` and elsewhere.
+   - **RESOLVED: Cast to `OccurrenceRow` at the call site in `features.ts` — consistent with `bee-atlas.ts:965` pattern.**
 
 3. **`url-state.ts:192` startsWith guard — replace or keep?**
    - What we know: The filter is validation logic to reject garbage URL values, not ID construction.
@@ -445,6 +447,7 @@ trusted internal SQLite queries.
    - Recommendation: Keep as-is — this is validation, not domain parsing. The success criteria
      only requires that no file *constructs* the prefixed ID inline; validation predicates on
      pre-existing strings are not in scope.
+   - **RESOLVED: Keep as-is — URL input validation, not domain parsing. Out of scope for success-criteria greps.**
 
 4. **`bee-map.ts:966` and `features.ts:81` startsWith — replace or keep?**
    - What we know: Both operate on `occId: string` (already constructed) to count specimens.
@@ -455,6 +458,7 @@ trusted internal SQLite queries.
      Alternatively, introduce a helper `isSpecimenId(occId: string): boolean` in `occurrence.ts`
      to replace these `startsWith` guards — this would make them domain-aware even when operating
      on strings rather than rows.
+   - **RESOLVED: Export `isSpecimenId(occId: string): boolean` from `occurrence.ts`; replace `startsWith('ecdysis:')` guards in `features.ts:81` and `bee-map.ts:966` with it.**
 
 ---
 
