@@ -15,6 +15,7 @@
   "author": "",
   "type": "module",
   "scripts": {
+    "predev": "node scripts/make-local-manifest.js",
     "dev": "eleventy --serve",
     "build:data": "cd data && uv run python run.py",
     "validate-species": "node scripts/validate-species.mjs",
