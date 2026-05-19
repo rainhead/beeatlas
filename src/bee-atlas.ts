@@ -861,12 +861,30 @@ bee-pane {
     }
   }
 
-  private _onClose() {
+  private _onPaneExpandList() {
+    this._paneState = 'list';
+    this._replaceUrlState();
+  }
+
+  private _onPaneCollapse() {
     this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
     this._paneState = 'collapsed';
+    this._replaceUrlState();
+  }
+
+  private _onPaneExpandTable() {
+    this._paneState = 'table';
+    import('./bee-table.ts');
+    this._tableLoading = true;
+    this._runTableQuery();
+    this._replaceUrlState();
+  }
+
+  private _onPaneShrinkList() {
+    this._paneState = 'list';
     this._replaceUrlState();
   }
 
