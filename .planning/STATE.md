@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.8
 milestone_name: Conceptual Tidying
 status: executing
-stopped_at: Roadmap created for v3.8 — 4 phases (101-104), 8 requirements mapped
-last_updated: "2026-05-19T00:21:25.408Z"
-last_activity: 2026-05-19 -- Phase 102 execution started
+stopped_at: Phase 102 complete — Python Slug Module & Dead Constant verified
+last_updated: "2026-05-19T00:00:00.000Z"
+last_activity: 2026-05-19 -- Phase 102 complete (verified)
 progress:
   total_phases: 9
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 2
-  percent: 11
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 4
+  percent: 22
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 102 — Python Slug Module & Dead Constant
+**Current focus:** Phase 103 — dbt iNat Field ID Constants & Plantae Macro
 
 ## Current Position
 
-Phase: 102 (Python Slug Module & Dead Constant) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 102
+Phase: 103 (dbt iNat Field ID Constants & Plantae Macro) — NEXT
+Plan: —
+Status: Phase 102 verified; ready for Phase 103
 Last activity: 2026-05-19 -- Phase 102 execution started
 
 Progress: [░░░░░░░░░░] 0%
