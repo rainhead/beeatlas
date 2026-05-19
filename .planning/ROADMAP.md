@@ -559,7 +559,12 @@ Plans:
   2. `places_export.py` specimen count and the dbt/TypeScript equivalent use the same predicate (or the divergence is explicitly logged as a known TODO with a reason)
   3. A pytest or Vitest test asserts the chosen predicate against a fixture containing known provisional and non-provisional rows
 
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [ ] 104-01-PLAN.md — Update test fixture (RED), fix places_export.py predicate + occurrence.ts JSDoc (GREEN), add cross-reference comment in int_species_occurrences_agg.sql + dbt build
 
 ## Progress
 
@@ -669,4 +674,4 @@ Plans:
 | 101. TypeScript Occurrence Domain Module | v3.8 | 2/2 | Complete   | 2026-05-19 |
 | 102. Python Slug Module & Dead Constant | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 0/1 | Not started | - |
-| 104. Semantic Reconciliation | v3.8 | 0/TBD | Not started | - |
+| 104. Semantic Reconciliation | v3.8 | 0/1 | Not started | - |

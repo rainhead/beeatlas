@@ -248,17 +248,13 @@ export function isSpecimenBacked(row: OccurrenceRow): boolean {
 
 **If this table is empty:** Not applicable — two assumptions documented.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `test_places_json_counts` be modified in-place or should a new focused test be added?**
-   - What we know: the existing test documents the count behavior but doesn't distinguish Ecdysis vs sample-only.
-   - What's unclear: whether to rename/extend the existing test function or add `test_places_specimen_predicate_excludes_sample_only` alongside it.
-   - Recommendation: extend in-place — update the fixture helper and the count assertion to use the richer fixture. The test name already implies it's testing count correctness.
+   - RESOLVED: extend in-place (Task 1). Update the fixture helper to add `ecdysis_id` column and a sample-only row; update the assertion to expect `specimen_count == 1`.
 
 2. **Should `int_species_occurrences_agg.sql` get a comment?**
-   - What we know: it is already correct (reads Ecdysis source directly), so no SQL change is needed.
-   - What's unclear: whether adding a comment noting it agrees with `isSpecimenBacked` is worth a `dbt build` run.
-   - Recommendation: yes, add the comment — it completes the cross-reference and costs only a `dbt build` invocation. Low risk since no SQL logic changes.
+   - RESOLVED: yes, add the comment (Task 3). Completes the cross-reference chain; costs only a `dbt build` invocation.
 
 ## Environment Availability
 
