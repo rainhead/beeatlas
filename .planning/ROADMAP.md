@@ -383,7 +383,7 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Collapse the separate filter panel, occurrence sidebar, and full-screen table into a single unified pane with three states (collapsed/list/table) on desktop.
 
-- [ ] **Phase 105: URL State Migration** — Extend url-state.ts to encode pane state; backward compat for ?view=table; no visible UI change
+- [x] **Phase 105: URL State Migration** — Extend url-state.ts to encode pane state; backward compat for ?view=table; no visible UI change
 - [ ] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers
 - [ ] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states
 - [ ] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize()

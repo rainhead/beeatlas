@@ -4,14 +4,14 @@ milestone: v3.9
 milestone_name: Sidebar & Table Unification
 status: executing
 stopped_at: Roadmap created for v3.9 — 5 phases (105-109), 11 requirements mapped
-last_updated: "2026-05-19T18:11:23.788Z"
-last_activity: 2026-05-19 -- Phase 105 planning complete
+last_updated: "2026-05-19T18:20:25.151Z"
+last_activity: 2026-05-19 -- Phase 105 complete (1/1 plans)
 progress:
   total_phases: 10
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 10
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unification milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v3.9 Sidebar & Table Unification — Phase 105 ready to plan
+**Current focus:** Phase 105 — url-state-migration (complete) — next: Phase 106
 
 ## Current Position
 
-Phase: 1 of 5 (Phase 105: URL State Migration)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 105 planning complete
+Phase: 105 (url-state-migration) — COMPLETE
+Plan: 1 of 1
+Status: Phase 105 complete; ready for Phase 106
+Last activity: 2026-05-19 -- Phase 105 complete (1/1 plans)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█░░░░░░░░░] 10%
 
 ## Accumulated Context
 
