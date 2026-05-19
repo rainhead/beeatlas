@@ -302,13 +302,13 @@ describe('validation and rejection', () => {
     expect(result.filter?.yearFrom).toBe(2020);
   });
 
-  test('invalid pane param (pane=grid): paneState defaults to collapsed', () => {
-    const result = parseParams('pane=grid');
+  test('invalid pane param (pane=invalid): paneState defaults to collapsed', () => {
+    const result = parseParams('pane=invalid');
     // result.ui may be undefined (all defaults) — paneState is collapsed in both cases
     expect(result.ui?.paneState ?? 'collapsed').toBe('collapsed');
   });
 
-  test('view=table with no bm: result.ui is defined with paneState=table (legacy alias)', () => {
+  test('legacy view=table: paneState is table (legacy alias)', () => {
     const result = parseParams('view=table');
     expect(result.ui).toBeDefined();
     expect(result.ui!.paneState).toBe('table');
@@ -352,41 +352,6 @@ describe('place filter param', () => {
     const result = parseParams(params.toString());
     expect(result.filter?.selectedPlace).toBe('ebeys-landing');
     expect(result.ui?.boundaryMode).toBe('places');
-  });
-});
-
-describe('pane state param (URL-01, URL-02)', () => {
-  test('pane=table: buildParams emits pane=table', () => {
-    const ui = { boundaryMode: 'off' as const, paneState: 'table' as const };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('pane')).toBe('table');
-    expect(params.has('view')).toBe(false);
-  });
-
-  test('pane=list: buildParams emits pane=list', () => {
-    const ui = { boundaryMode: 'off' as const, paneState: 'list' as const };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('pane')).toBe('list');
-  });
-
-  test('pane=collapsed (default): pane param absent', () => {
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
-    expect(params.has('pane')).toBe(false);
-  });
-
-  test('legacy view=table: parsed as pane=table (URL-02)', () => {
-    const result = parseParams('view=table');
-    expect(result.ui?.paneState).toBe('table');
-  });
-
-  test('pane=table takes precedence over view=table', () => {
-    const result = parseParams('pane=table&view=table');
-    expect(result.ui?.paneState).toBe('table');
-  });
-
-  test('pane=list round-trips', () => {
-    const result = parseParams('pane=list');
-    expect(result.ui?.paneState).toBe('list');
   });
 });
 

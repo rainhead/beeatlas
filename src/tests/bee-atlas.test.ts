@@ -131,16 +131,19 @@ describe('ARCH-03: coordinator pattern — sibling isolation', () => {
 describe('SIDE-01: bee-atlas sidebar visibility wiring', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  test('bee-atlas.ts declares _sidebarOpen as @state()', () => {
-    expect(src).toMatch(/@state\(\)\s+private\s+_sidebarOpen/);
+  test('bee-atlas.ts does NOT declare _sidebarOpen as @state()', () => {
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_sidebarOpen/);
   });
 
-  test('bee-atlas.ts sets _sidebarOpen = true in _onSpecimenClick', () => {
-    expect(src).toMatch(/this\._sidebarOpen\s*=\s*true/);
+  test('bee-atlas.ts sets _paneState = list in occurrence click handler', () => {
+    expect(src).toMatch(/this\._paneState\s*=\s*'list'/);
   });
 
-  test('bee-atlas.ts sets _sidebarOpen = false in _onClose', () => {
-    expect(src).toMatch(/this\._sidebarOpen\s*=\s*false/);
+  test('bee-atlas.ts sets _paneState = collapsed in _onClose', () => {
+    const methodStart = src.indexOf('private _onClose()');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(body).toContain("this._paneState = 'collapsed'");
   });
 
   test('bee-atlas.ts does NOT contain _feedIndex field', () => {
@@ -171,12 +174,13 @@ describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
     expect(src).toMatch(/bee-table\s*\{/);
   });
 
-  test('bee-atlas.ts declares _viewMode as @state field', () => {
-    expect(src).toMatch(/@state\(\)\s+private\s+_viewMode/);
+  test('bee-atlas.ts declares _paneState as @state field (replaces _viewMode)', () => {
+    expect(src).toMatch(/@state\(\)\s+private\s+_paneState/);
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_viewMode/);
   });
 
-  test('_onPopState reads paneState from URL (Phase 105)', () => {
-    expect(src).toMatch(/parsed\.ui\?\.paneState/);
+  test('bee-atlas.ts _onPopState restores _paneState from URL (Phase 106)', () => {
+    expect(src).toMatch(/this\._paneState\s*=\s*paneState/);
   });
 });
 
@@ -372,8 +376,8 @@ describe('SEL-03: queryOccurrencesByBounds in filter.ts', () => {
 describe('SEL-04: sidebar open on non-empty bounds result', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  test('bee-atlas.ts sets _sidebarOpen = true (reachable from _onSelectionDrawn)', () => {
-    expect(src).toMatch(/this\._sidebarOpen\s*=\s*true/);
+  test('bee-atlas.ts sets _paneState = list (reachable from _onSelectionDrawn)', () => {
+    expect(src).toMatch(/this\._paneState\s*=\s*'list'/);
   });
 
   test('bee-atlas.ts assigns rows to _selectedOccurrences', () => {
@@ -393,7 +397,7 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
   test('SEL-06: _pushUrlState gives _selectionBounds precedence over cluster/ids', () => {
-    expect(src).toContain('this._selectionBounds && this._sidebarOpen');
+    expect(src).toContain("this._selectionBounds && this._paneState === 'list'");
   });
 
   test('SEL-06: _pushUrlState emits bounds via buildParams', () => {
@@ -547,5 +551,48 @@ describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
     expect(methodBody).toContain('selectedPlace');
+  });
+});
+
+describe('SM-01: bee-atlas pane state machine (Phase 106)', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts declares _paneState as @state() with three-state type', () => {
+    expect(src).toMatch(/@state\(\)\s+private\s+_paneState/);
+    expect(src).toMatch(/'collapsed'\s*\|\s*'list'\s*\|\s*'table'/);
+  });
+
+  test('bee-atlas.ts does NOT contain _viewMode field', () => {
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_viewMode/);
+    expect(src).not.toMatch(/this\._viewMode\s*=/);
+  });
+
+  test('bee-atlas.ts does NOT contain _sidebarOpen field', () => {
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_sidebarOpen/);
+    expect(src).not.toMatch(/this\._sidebarOpen\s*=/);
+  });
+
+  test('bee-atlas.ts does NOT declare _tableFilterOpen as @state', () => {
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_tableFilterOpen/);
+  });
+
+  test('_onClose sets _paneState = collapsed', () => {
+    const methodStart = src.indexOf('private _onClose()');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(body).toContain("this._paneState = 'collapsed'");
+  });
+
+  test('_onViewChanged sets _paneState = table when entering table mode', () => {
+    const methodStart = src.indexOf('private _onViewChanged(');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(body).toContain("this._paneState = 'table'");
+  });
+
+  test('firstUpdated assigns _paneState directly from parsed paneState', () => {
+    expect(src).toMatch(/this\._paneState\s*=\s*paneState/);
+    // Phase 105 adapter (this._viewMode = paneState === 'table' ? ...) should not exist
+    expect(src).not.toMatch(/this\._viewMode\s*=\s*paneState\s*===\s*'table'\s*\?\s*'table'\s*:\s*'map'/);
   });
 });

@@ -33,7 +33,7 @@ export class BeeAtlas extends LitElement {
   @state() private _visibleIds: Set<string> | null = null;
   @state() private _filteredRowCount: number | null = null;
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
-  @state() private _viewMode: 'map' | 'table' = 'map';
+  @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
   @state() private _tableRows: OccurrenceRow[] = [];
@@ -50,8 +50,7 @@ export class BeeAtlas extends LitElement {
   @state() private _loading = true;
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
-  @state() private _sidebarOpen = false;
-  @state() private _tableFilterOpen = false;
+  private _tableFilterOpen = false;
   @state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
 
   // Non-reactive private fields
@@ -164,7 +163,7 @@ bee-filter-panel {
   render() {
     return html`
       <bee-header
-        .viewMode=${this._viewMode}
+        .viewMode=${this._paneState === 'table' ? 'table' : 'map'}
         @view-changed=${this._onViewChanged}
       ></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
@@ -172,8 +171,8 @@ bee-filter-panel {
       ${this._error ? '' : html`
         <div class=${[
           'content',
-          this._viewMode === 'table' ? 'table-mode' : '',
-          this._viewMode === 'map' && this._sidebarOpen ? 'sidebar-open' : '',
+          this._paneState === 'table' ? 'table-mode' : '',
+          this._paneState === 'list' ? 'sidebar-open' : '',
         ].filter(Boolean).join(' ')}>
           <bee-map
             .boundaryMode=${this._boundaryMode}
@@ -193,7 +192,7 @@ bee-filter-panel {
             @place-selected=${this._onPlaceSelected}
             @selection-drawn=${this._onSelectionDrawn}
           ></bee-map>
-          ${this._viewMode === 'table' ? html`<bee-table
+          ${this._paneState === 'table' ? html`<bee-table
             .rows=${this._tableRows}
             .rowCount=${this._tableRowCount}
             .page=${this._tablePage}
@@ -215,12 +214,11 @@ bee-filter-panel {
             .collectorOptions=${this._collectorOptions}
             .summary=${this._summary}
             .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
-            .hideButton=${this._viewMode === 'table'}
-            .externalOpen=${this._tableFilterOpen}
-            .openUpward=${this._viewMode === 'table'}
+            .hideButton=${this._paneState === 'table'}
+            .openUpward=${this._paneState === 'table'}
             @filter-changed=${this._onFilterChanged}
           ></bee-filter-panel>
-          ${this._viewMode === 'map' && this._sidebarOpen ? html`<bee-sidebar
+          ${this._paneState === 'list' ? html`<bee-sidebar
             .occurrences=${this._selectedOccurrences}
             @close=${this._onClose}
           ></bee-sidebar>` : nothing}
@@ -239,11 +237,11 @@ bee-filter-panel {
     this._currentView = { lon: initLon, lat: initLat, zoom: initZoom };
     this._viewState = { lon: initLon, lat: initLat, zoom: initZoom };
 
-    // Restore boundary/view mode from URL
+    // Restore boundary/pane state from URL
     const initBoundaryMode = initialParams.ui?.boundaryMode ?? 'off';
     const paneState = initialParams.ui?.paneState ?? 'collapsed';
     this._boundaryMode = initBoundaryMode;
-    this._viewMode = paneState === 'table' ? 'table' : 'map';
+    this._paneState = paneState;
     if (paneState === 'table') import('./bee-table.ts');
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
@@ -280,11 +278,11 @@ bee-filter-panel {
     if (initSel?.type === 'ids' && initSel.ids.length > 0) {
       import('./bee-sidebar.ts');
       this._selectedOccIds = initSel.ids;
-      this._sidebarOpen = true;
+      this._paneState = 'list';
     } else if (initSel?.type === 'cluster') {
       import('./bee-sidebar.ts');
       this._selectedCluster = { lon: initSel.lon, lat: initSel.lat, radiusM: initSel.radiusM };
-      this._sidebarOpen = true;
+      this._paneState = 'list';
     } else if (initSel?.type === 'bounds') {
       import('./bee-sidebar.ts');
       this._selectionBounds = { west: initSel.west, south: initSel.south, east: initSel.east, north: initSel.north };
@@ -305,7 +303,7 @@ bee-filter-panel {
     loadOccurrencesTable()
       .then(() => {
         console.debug('SQLite tables ready');
-        if (this._viewMode === 'table') {
+        if (this._paneState === 'table') {
           this._loadSummaryFromSQLite();
           this._runTableQuery();
         }
@@ -464,7 +462,7 @@ bee-filter-panel {
   }
 
   private async _runTableQuery(): Promise<void> {
-    if (this._viewMode !== 'table') return;
+    if (this._paneState !== 'table') return;
     this._tableLoading = true;
     const generation = ++this._tableQueryGeneration;
     // Parse selected IDs into integer arrays for SQL priority ordering.
@@ -498,19 +496,15 @@ bee-filter-panel {
   // --- URL state ---
 
   private _pushUrlState() {
-    const paneState: 'list' | 'table' | 'collapsed' =
-      this._viewMode === 'table' ? 'table'
-      : this._sidebarOpen ? 'list'
-      : 'collapsed';
     const params = buildParams(
       this._currentView,
       this._filterState,
-      this._selectionBounds && this._sidebarOpen
+      this._selectionBounds && this._paneState === 'list'
         ? { type: 'bounds' as const, ...this._selectionBounds }
         : this._selectedCluster
           ? { type: 'cluster' as const, ...this._selectedCluster }
           : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { boundaryMode: this._boundaryMode, paneState }
+      { boundaryMode: this._boundaryMode, paneState: this._paneState }
     );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
@@ -553,9 +547,9 @@ bee-filter-panel {
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
     const paneState = parsed.ui?.paneState ?? 'collapsed';
-    this._viewMode = paneState === 'table' ? 'table' : 'map';
+    this._paneState = paneState;
     this._tablePage = 1;
-    if (this._viewMode === 'table') {
+    if (this._paneState === 'table') {
       this._runTableQuery();
     }
 
@@ -565,14 +559,14 @@ bee-filter-panel {
       this._selectedOccIds = parsedSel.ids;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._sidebarOpen = true;
+      this._paneState = 'list';
       this._selectedOccurrences = null;
       this._restoreSelectionOccurrences(parsedSel.ids);
     } else if (parsedSel?.type === 'cluster') {
       this._selectedCluster = { lon: parsedSel.lon, lat: parsedSel.lat, radiusM: parsedSel.radiusM };
       this._selectedOccIds = null;
       this._selectionBounds = null;
-      this._sidebarOpen = true;
+      this._paneState = 'list';
       this._selectedOccurrences = null;
       this._restoreClusterSelection(this._selectedCluster);
     } else if (parsedSel?.type === 'bounds') {
@@ -580,14 +574,14 @@ bee-filter-panel {
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectedOccurrences = null;
-      this._sidebarOpen = true;
+      this._paneState = 'list';
       this._restoreBoundsSelection(this._selectionBounds);
     } else {
       this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._sidebarOpen = false;
+      this._paneState = 'collapsed';
     }
 
     // Run filter query for restored state
@@ -621,11 +615,7 @@ bee-filter-panel {
     } else {
       this._selectedCluster = null;
     }
-    this._sidebarOpen = true;
-    if (this._viewMode === 'table') {
-      this._tablePage = 1;
-      this._runTableQuery();
-    }
+    this._paneState = 'list';
     this._pushUrlState();
   }
 
@@ -682,7 +672,7 @@ bee-filter-panel {
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._sidebarOpen = false;
+      this._paneState = 'collapsed';
     }
     this._runFilterQuery().then(() => {
       this._pushUrlState();
@@ -707,7 +697,7 @@ bee-filter-panel {
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._sidebarOpen = false;
+      this._paneState = 'collapsed';
     }
     this._runFilterQuery().then(() => {
       this._pushUrlState();
@@ -721,7 +711,7 @@ bee-filter-panel {
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
-    this._sidebarOpen = true;
+    this._paneState = 'list';
     const rows = await queryAllFiltered(filterState, this._tableSortBy);
     if (this._filterState !== filterState) return;
     this._selectedOccurrences = rows as unknown as OccurrenceRow[];
@@ -734,7 +724,7 @@ bee-filter-panel {
     this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._sidebarOpen = false;
+    this._paneState = 'collapsed';
     // Snapshot filter state before first await to prevent stale-filter race (T-90-04)
     const f = this._filterState;
     try {
@@ -752,7 +742,7 @@ bee-filter-panel {
       // valid source ID, so non-null assertion is justified here.
       this._selectedOccIds = rows.map(r => occIdFromRow(r)!);
       this._selectedCluster = null;
-      this._sidebarOpen = true;
+      this._paneState = 'list';
       this._pushUrlState();
     } catch (err) {
       console.error('Bounds query failed:', err);
@@ -771,7 +761,7 @@ bee-filter-panel {
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._sidebarOpen = false;
+      this._paneState = 'collapsed';
       this._runFilterQuery().then(() => {
         this._pushUrlState();
       });
@@ -783,7 +773,7 @@ bee-filter-panel {
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._sidebarOpen = false;
+      this._paneState = 'collapsed';
       this._pushUrlState();
     }
   }
@@ -820,7 +810,7 @@ bee-filter-panel {
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
-    this._sidebarOpen = false;
+    this._paneState = 'collapsed';
 
     this._tablePage = 1;  // per D-09
     this._runFilterQuery().then(() => {
@@ -830,8 +820,8 @@ bee-filter-panel {
   }
 
   private _onViewChanged(e: CustomEvent<'map' | 'table'>) {
-    this._viewMode = e.detail;
-    if (this._viewMode === 'table') {
+    if (e.detail === 'table') {
+      this._paneState = 'table';
       import('./bee-table.ts');
       this._tableLoading = true;
       this._runTableQuery();
@@ -839,9 +829,10 @@ bee-filter-panel {
         // bee-map data-loaded hasn't fired yet; load summary from SQLite
         this._loadSummaryFromSQLite();
       }
-      this._sidebarOpen = false;  // D-08: close sidebar when entering table mode
-    } else {
+      // D-08: sidebar implicitly closed when paneState = 'table'
       this._tableFilterOpen = false;
+    } else {
+      this._paneState = 'collapsed';   // D-08: returning from table → collapsed (sidebar was closed on enter)
     }
     this._pushUrlState();
   }
@@ -905,7 +896,7 @@ bee-filter-panel {
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
-    this._sidebarOpen = false;
+    this._paneState = 'collapsed';
     this._pushUrlState();
   }
 
@@ -926,7 +917,7 @@ bee-filter-panel {
     }
 
     // If table view is active, run table query now that data is loaded
-    if (this._viewMode === 'table') {
+    if (this._paneState === 'table') {
       this._runTableQuery();
     }
 
@@ -1033,7 +1024,7 @@ bee-filter-panel {
       if (generation !== this._selectionDrawnGeneration) return;
       if (rows.length === 0) return;
       import('./bee-sidebar.ts');
-      this._sidebarOpen = true;
+      this._paneState = 'list';
       this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
       // occIdFromRow returns null only when both ecdysis_id and observation_id are null (pathological).
       // Bounds-restore rows come from SQL with coordinate filters, so non-null assertion is justified.
