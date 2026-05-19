@@ -1,4 +1,5 @@
 import { getDB, tablesReady } from './sqlite.ts';
+import { occIdFromRow } from './occurrence.ts';
 
 // A resolved collector entry links a human name to an iNat username (either may be null).
 // Stored in FilterState.selectedCollectors and used as CollectorOption in autocomplete.
@@ -318,10 +319,13 @@ export async function queryVisibleIds(f: FilterState): Promise<{ ids: Set<string
     `SELECT ecdysis_id, observation_id FROM occurrences WHERE ${occurrenceWhere}`,
     (rowValues: unknown[]) => {
       rowCount++;
-      const ecdysisId = rowValues[0];
-      const obsId = rowValues[1];
-      if (ecdysisId != null) ids.add(`ecdysis:${Number(ecdysisId)}`);
-      if (obsId != null) ids.add(`inat:${Number(obsId)}`);
+      const ecdysisId = rowValues[0] as number | null;
+      const obsId = rowValues[1] as number | null;
+      // Use occIdFromRow via partial-row construction to keep ID prefix logic in occurrence.ts.
+      const ecdysisOccId = occIdFromRow({ ecdysis_id: ecdysisId, observation_id: null, is_provisional: false } as OccurrenceRow);
+      if (ecdysisOccId != null) ids.add(ecdysisOccId);
+      const inatOccId = occIdFromRow({ ecdysis_id: null, observation_id: obsId, is_provisional: false } as OccurrenceRow);
+      if (inatOccId != null) ids.add(inatOccId);
     }
   );
   return { ids, rowCount };

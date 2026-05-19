@@ -8,6 +8,7 @@ import { type FilterState, OCCURRENCE_COLUMNS, type OccurrenceRow } from './filt
 import type { FeatureCollection, Point } from 'geojson';
 import type { DataSummary, FilteredSummary } from './bee-sidebar.ts';
 import { resolveDataUrl } from './manifest.ts';
+import { isSpecimenId } from './occurrence.ts';
 
 // Default Washington State view
 const DEFAULT_LON = -120.5;
@@ -963,7 +964,7 @@ export class BeeMap extends LitElement {
   private _emitFilteredSummary() {
     if (this.visibleIds !== null && this._fullGeoJSON) {
       const allSpecimen = this._fullGeoJSON.features.filter(
-        f => f.properties.occId.startsWith('ecdysis:')
+        f => isSpecimenId(f.properties.occId)
       );
       const matching = allSpecimen.filter(
         f => this.visibleIds!.has(f.properties.occId)
