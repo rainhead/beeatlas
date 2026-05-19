@@ -1,5 +1,16 @@
 # Washington Bee Atlas
 
+## Current Milestone: v3.9 Sidebar & Table Unification
+
+**Goal:** Collapse the separate filter panel, occurrence sidebar, and full-screen table into a single unified pane with three states (collapsed/list/table) on desktop.
+
+**Target features:**
+- Unified pane with three states: collapsed (button visible only), list (filters + occurrence detail), table (full table view)
+- Persistent toggle button always visible on desktop; expand-to-table button visible in list state
+- Merge `bee-filter-panel` and `bee-sidebar` into one component
+- Remove top-level `viewMode='table'` from `bee-atlas`; table becomes a pane sub-state
+- Mobile: existing open/close behavior preserved
+
 ## Milestone: v3.8 Conceptual Tidying — COMPLETE (2026-05-19)
 
 **Shipped:** `src/occurrence.ts` — six pure-function exports centralizing all occurrence ID construction, parsing, and type predicates; 6 caller files migrated; 24 Vitest unit tests. `data/domain.py` — Python `slugify` extracted; dead `BEE_FAMILIES` constant removed; byte-equivalence tests. `data/dbt/macros/inat_field_ids.sql` — five named macros replacing anonymous OFV integer literals across 4 intermediate models; duplicated Plantae CASE centralized. SEM-01 — `places_export.py` specimen predicate fixed to `ecdysis_id IS NOT NULL` matching `isSpecimenBacked`; documented cross-layer and covered by pytest.
@@ -172,7 +183,14 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ DBT-02: Duplicated `is_plant_taxon` CASE extracted into shared macro; `dbt build` passes — v3.8
 - ✓ SEM-01: `places_export.py` specimen predicate aligned to `ecdysis_id IS NOT NULL` (matching `isSpecimenBacked`); canonical definition in `isSpecimenBacked` JSDoc; pytest fixture confirms — v3.8
 
-### Active (future)
+### Active (v3.9)
+
+- [ ] Unified sidebar pane with collapsed/list/table states replaces separate filter panel and occurrence sidebar
+- [ ] Table view accessible as expanded pane state, not a separate full-screen mode replacing the map
+- [ ] Persistent pane toggle button always visible on desktop; expand-to-table button visible in list state
+- [ ] Mobile open/close behavior preserved with no three-state treatment
+
+### Future
 
 - [ ] **TAB-01**: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline
 - [ ] **TAB-02**: Specimens collected last season on land owned by a named organization — requires land ownership data source
@@ -331,4 +349,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-19 after v3.8 milestone*
+*Last updated: 2026-05-19 after v3.9 milestone start*
