@@ -178,9 +178,9 @@ describe('SIDE-01/SIDE-02: sidebar is detail-only with close button', () => {
     expect(src).toMatch(/new CustomEvent\('close'/);
   });
 
-  test('bee-atlas.ts conditionally renders bee-sidebar based on _sidebarOpen', () => {
+  test('bee-atlas.ts conditionally renders bee-sidebar based on _paneState', () => {
     const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
-    expect(src).toMatch(/_sidebarOpen/);
+    expect(src).toMatch(/_paneState\s*===\s*'list'/);
   });
 
   test('bee-atlas.ts does NOT contain activeFeedEntries', () => {
