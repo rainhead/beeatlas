@@ -154,11 +154,11 @@ def test_run_py_integration():
         f"STEPS['feeds'] is {feeds_callable!r}, expected feeds.main ({feeds_mod.main!r})"
     )
 
-    # 'feeds' must come after 'export' in the pipeline order
-    export_idx = step_names.index('export')
+    # 'feeds' must come after 'species-export' in the pipeline order
+    export_idx = step_names.index('species-export')
     feeds_idx = step_names.index('feeds')
     assert feeds_idx > export_idx, (
-        f"'feeds' (index {feeds_idx}) must come after 'export' (index {export_idx})"
+        f"'feeds' (index {feeds_idx}) must come after 'species-export' (index {export_idx})"
     )
 
 
