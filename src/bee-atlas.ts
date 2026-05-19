@@ -1,4 +1,4 @@
-import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
+import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy, queryOccurrencesByBounds } from './filter.ts';
 import { occIdFromRow, parseOccId } from './occurrence.ts';
@@ -6,7 +6,7 @@ import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
 import './bee-header.ts';
-import './bee-filter-panel.ts';
+import './bee-pane.ts';
 import './bee-map.ts';
 
 const DEFAULT_LON = -120.5;
@@ -50,7 +50,6 @@ export class BeeAtlas extends LitElement {
   @state() private _loading = true;
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
-  private _tableFilterOpen = false;
   @state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
 
   // Non-reactive private fields
@@ -89,34 +88,13 @@ export class BeeAtlas extends LitElement {
 bee-map {
   flex-grow: 1;
 }
-bee-table {
-  flex-grow: 1;
-  min-height: 0;
-}
-.content.table-mode {
-  flex-direction: column;
-}
-.content.table-mode bee-map {
-  height: 18%;
-  flex-grow: 0;
-  flex-shrink: 0;
-  min-height: 0;
-}
-bee-sidebar {
+bee-pane {
+  top: 0.5em;
   right: 0.5em;
-  top: calc(0.5em + 2.5rem + 2.5rem + 0.5em);
-  width: 25rem;
   bottom: 0.5em;
 }
-bee-filter-panel {
-  right: 0.5em;
-  top: calc(0.5em + 2.5rem);
-}
-.content.table-mode bee-filter-panel {
-  top: auto;
-  right: auto;
-  left: 0.5em;
-  bottom: 3.5rem;
+.content.pane-table bee-pane {
+  inset: 0;
 }
 .loading-overlay, .error-overlay {
   position: absolute;
@@ -135,27 +113,9 @@ bee-filter-panel {
   .content {
     flex-direction: column;
   }
-  bee-sidebar {
-    position: static;
-    right: auto;
-    top: auto;
-    bottom: auto;
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid var(--border-input);
-    flex-grow: 1;
-    /* Without this, the sidebar's min-content height pushes bee-map to ~0,
-       which moves the absolutely-positioned Regions button onto the close
-       button (#12). */
-    min-height: 0;
-  }
-  /* Keep a sliver of map visible when the sidebar is open so the Regions
-     button has its own real estate above the sidebar's close button (#12). */
-  .content.sidebar-open bee-map {
-    height: 3.5rem;
-    flex-grow: 0;
-    flex-shrink: 0;
-    min-height: 0;
+  bee-pane {
+    right: 0;
+    left: 0;
   }
 }
   `;
@@ -171,8 +131,7 @@ bee-filter-panel {
       ${this._error ? '' : html`
         <div class=${[
           'content',
-          this._paneState === 'table' ? 'table-mode' : '',
-          this._paneState === 'list' ? 'sidebar-open' : '',
+          this._paneState === 'table' ? 'pane-table' : '',
         ].filter(Boolean).join(' ')}>
           <bee-map
             .boundaryMode=${this._boundaryMode}
@@ -192,21 +151,8 @@ bee-filter-panel {
             @place-selected=${this._onPlaceSelected}
             @selection-drawn=${this._onSelectionDrawn}
           ></bee-map>
-          ${this._paneState === 'table' ? html`<bee-table
-            .rows=${this._tableRows}
-            .rowCount=${this._tableRowCount}
-            .page=${this._tablePage}
-            .loading=${this._tableLoading}
-            .sortBy=${this._tableSortBy}
-            .filterActive=${isFilterActive(this._filterState)}
-            .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
-            @page-changed=${this._onPageChanged}
-            @download-csv=${this._onDownloadCsv}
-            @sort-changed=${this._onSortChanged}
-            @row-pan=${this._onRowPan}
-            @toggle-filter=${this._onToggleFilter}
-          ></bee-table>` : nothing}
-          <bee-filter-panel
+          <bee-pane
+            .paneState=${this._paneState}
             .filterState=${this._filterState}
             .taxaOptions=${this._taxaOptions}
             .countyOptions=${this._countyOptions}
@@ -214,14 +160,24 @@ bee-filter-panel {
             .collectorOptions=${this._collectorOptions}
             .summary=${this._summary}
             .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
-            .hideButton=${this._paneState === 'table'}
-            .openUpward=${this._paneState === 'table'}
-            @filter-changed=${this._onFilterChanged}
-          ></bee-filter-panel>
-          ${this._paneState === 'list' ? html`<bee-sidebar
             .occurrences=${this._selectedOccurrences}
-            @close=${this._onClose}
-          ></bee-sidebar>` : nothing}
+            .rows=${this._tableRows}
+            .rowCount=${this._tableRowCount}
+            .page=${this._tablePage}
+            .loading=${this._tableLoading}
+            .sortBy=${this._tableSortBy}
+            .filterActive=${isFilterActive(this._filterState)}
+            .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
+            @filter-changed=${this._onFilterChanged}
+            @pane-expand-list=${this._onPaneExpandList}
+            @pane-collapse=${this._onPaneCollapse}
+            @pane-expand-table=${this._onPaneExpandTable}
+            @pane-shrink-list=${this._onPaneShrinkList}
+            @page-changed=${this._onPageChanged}
+            @download-csv=${this._onDownloadCsv}
+            @sort-changed=${this._onSortChanged}
+            @row-pan=${this._onRowPan}
+          ></bee-pane>
         </div>
       `}
     `;
@@ -850,17 +806,10 @@ bee-filter-panel {
         // bee-map data-loaded hasn't fired yet; load summary from SQLite
         this._loadSummaryFromSQLite();
       }
-      // D-08: sidebar implicitly closed when paneState = 'table'
-      this._tableFilterOpen = false;
     } else {
       this._paneState = 'collapsed';   // D-08: returning from table → collapsed (sidebar was closed on enter)
     }
     this._replaceUrlState();
-  }
-
-  private _onToggleFilter() {
-    this._tableFilterOpen = !this._tableFilterOpen;
-    (this.shadowRoot?.querySelector('bee-filter-panel') as any)?.setOpen(this._tableFilterOpen);
   }
 
   private _onRowPan(e: CustomEvent<{ lat: number; lon: number }>) {
