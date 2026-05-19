@@ -4,8 +4,8 @@ milestone: v3.8
 milestone_name: Conceptual Tidying
 status: executing
 stopped_at: Roadmap created for v3.8 — 4 phases (101-104), 8 requirements mapped
-last_updated: "2026-05-19T00:19:49.610Z"
-last_activity: 2026-05-19 -- Phase 102 planning complete
+last_updated: "2026-05-19T00:21:25.408Z"
+last_activity: 2026-05-19 -- Phase 102 execution started
 progress:
   total_phases: 9
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 101 — typescript-occurrence-domain-module
+**Current focus:** Phase 102 — Python Slug Module & Dead Constant
 
 ## Current Position
 
-Phase: 101 (typescript-occurrence-domain-module) — EXECUTING
-Plan: 1 of 2
-Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 102 planning complete
+Phase: 102 (Python Slug Module & Dead Constant) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 102
+Last activity: 2026-05-19 -- Phase 102 execution started
 
 Progress: [░░░░░░░░░░] 0%
 
