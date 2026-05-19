@@ -1,7 +1,7 @@
 """Export per-species aggregates and JSON sidecars for the Species Tab.
 
 Reads dbt-produced sandbox/species.parquet and sandbox/occurrences.parquet,
-adds slug via feeds._slugify, emits three artifacts:
+adds slug via domain.slugify, emits three artifacts:
   - species.parquet    (19 cols incl. slug)
   - species.json       (flat array — Eleventy _data/species.js consumer)
   - seasonality.json   (species → bucket → INT[12] — VIZ-04 lookup)
@@ -27,7 +27,7 @@ import duckdb
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from feeds import _slugify  # Phase 78 D-01: byte-for-byte slug invariant
+from domain import slugify  # Phase 78 D-01: byte-for-byte slug invariant (Phase 102 PY-01: promoted from private feeds helper)
 
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
@@ -42,16 +42,6 @@ DBT_SANDBOX_DIR = Path(os.environ.get(
     'DBT_SANDBOX_DIR',
     str(Path(__file__).parent / 'dbt' / 'target' / 'sandbox'),
 ))
-
-
-# Anthophila — the seven recognized bee families. Non-bee Hymenoptera
-# (and any other order) get filtered out of species artifacts so the
-# species page tree stays bee-only. Specimens of non-bee insects still
-# flow through occurrences.parquet for the map.
-BEE_FAMILIES = (
-    'Andrenidae', 'Apidae', 'Colletidae', 'Halictidae',
-    'Megachilidae', 'Melittidae', 'Stenotritidae',
-)
 
 
 # AGG-02: 19 columns in canonical order. Used for both parquet schema and the
@@ -94,7 +84,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
 
     Reads ``DBT_SANDBOX_DIR/species.parquet`` (18 cols, produced by
     ``bash data/dbt/run.sh build``) and appends a ``slug`` column via
-    ``feeds._slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
+    ``domain.slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
     for the per-occurrence seasonality bucket accumulation.
 
     Writes three artifacts to ASSETS_DIR:
@@ -131,7 +121,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     fetched_cols = [d[0] for d in con.description]
     species_rows = [dict(zip(fetched_cols, row)) for row in fetched]
 
-    # AGG-03: compute slug in Python via the canonical _slugify (no SQL slug;
+    # AGG-03: compute slug in Python via the canonical slugify (no SQL slug;
     # avoids drift from the path-traversal-safe Python implementation).
     # Backfill NULL month_histogram (checklist-only rows) with [0]*12 — DuckDB
     # COALESCE on INTEGER[12] is unimplemented in 1.4.x, so fix in Python.
@@ -144,7 +134,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
             r['slug'] = f"{genus}/{epithet}"
         else:
             # Genus-only rows (102 rows in production, none on_checklist)
-            r['slug'] = genus if genus else _slugify(r['scientificName'])
+            r['slug'] = genus if genus else slugify(r['scientificName'])
         if r.get('month_histogram') is None:
             r['month_histogram'] = list(_ZERO_HIST)
 
