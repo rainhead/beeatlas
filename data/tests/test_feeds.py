@@ -11,7 +11,8 @@ import xml.etree.ElementTree as ET
 import pytest
 
 import feeds as feeds_mod
-from feeds import _slugify, write_variant_feed, write_all_variants, write_index_json
+from feeds import write_variant_feed, write_all_variants, write_index_json
+from domain import slugify
 
 ATOM_NS = 'http://www.w3.org/2005/Atom'
 
@@ -205,18 +206,18 @@ def test_empty_window(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 def test_slugify():
-    """_slugify converts human names to URL-safe ASCII slugs."""
-    assert _slugify("Jane Smith") == "jane-smith"
-    assert _slugify("") == "unknown"
+    """slugify converts human names to URL-safe ASCII slugs."""
+    assert slugify("Jane Smith") == "jane-smith"
+    assert slugify("") == "unknown"
     # Accented chars transliterated
-    assert _slugify("Müller") == "muller"
+    assert slugify("Müller") == "muller"
     # Parentheses and other non-alphanumeric stripped
-    slug = _slugify("Mucera (subgenus)")
+    slug = slugify("Mucera (subgenus)")
     assert all(c in 'abcdefghijklmnopqrstuvwxyz0123456789-' for c in slug), \
         f"Slug contains non-[a-z0-9-] chars: {slug!r}"
     # Path traversal characters stripped
-    assert '/' not in _slugify("../../etc/passwd")
-    assert '.' not in _slugify("../../etc/passwd")
+    assert '/' not in slugify("../../etc/passwd")
+    assert '.' not in slugify("../../etc/passwd")
 
 
 def test_collector_variant(fixture_con, export_dir):
