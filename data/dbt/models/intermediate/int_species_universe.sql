@@ -66,8 +66,10 @@ species_universe AS (
 )
 -- Collapse any accidental duplicate canonical_name rows, preferring the
 -- checklist-favoring row when both arms produce one (Pitfall 7: DISTINCT ON).
--- Restrict to the seven Anthophila families (BEE_FAMILIES). Non-bee byproducts
--- of sample collection have no place in a bee species tree.
+-- Sole gate for restricting species universe to the seven Anthophila bee families.
+-- This WHERE clause is the only filter in the pipeline — there is no other family
+-- restriction. The Python BEE_FAMILIES constant in species_export.py was removed in
+-- Phase 102 (PY-02) because it was dead code; this SQL clause was always the real gate.
 SELECT DISTINCT ON (canonical_name) *
 FROM species_universe
 WHERE family IN ('Andrenidae', 'Apidae', 'Colletidae', 'Halictidae',

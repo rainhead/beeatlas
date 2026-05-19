@@ -44,16 +44,6 @@ DBT_SANDBOX_DIR = Path(os.environ.get(
 ))
 
 
-# Anthophila — the seven recognized bee families. Non-bee Hymenoptera
-# (and any other order) get filtered out of species artifacts so the
-# species page tree stays bee-only. Specimens of non-bee insects still
-# flow through occurrences.parquet for the map.
-BEE_FAMILIES = (
-    'Andrenidae', 'Apidae', 'Colletidae', 'Halictidae',
-    'Megachilidae', 'Melittidae', 'Stenotritidae',
-)
-
-
 # AGG-02: 19 columns in canonical order. Used for both parquet schema and the
 # JSON projection so the two artifacts agree on key ordering.
 SPECIES_COLUMNS = [
