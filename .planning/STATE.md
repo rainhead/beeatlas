@@ -4,12 +4,12 @@ milestone: v3.9
 milestone_name: Sidebar & Table Unification
 status: executing
 stopped_at: Roadmap created for v3.9 — 5 phases (105-109), 11 requirements mapped
-last_updated: "2026-05-19T18:20:25.151Z"
-last_activity: 2026-05-19 -- Phase 105 complete (1/1 plans)
+last_updated: "2026-05-19T19:11:50.100Z"
+last_activity: 2026-05-19 -- Phase 106 planning complete
 progress:
   total_phases: 10
   completed_phases: 1
-  total_plans: 1
+  total_plans: 2
   completed_plans: 1
   percent: 10
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unificati
 
 Phase: 105 (url-state-migration) — COMPLETE
 Plan: 1 of 1
-Status: Phase 105 complete; ready for Phase 106
-Last activity: 2026-05-19 -- Phase 105 complete (1/1 plans)
+Status: Ready to execute
+Last activity: 2026-05-19 -- Phase 106 planning complete
 
 Progress: [█░░░░░░░░░] 10%
 
