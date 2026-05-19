@@ -48,8 +48,14 @@ export function parseOccId(id: string): { source: 'ecdysis' | 'inat'; numericId:
 /**
  * True when the occurrence has an Ecdysis specimen record.
  *
- * This is the primary discriminant between the specimen-backed arm and
- * the non-specimen arm (iNat-only sample or provisional record).
+ * This is the canonical "confirmed specimen" predicate across all layers:
+ * - TypeScript: `row.ecdysis_id != null`  (this function)
+ * - Python:     `CASE WHEN ecdysis_id IS NOT NULL THEN 1 END`  (places_export.py `_query_counts`)
+ * - dbt SQL:    `int_species_occurrences_agg` counts ecdysis_data.occurrences directly
+ *
+ * Do NOT use `!row.is_provisional` as a synonym — `is_provisional = false` is true
+ * for both Ecdysis-backed rows AND sample-only iNat rows (ecdysis_id == null).
+ * Authoritative layer: this function. Other layers must agree with this definition.
  */
 export function isSpecimenBacked(row: OccurrenceRow): boolean {
   return row.ecdysis_id != null;
