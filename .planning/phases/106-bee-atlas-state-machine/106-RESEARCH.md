@@ -567,7 +567,7 @@ are internal state field renames within a single component. No ASVS categories a
 `this._paneState = this._paneState === 'list' ? 'list' : 'collapsed'` with a saved pre-table
 state. But given D-08 says sidebar closes on table entry, 'collapsed' is correct.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `_tableFilterOpen` be removed entirely or kept as a non-@state field?**
    - What we know: SC-3 says it must not exist in bee-atlas.ts. The `setOpen()` imperative call
