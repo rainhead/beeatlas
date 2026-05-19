@@ -356,7 +356,11 @@ bee-filter-panel {
       `, (rowValues: unknown[], columnNames: string[]) => {
         summaryRow = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
       });
-      if (Object.keys(summaryRow).length === 0) { this._loading = false; return; }
+      if (Object.keys(summaryRow).length === 0) {
+        console.warn('Summary query returned no rows — DB may be empty');
+        this._loading = false;
+        return;
+      }
       this._summary = {
         totalSpecimens: Number(summaryRow.total_specimens),
         speciesCount: Number(summaryRow.species_count),
@@ -488,15 +492,18 @@ bee-filter-panel {
       this._tableRows = [];
       this._tableRowCount = 0;
     } finally {
-      // Clear loading regardless of generation; the active query will set it again if needed.
-      this._tableLoading = false;
+      // Only clear loading flag if this query is still current;
+      // if superseded, the active query controls the loading state.
+      if (generation === this._tableQueryGeneration) {
+        this._tableLoading = false;
+      }
     }
   }
 
   // --- URL state ---
 
-  private _pushUrlState() {
-    const params = buildParams(
+  private _buildCurrentParams(): URLSearchParams {
+    return buildParams(
       this._currentView,
       this._filterState,
       this._selectionBounds && this._paneState === 'list'
@@ -506,10 +513,20 @@ bee-filter-panel {
           : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
       { boundaryMode: this._boundaryMode, paneState: this._paneState }
     );
+  }
+
+  private _replaceUrlState() {
+    const params = this._buildCurrentParams();
     window.history.replaceState({}, '', '?' + params.toString());
+  }
+
+  private _pushUrlStateDebounced() {
+    // Called only from _onViewMoved — schedules a pushState entry for the
+    // final resting position of the map so view moves create history entries.
+    this._replaceUrlState();
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
-      window.history.pushState({}, '', '?' + params.toString());
+      window.history.pushState({}, '', '?' + this._buildCurrentParams().toString());
       this._mapMoveDebounce = null;
     }, 500);
   }
@@ -547,11 +564,7 @@ bee-filter-panel {
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
     const paneState = parsed.ui?.paneState ?? 'collapsed';
-    this._paneState = paneState;
     this._tablePage = 1;
-    if (this._paneState === 'table') {
-      this._runTableQuery();
-    }
 
     // Restore selection
     const parsedSel = parsed.selection;
@@ -559,14 +572,12 @@ bee-filter-panel {
       this._selectedOccIds = parsedSel.ids;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._paneState = 'list';
       this._selectedOccurrences = null;
       this._restoreSelectionOccurrences(parsedSel.ids);
     } else if (parsedSel?.type === 'cluster') {
       this._selectedCluster = { lon: parsedSel.lon, lat: parsedSel.lat, radiusM: parsedSel.radiusM };
       this._selectedOccIds = null;
       this._selectionBounds = null;
-      this._paneState = 'list';
       this._selectedOccurrences = null;
       this._restoreClusterSelection(this._selectedCluster);
     } else if (parsedSel?.type === 'bounds') {
@@ -574,18 +585,28 @@ bee-filter-panel {
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectedOccurrences = null;
-      this._paneState = 'list';
       this._restoreBoundsSelection(this._selectionBounds);
     } else {
       this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._paneState = 'collapsed';
+    }
+
+    // Derive final paneState once, after selection is known.
+    // A selection always forces 'list'; otherwise use the URL-encoded value.
+    const hasSelection = (parsedSel?.type === 'ids' && parsedSel.ids.length > 0)
+      || parsedSel?.type === 'cluster'
+      || parsedSel?.type === 'bounds';
+    const finalPaneState = hasSelection ? 'list' : paneState;
+    this._paneState = finalPaneState;
+    if (finalPaneState === 'table') {
+      this._runTableQuery();
     }
 
     // Run filter query for restored state
     if (isFilterActive(this._filterState)) {
+      this._visibleIds = new Set(); // hide all until query resolves, preventing stale dot flash
       this._runFilterQuery();
     } else {
       this._visibleIds = null;
@@ -598,7 +619,7 @@ bee-filter-panel {
   private _onViewMoved(e: CustomEvent<{ lon: number; lat: number; zoom: number }>) {
     this._currentView = e.detail;
     if (!this._isRestoringFromHistory) {
-      this._pushUrlState();
+      this._pushUrlStateDebounced();
     } else {
       // Reset the flag after bee-map reports the view has settled
       this._isRestoringFromHistory = false;
@@ -616,7 +637,7 @@ bee-filter-panel {
       this._selectedCluster = null;
     }
     this._paneState = 'list';
-    this._pushUrlState();
+    this._replaceUrlState();
   }
 
   private _onRegionClick(e: CustomEvent<{ name: string; shiftKey: boolean }>) {
@@ -675,7 +696,7 @@ bee-filter-panel {
       this._paneState = 'collapsed';
     }
     this._runFilterQuery().then(() => {
-      this._pushUrlState();
+      this._replaceUrlState();
     });
     this._tablePage = 1;
     this._runTableQuery();
@@ -700,7 +721,7 @@ bee-filter-panel {
       this._paneState = 'collapsed';
     }
     this._runFilterQuery().then(() => {
-      this._pushUrlState();
+      this._replaceUrlState();
     });
     this._runTableQuery();
   }
@@ -743,7 +764,7 @@ bee-filter-panel {
       this._selectedOccIds = rows.map(r => occIdFromRow(r)!);
       this._selectedCluster = null;
       this._paneState = 'list';
-      this._pushUrlState();
+      this._replaceUrlState();
     } catch (err) {
       console.error('Bounds query failed:', err);
     }
@@ -763,7 +784,7 @@ bee-filter-panel {
       this._selectionBounds = null;
       this._paneState = 'collapsed';
       this._runFilterQuery().then(() => {
-        this._pushUrlState();
+        this._replaceUrlState();
       });
       this._tablePage = 1;
       this._runTableQuery();
@@ -774,7 +795,7 @@ bee-filter-panel {
       this._selectedCluster = null;
       this._selectionBounds = null;
       this._paneState = 'collapsed';
-      this._pushUrlState();
+      this._replaceUrlState();
     }
   }
 
@@ -814,7 +835,7 @@ bee-filter-panel {
 
     this._tablePage = 1;  // per D-09
     this._runFilterQuery().then(() => {
-      this._pushUrlState();
+      this._replaceUrlState();
     });
     this._runTableQuery();
   }
@@ -834,7 +855,7 @@ bee-filter-panel {
     } else {
       this._paneState = 'collapsed';   // D-08: returning from table → collapsed (sidebar was closed on enter)
     }
-    this._pushUrlState();
+    this._replaceUrlState();
   }
 
   private _onToggleFilter() {
@@ -897,7 +918,7 @@ bee-filter-panel {
     this._selectedCluster = null;
     this._selectionBounds = null;
     this._paneState = 'collapsed';
-    this._pushUrlState();
+    this._replaceUrlState();
   }
 
   private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[] }>) {
@@ -952,10 +973,10 @@ bee-filter-panel {
 
       const conditions: string[] = [];
       if (ecdysisIds.length > 0) {
-        conditions.push(`CAST(ecdysis_id AS TEXT) IN (${ecdysisIds.map(id => `'${id}'`).join(',')})`);
+        conditions.push(`CAST(ecdysis_id AS TEXT) IN (${ecdysisIds.map(id => String(parseInt(id, 10))).join(',')})`);
       }
       if (inatIds.length > 0) {
-        conditions.push(`CAST(observation_id AS TEXT) IN (${inatIds.map(id => `'${id}'`).join(',')})`);
+        conditions.push(`CAST(observation_id AS TEXT) IN (${inatIds.map(id => String(parseInt(id, 10))).join(',')})`);
       }
       if (conditions.length === 0) return;
 
@@ -1047,11 +1068,11 @@ bee-filter-panel {
       this._filterState = { ...this._filterState, selectedPlace: null };
       this._tablePage = 1;
       this._runFilterQuery().then(() => {
-        this._pushUrlState();
+        this._replaceUrlState();
       });
       this._runTableQuery();
     } else {
-      this._pushUrlState();
+      this._replaceUrlState();
     }
   }
 }

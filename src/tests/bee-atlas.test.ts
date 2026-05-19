@@ -528,7 +528,7 @@ describe('PMAP-02/04: place filter wiring in bee-atlas', () => {
     expect(methodBody).toContain('slug');
     expect(methodBody).toContain('selectedPlace');
     expect(methodBody).toContain('_runFilterQuery');
-    expect(methodBody).toContain('_pushUrlState');
+    expect(methodBody).toMatch(/_pushUrlState|_replaceUrlState/);
   });
 
   test('_onPlaceSelected implements toggle-off (wasSelected branch)', () => {
