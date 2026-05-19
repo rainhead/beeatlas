@@ -51,7 +51,11 @@ def _query_counts(con: duckdb.DuckDBPyConnection, parquet_path: Path) -> dict[st
         """
         SELECT
             place_slug,
-            COUNT(CASE WHEN is_provisional = false OR is_provisional IS NULL THEN 1 END) AS specimen_count,
+            -- Canonical "confirmed specimen" predicate: ecdysis_id IS NOT NULL.
+            -- Matches isSpecimenBacked() in src/occurrence.ts (the canonical cross-layer definition).
+            -- Do NOT use is_provisional = false — that is true for both Ecdysis-backed rows AND
+            -- sample-only iNat rows (ecdysis_id IS NULL, is_provisional = false).
+            COUNT(CASE WHEN ecdysis_id IS NOT NULL THEN 1 END) AS specimen_count,
             COUNT(DISTINCT CASE WHEN sample_id IS NOT NULL THEN sample_id END) AS sample_count
         FROM read_parquet(?)
         WHERE place_slug IS NOT NULL
