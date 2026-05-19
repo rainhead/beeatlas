@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v3.8
 milestone_name: Conceptual Tidying
-status: verifying
-stopped_at: Roadmap created for v3.8 — 4 phases (101-104), 8 requirements mapped
+status: complete
+stopped_at: Phase 104 complete — v3.8 Conceptual Tidying milestone done (SEM-01 predicate reconciled)
 last_updated: "2026-05-19T03:29:10.745Z"
 last_activity: 2026-05-19
 progress:
