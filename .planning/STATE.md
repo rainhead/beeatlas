@@ -1,35 +1,36 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.8
-milestone_name: Conceptual Tidying
-status: archived
-stopped_at: v3.8 milestone complete and archived — all 4 phases (101–104) shipped
+milestone: v3.9
+milestone_name: Sidebar & Table Unification
+status: planning
+stopped_at: Defining requirements
 last_updated: "2026-05-19T00:00:00.000Z"
-last_activity: 2026-05-19 - Completed quick task 260519-dzv: add places to where filter in bee-filter-panel
+last_activity: 2026-05-19 - Milestone v3.9 started
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-19 — v3.8 Conceptual Tidying milestone complete)
+See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unification milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone
+**Current focus:** v3.9 Sidebar & Table Unification
 
 ## Current Position
 
-Milestone v3.8 Conceptual Tidying — ARCHIVED
-All 4 phases (101–104), 5 plans complete.
-Next: `/gsd-new-milestone` to define v3.9+
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-19 — Milestone v3.9 started
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Accumulated Context
 
