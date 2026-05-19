@@ -21,7 +21,7 @@ function emptyFilter(): FilterState {
 
 const defaultView = { lon: -120.5, lat: 47.3, zoom: 8 };
 const defaultSelection: SelectionState = { type: 'ids', ids: [] };
-const defaultUi = { boundaryMode: 'off' as const, viewMode: 'map' as const };
+const defaultUi = { boundaryMode: 'off' as const, paneState: 'collapsed' as const };
 
 describe('buildParams -> parseParams round-trip', () => {
   test('view: lon/lat/zoom round-trips within toFixed precision', () => {
@@ -77,7 +77,7 @@ describe('buildParams -> parseParams round-trip', () => {
   });
 
   test('boundaryMode=counties: serialized as bm=counties', () => {
-    const ui = { boundaryMode: 'counties' as const, viewMode: 'map' as const };
+    const ui = { boundaryMode: 'counties' as const, paneState: 'collapsed' as const };
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     expect(params.get('bm')).toBe('counties');
     const result = parseParams(params.toString());
@@ -89,17 +89,17 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(params.has('bm')).toBe(false);
   });
 
-  test('viewMode=table: serialized as view=table', () => {
-    const ui = { layerMode: 'specimens' as const, boundaryMode: 'off' as const, viewMode: 'table' as const };
+  test('paneState=table: serialized as pane=table', () => {
+    const ui = { boundaryMode: 'off' as const, paneState: 'table' as const };
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('view')).toBe('table');
+    expect(params.get('pane')).toBe('table');
     const result = parseParams(params.toString());
-    expect(result.ui?.viewMode).toBe('table');
+    expect(result.ui?.paneState).toBe('table');
   });
 
-  test('viewMode=map (default): view param is absent', () => {
+  test('paneState=collapsed (default): pane param is absent', () => {
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
-    expect(params.has('view')).toBe(false);
+    expect(params.has('pane')).toBe(false);
   });
 
   test('selectedCounties: round-trips as counties param', () => {
@@ -185,7 +185,7 @@ describe('combined round-trip', () => {
       selectedPlace: null,
     };
     const selection: SelectionState = { type: 'ids', ids: ['ecdysis:999'] };
-    const ui = { boundaryMode: 'counties' as const, viewMode: 'table' as const };
+    const ui = { boundaryMode: 'counties' as const, paneState: 'table' as const };
 
     const params = buildParams(view, filter, selection, ui);
     const result = parseParams(params.toString());
@@ -205,7 +205,7 @@ describe('combined round-trip', () => {
     expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:999'] });
 
     expect(result.ui!.boundaryMode).toBe('counties');
-    expect(result.ui!.viewMode).toBe('table');
+    expect(result.ui!.paneState).toBe('table');
 
     expect(result.filter!.elevMin).toBeNull();
     expect(result.filter!.elevMax).toBeNull();
@@ -302,16 +302,16 @@ describe('validation and rejection', () => {
     expect(result.filter?.yearFrom).toBe(2020);
   });
 
-  test('invalid view param (view=grid): viewMode defaults to map', () => {
-    const result = parseParams('view=grid');
-    // result.ui may be undefined (all defaults) — viewMode is map in both cases
-    expect(result.ui?.viewMode ?? 'map').toBe('map');
+  test('invalid pane param (pane=grid): paneState defaults to collapsed', () => {
+    const result = parseParams('pane=grid');
+    // result.ui may be undefined (all defaults) — paneState is collapsed in both cases
+    expect(result.ui?.paneState ?? 'collapsed').toBe('collapsed');
   });
 
-  test('view=table with no lm/bm: result.ui is defined with viewMode=table', () => {
+  test('view=table with no bm: result.ui is defined with paneState=table (legacy alias)', () => {
     const result = parseParams('view=table');
     expect(result.ui).toBeDefined();
-    expect(result.ui!.viewMode).toBe('table');
+    expect(result.ui!.paneState).toBe('table');
   });
 });
 
@@ -347,11 +347,46 @@ describe('place filter param', () => {
 
   test('full round-trip: selectedPlace + boundaryMode=places encode and decode', () => {
     const filter = { ...emptyFilter(), selectedPlace: 'ebeys-landing' };
-    const ui = { boundaryMode: 'places' as const, viewMode: 'map' as const };
+    const ui = { boundaryMode: 'places' as const, paneState: 'collapsed' as const };
     const params = buildParams(defaultView, filter, defaultSelection, ui);
     const result = parseParams(params.toString());
     expect(result.filter?.selectedPlace).toBe('ebeys-landing');
     expect(result.ui?.boundaryMode).toBe('places');
+  });
+});
+
+describe('pane state param (URL-01, URL-02)', () => {
+  test('pane=table: buildParams emits pane=table', () => {
+    const ui = { boundaryMode: 'off' as const, paneState: 'table' as const };
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('pane')).toBe('table');
+    expect(params.has('view')).toBe(false);
+  });
+
+  test('pane=list: buildParams emits pane=list', () => {
+    const ui = { boundaryMode: 'off' as const, paneState: 'list' as const };
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('pane')).toBe('list');
+  });
+
+  test('pane=collapsed (default): pane param absent', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('pane')).toBe(false);
+  });
+
+  test('legacy view=table: parsed as pane=table (URL-02)', () => {
+    const result = parseParams('view=table');
+    expect(result.ui?.paneState).toBe('table');
+  });
+
+  test('pane=table takes precedence over view=table', () => {
+    const result = parseParams('pane=table&view=table');
+    expect(result.ui?.paneState).toBe('table');
+  });
+
+  test('pane=list round-trips', () => {
+    const result = parseParams('pane=list');
+    expect(result.ui?.paneState).toBe('list');
   });
 });
 

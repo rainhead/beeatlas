@@ -28,7 +28,7 @@ export type SelectionState =
 
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
-  viewMode: 'map' | 'table';
+  paneState: 'list' | 'table' | 'collapsed';
 }
 
 export interface AppState {
@@ -71,7 +71,7 @@ export function buildParams(
   }
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
-  if (ui.viewMode !== 'map') params.set('view', ui.viewMode);
+  if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
   }
@@ -221,11 +221,17 @@ export function parseParams(search: string): Partial<AppState> {
   const boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = placeImplied
     ? 'places'
     : (bmRaw === 'counties' || bmRaw === 'ecoregions' || bmRaw === 'places') ? bmRaw : 'off';
+  const paneRaw = p.get('pane') ?? '';
   const viewRaw = p.get('view') ?? '';
-  const viewMode: 'map' | 'table' = viewRaw === 'table' ? 'table' : 'map';
+  // Option A precedence: pane= wins; view=table is legacy alias when pane= absent
+  const paneState: 'list' | 'table' | 'collapsed' =
+    paneRaw === 'list' ? 'list'
+    : paneRaw === 'table' ? 'table'
+    : viewRaw === 'table' ? 'table'
+    : 'collapsed';
   // Include UI when non-default values present
-  if (boundaryMode !== 'off' || viewMode !== 'map') {
-    result.ui = { boundaryMode, viewMode };
+  if (boundaryMode !== 'off' || paneState !== 'collapsed') {
+    result.ui = { boundaryMode, paneState };
   }
 
   return result;
