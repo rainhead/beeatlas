@@ -139,8 +139,8 @@ describe('SIDE-01: bee-atlas sidebar visibility wiring', () => {
     expect(src).toMatch(/this\._paneState\s*=\s*'list'/);
   });
 
-  test('bee-atlas.ts sets _paneState = collapsed in _onClose', () => {
-    const methodStart = src.indexOf('private _onClose()');
+  test('bee-atlas.ts sets _paneState = collapsed in _onPaneCollapse', () => {
+    const methodStart = src.indexOf('private _onPaneCollapse(');
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
     expect(body).toContain("this._paneState = 'collapsed'");
@@ -166,12 +166,14 @@ describe('SIDE-01: bee-atlas sidebar visibility wiring', () => {
 describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  test('bee-atlas.ts contains bee-table element (replaces table-slot placeholder)', () => {
-    expect(src).toMatch(/<bee-table/);
+  test('bee-atlas.ts renders bee-pane (which embeds bee-table in its shadow DOM)', () => {
+    expect(src).toMatch(/<bee-pane\b/);
+    expect(src).not.toMatch(/<bee-table\b/);
   });
 
-  test('bee-atlas.ts contains bee-table CSS rule in static styles (replaces .table-slot)', () => {
-    expect(src).toMatch(/bee-table\s*\{/);
+  test('bee-atlas.ts contains bee-pane CSS positioning rule', () => {
+    expect(src).toMatch(/bee-pane\s*\{/);
+    expect(src).not.toMatch(/bee-table\s*\{/);
   });
 
   test('bee-atlas.ts declares _paneState as @state field (replaces _viewMode)', () => {
@@ -439,8 +441,8 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(methodBody).toContain('queryOccurrencesByBounds(');
   });
 
-  test('SEL-07: _onClose clears _selectionBounds', () => {
-    const methodStart = src.indexOf('private _onClose()');
+  test('SEL-07: _onPaneCollapse clears _selectionBounds', () => {
+    const methodStart = src.indexOf('private _onPaneCollapse(');
     expect(methodStart).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
@@ -576,8 +578,8 @@ describe('SM-01: bee-atlas pane state machine (Phase 106)', () => {
     expect(src).not.toMatch(/@state\(\)\s+private\s+_tableFilterOpen/);
   });
 
-  test('_onClose sets _paneState = collapsed', () => {
-    const methodStart = src.indexOf('private _onClose()');
+  test('_onPaneCollapse sets _paneState = collapsed', () => {
+    const methodStart = src.indexOf('private _onPaneCollapse(');
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
     expect(body).toContain("this._paneState = 'collapsed'");
@@ -594,5 +596,82 @@ describe('SM-01: bee-atlas pane state machine (Phase 106)', () => {
     expect(src).toMatch(/this\._paneState\s*=\s*paneState/);
     // Phase 105 adapter (this._viewMode = paneState === 'table' ? ...) should not exist
     expect(src).not.toMatch(/this\._viewMode\s*=\s*paneState\s*===\s*'table'\s*\?\s*'table'\s*:\s*'map'/);
+  });
+});
+
+describe('PANE-01: bee-atlas bee-pane wiring (Phase 108)', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts side-effect imports bee-pane', () => {
+    expect(src).toMatch(/^import\s+['"]\.\/bee-pane\.ts['"]/m);
+  });
+
+  test('bee-atlas.ts does NOT import bee-filter-panel', () => {
+    expect(src).not.toMatch(/import\s+['"]\.\/bee-filter-panel\.ts['"]/);
+  });
+
+  test('bee-atlas.ts renders <bee-pane> element', () => {
+    expect(src).toMatch(/<bee-pane\b/);
+  });
+
+  test('bee-atlas.ts does NOT render <bee-filter-panel>, <bee-sidebar>, or <bee-table> directly', () => {
+    expect(src).not.toMatch(/<bee-filter-panel\b/);
+    expect(src).not.toMatch(/<bee-sidebar\b/);
+    expect(src).not.toMatch(/<bee-table\b/);
+  });
+
+  test('bee-atlas.ts attaches all four pane navigation listeners', () => {
+    expect(src).toMatch(/@pane-expand-list=\$\{this\._onPaneExpandList\}/);
+    expect(src).toMatch(/@pane-collapse=\$\{this\._onPaneCollapse\}/);
+    expect(src).toMatch(/@pane-expand-table=\$\{this\._onPaneExpandTable\}/);
+    expect(src).toMatch(/@pane-shrink-list=\$\{this\._onPaneShrinkList\}/);
+  });
+
+  test('bee-atlas.ts does NOT attach @toggle-filter (no consumer after cutover)', () => {
+    expect(src).not.toMatch(/@toggle-filter=/);
+  });
+
+  test('bee-atlas.ts contains _onPaneCollapse method that clears all four selection fields and sets _paneState = collapsed', () => {
+    const start = src.indexOf('private _onPaneCollapse(');
+    expect(start).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', start + 1);
+    const body = src.slice(start, nextPrivate > start ? nextPrivate : undefined);
+    expect(body).toContain('this._selectedOccurrences = null');
+    expect(body).toContain('this._selectedOccIds = null');
+    expect(body).toContain('this._selectedCluster = null');
+    expect(body).toContain('this._selectionBounds = null');
+    expect(body).toContain("this._paneState = 'collapsed'");
+  });
+
+  test('bee-atlas.ts contains _onPaneExpandTable method that imports bee-table and runs the table query', () => {
+    const start = src.indexOf('private _onPaneExpandTable(');
+    expect(start).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', start + 1);
+    const body = src.slice(start, nextPrivate > start ? nextPrivate : undefined);
+    expect(body).toContain("this._paneState = 'table'");
+    expect(body).toMatch(/import\(['"]\.\/bee-table\.ts['"]\)/);
+    expect(body).toContain('this._tableLoading = true');
+    expect(body).toContain('this._runTableQuery()');
+  });
+
+  test('bee-atlas.ts does NOT define _onClose or _onToggleFilter (Phase 108 dead code removal)', () => {
+    expect(src).not.toMatch(/private\s+_onClose\b/);
+    expect(src).not.toMatch(/private\s+_onToggleFilter\b/);
+  });
+
+  test('bee-atlas.ts does NOT use table-mode or sidebar-open content classes', () => {
+    expect(src).not.toMatch(/'table-mode'/);
+    expect(src).not.toMatch(/'sidebar-open'/);
+  });
+
+  test('bee-atlas.ts uses pane-table content class for table-state layout', () => {
+    expect(src).toMatch(/'pane-table'/);
+  });
+
+  test('bee-atlas.ts does NOT add an explicit map.resize() call (MAP-01 satisfied by bee-map ResizeObserver because bee-pane is overlay)', () => {
+    // bee-pane is position: absolute (overlay) — bee-map element size never changes
+    // across pane transitions, so the existing ResizeObserver in bee-map.ts handles
+    // MAP-01 without any explicit resize call from bee-atlas.
+    expect(src).not.toMatch(/_map\?\.resize\(\)/);
   });
 });
