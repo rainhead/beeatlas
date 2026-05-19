@@ -7,16 +7,16 @@
 
 ### Pane Layout
 
-- [ ] **PANE-01**: User sees a persistent toggle button at the pane edge in all three pane states (collapsed, list, table)
-- [ ] **PANE-02**: User can open the pane to list state from collapsed, and collapse it from list or table state, via the toggle button
-- [ ] **PANE-03**: User can expand the pane to table state via an expand button visible in the pane's list state on desktop
-- [ ] **PANE-04**: User can return to list state from table state via a shrink button visible in the table state header
+- [x] **PANE-01**: User sees a persistent toggle button at the pane edge in all three pane states (collapsed, list, table)
+- [x] **PANE-02**: User can open the pane to list state from collapsed, and collapse it from list or table state, via the toggle button
+- [x] **PANE-03**: User can expand the pane to table state via an expand button visible in the pane's list state on desktop
+- [x] **PANE-04**: User can return to list state from table state via a shrink button visible in the table state header
 - [ ] **PANE-05**: Pane's list state shows all filter controls (taxon, date, region, collector, place) and occurrence detail when a cluster is selected
-- [ ] **PANE-06**: Expand-to-table button is hidden on mobile; pane on mobile behaves as open/close only (no three-state treatment)
+- [x] **PANE-06**: Expand-to-table button is hidden on mobile; pane on mobile behaves as open/close only (no three-state treatment)
 
 ### Table in Pane
 
-- [ ] **TABLE-01**: Table view in the pane's table state retains all existing functionality (DuckDB-backed pagination, CSV export, filter state integration)
+- [x] **TABLE-01**: Table view in the pane's table state retains all existing functionality (DuckDB-backed pagination, CSV export, filter state integration)
 - [ ] **TABLE-02**: Full-screen `viewMode='table'` that replaces the map is removed; table is accessible only as a pane sub-state
 
 ### URL State
@@ -50,13 +50,13 @@ Not in v3.9 scope. Tracked for future milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PANE-01 | Phase 107 | Pending |
-| PANE-02 | Phase 107 | Pending |
-| PANE-03 | Phase 107 | Pending |
-| PANE-04 | Phase 107 | Pending |
+| PANE-01 | Phase 107 | Complete |
+| PANE-02 | Phase 107 | Complete |
+| PANE-03 | Phase 107 | Complete |
+| PANE-04 | Phase 107 | Complete |
 | PANE-05 | Phase 107 | Pending |
-| PANE-06 | Phase 107 | Pending |
-| TABLE-01 | Phase 107 | Pending |
+| PANE-06 | Phase 107 | Complete |
+| TABLE-01 | Phase 107 | Complete |
 | TABLE-02 | Phase 109 | Pending |
 | URL-01 | Phase 105 | Pending |
 | URL-02 | Phase 105 | Pending |

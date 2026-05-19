@@ -561,7 +561,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 107-01-PLAN.md — Wave 0 source-scan tests + bee-pane skeleton (chrome, three-state render, navigation events, bee-table embedding) — PANE-01..04, PANE-06, TABLE-01
+- [x] 107-01-PLAN.md — Wave 0 source-scan tests + bee-pane skeleton (chrome, three-state render, navigation events, bee-table embedding) — PANE-01..04, PANE-06, TABLE-01
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -711,6 +711,6 @@ Plans:
 | 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 105. URL State Migration | v3.9 | 0/1 | Not started | - |
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
-| 107. Create bee-pane Component | v3.9 | 0/2 | Not started | - |
+| 107. Create bee-pane Component | v3.9 | 1/2 | In Progress|  |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 0/TBD | Not started | - |
 | 109. Cleanup & Full-Screen Table Removal | v3.9 | 0/TBD | Not started | - |
