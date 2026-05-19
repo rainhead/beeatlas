@@ -16,12 +16,12 @@ Usage:
 import datetime
 import json
 import os
-import re
-import unicodedata
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import duckdb
+
+from domain import slugify
 
 DB_PATH = os.environ.get('DB_PATH', str(Path(__file__).parent / 'beeatlas.duckdb'))
 _default_assets = str(Path(__file__).parent.parent / 'public' / 'data')
@@ -128,24 +128,6 @@ def write_determinations_feed(con: duckdb.DuckDBPyConnection, out_dir: Path) -> 
         f"{out_path.stat().st_size:,} bytes"
     )
 
-
-def _slugify(value: str) -> str:
-    """Convert a human name or place name to a URL-safe ASCII slug.
-
-    Strips all characters that are not [a-z0-9-], preventing path traversal
-    (../) and special characters in filenames.
-    """
-    # Transliterate accented characters to ASCII equivalents
-    value = unicodedata.normalize('NFKD', value)
-    value = value.encode('ascii', 'ignore').decode('ascii')
-    value = value.lower()
-    # Spaces, underscores, dots, commas -> hyphen
-    value = re.sub(r'[\s_.,]+', '-', value)
-    # Strip remaining non-alphanumeric-hyphen characters (including / and .)
-    value = re.sub(r'[^a-z0-9-]', '', value)
-    # Collapse runs of hyphens
-    value = re.sub(r'-+', '-', value)
-    return value.strip('-') or 'unknown'
 
 
 _UTC = datetime.timezone.utc
@@ -289,7 +271,7 @@ def write_all_variants(
         seen_slugs: dict[str, int] = {}
 
         for filter_value in filter_values:
-            base_slug = _slugify(filter_value)
+            base_slug = slugify(filter_value)
             if base_slug in seen_slugs:
                 seen_slugs[base_slug] += 1
                 slug = f'{base_slug}-{seen_slugs[base_slug]}'
