@@ -175,8 +175,8 @@ describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
     expect(src).toMatch(/@state\(\)\s+private\s+_viewMode/);
   });
 
-  test('bee-atlas.ts _onPopState restores _viewMode from URL', () => {
-    expect(src).toMatch(/this\._viewMode\s*=\s*parsed\.ui\?\.viewMode\s*\?\?\s*'map'/);
+  test('_onPopState reads paneState from URL (Phase 105)', () => {
+    expect(src).toMatch(/parsed\.ui\?\.paneState/);
   });
 });
 

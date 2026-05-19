@@ -241,10 +241,10 @@ bee-filter-panel {
 
     // Restore boundary/view mode from URL
     const initBoundaryMode = initialParams.ui?.boundaryMode ?? 'off';
-    const initViewMode = initialParams.ui?.viewMode ?? 'map';
+    const paneState = initialParams.ui?.paneState ?? 'collapsed';
     this._boundaryMode = initBoundaryMode;
-    this._viewMode = initViewMode;
-    if (initViewMode === 'table') import('./bee-table.ts');
+    this._viewMode = paneState === 'table' ? 'table' : 'map';
+    if (paneState === 'table') import('./bee-table.ts');
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
     if (initFilter) {
@@ -296,7 +296,7 @@ bee-filter-panel {
       { lon: initLon, lat: initLat, zoom: initZoom },
       this._filterState,
       initSel ?? { type: 'ids' as const, ids: [] },
-      { boundaryMode: initBoundaryMode, viewMode: initViewMode }
+      { boundaryMode: initBoundaryMode, paneState }
     );
     window.history.replaceState({}, '', '?' + initParams.toString());
 
@@ -498,6 +498,10 @@ bee-filter-panel {
   // --- URL state ---
 
   private _pushUrlState() {
+    const paneState: 'list' | 'table' | 'collapsed' =
+      this._viewMode === 'table' ? 'table'
+      : this._sidebarOpen ? 'list'
+      : 'collapsed';
     const params = buildParams(
       this._currentView,
       this._filterState,
@@ -506,7 +510,7 @@ bee-filter-panel {
         : this._selectedCluster
           ? { type: 'cluster' as const, ...this._selectedCluster }
           : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { boundaryMode: this._boundaryMode, viewMode: this._viewMode }
+      { boundaryMode: this._boundaryMode, paneState }
     );
     window.history.replaceState({}, '', '?' + params.toString());
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
@@ -548,7 +552,8 @@ bee-filter-panel {
 
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
-    this._viewMode = parsed.ui?.viewMode ?? 'map';
+    const paneState = parsed.ui?.paneState ?? 'collapsed';
+    this._viewMode = paneState === 'table' ? 'table' : 'map';
     this._tablePage = 1;
     if (this._viewMode === 'table') {
       this._runTableQuery();
