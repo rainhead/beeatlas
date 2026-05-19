@@ -7,6 +7,13 @@
 -- ref('stg_ecdysis__occurrences') — because the staging view applies a
 -- decimal_latitude IS NOT NULL spatial filter that must NOT exclude temporally
 -- valid records with null coordinates (PATTERNS.md Note + Surprise 3).
+-- CROSS-LAYER: specimen_count here agrees with isSpecimenBacked() in src/occurrence.ts,
+-- which is the canonical cross-layer definition for "confirmed specimen" (SEM-01).
+-- This site is structurally correct without an explicit ecdysis_id predicate because
+-- it reads ecdysis_data.occurrences directly — every row in that table IS an Ecdysis
+-- specimen, so id IS NOT NULL is structurally equivalent to "confirmed specimen".
+-- The diverging site places_export.py:_query_counts was aligned to ecdysis_id IS NOT NULL
+-- in phase 104 (SEM-01) to match this definition.
 {{ config(materialized='view') }}
 
 SELECT
