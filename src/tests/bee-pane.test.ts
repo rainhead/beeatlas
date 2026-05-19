@@ -146,3 +146,74 @@ describe('sibling isolation (ARCH-03 equivalent)', () => {
     expect(src).not.toMatch(/^import\s+['"]\.\/bee-sidebar\.ts['"]/m);
   });
 });
+
+describe('PANE-05: list state filter controls + occurrence detail', () => {
+  test('bee-pane.ts defines _renderWhat method', () => {
+    expect(src).toMatch(/_renderWhat\s*\(/);
+  });
+
+  test('bee-pane.ts defines _renderWho method', () => {
+    expect(src).toMatch(/_renderWho\s*\(/);
+  });
+
+  test('bee-pane.ts defines _renderWhere method', () => {
+    expect(src).toMatch(/_renderWhere\s*\(/);
+  });
+
+  test('bee-pane.ts defines _renderWhen method', () => {
+    expect(src).toMatch(/_renderWhen\s*\(/);
+  });
+
+  test('bee-pane.ts calls all four filter render methods inside _renderListContent', () => {
+    const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
+    expect(listContentBody).not.toBeNull();
+    const body = listContentBody![0];
+    expect(body).toMatch(/this\._renderWhat\s*\(\)/);
+    expect(body).toMatch(/this\._renderWho\s*\(\)/);
+    expect(body).toMatch(/this\._renderWhere\s*\(\)/);
+    expect(body).toMatch(/this\._renderWhen\s*\(\)/);
+  });
+
+  test('bee-pane.ts renders bee-occurrence-detail when occurrences non-null in list content', () => {
+    const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
+    expect(listContentBody).not.toBeNull();
+    const body = listContentBody![0];
+    expect(body).toMatch(/<bee-occurrence-detail[\s\S]*?\.occurrences=\$\{this\.occurrences\}/);
+    const hasGuard = /occurrences\s*!==\s*null/.test(body) || /occurrences\s*\?/.test(body);
+    expect(hasGuard).toBe(true);
+  });
+
+  test('bee-pane.ts dispatches filter-changed event', () => {
+    expect(src).toMatch(/new CustomEvent[^)]*['"]filter-changed['"]/);
+  });
+
+  test('bee-pane.ts implements updated(changed: PropertyValues) sync', () => {
+    expect(src).toMatch(/updated\s*\(\s*changed\s*:\s*PropertyValues/);
+  });
+
+  test('bee-pane.ts contains _ensurePlaceNamesLoaded with resolveDataUrl call', () => {
+    expect(src).toMatch(/_ensurePlaceNamesLoaded/);
+    expect(src).toMatch(/resolveDataUrl\(['"]places_meta['"]\)/);
+  });
+
+  test('bee-pane.ts FilterChangedEvent detail contains all required fields', () => {
+    const emitFilterBody = src.match(/_emitFilter\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
+    expect(emitFilterBody).not.toBeNull();
+    const body = emitFilterBody![0];
+    expect(body).toMatch(/taxonName/);
+    expect(body).toMatch(/taxonRank/);
+    expect(body).toMatch(/yearFrom/);
+    expect(body).toMatch(/yearTo/);
+    expect(body).toMatch(/months/);
+    expect(body).toMatch(/selectedCounties/);
+    expect(body).toMatch(/selectedEcoregions/);
+    expect(body).toMatch(/selectedCollectors/);
+    expect(body).toMatch(/elevMin/);
+    expect(body).toMatch(/elevMax/);
+    expect(body).toMatch(/selectedPlace/);
+  });
+
+  test('bee-pane.ts list content stub is removed', () => {
+    expect(src).not.toMatch(/List content \(Plan 02 fills in/);
+  });
+});
