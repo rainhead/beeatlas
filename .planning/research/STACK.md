@@ -1,118 +1,91 @@
-# Technology Stack: v3.8 Conceptual Tidying
+# Stack Research
 
-**Project:** Washington Bee Atlas — Refactoring Milestone
-**Researched:** 2026-05-18
-**Mode:** Existing stack audit for predicate centralization refactoring
+**Domain:** Three-state sidebar pane in existing Lit + Mapbox SPA
+**Researched:** 2026-05-19
+**Confidence:** HIGH
 
----
+## Recommended Stack
 
-## What This Milestone Needs From the Stack
+### Core Technologies
 
-v3.8 is a pure refactoring milestone — no new user-facing behavior, no new data sources. The question is not "what stack should we adopt?" but "what does the existing stack already provide that aids extraction of pure domain predicates, and is anything genuinely missing?"
+No new core technologies needed. v3.9 is a UI restructuring milestone, not a technology addition. All required capabilities are already present.
 
-The short answer: the existing stack is fully sufficient. No new dependencies are justified. The established patterns in `canonical_name.py`, `filter.test.ts`, and `arch.test.ts` are the templates for all v3.8 work.
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Lit | 3.3.2 (installed) | Component authoring | `classMap` directive + CSS custom properties handle all three-state layout needs without additions |
+| CSS custom properties + `transition` | Platform | Pane width animation | `transition: width 220ms ease` between three explicit rem values gives compositor-adjacent performance at zero bundle cost |
+| `classMap` directive | included in `lit` | Drive state classes on pane host | `class=${classMap({ collapsed, list, table })}` is idiomatic Lit; no new import beyond `lit/directives/class-map.js` |
 
----
+### Supporting Libraries
 
-## Existing Stack Assessment
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `lit/directives/class-map.js` | included in lit 3.3.2 | Apply `.collapsed`/`.list`/`.table` state classes to unified pane host | Use in `render()` of the new `bee-unified-pane` component |
+| `lit/directives/style-map.js` | included in lit 3.3.2 | Inline style overrides | Only if dynamic pixel values from ResizeObserver are needed — prefer static CSS classes |
 
-### TypeScript / Vitest (Frontend Predicate Tests)
+### Development Tools
 
-**Confidence:** HIGH — direct codebase inspection.
+No changes needed to Vite, TypeScript, or Vitest configuration.
 
-Vitest is already configured inline in `vite.config.ts` with `happy-dom` environment. The test suite is substantial: 47+ test files under `src/tests/`. Key patterns already established:
+## Installation
 
-- `filter.test.ts` — pure function tests for `buildFilterSQL`, `isFilterActive`, `buildCsvFilename`. Uses an `emptyFilter()` factory and spread for variants. No DOM, no mocking except `sqlite.ts`.
-- `url-state.test.ts` — round-trip tests for `buildParams`/`parseParams`.
-- `arch.test.ts` — file-system source analysis using `readFileSync` to enforce import boundary invariants without loading the modules.
+```bash
+# No new packages required — all needed APIs are in lit@3.3.2 already installed
+```
 
-Vitest is the right tool for testing extracted predicate functions. Pure predicate functions (e.g., `occurrenceId(row)`, `isSpecimen(row)`, `isSample(row)`) require zero additional setup — no mock, no fixture, no DOM. The `emptyFilter()` helper pattern from `filter.test.ts` is the correct model for any new domain object factory needed in tests.
+## Alternatives Considered
 
-**What is NOT needed:** No new test runner, no additional assertion library, no snapshot testing framework. Vitest's `expect().toBe()` and `expect().toContain()` are sufficient for all predicate tests.
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| CSS `transition: width` on three explicit rem values | `@lit-labs/motion` FLIP directive | If the pane needed to animate arbitrary layout changes (e.g. element reordering); overkill for a deterministic slide between three known widths |
+| CSS class-driven state with `classMap` | `styleMap` with inline `width` values | Only if widths must be computed dynamically (e.g. via ResizeObserver); the three target widths are static constants |
+| `width` transition on in-flow pane | `transform: translateX` overlay | Use `translateX` only if the pane should float over the map; the spec calls for the map to shrink when the pane expands, so in-flow `width` is correct |
+| Lazy-import `bee-table.ts` on first table-state entry | Eagerly import at startup | The table component is already lazy-loaded (`import('./bee-table.ts')` in `bee-atlas.ts:247`); keep this pattern |
 
-### Python / pytest (Pipeline Predicate Tests)
+## What NOT to Use
 
-**Confidence:** HIGH — direct codebase inspection.
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `@lit-labs/motion` | Explicitly experimental (Lit Labs); may receive breaking changes or be abandoned; FLIP animation is designed for DOM element reordering, not a simple width slide | CSS `transition: width` on explicit values |
+| Third-party animation libraries (GSAP, Framer Motion, Popmotion, Motion One) | Not web-component aware; add bundle weight; the project has a validated bundle-size check (`validate-bundle-size.mjs`); all are overkill for a single-axis width transition | CSS transitions |
+| `interpolate-size: allow-keywords` for `width: auto` transitions | Chromium-only as of 2026; Firefox and Safari do not support it; target widths are known constants, not content-driven | Explicit `rem` or `px` values for collapsed / list / table states |
+| DuckDB WASM | Already rejected (project memory); unrelated to this milestone | wa-sqlite (already in use) |
+| A third-party drawer / panel component library | Shadow DOM encapsulation makes third-party drawer components fragile in Lit apps (slot composition, event retargeting, focus management). The sidebar is ~120 lines; keep it in-house | Custom `bee-unified-pane` LitElement |
+| React-style `viewMode` toggle replacing `paneState` | Current `_viewMode: 'map' | 'table'` toggle in `bee-atlas.ts` should be replaced by `_paneState: 'collapsed' | 'list' | 'table'`; the old table full-screen mode goes away | Three-state pane property on `bee-atlas` |
 
-pytest is already in `[dependency-groups] dev` in `pyproject.toml`. The session-scoped `fixture_db` / `fixture_con` DuckDB fixtures in `conftest.py` are the right foundation for integration tests. `test_transforms.py` and `test_canonical_name.py` show the established pattern for pure-function unit tests: no fixture, no DB, just `import` and `assert`.
+## Stack Patterns by Variant
 
-`canonical_name.py` is the exemplar of what v3.8 wants to produce everywhere: a single-purpose module with a named algorithm, a docstring that states invariants, locked constants with explicit "DO NOT change without amending CONTEXT.md" guards, and a dedicated `tests/test_canonical_name.py` with per-step coverage plus an idempotence test. Every Python predicate extracted in v3.8 should match this structure.
+**Desktop three-state pane (collapsed / list / table):**
+- Single `bee-unified-pane` LitElement with `paneState: 'collapsed' | 'list' | 'table'` `@property`
+- `classMap` applies the state class on `:host`
+- CSS defines three explicit widths: `0rem` (collapsed), `22rem` (list), `44rem`+ (table) — widths are tunable, but must be explicit values for transitions to work
+- `transition: width 220ms ease` on `:host`; `overflow: hidden` prevents content spillover during animation
+- Toggle button (`bee-atlas` renders it as absolutely positioned sibling) stays visible when pane is `collapsed`
 
-**What is NOT needed:** No additional pytest plugins. `monkeypatch` (used in `conftest.py` for rate-limiting constants) is built into pytest and is the right tool for any import-time module constant that needs patching in tests.
+**Mobile (existing open/close, no three-state treatment):**
+- `@media (max-aspect-ratio: 1)` gate already exists in `bee-atlas.ts` static styles
+- Coordinator maps mobile gestures to `collapsed` / `list` only; `table` state is a desktop-only concept
+- No changes needed to mobile layout
 
-### dbt-duckdb (SQL Predicate Organization)
+**Table state vs. current `_viewMode='table'`:**
+- `_viewMode: 'map' | 'table'` in `bee-atlas` is replaced by `_paneState: 'collapsed' | 'list' | 'table'`
+- `bee-table` renders inside the pane in `table` state instead of as a full-screen sibling; `bee-map` shrinks but stays visible
+- Lazy-import pattern (`import('./bee-table.ts')`) preserved on first transition to `table` state
+- `bee-filter-panel` merges into the unified pane; `bee-sidebar` merges into the unified pane
 
-**Confidence:** HIGH — direct codebase inspection.
+## Version Compatibility
 
-dbt provides the contract enforcement mechanism (`schema.yml` with `contract: enforced: true`), already used for the 31-column `occurrences` mart and the `species` mart. The contract is enforced at every `bash data/dbt/run.sh build`.
-
-dbt `tests:` blocks in `schema.yml` can express lightweight SQL-layer predicates (existing examples: `not_null_int_combined_is_provisional`, `unique_stg_inat__observations_id`). For v3.8, the natural approach for SQL invariants is a dbt singular test — a `.sql` file under `data/dbt/tests/` that asserts the condition holds across the model. The existing `test_ecdysis_id_references_source.sql` and `test_lin05_lineage_coverage.sql` show the pattern.
-
-**One lightweight addition worth considering:** The OFV field IDs that define what counts as a "specimen count" (`8338`), a "sample ID" (`9963`), a "WABA catalog link" (`18116`), and a "host observation URL" (`1718`) are magic numbers appearing only as SQL literals and SQL comments. dbt supports `vars:` in `dbt_project.yml` for named constants (`{{ var('ofv_specimen_count_field_id') }}`). This makes the intent named and single-sourced. It is a one-line-per-constant YAML addition, no dependency change.
-
-**What is NOT needed:** No new dbt packages. No dbt macros for predicate centralization — the existing `emit_feature_collection.sql` macro shows the pattern is available, but named CTEs and staging models are the better expression of domain predicates in SQL.
-
-### Lit / LitElement (Frontend Component Boundaries)
-
-**Confidence:** HIGH.
-
-Lit's `@property` and `@state` decorators already enforce the component boundary pattern from v1.9. The `arch.test.ts` import-boundary tests are directly reusable for v3.8: if new domain modules are created (e.g., `src/occurrence.ts`), an additional `describe` block in `arch.test.ts` can verify they contain no imports from `mapbox-gl`, `wa-sqlite`, or component files — keeping them independently testable.
-
----
-
-## No New Dependencies
-
-Every v3.8 task maps to an already-established pattern:
-
-| Task | Tool | Pattern to Follow |
-|------|------|-------------------|
-| Extract `occurrenceId(row)` / `parseOccId(id)` to named TS function | TypeScript module | `src/occurrence.ts`; tested like `filter.test.ts` pure functions |
-| Extract `isSpecimen(row)` / `isSample(row)` discriminators | TypeScript module | Same; `ecdysis_id != null` is the current inline test |
-| Centralize OFV field IDs as named Python constants | New `data/domain.py` | Mirrors `data/config.py`; tested with trivial value-locking assertions |
-| Name OFV field IDs in dbt SQL | dbt `vars:` in `dbt_project.yml` | `{{ var('ofv_specimen_count') }}` replacing integer literals |
-| Enforce new module boundaries | Vitest + `readFileSync` | Extend or mirror `arch.test.ts` ARCH-04 block |
-| Lock domain invariants in SQL | dbt singular tests | Mirrors `test_ecdysis_id_references_source.sql` |
-
----
-
-## Scattered Domain Logic That v3.8 Should Centralize
-
-The following were found by direct codebase inspection and are the concrete targets:
-
-**TypeScript — `occId` construction (5 sites):**
-The expression `ecdysis_id != null ? 'ecdysis:' + ecdysis_id : 'inat:' + Number(observation_id)` appears identically in `features.ts:46-48`, `bee-atlas.ts:748`, `bee-atlas.ts:1006`, `bee-atlas.ts:1026`, and `bee-table.ts:40-41`. The parse inverse (`id.startsWith('ecdysis:')` / `id.slice(...)`) appears in at least three places in `bee-atlas.ts` (lines 473-477, 933-938). A named `occurrenceId(row: OccurrenceRow): string` and `parseOccId(id: string): { source: 'ecdysis' | 'inat'; numericId: number }` pair would be trivially testable with Vitest and would close this.
-
-**TypeScript — specimen vs. sample discrimination (4+ sites):**
-`ecdysis_id != null` (specimen check) and `ecdysis_id == null` (sample-only check) appear inline in `bee-occurrence-detail.ts:247-248`, `filter.ts:297`, `filter.ts:318-324`, and `features.ts:55`. These are unnamed predicates. Named `isSpecimen(row)` and `isSample(row)` functions in a domain module would be self-documenting and testable.
-
-**Python — OFV field IDs (4 magic numbers in SQL, 1 in `conftest.py`):**
-`8338` (specimen count), `9963` (sample ID), `18116` (WABA catalog number), `1718` (host observation URL) appear as literals in `int_samples_base.sql`, `int_waba_link.sql`, `int_combined.sql`, and in `conftest.py` seed data. A `data/domain.py` module with named constants and a `tests/test_domain.py` that asserts the values are locked would make these discoverable and intentionally guarded.
-
-**Python — `BEE_FAMILIES` tuple (1 site):**
-The tuple `('Andrenidae', 'Apidae', 'Colletidae', 'Halictidae', 'Megachilidae', 'Melittidae', 'Stenotritidae')` appears only in `species_export.py:51-54`. It is not imported anywhere else. If pipeline steps other than species export need to filter to bee families, this would be duplicated. Centralizing it to `data/domain.py` is low-risk and improves discoverability.
-
----
-
-## Confidence Assessment
-
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Existing test tooling (Vitest, pytest) | HIGH | Both active; patterns established; inspected directly |
-| Refactoring fit for existing tools | HIGH | Pure function extraction is exactly what both tools are already exercised for |
-| dbt vars for SQL constants | MEDIUM | Standard dbt pattern; not currently used in this project; no risk, requires ~4 lines in `dbt_project.yml` |
-| No new dependencies needed | HIGH | Every required capability is already present |
-
----
+| Package | Compatible With | Notes |
+|---------|-----------------|-------|
+| `lit@3.3.2` | TypeScript 5.8, Vite 6, Vitest 4 | All directives in `lit/directives/*` are part of the `lit` package; no separate install needed |
 
 ## Sources
 
-- Direct inspection: `/Users/rainhead/dev/beeatlas/data/pyproject.toml` (pytest in dev deps, Python 3.14+)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/vite.config.ts` (Vitest inline config, happy-dom)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/src/tests/filter.test.ts` (pure-function test pattern)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/src/tests/arch.test.ts` (import boundary test pattern)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/data/canonical_name.py` + `data/tests/test_canonical_name.py` (Python predicate module + test exemplar)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/data/tests/conftest.py` (OFV field ID hardcoding, fixture pattern)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_samples_base.sql`, `int_waba_link.sql`, `int_combined.sql` (magic OFV IDs in SQL)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/schema.yml` (dbt contract enforcement)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/src/filter.ts`, `features.ts`, `bee-atlas.ts`, `bee-table.ts` (scattered `occId` construction and `isSpecimen`/`isSample` predicates)
-- Direct inspection: `/Users/rainhead/dev/beeatlas/data/species_export.py:51-54` (BEE_FAMILIES tuple, single-site)
+- Lit official docs (lit.dev) — `classMap` and `styleMap` directive docs verified — HIGH confidence
+- `@lit-labs/motion` README, github.com/lit/lit — explicit experimental/Labs status confirmed; FLIP is not the right tool for deterministic width slides — HIGH confidence
+- MDN CSS Transitions — `transform: translateX` vs `width` performance trade-off; `interpolate-size` browser support gap — HIGH confidence
+- Direct codebase inspection — `bee-filter-panel.ts`, `bee-sidebar.ts`, `bee-atlas.ts`, `bee-table.ts` layout and animation patterns; confirmed no animation library in use — HIGH confidence
+
+---
+*Stack research for: v3.9 Sidebar & Table Unification*
+*Researched: 2026-05-19*
