@@ -19,8 +19,8 @@ Centralize scattered domain intelligence (definitions, predicates, field-mapping
 
 ### dbt SQL Domain Constants
 
-- [ ] **DBT-01**: `data/dbt/macros/inat_field_ids.sql` defines named macros for all four OFV field IDs (`8338` specimen count, `9963` sample ID, `18116` Ecdysis catalog suffix, `1718` host observation URL); anonymous integer literals replaced in all intermediate models; `dbt build` passes
-- [ ] **DBT-02**: Duplicated `is_plant_taxon` CASE expression extracted from `int_ecdysis_base.sql` and `int_samples_base.sql` into a shared macro; `dbt build` passes
+- [x] **DBT-01**: `data/dbt/macros/inat_field_ids.sql` defines named macros for all four OFV field IDs (`8338` specimen count, `9963` sample ID, `18116` Ecdysis catalog suffix, `1718` host observation URL); anonymous integer literals replaced in all intermediate models; `dbt build` passes
+- [x] **DBT-02**: Duplicated `is_plant_taxon` CASE expression extracted from `int_ecdysis_base.sql` and `int_samples_base.sql` into a shared macro; `dbt build` passes
 
 ### Semantic Reconciliation
 
@@ -50,6 +50,6 @@ Centralize scattered domain intelligence (definitions, predicates, field-mapping
 | TS-03 | Phase 101 | Pending |
 | PY-01 | Phase 102 | Pending |
 | PY-02 | Phase 102 | Pending |
-| DBT-01 | Phase 103 | Pending |
-| DBT-02 | Phase 103 | Pending |
+| DBT-01 | Phase 103 | Complete |
+| DBT-02 | Phase 103 | Complete |
 | SEM-01 | Phase 104 | Pending |

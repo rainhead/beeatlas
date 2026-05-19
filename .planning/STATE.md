@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.8
 milestone_name: Conceptual Tidying
-status: executing
+status: active
 stopped_at: Roadmap created for v3.8 — 4 phases (101-104), 8 requirements mapped
-last_updated: "2026-05-19T01:01:36.684Z"
-last_activity: 2026-05-19 -- Phase 103 planning complete
+last_updated: "2026-05-19T01:20:00.000Z"
+last_activity: 2026-05-19
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 4
   total_plans: 4
-  completed_plans: 3
-  percent: 22
+  completed_plans: 4
+  percent: 33
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 103 — dbt iNat Field ID Constants & Plantae Macro
+**Current focus:** Phase 103 — dbt-inat-field-id-constants-plantae-macro
 
 ## Current Position
 
-Phase: 103 (dbt iNat Field ID Constants & Plantae Macro) — NEXT
-Plan: —
-Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 103 planning complete
+Phase: 103 (dbt-inat-field-id-constants-plantae-macro) — COMPLETE
+Plan: 1 of 1
+Status: Verified 2026-05-19 — all must-haves passed (4/4)
+Last activity: 2026-05-19
 
 Progress: [░░░░░░░░░░] 0%
 
