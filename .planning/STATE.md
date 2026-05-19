@@ -4,8 +4,8 @@ milestone: v3.9
 milestone_name: Sidebar & Table Unification
 status: executing
 stopped_at: Roadmap created for v3.9 — 5 phases (105-109), 11 requirements mapped
-last_updated: "2026-05-19T19:11:50.100Z"
-last_activity: 2026-05-19 -- Phase 106 planning complete
+last_updated: "2026-05-19T19:13:05.075Z"
+last_activity: 2026-05-19 -- Phase 106 execution started
 progress:
   total_phases: 10
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unification milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 105 — url-state-migration (complete) — next: Phase 106
+**Current focus:** Phase 106 — bee-atlas-state-machine
 
 ## Current Position
 
-Phase: 105 (url-state-migration) — COMPLETE
+Phase: 106 (bee-atlas-state-machine) — EXECUTING
 Plan: 1 of 1
-Status: Ready to execute
-Last activity: 2026-05-19 -- Phase 106 planning complete
+Status: Executing Phase 106
+Last activity: 2026-05-19 -- Phase 106 execution started
 
 Progress: [█░░░░░░░░░] 10%
 

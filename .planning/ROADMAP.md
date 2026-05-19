@@ -384,7 +384,7 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 **Milestone Goal:** Collapse the separate filter panel, occurrence sidebar, and full-screen table into a single unified pane with three states (collapsed/list/table) on desktop.
 
 - [x] **Phase 105: URL State Migration** — Extend url-state.ts to encode pane state; backward compat for ?view=table; no visible UI change
-- [ ] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers
+- [x] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers (completed 2026-05-19)
 - [ ] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states
 - [ ] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize()
 - [ ] **Phase 109: Cleanup & Full-Screen Table Removal** — Delete bee-filter-panel.ts and bee-sidebar.ts; remove viewMode='table' dead code; update tests
@@ -536,7 +536,7 @@ Plans:
 **Plans**: 1 plan
 Plans:
 
-- [ ] 106-01-PLAN.md — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState in bee-atlas.ts; demote _tableFilterOpen to plain field; remove Phase 105 adapters; update bee-atlas.test.ts (SIDE-01/VIEW-02/SEL-06 + new SM-01 block)
+- [x] 106-01-PLAN.md — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState in bee-atlas.ts; demote _tableFilterOpen to plain field; remove Phase 105 adapters; update bee-atlas.test.ts (SIDE-01/VIEW-02/SEL-06 + new SM-01 block)
 
 ### Phase 107: Create bee-pane Component
 
@@ -687,7 +687,7 @@ Plans:
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 105. URL State Migration | v3.9 | 0/1 | Not started | - |
-| 106. bee-atlas State Machine | v3.9 | 0/1 | Not started | - |
+| 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 0/TBD | Not started | - |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 0/TBD | Not started | - |
 | 109. Cleanup & Full-Screen Table Removal | v3.9 | 0/TBD | Not started | - |
