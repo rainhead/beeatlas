@@ -523,7 +523,12 @@ Plans:
   3. `BEE_FAMILIES` does not appear in `species_export.py`; `int_species_universe.sql` contains a comment naming it as the sole gate for bee family filtering
   4. `uv run pytest data/tests/` passes; new pytest tests confirm slug output byte-equivalence with the prior implementation
 
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [ ] 102-01-PLAN.md — Create data/domain.py with public slugify; migrate feeds.py + species_export.py imports; remove dead BEE_FAMILIES; update int_species_universe.sql comment; add byte-equivalence tests in test_domain.py
 
 ### Phase 103: dbt iNat Field ID Constants & Plantae Macro
 
