@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v3.8
 milestone_name: Conceptual Tidying
-status: active
+status: executing
 stopped_at: Roadmap created for v3.8 — 4 phases (101-104), 8 requirements mapped
-last_updated: "2026-05-19T01:20:00.000Z"
-last_activity: 2026-05-19
+last_updated: "2026-05-19T03:22:33.852Z"
+last_activity: 2026-05-19 -- Phase 104 planning complete
 progress:
   total_phases: 9
-  completed_phases: 4
-  total_plans: 4
+  completed_phases: 3
+  total_plans: 5
   completed_plans: 4
   percent: 33
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete
 
 Phase: 103 (dbt-inat-field-id-constants-plantae-macro) — COMPLETE
 Plan: 1 of 1
-Status: Verified 2026-05-19 — all must-haves passed (4/4)
-Last activity: 2026-05-19
+Status: Ready to execute
+Last activity: 2026-05-19 -- Phase 104 planning complete
 
 Progress: [░░░░░░░░░░] 0%
 
