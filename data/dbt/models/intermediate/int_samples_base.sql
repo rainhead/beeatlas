@@ -9,10 +9,10 @@ SELECT
     op.latitude                                                                 AS sample_lat,
     CAST(sc.value AS INTEGER)                                                   AS specimen_count,
     TRY_CAST(sid.value AS INTEGER)                                              AS sample_id,
-    CASE WHEN op.taxon__iconic_taxon_name = 'Plantae' THEN op.taxon__name ELSE NULL END AS sample_host
+    {{ is_plant_taxon('op') }} AS sample_host
 FROM {{ ref('stg_inat__observations') }} op
 JOIN {{ ref('stg_inat__ofvs') }} sc
-    ON sc._dlt_root_id = op._dlt_id AND sc.field_id = 8338 AND sc.value != ''
+    ON sc._dlt_root_id = op._dlt_id AND sc.field_id = {{ inat_ofv_specimen_count() }} AND sc.value != ''
 LEFT JOIN {{ ref('stg_inat__ofvs') }} sid
-    ON sid._dlt_root_id = op._dlt_id AND sid.field_id = 9963
+    ON sid._dlt_root_id = op._dlt_id AND sid.field_id = {{ inat_ofv_sample_id() }}
 WHERE op.longitude IS NOT NULL AND op.latitude IS NOT NULL
