@@ -24,7 +24,7 @@ Centralize scattered domain intelligence (definitions, predicates, field-mapping
 
 ### Semantic Reconciliation
 
-- [ ] **SEM-01**: A single canonical "confirmed (non-provisional) specimen" predicate chosen and documented; `places_export.py` and the diverging frontend or SQL site updated to agree; a test confirms the chosen semantics hold
+- [x] **SEM-01**: A single canonical "confirmed (non-provisional) specimen" predicate chosen and documented; `places_export.py` and the diverging frontend or SQL site updated to agree; a test confirms the chosen semantics hold
 
 ## Future Requirements
 
@@ -52,4 +52,4 @@ Centralize scattered domain intelligence (definitions, predicates, field-mapping
 | PY-02 | Phase 102 | Pending |
 | DBT-01 | Phase 103 | Complete |
 | DBT-02 | Phase 103 | Complete |
-| SEM-01 | Phase 104 | Pending |
+| SEM-01 | Phase 104 | Complete |
