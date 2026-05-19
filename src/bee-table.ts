@@ -1,7 +1,7 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { OccurrenceRow, SpecimenSortBy } from './filter.ts';
-import { occIdFromRow } from './occurrence.ts';
+import { occIdFromRow, isSpecimenBacked } from './occurrence.ts';
 
 interface ColumnDef {
   key: string;
@@ -350,7 +350,7 @@ export class BeeTable extends LitElement {
                   <tr @click=${() => this._onRowClick(row)} style="cursor: pointer" class=${isSelected ? 'selected' : ''}>
                     ${cols.map(col => {
                       if (col.key === 'links') {
-                        const ecdysisUrl = row.ecdysis_id != null
+                        const ecdysisUrl = isSpecimenBacked(row)
                           ? `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}`
                           : null;
                         const inatId = row.specimen_observation_id ?? row.host_observation_id;
