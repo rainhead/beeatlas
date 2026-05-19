@@ -363,14 +363,19 @@ See `.planning/milestones/v3.7-ROADMAP.md` for full phase details.
 
 <!-- Phase 97-100.1 details archived to .planning/milestones/v3.7-ROADMAP.md -->
 
-### ✅ v3.8 Conceptual Tidying (Shipped 2026-05-19)
+<details>
+<summary>✅ v3.8 Conceptual Tidying (Phases 101–104) — SHIPPED 2026-05-19</summary>
 
-**Milestone Goal:** Centralize scattered domain intelligence (definitions, predicates, field-mapping) into well-bounded modules across Python, SQL, and TypeScript — replacing ad-hoc assumptions spread throughout the codebase with pure functions in named conceptual homes. No new user-visible features.
+- [x] Phase 101: TypeScript Occurrence Domain Module (2/2 plans) — completed 2026-05-19
+- [x] Phase 102: Python Slug Module & Dead Constant (1/1 plans) — completed 2026-05-19
+- [x] Phase 103: dbt iNat Field ID Constants & Plantae Macro (1/1 plans) — completed 2026-05-19
+- [x] Phase 104: Semantic Reconciliation (1/1 plans) — completed 2026-05-19
 
-- [x] **Phase 101: TypeScript Occurrence Domain Module** — Extract occurrence ID construction, parsing, and type predicates into `src/occurrence.ts`; add Vitest unit tests (completed 2026-05-19)
-- [x] **Phase 102: Python Slug Module & Dead Constant** — Extract `_slugify` into `data/domain.py`; remove dead `BEE_FAMILIES` constant from `species_export.py` (completed 2026-05-19)
-- [x] **Phase 103: dbt iNat Field ID Constants & Plantae Macro** — Named macros for all four OFV field IDs; shared `is_plant_taxon` macro eliminating duplicated CASE expression (completed 2026-05-19)
-- [x] **Phase 104: Semantic Reconciliation** — Align provisional-specimen predicate between `places_export.py` and the dbt/frontend definition; document with a test (completed 2026-05-19)
+See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
+
+</details>
+
+<!-- Phase 101-104 details archived to .planning/milestones/v3.8-ROADMAP.md -->
 
 ## Phase Details
 
@@ -488,83 +493,7 @@ Plans:
 
 <!-- Phase 92-96 details archived to .planning/milestones/v3.6-ROADMAP.md -->
 
-### Phase 101: TypeScript Occurrence Domain Module
-
-**Goal**: `src/occurrence.ts` is the single owner of occurrence ID construction, ID parsing, and occurrence type predicates; all six caller files import from it; Vitest unit tests cover every export
-**Depends on**: Phase 100.1
-**Requirements**: TS-01, TS-02, TS-03
-**Success Criteria** (what must be TRUE):
-
-  1. `grep -r '"ecdysis:"' src/` returns only `src/occurrence.ts`; no other file constructs the prefixed ID inline
-  2. `grep -r '"inat:"' src/` returns only `src/occurrence.ts`
-  3. `isSpecimenBacked`, `isSampleOnly`, and `isProvisional` are named exports of `src/occurrence.ts`; no inline discriminant condition for occurrence type exists in any other file
-  4. All existing Vitest tests continue to pass; new unit tests cover `occIdFromRow`, `parseOccId`, and the three predicates
-
-**Plans**: 2 plans
-Plans:
-
-**Wave 1**
-
-- [x] 101-01-PLAN.md — Create src/occurrence.ts (six named exports) + Vitest unit tests in src/tests/occurrence.test.ts
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 101-02-PLAN.md — Migrate six caller files (bee-atlas, bee-table, features, filter, bee-occurrence-detail, bee-map) to import from occurrence.ts; phase grep-gate verification
-
-### Phase 102: Python Slug Module & Dead Constant
-
-**Goal**: Slug canonicalization logic has a named home in `data/domain.py`; the dead `BEE_FAMILIES` constant is removed; existing slug behavior is byte-for-byte preserved
-**Depends on**: Phase 100.1
-**Requirements**: PY-01, PY-02
-**Success Criteria** (what must be TRUE):
-
-  1. `data/domain.py` exports `slugify(text: str) -> str`; `feeds.py`'s `_slugify` private function is absent from the file
-  2. `feeds.py` and `species_export.py` both import `slugify` from `data/domain.py` (or `domain`)
-  3. `BEE_FAMILIES` does not appear in `species_export.py`; `int_species_universe.sql` contains a comment naming it as the sole gate for bee family filtering
-  4. `uv run pytest data/tests/` passes; new pytest tests confirm slug output byte-equivalence with the prior implementation
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 102-01-PLAN.md — Create data/domain.py with public slugify; migrate feeds.py + species_export.py imports; remove dead BEE_FAMILIES; update int_species_universe.sql comment; add byte-equivalence tests in test_domain.py
-
-### Phase 103: dbt iNat Field ID Constants & Plantae Macro
-
-**Goal**: The four iNat OFV field IDs are named macros in dbt; the duplicated `is_plant_taxon` CASE expression is a single shared macro; `dbt build` passes
-**Depends on**: Phase 100.1
-**Requirements**: DBT-01, DBT-02
-**Success Criteria** (what must be TRUE):
-
-  1. The integer literals `8338`, `9963`, `18116`, `1718` do not appear as anonymous SQL JOIN conditions in any intermediate model — each is referenced via its named macro
-  2. A single `is_plant_taxon` macro exists; the `CASE WHEN taxon__iconic_taxon_name = 'Plantae'` expression does not appear in more than one `.sql` file
-  3. `bash data/dbt/run.sh build` exits 0 with all tests PASS after every SQL change
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 103-01-PLAN.md — Create data/dbt/macros/inat_field_ids.sql (five macros); substitute literals/CASE in int_samples_base, int_waba_link, int_combined, int_ecdysis_base; verify via dbt build + diff regression
-
-### Phase 104: Semantic Reconciliation
-
-**Goal**: The provisional-specimen predicate is deliberate and consistent across `places_export.py`, dbt SQL, and the TypeScript frontend; a test documents the chosen semantics
-**Depends on**: Phases 101, 102, 103
-**Requirements**: SEM-01
-**Success Criteria** (what must be TRUE):
-
-  1. A single documented definition of "confirmed (non-provisional) specimen" is in a code comment citing which layer is authoritative
-  2. `places_export.py` specimen count and the dbt/TypeScript equivalent use the same predicate (or the divergence is explicitly logged as a known TODO with a reason)
-  3. A pytest or Vitest test asserts the chosen predicate against a fixture containing known provisional and non-provisional rows
-
-**Plans**: 1 plan
-Plans:
-
-**Wave 1**
-
-- [x] 104-01-PLAN.md — Update test fixture (RED), fix places_export.py predicate + occurrence.ts JSDoc (GREEN), add cross-reference comment in int_species_occurrences_agg.sql + dbt build
+<!-- Phase 101-104 details archived to .planning/milestones/v3.8-ROADMAP.md -->
 
 ## Progress
 

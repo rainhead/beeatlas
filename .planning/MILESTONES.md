@@ -1,5 +1,21 @@
 # Milestones
 
+## v3.8 Conceptual Tidying (Shipped: 2026-05-19)
+
+**Phases completed:** 4 phases (101–104), 5 plans
+**Timeline:** 1 day (2026-05-18 → 2026-05-19)
+**LOC:** +5,601 / −153 across 48 files
+**Requirements:** 8/8 complete; no milestone audit (low-risk refactor milestone)
+
+**Key accomplishments:**
+
+- `src/occurrence.ts` — occurrence ID construction (`occIdFromRow`, `parseOccId`) and three named type predicates (`isSpecimenBacked`, `isSampleOnly`, `isProvisional`) centralized; 6 caller files migrated; 24 Vitest unit tests; all inline `ecdysis:N` / `inat:N` template-literal construction and `ecdysis_id != null` discriminants eliminated from production code
+- `data/domain.py` — Python `slugify` extracted from `feeds.py`; `feeds.py` and `species_export.py` both import from domain; dead `BEE_FAMILIES` constant removed; `int_species_universe.sql` comment updated to claim sole-gate responsibility; 6-test byte-equivalence suite proves Phase 78 D-01 invariant
+- `data/dbt/macros/inat_field_ids.sql` — five named Jinja2 macros replace anonymous OFV integer literals `8338`/`9963`/`18116`/`1718` across four intermediate models; duplicated Plantae CASE expression centralized into `is_plant_taxon(alias)` macro; dbt build PASS=46 WARN=0 ERROR=0; row-count diff confirms behavioral parity (47,953 rows)
+- Semantic reconciliation (SEM-01) — `places_export.py` specimen count fixed to use `ecdysis_id IS NOT NULL` (matching `isSpecimenBacked`) rather than `is_provisional IS NOT TRUE`; sample-only iNat rows no longer overcounted as specimens; canonical predicate documented in `isSpecimenBacked` JSDoc with cross-layer citation; pytest fixture confirms correct count (1 specimen from 4-row fixture)
+
+---
+
 ## v3.7 Places (Shipped: 2026-05-18)
 
 **Phases completed:** 5 phases (97–100.1, including INSERTED Phase 100.1), 11 plans
