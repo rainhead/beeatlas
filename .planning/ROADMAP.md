@@ -30,7 +30,7 @@
 - ✅ **v3.5 Selection Rectangle** — Phases 89–91 (shipped 2026-05-15)
 - ✅ **v3.6 Simpler Species Index** — Phases 92–96 (shipped 2026-05-16)
 - ✅ **v3.7 Places** — Phases 97–100.1 (shipped 2026-05-18)
-- 🚧 **v3.8 Conceptual Tidying** — Phases 101–104 (in progress)
+- ✅ **v3.8 Conceptual Tidying** — Phases 101–104 (shipped 2026-05-19)
 
 ## Phases
 
@@ -363,7 +363,7 @@ See `.planning/milestones/v3.7-ROADMAP.md` for full phase details.
 
 <!-- Phase 97-100.1 details archived to .planning/milestones/v3.7-ROADMAP.md -->
 
-### 🚧 v3.8 Conceptual Tidying (In Progress)
+### ✅ v3.8 Conceptual Tidying (Shipped 2026-05-19)
 
 **Milestone Goal:** Centralize scattered domain intelligence (definitions, predicates, field-mapping) into well-bounded modules across Python, SQL, and TypeScript — replacing ad-hoc assumptions spread throughout the codebase with pure functions in named conceptual homes. No new user-visible features.
 
@@ -673,5 +673,5 @@ Plans:
 | 100.1. Close v3.7 Gaps (INSERTED) | v3.7 | 1/1 | Complete | 2026-05-18 |
 | 101. TypeScript Occurrence Domain Module | v3.8 | 2/2 | Complete   | 2026-05-19 |
 | 102. Python Slug Module & Dead Constant | v3.8 | 1/1 | Complete   | 2026-05-19 |
-| 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 0/1 | Not started | - |
+| 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
