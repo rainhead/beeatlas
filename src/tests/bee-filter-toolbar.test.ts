@@ -73,15 +73,17 @@ describe('FILTER-PANEL: bee-filter-controls localStorage removal', () => {
 });
 
 describe('FILTER-PANEL: bee-atlas integration', () => {
-  test('bee-atlas.ts source imports bee-filter-panel, not bee-filter-toolbar', () => {
+  test('bee-atlas.ts source imports bee-pane, not bee-filter-panel or bee-filter-toolbar', () => {
     const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
-    expect(src).toMatch(/import.*bee-filter-panel/);
+    expect(src).toMatch(/import.*bee-pane/);
+    expect(src).not.toMatch(/import.*bee-filter-panel/);
     expect(src).not.toMatch(/import.*bee-filter-toolbar/);
   });
 
-  test('bee-atlas.ts source renders bee-filter-panel element', () => {
+  test('bee-atlas.ts source renders bee-pane element, not bee-filter-panel', () => {
     const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
-    expect(src).toMatch(/bee-filter-panel/);
+    expect(src).toMatch(/<bee-pane\b/);
+    expect(src).not.toMatch(/<bee-filter-panel\b/);
   });
 
   test('bee-atlas.ts source does not render bee-filter-toolbar element', () => {
