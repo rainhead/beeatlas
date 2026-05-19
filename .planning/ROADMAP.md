@@ -370,7 +370,7 @@ See `.planning/milestones/v3.7-ROADMAP.md` for full phase details.
 - [x] **Phase 101: TypeScript Occurrence Domain Module** — Extract occurrence ID construction, parsing, and type predicates into `src/occurrence.ts`; add Vitest unit tests (completed 2026-05-19)
 - [x] **Phase 102: Python Slug Module & Dead Constant** — Extract `_slugify` into `data/domain.py`; remove dead `BEE_FAMILIES` constant from `species_export.py` (completed 2026-05-19)
 - [x] **Phase 103: dbt iNat Field ID Constants & Plantae Macro** — Named macros for all four OFV field IDs; shared `is_plant_taxon` macro eliminating duplicated CASE expression (completed 2026-05-19)
-- [ ] **Phase 104: Semantic Reconciliation** — Align provisional-specimen predicate between `places_export.py` and the dbt/frontend definition; document with a test
+- [x] **Phase 104: Semantic Reconciliation** — Align provisional-specimen predicate between `places_export.py` and the dbt/frontend definition; document with a test (completed 2026-05-19)
 
 ## Phase Details
 
@@ -564,7 +564,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 104-01-PLAN.md — Update test fixture (RED), fix places_export.py predicate + occurrence.ts JSDoc (GREEN), add cross-reference comment in int_species_occurrences_agg.sql + dbt build
+- [x] 104-01-PLAN.md — Update test fixture (RED), fix places_export.py predicate + occurrence.ts JSDoc (GREEN), add cross-reference comment in int_species_occurrences_agg.sql + dbt build
 
 ## Progress
 
@@ -674,4 +674,4 @@ Plans:
 | 101. TypeScript Occurrence Domain Module | v3.8 | 2/2 | Complete   | 2026-05-19 |
 | 102. Python Slug Module & Dead Constant | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 0/1 | Not started | - |
-| 104. Semantic Reconciliation | v3.8 | 0/1 | Not started | - |
+| 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
