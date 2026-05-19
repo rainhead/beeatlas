@@ -541,7 +541,12 @@ Plans:
   2. A single `is_plant_taxon` macro exists; the `CASE WHEN taxon__iconic_taxon_name = 'Plantae'` expression does not appear in more than one `.sql` file
   3. `bash data/dbt/run.sh build` exits 0 with all tests PASS after every SQL change
 
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+**Wave 1**
+
+- [ ] 103-01-PLAN.md — Create data/dbt/macros/inat_field_ids.sql (five macros); substitute literals/CASE in int_samples_base, int_waba_link, int_combined, int_ecdysis_base; verify via dbt build + diff regression
 
 ### Phase 104: Semantic Reconciliation
 
@@ -663,5 +668,5 @@ Plans:
 | 100.1. Close v3.7 Gaps (INSERTED) | v3.7 | 1/1 | Complete | 2026-05-18 |
 | 101. TypeScript Occurrence Domain Module | v3.8 | 2/2 | Complete   | 2026-05-19 |
 | 102. Python Slug Module & Dead Constant | v3.8 | 1/1 | Complete   | 2026-05-19 |
-| 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 0/TBD | Not started | - |
+| 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 0/1 | Not started | - |
 | 104. Semantic Reconciliation | v3.8 | 0/TBD | Not started | - |
