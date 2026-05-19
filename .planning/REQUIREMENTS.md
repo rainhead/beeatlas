@@ -50,23 +50,23 @@ Not in v3.9 scope. Tracked for future milestones.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PANE-01 | — | Pending |
-| PANE-02 | — | Pending |
-| PANE-03 | — | Pending |
-| PANE-04 | — | Pending |
-| PANE-05 | — | Pending |
-| PANE-06 | — | Pending |
-| TABLE-01 | — | Pending |
-| TABLE-02 | — | Pending |
-| URL-01 | — | Pending |
-| URL-02 | — | Pending |
-| MAP-01 | — | Pending |
+| PANE-01 | Phase 107 | Pending |
+| PANE-02 | Phase 107 | Pending |
+| PANE-03 | Phase 107 | Pending |
+| PANE-04 | Phase 107 | Pending |
+| PANE-05 | Phase 107 | Pending |
+| PANE-06 | Phase 107 | Pending |
+| TABLE-01 | Phase 107 | Pending |
+| TABLE-02 | Phase 109 | Pending |
+| URL-01 | Phase 105 | Pending |
+| URL-02 | Phase 105 | Pending |
+| MAP-01 | Phase 108 | Pending |
 
 **Coverage:**
 - v3.9 requirements: 11 total
-- Mapped to phases: 0
-- Unmapped: 11 ⚠️
+- Mapped to phases: 11
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-19*
-*Last updated: 2026-05-19 after initial definition*
+*Last updated: 2026-05-19 after roadmap creation (v3.9 phases 105-109)*

@@ -31,6 +31,7 @@
 - ✅ **v3.6 Simpler Species Index** — Phases 92–96 (shipped 2026-05-16)
 - ✅ **v3.7 Places** — Phases 97–100.1 (shipped 2026-05-18)
 - ✅ **v3.8 Conceptual Tidying** — Phases 101–104 (shipped 2026-05-19)
+- 🚧 **v3.9 Sidebar & Table Unification** — Phases 105–109 (in progress)
 
 ## Phases
 
@@ -377,6 +378,17 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 
 <!-- Phase 101-104 details archived to .planning/milestones/v3.8-ROADMAP.md -->
 
+
+### 🚧 v3.9 Sidebar & Table Unification (In Progress)
+
+**Milestone Goal:** Collapse the separate filter panel, occurrence sidebar, and full-screen table into a single unified pane with three states (collapsed/list/table) on desktop.
+
+- [ ] **Phase 105: URL State Migration** — Extend url-state.ts to encode pane state; backward compat for ?view=table; no visible UI change
+- [ ] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers
+- [ ] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states
+- [ ] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize()
+- [ ] **Phase 109: Cleanup & Full-Screen Table Removal** — Delete bee-filter-panel.ts and bee-sidebar.ts; remove viewMode='table' dead code; update tests
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -495,6 +507,69 @@ Plans:
 
 <!-- Phase 101-104 details archived to .planning/milestones/v3.8-ROADMAP.md -->
 
+### Phase 105: URL State Migration
+
+**Goal**: Users can share and restore pane state via URL without any visible UI change yet
+**Depends on**: Phase 104
+**Requirements**: URL-01, URL-02
+**Success Criteria** (what must be TRUE):
+  1. A URL with `?pane=table` restores the page with the pane in table state on load
+  2. A URL with `?pane=list` restores the page with the pane in list state on load
+  3. Collapsed pane state is omitted from the URL (clean default)
+  4. A legacy `?view=table` URL is treated as `?pane=table` — no broken links
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 106: bee-atlas State Machine
+
+**Goal**: `bee-atlas` uses a single `_paneState` property replacing the three separate boolean/string flags that drove the old view modes
+**Depends on**: Phase 105
+**Requirements**: (internal refactor — enables Phases 107-109)
+**Success Criteria** (what must be TRUE):
+  1. The application behavior is unchanged from the user's perspective — all existing interactions work identically
+  2. `_viewMode`, `_sidebarOpen`, and `_tableFilterOpen` properties no longer exist in bee-atlas.ts
+  3. All event handlers that previously toggled those flags now dispatch to `_paneState` transitions
+**Plans**: TBD
+
+### Phase 107: Create bee-pane Component
+
+**Goal**: Users can access all filter controls, occurrence detail, and table view through a single unified pane component
+**Depends on**: Phase 106
+**Requirements**: PANE-01, PANE-02, PANE-03, PANE-04, PANE-05, PANE-06, TABLE-01
+**Success Criteria** (what must be TRUE):
+  1. A persistent toggle button is always visible at the pane edge regardless of whether the pane is collapsed, in list state, or in table state
+  2. User can collapse the pane (from list or table) and re-expand it to list state using the toggle button
+  3. In list state on desktop, an expand button is visible; clicking it transitions to table state
+  4. In table state, a shrink button is visible in the header; clicking it returns to list state
+  5. List state shows all filter controls (taxon, date, region, collector, place) and occurrence detail when a cluster is selected
+  6. On mobile, the pane has no expand button and behaves as open/close only
+  7. The table in table state retains all existing functionality: DuckDB-backed pagination, CSV export, filter state integration
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 108: bee-atlas Cutover & Map Resize
+
+**Goal**: `bee-atlas` renders `bee-pane` instead of the old `bee-filter-panel` and `bee-sidebar` components; Mapbox canvas resizes correctly after any pane state transition
+**Depends on**: Phase 107
+**Requirements**: MAP-01
+**Success Criteria** (what must be TRUE):
+  1. The map canvas resizes correctly when the pane transitions between collapsed and list states
+  2. The map canvas resizes correctly when the pane transitions between list and table states
+  3. No map rendering artifacts (grey tiles, misaligned controls) appear after any pane state change
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 109: Cleanup & Full-Screen Table Removal
+
+**Goal**: The old component files are deleted and the full-screen table-replaces-map mode is fully removed from the codebase
+**Depends on**: Phase 108
+**Requirements**: TABLE-02
+**Success Criteria** (what must be TRUE):
+  1. `bee-filter-panel.ts` and `bee-sidebar.ts` no longer exist in the repository
+  2. There is no code path that renders a full-screen table replacing the map — the map is always present in the DOM
+  3. `viewMode='table'` references are absent from bee-atlas.ts; `npm test` passes; `tsc --noEmit` exits 0
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -604,3 +679,8 @@ Plans:
 | 102. Python Slug Module & Dead Constant | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
+| 105. URL State Migration | v3.9 | 0/TBD | Not started | - |
+| 106. bee-atlas State Machine | v3.9 | 0/TBD | Not started | - |
+| 107. Create bee-pane Component | v3.9 | 0/TBD | Not started | - |
+| 108. bee-atlas Cutover & Map Resize | v3.9 | 0/TBD | Not started | - |
+| 109. Cleanup & Full-Screen Table Removal | v3.9 | 0/TBD | Not started | - |
