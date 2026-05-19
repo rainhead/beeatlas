@@ -1,249 +1,173 @@
-# Feature Landscape — v3.8 Conceptual Tidying
+# Feature Landscape — v3.9 Sidebar & Table Unification
 
-**Domain:** Domain model centralization for a multi-language citizen-science bee atlas (Python pipeline, dbt SQL models, TypeScript frontend)
-**Researched:** 2026-05-18
-**Confidence:** HIGH — findings are based on direct codebase inspection, not speculation. Every assertion maps to a specific file and line range.
+**Domain:** Three-state collapsible/expandable sidebar pane in a data-heavy mapping application (Lit/Mapbox GL JS, desktop-first)
+**Researched:** 2026-05-19
+**Confidence:** HIGH — grounded in codebase inspection plus verified UX patterns from W3C WAI-ARIA APG, ArcGIS Experience Builder docs, and CSS animation research.
 
-> Scope: What domain logic to extract, where it is currently scattered, and what the boundaries of well-bounded modules look like for this codebase. This is a refactoring milestone, not a feature-addition milestone.
-
----
-
-## The Actual Problem: Where Domain Intelligence Lives Today
-
-### Occurrence ID Construction (SCATTERED, HIGH IMPACT)
-
-The canonical occurrence ID is `"ecdysis:{ecdysis_id}"` for Ecdysis specimen rows and `"inat:{observation_id}"` for iNat-only sample rows. This construction appears in at least **six different places** in the TypeScript layer alone:
-
-| Site | Pattern | File |
-|------|---------|------|
-| GeoJSON feature builder | `obj.ecdysis_id != null ? 'ecdysis:' + obj.ecdysis_id : 'inat:' + Number(obj.observation_id)` | `features.ts:46-48` |
-| Table row ID helper | `if (row.ecdysis_id != null) return 'ecdysis:${row.ecdysis_id}'` | `bee-table.ts:39-41` |
-| Bounds query results | `` r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}` `` | `bee-atlas.ts:748` |
-| Cluster restore | same pattern | `bee-atlas.ts:1006, 1026` |
-| ID parsing (ecdysis branch) | `id.slice('ecdysis:'.length)` | `bee-atlas.ts:474, 933-934` |
-| ID parsing (inat branch) | `id.slice('inat:'.length)` | `bee-atlas.ts:476, 937-938` |
-| Filter via visible IDs | same pattern | `filter.ts:322-324` |
-
-And in `features.ts:81`, counting specimens uses `f.properties.occId.startsWith('ecdysis:')` — the prefix again.
-
-**What a centralized module gives:** A single `occId(row)` function in `src/occurrence.ts`, a `parseOccId(id)` function returning `{source: 'ecdysis'|'inat', numericId: number}`, and an `isSpecimen(row)` predicate. Every caller imports from one place. The prefix strings become constants (`ECDYSIS_PREFIX`, `INAT_PREFIX`).
-
-### Occurrence Type Discrimination (SCATTERED, HIGH IMPACT)
-
-Three distinct occurrence sub-types are rendered differently but their classification logic is not centralized:
-
-| Type | Discriminator | Used In |
-|------|--------------|---------|
-| Specimen-backed (Ecdysis row) | `r.ecdysis_id != null` | `bee-occurrence-detail.ts:247`, `filter.ts:288-297 (queryFilteredCounts)` |
-| Sample-only (iNat observation without Ecdysis match) | `r.ecdysis_id == null && !r.is_provisional` | `bee-occurrence-detail.ts:248, 255` |
-| Provisional WABA (iNat observation, no Ecdysis catalog match yet) | `r.is_provisional` | `bee-occurrence-detail.ts:256`, `int_combined.sql:50 (ARM 2)` |
-
-The discriminators `ecdysis_id != null`, `ecdysis_id == null`, and `is_provisional` appear inline at render sites. `bee-occurrence-detail.ts:247-256` partitions rows into `specimenBacked` and `sampleOnly` then further branches on `is_provisional` — all at the render call site. In `bee-atlas.ts`, the `WHERE ecdysis_id IS NOT NULL` SQL appears three times (lines 356, 373, 426) for specimen-specific queries.
-
-**What a centralized module gives:** Three named predicates: `isSpecimenBacked(row)`, `isSampleOnly(row)`, `isProvisional(row)`. The SQL fragment `ecdysis_id IS NOT NULL` becomes a constant `SPECIMEN_WHERE`. Callers no longer need to know the discriminating column.
-
-### Floral Host URL Construction (SCATTERED, MEDIUM IMPACT)
-
-External links to iNat observations are built inline at four sites:
-- `bee-occurrence-detail.ts:185` — `https://www.inaturalist.org/observations/${row.host_observation_id}` (host plant)
-- `bee-occurrence-detail.ts:188` — `https://www.inaturalist.org/observations/${row.specimen_observation_id}` (specimen photo)
-- `bee-occurrence-detail.ts:218` — `https://www.inaturalist.org/observations/${row.observation_id}` (sample observation)
-- `bee-occurrence-detail.ts:238` — same pattern (provisional WABA)
-- `bee-table.ts:57-58` — same pattern
-- `bee-table.ts:357-358` — `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}` (Ecdysis page)
-
-**What a centralized module gives:** `inatObservationUrl(id)` and `ecdysisOccurrenceUrl(ecdysisId)` in `src/occurrence.ts`. If URL structure ever changes, one edit.
-
-### Slug Construction (SPLIT ACROSS LANGUAGES, MEDIUM IMPACT)
-
-The `_slugify` function in `data/feeds.py:132-148` (NFKD normalization → ASCII → lowercase → hyphens → strip) is used for collector and genus feed slugs. A separate slug pattern for species is in `data/species_export.py:143-147`: `"{genus}/{epithet}"` for binomial species, falling back to `_slugify(scientificName)` for genus-only rows. `data/feeds.py` exports `_slugify` (by import convention) and `data/species_export.py` imports it directly. There is no single `slug.py` module that owns all slug logic.
-
-In the TypeScript layer, `buildCsvFilename` in `filter.ts:74-80` has its own local `slugify()` function that is NOT the same algorithm as the Python one (no NFKD normalization). These are separate use cases (filename segment vs. URL path) but the split is implicit.
-
-**What a centralized module gives:** A `data/slugs.py` module holding both `general_slug(value)` (the NFKD-normalize-then-lowercase algorithm) and `taxon_slug(genus, epithet)` (the `{genus}/{epithet}` pattern). Everything that produces a URL-path slug imports from `slugs.py`.
-
-### Bee Family Filter (IN ONE PLACE, GOOD)
-
-`BEE_FAMILIES` tuple in `data/species_export.py:51-54` is the canonical list of bee families. It is only used in one place. This is already well-bounded and should stay where it is unless `species_export.py` grows large enough to warrant splitting.
-
-### Name Canonicalization (WELL-BOUNDED, KEEP AS-IS)
-
-`data/canonical_name.py` is an example of what a well-bounded domain module looks like: single file, single algorithm, clear docstring pinning the algorithm steps, idempotence property stated, imported by several pipeline modules. No changes needed here.
-
-### `OccurrenceRow` Type and Column List (CENTRALIZED, ALREADY GOOD)
-
-`OccurrenceRow` interface and `OCCURRENCE_COLUMNS` constant in `filter.ts:25-65` are already the single definition. `bee-occurrence-detail.ts`, `bee-table.ts`, and `bee-atlas.ts` all import from `filter.ts`. This is the right shape.
-
-**One weakness:** `filter.ts` is named after its function (filter SQL building), but it also owns the occurrence data shape. This naming mismatch means new developers look for the type definition in the wrong file. Renaming or re-exporting from a more semantically appropriate file (`src/occurrence.ts`) would clarify intent without changing behavior.
-
-### SQL Field Extraction Logic (IMPLICIT DUPLICATION ACROSS LAYERS)
-
-The same semantic operation — "is this a plant taxon?" — appears in both dbt SQL and the pipeline:
-
-- `int_ecdysis_base.sql:21`: `CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host`
-- `int_samples_base.sql:12`: `CASE WHEN op.taxon__iconic_taxon_name = 'Plantae' THEN op.taxon__name ELSE NULL END AS sample_host`
-
-The same CASE expression appears twice in two different intermediates. In dbt, this is addressable with a macro. A macro `is_plant_taxon(table_alias)` or just inlining the condition into a staging view `stg_inat__plant_obs` would eliminate the duplication.
+> Scope: What UX behaviors belong to the new unified three-state pane (collapsed / list / table), what are differentiators, what to explicitly avoid, and what each feature depends on.
 
 ---
 
-## Table Stakes for This Refactoring Milestone
+## Context: What Already Exists
 
-Features (conceptual moves) that must happen or the milestone fails its stated goal.
+Three separate components are being merged into one unified pane:
 
-| Extraction | Why Required | Current Location | Target Location | Complexity |
-|------------|-------------|-----------------|-----------------|------------|
-| `occId(row)` constructor function | Used 6+ times inline; prefix strings scattered | `features.ts`, `bee-atlas.ts`, `bee-table.ts`, `filter.ts` | `src/occurrence.ts` | LOW |
-| `parseOccId(id)` parser | ID splitting/prefix-stripping at 4+ sites | `bee-atlas.ts:473-478, 933-938` | `src/occurrence.ts` | LOW |
-| `isSpecimenBacked`, `isSampleOnly`, `isProvisional` predicates | Discriminator logic at render and query sites | `bee-occurrence-detail.ts:247-256`, `bee-atlas.ts:356,373,426` | `src/occurrence.ts` | LOW |
-| `inatObservationUrl`, `ecdysisOccurrenceUrl` | URL templates at 5+ sites | `bee-occurrence-detail.ts`, `bee-table.ts` | `src/occurrence.ts` | LOW |
-| `data/slugs.py` module | `_slugify` used across pipeline; `taxon_slug` pattern in species_export | `feeds.py:132-148`, `species_export.py:143-147` | `data/slugs.py` | LOW |
-| dbt `is_plant_taxon` macro | Same CASE expression in two SQL intermediates | `int_ecdysis_base.sql:21`, `int_samples_base.sql:12` | `data/dbt/macros/` | LOW |
+- `bee-filter-panel` (884 lines) — floating, self-manages `_open` state, has `hideButton` / `externalOpen` / `openUpward` escape hatches
+- `bee-sidebar` (125 lines) — absolutely positioned overlay, shows occurrence detail or "click a point" hint
+- `bee-table` (distinct component) — full-screen mode that replaces the map via `_viewMode: 'map' | 'table'` in `bee-atlas`
+
+URL state is already encoded via `buildParams`/`parseParams` in `url-state.ts`. The `view=table` param drives `_viewMode`. `bee-atlas` owns all reactive state. This architecture is a hard constraint for the new pane — the pane must remain a pure presenter (receives state, emits events).
 
 ---
 
-## Differentiators (Worth Doing in v3.8 if Cheap)
+## Feature Landscape
 
-Features that go beyond table stakes but would leave the codebase materially better.
+### Table Stakes (Users Expect These)
 
-| Extraction | Value | Complexity | Notes |
-|------------|-------|------------|-------|
-| `SPECIMEN_WHERE` SQL constant | Three occurrences of `ecdysis_id IS NOT NULL` in `bee-atlas.ts` | LOW | Could live in `filter.ts` or a new `src/sql-fragments.ts` |
-| TypeScript `OccurrenceRow` import consolidation | The type is already in `filter.ts` but the module name misleads; re-export from a stable `occurrence.ts` | LOW | `filter.ts` stays; `occurrence.ts` re-exports `OccurrenceRow` and adds behavior |
-| `canonicalize()` Python — move from `canonical_name.py` to `taxon.py` | The module correctly centralizes canonicalization but is not explicitly a "taxon" module; a `taxon.py` with `canonicalize`, `BEE_FAMILIES`, `taxon_slug` would be the correct boundary | LOW–MEDIUM | Requires updating ~4 importers |
+Features users assume exist. Missing these = product feels incomplete or broken.
 
----
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Single visible toggle button in collapsed state | Users need a clear re-open affordance at all times on desktop; losing the pane with no button is confusing | LOW | Fixed-position button, always in DOM, changes icon between states. Chevron or panel-expand icon. |
+| Smooth CSS transition on state change | Users expect sliding/fade transitions on any panel open/close — jarring snap is perceived as broken | LOW | Animate `transform: translateX()` or `width` only if GPU-composited. Use `translateX` + fixed position to avoid layout reflow. See animation section. |
+| `Escape` key closes pane to collapsed | Standard expectation for any overlay/panel; also required by WCAG 2.1.1 for keyboard-only users | LOW | `keydown` listener on document while pane is open, dispatch `close` event upward. |
+| `aria-expanded` on toggle button | Screen readers must announce whether pane is open or closed (WCAG 4.1.2) | LOW | Single attribute, updated on state change. |
+| Filter state visible in list state | Users need to see what filters are active without switching to full table; filter chips / summary are table stakes for any data explorer | MEDIUM | `bee-filter-panel` content rendered inside pane in list state. Already built — wire into pane. |
+| Occurrence detail rendered in list state | `bee-sidebar` content rendered in list state when a cluster/selection is active | LOW | Already built in `bee-occurrence-detail`. Compose inside the pane. |
+| Table state shows `bee-table` | The table was previously a full-screen mode; users expect tabular data accessible from the pane without replacing the map entirely | MEDIUM | `bee-table` rendered inside pane in table state; map stays visible (shrinks or stays full-width behind pane). |
+| URL round-trip for pane state | Existing `view=table` URL param already drives `_viewMode`; the pane state must encode to URL so shared/bookmarked links restore the pane position | LOW | Extend existing `url-state.ts` `UiState` — rename/extend `viewMode` field or add `paneState: 'collapsed'|'list'|'table'`. |
+| Mobile preserves existing open/close | PROJECT.md explicitly requires no three-state treatment on mobile | LOW | Detect via CSS media query (aspect-ratio breakpoint already present in `bee-atlas`). Pane component ignores table-expand button on mobile. |
+| Focus management on open | When the pane opens, focus moves into it (first interactive element); when closed, focus returns to the toggle button | MEDIUM | Required by WCAG 2.4.3 Focus Order. Use `element.focus()` after transition. |
 
-## Anti-Features (Explicitly Do Not Build)
+### Differentiators (Competitive Advantage)
 
-| Anti-Feature | Why Tempting | Why Wrong | What to Do Instead |
-|--------------|-------------|-----------|-------------------|
-| `OccurrenceRow` class with methods | OOP feels natural for entity logic | wa-sqlite returns plain dicts; wrapping would require a conversion step everywhere rows are fetched; adds allocations and complexity | Keep `OccurrenceRow` as a plain interface; put functions in a module that takes `OccurrenceRow` as a parameter |
-| Abstract base class / dataclass for Occurrence in Python | Seem to mirror TypeScript interface | Pipeline rows are DuckDB result tuples; a class hierarchy would require wrapping at the DuckDB boundary; DuckDB structs / Polars DataFrames don't need wrapping | Pure functions taking dict/tuple are the right level of abstraction |
-| Shared schema contract file (JSON Schema or protobuf) across Python and TypeScript | Seems like "one source of truth" | The dbt 31-column contract already enforces schema at build time; adding a separate schema definition layer creates a third point of truth, not fewer | dbt contract IS the schema; the TypeScript `OCCURRENCE_COLUMNS` array MUST match it; document this explicitly, enforce with a test |
-| Domain object layer in dbt (e.g., a "specimen" and "sample" mart as separate tables) | Clean separation at the SQL level | The unified `occurrences` mart is already the correct shape for the frontend's flat query model; splitting it would force a UNION ALL at query time on every client request | The discriminating columns (`ecdysis_id`, `is_provisional`) remain in the unified mart; classification happens in consumer code |
-| Moving `buildFilterSQL` to a separate domain module | "Separation of concerns" | Filter SQL construction IS domain logic, but it is already well-bounded in `filter.ts`; moving it adds indirection without clarity | Keep `buildFilterSQL` in `filter.ts`; extract the `SPECIMEN_WHERE` constant from it |
+Features that go beyond baseline but add real value for this specific use case.
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Two-button affordance: toggle + expand-to-table | In list state, a separate "expand to table" button makes the three-state progression explicit; users don't have to discover it via drag or context menu | LOW | A secondary button rendered inside the pane header in list state. Common in ArcGIS Instant Apps Sidebar template. |
+| Persist pane state across page loads | Returning users expect their layout preference remembered; pane state in `localStorage` means they don't re-open the pane on every visit | LOW | `localStorage.setItem('paneState', ...)` on state change. Falls back to default if missing. Does NOT go in URL (URL encodes intent, not persistent layout preference). |
+| Pane width configurable via drag handle | Data-heavy list/table views benefit from horizontal width control; different users want more map vs. more data | HIGH | Requires drag listeners, `min-width`/`max-width` constraints, `localStorage` width persistence. Arrow keys on handle for keyboard resize. Not in scope for v3.9 — defer. |
+| Filter summary chip row when collapsed | Show active filter count or abbreviated chips below the toggle button when collapsed — users can tell filters are active without opening the pane | MEDIUM | Adds a compact state below the toggle button showing e.g. "3 filters active". Useful but not blocking. |
+| Animate map resize as pane expands | When pane opens, map container smoothly shrinks rather than being covered; gives spatial continuity | MEDIUM | Requires coordinating CSS transitions on both pane and map container. Complex with Mapbox GL which must call `map.resize()` after layout change. Calls `map.resize()` at transition end via `transitionend` event. |
+
+### Anti-Features (Explicitly Do Not Build)
+
+| Feature | Why Requested | Why Wrong | What to Do Instead |
+|---------|---------------|-----------|-------------------|
+| Animate `width` property | Feels natural for a sidebar that grows/shrinks | `width` animation forces layout recalculation every frame; causes jank on lower-end devices and saturates main thread | Animate `translateX` with fixed positioning, OR animate `max-width` with `overflow: hidden`. The latter reflows but only one axis. The `translateX` approach (GitLab pattern) is the high-fidelity choice. |
+| Three-state treatment on mobile | "Consistency" across breakpoints | Mobile screen is too narrow for a persistent pane + visible map; the existing open/close overlay is correct for mobile | Use the existing `@media (max-aspect-ratio: 1)` breakpoint to suppress the expand-to-table button and keep two-state behavior. |
+| Pane state in URL for collapsed vs list | "Share your exact view" | Collapsed is a layout preference, not a content state. Sharing `?pane=collapsed` would cause recipients to load the page with no pane visible — worse than defaulting to list. Table state IS meaningful (shares a specific data view) and belongs in URL. | Encode `view=table` in URL (already done for the old full-screen mode). Collapsed vs. list: restore from `localStorage`, not URL. |
+| Drag resize on v3.9 | Power users want it | Drag resize requires handling `mousemove`, `mouseup`, `touch*`, keyboard arrow resize on the handle, `min-width`/`max-width` guards, `localStorage` width save, AND triggering `map.resize()` after drag — a distinct mini-feature with its own bugs (misfire on fast drags, resize during filter queries). Scope creep for this milestone. | Defer. Add a separate task for "resizable pane" after unification ships. |
+| Pane as a `<dialog>` or modal on desktop | Semantic correctness | A `<dialog>` traps focus and requires explicit dismiss; incorrect for a persistent data panel that coexists with the map | Use `role="complementary"` (ARIA landmark for sidebar) or `role="region"` with `aria-label`. Not `role="dialog"`. |
+| Tabs inside the pane for filter vs. detail | "Clean separation" | Filters and occurrence detail are complementary, not competing — users want to see both. Tabs would require switching to see detail after filtering. | Compose both in a scrollable single column: filters above, occurrence detail below (or vice versa). |
+| Separate CSS transition per state direction | "Feels right-to-left vs left-to-right" | Directional transitions (slide-in from right when expanding to table, slide back when collapsing) are complex to implement correctly with Lit's reactive rendering and Mapbox's resize event | Single `transition: transform 200ms ease` on the pane; keep it simple. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-src/occurrence.ts (new module)
-    provides --> occId(), parseOccId(), isSpecimenBacked(), isSampleOnly(), isProvisional()
-    provides --> inatObservationUrl(), ecdysisOccurrenceUrl()
-    re-exports --> OccurrenceRow (source remains filter.ts)
-    consumed by --> bee-atlas.ts, bee-occurrence-detail.ts, bee-table.ts, features.ts, filter.ts
+Collapsed/list/table pane state (bee-atlas @state)
+    drives --> pane render mode (which sub-component renders inside)
+    drives --> toggle button icon
+    drives --> URL param (view=table for table state)
+    drives --> map.resize() call (on any state change that changes map visible area)
 
-data/slugs.py (new module)
-    provides --> general_slug(), taxon_slug()
-    consumed by --> feeds.py, species_export.py, (and any future slug-producing pipeline code)
+bee-filter-panel content
+    requires --> pane is in list or table state
+    already built --> compose inside unified pane
 
-data/dbt/macros/is_plant_taxon.sql (new macro)
-    consumed by --> int_ecdysis_base.sql, int_samples_base.sql
+bee-occurrence-detail content
+    requires --> pane is in list state AND selectedOccurrences non-null
+    already built --> compose inside unified pane
+
+bee-table content
+    requires --> pane is in table state
+    already built --> compose inside unified pane
+    triggers --> map.resize() call at transition end
+
+Expand-to-table button
+    requires --> pane is in list state
+    drives --> pane state transition to table
+    visible only on desktop (≥ aspect ratio breakpoint)
+
+Toggle button (always visible)
+    visible in all three states
+    drives --> collapsed ↔ list transition
+
+URL round-trip
+    requires --> url-state.ts UiState extended or viewMode semantics changed
+    list state is default (no URL param); table state encodes as view=table; collapsed encodes as view=collapsed (new value) or omitted (depends on decision)
+
+localStorage pane state
+    independent of URL
+    read at init before URL parse; URL overrides if view= present
+
+focus management
+    requires --> transition end event (do not focus before animation complete)
+    drives --> first focusable element in pane on open; toggle button on close
 ```
 
-No cross-language dependencies. Each module is internal to its runtime (TypeScript, Python, SQL).
+### Dependency Notes
+
+- **map.resize() must fire after pane transitions:** Mapbox GL requires explicit `map.resize()` when the map container changes size. Wire to `transitionend` on the pane element, dispatched as a `pane-resized` custom event that `bee-atlas` handles by calling down to `bee-map`.
+- **bee-atlas owns the state, not the pane:** `_paneState: 'collapsed'|'list'|'table'` lives in `bee-atlas`, matching the CLAUDE.md architecture invariant. The pane component receives `paneState` as a `@property` and emits `pane-state-changed` events.
+- **bee-filter-panel's internal `_open` toggle is superseded:** In the unified pane, the filter is always visible when the pane is open. `bee-filter-panel`'s own toggle button and `_open` state become irrelevant. Either pass `hideButton=true externalOpen=true` (the existing escape hatches) or refactor to remove the internal toggle entirely. The `hideButton` property already exists for this.
 
 ---
 
-## Extraction Impact Ranking
+## MVP Definition for v3.9
 
-Which kinds of extraction are most impactful for this codebase?
+### Must Have (v3.9 ships these)
 
-### 1. Predicates and classifiers — highest ROI
+- [ ] `bee-atlas` `_paneState: 'collapsed' | 'list' | 'table'` replaces `_viewMode` and `_sidebarOpen`
+- [ ] Single `<bee-pane>` component (or renamed `bee-sidebar`) with three render modes
+- [ ] Toggle button always visible; expand-to-table button visible in list state on desktop
+- [ ] CSS transition on state changes (translateX or max-width, 150–200ms)
+- [ ] `Escape` key closes to collapsed
+- [ ] `aria-expanded` on toggle button; `role="complementary"` on pane
+- [ ] URL param: `view=table` encodes table state (existing param reused); collapsed/list round-trip via localStorage
+- [ ] `pane-resized` event triggers `map.resize()` via `bee-atlas`
+- [ ] Mobile: no three-state; existing open/close behavior preserved
 
-The occurrence type discriminators (`isSpecimenBacked`, `isSampleOnly`, `isProvisional`) are the most impactful extraction because:
-- They are consulted at both render time and query time
-- The inline conditions (`ecdysis_id != null`, `is_provisional`) require readers to understand the data model from context; named predicates make intent explicit
-- Tests for predicates are trivially short and do not require DOM or DuckDB setup
+### Add After Validation (v3.9+)
 
-### 2. Constructor/formatter functions — medium ROI
+- [ ] Filter summary chips visible when pane is collapsed — add after observing whether users miss filter status
+- [ ] Smooth map-container resize animation — needs `transitionend` coordination; add if the snap is jarring in user testing
+- [ ] `prefers-reduced-motion` check — skip transitions when set; low effort but defer until animation is wired
 
-`occId(row)` and URL builders eliminate concrete duplication and make the prefix strings refactorable. Medium ROI because the existing duplication is copy-pasteable and has not caused bugs. But the `Number(obj.observation_id)` cast in `features.ts:48` is absent in `bee-table.ts:41` — a real inconsistency that a single function would prevent.
+### Defer to Future Milestone
 
-### 3. Field-mapping centralization — medium ROI across the pipeline boundary
-
-The `_slugify` duplication across Python modules is the clearest cross-file field-mapping problem. The SQL `is_plant_taxon` CASE expression duplication is smaller but equally obvious.
-
-### 4. Module renaming / re-export — lowest ROI, but worth doing
-
-`filter.ts` owning `OccurrenceRow` type is not causing bugs, but it creates discoverability friction. A re-export from `occurrence.ts` fixes the naming without a migration cost.
-
----
-
-## The Right Shape of a Well-Bounded Domain Module (for This Project)
-
-Based on `canonical_name.py` as the working example:
-
-**Attributes of a good domain module in this codebase:**
-1. Single file with a docstring that states its purpose and the invariants it enforces
-2. Pure functions only — no database connections, no I/O, no side effects
-3. Input types are primitives or the project's plain-dict/plain-interface types
-4. Tests are unit tests that require no fixtures, mocks, or async setup
-5. Every function that embeds a domain assumption (string comparison, column name, URL template) lives here and nowhere else
-
-**In TypeScript:** A module like `src/occurrence.ts` exports named functions and constants. It does NOT import from `filter.ts`, `features.ts`, or any Lit component. Lit components and `filter.ts` import from it.
-
-**In Python:** A module like `data/slugs.py` or `data/taxon.py` exports named functions. It does NOT import from `duckdb`, `requests`, or any pipeline module. Pipeline modules import from it.
-
-**In SQL (dbt):** A macro in `data/dbt/macros/` encapsulates a repeating SQL fragment. Intermediate models reference the macro by name rather than duplicating the expression.
+- [ ] Drag-to-resize pane — distinct feature, separate milestone; see anti-features
+- [ ] Pane state in URL for collapsed (sharing layout preference has no clear benefit)
 
 ---
 
-## MVP Definition for v3.8
+## Feature Prioritization Matrix
 
-### Must Do
-
-1. **`src/occurrence.ts`** — new TypeScript module with:
-   - `ECDYSIS_PREFIX`, `INAT_PREFIX` constants
-   - `occId(row: OccurrenceRow): string` — builds `"ecdysis:N"` or `"inat:N"`
-   - `parseOccId(id: string): {source: 'ecdysis'|'inat', numericId: number} | null`
-   - `isSpecimenBacked(row: OccurrenceRow): boolean` — `row.ecdysis_id != null`
-   - `isSampleOnly(row: OccurrenceRow): boolean` — `!isSpecimenBacked(row) && !row.is_provisional`
-   - `isProvisional(row: OccurrenceRow): boolean` — `row.is_provisional === true`
-   - `inatObservationUrl(id: number): string`
-   - `ecdysisOccurrenceUrl(ecdysisId: number): string`
-
-2. **Callers updated** — `features.ts`, `bee-atlas.ts`, `bee-occurrence-detail.ts`, `bee-table.ts`, `filter.ts` all import the above from `src/occurrence.ts`
-
-3. **`data/slugs.py`** — new Python module with:
-   - `general_slug(value: str) -> str` — the NFKD algorithm from `feeds.py:132-148`
-   - `taxon_slug(genus: str, epithet: str | None) -> str` — `"{genus}/{epithet}"` or genus-only fallback
-
-4. **`feeds.py` and `species_export.py`** — import from `slugs.py`; remove their local slug definitions
-
-5. **dbt macro `is_plant_taxon`** or inline staging view — eliminate the duplicated CASE expression
-
-### Should Do (if straightforward)
-
-6. **`SPECIMEN_WHERE`** SQL constant extracted from `filter.ts` — or at minimum documented as a constant string rather than a repeated literal
-7. **`OccurrenceRow` re-export** from `src/occurrence.ts` with `filter.ts` as the authoritative definition (avoids migration cost)
-
-### Defer
-
-- Any changes to the `OccurrenceRow` interface shape (milestone: taxon ID refactor, per MEMORY.md)
-- Adding taxon predicates (`isGenus`, `isSubgenus`) — different concern from occurrence typing
-- Changes to the dbt mart schema — separate milestone boundary
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Toggle button + three-state transitions | HIGH | LOW | P1 |
+| Unified filter + detail + table in one pane | HIGH | MEDIUM | P1 |
+| URL round-trip (view=table) | HIGH | LOW | P1 — existing param, extend semantics |
+| `Escape` key + `aria-expanded` | MEDIUM | LOW | P1 — accessibility baseline |
+| Focus management on open/close | MEDIUM | LOW | P1 |
+| map.resize() on transition end | HIGH | LOW | P1 — Mapbox requires it |
+| localStorage pane state | MEDIUM | LOW | P2 |
+| Filter chips in collapsed state | LOW | MEDIUM | P3 |
+| Drag resize | LOW | HIGH | Defer |
 
 ---
 
 ## Sources
 
-All findings are from direct inspection of:
-- `/Users/rainhead/dev/beeatlas/src/features.ts` — occurrence ID construction
-- `/Users/rainhead/dev/beeatlas/src/filter.ts` — `OccurrenceRow`, `OCCURRENCE_COLUMNS`, `buildFilterSQL`, `isFilterActive`
-- `/Users/rainhead/dev/beeatlas/src/url-state.ts` — occurrence ID parsing in `parseParams`
-- `/Users/rainhead/dev/beeatlas/src/bee-atlas.ts` — inline discriminators at lines 356, 373, 426, 473-478, 748, 933-938, 1006, 1026
-- `/Users/rainhead/dev/beeatlas/src/bee-occurrence-detail.ts` — occurrence type branching at render time
-- `/Users/rainhead/dev/beeatlas/src/bee-table.ts` — `rowOccId` and URL construction
-- `/Users/rainhead/dev/beeatlas/src/style.ts` — `recencyTier` predicate (already well-bounded)
-- `/Users/rainhead/dev/beeatlas/data/canonical_name.py` — reference example of a well-bounded module
-- `/Users/rainhead/dev/beeatlas/data/feeds.py` — `_slugify` definition
-- `/Users/rainhead/dev/beeatlas/data/species_export.py` — `BEE_FAMILIES`, `taxon_slug` pattern, `_slugify` import
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_ecdysis_base.sql` — duplicated `is_plant_taxon` CASE
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_samples_base.sql` — same CASE expression
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/occurrences.sql` — unified occurrence mart structure
+- WAI-ARIA APG Disclosure pattern: https://www.w3.org/WAI/ARIA/apg/patterns/
+- ArcGIS Experience Builder Sidebar widget (verified states, auto-expand on selection, resize): https://doc.arcgis.com/en/experience-builder/latest/configure-widgets/sidebar-widget.htm
+- Sidebar animation performance — `translateX` vs `width` reflow, GPU compositing: https://www.joshuawootonn.com/sidebar-animation-performance
+- MDN `prefers-reduced-motion`: https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media/prefers-reduced-motion
+- Codebase inspection: `src/bee-atlas.ts`, `src/bee-sidebar.ts`, `src/bee-filter-panel.ts`, `src/bee-table.ts`, `src/url-state.ts`
+- CLAUDE.md architecture invariants (state ownership in `bee-atlas`, pure-presenter children)
 
-*Feature research for: v3.8 Conceptual Tidying*
-*Researched: 2026-05-18*
+*Feature research for: v3.9 Sidebar & Table Unification*
+*Researched: 2026-05-19*
