@@ -1,6 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { OccurrenceRow } from './filter.ts';
+import { isSpecimenBacked, isProvisional } from './occurrence.ts';
 
 const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 
@@ -244,16 +245,17 @@ export class BeeOccurrenceDetail extends LitElement {
   }
 
   render() {
-    const specimenBacked = this.occurrences.filter(r => r.ecdysis_id != null);
-    const sampleOnly = this.occurrences.filter(r => r.ecdysis_id == null)
+    const specimenBacked = this.occurrences.filter(isSpecimenBacked);
+    // nonSpecimen includes BOTH sample-only and provisional rows (!isSpecimenBacked, not the narrower predicate).
+    const nonSpecimen = this.occurrences.filter(r => !isSpecimenBacked(r))
       .sort((a, b) => b.date.localeCompare(a.date));
     const dateGroups = groupOccurrences(specimenBacked);
     return html`
       ${dateGroups.map(group => this._renderDateGroup(group))}
-      ${dateGroups.length > 0 && sampleOnly.length > 0
+      ${dateGroups.length > 0 && nonSpecimen.length > 0
         ? html`<hr class="separator">` : ''}
-      ${sampleOnly.map(row =>
-        row.is_provisional
+      ${nonSpecimen.map(row =>
+        isProvisional(row)
           ? this._renderProvisional(row)
           : this._renderSampleOnly(row)
       )}

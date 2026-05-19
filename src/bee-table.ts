@@ -1,6 +1,7 @@
 import { css, html, LitElement, nothing } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { OccurrenceRow, SpecimenSortBy } from './filter.ts';
+import { occIdFromRow, isSpecimenBacked } from './occurrence.ts';
 
 interface ColumnDef {
   key: string;
@@ -36,11 +37,6 @@ function fieldNumberDisplay(row: OccurrenceRow): string | null {
   return null;
 }
 
-function rowOccId(row: OccurrenceRow): string | null {
-  if (row.ecdysis_id != null) return `ecdysis:${row.ecdysis_id}`;
-  if (row.observation_id != null) return `inat:${row.observation_id}`;
-  return null;
-}
 
 const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
   { key: 'date',        label: 'Date',       dataField: 'date',                    minWidth: '100px' },
@@ -309,8 +305,8 @@ export class BeeTable extends LitElement {
     // Sort selected rows to top, preserving order within each group
     const sortedRows = this.selectedIds
       ? [...this.rows].sort((a, b) => {
-          const aId = rowOccId(a);
-          const bId = rowOccId(b);
+          const aId = occIdFromRow(a);
+          const bId = occIdFromRow(b);
           const aSelected = (aId && this.selectedIds!.has(aId)) ? 0 : 1;
           const bSelected = (bId && this.selectedIds!.has(bId)) ? 0 : 1;
           return aSelected - bSelected;
@@ -348,13 +344,13 @@ export class BeeTable extends LitElement {
               </thead>
               <tbody>
                 ${(sortedRows as OccurrenceRow[]).map(row => {
-                  const occId = rowOccId(row);
+                  const occId = occIdFromRow(row);
                   const isSelected = !!(occId && this.selectedIds?.has(occId));
                   return html`
                   <tr @click=${() => this._onRowClick(row)} style="cursor: pointer" class=${isSelected ? 'selected' : ''}>
                     ${cols.map(col => {
                       if (col.key === 'links') {
-                        const ecdysisUrl = row.ecdysis_id != null
+                        const ecdysisUrl = isSpecimenBacked(row)
                           ? `https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}`
                           : null;
                         const inatId = row.specimen_observation_id ?? row.host_observation_id;

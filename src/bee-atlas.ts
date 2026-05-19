@@ -1,6 +1,7 @@
 import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy, queryOccurrencesByBounds } from './filter.ts';
+import { occIdFromRow, parseOccId } from './occurrence.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
@@ -470,13 +471,10 @@ bee-filter-panel {
     const selEcdysisIds: number[] = [];
     const selInatIds: number[] = [];
     for (const id of this._selectedOccIds ?? []) {
-      if (id.startsWith('ecdysis:')) {
-        const n = parseInt(id.slice('ecdysis:'.length), 10);
-        if (!isNaN(n)) selEcdysisIds.push(n);
-      } else if (id.startsWith('inat:')) {
-        const n = parseInt(id.slice('inat:'.length), 10);
-        if (!isNaN(n)) selInatIds.push(n);
-      }
+      const parsed = parseOccId(id);
+      if (parsed === null) continue;
+      if (parsed.source === 'ecdysis') selEcdysisIds.push(parsed.numericId);
+      else selInatIds.push(parsed.numericId);
     }
     try {
       const { rows, total } = await queryTablePage(
@@ -744,9 +742,10 @@ bee-filter-panel {
       }
       import('./bee-sidebar.ts');
       this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
-      this._selectedOccIds = rows.map(r =>
-        r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}`
-      );
+      // occIdFromRow returns null only when both ecdysis_id and observation_id are null (pathological).
+      // Bounds-query rows are guaranteed to have coordinates (lat/lon not null), which requires a
+      // valid source ID, so non-null assertion is justified here.
+      this._selectedOccIds = rows.map(r => occIdFromRow(r)!);
       this._selectedCluster = null;
       this._sidebarOpen = true;
       this._pushUrlState();
@@ -929,14 +928,14 @@ bee-filter-panel {
   private async _restoreSelectionOccurrences(occIds: string[]) {
     try {
       const { sqlite3, db } = await getDB();
-      const ecdysisIds = occIds
-        .filter(id => id.startsWith('ecdysis:'))
-        .map(id => id.slice('ecdysis:'.length))
-        .filter(id => /^\d+$/.test(id));
-      const inatIds = occIds
-        .filter(id => id.startsWith('inat:'))
-        .map(id => id.slice('inat:'.length))
-        .filter(id => /^\d+$/.test(id));
+      const ecdysisIds: string[] = [];
+      const inatIds: string[] = [];
+      for (const id of occIds) {
+        const parsed = parseOccId(id);
+        if (parsed === null) continue;
+        if (parsed.source === 'ecdysis') ecdysisIds.push(String(parsed.numericId));
+        else inatIds.push(String(parsed.numericId));
+      }
 
       // Safety: ecdysisIds/inatIds have already been filtered to /^\d+$/.
       // If this assertion fails, the regex guard above has been changed — do NOT remove it.
@@ -1001,11 +1000,10 @@ bee-filter-panel {
         return dist <= radiusM;
       });
 
-      // Build IDs list for selectedOccIds
-      const restoredIds = filtered.map(obj =>
-        obj.ecdysis_id != null ? `ecdysis:${obj.ecdysis_id}` : `inat:${Number(obj.observation_id)}`
-      );
-      this._selectedOccIds = restoredIds;
+      // Build IDs list for selectedOccIds.
+      // occIdFromRow returns null only when both ecdysis_id and observation_id are null (pathological).
+      // Cluster rows come from SQL with coordinate/ID filters, so non-null assertion is justified.
+      this._selectedOccIds = filtered.map(obj => occIdFromRow(obj)!);
       this._selectedOccurrences = filtered.sort((a, b) => b.date.localeCompare(a.date));
     } catch (err) {
       console.error('Failed to restore cluster selection from URL:', err);
@@ -1022,9 +1020,9 @@ bee-filter-panel {
       import('./bee-sidebar.ts');
       this._sidebarOpen = true;
       this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
-      this._selectedOccIds = rows.map(r =>
-        r.ecdysis_id != null ? `ecdysis:${r.ecdysis_id}` : `inat:${Number(r.observation_id)}`
-      );
+      // occIdFromRow returns null only when both ecdysis_id and observation_id are null (pathological).
+      // Bounds-restore rows come from SQL with coordinate filters, so non-null assertion is justified.
+      this._selectedOccIds = rows.map(r => occIdFromRow(r)!);
     } catch (err) {
       console.error('Failed to restore bounds selection from URL:', err);
     }

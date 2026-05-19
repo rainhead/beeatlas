@@ -1,6 +1,8 @@
 import type { FeatureCollection, Point, Feature } from 'geojson';
 import { getDB, tablesReady } from './sqlite.ts';
 import { recencyTier } from './style.ts';
+import { occIdFromRow, isSpecimenBacked, isSpecimenId } from './occurrence.ts';
+import type { OccurrenceRow } from './filter.ts';
 
 export interface OccurrenceProperties {
   occId: string;
@@ -43,16 +45,17 @@ export async function loadOccurrenceGeoJSON(): Promise<{
 
     if (obj.lat == null || obj.lon == null) return;
 
-    const occId = obj.ecdysis_id != null
-      ? 'ecdysis:' + obj.ecdysis_id
-      : 'inat:' + Number(obj.observation_id);
+    const row = obj as unknown as OccurrenceRow;
+    const occId = occIdFromRow(row);
+    // Rows with both ecdysis_id and observation_id null are pathological; skip them.
+    if (occId == null) return;
 
     const year = Number(obj.year);
     const month = Number(obj.month);
     const tier = recencyTier(year, month);
 
     // Build summary stats (specimens only)
-    if (obj.ecdysis_id != null) {
+    if (isSpecimenBacked(row)) {
       const s = obj.scientificName as string;
       const g = obj.genus as string;
       const fam = obj.family as string;
@@ -78,7 +81,7 @@ export async function loadOccurrenceGeoJSON(): Promise<{
   });
 
   const summary: DataSummary = {
-    totalSpecimens: features.filter(f => f.properties.occId.startsWith('ecdysis:')).length,
+    totalSpecimens: features.filter(f => isSpecimenId(f.properties.occId)).length,
     speciesCount: species.size,
     genusCount: genera.size,
     familyCount: families.size,
