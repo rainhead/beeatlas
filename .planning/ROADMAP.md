@@ -533,7 +533,10 @@ Plans:
   1. The application behavior is unchanged from the user's perspective — all existing interactions work identically
   2. `_viewMode`, `_sidebarOpen`, and `_tableFilterOpen` properties no longer exist in bee-atlas.ts
   3. All event handlers that previously toggled those flags now dispatch to `_paneState` transitions
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+- [ ] 106-01-PLAN.md — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState in bee-atlas.ts; demote _tableFilterOpen to plain field; remove Phase 105 adapters; update bee-atlas.test.ts (SIDE-01/VIEW-02/SEL-06 + new SM-01 block)
 
 ### Phase 107: Create bee-pane Component
 
@@ -684,7 +687,7 @@ Plans:
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 105. URL State Migration | v3.9 | 0/1 | Not started | - |
-| 106. bee-atlas State Machine | v3.9 | 0/TBD | Not started | - |
+| 106. bee-atlas State Machine | v3.9 | 0/1 | Not started | - |
 | 107. Create bee-pane Component | v3.9 | 0/TBD | Not started | - |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 0/TBD | Not started | - |
 | 109. Cleanup & Full-Screen Table Removal | v3.9 | 0/TBD | Not started | - |
