@@ -5,7 +5,7 @@ milestone_name: Conceptual Tidying
 status: archived
 stopped_at: v3.8 milestone complete and archived — all 4 phases (101–104) shipped
 last_updated: "2026-05-19T00:00:00.000Z"
-last_activity: 2026-05-19
+last_activity: 2026-05-19 - Completed quick task 260519-dzv: add places to where filter in bee-filter-panel
 progress:
   total_phases: 4
   completed_phases: 4
@@ -60,6 +60,7 @@ None.
 | 260514-ndp | Cluster selection visual feedback (halo overlay layer) — yellow halo ring around any rendered cluster blob whose leaves intersect `selectedOccIds`; new GeoJSON source + circle layer in bee-map.ts; reactive recompute on selection change / moveend / sourcedata; `_haloGeneration` race guard mirrors `_filterQueryGeneration`; rAF-coalesced; 7 HALO-01 static-grep tests added | 2026-05-14 | c335135 | [260514-ndp-cluster-selection-visual-feedback-halo-o](./quick/260514-ndp-cluster-selection-visual-feedback-halo-o/) |
 | 260516-p0i | Add grey "Genus sp." key entry on genus/subgenus pages for genus-level specimens | 2026-05-17 | a260df7 | [260516-p0i-genus-pages-show-specimens-identified-to](./quick/260516-p0i-genus-pages-show-specimens-identified-to/) |
 | 260518-phr | Add `<bee-header>` to places pages; add map-pin nav icon in header linking to /places.html | 2026-05-18 | d6eddf7 | [260518-phr-places-header-and-nav-icon](./quick/260518-phr-places-header-and-nav-icon/) |
+| 260519-dzv | Add places to where filter in bee-filter-panel | 2026-05-19 | 76bca27 | [260519-dzv-add-places-to-where-filter-in-bee-filter](./quick/260519-dzv-add-places-to-where-filter-in-bee-filter/) |
 
 ## Deferred Items
 
