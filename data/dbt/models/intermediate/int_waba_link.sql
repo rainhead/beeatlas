@@ -6,6 +6,6 @@ SELECT
 FROM {{ ref('stg_waba__observations') }} waba
 JOIN {{ ref('stg_waba__ofvs') }} ofv
     ON ofv._dlt_root_id = waba._dlt_id
-    AND ofv.field_id = 18116
+    AND ofv.field_id = {{ inat_ofv_catalog_suffix() }}
     AND ofv.value != ''
 GROUP BY catalog_suffix

@@ -80,7 +80,7 @@ SELECT
 FROM {{ ref('int_provisional_waba_ids') }} p
 JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = p.waba_obs_id
 LEFT JOIN {{ ref('stg_waba__ofvs') }} ofv1718
-    ON ofv1718._dlt_root_id = sob.waba_dlt_id AND ofv1718.field_id = 1718
+    ON ofv1718._dlt_root_id = sob.waba_dlt_id AND ofv1718.field_id = {{ inat_ofv_host_obs_url() }}
 LEFT JOIN {{ ref('int_samples_base') }} s
     ON s.observation_id = CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)
 WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL

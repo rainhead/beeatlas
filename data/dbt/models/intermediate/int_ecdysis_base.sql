@@ -18,7 +18,7 @@ SELECT
     o.family,
     NULLIF(regexp_extract(o.associated_taxa, 'host:"([^"]+)"', 1), '')         AS floralHost,
     links.host_observation_id,
-    CASE WHEN inat.taxon__iconic_taxon_name = 'Plantae' THEN inat.taxon__name ELSE NULL END AS inat_host,
+    {{ is_plant_taxon('inat') }} AS inat_host,
     inat.quality_grade                                                          AS inat_quality_grade,
     strftime(GREATEST(o.modified, COALESCE(im.max_id_modified, o.modified)), '%Y-%m-%d') AS modified,
     wl.specimen_observation_id,
