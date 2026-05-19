@@ -378,7 +378,6 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 
 <!-- Phase 101-104 details archived to .planning/milestones/v3.8-ROADMAP.md -->
 
-
 ### 🚧 v3.9 Sidebar & Table Unification (In Progress)
 
 **Milestone Goal:** Collapse the separate filter panel, occurrence sidebar, and full-screen table into a single unified pane with three states (collapsed/list/table) on desktop.
@@ -513,10 +512,12 @@ Plans:
 **Depends on**: Phase 104
 **Requirements**: URL-01, URL-02
 **Success Criteria** (what must be TRUE):
+
   1. A URL with `?pane=table` restores the page with the pane in table state on load
   2. A URL with `?pane=list` restores the page with the pane in list state on load
   3. Collapsed pane state is omitted from the URL (clean default)
   4. A legacy `?view=table` URL is treated as `?pane=table` — no broken links
+
 **Plans**: 1 plan
 Plans:
 
@@ -530,9 +531,11 @@ Plans:
 **Depends on**: Phase 105
 **Requirements**: (internal refactor — enables Phases 107-109)
 **Success Criteria** (what must be TRUE):
+
   1. The application behavior is unchanged from the user's perspective — all existing interactions work identically
   2. `_viewMode`, `_sidebarOpen`, and `_tableFilterOpen` properties no longer exist in bee-atlas.ts
   3. All event handlers that previously toggled those flags now dispatch to `_paneState` transitions
+
 **Plans**: 1 plan
 Plans:
 
@@ -544,6 +547,7 @@ Plans:
 **Depends on**: Phase 106
 **Requirements**: PANE-01, PANE-02, PANE-03, PANE-04, PANE-05, PANE-06, TABLE-01
 **Success Criteria** (what must be TRUE):
+
   1. A persistent toggle button is always visible at the pane edge regardless of whether the pane is collapsed, in list state, or in table state
   2. User can collapse the pane (from list or table) and re-expand it to list state using the toggle button
   3. In list state on desktop, an expand button is visible; clicking it transitions to table state
@@ -551,11 +555,21 @@ Plans:
   5. List state shows all filter controls (taxon, date, region, collector, place) and occurrence detail when a cluster is selected
   6. On mobile, the pane has no expand button and behaves as open/close only
   7. The table in table state retains all existing functionality: DuckDB-backed pagination, CSV export, filter state integration
+
 **Plans**: 2 plans
 Plans:
 
+**Wave 1**
+
 - [ ] 107-01-PLAN.md — Wave 0 source-scan tests + bee-pane skeleton (chrome, three-state render, navigation events, bee-table embedding) — PANE-01..04, PANE-06, TABLE-01
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 107-02-PLAN.md — Merge filter UI rows (What/Who/Where/When) and occurrence detail into list state — PANE-05
+
+**Cross-cutting constraints:**
+
+- npm test passes; tsc --noEmit exits 0
 
 **UI hint**: yes
 
@@ -565,9 +579,11 @@ Plans:
 **Depends on**: Phase 107
 **Requirements**: MAP-01
 **Success Criteria** (what must be TRUE):
+
   1. The map canvas resizes correctly when the pane transitions between collapsed and list states
   2. The map canvas resizes correctly when the pane transitions between list and table states
   3. No map rendering artifacts (grey tiles, misaligned controls) appear after any pane state change
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -577,9 +593,11 @@ Plans:
 **Depends on**: Phase 108
 **Requirements**: TABLE-02
 **Success Criteria** (what must be TRUE):
+
   1. `bee-filter-panel.ts` and `bee-sidebar.ts` no longer exist in the repository
   2. There is no code path that renders a full-screen table replacing the map — the map is always present in the DOM
   3. `viewMode='table'` references are absent from bee-atlas.ts; `npm test` passes; `tsc --noEmit` exits 0
+
 **Plans**: TBD
 
 ## Progress
