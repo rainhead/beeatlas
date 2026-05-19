@@ -64,23 +64,27 @@ permits = [{issuing_authority = "DNR", type = "project-level"}]
 def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
     """Write a small occurrences.parquet with known counts for test-place.
 
-    Three rows:
-        ('test-place', False, 42)   — non-provisional, sample 42
-        ('test-place', False, 42)   — same sample as above (sample_count = DISTINCT → 1)
-        (None, False, 99)           — outside any place (excluded from counts)
+    Four rows covering all three row types:
+        ('test-place', 42,   False, 10)   — Ecdysis-backed → counts as specimen
+        ('test-place', None, False, 10)   — sample-only (ecdysis_id=None, is_provisional=False)
+        ('test-place', None, True,  None) — provisional WABA → not a specimen
+        (None,         99,   False, 20)   — outside any place (excluded from counts)
 
-    Expected: specimen_count == 2, sample_count == 1
+    Expected: specimen_count == 1 (only row 1, ecdysis_id IS NOT NULL),
+              sample_count == 1 (DISTINCT sample_id=10 across the two test-place rows with non-null sample_id)
     """
     schema = pa.schema([
         ("place_slug", pa.string()),
+        ("ecdysis_id", pa.int64()),
         ("is_provisional", pa.bool_()),
         ("sample_id", pa.int64()),
     ])
     table = pa.table(
         {
-            "place_slug": ["test-place", "test-place", None],
-            "is_provisional": [False, False, False],
-            "sample_id": [42, 42, 99],
+            "place_slug":     ["test-place", "test-place", "test-place", None],
+            "ecdysis_id":     [42,           None,         None,         99],
+            "is_provisional": [False,        False,        True,         False],
+            "sample_id":      [10,           10,           None,         20],
         },
         schema=schema,
     )
@@ -157,11 +161,11 @@ def test_places_json_counts(tmp_path, monkeypatch):
     assert len(records) == 1
 
     r = records[0]
-    # Two non-provisional rows for test-place → specimen_count == 2
-    assert r["specimen_count"] == 2, (
-        f"Expected specimen_count == 2, got {r['specimen_count']}"
+    # Only row 1 (ecdysis_id=42) is Ecdysis-backed; row 2 (sample-only) and row 3 (provisional) are excluded.
+    assert r["specimen_count"] == 1, (
+        f"Expected specimen_count == 1 (Ecdysis-backed only), got {r['specimen_count']}"
     )
-    # Both rows have same sample_id=42 → DISTINCT count == 1
+    # Rows 1 and 2 both have sample_id=10 → DISTINCT count == 1 (row 3 has no sample_id).
     assert r["sample_count"] == 1, (
         f"Expected sample_count == 1, got {r['sample_count']}"
     )
