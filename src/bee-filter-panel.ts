@@ -39,7 +39,7 @@ function filterToYearBuckets(
 
 interface TaxonSug    { kind: 'taxon';     label: string; name: string; rank: 'family' | 'genus' | 'species' }
 interface CollectorSug { kind: 'collector'; label: string; entry: CollectorEntry }
-interface WhereSug    { kind: 'where';     label: string; type: 'county' | 'ecoregion'; value: string }
+interface WhereSug    { kind: 'where';     label: string; type: 'county' | 'ecoregion' | 'place'; value: string }
 type AnyS = TaxonSug | CollectorSug | WhereSug;
 
 // ---------- component ----------
@@ -74,6 +74,7 @@ export class BeeFilterPanel extends LitElement {
   @state() private _selectedEcoregions: Set<string> = new Set();
   @state() private _selectedPlace: string | null = null;
   @state() private _placeNameBySlug: Map<string, string> = new Map();
+  private _placeOptions: { slug: string; name: string }[] = [];
 
   // Elevation
   @state() private _elevMin: number | null = null;
@@ -303,7 +304,11 @@ export class BeeFilterPanel extends LitElement {
   /** Called externally (e.g. from table mode filter button) to open or close the panel. */
   public setOpen(open: boolean) {
     this._open = open;
-    if (!open) this._openSection = null;
+    if (!open) {
+      this._openSection = null;
+    } else {
+      void this._ensurePlaceNamesLoaded();
+    }
   }
 
   updated(changed: PropertyValues) {
@@ -381,7 +386,11 @@ export class BeeFilterPanel extends LitElement {
 
   private _togglePanel() {
     this._open = !this._open;
-    if (!this._open) this._openSection = null;
+    if (!this._open) {
+      this._openSection = null;
+    } else {
+      void this._ensurePlaceNamesLoaded();
+    }
   }
 
   // --- shared suggestion keyboard handler ---
@@ -527,16 +536,24 @@ export class BeeFilterPanel extends LitElement {
       for (const c of this.countyOptions) {
         if (!this._selectedCounties.has(c) && c.toLowerCase().includes(lower)) {
           sugs.push({ kind: 'where', label: `${c} County`, type: 'county', value: c });
-          if (sugs.length >= 4) break;
+          if (sugs.length >= 3) break;
         }
       }
       for (const ecor of this.ecoregionOptions) {
         if (!this._selectedEcoregions.has(ecor) && ecor.toLowerCase().includes(lower)) {
           sugs.push({ kind: 'where', label: ecor, type: 'ecoregion', value: ecor });
-          if (sugs.length >= 8) break;
+          if (sugs.length >= 5) break;
         }
       }
-      const trimmed = sugs.slice(0, 6);
+      if (this._selectedPlace === null) {
+        for (const opt of this._placeOptions) {
+          if (opt.name.toLowerCase().includes(lower)) {
+            sugs.push({ kind: 'where', label: opt.name, type: 'place', value: opt.slug });
+            if (sugs.length >= 8) break;
+          }
+        }
+      }
+      const trimmed = sugs.slice(0, 8);
       this._suggestions = trimmed;
       this._openSection = trimmed.length > 0 ? 'where' : null;
     }
@@ -546,8 +563,10 @@ export class BeeFilterPanel extends LitElement {
   private _selectWhere(s: WhereSug) {
     if (s.type === 'county') {
       this._selectedCounties = new Set([...this._selectedCounties, s.value]);
-    } else {
+    } else if (s.type === 'ecoregion') {
       this._selectedEcoregions = new Set([...this._selectedEcoregions, s.value]);
+    } else {
+      this._selectedPlace = s.value;
     }
     this._whereInput = '';
     this._suggestions = [];
@@ -581,12 +600,19 @@ export class BeeFilterPanel extends LitElement {
       const url = await resolveDataUrl('places_meta');
       if (!url) return;
       const resp = await fetch(url);
-      const records = await resp.json() as { slug: string; name: string }[];
-      const map = new Map<string, string>();
+      const records = await resp.json() as { slug: string; name: string; specimen_count?: number; sample_count?: number }[];
+      const nameMap = new Map<string, string>();
+      const options: { slug: string; name: string }[] = [];
       for (const r of records) {
-        if (r.slug && r.name) map.set(r.slug, r.name);
+        if (r.slug && r.name) {
+          nameMap.set(r.slug, r.name);
+          if ((r.specimen_count ?? 0) > 0 || (r.sample_count ?? 0) > 0) {
+            options.push({ slug: r.slug, name: r.name });
+          }
+        }
       }
-      this._placeNameBySlug = map;
+      this._placeNameBySlug = nameMap;
+      this._placeOptions = options;
       this.requestUpdate();
     } catch {
       // silently swallow — chip falls back to the slug
@@ -748,12 +774,13 @@ export class BeeFilterPanel extends LitElement {
             <input
               type="text"
               class="filter-input"
-              placeholder="County or ecoregion"
+              placeholder="County, ecoregion, or place"
               .value=${this._whereInput}
               @input=${this._onWhereInput}
               @keydown=${(e: KeyboardEvent) => this._handleKeydown(e, 'where', () => {
                 if (ecoregions.length > 0) this._removeEcoregion(ecoregions[ecoregions.length - 1]!);
                 else if (counties.length > 0) this._removeCounty(counties[counties.length - 1]!);
+                else if (this._selectedPlace !== null) this._removePlace();
               })}
               @blur=${this._onBlur}
               autocomplete="off"
