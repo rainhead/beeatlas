@@ -505,7 +505,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 101-01-PLAN.md — Create src/occurrence.ts (six named exports) + Vitest unit tests in src/tests/occurrence.test.ts
+- [x] 101-01-PLAN.md — Create src/occurrence.ts (six named exports) + Vitest unit tests in src/tests/occurrence.test.ts
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -656,7 +656,7 @@ Plans:
 | 99. Place Static Pages | v3.7 | 2/2 | Complete   | 2026-05-18 |
 | 100. Map & Filter Integration | v3.7 | 3/3 | Complete | 2026-05-18 |
 | 100.1. Close v3.7 Gaps (INSERTED) | v3.7 | 1/1 | Complete | 2026-05-18 |
-| 101. TypeScript Occurrence Domain Module | v3.8 | 0/TBD | Not started | - |
+| 101. TypeScript Occurrence Domain Module | v3.8 | 1/2 | In Progress|  |
 | 102. Python Slug Module & Dead Constant | v3.8 | 0/TBD | Not started | - |
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 0/TBD | Not started | - |
 | 104. Semantic Reconciliation | v3.8 | 0/TBD | Not started | - |
