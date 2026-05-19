@@ -11,7 +11,7 @@
 - [x] **PANE-02**: User can open the pane to list state from collapsed, and collapse it from list or table state, via the toggle button
 - [x] **PANE-03**: User can expand the pane to table state via an expand button visible in the pane's list state on desktop
 - [x] **PANE-04**: User can return to list state from table state via a shrink button visible in the table state header
-- [ ] **PANE-05**: Pane's list state shows all filter controls (taxon, date, region, collector, place) and occurrence detail when a cluster is selected
+- [x] **PANE-05**: Pane's list state shows all filter controls (taxon, date, region, collector, place) and occurrence detail when a cluster is selected
 - [x] **PANE-06**: Expand-to-table button is hidden on mobile; pane on mobile behaves as open/close only (no three-state treatment)
 
 ### Table in Pane
@@ -54,7 +54,7 @@ Not in v3.9 scope. Tracked for future milestones.
 | PANE-02 | Phase 107 | Complete |
 | PANE-03 | Phase 107 | Complete |
 | PANE-04 | Phase 107 | Complete |
-| PANE-05 | Phase 107 | Pending |
+| PANE-05 | Phase 107 | Complete |
 | PANE-06 | Phase 107 | Complete |
 | TABLE-01 | Phase 107 | Complete |
 | TABLE-02 | Phase 109 | Pending |

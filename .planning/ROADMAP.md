@@ -384,7 +384,7 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 
 - [x] **Phase 105: URL State Migration** — Extend url-state.ts to encode pane state; backward compat for ?view=table; no visible UI change
 - [x] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers (completed 2026-05-19)
-- [ ] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states
+- [x] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states (completed 2026-05-19)
 - [ ] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize()
 - [ ] **Phase 109: Cleanup & Full-Screen Table Removal** — Delete bee-filter-panel.ts and bee-sidebar.ts; remove viewMode='table' dead code; update tests
 
@@ -565,7 +565,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 107-02-PLAN.md — Merge filter UI rows (What/Who/Where/When) and occurrence detail into list state — PANE-05
+- [x] 107-02-PLAN.md — Merge filter UI rows (What/Who/Where/When) and occurrence detail into list state — PANE-05
 
 **Cross-cutting constraints:**
 
@@ -711,6 +711,6 @@ Plans:
 | 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 105. URL State Migration | v3.9 | 0/1 | Not started | - |
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
-| 107. Create bee-pane Component | v3.9 | 1/2 | In Progress|  |
+| 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 0/TBD | Not started | - |
 | 109. Cleanup & Full-Screen Table Removal | v3.9 | 0/TBD | Not started | - |
