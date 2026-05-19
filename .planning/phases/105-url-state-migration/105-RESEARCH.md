@@ -387,7 +387,7 @@ beyond V5 Input Validation, which is already satisfied by the enum-check pattern
 the real state machine, "list state" in Phase 105 is best understood as "not table." The adapter
 is correct.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `?view=map` also be aliased?**
    - What we know: The legacy param was `view=table` or absent (map was the default).

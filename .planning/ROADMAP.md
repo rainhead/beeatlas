@@ -517,7 +517,11 @@ Plans:
   2. A URL with `?pane=list` restores the page with the pane in list state on load
   3. Collapsed pane state is omitted from the URL (clean default)
   4. A legacy `?view=table` URL is treated as `?pane=table` — no broken links
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+
+- [ ] 105-01-PLAN.md — Migrate UiState.viewMode → paneState in url-state.ts; legacy view=table alias; bee-atlas.ts call-site adapter; test updates
+
 **UI hint**: yes
 
 ### Phase 106: bee-atlas State Machine
@@ -679,7 +683,7 @@ Plans:
 | 102. Python Slug Module & Dead Constant | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 1/1 | Complete   | 2026-05-19 |
 | 104. Semantic Reconciliation | v3.8 | 1/1 | Complete   | 2026-05-19 |
-| 105. URL State Migration | v3.9 | 0/TBD | Not started | - |
+| 105. URL State Migration | v3.9 | 0/1 | Not started | - |
 | 106. bee-atlas State Machine | v3.9 | 0/TBD | Not started | - |
 | 107. Create bee-pane Component | v3.9 | 0/TBD | Not started | - |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 0/TBD | Not started | - |
