@@ -367,7 +367,7 @@ See `.planning/milestones/v3.7-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Centralize scattered domain intelligence (definitions, predicates, field-mapping) into well-bounded modules across Python, SQL, and TypeScript — replacing ad-hoc assumptions spread throughout the codebase with pure functions in named conceptual homes. No new user-visible features.
 
-- [ ] **Phase 101: TypeScript Occurrence Domain Module** — Extract occurrence ID construction, parsing, and type predicates into `src/occurrence.ts`; add Vitest unit tests
+- [x] **Phase 101: TypeScript Occurrence Domain Module** — Extract occurrence ID construction, parsing, and type predicates into `src/occurrence.ts`; add Vitest unit tests (completed 2026-05-19)
 - [ ] **Phase 102: Python Slug Module & Dead Constant** — Extract `_slugify` into `data/domain.py`; remove dead `BEE_FAMILIES` constant from `species_export.py`
 - [ ] **Phase 103: dbt iNat Field ID Constants & Plantae Macro** — Named macros for all four OFV field IDs; shared `is_plant_taxon` macro eliminating duplicated CASE expression
 - [ ] **Phase 104: Semantic Reconciliation** — Align provisional-specimen predicate between `places_export.py` and the dbt/frontend definition; document with a test
@@ -509,7 +509,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 101-02-PLAN.md — Migrate six caller files (bee-atlas, bee-table, features, filter, bee-occurrence-detail, bee-map) to import from occurrence.ts; phase grep-gate verification
+- [x] 101-02-PLAN.md — Migrate six caller files (bee-atlas, bee-table, features, filter, bee-occurrence-detail, bee-map) to import from occurrence.ts; phase grep-gate verification
 
 ### Phase 102: Python Slug Module & Dead Constant
 
@@ -656,7 +656,7 @@ Plans:
 | 99. Place Static Pages | v3.7 | 2/2 | Complete   | 2026-05-18 |
 | 100. Map & Filter Integration | v3.7 | 3/3 | Complete | 2026-05-18 |
 | 100.1. Close v3.7 Gaps (INSERTED) | v3.7 | 1/1 | Complete | 2026-05-18 |
-| 101. TypeScript Occurrence Domain Module | v3.8 | 1/2 | In Progress|  |
+| 101. TypeScript Occurrence Domain Module | v3.8 | 2/2 | Complete   | 2026-05-19 |
 | 102. Python Slug Module & Dead Constant | v3.8 | 0/TBD | Not started | - |
 | 103. dbt iNat Field ID Constants & Plantae Macro | v3.8 | 0/TBD | Not started | - |
 | 104. Semantic Reconciliation | v3.8 | 0/TBD | Not started | - |
