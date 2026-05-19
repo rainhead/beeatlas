@@ -785,6 +785,7 @@ bee-filter-panel {
 
   private _onFilterChanged(e: CustomEvent<FilterChangedEvent>) {
     const detail = e.detail;
+    const prev = this._filterState;
 
     this._filterState = {
       taxonName: detail.taxonName,
@@ -799,6 +800,15 @@ bee-filter-panel {
       elevMax: detail.elevMax ?? null,
       selectedPlace: detail.selectedPlace ?? null,
     };
+
+    // Auto-switch boundary layer to match newly added region filter type.
+    if (detail.selectedCounties.size > prev.selectedCounties.size) {
+      this._boundaryMode = 'counties';
+    } else if (detail.selectedEcoregions.size > prev.selectedEcoregions.size) {
+      this._boundaryMode = 'ecoregions';
+    } else if (detail.selectedPlace !== null && prev.selectedPlace === null) {
+      this._boundaryMode = 'places';
+    }
 
     // Clear selections when filter changes
     this._selectedOccurrences = null;
