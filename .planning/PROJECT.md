@@ -1,15 +1,8 @@
 # Washington Bee Atlas
 
-## Current Milestone: v3.8 Conceptual Tidying
+## Milestone: v3.8 Conceptual Tidying — COMPLETE (2026-05-19)
 
-**Goal:** Centralize scattered domain intelligence (definitions, predicates, transformations) into well-bounded modules across Python, SQL, and TypeScript — replacing ad-hoc assumptions spread throughout the codebase with pure functions in named conceptual homes.
-
-**Target features:**
-- Domain entity audit: locate where logic for Observation, Specimen, Sample, Place, Occurrence actually lives vs. where it is silently assumed
-- Predicate / classifier extraction: thin, named, testable functions for per-record decisions scattered inline today
-- Field-mapping centralization: entity construction logic duplicated between Python pipeline, dbt SQL, and TypeScript frontend
-- Module splits along conceptual domain boundaries, preferring pure functions over large classes
-- Test simplification: tests compensating for scattered logic may be dropped or rewritten as refactoring brings structure; better-structured code, not necessarily more coverage
+**Shipped:** `src/occurrence.ts` — six pure-function exports centralizing all occurrence ID construction, parsing, and type predicates; 6 caller files migrated; 24 Vitest unit tests. `data/domain.py` — Python `slugify` extracted; dead `BEE_FAMILIES` constant removed; byte-equivalence tests. `data/dbt/macros/inat_field_ids.sql` — five named macros replacing anonymous OFV integer literals across 4 intermediate models; duplicated Plantae CASE centralized. SEM-01 — `places_export.py` specimen predicate fixed to `ecdysis_id IS NOT NULL` matching `isSpecimenBacked`; documented cross-layer and covered by pytest.
 
 ## Milestone: v3.7 Places — COMPLETE (2026-05-18)
 
@@ -168,6 +161,17 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ PPAGE-01–02: `/places.html` index and per-place pages at `/places/{slug}.html` with name, owner, count, SVG map, deep-link — v3.7
 - ✓ PPAGE-03: Per-place SVG occurrence maps generated at pipeline time; uploaded to S3/CDN via nightly.sh — v3.7
 
+### Validated (v3.8)
+
+- ✓ TS-01: `src/occurrence.ts` exports `occIdFromRow` and `parseOccId`; all TypeScript call sites migrated; no inline `ecdysis:N`/`inat:N` construction outside occurrence.ts — v3.8
+- ✓ TS-02: Named predicates `isSpecimenBacked`, `isSampleOnly`, `isProvisional` replace all inline discriminant conditions across 6 caller files — v3.8
+- ✓ TS-03: 24 Vitest unit tests cover all six exports of `src/occurrence.ts`; `tsc --noEmit` exits 0 — v3.8
+- ✓ PY-01: `data/domain.py` exports `slugify`; `feeds.py` and `species_export.py` both import from domain; `_slugify` removed; byte-equivalence test suite passes — v3.8
+- ✓ PY-02: Dead `BEE_FAMILIES` constant removed from `species_export.py`; `int_species_universe.sql` comment claims sole-gate responsibility — v3.8
+- ✓ DBT-01: `data/dbt/macros/inat_field_ids.sql` with 4 named OFV field-ID macros; anonymous literals replaced in all intermediate models; `dbt build` PASS=46 — v3.8
+- ✓ DBT-02: Duplicated `is_plant_taxon` CASE extracted into shared macro; `dbt build` passes — v3.8
+- ✓ SEM-01: `places_export.py` specimen predicate aligned to `ecdysis_id IS NOT NULL` (matching `isSpecimenBacked`); canonical definition in `isSpecimenBacked` JSDoc; pytest fixture confirms — v3.8
+
 ### Active (future)
 
 - [ ] **TAB-01**: Determinations (identifications) for my specimens listed by recency — requires iNat determination data in pipeline
@@ -193,7 +197,7 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v3.6 on 2026-05-16 — Simpler Species Index (+5,418/−23,155 lines across 154 files, 2 days): 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages generated via Eleventy pagination; multi-color SVG occurrence maps at all taxon levels; monolithic `/species/` all-cards layout (8 files) replaced with searchable family→genus index; hierarchical `Genus/specificEpithet` slug format; BLOCKER-01 closed (species-maps/ S3 upload); 5 phases, 13 plans. Shipped v3.7 on 2026-05-18 — Places (+12,314/−2,566 lines across 103 files, 2 days): hand-curated `content/places.toml` TOML schema with WGS84 polygon geometry and validation pipeline (slug format, CRS, non-overlap); pipeline spatial join adds `place_slug` to `occurrences.parquet` (dbt 31-column contract); `places.geojson` + `places.json` committed to git; per-place SVG occurrence maps; `/places.html` index + per-place pages at `/places/{slug}.html`; Places boundary mode in Mapbox (4th toggle), click-to-filter, removable chip, `place=` URL round-trip; B-01 + W-01 closed in Phase 100.1; 5 phases (including INSERTED 100.1), 11 plans.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v3.6 on 2026-05-16 — Simpler Species Index (+5,418/−23,155 lines across 154 files, 2 days): 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages generated via Eleventy pagination; multi-color SVG occurrence maps at all taxon levels; monolithic `/species/` all-cards layout (8 files) replaced with searchable family→genus index; hierarchical `Genus/specificEpithet` slug format; BLOCKER-01 closed (species-maps/ S3 upload); 5 phases, 13 plans. Shipped v3.7 on 2026-05-18 — Places (+12,314/−2,566 lines across 103 files, 2 days): hand-curated `content/places.toml` TOML schema with WGS84 polygon geometry and validation pipeline (slug format, CRS, non-overlap); pipeline spatial join adds `place_slug` to `occurrences.parquet` (dbt 31-column contract); `places.geojson` + `places.json` committed to git; per-place SVG occurrence maps; `/places.html` index + per-place pages at `/places/{slug}.html`; Places boundary mode in Mapbox (4th toggle), click-to-filter, removable chip, `place=` URL round-trip; B-01 + W-01 closed in Phase 100.1; 5 phases (including INSERTED 100.1), 11 plans. Shipped v3.8 on 2026-05-19 — Conceptual Tidying (+5,601/−153 across 48 files, 1 day): `src/occurrence.ts` (6 pure-function exports, 6 caller files migrated, 24 Vitest tests); `data/domain.py` (Python slugify extracted, BEE_FAMILIES removed, byte-equivalence tests); `data/dbt/macros/inat_field_ids.sql` (5 named macros, dbt build PASS=46); SEM-01 semantic reconciliation (places_export.py specimen predicate fixed, isSpecimenBacked canonical across 3 stack layers); 4 phases, 5 plans.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, Mapbox GL JS, Lit (LitElement), wa-sqlite, hyparquet, temporal-polyfill
@@ -304,6 +308,10 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `placeImplied` logic in `parseParams` derives `bm=places` when `place=` present and no explicit `bm=` | Deep-links from place pages omit `bm=` but should land in Places mode; the implication avoids requiring two URL params for what reads as one user intent | ✓ Good — Phase 100; explicit decision after spec review |
 | `leavingPlaces` conditional in `_onBoundaryModeChanged` skips filter query when not leaving places | Avoids redundant SQL query + URL push when switching between non-places modes where no filter was active | ✓ Good — Phase 100.1; selection state intentionally preserved |
 | D-01 (Phase 99): Permit display removed from place pages | Static hosting + legal sensitivity of permit data; maintainer-curated TOML with git history is the governance model | ✓ Good — Phase 99; simplifies pages and avoids permit-staleness UX |
+| `occIdFromRow` returns `string \| null` not `string` | Matches bee-table.ts `rowOccId` contract; avoids silent `inat:0` bug when both ecdysis_id and observation_id are null | ✓ Good — Phase 101; TDD caught null-return edge case |
+| `isSampleOnly` excludes provisional rows (`ecdysis_id == null && !is_provisional`) | `!isSpecimenBacked` is the correct non-specimen partition for rendering; `isSampleOnly` is narrower | ✓ Good — Phase 101; bee-occurrence-detail.ts uses `!isSpecimenBacked` then dispatches on `isProvisional` |
+| `isSpecimenBacked` is the canonical "confirmed specimen" predicate across all three layers | `!is_provisional` was an incorrect synonym; `ecdysis_id IS NOT NULL` is the authoritative check | ✓ Good — Phase 104 (SEM-01); places_export.py fixed; JSDoc documents cross-layer invariant |
+| dbt OFV field IDs as named macros (not inline literals) | Anonymous `8338`/`9963`/`18116`/`1718` in JOIN conditions — easy to misread or reorder | ✓ Good — Phase 103; dbt build passes with PASS=46, behavioral parity confirmed |
 
 ## Evolution
 
@@ -323,4 +331,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-18 after v3.7 milestone*
+*Last updated: 2026-05-19 after v3.8 milestone*

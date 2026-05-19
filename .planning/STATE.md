@@ -2,33 +2,32 @@
 gsd_state_version: 1.0
 milestone: v3.8
 milestone_name: Conceptual Tidying
-status: complete
-stopped_at: Phase 104 complete — v3.8 Conceptual Tidying milestone done (SEM-01 predicate reconciled)
-last_updated: "2026-05-19T03:29:10.745Z"
+status: archived
+stopped_at: v3.8 milestone complete and archived — all 4 phases (101–104) shipped
+last_updated: "2026-05-19T00:00:00.000Z"
 last_activity: 2026-05-19
 progress:
-  total_phases: 9
+  total_phases: 4
   completed_phases: 4
   total_plans: 5
   completed_plans: 5
-  percent: 44
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-18 — v3.7 Places milestone complete)
+See: .planning/PROJECT.md (updated 2026-05-19 — v3.8 Conceptual Tidying milestone complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 103 — dbt-inat-field-id-constants-plantae-macro
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 103 (dbt-inat-field-id-constants-plantae-macro) — COMPLETE
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-05-19
+Milestone v3.8 Conceptual Tidying — ARCHIVED
+All 4 phases (101–104), 5 plans complete.
+Next: `/gsd-new-milestone` to define v3.9+
 
 Progress: [██████████] 100%
 
@@ -36,18 +35,11 @@ Progress: [██████████] 100%
 
 ### Decisions
 
-(decisions log cleared at v3.7 close — full history in .planning/PROJECT.md Key Decisions table)
-
-### Key Guardrails for v3.8
-
-- `dbt build` required after ANY `.sql` change under `data/dbt/` — pytest does not run dbt
-- Scope creep: any noticed behavior gap gets a TODO comment, not a fix in the same commit
-- `OccurrenceRow` (in `filter.ts`) is the authoritative TypeScript type; `occurrence.ts` re-exports it, not redefines it
-- Phase 104 (SEM-01) should run after 101-103: all call sites are visible once named predicates exist
+(decisions log cleared at v3.8 close — full history in .planning/PROJECT.md Key Decisions table)
 
 ### Pending Todos
 
-None for v3.8.
+None.
 
 ### Blockers/Concerns
 
