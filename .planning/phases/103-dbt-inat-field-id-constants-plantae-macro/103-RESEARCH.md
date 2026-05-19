@@ -365,7 +365,7 @@ plus in-place substitution in three existing models.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should staging model comments (stg_inat__ofvs.sql, stg_waba__ofvs.sql) be updated to reference the macro names?**
    - What we know: Comments in staging models currently document the field IDs by number only.
