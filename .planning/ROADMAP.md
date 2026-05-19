@@ -584,7 +584,18 @@ Plans:
   2. The map canvas resizes correctly when the pane transitions between list and table states
   3. No map rendering artifacts (grey tiles, misaligned controls) appear after any pane state change
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 108-01-PLAN.md — bee-atlas render cutover to bee-pane (replace bee-filter-panel + bee-sidebar + bee-table siblings, add pane event handlers, remove dead code, update tests) — MAP-01
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 108-02-PLAN.md — Browser UAT for MAP-01: verify pane state transitions produce no map canvas resize artifacts on desktop + mobile — MAP-01
+
 **UI hint**: yes
 
 ### Phase 109: Cleanup & Full-Screen Table Removal
