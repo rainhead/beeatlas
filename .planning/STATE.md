@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: Sidebar & Table Unification
 status: executing
-stopped_at: Phase 109 planned — Phase 108 UAT (108-02-PLAN.md) still outstanding
-last_updated: "2026-05-20T18:01:05.560Z"
+stopped_at: Phase 109 complete — 4 of 4 plans executed; 478 tests passing; UAT pending
+last_updated: "2026-05-20T19:10:00.000Z"
 last_activity: 2026-05-20
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 10
-  completed_plans: 9
-  percent: 40
+  completed_plans: 10
+  percent: 50
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unification milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 108 UAT (108-02-PLAN.md) then Phase 109
+**Current focus:** Phase 109 UAT — verify BeePane v2 UX in browser; then milestone completion
 
 ## Current Position
 
-Phase: 109 (beepane-v2-unified-occurrence-view) — EXECUTING
+Phase: 109 (beepane-v2-unified-occurrence-view) — COMPLETE
 Plan: 4 of 4 complete
-Next: Phase 109 plan 02
+Next: Phase 109 UAT / verification
 Last activity: 2026-05-20
 
-Progress: [█████████░] 90%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
