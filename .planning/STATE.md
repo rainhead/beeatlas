@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: Sidebar & Table Unification
 status: executing
-stopped_at: Phase 107 complete — Phase 108 ready to execute
-last_updated: "2026-05-19T20:58:50.011Z"
-last_activity: 2026-05-19 -- Phase 108 planning complete
+stopped_at: Phase 109 planned — Phase 108 UAT still pending
+last_updated: "2026-05-20T00:00:00.000Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 10
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 4
+  total_plans: 10
+  completed_plans: 5
   percent: 30
 ---
 
@@ -21,13 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unification milestone started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 108 — bee-atlas Cutover & Map Resize
+**Current focus:** Phase 108 UAT (108-02-PLAN.md) then Phase 109
 
 ## Current Position
 
-Phase: 107 (create-bee-pane-component) — COMPLETE (code; browser UAT deferred to Phase 108)
-Next: Phase 108 (bee-atlas-cutover-map-resize)
-Last activity: 2026-05-19 -- Phase 108 planning complete
+Phase: 109 (beepane-v2-unified-occurrence-view) — PLANNED
+Plan: 0 of 4 (Phase 108 plan 2/2 UAT still outstanding)
+Next: Phase 108 plan 02 UAT → Phase 109 plan 01
+Last activity: 2026-05-20
 
 Progress: [████░░░░░░] 40%
 
@@ -89,6 +90,6 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 ## Session Continuity
 
-Last session: 2026-05-19T21:05:00.000Z
-Stopped at: Phase 107 complete — Phase 108 ready to execute
-Resume file: .planning/phases/107-create-bee-pane-component/107-VERIFICATION.md
+Last session: 2026-05-20T00:00:00.000Z
+Stopped at: Phase 109 planned — Phase 108 UAT (108-02-PLAN.md) still outstanding
+Resume file: .planning/phases/109-beepane-v2-unified-occurrence-view/109-01-PLAN.md
