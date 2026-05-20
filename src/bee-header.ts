@@ -1,11 +1,8 @@
 import { LitElement, css, html } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement } from 'lit/decorators.js';
 
 @customElement('bee-header')
 export class BeeHeader extends LitElement {
-  @property({ attribute: false })
-  viewMode: 'map' | 'table' | undefined = undefined;
-
   static styles = css`
     :host {
       display: flex;
@@ -26,38 +23,6 @@ export class BeeHeader extends LitElement {
       font-size: 1.2rem;
       margin: 1rem 0 1rem 1rem;
       font-weight: 400;
-    }
-
-    .inline-tabs {
-      display: flex;
-      align-items: stretch;
-    }
-
-    .tab-btn {
-      padding: 0.6rem 1rem;
-      border: none;
-      border-bottom: 2px solid transparent;
-      background: transparent;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
-      color: rgba(255, 255, 255, 0.7);
-    }
-
-    .tab-btn:hover {
-      color: white;
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .tab-btn.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
-
-    .tab-btn[disabled] {
-      opacity: 0.4;
-      pointer-events: none;
-      cursor: default;
     }
 
     .right-group {
@@ -105,93 +70,12 @@ export class BeeHeader extends LitElement {
     .github-link:hover {
       opacity: 1;
     }
-
-    .hamburger-menu {
-      display: none;
-      position: relative;
-    }
-
-    .hamburger-menu summary {
-      list-style: none;
-      cursor: pointer;
-      color: white;
-      font-size: 1.5rem;
-      padding: 0.5rem;
-      min-width: 44px;
-      min-height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .hamburger-menu summary::-webkit-details-marker {
-      display: none;
-    }
-
-    .hamburger-items {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      min-width: 10rem;
-      background: var(--header-bg);
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 2px 4px 8px rgba(0, 0, 0, 0.4);
-    }
-
-    .hamburger-items .tab-btn {
-      text-align: left;
-      padding: 0.8rem 1rem;
-    }
-
-    @media (max-width: 640px) {
-      .inline-tabs {
-        display: none;
-      }
-      .hamburger-menu {
-        display: block;
-        order: -1;
-      }
-    }
   `;
-
-  private _onViewClick(mode: 'map' | 'table') {
-    if (this.viewMode === undefined) {
-      window.location.href = mode === 'table' ? '/?view=table' : '/';
-      return;
-    }
-    if (mode === this.viewMode) return;
-    this.dispatchEvent(new CustomEvent('view-changed', {
-      bubbles: true,
-      composed: true,
-      detail: mode,
-    }));
-  }
 
   render() {
     return html`
       <div class="left-group">
         <h1>BeeAtlas</h1>
-        <button
-          class="icon-btn ${this.viewMode === 'map' ? 'active' : ''}"
-          aria-label="Map view"
-          @click=${() => this._onViewClick('map')}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z"/>
-          </svg>
-        </button>
-        <button
-          class="icon-btn ${this.viewMode === 'table' ? 'active' : ''}"
-          aria-label="Table view"
-          @click=${() => this._onViewClick('table')}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3.375 19.5h17.25m-17.25 0a1.125 1.125 0 0 1-1.125-1.125M3.375 19.5h7.5c.621 0 1.125-.504 1.125-1.125m-9.75 0V5.625m0 12.75v-12.75M3.375 5.625c0-.621.504-1.125 1.125-1.125h16.5c.621 0 1.125.504 1.125 1.125v12.75c0 .621-.504 1.125-1.125 1.125m-17.25 0h7.5m9.75 0h-9.75m9.75 0V5.625m0 12.75V5.625m0 0H10.875M3.375 5.625h7.5m0 0v12.75m0-12.75h9.75"/>
-          </svg>
-        </button>
         <a href="/species/index.html" class="icon-btn ${window.location.pathname.startsWith('/species') ? 'active' : ''}" aria-label="Species index">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24">
             <g transform="translate(0, 2.25)">

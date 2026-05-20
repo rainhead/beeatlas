@@ -369,10 +369,7 @@ describe('SEL-03: queryOccurrencesByBounds in filter.ts', () => {
     expect(filterSrc).toMatch(/BETWEEN.*AND.*BETWEEN/);
   });
 
-  test('bee-atlas.ts references queryOccurrencesByBounds', () => {
-    const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
-    expect(atlasSrc).toMatch(/queryOccurrencesByBounds/);
-  });
+  // NOTE: bee-atlas.ts no longer references queryOccurrencesByBounds (Plan 109-02: replaced by _runListQuery)
 });
 
 describe('SEL-04: sidebar open on non-empty bounds result', () => {
@@ -382,17 +379,12 @@ describe('SEL-04: sidebar open on non-empty bounds result', () => {
     expect(src).toMatch(/this\._paneState\s*=\s*'list'/);
   });
 
-  test('bee-atlas.ts assigns rows to _selectedOccurrences', () => {
-    expect(src).toMatch(/this\._selectedOccurrences\s*=\s*rows/);
-  });
+  // NOTE: bee-atlas.ts no longer assigns to _selectedOccurrences (Plan 109-02: replaced by _runListQuery)
 });
 
 describe('SEL-05: sidebar not opened on empty bounds result', () => {
-  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
-
-  test('bee-atlas.ts guards sidebar open with rows.length === 0 check', () => {
-    expect(src).toMatch(/rows\.length\s*===\s*0/);
-  });
+  // NOTE: Plan 109-02 replaced queryOccurrencesByBounds with _runListQuery;
+  // the pane opens immediately and the list query handles empty results gracefully.
 });
 
 describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
@@ -410,35 +402,16 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(src).not.toContain('Phase 91 will call this._pushUrlState() here');
   });
 
-  test('SEL-06: _restoreBoundsSelection is defined', () => {
-    expect(src).toMatch(/private async _restoreBoundsSelection\b/);
-  });
+  // NOTE: Plan 109-02 removed _restoreBoundsSelection; bounds restore now handled
+  // by setting _selectionBounds and letting _onDataLoaded call _runListQuery.
 
-  test('SEL-06: firstUpdated routes bounds selection to _restoreBoundsSelection', () => {
+  test('SEL-06: firstUpdated routes bounds selection to _selectionBounds state', () => {
     expect(src).toContain("initSel?.type === 'bounds'");
-    expect(src).toMatch(/initSel\?\.type === 'bounds'[\s\S]{0,300}_restoreBoundsSelection\(/);
+    expect(src).toMatch(/initSel\?\.type === 'bounds'[\s\S]{0,300}_selectionBounds\s*=/);
   });
 
-  test('SEL-06: _onPopState routes bounds selection to _restoreBoundsSelection', () => {
+  test('SEL-06: _onPopState routes bounds selection to _selectionBounds state', () => {
     expect(src).toContain("parsedSel?.type === 'bounds'");
-  });
-
-  test('SEL-06: _restoreBoundsSelection uses generation guard', () => {
-    const matches = src.match(/\+\+this\._selectionDrawnGeneration/g);
-    expect(matches).not.toBeNull();
-    expect(matches!.length).toBeGreaterThanOrEqual(2);
-  });
-
-  test('SEL-06: _restoreBoundsSelection awaits tablesReady before query', () => {
-    const methodStart = src.indexOf('private async _restoreBoundsSelection');
-    expect(methodStart).toBeGreaterThan(-1);
-    // Find the next private method declaration after _restoreBoundsSelection
-    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
-    const methodBody = nextPrivate > methodStart
-      ? src.slice(methodStart, nextPrivate)
-      : src.slice(methodStart);
-    expect(methodBody).toContain('await tablesReady');
-    expect(methodBody).toContain('queryOccurrencesByBounds(');
   });
 
   test('SEL-07: _onPaneCollapse clears _selectionBounds', () => {
@@ -481,11 +454,13 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(methodBody).toContain('this._selectionBounds = null');
   });
 
-  test('SEL-07: _onSelectionDrawn clears _selectionBounds on zero-result', () => {
+  test('SEL-07: _onSelectionDrawn sets _selectionBounds and calls _runListQuery', () => {
     const methodStart = src.indexOf('private async _onSelectionDrawn(');
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(methodBody).toContain('this._selectionBounds = null');
+    // Plan 109-02: _onSelectionDrawn now sets _selectionBounds (not clears it) and calls _runListQuery
+    expect(methodBody).toContain('this._selectionBounds = e.detail');
+    expect(methodBody).toContain('_runListQuery');
   });
 
   test('SEL-07: _onRegionClick clears _selectionBounds on deselect', () => {
@@ -503,7 +478,7 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
   });
 
   test('SEL-07: _openSidebarForFilter clears _selectionBounds', () => {
-    const methodStart = src.indexOf('private async _openSidebarForFilter(');
+    const methodStart = src.indexOf('private _openSidebarForFilter(');
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
     expect(methodBody).toContain('this._selectionBounds = null');
@@ -585,8 +560,9 @@ describe('SM-01: bee-atlas pane state machine (Phase 106)', () => {
     expect(body).toContain("this._paneState = 'collapsed'");
   });
 
-  test('_onViewChanged sets _paneState = table when entering table mode', () => {
-    const methodStart = src.indexOf('private _onViewChanged(');
+  // NOTE: Plan 109-02 removed _onViewChanged; table mode is now entered via _onPaneExpandTable only
+  test('_onPaneExpandTable sets _paneState = table', () => {
+    const methodStart = src.indexOf('private _onPaneExpandTable(');
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
     expect(body).toContain("this._paneState = 'table'");
@@ -631,12 +607,12 @@ describe('PANE-01: bee-atlas bee-pane wiring (Phase 108)', () => {
     expect(src).not.toMatch(/@toggle-filter=/);
   });
 
-  test('bee-atlas.ts contains _onPaneCollapse method that clears all four selection fields and sets _paneState = collapsed', () => {
+  test('bee-atlas.ts contains _onPaneCollapse method that clears selection fields and sets _paneState = collapsed', () => {
     const start = src.indexOf('private _onPaneCollapse(');
     expect(start).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', start + 1);
     const body = src.slice(start, nextPrivate > start ? nextPrivate : undefined);
-    expect(body).toContain('this._selectedOccurrences = null');
+    // Plan 109-02: _selectedOccurrences removed; three remaining selection fields cleared
     expect(body).toContain('this._selectedOccIds = null');
     expect(body).toContain('this._selectedCluster = null');
     expect(body).toContain('this._selectionBounds = null');

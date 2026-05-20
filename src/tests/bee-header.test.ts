@@ -21,10 +21,11 @@ vi.mock('../features.ts', () => ({
 }));
 
 describe('HDR: bee-header property interface', () => {
-  test('BeeHeader has @property declaration for viewMode', async () => {
+  // NOTE: Plan 109-02 removed viewMode property; bee-header no longer has view-switching buttons
+  test('BeeHeader no longer has @property declaration for viewMode', async () => {
     const { BeeHeader } = await import('../bee-header.ts');
     const props = (BeeHeader as unknown as { elementProperties: Map<string, unknown> }).elementProperties;
-    expect(props.has('viewMode')).toBe(true);
+    expect(props.has('viewMode')).toBe(false);
     expect(props.has('layerMode')).toBe(false);
   });
 
@@ -40,48 +41,41 @@ describe('HDR: bee-header property interface', () => {
     expect(src).not.toMatch(/_onLayerClick/);
     expect(src).not.toMatch(/layer-changed/);
   });
+
+  test('bee-header.ts does NOT contain viewMode, _onViewClick, or view-changed (Plan 109-02)', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-header.ts'), 'utf-8');
+    expect(src).not.toMatch(/viewMode/);
+    expect(src).not.toMatch(/_onViewClick/);
+    expect(src).not.toMatch(/view-changed/);
+  });
 });
 
 describe('HDR: bee-header event emission', () => {
-  test('clicking inactive Table view button dispatches view-changed with detail "table"', async () => {
+  // NOTE: Plan 109-02 removed view-changed events; bee-header is now a static display element
+  test('bee-header renders species index link', async () => {
     await import('../bee-header.ts');
     const el = document.createElement('bee-header') as any;
-    el.viewMode = 'map';
     document.body.appendChild(el);
     await el.updateComplete;
 
-    let receivedEvent: CustomEvent | null = null;
-    el.addEventListener('view-changed', (e: CustomEvent) => {
-      receivedEvent = e;
-    });
-
     const shadow = el.shadowRoot!;
-    const tableBtn = shadow.querySelector('button[aria-label="Table view"]') as HTMLButtonElement | null;
-    expect(tableBtn).not.toBeNull();
-    tableBtn!.click();
-
-    expect(receivedEvent).not.toBeNull();
-    expect(receivedEvent!.detail).toBe('table');
+    const speciesLink = shadow.querySelector('a[aria-label="Species index"]') as HTMLAnchorElement | null;
+    expect(speciesLink).not.toBeNull();
+    expect(speciesLink!.href).toContain('/species/');
 
     document.body.removeChild(el);
   });
 
-  test('clicking active Map view button does NOT dispatch view-changed', async () => {
+  test('bee-header renders places link', async () => {
     await import('../bee-header.ts');
     const el = document.createElement('bee-header') as any;
-    el.viewMode = 'map';
     document.body.appendChild(el);
     await el.updateComplete;
 
-    let eventCount = 0;
-    el.addEventListener('view-changed', () => { eventCount++; });
-
     const shadow = el.shadowRoot!;
-    const mapBtn = shadow.querySelector('button[aria-label="Map view"]') as HTMLButtonElement | null;
-    expect(mapBtn).not.toBeNull();
-    mapBtn!.click();
+    const placesLink = shadow.querySelector('a[aria-label="Places"]') as HTMLAnchorElement | null;
+    expect(placesLink).not.toBeNull();
 
-    expect(eventCount).toBe(0);
     document.body.removeChild(el);
   });
 });
