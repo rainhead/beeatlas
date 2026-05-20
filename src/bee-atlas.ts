@@ -130,6 +130,14 @@ bee-pane {
     right: 0;
     left: 0;
   }
+  .content.pane-list bee-pane {
+    top: auto;
+    bottom: 0;
+    height: 60%;
+    width: auto;
+    max-height: none;
+    border-radius: 8px 8px 0 0;
+  }
 }
   `;
 
