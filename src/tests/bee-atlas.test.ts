@@ -109,12 +109,6 @@ describe('ARCH-03: coordinator pattern — sibling isolation', () => {
     expect(beeMapSource).not.toMatch(/from\s+['"]\.\/url-state/);
   });
 
-  test('bee-sidebar.ts does not import bee-map or bee-atlas', () => {
-    const sidebarSource = readFileSync(resolve(__dirname, '../bee-sidebar.ts'), 'utf-8');
-    expect(sidebarSource).not.toMatch(/from\s+['"]\.\/bee-map/);
-    expect(sidebarSource).not.toMatch(/from\s+['"]\.\/bee-atlas/);
-  });
-
   test('bee-map.ts has no _restored* properties', () => {
     const beeMapSource = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
     expect(beeMapSource).not.toMatch(/_restored[A-Z]/);

@@ -346,6 +346,15 @@ export interface TaxonOption {
   rank: 'family' | 'genus' | 'species';
 }
 
+export interface FilteredSummary {
+  filteredSpecimens: number;
+  filteredSpeciesCount: number;
+  filteredGenusCount: number;
+  filteredFamilyCount: number;
+  total: DataSummary;   // the full unfiltered totals
+  isActive: boolean;    // true if any filter is on (controls whether to show "X of Y" or just "Y")
+}
+
 // Custom event payload
 export interface FilterChangedEvent {
   taxonName: string | null;
