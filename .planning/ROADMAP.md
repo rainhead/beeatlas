@@ -615,7 +615,7 @@ Plans:
   8. `bee-filter-panel.ts` and `bee-sidebar.ts` no longer exist; all `import('./bee-sidebar.ts')` calls are removed from bee-atlas.ts
   9. `npm test` passes; `tsc --noEmit` exits 0
 
-**Plans**: 4 plans
+**Plans**: 6 plans
 
 Plans:
 
@@ -634,6 +634,14 @@ Plans:
 **Wave 4** *(blocked on Wave 3 completion)*
 
 - [x] 109-04-PLAN.md — Delete bee-filter-panel.ts, bee-sidebar.ts, bee-filter-toolbar.ts, bee-sidebar.test.ts, bee-filter-toolbar.test.ts; update bee-atlas.test.ts + bee-pane.test.ts
+
+**Wave 5** *(gap closure)*
+
+- [x] 109-05-PLAN.md — Fix three UAT layout bugs: pane-close overlap with expand button, missing scroll containment on occurrence list, pane-state guard in _onFilterChanged
+
+**Wave 6** *(gap closure)*
+
+- [x] 109-06-PLAN.md — Fix list refresh on filter change when pane is open (_onFilterChanged calls _runListQuery when _paneState === 'list')
 
 **UI hint**: yes
 
@@ -750,4 +758,4 @@ Plans:
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 1/2 | In Progress|  |
-| 109. BeePane v2 — Unified Occurrence View | v3.9 | 5/5 | Complete   | 2026-05-20 |
+| 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |

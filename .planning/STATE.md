@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: Sidebar & Table Unification
-status: executing
+status: Phase 109 complete
 stopped_at: Phase 109 planned — Phase 108 UAT (108-02-PLAN.md) still outstanding
-last_updated: "2026-05-20T20:01:11.944Z"
-last_activity: 2026-05-20
+last_updated: "2026-05-20T20:47:32.327Z"
+last_activity: 2026-05-20 -- Phase 109 marked complete
 progress:
   total_phases: 10
   completed_phases: 4
-  total_plans: 11
-  completed_plans: 10
+  total_plans: 12
+  completed_plans: 11
   percent: 40
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unificati
 
 ## Current Position
 
-Phase: 109 (beepane-v2-unified-occurrence-view) — COMPLETE
+Phase: 109 — COMPLETE
 Plan: 4 of 4 complete
 Next: Phase 109 UAT / verification
-Last activity: 2026-05-20
+Last activity: 2026-05-20 -- Phase 109 marked complete
 
 Progress: [█████████░] 91%
 
