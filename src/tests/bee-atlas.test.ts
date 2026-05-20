@@ -178,6 +178,10 @@ describe('VIEW-02: bee-atlas conditional render and view mode wiring', () => {
   test('bee-atlas.ts _onPopState restores _paneState from URL (Phase 106)', () => {
     expect(src).toMatch(/this\._paneState\s*=\s*paneState/);
   });
+
+  test('bee-atlas.ts does not pass .viewMode to bee-header', () => {
+    expect(src).not.toMatch(/\.viewMode\s*=\s*\$\{/);
+  });
 });
 
 describe('BOUNDARY-01: bee-map boundary layer declarations', () => {
@@ -663,6 +667,84 @@ describe('UNIFY-01: queryListPage and shared types in filter.ts', () => {
 
   test('filter.ts exports FilterChangedEvent interface', () => {
     expect(filterSrc).toMatch(/export interface FilterChangedEvent/);
+  });
+});
+
+describe('PANE-V2-01: collapsed button matches filter-panel design', () => {
+  const paneSource = readFileSync(resolve(__dirname, '../bee-pane.ts'), 'utf-8');
+  test('bee-pane.ts declares .filter-btn CSS class', () => {
+    expect(paneSource).toMatch(/\.filter-btn\b/);
+  });
+  test('bee-pane.ts renders .filter-btn in collapsed state (not .toggle-btn)', () => {
+    expect(paneSource).toMatch(/class=\$\{['"]filter-btn/);
+  });
+  test('bee-pane.ts has magnifying-glass SVG in collapsed state', () => {
+    // The circle and line of the magnifying glass SVG
+    expect(paneSource).toMatch(/<circle[^>]*cx="6\.5"/);
+  });
+  test('collapsed button is .active when filterActive || selectionCount > 0', () => {
+    expect(paneSource).toMatch(/filterActive.*selectionCount|selectionCount.*filterActive/);
+  });
+});
+
+describe('PANE-V2-02: unified list state — selection banner and X close', () => {
+  const paneSource = readFileSync(resolve(__dirname, '../bee-pane.ts'), 'utf-8');
+  test('bee-pane.ts renders selection banner when selectionCount > 0', () => {
+    expect(paneSource).toMatch(/selection-banner/);
+    expect(paneSource).toMatch(/selectionCount/);
+  });
+  test('bee-pane.ts dispatches pane-clear-selection', () => {
+    expect(paneSource).toMatch(/new CustomEvent\(['"]pane-clear-selection['"]/);
+  });
+  test('bee-pane.ts renders a .pane-close X button in list state', () => {
+    expect(paneSource).toMatch(/pane-close/);
+    expect(paneSource).toMatch(/&#x2715;|✕|×/);
+  });
+  test('bee-atlas.ts does NOT declare _selectedOccurrences', () => {
+    const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(atlasSrc).not.toMatch(/_selectedOccurrences/);
+  });
+  test('bee-atlas.ts calls _runListQuery', () => {
+    const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(atlasSrc).toMatch(/_runListQuery/);
+  });
+  test('bee-atlas.ts handles pane-clear-selection event', () => {
+    const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(atlasSrc).toMatch(/pane-clear-selection/);
+  });
+  test('bee-pane.ts dispatches list-page-changed', () => {
+    expect(paneSource).toMatch(/new CustomEvent\(['"]list-page-changed['"]/);
+  });
+});
+
+describe('PANE-V2-03: split-screen table layout', () => {
+  const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+  test('bee-atlas.ts pane-table CSS does NOT have inset: 0', () => {
+    const tableRule = atlasSrc.match(/\.content\.pane-table\s+bee-pane\s*\{[^}]*\}/);
+    expect(tableRule).not.toBeNull();
+    expect(tableRule![0]).not.toMatch(/inset\s*:\s*0/);
+  });
+  test('bee-atlas.ts pane-table CSS has height: 60%', () => {
+    const tableRule = atlasSrc.match(/\.content\.pane-table\s+bee-pane\s*\{[^}]*\}/);
+    expect(tableRule).not.toBeNull();
+    expect(tableRule![0]).toMatch(/height\s*:\s*60%/);
+  });
+});
+
+describe('PANE-V2-04: bee-header table icon removal', () => {
+  const headerSrc = readFileSync(resolve(__dirname, '../bee-header.ts'), 'utf-8');
+  const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+  test('bee-header.ts does NOT have a viewMode property', () => {
+    expect(headerSrc).not.toMatch(/viewMode/);
+  });
+  test('bee-header.ts does NOT have _onViewClick', () => {
+    expect(headerSrc).not.toMatch(/_onViewClick/);
+  });
+  test('bee-header.ts does NOT have a table icon-btn', () => {
+    expect(headerSrc).not.toMatch(/Table view/);
+  });
+  test('bee-atlas.ts does NOT pass .viewMode to bee-header', () => {
+    expect(atlasSrc).not.toMatch(/\.viewMode\s*=\s*\$\{/);
   });
 });
 
