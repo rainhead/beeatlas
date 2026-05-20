@@ -2,43 +2,40 @@
 gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: Sidebar & Table Unification
-status: Phase 108 complete
+status: COMPLETE — milestone archived 2026-05-20
 stopped_at: ""
-last_updated: "2026-05-20T23:00:00.000Z"
-last_activity: 2026-05-20 -- Phase 108 UAT approved; 5 UI fixes applied
+last_updated: "2026-05-20T23:59:00.000Z"
+last_activity: 2026-05-20 -- v3.9 milestone archived; git tag v3.9 created
 progress:
-  total_phases: 10
+  total_phases: 5
   completed_phases: 5
   total_plans: 12
   completed_plans: 12
-  percent: 50
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unification milestone started)
+See: .planning/PROJECT.md (updated 2026-05-20 after v3.9 milestone close)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 109 UAT — verify BeePane v2 UX in browser; then milestone completion
+**Current focus:** Planning next milestone (v4.0 or v3.10)
 
 ## Current Position
 
-Phase: 108 — COMPLETE (browser UAT approved 2026-05-20)
-Plan: 2 of 2 complete
-Next: Phase verification / milestone completion
-Last activity: 2026-05-20 -- Phase 108 UAT approved; 5 UI fixes applied (attribution z-index, sidebar button order, table close button, row-pan auto-shrink, map header icon restored)
+v3.9 — COMPLETE (archived 2026-05-20)
+All 5 phases (105–109), 12 plans complete.
+Last activity: 2026-05-20 -- v3.9 milestone archived; REQUIREMENTS.md retired; git tag v3.9 created
 
-Progress: [█████░░░░░] 50%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
 ### Decisions
 
-(decisions log cleared at v3.8 close — full history in .planning/PROJECT.md Key Decisions table)
-
-- 109-01: DataSummary/TaxonOption/FilterChangedEvent moved to filter.ts; FilteredSummary stays in bee-sidebar.ts until Wave 4 deletion; queryListPage uses WHERE intersection (not priority sort)
+(decisions log cleared at v3.9 close — full history in .planning/PROJECT.md Key Decisions table)
 
 ### Pending Todos
 
@@ -92,6 +89,6 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 ## Session Continuity
 
-Last session: 2026-05-20T20:01:11.936Z
-Stopped at: Phase 109 planned — Phase 108 UAT (108-02-PLAN.md) still outstanding
+Last session: 2026-05-20
+Stopped at: v3.9 milestone archived; ready for /gsd-new-milestone
 Resume file: None

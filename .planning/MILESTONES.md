@@ -1,5 +1,22 @@
 # Milestones
 
+## v3.9 Sidebar & Table Unification (Shipped: 2026-05-20)
+
+**Phases completed:** 5 phases (105–109), 12 plans
+**Timeline:** 2 days (2026-05-19 → 2026-05-20)
+**LOC:** +10,639 / −1,326 across 54+ files (61 commits)
+**Requirements:** 11/11 complete; no milestone audit (high-confidence UI refactor)
+
+**Key accomplishments:**
+
+- URL layer migrated: `UiState.viewMode` replaced with `UiState.paneState: 'collapsed' | 'list' | 'table'` in url-state.ts; `?pane=list`/`?pane=table` URL round-trip; legacy `?view=table` preserved via Option A precedence chain — URL-01 and URL-02 satisfied
+- bee-atlas state machine refactored: three-flag view state (`_viewMode`, `_sidebarOpen`, `_tableFilterOpen`) replaced with single discriminated-union `@state() private _paneState: 'collapsed' | 'list' | 'table'`; SM-01 test block (7 tests) locks the machine transitions
+- `bee-pane` component created: merged `bee-filter-panel` and `bee-sidebar` into a single three-state presenter component (1004 lines); persistent toggle button, expand-to-table button (desktop only), filter rows + occurrence detail in list state, `bee-table` embedded in table state — PANE-01..06 + TABLE-01 satisfied
+- bee-atlas cutover: bee-atlas renders single `bee-pane` overlay replacing `bee-filter-panel` + `bee-sidebar` + `bee-table` siblings; MAP-01 satisfied by overlay architecture (bee-pane is `position:absolute`; bee-map element dimensions never change across pane transitions; no explicit `map.resize()` call needed)
+- BeePane v2 unified occurrence model: `queryListPage` in filter.ts uses WHERE intersection (filter AND selection); unified list query replaces separate occurrence sidebar; collapsed button matches old filter-panel floating design (magnifying-glass SVG + count, highlighted on filter/selection); table as split-screen (40% map / 60% table); `bee-filter-panel.ts` and `bee-sidebar.ts` deleted — TABLE-02 satisfied
+
+---
+
 ## v3.8 Conceptual Tidying (Shipped: 2026-05-19)
 
 **Phases completed:** 4 phases (101–104), 5 plans

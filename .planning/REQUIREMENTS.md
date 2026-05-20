@@ -21,12 +21,12 @@
 
 ### URL State
 
-- [ ] **URL-01**: Pane state is encoded in the URL and restored on page load (collapsed state omitted from URL; list and table states encoded)
-- [ ] **URL-02**: Legacy `?view=table` URLs are parsed as pane table state for backward compatibility
+- [x] **URL-01**: Pane state is encoded in the URL and restored on page load (collapsed state omitted from URL; list and table states encoded)
+- [x] **URL-02**: Legacy `?view=table` URLs are parsed as pane table state for backward compatibility
 
 ### Map Resize
 
-- [ ] **MAP-01**: Mapbox canvas resizes correctly after any pane state transition (collapsed↔list, list↔table)
+- [x] **MAP-01**: Mapbox canvas resizes correctly after any pane state transition (collapsed↔list, list↔table)
 
 ## Future Requirements
 
@@ -58,9 +58,9 @@ Not in v3.9 scope. Tracked for future milestones.
 | PANE-06 | Phase 107 | Complete |
 | TABLE-01 | Phase 107 | Complete |
 | TABLE-02 | Phase 109 | Complete |
-| URL-01 | Phase 105 | Pending |
-| URL-02 | Phase 105 | Pending |
-| MAP-01 | Phase 108 | Pending |
+| URL-01 | Phase 105 | Complete |
+| URL-02 | Phase 105 | Complete |
+| MAP-01 | Phase 108 | Complete |
 
 **Coverage:**
 - v3.9 requirements: 11 total
