@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { FilterState, CollectorEntry } from './filter.ts';
-import type { DataSummary, TaxonOption } from './bee-sidebar.ts';
+import type { DataSummary, TaxonOption } from './filter.ts';
 import './bee-filter-controls.ts';
 
 @customElement('bee-filter-toolbar')

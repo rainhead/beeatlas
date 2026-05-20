@@ -4,7 +4,7 @@ import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds,
 import { occIdFromRow, parseOccId } from './occurrence.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
-import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
+import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
@@ -89,9 +89,12 @@ bee-map {
   flex-grow: 1;
 }
 bee-pane {
-  top: 0.5em;
+  top: calc(0.5em + 2.5rem);
   right: 0.5em;
+}
+.content.pane-list bee-pane {
   bottom: 0.5em;
+  width: 25rem;
 }
 .content.pane-table bee-pane {
   inset: 0;
@@ -131,6 +134,7 @@ bee-pane {
       ${this._error ? '' : html`
         <div class=${[
           'content',
+          this._paneState === 'list' ? 'pane-list' : '',
           this._paneState === 'table' ? 'pane-table' : '',
         ].filter(Boolean).join(' ')}>
           <bee-map
