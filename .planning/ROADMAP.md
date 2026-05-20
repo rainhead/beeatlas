@@ -750,4 +750,4 @@ Plans:
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 1/2 | In Progress|  |
-| 109. BeePane v2 — Unified Occurrence View | v3.9 | 4/4 | Complete   | 2026-05-20 |
+| 109. BeePane v2 — Unified Occurrence View | v3.9 | 5/5 | Complete   | 2026-05-20 |
