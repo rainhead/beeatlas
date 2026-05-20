@@ -100,6 +100,7 @@ bee-pane {
 .content.pane-list bee-pane {
   bottom: 0.5em;
   width: 25rem;
+  max-height: calc(100% - 1em);
 }
 .content.pane-table bee-pane {
   bottom: 0;
