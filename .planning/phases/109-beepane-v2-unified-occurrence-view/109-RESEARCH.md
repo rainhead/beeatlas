@@ -675,7 +675,7 @@ No security domain changes. This is a UI restructuring phase. Input validation v
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Type home for DataSummary / TaxonOption / FilterChangedEvent**
    - What we know: these are currently exported from bee-sidebar.ts which is being deleted.
