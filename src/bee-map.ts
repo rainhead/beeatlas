@@ -6,7 +6,8 @@ import { loadOccurrenceGeoJSON, type OccurrenceProperties } from './features.ts'
 import { RECENCY_COLORS } from './style.ts';
 import { type FilterState, OCCURRENCE_COLUMNS, type OccurrenceRow } from './filter.ts';
 import type { FeatureCollection, Point } from 'geojson';
-import type { DataSummary, FilteredSummary } from './bee-sidebar.ts';
+import type { DataSummary } from './filter.ts';
+import type { FilteredSummary } from './bee-sidebar.ts';
 import { resolveDataUrl } from './manifest.ts';
 import { isSpecimenId } from './occurrence.ts';
 

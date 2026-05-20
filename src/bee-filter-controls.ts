@@ -1,7 +1,7 @@
 import { css, html, LitElement, nothing, type PropertyValues } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import type { FilterState, CollectorEntry } from './filter.ts';
-import type { DataSummary, TaxonOption, FilterChangedEvent } from './bee-sidebar.ts';
+import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
