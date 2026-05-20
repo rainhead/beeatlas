@@ -1,5 +1,5 @@
 import { test, expect, describe, vi } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -673,5 +673,40 @@ describe('PANE-01: bee-atlas bee-pane wiring (Phase 108)', () => {
     // across pane transitions, so the existing ResizeObserver in bee-map.ts handles
     // MAP-01 without any explicit resize call from bee-atlas.
     expect(src).not.toMatch(/_map\?\.resize\(\)/);
+  });
+});
+
+describe('UNIFY-01: queryListPage and shared types in filter.ts', () => {
+  const filterSrc = readFileSync(resolve(__dirname, '../filter.ts'), 'utf-8');
+
+  test('filter.ts exports queryListPage function', () => {
+    expect(filterSrc).toMatch(/export async function queryListPage/);
+  });
+
+  test('filter.ts exports DataSummary interface', () => {
+    expect(filterSrc).toMatch(/export interface DataSummary/);
+  });
+
+  test('filter.ts exports TaxonOption interface', () => {
+    expect(filterSrc).toMatch(/export interface TaxonOption/);
+  });
+
+  test('filter.ts exports FilterChangedEvent interface', () => {
+    expect(filterSrc).toMatch(/export interface FilterChangedEvent/);
+  });
+});
+
+describe('PANE-V2-05: old file removal', () => {
+  test('bee-filter-panel.ts does not exist', () => {
+    expect(existsSync(resolve(__dirname, '../bee-filter-panel.ts'))).toBe(false);
+  });
+
+  test('bee-sidebar.ts does not exist', () => {
+    expect(existsSync(resolve(__dirname, '../bee-sidebar.ts'))).toBe(false);
+  });
+
+  test('bee-atlas.ts has no dynamic import of bee-sidebar.ts', () => {
+    const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    expect(atlasSrc).not.toMatch(/import\(['"]\.\/bee-sidebar\.ts['"]\)/);
   });
 });
