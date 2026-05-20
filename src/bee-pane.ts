@@ -115,6 +115,7 @@ export class BeePane extends LitElement {
       z-index: 1;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
       background: var(--surface);
       box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -404,6 +405,12 @@ export class BeePane extends LitElement {
       background: var(--accent, #2c7a2c);
       color: white;
       border-color: var(--accent, #2c7a2c);
+    }
+    /* Scrollable middle section between sidebar-header and list-pager */
+    .list-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
     }
     /* X close button — absolutely positioned top-right of open pane */
     .pane-close {
@@ -1064,26 +1071,28 @@ export class BeePane extends LitElement {
         <span class="sidebar-title">Filters</span>
         <button class="expand-btn" @click=${this._onExpand} aria-label="Expand to table view">⊞</button>
       </div>
-      <div class="filter-panel">
-        ${this._renderWhat()}
-        ${this._renderWho()}
-        ${this._renderWhere()}
-        ${this._renderWhen()}
-      </div>
-      <div class="divider"></div>
-      ${this.selectionCount !== null ? html`
-        <div class="selection-banner">
-          <span>${this.selectionCount} selected</span>
-          <span>·</span>
-          <button class="clear-btn" @click=${this._onClearSelection}>Clear</button>
+      <div class="list-scroll">
+        <div class="filter-panel">
+          ${this._renderWhat()}
+          ${this._renderWho()}
+          ${this._renderWhere()}
+          ${this._renderWhen()}
         </div>
-      ` : nothing}
-      ${this.listLoading
-        ? html`<div class="list-placeholder">Loading…</div>`
-        : this.listRows.length === 0
-          ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
-          : html`<bee-occurrence-detail .occurrences=${this.listRows}></bee-occurrence-detail>`
-      }
+        <div class="divider"></div>
+        ${this.selectionCount !== null ? html`
+          <div class="selection-banner">
+            <span>${this.selectionCount} selected</span>
+            <span>·</span>
+            <button class="clear-btn" @click=${this._onClearSelection}>Clear</button>
+          </div>
+        ` : nothing}
+        ${this.listLoading
+          ? html`<div class="list-placeholder">Loading…</div>`
+          : this.listRows.length === 0
+            ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
+            : html`<bee-occurrence-detail .occurrences=${this.listRows}></bee-occurrence-detail>`
+        }
+      </div>
       ${this.listRowCount > PAGE_SIZE ? html`
         <div class="list-pager">
           <button ?disabled=${this.listPage <= 1} @click=${this._onListPagePrev}>‹ Prev</button>
