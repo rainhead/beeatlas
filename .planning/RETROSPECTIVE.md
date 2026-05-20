@@ -2,6 +2,48 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v3.9 — Sidebar & Table Unification
+
+**Shipped:** 2026-05-20
+**Phases:** 5 (105–109) | **Plans:** 12 | **Timeline:** 2 days | **LOC:** +10,639 / −1,326
+
+### What Was Built
+
+- Phase 105: `UiState.paneState: 'collapsed' | 'list' | 'table'` replaces `viewMode: 'map' | 'table'` in url-state.ts; `?pane=list`/`?pane=table` URL round-trip; legacy `?view=table` alias via Option A precedence; 6 new tests
+- Phase 106: `@state() private _paneState: 'collapsed' | 'list' | 'table'` replaces three-flag view state (`_viewMode + _sidebarOpen + _tableFilterOpen`) in bee-atlas.ts; SM-01 test block (7 tests) via TDD RED→GREEN
+- Phase 107: `bee-pane.ts` (1004 lines) — unified three-state presenter merging filter UI rows (What/Who/Where/When) from bee-filter-panel.ts + occurrence detail from bee-sidebar.ts; persistent toggle button, expand/shrink navigation events; PANE-01..06, TABLE-01
+- Phase 108: bee-atlas render cutover to single `bee-pane` overlay; PANE-01 wiring block (12 tests); MAP-01 satisfied via overlay architecture (bee-pane is `position:absolute`; ResizeObserver in bee-map.ts handles viewport changes); UAT approved after 5 regression fixes
+- Phase 109: `queryListPage` WHERE intersection (filter AND selection) in filter.ts; floating `.filter-btn` collapsed button (magnifying-glass + count); split-screen table (40% map / 60% table); `bee-filter-panel.ts` + `bee-sidebar.ts` deleted; TABLE-02; 2 gap closure waves (scroll containment, list refresh on filter change)
+
+### What Worked
+
+- The four-phase refactor sequence (URL → state machine → new component → cutover → redesign) had clean dependency edges — no phase blocked waiting for a sibling
+- MAP-01 via overlay architecture was the right call: no explicit `map.resize()` needed, the existing ResizeObserver handles viewport-only resizes, and the PANE-01 source-scan test locks the invariant going forward
+- TDD RED→GREEN for Phase 106 state machine (14 initially failing assertions → all green) gave high confidence in the refactor without requiring browser verification
+- Verbatim-copy pattern for merging bee-filter-panel.ts + bee-sidebar.ts handler/render methods into bee-pane.ts (plan 107-02) was accurate: plan → implementation with no deviations
+- Gap closure plans (109-05, 109-06) were fast to write and execute: specific, targeted, verifiable in isolation
+
+### What Was Inefficient
+
+- Phase 108 UAT surfaced 5 regressions after cutover (Mapbox attribution z-index, sidebar button order, table close button, row-pan auto-shrink, map header icon) — all were CSS/event handler gaps that could have been caught with a more thorough pre-UAT source review of the old bee-atlas CSS rules being deleted
+- Phase 109 gap closure needed 2 waves (5 and 6) instead of 1 — the scroll containment gap (09-05) and filter-change refresh gap (09-06) were both foreseeable at Phase 109 planning time given the unified pane design; a more thorough success-criteria review would have surfaced them
+- REQUIREMENTS.md URL-01/URL-02/MAP-01 checkboxes were never updated during Phase 105 and 108 execution; required correction at milestone close. The Phase 105 progress table in ROADMAP.md also had an incorrect "0/1 Not started" entry. Three bookkeeping errors from the same root cause: requirement status not updated at phase completion time.
+
+### Patterns Established
+
+- **Overlay architecture for side panels**: `position:absolute` panels leave the map element dimensions unchanged across open/close; avoids `map.resize()` calls and prevents canvas resize artifacts. PANE-01 source-scan test locks the `bee-pane { position:absolute }` invariant.
+- **Verbatim-copy merge for component consolidation**: when merging two components into one, copy methods verbatim (not rewrite) in the first phase; behavioral changes come in a subsequent redesign phase. Avoids double-regression risk.
+- **WHERE intersection for unified query**: when selection and filter both narrow the result set, `WHERE filterWhere AND selectionWhere` is the correct model (not priority sort or two-view). Users expect "show me these 3 selected results within my filter."
+- **Gap closure as a named wave**: writing 109-05 and 109-06 as explicit gap-closure plans (rather than amending earlier plans) keeps the wave structure clean and the git history interpretable.
+
+### Key Lessons
+
+- **Close bookkeeping at phase completion time**: requirement checkbox updates and ROADMAP progress table corrections should happen within the same commit that marks a plan as complete, not at milestone close. Three stale entries at this milestone close were from this pattern.
+- **Pre-UAT CSS audit for deletion**: when a cutover phase deletes a component's CSS rules, enumerate each deleted rule and verify the same visual property is handled elsewhere before UAT. This would have caught 3 of the 5 Phase 108 regressions.
+- **Write success criteria that include scroll containment and filter-change refresh**: for list/pagination components, "shows occurrences" is not sufficient — also verify "list scrolls independently", "list refreshes when filter changes while open", and "page resets on query change". These are standard requirements for any paginated list component.
+
+---
+
 ## Milestone: v3.7 — Places
 
 **Shipped:** 2026-05-18
