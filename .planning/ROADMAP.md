@@ -386,7 +386,7 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 - [x] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers (completed 2026-05-19)
 - [x] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states (completed 2026-05-19)
 - [ ] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize()
-- [ ] **Phase 109: BeePane v2 — Unified Occurrence View** — Redesign pane UX: unify selection+filter into one query, redesign collapsed button (filter-panel style), always-paged occurrence list, split-screen table layout, remove table icon from header, delete old component files
+- [x] **Phase 109: BeePane v2 — Unified Occurrence View** — Redesign pane UX: unify selection+filter into one query, redesign collapsed button (filter-panel style), always-paged occurrence list, split-screen table layout, remove table icon from header, delete old component files (completed 2026-05-20)
 
 ## Phase Details
 
@@ -629,11 +629,11 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 109-03-PLAN.md — bee-pane.ts redesign: floating .filter-btn collapsed button, X close, selection banner, list pagination props (listRows/listPage/listRowCount/listLoading/selectionCount)
+- [x] 109-03-PLAN.md — bee-pane.ts redesign: floating .filter-btn collapsed button, X close, selection banner, list pagination props (listRows/listPage/listRowCount/listLoading/selectionCount)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 109-04-PLAN.md — Delete bee-filter-panel.ts, bee-sidebar.ts, bee-filter-toolbar.ts, bee-sidebar.test.ts, bee-filter-toolbar.test.ts; update bee-atlas.test.ts + bee-pane.test.ts
+- [x] 109-04-PLAN.md — Delete bee-filter-panel.ts, bee-sidebar.ts, bee-filter-toolbar.ts, bee-sidebar.test.ts, bee-filter-toolbar.test.ts; update bee-atlas.test.ts + bee-pane.test.ts
 
 **UI hint**: yes
 
@@ -750,4 +750,4 @@ Plans:
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 1/2 | In Progress|  |
-| 109. BeePane v2 — Unified Occurrence View | v3.9 | 2/4 | In Progress|  |
+| 109. BeePane v2 — Unified Occurrence View | v3.9 | 4/4 | Complete   | 2026-05-20 |
