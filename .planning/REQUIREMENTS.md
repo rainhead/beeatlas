@@ -17,7 +17,7 @@
 ### Table in Pane
 
 - [x] **TABLE-01**: Table view in the pane's table state retains all existing functionality (DuckDB-backed pagination, CSV export, filter state integration)
-- [ ] **TABLE-02**: Full-screen `viewMode='table'` that replaces the map is removed; table is accessible only as a pane sub-state
+- [x] **TABLE-02**: Full-screen `viewMode='table'` that replaces the map is removed; table is accessible only as a pane sub-state
 
 ### URL State
 
@@ -57,7 +57,7 @@ Not in v3.9 scope. Tracked for future milestones.
 | PANE-05 | Phase 107 | Complete |
 | PANE-06 | Phase 107 | Complete |
 | TABLE-01 | Phase 107 | Complete |
-| TABLE-02 | Phase 109 | Pending |
+| TABLE-02 | Phase 109 | Complete |
 | URL-01 | Phase 105 | Pending |
 | URL-02 | Phase 105 | Pending |
 | MAP-01 | Phase 108 | Pending |

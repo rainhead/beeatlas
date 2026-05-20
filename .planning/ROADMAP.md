@@ -621,7 +621,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 109-01-PLAN.md — Add queryListPage to filter.ts; migrate DataSummary/TaxonOption/FilterChangedEvent from bee-sidebar.ts; update all import sites; write Wave 0 source-scan tests
+- [x] 109-01-PLAN.md — Add queryListPage to filter.ts; migrate DataSummary/TaxonOption/FilterChangedEvent from bee-sidebar.ts; update all import sites; write Wave 0 source-scan tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -750,4 +750,4 @@ Plans:
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 1/2 | In Progress|  |
-| 109. BeePane v2 — Unified Occurrence View | v3.9 | 0/4 | Planned | - |
+| 109. BeePane v2 — Unified Occurrence View | v3.9 | 1/4 | In Progress|  |
