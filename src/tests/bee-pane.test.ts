@@ -174,12 +174,14 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
     expect(body).toMatch(/this\._renderWhen\s*\(\)/);
   });
 
-  test('bee-pane.ts renders bee-occurrence-detail when occurrences non-null in list content', () => {
+  test('bee-pane.ts renders bee-occurrence-detail from listRows in list content', () => {
     const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
     expect(listContentBody).not.toBeNull();
     const body = listContentBody![0];
-    expect(body).toMatch(/<bee-occurrence-detail[\s\S]*?\.occurrences=\$\{this\.occurrences\}/);
-    const hasGuard = /occurrences\s*!==\s*null/.test(body) || /occurrences\s*\?/.test(body);
+    // Plan 03: occurrences prop replaced by listRows
+    expect(body).toMatch(/<bee-occurrence-detail[\s\S]*?\.occurrences=\$\{this\.listRows\}/);
+    // Guard: shows hint when listRows is empty
+    const hasGuard = /listRows\.length\s*===\s*0/.test(body) || /listRows\s*\?/.test(body);
     expect(hasGuard).toBe(true);
   });
 
