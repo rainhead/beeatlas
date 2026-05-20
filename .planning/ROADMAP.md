@@ -385,7 +385,7 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 - [x] **Phase 105: URL State Migration** — Extend url-state.ts to encode pane state; backward compat for ?view=table; no visible UI change
 - [x] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers (completed 2026-05-19)
 - [x] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states (completed 2026-05-19)
-- [ ] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize()
+- [x] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize() (completed 2026-05-20)
 - [x] **Phase 109: BeePane v2 — Unified Occurrence View** — Redesign pane UX: unify selection+filter into one query, redesign collapsed button (filter-panel style), always-paged occurrence list, split-screen table layout, remove table icon from header, delete old component files (completed 2026-05-20)
 
 ## Phase Details
@@ -594,7 +594,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 108-02-PLAN.md — Browser UAT for MAP-01: verify pane state transitions produce no map canvas resize artifacts on desktop + mobile — MAP-01
+- [x] 108-02-PLAN.md — Browser UAT for MAP-01: verify pane state transitions produce no map canvas resize artifacts on desktop + mobile — MAP-01
 
 **UI hint**: yes
 
@@ -757,5 +757,5 @@ Plans:
 | 105. URL State Migration | v3.9 | 0/1 | Not started | - |
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
-| 108. bee-atlas Cutover & Map Resize | v3.9 | 1/2 | In Progress|  |
+| 108. bee-atlas Cutover & Map Resize | v3.9 | 2/2 | Complete   | 2026-05-20 |
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |

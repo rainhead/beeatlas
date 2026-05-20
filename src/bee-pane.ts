@@ -191,6 +191,9 @@ export class BeePane extends LitElement {
       padding: 0.25rem;
       border-bottom: 1px solid var(--border-subtle);
     }
+    .table-header-spacer {
+      flex: 1;
+    }
     .list-placeholder {
       padding: 1rem;
       color: var(--text-muted);
@@ -209,6 +212,7 @@ export class BeePane extends LitElement {
       border-bottom: 1px solid var(--border-subtle);
     }
     .sidebar-title {
+      flex: 1;
       font-size: 0.85rem;
       font-weight: 600;
       color: var(--text-secondary);
@@ -1064,9 +1068,9 @@ export class BeePane extends LitElement {
 
     return html`
       <div class="sidebar-header">
-        <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
         <span class="sidebar-title">Filters</span>
         <button class="expand-btn" @click=${this._onExpand} aria-label="Expand to table view">⊞</button>
+        <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
       </div>
       <div class="list-scroll">
         <div class="filter-panel">
@@ -1104,6 +1108,8 @@ export class BeePane extends LitElement {
     return html`
       <div class="table-header">
         <button class="shrink-btn" @click=${this._onShrink} aria-label="Return to list view">⊟</button>
+        <span class="table-header-spacer"></span>
+        <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
       </div>
       <bee-table
         .rows=${this.rows}
