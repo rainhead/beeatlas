@@ -386,7 +386,7 @@ See `.planning/milestones/v3.8-ROADMAP.md` for full phase details.
 - [x] **Phase 106: bee-atlas State Machine** — Replace _viewMode/_sidebarOpen/_tableFilterOpen with _paneState; update all event handlers (completed 2026-05-19)
 - [x] **Phase 107: Create bee-pane Component** — Merge bee-filter-panel + bee-sidebar into new unified pane component with all three CSS states (completed 2026-05-19)
 - [ ] **Phase 108: bee-atlas Cutover & Map Resize** — Replace old child components with bee-pane in render(); wire all events; verify map.resize()
-- [ ] **Phase 109: Cleanup & Full-Screen Table Removal** — Delete bee-filter-panel.ts and bee-sidebar.ts; remove viewMode='table' dead code; update tests
+- [ ] **Phase 109: BeePane v2 — Unified Occurrence View** — Redesign pane UX: unify selection+filter into one query, redesign collapsed button (filter-panel style), always-paged occurrence list, split-screen table layout, remove table icon from header, delete old component files
 
 ## Phase Details
 
@@ -590,7 +590,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 108-01-PLAN.md — bee-atlas render cutover to bee-pane (replace bee-filter-panel + bee-sidebar + bee-table siblings, add pane event handlers, remove dead code, update tests) — MAP-01
+- [x] 108-01-PLAN.md — bee-atlas render cutover to bee-pane (replace bee-filter-panel + bee-sidebar + bee-table siblings, add pane event handlers, remove dead code, update tests) — MAP-01
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -598,18 +598,44 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 109: Cleanup & Full-Screen Table Removal
+### Phase 109: BeePane v2 — Unified Occurrence View
 
-**Goal**: The old component files are deleted and the full-screen table-replaces-map mode is fully removed from the codebase
+**Goal**: The bee-pane UX is redesigned with a unified occurrence model: selection and filter feed the same query so the pane always shows one consistent list; the collapsed button matches the old filter-panel design; the table view is a split-screen (map top + table bottom) instead of a full-width overlay; old component files are deleted.
 **Depends on**: Phase 108
 **Requirements**: TABLE-02
 **Success Criteria** (what must be TRUE):
 
-  1. `bee-filter-panel.ts` and `bee-sidebar.ts` no longer exist in the repository
-  2. There is no code path that renders a full-screen table replacing the map — the map is always present in the DOM
-  3. `viewMode='table'` references are absent from bee-atlas.ts; `npm test` passes; `tsc --noEmit` exits 0
+  1. Clicking a map point opens the pane showing only the occurrences at that cluster, with a "N selected · Clear" banner; clicking Clear restores the unfiltered (or filter-only) list
+  2. With both filter and selection active, the pane shows their intersection (not the union or two separate views)
+  3. With no filter and no selection, the pane shows the first page of all occurrences, paged identically to the table view
+  4. The collapsed toggle is a floating button matching the old bee-filter-panel button: magnifying-glass SVG + specimen count text, highlighted (accent style) when filter OR selection is active
+  5. The panel's close button is an X in the top-right corner, absolutely positioned so it remains visible while the list scrolls
+  6. Table view renders as a split-screen: map in the top ~40% of the content area (interactive — clicking rows pans/zooms the map), table in the bottom ~60%
+  7. The table icon is removed from bee-header; table is accessible only via the pane's expand button
+  8. `bee-filter-panel.ts` and `bee-sidebar.ts` no longer exist; all `import('./bee-sidebar.ts')` calls are removed from bee-atlas.ts
+  9. `npm test` passes; `tsc --noEmit` exits 0
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 109-01-PLAN.md — Add queryListPage to filter.ts; migrate DataSummary/TaxonOption/FilterChangedEvent from bee-sidebar.ts; update all import sites; write Wave 0 source-scan tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 109-02-PLAN.md — bee-atlas.ts refactor: remove _selectedOccurrences, add _runListQuery + list state fields, CSS split-screen table, remove all bee-sidebar.ts imports; bee-header.ts: remove table icon + viewMode prop
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 109-03-PLAN.md — bee-pane.ts redesign: floating .filter-btn collapsed button, X close, selection banner, list pagination props (listRows/listPage/listRowCount/listLoading/selectionCount)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 109-04-PLAN.md — Delete bee-filter-panel.ts, bee-sidebar.ts, bee-filter-toolbar.ts, bee-sidebar.test.ts, bee-filter-toolbar.test.ts; update bee-atlas.test.ts + bee-pane.test.ts
+
+**UI hint**: yes
 
 ## Progress
 
@@ -723,5 +749,5 @@ Plans:
 | 105. URL State Migration | v3.9 | 0/1 | Not started | - |
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
-| 108. bee-atlas Cutover & Map Resize | v3.9 | 0/TBD | Not started | - |
-| 109. Cleanup & Full-Screen Table Removal | v3.9 | 0/TBD | Not started | - |
+| 108. bee-atlas Cutover & Map Resize | v3.9 | 1/2 | In Progress|  |
+| 109. BeePane v2 — Unified Occurrence View | v3.9 | 0/4 | Planned | - |
