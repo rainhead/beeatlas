@@ -808,7 +808,7 @@ bee-pane {
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
-    this._paneState = 'collapsed';
+    if (this._paneState !== 'list') this._paneState = 'collapsed';
 
     this._tablePage = 1;  // per D-09
     this._runFilterQuery().then(() => {
