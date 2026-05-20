@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: Sidebar & Table Unification
 status: executing
-stopped_at: Phase 109 planned — Phase 108 UAT still pending
+stopped_at: Phase 109 plan 01 complete — executing plan 02
 last_updated: "2026-05-20T00:00:00.000Z"
 last_activity: 2026-05-20
 progress:
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unificati
 
 ## Current Position
 
-Phase: 109 (beepane-v2-unified-occurrence-view) — PLANNED
-Plan: 0 of 4 (Phase 108 plan 2/2 UAT still outstanding)
-Next: Phase 108 plan 02 UAT → Phase 109 plan 01
+Phase: 109 (beepane-v2-unified-occurrence-view) — EXECUTING
+Plan: 1 of 4 complete
+Next: Phase 109 plan 02
 Last activity: 2026-05-20
 
 Progress: [████░░░░░░] 40%
@@ -37,6 +37,8 @@ Progress: [████░░░░░░] 40%
 ### Decisions
 
 (decisions log cleared at v3.8 close — full history in .planning/PROJECT.md Key Decisions table)
+
+- 109-01: DataSummary/TaxonOption/FilterChangedEvent moved to filter.ts; FilteredSummary stays in bee-sidebar.ts until Wave 4 deletion; queryListPage uses WHERE intersection (not priority sort)
 
 ### Pending Todos
 
@@ -92,4 +94,4 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 Last session: 2026-05-20T00:00:00.000Z
 Stopped at: Phase 109 planned — Phase 108 UAT (108-02-PLAN.md) still outstanding
-Resume file: .planning/phases/109-beepane-v2-unified-occurrence-view/109-01-PLAN.md
+Resume file: .planning/phases/109-beepane-v2-unified-occurrence-view/109-02-PLAN.md
