@@ -92,6 +92,8 @@ export class BeeAtlas extends LitElement {
 }
 bee-map {
   flex-grow: 1;
+  position: relative;
+  z-index: 0;
 }
 bee-pane {
   top: calc(0.5em + 2.5rem);
@@ -825,6 +827,10 @@ bee-pane {
   }
 
   private _onRowPan(e: CustomEvent<{ lat: number; lon: number }>) {
+    if (this._paneState === 'table') {
+      this._paneState = 'list';
+      this._replaceUrlState();
+    }
     this._viewState = { lat: e.detail.lat, lon: e.detail.lon, zoom: this._currentView.zoom };
   }
 

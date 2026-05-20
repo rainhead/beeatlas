@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v3.9
 milestone_name: Sidebar & Table Unification
-status: Phase 109 complete
-stopped_at: Phase 109 planned — Phase 108 UAT (108-02-PLAN.md) still outstanding
-last_updated: "2026-05-20T20:47:32.327Z"
-last_activity: 2026-05-20 -- Phase 109 marked complete
+status: Phase 108 complete
+stopped_at: ""
+last_updated: "2026-05-20T23:00:00.000Z"
+last_activity: 2026-05-20 -- Phase 108 UAT approved; 5 UI fixes applied
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 12
-  completed_plans: 11
-  percent: 40
+  completed_plans: 12
+  percent: 50
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-19 — v3.9 Sidebar & Table Unificati
 
 ## Current Position
 
-Phase: 109 — COMPLETE
-Plan: 4 of 4 complete
-Next: Phase 109 UAT / verification
-Last activity: 2026-05-20 -- Phase 109 marked complete
+Phase: 108 — COMPLETE (browser UAT approved 2026-05-20)
+Plan: 2 of 2 complete
+Next: Phase verification / milestone completion
+Last activity: 2026-05-20 -- Phase 108 UAT approved; 5 UI fixes applied (attribution z-index, sidebar button order, table close button, row-pan auto-shrink, map header icon restored)
 
-Progress: [█████████░] 91%
+Progress: [█████░░░░░] 50%
 
 ## Accumulated Context
 

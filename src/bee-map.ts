@@ -153,12 +153,6 @@ export class BeeMap extends LitElement {
   height: 0;
   pointer-events: none;
 }
-@media (max-aspect-ratio: 1) {
-  .mapboxgl-ctrl-bottom-left,
-  .mapboxgl-ctrl-bottom-right {
-    bottom: 60%;
-  }
-}
   `;
 
   private _emit<T>(name: string, detail?: T) {
