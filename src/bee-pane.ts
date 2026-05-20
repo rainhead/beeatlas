@@ -412,11 +412,8 @@ export class BeePane extends LitElement {
       min-height: 0;
       overflow-y: auto;
     }
-    /* X close button — absolutely positioned top-right of open pane */
+    /* X close button — flex item inside sidebar-header */
     .pane-close {
-      position: absolute;
-      top: 0.4rem;
-      right: 0.4rem;
       background: none;
       border: none;
       cursor: pointer;
@@ -425,7 +422,6 @@ export class BeePane extends LitElement {
       padding: 0.3rem 0.4rem;
       color: var(--text-secondary);
       border-radius: 4px;
-      z-index: 2;
     }
     .pane-close:hover {
       background: var(--surface-hover);
@@ -1068,6 +1064,7 @@ export class BeePane extends LitElement {
 
     return html`
       <div class="sidebar-header">
+        <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
         <span class="sidebar-title">Filters</span>
         <button class="expand-btn" @click=${this._onExpand} aria-label="Expand to table view">⊞</button>
       </div>
@@ -1145,10 +1142,7 @@ export class BeePane extends LitElement {
       return this._renderTableContent();
     }
     // list state
-    return html`
-      <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
-      ${this._renderListContent()}
-    `;
+    return this._renderListContent();
   }
 }
 
