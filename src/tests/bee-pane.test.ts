@@ -23,15 +23,13 @@ vi.mock('../features.ts', () => ({
 const src = readFileSync(resolve(__dirname, '../bee-pane.ts'), 'utf-8');
 
 describe('PANE-01: persistent toggle button', () => {
-  test('bee-pane.ts declares a toggle-btn CSS class', () => {
-    expect(src).toMatch(/\.toggle-btn\b/);
+  test('bee-pane.ts declares a filter-btn CSS class (collapsed floating button)', () => {
+    expect(src).toMatch(/\.filter-btn\b/);
   });
 
-  test('bee-pane.ts renders toggle button outside paneState conditionals', () => {
-    // toggle-btn must appear in render() output before the first list-state conditional
-    expect(src).toMatch(/class="toggle-btn"/);
-    // Assert toggle-btn appears in render() before paneState === 'list' conditional
-    expect(src).toMatch(/render\(\)[\s\S]*?class="toggle-btn"[\s\S]*?paneState === 'list'/);
+  test('bee-pane.ts renders filter-btn in collapsed state', () => {
+    // filter-btn appears in the collapsed branch of render()
+    expect(src).toMatch(/class=\$\{['"]filter-btn/);
   });
 });
 
@@ -217,5 +215,32 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
 
   test('bee-pane.ts list content stub is removed', () => {
     expect(src).not.toMatch(/List content \(Plan 02 fills in/);
+  });
+});
+
+describe('PANE-V2: bee-pane v2 collapsed button and selection banner', () => {
+  test('collapsed button is active when filterActive || selectionCount > 0', () => {
+    // The active class expression must include both conditions
+    expect(src).toMatch(/filterActive.*selectionCount|selectionCount.*filterActive/);
+  });
+  test('bee-pane.ts has .pane-close CSS class', () => {
+    expect(src).toMatch(/\.pane-close\b/);
+  });
+  test('bee-pane.ts has .selection-banner CSS class', () => {
+    expect(src).toMatch(/\.selection-banner\b/);
+  });
+  test('bee-pane.ts has listRows, listPage, listRowCount, listLoading properties', () => {
+    expect(src).toMatch(/listRows/);
+    expect(src).toMatch(/listPage\b/);
+    expect(src).toMatch(/listRowCount/);
+    expect(src).toMatch(/listLoading/);
+  });
+  test('bee-pane.ts has selectionCount property', () => {
+    expect(src).toMatch(/selectionCount/);
+  });
+  test('bee-pane.ts does NOT have occurrences property', () => {
+    // occurrences property was removed in Phase 109
+    // Match @property(...) followed by optional whitespace then the property name 'occurrences'
+    expect(src).not.toMatch(/@property[^)]*\)\s+occurrences\b/);
   });
 });
