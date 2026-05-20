@@ -331,6 +331,92 @@ export async function queryVisibleIds(f: FilterState): Promise<{ ids: Set<string
   return { ids, rowCount };
 }
 
+export interface DataSummary {
+  totalSpecimens: number;
+  speciesCount: number;
+  genusCount: number;
+  familyCount: number;
+  earliestYear: number;
+  latestYear: number;
+}
+
+export interface TaxonOption {
+  label: string;      // display string, e.g. "Bombus (genus)" or "Apis mellifera"
+  name: string;       // the actual field value to filter on
+  rank: 'family' | 'genus' | 'species';
+}
+
+// Custom event payload
+export interface FilterChangedEvent {
+  taxonName: string | null;
+  taxonRank: 'family' | 'genus' | 'species' | null;
+  yearFrom: number | null;
+  yearTo: number | null;
+  months: Set<number>;
+  selectedCounties: Set<string>;
+  selectedEcoregions: Set<string>;
+  selectedCollectors: CollectorEntry[];
+  elevMin: number | null;
+  elevMax: number | null;
+  selectedPlace: string | null;
+}
+
+export async function queryListPage(
+  f: FilterState,
+  page: number,
+  sortBy: SpecimenSortBy = 'date',
+  selectedEcdysisIds: number[] = [],
+  selectedInatIds: number[] = [],
+  selectionBounds: { west: number; south: number; east: number; north: number } | null = null
+): Promise<{ rows: OccurrenceRow[]; total: number }> {
+  const { occurrenceWhere } = buildFilterSQL(f);
+
+  // Selection constraint: IDs (from cluster click) OR bounds (from rectangle draw)
+  const selParts: string[] = [];
+  if (selectedEcdysisIds.length > 0)
+    selParts.push(`ecdysis_id IN (${selectedEcdysisIds.join(',')})`);
+  if (selectedInatIds.length > 0)
+    selParts.push(`observation_id IN (${selectedInatIds.join(',')})`);
+
+  // Bounds selection is always a WHERE addition, not an ORDER priority
+  let boundsClause = '';
+  if (selectionBounds !== null) {
+    const { west, south, east, north } = selectionBounds;
+    boundsClause =
+      ` AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east}`;
+  }
+
+  // When IDs are present, restrict to only those rows (intersection with filter)
+  const selFilter = selParts.length > 0 ? ` AND (${selParts.join(' OR ')})` : '';
+
+  const fullWhere = `(${occurrenceWhere})${selFilter}${boundsClause}`;
+  const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
+  const offset = (page - 1) * PAGE_SIZE;
+  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+
+  await tablesReady;
+  const { sqlite3, db } = await getDB();
+
+  let total = 0;
+  await sqlite3.exec(db,
+    `SELECT COUNT(*) as n FROM occurrences WHERE ${fullWhere}`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      total = Number(rowValues[columnNames.indexOf('n')] ?? 0);
+    }
+  );
+
+  const rows: Record<string, unknown>[] = [];
+  await sqlite3.exec(db,
+    `SELECT ${selectCols} FROM occurrences WHERE ${fullWhere} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      const obj: Record<string, unknown> = {};
+      columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
+      rows.push(obj);
+    }
+  );
+  return { rows: rows as unknown as OccurrenceRow[], total };
+}
+
 export async function queryOccurrencesByBounds(
   f: FilterState,
   bounds: { west: number; south: number; east: number; north: number }
