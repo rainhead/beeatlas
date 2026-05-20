@@ -1,7 +1,7 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, OCCURRENCE_COLUMNS, type SpecimenSortBy, queryOccurrencesByBounds } from './filter.ts';
-import { occIdFromRow, parseOccId } from './occurrence.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage } from './filter.ts';
+import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
@@ -39,7 +39,11 @@ export class BeeAtlas extends LitElement {
   @state() private _tableRows: OccurrenceRow[] = [];
   @state() private _tableRowCount = 0;
   @state() private _tableLoading = false;
-  @state() private _selectedOccurrences: OccurrenceRow[] | null = null;
+  @state() private _listRows: OccurrenceRow[] = [];
+  @state() private _listRowCount = 0;
+  @state() private _listPage = 1;
+  @state() private _listLoading = false;
+  @state() private _selectionCount: number | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
   @state() private _summary: DataSummary | null = null;
@@ -65,6 +69,7 @@ export class BeeAtlas extends LitElement {
   // can commit its result.
   private _filterQueryGeneration = 0;
   private _tableQueryGeneration = 0;
+  private _listQueryGeneration = 0;
   private _currentView: { lon: number; lat: number; zoom: number } = {
     lon: DEFAULT_LON,
     lat: DEFAULT_LAT,
@@ -97,7 +102,11 @@ bee-pane {
   width: 25rem;
 }
 .content.pane-table bee-pane {
-  inset: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: auto;
+  height: 60%;
 }
 .loading-overlay, .error-overlay {
   position: absolute;
@@ -125,12 +134,9 @@ bee-pane {
 
   render() {
     return html`
-      <bee-header
-        .viewMode=${this._paneState === 'table' ? 'table' : 'map'}
-        @view-changed=${this._onViewChanged}
-      ></bee-header>
+      <bee-header></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
-      ${this._loading ? html`<div class="loading-overlay">Loading\u2026</div>` : ''}
+      ${this._loading ? html`<div class="loading-overlay">Loading…</div>` : ''}
       ${this._error ? '' : html`
         <div class=${[
           'content',
@@ -164,7 +170,11 @@ bee-pane {
             .collectorOptions=${this._collectorOptions}
             .summary=${this._summary}
             .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
-            .occurrences=${this._selectedOccurrences}
+            .listRows=${this._listRows}
+            .listRowCount=${this._listRowCount}
+            .listPage=${this._listPage}
+            .listLoading=${this._listLoading}
+            .selectionCount=${this._selectionCount}
             .rows=${this._tableRows}
             .rowCount=${this._tableRowCount}
             .page=${this._tablePage}
@@ -181,6 +191,8 @@ bee-pane {
             @download-csv=${this._onDownloadCsv}
             @sort-changed=${this._onSortChanged}
             @row-pan=${this._onRowPan}
+            @list-page-changed=${this._onListPageChanged}
+            @pane-clear-selection=${this._onClearSelection}
           ></bee-pane>
         </div>
       `}
@@ -236,18 +248,16 @@ bee-pane {
     // Restore selected occurrences from URL
     const initSel = initialParams.selection;
     if (initSel?.type === 'ids' && initSel.ids.length > 0) {
-      import('./bee-sidebar.ts');
       this._selectedOccIds = initSel.ids;
       this._paneState = 'list';
     } else if (initSel?.type === 'cluster') {
-      import('./bee-sidebar.ts');
       this._selectedCluster = { lon: initSel.lon, lat: initSel.lat, radiusM: initSel.radiusM };
       this._paneState = 'list';
     } else if (initSel?.type === 'bounds') {
-      import('./bee-sidebar.ts');
       this._selectionBounds = { west: initSel.west, south: initSel.south, east: initSel.east, north: initSel.north };
-      this._restoreBoundsSelection(this._selectionBounds);
+      this._paneState = 'list';
     }
+    // _runListQuery will be triggered by _onDataLoaded once SQLite is ready
 
     // Write initial URL state (covers fresh loads — makes URL bar show params immediately)
     const initParams = buildParams(
@@ -460,6 +470,43 @@ bee-pane {
     }
   }
 
+  private async _runListQuery(): Promise<void> {
+    this._listLoading = true;
+    const generation = ++this._listQueryGeneration;
+    const selEcdysisIds: number[] = [];
+    const selInatIds: number[] = [];
+    for (const id of this._selectedOccIds ?? []) {
+      const parsed = parseOccId(id);
+      if (parsed === null) continue;
+      if (parsed.source === 'ecdysis') selEcdysisIds.push(parsed.numericId);
+      else selInatIds.push(parsed.numericId);
+    }
+    try {
+      const { rows, total } = await queryListPage(
+        this._filterState, this._listPage, this._tableSortBy,
+        selEcdysisIds, selInatIds,
+        this._selectionBounds ?? null
+      );
+      if (generation !== this._listQueryGeneration) return;
+      this._listRows = rows;
+      this._listRowCount = total;
+      if (selEcdysisIds.length > 0 || selInatIds.length > 0 || this._selectionBounds !== null) {
+        this._selectionCount = total;
+      } else {
+        this._selectionCount = null;
+      }
+    } catch (err) {
+      console.error('List query failed:', err);
+      if (generation !== this._listQueryGeneration) return;
+      this._listRows = [];
+      this._listRowCount = 0;
+    } finally {
+      if (generation === this._listQueryGeneration) {
+        this._listLoading = false;
+      }
+    }
+  }
+
   // --- URL state ---
 
   private _buildCurrentParams(): URLSearchParams {
@@ -532,22 +579,15 @@ bee-pane {
       this._selectedOccIds = parsedSel.ids;
       this._selectedCluster = null;
       this._selectionBounds = null;
-      this._selectedOccurrences = null;
-      this._restoreSelectionOccurrences(parsedSel.ids);
     } else if (parsedSel?.type === 'cluster') {
       this._selectedCluster = { lon: parsedSel.lon, lat: parsedSel.lat, radiusM: parsedSel.radiusM };
       this._selectedOccIds = null;
       this._selectionBounds = null;
-      this._selectedOccurrences = null;
-      this._restoreClusterSelection(this._selectedCluster);
     } else if (parsedSel?.type === 'bounds') {
       this._selectionBounds = { west: parsedSel.west, south: parsedSel.south, east: parsedSel.east, north: parsedSel.north };
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectedOccurrences = null;
-      this._restoreBoundsSelection(this._selectionBounds);
     } else {
-      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
@@ -562,6 +602,10 @@ bee-pane {
     this._paneState = finalPaneState;
     if (finalPaneState === 'table') {
       this._runTableQuery();
+    }
+    if (finalPaneState === 'list') {
+      this._listPage = 1;
+      this._runListQuery();
     }
 
     // Run filter query for restored state
@@ -587,8 +631,6 @@ bee-pane {
   }
 
   private _onOccurrenceClick(e: CustomEvent<{ occurrences: OccurrenceRow[]; occIds: string[]; centroid?: { lon: number; lat: number }; radiusM?: number }>) {
-    import('./bee-sidebar.ts');
-    this._selectedOccurrences = e.detail.occurrences.sort((a, b) => b.date.localeCompare(a.date));
     this._selectedOccIds = e.detail.occIds;
     this._selectionBounds = null;
     if (e.detail.centroid && e.detail.radiusM != null) {
@@ -597,6 +639,8 @@ bee-pane {
       this._selectedCluster = null;
     }
     this._paneState = 'list';
+    this._listPage = 1;
+    this._runListQuery();
     this._replaceUrlState();
   }
 
@@ -649,7 +693,6 @@ bee-pane {
     if (hasSelection) {
       this._openSidebarForFilter(newFilter);
     } else {
-      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
@@ -674,7 +717,6 @@ bee-pane {
     if (!wasSelected) {
       this._openSidebarForFilter(this._filterState);
     } else {
-      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
@@ -686,48 +728,25 @@ bee-pane {
     this._runTableQuery();
   }
 
-  private async _openSidebarForFilter(filterState: FilterState): Promise<void> {
-    import('./bee-sidebar.ts');
-    this._selectedOccurrences = null;
+  private _openSidebarForFilter(_filterState: FilterState): void {
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
     this._paneState = 'list';
-    const rows = await queryAllFiltered(filterState, this._tableSortBy);
-    if (this._filterState !== filterState) return;
-    this._selectedOccurrences = rows as unknown as OccurrenceRow[];
+    this._listPage = 1;
+    this._runListQuery();
   }
 
   private async _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
-    const generation = ++this._selectionDrawnGeneration;
+    ++this._selectionDrawnGeneration;
     this._selectionBounds = e.detail;
     // Synchronously clear prior selection state before any await
-    this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._paneState = 'collapsed';
-    // Snapshot filter state before first await to prevent stale-filter race (T-90-04)
-    const f = this._filterState;
-    try {
-      // Read _selectionBounds (set synchronously above; Phase 91 will also read it for sel= URL encoding)
-      const rows = await queryOccurrencesByBounds(f, this._selectionBounds!);
-      if (generation !== this._selectionDrawnGeneration) return;
-      if (rows.length === 0) {
-        this._selectionBounds = null;
-        return;
-      }
-      import('./bee-sidebar.ts');
-      this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
-      // occIdFromRow returns null only when both ecdysis_id and observation_id are null (pathological).
-      // Bounds-query rows are guaranteed to have coordinates (lat/lon not null), which requires a
-      // valid source ID, so non-null assertion is justified here.
-      this._selectedOccIds = rows.map(r => occIdFromRow(r)!);
-      this._selectedCluster = null;
-      this._paneState = 'list';
-      this._replaceUrlState();
-    } catch (err) {
-      console.error('Bounds query failed:', err);
-    }
+    this._paneState = 'list';
+    this._listPage = 1;
+    this._runListQuery();
+    this._replaceUrlState();
   }
 
   private _onMapClickEmpty() {
@@ -738,7 +757,6 @@ bee-pane {
         selectedCounties: new Set(),
         selectedEcoregions: new Set(),
       };
-      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
@@ -750,7 +768,6 @@ bee-pane {
       this._runTableQuery();
     } else {
       // Clear selection
-      this._selectedOccurrences = null;
       this._selectedOccIds = null;
       this._selectedCluster = null;
       this._selectionBounds = null;
@@ -787,7 +804,6 @@ bee-pane {
     }
 
     // Clear selections when filter changes
-    this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
@@ -798,22 +814,6 @@ bee-pane {
       this._replaceUrlState();
     });
     this._runTableQuery();
-  }
-
-  private _onViewChanged(e: CustomEvent<'map' | 'table'>) {
-    if (e.detail === 'table') {
-      this._paneState = 'table';
-      import('./bee-table.ts');
-      this._tableLoading = true;
-      this._runTableQuery();
-      if (this._loading) {
-        // bee-map data-loaded hasn't fired yet; load summary from SQLite
-        this._loadSummaryFromSQLite();
-      }
-    } else {
-      this._paneState = 'collapsed';   // D-08: returning from table → collapsed (sidebar was closed on enter)
-    }
-    this._replaceUrlState();
   }
 
   private _onRowPan(e: CustomEvent<{ lat: number; lon: number }>) {
@@ -829,6 +829,21 @@ bee-pane {
     this._tableSortBy = e.detail.sortBy;
     this._tablePage = 1;
     this._runTableQuery();
+  }
+
+  private _onListPageChanged(e: CustomEvent<{ page: number }>) {
+    this._listPage = e.detail.page;
+    this._runListQuery();
+  }
+
+  private _onClearSelection() {
+    this._selectedOccIds = null;
+    this._selectedCluster = null;
+    this._selectionBounds = null;
+    this._selectionCount = null;
+    this._listPage = 1;
+    this._runListQuery();
+    this._replaceUrlState();
   }
 
   private async _onDownloadCsv() {
@@ -867,11 +882,12 @@ bee-pane {
 
   private _onPaneExpandList() {
     this._paneState = 'list';
+    this._listPage = 1;
+    this._runListQuery();
     this._replaceUrlState();
   }
 
   private _onPaneCollapse() {
-    this._selectedOccurrences = null;
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._selectionBounds = null;
@@ -913,116 +929,9 @@ bee-pane {
       this._runTableQuery();
     }
 
-    // Restore ID-based selection
-    if (this._selectedOccIds && this._selectedOccIds.length > 0 && this._selectedOccurrences === null) {
-      this._restoreSelectionOccurrences(this._selectedOccIds);
-    }
-    // Restore cluster-based selection
-    if (this._selectedCluster && this._selectedOccurrences === null) {
-      this._restoreClusterSelection(this._selectedCluster);
-    }
-  }
-
-  private async _restoreSelectionOccurrences(occIds: string[]) {
-    try {
-      const { sqlite3, db } = await getDB();
-      const ecdysisIds: string[] = [];
-      const inatIds: string[] = [];
-      for (const id of occIds) {
-        const parsed = parseOccId(id);
-        if (parsed === null) continue;
-        if (parsed.source === 'ecdysis') ecdysisIds.push(String(parsed.numericId));
-        else inatIds.push(String(parsed.numericId));
-      }
-
-      // Safety: ecdysisIds/inatIds have already been filtered to /^\d+$/.
-      // If this assertion fails, the regex guard above has been changed — do NOT remove it.
-      if (ecdysisIds.some(id => !/^\d+$/.test(id)) || inatIds.some(id => !/^\d+$/.test(id))) {
-        console.error('ID validation failed; skipping selection restore');
-        return;
-      }
-
-      const conditions: string[] = [];
-      if (ecdysisIds.length > 0) {
-        conditions.push(`CAST(ecdysis_id AS TEXT) IN (${ecdysisIds.map(id => String(parseInt(id, 10))).join(',')})`);
-      }
-      if (inatIds.length > 0) {
-        conditions.push(`CAST(observation_id AS TEXT) IN (${inatIds.map(id => String(parseInt(id, 10))).join(',')})`);
-      }
-      if (conditions.length === 0) return;
-
-      const colList = OCCURRENCE_COLUMNS.join(', ');
-      const rows: OccurrenceRow[] = [];
-      await sqlite3.exec(db, `
-        SELECT ${colList}
-        FROM occurrences
-        WHERE ${conditions.join(' OR ')}
-        ORDER BY date DESC, recordedBy ASC
-      `, (rowValues: unknown[], columnNames: string[]) => {
-        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
-      });
-      this._selectedOccurrences = rows;
-    } catch (err) {
-      console.error('Failed to restore selection from URL:', err);
-    }
-  }
-
-  private async _restoreClusterSelection({ lon, lat, radiusM }: { lon: number; lat: number; radiusM: number }) {
-    try {
-      await tablesReady;
-      const { sqlite3, db } = await getDB();
-      const degPerMetre = 1 / 111320;
-      const dLat = radiusM * degPerMetre;
-      const dLon = Math.min(radiusM * degPerMetre / Math.cos(lat * Math.PI / 180), 180);
-      const colList = OCCURRENCE_COLUMNS.join(', ');
-      const rows: OccurrenceRow[] = [];
-      await sqlite3.exec(db, `
-        SELECT ${colList}
-        FROM occurrences
-        WHERE lat BETWEEN ${lat - dLat} AND ${lat + dLat}
-          AND lon BETWEEN ${lon - dLon} AND ${lon + dLon}
-      `, (rowValues: unknown[], columnNames: string[]) => {
-        rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
-      });
-
-      // Post-filter with haversine for precision
-      const filtered = rows.filter(obj => {
-        const rLat = Number(obj.lat);
-        const rLon = Number(obj.lon);
-        const R = 6371000;
-        const dLatR = (rLat - lat) * Math.PI / 180;
-        const dLonR = (rLon - lon) * Math.PI / 180;
-        const a = Math.sin(dLatR / 2) ** 2 +
-          Math.cos(lat * Math.PI / 180) * Math.cos(rLat * Math.PI / 180) * Math.sin(dLonR / 2) ** 2;
-        const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        return dist <= radiusM;
-      });
-
-      // Build IDs list for selectedOccIds.
-      // occIdFromRow returns null only when both ecdysis_id and observation_id are null (pathological).
-      // Cluster rows come from SQL with coordinate/ID filters, so non-null assertion is justified.
-      this._selectedOccIds = filtered.map(obj => occIdFromRow(obj)!);
-      this._selectedOccurrences = filtered.sort((a, b) => b.date.localeCompare(a.date));
-    } catch (err) {
-      console.error('Failed to restore cluster selection from URL:', err);
-    }
-  }
-
-  private async _restoreBoundsSelection(bounds: { west: number; south: number; east: number; north: number }) {
-    const generation = ++this._selectionDrawnGeneration;
-    try {
-      await tablesReady;
-      const rows = await queryOccurrencesByBounds(this._filterState, bounds);
-      if (generation !== this._selectionDrawnGeneration) return;
-      if (rows.length === 0) return;
-      import('./bee-sidebar.ts');
-      this._paneState = 'list';
-      this._selectedOccurrences = rows.sort((a, b) => b.date.localeCompare(a.date));
-      // occIdFromRow returns null only when both ecdysis_id and observation_id are null (pathological).
-      // Bounds-restore rows come from SQL with coordinate filters, so non-null assertion is justified.
-      this._selectedOccIds = rows.map(r => occIdFromRow(r)!);
-    } catch (err) {
-      console.error('Failed to restore bounds selection from URL:', err);
+    // If list view is active, run list query now that data is loaded
+    if (this._paneState === 'list') {
+      this._runListQuery();
     }
   }
 
