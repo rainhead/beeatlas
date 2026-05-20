@@ -61,8 +61,12 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) summary: DataSummary | null = null;
   @property({ attribute: false }) specimenCount: number | null = null;
 
-  // Occurrence detail (from bee-sidebar)
-  @property({ attribute: false }) occurrences: OccurrenceRow[] | null = null;
+  // List-state pagination props (replace .occurrences)
+  @property({ attribute: false }) listRows: OccurrenceRow[] = [];
+  @property({ attribute: false }) listRowCount = 0;
+  @property({ attribute: false }) listPage = 1;
+  @property({ attribute: false }) listLoading = false;
+  @property({ attribute: false }) selectionCount: number | null = null;
 
   // Table-specific (from bee-atlas render)
   @property({ attribute: false }) rows: OccurrenceRow[] = [];
@@ -382,6 +386,89 @@ export class BeePane extends LitElement {
       font-size: 0.875rem;
       margin: 0;
     }
+    /* Collapsed floating button — matches old bee-filter-panel design */
+    .filter-btn {
+      background: white;
+      border: 1px solid rgba(0,0,0,0.3);
+      border-radius: 4px;
+      padding: 0.4rem 0.6rem;
+      cursor: pointer;
+      font-size: 0.85rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      white-space: nowrap;
+    }
+    .filter-btn.active {
+      background: var(--accent, #2c7a2c);
+      color: white;
+      border-color: var(--accent, #2c7a2c);
+    }
+    /* X close button — absolutely positioned top-right of open pane */
+    .pane-close {
+      position: absolute;
+      top: 0.4rem;
+      right: 0.4rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 0.3rem 0.4rem;
+      color: var(--text-secondary);
+      border-radius: 4px;
+      z-index: 2;
+    }
+    .pane-close:hover {
+      background: var(--surface-hover);
+      color: var(--text-body);
+    }
+    /* Selection banner */
+    .selection-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0.75rem;
+      background: var(--surface-muted);
+      border-bottom: 1px solid var(--border-subtle);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+    .selection-banner .clear-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--accent, #2c7a2c);
+      font-size: 0.8rem;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .selection-banner .clear-btn:hover {
+      color: var(--text-body);
+    }
+    /* Paged list footer */
+    .list-pager {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.5rem;
+      border-top: 1px solid var(--border-subtle);
+      font-size: 0.8rem;
+    }
+    .list-pager button {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      padding: 0.2rem 0.5rem;
+      font-size: 0.8rem;
+    }
+    .list-pager button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
   `;
 
   connectedCallback() {
@@ -489,6 +576,26 @@ export class BeePane extends LitElement {
 
   private _onShrink() {
     this.dispatchEvent(new CustomEvent('pane-shrink-list', { bubbles: true, composed: true }));
+  }
+
+  private _onClearSelection() {
+    this.dispatchEvent(new CustomEvent('pane-clear-selection', { bubbles: true, composed: true }));
+  }
+
+  private _onListPagePrev() {
+    const newPage = Math.max(1, this.listPage - 1);
+    this.dispatchEvent(new CustomEvent('list-page-changed', {
+      bubbles: true, composed: true, detail: { page: newPage }
+    }));
+  }
+
+  private _onListPageNext() {
+    const PAGE_SIZE = 100;
+    const totalPages = Math.ceil(this.listRowCount / PAGE_SIZE);
+    const newPage = Math.min(totalPages, this.listPage + 1);
+    this.dispatchEvent(new CustomEvent('list-page-changed', {
+      bubbles: true, composed: true, detail: { page: newPage }
+    }));
   }
 
   private _handleKeydown(e: KeyboardEvent, section: 'taxon' | 'collector' | 'where', onBackspace: () => void) {
@@ -949,9 +1056,13 @@ export class BeePane extends LitElement {
   }
 
   private _renderListContent() {
+    const PAGE_SIZE = 100;
+    const totalPages = Math.ceil(this.listRowCount / PAGE_SIZE);
+
     return html`
       <div class="sidebar-header">
         <span class="sidebar-title">Filters</span>
+        <button class="expand-btn" @click=${this._onExpand} aria-label="Expand to table view">⊞</button>
       </div>
       <div class="filter-panel">
         ${this._renderWhat()}
@@ -960,10 +1071,26 @@ export class BeePane extends LitElement {
         ${this._renderWhen()}
       </div>
       <div class="divider"></div>
-      ${this.occurrences !== null
-        ? html`<bee-occurrence-detail .occurrences=${this.occurrences}></bee-occurrence-detail>`
-        : html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
+      ${this.selectionCount !== null ? html`
+        <div class="selection-banner">
+          <span>${this.selectionCount} selected</span>
+          <span>·</span>
+          <button class="clear-btn" @click=${this._onClearSelection}>Clear</button>
+        </div>
+      ` : nothing}
+      ${this.listLoading
+        ? html`<div class="list-placeholder">Loading…</div>`
+        : this.listRows.length === 0
+          ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
+          : html`<bee-occurrence-detail .occurrences=${this.listRows}></bee-occurrence-detail>`
       }
+      ${this.listRowCount > PAGE_SIZE ? html`
+        <div class="list-pager">
+          <button ?disabled=${this.listPage <= 1} @click=${this._onListPagePrev}>‹ Prev</button>
+          <span>${this.listPage} / ${totalPages}</span>
+          <button ?disabled=${this.listPage >= totalPages} @click=${this._onListPageNext}>Next ›</button>
+        </div>
+      ` : nothing}
     `;
   }
 
@@ -985,17 +1112,33 @@ export class BeePane extends LitElement {
   }
 
   render() {
+    if (this.paneState === 'collapsed') {
+      const active = this.filterActive || (this.selectionCount ?? 0) > 0;
+      const count = this.specimenCount ?? this.summary?.totalSpecimens ?? '…';
+      return html`
+        <button
+          class=${'filter-btn' + (active ? ' active' : '')}
+          @click=${this._onToggle}
+          aria-label="Toggle occurrence pane"
+          aria-expanded="false"
+          aria-haspopup="true"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
+               stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="6.5" cy="6.5" r="4"/>
+            <line x1="9.9" y1="9.9" x2="13.5" y2="13.5"/>
+          </svg>
+          ${count} specimens
+        </button>
+      `;
+    }
+    if (this.paneState === 'table') {
+      return this._renderTableContent();
+    }
+    // list state
     return html`
-      <div class="pane-chrome">
-        <button class="toggle-btn" @click=${this._onToggle}
-          aria-label=${this.paneState === 'collapsed' ? 'Open filter pane' : 'Close filter pane'}
-        >${this.paneState === 'collapsed' ? '⟩' : '⟨'}</button>
-        ${this.paneState === 'list' ? html`
-          <button class="expand-btn" @click=${this._onExpand} aria-label="Expand to table view">⊞</button>
-        ` : nothing}
-      </div>
-      ${this.paneState === 'list' ? this._renderListContent() : nothing}
-      ${this.paneState === 'table' ? this._renderTableContent() : nothing}
+      <button class="pane-close" @click=${this._onToggle} aria-label="Close pane">&#x2715;</button>
+      ${this._renderListContent()}
     `;
   }
 }

@@ -625,7 +625,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 109-02-PLAN.md — bee-atlas.ts refactor: remove _selectedOccurrences, add _runListQuery + list state fields, CSS split-screen table, remove all bee-sidebar.ts imports; bee-header.ts: remove table icon + viewMode prop
+- [x] 109-02-PLAN.md — bee-atlas.ts refactor: remove _selectedOccurrences, add _runListQuery + list state fields, CSS split-screen table, remove all bee-sidebar.ts imports; bee-header.ts: remove table icon + viewMode prop
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -750,4 +750,4 @@ Plans:
 | 106. bee-atlas State Machine | v3.9 | 1/1 | Complete   | 2026-05-19 |
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 1/2 | In Progress|  |
-| 109. BeePane v2 — Unified Occurrence View | v3.9 | 1/4 | In Progress|  |
+| 109. BeePane v2 — Unified Occurrence View | v3.9 | 2/4 | In Progress|  |
