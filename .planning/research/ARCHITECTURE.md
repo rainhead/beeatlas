@@ -1,378 +1,296 @@
-# Architecture Research: v3.9 Sidebar & Table Unification
+# Architecture Research
 
-**Domain:** Lit coordinator/presenter SPA — three-state unified pane
-**Researched:** 2026-05-19
-**Confidence:** HIGH (direct source inspection of all affected files)
-
----
-
-## Current Architecture
-
-### Component Tree (pre-v3.9)
-
-```
-<bee-atlas>                        coordinator; owns ALL reactive state
-  <bee-header>                     nav, emits view-changed('map'|'table')
-  <div.content>
-    <bee-map>                      pure presenter; 9 @property inputs, 11 events out
-    <bee-table>                    pure presenter; conditionally rendered in table mode
-    <bee-filter-panel>             hybrid: @property inputs from coordinator,
-                                   BUT owns _open/@state internally (884 lines)
-    <bee-sidebar>                  pure presenter; rendered when _sidebarOpen=true (125 lines)
-      <bee-occurrence-detail>      pure presenter
-```
-
-### State Ownership in bee-atlas (relevant fields)
-
-| Field | Type | Purpose |
-|-------|------|---------|
-| `_viewMode` | `'map' \| 'table'` | Controls table vs map layout; encoded in URL as `view=` |
-| `_sidebarOpen` | `boolean` | Shows/hides bee-sidebar overlay |
-| `_tableFilterOpen` | `boolean` | Drives `externalOpen` prop on bee-filter-panel in table mode |
-| `_filterState` | `FilterState` | All filter dimensions; flows to bee-filter-panel, bee-map, bee-table |
-| `_visibleIds` | `Set<string> \| null` | Async filter query result; flows to bee-map |
-| `_selectedOccurrences` | `OccurrenceRow[] \| null` | Flows to bee-sidebar |
-| `_selectedOccIds` | `string[] \| null` | Flows to bee-map (highlight) and bee-table (row emphasis) |
-| `_tablePage`, `_tableSortBy` | pagination | Drive bee-table |
-| `_tableRows`, `_tableRowCount`, `_tableLoading` | table data | Flow to bee-table |
-
-### Existing Pane State (implicit, three separate mechanisms)
-
-1. `_viewMode='table'` — replaces map with bee-table and shrinks bee-map to 18% height
-2. `_sidebarOpen=true` — overlays bee-sidebar as absolute-positioned element over the map
-3. `bee-filter-panel._open` — internal `@state` inside bee-filter-panel; toggle button always visible in map mode
-
-The `viewMode` is encoded in the URL (`view=table`). The sidebar open/closed state is not persisted independently — it is implied by the presence of a selection (`o=`, `sel=`).
+**Project:** BeeAtlas v4.0 — Checklist Records + DwC-A Taxonomy
+**Researched:** 2026-05-23
+**Confidence:** HIGH — all findings from direct codebase inspection
 
 ---
 
-## Target Architecture: Three-State Unified Pane
+## Data Layer Options (with recommendation)
 
-### New Pane State Machine
+### Question 1: Where does checklist fit in the dbt layer?
 
-`_paneState: 'collapsed' | 'list' | 'table'` replaces both `_viewMode` and `_sidebarOpen`.
+**Recommendation: checklist records do NOT go into `marts/occurrences`. They get a separate `checklist.parquet` export.**
 
-| State | What's Visible | URL Encoding |
-|-------|---------------|--------------|
-| `collapsed` | Toggle button only (desktop); hidden (mobile) | `pane=` absent |
-| `list` | Filters + occurrence detail | `pane=list` or inferred when `o=`/`sel=` present |
-| `table` | Full table view embedded in pane | `pane=table` |
+Rationale follows from the existing architecture and what checklist data actually is:
 
-On mobile, `collapsed` means fully hidden; `list` means full-height slide-up panel. No `table` state on mobile — either omit or treat as `list`.
+**What `checklist_data.species` contains today:** One row per species (565 rows). Columns: `scientificName`, `canonical_name`, `genus`, `specific_epithet`, `family`/`subfamily`/`tribe`/`subgenus` (NULL until lineage backfill), `status`, `source_citation`. No lat/lon. No date. No individual occurrence rows.
 
-### New Component: `<bee-pane>`
+The checklist TSV at `data/checklists/wa_bee_checklist.tsv` has two columns: `species` and `county`. It is 2,862 rows (one row per species-county presence assertion). There are no individual occurrence events with coordinates to spatial-join — "Andrena aculeata was observed in Whitman County" is a range assertion, not a point record.
 
-**Source file:** `src/bee-pane.ts`
+**Why not extend `marts/occurrences`:**
+- The 31-column `occurrences` contract has `contract.enforced: true` in `models/marts/schema.yml`. Every column must be present on every row. Checklist data lacks `ecdysis_id`, `catalog_number`, `lon`, `lat`, `date`, `year`, `month`, `recordedBy`, `fieldNumber`, `floralHost`, `host_observation_id`, and every other specimen/sample field. Adding a checklist arm via UNION ALL would require NULLing out 20+ columns, and the resulting rows would be indistinguishable from malformed data by the frontend's `occIdFromRow` and type predicates.
+- Adding a `source` discriminant column to the contract while NULLing the rest is possible but violates the spirit of the contract: `occurrences` currently has structural integrity (ARM 1 = Ecdysis+iNat rows with lat/lon, ARM 2 = provisional WABA rows with lat/lon). Checklist rows have no coordinates.
+- The `int_combined` UNION ALL feeds `int_species_occurrences_agg` which counts rows to populate `occurrence_count`, `specimen_count`, `month_histogram`. Injecting coordinate-free checklist rows into that aggregation would corrupt the counts.
 
-**Replaces:** `bee-filter-panel.ts` + `bee-sidebar.ts` merged into one component.
+**What checklist.parquet should contain:**
+A county-level presence table. One row per (canonical_name, county) from `checklist_data.species_counties`, enriched with lineage columns from `stg_inat__taxon_lineage_extended`. No lat/lon. This is a range layer, not an occurrence layer.
 
-**Responsibility:** Render pane chrome (toggle button, expand-to-table button, close button) and conditionally render filter content or occurrence detail or embedded `<bee-table>`. This is a layout shell and pure presenter — all filter state and occurrence data still flow in as `@property`; nothing is owned internally except genuinely transient UI state (suggestion dropdown open/closed, uncommitted text input values).
+**Schema for `checklist.parquet` (proposed):**
 
-**Properties in (from bee-atlas):**
+| Column | Type | Source |
+|--------|------|--------|
+| `canonical_name` | VARCHAR | checklist_data.species |
+| `scientificName` | VARCHAR | checklist_data.species |
+| `genus` | VARCHAR | checklist_data.species |
+| `specific_epithet` | VARCHAR | checklist_data.species |
+| `family` | VARCHAR | taxon lineage (backfilled) |
+| `county` | VARCHAR | checklist_data.species_counties |
+| `status` | VARCHAR | checklist_data.species (verified / likely-to-occur) |
+| `source` | VARCHAR | constant 'checklist' (satisfies EXT-01) |
 
-| Property | Sourced from (current) | Purpose |
-|----------|------------------------|---------|
-| `paneState` | NEW | `'collapsed' \| 'list' \| 'table'` |
-| `filterState` | bee-filter-panel.filterState | All filter dimensions |
-| `taxaOptions` | bee-filter-panel.taxaOptions | Autocomplete data |
-| `countyOptions` | bee-filter-panel.countyOptions | Autocomplete data |
-| `ecoregionOptions` | bee-filter-panel.ecoregionOptions | Autocomplete data |
-| `collectorOptions` | bee-filter-panel.collectorOptions | Autocomplete data |
-| `summary` | bee-filter-panel.summary | Unfiltered totals |
-| `specimenCount` | bee-filter-panel.specimenCount | Filtered total |
-| `occurrences` | bee-sidebar.occurrences | Occurrence detail for list state |
-| `tableRows` | bee-table.rows | Pass-through to embedded bee-table |
-| `tableRowCount` | bee-table.rowCount | Pass-through |
-| `tablePage` | bee-table.page | Pass-through |
-| `tableLoading` | bee-table.loading | Pass-through |
-| `tableSortBy` | bee-table.sortBy | Pass-through |
-| `filterActive` | bee-table.filterActive | Pass-through |
-| `selectedIds` | bee-table.selectedIds | Pass-through |
+This is a new dbt mart (`models/marts/checklist.sql`, external parquet) and a new export artifact. It does not touch `occurrences.sql` or its 31-column contract.
 
-**Events out (to bee-atlas):**
-
-| Event | Replaces | Payload |
-|-------|---------|---------|
-| `pane-state-changed` | `view-changed` + `close` | `{ paneState: 'collapsed' \| 'list' \| 'table' }` |
-| `filter-changed` | bee-filter-panel `filter-changed` | `FilterChangedEvent` (unchanged shape) |
-| `page-changed` | bee-table `page-changed` | `{ page: number }` |
-| `sort-changed` | bee-table `sort-changed` | `{ sortBy: SpecimenSortBy }` |
-| `download-csv` | bee-table `download-csv` | (none) |
-| `row-pan` | bee-table `row-pan` | `{ lat, lon }` |
-
-### Modified: bee-atlas
-
-**Remove:** `_viewMode`, `_sidebarOpen`, `_tableFilterOpen`
-
-**Add:** `@state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed'`
-
-**Remove imports:** `import './bee-filter-panel.ts'`, `import './bee-sidebar.ts'`
-
-**Add import:** `import './bee-pane.ts'`
-
-**Render change:** Replace the `<bee-filter-panel>` + conditionally-rendered `<bee-sidebar>` + conditionally-rendered `<bee-table>` with a single `<bee-pane>` receiving all relevant props.
-
-**Key handler changes:**
-
-- `_onPaneStateChanged(e)` replaces `_onViewChanged(e)` + `_onClose()`: when `paneState='collapsed'`, clear `_selectedOccurrences`, `_selectedOccIds`, `_selectedCluster`, `_selectionBounds` and push URL. When `paneState='table'`, run `_runTableQuery()` + dynamic import `./bee-table.ts`.
-- `_onOccurrenceClick` sets `_paneState = 'list'` instead of `_sidebarOpen = true`.
-- `_onSelectionDrawn` sets `_paneState = 'list'` on non-empty result.
-- `_onRegionClick` / `_onPlaceSelected`: open pane to `list` when filter has results.
-- `_onFilterChanged`: clear selections and set `_paneState = 'collapsed'` (mirrors current sidebar-close-on-filter-change behavior) OR keep `list` — decision needed in planning phase.
-
-**bee-map layout CSS:** Remove `.content.table-mode bee-map { height: 18%; flex-grow: 0 }`. bee-map stays full-height in all pane states. The pane is positioned absolutely on desktop, as a bottom panel on mobile.
-
-### Modified: url-state.ts
-
-`UiState` drops `viewMode`, adds `paneState`:
-
-```typescript
-export interface UiState {
-  boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
-  paneState: 'collapsed' | 'list' | 'table';
-}
-```
-
-`buildParams`: emit `pane=table` when `paneState='table'`, `pane=list` when `paneState='list'`, omit `pane=` when collapsed.
-
-`parseParams`: read `pane=` first; also treat `view=table` (legacy) as `pane=table` for backward compatibility. Infer `pane=list` when `o=` or `sel=` is present and no explicit `pane=` is set.
-
-### Untouched Components
-
-| Component | Status | Reason |
-|-----------|--------|--------|
-| `<bee-map>` | Unchanged | Pure presenter; coordinator/presenter boundary holds |
-| `<bee-occurrence-detail>` | Unchanged | Pure presenter; embedded by bee-pane |
-| `<bee-header>` | Unchanged | No longer emits view-changed; view toggle moves to bee-pane |
-| `filter.ts` | Unchanged | Pure query functions |
-| `sqlite.ts` | Unchanged | |
-| `occurrence.ts` | Unchanged | Pure predicates |
+**`source` field placement:** The `source` field (EXT-01) belongs in `checklist.parquet` as a constant string `'checklist'`, not in `occurrences.parquet`. The frontend discriminates data source via the parquet file it loaded from (occurrences vs checklist), not via an in-row field. If future sources (GBIF, other Bee Atlas programs) are added to the occurrences table, `source` would need to enter the contract at that time — that is a separate future decision. For v4.0, adding `source VARCHAR` to `checklist.parquet` satisfies EXT-01 without touching the protected `occurrences` contract.
 
 ---
 
-## Data Flow After Unification
+## DwC-A Taxonomy Pipeline Design
 
-### Filter Change Flow
+### Question 3: Cache location, ancestor-walk algorithm, and lineage table supersession
 
-```
-User types in bee-pane filter input
-  → bee-pane emits filter-changed (unchanged event shape)
-    → bee-atlas._onFilterChanged()
-      → _filterState updated
-      → _runFilterQuery() async → _visibleIds updated
-      → bee-map receives filterState + visibleIds
-      → bee-pane receives filterState
-```
+**Cache location: gitignored local file, with nightly.sh S3 sync**
 
-### Occurrence Click Flow
+The iNat DwC-A is ~150MB compressed. The correct analogy is the Ecdysis HTML cache (`data/html_cache/`, gitignored, synced to S3 by `nightly.sh`). Do not commit the archive to the repo. Store it at `data/dwca_cache/` (gitignored). The nightly script should S3-sync this directory on restore and after a successful run, mirroring the pattern already used for the HTML cache.
 
-```
-User clicks map cluster
-  → bee-map emits map-click-occurrence
-    → bee-atlas._onOccurrenceClick()
-      → _selectedOccurrences, _selectedOccIds set
-      → _paneState = 'list'         (was: _sidebarOpen = true)
-      → bee-pane receives occurrences + paneState='list'
-        → renders occurrence detail section
-```
+Monthly download cadence: the DwC-A is published monthly. The pipeline should check the archive `Last-Modified` header (or ETag) against a stored value before re-downloading. Skip download if current. On first run (or when stale), download, unzip, filter, and rebuild the lineage table.
 
-### Expand to Table Flow
+Download URL: `https://www.inaturalist.org/taxa/inaturalist-taxonomy.dwca.zip` (the full iNat taxonomy export). It contains `Taxon.tsv` with columns including `taxonID`, `parentNameUsageID`, `scientificName`, `taxonRank`, and `canonicalName`.
 
-```
-User presses expand-to-table button in bee-pane (visible in list state)
-  → bee-pane emits pane-state-changed({ paneState: 'table' })
-    → bee-atlas._onPaneStateChanged()
-      → _paneState = 'table'
-      → import('./bee-table.ts') dynamic
-      → _runTableQuery()
-      → bee-pane receives paneState='table' + tableRows
-        → renders embedded bee-table
+**Ancestor-walk algorithm: DuckDB recursive CTE**
+
+The Taxon.tsv parent-pointer structure maps directly to a SQL recursive CTE. DuckDB supports `WITH RECURSIVE`. The algorithm:
+
+1. Load `Taxon.tsv` into a DuckDB table `dwca_data.taxa(taxon_id, parent_id, scientific_name, rank)` — filtered to rows where `rank IN ('family','subfamily','tribe','genus','subgenus','species')` or are ancestors of target taxa.
+2. Given a set of seed taxon IDs (all canonical_name-resolved taxon IDs from `canonical_to_taxon_id`), walk up to the root with a recursive CTE:
+
+```sql
+WITH RECURSIVE ancestors AS (
+    SELECT taxon_id, parent_id, scientific_name, rank, 0 AS depth
+    FROM dwca_data.taxa
+    WHERE taxon_id IN (SELECT taxon_id FROM inaturalist_data.canonical_to_taxon_id)
+    UNION ALL
+    SELECT t.taxon_id, t.parent_id, t.scientific_name, t.rank, a.depth + 1
+    FROM dwca_data.taxa t
+    JOIN ancestors a ON t.taxon_id = a.parent_id
+    WHERE a.depth < 20  -- guard against cycles
+)
+SELECT seed_id, rank, scientific_name FROM ancestors
 ```
 
-### Pane Toggle Flow (collapsed ↔ list)
+3. Pivot the result to produce `(taxon_id, family, subfamily, tribe, genus, subgenus)` — identical schema to `taxon_lineage_extended`.
 
-```
-User presses toggle button in bee-pane chrome
-  → bee-pane emits pane-state-changed({ paneState: 'list' or 'collapsed' })
-    → bee-atlas._onPaneStateChanged()
-      → if collapsing: clear _selectedOccurrences, _selectedOccIds, etc.
-      → _paneState updated
-      → URL pushed
-```
+This is pure DuckDB SQL, faster than iterative Python batch requests, and eliminates all iNat API calls for the lineage walk. The only remaining API calls are in `resolve_taxon_ids.py` (canonical_name → taxon_id bridge), which hits `/v1/taxa?q=` search for name lookups. Those are small-N and already well-handled.
+
+**How the unified lineage table supersedes the two existing tables:**
+
+Current state:
+- `inaturalist_waba_data.taxon_lineage` — built by `waba_pipeline.enrich_taxon_lineage`, covers WABA taxon IDs only, columns: `(taxon_id, genus, family)`
+- `inaturalist_data.taxon_lineage_extended` — built by `inaturalist_pipeline.enrich_taxon_lineage_extended`, covers UNION of inat + waba taxon IDs + bridge IDs, columns: `(taxon_id, family, subfamily, tribe, genus, subgenus)`
+
+Target state after TAX-01/TAX-02:
+- A new `dwca_pipeline.py` step downloads the archive, loads `Taxon.tsv` into `dwca_data.taxa`, walks ancestors for all seed IDs in `canonical_to_taxon_id`, and writes `inaturalist_data.taxon_lineage_extended` with the same schema as today.
+- `enrich_taxon_lineage` in `waba_pipeline.py` is deleted. `enrich_taxon_lineage_extended` in `inaturalist_pipeline.py` is deleted.
+- The dbt staging view `stg_inat__taxon_lineage_extended` is unchanged — it still reads from `inaturalist_data.taxon_lineage_extended`. The table is now populated by the DwC-A step instead of the API step.
+- `stg_waba__taxon_lineage` staging view can be removed if `int_species_universe` no longer needs the narrower WABA-only lineage (it already uses `stg_inat__taxon_lineage_extended` as its join target).
+- `run.py` STEPS: replace `("taxon-lineage-extended", enrich_taxon_lineage_extended)` with `("dwca-taxonomy", build_dwca_lineage)`.
+
+The `canonical_to_taxon_id` bridge table (`resolve_taxon_ids.py`) remains: it maps canonical_name strings to iNat taxon IDs and is still needed as the seed set for the ancestor walk. The DwC-A replaces only the ancestor-walk HTTP fan-out; it does not replace the name-lookup step.
+
+**iNat vs GBIF DwC-A decision:** Use the iNat DwC-A, not GBIF's. The existing bridge table uses iNat taxon IDs. The ancestor walk must use the same taxon ID namespace or the joins break. GBIF uses a different ID namespace.
 
 ---
 
-## Internal Structure of bee-pane
+## Frontend Integration Points
 
-The 884-line `bee-filter-panel` plus the 125-line `bee-sidebar` merge into one component. The internal `@state` fields that `bee-filter-panel` currently owns are transient UI state (suggestion dropdown visibility, input text values) and legitimately live inside `bee-pane`. They do not violate the state-ownership invariant because they do not affect app behavior until committed (emitting `filter-changed`).
+### Question 4: checklist.parquet loading, initialization, and Mapbox layer stack
 
-Committed filter dimensions (`selectedTaxon`, `selectedCounties`, etc.) must NOT be duplicated as `@state` inside `bee-pane`. The existing `bee-filter-panel.updated()` sync pattern — copying incoming `filterState` `@property` into local rendering vars — is acceptable and carries over.
+**Loading sequence change:**
 
+`sqlite.ts` currently has `loadOccurrencesTable()` which loads `occurrences.parquet` and resolves `tablesReady`. For checklist, a parallel `loadChecklistTable()` function is needed. The two can load concurrently (no dependency between them).
+
+Current `tablesReady` promise gates all occurrence feature creation in `features.ts`. Checklist loading needs its own readiness gate. The cleanest approach: export `checklistReady: Promise<void>` from `sqlite.ts`, resolved after the checklist table is inserted. Checklist layer creation in `bee-atlas.ts` awaits `checklistReady`. Both `loadOccurrencesTable()` and `loadChecklistTable()` are called in parallel from `bee-atlas.ts` `connectedCallback`.
+
+**SQLite table for checklist:**
+```sql
+CREATE TABLE checklist (
+  canonical_name TEXT,
+  scientificName TEXT,
+  genus TEXT,
+  specific_epithet TEXT,
+  family TEXT,
+  county TEXT,
+  status TEXT,
+  source TEXT
+)
 ```
-bee-pane internal render sections (conditional on paneState):
-  'collapsed':
-    toggle-open button only
-  'list' (no occurrences):
-    close/collapse button
-    filter form (taxon, collector, where, when inputs)
-    expand-to-table button
-  'list' (with occurrences):
-    close/collapse button
-    <bee-occurrence-detail .occurrences=${occurrences}>
-    expand-to-table button
-  'table':
-    filter form header (compact)
-    <bee-table> embedded
-    collapse-to-list button
-```
 
-The `toggle-filter` event emitted by `bee-table`'s filter button is caught inside `bee-pane` (not forwarded to `bee-atlas`). `bee-pane` handles switching the visible sub-section between filter form and table internally, without needing coordinator involvement. This eliminates the current `_tableFilterOpen` / `setOpen()` imperative coordination path in `bee-atlas`.
+The checklist table does not have an `occId` column — checklist records are county-range assertions, not point occurrences. They cannot be clicked like occurrence features.
+
+**manifest.json change:**
+Add `checklist` key pointing to the hashed `checklist.parquet` filename. The `Manifest` interface in `manifest.ts` needs a `checklist` field. `resolveDataUrl('checklist')` resolves it.
+
+**Mapbox layer stack change:**
+
+The "Checklist records" layer is a county-shading layer, not a point layer. The county-presence data (which counties a species appears in per the checklist) comes from the SQLite `checklist` table queried in `bee-atlas.ts`.
+
+The architecture for the checklist toggle:
+- A new `_checklistVisible: boolean` state property in `bee-atlas.ts`.
+- When `_checklistVisible` is true and a taxon filter is active, `bee-atlas.ts` queries the SQLite `checklist` table for counties matching that canonical_name. The county array is passed to `bee-map` as a new `checklistCounties: string[]` property.
+- When no taxon filter is active and `_checklistVisible` is true, query all checklist counties (or show all counties as shaded).
+- `bee-map` uses `checklistCounties` to drive a `checklist-county-fill` layer using a Mapbox GL filter expression: `['in', ['get', 'county'], ['literal', [...counties]]]` on the existing `counties` GeoJSON source.
+- The layer sits between the boundary fill layers and the occurrence cluster layers in render order.
+- Visual style: light olive/green fill at low opacity, distinct from the blue selection highlight.
+
+`FilterState` extension: add `checklistVisible: boolean` (default `false`). `buildParams`/`parseParams` in `url-state.ts` get a `cl=1` parameter.
+
+`bee-filter-controls.ts`: add a toggle button for the checklist layer, following the existing toggle button pattern.
+
+**No changes needed to `occurrence.ts`:** Checklist records are not point occurrences and do not have occurrence IDs. `occIdFromRow`, `parseOccId`, and the type predicates are unchanged.
+
+**No changes needed to `OCCURRENCE_COLUMNS` or `OccurrenceRow`:** These describe the `occurrences` SQLite table only. The checklist table is queried via a separate code path.
 
 ---
 
-## Layout Model
+## Species Page Build Changes
 
-### Desktop
+### Question 5: Checklist-only species on Eleventy pages
 
-```
-┌────────────────────────────────────────────────┐
-│  <bee-header>                                   │
-├────────────────────────────────────────────────┤
-│  <bee-map>  (flex-grow:1; always full area)    │
-│                                      ┌─────────┤
-│                                      │bee-pane │
-│                                      │(abs,    │
-│                                      │ right)  │
-│                                      └─────────┤
-└────────────────────────────────────────────────┘
-```
+**Pipeline change (int_species_universe — no change needed):**
 
-bee-map always fills the content area. In `table` state, bee-pane expands to a wider panel (or full width) that overlays or sits beside the map — the map does NOT shrink to 18%.
+`int_species_universe` already handles checklist-only species via the FULL OUTER JOIN between `stg_checklist__species` and `occ_agg`. A checklist-only species produces a row with `occurrence_count = 0`, `specimen_count = 0`, `on_checklist = true`, `month_histogram = [0,0,...,0]`. This flows through `species.sql` into `species.parquet` and `species.json`. The pipeline already supports this.
 
-### Mobile (max-aspect-ratio: 1)
+**Eleventy data layer (`_data/species.js`):**
 
-```
-┌─────────────────┐
-│  <bee-map>      │
-│  (full height)  │
-├─────────────────┤
-│  <bee-pane>     │  bottom drawer, slides up in list state
-│  (list state)   │
-└─────────────────┘
-```
+The `genusList` and `tribeList` arrays currently filter to `totalOccurrences > 0`. This excludes genera containing only checklist species. Change:
+- `genusList` filter: `g.species.length > 0` (show genus if it has any species with `specific_epithet !== null`, regardless of occurrence count)
+- `tribeList` filter: `t.genera.length > 0` (similar)
+- The `speciesList` array (used in `species.njk` index) already includes all species from `flat` — no filter on occurrence_count there, so checklist-only species already appear.
 
-The existing `@media (max-aspect-ratio: 1)` CSS block in `bee-atlas` adapts. No `table` state on mobile.
+**Per-species page (`species-detail.njk`):**
+
+For checklist-only species (`occurrence_count === 0`, `on_checklist === true`):
+- The `species-maps/` directory will not have an SVG for this species (unless `species_maps.py` is extended). Template must handle the absent map — show a county-presence map or a placeholder.
+- Seasonality histogram shows all zeros — suppress the chart or show "No collection records yet."
+- The iNat link (if `canonical_to_taxon_id` resolved it) can still be shown.
+
+**SVG occurrence maps (`species_maps.py`):**
+
+`species_maps.py` generates per-species SVG maps from `occurrences.parquet`. Checklist-only species have no rows there — they would produce empty SVG maps. The recommended approach: generate a county-presence SVG for checklist-only species using `checklist_data.species_counties`. This requires `species_maps.py` to:
+1. Detect `on_checklist=true, occurrence_count=0` species from `species.parquet`.
+2. For those species, query `checklist_data.species_counties` and shade counties on the WA SVG outline.
+3. Store these as `species-maps/{Genus}/{epithet}.svg` alongside occurrence-based maps.
+
+This means `species-detail.njk` can reference the same path for all species regardless of type — no template branching for the map img tag.
 
 ---
 
-## Build Order (Dependency-Constrained)
+## Suggested Build Order
 
-### Phase 1: url-state.ts Update
+The two capabilities (checklist pipeline and DwC-A taxonomy) share one dependency: the DwC-A taxonomy provides lineage data (`family`, `subfamily`, `tribe`, `subgenus`) that checklist species need. The `resolve_taxon_ids` step is a prerequisite for both.
 
-Update `UiState` to use `paneState` instead of `viewMode`. Update `buildParams` and `parseParams`. Preserve backward compat: `view=table` parses as `pane=table`. Update `url-state.test.ts`.
+**Phase A — DwC-A Taxonomy (TAX-01, TAX-02)**
 
-**Why first:** Every subsequent phase depends on `bee-atlas` using `_paneState`. Getting the URL contract right before touching components avoids double-editing.
+Build first because it unblocks lineage data for checklist species and is independently verifiable.
 
-### Phase 2: bee-atlas State Migration
+1. Write `dwca_pipeline.py`:
+   - Download `inaturalist-taxonomy.dwca.zip` to `data/dwca_cache/`, checking `Last-Modified`/ETag to skip re-download if current.
+   - Unzip, load `Taxon.tsv` into `dwca_data.taxa(taxon_id, parent_id, scientific_name, rank)` in DuckDB.
+   - Recursive CTE: walk ancestors for all seed IDs from `canonical_to_taxon_id`.
+   - Pivot result to `(taxon_id, family, subfamily, tribe, genus, subgenus)`.
+   - Write (CREATE OR REPLACE) `inaturalist_data.taxon_lineage_extended` with that schema.
+2. Delete `enrich_taxon_lineage` from `waba_pipeline.py` and its call in `load_observations`.
+3. Delete `enrich_taxon_lineage_extended` from `inaturalist_pipeline.py`.
+4. Update `run.py` STEPS: replace `("taxon-lineage-extended", enrich_taxon_lineage_extended)` with `("dwca-taxonomy", build_dwca_lineage)`.
+5. Add `data/dwca_cache/` to `.gitignore`.
+6. Add S3 sync for `dwca_cache/` to `nightly.sh` (restore before pipeline, upload after — same pattern as HTML cache).
+7. Run `dbt build` and verify `test_lin05_lineage_coverage` still passes.
 
-Replace `_viewMode`, `_sidebarOpen`, `_tableFilterOpen` with `_paneState`. Add `_onPaneStateChanged()` handler. Remove the 18%/82% layout CSS. Update all internal callsites. Keep `<bee-filter-panel>` and `<bee-sidebar>` in the render temporarily — this phase only changes `bee-atlas`'s state machine. Run tests after to confirm coordinator logic works before touching child components.
+**Phase B — Checklist Pipeline (CHECK-01, EXT-01)**
 
-**Why second:** Establishes the single source of truth before component changes.
+Build after Phase A (checklist species need lineage from DwC-A for family/subfamily/tribe/subgenus backfill).
 
-### Phase 3: Create bee-pane
+1. Verify `checklist_pipeline.py` already correctly populates `checklist_data.species` and `checklist_data.species_counties` (it does — code confirmed).
+2. Write `data/dbt/models/marts/checklist.sql`:
+   ```sql
+   {{ config(materialized='external', location='target/sandbox/checklist.parquet', format='parquet') }}
+   SELECT
+       cs.canonical_name, cs.scientificName, cs.genus, cs.specific_epithet,
+       COALESCE(cs.family, tle.family) AS family,
+       sc.county, cs.status, 'checklist' AS source
+   FROM {{ ref('stg_checklist__species') }} cs
+   JOIN {{ source('checklist_data', 'species_counties') }} sc USING (scientificName)
+   LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt ON ctt.canonical_name = cs.canonical_name
+   LEFT JOIN {{ ref('stg_inat__taxon_lineage_extended') }} tle ON tle.taxon_id = ctt.taxon_id
+   ```
+3. Add `checklist` model to `models/marts/schema.yml` with enforced contract.
+4. Update `run.py` `_run_dbt_build` to copy `checklist.parquet` from sandbox to `EXPORT_DIR` alongside `occurrences.parquet`.
+5. Add `checklist` key to `manifest.json` generation.
+6. Write pytest assertions: row count ≥ 2,000, no null `canonical_name`, `source = 'checklist'` for all rows.
 
-Create `src/bee-pane.ts` merging filter panel + sidebar. Receives all `@property` inputs; emits events listed above. Renders correct section based on `paneState`. Extracts filter form markup from `bee-filter-panel`. Embeds `<bee-occurrence-detail>`. Handles `<bee-table>` via dynamic import in `table` state. Intercepts `toggle-filter` from bee-table internally.
+**Phase C — Frontend Checklist Layer (CHECK-02)**
 
-**Why third:** `bee-atlas` is now ready to receive events from the unified pane.
+Build after Phase B produces `checklist.parquet` and the manifest key is wired.
 
-### Phase 4: bee-atlas Cutover
+1. Add `checklist: string` field to `Manifest` interface in `manifest.ts`.
+2. Add `loadChecklistTable()` function and `checklistReady: Promise<void>` export to `sqlite.ts`.
+3. Call both `loadOccurrencesTable()` and `loadChecklistTable()` in parallel from `bee-atlas.ts` `connectedCallback`. Gate checklist layer on `checklistReady`.
+4. Add `checklistVisible: boolean` to `FilterState` in `filter.ts` (default `false`).
+5. Add `cl=` URL param to `buildParams`/`parseParams` in `url-state.ts`.
+6. Add checklist layer toggle to `bee-filter-controls.ts`.
+7. Add `_checklistCounties: string[]` state to `bee-atlas.ts`; query SQLite `checklist` table when `_checklistVisible` changes or `_filterState.taxonName` changes.
+8. Add `checklistCounties` property to `bee-map.ts`; add `checklist-county-fill` Mapbox layer on the `counties` source with filter `['in', ['get', 'county'], ['literal', checklistCounties]]`.
 
-Replace `<bee-filter-panel>` and `<bee-sidebar>` in `bee-atlas`'s `render()` with `<bee-pane>`. Wire all events. Remove `import './bee-filter-panel.ts'` and `import './bee-sidebar.ts'`.
+**Phase D — Species Page Changes (CHECK-03, CHECK-04)**
 
-**Why fourth:** Final wiring after `bee-pane` is tested in isolation.
+Build last — depends on `species.parquet` correctly containing checklist-only species with `on_checklist=true`.
 
-### Phase 5: Delete Retired Files + Update Tests
-
-Delete `src/bee-filter-panel.ts`, `src/bee-sidebar.ts`. Update `bee-filter-toolbar.test.ts` tests that assert `bee-atlas` imports `bee-filter-panel` — change assertion to `bee-pane`. Migrate or rewrite `bee-sidebar.test.ts` structural invariant tests to apply to `bee-pane` (no internal filter state, no cross-component imports).
-
-**Why last:** Deletion is safe only after `bee-pane` confirmed working end-to-end.
-
----
-
-## Critical Integration Points
-
-### 1. Filter Pane Open/Close Synchronization
-
-Currently `bee-filter-panel` has its own `_open` `@state` and an imperative `setOpen(bool)` public method called from `bee-atlas._onToggleFilter()` for table mode. In the unified pane, this mechanism disappears entirely: `paneState` drives everything. The `externalOpen` and `hideButton` properties on `bee-filter-panel` have no equivalent in `bee-pane`.
-
-The filter toggle within the table (bee-table's filter button emitting `toggle-filter`) is now caught and handled inside `bee-pane` directly, without routing through `bee-atlas`. This is architecturally cleaner: the pane controls its own sub-sections.
-
-### 2. Dynamic Import of bee-table
-
-Currently `bee-atlas` dynamically imports `./bee-table.ts` when entering table mode. In the unified pane, `bee-pane` owns this import. The pattern moves from `bee-atlas._onViewChanged()` into `bee-pane`'s handler for the expand-to-table action (fire-and-forget, same pattern).
-
-### 3. Selection State on Collapse
-
-The current `_onClose()` in `bee-atlas` clears `_selectedOccurrences`, `_selectedOccIds`, `_selectedCluster`, `_selectionBounds`, and `_sidebarOpen`. In the new model, `_onPaneStateChanged({ paneState: 'collapsed' })` must do the same cleanup. The coordinator still owns what is "selected" — `bee-pane` cannot clear these directly.
-
-### 4. row-pan Event Routing
-
-`row-pan` events from `bee-table` use `bubbles: true, composed: true`. Since `bee-table` is embedded inside `bee-pane`'s shadow DOM, these events bubble through `bee-pane` to `bee-atlas` without any re-emission logic. No changes needed as long as the event composition flags remain.
-
-### 5. URL Backward Compatibility
-
-Old bookmarked URLs with `view=table` must continue to work. `parseParams` reads `view=table` as `pane=table`. Old URLs with `o=` or `sel=` params but no `pane=` infer `pane=list`.
-
-### 6. FilterChangedEvent Type Move
-
-`FilterChangedEvent` is currently defined in `bee-sidebar.ts` and imported by `bee-filter-panel.ts` and `bee-atlas.ts`. When `bee-sidebar.ts` is deleted, this type needs a new home. Move it to `filter.ts` (alongside `FilterState`) or a new `src/types.ts`. This is a low-risk housekeeping step best done in Phase 1 or Phase 5.
-
----
-
-## Anti-Patterns to Avoid
-
-### Duplicating filter state inside bee-pane as @state
-
-**What it looks like:** `@state() private _selectedCounties = new Set<string>()`
-
-**Why wrong:** Creates a second source of truth. Filter changes from map clicks (region click, place click) update `bee-atlas._filterState`, which flows down as a `@property`. If `bee-pane` also maintains local `@state` for the same data, they diverge until the next Lit update cycle.
-
-**Do this instead:** Use `bee-filter-panel`'s existing `updated()` sync pattern. Copy incoming `filterState @property` into local rendering vars only for fields with transient UI state (input text values). All committed filter dimensions come from the `@property`.
-
-### Letting bee-pane coordinate queries
-
-**What it looks like:** `bee-pane` calling `queryVisibleIds()` or `queryTablePage()` directly.
-
-**Why wrong:** Violates the state-ownership invariant. `bee-atlas` runs all queries and pushes results back down as properties.
-
-**Do this instead:** `bee-pane` emits events; `bee-atlas` handles queries and sets reactive state.
-
-### Moving pane toggle into bee-header
-
-**What it looks like:** Moving collapsed/list/table toggle buttons into `<bee-header>`.
-
-**Why wrong:** `bee-header` handles global navigation. Pane-state control is spatially part of the pane (the toggle button appears at the pane edge) and belongs in `bee-pane`. Coupling them to the header prevents independent layout control.
-
-### Keeping two separate open/close mechanisms
-
-**What it looks like:** Keeping `_sidebarOpen` and `_viewMode` alongside the new `_paneState` as transitional state during the migration.
-
-**Why wrong:** Having both during even a partial migration means two sources of truth for layout. They will desync. The Phase 2 migration must be complete before Phase 3 begins.
+1. Relax `genusList`/`tribeList` filters in `_data/species.js` to include genera with `occurrence_count === 0` but checklist species present.
+2. Update species index template (`species.njk`) to show a "checklist only" badge or indicator for species with `occurrence_count === 0 && on_checklist === true`.
+3. Extend `species_maps.py` to generate county-presence SVGs for checklist-only species using `checklist_data.species_counties`.
+4. Update `species-detail.njk` to suppress the empty seasonality chart for zero-occurrence species.
+5. Verify total Eleventy page count increases by the number of checklist-only species with no existing occurrence pages (~250-300 expected new pages).
 
 ---
 
-## Confidence Assessment
+## Integration Point Summary
 
-| Area | Confidence | Basis |
-|------|------------|-------|
-| Component boundaries | HIGH | Direct read of all 5 affected files |
-| State ownership rules | HIGH | CLAUDE.md invariants + test suite confirmed |
-| URL state changes | HIGH | Full url-state.ts read; backward compat pattern is clear |
-| Build order | HIGH | Dependency graph from import graph |
-| Mobile layout | MEDIUM | Existing CSS pattern clear; exact behavior needs visual UAT |
-| bee-table embed event routing | MEDIUM | composed:true bubbling in shadow DOM is spec-correct; no empirical test yet |
+| Component | Type | What Changes |
+|-----------|------|--------------|
+| `data/dwca_pipeline.py` | NEW | Downloads DwC-A archive, loads Taxon.tsv, runs recursive CTE ancestor walk, writes `inaturalist_data.taxon_lineage_extended` |
+| `data/waba_pipeline.py` | MODIFIED | Delete `enrich_taxon_lineage` function and its call in `load_observations` |
+| `data/inaturalist_pipeline.py` | MODIFIED | Delete `enrich_taxon_lineage_extended` function |
+| `data/run.py` | MODIFIED | Replace `taxon-lineage-extended` step with `dwca-taxonomy` |
+| `data/nightly.sh` | MODIFIED | Add S3 sync for `data/dwca_cache/` (restore + upload) |
+| `.gitignore` | MODIFIED | Add `data/dwca_cache/` |
+| `data/dbt/models/marts/checklist.sql` | NEW | External parquet mart joining checklist species + lineage + species_counties |
+| `data/dbt/models/marts/schema.yml` | MODIFIED | Add checklist mart contract columns |
+| `data/run.py` `_run_dbt_build` | MODIFIED | Copy `checklist.parquet` from sandbox to EXPORT_DIR |
+| manifest.json generation | MODIFIED | Add `checklist` key (locate the script that writes manifest.json) |
+| `src/manifest.ts` | MODIFIED | Add `checklist: string` to `Manifest` interface |
+| `src/sqlite.ts` | MODIFIED | Add `loadChecklistTable()` and `checklistReady` promise export |
+| `src/bee-atlas.ts` | MODIFIED | Parallel load checklist table; add `_checklistVisible` state; query checklist counties on filter/toggle change |
+| `src/bee-map.ts` | MODIFIED | Accept `checklistCounties: string[]` property; add `checklist-county-fill` Mapbox layer |
+| `src/filter.ts` | MODIFIED | Add `checklistVisible: boolean` to `FilterState` |
+| `src/bee-filter-controls.ts` | MODIFIED | Add checklist layer toggle button |
+| `src/url-state.ts` | MODIFIED | Add `cl=` param for checklist visibility |
+| `src/occurrence.ts` | UNCHANGED | Checklist records have no occurrence IDs |
+| `_data/species.js` | MODIFIED | Relax occurrence_count > 0 filter for genusList/tribeList |
+| `_pages/species.njk` | MODIFIED | Show "checklist only" indicator for zero-occurrence species |
+| `_pages/species-detail.njk` | MODIFIED | Suppress empty seasonality chart; handle absent occurrence SVG |
+| `data/species_maps.py` | MODIFIED | Generate county-presence SVGs for checklist-only species |
+| `data/dbt/models/staging/stg_waba__taxon_lineage.sql` | POTENTIALLY REMOVED | The narrower WABA-only lineage is superseded by `taxon_lineage_extended`; remove if `int_species_universe` no longer joins it |
 
 ---
 
-*Architecture research for: v3.9 Sidebar & Table Unification*
-*Researched: 2026-05-19*
+## Key Architectural Decisions
+
+**Checklist as county-range layer, not occurrence layer.** The checklist TSV has no coordinates. Forcing it into the `occurrences` mart to display as points would require fabricating coordinates (county centroid) and would conflate range data with collection events. The county-fill visual is both more accurate and architecturally cleaner.
+
+**DwC-A writes to the same `taxon_lineage_extended` table.** The dbt staging view `stg_inat__taxon_lineage_extended` and all downstream models (`int_species_universe`) reference the same DuckDB table — zero dbt model changes required for the taxonomy replacement. Only the Python step that populates the table changes.
+
+**Recursive CTE over iterative Python.** The ancestor walk is set-oriented: all seed taxon IDs walk simultaneously in a single DuckDB recursive CTE. No per-batch HTTP calls. Execution is local and fast (seconds vs minutes for the API path with 60 req/min pacing). The `_inat_get_with_retry` and `_INAT_PACE_SECONDS` constants remain in `inaturalist_pipeline.py` but are only imported by `resolve_taxon_ids.py` after the deletion — not dead code overall.
+
+**`source` field lives in `checklist.parquet`, not `occurrences.parquet`.** Satisfies EXT-01 without touching the protected 31-column contract. Future sources that have actual occurrence coordinates can add `source` to the occurrences contract at that time.
+
+**Parallel `tablesReady` / `checklistReady`.** The two parquet files load concurrently in `bee-atlas.ts`. Map layers depending on occurrences await `tablesReady`; the checklist county layer awaits `checklistReady`. This keeps page load time optimal — checklist.parquet is ~50KB vs occurrences.parquet at multiple MB.
