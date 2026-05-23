@@ -65,30 +65,30 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TAX-01 | — | Pending |
-| TAX-02 | — | Pending |
-| TAX-03 | — | Pending |
-| TAX-04 | — | Pending |
-| CHECK-01 | — | Pending |
-| CHECK-02 | — | Pending |
-| CHECK-03 | — | Pending |
-| CHECK-04 | — | Pending |
-| MAP-01 | — | Pending |
-| MAP-02 | — | Pending |
-| MAP-03 | — | Pending |
-| MAP-04 | — | Pending |
-| SPEC-01 | — | Pending |
-| SPEC-02 | — | Pending |
-| SPEC-03 | — | Pending |
-| SPEC-04 | — | Pending |
-| SPEC-05 | — | Pending |
-| EXT-01 | — | Pending |
+| TAX-01 | Phase 110 | Pending |
+| TAX-02 | Phase 110 | Pending |
+| TAX-03 | Phase 110 | Pending |
+| TAX-04 | Phase 110 | Pending |
+| CHECK-01 | Phase 111 | Pending |
+| CHECK-02 | Phase 111 | Pending |
+| CHECK-03 | Phase 111 | Pending |
+| CHECK-04 | Phase 111 | Pending |
+| EXT-01 | Phase 111 | Pending |
+| MAP-01 | Phase 112 | Pending |
+| MAP-02 | Phase 112 | Pending |
+| MAP-03 | Phase 112 | Pending |
+| MAP-04 | Phase 112 | Pending |
+| SPEC-01 | Phase 113 | Pending |
+| SPEC-02 | Phase 113 | Pending |
+| SPEC-03 | Phase 113 | Pending |
+| SPEC-04 | Phase 113 | Pending |
+| SPEC-05 | Phase 113 | Pending |
 
 **Coverage:**
 - v4.0 requirements: 18 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 18 ⚠️
+- Mapped to phases: 18 (100%)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-23*
-*Last updated: 2026-05-23 after initial definition*
+*Last updated: 2026-05-23 — traceability complete after roadmap creation*

@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Washington Checklist Records
-status: planning
-last_updated: "2026-05-23T18:46:23.458Z"
+status: executing
+last_updated: "2026-05-23T00:00:00.000Z"
 last_activity: 2026-05-23
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,23 +17,30 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-20 after v3.9 milestone close)
+See: .planning/PROJECT.md (updated 2026-05-23 after v4.0 milestone start)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone (v4.0 or v3.10)
+**Current focus:** Phase 110 — Offline Taxonomy
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 110 — Offline Taxonomy
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-23 — Milestone v4.0 started
+Status: Not started
+Last activity: 2026-05-23 — Roadmap created for v4.0
+
+Progress: [░░░░░░░░░░] 0% (0/4 phases)
 
 ## Accumulated Context
 
 ### Decisions
 
-(decisions log cleared at v3.9 close — full history in .planning/PROJECT.md Key Decisions table)
+- Checklist records are county-range assertions, NOT point occurrences — they must NOT enter occurrences.parquet or int_combined. checklist.parquet is a separate dbt mart.
+- Checklist map layer uses Mapbox county-fill on the existing counties GeoJSON source, not a new point cluster layer.
+- iNat taxonomy source is AWS Open Data taxa.csv.gz (NOT the DwC-A zip archive) — has ancestry column; DwC-A disqualified: URL-form IDs, no subfamily/tribe, no ancestry column.
+- source='checklist' constant lives in checklist.parquet only; occurrences.parquet schema is unchanged for v4.0.
+- Year slider bounds remain scoped to occurrences.parquet only — no 1812 checklist dates bleeding into WABA filter UI.
+- Checklist layer responds to taxon filter only; does NOT respond to year/month or collector filter.
 
 ### Pending Todos
 
@@ -41,7 +48,11 @@ None.
 
 ### Blockers/Concerns
 
-None.
+- Watch out: taxa.csv.gz structure (delimiter, ancestry column, active field type) should be verified with smoke test before Phase 110 implementation: `curl --range 0-512 <url> | gzip -dc | head -2`
+- Watch out: checklist records must not appear in int_combined — assert occurrences.parquet row count doesn't increase after Phase 111.
+- Watch out: trailing whitespace in family names in checklist CSV silently drops species from int_species_universe; apply TRIM() in staging.
+- Watch out: duplicate taxon_id from inactive/synonym rows in taxa.csv.gz — filter WHERE active = true before staging load.
+- Genus/subgenus page design for Phase 113: genusList currently filters occurrence_count > 0, which silently drops checklist-only species. Must be an explicit design decision before Phase 113 begins.
 
 ### Quick Tasks Completed
 
@@ -87,6 +98,6 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 ## Session Continuity
 
-Last session: 2026-05-20T22:57:56.807Z
-Stopped at: context exhaustion at 75% (2026-05-20)
+Last session: 2026-05-23
+Stopped at: Roadmap created for v4.0; ready for Phase 110 planning
 Resume file: None
