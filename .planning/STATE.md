@@ -1,13 +1,12 @@
 ---
 gsd_state_version: 1.0
-milestone: v3.9
-milestone_name: milestone
-status: COMPLETE — milestone archived 2026-05-20
-stopped_at: context exhaustion at 75% (2026-05-20)
-last_updated: "2026-05-20T22:57:56.811Z"
-last_activity: 2026-05-20 -- v3.9 milestone archived; REQUIREMENTS.md retired; git tag v3.9 created
+milestone: v4.0
+milestone_name: Washington Checklist Records
+status: planning
+last_updated: "2026-05-23T18:46:23.458Z"
+last_activity: 2026-05-23
 progress:
-  total_phases: 5
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,11 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-20 after v3.9 milestone close)
 
 ## Current Position
 
-v3.9 — COMPLETE (archived 2026-05-20)
-All 5 phases (105–109), 12 plans complete.
-Last activity: 2026-05-20 -- v3.9 milestone archived; REQUIREMENTS.md retired; git tag v3.9 created
-
-Progress: [██████████] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-23 — Milestone v4.0 started
 
 ## Accumulated Context
 
@@ -67,8 +65,8 @@ Items acknowledged and deferred at v3.5 milestone close on 2026-05-15:
 
 | Category | Item | Status |
 |----------|------|--------|
-| debug | nav-routes-to-atlas-instead-of-filter | diagnosed |
-| debug | selection-ring-not-displaying | diagnosed |
+| debug | nav-routes-to-atlas-instead-of-filter | resolved — architecture eliminated by v3.6 (994067c) |
+| debug | selection-ring-not-displaying | resolved — guard already patched in c20c43a |
 | uat_gap | 89-HUMAN-UAT.md | partial (5 pending browser scenarios) |
 | uat_gap | 90-HUMAN-UAT.md | partial (4 pending browser scenarios) |
 | verification_gap | 89-VERIFICATION.md | human_needed |
