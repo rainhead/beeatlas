@@ -1,255 +1,398 @@
 # Pitfalls Research
 
-**Domain:** Sidebar & table unification — three-state pane in Lit + Mapbox coordinator app
-**Researched:** 2026-05-19
-**Confidence:** HIGH (based on direct code inspection of all affected files)
+**Domain:** v4.0 Washington Checklist Records — 3rd occurrence source, DwC-A taxonomy, dbt contract expansion, Eleventy species page expansion
+**Researched:** 2026-05-23
+**Overall confidence:** HIGH — all findings drawn from direct code inspection of the existing pipeline
 
 ---
 
-## Critical Pitfalls
+## Scientific Name Parsing
 
-### Pitfall 1: `viewMode='table'` URL param left alive after table becomes a pane sub-state
+The WA checklist TSV (`wa_bee_checklist.tsv`) already uses bare binomials (no authority strings), so `canonical_name.py::canonicalize()` handles it cleanly today. The pitfalls here apply to the **iNat DwC-A Taxon.tsv** and to any raw museum data that does embed author+year in the `scientificName` field.
 
-**What goes wrong:**
-`url-state.ts` `buildParams` currently emits `view=table` when `ui.viewMode === 'table'`. After the unification, table is a pane sub-state (call it `paneState: 'collapsed' | 'list' | 'table'`), not a top-level view mode. If the old `view=table` param is not removed from `buildParams`/`parseParams`, old shared URLs that contain `?view=table` will either silently no-op or produce a broken UI where table is shown inside a pane whose concept of "table mode" no longer maps to full-screen.
+### Pitfall: Authority-paren regex false-positives on subgenus parens
 
-**Why it happens:**
-`parseParams` constructs a `viewMode: 'map' | 'table'` from the `view=` param (url-state.ts line 224-225). `UiState` carries `viewMode`. `bee-atlas` reads `this._viewMode` and uses it to conditionally render `<bee-table>`. All three layers touch the same string. Changing the pane model to three states requires a coordinated change across all three — if any one is missed, the old param silently persists and is re-emitted.
+**What goes wrong:** The `_AUTHORITY_RE` pattern in `canonical_name.py` requires `(<Author>, <4-digit-year>)` inside trailing parens to avoid consuming subgenus parens like `(Dialictus)`. That guard is documented in the source. But the DwC-A `scientificName` field uses the format `"Agapostemon angelicus Cockerell, 1924"` — comma+year as a bare suffix (not in parens). Step 1's `,\s*\d{4}.*` branch handles this correctly.
 
-**How to avoid:**
-In the phase that introduces `paneState`, update `UiState`, `buildParams`, `parseParams`, and `_onViewChanged` atomically. Introduce a `pane=` param with the three-state vocabulary in the same commit that removes `viewMode`. Add a url-state round-trip test asserting that `view=table` in the query string is either migrated to the new param or dropped — not re-emitted, and not silently ignored on popstate.
+**Hidden trap:** If `scientificName` in Taxon.tsv has year-only authority without a comma — e.g., `"Apis mellifera Linnaeus 1758"` (no comma) — neither branch of `_AUTHORITY_RE` matches and the author token (`Linnaeus`) falls through into the canonical name. Result: `canonicalize("Apis mellifera Linnaeus 1758")` → `"apis mellifera"` (correct only because step 3 folds to 2 tokens). But a name like `"Apis mellifera mellifera Linnaeus 1758"` with 4 tokens becomes `"apis mellifera"` (also correct). Test this assumption against actual Taxon.tsv samples before treating the regex as complete coverage.
 
-**Warning signs:**
-- `url-state.ts` still references `viewMode` after the pane refactor
-- `parseParams` still has a `viewMode: 'map' | 'table'` branch
-- Sharing a URL with `?view=table` still activates full-screen table behavior
-- `buildParams` emits `view=table` for the new table-pane state
+**Prevention:** Run `canonicalize()` against a sample of 200 Taxon.tsv `scientificName` values from bee families and spot-check that no authority leaks into the output. Add regression test cases for no-comma authority format.
 
-**Phase to address:**
-Phase introducing the unified pane component — before any URL encoding of pane state is added.
+**Phase:** Scientific name parsing must be validated in the DwC-A ingestion phase before the bridge table is populated from Taxon.tsv names.
 
 ---
 
-### Pitfall 2: `bee-filter-panel._open` internal state becomes orphaned when panel moves into the pane
+### Pitfall: The `_INFRA_MARKERS` list is locked by design
 
-**What goes wrong:**
-`bee-filter-panel` owns `@state() private _open = false`. The coordinator controls open/close through `setOpen(bool)` — an imperative method call, not a property. When the filter panel is merged into the unified pane, its open/close state must become driven by the pane's state machine. If `_open` remains internal and `setOpen` is the only escape hatch, any pane state transition that does not call `setOpen` leaves the internal boolean out of sync — the filter panel thinks it is open when the pane is collapsed, or vice versa.
+**What goes wrong:** `canonical_name.py` explicitly states that `_INFRA_MARKERS` is locked to exactly 5 markers (`ssp.`, `var.`, `aff.`, `cf.`, `nr.`) and any addition requires a CONTEXT.md amendment. Museum records and DwC-A data introduce `subsp.` (not `ssp.`), `f.` (form), `x` (hybrid markers), and `sensu` qualifiers. If any of these appear in checklist or Taxon.tsv names and are not in the marker list, they will leak into the binomial.
 
-**Why it happens:**
-This is the exact pattern `bee-filter-panel` already exhibits for table-mode: `bee-atlas._onToggleFilter()` calls `setOpen(bool)` imperatively via `querySelector`. This worked as a one-off workaround but is fragile across multiple callers. The `externalOpen` property exists but is passed in as a `@property` and only used as a hint — the internal `_open` still gates rendering.
+**Example:** `"Bombus occidentalis subsp. mckayi"` → canonicalize strips nothing at step 3 (no marker match) → output is `"bombus occidentalis"` (two tokens, fold is correct because step 3 folds any trinomial). `"Bombus occidentalis f. pallida"` → `"bombus occidentalis"` (correct — `f.` not a marker but trinomial fold applies). The risk is only if a marker appears as token 2 (the epithet position), which would be malformed data.
 
-**How to avoid:**
-Externalize open/close entirely. Remove `_open` from `bee-filter-panel` (or make `externalOpen` the sole source of truth replacing `_open`). The pane parent passes `open` as a property; `bee-filter-panel` does not own open state at all. The `setOpen` imperative method becomes unnecessary. Also remove the `document.addEventListener('click', ...)` document-level close listener from `bee-filter-panel` — the pane parent handles outside-click dismissal.
+**Prevention:** Low risk in practice. Document in the DwC-A ingestion code that `subsp.` variants are folded by the trinomial rule, not by the marker list.
 
-**Warning signs:**
-- `setOpen` still exists on the merged component after unification
-- `_open` is still `@state` inside the merged component while a parent also holds pane state
-- Filter panel closes when clicking inside the pane (document click listener fires)
-- Filter panel stays open when pane is collapsed via the toggle button
-
-**Phase to address:**
-Phase merging `bee-filter-panel` + `bee-sidebar` — redesign open/close ownership before wiring the pane toggle.
+**Phase:** Low risk; document rather than fix.
 
 ---
 
-### Pitfall 3: Mapbox canvas does not resize when pane width changes
+### Pitfall: Author+year parsing assumes the year is 4-digit
 
-**What goes wrong:**
-Mapbox GL JS does not observe container size changes by default. When the pane slides open (or table state expands the pane), the map canvas stays at its original pixel dimensions. This produces a blank strip on the right (or bottom on mobile) where the canvas does not cover the available space. Calling `map.resize()` is required after any layout change that alters the canvas container's dimensions.
+**What goes wrong:** `_AUTHORITY_RE` uses `\d{4}` for the year pattern. The checklist covers species first collected as far back as 1812; all have 4-digit years. DwC-A Taxon.tsv entries for very old synonyms sometimes have 3-digit years in medieval classification schemes (rare for bees). Not a practical risk for Anthophila, but document the assumption.
 
-**Why it happens:**
-`bee-map` positions the Mapbox canvas inside a shadow DOM host. When the parent layout changes (pane appears, width changes), the host element resizes but the Mapbox canvas does not receive a native resize event — GL JS requires an explicit `map.resize()` call. The current code has no pane-width-change path; in the existing full-screen table mode the map shrinks to 18% height (`.table-mode bee-map { height: 18% }`) but no explicit `resize()` is triggered, which may already be a latent cosmetic gap.
-
-**How to avoid:**
-In `bee-map`, add a `ResizeObserver` on the host element (or the map container div) and call `map.resize()` in the callback. This is the idiomatic Mapbox pattern for dynamic layouts. The resize observer fires reliably when CSS dimensions change, including during pane open/close transitions. Alternative: emit a `pane-changed` event from the coordinator and handle it in `bee-map.updated()`, but the observer approach is self-contained and does not add a new cross-component coupling.
-
-**Warning signs:**
-- Map has a blank right-side strip when pane is open
-- Map does not fill its container after switching pane states
-- `map.getCanvas().width` does not match `map.getContainer().offsetWidth` after pane opens
-
-**Phase to address:**
-Phase introducing the pane toggle button and CSS that changes the map's effective width.
+**Prevention:** None needed for bee data; document the assumption in `canonical_name.py`.
 
 ---
 
-### Pitfall 4: Lazy-loaded `bee-table.ts` is not registered when pane transitions to table state
+## DwC-A Taxonomy at Scale
 
-**What goes wrong:**
-`bee-atlas.ts` lazy-imports `bee-table.ts` in three places: `firstUpdated` (when `initViewMode === 'table'`), `_onViewChanged` (when switching to table), and nowhere else. After unification, table is a pane sub-state navigated from `list` state. If the import call is missing from the new pane-state transition handler, the `<bee-table>` custom element is not registered when the table sub-state renders. Lit silently renders an unknown element — no error thrown, no rows shown.
+The current live API approach (`resolve_taxon_ids.py` + `enrich_taxon_lineage_extended`) hits `https://api.inaturalist.org/v1/taxa` and `/v2/taxa` respectively. TAX-01/TAX-02 replace this with an offline DwC-A `Taxon.tsv` walk. The existing code provides a useful model but has failure modes the offline approach does not share — and introduces new ones.
 
-**Why it happens:**
-Dynamic imports are "fire and forget" — the call must be present in every code path that can render `<bee-table>`. In the current code the table is only rendered under `this._viewMode === 'table'`, so only two call sites need the import. After unification there will be a new code path (`_onPaneStateChanged`) that triggers table rendering, and the import call must be added there.
+### Pitfall: Taxon.tsv is ~1.5M rows — full-table scans are slow in Python
 
-**How to avoid:**
-Either (a) convert the dynamic `import('./bee-table.ts')` to a static import at the top of `bee-atlas.ts` — acceptable given that `bee-table.ts` is 421 lines with no heavy deps — or (b) centralize the import into a single `_ensureTableLoaded()` helper called from all pane-state transitions that target `'table'`. Never duplicate the raw dynamic import at multiple call sites.
+**What goes wrong:** The iNat DwC-A taxonomy archive (`https://www.inaturalist.org/taxa/inaturalist-taxonomy.dwca.zip`) is around 350 MB compressed. `Taxon.tsv` uncompressed is several GB. Walking the parent chain recursively in Python with dict lookups is O(depth) per taxon but the dataset must all be in memory first. A naive `csv.DictReader` pass to build a `taxon_id -> row` dict is feasible (~2 GB RAM), but a row-by-row recursive parent walk will be slow if called for each of the few thousand bee species.
 
-**Warning signs:**
-- `<bee-table>` renders as an empty unknown element in DevTools
-- No error in console but table pane is blank
-- `customElements.get('bee-table')` returns `undefined` when table pane is first opened via the new button
+**Prevention:** Load Taxon.tsv into DuckDB once as a staging table (`dwca_data.taxon`). Use a recursive CTE or iterative self-join to walk ancestors, filtered to `kingdom = 'Animalia'` up front. DuckDB handles the join efficiently; Python never needs to hold the full table. The existing `data/gbif-backbone/taxon.sql` demonstrates exactly this pattern — it uses `read_csv('/dev/stdin')` and filters by kingdom before writing to parquet. Use DuckDB for the walk, not Python dicts.
 
-**Phase to address:**
-Phase introducing the expand-to-table button in the pane.
+**Detection:** Pipeline taking >5 minutes on the taxon-lineage step. The existing live API step (`enrich_taxon_lineage_extended`) runs in ~30 seconds on a warm cache.
+
+**Phase:** Architecture decision must be made before implementation. Recommend DuckDB recursive CTE approach.
 
 ---
 
-### Pitfall 5: Mobile viewport broken when three-state pane is added without mobile guard
+### Pitfall: Duplicate taxonID rows in Taxon.tsv (synonyms share accepted taxon IDs)
 
-**What goes wrong:**
-Mobile currently uses `@media (max-aspect-ratio: 1)` to switch `bee-sidebar` from absolute-positioned to `position: static; width: 100%`. The pane must not get three-state treatment on mobile — it should retain the existing open/closed binary behavior. If the three-state toggle button is rendered on mobile or if CSS for the `'table'` pane state is not gated behind the desktop media query, users get a partial-width pane that does not cover the full viewport, and the expand-to-table button appears on a mobile-sized screen where horizontal space is too tight for the table layout.
+**What goes wrong:** iNat DwC-A encodes synonyms as rows where `taxonomicStatus = 'synonym'` and `acceptedNameUsageID` points to the accepted taxon. If the staging table uses `taxon_id` as a primary key without filtering out synonyms first, the `CREATE TABLE ... PRIMARY KEY` will fail on duplicate `taxonID` values. Even without a PK constraint, the lineage walk will produce duplicate rows per species if synonyms are included.
 
-**Why it happens:**
-The existing media query breakpoint is aspect-ratio-based, not width-based. The new pane will have state management in the coordinator (`_paneState: 'collapsed' | 'list' | 'table'`). Without an explicit guard, the state machine applies equally to all viewports. The CSS that sizes the pane at a fixed sidebar width will cause the wrong layout on narrow screens.
+**Prevention:** Filter `WHERE taxonomicStatus = 'accepted'` (or the equivalent active-status string for iNat DwC-A) before inserting into the staging table. The existing `gbif-backbone/taxon.sql` filters `WHERE taxonomicStatus != 'doubtful'` — not sufficient for DwC-A because DwC-A uses `'synonym'` (not `'doubtful'`) for invalid names. Verify the correct status field value against the actual archive before writing the staging model.
 
-**How to avoid:**
-Clamp `_paneState` to `'collapsed' | 'list'` on mobile. Add a `matchMedia('(max-aspect-ratio: 1)')` listener in `bee-atlas` that resets `_paneState` to `'list'` (or `'collapsed'`) whenever the viewport becomes portrait. CSS for `pane-state='table'` (e.g., fixed width, two-column layout) must live inside a `@media (min-aspect-ratio: 1)` rule. The expand-to-table button must be `display: none` on mobile.
+**Detection:** `INSERT ... PRIMARY KEY violation` on the taxon table, or `COUNT(DISTINCT taxon_id) < COUNT(*)` after insert.
 
-**Warning signs:**
-- Expand-to-table button appears on mobile
-- Pane renders at sidebar width (not full-width) on mobile after the merge
-- `_paneState === 'table'` is reachable on a portrait phone
-
-**Phase to address:**
-Phase introducing the three-state pane CSS — include mobile exclusion in the same phase, not as a follow-up.
+**Phase:** Data loading phase. Add a pytest assertion: `COUNT(DISTINCT taxon_id) == COUNT(*)` after staging load.
 
 ---
 
-### Pitfall 6: Summary data not loaded when pane opens in list state on initial map load
+### Pitfall: Missing parents in the ancestor chain for recently-added taxa
 
-**What goes wrong:**
-`_loadSummaryFromSQLite()` is currently called only when `_viewMode === 'table'` at startup, and from `_onViewChanged` when switching to table. In the new model, the filter panel is always visible in list state (the default pane state). `bee-filter-panel` needs `_summary` and `_taxaOptions` to populate the specimen count button and autocomplete. On first load in list mode, these are populated by `_onDataLoaded` (fired by Mapbox's tile load). If the summary loading path is inadvertently left table-only, the filter panel will show "… specimens" permanently in list mode.
+**What goes wrong:** iNat taxonomy evolves; a taxon may have a `parentNameUsageID` that does not appear in the same Taxon.tsv export (e.g., if the parent was added after the archive was cut, or if the archive has internal consistency issues). A recursive CTE with `LEFT JOIN` will stop at the broken link and emit NULL for ranks above it. The existing live API approach never has this problem because `/v2/taxa/{id}` returns the full ancestor array in one response.
 
-**Why it happens:**
-The `_loadSummaryFromSQLite` path is currently guarded by `_viewMode === 'table'`. In the new pane model, the filter panel is always present (not just in table mode), so the summary must always load. The data flow for `_taxaOptions` and `_countyOptions` in map mode comes from `_onDataLoaded` (the Mapbox tile load event), not from SQLite. These two paths must remain separate after unification.
+**Prevention:** After the recursive CTE walk, assert that `COUNT(*) WHERE family IS NULL AND kingdom = 'Animalia'` is below some threshold (say, < 50 rows). Write the broken-parent taxon IDs to a `lineage_broken_parents.csv` for inspection.
 
-**How to avoid:**
-Verify that `_taxaOptions`, `_countyOptions`, `_ecoregionOptions`, and `_collectorOptions` are populated from `_onDataLoaded` for map mode (unchanged). Verify that `_loadSummaryFromSQLite` is called unconditionally (not gated on pane state) so the filter panel's specimen count is populated even when the pane is in list state. Add a Vitest test: mount `bee-atlas`, simulate data-loaded, assert `specimenCount` is non-null in list pane state.
+**Detection:** Species pages showing null family values; `test_lin05_lineage_coverage.sql` failing.
 
-**Warning signs:**
-- Filter panel always shows "… specimens" and never a real count
-- Autocomplete suggestions are always empty on initial load
-- `_summary` is null when the pane is in list state
-
-**Phase to address:**
-Phase merging filter panel into the pane — audit both data-load paths before writing the merge.
+**Phase:** DwC-A ingestion phase. Add coverage assertion to the existing `test_lin05_lineage_coverage.sql` dbt test.
 
 ---
 
-### Pitfall 7: `_tableFilterOpen` / `setOpen` imperative coupling survives the merge as dead or broken code
+### Pitfall: ETag/Last-Modified caching — the archive changes monthly but the URL is stable
 
-**What goes wrong:**
-`bee-atlas` holds `_tableFilterOpen: boolean` specifically to drive `bee-filter-panel.setOpen()` in table mode. The coordinator calls `(this.shadowRoot?.querySelector('bee-filter-panel') as any)?.setOpen(this._tableFilterOpen)` from `_onToggleFilter`. After the merge, if `bee-filter-panel` is no longer a separate element (it is merged into the pane), this `querySelector` silently returns `null` and the toggle button in the table toolbar does nothing.
+**What goes wrong:** The DwC-A archive URL (`inaturalist-taxonomy.dwca.zip`) does not change when iNat updates it. Without ETag or `Last-Modified` checking, the pipeline will re-download the full ~350 MB archive on every nightly run. This is ~2-5 minutes of download time and unnecessary churn.
 
-**Why it happens:**
-`querySelector` with `as any` cast is type-unsafe and silently no-ops on mismatch. If the custom element tag name changes or the element is inside a different shadow root, the call fails silently. This pattern was always a temporary workaround; the merge is the correct time to eliminate it.
+**Prevention:** Store the `ETag` or `Last-Modified` response header from the last download in S3 alongside the archive (or in a small metadata file). On the next run, send `If-None-Match` / `If-Modified-Since`; on 304 response, skip extraction and re-use the cached parquet. The existing `last_fetch.txt` pattern in the iNat observations pipeline (`CACHE-01/02/03`) is the exact template.
 
-**How to avoid:**
-Delete `_tableFilterOpen` from `bee-atlas`. Replace the imperative `setOpen` call with a reactive property (`filterPanelOpen: boolean`) passed to the pane. The pane reads that property and shows/hides the filter section accordingly. Eliminate all `querySelector` casts to `any` that reach into child shadow DOMs.
+**Detection:** Nightly pipeline consistently taking 5+ minutes on the taxon step.
 
-**Warning signs:**
-- "Filter" button in table toolbar is non-functional after the merge
-- `_tableFilterOpen` still present in `bee-atlas` after merge
-- `setOpen` method still exists on the merged component
-
-**Phase to address:**
-Phase merging filter panel into the pane — delete `_tableFilterOpen` in the same commit as the merge.
+**Phase:** DwC-A download phase. Mirror the `last_fetch.txt` + S3 cache pattern.
 
 ---
 
-## Technical Debt Patterns
+### Pitfall: iNat DwC-A uses non-standard rank vocabulary at intermediate levels
 
-| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
-|----------|-------------------|----------------|-----------------|
-| Keep `viewMode: 'map' \| 'table'` in `UiState` and add `paneState` alongside it | Avoids touching URL round-trip tests during pane refactor | Two overlapping state fields that can get out of sync; `view=table` URL param persists but is meaningless | Never — clean up in the same phase |
-| Use `querySelector('bee-filter-panel') as any` to drive pane state | Quick workaround for imperative open/close | Silent failure when element tag changes; undetectable in TypeScript | Never |
-| Defer mobile pane exclusion to a polish phase | Faster desktop-first delivery | Broken mobile UX ships; risk of re-working pane state machine after CSS is settled | Never — mobile guard must ship in the same phase as three-state CSS |
-| Eagerly import `bee-table.ts` at module scope in bee-atlas.ts | Eliminates lazy-import silent failure class | Slightly larger initial bundle (acceptable — `bee-table.ts` is 421 lines, no heavy deps) | Acceptable for this project |
+**What goes wrong:** The existing `enrich_taxon_lineage_extended` extracts exactly `{family, subfamily, tribe, genus, subgenus}` from the ancestor chain. For some taxa (tribe-less genera, genus-level records without subgenus), intermediate ranks are NULL, which is correct. The DwC-A archive may surface taxa where iNat's rank vocabulary includes additional intermediate ranks — for example, iNat uses `'epifamily'` and `'supertribe'` as ranks that sit between the expected 5. A recursive CTE that walks ALL ancestors will encounter these.
 
----
+**Prevention:** When walking ancestors in the recursive CTE, filter to only `rank IN ('family', 'subfamily', 'tribe', 'genus', 'subgenus')`. Any ancestor with an intermediate rank like `epifamily` is silently skipped. Verify by spot-checking that `Bombus` gets `family=Apidae`, `tribe=Bombini`, `genus=Bombus`.
 
-## Integration Gotchas
-
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| Mapbox resize | Relying on CSS flexbox resize to notify the canvas | Call `map.resize()` explicitly; use `ResizeObserver` on the host element in `bee-map` |
-| Lit `updated()` for pane width change | Passing `paneState` as a property to `bee-map` and triggering resize in `updated()` | Works, but ResizeObserver in `bee-map` is self-contained and does not require the coordinator to know Mapbox resize semantics |
-| `bee-filter-panel` place names lazy load | `_placeNameBySlug` is empty until `_ensurePlaceNamesLoaded()` is called — triggered by `setOpen` | After open/close becomes property-driven, call `_ensurePlaceNamesLoaded()` in `updated()` whenever `open` becomes true |
-| `bee-table` lazy import | `import('./bee-table.ts')` has no `await` — element may not be registered by the time Lit renders `<bee-table>` on the same microtask | Prefer static import to eliminate the race entirely |
-| URL `popstate` and pane state | `_onPopState` restores `_viewMode` but after unification there is no `paneState` in the URL yet | Add `pane=` to `buildParams`/`parseParams` in the same phase as the pane state machine, or `popstate` will reset the pane to collapsed on back-navigation |
+**Phase:** DwC-A ingestion phase. Spot-check at least one tribe-bearing genus after migration.
 
 ---
 
-## Performance Traps
+## dbt Contract Changes
 
-| Trap | Symptoms | Prevention | When It Breaks |
-|------|----------|------------|----------------|
-| Pane open/close triggers full `_runFilterQuery` | Filter query fires on every pane toggle, even when filter state has not changed | Pane open/close must not touch `_filterState`; only `filter-changed` events should trigger the query | Immediately — wasted SQLite round-trips per toggle |
-| `_loadSummaryFromSQLite` called redundantly on pane open | Summary query fires every time the pane enters list state | Call summary load once (on `tablesReady`), cache result in `_summary`, never re-fetch | At low query volume it is unnoticeable, but adds 50-200ms latency to pane open |
-| Table state triggers `_runTableQuery` even when filter/sort is unchanged | User switches to table pane; filter unchanged; table re-queries the full page | Guard `_runTableQuery` with a dirty flag or only trigger it when `paneState` transitions to `'table'` and filter or sort has actually changed | Noticeable on slow network — full 45k-row page query on every pane toggle |
+The current `occurrences` mart has a 31-column dbt contract enforced in `data/dbt/models/marts/schema.yml`. The milestone adds a `source` column (EXT-01), making it 32 columns. Several downstream consumers depend on this contract.
 
----
+### Pitfall: Column added in dbt model but not in schema.yml — contract silently unenforced
 
-## UX Pitfalls
+**What goes wrong:** dbt's `contract: enforced: true` only validates columns that appear in `schema.yml`. If a developer adds `source` to `occurrences.sql` SELECT but forgets to add it to `schema.yml`, dbt build succeeds (no violation), the column appears in the parquet, but the contract is not enforced. Future changes to `source`'s type will not be caught by dbt.
 
-| Pitfall | User Impact | Better Approach |
-|---------|-------------|-----------------|
-| Pane toggle button overlaps Mapbox controls (zoom +/-) | User cannot reach zoom controls; pane button obscures the top-right corner | Offset pane button to avoid Mapbox default control position (top-right); or move Mapbox controls to bottom-right |
-| Table pane state clears sidebar occurrences silently | User has a cluster selected in list state, clicks expand-to-table — occurrences disappear | Preserve `_selectedOccIds` when transitioning to table state; `bee-table` already highlights selected rows |
-| Filter panel `_open` animation plays inside an also-animating pane | Pane goes from collapsed to list — filter panel animates open inside a pane that is itself animating | Remove filter panel's own open animation when it is always-shown inside the pane; keep animation only for the pane toggle itself |
-| No visual distinction between pane's list and table states | Users do not understand the expand button | Use distinct icons (list-lines icon for list state, grid/table icon for table state); button must have a toggle-like affordance |
+**Prevention:** Add the `source` column entry to `schema.yml` in the same commit as the model change. The existing `test_occurrences_schema_matches` in `test_dbt_diff.py` will catch schema drift against `public/data/occurrences.parquet` — but only after a full pipeline run. Update the test's docstring baseline count comment (currently "30 columns") to "32 columns" to make the expected count visible.
+
+**Detection:** `test_occurrences_schema_matches` fails in CI after next deploy. Or: `DESCRIBE` the sandbox parquet and count columns manually.
+
+**Phase:** Any phase that adds `source` to `occurrences`. Must update schema.yml atomically.
 
 ---
 
-## "Looks Done But Isn't" Checklist
+### Pitfall: `species_export.py` reads `occurrences.parquet` for `seasonality.json` — additive columns are safe, but renames break it
 
-- [ ] **Pane toggle button:** Verify `aria-expanded` reflects actual pane state, not just a boolean class; verify keyboard focus moves into pane on expand.
-- [ ] **URL round-trip:** After replacing `viewMode` with `paneState`, verify `?pane=table` restores table state on page load AND that old `?view=table` URLs do not 404 or silently no-op — they should redirect to or be treated as the new param equivalent.
-- [ ] **Mapbox resize:** After pane opens/closes, verify `map.getCanvas().width === map.getContainer().offsetWidth` (no blank strip).
-- [ ] **Mobile non-regression:** On portrait viewport, verify pane shows as full-width open/close (no three-state, no expand-to-table button).
-- [ ] **Filter panel data:** After page load in list pane state (no prior table mode), verify `specimenCount` is populated and autocomplete suggests taxa.
-- [ ] **`bee-table` registration:** Verify `customElements.get('bee-table')` is defined when table pane first renders.
-- [ ] **`setOpen` eliminated:** Verify no `querySelector` casts reach into child shadow DOMs after the merge.
-- [ ] **`_tableFilterOpen` deleted:** Verify no stale boolean lingers in `bee-atlas` state after `_tableFilterOpen` is superseded by pane-state-driven filter visibility.
+**What goes wrong:** `species_export.py` reads `DBT_SANDBOX_DIR/occurrences.parquet` with a SELECT for `canonical_name, county, ecoregion_l3, TRY_CAST(month AS INT) - 1`. It does not SELECT `source`, so the new column is invisible and harmless. But if any of the four columns it does reference are renamed (e.g., `county` -> `county_name` as part of a broader renaming sweep), `species_export.py` fails with a DuckDB `Binder Error`.
 
----
+**Prevention:** The `SPECIES_COLUMNS` list in `species_export.py` is the canonical reference — check it against any column rename. The `test_species_export.py` pytest suite will catch this at test time but only if the fixture includes the renamed column.
 
-## Recovery Strategies
+**Detection:** `uv run pytest data/tests/test_species_export.py` failing with `Binder Error`.
 
-| Pitfall | Recovery Cost | Recovery Steps |
-|---------|---------------|----------------|
-| URL param collision (`view=table` persists) | LOW | Add `parseParams` migration: if `view=table` present and no `pane=` param, return `paneState: 'table'`; remove old branch |
-| `_open` internal state desync | MEDIUM | Delete `_open` from merged component; add `open` as `@property`; update all render guards from `this._open` to `this.open` |
-| Mapbox blank strip | LOW | Add `ResizeObserver` to `bee-map` constructor; call `this._map.resize()` in callback |
-| `bee-table` not registered | LOW | Convert dynamic `import('./bee-table.ts')` to static import at top of `bee-atlas.ts` |
-| Mobile layout broken | MEDIUM | Add `matchMedia` listener to clamp `_paneState`; add CSS `@media` guards; QA on physical device |
+**Phase:** Safe for EXT-01 (`source` is additive). Risk only on future column renames.
 
 ---
 
-## Pitfall-to-Phase Mapping
+### Pitfall: `test_dbt_diff.py` baseline counts will be wrong during development
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| URL `viewMode`/`paneState` collision | Phase introducing unified pane component | url-state round-trip test: `view=table` either maps to new param or is ignored; `pane=table` round-trips correctly |
-| `_open` internal state orphaned | Phase merging bee-filter-panel + bee-sidebar | Grep for `_open` in merged component — must be gone; `setOpen` method must not exist |
-| Mapbox canvas no-resize | Phase introducing pane toggle CSS | Manual: open/close pane, verify no blank strip; automated: `map.getCanvas().width` assertion in ResizeObserver test |
-| `bee-table` lazy import missing | Phase introducing expand-to-table button | `customElements.get('bee-table')` assertion in Vitest render test for table pane state |
-| Mobile three-state regression | Phase introducing pane CSS | Manual QA on portrait viewport; CSS: expand-to-table button is `display:none` in portrait media query |
-| Summary data not in list mode | Phase merging filter panel into pane | Vitest: mount bee-atlas, simulate data-loaded, assert `specimenCount` non-null in list state |
-| `_tableFilterOpen` dead coupling | Phase merging filter panel | Grep: `_tableFilterOpen` must not appear in bee-atlas.ts after merge; `setOpen` must not appear on merged component |
+**What goes wrong:** `test_occurrences_row_count_matches` asserts `sandbox == public` row counts (both currently 47,883). These are sandbox-vs-public diff tests, not fixed-number assertions — they will pass once `public/data/` is updated by a full pipeline run. The failure during development (when sandbox is ahead of public) is expected.
+
+More critically: `test_species_parquet_row_count_matches` asserts `sandbox == public` for species (currently 629 rows). After adding checklist-only species, the sandbox count will exceed the current public count. This test will FAIL when dbt sandbox is rebuilt before `public/data/species.parquet` is updated.
+
+**Prevention:** Do not suppress these failures during development — use them as a "did you run the full pipeline?" signal. Update the docstring baseline comments after v4.0 full pipeline run.
+
+**Detection:** These failures are expected and correct during development. Treat them as progress indicators.
+
+**Phase:** Expected failure during development. After v4.0 full pipeline run, update baseline comments in `test_dbt_diff.py`.
 
 ---
+
+### Pitfall: Checklist records must NOT enter `int_combined`
+
+**What goes wrong:** `int_combined` is the occurrence-level UNION ALL (Ecdysis arm + provisional WABA arm). Checklist records in `checklist_data.species` are species presence/county records — they have no lat/lon, no date, no collector. If someone mistakenly adds a checklist ARM to `int_combined`, the spatial join in `occurrences.sql` will call `ST_Point(NULL, NULL)` producing NULL, and the fallback correlated subquery (`ORDER BY ST_Distance LIMIT 1`) will assign the nearest county/ecoregion — producing meaningless county assignments for historical records.
+
+Checklist records belong only in `int_species_universe` (via the FULL OUTER JOIN on `stg_checklist__species`) — which already exists and works correctly.
+
+**Prevention:** When implementing EXT-01, verify the `source` field logic: `'ecdysis'` for Ecdysis arm rows, `'inat'` for iNat arm rows. Checklist-only species have `occurrence_count = 0` in the species mart and no rows in `occurrences.parquet`. The `source` field does not apply to checklist records.
+
+**Detection:** `occurrences.parquet` row count jumping from ~48K to ~95K+ would be the signal. Also: any checklist row with `lat IS NULL` in `occurrences.parquet`.
+
+**Phase:** Architecture review in any phase that touches `int_combined`. The EXT-01 `source` column applies to Ecdysis and iNat arms only.
+
+---
+
+### Pitfall: Adding `source` to `occurrences.parquet` requires frontend `buildFilterSQL()` audit
+
+**What goes wrong:** The frontend loads `occurrences.parquet` via hyparquet into wa-sqlite, then queries it with SQL. `buildFilterSQL()` in `filter.ts` generates SQL against the known column schema. Adding `source` is additive and does not break existing queries. But if the checklist layer needs `WHERE source != 'checklist'` to hide checklist-only occurrence rows from the main count — and if checklist records actually DO appear in `occurrences.parquet` — every SQL path that computes counts needs updating.
+
+**Prevention:** Decide upfront whether checklist records appear in `occurrences.parquet` at all. If they do not (which is the correct architecture), the `source` field only distinguishes `'ecdysis'` vs. `'inat'` rows — simpler to filter.
+
+**Phase:** Frontend query update phase. Scope is small if checklist rows are excluded from `occurrences.parquet`.
+
+---
+
+## Multi-Source Occurrence Data
+
+### Pitfall: ~4,600 records without coordinates cannot be spatially joined
+
+**What goes wrong:** The milestone context notes ~4,600 of 50,646 checklist records lack coordinates. If these are historical specimen records (not the current Bartholomew et al. county-presence checklist), they would need spatial handling. The `occurrences.sql` spatial join uses `ST_Point(lon, lat)` — if `lon` or `lat` is NULL, `ST_Point` returns NULL and the fallback correlated subquery assigns the nearest county/ecoregion, which is geographic nonsense for records from 1812 with no coordinates.
+
+**Prevention:** Apply an explicit `WHERE lat IS NOT NULL AND lon IS NOT NULL` guard before `ST_Point`. Emit records with NULL coordinates as `county = NULL, ecoregion_l3 = NULL` rather than running the fallback. Add a `SELECT COUNT(*) WHERE lat IS NULL` assertion at load time and document the NULL-coordinate count explicitly.
+
+**Detection:** Any checklist record in `occurrences.parquet` where `county IS NOT NULL` but `lat IS NULL` — that row got the fallback assigned, which is wrong.
+
+**Phase:** Checklist ingestion phase. Decide and document the NULL-coordinate policy before writing the dbt model.
+
+---
+
+### Pitfall: Mixed date formats require explicit parsing before YEAR()/MONTH() extraction
+
+**What goes wrong:** The milestone context notes two date format variants: ISO T00:00:00 (`"2019-07-15T00:00:00"`) and MM/DD/YYYY (`"07/15/2019"`). DuckDB's `YEAR()` and `MONTH()` functions work on DATE and TIMESTAMP types but not on unparsed VARCHAR. If the staging model casts the date column as VARCHAR (the current pattern for `ecdysis_date` and `sample_date`), `YEAR()` and `MONTH()` will return NULL for all rows.
+
+The current `int_combined.sql` extracts YEAR/MONTH on typed columns before casting to VARCHAR for display. The same pattern must apply to checklist staging.
+
+**Prevention:** In the checklist staging model, use `TRY_STRPTIME(date_col, '%Y-%m-%dT%H:%M:%S')` for ISO format and `TRY_STRPTIME(date_col, '%m/%d/%Y')` for MM/DD/YYYY. Use `COALESCE(attempt1, attempt2)` to handle both formats. Extract YEAR/MONTH from the parsed TIMESTAMP before casting to display VARCHAR.
+
+**Detection:** `SELECT COUNT(*) FROM staging WHERE year IS NULL OR month IS NULL` after the staging model runs. If count > 0, date parsing failed for some rows.
+
+**Phase:** Checklist ingestion phase. Write a unit test asserting both date format variants parse correctly.
+
+---
+
+### Pitfall: Trailing spaces in family names cause silent row exclusion from the species universe
+
+**What goes wrong:** The milestone context explicitly notes trailing-space family names like `"Halictidae "` in the raw data. The `int_species_universe.sql` WHERE clause `WHERE family IN ('Andrenidae', 'Apidae', 'Colletidae', 'Halictidae', 'Megachilidae', 'Melittidae', 'Stenotritidae')` will EXCLUDE rows with `"Halictidae "` (trailing space). Those rows are silently dropped from the species universe — no error, no warning.
+
+**Prevention:** Apply `TRIM()` to all VARCHAR columns in staging models. Make it a rule: all string columns in `stg_checklist__*` models pass through `TRIM()`. Add a dbt test: `SELECT COUNT(*) WHERE family != TRIM(family)` returning 0.
+
+**Detection:** Species with known Halictidae membership absent from the species universe after ingestion.
+
+**Phase:** Checklist staging model. Add `TRIM()` as a lint-enforced rule in staging.
+
+---
+
+### Pitfall: Records with no `observation_id` and no `ecdysis_id` break frontend occurrence ID construction
+
+**What goes wrong:** The frontend `occIdFromRow` in `src/occurrence.ts` uses `ecdysis_id` and `observation_id` to construct occurrence IDs and returns `null` if both are absent. If historical occurrence records (not the county-presence checklist) enter `occurrences.parquet` without either ID, `occIdFromRow` returns null for those rows. This breaks click-to-detail in the occurrence table and list, and produces null entries in CSV export.
+
+**Prevention:** If historical records enter `occurrences.parquet`, they need a stable occurrence ID scheme — a `checklist:<row_number>` synthetic ID (parallel to `ecdysis:<id>` and `inat:<id>`). The `occurrence.ts` `occIdFromRow` function and its callers must be extended. The `source` field is needed to distinguish the new ID prefix.
+
+**Detection:** `occIdFromRow` returning null for any row in the table; `bee-occurrence-detail` showing blank items.
+
+**Phase:** Frontend integration phase. Must extend `src/occurrence.ts` if non-Ecdysis, non-iNat rows enter `occurrences.parquet`.
+
+---
+
+### Pitfall: Date range 1812-~1990s creates misleading recency signals in the map and year slider
+
+**What goes wrong:** The year filter uses min/max of the `year` column to set the range slider bounds. If records with `year = 1812` enter `occurrences.parquet`, the year slider shows 1812 as the minimum — surprising for a WABA volunteer data site. The recency-coloring in the map layer also uses year — records from 1812 get the "oldest" color tier.
+
+**Prevention:** The separate "Checklist records" layer toggle (CHECK-02) isolates these records visually. But if the year slider derives bounds from the combined `occurrences.parquet`, it needs either: (a) clamping to the WABA-relevant range, (b) dynamic exclusion of checklist-source rows from bounds computation, or (c) keeping historical records in a separate `checklist.parquet` that never affects the year slider. Decide this architecture before implementation.
+
+**Detection:** Year slider showing 1812 as lower bound after ingestion. Also: WABA records from 2020 appearing with non-recent color styling because the color tier thresholds shift.
+
+**Phase:** Frontend integration phase. Architectural decision (separate parquet vs. merged + `source` filter) must be made in design, not discovered during UAT.
+
+---
+
+## Eleventy Species Page Expansion
+
+### Pitfall: Checklist-only species missing `specific_epithet` are silently excluded from `speciesList`
+
+**What goes wrong:** `_data/species.js` line 97 filters `speciesList = flat.filter(s => s.specific_epithet !== null)`. Checklist-only species get their `specific_epithet` from `checklist_pipeline.py` as `parts[1] if len(parts) >= 2 else None`. For a standard binomial this is populated. But if any checklist entry has only 1 token (a genus-only name that slipped through data extraction), it will have `specific_epithet = NULL` and be silently excluded from `speciesList` — it appears in genus pages and the index but gets no species page.
+
+**Prevention:** Add an assertion in `checklist_pipeline.py` that all inserted species have non-NULL `specific_epithet`:
+
+```python
+bad = [sci for sci, ep in zip(species_names, epithets) if ep is None]
+if bad:
+    raise ValueError(f"Checklist species missing epithet: {bad}")
+```
+
+**Detection:** Checklist species absent from `speciesList` but present in `flat`; species page 404s.
+
+**Phase:** Checklist ingestion phase. Add assertion before INSERT.
+
+---
+
+### Pitfall: `species_maps.py` may error or produce empty SVGs for checklist-only species with `occurrence_count = 0`
+
+**What goes wrong:** The `species-detail.njk` template already guards SVG map display with `{%- if sp.occurrence_count > 0 -%}`. But `species_maps.py` must also skip SVG generation for species with zero occurrences. If it attempts to generate an SVG for a species with no occurrence rows, it will either produce an empty file or error.
+
+**Prevention:** Verify that `species_maps.py` already filters `WHERE occurrence_count > 0` before generating maps (inspection required). If it does not, add that filter. The template guard is correct UX; the pipeline guard prevents empty artifacts.
+
+**Detection:** `species_maps.py` erroring on species with zero occurrences, or generating 0-byte SVGs for checklist-only species.
+
+**Phase:** Species map generation phase. Verify `species_maps.py` filter before running against expanded species set.
+
+---
+
+### Pitfall: Checklist-only species are excluded from genus and subgenus pages due to `occurrence_count > 0` filter in `_data/species.js`
+
+**What goes wrong:** `genusList` builds color indices and species lists over `withOcc = allMembers.filter(sp => sp.occurrence_count > 0)`. Checklist-only species (0 occurrences) are excluded. A user navigating the species index sees `Osmia aglaia` listed under _Osmia_, clicks through to the _Osmia_ genus page, and finds the species absent. Same problem for `subgenusList`.
+
+This may be intentional (genus page is an occurrence-browsing surface), but it creates a confusing UX gap and must be a conscious design decision.
+
+**Prevention:** Explicitly decide: do genus and subgenus pages list checklist-only species with a "no WABA records" indicator, or only species with occurrences? Either answer is valid. Document the decision. If checklist-only species should appear on genus pages, the `withOcc` filter in `_data/species.js` must be extended to include `on_checklist` species regardless of `occurrence_count`.
+
+**Detection:** Checklist species appearing in species index but missing from corresponding genus page.
+
+**Phase:** Design decision required before implementing genus/subgenus page changes. Flag in roadmap.
+
+---
+
+### Pitfall: New genera in the checklist need new genus SVG maps — missing maps produce 404s on genus pages
+
+**What goes wrong:** Eleventy generates one genus page per entry in `genusList`. If the checklist adds species in genera not currently in the system, new genus pages are generated but `species_maps.py` may not generate the corresponding SVG maps for those genera if they have zero occurrence records (the map generation is gated on `occurrence_count > 0`).
+
+**Prevention:** After integrating checklist species, verify that all genus names in the species index have corresponding SVG maps generated. Add an assertion in `species_maps.py`: all genera in `species.parquet` with `occurrence_count > 0` have a corresponding `.svg` file. For genera with zero occurrences, no SVG is needed (the genus page template can guard on `totalOccurrences > 0` like `species-detail.njk`).
+
+**Detection:** 404 on genus page `<img>` tags for newly-added genera.
+
+**Phase:** Post-pipeline verification phase. Include in UAT checklist.
+
+---
+
+### Pitfall: `tribeList` filters `totalOccurrences > 0` — a tribe with only checklist-only members disappears from the species index
+
+**What goes wrong:** `tribeList` in `_data/species.js` filters `.filter(t => t.totalOccurrences > 0)`. If a tribe's only WA members are checklist-only species with 0 occurrences, the entire tribe page disappears from the species index. For the WA bee fauna this is unlikely but needs verification.
+
+**Prevention:** After integrating checklist species, run: `SELECT tribe, COUNT(*) FROM checklist_data.species WHERE tribe IS NOT NULL GROUP BY tribe` vs. `SELECT tribe, SUM(occurrence_count) FROM species WHERE tribe IS NOT NULL GROUP BY tribe` and verify no tribe becomes occurrence_count=0 that wasn't already.
+
+**Phase:** Species index verification phase. One-time data check after integration.
+
+---
+
+### Pitfall: HSL color indices in `_data/species.js` shift when new species with occurrences are added to a genus
+
+**What goes wrong:** `_data/species.js` computes HSL color index `i` as position in `withOcc.sort((a,b) => a.canonical_name.localeCompare(b.canonical_name))`. Checklist-only species (0 occurrences) do NOT appear in `withOcc` and do not shift existing color indices. Safe.
+
+BUT: if a historical checklist occurrence record with `occurrence_count > 0` is added to a genus (from the 3rd data source), it WILL appear in `withOcc` and its insertion shifts the color index of all subsequent alphabetical neighbors. This would mismatch the SVG maps generated by `species_maps.py` (which uses the same alphabetical sort).
+
+**Prevention:** The Python `_group_colors` in `species_maps.py` and the JavaScript `hslToHex` in `_data/species.js` both use `occurrence_count > 0 ORDER BY canonical_name`. As long as both remain synchronized, new occurrences from any source produce consistent colors. The existing `test_dbt_diff.py` `test_species_canonical_name_key_set_matches` catches drift if the species mart gains unexpected entries.
+
+**Phase:** No action needed if the sync between Python and JS is maintained. Verify by running the determinism test after adding checklist species.
+
+---
+
+## Prevention Checklist
+
+**Checklist ingestion phase:**
+- [ ] All string columns pass through `TRIM()` in `stg_checklist__*` staging models
+- [ ] `TRIM(family)` matches exactly one of the 7 bee family values in `int_species_universe.sql`
+- [ ] `specific_epithet IS NOT NULL` assertion for all checklist rows before INSERT
+- [ ] `SELECT COUNT(*) WHERE lat IS NULL` documented and policy chosen (exclude vs. null-assign)
+- [ ] Date format variants (ISO T00:00:00 and MM/DD/YYYY) both parse to typed date in staging
+- [ ] NULL-coordinate policy: emit `county = NULL, ecoregion_l3 = NULL` rather than using fallback
+
+**DwC-A taxonomy phase (TAX-01/TAX-02):**
+- [ ] Taxon.tsv loaded into DuckDB staging table (not Python dict)
+- [ ] `WHERE taxonomicStatus = 'accepted'` (verify exact string in archive) filters synonyms before PK insert
+- [ ] `COUNT(DISTINCT taxon_id) == COUNT(*)` assertion after staging load
+- [ ] Recursive CTE or iterative join for parent chain walk (not Python recursion)
+- [ ] Filter ancestors to `rank IN ('family', 'subfamily', 'tribe', 'genus', 'subgenus')`
+- [ ] Coverage assertion: `COUNT(*) WHERE family IS NULL AND kingdom = 'Animalia'` below threshold
+- [ ] ETag/Last-Modified caching mirrors `last_fetch.txt` + S3 pattern
+- [ ] Spot-check: `Bombus` gets `family=Apidae`, `tribe=Bombini`, `genus=Bombus`
+- [ ] `canonicalize()` spot-tested against 200 Taxon.tsv `scientificName` values
+
+**dbt contract expansion (EXT-01 `source` column):**
+- [ ] Column added to `schema.yml` in the same commit as the model change
+- [ ] Schema baseline comment in `test_dbt_diff.py` updated ("32 columns")
+- [ ] Verify checklist records do NOT appear in `int_combined` (species-level only)
+- [ ] Frontend `buildFilterSQL()` and `occIdFromRow` audited for impact of new `source` column
+- [ ] Architectural decision documented: do checklist records enter `occurrences.parquet` or not?
+
+**Eleventy species page expansion:**
+- [ ] `species_maps.py` filters `WHERE occurrence_count > 0` before SVG generation
+- [ ] All new genus/subgenus SVG maps generated before S3 upload
+- [ ] Design decision documented: do checklist-only species appear on genus/subgenus pages?
+- [ ] `tribeList` coverage check: no tribe becomes occurrence_count=0 unexpectedly
+- [ ] Color index sync: `species_maps.py` and `_data/species.js` use identical sort/filter
+- [ ] `test_dbt_diff.py` baseline comments updated after full pipeline run
+
+**CI / nightly.sh:**
+- [ ] `npm test` passes (Vitest + pytest) after each phase
+- [ ] `bash data/dbt/run.sh build` exits 0 with new column in schema.yml
+- [ ] Full pipeline run on maderas before declaring milestone complete
+- [ ] Push main + tag per `feedback_push_every_milestone.md`
+
+---
+
+## Phase-Specific Warnings
+
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| DwC-A staging load | Synonym rows cause duplicate taxon_id PK violations | Filter `taxonomicStatus = 'accepted'` before insert; verify exact string in archive |
+| DwC-A archive download | ~350 MB re-downloaded nightly without caching | Implement ETag/Last-Modified caching from day 1 |
+| DwC-A parent chain walk | Python recursion too slow on ~1.5M rows | Use DuckDB recursive CTE; filter to Animalia first |
+| Checklist staging | Trailing spaces in family silently drop rows from species universe | TRIM() all VARCHAR columns; add dbt test |
+| Checklist date parsing | Mixed formats produce NULL year/month | TRY_STRPTIME both variants; assert count > 0 after staging |
+| NULL-coordinate records | Fallback spatial join assigns meaningless county to un-geolocated historical records | Explicit NULL guard before ST_Point; emit NULL county rather than fallback |
+| `int_combined` expansion | Checklist rows accidentally added to UNION ALL (wrong) | Checklist rows are species-level; they belong in int_species_universe FULL OUTER JOIN, not int_combined |
+| `source` column in schema.yml | Added to model but forgotten in schema.yml | Atomic commit: model + schema.yml together |
+| `test_dbt_diff.py` during development | Expected failure: sandbox > public before pipeline runs | Do not suppress; use as progress indicator |
+| SVG maps for new genera | Genus page img 404 for newly-added checklist genera | Verify species_maps.py generates all required SVGs before S3 upload |
+| Genus/subgenus pages | Checklist-only species absent from genus pages | Explicit design decision required in roadmap |
+| Tribe pages | Tribe disappears if all members are checklist-only (0 occurrences) | Verify against actual data after integration |
+| Frontend occurrence ID | `occIdFromRow` returns null for rows with no ecdysis_id or observation_id | Extend `src/occurrence.ts` if any such rows enter `occurrences.parquet` |
+| Year slider bounds | 1812 as minimum year surprises WABA users | Architecture decision: separate parquet or `source` filter on bounds computation |
 
 ## Sources
 
-- Direct inspection of `src/bee-atlas.ts` (coordinator, all state fields and event handlers)
-- Direct inspection of `src/bee-filter-panel.ts` (`_open` state, `setOpen` method, document-click listener, `externalOpen` property)
-- Direct inspection of `src/bee-sidebar.ts` (thin layout shell, close event)
-- Direct inspection of `src/bee-table.ts` (lazy import pattern, pagination, filter button, `toggle-filter` event)
-- Direct inspection of `src/url-state.ts` (`viewMode: 'map' | 'table'`, `buildParams`, `parseParams`, `UiState`)
-- `CLAUDE.md` architecture invariants (state ownership, filter race guard, style cache)
-- `PROJECT.md` v3.9 active milestone requirements and key decisions log
-
----
-*Pitfalls research for: sidebar & table unification (v3.9)*
-*Researched: 2026-05-19*
+All findings from direct code inspection of:
+- `/Users/rainhead/dev/beeatlas/data/canonical_name.py`
+- `/Users/rainhead/dev/beeatlas/data/checklist_pipeline.py`
+- `/Users/rainhead/dev/beeatlas/data/inaturalist_pipeline.py`
+- `/Users/rainhead/dev/beeatlas/data/resolve_taxon_ids.py`
+- `/Users/rainhead/dev/beeatlas/data/species_export.py`
+- `/Users/rainhead/dev/beeatlas/data/run.py`
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/occurrences.sql`
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/schema.yml`
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_combined.sql`
+- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_species_universe.sql`
+- `/Users/rainhead/dev/beeatlas/data/tests/test_dbt_diff.py`
+- `/Users/rainhead/dev/beeatlas/_data/species.js`
+- `/Users/rainhead/dev/beeatlas/_pages/species-detail.njk`
+- `/Users/rainhead/dev/beeatlas/.planning/PROJECT.md`
+- `/Users/rainhead/dev/beeatlas/data/gbif-backbone/taxon.sql`
+- `/Users/rainhead/dev/beeatlas/data/checklists/README.md`
