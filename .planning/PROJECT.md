@@ -1,5 +1,16 @@
 # Washington Bee Atlas
 
+## Current Milestone: v4.0 Washington Checklist Records
+
+**Goal:** Add the Bartholomew et al. 2024 annotated checklist as a new curated occurrence data source — pipeline ingestion, separate map layer, expanded species coverage (all 565 checklist species), and iNat taxonomy via Darwin Core Archive to eliminate API rate-limit risk.
+
+**Target features:**
+- Checklist pipeline: parse + clean CSV (committed to repo), spatial-join for county/ecoregion, produce `checklist.parquet`
+- Map: separate "Checklist records" toggle-able layer, visually distinct from WABA specimens and iNat samples
+- Species pages: checklist records on occurrence maps; taxon pages for all 565 checklist species including those with no WABA records
+- iNat taxonomy via DwC-A: replace live `/v2/taxa` enrichers with monthly archive download; eliminates rate-limit risk at scale
+- Extensibility: `source` field in pipeline/data model for future data sources (other Bee Atlas programs, GBIF)
+
 ## Milestone: v3.9 Sidebar & Table Unification — COMPLETE (2026-05-20)
 
 **Shipped:** Unified `bee-pane` component (1004 lines) merging filter panel + occurrence sidebar + table into three states (collapsed/list/table). `bee-filter-panel.ts` and `bee-sidebar.ts` deleted. Selection+filter use unified `queryListPage` WHERE intersection. Table renders as split-screen (40% map / 60% table). URL pane state (`?pane=list`/`?pane=table`) with legacy `?view=table` alias. MAP-01 satisfied via overlay architecture.
@@ -185,7 +196,15 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ URL-02: Legacy `?view=table` preserved via Option A precedence chain — v3.9
 - ✓ MAP-01: Mapbox canvas resizes correctly via overlay architecture (bee-pane is position:absolute; bee-map dimensions never change) — v3.9
 
-### Active (next milestone)
+### Active (v4.0)
+
+- [ ] **CHECK-01**: Pipeline ingests checklist CSV, parses genus/specificEpithet, spatial-joins county and ecoregion_l3, produces `checklist.parquet`
+- [ ] **CHECK-02**: Checklist records appear as a separate toggle-able "Checklist records" layer on the map, visually distinct from WABA specimens
+- [ ] **CHECK-03**: All 565 checklist species appear in the species index and have taxon pages, including species with no WABA records
+- [ ] **CHECK-04**: Checklist occurrence records appear on species/taxon page SVG occurrence maps
+- [ ] **TAX-01**: iNat taxonomy replaced by offline Darwin Core Archive lookup; live `/v2/taxa` enrichers removed
+- [ ] **TAX-02**: Unified taxon lineage table supersedes existing `taxon_lineage` and `taxon_lineage_extended` tables
+- [ ] **EXT-01**: `source` field in pipeline/data model distinguishes checklist from Ecdysis and iNat records
 
 ### Future
 
@@ -351,4 +370,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-20 after v3.9 milestone*
+*Last updated: 2026-05-23 — milestone v4.0 started*
