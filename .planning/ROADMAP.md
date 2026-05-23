@@ -32,6 +32,7 @@
 - ✅ **v3.7 Places** — Phases 97–100.1 (shipped 2026-05-18)
 - ✅ **v3.8 Conceptual Tidying** — Phases 101–104 (shipped 2026-05-19)
 - ✅ **v3.9 Sidebar & Table Unification** — Phases 105–109 (shipped 2026-05-20)
+- 🚧 **v4.0 Washington Checklist Records** — Phases 110–113 (in progress)
 
 ## Phases
 
@@ -393,6 +394,13 @@ See `.planning/milestones/v3.9-ROADMAP.md` for full phase details.
 
 <!-- Phase 105-109 details archived to .planning/milestones/v3.9-ROADMAP.md -->
 
+## v4.0 Washington Checklist Records (Phases 110–113) — IN PROGRESS
+
+- [ ] **Phase 110: Offline Taxonomy** - Replace live /v2/taxa API calls with taxa.csv.gz archive download and DuckDB ancestry walk
+- [ ] **Phase 111: Checklist Pipeline** - Ingest Bartholomew et al. 2024 CSV into checklist.parquet with spatial join and source field
+- [ ] **Phase 112: Checklist Map Layer** - Add toggle-able clustered-point layer for checklist records with year/month filter integration; URL persistence
+- [ ] **Phase 113: Species Page Expansion** - Extend all taxon pages to 565 checklist species; county-presence SVGs; attribution
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -513,6 +521,57 @@ Plans:
 
 <!-- Phase 105-109 details archived to .planning/milestones/v3.9-ROADMAP.md -->
 
+### Phase 110: Offline Taxonomy
+
+**Goal**: iNat lineage enrichment runs from a local taxa.csv.gz archive rather than live API calls; rate-limit risk eliminated
+**Depends on**: Nothing (first phase of v4.0)
+**Requirements**: TAX-01, TAX-02, TAX-03, TAX-04
+**Success Criteria** (what must be TRUE):
+  1. Running the pipeline downloads taxa.csv.gz to data/raw/ and skips re-download when ETag/Last-Modified is unchanged
+  2. `taxon_lineage_extended` is produced by a DuckDB ancestry walk on taxa.csv.gz with identical schema (family, subfamily, tribe, genus, subgenus per taxon_id) — no live /v2/taxa calls
+  3. `dbt build` and `npm test` pass after all live enricher functions are deleted
+  4. taxa.csv.gz is synced to/from S3 by nightly.sh so it persists across pipeline runs without re-downloading from iNat Open Data on every nightly
+**Plans**: TBD
+
+### Phase 111: Checklist Pipeline
+
+**Goal**: The Bartholomew et al. 2024 annotated checklist CSV is ingested as a first-class data source producing a verified checklist.parquet available via CloudFront
+**Depends on**: Phase 110
+**Requirements**: CHECK-01, CHECK-02, CHECK-03, CHECK-04, EXT-01
+**Success Criteria** (what must be TRUE):
+  1. Running dbt build produces checklist.parquet with all required columns: canonical_name, scientificName, genus, specific_epithet, family, lat (nullable), lon (nullable), year (nullable), month (nullable), county, ecoregion_l3, source='checklist'
+  2. Pytest assertions pass: row count >= 2000, no null canonical_name, no null specific_epithet, TRIM(family) = family for all rows
+  3. checklist.parquet is uploaded to S3/CloudFront as part of the nightly pipeline export and accessible at the /data/ path
+  4. The source='checklist' constant distinguishes checklist rows; pipeline architecture comment documents the convention for future sources
+**Plans**: TBD
+
+### Phase 112: Checklist Map Layer
+
+**Goal**: Users can toggle a clustered-point checklist layer on the map; the layer responds to taxon, year, and month filters and persists in the URL
+**Depends on**: Phase 111
+**Requirements**: MAP-01, MAP-02, MAP-03, MAP-04
+**Success Criteria** (what must be TRUE):
+  1. A "Checklist records" toggle appears alongside the Specimens and Samples toggles in the filter panel
+  2. When enabled, checklist records render as clustered points in a visually distinct style; records without coordinates are excluded from the layer
+  3. Applying taxon, year, or month filters while the checklist layer is visible narrows the visible points to matching checklist records
+  4. The cl=1 URL param encodes checklist layer visibility and is restored correctly on page load
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 113: Species Page Expansion
+
+**Goal**: All 565 checklist species have taxon pages and checklist data appears on occurrence maps and page attribution sections
+**Depends on**: Phase 112
+**Requirements**: SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05
+**Success Criteria** (what must be TRUE):
+  1. All 565 checklist species appear in the species index and have dedicated pages at /species/{Genus}/{specificEpithet}/, including species with zero WABA occurrence records
+  2. Checklist-only species appear on their genus and subgenus pages alongside WABA-recorded species
+  3. Each species page with checklist records shows a county-presence SVG map (or augmented occurrence SVG) with checklist counties visually distinct from WABA occurrence points
+  4. Species pages with checklist records display attribution: "N checklist records · Bartholomew et al. 2024"
+  5. The seasonality histogram draws from all available sources; it is suppressed only when the species has zero records from any source
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -627,3 +686,7 @@ Plans:
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 2/2 | Complete   | 2026-05-20 |
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
+| 110. Offline Taxonomy | v4.0 | 0/? | Not started | - |
+| 111. Checklist Pipeline | v4.0 | 0/? | Not started | - |
+| 112. Checklist Map Layer | v4.0 | 0/? | Not started | - |
+| 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
