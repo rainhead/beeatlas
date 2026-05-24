@@ -8,6 +8,7 @@ interface Manifest {
   ecoregions: string;
   places: string;        // points to hashed places.geojson
   places_meta: string;   // points to hashed places.json
+  checklist: string;
   generated_at: string;
 }
 

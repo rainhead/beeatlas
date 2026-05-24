@@ -16,6 +16,7 @@ writeFileSync(outPath, JSON.stringify({
   ecoregions: 'ecoregions.geojson',
   places: 'places.geojson',
   places_meta: 'places.json',
+  checklist: 'checklist.parquet',
   generated_at: 'local',
 }, null, 2) + '\n');
 console.log('wrote public/data/manifest.json (local dev)');
