@@ -712,6 +712,6 @@ Plans:
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 2/2 | Complete   | 2026-05-20 |
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
-| 111. Checklist Pipeline | v4.0 | 2/2 | Complete   | 2026-05-24 |
+| 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 0/? | Not started | - |
 | 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
