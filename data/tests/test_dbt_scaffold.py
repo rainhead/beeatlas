@@ -128,3 +128,97 @@ def test_no_production_dbt_references():
     assert result.stdout == "", (
         f"Unexpected output from git grep: {result.stdout.strip()}"
     )
+
+
+# ---------------------------------------------------------------------------
+# checklist.parquet assertions (CHECK-02, CHECK-04, EXT-01)
+# ---------------------------------------------------------------------------
+
+_CHECKLIST_GUARD = pytest.mark.skipif(
+    not (SANDBOX / "checklist.parquet").exists(),
+    reason="run `bash data/dbt/run.sh build` first to produce checklist.parquet",
+)
+
+
+@_CHECKLIST_GUARD
+def test_checklist_parquet_exists():
+    """sandbox/checklist.parquet exists after dbt build (CHECK-02)."""
+    assert (SANDBOX / "checklist.parquet").exists()
+
+
+@_CHECKLIST_GUARD
+def test_checklist_row_count():
+    """checklist.parquet has at least 2000 rows (CHECK-04)."""
+    parquet_path = str(SANDBOX / "checklist.parquet")
+    row = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}')"
+    ).fetchone()
+    assert row[0] >= 2000, f"expected >= 2000 rows, got {row[0]}"
+
+
+@_CHECKLIST_GUARD
+def test_checklist_no_null_canonical_name():
+    """checklist.parquet has zero null canonical_name rows (CHECK-04)."""
+    parquet_path = str(SANDBOX / "checklist.parquet")
+    row = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}')"
+        " WHERE canonical_name IS NULL"
+    ).fetchone()
+    assert row[0] == 0, f"found {row[0]} null canonical_name rows"
+
+
+@_CHECKLIST_GUARD
+def test_checklist_no_null_specific_epithet():
+    """checklist.parquet has zero null specific_epithet rows (CHECK-04)."""
+    parquet_path = str(SANDBOX / "checklist.parquet")
+    row = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}')"
+        " WHERE specific_epithet IS NULL"
+    ).fetchone()
+    assert row[0] == 0, f"found {row[0]} null specific_epithet rows"
+
+
+@_CHECKLIST_GUARD
+def test_checklist_family_trim():
+    """checklist.parquet has no rows where TRIM(family) != family (CHECK-04)."""
+    parquet_path = str(SANDBOX / "checklist.parquet")
+    row = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}')"
+        " WHERE family <> TRIM(family)"
+    ).fetchone()
+    assert row[0] == 0, f"found {row[0]} rows where TRIM(family) != family"
+
+
+@_CHECKLIST_GUARD
+def test_checklist_source_constant():
+    """Every row in checklist.parquet has source='checklist' (EXT-01)."""
+    parquet_path = str(SANDBOX / "checklist.parquet")
+    row = duckdb.execute(
+        f"SELECT COUNT(DISTINCT source) FROM read_parquet('{parquet_path}')"
+    ).fetchone()
+    assert row[0] == 1, f"expected 1 distinct source value, got {row[0]}"
+    val = duckdb.execute(
+        f"SELECT DISTINCT source FROM read_parquet('{parquet_path}')"
+    ).fetchone()[0]
+    assert val == "checklist", f"expected source='checklist', got '{val}'"
+
+
+# Isolation: occurrences.parquet must NOT grow after Phase 111
+@pytest.mark.skipif(
+    not (SANDBOX / "occurrences.parquet").exists(),
+    reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
+)
+def test_occurrences_row_count_not_inflated_by_checklist():
+    """occurrences.parquet row count stays <= 50,000 after Phase 111 build.
+
+    Baseline pre-Phase-111: 47,876 rows.
+    Checklist records MUST NOT enter int_combined (locked STATE.md decision).
+    """
+    parquet_path = str(SANDBOX / "occurrences.parquet")
+    row = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}')"
+    ).fetchone()
+    assert row[0] <= 50_000, (
+        f"occurrences.parquet has {row[0]} rows — unexpectedly large; "
+        "verify checklist rows did not enter int_combined"
+    )

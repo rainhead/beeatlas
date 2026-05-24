@@ -110,3 +110,37 @@ models:
         data_type: bigint
       - name: ecoregion_count
         data_type: bigint
+
+  - name: checklist
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: canonical_name
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: scientificName
+        data_type: varchar
+      - name: genus
+        data_type: varchar
+      - name: specific_epithet
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: family
+        data_type: varchar
+      - name: lat
+        data_type: double
+      - name: lon
+        data_type: double
+      - name: year
+        data_type: bigint
+      - name: month
+        data_type: bigint
+      - name: county
+        data_type: varchar
+      - name: ecoregion_l3
+        data_type: varchar
+      - name: source
+        data_type: varchar
