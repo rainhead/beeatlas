@@ -26,6 +26,7 @@ sources:
     tables:
       - name: species
       - name: species_counties
+      - name: checklist_records
 
   - name: geographies
     schema: geographies

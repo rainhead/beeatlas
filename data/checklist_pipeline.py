@@ -21,6 +21,7 @@ from canonical_name import canonicalize
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 CHECKLIST_PATH = Path(__file__).parent / "checklists" / "wa_bee_checklist.tsv"
+CHECKLIST_RECORDS_PATH = Path(__file__).parent / "checklists" / "wa_bee_checklist_records.tsv"
 SOURCE_CITATION = "Bartholomew et al. 2024, JHR 97 (DOI: 10.3897/jhr.97.129013)"
 SYNONYMS_PATH = Path(__file__).parent / "checklist_synonyms.csv"
 UNMATCHED_PATH = Path(__file__).parent / "checklist_unmatched.csv"
@@ -123,9 +124,47 @@ def reconcile(con: duckdb.DuckDBPyConnection) -> None:
     )
 
 
+def _load_checklist_records(con: duckdb.DuckDBPyConnection) -> None:
+    """Load individual occurrence records from wa_bee_checklist_records.tsv
+    into checklist_data.checklist_records (scientificName, county, year, month).
+
+    One row per specimen record from the original CSV; year/month may be NULL
+    for records with missing or unparseable dates. Used by the dbt checklist
+    mart to populate real year/month values instead of NULL placeholders.
+    """
+    records: list[tuple] = []
+    with CHECKLIST_RECORDS_PATH.open(newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            sci = (row.get("species") or "").strip()
+            cty = (row.get("county") or "").strip()
+            yr_str = (row.get("year") or "").strip()
+            mo_str = (row.get("month") or "").strip()
+            if not sci:
+                continue
+            year = int(yr_str) if yr_str.isdigit() else None
+            month = int(mo_str) if mo_str.isdigit() else None
+            records.append((sci, cty, year, month))
+
+    con.execute("""
+        CREATE OR REPLACE TABLE checklist_data.checklist_records (
+            scientificName VARCHAR,
+            county VARCHAR,
+            year BIGINT,
+            month BIGINT
+        )
+    """)
+    con.executemany(
+        "INSERT INTO checklist_data.checklist_records VALUES (?, ?, ?, ?)",
+        records,
+    )
+    count = con.execute("SELECT count(*) FROM checklist_data.checklist_records").fetchone()[0]
+    print(f"checklist_records: {count} individual occurrence records loaded")  # noqa: T201
+
+
 def load_checklist() -> None:
     """Read the WA bee checklist TSV and populate checklist_data.species
-    + checklist_data.species_counties."""
+    + checklist_data.species_counties + checklist_data.checklist_records."""
     con = duckdb.connect(DB_PATH)
     try:
         con.execute("CREATE SCHEMA IF NOT EXISTS checklist_data")
@@ -196,6 +235,7 @@ def load_checklist() -> None:
         sc_count = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
         print(f"checklist: {species_count} species, {sc_count} county records")  # noqa: T201
 
+        _load_checklist_records(con)
         _update_occurrences_canonical_name(con)
         reconcile(con)
     finally:

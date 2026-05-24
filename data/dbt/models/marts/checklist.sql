@@ -5,6 +5,12 @@
 -- source='checklist' convention: all rows carry source='checklist'.
 -- Future sources (GBIF, other Bee Atlas programs) should produce analogous parquet files
 -- with their own source= constant and the same 12-column schema.
+--
+-- Row semantics: one row per individual checklist specimen record (from
+-- wa_bee_checklist_records.tsv). Unmatched species+county pairs from
+-- wa_bee_checklist.tsv (synonym-resolved names with no matching individual
+-- record) are included as a UNION with NULL year/month so they remain visible
+-- when no year filter is active. ~85% of rows have real year/month data.
 {{ config(
     materialized='external',
     location='target/sandbox/checklist.parquet',
@@ -12,28 +18,61 @@
     options={'CODEC': "'SNAPPY'"}
 ) }}
 
-WITH sc AS (
-    -- One row per (species, county) pair from species_counties
+-- Individual records joined to canonical species info (85% match by binomial)
+WITH matched_records AS (
     SELECT
         sp.canonical_name,
         sp.scientificName,
         sp.genus,
         sp.specific_epithet,
-        sc.county
+        cr.county,
+        cr.year,
+        cr.month
+    FROM {{ source('checklist_data', 'checklist_records') }} cr
+    JOIN {{ ref('stg_checklist__species') }} sp
+        ON sp.scientificName = cr.scientificName
+    WHERE cr.county IS NOT NULL AND cr.county != ''
+),
+
+-- Species+county pairs that exist in species_counties but have no matching
+-- individual records (synonym-resolved names — kept with NULL year/month so
+-- they show when no year filter is active)
+unmatched_sc AS (
+    SELECT
+        sp.canonical_name,
+        sp.scientificName,
+        sp.genus,
+        sp.specific_epithet,
+        sc.county,
+        NULL::BIGINT AS year,
+        NULL::BIGINT AS month
     FROM {{ source('checklist_data', 'species_counties') }} sc
     JOIN {{ ref('stg_checklist__species') }} sp USING (scientificName)
+    WHERE NOT EXISTS (
+        SELECT 1 FROM matched_records mr
+        WHERE mr.scientificName = sp.scientificName
+          AND mr.county = sc.county
+    )
 ),
--- Enrich with family via iNat lineage (same join as int_species_universe)
+
+combined AS (
+    SELECT * FROM matched_records
+    UNION ALL
+    SELECT * FROM unmatched_sc
+),
+
+-- Enrich with family via iNat lineage
 with_lineage AS (
     SELECT
-        sc.*,
+        c.*,
         TRIM(tle.family) AS family
-    FROM sc
+    FROM combined c
     LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
-        ON ctt.canonical_name = sc.canonical_name
+        ON ctt.canonical_name = c.canonical_name
     LEFT JOIN {{ ref('stg_inat__taxon_lineage_extended') }} tle
         ON tle.taxon_id = ctt.taxon_id
 ),
+
 -- County centroid for ecoregion spatial join
 county_centroids AS (
     SELECT county, ST_Centroid(geom) AS centroid
@@ -69,8 +108,8 @@ SELECT
     wl.family,
     NULL::DOUBLE               AS lat,
     NULL::DOUBLE               AS lon,
-    NULL::BIGINT               AS year,
-    NULL::BIGINT               AS month,
+    wl.year                    AS year,
+    wl.month                   AS month,
     TRIM(wl.county)            AS county,
     fe.ecoregion_l3,
     'checklist'                AS source
