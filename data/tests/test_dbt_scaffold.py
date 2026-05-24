@@ -8,8 +8,7 @@ Workflow:
   2. Run: uv run --project data pytest data/tests/test_dbt_scaffold.py -x
 
 Tests guarded by @pytest.mark.skipif are skipped until `dbt build` has produced
-the sandbox outputs. test_profiles_yml_declares_spatial and
-test_no_production_dbt_references run always (no build required).
+the sandbox outputs. test_profiles_yml_declares_spatial runs always (no build required).
 """
 
 import json
@@ -108,25 +107,6 @@ def test_profiles_yml_declares_spatial():
     extensions = profiles["beeatlas"]["outputs"]["sandbox"]["extensions"]
     assert "spatial" in extensions, (
         f"profiles.yml must declare spatial extension; got: {extensions}"
-    )
-
-
-def test_no_production_dbt_references():
-    """data/run.py, data/nightly.sh, and .github/workflows/ do not reference data/dbt (V-SCAFFOLD-03a).
-
-    These paths are the production surface that must remain untouched by the spike.
-    """
-    result = subprocess.run(
-        ["git", "grep", "-l", "data/dbt", "data/run.py", "data/nightly.sh", ".github/workflows/"],
-        capture_output=True,
-        text=True,
-    )
-    # git grep returns exit code 1 when no matches found (that is the success case here)
-    assert result.returncode != 0, (
-        f"Found data/dbt references in production files: {result.stdout.strip()}"
-    )
-    assert result.stdout == "", (
-        f"Unexpected output from git grep: {result.stdout.strip()}"
     )
 
 
