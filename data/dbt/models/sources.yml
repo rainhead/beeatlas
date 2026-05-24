@@ -13,14 +13,13 @@ sources:
       - name: observations
       - name: observations__ofvs
       - name: canonical_to_taxon_id   # written by resolve_taxon_ids.py (ingestion)
-      - name: taxon_lineage_extended  # written by inaturalist_pipeline.enrich_taxon_lineage_extended (ingestion)
+      - name: taxon_lineage_extended  # written by taxa_pipeline.load_taxon_lineage_extended (Phase 110 offline taxonomy)
 
   - name: inaturalist_waba_data
     schema: inaturalist_waba_data
     tables:
       - name: observations
       - name: observations__ofvs
-      - name: taxon_lineage
 
   - name: checklist_data
     schema: checklist_data
