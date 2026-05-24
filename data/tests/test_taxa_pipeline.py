@@ -105,7 +105,7 @@ def test_download_uses_304(tmp_path, monkeypatch):
 
 
 def test_download_writes_sidecar(tmp_path, monkeypatch):
-    """200 response: payload written to TAXA_PATH, sidecar JSON written."""
+    """200 response: raw bytes written to TAXA_PATH (no decompression), sidecar JSON written."""
     import taxa_pipeline  # noqa: PLC0415
     importlib.reload(taxa_pipeline)
     taxa_path = tmp_path / "taxa.csv.gz"
@@ -113,8 +113,8 @@ def test_download_writes_sidecar(tmp_path, monkeypatch):
     monkeypatch.setattr(taxa_pipeline, "TAXA_PATH", taxa_path)
     monkeypatch.setattr(taxa_pipeline, "TAXA_CACHE_PATH", cache_path)
 
-    # No pre-existing files — fresh download path.
-    payload = b"payload"
+    # Minimal valid gzip payload — magic bytes \x1f\x8b required by validation.
+    payload = gzip.compress(b"col\nval\n")
 
     mock_resp = MagicMock()
     mock_resp.status_code = 200
@@ -122,12 +122,13 @@ def test_download_writes_sidecar(tmp_path, monkeypatch):
         "ETag": "xyz",
         "Last-Modified": "Tue, 28 Apr 2026 00:00:00 GMT",
     }
-    mock_resp.iter_content = MagicMock(return_value=[payload])
+    # Code now uses resp.raw.stream(chunk_size, decode_content=False).
+    mock_resp.raw.stream = MagicMock(return_value=iter([payload]))
 
     with patch("taxa_pipeline.requests.get", return_value=mock_resp):
         taxa_pipeline.download_taxa_csv()
 
-    # Archive file must contain the streamed bytes.
+    # Archive file must contain the raw (compressed) bytes.
     assert taxa_path.exists()
     assert taxa_path.read_bytes() == payload
 
