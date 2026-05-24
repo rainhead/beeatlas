@@ -527,13 +527,20 @@ Plans:
 **Depends on**: Nothing (first phase of v4.0)
 **Requirements**: TAX-01, TAX-02, TAX-03, TAX-04
 **Success Criteria** (what must be TRUE):
+
   1. Running the pipeline downloads taxa.csv.gz to data/raw/ and skips re-download when ETag/Last-Modified is unchanged
   2. `taxon_lineage_extended` is produced by a DuckDB ancestry walk on taxa.csv.gz with identical schema (family, subfamily, tribe, genus, subgenus per taxon_id) — no live /v2/taxa calls
   3. `dbt build` and `npm test` pass after all live enricher functions are deleted
   4. taxa.csv.gz is synced to/from S3 by nightly.sh so it persists across pipeline runs without re-downloading from iNat Open Data on every nightly
+
 **Plans**: 3 plans
 Plans:
+**Wave 1**
+
 - [ ] 110-01-PLAN.md — Create taxa_pipeline.py (downloader + DuckDB ancestry walk) with Wave 0 RED tests, then GREEN [TAX-01, TAX-02]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 110-02-PLAN.md — Cutover: delete live enrichers, rewire run.py STEPS, rewrite stg_waba__taxon_lineage (D-01) + sources.yml (D-02), delete dead tests; dbt build + npm test green [TAX-03]
 - [ ] 110-03-PLAN.md — Extend nightly.sh with S3 pull/push for taxa.csv.gz + taxa_cache.json sidecar [TAX-04]
 
@@ -543,10 +550,12 @@ Plans:
 **Depends on**: Phase 110
 **Requirements**: CHECK-01, CHECK-02, CHECK-03, CHECK-04, EXT-01
 **Success Criteria** (what must be TRUE):
+
   1. Running dbt build produces checklist.parquet with all required columns: canonical_name, scientificName, genus, specific_epithet, family, lat (nullable), lon (nullable), year (nullable), month (nullable), county, ecoregion_l3, source='checklist'
   2. Pytest assertions pass: row count >= 2000, no null canonical_name, no null specific_epithet, TRIM(family) = family for all rows
   3. checklist.parquet is uploaded to S3/CloudFront as part of the nightly pipeline export and accessible at the /data/ path
   4. The source='checklist' constant distinguishes checklist rows; pipeline architecture comment documents the convention for future sources
+
 **Plans**: TBD
 
 ### Phase 112: Checklist Map Layer
@@ -555,10 +564,12 @@ Plans:
 **Depends on**: Phase 111
 **Requirements**: MAP-01, MAP-02, MAP-03, MAP-04
 **Success Criteria** (what must be TRUE):
+
   1. A "Checklist records" toggle appears alongside the Specimens and Samples toggles in the filter panel
   2. When enabled, checklist records render as clustered points in a visually distinct style; records without coordinates are excluded from the layer
   3. Applying taxon, year, or month filters while the checklist layer is visible narrows the visible points to matching checklist records
   4. The cl=1 URL param encodes checklist layer visibility and is restored correctly on page load
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -568,11 +579,13 @@ Plans:
 **Depends on**: Phase 112
 **Requirements**: SPEC-01, SPEC-02, SPEC-03, SPEC-04, SPEC-05
 **Success Criteria** (what must be TRUE):
+
   1. All 565 checklist species appear in the species index and have dedicated pages at /species/{Genus}/{specificEpithet}/, including species with zero WABA occurrence records
   2. Checklist-only species appear on their genus and subgenus pages alongside WABA-recorded species
   3. Each species page with checklist records shows a county-presence SVG map (or augmented occurrence SVG) with checklist counties visually distinct from WABA occurrence points
   4. Species pages with checklist records display attribution: "N checklist records · Bartholomew et al. 2024"
   5. The seasonality histogram draws from all available sources; it is suppressed only when the species has zero records from any source
+
 **Plans**: TBD
 **UI hint**: yes
 
