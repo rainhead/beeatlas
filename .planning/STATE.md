@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Washington Checklist Records
-status: executing
-stopped_at: Phase 110 context gathered
-last_updated: "2026-05-24T01:40:54.786Z"
+status: ready_to_plan
+stopped_at: Phase 111 complete (2/2) — ready to discuss Phase 112
+last_updated: 2026-05-24T06:06:36.645Z
 last_activity: 2026-05-24 -- Phase 111 execution started
 progress:
   total_phases: 9
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 3
-  percent: 11
+  completed_plans: 22
+  percent: 22
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-23 after v4.0 milestone start)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 111 — checklist-pipeline
+**Current focus:** Phase 112 — checklist map layer
 
 ## Current Position
 
-Phase: 111 (checklist-pipeline) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 111
-Last activity: 2026-05-24 -- Phase 111 execution started
+Phase: 112
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-24
 
 Progress: [███████░░░] 67%
 
@@ -99,6 +99,6 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 ## Session Continuity
 
-Last session: 2026-05-24T00:25:14.714Z
-Stopped at: Phase 110 context gathered
+Last session: 2026-05-24T02:59:26.295Z
+Stopped at: context exhaustion at 77% (2026-05-24)
 Resume file: None
