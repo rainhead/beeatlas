@@ -578,7 +578,20 @@ Plans:
   3. Applying taxon, year, or month filters while the checklist layer is visible narrows the visible points to matching checklist records
   4. The cl=1 URL param encodes checklist layer visibility and is restored correctly on page load
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 112-01-PLAN.md — Wave 0 RED gates: new bee-map.test.ts + extensions to bee-pane.test.ts, bee-atlas.test.ts, url-state.test.ts [MAP-01, MAP-02, MAP-03, MAP-04]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 112-02-PLAN.md — url-state UiState/cl=1 round-trip + manifest checklist key + local-manifest generator [MAP-04]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 112-03-PLAN.md — bee-pane toggle + bee-atlas state/URL restore + bee-map county-fill layer with taxon-filtered parquet fetch; human-verify checkpoint [MAP-01, MAP-02, MAP-03, MAP-04]
+
 **UI hint**: yes
 
 ### Phase 113: Species Page Expansion
@@ -713,5 +726,5 @@ Plans:
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
-| 112. Checklist Map Layer | v4.0 | 0/? | Not started | - |
+| 112. Checklist Map Layer | v4.0 | 0/3 | Planned | - |
 | 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
