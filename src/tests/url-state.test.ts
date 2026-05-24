@@ -265,9 +265,7 @@ describe('elevation param round-trip', () => {
 
 describe('MAP-04: checklist layer URL param (cl=1)', () => {
   test('checklistVisible=true: cl param is "1"', () => {
-    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const, checklistVisible: true };
-    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     expect(params.get('cl')).toBe('1');
   });
@@ -288,9 +286,7 @@ describe('MAP-04: checklist layer URL param (cl=1)', () => {
   });
 
   test('cl=1 + bm=counties: both round-trip together', () => {
-    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
     const ui = { boundaryMode: 'counties' as const, paneState: 'collapsed' as const, checklistVisible: true };
-    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     const result = parseParams(params.toString());
     expect(result.ui?.boundaryMode).toBe('counties');

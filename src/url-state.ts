@@ -29,6 +29,7 @@ export type SelectionState =
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
   paneState: 'list' | 'table' | 'collapsed';
+  checklistVisible?: boolean;
 }
 
 export interface AppState {
@@ -72,6 +73,7 @@ export function buildParams(
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
+  if (ui.checklistVisible) params.set('cl', '1');
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
   }
@@ -229,9 +231,10 @@ export function parseParams(search: string): Partial<AppState> {
     : paneRaw === 'table' ? 'table'
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
+  const checklistVisible = p.get('cl') === '1';
   // Include UI when non-default values present
-  if (boundaryMode !== 'off' || paneState !== 'collapsed') {
-    result.ui = { boundaryMode, paneState };
+  if (boundaryMode !== 'off' || paneState !== 'collapsed' || checklistVisible) {
+    result.ui = { boundaryMode, paneState, checklistVisible };
   }
 
   return result;
