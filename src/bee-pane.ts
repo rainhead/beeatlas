@@ -104,6 +104,9 @@ export class BeePane extends LitElement {
   @state() private _yearLastYear = true;
   @state() private _yearEarlier = true;
 
+  // Checklist layer toggle
+  @state() private _showChecklist = false;
+
   // Suggestion dropdown
   @state() private _openSection: 'taxon' | 'collector' | 'where' | null = null;
   @state() private _suggestions: AnyS[] = [];
@@ -589,6 +592,15 @@ export class BeePane extends LitElement {
     this.dispatchEvent(new CustomEvent('pane-clear-selection', { bubbles: true, composed: true }));
   }
 
+  private _onChecklistChange(e: Event) {
+    const visible = (e.target as HTMLInputElement).checked;
+    this._showChecklist = visible;
+    this.dispatchEvent(new CustomEvent('checklist-layer-changed', {
+      bubbles: true, composed: true,
+      detail: { visible },
+    }));
+  }
+
   private _onListPagePrev() {
     const newPage = Math.max(1, this.listPage - 1);
     this.dispatchEvent(new CustomEvent('list-page-changed', {
@@ -1062,6 +1074,27 @@ export class BeePane extends LitElement {
     `;
   }
 
+  private _renderShow() {
+    return html`
+      <div class="filter-row">
+        <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <polygon points="8,2 14,5.5 8,9 2,5.5"/>
+          <polyline points="2,8.5 8,12 14,8.5"/>
+        </svg>
+        <div class="year-row">
+          <label class="year-label">
+            <input type="checkbox" .checked=${this._showChecklist}
+              aria-label="Show checklist county records on map"
+              @change=${this._onChecklistChange}
+            />
+            Checklist records
+          </label>
+        </div>
+      </div>
+    `;
+  }
+
   private _renderListContent() {
     const PAGE_SIZE = 100;
     const totalPages = Math.ceil(this.listRowCount / PAGE_SIZE);
@@ -1078,6 +1111,7 @@ export class BeePane extends LitElement {
           ${this._renderWho()}
           ${this._renderWhere()}
           ${this._renderWhen()}
+          ${this._renderShow()}
         </div>
         <div class="divider"></div>
         ${this.selectionCount !== null ? html`
