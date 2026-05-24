@@ -54,12 +54,24 @@ def download_taxa_csv() -> None:
 
     resp.raise_for_status()
 
-    # Atomic write: stream to .tmp, then rename so partial downloads are never visible.
+    # Atomic write: stream raw bytes to .tmp, then rename so partial downloads are
+    # never visible. decode_content=False prevents requests from auto-decompressing
+    # Content-Encoding: gzip responses — we need the actual gzip bytes on disk.
     tmp_path = TAXA_PATH.with_suffix(".gz.tmp")
     with open(tmp_path, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=1024 * 1024):
+        for chunk in resp.raw.stream(1024 * 1024, decode_content=False):
             f.write(chunk)
     tmp_path.rename(TAXA_PATH)
+
+    if TAXA_PATH.read_bytes()[:2] != b"\x1f\x8b":
+        content_type = resp.headers.get("Content-Type", "?")
+        content_encoding = resp.headers.get("Content-Encoding", "none")
+        TAXA_PATH.unlink()
+        raise ValueError(
+            f"taxa.csv.gz is not a GZIP stream after download "
+            f"(Content-Type: {content_type}, Content-Encoding: {content_encoding}). "
+            f"File deleted. Check {TAXA_URL}"
+        )
 
     sidecar = {
         "etag": resp.headers.get("ETag"),
