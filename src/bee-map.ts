@@ -1,6 +1,7 @@
 import { css, html, LitElement, unsafeCSS, type PropertyValues } from 'lit';
 import { customElement, property, query, state } from 'lit/decorators.js';
 import mapboxgl from 'mapbox-gl';
+import { parquetReadObjects } from 'hyparquet';
 import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
 import { loadOccurrenceGeoJSON, type OccurrenceProperties } from './features.ts';
 import { RECENCY_COLORS } from './style.ts';
@@ -60,7 +61,16 @@ export class BeeMap extends LitElement {
     selectedPlace: null,
   };
 
+  @property({ attribute: false }) showChecklist = false;
+  @property({ attribute: false }) checklistTaxon: string | null = null;
+  @property({ attribute: false }) checklistTaxonRank: 'family' | 'genus' | 'species' | null = null;
+
   @state() private _regionMenuOpen = false;
+
+  // Checklist layer internal state
+  @state() private _checklistCounties: Set<string> = new Set();
+  private _checklistAllRows: Array<{ county: string | null; scientificName: string; genus: string; family: string }> = [];
+  private _checklistGeneration = 0;
 
   // Mapbox GL JS map instance
   private _map: mapboxgl.Map | null = null;
@@ -348,6 +358,11 @@ export class BeeMap extends LitElement {
     if (changedProperties.has('filterState')) {
       this._applyBoundarySelection();
     }
+
+    // Checklist visibility or taxon changed: update checklist layer
+    if (changedProperties.has('showChecklist') || changedProperties.has('checklistTaxon') || changedProperties.has('checklistTaxonRank')) {
+      this._applyChecklistLayer();
+    }
   }
 
   public firstUpdated(_changedProperties: PropertyValues): void {
@@ -561,6 +576,19 @@ export class BeeMap extends LitElement {
             'text-halo-width': 1.5,
           },
         });
+
+        // Checklist county fill: semi-transparent green fill on counties with checklist records
+        this._map!.addLayer({
+          id: 'checklist-county-fill',
+          type: 'fill',
+          source: 'counties',
+          layout: { visibility: 'none' },
+          paint: {
+            'fill-color': 'rgba(44, 122, 44, 0.25)',
+            'fill-outline-color': 'rgba(44, 122, 44, 0.7)',
+          },
+          filter: ['==', 'NAME', '__never__'],
+        }, 'ghost-points');
 
         // Ghost points: low-opacity gray dots for filtered-out features
         this._map!.addLayer({
@@ -1054,6 +1082,65 @@ export class BeeMap extends LitElement {
       this._applyBoundarySelection();
     } catch (err) {
       console.error('Failed to load boundary GeoJSON:', err);
+    }
+  }
+
+  private _applyChecklistLayer() {
+    this._applyChecklistVisibility();
+    if (this.showChecklist) {
+      void this._loadChecklistData();
+    }
+  }
+
+  private _applyChecklistVisibility() {
+    if (!this._map?.getLayer('checklist-county-fill')) return;
+    this._map.setLayoutProperty(
+      'checklist-county-fill',
+      'visibility',
+      this.showChecklist ? 'visible' : 'none'
+    );
+  }
+
+  private _applyChecklistFilter() {
+    if (!this._map?.getLayer('checklist-county-fill')) return;
+    const counties = [...this._checklistCounties];
+    this._map.setFilter(
+      'checklist-county-fill',
+      counties.length > 0
+        ? ['in', ['get', 'NAME'], ['literal', counties]]
+        : ['==', 'NAME', '__never__']
+    );
+  }
+
+  private async _loadChecklistData(): Promise<void> {
+    const generation = ++this._checklistGeneration;
+    try {
+      if (this._checklistAllRows.length === 0) {
+        const url = await resolveDataUrl('checklist');
+        if (!url) return;
+        const resp = await fetch(url);
+        const buffer = await resp.arrayBuffer();
+        const file = { byteLength: buffer.byteLength, slice: (s: number, e: number) => buffer.slice(s, e) };
+        this._checklistAllRows = await parquetReadObjects({
+          file,
+          columns: ['county', 'scientificName', 'genus', 'family'],
+        }) as Array<{ county: string | null; scientificName: string; genus: string; family: string }>;
+      }
+      if (generation !== this._checklistGeneration) return;
+      const taxon = this.checklistTaxon;
+      const rank = this.checklistTaxonRank;
+      const filtered = taxon && rank
+        ? this._checklistAllRows.filter(r => {
+            if (rank === 'species') return r.scientificName === taxon;
+            if (rank === 'genus') return r.genus === taxon;
+            if (rank === 'family') return r.family === taxon;
+            return false;
+          })
+        : this._checklistAllRows;
+      this._checklistCounties = new Set(filtered.map(r => r.county).filter(Boolean) as string[]);
+      this._applyChecklistFilter();
+    } catch (err) {
+      console.warn('checklist data unavailable:', err);
     }
   }
 
