@@ -75,4 +75,4 @@ SELECT
     fe.ecoregion_l3,
     'checklist'                AS source
 FROM with_lineage wl
-JOIN final_eco fe ON fe.county = wl.county
+LEFT JOIN final_eco fe ON fe.county = wl.county
