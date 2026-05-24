@@ -588,7 +588,7 @@ export class BeeMap extends LitElement {
             'fill-outline-color': 'rgba(44, 122, 44, 0.7)',
           },
           filter: ['==', 'NAME', '__never__'],
-        }, 'ghost-points');
+        });
 
         // Ghost points: low-opacity gray dots for filtered-out features
         this._map!.addLayer({
