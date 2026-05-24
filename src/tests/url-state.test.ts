@@ -263,6 +263,46 @@ describe('elevation param round-trip', () => {
   });
 });
 
+describe('MAP-04: checklist layer URL param (cl=1)', () => {
+  test('checklistVisible=true: cl param is "1"', () => {
+    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const, checklistVisible: true };
+    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('cl')).toBe('1');
+  });
+
+  test('checklistVisible=false (default): cl param is absent', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('cl')).toBe(false);
+  });
+
+  test('cl=1 parses to checklistVisible: true in result.ui', () => {
+    const result = parseParams('cl=1');
+    expect(result.ui?.checklistVisible).toBe(true);
+  });
+
+  test('cl absent: checklistVisible is absent or false in result.ui', () => {
+    const result = parseParams('bm=counties');
+    expect(result.ui?.checklistVisible ?? false).toBe(false);
+  });
+
+  test('cl=1 + bm=counties: both round-trip together', () => {
+    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
+    const ui = { boundaryMode: 'counties' as const, paneState: 'collapsed' as const, checklistVisible: true };
+    // @ts-expect-error — MAP-04 gate, satisfied by Plan 02 UiState extension
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    const result = parseParams(params.toString());
+    expect(result.ui?.boundaryMode).toBe('counties');
+    expect(result.ui?.checklistVisible).toBe(true);
+  });
+
+  test('cl=0 (not "1"): checklistVisible is false', () => {
+    const result = parseParams('cl=0');
+    expect(result.ui?.checklistVisible ?? false).toBe(false);
+  });
+});
+
 describe('validation and rejection', () => {
   test('invalid lon (x=999): result.view is undefined', () => {
     const result = parseParams('x=999&y=47&z=8');
