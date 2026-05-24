@@ -560,7 +560,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 111-01-PLAN.md — Wave 0 pytest assertions + checklist.sql mart + schema.yml contract + run.py copy [CHECK-01, CHECK-02, CHECK-04, EXT-01]
+- [x] 111-01-PLAN.md — Wave 0 pytest assertions + checklist.sql mart + schema.yml contract + run.py copy [CHECK-01, CHECK-02, CHECK-04, EXT-01]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -712,6 +712,6 @@ Plans:
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 2/2 | Complete   | 2026-05-20 |
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
-| 111. Checklist Pipeline | v4.0 | 0/2 | Not started | - |
+| 111. Checklist Pipeline | v4.0 | 1/2 | In Progress|  |
 | 112. Checklist Map Layer | v4.0 | 0/? | Not started | - |
 | 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
