@@ -398,7 +398,7 @@ See `.planning/milestones/v3.9-ROADMAP.md` for full phase details.
 
 - [x] **Phase 110: Offline Taxonomy** - Replace live /v2/taxa API calls with taxa.csv.gz archive download and DuckDB ancestry walk (completed 2026-05-24)
 - [x] **Phase 111: Checklist Pipeline** - Ingest Bartholomew et al. 2024 CSV into checklist.parquet with spatial join and source field (completed 2026-05-24)
-- [ ] **Phase 112: Checklist Map Layer** - Add toggle-able clustered-point layer for checklist records with year/month filter integration; URL persistence
+- [x] **Phase 112: Checklist Map Layer** - Add toggle-able clustered-point layer for checklist records with year/month filter integration; URL persistence (completed 2026-05-24)
 - [ ] **Phase 113: Species Page Expansion** - Extend all taxon pages to 565 checklist species; county-presence SVGs; attribution
 
 ## Phase Details
@@ -582,15 +582,15 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 112-01-PLAN.md — Wave 0 RED gates: new bee-map.test.ts + extensions to bee-pane.test.ts, bee-atlas.test.ts, url-state.test.ts [MAP-01, MAP-02, MAP-03, MAP-04]
+- [x] 112-01-PLAN.md — Wave 0 RED gates: new bee-map.test.ts + extensions to bee-pane.test.ts, bee-atlas.test.ts, url-state.test.ts [MAP-01, MAP-02, MAP-03, MAP-04]
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 112-02-PLAN.md — url-state UiState/cl=1 round-trip + manifest checklist key + local-manifest generator [MAP-04]
+- [x] 112-02-PLAN.md — url-state UiState/cl=1 round-trip + manifest checklist key + local-manifest generator [MAP-04]
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 112-03-PLAN.md — bee-pane toggle + bee-atlas state/URL restore + bee-map county-fill layer with taxon-filtered parquet fetch; human-verify checkpoint [MAP-01, MAP-02, MAP-03, MAP-04]
+- [x] 112-03-PLAN.md — bee-pane toggle + bee-atlas state/URL restore + bee-map county-fill layer with taxon-filtered parquet fetch; human-verify checkpoint [MAP-01, MAP-02, MAP-03, MAP-04]
 
 **UI hint**: yes
 
@@ -726,5 +726,5 @@ Plans:
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
-| 112. Checklist Map Layer | v4.0 | 0/3 | Planned | - |
+| 112. Checklist Map Layer | v4.0 | 3/3 | Complete   | 2026-05-24 |
 | 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
