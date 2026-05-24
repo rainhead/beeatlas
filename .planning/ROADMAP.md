@@ -537,11 +537,11 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 110-01-PLAN.md — Create taxa_pipeline.py (downloader + DuckDB ancestry walk) with Wave 0 RED tests, then GREEN [TAX-01, TAX-02]
+- [x] 110-01-PLAN.md — Create taxa_pipeline.py (downloader + DuckDB ancestry walk) with Wave 0 RED tests, then GREEN [TAX-01, TAX-02]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 110-02-PLAN.md — Cutover: delete live enrichers, rewire run.py STEPS, rewrite stg_waba__taxon_lineage (D-01) + sources.yml (D-02), delete dead tests; dbt build + npm test green [TAX-03]
+- [x] 110-02-PLAN.md — Cutover: delete live enrichers, rewire run.py STEPS, rewrite stg_waba__taxon_lineage (D-01) + sources.yml (D-02), delete dead tests; dbt build + npm test green [TAX-03]
 - [ ] 110-03-PLAN.md — Extend nightly.sh with S3 pull/push for taxa.csv.gz + taxa_cache.json sidecar [TAX-04]
 
 ### Phase 111: Checklist Pipeline
@@ -703,7 +703,7 @@ Plans:
 | 107. Create bee-pane Component | v3.9 | 2/2 | Complete   | 2026-05-19 |
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 2/2 | Complete   | 2026-05-20 |
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
-| 110. Offline Taxonomy | v4.0 | 0/? | Not started | - |
+| 110. Offline Taxonomy | v4.0 | 2/3 | In Progress|  |
 | 111. Checklist Pipeline | v4.0 | 0/? | Not started | - |
 | 112. Checklist Map Layer | v4.0 | 0/? | Not started | - |
 | 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
