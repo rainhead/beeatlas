@@ -38,6 +38,10 @@ DB_S3_KEY="db/beeatlas.duckdb"
 DB_PATH="/tmp/beeatlas.duckdb"
 EXPORT_DIR="/tmp/beeatlas-export"
 AWS_PROFILE="${AWS_PROFILE:-beeatlas}"
+TAXA_S3_KEY="raw/taxa.csv.gz"
+TAXA_CACHE_S3_KEY="raw/taxa_cache.json"
+TAXA_PATH="$SCRIPT_DIR/raw/taxa.csv.gz"
+TAXA_CACHE_PATH="$SCRIPT_DIR/raw/taxa_cache.json"
 
 _ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 _hash() { sha256sum "$1" | awk '{print $1}'; }
@@ -78,7 +82,18 @@ echo "sync done in $(_elapsed $_t0)"
 
 # Always back up DuckDB on exit (success or failure) so pipeline progress
 # (e.g. occurrence_links) is not lost if a later step fails.
-trap 'if [[ -f "$DB_PATH" ]]; then echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"; aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BUCKET/$DB_S3_KEY" || true; fi' EXIT
+trap '
+if [[ -f "$DB_PATH" ]]; then
+    echo "--- backing up DuckDB (trap) --- sha256=$(_hash "$DB_PATH")"
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$DB_PATH" "s3://$BUCKET/$DB_S3_KEY" || true
+fi
+if [[ -f "$TAXA_PATH" ]]; then
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$TAXA_PATH" "s3://$BUCKET/$TAXA_S3_KEY" || true
+fi
+if [[ -f "$TAXA_CACHE_PATH" ]]; then
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress "$TAXA_CACHE_PATH" "s3://$BUCKET/$TAXA_CACHE_S3_KEY" || true
+fi
+' EXIT
 
 # 1. Pull DuckDB from S3 (missing = first run, not an error)
 echo "--- pulling DuckDB from S3 ---"
@@ -88,6 +103,17 @@ if ! aws --profile "$AWS_PROFILE" s3 cp --no-progress "s3://$BUCKET/$DB_S3_KEY" 
 else
     echo "sha256=$(_hash "$DB_PATH") ($(_elapsed $_t0))"
 fi
+
+# 1b. Pull taxa.csv.gz and ETag sidecar from S3 (missing on first run = not an error)
+echo "--- pulling taxa.csv.gz from S3 ---"
+mkdir -p "$SCRIPT_DIR/raw"
+if ! aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+    "s3://$BUCKET/$TAXA_S3_KEY" "$TAXA_PATH" 2>/dev/null; then
+    echo "No cached taxa.csv.gz in S3 (first run), will download from iNat."
+fi
+# Pull sidecar alongside archive so ETag conditional GET fires on next run
+aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+    "s3://$BUCKET/$TAXA_CACHE_S3_KEY" "$TAXA_CACHE_PATH" 2>/dev/null || true
 
 # 2. Run pipelines
 echo "--- running pipelines ---"
