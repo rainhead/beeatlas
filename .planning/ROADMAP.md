@@ -531,7 +531,11 @@ Plans:
   2. `taxon_lineage_extended` is produced by a DuckDB ancestry walk on taxa.csv.gz with identical schema (family, subfamily, tribe, genus, subgenus per taxon_id) — no live /v2/taxa calls
   3. `dbt build` and `npm test` pass after all live enricher functions are deleted
   4. taxa.csv.gz is synced to/from S3 by nightly.sh so it persists across pipeline runs without re-downloading from iNat Open Data on every nightly
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 110-01-PLAN.md — Create taxa_pipeline.py (downloader + DuckDB ancestry walk) with Wave 0 RED tests, then GREEN [TAX-01, TAX-02]
+- [ ] 110-02-PLAN.md — Cutover: delete live enrichers, rewire run.py STEPS, rewrite stg_waba__taxon_lineage (D-01) + sources.yml (D-02), delete dead tests; dbt build + npm test green [TAX-03]
+- [ ] 110-03-PLAN.md — Extend nightly.sh with S3 pull/push for taxa.csv.gz + taxa_cache.json sidecar [TAX-04]
 
 ### Phase 111: Checklist Pipeline
 
