@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Washington Checklist Records
 status: executing
 stopped_at: Phase 110 context gathered
-last_updated: "2026-05-24T00:25:15.089Z"
-last_activity: 2026-05-24
+last_updated: "2026-05-24T01:39:02.294Z"
+last_activity: 2026-05-24 -- Phase 111 planning complete
 progress:
   total_phases: 9
-  completed_phases: 0
-  total_plans: 3
+  completed_phases: 1
+  total_plans: 5
   completed_plans: 3
-  percent: 100
+  percent: 11
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-23 after v4.0 milestone start)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 110 — offline-taxonomy
+**Current focus:** Phase 111 — checklist pipeline
 
 ## Current Position
 
-Phase: 110 (offline-taxonomy) — EXECUTING
-Plan: 3 of 3 (all complete)
-Status: Phase 110 complete — pending verification
-Last activity: 2026-05-24
+Phase: 111
+Plan: Not started
+Status: Ready to execute
+Last activity: 2026-05-24 -- Phase 111 planning complete
 
 Progress: [███████░░░] 67%
 
