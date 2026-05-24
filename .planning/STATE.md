@@ -4,14 +4,14 @@ milestone: v4.0
 milestone_name: Washington Checklist Records
 status: executing
 stopped_at: Phase 112 UI-SPEC approved
-last_updated: "2026-05-24T14:55:30.112Z"
-last_activity: 2026-05-24 -- Phase 112 planning complete
+last_updated: "2026-05-24T15:42:52.930Z"
+last_activity: 2026-05-24 -- Phase 112 execution started
 progress:
   total_phases: 9
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 5
-  percent: 22
+  completed_plans: 8
+  percent: 33
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-23 after v4.0 milestone start)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 112 — checklist map layer
+**Current focus:** Phase 112 — checklist-map-layer
 
 ## Current Position
 
-Phase: 112
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-24 -- Phase 112 planning complete
+Phase: 112 (checklist-map-layer) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 112
+Last activity: 2026-05-24 -- Phase 112 execution started
 
-Progress: [███████░░░] 67%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -42,6 +42,7 @@ Progress: [███████░░░] 67%
 - source='checklist' constant lives in checklist.parquet only; occurrences.parquet schema is unchanged for v4.0.
 - Year slider bounds remain scoped to occurrences.parquet only — no 1812 checklist dates bleeding into WABA filter UI.
 - Checklist layer responds to taxon filter only; does NOT respond to year/month or collector filter.
+- [Phase ?]: .planning/phases/112-checklist-map-layer/112-03-SUMMARY.md
 
 ### Pending Todos
 
@@ -99,6 +100,6 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 ## Session Continuity
 
-Last session: 2026-05-24T06:21:42.258Z
+Last session: 2026-05-24T15:42:42.602Z
 Stopped at: Phase 112 UI-SPEC approved
-Resume file: .planning/phases/112-checklist-map-layer/112-UI-SPEC.md
+Resume file: None

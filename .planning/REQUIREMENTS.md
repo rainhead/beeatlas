@@ -21,10 +21,10 @@
 
 ### MAP — Checklist Map Layer
 
-- [ ] **MAP-01**: "Checklist records" toggle appears in filter panel alongside Specimens and Samples toggles
-- [ ] **MAP-02**: When enabled, checklist records render as a county-fill overlay (green fill on counties GeoJSON source), visually distinct from WABA specimen points; county presence derived from checklist.parquet coordinates
-- [ ] **MAP-03**: Checklist layer responds to taxon filter only; year, month, and collector filters have no effect on the checklist layer
-- [ ] **MAP-04**: `cl=1` URL param encodes checklist layer visibility; restored on page load
+- [x] **MAP-01**: "Checklist records" toggle appears in filter panel alongside Specimens and Samples toggles
+- [x] **MAP-02**: When enabled, checklist records render as a county-fill overlay (green fill on counties GeoJSON source), visually distinct from WABA specimen points; county presence derived from checklist.parquet coordinates
+- [x] **MAP-03**: Checklist layer responds to taxon filter only; year, month, and collector filters have no effect on the checklist layer
+- [x] **MAP-04**: `cl=1` URL param encodes checklist layer visibility; restored on page load
 
 ### SPEC — Species Page Expansion
 
@@ -74,10 +74,10 @@
 | CHECK-03 | Phase 111 | Complete |
 | CHECK-04 | Phase 111 | Complete |
 | EXT-01 | Phase 111 | Complete |
-| MAP-01 | Phase 112 | Pending |
-| MAP-02 | Phase 112 | Pending |
-| MAP-03 | Phase 112 | Pending |
-| MAP-04 | Phase 112 | Pending |
+| MAP-01 | Phase 112 | Complete |
+| MAP-02 | Phase 112 | Complete |
+| MAP-03 | Phase 112 | Complete |
+| MAP-04 | Phase 112 | Complete |
 | SPEC-01 | Phase 113 | Pending |
 | SPEC-02 | Phase 113 | Pending |
 | SPEC-03 | Phase 113 | Pending |
