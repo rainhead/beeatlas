@@ -504,17 +504,15 @@ if (boundaryMode !== 'off' || paneState !== 'collapsed' || checklistVisible) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Taxon filter granularity (family vs species)**
+1. **Taxon filter granularity (family vs species)** — RESOLVED: match all three ranks
    - What we know: `filterState.taxonRank` can be `'family'`, `'genus'`, or `'species'`. `checklist.parquet` has `family`, `genus`, and `scientificName` columns.
-   - What's unclear: MAP-03 says "responds to taxon filter" — should family/genus filters also narrow the checklist county set?
-   - Recommendation: Match on all three ranks using the appropriate column. When `taxonRank === 'family'`, filter `checklist.parquet` rows where `family === filterState.taxonName`. When `'genus'`, filter on `genus`. When `'species'`, filter on `scientificName`. This is the correct behavior and consistent with how occurrences filter.
+   - Resolution: Match on all three ranks using the appropriate column. When `taxonRank === 'family'`, filter rows where `family === filterState.taxonName`. When `'genus'`, filter on `genus`. When `'species'`, filter on `scientificName`. Implemented in Plan 03 Task 3.
 
-2. **Generation guard for async checklist fetch**
+2. **Generation guard for async checklist fetch** — RESOLVED: add `_checklistGeneration` counter
    - What we know: `bee-atlas` uses a `_filterQueryGeneration` counter to discard stale async results (documented in CLAUDE.md invariant). The checklist fetch is also async.
-   - What's unclear: Should the checklist fetch inside `bee-map` have its own generation guard?
-   - Recommendation: Yes — add a `_checklistGeneration` counter in `bee-map` following the same pattern. Without it, rapid taxon filter changes could result in a stale county set overwriting a newer result.
+   - Resolution: Add `_checklistGeneration` counter in `bee-map` following the same pattern. Implemented in Plan 03 Task 3.
 
 ---
 
