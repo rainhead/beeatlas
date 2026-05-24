@@ -7,23 +7,23 @@
 
 ### TAX — Offline Taxonomy
 
-- [ ] **TAX-01**: Pipeline downloads `taxa.csv.gz` from iNat AWS Open Data with ETag/Last-Modified caching; no re-download when archive is unchanged
-- [ ] **TAX-02**: DuckDB ancestry walk via `unnest(string_split(ancestry,'/'))` produces `taxon_lineage_extended` with identical schema to current (family, subfamily, tribe, genus, subgenus per taxon_id)
+- [x] **TAX-01**: Pipeline downloads `taxa.csv.gz` from iNat AWS Open Data with ETag/Last-Modified caching; no re-download when archive is unchanged
+- [x] **TAX-02**: DuckDB ancestry walk via `unnest(string_split(ancestry,'/'))` produces `taxon_lineage_extended` with identical schema to current (family, subfamily, tribe, genus, subgenus per taxon_id)
 - [x] **TAX-03**: Live `/v2/taxa` enricher functions removed from pipeline; `dbt build` and `npm test` pass after deletion
-- [ ] **TAX-04**: Taxa archive cached at `data/raw/taxa.csv.gz`; synced to/from S3 by `nightly.sh` to persist across nightly runs
+- [x] **TAX-04**: Taxa archive cached at `data/raw/taxa.csv.gz`; synced to/from S3 by `nightly.sh` to persist across nightly runs
 
 ### CHECK — Checklist Pipeline
 
-- [ ] **CHECK-01**: Pipeline reads committed checklist CSV, parses specific epithet from Scientific Name (strips author+year), normalizes date formats, applies TRIM() to varchar fields, spatial-joins county and ecoregion_l3
-- [ ] **CHECK-02**: `checklist.parquet` produced with columns: `canonical_name, scientificName, genus, specific_epithet, family, lat (nullable), lon (nullable), year (nullable), month (nullable), county, ecoregion_l3, source='checklist'`
-- [ ] **CHECK-03**: `checklist.parquet` uploaded to S3/CloudFront as part of nightly pipeline export
-- [ ] **CHECK-04**: Pytest assertions pass: row count ≥ 2000, no null `canonical_name`, no null `specific_epithet`, `TRIM(family) = family`
+- [x] **CHECK-01**: Pipeline reads committed checklist CSV, parses specific epithet from Scientific Name (strips author+year), normalizes date formats, applies TRIM() to varchar fields, spatial-joins county and ecoregion_l3
+- [x] **CHECK-02**: `checklist.parquet` produced with columns: `canonical_name, scientificName, genus, specific_epithet, family, lat (nullable), lon (nullable), year (nullable), month (nullable), county, ecoregion_l3, source='checklist'`
+- [x] **CHECK-03**: `checklist.parquet` uploaded to S3/CloudFront as part of nightly pipeline export
+- [x] **CHECK-04**: Pytest assertions pass: row count ≥ 2000, no null `canonical_name`, no null `specific_epithet`, `TRIM(family) = family`
 
 ### MAP — Checklist Map Layer
 
 - [ ] **MAP-01**: "Checklist records" toggle appears in filter panel alongside Specimens and Samples toggles
-- [ ] **MAP-02**: When enabled, checklist records render as clustered points visually distinct from WABA specimens; records without coordinates excluded from map layer
-- [ ] **MAP-03**: Checklist layer responds to taxon, year, and month filters (same filter surface as other layers)
+- [ ] **MAP-02**: When enabled, checklist records render as a county-fill overlay (green fill on counties GeoJSON source), visually distinct from WABA specimen points; county presence derived from checklist.parquet coordinates
+- [ ] **MAP-03**: Checklist layer responds to taxon filter only; year, month, and collector filters have no effect on the checklist layer
 - [ ] **MAP-04**: `cl=1` URL param encodes checklist layer visibility; restored on page load
 
 ### SPEC — Species Page Expansion
@@ -36,7 +36,7 @@
 
 ### EXT — Extensibility
 
-- [ ] **EXT-01**: `source='checklist'` column present in `checklist.parquet`; pipeline architecture documented to support future sources (other Bee Atlas programs, GBIF) as additional parquet files with the same `source` field convention
+- [x] **EXT-01**: `source='checklist'` column present in `checklist.parquet`; pipeline architecture documented to support future sources (other Bee Atlas programs, GBIF) as additional parquet files with the same `source` field convention
 
 ## Future Requirements
 
@@ -65,15 +65,15 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TAX-01 | Phase 110 | Pending |
-| TAX-02 | Phase 110 | Pending |
+| TAX-01 | Phase 110 | Complete |
+| TAX-02 | Phase 110 | Complete |
 | TAX-03 | Phase 110 | Complete |
-| TAX-04 | Phase 110 | Pending |
-| CHECK-01 | Phase 111 | Pending |
-| CHECK-02 | Phase 111 | Pending |
-| CHECK-03 | Phase 111 | Pending |
-| CHECK-04 | Phase 111 | Pending |
-| EXT-01 | Phase 111 | Pending |
+| TAX-04 | Phase 110 | Complete |
+| CHECK-01 | Phase 111 | Complete |
+| CHECK-02 | Phase 111 | Complete |
+| CHECK-03 | Phase 111 | Complete |
+| CHECK-04 | Phase 111 | Complete |
+| EXT-01 | Phase 111 | Complete |
 | MAP-01 | Phase 112 | Pending |
 | MAP-02 | Phase 112 | Pending |
 | MAP-03 | Phase 112 | Pending |
