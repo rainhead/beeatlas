@@ -5,8 +5,9 @@ Usage:
 
 Pipelines are executed in this order:
     ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
-    anti-entropy -> checklist -> resolve-taxon-ids -> taxon-lineage-extended ->
-    places-validation -> dbt-build -> species-export -> species-maps -> feeds
+    anti-entropy -> checklist -> resolve-taxon-ids -> taxa-download ->
+    taxon-lineage-extended -> places-validation -> dbt-build ->
+    species-export -> species-maps -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
 nightly run. Load them manually: uv run python geographies_pipeline.py
@@ -27,8 +28,8 @@ logging.basicConfig(level=logging.WARNING, format="%(name)s %(levelname)s %(mess
 # Geographies loaded manually: uv run python geographies_pipeline.py
 from ecdysis_pipeline import load_ecdysis, load_links
 from inaturalist_pipeline import load_observations as load_inaturalist_observations
-from inaturalist_pipeline import enrich_taxon_lineage_extended
 from waba_pipeline import load_observations as load_waba_observations
+from taxa_pipeline import download_taxa_csv, load_taxon_lineage_extended
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from checklist_pipeline import load_checklist
@@ -85,7 +86,8 @@ STEPS: list[tuple[str, Callable]] = [
     ("anti-entropy", run_anti_entropy),
     ("checklist", load_checklist),
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
-    ("taxon-lineage-extended", enrich_taxon_lineage_extended),
+    ("taxa-download", download_taxa_csv),
+    ("taxon-lineage-extended", load_taxon_lineage_extended),
     ("places-validation", validate_places_step),
     ("places-load", load_places_step),
     ("dbt-build", _run_dbt_build),
