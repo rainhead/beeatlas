@@ -1,37 +1,37 @@
 {
   "version": "1.0",
-  "timestamp": "2026-05-03T05:25:41.690Z",
-  "phase": "076",
-  "phase_name": "Data Foundation",
-  "phase_dir": ".planning/phases/076-data-foundation",
+  "timestamp": "2026-05-24T03:00:30.699Z",
+  "phase": "111",
+  "phase_name": "Checklist Pipeline",
+  "phase_dir": ".planning/phases/111-checklist-pipeline",
   "plan": null,
   "task": null,
-  "total_tasks": 15,
+  "total_tasks": 4,
   "status": "paused",
   "completed_tasks": [
-    {"id": "research", "name": "Research Phase 76 (gsd-phase-researcher)", "status": "done", "commit": "e428bcc"},
-    {"id": "validation", "name": "Scaffold 076-VALIDATION.md", "status": "done", "commit": "e428bcc"},
-    {"id": "patterns", "name": "Pattern map (gsd-pattern-mapper)", "status": "done", "commit": "57de655"},
-    {"id": "plan", "name": "Plan 6 plans (gsd-planner)", "status": "done", "commit": "99103a4"},
-    {"id": "verify", "name": "Plan checker — passed after 1 revision iter (2 blockers + 3 warnings → 0)", "status": "done", "commit": "99103a4"},
-    {"id": "coverage", "name": "Requirements + decision coverage gates (10/10 reqs, 5/5 decisions)", "status": "done", "commit": "99103a4"}
+    {"id": 1, "name": "Wave 0 RED pytest assertions", "status": "done", "commit": "b061e73"},
+    {"id": 2, "name": "checklist.sql mart + schema.yml contract GREEN", "status": "done", "commit": "8595097"},
+    {"id": 3, "name": "run.py _run_dbt_build copy loop", "status": "done", "commit": "94cda04"},
+    {"id": 4, "name": "nightly.sh upload + manifest.json key", "status": "done", "commit": "87e3c59"}
   ],
   "remaining_tasks": [
-    {"id": "execute", "name": "/gsd-execute-phase 76 — run all 15 tasks across 4 waves", "status": "not_started"}
+    {"id": "cr01", "name": "Fix CR-01: INNER JOIN → LEFT JOIN in checklist.sql final SELECT", "status": "not_started"},
+    {"id": "gap03", "name": "GAP-03: confirm CloudFront checklist key after next nightly run", "status": "not_started"}
   ],
-  "blockers": [],
+  "blockers": [
+    {
+      "description": "CR-01 (BLOCKER): checklist.sql final SELECT uses INNER JOIN to final_eco CTE — silently drops rows for any county whose name doesn't exactly match stg_geo__us_counties. Must change to LEFT JOIN.",
+      "type": "technical",
+      "workaround": "Current WA county names all match so no data lost in practice, but fragile."
+    }
+  ],
   "human_actions_pending": [
-    {"action": "Decide whether to copy `~/Downloads/washington_bees(3).tsv` to `data/checklists/wa_bee_checklist.tsv` manually or let executor do it", "context": "Plan 076-01 Task 1 expects the source TSV to be available; the file path is in CONTEXT.md D-01", "blocking": false}
+    {"action": "After next nightly run: confirm manifest.json has 'checklist' key and hashed URL returns HTTP 200", "context": "GAP-03 / CHECK-03", "blocking": false}
   ],
   "decisions": [
-    {"decision": "Standalone STEP `(\"taxon-lineage-extended\", enrich_taxon_lineage_extended)` in run.py between waba and anti-entropy", "rationale": "Calling enrich_taxon_lineage_extended from inside inaturalist_pipeline.load_observations() would run BEFORE waba, violating D-03 (must run AFTER waba so UNION covers WABA taxa)", "phase": "076"},
-    {"decision": "canonicalize() lives in new data/canonical_name.py module", "rationale": "Single responsibility, single test file; avoids circular-import risk when Phase 77 species_export imports it", "phase": "076"},
-    {"decision": "Tests live at data/tests/test_*.py with `tests/`-prefixed pytest invocation", "rationale": "Matches existing data/pyproject.toml `testpaths = [\"tests\"]` convention; ROADMAP SC5 amended to match", "phase": "076"},
-    {"decision": "synonyms.csv override UPDATEs canonical_name column at reconcile time (not just at JOIN time)", "rationale": "Downstream consumers (Phase 77 species export) see no synonyms.csv complexity; one-shot UPDATE is trivial cost", "phase": "076"},
-    {"decision": "_INFRA_MARKERS is exactly 5 markers (ssp./var./aff./cf./nr.) — no subsp.", "rationale": "Strict reading of D-04 step 3; can be added in follow-up phase if a real subsp. input ever appears in production data", "phase": "076"},
-    {"decision": "Wave 0 is satisfied by Plan 02 TDD on canonicalize() only; DB-write integration tests deferred to Plan 06 by design", "rationale": "DB-write functions can't be reasonably tested without their implementations; Plan 02 covers the algorithm-critical surface that 03/05/06 all consume", "phase": "076"}
+    {"decision": "Use LEFT JOIN (not INNER) in checklist.sql final_eco join", "rationale": "INNER JOIN silently drops county rows on name mismatch; LEFT JOIN preserves all rows and assigns NULL ecoregion for unmatched counties", "phase": "111"}
   ],
-  "uncommitted_files": [],
-  "next_action": "/clear, then /gsd-execute-phase 76",
-  "context_notes": "Phase 76 fully planned. 6 plans (15 tasks) across 4 waves. All requirements + decisions covered. Plan checker passed. Live DB schema verified (taxon__id BIGINT exists on inaturalist_data.observations; ecdysis_data.occurrences uses scientific_name snake_case). Six trinomials found in production ecdysis data that the canonicalize() algorithm must collapse to binomials (Eucera frater frater, Colletes consors pascoensis, Bembix americana comata x2, Andrena cressonii infasciata, Melecta pacifica fulvida). The Lasioglossum zonulus/zonulum masculine/neuter mismatch is a real synonym needed for synonyms.csv."
+  "uncommitted_files": [".planning/REQUIREMENTS.md", ".planning/STATE.md"],
+  "next_action": "Fix CR-01: in data/dbt/models/marts/checklist.sql, find the final SELECT and change 'INNER JOIN final_eco fe ON fe.county = wl.county' to 'LEFT JOIN final_eco fe ON fe.county = wl.county'. Then run: cd data && bash dbt/run.sh build && uv run pytest -k checklist -v. Then commit and re-run /gsd-verify-work 111.",
+  "context_notes": "Phase 111 fully executed. All 4 tasks committed across 2 waves. Verification: human_needed (11/12). UAT: GAP-01 (dbt build + pytest) and GAP-02 (copy to public/data) confirmed by human this session. GAP-03 needs nightly run. Code review found CR-01 (INNER JOIN bug in checklist.sql) — fix is one-line change before phase can be marked complete. WR-01 (test_no_production_dbt_references always fails) also needs deletion."
 }
