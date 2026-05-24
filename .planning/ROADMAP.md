@@ -397,7 +397,7 @@ See `.planning/milestones/v3.9-ROADMAP.md` for full phase details.
 ## v4.0 Washington Checklist Records (Phases 110–113) — IN PROGRESS
 
 - [x] **Phase 110: Offline Taxonomy** - Replace live /v2/taxa API calls with taxa.csv.gz archive download and DuckDB ancestry walk (completed 2026-05-24)
-- [ ] **Phase 111: Checklist Pipeline** - Ingest Bartholomew et al. 2024 CSV into checklist.parquet with spatial join and source field
+- [x] **Phase 111: Checklist Pipeline** - Ingest Bartholomew et al. 2024 CSV into checklist.parquet with spatial join and source field (completed 2026-05-24)
 - [ ] **Phase 112: Checklist Map Layer** - Add toggle-able clustered-point layer for checklist records with year/month filter integration; URL persistence
 - [ ] **Phase 113: Species Page Expansion** - Extend all taxon pages to 565 checklist species; county-presence SVGs; attribution
 
@@ -564,7 +564,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 111-02-PLAN.md — nightly.sh _upload_hashed + manifest.json checklist key [CHECK-03]
+- [x] 111-02-PLAN.md — nightly.sh _upload_hashed + manifest.json checklist key [CHECK-03]
 
 ### Phase 112: Checklist Map Layer
 
@@ -712,6 +712,6 @@ Plans:
 | 108. bee-atlas Cutover & Map Resize | v3.9 | 2/2 | Complete   | 2026-05-20 |
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
-| 111. Checklist Pipeline | v4.0 | 1/2 | In Progress|  |
+| 111. Checklist Pipeline | v4.0 | 2/2 | Complete   | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 0/? | Not started | - |
 | 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
