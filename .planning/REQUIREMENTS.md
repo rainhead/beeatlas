@@ -9,7 +9,7 @@
 
 - [ ] **TAX-01**: Pipeline downloads `taxa.csv.gz` from iNat AWS Open Data with ETag/Last-Modified caching; no re-download when archive is unchanged
 - [ ] **TAX-02**: DuckDB ancestry walk via `unnest(string_split(ancestry,'/'))` produces `taxon_lineage_extended` with identical schema to current (family, subfamily, tribe, genus, subgenus per taxon_id)
-- [ ] **TAX-03**: Live `/v2/taxa` enricher functions removed from pipeline; `dbt build` and `npm test` pass after deletion
+- [x] **TAX-03**: Live `/v2/taxa` enricher functions removed from pipeline; `dbt build` and `npm test` pass after deletion
 - [ ] **TAX-04**: Taxa archive cached at `data/raw/taxa.csv.gz`; synced to/from S3 by `nightly.sh` to persist across nightly runs
 
 ### CHECK — Checklist Pipeline
@@ -67,7 +67,7 @@
 |-------------|-------|--------|
 | TAX-01 | Phase 110 | Pending |
 | TAX-02 | Phase 110 | Pending |
-| TAX-03 | Phase 110 | Pending |
+| TAX-03 | Phase 110 | Complete |
 | TAX-04 | Phase 110 | Pending |
 | CHECK-01 | Phase 111 | Pending |
 | CHECK-02 | Phase 111 | Pending |
