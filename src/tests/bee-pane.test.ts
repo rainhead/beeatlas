@@ -244,3 +244,31 @@ describe('PANE-V2: bee-pane v2 collapsed button and selection banner', () => {
     expect(src).not.toMatch(/@property[^)]*\)\s+occurrences\b/);
   });
 });
+
+describe('MAP-01: checklist toggle in filter panel', () => {
+  test('bee-pane.ts has _showChecklist @state field', () => {
+    expect(src).toMatch(/_showChecklist/);
+  });
+
+  test('bee-pane.ts defines _renderShow method', () => {
+    expect(src).toMatch(/_renderShow\s*\(/);
+  });
+
+  test('bee-pane.ts renders "Checklist records" label text', () => {
+    expect(src).toMatch(/Checklist records/);
+  });
+
+  test('bee-pane.ts dispatches checklist-layer-changed event', () => {
+    expect(src).toMatch(/new CustomEvent\(['"]checklist-layer-changed['"]/);
+  });
+
+  test('bee-pane.ts _renderShow uses aria-label for checkbox', () => {
+    expect(src).toMatch(/aria-label=["']Show checklist county records on map["']/);
+  });
+
+  test('bee-pane.ts calls _renderShow inside _renderListContent', () => {
+    const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
+    expect(listContentBody).not.toBeNull();
+    expect(listContentBody![0]).toMatch(/this\._renderShow\s*\(\)/);
+  });
+});

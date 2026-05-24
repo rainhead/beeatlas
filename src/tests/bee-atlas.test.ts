@@ -762,3 +762,23 @@ describe('PANE-V2-05: old file removal', () => {
     expect(atlasSrc).not.toMatch(/import\(['"]\.\/bee-sidebar\.ts['"]\)/);
   });
 });
+
+describe('MAP-03: checklist taxon filter binding', () => {
+  const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas.ts has _checklistVisible @state field', () => {
+    expect(atlasSrc).toMatch(/_checklistVisible/);
+  });
+
+  test('bee-atlas.ts has _onChecklistLayerChanged method', () => {
+    expect(atlasSrc).toMatch(/_onChecklistLayerChanged\s*\(/);
+  });
+
+  test('bee-atlas.ts binds .checklistTaxon=${this._filterState.taxonName} on <bee-map>', () => {
+    expect(atlasSrc).toMatch(/\.checklistTaxon=\$\{this\._filterState\.taxonName\}/);
+  });
+
+  test('bee-atlas.ts registers @checklist-layer-changed=${this._onChecklistLayerChanged} on <bee-pane>', () => {
+    expect(atlasSrc).toMatch(/@checklist-layer-changed=\$\{this\._onChecklistLayerChanged\}/);
+  });
+});
