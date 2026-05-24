@@ -34,6 +34,7 @@ export class BeeAtlas extends LitElement {
   @state() private _filteredRowCount: number | null = null;
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
+  @state() private _checklistVisible = false;
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
   @state() private _tableRows: OccurrenceRow[] = [];
@@ -160,6 +161,9 @@ bee-pane {
             .ecoregionOptions=${this._ecoregionOptions}
             .viewState=${this._viewState}
             .filterState=${this._filterState}
+            .showChecklist=${this._checklistVisible}
+            .checklistTaxon=${this._filterState.taxonName}
+            .checklistTaxonRank=${this._filterState.taxonRank}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
             @map-click-region=${this._onRegionClick}
@@ -192,6 +196,7 @@ bee-pane {
             .filterActive=${isFilterActive(this._filterState)}
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             @filter-changed=${this._onFilterChanged}
+            @checklist-layer-changed=${this._onChecklistLayerChanged}
             @pane-expand-list=${this._onPaneExpandList}
             @pane-collapse=${this._onPaneCollapse}
             @pane-expand-table=${this._onPaneExpandTable}
@@ -223,6 +228,7 @@ bee-pane {
     const paneState = initialParams.ui?.paneState ?? 'collapsed';
     this._boundaryMode = initBoundaryMode;
     this._paneState = paneState;
+    this._checklistVisible = initialParams.ui?.checklistVisible ?? false;
     if (paneState === 'table') import('./bee-table.ts');
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
@@ -527,7 +533,7 @@ bee-pane {
         : this._selectedCluster
           ? { type: 'cluster' as const, ...this._selectedCluster }
           : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { boundaryMode: this._boundaryMode, paneState: this._paneState }
+      { boundaryMode: this._boundaryMode, paneState: this._paneState, checklistVisible: this._checklistVisible }
     );
   }
 
@@ -579,6 +585,7 @@ bee-pane {
 
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
+    this._checklistVisible = parsed.ui?.checklistVisible ?? false;
     const paneState = parsed.ui?.paneState ?? 'collapsed';
     this._tablePage = 1;
 
@@ -952,6 +959,11 @@ bee-pane {
   private _onDataError(e: CustomEvent<{ message: string }>) {
     this._error = e.detail.message;
     this._loading = false;
+  }
+
+  private _onChecklistLayerChanged(e: CustomEvent<{ visible: boolean }>) {
+    this._checklistVisible = e.detail.visible;
+    this._replaceUrlState();
   }
 
   private _onBoundaryModeChanged(e: CustomEvent<'off' | 'counties' | 'ecoregions' | 'places'>) {
