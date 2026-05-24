@@ -71,7 +71,8 @@ def _run_dbt_build() -> None:
     """
     subprocess.run(["bash", str(_DBT_SCRIPT), "build"], check=True)
     _EXPORT_DIR.mkdir(parents=True, exist_ok=True)
-    for artifact in ("occurrences.parquet", "counties.geojson", "ecoregions.geojson"):
+    for artifact in ("occurrences.parquet", "counties.geojson", "ecoregions.geojson",
+                     "checklist.parquet"):
         src = _DBT_SANDBOX / artifact
         dst = _EXPORT_DIR / artifact
         shutil.copy2(src, dst)
