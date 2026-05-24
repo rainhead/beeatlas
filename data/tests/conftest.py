@@ -277,7 +277,7 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         )
     """)
 
-    # Taxon lineage rows (genus + family keyed by taxon_id, mirrors enrich_taxon_lineage output)
+    # Taxon lineage rows (genus + family keyed by taxon_id, for test fixture)
     con.execute("""
         INSERT INTO inaturalist_waba_data.taxon_lineage VALUES
             (100001, 'Eucera', 'Apidae'),

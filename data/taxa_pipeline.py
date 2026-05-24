@@ -4,8 +4,8 @@ Downloads taxa.csv.gz from iNaturalist Open Data (S3) with ETag/Last-Modified
 caching and populates inaturalist_data.taxon_lineage_extended via a DuckDB
 ancestry walk on the gzipped archive.
 
-Replaces the live /v2/taxa API enricher (enrich_taxon_lineage_extended in
-inaturalist_pipeline.py) with an offline walk over all active Anthophila taxa,
+Replaces the live /v2/taxa API enricher (removed in Phase 110) with an offline
+walk over all active Anthophila taxa,
 eliminating API rate-limit risk and supporting Phase 111 (Checklist) lineage
 lookup for species not yet observed in WABA.
 """
@@ -79,8 +79,8 @@ def load_taxon_lineage_extended(db_path: str | None = None) -> None:
     pivots the result into one column per rank:
       (taxon_id, family, subfamily, tribe, genus, subgenus)
 
-    This matches the existing table contract from enrich_taxon_lineage_extended
-    in inaturalist_pipeline.py. Taxon scope is all active Anthophila (not just
+    Produces the same table contract as the retired live enricher (Phase 110).
+    Taxon scope is all active Anthophila (not just
     observed taxa) so Phase 111 (Checklist) can look up lineage for species with
     no WABA records yet.
 
