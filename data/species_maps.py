@@ -51,6 +51,7 @@ WA_BBOX = (-124.85, 45.54, -116.92, 49.00)
 # D-03 styling — single <style> block with classes (NOT per-element fill/stroke).
 STYLE_CSS = (
     ".county { fill: #f4f4f0; stroke: #888; stroke-width: 0.5; }\n"
+    ".checklist-county { fill: #b0cfe8; fill-opacity: 0.5; stroke: #888; stroke-width: 0.5; }\n"
     ".occ { fill: #c44; fill-opacity: 0.6; stroke: none; }"
 )
 
@@ -76,16 +77,20 @@ def _ring_to_path(coords: list[list[float]]) -> str:
     return head + tail + "Z"
 
 
-def _load_county_geojsons(con: duckdb.DuckDBPyConnection) -> list[dict]:
-    """Fetch the WA county polygon set as GeoJSON dicts (one per county).
+def _load_county_geojsons(con: duckdb.DuckDBPyConnection) -> dict[str, dict]:
+    """Fetch the WA county polygon set as a county_name -> GeoJSON dict mapping.
 
     D-02: state_fips comes from config (not hardcoded). MAP-03: uses
     ST_SimplifyPreserveTopology with tolerance 0.005 (vs. 0.001 in
     export.py — the smaller 600x320 viewport tolerates more simplification).
+
+    Returns dict[str, dict] keyed by county name (e.g. "King") so callers
+    can look up county geometry by name for checklist-county fill rendering.
     """
     rows = con.execute(
         """
-        SELECT ST_AsGeoJSON(
+        SELECT name,
+               ST_AsGeoJSON(
                    ST_SimplifyPreserveTopology(geom, 0.005)
                )
         FROM geographies.us_counties
@@ -93,10 +98,10 @@ def _load_county_geojsons(con: duckdb.DuckDBPyConnection) -> list[dict]:
         """,
         [STATE_FIPS],
     ).fetchall()
-    return [json.loads(g) for (g,) in rows]
+    return {name: json.loads(g) for name, g in rows}
 
 
-def _build_county_backdrop(county_geojsons: list[dict]) -> ET.Element:
+def _build_county_backdrop(county_geojsons: dict[str, dict]) -> ET.Element:
     """Build the <svg> root with a single <style> block + one <path class="county">
     per county polygon. Deepcopied per species and then occurrence circles append.
     """
@@ -110,7 +115,7 @@ def _build_county_backdrop(county_geojsons: list[dict]) -> ET.Element:
     )
     style = ET.SubElement(root, f"{{{SVG_NS}}}style")
     style.text = STYLE_CSS
-    for geom in county_geojsons:
+    for geom in county_geojsons.values():
         gtype = geom.get("type")
         if gtype == "Polygon":
             d = " ".join(_ring_to_path(ring) for ring in geom["coordinates"])
