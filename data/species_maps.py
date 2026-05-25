@@ -167,15 +167,42 @@ def _group_colors(canonical_names: list[str]) -> dict[str, str]:
 def _write_species_svg(
     slug: str,
     points: list[tuple[float, float]],
+    checklist_counties: set[str],
+    county_geojsons_by_name: dict[str, dict],
     backdrop: ET.Element,
     out_dir: Path,
 ) -> int:
-    """Emit out_dir/<slug>.svg with one <circle class="occ"> per in-bbox point.
+    """Emit out_dir/<slug>.svg with county fills for checklist counties and
+    one <circle class="occ"> per in-bbox occurrence point.
+
+    County fills (class="checklist-county") are written BEFORE occurrence dots
+    so dots render on top (SVG document order = z-order).
 
     Returns the number of points dropped because they fell outside WA_BBOX
     (MAP-04 — silent clip, never raise).
     """
     root = copy.deepcopy(backdrop)
+    # 1. Draw checklist county fills BEFORE occurrence dots (SVG render order / Pitfall #4).
+    for county_name, geom in county_geojsons_by_name.items():
+        if county_name not in checklist_counties:
+            continue
+        gtype = geom.get("type")
+        if gtype == "Polygon":
+            d = " ".join(_ring_to_path(ring) for ring in geom["coordinates"])
+        elif gtype == "MultiPolygon":
+            d = " ".join(
+                _ring_to_path(ring)
+                for poly in geom["coordinates"]
+                for ring in poly
+            )
+        else:
+            continue
+        ET.SubElement(
+            root,
+            f"{{{SVG_NS}}}path",
+            attrib={"class": "checklist-county", "d": d},
+        )
+    # 2. Draw occurrence dots on top.
     clipped = 0
     for lon, lat in points:
         if not _in_bbox(lon, lat):
@@ -403,7 +430,7 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
             f"""
             SELECT canonical_name, slug
             FROM read_parquet('{species_parquet}')
-            WHERE occurrence_count > 0
+            WHERE (occurrence_count > 0 OR on_checklist = true)
               AND specific_epithet IS NOT NULL
             ORDER BY canonical_name
             """
@@ -433,11 +460,28 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 continue
             occ_by_canon[canon].append((lon, lat))
 
+        # Read checklist.parquet once into per-species county sets.
+        checklist_counties_by_canon: dict[str, set[str]] = defaultdict(set)
+        checklist_parquet = ASSETS_DIR / "checklist.parquet"
+        if checklist_parquet.exists():
+            cl_rows = con.execute(
+                f"""
+                SELECT canonical_name, county
+                FROM read_parquet('{checklist_parquet}')
+                WHERE canonical_name IS NOT NULL AND county IS NOT NULL
+                """
+            ).fetchall()
+            for canon, county in cl_rows:
+                checklist_counties_by_canon[canon].add(county)
+
         total_clipped = 0
         written = 0
         for canon, slug in species_rows:
             points = occ_by_canon.get(canon, [])
-            clipped = _write_species_svg(slug, points, backdrop, maps_dir)
+            checklist_counties = checklist_counties_by_canon.get(canon, set())
+            clipped = _write_species_svg(
+                slug, points, checklist_counties, county_geojsons, backdrop, maps_dir
+            )
             if clipped:
                 # MAP-04 + Pitfall #5: log silently, NEVER raise.
                 print(f"  species-maps/{slug}.svg: {clipped} points clipped")
