@@ -6,8 +6,9 @@ Usage:
 Pipelines are executed in this order:
     ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
     anti-entropy -> checklist -> resolve-taxon-ids -> taxa-download ->
-    taxon-lineage-extended -> places-validation -> dbt-build ->
-    species-export -> species-maps -> feeds
+    taxon-lineage-extended -> places-validation -> places-load -> dbt-build ->
+    topology-postprocess -> species-export -> species-maps ->
+    places-export -> places-maps -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
 nightly run. Load them manually: uv run python geographies_pipeline.py
