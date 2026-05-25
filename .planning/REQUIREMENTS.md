@@ -42,9 +42,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VAL-01..04 | Phase 114 | Pending |
-| VAL-05..08 | Phase 115 | Pending |
-| VAL-09 | Phase 115 | Complete |
+| VAL-01..04 | Phase 114 | Complete |
+| VAL-05..09 | Phase 115 | Complete |
 | CODE-01 | Phase 116 | Pending |
 | CODE-02 | Phase 116 | Pending |
 | CODE-03 | Phase 116 | Pending |
