@@ -51,7 +51,7 @@ describe('_data/species.js (PAGE-02)', () => {
   test('exports speciesList (only entries with specific_epithet)', () => {
     const list = (species as any).speciesList;
     expect(Array.isArray(list)).toBe(true);
-    expect(list.length).toBeGreaterThan(500); // 527 confirmed
+    expect(list.length).toBeGreaterThan(560); // 565 checklist species (SPEC-01)
     expect(list.every((s: any) => s.specific_epithet !== null)).toBe(true);
   });
 
@@ -105,6 +105,18 @@ describe('_data/species.js (PAGE-02)', () => {
           expect(sp.hexColor).toBe('#cccccc');
         }
       }
+    }
+  });
+
+  test('genusList contains at least one species with occurrence_count === 0 and on_checklist (D-03)', () => {
+    const list = (species as any).genusList;
+    const allSpecies = list.flatMap((g: any) => g.species);
+    const checklistOnly = allSpecies.filter((sp: any) =>
+      sp.occurrence_count === 0 && sp.on_checklist
+    );
+    expect(checklistOnly.length).toBeGreaterThan(0);
+    for (const sp of checklistOnly) {
+      expect(sp.hexColor).toBe('#cccccc');
     }
   });
 
@@ -169,9 +181,9 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('subgenusList.every(g => g.totalOccurrences > 0) — zero-occurrence groups excluded', () => {
+  test('subgenusList.every(g => g.totalOccurrences > 0 || g.checklistCount > 0)', () => {
     const list = (species as any).subgenusList;
-    expect(list.every((g: any) => g.totalOccurrences > 0)).toBe(true);
+    expect(list.every((g: any) => g.totalOccurrences > 0 || g.checklistCount > 0)).toBe(true);
   });
 
   // Phase 95 Plan 02 — tribeList tests (TRIBE-01, TRIBE-02, TRIBE-03, URL-04)
