@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Washington Checklist Records
-status: ready_to_plan
-stopped_at: Phase 112 complete (3/3) — ready to discuss Phase 113
-last_updated: 2026-05-25T01:14:27.536Z
-last_activity: 2026-05-24 -- Phase 112 execution started
+status: planning
+stopped_at: Phase 113 context gathered
+last_updated: "2026-05-25T01:37:41.097Z"
+last_activity: 2026-05-25
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 8
-  completed_plans: 25
+  completed_plans: 8
   percent: 33
 ---
 
@@ -99,6 +99,6 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 ## Session Continuity
 
-Last session: 2026-05-24
-Stopped at: Phase 112 complete (3/3 plans, 6/6 UAT passed) — ready to plan Phase 113
-Resume file: None
+Last session: 2026-05-25T01:37:41.090Z
+Stopped at: Phase 113 context gathered
+Resume file: .planning/phases/113-species-page-expansion/113-CONTEXT.md
