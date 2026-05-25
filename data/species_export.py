@@ -2,7 +2,7 @@
 
 Reads dbt-produced sandbox/species.parquet and sandbox/occurrences.parquet,
 adds slug via domain.slugify, emits three artifacts:
-  - species.parquet    (19 cols incl. slug)
+  - species.parquet    (20 cols incl. slug)
   - species.json       (flat array — Eleventy _data/species.js consumer)
   - seasonality.json   (species → bucket → INT[12] — VIZ-04 lookup)
 
@@ -44,14 +44,14 @@ DBT_SANDBOX_DIR = Path(os.environ.get(
 ))
 
 
-# AGG-02: 19 columns in canonical order. Used for both parquet schema and the
+# AGG-02: 20 columns in canonical order. Used for both parquet schema and the
 # JSON projection so the two artifacts agree on key ordering.
 SPECIES_COLUMNS = [
     'scientificName', 'canonical_name', 'family', 'subfamily', 'tribe',
     'genus', 'subgenus', 'specific_epithet', 'on_checklist', 'status',
     'occurrence_count', 'specimen_count', 'provisional_count',
     'first_occurrence_date', 'last_occurrence_date', 'month_histogram',
-    'county_count', 'ecoregion_count', 'slug',
+    'county_count', 'ecoregion_count', 'checklist_count', 'slug',
 ]
 
 _ZERO_HIST = [0] * 12
@@ -82,13 +82,13 @@ def _jsonify_rows(rows: list[dict]) -> list[dict]:
 def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     """Build species.parquet + species.json + seasonality.json.
 
-    Reads ``DBT_SANDBOX_DIR/species.parquet`` (18 cols, produced by
+    Reads ``DBT_SANDBOX_DIR/species.parquet`` (19 cols, produced by
     ``bash data/dbt/run.sh build``) and appends a ``slug`` column via
     ``domain.slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
     for the per-occurrence seasonality bucket accumulation.
 
     Writes three artifacts to ASSETS_DIR:
-      - species.parquet  (19 cols including slug)
+      - species.parquet  (20 cols including slug)
       - species.json     (json.dumps sort_keys=True, indent=2)
       - seasonality.json (json.dumps sort_keys=True, separators=(',', ':'))
 
@@ -112,7 +112,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
 
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Read the 18-col dbt mart (no slug). Exclude the last SPECIES_COLUMNS entry
+    # Read the 19-col dbt mart (no slug). Exclude the last SPECIES_COLUMNS entry
     # ('slug') since the dbt mart does not have it yet.
     mart_cols = ', '.join(SPECIES_COLUMNS[:-1])
     fetched = con.execute(
@@ -165,6 +165,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
         ('month_histogram', pa.list_(pa.int32())),
         ('county_count', pa.int64()),
         ('ecoregion_count', pa.int64()),
+        ('checklist_count', pa.int64()),
         ('slug', pa.string()),
     ])
     table = pa.table(columns, schema=schema)
