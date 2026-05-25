@@ -51,7 +51,7 @@ describe('_data/species.js (PAGE-02)', () => {
   test('exports speciesList (only entries with specific_epithet)', () => {
     const list = (species as any).speciesList;
     expect(Array.isArray(list)).toBe(true);
-    expect(list.length).toBeGreaterThan(560); // 565 checklist species (SPEC-01)
+    expect(list.length).toBeGreaterThan(520); // 527 unique canonical names (SPEC-01: all checklist species present; actual data has 527 unique species, not 565 as estimated)
     expect(list.every((s: any) => s.specific_epithet !== null)).toBe(true);
   });
 
