@@ -20,7 +20,13 @@ title: Species — BeeAtlas
         {%- for sp in genusGroup -%}
         <li data-name="{{ sp.scientificName | lower }}">
           <a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>
+          {%- if sp.occurrence_count > 0 -%}
           <span class="count">{{ sp.occurrence_count }} records</span>
+          {%- elif sp.on_checklist -%}
+          <span class="count checklist-badge">checklist only</span>
+          {%- else -%}
+          <span class="count">0 records</span>
+          {%- endif -%}
         </li>
         {%- endfor -%}
       </ul>
