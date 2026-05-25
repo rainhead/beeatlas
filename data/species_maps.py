@@ -51,6 +51,7 @@ WA_BBOX = (-124.85, 45.54, -116.92, 49.00)
 # D-03 styling — single <style> block with classes (NOT per-element fill/stroke).
 STYLE_CSS = (
     ".county { fill: #f4f4f0; stroke: #888; stroke-width: 0.5; }\n"
+    ".checklist-county { fill: #b0cfe8; fill-opacity: 0.5; stroke: #888; stroke-width: 0.5; }\n"
     ".occ { fill: #c44; fill-opacity: 0.6; stroke: none; }"
 )
 
@@ -76,16 +77,20 @@ def _ring_to_path(coords: list[list[float]]) -> str:
     return head + tail + "Z"
 
 
-def _load_county_geojsons(con: duckdb.DuckDBPyConnection) -> list[dict]:
-    """Fetch the WA county polygon set as GeoJSON dicts (one per county).
+def _load_county_geojsons(con: duckdb.DuckDBPyConnection) -> dict[str, dict]:
+    """Fetch the WA county polygon set as a county_name -> GeoJSON dict mapping.
 
     D-02: state_fips comes from config (not hardcoded). MAP-03: uses
     ST_SimplifyPreserveTopology with tolerance 0.005 (vs. 0.001 in
     export.py — the smaller 600x320 viewport tolerates more simplification).
+
+    Returns dict[str, dict] keyed by county name (e.g. "King") so callers
+    can look up county geometry by name for checklist-county fill rendering.
     """
     rows = con.execute(
         """
-        SELECT ST_AsGeoJSON(
+        SELECT name,
+               ST_AsGeoJSON(
                    ST_SimplifyPreserveTopology(geom, 0.005)
                )
         FROM geographies.us_counties
@@ -93,10 +98,10 @@ def _load_county_geojsons(con: duckdb.DuckDBPyConnection) -> list[dict]:
         """,
         [STATE_FIPS],
     ).fetchall()
-    return [json.loads(g) for (g,) in rows]
+    return {name: json.loads(g) for name, g in rows}
 
 
-def _build_county_backdrop(county_geojsons: list[dict]) -> ET.Element:
+def _build_county_backdrop(county_geojsons: dict[str, dict]) -> ET.Element:
     """Build the <svg> root with a single <style> block + one <path class="county">
     per county polygon. Deepcopied per species and then occurrence circles append.
     """
@@ -110,7 +115,7 @@ def _build_county_backdrop(county_geojsons: list[dict]) -> ET.Element:
     )
     style = ET.SubElement(root, f"{{{SVG_NS}}}style")
     style.text = STYLE_CSS
-    for geom in county_geojsons:
+    for geom in county_geojsons.values():
         gtype = geom.get("type")
         if gtype == "Polygon":
             d = " ".join(_ring_to_path(ring) for ring in geom["coordinates"])
@@ -162,15 +167,42 @@ def _group_colors(canonical_names: list[str]) -> dict[str, str]:
 def _write_species_svg(
     slug: str,
     points: list[tuple[float, float]],
+    checklist_counties: set[str],
+    county_geojsons_by_name: dict[str, dict],
     backdrop: ET.Element,
     out_dir: Path,
 ) -> int:
-    """Emit out_dir/<slug>.svg with one <circle class="occ"> per in-bbox point.
+    """Emit out_dir/<slug>.svg with county fills for checklist counties and
+    one <circle class="occ"> per in-bbox occurrence point.
+
+    County fills (class="checklist-county") are written BEFORE occurrence dots
+    so dots render on top (SVG document order = z-order).
 
     Returns the number of points dropped because they fell outside WA_BBOX
     (MAP-04 — silent clip, never raise).
     """
     root = copy.deepcopy(backdrop)
+    # 1. Draw checklist county fills BEFORE occurrence dots (SVG render order / Pitfall #4).
+    for county_name, geom in county_geojsons_by_name.items():
+        if county_name not in checklist_counties:
+            continue
+        gtype = geom.get("type")
+        if gtype == "Polygon":
+            d = " ".join(_ring_to_path(ring) for ring in geom["coordinates"])
+        elif gtype == "MultiPolygon":
+            d = " ".join(
+                _ring_to_path(ring)
+                for poly in geom["coordinates"]
+                for ring in poly
+            )
+        else:
+            continue
+        ET.SubElement(
+            root,
+            f"{{{SVG_NS}}}path",
+            attrib={"class": "checklist-county", "d": d},
+        )
+    # 2. Draw occurrence dots on top.
     clipped = 0
     for lon, lat in points:
         if not _in_bbox(lon, lat):
@@ -398,7 +430,7 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
             f"""
             SELECT canonical_name, slug
             FROM read_parquet('{species_parquet}')
-            WHERE occurrence_count > 0
+            WHERE (occurrence_count > 0 OR on_checklist = true)
               AND specific_epithet IS NOT NULL
             ORDER BY canonical_name
             """
@@ -428,11 +460,28 @@ def generate_species_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 continue
             occ_by_canon[canon].append((lon, lat))
 
+        # Read checklist.parquet once into per-species county sets.
+        checklist_counties_by_canon: dict[str, set[str]] = defaultdict(set)
+        checklist_parquet = ASSETS_DIR / "checklist.parquet"
+        if checklist_parquet.exists():
+            cl_rows = con.execute(
+                f"""
+                SELECT canonical_name, county
+                FROM read_parquet('{checklist_parquet}')
+                WHERE canonical_name IS NOT NULL AND county IS NOT NULL
+                """
+            ).fetchall()
+            for canon, county in cl_rows:
+                checklist_counties_by_canon[canon].add(county)
+
         total_clipped = 0
         written = 0
         for canon, slug in species_rows:
             points = occ_by_canon.get(canon, [])
-            clipped = _write_species_svg(slug, points, backdrop, maps_dir)
+            checklist_counties = checklist_counties_by_canon.get(canon, set())
+            clipped = _write_species_svg(
+                slug, points, checklist_counties, county_geojsons, backdrop, maps_dir
+            )
             if clipped:
                 # MAP-04 + Pitfall #5: log silently, NEVER raise.
                 print(f"  species-maps/{slug}.svg: {clipped} points clipped")
