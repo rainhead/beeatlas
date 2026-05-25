@@ -53,12 +53,20 @@
 
 ## Traceability
 
-*Filled by roadmapper after roadmap is created.*
-
-| REQ-ID | Phase |
-|--------|-------|
-| PIPE-01..05 | — |
-| OCC-01..03 | — |
-| MAP-01..03 | — |
-| DET-01 | — |
-| SPE-01..03 | — |
+| REQ-ID | Phase | Status |
+|--------|-------|--------|
+| PIPE-01 | Phase 117 | Pending |
+| PIPE-02 | Phase 117 | Pending |
+| PIPE-03 | Phase 117 | Pending |
+| PIPE-04 | Phase 117 | Pending |
+| PIPE-05 | Phase 117 | Pending |
+| OCC-01 | Phase 118 | Pending |
+| OCC-02 | Phase 118 | Pending |
+| OCC-03 | Phase 118 | Pending |
+| MAP-01 | Phase 119 | Pending |
+| MAP-02 | Phase 119 | Pending |
+| MAP-03 | Phase 119 | Pending |
+| DET-01 | Phase 119 | Pending |
+| SPE-01 | Phase 120 | Pending |
+| SPE-02 | Phase 120 | Pending |
+| SPE-03 | Phase 120 | Pending |
