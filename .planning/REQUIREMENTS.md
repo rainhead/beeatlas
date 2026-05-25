@@ -20,7 +20,7 @@
 ### Code Quality
 
 - [ ] **CODE-01**: `places_validation.py` raises a clear error if any permit record is missing `issuing_authority` or `type` (PLC-02 runtime enforcement)
-- [ ] **CODE-02**: `run.py` module docstring accurately lists all pipeline steps including `places-load`, `places-export`, `places-maps`, `topology-postprocess`
+- [x] **CODE-02**: `run.py` module docstring accurately lists all pipeline steps including `places-load`, `places-export`, `places-maps`, `topology-postprocess`
 - [ ] **CODE-03**: `uv run pytest` on `data/` exits 0 — the 3 pre-existing `test_dbt_diff.py` failures resolved
 
 ## Future Requirements
@@ -45,7 +45,7 @@
 | VAL-01..04 | Phase 114 | Complete |
 | VAL-05..09 | Phase 115 | Complete |
 | CODE-01 | Phase 116 | Pending |
-| CODE-02 | Phase 116 | Pending |
+| CODE-02 | Phase 116 | Complete |
 | CODE-03 | Phase 116 | Pending |
 
 **Coverage:**
