@@ -711,7 +711,7 @@ Plans:
 
 **Wave 1** *(parallel — disjoint files)*
 
-- [ ] 116-01-PLAN.md — Add permit field validation (issuing_authority + type) to places_validation.py with 4 new pytest cases [CODE-01]
+- [x] 116-01-PLAN.md — Add permit field validation (issuing_authority + type) to places_validation.py with 4 new pytest cases [CODE-01]
 - [x] 116-02-PLAN.md — Sync run.py module docstring with current STEPS list (add places-load, topology-postprocess, places-export, places-maps) [CODE-02]
 - [ ] 116-03-PLAN.md — Regenerate public/data/{species.parquet,species.json,seasonality.json} from sandbox so 3 failing dbt_diff tests pass [CODE-03]
 
@@ -835,4 +835,4 @@ Plans:
 | 113. Species Page Expansion | v4.0 | 5/5 | Complete   | 2026-05-25 |
 | 114. v3.5 Nyquist Validation | v4.1 | 4/4 | Complete   | 2026-05-25 |
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 5/5 | Complete   | 2026-05-25 |
-| 116. Code Quality Fixes | v4.1 | 1/3 | In Progress|  |
+| 116. Code Quality Fixes | v4.1 | 2/3 | In Progress|  |
