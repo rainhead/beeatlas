@@ -1,15 +1,8 @@
 # Washington Bee Atlas
 
-## Current Milestone: v4.1 Validation & Code Quality
+## Milestone: v4.1 Validation & Code Quality — COMPLETE (2026-05-25)
 
-**Goal:** Close procedural gaps and fix silent code issues accumulated across v3.5–v4.0.
-
-**Target features:**
-- Retroactively fill missing VALIDATION.md / VERIFICATION.md for phases 89–91 (v3.5), 97–98–100 (v3.7), 112 (v4.0)
-- Fix SUMMARY.md frontmatter `requirements-completed` for phases 89–91
-- W-02: Enforce PLC-02 permit field validation at runtime in `places_validation.py`
-- W-03: Update stale `run.py` module docstring
-- Fix 3 pre-existing `test_dbt_diff.py` pytest failures
+**Shipped:** Retroactively filled all missing VALIDATION.md / VERIFICATION.md for phases 89–91 (v3.5), 97–98–100 (v3.7), and 112 (v4.0); fixed SUMMARY.md `requirements-completed` frontmatter for phases 89–91; enforced permit field validation in `places_validation.py` (raises on missing `issuing_authority`/`type`); synced stale `run.py` module docstring to list all 19 pipeline steps; resolved 3 pre-existing `test_dbt_diff.py` failures by regenerating public artifacts from current dbt sandbox. All 8 requirements satisfied.
 
 ## Milestone: v4.0 Washington Checklist Records — COMPLETE (2026-05-25)
 
@@ -41,19 +34,12 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Requirements
 
-### Active (v4.1)
-
-- [ ] **VAL-01**: Phases 89–91 have complete, passing VALIDATION.md files (v3.5 Nyquist gaps)
-- [ ] **VAL-02**: Phases 97, 98, 100 have complete, passing VALIDATION.md files (v3.7 Nyquist gaps)
-- [ ] **VAL-03**: Phase 112 has a VERIFICATION.md documenting UAT gate (v4.0 gap)
-- [ ] **VAL-04**: Phase 98 VERIFICATION.md exists covering code verified via SUMMARY + inspection
-- [ ] **VAL-05**: Phases 89–91 SUMMARY.md frontmatter includes `requirements-completed` field
-- [ ] **CODE-01**: `places_validation.py` raises an error if a permit record is missing `issuing_authority` or `type`
-- [ ] **CODE-02**: `run.py` module docstring accurately lists all pipeline steps including places-load, places-export, places-maps, topology-postprocess
-- [ ] **CODE-03**: `test_dbt_diff.py` passes (3 pre-existing failures resolved)
-
 ### Validated
 
+- ✓ **VAL-01–05**: Phases 89–91, 97–98–100, 112 VALIDATION.md / VERIFICATION.md retroactively completed; SUMMARY.md frontmatter fixed — v4.1
+- ✓ **CODE-01**: `places_validation.py` raises on missing permit `issuing_authority`/`type` — v4.1
+- ✓ **CODE-02**: `run.py` module docstring lists all 19 pipeline steps — v4.1
+- ✓ **CODE-03**: `test_dbt_diff.py` all 150 data tests pass — v4.1
 - ✓ Interactive map renders Ecdysis specimen points using OpenLayers — existing (pre-v1.0)
 - ✓ Client-side Parquet reading via hyparquet (no server needed at runtime) — existing (pre-v1.0)
 - ✓ PIPE-01: Ecdysis download script runs end-to-end with `--datasetid` parameter — v1.0
