@@ -37,6 +37,7 @@ const SEASON_BANDS = [
 @customElement('seasonality-viz')
 export class SeasonalityViz extends LitElement {
   @property({ attribute: false }) data: number[] = new Array(12).fill(0);
+  @property({ attribute: false }) onChecklist = false;
 
   protected createRenderRoot(): HTMLElement {
     return this;
@@ -59,6 +60,11 @@ export class SeasonalityViz extends LitElement {
 
     // VIZ-02 fallback branch
     if (total < 5) {
+      // D-13: checklist-only species with all-NULL months have total=0 but records do exist.
+      // Distinguish "truly zero records" from "records exist but months unknown".
+      if (total === 0 && this.onChecklist) {
+        return html`<p class="viz-fallback">Monthly phenology not recorded</p>`;
+      }
       const monthsWithData: string[] = [];
       this.data.forEach((n, i) => { if (n > 0) monthsWithData.push(MONTH_LABELS[i]!); });
       // D-08 (Phase 82): drop the ambiguous single-letter month suffix when
