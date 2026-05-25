@@ -620,8 +620,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1; 03 and 04 run in parallel)*
 
-- [ ] 113-03-PLAN.md — species_maps.py: county-name-keyed loader, _write_species_svg extension, checklist.parquet read, query filter expansion [SPEC-03]
-- [ ] 113-04-PLAN.md — _data/species.js genusList/subgenusList checklist-only inclusion + seasonality-viz onChecklist property [SPEC-01, SPEC-02, SPEC-05]
+- [x] 113-03-PLAN.md — species_maps.py: county-name-keyed loader, _write_species_svg extension, checklist.parquet read, query filter expansion [SPEC-03]
+- [x] 113-04-PLAN.md — _data/species.js genusList/subgenusList checklist-only inclusion + seasonality-viz onChecklist property [SPEC-01, SPEC-02, SPEC-05]
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -746,4 +746,4 @@ Plans:
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
-| 113. Species Page Expansion | v4.0 | 2/5 | In Progress|  |
+| 113. Species Page Expansion | v4.0 | 4/5 | In Progress|  |
