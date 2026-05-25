@@ -612,7 +612,7 @@ Plans:
 
 **Wave 0**
 
-- [ ] 113-01-PLAN.md — Wave 0 RED tests (JS + Python) for checklist_count, onChecklist, county fills, build-output assertions [SPEC-01..SPEC-05]
+- [x] 113-01-PLAN.md — Wave 0 RED tests (JS + Python) for checklist_count, onChecklist, county fills, build-output assertions [SPEC-01..SPEC-05]
 
 **Wave 1** *(blocked on Wave 0)*
 
@@ -746,4 +746,4 @@ Plans:
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
-| 113. Species Page Expansion | v4.0 | 0/5 | Planned | - |
+| 113. Species Page Expansion | v4.0 | 1/5 | In Progress|  |
