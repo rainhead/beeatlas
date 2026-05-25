@@ -34,6 +34,7 @@
 - ✅ **v3.9 Sidebar & Table Unification** — Phases 105–109 (shipped 2026-05-20)
 - ✅ **v4.0 Washington Checklist Records** — Phases 110–113 (shipped 2026-05-25)
 - ✅ **v4.1 Validation & Code Quality** — Phases 114–116 (shipped 2026-05-25)
+- **v4.2 iNaturalist Expert Observations** — Phases 117–120 (in progress)
 
 ## Phases
 
@@ -422,6 +423,16 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 
 <!-- Phase 114-116 details archived to .planning/milestones/v4.1-ROADMAP.md -->
 
+<details>
+<summary>v4.2 iNaturalist Expert Observations (Phases 117–120) — IN PROGRESS</summary>
+
+- [ ] Phase 117: iNat Obs Pipeline (0/? plans) — not started
+- [ ] Phase 118: Occurrence Model Extension (0/? plans) — not started
+- [ ] Phase 119: Map Display, Source Filter & Detail View (0/? plans) — not started
+- [ ] Phase 120: Species Page Source Counts & Photo List (0/? plans) — not started
+
+</details>
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -652,6 +663,56 @@ Plans:
 
 <!-- Phase 114-116 details archived to .planning/milestones/v4.1-ROADMAP.md -->
 
+### Phase 117: iNat Obs Pipeline
+
+**Goal**: The iNat CSV export is ingested into a verified inat_obs.parquet that is deduplicated against existing Ecdysis-linked observations and available to the frontend via CloudFront
+**Depends on**: Nothing (first phase of v4.2)
+**Requirements**: PIPE-01, PIPE-02, PIPE-03, PIPE-04, PIPE-05
+**Success Criteria** (what must be TRUE):
+  1. Running the pipeline against the committed CSV produces inat_obs.parquet with all required columns: obs_id, observed_on, lat, lon, canonical_name, scientific_name, user_login, image_url, license, floral_host
+  2. canonical_name is non-null for every row (resolved by the D-04 canonicalization algorithm from canonical_name.py)
+  3. Rows whose id matches a specimen_observation_id in the Ecdysis dbt model are absent from the output (821 overlapping rows excluded)
+  4. floral_host is populated from the "associated species with names lookup" field where present; NULL where absent
+  5. inat_obs.parquet is accessible at the /data/ CloudFront path after a nightly pipeline run
+**Plans**: TBD
+
+### Phase 118: Occurrence Model Extension
+
+**Goal**: occurrences.parquet carries a source column distinguishing the three occurrence arms; species.parquet carries inat_obs_count per species
+**Depends on**: Phase 117
+**Requirements**: OCC-01, OCC-02, OCC-03
+**Success Criteria** (what must be TRUE):
+  1. dbt build produces occurrences.parquet with a 32-column contract (31 existing + source); the source column contains only 'ecdysis', 'waba_sample', or 'inat_obs' — no nulls
+  2. Existing Ecdysis and WABA sample rows carry the correct source value with no row count change
+  3. Expert iNat observation rows appear in occurrences.parquet with source='inat_obs'; their count matches the deduplicated inat_obs.parquet row count
+  4. species.parquet and species.json include an inat_obs_count column with correct per-species tallies from the new arm
+**Plans**: TBD
+
+### Phase 119: Map Display, Source Filter & Detail View
+
+**Goal**: Expert iNat observations are visible as distinct points on the map, users can show or hide each occurrence source independently, source filter state persists in the URL, and clicking an expert obs shows full detail
+**Depends on**: Phase 118
+**Requirements**: MAP-01, MAP-02, MAP-03, DET-01
+**Success Criteria** (what must be TRUE):
+  1. Expert iNat observation points render on the map in a visually distinct style from Ecdysis specimen clusters and WABA sample points
+  2. The filter panel contains source toggles for Ecdysis specimens, WABA samples, and expert iNat observations; toggling a source shows or hides that arm's points immediately
+  3. Source filter state is encoded in the URL and restored on page load (sharing a URL with specific sources hidden restores the same visibility state)
+  4. Clicking an expert iNat observation opens a detail view showing: observer login, observed date, floral host (if present), image (if CC-licensed), and a link to the observation on iNaturalist.org
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 120: Species Page Source Counts & Photo List
+
+**Goal**: Species and higher-taxon pages display source-aware occurrence counts; species.json carries a per-species list of expert iNat observation photos for future use
+**Depends on**: Phase 118
+**Requirements**: SPE-01, SPE-02, SPE-03
+**Success Criteria** (what must be TRUE):
+  1. Species-detail pages show "N specimens · N community observations" with specimen_count driving the first figure and inat_obs_count the second; the single "N records" label is gone
+  2. Genus, subgenus, and tribe pages show the same source-aware breakdown per species entry in their species lists
+  3. species.json includes an inat_obs_photos field per species containing a list of { url, license } objects from expert iNat observations (list may be empty; no UI change this milestone)
+**Plans**: TBD
+**UI hint**: yes
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -773,3 +834,7 @@ Plans:
 | 114. v3.5 Nyquist Validation | v4.1 | 4/4 | Complete   | 2026-05-25 |
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 5/5 | Complete   | 2026-05-25 |
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
+| 117. iNat Obs Pipeline | v4.2 | 0/? | Not started | - |
+| 118. Occurrence Model Extension | v4.2 | 0/? | Not started | - |
+| 119. Map Display, Source Filter & Detail View | v4.2 | 0/? | Not started | - |
+| 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |

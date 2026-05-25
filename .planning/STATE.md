@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: iNaturalist Expert Observations
 status: planning
-stopped_at: Milestone v4.2 started — defining requirements
+stopped_at: Roadmap created — ready for Phase 117 planning
 last_updated: 2026-05-25T23:30:00.000Z
-last_activity: 2026-05-25 -- Milestone v4.2 started
+last_activity: 2026-05-25 -- Roadmap created for v4.2
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,10 +25,21 @@ See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 117 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-25 — Milestone v4.2 started
+Status: Roadmap approved — ready for Phase 117 planning
+Last activity: 2026-05-25 — Roadmap created (4 phases, 14 requirements)
+
+[----------] 0% (0/4 phases complete)
+
+## Phase Summary
+
+| Phase | Name | Requirements | Status |
+|-------|------|-------------|--------|
+| 117 | iNat Obs Pipeline | PIPE-01..05 | Not started |
+| 118 | Occurrence Model Extension | OCC-01..03 | Not started |
+| 119 | Map Display, Source Filter & Detail View | MAP-01..03, DET-01 | Not started |
+| 120 | Species Page Source Counts & Photo List | SPE-01..03 | Not started |
 
 ## Performance Metrics
 
@@ -44,11 +55,13 @@ Last activity: 2026-05-25 — Milestone v4.2 started
 
 ### Decisions
 
-- iNat expert observations sourced from periodic CSV export (not API); query uses `ident_user_id` list as quality gate
+- iNat expert observations sourced from periodic CSV export (not API); query uses ident_user_id list as quality gate
 - 45,354 observations in first export (2011–2026); 821 overlap with existing Ecdysis specimen_observation_ids → exclude from new source arm
 - quality_grade=any in export query (research, needs_id, casual) — expert identification is the quality gate, not community consensus
 - Species/genus pages to show "N specimens · N community observations" broken down by source
 - Photo carousel is out of scope for v4.2; image_url persisted in pipeline output for future use
+- dbt contract changes from 31 columns to 32 with the new source column; schema.yml must be updated
+- Third source type designated as 'inat_obs' (alongside 'ecdysis' and 'waba_sample')
 
 ### Pending Todos
 
@@ -65,5 +78,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-05-25
-Stopped at: Milestone v4.2 initialized — requirements definition in progress
+Stopped at: Roadmap created for v4.2 — 4 phases, 14 requirements, 100% coverage
 Resume file: None
