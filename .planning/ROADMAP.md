@@ -413,7 +413,7 @@ See `.planning/milestones/v4.0-ROADMAP.md` for full phase details.
 
 **Milestone Goal:** Close procedural gaps accumulated across v3.5–v4.0 and fix silent code issues in the Python pipeline. No new features — correctness and auditability only.
 
-- [ ] **Phase 114: v3.5 Nyquist Validation** — Retroactively write/fix VALIDATION.md for phases 89–91 and add `requirements-completed` to SUMMARY.md frontmatter
+- [x] **Phase 114: v3.5 Nyquist Validation** — Retroactively write/fix VALIDATION.md for phases 89–91 and add `requirements-completed` to SUMMARY.md frontmatter (completed 2026-05-25)
 - [ ] **Phase 115: v3.7 and v4.0 Nyquist Validation** — Retroactively write VALIDATION.md for phases 97, 98, 100 and VERIFICATION.md for phases 98 and 112
 - [ ] **Phase 116: Code Quality Fixes** — Enforce PLC-02 permit field validation at runtime, update stale run.py docstring, fix 3 pytest failures
 
@@ -668,7 +668,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 114-04-PLAN.md — Update v3.5-MILESTONE-AUDIT.md (nyquist block compliant_phases: [89, 90, 91], overall: compliant; status: tech_debt→passed; append 114-resolution tech_debt entry) + cross-plan verification gate [VAL-01, VAL-02, VAL-03, VAL-04]
+- [x] 114-04-PLAN.md — Update v3.5-MILESTONE-AUDIT.md (nyquist block compliant_phases: [89, 90, 91], overall: compliant; status: tech_debt→passed; append 114-resolution tech_debt entry) + cross-plan verification gate [VAL-01, VAL-02, VAL-03, VAL-04]
 
 ### Phase 115: v3.7 and v4.0 Nyquist Validation
 
@@ -813,6 +813,6 @@ Plans:
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
 | 113. Species Page Expansion | v4.0 | 5/5 | Complete   | 2026-05-25 |
-| 114. v3.5 Nyquist Validation | v4.1 | 3/4 | In Progress|  |
+| 114. v3.5 Nyquist Validation | v4.1 | 4/4 | Complete   | 2026-05-25 |
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 0/TBD | Not started | - |
 | 116. Code Quality Fixes | v4.1 | 0/TBD | Not started | - |

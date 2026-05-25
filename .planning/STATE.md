@@ -4,14 +4,14 @@ milestone: v4.1
 milestone_name: Validation & Code Quality
 status: executing
 stopped_at: Roadmap created for v4.1 — phases 114–116 defined
-last_updated: "2026-05-25T20:46:09.301Z"
+last_updated: "2026-05-25T20:48:56.307Z"
 last_activity: 2026-05-25 -- Phase 114 planning complete
 progress:
   total_phases: 12
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 17
-  completed_plans: 16
-  percent: 33
+  completed_plans: 17
+  percent: 42
 ---
 
 # Project State
@@ -30,7 +30,7 @@ Plan: —
 Status: Ready to execute
 Last activity: 2026-05-25 -- Phase 114 planning complete
 
-Progress: [█████████░] 94%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [█████████░] 94%
 - Checklist map layer uses Mapbox county-fill on the existing counties GeoJSON source, not a new point cluster layer.
 - iNat taxonomy source is AWS Open Data taxa.csv.gz (NOT the DwC-A zip archive) — has ancestry column.
 - Checklist county-fill responds to taxon AND year filters; does NOT respond to collector filter. (Phase 112 UAT confirmed year filter narrowing is desired)
+- [Phase ?]: Phase 114: v3.5 milestone audit updated to status: passed — all three phases (89, 90, 91) now nyquist compliant
 
 ### Pending Todos
 
@@ -87,9 +88,10 @@ Items deferred at v4.0 milestone close (2026-05-25) — being addressed in v4.1:
 | verification_gap | Phase 112 VERIFICATION.md missing | Phase 115 |
 | test_failure | test_dbt_diff.py 3 pre-existing failures | Phase 116 |
 | Phase 114 P02 | 300s | 2 tasks | 2 files |
+| Phase 114 P04 | 5m | 2 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-25T20:45:58.063Z
+Last session: 2026-05-25T20:48:52.534Z
 Stopped at: Roadmap created for v4.1 — phases 114–116 defined
 Resume file: None
