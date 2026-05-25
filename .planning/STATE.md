@@ -4,8 +4,8 @@ milestone: v4.0
 milestone_name: Washington Checklist Records
 status: executing
 stopped_at: Phase 113 context gathered
-last_updated: "2026-05-25T03:37:23.474Z"
-last_activity: 2026-05-25 -- Phase 113 planning complete
+last_updated: "2026-05-25T03:45:23.683Z"
+last_activity: 2026-05-25 -- Phase 113 execution started
 progress:
   total_phases: 9
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-23 after v4.0 milestone start)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 113 — species page expansion
+**Current focus:** Phase 113 — species-page-expansion
 
 ## Current Position
 
-Phase: 113
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 113 planning complete
+Phase: 113 (species-page-expansion) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 113
+Last activity: 2026-05-25 -- Phase 113 execution started
 
 Progress: [██████████] 100%
 
