@@ -2,6 +2,45 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v4.1 — Validation & Code Quality
+
+**Shipped:** 2026-05-25
+**Phases:** 3 (114–116) | **Plans:** 12 | **Timeline:** 1 day | **LOC:** +5,367 / −131
+
+### What Was Built
+
+- Phase 114: Retroactively restored Phase 89 VALIDATION.md from git history; corrected Phase 90 VALIDATION.md (nyquist_compliant false→true + Historical Note); authored Phase 91 VALIDATION.md from scratch using 91-VERIFICATION.md as source-of-truth; added `requirements-completed` frontmatter to phases 89–91 SUMMARY files; updated v3.5-MILESTONE-AUDIT.md to `status: passed`
+- Phase 115: Created Phase 97 and 100 VALIDATION.md files from their VERIFICATION.md sources; updated Phase 98 VALIDATION.md (false→true) and created 98-VERIFICATION.md (summary-and-code-inspection, 9/9 pytest pass); created Phase 112-VERIFICATION.md documenting browser UAT (6/6 PASS) as verification gate; Phase 112 VALIDATION.md updated to nyquist_compliant:true
+- Phase 116-01: `places_validation.py` now raises descriptive `ValueError` for permit records missing `issuing_authority` or `type`; fail-fast before spatial work; 4 new pytest cases (10/10 pass)
+- Phase 116-02: `run.py` module docstring synced to list all 19 pipeline steps in execution order
+- Phase 116-03: Resolved 3 pre-existing `test_dbt_diff.py` failures by regenerating `species.parquet`/`species.json`/`seasonality.json` from current dbt sandbox; all 150 data tests pass
+
+### What Worked
+
+- The "retroactive from git history" pattern (Phase 114) for recovering archived docs was efficient: `git show <commit>:<path>` pulled the exact pre-archival state, requiring only targeted frontmatter mutations rather than full reconstruction
+- Phase 115's "6 deliverables in one cross-plan verification gate" (115-05) was a good checkpoint pattern — it caught a false-positive grep issue in 112-VALIDATION.md and confirmed all six files had correct frontmatter before closing the phase
+- The sandbox regeneration approach for CODE-03 was clean once the root cause was identified: both sandbox and public/data needed updating in sync, and the 4-step sequence (export → sandbox-json → dbt-rebuild → verify) was deterministic
+- Permit validation (CODE-01) was a fast 3-minute plan: targeted function, fail-fast semantics, 4 tests, no side effects on valid data
+
+### What Was Inefficient
+
+- Phase 116-03 root cause required a multi-step investigation: the plan said "regenerate the three public artifacts" but the byte-comparison tests compare sandbox/ against public/data/ — both sides needed updating. The plan was written without full knowledge of the test harness structure. Pre-plan investigation of the test expectations would have surfaced this.
+- Phase 114's Historical Note text required rephrasing to avoid matching the verification grep pattern (`! grep -q 'nyquist_compliant: false'`). The plan prompt was advisory text that conflicted with its own verification commands. Better: write verification commands before writing plan prose to ensure they're compatible.
+
+### Patterns Established
+
+- **Retroactive VALIDATION.md from git history**: `git show <archival-commit>^:<path>` recovers the pre-archival file state reliably; targeted frontmatter mutations (nyquist_compliant, status, approved date, sign-off checkboxes) + Historical Note appended at end is the complete recipe.
+- **Historical Note for nyquist_compliant retroactive approval**: document (1) what the planning-time state was, (2) what happened during execution, (3) citation of RED commits or UAT evidence, (4) any architectural changes post-phase that don't retroactively invalidate the phase.
+- **Sandbox + public/data must be regenerated in sync for byte-comparison tests**: run `species_export.py` with `EXPORT_DIR=sandbox` before verifying `test_species_json_matches` — the test compares both sides, not just the public artifact.
+
+### Key Lessons
+
+- **Write verification commands before plan prose**: if the verification check is `! grep -q 'X'`, the plan's text cannot contain `X`. Writing the verify-gate first prevents plan text from invalidating its own checks.
+- **Pre-plan test-harness investigation for artifact refresh tasks**: before planning a "regenerate X so tests pass" task, read the failing test assertions to understand what both sides of the comparison are. One-sided regeneration that ignores the comparison source is a predictable deviation.
+- **Nyquist gaps accumulate fast; close retroactively each milestone**: three milestones of deferred VALIDATION.md work compounded into a dedicated cleanup milestone. Closing validation gaps within the same milestone cycle (even retroactively) keeps the audit surface manageable.
+
+---
+
 ## Milestone: v3.9 — Sidebar & Table Unification
 
 **Shipped:** 2026-05-20

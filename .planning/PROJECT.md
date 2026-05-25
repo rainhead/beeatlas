@@ -245,15 +245,7 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 - EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
 - dlt pipeline write-path tests deferred (TEST-03 scope): dlt resource tests skipped in v1.7; only pure-function unit tests and export integration tests covered.
 - Lambda execution path retired (quick task 260514-fcq, 2026-05-14): PipelineFunction + EventBridge schedulers + Function URL removed from BeeAtlasStack; maderas nightly cron is authoritative.
-- v3.5 Nyquist gaps: Phase 90 VALIDATION.md exists with `nyquist_compliant=false`; Phase 91 has no VALIDATION.md. Run `/gsd-validate-phase 90` and `/gsd-validate-phase 91` next milestone.
-- v3.5 SUMMARY.md frontmatter: `requirements-completed` not listed in 89-01, 90-01, 91-01 SUMMARY files (SEL-01 through SEL-05 satisfied but unlisted).
-- v3.7 Nyquist gaps: phases 97, 98, 100 have missing/incomplete VALIDATION.md files; Phase 98 Wave 0 RED tests were not written. Run `/gsd-validate-phase 97`, `/gsd-validate-phase 98`, `/gsd-validate-phase 100` next milestone.
-- v3.7 Phase 98 VERIFICATION.md missing: procedural gap only — all code verified via SUMMARY files and code inspection.
-- v3.7 W-02: `places_validation.py` does not enforce PLC-02 required permit fields at runtime (issuing_authority, type) — a malformed permit record loads silently.
-- v3.7 W-03: `run.py` module docstring is stale — omits places-load, places-export, places-maps, topology-postprocess pipeline steps.
-- v4.0 TAX-04/CHECK-03 S3 runtime not yet verified: code is wired; runtime verification fires on first nightly cron run on maderas after deploy.
-- v4.0 Phase 112 has no VERIFICATION.md: UAT was the gate; all MAP-* requirements verified in practice by browser UAT.
-- Pre-existing pytest failures in `test_dbt_diff.py` (3 failures, stale sandbox vs public/data): require full nightly pipeline run; predated v4.0.
+- TAX-04/CHECK-03 S3 runtime not yet verified: code is wired; runtime verification fires on first nightly cron run on maderas after deploy.
 
 ## Constraints
 
@@ -378,4 +370,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-25 — v4.1 milestone started (Validation & Code Quality)*
+*Last updated: 2026-05-25 after v4.1 milestone (Validation & Code Quality)*

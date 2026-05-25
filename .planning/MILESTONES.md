@@ -1,5 +1,23 @@
 # Milestones
 
+## v4.1 Validation & Code Quality (Shipped: 2026-05-25)
+
+**Phases completed:** 3 phases (114–116), 12 plans
+**Timeline:** 1 day (2026-05-25)
+**LOC:** +5,367 / −131 across 49 files
+**Requirements:** 12/12 complete
+
+**Key accomplishments:**
+
+- Retroactively restored Phase 89 VALIDATION.md; corrected Phase 90 VALIDATION.md (nyquist_compliant false→true, Historical Note appended); authored Phase 91 VALIDATION.md from scratch; all SEL-* `requirements-completed` frontmatter added to phases 89–91 SUMMARY files — v3.5 Nyquist gaps fully closed
+- Created Phase 97 and 100 VALIDATION.md files; updated Phase 98 VALIDATION.md (false→true) with Historical Note citing 3 RED commits; created 98-VERIFICATION.md (summary-and-code-inspection, 9/9 pytest pass) — v3.7 Nyquist gaps fully closed
+- Created Phase 112-VERIFICATION.md documenting browser UAT (6/6 PASS) as verification gate; Phase 112 VALIDATION.md updated to nyquist_compliant:true — v4.0 verification gap closed
+- `places_validation.py` now raises descriptive `ValueError` for permit records missing `issuing_authority` or `type`; fail-fast before spatial work begins; 4 new pytest cases (10/10 pass) — CODE-01 closed
+- `run.py` module docstring synced with current STEPS list; all 19 pipeline steps listed in execution order — CODE-02 closed
+- Resolved 3 pre-existing `test_dbt_diff.py` failures by regenerating `species.parquet`/`species.json`/`seasonality.json` from current dbt sandbox; all 150 data tests pass — CODE-03 closed
+
+---
+
 ## v4.0 Washington Checklist Records (Shipped: 2026-05-25)
 
 **Phases completed:** 4 phases (110–113), 13 plans
