@@ -706,7 +706,14 @@ Plans:
   1. `places_validation.py` raises a clear, descriptive error when any permit record is missing `issuing_authority` or `type`; a malformed places.toml fails fast rather than loading silently
   2. `run.py` module docstring accurately lists all pipeline steps including `places-load`, `places-export`, `places-maps`, and `topology-postprocess`
   3. `uv run pytest data/` exits 0 — all 3 pre-existing `test_dbt_diff.py` failures resolved
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+**Wave 1** *(parallel — disjoint files)*
+
+- [ ] 116-01-PLAN.md — Add permit field validation (issuing_authority + type) to places_validation.py with 4 new pytest cases [CODE-01]
+- [ ] 116-02-PLAN.md — Sync run.py module docstring with current STEPS list (add places-load, topology-postprocess, places-export, places-maps) [CODE-02]
+- [ ] 116-03-PLAN.md — Regenerate public/data/{species.parquet,species.json,seasonality.json} from sandbox so 3 failing dbt_diff tests pass [CODE-03]
 
 ## Progress
 
