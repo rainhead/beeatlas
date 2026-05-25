@@ -681,7 +681,20 @@ Plans:
   2. Phase 98 VALIDATION.md exists with `nyquist_compliant: true` and the Wave 0 RED tests written retroactively; Phase 98 VERIFICATION.md exists documenting that code was verified via SUMMARY files and code inspection
   3. Phase 100 VALIDATION.md exists with `nyquist_compliant: true` and PMAP-01..04 / PPAGE-01..03 criteria verified
   4. Phase 112 VERIFICATION.md exists documenting browser UAT as the verification gate for MAP-01..04
-**Plans**: TBD
+
+**Plans**: 5 plans
+Plans:
+
+**Wave 1** *(parallel — disjoint phase archive subdirectories)*
+
+- [ ] 115-01-PLAN.md — Create 97-VALIDATION.md from scratch using 97-VERIFICATION.md as source (PLC-01..04 only) [VAL-05]
+- [ ] 115-02-PLAN.md — Update 98-VALIDATION.md (false->true + Historical Note citing Wave 0 RED commits 0ae75a5/fcd5e52/3f9eea9) + create 98-VERIFICATION.md (SUMMARY-based for PPIPE-01..05, PPAGE-03) [VAL-06, VAL-08]
+- [ ] 115-03-PLAN.md — Create 100-VALIDATION.md from scratch using 100-VERIFICATION.md as source (PMAP-01..04 only) [VAL-07]
+- [ ] 115-04-PLAN.md — Create 112-VERIFICATION.md (browser-UAT-based, source: 112-UAT.md) + update 112-VALIDATION.md (false->true + Historical Note citing Wave 0 RED commits e099939/70ef590/78c597c) [VAL-09]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 115-05-PLAN.md — Cross-plan verification gate: assert all six Wave 1 deliverables present with expected frontmatter; re-run pytest places-* suite (9 tests) and npx tsc --noEmit [VAL-05, VAL-06, VAL-07, VAL-08, VAL-09]
 
 ### Phase 116: Code Quality Fixes
 
@@ -814,5 +827,5 @@ Plans:
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
 | 113. Species Page Expansion | v4.0 | 5/5 | Complete   | 2026-05-25 |
 | 114. v3.5 Nyquist Validation | v4.1 | 4/4 | Complete   | 2026-05-25 |
-| 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 0/TBD | Not started | - |
+| 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 0/5 | Planned | - |
 | 116. Code Quality Fixes | v4.1 | 0/TBD | Not started | - |
