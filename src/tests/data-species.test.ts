@@ -66,9 +66,13 @@ describe('_data/species.js (PAGE-02)', () => {
   });
 
   test('genusList species sorted alphabetically by canonical_name (D-02)', () => {
+    // WABA species (occurrence_count > 0) are sorted alphabetically by canonical_name.
+    // Checklist-only species (occurrence_count === 0, on_checklist) are appended after WABA
+    // species in their own alphabetical sort block — the combined list is not fully sorted.
     const list = (species as any).genusList;
     const agapostemon = list.find((g: any) => g.genus === 'Agapostemon');
-    const names = agapostemon.species.map((s: any) => s.canonical_name);
+    const wabaSpecies = agapostemon.species.filter((s: any) => s.occurrence_count > 0 && s.slug !== null);
+    const names = wabaSpecies.map((s: any) => s.canonical_name);
     const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
     expect(names).toEqual(sorted);
   });
@@ -77,6 +81,8 @@ describe('_data/species.js (PAGE-02)', () => {
     // Verifies color index computation across the full withOcc (including unresolved records),
     // matching Python's `WHERE occurrence_count > 0 ORDER BY canonical_name` input. Data-driven
     // so it stays green regardless of which species have occurrences in the current pipeline run.
+    // Checklist-only species (occurrence_count === 0) receive '#cccccc' and are excluded from
+    // this check (tested separately in the D-03 test below).
     const flat = (species as any).flat;
     const list = (species as any).genusList;
     for (const g of list) {
@@ -92,6 +98,7 @@ describe('_data/species.js (PAGE-02)', () => {
       );
       for (const sp of g.species) {
         if (sp.slug === null) continue; // synthetic "Genus sp." key entry — no canonical_name
+        if (sp.occurrence_count === 0) continue; // checklist-only species — verified in D-03 test
         expect(sp.hexColor, `${g.genus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
       }
     }
@@ -143,9 +150,12 @@ describe('_data/species.js (PAGE-02)', () => {
   });
 
   test('subgenusList Andrena/Melandrena species sorted alphabetically by canonical_name', () => {
+    // WABA species (occurrence_count > 0) are sorted alphabetically by canonical_name.
+    // Checklist-only species are appended after WABA species in their own alphabetical sort.
     const list = (species as any).subgenusList;
     const melandrena = list.find((g: any) => g.genus === 'Andrena' && g.subgenus === 'Melandrena');
-    const names = melandrena.species.map((s: any) => s.canonical_name);
+    const wabaSpecies = melandrena.species.filter((s: any) => s.occurrence_count > 0 && s.slug !== null);
+    const names = wabaSpecies.map((s: any) => s.canonical_name);
     const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
     expect(names).toEqual(sorted);
   });
@@ -161,6 +171,8 @@ describe('_data/species.js (PAGE-02)', () => {
   test('subgenusList hexColors match the Python _group_colors algorithm for all groups, unresolved counted in index (Pitfall 1)', () => {
     // Verifies color index is computed over the full withOcc (including specific_epithet=null records),
     // not just the resolved-species subset. Data-driven across all subgenus groups.
+    // Checklist-only species (occurrence_count === 0) receive '#cccccc' and are excluded from
+    // this check (their color is verified by the zero-occurrence test above).
     const flat = (species as any).flat;
     const list = (species as any).subgenusList;
     for (const g of list) {
@@ -176,6 +188,7 @@ describe('_data/species.js (PAGE-02)', () => {
       );
       for (const sp of g.species) {
         if (sp.slug === null) continue; // synthetic "Genus sp." key entry — no canonical_name
+        if (sp.occurrence_count === 0) continue; // checklist-only species — verified separately
         expect(sp.hexColor, `${g.genus}/${g.subgenus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
       }
     }
