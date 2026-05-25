@@ -12,6 +12,39 @@
 WITH occ_agg AS (
     SELECT * FROM {{ ref('int_species_occurrences_agg') }}
 ),
+checklist_month_agg AS (
+    -- Aggregate checklist month data per species (NULL months skipped — ~15% of rows).
+    -- Pattern mirrors int_species_occurrences_agg.sql list_value(SUM(CASE...))::INTEGER[12].
+    -- Only non-NULL months contribute to the histogram (D-11).
+    SELECT
+        canonical_name,
+        list_value(
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  1 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  2 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  3 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  4 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  5 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  6 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  7 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  8 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) =  9 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) = 10 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) = 11 THEN 1 ELSE 0 END),
+            SUM(CASE WHEN TRY_CAST(month AS INT) = 12 THEN 1 ELSE 0 END)
+        )::INTEGER[12] AS checklist_month_histogram
+    FROM {{ ref('checklist') }}
+    WHERE canonical_name IS NOT NULL
+      AND month IS NOT NULL
+    GROUP BY canonical_name
+),
+checklist_count_agg AS (
+    -- Separate CTE for total checklist_count — does NOT filter by month IS NOT NULL
+    -- so that all checklist records (including those with unknown month) are counted.
+    SELECT canonical_name, COUNT(*) AS checklist_count
+    FROM {{ ref('checklist') }}
+    WHERE canonical_name IS NOT NULL
+    GROUP BY canonical_name
+),
 provisional_agg AS (
     -- provisional_count: occurrences mart rows flagged is_provisional=TRUE.
     -- Inlined here (parallel to geo_agg) rather than as a separate intermediate
@@ -45,14 +78,33 @@ species_universe AS (
         COALESCE(pa.provisional_count, 0) AS provisional_count,
         oa.first_occurrence_date,
         oa.last_occurrence_date,
-        -- NULL backfill: DuckDB COALESCE on INTEGER[12] is unimplemented (1.4.x).
-        -- Use CASE instead of COALESCE(oa.month_histogram, [0]*12) (Pitfall 2).
-        CASE WHEN oa.month_histogram IS NULL
+        -- Merged month_histogram: element-wise sum of WABA + checklist months.
+        -- Four-branch CASE guards against NULL for both arms (DuckDB 1.4.x COALESCE
+        -- on INTEGER[12] is unimplemented — Pitfall 1; CASE not COALESCE).
+        CASE WHEN oa.month_histogram IS NULL AND cma.checklist_month_histogram IS NULL
              THEN [0,0,0,0,0,0,0,0,0,0,0,0]::INTEGER[]
-             ELSE oa.month_histogram
+             WHEN oa.month_histogram IS NULL
+             THEN cma.checklist_month_histogram
+             WHEN cma.checklist_month_histogram IS NULL
+             THEN oa.month_histogram
+             ELSE list_value(
+                 oa.month_histogram[1]  + cma.checklist_month_histogram[1],
+                 oa.month_histogram[2]  + cma.checklist_month_histogram[2],
+                 oa.month_histogram[3]  + cma.checklist_month_histogram[3],
+                 oa.month_histogram[4]  + cma.checklist_month_histogram[4],
+                 oa.month_histogram[5]  + cma.checklist_month_histogram[5],
+                 oa.month_histogram[6]  + cma.checklist_month_histogram[6],
+                 oa.month_histogram[7]  + cma.checklist_month_histogram[7],
+                 oa.month_histogram[8]  + cma.checklist_month_histogram[8],
+                 oa.month_histogram[9]  + cma.checklist_month_histogram[9],
+                 oa.month_histogram[10] + cma.checklist_month_histogram[10],
+                 oa.month_histogram[11] + cma.checklist_month_histogram[11],
+                 oa.month_histogram[12] + cma.checklist_month_histogram[12]
+             )::INTEGER[12]
         END AS month_histogram,
         COALESCE(ga.county_count, 0) AS county_count,
-        COALESCE(ga.ecoregion_count, 0) AS ecoregion_count
+        COALESCE(ga.ecoregion_count, 0) AS ecoregion_count,
+        COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count
     FROM {{ ref('stg_checklist__species') }} c
     FULL OUTER JOIN occ_agg oa ON oa.canonical_name = c.canonical_name
     LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
@@ -63,6 +115,10 @@ species_universe AS (
         ON pa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
     LEFT JOIN geo_agg ga
         ON ga.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+    LEFT JOIN checklist_month_agg cma
+        ON cma.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+    LEFT JOIN checklist_count_agg cca
+        ON cca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
 )
 -- Collapse any accidental duplicate canonical_name rows, preferring the
 -- checklist-favoring row when both arms produce one (Pitfall 7: DISTINCT ON).
