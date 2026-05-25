@@ -7,9 +7,10 @@ Exposes:
 Checks performed in order:
     1. Slug regex [a-z0-9-]
     2. Duplicate slugs
-    3. WKT geometry validity via DuckDB ST_GeomFromText
-    4. WGS84 coordinate-range bounds (lon -180..180, lat -90..90)
-    5. Polygon overlap via ST_Intersects on all pairs
+    3. Permit field presence (issuing_authority, type) for each permit entry
+    4. WKT geometry validity via DuckDB ST_GeomFromText
+    5. WGS84 coordinate-range bounds (lon -180..180, lat -90..90)
+    6. Polygon overlap via ST_Intersects on all pairs
 """
 
 import re
@@ -51,7 +52,21 @@ def validate_places(toml_path: "Path | str") -> None:
         seen_slugs.add(slug)
 
     # ------------------------------------------------------------------ #
-    # 3 + 4 — Geometry validity and WGS84 bounds (per-place)             #
+    # 3 — Permit field validation                                         #
+    # ------------------------------------------------------------------ #
+    _REQUIRED_PERMIT_FIELDS = ("issuing_authority", "type")
+    for place in places:
+        slug = place.get("slug", "")
+        for permit in place.get("permits", []):
+            for field in _REQUIRED_PERMIT_FIELDS:
+                if field not in permit:
+                    raise ValueError(
+                        f"places.toml: place '{slug}': "
+                        f"permit missing required field '{field}'"
+                    )
+
+    # ------------------------------------------------------------------ #
+    # 4 + 5 — Geometry validity and WGS84 bounds (per-place)             #
     # ------------------------------------------------------------------ #
     con = duckdb.connect(":memory:")
     con.execute("LOAD spatial")
@@ -92,7 +107,7 @@ def validate_places(toml_path: "Path | str") -> None:
         valid_geometries.append((slug, wkt))
 
     # ------------------------------------------------------------------ #
-    # 5 — Overlap check via ST_Intersects on all pairs                   #
+    # 6 — Overlap check via ST_Intersects on all pairs                   #
     # ------------------------------------------------------------------ #
     if len(valid_geometries) >= 2:
         con.execute(
