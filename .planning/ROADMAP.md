@@ -33,6 +33,7 @@
 - ✅ **v3.8 Conceptual Tidying** — Phases 101–104 (shipped 2026-05-19)
 - ✅ **v3.9 Sidebar & Table Unification** — Phases 105–109 (shipped 2026-05-20)
 - ✅ **v4.0 Washington Checklist Records** — Phases 110–113 (shipped 2026-05-25)
+- 🚧 **v4.1 Validation & Code Quality** — Phases 114–116 (in progress)
 
 ## Phases
 
@@ -399,7 +400,7 @@ See `.planning/milestones/v3.9-ROADMAP.md` for full phase details.
 
 - [x] Phase 110: Offline Taxonomy (3/3 plans) — completed 2026-05-24
 - [x] Phase 111: Checklist Pipeline (2/2 plans) — completed 2026-05-24
-- [x] Phase 112: Checklist Map Layer (3/3 plans) — completed 2026-05-24
+- [x] Phase 112: Checklist Map Layer (3/3 plans) — completed 2026-05-25
 - [x] Phase 113: Species Page Expansion (5/5 plans) — completed 2026-05-25
 
 See `.planning/milestones/v4.0-ROADMAP.md` for full phase details.
@@ -407,6 +408,14 @@ See `.planning/milestones/v4.0-ROADMAP.md` for full phase details.
 </details>
 
 <!-- Phase 110-113 details archived to .planning/milestones/v4.0-ROADMAP.md -->
+
+### 🚧 v4.1 Validation & Code Quality (Phases 114–116, In Progress)
+
+**Milestone Goal:** Close procedural gaps accumulated across v3.5–v4.0 and fix silent code issues in the Python pipeline. No new features — correctness and auditability only.
+
+- [ ] **Phase 114: v3.5 Nyquist Validation** — Retroactively write/fix VALIDATION.md for phases 89–91 and add `requirements-completed` to SUMMARY.md frontmatter
+- [ ] **Phase 115: v3.7 and v4.0 Nyquist Validation** — Retroactively write VALIDATION.md for phases 97, 98, 100 and VERIFICATION.md for phases 98 and 112
+- [ ] **Phase 116: Code Quality Fixes** — Enforce PLC-02 permit field validation at runtime, update stale run.py docstring, fix 3 pytest failures
 
 ## Phase Details
 
@@ -636,6 +645,44 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 114: v3.5 Nyquist Validation
+
+**Goal**: Phases 89–91 have complete, passing VALIDATION.md files and SUMMARY.md frontmatter with `requirements-completed` fields
+**Depends on**: Phase 113 (continues from v4.0)
+**Requirements**: VAL-01, VAL-02, VAL-03, VAL-04
+**Success Criteria** (what must be TRUE):
+
+  1. Phase 89 VALIDATION.md exists with `nyquist_compliant: true` and all SEL-01 criteria verified
+  2. Phase 90 VALIDATION.md is updated from `nyquist_compliant: false` to `nyquist_compliant: true` with all SEL-02..04 criteria verified
+  3. Phase 91 VALIDATION.md exists with `nyquist_compliant: true` and SEL-05..07 criteria verified
+  4. SUMMARY.md frontmatter for phases 89, 90, and 91 each include a `requirements-completed` field listing the SEL-* requirements satisfied in that phase
+**Plans**: TBD
+
+### Phase 115: v3.7 and v4.0 Nyquist Validation
+
+**Goal**: Phases 97, 98, and 100 have complete VALIDATION.md files; phases 98 and 112 have VERIFICATION.md documents covering their verification approaches
+**Depends on**: Phase 114
+**Requirements**: VAL-05, VAL-06, VAL-07, VAL-08, VAL-09
+**Success Criteria** (what must be TRUE):
+
+  1. Phase 97 VALIDATION.md exists with `nyquist_compliant: true` and PLC-01..04 / PPIPE-01..05 criteria verified
+  2. Phase 98 VALIDATION.md exists with `nyquist_compliant: true` and the Wave 0 RED tests written retroactively; Phase 98 VERIFICATION.md exists documenting that code was verified via SUMMARY files and code inspection
+  3. Phase 100 VALIDATION.md exists with `nyquist_compliant: true` and PMAP-01..04 / PPAGE-01..03 criteria verified
+  4. Phase 112 VERIFICATION.md exists documenting browser UAT as the verification gate for MAP-01..04
+**Plans**: TBD
+
+### Phase 116: Code Quality Fixes
+
+**Goal**: The Python pipeline enforces permit field validation at runtime, has an accurate orchestration docstring, and the test suite passes cleanly
+**Depends on**: Phase 114
+**Requirements**: CODE-01, CODE-02, CODE-03
+**Success Criteria** (what must be TRUE):
+
+  1. `places_validation.py` raises a clear, descriptive error when any permit record is missing `issuing_authority` or `type`; a malformed places.toml fails fast rather than loading silently
+  2. `run.py` module docstring accurately lists all pipeline steps including `places-load`, `places-export`, `places-maps`, and `topology-postprocess`
+  3. `uv run pytest data/` exits 0 — all 3 pre-existing `test_dbt_diff.py` failures resolved
+**Plans**: TBD
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -754,3 +801,6 @@ Plans:
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
 | 113. Species Page Expansion | v4.0 | 5/5 | Complete   | 2026-05-25 |
+| 114. v3.5 Nyquist Validation | v4.1 | 0/TBD | Not started | - |
+| 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 0/TBD | Not started | - |
+| 116. Code Quality Fixes | v4.1 | 0/TBD | Not started | - |
