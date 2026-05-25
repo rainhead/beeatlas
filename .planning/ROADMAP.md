@@ -656,7 +656,19 @@ Plans:
   2. Phase 90 VALIDATION.md is updated from `nyquist_compliant: false` to `nyquist_compliant: true` with all SEL-02..04 criteria verified
   3. Phase 91 VALIDATION.md exists with `nyquist_compliant: true` and SEL-05..07 criteria verified
   4. SUMMARY.md frontmatter for phases 89, 90, and 91 each include a `requirements-completed` field listing the SEL-* requirements satisfied in that phase
-**Plans**: TBD
+
+**Plans**: 4 plans
+Plans:
+
+**Wave 1** *(parallel — disjoint phase-89/90/91 archive subdirectories)*
+
+- [ ] 114-01-PLAN.md — Restore Phase 89 archival docs (89-VALIDATION.md status: draft→approved; 89-01-SUMMARY.md requirements-completed: [SEL-01, SEL-02]) [VAL-01, VAL-04]
+- [ ] 114-02-PLAN.md — Restore Phase 90 archival docs (90-VALIDATION.md nyquist_compliant: false→true, wave_0_complete: false→true, task row 90-01-01 corrected, Historical Note appended; 90-01-SUMMARY.md requirements-completed: [SEL-03, SEL-04, SEL-05]) [VAL-02, VAL-04]
+- [ ] 114-03-PLAN.md — Create Phase 91 archival docs (91-VALIDATION.md authored from scratch using 91-VERIFICATION.md as source; 91-01-SUMMARY.md requirements-completed: []; 91-02-SUMMARY.md restored verbatim) [VAL-03, VAL-04]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 114-04-PLAN.md — Update v3.5-MILESTONE-AUDIT.md (nyquist block compliant_phases: [89, 90, 91], overall: compliant; status: tech_debt→passed; append 114-resolution tech_debt entry) + cross-plan verification gate [VAL-01, VAL-02, VAL-03, VAL-04]
 
 ### Phase 115: v3.7 and v4.0 Nyquist Validation
 
