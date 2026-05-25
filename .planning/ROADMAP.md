@@ -33,7 +33,7 @@
 - ✅ **v3.8 Conceptual Tidying** — Phases 101–104 (shipped 2026-05-19)
 - ✅ **v3.9 Sidebar & Table Unification** — Phases 105–109 (shipped 2026-05-20)
 - ✅ **v4.0 Washington Checklist Records** — Phases 110–113 (shipped 2026-05-25)
-- 🚧 **v4.1 Validation & Code Quality** — Phases 114–116 (in progress)
+- ✅ **v4.1 Validation & Code Quality** — Phases 114–116 (shipped 2026-05-25)
 
 ## Phases
 
@@ -409,13 +409,18 @@ See `.planning/milestones/v4.0-ROADMAP.md` for full phase details.
 
 <!-- Phase 110-113 details archived to .planning/milestones/v4.0-ROADMAP.md -->
 
-### 🚧 v4.1 Validation & Code Quality (Phases 114–116, In Progress)
+<details>
+<summary>✅ v4.1 Validation & Code Quality (Phases 114–116) — SHIPPED 2026-05-25</summary>
 
-**Milestone Goal:** Close procedural gaps accumulated across v3.5–v4.0 and fix silent code issues in the Python pipeline. No new features — correctness and auditability only.
+- [x] Phase 114: v3.5 Nyquist Validation (4/4 plans) — completed 2026-05-25
+- [x] Phase 115: v3.7 and v4.0 Nyquist Validation (5/5 plans) — completed 2026-05-25
+- [x] Phase 116: Code Quality Fixes (3/3 plans) — completed 2026-05-25
 
-- [x] **Phase 114: v3.5 Nyquist Validation** — Retroactively write/fix VALIDATION.md for phases 89–91 and add `requirements-completed` to SUMMARY.md frontmatter (completed 2026-05-25)
-- [x] **Phase 115: v3.7 and v4.0 Nyquist Validation** — Retroactively write VALIDATION.md for phases 97, 98, 100 and VERIFICATION.md for phases 98 and 112 (completed 2026-05-25)
-- [x] **Phase 116: Code Quality Fixes** — Enforce PLC-02 permit field validation at runtime, update stale run.py docstring, fix 3 pytest failures (completed 2026-05-25)
+See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
+
+</details>
+
+<!-- Phase 114-116 details archived to .planning/milestones/v4.1-ROADMAP.md -->
 
 ## Phase Details
 
@@ -645,75 +650,7 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 114: v3.5 Nyquist Validation
-
-**Goal**: Phases 89–91 have complete, passing VALIDATION.md files and SUMMARY.md frontmatter with `requirements-completed` fields
-**Depends on**: Phase 113 (continues from v4.0)
-**Requirements**: VAL-01, VAL-02, VAL-03, VAL-04
-**Success Criteria** (what must be TRUE):
-
-  1. Phase 89 VALIDATION.md exists with `nyquist_compliant: true` and all SEL-01 criteria verified
-  2. Phase 90 VALIDATION.md is updated from `nyquist_compliant: false` to `nyquist_compliant: true` with all SEL-02..04 criteria verified
-  3. Phase 91 VALIDATION.md exists with `nyquist_compliant: true` and SEL-05..07 criteria verified
-  4. SUMMARY.md frontmatter for phases 89, 90, and 91 each include a `requirements-completed` field listing the SEL-* requirements satisfied in that phase
-
-**Plans**: 4 plans
-Plans:
-
-**Wave 1** *(parallel — disjoint phase-89/90/91 archive subdirectories)*
-
-- [x] 114-01-PLAN.md — Restore Phase 89 archival docs (89-VALIDATION.md status: draft→approved; 89-01-SUMMARY.md requirements-completed: [SEL-01, SEL-02]) [VAL-01, VAL-04]
-- [x] 114-02-PLAN.md — Restore Phase 90 archival docs (90-VALIDATION.md nyquist_compliant: false→true, wave_0_complete: false→true, task row 90-01-01 corrected, Historical Note appended; 90-01-SUMMARY.md requirements-completed: [SEL-03, SEL-04, SEL-05]) [VAL-02, VAL-04]
-- [x] 114-03-PLAN.md — Create Phase 91 archival docs (91-VALIDATION.md authored from scratch using 91-VERIFICATION.md as source; 91-01-SUMMARY.md requirements-completed: []; 91-02-SUMMARY.md restored verbatim) [VAL-03, VAL-04]
-
-**Wave 2** *(blocked on Wave 1)*
-
-- [x] 114-04-PLAN.md — Update v3.5-MILESTONE-AUDIT.md (nyquist block compliant_phases: [89, 90, 91], overall: compliant; status: tech_debt→passed; append 114-resolution tech_debt entry) + cross-plan verification gate [VAL-01, VAL-02, VAL-03, VAL-04]
-
-### Phase 115: v3.7 and v4.0 Nyquist Validation
-
-**Goal**: Phases 97, 98, and 100 have complete VALIDATION.md files; phases 98 and 112 have VERIFICATION.md documents covering their verification approaches
-**Depends on**: Phase 114
-**Requirements**: VAL-05, VAL-06, VAL-07, VAL-08, VAL-09
-**Success Criteria** (what must be TRUE):
-
-  1. Phase 97 VALIDATION.md exists with `nyquist_compliant: true` and PLC-01..04 / PPIPE-01..05 criteria verified
-  2. Phase 98 VALIDATION.md exists with `nyquist_compliant: true` and the Wave 0 RED tests written retroactively; Phase 98 VERIFICATION.md exists documenting that code was verified via SUMMARY files and code inspection
-  3. Phase 100 VALIDATION.md exists with `nyquist_compliant: true` and PMAP-01..04 / PPAGE-01..03 criteria verified
-  4. Phase 112 VERIFICATION.md exists documenting browser UAT as the verification gate for MAP-01..04
-
-**Plans**: 5 plans
-Plans:
-
-**Wave 1** *(parallel — disjoint phase archive subdirectories)*
-
-- [x] 115-01-PLAN.md — Create 97-VALIDATION.md from scratch using 97-VERIFICATION.md as source (PLC-01..04 only) [VAL-05]
-- [x] 115-02-PLAN.md — Update 98-VALIDATION.md (false->true + Historical Note citing Wave 0 RED commits 0ae75a5/fcd5e52/3f9eea9) + create 98-VERIFICATION.md (SUMMARY-based for PPIPE-01..05, PPAGE-03) [VAL-06, VAL-08]
-- [x] 115-03-PLAN.md — Create 100-VALIDATION.md from scratch using 100-VERIFICATION.md as source (PMAP-01..04 only) [VAL-07]
-- [x] 115-04-PLAN.md — Create 112-VERIFICATION.md (browser-UAT-based, source: 112-UAT.md) + update 112-VALIDATION.md (false->true + Historical Note citing Wave 0 RED commits e099939/70ef590/78c597c) [VAL-09]
-
-**Wave 2** *(blocked on Wave 1)*
-
-- [x] 115-05-PLAN.md — Cross-plan verification gate: assert all six Wave 1 deliverables present with expected frontmatter; re-run pytest places-* suite (9 tests) and npx tsc --noEmit [VAL-05, VAL-06, VAL-07, VAL-08, VAL-09]
-
-### Phase 116: Code Quality Fixes
-
-**Goal**: The Python pipeline enforces permit field validation at runtime, has an accurate orchestration docstring, and the test suite passes cleanly
-**Depends on**: Phase 114
-**Requirements**: CODE-01, CODE-02, CODE-03
-**Success Criteria** (what must be TRUE):
-
-  1. `places_validation.py` raises a clear, descriptive error when any permit record is missing `issuing_authority` or `type`; a malformed places.toml fails fast rather than loading silently
-  2. `run.py` module docstring accurately lists all pipeline steps including `places-load`, `places-export`, `places-maps`, and `topology-postprocess`
-  3. `uv run pytest data/` exits 0 — all 3 pre-existing `test_dbt_diff.py` failures resolved
-**Plans**: 3 plans
-Plans:
-
-**Wave 1** *(parallel — disjoint files)*
-
-- [x] 116-01-PLAN.md — Add permit field validation (issuing_authority + type) to places_validation.py with 4 new pytest cases [CODE-01]
-- [x] 116-02-PLAN.md — Sync run.py module docstring with current STEPS list (add places-load, topology-postprocess, places-export, places-maps) [CODE-02]
-- [x] 116-03-PLAN.md — Regenerate public/data/{species.parquet,species.json,seasonality.json} from sandbox so 3 failing dbt_diff tests pass [CODE-03]
+<!-- Phase 114-116 details archived to .planning/milestones/v4.1-ROADMAP.md -->
 
 ## Progress
 
