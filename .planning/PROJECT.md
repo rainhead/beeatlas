@@ -1,5 +1,16 @@
 # Washington Bee Atlas
 
+## Current Milestone: v4.2 iNaturalist Expert Observations
+
+**Goal:** Ingest periodic iNat CSV exports of expert-identified bee observations, extend the occurrence model with a third source, and surface source-aware counts and map display.
+
+**Target features:**
+- Pipeline: iNat CSV export → parquet; canonical_name resolution; deduplication against existing specimen_observation_ids
+- Occurrence model: expert iNat obs as a third source arm in `occurrences.parquet` (alongside Ecdysis + WABA samples)
+- Map display: ~44,500 new observations on the map; source selection UI (show/hide by source)
+- Species/genus counts: "N specimens · N community observations" broken down by source
+- Photo storage: `image_url` persisted per observation for future carousel (no UI this milestone)
+
 ## Milestone: v4.1 Validation & Code Quality — COMPLETE (2026-05-25)
 
 **Shipped:** Retroactively filled all missing VALIDATION.md / VERIFICATION.md for phases 89–91 (v3.5), 97–98–100 (v3.7), and 112 (v4.0); fixed SUMMARY.md `requirements-completed` frontmatter for phases 89–91; enforced permit field validation in `places_validation.py` (raises on missing `issuing_authority`/`type`); synced stale `run.py` module docstring to list all 19 pipeline steps; resolved 3 pre-existing `test_dbt_diff.py` failures by regenerating public artifacts from current dbt sandbox. All 8 requirements satisfied.
@@ -33,6 +44,16 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
 ## Requirements
+
+### Active (v4.2)
+
+- [ ] **PIPE-01**: Pipeline ingests iNat CSV export → `inat_obs.parquet` with canonical_name resolution
+- [ ] **PIPE-02**: Observations already linked as `specimen_observation_id` on Ecdysis records are excluded from new arm
+- [ ] **PIPE-03**: `image_url` stored per observation in pipeline output for future use
+- [ ] **OCC-01**: Expert iNat obs appear as a third source arm in `occurrences.parquet`
+- [ ] **MAP-01**: Expert iNat observations render as points on the map
+- [ ] **MAP-02**: Source selection UI allows showing/hiding occurrences by source
+- [ ] **SPE-01**: Species and genus pages show "N specimens · N community observations" broken down by source
 
 ### Validated
 
@@ -370,4 +391,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-25 after v4.1 milestone (Validation & Code Quality)*
+*Last updated: 2026-05-25 — v4.2 milestone started (iNaturalist Expert Observations)*
