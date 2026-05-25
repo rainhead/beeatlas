@@ -616,7 +616,7 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0)*
 
-- [ ] 113-02-PLAN.md — dbt checklist_month_agg CTE + merged month_histogram + checklist_count column + species_export.py SPECIES_COLUMNS/PyArrow schema [SPEC-04, SPEC-05]
+- [x] 113-02-PLAN.md — dbt checklist_month_agg CTE + merged month_histogram + checklist_count column + species_export.py SPECIES_COLUMNS/PyArrow schema [SPEC-04, SPEC-05]
 
 **Wave 2** *(blocked on Wave 1; 03 and 04 run in parallel)*
 
@@ -746,4 +746,4 @@ Plans:
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
-| 113. Species Page Expansion | v4.0 | 1/5 | In Progress|  |
+| 113. Species Page Expansion | v4.0 | 2/5 | In Progress|  |
