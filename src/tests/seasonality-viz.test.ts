@@ -76,6 +76,29 @@ describe('seasonality-viz (VIZ-01..05)', () => {
     expect(src.toLowerCase()).not.toMatch(/\b(kde|kernel)\b/);
   });
 
+  test('VIZ-02 checklist fallback: total=0 + onChecklist=true renders "Monthly phenology not recorded"', async () => {
+    await import('../species/seasonality-viz.ts');
+    document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+    const el = document.querySelector('seasonality-viz') as any;
+    el.data = new Array(12).fill(0);
+    el.onChecklist = true;
+    await el.updateComplete;
+    const fallback = el.querySelector('p.viz-fallback');
+    expect(fallback).not.toBeNull();
+    expect(fallback?.textContent ?? '').toBe('Monthly phenology not recorded');
+  });
+
+  test('VIZ-02 checklist fallback: total=0 + onChecklist=false renders "0 records" (not checklist note)', async () => {
+    await import('../species/seasonality-viz.ts');
+    document.body.innerHTML = `<seasonality-viz></seasonality-viz>`;
+    const el = document.querySelector('seasonality-viz') as any;
+    el.data = new Array(12).fill(0);
+    el.onChecklist = false;
+    await el.updateComplete;
+    const fallback = el.querySelector('p.viz-fallback');
+    expect(fallback?.textContent ?? '').toBe('0 records');
+  });
+
   describe('VIZ-02 fallback D-08: single-month omits ambiguous letter suffix', () => {
     test('single month (3 records in April): renders "3 records" with no comma', async () => {
       await import('../species/seasonality-viz.ts');
