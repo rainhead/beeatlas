@@ -11,11 +11,11 @@
 - [x] **VAL-02**: Phase 90 VALIDATION.md updated to `nyquist_compliant: true` (currently false)
 - [x] **VAL-03**: Phase 91 has a VALIDATION.md created and passing
 - [x] **VAL-04**: Phases 89–91 SUMMARY.md frontmatter each include the `requirements-completed` field listing covered SEL-* requirements
-- [ ] **VAL-05**: Phase 97 has a complete, passing VALIDATION.md
-- [ ] **VAL-06**: Phase 98 has a complete, passing VALIDATION.md; Wave 0 RED tests written retroactively
-- [ ] **VAL-07**: Phase 100 has a complete, passing VALIDATION.md
-- [ ] **VAL-08**: Phase 98 VERIFICATION.md exists (code verified via SUMMARY + code inspection)
-- [ ] **VAL-09**: Phase 112 VERIFICATION.md exists documenting UAT as the verification gate
+- [x] **VAL-05**: Phase 97 has a complete, passing VALIDATION.md
+- [x] **VAL-06**: Phase 98 has a complete, passing VALIDATION.md; Wave 0 RED tests written retroactively
+- [x] **VAL-07**: Phase 100 has a complete, passing VALIDATION.md
+- [x] **VAL-08**: Phase 98 VERIFICATION.md exists (code verified via SUMMARY + code inspection)
+- [x] **VAL-09**: Phase 112 VERIFICATION.md exists documenting UAT as the verification gate
 
 ### Code Quality
 
@@ -44,7 +44,7 @@
 |-------------|-------|--------|
 | VAL-01..04 | Phase 114 | Pending |
 | VAL-05..08 | Phase 115 | Pending |
-| VAL-09 | Phase 115 | Pending |
+| VAL-09 | Phase 115 | Complete |
 | CODE-01 | Phase 116 | Pending |
 | CODE-02 | Phase 116 | Pending |
 | CODE-03 | Phase 116 | Pending |
