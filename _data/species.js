@@ -126,12 +126,18 @@ const genusList = Object.values(genusMap)
     const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
+    // Checklist-only species (no WABA occurrences, on checklist) get neutral grey.
+    // Appended AFTER color index computation so existing WABA hue assignments do not drift.
+    const checklistOnly = g.allMembers
+      .filter(sp => sp.occurrence_count === 0 && sp.on_checklist && sp.specific_epithet !== null)
+      .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
+    const checklistSpecies = checklistOnly.map(sp => ({ ...sp, hexColor: '#cccccc' }));
     // Append a grey "Genus sp." entry when genus-level records exist, so the
     // key matches the grey dots rendered in the SVG map.
     const unresolvedOccurrences = withOcc
       .filter(sp => sp.specific_epithet === null)
       .reduce((acc, sp) => acc + sp.occurrence_count, 0);
-    const species = [...speciesOnly];
+    const species = [...speciesOnly, ...checklistSpecies];
     if (unresolvedOccurrences > 0) {
       species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, slug: null });
     }
@@ -184,14 +190,21 @@ const subgenusList = Object.values(subgenusMap)
     const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)
       .map(sp => ({ ...sp, hexColor: colorByCanon[sp.canonical_name] }));
+    // Checklist-only species (no WABA occurrences, on checklist) get neutral grey.
+    // Appended AFTER color index computation so existing WABA hue assignments do not drift.
+    const checklistOnly = g.allMembers
+      .filter(sp => sp.occurrence_count === 0 && sp.on_checklist && sp.specific_epithet !== null)
+      .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
+    const checklistSpecies = checklistOnly.map(sp => ({ ...sp, hexColor: '#cccccc' }));
     // Append a grey "Subgenus sp." entry when subgenus-level records exist.
     const unresolvedOccurrences = withOcc
       .filter(sp => sp.specific_epithet === null)
       .reduce((acc, sp) => acc + sp.occurrence_count, 0);
-    const species = [...speciesOnly];
+    const species = [...speciesOnly, ...checklistSpecies];
     if (unresolvedOccurrences > 0) {
       species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, slug: null });
     }
+    const checklistCount = checklistOnly.reduce((acc, sp) => acc + (sp.checklist_count || 0), 0);
     return {
       genus: g.genus,
       subgenus: g.subgenus,
@@ -201,9 +214,10 @@ const subgenusList = Object.values(subgenusMap)
       species,
       speciesCount: speciesOnly.length,
       totalOccurrences: withOcc.reduce((acc, sp) => acc + sp.occurrence_count, 0),
+      checklistCount,
     };
   })
-  .filter(g => g.totalOccurrences > 0);
+  .filter(g => g.totalOccurrences > 0 || g.checklistCount > 0);
 
 // Build tribe groupings. Each tribe lists its genera aggregated by occurrence count.
 // Tribes spanning multiple genera aggregate per-genus counts independently.
