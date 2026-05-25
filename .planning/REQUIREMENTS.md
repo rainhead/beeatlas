@@ -8,7 +8,7 @@
 ### Validation Gaps (Nyquist)
 
 - [x] **VAL-01**: Phase 89 has a complete, passing VALIDATION.md (`nyquist_compliant: true`) retroactively written
-- [ ] **VAL-02**: Phase 90 VALIDATION.md updated to `nyquist_compliant: true` (currently false)
+- [x] **VAL-02**: Phase 90 VALIDATION.md updated to `nyquist_compliant: true` (currently false)
 - [x] **VAL-03**: Phase 91 has a VALIDATION.md created and passing
 - [x] **VAL-04**: Phases 89–91 SUMMARY.md frontmatter each include the `requirements-completed` field listing covered SEL-* requirements
 - [ ] **VAL-05**: Phase 97 has a complete, passing VALIDATION.md
