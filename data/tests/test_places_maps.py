@@ -99,11 +99,11 @@ def test_place_svg_byte_stable(tmp_path):
     points = [(-120.95, 47.05), (-120.90, 47.08)]
 
     # First write.
-    _write_species_svg("test-place", points, backdrop, maps_dir)
+    _write_species_svg("test-place", points, set(), {}, backdrop, maps_dir)
     content_a = (maps_dir / "test-place.svg").read_text(encoding="utf-8")
 
     # Second write (same inputs, overwrites).
-    _write_species_svg("test-place", points, backdrop, maps_dir)
+    _write_species_svg("test-place", points, set(), {}, backdrop, maps_dir)
     content_b = (maps_dir / "test-place.svg").read_text(encoding="utf-8")
 
     assert content_a == content_b, (

@@ -70,7 +70,7 @@ def generate_place_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
 
         total_clipped = 0
         for slug, points in sorted(by_slug.items()):
-            clipped = _write_species_svg(slug, points, backdrop, maps_dir)
+            clipped = _write_species_svg(slug, points, set(), county_geojsons, backdrop, maps_dir)
             total_clipped += clipped
 
         print(  # noqa: T201
