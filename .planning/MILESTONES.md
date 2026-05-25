@@ -1,5 +1,21 @@
 # Milestones
 
+## v4.0 Washington Checklist Records (Shipped: 2026-05-25)
+
+**Phases completed:** 4 phases (110–113), 13 plans
+**Timeline:** 2 days (2026-05-24 → 2026-05-25)
+**LOC:** +63,769 / −1,882 across 104 files
+**Requirements:** 18/18 complete
+
+**Key accomplishments:**
+
+- `data/taxa_pipeline.py` — ETag/304-cached download of iNat AWS Open Data taxa.csv.gz (37MB); DuckDB PIVOT ancestry walk produces `taxon_lineage_extended` for all active Anthophila taxa; live `/v2/taxa` enrichers deleted; dbt build PASS=44, 5 pytest tests pass; nightly.sh widened with S3 pull/push — rate-limit risk eliminated
+- `data/dbt/models/marts/checklist.sql` — External parquet mart: 2,861 species-county rows from Bartholomew et al. 2024 WA checklist CSV; county-centroid spatial join (eco_fallback CTE for island counties); iNat family enrichment; `source='checklist'` load-bearing for layer separation; schema.yml enforced contract with 12 typed columns
+- Checklist map layer (`bee-pane` toggle + `bee-atlas` coordinator + `bee-map` `checklist-county-fill` Mapbox fill layer) — "Checklist records" toggle in filter panel; semi-transparent green county fill; responds to taxon and year filters; `_checklistAllRows` parquet cache; `cl=1` URL persistence and restore; browser UAT approved
+- Species pages expanded to 565 checklist species — genusList/subgenusList include checklist-only species with `#cccccc` swatch; species index shows "checklist only" badge; species-detail.njk shows county-fill SVG, "N checklist records · Bartholomew et al. 2024" attribution, atlas link suppressed for checklist-only species; seasonality-viz onChecklist fallback; 507 Vitest tests pass; browser UAT approved
+
+---
+
 ## v3.9 Sidebar & Table Unification (Shipped: 2026-05-20)
 
 **Phases completed:** 5 phases (105–109), 12 plans

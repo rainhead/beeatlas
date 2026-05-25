@@ -32,7 +32,7 @@
 - ✅ **v3.7 Places** — Phases 97–100.1 (shipped 2026-05-18)
 - ✅ **v3.8 Conceptual Tidying** — Phases 101–104 (shipped 2026-05-19)
 - ✅ **v3.9 Sidebar & Table Unification** — Phases 105–109 (shipped 2026-05-20)
-- 🚧 **v4.0 Washington Checklist Records** — Phases 110–113 (in progress)
+- ✅ **v4.0 Washington Checklist Records** — Phases 110–113 (shipped 2026-05-25)
 
 ## Phases
 
@@ -394,12 +394,19 @@ See `.planning/milestones/v3.9-ROADMAP.md` for full phase details.
 
 <!-- Phase 105-109 details archived to .planning/milestones/v3.9-ROADMAP.md -->
 
-## v4.0 Washington Checklist Records (Phases 110–113) — IN PROGRESS
+<details>
+<summary>✅ v4.0 Washington Checklist Records (Phases 110–113) — SHIPPED 2026-05-25</summary>
 
-- [x] **Phase 110: Offline Taxonomy** - Replace live /v2/taxa API calls with taxa.csv.gz archive download and DuckDB ancestry walk (completed 2026-05-24)
-- [x] **Phase 111: Checklist Pipeline** - Ingest Bartholomew et al. 2024 CSV into checklist.parquet with spatial join and source field (completed 2026-05-24)
-- [x] **Phase 112: Checklist Map Layer** - Add toggle-able clustered-point layer for checklist records with year/month filter integration; URL persistence (completed 2026-05-24)
-- [x] **Phase 113: Species Page Expansion** - Extend all taxon pages to 565 checklist species; county-presence SVGs; attribution (completed 2026-05-25)
+- [x] Phase 110: Offline Taxonomy (3/3 plans) — completed 2026-05-24
+- [x] Phase 111: Checklist Pipeline (2/2 plans) — completed 2026-05-24
+- [x] Phase 112: Checklist Map Layer (3/3 plans) — completed 2026-05-24
+- [x] Phase 113: Species Page Expansion (5/5 plans) — completed 2026-05-25
+
+See `.planning/milestones/v4.0-ROADMAP.md` for full phase details.
+
+</details>
+
+<!-- Phase 110-113 details archived to .planning/milestones/v4.0-ROADMAP.md -->
 
 ## Phase Details
 

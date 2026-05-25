@@ -28,11 +28,11 @@
 
 ### SPEC — Species Page Expansion
 
-- [ ] **SPEC-01**: All 565 checklist species appear in the species index and have dedicated taxon pages, including species with zero WABA records
-- [ ] **SPEC-02**: Checklist-only species appear on genus and subgenus pages alongside WABA species
-- [ ] **SPEC-03**: Species pages show occurrence map including checklist record points (visually distinct from WABA occurrence points)
-- [ ] **SPEC-04**: Species pages show attribution for checklist records: "N checklist records · Bartholomew et al. 2024"
-- [ ] **SPEC-05**: Seasonality histogram draws from all sources (WABA + checklist); suppressed only when the species has zero records from any source
+- [x] **SPEC-01**: All 565 checklist species appear in the species index and have dedicated taxon pages, including species with zero WABA records
+- [x] **SPEC-02**: Checklist-only species appear on genus and subgenus pages alongside WABA species
+- [x] **SPEC-03**: Species pages show occurrence map including checklist record points (visually distinct from WABA occurrence points)
+- [x] **SPEC-04**: Species pages show attribution for checklist records: "N checklist records · Bartholomew et al. 2024"
+- [x] **SPEC-05**: Seasonality histogram draws from all sources (WABA + checklist); suppressed only when the species has zero records from any source
 
 ### EXT — Extensibility
 
@@ -78,11 +78,11 @@
 | MAP-02 | Phase 112 | Complete |
 | MAP-03 | Phase 112 | Complete |
 | MAP-04 | Phase 112 | Complete |
-| SPEC-01 | Phase 113 | Pending |
-| SPEC-02 | Phase 113 | Pending |
-| SPEC-03 | Phase 113 | Pending |
-| SPEC-04 | Phase 113 | Pending |
-| SPEC-05 | Phase 113 | Pending |
+| SPEC-01 | Phase 113 | Complete |
+| SPEC-02 | Phase 113 | Complete |
+| SPEC-03 | Phase 113 | Complete |
+| SPEC-04 | Phase 113 | Complete |
+| SPEC-05 | Phase 113 | Complete |
 
 **Coverage:**
 - v4.0 requirements: 18 total
