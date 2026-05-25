@@ -76,6 +76,7 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) sortBy: SpecimenSortBy = 'date';
   @property({ attribute: false }) filterActive = false;
   @property({ attribute: false }) selectedIds: Set<string> | null = null;
+  @property({ attribute: false }) checklistVisible = false;
 
   @state() private _open = false;
 
@@ -500,6 +501,9 @@ export class BeePane extends LitElement {
   };
 
   updated(changed: PropertyValues) {
+    if (changed.has('checklistVisible') && this._showChecklist !== this.checklistVisible) {
+      this._showChecklist = this.checklistVisible;
+    }
     if (!changed.has('filterState') || !this.filterState) return;
     const f = this.filterState;
 

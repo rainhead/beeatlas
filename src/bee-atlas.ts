@@ -195,6 +195,7 @@ bee-pane {
             .sortBy=${this._tableSortBy}
             .filterActive=${isFilterActive(this._filterState)}
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
+            .checklistVisible=${this._checklistVisible}
             @filter-changed=${this._onFilterChanged}
             @checklist-layer-changed=${this._onChecklistLayerChanged}
             @pane-expand-list=${this._onPaneExpandList}
