@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Validation & Code Quality
 status: executing
-stopped_at: Roadmap created for v4.1 — phases 114–116 defined
-last_updated: "2026-05-25T20:48:56.307Z"
-last_activity: 2026-05-25 -- Phase 114 planning complete
+stopped_at: Phase 114 complete — v3.5 Nyquist Validation verified
+last_updated: "2026-05-25T21:19:02.194Z"
+last_activity: 2026-05-25 -- Phase 115 planning complete
 progress:
   total_phases: 12
   completed_phases: 5
-  total_plans: 17
+  total_plans: 22
   completed_plans: 17
   percent: 42
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25 after v4.1 roadmap creation)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 114 — v3.5 Nyquist Validation (ready to plan)
+**Current focus:** Phase 115 — v3.7 and v4.0 Nyquist Validation (next)
 
 ## Current Position
 
-Phase: 1 of 3 (Phase 114: v3.5 Nyquist Validation)
+Phase: 2 of 3 (Phase 115: v3.7 and v4.0 Nyquist Validation)
 Plan: —
 Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 114 planning complete
+Last activity: 2026-05-25 -- Phase 115 planning complete
 
 Progress: [██████████] 100%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 0 (this milestone)
+- Total plans completed: 4 (this milestone, Phase 114)
 - Average duration: —
 - Total execution time: —
 
@@ -50,7 +50,7 @@ Progress: [██████████] 100%
 - Checklist map layer uses Mapbox county-fill on the existing counties GeoJSON source, not a new point cluster layer.
 - iNat taxonomy source is AWS Open Data taxa.csv.gz (NOT the DwC-A zip archive) — has ancestry column.
 - Checklist county-fill responds to taxon AND year filters; does NOT respond to collector filter. (Phase 112 UAT confirmed year filter narrowing is desired)
-- [Phase ?]: Phase 114: v3.5 milestone audit updated to status: passed — all three phases (89, 90, 91) now nyquist compliant
+- [Phase 114]: Phase 114: v3.5 milestone audit updated to status: passed — all three phases (89, 90, 91) now nyquist compliant
 
 ### Pending Todos
 
@@ -63,14 +63,14 @@ None.
 
 ## Deferred Items
 
-Items deferred at v3.5 milestone close (2026-05-15) — being addressed in v4.1:
+Items deferred at v3.5 milestone close (2026-05-15) — resolved in Phase 114:
 
 | Category | Item | Status |
 |----------|------|--------|
-| nyquist_gap | Phase 89 VALIDATION.md | Phase 114 |
-| nyquist_gap | Phase 90 VALIDATION.md (currently false) | Phase 114 |
-| nyquist_gap | Phase 91 VALIDATION.md missing | Phase 114 |
-| frontmatter | Phases 89–91 SUMMARY.md requirements-completed | Phase 114 |
+| nyquist_gap | Phase 89 VALIDATION.md | RESOLVED Phase 114 |
+| nyquist_gap | Phase 90 VALIDATION.md (was false) | RESOLVED Phase 114 |
+| nyquist_gap | Phase 91 VALIDATION.md missing | RESOLVED Phase 114 |
+| frontmatter | Phases 89–91 SUMMARY.md requirements-completed | RESOLVED Phase 114 |
 
 Items deferred at v3.7 milestone close (2026-05-18) — being addressed in v4.1:
 
@@ -87,11 +87,9 @@ Items deferred at v4.0 milestone close (2026-05-25) — being addressed in v4.1:
 |----------|------|--------|
 | verification_gap | Phase 112 VERIFICATION.md missing | Phase 115 |
 | test_failure | test_dbt_diff.py 3 pre-existing failures | Phase 116 |
-| Phase 114 P02 | 300s | 2 tasks | 2 files |
-| Phase 114 P04 | 5m | 2 tasks | 1 files |
 
 ## Session Continuity
 
-Last session: 2026-05-25T20:48:52.534Z
-Stopped at: Roadmap created for v4.1 — phases 114–116 defined
+Last session: 2026-05-25T21:00:00.000Z
+Stopped at: Phase 114 complete — v3.5 Nyquist Validation verified
 Resume file: None
