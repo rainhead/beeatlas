@@ -721,7 +721,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1. Pipeline | v1.0 | 1/1 | Complete | 2026-02-18 |
 | 2. Infrastructure | v1.0 | 2/2 | Complete | 2026-02-18 |
-| 3. Core Map | v1.0 | 3/3 | Complete | 2026-02-21 |
+| 3. Core Map | v1.0 | 3/3 | Complete   | 2026-05-25 |
 | 4. Filtering | v1.0 | 5/5 | Complete | 2026-02-22 |
 | 5. Fix Month Offset Bug | v1.0 | 1/1 | Complete | 2026-02-22 |
 | 6. Complete INFRA-03 Deployment | v1.0 | 1/1 | Complete | 2026-02-22 |
