@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.1
 milestone_name: Validation & Code Quality
 status: executing
-stopped_at: Phase 114 complete — v3.5 Nyquist Validation verified
-last_updated: "2026-05-25T21:57:45.419Z"
-last_activity: 2026-05-25 -- Phase 115 planning complete
+stopped_at: Phase 115 complete — v3.7 and v4.0 Nyquist Validation verified
+last_updated: "2026-05-25"
+last_activity: 2026-05-25 -- Phase 115 complete (VAL-05..09 all satisfied)
 progress:
   total_phases: 12
-  completed_phases: 6
-  total_plans: 22
-  completed_plans: 22
-  percent: 50
+  completed_phases: 7
+  total_plans: 27
+  completed_plans: 27
+  percent: 58
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25 after v4.1 roadmap creation)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 115 — v3.7 and v4.0 Nyquist Validation (next)
+**Current focus:** Phase 116 — Code Quality (next)
 
 ## Current Position
 
-Phase: 2 of 3 (Phase 115: v3.7 and v4.0 Nyquist Validation)
+Phase: 3 of 3 (Phase 116: Code Quality)
 Plan: —
-Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 115 planning complete
+Status: Ready to plan
+Last activity: 2026-05-25 -- Phase 115 complete (VAL-05..09)
 
 Progress: [██████████] 100%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 4 (this milestone, Phase 114)
+- Total plans completed: 9 (this milestone, Phases 114 + 115)
 - Average duration: —
 - Total execution time: —
 
@@ -59,7 +59,6 @@ None.
 ### Blockers/Concerns
 
 - Phase 116 CODE-03: `test_dbt_diff.py` failures are described as requiring a "full nightly pipeline run" — investigate whether a fixture or stub can resolve them without a live pipeline run; confirm scope before planning.
-- Phase 115 VAL-06: Phase 98 Wave 0 RED tests must be written retroactively; inspect Phase 98 code and SUMMARY files first to understand what tests would have been written at the time.
 
 ## Deferred Items
 
@@ -76,20 +75,20 @@ Items deferred at v3.7 milestone close (2026-05-18) — being addressed in v4.1:
 
 | Category | Item | Status |
 |----------|------|--------|
-| verification_gap | 98-VERIFICATION.md | Phase 115 |
+| verification_gap | 98-VERIFICATION.md | RESOLVED Phase 115 |
 | tech_debt | W-02: PLC-02 permit field validation | Phase 116 |
 | tech_debt | W-03: run.py module docstring stale | Phase 116 |
-| nyquist_gap | phases 97, 98, 100 VALIDATION.md | Phase 115 |
+| nyquist_gap | phases 97, 98, 100 VALIDATION.md | RESOLVED Phase 115 |
 
 Items deferred at v4.0 milestone close (2026-05-25) — being addressed in v4.1:
 
 | Category | Item | Status |
 |----------|------|--------|
-| verification_gap | Phase 112 VERIFICATION.md missing | Phase 115 |
+| verification_gap | Phase 112 VERIFICATION.md missing | RESOLVED Phase 115 |
 | test_failure | test_dbt_diff.py 3 pre-existing failures | Phase 116 |
 
 ## Session Continuity
 
-Last session: 2026-05-25T21:57:45.411Z
-Stopped at: Phase 114 complete — v3.5 Nyquist Validation verified
+Last session: 2026-05-25
+Stopped at: Phase 115 complete — v3.7 and v4.0 Nyquist Validation verified (VAL-05..09)
 Resume file: None
