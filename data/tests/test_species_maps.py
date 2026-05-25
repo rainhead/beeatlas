@@ -206,6 +206,65 @@ def test_generate_group_maps_emits_expected_files(tmp_path, monkeypatch):
     )
 
 
+def test_write_species_svg_renders_checklist_county_fill(tmp_path):
+    """_write_species_svg emits one <path class="checklist-county"> for a matching county.
+
+    This test calls _write_species_svg with the EXTENDED signature
+    (slug, points, checklist_counties, county_geojsons_by_name, backdrop, out_dir)
+    that Plan 03 will implement. RED until Plan 03 changes the function signature.
+    """
+    backdrop = ET.Element(f"{{{SVG_NS}}}svg")
+    county_geom = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
+    county_geojsons_by_name = {"TestCounty": county_geom}
+    checklist_counties = {"TestCounty"}
+    _write_species_svg("Genus/epithet", [], checklist_counties, county_geojsons_by_name, backdrop, tmp_path)
+    tree = ET.parse(str(tmp_path / "Genus" / "epithet.svg"))
+    root = tree.getroot()
+    ns = {'s': SVG_NS}
+    checklist_paths = root.findall('.//s:path[@class="checklist-county"]', ns)
+    assert len(checklist_paths) == 1, (
+        f"Expected one checklist-county path, got {len(checklist_paths)}"
+    )
+
+
+def test_write_species_svg_no_checklist_fill_when_county_absent(tmp_path):
+    """_write_species_svg emits no <path class="checklist-county"> when county not in set.
+
+    This test calls _write_species_svg with the EXTENDED signature
+    (slug, points, checklist_counties, county_geojsons_by_name, backdrop, out_dir)
+    that Plan 03 will implement. RED until Plan 03 changes the function signature.
+    """
+    backdrop = ET.Element(f"{{{SVG_NS}}}svg")
+    county_geom = {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]}
+    county_geojsons_by_name = {"OtherCounty": county_geom}
+    checklist_counties = {"TestCounty"}  # different county — no match
+    _write_species_svg("Genus/epithet", [], checklist_counties, county_geojsons_by_name, backdrop, tmp_path)
+    tree = ET.parse(str(tmp_path / "Genus" / "epithet.svg"))
+    root = tree.getroot()
+    ns = {'s': SVG_NS}
+    checklist_paths = root.findall('.//s:path[@class="checklist-county"]', ns)
+    assert len(checklist_paths) == 0, (
+        f"Expected no checklist-county paths when county absent, got {len(checklist_paths)}"
+    )
+
+
+def test_style_css_contains_checklist_county_class():
+    """STYLE_CSS must define a .checklist-county rule with #b0cfe8 fill and fill-opacity.
+
+    RED until Plan 03 adds the .checklist-county class to STYLE_CSS.
+    """
+    from species_maps import STYLE_CSS
+    assert 'checklist-county' in STYLE_CSS, (
+        "STYLE_CSS must contain a .checklist-county rule"
+    )
+    assert '#b0cfe8' in STYLE_CSS, (
+        "STYLE_CSS checklist-county rule must specify fill: #b0cfe8"
+    )
+    assert 'fill-opacity' in STYLE_CSS, (
+        "STYLE_CSS checklist-county rule must specify fill-opacity"
+    )
+
+
 def test_generate_group_maps_deterministic(tmp_path, monkeypatch):
     """Two consecutive calls to _generate_group_maps with identical inputs
     produce byte-identical SVG output (D-01 determinism).
