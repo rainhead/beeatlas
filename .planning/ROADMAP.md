@@ -664,7 +664,7 @@ Plans:
 
 - [x] 114-01-PLAN.md — Restore Phase 89 archival docs (89-VALIDATION.md status: draft→approved; 89-01-SUMMARY.md requirements-completed: [SEL-01, SEL-02]) [VAL-01, VAL-04]
 - [ ] 114-02-PLAN.md — Restore Phase 90 archival docs (90-VALIDATION.md nyquist_compliant: false→true, wave_0_complete: false→true, task row 90-01-01 corrected, Historical Note appended; 90-01-SUMMARY.md requirements-completed: [SEL-03, SEL-04, SEL-05]) [VAL-02, VAL-04]
-- [ ] 114-03-PLAN.md — Create Phase 91 archival docs (91-VALIDATION.md authored from scratch using 91-VERIFICATION.md as source; 91-01-SUMMARY.md requirements-completed: []; 91-02-SUMMARY.md restored verbatim) [VAL-03, VAL-04]
+- [x] 114-03-PLAN.md — Create Phase 91 archival docs (91-VALIDATION.md authored from scratch using 91-VERIFICATION.md as source; 91-01-SUMMARY.md requirements-completed: []; 91-02-SUMMARY.md restored verbatim) [VAL-03, VAL-04]
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -813,6 +813,6 @@ Plans:
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
 | 113. Species Page Expansion | v4.0 | 5/5 | Complete   | 2026-05-25 |
-| 114. v3.5 Nyquist Validation | v4.1 | 1/4 | In Progress|  |
+| 114. v3.5 Nyquist Validation | v4.1 | 2/4 | In Progress|  |
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 0/TBD | Not started | - |
 | 116. Code Quality Fixes | v4.1 | 0/TBD | Not started | - |
