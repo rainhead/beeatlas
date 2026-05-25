@@ -269,4 +269,22 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(existsSync(resolve(ROOT, '_site/places/rattlesnake-ledge.html'))).toBe(true);
     expect(existsSync(resolve(ROOT, '_site/places/rattlesnake-ledge/index.html'))).toBe(false);
   });
+
+  // Phase 113 — checklist-only species page tests (SPEC-01, SPEC-03, SPEC-04, SPEC-05, D-06, D-08, D-14, D-15)
+
+  // Agapostemon/texanus is the alphabetically-first confirmed checklist-only species
+  // (occurrence_count === 0 && on_checklist === true in species.json from the pipeline).
+  const KNOWN_CHECKLIST_ONLY_SLUG = 'Agapostemon/texanus';
+
+  test('emits page for a known checklist-only species with no atlas link (D-15, SPEC-01)', () => {
+    const html = readFileSync(resolve(ROOT, `_site/species/${KNOWN_CHECKLIST_ONLY_SLUG}/index.html`), 'utf-8');
+    expect(html).not.toMatch(/View \d+ occurrences on the atlas/);  // D-15: hidden for zero-occ species
+    expect(html).toContain('Bartholomew et al. 2024');              // D-08: attribution line shown
+    expect(html).toMatch(/src="\/data\/species-maps\//);            // D-06: SVG map shown
+  });
+
+  test('species index shows "checklist only" badge for zero-occurrence checklist species (D-14, SPEC-01)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
+    expect(html).toContain('checklist only');  // D-14: badge for checklist-only species
+  });
 });
