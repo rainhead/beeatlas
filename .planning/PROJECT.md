@@ -196,15 +196,18 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 - ✓ URL-02: Legacy `?view=table` preserved via Option A precedence chain — v3.9
 - ✓ MAP-01: Mapbox canvas resizes correctly via overlay architecture (bee-pane is position:absolute; bee-map dimensions never change) — v3.9
 
+### Validated (v4.0)
+
+- ✓ **CHECK-01**: Pipeline ingests checklist CSV, parses genus/specificEpithet, spatial-joins county and ecoregion_l3, produces `checklist.parquet` — Phase 111
+- ✓ **CHECK-02**: Checklist records appear as a separate toggle-able "Checklist records" layer on the map, visually distinct from WABA specimens — Phase 112
+- ✓ **EXT-01**: `source` field in pipeline/data model distinguishes checklist from Ecdysis and iNat records — Phase 111
+
 ### Active (v4.0)
 
-- [ ] **CHECK-01**: Pipeline ingests checklist CSV, parses genus/specificEpithet, spatial-joins county and ecoregion_l3, produces `checklist.parquet`
-- [ ] **CHECK-02**: Checklist records appear as a separate toggle-able "Checklist records" layer on the map, visually distinct from WABA specimens
 - [ ] **CHECK-03**: All 565 checklist species appear in the species index and have taxon pages, including species with no WABA records
 - [ ] **CHECK-04**: Checklist occurrence records appear on species/taxon page SVG occurrence maps
 - [ ] **TAX-01**: iNat taxonomy replaced by offline Darwin Core Archive lookup; live `/v2/taxa` enrichers removed
 - [ ] **TAX-02**: Unified taxon lineage table supersedes existing `taxon_lineage` and `taxon_lineage_extended` tables
-- [ ] **EXT-01**: `source` field in pipeline/data model distinguishes checklist from Ecdysis and iNat records
 
 ### Future
 
@@ -348,6 +351,7 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | dbt OFV field IDs as named macros (not inline literals) | Anonymous `8338`/`9963`/`18116`/`1718` in JOIN conditions — easy to misread or reorder | ✓ Good — Phase 103; dbt build passes with PASS=46, behavioral parity confirmed |
 | `UiState.paneState: 'collapsed' \| 'list' \| 'table'` replaces `viewMode: 'map' \| 'table'` | Three-state pane model requires encoding pane open/closed AND sub-state in one field; old binary was underspecified | ✓ Good — Phase 105; `?pane=list`/`?pane=table` URL round-trip; legacy `?view=table` preserved |
 | MAP-01 satisfied by overlay architecture — no explicit `map.resize()` call | `bee-pane` is `position:absolute`; `bee-map` element dimensions never change across pane transitions; existing ResizeObserver in bee-map.ts line 807 handles viewport-change resizes | ✓ Good — Phase 108; approach confirmed correct in UAT; PANE-01 wiring block (12 tests) locks invariant |
+| Checklist county-fill responds to year filter (not taxon-only as originally planned) | UAT confirmed year filter narrows checklist fill — user verified this is the desired behavior; plan spec said "taxon filter only" but implementation includes year and that proved correct | ✓ Good — Phase 112 UAT; overrides plan STATE.md locked decision |
 | `queryListPage` uses WHERE intersection for selection + filter (not priority sort) | Priority sort would show selection first then fall through to full list — creates confusing UX where "clear" changes total count; intersection is what users expect ("show me these 3 in the context of my filter") | ✓ Good — Phase 109; `_runListQuery` called on filter change + selection change + clear |
 | `_onFilterChanged` calls `_runListQuery()` when `_paneState === 'list'` | Without this guard, changing a filter while the pane is open leaves the occurrence list stale (showing pre-filter results) | ✓ Good — Phase 109-06 gap closure; gap only visible when pane is already open during filter change |
 | Table-mode collapse goes to `'collapsed'` not `'list'` | Preserves D-08 from v2.9: user who expands to table and collapses should land on the clean map, not the list view they didn't explicitly open | ✓ Good — Phase 106; matches pre-v3.9 "table close → clean map" expectation |
@@ -370,4 +374,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-23 — milestone v4.0 started*
+*Last updated: 2026-05-24 — after Phase 112 (checklist-map-layer)*
