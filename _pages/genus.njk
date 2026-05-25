@@ -24,7 +24,13 @@ layout: default.njk
       <li>
         <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
         {%- if sp.slug %}<a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>{%- else %}<em>{{ sp.scientificName }}</em>{%- endif %}
+        {%- if sp.occurrence_count > 0 -%}
         <span class="count">{{ sp.occurrence_count }} records</span>
+        {%- elif sp.on_checklist -%}
+        <span class="count">{{ sp.checklist_count }} checklist records</span>
+        {%- else -%}
+        <span class="count">0 records</span>
+        {%- endif -%}
       </li>
     {%- endfor -%}
     </ul>
