@@ -26,7 +26,7 @@ def test_write_species_svg_creates_subdir(tmp_path):
     """_write_species_svg creates the parent subdirectory if it doesn't exist (PIPE-03c)."""
     backdrop = ET.Element(f"{{{SVG_NS}}}svg")
     slug = "Andrena/milwaukeensis"
-    _write_species_svg(slug, [], backdrop, tmp_path)
+    _write_species_svg(slug, [], set(), {}, backdrop, tmp_path)
     out = tmp_path / "Andrena" / "milwaukeensis.svg"
     assert out.exists(), (
         f"Expected {out} to exist — _write_species_svg must create parent subdir "
@@ -135,6 +135,7 @@ def _write_test_species_parquet(tmp_path):
         'month_histogram': [[0]*12, [0]*12, [0]*12, [0]*12],
         'county_count': [1, 1, 1, 1],
         'ecoregion_count': [1, 1, 1, 1],
+        'checklist_count': [3, 2, 1, 4],
         'slug': ['Andrena/milwaukeensis', 'Andrena/prunorum', 'Andrena/vicina', 'Bombus/mixtus'],
     })
     parquet_path = tmp_path / "species.parquet"
