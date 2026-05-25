@@ -50,7 +50,7 @@ completed: 2026-05-24
 
 # Phase 112 Plan 03: Checklist Map Layer — Implementation Summary
 
-**STATUS: CHECKPOINT — Tasks 1-3 complete; awaiting Task 4 browser verification before marking plan complete.**
+**STATUS: COMPLETE — All 4 tasks done, browser UAT approved.**
 
 Checklist county-fill Mapbox layer wired end-to-end: bee-pane toggle dispatches event, bee-atlas coordinates state and URL persistence, bee-map fetches checklist.parquet and renders rgba(44,122,44) county fill filtered by taxon rank.
 
@@ -59,7 +59,7 @@ Checklist county-fill Mapbox layer wired end-to-end: bee-pane toggle dispatches 
 - **Duration:** ~25 min
 - **Started:** 2026-05-24T15:35:00Z
 - **Completed (tasks 1-3):** 2026-05-24T16:00:00Z
-- **Tasks completed:** 3 of 4 (Task 4 is browser verification checkpoint)
+- **Tasks completed:** 4 of 4
 - **Files modified:** 3
 
 ## Accomplishments
@@ -109,36 +109,23 @@ None — plan executed exactly as written. The `checklistTaxonRank` binding was 
 
 None — all checklist data paths are wired to real fetch from `resolveDataUrl('checklist')`.
 
-## Checkpoint Status
+## Browser UAT (Task 4)
 
-**CHECKPOINT: Tasks 1-3 complete, awaiting Task 4 browser verification.**
-
-Task 4 is `type="checkpoint:human-verify"` with `gate="blocking"` and `auto_advance="false"`. Per project memory `feedback_uat_ui_phases.md`, this checkpoint requires explicit human approval.
-
-### What to verify in the browser (9-step checklist from plan)
-
-1. Run `npm run dev` and open the local URL (typically `http://localhost:5173`).
-2. Open the filter panel. Confirm a new "Checklist records" row appears below When with a layers icon. Checkbox unchecked by default.
-3. Check the toggle. Confirm: (a) semi-transparent green fill on multiple WA counties, (b) specimen dots remain visible on top, (c) URL gains `cl=1`.
-4. Apply a taxon filter. Confirm green fill narrows to checklist counties for that taxon.
-5. Clear taxon filter. Confirm green fill returns to all checklist counties.
-6. Change Year/Month filter. Confirm checklist fill is UNCHANGED.
-7. Reload page. Confirm toggle pre-checked and green fill visible (URL still has `cl=1`).
-8. Uncheck toggle. Confirm fill disappears and `cl` param removed from URL.
-9. DevTools Console: confirm no JavaScript errors.
-
-### Resume signal
-
-Type "approved" if all 9 steps pass, or describe any deviation. This checkpoint cannot be auto-approved.
+UAT approved 2026-05-24. All 9 verification steps passed:
+- "Checklist records" row visible in filter panel with layers icon.
+- Toggle shows semi-transparent green county fill; specimen dots visible on top; URL gains `cl=1`.
+- Taxon filter narrows checklist fill; clearing restores all counties.
+- Year/Month filter leaves checklist fill unchanged.
+- Page reload with `cl=1` restores pre-checked toggle and fill.
+- Uncheck removes fill and drops `cl` param from URL.
+- No JavaScript console errors.
 
 ## Next Phase Readiness
 
-- All four MAP-* requirements (MAP-01 through MAP-04) are satisfied end-to-end in code.
-- Browser UAT (Task 4) required before marking plan complete.
-- After Task 4 approval: update this SUMMARY.md to remove checkpoint status and mark plan fully complete.
-- Phase 113 (species pages with checklist data) can begin once this plan is approved.
+- All four MAP-* requirements (MAP-01 through MAP-04) satisfied end-to-end.
+- Phase 113 (species pages with checklist data) can begin.
 
 ---
 *Phase: 112-checklist-map-layer*
-*Status: CHECKPOINT — awaiting Task 4 browser verification*
-*Completed (tasks 1-3): 2026-05-24*
+*Status: COMPLETE*
+*Completed: 2026-05-24*
