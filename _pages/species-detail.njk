@@ -21,7 +21,7 @@ layout: default.njk
     {%- else -%}
       <div class="photo-placeholder">No photo available</div>
     {%- endif -%}
-    {%- if sp.occurrence_count > 0 -%}
+    {%- if sp.occurrence_count > 0 or sp.on_checklist -%}
       <img loading="lazy" src="/data/species-maps/{{ sp.slug }}.svg" alt="Occurrence map for {{ sp.scientificName }}">
     {%- endif -%}
   </div>
@@ -33,8 +33,17 @@ layout: default.njk
   {%- endif -%}
   <seasonality-viz id="sviz">
   </seasonality-viz>
-  <script>customElements.whenDefined('seasonality-viz').then(function(){document.getElementById('sviz').data={{ sp.month_histogram | dump | safe }};});</script>
+  <script>customElements.whenDefined('seasonality-viz').then(function(){
+  var el = document.getElementById('sviz');
+  el.data = {{ sp.month_histogram | dump | safe }};
+  el.onChecklist = {{ sp.on_checklist | dump | safe }};
+});</script>
   <p class="metadata">{{ sp.occurrence_count }} records · {{ sp.county_count }} counties · {{ sp.ecoregion_count }} ecoregions</p>
+  {%- if sp.on_checklist -%}
+  <p class="checklist-attribution">{{ sp.checklist_count }} checklist records · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
+  {%- endif -%}
+  {%- if sp.occurrence_count > 0 -%}
   <a href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count }} occurrences on the atlas →</a>
+  {%- endif -%}
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>
