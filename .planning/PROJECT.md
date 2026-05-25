@@ -1,5 +1,16 @@
 # Washington Bee Atlas
 
+## Current Milestone: v4.1 Validation & Code Quality
+
+**Goal:** Close procedural gaps and fix silent code issues accumulated across v3.5–v4.0.
+
+**Target features:**
+- Retroactively fill missing VALIDATION.md / VERIFICATION.md for phases 89–91 (v3.5), 97–98–100 (v3.7), 112 (v4.0)
+- Fix SUMMARY.md frontmatter `requirements-completed` for phases 89–91
+- W-02: Enforce PLC-02 permit field validation at runtime in `places_validation.py`
+- W-03: Update stale `run.py` module docstring
+- Fix 3 pre-existing `test_dbt_diff.py` pytest failures
+
 ## Milestone: v4.0 Washington Checklist Records — COMPLETE (2026-05-25)
 
 **Shipped:** iNat taxonomy replaced with offline taxa.csv.gz (rate-limit risk eliminated); Bartholomew et al. 2024 checklist ingested as `checklist.parquet` (2,861 species-county rows); "Checklist records" toggle-able county-fill map layer; all 565 checklist species have taxon pages, county-presence SVG maps, attribution, and seasonality histograms. 18/18 requirements satisfied.
@@ -29,6 +40,17 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
 ## Requirements
+
+### Active (v4.1)
+
+- [ ] **VAL-01**: Phases 89–91 have complete, passing VALIDATION.md files (v3.5 Nyquist gaps)
+- [ ] **VAL-02**: Phases 97, 98, 100 have complete, passing VALIDATION.md files (v3.7 Nyquist gaps)
+- [ ] **VAL-03**: Phase 112 has a VERIFICATION.md documenting UAT gate (v4.0 gap)
+- [ ] **VAL-04**: Phase 98 VERIFICATION.md exists covering code verified via SUMMARY + inspection
+- [ ] **VAL-05**: Phases 89–91 SUMMARY.md frontmatter includes `requirements-completed` field
+- [ ] **CODE-01**: `places_validation.py` raises an error if a permit record is missing `issuing_authority` or `type`
+- [ ] **CODE-02**: `run.py` module docstring accurately lists all pipeline steps including places-load, places-export, places-maps, topology-postprocess
+- [ ] **CODE-03**: `test_dbt_diff.py` passes (3 pre-existing failures resolved)
 
 ### Validated
 
@@ -370,4 +392,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-25 — after v4.0 milestone (Washington Checklist Records)*
+*Last updated: 2026-05-25 — v4.1 milestone started (Validation & Code Quality)*
