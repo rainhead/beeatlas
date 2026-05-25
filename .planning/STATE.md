@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.0
 milestone_name: Washington Checklist Records
-status: executing
-stopped_at: Phase 112 UI-SPEC approved
-last_updated: "2026-05-24T15:42:52.930Z"
+status: ready_to_plan
+stopped_at: Phase 112 complete (3/3) — ready to discuss Phase 113
+last_updated: 2026-05-25T01:14:27.536Z
 last_activity: 2026-05-24 -- Phase 112 execution started
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 8
-  completed_plans: 8
+  completed_plans: 25
   percent: 33
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-23 after v4.0 milestone start)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 112 — checklist-map-layer
+**Current focus:** Phase 113 — species page expansion
 
 ## Current Position
 
-Phase: 112 (checklist-map-layer) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 112
-Last activity: 2026-05-24 -- Phase 112 execution started
+Phase: 113
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-25
 
 Progress: [██████████] 100%
 
@@ -41,8 +41,7 @@ Progress: [██████████] 100%
 - iNat taxonomy source is AWS Open Data taxa.csv.gz (NOT the DwC-A zip archive) — has ancestry column; DwC-A disqualified: URL-form IDs, no subfamily/tribe, no ancestry column.
 - source='checklist' constant lives in checklist.parquet only; occurrences.parquet schema is unchanged for v4.0.
 - Year slider bounds remain scoped to occurrences.parquet only — no 1812 checklist dates bleeding into WABA filter UI.
-- Checklist layer responds to taxon filter only; does NOT respond to year/month or collector filter.
-- [Phase ?]: .planning/phases/112-checklist-map-layer/112-03-SUMMARY.md
+- Checklist county-fill responds to taxon AND year filters; does NOT respond to collector filter. (Plan STATE.md said "taxon only" but UAT confirmed year filter narrowing is desired — Phase 112)
 
 ### Pending Todos
 
@@ -100,6 +99,6 @@ Items acknowledged and deferred at v3.7 milestone close on 2026-05-18:
 
 ## Session Continuity
 
-Last session: 2026-05-24T15:42:42.602Z
-Stopped at: Phase 112 UI-SPEC approved
+Last session: 2026-05-24
+Stopped at: Phase 112 complete (3/3 plans, 6/6 UAT passed) — ready to plan Phase 113
 Resume file: None
