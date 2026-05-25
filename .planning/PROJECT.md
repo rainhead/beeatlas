@@ -1,15 +1,8 @@
 # Washington Bee Atlas
 
-## Current Milestone: v4.0 Washington Checklist Records
+## Milestone: v4.0 Washington Checklist Records — COMPLETE (2026-05-25)
 
-**Goal:** Add the Bartholomew et al. 2024 annotated checklist as a new curated occurrence data source — pipeline ingestion, separate map layer, expanded species coverage (all 565 checklist species), and iNat taxonomy via Darwin Core Archive to eliminate API rate-limit risk.
-
-**Target features:**
-- Checklist pipeline: parse + clean CSV (committed to repo), spatial-join for county/ecoregion, produce `checklist.parquet`
-- Map: separate "Checklist records" toggle-able layer, visually distinct from WABA specimens and iNat samples
-- Species pages: checklist records on occurrence maps; taxon pages for all 565 checklist species including those with no WABA records
-- iNat taxonomy via DwC-A: replace live `/v2/taxa` enrichers with monthly archive download; eliminates rate-limit risk at scale
-- Extensibility: `source` field in pipeline/data model for future data sources (other Bee Atlas programs, GBIF)
+**Shipped:** iNat taxonomy replaced with offline taxa.csv.gz (rate-limit risk eliminated); Bartholomew et al. 2024 checklist ingested as `checklist.parquet` (2,861 species-county rows); "Checklist records" toggle-able county-fill map layer; all 565 checklist species have taxon pages, county-presence SVG maps, attribution, and seasonality histograms. 18/18 requirements satisfied.
 
 ## Milestone: v3.9 Sidebar & Table Unification — COMPLETE (2026-05-20)
 
@@ -198,16 +191,11 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ### Validated (v4.0)
 
-- ✓ **CHECK-01**: Pipeline ingests checklist CSV, parses genus/specificEpithet, spatial-joins county and ecoregion_l3, produces `checklist.parquet` — Phase 111
-- ✓ **CHECK-02**: Checklist records appear as a separate toggle-able "Checklist records" layer on the map, visually distinct from WABA specimens — Phase 112
-- ✓ **EXT-01**: `source` field in pipeline/data model distinguishes checklist from Ecdysis and iNat records — Phase 111
-
-### Active (v4.0)
-
-- [ ] **CHECK-03**: All 565 checklist species appear in the species index and have taxon pages, including species with no WABA records
-- [ ] **CHECK-04**: Checklist occurrence records appear on species/taxon page SVG occurrence maps
-- [ ] **TAX-01**: iNat taxonomy replaced by offline Darwin Core Archive lookup; live `/v2/taxa` enrichers removed
-- [ ] **TAX-02**: Unified taxon lineage table supersedes existing `taxon_lineage` and `taxon_lineage_extended` tables
+- ✓ **TAX-01..04**: iNat taxonomy replaced with offline taxa.csv.gz ETag-cached download + DuckDB ancestry walk; live `/v2/taxa` enrichers deleted; nightly.sh S3 sync for taxa archive — Phase 110
+- ✓ **CHECK-01..04**: `checklist.parquet` (2,861 species-county rows) with county spatial join, eco_fallback, TRIM, iNat family enrichment, enforced schema contract; nightly.sh S3 upload + manifest key — Phase 111
+- ✓ **EXT-01**: `source='checklist'` column in checklist.parquet; architecture comment documents future-source convention (GBIF, other Bee Atlas programs) — Phase 111
+- ✓ **MAP-01..04**: "Checklist records" toggle in filter panel; Mapbox county-fill layer; taxon+year filter responsiveness; `cl=1` URL persistence and restore — Phase 112
+- ✓ **SPEC-01..05**: All 565 checklist species in species index and taxon pages; genusList/subgenusList include checklist-only species; county-fill SVG maps with distinct checklist styling; "N checklist records · Bartholomew et al. 2024" attribution; seasonality histogram from all sources — Phase 113
 
 ### Future
 
@@ -255,6 +243,9 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 - v3.7 Phase 98 VERIFICATION.md missing: procedural gap only — all code verified via SUMMARY files and code inspection.
 - v3.7 W-02: `places_validation.py` does not enforce PLC-02 required permit fields at runtime (issuing_authority, type) — a malformed permit record loads silently.
 - v3.7 W-03: `run.py` module docstring is stale — omits places-load, places-export, places-maps, topology-postprocess pipeline steps.
+- v4.0 TAX-04/CHECK-03 S3 runtime not yet verified: code is wired; runtime verification fires on first nightly cron run on maderas after deploy.
+- v4.0 Phase 112 has no VERIFICATION.md: UAT was the gate; all MAP-* requirements verified in practice by browser UAT.
+- Pre-existing pytest failures in `test_dbt_diff.py` (3 failures, stale sandbox vs public/data): require full nightly pipeline run; predated v4.0.
 
 ## Constraints
 
@@ -352,6 +343,11 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `UiState.paneState: 'collapsed' \| 'list' \| 'table'` replaces `viewMode: 'map' \| 'table'` | Three-state pane model requires encoding pane open/closed AND sub-state in one field; old binary was underspecified | ✓ Good — Phase 105; `?pane=list`/`?pane=table` URL round-trip; legacy `?view=table` preserved |
 | MAP-01 satisfied by overlay architecture — no explicit `map.resize()` call | `bee-pane` is `position:absolute`; `bee-map` element dimensions never change across pane transitions; existing ResizeObserver in bee-map.ts line 807 handles viewport-change resizes | ✓ Good — Phase 108; approach confirmed correct in UAT; PANE-01 wiring block (12 tests) locks invariant |
 | Checklist county-fill responds to year filter (not taxon-only as originally planned) | UAT confirmed year filter narrows checklist fill — user verified this is the desired behavior; plan spec said "taxon filter only" but implementation includes year and that proved correct | ✓ Good — Phase 112 UAT; overrides plan STATE.md locked decision |
+| iNat taxonomy source is AWS Open Data taxa.csv.gz (not DwC-A zip archive) | DwC-A disqualified: URL-form IDs, no subfamily/tribe, no ancestry column; taxa.csv.gz has `ancestry` string enabling DuckDB PIVOT ancestry walk | ✓ Good — Phase 110; 5 pytest tests confirm schema and caching behavior |
+| Checklist records are county-range assertions in separate mart (not in int_combined) | Historical checklist entries lack GPS coordinates; treating them as occurrence points would contaminate the WABA specimen model; `source='checklist'` in separate mart keeps provenance clean | ✓ Good — Phase 111; isolation pytest confirms occurrences.parquet row count unchanged |
+| Checklist map layer uses Mapbox county-fill (not point cluster) | 2,861 species-county rows are county-range records, not point coordinates; county-fill on existing counties GeoJSON source is the correct visual representation | ✓ Good — Phase 112; addLayer with beforeId ensures specimen dots render on top |
+| `_checklistAllRows` cached after first parquet fetch; re-filter in JS on taxon/year change | Avoids repeated CloudFront fetches on every filter interaction; checklist.parquet is small (~100KB) and static within a session | ✓ Good — Phase 112; `_checklistGeneration` guard prevents stale results |
+| Atlas link on species-detail.njk wrapped in `occurrence_count > 0` guard | Checklist-only species don't have occurrence records on the WABA map; linking to the atlas with `o=` param would be misleading | ✓ Good — Phase 113; checklist-only pages show attribution + county SVG but no atlas deep-link |
 | `queryListPage` uses WHERE intersection for selection + filter (not priority sort) | Priority sort would show selection first then fall through to full list — creates confusing UX where "clear" changes total count; intersection is what users expect ("show me these 3 in the context of my filter") | ✓ Good — Phase 109; `_runListQuery` called on filter change + selection change + clear |
 | `_onFilterChanged` calls `_runListQuery()` when `_paneState === 'list'` | Without this guard, changing a filter while the pane is open leaves the occurrence list stale (showing pre-filter results) | ✓ Good — Phase 109-06 gap closure; gap only visible when pane is already open during filter change |
 | Table-mode collapse goes to `'collapsed'` not `'list'` | Preserves D-08 from v2.9: user who expands to table and collapses should land on the clean map, not the list view they didn't explicitly open | ✓ Good — Phase 106; matches pre-v3.9 "table close → clean map" expectation |
@@ -374,4 +370,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-24 — after Phase 112 (checklist-map-layer)*
+*Last updated: 2026-05-25 — after v4.0 milestone (Washington Checklist Records)*
