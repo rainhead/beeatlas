@@ -399,7 +399,7 @@ See `.planning/milestones/v3.9-ROADMAP.md` for full phase details.
 - [x] **Phase 110: Offline Taxonomy** - Replace live /v2/taxa API calls with taxa.csv.gz archive download and DuckDB ancestry walk (completed 2026-05-24)
 - [x] **Phase 111: Checklist Pipeline** - Ingest Bartholomew et al. 2024 CSV into checklist.parquet with spatial join and source field (completed 2026-05-24)
 - [x] **Phase 112: Checklist Map Layer** - Add toggle-able clustered-point layer for checklist records with year/month filter integration; URL persistence (completed 2026-05-24)
-- [ ] **Phase 113: Species Page Expansion** - Extend all taxon pages to 565 checklist species; county-presence SVGs; attribution
+- [x] **Phase 113: Species Page Expansion** - Extend all taxon pages to 565 checklist species; county-presence SVGs; attribution (completed 2026-05-25)
 
 ## Phase Details
 
@@ -625,7 +625,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 113-05-PLAN.md — Nunjucks templates: species.njk badge, species-detail.njk SVG/attribution/atlas-link/onChecklist wiring, genus.njk/subgenus.njk checklist record counts; human-verify checkpoint [SPEC-01..SPEC-05]
+- [x] 113-05-PLAN.md — Nunjucks templates: species.njk badge, species-detail.njk SVG/attribution/atlas-link/onChecklist wiring, genus.njk/subgenus.njk checklist record counts; human-verify checkpoint [SPEC-01..SPEC-05]
 
 **UI hint**: yes
 
@@ -746,4 +746,4 @@ Plans:
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
 | 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
-| 113. Species Page Expansion | v4.0 | 4/5 | In Progress|  |
+| 113. Species Page Expansion | v4.0 | 5/5 | Complete   | 2026-05-25 |
