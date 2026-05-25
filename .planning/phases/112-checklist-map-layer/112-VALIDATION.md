@@ -1,10 +1,11 @@
 ---
 phase: 112
 slug: checklist-map-layer
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-05-24
+approved: 2026-05-25
 ---
 
 # Phase 112 — Validation Strategy
@@ -38,12 +39,12 @@ created: 2026-05-24
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| MAP-01 toggle | 01 | 1 | MAP-01 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-pane.test.ts` | ✅ extend | ⬜ pending |
-| MAP-01 event | 01 | 1 | MAP-01 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-pane.test.ts` | ✅ extend | ⬜ pending |
-| MAP-02 layer | 01 | 1 | MAP-02 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-map.test.ts` | ❌ Wave 0 | ⬜ pending |
-| MAP-03 filter | 01 | 1 | MAP-03 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-atlas.test.ts` | ✅ extend | ⬜ pending |
-| MAP-04 url-enc | 01 | 1 | MAP-04 | — | N/A | unit | `npm test` → `src/tests/url-state.test.ts` | ✅ extend | ⬜ pending |
-| MAP-04 url-dec | 01 | 1 | MAP-04 | — | N/A | unit | `npm test` → `src/tests/url-state.test.ts` | ✅ extend | ⬜ pending |
+| MAP-01 toggle | 01 | 1 | MAP-01 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-pane.test.ts` | ✅ extend | ✅ green |
+| MAP-01 event | 01 | 1 | MAP-01 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-pane.test.ts` | ✅ extend | ✅ green |
+| MAP-02 layer | 01 | 1 | MAP-02 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-map.test.ts` | ✅ new | ✅ green |
+| MAP-03 filter | 01 | 1 | MAP-03 | — | N/A | unit (source text) | `npm test` → `src/tests/bee-atlas.test.ts` | ✅ extend | ✅ green |
+| MAP-04 url-enc | 01 | 1 | MAP-04 | — | N/A | unit | `npm test` → `src/tests/url-state.test.ts` | ✅ extend | ✅ green |
+| MAP-04 url-dec | 01 | 1 | MAP-04 | — | N/A | unit | `npm test` → `src/tests/url-state.test.ts` | ✅ extend | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -51,10 +52,10 @@ created: 2026-05-24
 
 ## Wave 0 Requirements
 
-- [ ] `src/tests/bee-map.test.ts` — source-text assertions for MAP-02 (`checklist-county-fill` layer ID, `showChecklist` property, `checklistTaxon` property)
-- [ ] Extend `src/tests/bee-pane.test.ts` with MAP-01 assertions (toggle label text, `checklist-layer-changed` event)
-- [ ] Extend `src/tests/url-state.test.ts` with MAP-04 cl= round-trip tests
-- [ ] Extend `src/tests/bee-atlas.test.ts` with MAP-03 assertions (taxon filter propagates to `checklistTaxon`)
+- [x] `src/tests/bee-map.test.ts` — source-text assertions for MAP-02 (`checklist-county-fill` layer ID, `showChecklist` property, `checklistTaxon` property)
+- [x] Extend `src/tests/bee-pane.test.ts` with MAP-01 assertions (toggle label text, `checklist-layer-changed` event)
+- [x] Extend `src/tests/url-state.test.ts` with MAP-04 cl= round-trip tests
+- [x] Extend `src/tests/bee-atlas.test.ts` with MAP-03 assertions (taxon filter propagates to `checklistTaxon`)
 
 ---
 
@@ -70,11 +71,27 @@ created: 2026-05-24
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** retroactively approved 2026-05-25 (Phase 115)
+
+---
+
+## Historical Note
+
+The `❌ W0` markers in the original VALIDATION.md reflected planning-time state — they indicated tests that did not yet exist at the time the validation plan was authored (2026-05-24). The `wave_0_complete: false` and `nyquist_compliant: false` fields were accurate at planning time.
+
+The Wave 0 RED tests were written during execution across three commits:
+
+- `e099939` — Wave 0 RED tests batch 1 (MAP-01 county fill contract)
+- `70ef590` — Wave 0 RED tests batch 2 (MAP-02/03 filter contracts)
+- `78c597c` — Wave 0 RED tests batch 3 (MAP-04 click contract)
+
+These three commits produced 21 total RED gate tests, written before the corresponding implementation. The tests then passed after implementation was complete.
+
+Verification was completed via browser UAT (112-UAT.md, 6/6 PASS, 2026-05-24) rather than a formal `/gsd-verify-work` pass. The UAT is the primary verification record for Phase 112. This VALIDATION.md is updated retroactively in Phase 115 (2026-05-25) to reflect the completed state.
