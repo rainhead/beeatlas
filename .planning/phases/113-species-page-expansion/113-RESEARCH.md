@@ -432,21 +432,24 @@ County fills require matching `checklist.parquet`'s `county` column against the 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Subgenus page scope for SPEC-02**
    - What we know: `subgenusList` has `filter(g => g.totalOccurrences > 0)` that drops zero-occurrence subgenus groups.
    - What's unclear: Does SPEC-02 require subgenus pages for checklist-only subgenera? CONTEXT.md says "same species list on genus and subgenus pages" — implying yes.
    - Recommendation: Planner should add `|| g.checklistCount > 0` to the subgenusList filter and track `checklistCount` alongside `totalOccurrences`.
+   - RESOLVED: Plan 04 Task 1 — `subgenusList` filter extended to `g.totalOccurrences > 0 || g.checklistCount > 0`; `checklistCount` tracked as sum of `checklist_count` for members.
 
 2. **Grey color value: `#cccccc` vs `#aaaaaa`**
    - What we know: `data-species.test.ts` line 105 expects `#cccccc`. CONTEXT.md says `#aaaaaa` (analogous to unresolved species). Neither exists in implementation yet (test passes vacuously).
    - Recommendation: Planner should pick one value, update both implementation and test to match. `#cccccc` is lighter and more visually distinct from `#aaaaaa` (unresolved records) — may be the better choice.
+   - RESOLVED: Plan 04 Task 1 — `'#cccccc'` chosen; matches pre-existing test at `data-species.test.ts` line 105.
 
 3. **County geometry name matching**
    - What we know: `_load_county_geojsons` currently returns geometries without names.
    - What's unclear: The exact column name in `geographies.us_counties` that holds the county name.
    - Recommendation: Planner task should verify `SELECT name FROM geographies.us_counties WHERE state_fips = '53' LIMIT 3` and confirm it matches `checklist.parquet` county values before implementing.
+   - RESOLVED: Plan 03 Task 1 — verification step added: run `EXCEPT` query between `checklist.county` and `us_counties.name`; normalize-by-trim fallback if mismatch detected.
 
 ---
 

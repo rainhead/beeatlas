@@ -607,7 +607,26 @@ Plans:
   4. Species pages with checklist records display attribution: "N checklist records · Bartholomew et al. 2024"
   5. The seasonality histogram draws from all available sources; it is suppressed only when the species has zero records from any source
 
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+
+**Wave 0**
+
+- [ ] 113-01-PLAN.md — Wave 0 RED tests (JS + Python) for checklist_count, onChecklist, county fills, build-output assertions [SPEC-01..SPEC-05]
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 113-02-PLAN.md — dbt checklist_month_agg CTE + merged month_histogram + checklist_count column + species_export.py SPECIES_COLUMNS/PyArrow schema [SPEC-04, SPEC-05]
+
+**Wave 2** *(blocked on Wave 1; 03 and 04 run in parallel)*
+
+- [ ] 113-03-PLAN.md — species_maps.py: county-name-keyed loader, _write_species_svg extension, checklist.parquet read, query filter expansion [SPEC-03]
+- [ ] 113-04-PLAN.md — _data/species.js genusList/subgenusList checklist-only inclusion + seasonality-viz onChecklist property [SPEC-01, SPEC-02, SPEC-05]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 113-05-PLAN.md — Nunjucks templates: species.njk badge, species-detail.njk SVG/attribution/atlas-link/onChecklist wiring, genus.njk/subgenus.njk checklist record counts; human-verify checkpoint [SPEC-01..SPEC-05]
+
 **UI hint**: yes
 
 ## Progress
@@ -726,5 +745,5 @@ Plans:
 | 109. BeePane v2 — Unified Occurrence View | v3.9 | 6/6 | Complete   | 2026-05-20 |
 | 110. Offline Taxonomy | v4.0 | 3/3 | Complete    | 2026-05-24 |
 | 111. Checklist Pipeline | v4.0 | 2/2 | Complete    | 2026-05-24 |
-| 112. Checklist Map Layer | v4.0 | 3/3 | Complete   | 2026-05-24 |
-| 113. Species Page Expansion | v4.0 | 0/? | Not started | - |
+| 112. Checklist Map Layer | v4.0 | 3/3 | Complete    | 2026-05-25 |
+| 113. Species Page Expansion | v4.0 | 0/5 | Planned | - |
