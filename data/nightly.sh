@@ -155,6 +155,7 @@ ecoregions_name=$(_upload_hashed "$EXPORT_DIR/ecoregions.geojson" "ecoregions" -
 places_name=$(_upload_hashed "$EXPORT_DIR/places.geojson" "places" --content-type application/json)
 places_meta_name=$(_upload_hashed "$EXPORT_DIR/places.json" "places_meta" --content-type application/json)
 checklist_name=$(_upload_hashed "$EXPORT_DIR/checklist.parquet" "checklist")
+photos_name=$(_upload_hashed "$EXPORT_DIR/photos.json" "photos")
 
 cat > "$EXPORT_DIR/manifest.json" <<JSON
 {
@@ -166,6 +167,7 @@ cat > "$EXPORT_DIR/manifest.json" <<JSON
   "places": "$places_name",
   "places_meta": "$places_meta_name",
   "checklist": "$checklist_name",
+  "photos": "$photos_name",
   "generated_at": "$(_ts)"
 }
 JSON
