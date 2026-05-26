@@ -726,7 +726,7 @@ Plans:
 
 **Wave 0**
 
-- [ ] 119-01-PLAN.md — Wave 0 RED tests for MAP-01/02/03/DET-01 + extend OccurrenceRow + OCCURRENCE_COLUMNS with source/image_url/obs_url/user_login/license [MAP-01, MAP-02, MAP-03, DET-01]
+- [x] 119-01-PLAN.md — Wave 0 RED tests for MAP-01/02/03/DET-01 + extend OccurrenceRow + OCCURRENCE_COLUMNS with source/image_url/obs_url/user_login/license [MAP-01, MAP-02, MAP-03, DET-01]
 
 **Wave 1** *(blocked on Wave 0)*
 
@@ -883,5 +883,5 @@ Plans:
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
 | 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 118. Occurrence Model Extension | v4.2 | 3/3 | Complete   | 2026-05-26 |
-| 119. Map Display, Source Filter & Detail View | v4.2 | 0/7 | Planned | - |
+| 119. Map Display, Source Filter & Detail View | v4.2 | 1/7 | In Progress|  |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
