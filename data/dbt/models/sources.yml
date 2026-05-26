@@ -35,3 +35,8 @@ sources:
       - name: us_states
       - name: ecoregions
       - name: places
+
+  - name: inat_obs_data
+    schema: inat_obs_data
+    tables:
+      - name: observations
