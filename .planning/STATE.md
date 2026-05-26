@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: "Liveness: Provisional Specimen Records"
-status: planning
-stopped_at: Phase 120 planned — 2 plans ready to execute
-last_updated: "2026-05-26T18:30:00.000Z"
+status: executing
+stopped_at: Phase 120 planned — 2 plans in 1 wave
+last_updated: "2026-05-26T18:18:49.768Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 17
   completed_phases: 6
   total_plans: 28
-  completed_plans: 42
+  completed_plans: 43
   percent: 35
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 120 — species-page-source-counts-and-photo-list
+**Current focus:** Phase 120 — species-page-source-counts-photo-list
 
 ## Current Position
 
-Phase: 120 (species-page-source-counts-and-photo-list) — READY TO EXECUTE
-Plan: 2 plans (120-01, 120-02) in 1 wave
-Status: Planned 2026-05-26 — ready to execute
+Phase: 120 (species-page-source-counts-photo-list) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-05-26
 
 [##############################----------] 75% (3/4 phases complete)
@@ -84,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-26T18:30:00.000Z
+Last session: 2026-05-26T18:18:49.757Z
 Stopped at: Phase 120 planned — 2 plans in 1 wave
-Resume file: .planning/phases/120-species-page-source-counts-photo-list/
+Resume file: None

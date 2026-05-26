@@ -762,7 +762,7 @@ Plans:
 **Wave 1** *(both plans run in parallel)*
 
 - [ ] 120-01-PLAN.md — Nunjucks template updates + tribeMap extension [SPE-01, SPE-02]
-- [ ] 120-02-PLAN.md — species_export.py photos.json + nightly.sh upload [SPE-03]
+- [x] 120-02-PLAN.md — species_export.py photos.json + nightly.sh upload [SPE-03]
 
 **UI hint**: yes
 
@@ -890,4 +890,4 @@ Plans:
 | 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 118. Occurrence Model Extension | v4.2 | 3/3 | Complete   | 2026-05-26 |
 | 119. Map Display, Source Filter & Detail View | v4.2 | 6/7 | In Progress|  |
-| 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
+| 120. Species Page Source Counts & Photo List | v4.2 | 1/2 | In Progress|  |
