@@ -682,7 +682,7 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0)*
 
-- [ ] 117-02-PLAN.md — Implement data/inat_obs_pipeline.py (load_inat_obs + dedup helper) and register inat-obs step in run.py [PIPE-01..04]
+- [x] 117-02-PLAN.md — Implement data/inat_obs_pipeline.py (load_inat_obs + dedup helper) and register inat-obs step in run.py [PIPE-01..04]
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -846,7 +846,7 @@ Plans:
 | 114. v3.5 Nyquist Validation | v4.1 | 4/4 | Complete   | 2026-05-25 |
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 5/5 | Complete   | 2026-05-25 |
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
-| 117. iNat Obs Pipeline | v4.2 | 1/3 | In Progress|  |
+| 117. iNat Obs Pipeline | v4.2 | 2/3 | In Progress|  |
 | 118. Occurrence Model Extension | v4.2 | 0/? | Not started | - |
 | 119. Map Display, Source Filter & Detail View | v4.2 | 0/? | Not started | - |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
