@@ -427,7 +427,7 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 <summary>v4.2 iNaturalist Expert Observations (Phases 117–120) — IN PROGRESS</summary>
 
 - [x] Phase 117: iNat Obs Pipeline (2/2 plans) — completed 2026-05-26
-- [ ] Phase 118: Occurrence Model Extension (0/3 plans) — not started
+- [x] Phase 118: Occurrence Model Extension (0/3 plans) — not started (completed 2026-05-26)
 - [ ] Phase 119: Map Display, Source Filter & Detail View (0/? plans) — not started
 - [ ] Phase 120: Species Page Source Counts & Photo List (0/? plans) — not started
 
@@ -700,15 +700,15 @@ Plans:
 Plans:
 **Wave 0**
 
-- [ ] 118-01-PLAN.md — Declare inat_obs_data dbt source + four RED pytest scaffolds for OCC-01..03 [OCC-01, OCC-02, OCC-03]
+- [x] 118-01-PLAN.md — Declare inat_obs_data dbt source + four RED pytest scaffolds for OCC-01..03 [OCC-01, OCC-02, OCC-03]
 
 **Wave 1** *(blocked on Wave 0)*
 
-- [ ] 118-02-PLAN.md — int_combined.sql ARM 3 + source literal on ARMs 1/2 + occurrences.sql mart SELECT + schema.yml occurrences contract (31→36 cols) [OCC-01]
+- [x] 118-02-PLAN.md — int_combined.sql ARM 3 + source literal on ARMs 1/2 + occurrences.sql mart SELECT + schema.yml occurrences contract (31→36 cols) [OCC-01]
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 118-03-PLAN.md — int_species_universe.sql inat_obs_count_agg CTE + species.sql + schema.yml species contract + species_export.py SPECIES_COLUMNS/PyArrow schema [OCC-02, OCC-03]
+- [x] 118-03-PLAN.md — int_species_universe.sql inat_obs_count_agg CTE + species.sql + schema.yml species contract + species_export.py SPECIES_COLUMNS/PyArrow schema [OCC-02, OCC-03]
 
 ### Phase 119: Map Display, Source Filter & Detail View
 
@@ -857,6 +857,6 @@ Plans:
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 5/5 | Complete   | 2026-05-25 |
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
 | 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
-| 118. Occurrence Model Extension | v4.2 | 0/? | Not started | - |
+| 118. Occurrence Model Extension | v4.2 | 3/3 | Complete   | 2026-05-26 |
 | 119. Map Display, Source Filter & Detail View | v4.2 | 0/? | Not started | - |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
