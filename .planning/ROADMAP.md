@@ -730,12 +730,12 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0)*
 
-- [ ] 119-02-PLAN.md — url-state.ts: UiState.hiddenSources + src= round-trip with VALID_SOURCES allowlist [MAP-03]
+- [x] 119-02-PLAN.md — url-state.ts: UiState.hiddenSources + src= round-trip with VALID_SOURCES allowlist [MAP-03]
 
 **Wave 2** *(blocked on Wave 0; 03, 04, 05 run in parallel — no file overlap)*
 
-- [ ] 119-03-PLAN.md — bee-map.ts: amber #e8a020 case-wrap on unclustered-point paint + hiddenSources property + _applySourceFilter via setFilter [MAP-01, MAP-02]
-- [ ] 119-04-PLAN.md — bee-pane.ts: _renderSources row + _onSourceToggle event dispatch + empty-state copy when all sources hidden [MAP-02]
+- [x] 119-03-PLAN.md — bee-map.ts: amber #e8a020 case-wrap on unclustered-point paint + hiddenSources property + _applySourceFilter via setFilter [MAP-01, MAP-02]
+- [x] 119-04-PLAN.md — bee-pane.ts: _renderSources row + _onSourceToggle event dispatch + empty-state copy when all sources hidden [MAP-02]
 - [ ] 119-05-PLAN.md — bee-occurrence-detail.ts: _renderInatObs branch + render() dispatch for source === 'inat_obs' [DET-01]
 
 **Wave 3** *(blocked on Waves 1 and 2)*
@@ -883,5 +883,5 @@ Plans:
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
 | 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 118. Occurrence Model Extension | v4.2 | 3/3 | Complete   | 2026-05-26 |
-| 119. Map Display, Source Filter & Detail View | v4.2 | 1/7 | In Progress|  |
+| 119. Map Display, Source Filter & Detail View | v4.2 | 4/7 | In Progress|  |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
