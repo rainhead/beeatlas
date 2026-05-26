@@ -13,13 +13,13 @@
 
 ## Map Display & Source Filter
 
-- [ ] **MAP-01**: Expert iNat observations render as points on the Mapbox map with a visual style distinct from Ecdysis specimen clusters and WABA sample points
-- [ ] **MAP-02**: Source filter in the filter panel allows showing/hiding occurrences by source (Ecdysis specimens, WABA samples, iNat expert observations) independently
-- [ ] **MAP-03**: Source filter state is encoded in the URL and restored on page load
+- [x] **MAP-01**: Expert iNat observations render as points on the Mapbox map with a visual style distinct from Ecdysis specimen clusters and WABA sample points
+- [x] **MAP-02**: Source filter in the filter panel allows showing/hiding occurrences by source (Ecdysis specimens, WABA samples, iNat expert observations) independently
+- [x] **MAP-03**: Source filter state is encoded in the URL and restored on page load
 
 ## Occurrence Detail View
 
-- [ ] **DET-01**: Clicking an expert iNat observation in the occurrence detail view shows: observer login, observed date, floral host (if present), image (if CC-licensed), and a link to the observation on iNaturalist.org
+- [x] **DET-01**: Clicking an expert iNat observation in the occurrence detail view shows: observer login, observed date, floral host (if present), image (if CC-licensed), and a link to the observation on iNaturalist.org
 
 ## Species Pages
 
@@ -63,10 +63,10 @@
 | OCC-01 | Phase 118 | Pending |
 | OCC-02 | Phase 118 | Pending |
 | OCC-03 | Phase 118 | Pending |
-| MAP-01 | Phase 119 | Pending |
-| MAP-02 | Phase 119 | Pending |
-| MAP-03 | Phase 119 | Pending |
-| DET-01 | Phase 119 | Pending |
+| MAP-01 | Phase 119 | Complete |
+| MAP-02 | Phase 119 | Complete |
+| MAP-03 | Phase 119 | Complete |
+| DET-01 | Phase 119 | Complete |
 | SPE-01 | Phase 120 | Pending |
 | SPE-02 | Phase 120 | Pending |
 | SPE-03 | Phase 120 | Pending |
