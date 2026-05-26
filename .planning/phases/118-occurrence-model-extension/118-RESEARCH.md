@@ -349,21 +349,24 @@ checklist_count_agg AS (
 
 > Omitted: this is not a rename/refactor phase. No runtime state to inventory.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should ARM 3 filter `WHERE lat IS NOT NULL AND lon IS NOT NULL`?**
    - What we know: ARM 2 has this filter; Phase 117 CSV export used `geoprivacy=open`; `inat_obs_data.observations` has 45,354 rows (44,533 after Ecdysis dedup per Phase 117 state).
    - What's unclear: Whether any rows in the CSV have null coordinates.
    - Recommendation: Include the WHERE filter for consistency with ARM 2. The planner should add a pytest assertion verifying ARM 3 row count equals `SELECT COUNT(*) FROM inat_obs_data.observations WHERE lat IS NOT NULL AND lon IS NOT NULL`.
+   - **RESOLVED:** ARM 3 includes `WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL` (Plan 118-02, Task 1). Verify script asserts row count matches the filtered DuckDB query.
 
 2. **Should iNat obs contribute to `occurrence_count` in int_species_occurrences_agg?**
    - What we know: `int_species_occurrences_agg` currently reads from `source('ecdysis_data', 'occurrences')` directly. `occurrence_count` has always been Ecdysis-only.
    - What's unclear: The requirement says `inat_obs_count` is a NEW column — it does not say `occurrence_count` should change. OCC-02 says "distinct column separate from specimen_count and occurrence_count".
    - Recommendation: Leave `occurrence_count` and `int_species_occurrences_agg` unchanged. Add `inat_obs_count` as a completely parallel count from `inat_obs_data.observations`. This preserves backward compatibility with existing queries that use `occurrence_count`.
+   - **RESOLVED:** `occurrence_count` left unchanged. `inat_obs_count_agg` CTE reads directly from `inat_obs_data.observations` with no changes to `int_species_occurrences_agg` (Plan 118-03, Task 1).
 
 3. **What data_type for `specimen_observation_id` in ARM 3?**
    - What we know: `inat_obs_data.observations.obs_id` is declared as BIGINT. `schema.yml` declares `specimen_observation_id` as `bigint`.
    - Recommendation: Pass `io.obs_id AS specimen_observation_id` directly; no cast needed.
+   - **RESOLVED:** `io.obs_id AS specimen_observation_id` with no cast (Plan 118-02, Task 1). Types match; no CAST needed.
 
 ## Environment Availability
 

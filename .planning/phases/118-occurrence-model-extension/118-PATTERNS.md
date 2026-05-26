@@ -93,12 +93,16 @@ SELECT
     NULL                               AS specimen_inat_quality_grade,
     FALSE                              AS is_provisional,
     io.canonical_name,
+    io.image_url,
+    io.obs_url,
+    io.user_login,
+    io.license,
     'inat_obs'                         AS source
 FROM {{ source('inat_obs_data', 'observations') }} io
 WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL
 ```
 
-**Column count invariant:** ARM 3 must produce the same column count as ARM 1 and ARM 2 after they gain `source`. ARM 1 currently emits 31 columns (lines 9–40) plus the new `source` = 32. ARM 2 also ends at 32 with the new `source`. ARM 3 must also emit 32.
+**Column count invariant:** ARM 3 must produce the same column count as ARM 1 and ARM 2 after they gain `source` and the four iNat-specific columns. ARM 1 currently emits 31 columns (lines 9–40) plus `image_url`, `obs_url`, `user_login`, `license`, `source` = 36. ARM 2 also ends at 36. ARM 3 must also emit 36.
 
 Note: ARM 1 includes `specimen_inat_login`, `specimen_inat_genus`, `specimen_inat_family` (lines 34–37 via `sob.*` aliases). These three columns must appear in ARM 3 as NULL to maintain column alignment.
 
