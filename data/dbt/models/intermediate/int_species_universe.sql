@@ -45,6 +45,13 @@ checklist_count_agg AS (
     WHERE canonical_name IS NOT NULL
     GROUP BY canonical_name
 ),
+-- Per-species iNat expert obs count (OCC-02). Reads source directly to avoid circular DAG with occurrences mart.
+inat_obs_count_agg AS (
+    SELECT canonical_name, COUNT(*) AS inat_obs_count
+    FROM {{ source('inat_obs_data', 'observations') }}
+    WHERE canonical_name IS NOT NULL
+    GROUP BY canonical_name
+),
 provisional_agg AS (
     -- provisional_count: occurrences mart rows flagged is_provisional=TRUE.
     -- Inlined here (parallel to geo_agg) rather than as a separate intermediate
@@ -104,7 +111,8 @@ species_universe AS (
         END AS month_histogram,
         COALESCE(ga.county_count, 0) AS county_count,
         COALESCE(ga.ecoregion_count, 0) AS ecoregion_count,
-        COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count
+        COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count,
+        COALESCE(ioa.inat_obs_count, 0)::BIGINT AS inat_obs_count
     FROM {{ ref('stg_checklist__species') }} c
     FULL OUTER JOIN occ_agg oa ON oa.canonical_name = c.canonical_name
     LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
@@ -119,6 +127,8 @@ species_universe AS (
         ON cma.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
     LEFT JOIN checklist_count_agg cca
         ON cca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+    LEFT JOIN inat_obs_count_agg ioa
+        ON ioa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
 )
 -- Collapse any accidental duplicate canonical_name rows, preferring the
 -- checklist-favoring row when both arms produce one (Pitfall 7: DISTINCT ON).
