@@ -782,3 +782,34 @@ describe('MAP-03: checklist taxon filter binding', () => {
     expect(atlasSrc).toMatch(/@checklist-layer-changed=\$\{this\._onChecklistLayerChanged\}/);
   });
 });
+
+describe('MAP-01: iNat obs amber color in unclustered-point paint', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+  test('bee-map.ts contains amber color #e8a020 in paint', () => {
+    expect(src).toMatch(/#e8a020/);
+  });
+  test('bee-map.ts uses case expression with source check before recencyTier match', () => {
+    expect(src).toMatch(/'case'/);
+    expect(src).toMatch(/\['==', \['get', 'source'\], 'inat_obs'\]/);
+  });
+});
+
+describe('DET-01: _renderInatObs dispatched for source=inat_obs', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-occurrence-detail.ts'), 'utf-8');
+  test('bee-occurrence-detail.ts declares _renderInatObs method', () => {
+    expect(src).toMatch(/_renderInatObs\s*\(/);
+  });
+  test('bee-occurrence-detail.ts checks source === inat_obs in render dispatch', () => {
+    expect(src).toMatch(/row\.source\s*===\s*['"]inat_obs['"]/);
+  });
+});
+
+describe('MAP-02: source-filter-changed event in bee-atlas', () => {
+  const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+  test('bee-atlas.ts handles source-filter-changed event', () => {
+    expect(src).toMatch(/source-filter-changed/);
+  });
+  test('bee-atlas.ts declares _hiddenSources state', () => {
+    expect(src).toMatch(/_hiddenSources/);
+  });
+});

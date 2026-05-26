@@ -272,3 +272,24 @@ describe('MAP-01: checklist toggle in filter panel', () => {
     expect(listContentBody![0]).toMatch(/this\._renderShow\s*\(\)/);
   });
 });
+
+describe('MAP-02: source filter row in bee-pane', () => {
+  test('bee-pane.ts declares hiddenSources @property', () => {
+    expect(src).toMatch(/@property[\s\S]{0,50}hiddenSources/);
+  });
+  test('bee-pane.ts dispatches source-filter-changed event', () => {
+    expect(src).toMatch(/new CustomEvent\(['"]source-filter-changed['"]/);
+  });
+  test('bee-pane.ts contains _renderSources method', () => {
+    expect(src).toMatch(/_renderSources\s*\(/);
+  });
+  test('bee-pane.ts has checkbox for ecdysis source', () => {
+    expect(src).toMatch(/ecdysis/);
+  });
+  test('bee-pane.ts has checkbox for inat_obs source', () => {
+    expect(src).toMatch(/inat_obs/);
+  });
+  test('bee-pane.ts has checkbox for waba_sample source', () => {
+    expect(src).toMatch(/waba_sample/);
+  });
+});
