@@ -34,7 +34,7 @@
 - ✅ **v3.9 Sidebar & Table Unification** — Phases 105–109 (shipped 2026-05-20)
 - ✅ **v4.0 Washington Checklist Records** — Phases 110–113 (shipped 2026-05-25)
 - ✅ **v4.1 Validation & Code Quality** — Phases 114–116 (shipped 2026-05-25)
-- **v4.2 iNaturalist Expert Observations** — Phases 117–120 (in progress)
+- ✅ **v4.2 iNaturalist Expert Observations** — Phases 117–120 (shipped 2026-05-26)
 
 ## Phases
 
@@ -424,14 +424,18 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 <!-- Phase 114-116 details archived to .planning/milestones/v4.1-ROADMAP.md -->
 
 <details>
-<summary>v4.2 iNaturalist Expert Observations (Phases 117–120) — IN PROGRESS</summary>
+<summary>✅ v4.2 iNaturalist Expert Observations (Phases 117–120) — SHIPPED 2026-05-26</summary>
 
 - [x] Phase 117: iNat Obs Pipeline (2/2 plans) — completed 2026-05-26
-- [x] Phase 118: Occurrence Model Extension (0/3 plans) — not started (completed 2026-05-26)
-- [ ] Phase 119: Map Display, Source Filter & Detail View (0/7 plans) — planned
-- [x] Phase 120: Species Page Source Counts & Photo List (0/2 plans) — planned (completed 2026-05-26)
+- [x] Phase 118: Occurrence Model Extension (3/3 plans) — completed 2026-05-26
+- [x] Phase 119: Map Display, Source Filter & Detail View (7/7 plans) — completed 2026-05-26
+- [x] Phase 120: Species Page Source Counts & Photo List (2/2 plans) — completed 2026-05-26
+
+See `.planning/milestones/v4.2-ROADMAP.md` for full phase details.
 
 </details>
+
+<!-- Phase 117-120 details archived to .planning/milestones/v4.2-ROADMAP.md -->
 
 ## Phase Details
 
@@ -663,108 +667,7 @@ Plans:
 
 <!-- Phase 114-116 details archived to .planning/milestones/v4.1-ROADMAP.md -->
 
-### Phase 117: iNat Obs Pipeline
-
-**Goal**: The iNat CSV export is ingested into a verified `inat_obs_data.observations` DuckDB staging table — deduplicated against Ecdysis-linked observations — ready for Phase 118 to union into the unified occurrence model
-**Depends on**: Nothing (first phase of v4.2)
-**Requirements**: PIPE-01, PIPE-02, PIPE-03, PIPE-04
-**Success Criteria** (what must be TRUE):
-  1. `data/raw/inat_expert_obs.csv` is committed to git; pipeline reads it via `data/inat_obs_pipeline.py` and populates `inat_obs_data.observations` with 12 columns: obs_id, observed_on, lat, lon, canonical_name, scientific_name, user_login, image_url, license, floral_host, quality_grade, obs_url
-  2. canonical_name is non-null for every row (D-04 canonicalization applied to scientific_name)
-  3. Rows whose id matches a specimen_observation_id in the Ecdysis dbt model are excluded (820 overlapping rows deduplicated)
-  4. floral_host populated from the "associated species with names lookup" field where present; NULL where absent
-**Plans**: 2 plans
-Plans:
-**Wave 0**
-
-- [x] 117-01-PLAN.md — Commit iNat CSV export and create RED test stubs for PIPE-01..04 [PIPE-01..04]
-
-**Wave 1** *(blocked on Wave 0)*
-
-- [x] 117-02-PLAN.md — Implement data/inat_obs_pipeline.py (load_inat_obs + dedup helper, DuckDB staging only) and register inat-obs step in run.py [PIPE-01..04]
-
-*(Plan 117-03 dropped — separate inat_obs.parquet superseded by unified occurrence model; iNat obs reach the frontend via occurrences.parquet ARM 3 in Phase 118)*
-
-### Phase 118: Occurrence Model Extension
-
-**Goal**: `int_combined` gains ARM 3 from `inat_obs_data.observations`; `occurrences.parquet` is the unified occurrence record for all three sources with a `source` discriminator and iNat-specific nullable columns; `species.parquet` carries `inat_obs_count` per species
-**Depends on**: Phase 117
-**Requirements**: OCC-01, OCC-02, OCC-03
-**Success Criteria** (what must be TRUE):
-  1. `int_combined.sql` contains ARM 3 selecting from `inat_obs_data.observations`; all three arms include a `source` literal (`'ecdysis'`, `'waba_sample'`, `'inat_obs'`)
-  2. `occurrences.parquet` dbt column contract expands to include `source` (non-null) and iNat-specific nullable columns (`image_url`, `obs_url`, `user_login`, `license`); existing Ecdysis/WABA rows have NULLs for those columns
-  3. Expert iNat observation rows appear in `occurrences.parquet` with `source='inat_obs'` and correct coordinate/taxon/floral_host data; row count matches deduplicated `inat_obs_data.observations`
-  4. `species.parquet` / `species.json` include `inat_obs_count` per species from the new ARM 3
-
-**Plans**: 3 plans
-Plans:
-**Wave 0**
-
-- [x] 118-01-PLAN.md — Declare inat_obs_data dbt source + four RED pytest scaffolds for OCC-01..03 [OCC-01, OCC-02, OCC-03]
-
-**Wave 1** *(blocked on Wave 0)*
-
-- [x] 118-02-PLAN.md — int_combined.sql ARM 3 + source literal on ARMs 1/2 + occurrences.sql mart SELECT + schema.yml occurrences contract (31→36 cols) [OCC-01]
-
-**Wave 2** *(blocked on Wave 1)*
-
-- [x] 118-03-PLAN.md — int_species_universe.sql inat_obs_count_agg CTE + species.sql + schema.yml species contract + species_export.py SPECIES_COLUMNS/PyArrow schema [OCC-02, OCC-03]
-
-### Phase 119: Map Display, Source Filter & Detail View
-
-**Goal**: Expert iNat observations are visible as distinct points on the map, users can show or hide each occurrence source independently, source filter state persists in the URL, and clicking an expert obs shows full detail
-**Depends on**: Phase 118
-**Requirements**: MAP-01, MAP-02, MAP-03, DET-01
-**Success Criteria** (what must be TRUE):
-  1. Expert iNat observation points render on the map in a visually distinct style from Ecdysis specimen clusters and WABA sample points
-  2. The filter panel contains source toggles for Ecdysis specimens, WABA samples, and expert iNat observations; toggling a source shows or hides that arm's points immediately
-  3. Source filter state is encoded in the URL and restored on page load (sharing a URL with specific sources hidden restores the same visibility state)
-  4. Clicking an expert iNat observation opens a detail view showing: observer login, observed date, floral host (if present), image (if CC-licensed), and a link to the observation on iNaturalist.org
-
-**Plans**: 7 plans
-Plans:
-
-**Wave 0**
-
-- [x] 119-01-PLAN.md — Wave 0 RED tests for MAP-01/02/03/DET-01 + extend OccurrenceRow + OCCURRENCE_COLUMNS with source/image_url/obs_url/user_login/license [MAP-01, MAP-02, MAP-03, DET-01]
-
-**Wave 1** *(blocked on Wave 0)*
-
-- [x] 119-02-PLAN.md — url-state.ts: UiState.hiddenSources + src= round-trip with VALID_SOURCES allowlist [MAP-03]
-
-**Wave 2** *(blocked on Wave 0; 03, 04, 05 run in parallel — no file overlap)*
-
-- [x] 119-03-PLAN.md — bee-map.ts: amber #e8a020 case-wrap on unclustered-point paint + hiddenSources property + _applySourceFilter via setFilter [MAP-01, MAP-02]
-- [x] 119-04-PLAN.md — bee-pane.ts: _renderSources row + _onSourceToggle event dispatch + empty-state copy when all sources hidden [MAP-02]
-- [x] 119-05-PLAN.md — bee-occurrence-detail.ts: _renderInatObs branch + render() dispatch for source === 'inat_obs' [DET-01]
-
-**Wave 3** *(blocked on Waves 1 and 2)*
-
-- [x] 119-06-PLAN.md — bee-atlas.ts: _hiddenSources state + event wiring + bee-pane/bee-map property bindings + URL round-trip (firstUpdated + _onPopState + _buildCurrentParams) [MAP-02, MAP-03]
-
-**Wave 4** *(blocked on Wave 3)*
-
-- [ ] 119-07-PLAN.md — Human-verify UAT for all four requirements [MAP-01, MAP-02, MAP-03, DET-01]
-
-**UI hint**: yes
-
-### Phase 120: Species Page Source Counts & Photo List
-
-**Goal**: Species and higher-taxon pages display source-aware occurrence counts; species.json carries a per-species list of expert iNat observation photos for future use
-**Depends on**: Phase 118
-**Requirements**: SPE-01, SPE-02, SPE-03
-**Success Criteria** (what must be TRUE):
-  1. Species-detail pages show "N specimens · N community observations" with specimen_count driving the first figure and inat_obs_count the second; the single "N records" label is gone
-  2. Genus, subgenus, and tribe pages show the same source-aware breakdown per species entry in their species lists
-  3. species.json includes an inat_obs_photos field per species containing a list of { url, license } objects from expert iNat observations (list may be empty; no UI change this milestone)
-**Plans**: 2 plans
-Plans:
-**Wave 1** *(both plans run in parallel)*
-
-- [x] 120-01-PLAN.md — Nunjucks template updates + tribeMap extension [SPE-01, SPE-02]
-- [x] 120-02-PLAN.md — species_export.py photos.json + nightly.sh upload [SPE-03]
-
-**UI hint**: yes
+<!-- Phase 117-120 details archived to .planning/milestones/v4.2-ROADMAP.md -->
 
 ## Progress
 
@@ -888,6 +791,6 @@ Plans:
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 5/5 | Complete   | 2026-05-25 |
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
 | 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
-| 118. Occurrence Model Extension | v4.2 | 3/3 | Complete   | 2026-05-26 |
-| 119. Map Display, Source Filter & Detail View | v4.2 | 6/7 | In Progress|  |
-| 120. Species Page Source Counts & Photo List | v4.2 | 2/2 | Complete   | 2026-05-26 |
+| 118. Occurrence Model Extension | v4.2 | 3/3 | Complete | 2026-05-26 |
+| 119. Map Display, Source Filter & Detail View | v4.2 | 7/7 | Complete | 2026-05-26 |
+| 120. Species Page Source Counts & Photo List | v4.2 | 2/2 | Complete | 2026-05-26 |

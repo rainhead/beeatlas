@@ -1,74 +1,37 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.2
-milestone_name: "Liveness: Provisional Specimen Records"
-status: verifying
-stopped_at: Phase 120 planned — 2 plans in 1 wave
-last_updated: "2026-05-26T18:20:31.320Z"
-last_activity: 2026-05-26
+milestone: v4.3
+milestone_name: TBD
+status: planning
+stopped_at: v4.2 milestone archived — ready for /gsd-new-milestone
+last_updated: "2026-05-26T00:00:00.000Z"
+last_activity: 2026-05-26 -- v4.2 milestone archived
 progress:
-  total_phases: 17
-  completed_phases: 7
-  total_plans: 28
-  completed_plans: 44
-  percent: 41
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
+See: .planning/PROJECT.md (updated 2026-05-26 after v4.2 milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 120 — species-page-source-counts-photo-list
+**Current focus:** Planning next milestone — run /gsd-new-milestone
 
 ## Current Position
 
-Phase: 120 (species-page-source-counts-photo-list) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-05-26
-
-[##############################----------] 75% (3/4 phases complete)
-
-## Phase Summary
-
-| Phase | Name | Requirements | Status |
-|-------|------|-------------|--------|
-| 117 | iNat Obs Pipeline | PIPE-01..04 | Complete 2026-05-26 |
-| 118 | Occurrence Model Extension | OCC-01..03 | Complete 2026-05-26 |
-| 119 | Map Display, Source Filter & Detail View | MAP-01..03, DET-01 | Complete 2026-05-26 |
-| 120 | Species Page Source Counts & Photo List | SPE-01..03 | Planned (2 plans) |
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 0 (this milestone)
-- Average duration: —
-- Total execution time: —
-
-*Updated after each plan completion*
+Milestone v4.2 archived 2026-05-26. Ready to start next milestone.
 
 ## Accumulated Context
 
 ### Decisions
 
-- iNat expert observations sourced from periodic CSV export (not API); query uses ident_user_id list as quality gate
-- 45,354 observations in first export (2011–2026); 821 overlap with existing Ecdysis specimen_observation_ids → exclude from new source arm
-- quality_grade=any in export query (research, needs_id, casual) — expert identification is the quality gate, not community consensus
-- Species/genus pages to show "N specimens · N community observations" broken down by source
-- Photo carousel is out of scope for v4.2; image_url persisted in pipeline output for future use
-- dbt contract changes from 31 columns to 32+ with the new source column and iNat-specific nullable columns; schema.yml must be updated
-- Third source type designated as 'inat_obs' (alongside 'ecdysis' and 'waba_sample')
-- Unified occurrence model decision (2026-05-26): iNat expert obs merge into occurrences.parquet via int_combined ARM 3, not a separate inat_obs.parquet. A separate parquet would have required duplicate frontend rendering paths; the unified model uses a source discriminator and nullable iNat-specific columns (image_url, obs_url, user_login, license) in the occurrences mart.
-- VALID_SOURCES declared at module scope in url-state.ts for co-location with SourceKey type; empty hiddenSources after allowlist filtering treated as undefined to avoid phantom result.ui emission
-- [Phase 119]: CC license gate for iNat obs images: row.license.toUpperCase().startsWith('CC') — case-insensitive null-safe check prevents rendering non-CC images
-- [Phase 119]: Three-branch nonSpecimen dispatch: isProvisional -> _renderProvisional ; source=inat_obs -> _renderInatObs ; else -> _renderSampleOnly — iNat rows never silently fall to sample-only
-- [Phase 119]: src= URL param encodes VISIBLE sources (not hidden); absent = all on. inat_obs: prefix added to o= param allowlist in parseParams.
-- [Phase 119]: Sources filter row unified — Checklist records merged in alongside the three occurrence sources (was a separate row with same icon)
-- [Phase 119]: WABA checkbox relabeled "Provisional WABA" — these are unmatched WABA specimen obs (is_provisional=true), not sample records
+All v4.2 decisions logged in PROJECT.md Key Decisions table.
 
 ### Pending Todos
 
@@ -84,6 +47,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-26T18:20:31.312Z
-Stopped at: Phase 120 planned — 2 plans in 1 wave
+Last session: 2026-05-26
+Stopped at: v4.2 milestone archived
 Resume file: None
