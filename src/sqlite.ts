@@ -95,7 +95,12 @@ export async function loadOccurrencesTable(): Promise<void> {
     date TEXT,
     county TEXT,
     ecoregion_l3 TEXT,
-    place_slug TEXT
+    place_slug TEXT,
+    source TEXT,
+    image_url TEXT,
+    obs_url TEXT,
+    user_login TEXT,
+    license TEXT
   )`);
 
   const resp = await fetch((await resolveDataUrl('occurrences'))!);

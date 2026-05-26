@@ -463,10 +463,12 @@ bee-pane {
     // Parse selected IDs into integer arrays for SQL priority ordering.
     const selEcdysisIds: number[] = [];
     const selInatIds: number[] = [];
+    const selInatObsIds: number[] = [];
     for (const id of this._selectedOccIds ?? []) {
       const parsed = parseOccId(id);
       if (parsed === null) continue;
       if (parsed.source === 'ecdysis') selEcdysisIds.push(parsed.numericId);
+      else if (parsed.source === 'inat_obs') selInatObsIds.push(parsed.numericId);
       else selInatIds.push(parsed.numericId);
     }
     try {
@@ -496,22 +498,24 @@ bee-pane {
     const generation = ++this._listQueryGeneration;
     const selEcdysisIds: number[] = [];
     const selInatIds: number[] = [];
+    const selInatObsIds: number[] = [];
     for (const id of this._selectedOccIds ?? []) {
       const parsed = parseOccId(id);
       if (parsed === null) continue;
       if (parsed.source === 'ecdysis') selEcdysisIds.push(parsed.numericId);
+      else if (parsed.source === 'inat_obs') selInatObsIds.push(parsed.numericId);
       else selInatIds.push(parsed.numericId);
     }
     try {
       const { rows, total } = await queryListPage(
         this._filterState, this._listPage, this._tableSortBy,
-        selEcdysisIds, selInatIds,
+        selEcdysisIds, selInatIds, selInatObsIds,
         this._selectionBounds ?? null
       );
       if (generation !== this._listQueryGeneration) return;
       this._listRows = rows;
       this._listRowCount = total;
-      if (selEcdysisIds.length > 0 || selInatIds.length > 0 || this._selectionBounds !== null) {
+      if (selEcdysisIds.length > 0 || selInatIds.length > 0 || selInatObsIds.length > 0 || this._selectionBounds !== null) {
         this._selectionCount = total;
       } else {
         this._selectionCount = null;
