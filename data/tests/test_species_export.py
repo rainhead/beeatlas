@@ -66,3 +66,18 @@ def test_no_old_slug_format(tmp_path, monkeypatch):
     assert old_pattern_count == 0, (
         f"Found {old_pattern_count} species-level slugs missing the Genus/epithet slash separator"
     )
+
+
+@_SANDBOX_GUARD
+def test_inat_obs_count_in_species(tmp_path, monkeypatch):
+    """inat_obs_count column is present and non-null in species.parquet/species.json (OCC-02/03)."""
+    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
+    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
+    con = duckdb.connect()
+    export_species_parquet(con)
+    row = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{tmp_path}/species.parquet')"
+        " WHERE inat_obs_count IS NULL"
+    ).fetchone()
+    assert row[0] == 0, f"species.parquet has {row[0]} rows with null inat_obs_count"
+    assert 'inat_obs_count' in SPECIES_COLUMNS, "inat_obs_count must be in SPECIES_COLUMNS"
