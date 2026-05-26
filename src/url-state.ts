@@ -79,7 +79,10 @@ export function buildParams(
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
   if (ui.checklistVisible) params.set('cl', '1');
-  if (ui.hiddenSources && ui.hiddenSources.size > 0) params.set('src', [...ui.hiddenSources].sort().join(','));
+  if (ui.hiddenSources && ui.hiddenSources.size > 0) {
+    const visibleSources = [...VALID_SOURCES].filter(s => !ui.hiddenSources!.has(s)).sort();
+    if (visibleSources.length > 0) params.set('src', visibleSources.join(','));
+  }
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
   }
@@ -197,7 +200,7 @@ export function parseParams(search: string): Partial<AppState> {
     }
   } else if (oRaw) {
     const ids = oRaw.split(',').map(s => s.trim())
-      .filter(s => (s.startsWith('ecdysis:') || s.startsWith('inat:')) && s.length > 5);
+      .filter(s => (s.startsWith('ecdysis:') || s.startsWith('inat:') || s.startsWith('inat_obs:')) && s.length > 5);
     if (ids.length > 0) {
       result.selection = { type: 'ids', ids };
     }
@@ -238,11 +241,13 @@ export function parseParams(search: string): Partial<AppState> {
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
   const checklistVisible = p.get('cl') === '1';
-  const srcRaw = p.get('src') ?? '';
-  const hiddenSourcesSet = srcRaw
-    ? new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[])
-    : undefined;
-  const hiddenSources = hiddenSourcesSet && hiddenSourcesSet.size > 0 ? hiddenSourcesSet : undefined;
+  const srcRaw = p.get('src');
+  let hiddenSources: Set<SourceKey> | undefined;
+  if (srcRaw) {
+    const visible = new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[]);
+    const hidden = new Set([...VALID_SOURCES].filter(s => !visible.has(s)));
+    hiddenSources = hidden.size > 0 ? hidden : undefined;
+  }
   // Include UI when non-default values present
   if (boundaryMode !== 'off' || paneState !== 'collapsed' || checklistVisible || (hiddenSources && hiddenSources.size > 0)) {
     result.ui = { boundaryMode, paneState, checklistVisible, hiddenSources };

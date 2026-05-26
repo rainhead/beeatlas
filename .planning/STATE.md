@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.2
-milestone_name: iNaturalist Expert Observations
-status: verifying
-stopped_at: Completed 119-05-PLAN.md
-last_updated: "2026-05-26T06:16:18.955Z"
+milestone_name: milestone
+status: executing
+stopped_at: phase 119 complete — phase 120 ready to plan
+last_updated: "2026-05-26T16:45:00.000Z"
 last_activity: 2026-05-26
 progress:
-  total_phases: 16
-  completed_phases: 5
+  total_phases: 4
+  completed_phases: 3
   total_plans: 26
-  completed_plans: 40
-  percent: 31
+  completed_plans: 25
+  percent: 75
 ---
 
 # Project State
@@ -21,24 +21,24 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 118 — occurrence-model-extension
+**Current focus:** Phase 120 — species-page-source-counts-and-photo-list
 
 ## Current Position
 
-Phase: 118 (occurrence-model-extension) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 120 (species-page-source-counts-and-photo-list) — READY TO PLAN
+Plan: —
+Status: Phase 119 complete — ready to plan Phase 120
 Last activity: 2026-05-26
 
-[##########----------] 25% (1/4 phases complete)
+[##############################----------] 75% (3/4 phases complete)
 
 ## Phase Summary
 
 | Phase | Name | Requirements | Status |
 |-------|------|-------------|--------|
 | 117 | iNat Obs Pipeline | PIPE-01..04 | Complete 2026-05-26 |
-| 118 | Occurrence Model Extension | OCC-01..03 | Not started |
-| 119 | Map Display, Source Filter & Detail View | MAP-01..03, DET-01 | Not started |
+| 118 | Occurrence Model Extension | OCC-01..03 | Complete 2026-05-26 |
+| 119 | Map Display, Source Filter & Detail View | MAP-01..03, DET-01 | Complete 2026-05-26 |
 | 120 | Species Page Source Counts & Photo List | SPE-01..03 | Not started |
 
 ## Performance Metrics
@@ -64,8 +64,11 @@ Last activity: 2026-05-26
 - Third source type designated as 'inat_obs' (alongside 'ecdysis' and 'waba_sample')
 - Unified occurrence model decision (2026-05-26): iNat expert obs merge into occurrences.parquet via int_combined ARM 3, not a separate inat_obs.parquet. A separate parquet would have required duplicate frontend rendering paths; the unified model uses a source discriminator and nullable iNat-specific columns (image_url, obs_url, user_login, license) in the occurrences mart.
 - VALID_SOURCES declared at module scope in url-state.ts for co-location with SourceKey type; empty hiddenSources after allowlist filtering treated as undefined to avoid phantom result.ui emission
-- [Phase ?]: CC license gate for iNat obs images: row.license.toUpperCase().startsWith('CC') — case-insensitive null-safe check prevents rendering non-CC images
-- [Phase ?]: Three-branch nonSpecimen dispatch: isProvisional -> _renderProvisional ; source=inat_obs -> _renderInatObs ; else -> _renderSampleOnly — iNat rows never silently fall to sample-only
+- [Phase 119]: CC license gate for iNat obs images: row.license.toUpperCase().startsWith('CC') — case-insensitive null-safe check prevents rendering non-CC images
+- [Phase 119]: Three-branch nonSpecimen dispatch: isProvisional -> _renderProvisional ; source=inat_obs -> _renderInatObs ; else -> _renderSampleOnly — iNat rows never silently fall to sample-only
+- [Phase 119]: src= URL param encodes VISIBLE sources (not hidden); absent = all on. inat_obs: prefix added to o= param allowlist in parseParams.
+- [Phase 119]: Sources filter row unified — Checklist records merged in alongside the three occurrence sources (was a separate row with same icon)
+- [Phase 119]: WABA checkbox relabeled "Provisional WABA" — these are unmatched WABA specimen obs (is_provisional=true), not sample records
 
 ### Pending Todos
 
@@ -81,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-26T06:16:18.948Z
-Stopped at: Completed 119-05-PLAN.md
+Last session: 2026-05-26T16:45:00.000Z
+Stopped at: Phase 119 UAT complete and approved — Phase 120 ready to plan
 Resume file: None

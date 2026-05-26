@@ -250,10 +250,6 @@ describe('MAP-01: checklist toggle in filter panel', () => {
     expect(src).toMatch(/_showChecklist/);
   });
 
-  test('bee-pane.ts defines _renderShow method', () => {
-    expect(src).toMatch(/_renderShow\s*\(/);
-  });
-
   test('bee-pane.ts renders "Checklist records" label text', () => {
     expect(src).toMatch(/Checklist records/);
   });
@@ -262,14 +258,14 @@ describe('MAP-01: checklist toggle in filter panel', () => {
     expect(src).toMatch(/new CustomEvent\(['"]checklist-layer-changed['"]/);
   });
 
-  test('bee-pane.ts _renderShow uses aria-label for checkbox', () => {
-    expect(src).toMatch(/aria-label=["']Show checklist county records on map["']/);
+  test('bee-pane.ts checklist item uses aria-label', () => {
+    expect(src).toMatch(/aria-label=["']\$\{l\.label\}["']/);
   });
 
-  test('bee-pane.ts calls _renderShow inside _renderListContent', () => {
+  test('bee-pane.ts calls _renderSources inside _renderListContent', () => {
     const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
     expect(listContentBody).not.toBeNull();
-    expect(listContentBody![0]).toMatch(/this\._renderShow\s*\(\)/);
+    expect(listContentBody![0]).toMatch(/this\._renderSources\s*\(\)/);
   });
 });
 
