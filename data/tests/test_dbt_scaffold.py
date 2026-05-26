@@ -202,3 +202,44 @@ def test_occurrences_row_count_not_inflated_by_checklist():
         f"occurrences.parquet has {row[0]} rows — unexpectedly large; "
         "verify checklist rows did not enter int_combined"
     )
+
+
+# ---------------------------------------------------------------------------
+# OCC-01: source column assertions (Phase 118)
+# ---------------------------------------------------------------------------
+
+_OCCURRENCES_GUARD = pytest.mark.skipif(
+    not (SANDBOX / "occurrences.parquet").exists(),
+    reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
+)
+
+
+@_OCCURRENCES_GUARD
+def test_occurrences_source_column():
+    """occurrences.parquet has a non-null source column (OCC-01)."""
+    parquet_path = str(SANDBOX / "occurrences.parquet")
+    row = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE source IS NULL
+    """).fetchone()
+    assert row[0] == 0, f"occurrences.parquet has {row[0]} rows with null source"
+
+
+@_OCCURRENCES_GUARD
+def test_inat_obs_rows_in_occurrences():
+    """occurrences.parquet contains rows with source='inat_obs' (OCC-01)."""
+    parquet_path = str(SANDBOX / "occurrences.parquet")
+    row = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE source = 'inat_obs'
+    """).fetchone()
+    assert row[0] > 0, "Expected inat_obs rows in occurrences.parquet"
+
+
+@_OCCURRENCES_GUARD
+def test_source_no_nulls():
+    """All rows in occurrences.parquet have source in ('ecdysis', 'waba_sample', 'inat_obs') (OCC-01)."""
+    parquet_path = str(SANDBOX / "occurrences.parquet")
+    row = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE source NOT IN ('ecdysis', 'waba_sample', 'inat_obs')
+    """).fetchone()
+    assert row[0] == 0, f"Found {row[0]} rows with unexpected source values"
