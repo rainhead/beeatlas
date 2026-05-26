@@ -286,7 +286,9 @@ export class BeeOccurrenceDetail extends LitElement {
       ${nonSpecimen.map(row =>
         isProvisional(row)
           ? this._renderProvisional(row)
-          : this._renderSampleOnly(row)
+          : row.source === 'inat_obs'
+            ? this._renderInatObs(row)
+            : this._renderSampleOnly(row)
       )}
     `;
   }
