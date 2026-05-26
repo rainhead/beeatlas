@@ -740,7 +740,7 @@ Plans:
 
 **Wave 3** *(blocked on Waves 1 and 2)*
 
-- [ ] 119-06-PLAN.md — bee-atlas.ts: _hiddenSources state + event wiring + bee-pane/bee-map property bindings + URL round-trip (firstUpdated + _onPopState + _buildCurrentParams) [MAP-02, MAP-03]
+- [x] 119-06-PLAN.md — bee-atlas.ts: _hiddenSources state + event wiring + bee-pane/bee-map property bindings + URL round-trip (firstUpdated + _onPopState + _buildCurrentParams) [MAP-02, MAP-03]
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -883,5 +883,5 @@ Plans:
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
 | 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 118. Occurrence Model Extension | v4.2 | 3/3 | Complete   | 2026-05-26 |
-| 119. Map Display, Source Filter & Detail View | v4.2 | 5/7 | In Progress|  |
+| 119. Map Display, Source Filter & Detail View | v4.2 | 6/7 | In Progress|  |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |

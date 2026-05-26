@@ -1096,32 +1096,32 @@ export class BeePane extends LitElement {
     `;
   }
 
-  private _renderShow() {
-    return html`
-      <div class="filter-row">
-        <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
-             stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-          <polygon points="8,2 14,5.5 8,9 2,5.5"/>
-          <polyline points="2,8.5 8,12 14,8.5"/>
-        </svg>
-        <div class="year-row">
-          <label class="year-label">
-            <input type="checkbox" .checked=${this._showChecklist}
-              aria-label="Show checklist county records on map"
-              @change=${this._onChecklistChange}
-            />
-            Checklist records
-          </label>
-        </div>
-      </div>
-    `;
-  }
-
   private _renderSources() {
-    const sources: Array<{ value: string; label: string }> = [
-      { value: 'ecdysis',     label: 'Ecdysis specimens' },
-      { value: 'waba_sample', label: 'WABA samples' },
-      { value: 'inat_obs',    label: 'iNat expert obs' },
+    const layers: Array<{ label: string; tooltip: string; checked: boolean; onChange: (e: Event) => void }> = [
+      {
+        label: 'Ecdysis specimens',
+        tooltip: 'Physical bee specimens in the Ecdysis catalog',
+        checked: !this._hiddenSources.has('ecdysis'),
+        onChange: (e: Event) => this._onSourceToggle('ecdysis', (e.target as HTMLInputElement).checked),
+      },
+      {
+        label: 'Provisional WABA',
+        tooltip: 'WABA field collections not yet entered in Ecdysis',
+        checked: !this._hiddenSources.has('waba_sample'),
+        onChange: (e: Event) => this._onSourceToggle('waba_sample', (e.target as HTMLInputElement).checked),
+      },
+      {
+        label: 'iNat expert obs',
+        tooltip: 'iNaturalist observations identified by experts',
+        checked: !this._hiddenSources.has('inat_obs'),
+        onChange: (e: Event) => this._onSourceToggle('inat_obs', (e.target as HTMLInputElement).checked),
+      },
+      {
+        label: 'Checklist records',
+        tooltip: 'County-level species presence from observation history',
+        checked: this._showChecklist,
+        onChange: this._onChecklistChange,
+      },
     ];
     return html`
       <div class="filter-row">
@@ -1131,14 +1131,14 @@ export class BeePane extends LitElement {
           <polyline points="2,8.5 8,12 14,8.5"/>
         </svg>
         <div class="year-row">
-          ${sources.map(s => html`
-            <label class="year-label">
+          ${layers.map(l => html`
+            <label class="year-label" title="${l.tooltip}">
               <input type="checkbox"
-                .checked=${!this._hiddenSources.has(s.value)}
-                aria-label="${s.label}"
-                @change=${(e: Event) => this._onSourceToggle(s.value, (e.target as HTMLInputElement).checked)}
+                .checked=${l.checked}
+                aria-label="${l.label}"
+                @change=${l.onChange}
               />
-              ${s.label}
+              ${l.label}
             </label>
           `)}
         </div>
@@ -1162,7 +1162,6 @@ export class BeePane extends LitElement {
           ${this._renderWho()}
           ${this._renderWhere()}
           ${this._renderWhen()}
-          ${this._renderShow()}
           ${this._renderSources()}
         </div>
         <div class="divider"></div>
