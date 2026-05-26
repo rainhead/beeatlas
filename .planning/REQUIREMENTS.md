@@ -23,8 +23,8 @@
 
 ## Species Pages
 
-- [ ] **SPE-01**: Species-detail pages display "N specimens · N community observations" in place of the single "N records" label; `specimen_count` drives the first figure, `inat_obs_count` the second
-- [ ] **SPE-02**: Genus, subgenus, and tribe pages show the same source-aware count breakdown per species entry
+- [x] **SPE-01**: Species-detail pages display "N specimens · N community observations" in place of the single "N records" label; `specimen_count` drives the first figure, `inat_obs_count` the second
+- [x] **SPE-02**: Genus, subgenus, and tribe pages show the same source-aware count breakdown per species entry
 - [x] **SPE-03**: `species.json` export includes a list of `{ url, license }` objects per species from expert iNat observations (no display change this milestone; data stored for future carousel)
 
 ---
@@ -67,6 +67,6 @@
 | MAP-02 | Phase 119 | Complete |
 | MAP-03 | Phase 119 | Complete |
 | DET-01 | Phase 119 | Complete |
-| SPE-01 | Phase 120 | Pending |
-| SPE-02 | Phase 120 | Pending |
+| SPE-01 | Phase 120 | Complete |
+| SPE-02 | Phase 120 | Complete |
 | SPE-03 | Phase 120 | Complete |
