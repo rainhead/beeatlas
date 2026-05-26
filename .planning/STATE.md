@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: iNaturalist Expert Observations
 status: verifying
-stopped_at: Completed 119-02-PLAN.md
-last_updated: "2026-05-26T06:15:20.879Z"
+stopped_at: Completed 119-05-PLAN.md
+last_updated: "2026-05-26T06:16:18.955Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 16
   completed_phases: 5
   total_plans: 26
-  completed_plans: 39
+  completed_plans: 40
   percent: 31
 ---
 
@@ -64,6 +64,8 @@ Last activity: 2026-05-26
 - Third source type designated as 'inat_obs' (alongside 'ecdysis' and 'waba_sample')
 - Unified occurrence model decision (2026-05-26): iNat expert obs merge into occurrences.parquet via int_combined ARM 3, not a separate inat_obs.parquet. A separate parquet would have required duplicate frontend rendering paths; the unified model uses a source discriminator and nullable iNat-specific columns (image_url, obs_url, user_login, license) in the occurrences mart.
 - VALID_SOURCES declared at module scope in url-state.ts for co-location with SourceKey type; empty hiddenSources after allowlist filtering treated as undefined to avoid phantom result.ui emission
+- [Phase ?]: CC license gate for iNat obs images: row.license.toUpperCase().startsWith('CC') — case-insensitive null-safe check prevents rendering non-CC images
+- [Phase ?]: Three-branch nonSpecimen dispatch: isProvisional -> _renderProvisional ; source=inat_obs -> _renderInatObs ; else -> _renderSampleOnly — iNat rows never silently fall to sample-only
 
 ### Pending Todos
 
@@ -79,6 +81,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-26T06:15:20.870Z
-Stopped at: Completed 119-02-PLAN.md
+Last session: 2026-05-26T06:16:18.948Z
+Stopped at: Completed 119-05-PLAN.md
 Resume file: None
