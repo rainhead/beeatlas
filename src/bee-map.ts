@@ -62,6 +62,7 @@ export class BeeMap extends LitElement {
   };
 
   @property({ attribute: false }) showChecklist = false;
+  @property({ attribute: false }) hiddenSources: Set<string> = new Set();
   @property({ attribute: false }) checklistTaxon: string | null = null;
   @property({ attribute: false }) checklistTaxonRank: 'family' | 'genus' | 'species' | null = null;
 
@@ -362,6 +363,11 @@ export class BeeMap extends LitElement {
     // Checklist visibility, taxon, or year/month filter changed: update checklist layer
     if (changedProperties.has('showChecklist') || changedProperties.has('checklistTaxon') || changedProperties.has('checklistTaxonRank') || changedProperties.has('filterState')) {
       this._applyChecklistLayer();
+    }
+
+    // Source visibility changed: apply setFilter to unclustered-point
+    if (changedProperties.has('hiddenSources')) {
+      this._applySourceFilter();
     }
   }
 
@@ -746,6 +752,11 @@ export class BeeMap extends LitElement {
           this._applySelection();
         }
 
+        // Apply initial source filter if hiddenSources was set before map loaded
+        if (this.hiddenSources.size > 0) {
+          this._applySourceFilter();
+        }
+
         // HALO-01: paint URL-restored selection on first render. moveend
         // alone won't fire without user interaction, and the property-change
         // path in updated() may have run before sources existed.
@@ -884,6 +895,22 @@ export class BeeMap extends LitElement {
         'all',
         ['!', ['has', 'point_count']],
         ['in', ['get', 'occId'], ['literal', []]],
+      ]);
+    }
+  }
+
+  private _applySourceFilter() {
+    if (!this._map?.getLayer('unclustered-point')) return;
+
+    if (this.hiddenSources.size === 0) {
+      // All sources visible — restore default filter (no source restriction)
+      this._map.setFilter('unclustered-point', ['!', ['has', 'point_count']]);
+    } else {
+      const hidden = [...this.hiddenSources];
+      this._map.setFilter('unclustered-point', [
+        'all',
+        ['!', ['has', 'point_count']],
+        ['!', ['in', ['get', 'source'], ['literal', hidden]]],
       ]);
     }
   }
