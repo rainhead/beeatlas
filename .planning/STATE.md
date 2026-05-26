@@ -4,7 +4,7 @@ milestone: v4.2
 milestone_name: iNaturalist Expert Observations
 status: executing
 stopped_at: Phase 119 UI-SPEC approved
-last_updated: "2026-05-26T06:06:34.129Z"
+last_updated: "2026-05-26T06:09:21.244Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 16
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
 ## Current Position
 
 Phase: 118 (occurrence-model-extension) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-26
 
@@ -63,6 +63,7 @@ Last activity: 2026-05-26
 - dbt contract changes from 31 columns to 32+ with the new source column and iNat-specific nullable columns; schema.yml must be updated
 - Third source type designated as 'inat_obs' (alongside 'ecdysis' and 'waba_sample')
 - Unified occurrence model decision (2026-05-26): iNat expert obs merge into occurrences.parquet via int_combined ARM 3, not a separate inat_obs.parquet. A separate parquet would have required duplicate frontend rendering paths; the unified model uses a source discriminator and nullable iNat-specific columns (image_url, obs_url, user_login, license) in the occurrences mart.
+- VALID_SOURCES declared at module scope in url-state.ts for co-location with SourceKey type; empty hiddenSources after allowlist filtering treated as undefined to avoid phantom result.ui emission
 
 ### Pending Todos
 
@@ -78,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-26T06:06:34.122Z
-Stopped at: Phase 119 UI-SPEC approved
+Last session: 2026-05-26T06:09:21.237Z
+Stopped at: Completed 119-02-PLAN.md
 Resume file: None
