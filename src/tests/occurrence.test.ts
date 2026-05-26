@@ -34,6 +34,11 @@ const BASE_ROW: OccurrenceRow = {
   specimen_count: null,
   sample_id: null,
   sample_host: null,
+  source: null,
+  image_url: null,
+  obs_url: null,
+  user_login: null,
+  license: null,
 };
 
 // Factory helpers: spread BASE_ROW with the discriminating fields set.
