@@ -91,6 +91,7 @@ SELECT
     j.specimen_inat_taxon_name, j.specimen_inat_quality_grade,
     j.is_provisional,
     j.canonical_name,
+    j.source, j.image_url, j.obs_url, j.user_login, j.license,
     fc.county, fe.ecoregion_l3,
     fp.place_slug
 FROM joined j
