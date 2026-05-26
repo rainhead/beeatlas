@@ -150,7 +150,7 @@ def test_schema_has_12_columns(inat_obs_db):
         parquet_cols = [
             row[0]
             for row in con2.execute(
-                f"SELECT column_name FROM parquet_schema('{parquet_path}')"
+                f"SELECT name FROM parquet_schema('{parquet_path}') WHERE name != 'duckdb_schema'"
             ).fetchall()
         ]
     finally:
