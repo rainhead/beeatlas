@@ -38,12 +38,12 @@ layout: default.njk
   el.data = {{ sp.month_histogram | dump | safe }};
   el.onChecklist = {{ sp.on_checklist | dump | safe }};
 });</script>
-  <p class="metadata">{{ sp.specimen_count }} specimens · {{ sp.inat_obs_count }} community observations · {{ sp.county_count }} counties · {{ sp.ecoregion_count }} ecoregions</p>
+  <p class="metadata">{{ sp.specimen_count or 0 }} specimens · {{ sp.inat_obs_count or 0 }} community observations · {{ sp.county_count }} counties · {{ sp.ecoregion_count }} ecoregions</p>
   {%- if sp.on_checklist -%}
   <p class="checklist-attribution">{{ sp.checklist_count }} checklist records · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
   {%- endif -%}
   {%- if sp.occurrence_count > 0 -%}
-  <a href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count + sp.inat_obs_count }} records on the atlas →</a>
+  <a href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count + (sp.inat_obs_count or 0) }} records on the atlas →</a>
   {%- endif -%}
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>
