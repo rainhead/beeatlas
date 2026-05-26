@@ -77,6 +77,7 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) filterActive = false;
   @property({ attribute: false }) selectedIds: Set<string> | null = null;
   @property({ attribute: false }) checklistVisible = false;
+  @property({ attribute: false }) hiddenSources: Set<string> = new Set();
 
   @state() private _open = false;
 
@@ -107,6 +108,9 @@ export class BeePane extends LitElement {
 
   // Checklist layer toggle
   @state() private _showChecklist = false;
+
+  // Source filter (mirrors hiddenSources @property)
+  @state() private _hiddenSources: Set<string> = new Set();
 
   // Suggestion dropdown
   @state() private _openSection: 'taxon' | 'collector' | 'where' | null = null;
@@ -504,6 +508,9 @@ export class BeePane extends LitElement {
     if (changed.has('checklistVisible') && this._showChecklist !== this.checklistVisible) {
       this._showChecklist = this.checklistVisible;
     }
+    if (changed.has('hiddenSources')) {
+      this._hiddenSources = new Set(this.hiddenSources);
+    }
     if (!changed.has('filterState') || !this.filterState) return;
     const f = this.filterState;
 
@@ -602,6 +609,17 @@ export class BeePane extends LitElement {
     this.dispatchEvent(new CustomEvent('checklist-layer-changed', {
       bubbles: true, composed: true,
       detail: { visible },
+    }));
+  }
+
+  private _onSourceToggle(sourceValue: string, checked: boolean) {
+    const next = new Set(this._hiddenSources);
+    if (checked) next.delete(sourceValue);
+    else next.add(sourceValue);
+    this._hiddenSources = next;
+    this.dispatchEvent(new CustomEvent('source-filter-changed', {
+      bubbles: true, composed: true,
+      detail: { hiddenSources: next },
     }));
   }
 
@@ -1099,6 +1117,35 @@ export class BeePane extends LitElement {
     `;
   }
 
+  private _renderSources() {
+    const sources: Array<{ value: string; label: string }> = [
+      { value: 'ecdysis',     label: 'Ecdysis specimens' },
+      { value: 'waba_sample', label: 'WABA samples' },
+      { value: 'inat_obs',    label: 'iNat expert obs' },
+    ];
+    return html`
+      <div class="filter-row">
+        <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none"
+             stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+          <polygon points="8,2 14,5.5 8,9 2,5.5"/>
+          <polyline points="2,8.5 8,12 14,8.5"/>
+        </svg>
+        <div class="year-row">
+          ${sources.map(s => html`
+            <label class="year-label">
+              <input type="checkbox"
+                .checked=${!this._hiddenSources.has(s.value)}
+                aria-label="${s.label}"
+                @change=${(e: Event) => this._onSourceToggle(s.value, (e.target as HTMLInputElement).checked)}
+              />
+              ${s.label}
+            </label>
+          `)}
+        </div>
+      </div>
+    `;
+  }
+
   private _renderListContent() {
     const PAGE_SIZE = 100;
     const totalPages = Math.ceil(this.listRowCount / PAGE_SIZE);
@@ -1116,6 +1163,7 @@ export class BeePane extends LitElement {
           ${this._renderWhere()}
           ${this._renderWhen()}
           ${this._renderShow()}
+          ${this._renderSources()}
         </div>
         <div class="divider"></div>
         ${this.selectionCount !== null ? html`
@@ -1127,9 +1175,11 @@ export class BeePane extends LitElement {
         ` : nothing}
         ${this.listLoading
           ? html`<div class="list-placeholder">Loading…</div>`
-          : this.listRows.length === 0
-            ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
-            : html`<bee-occurrence-detail .occurrences=${this.listRows}></bee-occurrence-detail>`
+          : this._hiddenSources.size === 3
+            ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
+            : this.listRows.length === 0
+              ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
+              : html`<bee-occurrence-detail .occurrences=${this.listRows}></bee-occurrence-detail>`
         }
       </div>
       ${this.listRowCount > PAGE_SIZE ? html`
