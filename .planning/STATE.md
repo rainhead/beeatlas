@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.2
-milestone_name: milestone
-status: executing
-stopped_at: phase 119 complete — phase 120 ready to plan
-last_updated: "2026-05-26T16:45:00.000Z"
+milestone_name: "Liveness: Provisional Specimen Records"
+status: planning
+stopped_at: Phase 120 context gathered
+last_updated: "2026-05-26T17:46:01.007Z"
 last_activity: 2026-05-26
 progress:
-  total_phases: 4
-  completed_phases: 3
+  total_phases: 17
+  completed_phases: 6
   total_plans: 26
-  completed_plans: 25
-  percent: 75
+  completed_plans: 42
+  percent: 35
 ---
 
 # Project State
@@ -84,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-26T16:45:00.000Z
-Stopped at: Phase 119 UAT complete and approved — Phase 120 ready to plan
-Resume file: None
+Last session: 2026-05-26T17:46:00.993Z
+Stopped at: Phase 120 context gathered
+Resume file: .planning/phases/120-species-page-source-counts-photo-list/120-CONTEXT.md
