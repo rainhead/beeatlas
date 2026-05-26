@@ -23,6 +23,7 @@ import type { OccurrenceRow } from './filter.ts';
 export function occIdFromRow(row: OccurrenceRow): string | null {
   if (row.ecdysis_id != null) return `ecdysis:${row.ecdysis_id}`;
   if (row.observation_id != null) return `inat:${row.observation_id}`;
+  if (row.source === 'inat_obs' && row.specimen_observation_id != null) return `inat_obs:${row.specimen_observation_id}`;
   return null;
 }
 
@@ -33,10 +34,14 @@ export function occIdFromRow(row: OccurrenceRow): string | null {
  * well-formed IDs, or `null` for any malformed input (wrong prefix,
  * non-numeric suffix, empty string).
  */
-export function parseOccId(id: string): { source: 'ecdysis' | 'inat'; numericId: number } | null {
+export function parseOccId(id: string): { source: 'ecdysis' | 'inat' | 'inat_obs'; numericId: number } | null {
   if (id.startsWith('ecdysis:')) {
     const n = parseInt(id.slice('ecdysis:'.length), 10);
     return isNaN(n) ? null : { source: 'ecdysis', numericId: n };
+  }
+  if (id.startsWith('inat_obs:')) {
+    const n = parseInt(id.slice('inat_obs:'.length), 10);
+    return isNaN(n) ? null : { source: 'inat_obs', numericId: n };
   }
   if (id.startsWith('inat:')) {
     const n = parseInt(id.slice('inat:'.length), 10);

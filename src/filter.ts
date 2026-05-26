@@ -382,6 +382,7 @@ export async function queryListPage(
   sortBy: SpecimenSortBy = 'date',
   selectedEcdysisIds: number[] = [],
   selectedInatIds: number[] = [],
+  selectedInatObsIds: number[] = [],
   selectionBounds: { west: number; south: number; east: number; north: number } | null = null
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
   const { occurrenceWhere } = buildFilterSQL(f);
@@ -392,6 +393,8 @@ export async function queryListPage(
     selParts.push(`ecdysis_id IN (${selectedEcdysisIds.join(',')})`);
   if (selectedInatIds.length > 0)
     selParts.push(`observation_id IN (${selectedInatIds.join(',')})`);
+  if (selectedInatObsIds.length > 0)
+    selParts.push(`specimen_observation_id IN (${selectedInatObsIds.join(',')})`);
 
   // Bounds selection is always a WHERE addition, not an ORDER priority
   let boundsClause = '';
