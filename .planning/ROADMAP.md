@@ -428,7 +428,7 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 
 - [x] Phase 117: iNat Obs Pipeline (2/2 plans) — completed 2026-05-26
 - [x] Phase 118: Occurrence Model Extension (0/3 plans) — not started (completed 2026-05-26)
-- [ ] Phase 119: Map Display, Source Filter & Detail View (0/? plans) — not started
+- [ ] Phase 119: Map Display, Source Filter & Detail View (0/7 plans) — planned
 - [ ] Phase 120: Species Page Source Counts & Photo List (0/? plans) — not started
 
 </details>
@@ -720,7 +720,32 @@ Plans:
   2. The filter panel contains source toggles for Ecdysis specimens, WABA samples, and expert iNat observations; toggling a source shows or hides that arm's points immediately
   3. Source filter state is encoded in the URL and restored on page load (sharing a URL with specific sources hidden restores the same visibility state)
   4. Clicking an expert iNat observation opens a detail view showing: observer login, observed date, floral host (if present), image (if CC-licensed), and a link to the observation on iNaturalist.org
-**Plans**: TBD
+
+**Plans**: 7 plans
+Plans:
+
+**Wave 0**
+
+- [ ] 119-01-PLAN.md — Wave 0 RED tests for MAP-01/02/03/DET-01 + extend OccurrenceRow + OCCURRENCE_COLUMNS with source/image_url/obs_url/user_login/license [MAP-01, MAP-02, MAP-03, DET-01]
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 119-02-PLAN.md — url-state.ts: UiState.hiddenSources + src= round-trip with VALID_SOURCES allowlist [MAP-03]
+
+**Wave 2** *(blocked on Wave 0; 03, 04, 05 run in parallel — no file overlap)*
+
+- [ ] 119-03-PLAN.md — bee-map.ts: amber #e8a020 case-wrap on unclustered-point paint + hiddenSources property + _applySourceFilter via setFilter [MAP-01, MAP-02]
+- [ ] 119-04-PLAN.md — bee-pane.ts: _renderSources row + _onSourceToggle event dispatch + empty-state copy when all sources hidden [MAP-02]
+- [ ] 119-05-PLAN.md — bee-occurrence-detail.ts: _renderInatObs branch + render() dispatch for source === 'inat_obs' [DET-01]
+
+**Wave 3** *(blocked on Waves 1 and 2)*
+
+- [ ] 119-06-PLAN.md — bee-atlas.ts: _hiddenSources state + event wiring + bee-pane/bee-map property bindings + URL round-trip (firstUpdated + _onPopState + _buildCurrentParams) [MAP-02, MAP-03]
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 119-07-PLAN.md — Human-verify UAT for all four requirements [MAP-01, MAP-02, MAP-03, DET-01]
+
 **UI hint**: yes
 
 ### Phase 120: Species Page Source Counts & Photo List
@@ -858,5 +883,5 @@ Plans:
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
 | 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 118. Occurrence Model Extension | v4.2 | 3/3 | Complete   | 2026-05-26 |
-| 119. Map Display, Source Filter & Detail View | v4.2 | 0/? | Not started | - |
+| 119. Map Display, Source Filter & Detail View | v4.2 | 0/7 | Planned | - |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
