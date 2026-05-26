@@ -54,6 +54,11 @@ export interface OccurrenceRow {
   specimen_count: number | null;
   sample_id: number | null;
   sample_host: string | null;
+  source: 'ecdysis' | 'waba_sample' | 'inat_obs' | null;
+  image_url: string | null;
+  obs_url: string | null;
+  user_login: string | null;
+  license: string | null;
 }
 
 export const OCCURRENCE_COLUMNS = [
@@ -63,6 +68,7 @@ export const OCCURRENCE_COLUMNS = [
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
   'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host',
   'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade',
+  'source', 'image_url', 'obs_url', 'user_login', 'license',
 ] as const;
 
 const PAGE_SIZE = 100;
