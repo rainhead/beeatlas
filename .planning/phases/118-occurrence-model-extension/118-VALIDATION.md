@@ -38,10 +38,10 @@ created: 2026-05-25
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 118-01-01 | 01 | 0 | OCC-01 | — | N/A | unit | `cd data && uv run pytest tests/test_dbt_scaffold.py -x -q -k "test_int_combined_source_column"` | ❌ W0 | ⬜ pending |
-| 118-01-02 | 01 | 0 | OCC-01 | — | N/A | unit | `cd data && uv run pytest tests/test_dbt_scaffold.py -x -q -k "test_occurrences_inat_columns"` | ❌ W0 | ⬜ pending |
-| 118-01-03 | 01 | 0 | OCC-02 | — | N/A | unit | `cd data && uv run pytest tests/test_dbt_scaffold.py -x -q -k "test_species_universe_inat_obs_count"` | ❌ W0 | ⬜ pending |
-| 118-01-04 | 01 | 0 | OCC-03 | — | N/A | unit | `cd data && uv run pytest tests/test_species_export.py -x -q -k "test_inat_obs_count_in_export"` | ❌ W0 | ⬜ pending |
+| 118-01-01 | 01 | 0 | OCC-01 | — | N/A | unit | `cd data && uv run pytest tests/test_dbt_scaffold.py -x -q -k "test_occurrences_source_column"` | ❌ W0 | ⬜ pending |
+| 118-01-02 | 01 | 0 | OCC-01 | — | N/A | unit | `cd data && uv run pytest tests/test_dbt_scaffold.py -x -q -k "test_inat_obs_rows_in_occurrences"` | ❌ W0 | ⬜ pending |
+| 118-01-03 | 01 | 0 | OCC-01 | — | N/A | unit | `cd data && uv run pytest tests/test_dbt_scaffold.py -x -q -k "test_source_no_nulls"` | ❌ W0 | ⬜ pending |
+| 118-01-04 | 01 | 0 | OCC-03 | — | N/A | unit | `cd data && uv run pytest tests/test_species_export.py -x -q -k "test_inat_obs_count_in_species"` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
