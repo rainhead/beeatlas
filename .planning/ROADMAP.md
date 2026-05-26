@@ -427,7 +427,7 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 <summary>v4.2 iNaturalist Expert Observations (Phases 117–120) — IN PROGRESS</summary>
 
 - [x] Phase 117: iNat Obs Pipeline (2/2 plans) — completed 2026-05-26
-- [ ] Phase 118: Occurrence Model Extension (0/? plans) — not started
+- [ ] Phase 118: Occurrence Model Extension (0/3 plans) — not started
 - [ ] Phase 119: Map Display, Source Filter & Detail View (0/? plans) — not started
 - [ ] Phase 120: Species Page Source Counts & Photo List (0/? plans) — not started
 
@@ -695,7 +695,20 @@ Plans:
   2. `occurrences.parquet` dbt column contract expands to include `source` (non-null) and iNat-specific nullable columns (`image_url`, `obs_url`, `user_login`, `license`); existing Ecdysis/WABA rows have NULLs for those columns
   3. Expert iNat observation rows appear in `occurrences.parquet` with `source='inat_obs'` and correct coordinate/taxon/floral_host data; row count matches deduplicated `inat_obs_data.observations`
   4. `species.parquet` / `species.json` include `inat_obs_count` per species from the new ARM 3
-**Plans**: TBD
+
+**Plans**: 3 plans
+Plans:
+**Wave 0**
+
+- [ ] 118-01-PLAN.md — Declare inat_obs_data dbt source + four RED pytest scaffolds for OCC-01..03 [OCC-01, OCC-02, OCC-03]
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 118-02-PLAN.md — int_combined.sql ARM 3 + source literal on ARMs 1/2 + occurrences.sql mart SELECT + schema.yml occurrences contract (31→36 cols) [OCC-01]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 118-03-PLAN.md — int_species_universe.sql inat_obs_count_agg CTE + species.sql + schema.yml species contract + species_export.py SPECIES_COLUMNS/PyArrow schema [OCC-02, OCC-03]
 
 ### Phase 119: Map Display, Source Filter & Detail View
 
