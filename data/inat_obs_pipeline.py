@@ -2,9 +2,10 @@
 
 Reads the committed iNat CSV export (data/raw/inat_expert_obs.csv), applies
 D-04 canonicalization to scientific_name, deduplicates against WABA-linked
-specimen_observation_ids, and writes inat_obs.parquet to EXPORT_DIR.
+specimen_observation_ids, and loads the result into the DuckDB staging table
+inat_obs_data.observations for downstream use by int_combined (Phase 118).
 
-Phase 117 / PIPE-01..05.
+Phase 117 / PIPE-01..04.
 """
 import csv
 import os
@@ -16,10 +17,6 @@ from canonical_name import canonicalize
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 CSV_PATH = Path(__file__).parent / "raw" / "inat_expert_obs.csv"
-_EXPORT_DIR = Path(os.environ.get(
-    "EXPORT_DIR",
-    str(Path(__file__).parent.parent / "public" / "data"),
-))
 
 _FLORAL_HOST_FIELD = "field:associated species with names lookup"
 _OBS_URL_PREFIX = "https://www.inaturalist.org/observations/"
@@ -49,7 +46,7 @@ def _load_excluded_ids(con: duckdb.DuckDBPyConnection) -> set[int]:
 
 
 def load_inat_obs() -> None:
-    """Read inat_expert_obs.csv and write inat_obs.parquet to EXPORT_DIR."""
+    """Read inat_expert_obs.csv and populate inat_obs_data.observations in DuckDB."""
     con = duckdb.connect(DB_PATH)
     try:
         excluded_ids = _load_excluded_ids(con)
@@ -111,12 +108,6 @@ def load_inat_obs() -> None:
             f"{null_canon} rows with null canonical_name (scientific_name present)"
         )
 
-        _EXPORT_DIR.mkdir(parents=True, exist_ok=True)
-        out_path = _EXPORT_DIR / "inat_obs.parquet"
-        con.execute(
-            f"COPY inat_obs_data.observations TO '{out_path}' (FORMAT PARQUET, CODEC SNAPPY)"
-        )
-        print(f"  inat_obs.parquet: {out_path.stat().st_size:,} bytes")  # noqa: T201
     finally:
         con.close()
 

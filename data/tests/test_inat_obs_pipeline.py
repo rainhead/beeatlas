@@ -78,7 +78,6 @@ def inat_obs_db(tmp_path, monkeypatch):
     """
     db_path = str(tmp_path / "test.duckdb")
     monkeypatch.setenv("DB_PATH", db_path)
-    monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
 
     importlib.reload(inat_obs_pipeline)
 
@@ -104,7 +103,7 @@ def inat_obs_db(tmp_path, monkeypatch):
 
 def test_schema_has_12_columns(inat_obs_db):
     """PIPE-01: output inat_obs_data.observations has exactly the 12 expected columns
-    in ordinal order, and inat_obs.parquet has the same columns when read back."""
+    in ordinal order."""
     db_path, tmp_path, mod = inat_obs_db
     csv_path = tmp_path / "inat_expert_obs.csv"
     _write_csv(csv_path, [
@@ -140,23 +139,6 @@ def test_schema_has_12_columns(inat_obs_db):
 
     assert cols == _EXPECTED_COLUMNS, (
         f"Column mismatch.\n  Expected: {_EXPECTED_COLUMNS}\n  Got:      {cols}"
-    )
-
-    # Assert Parquet output has the same 12 columns.
-    parquet_path = tmp_path / "inat_obs.parquet"
-    assert parquet_path.exists(), "inat_obs.parquet not written to EXPORT_DIR"
-    con2 = duckdb.connect()
-    try:
-        parquet_cols = [
-            row[0]
-            for row in con2.execute(
-                f"SELECT name FROM parquet_schema('{parquet_path}') WHERE name != 'duckdb_schema'"
-            ).fetchall()
-        ]
-    finally:
-        con2.close()
-    assert parquet_cols == _EXPECTED_COLUMNS, (
-        f"Parquet column mismatch.\n  Expected: {_EXPECTED_COLUMNS}\n  Got: {parquet_cols}"
     )
 
 
