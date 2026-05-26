@@ -391,6 +391,46 @@ describe('place filter param', () => {
   });
 });
 
+describe('MAP-03: source filter URL param (src=)', () => {
+  test('hiddenSources single value: src param is "ecdysis"', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
+                 hiddenSources: new Set(['ecdysis'] as const) } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('src')).toBe('ecdysis');
+  });
+
+  test('hiddenSources empty (default): src param is absent', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('src')).toBe(false);
+  });
+
+  test('src=ecdysis parses to hiddenSources Set in result.ui', () => {
+    const result = parseParams('src=ecdysis');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['ecdysis']));
+  });
+
+  test('multiple hidden sources sort alphabetically in param', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
+                 hiddenSources: new Set(['inat_obs', 'ecdysis'] as const) } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('src')).toBe('ecdysis,inat_obs');
+  });
+
+  test('invalid source value in src= is filtered out', () => {
+    const result = parseParams('src=ecdysis,bogus_source');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['ecdysis']));
+  });
+
+  test('src=ecdysis alone triggers result.ui (hasFilter condition)', () => {
+    const result = parseParams('src=ecdysis');
+    expect(result.ui).toBeDefined();
+  });
+});
+
 describe('bounds selection (SEL-06)', () => {
   test('bounds round-trip: encodes as sel=west,south,east,north with toFixed(4)', () => {
     const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
