@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: "Liveness: Provisional Specimen Records"
 status: planning
-stopped_at: Phase 120 context gathered
-last_updated: "2026-05-26T17:46:01.007Z"
+stopped_at: Phase 120 planned — 2 plans ready to execute
+last_updated: "2026-05-26T18:30:00.000Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 17
   completed_phases: 6
-  total_plans: 26
+  total_plans: 28
   completed_plans: 42
   percent: 35
 ---
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
 
 ## Current Position
 
-Phase: 120 (species-page-source-counts-and-photo-list) — READY TO PLAN
-Plan: —
-Status: Phase 119 complete — ready to plan Phase 120
+Phase: 120 (species-page-source-counts-and-photo-list) — READY TO EXECUTE
+Plan: 2 plans (120-01, 120-02) in 1 wave
+Status: Planned 2026-05-26 — ready to execute
 Last activity: 2026-05-26
 
 [##############################----------] 75% (3/4 phases complete)
@@ -39,7 +39,7 @@ Last activity: 2026-05-26
 | 117 | iNat Obs Pipeline | PIPE-01..04 | Complete 2026-05-26 |
 | 118 | Occurrence Model Extension | OCC-01..03 | Complete 2026-05-26 |
 | 119 | Map Display, Source Filter & Detail View | MAP-01..03, DET-01 | Complete 2026-05-26 |
-| 120 | Species Page Source Counts & Photo List | SPE-01..03 | Not started |
+| 120 | Species Page Source Counts & Photo List | SPE-01..03 | Planned (2 plans) |
 
 ## Performance Metrics
 
@@ -84,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-26T17:46:00.993Z
-Stopped at: Phase 120 context gathered
-Resume file: .planning/phases/120-species-page-source-counts-photo-list/120-CONTEXT.md
+Last session: 2026-05-26T18:30:00.000Z
+Stopped at: Phase 120 planned — 2 plans in 1 wave
+Resume file: .planning/phases/120-species-page-source-counts-photo-list/
