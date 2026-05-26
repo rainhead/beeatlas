@@ -2,7 +2,7 @@ import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage } from './filter.ts';
 import { parseOccId } from './occurrence.ts';
-import { buildParams, parseParams } from './url-state.ts';
+import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import './bee-header.ts';
@@ -35,7 +35,7 @@ export class BeeAtlas extends LitElement {
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
   @state() private _checklistVisible = false;
-  @state() private _hiddenSources: Set<string> = new Set();
+  @state() private _hiddenSources: Set<SourceKey> = new Set();
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
   @state() private _tableRows: OccurrenceRow[] = [];
@@ -234,6 +234,7 @@ bee-pane {
     this._boundaryMode = initBoundaryMode;
     this._paneState = paneState;
     this._checklistVisible = initialParams.ui?.checklistVisible ?? false;
+    this._hiddenSources = initialParams.ui?.hiddenSources ?? new Set();
     if (paneState === 'table') import('./bee-table.ts');
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
@@ -538,7 +539,7 @@ bee-pane {
         : this._selectedCluster
           ? { type: 'cluster' as const, ...this._selectedCluster }
           : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { boundaryMode: this._boundaryMode, paneState: this._paneState, checklistVisible: this._checklistVisible }
+      { boundaryMode: this._boundaryMode, paneState: this._paneState, checklistVisible: this._checklistVisible, hiddenSources: this._hiddenSources }
     );
   }
 
@@ -591,6 +592,7 @@ bee-pane {
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
     this._checklistVisible = parsed.ui?.checklistVisible ?? false;
+    this._hiddenSources = parsed.ui?.hiddenSources ?? new Set();
     const paneState = parsed.ui?.paneState ?? 'collapsed';
     this._tablePage = 1;
 
@@ -971,7 +973,7 @@ bee-pane {
     this._replaceUrlState();
   }
 
-  private _onSourceFilterChanged(e: CustomEvent<{ hiddenSources: Set<string> }>) {
+  private _onSourceFilterChanged(e: CustomEvent<{ hiddenSources: Set<SourceKey> }>) {
     this._hiddenSources = e.detail.hiddenSources;
     this._replaceUrlState();
   }
