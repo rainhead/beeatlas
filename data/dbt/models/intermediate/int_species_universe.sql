@@ -4,13 +4,22 @@
 -- mart pass (same reason as int_combined).
 -- NOTE: month_histogram NULL backfill uses CASE, not COALESCE — DuckDB COALESCE
 -- on INTEGER[12] is unimplemented in 1.4.x (Phase 078-02).
+-- NOTE 2: In DuckDB 1.5.3, CASE branches must NOT mix INTEGER[12] and other types when
+-- stg_inat taxon-lineage joins are present + ORDER BY; DuckDB's planner fails with
+-- "Unimplemented type for case expression: INTEGER[12]". Workaround: cast occ_agg
+-- month_histogram to INTEGER[] (variable-length) so the CASE expression operates over
+-- uniform INTEGER[] branches; cast the final CASE result to INTEGER[12] (Phase 118-03).
 -- slug column is NOT emitted here — it is added by the Python post-step
 -- (Plan 086-05) reading the species mart parquet. The _slugify function uses
 -- unicodedata.normalize('NFKD') which cannot be replicated byte-identically in SQL.
 {{ config(materialized='table') }}
 
 WITH occ_agg AS (
-    SELECT * FROM {{ ref('int_species_occurrences_agg') }}
+    -- Cast month_histogram to INTEGER[] to avoid DuckDB 1.5.3 CASE-type-inference
+    -- bug with fixed-size arrays (INTEGER[12]) when stg_inat joins + ORDER BY present.
+    SELECT canonical_name, occurrence_count, specimen_count, first_occurrence_date,
+           last_occurrence_date, month_histogram::INTEGER[] AS month_histogram
+    FROM {{ ref('int_species_occurrences_agg') }}
 ),
 checklist_month_agg AS (
     -- Aggregate checklist month data per species (NULL months skipped — ~15% of rows).
@@ -31,7 +40,7 @@ checklist_month_agg AS (
             SUM(CASE WHEN TRY_CAST(month AS INT) = 10 THEN 1 ELSE 0 END),
             SUM(CASE WHEN TRY_CAST(month AS INT) = 11 THEN 1 ELSE 0 END),
             SUM(CASE WHEN TRY_CAST(month AS INT) = 12 THEN 1 ELSE 0 END)
-        )::INTEGER[12] AS checklist_month_histogram
+        ) AS checklist_month_histogram
     FROM {{ ref('checklist') }}
     WHERE canonical_name IS NOT NULL
       AND month IS NOT NULL
@@ -42,6 +51,13 @@ checklist_count_agg AS (
     -- so that all checklist records (including those with unknown month) are counted.
     SELECT canonical_name, COUNT(*) AS checklist_count
     FROM {{ ref('checklist') }}
+    WHERE canonical_name IS NOT NULL
+    GROUP BY canonical_name
+),
+-- Per-species iNat expert obs count (OCC-02). Reads source directly to avoid circular DAG with occurrences mart.
+inat_obs_count_agg AS (
+    SELECT canonical_name, COUNT(*) AS inat_obs_count
+    FROM {{ source('inat_obs_data', 'observations') }}
     WHERE canonical_name IS NOT NULL
     GROUP BY canonical_name
 ),
@@ -81,8 +97,11 @@ species_universe AS (
         -- Merged month_histogram: element-wise sum of WABA + checklist months.
         -- Four-branch CASE guards against NULL for both arms (DuckDB 1.4.x COALESCE
         -- on INTEGER[12] is unimplemented — Pitfall 1; CASE not COALESCE).
-        CASE WHEN oa.month_histogram IS NULL AND cma.checklist_month_histogram IS NULL
-             THEN [0,0,0,0,0,0,0,0,0,0,0,0]::INTEGER[]
+        -- CASE branches use INTEGER[] throughout (occ_agg casts to INTEGER[]);
+        -- final ::INTEGER[12] cast applied to the whole expression to preserve contract
+        -- type while avoiding DuckDB 1.5.3 planner bug (NOTE 2 above, Phase 118-03).
+        (CASE WHEN oa.month_histogram IS NULL AND cma.checklist_month_histogram IS NULL
+             THEN [0,0,0,0,0,0,0,0,0,0,0,0]
              WHEN oa.month_histogram IS NULL
              THEN cma.checklist_month_histogram
              WHEN cma.checklist_month_histogram IS NULL
@@ -100,11 +119,12 @@ species_universe AS (
                  oa.month_histogram[10] + cma.checklist_month_histogram[10],
                  oa.month_histogram[11] + cma.checklist_month_histogram[11],
                  oa.month_histogram[12] + cma.checklist_month_histogram[12]
-             )::INTEGER[12]
-        END AS month_histogram,
+             )
+        END)::INTEGER[12] AS month_histogram,
         COALESCE(ga.county_count, 0) AS county_count,
         COALESCE(ga.ecoregion_count, 0) AS ecoregion_count,
-        COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count
+        COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count,
+        COALESCE(ioa.inat_obs_count, 0)::BIGINT AS inat_obs_count
     FROM {{ ref('stg_checklist__species') }} c
     FULL OUTER JOIN occ_agg oa ON oa.canonical_name = c.canonical_name
     LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
@@ -119,6 +139,8 @@ species_universe AS (
         ON cma.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
     LEFT JOIN checklist_count_agg cca
         ON cca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+    LEFT JOIN inat_obs_count_agg ioa
+        ON ioa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
 )
 -- Collapse any accidental duplicate canonical_name rows, preferring the
 -- checklist-favoring row when both arms produce one (Pitfall 7: DISTINCT ON).

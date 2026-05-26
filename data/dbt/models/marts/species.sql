@@ -4,7 +4,7 @@
 -- The Python post-step (Plan 086-05) reads this mart, adds slug via feeds._slugify,
 -- and overwrites the parquet to reach 20 columns before public/data/ deployment.
 -- Enforced contract in schema.yml covers all 19 SQL-emittable columns.
--- 19 SQL columns + 1 Python-added slug = 20 final columns.
+-- 20 SQL columns + 1 Python-added slug = 21 final columns.
 {{ config(
     materialized='external',
     location='target/sandbox/species.parquet',
@@ -31,5 +31,6 @@ SELECT
     month_histogram,
     county_count,
     ecoregion_count,
-    checklist_count
+    checklist_count,
+    inat_obs_count
 FROM {{ ref('int_species_universe') }}
