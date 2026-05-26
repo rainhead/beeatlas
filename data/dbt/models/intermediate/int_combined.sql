@@ -37,7 +37,12 @@ SELECT
     sob.specimen_inat_family,
     sob.quality_grade                              AS specimen_inat_quality_grade,
     FALSE                                          AS is_provisional,
-    e.canonical_name
+    e.canonical_name,
+    NULL                                           AS image_url,
+    NULL                                           AS obs_url,
+    NULL                                           AS user_login,
+    NULL                                           AS license,
+    'ecdysis'                                      AS source
 FROM {{ ref('int_ecdysis_base') }} e
 FULL OUTER JOIN {{ ref('int_samples_base') }} s ON e.host_observation_id = s.observation_id
 LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen_observation_id
@@ -76,7 +81,12 @@ SELECT
     sob.specimen_inat_family,
     sob.quality_grade                                                           AS specimen_inat_quality_grade,
     TRUE                                                                        AS is_provisional,
-    NULL                                                                        AS canonical_name
+    NULL                                                                        AS canonical_name,
+    NULL                                                                        AS image_url,
+    NULL                                                                        AS obs_url,
+    NULL                                                                        AS user_login,
+    NULL                                                                        AS license,
+    'waba_sample'                                                               AS source
 FROM {{ ref('int_provisional_waba_ids') }} p
 JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = p.waba_obs_id
 LEFT JOIN {{ ref('stg_waba__ofvs') }} ofv1718
@@ -84,3 +94,46 @@ LEFT JOIN {{ ref('stg_waba__ofvs') }} ofv1718
 LEFT JOIN {{ ref('int_samples_base') }} s
     ON s.observation_id = CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)
 WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL
+
+UNION ALL
+
+-- ARM 3: iNat expert observations (Phase 118 / OCC-01)
+SELECT
+    NULL                               AS ecdysis_id,
+    NULL                               AS catalog_number,
+    io.lon,
+    io.lat,
+    CAST(io.observed_on AS VARCHAR)    AS date,
+    YEAR(io.observed_on)               AS year,
+    MONTH(io.observed_on)              AS month,
+    io.scientific_name                 AS scientificName,
+    NULL                               AS recordedBy,
+    NULL                               AS fieldNumber,
+    NULL                               AS genus,
+    NULL                               AS family,
+    io.floral_host                     AS floralHost,
+    NULL::BIGINT                       AS host_observation_id,
+    NULL                               AS inat_host,
+    io.quality_grade                   AS inat_quality_grade,
+    NULL                               AS modified,
+    io.obs_id                          AS specimen_observation_id,
+    NULL::INTEGER                      AS elevation_m,
+    NULL::BIGINT                       AS observation_id,
+    NULL                               AS host_inat_login,
+    NULL::INTEGER                      AS specimen_count,
+    NULL::INTEGER                      AS sample_id,
+    NULL                               AS sample_host,
+    NULL                               AS specimen_inat_login,
+    NULL                               AS specimen_inat_taxon_name,
+    NULL                               AS specimen_inat_genus,
+    NULL                               AS specimen_inat_family,
+    NULL                               AS specimen_inat_quality_grade,
+    FALSE                              AS is_provisional,
+    io.canonical_name,
+    io.image_url,
+    io.obs_url,
+    io.user_login,
+    io.license,
+    'inat_obs'                         AS source
+FROM {{ source('inat_obs_data', 'observations') }} io
+WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL
