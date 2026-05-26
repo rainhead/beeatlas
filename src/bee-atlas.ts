@@ -35,6 +35,7 @@ export class BeeAtlas extends LitElement {
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
   @state() private _checklistVisible = false;
+  @state() private _hiddenSources: Set<string> = new Set();
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
   @state() private _tableRows: OccurrenceRow[] = [];
@@ -162,6 +163,7 @@ bee-pane {
             .viewState=${this._viewState}
             .filterState=${this._filterState}
             .showChecklist=${this._checklistVisible}
+            .hiddenSources=${this._hiddenSources}
             .checklistTaxon=${this._filterState.taxonName}
             .checklistTaxonRank=${this._filterState.taxonRank}
             @view-moved=${this._onViewMoved}
@@ -196,7 +198,9 @@ bee-pane {
             .filterActive=${isFilterActive(this._filterState)}
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             .checklistVisible=${this._checklistVisible}
+            .hiddenSources=${this._hiddenSources}
             @filter-changed=${this._onFilterChanged}
+            @source-filter-changed=${this._onSourceFilterChanged}
             @checklist-layer-changed=${this._onChecklistLayerChanged}
             @pane-expand-list=${this._onPaneExpandList}
             @pane-collapse=${this._onPaneCollapse}
@@ -964,6 +968,11 @@ bee-pane {
 
   private _onChecklistLayerChanged(e: CustomEvent<{ visible: boolean }>) {
     this._checklistVisible = e.detail.visible;
+    this._replaceUrlState();
+  }
+
+  private _onSourceFilterChanged(e: CustomEvent<{ hiddenSources: Set<string> }>) {
+    this._hiddenSources = e.detail.hiddenSources;
     this._replaceUrlState();
   }
 
