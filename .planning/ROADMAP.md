@@ -426,7 +426,7 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 <details>
 <summary>v4.2 iNaturalist Expert Observations (Phases 117–120) — IN PROGRESS</summary>
 
-- [ ] Phase 117: iNat Obs Pipeline (0/? plans) — not started
+- [ ] Phase 117: iNat Obs Pipeline (0/3 plans) — planned
 - [ ] Phase 118: Occurrence Model Extension (0/? plans) — not started
 - [ ] Phase 119: Map Display, Source Filter & Detail View (0/? plans) — not started
 - [ ] Phase 120: Species Page Source Counts & Photo List (0/? plans) — not started
@@ -674,7 +674,19 @@ Plans:
   3. Rows whose id matches a specimen_observation_id in the Ecdysis dbt model are absent from the output (821 overlapping rows excluded)
   4. floral_host is populated from the "associated species with names lookup" field where present; NULL where absent
   5. inat_obs.parquet is accessible at the /data/ CloudFront path after a nightly pipeline run
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+**Wave 0**
+
+- [ ] 117-01-PLAN.md — Commit iNat CSV export and create RED test stubs for PIPE-01..04 [PIPE-01..04]
+
+**Wave 1** *(blocked on Wave 0)*
+
+- [ ] 117-02-PLAN.md — Implement data/inat_obs_pipeline.py (load_inat_obs + dedup helper) and register inat-obs step in run.py [PIPE-01..04]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 117-03-PLAN.md — Add inat_obs hashed upload and manifest entry to nightly.sh; human-verify checkpoint [PIPE-05]
 
 ### Phase 118: Occurrence Model Extension
 
@@ -834,7 +846,7 @@ Plans:
 | 114. v3.5 Nyquist Validation | v4.1 | 4/4 | Complete   | 2026-05-25 |
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 5/5 | Complete   | 2026-05-25 |
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
-| 117. iNat Obs Pipeline | v4.2 | 0/? | Not started | - |
+| 117. iNat Obs Pipeline | v4.2 | 0/3 | Planned | - |
 | 118. Occurrence Model Extension | v4.2 | 0/? | Not started | - |
 | 119. Map Display, Source Filter & Detail View | v4.2 | 0/? | Not started | - |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
