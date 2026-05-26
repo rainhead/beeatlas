@@ -134,12 +134,13 @@ const genusList = Object.values(genusMap)
     const checklistSpecies = checklistOnly.map(sp => ({ ...sp, hexColor: '#cccccc' }));
     // Append a grey "Genus sp." entry when genus-level records exist, so the
     // key matches the grey dots rendered in the SVG map.
-    const unresolvedOccurrences = withOcc
-      .filter(sp => sp.specific_epithet === null)
-      .reduce((acc, sp) => acc + sp.occurrence_count, 0);
+    const unresolvedMembers = withOcc.filter(sp => sp.specific_epithet === null);
+    const unresolvedOccurrences = unresolvedMembers.reduce((acc, sp) => acc + sp.occurrence_count, 0);
+    const unresolvedSpecimenCount = unresolvedMembers.reduce((acc, sp) => acc + (sp.specimen_count || 0), 0);
+    const unresolvedInatObsCount = unresolvedMembers.reduce((acc, sp) => acc + (sp.inat_obs_count || 0), 0);
     const species = [...speciesOnly, ...checklistSpecies];
     if (unresolvedOccurrences > 0) {
-      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, slug: null });
+      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }
     return {
       genus: g.genus,
@@ -197,12 +198,13 @@ const subgenusList = Object.values(subgenusMap)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
     const checklistSpecies = checklistOnly.map(sp => ({ ...sp, hexColor: '#cccccc' }));
     // Append a grey "Subgenus sp." entry when subgenus-level records exist.
-    const unresolvedOccurrences = withOcc
-      .filter(sp => sp.specific_epithet === null)
-      .reduce((acc, sp) => acc + sp.occurrence_count, 0);
+    const unresolvedSubgenusMembers = withOcc.filter(sp => sp.specific_epithet === null);
+    const unresolvedOccurrences = unresolvedSubgenusMembers.reduce((acc, sp) => acc + sp.occurrence_count, 0);
+    const unresolvedSpecimenCount = unresolvedSubgenusMembers.reduce((acc, sp) => acc + (sp.specimen_count || 0), 0);
+    const unresolvedInatObsCount = unresolvedSubgenusMembers.reduce((acc, sp) => acc + (sp.inat_obs_count || 0), 0);
     const species = [...speciesOnly, ...checklistSpecies];
     if (unresolvedOccurrences > 0) {
-      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, slug: null });
+      species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }
     const checklistCount = checklistOnly.reduce((acc, sp) => acc + (sp.checklist_count || 0), 0);
     return {
@@ -233,17 +235,19 @@ for (const sp of flat) {
     };
   }
   if (!tribeMap[sp.tribe].generaMap[sp.genus]) {
-    tribeMap[sp.tribe].generaMap[sp.genus] = 0;
+    tribeMap[sp.tribe].generaMap[sp.genus] = { occurrence_count: 0, specimen_count: 0, inat_obs_count: 0 };
   }
-  tribeMap[sp.tribe].generaMap[sp.genus] += sp.occurrence_count;
+  tribeMap[sp.tribe].generaMap[sp.genus].occurrence_count += sp.occurrence_count;
+  tribeMap[sp.tribe].generaMap[sp.genus].specimen_count += (sp.specimen_count || 0);
+  tribeMap[sp.tribe].generaMap[sp.genus].inat_obs_count += (sp.inat_obs_count || 0);
 }
 const tribeList = Object.values(tribeMap)
   .sort((a, b) => a.tribe.localeCompare(b.tribe))
   .map(t => {
     const genera = Object.entries(t.generaMap)
-      .filter(([, occ]) => occ > 0)
+      .filter(([, counts]) => counts.occurrence_count > 0)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([genus, occurrence_count]) => ({ genus, occurrence_count }));
+      .map(([genus, counts]) => ({ genus, ...counts }));
     const totalOccurrences = genera.reduce((acc, g) => acc + g.occurrence_count, 0);
     return {
       tribe: t.tribe,

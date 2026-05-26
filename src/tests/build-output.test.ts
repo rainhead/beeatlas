@@ -88,7 +88,7 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(html).toContain('<em>Agapostemon femoratus</em>');
     expect(html).toContain('<seasonality-viz');
     expect(html).toContain('/data/species-maps/Agapostemon/femoratus.svg');
-    expect(html).toMatch(/View \d+ occurrences on the atlas/);
+    expect(html).toMatch(/View \d+ records on the atlas/);
   });
 
   test('every <img> on a species page has loading="lazy" (PAGE-07 carry-forward, SPE-02/SPE-03)', () => {
