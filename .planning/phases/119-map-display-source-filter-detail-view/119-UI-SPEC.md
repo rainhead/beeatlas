@@ -1,7 +1,8 @@
 ---
 phase: 119
 slug: map-display-source-filter-detail-view
-status: draft
+status: approved
+reviewed_at: 2026-05-25
 shadcn_initialized: false
 preset: none
 created: 2026-05-25
