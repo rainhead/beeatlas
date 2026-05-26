@@ -1,10 +1,11 @@
 """Export per-species aggregates and JSON sidecars for the Species Tab.
 
 Reads dbt-produced sandbox/species.parquet and sandbox/occurrences.parquet,
-adds slug via domain.slugify, emits three artifacts:
+adds slug via domain.slugify, emits four artifacts:
   - species.parquet    (21 cols incl. slug)
   - species.json       (flat array — Eleventy _data/species.js consumer)
   - seasonality.json   (species → bucket → INT[12] — VIZ-04 lookup)
+  - photos.json        (per-species CC-licensed iNat photo list — D-07/D-08)
 
 Run AFTER ``bash data/dbt/run.sh build`` (which writes
 DBT_SANDBOX_DIR/species.parquet and DBT_SANDBOX_DIR/occurrences.parquet).
@@ -80,17 +81,18 @@ def _jsonify_rows(rows: list[dict]) -> list[dict]:
 
 
 def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
-    """Build species.parquet + species.json + seasonality.json.
+    """Build species.parquet + species.json + seasonality.json + photos.json.
 
     Reads ``DBT_SANDBOX_DIR/species.parquet`` (20 cols, produced by
     ``bash data/dbt/run.sh build``) and appends a ``slug`` column via
     ``domain.slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
     for the per-occurrence seasonality bucket accumulation.
 
-    Writes three artifacts to ASSETS_DIR:
+    Writes four artifacts to ASSETS_DIR:
       - species.parquet  (21 cols including slug)
       - species.json     (json.dumps sort_keys=True, indent=2)
       - seasonality.json (json.dumps sort_keys=True, separators=(',', ':'))
+      - photos.json      (CC-licensed iNat obs photos, keyed by canonical_name)
 
     The write path (ASSETS_DIR) is controlled by the EXPORT_DIR env var.
     The read path (DBT_SANDBOX_DIR) defaults to data/dbt/target/sandbox and
@@ -237,6 +239,35 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     assert seas_size < 6 * 1024 * 1024, (
         f"seasonality.json exceeded 6 MB budget ({seas_size:,} bytes)"
     )
+
+    # ---- AGG-06: photos.json ------------------------------------------------
+    # Per-species list of CC-licensed iNat observation photos.
+    # Structure: { "Canonical Name": [{"license": "...", "url": "..."}, ...] }
+    # D-07/D-08: keyed by canonical_name, CC-licensed only.
+    # inat_obs_data schema is populated by inat_obs_pipeline.load_inat_obs(con)
+    # earlier in the nightly pipeline. If absent (e.g. test/dev context), write
+    # an empty dict and warn rather than crashing the entire export.
+    photos: dict[str, list[dict]] = {}
+    try:
+        photos_rows = con.execute("""
+            SELECT canonical_name, image_url, license
+            FROM inat_obs_data.observations
+            WHERE license IS NOT NULL AND license != 'all rights reserved'
+              AND image_url IS NOT NULL
+            ORDER BY canonical_name
+        """).fetchall()
+        for canon, url, license_ in photos_rows:
+            if canon not in photos:
+                photos[canon] = []
+            photos[canon].append({"license": license_, "url": url})
+    except Exception as exc:  # noqa: BLE001
+        print(f"  photos.json: WARNING — inat_obs_data.observations not available ({exc}); writing empty dict")
+    photos_out = ASSETS_DIR / "photos.json"
+    photos_out.write_text(
+        json.dumps(photos, sort_keys=True, indent=2),
+        encoding='utf-8',
+    )
+    print(f"  photos.json: {len(photos):,} species, {photos_out.stat().st_size:,} bytes")
 
 
 def main() -> None:
