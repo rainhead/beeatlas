@@ -429,7 +429,7 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 - [x] Phase 117: iNat Obs Pipeline (2/2 plans) — completed 2026-05-26
 - [x] Phase 118: Occurrence Model Extension (0/3 plans) — not started (completed 2026-05-26)
 - [ ] Phase 119: Map Display, Source Filter & Detail View (0/7 plans) — planned
-- [ ] Phase 120: Species Page Source Counts & Photo List (0/? plans) — not started
+- [ ] Phase 120: Species Page Source Counts & Photo List (0/2 plans) — planned
 
 </details>
 
@@ -757,7 +757,13 @@ Plans:
   1. Species-detail pages show "N specimens · N community observations" with specimen_count driving the first figure and inat_obs_count the second; the single "N records" label is gone
   2. Genus, subgenus, and tribe pages show the same source-aware breakdown per species entry in their species lists
   3. species.json includes an inat_obs_photos field per species containing a list of { url, license } objects from expert iNat observations (list may be empty; no UI change this milestone)
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1** *(both plans run in parallel)*
+
+- [ ] 120-01-PLAN.md — Nunjucks template updates + tribeMap extension [SPE-01, SPE-02]
+- [ ] 120-02-PLAN.md — species_export.py photos.json + nightly.sh upload [SPE-03]
+
 **UI hint**: yes
 
 ## Progress
