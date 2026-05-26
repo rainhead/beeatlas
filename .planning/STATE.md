@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.2
 milestone_name: iNaturalist Expert Observations
 status: executing
-stopped_at: Phase 117 context gathered
-last_updated: "2026-05-26T01:08:48.843Z"
+stopped_at: Phase 117 complete
+last_updated: "2026-05-26T02:00:00.000Z"
 last_activity: 2026-05-26
 progress:
   total_phases: 17
@@ -21,22 +21,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 117 — inat-obs-pipeline
+**Current focus:** Phase 118 — occurrence-model-extension
 
 ## Current Position
 
-Phase: 117 (inat-obs-pipeline) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
+Phase: 118 (occurrence-model-extension) — NEXT
+Status: Phase 117 complete; ready to plan Phase 118
 Last activity: 2026-05-26
 
-[----------] 0% (0/4 phases complete)
+[##########----------] 25% (1/4 phases complete)
 
 ## Phase Summary
 
 | Phase | Name | Requirements | Status |
 |-------|------|-------------|--------|
-| 117 | iNat Obs Pipeline | PIPE-01..05 | Not started |
+| 117 | iNat Obs Pipeline | PIPE-01..04 | Complete 2026-05-26 |
 | 118 | Occurrence Model Extension | OCC-01..03 | Not started |
 | 119 | Map Display, Source Filter & Detail View | MAP-01..03, DET-01 | Not started |
 | 120 | Species Page Source Counts & Photo List | SPE-01..03 | Not started |
@@ -60,8 +59,9 @@ Last activity: 2026-05-26
 - quality_grade=any in export query (research, needs_id, casual) — expert identification is the quality gate, not community consensus
 - Species/genus pages to show "N specimens · N community observations" broken down by source
 - Photo carousel is out of scope for v4.2; image_url persisted in pipeline output for future use
-- dbt contract changes from 31 columns to 32 with the new source column; schema.yml must be updated
+- dbt contract changes from 31 columns to 32+ with the new source column and iNat-specific nullable columns; schema.yml must be updated
 - Third source type designated as 'inat_obs' (alongside 'ecdysis' and 'waba_sample')
+- Unified occurrence model decision (2026-05-26): iNat expert obs merge into occurrences.parquet via int_combined ARM 3, not a separate inat_obs.parquet. A separate parquet would have required duplicate frontend rendering paths; the unified model uses a source discriminator and nullable iNat-specific columns (image_url, obs_url, user_login, license) in the occurrences mart.
 
 ### Pending Todos
 

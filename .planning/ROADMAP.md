@@ -426,7 +426,7 @@ See `.planning/milestones/v4.1-ROADMAP.md` for full phase details.
 <details>
 <summary>v4.2 iNaturalist Expert Observations (Phases 117–120) — IN PROGRESS</summary>
 
-- [ ] Phase 117: iNat Obs Pipeline (0/3 plans) — planned
+- [x] Phase 117: iNat Obs Pipeline (2/2 plans) — completed 2026-05-26
 - [ ] Phase 118: Occurrence Model Extension (0/? plans) — not started
 - [ ] Phase 119: Map Display, Source Filter & Detail View (0/? plans) — not started
 - [ ] Phase 120: Species Page Source Counts & Photo List (0/? plans) — not started
@@ -665,16 +665,15 @@ Plans:
 
 ### Phase 117: iNat Obs Pipeline
 
-**Goal**: The iNat CSV export is ingested into a verified inat_obs.parquet that is deduplicated against existing Ecdysis-linked observations and available to the frontend via CloudFront
+**Goal**: The iNat CSV export is ingested into a verified `inat_obs_data.observations` DuckDB staging table — deduplicated against Ecdysis-linked observations — ready for Phase 118 to union into the unified occurrence model
 **Depends on**: Nothing (first phase of v4.2)
-**Requirements**: PIPE-01, PIPE-02, PIPE-03, PIPE-04, PIPE-05
+**Requirements**: PIPE-01, PIPE-02, PIPE-03, PIPE-04
 **Success Criteria** (what must be TRUE):
-  1. Running the pipeline against the committed CSV produces inat_obs.parquet with all required columns: obs_id, observed_on, lat, lon, canonical_name, scientific_name, user_login, image_url, license, floral_host
-  2. canonical_name is non-null for every row (resolved by the D-04 canonicalization algorithm from canonical_name.py)
-  3. Rows whose id matches a specimen_observation_id in the Ecdysis dbt model are absent from the output (821 overlapping rows excluded)
-  4. floral_host is populated from the "associated species with names lookup" field where present; NULL where absent
-  5. inat_obs.parquet is accessible at the /data/ CloudFront path after a nightly pipeline run
-**Plans**: 3 plans
+  1. `data/raw/inat_expert_obs.csv` is committed to git; pipeline reads it via `data/inat_obs_pipeline.py` and populates `inat_obs_data.observations` with 12 columns: obs_id, observed_on, lat, lon, canonical_name, scientific_name, user_login, image_url, license, floral_host, quality_grade, obs_url
+  2. canonical_name is non-null for every row (D-04 canonicalization applied to scientific_name)
+  3. Rows whose id matches a specimen_observation_id in the Ecdysis dbt model are excluded (820 overlapping rows deduplicated)
+  4. floral_host populated from the "associated species with names lookup" field where present; NULL where absent
+**Plans**: 2 plans
 Plans:
 **Wave 0**
 
@@ -682,22 +681,20 @@ Plans:
 
 **Wave 1** *(blocked on Wave 0)*
 
-- [x] 117-02-PLAN.md — Implement data/inat_obs_pipeline.py (load_inat_obs + dedup helper) and register inat-obs step in run.py [PIPE-01..04]
+- [x] 117-02-PLAN.md — Implement data/inat_obs_pipeline.py (load_inat_obs + dedup helper, DuckDB staging only) and register inat-obs step in run.py [PIPE-01..04]
 
-**Wave 2** *(blocked on Wave 1)*
-
-- [ ] 117-03-PLAN.md — Add inat_obs hashed upload and manifest entry to nightly.sh; human-verify checkpoint [PIPE-05]
+*(Plan 117-03 dropped — separate inat_obs.parquet superseded by unified occurrence model; iNat obs reach the frontend via occurrences.parquet ARM 3 in Phase 118)*
 
 ### Phase 118: Occurrence Model Extension
 
-**Goal**: occurrences.parquet carries a source column distinguishing the three occurrence arms; species.parquet carries inat_obs_count per species
+**Goal**: `int_combined` gains ARM 3 from `inat_obs_data.observations`; `occurrences.parquet` is the unified occurrence record for all three sources with a `source` discriminator and iNat-specific nullable columns; `species.parquet` carries `inat_obs_count` per species
 **Depends on**: Phase 117
 **Requirements**: OCC-01, OCC-02, OCC-03
 **Success Criteria** (what must be TRUE):
-  1. dbt build produces occurrences.parquet with a 32-column contract (31 existing + source); the source column contains only 'ecdysis', 'waba_sample', or 'inat_obs' — no nulls
-  2. Existing Ecdysis and WABA sample rows carry the correct source value with no row count change
-  3. Expert iNat observation rows appear in occurrences.parquet with source='inat_obs'; their count matches the deduplicated inat_obs.parquet row count
-  4. species.parquet and species.json include an inat_obs_count column with correct per-species tallies from the new arm
+  1. `int_combined.sql` contains ARM 3 selecting from `inat_obs_data.observations`; all three arms include a `source` literal (`'ecdysis'`, `'waba_sample'`, `'inat_obs'`)
+  2. `occurrences.parquet` dbt column contract expands to include `source` (non-null) and iNat-specific nullable columns (`image_url`, `obs_url`, `user_login`, `license`); existing Ecdysis/WABA rows have NULLs for those columns
+  3. Expert iNat observation rows appear in `occurrences.parquet` with `source='inat_obs'` and correct coordinate/taxon/floral_host data; row count matches deduplicated `inat_obs_data.observations`
+  4. `species.parquet` / `species.json` include `inat_obs_count` per species from the new ARM 3
 **Plans**: TBD
 
 ### Phase 119: Map Display, Source Filter & Detail View
@@ -846,7 +843,7 @@ Plans:
 | 114. v3.5 Nyquist Validation | v4.1 | 4/4 | Complete   | 2026-05-25 |
 | 115. v3.7 and v4.0 Nyquist Validation | v4.1 | 5/5 | Complete   | 2026-05-25 |
 | 116. Code Quality Fixes | v4.1 | 3/3 | Complete    | 2026-05-25 |
-| 117. iNat Obs Pipeline | v4.2 | 2/3 | In Progress|  |
+| 117. iNat Obs Pipeline | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 118. Occurrence Model Extension | v4.2 | 0/? | Not started | - |
 | 119. Map Display, Source Filter & Detail View | v4.2 | 0/? | Not started | - |
 | 120. Species Page Source Counts & Photo List | v4.2 | 0/? | Not started | - |
