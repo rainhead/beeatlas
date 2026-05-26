@@ -660,10 +660,13 @@ export class BeeMap extends LitElement {
           filter: ['!', ['has', 'point_count']],
           paint: {
             'circle-color': [
-              'match', ['get', 'recencyTier'],
-              'thisYear', RECENCY_COLORS.thisYear,
-              'lastYear', RECENCY_COLORS.lastYear,
-              RECENCY_COLORS.earlier,
+              'case',
+              ['==', ['get', 'source'], 'inat_obs'], '#e8a020',
+              ['match', ['get', 'recencyTier'],
+                'thisYear', RECENCY_COLORS.thisYear,
+                'lastYear', RECENCY_COLORS.lastYear,
+                RECENCY_COLORS.earlier,
+              ],
             ],
             'circle-radius': 6,
             'circle-stroke-width': 1,
