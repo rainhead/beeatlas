@@ -26,10 +26,15 @@ export type SelectionState =
   | { type: 'cluster'; lon: number; lat: number; radiusM: number }
   | { type: 'bounds'; west: number; south: number; east: number; north: number };
 
+export type SourceKey = 'ecdysis' | 'waba_sample' | 'inat_obs';
+
+const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'inat_obs']);
+
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
   paneState: 'list' | 'table' | 'collapsed';
   checklistVisible?: boolean;
+  hiddenSources?: Set<SourceKey>;
 }
 
 export interface AppState {
@@ -74,6 +79,7 @@ export function buildParams(
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
   if (ui.checklistVisible) params.set('cl', '1');
+  if (ui.hiddenSources && ui.hiddenSources.size > 0) params.set('src', [...ui.hiddenSources].sort().join(','));
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
   }
@@ -232,9 +238,14 @@ export function parseParams(search: string): Partial<AppState> {
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
   const checklistVisible = p.get('cl') === '1';
+  const srcRaw = p.get('src') ?? '';
+  const hiddenSourcesSet = srcRaw
+    ? new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[])
+    : undefined;
+  const hiddenSources = hiddenSourcesSet && hiddenSourcesSet.size > 0 ? hiddenSourcesSet : undefined;
   // Include UI when non-default values present
-  if (boundaryMode !== 'off' || paneState !== 'collapsed' || checklistVisible) {
-    result.ui = { boundaryMode, paneState, checklistVisible };
+  if (boundaryMode !== 'off' || paneState !== 'collapsed' || checklistVisible || (hiddenSources && hiddenSources.size > 0)) {
+    result.ui = { boundaryMode, paneState, checklistVisible, hiddenSources };
   }
 
   return result;
