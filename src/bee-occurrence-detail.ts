@@ -131,6 +131,10 @@ export class BeeOccurrenceDetail extends LitElement {
       overflow-wrap: break-word;
       word-break: break-word;
     }
+    .event-host {
+      font-size: 0.8rem;
+      color: var(--text-hint);
+    }
     .event-count {
       font-size: 0.8rem;
       color: var(--text-hint);
@@ -240,6 +244,31 @@ export class BeeOccurrenceDetail extends LitElement {
              target="_blank" rel="noopener"
              aria-label="View WABA observation on iNaturalist">View WABA observation</a>
         </div>
+      </div>
+    `;
+  }
+
+  private _renderInatObs(row: OccurrenceRow) {
+    const isCC = row.license != null && row.license.toUpperCase().startsWith('CC');
+    return html`
+      <div class="panel-content sample-dot-detail">
+        <div class="event-date">${formatRomanDate(row.date)}</div>
+        ${row.user_login != null
+          ? html`<div class="event-observer">${row.user_login}</div>` : ''}
+        ${row.floralHost != null
+          ? html`<div class="event-host"><em>${row.floralHost}</em></div>` : ''}
+        ${isCC && row.image_url != null ? html`
+          <img
+            src="${row.image_url}"
+            alt="Photo of ${row.scientificName ?? 'bee'} by ${row.user_login ?? 'observer'} on iNaturalist"
+            style="width:100%;max-height:200px;object-fit:cover;border-radius:4px;"
+          />
+        ` : ''}
+        ${row.obs_url != null ? html`
+          <div class="event-inat">
+            <a href="${row.obs_url}" target="_blank" rel="noopener">View on iNaturalist</a>
+          </div>
+        ` : ''}
       </div>
     `;
   }
