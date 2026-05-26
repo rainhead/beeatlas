@@ -1,5 +1,23 @@
 # Milestones
 
+## v4.2 iNaturalist Expert Observations (Shipped: 2026-05-26)
+
+**Phases completed:** 4 phases (117–120), 14 plans
+**Timeline:** 2 days (2026-05-25 → 2026-05-26)
+**LOC:** +10,277 / −4,275 across 110 files
+**Requirements:** 15/15 complete (PIPE-05 superseded; future requirements deferred)
+
+**Key accomplishments:**
+
+- `data/inat_obs_pipeline.py` — reads committed `data/raw/inat_expert_obs.csv` (45,354 rows); applies D-04 `canonical_name` resolution; deduplicates against Ecdysis `specimen_observation_id` values (821 excluded); produces `inat_obs_data.observations` DuckDB staging table (44,534 rows, 12 columns) — PIPE-01..04 satisfied
+- `int_combined.sql` ARM 3 + dbt contract expansion — third source arm unifies iNat expert obs into `occurrences.parquet`; `source` discriminator (`'ecdysis'`, `'waba_sample'`, `'inat_obs'`) added to all three arms; schema expands from 31 to 36 columns with iNat-specific nullable fields (`image_url`, `obs_url`, `user_login`, `license`); `int_species_universe.sql` gains `inat_obs_count_agg` CTE; `species.json` exports `inat_obs_count` per species — OCC-01..03 satisfied
+- Map display and source filter — 44,534 iNat obs points rendered in amber (`#e8a020`) on Mapbox map; unified Sources filter row with four checkboxes (Ecdysis specimens / Provisional WABA / iNat expert obs / Checklist records); `src=` URL param encodes visible sources (absent = all on); UAT resolved 4 issues: `src=` polarity, checklist row merge, WABA relabel, `inat_obs:` prefix in `o=` allowlist — MAP-01..03 satisfied
+- `bee-occurrence-detail._renderInatObs` — clicking an iNat obs point shows: date in Roman numeral format, observer login, CC-licensed photo loaded from iNaturalist S3, "View on iNaturalist" link (target=\_blank) — DET-01 satisfied
+- Species/genus/subgenus/tribe pages — "N specimens · N community observations" replaces single "N records" label; `tribeMap` accumulator extended; Nunjucks templates updated with source-aware counts — SPE-01..02 satisfied
+- `photos.json` artifact — `species_export.py` emits per-species list of `{ url, license }` objects for CC-licensed iNat obs images; hashed S3 upload wired into `nightly.sh`; `manifest.json` `photos` key added — SPE-03 satisfied; future photo carousel enabled
+
+---
+
 ## v4.1 Validation & Code Quality (Shipped: 2026-05-25)
 
 **Phases completed:** 3 phases (114–116), 12 plans
