@@ -68,6 +68,16 @@ models:
         data_type: varchar
       - name: place_slug
         data_type: varchar
+      - name: source
+        data_type: varchar
+      - name: image_url
+        data_type: varchar
+      - name: obs_url
+        data_type: varchar
+      - name: user_login
+        data_type: varchar
+      - name: license
+        data_type: varchar
 
   - name: species
     config:

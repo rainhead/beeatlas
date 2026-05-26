@@ -189,16 +189,19 @@ def test_checklist_source_constant():
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
 )
 def test_occurrences_row_count_not_inflated_by_checklist():
-    """occurrences.parquet row count stays <= 50,000 after Phase 111 build.
+    """occurrences.parquet row count stays within expected range after Phase 118.
 
-    Baseline pre-Phase-111: 47,876 rows.
+    Baseline pre-Phase-111: 47,876 rows (ecdysis + waba_sample only).
+    Phase 118 adds ~44,534 inat_obs rows for a total of ~92,802.
+    Ceiling set to 100,000 to absorb natural data growth while still catching
+    checklist-row leakage (those are ~10k rows; any leak would exceed 100k).
     Checklist records MUST NOT enter int_combined (locked STATE.md decision).
     """
     parquet_path = str(SANDBOX / "occurrences.parquet")
     row = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{parquet_path}')"
     ).fetchone()
-    assert row[0] <= 50_000, (
+    assert row[0] <= 100_000, (
         f"occurrences.parquet has {row[0]} rows — unexpectedly large; "
         "verify checklist rows did not enter int_combined"
     )
