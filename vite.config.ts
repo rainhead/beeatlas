@@ -18,7 +18,7 @@ export default defineConfig({
     environment: 'happy-dom',
     passWithNoTests: true,
     // Exclude stale agent worktrees and Eleventy build output from test discovery.
-    // (.claire/worktrees/ holds snapshots from prior agent runs; _site/ is build output.)
-    exclude: ['**/node_modules/**', '**/.claire/**', '**/_site/**', '**/dist/**'],
+    // (.claude/worktrees/ and .claire/worktrees/ hold snapshots from prior agent runs; _site/ is build output.)
+    exclude: ['**/node_modules/**', '**/.claude/**', '**/.claire/**', '**/_site/**', '**/dist/**'],
   },
 });
