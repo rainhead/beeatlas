@@ -6,8 +6,8 @@ Usage:
 Pipelines are executed in this order:
     ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
     anti-entropy -> checklist -> resolve-taxon-ids -> taxa-download ->
-    taxon-lineage-extended -> places-validation -> places-load -> dbt-build ->
-    topology-postprocess -> species-export -> species-maps ->
+    taxon-lineage-extended -> places-validation -> places-load -> inat-obs ->
+    dbt-build -> topology-postprocess -> species-export -> species-maps ->
     places-export -> places-maps -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
@@ -39,6 +39,7 @@ from species_export import main as export_species_parquet
 from species_maps import main as generate_species_maps
 from feeds import main as generate_feeds
 from topology_postprocess import main as clean_region_topology
+from inat_obs_pipeline import load_inat_obs
 from places_validation import validate_places_step
 from places_load import load_places_step
 from places_export import export_places_step
@@ -92,6 +93,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("taxon-lineage-extended", load_taxon_lineage_extended),
     ("places-validation", validate_places_step),
     ("places-load", load_places_step),
+    ("inat-obs", load_inat_obs),
     ("dbt-build", _run_dbt_build),
     ("topology-postprocess", clean_region_topology),
     ("species-export", export_species_parquet),
