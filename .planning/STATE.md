@@ -4,13 +4,13 @@ milestone: v4.2
 milestone_name: iNaturalist Expert Observations
 status: executing
 stopped_at: Phase 117 context gathered
-last_updated: "2026-05-26T00:24:45.956Z"
-last_activity: 2026-05-26 -- Phase 117 planning complete
+last_updated: "2026-05-26T00:50:15.228Z"
+last_activity: 2026-05-26
 progress:
   total_phases: 14
   completed_phases: 4
   total_plans: 16
-  completed_plans: 30
+  completed_plans: 31
   percent: 29
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25 for v4.2 milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Milestone v4.2 — iNaturalist Expert Observations
+**Current focus:** Phase 117 — inat-obs-pipeline
 
 ## Current Position
 
-Phase: 117 (not started)
-Plan: —
+Phase: 117 (inat-obs-pipeline) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-05-26 -- Phase 117 planning complete
+Last activity: 2026-05-26
 
 [----------] 0% (0/4 phases complete)
 
@@ -77,6 +77,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-25T23:52:08.419Z
+Last session: 2026-05-26T00:50:15.224Z
 Stopped at: Phase 117 context gathered
-Resume file: .planning/phases/117-inat-obs-pipeline/117-CONTEXT.md
+Resume file: None
