@@ -124,7 +124,12 @@ async function _insertRows(
       const stmt = batch.length === BATCH
         ? fullStmt
         : (remStmt ??= await buildStmt(batch.length));
-      sqlite3.bind_collection(stmt, batch.flatMap(row => cols.map(c => row[c])));
+      sqlite3.bind_collection(stmt, batch.flatMap(row => cols.map(c => {
+        const v = row[c];
+        if (typeof v === 'boolean') return v ? 1 : 0;
+        if (v instanceof Date) return v.toISOString().slice(0, 10);
+        return v;
+      })));
       await sqlite3.step(stmt);
       await sqlite3.reset(stmt);
       batchCount++;
