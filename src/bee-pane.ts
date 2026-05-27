@@ -1111,12 +1111,6 @@ export class BeePane extends LitElement {
         onChange: (e: Event) => this._onSourceToggle('waba_sample', (e.target as HTMLInputElement).checked),
       },
       {
-        label: 'iNat expert obs',
-        tooltip: 'iNaturalist observations identified by experts',
-        checked: !this._hiddenSources.has('inat_obs'),
-        onChange: (e: Event) => this._onSourceToggle('inat_obs', (e.target as HTMLInputElement).checked),
-      },
-      {
         label: 'Checklist records',
         tooltip: 'County-level species presence from observation history',
         checked: this._showChecklist,
@@ -1174,7 +1168,7 @@ export class BeePane extends LitElement {
         ` : nothing}
         ${this.listLoading
           ? html`<div class="list-placeholder">Loading…</div>`
-          : this._hiddenSources.size === 3
+          : this._hiddenSources.size === 2
             ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`

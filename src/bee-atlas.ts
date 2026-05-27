@@ -468,7 +468,7 @@ bee-pane {
       try {
         return await queryTablePage(
           this._filterState, this._tablePage, this._tableSortBy,
-          selEcdysisIds, selInatIds
+          selEcdysisIds, selInatIds, selInatObsIds
         );
       } catch (err) {
         console.error('Table query failed:', err);

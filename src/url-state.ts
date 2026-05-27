@@ -26,9 +26,9 @@ export type SelectionState =
   | { type: 'cluster'; lon: number; lat: number; radiusM: number }
   | { type: 'bounds'; west: number; south: number; east: number; north: number };
 
-export type SourceKey = 'ecdysis' | 'waba_sample' | 'inat_obs';
+export type SourceKey = 'ecdysis' | 'waba_sample';
 
-const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'inat_obs']);
+const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample']);
 
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
