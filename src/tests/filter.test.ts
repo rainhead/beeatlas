@@ -1,5 +1,5 @@
 import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
-import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, isFilterActive } from '../filter.ts';
+import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, isFilterActive, getOccurrences } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDB } from '../sqlite.ts';
 
@@ -366,5 +366,58 @@ describe('queryTablePage', () => {
     await queryTablePage(emptyFilter(), 1);
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('date DESC');
+  });
+});
+
+describe('getOccurrences', () => {
+  test('empty input returns [] without querying SQLite', async () => {
+    const { execFn } = mockSQLite([], 0);
+    const result = await getOccurrences([]);
+    expect(result).toEqual([]);
+    expect(execFn).not.toHaveBeenCalled();
+  });
+
+  test('ecdysis ID generates ecdysis_id IN clause', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await getOccurrences(['ecdysis:42']);
+    const sql = execFn.mock.calls[0]?.[1] as string;
+    expect(sql).toContain('ecdysis_id IN (42)');
+    expect(sql).not.toContain('observation_id IN');
+  });
+
+  test('inat ID generates observation_id IN clause', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await getOccurrences(['inat:99']);
+    const sql = execFn.mock.calls[0]?.[1] as string;
+    expect(sql).toContain('observation_id IN (99)');
+    expect(sql).not.toContain('ecdysis_id IN');
+  });
+
+  test('inat_obs ID generates specimen_observation_id IN clause', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await getOccurrences(['inat_obs:7']);
+    const sql = execFn.mock.calls[0]?.[1] as string;
+    expect(sql).toContain('specimen_observation_id IN (7)');
+  });
+
+  test('mixed IDs combine all three clauses with OR', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await getOccurrences(['ecdysis:1', 'inat:2', 'inat_obs:3']);
+    const sql = execFn.mock.calls[0]?.[1] as string;
+    expect(sql).toContain('ecdysis_id IN (1)');
+    expect(sql).toContain('observation_id IN (2)');
+    expect(sql).toContain('specimen_observation_id IN (3)');
+    expect(sql).toContain(' OR ');
+  });
+
+  test('returns mapped rows from callback', async () => {
+    const execFn = vi.fn((_db: number, _sql: string, callback?: (rowValues: unknown[], columnNames: string[]) => void) => {
+      callback?.([42, 'Bombus'], ['ecdysis_id', 'scientificName']);
+      return Promise.resolve();
+    });
+    vi.mocked(getDB).mockResolvedValue({ sqlite3: { exec: execFn } as any, db: 0 });
+    const rows = await getOccurrences(['ecdysis:42']);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ ecdysis_id: 42, scientificName: 'Bombus' });
   });
 });

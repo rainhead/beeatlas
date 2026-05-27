@@ -1,5 +1,6 @@
 import { getDB, tablesReady } from './sqlite.ts';
 import { occIdFromRow } from './occurrence.ts';
+import type { FeatureCollection, Point, Feature } from 'geojson';
 
 // A resolved collector entry links a human name to an iNat username (either may be null).
 // Stored in FilterState.selectedCollectors and used as CollectorOption in autocomplete.
@@ -21,6 +22,19 @@ export interface FilterState {
   elevMin: number | null;
   elevMax: number | null;
   selectedPlace: string | null;  // D-07 — singular; multi-place is deferred PRICH-02
+}
+
+export interface OccurrenceProperties {
+  occId: string;
+  recencyTier: 'thisYear' | 'lastYear' | 'earlier';
+  source: string;
+}
+
+function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
+  const y = new Date().getFullYear();
+  if (year >= y) return 'thisYear';
+  if (year >= y - 1) return 'lastYear';
+  return 'earlier';
 }
 
 export interface OccurrenceRow {
@@ -314,27 +328,34 @@ export async function queryFilteredCounts(f: FilterState): Promise<FilteredCount
   };
 }
 
-export async function queryVisibleIds(f: FilterState): Promise<{ ids: Set<string>; rowCount: number } | null> {
+export async function queryVisibleGeoJSON(f: FilterState): Promise<{
+  geojson: FeatureCollection<Point, OccurrenceProperties>;
+  ids: Set<string>;
+  rowCount: number;
+} | null> {
   if (!isFilterActive(f)) return null;
   const { occurrenceWhere } = buildFilterSQL(f);
   await tablesReady;
   const { sqlite3, db } = await getDB();
+  const features: Feature<Point, OccurrenceProperties>[] = [];
   const ids = new Set<string>();
   let rowCount = 0;
   await sqlite3.exec(db,
-    `SELECT ecdysis_id, observation_id FROM occurrences WHERE ${occurrenceWhere}`,
-    (rowValues: unknown[]) => {
+    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, year, source FROM occurrences WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
+    (rowValues: unknown[], columnNames: string[]) => {
       rowCount++;
-      const ecdysisId = rowValues[0] as number | null;
-      const obsId = rowValues[1] as number | null;
-      // Use occIdFromRow via partial-row construction to keep ID prefix logic in occurrence.ts.
-      const ecdysisOccId = occIdFromRow({ ecdysis_id: ecdysisId, observation_id: null, is_provisional: false } as OccurrenceRow);
-      if (ecdysisOccId != null) ids.add(ecdysisOccId);
-      const inatOccId = occIdFromRow({ ecdysis_id: null, observation_id: obsId, is_provisional: false } as OccurrenceRow);
-      if (inatOccId != null) ids.add(inatOccId);
+      const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'year' | 'source'>;
+      const occId = occIdFromRow({ ecdysis_id: row.ecdysis_id, observation_id: row.observation_id, specimen_observation_id: row.specimen_observation_id, is_provisional: false } as OccurrenceRow);
+      if (occId == null) return;
+      ids.add(occId);
+      features.push({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [Number(row.lon), Number(row.lat)] },
+        properties: { occId, recencyTier: _recencyTier(Number(row.year)), source: String(row.source ?? '') },
+      });
     }
   );
-  return { ids, rowCount };
+  return { geojson: { type: 'FeatureCollection', features }, ids, rowCount };
 }
 
 export interface DataSummary {
@@ -447,6 +468,28 @@ export async function queryOccurrencesByBounds(
   const rows: OccurrenceRow[] = [];
   await sqlite3.exec(db,
     `SELECT ${selectCols} FROM occurrences WHERE (${occurrenceWhere}) AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east} ORDER BY date DESC, recordedBy ASC`,
+    (rowValues: unknown[], columnNames: string[]) => {
+      rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
+    }
+  );
+  return rows;
+}
+
+export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]> {
+  if (occIds.length === 0) return [];
+  const ecdysisIds = occIds.filter(id => id.startsWith('ecdysis:')).map(id => id.slice(8));
+  const inatIds = occIds.filter(id => id.startsWith('inat:')).map(id => id.slice(5));
+  const inatObsIds = occIds.filter(id => id.startsWith('inat_obs:')).map(id => id.slice(9));
+  const clauses: string[] = [];
+  if (ecdysisIds.length > 0) clauses.push(`ecdysis_id IN (${ecdysisIds.join(',')})`);
+  if (inatIds.length > 0) clauses.push(`observation_id IN (${inatIds.join(',')})`);
+  if (inatObsIds.length > 0) clauses.push(`specimen_observation_id IN (${inatObsIds.join(',')})`);
+  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+  await tablesReady;
+  const { sqlite3, db } = await getDB();
+  const rows: OccurrenceRow[] = [];
+  await sqlite3.exec(db,
+    `SELECT ${selectCols} FROM occurrences WHERE ${clauses.join(' OR ')}`,
     (rowValues: unknown[], columnNames: string[]) => {
       rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
     }

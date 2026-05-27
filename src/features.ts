@@ -1,26 +1,8 @@
 import type { FeatureCollection, Point } from 'geojson';
 import { loadOccurrenceGeoJSON as _load, tablesReady } from './sqlite.ts';
+import type { DataSummary, TaxonOption, OccurrenceProperties } from './filter.ts';
 
-export interface OccurrenceProperties {
-  occId: string;
-  recencyTier: 'thisYear' | 'lastYear' | 'earlier';
-  [key: string]: unknown;
-}
-
-export interface DataSummary {
-  totalSpecimens: number;
-  speciesCount: number;
-  genusCount: number;
-  familyCount: number;
-  earliestYear: number;
-  latestYear: number;
-}
-
-export interface TaxonOption {
-  label: string;
-  name: string;
-  rank: 'family' | 'genus' | 'species';
-}
+export type { OccurrenceProperties };
 
 export async function loadOccurrenceGeoJSON(): Promise<{
   geojson: FeatureCollection<Point, OccurrenceProperties>;
