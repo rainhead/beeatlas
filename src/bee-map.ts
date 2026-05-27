@@ -25,14 +25,6 @@ function featureToOccurrenceRow(feature: GeoJSON.Feature): OccurrenceRow {
   return row as unknown as OccurrenceRow;
 }
 
-function haversineMetres(lon1: number, lat1: number, lon2: number, lat2: number): number {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 @customElement('bee-map')
 export class BeeMap extends LitElement {
@@ -90,11 +82,6 @@ export class BeeMap extends LitElement {
   private _placeIdMap: Map<number, string> = new Map();
   private _clickConsumed = false;
 
-  // Cluster selection halo (HALO-01): race guard + rAF coalescing.
-  // Recomputed on selection change, moveend, and occurrences sourcedata.
-  // Stale getClusterLeaves callbacks are discarded by comparing generation.
-  private _haloGeneration = 0;
-  private _haloRafToken: number | null = null;
 
   // Shift-drag rectangle gesture (SEL-01, SEL-02)
   private _rectStart: mapboxgl.Point | null = null;
@@ -285,10 +272,6 @@ export class BeeMap extends LitElement {
   }
 
   disconnectedCallback() {
-    if (this._haloRafToken !== null) {
-      cancelAnimationFrame(this._haloRafToken);
-      this._haloRafToken = null;
-    }
     // Clean up any in-progress rectangle gesture
     if (this._rectBox) {
       this._rectBox.remove();
@@ -326,10 +309,9 @@ export class BeeMap extends LitElement {
       this._applyVisibleIds();
     }
 
-    // selectedOccIds changed: update selection ring filter
+    // selectedOccIds changed: update selected-occurrences overlay
     if (changedProperties.has('selectedOccIds')) {
       this._applySelection();
-      this._scheduleHaloRecompute();
     }
 
     // View state restore (from popstate)
@@ -680,60 +662,33 @@ export class BeeMap extends LitElement {
           },
         });
 
-        // Selection ring: yellow ring around selected unclustered features
-        this._map!.addLayer({
-          id: 'selected-ring',
-          type: 'circle',
-          source: 'occurrences',
-          filter: [
-            'all',
-            ['!', ['has', 'point_count']],
-            ['in', ['get', 'occId'], ['literal', []]],
-          ],
-          paint: {
-            'circle-radius': 10,
-            'circle-color': 'transparent',
-            'circle-stroke-width': 2.5,
-            'circle-stroke-color': '#f1c40f',
-          },
-        });
-
-        // HALO-01: yellow halo around clusters whose leaves intersect selectedOccIds.
-        // Cluster auto-IDs preclude reusing the selected-ring promoteId path
-        // (Phase 071 A1). A separate non-clustered source carries cluster
-        // centroids reactively recomputed on selection / moveend / sourcedata.
-        this._map!.addSource('selected-cluster-halo', {
+        // selected-occurrences: non-clustered overlay of selected features.
+        // Renders at exact coordinates regardless of zoom, so selected points
+        // are visible even when merged into a cluster in the main source.
+        // Updated via setData on selection or filter change — no async needed.
+        this._map!.addSource('selected-occurrences', {
           type: 'geojson',
+          cluster: false,
           data: { type: 'FeatureCollection', features: [] },
         });
         this._map!.addLayer({
-          id: 'selected-cluster-halo',
+          id: 'selected-occurrences',
           type: 'circle',
-          source: 'selected-cluster-halo',
+          source: 'selected-occurrences',
           paint: {
-            'circle-color': 'transparent',
-            'circle-stroke-color': '#f1c40f',
-            'circle-stroke-width': 2.5,
-            // Mirrors the cluster step shape (bee-map.ts cluster paint) plus
-            // ~4px halo padding so the ring wraps the blob outline.
-            'circle-radius': [
-              'step', ['get', 'leaf_count'],
-              16,
-              25, 18,
-              100, 21,
-              500, 24,
+            'circle-color': [
+              'case',
+              ['==', ['get', 'source'], 'inat_obs'], '#e8a020',
+              ['match', ['get', 'recencyTier'],
+                'thisYear', RECENCY_COLORS.thisYear,
+                'lastYear', RECENCY_COLORS.lastYear,
+                RECENCY_COLORS.earlier,
+              ],
             ],
+            'circle-radius': 6,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff',
           },
-        });
-
-        // sourcedata fires on every tile/source update; filter to the
-        // occurrences source after it finishes loading to avoid per-tile
-        // recomputes. Selection paints reactively after _applyVisibleIds
-        // re-aggregates clusters from setData.
-        this._map!.on('sourcedata', (e) => {
-          if (e.sourceId === 'occurrences' && e.isSourceLoaded) {
-            this._scheduleHaloRecompute();
-          }
         });
 
         // Emit data-loaded event
@@ -756,11 +711,6 @@ export class BeeMap extends LitElement {
         if (this.hiddenSources.size > 0) {
           this._applySourceFilter();
         }
-
-        // HALO-01: paint URL-restored selection on first render. moveend
-        // alone won't fire without user interaction, and the property-change
-        // path in updated() may have run before sources existed.
-        this._scheduleHaloRecompute();
       } catch (err) {
         console.error('Failed to load occurrence data:', err);
         this._emit('data-error', { message: err instanceof Error ? err.message : String(err) });
@@ -772,9 +722,6 @@ export class BeeMap extends LitElement {
       const center = this._map!.getCenter();
       const zoom = this._map!.getZoom();
       this._emit('view-moved', { lon: center.lng, lat: center.lat, zoom });
-      // HALO-01: pan/zoom changes which clusters exist and where, so
-      // recompute halo centroids for the new viewport.
-      this._scheduleHaloRecompute();
     });
 
     // --- Click interaction priority chain ---
@@ -784,7 +731,7 @@ export class BeeMap extends LitElement {
 
     this._map.on('mousedown', () => { this._clickConsumed = false; });
 
-    // 1. Cluster click -- per D-01: query all leaves, emit map-click-occurrence (no zoom)
+    // 1. Cluster click — get all leaves, emit map-click-occurrence (shows them via selected-occurrences overlay)
     this._map.addInteraction('click-cluster', {
       type: 'click',
       target: { layerId: 'clusters' },
@@ -878,25 +825,36 @@ export class BeeMap extends LitElement {
       ghostSource.setData({ type: 'FeatureCollection', features: [] });
     }
 
+    this._applySelection();
     this._emitFilteredSummary();
   }
 
   private _applySelection() {
-    if (!this._map?.getLayer('selected-ring')) return;
+    if (!this._map) return;
+    const selectedSource = this._map.getSource('selected-occurrences') as mapboxgl.GeoJSONSource | undefined;
+    if (!selectedSource || !this._fullGeoJSON) return;
 
-    if (this.selectedOccIds !== null && this.selectedOccIds.size > 0) {
-      this._map.setFilter('selected-ring', [
-        'all',
-        ['!', ['has', 'point_count']],
-        ['in', ['get', 'occId'], ['literal', [...this.selectedOccIds]]],
-      ]);
-    } else {
-      this._map.setFilter('selected-ring', [
-        'all',
-        ['!', ['has', 'point_count']],
-        ['in', ['get', 'occId'], ['literal', []]],
-      ]);
+    const hasSelection = this.selectedOccIds !== null && this.selectedOccIds.size > 0;
+
+    // Hide cluster layers while a selection is active so the individual dots
+    // from selected-occurrences aren't visually confused with the cluster blob.
+    if (this._map.getLayer('clusters')) {
+      const vis = hasSelection ? 'none' : 'visible';
+      this._map.setLayoutProperty('clusters', 'visibility', vis);
+      this._map.setLayoutProperty('cluster-count', 'visibility', vis);
     }
+
+    if (!hasSelection) {
+      selectedSource.setData({ type: 'FeatureCollection', features: [] });
+      return;
+    }
+
+    const features = this._fullGeoJSON.features.filter(f => {
+      const id = f.properties.occId;
+      if (!this.selectedOccIds!.has(id)) return false;
+      return this.visibleIds === null || this.visibleIds.has(id);
+    });
+    selectedSource.setData({ type: 'FeatureCollection', features });
   }
 
   private _applySourceFilter() {
@@ -913,114 +871,6 @@ export class BeeMap extends LitElement {
         ['!', ['in', ['get', 'source'], ['literal', hidden]]],
       ]);
     }
-  }
-
-  // HALO-01: coalesce multiple recompute triggers within a single frame.
-  // moveend + sourcedata + property change can all fire in quick succession;
-  // the rAF token ensures we only walk the cluster set once per frame.
-  private _scheduleHaloRecompute() {
-    if (this._haloRafToken !== null) return;
-    this._haloRafToken = requestAnimationFrame(() => {
-      this._haloRafToken = null;
-      void this._recomputeHalo();
-    });
-  }
-
-  // HALO-01: walk currently-rendered clusters, await getClusterLeaves for
-  // each, and emit a halo feature for any cluster whose leaves intersect
-  // selectedOccIds. Race guard via _haloGeneration mirrors bee-atlas's
-  // _filterQueryGeneration pattern (CLAUDE.md ARCH invariant).
-  private async _recomputeHalo() {
-    if (!this._map) return;
-    const haloSource = this._map.getSource('selected-cluster-halo') as mapboxgl.GeoJSONSource | undefined;
-    if (!haloSource) return;
-
-    const generation = ++this._haloGeneration;
-
-    // Empty selection short-circuits to an empty FeatureCollection.
-    if (this.selectedOccIds === null || this.selectedOccIds.size === 0) {
-      haloSource.setData({ type: 'FeatureCollection', features: [] });
-      return;
-    }
-
-    const occSource = this._map.getSource('occurrences') as mapboxgl.GeoJSONSource | undefined;
-    if (!occSource) return;
-
-    // querySourceFeatures returns only currently-rendered features (deduped
-    // less reliably across tile boundaries — we dedupe by cluster_id below).
-    const rawClusters = this._map.querySourceFeatures('occurrences', {
-      filter: ['has', 'point_count'],
-    });
-
-    // Dedupe by cluster_id: tile-boundary duplication is real.
-    const uniqueClusters = new Map<number, GeoJSON.Feature>();
-    for (const f of rawClusters) {
-      const id = f.properties?.cluster_id as number | undefined;
-      if (id != null && !uniqueClusters.has(id)) {
-        uniqueClusters.set(id, f as unknown as GeoJSON.Feature);
-      }
-    }
-
-    if (uniqueClusters.size === 0) {
-      haloSource.setData({ type: 'FeatureCollection', features: [] });
-      return;
-    }
-
-    // Resolve all leaves in parallel; mirror _handleClusterClick's
-    // Promise wrapper around getClusterLeaves (bee-map.ts:732).
-    const leafQueries = Array.from(uniqueClusters.entries()).map(([clusterId, cluster]) => {
-      const pointCount = cluster.properties?.point_count as number | undefined;
-      if (pointCount == null) {
-        return Promise.resolve({ cluster, clusterId, leaves: [] as GeoJSON.Feature[] });
-      }
-      return new Promise<{ cluster: GeoJSON.Feature; clusterId: number; leaves: GeoJSON.Feature[] }>((resolve) => {
-        occSource.getClusterLeaves(clusterId, pointCount, 0, (error, features) => {
-          if (error) resolve({ cluster, clusterId, leaves: [] });
-          else resolve({ cluster, clusterId, leaves: features ?? [] });
-        });
-      });
-    });
-
-    let results: { cluster: GeoJSON.Feature; clusterId: number; leaves: GeoJSON.Feature[] }[];
-    try {
-      results = await Promise.all(leafQueries);
-    } catch (err) {
-      console.error('Halo getClusterLeaves failed:', err);
-      return;
-    }
-
-    // Race guard: a newer recompute (selection or pan) has superseded us.
-    if (generation !== this._haloGeneration) return;
-
-    // Component unmount race: source could have been removed mid-flight.
-    const haloSourceFresh = this._map.getSource('selected-cluster-halo') as mapboxgl.GeoJSONSource | undefined;
-    if (!haloSourceFresh) return;
-
-    const selected = this.selectedOccIds;
-    if (selected === null || selected.size === 0) {
-      // Selection cleared while we were resolving leaves — empty out.
-      haloSourceFresh.setData({ type: 'FeatureCollection', features: [] });
-      return;
-    }
-
-    const haloFeatures: GeoJSON.Feature[] = [];
-    for (const { cluster, clusterId, leaves } of results) {
-      const hit = leaves.some(f => {
-        const occId = f.properties?.occId as string | undefined;
-        return occId != null && selected.has(occId);
-      });
-      if (!hit) continue;
-      haloFeatures.push({
-        type: 'Feature',
-        geometry: cluster.geometry,
-        properties: {
-          cluster_id: clusterId,
-          leaf_count: cluster.properties?.point_count ?? 0,
-        },
-      });
-    }
-
-    haloSourceFresh.setData({ type: 'FeatureCollection', features: haloFeatures });
   }
 
   private _emitFilteredSummary() {
@@ -1227,8 +1077,6 @@ export class BeeMap extends LitElement {
   }
 
   private async _handleClusterClick(e: mapboxgl.InteractionEvent) {
-    this._clickConsumed = true;
-    e.preventDefault();
     const feature = e.feature;
     if (!feature || !this._map) return;
 
@@ -1246,26 +1094,15 @@ export class BeeMap extends LitElement {
         });
       });
 
-      // Filter to visible features if filter is active
       const toShow = this.visibleIds !== null
         ? leaves.filter(f => this.visibleIds!.has(f.properties?.occId))
         : leaves;
       if (toShow.length === 0) return;
 
-      const occIds = toShow.map(f => f.properties!.occId as string);
-      const occurrences = toShow.map(featureToOccurrenceRow);
-
-      // Compute centroid and radius for cluster URL state
-      const coords = toShow.map(f => (f.geometry as GeoJSON.Point).coordinates);
-      const centroid = {
-        lon: coords.reduce((s, c) => s + c[0]!, 0) / coords.length,
-        lat: coords.reduce((s, c) => s + c[1]!, 0) / coords.length,
-      };
-      const radiusM = Math.max(...coords.map(c =>
-        haversineMetres(centroid.lon, centroid.lat, c[0]!, c[1]!)
-      ));
-
-      this._emit('map-click-occurrence', { occurrences, occIds, centroid, radiusM });
+      this._emit('map-click-occurrence', {
+        occurrences: toShow.map(featureToOccurrenceRow),
+        occIds: toShow.map(f => f.properties!.occId as string),
+      });
     } catch (err) {
       console.error('Failed to get cluster leaves:', err);
     }

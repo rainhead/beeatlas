@@ -51,7 +51,6 @@ vi.mock('mapbox-gl', () => {
     setLayoutProperty: vi.fn(),
     setFeatureState: vi.fn(),
     removeFeatureState: vi.fn(),
-    // 260514-ndp HALO-01: cluster selection halo recompute path
     querySourceFeatures: vi.fn(() => []),
   }));
   return {
@@ -217,18 +216,16 @@ describe('CLICK-01: bee-map click interaction chain', () => {
     expect(src).toMatch(/addInteraction\s*\(\s*['"]click-ecoregion['"]/);
   });
 
-  test('bee-map.ts cluster click handler uses getClusterLeaves (D-01: no zoom)', () => {
+  test('bee-map.ts cluster click handler shows leaves via map-click-occurrence', () => {
     const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
     expect(src).toMatch(/getClusterLeaves/);
-    // D-01: must NOT zoom to expand clusters
-    expect(src).not.toMatch(/getClusterExpansionZoom/);
+    expect(src).toMatch(/map-click-occurrence/);
+    expect(src).not.toMatch(/easeTo/);
   });
 
-  test('bee-map.ts emits map-click-occurrence for both cluster and single point clicks', () => {
+  test('bee-map.ts emits map-click-occurrence for single point clicks', () => {
     const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
-    // Both handlers emit the same event name
-    const occurrenceEmitCount = (src.match(/map-click-occurrence/g) ?? []).length;
-    expect(occurrenceEmitCount).toBeGreaterThanOrEqual(2);
+    expect(src).toMatch(/map-click-occurrence/);
   });
 
   test('bee-map.ts emits map-click-region with name and shiftKey', () => {
@@ -258,51 +255,41 @@ describe('D-02: county/ecoregion options from SQLite not boundary events', () =>
   });
 });
 
-describe('HALO-01: cluster selection halo layer (260514-ndp)', () => {
+describe('selected-occurrences overlay (non-clustered selection indicator)', () => {
   const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
 
-  test('bee-map.ts adds the selected-cluster-halo source', () => {
-    expect(src).toMatch(/addSource\s*\(\s*['"]selected-cluster-halo['"]/);
+  test('bee-map.ts adds the selected-occurrences source', () => {
+    expect(src).toMatch(/addSource\s*\(\s*['"]selected-occurrences['"]/);
   });
 
-  test('bee-map.ts adds a layer with id selected-cluster-halo', () => {
-    expect(src).toMatch(/id:\s*['"]selected-cluster-halo['"]/);
+  test('selected-occurrences source has cluster: false', () => {
+    const block = src.match(/addSource\s*\(\s*['"]selected-occurrences['"][\s\S]{0,300}/);
+    expect(block).not.toBeNull();
+    expect(block![0]).toMatch(/cluster\s*:\s*false/);
   });
 
-  test('bee-map.ts has a halo race-guard generation counter', () => {
-    expect(src).toMatch(/_haloGeneration/);
+  test('bee-map.ts adds a layer with id selected-occurrences', () => {
+    expect(src).toMatch(/id:\s*['"]selected-occurrences['"]/);
   });
 
-  test('bee-map.ts has a requestAnimationFrame coalescing token', () => {
-    expect(src).toMatch(/_haloRafToken/);
-    expect(src).toMatch(/requestAnimationFrame/);
+  test('selected-occurrences layer uses same dot style as unclustered-point', () => {
+    const layerBlock = src.match(/id:\s*['"]selected-occurrences['"][\s\S]{0,800}/);
+    expect(layerBlock).not.toBeNull();
+    expect(layerBlock![0]).toMatch(/circle-stroke-color['"]?\s*:\s*['"]#ffffff['"]/);
+    expect(layerBlock![0]).toMatch(/circle-radius['"]?\s*:\s*6/);
   });
 
-  test('bee-map.ts wires moveend to the halo recompute scheduler', () => {
-    // Phase 071 already has a moveend listener for view-moved; the same or
-    // a sibling listener must call _scheduleHaloRecompute. Per-line scan
-    // not needed — both tokens must be present in the file.
-    expect(src).toMatch(/moveend/);
-    expect(src).toMatch(/_scheduleHaloRecompute/);
-  });
-
-  test('halo layer stroke colour matches selected-ring (#f1c40f)', () => {
-    // Both selected-ring and the halo use the same yellow; assert the halo
-    // block specifically by anchoring near the halo layer id.
-    const haloBlock = src.match(/id:\s*['"]selected-cluster-halo['"][\s\S]{0,800}/);
-    expect(haloBlock).not.toBeNull();
-    expect(haloBlock![0]).toMatch(/circle-stroke-color['"]?\s*:\s*['"]#f1c40f['"]/);
-  });
-
-  test('selected-cluster-halo source/layer are added inside an on(\'load\') handler', () => {
-    // Sanity: there must be no top-level addSource/addLayer for the halo
-    // outside of the load callback. We verify by checking that the
-    // addSource('selected-cluster-halo' call appears AFTER an on('load',
-    // occurrence in the source.
+  test('selected-occurrences source/layer are added inside the load handler', () => {
     const loadIdx = src.search(/this\._map(!|)?\.on\(\s*['"]load['"]/);
-    const haloSrcIdx = src.search(/addSource\s*\(\s*['"]selected-cluster-halo['"]/);
+    const srcIdx = src.search(/addSource\s*\(\s*['"]selected-occurrences['"]/);
     expect(loadIdx).toBeGreaterThanOrEqual(0);
-    expect(haloSrcIdx).toBeGreaterThan(loadIdx);
+    expect(srcIdx).toBeGreaterThan(loadIdx);
+  });
+
+  test('no async halo machinery remains', () => {
+    expect(src).not.toMatch(/_scheduleHaloRecompute/);
+    expect(src).not.toMatch(/_recomputeHalo/);
+    expect(src).not.toMatch(/selected-cluster-halo/);
   });
 });
 
