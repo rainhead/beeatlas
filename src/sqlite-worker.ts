@@ -79,17 +79,6 @@ function _buildGeoJSON(rows: Record<string, unknown>[]): {
   return { geojson: { type: 'FeatureCollection', features }, summary, taxaOptions };
 }
 
-function _escapeSqlValue(v: unknown): string {
-  if (v == null) return 'NULL';
-  if (typeof v === 'boolean') return v ? '1' : '0';
-  if (typeof v === 'number') return String(v);
-  if (typeof v === 'bigint') return String(Number(v));
-  if (v instanceof Date) return `'${v.toISOString().slice(0, 10)}'`;
-  return `'${String(v).replace(/'/g, "''")}'`;
-}
-
-const INSERT_BATCH = 500;
-
 let _execQueue: Promise<void> = Promise.resolve();
 function _serializedExec(
   origExec: SQLiteAPI['exec'],
@@ -107,20 +96,38 @@ async function _insertRows(
   db: number,
   table: string,
   rows: Record<string, unknown>[]
-): Promise<void> {
-  if (rows.length === 0) return;
+): Promise<{ batchSize: number; batchCount: number }> {
+  if (rows.length === 0) return { batchSize: 0, batchCount: 0 };
   const cols = Object.keys(rows[0]!);
-  const colList = cols.join(', ');
+
+  const varLimit = (sqlite3 as any).limit(db, 9 /* SQLITE_LIMIT_VARIABLE_NUMBER */, -1) as number;
+  const BATCH = Math.max(1, Math.floor(varLimit / cols.length));
+
+  const rowPlaceholder = '(' + cols.map(() => '?').join(',') + ')';
+  const buildStmt = async (n: number): Promise<number> => {
+    const sql = `INSERT INTO ${table} (${cols.join(',')}) VALUES ${Array(n).fill(rowPlaceholder).join(',')}`;
+    return (await sqlite3.prepare_v2(db, sql))!.stmt;
+  };
+
   await sqlite3.exec(db, 'BEGIN');
   try {
-    for (let i = 0; i < rows.length; i += INSERT_BATCH) {
-      const batch = rows.slice(i, i + INSERT_BATCH);
-      const values = batch.map(row =>
-        '(' + cols.map(c => _escapeSqlValue(row[c])).join(',') + ')'
-      ).join(',');
-      await sqlite3.exec(db, `INSERT INTO ${table} (${colList}) VALUES ${values}`);
+    const fullStmt = await buildStmt(BATCH);
+    let remStmt: number | null = null;
+    let batchCount = 0;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH);
+      const stmt = batch.length === BATCH
+        ? fullStmt
+        : (remStmt ??= await buildStmt(batch.length));
+      sqlite3.bind_collection(stmt, batch.flatMap(row => cols.map(c => row[c])));
+      await sqlite3.step(stmt);
+      await sqlite3.reset(stmt);
+      batchCount++;
     }
+    await sqlite3.finalize(fullStmt);
+    if (remStmt !== null) await sqlite3.finalize(remStmt);
     await sqlite3.exec(db, 'COMMIT');
+    return { batchSize: BATCH, batchCount };
   } catch (err) {
     await sqlite3.exec(db, 'ROLLBACK').catch(() => {});
     throw err;
@@ -201,10 +208,10 @@ let _geoJSON: ReturnType<typeof _buildGeoJSON> | null = null;
   logs.push(`[BENCHMARK] GeoJSON build (worker): ${(tGeo1 - tGeo0).toFixed(0)} ms | features: ${_geoJSON.geojson.features.length}`);
 
   const tInsert0 = performance.now();
-  await _insertRows(sqlite3, db, 'occurrences', occRows as Record<string, unknown>[]);
+  const { batchSize, batchCount } = await _insertRows(sqlite3, db, 'occurrences', occRows as Record<string, unknown>[]);
   const tInsert1 = performance.now();
   logs.push(
-    `[BENCHMARK] INSERT loop: ${(tInsert1 - tInsert0).toFixed(0)} ms | batches: ${Math.ceil(occRows.length / INSERT_BATCH)}`,
+    `[BENCHMARK] INSERT loop: ${(tInsert1 - tInsert0).toFixed(0)} ms | batches: ${batchCount} (size ${batchSize})`,
   );
 
   const tReady = performance.now();
