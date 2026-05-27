@@ -197,6 +197,33 @@ function handler(event) {
       ],
     }));
 
+    // ── Pipeline IAM User (beeatlas-pipeline) ────────────────────────────
+    // Used by the nightly cron on maderas. Access keys are managed outside
+    // CDK — create via console/CLI after first deploy and store in
+    // ~/.aws/credentials on maderas under profile [beeatlas].
+    //
+    // Migration: delete the manually-created user + inline policy before
+    // running `cdk deploy`, then create new access keys for maderas.
+    const pipelineUser = new iam.User(this, 'PipelineUser', {
+      userName: 'beeatlas-pipeline',
+    });
+
+    pipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:GetObject', 's3:PutObject'],
+      resources: [
+        siteBucket.arnForObjects('data/*'),
+        siteBucket.arnForObjects('db/*'),
+        siteBucket.arnForObjects('raw/*'),
+      ],
+    }));
+
+    pipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['cloudfront:CreateInvalidation'],
+      resources: [`arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`],
+    }));
+
     // ── Outputs (consumed as GitHub Actions secrets) ──────────────────────
     new cdk.CfnOutput(this, 'BucketName', {
       value: siteBucket.bucketName,
