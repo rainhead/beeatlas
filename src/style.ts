@@ -60,7 +60,7 @@ export function clusterCircleLayerSpec(colors: RecencyColors): CircleLayerSpecif
       'circle-stroke-width': 1,
       'circle-stroke-color': '#ffffff',
     },
-  } as CircleLayerSpecification;
+  };
 }
 
 export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecification {
@@ -81,24 +81,21 @@ export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecifi
         '#d0d6d7',
       ],
     },
-  } as SymbolLayerSpecification;
+  };
 }
 
 function _occurrencePointPaint(colors: RecencyColors): CircleLayerSpecification['paint'] {
   return {
     'circle-color': [
-      'case',
-      ['==', ['get', 'source'], 'inat_obs'], '#e8a020',
-      ['match', ['get', 'recencyTier'],
-        'thisYear', colors.thisYear,
-        'lastYear', colors.lastYear,
-        colors.earlier,
-      ],
+      'match', ['get', 'recencyTier'],
+      'thisYear', colors.thisYear,
+      'lastYear', colors.lastYear,
+      colors.earlier,
     ],
     'circle-radius': 6,
     'circle-stroke-width': 1,
     'circle-stroke-color': '#ffffff',
-  } as CircleLayerSpecification['paint'];
+  };
 }
 
 export function unclusteredPointLayerSpec(colors: RecencyColors): CircleLayerSpecification {
@@ -108,7 +105,7 @@ export function unclusteredPointLayerSpec(colors: RecencyColors): CircleLayerSpe
     source: 'occurrences',
     filter: ['!', ['has', 'point_count']],
     paint: _occurrencePointPaint(colors),
-  } as CircleLayerSpecification;
+  };
 }
 
 export function selectedOccurrencesLayerSpec(colors: RecencyColors): CircleLayerSpecification {
@@ -136,7 +133,7 @@ export function boundaryFillLayerSpec(source: string, id: string, visibility: Vi
         'rgba(0, 0, 0, 0)',
       ],
     },
-  } as FillLayerSpecification;
+  };
 }
 
 export function boundaryLineLayerSpec(source: string, id: string, visibility: Visibility): LineLayerSpecification {
@@ -159,7 +156,7 @@ export function boundaryLineLayerSpec(source: string, id: string, visibility: Vi
         1.5,
       ],
     },
-  } as LineLayerSpecification;
+  };
 }
 
 // D-06: place boundaries use warm amber to distinguish from blue boundary layers
@@ -177,7 +174,7 @@ export function placeFillLayerSpec(visibility: Visibility): FillLayerSpecificati
         'rgba(0, 0, 0, 0)',
       ],
     },
-  } as FillLayerSpecification;
+  };
 }
 
 export function placeLineLayerSpec(visibility: Visibility): LineLayerSpecification {
@@ -200,7 +197,7 @@ export function placeLineLayerSpec(visibility: Visibility): LineLayerSpecificati
         1.5,
       ],
     },
-  } as LineLayerSpecification;
+  };
 }
 
 export function placeLabelLayerSpec(visibility: Visibility): SymbolLayerSpecification {
@@ -221,7 +218,7 @@ export function placeLabelLayerSpec(visibility: Visibility): SymbolLayerSpecific
       'text-halo-color': '#ffffff',
       'text-halo-width': 1.5,
     },
-  } as SymbolLayerSpecification;
+  };
 }
 
 export function checklistCountyFillLayerSpec(): FillLayerSpecification {
@@ -235,5 +232,5 @@ export function checklistCountyFillLayerSpec(): FillLayerSpecification {
       'fill-outline-color': 'rgba(44, 122, 44, 0.7)',
     },
     filter: ['==', 'NAME', '__never__'],
-  } as FillLayerSpecification;
+  };
 }

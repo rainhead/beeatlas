@@ -84,10 +84,6 @@ export class BeeMap extends LitElement {
   // Full unfiltered GeoJSON for setData-based filtering
   private _fullGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
 
-  // speicmenLayer typo is intentionally deferred -- do not fix incidentally
-  // @ts-ignore -- intentionally unused until specimen layer is implemented
-  private speicmenLayer: unknown;
-
   private _resizeObserver: ResizeObserver | null = null;
 
   private _countyIdMap: Map<number, string> = new Map();
