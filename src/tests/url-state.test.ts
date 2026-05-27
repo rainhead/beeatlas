@@ -400,11 +400,12 @@ describe('place filter param', () => {
 });
 
 describe('MAP-03: source filter URL param (src=)', () => {
-  test('hiddenSources={ecdysis}: src param lists the visible source', () => {
+  test('hiddenSources={ecdysis}: src param lists the two visible sources', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
-                 hiddenSources: new Set(['ecdysis'] as const) };
+                 hiddenSources: new Set(['ecdysis'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('src')).toBe('waba_sample');
+    expect(params.get('src')).toBe('inat_obs,waba_sample');
   });
 
   test('hiddenSources empty (default): src param is absent', () => {
@@ -414,19 +415,22 @@ describe('MAP-03: source filter URL param (src=)', () => {
 
   test('src=ecdysis parses to hiddenSources of non-ecdysis sources', () => {
     const result = parseParams('src=ecdysis');
-    expect(result.ui?.hiddenSources).toEqual(new Set(['waba_sample']));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['inat_obs', 'waba_sample']));
   });
 
-  test('one hidden source: src lists the single visible source', () => {
+  test('two hidden sources: src lists the single visible source', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
-                 hiddenSources: new Set(['ecdysis'] as const) };
+                 hiddenSources: new Set(['inat_obs', 'ecdysis'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     expect(params.get('src')).toBe('waba_sample');
   });
 
   test('invalid source value in src= is filtered out', () => {
     const result = parseParams('src=ecdysis,bogus_source');
-    expect(result.ui?.hiddenSources).toEqual(new Set(['waba_sample']));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['inat_obs', 'waba_sample']));
   });
 
   test('src=ecdysis alone triggers result.ui (hasFilter condition)', () => {
