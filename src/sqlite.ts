@@ -1,10 +1,11 @@
 type ExecCallback = (rowValues: unknown[], columnNames: string[]) => void;
 type SQLiteAPI = { exec: (db: number, sql: string, cb?: ExecCallback) => Promise<void> };
+type WorkerMsg = { kind: string; id?: number; rows?: unknown[][]; columns?: string[]; message?: string; logs?: string[]; result?: unknown };
 
 let _worker: Worker | null = null;
 let _workerT0 = 0;
 let _nextId = 1;
-const _pending = new Map<number, { resolve: () => void; reject: (e: Error) => void; cb?: ExecCallback }>();
+const _pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void; cb?: ExecCallback }>();
 
 function _heapMB(): number {
   return ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1_048_576;
@@ -20,7 +21,7 @@ function _ensureWorker(): Worker {
   _workerT0 = performance.now();
   _worker = new Worker(new URL('./sqlite-worker.ts', import.meta.url), { type: 'module' });
   _worker.onmessage = (e: MessageEvent) => {
-    const msg = e.data as { kind: string; id?: number; rows?: unknown[][]; columns?: string[]; message?: string; logs?: string[] };
+    const msg = e.data as WorkerMsg;
     if (msg.kind === 'tables-ready') {
       for (const line of (msg.logs ?? [])) console.log(line);
       const elapsed = (performance.now() - _workerT0).toFixed(0);
@@ -34,12 +35,17 @@ function _ensureWorker(): Worker {
       if (p.cb) {
         for (const row of (msg.rows ?? [])) p.cb(row as unknown[], msg.columns ?? []);
       }
-      p.resolve();
+      p.resolve(undefined);
     } else if (msg.kind === 'exec-error') {
       const p = _pending.get(msg.id!);
       if (!p) return;
       _pending.delete(msg.id!);
       p.reject(new Error(msg.message));
+    } else if (msg.kind === 'geojson-result') {
+      const p = _pending.get(msg.id!);
+      if (!p) return;
+      _pending.delete(msg.id!);
+      p.resolve(msg.result);
     }
   };
   _worker.onerror = (e) => console.error('[sqlite-worker] error', e);
@@ -50,9 +56,9 @@ export function getDB(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
   const worker = _ensureWorker();
   const sqlite3: SQLiteAPI = {
     exec(_db: number, sql: string, cb?: ExecCallback): Promise<void> {
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         const id = _nextId++;
-        _pending.set(id, { resolve, reject, cb });
+        _pending.set(id, { resolve: () => resolve(), reject, cb });
         worker.postMessage({ kind: 'exec', id, sql });
       });
     },
@@ -63,4 +69,13 @@ export function getDB(): Promise<{ sqlite3: SQLiteAPI; db: number }> {
 export async function loadOccurrencesTable(): Promise<void> {
   _ensureWorker();
   await tablesReady;
+}
+
+export function loadOccurrenceGeoJSON(): Promise<unknown> {
+  const worker = _ensureWorker();
+  return new Promise((resolve, reject) => {
+    const id = _nextId++;
+    _pending.set(id, { resolve, reject });
+    worker.postMessage({ kind: 'build-geojson', id });
+  });
 }
