@@ -282,6 +282,9 @@ describe('MAP-02: source filter row in bee-pane', () => {
   test('bee-pane.ts has checkbox for ecdysis source', () => {
     expect(src).toMatch(/ecdysis/);
   });
+  test('bee-pane.ts has checkbox for inat_obs source', () => {
+    expect(src).toMatch(/inat_obs/);
+  });
   test('bee-pane.ts has checkbox for waba_sample source', () => {
     expect(src).toMatch(/waba_sample/);
   });
