@@ -3,8 +3,87 @@ import * as SQLite from 'wa-sqlite';
 import { MemoryVFS } from 'wa-sqlite/src/examples/MemoryVFS.js';
 import { parquetReadObjects } from 'hyparquet';
 import { resolveDataUrl } from './manifest.ts';
+import type { FeatureCollection, Point, Feature } from 'geojson';
 
 type SQLiteAPI = ReturnType<typeof SQLite.Factory>;
+
+// Inlined from occurrence.ts / style.ts — pure functions with no DOM/SQLite deps.
+function _occId(row: Record<string, unknown>): string | null {
+  if (row.ecdysis_id != null) return `ecdysis:${row.ecdysis_id}`;
+  if (row.observation_id != null) return `inat:${row.observation_id}`;
+  if (row.specimen_observation_id != null) return `inat_obs:${row.specimen_observation_id}`;
+  return null;
+}
+function _recencyTier(year: number): 'thisYear' | 'lastYear' | 'earlier' {
+  const y = new Date().getFullYear();
+  if (year >= y) return 'thisYear';
+  if (year >= y - 1) return 'lastYear';
+  return 'earlier';
+}
+
+interface OccurrenceProperties { occId: string; recencyTier: string; [key: string]: unknown }
+interface DataSummary { totalSpecimens: number; speciesCount: number; genusCount: number; familyCount: number; earliestYear: number; latestYear: number }
+interface TaxonOption { label: string; name: string; rank: 'family' | 'genus' | 'species' }
+
+function _coerce(v: unknown): unknown {
+  return typeof v === 'bigint' ? Number(v) : v;
+}
+
+function _buildGeoJSON(rows: Record<string, unknown>[]): {
+  geojson: FeatureCollection<Point, OccurrenceProperties>;
+  summary: DataSummary;
+  taxaOptions: TaxonOption[];
+} {
+  const features: Feature<Point, OccurrenceProperties>[] = [];
+  const species = new Set<string>();
+  const genera = new Set<string>();
+  const families = new Set<string>();
+  let minYear = Infinity, maxYear = -Infinity;
+
+  for (const row of rows) {
+    if (row.lat == null || row.lon == null) continue;
+    const occId = _occId(row);
+    if (occId == null) continue;
+
+    const year = Number(row.year);
+
+    if (row.ecdysis_id != null) {
+      const s = row.scientificName as string;
+      const g = row.genus as string;
+      const fam = row.family as string;
+      if (s) species.add(s);
+      if (g) genera.add(g);
+      if (fam) families.add(fam);
+      if (year < minYear) minYear = year;
+      if (year > maxYear) maxYear = year;
+    }
+
+    const props: Record<string, unknown> = { occId, recencyTier: _recencyTier(year) };
+    for (const [k, v] of Object.entries(row)) props[k] = _coerce(v);
+    features.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [Number(row.lon), Number(row.lat)] },
+      properties: props as OccurrenceProperties,
+    });
+  }
+
+  const summary: DataSummary = {
+    totalSpecimens: features.filter(f => f.properties.occId.startsWith('ecdysis:')).length,
+    speciesCount: species.size,
+    genusCount: genera.size,
+    familyCount: families.size,
+    earliestYear: minYear === Infinity ? 0 : minYear,
+    latestYear: maxYear === -Infinity ? 0 : maxYear,
+  };
+
+  const taxaOptions: TaxonOption[] = [
+    ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
+    ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
+    ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
+  ];
+
+  return { geojson: { type: 'FeatureCollection', features }, summary, taxaOptions };
+}
 
 function _escapeSqlValue(v: unknown): string {
   if (v == null) return 'NULL';
@@ -53,6 +132,8 @@ async function _insertRows(
     throw err;
   }
 }
+
+let _geoJSON: ReturnType<typeof _buildGeoJSON> | null = null;
 
 (async () => {
   const t0 = performance.now();
@@ -120,8 +201,13 @@ async function _insertRows(
     `[BENCHMARK] fetch: ${(tParse0 - tFetch0).toFixed(0)} ms | parquet parse: ${(tParse1 - tParse0).toFixed(0)} ms | rows: ${occRows.length}`,
   );
 
+  const tGeo0 = performance.now();
+  _geoJSON = _buildGeoJSON(occRows as Record<string, unknown>[]);
+  const tGeo1 = performance.now();
+  logs.push(`[BENCHMARK] GeoJSON build (worker): ${(tGeo1 - tGeo0).toFixed(0)} ms | features: ${_geoJSON.geojson.features.length}`);
+
   const tInsert0 = performance.now();
-  await _insertRows(sqlite3, db, 'occurrences', occRows);
+  await _insertRows(sqlite3, db, 'occurrences', occRows as Record<string, unknown>[]);
   const tInsert1 = performance.now();
   logs.push(
     `[BENCHMARK] INSERT loop: ${(tInsert1 - tInsert0).toFixed(0)} ms | batches: ${Math.ceil(occRows.length / INSERT_BATCH)}`,
@@ -132,17 +218,22 @@ async function _insertRows(
 
   self.onmessage = async (e: MessageEvent) => {
     const { kind, id, sql } = e.data as { kind: string; id: number; sql: string };
-    if (kind !== 'exec') return;
-    try {
-      const rows: unknown[][] = [];
-      let columns: string[] = [];
-      await sqlite3.exec(db, sql, (rowValues: unknown[], columnNames: string[]) => {
-        if (columns.length === 0) columns = columnNames;
-        rows.push([...rowValues]);
-      });
-      self.postMessage({ kind: 'exec-result', id, rows, columns });
-    } catch (err: any) {
-      self.postMessage({ kind: 'exec-error', id, message: err?.message ?? String(err) });
+    if (kind === 'exec') {
+      try {
+        const rows: unknown[][] = [];
+        let columns: string[] = [];
+        await sqlite3.exec(db, sql, (rowValues: unknown[], columnNames: string[]) => {
+          if (columns.length === 0) columns = columnNames;
+          rows.push([...rowValues]);
+        });
+        self.postMessage({ kind: 'exec-result', id, rows, columns });
+      } catch (err: any) {
+        self.postMessage({ kind: 'exec-error', id, message: err?.message ?? String(err) });
+      }
+    } else if (kind === 'build-geojson') {
+      const result = _geoJSON;
+      _geoJSON = null; // free memory — main thread takes ownership
+      self.postMessage({ kind: 'geojson-result', id, result });
     }
   };
 

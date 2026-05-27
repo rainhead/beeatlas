@@ -215,6 +215,8 @@ bee-pane {
     `;
   }
 
+  private _bootT0 = performance.now();
+
   public firstUpdated(_changedProperties: PropertyValues): void {
     const initialParams = parseParams(window.location.search);
 
@@ -926,6 +928,8 @@ bee-pane {
     this._summary = e.detail.summary;
     this._taxaOptions = e.detail.taxaOptions;
     this._loading = false;
+    const _heapMB = ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1_048_576;
+    console.log(`[BENCHMARK] data-loaded (loading screen lifted): ${(performance.now() - this._bootT0).toFixed(0)} ms from boot | main-thread heap: ${_heapMB.toFixed(1)} MB`);
     this._loadCollectorOptions();
     // Load county and ecoregion options from SQLite
     // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
