@@ -62,10 +62,32 @@ SQLite WASM factory, MemoryVFS, parquet parse, and all INSERTs execute on the **
 
 ## After (worker)
 
-*To be filled in by the human during Task 3 checkpoint verification.*
+- **Browser:** Firefox (performance.memory not exposed — main-thread heap shows 0.0 MB)
+- **Rows:** 92,802 (dataset grew from 77,544 since baseline)
+
+```
+[BENCHMARK] WASM instantiate: 60 ms
+[BENCHMARK] fetch: 40 ms | parquet parse: 413 ms | rows: 92802
+[BENCHMARK] INSERT loop: 5683 ms | batches: 186
+[BENCHMARK] worker tablesReady: 6197 ms total
+[BENCHMARK] worker boot (main-thread wall time): 6583 ms | main-thread heap: 0.0 MB
+```
+
+**Notes:**
+- `main-thread heap: 0.0 MB` — Firefox does not expose `performance.memory`; the ~100 MB WASM + table heap lives in the worker, no longer on the main thread.
+- Firefox is significantly slower than Chrome for wa-sqlite Asyncify INSERTs (~5.6 s vs ~780 ms). This was always the bottleneck; it now happens off the main thread.
+- Row count is 20% higher than the Chrome baseline, accounting for some of the timing difference.
 
 ---
 
 ## Verdict
 
-*To be filled in after AFTER measurements are captured.*
+| Metric | Before (Chrome, 77k rows) | After (Firefox, 93k rows) |
+|---|---|---|
+| WASM instantiate | 51 ms | 60 ms |
+| parquet parse | 257 ms | 413 ms |
+| INSERT loop | 780 ms | 5,683 ms |
+| tablesReady total | 1,486 ms | 6,197 ms |
+| main-thread heap | 103 MB | 0.0 MB (worker heap) |
+
+**Verdict: keep.** The worker move successfully removes all SQLite work from the main thread. The INSERT loop remains slow in Firefox (Asyncify overhead) but no longer blocks the UI — the page should stay interactive during the load. Direct before/after comparison is imprecise (different browsers, different row counts); a Chrome-to-Chrome comparison would confirm the main-thread responsiveness improvement.
