@@ -106,7 +106,12 @@ async function _insertRows(
   const rowPlaceholder = '(' + cols.map(() => '?').join(',') + ')';
   const buildStmt = async (n: number): Promise<number> => {
     const sql = `INSERT INTO ${table} (${cols.join(',')}) VALUES ${Array(n).fill(rowPlaceholder).join(',')}`;
-    return (await sqlite3.prepare_v2(db, sql))!.stmt;
+    const str = sqlite3.str_new(db, sql);
+    try {
+      return (await sqlite3.prepare_v2(db, sqlite3.str_value(str)))!.stmt;
+    } finally {
+      sqlite3.str_finish(str);
+    }
   };
 
   await sqlite3.exec(db, 'BEGIN');
