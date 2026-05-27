@@ -17,20 +17,34 @@
     "slug": "beacon-rock-state-park",
     "name": "Beacon Rock State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 5,
-    "sample_count": 1
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "birch-bay-state-park",
     "name": "Birch Bay State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 22,
+    "specimen_count": 0,
     "sample_count": 3
   },
   {
     "slug": "blake-island-marine-state-park",
     "name": "Blake Island Marine State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "bloomberg-hill-park",
+    "name": "Bloomberg Hill Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "blyth-park",
+    "name": "Blyth Park",
+    "land_owner": "City of Bothell",
     "specimen_count": 0,
     "sample_count": 0
   },
@@ -49,6 +63,20 @@
     "sample_count": 0
   },
   {
+    "slug": "bracketts-landing",
+    "name": "Brackett's Landing",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "brickyard-road-park",
+    "name": "Brickyard Road Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "bridgeport-state-park",
     "name": "Bridgeport State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
@@ -59,8 +87,8 @@
     "slug": "brooks-memorial-state-park",
     "name": "Brooks Memorial State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 1,
+    "sample_count": 1
   },
   {
     "slug": "cape-disappointment-state-park",
@@ -70,23 +98,44 @@
     "sample_count": 0
   },
   {
+    "slug": "cedar-grove-park",
+    "name": "Cedar Grove Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "centennial-park",
+    "name": "Centennial Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 55,
+    "sample_count": 5
+  },
+  {
     "slug": "columbia-hills-state-park",
     "name": "Columbia Hills State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 94,
-    "sample_count": 6
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "conboy-lake-nwr",
     "name": "Conboy Lake National Wildlife Refuge",
     "land_owner": "US Fish & Wildlife Service",
-    "specimen_count": 207,
-    "sample_count": 7
+    "specimen_count": 628,
+    "sample_count": 11
   },
   {
     "slug": "conconully-state-park",
     "name": "Conconully State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "conifer-view-park",
+    "name": "Conifer View Park",
+    "land_owner": "City of Bothell",
     "specimen_count": 0,
     "sample_count": 0
   },
@@ -101,8 +150,8 @@
     "slug": "cowiche-canyon-conservancy",
     "name": "Cowiche Canyon Conservancy",
     "land_owner": "Cowiche Canyon Conservancy",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 188,
+    "sample_count": 12
   },
   {
     "slug": "crawford-state-park",
@@ -129,22 +178,36 @@
     "slug": "deception-pass-state-park",
     "name": "Deception Pass State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 133,
+    "specimen_count": 89,
     "sample_count": 7
   },
   {
     "slug": "discovery-park",
     "name": "Discovery Park",
     "land_owner": "Seattle Parks and Recreation",
-    "specimen_count": 160,
-    "sample_count": 8
+    "specimen_count": 114,
+    "sample_count": 10
   },
   {
     "slug": "dosewallips-state-park",
     "name": "Dosewallips State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 5,
-    "sample_count": 1
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "doug-allen-sportsfields",
+    "name": "Doug Allen Sportsfields",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "east-norway-hill-park",
+    "name": "East Norway Hill Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "fields-spring-state-park",
@@ -154,10 +217,17 @@
     "sample_count": 0
   },
   {
+    "slug": "former-wayne-golf-course",
+    "name": "Former Wayne Golf Course",
+    "land_owner": "City of Bothell",
+    "specimen_count": 1,
+    "sample_count": 1
+  },
+  {
     "slug": "fort-flagler-state-park",
     "name": "Fort Flagler State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 164,
+    "specimen_count": 155,
     "sample_count": 15
   },
   {
@@ -172,28 +242,28 @@
     "name": "Fort Townsend State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
-    "sample_count": 0
+    "sample_count": 1
   },
   {
     "slug": "fort-worden-state-park",
     "name": "Fort Worden State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 19,
+    "specimen_count": 15,
     "sample_count": 10
   },
   {
     "slug": "ginkgo-petrified-forest-state-park",
     "name": "Ginkgo Petrified Forest State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 121,
-    "sample_count": 18
+    "specimen_count": 8,
+    "sample_count": 19
   },
   {
     "slug": "grayland-beach-state-park",
     "name": "Grayland Beach State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
-    "sample_count": 0
+    "sample_count": 1
   },
   {
     "slug": "griffiths-priday-state-park",
@@ -206,13 +276,27 @@
     "slug": "hanford-reach-national-monument",
     "name": "Hanford Reach National Monument",
     "land_owner": "US Fish & Wildlife Service",
-    "specimen_count": 638,
+    "specimen_count": 531,
     "sample_count": 21
+  },
+  {
+    "slug": "haynes-open-space",
+    "name": "Haynes Open Space",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "helen-mccabe-state-park",
     "name": "Helen McCabe State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 51,
+    "sample_count": 2
+  },
+  {
+    "slug": "horse-creek-plaza",
+    "name": "Horse Creek Plaza",
+    "land_owner": "City of Bothell",
     "specimen_count": 0,
     "sample_count": 0
   },
@@ -241,8 +325,8 @@
     "slug": "klickitat-trail-state-park",
     "name": "Klickitat Trail State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 95,
-    "sample_count": 11
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "lake-easton-state-park",
@@ -255,8 +339,8 @@
     "slug": "lake-sammamish-state-park",
     "name": "Lake Sammamish State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 69,
-    "sample_count": 4
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "lake-sylvia-state-park",
@@ -283,8 +367,8 @@
     "slug": "lewis-creek-park",
     "name": "Lewis Creek Park",
     "land_owner": "City of Bellevue",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 74,
+    "sample_count": 8
   },
   {
     "slug": "lincoln-rock-state-park",
@@ -297,21 +381,21 @@
     "slug": "little-pend-oreille-nwr",
     "name": "Little Pend Oreille National Wildlife Refuge",
     "land_owner": "US Fish & Wildlife Service",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 406,
+    "sample_count": 17
   },
   {
     "slug": "lummi-island-heritage-trust",
     "name": "Lummi Island Heritage Trust",
     "land_owner": "Lummi Island Heritage Trust",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 9,
+    "sample_count": 4
   },
   {
     "slug": "magnuson-park",
     "name": "Warren G. Magnuson Park",
     "land_owner": "Seattle Parks and Recreation",
-    "specimen_count": 177,
+    "specimen_count": 166,
     "sample_count": 8
   },
   {
@@ -325,7 +409,7 @@
     "slug": "moran-state-park",
     "name": "Moran State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 22,
+    "specimen_count": 18,
     "sample_count": 2
   },
   {
@@ -339,8 +423,8 @@
     "slug": "mount-rainier-national-park",
     "name": "Mount Rainier National Park",
     "land_owner": "National Park Service",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 6,
+    "sample_count": 2
   },
   {
     "slug": "mount-spokane-state-park",
@@ -357,11 +441,25 @@
     "sample_count": 5
   },
   {
+    "slug": "north-creek-forest",
+    "name": "North Creek Forest",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "north-creek-sportsfields",
+    "name": "North Creek Sportsfields",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "ocean-city-state-park",
     "name": "Ocean City State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
-    "sample_count": 0
+    "sample_count": 3
   },
   {
     "slug": "olmstead-place-state-park",
@@ -374,27 +472,34 @@
     "slug": "olympic-national-park",
     "name": "Olympic National Park",
     "land_owner": "National Park Service",
-    "specimen_count": 12,
-    "sample_count": 3
+    "specimen_count": 1256,
+    "sample_count": 19
   },
   {
     "slug": "pacific-beach-state-park",
     "name": "Pacific Beach State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 1,
-    "sample_count": 1
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "padilla-bay-nerr",
     "name": "Padilla Bay National Estuarine Research Reserve",
     "land_owner": "Washington Department of Ecology",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 109,
+    "sample_count": 4
   },
   {
     "slug": "palouse-falls-state-park",
     "name": "Palouse Falls State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "park-at-bothell-landing",
+    "name": "Park at Bothell Landing",
+    "land_owner": "City of Bothell",
     "specimen_count": 0,
     "sample_count": 0
   },
@@ -413,10 +518,17 @@
     "sample_count": 0
   },
   {
+    "slug": "pioneer-cemetery",
+    "name": "Pioneer Cemetery",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "potholes-state-park",
     "name": "Potholes State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 320,
+    "specimen_count": 290,
     "sample_count": 8
   },
   {
@@ -434,18 +546,39 @@
     "sample_count": 0
   },
   {
+    "slug": "red-brick-road",
+    "name": "Red Brick Road",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "ridgefield-nwr",
     "name": "Ridgefield National Wildlife Refuge",
     "land_owner": "US Fish & Wildlife Service",
-    "specimen_count": 2130,
+    "specimen_count": 999,
     "sample_count": 13
   },
   {
     "slug": "riverside-state-park",
     "name": "Riverside State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 9,
-    "sample_count": 4
+    "specimen_count": 1,
+    "sample_count": 1
+  },
+  {
+    "slug": "royal-oaks-park",
+    "name": "Royal Oaks Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "sammamish-river-park",
+    "name": "Sammamish River Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "schafer-state-park",
@@ -465,7 +598,7 @@
     "slug": "seward-park",
     "name": "Seward Park",
     "land_owner": "Seattle Parks and Recreation",
-    "specimen_count": 29,
+    "specimen_count": 23,
     "sample_count": 7
   },
   {
@@ -500,8 +633,8 @@
     "slug": "sjcclb-coffelt-farm",
     "name": "Coffelt Farm Preserve",
     "land_owner": "San Juan County Land Bank",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 7,
+    "sample_count": 1
   },
   {
     "slug": "sjcclb-coho",
@@ -514,8 +647,8 @@
     "slug": "sjcclb-crescent-beach",
     "name": "Crescent Beach Preserve",
     "land_owner": "San Juan County Land Bank",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 2,
+    "sample_count": 1
   },
   {
     "slug": "sjcclb-deer-harbor",
@@ -563,8 +696,8 @@
     "slug": "sjcclb-fisherman-bay",
     "name": "Fisherman Bay Preserve",
     "land_owner": "San Juan County Land Bank",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 15,
+    "sample_count": 2
   },
   {
     "slug": "sjcclb-frazer-homestead",
@@ -619,8 +752,8 @@
     "slug": "sjcclb-mount-grant",
     "name": "Mount Grant Preserve",
     "land_owner": "San Juan County Land Bank",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 11,
+    "sample_count": 3
   },
   {
     "slug": "sjcclb-richardson-marsh",
@@ -654,8 +787,8 @@
     "slug": "sjcclb-turtleback-mountain",
     "name": "Turtleback Mountain Preserve",
     "land_owner": "San Juan County Land Bank",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 62,
+    "sample_count": 4
   },
   {
     "slug": "sjcclb-upright-head",
@@ -668,8 +801,8 @@
     "slug": "sjcclb-watmough-bay",
     "name": "Watmough Bay Preserve",
     "land_owner": "San Juan County Land Bank",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 8,
+    "sample_count": 3
   },
   {
     "slug": "sjcclb-westside",
@@ -682,27 +815,34 @@
     "slug": "sjcclb-zylstra-lake",
     "name": "Zylstra Lake Preserve",
     "land_owner": "San Juan County Land Bank",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 10,
+    "sample_count": 2
   },
   {
     "slug": "squilchuck-state-park",
     "name": "Squilchuck State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 30,
-    "sample_count": 6
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "steamboat-rock-state-park",
     "name": "Steamboat Rock State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 391,
-    "sample_count": 9
+    "specimen_count": 240,
+    "sample_count": 8
   },
   {
     "slug": "steptoe-butte-state-park",
     "name": "Steptoe Butte State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
+    "specimen_count": 39,
+    "sample_count": 9
+  },
+  {
+    "slug": "stipek-park",
+    "name": "Stipek Park",
+    "land_owner": "City of Bothell",
     "specimen_count": 0,
     "sample_count": 0
   },
@@ -710,8 +850,22 @@
     "slug": "sun-lakes-dry-falls-state-park",
     "name": "Sun Lakes-Dry Falls State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 603,
+    "specimen_count": 546,
     "sample_count": 19
+  },
+  {
+    "slug": "swedish-cemetery",
+    "name": "Swedish Cemetery",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "tall-tree-park",
+    "name": "Tall Tree Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "tiger-mountain",
@@ -724,8 +878,8 @@
     "slug": "toppenish-nwr",
     "name": "Toppenish National Wildlife Refuge",
     "land_owner": "US Fish & Wildlife Service",
-    "specimen_count": 0,
-    "sample_count": 0
+    "specimen_count": 60,
+    "sample_count": 2
   },
   {
     "slug": "triton-cove-state-park",
@@ -738,35 +892,49 @@
     "slug": "twin-harbors-state-park",
     "name": "Twin Harbors State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 2,
-    "sample_count": 1
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "volunteer-park",
+    "name": "Volunteer Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "wenatchee-confluence-state-park",
     "name": "Wenatchee Confluence State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 1,
-    "sample_count": 1
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "westport-light-state-park",
     "name": "Westport Light State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 14,
-    "sample_count": 3
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "willapa-hills-trail-state-park",
     "name": "Willapa Hills Trail State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
-    "specimen_count": 8,
-    "sample_count": 4
+    "specimen_count": 13,
+    "sample_count": 3
   },
   {
     "slug": "willapa-nwr",
     "name": "Willapa National Wildlife Refuge",
     "land_owner": "US Fish & Wildlife Service",
-    "specimen_count": 1,
-    "sample_count": 1
+    "specimen_count": 27,
+    "sample_count": 6
+  },
+  {
+    "slug": "william-penn-park",
+    "name": "William Penn Park",
+    "land_owner": "City of Bothell",
+    "specimen_count": 0,
+    "sample_count": 0
   }
 ]
