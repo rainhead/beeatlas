@@ -50,6 +50,7 @@ None.
 | Date | Slug | Description |
 |---|---|---|
 | 2026-05-26 | inat-obs-show-species-in-sidebar | iNat expert obs: show species name + quality badge in sidebar |
+| 2026-05-27 | 260527-ko5 | Move sqlite and data loading into a worker thread; profile before/after |
 
 ## Session Continuity
 
