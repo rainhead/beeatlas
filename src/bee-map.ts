@@ -4,7 +4,20 @@ import mapboxgl from 'mapbox-gl';
 import { parquetReadObjects } from 'hyparquet';
 import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
 import { loadOccurrenceGeoJSON, type OccurrenceProperties } from './features.ts';
-import { RECENCY_COLORS } from './style.ts';
+import {
+  RECENCY_COLORS,
+  boundaryFillLayerSpec,
+  boundaryLineLayerSpec,
+  checklistCountyFillLayerSpec,
+  clusterCircleLayerSpec,
+  clusterCountLayerSpec,
+  ghostPointLayerSpec,
+  placeFillLayerSpec,
+  placeLabelLayerSpec,
+  placeLineLayerSpec,
+  selectedOccurrencesLayerSpec,
+  unclusteredPointLayerSpec,
+} from './style.ts';
 import { type FilterState, OCCURRENCE_COLUMNS, type OccurrenceRow } from './filter.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import type { DataSummary, FilteredSummary } from './filter.ts';
@@ -426,241 +439,32 @@ export class BeeMap extends LitElement {
         const ecoVis = this.boundaryMode === 'ecoregions' ? 'visible' as const : 'none' as const;
         const placesVis = this.boundaryMode === 'places' ? 'visible' as const : 'none' as const;
 
-        // Ecoregion fill (click target + selection highlight)
-        this._map!.addLayer({
-          id: 'ecoregion-fill',
-          type: 'fill',
-          source: 'ecoregions',
-          layout: { visibility: ecoVis },
-          paint: {
-            'fill-color': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              'rgba(44, 123, 229, 0.12)',
-              'rgba(0, 0, 0, 0)',
-            ],
-          },
-        });
-
-        // Ecoregion line (visible stroke).
-        // line-join: round avoids miter extension at sharp three-way corners
-        // (#14 — small visible artifacts at Pierce/Lewis/Yakima-style junctions).
-        this._map!.addLayer({
-          id: 'ecoregion-line',
-          type: 'line',
-          source: 'ecoregions',
-          layout: { visibility: ecoVis, 'line-join': 'round', 'line-cap': 'round' },
-          paint: {
-            'line-color': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              'rgba(44, 123, 229, 0.85)',
-              'rgba(80, 80, 80, 0.55)',
-            ],
-            'line-width': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              2.5,
-              1.5,
-            ],
-          },
-        });
-
-        // County fill (click target + selection highlight)
-        this._map!.addLayer({
-          id: 'county-fill',
-          type: 'fill',
-          source: 'counties',
-          layout: { visibility: countyVis },
-          paint: {
-            'fill-color': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              'rgba(44, 123, 229, 0.12)',
-              'rgba(0, 0, 0, 0)',
-            ],
-          },
-        });
-
-        // County line (visible stroke).
-        // line-join: round avoids miter extension at sharp three-way corners
-        // (#14 — small visible artifacts at Pierce/Lewis/Yakima-style junctions).
-        this._map!.addLayer({
-          id: 'county-line',
-          type: 'line',
-          source: 'counties',
-          layout: { visibility: countyVis, 'line-join': 'round', 'line-cap': 'round' },
-          paint: {
-            'line-color': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              'rgba(44, 123, 229, 0.85)',
-              'rgba(80, 80, 80, 0.55)',
-            ],
-            'line-width': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              2.5,
-              1.5,
-            ],
-          },
-        });
-
-        // Place fill (click target + selection highlight) — warm amber, D-06
-        this._map!.addLayer({
-          id: 'place-fill',
-          type: 'fill',
-          source: 'places',
-          layout: { visibility: placesVis },
-          paint: {
-            'fill-color': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              'rgba(220, 130, 30, 0.12)',   // D-06 selected fill
-              'rgba(0, 0, 0, 0)',           // D-06 unselected: transparent
-            ],
-          },
-        });
-
-        // Place line (visible stroke) — warm amber, D-06
-        // line-join: round avoids miter extension at sharp corners
-        this._map!.addLayer({
-          id: 'place-line',
-          type: 'line',
-          source: 'places',
-          layout: { visibility: placesVis, 'line-join': 'round', 'line-cap': 'round' },
-          paint: {
-            'line-color': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              'rgba(220, 130, 30, 0.85)',   // D-06 selected line
-              'rgba(180, 100, 30, 0.65)',   // D-06 unselected line
-            ],
-            'line-width': [
-              'case',
-              ['boolean', ['feature-state', 'selected'], false],
-              2.5,
-              1.5,
-            ],
-          },
-        });
-
-        // Place name labels at polygon centroids
-        this._map!.addLayer({
-          id: 'place-label',
-          type: 'symbol',
-          source: 'places',
-          layout: {
-            visibility: placesVis,
-            'text-field': ['get', 'name'],
-            'text-size': 12,
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-            'text-max-width': 10,
-            'symbol-placement': 'point',
-          },
-          paint: {
-            'text-color': '#7a4a00',
-            'text-halo-color': '#ffffff',
-            'text-halo-width': 1.5,
-          },
-        });
+        this._map!.addLayer(boundaryFillLayerSpec('ecoregions', 'ecoregion-fill', ecoVis));
+        this._map!.addLayer(boundaryLineLayerSpec('ecoregions', 'ecoregion-line', ecoVis));
+        this._map!.addLayer(boundaryFillLayerSpec('counties', 'county-fill', countyVis));
+        this._map!.addLayer(boundaryLineLayerSpec('counties', 'county-line', countyVis));
+        this._map!.addLayer(placeFillLayerSpec(placesVis));
+        this._map!.addLayer(placeLineLayerSpec(placesVis));
+        this._map!.addLayer(placeLabelLayerSpec(placesVis));
 
         // Checklist county fill: semi-transparent green fill on counties with checklist records
-        this._map!.addLayer({
-          id: 'checklist-county-fill',
-          type: 'fill',
-          source: 'counties',
-          layout: { visibility: 'none' },
-          paint: {
-            'fill-color': 'rgba(44, 122, 44, 0.25)',
-            'fill-outline-color': 'rgba(44, 122, 44, 0.7)',
-          },
-          filter: ['==', 'NAME', '__never__'],
-        });
+        this._map!.addLayer(checklistCountyFillLayerSpec());
         // Apply checklist state restored from URL (updated() fires before map loads)
         if (this.showChecklist) {
           this._applyChecklistLayer();
         }
 
         // Ghost points: low-opacity gray dots for filtered-out features
-        this._map!.addLayer({
-          id: 'ghost-points',
-          type: 'circle',
-          source: 'occurrences-ghost',
-          paint: {
-            'circle-color': '#aaaaaa',
-            'circle-opacity': 0.2,
-            'circle-radius': 4,
-            'circle-stroke-width': 0,
-          },
-        });
+        this._map!.addLayer(ghostPointLayerSpec());
 
         // Clusters: recency-colored circles
-        this._map!.addLayer({
-          id: 'clusters',
-          type: 'circle',
-          source: 'occurrences',
-          filter: ['has', 'point_count'],
-          paint: {
-            'circle-color': [
-              'case',
-              ['>', ['get', 'thisYearCount'], 0], RECENCY_COLORS.thisYear,
-              ['>', ['get', 'lastYearCount'], 0], RECENCY_COLORS.lastYear,
-              RECENCY_COLORS.earlier,
-            ],
-            'circle-radius': [
-              'step', ['get', 'point_count'],
-              12,
-              25, 14,
-              100, 17,
-              500, 20,
-            ],
-            'circle-stroke-width': 1,
-            'circle-stroke-color': '#ffffff',
-          },
-        });
+        this._map!.addLayer(clusterCircleLayerSpec(RECENCY_COLORS));
 
         // Cluster count labels
-        this._map!.addLayer({
-          id: 'cluster-count',
-          type: 'symbol',
-          source: 'occurrences',
-          filter: ['has', 'point_count'],
-          layout: {
-            'text-field': ['to-string', ['get', 'point_count']],
-            'text-size': 11,
-            'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-          },
-          paint: {
-            'text-color': [
-              'case',
-              ['>', ['get', 'thisYearCount'], 0], '#ffffff',
-              '#d0d6d7',
-            ],
-          },
-        });
+        this._map!.addLayer(clusterCountLayerSpec(RECENCY_COLORS));
 
         // Unclustered individual points
-        this._map!.addLayer({
-          id: 'unclustered-point',
-          type: 'circle',
-          source: 'occurrences',
-          filter: ['!', ['has', 'point_count']],
-          paint: {
-            'circle-color': [
-              'case',
-              ['==', ['get', 'source'], 'inat_obs'], '#e8a020',
-              ['match', ['get', 'recencyTier'],
-                'thisYear', RECENCY_COLORS.thisYear,
-                'lastYear', RECENCY_COLORS.lastYear,
-                RECENCY_COLORS.earlier,
-              ],
-            ],
-            'circle-radius': 6,
-            'circle-stroke-width': 1,
-            'circle-stroke-color': '#ffffff',
-          },
-        });
+        this._map!.addLayer(unclusteredPointLayerSpec(RECENCY_COLORS));
 
         // selected-occurrences: non-clustered overlay of selected features.
         // Renders at exact coordinates regardless of zoom, so selected points
@@ -671,25 +475,7 @@ export class BeeMap extends LitElement {
           cluster: false,
           data: { type: 'FeatureCollection', features: [] },
         });
-        this._map!.addLayer({
-          id: 'selected-occurrences',
-          type: 'circle',
-          source: 'selected-occurrences',
-          paint: {
-            'circle-color': [
-              'case',
-              ['==', ['get', 'source'], 'inat_obs'], '#e8a020',
-              ['match', ['get', 'recencyTier'],
-                'thisYear', RECENCY_COLORS.thisYear,
-                'lastYear', RECENCY_COLORS.lastYear,
-                RECENCY_COLORS.earlier,
-              ],
-            ],
-            'circle-radius': 6,
-            'circle-stroke-width': 1,
-            'circle-stroke-color': '#ffffff',
-          },
-        });
+        this._map!.addLayer(selectedOccurrencesLayerSpec(RECENCY_COLORS));
 
         // Emit data-loaded event
         this._emit('data-loaded', { summary, taxaOptions });

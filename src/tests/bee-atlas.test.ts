@@ -201,9 +201,10 @@ describe('BOUNDARY-01: bee-map boundary layer declarations', () => {
 
   test('bee-map.ts uses feature-state for boundary selection highlighting', () => {
     const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+    const styleSrc = readFileSync(resolve(__dirname, '../style.ts'), 'utf-8');
     expect(src).toMatch(/setFeatureState/);
     expect(src).toMatch(/removeFeatureState/);
-    expect(src).toMatch(/feature-state.*selected/);
+    expect(styleSrc).toMatch(/feature-state.*selected/);
   });
 });
 
@@ -257,6 +258,7 @@ describe('D-02: county/ecoregion options from SQLite not boundary events', () =>
 
 describe('selected-occurrences overlay (non-clustered selection indicator)', () => {
   const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+  const styleSrc = readFileSync(resolve(__dirname, '../style.ts'), 'utf-8');
 
   test('bee-map.ts adds the selected-occurrences source', () => {
     expect(src).toMatch(/addSource\s*\(\s*['"]selected-occurrences['"]/);
@@ -269,14 +271,13 @@ describe('selected-occurrences overlay (non-clustered selection indicator)', () 
   });
 
   test('bee-map.ts adds a layer with id selected-occurrences', () => {
-    expect(src).toMatch(/id:\s*['"]selected-occurrences['"]/);
+    expect(styleSrc).toMatch(/id:\s*['"]selected-occurrences['"]/);
   });
 
   test('selected-occurrences layer uses same dot style as unclustered-point', () => {
-    const layerBlock = src.match(/id:\s*['"]selected-occurrences['"][\s\S]{0,800}/);
-    expect(layerBlock).not.toBeNull();
-    expect(layerBlock![0]).toMatch(/circle-stroke-color['"]?\s*:\s*['"]#ffffff['"]/);
-    expect(layerBlock![0]).toMatch(/circle-radius['"]?\s*:\s*6/);
+    // paint is shared via _occurrencePointPaint in style.ts
+    expect(styleSrc).toMatch(/circle-stroke-color['"]?\s*:\s*['"]#ffffff['"]/);
+    expect(styleSrc).toMatch(/circle-radius['"]?\s*:\s*6/);
   });
 
   test('selected-occurrences source/layer are added inside the load handler', () => {
@@ -771,13 +772,13 @@ describe('MAP-03: checklist taxon filter binding', () => {
 });
 
 describe('MAP-01: iNat obs amber color in unclustered-point paint', () => {
-  const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
-  test('bee-map.ts contains amber color #e8a020 in paint', () => {
-    expect(src).toMatch(/#e8a020/);
+  const styleSrc = readFileSync(resolve(__dirname, '../style.ts'), 'utf-8');
+  test('style.ts contains amber color #e8a020 in paint', () => {
+    expect(styleSrc).toMatch(/#e8a020/);
   });
-  test('bee-map.ts uses case expression with source check before recencyTier match', () => {
-    expect(src).toMatch(/'case'/);
-    expect(src).toMatch(/\['==', \['get', 'source'\], 'inat_obs'\]/);
+  test('style.ts uses case expression with source check before recencyTier match', () => {
+    expect(styleSrc).toMatch(/'case'/);
+    expect(styleSrc).toMatch(/\['==', \['get', 'source'\], 'inat_obs'\]/);
   });
 });
 

@@ -20,13 +20,12 @@ describe('MAP-02: checklist county fill layer', () => {
   });
 
   test('bee-map.ts adds checklist layer before ghost-points (beforeId)', () => {
-    expect(src).toMatch(/['"]ghost-points['"]/);
-    // Both IDs appear; ghost-points must appear after checklist-county-fill in the addLayer call
-    const checklistIdx = src.indexOf("'checklist-county-fill'");
-    // checklist-county-fill must be present; if absent, this assertion fails RED
-    expect(checklistIdx).toBeGreaterThan(-1);
-    const ghostBeforeIdIdx = src.indexOf("'ghost-points'", checklistIdx);
-    expect(ghostBeforeIdIdx).toBeGreaterThan(checklistIdx);
+    // Layer specs moved to style.ts; verify call-site ordering in bee-map.ts
+    expect(src).toMatch(/checklistCountyFillLayerSpec/);
+    expect(src).toMatch(/ghostPointLayerSpec/);
+    const checklistIdx = src.indexOf('checklistCountyFillLayerSpec');
+    const ghostIdx = src.indexOf('ghostPointLayerSpec', checklistIdx);
+    expect(ghostIdx).toBeGreaterThan(checklistIdx);
   });
 
   test('bee-map.ts uses parquetReadObjects for checklist fetch', () => {
