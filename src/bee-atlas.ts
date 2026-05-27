@@ -5,6 +5,7 @@ import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
+import { makeStaleGuard } from './stale-guard.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
@@ -62,16 +63,12 @@ export class BeeAtlas extends LitElement {
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   private _selectionDrawnGeneration = 0;
-  // Monotonic counter used to discard stale async filter-query results.
-  // Root cause of chip-removal flicker: _filterState updates synchronously (Lit
-  // re-render + bee-map.updated() → regionLayer.changed() → OL canvas repaint)
-  // while _runFilterQuery is async. When the previous query resolves it would
-  // overwrite _visibleIds with stale data, causing a flash of the wrong filter
-  // state. The generation guard ensures only the most-recently-started query
-  // can commit its result.
-  private _filterQueryGeneration = 0;
-  private _tableQueryGeneration = 0;
-  private _listQueryGeneration = 0;
+  // Stale-discard guards for the three async query paths. A superseded query
+  // returns null rather than committing its result, preventing flicker and
+  // unnecessary MapboxGL re-cluster work on outdated filter state.
+  private _filterGuard = makeStaleGuard<{ ids: Set<string>; rowCount: number } | null>();
+  private _tableGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number }>();
+  private _listGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number; selectionCount: number | null }>();
   private _currentView: { lon: number; lat: number; zoom: number } = {
     lon: DEFAULT_LON,
     lat: DEFAULT_LAT,
@@ -321,12 +318,10 @@ bee-pane {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
-    const generation = ++this._filterQueryGeneration;
-    const result = await queryVisibleIds(this._filterState);
-    // Discard result if a newer query has started since this one began.
-    if (generation !== this._filterQueryGeneration) return;
-    this._visibleIds = result?.ids ?? null;
-    this._filteredRowCount = result?.rowCount ?? null;
+    const guarded = await this._filterGuard(() => queryVisibleIds(this._filterState));
+    if (guarded === null) return;
+    this._visibleIds = guarded.result?.ids ?? null;
+    this._filteredRowCount = guarded.result?.rowCount ?? null;
   }
 
   private async _loadSummaryFromSQLite(): Promise<void> {
@@ -459,8 +454,6 @@ bee-pane {
   private async _runTableQuery(): Promise<void> {
     if (this._paneState !== 'table') return;
     this._tableLoading = true;
-    const generation = ++this._tableQueryGeneration;
-    // Parse selected IDs into integer arrays for SQL priority ordering.
     const selEcdysisIds: number[] = [];
     const selInatIds: number[] = [];
     const selInatObsIds: number[] = [];
@@ -471,31 +464,25 @@ bee-pane {
       else if (parsed.source === 'inat_obs') selInatObsIds.push(parsed.numericId);
       else selInatIds.push(parsed.numericId);
     }
-    try {
-      const { rows, total } = await queryTablePage(
-        this._filterState, this._tablePage, this._tableSortBy,
-        selEcdysisIds, selInatIds
-      );
-      if (generation !== this._tableQueryGeneration) return;
-      this._tableRows = rows;
-      this._tableRowCount = total;
-    } catch (err) {
-      console.error('Table query failed:', err);
-      if (generation !== this._tableQueryGeneration) return;
-      this._tableRows = [];
-      this._tableRowCount = 0;
-    } finally {
-      // Only clear loading flag if this query is still current;
-      // if superseded, the active query controls the loading state.
-      if (generation === this._tableQueryGeneration) {
-        this._tableLoading = false;
+    const guarded = await this._tableGuard(async () => {
+      try {
+        return await queryTablePage(
+          this._filterState, this._tablePage, this._tableSortBy,
+          selEcdysisIds, selInatIds
+        );
+      } catch (err) {
+        console.error('Table query failed:', err);
+        return { rows: [], total: 0 };
       }
-    }
+    });
+    if (guarded === null) return; // stale — active query owns loading state
+    this._tableRows = guarded.result.rows;
+    this._tableRowCount = guarded.result.total;
+    this._tableLoading = false;
   }
 
   private async _runListQuery(): Promise<void> {
     this._listLoading = true;
-    const generation = ++this._listQueryGeneration;
     const selEcdysisIds: number[] = [];
     const selInatIds: number[] = [];
     const selInatObsIds: number[] = [];
@@ -506,30 +493,25 @@ bee-pane {
       else if (parsed.source === 'inat_obs') selInatObsIds.push(parsed.numericId);
       else selInatIds.push(parsed.numericId);
     }
-    try {
-      const { rows, total } = await queryListPage(
-        this._filterState, this._listPage, this._tableSortBy,
-        selEcdysisIds, selInatIds, selInatObsIds,
-        this._selectionBounds ?? null
-      );
-      if (generation !== this._listQueryGeneration) return;
-      this._listRows = rows;
-      this._listRowCount = total;
-      if (selEcdysisIds.length > 0 || selInatIds.length > 0 || selInatObsIds.length > 0 || this._selectionBounds !== null) {
-        this._selectionCount = total;
-      } else {
-        this._selectionCount = null;
+    const hasSelection = selEcdysisIds.length > 0 || selInatIds.length > 0 || selInatObsIds.length > 0 || this._selectionBounds !== null;
+    const guarded = await this._listGuard(async () => {
+      try {
+        const { rows, total } = await queryListPage(
+          this._filterState, this._listPage, this._tableSortBy,
+          selEcdysisIds, selInatIds, selInatObsIds,
+          this._selectionBounds ?? null
+        );
+        return { rows, total, selectionCount: hasSelection ? total : null };
+      } catch (err) {
+        console.error('List query failed:', err);
+        return { rows: [], total: 0, selectionCount: null };
       }
-    } catch (err) {
-      console.error('List query failed:', err);
-      if (generation !== this._listQueryGeneration) return;
-      this._listRows = [];
-      this._listRowCount = 0;
-    } finally {
-      if (generation === this._listQueryGeneration) {
-        this._listLoading = false;
-      }
-    }
+    });
+    if (guarded === null) return; // stale — active query owns loading state
+    this._listRows = guarded.result.rows;
+    this._listRowCount = guarded.result.total;
+    this._selectionCount = guarded.result.selectionCount;
+    this._listLoading = false;
   }
 
   // --- URL state ---
