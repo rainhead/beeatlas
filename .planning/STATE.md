@@ -45,6 +45,12 @@ None.
 
 None.
 
+## Quick Tasks Completed
+
+| Date | Slug | Description |
+|---|---|---|
+| 2026-05-26 | inat-obs-show-species-in-sidebar | iNat expert obs: show species name + quality badge in sidebar |
+
 ## Session Continuity
 
 Last session: 2026-05-26
