@@ -253,7 +253,6 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 **Live site:** https://d1o1go591lqnqi.cloudfront.net
 
 **Known tech debt:**
-- `speicmenLayer` typo in `bee-map.ts` (consistent, functions correctly). Trivially fixable but deferred.
 - EPA L3 ecoregion CRS risk: `geographies_pipeline.py` calls `.to_crs('EPSG:4326')` before yielding rows — handled for the current ingestion path. Any future shapefile ingestion added to the pipeline must repeat this step or risk silently wrong spatial joins.
 - dlt pipeline write-path tests deferred (TEST-03 scope): dlt resource tests skipped in v1.7; only pure-function unit tests and export integration tests covered.
 - Lambda execution path retired (quick task 260514-fcq, 2026-05-14): PipelineFunction + EventBridge schedulers + Function URL removed from BeeAtlasStack; maderas nightly cron is authoritative.

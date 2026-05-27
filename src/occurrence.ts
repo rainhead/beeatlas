@@ -23,7 +23,7 @@ import type { OccurrenceRow } from './filter.ts';
 export function occIdFromRow(row: OccurrenceRow): string | null {
   if (row.ecdysis_id != null) return `ecdysis:${row.ecdysis_id}`;
   if (row.observation_id != null) return `inat:${row.observation_id}`;
-  if (row.source === 'inat_obs' && row.specimen_observation_id != null) return `inat_obs:${row.specimen_observation_id}`;
+  if (row.specimen_observation_id != null) return `inat_obs:${row.specimen_observation_id}`;
   return null;
 }
 

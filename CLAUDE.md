@@ -31,7 +31,6 @@ Use these terms precisely — ambiguity here has caused confusion before.
 - Static hosting only — no server runtime at any layer
 - Python 3.14+ (data/pyproject.toml)
 - AWS via CDK in `infra/`; deploy via GitHub OIDC (no stored AWS credentials)
-- `speicmenLayer` typo in `bee-map.ts` is intentionally deferred — do not fix incidentally
 
 ## Running Locally
 

@@ -48,7 +48,10 @@ export async function loadOccurrenceGeoJSON(): Promise<{
     const row = obj as unknown as OccurrenceRow;
     const occId = occIdFromRow(row);
     // Rows with both ecdysis_id and observation_id null are pathological; skip them.
-    if (occId == null) return;
+    if (occId == null) {
+      console.info(`Occurrence has no occurrence Id`);
+      return;
+    }
 
     const year = Number(obj.year);
     const month = Number(obj.month);
