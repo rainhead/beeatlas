@@ -250,8 +250,12 @@ export class BeeOccurrenceDetail extends LitElement {
 
   private _renderInatObs(row: OccurrenceRow) {
     const isCC = row.license != null && row.license.toUpperCase().startsWith('CC');
+    const taxonEl = row.scientificName
+      ? html`<em>${row.scientificName}</em>`
+      : html`<span class="hint">identification unknown</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
+        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)}</div>
         <div class="event-date">${formatRomanDate(row.date)}</div>
         ${row.user_login != null
           ? html`<div class="event-observer">${row.user_login}</div>` : ''}
