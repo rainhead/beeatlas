@@ -3,7 +3,9 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import mapboxgl from 'mapbox-gl';
 import { parquetReadObjects } from 'hyparquet';
 import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
-import { loadOccurrenceGeoJSON, type OccurrenceProperties } from './features.ts';
+import { loadOccurrenceGeoJSON } from './features.ts';
+import { type FilterState, getOccurrences, type OccurrenceProperties } from './filter.ts';
+import type { FeatureCollection, Point } from 'geojson';
 import {
   RECENCY_COLORS,
   boundaryFillLayerSpec,
@@ -18,25 +20,12 @@ import {
   selectedOccurrencesLayerSpec,
   unclusteredPointLayerSpec,
 } from './style.ts';
-import { type FilterState, OCCURRENCE_COLUMNS, type OccurrenceRow } from './filter.ts';
-import type { FeatureCollection, Point } from 'geojson';
-import type { DataSummary, FilteredSummary } from './filter.ts';
 import { resolveDataUrl } from './manifest.ts';
-import { isSpecimenId } from './occurrence.ts';
 
 // Default Washington State view
 const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
-
-function featureToOccurrenceRow(feature: GeoJSON.Feature): OccurrenceRow {
-  const props = feature.properties ?? {};
-  const row: Record<string, unknown> = {};
-  for (const col of OCCURRENCE_COLUMNS) {
-    row[col] = props[col] ?? null;
-  }
-  return row as unknown as OccurrenceRow;
-}
 
 
 @customElement('bee-map')
@@ -47,6 +36,7 @@ export class BeeMap extends LitElement {
   // --- @property inputs from bee-atlas ---
   @property({ attribute: false }) boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @property({ attribute: false }) visibleIds: Set<string> | null = null;
+  @property({ attribute: false }) filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   @property({ attribute: false }) selectedOccIds: Set<string> | null = null;
   @property({ attribute: false }) countyOptions: string[] = [];
   @property({ attribute: false }) ecoregionOptions: string[] = [];
@@ -313,8 +303,8 @@ export class BeeMap extends LitElement {
   updated(changedProperties: PropertyValues) {
     super.updated(changedProperties);
 
-    // visibleIds changed: rebuild GeoJSON via setData
-    if (changedProperties.has('visibleIds')) {
+    // visibleIds or filteredGeoJSON changed: rebuild source data
+    if (changedProperties.has('visibleIds') || changedProperties.has('filteredGeoJSON')) {
       this._applyVisibleIds();
     }
 
@@ -592,14 +582,12 @@ export class BeeMap extends LitElement {
     const ghostSource = this._map.getSource('occurrences-ghost') as mapboxgl.GeoJSONSource | undefined;
     if (!occSource || !ghostSource) return;
 
-    if (this.visibleIds !== null) {
-      const visibleFeatures = this._fullGeoJSON.features.filter(
-        f => this.visibleIds!.has(f.properties.occId)
-      );
+    if (this.filteredGeoJSON !== null) {
+      // Filter active: visible features come from SQL (no JS filter pass needed)
+      occSource.setData(this.filteredGeoJSON);
       const ghostFeatures = this._fullGeoJSON.features.filter(
         f => !this.visibleIds!.has(f.properties.occId)
       );
-      occSource.setData({ type: 'FeatureCollection', features: visibleFeatures });
       ghostSource.setData({ type: 'FeatureCollection', features: ghostFeatures });
     } else {
       // No filter active -- restore full data and clear ghost
@@ -608,7 +596,6 @@ export class BeeMap extends LitElement {
     }
 
     this._applySelection();
-    this._emitFilteredSummary();
   }
 
   private _applySelection() {
@@ -655,58 +642,6 @@ export class BeeMap extends LitElement {
     }
   }
 
-  private _emitFilteredSummary() {
-    if (this.visibleIds !== null && this._fullGeoJSON) {
-      const allSpecimen = this._fullGeoJSON.features.filter(
-        f => isSpecimenId(f.properties.occId)
-      );
-      const matching = allSpecimen.filter(
-        f => this.visibleIds!.has(f.properties.occId)
-      );
-      const fSummary = this._computeSummary(matching);
-      const totalSummary = allSpecimen.length > 0 ? this._computeSummary(allSpecimen) : null;
-      this._emit<{ filteredSummary: FilteredSummary | null }>('filtered-summary-computed', {
-        filteredSummary: totalSummary ? {
-          filteredSpecimens: fSummary.totalSpecimens,
-          filteredSpeciesCount: fSummary.speciesCount,
-          filteredGenusCount: fSummary.genusCount,
-          filteredFamilyCount: fSummary.familyCount,
-          total: totalSummary,
-          isActive: true,
-        } : null,
-      });
-    } else {
-      this._emit<{ filteredSummary: FilteredSummary | null }>('filtered-summary-computed', { filteredSummary: null });
-    }
-  }
-
-  private _computeSummary(features: FeatureCollection<Point, OccurrenceProperties>['features']): DataSummary {
-    const species = new Set<string>();
-    const genera = new Set<string>();
-    const families = new Set<string>();
-    let min = Infinity, max = -Infinity;
-    for (const f of features) {
-      const s = f.properties.scientificName as string | undefined;
-      const g = f.properties.genus as string | undefined;
-      const fam = f.properties.family as string | undefined;
-      if (s) species.add(s);
-      if (g) genera.add(g);
-      if (fam) families.add(fam);
-      const y = f.properties.year as number | undefined;
-      if (y != null) {
-        if (y < min) min = y;
-        if (y > max) max = y;
-      }
-    }
-    return {
-      totalSpecimens: features.length,
-      speciesCount: species.size,
-      genusCount: genera.size,
-      familyCount: families.size,
-      earliestYear: min === Infinity ? 0 : min,
-      latestYear: max === -Infinity ? 0 : max,
-    };
-  }
 
   private async _loadBoundaryData() {
     try {
@@ -881,16 +816,15 @@ export class BeeMap extends LitElement {
         : leaves;
       if (toShow.length === 0) return;
 
-      this._emit('map-click-occurrence', {
-        occurrences: toShow.map(featureToOccurrenceRow),
-        occIds: toShow.map(f => f.properties!.occId as string),
-      });
+      const toShowIds = toShow.map(f => f.properties!.occId as string);
+      const occurrences = await getOccurrences(toShowIds);
+      this._emit('map-click-occurrence', { occurrences, occIds: toShowIds });
     } catch (err) {
       console.error('Failed to get cluster leaves:', err);
     }
   }
 
-  private _handlePointClick(e: mapboxgl.InteractionEvent) {
+  private async _handlePointClick(e: mapboxgl.InteractionEvent) {
     this._clickConsumed = true;
     e.preventDefault();
     const feature = e.feature;
@@ -902,11 +836,9 @@ export class BeeMap extends LitElement {
     // Skip ghost features (filtered out)
     if (this.visibleIds !== null && !this.visibleIds.has(occId)) return;
 
-    const occurrence = featureToOccurrenceRow(feature as unknown as GeoJSON.Feature);
-    this._emit('map-click-occurrence', {
-      occurrences: [occurrence],
-      occIds: [occId],
-    });
+    const occurrences = await getOccurrences([occId]);
+    if (occurrences.length === 0) return;
+    this._emit('map-click-occurrence', { occurrences, occIds: [occId] });
   }
 
   private _handleRegionClick(e: mapboxgl.InteractionEvent, nameProperty: string) {

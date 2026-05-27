@@ -21,13 +21,9 @@ function _recencyTier(year: number): 'thisYear' | 'lastYear' | 'earlier' {
   return 'earlier';
 }
 
-interface OccurrenceProperties { occId: string; recencyTier: string; [key: string]: unknown }
+interface OccurrenceProperties { occId: string; recencyTier: string; source: string }
 interface DataSummary { totalSpecimens: number; speciesCount: number; genusCount: number; familyCount: number; earliestYear: number; latestYear: number }
 interface TaxonOption { label: string; name: string; rank: 'family' | 'genus' | 'species' }
-
-function _coerce(v: unknown): unknown {
-  return typeof v === 'bigint' ? Number(v) : v;
-}
 
 function _buildGeoJSON(rows: Record<string, unknown>[]): {
   geojson: FeatureCollection<Point, OccurrenceProperties>;
@@ -58,12 +54,10 @@ function _buildGeoJSON(rows: Record<string, unknown>[]): {
       if (year > maxYear) maxYear = year;
     }
 
-    const props: Record<string, unknown> = { occId, recencyTier: _recencyTier(year) };
-    for (const [k, v] of Object.entries(row)) props[k] = _coerce(v);
     features.push({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [Number(row.lon), Number(row.lat)] },
-      properties: props as OccurrenceProperties,
+      properties: { occId, recencyTier: _recencyTier(year), source: String(row.source ?? '') },
     });
   }
 

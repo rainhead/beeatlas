@@ -1,10 +1,11 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, state } from 'lit/decorators.js';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleIds, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage } from './filter.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, type OccurrenceProperties } from './filter.ts';
 import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
+import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
@@ -32,6 +33,7 @@ export class BeeAtlas extends LitElement {
   };
 
   @state() private _visibleIds: Set<string> | null = null;
+  @state() private _filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   @state() private _filteredRowCount: number | null = null;
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
@@ -66,7 +68,7 @@ export class BeeAtlas extends LitElement {
   // Stale-discard guards for the three async query paths. A superseded query
   // returns null rather than committing its result, preventing flicker and
   // unnecessary MapboxGL re-cluster work on outdated filter state.
-  private _filterGuard = makeStaleGuard<{ ids: Set<string>; rowCount: number } | null>();
+  private _filterGuard = makeStaleGuard<{ geojson: FeatureCollection<Point, OccurrenceProperties>; ids: Set<string>; rowCount: number } | null>();
   private _tableGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number }>();
   private _listGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number; selectionCount: number | null }>();
   private _currentView: { lon: number; lat: number; zoom: number } = {
@@ -154,6 +156,7 @@ bee-pane {
           <bee-map
             .boundaryMode=${this._boundaryMode}
             .visibleIds=${this._visibleIds}
+            .filteredGeoJSON=${this._filteredGeoJSON}
             .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             .countyOptions=${this._countyOptions}
             .ecoregionOptions=${this._ecoregionOptions}
@@ -257,6 +260,7 @@ bee-pane {
     // so no dots flash before the async filter query completes.
     if (isFilterActive(this._filterState)) {
       this._visibleIds = new Set();
+      this._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
     }
 
     // Start filter query early — queryVisibleIds awaits tablesReady internally,
@@ -320,8 +324,9 @@ bee-pane {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
-    const guarded = await this._filterGuard(() => queryVisibleIds(this._filterState));
+    const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState));
     if (guarded === null) return;
+    this._filteredGeoJSON = guarded.result?.geojson ?? null;
     this._visibleIds = guarded.result?.ids ?? null;
     this._filteredRowCount = guarded.result?.rowCount ?? null;
   }
@@ -622,9 +627,11 @@ bee-pane {
     // Run filter query for restored state
     if (isFilterActive(this._filterState)) {
       this._visibleIds = new Set(); // hide all until query resolves, preventing stale dot flash
+      this._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
       this._runFilterQuery();
     } else {
       this._visibleIds = null;
+      this._filteredGeoJSON = null;
       this._filteredRowCount = null;
     }
   };
