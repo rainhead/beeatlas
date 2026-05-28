@@ -147,8 +147,32 @@ _upload_hashed() {
     echo "$hashed_name"
 }
 
+# Like _upload_hashed but pre-compresses with gzip and sets Content-Encoding: gzip.
+# CloudFront won't auto-compress application/octet-stream, so we do it ourselves.
+# Hash is computed from the uncompressed source so content addressing is stable.
+_upload_hashed_gz() {
+    local src="$1" basename="$2"; shift 2
+    local ext="${src##*.}"
+    local hash; hash=$(sha256sum "$src" | awk '{print $1}' | cut -c1-12)
+    local hashed_name="${basename}-${hash}.${ext}"
+    local gz_tmp; gz_tmp=$(mktemp)
+    gzip -9 -c "$src" > "$gz_tmp"
+    aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+        --cache-control "public, max-age=31536000, immutable" \
+        --content-encoding gzip \
+        "$@" "$gz_tmp" "s3://$BUCKET/data/$hashed_name" >&2
+    rm "$gz_tmp"
+    echo "$hashed_name"
+}
+
 occ_name=$(_upload_hashed "$EXPORT_DIR/occurrences.parquet" "occurrences")
-occ_db_name=$(_upload_hashed "$EXPORT_DIR/occurrences.db" "occurrences")
+occ_db_name=$(_upload_hashed_gz "$EXPORT_DIR/occurrences.db" "occurrences")
+occ_db_tables=$(uv run python3 -c "
+import sqlite3, json
+con = sqlite3.connect('$EXPORT_DIR/occurrences.db')
+tables = sorted(r[0] for r in con.execute(\"SELECT name FROM sqlite_master WHERE type='table'\"))
+print(json.dumps(tables))
+")
 species_name=$(_upload_hashed "$EXPORT_DIR/species.json" "species")
 seasonality_name=$(_upload_hashed "$EXPORT_DIR/seasonality.json" "seasonality")
 counties_name=$(_upload_hashed "$EXPORT_DIR/counties.geojson" "counties" --content-type application/json)
@@ -170,6 +194,7 @@ cat > "$EXPORT_DIR/manifest.json" <<JSON
   "places_meta": "$places_meta_name",
   "checklist": "$checklist_name",
   "photos": "$photos_name",
+  "occurrences_db_tables": $occ_db_tables,
   "generated_at": "$(_ts)"
 }
 JSON

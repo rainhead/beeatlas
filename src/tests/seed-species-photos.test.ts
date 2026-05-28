@@ -281,7 +281,7 @@ describe('build-chain isolation (PHOTO-07: seed NOT in CI)', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'));
     // v3.4 CUTOVER-03: validate-schema retired (dbt contract is the schema gate)
     expect(pkg.scripts.build).toBe(
-      'npm run validate-species && npm run typecheck && eleventy && npm run validate-bundle-size',
+      'npm run validate-species && npm run validate-db && npm run typecheck && eleventy && npm run validate-bundle-size',
     );
   });
 

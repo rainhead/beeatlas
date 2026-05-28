@@ -19,11 +19,12 @@
     "dev": "eleventy --serve",
     "build:data": "cd data && uv run python run.py",
     "validate-species": "node scripts/validate-species.mjs",
+    "validate-db": "node scripts/validate-db.mjs",
     "validate-bundle-size": "node scripts/validate-bundle-size.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build:validate-links": "lychee --config lychee.toml --root-dir _site '_site/**/*.html'",
-    "build": "npm run validate-species && npm run typecheck && eleventy && npm run validate-bundle-size",
+    "build": "npm run validate-species && npm run validate-db && npm run typecheck && eleventy && npm run validate-bundle-size",
     "preview": "vite preview --outDir _site",
     "fetch-data": "bash scripts/fetch-data.sh",
     "measure-lcp": "bash scripts/measure-lcp.sh"
