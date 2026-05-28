@@ -2,6 +2,7 @@ const _BASE = (import.meta.env.VITE_DATA_BASE_URL as string | undefined) ?? 'htt
 
 interface Manifest {
   occurrences: string;
+  occurrences_db?: string;
   species: string;
   seasonality: string;
   counties: string;

@@ -34,7 +34,7 @@
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.13.14",
     "happy-dom": "^20.8.9",
-    "hyparquet": "^1.25.6",
+    "hyparquet": "^1.26.0",
     "mapshaper": "^0.7.16",
     "typescript": "^5.8.2",
     "vite": "^6.2.3",

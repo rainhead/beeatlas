@@ -10,6 +10,7 @@ const outPath = join(root, 'public', 'data', 'manifest.json');
 mkdirSync(join(root, 'public', 'data'), { recursive: true });
 writeFileSync(outPath, JSON.stringify({
   occurrences: 'occurrences.parquet',
+  occurrences_db: 'occurrences.db',
   species: 'species.json',
   seasonality: 'seasonality.json',
   counties: 'counties.geojson',
