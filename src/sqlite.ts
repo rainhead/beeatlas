@@ -1,6 +1,6 @@
 type ExecCallback = (rowValues: unknown[], columnNames: string[]) => void;
 type SQLiteAPI = { exec: (db: number, sql: string, cb?: ExecCallback) => Promise<void> };
-type WorkerMsg = { kind: string; id?: number; rows?: unknown[][]; columns?: string[]; message?: string; logs?: string[]; result?: unknown };
+type WorkerMsg = { kind: string; id?: number; rows?: unknown[][]; columns?: string[]; message?: string; logs?: string[]; result?: unknown; buffer?: ArrayBuffer };
 
 let _worker: Worker | null = null;
 let _workerT0 = 0;
@@ -45,7 +45,7 @@ function _ensureWorker(): Worker {
       const p = _pending.get(msg.id!);
       if (!p) return;
       _pending.delete(msg.id!);
-      p.resolve(msg.result);
+      p.resolve(msg.buffer as ArrayBuffer);
     }
   };
   _worker.onerror = (e) => console.error('[sqlite-worker] error', e);
@@ -71,11 +71,11 @@ export async function loadOccurrencesTable(): Promise<void> {
   await tablesReady;
 }
 
-export function loadOccurrenceGeoJSON(): Promise<unknown> {
+export function loadOccurrenceGeoJSON(): Promise<ArrayBuffer> {
   const worker = _ensureWorker();
-  return new Promise((resolve, reject) => {
+  return new Promise<ArrayBuffer>((resolve, reject) => {
     const id = _nextId++;
-    _pending.set(id, { resolve, reject });
+    _pending.set(id, { resolve: resolve as (v: unknown) => void, reject });
     worker.postMessage({ kind: 'build-geojson', id });
   });
 }
