@@ -605,12 +605,18 @@ export class BeeMap extends LitElement {
 
     const hasSelection = this.selectedOccIds !== null && this.selectedOccIds.size > 0;
 
-    // Hide cluster layers while a selection is active so the individual dots
-    // from selected-occurrences aren't visually confused with the cluster blob.
+    // Dim background layers when a selection is active so selected dots stand out.
+    const dimOpacity = hasSelection ? 0.3 : 1;
     if (this._map.getLayer('clusters')) {
-      const vis = hasSelection ? 'none' : 'visible';
-      this._map.setLayoutProperty('clusters', 'visibility', vis);
-      this._map.setLayoutProperty('cluster-count', 'visibility', vis);
+      this._map.setPaintProperty('clusters', 'circle-opacity', dimOpacity);
+      this._map.setPaintProperty('clusters', 'circle-stroke-opacity', dimOpacity);
+    }
+    if (this._map.getLayer('cluster-count')) {
+      this._map.setPaintProperty('cluster-count', 'text-opacity', dimOpacity);
+    }
+    if (this._map.getLayer('unclustered-point')) {
+      this._map.setPaintProperty('unclustered-point', 'circle-opacity', dimOpacity);
+      this._map.setPaintProperty('unclustered-point', 'circle-stroke-opacity', dimOpacity);
     }
 
     if (!hasSelection) {

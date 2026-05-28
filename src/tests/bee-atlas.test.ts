@@ -771,16 +771,7 @@ describe('MAP-03: checklist taxon filter binding', () => {
   });
 });
 
-describe('MAP-01: iNat obs amber color in unclustered-point paint', () => {
-  const styleSrc = readFileSync(resolve(__dirname, '../style.ts'), 'utf-8');
-  test('style.ts contains amber color #e8a020 in paint', () => {
-    expect(styleSrc).toMatch(/#e8a020/);
-  });
-  test('style.ts uses case expression with source check before recencyTier match', () => {
-    expect(styleSrc).toMatch(/'case'/);
-    expect(styleSrc).toMatch(/\['==', \['get', 'source'\], 'inat_obs'\]/);
-  });
-});
+
 
 describe('DET-01: _renderInatObs dispatched for source=inat_obs', () => {
   const src = readFileSync(resolve(__dirname, '../bee-occurrence-detail.ts'), 'utf-8');

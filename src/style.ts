@@ -87,13 +87,10 @@ export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecifi
 function _occurrencePointPaint(colors: RecencyColors): CircleLayerSpecification['paint'] {
   return {
     'circle-color': [
-      'case',
-      ['==', ['get', 'source'], 'inat_obs'], '#e8a020',
-      ['match', ['get', 'recencyTier'],
-        'thisYear', colors.thisYear,
-        'lastYear', colors.lastYear,
-        colors.earlier,
-      ],
+      'match', ['get', 'recencyTier'],
+      'thisYear', colors.thisYear,
+      'lastYear', colors.lastYear,
+      colors.earlier,
     ],
     'circle-radius': 6,
     'circle-stroke-width': 1,
