@@ -148,6 +148,7 @@ _upload_hashed() {
 }
 
 occ_name=$(_upload_hashed "$EXPORT_DIR/occurrences.parquet" "occurrences")
+occ_db_name=$(_upload_hashed "$EXPORT_DIR/occurrences.db" "occurrences")
 species_name=$(_upload_hashed "$EXPORT_DIR/species.json" "species")
 seasonality_name=$(_upload_hashed "$EXPORT_DIR/seasonality.json" "seasonality")
 counties_name=$(_upload_hashed "$EXPORT_DIR/counties.geojson" "counties" --content-type application/json)
@@ -160,6 +161,7 @@ photos_name=$(_upload_hashed "$EXPORT_DIR/photos.json" "photos")
 cat > "$EXPORT_DIR/manifest.json" <<JSON
 {
   "occurrences": "$occ_name",
+  "occurrences_db": "$occ_db_name",
   "species": "$species_name",
   "seasonality": "$seasonality_name",
   "counties": "$counties_name",
