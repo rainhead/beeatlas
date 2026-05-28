@@ -669,6 +669,31 @@ Plans:
 
 <!-- Phase 117-120 details archived to .planning/milestones/v4.2-ROADMAP.md -->
 
+### Phase 121: Prebuilt SQLite Load
+
+**Goal**: Replace the runtime INSERT loop with a pre-built `occurrences.db` fetched at page load and loaded into MemoryVFS, cutting loading-screen time from ~2.3 s to ~750 ms
+**Depends on**: Phase 120
+**Requirements**: PERF-01, PERF-02, PERF-03
+**Success Criteria** (what must be TRUE):
+
+  1. The nightly pipeline exports `occurrences.db` alongside `occurrences.parquet`; `nightly.sh` uploads it to S3 content-hashed and adds an `occurrences_db` key to the manifest
+  2. `src/sqlite-worker.ts` fetches `occurrences.db`, seeds `MemoryVFS.mapNameToFile` with the ArrayBuffer, and calls `open_v2` — no `CREATE TABLE`, no `_insertRows`, no hyparquet import
+  3. GeoJSON is built from a SQL query on the preloaded DB rather than from parquet rows; `_buildGeoJSON` and `parquetReadObjects` are deleted from the worker
+  4. Browser benchmark (Firefox) shows worker tablesReady ≤ 600 ms and loading screen lifted ≤ 1000 ms on a warm CDN connection (baseline was ~1875 ms / ~2340 ms)
+  5. `npm test` passes; existing click-interaction, SQL filter, and sidebar behaviour is unchanged
+
+**Plans**: 3 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 121-01-PLAN.md — Pipeline: add `generate_sqlite` step to `data/run.py`; extend `nightly.sh` to upload `occurrences.db` and inject `occurrences_db` key into manifest
+- [ ] 121-02-PLAN.md — Worker cutover: replace `sqlite-worker.ts` body with MemoryVFS-seeding approach from spike; delete parquet loading, `_insertRows`, `_escapeSqlValue`, `_buildGeoJSON`
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 121-03-PLAN.md — Cleanup and verification: remove hyparquet from bundle (update Vite config / package.json); update `make-local-manifest.js`; benchmark confirm; `npm test` green
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
