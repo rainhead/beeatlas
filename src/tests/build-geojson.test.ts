@@ -1,68 +1,38 @@
 import { describe, it, expect } from 'vitest';
 import { _buildGeoJSONFromRaw } from '../../src/features.ts';
 
-// RawOccRow shape produced by json_object in GEO_AGG_SQL
-interface RawOccRow {
-  lat: number | null;
-  lon: number | null;
-  ecdysis_id: number | null;
-  observation_id: number | null;
-  specimen_observation_id: number | null;
-  year: number | null;
-  scientificName: string | null;
-  genus: string | null;
-  family: string | null;
-  source: string | null;
+// Positional layout: [lat, lon, ecdysis_id, observation_id, specimen_observation_id,
+//                     year, scientificName, genus, family, source]
+interface RowOverride {
+  lat?: number | null; lon?: number | null;
+  ecdysis_id?: number | null; observation_id?: number | null; specimen_observation_id?: number | null;
+  year?: number | null; scientificName?: string | null; genus?: string | null;
+  family?: string | null; source?: string | null;
+}
+
+function toRow(r: Required<RowOverride>): unknown[] {
+  return [r.lat, r.lon, r.ecdysis_id, r.observation_id, r.specimen_observation_id,
+          r.year, r.scientificName, r.genus, r.family, r.source];
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-function makeEcdysisRow(overrides: Partial<RawOccRow> = {}): RawOccRow {
-  return {
-    lat: 47.5,
-    lon: -120.3,
-    ecdysis_id: 1001,
-    observation_id: null,
-    specimen_observation_id: null,
-    year: 2020,
-    scientificName: 'Bombus vosnesenskii',
-    genus: 'Bombus',
-    family: 'Apidae',
-    source: 'ecdysis',
-    ...overrides,
-  };
+function makeEcdysisRow(overrides: RowOverride = {}): unknown[] {
+  return toRow({ lat: 47.5, lon: -120.3, ecdysis_id: 1001, observation_id: null,
+    specimen_observation_id: null, year: 2020, scientificName: 'Bombus vosnesenskii',
+    genus: 'Bombus', family: 'Apidae', source: 'ecdysis', ...overrides });
 }
 
-function makeInatRow(overrides: Partial<RawOccRow> = {}): RawOccRow {
-  return {
-    lat: 47.6,
-    lon: -120.4,
-    ecdysis_id: null,
-    observation_id: 12345,
-    specimen_observation_id: null,
-    year: 2021,
-    scientificName: 'Bombus mixtus',
-    genus: 'Bombus',
-    family: 'Apidae',
-    source: 'inat_obs',
-    ...overrides,
-  };
+function makeInatRow(overrides: RowOverride = {}): unknown[] {
+  return toRow({ lat: 47.6, lon: -120.4, ecdysis_id: null, observation_id: 12345,
+    specimen_observation_id: null, year: 2021, scientificName: 'Bombus mixtus',
+    genus: 'Bombus', family: 'Apidae', source: 'inat_obs', ...overrides });
 }
 
-function makeSpecimenObsRow(overrides: Partial<RawOccRow> = {}): RawOccRow {
-  return {
-    lat: 47.7,
-    lon: -120.5,
-    ecdysis_id: null,
-    observation_id: null,
-    specimen_observation_id: 99999,
-    year: 2019,
-    scientificName: 'Apis mellifera',
-    genus: 'Apis',
-    family: 'Apidae',
-    source: 'inat_obs',
-    ...overrides,
-  };
+function makeSpecimenObsRow(overrides: RowOverride = {}): unknown[] {
+  return toRow({ lat: 47.7, lon: -120.5, ecdysis_id: null, observation_id: null,
+    specimen_observation_id: 99999, year: 2019, scientificName: 'Apis mellifera',
+    genus: 'Apis', family: 'Apidae', source: 'inat_obs', ...overrides });
 }
 
 describe('_buildGeoJSONFromRaw', () => {
