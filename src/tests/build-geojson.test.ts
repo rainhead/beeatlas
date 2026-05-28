@@ -95,21 +95,21 @@ describe('_buildGeoJSONFromRaw', () => {
     const row = makeEcdysisRow({ ecdysis_id: 42 });
     const result = _buildGeoJSONFromRaw([row]);
     expect(result.geojson.features).toHaveLength(1);
-    expect(result.geojson.features[0].properties.occId).toBe('ecdysis:42');
+    expect(result.geojson.features[0]!.properties.occId).toBe('ecdysis:42');
   });
 
   it('observation_id non-null → occId = "inat:{id}"', () => {
     const row = makeInatRow({ observation_id: 777 });
     const result = _buildGeoJSONFromRaw([row]);
     expect(result.geojson.features).toHaveLength(1);
-    expect(result.geojson.features[0].properties.occId).toBe('inat:777');
+    expect(result.geojson.features[0]!.properties.occId).toBe('inat:777');
   });
 
   it('specimen_observation_id non-null → occId = "inat_obs:{id}"', () => {
     const row = makeSpecimenObsRow({ specimen_observation_id: 555 });
     const result = _buildGeoJSONFromRaw([row]);
     expect(result.geojson.features).toHaveLength(1);
-    expect(result.geojson.features[0].properties.occId).toBe('inat_obs:555');
+    expect(result.geojson.features[0]!.properties.occId).toBe('inat_obs:555');
   });
 
   it('row where all three IDs are null → row is skipped', () => {
