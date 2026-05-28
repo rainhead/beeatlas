@@ -1,42 +1,41 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.3
-milestone_name: TBD
-status: planning
-stopped_at: v4.2 milestone archived
-last_updated: "2026-05-28T03:53:09.386Z"
+milestone: v4.4
+milestone_name: milestone
+status: v4.3 milestone archived
+stopped_at: v4.3 milestone archived
+last_updated: "2026-05-28T00:00:00.000Z"
 progress:
-  total_phases: 11
-  completed_phases: 5
-  total_plans: 18
-  completed_plans: 16
-  percent: 45
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-26 after v4.2 milestone)
+See: .planning/PROJECT.md (updated 2026-05-28 after v4.3 milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 122 — worker-geojson-aggregation
+**Current focus:** Planning next milestone (v4.4)
 
 ## Current Position
 
-Phase: 122 (worker-geojson-aggregation) — EXECUTING
-Plan: 1 of 2
-Milestone v4.2 archived 2026-05-26. Ready to start next milestone.
+Milestone v4.3 (Loading Performance) archived 2026-05-28. Ready to start next milestone.
 
 ## Accumulated Context
 
 ### Decisions
 
-All v4.2 decisions logged in PROJECT.md Key Decisions table.
+All v4.3 decisions logged in PROJECT.md Key Decisions table.
 
 ### Roadmap Evolution
 
-- Phase 122 added: Worker GeoJSON Aggregation
+- Phase 121: Prebuilt SQLite Load — COMPLETE
+- Phase 122: Worker GeoJSON Aggregation — COMPLETE
 
 ### Pending Todos
 

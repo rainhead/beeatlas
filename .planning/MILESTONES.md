@@ -1,5 +1,21 @@
 # Milestones
 
+## v4.3 Loading Performance (Shipped: 2026-05-28)
+
+**Phases completed:** 2 phases (121–122), 5 plans
+**Timeline:** 3 days (2026-05-26 → 2026-05-28)
+**LOC:** +5,261 / −969 across 98 files
+**Requirements:** 6/6 complete (PERF-01..03, PERF-GEO-01..03)
+
+**Key accomplishments:**
+
+- `data/sqlite_export.py` — DuckDB sqlite extension converts `occurrences.parquet` to `occurrences.db` with schema derived at runtime (no hardcoded DDL); `nightly.sh` uploads content-hashed with `occurrences_db` manifest key; `data/run.py` STEPS wired immediately after `dbt-build` — PERF-01 satisfied
+- Worker cutover — `sqlite-worker.ts` rewritten to 3-step fetch→seed (MemoryVFS)→query; `hyparquet` import, `_insertRows`, `_escapeSqlValue`, `_buildGeoJSON`, `_serializedExec`, `CREATE TABLE`, and the sqlite3.exec monkey-patch all deleted; ~130 lines removed — PERF-02 satisfied
+- `json_group_array` approach benchmarked (Plan 01) and rejected (1286 ms = 2× worse than 570 ms baseline); root cause: WASM→JS callback overhead ~6.4 μs × 92,802 rows = ~594 ms; pre-serialized `geo_blob` table in `sqlite_export.py` (Python `json.dumps`); worker fetches 1 row, 1 callback — SQL geo query 570 ms → 80 ms (86% reduction) — PERF-GEO-01..03 satisfied
+- Benchmark results (Firefox, warm WASM cache): tablesReady 930 ms → **250 ms** (73% reduction); loadOccurrenceGeoJSON transfer 100 ms → **2 ms**; loading screen lifted 1460 ms → **875 ms** (40% reduction); all phase targets met
+
+---
+
 ## v4.2 iNaturalist Expert Observations (Shipped: 2026-05-26)
 
 **Phases completed:** 4 phases (117–120), 14 plans
