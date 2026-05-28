@@ -3,10 +3,7 @@ import * as SQLite from 'wa-sqlite';
 import { MemoryVFS } from 'wa-sqlite/src/examples/MemoryVFS.js';
 import { resolveDataUrl } from './manifest.ts';
 
-const GEO_SQL =
-  'SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, ' +
-  'year, scientificName, genus, family, source ' +
-  'FROM occurrences WHERE lat IS NOT NULL AND lon IS NOT NULL';
+const GEO_BLOB_SQL = 'SELECT data FROM geo_blob';
 
 let _geoBuffer: ArrayBuffer | null = null;
 
@@ -49,31 +46,17 @@ let _geoBuffer: ArrayBuffer | null = null;
   const tOpen1 = performance.now();
   logs.push(`[BENCHMARK] open_v2 (preloaded VFS): ${(tOpen1 - tOpen0).toFixed(0)} ms`);
 
-  // Per-row callbacks accumulate into JS objects — one WASM→JS crossing per row,
-  // but avoids SQLite's json_group_array which is ~2× slower for large result sets.
+  // Single-row query — exactly one WASM→JS callback. Data pre-serialized at build time.
   const tGeo0 = performance.now();
-  const sqlRows: {
-    lat: number | null; lon: number | null;
-    ecdysis_id: number | null; observation_id: number | null; specimen_observation_id: number | null;
-    year: number | null; scientificName: string | null; genus: string | null;
-    family: string | null; source: string | null;
-  }[] = [];
-  await sqlite3.exec(db, GEO_SQL, (row: unknown[]) => {
-    sqlRows.push({
-      lat: row[0] as number | null, lon: row[1] as number | null,
-      ecdysis_id: row[2] as number | null, observation_id: row[3] as number | null,
-      specimen_observation_id: row[4] as number | null, year: row[5] as number | null,
-      scientificName: row[6] as string | null, genus: row[7] as string | null,
-      family: row[8] as string | null, source: row[9] as string | null,
-    });
+  let geoJsonStr = '[]';
+  await sqlite3.exec(db, GEO_BLOB_SQL, (row: unknown[]) => {
+    geoJsonStr = row[0] as string;
   });
   const tGeo1 = performance.now();
   logs.push(`[BENCHMARK] SQL geo agg query: ${(tGeo1 - tGeo0).toFixed(0)} ms`);
 
-  // Serialize via JS JSON.stringify (fast, JIT-optimized) then encode to ArrayBuffer.
   const tEncode0 = performance.now();
-  const jsonStr = JSON.stringify(sqlRows);
-  const encoded = new TextEncoder().encode(jsonStr);
+  const encoded = new TextEncoder().encode(geoJsonStr);
   _geoBuffer = encoded.buffer;
   const tEncode1 = performance.now();
   logs.push(`[BENCHMARK] TextEncoder.encode: ${(tEncode1 - tEncode0).toFixed(0)} ms | ${(_geoBuffer.byteLength / 1024 / 1024).toFixed(1)} MB`);

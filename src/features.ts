@@ -4,20 +4,6 @@ import type { DataSummary, TaxonOption, OccurrenceProperties } from './filter.ts
 
 export type { OccurrenceProperties };
 
-// Raw row shape produced by json_object in GEO_AGG_SQL (named properties, not positional).
-interface RawOccRow {
-  lat: number | null;
-  lon: number | null;
-  ecdysis_id: number | null;
-  observation_id: number | null;
-  specimen_observation_id: number | null;
-  year: number | null;
-  scientificName: string | null;
-  genus: string | null;
-  family: string | null;
-  source: string | null;
-}
-
 function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
   const y = new Date().getFullYear();
   if (year >= y) return 'thisYear';
@@ -25,11 +11,9 @@ function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
   return 'earlier';
 }
 
-/**
- * Build GeoJSON from raw named-property rows decoded from the worker ArrayBuffer.
- * Exported for unit testing (leading underscore = internal, not public API).
- */
-export function _buildGeoJSONFromRaw(rows: RawOccRow[]): {
+// Column layout: [lat, lon, ecdysis_id, observation_id, specimen_observation_id,
+//                 year, scientificName, genus, family, source]
+export function _buildGeoJSONFromRaw(rows: unknown[][]): {
   geojson: FeatureCollection<Point, OccurrenceProperties>;
   summary: DataSummary;
   taxaOptions: TaxonOption[];
@@ -41,18 +25,18 @@ export function _buildGeoJSONFromRaw(rows: RawOccRow[]): {
   let minYear = Infinity, maxYear = -Infinity;
 
   for (const row of rows) {
-    const lat = row.lat;
-    const lon = row.lon;
+    const lat = row[0] as number | null;
+    const lon = row[1] as number | null;
     if (lat == null || lon == null) continue;
 
-    const ecdysis_id = row.ecdysis_id;
-    const observation_id = row.observation_id;
-    const specimen_observation_id = row.specimen_observation_id;
-    const year = Number(row.year);
-    const scientificName = row.scientificName;
-    const genus = row.genus;
-    const family = row.family;
-    const source = row.source;
+    const ecdysis_id = row[2];
+    const observation_id = row[3];
+    const specimen_observation_id = row[4];
+    const year = Number(row[5]);
+    const scientificName = row[6] as string | null;
+    const genus = row[7] as string | null;
+    const family = row[8] as string | null;
+    const source = row[9] as string | null;
 
     let occId: string | null = null;
     if (ecdysis_id != null) occId = `ecdysis:${ecdysis_id}`;
@@ -106,7 +90,7 @@ export async function loadOccurrenceGeoJSON(): Promise<{
 
   const tDecode0 = performance.now();
   const jsonStr = new TextDecoder().decode(buffer);
-  const rows = JSON.parse(jsonStr) as RawOccRow[];
+  const rows = JSON.parse(jsonStr) as unknown[][];
   const result = _buildGeoJSONFromRaw(rows);
   const tDecode1 = performance.now();
   console.log(`[BENCHMARK] decode+build GeoJSON: ${(tDecode1 - tDecode0).toFixed(0)} ms | features: ${result.geojson.features.length}`);
