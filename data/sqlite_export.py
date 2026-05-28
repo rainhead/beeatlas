@@ -9,6 +9,7 @@ The module can also be imported and called programmatically:
 """
 
 import os
+import sqlite3 as _sqlite3
 from pathlib import Path
 
 import duckdb
@@ -45,6 +46,19 @@ def generate_sqlite(src_parquet: Path, dst_db: Path) -> None:
         con.execute("DETACH out")
     finally:
         con.close()
+
+    # Covering partial index for the geo query in sqlite-worker.ts:
+    #   SELECT lat,lon,...,source FROM occurrences WHERE lat IS NOT NULL AND lon IS NOT NULL
+    # The 10-column covering index allows an index-only scan, eliminating the full 30-column
+    # table scan that dominated wa-sqlite query time (~560 ms → estimated ~50–100 ms).
+    with _sqlite3.connect(dst_db) as idx_con:
+        idx_con.execute(
+            "CREATE INDEX idx_occ_geo ON occurrences("
+            "lat, lon, ecdysis_id, observation_id, specimen_observation_id, "
+            "year, scientificName, genus, family, source"
+            ") WHERE lat IS NOT NULL AND lon IS NOT NULL"
+        )
+        idx_con.execute("ANALYZE")
 
 
 def main() -> None:
