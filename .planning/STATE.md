@@ -3,15 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.3
 milestone_name: TBD
 status: planning
-stopped_at: v4.2 milestone archived — ready for /gsd-new-milestone
-last_updated: "2026-05-26T00:00:00.000Z"
-last_activity: 2026-05-26 -- v4.2 milestone archived
+stopped_at: v4.2 milestone archived
+last_updated: "2026-05-28T00:21:07.135Z"
 progress:
-  total_phases: 0
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 10
+  completed_phases: 4
+  total_plans: 16
+  completed_plans: 13
+  percent: 40
 ---
 
 # Project State
@@ -51,6 +50,7 @@ None.
 |---|---|---|
 | 2026-05-26 | inat-obs-show-species-in-sidebar | iNat expert obs: show species name + quality badge in sidebar |
 | 2026-05-27 | 260527-ko5 | Move sqlite and data loading into a worker thread; profile before/after |
+| 2026-05-27 | pst | Replace string-escape INSERT with wa-sqlite prepared statements |
 
 ## Session Continuity
 
