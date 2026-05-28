@@ -2,6 +2,40 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v4.3 — Loading Performance
+
+**Shipped:** 2026-05-28
+**Phases:** 2 (121–122) | **Plans:** 5 | **Timeline:** 3 days | **LOC:** +5,261 / −969
+
+### What Was Built
+
+- Phase 121: `data/sqlite_export.py` exports `occurrences.parquet` → `occurrences.db` via DuckDB sqlite extension (schema-derived DDL); `nightly.sh` content-hashes and adds `occurrences_db` manifest key; worker rewritten to 3-step fetch→MemoryVFS seed→query
+- Phase 122: `json_group_array` approach tried and rejected (1286 ms = 2× worse); root cause (WASM→JS callback overhead ~6.4 μs × 92K rows) correctly identified; `geo_blob` pre-serialized table (Python `json.dumps`) reduces to 1 row, 1 callback; 80 ms SQL geo query; tablesReady 250 ms; loading screen 875 ms
+
+### What Worked
+
+- Spike-driven planning: the 260527-spike-prebuilt-sqlite-vfs spike produced FINDINGS.md that made Phase 121 execution nearly zero-surprise; spending time on a spike before committing to the milestone was clearly the right call
+- TDD RED/GREEN discipline caught 4 TypeScript bugs during Phase 122 Plan 01 that would have caused silent runtime failures (implicit `any`, non-null assertions)
+- Benchmark-first approach: capturing Firefox numbers before Phase 121 approved revealed the real bottleneck (SQL geo query) vs what the spike had measured (INSERT loop); this redirected Phase 122 correctly
+
+### What Was Inefficient
+
+- `json_group_array` implementation was built out fully (12 unit tests, full wire-up) before being benchmarked — benchmarking earlier in Plan 01 would have saved ~30% of that plan's work
+- Phase 121 targets (tablesReady ≤ 600 ms) required Phase 122 to be met; targets set on spike data (Chromium) didn't transfer to Firefox WASM JIT; future performance targets should specify browser and test environment
+
+### Patterns Established
+
+- `geo_blob` pre-serialization pattern: when WASM→JS callback overhead dominates, move serialization to the Python export step and store as a single-row TEXT blob
+- Benchmark checkpoint at Plan 03 (with human-verify) is the right gate for performance phases — catches JIT/browser discrepancies that unit tests cannot surface
+- `MemoryVFS.mapNameToFile({flags: 0x2, size, data})` before `open_v2` is the correct wa-sqlite seeding pattern for prebuilt DBs
+
+### Key Lessons
+
+- WASM→JS callback cost (~6.4 μs each) is a hidden performance cliff — any query returning >10K rows via per-row callbacks will dominate total time regardless of SQL efficiency
+- Firefox WASM JIT is ~2× slower than Chromium V8 for this workload; always target the slower browser in performance success criteria
+
+---
+
 ## Milestone: v4.1 — Validation & Code Quality
 
 **Shipped:** 2026-05-25

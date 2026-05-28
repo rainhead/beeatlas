@@ -1,5 +1,9 @@
 # Washington Bee Atlas
 
+## Milestone: v4.3 Loading Performance — COMPLETE (2026-05-28)
+
+**Shipped:** `occurrences.db` prebuilt SQLite DB replaces runtime hyparquet+INSERT loop; `geo_blob` pre-serialized table eliminates 92K WASM→JS callbacks; tablesReady 73% faster (930 ms → 250 ms), loading screen 40% faster (1460 ms → 875 ms). All 6 PERF requirements satisfied.
+
 ## Milestone: v4.2 iNaturalist Expert Observations — COMPLETE (2026-05-26)
 
 **Shipped:** 45,354 expert-identified iNat observations ingested (44,534 net new after deduplication); `occurrences.parquet` extended to 36 columns with a `source` discriminator and iNat-specific nullable fields; amber points on the Mapbox map with unified source-selection filter and URL persistence; species pages show per-source counts; `photos.json` artifact stores CC-licensed images per species for future carousel.
@@ -146,27 +150,33 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Previous Milestones
 
-- v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
-- v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
-- v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
-- v1.9 Component Architecture & Test Suite — COMPLETE (2026-04-04)
-- v2.0 Tabular Data View — COMPLETE (2026-04-09)
-- v2.1 Determination Feeds — COMPLETE (2026-04-11)
-- v2.2 Feed Discoverability & Pipeline — COMPLETE (2026-04-12)
-- v2.3 Specimen iNat Observation Links — COMPLETE (2026-04-13)
-- v2.4 Header Navigation & Toolbar — COMPLETE (2026-04-14)
-- v2.5 Elevation Data — COMPLETE (2026-04-16)
-- v2.6 SQLite WASM Migration — COMPLETE (2026-04-17)
-- v2.7 Unified Occurrence Model — COMPLETE (2026-04-17)
-- v2.8 Liveness: Provisional Specimen Records — COMPLETE (2026-04-20)
-- v2.9 UI Flow Redesign — COMPLETE (2026-04-21)
-- v3.0 Mapbox GL JS Migration — COMPLETE (2026-04-27)
-- v3.1 Eleventy Build Wrapper — COMPLETE (2026-04-30)
-- v3.2 Species Tab — COMPLETE (2026-05-05)
-- v3.3 dbt Spike — COMPLETE (2026-05-13)
-- v3.4 dbt Full Rewrite — COMPLETE (2026-05-14)
-- v3.5 Selection Rectangle — COMPLETE (2026-05-15)
+- v4.2 iNaturalist Expert Observations — COMPLETE (2026-05-26)
+- v4.1 Validation & Code Quality — COMPLETE (2026-05-25)
+- v4.0 Washington Checklist Records — COMPLETE (2026-05-25)
+- v3.9 Sidebar & Table Unification — COMPLETE (2026-05-20)
+- v3.8 Conceptual Tidying — COMPLETE (2026-05-19)
+- v3.7 Places — COMPLETE (2026-05-18)
 - v3.6 Simpler Species Index — COMPLETE (2026-05-16)
+- v3.5 Selection Rectangle — COMPLETE (2026-05-15)
+- v3.4 dbt Full Rewrite — COMPLETE (2026-05-14)
+- v3.3 dbt Spike — COMPLETE (2026-05-13)
+- v3.2 Species Tab — COMPLETE (2026-05-05)
+- v3.1 Eleventy Build Wrapper — COMPLETE (2026-04-30)
+- v3.0 Mapbox GL JS Migration — COMPLETE (2026-04-27)
+- v2.9 UI Flow Redesign — COMPLETE (2026-04-21)
+- v2.8 Liveness: Provisional Specimen Records — COMPLETE (2026-04-20)
+- v2.7 Unified Occurrence Model — COMPLETE (2026-04-17)
+- v2.6 SQLite WASM Migration — COMPLETE (2026-04-17)
+- v2.5 Elevation Data — COMPLETE (2026-04-16)
+- v2.4 Header Navigation & Toolbar — COMPLETE (2026-04-14)
+- v2.3 Specimen iNat Observation Links — COMPLETE (2026-04-13)
+- v2.2 Feed Discoverability & Pipeline — COMPLETE (2026-04-12)
+- v2.1 Determination Feeds — COMPLETE (2026-04-11)
+- v2.0 Tabular Data View — COMPLETE (2026-04-09)
+- v1.9 Component Architecture & Test Suite — COMPLETE (2026-04-04)
+- v1.8 DuckDB WASM Frontend — COMPLETE (2026-04-01)
+- v1.7 Production Pipeline Infrastructure — COMPLETE (2026-03-30)
+- v1.6 dlt Pipeline Migration — COMPLETE (2026-03-28)
 
 ### Validated (v3.6)
 
@@ -242,7 +252,7 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Context
 
-Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v3.6 on 2026-05-16 — Simpler Species Index (+5,418/−23,155 lines across 154 files, 2 days): 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages generated via Eleventy pagination; multi-color SVG occurrence maps at all taxon levels; monolithic `/species/` all-cards layout (8 files) replaced with searchable family→genus index; hierarchical `Genus/specificEpithet` slug format; BLOCKER-01 closed (species-maps/ S3 upload); 5 phases, 13 plans. Shipped v3.7 on 2026-05-18 — Places (+12,314/−2,566 lines across 103 files, 2 days): hand-curated `content/places.toml` TOML schema with WGS84 polygon geometry and validation pipeline (slug format, CRS, non-overlap); pipeline spatial join adds `place_slug` to `occurrences.parquet` (dbt 31-column contract); `places.geojson` + `places.json` committed to git; per-place SVG occurrence maps; `/places.html` index + per-place pages at `/places/{slug}.html`; Places boundary mode in Mapbox (4th toggle), click-to-filter, removable chip, `place=` URL round-trip; B-01 + W-01 closed in Phase 100.1; 5 phases (including INSERTED 100.1), 11 plans. Shipped v3.8 on 2026-05-19 — Conceptual Tidying (+5,601/−153 across 48 files, 1 day): `src/occurrence.ts` (6 pure-function exports, 6 caller files migrated, 24 Vitest tests); `data/domain.py` (Python slugify extracted, BEE_FAMILIES removed, byte-equivalence tests); `data/dbt/macros/inat_field_ids.sql` (5 named macros, dbt build PASS=46); SEM-01 semantic reconciliation (places_export.py specimen predicate fixed, isSpecimenBacked canonical across 3 stack layers); 4 phases, 5 plans. Shipped v3.9 on 2026-05-20 — Sidebar & Table Unification (+10,639/−1,326 across 54+ files, 2 days): `bee-pane` unified component (1004 lines) merging `bee-filter-panel` + `bee-sidebar` into three-state chrome (collapsed/list/table); `bee-atlas` state machine refactored (three flags → single `_paneState`); `queryListPage` WHERE intersection for unified occurrence query; table as split-screen (40% map/60% table); `bee-filter-panel.ts` and `bee-sidebar.ts` deleted; URL pane state with legacy alias; MAP-01 via overlay architecture; 5 phases, 12 plans, 61 commits. Shipped v4.0 on 2026-05-25 — Washington Checklist Records (+63,769/−1,882 across 104 files, 2 days): offline taxa.csv.gz replaces live iNat API calls; Bartholomew et al. 2024 checklist ingested as `checklist.parquet` (2,861 species-county rows); "Checklist records" toggle-able county-fill layer; 565 checklist species have taxon pages; 4 phases, 13 plans. Shipped v4.1 on 2026-05-25 — Validation & Code Quality (+5,367/−131 across 49 files, 1 day): retroactive VALIDATION.md/VERIFICATION.md for v3.5/v3.7/v4.0; permit validation hardened; run.py docstring synced; test_dbt_diff.py 150 tests green; 3 phases, 12 plans. Shipped v4.2 on 2026-05-26 — iNaturalist Expert Observations (+10,277/−4,275 across 110 files, 2 days): 44,534 expert iNat obs ingested and unified into `occurrences.parquet` as ARM 3; amber map points with source-selection filter and URL persistence; per-source counts on species pages; `photos.json` artifact for future carousel; 4 phases, 14 plans.
+Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 on 2026-03-10 — URL sharing (+324 lines). Shipped v1.2 on 2026-03-11 — iNat pipeline (+5,069/−1,005 lines, 2 days). Shipped v1.3 on 2026-03-12 — links pipeline (+1,405/−31 lines, single day). Shipped v1.4 on 2026-03-13 — sample layer UI (iNat dots, toggle, sidebar detail, iNat links). Shipped v1.5 on 2026-03-27 — geographic region filters (+9,599/−88 lines across 68 files, 4 days). Shipped v1.6 on 2026-03-28 — dlt Pipeline Migration (+3,694/−3,066 lines across 67 files, 1 day). Shipped v1.7 on 2026-03-30 — Production Pipeline Infrastructure (+6,116/−325 lines, 65 files, 10 days): CDK Lambda deployed (abandoned for OOM/timeout); maderas nightly cron (`data/nightly.sh`) is the execution path; data files exported to S3; frontend fetches all data at runtime from CloudFront; CI simplified to frontend-only build; 13 pytest tests cover export schemas and transform logic. Shipped v1.8 on 2026-04-01 — DuckDB WASM Frontend (+4,120/−6,399 lines across 66 files, 1 day): hyparquet replaced by DuckDB WASM EH-bundle; all parquet reads and filter queries now SQL in-browser; `matchesFilter()` replaced by `visibleIds` Set; 3 phases, 5 plans, 10 tasks. Shipped v1.9 on 2026-04-04 — Component Architecture & Test Suite (+8,138/−1,560 lines across 47 files, 2 days): `<bee-atlas>` coordinator component owns all app state; `bee-map` and `bee-sidebar` refactored to pure presenter components; `bee-sidebar` decomposed into `bee-filter-controls`, `bee-specimen-detail`, `bee-sample-detail` sub-components; Vitest test suite with 61 tests across 4 files (url-state round-trips, filter SQL, Lit render tests); 6 phases, 11 plans. Shipped v3.6 on 2026-05-16 — Simpler Species Index (+5,418/−23,155 lines across 154 files, 2 days): 527 species pages, 42 genus pages, 103 subgenus pages, 19 tribe pages generated via Eleventy pagination; multi-color SVG occurrence maps at all taxon levels; monolithic `/species/` all-cards layout (8 files) replaced with searchable family→genus index; hierarchical `Genus/specificEpithet` slug format; BLOCKER-01 closed (species-maps/ S3 upload); 5 phases, 13 plans. Shipped v3.7 on 2026-05-18 — Places (+12,314/−2,566 lines across 103 files, 2 days): hand-curated `content/places.toml` TOML schema with WGS84 polygon geometry and validation pipeline (slug format, CRS, non-overlap); pipeline spatial join adds `place_slug` to `occurrences.parquet` (dbt 31-column contract); `places.geojson` + `places.json` committed to git; per-place SVG occurrence maps; `/places.html` index + per-place pages at `/places/{slug}.html`; Places boundary mode in Mapbox (4th toggle), click-to-filter, removable chip, `place=` URL round-trip; B-01 + W-01 closed in Phase 100.1; 5 phases (including INSERTED 100.1), 11 plans. Shipped v3.8 on 2026-05-19 — Conceptual Tidying (+5,601/−153 across 48 files, 1 day): `src/occurrence.ts` (6 pure-function exports, 6 caller files migrated, 24 Vitest tests); `data/domain.py` (Python slugify extracted, BEE_FAMILIES removed, byte-equivalence tests); `data/dbt/macros/inat_field_ids.sql` (5 named macros, dbt build PASS=46); SEM-01 semantic reconciliation (places_export.py specimen predicate fixed, isSpecimenBacked canonical across 3 stack layers); 4 phases, 5 plans. Shipped v3.9 on 2026-05-20 — Sidebar & Table Unification (+10,639/−1,326 across 54+ files, 2 days): `bee-pane` unified component (1004 lines) merging `bee-filter-panel` + `bee-sidebar` into three-state chrome (collapsed/list/table); `bee-atlas` state machine refactored (three flags → single `_paneState`); `queryListPage` WHERE intersection for unified occurrence query; table as split-screen (40% map/60% table); `bee-filter-panel.ts` and `bee-sidebar.ts` deleted; URL pane state with legacy alias; MAP-01 via overlay architecture; 5 phases, 12 plans, 61 commits. Shipped v4.0 on 2026-05-25 — Washington Checklist Records (+63,769/−1,882 across 104 files, 2 days): offline taxa.csv.gz replaces live iNat API calls; Bartholomew et al. 2024 checklist ingested as `checklist.parquet` (2,861 species-county rows); "Checklist records" toggle-able county-fill layer; 565 checklist species have taxon pages; 4 phases, 13 plans. Shipped v4.1 on 2026-05-25 — Validation & Code Quality (+5,367/−131 across 49 files, 1 day): retroactive VALIDATION.md/VERIFICATION.md for v3.5/v3.7/v4.0; permit validation hardened; run.py docstring synced; test_dbt_diff.py 150 tests green; 3 phases, 12 plans. Shipped v4.2 on 2026-05-26 — iNaturalist Expert Observations (+10,277/−4,275 across 110 files, 2 days): 44,534 expert iNat obs ingested and unified into `occurrences.parquet` as ARM 3; amber map points with source-selection filter and URL persistence; per-source counts on species pages; `photos.json` artifact for future carousel; 4 phases, 14 plans. Shipped v4.3 on 2026-05-28 — Loading Performance (+5,261/−969 across 98 files, 3 days): `occurrences.db` prebuilt SQLite DB exported by pipeline and loaded via MemoryVFS (eliminates INSERT loop); `geo_blob` pre-serialized GeoJSON table (eliminates 92K WASM→JS callbacks); tablesReady 73% faster (930 ms → 250 ms); loading screen 40% faster (1460 ms → 875 ms); 2 phases, 5 plans.
 
 **Tech stack:**
 - Frontend: TypeScript, Vite, Mapbox GL JS, Lit (LitElement), wa-sqlite, hyparquet, temporal-polyfill
@@ -367,6 +377,10 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | `src=` URL param encodes *visible* sources (absent = all on) | Initial implementation encoded *hidden* sources — polarity bug caught in UAT; visible-sources encoding produces cleaner minimal URLs (absent = default) | ✓ Good — Phase 119 UAT; `VALID_SOURCES` allowlist in url-state.ts co-located with `SourceKey` type |
 | Checklist records merged into unified Sources filter row | Separate row with identical icon was confusing; four checkboxes in one row clarifies the source model (Ecdysis / Provisional WABA / iNat expert obs / Checklist) | ✓ Good — Phase 119 UAT; `_renderShow()` removed; `_renderSources()` owns all four items |
 | CC license gate for iNat obs images: `row.license.toUpperCase().startsWith('CC')` | Non-CC images cannot be embedded; case-insensitive check prevents rendering restricted images; null-safe | ✓ Good — Phase 119; confirmed with live obs (wenatcheeb, 1 IV 2018) |
+| `sqlite_export.py` schema derived from parquet at export time (`CREATE TABLE AS SELECT * FROM read_parquet(...)`) | No hardcoded DDL means future dbt column changes require no edits to the exporter | ✓ Good — Phase 121; clean separation of schema ownership |
+| MemoryVFS seeding pattern: `mapNameToFile({flags: 0x2, size, data})` before `open_v2` | Preloaded DB opens in ~1–3 ms vs ~1229 ms INSERT loop; no CREATE TABLE, no row iteration in worker | ✓ Good — Phase 121; replaces entire hyparquet+INSERT boot path |
+| `json_group_array` rejected; `geo_blob` pre-serialized table used instead | `json_group_array` benchmarked at 1286 ms (2× worse): WASM→JS callback overhead ~6.4 μs × 92K rows is constant regardless of SQL; Python `json.dumps` at export time reduces worker to 1 row, 1 callback | ✓ Good — Phase 122; root cause correctly identified; 86% query reduction confirmed |
+| `cast self as any` for two-arg `postMessage` in worker | TypeScript's DOM lib lacks the `(message, transferList)` overload for `WorkerGlobalScope`; runtime behavior is correct; comment explains the cast | ✓ Good — Phase 122; acceptable workaround for TypeScript lib gap |
 
 ## Evolution
 
@@ -386,4 +400,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-26 — after v4.2 milestone (iNaturalist Expert Observations)*
+*Last updated: 2026-05-28 — after v4.3 milestone (Loading Performance)*

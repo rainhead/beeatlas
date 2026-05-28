@@ -35,6 +35,7 @@
 - ✅ **v4.0 Washington Checklist Records** — Phases 110–113 (shipped 2026-05-25)
 - ✅ **v4.1 Validation & Code Quality** — Phases 114–116 (shipped 2026-05-25)
 - ✅ **v4.2 iNaturalist Expert Observations** — Phases 117–120 (shipped 2026-05-26)
+- ✅ **v4.3 Loading Performance** — Phases 121–122 (shipped 2026-05-28)
 
 ## Phases
 
@@ -437,6 +438,18 @@ See `.planning/milestones/v4.2-ROADMAP.md` for full phase details.
 
 <!-- Phase 117-120 details archived to .planning/milestones/v4.2-ROADMAP.md -->
 
+<details>
+<summary>✅ v4.3 Loading Performance (Phases 121–122) — SHIPPED 2026-05-28</summary>
+
+- [x] Phase 121: Prebuilt SQLite Load (3/3 plans) — completed 2026-05-27
+- [x] Phase 122: Worker GeoJSON Aggregation (2/2 plans) — completed 2026-05-28
+
+See `.planning/milestones/v4.3-ROADMAP.md` for full phase details.
+
+</details>
+
+<!-- Phase 121-122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -669,30 +682,7 @@ Plans:
 
 <!-- Phase 117-120 details archived to .planning/milestones/v4.2-ROADMAP.md -->
 
-### Phase 121: Prebuilt SQLite Load
-
-**Goal**: Replace the runtime INSERT loop with a pre-built `occurrences.db` fetched at page load and loaded into MemoryVFS, cutting loading-screen time from ~2.3 s to ~750 ms
-**Depends on**: Phase 120
-**Requirements**: PERF-01, PERF-02, PERF-03
-**Success Criteria** (what must be TRUE):
-
-  1. The nightly pipeline exports `occurrences.db` alongside `occurrences.parquet`; `nightly.sh` uploads it to S3 content-hashed and adds an `occurrences_db` key to the manifest
-  2. `src/sqlite-worker.ts` fetches `occurrences.db`, seeds `MemoryVFS.mapNameToFile` with the ArrayBuffer, and calls `open_v2` — no `CREATE TABLE`, no `_insertRows`, no hyparquet import
-  3. GeoJSON is built from a SQL query on the preloaded DB rather than from parquet rows; `_buildGeoJSON` and `parquetReadObjects` are deleted from the worker
-  4. Browser benchmark (Firefox) shows worker tablesReady ≤ 600 ms and loading screen lifted ≤ 1000 ms on a warm CDN connection (baseline was ~1875 ms / ~2340 ms)
-  5. `npm test` passes; existing click-interaction, SQL filter, and sidebar behaviour is unchanged
-
-**Plans**: 3 plans
-Plans:
-
-**Wave 1**
-
-- [x] 121-01-PLAN.md — Pipeline: add `generate_sqlite` step to `data/run.py`; extend `nightly.sh` to upload `occurrences.db` and inject `occurrences_db` key into manifest
-- [x] 121-02-PLAN.md — Worker cutover: replace `sqlite-worker.ts` body with MemoryVFS-seeding approach from spike; delete parquet loading, `_insertRows`, `_escapeSqlValue`, `_buildGeoJSON`
-
-**Wave 2** *(blocked on Wave 1 completion)*
-
-- [x] 121-03-PLAN.md — Cleanup and verification: remove hyparquet from bundle (update Vite config / package.json); update `make-local-manifest.js`; benchmark confirm; `npm test` green
+<!-- Phase 121 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
 ## Progress
 
@@ -822,16 +812,4 @@ Plans:
 | 121. Prebuilt SQLite Load | v4.3 | 3/3 | Complete | 2026-05-27 |
 | 122. Worker GeoJSON Aggregation | v4.3 | 2/2 | Complete   | 2026-05-28 |
 
-### Phase 122: Worker GeoJSON Aggregation
-
-**Goal:** Eliminate 92K WASM→JS row callbacks by aggregating occurrences into JSON inside SQL (json_group_array), then transferring the result as a zero-copy ArrayBuffer; SQL geo query time drops from ~570 ms to ~50 ms, transfer drops from ~100 ms to near zero
-**Requirements**: PERF-GEO-01, PERF-GEO-02, PERF-GEO-03
-**Depends on:** Phase 121
-**Plans:** 2/2 plans complete
-
-Plans:
-**Wave 1**
-- [x] 122-01-PLAN.md — sqlite-worker.ts GEO_AGG_SQL + ArrayBuffer transfer; sqlite.ts + features.ts decode + _buildGeoJSONFromRaw; unit tests [PERF-GEO-01, PERF-GEO-02, PERF-GEO-03]
-
-**Wave 2** *(blocked on Wave 1)*
-- [x] 122-02-PLAN.md — Regenerate local manifest + occurrences.db; Firefox browser benchmark checkpoint [PERF-GEO-02]
+<!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
