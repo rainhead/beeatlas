@@ -3,20 +3,10 @@ import * as SQLite from 'wa-sqlite';
 import { MemoryVFS } from 'wa-sqlite/src/examples/MemoryVFS.js';
 import { resolveDataUrl } from './manifest.ts';
 
-const GEO_AGG_SQL =
-  "SELECT COALESCE(json_group_array(json_object(" +
-  "  'lat', CAST(lat AS REAL)," +
-  "  'lon', CAST(lon AS REAL)," +
-  "  'ecdysis_id', ecdysis_id," +
-  "  'observation_id', observation_id," +
-  "  'specimen_observation_id', specimen_observation_id," +
-  "  'year', year," +
-  "  'scientificName', scientificName," +
-  "  'genus', genus," +
-  "  'family', family," +
-  "  'source', source" +
-  ")), '[]') AS rows_json " +
-  "FROM occurrences WHERE lat IS NOT NULL AND lon IS NOT NULL";
+const GEO_SQL =
+  'SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, ' +
+  'year, scientificName, genus, family, source ' +
+  'FROM occurrences WHERE lat IS NOT NULL AND lon IS NOT NULL';
 
 let _geoBuffer: ArrayBuffer | null = null;
 
@@ -59,17 +49,30 @@ let _geoBuffer: ArrayBuffer | null = null;
   const tOpen1 = performance.now();
   logs.push(`[BENCHMARK] open_v2 (preloaded VFS): ${(tOpen1 - tOpen0).toFixed(0)} ms`);
 
-  // Run single-row aggregate query — fires exactly one WASM→JS callback (was 92,802).
+  // Per-row callbacks accumulate into JS objects — one WASM→JS crossing per row,
+  // but avoids SQLite's json_group_array which is ~2× slower for large result sets.
   const tGeo0 = performance.now();
-  let jsonStr = '[]';
-  await sqlite3.exec(db, GEO_AGG_SQL, (row: unknown[]) => {
-    jsonStr = (row[0] as string | null) ?? '[]';
+  const sqlRows: {
+    lat: number | null; lon: number | null;
+    ecdysis_id: number | null; observation_id: number | null; specimen_observation_id: number | null;
+    year: number | null; scientificName: string | null; genus: string | null;
+    family: string | null; source: string | null;
+  }[] = [];
+  await sqlite3.exec(db, GEO_SQL, (row: unknown[]) => {
+    sqlRows.push({
+      lat: row[0] as number | null, lon: row[1] as number | null,
+      ecdysis_id: row[2] as number | null, observation_id: row[3] as number | null,
+      specimen_observation_id: row[4] as number | null, year: row[5] as number | null,
+      scientificName: row[6] as string | null, genus: row[7] as string | null,
+      family: row[8] as string | null, source: row[9] as string | null,
+    });
   });
   const tGeo1 = performance.now();
   logs.push(`[BENCHMARK] SQL geo agg query: ${(tGeo1 - tGeo0).toFixed(0)} ms`);
 
-  // Encode to ArrayBuffer for zero-copy transfer to main thread.
+  // Serialize via JS JSON.stringify (fast, JIT-optimized) then encode to ArrayBuffer.
   const tEncode0 = performance.now();
+  const jsonStr = JSON.stringify(sqlRows);
   const encoded = new TextEncoder().encode(jsonStr);
   _geoBuffer = encoded.buffer;
   const tEncode1 = performance.now();
