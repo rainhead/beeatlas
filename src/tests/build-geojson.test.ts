@@ -169,9 +169,9 @@ describe('_buildGeoJSONFromRaw', () => {
     ];
     const result = _buildGeoJSONFromRaw(rows);
 
-    const families = result.taxaOptions.filter(t => t.rank === 'family').map(t => t.name);
-    const genera = result.taxaOptions.filter(t => t.rank === 'genus').map(t => t.name);
-    const species = result.taxaOptions.filter(t => t.rank === 'species').map(t => t.name);
+    const families = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'family').map((t: { name: string }) => t.name);
+    const genera = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'genus').map((t: { name: string }) => t.name);
+    const species = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'species').map((t: { name: string }) => t.name);
 
     expect(families).toEqual([...families].sort());
     expect(genera).toEqual([...genera].sort());
@@ -196,9 +196,9 @@ describe('_buildGeoJSONFromRaw', () => {
     const result = _buildGeoJSONFromRaw(rows);
     const features = result.geojson.features;
 
-    const thisYear = features.find(f => f.properties.occId === `ecdysis:1`);
-    const lastYear = features.find(f => f.properties.occId === `ecdysis:2`);
-    const earlier = features.find(f => f.properties.occId === `ecdysis:3`);
+    const thisYear = features.find((f: { properties: { occId: string } }) => f.properties.occId === `ecdysis:1`);
+    const lastYear = features.find((f: { properties: { occId: string } }) => f.properties.occId === `ecdysis:2`);
+    const earlier = features.find((f: { properties: { occId: string } }) => f.properties.occId === `ecdysis:3`);
 
     expect(thisYear?.properties.recencyTier).toBe('thisYear');
     expect(lastYear?.properties.recencyTier).toBe('lastYear');
