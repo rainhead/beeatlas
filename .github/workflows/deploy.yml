@@ -34,9 +34,11 @@ jobs:
         # are fetched by the frontend at runtime via manifest.json; only these
         # two must be present in the working tree for the build to succeed.
         # Artifacts are content-hashed on S3; manifest.json resolves current names.
+        # manifest.json is also written to public/data/ so validate-db can read it.
         run: |
           mkdir -p public/data
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/manifest.json /tmp/manifest.json
+          cp /tmp/manifest.json public/data/manifest.json
           SPECIES_FILE=$(jq -r .species /tmp/manifest.json)
           SEASONALITY_FILE=$(jq -r .seasonality /tmp/manifest.json)
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_FILE public/data/species.json

@@ -160,8 +160,8 @@ ordering = 1
   test('package.json build script invokes validate-species in the correct order', () => {
     const pkg = JSON.parse(readFileSync(resolve(REPO_ROOT, 'package.json'), 'utf-8'));
     expect(pkg.scripts['validate-species']).toBe('node scripts/validate-species.mjs');
-    // Order: validate-species -> typecheck -> eleventy -> validate-bundle-size
+    // Order: validate-species -> validate-db -> typecheck -> eleventy -> validate-bundle-size
     // v3.4 CUTOVER-03: validate-schema retired (dbt contract enforces the schema)
-    expect(pkg.scripts.build).toBe('npm run validate-species && npm run typecheck && eleventy && npm run validate-bundle-size');
+    expect(pkg.scripts.build).toBe('npm run validate-species && npm run validate-db && npm run typecheck && eleventy && npm run validate-bundle-size');
   });
 });
