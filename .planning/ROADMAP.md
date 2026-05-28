@@ -687,8 +687,8 @@ Plans:
 
 **Wave 1**
 
-- [ ] 121-01-PLAN.md — Pipeline: add `generate_sqlite` step to `data/run.py`; extend `nightly.sh` to upload `occurrences.db` and inject `occurrences_db` key into manifest
-- [ ] 121-02-PLAN.md — Worker cutover: replace `sqlite-worker.ts` body with MemoryVFS-seeding approach from spike; delete parquet loading, `_insertRows`, `_escapeSqlValue`, `_buildGeoJSON`
+- [x] 121-01-PLAN.md — Pipeline: add `generate_sqlite` step to `data/run.py`; extend `nightly.sh` to upload `occurrences.db` and inject `occurrences_db` key into manifest
+- [x] 121-02-PLAN.md — Worker cutover: replace `sqlite-worker.ts` body with MemoryVFS-seeding approach from spike; delete parquet loading, `_insertRows`, `_escapeSqlValue`, `_buildGeoJSON`
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
