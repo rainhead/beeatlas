@@ -692,7 +692,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 121-03-PLAN.md — Cleanup and verification: remove hyparquet from bundle (update Vite config / package.json); update `make-local-manifest.js`; benchmark confirm; `npm test` green
+- [x] 121-03-PLAN.md — Cleanup and verification: remove hyparquet from bundle (update Vite config / package.json); update `make-local-manifest.js`; benchmark confirm; `npm test` green
 
 ## Progress
 
@@ -819,3 +819,4 @@ Plans:
 | 118. Occurrence Model Extension | v4.2 | 3/3 | Complete | 2026-05-26 |
 | 119. Map Display, Source Filter & Detail View | v4.2 | 7/7 | Complete | 2026-05-26 |
 | 120. Species Page Source Counts & Photo List | v4.2 | 2/2 | Complete | 2026-05-26 |
+| 121. Prebuilt SQLite Load | v4.3 | 3/3 | Complete | 2026-05-27 |

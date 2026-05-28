@@ -4,12 +4,12 @@ milestone: v4.3
 milestone_name: TBD
 status: planning
 stopped_at: v4.2 milestone archived
-last_updated: "2026-05-28T02:16:16.024Z"
+last_updated: "2026-05-27T00:00:00Z"
 progress:
   total_phases: 10
   completed_phases: 4
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
   percent: 40
 ---
 
