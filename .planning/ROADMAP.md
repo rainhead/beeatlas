@@ -820,18 +820,18 @@ Plans:
 | 119. Map Display, Source Filter & Detail View | v4.2 | 7/7 | Complete | 2026-05-26 |
 | 120. Species Page Source Counts & Photo List | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 121. Prebuilt SQLite Load | v4.3 | 3/3 | Complete | 2026-05-27 |
-| 122. Worker GeoJSON Aggregation | v4.3 | 0/2 | In Progress | — |
+| 122. Worker GeoJSON Aggregation | v4.3 | 1/2 | In Progress|  |
 
 ### Phase 122: Worker GeoJSON Aggregation
 
 **Goal:** Eliminate 92K WASM→JS row callbacks by aggregating occurrences into JSON inside SQL (json_group_array), then transferring the result as a zero-copy ArrayBuffer; SQL geo query time drops from ~570 ms to ~50 ms, transfer drops from ~100 ms to near zero
 **Requirements**: PERF-GEO-01, PERF-GEO-02, PERF-GEO-03
 **Depends on:** Phase 121
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 122-01-PLAN.md — sqlite-worker.ts GEO_AGG_SQL + ArrayBuffer transfer; sqlite.ts + features.ts decode + _buildGeoJSONFromRaw; unit tests [PERF-GEO-01, PERF-GEO-02, PERF-GEO-03]
+- [x] 122-01-PLAN.md — sqlite-worker.ts GEO_AGG_SQL + ArrayBuffer transfer; sqlite.ts + features.ts decode + _buildGeoJSONFromRaw; unit tests [PERF-GEO-01, PERF-GEO-02, PERF-GEO-03]
 
 **Wave 2** *(blocked on Wave 1)*
 - [ ] 122-02-PLAN.md — Regenerate local manifest + occurrences.db; Firefox browser benchmark checkpoint [PERF-GEO-02]

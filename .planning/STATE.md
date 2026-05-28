@@ -4,13 +4,13 @@ milestone: v4.3
 milestone_name: TBD
 status: planning
 stopped_at: v4.2 milestone archived
-last_updated: "2026-05-27T00:00:00Z"
+last_updated: "2026-05-28T03:53:09.386Z"
 progress:
-  total_phases: 10
-  completed_phases: 4
-  total_plans: 16
+  total_phases: 11
+  completed_phases: 5
+  total_plans: 18
   completed_plans: 16
-  percent: 40
+  percent: 45
 ---
 
 # Project State
@@ -20,10 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26 after v4.2 milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone — run /gsd-new-milestone
+**Current focus:** Phase 122 — worker-geojson-aggregation
 
 ## Current Position
 
+Phase: 122 (worker-geojson-aggregation) — EXECUTING
+Plan: 1 of 2
 Milestone v4.2 archived 2026-05-26. Ready to start next milestone.
 
 ## Accumulated Context
@@ -31,6 +33,10 @@ Milestone v4.2 archived 2026-05-26. Ready to start next milestone.
 ### Decisions
 
 All v4.2 decisions logged in PROJECT.md Key Decisions table.
+
+### Roadmap Evolution
+
+- Phase 122 added: Worker GeoJSON Aggregation
 
 ### Pending Todos
 
