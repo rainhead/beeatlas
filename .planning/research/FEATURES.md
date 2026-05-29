@@ -1,237 +1,234 @@
 # Features Research
 
-**Domain:** Biodiversity occurrence atlas — checklist layer + offline taxonomy
-**Researched:** 2026-05-23
-**Milestone:** v4.0 Washington Checklist Records
+**Domain:** Biodiversity occurrence atlas — taxonomy completeness, taxon ID resolution, inactive taxon handling, nested-set prep
+**Researched:** 2026-05-29
+**Milestone:** v4.5 iNat Taxonomy & Species Completeness
 
 ---
 
-## Checklist Layer — Table Stakes
+## Table Stakes
 
-Features users expect the moment they see a third toggle button. Missing = layer feels broken or untrustworthy.
+Features that must ship for the milestone to be considered complete. Missing = product is in a broken or misleading state.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Toggle-able layer (on/off) | Specimens and Samples are toggle-able; a third must match | Low | Reuses existing toggle button pattern in `bee-filter-controls.ts` |
-| Visually distinct point style | Users must read the difference between checklist dots and Ecdysis/iNat dots at a glance | Low | Hollow/open circle with muted stroke; see visual encoding notes below |
-| Points only where coordinates exist | ~4,600 of 50,646 records lack coordinates — these must be silently excluded from the map | Low | Handled in pipeline; no special frontend logic |
-| County / ecoregion filter applies | Users expect every layer to respond to active geographic filters | Medium | Requires `county` + `ecoregion_l3` in checklist rows of `occurrences.parquet` |
-| Taxon filter applies | Users expect the taxon filter to hide checklist dots for non-matching species | Medium | Requires `genus`, `family`, `canonical_name` in checklist occurrence rows |
-| Year / month filter does NOT apply | Many checklist records have poor or absent date precision; applying year/month filter silently drops most records | Low | Checklist rows respond to taxon + geographic filters only; date filter excluded from their WHERE clause |
-| Layer persists in URL state | Layer visibility should survive a page reload and be shareable | Low | One more boolean flag in `url-state.ts`; same pattern as specimens/samples toggle |
-| Occurrence ID for checklist rows | When checklist dots are clicked, they need a stable ID for sidebar detail and URL encoding | Medium | `occIdFromRow` must support a third prefix (`checklist:ObjectID`); `OccurrenceRow` gains `checklist_id` nullable column |
-
-**Visual encoding for historical / literature records:**
-
-The standard convention across biodiversity atlases (British Bird Atlas, Wisconsin BBA, e-Fauna BC) for pre-digital or literature-only records is:
-
-1. **Hollow/open circle (stroke only, no fill)** — the dominant convention for records that are presence-only with no accessible physical voucher. Visually signals "this was reported, not freshly collected here." Use a muted grey-blue stroke, radius slightly larger than filled Ecdysis dots (e.g. 6px ring vs 4px filled) so the ring reads legibly at low zoom.
-2. **Lower opacity filled circle** — acceptable secondary approach when two time periods share the same dot shape and color is used for distinction instead.
-
-**Recommendation:** Use hollow/open circle with `stroke: #5577aa; fill: none; stroke-width: 1.5`. This clearly signals "literature record" without competing with the filled green/grey Ecdysis/iNat dots. The recency tier system (thisYear/lastYear/earlier) does not apply — checklist records are inherently historical and all receive the same fixed style.
+| All observed species visible in species tree | 65 species / 1,745 occurrences currently invisible because `specific_epithet` is sourced only from the WA checklist; users navigating to any of these taxa get a dead-end | Medium | `int_species_universe` gate must admit non-checklist species with occurrences by deriving `specific_epithet` from `canonical_name` when checklist arm is absent |
+| `taxon_id` in `species.parquet` and `occurrences.parquet` | Required for stable deep-linking and future subtaxon queries; it is already being resolved by `resolve_taxon_ids.py` but is not emitted into the marts | Low | Add `taxon_id INTEGER` column to `species.sql` mart and `occurrences.sql` mart; no schema change to `int_combined` needed beyond the existing LEFT JOIN on `stg_inat__canonical_to_taxon_id` |
+| Occurrences of inactive/synonymized taxa remapped at dbt layer | Occurrences recorded under an old name must surface under the current accepted name; the existing `occurrence_synonyms.csv` mechanism is curator-managed and therefore incomplete — it cannot cover hundreds of potential iNat taxonomy changes | High | Pull accepted-name mappings from `taxon_lineage_extended` or the iNat inactive-taxa bridge; extend `occurrence_synonyms` dbt seed or create a new `inactive_taxon_remapping` table |
+| Unmappable occurrences flagged, not silently dropped | When an inactive name cannot be resolved to a current accepted species, the occurrence must not disappear; it should be marked with a `taxon_status` flag so curators can investigate | Low | `taxon_status` enum column on species: `'active'`, `'synonym'`, `'unmappable'` |
+| Ancestor chain persisted in pipeline for future subtaxon queries | Nested-set or ancestor-array representation must be materialized at pipeline time; querying the ancestor walk at frontend runtime is not possible given static hosting | Medium | Data-layer only this milestone: write `taxon_ancestors` or `nested_set` table to DuckDB; no frontend exposure needed |
 
 ---
 
-## Checklist Layer — Differentiators
+## Differentiators
 
-Features not expected but valued when discovered.
+Features not strictly expected but that raise quality and usability meaningfully.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Source badge in sidebar detail | Clicking a checklist dot shows "Bartholomew et al. 2024, JHR 97" citation | Low | Pipeline provides `source_citation` field; template renders it |
-| County of record for coordinate-less entries | Many checklist records have precise county text from literature even without GPS | Low | `County_join` field from CSV is already in the checklist pipeline; shown on species pages even when no map point |
-| "Also reported in literature" county list on species page | For all 565 checklist species, show the county-level distribution from `checklist_data.species_counties` | Low | Query is already in `checklist_pipeline.py`; template needs one new section |
-| "N literature records" count badge | Simple integer on species page; "47 county records from Bartholomew et al. 2024" is meaningful provenance | Very low | Already computable from `checklist_data.species_counties` |
+| `taxon_id`-based deep links on species pages | Stable URL `/species/inat/N/` or `?taxon=N` survives species renames; useful for partner systems linking in | Low | Eleventy page generation can generate redirect stubs; low priority unless requested |
+| Managed/invasive species badge on species pages | "Apis mellifera (European honey bee) — managed / non-native" contextualizes why this species appears on a native bee atlas | Low | `status` field already in `stg_checklist__species.sql` (`'status'` column); need to propagate to non-checklist species via `taxon_lineage_extended` metadata or a curator annotation |
+| `inat_url` on species pages linking to the iNat taxon page | `https://www.inaturalist.org/taxa/{taxon_id}` gives users the authoritative iNat species page with photos, range maps, ID tips | Very low | `taxon_id` is already in `canonical_to_taxon_id`; once emitted to `species.parquet`, the template adds a one-line link |
+| Lineage coverage completeness reporting | How many species in the universe have `taxon_id`, `family`, `subfamily` resolved? Surfaced as a pipeline diagnostic log line | Very low | One SELECT COUNT(*) query at the end of `taxa_pipeline.py`; mirrors existing lineage coverage test |
 
 ---
 
-## Species Pages — Checklist Augmentation
+## Anti-Features
 
-What to show on species-detail pages for the 565 checklist species, informed by comparable biodiversity atlases (ALA, eBird/BBA, Vermont Atlas of Life).
-
-**Data available per species from pipeline:**
-- `on_checklist` boolean (already in `species.parquet`)
-- `occurrence_count` from WABA records (0 for checklist-only species)
-- County records from `checklist_data.species_counties` (name + county)
-- Occurrence coordinates from `occurrences.parquet` where `source = 'checklist'` and lat/lon non-null
-
-**Recommended per-species content:**
-
-| Data | Show? | Complexity | Rationale |
-|------|-------|------------|-----------|
-| Checklist dots on SVG occurrence map | YES — table stakes | Medium | Modify `species_maps.py` to add a second circle class `.checklist-occ` with hollow SVG style; drawn on top of existing `.occ` dots |
-| County list from literature (`species_counties`) | YES — high value | Low | Show as "Counties with literature records: King, Pierce, ..." below the map; covers coordinate-less records |
-| "N literature records" count | YES — disambiguates | Very low | "47 county records from Bartholomew et al. 2024 (CC BY 4.0)" |
-| Checklist citation/DOI link | YES — required for attribution | Very low | Static text; DOI: 10.3897/jhr.97.129013 |
-| Year range from checklist CSV | NO — defer | Low | Year data is unreliable (mixed formats, absent, multi-year ranges like "1975–1985"); displaying it is misleading |
-| Collector names from checklist CSV | NO — defer | Low | `recordedBy` in checklist is curatorial provenance (museum collector from 1924), not a WABA participant; not meaningful for users |
-| Checklist seasonality histogram | NO — anti-feature | Low | No reliable month-level date data; 12-bar histogram with 90% zeros is misleading |
-
-**For checklist-only species (no WABA records, `occurrence_count = 0`):**
-- The species page must still generate; `on_checklist = TRUE` already gates this in `int_species_universe.sql`.
-- The SVG map must render with checklist dots even when no Ecdysis/iNat dots exist.
-- The "view N occurrences on atlas" deep link should be absent (or point to the checklist layer if that layer is toggle-able by URL).
-- Seasonality chart: show a placeholder "Seasonal data available only for WABA specimens."
-- `occurrence_count` continues to reflect WABA/iNat records only; a separate `checklist_county_count` or `checklist_record_count` field captures checklist provenance.
-
-**Dependency on existing pipeline:** `int_species_universe` already FULL OUTER JOINs checklist with occurrence data. `species.parquet` already has `on_checklist`. The SVG map generation (`species_maps.py`) currently queries only `occurrences.parquet`; it needs to also query checklist occurrence rows via the new `source = 'checklist'` arm.
-
----
-
-## DwC-A Taxonomy — Expected Behaviors
-
-What the offline taxonomy pipeline must handle correctly.
-
-**Source:** iNaturalist Taxonomy DwC-A, available monthly at `https://www.inaturalist.org/taxa/inaturalist-taxonomy.dwca.zip`
-
-**Confirmed columns in Taxon.tsv (MEDIUM confidence — from forum thread showing actual queries against the file):**
-`id`, `taxonID`, `parentNameUsageID`, `identifier`, `kingdom`, `phylum`, `class`, `order`, `family`, `genus`, `specificEpithet`, `infraspecificEpithet`, `modified`, `scientificName`, `taxonRank`, `references`
-
-**Critical facts (HIGH confidence, multiple sources):**
-- `taxonID` and `parentNameUsageID` are **URLs** (e.g. `https://www.inaturalist.org/taxa/123456`), not bare integers. The `id` column is the bare integer. Strip the URL prefix to get the integer.
-- The DwC-A export contains **only active taxa**. Inactive taxa (merged/split/synonymized) are absent — the export has no `is_active` or `active` column. (The separate iNat Open Dataset on AWS has an `active` boolean in `taxa.csv`, but that is a different file.)
-- No synonym table — synonym relationships are not exposed in this archive format.
-- Some intermediate taxonomic ranks (subphylum, subclass, superorder) are absent from the DwC-A even when present in the iNat API.
-
-**Expected edge cases and handling:**
-
-| Edge Case | Behavior | How to Handle |
-|-----------|----------|---------------|
-| `parentNameUsageID` is a URL, not an integer | Must extract integer ID from URL path | `int(url.rsplit('/', 1)[-1])` or self-join on `id` column matching extracted integer |
-| Scientific name includes author + year in checklist CSV | "Agapostemon angelicus Cockerell, 1924" — the DwC-A `scientificName` also has author | Author-stripping is already handled by `canonical_name.py` `canonicalize()` function |
-| Subspecies / infraspecific taxa | `taxonRank` = 'subspecies'; both `specificEpithet` and `infraspecificEpithet` populated | Filter to `taxonRank IN ('species', 'genus', 'family', 'subfamily', 'tribe', 'subgenus')` — discard subspecies for lineage lookup |
-| Root taxa (no parent) | Animalia/Plantae have `parentNameUsageID` null or empty | Treat null/empty `parentNameUsageID` as tree root; terminate ancestor walk |
-| Family/genus denormalized in DwC-A row | The Taxon.tsv row includes `family` and `genus` columns directly | Use row-level `family` and `genus` first; use ancestor walk only for `subfamily`, `tribe`, `subgenus` (not present as direct columns) |
-| Taxon absent from DwC-A (old synonym, not yet reconciled) | A canonical_name from `resolve_taxon_ids.py` maps to a taxon_id, but that taxon_id is for an inactive taxon absent from DwC-A | Falls back to existing live API call; unresolved ends up in `lineage_unresolved.csv`. This is the same fallback as today. |
-| Multiple bee taxa sharing a homonymous genus name | Same genus string in different families (rare but possible) | Resolve by walking `parentNameUsageID` chain to confirm family context; taxon_id is always unambiguous |
-| Large file size | Full iNat taxonomy covers all life; bee-relevant subset is small | Load only rows where `order = 'Hymenoptera'` or filter by `family IN (bee_families)` before building ancestor index in memory |
-
-**What the DwC-A replaces vs. what it does not replace:**
-
-The `enrich_taxon_lineage_extended` function in `inaturalist_pipeline.py` makes batched live API calls to `/v2/taxa/{ids}` for every known taxon_id, extracting the ancestor chain to populate `family`, `subfamily`, `tribe`, `genus`, `subgenus`. The DwC-A replaces these live calls with a pre-built file traversal.
-
-The `resolve_taxon_ids.py` step (canonical_name → taxon_id lookup via live API `/v1/taxa?q=...`) is NOT replaced — the DwC-A does not support "search by name" queries. The name-to-ID bridge step still requires API calls; only the lineage-extraction step becomes offline.
-
-**Nightly pipeline impact:** The DwC-A must be downloaded once per month (updated monthly by iNat) and cached. Downloading it nightly would be ~hundreds of MB of unnecessary transfer. The pipeline needs a `modified` header check or manual `--refresh-taxonomy` flag to control re-download. The existing `S3_BUCKET_NAME` + `nightly.sh` pattern can cache the archive alongside `ecdysis_cache`.
-
-**Ancestor walk algorithm for TARGET_RANKS:**
-
-Current `TARGET_RANKS = {"family", "subfamily", "tribe", "genus", "subgenus"}`. Given Taxon.tsv has `family` and `genus` as direct columns:
-1. For each bee taxon_id in the bridge table, fetch the row from the indexed Taxon.tsv.
-2. Use the `family` and `genus` column values directly.
-3. Walk `parentNameUsageID` chain upward until hitting a row with `taxonRank IN ('family', 'order', 'class')` or null parent.
-4. Along the walk, collect `subfamily`, `tribe`, `subgenus` from rows where `taxonRank` matches.
-5. Terminate walk at or above family rank.
-
----
-
-## Source Extensibility Model
-
-What the `source` field concretely means and what fields are needed to support GBIF or other Bee Atlas programs.
-
-**Current model (before v4.0):** Source is implicitly encoded: `ecdysis_id IS NOT NULL` means specimen; `observation_id IS NOT NULL AND ecdysis_id IS NULL` means iNat sample. No explicit discriminator column.
-
-**v4.0 source model:** A `source` VARCHAR column in `occurrences.parquet`:
-- `'ecdysis'` — WABA specimen with Ecdysis record
-- `'inat'` — iNat sample-only observation
-- `'checklist'` — Bartholomew et al. 2024 literature record
-- (future) `'gbif'` — GBIF occurrence record
-- (future) `'osac'` — OSU Museum specimen
-- (future) `'waba_other_state'` — Another state Bee Atlas program data
-
-**The `occIdFromRow` gap and how to fill it:**
-Currently `occIdFromRow` produces `ecdysis:N` or `inat:N` (or null). Checklist records have neither `ecdysis_id` nor `observation_id`. A third prefix is needed: `checklist:ObjectID`. Required changes:
-1. Add `checklist_id INTEGER | null` to `OccurrenceRow` interface in `filter.ts`
-2. Update `occIdFromRow` to return `checklist:${row.checklist_id}` when both `ecdysis_id` and `observation_id` are null but `checklist_id` is non-null
-3. Update `parseOccId` to recognize the `checklist:` prefix and return `{ source: 'checklist', numericId: N }`
-4. Add `isChecklistRecord(row: OccurrenceRow): boolean` predicate to `occurrence.ts`
-
-**dbt contract change:** `occurrences.parquet` gains two columns, incrementing the dbt 31-column contract to 33 columns:
-- `source` VARCHAR NOT NULL (populated by all three arms in `int_combined`)
-- `checklist_id` INTEGER nullable (non-null only for checklist arm; null for Ecdysis and iNat rows)
-
-All dbt schema tests and any TypeScript tests referencing column count must be updated.
-
-**Minimum required columns for any future data source:**
-
-| Column | Type | Required? | Notes |
-|--------|------|-----------|-------|
-| `source` | VARCHAR | YES | Source discriminator for toggle-able layers and filtering |
-| `lat` / `lon` | DOUBLE | Conditionally | Can be null for records-without-coordinates; map layer skips nulls |
-| `year` / `month` | INTEGER | YES (nullable) | Null acceptable; filters handle nulls via existing SQL semantics |
-| `county` / `ecoregion_l3` | VARCHAR | YES | Spatial join at pipeline time; dbt mart adds these |
-| `canonical_name` | VARCHAR | YES | Joins to species universe; enables taxon filter |
-| `scientificName` | VARCHAR | YES | Display name |
-| `genus` / `family` | VARCHAR | YES | Taxon filter support |
-| `recordedBy` | VARCHAR | Recommended | Collector filter; null acceptable |
-| `place_slug` | VARCHAR | Recommended | Place filter; spatial join at pipeline time |
-| Source-specific ID column | INTEGER nullable | YES per source | Enables `occIdFromRow` to construct a stable prefixed ID |
-
-**GBIF `basisOfRecord` mapping:** GBIF records carry `basisOfRecord` values (`PRESERVED_SPECIMEN`, `HUMAN_OBSERVATION`, `LITERATURE`, etc.). At the BeeAtlas level, `source = 'gbif'` is the dataset discriminator; `basisOfRecord` could optionally be stored as an additional column for sub-filtering within the GBIF layer. This is a future concern — v4.0 does not need it.
-
----
-
-## Anti-Features (Explicitly Out of Scope for v4.0)
+Features to explicitly NOT build in this milestone.
 
 | Anti-Feature | Why Avoid | What to Do Instead |
 |--------------|-----------|-------------------|
-| Checklist records in the collector filter | `recordedBy` in checklist is historical curatorial provenance (museum collector from 1924), not a WABA participant; mixing into the existing collector autocomplete conflates two entirely different populations | Exclude checklist rows from collector filter queries; they appear only in taxon and geographic filters |
-| Year / month filter applied to checklist records | Poor or absent date data in the CSV; applying date filters silently drops most checklist records and misleads users about filtering behavior | Filter checklist rows by taxon and geography only; exclude from date filter SQL clause or make filter layer-aware |
-| Checklist seasonality chart on species pages | No reliable month-level date data; displaying a 12-bar histogram with 90% zeros misleads | Show "Seasonal data available only for WABA specimens" placeholder |
-| Nightly DwC-A re-download | The full iNat taxonomy is hundreds of MB; iNat updates it only monthly; nightly download wastes bandwidth and is fragile | Cache archive; check `modified` header or use explicit `--refresh-taxonomy` flag |
-| Synonym resolution via DwC-A | The archive doesn't include synonym links; building a synonym graph from it requires the API anyway | Keep existing `resolve_taxon_ids.py` live-API step for name→ID resolution; DwC-A replaces only lineage extraction |
-| CSV export including checklist records by default | The table/CSV export is positioned as "download WABA data"; mixing 50K historical records changes its character and bloats the download | Make CSV export source-aware; exclude `source = 'checklist'` rows by default |
-| Geocoding coordinate-less records | 4,600 records have county text but no GPS; geocoding to county centroid would falsely imply point-level precision | Leave as null lat/lon; they appear in county lists on species pages but not on the map |
-| Checklist records in existing occurrence count on species pages | `occurrence_count` in `species.parquet` means "WABA occurrences"; adding checklist to it breaks the implied meaning | Keep `occurrence_count` as WABA-only; add a separate `checklist_county_count` or display checklist count separately with attribution |
-| Backend server for taxonomy queries | Static hosting constraint is absolute | All taxonomy and occurrence data in static Parquet files loaded at runtime |
+| Frontend subtaxon query ("show all Halictidae occurrences") | Static hosting; the nested-set or ancestor-array lives in DuckDB server-side; the SQLite `occurrences.db` frontend artifact does not have a taxon hierarchy table | Persist the nested-set data in DuckDB this milestone; wire it to the frontend in a future milestone once the query pattern is clear |
+| Automated GBIF or COL synonym resolution | Out of scope for this milestone; adds a new data dependency and disambiguation complexity; GBIF/COL have different ID spaces than iNat | Stick to iNat taxonomy as the single source of truth; extend `occurrence_synonyms.csv` for known mismatches |
+| Splitting active/inactive status handling across both pipeline and frontend | Mixing runtime name resolution into the TypeScript layer adds complexity and breaks static hosting assumptions | All taxon status decisions made at pipeline time; frontend only displays the resolved canonical_name and a status flag |
+| Retroactive reingestion of Ecdysis records with renamed taxa | Re-downloading Ecdysis for all records just because a taxon name changed is expensive and fragile; the dbt LEFT JOIN on `occurrence_synonyms` already handles name remapping without reingestion | Extend `occurrence_synonyms` or the new inactive-taxon remapping table instead |
+| DuckDB-WASM on the frontend for taxonomy hierarchy queries | Already rejected for page weight (see project memory) | wa-sqlite with pre-flattened columns |
+| Nested-set LEFT/RIGHT values surfaced in frontend | No frontend use case yet; the query `WHERE lft BETWEEN parent.lft AND parent.rgt` requires the full hierarchy table which is not in `occurrences.db` | Persist in DuckDB only; document the pattern |
+
+---
+
+## Feature Details
+
+### Feature 1: Invisible Species Visibility Fix
+
+**Problem statement:** `int_species_universe.sql` gates species pages via `specific_epithet IS NOT NULL` in `_data/species.js` (line 97). For species that appear only in `occ_agg` (the ecdysis/inat_obs occurrence arm) and not in `stg_checklist__species`, `specific_epithet` is `NULL` because the checklist is the sole source of that field. The `DISTINCT ON (canonical_name)` row already exists in the mart but is filtered out downstream.
+
+**Root cause in the SQL:** `c.specific_epithet AS specific_epithet` — no fallback to derive it from `canonical_name` when `c.scientificName IS NULL` (i.e., when the species is not on the checklist).
+
+**Fix:** Add a `COALESCE` fallback in `int_species_universe.sql`:
+```sql
+COALESCE(
+    c.specific_epithet,
+    NULLIF(split_part(COALESCE(c.canonical_name, oa.canonical_name), ' ', 2), '')
+) AS specific_epithet
+```
+This derives `specific_epithet` from the second token of `canonical_name` for any species not on the checklist. The `NULLIF(..., '')` guard prevents an empty string when `canonical_name` is a genus-only token.
+
+**Downstream impacts:**
+- `species.sql` mart: no SQL change, but the emitted parquet gains `specific_epithet` values for 65 previously-null rows
+- `_data/species.js` filter: the `s.specific_epithet !== null` guard now passes for these species
+- `species_export.py`: no change needed; slug already computed from `canonical_name`
+- `species_maps.py`: gains 65 new species in the species universe; map generation runs for them
+- Eleventy pagination: generates ~65 new species pages
+- dbt column count: no change (column already present; value changes from NULL to non-null)
+
+**Scope:** dbt-only change + pytest assertion that `specific_epithet IS NOT NULL` for all rows in the species mart. LOW complexity.
+
+---
+
+### Feature 2: Taxon ID in Marts
+
+**Current state:** `canonical_to_taxon_id` table exists (written by `resolve_taxon_ids.py`) and is LEFT JOINed in `int_species_universe.sql`, but `taxon_id` is not in the SELECT list of `species.sql` or `occurrences.sql` marts. The joined `ctt` alias is used only indirectly for the `stg_inat__taxon_lineage_extended` join; the `taxon_id` value itself is discarded.
+
+**Required changes:**
+
+For `species.sql`: add `ctt.taxon_id` to the SELECT (add column to `int_species_universe` species_universe CTE first, then propagate to the mart). dbt schema.yml contract updates from 20 to 21 columns (or 19 to 20 SQL-emittable columns; the slug is Python-added).
+
+For `occurrences.sql`: the `canonical_to_taxon_id` bridge is not currently joined in `int_combined.sql` or `occurrences.sql`. Adding it there would require a new LEFT JOIN in `int_combined` on `canonical_name`. The join is cheap (in-memory; `canonical_to_taxon_id` is small). Alternatively, the `taxon_id` can be written only to `species.parquet` and the frontend can look it up via the species mart rather than the occurrences mart. For the purpose of filtering by taxon_id (future), having it in `occurrences.parquet` is necessary. For the purpose of deep-linking from occurrence sidebar, the frontend can look up the species entry. **Recommended:** add `taxon_id` to `species.parquet` only in this milestone; defer to `occurrences.parquet` until there is a concrete frontend query need.
+
+**Scope:** dbt `int_species_universe` + `species.sql` mart change. dbt schema.yml contract update. `species_export.py` PyArrow schema update to include `taxon_id INTEGER`. LOW complexity.
+
+---
+
+### Feature 3: Inactive Taxon Handling
+
+**Problem statement:** iNaturalist periodically synonymizes or inactivates taxa. An occurrence recorded as "Halictus confusus" may now be classified under "Halictus rubicundus" (example only) in iNat's current taxonomy. The current `occurrence_synonyms.csv` dbt seed is curator-managed (one row manually added for Agapostemon texanus → subtilior). It cannot scale to cover the full iNat taxonomy churn history.
+
+**Taxonomy databases: how they handle inactive taxa:**
+
+- **iNaturalist (`taxa.csv.gz`):** The `active` column distinguishes active (`'true'`) from inactive (`'false'`) taxa. Inactive taxa appear in the file with their `taxon_id`. The `ancestry` chain always points to the accepted active taxon at each rank. However, the `taxa.csv.gz` file does NOT directly expose "this inactive taxon is a synonym of that active taxon" — that relationship requires the iNat API `/v1/taxa/{id}` which returns `current_synonymous_taxon_ids` for inactive taxa. (MEDIUM confidence — from iNat forum posts and Open Data documentation.)
+
+- **GBIF:** Publishes a `taxon.txt` DwC-A with `taxonomicStatus` (`ACCEPTED`, `SYNONYM`, `DOUBTFUL`) and `acceptedNameUsageID` for synonyms. GBIF's backbone is the authoritative cross-source reconciliation but uses a different ID space than iNat.
+
+- **Catalogue of Life (COL):** Similarly publishes synonym→accepted mappings, also in a different ID space.
+
+**Recommended approach for this milestone:**
+
+Use the iNat inactive-taxon API endpoint to augment `resolve_taxon_ids.py`: after resolving a canonical_name to a `taxon_id`, if the returned taxon is inactive (`is_active: false`), follow the `current_synonymous_taxon_ids` field (array of active taxon IDs) to find the accepted name. Write the result as an additional column `accepted_taxon_id` in `canonical_to_taxon_id`.
+
+Alternatively — simpler and more reliable — extend the existing `_pick_match` function in `resolve_taxon_ids.py` to:
+1. Accept inactive taxon IDs too (currently it filters `is_active == true`)
+2. When a match is inactive, follow the API `GET /v1/taxa/{id}` to retrieve `current_synonymous_taxon_ids`
+3. Store the mapping `canonical_name → accepted_canonical_name` in a new `inactive_taxon_map` table
+4. Expose this as a dbt seed or dbt source alongside `occurrence_synonyms`
+
+The result flows into `int_combined` via the same LEFT JOIN pattern as `occurrence_synonyms`.
+
+**Taxon stability across taxonomy updates:** iNat taxon IDs are stable identifiers — a given integer ID always refers to the same concept, even if the taxon is later inactivated or renamed. The `canonical_to_taxon_id` bridge already stores integer IDs. Using `taxon_id` as the join key (rather than string `canonical_name`) is the correct long-term strategy for stability.
+
+**Scope for this milestone:** Add `taxon_status` column to `canonical_to_taxon_id` (values: `'active'`, `'inactive_remapped'`, `'inactive_unmappable'`). Extend `resolve_taxon_ids.py` to follow `current_synonymous_taxon_ids` and write remapping. Update dbt staging to treat `inactive_remapped` records like `occurrence_synonyms`. Add `taxon_status` to `species.parquet`. HIGH complexity (requires API calls + new pipeline logic + dbt changes).
+
+---
+
+### Feature 4: Nested-Set / MPTT Prep
+
+**What it is:** A nested-set (also called Modified Preorder Tree Traversal, MPTT) stores `lft` and `rgt` integer values per taxon node such that all descendants of a node N satisfy `lft BETWEEN N.lft AND N.rgt`. This enables "all Halictidae" queries in O(1) range scan rather than recursive CTE. An equivalent alternative is storing an ancestor-ID array per taxon.
+
+**iNat's `ancestry` column:** The `taxa.csv.gz` archive already contains an `ancestry` column: a slash-separated string of ancestor taxon IDs from root to parent (not including self). This is semantically equivalent to a materialized ancestor path, which supports "is this taxon a descendant of N?" queries as `ancestry LIKE '%/N/%' OR ancestry LIKE '%/N'`. This is how `taxa_pipeline.py` currently filters to Anthophila descendants.
+
+**Recommended representation for this milestone:** Materialize the ancestor-array approach rather than nested-set integers. Nested-set requires a stable ordering pass over the entire tree and must be recomputed every time the taxonomy changes. Ancestor-array (or ancestry-path) is additive: new taxa can be inserted without renumbering existing records.
+
+**Concrete schema:**
+```sql
+CREATE TABLE inaturalist_data.taxon_ancestors AS
+SELECT
+    taxon_id,
+    name AS taxon_name,
+    rank,
+    ancestry,
+    -- Array of ancestor IDs as integers
+    array_transform(
+        string_split(ancestry, '/'),
+        x -> TRY_CAST(x AS BIGINT)
+    ) AS ancestor_ids,
+    -- Convenience: immediate parent ID
+    TRY_CAST(
+        list_element(string_split(ancestry, '/'), -1)
+    AS BIGINT) AS parent_id
+FROM all_active_bees  -- same CTE as taxa_pipeline.py
+```
+
+**Frontend use:** Not exposed in this milestone. The `taxon_ancestors` table lives in `beeatlas.duckdb` only. Future milestone will materialize a `subtaxon_occurrence_counts` table at pipeline time for "all Halictidae" queries.
+
+**Scope:** Data-layer only — extend `taxa_pipeline.py` to write `taxon_ancestors` table after `taxon_lineage_extended`. No dbt change. No export. No frontend change. MEDIUM complexity (the DuckDB SQL is straightforward given the existing `all_active_bees` CTE; the main work is testing correctness of the array representation).
+
+---
+
+## Expected User-Facing Behaviors (When All Features Work)
+
+| Behavior | Current State | Target State |
+|----------|---------------|--------------|
+| Navigate to species page for Apis mellifera | 404 (no page generated because `specific_epithet = NULL`) | Valid page at `/species/Apis/mellifera/` showing occurrence count, SVG map, iNat link, managed-species badge |
+| Navigate to species page for Halictus rubicundus | 404 | Valid page with occurrence data |
+| Click iNat link on species page | N/A | Opens `https://www.inaturalist.org/taxa/{taxon_id}` |
+| Search species index for "mellifera" | No results | Species appears in genus/family index |
+| Occurrence with outdated name in Ecdysis | Occurrence visible under old name or invisible | Occurrence remapped to current accepted name; visible under accepted species page |
+| Taxon filter in sidebar autocomplete | 65 species missing | All observed species appear |
 
 ---
 
 ## Feature Dependencies
 
 ```
-DwC-A taxonomy offline lookup
-  → replaces enrich_taxon_lineage_extended() batched live API calls
-  → enables family/subfamily/tribe/genus/subgenus for all 565 checklist species
-  → required BEFORE checklist taxonomy is complete on species pages
+Feature 1 (Invisible species fix)
+  → dbt int_species_universe.sql: add COALESCE fallback for specific_epithet
+  → _data/species.js: no change (filter already works once specific_epithet is non-null)
+  → species_maps.py: gains 65 species; map generation runs
+  → Eleventy: generates ~65 new pages
+  → PREREQUISITE for: Feature 2 (taxon_id meaningless for invisible species)
 
-Checklist pipeline (checklist rows in occurrences.parquet)
-  → requires DwC-A taxonomy step (for family/subfamily assignment)
-  → requires spatial join (county, ecoregion_l3, place_slug) via dbt occurrences mart
-  → adds checklist arm to int_combined UNION ALL
-  → dbt contract changes from 31 to 33 columns (source + checklist_id)
+Feature 2 (taxon_id in species.parquet)
+  → int_species_universe.sql: add taxon_id to SELECT
+  → species.sql mart: +1 column
+  → species_export.py: PyArrow schema update
+  → Eleventy templates: add iNat link
+  → dbt schema.yml contract: update column count
+  → DEPENDS ON: Feature 1 (species must be visible to receive taxon_id)
+  → PREREQUISITE for: Feature 3 (accepted_taxon_id tracking)
 
-occIdFromRow third prefix (checklist:N)
-  → required before checklist features can load and interact in SQLite frontend
-  → requires filter.ts OccurrenceRow interface + occurrence.ts + url-state.ts updates
-  → parseOccId must recognize 'checklist:' prefix
+Feature 3 (Inactive taxon handling)
+  → resolve_taxon_ids.py: follow current_synonymous_taxon_ids for inactive taxa
+  → canonical_to_taxon_id table: add taxon_status + accepted_canonical_name columns
+  → occurrence_synonyms dbt seed: augmented OR new inactive_taxon_map dbt source
+  → int_combined.sql: extend synonym LEFT JOIN to cover inactive remappings
+  → int_species_universe.sql: filter or flag unmappable inactive taxa
+  → DEPENDS ON: Feature 2 (taxon_id is the stable handle for following synonymy)
+  → INDEPENDENT OF: Feature 4
 
-Map layer (CHECK-02)
-  → requires occurrences.parquet with checklist rows
-  → requires occIdFromRow 'checklist:' prefix support
-  → requires toggle button + URL state extension
-
-species_maps.py second pass (CHECK-04)
-  → reads checklist occurrence rows from occurrences.parquet (source='checklist')
-  → draws .checklist-occ circles (hollow SVG style) on top of existing .occ circles
-  → required for checklist dots to appear on species SVG maps
-
-Species pages for all 565 species (CHECK-03)
-  → requires int_species_universe FULL OUTER JOIN already includes checklist arm (it does)
-  → requires species.parquet on_checklist = TRUE for species with no WABA records
-  → requires county list from checklist_data.species_counties in Eleventy data
-  → SVG map requires species_maps.py second pass above
+Feature 4 (Nested-set / ancestor-array prep)
+  → taxa_pipeline.py: add taxon_ancestors table write after taxon_lineage_extended
+  → No dbt change, no export, no frontend change
+  → DEPENDS ON: Feature 1 (conceptually, but not technically — can build independently)
+  → INDEPENDENT OF: Features 2 and 3
 ```
+
+---
+
+## Complexity Summary
+
+| Feature | Pipeline | dbt | Frontend | Eleventy | Overall |
+|---------|----------|-----|----------|----------|---------|
+| 1. Invisible species fix | None | Low (1 COALESCE) | None | Automatic (new pages) | Low |
+| 2. taxon_id in species.parquet | None | Low (+1 column) | Very low (1 template link) | Very low | Low |
+| 3. Inactive taxon handling | High (API calls + new logic) | Medium (new join) | None | None | High |
+| 4. Nested-set prep | Medium (new DuckDB table) | None | None | None | Medium |
+
+**Recommended phase order:** 1 → 2 → 4 → 3. Features 1 and 2 are low-risk pipeline+dbt changes that unblock visible user value. Feature 4 is data-layer-only with no user-facing exposure (low risk, good to do early). Feature 3 requires iNat API calls and a new resolution pathway — best done last after the stable infrastructure is in place.
 
 ---
 
 ## Sources
 
-- iNat taxonomy DwC-A column names and format: [iNat forum thread on SQL queries against the export](https://forum.inaturalist.org/t/using-sql-to-query-inats-dwca-taxonomy-export/29377)
-- Inactive taxa handling and synonym gap in DwC-A: [iNat forum thread on open data inactive taxa](https://forum.inaturalist.org/t/include-alternate-names-or-ids-of-merged-inactive-taxa-to-taxa-data-in-open-data-taxa-csv/49573)
-- Monthly DwC-A download URL confirmed: [iNat forum bug report referencing archive URL](https://forum.inaturalist.org/t/taxonomy-dwc-a-export-contains-redundant-vernacular-name-files/35550)
-- iNat Open Dataset (AWS) `taxa.csv` `active` column (separate from DwC-A): [GitHub inaturalist-open-data documentation branch](https://github.com/inaturalist/inaturalist-open-data/tree/documentation/Metadata)
-- GBIF `basisOfRecord` enum values: [GBIF API vocabulary docs](https://gbif.github.io/gbif-api/apidocs/org/gbif/api/vocabulary/BasisOfRecord.html)
-- Visual encoding convention for historical vs contemporary records: open/hollow circle = historical, filled = confirmed recent; established by British Bird Atlas tradition and confirmed by [Wisconsin BBA guide](https://ebird.org/atlaswi/news/guide-to-atlas-species-distribution-maps)
-- Layer-based source differentiation pattern: [e-Fauna BC limitations page](https://linnet.geog.ubc.ca/biodiversity/efauna/LimitationsoftheMaps.html)
-- Codebase inspection: `data/checklist_pipeline.py`, `data/inaturalist_pipeline.py`, `data/resolve_taxon_ids.py`, `data/dbt/models/intermediate/int_combined.sql`, `data/dbt/models/marts/occurrences.sql`, `data/dbt/models/intermediate/int_species_universe.sql`, `src/occurrence.ts`, `src/filter.ts`
+- `data/dbt/models/intermediate/int_species_universe.sql` — gate for species visibility; `specific_epithet` sourcing
+- `data/dbt/models/staging/stg_inat__canonical_to_taxon_id.sql` — taxon_id bridge table schema
+- `data/dbt/models/staging/stg_inat__taxon_lineage_extended.sql` — lineage table schema
+- `data/dbt/models/marts/species.sql` — current 20-column (SQL) + 1-Python mart
+- `data/dbt/models/marts/occurrences.sql` — 36-column occurrence mart
+- `data/dbt/models/intermediate/int_combined.sql` — ARM 1/2/3 UNION ALL; existing occurrence_synonyms LEFT JOIN pattern
+- `data/resolve_taxon_ids.py` — `_pick_match` function; `canonical_to_taxon_id` write path; `lineage_unresolved.csv` pattern
+- `data/taxa_pipeline.py` — `all_active_bees` CTE; ancestry column usage; `active = 'true'` string comparison
+- `.planning/PROJECT.md` — milestone goals; "65 species / 1,745 occurrences currently invisible"
+- iNat API: inactive taxon `current_synonymous_taxon_ids` field — documented in iNat API Explorer `/v1/taxa/{id}` response schema (HIGH confidence from direct API inspection)
+- iNat Open Data `taxa.csv.gz` `active` column — string `'true'`/`'false'`, confirmed in `taxa_pipeline.py` comments and tests
+- DuckDB `string_split` + `array_transform` for ancestry-array materialization: standard DuckDB array functions (HIGH confidence)

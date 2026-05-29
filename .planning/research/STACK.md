@@ -1,157 +1,259 @@
-# Stack Research: v4.0 Checklist Records + iNat Taxonomy Offline
+# Stack Research: v4.5 iNat Taxonomy & Species Completeness
 
-**Project:** BeeAtlas v4.0
-**Researched:** 2026-05-23
-**Scope:** New capabilities only. Existing stack (Python 3.14+, dbt-duckdb, DuckDB 1.5.x,
-dlt, requests, wa-sqlite, hyparquet, Mapbox GL JS, Lit) is confirmed and not re-researched.
+**Project:** BeeAtlas v4.5
+**Researched:** 2026-05-29
+**Scope:** New capabilities only. Existing stack (Python 3.14+, dbt-duckdb 1.10.1,
+DuckDB 1.5.2, dlt, requests, wa-sqlite, Mapbox GL JS, Lit) is confirmed and not
+re-researched. Previous STACK.md (v4.0) documents the taxa.csv.gz ancestry walk
+pattern that is already in production.
 
 ---
 
 ## New Dependencies
 
-None. Every need for v4.0 is covered by the existing stack.
+None. All four milestone features are achievable with the existing stack.
 
 ---
 
-## Existing Stack Coverage
+## Feature 1: `specific_epithet` for Non-Checklist Species
 
-### Feature 1: Checklist Occurrence CSV Ingestion into dbt/DuckDB
+### Problem
 
-**Context:** The checklist species table (`checklist_data.species`) already exists from
-Phase 76 (`checklist_pipeline.py`). The milestone adds the occurrence side: 50,646 records
-with coordinates (ObjectID, Genus, Scientific Name, Locality, Lat, Lon, Date, recordedBy,
-County_join, x, y). The source is a committed CSV file.
+65 binomial species with 1,745 Ecdysis occurrences and 3,048 iNat obs have
+`specific_epithet IS NULL` in `int_species_universe` because `specific_epithet`
+currently flows only from `stg_checklist__species` (the Bartholomew 2024 checklist).
+Occurrence-only species have no checklist row, so `specific_epithet` is never
+populated from the FULL OUTER JOIN.
 
-**Coverage:**
+### Source Decision: taxa.csv.gz (already downloaded), not DwC-A
 
-- `duckdb` `read_csv` — reads 50K-row CSV with auto-detection or explicit column types.
-  Already used throughout the pipeline (export.py, geographies_pipeline.py). No new library.
+Two iNat taxonomy archives exist:
 
-- `data/canonical_name.py` `canonicalize()` — already called in `checklist_pipeline.py`
-  for species names. Reuse for occurrence name normalization.
+| Archive | URL | Columns | Use for epithet? |
+|---------|-----|---------|-----------------|
+| AWS Open Data `taxa.csv.gz` | `s3://inaturalist-open-data/taxa.csv.gz` | `taxon_id, ancestry, rank_level, rank, name, active` | YES — `split_part(name, ' ', 2)` |
+| DwC-A taxonomy | `inaturalist-taxonomy.dwca.zip` | `id, taxonID, parentNameUsageID, kingdom, phylum, class, order, family, genus, specificEpithet, infraspecificEpithet, modified, scientificName, taxonRank, references` | NO — see below |
 
-- `dbt` spatial extension — `ST_Within` + fallback `ST_Distance` for county/ecoregion join.
-  Identical pattern to `occurrences.sql` mart. Checklist records with null coordinates receive
-  NULL county/ecoregion (correct behavior, no fallback needed — nothing to snap to).
+**DwC-A is disqualified for all four features:**
+- Does NOT include `acceptedNameUsageID` or `taxonomicStatus` fields (confirmed by iNat
+  forum feature request thread; these were proposed as future additions in 2026 but are
+  not present in the current export). Inactive taxa are simply absent from the DwC-A.
+- `parentNameUsageID` is a URL string, not an integer, requiring URL parsing for any join.
+- Intermediate ranks (subfamily, tribe) are absent (confirmed in iNat forum reports on
+  missing intermediate ranks).
+- Requires a 65+ MB zip download and recursive tree traversal vs. the existing 37 MB
+  taxa.csv.gz with its flat ancestry string.
 
-- `dbt` external materialization — produce `checklist.parquet` as a new mart alongside
-  `occurrences.parquet`, using the same `{{ config(materialized='external', ...) }}` pattern.
+**taxa.csv.gz is sufficient.** The `name` column contains the full binomial for species
+(`rank = 'species'`), e.g. `'Andrena cuneilabris'`. Extract the epithet with:
 
-**New schema work (no new libraries):**
-
-- New staging model `stg_checklist__occurrences` reads the committed CSV.
-- New mart `checklist.parquet` with spatial-joined county/ecoregion.
-- `source` field: add a `VARCHAR source` column to `int_combined` (values `'ecdysis'`,
-  `'inat'`, `'checklist'`). This promotes the dbt 31-column contract to 32 columns — update
-  `data/dbt/models/marts/schema.yml` and `src/sqlite.ts` `CREATE TABLE` in the same change.
-
-### Feature 2: iNat Taxonomy via Offline Archive
-
-**Current approach being replaced:** `enrich_taxon_lineage_extended()` in
-`inaturalist_pipeline.py` calls `/v2/taxa/{ids}` in batches of 30 at 1 req/sec. With ~560
-new canonical names from the checklist, that is ~19 minutes of API calls and 429 risk.
-
-**Recommended replacement source: iNat AWS Open Data `taxa.csv.gz`**
-
-Not the DwC-A taxonomy archive. Two archives exist:
-
-| Archive | URL | Compressed | Columns | Use? |
-|---------|-----|-----------|---------|------|
-| iNat Taxonomy DwC-A | `inaturalist-taxonomy.dwca.zip` | ~80 MB | DwC standard: `id, taxonID, parentNameUsageID, kingdom, phylum, class, order, family, genus, specificEpithet, infraspecificEpithet, modified, scientificName, taxonRank, references` | NO |
-| iNat AWS Open Data | `s3://inaturalist-open-data/taxa.csv.gz` | ~26 MB | `taxon_id, name, rank, rank_level, ancestry, active` | YES |
-
-The DwC-A is disqualified because: (a) `parentNameUsageID` is a URL not an integer, requiring
-URL parsing before any join; (b) it lacks `subfamily` and `tribe` — intermediate ranks are
-absent from the DwC-A (confirmed by iNat forum reports); (c) it requires recursive CTE to
-traverse the hierarchy. The AWS Open Data file has `ancestry`, a slash-delimited chain of
-integer ancestor taxon_ids (e.g. `48460/1/2/47120/372739`), enabling a single unnest+join
-to resolve all ranks at once.
-
-**Implementation using existing libraries (`requests` + `duckdb`):**
-
-Step 1 — Download (requests, already imported):
-```python
-resp = requests.get(
-    "https://inaturalist-open-data.s3.amazonaws.com/taxa.csv.gz",
-    stream=True, timeout=120
-)
-with open("data/raw/inaturalist-taxa.csv.gz", "wb") as f:
-    for chunk in resp.iter_content(65536):
-        f.write(chunk)
-```
-Use `Last-Modified` header vs. a sentinel file to skip re-download on nightly runs.
-
-Step 2 — Load into DuckDB (duckdb, already imported):
-```python
-con.execute("""
-    CREATE OR REPLACE TABLE inaturalist_data.taxa AS
-    SELECT * FROM read_csv(
-        'data/raw/inaturalist-taxa.csv.gz',
-        delim='\t', header=true, compression='gzip'
-    )
-""")
-```
-DuckDB 1.5.x supports gzip-compressed CSV natively via the `compression` parameter.
-
-Step 3 — Populate `taxon_lineage_extended` via ancestry walk (SQL only):
 ```sql
-WITH bridge AS (
-    SELECT canonical_name, taxon_id
-    FROM inaturalist_data.canonical_to_taxon_id
-    WHERE taxon_id IS NOT NULL
-),
-split AS (
-    SELECT t.taxon_id, unnest(string_split(t.ancestry, '/'))::INTEGER AS ancestor_id
-    FROM inaturalist_data.taxa t
-    JOIN bridge b ON b.taxon_id = t.taxon_id
-),
-joined AS (
-    SELECT s.taxon_id, a.rank, a.name
-    FROM split s
-    JOIN inaturalist_data.taxa a ON a.taxon_id = s.ancestor_id
-    WHERE a.rank IN ('family', 'subfamily', 'tribe', 'genus', 'subgenus')
-)
-SELECT
-    taxon_id,
-    MAX(CASE WHEN rank='family'    THEN name END) AS family,
-    MAX(CASE WHEN rank='subfamily' THEN name END) AS subfamily,
-    MAX(CASE WHEN rank='tribe'     THEN name END) AS tribe,
-    MAX(CASE WHEN rank='genus'     THEN name END) AS genus,
-    MAX(CASE WHEN rank='subgenus'  THEN name END) AS subgenus
-FROM joined
-GROUP BY taxon_id
+NULLIF(split_part(name, ' ', 2), '') AS specific_epithet
 ```
-Use conditional aggregation rather than `PIVOT` — safer across DuckDB versions and handles
-sparse rank presence correctly. Result UPSERTs into `taxon_lineage_extended` with the same
-schema (`taxon_id BIGINT PRIMARY KEY, family, subfamily, tribe, genus, subgenus`) — no
-downstream dbt model changes.
 
-The `resolve-taxon-ids` step remains unchanged: it still calls the live API for new
-canonical names not yet in the `canonical_to_taxon_id` bridge. Only `enrich_taxon_lineage_extended`
-is replaced.
+This is pure DuckDB SQL — no new Python code needed.
 
-**Note on the milestone's "Taxon.tsv" reference:** The milestone context says "iNat's monthly
-DwC-A download (~150MB compressed, ~1GB uncompressed Taxon.tsv with ~1.5M+ taxa)." The
-1GB/1.5M figure matches the full observations DwC-A (`inaturalist-dwca-with-taxa.zip`),
-which bundles occurrence records with a Taxon.tsv extension. That archive is not needed here
-— only the `taxa.csv.gz` (~26 MB compressed) is needed for taxonomy enrichment. Recommend
-using taxa.csv.gz.
+### Implementation
 
-### Feature 3: Checklist Map Layer in Frontend
+Extend `stg_inat__taxon_lineage_extended` (or a new parallel staging model) to expose
+`specific_epithet`. The cleanest approach is a new dbt staging model
+`stg_inat__taxon_epithet` that joins `taxon_lineage_extended` back to the raw taxa table:
 
-**Coverage:** Existing Mapbox GL JS `addSource` / `addLayer` pattern in `bee-map.ts` (lines
-380–668). A checklist layer follows the identical three-step pattern:
+```sql
+-- stg_inat__taxon_epithet.sql
+SELECT
+    tle.taxon_id,
+    NULLIF(split_part(t.name, ' ', 2), '') AS specific_epithet
+FROM {{ source('inaturalist_data', 'taxon_lineage_extended') }} tle
+JOIN read_csv('{{ var("taxa_csv_path") }}', ...) t ON t.taxon_id = tle.taxon_id
+WHERE t.rank = 'species'
+```
 
-1. `manifest.ts` — add `checklist: string` to `Manifest` interface; add `"checklist":
-   "checklist.parquet"` to `manifest.json`.
-2. `sqlite.ts` — add `loadChecklistTable()` using the existing `parquetReadObjects` +
-   `_insertRows` pattern. Table needs: `lat, lon, canonical_name, county, ecoregion_l3,
-   source, date, recordedBy` (exact columns TBD at plan time).
-3. `bee-map.ts` — `addSource('checklist', { type: 'geojson', data: checklistGeoJSON })` +
-   `addLayer({ id: 'checklist-circle', type: 'circle', source: 'checklist', ... })` with a
-   distinct color. Visibility toggle follows the existing boundary-mode toggle pattern.
+Alternatively (simpler): extend `load_taxon_lineage_extended` in `taxa_pipeline.py` to
+also write a `name` or `specific_epithet` column into the existing
+`taxon_lineage_extended` table. This avoids a new model and keeps the data in one place.
 
-No new libraries needed.
+**Recommendation:** Add `specific_epithet` column to `inaturalist_data.taxon_lineage_extended`
+by extending the existing `taxa_pipeline.py` SQL. Then expose it via
+`stg_inat__taxon_lineage_extended`. Then apply it in `int_species_universe`:
+
+```sql
+COALESCE(c.specific_epithet, tle.specific_epithet) AS specific_epithet
+```
+
+**Verified:** `split_part(name, ' ', 2)` on active bee species in taxa.csv.gz returns
+correct epithets for all tested rows. Non-species ranks have single-word names, so
+`NULLIF(..., '')` guards against genus-level rows emitting empty strings.
+
+---
+
+## Feature 2: Stable Integer Taxon IDs System-Wide
+
+### Current State
+
+The `canonical_to_taxon_id` bridge table (736 rows) maps `canonical_name → taxon_id`.
+The `int_species_universe` model joins through it but does not yet pass `taxon_id` into
+the `species` mart or `occurrences` mart.
+
+Ecdysis occurrences already have `taxon_id` in `ecdysis_data.occurrences` (INTEGER,
+46,090 non-null rows). The iNat expert obs CSV (`inat_expert_obs.csv`) has a `taxon_id`
+column that the current `inat_obs_pipeline.py` does not read or persist.
+
+### Implementation
+
+No new libraries needed. Three coordinated changes:
+
+**a) `inat_obs_pipeline.py`:** Read and persist `taxon_id` from the expert obs CSV into
+`inat_obs_data.observations`. The column already exists in the CSV (confirmed via header
+inspection); add it to the `CREATE TABLE` DDL and the `INSERT` statement.
+
+**b) `int_species_universe.sql` → `species` mart:** Add `taxon_id BIGINT` via the
+existing `stg_inat__canonical_to_taxon_id` LEFT JOIN (already in the model at line 123).
+Expose `ctt.taxon_id` in the SELECT list. The `species_export.py` post-step will carry
+it through to `species.json` / `species.parquet`.
+
+**c) `occurrences` mart:** Add `taxon_id INTEGER` sourced from:
+- ARM 1 (Ecdysis): `ecdysis_data.occurrences.taxon_id` (already available)
+- ARM 3 (iNat expert obs): `inat_obs_data.observations.taxon_id` (after (a) above)
+- ARM 2 (provisional WABA): NULL (WABA obs have no taxon_id)
+
+The dbt 30-column contract on `marts/occurrences` must expand by 1 column. Update
+`data/dbt/models/marts/schema.yml` and `data/sqlite_export.py` `CREATE TABLE`
+simultaneously — these must stay in sync (per project memory on schema change procedure).
+
+### Confidence
+
+HIGH — all data is already in place. This is a wiring exercise across existing sources.
+
+---
+
+## Feature 3: Inactive Taxon Remapping
+
+### Findings
+
+**taxa.csv.gz does NOT contain `current_taxon_id` or any redirect column.**
+
+Confirmed by inspecting the file: only 6 columns — `taxon_id, ancestry, rank_level,
+rank, name, active`. Inactive taxa are present in the file (`active = 'false'` string)
+but there is no pointer to the accepted replacement.
+
+**The iNat API v1 `GET /taxa/{id}` response includes `current_synonymous_taxon_ids`**
+for inactive taxa. For example, `taxon_id=199075` (Lasioglossum zephyrum, inactive)
+returns `current_synonymous_taxon_ids: [905961]`. This is the authoritative source for
+inactive→accepted remapping.
+
+**DwC-A taxonomy does NOT include `acceptedNameUsageID` or `taxonomicStatus`** for
+inactive taxa (confirmed: these fields were requested as a feature in 2026 but are not
+present). The DwC-A simply omits inactive taxa entirely.
+
+**Scale of problem in current data:**
+- 5 canonical names in `int_species_universe` match only inactive taxa in taxa.csv.gz:
+  `coelioxys octodentata`, `lasioglossum zephyrum`, `lasioglossum zonulum`,
+  `melissodes metenua`, `melissodes semilupina`
+- 1,454 inactive bee species exist in taxa.csv.gz total (1,717 inactive across all
+  bee ranks)
+- The iNat expert obs CSV uses `taxon_id` from iNat at time of download — some of
+  these IDs may be inactive
+
+### Implementation
+
+**Source: iNat API `GET /taxa?id=id1,id2,...` with `is_active=false` filter.**
+
+Pattern: a new `inactive_taxon_remapping.py` pipeline step (or extension of
+`resolve_taxon_ids.py`) that:
+
+1. Queries for all `taxon_id` values in `canonical_to_taxon_id` where the corresponding
+   taxa.csv.gz row has `active = 'false'`
+2. Calls `GET /api.inaturalist.org/v1/taxa?id=ID1,ID2,...` (up to 30 IDs per request
+   per API convention) to retrieve `current_synonymous_taxon_ids`
+3. When `current_synonymous_taxon_ids` has exactly 1 element: adds the remapping to
+   `occurrence_synonyms.csv` seed (or a new `inactive_taxon_remaps` seed table)
+4. When 0 or >1 elements: logs to a `taxon_remap_unresolved.csv` file (mirrors the
+   `lineage_unresolved.csv` pattern)
+
+The `occurrence_synonyms` dbt seed is the correct downstream home. Existing JOIN logic
+in `int_combined` and `stg_checklist__species` already applies synonymy; inactive
+remaps use the same mechanism.
+
+**API pacing:** Reuse `_inat_get_with_retry` and `_INAT_PACE_SECONDS` from
+`inaturalist_pipeline.py`. No new HTTP library needed.
+
+**Nightly behavior:** Step runs incrementally — only new `taxon_id` values not yet
+checked. Store `last_checked_at` in a sidecar JSON to avoid re-querying already-resolved
+inactive taxa.
+
+**Note on iNat expert obs taxon IDs:** The obs CSV `taxon_id` column records the taxon
+ID at time of CSV export. iNat may have swapped the taxon since then; the
+`current_synonymous_taxon_ids` lookup handles this case. For obs where `taxon_id` is
+active, no remapping needed. For obs where `taxon_id` is inactive, the remapping step
+resolves it to the accepted ID, which then maps to the accepted `canonical_name` via
+`taxon_lineage_extended`.
+
+---
+
+## Feature 4: Nested-Set / MPTT Groundwork
+
+### Findings
+
+**DuckDB 1.5.2 does not need recursive CTEs for ancestor-descendant queries on this
+data.** The `ancestry` column in taxa.csv.gz is a slash-delimited chain of integer
+ancestor IDs (e.g. `'48460/1/630955/57668/571383'`). Ancestor-descendant relationships
+can be expressed as LIKE queries:
+
+```sql
+-- All descendants of genus 571383:
+WHERE ancestry LIKE '%/571383/%' OR ancestry LIKE '%/571383'
+   OR taxon_id = 571383
+```
+
+This pattern is already used in `taxa_pipeline.py` for the Anthophila filter.
+
+**For nested-set / MPTT prep**, the useful materialization is an
+`int_taxon_ancestors` table that precomputes the full ancestor list per taxon:
+
+```sql
+-- In DuckDB, build ancestor-descendant closure table
+CREATE OR REPLACE TABLE inaturalist_data.taxon_ancestry AS
+WITH unnested AS (
+    SELECT
+        taxon_id AS descendant_id,
+        CAST(unnest(string_split(ancestry, '/')) AS BIGINT) AS ancestor_id
+    FROM read_csv('raw/taxa.csv.gz', ...)
+    WHERE active = 'true'
+      AND (ancestry LIKE '%/630955/%' OR ancestry LIKE '%/630955'
+           OR taxon_id = 630955)
+    UNION ALL
+    SELECT taxon_id, taxon_id FROM [same filter]  -- self-reference
+)
+SELECT ancestor_id, list(descendant_id ORDER BY descendant_id) AS descendant_ids
+FROM unnested
+WHERE ancestor_id IN (SELECT taxon_id FROM [same filter])
+GROUP BY ancestor_id
+```
+
+This produces one row per bee taxon with the list of all descendant taxon_ids — the
+canonical closure table for subtaxon queries. Stored in DuckDB; not exported to the
+frontend (too large). The frontend subtaxon filter would query `canonical_to_taxon_id`
+to get `taxon_id`, then join against this closure table to expand the filter to all
+descendant names.
+
+**parent_id derivation:** `CAST(list_last(string_split(ancestry, '/')) AS BIGINT)`.
+Verified correct in DuckDB 1.5.2.
+
+**Depth:** `length(ancestry) - length(replace(ancestry, '/', '')) + 1`. Efficient,
+no recursive CTE.
+
+**Scale:** 17,343 active bee taxa in taxon_lineage_extended. The unnest step produces
+~250K–500K (ancestor_id, descendant_id) pairs. A `GROUP BY` closure table is ~17K rows
+with list columns — fits in memory and materializes in seconds.
+
+**No new Python libraries needed.** This is pure DuckDB SQL, callable from
+`taxa_pipeline.py`.
+
+**Scope boundary:** The nested-set materialization is a pipeline-side artifact for
+future subtaxon queries. The frontend filter UI is out of scope for v4.5. The milestone
+calls for "groundwork" — materializing the closure table and proving the query pattern
+is the deliverable, not the frontend integration.
 
 ---
 
@@ -159,13 +261,13 @@ No new libraries needed.
 
 | Library | Reason |
 |---------|--------|
-| `boto3` (new Python usage) | In `pyproject.toml` but unused (Lambda retired). S3 work is done via `aws` CLI in `nightly.sh`. Use `requests` for the taxa.csv.gz download. |
-| `pyinaturalist` | Wrapper around the same API already called directly. Zero benefit over `requests`. |
-| `pandas` / `polars` | Not needed. DuckDB `read_csv` handles 50K-row CSVs and 1.2M-row taxonomy files. No dataframe materialization needed. |
-| `zipfile-ng`, `stream-zip` | taxa.csv.gz is a plain gzip file, not a zip. Python stdlib `gzip` or DuckDB's native compression param handles it. |
-| `geopandas` / `shapely` | Spatial joins run inside DuckDB for both ecdysis and inat records already. Not needed for checklist records. |
-| DuckDB-WASM (frontend) | Already rejected (project memory). Do not re-propose. |
-| iNat Taxonomy DwC-A (`inaturalist-taxonomy.dwca.zip`) | Worse than AWS Open Data: no `ancestry` column, no `subfamily`/`tribe`, URL-form IDs. |
+| DwC-A taxonomy (`inaturalist-taxonomy.dwca.zip`) | No `acceptedNameUsageID`, no intermediate ranks, URL-form IDs, 65+ MB zip. taxa.csv.gz covers all four features. |
+| `pyinaturalist` | Wrapper over the same API already called directly via `requests`. |
+| `pandas` / `polars` | DuckDB handles all transforms. No dataframe needed. |
+| Any recursive-CTE library | DuckDB's ancestry string + LIKE queries replace recursive CTEs for this tree structure. |
+| `networkx` (already installed via dlt) | Not needed; ancestry string IS the tree encoding. |
+| DuckDB-WASM (frontend) | Already rejected (project memory). |
+| GBIF backbone taxonomy | iNat's own taxonomy is the authoritative source for iNat records. Do not mix. |
 
 ---
 
@@ -173,13 +275,16 @@ No new libraries needed.
 
 | Integration | What Changes | Risk |
 |-------------|-------------|------|
-| `data/dbt/models/marts/schema.yml` | 31-col contract becomes 32 cols (`source` added) | Low — coordinated change |
-| `src/sqlite.ts` `CREATE TABLE occurrences` | Add `source TEXT` column | Low |
-| `data/run.py` STEPS | Replace `taxon-lineage-extended` fn; add `checklist-occurrences` step | Low |
-| `data/nightly.sh` | `data/raw/` directory must persist on maderas across runs (add to S3 sync or keep on local disk) | Low |
-| `public/data/manifest.json` | Add `"checklist": "checklist.parquet"` | Trivial |
-| `src/manifest.ts` | Add `checklist: string` to `Manifest` interface + add to `DataKey` union | Trivial |
-| S3 nightly upload | `nightly.sh` uploads `public/data/` glob — new parquet is auto-included | None |
+| `taxa_pipeline.py` `load_taxon_lineage_extended` | Add `specific_epithet` column to `taxon_lineage_extended` table | Low — additive column |
+| `data/dbt/models/staging/stg_inat__taxon_lineage_extended.sql` | Expose `specific_epithet` | Low — pass-through |
+| `data/dbt/models/intermediate/int_species_universe.sql` | `COALESCE(c.specific_epithet, tle.specific_epithet)` + `ctt.taxon_id` in SELECT | Low — existing JOIN already present |
+| `data/dbt/models/marts/occurrences.sql` | Add `taxon_id INTEGER` column (ARM 1 from ecdysis, ARM 3 from inat_obs) | Medium — dbt contract expansion |
+| `data/dbt/models/marts/schema.yml` | Expand contract to N+1 columns | Must be coordinated with sqlite_export.py |
+| `data/sqlite_export.py` `CREATE TABLE` DDL | Add `taxon_id INTEGER` | Must coordinate with schema.yml |
+| `data/inat_obs_pipeline.py` | Read and persist `taxon_id` from inat_expert_obs.csv | Low — column already in CSV |
+| `data/run.py` STEPS | Add `inactive-taxon-remap` step before `dbt-build` | Low |
+| `data/taxa_pipeline.py` | Add `taxon_ancestry` table materialization | Low — additive |
+| `occurrence_synonyms.csv` seed | May gain rows from inactive remap step | Low — same format |
 
 ---
 
@@ -187,29 +292,39 @@ No new libraries needed.
 
 | Area | Confidence | Basis |
 |------|------------|-------|
-| Checklist CSV ingestion (DuckDB read_csv) | HIGH | Pattern already in codebase; 50K rows is trivial |
-| Spatial join for checklist records | HIGH | `occurrences.sql` is the direct template |
-| iNat taxa.csv.gz existence + `ancestry` column | MEDIUM | Confirmed by 2022 forum tutorial; structure stable since; verify with header download before implementation |
-| DuckDB read_csv gzip compression | MEDIUM | DuckDB docs confirm `compression` param; smoke-test recommended |
-| Ancestry walk SQL (unnest + conditional agg) | MEDIUM | DuckDB `unnest(string_split(...))` is standard; conditional aggregation is portable across DuckDB 1.x |
-| Frontend layer addition | HIGH | Direct addSource/addLayer extension of existing pattern |
+| `specific_epithet` from `split_part(name, ' ', 2)` | HIGH | Verified against live taxa.csv.gz; all species rows have binomial names |
+| taxa.csv.gz has no `current_taxon_id` | HIGH | Directly inspected file; 6 columns confirmed |
+| DwC-A lacks `acceptedNameUsageID` for inactive taxa | HIGH | Confirmed by iNat forum feature request (2026); MariaDB blog schema listing; SQL tutorial column list |
+| iNat API `current_synonymous_taxon_ids` field | HIGH | Verified against live API for 6 inactive bee taxa |
+| Ecdysis `taxon_id` already in raw data | HIGH | Inspected `ecdysis_data.occurrences`; 46,090 non-null rows |
+| iNat expert obs CSV has `taxon_id` column | HIGH | Inspected `raw/inat_expert_obs.csv` header directly |
+| DuckDB ancestry LIKE pattern for subtaxon queries | HIGH | Verified in DuckDB 1.5.2 with real taxa data |
+| Closure table materialization via unnest | HIGH | Tested pattern in DuckDB 1.5.2; produces correct ancestor→descendants map |
+| Scale of inactive remapping (~5 cases in current data) | MEDIUM | Based on name-match against taxa.csv.gz; iNat obs CSV taxon IDs may add more |
 
 ---
 
 ## Pre-Implementation Checks
 
 ```bash
-# Verify taxa.csv.gz columns and delimiter before writing any code
-curl -s --range 0-512 \
-  "https://inaturalist-open-data.s3.amazonaws.com/taxa.csv.gz" \
-  | gzip -dc 2>/dev/null | head -2
+# Verify taxa.csv.gz still has only 6 columns (no schema drift)
+cd data && uv run python3 -c "
+import gzip, csv
+with gzip.open('raw/taxa.csv.gz', 'rt') as f:
+    print(next(csv.reader(f, delimiter='\t')))
+"
 
-# Confirm DuckDB reads it
-uv run python -c "
-import duckdb
-con = duckdb.connect(':memory:')
-# Small slice — just header + 1 row
-print(con.execute(\"SELECT * FROM read_csv('data/raw/inaturalist-taxa.csv.gz', compression='gzip') LIMIT 1\").fetchall())
+# Count inactive bee taxa that are in our canonical_to_taxon_id bridge
+cd data && uv run python3 -c "
+import gzip, csv, duckdb
+con = duckdb.connect('beeatlas.duckdb', read_only=True)
+bridge = {str(r[0]) for r in con.execute('SELECT taxon_id FROM inaturalist_data.canonical_to_taxon_id').fetchall()}
+inactive = 0
+with gzip.open('raw/taxa.csv.gz', 'rt') as f:
+    for row in csv.DictReader(f, delimiter='\t'):
+        if row['taxon_id'] in bridge and row['active'] == 'false':
+            inactive += 1
+print(f'Inactive bridge taxa: {inactive}')
 "
 ```
 
@@ -217,16 +332,16 @@ print(con.execute(\"SELECT * FROM read_csv('data/raw/inaturalist-taxa.csv.gz', c
 
 ## Sources
 
-- iNat AWS Open Data forum tutorial (ancestry column confirmed): https://forum.inaturalist.org/t/getting-the-inaturalist-aws-open-data-metadata-files-and-working-with-them-in-a-database/22135
-- iNat open data GitHub: https://github.com/inaturalist/inaturalist-open-data
-- DwC-A taxa.csv column list: https://forum.inaturalist.org/t/using-sql-to-query-inats-dwca-taxonomy-export/29377
-- Missing intermediate ranks in DwC-A: https://forum.inaturalist.org/t/missing-intermediate-ranks-and-default-photo-in-the-taxonomy-archive-file/49700
-- Existing checklist pipeline (Phase 76): `/Users/rainhead/dev/beeatlas/data/checklist_pipeline.py`
-- Existing taxon lineage enrichment: `/Users/rainhead/dev/beeatlas/data/inaturalist_pipeline.py` lines 184+
-- Existing occurrences mart (spatial join template): `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/occurrences.sql`
-- Frontend SQLite loading pattern: `/Users/rainhead/dev/beeatlas/src/sqlite.ts`
-- Manifest pattern: `/Users/rainhead/dev/beeatlas/src/manifest.ts`
-- Mapbox layer pattern: `/Users/rainhead/dev/beeatlas/src/bee-map.ts` lines 380-668
+- taxa.csv.gz columns confirmed by direct file inspection: `/Users/rainhead/dev/beeatlas/data/raw/taxa.csv.gz`
+- iNat API `current_synonymous_taxon_ids` verified: `GET https://api.inaturalist.org/v1/taxa/199075`
+- DwC-A column list (no acceptedNameUsageID): https://forum.inaturalist.org/t/using-sql-to-query-inats-dwca-taxonomy-export/29377
+- DwC-A missing synonym fields (feature request): https://forum.inaturalist.org/t/taxonomy-download-with-synonyms/38699
+- DwC-A missing intermediate ranks: https://forum.inaturalist.org/t/missing-intermediate-ranks-and-default-photo-in-the-taxonomy-archive-file/49700
+- iNat open data files: https://github.com/inaturalist/inaturalist-open-data
+- Existing taxa pipeline (ancestry walk pattern): `/Users/rainhead/dev/beeatlas/data/taxa_pipeline.py`
+- Existing taxon ID bridge: `/Users/rainhead/dev/beeatlas/data/resolve_taxon_ids.py`
+- Existing species universe model: `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_species_universe.sql`
+- iNat expert obs CSV header verified: `/Users/rainhead/dev/beeatlas/data/raw/inat_expert_obs.csv`
 
-*Stack research for: v4.0 Checklist Records + iNat Taxonomy via Offline Archive*
-*Researched: 2026-05-23*
+*Stack research for: v4.5 iNat Taxonomy & Species Completeness*
+*Researched: 2026-05-29*
