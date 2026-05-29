@@ -55,11 +55,17 @@ checklist_count_agg AS (
     GROUP BY canonical_name
 ),
 -- Per-species iNat expert obs count (OCC-02). Reads source directly to avoid circular DAG with occurrences mart.
+-- Phase 123 (SYN-02): apply occurrence synonymy here too. Reads source
+-- directly (avoids circular DAG with occurrences mart) so it must
+-- redo the same LEFT JOIN that int_combined applies to ARM 3.
 inat_obs_count_agg AS (
-    SELECT canonical_name, COUNT(*) AS inat_obs_count
-    FROM {{ source('inat_obs_data', 'observations') }}
-    WHERE canonical_name IS NOT NULL
-    GROUP BY canonical_name
+    SELECT
+        COALESCE(syn.accepted_name, io.canonical_name) AS canonical_name,
+        COUNT(*) AS inat_obs_count
+    FROM {{ source('inat_obs_data', 'observations') }} io
+    LEFT JOIN {{ ref('occurrence_synonyms') }} syn ON syn.synonym = io.canonical_name
+    WHERE io.canonical_name IS NOT NULL
+    GROUP BY 1
 ),
 provisional_agg AS (
     -- provisional_count: occurrences mart rows flagged is_provisional=TRUE.
