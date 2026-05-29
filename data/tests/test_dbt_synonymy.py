@@ -77,22 +77,28 @@ def test_occurrences_has_no_agapostemon_texanus():
 
 @_SPECIES_GUARD
 def test_inat_obs_count_uses_synonymized_canonical_name():
-    """species.parquet has no row keyed 'agapostemon texanus'; the subtilior row has inat_obs_count >= 0.
+    """inat_obs_count for 'agapostemon texanus' is 0; inat_obs_count for 'agapostemon subtilior' is >= 0.
 
     Asserts that:
     1. The inat_obs_count_agg CTE in int_species_universe.sql applies the synonym JOIN,
-       so inat_obs records for texanus are counted under subtilior (not a separate texanus row).
+       so inat_obs records for texanus are counted under subtilior, not under texanus.
+       agapostemon texanus may still appear as a checklist-only species row (with
+       occurrence_count=0 and inat_obs_count=0) — the checklist entry is not affected by
+       the occurrence synonym (per 123-RESEARCH Pitfall 5). This test checks the inat_obs_count
+       value, not row presence.
     2. The agapostemon subtilior row exists in species.parquet and has a non-negative
        inat_obs_count (the column is queryable on the synonymized key).
     """
-    texanus_rows = duckdb.execute(
-        f"SELECT COUNT(*) FROM read_parquet('{SANDBOX}/species.parquet')"
+    texanus_count_row = duckdb.execute(
+        f"SELECT inat_obs_count FROM read_parquet('{SANDBOX}/species.parquet')"
         " WHERE canonical_name = 'agapostemon texanus'"
-    ).fetchone()[0]
-    assert texanus_rows == 0, (
-        f"Expected 0 species rows for 'agapostemon texanus', got {texanus_rows}. "
-        "The synonym JOIN in int_species_universe.inat_obs_count_agg may be missing."
-    )
+    ).fetchone()
+    if texanus_count_row is not None:
+        assert texanus_count_row[0] == 0, (
+            f"Expected inat_obs_count=0 for 'agapostemon texanus' (all inat_obs rows should be "
+            f"counted under 'agapostemon subtilior' after synonymy), got {texanus_count_row[0]}. "
+            "The synonym JOIN in int_species_universe.inat_obs_count_agg may be missing."
+        )
 
     subtilior_count = duckdb.execute(
         f"SELECT inat_obs_count FROM read_parquet('{SANDBOX}/species.parquet')"
