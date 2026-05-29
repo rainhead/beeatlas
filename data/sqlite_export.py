@@ -52,10 +52,15 @@ def generate_sqlite(src_parquet: Path, dst_db: Path) -> None:
     # with one SQL query and one WASM→JS callback (vs 92K callbacks = ~600 ms in Firefox).
     # Column order: [lat, lon, ecdysis_id, observation_id, specimen_observation_id,
     #                year, scientificName, genus, family, source]
+    _GEO_COLS = [
+        "lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",
+        "year", "scientificName", "genus", "family", "source",
+    ]
     with _sqlite3.connect(dst_db) as idx_con:
+        actual = {row[1] for row in idx_con.execute("PRAGMA table_info(occurrences)").fetchall()}
+        select_expr = ", ".join(c if c in actual else f"NULL AS {c}" for c in _GEO_COLS)
         cur = idx_con.execute(
-            "SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, "
-            "year, scientificName, genus, family, source "
+            f"SELECT {select_expr} "
             "FROM occurrences WHERE lat IS NOT NULL AND lon IS NOT NULL"
         )
         geo_json = json.dumps(cur.fetchall())

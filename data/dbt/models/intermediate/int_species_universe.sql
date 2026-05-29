@@ -2,21 +2,16 @@
 -- lineage backfill. Mirrors species_export.py lines 157-208.
 -- Materialized as TABLE to prevent re-evaluating the FULL OUTER JOIN on each
 -- mart pass (same reason as int_combined).
--- NOTE: month_histogram NULL backfill uses CASE, not COALESCE — DuckDB COALESCE
--- on INTEGER[12] is unimplemented in 1.4.x (Phase 078-02).
--- NOTE 2: In DuckDB 1.5.3, CASE branches must NOT mix INTEGER[12] and other types when
--- stg_inat taxon-lineage joins are present + ORDER BY; DuckDB's planner fails with
--- "Unimplemented type for case expression: INTEGER[12]". Workaround: cast occ_agg
--- month_histogram to INTEGER[] (variable-length) so the CASE expression operates over
--- uniform INTEGER[] branches; cast the final CASE result to INTEGER[12] (Phase 118-03).
+-- NOTE: month_histogram uses COALESCE element-wise addition. The original four-branch
+-- CASE approach (NULL guards per arm) was changed because DuckDB 1.5.2 materialization
+-- produces corrupt values when both arms are non-NULL INTEGER[] arrays (garbage floats/ints).
+-- COALESCE(arr[n], 0)::INTEGER + COALESCE(arr[n], 0)::INTEGER avoids all branching on arrays.
 -- slug column is NOT emitted here — it is added by the Python post-step
 -- (Plan 086-05) reading the species mart parquet. The _slugify function uses
 -- unicodedata.normalize('NFKD') which cannot be replicated byte-identically in SQL.
 {{ config(materialized='table') }}
 
 WITH occ_agg AS (
-    -- Cast month_histogram to INTEGER[] to avoid DuckDB 1.5.3 CASE-type-inference
-    -- bug with fixed-size arrays (INTEGER[12]) when stg_inat joins + ORDER BY present.
     SELECT canonical_name, occurrence_count, specimen_count, first_occurrence_date,
            last_occurrence_date, month_histogram::INTEGER[] AS month_histogram
     FROM {{ ref('int_species_occurrences_agg') }}
@@ -100,33 +95,25 @@ species_universe AS (
         COALESCE(pa.provisional_count, 0) AS provisional_count,
         oa.first_occurrence_date,
         oa.last_occurrence_date,
-        -- Merged month_histogram: element-wise sum of WABA + checklist months.
-        -- Four-branch CASE guards against NULL for both arms (DuckDB 1.4.x COALESCE
-        -- on INTEGER[12] is unimplemented — Pitfall 1; CASE not COALESCE).
-        -- CASE branches use INTEGER[] throughout (occ_agg casts to INTEGER[]);
-        -- final ::INTEGER[12] cast applied to the whole expression to preserve contract
-        -- type while avoiding DuckDB 1.5.3 planner bug (NOTE 2 above, Phase 118-03).
-        (CASE WHEN oa.month_histogram IS NULL AND cma.checklist_month_histogram IS NULL
-             THEN [0,0,0,0,0,0,0,0,0,0,0,0]
-             WHEN oa.month_histogram IS NULL
-             THEN cma.checklist_month_histogram
-             WHEN cma.checklist_month_histogram IS NULL
-             THEN oa.month_histogram
-             ELSE list_value(
-                 oa.month_histogram[1]  + cma.checklist_month_histogram[1],
-                 oa.month_histogram[2]  + cma.checklist_month_histogram[2],
-                 oa.month_histogram[3]  + cma.checklist_month_histogram[3],
-                 oa.month_histogram[4]  + cma.checklist_month_histogram[4],
-                 oa.month_histogram[5]  + cma.checklist_month_histogram[5],
-                 oa.month_histogram[6]  + cma.checklist_month_histogram[6],
-                 oa.month_histogram[7]  + cma.checklist_month_histogram[7],
-                 oa.month_histogram[8]  + cma.checklist_month_histogram[8],
-                 oa.month_histogram[9]  + cma.checklist_month_histogram[9],
-                 oa.month_histogram[10] + cma.checklist_month_histogram[10],
-                 oa.month_histogram[11] + cma.checklist_month_histogram[11],
-                 oa.month_histogram[12] + cma.checklist_month_histogram[12]
-             )
-        END)::INTEGER[12] AS month_histogram,
+        -- Merged month_histogram: element-wise sum of ecdysis + checklist months.
+        -- COALESCE(arr[n], 0) handles NULL on either side without branching, which
+        -- avoids a DuckDB 1.5.2 materialization bug where the four-branch CASE on
+        -- INTEGER[] arrays produced corrupt values when both arms were non-NULL.
+        -- ::INTEGER cast on each element ensures INT32 (not BIGINT) before list_value.
+        list_value(
+            COALESCE(oa.month_histogram[1],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[1],  0)::INTEGER,
+            COALESCE(oa.month_histogram[2],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[2],  0)::INTEGER,
+            COALESCE(oa.month_histogram[3],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[3],  0)::INTEGER,
+            COALESCE(oa.month_histogram[4],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[4],  0)::INTEGER,
+            COALESCE(oa.month_histogram[5],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[5],  0)::INTEGER,
+            COALESCE(oa.month_histogram[6],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[6],  0)::INTEGER,
+            COALESCE(oa.month_histogram[7],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[7],  0)::INTEGER,
+            COALESCE(oa.month_histogram[8],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[8],  0)::INTEGER,
+            COALESCE(oa.month_histogram[9],  0)::INTEGER + COALESCE(cma.checklist_month_histogram[9],  0)::INTEGER,
+            COALESCE(oa.month_histogram[10], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[10], 0)::INTEGER,
+            COALESCE(oa.month_histogram[11], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[11], 0)::INTEGER,
+            COALESCE(oa.month_histogram[12], 0)::INTEGER + COALESCE(cma.checklist_month_histogram[12], 0)::INTEGER
+        )::INTEGER[12] AS month_histogram,
         COALESCE(ga.county_count, 0) AS county_count,
         COALESCE(ga.ecoregion_count, 0) AS ecoregion_count,
         COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count,
