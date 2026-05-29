@@ -43,9 +43,9 @@ _INFRA_MARKERS = ("ssp.", "var.", "aff.", "cf.", "nr.")
 
 # --- Post-canonicalization occurrence synonymy ---
 # Corrects known taxon synonymies in occurrence records from any data source.
-# Keys and values are canonical forms (output of canonicalize()).
+# Keys and values are canonical forms (output of normalize_scientific_name()).
 
-OCCURRENCE_SYNONYMS_PATH: Path = Path(__file__).parent / "occurrence_synonyms.csv"
+OCCURRENCE_SYNONYMS_PATH: Path = Path(__file__).parent / "dbt" / "seeds" / "occurrence_synonyms.csv"
 _SYNONYMS: dict[str, str] | None = None
 
 
@@ -70,12 +70,12 @@ def apply_synonym(name: str | None) -> str | None:
     return _ensure_synonyms().get(name, name)
 
 
-def canonicalize(name: str | None) -> str | None:
+def normalize_scientific_name(name: str | None) -> str | None:
     """Apply the D-04 5-step canonicalization.
 
     Returns a lowercase single-spaced binomial (or genus-only for higher-rank
     inputs / aff./cf./nr. tokens), or None for None / empty / whitespace input.
-    Idempotent: canonicalize(canonicalize(x)) == canonicalize(x).
+    Idempotent: normalize_scientific_name(normalize_scientific_name(x)) == normalize_scientific_name(x).
     """
     if name is None:
         return None

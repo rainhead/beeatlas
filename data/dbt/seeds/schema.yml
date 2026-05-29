@@ -1,0 +1,14 @@
+version: 2
+
+seeds:
+  - name: occurrence_synonyms
+    columns:
+      - name: synonym
+        data_tests:
+          - not_null
+          - unique
+      - name: accepted_name
+        data_tests:
+          - not_null
+      - name: source
+        description: "Citation for the synonymy decision (e.g., 'Portman et al. 2024')"

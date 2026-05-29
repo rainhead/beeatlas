@@ -18,3 +18,11 @@ models:
         +materialized: table          # override: prevent re-evaluating full UNION ALL on every spatial join
     marts:
       +materialized: table            # default; occurrences.sql overrides to 'external'
+
+seeds:
+  beeatlas:
+    occurrence_synonyms:
+      +column_types:
+        synonym: varchar
+        accepted_name: varchar
+        source: varchar
