@@ -17,7 +17,7 @@ from pathlib import Path
 
 import duckdb
 
-from canonical_name import apply_synonym, canonicalize
+from canonical_name import normalize_scientific_name
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 CHECKLIST_PATH = Path(__file__).parent / "checklists" / "wa_bee_checklist.tsv"
@@ -47,7 +47,7 @@ def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
         WHERE scientific_name IS NOT NULL AND scientific_name != ''
     """).fetchall()
     mapping: list[tuple[str | None, str]] = [
-        (apply_synonym(canonicalize(r[0])), r[0]) for r in rows
+        (normalize_scientific_name(r[0]), r[0]) for r in rows
     ]
     if mapping:
         con.executemany(
@@ -197,7 +197,7 @@ def load_checklist() -> None:
                 "verified",                 # status (D-02)
                 SOURCE_CITATION,            # source_citation
                 None,                       # notes
-                canonicalize(sci),          # canonical_name (D-04)
+                normalize_scientific_name(sci),          # canonical_name (D-04)
             ))
 
         con.execute("""
