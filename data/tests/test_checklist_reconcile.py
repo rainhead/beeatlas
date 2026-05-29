@@ -6,7 +6,7 @@ import importlib
 import duckdb
 import pytest
 
-from canonical_name import canonicalize
+from canonical_name import normalize_scientific_name
 
 
 @pytest.fixture
@@ -58,7 +58,7 @@ def test_update_occurrences_is_idempotent(reload_pipeline):
     val = con.execute(
         "SELECT canonical_name FROM ecdysis_data.occurrences"
     ).fetchone()[0]
-    assert val == canonicalize("Bombus vosnesenskii")
+    assert val == normalize_scientific_name("Bombus vosnesenskii")
 
 
 def _bootstrap_for_reconcile(con: duckdb.DuckDBPyConnection) -> None:

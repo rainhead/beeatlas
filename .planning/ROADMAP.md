@@ -36,7 +36,7 @@
 - ✅ **v4.1 Validation & Code Quality** — Phases 114–116 (shipped 2026-05-25)
 - ✅ **v4.2 iNaturalist Expert Observations** — Phases 117–120 (shipped 2026-05-26)
 - ✅ **v4.3 Loading Performance** — Phases 121–122 (shipped 2026-05-28)
-- 🚧 **v4.4 Pipeline Data Quality** — Phase 123 (in progress)
+- ✅ **v4.4 Pipeline Data Quality** — Phase 123 (shipped 2026-05-29)
 
 ## Phases
 

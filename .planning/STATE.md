@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.4
 milestone_name: Pipeline Data Quality
-status: v4.3 milestone archived
-stopped_at: Completed 123-02-PLAN.md (Phase 123 complete)
-last_updated: "2026-05-29T17:47:39Z"
+status: v4.4 milestone complete — Phase 123 shipped 2026-05-29
+stopped_at: Phase 123 complete (all plans, tests green)
+last_updated: "2026-05-29T18:05:00Z"
 progress:
   total_phases: 10
   completed_phases: 5
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-28 after v4.3 milestone)
 
 ## Current Position
 
-Milestone v4.3 (Loading Performance) archived 2026-05-28. Ready to start next milestone.
+Milestone v4.4 (Pipeline Data Quality) complete 2026-05-29. Phase 123 (dbt-layer occurrence synonymy) shipped — all plans complete, npm test + Python tests green. Ready for next milestone.
 
 ## Accumulated Context
 
