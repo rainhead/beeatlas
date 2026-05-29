@@ -10,7 +10,8 @@ nr. — DO NOT add subsp. without a CONTEXT.md amendment.
 
 import pytest
 
-from canonical_name import canonicalize, _INFRA_MARKERS
+import canonical_name as _cn_mod
+from canonical_name import apply_synonym, canonicalize, _INFRA_MARKERS
 
 
 # ---------------------------------------------------------------------------
@@ -138,3 +139,32 @@ def test_infra_markers_locked_to_d04_exactly_five():
     DO NOT add subsp. without a follow-up CONTEXT.md amendment."""
     assert len(_INFRA_MARKERS) == 5
     assert set(_INFRA_MARKERS) == {"ssp.", "var.", "aff.", "cf.", "nr."}
+
+
+# ---------------------------------------------------------------------------
+# apply_synonym — post-canonicalization occurrence synonymy
+# ---------------------------------------------------------------------------
+
+def test_apply_synonym_maps_known(monkeypatch):
+    monkeypatch.setattr(_cn_mod, "_SYNONYMS", {"agapostemon texanus": "agapostemon subtilior"})
+    assert apply_synonym("agapostemon texanus") == "agapostemon subtilior"
+
+
+def test_apply_synonym_passthrough_unknown(monkeypatch):
+    monkeypatch.setattr(_cn_mod, "_SYNONYMS", {})
+    assert apply_synonym("bombus vosnesenskii") == "bombus vosnesenskii"
+
+
+def test_apply_synonym_none():
+    assert apply_synonym(None) is None
+
+
+def test_apply_synonym_loads_agapostemon_from_csv(monkeypatch):
+    """Integration: occurrence_synonyms.csv maps agapostemon texanus → subtilior."""
+    monkeypatch.setattr(_cn_mod, "_SYNONYMS", None)  # force re-read from disk
+    assert apply_synonym("agapostemon texanus") == "agapostemon subtilior"
+
+
+def test_apply_synonym_composed_with_canonicalize():
+    """Portman et al. 2024: 'Agapostemon texanus' scientific name → 'agapostemon subtilior'."""
+    assert apply_synonym(canonicalize("Agapostemon texanus")) == "agapostemon subtilior"
