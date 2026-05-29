@@ -36,6 +36,7 @@
 - ✅ **v4.1 Validation & Code Quality** — Phases 114–116 (shipped 2026-05-25)
 - ✅ **v4.2 iNaturalist Expert Observations** — Phases 117–120 (shipped 2026-05-26)
 - ✅ **v4.3 Loading Performance** — Phases 121–122 (shipped 2026-05-28)
+- 🚧 **v4.4 Pipeline Data Quality** — Phase 123 (in progress)
 
 ## Phases
 
@@ -811,5 +812,28 @@ Plans:
 | 120. Species Page Source Counts & Photo List | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 121. Prebuilt SQLite Load | v4.3 | 3/3 | Complete | 2026-05-27 |
 | 122. Worker GeoJSON Aggregation | v4.3 | 2/2 | Complete   | 2026-05-28 |
+| 123. dbt-Layer Occurrence Synonymy | v4.4 | 0/2 | Pending | — |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
+
+### Phase 123: dbt-Layer Occurrence Synonymy
+
+**Goal**: Occurrence synonymy is applied uniformly across all data sources at dbt build time, not at ingestion; updating `occurrence_synonyms.csv` requires only a dbt rebuild to propagate to all artifacts
+**Depends on**: Phase 122
+**Requirements**: SYN-01, SYN-02, SYN-03
+**Success Criteria** (what must be TRUE):
+
+  1. `apply_synonym()` is no longer called in `checklist_pipeline.py` or `inat_obs_pipeline.py`; raw `canonical_name` columns in `ecdysis_data.occurrences` and `inat_obs_data.observations` store only `normalize_scientific_name()` output, not synonymized names
+  2. `occurrence_synonyms.csv` is loaded into DuckDB as a reference table and consumed via LEFT JOIN in dbt staging so synonymy is applied identically to all occurrence sources (ecdysis, inat_obs, waba)
+  3. Adding a new entry to `occurrence_synonyms.csv` and running `bash data/dbt/run.sh build` produces updated parquet artifacts with the new mapping — no pipeline re-ingestion required
+  4. All existing pytest tests pass; the Agapostemon texanus → subtilior mapping continues to appear correctly in `occurrences.parquet`
+
+**Plans:** 2 plans
+Plans:
+**Wave 1**
+
+- [ ] 123-01-PLAN.md — Move occurrence_synonyms.csv into data/dbt/seeds/; update OCCURRENCE_SYNONYMS_PATH; remove apply_synonym() callsites from inat_obs_pipeline.py and checklist_pipeline.py [SYN-01]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 123-02-PLAN.md — Add synonyms LEFT JOIN in int_combined.sql (ARM 1 + ARM 3) and int_species_universe.inat_obs_count_agg; new test_dbt_synonymy.py asserting Agapostemon texanus → subtilior in occurrences.parquet [SYN-02, SYN-03]
