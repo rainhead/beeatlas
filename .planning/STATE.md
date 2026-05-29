@@ -4,7 +4,7 @@ milestone: v4.4
 milestone_name: milestone
 status: v4.3 milestone archived
 stopped_at: v4.3 milestone archived
-last_updated: "2026-05-28T00:00:00.000Z"
+last_updated: "2026-05-28T20:00:00.000Z"
 progress:
   total_phases: 0
   completed_phases: 0
@@ -56,6 +56,7 @@ None.
 | 2026-05-26 | inat-obs-show-species-in-sidebar | iNat expert obs: show species name + quality badge in sidebar |
 | 2026-05-27 | 260527-ko5 | Move sqlite and data loading into a worker thread; profile before/after |
 | 2026-05-27 | pst | Replace string-escape INSERT with wa-sqlite prepared statements |
+| 2026-05-28 | syn-occurrence-synonymy-mechanism | Occurrence-side synonymy mechanism; map Agapostemon texanus → subtilior (Portman et al. 2024) |
 
 ## Session Continuity
 
