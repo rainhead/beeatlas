@@ -812,7 +812,7 @@ Plans:
 | 120. Species Page Source Counts & Photo List | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 121. Prebuilt SQLite Load | v4.3 | 3/3 | Complete | 2026-05-27 |
 | 122. Worker GeoJSON Aggregation | v4.3 | 2/2 | Complete   | 2026-05-28 |
-| 123. dbt-Layer Occurrence Synonymy | v4.4 | 0/2 | Pending | — |
+| 123. dbt-Layer Occurrence Synonymy | v4.4 | 1/2 | In Progress|  |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -828,11 +828,11 @@ Plans:
   3. Adding a new entry to `occurrence_synonyms.csv` and running `bash data/dbt/run.sh build` produces updated parquet artifacts with the new mapping — no pipeline re-ingestion required
   4. All existing pytest tests pass; the Agapostemon texanus → subtilior mapping continues to appear correctly in `occurrences.parquet`
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 **Wave 1**
 
-- [ ] 123-01-PLAN.md — Move occurrence_synonyms.csv into data/dbt/seeds/; update OCCURRENCE_SYNONYMS_PATH; remove apply_synonym() callsites from inat_obs_pipeline.py and checklist_pipeline.py [SYN-01]
+- [x] 123-01-PLAN.md — Move occurrence_synonyms.csv into data/dbt/seeds/; update OCCURRENCE_SYNONYMS_PATH; remove apply_synonym() callsites from inat_obs_pipeline.py and checklist_pipeline.py [SYN-01]
 
 **Wave 2** *(blocked on Wave 1)*
 
