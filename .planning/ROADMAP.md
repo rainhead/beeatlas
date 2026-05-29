@@ -812,7 +812,7 @@ Plans:
 | 120. Species Page Source Counts & Photo List | v4.2 | 2/2 | Complete | 2026-05-26 |
 | 121. Prebuilt SQLite Load | v4.3 | 3/3 | Complete | 2026-05-27 |
 | 122. Worker GeoJSON Aggregation | v4.3 | 2/2 | Complete   | 2026-05-28 |
-| 123. dbt-Layer Occurrence Synonymy | v4.4 | 1/2 | In Progress|  |
+| 123. dbt-Layer Occurrence Synonymy | v4.4 | 2/2 | Complete   | 2026-05-29 |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -828,7 +828,7 @@ Plans:
   3. Adding a new entry to `occurrence_synonyms.csv` and running `bash data/dbt/run.sh build` produces updated parquet artifacts with the new mapping — no pipeline re-ingestion required
   4. All existing pytest tests pass; the Agapostemon texanus → subtilior mapping continues to appear correctly in `occurrences.parquet`
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 **Wave 1**
 
@@ -836,4 +836,4 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 123-02-PLAN.md — Add synonyms LEFT JOIN in int_combined.sql (ARM 1 + ARM 3) and int_species_universe.inat_obs_count_agg; new test_dbt_synonymy.py asserting Agapostemon texanus → subtilior in occurrences.parquet [SYN-02, SYN-03]
+- [x] 123-02-PLAN.md — Add synonyms LEFT JOIN in int_combined.sql (ARM 1 + ARM 3) and int_species_universe.inat_obs_count_agg; new test_dbt_synonymy.py asserting Agapostemon texanus → subtilior in occurrences.parquet [SYN-02, SYN-03]
