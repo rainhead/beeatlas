@@ -361,14 +361,14 @@ Note: `apply_synonym()` function itself in `canonical_name.py` is NOT removed �
 
 **All other claims in this research were verified against source files in the repository.**
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does int_species_universe.sql need a synonym JOIN for inat_obs_count_agg?**
+1. **RESOLVED — Does int_species_universe.sql need a synonym JOIN for inat_obs_count_agg?**
    - What we know: The CTE reads `inat_obs_data.observations` directly (to avoid circular DAG). After Phase 123, that table stores raw canonical names. For the one existing synonym (`agapostemon texanus` → `subtilior`), this means inat_obs records for texanus would be counted under `texanus` not `subtilior` in `inat_obs_count`.
    - What's unclear: How many inat_obs records actually carry `agapostemon texanus` as canonical_name currently? If zero, this is a latent bug with no current user impact.
    - Recommendation: Include the fix (join synonyms in inat_obs_count_agg) in scope. It's two lines of SQL and prevents future correctness issues.
 
-2. **Should dbt_project.yml get a `seeds:` section to specify column types?**
+2. **RESOLVED — Should dbt_project.yml get a `seeds:` section to specify column types?**
    - What we know: dbt infers column types from CSV content. The synonymy CSV has three VARCHAR columns; type inference should work correctly.
    - What's unclear: Whether dbt-duckdb 1.10.1 infers VARCHAR reliably for all-text CSVs.
    - Recommendation: Add explicit `+column_types` in `dbt_project.yml` as a defensive measure — minimal overhead.

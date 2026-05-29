@@ -1,4 +1,4 @@
-"""Unit tests for canonical_name.canonicalize() — D-04 5-step algorithm.
+"""Unit tests for canonical_name.normalize_scientific_name() — D-04 5-step algorithm.
 
 Pure-function tests, no DB / no fixtures. Per-step coverage + idempotence + the
 TAX-04 disagreement fixture (Lasioglossum (Dialictus) zonulum ↔ Lasioglossum
@@ -11,7 +11,7 @@ nr. — DO NOT add subsp. without a CONTEXT.md amendment.
 import pytest
 
 import canonical_name as _cn_mod
-from canonical_name import apply_synonym, canonicalize, _INFRA_MARKERS
+from canonical_name import apply_synonym, normalize_scientific_name, _INFRA_MARKERS
 
 
 # ---------------------------------------------------------------------------
@@ -19,15 +19,15 @@ from canonical_name import apply_synonym, canonicalize, _INFRA_MARKERS
 # ---------------------------------------------------------------------------
 
 def test_canonicalize_strips_authority_paren_year():
-    assert canonicalize("Andrena fulva (Müller, 1766)") == "andrena fulva"
+    assert normalize_scientific_name("Andrena fulva (Müller, 1766)") == "andrena fulva"
 
 
 def test_canonicalize_strips_authority_comma_year():
-    assert canonicalize("Andrena fulva, 1766") == "andrena fulva"
+    assert normalize_scientific_name("Andrena fulva, 1766") == "andrena fulva"
 
 
 def test_canonicalize_strips_authority_author_comma_year():
-    assert canonicalize("Andrena fulva Müller, 1766") == "andrena fulva"
+    assert normalize_scientific_name("Andrena fulva Müller, 1766") == "andrena fulva"
 
 
 # ---------------------------------------------------------------------------
@@ -35,11 +35,11 @@ def test_canonicalize_strips_authority_author_comma_year():
 # ---------------------------------------------------------------------------
 
 def test_canonicalize_strips_subgenus_parens():
-    assert canonicalize("Lasioglossum (Dialictus) zonulum") == "lasioglossum zonulum"
+    assert normalize_scientific_name("Lasioglossum (Dialictus) zonulum") == "lasioglossum zonulum"
 
 
 def test_canonicalize_strips_subgenus_parens_seladonia():
-    assert canonicalize("Halictus (Seladonia) confusus") == "halictus confusus"
+    assert normalize_scientific_name("Halictus (Seladonia) confusus") == "halictus confusus"
 
 
 # ---------------------------------------------------------------------------
@@ -47,18 +47,18 @@ def test_canonicalize_strips_subgenus_parens_seladonia():
 # ---------------------------------------------------------------------------
 
 def test_canonicalize_strips_infraspecific_ssp():
-    assert canonicalize("Bombus huntii ssp. occidentalis") == "bombus huntii"
+    assert normalize_scientific_name("Bombus huntii ssp. occidentalis") == "bombus huntii"
 
 
 def test_canonicalize_aff_folds_to_genus():
     """RESEARCH.md: aff./cf./nr. fold to genus only (not enough info for species)."""
-    assert canonicalize("Hylaeus aff. cressoni") == "hylaeus"
+    assert normalize_scientific_name("Hylaeus aff. cressoni") == "hylaeus"
 
 
 def test_canonicalize_trinomial_folds_to_binomial():
     """PITFALLS.md #2 — trinomials must fold to binomial JOIN key."""
-    assert canonicalize("Bombus melanopygus mixtus") == "bombus melanopygus"
-    assert canonicalize("Colletes consors pascoensis") == "colletes consors"
+    assert normalize_scientific_name("Bombus melanopygus mixtus") == "bombus melanopygus"
+    assert normalize_scientific_name("Colletes consors pascoensis") == "colletes consors"
 
 
 # ---------------------------------------------------------------------------
@@ -66,8 +66,8 @@ def test_canonicalize_trinomial_folds_to_binomial():
 # ---------------------------------------------------------------------------
 
 def test_canonicalize_lowercase_and_whitespace():
-    assert canonicalize("  Apis  Mellifera  ") == "apis mellifera"
-    assert canonicalize("APIS MELLIFERA") == "apis mellifera"
+    assert normalize_scientific_name("  Apis  Mellifera  ") == "apis mellifera"
+    assert normalize_scientific_name("APIS MELLIFERA") == "apis mellifera"
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ def test_canonicalize_lowercase_and_whitespace():
 # ---------------------------------------------------------------------------
 
 def test_canonicalize_genus_only():
-    assert canonicalize("Osmia") == "osmia"
+    assert normalize_scientific_name("Osmia") == "osmia"
 
 
 # ---------------------------------------------------------------------------
@@ -85,8 +85,8 @@ def test_canonicalize_genus_only():
 def test_canonicalize_disagreement_fixture_collapses_to_same_key():
     """TAX-04: Lasioglossum (Dialictus) zonulum and Lasioglossum zonulum
     must produce the same canonical_name so the JOIN succeeds."""
-    a = canonicalize("Lasioglossum (Dialictus) zonulum")
-    b = canonicalize("Lasioglossum zonulum")
+    a = normalize_scientific_name("Lasioglossum (Dialictus) zonulum")
+    b = normalize_scientific_name("Lasioglossum zonulum")
     assert a == b == "lasioglossum zonulum"
 
 
@@ -95,12 +95,12 @@ def test_canonicalize_disagreement_fixture_collapses_to_same_key():
 # ---------------------------------------------------------------------------
 
 def test_canonicalize_none_input():
-    assert canonicalize(None) is None
+    assert normalize_scientific_name(None) is None
 
 
 def test_canonicalize_empty_input():
-    assert canonicalize("") is None
-    assert canonicalize("   ") is None
+    assert normalize_scientific_name("") is None
+    assert normalize_scientific_name("   ") is None
 
 
 # ---------------------------------------------------------------------------
@@ -117,8 +117,8 @@ def test_canonicalize_idempotent():
         "Osmia",
     ]
     for x in cases:
-        once = canonicalize(x)
-        twice = canonicalize(once)
+        once = normalize_scientific_name(x)
+        twice = normalize_scientific_name(once)
         assert once == twice, f"not idempotent for {x!r}: {once!r} != {twice!r}"
 
 
@@ -127,7 +127,7 @@ def test_canonicalize_idempotent():
 # ---------------------------------------------------------------------------
 
 def test_canonicalize_authority_plus_subgenus_combined():
-    assert canonicalize("Lasioglossum (Dialictus) zonulum (Smith, 1853)") == "lasioglossum zonulum"
+    assert normalize_scientific_name("Lasioglossum (Dialictus) zonulum (Smith, 1853)") == "lasioglossum zonulum"
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +165,6 @@ def test_apply_synonym_loads_agapostemon_from_csv(monkeypatch):
     assert apply_synonym("agapostemon texanus") == "agapostemon subtilior"
 
 
-def test_apply_synonym_composed_with_canonicalize():
+def test_apply_synonym_composed_with_normalize_scientific_name():
     """Portman et al. 2024: 'Agapostemon texanus' scientific name → 'agapostemon subtilior'."""
-    assert apply_synonym(canonicalize("Agapostemon texanus")) == "agapostemon subtilior"
+    assert apply_synonym(normalize_scientific_name("Agapostemon texanus")) == "agapostemon subtilior"

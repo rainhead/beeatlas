@@ -4,14 +4,14 @@ Loads the WA bee checklist TSV against an isolated DuckDB and asserts:
   - checklist_data.species has the locked 11-column schema (CHECK-03 / D-04)
   - checklist_data.species_counties preserves per-(species, county) rows (D-01)
   - status='verified' on every row (D-02)
-  - canonical_name = canonicalize(scientificName) on every row, IS NOT NULL
+  - canonical_name = normalize_scientific_name(scientificName) on every row, IS NOT NULL
   - CREATE OR REPLACE semantics — re-running is idempotent (CHECK-02)
 """
 
 import duckdb
 import pytest
 
-from canonical_name import canonicalize
+from canonical_name import normalize_scientific_name
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def test_load_checklist_populates_species_rows(checklist_db):
     assert n_status == 0, "every row must have status='verified' (D-02)"
 
 
-def test_load_checklist_canonical_name_matches_canonicalize(checklist_db):
+def test_load_checklist_canonical_name_matches_normalize_scientific_name(checklist_db):
     db_path, mod = checklist_db
     mod.load_checklist()
     con = duckdb.connect(db_path, read_only=True)
@@ -104,7 +104,7 @@ def test_load_checklist_canonical_name_matches_canonicalize(checklist_db):
         con.close()
     assert rows, "species table must not be empty"
     for sci, canon in rows:
-        assert canon == canonicalize(sci), f"{sci!r}: stored {canon!r} != canonicalize() {canonicalize(sci)!r}"
+        assert canon == normalize_scientific_name(sci), f"{sci!r}: stored {canon!r} != normalize_scientific_name() {normalize_scientific_name(sci)!r}"
 
 
 def test_load_checklist_genus_and_specific_epithet_split(checklist_db):
@@ -234,7 +234,7 @@ def test_authority_bearing_canonicalizes_to_binomial(fixture_con):
     assert canon is not None, "fixture missing authority-bearing seed row"
     assert canon[0] == "andrena fulva"
     # Confirm the algorithm (not the fixture) is the source of truth.
-    assert canonicalize("Andrena fulva (Müller, 1766)") == "andrena fulva"
+    assert normalize_scientific_name("Andrena fulva (Müller, 1766)") == "andrena fulva"
 
 
 def test_trinomial_subspecies_folds_to_binomial(fixture_con):
@@ -245,8 +245,8 @@ def test_trinomial_subspecies_folds_to_binomial(fixture_con):
     """).fetchone()
     assert canon is not None, "fixture missing trinomial occurrence seed row"
     assert canon[0] == "bombus melanopygus"
-    # Confirm via the canonicalize() helper too.
-    assert canonicalize("Bombus melanopygus mixtus") == "bombus melanopygus"
+    # Confirm via the normalize_scientific_name() helper too.
+    assert normalize_scientific_name("Bombus melanopygus mixtus") == "bombus melanopygus"
 
 
 def test_reconcile_synonym_override_updates_checklist(fixture_con, tmp_path, monkeypatch):
