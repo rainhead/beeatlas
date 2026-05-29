@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.4
 milestone_name: Pipeline Data Quality
 status: v4.3 milestone archived
-stopped_at: context exhaustion at 75% (2026-05-29)
-last_updated: "2026-05-29T17:32:09Z"
+stopped_at: Completed 123-02-PLAN.md (Phase 123 complete)
+last_updated: "2026-05-29T17:47:39Z"
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 15
-  completed_plans: 14
-  percent: 40
+  completed_plans: 15
+  percent: 50
 ---
 
 # Project State
@@ -32,10 +32,13 @@ Milestone v4.3 (Loading Performance) archived 2026-05-28. Ready to start next mi
 
 All v4.3 decisions logged in PROJECT.md Key Decisions table.
 
-Phase 123 Plan 01 decisions:
+Phase 123 decisions:
+
 - Moved occurrence_synonyms.csv to data/dbt/seeds/ (deleted data/occurrence_synonyms.csv); updated OCCURRENCE_SYNONYMS_PATH in canonical_name.py — one canonical file, no duplication
 - apply_synonym() kept in canonical_name.py (unit tests pass); only ingest-time callsites in checklist_pipeline and inat_obs_pipeline removed
-- Both pipeline ingest functions now write raw normalize_scientific_name() output; synonym application delegated to dbt int_combined LEFT JOIN (Plan 02)
+- Both pipeline ingest functions now write raw normalize_scientific_name() output; synonym application delegated to dbt int_combined LEFT JOIN
+- Per-arm LEFT JOIN (not leading CTE) in int_combined to avoid CTE scoping risk with UNION ALL
+- agapostemon texanus retained as checklist-only species row (occurrence_count=0, inat_obs_count=0) per research Pitfall 5 — test corrected accordingly
 
 ### Roadmap Evolution
 
@@ -65,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-29T17:32:09Z
-Stopped at: Completed 123-dbt-layer-occurrence-synonymy-01-PLAN.md
+Last session: 2026-05-29T17:47:39Z
+Stopped at: Completed 123-02-PLAN.md (Phase 123 dbt-layer occurrence synonymy complete)
 Resume file: None
