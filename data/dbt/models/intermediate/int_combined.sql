@@ -1,8 +1,11 @@
--- UNION ALL of ARM 1 (ecdysis FOJ samples + LEFT JOIN specimen_obs) and
--- ARM 2 (provisional WABA via ofv1718). Materialized as TABLE (not view) per
--- RESEARCH Pitfall 5: prevents re-evaluating the full UNION ALL on every spatial
--- join in the occurrences mart.
+-- UNION ALL of ARM 1 (ecdysis FOJ samples + LEFT JOIN specimen_obs),
+-- ARM 2 (provisional WABA via ofv1718), and ARM 3 (iNat expert observations).
+-- Materialized as TABLE (not view) per RESEARCH Pitfall 5: prevents re-evaluating
+-- the full UNION ALL on every spatial join in the occurrences mart.
 -- Mirrors export.py:135-197 (combined CTE).
+-- Phase 123 (SYN-02): synonymy applied via LEFT JOIN on ref('occurrence_synonyms')
+-- for ARM 1 (ecdysis) and ARM 3 (inat_obs); ARM 2 (provisional WABA) has
+-- NULL canonical_name (no scientific name) and is not joined.
 {{ config(materialized='table') }}
 
 -- ARM 1: Ecdysis rows (FULL OUTER JOIN preserved) with WABA specimen fields LEFT JOINed
@@ -37,7 +40,7 @@ SELECT
     sob.specimen_inat_family,
     sob.quality_grade                              AS specimen_inat_quality_grade,
     FALSE                                          AS is_provisional,
-    e.canonical_name,
+    COALESCE(syn_e.accepted_name, e.canonical_name) AS canonical_name,
     NULL                                           AS image_url,
     NULL                                           AS obs_url,
     NULL                                           AS user_login,
@@ -46,6 +49,7 @@ SELECT
 FROM {{ ref('int_ecdysis_base') }} e
 FULL OUTER JOIN {{ ref('int_samples_base') }} s ON e.host_observation_id = s.observation_id
 LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen_observation_id
+LEFT JOIN {{ ref('occurrence_synonyms') }} syn_e ON syn_e.synonym = e.canonical_name
 
 UNION ALL
 
@@ -129,11 +133,12 @@ SELECT
     NULL                               AS specimen_inat_family,
     NULL                               AS specimen_inat_quality_grade,
     FALSE                              AS is_provisional,
-    io.canonical_name,
+    COALESCE(syn_io.accepted_name, io.canonical_name) AS canonical_name,
     io.image_url,
     io.obs_url,
     io.user_login,
     io.license,
     'inat_obs'                         AS source
 FROM {{ source('inat_obs_data', 'observations') }} io
+LEFT JOIN {{ ref('occurrence_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
 WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL
