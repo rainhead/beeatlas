@@ -13,7 +13,7 @@ from pathlib import Path
 
 import duckdb
 
-from canonical_name import apply_synonym, canonicalize
+from canonical_name import normalize_scientific_name
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 CSV_PATH = Path(__file__).parent / "raw" / "inat_expert_obs.csv"
@@ -65,7 +65,7 @@ def load_inat_obs() -> None:
                     row.get("observed_on") or None,
                     float(row["latitude"]) if row.get("latitude") else None,
                     float(row["longitude"]) if row.get("longitude") else None,
-                    apply_synonym(canonicalize(sci_name)),
+                    normalize_scientific_name(sci_name),
                     sci_name,
                     row.get("user_login") or None,
                     row.get("image_url") or None,
