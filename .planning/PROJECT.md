@@ -1,5 +1,19 @@
 # Washington Bee Atlas
 
+## Current Milestone: v4.5 iNat Taxonomy & Species Completeness
+
+**Goal:** Expand the species universe to all observed species (managed, invasive, WA-native); assign stable iNat taxon IDs system-wide; remap occurrences of inactive taxa to accepted names; and lay groundwork for nested-set subtaxon queries.
+
+**Target features:**
+- All observed species appear in the species tree (fix 65 species / 1,745 occurrences currently invisible because `specific_epithet` comes only from WA checklist)
+- Stable iNat taxon IDs on all species and occurrences as disambiguation identifiers
+- Inactive taxon remapping — occurrences with inactive names remapped to current accepted name; unmappable ones flagged
+- Nested-set / MPTT groundwork — ancestor chain persisted for future subtaxon queries
+
+## Milestone: v4.4 Pipeline Data Quality — COMPLETE (2026-05-29)
+
+**Shipped:** Occurrence synonymy applied at dbt layer via `int_combined` LEFT JOIN on `occurrence_synonyms` seed; checklist arm in `stg_checklist__species` also applies synonymy; `agapostemon texanus → subtilior` (Portman et al. 2024) fully resolved; `occurrence_synonyms.csv` moved to `data/dbt/seeds/` as single canonical source.
+
 ## Milestone: v4.3 Loading Performance — COMPLETE (2026-05-28)
 
 **Shipped:** `occurrences.db` prebuilt SQLite DB replaces runtime hyparquet+INSERT loop; `geo_blob` pre-serialized table eliminates 92K WASM→JS callbacks; tablesReady 73% faster (930 ms → 250 ms), loading screen 40% faster (1460 ms → 875 ms). All 6 PERF requirements satisfied.
@@ -42,9 +56,9 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Requirements
 
-### Active (v4.3+)
+### Active (v4.5)
 
-*(No active requirements defined for next milestone yet — run /gsd-new-milestone)*
+*(Requirements being defined — see REQUIREMENTS.md)*
 
 ### Validated
 
@@ -400,4 +414,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-28 — after v4.3 milestone (Loading Performance)*
+*Last updated: 2026-05-29 — milestone v4.5 started (iNat Taxonomy & Species Completeness)*

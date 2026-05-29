@@ -1,30 +1,33 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.4
-milestone_name: Pipeline Data Quality
-status: v4.4 milestone complete — Phase 123 shipped 2026-05-29
-stopped_at: Phase 123 complete (all plans, tests green)
-last_updated: "2026-05-29T18:05:00Z"
+milestone: v4.5
+milestone_name: iNat Taxonomy & Species Completeness
+status: planning
+last_updated: "2026-05-29T22:25:15.439Z"
+last_activity: 2026-05-29
 progress:
-  total_phases: 10
-  completed_phases: 5
-  total_plans: 15
-  completed_plans: 15
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-28 after v4.3 milestone)
+See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone (v4.4)
+**Current focus:** Milestone v4.5 — iNat Taxonomy & Species Completeness
 
 ## Current Position
 
-Milestone v4.4 (Pipeline Data Quality) complete 2026-05-29. Phase 123 (dbt-layer occurrence synonymy) shipped — all plans complete, npm test + Python tests green. Ready for next milestone.
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-29 — Milestone v4.5 started
 
 ## Accumulated Context
 
