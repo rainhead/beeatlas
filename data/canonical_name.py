@@ -17,7 +17,9 @@ marker without a CONTEXT.md amendment.
 Imported by Phase 76 plans 03/05/06 and Phase 77 species aggregation.
 """
 
+import csv
 import re
+from pathlib import Path
 
 # Step 1 — strip authority. Two narrow patterns:
 #   (a) ",<year>..." (e.g., "Andrena fulva, 1766" or "Andrena fulva Müller, 1766")
@@ -37,6 +39,35 @@ _SUBGENUS_RE = re.compile(r"\s*\(\s*[A-Z][A-Za-zæ\-]+\s*\)\s*")
 # Step 3 — infraspecific markers. D-04 LOCKS this list to EXACTLY 5 markers.
 # DO NOT add any other marker without a CONTEXT.md amendment.
 _INFRA_MARKERS = ("ssp.", "var.", "aff.", "cf.", "nr.")
+
+
+# --- Post-canonicalization occurrence synonymy ---
+# Corrects known taxon synonymies in occurrence records from any data source.
+# Keys and values are canonical forms (output of canonicalize()).
+
+OCCURRENCE_SYNONYMS_PATH: Path = Path(__file__).parent / "occurrence_synonyms.csv"
+_SYNONYMS: dict[str, str] | None = None
+
+
+def _ensure_synonyms() -> dict[str, str]:
+    global _SYNONYMS
+    if _SYNONYMS is None:
+        _SYNONYMS = {}
+        if OCCURRENCE_SYNONYMS_PATH.exists():
+            with OCCURRENCE_SYNONYMS_PATH.open(newline="") as f:
+                for row in csv.DictReader(f):
+                    s = (row.get("synonym") or "").strip()
+                    a = (row.get("accepted_name") or "").strip()
+                    if s and a:
+                        _SYNONYMS[s] = a
+    return _SYNONYMS
+
+
+def apply_synonym(name: str | None) -> str | None:
+    """Map a known synonym to its accepted canonical name; return name unchanged if not known."""
+    if name is None:
+        return None
+    return _ensure_synonyms().get(name, name)
 
 
 def canonicalize(name: str | None) -> str | None:
