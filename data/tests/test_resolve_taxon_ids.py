@@ -608,6 +608,27 @@ def test_bridge_source_distinguishes_rank(resolver_db):
     ]
 
 
+def test_names_to_resolve_includes_inat_obs_source(resolver_db):
+    db_path, mod = resolver_db
+    con = duckdb.connect(db_path)
+    # No rows in checklist_data.species or ecdysis_data.occurrences.
+    # Only inat_obs_data.observations has a name.
+    con.execute("INSERT INTO inat_obs_data.observations VALUES ('ddd species')")
+    con.close()
+
+    responses = [
+        _fake_taxa_search_response([_matching_taxon(4, "ddd species")]),
+    ]
+    with patch(
+        "inaturalist_pipeline.requests.get", side_effect=responses
+    ) as mock_get:
+        mod.resolve_taxon_ids()
+
+    assert mock_get.call_count == 1
+    queries = [c.kwargs["params"]["q"] for c in mock_get.call_args_list]
+    assert queries == ["ddd species"]
+
+
 def test_lineage_coverage_threshold(fixture_con):
     """LIN-05: ≥95% of FULL OUTER union species have non-NULL family via taxon_lineage_extended.
 
