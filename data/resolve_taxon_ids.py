@@ -211,6 +211,22 @@ def resolve_taxon_ids(refresh: bool = False) -> None:
             f"resolve-taxon-ids: {n_resolved} cached, {len(unresolved)} unresolved "
             f"(see {UNRESOLVED_CSV.name})"
         )
+        taxa_path = str(Path(__file__).parent / "raw/taxa.csv.gz")
+        inactive = con.execute(f"""
+            SELECT b.canonical_name, b.taxon_id, t.name AS inat_name, t.active
+            FROM inaturalist_data.canonical_to_taxon_id b
+            LEFT JOIN read_csv('{taxa_path}', header=True) t
+                ON CAST(t.taxon_id AS INTEGER) = b.taxon_id
+            WHERE t.active = false
+            ORDER BY b.canonical_name
+        """).fetchall()
+        print(  # noqa: T201
+            f"resolve-taxon-ids: inactive taxon IDs in bridge: {len(inactive)}"
+        )
+        for row in inactive:
+            print(  # noqa: T201
+                f"  inactive: {row[0]} (taxon_id={row[1]}, inat_name={row[2]})"
+            )
     finally:
         con.close()
 
