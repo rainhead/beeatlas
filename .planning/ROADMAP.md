@@ -814,7 +814,7 @@ Plans:
 | 121. Prebuilt SQLite Load | v4.3 | 3/3 | Complete | 2026-05-27 |
 | 122. Worker GeoJSON Aggregation | v4.3 | 2/2 | Complete   | 2026-05-28 |
 | 123. dbt-Layer Occurrence Synonymy | v4.4 | 2/2 | Complete   | 2026-05-29 |
-| 124. Pre-Work & Contract Cleanup | v4.5 | — | Pending | — |
+| 124. Pre-Work & Contract Cleanup | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 125. Species Visibility | v4.5 | — | Pending | — |
 | 126. Taxon IDs | v4.5 | — | Pending | — |
 | 127. Inactive Taxon Remapping | v4.5 | — | Pending | — |
@@ -845,7 +845,7 @@ Plans:
 
 <!-- v4.5 iNat Taxonomy & Species Completeness — Phases 124–127 -->
 
-### Phase 124: Pre-Work & Contract Cleanup
+### Phase 124: Pre-Work & Contract Cleanup ✅ completed 2026-05-30
 
 **Goal**: Fix stale docstrings, close gap in taxon ID resolution coverage, and enumerate inactive taxon IDs to scope Phase 128 work
 **Depends on**: Phase 123
@@ -856,10 +856,9 @@ Plans:
   2. `resolve_taxon_ids.py` extended to cover iNat ARM 3 canonical names not yet in `canonical_to_taxon_id`; count of newly-resolved names documented
   3. Inactive taxon IDs in current `canonical_to_taxon_id` enumerated and count documented to scope Phase 128 work
 
-**Plans**: 1 plan
-
+**Plans**: 1/1 plans complete
 Plans:
-- [ ] 124-01-PLAN.md — Fix docstrings, extend resolver union to inat_obs, reorder STEPS, enumerate inactive taxon IDs
+- [x] 124-01-PLAN.md — Fix docstrings, extend resolver union to inat_obs, reorder STEPS, enumerate inactive taxon IDs
 
 ### Phase 125: Species Visibility
 

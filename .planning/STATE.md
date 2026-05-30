@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.5
-milestone_name: iNat Taxonomy & Species Completeness
-status: planning
-last_updated: "2026-05-29T23:30:00.000Z"
-last_activity: 2026-05-29
+milestone_name: milestone
+status: completed
+stopped_at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
+last_updated: "2026-05-30T00:38:00.798Z"
+last_activity: 2026-05-30 -- Phase 124 marked complete
 progress:
-  total_phases: 4
-  completed_phases: 0
-  total_plans: 1
-  completed_plans: 0
-  percent: 0
+  total_phases: 14
+  completed_phases: 6
+  total_plans: 16
+  completed_plans: 16
+  percent: 43
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Milestone v4.5 — iNat Taxonomy & Species Completeness
+**Current focus:** Phase 124 — pre-work-contract-cleanup
 
 ## Current Position
 
-Phase: 124 of 4 — Pre-Work & Contract Cleanup (planned — ready to execute)
-Plan: 124-01 (1 plan, wave 1)
-Status: Ready to execute Phase 124
-Last activity: 2026-05-29 — Phase 124 planned (1 plan, 2 tasks)
+Phase: 124 — COMPLETE
+Plan: 1 of 1
+Status: Phase 124 complete
+Last activity: 2026-05-30 -- Phase 124 marked complete
 
 ## Accumulated Context
 
