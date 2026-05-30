@@ -1,6 +1,6 @@
 """Phase 77 — resolve canonical_name → iNat taxon_id, persist as bridge table.
 
-Source SQL: FULL OUTER union of checklist + ecdysis canonical_name LEFT JOIN bridge.
+Source SQL: FULL OUTER union of checklist + ecdysis + inat_obs canonical_name LEFT JOIN bridge.
 Pacing + retry: reuses _inat_get_with_retry from inaturalist_pipeline.
 Unresolved: data/lineage_unresolved.csv with (canonical_name, reason, attempted_at).
 """
@@ -47,7 +47,7 @@ def _read_unresolved_csv() -> set[str]:
 
 
 def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str]:
-    """FULL OUTER union of canonical names LEFT JOIN bridge, filtered by what's missing.
+    """FULL OUTER union of canonical names (checklist + ecdysis + inat_obs) LEFT JOIN bridge, filtered by what's missing.
 
     Default run: skips names already recorded in lineage_unresolved.csv — they are
     known failures and retrying them nightly wastes ~1s per name with no benefit.
@@ -61,6 +61,9 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
             WHERE canonical_name IS NOT NULL
             UNION
             SELECT DISTINCT canonical_name FROM ecdysis_data.occurrences
+            WHERE canonical_name IS NOT NULL
+            UNION
+            SELECT DISTINCT canonical_name FROM inat_obs_data.observations
             WHERE canonical_name IS NOT NULL
         )
         SELECT u.canonical_name
