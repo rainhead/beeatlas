@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.5
-milestone_name: milestone
-status: completed
+milestone_name: "Liveness: Provisional Specimen Records"
+status: executing
 stopped_at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
-last_updated: "2026-05-30T00:38:00.798Z"
-last_activity: 2026-05-30 -- Phase 124 marked complete
+last_updated: "2026-05-30T05:46:14.643Z"
+last_activity: 2026-05-30 -- Phase 125 planning complete
 progress:
   total_phases: 14
   completed_phases: 6
-  total_plans: 16
+  total_plans: 17
   completed_plans: 16
   percent: 43
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 Phase: 124 — COMPLETE
 Plan: 1 of 1
-Status: Phase 124 complete
-Last activity: 2026-05-30 -- Phase 124 marked complete
+Status: Ready to execute
+Last activity: 2026-05-30 -- Phase 125 planning complete
 
 ## Accumulated Context
 
