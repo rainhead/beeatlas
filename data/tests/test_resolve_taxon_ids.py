@@ -80,6 +80,8 @@ def resolver_db(tmp_path, monkeypatch):
     con.execute("CREATE SCHEMA inaturalist_data")
     con.execute("CREATE TABLE checklist_data.species (canonical_name TEXT)")
     con.execute("CREATE TABLE ecdysis_data.occurrences (canonical_name TEXT)")
+    con.execute("CREATE SCHEMA inat_obs_data")
+    con.execute("CREATE TABLE inat_obs_data.observations (canonical_name TEXT)")
     # Bridge created lazily by resolve_taxon_ids via CREATE TABLE IF NOT EXISTS.
     con.close()
     return db_path, resolve_taxon_ids

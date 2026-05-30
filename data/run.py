@@ -5,8 +5,8 @@ Usage:
 
 Pipelines are executed in this order:
     ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
-    anti-entropy -> checklist -> resolve-taxon-ids -> taxa-download ->
-    taxon-lineage-extended -> places-validation -> places-load -> inat-obs ->
+    anti-entropy -> checklist -> inat-obs -> resolve-taxon-ids -> taxa-download ->
+    taxon-lineage-extended -> places-validation -> places-load ->
     dbt-build -> generate-sqlite -> topology-postprocess -> species-export ->
     species-maps -> places-export -> places-maps -> feeds
 
@@ -89,12 +89,12 @@ STEPS: list[tuple[str, Callable]] = [
     ("projects", load_projects),
     ("anti-entropy", run_anti_entropy),
     ("checklist", load_checklist),
+    ("inat-obs", load_inat_obs),
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
     ("taxa-download", download_taxa_csv),
     ("taxon-lineage-extended", load_taxon_lineage_extended),
     ("places-validation", validate_places_step),
     ("places-load", load_places_step),
-    ("inat-obs", load_inat_obs),
     ("dbt-build", _run_dbt_build),
     ("generate-sqlite", generate_sqlite_export),
     ("topology-postprocess", clean_region_topology),
