@@ -856,7 +856,10 @@ Plans:
   2. `resolve_taxon_ids.py` extended to cover iNat ARM 3 canonical names not yet in `canonical_to_taxon_id`; count of newly-resolved names documented
   3. Inactive taxon IDs in current `canonical_to_taxon_id` enumerated and count documented to scope Phase 128 work
 
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 124-01-PLAN.md — Fix docstrings, extend resolver union to inat_obs, reorder STEPS, enumerate inactive taxon IDs
 
 ### Phase 125: Species Visibility
 
