@@ -246,3 +246,44 @@ def test_source_no_nulls():
         WHERE source NOT IN ('ecdysis', 'waba_sample', 'inat_obs')
     """).fetchone()
     assert row[0] == 0, f"Found {row[0]} rows with unexpected source values"
+
+
+# ---------------------------------------------------------------------------
+# species.parquet assertions (SPV-01)
+# ---------------------------------------------------------------------------
+
+_SPECIES_GUARD = pytest.mark.skipif(
+    not (SANDBOX / "species.parquet").exists(),
+    reason="run `bash data/dbt/run.sh build` first",
+)
+
+
+@_SPECIES_GUARD
+def test_off_checklist_species_with_occurrences_have_specific_epithet():
+    """All two-token off-checklist species with occurrence_count > 0 have specific_epithet (SPV-01)."""
+    parquet_path = str(SANDBOX / "species.parquet")
+    n = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') "
+        "WHERE occurrence_count > 0 AND on_checklist = false "
+        "AND ARRAY_LENGTH(STRING_SPLIT(canonical_name, ' ')) = 2 "
+        "AND specific_epithet IS NULL"
+    ).fetchone()[0]
+    assert n == 0, (
+        f"Expected 0 two-token off-checklist species with occurrences to lack specific_epithet, "
+        f"got {n}. Fix COALESCE derivation in int_species_universe.sql."
+    )
+
+
+@_SPECIES_GUARD
+def test_off_checklist_species_scientificname_capitalized():
+    """Off-checklist species with two-token canonical names have capitalized scientificName (SPV-01)."""
+    parquet_path = str(SANDBOX / "species.parquet")
+    n = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') "
+        "WHERE occurrence_count > 0 AND on_checklist = false "
+        "AND ARRAY_LENGTH(STRING_SPLIT(canonical_name, ' ')) = 2 "
+        "AND scientificName != upper(left(scientificName, 1)) || substring(scientificName, 2)"
+    ).fetchone()[0]
+    assert n == 0, (
+        f"Expected 0 off-checklist species with lowercase scientificName, got {n}."
+    )
