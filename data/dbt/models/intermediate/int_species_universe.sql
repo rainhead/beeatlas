@@ -76,7 +76,11 @@ geo_agg AS (
 ),
 species_universe AS (
     SELECT
-        COALESCE(c.scientificName, oa.canonical_name) AS scientificName,
+        COALESCE(
+            c.scientificName,
+            upper(left(COALESCE(c.canonical_name, oa.canonical_name), 1)) ||
+            substring(COALESCE(c.canonical_name, oa.canonical_name), 2)
+        ) AS scientificName,
         COALESCE(c.canonical_name, oa.canonical_name) AS canonical_name,
         COALESCE(c.family, tle.family) AS family,
         COALESCE(c.subfamily, tle.subfamily) AS subfamily,
@@ -87,7 +91,10 @@ species_universe AS (
             split_part(COALESCE(c.canonical_name, oa.canonical_name), ' ', 1)
         ) AS genus,
         COALESCE(c.subgenus, tle.subgenus) AS subgenus,
-        c.specific_epithet AS specific_epithet,
+        COALESCE(
+            c.specific_epithet,
+            NULLIF(split_part(COALESCE(c.canonical_name, oa.canonical_name), ' ', 2), '')
+        ) AS specific_epithet,
         c.scientificName IS NOT NULL AS on_checklist,
         c.status AS status,
         COALESCE(oa.occurrence_count, 0) AS occurrence_count,
