@@ -815,7 +815,7 @@ Plans:
 | 122. Worker GeoJSON Aggregation | v4.3 | 2/2 | Complete   | 2026-05-28 |
 | 123. dbt-Layer Occurrence Synonymy | v4.4 | 2/2 | Complete   | 2026-05-29 |
 | 124. Pre-Work & Contract Cleanup | v4.5 | 1/1 | Complete   | 2026-05-30 |
-| 125. Species Visibility | v4.5 | — | Pending | — |
+| 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 126. Taxon IDs | v4.5 | — | Pending | — |
 | 127. Inactive Taxon Remapping | v4.5 | — | Pending | — |
 
@@ -874,7 +874,7 @@ Plans:
 **Plans**: 1 plan
 Plans:
 
-- [ ] 125-01-PLAN.md — Derive specific_epithet + capitalized scientificName for off-checklist species in int_species_universe.sql; Wave 0 RED tests + GREEN SQL fix + human SPV-02/SPV-03 verification
+- [x] 125-01-PLAN.md — Derive specific_epithet + capitalized scientificName for off-checklist species in int_species_universe.sql; Wave 0 RED tests + GREEN SQL fix + human SPV-02/SPV-03 verification
 
 ### Phase 126: Taxon IDs
 
