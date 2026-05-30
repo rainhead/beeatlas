@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
-status: executing
+status: verifying
 stopped_at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
-last_updated: "2026-05-30T05:46:14.643Z"
-last_activity: 2026-05-30 -- Phase 125 planning complete
+last_updated: "2026-05-30T16:11:41.832Z"
+last_activity: 2026-05-30
 progress:
   total_phases: 14
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 17
-  completed_plans: 16
-  percent: 43
+  completed_plans: 17
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 124 — pre-work-contract-cleanup
+**Current focus:** Phase 125 — species-visibility
 
 ## Current Position
 
-Phase: 124 — COMPLETE
+Phase: 125 (species-visibility) — EXECUTING
 Plan: 1 of 1
-Status: Ready to execute
-Last activity: 2026-05-30 -- Phase 125 planning complete
+Status: Phase complete — ready for verification
+Last activity: 2026-05-30
 
 ## Accumulated Context
 
@@ -72,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-29T23:00:00Z
+Last session: 2026-05-30T16:11:41.824Z
 Stopped at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
 Resume file: None
