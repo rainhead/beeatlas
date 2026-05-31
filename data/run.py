@@ -34,7 +34,7 @@ from taxa_pipeline import download_taxa_csv, load_taxon_lineage_extended
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from checklist_pipeline import load_checklist
-from resolve_taxon_ids import resolve_taxon_ids
+from resolve_taxon_ids import resolve_taxon_ids, check_resolution_gate
 from species_export import main as export_species_parquet
 from species_maps import main as generate_species_maps
 from feeds import main as generate_feeds
@@ -91,6 +91,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("checklist", load_checklist),
     ("inat-obs", load_inat_obs),
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
+    ("resolution-gate", check_resolution_gate),       # D-02: fail fast on unresolved bee names
     ("taxa-download", download_taxa_csv),
     ("taxon-lineage-extended", load_taxon_lineage_extended),
     ("places-validation", validate_places_step),

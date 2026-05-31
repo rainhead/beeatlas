@@ -11,6 +11,7 @@ Run after ``bash data/dbt/run.sh build``:
     cd data && uv run pytest tests/test_species_export.py -x
 """
 
+import json
 from pathlib import Path
 
 import duckdb
@@ -20,10 +21,16 @@ import species_export as se_mod
 from species_export import export_species_parquet, SPECIES_COLUMNS
 
 SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
+SPECIES_JSON = Path(__file__).resolve().parent.parent.parent / "public" / "data" / "species.json"
 
 _SANDBOX_GUARD = pytest.mark.skipif(
     not (SANDBOX / "species.parquet").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox species.parquet",
+)
+
+_SPECIES_JSON_GUARD = pytest.mark.skipif(
+    not SPECIES_JSON.exists(),
+    reason="run `uv run python data/species_export.py` first to produce public/data/species.json",
 )
 
 
@@ -81,3 +88,18 @@ def test_inat_obs_count_in_species(tmp_path, monkeypatch):
     ).fetchone()
     assert row[0] == 0, f"species.parquet has {row[0]} rows with null inat_obs_count"
     assert 'inat_obs_count' in SPECIES_COLUMNS, "inat_obs_count must be in SPECIES_COLUMNS"
+
+
+@_SPECIES_JSON_GUARD
+def test_taxon_id(tmp_path):
+    """Every species entry in public/data/species.json has a non-null integer taxon_id (TID-03)."""
+    rows = json.loads(SPECIES_JSON.read_text(encoding='utf-8'))
+    assert rows, "species.json must be non-empty"
+    for row in rows:
+        tid = row.get('taxon_id')
+        assert tid is not None, (
+            f"species.json row missing taxon_id: canonical_name={row.get('canonical_name')!r}"
+        )
+        assert isinstance(tid, int), (
+            f"species.json taxon_id is not an integer for {row.get('canonical_name')!r}: {tid!r}"
+        )

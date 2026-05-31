@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.5
-milestone_name: milestone
-status: completed
-stopped_at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
-last_updated: "2026-05-30T16:17:12.990Z"
-last_activity: 2026-05-30 -- Phase 125 marked complete
+milestone_name: "Liveness: Provisional Specimen Records"
+status: ready_to_plan
+stopped_at: Phase 126 complete (3/3) — ready to discuss Phase 127
+last_updated: 2026-05-31T21:57:50.560Z
+last_activity: 2026-05-31
 progress:
   total_phases: 14
-  completed_phases: 7
-  total_plans: 17
-  completed_plans: 17
-  percent: 50
+  completed_phases: 8
+  total_plans: 20
+  completed_plans: 42
+  percent: 57
 ---
 
 # Project State
@@ -21,20 +21,38 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 125 — species-visibility
+**Current focus:** Phase 127 — inactive taxon remapping
 
 ## Current Position
 
-Phase: 125 — COMPLETE
-Plan: 1 of 1
-Status: Phase 125 complete
-Last activity: 2026-05-30 -- Phase 125 marked complete
+Phase: 127
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-05-31
 
 ## Accumulated Context
 
 ### Decisions
 
 All v4.3 decisions logged in PROJECT.md Key Decisions table.
+
+Phase 126 Plan 3 decisions:
+
+- taxon-action class uses display:block + width:fit-content to keep action links on separate lines without a flex wrapper; applied to all four taxon templates for consistency
+- CSS rule placed in taxon-pages.css under .taxon-page .taxon-action to stay scoped to taxon page context
+
+Phase 126 Plan 2 decisions:
+
+- taxa.csv.gz active column is BOOLEAN (not string); DuckDB query uses active=true; higher_rank_taxon_ids.json gitignored consistent with species.json treatment
+- Rank filter in _build_higher_rank_taxon_ids resolves Bombus genus/subgenus name collision (T-126-05); each rank dict holds only its rank's taxon_id
+- test_dbt_diff.py occurrences diff tests have pre-existing failures (require full pipeline run to populate public/data/); unrelated to plan 02 scope
+
+Phase 126 Plan 1 decisions:
+
+- D-01 enforced by resolution gate in production; species mart uses strict dbt NOT NULL constraint; occurrences mart uses severity:warn data_test (not hard constraint) due to 3 pre-existing unresolvable ecdysis species (anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae — 0 iNat API results)
+- KNOWN_NON_BEES = {"cicindela pugetana", "cleridae", "encopognathus"} — confirmed non-bee WABA bycatch excluded from occurrences ARM 2 via WHERE filter; reported by gate (D-09)
+- Resolution union extended: dbt_sandbox.occurrence_synonyms (not main) and inaturalist_waba_data.observations (not inat_waba_data) — PATTERNS.md schema references were incorrect
+- int_combined taxon_id uses ::INTEGER cast (BIGINT source); WABA canonical_name uses ::VARCHAR cast; aliases ctt/ctt_w/ctt_io avoid collision in UNION ALL
 
 Phase 123 decisions:
 
@@ -72,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-30T16:11:41.824Z
-Stopped at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
+Last session: 2026-05-31T21:43:18.040Z
+Stopped at: Phase 126 complete — iNaturalist taxon links on all four taxon pages shipped
 Resume file: None

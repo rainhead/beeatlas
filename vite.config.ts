@@ -21,4 +21,10 @@ export default defineConfig({
     // (.claude/worktrees/ and .claire/worktrees/ hold snapshots from prior agent runs; _site/ is build output.)
     exclude: ['**/node_modules/**', '**/.claude/**', '**/.claire/**', '**/_site/**', '**/dist/**'],
   },
+  // NOTE: `server.*` (e.g. allowedHosts) does NOT belong here. The dev
+  // server is `eleventy --serve`, which runs Vite in middleware mode via
+  // @11ty/eleventy-plugin-vite rooted at `.11ty-vite/` — this file is never
+  // loaded on that path. Set dev-server options in eleventy.config.js under
+  // `viteOptions.server` instead. (This file is read by `vitest` and by
+  // production `vite build`/`vite preview` only.)
 });
