@@ -18,8 +18,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 const speciesJsonPath = join(repoRoot, 'public/data/species.json');
 const seasonalityJsonPath = join(repoRoot, 'public/data/seasonality.json');
+const higherRankTaxonIdsPath = join(repoRoot, 'public/data/higher_rank_taxon_ids.json');
 
 const raw = JSON.parse(readFileSync(speciesJsonPath, 'utf8'));
+const higherRankTaxonIds = JSON.parse(readFileSync(higherRankTaxonIdsPath, 'utf8'));
 
 // Derive county and ecoregion_l3 option lists from seasonality.json keys.
 // Keys are shaped 'county:<name>' and 'ecoregion_l3:<name>' per Phase 78
@@ -149,6 +151,7 @@ const genusList = Object.values(genusMap)
       species,
       speciesCount: speciesOnly.length,
       totalOccurrences: speciesOnly.reduce((acc, sp) => acc + sp.occurrence_count, 0) + unresolvedOccurrences,
+      taxon_id: higherRankTaxonIds.genus[g.genus] ?? null,
     };
   });
 
@@ -217,6 +220,7 @@ const subgenusList = Object.values(subgenusMap)
       speciesCount: speciesOnly.length,
       totalOccurrences: withOcc.reduce((acc, sp) => acc + sp.occurrence_count, 0),
       checklistCount,
+      taxon_id: higherRankTaxonIds.subgenus[g.subgenus] ?? null,
     };
   })
   .filter(g => g.totalOccurrences > 0 || g.checklistCount > 0);
@@ -255,6 +259,7 @@ const tribeList = Object.values(tribeMap)
       genera,
       generaCount: genera.length,
       totalOccurrences,
+      taxon_id: higherRankTaxonIds.tribe[t.tribe] ?? null,
     };
   })
   .filter(t => t.totalOccurrences > 0);
