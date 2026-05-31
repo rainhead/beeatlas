@@ -97,7 +97,7 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
             SELECT DISTINCT canonical_name FROM inat_obs_data.observations
             WHERE canonical_name IS NOT NULL
             UNION
-            SELECT DISTINCT accepted_name AS canonical_name FROM main.occurrence_synonyms
+            SELECT DISTINCT accepted_name AS canonical_name FROM dbt_sandbox.occurrence_synonyms
             WHERE accepted_name IS NOT NULL
             UNION
             SELECT DISTINCT lower(trim(
@@ -107,7 +107,7 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
                      ELSE trim(taxon__name)
                 END
             )) AS canonical_name
-            FROM inat_waba_data.observations
+            FROM inaturalist_waba_data.observations
             WHERE taxon__name IS NOT NULL
         )
         SELECT u.canonical_name
