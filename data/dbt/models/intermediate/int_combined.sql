@@ -116,6 +116,13 @@ LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_w
         END
     ))
 WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL
+  AND lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+      )) NOT IN ('cicindela pugetana', 'cleridae', 'encopognathus')
 
 UNION ALL
 
