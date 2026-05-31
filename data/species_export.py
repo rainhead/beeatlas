@@ -1,11 +1,12 @@
 """Export per-species aggregates and JSON sidecars for the Species Tab.
 
 Reads dbt-produced sandbox/species.parquet and sandbox/occurrences.parquet,
-adds slug via domain.slugify, emits four artifacts:
-  - species.parquet    (21 cols incl. slug)
-  - species.json       (flat array — Eleventy _data/species.js consumer)
-  - seasonality.json   (species → bucket → INT[12] — VIZ-04 lookup)
-  - photos.json        (per-species CC-licensed iNat photo list — D-07/D-08)
+adds slug via domain.slugify, emits five artifacts:
+  - species.parquet              (22 cols incl. taxon_id + slug)
+  - species.json                 (flat array — Eleventy _data/species.js consumer)
+  - seasonality.json             (species → bucket → INT[12] — VIZ-04 lookup)
+  - photos.json                  (per-species CC-licensed iNat photo list — D-07/D-08)
+  - higher_rank_taxon_ids.json   (genus/subgenus/tribe name → taxon_id — D-06)
 
 Run AFTER ``bash data/dbt/run.sh build`` (which writes
 DBT_SANDBOX_DIR/species.parquet and DBT_SANDBOX_DIR/occurrences.parquet).
@@ -45,14 +46,15 @@ DBT_SANDBOX_DIR = Path(os.environ.get(
 ))
 
 
-# AGG-02: 21 columns in canonical order. Used for both parquet schema and the
+# AGG-02: 22 columns in canonical order. Used for both parquet schema and the
 # JSON projection so the two artifacts agree on key ordering.
 SPECIES_COLUMNS = [
     'scientificName', 'canonical_name', 'family', 'subfamily', 'tribe',
     'genus', 'subgenus', 'specific_epithet', 'on_checklist', 'status',
     'occurrence_count', 'specimen_count', 'provisional_count',
     'first_occurrence_date', 'last_occurrence_date', 'month_histogram',
-    'county_count', 'ecoregion_count', 'checklist_count', 'inat_obs_count', 'slug',
+    'county_count', 'ecoregion_count', 'checklist_count', 'inat_obs_count',
+    'taxon_id', 'slug',
 ]
 
 _ZERO_HIST = [0] * 12
@@ -80,19 +82,43 @@ def _jsonify_rows(rows: list[dict]) -> list[dict]:
     return out
 
 
+def _build_higher_rank_taxon_ids(con: duckdb.DuckDBPyConnection) -> dict:
+    """Query taxa.csv.gz for genus/subgenus/tribe taxon_ids by name (D-06).
+
+    Filters to active=true rows at genus/subgenus/tribe rank. The rank filter
+    resolves the same-name genus/subgenus collision (e.g. Bombus appears as
+    both genus and subgenus; each rank dict holds only that rank's id) — T-126-05.
+
+    Returns: {"genus": {name: int}, "subgenus": {name: int}, "tribe": {name: int}}
+    """
+    taxa_csv = str(Path(__file__).parent / "raw" / "taxa.csv.gz")
+    rows = con.execute(
+        "SELECT name, rank, taxon_id "
+        "FROM read_csv(?, delim=chr(9), header=true, compression='gzip') "
+        "WHERE rank IN ('genus', 'subgenus', 'tribe') AND active = true",
+        [taxa_csv]
+    ).fetchall()
+    result: dict = {"genus": {}, "subgenus": {}, "tribe": {}}
+    for name, rank, tid in rows:
+        if rank in result:
+            result[rank][name] = int(tid)
+    return result
+
+
 def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     """Build species.parquet + species.json + seasonality.json + photos.json.
 
-    Reads ``DBT_SANDBOX_DIR/species.parquet`` (20 cols, produced by
+    Reads ``DBT_SANDBOX_DIR/species.parquet`` (21 cols incl. taxon_id, produced by
     ``bash data/dbt/run.sh build``) and appends a ``slug`` column via
     ``domain.slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
     for the per-occurrence seasonality bucket accumulation.
 
-    Writes four artifacts to ASSETS_DIR:
-      - species.parquet  (21 cols including slug)
-      - species.json     (json.dumps sort_keys=True, indent=2)
-      - seasonality.json (json.dumps sort_keys=True, separators=(',', ':'))
-      - photos.json      (CC-licensed iNat obs photos, keyed by canonical_name)
+    Writes five artifacts to ASSETS_DIR:
+      - species.parquet             (22 cols including taxon_id + slug)
+      - species.json                (json.dumps sort_keys=True, indent=2)
+      - seasonality.json            (json.dumps sort_keys=True, separators=(',', ':'))
+      - photos.json                 (CC-licensed iNat obs photos, keyed by canonical_name)
+      - higher_rank_taxon_ids.json  (genus/subgenus/tribe name → taxon_id, D-06)
 
     The write path (ASSETS_DIR) is controlled by the EXPORT_DIR env var.
     The read path (DBT_SANDBOX_DIR) defaults to data/dbt/target/sandbox and
@@ -114,7 +140,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
 
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Read the 20-col dbt mart (no slug). Exclude the last SPECIES_COLUMNS entry
+    # Read the 21-col dbt mart (no slug). Exclude the last SPECIES_COLUMNS entry
     # ('slug') since the dbt mart does not have it yet.
     mart_cols = ', '.join(SPECIES_COLUMNS[:-1])
     fetched = con.execute(
@@ -169,6 +195,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
         ('ecoregion_count', pa.int64()),
         ('checklist_count', pa.int64()),
         ('inat_obs_count', pa.int64()),
+        ('taxon_id', pa.int32()),
         ('slug', pa.string()),
     ])
     table = pa.table(columns, schema=schema)
@@ -268,6 +295,27 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
         encoding='utf-8',
     )
     print(f"  photos.json: {len(photos):,} species, {photos_out.stat().st_size:,} bytes")
+
+    # ---- D-06: higher_rank_taxon_ids.json -----------------------------------
+    # genus/subgenus/tribe name → taxon_id lookup for higher-rank iNat links.
+    # Built from taxa.csv.gz (active rows only); rank filter resolves the
+    # genus==subgenus name collision (T-126-05 mitigation).
+    higher_rank = _build_higher_rank_taxon_ids(con)
+    higher_rank_out = ASSETS_DIR / "higher_rank_taxon_ids.json"
+    higher_rank_out.write_text(
+        json.dumps(higher_rank, sort_keys=True, indent=2),
+        encoding='utf-8',
+    )
+    genus_count = len(higher_rank.get("genus", {}))
+    tribe_count = len(higher_rank.get("tribe", {}))
+    print(
+        f"  higher_rank_taxon_ids.json: {genus_count:,} genera, "
+        f"{len(higher_rank.get('subgenus', {})):,} subgenera, "
+        f"{tribe_count:,} tribes, "
+        f"{higher_rank_out.stat().st_size:,} bytes"
+    )
+    assert genus_count > 0, "higher_rank_taxon_ids.json: genus dict must be non-empty"
+    assert tribe_count > 0, "higher_rank_taxon_ids.json: tribe dict must be non-empty"
 
 
 def main() -> None:
