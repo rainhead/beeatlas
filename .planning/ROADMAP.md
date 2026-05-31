@@ -858,6 +858,7 @@ Plans:
 
 **Plans**: 1/1 plans complete
 Plans:
+
 - [x] 124-01-PLAN.md — Fix docstrings, extend resolver union to inat_obs, reorder STEPS, enumerate inactive taxon IDs
 
 ### Phase 125: Species Visibility
@@ -890,8 +891,16 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 126-01-PLAN.md — dbt data layer: taxon_id through int models + marts, NOT NULL contract (21/37 cols), resolution-union extension + pre-build gate, Wave-0 tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 126-02-PLAN.md — Python export: taxon_id in species_export.py + higher_rank_taxon_ids.json from taxa.csv.gz; doc/test-count corrections (D-08)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 126-03-PLAN.md — frontend: thread taxon_id through _data/species.js; 'View on iNaturalist' link on species/genus/subgenus/tribe pages
 
 ### Phase 127: Inactive Taxon Remapping
