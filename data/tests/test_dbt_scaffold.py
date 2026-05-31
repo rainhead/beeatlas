@@ -287,3 +287,50 @@ def test_off_checklist_species_scientificname_capitalized():
     assert n == 0, (
         f"Expected 0 off-checklist species with lowercase scientificName, got {n}."
     )
+
+
+@_SPECIES_GUARD
+def test_species_taxon_id_non_null():
+    """species.parquet: zero rows with null taxon_id (TID-01)."""
+    parquet_path = str(SANDBOX / "species.parquet")
+    n = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE taxon_id IS NULL"
+    ).fetchone()[0]
+    assert n == 0, f"Expected 0 null taxon_id rows in species.parquet, got {n}"
+
+
+@_OCCURRENCES_GUARD
+def test_occurrences_taxon_id_non_null():
+    """occurrences.parquet: zero rows with null taxon_id for species-level (two-token) canonical names (TID-02).
+
+    Genus-only (one-token) and NULL canonical_name rows are excluded — those records
+    have always had null taxon_id and are covered by the resolution gate in the pipeline.
+    Known unresolvable species: anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae
+    (ecdysis data quality issues — not in iNat taxonomy; tracked in lineage_unresolved.csv).
+    """
+    parquet_path = str(SANDBOX / "occurrences.parquet")
+    # Exclude known ecdysis data-quality names that cannot be resolved via iNat API
+    _KNOWN_UNRESOLVABLE = (
+        "'anthidiellum robertsoni', 'lasioglossum aspilurus', 'osmia phaceliae'"
+    )
+    n = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') "
+        f"WHERE canonical_name LIKE '% %' "
+        f"AND canonical_name NOT IN ({_KNOWN_UNRESOLVABLE}) "
+        f"AND taxon_id IS NULL"
+    ).fetchone()[0]
+    assert n == 0, f"Expected 0 null taxon_id rows for species-level occurrences, got {n}"
+
+
+@_OCCURRENCES_GUARD
+@_SPECIES_GUARD
+def test_taxon_id_consistency():
+    """occurrences.taxon_id == species.taxon_id for matching canonical_names (D-03)."""
+    occ_path = str(SANDBOX / "occurrences.parquet")
+    sp_path = str(SANDBOX / "species.parquet")
+    n = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{occ_path}') o
+        JOIN read_parquet('{sp_path}') s USING (canonical_name)
+        WHERE o.taxon_id != s.taxon_id
+    """).fetchone()[0]
+    assert n == 0, f"Expected 0 taxon_id mismatches between occurrences and species, got {n}"

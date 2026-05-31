@@ -51,10 +51,10 @@ def test_occurrences_row_count_matches():
 
 @_SANDBOX_GUARD
 def test_occurrences_schema_matches():
-    """Column names AND types from DESCRIBE match exactly between sandbox and public (36 cols).
+    """Column names AND types from DESCRIBE match exactly between sandbox and public (37 cols).
 
     Asserts the full ordered list of (column_name, data_type) pairs is identical.
-    Verified baseline: 36 columns with identical names and types in both files.
+    Verified baseline: 37 columns with identical names and types in both files.
     """
     s_cols = [
         (r[0], r[1])
@@ -260,12 +260,27 @@ def test_counties_geojson_feature_count_matches():
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
 )
 def test_ecoregions_geojson_feature_count_matches():
-    """ecoregions.geojson has the same feature count in sandbox and public/data (both 66)."""
+    """public ecoregions.geojson keeps every distinct L3 region from the sandbox.
+
+    topology-postprocess (mapshaper -clean gap-fill-area=0.01km2, #14) intentionally
+    folds sub-hectare sliver polygons into surrounding water, so public has the
+    same-or-fewer features than the pre-postprocess sandbox (currently 64 of 66 —
+    2 sub-hectare "Strait of Georgia/Puget Lowland" rocks dropped). The invariant is
+    therefore NOT equal counts but that simplification never drops a whole named L3
+    region: public <= sandbox AND the distinct NA_L3NAME set is preserved.
+    """
     s = json.loads((SANDBOX / "ecoregions.geojson").read_text())
     p = json.loads((PUBLIC / "ecoregions.geojson").read_text())
-    assert len(s["features"]) == len(p["features"]), (
-        f"ecoregions.geojson feature count mismatch: sandbox={len(s['features'])}, "
-        f"public={len(p['features'])}"
+    s_names = {f["properties"]["NA_L3NAME"] for f in s["features"]}
+    p_names = {f["properties"]["NA_L3NAME"] for f in p["features"]}
+    assert len(p["features"]) <= len(s["features"]), (
+        f"public ecoregions has MORE features than sandbox: "
+        f"sandbox={len(s['features'])}, public={len(p['features'])}"
+    )
+    assert s_names == p_names, (
+        f"topology-postprocess dropped a whole L3 region.\n"
+        f"Only in sandbox: {sorted(s_names - p_names)}\n"
+        f"Only in public:  {sorted(p_names - s_names)}"
     )
 
 
@@ -281,20 +296,25 @@ def test_ecoregions_geojson_feature_count_matches():
     ],
 )
 def test_geojson_property_names_match(filename, prop):
-    """Sorted property-value lists are exactly equal between sandbox and public/data.
+    """The distinct set of region names is identical between sandbox and public/data.
 
-    For counties: checks the NAME property (39 WA county names).
-    For ecoregions: checks the NA_L3NAME property (66 L3 ecoregion names).
-    Verified baseline: name lists match exactly in both files.
+    For counties: the NAME property (39 WA county names, each unique).
+    For ecoregions: the NA_L3NAME property (9 distinct L3 region names).
+
+    Compares distinct SETS, not per-feature lists: topology-postprocess folds
+    sub-hectare sliver polygons (extra duplicate-named features) into surrounding
+    water, so per-feature multisets can legitimately differ between sandbox and
+    public, but no distinct region name may appear or disappear. Counties have one
+    feature per name, so set-equality is equivalent to list-equality there.
     """
     s_data = json.loads((SANDBOX / filename).read_text())
     p_data = json.loads((PUBLIC / filename).read_text())
-    s_names = sorted(f["properties"][prop] for f in s_data["features"])
-    p_names = sorted(f["properties"][prop] for f in p_data["features"])
+    s_names = {f["properties"][prop] for f in s_data["features"]}
+    p_names = {f["properties"][prop] for f in p_data["features"]}
     assert s_names == p_names, (
-        f"{filename} '{prop}' name lists differ.\n"
-        f"Only in sandbox: {[n for n in s_names if n not in p_names]}\n"
-        f"Only in public:  {[n for n in p_names if n not in s_names]}"
+        f"{filename} '{prop}' distinct name sets differ.\n"
+        f"Only in sandbox: {sorted(s_names - p_names)}\n"
+        f"Only in public:  {sorted(p_names - s_names)}"
     )
 
 
@@ -325,11 +345,11 @@ def test_species_parquet_row_count_matches():
 def test_species_parquet_schema_matches():
     """Public schema equals sandbox schema PLUS appended slug column.
 
-    The dbt mart writes an 18-column species.parquet to data/dbt/target/sandbox/.
+    The dbt mart writes a 21-column species.parquet to data/dbt/target/sandbox/.
     species_export.py reads it, appends a slug column via feeds._slugify, and
-    writes the resulting 19-column file to public/data/species.parquet
-    (Phase 86 Plan 05 contract). This test asserts the 18 sandbox cols equal
-    the first 18 public cols in order and types, and that the 19th public col
+    writes the resulting 22-column file to public/data/species.parquet
+    (Phase 86 Plan 05 contract). This test asserts the 21 sandbox cols equal
+    the first 21 public cols in order and types, and that the 22nd public col
     is ('slug', 'VARCHAR').
     """
     s_cols = [(r[0], r[1]) for r in duckdb.execute(

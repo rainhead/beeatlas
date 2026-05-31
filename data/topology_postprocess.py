@@ -16,7 +16,7 @@ in place. Idempotent.
 Sliver policy: gap-fill-area=0.01km2 drops features below 1 hectare (#14
 discussion — 2 sub-hectare Puget Sound rocks in "Strait of Georgia/Puget
 Lowland" get folded into surrounding water). 64 of 66 ecoregion features
-retained; all 8 distinct L3 names preserved.
+retained; all 9 distinct L3 names preserved.
 """
 
 from __future__ import annotations

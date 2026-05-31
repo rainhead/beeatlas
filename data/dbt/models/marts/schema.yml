@@ -78,6 +78,13 @@ models:
         data_type: varchar
       - name: license
         data_type: varchar
+      - name: taxon_id
+        data_type: integer
+        data_tests:
+          - not_null:
+              config:
+                severity: warn
+                where: "canonical_name like '% %'"
 
   - name: species
     config:
@@ -124,6 +131,10 @@ models:
         data_type: bigint
       - name: inat_obs_count
         data_type: bigint
+      - name: taxon_id
+        data_type: integer
+        constraints:
+          - type: not_null
 
   - name: checklist
     config:
