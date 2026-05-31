@@ -887,7 +887,12 @@ Plans:
   2. `occurrences.parquet` includes a non-null `taxon_id` INTEGER column for every occurrence row
   3. Species pages link to `https://www.inaturalist.org/taxa/{taxon_id}`
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 126-01-PLAN.md — dbt data layer: taxon_id through int models + marts, NOT NULL contract (21/37 cols), resolution-union extension + pre-build gate, Wave-0 tests
+- [ ] 126-02-PLAN.md — Python export: taxon_id in species_export.py + higher_rank_taxon_ids.json from taxa.csv.gz; doc/test-count corrections (D-08)
+- [ ] 126-03-PLAN.md — frontend: thread taxon_id through _data/species.js; 'View on iNaturalist' link on species/genus/subgenus/tribe pages
 
 ### Phase 127: Inactive Taxon Remapping
 
