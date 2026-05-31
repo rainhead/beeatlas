@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
 status: executing
-stopped_at: Phase 126 context gathered
-last_updated: "2026-05-31T19:35:45.613Z"
-last_activity: 2026-05-31 -- Phase 126 planning complete
+stopped_at: Phase 126 Plan 1 complete; ready for Plan 2
+last_updated: "2026-05-31T20:59:25.804Z"
+last_activity: 2026-05-31
 progress:
   total_phases: 14
   completed_phases: 7
   total_plans: 20
-  completed_plans: 17
+  completed_plans: 18
   percent: 50
 ---
 
@@ -21,20 +21,27 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 125 — species-visibility
+**Current focus:** Phase 126 — taxon-ids
 
 ## Current Position
 
-Phase: 125 (species-visibility) — EXECUTING
-Plan: 1 of 1
+Phase: 126 (taxon-ids) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-05-31 -- Phase 126 planning complete
+Last activity: 2026-05-31
 
 ## Accumulated Context
 
 ### Decisions
 
 All v4.3 decisions logged in PROJECT.md Key Decisions table.
+
+Phase 126 Plan 1 decisions:
+
+- D-01 enforced by resolution gate in production; species mart uses strict dbt NOT NULL constraint; occurrences mart uses severity:warn data_test (not hard constraint) due to 3 pre-existing unresolvable ecdysis species (anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae — 0 iNat API results)
+- KNOWN_NON_BEES = {"cicindela pugetana", "cleridae", "encopognathus"} — confirmed non-bee WABA bycatch excluded from occurrences ARM 2 via WHERE filter; reported by gate (D-09)
+- Resolution union extended: dbt_sandbox.occurrence_synonyms (not main) and inaturalist_waba_data.observations (not inat_waba_data) — PATTERNS.md schema references were incorrect
+- int_combined taxon_id uses ::INTEGER cast (BIGINT source); WABA canonical_name uses ::VARCHAR cast; aliases ctt/ctt_w/ctt_io avoid collision in UNION ALL
 
 Phase 123 decisions:
 
@@ -72,6 +79,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-31T17:22:18.321Z
+Last session: 2026-05-31T20:59:25.768Z
 Stopped at: Phase 126 context gathered
-Resume file: .planning/phases/126-taxon-ids/126-CONTEXT.md
+Resume file: None
