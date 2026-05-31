@@ -111,6 +111,13 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
 }
 
 /* Phase 96: species index page modifier. Added to .taxon-page via .species-index class. */
+/* Action links (atlas records, iNaturalist) — one per line with breathing room. */
+.taxon-page .taxon-action {
+  display: block;
+  width: fit-content;
+  margin-top: 0.5rem;
+}
+
 .species-index #species-filter {
   display: block;
   width: 100%;

@@ -29,7 +29,7 @@ layout: default.njk
     </ul>
   </div>
   {%- if tribe.taxon_id -%}
-  <a href="https://www.inaturalist.org/taxa/{{ tribe.taxon_id }}">View on iNaturalist →</a>
+  <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ tribe.taxon_id }}">View on iNaturalist →</a>
   {%- endif -%}
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>
