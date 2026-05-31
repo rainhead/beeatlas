@@ -816,7 +816,7 @@ Plans:
 | 123. dbt-Layer Occurrence Synonymy | v4.4 | 2/2 | Complete   | 2026-05-29 |
 | 124. Pre-Work & Contract Cleanup | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
-| 126. Taxon IDs | v4.5 | 2/3 | In Progress|  |
+| 126. Taxon IDs | v4.5 | 3/3 | Complete   | 2026-05-31 |
 | 127. Inactive Taxon Remapping | v4.5 | — | Pending | — |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
@@ -901,7 +901,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 126-03-PLAN.md — frontend: thread taxon_id through _data/species.js; 'View on iNaturalist' link on species/genus/subgenus/tribe pages
+- [x] 126-03-PLAN.md — frontend: thread taxon_id through _data/species.js; 'View on iNaturalist' link on species/genus/subgenus/tribe pages
 
 ### Phase 127: Inactive Taxon Remapping
 

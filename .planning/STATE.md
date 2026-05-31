@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
-status: executing
-stopped_at: Phase 126 Plan 3 Tasks 1+2 complete; awaiting human-verify checkpoint (Task 3)
+status: complete
+stopped_at: Phase 126 complete — all 3 plans done
 last_updated: "2026-05-31T22:00:00.000Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 14
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 20
-  completed_plans: 19
-  percent: 50
+  completed_plans: 20
+  percent: 57
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 ## Current Position
 
-Phase: 126 (taxon-ids) — EXECUTING
+Phase: 126 (taxon-ids) — COMPLETE
 Plan: 3 of 3
-Status: Ready to execute
+Status: Complete
 Last activity: 2026-05-31
 
 ## Accumulated Context
@@ -35,6 +35,11 @@ Last activity: 2026-05-31
 ### Decisions
 
 All v4.3 decisions logged in PROJECT.md Key Decisions table.
+
+Phase 126 Plan 3 decisions:
+
+- taxon-action class uses display:block + width:fit-content to keep action links on separate lines without a flex wrapper; applied to all four taxon templates for consistency
+- CSS rule placed in taxon-pages.css under .taxon-page .taxon-action to stay scoped to taxon page context
 
 Phase 126 Plan 2 decisions:
 
@@ -85,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-31T22:00:00.000Z
-Stopped at: Phase 126 Plan 3 Task 3 (human-verify checkpoint) — awaiting user verification of rendered iNat links
+Last session: 2026-05-31T21:43:18.040Z
+Stopped at: Phase 126 complete — iNaturalist taxon links on all four taxon pages shipped
 Resume file: None
