@@ -41,6 +41,7 @@ SELECT
     sob.quality_grade                              AS specimen_inat_quality_grade,
     FALSE                                          AS is_provisional,
     COALESCE(syn_e.accepted_name, e.canonical_name) AS canonical_name,
+    ctt.taxon_id::INTEGER                          AS taxon_id,
     NULL                                           AS image_url,
     NULL                                           AS obs_url,
     NULL                                           AS user_login,
@@ -50,6 +51,8 @@ FROM {{ ref('int_ecdysis_base') }} e
 FULL OUTER JOIN {{ ref('int_samples_base') }} s ON e.host_observation_id = s.observation_id
 LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen_observation_id
 LEFT JOIN {{ ref('occurrence_synonyms') }} syn_e ON syn_e.synonym = e.canonical_name
+LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
+    ON ctt.canonical_name = COALESCE(syn_e.accepted_name, e.canonical_name)
 
 UNION ALL
 
@@ -85,7 +88,14 @@ SELECT
     sob.specimen_inat_family,
     sob.quality_grade                                                           AS specimen_inat_quality_grade,
     TRUE                                                                        AS is_provisional,
-    NULL                                                                        AS canonical_name,
+    lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))::VARCHAR                                                                 AS canonical_name,
+    ctt_w.taxon_id::INTEGER                                                     AS taxon_id,
     NULL                                                                        AS image_url,
     NULL                                                                        AS obs_url,
     NULL                                                                        AS user_login,
@@ -97,6 +107,14 @@ LEFT JOIN {{ ref('stg_waba__ofvs') }} ofv1718
     ON ofv1718._dlt_root_id = sob.waba_dlt_id AND ofv1718.field_id = {{ inat_ofv_host_obs_url() }}
 LEFT JOIN {{ ref('int_samples_base') }} s
     ON s.observation_id = CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)
+LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_w
+    ON ctt_w.canonical_name = lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))
 WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL
 
 UNION ALL
@@ -134,6 +152,7 @@ SELECT
     NULL                               AS specimen_inat_quality_grade,
     FALSE                              AS is_provisional,
     COALESCE(syn_io.accepted_name, io.canonical_name) AS canonical_name,
+    ctt_io.taxon_id::INTEGER           AS taxon_id,
     io.image_url,
     io.obs_url,
     io.user_login,
@@ -141,4 +160,6 @@ SELECT
     'inat_obs'                         AS source
 FROM {{ source('inat_obs_data', 'observations') }} io
 LEFT JOIN {{ ref('occurrence_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
+LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_io
+    ON ctt_io.canonical_name = COALESCE(syn_io.accepted_name, io.canonical_name)
 WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL
