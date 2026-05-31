@@ -45,5 +45,8 @@ layout: default.njk
   {%- if sp.occurrence_count > 0 -%}
   <a href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count + (sp.inat_obs_count or 0) }} records on the atlas →</a>
   {%- endif -%}
+  {%- if sp.taxon_id -%}
+  <a href="https://www.inaturalist.org/taxa/{{ sp.taxon_id }}">View on iNaturalist →</a>
+  {%- endif -%}
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>

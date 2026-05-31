@@ -35,5 +35,8 @@ layout: default.njk
     {%- endfor -%}
     </ul>
   </div>
+  {%- if genus.taxon_id -%}
+  <a href="https://www.inaturalist.org/taxa/{{ genus.taxon_id }}">View on iNaturalist →</a>
+  {%- endif -%}
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>
