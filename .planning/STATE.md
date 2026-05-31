@@ -1,11 +1,11 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.5
-milestone_name: "Liveness: Provisional Specimen Records"
-status: verifying
+milestone_name: milestone
+status: completed
 stopped_at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
-last_updated: "2026-05-30T16:11:41.832Z"
-last_activity: 2026-05-30
+last_updated: "2026-05-30T16:17:12.990Z"
+last_activity: 2026-05-30 -- Phase 125 marked complete
 progress:
   total_phases: 14
   completed_phases: 7
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 ## Current Position
 
-Phase: 125 (species-visibility) — EXECUTING
+Phase: 125 — COMPLETE
 Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-05-30
+Status: Phase 125 complete
+Last activity: 2026-05-30 -- Phase 125 marked complete
 
 ## Accumulated Context
 
