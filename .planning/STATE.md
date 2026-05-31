@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
 status: verifying
-stopped_at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
-last_updated: "2026-05-30T16:11:41.832Z"
+stopped_at: Phase 126 context gathered
+last_updated: "2026-05-31T17:22:18.359Z"
 last_activity: 2026-05-30
 progress:
   total_phases: 14
@@ -72,6 +72,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-30T16:11:41.824Z
-Stopped at: ROADMAP.md populated with Phases 124–127; ready to plan Phase 124
-Resume file: None
+Last session: 2026-05-31T17:22:18.321Z
+Stopped at: Phase 126 context gathered
+Resume file: .planning/phases/126-taxon-ids/126-CONTEXT.md
