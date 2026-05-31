@@ -816,7 +816,7 @@ Plans:
 | 123. dbt-Layer Occurrence Synonymy | v4.4 | 2/2 | Complete   | 2026-05-29 |
 | 124. Pre-Work & Contract Cleanup | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
-| 126. Taxon IDs | v4.5 | 1/3 | In Progress|  |
+| 126. Taxon IDs | v4.5 | 2/3 | In Progress|  |
 | 127. Inactive Taxon Remapping | v4.5 | — | Pending | — |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
@@ -897,7 +897,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 126-02-PLAN.md — Python export: taxon_id in species_export.py + higher_rank_taxon_ids.json from taxa.csv.gz; doc/test-count corrections (D-08)
+- [x] 126-02-PLAN.md — Python export: taxon_id in species_export.py + higher_rank_taxon_ids.json from taxa.csv.gz; doc/test-count corrections (D-08)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 

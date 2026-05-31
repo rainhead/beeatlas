@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
 status: executing
-stopped_at: Phase 126 Plan 1 complete; ready for Plan 2
-last_updated: "2026-05-31T20:59:25.804Z"
+stopped_at: Phase 126 Plan 2 complete; ready for Plan 3
+last_updated: "2026-05-31T21:21:38.166Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 14
   completed_phases: 7
   total_plans: 20
-  completed_plans: 18
+  completed_plans: 19
   percent: 50
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 ## Current Position
 
 Phase: 126 (taxon-ids) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-31
 
@@ -35,6 +35,12 @@ Last activity: 2026-05-31
 ### Decisions
 
 All v4.3 decisions logged in PROJECT.md Key Decisions table.
+
+Phase 126 Plan 2 decisions:
+
+- taxa.csv.gz active column is BOOLEAN (not string); DuckDB query uses active=true; higher_rank_taxon_ids.json gitignored consistent with species.json treatment
+- Rank filter in _build_higher_rank_taxon_ids resolves Bombus genus/subgenus name collision (T-126-05); each rank dict holds only its rank's taxon_id
+- test_dbt_diff.py occurrences diff tests have pre-existing failures (require full pipeline run to populate public/data/); unrelated to plan 02 scope
 
 Phase 126 Plan 1 decisions:
 
@@ -79,6 +85,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-31T20:59:25.768Z
+Last session: 2026-05-31T21:21:38.086Z
 Stopped at: Phase 126 context gathered
 Resume file: None
