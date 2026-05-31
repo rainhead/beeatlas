@@ -65,6 +65,17 @@ export default function (eleventyConfig) {
       optimizeDeps: {
         exclude: ["wa-sqlite"],
       },
+      // server.* must live HERE, not in vite.config.ts — same reason as
+      // above: the dev server runs Vite in middleware mode rooted at
+      // `.11ty-vite/` and never loads vite.config.ts, so `allowedHosts`
+      // set there has no effect. Vite's host-check middleware still runs
+      // in middleware mode, so reaching `eleventy --serve` via an external
+      // hostname (e.g. proxied through maderas) requires whitelisting it
+      // here. The plugin deep-merges this with its default
+      // `server: { middlewareMode: true }`.
+      server: {
+        allowedHosts: ["maderas.amandrai.net"],
+      },
       // publicDir defaults to "public" (Vite default). The plugin
       // auto-registers `addPassthroughCopy("public")` (.eleventy.js
       // line 40) so `public/` → `_site/public/` (then renamed to
