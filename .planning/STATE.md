@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
-status: complete
-stopped_at: Phase 126 complete — all 3 plans done
-last_updated: "2026-05-31T22:00:00.000Z"
+status: ready_to_plan
+stopped_at: Phase 126 complete (3/3) — ready to discuss Phase 127
+last_updated: 2026-05-31T21:57:50.560Z
 last_activity: 2026-05-31
 progress:
   total_phases: 14
   completed_phases: 8
   total_plans: 20
-  completed_plans: 20
+  completed_plans: 42
   percent: 57
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 126 — taxon-ids
+**Current focus:** Phase 127 — inactive taxon remapping
 
 ## Current Position
 
-Phase: 126 (taxon-ids) — COMPLETE
-Plan: 3 of 3
-Status: Complete
+Phase: 127
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-05-31
 
 ## Accumulated Context
