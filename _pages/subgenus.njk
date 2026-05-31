@@ -38,7 +38,7 @@ layout: default.njk
     {%- endif -%}
   </div>
   {%- if subgenus.taxon_id -%}
-  <a href="https://www.inaturalist.org/taxa/{{ subgenus.taxon_id }}">View on iNaturalist →</a>
+  <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ subgenus.taxon_id }}">View on iNaturalist →</a>
   {%- endif -%}
 </article>
 <script type="module" src="/src/entries/taxon-page.ts"></script>
