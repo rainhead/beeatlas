@@ -19,8 +19,8 @@
 
 ### Taxon IDs (TID)
 
-- [ ] **TID-01**: `species.parquet` includes a non-null `taxon_id` INTEGER column identifying the iNat taxon for every species row
-- [ ] **TID-02**: `occurrences.parquet` includes a non-null `taxon_id` INTEGER column for every occurrence row
+- [x] **TID-01**: `species.parquet` includes a non-null `taxon_id` INTEGER column identifying the iNat taxon for every species row
+- [x] **TID-02**: `occurrences.parquet` includes a non-null `taxon_id` INTEGER column for every occurrence row
 - [ ] **TID-03**: Species pages link to `https://www.inaturalist.org/taxa/{taxon_id}`
 
 ### Inactive Taxon Remapping (ITR)
@@ -57,8 +57,8 @@
 | SPV-01 | Phase 125 | Complete |
 | SPV-02 | Phase 125 | Complete |
 | SPV-03 | Phase 125 | Complete |
-| TID-01 | Phase 126 | Pending |
-| TID-02 | Phase 126 | Pending |
+| TID-01 | Phase 126 | Complete |
+| TID-02 | Phase 126 | Complete |
 | TID-03 | Phase 126 | Pending |
 | ITR-01 | Phase 127 | Pending |
 | ITR-02 | Phase 127 | Pending |
