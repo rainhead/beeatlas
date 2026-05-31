@@ -51,10 +51,10 @@ def test_occurrences_row_count_matches():
 
 @_SANDBOX_GUARD
 def test_occurrences_schema_matches():
-    """Column names AND types from DESCRIBE match exactly between sandbox and public (36 cols).
+    """Column names AND types from DESCRIBE match exactly between sandbox and public (37 cols).
 
     Asserts the full ordered list of (column_name, data_type) pairs is identical.
-    Verified baseline: 36 columns with identical names and types in both files.
+    Verified baseline: 37 columns with identical names and types in both files.
     """
     s_cols = [
         (r[0], r[1])
@@ -325,11 +325,11 @@ def test_species_parquet_row_count_matches():
 def test_species_parquet_schema_matches():
     """Public schema equals sandbox schema PLUS appended slug column.
 
-    The dbt mart writes an 18-column species.parquet to data/dbt/target/sandbox/.
+    The dbt mart writes a 21-column species.parquet to data/dbt/target/sandbox/.
     species_export.py reads it, appends a slug column via feeds._slugify, and
-    writes the resulting 19-column file to public/data/species.parquet
-    (Phase 86 Plan 05 contract). This test asserts the 18 sandbox cols equal
-    the first 18 public cols in order and types, and that the 19th public col
+    writes the resulting 22-column file to public/data/species.parquet
+    (Phase 86 Plan 05 contract). This test asserts the 21 sandbox cols equal
+    the first 21 public cols in order and types, and that the 22nd public col
     is ('slug', 'VARCHAR').
     """
     s_cols = [(r[0], r[1]) for r in duckdb.execute(
