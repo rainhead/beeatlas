@@ -20,6 +20,37 @@ DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb
 UNRESOLVED_CSV = Path(__file__).parent / "lineage_unresolved.csv"
 INAT_TAXA_URL = "https://api.inaturalist.org/v1/taxa"
 
+# Non-bee bycatch rows in the WABA provisional dataset (confirmed via taxa.csv.gz ancestry
+# check: Cicindela pugetana, Cleridae, Encopognathus have no Anthophila ancestry).
+# These names cannot resolve through the iNat bridge (which covers only Anthophila taxa).
+# D-09: they are REPORTED by the gate (not silently dropped) so new bycatch surfaces.
+KNOWN_NON_BEES = {"cicindela pugetana", "cleridae", "encopognathus"}
+
+
+def check_resolution_gate() -> None:
+    """Fail fast if any bee canonical_name is unresolved before dbt build (D-02).
+
+    Reads lineage_unresolved.csv (written by the resolve-taxon-ids step).
+    Any row whose canonical_name is NOT in KNOWN_NON_BEES is a blocking bee name:
+    exits non-zero with an actionable message naming the offenders and the fix command.
+    If only KNOWN_NON_BEES rows remain, prints an OK line reporting the excluded count
+    (D-09: excluded rows are reported, not silently dropped).
+    """
+    import sys  # noqa: PLC0415 (lazy import keeps module importable without side-effects)
+
+    rows_as_dicts = list(csv.DictReader(UNRESOLVED_CSV.open(newline="")))
+    blocking = [r for r in rows_as_dicts if r["canonical_name"] not in KNOWN_NON_BEES]
+    if blocking:
+        names = ", ".join(r["canonical_name"] for r in blocking)
+        sys.exit(
+            f"resolution-gate: {len(blocking)} bee name(s) unresolved before dbt build. "
+            f"Fix with: uv run python resolve_taxon_ids.py --refresh-lineage\n"
+            f"Offenders: {names}"
+        )
+    print(  # noqa: T201
+        f"resolution-gate: OK ({len(rows_as_dicts)} known non-bee rows excluded)"
+    )
+
 
 def _ensure_bridge_table(con: duckdb.DuckDBPyConnection) -> None:
     """Create bridge table if it doesn't exist (LIN-03 cache invariant)."""
@@ -65,6 +96,19 @@ def _names_to_resolve(con: duckdb.DuckDBPyConnection, refresh: bool) -> list[str
             UNION
             SELECT DISTINCT canonical_name FROM inat_obs_data.observations
             WHERE canonical_name IS NOT NULL
+            UNION
+            SELECT DISTINCT accepted_name AS canonical_name FROM main.occurrence_synonyms
+            WHERE accepted_name IS NOT NULL
+            UNION
+            SELECT DISTINCT lower(trim(
+                CASE WHEN position(' ' IN trim(taxon__name)) > 0
+                     THEN split_part(trim(taxon__name), ' ', 1)
+                          || ' ' || split_part(trim(taxon__name), ' ', 2)
+                     ELSE trim(taxon__name)
+                END
+            )) AS canonical_name
+            FROM inat_waba_data.observations
+            WHERE taxon__name IS NOT NULL
         )
         SELECT u.canonical_name
         FROM u
