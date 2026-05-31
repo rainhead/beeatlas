@@ -816,7 +816,7 @@ Plans:
 | 123. dbt-Layer Occurrence Synonymy | v4.4 | 2/2 | Complete   | 2026-05-29 |
 | 124. Pre-Work & Contract Cleanup | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
-| 126. Taxon IDs | v4.5 | — | Pending | — |
+| 126. Taxon IDs | v4.5 | 1/3 | In Progress|  |
 | 127. Inactive Taxon Remapping | v4.5 | — | Pending | — |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
@@ -893,7 +893,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 126-01-PLAN.md — dbt data layer: taxon_id through int models + marts, NOT NULL contract (21/37 cols), resolution-union extension + pre-build gate, Wave-0 tests
+- [x] 126-01-PLAN.md — dbt data layer: taxon_id through int models + marts, NOT NULL contract (21/37 cols), resolution-union extension + pre-build gate, Wave-0 tests
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
