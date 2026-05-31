@@ -124,7 +124,8 @@ species_universe AS (
         COALESCE(ga.county_count, 0) AS county_count,
         COALESCE(ga.ecoregion_count, 0) AS ecoregion_count,
         COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count,
-        COALESCE(ioa.inat_obs_count, 0)::BIGINT AS inat_obs_count
+        COALESCE(ioa.inat_obs_count, 0)::BIGINT AS inat_obs_count,
+        ctt.taxon_id::INTEGER AS taxon_id
     FROM {{ ref('stg_checklist__species') }} c
     FULL OUTER JOIN occ_agg oa ON oa.canonical_name = c.canonical_name
     LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
