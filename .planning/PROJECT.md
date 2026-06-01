@@ -1,14 +1,10 @@
 # Washington Bee Atlas
 
-## Current Milestone: v4.5 iNat Taxonomy & Species Completeness
+## Milestone: v4.5 iNat Taxonomy & Species Completeness — COMPLETE (2026-06-01)
 
-**Goal:** Expand the species universe to all observed species (managed, invasive, WA-native); assign stable iNat taxon IDs system-wide; remap occurrences of inactive taxa to accepted names; and lay groundwork for nested-set subtaxon queries.
+**Shipped:** A non-null `taxon_id INTEGER` surfaced through the dbt marts (species.parquet 0-null; occurrences.parquet 37-col contract) behind a pre-build resolution gate; 65 off-checklist species made visible (231 new occurrence SVGs + static pages); "View on iNaturalist →" links on species/genus/subgenus/tribe pages; a dormant inactive-taxon auto-remap safety net (`auto_synonyms` + hard-fail gate, manual entries win); and a genus-rank occurrence taxon_id backfill that drove `occurrences.parquet` NULL taxon_id **34,354 → 21,680**. 13/13 requirements complete.
 
-**Target features:**
-- All observed species appear in the species tree (fix 65 species / 1,745 occurrences currently invisible because `specific_epithet` comes only from WA checklist)
-- Stable iNat taxon IDs on all species and occurrences as disambiguation identifiers
-- Inactive taxon remapping — occurrences with inactive names remapped to current accepted name; unmappable ones flagged
-- Nested-set / MPTT groundwork — ancestor chain persisted for future subtaxon queries
+**Mid-milestone scope decision:** TID-02 ("non-null taxon_id for *every* occurrence row") proved literally impossible — ~21k Ecdysis specimens carry no identification. Re-scoped (human decision) to "every *identified* row carries its finest-rank taxon_id"; genus-rank backfill delivered by the **inserted Phase 128**, with kingdom = Animalia disambiguation chosen over bees-only so wasp/fly aculeates resolve to their real genus taxon. MPTT / nested-set groundwork was **deferred** to a future milestone (out of v4.5 scope).
 
 ## Milestone: v4.4 Pipeline Data Quality — COMPLETE (2026-05-29)
 
@@ -56,12 +52,17 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Requirements
 
-### Active (v4.5)
+### Active (v4.6)
 
-*(Requirements being defined — see REQUIREMENTS.md)*
+*(Next milestone not yet defined — run `/gsd:new-milestone`. Candidate: MPTT / nested-set subtaxon queries deferred from v4.5.)*
 
 ### Validated
 
+- ✓ **PWK-01..03**: extended `resolve_taxon_ids` to 3 name sources, reordered STEPS (inat-obs before resolution), inactive-taxon enumeration, stale docstrings fixed — v4.5
+- ✓ **SPV-01..03**: 65 off-checklist species made visible (`specific_epithet` 527→592 non-null); static `/species/{Genus}/{epithet}/` pages + 231 occurrence SVGs — v4.5
+- ✓ **TID-01, TID-03**: non-null `taxon_id INTEGER` on species.parquet + "View on iNaturalist →" links on species/genus/subgenus/tribe pages — v4.5
+- ✓ **TID-02** (re-scoped): every *identified* occurrence row carries its finest-rank taxon_id; genus-rank backfill (kingdom=Animalia) drove occurrences NULL taxon_id 34,354→21,680; truly-unidentified specimens stay NULL — v4.5 (Phase 128)
+- ✓ **ITR-01..04**: dormant inactive-taxon auto-remap (1-successor → `auto_synonyms` + bridge UPSERT, applied via synonym JOIN), triage report for unresolvable, hard-fail gate, manual entries take precedence — v4.5
 - ✓ **PIPE-01..04**: iNat CSV export (45,354 rows) ingested into `inat_obs_data.observations`; canonical_name resolved; 821 Ecdysis-linked obs deduplicated; floral_host populated from OFV — v4.2
 - ✓ **OCC-01..03**: `int_combined` ARM 3; `occurrences.parquet` expanded to 36 cols with `source` discriminator and iNat-specific nullable fields; `inat_obs_count` per species in `species.json` — v4.2
 - ✓ **MAP-01..03 + DET-01**: 44,534 amber iNat obs points on map; unified Sources filter row; `src=` URL round-trip; iNat obs detail card (observer, date, CC image, iNat link) — v4.2
@@ -395,6 +396,9 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 | MemoryVFS seeding pattern: `mapNameToFile({flags: 0x2, size, data})` before `open_v2` | Preloaded DB opens in ~1–3 ms vs ~1229 ms INSERT loop; no CREATE TABLE, no row iteration in worker | ✓ Good — Phase 121; replaces entire hyparquet+INSERT boot path |
 | `json_group_array` rejected; `geo_blob` pre-serialized table used instead | `json_group_array` benchmarked at 1286 ms (2× worse): WASM→JS callback overhead ~6.4 μs × 92K rows is constant regardless of SQL; Python `json.dumps` at export time reduces worker to 1 row, 1 callback | ✓ Good — Phase 122; root cause correctly identified; 86% query reduction confirmed |
 | `cast self as any` for two-arg `postMessage` in worker | TypeScript's DOM lib lacks the `(message, transferList)` overload for `WorkerGlobalScope`; runtime behavior is correct; comment explains the cast | ✓ Good — Phase 122; acceptable workaround for TypeScript lib gap |
+| TID-02 re-scoped from "every occurrence row" to "every *identified* row" | The literal wording was impossible — ~21k Ecdysis specimens carry no taxonomic identification; forcing a taxon_id would mean a meaningless root "bees" link. Finest-rank semantics + NULL for the unidentified is the honest contract | ✓ Good — v4.5 human decision; surfaced during Phase 126 verification, closed by inserted Phase 128 |
+| Genus taxon_id disambiguation by kingdom = Animalia (not Anthophila/bees-only) | Ecdysis identifications are all animals; Animalia resolves 80/149 occurrence genera (vs 39) incl. the wasp/fly aculeates collected alongside bees, with 0 collisions in our data — and removes a hand-curated non-bee exclusion list | ✓ Good — v4.5 Phase 128 user decision; verified stelis→127831 (bee not orchid), bembix→53067 |
+| `stg_inat__genus_taxon_ids` reads `../raw/taxa.csv.gz` directly via DuckDB `read_csv` | The full taxa dump (all ranks/kingdoms) is not loaded into DuckDB — only an Anthophila-filtered lineage table is; the raw CSV is the only dbt-only source. First raw-CSV-in-model in the repo; `HAVING COUNT(*)=1` dedups the 58 cross-phylum homonyms so the join can't fan out | ✓ Good — Phase 128; build CWD is `data/dbt` so the relative path resolves |
 
 ## Evolution
 

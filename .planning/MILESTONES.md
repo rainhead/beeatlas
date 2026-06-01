@@ -1,5 +1,26 @@
 # Milestones
 
+## v4.5 iNat Taxonomy & Species Completeness (Shipped: 2026-06-01)
+
+**Phases completed:** 5 phases (124–128), 8 plans
+**Timeline:** ~3 days (2026-05-29 → 2026-06-01)
+**LOC:** ~+1,400 / −60 across ~35 files (excluding `.planning/`)
+**Requirements:** 13/13 complete (PWK-01..03, SPV-01..03, TID-01..03, ITR-01..04)
+
+**Key accomplishments:**
+
+- **Phase 124 — Pre-Work & Contract Cleanup:** extended `resolve_taxon_ids` to three name sources (checklist + ecdysis + inat_obs), reordered pipeline STEPS so inat-obs populates before resolution, added inactive-taxon enumeration, and fixed the stale column-count docstrings (PWK-01..03).
+- **Phase 125 — Species Visibility:** a COALESCE epithet derivation in `int_species_universe` unlocked 65 off-checklist species (`specific_epithet` non-null 527 → 592), generating 231 additional occurrence SVGs and full static `/species/{Genus}/{epithet}/` pages (SPV-01..03).
+- **Phase 126 — Taxon IDs:** threaded a non-null `taxon_id INTEGER` through the dbt marts (species.parquet 0-null; occurrences.parquet 37-col contract) behind a pre-build resolution gate + KNOWN_NON_BEES exclusion, and added "View on iNaturalist →" links to species/genus/subgenus/tribe pages (TID-01, TID-03, species-level TID-02).
+- **Phase 127 — Inactive Taxon Remapping:** a dormant safety net that auto-remaps 1-successor inactive bridge entries (→ `auto_synonyms.csv` + bridge UPSERT, applied via the existing synonym JOIN), routes unresolvable cases to a triage report, and hard-fails the nightly gate — manual `occurrence_synonyms.csv` entries take precedence (ITR-01..04).
+- **Phase 128 — Occurrence Finest-Rank Taxon Backfill:** closed the re-scoped TID-02 by backfilling `occurrences.taxon_id` for all 12,674 single-token genus rows (149 genera, bee + non-bee aculeate) from an Animalia-disambiguated genus map read directly from `taxa.csv.gz`, dropping whole-column NULL taxon_id 34,354 → 21,680 with the 37-col contract intact.
+
+**Mid-milestone scope decision:** TID-02 ("non-null taxon_id for *every* occurrence row") proved literally impossible — ~21k Ecdysis specimens carry no identification. Re-scoped (human decision) to "every *identified* row carries its finest-rank taxon_id"; genus-rank backfill delegated to the inserted Phase 128. Disambiguation chose kingdom = Animalia over bees-only so the wasp/fly aculeates Ecdysis collects alongside the bees resolve to their real genus taxon. Phase 126 verified 3/4 (TID-02 gap closed downstream by 128, verified 9/9).
+
+**Known deferred at close:** DEF-128-01 (`run.sh build` needs absolute `DB_PATH` — pre-existing dbt-duckdb seed-path bug; nightly unaffected) plus pre-existing v4.0 verification/UAT items and legacy quick-task dirs (see STATE.md Deferred Items).
+
+---
+
 ## v4.3 Loading Performance (Shipped: 2026-05-28)
 
 **Phases completed:** 2 phases (121–122), 5 plans
