@@ -12,3 +12,14 @@ seeds:
           - not_null
       - name: source
         description: "Citation for the synonymy decision (e.g., 'Portman et al. 2024')"
+  - name: auto_synonyms
+    columns:
+      - name: synonym
+        data_tests:
+          - not_null
+          - unique
+      - name: accepted_name
+        data_tests:
+          - not_null
+      - name: source
+        description: "Auto-generated: 'inat-inactive-remap:{inactive_taxon_id}'"
