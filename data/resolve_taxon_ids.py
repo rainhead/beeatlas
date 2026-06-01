@@ -29,6 +29,26 @@ INAT_TAXA_ID_URL = "https://api.inaturalist.org/v1/taxa/{}"
 # D-09: they are REPORTED by the gate (not silently dropped) so new bycatch surfaces.
 KNOWN_NON_BEES = {"cicindela pugetana", "cleridae", "encopognathus"}
 
+# WR-03: characters that trigger spreadsheet formula evaluation if a CSV cell
+# begins with one of them. inat_name / successor name are third-party iNat data
+# that flows into curator-facing triage CSVs (the intended human workflow opens
+# these in a spreadsheet), so harden against CSV formula injection on write.
+_CSV_FORMULA_TRIGGERS = ("=", "+", "-", "@")
+
+
+def _csv_safe(value: object) -> object:
+    """Neutralize CSV formula-injection for a single cell (WR-03).
+
+    If a string value begins with a spreadsheet formula trigger (=+-@), prefix it
+    with a single quote so a spreadsheet treats it as literal text. Non-strings
+    (e.g. integer taxon IDs) pass through unchanged. Bee scientific names never
+    start with these characters, so this is a no-op in practice and only defends
+    against a crafted / garbage iNat API response.
+    """
+    if isinstance(value, str) and value.startswith(_CSV_FORMULA_TRIGGERS):
+        return "'" + value
+    return value
+
 
 def check_resolution_gate() -> None:
     """Fail fast if any bee canonical_name is unresolved before dbt build (D-02).
@@ -192,20 +212,21 @@ def generate_inactive_remaps() -> None:
                     "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
                 })
 
-        # D-04: always write header, even when auto_rows is empty
+        # D-04: always write header, even when auto_rows is empty.
+        # WR-03: sanitize each cell against CSV formula injection on write.
         AUTO_SYNONYMS_CSV.parent.mkdir(parents=True, exist_ok=True)
         with AUTO_SYNONYMS_CSV.open("w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["synonym", "accepted_name", "source"])
-            writer.writerows(auto_rows)
+            writer.writerows(tuple(_csv_safe(v) for v in r) for r in auto_rows)
 
         with INACTIVE_UNRESOLVED_CSV.open("w", newline="") as f:
-            writer = csv.DictWriter(
-                f,
-                fieldnames=["canonical_name", "inactive_taxon_id", "inat_name", "reason", "attempted_at"],
-            )
+            fieldnames = ["canonical_name", "inactive_taxon_id", "inat_name", "reason", "attempted_at"]
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
-            writer.writerows(triage_rows)
+            writer.writerows(
+                {k: _csv_safe(v) for k, v in r.items()} for r in triage_rows
+            )
 
         print(  # noqa: T201
             f"inactive-remap: {len(auto_rows)} auto-remapped, {len(triage_rows)} unresolved"
