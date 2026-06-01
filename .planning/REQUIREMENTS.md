@@ -25,8 +25,8 @@
 
 ### Inactive Taxon Remapping (ITR)
 
-- [ ] **ITR-01**: Pipeline detects canonical names whose resolved iNat taxon ID is inactive; automatically generates remapping entries for those with a known current synonym (via iNat API `current_synonymous_taxon_ids`)
-- [ ] **ITR-02**: Canonical names with inactive taxon IDs and no resolvable current synonym are written to `data/inactive_unresolved.csv` for manual triage
+- [x] **ITR-01**: Pipeline detects canonical names whose resolved iNat taxon ID is inactive; automatically generates remapping entries for those with a known current synonym (via iNat API `current_synonymous_taxon_ids`)
+- [x] **ITR-02**: Canonical names with inactive taxon IDs and no resolvable current synonym are written to `data/inactive_unresolved.csv` for manual triage
 - [ ] **ITR-03**: Automated remappings are applied via the existing synonym JOIN mechanism (`int_combined`, `stg_checklist__species`) — same path as `occurrence_synonyms.csv`
 - [ ] **ITR-04**: Manual entries in `occurrence_synonyms.csv` take precedence over automated remappings when the same source name appears in both
 
@@ -60,8 +60,8 @@
 | TID-01 | Phase 126 | Complete |
 | TID-02 | Phase 126 | Complete |
 | TID-03 | Phase 126 | Complete |
-| ITR-01 | Phase 127 | Pending |
-| ITR-02 | Phase 127 | Pending |
+| ITR-01 | Phase 127 | Complete |
+| ITR-02 | Phase 127 | Complete |
 | ITR-03 | Phase 127 | Pending |
 | ITR-04 | Phase 127 | Pending |
 
