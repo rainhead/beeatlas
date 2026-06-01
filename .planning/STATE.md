@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: iNat Taxonomy & Species Completeness
-status: ready_to_close
-stopped_at: Phase 128 verified (9/9 passed) — TID-02 closed; v4.5 ready for /gsd:complete-milestone
-last_updated: "2026-06-01T20:35:00.000Z"
-last_activity: 2026-06-01
+status: Awaiting next milestone
+stopped_at: Phase 128 Plan 01 executed — TID-02 closed
+last_updated: "2026-06-01T20:27:43.665Z"
+last_activity: 2026-06-01 — Milestone v4.5 completed and archived
 progress:
   total_phases: 15
   completed_phases: 10
-  total_plans: 24
-  completed_plans: 24
+  total_plans: 23
+  completed_plans: 23
   percent: 67
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 ## Current Position
 
-Phase: 128
-Plan: 01 — verified (9/9 passed)
-Status: TID-02 closed — genus-rank backfill complete & verified; v4.5 ready for /gsd:complete-milestone
-Last activity: 2026-06-01
+Phase: Milestone v4.5 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-01 — Milestone v4.5 completed and archived
 
 ### v4.5 Milestone Close — Ready (was blocked, now resolved)
 
@@ -39,6 +39,7 @@ The milestone-close attempt on 2026-06-01 surfaced a real gap during Phase 126 v
 - **Phase 128 executed + verified (9/9 passed):** NULL taxon_id 34,354 → 21,680; 12,674 genus rows backfilled; TID-02 marked Complete.
 
 **Open items before close:**
+
 1. Execution commits are on branch `phase-128-occurrence-finest-rank-taxon-backfill` (linear fast-forward of `main`) — merge to main before/within close.
 2. `DEF-128-01` deferred infra item (relative DB_PATH seed-path bug) to acknowledge at close.
 
@@ -127,3 +128,7 @@ Acknowledged and deferred at v4.5 milestone close (2026-06-01) — all pre-exist
 Last session: 2026-06-01T20:14:00.000Z
 Stopped at: Phase 128 Plan 01 executed — TID-02 closed
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
