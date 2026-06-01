@@ -414,4 +414,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-29 — milestone v4.5 started (iNat Taxonomy & Species Completeness)*
+*Last updated: 2026-06-01 — Phase 127 (Inactive Taxon Remapping) complete, the final v4.5 phase; milestone v4.5 ready for `/gsd:complete-milestone`.*
