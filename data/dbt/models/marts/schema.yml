@@ -81,10 +81,16 @@ models:
       - name: taxon_id
         data_type: integer
         data_tests:
+          # Phase 128 (TID-02 re-scope, D-04/D-05): assert non-null taxon_id for EVERY named row
+          # (single-token genus OR two-token species), not just species-level. Under the Animalia
+          # rule every genus name resolves, so the only documented exceptions are the 3 unresolvable
+          # ecdysis species (anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae — 0
+          # iNat API results). Truly-unidentified rows (NULL/empty canonical_name) are excluded.
+          # Kept severity: warn per D-04 (matches Phase 126 relaxation + nightly-gate culture).
           - not_null:
               config:
                 severity: warn
-                where: "canonical_name like '% %'"
+                where: "canonical_name is not null and canonical_name <> '' and canonical_name not in ('anthidiellum robertsoni', 'lasioglossum aspilurus', 'osmia phaceliae')"
 
   - name: species
     config:

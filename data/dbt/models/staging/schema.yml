@@ -41,6 +41,19 @@ models:
           - not_null
           - unique    # VERIFIED: 2196 rows, 2196 distinct taxon_ids
 
+  - name: stg_inat__genus_taxon_ids
+    columns:
+      - name: genus_name
+        description: >
+          Lowercase active Animalia genus name -> genus self-row taxon_id (Phase 128 D-02).
+          The unique test is the fail-loud safety net (D-02b): 0 of our 149 occurrence genera
+          collide within Animalia today, so the int_combined LEFT JOIN cannot fan out. A future
+          cross-phylum animal-genus homonym would fail this test at build time instead of
+          silently duplicating occurrence rows.
+        data_tests:
+          - not_null
+          - unique
+
   - name: stg_checklist__species
     columns:
       - name: canonical_name

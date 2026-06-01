@@ -301,12 +301,18 @@ def test_species_taxon_id_non_null():
 
 @_OCCURRENCES_GUARD
 def test_occurrences_taxon_id_non_null():
-    """occurrences.parquet: zero rows with null taxon_id for species-level (two-token) canonical names (TID-02).
+    """occurrences.parquet: zero rows with null taxon_id for EVERY named row (TID-02, re-scoped Phase 128).
 
-    Genus-only (one-token) and NULL canonical_name rows are excluded — those records
-    have always had null taxon_id and are covered by the resolution gate in the pipeline.
-    Known unresolvable species: anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae
-    (ecdysis data quality issues — not in iNat taxonomy; tracked in lineage_unresolved.csv).
+    A "named row" is any row carrying a canonical_name (single-token genus OR two-token species).
+    Phase 128 (D-04) re-scopes TID-02 from "species-level only" to "every identified row": under
+    the Animalia genus rule every single-token genus name now resolves to its genus self-row
+    taxon_id (bees AND non-bee aculeates like bembix), so the named-row NULL count must be 0.
+
+    Truly-unidentified rows (NULL/empty canonical_name — the ~21.6k ecdysis specimens with no name
+    to look up) are excluded; they legitimately stay NULL. The only named exceptions are the 3
+    unresolvable ecdysis species (anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae —
+    0 iNat API results; tracked in lineage_unresolved.csv), excluded via _KNOWN_UNRESOLVABLE.
+    No non-bee-genera exclusion is needed (D-02/D-07 — every genus name resolves under Animalia).
     """
     parquet_path = str(SANDBOX / "occurrences.parquet")
     # Exclude known ecdysis data-quality names that cannot be resolved via iNat API
@@ -315,22 +321,29 @@ def test_occurrences_taxon_id_non_null():
     )
     n = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') "
-        f"WHERE canonical_name LIKE '% %' "
+        f"WHERE canonical_name IS NOT NULL AND canonical_name <> '' "
         f"AND canonical_name NOT IN ({_KNOWN_UNRESOLVABLE}) "
         f"AND taxon_id IS NULL"
     ).fetchone()[0]
-    assert n == 0, f"Expected 0 null taxon_id rows for species-level occurrences, got {n}"
+    assert n == 0, f"Expected 0 null taxon_id rows for named occurrences, got {n}"
 
 
 @_OCCURRENCES_GUARD
 @_SPECIES_GUARD
 def test_taxon_id_consistency():
-    """occurrences.taxon_id == species.taxon_id for matching canonical_names (D-03)."""
+    """occurrences.taxon_id == species.taxon_id for matching species-level canonical_names (D-03/D-06).
+
+    Phase 128 (D-06): scoped to species-level (two-token) occurrences. Genus-level rows now carry a
+    genus self-row taxon_id which is NOT a species mart row, so an unscoped USING(canonical_name)
+    join could create false mismatches. The `LIKE '% %'` guard restricts the invariant to the
+    species-level rows it was designed for.
+    """
     occ_path = str(SANDBOX / "occurrences.parquet")
     sp_path = str(SANDBOX / "species.parquet")
     n = duckdb.execute(f"""
         SELECT COUNT(*) FROM read_parquet('{occ_path}') o
         JOIN read_parquet('{sp_path}') s USING (canonical_name)
-        WHERE o.taxon_id != s.taxon_id
+        WHERE o.canonical_name LIKE '% %'      -- species-level only (D-06)
+          AND o.taxon_id != s.taxon_id
     """).fetchone()[0]
     assert n == 0, f"Expected 0 taxon_id mismatches between occurrences and species, got {n}"
