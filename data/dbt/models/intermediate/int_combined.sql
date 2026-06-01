@@ -3,9 +3,11 @@
 -- Materialized as TABLE (not view) per RESEARCH Pitfall 5: prevents re-evaluating
 -- the full UNION ALL on every spatial join in the occurrences mart.
 -- Mirrors export.py:135-197 (combined CTE).
--- Phase 123 (SYN-02): synonymy applied via LEFT JOIN on ref('occurrence_synonyms')
+-- Phase 123 (SYN-02): synonymy applied via LEFT JOIN on ref('int_synonyms')
 -- for ARM 1 (ecdysis) and ARM 3 (inat_obs); ARM 2 (provisional WABA) has
 -- NULL canonical_name (no scientific name) and is not joined.
+-- Phase 127 (ITR-03): repointed to int_synonyms so auto-generated remappings
+-- flow through the same synonym JOIN path as curated entries.
 {{ config(materialized='table') }}
 
 -- ARM 1: Ecdysis rows (FULL OUTER JOIN preserved) with WABA specimen fields LEFT JOINed
@@ -50,7 +52,7 @@ SELECT
 FROM {{ ref('int_ecdysis_base') }} e
 FULL OUTER JOIN {{ ref('int_samples_base') }} s ON e.host_observation_id = s.observation_id
 LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen_observation_id
-LEFT JOIN {{ ref('occurrence_synonyms') }} syn_e ON syn_e.synonym = e.canonical_name
+LEFT JOIN {{ ref('int_synonyms') }} syn_e ON syn_e.synonym = e.canonical_name
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
     ON ctt.canonical_name = COALESCE(syn_e.accepted_name, e.canonical_name)
 
@@ -166,7 +168,7 @@ SELECT
     io.license,
     'inat_obs'                         AS source
 FROM {{ source('inat_obs_data', 'observations') }} io
-LEFT JOIN {{ ref('occurrence_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
+LEFT JOIN {{ ref('int_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_io
     ON ctt_io.canonical_name = COALESCE(syn_io.accepted_name, io.canonical_name)
 WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL

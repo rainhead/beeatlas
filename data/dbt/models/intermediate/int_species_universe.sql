@@ -58,7 +58,7 @@ inat_obs_count_agg AS (
         COALESCE(syn.accepted_name, io.canonical_name) AS canonical_name,
         COUNT(*) AS inat_obs_count
     FROM {{ source('inat_obs_data', 'observations') }} io
-    LEFT JOIN {{ ref('occurrence_synonyms') }} syn ON syn.synonym = io.canonical_name
+    LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = io.canonical_name
     WHERE io.canonical_name IS NOT NULL
     GROUP BY 1
 ),
