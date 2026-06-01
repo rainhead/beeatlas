@@ -85,6 +85,7 @@ def generate_inactive_remaps() -> None:
         auto_rows: list[tuple[str, str, str]] = []  # (synonym, accepted_name, source)
         triage_rows: list[dict] = []
         transient_failures = 0  # CR-01: surfaced as a warning, never blocks the gate
+        seen_synonyms: set[str] = set()  # WR-02: guard the auto_synonyms.synonym unique test
 
         for canonical_name, inactive_taxon_id, inat_name in inactive:
             time.sleep(_INAT_PACE_SECONDS)
@@ -146,6 +147,24 @@ def generate_inactive_remaps() -> None:
                     continue
 
                 successor_name = row[0].lower().strip()
+
+                # WR-02: the dbt seed enforces a `unique` test on
+                # auto_synonyms.synonym. The synonym key is canonical_name (the
+                # bridge PK, so distinct per row) but guard defensively against a
+                # duplicate synonym key reaching the seed — a duplicate would abort
+                # the entire dbt build. Triage the collision instead of emitting a
+                # second row, so the build survives and a human can resolve it.
+                if canonical_name in seen_synonyms:
+                    triage_rows.append({
+                        "canonical_name": canonical_name,
+                        "inactive_taxon_id": inactive_taxon_id,
+                        "inat_name": inat_name,
+                        "reason": "duplicate_synonym_key",
+                        "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                    })
+                    continue
+                seen_synonyms.add(canonical_name)
+
                 source = f"inat-inactive-remap:{inactive_taxon_id}"
                 auto_rows.append((canonical_name, successor_name, source))
 
