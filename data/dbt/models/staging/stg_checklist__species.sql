@@ -1,5 +1,5 @@
 -- Wraps source('checklist_data', 'species') with occurrence synonymy applied.
--- When a species' canonical_name appears in occurrence_synonyms as a synonym,
+-- When a species' canonical_name appears in int_synonyms as a synonym,
 -- canonical_name, specific_epithet, and scientificName are rewritten to the
 -- accepted name so the FULL OUTER JOIN in int_species_universe merges the
 -- checklist entry with occurrence data under the accepted canonical_name.
@@ -28,4 +28,4 @@ SELECT
     s.source_citation,
     s.notes
 FROM {{ source('checklist_data', 'species') }} s
-LEFT JOIN {{ ref('occurrence_synonyms') }} syn ON syn.synonym = s.canonical_name
+LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = s.canonical_name
