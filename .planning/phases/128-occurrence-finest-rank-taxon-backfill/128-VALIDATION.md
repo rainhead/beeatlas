@@ -88,8 +88,9 @@ created: 2026-06-01
 
 Not applicable. No auth, input-validation, network, session, or crypto surface. Inputs are a trusted
 local taxonomy dump (`taxa.csv.gz`, already ingested from iNat Open Data) and an internal DuckDB file.
-The only integrity concern — plant-vs-bee taxon_id collision (e.g. Stelis) — is addressed by the
-Anthophila ancestry filter and is a data-correctness control, not a security one.
+The only integrity concern — plant-vs-animal taxon_id collision (e.g. Stelis orchid vs bee) — is
+addressed by the Animalia (kingdom) ancestry filter plus a dbt `unique` test on genus_name, and is a
+data-correctness control, not a security one.
 
 ---
 
