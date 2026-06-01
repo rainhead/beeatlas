@@ -817,7 +817,7 @@ Plans:
 | 124. Pre-Work & Contract Cleanup | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 126. Taxon IDs | v4.5 | 3/3 | Complete    | 2026-05-31 |
-| 127. Inactive Taxon Remapping | v4.5 | 2/2 | Complete   | 2026-06-01 |
+| 127. Inactive Taxon Remapping | v4.5 | 2/2 | Complete    | 2026-06-01 |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
