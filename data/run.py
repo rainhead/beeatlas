@@ -6,7 +6,7 @@ Usage:
 Pipelines are executed in this order:
     ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
     anti-entropy -> checklist -> inat-obs -> resolve-taxon-ids -> taxa-download ->
-    taxon-lineage-extended -> places-validation -> places-load ->
+    inactive-remap -> inactive-gate -> taxon-lineage-extended -> places-validation -> places-load ->
     dbt-build -> generate-sqlite -> topology-postprocess -> species-export ->
     species-maps -> places-export -> places-maps -> feeds
 
@@ -34,7 +34,7 @@ from taxa_pipeline import download_taxa_csv, load_taxon_lineage_extended
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from checklist_pipeline import load_checklist
-from resolve_taxon_ids import resolve_taxon_ids, check_resolution_gate
+from resolve_taxon_ids import resolve_taxon_ids, check_resolution_gate, generate_inactive_remaps, check_inactive_gate
 from species_export import main as export_species_parquet
 from species_maps import main as generate_species_maps
 from feeds import main as generate_feeds
@@ -93,6 +93,8 @@ STEPS: list[tuple[str, Callable]] = [
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
     ("resolution-gate", check_resolution_gate),       # D-02: fail fast on unresolved bee names
     ("taxa-download", download_taxa_csv),
+    ("inactive-remap", generate_inactive_remaps),    # NEW: detect + auto-remap inactive taxa (D-11)
+    ("inactive-gate", check_inactive_gate),          # NEW: hard-fail on unresolvable inactives (D-05)
     ("taxon-lineage-extended", load_taxon_lineage_extended),
     ("places-validation", validate_places_step),
     ("places-load", load_places_step),

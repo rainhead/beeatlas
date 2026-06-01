@@ -11,6 +11,8 @@ raw/ecdysis_cache/
 # Pipeline writeback files — regenerated each run, not version-controlled
 checklist_unmatched.csv
 lineage_unresolved.csv
+inactive_unresolved.csv
+dbt/seeds/auto_synonyms.csv
 raw/taxa.csv.gz
 raw/taxa.csv.gz.tmp
 raw/taxa_cache.json
