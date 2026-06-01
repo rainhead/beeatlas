@@ -2,6 +2,36 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v4.5 — iNat Taxonomy & Species Completeness
+
+**Shipped:** 2026-06-01
+**Phases:** 5 (124–128) | **Plans:** 8 | **Timeline:** ~3 days | **LOC:** ~+1,400 / −60
+
+### What Was Built
+Non-null `taxon_id INTEGER` surfaced through the dbt marts behind a pre-build resolution gate; 65 off-checklist species made visible; "View on iNaturalist →" links on all taxon pages; a dormant inactive-taxon auto-remap safety net; and a genus-rank occurrence taxon_id backfill (kingdom=Animalia) that drove occurrences NULL taxon_id 34,354 → 21,680. 13/13 requirements complete.
+
+### What Worked
+- **Verification caught a real requirements gap before archiving.** The milestone-close pre-flight flagged Phase 126 unverified; verifying it surfaced that TID-02 ("every occurrence row") was literally unsatisfiable — exactly the kind of thing that should block a close. Re-scoping + an inserted Phase 128 closed it cleanly rather than shipping a false "done."
+- **Research paid for itself.** The Phase 128 researcher caught that the existing `higher_rank_taxon_ids.json` picks the *wrong* Stelis (plant over bee, via dict-overwrite) — an assumption the plan had baked in. Cheap research prevented a silent data-correctness bug.
+- **The plan-checker executed the plan's SQL against live data** and reconciled the numbers before any code was written, raising confidence the rebuild would land correctly.
+
+### What Was Inefficient
+- **Two avoidable miscounts on stale data.** The initial NULL-row analysis used the stale `public/data/occurrences.parquet`; the executor then mis-scoped a checkpoint by counting *all* single-token names instead of the currently-NULL ones (the `taxon_id IS NULL` guard makes most irrelevant). Both were caught, but each cost a round-trip. Lesson: for backfill scoping, always query the fresh build AND apply the actual write-guard predicate up front.
+- **The `milestone.complete` CLI mis-extracted accomplishments** — it scraped one-liners from every on-disk phase (101–128) and miscounted stats (10 phases vs the real 5). The MILESTONES entry had to be hand-rewritten. The phase directories from prior milestones were never archived off `.planning/phases/`, which is what confused the scanner.
+
+### Patterns Established
+- **Reading a raw CSV directly inside a dbt model** (`read_csv('../raw/taxa.csv.gz', …)`) when the full dump isn't loaded into DuckDB — viable because the dbt-duckdb build CWD is `data/dbt`. First of its kind in the repo.
+- **Disambiguate cross-kingdom taxon-name homonyms by ancestry membership** (`list_contains(string_split(ancestry,'/'), '<kingdom_id>')`), backed by a dbt `unique` test as a fail-loud safety net for future homonyms.
+- **Finest-rank COALESCE behind a `taxon_id IS NULL` + single-token guard** so a backfill never overwrites a finer existing identification.
+
+### Key Lessons
+- A requirement's *wording* can be impossible even when its *intent* is achievable — verify against real data early, and treat re-scoping as a first-class, human-owned decision rather than a silent deviation.
+- When scoping a data backfill, the only number that matters is "rows the write-guard will actually touch on the fresh build" — not "rows that match the name."
+- Archive phase directories at milestone close (or the open-artifact scanner and accomplishment extractor drift over time).
+
+### Cost Observations
+- Heavy use of subagents (researcher, planner, plan-checker ×2, executor, verifier) on Opus for a data-correctness-critical phase; the adversarial plan-check + live SQL reconciliation was worth the spend given it touched production parquet.
+
 ## Milestone: v4.3 — Loading Performance
 
 **Shipped:** 2026-05-28
