@@ -21,29 +21,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 128 — Occurrence Finest-Rank Taxon Backfill (closes re-scoped TID-02)
+**Current focus:** v4.5 shipped & archived — planning next milestone (`/gsd:new-milestone`)
 
 ## Current Position
 
-Phase: Milestone v4.5 complete
+Phase: Milestone v4.5 complete (Phases 124–128), tagged v4.5
 Plan: —
 Status: Awaiting next milestone
 Last activity: 2026-06-01 — Milestone v4.5 completed and archived
 
-### v4.5 Milestone Close — Ready (was blocked, now resolved)
-
-The milestone-close attempt on 2026-06-01 surfaced a real gap during Phase 126 verification; it is now closed:
-
-- Phase 126 verified 2026-06-01 → 3/4: TID-01, TID-03, D-03 rollup invariant VERIFIED; TID-02 failed as written (literally impossible — ~21k ecdysis specimens have no identification).
-- **Human decision (Peter):** re-scope TID-02 to "every **identified** occurrence row" (finest-rank taxon_id); backfill genus-level rows in **Phase 128**; truly-unidentified stay NULL. Disambiguation by kingdom = Animalia (resolves wasps/flies too).
-- **Phase 128 executed + verified (9/9 passed):** NULL taxon_id 34,354 → 21,680; 12,674 genus rows backfilled; TID-02 marked Complete.
-
-**Open items before close:**
-
-1. Execution commits are on branch `phase-128-occurrence-finest-rank-taxon-backfill` (linear fast-forward of `main`) — merge to main before/within close.
-2. `DEF-128-01` deferred infra item (relative DB_PATH seed-path bug) to acknowledge at close.
-
-**Resume path:** merge phase-128 → main, then `/gsd:complete-milestone v4.5`.
+v4.5 (iNat Taxonomy & Species Completeness) shipped 2026-06-01: 13/13 requirements complete.
+TID-02 was re-scoped mid-milestone (impossible as written) and closed by the inserted Phase 128
+(genus-rank backfill, kingdom=Animalia). Phase 128 merged to `main` (fast-forward). Full record in
+MILESTONES.md, RETROSPECTIVE.md, and milestones/v4.5-*. Candidate next milestone: MPTT / nested-set
+subtaxon queries (deferred from v4.5).
 
 ## Accumulated Context
 
