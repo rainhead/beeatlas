@@ -37,7 +37,7 @@
 - ✅ **v4.2 iNaturalist Expert Observations** — Phases 117–120 (shipped 2026-05-26)
 - ✅ **v4.3 Loading Performance** — Phases 121–122 (shipped 2026-05-28)
 - ✅ **v4.4 Pipeline Data Quality** — Phase 123 (shipped 2026-05-29)
-- 🔄 **v4.5 iNat Taxonomy & Species Completeness** — Phases 124–127 (in progress)
+- 🔄 **v4.5 iNat Taxonomy & Species Completeness** — Phases 124–128 (in progress)
 
 ## Phases
 
@@ -818,6 +818,7 @@ Plans:
 | 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 126. Taxon IDs | v4.5 | 3/3 | Complete    | 2026-05-31 |
 | 127. Inactive Taxon Remapping | v4.5 | 2/2 | Complete    | 2026-06-01 |
+| 128. Occurrence Finest-Rank Taxon Backfill | v4.5 | 0/0 | Not planned | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -843,7 +844,7 @@ Plans:
 
 - [x] 123-02-PLAN.md — Add synonyms LEFT JOIN in int_combined.sql (ARM 1 + ARM 3) and int_species_universe.inat_obs_count_agg; new test_dbt_synonymy.py asserting Agapostemon texanus → subtilior in occurrences.parquet [SYN-02, SYN-03]
 
-<!-- v4.5 iNat Taxonomy & Species Completeness — Phases 124–127 -->
+<!-- v4.5 iNat Taxonomy & Species Completeness — Phases 124–128 -->
 
 ### Phase 124: Pre-Work & Contract Cleanup ✅ completed 2026-05-30
 
@@ -922,3 +923,34 @@ Plans:
 
 - [x] 127-01-PLAN.md — Python: generate_inactive_remaps() + check_inactive_gate() in resolve_taxon_ids.py, run.py STEPS wiring (inactive-remap then inactive-gate after taxa-download), gitignore, Wave-0 unit tests [ITR-01, ITR-02]
 - [x] 127-02-PLAN.md — dbt: int_synonyms UNION model + auto_synonyms seed registration + header-only placeholder (D-04), repoint all 4 synonym-JOIN sites to ref('int_synonyms'); dbt build + 37-col contract [ITR-03, ITR-04]
+
+### Phase 128: Occurrence Finest-Rank Taxon Backfill
+
+**Goal:** Close the re-scoped TID-02 gap from Phase 126: every **identified** occurrence row in `occurrences.parquet` carries a non-null `taxon_id` at its **finest identified rank** (species → genus → subgenus/tribe → family). Truly-unidentified specimens legitimately remain NULL.
+**Depends on:** Phase 126 (taxon_id column, resolution gate, `higher_rank_taxon_ids` machinery), Phase 127 (synonym JOIN chain)
+**Requirements**: TID-02 (re-scoped 2026-06-01 — see REQUIREMENTS.md and `126-VERIFICATION.md` frontmatter `human_decision`)
+
+**Context (live data, 2026-06-01):** Of 77,744 occurrence rows, 34,354 have NULL `taxon_id`:
+  - **12,674 genus-level rows** (single-token `canonical_name`, 29 genera — lasioglossum, osmia, melissodes…) — all 29 resolve to a genus `taxon_id` in `public/data/higher_rank_taxon_ids.json` → **backfillable**.
+  - **~21,179 truly-unidentified ecdysis specimens** (empty/NULL genus, no family/scientificName) — no taxonomic rank → legitimately stay NULL.
+  - **33 rows / 3 ecdysis species** (`anthidiellum robertsoni`, `osmia phaceliae`, `lasioglossum aspilurus`) — 0 iNat API results, pre-existing data-quality issue → stay NULL (manual fix only).
+
+**Success Criteria** (what must be TRUE):
+
+  1. `occurrences.taxon_id` is a COALESCE of finest-rank taxon_id: species-level (existing bridge) → genus → subgenus/tribe/family (from the `higher_rank_taxon_ids` machinery / `stg_inat__taxon_lineage_extended`). The 12,674 genus-level rows resolve to their genus `taxon_id`.
+  2. The occurrences `not_null` data_test is re-scoped to assert non-null for **every row with any identification** (`canonical_name IS NOT NULL OR genus present`), replacing the species-level `where: "canonical_name like '% %'"` filter. Truly-unidentified rows are explicitly excluded.
+  3. The D-03 consistency test (`occurrences.taxon_id == species.taxon_id`) is scoped to **species-level rows only** — genus-level rows point at a genus taxon, which is not a species mart row, so they are excluded from that invariant.
+  4. dbt build passes the 37-column occurrences contract; all existing taxon_id tests pass; live `occurrences.parquet` shows the ~12,674 genus rows newly non-null and the ~21,212 truly-unidentified rows still NULL.
+
+**Canonical refs** (load before planning):
+  - `data/dbt/models/marts/occurrences.sql`, `marts/schema.yml` (occurrences not_null data_test)
+  - `data/dbt/models/intermediate/int_combined.sql` (3 ARMs, taxon_id joins)
+  - `data/dbt/models/staging/stg_inat__taxon_lineage_extended.sql` (higher-rank self-row taxon_ids)
+  - `data/species_export.py` `_build_higher_rank_taxon_ids` (genus/subgenus/tribe → taxon_id sidecar)
+  - `.planning/phases/126-taxon-ids/126-VERIFICATION.md` (`human_decision`), `126-CONTEXT.md` (D-03)
+  - `.planning/phases/127-inactive-taxon-remapping/127-VERIFICATION.md` (consistency-test precedent)
+
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 128 to break down)

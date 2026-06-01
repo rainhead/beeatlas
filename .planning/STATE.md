@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.5
-milestone_name: "Liveness: Provisional Specimen Records"
-status: milestone_complete
-stopped_at: Milestone complete (Phase 127 was final phase)
-last_updated: 2026-06-01T02:54:37.333Z
+milestone_name: "iNat Taxonomy & Species Completeness"
+status: in_progress
+stopped_at: "Milestone close blocked — Phase 128 added to close re-scoped TID-02 gap (genus-rank backfill)"
+last_updated: 2026-06-01T06:45:00Z
 last_activity: 2026-06-01
 progress:
   total_phases: 14
@@ -21,14 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Milestone complete
+**Current focus:** Phase 128 — Occurrence Finest-Rank Taxon Backfill (closes re-scoped TID-02)
 
 ## Current Position
 
-Phase: 127
+Phase: 128
 Plan: Not started
-Status: Milestone complete
+Status: Phase added, awaiting planning
 Last activity: 2026-06-01
+
+### v4.5 Milestone Close — Blocked
+
+Milestone-completion attempt on 2026-06-01 surfaced a real gap during Phase 126 verification:
+
+- Phase 126 had no VERIFICATION.md (audit's procedural blocker). Verified 2026-06-01 → 3/4: TID-01, TID-03, D-03 rollup invariant all VERIFIED; **TID-02 failed as written**.
+- TID-02 ("non-null taxon_id for every occurrence row") is literally impossible: ~21k ecdysis specimens have no taxonomic identification at all.
+- **Human decision (Peter, 2026-06-01):** treat as real gap. Re-scope TID-02 to "every **identified** occurrence row" (finest-rank taxon_id); backfill the 12,674 genus-level rows in new **Phase 128**; truly-unidentified specimens stay NULL.
+- TID-02 wording updated in REQUIREMENTS.md + traceability; decision recorded in `126-VERIFICATION.md` frontmatter `human_decision`.
+
+**Resume path:** plan → execute → verify Phase 128, then re-run `/gsd:complete-milestone v4.5`.
 
 ## Accumulated Context
 
@@ -64,6 +75,7 @@ Phase 123 decisions:
 
 ### Roadmap Evolution
 
+- Phase 128 added (2026-06-01): Occurrence Finest-Rank Taxon Backfill — closes re-scoped TID-02 (genus-rank taxon_id for 12,674 genus-level occurrence rows)
 - Phase 121: Prebuilt SQLite Load — COMPLETE
 - Phase 122: Worker GeoJSON Aggregation — COMPLETE
 

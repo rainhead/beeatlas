@@ -20,7 +20,7 @@
 ### Taxon IDs (TID)
 
 - [x] **TID-01**: `species.parquet` includes a non-null `taxon_id` INTEGER column identifying the iNat taxon for every species row
-- [x] **TID-02**: `occurrences.parquet` includes a non-null `taxon_id` INTEGER column for every occurrence row
+- [ ] **TID-02**: `occurrences.parquet` includes a non-null `taxon_id` INTEGER column for every **identified** occurrence row — each occurrence carries the taxon_id of its finest identified rank (species → genus → subgenus/tribe/family). Truly-unidentified specimens (no taxonomic rank in any field) legitimately remain NULL. *(Re-scoped 2026-06-01: original "every occurrence row" was impossible — ~21k ecdysis specimens have no identification. Genus-rank backfill delegated to Phase 128.)*
 - [x] **TID-03**: Species pages link to `https://www.inaturalist.org/taxa/{taxon_id}`
 
 ### Inactive Taxon Remapping (ITR)
@@ -58,7 +58,7 @@
 | SPV-02 | Phase 125 | Complete |
 | SPV-03 | Phase 125 | Complete |
 | TID-01 | Phase 126 | Complete |
-| TID-02 | Phase 126 | Complete |
+| TID-02 | Phase 126 → 128 | Re-scoped; genus-rank backfill in progress (Phase 128) |
 | TID-03 | Phase 126 | Complete |
 | ITR-01 | Phase 127 | Complete |
 | ITR-02 | Phase 127 | Complete |
