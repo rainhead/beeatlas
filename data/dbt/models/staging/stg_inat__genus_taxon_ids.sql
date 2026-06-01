@@ -19,25 +19,43 @@
 -- taxon_id is cast BIGINT->INTEGER to match the occurrences/species contract (RESEARCH Pitfall 4).
 -- Path note: run.sh `cd`s into data/dbt before invoking dbt, so the DuckDB process CWD is data/dbt
 -- and `../raw/taxa.csv.gz` resolves to data/raw/taxa.csv.gz (same relative convention as profiles.yml).
+--
+-- Cross-phylum homonym handling (D-02b, refined during execution 2026-06-01): within Animalia there
+-- are 58 genus names shared across animal phyla (e.g. an insect Taracticus and a different-phylum
+-- Taracticus — distinct valid taxa that share a name). Emitting both rows would make the downstream
+-- int_combined LEFT JOIN fan out for any occurrence whose genus matched a homonym, AND would silently
+-- pick one arbitrarily. Verified: 0 of our 149 occurrence genera are among these 58, so excluding the
+-- ambiguous names (HAVING COUNT(*) = 1) drops 0 of our resolutions while making genus_name genuinely
+-- unique. Fail-safe: if a future occurrence genus ever matches an excluded homonym it stays NULL
+-- (surfaced by the re-scoped not_null warn) rather than silently resolving to the wrong taxon. The
+-- dbt `unique` test on genus_name (schema.yml) then passes and still fails loudly if the dedup logic
+-- ever regresses.
 {{ config(materialized='view') }}
 
-SELECT
-    lower(name)        AS genus_name,
-    taxon_id::INTEGER  AS taxon_id
-FROM read_csv(
-    '../raw/taxa.csv.gz',
-    delim = chr(9),
-    header = true,
-    compression = 'gzip',
-    columns = {
-        'taxon_id': 'BIGINT',
-        'ancestry': 'VARCHAR',
-        'rank_level': 'BIGINT',
-        'rank': 'VARCHAR',
-        'name': 'VARCHAR',
-        'active': 'VARCHAR'
-    }
+WITH animal_genera AS (
+    SELECT
+        lower(name)        AS genus_name,
+        taxon_id::INTEGER  AS taxon_id
+    FROM read_csv(
+        '../raw/taxa.csv.gz',
+        delim = chr(9),
+        header = true,
+        compression = 'gzip',
+        columns = {
+            'taxon_id': 'BIGINT',
+            'ancestry': 'VARCHAR',
+            'rank_level': 'BIGINT',
+            'rank': 'VARCHAR',
+            'name': 'VARCHAR',
+            'active': 'VARCHAR'
+        }
+    )
+    WHERE rank = 'genus'
+      AND active = 'true'
+      AND list_contains(string_split(ancestry, '/'), '1')  -- kingdom = Animalia (taxon 1)
 )
-WHERE rank = 'genus'
-  AND active = 'true'
-  AND list_contains(string_split(ancestry, '/'), '1')  -- kingdom = Animalia (taxon 1)
+
+SELECT genus_name, ANY_VALUE(taxon_id) AS taxon_id
+FROM animal_genera
+GROUP BY genus_name
+HAVING COUNT(*) = 1  -- exclude cross-phylum homonyms (none touch our data; keeps genus_name unique)
