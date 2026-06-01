@@ -915,4 +915,10 @@ Plans:
   3. Automated remappings are applied via the existing synonym JOIN mechanism (`int_combined`, `stg_checklist__species`) — same path as `occurrence_synonyms.csv`
   4. Manual entries in `occurrence_synonyms.csv` take precedence over automated remappings when the same source name appears in both
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+**Wave 1** *(parallel — disjoint file sets)*
+
+- [ ] 127-01-PLAN.md — Python: generate_inactive_remaps() + check_inactive_gate() in resolve_taxon_ids.py, run.py STEPS wiring (inactive-remap then inactive-gate after taxa-download), gitignore, Wave-0 unit tests [ITR-01, ITR-02]
+- [ ] 127-02-PLAN.md — dbt: int_synonyms UNION model + auto_synonyms seed registration + header-only placeholder (D-04), repoint all 4 synonym-JOIN sites to ref('int_synonyms'); dbt build + 37-col contract [ITR-03, ITR-04]
