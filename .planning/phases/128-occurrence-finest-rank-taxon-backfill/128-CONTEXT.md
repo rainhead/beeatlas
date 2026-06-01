@@ -33,12 +33,14 @@ Total rows: 77,744. NULL `taxon_id`: 34,354 (44%). Breakdown:
 
 | Bucket | Rows | Backfillable | Target taxon_id source |
 |--------|-----:|--------------|------------------------|
-| Genus-level ID — single-token `canonical_name`, 29 genera (lasioglossum, osmia, melissodes, megachile, bombus…) | 12,674 | ✅ Yes | genus self-row taxon_id — **all 29 resolve** in `higher_rank_taxon_ids.json['genus']` (verified: lasioglossum→57678, hylaeus→127812, …) |
-| Truly unidentified — empty/NULL genus, no family, no scientificName (all ecdysis) | ~21,179 | ❌ No | none — legitimately NULL (468 have a `specimen_inat_taxon_name`, otherwise nothing) |
+| Genus-level ID — single-token `canonical_name` (bee + non-bee aculeate genera: lasioglossum, osmia, bombus, ammophila, bembix, cerceris…) | ~12,674 (public build) / ~17,254 (sandbox build) | ✅ Yes | genus self-row taxon_id from `taxa.csv.gz` (rank=genus, active, **Animalia** ancestry). **Every single-token genus name in the data resolves — 0 left unresolved.** stelis→127831 (bee, not plant 141523) |
+| Truly unidentified — NULL/empty `canonical_name`, no name to look up (all ecdysis) | ~21,647 | ❌ No | none — legitimately NULL |
 | Unresolvable species — 3 ecdysis names (`anthidiellum robertsoni`, `osmia phaceliae`, `lasioglossum aspilurus`), 11 rows each | 33 | ❌ No | 0 iNat API results — pre-existing data quality, stays NULL |
 
-After backfill: ~12,674 newly non-null; ~21,212 remain NULL by design (truly-unidentified + 3-species).
-NULL-taxon_id by source today: ecdysis 28,504, inat_obs 5,842, waba_sample 8.
+After backfill: every named row non-null; ~21,680 remain NULL by design (no-name + 3-species).
+Counts differ between the stale `public/data/occurrences.parquet` and the fresher dbt sandbox build;
+the **executor records actual before/after counts** against the rebuild. NULL-taxon_id by source today
+(public): ecdysis 28,504, inat_obs 5,842, waba_sample 8.
 
 </live_data>
 
@@ -52,39 +54,51 @@ NULL-taxon_id by source today: ecdysis 28,504, inat_obs 5,842, waba_sample 8.
   subgenus/tribe/family are included only if the occurrence carries that rank and a self-row
   taxon_id exists in `stg_inat__taxon_lineage_extended` / the higher-rank machinery — otherwise skip
   that rung. Do not invent taxon_ids.
-- **D-02 (CORRECTED by 128-RESEARCH.md — supersedes the original draft):** Source the genus
-  taxon_id from `data/raw/taxa.csv.gz` filtered to `rank='genus' AND active='true'`, disambiguated by
-  **Anthophila ancestry** (`630955` in the ancestry chain). Do NOT source from
-  `higher_rank_taxon_ids.json` (it picks the WRONG Stelis — plant 141523 instead of bee 127831 — via
-  Python dict-overwrite) and do NOT join `stg_inat__taxon_lineage_extended` on `subgenus IS NULL`
-  (it fans out across species/subspecies rows and is Anthophila-filtered, dropping non-bee genera
-  inconsistently). Add a new staging model (e.g. `stg_inat__genus_taxon_ids`) that reads `../raw/taxa.csv.gz`
-  and exposes `genus_name (lowercase) → genus_taxon_id (INTEGER)`. Still no new iNat API calls/downloads —
-  `taxa.csv.gz` is already downloaded by the pipeline. Consistent with Phase 126's "surface, don't rebuild".
+- **D-02 (CORRECTED by 128-RESEARCH.md + user decision 2026-06-01 — supersedes the original draft):**
+  Source the genus taxon_id from `data/raw/taxa.csv.gz` filtered to `rank='genus' AND active='true'`,
+  disambiguated by **kingdom = Animalia** (ancestry contains the Animalia taxon `1`, i.e.
+  `('/'||ancestry||'/') LIKE '%/1/%'`). This resolves the plant-vs-animal homonym collision (e.g. Stelis
+  bee `127831` vs orchid `141523`, whose ancestry starts `48460/47126/…` = Plantae). Do NOT source from
+  `higher_rank_taxon_ids.json` (it picks the WRONG Stelis via Python dict-overwrite) and do NOT join
+  `stg_inat__taxon_lineage_extended` on `subgenus IS NULL` (fans out + is Anthophila-filtered). Add a new
+  staging model `stg_inat__genus_taxon_ids` that reads `../raw/taxa.csv.gz` and exposes
+  `genus_name (lowercase) → genus_taxon_id (INTEGER)`. No new iNat API calls/downloads — `taxa.csv.gz` is
+  already downloaded. Consistent with Phase 126's "surface, don't rebuild".
+  - **Why Animalia, not Anthophila (bees-only):** Ecdysis identifications are all animals. Animalia
+    resolves 80/149 of our occurrence genera (vs 39/149 for bees-only) — including the wasp/fly genera
+    (Ammophila, Bembix, Cerceris, Crabro, Philanthus, Sceliphron, Tachytes, … ~41 genera) that Ecdysis
+    collected alongside the bees. These are real animal identifications and should link to their real
+    iNat genus taxon, not be forced NULL. Verified: **0 of our 149 occurrence genera collide within
+    Animalia** — kingdom+name+rank+active is unique for our data, so the LEFT JOIN cannot fan out.
+- **D-02b (uniqueness safety net):** Add a dbt `unique` test on `stg_inat__genus_taxon_ids.genus_name`.
+  Globally there are ~58 homonym pairs among active animal genera (none touch us today); if future data
+  ever introduces one, the build must **fail loudly** rather than silently pick one — matching the
+  project's fail-fast-at-build culture.
 - **D-03:** Join key is the occurrence's **single-token post-synonymy `canonical_name`** (the path
   already wired through `int_combined`'s 3 ARMs), normalized lowercase to match the genus staging model.
   Guard the COALESCE with `ctt.taxon_id IS NULL` (only backfill rows that lack a species taxon_id) AND
   single-token detection (`position(' ' IN canonical_name)=0`) so species-level rows are never touched.
-- **D-07 (non-bee genera — per RESEARCH A3, recommended):** Apply the Anthophila filter so non-bee
-  bycatch genera (crossocerus, larropsis, plecoptera, symphyta, trypoxylon — wasps/sawflies, ~46 rows)
-  stay NULL rather than receiving a genus taxon_id. Consistent with Phase 126 D-09 (KNOWN_NON_BEES
-  excludes non-bee rows). The not_null test (D-04) must then exclude these non-bee genera, mirroring the
-  3-species exclusion. Net backfill targets bee genera only (~36 single-token genera minus ~5 non-bee).
+- **D-07 (SUPERSEDED — no non-bee exclusion):** The earlier draft applied an Anthophila filter so
+  non-bee bycatch genera stayed NULL. **Reversed by the Animalia decision (D-02):** non-bee aculeate
+  genera DO receive their real animal genus taxon_id. There is **no `_NON_BEE_GENERA` exclusion list** —
+  neither in the staging model nor in the not_null test. (Phase 126 D-09's KNOWN_NON_BEES still excludes
+  4 non-bee *species rows* from the WABA arm; that is unrelated and unchanged.)
 - **Subgenus/tribe/family rungs (per RESEARCH A2):** backfill **0 additional rows** today — omit them.
   Genus is the complete solution. The COALESCE ladder is effectively species → genus.
 
 ### not_null test re-scope (TID-02 acceptance)
 - **D-04:** Replace the occurrences `taxon_id` not_null data_test's `where: "canonical_name like '% %'"`
-  filter with one that asserts non-null for **every row with any identification** — i.e. rows where a
-  taxon_id *should* now exist. Concretely: rows with a non-null/non-empty `canonical_name` OR a
-  non-empty `genus`. Truly-unidentified rows (no canonical_name and no genus) are excluded from the
-  assertion. Keep it `severity: warn` (matches Phase 126 D-01 relaxation and the nightly-gate culture)
-  unless the planner finds a strict constraint is safe given the 3 unresolvable species.
+  filter with one that asserts non-null for **every row that carries a name** — i.e. rows with a
+  non-null/non-empty `canonical_name` (single-token genus OR two-token species). Rows with NULL/empty
+  `canonical_name` (the ~21,647 truly-unidentified specimens that have no name to look up) are excluded
+  from the assertion. Under the Animalia rule every genus-level name resolves, so the only documented
+  exception is D-05. Keep it `severity: warn` (matches Phase 126 D-01 relaxation and the nightly-gate
+  culture) unless the planner finds a strict constraint is safe given the 3 unresolvable species.
 - **D-05:** The 3 unresolvable ecdysis species (`anthidiellum robertsoni`, `osmia phaceliae`,
-  `lasioglossum aspilurus`) have two-token canonical_names but no taxon_id, so a naive "canonical_name
-  present → must be non-null" test would flag them. The test must tolerate this documented set —
-  either via the same exclusion mechanism Phase 126 used (test WHERE clause excluding those 3 names,
-  see `data/tests/`) or by scoping to genus presence. Carry the exclusion forward; do not regress it.
+  `lasioglossum aspilurus`) have two-token canonical_names but no taxon_id (0 iNat API results). The
+  test must tolerate this documented set via the existing `_KNOWN_UNRESOLVABLE` exclusion Phase 126 used
+  (test WHERE clause excluding those 3 names, see `data/tests/`). Carry it forward; do not regress it.
+  **No non-bee-genera exclusion is needed** (superseded by D-02/D-07) — every genus name resolves.
 
 ### D-03 consistency invariant (carried from Phase 126)
 - **D-06:** Phase 126's invariant `occurrences.taxon_id == species.taxon_id` (0 mismatches across
@@ -141,16 +155,15 @@ NULL-taxon_id by source today: ecdysis 28,504, inat_obs 5,842, waba_sample 8.
 <specifics>
 ## Specific Ideas
 
-- Verification target after this phase: `occurrences.parquet` shows the 29 genus names (lasioglossum,
-  osmia, melissodes, megachile, bombus, hylaeus, ceratina, halictus, …) with their genus taxon_id;
-  the ~21,212 truly-unidentified rows still NULL; the 37-column contract still passes.
+- Verification target after this phase: every single-token genus name in `occurrences.parquet`
+  (lasioglossum, osmia, bombus, ammophila, bembix, cerceris, …) carries its genus taxon_id; the
+  ~21,680 unnamed/unresolvable rows still NULL; the 37-column contract still passes.
 - Genus taxon_id sample resolutions (authoritative source `taxa.csv.gz` rank=genus active=true +
-  Anthophila ancestry, NOT the flawed json): lasioglossum→57678, hylaeus→127812, triepeolus→178745,
-  coelioxys→199145, hoplitis→177785, stelis→127831 (bee, NOT plant 141523). Per RESEARCH the live
-  sandbox build shows 36 single-token genera / 17,254 NULL rows; ~5 are non-bee bycatch (kept NULL per
-  D-07). Exact backfill counts to be confirmed by the planner/executor against the current build —
-  my earlier "29 genera / 12,674 rows via higher_rank_taxon_ids.json" figure was on a different build
-  AND used the flawed json source; treat RESEARCH.md's taxa.csv.gz numbers as authoritative.
+  **Animalia** ancestry, NOT the flawed json): lasioglossum→57678, stelis→127831 (bee, NOT plant
+  141523), ammophila→83951, bembix→53067, cerceris→81959, crabro→56808. **0 of our 149 occurrence
+  genera collide within Animalia** (verified) — the genus map is unique by name for our data. Exact
+  backfill row count to be recorded by the executor against the rebuild (public build ~12,674; sandbox
+  ~17,254 — both fully covered under Animalia).
 - This is the final blocker for the v4.5 milestone close — after verify, re-run `/gsd:complete-milestone v4.5`.
 
 </specifics>
