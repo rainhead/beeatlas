@@ -17,6 +17,13 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 export DBT_PROFILES_DIR="${DBT_PROFILES_DIR:-$DIR}"
 export DBT_PROJECT_DIR="${DBT_PROJECT_DIR:-$DIR}"
 
+# Default DB_PATH to an ABSOLUTE path (data/beeatlas.duckdb) when unset, so local-dev
+# `run.sh build` is deterministic regardless of invocation CWD. profiles.yml otherwise
+# falls back to a relative `../beeatlas.duckdb`, which dbt-duckdb can resolve inconsistently
+# depending on CWD/state (DEF-128-01). nightly.sh sets DB_PATH=/tmp/beeatlas.duckdb
+# explicitly, so the `:-` default preserves it and nightly behavior is unchanged.
+export DB_PATH="${DB_PATH:-$(cd "$DIR/.." && pwd)/beeatlas.duckdb}"
+
 # cd into the project dir so the relative `path: ../beeatlas.duckdb` in profiles.yml
 # resolves to data/beeatlas.duckdb regardless of where the wrapper was invoked from.
 cd "$DIR"
