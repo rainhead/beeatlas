@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import duckdb
 import pytest
+import requests
 
 # ---------------------------------------------------------------------------
 # Mini TSV fixture — active successor + inactive predecessor
@@ -302,6 +303,84 @@ def test_successor_not_in_taxa_csv(inactive_remap_db):
     assert len(rows) == 1
     assert rows[0]["reason"] == "successor_not_in_taxa_csv"
     assert rows[0]["canonical_name"] == "bombus oldspecies"
+
+
+# ---------------------------------------------------------------------------
+# CR-01 — transient API failure must NOT block the build
+# ---------------------------------------------------------------------------
+
+
+def _http_error_response(status_code: int = 500) -> MagicMock:
+    """iNat response that exhausts retries and raises HTTPError on raise_for_status."""
+    resp = MagicMock()
+    resp.status_code = status_code
+    resp.headers = {}
+    resp.raise_for_status.side_effect = requests.HTTPError(f"{status_code} Server Error")
+    return resp
+
+
+def test_transient_api_error_does_not_block(inactive_remap_db, capsys):
+    """A sustained 5xx (HTTPError after retry budget) must NOT write a blocking
+    triage row (CR-01). The inactive bridge row is left untouched so it is
+    re-attempted next run; inactive_unresolved.csv stays empty so the gate passes.
+    """
+    tmp_path, mod = inactive_remap_db
+    response = _http_error_response(500)
+
+    with patch("inaturalist_pipeline.requests.get", return_value=response):
+        mod.generate_inactive_remaps()
+
+    # No blocking triage row was written for the transient failure
+    inactive_csv = tmp_path / "inactive_unresolved.csv"
+    assert inactive_csv.exists()
+    with inactive_csv.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 0, f"Transient API failure must not block; got: {rows}"
+
+    # auto_synonyms.csv is header-only (no remap performed)
+    auto_csv = tmp_path / "auto_synonyms.csv"
+    lines = [l for l in auto_csv.read_text().splitlines() if l.strip()]
+    assert lines == ["synonym,accepted_name,source"]
+
+    # The inactive bridge row is preserved for next-run retry
+    import duckdb as _duckdb  # noqa: PLC0415
+    con = _duckdb.connect(str(tmp_path / "resolver.duckdb"))
+    row = con.execute(
+        "SELECT taxon_id FROM inaturalist_data.canonical_to_taxon_id "
+        "WHERE canonical_name = 'bombus oldspecies'"
+    ).fetchone()
+    con.close()
+    assert row is not None and row[0] == 99000, "Inactive bridge row must persist"
+
+    # The failure was surfaced as a warning
+    out = capsys.readouterr().out
+    assert "transient API failure" in out
+
+    # The gate passes (empty triage file)
+    monkeyless_gate = mod.check_inactive_gate
+    mod.INACTIVE_UNRESOLVED_CSV = inactive_csv
+    monkeyless_gate()  # must not raise
+
+
+def test_empty_results_does_not_block(inactive_remap_db, capsys):
+    """An empty results array means iNat did not return the taxon detail this run;
+    treated as transient (CR-01) — no blocking row, bridge untouched.
+    """
+    tmp_path, mod = inactive_remap_db
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.raise_for_status = MagicMock()
+    response.json.return_value = {"results": []}
+
+    with patch("inaturalist_pipeline.requests.get", return_value=response):
+        mod.generate_inactive_remaps()
+
+    inactive_csv = tmp_path / "inactive_unresolved.csv"
+    with inactive_csv.open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 0, f"Empty results must not block; got: {rows}"
+    assert "empty API response" in capsys.readouterr().out
 
 
 # ---------------------------------------------------------------------------
