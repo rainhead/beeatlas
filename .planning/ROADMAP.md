@@ -817,7 +817,7 @@ Plans:
 | 124. Pre-Work & Contract Cleanup | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 126. Taxon IDs | v4.5 | 3/3 | Complete    | 2026-05-31 |
-| 127. Inactive Taxon Remapping | v4.5 | — | Pending | — |
+| 127. Inactive Taxon Remapping | v4.5 | 1/2 | In Progress|  |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -920,5 +920,5 @@ Plans:
 Plans:
 **Wave 1** *(parallel — disjoint file sets)*
 
-- [ ] 127-01-PLAN.md — Python: generate_inactive_remaps() + check_inactive_gate() in resolve_taxon_ids.py, run.py STEPS wiring (inactive-remap then inactive-gate after taxa-download), gitignore, Wave-0 unit tests [ITR-01, ITR-02]
+- [x] 127-01-PLAN.md — Python: generate_inactive_remaps() + check_inactive_gate() in resolve_taxon_ids.py, run.py STEPS wiring (inactive-remap then inactive-gate after taxa-download), gitignore, Wave-0 unit tests [ITR-01, ITR-02]
 - [ ] 127-02-PLAN.md — dbt: int_synonyms UNION model + auto_synonyms seed registration + header-only placeholder (D-04), repoint all 4 synonym-JOIN sites to ref('int_synonyms'); dbt build + 37-col contract [ITR-03, ITR-04]

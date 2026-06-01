@@ -4,13 +4,13 @@ milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
 status: executing
 stopped_at: Phase 127 context gathered
-last_updated: "2026-06-01T02:12:34.529Z"
-last_activity: 2026-06-01 -- Phase 127 planning complete
+last_updated: "2026-06-01T02:24:01.156Z"
+last_activity: 2026-06-01
 progress:
   total_phases: 14
   completed_phases: 8
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
   percent: 57
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 127 — inactive taxon remapping
+**Current focus:** Phase 127 — Inactive Taxon Remapping
 
 ## Current Position
 
-Phase: 127
-Plan: Not started
+Phase: 127 (Inactive Taxon Remapping) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-01 -- Phase 127 planning complete
+Last activity: 2026-06-01
 
 ## Accumulated Context
 
@@ -90,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-01T01:31:08.640Z
+Last session: 2026-06-01T02:24:01.122Z
 Stopped at: Phase 127 context gathered
-Resume file: .planning/phases/127-inactive-taxon-remapping/127-CONTEXT.md
+Resume file: None
