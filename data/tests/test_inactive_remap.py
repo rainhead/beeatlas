@@ -306,6 +306,70 @@ def test_successor_not_in_taxa_csv(inactive_remap_db):
 
 
 # ---------------------------------------------------------------------------
+# WR-03 — CSV formula-injection hardening on write
+# ---------------------------------------------------------------------------
+
+
+def test_csv_formula_injection_is_neutralized(tmp_path, monkeypatch):
+    """A successor name beginning with a formula trigger (=) is prefixed with '
+    in auto_synonyms.csv so a spreadsheet treats it as literal text (WR-03).
+    """
+    db_path = str(tmp_path / "inj.duckdb")
+    monkeypatch.setenv("DB_PATH", db_path)
+
+    import inaturalist_pipeline
+    importlib.reload(inaturalist_pipeline)
+    monkeypatch.setattr(inaturalist_pipeline, "_INAT_PACE_SECONDS", 0.0)
+    monkeypatch.setattr(inaturalist_pipeline, "_INAT_BACKOFF_BASE_SECONDS", 0.0)
+
+    import resolve_taxon_ids
+    importlib.reload(resolve_taxon_ids)
+    monkeypatch.setattr(resolve_taxon_ids, "_INAT_PACE_SECONDS", 0.0)
+    monkeypatch.setattr(resolve_taxon_ids, "AUTO_SYNONYMS_CSV", tmp_path / "auto_synonyms.csv")
+    monkeypatch.setattr(
+        resolve_taxon_ids, "INACTIVE_UNRESOLVED_CSV", tmp_path / "inactive_unresolved.csv"
+    )
+    monkeypatch.setattr(resolve_taxon_ids, "DB_PATH", db_path)
+    monkeypatch.setattr(resolve_taxon_ids, "__file__", str(tmp_path / "resolve_taxon_ids.py"))
+
+    # Successor 99001 has a crafted name beginning with '='
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    tsv = (
+        "taxon_id\tancestry\trank_level\trank\tname\tactive\n"
+        "99001\t48460/1/.../630955\t10\tspecies\t=cmd|evil\ttrue\n"
+        "99000\t48460/1/.../630955\t10\tspecies\tBombus oldspecies\tfalse\n"
+    )
+    with gzip.open(raw_dir / "taxa.csv.gz", "wb") as f:
+        f.write(tsv.encode())
+
+    con = duckdb.connect(db_path)
+    con.execute("CREATE SCHEMA inaturalist_data")
+    con.execute("""
+        CREATE TABLE inaturalist_data.canonical_to_taxon_id (
+            canonical_name TEXT PRIMARY KEY, taxon_id INTEGER,
+            resolved_at TIMESTAMP, source TEXT
+        )
+    """)
+    con.execute("""
+        INSERT INTO inaturalist_data.canonical_to_taxon_id
+            (canonical_name, taxon_id, resolved_at, source)
+        VALUES ('bombus oldspecies', 99000, current_timestamp, 'inat_species')
+    """)
+    con.close()
+
+    response = _fake_taxon_detail_response([99001])
+    with patch("inaturalist_pipeline.requests.get", return_value=response):
+        resolve_taxon_ids.generate_inactive_remaps()
+
+    with (tmp_path / "auto_synonyms.csv").open(newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert len(rows) == 1
+    # accepted_name must be the sanitized (apostrophe-prefixed) form
+    assert rows[0]["accepted_name"].startswith("'="), rows[0]["accepted_name"]
+
+
+# ---------------------------------------------------------------------------
 # CR-01 — transient API failure must NOT block the build
 # ---------------------------------------------------------------------------
 
