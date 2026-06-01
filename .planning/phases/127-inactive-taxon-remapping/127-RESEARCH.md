@@ -684,7 +684,7 @@ The bridge fixture pre-seeds `lower('bombus oldspecies') → taxon_id=99000` so 
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the existing inactive-enumeration/reporting block (lines 258-273 in `resolve_taxon_ids.py`) be removed or retained?**
    - What we know: After Phase 127, `inactive-remap` is authoritative for inactive detection. The existing block runs against yesterday's `taxa.csv.gz` (before `taxa-download`), so it's slightly stale compared to the new step.
