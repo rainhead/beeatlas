@@ -43,7 +43,7 @@ SELECT
     sob.quality_grade                              AS specimen_inat_quality_grade,
     FALSE                                          AS is_provisional,
     COALESCE(syn_e.accepted_name, e.canonical_name) AS canonical_name,
-    ctt.taxon_id::INTEGER                          AS taxon_id,
+    COALESCE(ctt.taxon_id, g_e.taxon_id)::INTEGER  AS taxon_id,
     NULL                                           AS image_url,
     NULL                                           AS obs_url,
     NULL                                           AS user_login,
@@ -55,6 +55,12 @@ LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen
 LEFT JOIN {{ ref('int_synonyms') }} syn_e ON syn_e.synonym = e.canonical_name
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
     ON ctt.canonical_name = COALESCE(syn_e.accepted_name, e.canonical_name)
+-- Phase 128 (TID-02): genus self-row backfill — fires only when the species bridge missed
+-- (ctt.taxon_id IS NULL) AND the post-synonymy name is single-token (a genus, no space).
+LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_e
+    ON ctt.taxon_id IS NULL
+   AND position(' ' IN COALESCE(syn_e.accepted_name, e.canonical_name)) = 0
+   AND g_e.genus_name = lower(COALESCE(syn_e.accepted_name, e.canonical_name))
 
 UNION ALL
 
@@ -97,7 +103,7 @@ SELECT
              ELSE trim(sob.specimen_inat_taxon_name)
         END
     ))::VARCHAR                                                                 AS canonical_name,
-    ctt_w.taxon_id::INTEGER                                                     AS taxon_id,
+    COALESCE(ctt_w.taxon_id, g_w.taxon_id)::INTEGER                             AS taxon_id,
     NULL                                                                        AS image_url,
     NULL                                                                        AS obs_url,
     NULL                                                                        AS user_login,
@@ -111,6 +117,25 @@ LEFT JOIN {{ ref('int_samples_base') }} s
     ON s.observation_id = CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_w
     ON ctt_w.canonical_name = lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))
+-- Phase 128 (TID-02): genus self-row backfill for ARM 2. The join key reuses the exact inline
+-- lower(trim(CASE ...)) expression already present above (already single/double-token aware);
+-- fires only when the species bridge missed and that key is single-token.
+LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_w
+    ON ctt_w.taxon_id IS NULL
+   AND position(' ' IN lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))) = 0
+   AND g_w.genus_name = lower(trim(
         CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
              THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
                   || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
@@ -161,7 +186,7 @@ SELECT
     NULL                               AS specimen_inat_quality_grade,
     FALSE                              AS is_provisional,
     COALESCE(syn_io.accepted_name, io.canonical_name) AS canonical_name,
-    ctt_io.taxon_id::INTEGER           AS taxon_id,
+    COALESCE(ctt_io.taxon_id, g_io.taxon_id)::INTEGER AS taxon_id,
     io.image_url,
     io.obs_url,
     io.user_login,
@@ -171,4 +196,10 @@ FROM {{ source('inat_obs_data', 'observations') }} io
 LEFT JOIN {{ ref('int_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_io
     ON ctt_io.canonical_name = COALESCE(syn_io.accepted_name, io.canonical_name)
+-- Phase 128 (TID-02): genus self-row backfill for ARM 3 — same guards as ARM 1, keyed on the
+-- post-synonymy single-token canonical_name.
+LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_io
+    ON ctt_io.taxon_id IS NULL
+   AND position(' ' IN COALESCE(syn_io.accepted_name, io.canonical_name)) = 0
+   AND g_io.genus_name = lower(COALESCE(syn_io.accepted_name, io.canonical_name))
 WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL
