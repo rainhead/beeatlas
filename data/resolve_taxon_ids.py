@@ -23,6 +23,13 @@ AUTO_SYNONYMS_CSV = Path(__file__).parent / "dbt/seeds/auto_synonyms.csv"
 INACTIVE_UNRESOLVED_CSV = Path(__file__).parent / "inactive_unresolved.csv"
 INAT_TAXA_ID_URL = "https://api.inaturalist.org/v1/taxa/{}"
 
+# WR-05: defensive bounds on the paced per-taxon detail loop in
+# generate_inactive_remaps(). There are 0 inactive taxa today, so these caps only
+# trip on an anomaly (e.g. a detection-query regression flooding the loop, or a
+# sustained iNat outage). At 1s/taxon the cap also bounds nightly API time.
+_INACTIVE_REMAP_MAX_TAXA = 500            # hard ceiling on per-run detail fetches
+_INACTIVE_REMAP_MAX_CONSECUTIVE_FAILS = 10  # circuit-breaker on a hard iNat outage
+
 # Non-bee bycatch rows in the WABA provisional dataset (confirmed via taxa.csv.gz ancestry
 # check: Cicindela pugetana, Cleridae, Encopognathus have no Anthophila ancestry).
 # These names cannot resolve through the iNat bridge (which covers only Anthophila taxa).
@@ -106,8 +113,30 @@ def generate_inactive_remaps() -> None:
         triage_rows: list[dict] = []
         transient_failures = 0  # CR-01: surfaced as a warning, never blocks the gate
         seen_synonyms: set[str] = set()  # WR-02: guard the auto_synonyms.synonym unique test
+        consecutive_fails = 0  # WR-05: circuit-breaker on a sustained iNat outage
+
+        # WR-05: cap the number of per-taxon detail fetches. 0 inactive taxa today,
+        # so this only trips on an anomaly; the remainder is left untouched (bridge
+        # rows persist) and re-attempted next run.
+        if len(inactive) > _INACTIVE_REMAP_MAX_TAXA:
+            print(  # noqa: T201
+                f"inactive-remap: WARNING {len(inactive)} inactive taxa exceeds cap "
+                f"{_INACTIVE_REMAP_MAX_TAXA}; processing first {_INACTIVE_REMAP_MAX_TAXA} "
+                f"this run, remainder retried next run"
+            )
+            inactive = inactive[:_INACTIVE_REMAP_MAX_TAXA]
 
         for canonical_name, inactive_taxon_id, inat_name in inactive:
+            # WR-05: stop issuing further paced requests once iNat is clearly down,
+            # so a hard outage fails fast rather than burning ~1s/taxon to no effect.
+            if consecutive_fails >= _INACTIVE_REMAP_MAX_CONSECUTIVE_FAILS:
+                print(  # noqa: T201
+                    f"inactive-remap: WARNING {consecutive_fails} consecutive API "
+                    f"failures; circuit-breaker tripped, abandoning remaining taxa "
+                    f"this run (will retry next run)"
+                )
+                break
+
             time.sleep(_INAT_PACE_SECONDS)
             try:
                 resp = _inat_get_with_retry(
@@ -125,6 +154,7 @@ def generate_inactive_remaps() -> None:
                 # the inactive bridge row untouched so it is naturally re-attempted
                 # next run; warn loudly and skip it for this run.
                 transient_failures += 1
+                consecutive_fails += 1
                 print(  # noqa: T201
                     f"inactive-remap: WARNING transient API failure for "
                     f"{canonical_name} (taxon_id={inactive_taxon_id}); "
@@ -138,12 +168,16 @@ def generate_inactive_remaps() -> None:
                 # detail this run — treat as a transient infrastructure hiccup, not a
                 # sanctioned blocking reason. Skip and re-attempt next run.
                 transient_failures += 1
+                consecutive_fails += 1
                 print(  # noqa: T201
                     f"inactive-remap: WARNING empty API response for "
                     f"{canonical_name} (taxon_id={inactive_taxon_id}); "
                     f"skipping this run, will retry next run"
                 )
                 continue
+
+            # A usable response resets the circuit-breaker (WR-05).
+            consecutive_fails = 0
 
             # Normalize: None (active taxon) or [] (no successor) both map to []
             successor_ids = results[0].get("current_synonymous_taxon_ids") or []
