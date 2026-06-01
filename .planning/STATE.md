@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v4.5
-milestone_name: "iNat Taxonomy & Species Completeness"
-status: in_progress
-stopped_at: "Milestone close blocked — Phase 128 added to close re-scoped TID-02 gap (genus-rank backfill)"
-last_updated: 2026-06-01T06:45:00Z
+milestone_name: iNat Taxonomy & Species Completeness
+status: executing
+stopped_at: Phase 128 Plan 01 executed (TID-02 closed)
+last_updated: "2026-06-01T20:14:00.000Z"
 last_activity: 2026-06-01
 progress:
-  total_phases: 14
-  completed_phases: 9
-  total_plans: 22
-  completed_plans: 44
-  percent: 64
+  total_phases: 15
+  completed_phases: 10
+  total_plans: 24
+  completed_plans: 24
+  percent: 67
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 ## Current Position
 
 Phase: 128
-Plan: Not started
-Status: Phase added, awaiting planning
+Plan: 01 — executed
+Status: TID-02 closed — genus-rank backfill complete; ready for /gsd:verify-work then /gsd:complete-milestone v4.5
 Last activity: 2026-06-01
 
 ### v4.5 Milestone Close — Blocked
@@ -46,6 +46,14 @@ Milestone-completion attempt on 2026-06-01 surfaced a real gap during Phase 126 
 ### Decisions
 
 All v4.3 decisions logged in PROJECT.md Key Decisions table.
+
+Phase 128 Plan 01 decisions:
+
+- Genus disambiguation by kingdom = Animalia (ancestry contains taxon 1), not Anthophila — non-bee aculeates (wasps/flies) resolve to their real genus taxon (stelis→127831, bembix→53067)
+- stg_inat__genus_taxon_ids reads ../raw/taxa.csv.gz directly via DuckDB read_csv (first raw-CSV-in-model in the repo); excludes the 58 cross-phylum animal-genus homonyms via HAVING COUNT(*)=1 so genus_name is unique and the LEFT JOIN cannot fan out (0 of our 149 genera affected; ambiguous future names surface as NULL, not a wrong link)
+- Per-ARM COALESCE(<bridge>.taxon_id, genus.taxon_id) guarded by taxon_id IS NULL + single-token detection; not_null test re-scoped to every named row (severity: warn); consistency test scoped to species-level (D-06)
+- Backfill: whole-column NULL taxon_id 34,354 → 21,680; 12,674 genus rows (149 genera) NULL → non-null; 37-col contract held; taxon_id stays INTEGER
+- Pre-existing (deferred): `data/dbt/run.sh build` needs an absolute DB_PATH or the seeds fail with a dbt-duckdb seed-path resolution bug (nightly already uses absolute DB_PATH); logged in 128 deferred-items.md
 
 Phase 126 Plan 3 decisions:
 
@@ -89,7 +97,7 @@ None.
 
 ## Deferred Items
 
-None.
+- DEF-128-01: `data/dbt/run.sh build` fails seeds with the default relative `DB_PATH` (dbt-duckdb seed-path resolution); workaround = absolute `DB_PATH`. See `.planning/phases/128-occurrence-finest-rank-taxon-backfill/deferred-items.md`.
 
 ## Quick Tasks Completed
 
@@ -102,6 +110,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-06-01T02:29:12.623Z
-Stopped at: Phase 127 context gathered
+Last session: 2026-06-01T20:14:00.000Z
+Stopped at: Phase 128 Plan 01 executed — TID-02 closed
 Resume file: None

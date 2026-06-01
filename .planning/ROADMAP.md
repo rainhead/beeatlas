@@ -818,7 +818,7 @@ Plans:
 | 125. Species Visibility | v4.5 | 1/1 | Complete   | 2026-05-30 |
 | 126. Taxon IDs | v4.5 | 3/3 | Complete    | 2026-05-31 |
 | 127. Inactive Taxon Remapping | v4.5 | 2/2 | Complete    | 2026-06-01 |
-| 128. Occurrence Finest-Rank Taxon Backfill | v4.5 | 0/1 | Planned | - |
+| 128. Occurrence Finest-Rank Taxon Backfill | v4.5 | 1/1 | Executed | 2026-06-01 |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -953,4 +953,4 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 128-01-PLAN.md — Genus self-row taxon_id staging model (taxa.csv.gz, Anthophila-disambiguated) + per-ARM COALESCE backfill in int_combined + re-scoped not_null/consistency tests; build + verify ~17k genus rows [TID-02]
+- [x] 128-01-PLAN.md — Genus self-row taxon_id staging model (taxa.csv.gz, **Animalia**-disambiguated) + per-ARM COALESCE backfill in int_combined + re-scoped not_null/consistency tests; build green, 12,674 genus rows backfilled (whole-column NULL 34,354→21,680) [TID-02] ✅
