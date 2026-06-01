@@ -19,6 +19,9 @@ from inaturalist_pipeline import _inat_get_with_retry, _INAT_PACE_SECONDS
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 UNRESOLVED_CSV = Path(__file__).parent / "lineage_unresolved.csv"
 INAT_TAXA_URL = "https://api.inaturalist.org/v1/taxa"
+AUTO_SYNONYMS_CSV = Path(__file__).parent / "dbt/seeds/auto_synonyms.csv"
+INACTIVE_UNRESOLVED_CSV = Path(__file__).parent / "inactive_unresolved.csv"
+INAT_TAXA_ID_URL = "https://api.inaturalist.org/v1/taxa/{}"
 
 # Non-bee bycatch rows in the WABA provisional dataset (confirmed via taxa.csv.gz ancestry
 # check: Cicindela pugetana, Cleridae, Encopognathus have no Anthophila ancestry).
@@ -49,6 +52,160 @@ def check_resolution_gate() -> None:
         )
     print(  # noqa: T201
         f"resolution-gate: OK ({len(rows_as_dicts)} known non-bee rows excluded)"
+    )
+
+
+def generate_inactive_remaps() -> None:
+    """Detect inactive bridge taxon IDs, auto-remap 1-successor cases (ITR-01/ITR-02).
+
+    - Reads bridge LEFT JOIN taxa.csv.gz filtering to inactive rows (header=True only,
+      no columns= so DuckDB auto-infers active as BOOLEAN — Pitfall 2).
+    - For each inactive taxon: GET /v1/taxa/{id} for current_synonymous_taxon_ids.
+    - Exactly 1 successor: lookup name in taxa.csv.gz; write row to auto_synonyms.csv
+      + UPSERT bridge (D-10); absent successor -> triage reason=successor_not_in_taxa_csv.
+    - 0 successors -> triage reason=no_successor.
+    - >=2 successors -> triage reason=split.
+    - Always writes auto_synonyms.csv with at least a header row (D-04).
+    - Always overwrites inactive_unresolved.csv (stale empty file cannot mask new rows).
+    """
+    import datetime as _dt
+
+    con = duckdb.connect(DB_PATH)
+    taxa_path = str(Path(__file__).parent / "raw/taxa.csv.gz")
+    try:
+        inactive = con.execute(f"""
+            SELECT b.canonical_name, b.taxon_id, t.name AS inat_name
+            FROM inaturalist_data.canonical_to_taxon_id b
+            LEFT JOIN read_csv('{taxa_path}', header=True) t
+                ON CAST(t.taxon_id AS INTEGER) = b.taxon_id
+            WHERE t.active = false
+            ORDER BY b.canonical_name
+        """).fetchall()
+
+        auto_rows: list[tuple[str, str, str]] = []  # (synonym, accepted_name, source)
+        triage_rows: list[dict] = []
+
+        for canonical_name, inactive_taxon_id, inat_name in inactive:
+            time.sleep(_INAT_PACE_SECONDS)
+            try:
+                resp = _inat_get_with_retry(
+                    INAT_TAXA_ID_URL.format(inactive_taxon_id),
+                    params={},
+                    timeout=30,
+                )
+            except requests.HTTPError:
+                triage_rows.append({
+                    "canonical_name": canonical_name,
+                    "inactive_taxon_id": inactive_taxon_id,
+                    "inat_name": inat_name,
+                    "reason": "api_error",
+                    "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                })
+                continue
+
+            results = resp.json().get("results", [])
+            if not results:
+                triage_rows.append({
+                    "canonical_name": canonical_name,
+                    "inactive_taxon_id": inactive_taxon_id,
+                    "inat_name": inat_name,
+                    "reason": "api_error",
+                    "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                })
+                continue
+
+            # Normalize: None (active taxon) or [] (no successor) both map to []
+            successor_ids = results[0].get("current_synonymous_taxon_ids") or []
+
+            if len(successor_ids) == 1:
+                # D-09: look up successor name in local taxa.csv.gz
+                row = con.execute(f"""
+                    SELECT name FROM read_csv('{taxa_path}', header=True)
+                    WHERE CAST(taxon_id AS INTEGER) = ?
+                      AND active = true
+                """, [successor_ids[0]]).fetchone()
+
+                if row is None:
+                    triage_rows.append({
+                        "canonical_name": canonical_name,
+                        "inactive_taxon_id": inactive_taxon_id,
+                        "inat_name": inat_name,
+                        "reason": "successor_not_in_taxa_csv",
+                        "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                    })
+                    continue
+
+                successor_name = row[0].lower().strip()
+                source = f"inat-inactive-remap:{inactive_taxon_id}"
+                auto_rows.append((canonical_name, successor_name, source))
+
+                # D-10: upsert lower(successor_name) -> successor_taxon_id into bridge
+                con.execute(
+                    """
+                    INSERT INTO inaturalist_data.canonical_to_taxon_id
+                        (canonical_name, taxon_id, resolved_at, source)
+                    VALUES (?, ?, current_timestamp, ?)
+                    ON CONFLICT (canonical_name) DO UPDATE SET
+                        taxon_id = EXCLUDED.taxon_id,
+                        resolved_at = EXCLUDED.resolved_at,
+                        source = EXCLUDED.source
+                    """,
+                    [successor_name, successor_ids[0], source],
+                )
+
+            else:
+                reason = "no_successor" if len(successor_ids) == 0 else "split"
+                triage_rows.append({
+                    "canonical_name": canonical_name,
+                    "inactive_taxon_id": inactive_taxon_id,
+                    "inat_name": inat_name,
+                    "reason": reason,
+                    "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
+                })
+
+        # D-04: always write header, even when auto_rows is empty
+        AUTO_SYNONYMS_CSV.parent.mkdir(parents=True, exist_ok=True)
+        with AUTO_SYNONYMS_CSV.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["synonym", "accepted_name", "source"])
+            writer.writerows(auto_rows)
+
+        with INACTIVE_UNRESOLVED_CSV.open("w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=["canonical_name", "inactive_taxon_id", "inat_name", "reason", "attempted_at"],
+            )
+            writer.writeheader()
+            writer.writerows(triage_rows)
+
+        print(  # noqa: T201
+            f"inactive-remap: {len(auto_rows)} auto-remapped, {len(triage_rows)} unresolved"
+        )
+    finally:
+        con.close()
+
+
+def check_inactive_gate() -> None:
+    """Fail fast if any inactive bridge taxon has no auto-resolution (D-05/ITR-02).
+
+    Reads inactive_unresolved.csv (written by the inactive-remap step).
+    All rows are blocking — there is no KNOWN_NON_BEES-style exclusion set (D-07).
+    Exits non-zero with an actionable message naming offenders and the fix:
+    add an entry to occurrence_synonyms.csv (D-07 — the only sanctioned exit).
+    If no rows, prints an OK line.
+    """
+    import sys  # noqa: PLC0415 (lazy import keeps module importable without side-effects)
+
+    rows = list(csv.DictReader(INACTIVE_UNRESOLVED_CSV.open(newline="")))
+    if rows:
+        names = ", ".join(r["canonical_name"] for r in rows)
+        sys.exit(
+            f"inactive-gate: {len(rows)} inactive taxon ID(s) with no auto-resolution. "
+            f"Fix by adding entries to occurrence_synonyms.csv\n"
+            f"Offenders: {names}"
+        )
+    print(  # noqa: T201
+        "inactive-gate: OK (0 unresolved inactive taxa)"
     )
 
 
@@ -255,22 +412,6 @@ def resolve_taxon_ids(refresh: bool = False) -> None:
             f"resolve-taxon-ids: {n_resolved} cached, {len(unresolved)} unresolved "
             f"(see {UNRESOLVED_CSV.name})"
         )
-        taxa_path = str(Path(__file__).parent / "raw/taxa.csv.gz")
-        inactive = con.execute(f"""
-            SELECT b.canonical_name, b.taxon_id, t.name AS inat_name, t.active
-            FROM inaturalist_data.canonical_to_taxon_id b
-            LEFT JOIN read_csv('{taxa_path}', header=True) t
-                ON CAST(t.taxon_id AS INTEGER) = b.taxon_id
-            WHERE t.active = false
-            ORDER BY b.canonical_name
-        """).fetchall()
-        print(  # noqa: T201
-            f"resolve-taxon-ids: inactive taxon IDs in bridge: {len(inactive)}"
-        )
-        for row in inactive:
-            print(  # noqa: T201
-                f"  inactive: {row[0]} (taxon_id={row[1]}, inat_name={row[2]})"
-            )
     finally:
         con.close()
 
