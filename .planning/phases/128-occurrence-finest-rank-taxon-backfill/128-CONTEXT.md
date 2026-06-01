@@ -52,15 +52,26 @@ NULL-taxon_id by source today: ecdysis 28,504, inat_obs 5,842, waba_sample 8.
   subgenus/tribe/family are included only if the occurrence carries that rank and a self-row
   taxon_id exists in `stg_inat__taxon_lineage_extended` / the higher-rank machinery — otherwise skip
   that rung. Do not invent taxon_ids.
-- **D-02:** Reuse the **existing** higher-rank taxon machinery from Phase 126 (the same source that
-  feeds `higher_rank_taxon_ids.json` via `species_export._build_higher_rank_taxon_ids` and
-  `stg_inat__taxon_lineage_extended`). Do NOT add new iNat API calls, new downloads, or a new bridge.
-  This is a dbt-layer surfacing change, consistent with Phase 126's "surface, don't rebuild" pattern.
-- **D-03:** The genus key for the join is the occurrence's genus identifier. Occurrences expose genus
-  two ways: a single-token `canonical_name` (e.g. `lasioglossum`) and/or the `genus` column. Planner
-  picks the consistent join key (prefer the post-synonymy `canonical_name` path already wired in
-  `int_combined`, falling back to `genus`), normalized the same way the higher-rank map is keyed
-  (lowercase). All 29 current genus names match case-insensitively.
+- **D-02 (CORRECTED by 128-RESEARCH.md — supersedes the original draft):** Source the genus
+  taxon_id from `data/raw/taxa.csv.gz` filtered to `rank='genus' AND active='true'`, disambiguated by
+  **Anthophila ancestry** (`630955` in the ancestry chain). Do NOT source from
+  `higher_rank_taxon_ids.json` (it picks the WRONG Stelis — plant 141523 instead of bee 127831 — via
+  Python dict-overwrite) and do NOT join `stg_inat__taxon_lineage_extended` on `subgenus IS NULL`
+  (it fans out across species/subspecies rows and is Anthophila-filtered, dropping non-bee genera
+  inconsistently). Add a new staging model (e.g. `stg_inat__genus_taxon_ids`) that reads `../raw/taxa.csv.gz`
+  and exposes `genus_name (lowercase) → genus_taxon_id (INTEGER)`. Still no new iNat API calls/downloads —
+  `taxa.csv.gz` is already downloaded by the pipeline. Consistent with Phase 126's "surface, don't rebuild".
+- **D-03:** Join key is the occurrence's **single-token post-synonymy `canonical_name`** (the path
+  already wired through `int_combined`'s 3 ARMs), normalized lowercase to match the genus staging model.
+  Guard the COALESCE with `ctt.taxon_id IS NULL` (only backfill rows that lack a species taxon_id) AND
+  single-token detection (`position(' ' IN canonical_name)=0`) so species-level rows are never touched.
+- **D-07 (non-bee genera — per RESEARCH A3, recommended):** Apply the Anthophila filter so non-bee
+  bycatch genera (crossocerus, larropsis, plecoptera, symphyta, trypoxylon — wasps/sawflies, ~46 rows)
+  stay NULL rather than receiving a genus taxon_id. Consistent with Phase 126 D-09 (KNOWN_NON_BEES
+  excludes non-bee rows). The not_null test (D-04) must then exclude these non-bee genera, mirroring the
+  3-species exclusion. Net backfill targets bee genera only (~36 single-token genera minus ~5 non-bee).
+- **Subgenus/tribe/family rungs (per RESEARCH A2):** backfill **0 additional rows** today — omit them.
+  Genus is the complete solution. The COALESCE ladder is effectively species → genus.
 
 ### not_null test re-scope (TID-02 acceptance)
 - **D-04:** Replace the occurrences `taxon_id` not_null data_test's `where: "canonical_name like '% %'"`
@@ -133,9 +144,13 @@ NULL-taxon_id by source today: ecdysis 28,504, inat_obs 5,842, waba_sample 8.
 - Verification target after this phase: `occurrences.parquet` shows the 29 genus names (lasioglossum,
   osmia, melissodes, megachile, bombus, hylaeus, ceratina, halictus, …) with their genus taxon_id;
   the ~21,212 truly-unidentified rows still NULL; the 37-column contract still passes.
-- Genus taxon_id sample resolutions (from `higher_rank_taxon_ids.json`, case-insensitive):
-  lasioglossum→57678, hylaeus→127812, crossocerus→197022, triepeolus→178745, coelioxys→199145,
-  hoplitis→177785. All 29 genus-level NULL names are covered (0 missing).
+- Genus taxon_id sample resolutions (authoritative source `taxa.csv.gz` rank=genus active=true +
+  Anthophila ancestry, NOT the flawed json): lasioglossum→57678, hylaeus→127812, triepeolus→178745,
+  coelioxys→199145, hoplitis→177785, stelis→127831 (bee, NOT plant 141523). Per RESEARCH the live
+  sandbox build shows 36 single-token genera / 17,254 NULL rows; ~5 are non-bee bycatch (kept NULL per
+  D-07). Exact backfill counts to be confirmed by the planner/executor against the current build —
+  my earlier "29 genera / 12,674 rows via higher_rank_taxon_ids.json" figure was on a different build
+  AND used the flawed json source; treat RESEARCH.md's taxa.csv.gz numbers as authoritative.
 - This is the final blocker for the v4.5 milestone close — after verify, re-run `/gsd:complete-milestone v4.5`.
 
 </specifics>
