@@ -1,10 +1,11 @@
 ---
 phase: 127
 slug: inactive-taxon-remapping
-status: draft
+status: validated
 nyquist_compliant: true
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-05-31
+validated: 2026-05-31
 ---
 
 # Phase 127 — Validation Strategy
@@ -40,11 +41,11 @@ The Python half (plan 01) is exercised entirely by pytest against synthetic gzip
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 127-01-01 | 01 | 1 | ITR-01 / ITR-02 | T-127-02 | Failing tests assert detection/triage shapes before impl exists (RED) | unit | `cd data && uv run pytest tests/test_inactive_remap.py -x 2>&1 \| grep -qE "AttributeError\|ImportError\|has no attribute\|cannot import" && echo RED-OK` | ✅ created by this task | ⬜ pending |
-| 127-01-02 | 01 | 1 | ITR-01 / ITR-02 | T-127-01 / T-127-02 / T-127-03 | Parameterized writes; malformed response → blocking triage; gate cannot be bypassed | unit | `cd data && uv run pytest tests/test_inactive_remap.py -x` | ✅ (file from 127-01-01) | ⬜ pending |
-| 127-01-03 | 01 | 1 | ITR-01 / ITR-02 | T-127-03 | Gate wired as dedicated STEP before dbt-build; writeback files gitignored | unit/import | `cd data && grep -A2 '"taxa-download"' run.py \| grep -q '"inactive-remap"' && grep -A1 '"inactive-remap"' run.py \| grep -q '"inactive-gate"' && grep -q 'dbt/seeds/auto_synonyms.csv' .gitignore && grep -q '^inactive_unresolved.csv' .gitignore && uv run python -c "import run" && echo WIRED-OK` | ✅ existing run.py / .gitignore | ⬜ pending |
-| 127-02-01 | 02 | 1 | ITR-03 / ITR-04 | T-127-06 / T-127-07 / T-127-08 | Header-only seed varchar-typed (no exec); anti-join gives manual precedence | grep/SQL | `cd data && test "$(cat dbt/seeds/auto_synonyms.csv)" = "synonym,accepted_name,source" && grep -q "auto_synonyms" dbt/seeds/schema.yml && grep -q "auto_synonyms" dbt/dbt_project.yml && grep -q "WHERE m.synonym IS NULL" dbt/models/intermediate/int_synonyms.sql && echo SEED-MODEL-OK` | ✅ created by this task | ⬜ pending |
-| 127-02-02 | 02 | 1 | ITR-03 / ITR-04 | T-127-07 / T-127-08 | All four JOIN sites repoint via int_synonyms; 37-col contract holds; dbt exit code propagates | dbt build | `cd data && test "$(grep -rl "ref('occurrence_synonyms')" dbt/models/ \| grep -v int_synonyms \| wc -l)" = "0" && bash dbt/run.sh build && echo BUILD-OK` | ✅ existing dbt models | ⬜ pending |
+| 127-01-01 | 01 | 1 | ITR-01 / ITR-02 | T-127-02 | Failing tests assert detection/triage shapes before impl exists (RED) | unit | `cd data && uv run pytest tests/test_inactive_remap.py -x 2>&1 \| grep -qE "AttributeError\|ImportError\|has no attribute\|cannot import" && echo RED-OK` | ✅ created by this task | ✅ green |
+| 127-01-02 | 01 | 1 | ITR-01 / ITR-02 | T-127-01 / T-127-02 / T-127-03 | Parameterized writes; malformed response → blocking triage; gate cannot be bypassed | unit | `cd data && uv run pytest tests/test_inactive_remap.py -x` | ✅ (file from 127-01-01) | ✅ green |
+| 127-01-03 | 01 | 1 | ITR-01 / ITR-02 | T-127-03 | Gate wired as dedicated STEP before dbt-build; writeback files gitignored | unit/import | `cd data && grep -A2 '"taxa-download"' run.py \| grep -q '"inactive-remap"' && grep -A1 '"inactive-remap"' run.py \| grep -q '"inactive-gate"' && grep -q 'dbt/seeds/auto_synonyms.csv' .gitignore && grep -q '^inactive_unresolved.csv' .gitignore && uv run python -c "import run" && echo WIRED-OK` | ✅ existing run.py / .gitignore | ✅ green |
+| 127-02-01 | 02 | 1 | ITR-03 / ITR-04 | T-127-06 / T-127-07 / T-127-08 | Header-only seed varchar-typed (no exec); anti-join gives manual precedence | grep/SQL | `cd data && test "$(cat dbt/seeds/auto_synonyms.csv)" = "synonym,accepted_name,source" && grep -q "auto_synonyms" dbt/seeds/schema.yml && grep -q "auto_synonyms" dbt/dbt_project.yml && grep -q "WHERE m.synonym IS NULL" dbt/models/intermediate/int_synonyms.sql && echo SEED-MODEL-OK` | ✅ created by this task | ✅ green |
+| 127-02-02 | 02 | 1 | ITR-03 / ITR-04 | T-127-07 / T-127-08 | All four JOIN sites repoint via int_synonyms; 37-col contract holds; dbt exit code propagates | dbt build | `cd data && test "$(grep -rl "ref('occurrence_synonyms')" dbt/models/ \| grep -v int_synonyms \| wc -l)" = "0" && bash dbt/run.sh build && echo BUILD-OK` | ✅ existing dbt models | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -52,7 +53,7 @@ The Python half (plan 01) is exercised entirely by pytest against synthetic gzip
 
 ## Wave 0 Requirements
 
-- [ ] `data/tests/test_inactive_remap.py` — failing unit tests for ITR-01/ITR-02 (created in task 127-01-01, the RED step)
+- [x] `data/tests/test_inactive_remap.py` — failing unit tests for ITR-01/ITR-02 (created in task 127-01-01, the RED step)
 
 *No new conftest fixtures required: existing patterns (`resolver_db` analog, `MINI_TAXA_TSV` gzip fixture) + `tmp_path` + monkeypatch suffice. The fixture deliberately does NOT call `resolve_taxon_ids()` (Pitfall 4 — avoids the pre-existing dbt_sandbox gap).*
 
@@ -77,4 +78,22 @@ The Python half (plan 01) is exercised entirely by pytest against synthetic gzip
 - [x] Feedback latency < 60s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** validated 2026-05-31 — all 5 task verifications green, 0 gaps.
+
+---
+
+## Validation Audit 2026-05-31
+
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All 5 Per-Task Map verifications re-run against the live codebase and confirmed green:
+- `tests/test_inactive_remap.py` — 10 passed (grew from 7 via review-fix cases)
+- 127-01-03 STEPS wiring + gitignore + `import run` → WIRED-OK
+- 127-02-01 header-only seed + `int_synonyms` anti-join → SEED-MODEL-OK
+- 127-02-02 repoint (0 stray `occurrence_synonyms` refs) + `dbt/run.sh build` → PASS=57 WARN=2 ERROR=0
+
+The two dbt warnings (`not_null_occurrences_taxon_id` 33 rows, `test_lin05_lineage_coverage`) are pre-existing from Phase 126, not introduced by Phase 127. No new tests generated — coverage was already complete.
