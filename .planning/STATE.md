@@ -92,7 +92,7 @@ None.
 
 ## Deferred Items
 
-- DEF-128-01: `data/dbt/run.sh build` fails seeds with the default relative `DB_PATH` (dbt-duckdb seed-path resolution); workaround = absolute `DB_PATH`. See `.planning/phases/128-occurrence-finest-rank-taxon-backfill/deferred-items.md`.
+- ✅ DEF-128-01 (RESOLVED 2026-06-01): `run.sh` now defaults `DB_PATH` to an absolute path so local builds are CWD-independent. Acute symptom didn't reproduce on re-investigation; applied as hardening. See `.planning/phases/128-occurrence-finest-rank-taxon-backfill/deferred-items.md`.
 
 Acknowledged and deferred at v4.5 milestone close (2026-06-01) — all pre-existing, carried from prior milestones, not v4.5 deliverables:
 
