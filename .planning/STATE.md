@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: iNat Taxonomy & Species Completeness
-status: executing
-stopped_at: Phase 128 Plan 01 executed (TID-02 closed)
-last_updated: "2026-06-01T20:14:00.000Z"
+status: ready_to_close
+stopped_at: Phase 128 verified (9/9 passed) — TID-02 closed; v4.5 ready for /gsd:complete-milestone
+last_updated: "2026-06-01T20:35:00.000Z"
 last_activity: 2026-06-01
 progress:
   total_phases: 15
@@ -26,20 +26,23 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 ## Current Position
 
 Phase: 128
-Plan: 01 — executed
-Status: TID-02 closed — genus-rank backfill complete; ready for /gsd:verify-work then /gsd:complete-milestone v4.5
+Plan: 01 — verified (9/9 passed)
+Status: TID-02 closed — genus-rank backfill complete & verified; v4.5 ready for /gsd:complete-milestone
 Last activity: 2026-06-01
 
-### v4.5 Milestone Close — Blocked
+### v4.5 Milestone Close — Ready (was blocked, now resolved)
 
-Milestone-completion attempt on 2026-06-01 surfaced a real gap during Phase 126 verification:
+The milestone-close attempt on 2026-06-01 surfaced a real gap during Phase 126 verification; it is now closed:
 
-- Phase 126 had no VERIFICATION.md (audit's procedural blocker). Verified 2026-06-01 → 3/4: TID-01, TID-03, D-03 rollup invariant all VERIFIED; **TID-02 failed as written**.
-- TID-02 ("non-null taxon_id for every occurrence row") is literally impossible: ~21k ecdysis specimens have no taxonomic identification at all.
-- **Human decision (Peter, 2026-06-01):** treat as real gap. Re-scope TID-02 to "every **identified** occurrence row" (finest-rank taxon_id); backfill the 12,674 genus-level rows in new **Phase 128**; truly-unidentified specimens stay NULL.
-- TID-02 wording updated in REQUIREMENTS.md + traceability; decision recorded in `126-VERIFICATION.md` frontmatter `human_decision`.
+- Phase 126 verified 2026-06-01 → 3/4: TID-01, TID-03, D-03 rollup invariant VERIFIED; TID-02 failed as written (literally impossible — ~21k ecdysis specimens have no identification).
+- **Human decision (Peter):** re-scope TID-02 to "every **identified** occurrence row" (finest-rank taxon_id); backfill genus-level rows in **Phase 128**; truly-unidentified stay NULL. Disambiguation by kingdom = Animalia (resolves wasps/flies too).
+- **Phase 128 executed + verified (9/9 passed):** NULL taxon_id 34,354 → 21,680; 12,674 genus rows backfilled; TID-02 marked Complete.
 
-**Resume path:** plan → execute → verify Phase 128, then re-run `/gsd:complete-milestone v4.5`.
+**Open items before close:**
+1. Execution commits are on branch `phase-128-occurrence-finest-rank-taxon-backfill` (linear fast-forward of `main`) — merge to main before/within close.
+2. `DEF-128-01` deferred infra item (relative DB_PATH seed-path bug) to acknowledge at close.
+
+**Resume path:** merge phase-128 → main, then `/gsd:complete-milestone v4.5`.
 
 ## Accumulated Context
 
