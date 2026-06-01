@@ -84,6 +84,7 @@ def generate_inactive_remaps() -> None:
 
         auto_rows: list[tuple[str, str, str]] = []  # (synonym, accepted_name, source)
         triage_rows: list[dict] = []
+        transient_failures = 0  # CR-01: surfaced as a warning, never blocks the gate
 
         for canonical_name, inactive_taxon_id, inat_name in inactive:
             time.sleep(_INAT_PACE_SECONDS)
@@ -94,24 +95,33 @@ def generate_inactive_remaps() -> None:
                     timeout=30,
                 )
             except requests.HTTPError:
-                triage_rows.append({
-                    "canonical_name": canonical_name,
-                    "inactive_taxon_id": inactive_taxon_id,
-                    "inat_name": inat_name,
-                    "reason": "api_error",
-                    "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
-                })
+                # CR-01: a transient/infrastructure API failure (5xx, rate-limit
+                # storm — after _inat_get_with_retry's own retry budget) is NOT one
+                # of the three sanctioned BLOCKING reasons (no_successor / split /
+                # successor_not_in_taxa_csv per D-06). Do NOT write a blocking
+                # triage row that would hard-fail the whole nightly build with an
+                # unactionable "add to occurrence_synonyms.csv" instruction. Leave
+                # the inactive bridge row untouched so it is naturally re-attempted
+                # next run; warn loudly and skip it for this run.
+                transient_failures += 1
+                print(  # noqa: T201
+                    f"inactive-remap: WARNING transient API failure for "
+                    f"{canonical_name} (taxon_id={inactive_taxon_id}); "
+                    f"skipping this run, will retry next run"
+                )
                 continue
 
             results = resp.json().get("results", [])
             if not results:
-                triage_rows.append({
-                    "canonical_name": canonical_name,
-                    "inactive_taxon_id": inactive_taxon_id,
-                    "inat_name": inat_name,
-                    "reason": "api_error",
-                    "attempted_at": _dt.datetime.now(_dt.UTC).replace(tzinfo=None).isoformat(),
-                })
+                # CR-01: an empty results array means iNat did not return the taxon
+                # detail this run — treat as a transient infrastructure hiccup, not a
+                # sanctioned blocking reason. Skip and re-attempt next run.
+                transient_failures += 1
+                print(  # noqa: T201
+                    f"inactive-remap: WARNING empty API response for "
+                    f"{canonical_name} (taxon_id={inactive_taxon_id}); "
+                    f"skipping this run, will retry next run"
+                )
                 continue
 
             # Normalize: None (active taxon) or [] (no successor) both map to []
@@ -180,6 +190,8 @@ def generate_inactive_remaps() -> None:
 
         print(  # noqa: T201
             f"inactive-remap: {len(auto_rows)} auto-remapped, {len(triage_rows)} unresolved"
+            + (f", {transient_failures} transient API failures (will retry next run)"
+               if transient_failures else "")
         )
     finally:
         con.close()
@@ -189,13 +201,21 @@ def check_inactive_gate() -> None:
     """Fail fast if any inactive bridge taxon has no auto-resolution (D-05/ITR-02).
 
     Reads inactive_unresolved.csv (written by the inactive-remap step).
-    All rows are blocking — there is no KNOWN_NON_BEES-style exclusion set (D-07).
-    Exits non-zero with an actionable message naming offenders and the fix:
-    add an entry to occurrence_synonyms.csv (D-07 — the only sanctioned exit).
-    If no rows, prints an OK line.
+    The gate blocks ONLY on the three sanctioned blocking reasons (D-06):
+    no_successor, split, successor_not_in_taxa_csv. There is no KNOWN_NON_BEES-style
+    exclusion set (D-07): every such row is a genuine taxonomic dead-end that a human
+    must resolve by adding an entry to occurrence_synonyms.csv (the only sanctioned
+    exit). Transient API failures (CR-01) are never written to this file — they are
+    surfaced as warnings by inactive-remap and re-attempted next run — so they cannot
+    couple pipeline liveness to iNat API uptime. Any unexpected reason value is treated
+    as blocking (fail-closed) so a future producer bug cannot silently bypass the gate.
+    If no blocking rows, prints an OK line.
     """
     import sys  # noqa: PLC0415 (lazy import keeps module importable without side-effects)
 
+    # D-06: every reason inactive-remap writes to this file is a genuine taxonomic
+    # dead-end (no_successor / split / successor_not_in_taxa_csv) — transient API
+    # failures are NOT written here (CR-01), so every present row is blocking.
     rows = list(csv.DictReader(INACTIVE_UNRESOLVED_CSV.open(newline="")))
     if rows:
         names = ", ".join(r["canonical_name"] for r in rows)
