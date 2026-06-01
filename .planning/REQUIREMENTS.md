@@ -7,9 +7,9 @@
 
 ### Pre-Work / Contract Cleanup (PWK)
 
-- [ ] **PWK-01**: `test_dbt_diff.py` docstring updated to reflect actual 36-column `occurrences` contract (not stale "30 cols")
-- [ ] **PWK-02**: `resolve_taxon_ids.py` extended to cover iNat ARM 3 canonical names not yet in `canonical_to_taxon_id`; count of newly-resolved names documented
-- [ ] **PWK-03**: Inactive taxon IDs in current `canonical_to_taxon_id` enumerated and count documented to scope Phase 128 work
+- [x] **PWK-01**: `test_dbt_diff.py` docstring updated to reflect actual 36-column `occurrences` contract (not stale "30 cols")
+- [x] **PWK-02**: `resolve_taxon_ids.py` extended to cover iNat ARM 3 canonical names not yet in `canonical_to_taxon_id`; count of newly-resolved names documented
+- [x] **PWK-03**: Inactive taxon IDs in current `canonical_to_taxon_id` enumerated and count documented to scope Phase 128 work
 
 ### Species Visibility (SPV)
 
@@ -51,9 +51,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PWK-01 | Phase 124 | Pending |
-| PWK-02 | Phase 124 | Pending |
-| PWK-03 | Phase 124 | Pending |
+| PWK-01 | Phase 124 | Complete |
+| PWK-02 | Phase 124 | Complete |
+| PWK-03 | Phase 124 | Complete |
 | SPV-01 | Phase 125 | Complete |
 | SPV-02 | Phase 125 | Complete |
 | SPV-03 | Phase 125 | Complete |

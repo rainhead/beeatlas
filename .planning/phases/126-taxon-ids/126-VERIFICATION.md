@@ -1,11 +1,21 @@
 ---
 phase: 126-taxon-ids
 verified: 2026-06-01T06:30:00Z
-status: gaps_found
-score: 3/4
+status: passed  # was gaps_found; TID-02 gap closed by Phase 128 (see resolution) — milestone requirement now satisfied
+score: 3/4  # historical: 126 alone delivered TID-01/TID-03 + species-level TID-02; the genus-level 4th was closed downstream
 overrides_applied: 0
 re_verification: false
 overrides: []  # TID-02 NOT accepted as deviation — re-scoped + closure delegated to Phase 128 (see human_decision)
+resolution:
+  date: 2026-06-01
+  closed_by: Phase 128 (occurrence-finest-rank-taxon-backfill), 128-VERIFICATION.md status=passed 9/9
+  detail: >
+    The re-scoped TID-02 (every IDENTIFIED occurrence row carries its finest-rank taxon_id) was
+    satisfied by Phase 128: the genus-rank backfill drove occurrences.parquet NULL taxon_id from
+    34,354 to 21,680 (12,674 genus rows now non-null; remaining NULLs are no-name specimens + the 3
+    unresolvable ecdysis species). TID-02 is marked Complete in REQUIREMENTS.md. This phase's status is
+    therefore promoted from gaps_found to passed at milestone-close time; the 3/4 score is retained as
+    the historical record of what Phase 126 alone delivered.
 human_decision:
   date: 2026-06-01
   decided_by: Peter Abrahamsen
