@@ -102,6 +102,17 @@ None.
 
 - DEF-128-01: `data/dbt/run.sh build` fails seeds with the default relative `DB_PATH` (dbt-duckdb seed-path resolution); workaround = absolute `DB_PATH`. See `.planning/phases/128-occurrence-finest-rank-taxon-backfill/deferred-items.md`.
 
+Acknowledged and deferred at v4.5 milestone close (2026-06-01) — all pre-existing, carried from prior milestones, not v4.5 deliverables:
+
+| Category | Item | Status |
+|----------|------|--------|
+| verification | Phase 110 / 111 / 113 VERIFICATION.md | human_needed (v4.0 phases) |
+| uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (v4.0) |
+| todo | cluster-selection-visual-feedback | medium priority (frontend, unrelated) |
+| quick_tasks | 22 legacy quick-task dirs | missing completion marker (scanner cruft, empty dates) |
+
+(Phase 126 `gaps_found` from this milestone was RESOLVED — TID-02 closed by Phase 128 — not deferred.)
+
 ## Quick Tasks Completed
 
 | Date | Slug | Description |
