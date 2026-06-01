@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.5
 milestone_name: "Liveness: Provisional Specimen Records"
-status: ready_to_plan
-stopped_at: Phase 126 complete (3/3) — ready to discuss Phase 127
-last_updated: 2026-05-31T21:57:50.560Z
+status: planning
+stopped_at: Phase 127 context gathered
+last_updated: "2026-06-01T01:31:08.666Z"
 last_activity: 2026-05-31
 progress:
   total_phases: 14
   completed_phases: 8
   total_plans: 20
-  completed_plans: 42
+  completed_plans: 20
   percent: 57
 ---
 
@@ -90,6 +90,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-31T21:43:18.040Z
-Stopped at: Phase 126 complete — iNaturalist taxon links on all four taxon pages shipped
-Resume file: None
+Last session: 2026-06-01T01:31:08.640Z
+Stopped at: Phase 127 context gathered
+Resume file: .planning/phases/127-inactive-taxon-remapping/127-CONTEXT.md
