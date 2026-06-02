@@ -3,6 +3,7 @@ import { customElement, property, state } from 'lit/decorators.js';
 import { isFilterActive } from './filter.ts';
 import type { FilterState, CollectorEntry } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
+import type { TaxonCacheEntry } from './taxa.ts';
 import { resolveDataUrl } from './manifest.ts';
 import './bee-occurrence-detail.ts';
 import './bee-table.ts';
@@ -67,6 +68,9 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) listPage = 1;
   @property({ attribute: false }) listLoading = false;
   @property({ attribute: false }) selectionCount: number | null = null;
+
+  // Taxon cache (threaded from bee-atlas for name resolution in bee-occurrence-detail)
+  @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
 
   // Table-specific (from bee-atlas render)
   @property({ attribute: false }) rows: OccurrenceRow[] = [];
@@ -1178,7 +1182,7 @@ export class BeePane extends LitElement {
             ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
-              : html`<bee-occurrence-detail .occurrences=${this.listRows}></bee-occurrence-detail>`
+              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache}></bee-occurrence-detail>`
         }
       </div>
       ${this.listRowCount > PAGE_SIZE ? html`
