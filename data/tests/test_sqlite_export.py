@@ -159,3 +159,61 @@ def test_main_uses_sandbox_and_export_dir(src_parquet: Path, tmp_path: Path, mon
     count = con.execute("SELECT COUNT(*) FROM occurrences").fetchone()[0]
     con.close()
     assert count == len(PARQUET_ROWS), f"main() produced wrong row count: {count}"
+
+
+# ---------------------------------------------------------------------------
+# Hierarchy fixtures: mini taxa.csv.gz + parquet with taxon_id column
+# ---------------------------------------------------------------------------
+
+# taxon_id, ancestry, rank_level, rank, name, active
+TAXA_ROWS = [
+    (630955, "48460/1/47120/372739/47158/184884/47157", 33, "superfamily", "Anthophila", "true"),
+    (47221, "48460/1/47120/372739/47158/184884/47157/630955", 30, "family", "Apidae", "true"),
+    (52775, "48460/1/47120/372739/47158/184884/47157/630955/47221", 20, "genus", "Apis", "true"),
+    (47219, "48460/1/47120/372739/47158/184884/47157/630955/47221/52775", 10, "species", "Apis mellifera", "true"),
+    # bycatch: Vespidae (non-bee) — ancestry does NOT contain /630955/
+    (52747, "48460/1/47120/372739/47158/184884/47157", 30, "family", "Vespidae", "true"),
+]
+
+
+@pytest.fixture
+def taxa_csv_gz(tmp_path: Path) -> Path:
+    """Write a mini taxa.csv.gz fixture and return its path."""
+    import csv
+    import gzip
+    import io
+
+    buf = io.StringIO()
+    writer = csv.writer(buf, delimiter="\t")
+    writer.writerow(["taxon_id", "ancestry", "rank_level", "rank", "name", "active"])
+    for row in TAXA_ROWS:
+        writer.writerow(row)
+    gz_path = tmp_path / "taxa.csv.gz"
+    with gzip.open(gz_path, "wt") as f:
+        f.write(buf.getvalue())
+    return gz_path
+
+
+# lat, lon, scientificName, year, taxon_id
+PARQUET_WITH_TAXON_ROWS = [
+    (47.5, -120.8, "Apis mellifera", 2024, 47219),    # bee
+    (47.6, -121.0, "Vespula squamosa", 2023, 52747),   # bycatch
+    (48.1, -122.3, "Bombus vosnesenskii", 2024, None),  # NULL taxon_id (ok)
+]
+
+
+@pytest.fixture
+def src_parquet_with_taxon(tmp_path: Path) -> Path:
+    """Parquet fixture that includes a taxon_id column."""
+    table = pa.table(
+        {
+            "lat": pa.array([r[0] for r in PARQUET_WITH_TAXON_ROWS], type=pa.float64()),
+            "lon": pa.array([r[1] for r in PARQUET_WITH_TAXON_ROWS], type=pa.float64()),
+            "scientificName": pa.array([r[2] for r in PARQUET_WITH_TAXON_ROWS], type=pa.string()),
+            "year": pa.array([r[3] for r in PARQUET_WITH_TAXON_ROWS], type=pa.int32()),
+            "taxon_id": pa.array([r[4] for r in PARQUET_WITH_TAXON_ROWS], type=pa.int64()),
+        }
+    )
+    path = tmp_path / "occurrences_with_taxon.parquet"
+    pq.write_table(table, path)
+    return path
