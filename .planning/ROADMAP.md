@@ -457,7 +457,7 @@ See `.planning/milestones/v4.3-ROADMAP.md` for full phase details.
 <summary>v4.6 Taxonomy Hierarchy & Normalization (Phases 129–133) — IN PROGRESS</summary>
 
 - [ ] Phase 129: Hierarchy Foundation (3 plans)
-- [ ] Phase 130: Map Filter Cutover (TBD plans)
+- [ ] Phase 130: Map Filter Cutover (3 plans)
 - [ ] Phase 131: Occurrence Normalization (TBD plans)
 - [ ] Phase 132: Page Rebuild & Subfamily Pages (TBD plans)
 - [ ] Phase 133: Browse Tree (TBD plans)
@@ -699,6 +699,32 @@ Plans:
 <!-- Phase 117-120 details archived to .planning/milestones/v4.2-ROADMAP.md -->
 
 <!-- Phase 121 details archived to .planning/milestones/v4.3-ROADMAP.md -->
+
+### Phase 130: Map Filter Cutover
+
+**Goal**: The frontend stops filtering occurrences on denormalized taxon string columns and switches to `taxon_id` + hierarchy descendant queries against the `taxa` table; the taxon autocomplete gains subfamily/tribe/subgenus/complex (+subtribe); URL round-trip, clear-filters, region/boundary, and selection-rectangle interactions are preserved; detail cards resolve taxon names from the cache by `taxon_id`. Additive phase — denormalized string columns remain present and ignored (dropped in Phase 131).
+**Depends on**: Phase 129
+**Requirements**: MFILT-01, MFILT-02, MFILT-03
+**Success Criteria** (what must be TRUE):
+
+  1. Filtering by any taxon at family/subfamily/tribe/genus/subgenus/complex/species rank returns all descendant occurrences via `taxon_id` + `lineage_path` descendant queries (not string-column matching)
+  2. The autocomplete includes subfamily/tribe/subgenus/complex (+subtribe), excludes bycatch, labels per D-03, orders broader-first per D-05; selecting an entry resolves to an integer `taxon_id`; `taxon=` URL param encodes the integer id with legacy `taxon=<name>&taxonRank=<rank>` back-compat
+  3. Detail cards resolve names from the taxon cache by `taxon_id`; `taxon_id IS NULL` shows "No determination", never blank/undefined; clear-filters, region/boundary, and selection-rectangle round-trip unchanged
+
+**Plans**: 3 plans
+Plans:
+**Wave 1**
+
+- [ ] 130-01-PLAN.md — filter.ts contract: taxonId FilterState/TaxonOption/FilterChangedEvent + descendant buildFilterSQL clause + taxon_id in OCCURRENCE_COLUMNS + test-helper updates [MFILT-01, MFILT-03]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 130-02-PLAN.md — lazy taxon cache + D-01 ancestry-expansion enumeration + D-03 labels + D-05 ordering (bee-atlas, bee-filter-controls) + integer taxon= URL encode/decode with legacy back-compat (url-state) [MFILT-01, MFILT-02, MFILT-03]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 130-03-PLAN.md — detail-card name resolution from taxon cache by taxon_id with No-determination fallback; taxonCache prop threaded bee-atlas → bee-pane → bee-occurrence-detail [MFILT-03]
+
 
 ## Progress
 
