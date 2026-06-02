@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
-status: planning
+status: executing
 stopped_at: Phase 129 context gathered
-last_updated: "2026-06-02T15:36:31.936Z"
-last_activity: 2026-06-01 — Roadmap revised to 5 phases (130 split into 130 Map Filter Cutover + 131 Occurrence Normalization)
+last_updated: "2026-06-02T17:33:39.093Z"
+last_activity: 2026-06-02 -- Phase 129 planning complete
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 Phase: 129 — Hierarchy Foundation
 Plan: Not started
-Status: Planning complete; ready to execute Phase 129
-Last activity: 2026-06-01 — Roadmap revised to 5 phases (130 split into 130 Map Filter Cutover + 131 Occurrence Normalization)
+Status: Ready to execute
+Last activity: 2026-06-02 -- Phase 129 planning complete
 
 ```
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/5 phases)
