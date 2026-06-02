@@ -3,8 +3,9 @@ gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
 status: planning
-last_updated: "2026-06-01T00:00:00.000Z"
-last_activity: 2026-06-01
+stopped_at: Phase 129 context gathered
+last_updated: "2026-06-02T15:36:31.936Z"
+last_activity: 2026-06-01 — Roadmap revised to 5 phases (130 split into 130 Map Filter Cutover + 131 Occurrence Normalization)
 progress:
   total_phases: 5
   completed_phases: 0
@@ -93,9 +94,9 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-01 — Roadmap revised to 5 phases for v4.6 (Phase 130 split into 130 Map Filter Cutover + 131 Occurrence Normalization; 131→132, 132→133)
-Stopped at: Roadmap revision complete; Phase 129 ready to plan
-Resume file: None
+Last session: 2026-06-02T15:36:31.903Z
+Stopped at: Phase 129 context gathered
+Resume file: .planning/phases/129-hierarchy-foundation/129-CONTEXT.md
 
 ## Operator Next Steps
 
