@@ -828,7 +828,18 @@ if (taxonRaw !== null) {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three resolved by the planner's Wave 0 runtime checks (2026-06-02, against
+> `public/data/occurrences.db`); see `130-VALIDATION.md` §"Wave 0 Requirements — COMPLETE".
+> Q1 **resolved**: `subtribe` IS present among `is_anthophila=1` taxa; the D-03 label
+> builder handles all 8 surfaced ranks. Q2 **resolved**: the autocomplete source moved to
+> `bee-atlas._loadSummaryFromSQLite()` (background, post-`tablesReady`); `bee-map`'s
+> `data-loaded` no longer carries `taxaOptions`. Q3 **resolved**: there is **no** index on
+> `occurrences.taxon_id` (`EXPLAIN QUERY PLAN` = `SCAN occurrences`) — accepted for this
+> additive/frontend-only phase (~22 ms Bombus-genus descendant filter); adding the index is
+> a Phase 131 concern. This finding also overturned the simplified D-01 enumeration SQL in
+> favor of the ancestry-expansion form mandated by Plan 130-02.
 
 1. **Does the Phase 129 taxa table include `subtribe` rank?**
    - What we know: CONTEXT.md D-05 lists `subtribe` in ordering; STACK.md original schema only lists 6 ranks (family/subfamily/tribe/genus/subgenus/species); `sqlite_export.py` PASS 1 includes `'subtribe'` in the rank filter list (confirmed in code inspection)
