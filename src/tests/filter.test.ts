@@ -15,8 +15,8 @@ afterAll(() => { vi.useRealTimers(); });
 
 function emptyFilter(): FilterState {
   return {
-    taxonName: null,
-    taxonRank: null,
+    taxonId: null,
+    taxonDisplayName: null,
     yearFrom: null,
     yearTo: null,
     months: new Set(),
@@ -37,22 +37,46 @@ describe('empty filter', () => {
 });
 
 describe('individual filter fields', () => {
-  test('taxon family: occurrenceWhere contains family clause', () => {
-    const f = { ...emptyFilter(), taxonName: 'Apidae', taxonRank: 'family' as const };
+  // Descendant taxon_id clause tests (MFILT-01)
+  test('taxonId set: occurrenceWhere contains taxon_id = N self-match', () => {
+    const f = { ...emptyFilter(), taxonId: 52775 };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toBe("family = 'Apidae'");
+    expect(occurrenceWhere).toContain('taxon_id = 52775');
   });
 
-  test('taxon genus: occurrenceWhere contains genus clause', () => {
-    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
+  test('taxonId set: occurrenceWhere contains instr(lineage_path) descendant subquery', () => {
+    const f = { ...emptyFilter(), taxonId: 52775 };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toBe("genus = 'Bombus'");
+    expect(occurrenceWhere).toContain("instr(lineage_path, '/52775/')");
   });
 
-  test('taxon species: occurrenceWhere contains scientificName clause', () => {
-    const f = { ...emptyFilter(), taxonName: 'Bombus occidentalis', taxonRank: 'species' as const };
+  test('taxonId set: occurrenceWhere does NOT contain family =, genus =, or scientificName =', () => {
+    const f = { ...emptyFilter(), taxonId: 52775 };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toBe("scientificName = 'Bombus occidentalis'");
+    expect(occurrenceWhere).not.toContain('family =');
+    expect(occurrenceWhere).not.toContain('genus =');
+    expect(occurrenceWhere).not.toContain('scientificName =');
+  });
+
+  test('taxonId null: no taxon_id reference in occurrenceWhere', () => {
+    const { occurrenceWhere } = buildFilterSQL(emptyFilter());
+    expect(occurrenceWhere).not.toContain('taxon_id');
+  });
+
+  test('taxonId set: composes with county filter using AND', () => {
+    const f = { ...emptyFilter(), taxonId: 52775, selectedCounties: new Set(['King']) };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain('taxon_id = 52775');
+    expect(occurrenceWhere).toContain("county IN ('King')");
+    expect(occurrenceWhere).toContain(' AND ');
+  });
+
+  test('isFilterActive: taxonId non-null returns true', () => {
+    expect(isFilterActive({ ...emptyFilter(), taxonId: 52775 })).toBe(true);
+  });
+
+  test('isFilterActive: emptyFilter (taxonId null) returns false (when no other fields set)', () => {
+    expect(isFilterActive(emptyFilter())).toBe(false);
   });
 
   test('yearFrom: occurrenceWhere contains year >= 2020', () => {
@@ -101,8 +125,8 @@ describe('individual filter fields', () => {
 describe('combined filters', () => {
   test('all fields: occurrenceWhere contains all clauses joined by AND', () => {
     const f: FilterState = {
-      taxonName: 'Bombus',
-      taxonRank: 'genus',
+      taxonId: 52775,
+      taxonDisplayName: 'Bombus (genus)',
       yearFrom: 2020,
       yearTo: 2023,
       months: new Set([6, 7]),
@@ -115,7 +139,8 @@ describe('combined filters', () => {
     };
     const { occurrenceWhere } = buildFilterSQL(f);
 
-    expect(occurrenceWhere).toContain("genus = 'Bombus'");
+    expect(occurrenceWhere).toContain('taxon_id = 52775');
+    expect(occurrenceWhere).toContain("instr(lineage_path, '/52775/')");
     expect(occurrenceWhere).toContain('year >= 2020');
     expect(occurrenceWhere).toContain('year <= 2023');
     expect(occurrenceWhere).toContain('month IN (6,7)');
@@ -169,22 +194,22 @@ describe('buildCsvFilename', () => {
   });
 
   test('taxon only: occurrences-bombus-20260115.csv', () => {
-    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
+    const f = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus' };
     expect(buildCsvFilename(f)).toBe('occurrences-bombus-20260115.csv');
   });
 
   test('taxon + same yearFrom/yearTo: occurrences-bombus-2023-20260115.csv', () => {
-    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2023, yearTo: 2023 };
+    const f = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus', yearFrom: 2023, yearTo: 2023 };
     expect(buildCsvFilename(f)).toBe('occurrences-bombus-2023-20260115.csv');
   });
 
   test('taxon + year range: occurrences-bombus-2020-2023-20260115.csv', () => {
-    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, yearFrom: 2020, yearTo: 2023 };
+    const f = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus', yearFrom: 2020, yearTo: 2023 };
     expect(buildCsvFilename(f)).toBe('occurrences-bombus-2020-2023-20260115.csv');
   });
 
   test('taxon + county: occurrences-bombus-king-20260115.csv (at most 2 segments)', () => {
-    const f = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const, selectedCounties: new Set(['King']) };
+    const f = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus', selectedCounties: new Set(['King']) };
     expect(buildCsvFilename(f)).toBe('occurrences-bombus-king-20260115.csv');
   });
 
@@ -204,22 +229,24 @@ describe('buildCsvFilename', () => {
   });
 
   test('taxon with spaces: slugified to lowercase hyphens', () => {
-    const f = { ...emptyFilter(), taxonName: 'Bombus occidentalis', taxonRank: 'species' as const };
+    const f = { ...emptyFilter(), taxonId: 12345, taxonDisplayName: 'Bombus occidentalis' };
     expect(buildCsvFilename(f)).toBe('occurrences-bombus-occidentalis-20260115.csv');
   });
 
   test('segment truncated to 20 chars max', () => {
-    const f = { ...emptyFilter(), taxonName: 'Averyverylongtaxonnamethatexceeds', taxonRank: 'genus' as const };
+    const f = { ...emptyFilter(), taxonId: 12345, taxonDisplayName: 'Averyverylongtaxonnamethatexceeds' };
     const result = buildCsvFilename(f);
     expect(result).toBe('occurrences-averyverylongtaxonna-20260115.csv');
   });
 });
 
 describe('single-quote escaping', () => {
-  test("taxon with single-quote is doubled in SQL output", () => {
-    const f = { ...emptyFilter(), taxonName: "O'Brien", taxonRank: 'genus' as const };
+  test("taxonId is an integer — no string escaping needed, integer appears directly", () => {
+    const f = { ...emptyFilter(), taxonId: 42 };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toContain("genus = 'O''Brien'");
+    expect(occurrenceWhere).toContain('taxon_id = 42');
+    // No string quoting — integers are safe against SQL injection by construction
+    expect(occurrenceWhere).not.toContain("'");
   });
 });
 
