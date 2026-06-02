@@ -1,179 +1,315 @@
 # Pitfalls Research
 
-**Domain:** v4.5 iNat Taxonomy & Species Completeness — adding specific_epithet backfill, taxon_id propagation, inactive-taxon remapping, and ancestor chain materialization to an existing dbt+DuckDB+Eleventy pipeline.
-**Researched:** 2026-05-29
-**Confidence:** HIGH — all findings from direct code inspection of the current system.
+**Domain:** v4.6 Taxonomy Hierarchy & Normalization — adding a normalized taxon hierarchy and dropping denormalized rank columns from an existing dbt/DuckDB/SQLite-WASM occurrence-mapping system.
+**Researched:** 2026-06-01
+**Confidence:** HIGH — all findings from direct code inspection of the current system (no training-data assumptions).
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: `specific_epithet` backfill silently breaks slug generation for non-checklist species
+### Pitfall 1: Name-non-uniqueness merge — genus *Bombus* vs. subgenus *Bombus* silently collapse
 
 **What goes wrong:**
-`specific_epithet` is currently only populated from the checklist arm of the FULL OUTER JOIN in `int_species_universe.sql` (line 90: `c.specific_epithet AS specific_epithet`). The ecdysis/iNat observation arm produces NULL. The `species_export.py` slug builder at line 135-139 uses `genus and epithet` to form `Genus/specificEpithet` slugs: if either is missing, it falls back to a genus-only slug or `slugify(scientificName)`. Non-checklist species (the 65 currently invisible ones) therefore get genus-only slugs today.
+Taxon names are NOT unique within a kingdom. The genus *Bombus* (taxon_id ~65707) and the subgenus *Bombus* (taxon_id ~119019) share the name "Bombus". Any query, JOIN, or display logic that keys on `name` instead of `taxon_id` will treat them as the same taxon. Concretely:
 
-When you backfill `specific_epithet` from iNat lineage data for non-checklist species — so they get proper `Genus/epithet` slugs — any species that *already has* a genus-only page at `/species/{Genus}/` will now generate a new species page at `/species/{Genus}/{epithet}/`. That is correct. But if a species was already getting an `epithet` from some other path (e.g., manual entry, a prior pipeline step), and the new backfill produces a different value, Eleventy will generate pages at both the old and new slugs, and the old static page file will persist in `public/` until a clean build.
+- A hierarchy lookup `WHERE name = 'Bombus'` returns two rows; `first()` / `LIMIT 1` silently picks one.
+- Autocomplete deduplication by display name loses one of the two Bombus nodes.
+- Page generation using the name as the primary key (`/species/Bombus/`) collides — the genus page and subgenus page want the same slug.
+- `higher_rank_taxon_ids.json` (produced by `species_export.py`) maps `name → taxon_id`; writing it as a dict silently drops whichever Bombus (genus vs. subgenus) sorts last.
+
+The existing `stg_inat__genus_taxon_ids.sql` already defends against this with `HAVING COUNT(*) = 1` to exclude cross-phylum homonyms, but that defense only covers the genus-rank backfill. The new hierarchy table must be built and queried exclusively by `taxon_id`.
 
 **Why it happens:**
-The slug is built in Python from the `specific_epithet` column. The FULL OUTER JOIN produces NULL on the observation side, and nobody previously needed to fill it for observation-only species. Changing the COALESCE logic adds the new value, but old deployed pages are not automatically removed.
+Developers reaching for the human-readable name as a join or lookup key — it feels natural and worked in the old denormalized world where `genus` was a plain string column. The hierarchy makes the trap more dangerous because now two nodes genuinely exist in the same tree with the same name at different ranks.
 
 **How to avoid:**
-In the same phase that backfills `specific_epithet`, verify via `test_dbt_diff.py`'s `test_species_canonical_name_key_set_matches` that the species set matches — this will catch unexpected new rows but not slug mutations on existing rows. Also: run `species_export.py` against the new `species.parquet` and diff the `slug` column against the previously-deployed `public/data/species.parquet` to catch any species whose slug changes. Any changed slug means its old Eleventy-generated HTML file persists as a stale page.
-
-A clean Eleventy build (deleting `_site/` before build) removes stale pages, but the nightly pipeline does an incremental Eleventy build. Document and enforce a clean build for any milestone that changes slug values.
+Enforce `taxon_id` as the sole join and lookup key everywhere in the hierarchy model. No `WHERE name = X` queries against the hierarchy table. The hierarchy dbt model should have a `NOT NULL` constraint on `taxon_id` and a `UNIQUE` constraint — if the same `taxon_id` appears twice, the build fails loudly. Autocomplete must resolve to `taxon_id`, not name string. Page generation must key on `taxon_id` internally; the public URL slug is derived from name + rank combination (see Pitfall 7).
 
 **Warning signs:**
-- A species appears twice in the species index (once via the old slug route, once via the new)
-- `test_species_canonical_name_key_set_matches` passes but specific species pages return 404
-- `slug` diff between sandbox and public shows species with changed slug values
+- `higher_rank_taxon_ids.json` has fewer entries than distinct names in the hierarchy (dict key collision dropped one).
+- A `SELECT count(*) FROM taxa WHERE name = 'Bombus'` returns > 1 and some downstream model does not GROUP BY `taxon_id`.
+- A genus page and subgenus page accidentally share the same Eleventy output path.
+- Autocomplete shows one "Bombus" entry when two distinct taxa (different ranks) should appear.
 
 **Phase to address:**
-The phase that backfills `specific_epithet` for non-checklist species. Add a slug-diff step to the verification checklist.
+Foundation — when designing and building the hierarchy table. The `taxon_id`-only key contract must be established before any downstream model is built on top of it.
 
 ---
 
-### Pitfall 2: Adding `taxon_id` to the `occurrences` mart breaks the 36-column dbt contract and the `test_dbt_diff.py` baseline
+### Pitfall 2: Contract rewrite creates a hidden failure cascade across six codebases simultaneously
 
 **What goes wrong:**
-The `occurrences` mart has `contract: enforced: true` in `schema.yml` with 36 columns. `test_dbt_diff.py::test_occurrences_schema_matches` asserts that `sandbox` and `public/data/` parquets have identical ordered column lists. Adding `taxon_id` to `int_combined` (and therefore to `occurrences.sql`) requires:
-1. Adding `taxon_id` to `schema.yml` with the correct `data_type`
-2. Updating the docstring in `test_occurrences_schema_matches` (currently says "30 cols" — already stale at 36 cols)
-3. Running a full pipeline to update `public/data/occurrences.parquet` so the diff test can pass
+The 37-column dbt contract on `marts/occurrences` is enforced at every `bash data/dbt/run.sh build`. Dropping `genus`, `family`, `scientificName`, and `canonical_name` creates simultaneous breakage in:
 
-If step 1 is omitted, dbt build succeeds (contract only validates declared columns) but the column is untyped and the contract no longer covers it. If step 3 is not done before pushing to main, CI's `test_dbt_diff.py` will fail because sandbox (37 cols) != public (36 cols).
-
-The `sqlite_export.py` that builds `occurrences.db` (the prebuilt SQLite) uses `CREATE TABLE AS SELECT * FROM read_parquet(...)` — it derives schema from the parquet at export time. Adding a column to the parquet automatically adds it to the SQLite, which is safe but means `occurrences.db` on the CDN also changes. The frontend wa-sqlite queries must be audited to ensure they do not assume a fixed column set.
+1. **`schema.yml`** — `data_type` declarations for the removed columns must be removed; leaving them causes a dbt contract violation (column declared but absent from SELECT).
+2. **`filter.ts` `OCCURRENCE_COLUMNS`** — a `const` tuple enumerating all 35 column names selected in every SQLite query. Any column listed but absent from the DB causes `undefined` in every fetched row, silently breaking display and filter logic.
+3. **`filter.ts` `OccurrenceRow` interface** — TypeScript type definition; if `genus: string | null` remains but the column is gone, tsc may not catch it (the field just resolves to `undefined` at runtime, not a type error, because the DB returns a value-less column).
+4. **`filter.ts` `buildFilterSQL()`** — three clauses: `family = '...'`, `genus = '...'`, `scientificName = '...'`; each becomes a SQLite runtime error after the columns drop.
+5. **`features.ts` `_buildGeoJSONFromRaw()`** — reads `geo_blob` columns by positional index: `row[6]` = `scientificName`, `row[7]` = `genus`, `row[8]` = `family`. `sqlite_export.py` hardcodes `_GEO_COLS = ["lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id", "year", "scientificName", "genus", "family", "source"]`. If those columns are gone, `geo_blob` must be rebuilt with different positional layout, and `features.ts` positional indexes must be updated to match.
+6. **`bee-atlas.ts`** — inline SQL `COUNT(DISTINCT genus) AS genus_count, COUNT(DISTINCT family) AS family_count` and `SELECT DISTINCT family, genus, scientificName FROM occurrences WHERE ecdysis_id IS NOT NULL`.
+7. **`filter.test.ts`** — `expect(OCCURRENCE_COLUMNS).toContain('scientificName')` and `expect(occurrenceWhere).toBe("family = 'Apidae'")` etc. are hard assertions that will fail at the test level before the app even runs.
+8. **`checklist` mart** — `schema.yml` declares `genus` and `family` columns on the checklist mart too. If checklist columns are also being dropped, that contract needs updating as well.
+9. **`bee-map.ts` checklist filter** — reads columns `['county', 'scientificName', 'genus', 'family', 'year', 'month']` from the checklist parquet and filters by `r.genus !== taxon` / `r.family !== taxon`.
+10. **`species_export.py`** — `SPECIES_COLUMNS` list includes `'scientificName'`, `'canonical_name'`, `'family'`, `'genus'`, `'subgenus'`. The species mart drops different columns than occurrences — but the Python list must stay in sync with the dbt contract.
 
 **Why it happens:**
-The test compares sandbox vs. the last deployed public artifact, which lags behind during development. Developers naturally run dbt build before pushing, but forget to regenerate `public/data/` artifacts.
+Each of these consumers was written when the columns existed. No single place lists all consumers — the contract is implicit across TypeScript, Python, SQL, and test files. "Drop a column" feels like a one-file change; it is actually a 10-surface migration.
 
 **How to avoid:**
-The step sequence for any column addition to `occurrences`:
-1. Add column to `int_combined` (or upstream model) + to `occurrences.sql` SELECT
-2. Add column to `schema.yml` in the same commit
-3. Run `bash data/dbt/run.sh build` to produce sandbox artifacts
-4. Run the full pipeline (`uv run python run.py`) to update `public/data/`
-5. Run `uv run pytest data/tests/test_dbt_diff.py` to verify 0 failures
-6. Audit `buildFilterSQL()` and any other frontend SQL that touches `occurrences` columns
+Before removing any column from the occurrences mart, produce a complete audit list of every surface that references it. Use `grep -rn 'genus\|family\|scientificName\|canonical_name'` across `src/`, `data/`, and `_pages/` to find all consumers. Then migrate them all in a single coordinated phase — or introduce a compatibility shim (e.g., a computed column that derives `genus` from the hierarchy JOIN) that preserves the old column name temporarily, cutting over consumers one at a time.
+
+The `geo_blob` positional-index coupling between `sqlite_export.py` and `features.ts` is the most dangerous because it fails silently at runtime: the column reads wrong data, not an error. This pair must be updated atomically.
 
 **Warning signs:**
-- `test_occurrences_schema_matches` fails with "Sandbox only: [('taxon_id', 'INTEGER')]"
-- dbt build exits 0 but `taxon_id` absent from `schema.yml`
-- Frontend filter producing unexpected results on a column that moved position
+- `dbt build` exits 0 but `schema.yml` still lists a dropped column — contract enforcement only catches columns the SELECT emits but the YAML does not declare; it does not catch YAML columns the SELECT no longer emits.
+- `npm test` passes (tests assert column names that exist in the old schema fixture) but runtime queries fail.
+- `filter.test.ts` assertions `expect(occurrenceWhere).toBe("family = 'Apidae'")` still pass because they test the SQL string, not whether the column exists in the DB.
+- GeoJSON features appear but all have `null` scientificName — silent positional mismatch in `geo_blob`.
 
 **Phase to address:**
-The phase that introduces `taxon_id` to the occurrences mart. Must be treated as a breaking schema change with the full step sequence above.
+Normalization phase — contract rewrite. Must include a pre-rewrite audit and simultaneous migration of all consumers, not a phased column removal.
 
 ---
 
-### Pitfall 3: Inactive taxon remapping collides with the manual `occurrence_synonyms.csv` mechanism — they operate on different tables at different times
+### Pitfall 3: Recursive CTE descendant queries in SQLite-WASM are unbounded and slow for large subtrees
 
 **What goes wrong:**
-The current synonym mechanism (`occurrence_synonyms.csv`) is applied at the `int_combined` layer: `COALESCE(syn.accepted_name, canonical_name)`. Inactive taxon remapping via `is_active` / `current_taxon_id` in `taxa.csv.gz` is a different mechanism that would operate at the `resolve_taxon_ids.py` / `canonical_to_taxon_id` layer or in a new pipeline step.
+A recursive CTE to find all descendants of a taxon (e.g., all species under Apidae) in SQLite looks like:
+```sql
+WITH RECURSIVE descendants(id) AS (
+  SELECT taxon_id FROM taxa WHERE parent_id = ?
+  UNION ALL
+  SELECT t.taxon_id FROM taxa t JOIN descendants d ON t.parent_id = d.id
+)
+SELECT * FROM occurrences WHERE taxon_id IN (SELECT id FROM descendants);
+```
+In the browser on wa-sqlite with the full hierarchy in MemoryVFS, this is evaluated at filter-query time — every time the user changes the taxon selection. For a large family (Apidae has ~4000 bee species), the CTE walks the entire subtree and then executes `taxon_id IN (4000-element list)`. SQLite IN-list performance degrades nonlinearly past ~100 elements; at 4000 it is noticeable.
 
-If both mechanisms try to remap the same name, the order of application determines which wins. Concretely: if `occurrence_synonyms.csv` maps `Agapostemon texanus → subtilior`, but `taxa.csv.gz` says `texanus` is inactive with `current_taxon_id` pointing to a *different* accepted name, the two mechanisms produce conflicting canonical names. The species universe will have both `subtilior` (from manual synonym) and whatever iNat considers current — two rows for what should be one species.
+Additionally, wa-sqlite with MemoryVFS has no disk I/O, so all reads are from RAM — fast, but the recursive walk itself is pure CPU. In Firefox's slower JS engine (vs. Chrome V8), a 4000-species family CTE walk can take 200–400 ms, blocking the main thread if not offloaded.
 
 **Why it happens:**
-The manual CSV was designed for controlled, explicit curation of WABA-specific taxonomy decisions (e.g., applying a recent paper not yet in iNat). Automated inactive-taxon remapping from iNat status is a separate concern that operates at ingestion time, not at dbt transform time. When a name appears in both, there is no single authority.
+Recursive CTEs feel like the natural SQL solution for hierarchy traversal. They work well in server-side DuckDB (fast native code) but the same query runs in the browser on WASM SQLite, which has different performance characteristics.
 
 **How to avoid:**
-Define a clear precedence hierarchy before implementation:
-- Manual `occurrence_synonyms.csv` wins over automated inactive-taxon remapping (manual curation supersedes automated source)
-- OR: automated remapping wins, and manual CSV is reserved for cases where iNat has NOT yet updated
+Evaluate two precomputed structures instead of recursive CTEs:
 
-Document the chosen policy in a comment in `occurrence_synonyms.csv` and in the dbt model. When implementing inactive-taxon remapping, add a check: if a name is already in `occurrence_synonyms.csv`, skip automated remapping for that name and emit a warning to `lineage_unresolved.csv` (or a dedicated file) flagging the conflict.
+**Option A: Nested sets (MPTT)**. Precompute `lft`/`rgt` integers at pipeline time (DuckDB, during the hierarchy build step). Descendant query becomes `WHERE lft >= ? AND rgt <= ?` — a two-integer range scan, O(log n) with an index. Extremely fast in SQLite. The tradeoff: inserts/updates require recomputing `lft`/`rgt` for the entire tree, which is acceptable since the pipeline runs nightly and the hierarchy is read-only in the browser.
 
-Also: `stg_checklist__species.sql` applies synonymy by rewriting `canonical_name` AND `specific_epithet`. If an inactive taxon remapping changes a name at the data-source level (before dbt staging), the staging model must also remap `specific_epithet` — otherwise the canonical_name says `subtilior` but `specific_epithet` still says `texanus`, producing a broken slug `Agapostemon/texanus` for a species named `subtilior`.
+**Option B: Closure table**. A separate `taxon_closure(ancestor_id, descendant_id, depth)` table with one row per ancestor-descendant pair. Descendant query: `JOIN taxon_closure ON ancestor_id = ? AND taxon_id = descendant_id`. Fast point lookup. Tradeoff: the closure table for ~6000 bee taxa at average depth 6 is ~36,000 rows — small. For bycatch taxa added to support map rendering, depth is similar. Total remains well under 100K rows.
+
+**Option C: Materialized `ancestor_path` string**. Store `ancestor_path VARCHAR` in the taxa table (e.g., `'/1/2/630955/65707/'`). Descendant query: `WHERE ancestor_path LIKE '/1/2/630955/65707/%'`. Works but LIKE with leading wildcard requires a full table scan on SQLite (no index prefix optimization). For 6000 rows this is acceptable; for occurrences (50K rows) it is not — so filtering occurrences must still go via taxon_id set.
+
+**Recommendation**: Nested sets for the hierarchy table in `occurrences.db`. Build the MPTT `lft`/`rgt` in DuckDB at pipeline time with a recursive CTE (fast in DuckDB), export to SQLite with an index on `(lft, rgt)`. The browser then does a range query, not a recursive walk.
 
 **Warning signs:**
-- `DISTINCT ON (canonical_name)` in `int_species_universe` collapses rows — if two rows survive for the same species (one from each mechanism), the `on_checklist DESC` tiebreak silently picks one
-- `lineage_unresolved.csv` gaining entries that were previously resolved
-- Species page count decreasing unexpectedly after adding remapping
+- Taxon filter performance is fine for species-rank selection (no recursion needed) but noticeably slow when a genus or family is selected.
+- SQLite `EXPLAIN QUERY PLAN` shows `SCAN taxa` (full table scan) for the descendants query.
+- Filter response time increases roughly proportionally to the number of descendants of the selected taxon.
 
 **Phase to address:**
-The phase that implements inactive-taxon remapping. Must define precedence before writing any code; add a conflict-detection step.
+Foundation — choose the hierarchy structure before building. The choice determines what `sqlite_export.py` exports and what the frontend query looks like. Changing from recursive CTE to nested sets later requires rebuilding the export and rewriting filter SQL.
 
 ---
 
-### Pitfall 4: DuckDB INTEGER[] arrays in ancestor chains carry the same corruption risk as `month_histogram`
+### Pitfall 4: Orphan and missing-parent taxa in taxa.csv.gz cause silent hierarchy gaps
 
 **What goes wrong:**
-The existing `month_histogram` column (INTEGER[12]) had a documented DuckDB 1.5.2 materialization bug: when a CASE expression produced INTEGER[] arrays on both branches (both non-NULL), the materialized table stored garbage values. The fix was to use element-wise COALESCE arithmetic instead of array-level CASE branching.
+`taxa.csv.gz` from iNaturalist Open Data uses a slash-separated `ancestry` column (e.g., `1/2/67101/630955/65707`) that lists ancestor IDs but does NOT include the taxon itself. The `taxa_pipeline.py` already handles this with a `UNION ALL self_rows` arm — but the ancestor walk JOINs back to `all_active_bees`, which is filtered to active Anthophila. If a parent taxon is:
+- inactive (not in the active filter), or
+- outside Anthophila (e.g., a kingdom or phylum node), or
+- simply missing from the file (data quality issue),
 
-An ancestor chain materialized as `INTEGER[]` (e.g., `ancestry_ids INTEGER[]`) faces the same risk if it is produced by a CASE or COALESCE on arrays in a `materialized='table'` model. The risk is higher here because ancestor chains have variable lengths and DuckDB's list operations involve more complex internal representations than a fixed-length 12-element array.
+then the JOIN to `ancestor_rows` produces NULL for that rank, and the hierarchy node has no parent_id to connect it to. In a nested-set or closure-table model, this creates disconnected subtrees — nodes that are present but unreachable from the root.
+
+For bycatch taxa (wasps/flies with `kingdom = Animalia`): the current v4.5 design resolves their genus-level `taxon_id` using the Animalia disambiguation, but their full lineage (family, subfamily, etc.) was never loaded into `taxon_lineage_extended` because that table is Anthophila-filtered. When the hierarchy must also hold bycatch taxa (so their occurrence points can still resolve a name after `genus`/`family` columns drop), their parents may be absent from the hierarchy — creating dangling nodes.
 
 **Why it happens:**
-DuckDB's materialization of `LIST` type expressions in TABLE models has historically been inconsistent. The `list_value(...)::INTEGER[12]` workaround in `int_species_universe.sql` is already documented with a comment explaining the bug. Any new INTEGER[] column in a TABLE-materialized model is a candidate for the same issue.
+The Anthophila filter that makes the taxa pipeline fast and focused is exactly the wrong boundary for a hierarchy that must also serve non-bee taxa's names. Extending the boundary naively means loading all of taxa.csv.gz (37 MB gzipped, millions of rows) just to get wasp family nodes.
 
 **How to avoid:**
-If ancestor chains are stored as arrays, use the explicit `list_value(a, b, c, ...)` form rather than array-producing CASE expressions or list concatenation operators. If the chain length is variable, consider storing the ancestor IDs as a VARCHAR (slash-separated, mirroring the taxa.csv.gz `ancestry` column format) instead of INTEGER[]. VARCHAR is immune to array materialization bugs.
+Separate the hierarchy loading into two passes:
+1. Load all active Anthophila taxa (current approach) into the hierarchy — this covers all bee taxa.
+2. For each bycatch `taxon_id` that appears in `occurrences.parquet`, walk the ancestry column from taxa.csv.gz for just those IDs and their direct ancestors up to family rank, then insert those additional rows into the hierarchy. The bycatch set is small (wasps, flies — likely < 50 genera based on current data).
 
-After producing the table, immediately run a sanity check: select a known deep-taxonomy species (e.g., a species in a tribe), inspect its ancestor array directly from the materialized table, and verify the IDs are valid taxon IDs (not garbage floats or truncated integers).
+Alternatively: load all taxa at rank ≥ family from taxa.csv.gz for the relevant ancestor IDs, without pulling in the millions of species rows.
+
+After building the hierarchy, run a consistency check: every `taxon_id` in `occurrences.parquet` must have an entry in the hierarchy table. A `LEFT JOIN` with `WHERE hierarchy.taxon_id IS NULL` reports gaps.
 
 **Warning signs:**
-- Ancestor arrays containing values like `3.14e+8` or negative numbers
-- Species with tribes showing NULL tribe despite the taxa.csv.gz file having the correct entry
-- DuckDB `DESCRIBE` showing the column as `BIGINT[]` when INTEGER[] was specified (type widening during materialization)
+- `SELECT count(*) FROM occurrences WHERE taxon_id NOT IN (SELECT taxon_id FROM taxa)` returns > 0.
+- Map points for wasp or fly bycatch occurrences show no name in the detail card after the `genus`/`family` columns drop.
+- Bycatch genera (e.g., Bembix, Sphex) are absent from the hierarchy but present in `occurrences.parquet`.
 
 **Phase to address:**
-The phase that materializes ancestor chains. Validate the output immediately after the first `dbt build`.
+Foundation — hierarchy build. The bycatch-ancestry loading strategy must be decided before the hierarchy table schema is finalized.
 
 ---
 
-### Pitfall 5: `specific_epithet` backfill from iNat lineage changes which species get pages — `species.js` `specific_epithet !== null` gate has cascading effects
+### Pitfall 5: Synonym/inactive-taxon interaction corrupts hierarchy lookups
 
 **What goes wrong:**
-`_data/species.js` line 97 uses `specific_epithet !== null` as the gate for `speciesList` (which species get pages). Currently, 65 non-checklist species have `specific_epithet = NULL` in `species.parquet` — they are invisible to the site entirely.
+v4.5 introduced `auto_synonyms` + `occurrence_synonyms` to remap inactive taxon names to accepted names at the `int_combined` layer. After normalization, `occurrences.parquet` will store `taxon_id` instead of name strings. The synonym mechanism must produce the accepted taxon's `taxon_id`, not the synonym's `taxon_id`. Two failure modes exist:
 
-When backfill makes them non-NULL, they enter `speciesList`. Each of them triggers Eleventy pagination to generate a species page at `/species/{Genus}/{epithet}/`. That's the desired outcome. But it also triggers:
-- `species_maps.py` to generate an SVG occurrence map for each new species
-- The species index at `/species/` to include them in the genus-grouped list
-- Genus pages to list them as members with occurrence counts and colored dots
-- `seasonality.json` to include their bucket data (they already appear there if they have occurrences)
+**Mode A: Synonym maps to inactive taxon_id.** If `occurrence_synonyms.csv` maps synonym `agapostemon texanus → subtilior` but the `taxon_id` resolved for `subtilior` is an inactive taxon ID (because iNat updated the taxonomy again after the manual entry was written), the hierarchy lookup for that `taxon_id` finds an inactive node. The hierarchy table built from active taxa only has no entry for that ID, so `LEFT JOIN taxa ON taxa.taxon_id = occurrences.taxon_id` produces NULL — the occurrence has a `taxon_id` but no hierarchy entry.
 
-The SVG map generation is gated on `occurrence_count > 0` in `species_maps.py` (confirmed pattern from prior milestone). The 65 currently-invisible species have occurrence records (they appear in `occurrences.parquet` but have no species page). So all 65 will trigger SVG generation. If `species_maps.py` is not run before the Eleventy build, the pages will generate but the `<img src=".../species-maps/{slug}.svg">` tags will 404.
+**Mode B: Hierarchy built from active taxa, occurrence uses old taxon_id.** The genus-taxon-id backfill in `stg_inat__genus_taxon_ids.sql` uses `HAVING COUNT(*) = 1` deduplication — correct. But if between nightly runs iNat inactivates a genus and splits it, the `taxon_id` stored in `occurrences.parquet` becomes stale. The hierarchy (rebuilt from the updated `taxa.csv.gz`) no longer contains that old ID. Occurrences with the old ID become orphaned from the hierarchy.
 
 **Why it happens:**
-The pipeline has a dependency: `species_maps.py` must run and upload to S3 (via nightly.sh) BEFORE the Eleventy build that generates the pages. This dependency exists today but is only triggered for the known species set. Expanding the set requires confirming the pipeline step order in `run.py` and `nightly.sh`.
+The synonym/remapping system was designed to fix names, not IDs. It operates at the canonical_name level. After normalization shifts the authoritative key from name to `taxon_id`, the same mismatch risk shifts to IDs — and is less visible because the ID is an opaque integer.
 
 **How to avoid:**
-Before implementing backfill, verify the `run.py` STEPS ordering: `species-maps` must come before `eleventy-build`. Grep `nightly.sh` to confirm SVG files are uploaded to S3 before CloudFront invalidation. After the first pipeline run with backfilled species, check S3 for the 65 new SVG files.
+The hierarchy build step must run AFTER the synonym resolution step. Every `taxon_id` written into `occurrences.parquet` must come from the same `taxa.csv.gz` snapshot that the hierarchy was built from. If `taxa.csv.gz` is re-downloaded and the hierarchy is rebuilt, the taxon_id resolution for occurrences must also be re-run against the same snapshot.
 
-Add an assertion to `species_maps.py` post-run: every `canonical_name` in `species.parquet` with `specific_epithet IS NOT NULL AND occurrence_count > 0` must have a corresponding `.svg` file generated.
+Add a post-build assertion: `SELECT count(*) FROM occurrences o LEFT JOIN taxa h ON h.taxon_id = o.taxon_id WHERE o.taxon_id IS NOT NULL AND h.taxon_id IS NULL`. This must be 0.
+
+For `occurrence_synonyms.csv` manual entries: any manually-specified `accepted_name` must be checked against the current `taxa.csv.gz` to confirm it maps to an active taxon_id. Add a pipeline gate that fails if any manual synonym's accepted name resolves to an inactive or missing taxon_id.
 
 **Warning signs:**
-- 65 new species pages appearing in the Eleventy build but their SVG maps returning 404 on CloudFront
-- `nightly.sh` completing without error but S3 missing the new SVG keys
-- `species_maps.py` count output showing fewer species than expected
+- `LEFT JOIN taxa ON taxa.taxon_id = occurrences.taxon_id` produces NULLs for occurrences with non-null taxon_id.
+- `auto_synonyms` entries appear for taxa that `occurrence_synonyms.csv` already covers — the deduplication gate did not fire.
+- A species' map points disappear after a pipeline run that updated `taxa.csv.gz`.
 
 **Phase to address:**
-The same phase as `specific_epithet` backfill. Verify pipeline step ordering before executing.
+Foundation — establish taxon_id provenance rule: ID and hierarchy built from same taxa.csv.gz snapshot. Normalization phase — add the post-build JOIN assertion.
 
 ---
 
-### Pitfall 6: The `test_dbt_diff.py` docstring baseline says "30 cols" but occurrences already has 36 — adding `taxon_id` will not trigger the comment update as a build failure
+### Pitfall 6: Rank-rollup count double-counting when a species belongs to both the genus and a subgenus
 
 **What goes wrong:**
-`test_occurrences_schema_matches` has a docstring saying "30 columns" that was last updated when the contract had 30 columns. The actual contract now has 36 columns (verified: 36 columns in `public/data/occurrences.parquet`). The docstring is documentation-only — it does not affect the test outcome. When a developer adds `taxon_id` (making it 37), they will update the comment to "37 columns" thinking the old count was 36, when actually the comment should have said 36 already. This creates false confidence that the docstring is always current.
+The current genus/subgenus page counts are computed by `species_export.py` by grouping `species.parquet` (which has denormalized `genus` and `subgenus` columns). After normalization, counts will be computed by descending the hierarchy from a given node and counting distinct occurrences. A species in subgenus *Bombus* of genus *Bombus* will appear in a descendant query rooted at the genus AND in a descendant query rooted at the subgenus. If genus page counts are computed as "all occurrences where taxon is a descendant of this genus node", and separately subgenus page counts as "all occurrences where taxon is a descendant of this subgenus node", neither double-counts — each occurrence appears exactly once under its species node. The risk is if counts are computed as SUM of children's counts rather than COUNT DISTINCT of occurrences.
 
-More importantly: the test itself compares sandbox vs. public (not a fixed count). If a developer adds `taxon_id` to the dbt model and schema.yml, runs `dbt build`, but does NOT run the full pipeline to update `public/data/occurrences.parquet`, the test will FAIL with "Sandbox only: [('taxon_id', ...)]" — which is the correct failure. But if the developer then copies the sandbox file to `public/data/` manually (shortcutting the spatial join pipeline), they bypass the spatial assignment and `county`/`ecoregion_l3` will be NULL for all new rows.
+A related issue: the species mart currently has `occurrence_count`, `specimen_count`, `inat_obs_count` as denormalized pre-aggregated fields. Page counts for genus/subgenus/tribe are computed by summing these fields for member species. If the normalization milestone removes these denormalized fields from the species mart and requires computing them from occurrence-level joins, any species that appears under multiple taxonomy nodes (e.g., listed in both genus Bombus and subgenus Bombus in a misconfigured hierarchy) will be counted twice.
 
 **Why it happens:**
-The shortcut path (copy sandbox parquet to public/) is tempting when you just want the schema test to pass. It corrupts the spatial data silently.
+The hierarchy adds a new dimension: taxa at intermediate ranks (subgenus, tribe) have their own subtrees. A correct hierarchy has each occurrence mapped to exactly one leaf node (its species or finest-rank taxon), and ancestor counts are derived by summing leaves. If the hierarchy has a node at both genus and subgenus for "Bombus" and the subgenus is NOT correctly nested under the genus, both the genus and subgenus subtrees each contain the same species — double-counted.
 
 **How to avoid:**
-Never copy sandbox parquet directly to `public/data/`. The full pipeline must run (`uv run python run.py` or at minimum the export steps) to produce correctly-joined output. Add a comment to `test_dbt_diff.py` explicitly warning against this shortcut.
+Compute occurrence counts at the leaf (species) level exclusively. Genus/subgenus/tribe counts are derived by walking the hierarchy tree and summing leaf counts. Never aggregate from `occurrence_count` fields stored at intermediate nodes. Assert: `SUM(species.occurrence_count WHERE parent_chain includes genus G) == genus G occurrence count`. Run this for at least 5 genera after each pipeline build.
 
-Update the "30 cols" docstring to "36 cols" in the same commit that fixes the schema. Do not defer this cleanup.
+Also verify the hierarchy's structural integrity: every non-root node has exactly one parent, subgenus nodes are children of genus nodes, genus nodes are children of family nodes. A DuckDB `WITH RECURSIVE` cycle check during the pipeline build catches structural errors before export.
 
 **Warning signs:**
-- `county` IS NULL for rows that clearly have valid coordinates in `occurrences.parquet`
-- Row count in sandbox vs. public differs by the number of new species × their occurrence count
-- `test_occurrences_county_spatial_diff` detecting 0 diff rows when it should detect new rows with NULL county
+- Genus "Bombus" occurrence count > sum of all Bombus species occurrence counts (indicates occurrences counted at multiple levels).
+- A tribe page shows the same species appearing twice in its species list (structural duplication in the hierarchy).
+- Total occurrence count on the family page > sum of genus page counts within that family.
 
 **Phase to address:**
-The phase introducing any new column to `occurrences`. Fix the "30 cols" docstring comment at the start of the milestone.
+Pages phase — when genus/subgenus/tribe page counts are recomputed from the hierarchy. But the structural integrity check belongs in the Foundation phase.
+
+---
+
+### Pitfall 7: Slug collisions for same-named taxa at different ranks
+
+**What goes wrong:**
+Public URL slugs are name-based. Currently:
+- Genus Bombus → `/species/Bombus/`
+- Subgenus Bombus → `/species/Bombus/Bombus/`
+
+This convention happens to avoid collision because subgenus slugs use the two-component `Genus/Subgenus` format. But when adding new ranks (subfamily pages for the first time, tribe pages already exist), the naming scheme must be consistent. Specifically:
+- Tribe *Bombini* → currently `/species/tribe/Bombini/`
+- If subfamily pages are added at `/species/subfamily/Apinae/`, the `tribe/` prefix is inconsistent with genus slugs lacking a `genus/` prefix.
+
+More critically: if the tree page generates paths from the hierarchy by node type without per-rank prefix logic, a genus named "Bombini" (hypothetical, but names reuse is real) and a tribe named "Bombini" would both generate the same URL.
+
+The existing `subgenusList` WARNING-02 in PROJECT.md notes that `subgenus.totalOccurrences` includes unresolved records — this is a pre-existing count inaccuracy that the hierarchy normalization is meant to fix.
+
+**Why it happens:**
+URL slugs were designed incrementally — species got `Genus/epithet`, genera got `Genus/`, subgenera got `Genus/Subgenus/`, tribes got `tribe/TribeName/`. Adding subfamilies adds another rank, and the existing scheme doesn't have a coherent rank-prefix convention.
+
+**How to avoid:**
+Define the full URL scheme for all ranks before generating any pages:
+- Family: `/species/family/{Family}/` (new in v4.6, or omit family pages if not planned)
+- Subfamily: `/species/subfamily/{Subfamily}/` (new in v4.6)
+- Tribe: keep existing `/species/tribe/{TribeName}/` (do not change — would break external links)
+- Genus: keep existing `/species/{Genus}/`
+- Subgenus: keep existing `/species/{Genus}/{Subgenus}/`
+- Species: keep existing `/species/{Genus}/{epithet}/`
+
+Then verify: no two taxa at different ranks produce the same path. A pre-generation check: `SELECT rank, name, count(*) FROM taxa GROUP BY name HAVING count(*) > 1` identifies all same-name taxa; for each pair, confirm their generated URLs are distinct.
+
+**Warning signs:**
+- Eleventy pagination emits two pages at the same `permalink` — the second silently overwrites the first.
+- A genus page and subgenus page disappear after a build (the permalink collision causes one to overwrite the other).
+- A tree node links to a URL that serves a different rank's page.
+
+**Phase to address:**
+Pages phase — define the URL scheme before generating any new rank pages. Confirm with a pre-generation collision check.
+
+---
+
+### Pitfall 8: Bycatch leaking into bee-only surfaces via the hierarchy
+
+**What goes wrong:**
+Non-bee aculeate bycatch (wasps, flies, etc.) must be in the hierarchy so their occurrence map points resolve to a name after `genus`/`family` columns drop. But they must NOT appear in:
+- The autocomplete (which currently returns family/genus/species options derived from `occurrences.parquet`)
+- The `/species/` browse tree (bee-only)
+- The taxonomy pages (genus, subfamily, tribe pages)
+- The `speciesList`, `genusList`, `subgenusList` in `species.js`
+
+The current filter for the species universe is in `int_species_universe.sql`:
+```sql
+WHERE family IN ('Andrenidae', 'Apidae', 'Colletidae', 'Halictidae',
+                 'Megachilidae', 'Melittidae', 'Stenotritidae')
+```
+This filter works because `family` is a denormalized string column. After normalization, the filter must query the hierarchy: "taxon is a descendant of Anthophila (taxon_id=630955)". If the hierarchy JOIN is missing or the Anthophila root ID changes, bycatch taxa leak through.
+
+The current autocomplete is built in `bee-atlas.ts` from:
+```sql
+SELECT DISTINCT family, genus, scientificName FROM occurrences WHERE ecdysis_id IS NOT NULL
+```
+After the columns drop, this query must be replaced. The replacement must still exclude bycatch taxa from the dropdown.
+
+**Why it happens:**
+The bee-only filter is currently enforced at two independent places: the `int_species_universe` SQL gate and the `stg_inat__genus_taxon_ids` `HAVING COUNT(*) = 1` deduplication. After normalization, the filter must be expressed in terms of the hierarchy, and every surface that builds a bee-only list must use the same hierarchy-based filter consistently.
+
+**How to avoid:**
+Define one canonical hierarchy filter: "is a descendant of Anthophila (taxon_id=630955)". Express this as a computed column or a `is_bee` flag on the hierarchy table that is set during the pipeline build. Any query that needs bee-only data JOINs the hierarchy and filters on `is_bee = TRUE`. This is a single definition rather than duplicated family-name lists.
+
+Assert: `SELECT count(*) FROM taxa WHERE is_bee = TRUE AND family NOT IN ('Andrenidae', 'Apidae', ...)` must be 0 (the two filter mechanisms agree). Assert: `SELECT count(*) FROM taxa WHERE is_bee = FALSE AND family IN ('Andrenidae', 'Apidae', ...)` must be 0.
+
+**Warning signs:**
+- Wasp or fly genera (e.g., Bembix, Sphex, Eristalis) appear in the taxon autocomplete.
+- A genus page is generated for a non-bee genus.
+- The `/species/` browse tree contains non-Anthophila nodes.
+- `speciesList` in species.js includes entries with NULL `on_checklist` for bycatch taxa.
+
+**Phase to address:**
+Foundation — the `is_bee` flag must be established on the hierarchy table. Frontend cutover — autocomplete replacement must use hierarchy-based filter.
+
+---
+
+### Pitfall 9: DB size regression if the hierarchy table is large
+
+**What goes wrong:**
+The entire `occurrences.db` is seeded into wa-sqlite MemoryVFS on page load. Current size is not specified in PROJECT.md, but v4.3 notes it took 1–3 ms to open (vs. 1229 ms INSERT loop), implying a reasonable size. Adding a hierarchy table must not cause a significant size increase.
+
+A closure table for ~6000 bee taxa at average depth 6 = ~36,000 rows × (two INTEGER columns + depth INTEGER) ≈ 864 KB uncompressed in SQLite. Manageable.
+
+A nested-set table for ~6000 taxa = ~6000 rows × (taxon_id, parent_id, lft, rgt, rank, name) ≈ 6000 × ~40 bytes = 240 KB. Small.
+
+The risk is if the hierarchy includes bycatch taxa with their full ancestry (pulling in kingdom-level ancestors), or if the closure table is built for the full ancestor set (including all ranks from kingdom to species). For a closure table, adding kingdom/phylum/class/order nodes above family increases depth from 6 to ~10, blowing the row count to ~60,000 and size to ~1.4 MB — still acceptable but worth measuring.
+
+The more significant risk is the OCCURRENCE side: if ancestor arrays are stored in `occurrences` (50K rows × 8 ancestor IDs × 8 bytes = 3.2 MB per array column), that is a real regression. Ancestor data belongs in the hierarchy table, not denormalized into occurrences.
+
+**Why it happens:**
+Copying the ancestor chain into each occurrence row seems convenient for query performance but undoes the size savings that motivated the normalization.
+
+**How to avoid:**
+Measure `occurrences.db` size before and after each hierarchy table addition. The hierarchy table belongs in `occurrences.db` only if it is needed for frontend queries; if it is only used server-side for count aggregation, it can stay out of the exported SQLite.
+
+Keep the exported SQLite occurrences table to its normalized form: `taxon_id` column only, no ancestor columns. The hierarchy table (nested sets or closure) is added to `occurrences.db` alongside the occurrences table to enable descendant queries.
+
+Target: total `occurrences.db` size should decrease vs. v4.5 (fewer columns per row in occurrences), with the hierarchy table addition being a modest offset.
+
+**Warning signs:**
+- `occurrences.db` size increases after the normalization milestone (expected to decrease — investigate immediately).
+- `tablesReady` benchmark time increases from the current ~250 ms baseline.
+- The MemoryVFS seeding step (currently 1–3 ms) slows measurably.
+
+**Phase to address:**
+Foundation — decide what tables go in `occurrences.db`. Normalization — measure size before/after column removal. Frontend cutover — measure `tablesReady` time.
 
 ---
 
@@ -181,11 +317,11 @@ The phase introducing any new column to `occurrences`. Fix the "30 cols" docstri
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Backfill `specific_epithet` only for non-checklist species | Simple — add COALESCE to one line | Any future rename of the lineage source column breaks the backfill silently | Never — add a dbt test covering both checklist and non-checklist arms |
-| Store `taxon_id` only in `species.parquet`, not `occurrences.parquet` | Avoids occurrences contract change | Each occurrence must join species to get taxon_id — adds a JOIN in every downstream query | Acceptable in MVP if occurrences don't need taxon_id at query time |
-| Skip conflict detection between `occurrence_synonyms.csv` and inactive-taxon remapping | Faster implementation | Ghost rows or wrong canonical_name for conflicted names; discovered only in UAT | Never — define precedence before writing code |
-| Use VARCHAR slash-separated ancestor IDs instead of INTEGER[] | Immune to array materialization bug | String splitting needed at query time; less type-safe | Acceptable if ancestor queries are infrequent or in Python |
-| Skip `test_dbt_diff.py` docstring update | Saves 2 minutes | Docstring rot makes the test harder to read; wrong column counts mislead future developers | Never — 2-minute fix, do it |
+| Keep `genus`/`family` columns as computed columns derived from hierarchy JOIN in the dbt mart | Zero frontend migration required during normalization | Perpetuates name-keyed logic; doesn't actually shrink the DB until the shim columns are dropped | Acceptable as a transitional shim for one milestone if it enables incremental testing |
+| Use recursive CTE in SQLite-WASM instead of precomputed nested sets | No pipeline preprocessing required | Filter latency spikes on large family selections (Apidae: ~4000 species); degrades user experience | Never — nested sets add one pipeline step and eliminate the latency permanently |
+| Store bycatch taxa names without full hierarchy entry | Faster to implement | After genus/family columns drop, bycatch occurrence points have no name to display | Never — the whole point of the hierarchy is to resolve names for every taxon_id |
+| Emit `is_bee` from application code (hardcoded family list) rather than hierarchy flag | No schema change | Same family-name list duplication risk as the current `int_species_universe` WHERE clause | Acceptable temporarily if the hierarchy `is_bee` flag is blocked; must be resolved within the milestone |
+| Skip slug collision check and rely on "it works" | Saves 30 minutes | One silent page overwrite corrupts navigation; found only by a user or UAT | Never — the check is a single GROUP BY query |
 
 ---
 
@@ -193,11 +329,12 @@ The phase introducing any new column to `occurrences`. Fix the "30 cols" docstri
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| `specific_epithet` COALESCE in `int_species_universe.sql` | Adding `COALESCE(c.specific_epithet, tle.subgenus)` — subgenus is NOT the same as specific_epithet for species like `Agapostemon (Agapostemon) texanus` | Pull `specific_epithet` from `taxa.csv.gz` via the lineage table; it is the second token of `name` at `rank = 'species'` |
-| `stg_inat__taxon_lineage_extended` LEFT JOIN in `int_species_universe` | The JOIN is `ON tle.taxon_id = ctt.taxon_id` — if `canonical_to_taxon_id` has no entry for a species, the JOIN produces NULL lineage, silently leaving family/genus NULL | Verify `canonical_to_taxon_id` coverage before relying on lineage backfill; check `lineage_unresolved.csv` |
-| `canonical_to_taxon_id` bridge table | `resolve_taxon_ids.py` queries `ecdysis_data.occurrences` and `checklist_data.species` for names to resolve — it does NOT include iNat ARM 3 canonical names | New iNat obs species not in Ecdysis or checklist will have no `taxon_id` entry unless the query is extended |
-| `taxa.csv.gz` `active = 'true'` string | `taxa_pipeline.py` already documents this — `active` is a string 'true'/'false', not a SQL boolean | Always use `active = 'true'` (string literal); any NEW code reading taxa.csv.gz must repeat this guard |
-| `occurrence_synonyms.csv` + `stg_checklist__species.sql` | Synonymy rewrites `canonical_name` AND `specific_epithet` (using `split_part(syn.accepted_name, ' ', 2)`). If the accepted_name is a 1-token name (genus), `split_part` returns '' and `NULLIF(..., '')` yields NULL — producing a broken slug | Guard accepted_name synonym rewrites with `length(split_part(accepted_name, ' ', 2)) > 0` before applying |
+| `sqlite_export.py` + `features.ts` positional coupling | Updating `_GEO_COLS` in the exporter without updating the matching positional indexes in `_buildGeoJSONFromRaw` | Change both files atomically in the same commit; add an assertion that `_GEO_COLS` length == the number of positional reads in `features.ts` |
+| dbt contract enforcement | Leaving a dropped column in `schema.yml` — dbt does NOT error if a declared column is absent from SELECT | After dropping a column from the SELECT, remove it from schema.yml in the same commit; `dbt build` will fail if it is present in SELECT but missing from schema.yml, but NOT the reverse |
+| `checklist` mart and `checklist.parquet` | `checklist` mart also declares `genus` and `family` columns; dropping them from occurrences does NOT automatically remove them from checklist | Audit the `checklist` mart contract separately; `bee-map.ts` reads `['county', 'scientificName', 'genus', 'family', 'year', 'month']` from checklist — these columns need migration too |
+| `higher_rank_taxon_ids.json` dict keying | Keying by name loses subgenus-vs-genus distinction | Key by taxon_id; if the consumer needs name lookup, build a `{taxon_id: name, rank}` structure |
+| `taxa.csv.gz` active filter | Using `active = true` (boolean) instead of `active = 'true'` (string) matches no rows silently | Always use string literal; new code reading taxa.csv.gz must include this guard |
+| `test_dbt_diff.py` column count docstrings | Column count in comments (currently "30 cols", actually 37) misleads future developers who update to "N+1 cols" thinking the comment was current | Fix the docstring to say "37 cols" at the start of the milestone; update it when the contract changes |
 
 ---
 
@@ -205,23 +342,43 @@ The phase introducing any new column to `occurrences`. Fix the "30 cols" docstri
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Materializing ancestor chains in a `materialized='view'` instead of `materialized='table'` | Every downstream query re-evaluates the full ancestry walk; `int_species_universe` already does this walk and is TABLE-materialized for exactly this reason | Use `materialized='table'` for any model that produces ancestor chains via unnest/join | Immediate — the ancestry walk on taxa.csv.gz is O(species × depth); at ~5000 bee species × ~8 ancestor levels = ~40K join rows, re-evaluation is expensive |
-| Running `resolve_taxon_ids.py` against ALL names including previously-unresolved ones on every nightly run | Each unresolved name costs one iNat API call (~0.5s with pacing); if 50 names fail every night, that is 25 seconds of wasted pacing per run | The existing `lineage_unresolved.csv` skip mechanism already handles this — do not break it when adding new name sources | Breaks at >60 unresolved names (the pacing would extend nightly runtime past acceptable) |
-| Ancestor chain as full BIGINT[] in occurrences mart | Every row in occurrences.parquet carries the full ancestor array (8+ integers); at 50K rows × 8 × 8 bytes = 3.2 MB of ancestor data in what is currently a 36-column file | Store ancestor chains in `species.parquet` only (keyed by canonical_name); join at query time if needed | Immediate file size impact; frontend wa-sqlite load time increases |
+| Recursive CTE descendant query in wa-sqlite at filter time | Taxon filter fast for species but slow for genus/family; latency proportional to subtree size | Use nested-set range query `lft BETWEEN ? AND ?` instead | Noticeable at genus-level selection (100+ species); severe at family level (Apidae: ~4000 species) |
+| Ancestor columns stored in occurrences table | `occurrences.db` size increase; `tablesReady` slower than v4.3 baseline of ~250 ms | Keep occurrences table normalized (taxon_id only); hierarchy in separate table | Immediate — each ancestor column adds 50K × 8 bytes = 400 KB to the DB |
+| Closure table built for all ranks including kingdom/phylum | Closure table row count explodes (10× vs. family-to-species depth); DB size regression | Cap hierarchy at family rank (not above); build closure only from family to species | Breaks at kingdom-to-species depth of ~10 — closure rows grow from ~36K to ~60K |
+| Eleventy tree page generating one HTML file per taxon node | Slow build if the tree is fully expanded (6000 species × N ranks = many pages); or excessive S3 upload time | The tree should be a single interactive JS page, not one-page-per-node | Breaks when species count grows past ~1000 if generated as static pages |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **`specific_epithet` backfill:** Verify BOTH arms of the FULL OUTER JOIN produce non-NULL `specific_epithet` for their respective species — check `SELECT COUNT(*) FROM species WHERE specific_epithet IS NULL AND occurrence_count > 0`
-- [ ] **`taxon_id` in `occurrences` mart:** Verify `schema.yml` updated AND `public/data/occurrences.parquet` regenerated via full pipeline (not sandbox copy)
-- [ ] **Inactive taxon remapping:** Verify that `occurrence_synonyms.csv` entries are not double-remapped — run `SELECT canonical_name FROM occurrence_synonyms WHERE canonical_name IN (SELECT synonym FROM occurrence_synonyms)` to detect any chain-synonymy
-- [ ] **Ancestor chain materialization:** Spot-check a tribe-bearing species (e.g., Bombus) and a tribe-less species (e.g., Hylaeus) for correct ancestor array contents
-- [ ] **`test_dbt_diff.py` docstrings:** All baseline column counts updated to actual current values before the milestone starts
-- [ ] **`resolve_taxon_ids.py` name scope:** Confirms iNat ARM 3 canonical names are included in the names-to-resolve query (currently queries only `ecdysis_data.occurrences` and `checklist_data.species`)
-- [ ] **Slug collision detection:** After backfill, run `SELECT slug, COUNT(*) FROM species GROUP BY slug HAVING COUNT(*) > 1` to detect any slug collisions introduced by new species
-- [ ] **S3 SVG upload:** All 65+ newly-visible species have SVG maps uploaded to S3 before CloudFront invalidation
-- [ ] **`stg_checklist__species.sql` synonym rewrite:** `specific_epithet` rewrite uses `NULLIF(split_part(..., ' ', 2), '')` — verify accepted_name synonyms that are binomials produce correct epithet
+- [ ] **Hierarchy foreign key coverage:** `SELECT count(*) FROM occurrences WHERE taxon_id IS NOT NULL AND taxon_id NOT IN (SELECT taxon_id FROM taxa)` returns 0 — every occurrence taxon_id has a hierarchy entry.
+- [ ] **Bycatch in hierarchy, not in bee surfaces:** Wasp/fly genera (Bembix, Sphex, Eristalis etc.) appear in `taxa` table but NOT in `speciesList`, autocomplete options, or species page generator output.
+- [ ] **Name-uniqueness invariant:** `SELECT name, count(*) FROM taxa GROUP BY name HAVING count(*) > 1` returns rows — confirm that every such name has distinct ranks and distinct generated URLs; no URL collisions.
+- [ ] **Dropped columns gone from schema.yml:** `grep -n "^\s*- name: genus\|family\|scientificName\|canonical_name" data/dbt/models/marts/schema.yml` returns empty for any column that was dropped from the SELECT.
+- [ ] **`OCCURRENCE_COLUMNS` in `filter.ts` updated:** Every column listed in the tuple exists in the new `occurrences` table schema; removed columns are removed from the tuple.
+- [ ] **`buildFilterSQL` updated:** No clause references `genus = `, `family = `, or `scientificName = ` after those columns drop; filter uses hierarchy-based descendant query instead.
+- [ ] **`geo_blob` column layout updated:** `_GEO_COLS` in `sqlite_export.py` and positional reads in `features.ts` both updated atomically; test by confirming occurrence popup shows correct `scientificName` for a known record.
+- [ ] **`bee-atlas.ts` inline SQL updated:** `COUNT(DISTINCT genus)`, `COUNT(DISTINCT family)`, and `SELECT DISTINCT family, genus, scientificName` all replaced with hierarchy-based equivalents.
+- [ ] **`bee-map.ts` checklist filter updated:** Column list `['county', 'scientificName', 'genus', 'family', 'year', 'month']` and `r.genus !== taxon` / `r.family !== taxon` predicates replaced.
+- [ ] **DB size measured:** `occurrences.db` after normalization is smaller than before (fewer columns) even with hierarchy table addition; record the size diff in the phase VERIFICATION.md.
+- [ ] **`tablesReady` timing:** Benchmark confirms performance not regressed from v4.3 baseline (~250 ms); measure in both Chrome and Firefox.
+- [ ] **Slug collision check run:** `SELECT rank, name FROM taxa WHERE name IN (SELECT name FROM taxa GROUP BY name HAVING count(*) > 1)` — all colliding names map to distinct URLs.
+- [ ] **`filter.test.ts` assertions updated:** Tests for `family = '...'`, `genus = '...'`, `scientificName = '...'` SQL generation replaced with hierarchy-based filter assertions; tests for `OCCURRENCE_COLUMNS` updated.
+- [ ] **`species_export.py` `SPECIES_COLUMNS` updated:** Any columns dropped from the species mart are removed from the Python constant; column order matches dbt SELECT order.
+
+---
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Name-non-uniqueness merge discovered after hierarchy built | MEDIUM | Add `taxon_id` uniqueness constraint; find and fix all name-keyed JOINs; rebuild hierarchy table |
+| `geo_blob` positional mismatch (silent wrong data) | LOW | Fix `_GEO_COLS` + positional indexes atomically; rebuild `occurrences.db`; re-upload to S3 |
+| Bycatch leaking into autocomplete | LOW | Add `is_bee` filter to autocomplete query; no schema change needed |
+| Recursive CTE too slow in wa-sqlite | MEDIUM | Replace with nested-set range query; rebuild hierarchy table with `lft`/`rgt`; update filter SQL |
+| Orphan bycatch taxa (no hierarchy entry) | LOW | Add targeted ancestry loading for bycatch taxon IDs; rebuild hierarchy; rebuild `occurrences.db` |
+| Slug collision (genus + subgenus same URL) | MEDIUM | Define and implement rank-prefixed URL scheme; add collision check to pipeline; rebuild Eleventy output |
+| DB size regression (ancestor columns in occurrences) | LOW | Remove ancestor columns from occurrences mart SELECT; rebuild and re-measure |
 
 ---
 
@@ -229,34 +386,41 @@ The phase introducing any new column to `occurrences`. Fix the "30 cols" docstri
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| `specific_epithet` backfill → stale slug for non-checklist species | Phase that adds lineage backfill to `int_species_universe` | Slug diff: `SELECT canonical_name, slug FROM species WHERE slug != old_slug` |
-| `taxon_id` in occurrences mart → contract breakage | Phase that adds `taxon_id` column | `dbt build` exits 0; `test_dbt_diff.py` passes after full pipeline run |
-| Inactive remapping vs. manual synonyms conflict | Phase that implements inactive-taxon remapping | Conflict detection script: names in both `occurrence_synonyms.csv` AND flagged inactive |
-| INTEGER[] ancestor chain corruption | Phase that materializes ancestor chains | Post-build spot-check: `SELECT ancestor_ids FROM species WHERE canonical_name = 'Bombus vosnesenskii'` |
-| 65 newly-visible species missing SVG maps | Same phase as `specific_epithet` backfill | `SELECT canonical_name FROM species WHERE specific_epithet IS NOT NULL AND occurrence_count > 0` vs. files in `public/data/species-maps/` |
-| `test_dbt_diff.py` "30 cols" docstring rot | First phase of milestone (pre-work) | Grep test file for stale column count comments; fix before any new column work |
-| `resolve_taxon_ids.py` missing iNat ARM 3 names | Phase that extends the names-to-resolve query | `SELECT COUNT(*) FROM int_combined WHERE source = 'inat_obs' AND canonical_name NOT IN (SELECT canonical_name FROM canonical_to_taxon_id)` |
-| Manual pipeline shortcut: sandbox parquet copied to public/ | Any phase with schema contract change | `test_occurrences_county_spatial_diff` must show 0 NULL-county rows for rows with valid coordinates |
+| Name-non-uniqueness merge | Foundation — hierarchy schema | `taxon_id` UNIQUE constraint on hierarchy table; name-collision audit |
+| Contract rewrite cascade (6+ consumers) | Normalization — coordinated migration | `npm test` passes; `dbt build` passes; runtime filter tested for genus/family/species |
+| Recursive CTE performance | Foundation — structure choice | Nested-set MPTT chosen; `EXPLAIN QUERY PLAN` shows index range scan for descendant query |
+| Orphan bycatch taxa | Foundation — hierarchy build | Post-build JOIN assertion: 0 orphaned taxon_ids in occurrences |
+| Synonym/inactive-taxon ID corruption | Foundation + Normalization | Post-build assertion: 0 non-null taxon_ids in occurrences without hierarchy entry |
+| Rank-rollup double-counting | Pages — count recomputation | SUM of leaf counts == ancestor count; spot-check 5 genera |
+| Slug collisions | Pages — URL scheme definition | Pre-generation collision check: GROUP BY name HAVING count > 1; all colliding names → distinct URLs |
+| Bycatch leaking into bee-only surfaces | Frontend cutover | `is_bee` flag query; autocomplete manual test for known bycatch genus |
+| DB size regression | Normalization (measure) + Foundation (prevent) | `occurrences.db` size delta logged in VERIFICATION.md |
+| `geo_blob` positional mismatch | Normalization — atomic update | Occurrence popup shows correct name for known ecdysis record |
+| `filter.test.ts` test breakage | Normalization | `npm test` exits 0 after column removal |
+
+---
 
 ## Sources
 
-All findings from direct code inspection of:
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_species_universe.sql`
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_combined.sql`
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/occurrences.sql`
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/schema.yml`
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/marts/species.sql`
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/staging/stg_checklist__species.sql`
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/staging/stg_inat__canonical_to_taxon_id.sql`
-- `/Users/rainhead/dev/beeatlas/data/dbt/models/staging/stg_inat__taxon_lineage_extended.sql`
-- `/Users/rainhead/dev/beeatlas/data/resolve_taxon_ids.py`
-- `/Users/rainhead/dev/beeatlas/data/species_export.py`
-- `/Users/rainhead/dev/beeatlas/data/taxa_pipeline.py`
-- `/Users/rainhead/dev/beeatlas/data/tests/test_dbt_diff.py`
-- `/Users/rainhead/dev/beeatlas/_data/species.js`
-- `/Users/rainhead/dev/beeatlas/.planning/PROJECT.md`
-- Prior PITFALLS.md (v4.0 checklist milestone research)
+All findings from direct code inspection of (paths relative to `/home/peter/dev/beeatlas/`):
+
+- `data/dbt/models/marts/schema.yml` — 37-column contract being rewritten
+- `data/dbt/models/marts/occurrences.sql` — current column SELECT
+- `data/dbt/models/intermediate/int_combined.sql` — three-arm UNION, synonym joins, taxon_id backfill
+- `data/dbt/models/intermediate/int_species_universe.sql` — bee-family filter gate, `DISTINCT ON` collapse
+- `data/dbt/models/marts/species.sql` — species mart (separate contract)
+- `data/sqlite_export.py` — `_GEO_COLS` hardcoded list and geo_blob construction
+- `data/taxa_pipeline.py` — Anthophila-filtered hierarchy, `active = 'true'` string guard
+- `data/species_export.py` — `SPECIES_COLUMNS`, `higher_rank_taxon_ids.json`
+- `src/filter.ts` — `OCCURRENCE_COLUMNS`, `OccurrenceRow`, `buildFilterSQL`, `queryFilteredCounts`
+- `src/features.ts` — `_buildGeoJSONFromRaw`, positional column indexes
+- `src/bee-atlas.ts` — inline SQL `COUNT(DISTINCT genus/family)`, autocomplete query
+- `src/bee-map.ts` — checklist column list and filter predicates
+- `src/tests/filter.test.ts` — hard assertions on SQL strings and `OCCURRENCE_COLUMNS` contents
+- `src/tests/build-output.test.ts` — build-time page assertions
+- `.planning/PROJECT.md` — v4.6 milestone context, Key Decisions, WARNING-02 (subgenus counts)
+- Prior PITFALLS.md (v4.5 research, 2026-05-29) — context on contract change mechanics
 
 ---
-*Pitfalls research for: v4.5 iNat Taxonomy & Species Completeness*
-*Researched: 2026-05-29*
+*Pitfalls research for: v4.6 Taxonomy Hierarchy & Normalization*
+*Researched: 2026-06-01*

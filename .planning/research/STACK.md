@@ -1,273 +1,272 @@
-# Stack Research: v4.5 iNat Taxonomy & Species Completeness
+# Stack Research: v4.6 Taxonomy Hierarchy & Normalization
 
-**Project:** BeeAtlas v4.5
-**Researched:** 2026-05-29
+**Project:** BeeAtlas v4.6
+**Researched:** 2026-06-01
+**Confidence:** HIGH
 **Scope:** New capabilities only. Existing stack (Python 3.14+, dbt-duckdb 1.10.1,
-DuckDB 1.5.2, dlt, requests, wa-sqlite, Mapbox GL JS, Lit) is confirmed and not
-re-researched. Previous STACK.md (v4.0) documents the taxa.csv.gz ancestry walk
-pattern that is already in production.
+DuckDB 1.5.2, dbt-core 1.8.9, dlt, wa-sqlite 1.0.0 / SQLite 3.44, Mapbox GL JS,
+Lit) is confirmed and not re-researched. This document covers only what changes for
+the hierarchy feature.
 
 ---
 
-## New Dependencies
+## Summary Verdict
 
-None. All four milestone features are achievable with the existing stack.
+**No new libraries required.** The full hierarchy — build-time DuckDB queries,
+SQLite export, and runtime wa-sqlite descendant lookups — is achievable with existing
+tooling. The only stack changes are schema additions: a new `taxa` table (pipeline +
+SQLite export) and dropping denormalized rank columns from `occurrences`.
 
 ---
 
-## Feature 1: `specific_epithet` for Non-Checklist Species
+## Hierarchy Structure Decision: Materialized Path via the Existing `ancestry` Column
 
-### Problem
+### The Three Candidates
 
-65 binomial species with 1,745 Ecdysis occurrences and 3,048 iNat obs have
-`specific_epithet IS NULL` in `int_species_universe` because `specific_epithet`
-currently flows only from `stg_checklist__species` (the Bartholomew 2024 checklist).
-Occurrence-only species have no checklist row, so `specific_epithet` is never
-populated from the FULL OUTER JOIN.
+| Structure | Build complexity | SQLite runtime | Row count for 17K taxa | Index-friendly? |
+|-----------|----------------|----------------|------------------------|-----------------|
+| Nested Set (MPTT lft/rgt) | High — requires recursive CTE to assign lft/rgt; recompute on any change | `lft BETWEEN parent.lft AND parent.rgt` — O(1) with B-tree | 1 row / taxon (~17K rows) | YES |
+| Closure Table | High — `(ancestor, descendant)` pairs via recursive CTE or unnest | `WHERE ancestor_id = ?` — O(1) with composite index | ~17K × avg_depth ≈ 250K rows | YES |
+| Materialized Path (lineage string) | **Zero** — `ancestry` column in `taxa.csv.gz` IS a materialized path | `instr(lineage_path, '/47221/')` or LIKE prefix | 1 row / taxon (~17K rows) | Partial (LIKE suffix not indexed) |
 
-### Source Decision: taxa.csv.gz (already downloaded), not DwC-A
+### Why Materialized Path Wins for This Project
 
-Two iNat taxonomy archives exist:
+**The `ancestry` column in `taxa.csv.gz` is already a slash-delimited ancestor-ID
+string** — for example, Apis mellifera's ancestry is
+`'48460/1/.../630955/47221/199939/538904/47220/578086'`. This is precisely the
+materialized path representation. The build step already reads and parses this column
+in `taxa_pipeline.py`.
 
-| Archive | URL | Columns | Use for epithet? |
-|---------|-----|---------|-----------------|
-| AWS Open Data `taxa.csv.gz` | `s3://inaturalist-open-data/taxa.csv.gz` | `taxon_id, ancestry, rank_level, rank, name, active` | YES — `split_part(name, ' ', 2)` |
-| DwC-A taxonomy | `inaturalist-taxonomy.dwca.zip` | `id, taxonID, parentNameUsageID, kingdom, phylum, class, order, family, genus, specificEpithet, infraspecificEpithet, modified, scientificName, taxonRank, references` | NO — see below |
+**Proven pattern in the existing codebase:** `taxa_pipeline.py` already uses
+`ancestry LIKE '%/630955/%'` to filter Anthophila taxa. The v4.5 STACK.md documents
+this and confirms it works in DuckDB 1.5.2. The MPTT groundwork note in that document
+already recommends this approach.
 
-**DwC-A is disqualified for all four features:**
-- Does NOT include `acceptedNameUsageID` or `taxonomicStatus` fields (confirmed by iNat
-  forum feature request thread; these were proposed as future additions in 2026 but are
-  not present in the current export). Inactive taxa are simply absent from the DwC-A.
-- `parentNameUsageID` is a URL string, not an integer, requiring URL parsing for any join.
-- Intermediate ranks (subfamily, tribe) are absent (confirmed in iNat forum reports on
-  missing intermediate ranks).
-- Requires a 65+ MB zip download and recursive tree traversal vs. the existing 37 MB
-  taxa.csv.gz with its flat ancestry string.
+**No recursive CTE needed at pipeline time.** The closure table approach requires a
+recursive CTE to generate `(ancestor, descendant)` pairs; materialized path skips
+this entirely by storing the path directly. Verified: DuckDB 1.5.2 supports
+`WITH RECURSIVE`, but we don't need it.
 
-**taxa.csv.gz is sufficient.** The `name` column contains the full binomial for species
-(`rank = 'species'`), e.g. `'Andrena cuneilabris'`. Extract the epithet with:
+**The scale is small.** 17,343 active bee taxa (confirmed from
+`inaturalist_data.taxon_lineage_extended`) plus bycatch genera for name display. A
+taxa table at this scale is negligible in both DuckDB and SQLite.
+
+**SQLite LIKE is sufficient for runtime.** wa-sqlite 1.0.0 embeds SQLite 3.44.
+`WITH RECURSIVE` is supported (SQLite has had it since 3.8.3). Both `instr()` and
+`LIKE` work. For 17K rows, a linear scan on `instr(lineage_path, '/47221/')` is
+fast enough; a B-tree index on `lineage_path` helps LIKE-prefix queries. The
+autocomplete tree expansion is bounded (one rank at a time), not a full-table scan.
+
+**The bycatch genera (non-bee Animalia) need only name resolution**, not hierarchy
+display. They don't appear in the browse tree or autocomplete. Their rows in the taxa
+table need only `taxon_id`, `rank`, `name`, and NULL for unused rank columns — no
+lineage_path required for bycatch (lineage queries are bee-only). But storing their
+lineage_path costs nothing and simplifies the schema.
+
+### Lineage Path Format
+
+Store the path as: `/ancestor1/ancestor2/.../self_id/` (leading and trailing slashes,
+all numeric IDs, bee-clade relative starting from Anthophila's `taxon_id = 630955`).
+
+This format enables **exact boundary matching** with `instr()`:
 
 ```sql
-NULLIF(split_part(name, ' ', 2), '') AS specific_epithet
+-- All descendants of Apidae (taxon_id = 47221):
+WHERE instr(lineage_path, '/47221/') > 0
+-- Self-match:
+WHERE taxon_id = 47221
+-- Combined (include self and all descendants):
+WHERE taxon_id = 47221 OR instr(lineage_path, '/47221/') > 0
 ```
 
-This is pure DuckDB SQL — no new Python code needed.
+The leading and trailing slashes prevent false matches on partial IDs (e.g. `/47221/`
+cannot match `/147221/`). Verified in Python 3.14 sqlite3 (3.45.1) and confirmed
+`instr()` is available in wa-sqlite 3.44.
 
-### Implementation
+**Why not the full iNat ancestry path** (e.g. `'48460/1/.../630955/47221'`)?
+A LIKE query `'%/47221/%'` without anchoring is safe for IDs that are unique integers,
+but requires two LIKE patterns (`'%/47221/%' OR ancestry = ...`). The bee-relative path
+with slashes at both ends uses a single `instr()` call and is conceptually cleaner.
 
-Extend `stg_inat__taxon_lineage_extended` (or a new parallel staging model) to expose
-`specific_epithet`. The cleanest approach is a new dbt staging model
-`stg_inat__taxon_epithet` that joins `taxon_lineage_extended` back to the raw taxa table:
-
+**Build step:** Compute `lineage_path` as:
 ```sql
--- stg_inat__taxon_epithet.sql
-SELECT
-    tle.taxon_id,
-    NULLIF(split_part(t.name, ' ', 2), '') AS specific_epithet
-FROM {{ source('inaturalist_data', 'taxon_lineage_extended') }} tle
-JOIN read_csv('{{ var("taxa_csv_path") }}', ...) t ON t.taxon_id = tle.taxon_id
-WHERE t.rank = 'species'
+'/' || regexp_extract(ancestry || '/' || CAST(taxon_id AS VARCHAR),
+    '(630955(?:/[0-9]+)*)$', 1) || '/'
 ```
-
-Alternatively (simpler): extend `load_taxon_lineage_extended` in `taxa_pipeline.py` to
-also write a `name` or `specific_epithet` column into the existing
-`taxon_lineage_extended` table. This avoids a new model and keeps the data in one place.
-
-**Recommendation:** Add `specific_epithet` column to `inaturalist_data.taxon_lineage_extended`
-by extending the existing `taxa_pipeline.py` SQL. Then expose it via
-`stg_inat__taxon_lineage_extended`. Then apply it in `int_species_universe`:
-
-```sql
-COALESCE(c.specific_epithet, tle.specific_epithet) AS specific_epithet
-```
-
-**Verified:** `split_part(name, ' ', 2)` on active bee species in taxa.csv.gz returns
-correct epithets for all tested rows. Non-species ranks have single-word names, so
-`NULLIF(..., '')` guards against genus-level rows emitting empty strings.
+Verified in DuckDB 1.5.2: correctly extracts the bee-clade segment from the full
+ancestry string for all tested taxa.
 
 ---
 
-## Feature 2: Stable Integer Taxon IDs System-Wide
+## Core Technologies (Unchanged)
 
-### Current State
-
-The `canonical_to_taxon_id` bridge table (736 rows) maps `canonical_name → taxon_id`.
-The `int_species_universe` model joins through it but does not yet pass `taxon_id` into
-the `species` mart or `occurrences` mart.
-
-Ecdysis occurrences already have `taxon_id` in `ecdysis_data.occurrences` (INTEGER,
-46,090 non-null rows). The iNat expert obs CSV (`inat_expert_obs.csv`) has a `taxon_id`
-column that the current `inat_obs_pipeline.py` does not read or persist.
-
-### Implementation
-
-No new libraries needed. Three coordinated changes:
-
-**a) `inat_obs_pipeline.py`:** Read and persist `taxon_id` from the expert obs CSV into
-`inat_obs_data.observations`. The column already exists in the CSV (confirmed via header
-inspection); add it to the `CREATE TABLE` DDL and the `INSERT` statement.
-
-**b) `int_species_universe.sql` → `species` mart:** Add `taxon_id BIGINT` via the
-existing `stg_inat__canonical_to_taxon_id` LEFT JOIN (already in the model at line 123).
-Expose `ctt.taxon_id` in the SELECT list. The `species_export.py` post-step will carry
-it through to `species.json` / `species.parquet`.
-
-**c) `occurrences` mart:** Add `taxon_id INTEGER` sourced from:
-- ARM 1 (Ecdysis): `ecdysis_data.occurrences.taxon_id` (already available)
-- ARM 3 (iNat expert obs): `inat_obs_data.observations.taxon_id` (after (a) above)
-- ARM 2 (provisional WABA): NULL (WABA obs have no taxon_id)
-
-The dbt 30-column contract on `marts/occurrences` must expand by 1 column. Update
-`data/dbt/models/marts/schema.yml` and `data/sqlite_export.py` `CREATE TABLE`
-simultaneously — these must stay in sync (per project memory on schema change procedure).
-
-### Confidence
-
-HIGH — all data is already in place. This is a wiring exercise across existing sources.
+| Technology | Version | Purpose | Status |
+|------------|---------|---------|--------|
+| DuckDB | 1.5.2 (pinned `>=1.4,<2`) | Pipeline transforms, taxa table build, SQLite export | No change |
+| dbt-duckdb | 1.10.1 | dbt adapter | No change |
+| dbt-core | 1.8.9 | Model orchestration | No change |
+| wa-sqlite | 1.0.0 (SQLite 3.44) | Runtime SQL in WASM worker | No change |
+| Python | 3.14+ | Pipeline language | No change |
 
 ---
 
-## Feature 3: Inactive Taxon Remapping
+## New Artifacts (No New Libraries)
 
-### Findings
+### 1. `taxa` Table in `occurrences.db` (SQLite)
 
-**taxa.csv.gz does NOT contain `current_taxon_id` or any redirect column.**
-
-Confirmed by inspecting the file: only 6 columns — `taxon_id, ancestry, rank_level,
-rank, name, active`. Inactive taxa are present in the file (`active = 'false'` string)
-but there is no pointer to the accepted replacement.
-
-**The iNat API v1 `GET /taxa/{id}` response includes `current_synonymous_taxon_ids`**
-for inactive taxa. For example, `taxon_id=199075` (Lasioglossum zephyrum, inactive)
-returns `current_synonymous_taxon_ids: [905961]`. This is the authoritative source for
-inactive→accepted remapping.
-
-**DwC-A taxonomy does NOT include `acceptedNameUsageID` or `taxonomicStatus`** for
-inactive taxa (confirmed: these fields were requested as a feature in 2026 but are not
-present). The DwC-A simply omits inactive taxa entirely.
-
-**Scale of problem in current data:**
-- 5 canonical names in `int_species_universe` match only inactive taxa in taxa.csv.gz:
-  `coelioxys octodentata`, `lasioglossum zephyrum`, `lasioglossum zonulum`,
-  `melissodes metenua`, `melissodes semilupina`
-- 1,454 inactive bee species exist in taxa.csv.gz total (1,717 inactive across all
-  bee ranks)
-- The iNat expert obs CSV uses `taxon_id` from iNat at time of download — some of
-  these IDs may be inactive
-
-### Implementation
-
-**Source: iNat API `GET /taxa?id=id1,id2,...` with `is_active=false` filter.**
-
-Pattern: a new `inactive_taxon_remapping.py` pipeline step (or extension of
-`resolve_taxon_ids.py`) that:
-
-1. Queries for all `taxon_id` values in `canonical_to_taxon_id` where the corresponding
-   taxa.csv.gz row has `active = 'false'`
-2. Calls `GET /api.inaturalist.org/v1/taxa?id=ID1,ID2,...` (up to 30 IDs per request
-   per API convention) to retrieve `current_synonymous_taxon_ids`
-3. When `current_synonymous_taxon_ids` has exactly 1 element: adds the remapping to
-   `occurrence_synonyms.csv` seed (or a new `inactive_taxon_remaps` seed table)
-4. When 0 or >1 elements: logs to a `taxon_remap_unresolved.csv` file (mirrors the
-   `lineage_unresolved.csv` pattern)
-
-The `occurrence_synonyms` dbt seed is the correct downstream home. Existing JOIN logic
-in `int_combined` and `stg_checklist__species` already applies synonymy; inactive
-remaps use the same mechanism.
-
-**API pacing:** Reuse `_inat_get_with_retry` and `_INAT_PACE_SECONDS` from
-`inaturalist_pipeline.py`. No new HTTP library needed.
-
-**Nightly behavior:** Step runs incrementally — only new `taxon_id` values not yet
-checked. Store `last_checked_at` in a sidecar JSON to avoid re-querying already-resolved
-inactive taxa.
-
-**Note on iNat expert obs taxon IDs:** The obs CSV `taxon_id` column records the taxon
-ID at time of CSV export. iNat may have swapped the taxon since then; the
-`current_synonymous_taxon_ids` lookup handles this case. For obs where `taxon_id` is
-active, no remapping needed. For obs where `taxon_id` is inactive, the remapping step
-resolves it to the accepted ID, which then maps to the accepted `canonical_name` via
-`taxon_lineage_extended`.
-
----
-
-## Feature 4: Nested-Set / MPTT Groundwork
-
-### Findings
-
-**DuckDB 1.5.2 does not need recursive CTEs for ancestor-descendant queries on this
-data.** The `ancestry` column in taxa.csv.gz is a slash-delimited chain of integer
-ancestor IDs (e.g. `'48460/1/630955/57668/571383'`). Ancestor-descendant relationships
-can be expressed as LIKE queries:
+A new table exported by `sqlite_export.py` alongside the existing `occurrences` and
+`geo_blob` tables:
 
 ```sql
--- All descendants of genus 571383:
-WHERE ancestry LIKE '%/571383/%' OR ancestry LIKE '%/571383'
-   OR taxon_id = 571383
+CREATE TABLE taxa (
+    taxon_id    INTEGER PRIMARY KEY,
+    rank        TEXT NOT NULL,        -- 'family'|'subfamily'|'tribe'|'genus'|'subgenus'|'species'
+    name        TEXT NOT NULL,        -- canonical scientific name
+    lineage_path TEXT               -- NULL for bycatch (non-bee); '/630955/.../self_id/' for bees
+);
+CREATE INDEX idx_taxa_lineage ON taxa(lineage_path);
 ```
 
-This pattern is already used in `taxa_pipeline.py` for the Anthophila filter.
+**Scope of rows:**
+- Bee taxa (Anthophila): all ~17K active taxa from `inaturalist_data.taxon_lineage_extended`
+  (family through species). These carry `lineage_path`.
+- Bycatch genera: any non-bee Animalia genus with a `taxon_id` that appears in
+  `occurrences.taxon_id` (after dropping rank columns, occurrence rows need name
+  resolution). These carry NULL `lineage_path` (not included in browse tree or
+  autocomplete). Count: small (the ~149 occurrence genera already tracked minus the
+  ~521 bee genera leaves roughly 100–200 bycatch rows).
 
-**For nested-set / MPTT prep**, the useful materialization is an
-`int_taxon_ancestors` table that precomputes the full ancestor list per taxon:
+**Build path:** New dbt model `marts/taxa.sql` (materialized TABLE, exported to
+`taxa.parquet`) + `sqlite_export.py` extension to read `taxa.parquet` and write the
+`taxa` table into `occurrences.db`.
+
+**Alternative to a dbt mart:** `taxa_pipeline.py` directly writes a
+`inaturalist_data.taxon_table` DuckDB table; `sqlite_export.py` reads it. This avoids
+adding a mart but breaks the dbt-as-single-source-of-truth pattern. Prefer the dbt
+mart.
+
+### 2. `occurrences` Table Schema Rewrite
+
+Drop denormalized rank columns; add `taxon_id` index. The dbt 37-column contract on
+`marts/occurrences` is rewritten. Target columns to drop:
+- `genus` (VARCHAR) — resolved via `taxa` table JOIN on `taxon_id`
+- `family` (VARCHAR) — same
+- `scientificName` (VARCHAR) — same (species `name` from `taxa`)
+- `canonical_name` (VARCHAR) — same
+- `specimen_inat_genus` (VARCHAR) — same
+- `specimen_inat_family` (VARCHAR) — same
+
+Columns to keep or add:
+- `taxon_id INTEGER` — already present; gets a SQLite index: `CREATE INDEX idx_occ_taxon ON occurrences(taxon_id)`
+
+The `geo_blob` pre-serialized table in `sqlite_export.py` currently includes `genus`,
+`family`, `scientificName` in its column list. These columns will be dropped from
+`geo_blob` and resolved from the taxa table at feature-creation time (one JOIN per
+`taxon_id` at startup is acceptable, or the `geo_blob` query can JOIN the taxa table).
+
+### 3. dbt Model: `marts/taxa.sql`
+
+Pure SQL against existing sources. No new dbt macros needed. Pattern:
 
 ```sql
--- In DuckDB, build ancestor-descendant closure table
-CREATE OR REPLACE TABLE inaturalist_data.taxon_ancestry AS
-WITH unnested AS (
+-- marts/taxa.sql
+{{ config(materialized='table') }}
+
+WITH bee_taxa AS (
     SELECT
-        taxon_id AS descendant_id,
-        CAST(unnest(string_split(ancestry, '/')) AS BIGINT) AS ancestor_id
-    FROM read_csv('raw/taxa.csv.gz', ...)
-    WHERE active = 'true'
-      AND (ancestry LIKE '%/630955/%' OR ancestry LIKE '%/630955'
-           OR taxon_id = 630955)
-    UNION ALL
-    SELECT taxon_id, taxon_id FROM [same filter]  -- self-reference
+        taxon_id,
+        -- derive rank from lineage_extended (it's already grouped by taxon_id with rank cols)
+        CASE
+            WHEN subgenus IS NOT NULL THEN 'subgenus'
+            WHEN genus IS NOT NULL AND specific_epithet IS NOT NULL THEN 'species'
+            WHEN genus IS NOT NULL THEN 'genus'
+            WHEN tribe IS NOT NULL THEN 'tribe'
+            WHEN subfamily IS NOT NULL THEN 'subfamily'
+            ELSE 'family'
+        END AS rank,
+        COALESCE(subgenus, ...) AS name,   -- canonical name at the finest rank
+        lineage_path                        -- computed in taxa_pipeline.py
+    FROM {{ source('inaturalist_data', 'taxon_table') }}
+),
+bycatch_genera AS (
+    -- Non-bee occurrence genera: need name only, no lineage_path
+    ...
 )
-SELECT ancestor_id, list(descendant_id ORDER BY descendant_id) AS descendant_ids
-FROM unnested
-WHERE ancestor_id IN (SELECT taxon_id FROM [same filter])
-GROUP BY ancestor_id
+SELECT * FROM bee_taxa
+UNION ALL
+SELECT * FROM bycatch_genera
 ```
 
-This produces one row per bee taxon with the list of all descendant taxon_ids — the
-canonical closure table for subtaxon queries. Stored in DuckDB; not exported to the
-frontend (too large). The frontend subtaxon filter would query `canonical_to_taxon_id`
-to get `taxon_id`, then join against this closure table to expand the filter to all
-descendant names.
+The exact SQL depends on how `lineage_path` is stored — either computed in
+`taxa_pipeline.py` (preferred, keeps complex regex in Python/DuckDB Python API) or
+via a dbt model reading `taxa.csv.gz` directly (same pattern as
+`stg_inat__genus_taxon_ids.sql`).
 
-**parent_id derivation:** `CAST(list_last(string_split(ancestry, '/')) AS BIGINT)`.
-Verified correct in DuckDB 1.5.2.
-
-**Depth:** `length(ancestry) - length(replace(ancestry, '/', '')) + 1`. Efficient,
-no recursive CTE.
-
-**Scale:** 17,343 active bee taxa in taxon_lineage_extended. The unnest step produces
-~250K–500K (ancestor_id, descendant_id) pairs. A `GROUP BY` closure table is ~17K rows
-with list columns — fits in memory and materializes in seconds.
-
-**No new Python libraries needed.** This is pure DuckDB SQL, callable from
-`taxa_pipeline.py`.
-
-**Scope boundary:** The nested-set materialization is a pipeline-side artifact for
-future subtaxon queries. The frontend filter UI is out of scope for v4.5. The milestone
-calls for "groundwork" — materializing the closure table and proving the query pattern
-is the deliverable, not the frontend integration.
+**Recommendation:** Compute `lineage_path` in `taxa_pipeline.py` alongside the
+existing `taxon_lineage_extended` build, write it to a new
+`inaturalist_data.taxon_table` DuckDB table, then surface it via a dbt staging model.
+This keeps the raw CSV parsing in one Python file.
 
 ---
 
-## What NOT to Add
+## DuckDB-Specific Notes
 
-| Library | Reason |
-|---------|--------|
-| DwC-A taxonomy (`inaturalist-taxonomy.dwca.zip`) | No `acceptedNameUsageID`, no intermediate ranks, URL-form IDs, 65+ MB zip. taxa.csv.gz covers all four features. |
-| `pyinaturalist` | Wrapper over the same API already called directly via `requests`. |
-| `pandas` / `polars` | DuckDB handles all transforms. No dataframe needed. |
-| Any recursive-CTE library | DuckDB's ancestry string + LIKE queries replace recursive CTEs for this tree structure. |
-| `networkx` (already installed via dlt) | Not needed; ancestry string IS the tree encoding. |
-| DuckDB-WASM (frontend) | Already rejected (project memory). |
-| GBIF backbone taxonomy | iNat's own taxonomy is the authoritative source for iNat records. Do not mix. |
+### `WITH RECURSIVE` (Available but Not Needed)
+
+DuckDB 1.5.2 supports `WITH RECURSIVE` — confirmed by test. However, the materialized
+path approach means recursive CTEs are not needed for hierarchy construction. The
+existing unnest+PIVOT pattern in `taxa_pipeline.py` already handles ancestor walks.
+
+### `PIVOT` (Already in Use)
+
+The existing `PIVOT ... ON rank IN ('family', 'subfamily', ...) USING first(name) GROUP BY`
+pattern in `taxa_pipeline.py` is confirmed working in DuckDB 1.5.2. No change needed.
+
+### `read_csv` Direct in dbt Models
+
+The `stg_inat__genus_taxon_ids.sql` model already uses `read_csv('../raw/taxa.csv.gz', ...)`
+directly. The same pattern works for a `stg_inat__taxon_table.sql` or the computation
+can stay in Python.
+
+### DuckDB `INSTALL sqlite; LOAD sqlite` for Export
+
+`sqlite_export.py` already uses DuckDB's SQLite extension to `ATTACH` an SQLite
+database and write tables via `CREATE TABLE ... AS SELECT ... FROM read_parquet(...)`.
+Extending it with `taxa.parquet` follows the exact same pattern. No new DuckDB
+extension needed.
+
+---
+
+## SQLite / wa-sqlite Notes
+
+### `WITH RECURSIVE` in wa-sqlite 3.44
+
+Available. SQLite has supported recursive CTEs since 3.8.3. This means the frontend
+could generate a descendant set via a recursive CTE on the `taxa` table if needed.
+However, the `instr(lineage_path, '/taxon_id/')` approach is simpler and avoids CTE
+overhead for small result sets.
+
+### LIKE Index Behavior in SQLite 3.44
+
+SQLite uses a B-tree index for `LIKE 'prefix%'` (left-anchored patterns only). For
+`instr(lineage_path, '/47221/')`, SQLite cannot use the index (function call prevents
+index use). With 17K rows, a full scan takes microseconds — not a performance concern.
+
+If index use becomes needed (e.g. the `taxa` table grows to 100K+ rows for a future
+multi-clade atlas), replace `instr()` with a LIKE approach using the `taxon_id` as a
+known prefix: `lineage_path LIKE '/630955/47221/%'` (left-anchored from Anthophila
+root). The index would help here. This is an optimization, not a requirement for v4.6.
+
+### `json_group_array` Rejected (Prior Art)
+
+The `geo_blob` pre-serialization decision (v4.3) established that `json_group_array` in
+wa-sqlite has 6.4 μs per-callback overhead × row count = unacceptable at scale. The
+taxa table has only ~17K rows; a single `SELECT * FROM taxa` would be ~17K callbacks.
+Consider pre-serializing `taxa` as a JSON blob in `sqlite_export.py` (same as
+`geo_blob`), OR accept the 17K callbacks (at 6.4 μs each = ~110 ms — borderline). The
+taxa table needs to be queried in two modes: (a) full load at startup for autocomplete,
+(b) targeted descendant queries at filter time. Split the concern: pre-serialize the
+autocomplete-needed subset as a JSON blob; use SQL for descendant filtering.
 
 ---
 
@@ -275,16 +274,59 @@ is the deliverable, not the frontend integration.
 
 | Integration | What Changes | Risk |
 |-------------|-------------|------|
-| `taxa_pipeline.py` `load_taxon_lineage_extended` | Add `specific_epithet` column to `taxon_lineage_extended` table | Low — additive column |
-| `data/dbt/models/staging/stg_inat__taxon_lineage_extended.sql` | Expose `specific_epithet` | Low — pass-through |
-| `data/dbt/models/intermediate/int_species_universe.sql` | `COALESCE(c.specific_epithet, tle.specific_epithet)` + `ctt.taxon_id` in SELECT | Low — existing JOIN already present |
-| `data/dbt/models/marts/occurrences.sql` | Add `taxon_id INTEGER` column (ARM 1 from ecdysis, ARM 3 from inat_obs) | Medium — dbt contract expansion |
-| `data/dbt/models/marts/schema.yml` | Expand contract to N+1 columns | Must be coordinated with sqlite_export.py |
-| `data/sqlite_export.py` `CREATE TABLE` DDL | Add `taxon_id INTEGER` | Must coordinate with schema.yml |
-| `data/inat_obs_pipeline.py` | Read and persist `taxon_id` from inat_expert_obs.csv | Low — column already in CSV |
-| `data/run.py` STEPS | Add `inactive-taxon-remap` step before `dbt-build` | Low |
-| `data/taxa_pipeline.py` | Add `taxon_ancestry` table materialization | Low — additive |
-| `occurrence_synonyms.csv` seed | May gain rows from inactive remap step | Low — same format |
+| `data/taxa_pipeline.py` | Add `lineage_path` computation + `inaturalist_data.taxon_table` write | Low — additive alongside existing `taxon_lineage_extended` |
+| New dbt staging model `stg_inat__taxon_table.sql` | Wraps `inaturalist_data.taxon_table` source | Low — read-only view |
+| New dbt mart `marts/taxa.sql` | Produces `taxa.parquet` | Low — new model |
+| `data/dbt/models/marts/schema.yml` | New `taxa` contract; rewrite `occurrences` contract (remove ~6 columns) | Medium — contract rewrite must coordinate with sqlite_export.py |
+| `data/sqlite_export.py` | Add `taxa` table export from `taxa.parquet`; update `geo_blob` column list; add index on `occurrences.taxon_id` | Medium — careful with geo_blob column removal |
+| `src/filter.ts` `buildFilterSQL()` | Replace `family =`, `genus =`, `scientificName =` with taxon_id + descendant subquery | High — core filter logic rewrite |
+| `src/filter.ts` `OccurrenceRow` type | Remove `genus`, `family`, `scientificName`, `canonical_name` fields | Medium — cascades to bee-atlas.ts, bee-map.ts, display components |
+| `src/filter.ts` `OCCURRENCE_COLUMNS` | Remove dropped columns | Medium — cascades to all SQL SELECT statements |
+| `src/features.ts` `geo_blob` column list | Remove `genus`, `family`, `scientificName`; add taxon_id; JOIN taxa at feature creation | Medium — timing: taxa table must be loaded before features |
+| `src/sqlite.ts` (or new `src/taxa.ts`) | New `loadTaxa()` / `getDescendants(taxon_id)` functions | New code — moderate complexity |
+| `src/bee-filter-controls.ts` | Extend autocomplete to subfamily/tribe/subgenus using taxa table | Medium |
+| `data/sqlite_export.py` `_GEO_COLS` list | Remove `scientificName`, `genus`, `family`; keep `taxon_id` | Must coordinate with `features.ts` |
+
+---
+
+## What NOT to Add
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| Nested-set (MPTT lft/rgt) | Requires recursive CTE at build time to assign lft/rgt; complex re-index on any taxa update; provides no benefit over materialized path for this read-only, static-build context | Materialized path (lineage_path) |
+| Closure table | ~250K rows of (ancestor, descendant) pairs; requires recursive CTE to generate; overkill for 17K taxa where `instr()` scans are fast | Materialized path with `instr()` |
+| New Python hierarchy library (e.g. `anytree`, `treelib`) | Pipeline is DuckDB SQL; no tree-manipulation library needed | Plain DuckDB SQL + `read_csv` |
+| `pandas` / `polars` | DuckDB handles all transforms | DuckDB SQL |
+| `networkx` | Already present via dlt; not needed for this tree shape | DuckDB ancestry string |
+| iNat API calls for hierarchy | `taxa.csv.gz` already has full ancestry column — no API calls needed | `read_csv('../raw/taxa.csv.gz', ...)` |
+| DwC-A taxonomy | Missing intermediate ranks, no parent IDs as integers, larger download | taxa.csv.gz |
+| DuckDB WASM in frontend | Already rejected in project history | wa-sqlite (already in use) |
+| A server endpoint for taxon lookups | Static hosting constraint — all data must be in `occurrences.db` | Taxa table in SQLite |
+| Separate `taxa.db` file for the frontend | Adds a second HTTP fetch and load synchronization complexity | Embed `taxa` table directly in `occurrences.db` |
+
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Materialized path with `instr()` | Closure table | If the taxa set were millions of rows or if multi-hop joins were common — neither applies here |
+| Materialized path with `instr()` | Nested set (MPTT) | If tree structure changed frequently and point queries needed O(log n) — this is a static build with ~17K rows |
+| `instr(lineage_path, '/id/')` | `LIKE '%/id/%'` | `instr()` is slightly more readable; both work; LIKE is index-friendly if left-anchored but requires knowing the root prefix |
+| Store in `occurrences.db` | Separate `taxa.json` / `taxa.parquet` fetch at runtime | Separate file adds HTTP overhead and load sequencing; SQLite JOIN is cleaner |
+| dbt mart `taxa.sql` | Write taxa table directly from `taxa_pipeline.py` bypassing dbt | Acceptable for speed, but breaks dbt as single source of truth for exported artifacts |
+
+---
+
+## Version Compatibility
+
+| Package | Version | Notes |
+|---------|---------|-------|
+| DuckDB | 1.5.2 | `WITH RECURSIVE`, `PIVOT`, `read_csv` with gzip compression all verified working |
+| dbt-duckdb | 1.10.1 | Supports `read_csv` in model SQL (pattern already in production) |
+| wa-sqlite | 1.0.0 (SQLite 3.44) | `WITH RECURSIVE` available since SQLite 3.8.3; `instr()` since 3.7.15; both confirmed |
+| Python `sqlite3` | 3.45.1 (Python 3.14 bundled) | Only used by `sqlite_export.py`; `CREATE INDEX` and multi-table `ATTACH` work |
+| dbt-core | 1.8.9 | No change; new mart model follows existing patterns |
 
 ---
 
@@ -292,39 +334,53 @@ is the deliverable, not the frontend integration.
 
 | Area | Confidence | Basis |
 |------|------------|-------|
-| `specific_epithet` from `split_part(name, ' ', 2)` | HIGH | Verified against live taxa.csv.gz; all species rows have binomial names |
-| taxa.csv.gz has no `current_taxon_id` | HIGH | Directly inspected file; 6 columns confirmed |
-| DwC-A lacks `acceptedNameUsageID` for inactive taxa | HIGH | Confirmed by iNat forum feature request (2026); MariaDB blog schema listing; SQL tutorial column list |
-| iNat API `current_synonymous_taxon_ids` field | HIGH | Verified against live API for 6 inactive bee taxa |
-| Ecdysis `taxon_id` already in raw data | HIGH | Inspected `ecdysis_data.occurrences`; 46,090 non-null rows |
-| iNat expert obs CSV has `taxon_id` column | HIGH | Inspected `raw/inat_expert_obs.csv` header directly |
-| DuckDB ancestry LIKE pattern for subtaxon queries | HIGH | Verified in DuckDB 1.5.2 with real taxa data |
-| Closure table materialization via unnest | HIGH | Tested pattern in DuckDB 1.5.2; produces correct ancestor→descendants map |
-| Scale of inactive remapping (~5 cases in current data) | MEDIUM | Based on name-match against taxa.csv.gz; iNat obs CSV taxon IDs may add more |
+| Materialized path via ancestry column | HIGH | Existing taxa_pipeline.py uses this exact pattern; v4.5 STACK.md documents it; tested in DuckDB 1.5.2 |
+| `instr()` for descendant queries in SQLite 3.44 | HIGH | Tested in Python sqlite3; wa-sqlite WASM embeds 3.44 (confirmed from binary) |
+| No recursive CTE needed | HIGH | ancestry column is already a materialized path; nothing to compute recursively |
+| DuckDB `read_csv` gzip for taxa table build | HIGH | Already in production in `stg_inat__genus_taxon_ids.sql` and `taxa_pipeline.py` |
+| 17K-row taxa table in SQLite — performance adequate | HIGH | At 6.4 μs/callback × 17K = ~110 ms if loaded naively; mitigated by geo_blob pattern (pre-serialize JSON at export time) |
+| Drop of ~6 denormalized columns — safe for all consumers | MEDIUM | Requires audit of all `genus`, `family`, `scientificName`, `canonical_name` references in frontend TypeScript — broad surface area |
+| `geo_blob` column list change — backward compatible | MEDIUM | sqlite_export.py writes geo_blob; features.ts reads it; both must change atomically |
 
 ---
 
 ## Pre-Implementation Checks
 
 ```bash
-# Verify taxa.csv.gz still has only 6 columns (no schema drift)
+# Verify the lineage_path extraction regex works on actual taxa data
 cd data && uv run python3 -c "
-import gzip, csv
-with gzip.open('raw/taxa.csv.gz', 'rt') as f:
-    print(next(csv.reader(f, delimiter='\t')))
+import duckdb
+con = duckdb.connect(':memory:')
+# Test bee-relative path extraction
+rows = con.execute('''
+SELECT 
+    taxon_id,
+    '/' || regexp_extract(ancestry || '/' || CAST(taxon_id AS VARCHAR),
+        '(630955(?:/[0-9]+)*)', 1) || '/' AS lineage_path
+FROM read_csv(
+    'raw/taxa.csv.gz',
+    delim = chr(9), header = true, compression = 'gzip',
+    columns = {taxon_id: BIGINT, ancestry: VARCHAR, rank_level: BIGINT,
+               rank: VARCHAR, name: VARCHAR, active: VARCHAR}
+)
+WHERE active = 'true' AND name = 'Apis mellifera'
+''').fetchall()
+print('Apis mellifera lineage_path:', rows)
+con.close()
 "
 
-# Count inactive bee taxa that are in our canonical_to_taxon_id bridge
+# Count distinct taxon_ids in occurrence data (scope of taxa rows needed)
+# Run against the dbt sandbox parquet
 cd data && uv run python3 -c "
-import gzip, csv, duckdb
-con = duckdb.connect('beeatlas.duckdb', read_only=True)
-bridge = {str(r[0]) for r in con.execute('SELECT taxon_id FROM inaturalist_data.canonical_to_taxon_id').fetchall()}
-inactive = 0
-with gzip.open('raw/taxa.csv.gz', 'rt') as f:
-    for row in csv.DictReader(f, delimiter='\t'):
-        if row['taxon_id'] in bridge and row['active'] == 'false':
-            inactive += 1
-print(f'Inactive bridge taxa: {inactive}')
+import duckdb
+con = duckdb.connect(':memory:')
+rows = con.execute('''
+SELECT COUNT(DISTINCT taxon_id), COUNT(*) as total,
+       SUM(CASE WHEN taxon_id IS NULL THEN 1 ELSE 0 END) as null_taxon
+FROM read_parquet('dbt/target/sandbox/occurrences.parquet')
+''').fetchone()
+print('distinct taxon_ids / total rows / null taxon_id:', rows)
+con.close()
 "
 ```
 
@@ -332,16 +388,16 @@ print(f'Inactive bridge taxa: {inactive}')
 
 ## Sources
 
-- taxa.csv.gz columns confirmed by direct file inspection: `/Users/rainhead/dev/beeatlas/data/raw/taxa.csv.gz`
-- iNat API `current_synonymous_taxon_ids` verified: `GET https://api.inaturalist.org/v1/taxa/199075`
-- DwC-A column list (no acceptedNameUsageID): https://forum.inaturalist.org/t/using-sql-to-query-inats-dwca-taxonomy-export/29377
-- DwC-A missing synonym fields (feature request): https://forum.inaturalist.org/t/taxonomy-download-with-synonyms/38699
-- DwC-A missing intermediate ranks: https://forum.inaturalist.org/t/missing-intermediate-ranks-and-default-photo-in-the-taxonomy-archive-file/49700
-- iNat open data files: https://github.com/inaturalist/inaturalist-open-data
-- Existing taxa pipeline (ancestry walk pattern): `/Users/rainhead/dev/beeatlas/data/taxa_pipeline.py`
-- Existing taxon ID bridge: `/Users/rainhead/dev/beeatlas/data/resolve_taxon_ids.py`
-- Existing species universe model: `/Users/rainhead/dev/beeatlas/data/dbt/models/intermediate/int_species_universe.sql`
-- iNat expert obs CSV header verified: `/Users/rainhead/dev/beeatlas/data/raw/inat_expert_obs.csv`
+- DuckDB 1.5.2 verified capabilities: direct test (`WITH RECURSIVE`, `PIVOT`, `read_csv` gzip, `regexp_extract`) — HIGH confidence
+- wa-sqlite binary: `strings node_modules/wa-sqlite/dist/wa-sqlite.wasm | grep '3\.'` → `?3.44.0` — HIGH confidence
+- Python sqlite3 (3.45.1) `WITH RECURSIVE` test — HIGH confidence
+- Existing `taxa_pipeline.py` ancestry walk — in-production code, reviewed at `/home/peter/dev/beeatlas/data/taxa_pipeline.py`
+- v4.5 STACK.md "Feature 4: Nested-Set / MPTT Groundwork" — documents same LIKE ancestry pattern, deferred from v4.5
+- `inaturalist_data.taxon_lineage_extended` row count 17,343 — queried from live DuckDB
+- `stg_inat__genus_taxon_ids.sql` — in-production example of `read_csv('../raw/taxa.csv.gz', ...)` in a dbt model
+- SQLite `instr()` availability: https://www.sqlite.org/lang_corefunc.html (since 3.7.15, well below our 3.44)
 
-*Stack research for: v4.5 iNat Taxonomy & Species Completeness*
-*Researched: 2026-05-29*
+---
+
+*Stack research for: v4.6 Taxonomy Hierarchy & Normalization*
+*Researched: 2026-06-01*

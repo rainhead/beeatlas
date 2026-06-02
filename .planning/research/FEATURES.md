@@ -1,234 +1,178 @@
-# Features Research
+# Feature Research
 
-**Domain:** Biodiversity occurrence atlas — taxonomy completeness, taxon ID resolution, inactive taxon handling, nested-set prep
-**Researched:** 2026-05-29
-**Milestone:** v4.5 iNat Taxonomy & Species Completeness
+**Domain:** Biodiversity occurrence atlas — taxonomy hierarchy browse/filter for a bee-only static site
+**Researched:** 2026-06-01
+**Milestone:** v4.6 Taxonomy Hierarchy & Normalization
+**Confidence:** HIGH (domain patterns from iNaturalist and comparable sites; implementation details from codebase inspection)
 
 ---
 
-## Table Stakes
+## Scope Constraints That Shape Every Feature Decision
 
-Features that must ship for the milestone to be considered complete. Missing = product is in a broken or misleading state.
+- **Static hosting, no server runtime.** All taxon–occurrence joins must be materialized at pipeline time. No real-time descendant queries against a live DB.
+- **~90K occurrences, ~600 bee species.** This is small enough to load entire occurrence sets into wa-sqlite in-browser; there is no pagination or streaming requirement.
+- **Bee-only browse tree.** Non-bee bycatch taxa live in the hierarchy so their map points resolve to a name, but they get no tree nodes, no autocomplete entries, and no taxon pages. Filtering the tree to Anthophila is a pipeline-time decision.
+- **Two sources, two count types.** Every per-node count must split into: Ecdysis specimens (physical vouchers) and iNaturalist community observations. This split is already established on per-taxon pages; the tree extends the same visual language.
+- **Existing per-taxon pages are the content backend.** The tree is navigation TO those pages, not a replacement for them. Links from tree nodes to taxon pages are load-bearing; the pages already handle the detail rendering.
+- **Checklist-only species (no occurrences) must remain visible** with their existing badge treatment. They are expected in the tree at the species leaf level.
+- **Floral hosts: out of scope.**
+
+---
+
+## Feature Landscape
+
+### Table Stakes (Users Expect These)
+
+Features that must ship for the milestone to feel complete. These mirror what iNaturalist, GBIF, and ALA all provide at comparable scales. Missing any of these makes the taxonomy browse feel unfinished.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| All observed species visible in species tree | 65 species / 1,745 occurrences currently invisible because `specific_epithet` is sourced only from the WA checklist; users navigating to any of these taxa get a dead-end | Medium | `int_species_universe` gate must admit non-checklist species with occurrences by deriving `specific_epithet` from `canonical_name` when checklist arm is absent |
-| `taxon_id` in `species.parquet` and `occurrences.parquet` | Required for stable deep-linking and future subtaxon queries; it is already being resolved by `resolve_taxon_ids.py` but is not emitted into the marts | Low | Add `taxon_id INTEGER` column to `species.sql` mart and `occurrences.sql` mart; no schema change to `int_combined` needed beyond the existing LEFT JOIN on `stg_inat__canonical_to_taxon_id` |
-| Occurrences of inactive/synonymized taxa remapped at dbt layer | Occurrences recorded under an old name must surface under the current accepted name; the existing `occurrence_synonyms.csv` mechanism is curator-managed and therefore incomplete — it cannot cover hundreds of potential iNat taxonomy changes | High | Pull accepted-name mappings from `taxon_lineage_extended` or the iNat inactive-taxa bridge; extend `occurrence_synonyms` dbt seed or create a new `inactive_taxon_remapping` table |
-| Unmappable occurrences flagged, not silently dropped | When an inactive name cannot be resolved to a current accepted species, the occurrence must not disappear; it should be marked with a `taxon_status` flag so curators can investigate | Low | `taxon_status` enum column on species: `'active'`, `'synonym'`, `'unmappable'` |
-| Ancestor chain persisted in pipeline for future subtaxon queries | Nested-set or ancestor-array representation must be materialized at pipeline time; querying the ancestor walk at frontend runtime is not possible given static hosting | Medium | Data-layer only this milestone: write `taxon_ancestors` or `nested_set` table to DuckDB; no frontend exposure needed |
+| Expandable tree default view (family → genus → species) | Every taxonomy browse site (iNat life list, ALA classification tab, GBIF species page) shows the standard Linnaean hierarchy starting at family | MEDIUM | Default open state: families collapsed; genus level pre-expanded is reasonable given only 42 genera. Species rendered as static leaf nodes. |
+| Per-node rollup count (specimens + observations, split) | iNaturalist shows "N at or below" for every tree node; absence of a count makes nodes feel like dead-end categories | MEDIUM | Counts precomputed at pipeline time per taxon_id. Node shows "N specimens · N observations" matching existing page header style. Must include all descendants, not just direct children. |
+| Rank-agnostic taxon selection → map filter | The stated goal of the milestone. GBIF resolves any search to a taxon key and returns all descendant occurrences; iNat's explore page filters "Anthophila and all descendants" transparently. Users expect clicking a family or genus name to show all matching map points. | HIGH | Requires hierarchy foundation (ancestor-array or closure table in SQLite artifact) + query that expands selection to descendant taxon_ids. This is the core payoff of the whole normalization effort. |
+| Subfamily / tribe / subgenus as first-class nodes when present | iNat's "Full taxonomy" tree view shows all intermediate ranks. Users familiar with bee taxonomy expect Halictinae, Augochlorini, Dialictus to appear as navigable nodes, not just decorative labels. | MEDIUM | These ranks exist in taxa.csv.gz lineage; they already have taxon pages. Tree nodes link to existing pages. Lazy expand (see Differentiators) defers rendering until parent is expanded. |
+| Type-to-filter collapses tree to matching nodes | The existing `/species/` index already does this (species-index.ts). Users already expect it; removing it from the browse tree would be a regression. | LOW | Existing JS pattern (hide non-matching `.family-section` / `.genus-row` elements) applies to the tree. Matching a genus should auto-expand its family. Matching a species should auto-expand family + genus. |
+| Checklist-only species shown with existing badge | Already present on per-taxon pages. Tree must be consistent — checklist-only species are real taxa that belong in the browse. Hiding them would create a discrepancy between the tree and the individual pages. | LOW | Badge treatment (existing CSS class) reused. These nodes are leaves with 0 occurrence count but non-zero checklist-record count. |
+| URL round-trip for taxon filter | Already implemented for the autocomplete filter. Tree-based taxon selection must write the same `taxon=` URL param and be restored on page load. Users share URLs after clicking into a taxon in the tree. | LOW | Tree node click → writes `taxon_id` to URL state → same filter pipeline as autocomplete. Requires taxon_id → display name reverse lookup for the chip. |
+| New subfamily pages (19 families → + subfamily level) | Subfamily is the only bee rank currently missing static pages. With subfamily/tribe/subgenus as first-class nodes in the tree, a subfamily node with no destination page is a dead link. | MEDIUM | 6 bee families → ~20 subfamilies. Page template mirrors tribe pages (multi-color SVG map, "N specimens · N observations", genus list). Pipeline generates pages from hierarchy. |
 
----
+### Differentiators (Competitive Advantage)
 
-## Differentiators
-
-Features not strictly expected but that raise quality and usability meaningfully.
+Features not strictly expected at this scale but that meaningfully raise usability or scientific value. BeeAtlas's core value is "tighten learning cycles for volunteer collectors" — these serve that goal.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| `taxon_id`-based deep links on species pages | Stable URL `/species/inat/N/` or `?taxon=N` survives species renames; useful for partner systems linking in | Low | Eleventy page generation can generate redirect stubs; low priority unless requested |
-| Managed/invasive species badge on species pages | "Apis mellifera (European honey bee) — managed / non-native" contextualizes why this species appears on a native bee atlas | Low | `status` field already in `stg_checklist__species.sql` (`'status'` column); need to propagate to non-checklist species via `taxon_lineage_extended` metadata or a curator annotation |
-| `inat_url` on species pages linking to the iNat taxon page | `https://www.inaturalist.org/taxa/{taxon_id}` gives users the authoritative iNat species page with photos, range maps, ID tips | Very low | `taxon_id` is already in `canonical_to_taxon_id`; once emitted to `species.parquet`, the template adds a one-line link |
-| Lineage coverage completeness reporting | How many species in the universe have `taxon_id`, `family`, `subfamily` resolved? Surfaced as a pipeline diagnostic log line | Very low | One SELECT COUNT(*) query at the end of `taxa_pipeline.py`; mirrors existing lineage coverage test |
+| Lazy expand of intermediate ranks (subfamily/tribe/subgenus) | iNat's life list defaults to showing simplified ranks and requires a toggle for "Full taxonomy". For BeeAtlas's ~600-species scope, tribe/subgenus nodes add depth without overwhelming beginners. Lazy rendering (only expand on click) keeps the default view clean while making depth accessible. | LOW | Tree renders family → genus → species by default. Clicking a genus reveals subgenus/tribe nodes if they exist. This is a progressive disclosure pattern; no AJAX needed (all tree data is in the static page). |
+| Per-node "at exactly this rank" count alongside rollup | iNat's life list shows two numbers: total at-or-below (plain number) and observations at exactly this rank (green circle). For a bee atlas, genus-level Ecdysis records (unidentified to species) are scientifically meaningful. Showing "3 specimens at genus" makes visible that some records are identified only to genus. | LOW | Pipeline must track: occurrences where `taxon_id = N exactly` vs `taxon_id in descendants(N)`. The "at exactly this rank" count is meaningful only for genus and higher; species and below already have a single count. |
+| Autocomplete extended to subfamily/tribe/subgenus (bee taxa only) | Existing autocomplete covers family/genus/species. Volunteer collectors often think in terms of tribe (Augochlorini) or subgenus (Dialictus). Extending autocomplete to all bee ranks gives experts a faster path than expanding the tree manually. | MEDIUM | Autocomplete data source expands from current string-column matching to taxon_id-keyed hierarchy query. Disambiguation needed (subgenus names often match genus names). Rank label in dropdown ("Subgenus", "Tribe") disambiguates. |
+| Occurrence normalization size win (transfer weight reduction) | Dropping denormalized rank columns (genus, family, scientificName, canonical_name) from occurrences.db shrinks the SQLite artifact. Faster initial load directly serves "tighten learning cycles" — volunteers waiting for data to load is a friction point. | HIGH | This is the normalization half of the milestone. Drop columns from the 37-col contract; names resolve from hierarchy. Measurable: compare before/after occurrences.db size. |
+| Reusability across atlases | Current code has BEE_FAMILIES constant, bee-specific filter logic. The project context says "wasp atlas should be a config flip". A clean rank-agnostic hierarchy with no bee-hardcoded logic in the structure is a long-term multiplier. | LOW | Design decision: hierarchy structure code must not contain `Anthophila` or family-name constants. The bee-only browse filter is a configuration value, not a code branch. |
 
----
+### Anti-Features (Commonly Requested, Often Problematic)
 
-## Anti-Features
-
-Features to explicitly NOT build in this milestone.
-
-| Anti-Feature | Why Avoid | What to Do Instead |
-|--------------|-----------|-------------------|
-| Frontend subtaxon query ("show all Halictidae occurrences") | Static hosting; the nested-set or ancestor-array lives in DuckDB server-side; the SQLite `occurrences.db` frontend artifact does not have a taxon hierarchy table | Persist the nested-set data in DuckDB this milestone; wire it to the frontend in a future milestone once the query pattern is clear |
-| Automated GBIF or COL synonym resolution | Out of scope for this milestone; adds a new data dependency and disambiguation complexity; GBIF/COL have different ID spaces than iNat | Stick to iNat taxonomy as the single source of truth; extend `occurrence_synonyms.csv` for known mismatches |
-| Splitting active/inactive status handling across both pipeline and frontend | Mixing runtime name resolution into the TypeScript layer adds complexity and breaks static hosting assumptions | All taxon status decisions made at pipeline time; frontend only displays the resolved canonical_name and a status flag |
-| Retroactive reingestion of Ecdysis records with renamed taxa | Re-downloading Ecdysis for all records just because a taxon name changed is expensive and fragile; the dbt LEFT JOIN on `occurrence_synonyms` already handles name remapping without reingestion | Extend `occurrence_synonyms` or the new inactive-taxon remapping table instead |
-| DuckDB-WASM on the frontend for taxonomy hierarchy queries | Already rejected for page weight (see project memory) | wa-sqlite with pre-flattened columns |
-| Nested-set LEFT/RIGHT values surfaced in frontend | No frontend use case yet; the query `WHERE lft BETWEEN parent.lft AND parent.rgt` requires the full hierarchy table which is not in `occurrences.db` | Persist in DuckDB only; document the pattern |
-
----
-
-## Feature Details
-
-### Feature 1: Invisible Species Visibility Fix
-
-**Problem statement:** `int_species_universe.sql` gates species pages via `specific_epithet IS NOT NULL` in `_data/species.js` (line 97). For species that appear only in `occ_agg` (the ecdysis/inat_obs occurrence arm) and not in `stg_checklist__species`, `specific_epithet` is `NULL` because the checklist is the sole source of that field. The `DISTINCT ON (canonical_name)` row already exists in the mart but is filtered out downstream.
-
-**Root cause in the SQL:** `c.specific_epithet AS specific_epithet` — no fallback to derive it from `canonical_name` when `c.scientificName IS NULL` (i.e., when the species is not on the checklist).
-
-**Fix:** Add a `COALESCE` fallback in `int_species_universe.sql`:
-```sql
-COALESCE(
-    c.specific_epithet,
-    NULLIF(split_part(COALESCE(c.canonical_name, oa.canonical_name), ' ', 2), '')
-) AS specific_epithet
-```
-This derives `specific_epithet` from the second token of `canonical_name` for any species not on the checklist. The `NULLIF(..., '')` guard prevents an empty string when `canonical_name` is a genus-only token.
-
-**Downstream impacts:**
-- `species.sql` mart: no SQL change, but the emitted parquet gains `specific_epithet` values for 65 previously-null rows
-- `_data/species.js` filter: the `s.specific_epithet !== null` guard now passes for these species
-- `species_export.py`: no change needed; slug already computed from `canonical_name`
-- `species_maps.py`: gains 65 new species in the species universe; map generation runs for them
-- Eleventy pagination: generates ~65 new species pages
-- dbt column count: no change (column already present; value changes from NULL to non-null)
-
-**Scope:** dbt-only change + pytest assertion that `specific_epithet IS NOT NULL` for all rows in the species mart. LOW complexity.
-
----
-
-### Feature 2: Taxon ID in Marts
-
-**Current state:** `canonical_to_taxon_id` table exists (written by `resolve_taxon_ids.py`) and is LEFT JOINed in `int_species_universe.sql`, but `taxon_id` is not in the SELECT list of `species.sql` or `occurrences.sql` marts. The joined `ctt` alias is used only indirectly for the `stg_inat__taxon_lineage_extended` join; the `taxon_id` value itself is discarded.
-
-**Required changes:**
-
-For `species.sql`: add `ctt.taxon_id` to the SELECT (add column to `int_species_universe` species_universe CTE first, then propagate to the mart). dbt schema.yml contract updates from 20 to 21 columns (or 19 to 20 SQL-emittable columns; the slug is Python-added).
-
-For `occurrences.sql`: the `canonical_to_taxon_id` bridge is not currently joined in `int_combined.sql` or `occurrences.sql`. Adding it there would require a new LEFT JOIN in `int_combined` on `canonical_name`. The join is cheap (in-memory; `canonical_to_taxon_id` is small). Alternatively, the `taxon_id` can be written only to `species.parquet` and the frontend can look it up via the species mart rather than the occurrences mart. For the purpose of filtering by taxon_id (future), having it in `occurrences.parquet` is necessary. For the purpose of deep-linking from occurrence sidebar, the frontend can look up the species entry. **Recommended:** add `taxon_id` to `species.parquet` only in this milestone; defer to `occurrences.parquet` until there is a concrete frontend query need.
-
-**Scope:** dbt `int_species_universe` + `species.sql` mart change. dbt schema.yml contract update. `species_export.py` PyArrow schema update to include `taxon_id INTEGER`. LOW complexity.
-
----
-
-### Feature 3: Inactive Taxon Handling
-
-**Problem statement:** iNaturalist periodically synonymizes or inactivates taxa. An occurrence recorded as "Halictus confusus" may now be classified under "Halictus rubicundus" (example only) in iNat's current taxonomy. The current `occurrence_synonyms.csv` dbt seed is curator-managed (one row manually added for Agapostemon texanus → subtilior). It cannot scale to cover the full iNat taxonomy churn history.
-
-**Taxonomy databases: how they handle inactive taxa:**
-
-- **iNaturalist (`taxa.csv.gz`):** The `active` column distinguishes active (`'true'`) from inactive (`'false'`) taxa. Inactive taxa appear in the file with their `taxon_id`. The `ancestry` chain always points to the accepted active taxon at each rank. However, the `taxa.csv.gz` file does NOT directly expose "this inactive taxon is a synonym of that active taxon" — that relationship requires the iNat API `/v1/taxa/{id}` which returns `current_synonymous_taxon_ids` for inactive taxa. (MEDIUM confidence — from iNat forum posts and Open Data documentation.)
-
-- **GBIF:** Publishes a `taxon.txt` DwC-A with `taxonomicStatus` (`ACCEPTED`, `SYNONYM`, `DOUBTFUL`) and `acceptedNameUsageID` for synonyms. GBIF's backbone is the authoritative cross-source reconciliation but uses a different ID space than iNat.
-
-- **Catalogue of Life (COL):** Similarly publishes synonym→accepted mappings, also in a different ID space.
-
-**Recommended approach for this milestone:**
-
-Use the iNat inactive-taxon API endpoint to augment `resolve_taxon_ids.py`: after resolving a canonical_name to a `taxon_id`, if the returned taxon is inactive (`is_active: false`), follow the `current_synonymous_taxon_ids` field (array of active taxon IDs) to find the accepted name. Write the result as an additional column `accepted_taxon_id` in `canonical_to_taxon_id`.
-
-Alternatively — simpler and more reliable — extend the existing `_pick_match` function in `resolve_taxon_ids.py` to:
-1. Accept inactive taxon IDs too (currently it filters `is_active == true`)
-2. When a match is inactive, follow the API `GET /v1/taxa/{id}` to retrieve `current_synonymous_taxon_ids`
-3. Store the mapping `canonical_name → accepted_canonical_name` in a new `inactive_taxon_map` table
-4. Expose this as a dbt seed or dbt source alongside `occurrence_synonyms`
-
-The result flows into `int_combined` via the same LEFT JOIN pattern as `occurrence_synonyms`.
-
-**Taxon stability across taxonomy updates:** iNat taxon IDs are stable identifiers — a given integer ID always refers to the same concept, even if the taxon is later inactivated or renamed. The `canonical_to_taxon_id` bridge already stores integer IDs. Using `taxon_id` as the join key (rather than string `canonical_name`) is the correct long-term strategy for stability.
-
-**Scope for this milestone:** Add `taxon_status` column to `canonical_to_taxon_id` (values: `'active'`, `'inactive_remapped'`, `'inactive_unmappable'`). Extend `resolve_taxon_ids.py` to follow `current_synonymous_taxon_ids` and write remapping. Update dbt staging to treat `inactive_remapped` records like `occurrence_synonyms`. Add `taxon_status` to `species.parquet`. HIGH complexity (requires API calls + new pipeline logic + dbt changes).
-
----
-
-### Feature 4: Nested-Set / MPTT Prep
-
-**What it is:** A nested-set (also called Modified Preorder Tree Traversal, MPTT) stores `lft` and `rgt` integer values per taxon node such that all descendants of a node N satisfy `lft BETWEEN N.lft AND N.rgt`. This enables "all Halictidae" queries in O(1) range scan rather than recursive CTE. An equivalent alternative is storing an ancestor-ID array per taxon.
-
-**iNat's `ancestry` column:** The `taxa.csv.gz` archive already contains an `ancestry` column: a slash-separated string of ancestor taxon IDs from root to parent (not including self). This is semantically equivalent to a materialized ancestor path, which supports "is this taxon a descendant of N?" queries as `ancestry LIKE '%/N/%' OR ancestry LIKE '%/N'`. This is how `taxa_pipeline.py` currently filters to Anthophila descendants.
-
-**Recommended representation for this milestone:** Materialize the ancestor-array approach rather than nested-set integers. Nested-set requires a stable ordering pass over the entire tree and must be recomputed every time the taxonomy changes. Ancestor-array (or ancestry-path) is additive: new taxa can be inserted without renumbering existing records.
-
-**Concrete schema:**
-```sql
-CREATE TABLE inaturalist_data.taxon_ancestors AS
-SELECT
-    taxon_id,
-    name AS taxon_name,
-    rank,
-    ancestry,
-    -- Array of ancestor IDs as integers
-    array_transform(
-        string_split(ancestry, '/'),
-        x -> TRY_CAST(x AS BIGINT)
-    ) AS ancestor_ids,
-    -- Convenience: immediate parent ID
-    TRY_CAST(
-        list_element(string_split(ancestry, '/'), -1)
-    AS BIGINT) AS parent_id
-FROM all_active_bees  -- same CTE as taxa_pipeline.py
-```
-
-**Frontend use:** Not exposed in this milestone. The `taxon_ancestors` table lives in `beeatlas.duckdb` only. Future milestone will materialize a `subtaxon_occurrence_counts` table at pipeline time for "all Halictidae" queries.
-
-**Scope:** Data-layer only — extend `taxa_pipeline.py` to write `taxon_ancestors` table after `taxon_lineage_extended`. No dbt change. No export. No frontend change. MEDIUM complexity (the DuckDB SQL is straightforward given the existing `all_active_bees` CTE; the main work is testing correctness of the array representation).
-
----
-
-## Expected User-Facing Behaviors (When All Features Work)
-
-| Behavior | Current State | Target State |
-|----------|---------------|--------------|
-| Navigate to species page for Apis mellifera | 404 (no page generated because `specific_epithet = NULL`) | Valid page at `/species/Apis/mellifera/` showing occurrence count, SVG map, iNat link, managed-species badge |
-| Navigate to species page for Halictus rubicundus | 404 | Valid page with occurrence data |
-| Click iNat link on species page | N/A | Opens `https://www.inaturalist.org/taxa/{taxon_id}` |
-| Search species index for "mellifera" | No results | Species appears in genus/family index |
-| Occurrence with outdated name in Ecdysis | Occurrence visible under old name or invisible | Occurrence remapped to current accepted name; visible under accepted species page |
-| Taxon filter in sidebar autocomplete | 65 species missing | All observed species appear |
+| Anti-Feature | Why Requested | Why Problematic | Alternative |
+|--------------|---------------|-----------------|-------------|
+| Real-time descendant count queries at browse time | "Why precompute? Just query the DB live" | occurrences.db is a static SQLite artifact with no taxon hierarchy table; adding the full hierarchy table + real-time ancestor queries would require DuckDB WASM (already rejected for page weight) or a server (violates static hosting constraint) | Precompute per-taxon rollup counts at pipeline time; write to a `taxon_counts` table in the SQLite artifact |
+| Show non-bee bycatch in the tree | "It's in the hierarchy, why not show it?" | The atlas is about bees. Showing flies and wasps in the browse tree confuses the audience and dilutes the value. Bycatch taxa exist in the hierarchy only so their map points resolve to a name. | Non-bee taxa: hierarchy-resident, silently excluded from tree rendering and autocomplete. Their map points still display correctly. |
+| Floral host taxonomy in the tree | "Plants are an interesting dimension" | Floral host taxon_ids don't exist yet (explicitly out of scope in milestone context). Mixing host plants into the bee taxonomy tree would require a separate tree component or confusing interleaving. | Deferred to a future milestone. Host taxonomy is a distinct research question. |
+| Full-depth tree rendered on page load (all ranks visible at once) | "More information upfront" | 600 species × multiple intermediate ranks = large DOM on initial render. Type-to-filter already handles search; the tree is for browsing, not for showing everything at once. | Default view: families + genera only. Intermediate ranks (subfamily/tribe/subgenus) revealed on expand. |
+| Separate tree page vs. integrating into existing `/species/` index | "A dedicated tree URL feels cleaner" | The existing `/species/` index already has the type-to-filter UX that users know. A separate page splits navigation and requires users to learn two surfaces. | Replace the flat family→genus index at `/species/` with the expandable tree. Same URL, enhanced behavior. The index is the tree. |
+| Paginated tree nodes | "Large genera might have too many species" | BeeAtlas has ~600 species total. Even the largest genus (Andrena, ~100 species in WA) renders comfortably without pagination. Pagination complexity far exceeds the problem at this scale. | Full list render with CSS `max-height` + scroll if a genus list is very long. No pagination logic needed. |
+| Per-rank occurrence count in the map filter autocomplete pill | "When I filter to Halictidae, show me 'Halictidae (12,430 occurrences)'" | Count becomes stale the moment the DB is updated; autocomplete dropdown items with counts require re-querying on every keystroke. More complexity, marginal value for volunteers. | Count shown on the taxon's static page (already exists); autocomplete pill shows just the name. Selecting a taxon → map updates and the visible count is the map point density. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Feature 1 (Invisible species fix)
-  → dbt int_species_universe.sql: add COALESCE fallback for specific_epithet
-  → _data/species.js: no change (filter already works once specific_epithet is non-null)
-  → species_maps.py: gains 65 species; map generation runs
-  → Eleventy: generates ~65 new pages
-  → PREREQUISITE for: Feature 2 (taxon_id meaningless for invisible species)
+Hierarchy Foundation (pipeline: taxon_id-keyed ancestor table in SQLite)
+    └──enables──> Rank-agnostic descendant filter (map filter cutover)
+    └──enables──> Per-node rollup counts (precomputed from hierarchy)
+    └──enables──> Expandable tree nodes (tree data from hierarchy)
+    └──enables──> Subfamily pages (generated from hierarchy ranks)
+    └──enables──> Autocomplete extension to all bee ranks
 
-Feature 2 (taxon_id in species.parquet)
-  → int_species_universe.sql: add taxon_id to SELECT
-  → species.sql mart: +1 column
-  → species_export.py: PyArrow schema update
-  → Eleventy templates: add iNat link
-  → dbt schema.yml contract: update column count
-  → DEPENDS ON: Feature 1 (species must be visible to receive taxon_id)
-  → PREREQUISITE for: Feature 3 (accepted_taxon_id tracking)
+Expandable tree (browser UI)
+    └──links to──> Existing per-taxon pages (species/genus/subgenus/tribe/subfamily)
+    └──requires──> Subfamily pages (otherwise subfamily nodes are dead links)
+    └──reuses──> Type-to-filter JS pattern (existing species-index.ts pattern)
+    └──reuses──> Checklist-only badge treatment (existing CSS)
 
-Feature 3 (Inactive taxon handling)
-  → resolve_taxon_ids.py: follow current_synonymous_taxon_ids for inactive taxa
-  → canonical_to_taxon_id table: add taxon_status + accepted_canonical_name columns
-  → occurrence_synonyms dbt seed: augmented OR new inactive_taxon_map dbt source
-  → int_combined.sql: extend synonym LEFT JOIN to cover inactive remappings
-  → int_species_universe.sql: filter or flag unmappable inactive taxa
-  → DEPENDS ON: Feature 2 (taxon_id is the stable handle for following synonymy)
-  → INDEPENDENT OF: Feature 4
+Map filter cutover (taxon_id replacing string-column matching)
+    └──requires──> Hierarchy in occurrences.db (ancestor IDs queryable in wa-sqlite)
+    └──preserves──> URL round-trip (same taxon= param, now keyed by taxon_id)
+    └──extends──> Autocomplete (adds subfamily/tribe/subgenus entries)
 
-Feature 4 (Nested-set / ancestor-array prep)
-  → taxa_pipeline.py: add taxon_ancestors table write after taxon_lineage_extended
-  → No dbt change, no export, no frontend change
-  → DEPENDS ON: Feature 1 (conceptually, but not technically — can build independently)
-  → INDEPENDENT OF: Features 2 and 3
+Occurrence normalization (drop denormalized rank columns)
+    └──requires──> Hierarchy foundation (names must resolve from hierarchy, not columns)
+    └──produces──> Smaller occurrences.db (measurable size win)
+    └──rewrites──> 37-col contract (new column contract)
+    └──requires──> Frontend cutover before columns drop (filter.ts must use taxon_id not strings)
 ```
+
+### Dependency Notes
+
+- **Subfamily pages require hierarchy foundation:** Subfamily taxon_ids and names come from the ancestor table, not from the existing denormalized columns (which have no subfamily column). Subfamily pages cannot be generated until the hierarchy is built.
+- **Map filter cutover is a prerequisite for occurrence normalization:** The denormalized `genus`, `family`, `scientificName` columns cannot be dropped until the frontend filter no longer reads those columns. The filter must use `taxon_id` + hierarchy descendant lookup before the columns disappear.
+- **Checklist-only species require no hierarchy work:** They already have taxon_ids (from v4.5). They appear in the tree as leaves. Their badge treatment is a CSS class, not a hierarchy query.
+- **Lazy expand of intermediate ranks is independent:** This is a pure frontend decision about when to render child nodes. It does not affect the pipeline schema or the filter query.
 
 ---
 
-## Complexity Summary
+## MVP Definition for v4.6
 
-| Feature | Pipeline | dbt | Frontend | Eleventy | Overall |
-|---------|----------|-----|----------|----------|---------|
-| 1. Invisible species fix | None | Low (1 COALESCE) | None | Automatic (new pages) | Low |
-| 2. taxon_id in species.parquet | None | Low (+1 column) | Very low (1 template link) | Very low | Low |
-| 3. Inactive taxon handling | High (API calls + new logic) | Medium (new join) | None | None | High |
-| 4. Nested-set prep | Medium (new DuckDB table) | None | None | None | Medium |
+This is a subsequent milestone on a mature app, not a greenfield MVP. "MVP" here means: what is the minimum set of features that makes the milestone coherent and delivers the stated goal (descendant-by-any-rank browsing and filter)?
 
-**Recommended phase order:** 1 → 2 → 4 → 3. Features 1 and 2 are low-risk pipeline+dbt changes that unblock visible user value. Feature 4 is data-layer-only with no user-facing exposure (low risk, good to do early). Feature 3 requires iNat API calls and a new resolution pathway — best done last after the stable infrastructure is in place.
+### Must Ship (core milestone scope)
+
+- [ ] Hierarchy foundation — `taxon_id`-keyed ancestor table in SQLite artifact, covering all bee taxa, enabling descendant queries
+- [ ] Rank-agnostic descendant filter — map filter resolves any selected taxon_id to its full descendant set
+- [ ] Map filter cutover — filter.ts reads taxon_id + hierarchy, not string columns; autocomplete extended to subfamily/tribe/subgenus (bee only)
+- [ ] Expandable tree at `/species/` — default family → genus → species; lazy intermediate ranks; type-to-filter preserved
+- [ ] Per-node rollup counts — specimen/observation split, precomputed, shown on each tree node
+- [ ] Subfamily pages — generated from hierarchy; without these, subfamily tree nodes are dead links
+- [ ] Occurrence normalization — drop denormalized rank columns; new column contract; measurable size win
+
+### Add Within Milestone If Straightforward
+
+- [ ] Per-node "at exactly this rank" count — meaningful for genus-level records; LOW complexity once pipeline rollup is built
+- [ ] Slug-collision edge cases — resolved at planning time as noted in milestone context; must not be discovered mid-implementation
+
+### Defer to Future Milestone
+
+- [ ] Floral host taxonomy — explicitly out of scope
+- [ ] Non-bee taxa in tree or autocomplete — out of scope
+- [ ] Count in autocomplete pill — anti-feature at this scale
+- [ ] Paginated tree nodes — unnecessary at this scale
+
+---
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Hierarchy foundation (pipeline) | HIGH — enables everything else | HIGH | P1 |
+| Rank-agnostic descendant filter | HIGH — core milestone payoff | MEDIUM (depends on foundation) | P1 |
+| Map filter cutover (taxon_id) | HIGH — prerequisite for normalization | MEDIUM | P1 |
+| Expandable tree at /species/ | HIGH — replaces flat index | MEDIUM | P1 |
+| Subfamily pages | MEDIUM — required for tree completeness | MEDIUM | P1 |
+| Per-node rollup counts | HIGH — expected by any taxonomy browse | MEDIUM (precomputed pipeline) | P1 |
+| Occurrence normalization / size win | MEDIUM — developer value + load perf | HIGH | P1 |
+| Autocomplete extension to all bee ranks | MEDIUM — expert usability | MEDIUM | P2 |
+| Lazy expand of intermediate ranks | MEDIUM — polish | LOW | P2 |
+| Per-node "at exactly this rank" count | LOW — scientific nicety | LOW | P2 |
+| Reusability / no bee-hardcoded logic | LOW visible now, HIGH future | LOW | P2 |
+
+---
+
+## Comparable Site Analysis
+
+| Feature | iNaturalist Life List | GBIF Species Browse | ALA Classification Tab | BeeAtlas v4.6 Target |
+|---------|----------------------|---------------------|------------------------|----------------------|
+| Tree default depth | Simplified (family → order), toggle for full | Flat species list with rank filter | Full lineage breadcrumb only | Family → genus → species; intermediate ranks lazy |
+| Intermediate ranks (tribe/subfamily/subgenus) | Available via "Full taxonomy" toggle | Not in tree; rank filter on search | Shown in classification tab, not in browse tree | First-class lazy nodes, link to taxon pages |
+| Per-node count: at-or-below total | Yes — plain number | No tree view; occurrence count on taxon page | No tree; per-species count on search results | Precomputed rollup count per node (specimen + obs split) |
+| Per-node count: at exactly this rank | Yes — green circle (iNat life list) | N/A | N/A | Nice-to-have; pipeline supports it |
+| Rank-agnostic filter (select any rank → descendant occurrences) | Yes — "Anthophila" returns all bee observations | Yes — taxon key resolution to descendants | Yes — backbone match includes descendants | Yes — taxon_id + ancestor table, resolved at pipeline time |
+| Type-to-filter / autocomplete | Yes — global autocomplete, any rank | Yes — species search with rank filter | Yes — species search | Existing pattern extended; tribe/subgenus added |
+| Checklist-only species in tree | N/A (iNat is observation-only) | N/A | N/A | Yes — existing badge treatment |
+| Two-source count split (specimens vs. community obs) | No — single observation count | Yes — by record type, not prominently | No | Yes — existing page header convention extended to tree |
+| URL sharing for selected taxon | Yes | Yes | Yes | Yes — existing `taxon=` param, now keyed by taxon_id |
+
+### Key takeaway from comparable sites
+
+iNaturalist's life list is the closest design reference: expandable tree with at-or-below counts, togglable intermediate ranks, type-to-filter. Its core insight — that "plain number = total at or below" and "green circle = at exactly this rank" — maps directly to BeeAtlas's need to show genus-level unidentified specimens separately from fully-identified species. GBIF's rank-agnostic taxon key resolution is the backend pattern for the map filter cutover. Neither iNat nor GBIF handles the two-source (specimen vs. observation) split that BeeAtlas already shows on per-taxon pages; this is a genuine BeeAtlas differentiator.
 
 ---
 
 ## Sources
 
-- `data/dbt/models/intermediate/int_species_universe.sql` — gate for species visibility; `specific_epithet` sourcing
-- `data/dbt/models/staging/stg_inat__canonical_to_taxon_id.sql` — taxon_id bridge table schema
-- `data/dbt/models/staging/stg_inat__taxon_lineage_extended.sql` — lineage table schema
-- `data/dbt/models/marts/species.sql` — current 20-column (SQL) + 1-Python mart
-- `data/dbt/models/marts/occurrences.sql` — 36-column occurrence mart
-- `data/dbt/models/intermediate/int_combined.sql` — ARM 1/2/3 UNION ALL; existing occurrence_synonyms LEFT JOIN pattern
-- `data/resolve_taxon_ids.py` — `_pick_match` function; `canonical_to_taxon_id` write path; `lineage_unresolved.csv` pattern
-- `data/taxa_pipeline.py` — `all_active_bees` CTE; ancestry column usage; `active = 'true'` string comparison
-- `.planning/PROJECT.md` — milestone goals; "65 species / 1,745 occurrences currently invisible"
-- iNat API: inactive taxon `current_synonymous_taxon_ids` field — documented in iNat API Explorer `/v1/taxa/{id}` response schema (HIGH confidence from direct API inspection)
-- iNat Open Data `taxa.csv.gz` `active` column — string `'true'`/`'false'`, confirmed in `taxa_pipeline.py` comments and tests
-- DuckDB `string_split` + `array_transform` for ancestry-array materialization: standard DuckDB array functions (HIGH confidence)
+- `/home/peter/dev/beeatlas/.planning/PROJECT.md` — milestone goals, constraints, existing features
+- `/home/peter/dev/beeatlas/src/filter.ts` — current `FilterState` (taxonName string + taxonRank enum); shows what must change for taxon_id cutover
+- `/home/peter/dev/beeatlas/src/entries/species-index.ts` — existing type-to-filter JS pattern (hide/show DOM nodes); directly reusable for tree
+- iNaturalist life list design (from search results): "plain numbers = observations at or below that node; green circles = observations at exactly that rank" — HIGH confidence (multiple corroborating sources)
+- iNaturalist "Full taxonomy" toggle vs. simplified list — MEDIUM confidence (from iNat forum posts and blog)
+- GBIF taxon key resolution for descendant occurrence filtering — HIGH confidence (from GBIF Species API documentation)
+- ALA classification tab linking parent ranks — MEDIUM confidence (from ALA support documentation)
+- Washington's Native Bees site: family → subfamily → tribe → genus → species navigation, no counts shown — HIGH confidence (direct content extraction)
+- Discover Life bee checklist: alpha ordering within subfamily→tribe→genus→subgenus→species — MEDIUM confidence (from search result descriptions; frameset prevented direct scraping)
