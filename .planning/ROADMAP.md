@@ -38,6 +38,7 @@
 - ✅ **v4.3 Loading Performance** — Phases 121–122 (shipped 2026-05-28)
 - ✅ **v4.4 Pipeline Data Quality** — Phase 123 (shipped 2026-05-29)
 - ✅ **v4.5 iNat Taxonomy & Species Completeness** — Phases 124–128 (shipped 2026-06-01). taxon_id surfaced through the dbt marts + genus-rank backfill (kingdom=Animalia); re-scoped TID-02. See [.planning/milestones/v4.5-ROADMAP.md](milestones/v4.5-ROADMAP.md).
+- [ ] **v4.6 Taxonomy Hierarchy & Normalization** — Phases 129–133 (in progress 2026-06-01). Replacing denormalized rank columns with taxon_id hierarchy; descendant-by-any-rank filtering; browse tree; subfamily pages.
 
 ## Phases
 
@@ -452,6 +453,19 @@ See `.planning/milestones/v4.3-ROADMAP.md` for full phase details.
 
 <!-- Phase 121-122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
+<details open>
+<summary>v4.6 Taxonomy Hierarchy & Normalization (Phases 129–133) — IN PROGRESS</summary>
+
+- [ ] Phase 129: Hierarchy Foundation (TBD plans)
+- [ ] Phase 130: Map Filter Cutover (TBD plans)
+- [ ] Phase 131: Occurrence Normalization (TBD plans)
+- [ ] Phase 132: Page Rebuild & Subfamily Pages (TBD plans)
+- [ ] Phase 133: Browse Tree (TBD plans)
+
+See Phase Details below for success criteria.
+
+</details>
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -846,3 +860,87 @@ Plans:
 
 <!-- ✅ v4.5 iNat Taxonomy & Species Completeness (Phases 124–128) — SHIPPED 2026-06-01.
      Full phase details archived to .planning/milestones/v4.5-ROADMAP.md -->
+
+## v4.6 Taxonomy Hierarchy & Normalization (Phases 129–133)
+
+### Summary Checklist
+
+- [ ] **Phase 129: Hierarchy Foundation** — Build `taxon_hierarchy` + `taxon_closure` tables in `occurrences.db`; benchmark structure; establish `is_anthophila` flag and bycatch coverage; post-build orphan assertion
+- [ ] **Phase 130: Map Filter Cutover** — Frontend switches to `taxon_id` + hierarchy descendant filtering; autocomplete extended to subfamily/tribe/subgenus/complex; URL round-trip preserved; denormalized string columns still present and harmlessly ignored
+- [ ] **Phase 131: Occurrence Normalization** — Drop denormalized rank columns from occurrences mart now that the frontend no longer reads them; rewrite `geo_blob`; rewrite dbt contract; record DB-size and transfer-weight reduction
+- [ ] **Phase 132: Page Rebuild & Subfamily Pages** — Recompute genus/subgenus/tribe page rollups from hierarchy; generate new subfamily pages; slug collision check run
+- [ ] **Phase 133: Browse Tree** — Expandable `/species` taxonomy tree, bee-only, with per-node specimen/observation counts and type-to-filter search
+
+### Phase Details
+
+### Phase 129: Hierarchy Foundation
+
+**Goal**: A complete, query-ready taxon hierarchy (bees + bycatch) lives inside `occurrences.db`, benchmarked for wa-sqlite descendant-query performance, with every occurrence `taxon_id` provably mapped to a hierarchy entry
+**Depends on**: Phase 128
+**Requirements**: HIER-01, HIER-02, HIER-03, HIER-04, HIER-05, HIER-06
+**Success Criteria** (what must be TRUE):
+  1. `occurrences.db` contains `taxon_hierarchy` and `taxon_closure` tables covering every `taxon_id` referenced by the occurrences table (bees and non-bee bycatch); a post-build assertion confirms zero orphan `taxon_id` values
+  2. A descendant query for Apidae (the largest bee family, ~4000 species) returns the correct set of `taxon_id` values and completes in under 50 ms in wa-sqlite/Firefox — structure choice (nested sets vs. closure table) documented and justified by this benchmark
+  3. Every non-bee bycatch genus present in occurrences has an entry in `taxon_hierarchy` with `is_anthophila = 0`; bycatch taxa never appear in any bee-only surface (verified by query)
+  4. A pipeline run after a `taxa.csv.gz` update detects any occurrence `taxon_id` that no longer has a hierarchy entry and fails the nightly gate before export
+  5. The foundation phase report records the count of complex-rank occurrences/species and documents the decision on whether dedicated complex pages (PAGE-05) are generated this milestone
+**Plans**: TBD
+
+### Phase 130: Map Filter Cutover
+
+**Goal**: The frontend reads `taxon_id` + hierarchy descendant queries for all taxon filtering; the autocomplete includes subfamily, tribe, subgenus, and complex; denormalized string columns are still present in the pipeline output and harmlessly ignored during this additive phase
+**Depends on**: Phase 129
+**Requirements**: MFILT-01, MFILT-02, MFILT-03
+**Success Criteria** (what must be TRUE):
+  1. User can select any taxon at family / subfamily / tribe / genus / subgenus / complex / species rank from the autocomplete and see exactly the map points that are descendants of that taxon — including ranks (subfamily, tribe, subgenus) that were previously absent
+  2. Filter URL round-trip (`taxon=` param now encodes an integer `taxon_id`), clear-filters, region/boundary filtering, and selection-rectangle interactions all work correctly; old name-format URLs are parsed with a backward-compatible fallback
+  3. Occurrence detail cards resolve and display taxon names correctly from the hierarchy cache; no "undefined" or blank taxon name for any identified occurrence
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 131: Occurrence Normalization
+
+**Goal**: Denormalized rank string columns are dropped from the occurrences mart and `geo_blob` is rewritten; this is safe now that the frontend (Phase 130) no longer reads the removed columns; a measurable DB-size and transfer-weight reduction is recorded
+**Depends on**: Phase 130
+**Requirements**: NORM-01, NORM-02, NORM-03
+**Success Criteria** (what must be TRUE):
+  1. `occurrences.parquet` and `occurrences.db` no longer contain `genus`, `family`, `scientificName`, `specimen_inat_taxon_name`, `specimen_inat_genus`, or `specimen_inat_family` columns; `canonical_name` is retained; the rewritten dbt column contract is enforced at every `dbt build` and `dbt build` exits 0
+  2. `occurrences.db` file size and transfer weight are measurably smaller than the pre-change baseline captured before Phase 131; the reduction is recorded in VERIFICATION.md; `tablesReady` timing does not regress from the v4.3 baseline of ~250 ms
+  3. Every downstream consumer of the dropped columns (dbt schema.yml, `features.ts` geo_blob positional indexes, `bee-atlas.ts` inline SQL, `bee-map.ts` checklist filter, `filter.test.ts` assertions) is audited and migrated in the same change; a grep audit report confirms no remaining references to the removed column names
+**Plans**: TBD
+
+### Phase 132: Page Rebuild & Subfamily Pages
+
+**Goal**: All taxon static pages (genus, subgenus, tribe, and new subfamily) compute occurrence totals from the hierarchy; new subfamily pages are live at `/species/subfamily/{Name}/`; no slug collisions exist
+**Depends on**: Phase 129
+**Requirements**: PAGE-01, PAGE-02, PAGE-03, PAGE-04
+**Success Criteria** (what must be TRUE):
+  1. Genus, subgenus, and tribe page "N specimens · N community observations" totals match the pre-normalization values (verified by spot-checking at least 5 taxa spanning multiple families); the totals derive from hierarchy-keyed rollups, not string-column grouping
+  2. Subfamily pages exist at `/species/subfamily/{SubfamilyName}/` for all bee subfamilies present in the hierarchy; each page shows an SVG occurrence map and specimen/observation counts consistent with the existing genus/tribe page format
+  3. A pre-generation collision check confirms no two taxa at different ranks produce the same public URL; any same-named taxa (e.g., genus *Bombus* vs. subgenus *Bombus*) resolve to distinct paths
+  4. Checklist-only bee species remain present on all taxon pages with their existing "checklist only" badge; pages keyed on `taxon_id` internally, public slugs stay name-based
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 133: Browse Tree
+
+**Goal**: `/species` presents an expandable bee-only taxonomy tree with per-node counts and type-to-filter search, replacing the flat family→genus index at the same URL
+**Depends on**: Phase 130, Phase 132
+**Requirements**: TREE-01, TREE-02, TREE-03, TREE-04
+**Success Criteria** (what must be TRUE):
+  1. `/species` renders an expandable tree defaulting to family → genus → species; clicking a family node expands it; subfamily, tribe, and subgenus are available as lazy deeper expansions without being forced into the default view
+  2. Each tree node shows a specimen count and community-observation count, correctly rolled up over all descendants
+  3. Typing in the filter input narrows the tree to matching taxon names and auto-expands the ancestor chain of each match so matches are visible without manual expansion
+  4. No wasp, fly, or other non-bee taxon appears anywhere in the tree; every bee tree node links to the corresponding taxon page and/or a descendant-filtered map view
+**Plans**: TBD
+**UI hint**: yes
+
+## Progress (v4.6)
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 129. Hierarchy Foundation | v4.6 | 0/TBD | Not started | - |
+| 130. Map Filter Cutover | v4.6 | 0/TBD | Not started | - |
+| 131. Occurrence Normalization | v4.6 | 0/TBD | Not started | - |
+| 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
+| 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
