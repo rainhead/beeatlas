@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
 status: executing
-stopped_at: Completed 130-01-PLAN.md (taxonId contract layer)
-last_updated: "2026-06-02T22:07:26.335Z"
+stopped_at: Completed 130-02-PLAN.md (lazy taxon cache + autocomplete + URL integer encoding)
+last_updated: "2026-06-02T22:22:19.500Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 20
 ---
 
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 ## Current Position
 
 Phase: 130 (map-filter-cutover) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-02
 
 ```
-Progress: [███████░░░] 67%
+Progress: [████████░░] 83%
 ```
 
 ## Accumulated Context
@@ -55,6 +55,10 @@ All v4.5 decisions logged in `.planning/milestones/v4.5-ROADMAP.md` and PROJECT.
 - PAGE-05 (complex pages) is conditional: decided in Phase 129 based on complex-rank occurrence count. If < ~50 occurrences, complex nodes deep-link to filtered map view instead.
 - URL param `taxon=` migrates from name string to integer taxon_id in Phase 130; old name-format URLs get a backward-compatible fallback parse.
 - [Phase ?]: taxonId integer SQL interpolation
+- [Phase 130 Plan 02]: buildTaxonLabel/RANK_ORDER/buildTaxonOptions extracted to src/taxa.ts as pure stateless helpers
+- [Phase 130 Plan 02]: ParsedParams type adds optional pendingLegacyTaxon for D-06 two-phase legacy URL back-compat
+- [Phase 130 Plan 02]: _resolveLegacyTaxon handles cache-ready and cache-pending cases with rank-based twin disambiguation
+- [Phase 130 Plan 02]: D-01 enumeration uses ancestry-expansion form (DISTINCT taxon_ids + lineage_path walk) vs 10-second EXISTS form
 
 ### Roadmap Evolution
 
@@ -95,8 +99,8 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-02T22:07:26.313Z
-Stopped at: Completed 130-01-PLAN.md (taxonId contract layer)
+Last session: 2026-06-02T22:22:19.469Z
+Stopped at: Completed 130-02-PLAN.md (lazy taxon cache + autocomplete + URL integer encoding)
 Resume file: None
 
 ## Operator Next Steps
