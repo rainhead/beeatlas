@@ -887,7 +887,7 @@ Plans:
 **Plans**: 3 plans
 Plans:
 **Wave 0**
-- [ ] 129-01-PLAN.md — Wave 0 RED hierarchy test stubs + mini taxa.csv.gz/parquet fixtures [HIER-01..06]
+- [x] 129-01-PLAN.md — Wave 0 RED hierarchy test stubs + mini taxa.csv.gz/parquet fixtures [HIER-01..06]
 
 **Wave 1** *(blocked on Wave 0)*
 - [ ] 129-02-PLAN.md — _build_taxon_hierarchy three-pass load (Anthophila/bycatch/checklist) + orphan-assertion nightly gate + generate_sqlite wiring [HIER-01, HIER-02, HIER-04, HIER-05]
@@ -948,7 +948,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 129. Hierarchy Foundation | v4.6 | 0/TBD | Not started | - |
+| 129. Hierarchy Foundation | v4.6 | 1/3 | In Progress|  |
 | 130. Map Filter Cutover | v4.6 | 0/TBD | Not started | - |
 | 131. Occurrence Normalization | v4.6 | 0/TBD | Not started | - |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
