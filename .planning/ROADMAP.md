@@ -865,7 +865,7 @@ Plans:
 
 ### Summary Checklist
 
-- [ ] **Phase 129: Hierarchy Foundation** — Build `taxon_hierarchy` + `taxon_closure` tables in `occurrences.db`; benchmark structure; establish `is_anthophila` flag and bycatch coverage; post-build orphan assertion
+- [x] **Phase 129: Hierarchy Foundation** — Build `taxon_hierarchy` + `taxon_closure` tables in `occurrences.db`; benchmark structure; establish `is_anthophila` flag and bycatch coverage; post-build orphan assertion (completed 2026-06-02)
 - [ ] **Phase 130: Map Filter Cutover** — Frontend switches to `taxon_id` + hierarchy descendant filtering; autocomplete extended to subfamily/tribe/subgenus/complex; URL round-trip preserved; denormalized string columns still present and harmlessly ignored
 - [ ] **Phase 131: Occurrence Normalization** — Drop denormalized rank columns from occurrences mart now that the frontend no longer reads them; rewrite `geo_blob`; rewrite dbt contract; record DB-size and transfer-weight reduction
 - [ ] **Phase 132: Page Rebuild & Subfamily Pages** — Recompute genus/subgenus/tribe page rollups from hierarchy; generate new subfamily pages; slug collision check run
@@ -893,7 +893,7 @@ Plans:
 - [x] 129-02-PLAN.md — _build_taxon_hierarchy three-pass load (Anthophila/bycatch/checklist) + orphan-assertion nightly gate + generate_sqlite wiring [HIER-01, HIER-02, HIER-04, HIER-05]
 
 **Wave 2** *(blocked on Wave 1; human-verify checkpoint)*
-- [ ] 129-03-PLAN.md — Build real occurrences.db, Apidae wa-sqlite/Firefox benchmark + structure decision, complex/bycatch counts + PAGE-05 decision in VERIFICATION.md [HIER-03, HIER-06]
+- [x] 129-03-PLAN.md — Build real occurrences.db, Apidae wa-sqlite/Firefox benchmark + structure decision, complex/bycatch counts + PAGE-05 decision in VERIFICATION.md [HIER-03, HIER-06]
 
 ### Phase 130: Map Filter Cutover
 
@@ -948,7 +948,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 129. Hierarchy Foundation | v4.6 | 2/3 | In Progress|  |
+| 129. Hierarchy Foundation | v4.6 | 3/3 | Complete   | 2026-06-02 |
 | 130. Map Filter Cutover | v4.6 | 0/TBD | Not started | - |
 | 131. Occurrence Normalization | v4.6 | 0/TBD | Not started | - |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
