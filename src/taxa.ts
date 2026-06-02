@@ -27,6 +27,22 @@ export function buildTaxonLabel(name: string, rank: string): string {
 export type TaxonCacheEntry = { rank: string; name: string; lineagePath: string | null };
 
 /**
+ * Resolve the display label for a taxon restored from the URL or browser history.
+ * URLs encode only the integer `taxon_id`, so on restore the filter is active but
+ * carries no display name — without this the "Species or group" input renders empty.
+ * Returns the same label scheme as the autocomplete options (so the restored chip
+ * matches what a fresh selection produces), or null when the id is absent from the
+ * cache (stale bookmark — leave the input empty rather than inventing a name).
+ */
+export function resolveTaxonDisplayName(
+  taxonId: number,
+  taxonCache: Map<number, TaxonCacheEntry>,
+): string | null {
+  const entry = taxonCache.get(taxonId);
+  return entry ? buildTaxonLabel(entry.name, entry.rank) : null;
+}
+
+/**
  * D-01 enumeration: build the eligible autocomplete set.
  *
  * Strategy: start from the distinct taxon_ids present in occurrences, then for

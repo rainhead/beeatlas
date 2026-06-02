@@ -1,5 +1,5 @@
 import { test, expect, describe } from 'vitest';
-import { buildTaxonLabel, RANK_ORDER, buildTaxonOptions } from '../taxa.ts';
+import { buildTaxonLabel, RANK_ORDER, buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from '../taxa.ts';
 import { getSuggestions } from '../bee-filter-controls.ts';
 import type { TaxonOption } from '../filter.ts';
 
@@ -36,6 +36,40 @@ describe('buildTaxonLabel (D-03)', () => {
 
   test('species rank: returns plain name', () => {
     expect(buildTaxonLabel('Bombus fervidus', 'species')).toBe('Bombus fervidus');
+  });
+});
+
+// ---- URL-restore display-name resolution (MFILT-03 regression) ----
+// On URL/history restore the filter carries only the integer taxon_id; the
+// "Species or group" input must show the resolved label, not an empty box.
+
+describe('resolveTaxonDisplayName (URL restore)', () => {
+  const cache = new Map<number, TaxonCacheEntry>([
+    [52775, { rank: 'genus', name: 'Bombus', lineagePath: '/1/52775/' }],
+    [538903, { rank: 'subgenus', name: 'Bombus', lineagePath: '/1/52775/538903/' }],
+    [11977, { rank: 'subfamily', name: 'Halictinae', lineagePath: '/1/11977/' }],
+  ]);
+
+  test('resolves a restored genus taxon_id to its autocomplete label', () => {
+    expect(resolveTaxonDisplayName(52775, cache)).toBe('Bombus (genus)');
+  });
+
+  test('disambiguates the genus/subgenus twin by rank', () => {
+    expect(resolveTaxonDisplayName(538903, cache)).toBe('Bombus (subgenus)');
+  });
+
+  test('subfamily (previously-absent rank) resolves to a plain name', () => {
+    expect(resolveTaxonDisplayName(11977, cache)).toBe('Halictinae');
+  });
+
+  test('returns null for an unknown id (stale bookmark) — input left empty', () => {
+    expect(resolveTaxonDisplayName(999999, cache)).toBeNull();
+  });
+
+  test('label matches what buildTaxonOptions emits for the same taxon', () => {
+    const opts = buildTaxonOptions(new Set([538903]), cache);
+    const selected = opts.find(o => o.taxonId === 538903)!;
+    expect(resolveTaxonDisplayName(538903, cache)).toBe(selected.label);
   });
 });
 

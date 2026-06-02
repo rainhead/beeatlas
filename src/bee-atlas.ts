@@ -5,7 +5,7 @@ import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
-import { buildTaxonOptions, type TaxonCacheEntry } from './taxa.ts';
+import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from './taxa.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import './bee-header.ts';
@@ -406,6 +406,11 @@ bee-pane {
       if (this._pendingLegacyTaxon) {
         this._resolveLegacyTaxon(this._pendingLegacyTaxon);
       }
+      // Step 3b: Backfill the display name for a taxon restored from the URL — the
+      // URL carries only the integer taxon_id, so the "Species or group" input would
+      // otherwise render empty despite an active filter. Covers both the integer
+      // restore (firstUpdated) and legacy-name resolution paths.
+      this._resolveTaxonDisplayName();
 
       // County options
       this._countyOptions = [];
@@ -456,6 +461,23 @@ bee-pane {
       }
     }
     // No match found — stale bookmark; leave filter inactive
+  }
+
+  /**
+   * Backfill taxonDisplayName from the taxon cache when a taxon filter was restored
+   * from the URL or browser history (which encode only the integer taxon_id) or
+   * resolved from a legacy name. Without this the "Species or group" input renders
+   * empty even though the filter is active. Uses the same label scheme as the
+   * autocomplete so a restored chip matches a freshly-selected one. No-op when the
+   * display name is already present or the id is unknown (stale bookmark).
+   */
+  private _resolveTaxonDisplayName(): void {
+    const { taxonId, taxonDisplayName } = this._filterState;
+    if (taxonId === null || taxonDisplayName) return;
+    const label = resolveTaxonDisplayName(taxonId, this._taxonCache);
+    if (label !== null) {
+      this._filterState = { ...this._filterState, taxonDisplayName: label };
+    }
   }
 
   private async _loadCollectorOptions(): Promise<void> {
@@ -637,6 +659,9 @@ bee-pane {
     } else {
       this._pendingLegacyTaxon = null; // clear any stale pending from a previous navigation
     }
+    // Backfill the display name for the integer taxon_id restored from history — the
+    // cache is already loaded by the time history navigation fires.
+    this._resolveTaxonDisplayName();
 
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
