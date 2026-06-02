@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
-status: verifying
-stopped_at: Completed 130-02-PLAN.md (lazy taxon cache + autocomplete + URL integer encoding)
-last_updated: "2026-06-02T22:29:38.741Z"
+status: ready_to_plan
+stopped_at: Phase 130 complete (3/3) — ready to discuss Phase 131
+last_updated: 2026-06-02T23:56:29.459Z
 last_activity: 2026-06-02
 progress:
   total_phases: 5
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 130 — map-filter-cutover
+**Current focus:** Phase 131 — occurrence normalization
 
 ## Current Position
 
-Phase: 130 (map-filter-cutover) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 131
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-02
 
 ```

@@ -1,8 +1,9 @@
 ---
 phase: 130-map-filter-cutover
 verified: 2026-06-02T16:00:00Z
-status: human_needed
-score: 3/3 truths verified (code + data layer); 3 user-facing behaviors await live-app confirmation
+status: passed
+human_uat: passed 2026-06-02 (see 130-HUMAN-UAT.md) — one issue found and fixed during UAT (URL-restore taxon label: commits 7c644a3 + 556dbb0)
+score: 3/3 truths verified (code + data layer); 3 user-facing behaviors confirmed in live app via human UAT
 overrides_applied: 0
 human_verification:
   - test: "Type a taxon and select an entry at each rank (family / subfamily / tribe / genus / subgenus / complex / species); confirm the map shows exactly the descendant points."
