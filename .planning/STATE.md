@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.5
-milestone_name: iNat Taxonomy & Species Completeness
-status: Awaiting next milestone
-stopped_at: Phase 128 Plan 01 executed — TID-02 closed
-last_updated: "2026-06-01T20:27:43.665Z"
-last_activity: 2026-06-01 — Milestone v4.5 completed and archived
+milestone: v4.6
+milestone_name: Taxonomy Hierarchy & Normalization
+status: planning
+last_updated: "2026-06-02T00:51:09.493Z"
+last_activity: 2026-06-02
 progress:
-  total_phases: 15
-  completed_phases: 10
-  total_plans: 23
-  completed_plans: 23
-  percent: 67
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,16 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
 
 ## Current Position
 
-Phase: Milestone v4.5 complete (Phases 124–128), tagged v4.5
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-01 — Milestone v4.5 completed and archived
-
-v4.5 (iNat Taxonomy & Species Completeness) shipped 2026-06-01: 13/13 requirements complete.
-TID-02 was re-scoped mid-milestone (impossible as written) and closed by the inserted Phase 128
-(genus-rank backfill, kingdom=Animalia). Phase 128 merged to `main` (fast-forward). Full record in
-MILESTONES.md, RETROSPECTIVE.md, and milestones/v4.5-*. Candidate next milestone: MPTT / nested-set
-subtaxon queries (deferred from v4.5).
+Status: Defining requirements
+Last activity: 2026-06-02 — Milestone v4.6 started
 
 ## Accumulated Context
 
