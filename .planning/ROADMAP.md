@@ -456,7 +456,7 @@ See `.planning/milestones/v4.3-ROADMAP.md` for full phase details.
 <details open>
 <summary>v4.6 Taxonomy Hierarchy & Normalization (Phases 129–133) — IN PROGRESS</summary>
 
-- [ ] Phase 129: Hierarchy Foundation (TBD plans)
+- [ ] Phase 129: Hierarchy Foundation (3 plans)
 - [ ] Phase 130: Map Filter Cutover (TBD plans)
 - [ ] Phase 131: Occurrence Normalization (TBD plans)
 - [ ] Phase 132: Page Rebuild & Subfamily Pages (TBD plans)
@@ -884,7 +884,16 @@ Plans:
   3. Every non-bee bycatch genus present in occurrences has an entry in `taxon_hierarchy` with `is_anthophila = 0`; bycatch taxa never appear in any bee-only surface (verified by query)
   4. A pipeline run after a `taxa.csv.gz` update detects any occurrence `taxon_id` that no longer has a hierarchy entry and fails the nightly gate before export
   5. The foundation phase report records the count of complex-rank occurrences/species and documents the decision on whether dedicated complex pages (PAGE-05) are generated this milestone
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+**Wave 0**
+- [ ] 129-01-PLAN.md — Wave 0 RED hierarchy test stubs + mini taxa.csv.gz/parquet fixtures [HIER-01..06]
+
+**Wave 1** *(blocked on Wave 0)*
+- [ ] 129-02-PLAN.md — _build_taxon_hierarchy three-pass load (Anthophila/bycatch/checklist) + orphan-assertion nightly gate + generate_sqlite wiring [HIER-01, HIER-02, HIER-04, HIER-05]
+
+**Wave 2** *(blocked on Wave 1; human-verify checkpoint)*
+- [ ] 129-03-PLAN.md — Build real occurrences.db, Apidae wa-sqlite/Firefox benchmark + structure decision, complex/bycatch counts + PAGE-05 decision in VERIFICATION.md [HIER-03, HIER-06]
 
 ### Phase 130: Map Filter Cutover
 
