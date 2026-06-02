@@ -436,4 +436,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-01 — Milestone v4.6 (Taxonomy Hierarchy & Normalization) started; requirements/roadmap pending.*
+*Last updated: 2026-06-02 — Phase 129 (Hierarchy Foundation) complete: `taxon_id`-keyed taxa table with materialized `lineage_path` shipped in `occurrences.db` (940 taxa, 0 orphans, 2.0 ms Apidae descendant query); HIER-01..06 validated. Next: Phase 130 (Map Filter Cutover).*
