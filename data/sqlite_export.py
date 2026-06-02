@@ -141,6 +141,10 @@ def _build_taxon_hierarchy(
     """, [str(taxa_path)])
 
     # Add checklist taxon_ids to the seed (if any resolved).
+    # CR-02: apply the same Anthophila ancestry guard the occurrence seed uses, so a
+    # checklist canonical_name that resolves to an off-tree (non-Anthophila) taxon is
+    # dropped before it can reach the Anthophila PASS 1 arm and produce an
+    # is_anthophila=1 row with a malformed '//' lineage_path.
     if checklist_ids:
         placeholders = ", ".join("?" for _ in checklist_ids)
         con.execute(f"""
@@ -148,6 +152,11 @@ def _build_taxon_hierarchy(
             SELECT DISTINCT t.taxon_id
             FROM read_csv(?, {_TAXA_READ_CSV_OPTS}) t
             WHERE t.taxon_id IN ({placeholders})
+              AND (
+                  t.ancestry LIKE '%/630955/%'
+                  OR t.ancestry LIKE '%/630955'
+                  OR t.taxon_id = 630955
+              )
               AND t.taxon_id NOT IN (SELECT taxon_id FROM _bee_seed)
         """, [str(taxa_path)] + checklist_ids)
 
