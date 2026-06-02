@@ -715,7 +715,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 130-01-PLAN.md — filter.ts contract: taxonId FilterState/TaxonOption/FilterChangedEvent + descendant buildFilterSQL clause + taxon_id in OCCURRENCE_COLUMNS + test-helper updates [MFILT-01, MFILT-03]
+- [x] 130-01-PLAN.md — filter.ts contract: taxonId FilterState/TaxonOption/FilterChangedEvent + descendant buildFilterSQL clause + taxon_id in OCCURRENCE_COLUMNS + test-helper updates [MFILT-01, MFILT-03]
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -975,7 +975,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 129. Hierarchy Foundation | v4.6 | 3/3 | Complete    | 2026-06-02 |
-| 130. Map Filter Cutover | v4.6 | 0/TBD | Not started | - |
+| 130. Map Filter Cutover | v4.6 | 1/3 | In Progress|  |
 | 131. Occurrence Normalization | v4.6 | 0/TBD | Not started | - |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
 | 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
