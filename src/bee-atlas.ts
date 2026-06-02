@@ -185,6 +185,7 @@ bee-pane {
             .paneState=${this._paneState}
             .filterState=${this._filterState}
             .taxaOptions=${this._taxaOptions}
+            .taxonCache=${this._taxonCache}
             .countyOptions=${this._countyOptions}
             .ecoregionOptions=${this._ecoregionOptions}
             .collectorOptions=${this._collectorOptions}

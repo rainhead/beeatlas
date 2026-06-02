@@ -2,6 +2,7 @@ import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { OccurrenceRow } from './filter.ts';
 import { isSpecimenBacked, isProvisional } from './occurrence.ts';
+import type { TaxonCacheEntry } from './taxa.ts';
 
 const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 
@@ -45,6 +46,7 @@ function groupOccurrences(rows: OccurrenceRow[]): DateGroup[] {
 @customElement('bee-occurrence-detail')
 export class BeeOccurrenceDetail extends LitElement {
   @property({ attribute: false }) occurrences: OccurrenceRow[] = [];
+  @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
 
   static styles = css`
     :host {
@@ -183,9 +185,12 @@ export class BeeOccurrenceDetail extends LitElement {
       <div class="sample">
         <div class="sample-header">${group.recordedBy || html`<span class="hint">unknown</span>`}</div>
         <ul class="species-list">
-          ${group.rows.map(row => html`
+          ${group.rows.map(row => {
+            const info = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
+            const displayName = info?.name ?? null;
+            return html`
             <li>
-              <a href="https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}" target="_blank" rel="noopener">${row.scientificName ? row.scientificName : html`<span class="no-determination">No determination</span>`}</a>
+              <a href="https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}" target="_blank" rel="noopener">${displayName ? displayName : html`<span class="no-determination">No determination</span>`}</a>
               ${row.host_observation_id != null ? html`
                 · <a href="https://www.inaturalist.org/observations/${row.host_observation_id}" target="_blank" rel="noopener">${this._renderHostInfo(row)}</a>
               ` : html` · <span class="inat-missing">iNat: —</span>`}
@@ -193,7 +198,7 @@ export class BeeOccurrenceDetail extends LitElement {
                 · <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}" target="_blank" rel="noopener" aria-label="View photo on iNaturalist">📷</a>
               ` : ''}
             </li>
-          `)}
+          `; })}
         </ul>
       </div>
     `;
@@ -250,8 +255,10 @@ export class BeeOccurrenceDetail extends LitElement {
 
   private _renderInatObs(row: OccurrenceRow) {
     const isCC = row.license != null && row.license.toUpperCase().startsWith('CC');
-    const taxonEl = row.scientificName
-      ? html`<em>${row.scientificName}</em>`
+    const inatInfo = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
+    const inatDisplayName = inatInfo?.name ?? null;
+    const taxonEl = inatDisplayName
+      ? html`<em>${inatDisplayName}</em>`
       : html`<span class="hint">identification unknown</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
@@ -264,7 +271,7 @@ export class BeeOccurrenceDetail extends LitElement {
         ${isCC && row.image_url != null ? html`
           <img
             src="${row.image_url}"
-            alt="Photo of ${row.scientificName ?? 'bee'} by ${row.user_login ?? 'observer'} on iNaturalist"
+            alt="Photo of ${inatDisplayName ?? 'bee'} by ${row.user_login ?? 'observer'} on iNaturalist"
             style="width:100%;max-height:200px;object-fit:cover;border-radius:4px;"
           />
         ` : ''}
