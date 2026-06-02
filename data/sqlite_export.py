@@ -233,7 +233,14 @@ def _build_taxon_hierarchy(
                   'infrahybrid', 'hybrid'
               )
               AND t.taxon_id NOT IN (SELECT taxon_id FROM out.taxa)
-            QUALIFY ROW_NUMBER() OVER (PARTITION BY t.taxon_id ORDER BY t.taxon_id) = 1
+            -- WR-03: deterministic tiebreak for duplicate taxon_ids in taxa.csv.gz.
+            -- Prefer the active row, then the finest rank (smallest rank_level), so
+            -- selection is stable build-to-build instead of ordering by the constant
+            -- partition key.
+            QUALIFY ROW_NUMBER() OVER (
+                PARTITION BY t.taxon_id
+                ORDER BY (t.active = 'true') DESC, t.rank_level ASC
+            ) = 1
         ) lp
         WHERE lp.lineage_path LIKE '/630955/%'
     """, [str(taxa_path)])
@@ -270,7 +277,11 @@ def _build_taxon_hierarchy(
               OR t.ancestry LIKE '%/630955'
               OR t.taxon_id = 630955
           )
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY t.taxon_id ORDER BY t.taxon_id) = 1
+        -- WR-03: deterministic tiebreak (prefer active, then finest rank).
+        QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY t.taxon_id
+            ORDER BY (t.active = 'true') DESC, t.rank_level ASC
+        ) = 1
     """, [str(taxa_path)])
 
     # ---- Drop temp tables -----------------------------------------------------
