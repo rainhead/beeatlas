@@ -100,8 +100,16 @@ def _build_taxon_hierarchy(
             checklist_ids = [r[0] for r in rows if r[0] is not None]
         finally:
             db_con.close()
-    except Exception:
-        # Checklist or canonical_to_taxon_id absent in test context — degrade gracefully.
+    except (duckdb.CatalogException, duckdb.IOException):
+        # Expected in test contexts: the checklist parquet, the
+        # inaturalist_data.canonical_to_taxon_id table, or beeatlas.duckdb itself is
+        # absent. Degrade gracefully — checklist-only seeds simply do not contribute.
+        checklist_ids = []
+    except Exception as e:  # noqa: BLE001
+        # WR-02: any OTHER failure (schema drift, renamed column, corrupt parquet,
+        # lock contention) used to be swallowed silently, shipping a nightly build
+        # with degraded Anthophila coverage and no signal. Surface it loudly instead.
+        print(f"WARNING: checklist seed failed, proceeding without it: {e}")  # noqa: T201
         checklist_ids = []
 
     # Check whether out.occurrences has a taxon_id column.
