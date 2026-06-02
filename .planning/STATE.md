@@ -4,13 +4,13 @@ milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
 status: executing
 stopped_at: Phase 129 context gathered
-last_updated: "2026-06-02T17:33:39.093Z"
-last_activity: 2026-06-02 -- Phase 129 planning complete
+last_updated: "2026-06-02T17:46:37.165Z"
+last_activity: 2026-06-02
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v4.6 Taxonomy Hierarchy & Normalization — hierarchy foundation first (Phase 129)
+**Current focus:** Phase 129 — hierarchy-foundation
 
 ## Current Position
 
-Phase: 129 — Hierarchy Foundation
-Plan: Not started
+Phase: 129 (hierarchy-foundation) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-02 -- Phase 129 planning complete
+Last activity: 2026-06-02
 
 ```
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/5 phases)
+Progress: [███░░░░░░░] 33%
 ```
 
 ## Accumulated Context
@@ -94,9 +94,9 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-02T15:36:31.903Z
+Last session: 2026-06-02T17:46:37.145Z
 Stopped at: Phase 129 context gathered
-Resume file: .planning/phases/129-hierarchy-foundation/129-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 

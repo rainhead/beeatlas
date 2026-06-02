@@ -9,12 +9,12 @@
 
 ### Hierarchy Foundation (pipeline)
 
-- [ ] **HIER-01**: A `taxon_id`-keyed taxon hierarchy is built in the pipeline from `taxa.csv.gz`, covering every taxon referenced by occurrences and the checklist (bees *and* non-bee aculeate bycatch), and supports descendant-by-any-rank queries.
-- [ ] **HIER-02**: The hierarchy resolves any occurrence's `taxon_id` to its name, rank, and ancestry — including complex-rank and bycatch taxa — so every map point remains renderable after the denormalized rank columns are dropped.
-- [ ] **HIER-03**: The hierarchy ships to the frontend (inside `occurrences.db` or a companion artifact) and answers descendant queries efficiently in SQLite-WASM; the structure (materialized-path vs. closure/nested-set) is chosen by benchmarking the largest bee subtree (Apidae, ~4000 spp.) before the schema is finalized.
-- [ ] **HIER-04**: The hierarchy uses active taxa and respects the v4.5 synonym / inactive-taxon bridge; a post-build assertion detects orphan / missing-parent taxa and fails the nightly gate.
-- [ ] **HIER-05**: Non-bee bycatch taxa carry an `is_bee = false` (or equivalent) flag so they never leak into bee-only surfaces; all hierarchy joins/keys use `taxon_id`, never names.
-- [ ] **HIER-06**: The foundation phase reports the count of complex-rank and bycatch occurrences/species, recording the decision on whether dedicated complex pages are generated (PAGE-05).
+- [x] **HIER-01**: A `taxon_id`-keyed taxon hierarchy is built in the pipeline from `taxa.csv.gz`, covering every taxon referenced by occurrences and the checklist (bees *and* non-bee aculeate bycatch), and supports descendant-by-any-rank queries.
+- [x] **HIER-02**: The hierarchy resolves any occurrence's `taxon_id` to its name, rank, and ancestry — including complex-rank and bycatch taxa — so every map point remains renderable after the denormalized rank columns are dropped.
+- [x] **HIER-03**: The hierarchy ships to the frontend (inside `occurrences.db` or a companion artifact) and answers descendant queries efficiently in SQLite-WASM; the structure (materialized-path vs. closure/nested-set) is chosen by benchmarking the largest bee subtree (Apidae, ~4000 spp.) before the schema is finalized.
+- [x] **HIER-04**: The hierarchy uses active taxa and respects the v4.5 synonym / inactive-taxon bridge; a post-build assertion detects orphan / missing-parent taxa and fails the nightly gate.
+- [x] **HIER-05**: Non-bee bycatch taxa carry an `is_bee = false` (or equivalent) flag so they never leak into bee-only surfaces; all hierarchy joins/keys use `taxon_id`, never names.
+- [x] **HIER-06**: The foundation phase reports the count of complex-rank and bycatch occurrences/species, recording the decision on whether dedicated complex pages are generated (PAGE-05).
 
 ### Occurrence Normalization (size win)
 
@@ -75,12 +75,12 @@ Explicitly excluded for v4.6.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HIER-01 | Phase 129 | Pending |
-| HIER-02 | Phase 129 | Pending |
-| HIER-03 | Phase 129 | Pending |
-| HIER-04 | Phase 129 | Pending |
-| HIER-05 | Phase 129 | Pending |
-| HIER-06 | Phase 129 | Pending |
+| HIER-01 | Phase 129 | Complete |
+| HIER-02 | Phase 129 | Complete |
+| HIER-03 | Phase 129 | Complete |
+| HIER-04 | Phase 129 | Complete |
+| HIER-05 | Phase 129 | Complete |
+| HIER-06 | Phase 129 | Complete |
 | MFILT-01 | Phase 130 | Pending |
 | MFILT-02 | Phase 130 | Pending |
 | MFILT-03 | Phase 130 | Pending |
