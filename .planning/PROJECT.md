@@ -5,7 +5,7 @@
 **Goal:** Replace denormalized rank columns with a single `taxon_id` resolved against a rank-agnostic taxon hierarchy — shrinking transfer weight and the SQLite DB, eliminating rank-specific fragility, and unlocking descendant-by-any-rank browsing and filtering for bees.
 
 **Target features:**
-- **Hierarchy foundation (pipeline):** a `taxon_id`-keyed taxon hierarchy supporting efficient descendant-by-any-rank queries, built from `taxa.csv.gz`, covering all occurrence + checklist taxa (bees *and* non-bee aculeate bycatch), respecting v4.5 active-taxon/synonym handling. Structure (nested set / closure table / lineage) chosen by research. Ranks: family, subfamily, tribe, genus, subgenus, species; nothing above family surfaced.
+- **Hierarchy foundation (pipeline):** a `taxon_id`-keyed taxon hierarchy supporting efficient descendant-by-any-rank queries, built from `taxa.csv.gz`, covering all occurrence + checklist taxa (bees *and* non-bee aculeate bycatch), respecting v4.5 active-taxon/synonym handling. Structure (materialized-path / closure / nested-set) chosen by research. Surfaced ranks (hard-coded): family, subfamily, tribe, genus, subgenus, complex, species; nothing above family surfaced. Complexes are hierarchy-resident and filterable; dedicated complex pages deferred unless occurrence counts warrant (decided in the foundation phase).
 - **Occurrence normalization + size win:** drop denormalized rank columns (`genus`, `family`, `scientificName`, `canonical_name`, …) from the occurrences mart / `occurrences.db`; names and lineage resolve from the hierarchy. New, smaller column contract (the 37-col contract is rewritten). Measurable transfer-weight + DB-size reduction.
 - **Frontend filtering cutover:** map filtering reads `taxon_id` + hierarchy descendant queries instead of string columns. Taxon autocomplete extended to subfamily/tribe/subgenus (bee taxa); selection resolves to a `taxon_id`. URL round-trip / clear-filters preserved.
 - **Page rebuild on the new foundation:** genus/subgenus/tribe page maps + "N specimens · N community observations" totals recomputed from the hierarchy (behavior preserved). New subfamily pages generated for consistency.
@@ -14,7 +14,7 @@
 **Key context / constraints:**
 - **Taxon names are NOT unique within a kingdom** (only species binomials are; subgenera often share the genus name). Hierarchy keyed/traversed by `taxon_id`; autocomplete resolves to ids; page generation keys on `taxon_id` internally while public slugs stay name-based (slug-collision edge cases resolved at planning time).
 - **Bees (Anthophila) are monophyletic** → the bee-only presentation filter is overlap-free; non-bee taxa live in the hierarchy only so their map points still resolve to a name after the columns drop. Bycatch gets no tree presence, no pages, no autocomplete entry.
-- **Reusability** is an explicit design value — no rank-specific or bee-specific logic in the structure; a wasp atlas should be a config flip.
+- **Reusability** is an explicit design value — the hierarchy structure is `taxon_id`-keyed and **bee-agnostic** (bee-only is a presentation filter, not baked into the data). Rank handling stays hard-coded, not fully generic: several ranks carry their own design considerations, so a forced rank-agnostic abstraction isn't worth fighting for.
 - **Floral hosts: out of scope** (no host taxon_ids exist; nothing depends on them yet).
 - No known rollup miscounts — page work is a faithful reimplementation on the new foundation.
 
