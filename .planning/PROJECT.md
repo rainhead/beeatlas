@@ -1,5 +1,23 @@
 # Washington Bee Atlas
 
+## Current Milestone: v4.6 Taxonomy Hierarchy & Normalization
+
+**Goal:** Replace denormalized rank columns with a single `taxon_id` resolved against a rank-agnostic taxon hierarchy — shrinking transfer weight and the SQLite DB, eliminating rank-specific fragility, and unlocking descendant-by-any-rank browsing and filtering for bees.
+
+**Target features:**
+- **Hierarchy foundation (pipeline):** a `taxon_id`-keyed taxon hierarchy supporting efficient descendant-by-any-rank queries, built from `taxa.csv.gz`, covering all occurrence + checklist taxa (bees *and* non-bee aculeate bycatch), respecting v4.5 active-taxon/synonym handling. Structure (nested set / closure table / lineage) chosen by research. Ranks: family, subfamily, tribe, genus, subgenus, species; nothing above family surfaced.
+- **Occurrence normalization + size win:** drop denormalized rank columns (`genus`, `family`, `scientificName`, `canonical_name`, …) from the occurrences mart / `occurrences.db`; names and lineage resolve from the hierarchy. New, smaller column contract (the 37-col contract is rewritten). Measurable transfer-weight + DB-size reduction.
+- **Frontend filtering cutover:** map filtering reads `taxon_id` + hierarchy descendant queries instead of string columns. Taxon autocomplete extended to subfamily/tribe/subgenus (bee taxa); selection resolves to a `taxon_id`. URL round-trip / clear-filters preserved.
+- **Page rebuild on the new foundation:** genus/subgenus/tribe page maps + "N specimens · N community observations" totals recomputed from the hierarchy (behavior preserved). New subfamily pages generated for consistency.
+- **/species browse tree (bee-only):** expandable tree, default family → genus → species; subfamily/tribe/subgenus as lazy deeper expansions. Per-node specimen/observation split. Type-to-filter auto-expands to matches. Checklist-only species still shown (existing badge treatment).
+
+**Key context / constraints:**
+- **Taxon names are NOT unique within a kingdom** (only species binomials are; subgenera often share the genus name). Hierarchy keyed/traversed by `taxon_id`; autocomplete resolves to ids; page generation keys on `taxon_id` internally while public slugs stay name-based (slug-collision edge cases resolved at planning time).
+- **Bees (Anthophila) are monophyletic** → the bee-only presentation filter is overlap-free; non-bee taxa live in the hierarchy only so their map points still resolve to a name after the columns drop. Bycatch gets no tree presence, no pages, no autocomplete entry.
+- **Reusability** is an explicit design value — no rank-specific or bee-specific logic in the structure; a wasp atlas should be a config flip.
+- **Floral hosts: out of scope** (no host taxon_ids exist; nothing depends on them yet).
+- No known rollup miscounts — page work is a faithful reimplementation on the new foundation.
+
 ## Milestone: v4.5 iNat Taxonomy & Species Completeness — COMPLETE (2026-06-01)
 
 **Shipped:** A non-null `taxon_id INTEGER` surfaced through the dbt marts (species.parquet 0-null; occurrences.parquet 37-col contract) behind a pre-build resolution gate; 65 off-checklist species made visible (231 new occurrence SVGs + static pages); "View on iNaturalist →" links on species/genus/subgenus/tribe pages; a dormant inactive-taxon auto-remap safety net (`auto_synonyms` + hard-fail gate, manual entries win); and a genus-rank occurrence taxon_id backfill that drove `occurrences.parquet` NULL taxon_id **34,354 → 21,680**. 13/13 requirements complete.
@@ -54,7 +72,7 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ### Active (v4.6)
 
-*(Next milestone not yet defined — run `/gsd:new-milestone`. Candidate: MPTT / nested-set subtaxon queries deferred from v4.5.)*
+*Taxonomy Hierarchy & Normalization — see Current Milestone above. Requirements defined in `.planning/REQUIREMENTS.md`; mapped to phases in `.planning/ROADMAP.md`.*
 
 ### Validated
 
@@ -252,7 +270,7 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 | Feature | Reason |
 |---------|--------|
-| Tribe-level filtering | Tribe not present in Ecdysis DarwinCore export |
+| ~~Tribe-level filtering~~ | ~~Tribe not present in Ecdysis DarwinCore export~~ — **superseded in v4.6**: tribe (and subfamily/subgenus) now resolve from `taxa.csv.gz` lineage, not the DarwinCore export |
 | Server-side API or backend | Static hosting constraint — all data client-side |
 | User accounts / saved filters | URL sharing covers the use case |
 | Multi-source data (GBIF, OSU Museum) | Experimental; Ecdysis is the specimen source of truth |
@@ -418,4 +436,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-01 — Phase 127 (Inactive Taxon Remapping) complete, the final v4.5 phase; milestone v4.5 ready for `/gsd:complete-milestone`.*
+*Last updated: 2026-06-01 — Milestone v4.6 (Taxonomy Hierarchy & Normalization) started; requirements/roadmap pending.*
