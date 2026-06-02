@@ -73,36 +73,34 @@ Explicitly excluded for v4.6.
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| HIER-01 | TBD | Pending |
-| HIER-02 | TBD | Pending |
-| HIER-03 | TBD | Pending |
-| HIER-04 | TBD | Pending |
-| HIER-05 | TBD | Pending |
-| HIER-06 | TBD | Pending |
-| NORM-01 | TBD | Pending |
-| NORM-02 | TBD | Pending |
-| NORM-03 | TBD | Pending |
-| MFILT-01 | TBD | Pending |
-| MFILT-02 | TBD | Pending |
-| MFILT-03 | TBD | Pending |
-| PAGE-01 | TBD | Pending |
-| PAGE-02 | TBD | Pending |
-| PAGE-03 | TBD | Pending |
-| PAGE-04 | TBD | Pending |
-| TREE-01 | TBD | Pending |
-| TREE-02 | TBD | Pending |
-| TREE-03 | TBD | Pending |
-| TREE-04 | TBD | Pending |
+| HIER-01 | Phase 129 | Pending |
+| HIER-02 | Phase 129 | Pending |
+| HIER-03 | Phase 129 | Pending |
+| HIER-04 | Phase 129 | Pending |
+| HIER-05 | Phase 129 | Pending |
+| HIER-06 | Phase 129 | Pending |
+| MFILT-01 | Phase 130 | Pending |
+| MFILT-02 | Phase 130 | Pending |
+| MFILT-03 | Phase 130 | Pending |
+| NORM-01 | Phase 131 | Pending |
+| NORM-02 | Phase 131 | Pending |
+| NORM-03 | Phase 131 | Pending |
+| PAGE-01 | Phase 132 | Pending |
+| PAGE-02 | Phase 132 | Pending |
+| PAGE-03 | Phase 132 | Pending |
+| PAGE-04 | Phase 132 | Pending |
+| TREE-01 | Phase 133 | Pending |
+| TREE-02 | Phase 133 | Pending |
+| TREE-03 | Phase 133 | Pending |
+| TREE-04 | Phase 133 | Pending |
 
 **Coverage:**
 - v1 requirements: 20 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 20 ⚠️ (resolved by roadmap)
+- Mapped to phases: 20/20 (100%)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-01*
-*Last updated: 2026-06-01 after initial definition*
+*Last updated: 2026-06-01 — traceability remapped: MFILT→130, NORM→131, PAGE→132, TREE→133 (5-phase split)*

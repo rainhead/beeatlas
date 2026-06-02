@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
 status: planning
-last_updated: "2026-06-02T00:51:09.493Z"
-last_activity: 2026-06-02
+last_updated: "2026-06-01T00:00:00.000Z"
+last_activity: 2026-06-01
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,63 +17,50 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-29 — milestone v4.5 started)
+See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v4.5 shipped & archived — planning next milestone (`/gsd:new-milestone`)
+**Current focus:** v4.6 Taxonomy Hierarchy & Normalization — hierarchy foundation first (Phase 129)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-06-02 — Milestone v4.6 started
+Phase: 129 — Hierarchy Foundation
+Plan: Not started
+Status: Planning complete; ready to execute Phase 129
+Last activity: 2026-06-01 — Roadmap revised to 5 phases (130 split into 130 Map Filter Cutover + 131 Occurrence Normalization)
+
+```
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (0/5 phases)
+```
 
 ## Accumulated Context
 
 ### Decisions
 
-All v4.3 decisions logged in PROJECT.md Key Decisions table.
+All v4.5 decisions logged in `.planning/milestones/v4.5-ROADMAP.md` and PROJECT.md Key Decisions table.
 
-Phase 128 Plan 01 decisions:
+**v4.6 Roadmap decisions (2026-06-01):**
 
-- Genus disambiguation by kingdom = Animalia (ancestry contains taxon 1), not Anthophila — non-bee aculeates (wasps/flies) resolve to their real genus taxon (stelis→127831, bembix→53067)
-- stg_inat__genus_taxon_ids reads ../raw/taxa.csv.gz directly via DuckDB read_csv (first raw-CSV-in-model in the repo); excludes the 58 cross-phylum animal-genus homonyms via HAVING COUNT(*)=1 so genus_name is unique and the LEFT JOIN cannot fan out (0 of our 149 genera affected; ambiguous future names surface as NULL, not a wrong link)
-- Per-ARM COALESCE(<bridge>.taxon_id, genus.taxon_id) guarded by taxon_id IS NULL + single-token detection; not_null test re-scoped to every named row (severity: warn); consistency test scoped to species-level (D-06)
-- Backfill: whole-column NULL taxon_id 34,354 → 21,680; 12,674 genus rows (149 genera) NULL → non-null; 37-col contract held; taxon_id stays INTEGER
-- Pre-existing (deferred): `data/dbt/run.sh build` needs an absolute DB_PATH or the seeds fail with a dbt-duckdb seed-path resolution bug (nightly already uses absolute DB_PATH); logged in 128 deferred-items.md
-
-Phase 126 Plan 3 decisions:
-
-- taxon-action class uses display:block + width:fit-content to keep action links on separate lines without a flex wrapper; applied to all four taxon templates for consistency
-- CSS rule placed in taxon-pages.css under .taxon-page .taxon-action to stay scoped to taxon page context
-
-Phase 126 Plan 2 decisions:
-
-- taxa.csv.gz active column is BOOLEAN (not string); DuckDB query uses active=true; higher_rank_taxon_ids.json gitignored consistent with species.json treatment
-- Rank filter in _build_higher_rank_taxon_ids resolves Bombus genus/subgenus name collision (T-126-05); each rank dict holds only its rank's taxon_id
-- test_dbt_diff.py occurrences diff tests have pre-existing failures (require full pipeline run to populate public/data/); unrelated to plan 02 scope
-
-Phase 126 Plan 1 decisions:
-
-- D-01 enforced by resolution gate in production; species mart uses strict dbt NOT NULL constraint; occurrences mart uses severity:warn data_test (not hard constraint) due to 3 pre-existing unresolvable ecdysis species (anthidiellum robertsoni, lasioglossum aspilurus, osmia phaceliae — 0 iNat API results)
-- KNOWN_NON_BEES = {"cicindela pugetana", "cleridae", "encopognathus"} — confirmed non-bee WABA bycatch excluded from occurrences ARM 2 via WHERE filter; reported by gate (D-09)
-- Resolution union extended: dbt_sandbox.occurrence_synonyms (not main) and inaturalist_waba_data.observations (not inat_waba_data) — PATTERNS.md schema references were incorrect
-- int_combined taxon_id uses ::INTEGER cast (BIGINT source); WABA canonical_name uses ::VARCHAR cast; aliases ctt/ctt_w/ctt_io avoid collision in UNION ALL
-
-Phase 123 decisions:
-
-- Moved occurrence_synonyms.csv to data/dbt/seeds/ (deleted data/occurrence_synonyms.csv); updated OCCURRENCE_SYNONYMS_PATH in canonical_name.py — one canonical file, no duplication
-- apply_synonym() kept in canonical_name.py (unit tests pass); only ingest-time callsites in checklist_pipeline and inat_obs_pipeline removed
-- Both pipeline ingest functions now write raw normalize_scientific_name() output; synonym application delegated to dbt int_combined LEFT JOIN
-- Per-arm LEFT JOIN (not leading CTE) in int_combined to avoid CTE scoping risk with UNION ALL
-- agapostemon texanus retained as checklist-only species row (occurrence_count=0, inat_obs_count=0) per research Pitfall 5 — test corrected accordingly
+- Phases 129–133 continue the v4.5 numbering (v4.5 ended at Phase 128)
+- NORM and MFILT are now separate phases (130 and 131) in additive-then-subtractive order: the frontend switches to taxon_id filtering first (Phase 130, additive — old string columns still exist and are ignored), then the old columns are dropped (Phase 131, subtractive — safe because the frontend no longer reads them). Atomicity / safe-intermediate-states is explicitly not a concern this milestone.
+- Phase 130 is the first frontend change; it is additive (the denormalized columns still exist). No broken intermediate state is possible.
+- Phase 131 is the column-drop. The grep audit and geo_blob rewrite happen here. This is lower risk than the fused approach because Phase 130 already exercises the hierarchy path in production.
+- Phase 132 (Page Rebuild & Subfamily Pages) depends on Phase 129 (hierarchy foundation) only — the species mart is unaffected by the occurrences column drop in Phase 131, so Phase 132 can be planned independently of Phase 131.
+- Phase 133 (Browse Tree) depends on Phase 130 (filter infrastructure) and Phase 132 (subfamily pages as link destinations).
+- Hierarchy structure (closure table vs. nested sets) decided in Phase 129 via latency benchmark: Apidae descendants filter in wa-sqlite/Firefox must be < 50 ms. If over, use nested-set lft/rgt.
+- Bycatch handled via two-pass hierarchy load: (1) full Anthophila walk as usual, (2) targeted ancestry walk for bycatch taxon_ids actually present in occurrences.parquet. Bycatch gets is_anthophila=0 flag; appears in hierarchy for name resolution only.
+- canonical_name is kept in the occurrences contract — it is the sole textual taxon reference for the ~21k genuinely-unidentified Ecdysis specimens (NULL taxon_id).
+- species mart keeps its rank name columns (family, subfamily, tribe, genus, subgenus) — they serve page generation via Eleventy and are not a transfer-weight concern.
+- PAGE-05 (complex pages) is conditional: decided in Phase 129 based on complex-rank occurrence count. If < ~50 occurrences, complex nodes deep-link to filtered map view instead.
+- URL param `taxon=` migrates from name string to integer taxon_id in Phase 130; old name-format URLs get a backward-compatible fallback parse.
 
 ### Roadmap Evolution
 
-- Phase 128 added (2026-06-01): Occurrence Finest-Rank Taxon Backfill — closes re-scoped TID-02 (genus-rank taxon_id for 12,674 genus-level occurrence rows)
-- Phase 121: Prebuilt SQLite Load — COMPLETE
-- Phase 122: Worker GeoJSON Aggregation — COMPLETE
+- Phase 129: Hierarchy Foundation — starting point for v4.6
+- Phase 130: Map Filter Cutover (MFILT-01..03) — additive frontend switch to taxon_id filtering
+- Phase 131: Occurrence Normalization (NORM-01..03) — subtractive column drop, safe after Phase 130
+- Phase 132: Page Rebuild & Subfamily Pages (PAGE-01..04) — depends on 129; independent of 131
+- Phase 133: Browse Tree (TREE-01..04) — depends on 130 and 132
 
 ### Pending Todos
 
@@ -81,13 +68,12 @@ None.
 
 ### Blockers/Concerns
 
-None.
+- Phase 129 has one open technical question: hierarchy structure (closure vs. nested sets). Resolved by latency benchmark at the start of Phase 129 planning before any schema is finalized.
+- Phase 131 requires a pre-migration grep audit across src/, data/, _pages/ before any column is removed. The geo_blob positional coupling between sqlite_export.py and features.ts is the highest-risk surface (silent wrong data on mismatch, not a thrown error). Risk is lower than originally modeled because Phase 130 will have already exercised the hierarchy read-path in production.
 
 ## Deferred Items
 
-- ✅ DEF-128-01 (RESOLVED 2026-06-01): `run.sh` now defaults `DB_PATH` to an absolute path so local builds are CWD-independent. Acute symptom didn't reproduce on re-investigation; applied as hardening. See `.planning/phases/128-occurrence-finest-rank-taxon-backfill/deferred-items.md`.
-
-Acknowledged and deferred at v4.5 milestone close (2026-06-01) — all pre-existing, carried from prior milestones, not v4.5 deliverables:
+Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -95,8 +81,6 @@ Acknowledged and deferred at v4.5 milestone close (2026-06-01) — all pre-exist
 | uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (v4.0) |
 | todo | cluster-selection-visual-feedback | medium priority (frontend, unrelated) |
 | quick_tasks | 22 legacy quick-task dirs | missing completion marker (scanner cruft, empty dates) |
-
-(Phase 126 `gaps_found` from this milestone was RESOLVED — TID-02 closed by Phase 128 — not deferred.)
 
 ## Quick Tasks Completed
 
@@ -109,10 +93,12 @@ Acknowledged and deferred at v4.5 milestone close (2026-06-01) — all pre-exist
 
 ## Session Continuity
 
-Last session: 2026-06-01T20:14:00.000Z
-Stopped at: Phase 128 Plan 01 executed — TID-02 closed
+Last session: 2026-06-01 — Roadmap revised to 5 phases for v4.6 (Phase 130 split into 130 Map Filter Cutover + 131 Occurrence Normalization; 131→132, 132→133)
+Stopped at: Roadmap revision complete; Phase 129 ready to plan
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd:plan-phase 129` to plan and execute Phase 129 (Hierarchy Foundation)
+- First task in Phase 129: latency benchmark for descendant query in wa-sqlite (Apidae family, ~4000 species) — this gates the hierarchy structure decision
+- Second task: count complex-rank occurrences/species to decide on PAGE-05 (complex pages)
