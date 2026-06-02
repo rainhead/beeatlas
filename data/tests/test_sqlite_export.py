@@ -171,8 +171,17 @@ TAXA_ROWS = [
     (47221, "48460/1/47120/372739/47158/184884/47157/630955", 30, "family", "Apidae", "true"),
     (52775, "48460/1/47120/372739/47158/184884/47157/630955/47221", 20, "genus", "Apis", "true"),
     (47219, "48460/1/47120/372739/47158/184884/47157/630955/47221/52775", 10, "species", "Apis mellifera", "true"),
+    # CR-01: an Anthophila taxon below species rank (subspecies under Apis mellifera).
+    # Its ancestry contains /630955/, so it is a genuine bee — it must be owned by
+    # PASS 1 (is_anthophila=1 + well-formed lineage), NOT the bycatch arm.
+    (999001, "48460/1/47120/372739/47158/184884/47157/630955/47221/52775/47219", 5, "subspecies", "Apis mellifera ligustica", "true"),
     # bycatch: Vespidae (non-bee) — ancestry does NOT contain /630955/
     (52747, "48460/1/47120/372739/47158/184884/47157", 30, "family", "Vespidae", "true"),
+    # CR-02: an off-tree taxon (NOT under Anthophila) that a checklist canonical_name
+    # could resolve to. The checklist seed must drop it via the ancestry guard so it
+    # is never stamped is_anthophila=1 with a malformed '//' lineage_path. Not
+    # referenced by any occurrence, so it never enters via the occurrence/bycatch arms.
+    (52750, "48460/1/47120/372739/47158/184884/47157", 30, "family", "Formicidae", "true"),
 ]
 
 
@@ -199,6 +208,8 @@ PARQUET_WITH_TAXON_ROWS = [
     (47.5, -120.8, "Apis mellifera", 2024, 47219),    # bee
     (47.6, -121.0, "Vespula squamosa", 2023, 52747),   # bycatch
     (48.1, -122.3, "Bombus vosnesenskii", 2024, None),  # NULL taxon_id (ok)
+    # CR-01: occurrence identified to a sub-species Anthophila taxon (below species).
+    (46.5, -119.9, "Apis mellifera ligustica", 2025, 999001),  # sub-species bee
 ]
 
 
@@ -354,6 +365,124 @@ def test_bycatch_present_in_taxa(src_parquet_with_taxon: Path, taxa_csv_gz: Path
     assert is_anthophila == 0, f"Bycatch taxon should have is_anthophila=0, got {is_anthophila}"
     assert name is not None, "Bycatch taxon name should not be NULL"
     assert rank is not None, "Bycatch taxon rank should not be NULL"
+
+
+def test_subspecies_anthophila_not_bycatch(
+    src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path
+) -> None:
+    """CR-01 regression: an occurrence identified to a sub-species Anthophila taxon
+    (below species rank) must be owned by PASS 1 — is_anthophila=1 with a non-null,
+    well-formed lineage_path — NOT dropped into the is_anthophila=0 bycatch arm.
+
+    Against the pre-fix code (rank filter excludes 'subspecies'; PASS 2 has no
+    Anthophila guard) taxon 999001 lands in bycatch with is_anthophila=0 and a NULL
+    lineage_path, so the assertions below fail.
+    """
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    rows = con.execute(
+        "SELECT taxon_id, rank, is_anthophila, lineage_path FROM taxa WHERE taxon_id = 999001"
+    ).fetchall()
+    con.close()
+
+    assert len(rows) == 1, f"Expected sub-species taxon 999001 in taxa, got {len(rows)} rows"
+    taxon_id, rank, is_anthophila, lineage_path = rows[0]
+    assert rank == "subspecies", f"Expected rank 'subspecies', got {rank!r}"
+    assert is_anthophila == 1, (
+        f"Sub-species bee 999001 should be is_anthophila=1, got {is_anthophila} "
+        "(regressed into the bycatch arm)"
+    )
+    assert lineage_path is not None, "Sub-species bee should have a non-null lineage_path"
+    # Well-formed: starts at the Anthophila root, no empty '//' segments, ends with self.
+    assert "//" not in lineage_path, f"lineage_path has an empty segment: {lineage_path!r}"
+    assert lineage_path.startswith("/630955/"), (
+        f"lineage_path must start at the Anthophila root: {lineage_path!r}"
+    )
+    assert lineage_path.endswith("/999001/"), (
+        f"lineage_path must end with the taxon's own id: {lineage_path!r}"
+    )
+
+
+def test_offtree_checklist_taxon_not_flagged_anthophila(taxa_csv_gz: Path, tmp_path: Path) -> None:
+    """CR-02 regression: a checklist canonical_name that resolves to an off-tree
+    (non-Anthophila) taxon must NOT be inserted as is_anthophila=1, and must never
+    produce a malformed '//' lineage_path.
+
+    This drives the real checklist seed path: a minimal beeatlas.duckdb with
+    inaturalist_data.canonical_to_taxon_id plus a checklist.parquet in the sandbox.
+    Against the pre-fix code (checklist seed lacked the ancestry guard) taxon 52750
+    is stamped is_anthophila=1 with lineage_path='//', and the gate does not catch it.
+    """
+    import sqlite_export
+    from sqlite_export import generate_sqlite
+
+    # Build a fake dbt sandbox containing checklist.parquet (canonical_name -> name).
+    sandbox = tmp_path / "sandbox"
+    sandbox.mkdir()
+    checklist_table = pa.table({"canonical_name": pa.array(["Formicidae"], type=pa.string())})
+    pq.write_table(checklist_table, sandbox / "checklist.parquet")
+
+    # Build a minimal beeatlas.duckdb with inaturalist_data.canonical_to_taxon_id
+    # mapping the checklist canonical_name to the off-tree taxon 52750 (Formicidae).
+    db_path = tmp_path / "beeatlas.duckdb"
+    seed = duckdb.connect(str(db_path))
+    try:
+        seed.execute("CREATE SCHEMA inaturalist_data")
+        seed.execute(
+            "CREATE TABLE inaturalist_data.canonical_to_taxon_id "
+            "(canonical_name VARCHAR, taxon_id BIGINT)"
+        )
+        seed.execute(
+            "INSERT INTO inaturalist_data.canonical_to_taxon_id VALUES ('Formicidae', 52750)"
+        )
+    finally:
+        seed.close()
+
+    # Parquet whose only occurrence is a genuine bee, so the orphan gate stays green
+    # regardless of the checklist resolution.
+    bee_only = pa.table(
+        {
+            "lat": pa.array([47.5], type=pa.float64()),
+            "lon": pa.array([-120.8], type=pa.float64()),
+            "scientificName": pa.array(["Apis mellifera"], type=pa.string()),
+            "year": pa.array([2024], type=pa.int32()),
+            "taxon_id": pa.array([47219], type=pa.int64()),
+        }
+    )
+    src = tmp_path / "occ_bee_only.parquet"
+    pq.write_table(bee_only, src)
+
+    # Point the module's sandbox at our fake checklist.parquet location.
+    import unittest.mock as mock
+
+    with mock.patch.object(sqlite_export, "_DBT_SANDBOX", sandbox):
+        dst = tmp_path / "occurrences.db"
+        generate_sqlite(src, dst, taxa_path=taxa_csv_gz, db_path=str(db_path))
+
+    con = sqlite3.connect(dst)
+    offtree = con.execute(
+        "SELECT taxon_id, is_anthophila, lineage_path FROM taxa WHERE taxon_id = 52750"
+    ).fetchall()
+    # No taxa row anywhere may carry a malformed '//' lineage_path.
+    (malformed_count,) = con.execute(
+        "SELECT COUNT(*) FROM taxa WHERE lineage_path LIKE '%//%'"
+    ).fetchone()
+    con.close()
+
+    # The off-tree checklist taxon must be dropped by the ancestry guard: either it
+    # is absent from taxa entirely, or (defensively) present only as is_anthophila=0.
+    for taxon_id, is_anthophila, lineage_path in offtree:
+        assert is_anthophila == 0, (
+            f"Off-tree checklist taxon {taxon_id} must not be flagged Anthophila, "
+            f"got is_anthophila={is_anthophila} lineage_path={lineage_path!r}"
+        )
+    assert malformed_count == 0, (
+        f"Found {malformed_count} taxa rows with a malformed '//' lineage_path"
+    )
 
 
 def test_complex_and_bycatch_counts(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
