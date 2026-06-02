@@ -160,16 +160,26 @@ def _build_taxon_hierarchy(
               AND t.taxon_id NOT IN (SELECT taxon_id FROM _bee_seed)
         """, [str(taxa_path)] + checklist_ids)
 
-    # Expand: seed ∪ all ancestor taxon_ids ∪ Anthophila root.
-    # unnest(string_split(ancestry, '/')) yields each ancestor as a string; cast to BIGINT.
+    # Expand: seed ∪ ancestor taxon_ids AT/BELOW the Anthophila root ∪ root itself.
+    # WR-01: unnest only the suffix of `ancestry` from 630955 onward, NOT the whole
+    # string. Unnesting the full ancestry would pull in nodes ABOVE Anthophila
+    # (Hexapoda, Insecta, order, etc.). Any such super-root node that happened to
+    # satisfy the PASS 1 rank filter would be loaded with a regexp-anchored lineage
+    # that cannot contain 630955, yielding a malformed '//' path. Anchoring the
+    # expansion at 630955 removes that silent dependency on a rank-list coincidence.
     con.execute("""
         CREATE TEMP TABLE _bee_taxon_ids AS
         SELECT DISTINCT taxon_id FROM _bee_seed
         UNION
-        SELECT DISTINCT CAST(unnest(string_split(t.ancestry, '/')) AS BIGINT) AS ancestor_id
+        SELECT DISTINCT CAST(
+            unnest(string_split(
+                regexp_extract(t.ancestry, '(630955(?:/[0-9]+)*)$', 1), '/'
+            )) AS BIGINT
+        ) AS ancestor_id
         FROM read_csv(?, """ + _TAXA_READ_CSV_OPTS + """) t
         WHERE t.taxon_id IN (SELECT taxon_id FROM _bee_seed)
           AND t.ancestry IS NOT NULL AND t.ancestry != ''
+          AND regexp_extract(t.ancestry, '(630955(?:/[0-9]+)*)$', 1) != ''
         UNION
         SELECT CAST(""" + str(ANTHOPHILA_ID) + """ AS BIGINT)
     """, [str(taxa_path)])
@@ -188,27 +198,36 @@ def _build_taxon_hierarchy(
     # sub-species Anthophila taxon is owned by PASS 1 (is_anthophila=1 + real
     # lineage) instead of falling through to the PASS 2 bycatch arm.
     # lineage_path via regexp_extract anchored at 630955.
+    # WR-01: the outer `lineage_path LIKE '/630955/%'` guard rejects any row whose
+    # constructed lineage does not begin at the Anthophila root, so a malformed '//'
+    # path can never be inserted here even if a non-descendant slips into
+    # _bee_taxon_ids. Combined with the 630955-anchored ancestor expansion above this
+    # makes the well-formedness invariant structural rather than coincidental.
     con.execute("""
         INSERT INTO out.taxa
-        SELECT
-            t.taxon_id,
-            t.rank,
-            t.name,
-            '/' || regexp_extract(
-                t.ancestry || '/' || CAST(t.taxon_id AS VARCHAR),
-                '(630955(?:/[0-9]+)*)$',
-                1
-            ) || '/' AS lineage_path,
-            1 AS is_anthophila
-        FROM read_csv(?, """ + _TAXA_READ_CSV_OPTS + """) t
-        WHERE t.taxon_id IN (SELECT taxon_id FROM _bee_taxon_ids)
-          AND t.rank IN (
-              'family', 'subfamily', 'tribe', 'subtribe', 'genus', 'subgenus',
-              'complex', 'species', 'subspecies', 'variety', 'form',
-              'infrahybrid', 'hybrid'
-          )
-          AND t.taxon_id NOT IN (SELECT taxon_id FROM out.taxa)
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY t.taxon_id ORDER BY t.taxon_id) = 1
+        SELECT lp.taxon_id, lp.rank, lp.name, lp.lineage_path, lp.is_anthophila
+        FROM (
+            SELECT
+                t.taxon_id,
+                t.rank,
+                t.name,
+                '/' || regexp_extract(
+                    t.ancestry || '/' || CAST(t.taxon_id AS VARCHAR),
+                    '(630955(?:/[0-9]+)*)$',
+                    1
+                ) || '/' AS lineage_path,
+                1 AS is_anthophila
+            FROM read_csv(?, """ + _TAXA_READ_CSV_OPTS + """) t
+            WHERE t.taxon_id IN (SELECT taxon_id FROM _bee_taxon_ids)
+              AND t.rank IN (
+                  'family', 'subfamily', 'tribe', 'subtribe', 'genus', 'subgenus',
+                  'complex', 'species', 'subspecies', 'variety', 'form',
+                  'infrahybrid', 'hybrid'
+              )
+              AND t.taxon_id NOT IN (SELECT taxon_id FROM out.taxa)
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY t.taxon_id ORDER BY t.taxon_id) = 1
+        ) lp
+        WHERE lp.lineage_path LIKE '/630955/%'
     """, [str(taxa_path)])
 
     # PASS 2: INSERT INTO out.taxa (bycatch arm).
