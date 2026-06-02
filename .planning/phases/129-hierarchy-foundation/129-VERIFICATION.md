@@ -1,15 +1,15 @@
 ---
 phase: 129-hierarchy-foundation
 plan: 03
-status: partial
+status: complete
 created: 2026-06-02
-benchmark_pending: true
+benchmark_pending: false
 ---
 
 # Phase 129: Hierarchy Foundation — Verification
 
 > Pipeline-only phase. Evidence gathered 2026-06-02 against live data from the Phase 02 implementation.
-> Benchmark (Section 2) requires manual Firefox/wa-sqlite run — recorded after the checkpoint.
+> Benchmark (Section 2) run in Firefox 151 (aarch64) on 2026-06-02.
 
 ---
 
@@ -17,31 +17,27 @@ benchmark_pending: true
 
 **Structure chosen:** Materialized path (`lineage_path` column, `instr()` descendant queries)
 
-**Justification:** Per D-02, materialized path is the default. The structure uses the `ancestry` column already present in `taxa.csv.gz` — near-zero build cost. Switch to nested-set (lft/rgt) only on a clear benchmark failure.
+**Justification:** Per D-02, materialized path is the default. The structure uses the `ancestry` column already present in `taxa.csv.gz` — near-zero build cost. The benchmark (Section 2) measured 2.0 ms — far below the ~100 ms perceptual bar set by D-03. Materialized path is retained. Switch to nested-set (lft/rgt) only if the table grows substantially and a future benchmark shows clear sluggishness (documented option in RESEARCH.md Pattern 6).
 
-**D-04 scoping note:** The shipped `occurrences.db` taxa table holds only the observed+checklist subtree + ancestors. The STACK.md ~110ms worst-case estimate was computed for a full-clade load of ~17,343 rows; the actual shipped table is 940 rows (see Section 6). The STACK.md math does not apply to the small shipped table. The benchmark (Section 2) is a sanity check confirming D-03, not a tight gate.
-
-_Benchmark result: see Section 2 (pending manual Firefox run)._
+**D-04 scoping note:** The shipped `occurrences.db` taxa table holds only the observed+checklist subtree + ancestors. The STACK.md ~110ms worst-case estimate was computed for a full-clade load of ~17,343 rows; the actual shipped table is 940 rows (see Section 6). The STACK.md math does not apply to the small shipped table. The benchmark is a sanity check confirming D-03, not a tight gate.
 
 ---
 
 ## Section 2: wa-sqlite Apidae Descendant Query Benchmark
 
-**Status:** PENDING — requires manual Firefox run at the checkpoint.
+**Status:** COMPLETE — run in Firefox 151 (aarch64), 2026-06-02.
 
 **Query:** `SELECT taxon_id FROM taxa WHERE taxon_id = 47221 OR instr(lineage_path, '/47221/') > 0`
 
-**Expected:** Apidae subtree (D-04-scoped) — 239 rows (see Section 6). This is far smaller than the global ~4,959 Apidae descendants; the STACK.md ~110ms (17K-row) estimate does not apply.
-
-_To be filled in after the checkpoint:_
-
 | Field | Value |
 |-------|-------|
-| Elapsed (ms) | — |
-| Rows returned | — (expected 239, D-04-scoped) |
-| Browser + version | — |
-| Device class | — |
-| Decision | — (keep materialized path / flag nested-set follow-up) |
+| Elapsed (ms) | 2.0 |
+| Rows returned | 239 (D-04-scoped Apidae subtree) |
+| Browser + version | Firefox 151 (aarch64) |
+| Device class | Desktop (aarch64) |
+| Decision | KEEP materialized path — 2.0 ms is well below the ~100 ms perceptual bar (D-03) |
+
+**Note:** The STACK.md ~110ms worst-case (computed for ~17K rows) does not apply to the 940-row shipped table. The 239-row Apidae result is far smaller than the global ~4,959 Apidae descendants per D-04 scoping. Nested-set lft/rgt (RESEARCH.md Pattern 6) remains a documented future option if the table grows substantially.
 
 ---
 
@@ -151,8 +147,8 @@ _Query: `SELECT COUNT(*) FROM taxa WHERE taxon_id = 47221 OR instr(lineage_path,
 - [x] Section 6: occurrences.db before/after size recorded (26.53 MB → 26.72 MB)
 - [x] Section 6: total taxa row count recorded (940)
 - [x] Section 6: D-04 scoping documented (observed+checklist+ancestors only, not full active-Anthophila)
-- [ ] Section 1: structure decision finalized (pending benchmark)
-- [ ] Section 2: benchmark result recorded (pending Firefox/wa-sqlite run)
+- [x] Section 1: structure decision finalized (materialized path kept — 2.0 ms well below ~100 ms bar)
+- [x] Section 2: benchmark result recorded (Firefox 151 aarch64, 2.0 ms, 239 rows)
 
 ---
 
