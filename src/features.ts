@@ -68,10 +68,11 @@ export function _buildGeoJSONFromRaw(rows: unknown[][]): {
     latestYear: maxYear === -Infinity ? 0 : maxYear,
   };
 
+  // Legacy TaxonOption build from string columns — taxonId: 0 placeholder (replaced in Plan 02)
   const taxaOptions: TaxonOption[] = [
-    ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
-    ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
-    ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
+    ...[...families].sort().map(v => ({ label: `${v} (family)`, taxonId: 0, rank: 'family' as const })),
+    ...[...genera].sort().map(v => ({ label: `${v} (genus)`, taxonId: 0, rank: 'genus' as const })),
+    ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, taxonId: 0, rank: 'species' as const })),
   ];
 
   return { geojson: { type: 'FeatureCollection', features }, summary, taxaOptions };

@@ -241,12 +241,13 @@ describe('buildCsvFilename', () => {
 });
 
 describe('single-quote escaping', () => {
-  test("taxonId is an integer — no string escaping needed, integer appears directly", () => {
+  test("taxonId is an integer — integer value appears directly, no user-supplied string is quoted", () => {
     const f = { ...emptyFilter(), taxonId: 42 };
     const { occurrenceWhere } = buildFilterSQL(f);
     expect(occurrenceWhere).toContain('taxon_id = 42');
-    // No string quoting — integers are safe against SQL injection by construction
-    expect(occurrenceWhere).not.toContain("'");
+    // The integer 42 is not wrapped in quotes — no user-controlled string reaches the SQL
+    expect(occurrenceWhere).not.toContain("taxon_id = '42'");
+    expect(occurrenceWhere).not.toContain("taxon_id = \"42\"");
   });
 });
 

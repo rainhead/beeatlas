@@ -43,8 +43,8 @@ export class BeeMap extends LitElement {
   @property({ attribute: false }) viewState: { lon: number; lat: number; zoom: number } | null = null;
   @property({ attribute: false }) panTo: { coordinate: number[]; zoom: number } | null = null;
   @property({ attribute: false }) filterState: FilterState = {
-    taxonName: null,
-    taxonRank: null,
+    taxonId: null,
+    taxonDisplayName: null,
     yearFrom: null,
     yearTo: null,
     months: new Set(),

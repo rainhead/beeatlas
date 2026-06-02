@@ -139,9 +139,9 @@ describe('_buildGeoJSONFromRaw', () => {
     ];
     const result = _buildGeoJSONFromRaw(rows);
 
-    const families = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'family').map((t: { name: string }) => t.name);
-    const genera = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'genus').map((t: { name: string }) => t.name);
-    const species = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'species').map((t: { name: string }) => t.name);
+    const families = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'family').map((t: { label: string }) => t.label.replace(' (family)', ''));
+    const genera = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'genus').map((t: { label: string }) => t.label.replace(' (genus)', ''));
+    const species = result.taxaOptions.filter((t: { rank: string }) => t.rank === 'species').map((t: { label: string }) => t.label);
 
     expect(families).toEqual([...families].sort());
     expect(genera).toEqual([...genera].sort());

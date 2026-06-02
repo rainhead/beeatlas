@@ -19,8 +19,8 @@ const DEFAULT_ZOOM = 7;
 export class BeeAtlas extends LitElement {
   // App-level state — all formerly on BeeMap, now owned here
   @state() private _filterState: FilterState = {
-    taxonName: null,
-    taxonRank: null,
+    taxonId: null,
+    taxonDisplayName: null,
     yearFrom: null,
     yearTo: null,
     months: new Set(),
@@ -164,8 +164,8 @@ bee-pane {
             .filterState=${this._filterState}
             .showChecklist=${this._checklistVisible}
             .hiddenSources=${this._hiddenSources}
-            .checklistTaxon=${this._filterState.taxonName}
-            .checklistTaxonRank=${this._filterState.taxonRank}
+            .checklistTaxon=${this._filterState.taxonDisplayName}
+            .checklistTaxonRank=${null}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
             @map-click-region=${this._onRegionClick}
@@ -242,8 +242,8 @@ bee-pane {
     const initFilter = initialParams.filter;
     if (initFilter) {
       this._filterState = {
-        taxonName: initFilter.taxonName ?? null,
-        taxonRank: initFilter.taxonRank ?? null,
+        taxonId: initFilter.taxonId ?? null,
+        taxonDisplayName: initFilter.taxonDisplayName ?? null,
         yearFrom: initFilter.yearFrom ?? null,
         yearTo: initFilter.yearTo ?? null,
         months: initFilter.months ?? new Set(),
@@ -379,10 +379,14 @@ bee-pane {
         if (obj.genus) genera.add(String(obj.genus));
         if (obj.scientificName) species.add(String(obj.scientificName));
       }
+      // Legacy TaxonOption build from string columns — will be replaced in Plan 02
+      // when the taxa cache is loaded from the taxa table.
+      // For now we use taxonId: 0 as a placeholder so the type compiles.
+      // The existing taxa from string columns won't have real taxon_ids until Plan 02.
       this._taxaOptions = [
-        ...[...families].sort().map(v => ({ label: `${v} (family)`, name: v, rank: 'family' as const })),
-        ...[...genera].sort().map(v => ({ label: `${v} (genus)`, name: v, rank: 'genus' as const })),
-        ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, name: v, rank: 'species' as const })),
+        ...[...families].sort().map(v => ({ label: `${v} (family)`, taxonId: 0, rank: 'family' as const })),
+        ...[...genera].sort().map(v => ({ label: `${v} (genus)`, taxonId: 0, rank: 'genus' as const })),
+        ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, taxonId: 0, rank: 'species' as const })),
       ];
 
       // County options
@@ -569,8 +573,8 @@ bee-pane {
 
     // Restore filter state
     this._filterState = {
-      taxonName: parsed.filter?.taxonName ?? null,
-      taxonRank: parsed.filter?.taxonRank ?? null,
+      taxonId: parsed.filter?.taxonId ?? null,
+      taxonDisplayName: parsed.filter?.taxonDisplayName ?? null,
       yearFrom: parsed.filter?.yearFrom ?? null,
       yearTo: parsed.filter?.yearTo ?? null,
       months: parsed.filter?.months ?? new Set(),
@@ -799,8 +803,8 @@ bee-pane {
     const prev = this._filterState;
 
     this._filterState = {
-      taxonName: detail.taxonName,
-      taxonRank: detail.taxonRank,
+      taxonId: detail.taxonId,
+      taxonDisplayName: detail.taxonDisplayName,
       yearFrom: detail.yearFrom,
       yearTo: detail.yearTo,
       months: detail.months,
