@@ -770,6 +770,16 @@ describe('MAP-03: checklist taxon filter binding', () => {
   test('bee-atlas.ts registers @checklist-layer-changed=${this._onChecklistLayerChanged} on <bee-pane>', () => {
     expect(atlasSrc).toMatch(/@checklist-layer-changed=\$\{this\._onChecklistLayerChanged\}/);
   });
+
+  test('bee-atlas.ts backfills taxon display name on both URL-restore paths (MFILT-03 regression)', () => {
+    // URLs encode only the integer taxon_id; without resolving the label on restore
+    // the "Species or group" input renders empty despite an active filter.
+    expect(atlasSrc).toMatch(/private _resolveTaxonDisplayName\s*\(/);
+    // Initial restore (after the cache loads in _loadSummaryFromSQLite) and history
+    // navigation (_onPopState) must both call it — assert 2+ call sites beyond the def.
+    const callSites = atlasSrc.match(/this\._resolveTaxonDisplayName\(\)/g) ?? [];
+    expect(callSites.length).toBeGreaterThanOrEqual(2);
+  });
 });
 
 
