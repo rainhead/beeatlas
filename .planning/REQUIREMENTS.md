@@ -25,7 +25,7 @@
 ### Map Filtering Cutover (frontend)
 
 - [x] **MFILT-01**: User can filter the map by any taxon at family / subfamily / tribe / genus / subgenus / complex / species rank and see all descendant occurrences, via `taxon_id` + hierarchy descendant queries rather than string-column matching.
-- [ ] **MFILT-02**: The taxon autocomplete includes subfamily, tribe, subgenus, and complex (bee taxa) alongside family/genus/species; selecting an entry resolves to a `taxon_id` with rank disambiguation (names are not unique — e.g. genus vs. subgenus *Bombus*).
+- [x] **MFILT-02**: The taxon autocomplete includes subfamily, tribe, subgenus, and complex (bee taxa) alongside family/genus/species; selecting an entry resolves to a `taxon_id` with rank disambiguation (names are not unique — e.g. genus vs. subgenus *Bombus*).
 - [x] **MFILT-03**: Filter URL round-trip, clear-filters, boundary/region filtering, and selection-rectangle interactions are all preserved under the `taxon_id`-based filter.
 
 ### Per-Taxon Page Rebuild (static)
@@ -82,7 +82,7 @@ Explicitly excluded for v4.6.
 | HIER-05 | Phase 129 | Complete |
 | HIER-06 | Phase 129 | Complete |
 | MFILT-01 | Phase 130 | Complete |
-| MFILT-02 | Phase 130 | Pending |
+| MFILT-02 | Phase 130 | Complete |
 | MFILT-03 | Phase 130 | Complete |
 | NORM-01 | Phase 131 | Pending |
 | NORM-02 | Phase 131 | Pending |
