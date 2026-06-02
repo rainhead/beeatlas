@@ -55,6 +55,15 @@ def _build_taxon_hierarchy(
     PASS 2: Bycatch taxa load (non-bee occurrence taxon_ids, is_anthophila=0).
     Then creates indexes on the taxa table.
     """
+    # WR-04: ordering contract for the single SQLite file shared by the DuckDB `out`
+    # ATTACH and stdlib sqlite3 handles. The ONLY stdlib write that must happen while
+    # DuckDB still holds `out` ATTACHed is this CREATE TABLE (the DuckDB INSERT below
+    # requires the NOT NULL schema to already exist, which the ATTACH side cannot
+    # express). It opens its own handle, commits, and closes via the `with` block
+    # before any DuckDB INSERT runs, so the two writers never hold the file open
+    # concurrently. All remaining stdlib DDL (the taxa indexes) is deferred until
+    # AFTER `DETACH out` in generate_sqlite(), via _create_taxa_indexes().
+    #
     # Create the taxa table in SQLite first (stdlib sqlite3, for full DDL support).
     with _sqlite3.connect(dst_db) as pre_con:
         pre_con.execute("""
@@ -121,14 +130,8 @@ def _build_taxon_hierarchy(
         ).fetchall()
     }
     if "taxon_id" not in occ_cols:
-        # No taxon_id column — create indexes and return without any inserts.
-        with _sqlite3.connect(dst_db) as idx_con:
-            idx_con.execute(
-                "CREATE INDEX IF NOT EXISTS idx_taxa_lineage ON taxa(lineage_path)"
-            )
-            idx_con.execute(
-                "CREATE INDEX IF NOT EXISTS idx_taxa_is_anthophila ON taxa(is_anthophila)"
-            )
+        # No taxon_id column — return without any inserts. Indexes are created after
+        # DETACH out in generate_sqlite() (WR-04: no stdlib write while ATTACHed).
         return
 
     # Build the occurrence-seeded bee taxon_ids in DuckDB memory.
@@ -287,8 +290,15 @@ def _build_taxon_hierarchy(
     # ---- Drop temp tables -----------------------------------------------------
     con.execute("DROP TABLE IF EXISTS _bee_seed")
     con.execute("DROP TABLE IF EXISTS _bee_taxon_ids")
+    # Indexes are created by _create_taxa_indexes() after DETACH out (WR-04).
 
-    # ---- Indexes (via stdlib sqlite3 after DuckDB write) ----------------------
+
+def _create_taxa_indexes(dst_db: Path) -> None:
+    """Create the taxa indexes via stdlib sqlite3.
+
+    WR-04: called only AFTER DuckDB has DETACHed `out`, so no stdlib handle ever
+    writes the SQLite file while DuckDB's ATTACH transaction is still live.
+    """
     with _sqlite3.connect(dst_db) as idx_con:
         idx_con.execute(
             "CREATE INDEX IF NOT EXISTS idx_taxa_lineage ON taxa(lineage_path)"
@@ -401,6 +411,10 @@ def generate_sqlite(
         con.execute("DETACH out")
     finally:
         con.close()
+
+    # WR-04: create the taxa indexes only after DuckDB has DETACHed and closed, so the
+    # stdlib sqlite3 handle is the sole writer of the file at this point.
+    _create_taxa_indexes(dst_db)
 
     # Post-build hard gate: assert no orphan occurrence taxon_ids or missing-parent
     # lineage_path segments before writing geo_blob.
