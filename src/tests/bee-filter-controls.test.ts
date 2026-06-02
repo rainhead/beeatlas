@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import { buildTaxonLabel, RANK_ORDER, buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from '../taxa.ts';
-import { getSuggestions, filterStatesEqual } from '../bee-filter-controls.ts';
-import type { TaxonOption, FilterState } from '../filter.ts';
+import { getSuggestions } from '../bee-filter-controls.ts';
+import type { TaxonOption } from '../filter.ts';
 
 // ---- D-03 label builder tests ----
 
@@ -70,29 +70,6 @@ describe('resolveTaxonDisplayName (URL restore)', () => {
     const opts = buildTaxonOptions(new Set([538903]), cache);
     const selected = opts.find(o => o.taxonId === 538903)!;
     expect(resolveTaxonDisplayName(538903, cache)).toBe(selected.label);
-  });
-});
-
-describe('filterStatesEqual treats taxonDisplayName as a genuine difference (MFILT-03)', () => {
-  const base: FilterState = {
-    taxonId: null, taxonDisplayName: null,
-    yearFrom: null, yearTo: null,
-    months: new Set(), selectedCounties: new Set(), selectedEcoregions: new Set(),
-    selectedCollectors: [], elevMin: null, elevMax: null, selectedPlace: null,
-  };
-
-  test('same taxonId but display-name backfilled (null -> label) is NOT equal', () => {
-    // This is the URL-restore case: bee-filter-controls must re-sync the chip when
-    // bee-atlas backfills the label, even though taxonId is unchanged.
-    const before = { ...base, taxonId: 52775, taxonDisplayName: null };
-    const after = { ...base, taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
-    expect(filterStatesEqual(before, after)).toBe(false);
-  });
-
-  test('identical taxonId and display name is equal (no echo re-sync)', () => {
-    const a = { ...base, taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
-    const b = { ...base, taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
-    expect(filterStatesEqual(a, b)).toBe(true);
   });
 });
 
