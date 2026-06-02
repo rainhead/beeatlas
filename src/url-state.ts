@@ -1,12 +1,14 @@
 // LINK-04 — Stable URL contract for cross-route deep-links into the SPA.
 //
-// The SPA at `/` is canonically navigated via two query params:
+// New format (Phase 130+):
+//   ?taxon=<integer taxon_id>
 //
+// Legacy format (pre-Phase 130, backward-compatible):
 //   ?taxon=<scientificName>&taxonRank=<'family' | 'genus' | 'species'>
 //
-// BOTH params MUST be present. parseParams (below, lines 83-89) silently
-// drops the taxon filter if either is missing — verified by
-// src/tests/spa-link.test.ts.
+// Legacy URLs are detected by non-integer taxon= values and stored as
+// _pendingLegacyTaxon in the filter for async resolution after the taxon
+// cache is loaded. The taxonRank param is read for twin disambiguation.
 //
 // Cross-route deep-links from /species/ MUST use buildSpaTaxonLink()
 // from src/lib/spa-link.ts (Phase 81 D-05). Other params (x, y, z, yr0,
@@ -54,9 +56,9 @@ export function buildParams(
   params.set('x', view.lon.toFixed(4));
   params.set('y', view.lat.toFixed(4));
   params.set('z', view.zoom.toFixed(2));
-  if (filter.taxonName !== null && filter.taxonRank !== null) {
-    params.set('taxon', filter.taxonName);
-    params.set('taxonRank', filter.taxonRank);
+  if (filter.taxonId !== null) {
+    params.set('taxon', String(filter.taxonId));
+    // taxonRank param intentionally dropped (D-06); rank is derivable from the taxa cache
   }
   if (filter.yearFrom !== null) params.set('yr0', String(filter.yearFrom));
   if (filter.yearTo   !== null) params.set('yr1', String(filter.yearTo));
@@ -117,13 +119,18 @@ export function parseParams(search: string): Partial<AppState> {
   }
 
   // Filter state — build when any filter param is present
-  const taxonName = p.get('taxon') ?? null;
-  const rawRank   = p.get('taxonRank') ?? null;
-  const taxonRank = (['family', 'genus', 'species'] as const).includes(rawRank as any)
-    ? rawRank as 'family' | 'genus' | 'species' : null;
-  // Both must be present and valid; if either is missing treat both as absent
-  const resolvedTaxonName = (taxonName && taxonRank) ? taxonName : null;
-  const resolvedTaxonRank = (taxonName && taxonRank) ? taxonRank : null;
+  // D-06: new format encodes taxon= as integer taxon_id; legacy format encodes name+taxonRank
+  const taxonRaw = p.get('taxon') ?? null;
+  let resolvedTaxonId: number | null = null;
+  if (taxonRaw !== null) {
+    const asInt = parseInt(taxonRaw, 10);
+    if (!isNaN(asInt) && String(asInt) === taxonRaw) {
+      // New integer format
+      resolvedTaxonId = asInt;
+    }
+    // Legacy name format: not stored in FilterState — resolved async after taxon cache loads
+    // (handled by bee-atlas._loadSummaryFromSQLite pending-legacy-taxon resolution)
+  }
 
   const yearFromRaw = parseInt(p.get('yr0') ?? '', 10);
   const yearFrom = isNaN(yearFromRaw) ? null : yearFromRaw;
@@ -164,14 +171,14 @@ export function parseParams(search: string): Partial<AppState> {
     : [];
 
   // Include filter sub-object when any filter param is present
-  const hasFilter = resolvedTaxonName !== null || yearFrom !== null || yearTo !== null
+  const hasFilter = resolvedTaxonId !== null || yearFrom !== null || yearTo !== null
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
     || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null
     || selectedPlace !== null;
   if (hasFilter) {
     result.filter = {
-      taxonName: resolvedTaxonName,
-      taxonRank: resolvedTaxonRank,
+      taxonId: resolvedTaxonId,
+      taxonDisplayName: null,  // display name not available from URL; resolved from cache
       yearFrom,
       yearTo,
       months,

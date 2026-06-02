@@ -11,7 +11,7 @@ const MONTH_NAMES = [
 // --- Token types ---
 
 interface MonthToken     { type: 'month';     month: number }
-interface TaxonToken     { type: 'taxon';     taxonName: string; taxonRank: 'family' | 'genus' | 'species' }
+interface TaxonToken     { type: 'taxon';     taxonId: number; taxonDisplayName: string }
 interface CountyToken    { type: 'county';    county: string }
 interface EcorToken      { type: 'ecoregion'; ecoregion: string }
 interface YearFromToken  { type: 'yearFrom';  year: number }
@@ -25,7 +25,7 @@ type Suggestion = { label: string; token: Token };
 function tokenLabel(t: Token): string {
   switch (t.type) {
     case 'month':     return `in ${MONTH_NAMES[t.month - 1]}`;
-    case 'taxon':     return t.taxonRank === 'species' ? t.taxonName : `${t.taxonName} (${t.taxonRank})`;
+    case 'taxon':     return t.taxonDisplayName;
     case 'county':    return `${t.county} County`;
     case 'ecoregion': return t.ecoregion;
     case 'yearFrom':  return `since ${t.year}`;
@@ -37,7 +37,7 @@ function tokenLabel(t: Token): string {
 
 function tokensToFilterState(tokens: Token[]): FilterState {
   const f: FilterState = {
-    taxonName: null, taxonRank: null,
+    taxonId: null, taxonDisplayName: null,
     yearFrom: null, yearTo: null,
     months: new Set(),
     selectedCounties: new Set(),
@@ -50,7 +50,7 @@ function tokensToFilterState(tokens: Token[]): FilterState {
   for (const t of tokens) {
     switch (t.type) {
       case 'month':     f.months.add(t.month); break;
-      case 'taxon':     f.taxonName = t.taxonName; f.taxonRank = t.taxonRank; break;
+      case 'taxon':     f.taxonId = t.taxonId; f.taxonDisplayName = t.taxonDisplayName; break;
       case 'county':    f.selectedCounties.add(t.county); break;
       case 'ecoregion': f.selectedEcoregions.add(t.ecoregion); break;
       case 'yearFrom':  f.yearFrom = t.year; break;
@@ -64,8 +64,8 @@ function tokensToFilterState(tokens: Token[]): FilterState {
 
 function filterStateToTokens(f: FilterState): Token[] {
   const tokens: Token[] = [];
-  if (f.taxonName && f.taxonRank) {
-    tokens.push({ type: 'taxon', taxonName: f.taxonName, taxonRank: f.taxonRank });
+  if (f.taxonId !== null) {
+    tokens.push({ type: 'taxon', taxonId: f.taxonId, taxonDisplayName: f.taxonDisplayName ?? '' });
   }
   if (f.yearFrom !== null && f.yearFrom === f.yearTo) {
     tokens.push({ type: 'yearExact', year: f.yearFrom });
@@ -81,8 +81,7 @@ function filterStateToTokens(f: FilterState): Token[] {
 }
 
 function filterStatesEqual(a: FilterState, b: FilterState): boolean {
-  return a.taxonName === b.taxonName
-    && a.taxonRank === b.taxonRank
+  return a.taxonId === b.taxonId
     && a.yearFrom === b.yearFrom
     && a.yearTo === b.yearTo
     && setsEqual(a.months, b.months)
@@ -138,7 +137,7 @@ function getSuggestions(
     let n = 0;
     for (const opt of taxaOptions) {
       if (opt.label.toLowerCase().includes(lower)) {
-        results.push({ label: opt.label, token: { type: 'taxon', taxonName: opt.name, taxonRank: opt.rank } });
+        results.push({ label: opt.label, token: { type: 'taxon', taxonId: opt.taxonId, taxonDisplayName: opt.label } });
         if (++n >= 5) break;
       }
     }

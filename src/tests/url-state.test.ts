@@ -5,8 +5,8 @@ import type { SelectionState } from '../url-state.ts';
 
 function emptyFilter(): FilterState {
   return {
-    taxonName: null,
-    taxonRank: null,
+    taxonId: null,
+    taxonDisplayName: null,
     yearFrom: null,
     yearTo: null,
     months: new Set(),
@@ -34,14 +34,13 @@ describe('buildParams -> parseParams round-trip', () => {
     expect(result.view!.zoom).toBeCloseTo(8, 2);
   });
 
-  test('taxon+rank: genus round-trips', () => {
-    const filter = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
+  test('taxon: integer taxonId round-trips as taxon= param', () => {
+    const filter = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
     const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
-    expect(params.get('taxon')).toBe('Bombus');
-    expect(params.get('taxonRank')).toBe('genus');
+    expect(params.get('taxon')).toBe('52775');
+    expect(params.has('taxonRank')).toBe(false);
     const result = parseParams(params.toString());
-    expect(result.filter?.taxonName).toBe('Bombus');
-    expect(result.filter?.taxonRank).toBe('genus');
+    expect(result.filter?.taxonId).toBe(52775);
   });
 
   test('yearFrom: round-trips as yr0', () => {
@@ -180,8 +179,8 @@ describe('combined round-trip', () => {
   test('all fields set simultaneously preserve all values', () => {
     const view = { lon: -120.5, lat: 47.3, zoom: 8 };
     const filter: FilterState = {
-      taxonName: 'Bombus',
-      taxonRank: 'genus',
+      taxonId: 52775,
+      taxonDisplayName: 'Bombus (genus)',
       yearFrom: 2020,
       yearTo: 2023,
       months: new Set([3, 6, 9]),
@@ -202,8 +201,7 @@ describe('combined round-trip', () => {
     expect(result.view!.lat).toBeCloseTo(47.3, 4);
     expect(result.view!.zoom).toBeCloseTo(8, 2);
 
-    expect(result.filter!.taxonName).toBe('Bombus');
-    expect(result.filter!.taxonRank).toBe('genus');
+    expect(result.filter!.taxonId).toBe(52775);
     expect(result.filter!.yearFrom).toBe(2020);
     expect(result.filter!.yearTo).toBe(2023);
     expect(result.filter!.months).toEqual(new Set([3, 6, 9]));
@@ -323,7 +321,8 @@ describe('validation and rejection', () => {
     expect(result.view).toBeUndefined();
   });
 
-  test('taxon without taxonRank: result.filter is undefined (no valid filter fields)', () => {
+  test('taxon= non-integer (legacy name): result.filter is undefined (legacy resolution is async)', () => {
+    // Legacy name format is stored for async resolution; doesn't produce a synchronous filter result
     const result = parseParams('taxon=Bombus');
     expect(result.filter).toBeUndefined();
   });
@@ -338,11 +337,10 @@ describe('validation and rejection', () => {
     expect(result.view).toBeUndefined();
   });
 
-  test('taxonRank without taxon: taxonName absent from filter', () => {
+  test('taxonRank without taxon: taxonId absent from filter', () => {
     const result = parseParams('taxonRank=genus&yr0=2020');
     // taxon absent but yearFrom is present so filter object exists
-    expect(result.filter?.taxonName).toBeNull();
-    expect(result.filter?.taxonRank).toBeNull();
+    expect(result.filter?.taxonId).toBeNull();
     expect(result.filter?.yearFrom).toBe(2020);
   });
 
@@ -502,12 +500,12 @@ describe('bounds selection (SEL-06)', () => {
 
   test('combined params: bounds selection + filter coexist on round-trip (SEL-06)', () => {
     const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
-    const filter = { ...emptyFilter(), taxonName: 'Bombus', taxonRank: 'genus' as const };
+    const filter = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
     const params = buildParams(defaultView, filter, selection, defaultUi);
     expect(params.get('sel')).toBe('-122.3456,47.1234,-122.1234,47.5678');
-    expect(params.get('taxon')).toBe('Bombus');
+    expect(params.get('taxon')).toBe('52775');
     const result = parseParams(params.toString());
     expect(result.selection).toEqual({ type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
-    expect(result.filter?.taxonName).toBe('Bombus');
+    expect(result.filter?.taxonId).toBe(52775);
   });
 });

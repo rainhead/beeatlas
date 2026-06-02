@@ -4,6 +4,7 @@ import type { OccurrenceRow } from '../filter.ts';
 
 // Base row with every OccurrenceRow field populated to null / 0 / false defaults.
 const BASE_ROW: OccurrenceRow = {
+  taxon_id: null,
   lat: 47.6,
   lon: -122.3,
   date: '2024-06-01',

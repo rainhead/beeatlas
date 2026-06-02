@@ -8,37 +8,32 @@ import { parseParams } from '../url-state.ts';  // crossing boundary OK in tests
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('buildSpaTaxonLink (LINK-01..03)', () => {
-  test('species rank: round-trips through SPA parseParams', () => {
+  test('species rank: emits legacy taxon+taxonRank URL format', () => {
     const link = buildSpaTaxonLink('Andrena anograe');
     // WR-03: spaces encoded as %20 to match SSR's urlencode filter output.
-    // The previous expected value used + (URLSearchParams default), which
-    // diverged from SSR-emitted hrefs in _pages/species.njk and fragmented
-    // analytics cache keys. Both encodings round-trip via URLSearchParams.
     expect(link).toBe('/?taxon=Andrena%20anograe&taxonRank=species');
-    const search = link.split('?')[1] ?? '';
-    const parsed = parseParams(search);
-    expect(parsed.filter?.taxonName).toBe('Andrena anograe');
-    expect(parsed.filter?.taxonRank).toBe('species');
   });
 
-  test('genus rank: emits taxonRank=genus and round-trips', () => {
+  test('genus rank: emits taxonRank=genus in legacy format', () => {
     const link = buildSpaTaxonLink('Bombus', 'genus');
     expect(link).toBe('/?taxon=Bombus&taxonRank=genus');
-    const parsed = parseParams(link.split('?')[1] ?? '');
-    expect(parsed.filter?.taxonName).toBe('Bombus');
-    expect(parsed.filter?.taxonRank).toBe('genus');
   });
 
-  test('family rank: emits taxonRank=family and round-trips', () => {
+  test('family rank: emits taxonRank=family in legacy format', () => {
     const link = buildSpaTaxonLink('Apidae', 'family');
     expect(link).toBe('/?taxon=Apidae&taxonRank=family');
-    const parsed = parseParams(link.split('?')[1] ?? '');
-    expect(parsed.filter?.taxonName).toBe('Apidae');
-    expect(parsed.filter?.taxonRank).toBe('family');
   });
 
   test('default rank is species', () => {
     expect(buildSpaTaxonLink('Foo bar')).toMatch(/taxonRank=species/);
+  });
+
+  test('legacy URL format: parseParams produces no filter (async legacy resolution needed)', () => {
+    // Phase 130: legacy name-format taxon URLs require async taxon-cache resolution.
+    // parseParams returns no filter synchronously for non-integer taxon= values.
+    const search = buildSpaTaxonLink('Bombus', 'genus').split('?')[1] ?? '';
+    const parsed = parseParams(search);
+    expect(parsed.filter).toBeUndefined();
   });
 });
 

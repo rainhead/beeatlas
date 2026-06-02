@@ -762,8 +762,9 @@ describe('MAP-03: checklist taxon filter binding', () => {
     expect(atlasSrc).toMatch(/_onChecklistLayerChanged\s*\(/);
   });
 
-  test('bee-atlas.ts binds .checklistTaxon=${this._filterState.taxonName} on <bee-map>', () => {
-    expect(atlasSrc).toMatch(/\.checklistTaxon=\$\{this\._filterState\.taxonName\}/);
+  test('bee-atlas.ts binds .checklistTaxon on <bee-map> using filterState taxon display name', () => {
+    // Phase 130: taxonName → taxonDisplayName (display-only label); taxonId is the filter key
+    expect(atlasSrc).toMatch(/\.checklistTaxon=\$\{this\._filterState\.taxonDisplayName\}/);
   });
 
   test('bee-atlas.ts registers @checklist-layer-changed=${this._onChecklistLayerChanged} on <bee-pane>', () => {

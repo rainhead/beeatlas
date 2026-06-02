@@ -40,7 +40,7 @@ function filterToYearBuckets(
 
 // ---------- suggestion types ----------
 
-interface TaxonSug    { kind: 'taxon';     label: string; name: string; rank: 'family' | 'genus' | 'species' }
+interface TaxonSug    { kind: 'taxon';     label: string; taxonId: number; rank: 'family' | 'subfamily' | 'tribe' | 'subtribe' | 'genus' | 'subgenus' | 'complex' | 'species' }
 interface CollectorSug { kind: 'collector'; label: string; entry: CollectorEntry }
 interface WhereSug    { kind: 'where';     label: string; type: 'county' | 'ecoregion' | 'place'; value: string }
 type AnyS = TaxonSug | CollectorSug | WhereSug;
@@ -83,7 +83,7 @@ export class BeePane extends LitElement {
 
   // Taxon (single-select)
   @state() private _taxonInput = '';
-  @state() private _selectedTaxon: { name: string; rank: 'family' | 'genus' | 'species' } | null = null;
+  @state() private _selectedTaxon: { taxonId: number; displayName: string } | null = null;
 
   // Collector (multi-select)
   @state() private _collectorInput = '';
@@ -515,12 +515,12 @@ export class BeePane extends LitElement {
     const f = this.filterState;
 
     // Taxon
-    const localTaxon = this._selectedTaxon?.name ?? null;
-    if (f.taxonName !== localTaxon) {
-      this._selectedTaxon = f.taxonName && f.taxonRank
-        ? { name: f.taxonName, rank: f.taxonRank as 'family' | 'genus' | 'species' }
+    const localTaxonId = this._selectedTaxon?.taxonId ?? null;
+    if (f.taxonId !== localTaxonId) {
+      this._selectedTaxon = f.taxonId !== null
+        ? { taxonId: f.taxonId, displayName: f.taxonDisplayName ?? '' }
         : null;
-      this._taxonInput = f.taxonName ?? '';
+      this._taxonInput = f.taxonDisplayName ?? '';
     }
 
     // Collectors
@@ -568,8 +568,8 @@ export class BeePane extends LitElement {
     this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
       bubbles: true, composed: true,
       detail: {
-        taxonName: this._selectedTaxon?.name ?? null,
-        taxonRank: this._selectedTaxon?.rank ?? null,
+        taxonId: this._selectedTaxon?.taxonId ?? null,
+        taxonDisplayName: this._selectedTaxon?.displayName ?? null,
         yearFrom,
         yearTo,
         months: new Set<number>(),
@@ -691,7 +691,7 @@ export class BeePane extends LitElement {
       const sugs: TaxonSug[] = [];
       for (const opt of this.taxaOptions) {
         if (opt.label.toLowerCase().includes(lower)) {
-          sugs.push({ kind: 'taxon', label: opt.label, name: opt.name, rank: opt.rank });
+          sugs.push({ kind: 'taxon', label: opt.label, taxonId: opt.taxonId, rank: opt.rank });
           if (sugs.length >= 5) break;
         }
       }
@@ -702,7 +702,7 @@ export class BeePane extends LitElement {
   }
 
   private _selectTaxon(s: TaxonSug) {
-    this._selectedTaxon = { name: s.name, rank: s.rank };
+    this._selectedTaxon = { taxonId: s.taxonId, displayName: s.label };
     this._taxonInput = s.label;
     this._suggestions = [];
     this._openSection = null;

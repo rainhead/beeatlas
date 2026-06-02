@@ -11,17 +11,17 @@ export interface CollectorEntry {
 }
 
 export interface FilterState {
-  taxonName: string | null;      // value of the selected taxon (family name, genus name, or scientificName)
-  taxonRank: 'family' | 'genus' | 'species' | null;
+  taxonId: number | null;           // integer taxon_id from the taxa table (filter key)
+  taxonDisplayName: string | null;  // display-only label for chip + CSV filename, never a filter key
   yearFrom: number | null;
   yearTo: number | null;
-  months: Set<number>;           // 1-12; empty Set = no month filter active
+  months: Set<number>;              // 1-12; empty Set = no month filter active
   selectedCounties: Set<string>;
   selectedEcoregions: Set<string>;
   selectedCollectors: CollectorEntry[];
   elevMin: number | null;
   elevMax: number | null;
-  selectedPlace: string | null;  // D-07 — singular; multi-place is deferred PRICH-02
+  selectedPlace: string | null;     // D-07 — singular; multi-place is deferred PRICH-02
 }
 
 export interface OccurrenceProperties {
@@ -38,6 +38,7 @@ function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
 }
 
 export interface OccurrenceRow {
+  taxon_id: number | null;
   lat: number;
   lon: number;
   date: string;
@@ -76,7 +77,7 @@ export interface OccurrenceRow {
 }
 
 export const OCCURRENCE_COLUMNS = [
-  'lat', 'lon', 'date', 'county', 'ecoregion_l3', 'place_slug',
+  'taxon_id', 'lat', 'lon', 'date', 'county', 'ecoregion_l3', 'place_slug',
   'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber',
   'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host',
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
@@ -108,9 +109,9 @@ export function buildCsvFilename(f: FilterState): string {
   const segments: string[] = [];
 
   // Priority: taxon > collector > year > county/ecoregion
-  // Taxon
-  if (f.taxonName !== null && segments.length < 2) {
-    segments.push(slugify(f.taxonName));
+  // Taxon (display name used for readability; taxonId is the filter key)
+  if (f.taxonDisplayName !== null && segments.length < 2) {
+    segments.push(slugify(f.taxonDisplayName));
   }
 
   // Collector (second priority, only if taxon not set)
@@ -213,7 +214,7 @@ export async function queryTablePage(
 }
 
 export function isFilterActive(f: FilterState): boolean {
-  return f.taxonName !== null
+  return f.taxonId !== null
     || f.yearFrom !== null
     || f.yearTo !== null
     || f.months.size > 0
@@ -228,16 +229,16 @@ export function isFilterActive(f: FilterState): boolean {
 export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
   const occurrenceClauses: string[] = [];
 
-  // Taxon filter — null semantics naturally exclude sample-only rows (no taxon columns)
-  if (f.taxonName !== null && f.taxonRank !== null) {
-    const escaped = f.taxonName.replace(/'/g, "''");
-    if (f.taxonRank === 'family') {
-      occurrenceClauses.push(`family = '${escaped}'`);
-    } else if (f.taxonRank === 'genus') {
-      occurrenceClauses.push(`genus = '${escaped}'`);
-    } else {
-      occurrenceClauses.push(`scientificName = '${escaped}'`);
-    }
+  // Taxon filter — descendant subquery against taxa.lineage_path (MFILT-01)
+  // taxonId is a TypeScript number; interpolated as a bare integer — no string escaping needed (T-130-01)
+  // The clause matches the taxon itself (taxon_id = N) plus all descendants (instr materialized-path)
+  if (f.taxonId !== null) {
+    occurrenceClauses.push(
+      `(taxon_id = ${f.taxonId} OR taxon_id IN (` +
+      `SELECT taxon_id FROM taxa ` +
+      `WHERE lineage_path IS NOT NULL ` +
+      `AND instr(lineage_path, '/${f.taxonId}/') > 0))`
+    );
   }
 
   // Year range — direct column comparison; null year for sample-only rows naturally excludes them
@@ -368,9 +369,9 @@ export interface DataSummary {
 }
 
 export interface TaxonOption {
-  label: string;      // display string, e.g. "Bombus (genus)" or "Apis mellifera"
-  name: string;       // the actual field value to filter on
-  rank: 'family' | 'genus' | 'species';
+  label: string;      // display string, e.g. "Bombus (genus)" or "Apis mellifera" (D-03 label scheme)
+  taxonId: number;    // integer taxon_id from the taxa table (filter key)
+  rank: 'family' | 'subfamily' | 'tribe' | 'subtribe' | 'genus' | 'subgenus' | 'complex' | 'species';
 }
 
 export interface FilteredSummary {
@@ -384,8 +385,8 @@ export interface FilteredSummary {
 
 // Custom event payload
 export interface FilterChangedEvent {
-  taxonName: string | null;
-  taxonRank: 'family' | 'genus' | 'species' | null;
+  taxonId: number | null;
+  taxonDisplayName: string | null;
   yearFrom: number | null;
   yearTo: number | null;
   months: Set<number>;

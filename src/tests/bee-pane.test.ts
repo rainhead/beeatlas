@@ -200,8 +200,8 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
     const emitFilterBody = src.match(/_emitFilter\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
     expect(emitFilterBody).not.toBeNull();
     const body = emitFilterBody![0];
-    expect(body).toMatch(/taxonName/);
-    expect(body).toMatch(/taxonRank/);
+    expect(body).toMatch(/taxonId/);
+    expect(body).toMatch(/taxonDisplayName/);
     expect(body).toMatch(/yearFrom/);
     expect(body).toMatch(/yearTo/);
     expect(body).toMatch(/months/);
