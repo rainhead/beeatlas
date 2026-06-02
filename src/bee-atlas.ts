@@ -260,6 +260,10 @@ bee-pane {
         selectedPlace: initFilter.selectedPlace ?? null,
       };
     }
+    // Store any pending legacy taxon for async resolution after the taxon cache loads.
+    if (initialParams.pendingLegacyTaxon) {
+      this._pendingLegacyTaxon = initialParams.pendingLegacyTaxon;
+    }
 
     // If URL restores an active filter, initialize visible ID set to empty (hide-all)
     // so no dots flash before the async filter query completes.
@@ -398,23 +402,8 @@ bee-pane {
       this._taxaOptions = buildTaxonOptions(presentIds, this._taxonCache);
 
       // Step 3: Resolve any pending legacy taxon from URL (non-integer taxon= value).
-      // After cache is populated we can resolve name+rank to a taxonId.
       if (this._pendingLegacyTaxon) {
-        const { name, rank } = this._pendingLegacyTaxon;
-        for (const [id, entry] of this._taxonCache) {
-          if (entry.name === name && (rank === null || entry.rank === rank)) {
-            this._filterState = { ...this._filterState, taxonId: id };
-            this._pendingLegacyTaxon = null;
-            if (isFilterActive(this._filterState)) {
-              this._runFilterQuery();
-            }
-            break;
-          }
-        }
-        // If no match found, leave filter inactive — stale bookmark (no occurrence for that taxon)
-        if (this._pendingLegacyTaxon !== null) {
-          this._pendingLegacyTaxon = null;
-        }
+        this._resolveLegacyTaxon(this._pendingLegacyTaxon);
       }
 
       // County options
@@ -439,6 +428,33 @@ bee-pane {
     } finally {
       this._loading = false;
     }
+  }
+
+  /**
+   * Resolve a legacy taxon {name, rank} record to a taxonId via _taxonCache lookup.
+   * If the cache is already populated, resolves immediately. If not (called before the
+   * cache loads), stores as _pendingLegacyTaxon for resolution in _loadSummaryFromSQLite.
+   * Uses rank for twin disambiguation (e.g. genus vs subgenus Bombus).
+   * The raw name string is NEVER used in SQL — only in an in-memory equality lookup (T-130-LU).
+   */
+  private _resolveLegacyTaxon(pending: { name: string; rank: string | null }): void {
+    if (this._taxonCache.size === 0) {
+      // Cache not yet loaded — store for resolution after cache loads
+      this._pendingLegacyTaxon = pending;
+      return;
+    }
+    this._pendingLegacyTaxon = null;
+    const { name, rank } = pending;
+    for (const [id, entry] of this._taxonCache) {
+      if (entry.name === name && (rank === null || entry.rank === rank)) {
+        this._filterState = { ...this._filterState, taxonId: id };
+        if (isFilterActive(this._filterState)) {
+          this._runFilterQuery();
+        }
+        return;
+      }
+    }
+    // No match found — stale bookmark; leave filter inactive
   }
 
   private async _loadCollectorOptions(): Promise<void> {
@@ -613,6 +629,13 @@ bee-pane {
       elevMax: parsed.filter?.elevMax ?? null,
       selectedPlace: parsed.filter?.selectedPlace ?? null,
     };
+    // Handle legacy taxon back-compat on history navigation.
+    // If _taxonCache is already populated, resolve immediately; otherwise store for later.
+    if (parsed.pendingLegacyTaxon) {
+      this._resolveLegacyTaxon(parsed.pendingLegacyTaxon);
+    } else {
+      this._pendingLegacyTaxon = null; // clear any stale pending from a previous navigation
+    }
 
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';

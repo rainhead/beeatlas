@@ -46,6 +46,17 @@ export interface AppState {
   ui: UiState;
 }
 
+/**
+ * Extended return type for parseParams — includes an optional pending-legacy
+ * taxon record for two-phase URL back-compat resolution (D-06).
+ * When `taxon=` is a non-integer (legacy name format), `pendingLegacyTaxon` is
+ * populated for async resolution after the taxon cache loads in bee-atlas.ts.
+ * The raw name string is NEVER interpolated into SQL (threat T-130-LU).
+ */
+export type ParsedParams = Partial<AppState> & {
+  pendingLegacyTaxon?: { name: string; rank: string | null };
+};
+
 export function buildParams(
   view: ViewState,
   filter: FilterState,
@@ -103,9 +114,9 @@ export function buildParams(
   return params;
 }
 
-export function parseParams(search: string): Partial<AppState> {
+export function parseParams(search: string): ParsedParams {
   const p = new URLSearchParams(search);
-  const result: Partial<AppState> = {};
+  const result: ParsedParams = {};
 
   // View state — only include if all coordinates are valid
   const x = parseFloat(p.get('x') ?? '');
@@ -121,15 +132,19 @@ export function parseParams(search: string): Partial<AppState> {
   // Filter state — build when any filter param is present
   // D-06: new format encodes taxon= as integer taxon_id; legacy format encodes name+taxonRank
   const taxonRaw = p.get('taxon') ?? null;
+  const taxonRankRaw = p.get('taxonRank') ?? null;
   let resolvedTaxonId: number | null = null;
   if (taxonRaw !== null) {
     const asInt = parseInt(taxonRaw, 10);
     if (!isNaN(asInt) && String(asInt) === taxonRaw) {
-      // New integer format
+      // New integer format — T-130-IV: parseInt + roundtrip guard rejects non-canonical forms
       resolvedTaxonId = asInt;
+    } else {
+      // Legacy name format: store for async resolution after taxon cache loads.
+      // The raw name string is NEVER interpolated into SQL (T-130-LU) — only used for
+      // an exact-match equality lookup against the in-memory _taxonCache.
+      result.pendingLegacyTaxon = { name: taxonRaw, rank: taxonRankRaw };
     }
-    // Legacy name format: not stored in FilterState — resolved async after taxon cache loads
-    // (handled by bee-atlas._loadSummaryFromSQLite pending-legacy-taxon resolution)
   }
 
   const yearFromRaw = parseInt(p.get('yr0') ?? '', 10);
