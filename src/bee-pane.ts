@@ -520,7 +520,14 @@ export class BeePane extends LitElement {
 
     // Taxon
     const localTaxonId = this._selectedTaxon?.taxonId ?? null;
-    if (f.taxonId !== localTaxonId) {
+    const localTaxonDisplay = this._selectedTaxon?.displayName ?? '';
+    const incomingTaxonDisplay = f.taxonDisplayName ?? '';
+    // Resync on taxonId change OR on a display-name-only change for the same id.
+    // The latter is the URL-restore case: firstUpdated sets taxonId with no label,
+    // then the label is backfilled from the cache once it loads — the input must
+    // pick up the label even though taxonId is unchanged (MFILT-03). This block only
+    // runs when the parent filterState changes, so it never clobbers in-progress typing.
+    if (f.taxonId !== localTaxonId || incomingTaxonDisplay !== localTaxonDisplay) {
       this._selectedTaxon = f.taxonId !== null
         ? { taxonId: f.taxonId, displayName: f.taxonDisplayName ?? '' }
         : null;

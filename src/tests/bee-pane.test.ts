@@ -191,6 +191,14 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
     expect(src).toMatch(/updated\s*\(\s*changed\s*:\s*PropertyValues/);
   });
 
+  test('bee-pane.ts resyncs the taxon input on a display-name-only change (MFILT-03 URL restore)', () => {
+    // URL restore sets taxonId first (no label), then backfills the label from the
+    // cache. The taxon-sync guard must react to the label change even when taxonId is
+    // unchanged, or "Species or group" stays empty. Assert the guard is not taxonId-only.
+    expect(src).toMatch(/incomingTaxonDisplay\s*!==\s*localTaxonDisplay/);
+    expect(src).toMatch(/f\.taxonId\s*!==\s*localTaxonId\s*\|\|\s*incomingTaxonDisplay\s*!==\s*localTaxonDisplay/);
+  });
+
   test('bee-pane.ts contains _ensurePlaceNamesLoaded with resolveDataUrl call', () => {
     expect(src).toMatch(/_ensurePlaceNamesLoaded/);
     expect(src).toMatch(/resolveDataUrl\(['"]places_meta['"]\)/);
