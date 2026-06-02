@@ -80,12 +80,8 @@ function filterStateToTokens(f: FilterState): Token[] {
   return tokens;
 }
 
-export function filterStatesEqual(a: FilterState, b: FilterState): boolean {
+function filterStatesEqual(a: FilterState, b: FilterState): boolean {
   return a.taxonId === b.taxonId
-    // taxonDisplayName is part of what the chip renders: a display-name-only change
-    // (e.g. URL restore backfilling the label for an already-set taxonId) is a genuine
-    // difference that must re-sync the tokens, or the chip stays blank (MFILT-03).
-    && a.taxonDisplayName === b.taxonDisplayName
     && a.yearFrom === b.yearFrom
     && a.yearTo === b.yearTo
     && setsEqual(a.months, b.months)
