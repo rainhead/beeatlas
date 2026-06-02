@@ -169,7 +169,11 @@ def _build_taxon_hierarchy(
     # WHERE NOT IN (SELECT taxon_id FROM out.taxa) is the INSERT OR IGNORE equivalent
     # for DuckDB's SQLite extension (which does not support ON CONFLICT syntax).
     # active = 'true' (string literal — boolean TRUE matches zero rows, Pitfall 4).
-    # rank IN (...) includes 'complex' per Pitfall 6.
+    # rank IN (...) includes 'complex' per Pitfall 6 and 'subtribe' because the
+    # ancestry-expansion step (_bee_taxon_ids) includes all ancestor taxon_ids —
+    # some lineage paths pass through subtribe nodes; omitting subtribe from the
+    # rank filter causes those nodes to be missing from the taxa table, which fires
+    # the _assert_no_orphan_taxon_ids missing-parent check (Rule 1 auto-fix).
     # lineage_path via regexp_extract anchored at 630955.
     con.execute("""
         INSERT INTO out.taxa
@@ -185,7 +189,7 @@ def _build_taxon_hierarchy(
             1 AS is_anthophila
         FROM read_csv(?, """ + _TAXA_READ_CSV_OPTS + """) t
         WHERE t.taxon_id IN (SELECT taxon_id FROM _bee_taxon_ids)
-          AND t.rank IN ('family', 'subfamily', 'tribe', 'genus', 'subgenus', 'complex', 'species')
+          AND t.rank IN ('family', 'subfamily', 'tribe', 'subtribe', 'genus', 'subgenus', 'complex', 'species')
           AND t.taxon_id NOT IN (SELECT taxon_id FROM out.taxa)
         QUALIFY ROW_NUMBER() OVER (PARTITION BY t.taxon_id ORDER BY t.taxon_id) = 1
     """, [str(taxa_path)])
