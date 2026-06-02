@@ -136,6 +136,30 @@ _Query: `SELECT COUNT(*) FROM taxa WHERE taxon_id = 47221 OR instr(lineage_path,
 
 ---
 
+## Section 7: Post-Review Hardening (Code Review, 2026-06-02)
+
+After 129-03 completed, the phase code review (`129-REVIEW.md`) found two reproduced **latent**
+correctness defects in the hierarchy build. They did **not** affect the shipped artifact (the
+current dataset has 0 sub-species occurrences and all checklist names resolve on-tree — verified
+0 mislabels against `taxa.csv.gz`), but were real code bugs that would mislabel bees on future
+nightly runs. All Critical + Warning findings were auto-fixed (`--fix`) and committed atomically:
+
+- **CR-01** — sub-species/variety/form Anthophila occurrences fell through PASS 1 into the bycatch
+  arm (`is_anthophila=0`/`NULL` path). Fixed: PASS 1 rank list widened to infraspecific ranks +
+  PASS 2 guarded with a `NOT(Anthophila ancestry)` filter.
+- **CR-02** — checklist seed lacked the Anthophila ancestry guard; an off-tree name could become
+  `is_anthophila=1` with `lineage_path='//'`. Fixed: ancestry guard added to the checklist seed.
+- **WR-01..05** — anchored ancestor expansion at root 630955 (no more `//` paths), loud failure on
+  unexpected checklist seed errors, deterministic dedup tiebreak, deferred index DDL (no concurrent
+  DuckDB+sqlite3 writers), and a lineage well-formedness gate (`^/630955/(\d+/)*$`) + partial-DB cleanup.
+
+Two RED→GREEN regression tests added (`test_subspecies_anthophila_not_bycatch`,
+`test_offtree_checklist_taxon_not_flagged_anthophila`). `occurrences.db` was rebuilt with the fixed
+code: **identical counts** (940 taxa / 239 Apidae / 834 anthophila / 106 bycatch / 0 orphans),
+**0 malformed lineage paths**. Test suite: `tests/test_sqlite_export.py` → 16 passed.
+
+---
+
 ## Verification Checklist
 
 - [x] Section 3: complex-rank occurrence count recorded (0)
