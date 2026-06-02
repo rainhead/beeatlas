@@ -5,6 +5,7 @@ import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
+import { buildTaxonOptions, type TaxonCacheEntry } from './taxa.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import './bee-header.ts';
@@ -62,6 +63,10 @@ export class BeeAtlas extends LitElement {
   @state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
 
   // Non-reactive private fields
+  // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
+  private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
+  // Pending legacy taxon from URL (non-integer taxon= value) resolved async after cache loads.
+  private _pendingLegacyTaxon: { name: string; rank: string | null } | null = null;
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   private _selectionDrawnGeneration = 0;
@@ -298,7 +303,8 @@ bee-pane {
       .then(async () => {
         console.debug('SQLite tables ready');
         if (this._paneState === 'table') {
-          this._loadSummaryFromSQLite();
+          // _loadSummaryFromSQLite is called from _onDataLoaded (unconditionally); only run
+          // the table query here since it depends on SQLite being ready, not on tablesReady.
           this._runTableQuery();
         }
       })
@@ -363,31 +369,53 @@ bee-pane {
         latestYear: Number(summaryRow.latest_year),
       };
 
-      // Taxa options
-      const taxaRows: Record<string, unknown>[] = [];
+      // Taxa cache + options (D-08: lazy, after tablesReady, not on boot path)
+      // Step 1: Load all is_anthophila=1 taxa into _taxonCache.
+      const cacheRows: Array<{ taxon_id: number; rank: string; name: string; lineage_path: string | null }> = [];
       await sqlite3.exec(db,
-        `SELECT DISTINCT family, genus, scientificName FROM occurrences WHERE ecdysis_id IS NOT NULL ORDER BY family, genus, scientificName`,
+        `SELECT taxon_id, rank, name, lineage_path FROM taxa WHERE is_anthophila = 1`,
         (rowValues: unknown[], columnNames: string[]) => {
-          taxaRows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])));
+          const obj = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
+          cacheRows.push(obj as { taxon_id: number; rank: string; name: string; lineage_path: string | null });
         }
       );
-      const families = new Set<string>();
-      const genera = new Set<string>();
-      const species = new Set<string>();
-      for (const obj of taxaRows) {
-        if (obj.family) families.add(String(obj.family));
-        if (obj.genus) genera.add(String(obj.genus));
-        if (obj.scientificName) species.add(String(obj.scientificName));
+      this._taxonCache = new Map(cacheRows.map(r => [
+        r.taxon_id,
+        { rank: r.rank, name: r.name, lineagePath: r.lineage_path },
+      ]));
+
+      // Step 2: D-01 enumeration — get distinct present occurrence taxon_ids, then
+      // ancestry-expand to build the eligible autocomplete set. This avoids the 10-second
+      // EXISTS form; runtime-verified equivalent in ~3.5 ms (Phase 130 Wave 0).
+      const presentIds = new Set<number>();
+      await sqlite3.exec(db,
+        `SELECT DISTINCT taxon_id FROM occurrences WHERE taxon_id IS NOT NULL`,
+        (rowValues: unknown[]) => {
+          const id = rowValues[0];
+          if (typeof id === 'number') presentIds.add(id);
+        }
+      );
+      this._taxaOptions = buildTaxonOptions(presentIds, this._taxonCache);
+
+      // Step 3: Resolve any pending legacy taxon from URL (non-integer taxon= value).
+      // After cache is populated we can resolve name+rank to a taxonId.
+      if (this._pendingLegacyTaxon) {
+        const { name, rank } = this._pendingLegacyTaxon;
+        for (const [id, entry] of this._taxonCache) {
+          if (entry.name === name && (rank === null || entry.rank === rank)) {
+            this._filterState = { ...this._filterState, taxonId: id };
+            this._pendingLegacyTaxon = null;
+            if (isFilterActive(this._filterState)) {
+              this._runFilterQuery();
+            }
+            break;
+          }
+        }
+        // If no match found, leave filter inactive — stale bookmark (no occurrence for that taxon)
+        if (this._pendingLegacyTaxon !== null) {
+          this._pendingLegacyTaxon = null;
+        }
       }
-      // Legacy TaxonOption build from string columns — will be replaced in Plan 02
-      // when the taxa cache is loaded from the taxa table.
-      // For now we use taxonId: 0 as a placeholder so the type compiles.
-      // The existing taxa from string columns won't have real taxon_ids until Plan 02.
-      this._taxaOptions = [
-        ...[...families].sort().map(v => ({ label: `${v} (family)`, taxonId: 0, rank: 'family' as const })),
-        ...[...genera].sort().map(v => ({ label: `${v} (genus)`, taxonId: 0, rank: 'genus' as const })),
-        ...[...species].filter(v => !(genera.has(v) && !v.includes(' '))).sort().map(v => ({ label: v, taxonId: 0, rank: 'species' as const })),
-      ];
 
       // County options
       this._countyOptions = [];
@@ -937,8 +965,11 @@ bee-pane {
 
   private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[] }>) {
     this._summary = e.detail.summary;
-    this._taxaOptions = e.detail.taxaOptions;
-    this._loading = false;
+    // _taxaOptions is built in _loadSummaryFromSQLite (from taxa table) — not from geo-blob event.
+    // Call _loadSummaryFromSQLite here so the taxa cache loads for all users (not just table pane).
+    this._loadSummaryFromSQLite();
+    // _loading = false is set in _loadSummaryFromSQLite's finally block; do not set it here
+    // to avoid a race where the loading screen lifts before the taxa cache is ready.
     const _heapMB = ((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1_048_576;
     console.log(`[BENCHMARK] data-loaded (loading screen lifted): ${(performance.now() - this._bootT0).toFixed(0)} ms from boot | main-thread heap: ${_heapMB.toFixed(1)} MB`);
     this._loadCollectorOptions();

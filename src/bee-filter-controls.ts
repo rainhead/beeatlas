@@ -99,7 +99,7 @@ function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
   return true;
 }
 
-function getSuggestions(
+export function getSuggestions(
   q: string,
   taxaOptions: TaxonOption[],
   countyOptions: string[],
