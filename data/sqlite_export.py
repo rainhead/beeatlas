@@ -183,6 +183,10 @@ def _build_taxon_hierarchy(
     # some lineage paths pass through subtribe nodes; omitting subtribe from the
     # rank filter causes those nodes to be missing from the taxa table, which fires
     # the _assert_no_orphan_taxon_ids missing-parent check (Rule 1 auto-fix).
+    # CR-01: the list also includes the iNat infraspecific ranks ('subspecies',
+    # 'variety', 'form', 'infrahybrid', 'hybrid') so an occurrence identified to a
+    # sub-species Anthophila taxon is owned by PASS 1 (is_anthophila=1 + real
+    # lineage) instead of falling through to the PASS 2 bycatch arm.
     # lineage_path via regexp_extract anchored at 630955.
     con.execute("""
         INSERT INTO out.taxa
@@ -198,7 +202,11 @@ def _build_taxon_hierarchy(
             1 AS is_anthophila
         FROM read_csv(?, """ + _TAXA_READ_CSV_OPTS + """) t
         WHERE t.taxon_id IN (SELECT taxon_id FROM _bee_taxon_ids)
-          AND t.rank IN ('family', 'subfamily', 'tribe', 'subtribe', 'genus', 'subgenus', 'complex', 'species')
+          AND t.rank IN (
+              'family', 'subfamily', 'tribe', 'subtribe', 'genus', 'subgenus',
+              'complex', 'species', 'subspecies', 'variety', 'form',
+              'infrahybrid', 'hybrid'
+          )
           AND t.taxon_id NOT IN (SELECT taxon_id FROM out.taxa)
         QUALIFY ROW_NUMBER() OVER (PARTITION BY t.taxon_id ORDER BY t.taxon_id) = 1
     """, [str(taxa_path)])
@@ -207,6 +215,14 @@ def _build_taxon_hierarchy(
     # Every occurrence taxon_id NOT already in out.taxa (i.e. not Anthophila) gets
     # its own finest-rank row with is_anthophila=0 and lineage_path NULL.
     # NO active filter (Pitfall 5 — bycatch taxa may be inactive but were valid at ingest).
+    #
+    # CR-01: explicitly exclude any taxon whose taxa.csv.gz ancestry places it within
+    # Anthophila (any rank). A genuine bee identified to subspecies/variety/form is
+    # now owned by PASS 1, but this NOT(...) guard ensures such a taxon can never
+    # reach the bycatch arm even if PASS 1's rank list is later narrowed — a real bee
+    # must never be stamped is_anthophila=0 with a NULL lineage. If such a taxon is
+    # excluded here yet not built by PASS 1, it becomes an orphan and the post-build
+    # gate fails loudly (the intended outcome) rather than silently mislabeling.
     con.execute("""
         INSERT INTO out.taxa
         SELECT
@@ -222,6 +238,11 @@ def _build_taxon_hierarchy(
             WHERE taxon_id IS NOT NULL
               AND taxon_id NOT IN (SELECT taxon_id FROM out.taxa)
         )
+          AND NOT (
+              t.ancestry LIKE '%/630955/%'
+              OR t.ancestry LIKE '%/630955'
+              OR t.taxon_id = 630955
+          )
         QUALIFY ROW_NUMBER() OVER (PARTITION BY t.taxon_id ORDER BY t.taxon_id) = 1
     """, [str(taxa_path)])
 
