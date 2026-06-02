@@ -1,7 +1,7 @@
 import { test, expect, describe } from 'vitest';
 import { buildParams, parseParams } from '../url-state.ts';
 import type { FilterState } from '../filter.ts';
-import type { SelectionState } from '../url-state.ts';
+import type { SelectionState, ParsedParams } from '../url-state.ts';
 
 function emptyFilter(): FilterState {
   return {
@@ -507,5 +507,47 @@ describe('bounds selection (SEL-06)', () => {
     const result = parseParams(params.toString());
     expect(result.selection).toEqual({ type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
     expect(result.filter?.taxonId).toBe(52775);
+  });
+});
+
+describe('MFILT-03: taxon URL integer encode + legacy back-compat decode', () => {
+  test('buildParams sets taxon= to String(taxonId) and never sets taxonRank', () => {
+    const filter: FilterState = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('taxon')).toBe('52775');
+    expect(params.has('taxonRank')).toBe(false);
+  });
+
+  test('parseParams on ?taxon=52775 yields filter.taxonId === 52775 with no pending-legacy', () => {
+    const result: ParsedParams = parseParams('taxon=52775');
+    expect(result.filter?.taxonId).toBe(52775);
+    expect(result.pendingLegacyTaxon).toBeUndefined();
+  });
+
+  test('round-trip: parseParams(buildParams({taxonId:52775})) recovers taxonId === 52775', () => {
+    const filter: FilterState = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    const result: ParsedParams = parseParams(params.toString());
+    expect(result.filter?.taxonId).toBe(52775);
+  });
+
+  test('parseParams on ?taxon=Bombus&taxonRank=genus stores pending-legacy, no taxonId', () => {
+    const result: ParsedParams = parseParams('taxon=Bombus&taxonRank=genus');
+    // Non-integer taxon → no synchronous taxonId
+    expect(result.filter).toBeUndefined();
+    // But pendingLegacyTaxon is populated for async resolution
+    expect(result.pendingLegacyTaxon).toBeDefined();
+    expect(result.pendingLegacyTaxon?.name).toBe('Bombus');
+    expect(result.pendingLegacyTaxon?.rank).toBe('genus');
+  });
+
+  test('year-only params still round-trip unchanged (MFILT-03)', () => {
+    const filter: FilterState = { ...emptyFilter(), yearFrom: 2020, yearTo: 2022 };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    const result: ParsedParams = parseParams(params.toString());
+    expect(result.filter?.yearFrom).toBe(2020);
+    expect(result.filter?.yearTo).toBe(2022);
+    expect(result.filter?.taxonId).toBeNull();
+    expect(result.pendingLegacyTaxon).toBeUndefined();
   });
 });
