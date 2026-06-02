@@ -346,6 +346,29 @@ def _assert_no_orphan_taxon_ids(db_path: Path) -> None:
             for row in con.execute("SELECT taxon_id FROM taxa").fetchall()
         }
 
+    # WR-05 / CR-02 / WR-01: assert structural well-formedness of every lineage_path
+    # BEFORE the missing-parent segment scan. A well-formed Anthophila lineage is
+    # '/630955/' optionally followed by '<int>/' groups. Degenerate paths like '//'
+    # or a path that does not begin with '/630955/' previously slipped past Check 2
+    # entirely ('//'.strip('/').split('/') == [''], filtered to nothing), shipping a
+    # malformed row that polluted every instr(lineage_path, '/X/') descendant query.
+    import re as _re
+
+    _LINEAGE_RE = _re.compile(r"^/630955/(\d+/)*$")
+    malformed: list[tuple[int, str]] = [
+        (taxon_id, lineage_path)
+        for taxon_id, lineage_path in lineage_rows
+        if not _LINEAGE_RE.match(lineage_path)
+    ]
+    if malformed:
+        count = len(malformed)
+        sample = malformed[:10]
+        raise ValueError(
+            f"Hierarchy build incomplete: {count} malformed (orphan-shaped) "
+            f"lineage_path values do not match '^/630955/(\\d+/)*$': "
+            f"{sample}{'...' if count > 10 else ''}"
+        )
+
     # Parse each lineage_path string into its segment taxon_ids.
     # Format: '/630955/.../self_id/' — split on '/', filter empty strings and the
     # Anthophila root (630955 is always present; it has no parent to check).
@@ -416,9 +439,16 @@ def generate_sqlite(
     # stdlib sqlite3 handle is the sole writer of the file at this point.
     _create_taxa_indexes(dst_db)
 
-    # Post-build hard gate: assert no orphan occurrence taxon_ids or missing-parent
-    # lineage_path segments before writing geo_blob.
-    _assert_no_orphan_taxon_ids(dst_db)
+    # Post-build hard gate: assert no orphan occurrence taxon_ids or missing-parent /
+    # malformed lineage_path segments before writing geo_blob.
+    # WR-05: on failure, unlink the partial artifact so a mid-failure inspection never
+    # sees a half-built occurrences.db (occurrences + taxa but no geo_blob).
+    try:
+        _assert_no_orphan_taxon_ids(dst_db)
+    except Exception:
+        if dst_db.exists():
+            dst_db.unlink()
+        raise
 
     # Pre-serialize geo rows as a single TEXT blob so the browser worker fetches them
     # with one SQL query and one WASM→JS callback (vs 92K callbacks = ~600 ms in Firefox).
