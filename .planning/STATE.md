@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
-status: planning
-stopped_at: Phase 130 context gathered
-last_updated: "2026-06-02T21:00:41.314Z"
+status: executing
+stopped_at: Completed 130-01-PLAN.md (taxonId contract layer)
+last_updated: "2026-06-02T22:07:26.335Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
   percent: 20
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 130 — map filter cutover
+**Current focus:** Phase 130 — map-filter-cutover
 
 ## Current Position
 
-Phase: 130
-Plan: Not started
-Status: Ready to plan
+Phase: 130 (map-filter-cutover) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-06-02
 
 ```
-Progress: [██████████] 100%
+Progress: [███████░░░] 67%
 ```
 
 ## Accumulated Context
@@ -54,6 +54,7 @@ All v4.5 decisions logged in `.planning/milestones/v4.5-ROADMAP.md` and PROJECT.
 - species mart keeps its rank name columns (family, subfamily, tribe, genus, subgenus) — they serve page generation via Eleventy and are not a transfer-weight concern.
 - PAGE-05 (complex pages) is conditional: decided in Phase 129 based on complex-rank occurrence count. If < ~50 occurrences, complex nodes deep-link to filtered map view instead.
 - URL param `taxon=` migrates from name string to integer taxon_id in Phase 130; old name-format URLs get a backward-compatible fallback parse.
+- [Phase ?]: taxonId integer SQL interpolation
 
 ### Roadmap Evolution
 
@@ -94,9 +95,9 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-02T21:00:41.292Z
-Stopped at: Phase 130 context gathered
-Resume file: .planning/phases/130-map-filter-cutover/130-CONTEXT.md
+Last session: 2026-06-02T22:07:26.313Z
+Stopped at: Completed 130-01-PLAN.md (taxonId contract layer)
+Resume file: None
 
 ## Operator Next Steps
 
