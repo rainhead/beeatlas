@@ -217,3 +217,155 @@ def src_parquet_with_taxon(tmp_path: Path) -> Path:
     path = tmp_path / "occurrences_with_taxon.parquet"
     pq.write_table(table, path)
     return path
+
+
+# ---------------------------------------------------------------------------
+# Hierarchy tests (Wave 0 RED — _build_taxon_hierarchy not yet implemented)
+# ---------------------------------------------------------------------------
+
+
+def test_taxa_table_exists(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    tables = {row[0] for row in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    con.close()
+    assert "taxa" in tables, f"Expected 'taxa' table, got: {tables}"
+
+
+def test_zero_orphan_taxon_ids(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    (count,) = con.execute(
+        "SELECT COUNT(*) FROM occurrences WHERE taxon_id IS NOT NULL "
+        "AND taxon_id NOT IN (SELECT taxon_id FROM taxa)"
+    ).fetchone()
+    con.close()
+    assert count == 0, f"Found {count} orphan taxon_id values"
+
+
+def test_taxa_name_rank_non_null(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    (count,) = con.execute(
+        "SELECT COUNT(*) FROM taxa "
+        "WHERE taxon_id IN (SELECT DISTINCT taxon_id FROM occurrences WHERE taxon_id IS NOT NULL) "
+        "AND (name IS NULL OR rank IS NULL)"
+    ).fetchone()
+    con.close()
+    assert count == 0, f"Found {count} taxa rows with NULL name or rank for referenced taxon_ids"
+
+
+def test_apidae_descendant_query(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    rows = con.execute(
+        "SELECT taxon_id, is_anthophila FROM taxa "
+        "WHERE taxon_id = 47221 OR instr(lineage_path, '/47221/') > 0"
+    ).fetchall()
+    con.close()
+    assert len(rows) > 0, "Expected at least one Apidae descendant in taxa"
+    non_bee = [r for r in rows if r[1] != 1]
+    assert non_bee == [], f"Found non-Anthophila rows in Apidae descendants: {non_bee}"
+
+
+def test_active_taxa_only(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    # Known active bee must be present
+    (bee_count,) = con.execute("SELECT COUNT(*) FROM taxa WHERE taxon_id = 47219").fetchone()
+    # No taxon outside the fixture's active+bycatch set should appear
+    known_ids = {row[0] for row in TAXA_ROWS}
+    all_taxon_ids = {row[0] for row in con.execute("SELECT taxon_id FROM taxa").fetchall()}
+    con.close()
+    assert bee_count == 1, "Known active bee taxon 47219 not found in taxa"
+    unexpected = all_taxon_ids - known_ids
+    assert unexpected == set(), f"Unexpected taxon_ids found in taxa (not in fixture): {unexpected}"
+
+
+def test_orphan_assertion_raises(src_parquet_with_taxon: Path, tmp_path: Path) -> None:
+    """If taxa table is empty, orphan assertion must raise ValueError."""
+    from sqlite_export import _assert_no_orphan_taxon_ids
+    import sqlite3 as stdlib_sqlite3
+
+    dst = tmp_path / "bare.db"
+    # Create occurrences + empty taxa manually
+    con = stdlib_sqlite3.connect(dst)
+    con.execute("CREATE TABLE occurrences (taxon_id INTEGER)")
+    con.execute("INSERT INTO occurrences VALUES (99999)")
+    con.execute("CREATE TABLE taxa (taxon_id INTEGER PRIMARY KEY)")
+    con.commit()
+    con.close()
+
+    with pytest.raises(ValueError, match="orphan"):
+        _assert_no_orphan_taxon_ids(dst)
+
+
+def test_is_anthophila_flag(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    bee_flags = {row[0] for row in con.execute(
+        "SELECT DISTINCT is_anthophila FROM taxa WHERE taxon_id = 47219"
+    ).fetchall()}
+    bycatch_flags = {row[0] for row in con.execute(
+        "SELECT DISTINCT is_anthophila FROM taxa WHERE taxon_id = 52747"
+    ).fetchall()}
+    con.close()
+    assert bee_flags == {1}, f"Bee taxon should have is_anthophila=1, got {bee_flags}"
+    assert bycatch_flags == {0}, f"Bycatch taxon should have is_anthophila=0, got {bycatch_flags}"
+
+
+def test_bycatch_present_in_taxa(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    rows = con.execute(
+        "SELECT taxon_id, is_anthophila, name, rank FROM taxa WHERE taxon_id = 52747"
+    ).fetchall()
+    con.close()
+    assert len(rows) == 1, f"Expected bycatch taxon 52747 in taxa, got {len(rows)} rows"
+    taxon_id, is_anthophila, name, rank = rows[0]
+    assert is_anthophila == 0, f"Bycatch taxon should have is_anthophila=0, got {is_anthophila}"
+    assert name is not None, "Bycatch taxon name should not be NULL"
+    assert rank is not None, "Bycatch taxon rank should not be NULL"
+
+
+def test_complex_and_bycatch_counts(src_parquet_with_taxon: Path, taxa_csv_gz: Path, tmp_path: Path) -> None:
+    from sqlite_export import generate_sqlite
+
+    dst = tmp_path / "occurrences.db"
+    generate_sqlite(src_parquet_with_taxon, dst, taxa_path=taxa_csv_gz)
+
+    con = sqlite3.connect(dst)
+    (bycatch_count,) = con.execute("SELECT COUNT(*) FROM taxa WHERE is_anthophila = 0").fetchone()
+    (complex_count,) = con.execute("SELECT COUNT(*) FROM taxa WHERE rank = 'complex'").fetchone()
+    con.close()
+    assert bycatch_count == 1, f"Expected 1 bycatch taxon in mini fixture, got {bycatch_count}"
+    # complex_count just needs to be queryable (0 in mini fixture — no complex rows)
+    assert complex_count >= 0, "complex-rank count query should return a non-negative integer"
