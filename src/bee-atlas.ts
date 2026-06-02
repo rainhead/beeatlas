@@ -301,18 +301,6 @@ bee-pane {
           this._loadSummaryFromSQLite();
           this._runTableQuery();
         }
-        // TEMPORARY BENCHMARK (Phase 129 HIER-03): measure Apidae descendant query latency in wa-sqlite.
-        // Remove after recording result in 129-VERIFICATION.md.
-        try {
-          const { sqlite3, db } = await getDB();
-          const rows: unknown[][] = [];
-          const t0 = performance.now();
-          await sqlite3.exec(db, "SELECT taxon_id FROM taxa WHERE taxon_id = 47221 OR instr(lineage_path, '/47221/') > 0", (row) => { rows.push(row); });
-          const t1 = performance.now();
-          console.log(`[HIER-03 BENCHMARK] Apidae descendant query: ${(t1 - t0).toFixed(1)} ms | rows returned: ${rows.length}`);
-        } catch (err) {
-          console.warn('[HIER-03 BENCHMARK] query failed (taxa table may not exist):', err);
-        }
       })
       .catch((err: unknown) => {
         console.error('SQLite init failed:', err);
