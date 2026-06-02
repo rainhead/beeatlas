@@ -1,4 +1,4 @@
-import { test, expect, describe, vi } from 'vitest';
+import { test, expect, describe } from 'vitest';
 import { buildTaxonLabel, RANK_ORDER, buildTaxonOptions } from '../taxa.ts';
 import { getSuggestions } from '../bee-filter-controls.ts';
 import type { TaxonOption } from '../filter.ts';
