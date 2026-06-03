@@ -47,11 +47,8 @@ export interface OccurrenceRow {
   place_slug: string | null;
   ecdysis_id: number | null;
   catalog_number: string | null;
-  scientificName: string | null;
   recordedBy: string | null;
   fieldNumber: string | null;
-  genus: string | null;
-  family: string | null;
   floralHost: string | null;
   host_observation_id: number | null;
   inat_host: string | null;
@@ -64,7 +61,6 @@ export interface OccurrenceRow {
   observation_id: number | null;
   host_inat_login: string | null;
   is_provisional: boolean;
-  specimen_inat_taxon_name: string | null;
   specimen_inat_quality_grade: string | null;
   specimen_count: number | null;
   sample_id: number | null;
@@ -74,15 +70,17 @@ export interface OccurrenceRow {
   obs_url: string | null;
   user_login: string | null;
   license: string | null;
+  // JOIN-resolved from taxa.name; null when taxon_id IS NULL (not a mart column)
+  display_name: string | null;
 }
 
 export const OCCURRENCE_COLUMNS = [
   'taxon_id', 'lat', 'lon', 'date', 'county', 'ecoregion_l3', 'place_slug',
-  'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber',
-  'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host',
+  'ecdysis_id', 'catalog_number', 'recordedBy', 'fieldNumber',
+  'floralHost', 'host_observation_id', 'inat_host',
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
   'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host',
-  'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade',
+  'is_provisional', 'specimen_inat_quality_grade',
   'source', 'image_url', 'obs_url', 'user_login', 'license',
 ] as const;
 
@@ -153,13 +151,13 @@ export async function queryAllFiltered(
 ): Promise<Record<string, unknown>[]> {
   const { occurrenceWhere } = buildFilterSQL(f);
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
-  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: Record<string, unknown>[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences WHERE ${occurrenceWhere} ORDER BY ${orderBy}`,
+    `SELECT ${selectCols} FROM occurrences o LEFT JOIN taxa t ON t.taxon_id = o.taxon_id WHERE ${occurrenceWhere} ORDER BY ${orderBy}`,
     (rowValues: unknown[], columnNames: string[]) => {
       const obj: Record<string, unknown> = {};
       columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
@@ -190,7 +188,7 @@ export async function queryTablePage(
   const offset = (page - 1) * PAGE_SIZE;
 
   const { occurrenceWhere } = buildFilterSQL(f);
-  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -203,7 +201,7 @@ export async function queryTablePage(
   );
   const rows: Record<string, unknown>[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences WHERE ${occurrenceWhere} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    `SELECT ${selectCols} FROM occurrences o LEFT JOIN taxa t ON t.taxon_id = o.taxon_id WHERE ${occurrenceWhere} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
     (rowValues: unknown[], columnNames: string[]) => {
       const obj: Record<string, unknown> = {};
       columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
@@ -432,7 +430,7 @@ export async function queryListPage(
   const fullWhere = `(${occurrenceWhere})${selFilter}${boundsClause}`;
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
-  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -447,7 +445,7 @@ export async function queryListPage(
 
   const rows: Record<string, unknown>[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences WHERE ${fullWhere} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    `SELECT ${selectCols} FROM occurrences o LEFT JOIN taxa t ON t.taxon_id = o.taxon_id WHERE ${fullWhere} ORDER BY ${orderBy} LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
     (rowValues: unknown[], columnNames: string[]) => {
       const obj: Record<string, unknown> = {};
       columnNames.forEach((col: string, i: number) => { obj[col] = rowValues[i]; });
