@@ -1,10 +1,16 @@
-"""Unit and integration tests for species_export.py slug format (PIPE-03).
+"""Unit and integration tests for species_export.py slug format (PIPE-03) and
+slug-collision gate (PAGE-03, D-07).
 
 Tests assert the new Genus/specificEpithet slug format for species rows:
   - test_slug_hierarchical: every row with specific_epithet has slug == f"{genus}/{epithet}"
   - test_no_old_slug_format: no slug contains the old lowercase-dash flat format
 
-Both tests guarded by _SANDBOX_GUARD so they skip cleanly when
+Collision gate tests (D-07):
+  - test_check_slug_collisions_raises_on_collision: synthetic collision hard-fails
+  - test_check_slug_collisions_bombus_no_false_alarm: genus/subgenus Bombus is NOT a collision
+  - test_check_slug_collisions_clean_real_data: sandbox-gated pass on live data
+
+Both sandbox tests guarded by _SANDBOX_GUARD so they skip cleanly when
 data/dbt/target/sandbox/species.parquet is absent.
 
 Run after ``bash data/dbt/run.sh build``:
@@ -26,6 +32,11 @@ SPECIES_JSON = Path(__file__).resolve().parent.parent.parent / "public" / "data"
 _SANDBOX_GUARD = pytest.mark.skipif(
     not (SANDBOX / "species.parquet").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox species.parquet",
+)
+
+_HIGHER_TAXA_GUARD = pytest.mark.skipif(
+    not (SANDBOX / "higher_taxa.parquet").exists(),
+    reason="run `bash data/dbt/run.sh build` first to produce sandbox higher_taxa.parquet",
 )
 
 _SPECIES_JSON_GUARD = pytest.mark.skipif(
@@ -103,3 +114,65 @@ def test_taxon_id(tmp_path):
         assert isinstance(tid, int), (
             f"species.json taxon_id is not an integer for {row.get('canonical_name')!r}: {tid!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Slug-collision gate tests (D-07, PAGE-03)
+# ---------------------------------------------------------------------------
+
+def test_check_slug_collisions_raises_on_collision():
+    """_check_slug_collisions raises AssertionError when two distinct taxa share a URL (D-07)."""
+    # Two distinct genera with the same name produce the same URL — synthetic collision
+    higher_taxa_rows = [
+        {'taxon_id': 1001, 'rank': 'genus', 'name': 'Apis', 'genus': None, 'subfamily': None, 'tribe': None},
+        {'taxon_id': 1002, 'rank': 'genus', 'name': 'Apis', 'genus': None, 'subfamily': None, 'tribe': None},
+    ]
+    species_rows: list = []
+    with pytest.raises(AssertionError) as exc_info:
+        se_mod._check_slug_collisions(higher_taxa_rows, species_rows)
+    msg = str(exc_info.value)
+    assert '/species/Apis/' in msg, f"Expected URL in error message, got: {msg}"
+    assert 'no auto-suffix' in msg, f"Expected 'no auto-suffix' in error message, got: {msg}"
+
+
+def test_check_slug_collisions_bombus_no_false_alarm():
+    """genus Bombus and subgenus Bombus do NOT collide — distinct full URLs (Pitfall 5)."""
+    higher_taxa_rows = [
+        # genus Bombus -> /species/Bombus/
+        {'taxon_id': 52775, 'rank': 'genus', 'name': 'Bombus', 'genus': None, 'subfamily': None, 'tribe': None},
+        # subgenus Bombus -> /species/Bombus/Bombus/
+        {'taxon_id': 200001, 'rank': 'subgenus', 'name': 'Bombus', 'genus': 'Bombus', 'subfamily': None, 'tribe': None},
+    ]
+    species_rows: list = []
+    # Must NOT raise — distinct full URLs
+    se_mod._check_slug_collisions(higher_taxa_rows, species_rows)
+
+
+@_SANDBOX_GUARD
+@_HIGHER_TAXA_GUARD
+def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch):
+    """_check_slug_collisions passes on current real data — no collision in live data (D-07)."""
+    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
+    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
+    con = duckdb.connect()
+    # Build higher_taxa_rows from the parquet
+    higher_taxa_parquet = SANDBOX / 'higher_taxa.parquet'
+    rows = con.execute(
+        f"SELECT * FROM read_parquet('{higher_taxa_parquet}') ORDER BY rank, name"
+    ).fetchall()
+    cols = [d[0] for d in con.description]
+    higher_taxa_rows = [dict(zip(cols, r)) for r in rows]
+    # Build species_rows with slugs
+    species_parquet = SANDBOX / 'species.parquet'
+    sp_rows = con.execute(
+        f"SELECT canonical_name, taxon_id, genus, specific_epithet FROM read_parquet('{species_parquet}')"
+    ).fetchall()
+    species_rows = []
+    for canonical_name, taxon_id, genus, epithet in sp_rows:
+        if genus and epithet:
+            slug = f"{genus}/{epithet}"
+        else:
+            slug = genus or ''
+        species_rows.append({'canonical_name': canonical_name, 'taxon_id': taxon_id, 'slug': slug})
+    # Must not raise
+    se_mod._check_slug_collisions(higher_taxa_rows, species_rows)
