@@ -460,7 +460,7 @@ See `.planning/milestones/v4.3-ROADMAP.md` for full phase details.
 - [ ] Phase 130: Map Filter Cutover (3 plans)
 - [ ] Phase 131: Occurrence Normalization (4 plans)
 - [ ] Phase 132: Page Rebuild & Subfamily Pages (TBD plans)
-- [ ] Phase 133: Browse Tree (TBD plans)
+- [ ] Phase 133: Browse Tree (4 plans)
 
 See Phase Details below for success criteria.
 
@@ -930,7 +930,17 @@ Plans:
   1. User can select any taxon at family / subfamily / tribe / genus / subgenus / complex / species rank from the autocomplete and see exactly the map points that are descendants of that taxon — including ranks (subfamily, tribe, subgenus) that were previously absent
   2. Filter URL round-trip (`taxon=` param now encodes an integer `taxon_id`), clear-filters, region/boundary filtering, and selection-rectangle interactions all work correctly; old name-format URLs are parsed with a backward-compatible fallback
   3. Occurrence detail cards resolve and display taxon names correctly from the hierarchy cache; no "undefined" or blank taxon name for any identified occurrence
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+- [ ] 133-01-PLAN.md — Harden _data/species.js: build fullTree (bee-only, descendant-rolled counts, six-rank skeleton, D-05 degradation) + Wave 0 data tests [TREE-01, TREE-02, TREE-04]
+
+**Wave 2** *(blocked on Wave 1; 02 and 03 run in parallel — no file overlap)*
+- [ ] 133-02-PLAN.md — Rewrite _pages/species.njk as the expandable details/summary tree (counts, name→page + 🗺→map links, family plain text, hidden intermediate ranks) + template source tests [TREE-01, TREE-02, TREE-04]
+- [ ] 133-03-PLAN.md — Extend src/styles/taxon-pages.css with the UI-SPEC control-bar + tree-node styling (focus rings, 44×44 🗺 target, toggle indicator) [TREE-01, TREE-02]
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 133-04-PLAN.md — Extend src/entries/species-index.ts: Show-all-ranks toggle + localStorage, filter across displayed ranks + ancestor auto-expand, XSS-safe empty state; human-verify checkpoint [TREE-01, TREE-03]
 **UI hint**: yes
 
 ### Phase 131: Occurrence Normalization
@@ -994,4 +1004,4 @@ Plans:
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete    | 2026-06-03 |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete    | 2026-06-03 |
-| 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
+| 133. Browse Tree | v4.6 | 0/4 | Not started | - |
