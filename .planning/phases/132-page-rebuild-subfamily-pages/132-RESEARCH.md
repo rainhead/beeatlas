@@ -794,9 +794,10 @@ All dependencies are produced earlier in the STEPS pipeline. No blocking missing
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Member list representation in the rollup (D-10)**
+   - RESOLVED: Single combined `higher_taxa` model carrying a `member_taxon_ids` JSON-array (varchar) column declared in the enforced contract — no separate edges model (Plan 01 Task 2).
    - What we know: D-10 says membership edges should be `taxon_id`-derived; the planner has discretion
      to split into counts + edges model.
    - What's unclear: Whether DuckDB's `list_aggregate` / JSON array aggregation is ergonomic enough
@@ -805,6 +806,7 @@ All dependencies are produced earlier in the STEPS pipeline. No blocking missing
      child_taxon_id)` across different rank-pair combinations), split at planning time.
 
 2. **`_data/species.js` reads `higher_taxa.json` at build time: file-not-found on first dev setup**
+   - RESOLVED: Add `higher_taxa.json` to `scripts/fetch-data.sh` download list (and `make-local-manifest.js`) so local dev fetches it (Plan 02 Task 3).
    - What we know: Currently `higher_rank_taxon_ids.json` is read with `readFileSync`; if absent,
      build throws. The new file has the same pattern.
    - What's unclear: Whether `scripts/make-local-manifest.js` or `scripts/fetch-data.sh` should
@@ -813,6 +815,7 @@ All dependencies are produced earlier in the STEPS pipeline. No blocking missing
      fetch `higher_taxa.json`; the manifest key change handles the hashed URL lookup.
 
 3. **Checklist-county SVG fills for subfamily maps (D-09)**
+   - RESOLVED: No county fills on group SVGs; the subfamily pass adds none, consistent with existing genus/tribe maps (Plan 03 Task 1).
    - What we know: `_write_group_svg` does not draw checklist county fills. Genus/tribe maps also
      lack county fills.
    - What's unclear: Whether PAGE-04 requires county fills on subfamily map SVGs, or only that
