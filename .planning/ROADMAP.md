@@ -458,7 +458,7 @@ See `.planning/milestones/v4.3-ROADMAP.md` for full phase details.
 
 - [ ] Phase 129: Hierarchy Foundation (3 plans)
 - [ ] Phase 130: Map Filter Cutover (3 plans)
-- [ ] Phase 131: Occurrence Normalization (TBD plans)
+- [ ] Phase 131: Occurrence Normalization (4 plans)
 - [ ] Phase 132: Page Rebuild & Subfamily Pages (TBD plans)
 - [ ] Phase 133: Browse Tree (TBD plans)
 
@@ -942,7 +942,19 @@ Plans:
   1. `occurrences.parquet` and `occurrences.db` no longer contain `genus`, `family`, `scientificName`, `specimen_inat_taxon_name`, `specimen_inat_genus`, or `specimen_inat_family` columns; `canonical_name` is retained; the rewritten dbt column contract is enforced at every `dbt build` and `dbt build` exits 0
   2. `occurrences.db` file size and transfer weight are measurably smaller than the pre-change baseline captured before Phase 131; the reduction is recorded in VERIFICATION.md; `tablesReady` timing does not regress from the v4.3 baseline of ~250 ms
   3. Every downstream consumer of the dropped columns (dbt schema.yml, `features.ts` geo_blob positional indexes, `bee-atlas.ts` inline SQL, `bee-map.ts` checklist filter, `filter.test.ts` assertions) is audited and migrated in the same change; a grep audit report confirms no remaining references to the removed column names
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 0**
+- [ ] 131-01-PLAN.md — RED test scaffolds: build-geojson 7-field rewrite, filter.test JOIN/display_name + slimmer OCCURRENCE_COLUMNS, bee-table fixtures [NORM-01, NORM-02, NORM-03]
+
+**Wave 1** *(blocked on Wave 0)*
+- [ ] 131-02-PLAN.md — NORM-03 query+display: LEFT JOIN taxa display_name in queryTablePage/queryListPage/queryAllFiltered; drop 4 cols from OccurrenceRow/OCCURRENCE_COLUMNS; bee-table + bee-occurrence-detail on display_name [NORM-03]
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 131-03-PLAN.md — NORM-01/02 data layer: dbt mart+contract 37→33, dead intermediate cols, 7-field geo_blob (sqlite_export.py + features.ts coupled), D-01/D-06 dead-path deletion [NORM-01, NORM-02, NORM-03]
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 131-04-PLAN.md — NORM-02 measurement: before/after occurrences.db size + gzip weight + tablesReady in VERIFICATION.md; grep audit; human-verify phase gate [NORM-02]
 
 ### Phase 132: Page Rebuild & Subfamily Pages
 
@@ -976,6 +988,6 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 129. Hierarchy Foundation | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
-| 131. Occurrence Normalization | v4.6 | 0/TBD | Not started | - |
+| 131. Occurrence Normalization | v4.6 | 0/4 | Planned | - |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
 | 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
