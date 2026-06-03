@@ -1,12 +1,14 @@
 """Export per-species aggregates and JSON sidecars for the Species Tab.
 
 Reads dbt-produced sandbox/species.parquet and sandbox/occurrences.parquet,
-adds slug via domain.slugify, emits five artifacts:
+adds slug via domain.slugify, emits six artifacts:
   - species.parquet              (22 cols incl. taxon_id + slug)
   - species.json                 (flat array — Eleventy _data/species.js consumer)
   - seasonality.json             (species → bucket → INT[12] — VIZ-04 lookup)
   - photos.json                  (per-species CC-licensed iNat photo list — D-07/D-08)
-  - higher_rank_taxon_ids.json   (genus/subgenus/tribe name → taxon_id — D-06)
+  - higher_taxa.json             (dbt rollup: all higher-rank taxa with counts + membership — D-03)
+
+higher_rank_taxon_ids.json is retired (D-03). higher_taxa.json supersedes it.
 
 Run AFTER ``bash data/dbt/run.sh build`` (which writes
 DBT_SANDBOX_DIR/species.parquet and DBT_SANDBOX_DIR/occurrences.parquet).
@@ -130,43 +132,61 @@ def _check_slug_collisions(higher_taxa_rows: list[dict], species_rows: list[dict
         seen[url] = key
 
 
-def _build_higher_rank_taxon_ids(con: duckdb.DuckDBPyConnection) -> dict:
-    """Query taxa.csv.gz for genus/subgenus/tribe taxon_ids by name (D-06).
+def _build_higher_taxa(con: duckdb.DuckDBPyConnection) -> list[dict]:
+    """Read dbt higher_taxa.parquet, emit public/data/higher_taxa.json.
 
-    Filters to active=true rows at genus/subgenus/tribe rank. The rank filter
-    resolves the same-name genus/subgenus collision (e.g. Bombus appears as
-    both genus and subgenus; each rank dict holds only that rank's id) — T-126-05.
+    Replaces _build_higher_rank_taxon_ids (D-03 retirement). The dbt rollup
+    already carries taxon_ids for all higher ranks plus member counts and
+    membership edges — it supersedes the old flat name→taxon_id lookup.
 
-    Returns: {"genus": {name: int}, "subgenus": {name: int}, "tribe": {name: int}}
+    Returns the list of row dicts for use in the slug collision check.
+    Raises FileNotFoundError if higher_taxa.parquet is absent (run dbt build first).
     """
-    taxa_csv = str(Path(__file__).parent / "raw" / "taxa.csv.gz")
+    higher_taxa_parquet = DBT_SANDBOX_DIR / 'higher_taxa.parquet'
+    if not higher_taxa_parquet.exists():
+        raise FileNotFoundError(
+            f"species_export requires {higher_taxa_parquet}; "
+            f"run `bash data/dbt/run.sh build` first to produce the dbt mart"
+        )
     rows = con.execute(
-        "SELECT name, rank, taxon_id "
-        "FROM read_csv(?, delim=chr(9), header=true, compression='gzip') "
-        "WHERE rank IN ('genus', 'subgenus', 'tribe') AND active = true",
-        [taxa_csv]
+        f"SELECT * FROM read_parquet('{higher_taxa_parquet}') ORDER BY rank, name"
     ).fetchall()
-    result: dict = {"genus": {}, "subgenus": {}, "tribe": {}}
-    for name, rank, tid in rows:
-        if rank in result:
-            result[rank][name] = int(tid)
-    return result
+    cols = [d[0] for d in con.description]
+    higher_taxa_rows = [dict(zip(cols, r)) for r in rows]
+
+    out = ASSETS_DIR / "higher_taxa.json"
+    out.write_text(
+        json.dumps(higher_taxa_rows, sort_keys=True, indent=2),
+        encoding='utf-8',
+    )
+    print(f"  higher_taxa.json: {len(higher_taxa_rows):,} rows, {out.stat().st_size:,} bytes")
+    assert len(higher_taxa_rows) > 0, "higher_taxa.json must be non-empty"
+    subfamily_count = sum(1 for r in higher_taxa_rows if r['rank'] == 'subfamily')
+    assert subfamily_count == 12, (
+        f"higher_taxa.json: expected 12 bee subfamilies, got {subfamily_count}"
+    )
+    return higher_taxa_rows
 
 
 def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
-    """Build species.parquet + species.json + seasonality.json + photos.json.
+    """Build species.parquet + species.json + seasonality.json + photos.json + higher_taxa.json.
 
     Reads ``DBT_SANDBOX_DIR/species.parquet`` (21 cols incl. taxon_id, produced by
     ``bash data/dbt/run.sh build``) and appends a ``slug`` column via
     ``domain.slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
     for the per-occurrence seasonality bucket accumulation.
 
-    Writes five artifacts to ASSETS_DIR:
+    Writes six artifacts to ASSETS_DIR:
       - species.parquet             (22 cols including taxon_id + slug)
       - species.json                (json.dumps sort_keys=True, indent=2)
       - seasonality.json            (json.dumps sort_keys=True, separators=(',', ':'))
       - photos.json                 (CC-licensed iNat obs photos, keyed by canonical_name)
-      - higher_rank_taxon_ids.json  (genus/subgenus/tribe name → taxon_id, D-06)
+      - higher_taxa.json            (dbt rollup: all higher-rank taxa with counts + membership, D-03)
+
+    ``higher_rank_taxon_ids.json`` is retired (D-03) — use ``higher_taxa.json`` instead.
+
+    Runs ``_check_slug_collisions`` after slug computation to hard-fail on any
+    duplicate public URL across all ranks (D-07, PAGE-03).
 
     The write path (ASSETS_DIR) is controlled by the EXPORT_DIR env var.
     The read path (DBT_SANDBOX_DIR) defaults to data/dbt/target/sandbox and
@@ -344,26 +364,12 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     )
     print(f"  photos.json: {len(photos):,} species, {photos_out.stat().st_size:,} bytes")
 
-    # ---- D-06: higher_rank_taxon_ids.json -----------------------------------
-    # genus/subgenus/tribe name → taxon_id lookup for higher-rank iNat links.
-    # Built from taxa.csv.gz (active rows only); rank filter resolves the
-    # genus==subgenus name collision (T-126-05 mitigation).
-    higher_rank = _build_higher_rank_taxon_ids(con)
-    higher_rank_out = ASSETS_DIR / "higher_rank_taxon_ids.json"
-    higher_rank_out.write_text(
-        json.dumps(higher_rank, sort_keys=True, indent=2),
-        encoding='utf-8',
-    )
-    genus_count = len(higher_rank.get("genus", {}))
-    tribe_count = len(higher_rank.get("tribe", {}))
-    print(
-        f"  higher_rank_taxon_ids.json: {genus_count:,} genera, "
-        f"{len(higher_rank.get('subgenus', {})):,} subgenera, "
-        f"{tribe_count:,} tribes, "
-        f"{higher_rank_out.stat().st_size:,} bytes"
-    )
-    assert genus_count > 0, "higher_rank_taxon_ids.json: genus dict must be non-empty"
-    assert tribe_count > 0, "higher_rank_taxon_ids.json: tribe dict must be non-empty"
+    # ---- D-03: higher_taxa.json (replaces higher_rank_taxon_ids.json) -------
+    # Reads DBT_SANDBOX_DIR/higher_taxa.parquet produced by the new dbt rollup.
+    # Carries taxon_ids + counts + membership for all higher ranks. Runs the
+    # slug-collision hard-fail gate (D-07) after all slugs are known.
+    higher_taxa_rows = _build_higher_taxa(con)
+    _check_slug_collisions(higher_taxa_rows, species_rows)
 
 
 def main() -> None:
