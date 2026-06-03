@@ -765,6 +765,8 @@ Add to `data/dbt/models/marts/schema.yml`:
       data_type: bigint
     - name: species_count
       data_type: bigint
+    - name: member_taxon_ids
+      data_type: varchar  # JSON array of direct child taxon_ids (D-10 membership); 13th column — MUST be declared or enforced contract hard-fails
 ```
 
 ---
