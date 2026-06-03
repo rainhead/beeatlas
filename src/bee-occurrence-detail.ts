@@ -233,8 +233,8 @@ export class BeeOccurrenceDetail extends LitElement {
   }
 
   private _renderProvisional(row: OccurrenceRow) {
-    const taxonEl = row.specimen_inat_taxon_name
-      ? html`<em>${row.specimen_inat_taxon_name}</em>`
+    const taxonEl = row.display_name
+      ? html`<em>${row.display_name}</em>`
       : html`<span class="hint">identification pending</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
