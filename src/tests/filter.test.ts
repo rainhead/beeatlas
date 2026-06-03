@@ -252,8 +252,7 @@ describe('single-quote escaping', () => {
 });
 
 describe('OCCURRENCE_COLUMNS', () => {
-  test('OCCURRENCE_COLUMNS includes all required column names', () => {
-    expect(OCCURRENCE_COLUMNS).toContain('scientificName');
+  test('OCCURRENCE_COLUMNS includes retained column names', () => {
     expect(OCCURRENCE_COLUMNS).toContain('recordedBy');
     expect(OCCURRENCE_COLUMNS).toContain('date');
     expect(OCCURRENCE_COLUMNS).toContain('county');
@@ -265,6 +264,13 @@ describe('OCCURRENCE_COLUMNS', () => {
 
   test('OCCURRENCE_COLUMNS includes place_slug', () => {
     expect(OCCURRENCE_COLUMNS).toContain('place_slug');
+  });
+
+  test('OCCURRENCE_COLUMNS does NOT contain the 4 dropped denormalized columns', () => {
+    expect(OCCURRENCE_COLUMNS).not.toContain('scientificName');
+    expect(OCCURRENCE_COLUMNS).not.toContain('genus');
+    expect(OCCURRENCE_COLUMNS).not.toContain('family');
+    expect(OCCURRENCE_COLUMNS).not.toContain('specimen_inat_taxon_name');
   });
 });
 
@@ -315,11 +321,10 @@ function mockSQLite(dataRows: Record<string, unknown>[], countValue: number) {
 }
 
 describe('queryTablePage', () => {
-  test('SQL contains scientificName, recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
+  test('SQL contains recordedBy, date, year, month, county, ecoregion_l3, fieldNumber', async () => {
     const { execFn } = mockSQLite([], 0);
     await queryTablePage(emptyFilter(), 1);
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
-    expect(dataSql).toContain('scientificName');
     expect(dataSql).toContain('recordedBy');
     expect(dataSql).toContain('date');
     expect(dataSql).toContain('year');
@@ -327,6 +332,14 @@ describe('queryTablePage', () => {
     expect(dataSql).toContain('county');
     expect(dataSql).toContain('ecoregion_l3');
     expect(dataSql).toContain('fieldNumber');
+  });
+
+  test('SQL contains LEFT JOIN taxa and t.name AS display_name', async () => {
+    const { execFn } = mockSQLite([], 0);
+    await queryTablePage(emptyFilter(), 1);
+    const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
+    expect(dataSql).toContain('LEFT JOIN taxa');
+    expect(dataSql).toContain('display_name');
   });
 
   test('SQL contains FROM occurrences and does NOT contain ecdysis_id IS NOT NULL discriminator', async () => {
@@ -369,7 +382,7 @@ describe('queryTablePage', () => {
   });
 
   test('returns { rows, total } with total from COUNT(*)', async () => {
-    const dataRows = [{ scientificName: 'Bombus', recordedBy: 'Smith', year: 2020, month: 6, county: 'King', ecoregion_l3: 'Cascades', fieldNumber: 'ABC' }];
+    const dataRows = [{ display_name: 'Bombus', recordedBy: 'Smith', year: 2020, month: 6, county: 'King', ecoregion_l3: 'Cascades', fieldNumber: 'ABC' }];
     mockSQLite(dataRows, 42);
     const result = await queryTablePage(emptyFilter(), 1);
     expect(result.total).toBe(42);
@@ -440,12 +453,12 @@ describe('getOccurrences', () => {
 
   test('returns mapped rows from callback', async () => {
     const execFn = vi.fn((_db: number, _sql: string, callback?: (rowValues: unknown[], columnNames: string[]) => void) => {
-      callback?.([42, 'Bombus'], ['ecdysis_id', 'scientificName']);
+      callback?.([42, 'Bombus vosnesenskii'], ['ecdysis_id', 'display_name']);
       return Promise.resolve();
     });
     vi.mocked(getDB).mockResolvedValue({ sqlite3: { exec: execFn } as any, db: 0 });
     const rows = await getOccurrences(['ecdysis:42']);
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ ecdysis_id: 42, scientificName: 'Bombus' });
+    expect(rows[0]).toMatchObject({ ecdysis_id: 42, display_name: 'Bombus vosnesenskii' });
   });
 });
