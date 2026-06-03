@@ -19,6 +19,7 @@ writeFileSync(outPath, JSON.stringify({
   places: 'places.geojson',
   places_meta: 'places.json',
   checklist: 'checklist.parquet',
+  higher_taxa: 'higher_taxa.json',
   generated_at: 'local',
 }, null, 2) + '\n');
 console.log('wrote public/data/manifest.json (local dev)');
