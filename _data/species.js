@@ -312,6 +312,7 @@ const subfamilyList = subfamilyRows
               taxon_id: g.taxon_id,
               specimen_count: g.specimen_count,
               inat_obs_count: g.inat_obs_count,
+              occurrence_count: g.occurrence_count,
               hexColor: genusHexColor[g.name],
             }));
           return {
@@ -331,6 +332,7 @@ const subfamilyList = subfamilyRows
           taxon_id: g.taxon_id,
           specimen_count: g.specimen_count,
           inat_obs_count: g.inat_obs_count,
+          occurrence_count: g.occurrence_count,
           hexColor: genusHexColor[g.name],
         }));
     }
