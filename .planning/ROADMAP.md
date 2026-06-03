@@ -460,7 +460,7 @@ See `.planning/milestones/v4.3-ROADMAP.md` for full phase details.
 - [ ] Phase 130: Map Filter Cutover (3 plans)
 - [ ] Phase 131: Occurrence Normalization (4 plans)
 - [ ] Phase 132: Page Rebuild & Subfamily Pages (TBD plans)
-- [ ] Phase 133: Browse Tree (4 plans)
+- [x] Phase 133: Browse Tree (4 plans)
 
 See Phase Details below for success criteria.
 

@@ -37,10 +37,10 @@
 
 ### /species Browse Tree (bee-only)
 
-- [ ] **TREE-01**: `/species` presents an expandable taxonomy tree, default family → genus → species, with subfamily / tribe / subgenus / complex available as lazy deeper expansions (not forced rows).
-- [ ] **TREE-02**: Each tree node shows a specimen / community-observation count split, rolled up over its descendants.
-- [ ] **TREE-03**: Type-to-filter search narrows the tree and auto-expands the ancestors of matching taxa.
-- [ ] **TREE-04**: Non-bee bycatch never appears in the tree; tree nodes link to the corresponding taxon page and/or a descendant-filtered map view.
+- [x] **TREE-01**: `/species` presents an expandable taxonomy tree, default family → genus → species, with subfamily / tribe / subgenus / complex available as lazy deeper expansions (not forced rows).
+- [x] **TREE-02**: Each tree node shows a specimen / community-observation count split, rolled up over its descendants.
+- [x] **TREE-03**: Type-to-filter search narrows the tree and auto-expands the ancestors of matching taxa.
+- [x] **TREE-04**: Non-bee bycatch never appears in the tree; tree nodes link to the corresponding taxon page and/or a descendant-filtered map view.
 
 ## v2 Requirements
 
@@ -91,10 +91,10 @@ Explicitly excluded for v4.6.
 | PAGE-02 | Phase 132 | Complete |
 | PAGE-03 | Phase 132 | Complete |
 | PAGE-04 | Phase 132 | Complete |
-| TREE-01 | Phase 133 | Pending |
-| TREE-02 | Phase 133 | Pending |
-| TREE-03 | Phase 133 | Pending |
-| TREE-04 | Phase 133 | Pending |
+| TREE-01 | Phase 133 | Done |
+| TREE-02 | Phase 133 | Done |
+| TREE-03 | Phase 133 | Done |
+| TREE-04 | Phase 133 | Done |
 
 **Coverage:**
 - v1 requirements: 20 total

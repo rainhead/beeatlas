@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
-status: executing
-stopped_at: Phase 133 UI-SPEC approved
-last_updated: "2026-06-03T19:25:41.078Z"
-last_activity: 2026-06-03 -- Phase 133 execution started
+status: phase_complete
+stopped_at: Phase 133 complete (browse tree) — milestone v4.6 all phases done
+last_updated: "2026-06-03T20:30:00.000Z"
+last_activity: 2026-06-03 -- Phase 133 verified complete (gap closure + human-verify approved)
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 18
-  completed_plans: 14
-  percent: 78
+  completed_plans: 18
+  percent: 100
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 133 — browse-tree
+**Current focus:** Phase 133 complete — milestone v4.6 ready to close
 
 ## Current Position
 
-Phase: 133 (browse-tree) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 133
-Last activity: 2026-06-03 -- Phase 133 execution started
+Phase: 133 (browse-tree) — COMPLETE & VERIFIED
+Plan: 4 of 4 complete
+Status: Phase 133 verified (TREE-01..04, 4/4 must-haves). Milestone v4.6 all 5 phases complete.
+Last activity: 2026-06-03 -- Phase 133 verified complete (gap closure + human-verify approved)
 
 ```
 Progress: [██████████] 100%
