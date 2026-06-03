@@ -4,13 +4,13 @@ milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
 status: executing
 stopped_at: Phase 131 context gathered
-last_updated: "2026-06-03T01:04:39.761Z"
-last_activity: 2026-06-03 -- Phase 131 planning complete
+last_updated: "2026-06-03T01:22:26.616Z"
+last_activity: 2026-06-03
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 10
-  completed_plans: 6
+  completed_plans: 7
   percent: 40
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 131 — occurrence normalization
+**Current focus:** Phase 131 — occurrence-normalization
 
 ## Current Position
 
-Phase: 131
-Plan: Not started
+Phase: 131 (occurrence-normalization) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-03 -- Phase 131 planning complete
+Last activity: 2026-06-03
 
 ```
-Progress: [██████████] 100%
+Progress: [███████░░░] 70%
 ```
 
 ## Accumulated Context
@@ -59,6 +59,7 @@ All v4.5 decisions logged in `.planning/milestones/v4.5-ROADMAP.md` and PROJECT.
 - [Phase 130 Plan 02]: ParsedParams type adds optional pendingLegacyTaxon for D-06 two-phase legacy URL back-compat
 - [Phase 130 Plan 02]: _resolveLegacyTaxon handles cache-ready and cache-pending cases with rank-based twin disambiguation
 - [Phase 130 Plan 02]: D-01 enumeration uses ancestry-expansion form (DISTINCT taxon_ids + lineage_path walk) vs 10-second EXISTS form
+- [Phase ?]: Wave 0 RED tests pin 7-field geo_blob layout and display_name JOIN before source changes
 
 ### Roadmap Evolution
 
@@ -99,9 +100,9 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-03T00:32:57.461Z
+Last session: 2026-06-03T01:22:21.235Z
 Stopped at: Phase 131 context gathered
-Resume file: .planning/phases/131-occurrence-normalization/131-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 

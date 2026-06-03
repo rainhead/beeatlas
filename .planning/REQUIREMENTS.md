@@ -18,9 +18,9 @@
 
 ### Occurrence Normalization (size win)
 
-- [ ] **NORM-01**: Denormalized rank columns (`genus`, `family`, `scientificName`, and the iNat taxon-name columns) are dropped from the `occurrences` mart; `canonical_name` is retained for the ~21k genuinely-unidentified rows. The new column contract is documented and enforced at every dbt build.
-- [ ] **NORM-02**: `occurrences.db` and its `geo_blob` serialization are updated atomically with the contract; a measurable transfer-weight + DB-size reduction is recorded against a captured pre-change baseline.
-- [ ] **NORM-03**: Every downstream consumer of the dropped columns is audited and migrated to the hierarchy in the same change (no silent `geo_blob` positional-index breakage); the `species` mart and page generation are unaffected (they keep rank-name strings).
+- [x] **NORM-01**: Denormalized rank columns (`genus`, `family`, `scientificName`, and the iNat taxon-name columns) are dropped from the `occurrences` mart; `canonical_name` is retained for the ~21k genuinely-unidentified rows. The new column contract is documented and enforced at every dbt build.
+- [x] **NORM-02**: `occurrences.db` and its `geo_blob` serialization are updated atomically with the contract; a measurable transfer-weight + DB-size reduction is recorded against a captured pre-change baseline.
+- [x] **NORM-03**: Every downstream consumer of the dropped columns is audited and migrated to the hierarchy in the same change (no silent `geo_blob` positional-index breakage); the `species` mart and page generation are unaffected (they keep rank-name strings).
 
 ### Map Filtering Cutover (frontend)
 
@@ -84,9 +84,9 @@ Explicitly excluded for v4.6.
 | MFILT-01 | Phase 130 | Complete |
 | MFILT-02 | Phase 130 | Complete |
 | MFILT-03 | Phase 130 | Complete |
-| NORM-01 | Phase 131 | Pending |
-| NORM-02 | Phase 131 | Pending |
-| NORM-03 | Phase 131 | Pending |
+| NORM-01 | Phase 131 | Complete |
+| NORM-02 | Phase 131 | Complete |
+| NORM-03 | Phase 131 | Complete |
 | PAGE-01 | Phase 132 | Pending |
 | PAGE-02 | Phase 132 | Pending |
 | PAGE-03 | Phase 132 | Pending |
