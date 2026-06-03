@@ -137,3 +137,103 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
 .species-index .genus-row {
   margin-bottom: 0.5rem;   /* var(--sm, 8px) */
 }
+
+/* Phase 133: browse-tree control bar + tree-node rules */
+
+/* Control bar: filter input + "Show all ranks" toggle on one row */
+.species-index .species-index-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;         /* mobile fallback — wraps below 480px */
+}
+
+/* Filter input inside the control bar: takes remaining width */
+.species-index .species-index-controls #species-filter {
+  flex: 1 1 auto;
+  min-width: 0;
+  /* padding/bg/border/border-radius come from .species-index #species-filter above */
+  margin-bottom: 0;        /* control bar gap replaces the standalone margin */
+}
+
+/* Filter input focus — replicate bee-pane.ts pattern for light DOM */
+.species-index #species-filter:focus {
+  outline: none;
+  border-color: var(--accent, #2c7a2c);
+}
+
+/* "Show all ranks" toggle label */
+.species-index .rank-toggle-label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+/* Active indicator when toggle is checked (non-color signal via checkbox; border adds visual accent) */
+.species-index .rank-toggle-label:has(#show-all-ranks:checked) {
+  border: 1px solid var(--accent, #2c7a2c);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+}
+
+/* Tree node <summary> row: flex with name, counts, and map affordance */
+.species-index .tree-node > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+}
+
+/* Name column: grows to fill remaining space */
+.species-index .node-name {
+  flex: 1 1 auto;
+}
+
+/* Count column: muted, smaller type — mirrors .species-list .count */
+.species-index .node-counts {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+}
+
+/* Map affordance (world-map glyph): muted by default; expanded tap target via negative margin */
+.species-index .node-map {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+  padding: 0.5rem;
+  margin: -0.5rem;         /* expands tap target to >=44x44px without shifting layout */
+}
+
+.species-index .node-map:hover,
+.species-index .node-map:focus-visible {
+  color: var(--text-body, #213547);
+}
+
+/* Tree indentation: 1.5rem per depth level */
+.species-index details.tree-node {
+  padding-left: 1.5rem;
+}
+
+/* Top-level family nodes are not indented */
+.species-index > details.tree-node--family {
+  padding-left: 0;
+}
+
+/* Focus-visible rings on interactive tree elements */
+.species-index summary:focus-visible,
+.species-index .node-map:focus-visible,
+.species-index #show-all-ranks:focus-visible {
+  outline: 2px solid var(--accent, #2c7a2c);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Narrow viewport: reduce indent to 1rem per depth level */
+@media (max-width: 480px) {
+  .species-index details.tree-node {
+    padding-left: 1rem;
+  }
+}
