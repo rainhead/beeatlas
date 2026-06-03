@@ -9,7 +9,7 @@ vi.mock('../sqlite.ts', () => ({
 
 vi.mock('../filter.ts', () => ({
   queryTablePage: vi.fn(() => Promise.resolve({ rows: [], total: 0 })),
-  OCCURRENCE_COLUMNS: ['lat', 'lon', 'date', 'county', 'ecoregion_l3', 'ecdysis_id', 'catalog_number', 'scientificName', 'recordedBy', 'fieldNumber', 'genus', 'family', 'floralHost', 'host_observation_id', 'inat_host', 'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host', 'is_provisional', 'specimen_inat_taxon_name', 'specimen_inat_quality_grade'],
+  OCCURRENCE_COLUMNS: ['lat', 'lon', 'date', 'county', 'ecoregion_l3', 'ecdysis_id', 'catalog_number', 'display_name', 'recordedBy', 'fieldNumber', 'floralHost', 'host_observation_id', 'inat_host', 'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m', 'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host', 'is_provisional', 'specimen_inat_quality_grade'],
   isFilterActive: vi.fn(() => false),
   queryVisibleIds: vi.fn(() => Promise.resolve(null)),
   SpecimenSortBy: undefined,
@@ -18,8 +18,7 @@ vi.mock('../filter.ts', () => ({
 vi.mock('../features.ts', () => ({
   loadOccurrenceGeoJSON: vi.fn(() => Promise.resolve({
     geojson: { type: 'FeatureCollection', features: [] },
-    summary: { totalSpecimens: 0, speciesCount: 0, genusCount: 0, familyCount: 0, earliestYear: 0, latestYear: 0 },
-    taxaOptions: [],
+    summary: { totalSpecimens: 0, earliestYear: 0, latestYear: 0 },
   })),
 }));
 
@@ -148,7 +147,7 @@ describe('TABLE-06: bee-table empty and loading states', () => {
 describe('TABLE-07: bee-table accessibility', () => {
   test('cells have title attribute matching cell text content', async () => {
     const occurrenceRows = [{
-      scientificName: 'Bombus vosnesenskii',
+      display_name: 'Bombus vosnesenskii',
       recordedBy: 'Jane Smith',
       host_inat_login: null,
       year: 2023,
@@ -164,6 +163,28 @@ describe('TABLE-07: bee-table accessibility', () => {
     const el = await createBeeTable({ rows: occurrenceRows, rowCount: 1, page: 1 });
     const firstCell = el.shadowRoot!.querySelector('tbody td') as HTMLElement;
     expect(firstCell?.getAttribute('title')).toBe(firstCell?.textContent?.trim());
+    document.body.removeChild(el);
+  });
+
+  test('Species column renders from display_name field (target behavior)', async () => {
+    const occurrenceRows = [{
+      display_name: 'Bombus vosnesenskii',
+      recordedBy: 'Jane Smith',
+      host_inat_login: null,
+      year: 2023,
+      month: 6,
+      county: 'King',
+      ecoregion_l3: 'Cascades',
+      fieldNumber: 'JS-001',
+      modified: '2025-03-13',
+      date: '2023-06-15',
+      elevation_m: null,
+      specimen_observation_id: null,
+    }];
+    const el = await createBeeTable({ rows: occurrenceRows, rowCount: 1, page: 1 });
+    const cells = Array.from(el.shadowRoot!.querySelectorAll('tbody td'));
+    const speciesCell = cells[1]; // Species is the 2nd column (0-indexed: date=0, species=1)
+    expect(speciesCell?.textContent?.trim()).toBe('Bombus vosnesenskii');
     document.body.removeChild(el);
   });
 
@@ -218,7 +239,7 @@ describe('TABLE-08: bee-table sort controls', () => {
 
 describe('TABLE-09: bee-table row-pan event on row click', () => {
   const baseRow = {
-    scientificName: 'Bombus vosnesenskii',
+    display_name: 'Bombus vosnesenskii',
     recordedBy: 'Jane Smith',
     host_inat_login: null,
     year: 2023,
