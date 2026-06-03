@@ -966,7 +966,11 @@ Plans:
   2. Subfamily pages exist at `/species/subfamily/{SubfamilyName}/` for all bee subfamilies present in the hierarchy; each page shows an SVG occurrence map and specimen/observation counts consistent with the existing genus/tribe page format
   3. A pre-generation collision check confirms no two taxa at different ranks produce the same public URL; any same-named taxa (e.g., genus *Bombus* vs. subgenus *Bombus*) resolve to distinct paths
   4. Checklist-only bee species remain present on all taxon pages with their existing "checklist only" badge; pages keyed on `taxon_id` internally, public slugs stay name-based
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+- [ ] 132-01-PLAN.md — NEW dbt staging view + `higher_taxa` rollup mart + enforced contract + baseline tests (wave 1)
+- [ ] 132-02-PLAN.md — Python export rewire: `_build_higher_taxa`, retire `higher_rank_taxon_ids`, slug-collision hard-fail gate, nightly/fetch/manifest wiring (wave 2)
+- [ ] 132-03-PLAN.md — `species_maps.py` subfamily group-map pass (color-by-genus) → 12 subfamily SVGs (wave 2)
+- [ ] 132-04-PLAN.md — Eleventy: `species.js` rollup rewire + `subfamilyList`; new `subfamily.njk` (nested/flat); rebuilt genus/tribe/subgenus totals + human-verify (wave 3)
 **UI hint**: yes
 
 ### Phase 133: Browse Tree
