@@ -40,7 +40,7 @@ function fieldNumberDisplay(row: OccurrenceRow): string | null {
 
 const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
   { key: 'date',        label: 'Date',       dataField: 'date',                    minWidth: '100px' },
-  { key: 'species',     label: 'Species',    dataField: 'scientificName',          minWidth: '180px', nullLabel: 'No Determination' },
+  { key: 'species',     label: 'Species',    dataField: 'display_name',            minWidth: '180px', nullLabel: 'No Determination' },
   { key: 'collector',   label: 'Collector',  dataField: 'recordedBy',              minWidth: '160px',
     valueFn: collectorDisplay },
   { key: 'county',      label: 'County',     dataField: 'county',                  minWidth: '110px' },

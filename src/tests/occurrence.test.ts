@@ -13,11 +13,8 @@ const BASE_ROW: OccurrenceRow = {
   place_slug: null,
   ecdysis_id: null,
   catalog_number: null,
-  scientificName: null,
   recordedBy: null,
   fieldNumber: null,
-  genus: null,
-  family: null,
   floralHost: null,
   host_observation_id: null,
   inat_host: null,
@@ -30,7 +27,6 @@ const BASE_ROW: OccurrenceRow = {
   observation_id: null,
   host_inat_login: null,
   is_provisional: false,
-  specimen_inat_taxon_name: null,
   specimen_inat_quality_grade: null,
   specimen_count: null,
   sample_id: null,
@@ -40,6 +36,7 @@ const BASE_ROW: OccurrenceRow = {
   obs_url: null,
   user_login: null,
   license: null,
+  display_name: null,
 };
 
 // Factory helpers: spread BASE_ROW with the discriminating fields set.
