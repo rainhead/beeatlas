@@ -13,7 +13,7 @@ layout: default.njk
     {{ tribe.family }}<span class="sep">/</span>{{ tribe.tribe }}
   </nav>
   <h1>{{ tribe.tribe }}</h1>
-  <p class="metadata">{{ tribe.generaCount }} genera · {{ tribe.totalOccurrences }} records</p>
+  <p class="metadata">{{ tribe.generaCount | quantify("genus", "genera") }} · {{ tribe.totalOccurrences | quantify("record") }}</p>
   <div class="media-grid">
     <img loading="lazy"
          src="/data/species-maps/tribe/{{ tribe.tribe }}.svg"
@@ -23,7 +23,7 @@ layout: default.njk
     {%- for g in tribe.genera -%}
       <li>
         <a href="/species/{{ g.genus }}/index.html"><em>{{ g.genus }}</em></a>
-        <span class="count">{{ g.specimen_count }} specimens · {{ g.inat_obs_count }} community observations</span>
+        <span class="count">{{ g.specimen_count | quantify("specimen") }} · {{ g.inat_obs_count | quantify("community observation") }}</span>
       </li>
     {%- endfor -%}
     </ul>

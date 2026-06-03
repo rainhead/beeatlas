@@ -8,8 +8,14 @@
 // Phase 75 populates _pages/ with an authoring scaffold; this
 // phase leaves it empty (only .gitkeep).
 import EleventyVitePlugin from "@11ty/eleventy-plugin-vite";
+import { quantify } from "./src/lib/quantify.js";
 
 export default function (eleventyConfig) {
+  // Single pluralization utility for all count-noun copy (e.g. "1 genus" vs
+  // "3 genera"). Pass an explicit plural for irregular nouns:
+  //   {{ count | quantify("genus", "genera") }}
+  eleventyConfig.addFilter("quantify", quantify);
+
   // The SPA entry lives in _pages/index.html and is rendered as an
   // Eleventy template (plain HTML, no front-matter). DEVIATION from
   // the original plan: `addPassthroughCopy({ "index.html": "index.html" })`
