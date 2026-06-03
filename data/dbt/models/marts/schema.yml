@@ -20,15 +20,9 @@ models:
         data_type: bigint
       - name: month
         data_type: bigint
-      - name: scientificName
-        data_type: varchar
       - name: recordedBy
         data_type: varchar
       - name: fieldNumber
-        data_type: varchar
-      - name: genus
-        data_type: varchar
-      - name: family
         data_type: varchar
       - name: floralHost
         data_type: varchar
@@ -53,8 +47,6 @@ models:
       - name: sample_id
         data_type: integer
       - name: sample_host
-        data_type: varchar
-      - name: specimen_inat_taxon_name
         data_type: varchar
       - name: specimen_inat_quality_grade
         data_type: varchar
