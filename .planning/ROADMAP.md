@@ -951,7 +951,7 @@ Plans:
 - [x] 131-02-PLAN.md — NORM-03 query+display: LEFT JOIN taxa display_name in queryTablePage/queryListPage/queryAllFiltered; drop 4 cols from OccurrenceRow/OCCURRENCE_COLUMNS; bee-table + bee-occurrence-detail on display_name [NORM-03]
 
 **Wave 2** *(blocked on Wave 1)*
-- [ ] 131-03-PLAN.md — NORM-01/02 data layer: dbt mart+contract 37→33, dead intermediate cols, 7-field geo_blob (sqlite_export.py + features.ts coupled), D-01/D-06 dead-path deletion [NORM-01, NORM-02, NORM-03]
+- [x] 131-03-PLAN.md — NORM-01/02 data layer: dbt mart+contract 37→33, dead intermediate cols, 7-field geo_blob (sqlite_export.py + features.ts coupled), D-01/D-06 dead-path deletion [NORM-01, NORM-02, NORM-03]
 
 **Wave 3** *(blocked on Wave 2)*
 - [ ] 131-04-PLAN.md — NORM-02 measurement: before/after occurrences.db size + gzip weight + tablesReady in VERIFICATION.md; grep audit; human-verify phase gate [NORM-02]
@@ -988,6 +988,6 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 129. Hierarchy Foundation | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
-| 131. Occurrence Normalization | v4.6 | 2/4 | In Progress|  |
+| 131. Occurrence Normalization | v4.6 | 3/4 | In Progress|  |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
 | 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
