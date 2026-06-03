@@ -1,10 +1,11 @@
 ---
 phase: 133
 slug: browse-tree
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-03
+reviewed_at: 2026-06-03
 ---
 
 # Phase 133 — UI Design Contract: Browse Tree
@@ -164,6 +165,13 @@ The filter input has `flex: 1 1 auto; min-width: 0`. The toggle label has
 ---
 
 ## Visual Specifications
+
+**Primary focal point:** the tree node **name column** — it is the widest flex
+element (`flex: 1 1 auto`) and the only link-colored, italicized text in each row,
+so the eye lands on taxon names first and reads left-to-right into counts then the
+🗺 affordance. The control bar (filter + toggle) is the secondary anchor at the top;
+counts and the map glyph are deliberately `--text-muted` so they never out-compete
+the name for attention.
 
 ### Node layout within `<summary>`
 
