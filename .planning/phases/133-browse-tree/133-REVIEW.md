@@ -166,3 +166,9 @@ if (emptyMsg) {
 _Reviewed: 2026-06-03_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
+
+> **RESOLUTION (2026-06-03):** All 3 critical findings (CR-01/02/03) and WR-03 were
+> fixed during phase-133 gap closure (commits 220a502, af750e8) plus two interactive
+> re-verify rounds that fixed the missing disclosure affordance, toggle reflow, the
+> filter `[hidden]` specificity bug, and species indentation. Human-verify approved
+> post-fix. See 133-04-SUMMARY.md §Gap Closure. Remaining WR/IN items are non-blocking.
