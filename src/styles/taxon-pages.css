@@ -163,27 +163,50 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   border-color: var(--accent, #2c7a2c);
 }
 
-/* "Show all ranks" toggle label */
+/* "Show all ranks" toggle label. The border + padding are reserved in the base
+   rule (transparent border) so the checked-state indicator only changes the
+   border color — toggling no longer resizes the label or reflows the tree below. */
 .species-index .rank-toggle-label {
   flex: 0 0 auto;
   white-space: nowrap;
   font-size: 0.875rem;
-}
-
-/* Active indicator when toggle is checked (non-color signal via checkbox; border adds visual accent) */
-.species-index .rank-toggle-label:has(#show-all-ranks:checked) {
-  border: 1px solid var(--accent, #2c7a2c);
+  border: 1px solid transparent;
   border-radius: 4px;
   padding: 0.25rem 0.5rem;
 }
 
-/* Tree node <summary> row: flex with name, counts, and map affordance */
+/* Active indicator when toggle is checked (non-color signal via checkbox; border color adds visual accent) */
+.species-index .rank-toggle-label:has(#show-all-ranks:checked) {
+  border-color: var(--accent, #2c7a2c);
+  background: rgba(44, 122, 44, 0.08);
+}
+
+/* Tree node <summary> row: flex with name, counts, and map affordance.
+   `display: flex` removes the native list-item disclosure marker, so the
+   triangle is re-supplied as a Unicode ::before glyph (UI-SPEC: disclosure
+   triangle present; Unicode only, no SVG). It flips ▸→▾ when the node is open.
+   Without this there is no visible affordance to expand a node — the node name
+   is a link that navigates to the taxon page (D-06), so clicking it cannot also
+   reveal children. */
 .species-index .tree-node > summary {
   display: flex;
   align-items: baseline;
   gap: 0.5rem;
   cursor: pointer;
   padding: 0.25rem 0;
+  list-style: none;
+}
+.species-index .tree-node > summary::-webkit-details-marker {
+  display: none;
+}
+.species-index .tree-node > summary::before {
+  content: '▸';
+  flex: 0 0 auto;
+  color: var(--text-muted, #666);
+  font-size: 0.85rem;
+}
+.species-index details.tree-node[open] > summary::before {
+  content: '▾';
 }
 
 /* Name column: grows to fill remaining space */
