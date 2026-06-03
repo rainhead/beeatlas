@@ -175,7 +175,7 @@ print(json.dumps(tables))
 ")
 species_name=$(_upload_hashed "$EXPORT_DIR/species.json" "species")
 seasonality_name=$(_upload_hashed "$EXPORT_DIR/seasonality.json" "seasonality")
-higher_rank_name=$(_upload_hashed "$EXPORT_DIR/higher_rank_taxon_ids.json" "higher_rank_taxon_ids")
+higher_taxa_name=$(_upload_hashed "$EXPORT_DIR/higher_taxa.json" "higher_taxa")
 counties_name=$(_upload_hashed "$EXPORT_DIR/counties.geojson" "counties" --content-type application/json)
 ecoregions_name=$(_upload_hashed "$EXPORT_DIR/ecoregions.geojson" "ecoregions" --content-type application/json)
 places_name=$(_upload_hashed "$EXPORT_DIR/places.geojson" "places" --content-type application/json)
@@ -189,7 +189,7 @@ cat > "$EXPORT_DIR/manifest.json" <<JSON
   "occurrences_db": "$occ_db_name",
   "species": "$species_name",
   "seasonality": "$seasonality_name",
-  "higher_rank_taxon_ids": "$higher_rank_name",
+  "higher_taxa": "$higher_taxa_name",
   "counties": "$counties_name",
   "ecoregions": "$ecoregions_name",
   "places": "$places_name",

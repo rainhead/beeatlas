@@ -19,7 +19,7 @@ done
 
 mkdir -p "$DEST"
 
-for f in occurrences.parquet counties.geojson ecoregions.geojson species.json seasonality.json; do
+for f in occurrences.parquet counties.geojson ecoregions.geojson species.json seasonality.json higher_taxa.json; do
   echo "Downloading $f..."
   aws --profile "$AWS_PROFILE" s3 cp --no-progress "s3://$BUCKET/data/$f" "$DEST/$f"
 done
