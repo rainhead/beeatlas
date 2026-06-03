@@ -30,10 +30,10 @@
 
 ### Per-Taxon Page Rebuild (static)
 
-- [ ] **PAGE-01**: Genus, subgenus, and tribe page occurrence SVG maps and "N specimens · N community observations" totals are recomputed from the hierarchy + `taxon_id` (behavior preserved; no rank-specific string grouping).
+- [x] **PAGE-01**: Genus, subgenus, and tribe page occurrence SVG maps and "N specimens · N community observations" totals are recomputed from the hierarchy + `taxon_id` (behavior preserved; no rank-specific string grouping).
 - [ ] **PAGE-02**: Subfamily pages are generated (SVG map + specimen/observation counts + attribution) consistent with the existing genus/subgenus/tribe pages.
 - [ ] **PAGE-03**: Page generation keys on `taxon_id` internally; public slugs stay name-based; same-named distinct taxa (e.g. genus vs. subgenus *Bombus*) never collapse, and any genuine slug collision is resolved deterministically.
-- [ ] **PAGE-04**: Checklist-only bee species remain present in page generation with their existing "checklist only" badge/treatment.
+- [x] **PAGE-04**: Checklist-only bee species remain present in page generation with their existing "checklist only" badge/treatment.
 
 ### /species Browse Tree (bee-only)
 
@@ -87,10 +87,10 @@ Explicitly excluded for v4.6.
 | NORM-01 | Phase 131 | Complete |
 | NORM-02 | Phase 131 | Complete |
 | NORM-03 | Phase 131 | Complete |
-| PAGE-01 | Phase 132 | Pending |
+| PAGE-01 | Phase 132 | Complete |
 | PAGE-02 | Phase 132 | Pending |
 | PAGE-03 | Phase 132 | Pending |
-| PAGE-04 | Phase 132 | Pending |
+| PAGE-04 | Phase 132 | Complete |
 | TREE-01 | Phase 133 | Pending |
 | TREE-02 | Phase 133 | Pending |
 | TREE-03 | Phase 133 | Pending |

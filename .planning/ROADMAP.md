@@ -967,7 +967,7 @@ Plans:
   3. A pre-generation collision check confirms no two taxa at different ranks produce the same public URL; any same-named taxa (e.g., genus *Bombus* vs. subgenus *Bombus*) resolve to distinct paths
   4. Checklist-only bee species remain present on all taxon pages with their existing "checklist only" badge; pages keyed on `taxon_id` internally, public slugs stay name-based
 **Plans**: 4 plans (3 waves)
-- [ ] 132-01-PLAN.md — NEW dbt staging view + `higher_taxa` rollup mart + enforced contract + baseline tests (wave 1)
+- [x] 132-01-PLAN.md — NEW dbt staging view + `higher_taxa` rollup mart + enforced contract + baseline tests (wave 1)
 - [ ] 132-02-PLAN.md — Python export rewire: `_build_higher_taxa`, retire `higher_rank_taxon_ids`, slug-collision hard-fail gate, nightly/fetch/manifest wiring (wave 2)
 - [ ] 132-03-PLAN.md — `species_maps.py` subfamily group-map pass (color-by-genus) → 12 subfamily SVGs (wave 2)
 - [ ] 132-04-PLAN.md — Eleventy: `species.js` rollup rewire + `subfamilyList`; new `subfamily.njk` (nested/flat); rebuilt genus/tribe/subgenus totals + human-verify (wave 3)
@@ -993,5 +993,5 @@ Plans:
 | 129. Hierarchy Foundation | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete    | 2026-06-03 |
-| 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
+| 132. Page Rebuild & Subfamily Pages | v4.6 | 1/4 | In Progress|  |
 | 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
