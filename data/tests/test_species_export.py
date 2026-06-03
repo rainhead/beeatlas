@@ -151,7 +151,12 @@ def test_check_slug_collisions_bombus_no_false_alarm():
 @_SANDBOX_GUARD
 @_HIGHER_TAXA_GUARD
 def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch):
-    """_check_slug_collisions passes on current real data — no collision in live data (D-07)."""
+    """_check_slug_collisions passes on current real data — no collision in live data (D-07).
+
+    Species rows are filtered to specific_epithet IS NOT NULL — genus-only records do not
+    generate pages and are excluded from URL collision checking (mirrors speciesList filter
+    in _data/species.js line 99).
+    """
     monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
     monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
     con = duckdb.connect()
@@ -162,17 +167,17 @@ def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch):
     ).fetchall()
     cols = [d[0] for d in con.description]
     higher_taxa_rows = [dict(zip(cols, r)) for r in rows]
-    # Build species_rows with slugs
+    # Build species_rows with slugs — only species-level rows (specific_epithet != null)
+    # Genus-only records (species identified only to genus) do not generate pages and are
+    # excluded from URL collision checking (mirrors speciesList filter in species.js).
     species_parquet = SANDBOX / 'species.parquet'
     sp_rows = con.execute(
         f"SELECT canonical_name, taxon_id, genus, specific_epithet FROM read_parquet('{species_parquet}')"
+        " WHERE specific_epithet IS NOT NULL"
     ).fetchall()
     species_rows = []
     for canonical_name, taxon_id, genus, epithet in sp_rows:
-        if genus and epithet:
-            slug = f"{genus}/{epithet}"
-        else:
-            slug = genus or ''
+        slug = f"{genus}/{epithet}" if genus and epithet else (genus or '')
         species_rows.append({'canonical_name': canonical_name, 'taxon_id': taxon_id, 'slug': slug})
     # Must not raise
     se_mod._check_slug_collisions(higher_taxa_rows, species_rows)
