@@ -894,7 +894,7 @@ Plans:
 - [x] **Phase 129: Hierarchy Foundation** — Build `taxon_hierarchy` + `taxon_closure` tables in `occurrences.db`; benchmark structure; establish `is_anthophila` flag and bycatch coverage; post-build orphan assertion (completed 2026-06-02)
 - [x] **Phase 130: Map Filter Cutover** — Frontend switches to `taxon_id` + hierarchy descendant filtering; autocomplete extended to subfamily/tribe/subgenus/complex; URL round-trip preserved; denormalized string columns still present and harmlessly ignored (completed 2026-06-02)
 - [x] **Phase 131: Occurrence Normalization** — Drop denormalized rank columns from occurrences mart now that the frontend no longer reads them; rewrite `geo_blob`; rewrite dbt contract; record DB-size and transfer-weight reduction (completed 2026-06-03)
-- [ ] **Phase 132: Page Rebuild & Subfamily Pages** — Recompute genus/subgenus/tribe page rollups from hierarchy; generate new subfamily pages; slug collision check run
+- [x] **Phase 132: Page Rebuild & Subfamily Pages** — Recompute genus/subgenus/tribe page rollups from hierarchy; generate new subfamily pages; slug collision check run (completed 2026-06-03)
 - [ ] **Phase 133: Browse Tree** — Expandable `/species` taxonomy tree, bee-only, with per-node specimen/observation counts and type-to-filter search
 
 ### Phase Details
@@ -970,7 +970,7 @@ Plans:
 - [x] 132-01-PLAN.md — NEW dbt staging view + `higher_taxa` rollup mart + enforced contract + baseline tests (wave 1)
 - [x] 132-02-PLAN.md — Python export rewire: `_build_higher_taxa`, retire `higher_rank_taxon_ids`, slug-collision hard-fail gate, nightly/fetch/manifest wiring (wave 2)
 - [x] 132-03-PLAN.md — `species_maps.py` subfamily group-map pass (color-by-genus) → 12 subfamily SVGs (wave 2)
-- [ ] 132-04-PLAN.md — Eleventy: `species.js` rollup rewire + `subfamilyList`; new `subfamily.njk` (nested/flat); rebuilt genus/tribe/subgenus totals + human-verify (wave 3)
+- [x] 132-04-PLAN.md — Eleventy: `species.js` rollup rewire + `subfamilyList`; new `subfamily.njk` (nested/flat); rebuilt genus/tribe/subgenus totals + human-verify (wave 3)
 **UI hint**: yes
 
 ### Phase 133: Browse Tree
@@ -993,5 +993,5 @@ Plans:
 | 129. Hierarchy Foundation | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete    | 2026-06-03 |
-| 132. Page Rebuild & Subfamily Pages | v4.6 | 3/4 | In Progress|  |
+| 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete   | 2026-06-03 |
 | 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
