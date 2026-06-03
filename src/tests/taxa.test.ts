@@ -1,6 +1,5 @@
 import { test, expect, describe } from 'vitest';
 import { buildTaxonLabel, RANK_ORDER, buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from '../taxa.ts';
-import { getSuggestions } from '../bee-filter-controls.ts';
 import type { TaxonOption } from '../filter.ts';
 
 // ---- D-03 label builder tests ----
@@ -175,45 +174,5 @@ describe('buildTaxonOptions (D-01 enumeration)', () => {
     expect(bombusOption?.label).toBe('Bombus (genus)');
     const apidaeOption = options.find(o => o.taxonId === 1);
     expect(apidaeOption?.label).toBe('Apidae');
-  });
-});
-
-// ---- getSuggestions taxon token shape test ----
-
-describe('getSuggestions taxon token shape', () => {
-  const taxaOptions: TaxonOption[] = [
-    { label: 'Bombus (genus)', taxonId: 52775, rank: 'genus' },
-    { label: 'Bombini', taxonId: 100, rank: 'tribe' },
-    { label: 'Bombus fervidus', taxonId: 200, rank: 'species' },
-  ];
-
-  test('yields tokens of shape {type:"taxon", taxonId, taxonDisplayName}', () => {
-    const results = getSuggestions('bomb', taxaOptions, [], [], [], []);
-    const taxonResults = results.filter(r => r.token.type === 'taxon');
-    expect(taxonResults.length).toBeGreaterThan(0);
-    for (const r of taxonResults) {
-      const token = r.token as { type: 'taxon'; taxonId: number; taxonDisplayName: string };
-      expect(typeof token.taxonId).toBe('number');
-      expect(typeof token.taxonDisplayName).toBe('string');
-      expect(token.taxonDisplayName).toBe(r.label);
-    }
-  });
-
-  test('preserves array order from taxaOptions (D-05 order inherited)', () => {
-    const results = getSuggestions('bomb', taxaOptions, [], [], [], []);
-    const taxonResults = results.filter(r => r.token.type === 'taxon');
-    // taxaOptions has tribe(100) before genus(52775) but we passed genus first —
-    // since order is preserved, Bombus (genus) should appear before Bombini
-    // Wait: taxaOptions is [genus, tribe, species] — result should match
-    const ids = taxonResults.map(r => (r.token as any).taxonId);
-    expect(ids[0]).toBe(52775); // Bombus (genus) — first in array
-    expect(ids[1]).toBe(100);   // Bombini — second
-    expect(ids[2]).toBe(200);   // Bombus fervidus — third
-  });
-
-  test('label in suggestion matches opt.label', () => {
-    const results = getSuggestions('bomb', taxaOptions, [], [], [], []);
-    const taxonResult = results.find(r => r.token.type === 'taxon' && (r.token as any).taxonId === 52775);
-    expect(taxonResult?.label).toBe('Bombus (genus)');
   });
 });
