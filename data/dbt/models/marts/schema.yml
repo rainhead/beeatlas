@@ -167,3 +167,42 @@ models:
         data_type: varchar
       - name: source
         data_type: varchar
+
+  - name: higher_taxa
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: taxon_id
+        data_type: integer
+        constraints:
+          - type: not_null
+        data_tests:
+          - not_null
+          - unique
+      - name: rank
+        data_type: varchar
+        constraints:
+          - type: not_null
+      - name: name
+        data_type: varchar
+        constraints:
+          - type: not_null
+      - name: family
+        data_type: varchar
+      - name: subfamily
+        data_type: varchar
+      - name: tribe
+        data_type: varchar
+      - name: genus
+        data_type: varchar
+      - name: specimen_count
+        data_type: bigint
+      - name: inat_obs_count
+        data_type: bigint
+      - name: occurrence_count
+        data_type: bigint
+      - name: species_count
+        data_type: bigint
+      - name: member_taxon_ids
+        data_type: varchar
