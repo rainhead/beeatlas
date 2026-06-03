@@ -194,7 +194,7 @@ export async function queryTablePage(
   const { sqlite3, db } = await getDB();
   let total = 0;
   await sqlite3.exec(db,
-    `SELECT COUNT(*) as n FROM occurrences WHERE ${occurrenceWhere}`,
+    `SELECT COUNT(*) as n FROM occurrences o WHERE ${occurrenceWhere}`,
     (rowValues: unknown[], columnNames: string[]) => {
       total = Number(rowValues[columnNames.indexOf('n')] ?? 0);
     }
@@ -224,15 +224,21 @@ export function isFilterActive(f: FilterState): boolean {
     || f.selectedPlace !== null;
 }
 
+// INVARIANT: the returned clause qualifies the occurrences table as `o`
+// (e.g. `o.taxon_id`). Every consumer MUST alias the occurrences table as `o`
+// in its FROM clause (`FROM occurrences o` or `FROM occurrences o LEFT JOIN taxa t …`).
+// `taxon_id` exists in BOTH occurrences and taxa, so an unqualified reference is
+// ambiguous once `taxa` is joined for display_name resolution.
 export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
   const occurrenceClauses: string[] = [];
 
   // Taxon filter — descendant subquery against taxa.lineage_path (MFILT-01)
   // taxonId is a TypeScript number; interpolated as a bare integer — no string escaping needed (T-130-01)
-  // The clause matches the taxon itself (taxon_id = N) plus all descendants (instr materialized-path)
+  // The clause matches the taxon itself (o.taxon_id = N) plus all descendants (instr materialized-path).
+  // Outer taxon_id is qualified `o.` (occurrences); the inner subquery's taxon_id is scoped to taxa.
   if (f.taxonId !== null) {
     occurrenceClauses.push(
-      `(taxon_id = ${f.taxonId} OR taxon_id IN (` +
+      `(o.taxon_id = ${f.taxonId} OR o.taxon_id IN (` +
       `SELECT taxon_id FROM taxa ` +
       `WHERE lineage_path IS NOT NULL ` +
       `AND instr(lineage_path, '/${f.taxonId}/') > 0))`
@@ -311,7 +317,7 @@ export async function queryVisibleGeoJSON(f: FilterState): Promise<{
   const ids = new Set<string>();
   let rowCount = 0;
   await sqlite3.exec(db,
-    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, year, source FROM occurrences WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
+    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, year, source FROM occurrences o WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
     (rowValues: unknown[], columnNames: string[]) => {
       rowCount++;
       const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'year' | 'source'>;
@@ -405,7 +411,7 @@ export async function queryListPage(
 
   let total = 0;
   await sqlite3.exec(db,
-    `SELECT COUNT(*) as n FROM occurrences WHERE ${fullWhere}`,
+    `SELECT COUNT(*) as n FROM occurrences o WHERE ${fullWhere}`,
     (rowValues: unknown[], columnNames: string[]) => {
       total = Number(rowValues[columnNames.indexOf('n')] ?? 0);
     }
@@ -434,7 +440,7 @@ export async function queryOccurrencesByBounds(
   const { sqlite3, db } = await getDB();
   const rows: OccurrenceRow[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences WHERE (${occurrenceWhere}) AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east} ORDER BY date DESC, recordedBy ASC`,
+    `SELECT ${selectCols} FROM occurrences o WHERE (${occurrenceWhere}) AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east} ORDER BY date DESC, recordedBy ASC`,
     (rowValues: unknown[], columnNames: string[]) => {
       rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
     }
