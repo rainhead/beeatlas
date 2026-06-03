@@ -3,13 +3,17 @@
 All sandbox-gated tests skip when `target/sandbox/higher_taxa.parquet` is absent
 (RED state until Task 2 materializes the mart).
 
-Baselines from RESEARCH.md §Data Facts (derived from current string-grouping in species.json):
-  Genus:    Andrena 3589/2735, Bombus 1768/7763, Megachile 1186/480,
-            Lasioglossum 1718/115, Osmia 1110/450, Nomada 565/616
-  Tribe:    Bombini 1768/7763, Andrenini 3589/2735, Osmiini 1696/483
-  Subgenus: Bombus/Pyrobombus specimen_count == 1465
+PAGE-01 success criterion 1 requires higher-rank page totals to derive from the
+hierarchy AND match the pre-normalization string-grouping. The robust, snapshot-
+independent way to assert this is to compare the rollup against the per-species
+string-group SUM on the SAME species mart — NOT against hardcoded absolute counts.
+Absolute counts drift with every data refresh: Phase 131 occurrence-normalization
+roughly halved iNat observation counts (e.g. Andrena 2735 -> 1477) and shifted some
+specimen counts (Lasioglossum 1718 -> 1742) relative to the previously-deployed
+species.json the RESEARCH baselines were captured from. We therefore spot-check a
+set of taxa spanning multiple bee families and assert rollup == string-group sum.
 
-Run after `bash data/dbt/run.sh build --select higher_taxa`:
+Run after `bash data/dbt/run.sh build --select higher_taxa species`:
     cd data && uv run pytest tests/test_higher_taxa.py -x
 """
 
@@ -42,87 +46,81 @@ def _load_higher_taxa() -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Genus count baselines (RESEARCH §Data Facts)
+# Count equivalence spot-checks (PAGE-01 success criterion 1)
+#
+# Spot-check taxa spanning multiple bee families. We assert the rollup equals the
+# per-species string-group SUM on the SAME mart rather than hardcoding absolute
+# counts, which drift every data refresh (see module docstring).
 # ---------------------------------------------------------------------------
 
-GENUS_BASELINES = [
-    ("Andrena",     3589, 2735),
-    ("Bombus",      1768, 7763),
-    ("Megachile",   1186,  480),
-    ("Lasioglossum",1718,  115),
-    ("Osmia",       1110,  450),
-    ("Nomada",       565,  616),
-]
+GENUS_SPOT_CHECK = ["Andrena", "Bombus", "Megachile", "Lasioglossum", "Osmia", "Nomada"]
+TRIBE_SPOT_CHECK = ["Bombini", "Andrenini", "Osmiini"]
+SUBGENUS_SPOT_CHECK = ["Pyrobombus"]
 
-TRIBE_BASELINES = [
-    ("Bombini",  1768, 7763),
-    ("Andrenini",3589, 2735),
-    ("Osmiini",  1696,  483),
-]
-
-PYROBOMBUS_SPECIMEN_BASELINE = 1465
+_SPECIES_GUARD = pytest.mark.skipif(
+    not SPECIES_PARQUET.exists(),
+    reason="run `bash data/dbt/run.sh build --select species` first to produce species.parquet",
+)
 
 
-@_SANDBOX_GUARD
-@pytest.mark.parametrize("name,expected_spec,expected_obs", GENUS_BASELINES)
-def test_genus_count_baselines(name, expected_spec, expected_obs):
-    """Genus rollup specimen/inat_obs counts match RESEARCH.md baselines (PAGE-01)."""
+def _string_group_sum(rank_col: str, name: str) -> tuple[int, int]:
+    """SUM(specimen_count), SUM(inat_obs_count) over species-mart rows for one higher taxon."""
     con = duckdb.connect()
-    row = con.execute(
+    return con.execute(
         f"""
-        SELECT specimen_count, inat_obs_count
-        FROM read_parquet('{HIGHER_TAXA_PARQUET}')
-        WHERE rank = 'genus' AND name = ?
+        SELECT COALESCE(SUM(specimen_count), 0), COALESCE(SUM(inat_obs_count), 0)
+        FROM read_parquet('{SPECIES_PARQUET}')
+        WHERE {rank_col} = ?
         """,
         [name],
     ).fetchone()
+
+
+def _rollup_counts(rank: str, name: str) -> tuple:
+    con = duckdb.connect()
+    return con.execute(
+        f"""
+        SELECT specimen_count, inat_obs_count
+        FROM read_parquet('{HIGHER_TAXA_PARQUET}')
+        WHERE rank = ? AND name = ?
+        """,
+        [rank, name],
+    ).fetchone()
+
+
+@_SANDBOX_GUARD
+@_SPECIES_GUARD
+@pytest.mark.parametrize("name", GENUS_SPOT_CHECK)
+def test_genus_rollup_matches_string_group(name):
+    """Genus rollup (specimen, inat_obs) == per-species string-group SUM (PAGE-01)."""
+    row = _rollup_counts("genus", name)
     assert row is not None, f"Genus '{name}' not found in higher_taxa"
-    got_spec, got_obs = row
-    assert got_spec == expected_spec, (
-        f"Genus {name}: expected specimen_count={expected_spec}, got {got_spec}"
-    )
-    assert got_obs == expected_obs, (
-        f"Genus {name}: expected inat_obs_count={expected_obs}, got {got_obs}"
+    assert tuple(row) == _string_group_sum("genus", name), (
+        f"Genus {name}: rollup {tuple(row)} != string-group {_string_group_sum('genus', name)}"
     )
 
 
 @_SANDBOX_GUARD
-@pytest.mark.parametrize("name,expected_spec,expected_obs", TRIBE_BASELINES)
-def test_tribe_count_baselines(name, expected_spec, expected_obs):
-    """Tribe rollup counts match RESEARCH.md baselines."""
-    con = duckdb.connect()
-    row = con.execute(
-        f"""
-        SELECT specimen_count, inat_obs_count
-        FROM read_parquet('{HIGHER_TAXA_PARQUET}')
-        WHERE rank = 'tribe' AND name = ?
-        """,
-        [name],
-    ).fetchone()
+@_SPECIES_GUARD
+@pytest.mark.parametrize("name", TRIBE_SPOT_CHECK)
+def test_tribe_rollup_matches_string_group(name):
+    """Tribe rollup (specimen, inat_obs) == per-species string-group SUM (PAGE-01)."""
+    row = _rollup_counts("tribe", name)
     assert row is not None, f"Tribe '{name}' not found in higher_taxa"
-    got_spec, got_obs = row
-    assert got_spec == expected_spec, (
-        f"Tribe {name}: expected specimen_count={expected_spec}, got {got_spec}"
-    )
-    assert got_obs == expected_obs, (
-        f"Tribe {name}: expected inat_obs_count={expected_obs}, got {got_obs}"
+    assert tuple(row) == _string_group_sum("tribe", name), (
+        f"Tribe {name}: rollup {tuple(row)} != string-group {_string_group_sum('tribe', name)}"
     )
 
 
 @_SANDBOX_GUARD
-def test_subgenus_pyrobombus_specimen_baseline():
-    """Subgenus Bombus/Pyrobombus specimen_count == 1465 (RESEARCH.md baseline)."""
-    con = duckdb.connect()
-    row = con.execute(
-        f"""
-        SELECT specimen_count
-        FROM read_parquet('{HIGHER_TAXA_PARQUET}')
-        WHERE rank = 'subgenus' AND name = 'Pyrobombus'
-        """,
-    ).fetchone()
-    assert row is not None, "Subgenus 'Pyrobombus' not found in higher_taxa"
-    assert row[0] == PYROBOMBUS_SPECIMEN_BASELINE, (
-        f"Pyrobombus specimen_count: expected {PYROBOMBUS_SPECIMEN_BASELINE}, got {row[0]}"
+@_SPECIES_GUARD
+@pytest.mark.parametrize("name", SUBGENUS_SPOT_CHECK)
+def test_subgenus_rollup_matches_string_group(name):
+    """Subgenus rollup (specimen, inat_obs) == per-species string-group SUM (PAGE-01)."""
+    row = _rollup_counts("subgenus", name)
+    assert row is not None, f"Subgenus '{name}' not found in higher_taxa"
+    assert tuple(row) == _string_group_sum("subgenus", name), (
+        f"Subgenus {name}: rollup {tuple(row)} != string-group {_string_group_sum('subgenus', name)}"
     )
 
 
@@ -160,10 +158,12 @@ def test_eumeninae_absent():
 
 @_SANDBOX_GUARD
 def test_genus_rollup_equals_species_sum():
-    """Every genus rollup specimen_count equals SUM of its member species specimen_count.
+    """EVERY genus rollup count equals SUM of its member species counts.
 
-    Validates no fan-out from the name-match JOIN (RESEARCH.md Pitfall 1).
-    Requires species.parquet to also be present.
+    Covers specimen_count, inat_obs_count, and occurrence_count for all genera
+    (not just the named spot-checks). Validates no fan-out from the name-match
+    JOIN (RESEARCH.md Pitfall 1) AND that the hierarchy rollup reproduces the
+    pre-normalization string-grouping (PAGE-01). Requires species.parquet.
     """
     if not SPECIES_PARQUET.exists():
         pytest.skip(
@@ -173,31 +173,34 @@ def test_genus_rollup_equals_species_sum():
     # Per-species sums grouped by genus (from species mart)
     species_sums = con.execute(
         f"""
-        SELECT genus, SUM(specimen_count) AS spec_sum
+        SELECT genus,
+               SUM(specimen_count)   AS spec_sum,
+               SUM(inat_obs_count)   AS obs_sum,
+               SUM(occurrence_count) AS occ_sum
         FROM read_parquet('{SPECIES_PARQUET}')
         WHERE genus IS NOT NULL AND genus <> ''
         GROUP BY genus
         """
     ).fetchall()
-    species_sum_by_genus = {row[0]: row[1] for row in species_sums}
+    species_sum_by_genus = {row[0]: (row[1], row[2], row[3]) for row in species_sums}
 
     # Rollup genus rows
     rollup_rows = con.execute(
         f"""
-        SELECT name, specimen_count
+        SELECT name, specimen_count, inat_obs_count, occurrence_count
         FROM read_parquet('{HIGHER_TAXA_PARQUET}')
         WHERE rank = 'genus'
         """
     ).fetchall()
 
     mismatches = []
-    for name, rollup_count in rollup_rows:
-        expected = species_sum_by_genus.get(name, 0)
-        if rollup_count != expected:
-            mismatches.append((name, rollup_count, expected))
+    for name, spec, obs, occ in rollup_rows:
+        expected = species_sum_by_genus.get(name, (0, 0, 0))
+        if (spec, obs, occ) != expected:
+            mismatches.append((name, (spec, obs, occ), expected))
 
     assert not mismatches, (
-        f"Genus rollup count mismatches (Pitfall 1 fan-out check): {mismatches[:5]}"
+        f"Genus rollup count mismatches (Pitfall 1 fan-out / PAGE-01 string-group): {mismatches[:5]}"
     )
 
 
