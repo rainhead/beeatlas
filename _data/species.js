@@ -356,4 +356,209 @@ const subfamilyList = subfamilyRows
     };
   });
 
-export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList };
+// Phase 133 Plan 01 — D-10: Build the full nested taxonomy tree for _pages/species.njk.
+// Produces fullTree: array of family nodes, each with children nested up to six ranks:
+//   family → subfamily → tribe → genus → subgenus → species
+// D-05 graceful degradation: ranks without members are skipped; children attach to nearest
+// present ancestor (no empty wrapper nodes, no "Other" bucket).
+// D-08: counts sourced from higherTaxaByRankName (pre-rolled totals), not recomputed.
+// D-06: every subgenus node carries genusName = row.genus (the genus parent name, not subgenus name).
+// TREE-04: bee-only (higherTaxaByRankName is already bee-only; excludes Eumeninae naturally).
+
+function buildFullTree() {
+  // Index species leaves by genus and subgenus for efficient lookup.
+  // Only species with specific_epithet (real species, no unresolved genus-level records).
+  const speciesByGenus = {};  // genus → [speciesRow, ...]
+  const speciesBySubgenus = {};  // `${genus}::${subgenus}` → [speciesRow, ...]
+  for (const sp of flat) {
+    if (sp.specific_epithet === null) continue;
+    if (!speciesByGenus[sp.genus]) speciesByGenus[sp.genus] = [];
+    speciesByGenus[sp.genus].push(sp);
+    if (sp.subgenus && sp.subgenus.trim() !== '') {
+      const key = `${sp.genus}::${sp.subgenus}`;
+      if (!speciesBySubgenus[key]) speciesBySubgenus[key] = [];
+      speciesBySubgenus[key].push(sp);
+    }
+  }
+
+  // Build species leaf node from a species row.
+  function makeSpeciesNode(sp) {
+    return {
+      rank: 'species',
+      name: sp.scientificName,
+      taxon_id: sp.taxon_id ?? null,
+      specimen_count: sp.specimen_count ?? 0,
+      inat_obs_count: sp.inat_obs_count ?? 0,
+      occurrence_count: sp.occurrence_count ?? 0,
+      slug: sp.slug,
+      scientificName: sp.scientificName,
+      children: [],
+    };
+  }
+
+  // Build genus node: children are subgenus nodes (D-05: if subgenus rows exist for this genus)
+  // or species leaves directly (when no subgenus rows exist).
+  function makeGenusNode(genusRow) {
+    const genusName = genusRow.name;
+    const subgenusRows = (higherTaxaByRankName['subgenus']
+      ? Object.values(higherTaxaByRankName['subgenus']).filter(r => r.genus === genusName)
+      : []);
+
+    let children;
+    if (subgenusRows.length > 0) {
+      // Genus has subgenus rows: nest species under their subgenus.
+      // D-05: any species without a subgenus would attach directly to genus — but all species
+      // that belong to a genus with subgenus rows do carry a subgenus per the data invariant.
+      children = subgenusRows
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(sgRow => {
+          const key = `${genusName}::${sgRow.name}`;
+          const sgSpecies = (speciesBySubgenus[key] || [])
+            .sort((a, b) => a.scientificName.localeCompare(b.scientificName))
+            .map(makeSpeciesNode);
+          return {
+            rank: 'subgenus',
+            name: sgRow.name,
+            // D-06: genusName is the genus PARENT name — from row.genus (not row.name).
+            // Plan 02 builds /species/{genusName}/{name}/ from this field.
+            genusName: sgRow.genus,
+            taxon_id: sgRow.taxon_id ?? null,
+            specimen_count: sgRow.specimen_count ?? 0,
+            inat_obs_count: sgRow.inat_obs_count ?? 0,
+            occurrence_count: sgRow.occurrence_count ?? 0,
+            children: sgSpecies,
+          };
+        });
+      // D-05: also include species with no subgenus (subgenus field null/empty) directly.
+      const directSpecies = (speciesByGenus[genusName] || [])
+        .filter(sp => !sp.subgenus || sp.subgenus.trim() === '')
+        .sort((a, b) => a.scientificName.localeCompare(b.scientificName))
+        .map(makeSpeciesNode);
+      children = [...children, ...directSpecies];
+    } else {
+      // No subgenus rows: attach species directly to genus (D-05 — no empty intermediate node).
+      children = (speciesByGenus[genusName] || [])
+        .sort((a, b) => a.scientificName.localeCompare(b.scientificName))
+        .map(makeSpeciesNode);
+    }
+
+    return {
+      rank: 'genus',
+      name: genusName,
+      taxon_id: genusRow.taxon_id ?? null,
+      specimen_count: genusRow.specimen_count ?? 0,
+      inat_obs_count: genusRow.inat_obs_count ?? 0,
+      occurrence_count: genusRow.occurrence_count ?? 0,
+      children,
+    };
+  }
+
+  // Collect all genus rows (already bee-only).
+  const allGenusRows = (higherTaxaByRankName['genus'] && Object.values(higherTaxaByRankName['genus'])) || [];
+  // Collect all tribe rows.
+  const allTribeRows = (higherTaxaByRankName['tribe'] && Object.values(higherTaxaByRankName['tribe'])) || [];
+  // Collect all subfamily rows.
+  const allSubfamilyRows = (higherTaxaByRankName['subfamily'] && Object.values(higherTaxaByRankName['subfamily'])) || [];
+
+  // Determine which families are present (from genus rows — all bee families).
+  const familyNames = [...new Set(allGenusRows.map(r => r.family))].sort();
+
+  return familyNames.map(familyName => {
+    // Collect subfamily rows for this family.
+    const sfRows = allSubfamilyRows.filter(sf => sf.family === familyName);
+
+    let familyChildren;
+
+    if (sfRows.length > 0) {
+      // Build subfamily → (tribe →) genus → subgenus → species chain.
+      familyChildren = sfRows
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(sfRow => {
+          // Collect tribe rows for this subfamily.
+          const sfTribeRows = allTribeRows.filter(t => t.subfamily === sfRow.name);
+          // Genus rows for this subfamily.
+          const sfGenusRows = allGenusRows.filter(g => g.subfamily === sfRow.name);
+
+          let sfChildren;
+          if (sfTribeRows.length > 0) {
+            // D-04: subfamily has tribes → nested tribes→genera chain.
+            sfChildren = sfTribeRows
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(tRow => {
+                const tribeGenusRows = sfGenusRows
+                  .filter(g => g.tribe === tRow.name)
+                  .sort((a, b) => a.name.localeCompare(b.name));
+                const tribeChildren = tribeGenusRows.map(makeGenusNode);
+                return {
+                  rank: 'tribe',
+                  name: tRow.name,
+                  taxon_id: tRow.taxon_id ?? null,
+                  specimen_count: tRow.specimen_count ?? 0,
+                  inat_obs_count: tRow.inat_obs_count ?? 0,
+                  occurrence_count: tRow.occurrence_count ?? 0,
+                  children: tribeChildren,
+                };
+              });
+            // D-05: genera with no tribe (tribe field null/empty) attach directly to subfamily.
+            const tribelessGenera = sfGenusRows
+              .filter(g => !g.tribe || g.tribe.trim() === '')
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(makeGenusNode);
+            sfChildren = [...sfChildren, ...tribelessGenera];
+          } else {
+            // D-05: tribe-less subfamily → flat genus list directly under subfamily.
+            sfChildren = sfGenusRows
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(makeGenusNode);
+          }
+
+          // Compute family-level counts by summing subfamily counts (already available on sfRow).
+          return {
+            rank: 'subfamily',
+            name: sfRow.name,
+            taxon_id: sfRow.taxon_id ?? null,
+            specimen_count: sfRow.specimen_count ?? 0,
+            inat_obs_count: sfRow.inat_obs_count ?? 0,
+            occurrence_count: sfRow.occurrence_count ?? 0,
+            children: sfChildren,
+          };
+        });
+
+      // D-05: genera that belong to this family but have no matching subfamily row
+      // (should not occur in practice with current bee-only data, but guard anyway).
+      const orphanGenera = allGenusRows
+        .filter(g => g.family === familyName && !sfRows.some(sf => sf.name === g.subfamily))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(makeGenusNode);
+      familyChildren = [...familyChildren, ...orphanGenera];
+    } else {
+      // No subfamily rows for this family — attach genera directly to family (D-05).
+      familyChildren = allGenusRows
+        .filter(g => g.family === familyName)
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(makeGenusNode);
+    }
+
+    // Family counts: sum from subfamily rows (D-08 — descendant-based).
+    const familySpecimenCount = sfRows.reduce((acc, sf) => acc + (sf.specimen_count ?? 0), 0)
+      || allGenusRows.filter(g => g.family === familyName).reduce((acc, g) => acc + (g.specimen_count ?? 0), 0);
+    const familyInatObsCount = sfRows.reduce((acc, sf) => acc + (sf.inat_obs_count ?? 0), 0)
+      || allGenusRows.filter(g => g.family === familyName).reduce((acc, g) => acc + (g.inat_obs_count ?? 0), 0);
+    const familyOccurrenceCount = sfRows.reduce((acc, sf) => acc + (sf.occurrence_count ?? 0), 0)
+      || allGenusRows.filter(g => g.family === familyName).reduce((acc, g) => acc + (g.occurrence_count ?? 0), 0);
+
+    return {
+      rank: 'family',
+      name: familyName,
+      taxon_id: null,  // no family rows in higher_taxa.json; taxon_id not available
+      specimen_count: familySpecimenCount,
+      inat_obs_count: familyInatObsCount,
+      occurrence_count: familyOccurrenceCount,
+      children: familyChildren,
+    };
+  });
+}
+
+const fullTree = buildFullTree();
+
+export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList, fullTree };
