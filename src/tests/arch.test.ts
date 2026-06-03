@@ -125,6 +125,9 @@ describe('src/entries/species-index.ts allowlist (IDX-02, Phase 96)', () => {
     '../index.css',
     '../styles/taxon-pages.css',
     '../bee-header.ts', '../bee-header',
+    // Phase 133 gap closure: tree behavior extracted to a pure DOM module
+    // (no SPA/heavy imports) so it is unit-testable under happy-dom.
+    '../species-tree.ts', '../species-tree',
   ]);
   const FORBIDDEN_PATTERNS = [
     'bee-species-page', 'bee-species-filter', 'bee-atlas',

@@ -1,14 +1,27 @@
-// Phase 133 Plan 02 Wave 0 — RED contract for TREE-01/02/04 template markup.
-// Source-level assertions against _pages/species.njk (template) and
-// src/entries/species-index.ts (entry wiring). Uses readFileSync against source
-// files so these run in the fast unit suite (VITEST_SKIP_BUILD=1 npm test).
-// Template assertions are RED until Task 2 rewrites the template.
-// Entry assertions remain GREEN (entry is unchanged structurally).
+// Phase 133 — /species browse tree contract.
+//
+// Two kinds of test:
+//   1. Source assertions (readFileSync) for the template markup (_pages/species.njk)
+//      and the thin Vite entry (src/entries/species-index.ts) — structural guards
+//      that run in the fast unit suite.
+//   2. REAL happy-dom behavioral tests for the tree logic (src/species-tree.ts):
+//      the rank toggle, the filter, ancestor auto-expand, and the reset path are
+//      executed against a constructed DOM. These replace the earlier source-grep
+//      "behavior" assertions, which passed even while the rendered feature was
+//      broken (the default view showed empty families; gap closure 133).
 
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  STORAGE_KEY,
+  loadToggleState,
+  saveToggleState,
+  applyRankToggle,
+  runFilter,
+  initSpeciesTree,
+} from '../species-tree.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -22,7 +35,7 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
   test('references species-index entry (not old species.ts)', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
     expect(src).toMatch(/<script\s+type="module"\s+src="\/src\/entries\/species-index\.ts"/);
-    expect(src).not.toContain('species.ts');
+    expect(src).not.toContain('species.ts"');
   });
 
   test('contains taxon-page species-index wrapper class (unchanged dual class)', () => {
@@ -58,9 +71,18 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
     expect(src).toContain('data-rank=');
   });
 
+  test('intermediate ranks ship visible (no hidden attribute) so no-JS shows all ranks — gap 133 / CR-01', () => {
+    const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
+    // The subfamily/tribe/subgenus <details> must NOT carry the `hidden` attribute:
+    // hiding the wrapper with display:none buries the nested genera/species. The
+    // rank skip is applied at runtime via the `rank-skipped` class (display:contents).
+    expect(src).not.toMatch(/data-rank="subfamily"[^>]*\shidden/);
+    expect(src).not.toMatch(/data-rank="tribe"[^>]*\shidden/);
+    expect(src).not.toMatch(/data-rank="subgenus"[^>]*\shidden/);
+  });
+
   test('count separator: source contains middle dot U+00B7 in a node-counts span', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
-    // U+00B7 middle dot between count values
     expect(src).toContain('·');
     expect(src).toContain('node-counts');
   });
@@ -69,24 +91,18 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
     expect(src).toContain('taxonRank=');
     expect(src).toMatch(/aria-label="Map:/);
-    // U+1F5FA world map emoji
     expect(src).toContain('\u{1F5FA}');
   });
 
   test('family is plain text: family-rank summary uses span.node-name (no <a>) for name, not a link', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
-    // Template must have a branch that emits <span class="node-name"> for family rank
-    // (no link — D-07). The pattern must differentiate family from page-backed ranks.
     expect(src).toContain('<span class="node-name">');
-    // Template must have an <a class="node-name" branch for other ranks (genus, etc.)
     expect(src).toContain('<a class="node-name"');
   });
 
   test('subgenus URL uses node.genusName and does NOT contain /species/undefined/', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
-    // The subgenus branch must use genusName for URL construction
     expect(src).toContain('node.genusName');
-    // Must never produce a /species/undefined/ literal
     expect(src).not.toContain('/species/undefined/');
   });
 
@@ -104,69 +120,269 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
   });
 });
 
-describe('src/entries/species-index.ts (Phase 133 — toggle + localStorage + filter + auto-expand)', () => {
+describe('src/entries/species-index.ts (Phase 133 — thin Vite entry)', () => {
   test('imports index.css and taxon-pages.css side-effects (unchanged)', () => {
     const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
     expect(src).toContain("'../index.css'");
     expect(src).toContain("'../styles/taxon-pages.css'");
   });
 
-  test('declares localStorage key beeatlas.speciesTree.showAllRanks exactly', () => {
+  test('delegates behavior to species-tree and initializes on load', () => {
     const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
-    expect(src).toContain('beeatlas.speciesTree.showAllRanks');
+    expect(src).toContain("from '../species-tree.ts'");
+    expect(src).toContain('initSpeciesTree()');
   });
+});
 
-  test('wires change listener to #show-all-ranks checkbox', () => {
-    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
-    expect(src).toContain("getElementById('show-all-ranks')");
-    expect(src).toContain("addEventListener('change'");
-  });
+describe('src/species-tree.ts (security invariants — source guards)', () => {
+  const src = readFileSync(resolve(ROOT, 'src/species-tree.ts'), 'utf-8');
 
-  test('filter drives off data-rank attribute scheme (not .family-section / .genus-row)', () => {
-    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
-    // Must reference [data-rank
-    expect(src).toContain('[data-rank');
-    // Must NOT reference old flat selectors
-    expect(src).not.toContain('.family-section');
-    expect(src).not.toContain('.genus-row');
-  });
-
-  test('auto-expands ancestors: sets .open = true on HTMLDetailsElement ancestors', () => {
-    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
-    // openAncestors function or equivalent must set .open = true
-    expect(src).toContain('.open = true');
-    // Must reference HTMLDetailsElement for the ancestor walk
-    expect(src).toContain('HTMLDetailsElement');
-  });
-
-  test('empty-state safety: sets #filter-query via .textContent (never .innerHTML) — T-133-07', () => {
-    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
-    // Must use textContent for the echoed query (XSS guard)
-    expect(src).toContain('.textContent');
-    // Must NOT use innerHTML on filter-query (would allow XSS)
-    // Only assert no innerHTML on the filter-query path — check no bare innerHTML assignment
-    // We allow innerHTML if it only appears in a different context, but safest to assert absent
-    const lines = src.split('\n');
-    const innerHtmlLines = lines.filter(l => l.includes('innerHTML') && l.includes('filter-query'));
-    expect(innerHtmlLines).toHaveLength(0);
-  });
-
-  test('localStorage access is strict-compare === "1" and does not use eval or JSON.parse on value', () => {
-    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
-    // Strict compare for the stored value
+  test('localStorage value compared with strict === "1" (no eval / JSON.parse of value) — T-133-08', () => {
     expect(src).toContain("=== '1'");
-    // Must not use eval() or JSON.parse() for the toggle value
     expect(src).not.toMatch(/eval\s*\(/);
-    // JSON.parse should not appear anywhere near localStorage handling
-    // (no JSON.parse of the localStorage value — a coerced boolean guard)
-    const lines = src.split('\n');
-    const jsonParseLocalStorageLines = lines.filter(l => l.includes('JSON.parse') && l.includes('getItem'));
-    expect(jsonParseLocalStorageLines).toHaveLength(0);
+    const jsonParseGetItem = src
+      .split('\n')
+      .filter((l) => l.includes('JSON.parse') && l.includes('getItem'));
+    expect(jsonParseGetItem).toHaveLength(0);
   });
 
-  test('wires input event listener to #species-filter', () => {
-    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
-    expect(src).toContain("getElementById('species-filter')");
-    expect(src).toContain("addEventListener('input'");
+  test('empty-state query echoed via textContent, never innerHTML — T-133-07', () => {
+    expect(src).toContain('.textContent');
+    // Guard the actual sink (a `.innerHTML` property access), not the word in a
+    // comment — matching the bare word is exactly the false positive that let the
+    // original broken behavior pass review.
+    expect(src).not.toMatch(/\.innerHTML\b/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real DOM behavior (happy-dom). A representative two-family fixture mirroring
+// the template's nesting: family > subfamily > tribe > genus > (ul) species.
+// ---------------------------------------------------------------------------
+
+function buildTree(): HTMLElement {
+  const root = document.createElement('article');
+  root.className = 'taxon-page species-index';
+  root.innerHTML = `
+    <div class="species-index-controls">
+      <input type="search" id="species-filter" aria-label="Filter taxa">
+      <label class="rank-toggle-label">
+        <input type="checkbox" id="show-all-ranks"> Show all ranks
+      </label>
+    </div>
+    <p id="filter-empty" hidden role="status">No taxa match "<span id="filter-query"></span>".</p>
+
+    <details class="tree-node tree-node--family" data-rank="family" data-name="andrenidae">
+      <summary><span class="node-name">Andrenidae</span></summary>
+      <details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="andreninae">
+        <summary><a class="node-name">Andreninae</a></summary>
+        <details class="tree-node tree-node--tribe" data-rank="tribe" data-name="andrenini">
+          <summary><a class="node-name">Andrenini</a></summary>
+          <details class="tree-node tree-node--genus" data-rank="genus" data-name="andrena">
+            <summary><a class="node-name">Andrena</a></summary>
+            <ul class="species-list">
+              <li data-rank="species" data-name="andrena aculeata"><a class="node-name">Andrena aculeata</a></li>
+            </ul>
+          </details>
+        </details>
+      </details>
+    </details>
+
+    <details class="tree-node tree-node--family" data-rank="family" data-name="apidae">
+      <summary><span class="node-name">Apidae</span></summary>
+      <details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="apinae">
+        <summary><a class="node-name">Apinae</a></summary>
+        <details class="tree-node tree-node--genus" data-rank="genus" data-name="bombus">
+          <summary><a class="node-name">Bombus</a></summary>
+          <ul class="species-list">
+            <li data-rank="species" data-name="bombus vosnesenskii"><a class="node-name">Bombus vosnesenskii</a></li>
+          </ul>
+        </details>
+      </details>
+    </details>
+  `;
+  return root;
+}
+
+const byName = (root: ParentNode, name: string) =>
+  root.querySelector<HTMLElement>(`[data-name="${name}"]`)!;
+
+describe('species-tree — rank toggle (D-03, CR-01)', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    root = buildTree();
+  });
+
+  test('default OFF skips intermediate ranks via class+open, NOT the hidden attribute', () => {
+    applyRankToggle(root, false);
+    for (const rank of ['subfamily', 'tribe', 'subgenus']) {
+      for (const el of root.querySelectorAll<HTMLElement>(`[data-rank="${rank}"]`)) {
+        expect(el.classList.contains('rank-skipped')).toBe(true);
+        expect((el as HTMLDetailsElement).open).toBe(true);
+        // Crucially NOT display:none — that buried the descendants (the CR-01 bug).
+        expect(el.hidden).toBe(false);
+      }
+    }
+  });
+
+  test('default OFF leaves genera and species un-hidden (family → genus → species visible)', () => {
+    applyRankToggle(root, false);
+    expect(byName(root, 'andrena').hidden).toBe(false);
+    expect(byName(root, 'andrena aculeata').hidden).toBe(false);
+    expect(byName(root, 'bombus').hidden).toBe(false);
+  });
+
+  test('toggle ON removes the rank-skip so intermediate ranks render as nodes', () => {
+    applyRankToggle(root, false);
+    applyRankToggle(root, true);
+    for (const el of root.querySelectorAll<HTMLElement>('[data-rank="subfamily"],[data-rank="tribe"]')) {
+      expect(el.classList.contains('rank-skipped')).toBe(false);
+    }
+  });
+});
+
+describe('species-tree — filter + auto-expand (D-09 / TREE-03, CR-02)', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    root = buildTree();
+    applyRankToggle(root, false);
+  });
+
+  test('matching a genus hides non-matches and reveals the match path', () => {
+    const showEmpty = runFilter(root, 'bombus', false);
+    expect(showEmpty).toBe(false);
+    expect(byName(root, 'bombus').hidden).toBe(false);
+    expect(byName(root, 'andrena').hidden).toBe(true);
+    // Ancestor family of the match is revealed AND opened (CR-02: .hidden cleared, not just .open).
+    const apidae = byName(root, 'apidae') as HTMLDetailsElement;
+    expect(apidae.hidden).toBe(false);
+    expect(apidae.open).toBe(true);
+    // The skipped intermediate ancestor is opened so the match shows through it.
+    expect((byName(root, 'apinae') as HTMLDetailsElement).open).toBe(true);
+    // Non-matching family is hidden.
+    expect(byName(root, 'andrenidae').hidden).toBe(true);
+  });
+
+  test('a deep species match opens AND un-hides every ancestor <details>', () => {
+    runFilter(root, 'aculeata', false);
+    expect(byName(root, 'andrena aculeata').hidden).toBe(false);
+    for (const name of ['andrena', 'andrenini', 'andreninae', 'andrenidae']) {
+      const el = byName(root, name) as HTMLDetailsElement;
+      expect(el.open).toBe(true);
+      expect(el.hidden).toBe(false);
+    }
+  });
+
+  test('clearing the filter restores every rank (CR-03 — no stale hidden nodes)', () => {
+    runFilter(root, 'bombus', false);
+    expect(byName(root, 'andrena').hidden).toBe(true); // hidden by the filter
+    const showEmpty = runFilter(root, '', false);
+    expect(showEmpty).toBe(false);
+    for (const el of root.querySelectorAll<HTMLElement>('[data-rank]')) {
+      expect(el.hidden).toBe(false);
+    }
+    // Intermediate ranks are re-skipped after reset.
+    expect(byName(root, 'andreninae').classList.contains('rank-skipped')).toBe(true);
+  });
+});
+
+describe('species-tree — empty state + toggle-respecting filter (D-09 lean)', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    root = buildTree();
+    applyRankToggle(root, false);
+  });
+
+  test('zero matches returns true (show empty state); a match returns false', () => {
+    expect(runFilter(root, 'zzzzz', false)).toBe(true);
+    expect(runFilter(root, 'bombus', false)).toBe(false);
+    expect(runFilter(root, '', false)).toBe(false);
+  });
+
+  test('with toggle OFF an intermediate-only name does not match; with ON it does', () => {
+    expect(runFilter(root, 'andreninae', false)).toBe(true); // subfamily skipped → not matched
+    runFilter(root, '', false);
+    applyRankToggle(root, true);
+    expect(runFilter(root, 'andreninae', true)).toBe(false); // now a displayed rank → matches
+  });
+});
+
+describe('species-tree — localStorage persistence (D-04, T-133-08/09)', () => {
+  function fakeStorage(initial: Record<string, string> = {}): Storage {
+    const map = new Map(Object.entries(initial));
+    return {
+      getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
+      setItem: (k: string, v: string) => void map.set(k, v),
+      removeItem: (k: string) => void map.delete(k),
+      clear: () => map.clear(),
+      key: (i: number) => [...map.keys()][i] ?? null,
+      get length() {
+        return map.size;
+      },
+    } as Storage;
+  }
+
+  test('load returns true only for stored "1"; any other value or absent is false', () => {
+    expect(loadToggleState(fakeStorage({ [STORAGE_KEY]: '1' }))).toBe(true);
+    expect(loadToggleState(fakeStorage({ [STORAGE_KEY]: '0' }))).toBe(false);
+    expect(loadToggleState(fakeStorage({ [STORAGE_KEY]: 'true' }))).toBe(false);
+    expect(loadToggleState(fakeStorage())).toBe(false);
+  });
+
+  test('save writes "1"/"0"; a throwing store degrades silently to default OFF', () => {
+    const store = fakeStorage();
+    saveToggleState(true, store);
+    expect(store.getItem(STORAGE_KEY)).toBe('1');
+    saveToggleState(false, store);
+    expect(store.getItem(STORAGE_KEY)).toBe('0');
+
+    const throwing = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('quota');
+      },
+    } as unknown as Storage;
+    expect(loadToggleState(throwing)).toBe(false);
+    expect(() => saveToggleState(true, throwing)).not.toThrow();
+  });
+});
+
+describe('species-tree — initSpeciesTree wiring + XSS guard (T-133-07)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  test('typing into the filter echoes the query as TEXT only (no HTML injection)', () => {
+    const root = buildTree();
+    document.body.appendChild(root);
+    try {
+      initSpeciesTree(root);
+      const input = root.querySelector<HTMLInputElement>('#species-filter')!;
+      const payload = '<img src=x onerror=alert(1)>';
+      input.value = payload;
+      input.dispatchEvent(new Event('input'));
+
+      const querySpan = root.querySelector<HTMLElement>('#filter-query')!;
+      const emptyMsg = root.querySelector<HTMLElement>('#filter-empty')!;
+      // Empty state shown (no taxon matches the payload).
+      expect(emptyMsg.hidden).toBe(false);
+      // Echoed as text, not parsed into elements.
+      expect(querySpan.textContent).toBe(payload);
+      expect(querySpan.childElementCount).toBe(0);
+      expect(querySpan.querySelector('img')).toBeNull();
+    } finally {
+      root.remove();
+    }
+  });
+
+  test('initial load applies persisted ON state to the checkbox and reveals ranks', () => {
+    localStorage.setItem(STORAGE_KEY, '1');
+    const root = buildTree();
+    initSpeciesTree(root);
+    const toggle = root.querySelector<HTMLInputElement>('#show-all-ranks')!;
+    expect(toggle.checked).toBe(true);
+    expect(byName(root, 'andreninae').classList.contains('rank-skipped')).toBe(false);
   });
 });
