@@ -371,3 +371,163 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 });
+
+// Phase 133 Plan 01 — Wave 0 RED contract for TREE-01/02/04.
+// Asserts species.fullTree shape: six-rank skeleton, descendant-rolled counts (D-08),
+// D-05 graceful degradation, bee-only sourcing (TREE-04), subgenus genusName contract (D-06).
+
+// Small recursive walker: flatten all nodes in the tree by rank.
+function walkNodes(nodes: any[]): any[] {
+  const result: any[] = [];
+  for (const node of nodes) {
+    result.push(node);
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      result.push(...walkNodes(node.children));
+    }
+  }
+  return result;
+}
+
+describe('_data/species.js fullTree (TREE-01/02/04)', () => {
+  const fullTree: any[] = (species as any).fullTree;
+
+  test('fullTree is exported as a non-empty array of family nodes', () => {
+    expect(Array.isArray(fullTree)).toBe(true);
+    expect(fullTree.length).toBeGreaterThanOrEqual(1);
+    const apidae = fullTree.find((n: any) => n.name === 'Apidae');
+    expect(apidae).toBeDefined();
+    for (const node of fullTree) {
+      expect(node.rank).toBe('family');
+    }
+  });
+
+  test('every node has rank, name, numeric specimen_count, numeric inat_obs_count, and children array', () => {
+    const allNodes = walkNodes(fullTree);
+    expect(allNodes.length).toBeGreaterThan(0);
+    for (const node of allNodes) {
+      expect(typeof node.rank).toBe('string');
+      expect(node.rank.length).toBeGreaterThan(0);
+      expect(typeof node.name).toBe('string');
+      expect(node.name.length).toBeGreaterThan(0);
+      expect(typeof node.specimen_count).toBe('number');
+      expect(typeof node.inat_obs_count).toBe('number');
+      expect(Array.isArray(node.children)).toBe(true);
+    }
+  });
+
+  test('a known genus node (Bombus) has rank genus', () => {
+    const allNodes = walkNodes(fullTree);
+    const bombus = allNodes.find((n: any) => n.name === 'Bombus');
+    expect(bombus).toBeDefined();
+    expect(bombus.rank).toBe('genus');
+  });
+
+  test('every species leaf has rank species, non-null slug, and scientificName', () => {
+    const allNodes = walkNodes(fullTree);
+    const speciesLeaves = allNodes.filter((n: any) => n.rank === 'species');
+    expect(speciesLeaves.length).toBeGreaterThan(0);
+    for (const leaf of speciesLeaves) {
+      expect(leaf.rank).toBe('species');
+      expect(typeof leaf.slug).toBe('string');
+      expect(leaf.slug!.length).toBeGreaterThan(0);
+      expect(typeof leaf.scientificName).toBe('string');
+      expect(leaf.scientificName.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('count rollup — Bombus genus specimen_count equals sum of its direct species descendants (D-08)', () => {
+    // Derive expected value from the data itself — data-driven, not magic total.
+    const allNodes = walkNodes(fullTree);
+    const bombus = allNodes.find((n: any) => n.name === 'Bombus' && n.rank === 'genus');
+    expect(bombus).toBeDefined();
+    // Walk all descendants (not just direct children) to find species leaves.
+    const bDescendantSpecies = walkNodes(bombus.children).filter((n: any) => n.rank === 'species');
+    const sumFromLeaves = bDescendantSpecies.reduce((acc: number, sp: any) => acc + sp.specimen_count, 0);
+    // The genus node specimen_count comes from higher_taxa.json rollup (D-08).
+    expect(bombus.specimen_count).toBeGreaterThan(0);
+    expect(bombus.inat_obs_count).toBeGreaterThanOrEqual(0);
+    // The higher_taxa.json rollup equals the sum of species descendants when all species are leaf nodes.
+    expect(bombus.specimen_count).toBe(sumFromLeaves);
+  });
+
+  test('default-depth chain (D-01/TREE-01): genus-rank nodes are reachable in the tree', () => {
+    const allNodes = walkNodes(fullTree);
+    const genusNodes = allNodes.filter((n: any) => n.rank === 'genus');
+    expect(genusNodes.length).toBeGreaterThan(0);
+  });
+
+  test('subfamily, tribe, and subgenus rank nodes exist somewhere in the tree', () => {
+    const allNodes = walkNodes(fullTree);
+    const subfamilyNodes = allNodes.filter((n: any) => n.rank === 'subfamily');
+    const tribeNodes = allNodes.filter((n: any) => n.rank === 'tribe');
+    const subgenusNodes = allNodes.filter((n: any) => n.rank === 'subgenus');
+    expect(subfamilyNodes.length).toBeGreaterThan(0);
+    expect(tribeNodes.length).toBeGreaterThan(0);
+    expect(subgenusNodes.length).toBeGreaterThan(0);
+  });
+
+  test('subgenus genusName contract (D-06/TREE-04): every subgenus node has a non-empty genusName string', () => {
+    const allNodes = walkNodes(fullTree);
+    const subgenusNodes = allNodes.filter((n: any) => n.rank === 'subgenus');
+    expect(subgenusNodes.length).toBeGreaterThan(0);
+    for (const sgNode of subgenusNodes) {
+      expect(typeof sgNode.genusName, `subgenus node "${sgNode.name}" missing genusName`).toBe('string');
+      expect(sgNode.genusName.length, `subgenus node "${sgNode.name}" has empty genusName`).toBeGreaterThan(0);
+    }
+  });
+
+  test('subgenus genusName equals row.genus (genus parent name) from higher_taxa.json — not the subgenus name (D-06)', () => {
+    // Load higher_taxa.json independently to verify the contract.
+    const higherTaxa: any[] = JSON.parse(
+      readFileSync(resolve(ROOT, 'public/data/higher_taxa.json'), 'utf8')
+    );
+    const subgenusRowByName: Record<string, any> = {};
+    for (const row of higherTaxa) {
+      if (row.rank === 'subgenus') subgenusRowByName[row.name] = row;
+    }
+
+    const allNodes = walkNodes(fullTree);
+    const subgenusNodes = allNodes.filter((n: any) => n.rank === 'subgenus');
+    expect(subgenusNodes.length).toBeGreaterThan(0);
+
+    // For every subgenus node, assert genusName matches row.genus (the genus parent name).
+    let verifiedAtLeastOne = false;
+    for (const sgNode of subgenusNodes) {
+      const row = subgenusRowByName[sgNode.name];
+      if (!row) continue;
+      // row.genus is the genus PARENT name (not the subgenus name itself).
+      // Example: Alpinobombus subgenus has row.genus = 'Bombus' (not 'Alpinobombus').
+      expect(sgNode.genusName, `node "${sgNode.name}": genusName should be "${row.genus}" (parent genus), got "${sgNode.genusName}"`).toBe(row.genus);
+      // Extra guard: when the subgenus name differs from the genus name, genusName must NOT equal the subgenus name.
+      if (sgNode.name !== row.genus) {
+        expect(sgNode.genusName).not.toBe(sgNode.name);
+      }
+      verifiedAtLeastOne = true;
+    }
+    expect(verifiedAtLeastOne).toBe(true);
+  });
+
+  test('no non-subgenus node carries genusName (D-06)', () => {
+    const allNodes = walkNodes(fullTree);
+    const nonSubgenus = allNodes.filter((n: any) => n.rank !== 'subgenus');
+    for (const node of nonSubgenus) {
+      expect(node.genusName, `non-subgenus node "${node.name}" (rank=${node.rank}) should not have genusName`).toBeUndefined();
+    }
+  });
+
+  test('graceful degradation (D-05): no node has null or empty name, no "Other" or "null" named node', () => {
+    const allNodes = walkNodes(fullTree);
+    for (const node of allNodes) {
+      expect(node.name, 'node name should not be null').not.toBeNull();
+      expect(node.name, 'node name should not be empty').not.toBe('');
+      expect(node.name, 'no "Other" node should exist').not.toBe('Other');
+      expect(node.name, 'no "null" node should exist').not.toBe('null');
+    }
+  });
+
+  test('bee-only (TREE-04): no node named "Eumeninae" exists in the tree', () => {
+    const allNodes = walkNodes(fullTree);
+    const eumeninae = allNodes.find((n: any) => n.name === 'Eumeninae');
+    expect(eumeninae).toBeUndefined();
+  });
+});
