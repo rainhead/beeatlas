@@ -895,7 +895,7 @@ Plans:
 - [x] **Phase 130: Map Filter Cutover** — Frontend switches to `taxon_id` + hierarchy descendant filtering; autocomplete extended to subfamily/tribe/subgenus/complex; URL round-trip preserved; denormalized string columns still present and harmlessly ignored (completed 2026-06-02)
 - [x] **Phase 131: Occurrence Normalization** — Drop denormalized rank columns from occurrences mart now that the frontend no longer reads them; rewrite `geo_blob`; rewrite dbt contract; record DB-size and transfer-weight reduction (completed 2026-06-03)
 - [x] **Phase 132: Page Rebuild & Subfamily Pages** — Recompute genus/subgenus/tribe page rollups from hierarchy; generate new subfamily pages; slug collision check run (completed 2026-06-03)
-- [ ] **Phase 133: Browse Tree** — Expandable `/species` taxonomy tree, bee-only, with per-node specimen/observation counts and type-to-filter search
+- [x] **Phase 133: Browse Tree** — Expandable `/species` taxonomy tree, bee-only, with per-node specimen/observation counts and type-to-filter search (completed 2026-06-03)
 
 ### Phase Details
 
@@ -940,7 +940,7 @@ Plans:
 - [x] 133-03-PLAN.md — Extend src/styles/taxon-pages.css with the UI-SPEC control-bar + tree-node styling (focus rings, 44×44 🗺 target, toggle indicator) [TREE-01, TREE-02]
 
 **Wave 3** *(blocked on Wave 2)*
-- [ ] 133-04-PLAN.md — Extend src/entries/species-index.ts: Show-all-ranks toggle + localStorage, filter across displayed ranks + ancestor auto-expand, XSS-safe empty state; human-verify checkpoint [TREE-01, TREE-03]
+- [x] 133-04-PLAN.md — Extend src/entries/species-index.ts: Show-all-ranks toggle + localStorage, filter across displayed ranks + ancestor auto-expand, XSS-safe empty state; human-verify checkpoint [TREE-01, TREE-03]
 **UI hint**: yes
 
 ### Phase 131: Occurrence Normalization
@@ -1004,4 +1004,4 @@ Plans:
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete    | 2026-06-03 |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete    | 2026-06-03 |
-| 133. Browse Tree | v4.6 | 3/4 | In Progress|  |
+| 133. Browse Tree | v4.6 | 4/4 | Complete   | 2026-06-03 |
