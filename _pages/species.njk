@@ -41,7 +41,7 @@ title: Species — BeeAtlas
   {%- endif -%}
 </details>
 {%- elif node.rank === "subgenus" -%}
-<details class="tree-node tree-node--subgenus" data-rank="subgenus" data-name="{{ node.name | lower }}" hidden>
+<details class="tree-node tree-node--subgenus" data-rank="subgenus" data-name="{{ node.name | lower }}">
   <summary>
     <a class="node-name" href="/species/{{ node.genusName }}/{{ node.name }}/"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
@@ -60,7 +60,7 @@ title: Species — BeeAtlas
   {%- endif -%}
 </details>
 {%- elif node.rank === "tribe" -%}
-<details class="tree-node tree-node--tribe" data-rank="tribe" data-name="{{ node.name | lower }}" hidden>
+<details class="tree-node tree-node--tribe" data-rank="tribe" data-name="{{ node.name | lower }}">
   <summary>
     <a class="node-name" href="/species/tribe/{{ node.name }}/"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
@@ -71,7 +71,7 @@ title: Species — BeeAtlas
   {%- endfor -%}
 </details>
 {%- elif node.rank === "subfamily" -%}
-<details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="{{ node.name | lower }}" hidden>
+<details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="{{ node.name | lower }}">
   <summary>
     <a class="node-name" href="/species/subfamily/{{ node.name }}/"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
