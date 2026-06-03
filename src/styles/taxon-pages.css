@@ -222,6 +222,21 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   padding-left: 0;
 }
 
+/* Rank skip (default view, "Show all ranks" OFF): intermediate-rank wrappers
+   (subfamily/tribe/subgenus) collapse to display:contents so their genus/species
+   descendants render directly under the family — family → genus → species (D-03).
+   The wrapper's own summary row is hidden, and species-index.ts forces the node
+   open so the promoted descendants stay visible. Using display:contents (not the
+   `hidden` attribute / display:none) is load-bearing: display:none would bury the
+   nested genera and species. No-JS pages ship without this class, so all ranks
+   are visible and fully expandable without JavaScript. */
+.species-index .tree-node.rank-skipped {
+  display: contents;
+}
+.species-index .tree-node.rank-skipped > summary {
+  display: none;
+}
+
 /* Focus-visible rings on interactive tree elements */
 .species-index summary:focus-visible,
 .species-index .node-map:focus-visible,
