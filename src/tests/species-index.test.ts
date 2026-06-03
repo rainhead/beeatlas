@@ -104,11 +104,64 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
   });
 });
 
-describe('src/entries/species-index.ts (IDX-02 entry wiring)', () => {
-  test('imports index.css and taxon-pages.css side-effects', () => {
+describe('src/entries/species-index.ts (Phase 133 — toggle + localStorage + filter + auto-expand)', () => {
+  test('imports index.css and taxon-pages.css side-effects (unchanged)', () => {
     const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
     expect(src).toContain("'../index.css'");
     expect(src).toContain("'../styles/taxon-pages.css'");
+  });
+
+  test('declares localStorage key beeatlas.speciesTree.showAllRanks exactly', () => {
+    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
+    expect(src).toContain('beeatlas.speciesTree.showAllRanks');
+  });
+
+  test('wires change listener to #show-all-ranks checkbox', () => {
+    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
+    expect(src).toContain("getElementById('show-all-ranks')");
+    expect(src).toContain("addEventListener('change'");
+  });
+
+  test('filter drives off data-rank attribute scheme (not .family-section / .genus-row)', () => {
+    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
+    // Must reference [data-rank
+    expect(src).toContain('[data-rank');
+    // Must NOT reference old flat selectors
+    expect(src).not.toContain('.family-section');
+    expect(src).not.toContain('.genus-row');
+  });
+
+  test('auto-expands ancestors: sets .open = true on HTMLDetailsElement ancestors', () => {
+    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
+    // openAncestors function or equivalent must set .open = true
+    expect(src).toContain('.open = true');
+    // Must reference HTMLDetailsElement for the ancestor walk
+    expect(src).toContain('HTMLDetailsElement');
+  });
+
+  test('empty-state safety: sets #filter-query via .textContent (never .innerHTML) — T-133-07', () => {
+    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
+    // Must use textContent for the echoed query (XSS guard)
+    expect(src).toContain('.textContent');
+    // Must NOT use innerHTML on filter-query (would allow XSS)
+    // Only assert no innerHTML on the filter-query path — check no bare innerHTML assignment
+    // We allow innerHTML if it only appears in a different context, but safest to assert absent
+    const lines = src.split('\n');
+    const innerHtmlLines = lines.filter(l => l.includes('innerHTML') && l.includes('filter-query'));
+    expect(innerHtmlLines).toHaveLength(0);
+  });
+
+  test('localStorage access is strict-compare === "1" and does not use eval or JSON.parse on value', () => {
+    const src = readFileSync(resolve(ROOT, 'src/entries/species-index.ts'), 'utf-8');
+    // Strict compare for the stored value
+    expect(src).toContain("=== '1'");
+    // Must not use eval() or JSON.parse() for the toggle value
+    expect(src).not.toMatch(/eval\s*\(/);
+    // JSON.parse should not appear anywhere near localStorage handling
+    // (no JSON.parse of the localStorage value — a coerced boolean guard)
+    const lines = src.split('\n');
+    const jsonParseLocalStorageLines = lines.filter(l => l.includes('JSON.parse') && l.includes('getItem'));
+    expect(jsonParseLocalStorageLines).toHaveLength(0);
   });
 
   test('wires input event listener to #species-filter', () => {
