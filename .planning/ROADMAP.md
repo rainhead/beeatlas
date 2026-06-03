@@ -893,7 +893,7 @@ Plans:
 
 - [x] **Phase 129: Hierarchy Foundation** — Build `taxon_hierarchy` + `taxon_closure` tables in `occurrences.db`; benchmark structure; establish `is_anthophila` flag and bycatch coverage; post-build orphan assertion (completed 2026-06-02)
 - [x] **Phase 130: Map Filter Cutover** — Frontend switches to `taxon_id` + hierarchy descendant filtering; autocomplete extended to subfamily/tribe/subgenus/complex; URL round-trip preserved; denormalized string columns still present and harmlessly ignored (completed 2026-06-02)
-- [ ] **Phase 131: Occurrence Normalization** — Drop denormalized rank columns from occurrences mart now that the frontend no longer reads them; rewrite `geo_blob`; rewrite dbt contract; record DB-size and transfer-weight reduction
+- [x] **Phase 131: Occurrence Normalization** — Drop denormalized rank columns from occurrences mart now that the frontend no longer reads them; rewrite `geo_blob`; rewrite dbt contract; record DB-size and transfer-weight reduction (completed 2026-06-03)
 - [ ] **Phase 132: Page Rebuild & Subfamily Pages** — Recompute genus/subgenus/tribe page rollups from hierarchy; generate new subfamily pages; slug collision check run
 - [ ] **Phase 133: Browse Tree** — Expandable `/species` taxonomy tree, bee-only, with per-node specimen/observation counts and type-to-filter search
 
@@ -954,7 +954,7 @@ Plans:
 - [x] 131-03-PLAN.md — NORM-01/02 data layer: dbt mart+contract 37→33, dead intermediate cols, 7-field geo_blob (sqlite_export.py + features.ts coupled), D-01/D-06 dead-path deletion [NORM-01, NORM-02, NORM-03]
 
 **Wave 3** *(blocked on Wave 2)*
-- [ ] 131-04-PLAN.md — NORM-02 measurement: before/after occurrences.db size + gzip weight + tablesReady in VERIFICATION.md; grep audit; human-verify phase gate [NORM-02]
+- [x] 131-04-PLAN.md — NORM-02 measurement: before/after occurrences.db size + gzip weight + tablesReady in VERIFICATION.md; grep audit; human-verify phase gate [NORM-02]
 
 ### Phase 132: Page Rebuild & Subfamily Pages
 
@@ -988,6 +988,6 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 129. Hierarchy Foundation | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
-| 131. Occurrence Normalization | v4.6 | 3/4 | In Progress|  |
+| 131. Occurrence Normalization | v4.6 | 4/4 | Complete   | 2026-06-03 |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 0/TBD | Not started | - |
 | 133. Browse Tree | v4.6 | 0/TBD | Not started | - |
