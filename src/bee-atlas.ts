@@ -350,9 +350,6 @@ bee-pane {
       let summaryRow: Record<string, unknown> = {};
       await sqlite3.exec(db, `
         SELECT COUNT(*) AS total_specimens,
-               COUNT(DISTINCT scientificName) AS species_count,
-               COUNT(DISTINCT genus) AS genus_count,
-               COUNT(DISTINCT family) AS family_count,
                MIN(year) AS earliest_year,
                MAX(year) AS latest_year
         FROM occurrences
@@ -367,9 +364,6 @@ bee-pane {
       }
       this._summary = {
         totalSpecimens: Number(summaryRow.total_specimens),
-        speciesCount: Number(summaryRow.species_count),
-        genusCount: Number(summaryRow.genus_count),
-        familyCount: Number(summaryRow.family_count),
         earliestYear: Number(summaryRow.earliest_year),
         latestYear: Number(summaryRow.latest_year),
       };
@@ -1012,8 +1006,8 @@ bee-pane {
     this._replaceUrlState();
   }
 
-  private _onDataLoaded(e: CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[] }>) {
-    this._summary = e.detail.summary;
+  private _onDataLoaded(_e: CustomEvent) {
+    // _summary is owned solely by _loadSummaryFromSQLite — do NOT read from event payload (D-06 Pitfall 2).
     // _taxaOptions is built in _loadSummaryFromSQLite (from taxa table) — not from geo-blob event.
     // Call _loadSummaryFromSQLite here so the taxa cache loads for all users (not just table pane).
     this._loadSummaryFromSQLite();
