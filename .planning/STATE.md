@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
-status: verifying
-stopped_at: Phase 132 context gathered
-last_updated: "2026-06-03T17:42:11.757Z"
+status: ready_to_plan
+stopped_at: Phase 132 complete (4/4) — ready to discuss Phase 133
+last_updated: 2026-06-03T18:15:28.401Z
 last_activity: 2026-06-03
 progress:
   total_phases: 5
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 132 — page-rebuild-subfamily-pages
+**Current focus:** Phase 133 — browse tree
 
 ## Current Position
 
-Phase: 132 (page-rebuild-subfamily-pages) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 133
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-03
 
 ```
