@@ -453,10 +453,12 @@ def generate_sqlite(
     # Pre-serialize geo rows as a single TEXT blob so the browser worker fetches them
     # with one SQL query and one WASM→JS callback (vs 92K callbacks = ~600 ms in Firefox).
     # Column order: [lat, lon, ecdysis_id, observation_id, specimen_observation_id,
-    #                year, scientificName, genus, family, source]
+    #                year, source]
+    # Phase 131 NORM-02: dropped scientificName, genus, family (~4 MB transfer-weight win).
+    # source moves from index 9 → 6; features.ts _buildGeoJSONFromRaw decode updated in same commit.
     _GEO_COLS = [
         "lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",
-        "year", "scientificName", "genus", "family", "source",
+        "year", "source",
     ]
     with _sqlite3.connect(dst_db) as idx_con:
         actual = {row[1] for row in idx_con.execute("PRAGMA table_info(occurrences)").fetchall()}
