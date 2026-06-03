@@ -346,15 +346,6 @@ export interface TaxonOption {
   rank: 'family' | 'subfamily' | 'tribe' | 'subtribe' | 'genus' | 'subgenus' | 'complex' | 'species';
 }
 
-export interface FilteredSummary {
-  filteredSpecimens: number;
-  filteredSpeciesCount: number;
-  filteredGenusCount: number;
-  filteredFamilyCount: number;
-  total: DataSummary;   // the full unfiltered totals
-  isActive: boolean;    // true if any filter is on (controls whether to show "X of Y" or just "Y")
-}
-
 // Custom event payload
 export interface FilterChangedEvent {
   taxonId: number | null;
@@ -435,12 +426,12 @@ export async function queryOccurrencesByBounds(
 ): Promise<OccurrenceRow[]> {
   const { west, south, east, north } = bounds;
   const { occurrenceWhere } = buildFilterSQL(f);
-  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: OccurrenceRow[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences o WHERE (${occurrenceWhere}) AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east} ORDER BY date DESC, recordedBy ASC`,
+    `SELECT ${selectCols} FROM occurrences o LEFT JOIN taxa t ON t.taxon_id = o.taxon_id WHERE (${occurrenceWhere}) AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east} ORDER BY date DESC, recordedBy ASC`,
     (rowValues: unknown[], columnNames: string[]) => {
       rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
     }
@@ -457,12 +448,12 @@ export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]>
   if (ecdysisIds.length > 0) clauses.push(`ecdysis_id IN (${ecdysisIds.join(',')})`);
   if (inatIds.length > 0) clauses.push(`observation_id IN (${inatIds.join(',')})`);
   if (inatObsIds.length > 0) clauses.push(`specimen_observation_id IN (${inatObsIds.join(',')})`);
-  const selectCols = OCCURRENCE_COLUMNS.join(', ');
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: OccurrenceRow[] = [];
   await sqlite3.exec(db,
-    `SELECT ${selectCols} FROM occurrences WHERE ${clauses.join(' OR ')}`,
+    `SELECT ${selectCols} FROM occurrences o LEFT JOIN taxa t ON t.taxon_id = o.taxon_id WHERE ${clauses.join(' OR ')}`,
     (rowValues: unknown[], columnNames: string[]) => {
       rows.push(Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]])) as unknown as OccurrenceRow);
     }
