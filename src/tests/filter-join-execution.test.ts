@@ -4,6 +4,8 @@ import {
   queryTablePage,
   queryListPage,
   queryAllFiltered,
+  queryOccurrencesByBounds,
+  getOccurrences,
   OCCURRENCE_COLUMNS,
 } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
@@ -117,6 +119,25 @@ describe('JOIN queries execute against a real two-table schema with a taxon filt
     const f = emptyFilter();
     f.taxonId = 100;
     const rows = await queryAllFiltered(f);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.display_name).toBe('Bombus vosnesenskii');
+  });
+});
+
+describe('every OccurrenceRow producer resolves display_name via the taxa JOIN', () => {
+  // Regression for code-review W-1/INFO-1: getOccurrences and queryOccurrencesByBounds
+  // declare OccurrenceRow[] (which has display_name) but previously omitted the JOIN,
+  // yielding display_name === undefined for any future consumer.
+  test('queryOccurrencesByBounds includes display_name', async () => {
+    const f = emptyFilter();
+    const rows = await queryOccurrencesByBounds(f, { west: -123, south: 47, east: -122, north: 48 });
+    const identified = rows.find((r) => r.taxon_id === 101);
+    expect(identified).toBeDefined();
+    expect(identified!.display_name).toBe('Bombus vosnesenskii');
+  });
+
+  test('getOccurrences includes display_name', async () => {
+    const rows = await getOccurrences(['ecdysis:5001']);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.display_name).toBe('Bombus vosnesenskii');
   });
