@@ -375,7 +375,7 @@ export class BeeMap extends LitElement {
     // All source/layer setup must happen after the style loads
     this._map.on('load', async () => {
       try {
-        const { geojson, summary, taxaOptions } = await loadOccurrenceGeoJSON();
+        const { geojson } = await loadOccurrenceGeoJSON();
         this._fullGeoJSON = geojson;
 
         // Add clustered GeoJSON source for occurrences
@@ -463,8 +463,8 @@ export class BeeMap extends LitElement {
         });
         this._map!.addLayer(selectedOccurrencesLayerSpec(RECENCY_COLORS));
 
-        // Emit data-loaded event
-        this._emit('data-loaded', { summary, taxaOptions });
+        // Emit data-loaded event (bare signal — summary is owned by bee-atlas._loadSummaryFromSQLite)
+        this._emit('data-loaded', {});
 
         // Fetch boundary GeoJSON (deferred after occurrence data)
         this._loadBoundaryData();

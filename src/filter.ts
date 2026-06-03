@@ -298,35 +298,6 @@ export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
   return { occurrenceWhere };
 }
 
-export interface FilteredCounts {
-  filteredSpecimens: number;
-  filteredSpeciesCount: number;
-  filteredGenusCount: number;
-  filteredFamilyCount: number;
-}
-
-export async function queryFilteredCounts(f: FilterState): Promise<FilteredCounts | null> {
-  if (!isFilterActive(f)) return null;
-  const { occurrenceWhere } = buildFilterSQL(f);
-  await tablesReady;
-  const { sqlite3, db } = await getDB();
-  let result: Record<string, unknown> = {};
-  await sqlite3.exec(db,
-    `SELECT COUNT(*) as specimens, COUNT(DISTINCT scientificName) as species,
-            COUNT(DISTINCT genus) as genera, COUNT(DISTINCT family) as families
-     FROM occurrences WHERE ecdysis_id IS NOT NULL AND ${occurrenceWhere}`,
-    (rowValues: unknown[], columnNames: string[]) => {
-      result = Object.fromEntries(columnNames.map((col: string, i: number) => [col, rowValues[i]]));
-    }
-  );
-  return {
-    filteredSpecimens: Number(result.specimens ?? 0),
-    filteredSpeciesCount: Number(result.species ?? 0),
-    filteredGenusCount: Number(result.genera ?? 0),
-    filteredFamilyCount: Number(result.families ?? 0),
-  };
-}
-
 export async function queryVisibleGeoJSON(f: FilterState): Promise<{
   geojson: FeatureCollection<Point, OccurrenceProperties>;
   ids: Set<string>;
@@ -359,9 +330,6 @@ export async function queryVisibleGeoJSON(f: FilterState): Promise<{
 
 export interface DataSummary {
   totalSpecimens: number;
-  speciesCount: number;
-  genusCount: number;
-  familyCount: number;
   earliestYear: number;
   latestYear: number;
 }
