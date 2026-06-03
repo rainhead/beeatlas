@@ -349,12 +349,15 @@ def test_generate_group_maps_emits_subfamily_svgs(tmp_path, monkeypatch):
 
     import duckdb as _duckdb
     con = _duckdb.connect()
-    # Count subfamilies present in the real parquet to verify gate
+    # Count subfamilies present in the real parquet to verify gate.
+    # Include checklist-only species (occurrence_count = 0 but on_checklist = true) —
+    # consistent with _generate_group_maps which now uses the same broader filter.
     subfamilies = con.execute(
         f"""
         SELECT DISTINCT subfamily
         FROM read_parquet('{real_parquet}')
-        WHERE occurrence_count > 0 AND subfamily IS NOT NULL AND subfamily != ''
+        WHERE (occurrence_count > 0 OR on_checklist = true)
+          AND subfamily IS NOT NULL AND subfamily != ''
         ORDER BY subfamily
         """
     ).fetchall()

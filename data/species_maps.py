@@ -297,7 +297,7 @@ def _generate_group_maps(
     backdrop: ET.Element,
     maps_dir: Path,
 ) -> None:
-    """Emit multi-color SVGs under maps_dir/{genus,subgenus,tribe}/.
+    """Emit multi-color SVGs under maps_dir/{genus,subgenus,tribe,subfamily}/.
 
     Reads species.parquet for group membership; uses occ_by_canon
     for points (no second DB sweep). MUST NOT wipe maps_dir.
@@ -305,6 +305,10 @@ def _generate_group_maps(
     D-02 coordination: species are rendered in alphabetical canonical_name
     order within each group — Phase 94's Eleventy template must use the same
     sort key for HTML swatch ordering so colors match the SVG dots.
+
+    Subfamily maps (D-06): colored by GENUS (one color per genus), not by
+    species — uses _group_colors over the sorted unique-genus list so colors
+    match the genus-level swatches on the subfamily HTML page (Pitfall 2).
     """
     species_parquet = ASSETS_DIR / "species.parquet"
     if not species_parquet.exists():
@@ -314,9 +318,9 @@ def _generate_group_maps(
 
     rows = con.execute(
         f"""
-        SELECT canonical_name, genus, subgenus, tribe, specific_epithet
+        SELECT canonical_name, genus, subgenus, tribe, specific_epithet, subfamily
         FROM read_parquet('{species_parquet}')
-        WHERE occurrence_count > 0
+        WHERE occurrence_count > 0 OR on_checklist = true
         ORDER BY canonical_name
         """
     ).fetchall()
@@ -326,24 +330,30 @@ def _generate_group_maps(
     genus_members: dict[str, list[str]] = defaultdict(list)
     subgenus_members: dict[tuple[str, str], list[str]] = defaultdict(list)
     tribe_members: dict[str, list[str]] = defaultdict(list)
+    subfamily_members: dict[str, list[str]] = defaultdict(list)
+    genus_of: dict[str, str] = {}  # canonical_name -> genus (for subfamily coloring, D-06)
     unresolved: set[str] = set()
 
-    for canonical_name, genus, subgenus, tribe, specific_epithet in rows:
+    for canonical_name, genus, subgenus, tribe, specific_epithet, subfamily in rows:
         if specific_epithet is None:
             unresolved.add(canonical_name)
         if genus:
             genus_members[genus].append(canonical_name)
+            genus_of[canonical_name] = genus
             # Subgenus null guard (PATTERNS observation #3): filter in Python,
             # not SQL, to catch both NULL and empty-string values.
             if subgenus is not None and subgenus.strip() != '':
                 subgenus_members[(genus, subgenus)].append(canonical_name)
         if tribe:
             tribe_members[tribe].append(canonical_name)
+        if subfamily:
+            subfamily_members[subfamily].append(canonical_name)
 
     total_clipped = 0
     n_genus = 0
     n_subgenus = 0
     n_tribe = 0
+    n_subfamily = 0
 
     _UNRESOLVED_COLOR = '#aaaaaa'
 
@@ -388,9 +398,34 @@ def _generate_group_maps(
         total_clipped += _write_group_svg(tribe_name, species_points, colors, backdrop, tribe_dir)
         n_tribe += 1
 
+    # Subfamily maps: subfamily/<Subfamily>.svg  (colored by GENUS — D-06)
+    # Eumeninae is naturally absent because species.parquet carries no Eumeninae
+    # bee species (the data gate in int_species_universe excludes wasp bycatch).
+    # Do NOT add county-fill logic here — group SVGs have none (Pitfall 6).
+    subfamily_dir = maps_dir / "subfamily"
+    for subfamily_name in sorted(subfamily_members.keys()):
+        members = subfamily_members[subfamily_name]
+        # Collect unique genera for this subfamily, sorted alphabetically.
+        # The sort order MUST match what species.js uses for hslToHex so that
+        # swatch colors on the page match dot colors on the map (Pitfall 2).
+        genera_in_sf = sorted(set(genus_of[c] for c in members if c in genus_of))
+        genus_colors = _group_colors(genera_in_sf)  # one color per genus
+        # Map each species to its genus color; unresolved species -> _UNRESOLVED_COLOR
+        colors = {}
+        for c in members:
+            if c in unresolved:
+                colors[c] = _UNRESOLVED_COLOR
+            else:
+                colors[c] = genus_colors.get(genus_of.get(c, ''), _UNRESOLVED_COLOR)
+        species_points = {c: occ_by_canon.get(c, []) for c in members}
+        total_clipped += _write_group_svg(
+            subfamily_name, species_points, colors, backdrop, subfamily_dir
+        )
+        n_subfamily += 1
+
     print(
-        f"  species-maps/groups: {n_genus + n_subgenus + n_tribe:,} files "
-        f"({n_genus} genus, {n_subgenus} subgenus, {n_tribe} tribe), "
+        f"  species-maps/groups: {n_genus + n_subgenus + n_tribe + n_subfamily:,} files "
+        f"({n_genus} genus, {n_subgenus} subgenus, {n_tribe} tribe, {n_subfamily} subfamily), "
         f"{total_clipped:,} total points clipped"
     )
 
