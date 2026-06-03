@@ -107,16 +107,32 @@ Commits:
 - [FOUND] b557be2 — feat(132-04): rewire species.js + subfamilyList (GREEN)
 - [FOUND] e690f9b — feat(132-04): subfamily.njk template
 
-## Human-Verify Checkpoint (Task 3)
+## Human-Verify Checkpoint (Task 3) — APPROVED 2026-06-03
 
-Task 3 is a `checkpoint:human-verify` — the autonomous executor stops here. The user needs to:
+User performed the browser verification and approved. Two issues surfaced during
+verification and were fixed before approval (commit `4c7550f`):
 
-1. Run `npm run dev` and open http://localhost:8080/species/subfamily/Apinae/ — confirm nested tribe headings with genera beneath, SVG map renders, genus swatch colors match map dot clusters (Pitfall 2)
-2. Open http://localhost:8080/species/subfamily/Colletinae/ — confirm flat genus list, no tribe chrome, metadata omits tribes count
-3. Spot-check totals on 5 genus/tribe pages vs. baselines (Andrena 3,589·2,735; Bombus 1,768·7,763; Megachile 1,186·480; Lasioglossum 1,718·115; Osmia 1,110·450; Bombini 1,768·7,763)
-4. Check a checklist-only species page for grey swatch + "N checklist records"
-5. Confirm no /species/subfamily/Eumeninae/ page
+1. **Subfamily nested layout broke** — `.media-grid` is a fixed 2-column grid; the
+   template emitted `img + N*(h2+ul)` as direct children, scattering tribe headings
+   into grid cells. Fixed by wrapping members in a single `.taxon-members` div so the
+   grid stays `map | members` and tribes stack vertically.
+2. **"1 genera" pluralization** — the site had no pluralization handling anywhere.
+   Added a shared `quantify()` utility (`src/lib/quantify.js`) + Eleventy filter and
+   applied it across the taxon-page family (subfamily/genus/subgenus/tribe): "1 genus"
+   / "3 genera", "1 specimen", "1 community observation". 585 vitest tests pass.
+
+Also during execution, the wave-1 baseline test was robustified (commit `3e956a7`):
+the hardcoded absolute inat_obs_count baselines were captured from the deployed
+(pre-Phase-131) species.json; the test now asserts rollup == per-species string-group
+SUM on the same mart (the true PAGE-01 criterion, snapshot-independent).
+
+Verified after fix: Apinae layout (map | stacked tribes), Colletinae "1 genus · 669
+records", totals match baselines, no Eumeninae page, checklist rendering preserved.
+
+Follow-ups captured (out of Phase 132 scope):
+- `.planning/todos/pending/genus-page-subgenera-breakout.md`
+- `.planning/todos/pending/pluralization-sweep-web-copy.md`
 
 ---
 *Phase: 132-page-rebuild-subfamily-pages*
-*Completed: 2026-06-03 (Tasks 1-2 done; Task 3 awaits human verification)*
+*Completed: 2026-06-03 (all 3 tasks done; human-verify approved)*
