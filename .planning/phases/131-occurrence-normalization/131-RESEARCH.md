@@ -559,17 +559,15 @@ await sqlite3.exec(db, `
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **`_onDataLoaded` event type after payload trim**
+1. **`_onDataLoaded` event type after payload trim** — RESOLVED (Plan 03 Task 3)
    - What we know: the event type is currently `CustomEvent<{ summary: DataSummary; taxaOptions: TaxonOption[] }>`.
-   - What's unclear: whether the planner prefers `CustomEvent<Record<string, never>>`, `CustomEvent<{}>`, or removes the generic entirely.
-   - Recommendation: Change to `CustomEvent` (untyped) or a new empty-payload type; the event is a bare signal after D-06.
+   - Resolution: Change to an untyped `CustomEvent` (bare signal) after D-06. Implemented in Plan 03 Task 3.
 
-2. **`queryAllFiltered` (CSV download) JOIN inclusion**
+2. **`queryAllFiltered` (CSV download) JOIN inclusion** — RESOLVED (Plan 02 Task 1)
    - What we know: `queryAllFiltered` in `filter.ts:150-170` also uses `OCCURRENCE_COLUMNS.join(', ')`.
-   - What's unclear: whether the planner should also add `display_name` to the CSV export (users downloading a CSV would benefit from resolved species names).
-   - Recommendation: Yes, add the JOIN to `queryAllFiltered` as well — consistent with the other two page-query functions.
+   - Resolution: Yes — add the `display_name` JOIN to `queryAllFiltered` as well, consistent with `queryTablePage`/`queryListPage`. Implemented in Plan 02 Task 1.
 
 ---
 
