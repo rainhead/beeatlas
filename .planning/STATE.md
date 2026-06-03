@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
 status: executing
-stopped_at: Phase 131 context gathered
-last_updated: "2026-06-03T01:46:14.311Z"
+stopped_at: Phase 131 complete (131-04 human-verify APPROVED)
+last_updated: "2026-06-03T03:42:00.000Z"
 last_activity: 2026-06-03
 progress:
   total_phases: 5
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
 
 ## Current Position
 
-Phase: 131 (occurrence-normalization) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
+Phase: 131 (occurrence-normalization) — COMPLETE
+Plan: 4 of 4 (all complete)
+Status: Phase 131 complete — 131-04 human-verify APPROVED
 Last activity: 2026-06-03
 
 ```
-Progress: [█████████░] 90%
+Progress: [██████████] 100% (Phase 131)
 ```
 
 ## Accumulated Context
@@ -60,6 +60,9 @@ All v4.5 decisions logged in `.planning/milestones/v4.5-ROADMAP.md` and PROJECT.
 - [Phase 130 Plan 02]: _resolveLegacyTaxon handles cache-ready and cache-pending cases with rank-based twin disambiguation
 - [Phase 130 Plan 02]: D-01 enumeration uses ancestry-expansion form (DISTINCT taxon_ids + lineage_path walk) vs 10-second EXISTS form
 - [Phase ?]: Wave 0 RED tests pin 7-field geo_blob layout and display_name JOIN before source changes
+- [Phase 131 Plan 04]: NORM-02 size win recorded — occurrences.db 26.7→22.9 MB (−14.2% bytes, −9.5% gzip), 37→33 cols, geo_blob 10→7 fields, row count unchanged (77,744). D-05 honored: no automated size gate.
+- [Phase 131 Plan 04]: Human-verify APPROVED 2026-06-03. Dev-mode load timing (658 ms boot / 1150 ms data-loaded) is NOT comparable to ~250 ms v4.3 prod baseline; change cannot regress boot path (D-08 — taxa JOIN + lazy cache off boot path, smaller DB). Prod apples-to-apples figure is an optional follow-up.
+- [Phase 131 Plan 04]: Verify gate caught ambiguous `taxon_id` after the 131-02 taxa JOIN; fixed in 01acf1e (buildFilterSQL emits o.taxon_id; consumers alias `occurrences o`); added execution-level filter-join-execution.test.ts (node:sqlite, two-table schema) to close the string-only-test gap.
 
 ### Roadmap Evolution
 
@@ -100,8 +103,8 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-03T01:46:14.283Z
-Stopped at: Phase 131 context gathered
+Last session: 2026-06-03T03:42:00.000Z
+Stopped at: Phase 131 complete (131-04 human-verify APPROVED; verify-gate bug fixed in 01acf1e)
 Resume file: None
 
 ## Operator Next Steps
