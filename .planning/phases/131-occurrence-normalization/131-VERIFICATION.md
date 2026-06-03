@@ -1,17 +1,81 @@
 ---
-phase: 131
-slug: occurrence-normalization
-requirement: NORM-02
-status: approved
+phase: 131-occurrence-normalization
+verified: 2026-06-03T20:46:00Z
+status: passed
+score: 7/7 must-haves verified
+requirement: NORM-01, NORM-02, NORM-03
 human_verify_verdict: APPROVED
 human_verify_date: 2026-06-03
 created: 2026-06-02
 measurement_date: 2026-06-02
 ---
 
-# Phase 131 — Verification Record (NORM-02)
+# Phase 131 — Verification Record
 
 > D-05: record-only size measurement. No automated size gate added.
+
+---
+
+## Goal Achievement
+
+**Phase Goal:** Denormalized rank string columns are dropped from the occurrences mart and `geo_blob` is rewritten; this is safe now that the frontend (Phase 130) no longer reads the removed columns; a measurable DB-size and transfer-weight reduction is recorded.
+
+**Verified:** 2026-06-03T20:46:00Z
+**Status:** passed
+
+### Observable Truths
+
+| # | Truth | Status | Evidence |
+|---|-------|--------|----------|
+| 1 | NORM-01: occurrences.sql mart SELECT no longer contains scientificName/genus/family/specimen_inat_taxon_name; canonical_name + taxon_id retained | VERIFIED | occurrences.sql SELECT lists 33 columns: none of the 4 dropped names present; canonical_name (L93) and taxon_id (L94) present |
+| 2 | NORM-01: schema.yml enforced contract has 33 columns; dropped columns absent | VERIFIED | schema.yml occurrences section: 33 columns confirmed by parse; scientificName/genus/family/specimen_inat_taxon_name absent from occurrences section (present in species section only — correct) |
+| 3 | NORM-01: dead intermediate columns specimen_inat_genus/specimen_inat_family removed from int_specimen_obs_base.sql; stg_waba__taxon_lineage LEFT JOIN removed | VERIFIED | int_specimen_obs_base.sql is 8-column SELECT with no genus/family aliases; no tl JOIN; phase header comment confirms removal |
+| 4 | NORM-02: geo_blob is 7-field layout [lat,lon,ecdysis_id,observation_id,specimen_observation_id,year,source] in sqlite_export.py _GEO_COLS; features.ts decode has source at row[6] | VERIFIED | sqlite_export.py lines 459-462: _GEO_COLS = ["lat","lon","ecdysis_id","observation_id","specimen_observation_id","year","source"]; features.ts L32: `const source = row[6] as string | null` |
+| 5 | NORM-02: _buildGeoJSONFromRaw returns { geojson } only — no summary, no taxaOptions | VERIFIED | features.ts return type (L18-20): `{ geojson: FeatureCollection<Point, OccurrenceProperties> }`; no Sets, no summary build, no taxaOptions; return statement (L47): `return { geojson: { type: 'FeatureCollection', features } }` |
+| 6 | NORM-02: measurable DB-size and transfer-weight reduction recorded | VERIFIED | Measurement table below: −14.2% raw bytes (26.7→22.9 MB), −9.5% gzip (4.3→3.9 MB); human-verified APPROVED |
+| 7 | NORM-03: no remaining live (non-test) src/ readers of dropped columns against occurrences mart; Species column reads display_name; bee-occurrence-detail _renderProvisional reads row.display_name; taxa JOIN in all three page queries | VERIFIED | Grep audit clean (see below); bee-table.ts L43 dataField='display_name'; bee-occurrence-detail.ts L236-237 row.display_name; filter.ts has 3x LEFT JOIN taxa t ON t.taxon_id = o.taxon_id; o.taxon_id qualified throughout |
+
+**Score:** 7/7 truths verified
+
+### Required Artifacts
+
+| Artifact | Expected | Status | Details |
+|----------|----------|--------|---------|
+| `data/dbt/models/marts/occurrences.sql` | 33-col SELECT, no dropped names | VERIFIED | 33 columns; scientificName/genus/family/specimen_inat_taxon_name absent |
+| `data/dbt/models/marts/schema.yml` | 33-col enforced contract | VERIFIED | 33 columns in occurrences section, `enforced: true` |
+| `data/dbt/models/intermediate/int_specimen_obs_base.sql` | Dead cols removed | VERIFIED | 8-col SELECT, tl JOIN removed |
+| `data/sqlite_export.py` | 7-field _GEO_COLS | VERIFIED | ["lat","lon","ecdysis_id","observation_id","specimen_observation_id","year","source"] |
+| `src/features.ts` | 7-field decode, {geojson} return | VERIFIED | source at row[6]; return type and value are { geojson } only |
+| `src/filter.ts` | display_name + LEFT JOIN taxa x3; OCCURRENCE_COLUMNS 32 entries; DataSummary 3 fields; queryFilteredCounts deleted | VERIFIED | 32-entry OCCURRENCE_COLUMNS; 3x LEFT JOIN; display_name in OccurrenceRow; DataSummary has only totalSpecimens/earliestYear/latestYear; queryFilteredCounts/FilteredCounts absent |
+| `src/bee-table.ts` | Species column dataField = 'display_name' | VERIFIED | L43: `dataField: 'display_name'` |
+| `src/bee-occurrence-detail.ts` | _renderProvisional uses row.display_name | VERIFIED | L236-237: `row.display_name` |
+| `src/bee-map.ts` | data-loaded emit bare signal {}; { geojson } destructure | VERIFIED | L467: `this._emit('data-loaded', {})` |
+| `src/bee-atlas.ts` | _loadSummaryFromSQLite sole owner; COUNT(DISTINCT …) query deleted; _summary not set from event | VERIFIED | _onDataLoaded (L1013) calls `_loadSummaryFromSQLite()` only; no `this._summary = e.detail.summary`; no COUNT(DISTINCT scientificName/genus/family) |
+| `src/tests/filter-join-execution.test.ts` | Regression test for ambiguous-column bug | VERIFIED | File exists; uses node:sqlite DatabaseSync; exercises queryTablePage/queryListPage/queryAllFiltered against real two-table schema with taxon filter active |
+
+### Key Link Verification
+
+| From | To | Via | Status | Details |
+|------|----|-----|--------|---------|
+| `sqlite_export.py _GEO_COLS` | `features.ts _buildGeoJSONFromRaw` | source at index 6 | VERIFIED | Both files: source is element index 6; updated atomically per Pitfall 1 |
+| `filter.ts queryTablePage` | `taxa` table | `LEFT JOIN taxa t ON t.taxon_id = o.taxon_id` | VERIFIED | grep confirms 3 occurrences in filter.ts (queryTablePage, queryListPage, queryAllFiltered) |
+| `bee-table.ts Species column` | `OccurrenceRow.display_name` | `dataField: 'display_name'` | VERIFIED | L43 confirmed |
+| `bee-occurrence-detail.ts _renderProvisional` | `OccurrenceRow.display_name` | `row.display_name` | VERIFIED | L236-237 confirmed |
+| `bee-atlas.ts _onDataLoaded` | `_loadSummaryFromSQLite` | sole owner; event not used for _summary | VERIFIED | No `this._summary = e.detail` assignment; `_loadSummaryFromSQLite()` called directly |
+
+### Requirements Coverage
+
+| Requirement | Phase | Description | Status | Evidence |
+|-------------|-------|-------------|--------|----------|
+| NORM-01 | 131 | Denormalized rank columns dropped from occurrences mart; 33-col contract enforced | SATISFIED | occurrences.sql 33-col SELECT; schema.yml 33-col enforced contract; int_specimen_obs_base dead cols removed |
+| NORM-02 | 131 | geo_blob rewritten; measurable size reduction recorded | SATISFIED | 7-field _GEO_COLS + features.ts decode; size table below (−14.2% raw, −9.5% gzip) |
+| NORM-03 | 131 | All downstream consumers migrated; species mart untouched | SATISFIED | Grep audit clean; display_name JOIN in filter.ts; bee-table/bee-occurrence-detail migrated; checklist.parquet reads in bee-map.ts documented out-of-scope; species/checklist mats untouched |
+
+### Anti-Patterns Found
+
+| File | Line | Pattern | Severity | Impact |
+|------|------|---------|----------|--------|
+| (none) | — | — | — | No TBD/FIXME/XXX markers found in any phase-modified file |
 
 ---
 
@@ -94,7 +158,7 @@ mechanically regress the boot path (see above).
 grep -rn "scientificName\|specimen_inat_taxon_name" src/ --include="*.ts" | grep -v test
 ```
 
-**Date:** 2026-06-02
+**Date:** 2026-06-02 (re-confirmed 2026-06-03)
 
 **Result:** CLEAN — no live occurrences-mart readers remain.
 
@@ -183,3 +247,8 @@ against the real JOINed schema with a taxon filter active.
 | Unit tests | `npm test` | PASS — 574 tests |
 | Type check | `npm run typecheck` | PASS — exits 0 |
 | dbt build | `bash data/dbt/run.sh build` | PASS — exits 0 |
+
+---
+
+_Verified: 2026-06-03T20:46:00Z_
+_Verifier: Claude (gsd-verifier)_
