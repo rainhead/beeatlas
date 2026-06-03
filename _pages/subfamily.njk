@@ -33,13 +33,7 @@ layout: default.njk
       <li>
         <span class="swatch" style="background: {{ g.hexColor }};" aria-hidden="true"></span>
         <a href="/species/{{ g.genus }}/index.html"><em>{{ g.genus }}</em></a>
-        {%- if g.occurrence_count > 0 -%}
         <span class="count">{{ g.specimen_count | quantify("specimen") }} · {{ g.inat_obs_count | quantify("community observation") }}</span>
-        {%- elif g.on_checklist -%}
-        <span class="count">{{ g.checklist_count | quantify("checklist record") }}</span>
-        {%- else -%}
-        <span class="count">{{ 0 | quantify("record") }}</span>
-        {%- endif -%}
       </li>
       {%- endfor -%}
     </ul>
@@ -51,13 +45,7 @@ layout: default.njk
       <li>
         <span class="swatch" style="background: {{ g.hexColor }};" aria-hidden="true"></span>
         <a href="/species/{{ g.genus }}/index.html"><em>{{ g.genus }}</em></a>
-        {%- if g.occurrence_count > 0 -%}
         <span class="count">{{ g.specimen_count | quantify("specimen") }} · {{ g.inat_obs_count | quantify("community observation") }}</span>
-        {%- elif g.on_checklist -%}
-        <span class="count">{{ g.checklist_count | quantify("checklist record") }}</span>
-        {%- else -%}
-        <span class="count">{{ 0 | quantify("record") }}</span>
-        {%- endif -%}
       </li>
       {%- endfor -%}
     </ul>

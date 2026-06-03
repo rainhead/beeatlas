@@ -332,6 +332,28 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
+  test('subfamilyList each genus entry carries numeric specimen/inat/occurrence counts (PAGE-02 — guards the "0 records" regression)', () => {
+    // Regression guard: subfamily.njk renders per-genus "N specimens · N community
+    // observations" directly from these fields. If any is dropped from the genus
+    // entry shape, the page silently shows "0 records" for every genus.
+    const list = (species as any).subfamilyList;
+    const allGenera = list.flatMap((s: any) => [
+      ...s.tribes.flatMap((t: any) => t.genera),
+      ...s.genera,
+    ]);
+    expect(allGenera.length).toBeGreaterThan(0);
+    for (const g of allGenera) {
+      for (const field of ['specimen_count', 'inat_obs_count', 'occurrence_count']) {
+        expect(typeof g[field], `${g.genus}.${field}`).toBe('number');
+      }
+    }
+    // At least one well-known genus has real (non-zero) counts forwarded.
+    const bombus = allGenera.find((g: any) => g.genus === 'Bombus');
+    expect(bombus).toBeDefined();
+    expect(bombus.specimen_count).toBeGreaterThan(0);
+    expect(bombus.inat_obs_count).toBeGreaterThan(0);
+  });
+
   test('subfamilyList Apinae genus hexColors match hslToHex over sorted genus list (Pitfall 2)', () => {
     const list = (species as any).subfamilyList;
     const apinae = list.find((s: any) => s.subfamily === 'Apinae');
