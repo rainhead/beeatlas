@@ -14,13 +14,16 @@ layout: default.njk
   </nav>
   <h1>{{ subfamily.subfamily }}</h1>
   <p class="metadata">
-    {%- if subfamily.tribesCount > 0 -%}{{ subfamily.tribesCount }} tribes · {% endif %}{{ subfamily.generaCount }} genera · {{ subfamily.totalOccurrences }} records
+    {%- if subfamily.tribesCount > 0 -%}{{ subfamily.tribesCount | quantify("tribe") }} · {% endif %}{{ subfamily.generaCount | quantify("genus", "genera") }} · {{ subfamily.totalOccurrences | quantify("record") }}
   </p>
   <div class="media-grid">
     <img loading="lazy"
          src="/data/species-maps/subfamily/{{ subfamily.subfamily }}.svg"
          alt="Occurrence map for subfamily {{ subfamily.subfamily }}"
          style="aspect-ratio: 15/8; width: 100%;">
+    {# Single grid child so .media-grid stays 2-column (map | members); #}
+    {# tribe sections stack vertically inside it. #}
+    <div class="taxon-members">
     {%- if subfamily.tribes.length > 0 -%}
     {# D-04: nested tribes->genera layout #}
     {%- for t in subfamily.tribes -%}
@@ -31,11 +34,11 @@ layout: default.njk
         <span class="swatch" style="background: {{ g.hexColor }};" aria-hidden="true"></span>
         <a href="/species/{{ g.genus }}/index.html"><em>{{ g.genus }}</em></a>
         {%- if g.occurrence_count > 0 -%}
-        <span class="count">{{ g.specimen_count }} specimens · {{ g.inat_obs_count }} community observations</span>
+        <span class="count">{{ g.specimen_count | quantify("specimen") }} · {{ g.inat_obs_count | quantify("community observation") }}</span>
         {%- elif g.on_checklist -%}
-        <span class="count">{{ g.checklist_count }} checklist records</span>
+        <span class="count">{{ g.checklist_count | quantify("checklist record") }}</span>
         {%- else -%}
-        <span class="count">0 records</span>
+        <span class="count">{{ 0 | quantify("record") }}</span>
         {%- endif -%}
       </li>
       {%- endfor -%}
@@ -49,16 +52,17 @@ layout: default.njk
         <span class="swatch" style="background: {{ g.hexColor }};" aria-hidden="true"></span>
         <a href="/species/{{ g.genus }}/index.html"><em>{{ g.genus }}</em></a>
         {%- if g.occurrence_count > 0 -%}
-        <span class="count">{{ g.specimen_count }} specimens · {{ g.inat_obs_count }} community observations</span>
+        <span class="count">{{ g.specimen_count | quantify("specimen") }} · {{ g.inat_obs_count | quantify("community observation") }}</span>
         {%- elif g.on_checklist -%}
-        <span class="count">{{ g.checklist_count }} checklist records</span>
+        <span class="count">{{ g.checklist_count | quantify("checklist record") }}</span>
         {%- else -%}
-        <span class="count">0 records</span>
+        <span class="count">{{ 0 | quantify("record") }}</span>
         {%- endif -%}
       </li>
       {%- endfor -%}
     </ul>
     {%- endif -%}
+    </div>
   </div>
   {%- if subfamily.taxon_id -%}
   <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ subfamily.taxon_id }}">View on iNaturalist →</a>

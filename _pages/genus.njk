@@ -13,7 +13,7 @@ layout: default.njk
     {{ genus.family }}<span class="sep">/</span>{{ genus.genus }}
   </nav>
   <h1><em>{{ genus.genus }}</em></h1>
-  <p class="metadata">{{ genus.speciesCount }} species · {{ genus.totalOccurrences }} records</p>
+  <p class="metadata">{{ genus.speciesCount | quantify("species", "species") }} · {{ genus.totalOccurrences | quantify("record") }}</p>
   <div class="media-grid">
     <img loading="lazy"
          src="/data/species-maps/genus/{{ genus.genus }}.svg"
@@ -25,11 +25,11 @@ layout: default.njk
         <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
         {%- if sp.slug %}<a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>{%- else %}<em>{{ sp.scientificName }}</em>{%- endif %}
         {%- if sp.occurrence_count > 0 -%}
-        <span class="count">{{ sp.specimen_count }} specimens · {{ sp.inat_obs_count }} community observations</span>
+        <span class="count">{{ sp.specimen_count | quantify("specimen") }} · {{ sp.inat_obs_count | quantify("community observation") }}</span>
         {%- elif sp.on_checklist -%}
-        <span class="count">{{ sp.checklist_count }} checklist records</span>
+        <span class="count">{{ sp.checklist_count | quantify("checklist record") }}</span>
         {%- else -%}
-        <span class="count">0 records</span>
+        <span class="count">{{ 0 | quantify("record") }}</span>
         {%- endif -%}
       </li>
     {%- endfor -%}
