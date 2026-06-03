@@ -3,36 +3,101 @@ layout: default.njk
 permalink: /species/index.html
 title: Species — BeeAtlas
 ---
+{%- macro renderNode(node) -%}
+{%- if node.rank === "species" -%}
+<li data-rank="species" data-name="{{ node.scientificName | lower }}">
+  <a class="node-name" href="/species/{{ node.slug }}/"><em>{{ node.scientificName }}</em></a>
+  <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
+  <a class="node-map" href="/?taxon={{ node.scientificName | urlencode }}&amp;taxonRank=species" aria-label="Map: {{ node.scientificName }} occurrences">🗺</a>
+</li>
+{%- elif node.rank === "family" -%}
+<details class="tree-node tree-node--family" data-rank="family" data-name="{{ node.name | lower }}">
+  <summary>
+    <span class="node-name">{{ node.name }}</span>
+    <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
+    <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=family" aria-label="Map: {{ node.name }} occurrences">🗺</a>
+  </summary>
+  {%- for child in node.children -%}
+  {{ renderNode(child) }}
+  {%- endfor -%}
+</details>
+{%- elif node.rank === "genus" -%}
+<details class="tree-node tree-node--genus" data-rank="genus" data-name="{{ node.name | lower }}">
+  <summary>
+    <a class="node-name" href="/species/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
+    <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=genus" aria-label="Map: {{ node.name }} occurrences">🗺</a>
+  </summary>
+  {%- if node.children | length > 0 and node.children[0].rank === "species" -%}
+  <ul class="species-list">
+    {%- for child in node.children -%}
+    {{ renderNode(child) }}
+    {%- endfor -%}
+  </ul>
+  {%- else -%}
+  {%- for child in node.children -%}
+  {{ renderNode(child) }}
+  {%- endfor -%}
+  {%- endif -%}
+</details>
+{%- elif node.rank === "subgenus" -%}
+<details class="tree-node tree-node--subgenus" data-rank="subgenus" data-name="{{ node.name | lower }}" hidden>
+  <summary>
+    <a class="node-name" href="/species/{{ node.genusName }}/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
+    <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=subgenus" aria-label="Map: {{ node.name }} occurrences">🗺</a>
+  </summary>
+  {%- if node.children | length > 0 and node.children[0].rank === "species" -%}
+  <ul class="species-list">
+    {%- for child in node.children -%}
+    {{ renderNode(child) }}
+    {%- endfor -%}
+  </ul>
+  {%- else -%}
+  {%- for child in node.children -%}
+  {{ renderNode(child) }}
+  {%- endfor -%}
+  {%- endif -%}
+</details>
+{%- elif node.rank === "tribe" -%}
+<details class="tree-node tree-node--tribe" data-rank="tribe" data-name="{{ node.name | lower }}" hidden>
+  <summary>
+    <a class="node-name" href="/species/tribe/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
+    <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=tribe" aria-label="Map: {{ node.name }} occurrences">🗺</a>
+  </summary>
+  {%- for child in node.children -%}
+  {{ renderNode(child) }}
+  {%- endfor -%}
+</details>
+{%- elif node.rank === "subfamily" -%}
+<details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="{{ node.name | lower }}" hidden>
+  <summary>
+    <a class="node-name" href="/species/subfamily/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <span class="node-counts">{{ node.specimen_count }} · {{ node.inat_obs_count }}</span>
+    <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=subfamily" aria-label="Map: {{ node.name }} occurrences">🗺</a>
+  </summary>
+  {%- for child in node.children -%}
+  {{ renderNode(child) }}
+  {%- endfor -%}
+</details>
+{%- endif -%}
+{%- endmacro -%}
 <article class="taxon-page species-index">
   <h1>Species</h1>
-  <input type="search" id="species-filter"
-         aria-label="Filter genera and species"
-         placeholder="Filter genera and species…"
-         autocomplete="off">
-  <p id="filter-empty" hidden>No genera or species match "<span id="filter-query"></span>".</p>
-  {%- for family, familyGroup in species.speciesList | groupby("family") -%}
-  <section class="family-section" data-family="{{ family }}">
-    <h2>{{ family }}</h2>
-    {%- for genus, genusGroup in familyGroup | groupby("genus") -%}
-    <div class="genus-row" data-genus="{{ genus }}">
-      <a href="/species/{{ genus }}/index.html"><em>{{ genus }}</em></a>
-      <ul class="species-list">
-        {%- for sp in genusGroup -%}
-        <li data-name="{{ sp.scientificName | lower }}">
-          <a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>
-          {%- if sp.occurrence_count > 0 -%}
-          <span class="count">{{ sp.occurrence_count }} records</span>
-          {%- elif sp.on_checklist -%}
-          <span class="count checklist-badge">checklist only</span>
-          {%- else -%}
-          <span class="count">0 records</span>
-          {%- endif -%}
-        </li>
-        {%- endfor -%}
-      </ul>
-    </div>
-    {%- endfor -%}
-  </section>
+  <div class="species-index-controls">
+    <input type="search" id="species-filter"
+           aria-label="Filter taxa"
+           placeholder="Filter taxa…"
+           autocomplete="off">
+    <label class="rank-toggle-label">
+      <input type="checkbox" id="show-all-ranks">
+      Show all ranks
+    </label>
+  </div>
+  <p id="filter-empty" hidden role="status">No taxa match "<span id="filter-query"></span>".</p>
+  {%- for family in species.fullTree -%}
+  {{ renderNode(family) }}
   {%- endfor -%}
 </article>
 <script type="module" src="/src/entries/species-index.ts"></script>
