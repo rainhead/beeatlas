@@ -146,6 +146,13 @@ describe('src/styles/taxon-pages.css (browse-tree affordances — structural gua
     expect(css).toMatch(/details\.tree-node\[open\] > summary::before\s*{[^}]*content:\s*'▾'/);
   });
 
+  test('the hidden attribute wins over flex/contents display so filtered rows actually hide', () => {
+    // Regression guard for the search bug: `.species-list li { display:flex }`
+    // outranks the UA `[hidden]{display:none}`, so a scoped attribute rule is
+    // needed or non-matching species stay visible during filtering.
+    expect(css).toMatch(/\.species-index \[data-rank\]\[hidden\]\s*{[^}]*display:\s*none/);
+  });
+
   test('rank-toggle label reserves its border space so checking it does not reflow', () => {
     // Base rule carries a transparent border + padding; the checked rule only
     // changes the border color (no size change → no layout shift).

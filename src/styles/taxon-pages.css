@@ -202,11 +202,22 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
 .species-index .tree-node > summary::before {
   content: '▸';
   flex: 0 0 auto;
-  color: var(--text-muted, #666);
-  font-size: 0.85rem;
+  width: 1rem;
+  color: var(--text-body, #213547);
+  font-size: 1.15rem;
+  line-height: 1;
 }
 .species-index details.tree-node[open] > summary::before {
   content: '▾';
+}
+
+/* The `hidden` attribute must win over the flex / display:contents rules above:
+   an author `display` declaration (e.g. `.species-list li { display: flex }`)
+   outranks the UA `[hidden] { display: none }`, so without this the filter could
+   set `hidden` on a species row and it would stay visible. Scoped + attribute
+   specificity (0,3,0) beats `.species-list li` (0,1,1) and `.rank-skipped` (0,2,0). */
+.species-index [data-rank][hidden] {
+  display: none;
 }
 
 /* Name column: grows to fill remaining space */
@@ -237,6 +248,12 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
 
 /* Tree indentation: 1.5rem per depth level */
 .species-index details.tree-node {
+  padding-left: 1.5rem;
+}
+
+/* Species leaves carry no disclosure triangle, so indent the list one depth level
+   to keep species names nested under (not left-outdented from) their genus. */
+.species-index .species-list {
   padding-left: 1.5rem;
 }
 
@@ -272,6 +289,9 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
 /* Narrow viewport: reduce indent to 1rem per depth level */
 @media (max-width: 480px) {
   .species-index details.tree-node {
+    padding-left: 1rem;
+  }
+  .species-index .species-list {
     padding-left: 1rem;
   }
 }
