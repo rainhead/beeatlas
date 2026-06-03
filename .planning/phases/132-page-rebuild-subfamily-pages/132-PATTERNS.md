@@ -192,6 +192,8 @@ species mart — slug requires Python). Columns follow the shape in RESEARCH.md 
         data_type: bigint
       - name: species_count
         data_type: bigint
+      - name: member_taxon_ids
+        data_type: varchar  # JSON array of direct child taxon_ids (D-10 membership); 13th column — emitted by higher_taxa.sql AND declared here or enforced contract hard-fails
 ```
 
 ---
