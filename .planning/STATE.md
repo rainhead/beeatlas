@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
-status: ready_to_plan
-stopped_at: Phase 130 complete (3/3) — ready to discuss Phase 131
-last_updated: 2026-06-02T23:56:29.459Z
+status: planning
+stopped_at: Phase 131 context gathered
+last_updated: "2026-06-03T00:32:57.484Z"
 last_activity: 2026-06-02
 progress:
   total_phases: 5
@@ -99,9 +99,9 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-02T22:29:38.712Z
-Stopped at: Completed 130-02-PLAN.md (lazy taxon cache + autocomplete + URL integer encoding)
-Resume file: None
+Last session: 2026-06-03T00:32:57.461Z
+Stopped at: Phase 131 context gathered
+Resume file: .planning/phases/131-occurrence-normalization/131-CONTEXT.md
 
 ## Operator Next Steps
 
