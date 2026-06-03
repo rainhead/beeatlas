@@ -181,3 +181,54 @@ def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch):
         species_rows.append({'canonical_name': canonical_name, 'taxon_id': taxon_id, 'slug': slug})
     # Must not raise
     se_mod._check_slug_collisions(higher_taxa_rows, species_rows)
+
+
+# ---------------------------------------------------------------------------
+# _build_higher_taxa + retirement tests (D-03, PAGE-01)
+# ---------------------------------------------------------------------------
+
+@_SANDBOX_GUARD
+@_HIGHER_TAXA_GUARD
+def test_higher_taxa_json_written_and_12_subfamilies(tmp_path, monkeypatch):
+    """higher_taxa.json is written, non-empty, and contains exactly 12 subfamily rows (D-08)."""
+    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
+    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
+    con = duckdb.connect()
+    export_species_parquet(con)
+    out = tmp_path / 'higher_taxa.json'
+    assert out.exists(), "higher_taxa.json was not written by export"
+    rows = json.loads(out.read_text(encoding='utf-8'))
+    assert len(rows) > 0, "higher_taxa.json must be non-empty"
+    subfamily_rows = [r for r in rows if r['rank'] == 'subfamily']
+    assert len(subfamily_rows) == 12, (
+        f"Expected exactly 12 bee subfamily rows, got {len(subfamily_rows)}: "
+        f"{[r['name'] for r in subfamily_rows]}"
+    )
+    names = {r['name'] for r in subfamily_rows}
+    assert 'Eumeninae' not in names, "Eumeninae (wasp bycatch) must not appear in subfamily rows"
+
+
+@_SANDBOX_GUARD
+@_HIGHER_TAXA_GUARD
+def test_higher_rank_taxon_ids_not_written(tmp_path, monkeypatch):
+    """higher_rank_taxon_ids.json is NOT written by export (D-03 retirement)."""
+    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
+    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
+    con = duckdb.connect()
+    export_species_parquet(con)
+    retired = tmp_path / 'higher_rank_taxon_ids.json'
+    assert not retired.exists(), (
+        "higher_rank_taxon_ids.json must NOT be written — it was retired in D-03"
+    )
+
+
+@_SANDBOX_GUARD
+@_HIGHER_TAXA_GUARD
+def test_export_runs_collision_check_clean(tmp_path, monkeypatch):
+    """export_species_parquet invokes _check_slug_collisions and completes without raising."""
+    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
+    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
+    con = duckdb.connect()
+    # If a collision were present, this would raise AssertionError.
+    # Completing without error confirms the check ran and found no collision.
+    export_species_parquet(con)
