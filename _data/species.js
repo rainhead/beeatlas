@@ -18,10 +18,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 const speciesJsonPath = join(repoRoot, 'public/data/species.json');
 const seasonalityJsonPath = join(repoRoot, 'public/data/seasonality.json');
-const higherRankTaxonIdsPath = join(repoRoot, 'public/data/higher_rank_taxon_ids.json');
+const higherTaxaPath = join(repoRoot, 'public/data/higher_taxa.json');
 
 const raw = JSON.parse(readFileSync(speciesJsonPath, 'utf8'));
-const higherRankTaxonIds = JSON.parse(readFileSync(higherRankTaxonIdsPath, 'utf8'));
+const higherTaxa = JSON.parse(readFileSync(higherTaxaPath, 'utf8'));
+// Index by rank + name for O(1) lookup:
+// higherTaxaByRankName['genus']['Andrena'] -> { taxon_id: ..., specimen_count: ..., ... }
+const higherTaxaByRankName = {};
+for (const row of higherTaxa) {
+  if (!higherTaxaByRankName[row.rank]) higherTaxaByRankName[row.rank] = {};
+  higherTaxaByRankName[row.rank][row.name] = row;
+}
 
 // Derive county and ecoregion_l3 option lists from seasonality.json keys.
 // Keys are shaped 'county:<name>' and 'ecoregion_l3:<name>' per Phase 78
@@ -151,7 +158,7 @@ const genusList = Object.values(genusMap)
       species,
       speciesCount: speciesOnly.length,
       totalOccurrences: speciesOnly.reduce((acc, sp) => acc + sp.occurrence_count, 0) + unresolvedOccurrences,
-      taxon_id: higherRankTaxonIds.genus[g.genus] ?? null,
+      taxon_id: higherTaxaByRankName['genus']?.[g.genus]?.taxon_id ?? null,
     };
   });
 
@@ -220,7 +227,7 @@ const subgenusList = Object.values(subgenusMap)
       speciesCount: speciesOnly.length,
       totalOccurrences: withOcc.reduce((acc, sp) => acc + sp.occurrence_count, 0),
       checklistCount,
-      taxon_id: higherRankTaxonIds.subgenus[g.subgenus] ?? null,
+      taxon_id: higherTaxaByRankName['subgenus']?.[g.subgenus]?.taxon_id ?? null,
     };
   })
   .filter(g => g.totalOccurrences > 0 || g.checklistCount > 0);
@@ -259,9 +266,92 @@ const tribeList = Object.values(tribeMap)
       genera,
       generaCount: genera.length,
       totalOccurrences,
-      taxon_id: higherRankTaxonIds.tribe[t.tribe] ?? null,
+      taxon_id: higherTaxaByRankName['tribe']?.[t.tribe]?.taxon_id ?? null,
     };
   })
   .filter(t => t.totalOccurrences > 0);
 
-export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList };
+// Build subfamilyList: nested tribes→genera structure (D-04) with tribe-less flat fallback (D-05).
+// Genus swatch colors match Python _group_colors(sorted unique genera) for SVG map color parity (Pitfall 2, D-06).
+// Only subfamilies present in higher_taxa.json (bee subfamilies with members) are included — naturally
+// excludes Eumeninae (no bee species → not in higher_taxa.json) per D-08.
+const subfamilyRows = (higherTaxaByRankName['subfamily'] && Object.values(higherTaxaByRankName['subfamily'])) || [];
+const subfamilyList = subfamilyRows
+  .sort((a, b) => a.name.localeCompare(b.name))
+  .map(sf => {
+    // Collect all genus rows for this subfamily from the rollup
+    const genusRows = (higherTaxaByRankName['genus'] && Object.values(higherTaxaByRankName['genus'])) || [];
+    const sfGenera = genusRows.filter(g => g.subfamily === sf.name);
+
+    // Compute genus swatch colors: index over sorted unique genera for this subfamily,
+    // matching Python _group_colors(sorted(unique_genera)) from Plan 03 (Pitfall 2).
+    const sortedGeneraNames = sfGenera.map(g => g.name).sort();
+    const n = sortedGeneraNames.length;
+    const genusHexColor = {};
+    for (let i = 0; i < n; i++) {
+      genusHexColor[sortedGeneraNames[i]] = hslToHex(i * 360 / n, 70, 50);
+    }
+
+    // Collect tribe rows for this subfamily
+    const tribeRows = (higherTaxaByRankName['tribe'] && Object.values(higherTaxaByRankName['tribe'])) || [];
+    const sfTribes = tribeRows.filter(t => t.subfamily === sf.name);
+
+    let tribes = [];
+    let flatGenera = [];
+
+    if (sfTribes.length > 0) {
+      // D-04: nested tribes→genera layout
+      tribes = sfTribes
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(t => {
+          const tribeGenera = sfGenera
+            .filter(g => g.tribe === t.name)
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map(g => ({
+              genus: g.name,
+              taxon_id: g.taxon_id,
+              specimen_count: g.specimen_count,
+              inat_obs_count: g.inat_obs_count,
+              hexColor: genusHexColor[g.name],
+            }));
+          return {
+            tribe: t.name,
+            taxon_id: t.taxon_id,
+            specimen_count: t.specimen_count,
+            inat_obs_count: t.inat_obs_count,
+            genera: tribeGenera,
+          };
+        });
+    } else {
+      // D-05: tribe-less subfamilies → flat genus list with no tribe heading
+      flatGenera = sfGenera
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map(g => ({
+          genus: g.name,
+          taxon_id: g.taxon_id,
+          specimen_count: g.specimen_count,
+          inat_obs_count: g.inat_obs_count,
+          hexColor: genusHexColor[g.name],
+        }));
+    }
+
+    const tribesCount = tribes.length;
+    const generaCount = sfGenera.length;
+    const totalOccurrences = sf.occurrence_count;
+
+    return {
+      subfamily: sf.name,
+      family: sf.family,
+      taxon_id: sf.taxon_id,
+      specimen_count: sf.specimen_count,
+      inat_obs_count: sf.inat_obs_count,
+      species_count: sf.species_count,
+      tribesCount,
+      generaCount,
+      totalOccurrences,
+      tribes,
+      genera: flatGenera,
+    };
+  });
+
+export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList };
