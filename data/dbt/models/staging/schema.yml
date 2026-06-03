@@ -54,6 +54,26 @@ models:
           - not_null
           - unique
 
+  - name: stg_inat__higher_rank_taxon_ids
+    description: >
+      Active Anthophila higher-rank taxa (subfamily/tribe/subgenus) with their
+      taxon_id from taxa.csv.gz (Phase 132 D-02). Name is the raw capitalized
+      name; (name, rank) is unique within Anthophila (A1 safety net). Genus is
+      covered by stg_inat__genus_taxon_ids; this view covers the three remaining
+      higher ranks used by the higher_taxa mart.
+    columns:
+      - name: name
+        description: Raw capitalized higher-rank name (e.g. 'Apinae', 'Bombini', 'Pyrobombus')
+        data_tests:
+          - not_null
+      - name: rank
+        description: Taxonomic rank ('subfamily' | 'tribe' | 'subgenus')
+        data_tests:
+          - not_null
+      - name: taxon_id
+        description: iNaturalist taxon_id for this higher-rank taxon (INTEGER)
+        data_tests:
+          - not_null
   - name: stg_checklist__species
     columns:
       - name: canonical_name
