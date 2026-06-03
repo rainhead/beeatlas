@@ -933,7 +933,7 @@ Plans:
 **Plans**: 4 plans
 Plans:
 **Wave 1**
-- [ ] 133-01-PLAN.md — Harden _data/species.js: build fullTree (bee-only, descendant-rolled counts, six-rank skeleton, D-05 degradation) + Wave 0 data tests [TREE-01, TREE-02, TREE-04]
+- [x] 133-01-PLAN.md — Harden _data/species.js: build fullTree (bee-only, descendant-rolled counts, six-rank skeleton, D-05 degradation) + Wave 0 data tests [TREE-01, TREE-02, TREE-04]
 
 **Wave 2** *(blocked on Wave 1; 02 and 03 run in parallel — no file overlap)*
 - [ ] 133-02-PLAN.md — Rewrite _pages/species.njk as the expandable details/summary tree (counts, name→page + 🗺→map links, family plain text, hidden intermediate ranks) + template source tests [TREE-01, TREE-02, TREE-04]
@@ -1004,4 +1004,4 @@ Plans:
 | 130. Map Filter Cutover | v4.6 | 3/3 | Complete    | 2026-06-02 |
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete    | 2026-06-03 |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete    | 2026-06-03 |
-| 133. Browse Tree | v4.6 | 0/4 | Not started | - |
+| 133. Browse Tree | v4.6 | 1/4 | In Progress|  |
