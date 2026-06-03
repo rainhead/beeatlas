@@ -76,6 +76,7 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ### Validated
 
+- ✓ **NORM-01..03**: dropped 4 denormalized rank-string columns from the occurrences mart (dbt contract 37→33; `canonical_name` retained) and rewrote `geo_blob` to a 7-field layout; `occurrences.db` −14.2% (26.7→22.9 MB), gzip −9.5%; migrated table/detail name rendering to a `display_name` taxa JOIN (`taxon_id`-keyed) and deleted dead string-column paths — v4.6 (Phase 131)
 - ✓ **PWK-01..03**: extended `resolve_taxon_ids` to 3 name sources, reordered STEPS (inat-obs before resolution), inactive-taxon enumeration, stale docstrings fixed — v4.5
 - ✓ **SPV-01..03**: 65 off-checklist species made visible (`specific_epithet` 527→592 non-null); static `/species/{Genus}/{epithet}/` pages + 231 occurrence SVGs — v4.5
 - ✓ **TID-01, TID-03**: non-null `taxon_id INTEGER` on species.parquet + "View on iNaturalist →" links on species/genus/subgenus/tribe pages — v4.5
@@ -436,4 +437,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-02 — Phase 129 (Hierarchy Foundation) complete: `taxon_id`-keyed taxa table with materialized `lineage_path` shipped in `occurrences.db` (940 taxa, 0 orphans, 2.0 ms Apidae descendant query); HIER-01..06 validated. Next: Phase 130 (Map Filter Cutover).*
+*Last updated: 2026-06-03 — Phase 131 (Occurrence Normalization) complete: dropped the 4 denormalized rank-string columns from the occurrences mart (dbt contract 37→33; `canonical_name` retained), rewrote `geo_blob` to a 7-field layout (`occurrences.db` −14.2%), and migrated table/detail name rendering to a `display_name` taxa JOIN; NORM-01..03 validated. Next: Phase 132 (Page Rebuild & Subfamily Pages).*
