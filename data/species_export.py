@@ -82,6 +82,54 @@ def _jsonify_rows(rows: list[dict]) -> list[dict]:
     return out
 
 
+def _check_slug_collisions(higher_taxa_rows: list[dict], species_rows: list[dict]) -> None:
+    """Hard-fail if any two distinct taxa produce the same public URL (D-07).
+
+    Called in export_species_parquet() after all taxon names and species slugs
+    are resolved. Enumerates every taxon's public URL across ALL ranks and raises
+    a descriptive AssertionError on any collision between distinct taxa.
+    No auto-suffix — collisions require deliberate human resolution.
+
+    URL scheme per rank (raw capitalized names; only species slugs are lowercased
+    via domain.slugify — see CONTEXT.md §Established Patterns):
+      genus     -> /species/{name}/
+      subgenus  -> /species/{genus}/{name}/
+      tribe     -> /species/tribe/{name}/
+      subfamily -> /species/subfamily/{name}/
+      species   -> /species/{slug}/  (slug already Genus/epithet format)
+    """
+    _rank_url = {
+        'genus':     lambda t: f"/species/{t['name']}/",
+        'subgenus':  lambda t: f"/species/{t['genus']}/{t['name']}/",
+        'tribe':     lambda t: f"/species/tribe/{t['name']}/",
+        'subfamily': lambda t: f"/species/subfamily/{t['name']}/",
+    }
+    seen: dict[str, tuple] = {}  # url -> (taxon_id, rank, name)
+    for row in higher_taxa_rows:
+        url = _rank_url[row['rank']](row)
+        key = (row['taxon_id'], row['rank'], row['name'])
+        if url in seen and seen[url] != key:
+            raise AssertionError(
+                f"Slug collision: {seen[url]!r} and {key!r} both produce URL {url!r}. "
+                f"Resolve the genuine name clash deliberately — no auto-suffix."
+            )
+        seen[url] = key
+    for sp in species_rows:
+        # Skip genus-only rows (specific_epithet is None) — they do not generate
+        # pages and their genus-name slug would collide with the genus taxon URL
+        # by design (mirrors speciesList filter in _data/species.js line 99).
+        if not sp.get('specific_epithet') and '/' not in str(sp.get('slug', '')):
+            continue
+        url = f"/species/{sp['slug']}/"
+        key = (sp['taxon_id'], 'species', sp['canonical_name'])
+        if url in seen and seen[url] != key:
+            raise AssertionError(
+                f"Slug collision between species {key!r} and {seen[url]!r} at URL {url!r}. "
+                f"Resolve the genuine name clash deliberately — no auto-suffix."
+            )
+        seen[url] = key
+
+
 def _build_higher_rank_taxon_ids(con: duckdb.DuckDBPyConnection) -> dict:
     """Query taxa.csv.gz for genus/subgenus/tribe taxon_ids by name (D-06).
 
