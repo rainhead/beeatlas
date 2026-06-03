@@ -134,6 +134,26 @@ describe('src/entries/species-index.ts (Phase 133 — thin Vite entry)', () => {
   });
 });
 
+describe('src/styles/taxon-pages.css (browse-tree affordances — structural guards)', () => {
+  // CSS rendering can't run under happy-dom (no layout); these guard the two
+  // gap-closure fixes from silent regression. Visual correctness is human-verified.
+  const css = readFileSync(resolve(ROOT, 'src/styles/taxon-pages.css'), 'utf-8');
+
+  test('restores a disclosure triangle on tree summaries (flex layout drops the native marker)', () => {
+    // A visible expand affordance is required — the node name is a link, so it
+    // cannot also serve as the expander.
+    expect(css).toMatch(/\.tree-node > summary::before\s*{[^}]*content:\s*'▸'/);
+    expect(css).toMatch(/details\.tree-node\[open\] > summary::before\s*{[^}]*content:\s*'▾'/);
+  });
+
+  test('rank-toggle label reserves its border space so checking it does not reflow', () => {
+    // Base rule carries a transparent border + padding; the checked rule only
+    // changes the border color (no size change → no layout shift).
+    expect(css).toMatch(/\.rank-toggle-label\s*{[^}]*border:\s*1px solid transparent/);
+    expect(css).toMatch(/rank-toggle-label:has\(#show-all-ranks:checked\)\s*{[^}]*border-color:/);
+  });
+});
+
 describe('src/species-tree.ts (security invariants — source guards)', () => {
   const src = readFileSync(resolve(ROOT, 'src/species-tree.ts'), 'utf-8');
 
