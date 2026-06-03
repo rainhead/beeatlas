@@ -248,4 +248,104 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(andrenini).toBeDefined();
     expect(andrenini.family).toBe('Andrenidae');
   });
+
+  // Phase 132 Plan 04 — rewire + subfamilyList tests (PAGE-01, PAGE-02, D-03..D-06, D-08)
+
+  test('species.js does NOT reference higher_rank_taxon_ids (D-03 retirement)', () => {
+    const src = readFileSync(resolve(ROOT, '_data/species.js'), 'utf-8');
+    expect(src).not.toMatch(/higher_rank_taxon_ids/);
+  });
+
+  test('genusList taxon_id is populated (sourced from higher_taxa.json, not higher_rank_taxon_ids.json)', () => {
+    const list = (species as any).genusList;
+    // Andrena should have a non-null integer taxon_id from the rollup
+    const andrena = list.find((g: any) => g.genus === 'Andrena');
+    expect(andrena).toBeDefined();
+    expect(andrena.taxon_id).not.toBeNull();
+    expect(typeof andrena.taxon_id).toBe('number');
+    expect(Number.isInteger(andrena.taxon_id)).toBe(true);
+    // Also verify all genusList entries have integer taxon_id (not string, not null from missing data)
+    const withTaxonId = list.filter((g: any) => g.taxon_id !== null);
+    expect(withTaxonId.length).toBeGreaterThan(0);
+    for (const g of withTaxonId) {
+      expect(Number.isInteger(g.taxon_id)).toBe(true);
+    }
+  });
+
+  test('exports subfamilyList with exactly 12 entries (D-08)', () => {
+    const list = (species as any).subfamilyList;
+    expect(Array.isArray(list)).toBe(true);
+    expect(list.length).toBe(12);
+  });
+
+  test('subfamilyList contains no Eumeninae entry (D-08 wasp bycatch exclusion)', () => {
+    const list = (species as any).subfamilyList;
+    expect(list.find((s: any) => s.subfamily === 'Eumeninae')).toBeUndefined();
+  });
+
+  test('every subfamilyList entry has a non-null integer taxon_id (PAGE-02)', () => {
+    const list = (species as any).subfamilyList;
+    for (const s of list) {
+      expect(s.taxon_id).not.toBeNull();
+      expect(typeof s.taxon_id).toBe('number');
+      expect(Number.isInteger(s.taxon_id)).toBe(true);
+    }
+  });
+
+  test('subfamilyList Apinae has nested tribes[] each with genera[] (D-04)', () => {
+    const list = (species as any).subfamilyList;
+    const apinae = list.find((s: any) => s.subfamily === 'Apinae');
+    expect(apinae).toBeDefined();
+    expect(Array.isArray(apinae.tribes)).toBe(true);
+    expect(apinae.tribes.length).toBeGreaterThan(0);
+    for (const t of apinae.tribes) {
+      expect(typeof t.tribe).toBe('string');
+      expect(t.tribe.length).toBeGreaterThan(0);
+      expect(Array.isArray(t.genera)).toBe(true);
+      expect(t.genera.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('subfamilyList Colletinae has empty tribes[] and flat genera[] (D-05)', () => {
+    const list = (species as any).subfamilyList;
+    const colletinae = list.find((s: any) => s.subfamily === 'Colletinae');
+    expect(colletinae).toBeDefined();
+    expect(Array.isArray(colletinae.tribes)).toBe(true);
+    expect(colletinae.tribes.length).toBe(0);
+    expect(Array.isArray(colletinae.genera)).toBe(true);
+    expect(colletinae.genera.length).toBeGreaterThan(0);
+  });
+
+  test('subfamilyList each genus entry carries a hexColor (D-06)', () => {
+    const list = (species as any).subfamilyList;
+    for (const s of list) {
+      // Check genera in tribes (multi-tribe subfamilies)
+      for (const t of s.tribes) {
+        for (const g of t.genera) {
+          expect(g.hexColor, `${s.subfamily}/${t.tribe}/${g.genus}`).toMatch(/^#[0-9a-f]{6}$/);
+        }
+      }
+      // Check flat genera (tribe-less subfamilies)
+      for (const g of s.genera) {
+        expect(g.hexColor, `${s.subfamily}/(flat)/${g.genus}`).toMatch(/^#[0-9a-f]{6}$/);
+      }
+    }
+  });
+
+  test('subfamilyList Apinae genus hexColors match hslToHex over sorted genus list (Pitfall 2)', () => {
+    const list = (species as any).subfamilyList;
+    const apinae = list.find((s: any) => s.subfamily === 'Apinae');
+    expect(apinae).toBeDefined();
+    // Collect all genera across all tribes, sorted alphabetically — must match Python _group_colors order
+    const allGenera = apinae.tribes.flatMap((t: any) => t.genera);
+    const sortedGeneraNames = [...new Set(allGenera.map((g: any) => g.genus))].sort() as string[];
+    const n = sortedGeneraNames.length;
+    for (const t of apinae.tribes) {
+      for (const g of t.genera) {
+        const i = sortedGeneraNames.indexOf(g.genus);
+        const expectedColor = hslToHex(i * 360 / n, 70, 50);
+        expect(g.hexColor, `Apinae genus ${g.genus} (index ${i}/${n})`).toBe(expectedColor);
+      }
+    }
+  });
 });
