@@ -1,21 +1,49 @@
-# Feature Research
+# Feature Research: v4.7 Checklist Records as Point Data
 
-**Domain:** Biodiversity occurrence atlas — taxonomy hierarchy browse/filter for a bee-only static site
-**Researched:** 2026-06-01
-**Milestone:** v4.6 Taxonomy Hierarchy & Normalization
-**Confidence:** HIGH (domain patterns from iNaturalist and comparable sites; implementation details from codebase inspection)
+**Domain:** Biodiversity occurrence atlas — historical museum/checklist specimen records as map points
+**Researched:** 2026-06-03
+**Milestone:** v4.7 Checklist Records as Point Data
+**Confidence:** HIGH (ecosystem survey of GBIF/Symbiota/ALA/iDigBio + codebase analysis)
+
+---
+
+## Context
+
+v4.7 promotes the Bartholomew et al. 2024 WA bee checklist from a county-fill presence layer to a
+full `source='checklist'` peer in `occurrences.parquet` — rendered as map points, integrated into
+the sidebar, CSV export, and species pages. Records span 1812–present, georeferenced at varying
+precisions (GPS through county-centroid), with ~13% null dates and ~9% null coordinates.
+
+The existing app already delivers: per-source toggle, taxon_id filtering, sidebar occurrence list,
+CSV export, species/taxon pages with per-source counts, seasonality histograms, county-fill
+checklist presence layer.
+
+Audience: volunteer collectors, researchers, WA Bee Atlas coordinators — not professional
+biodiversity informaticists. GBIF-level completeness is not the goal. Credibility and
+interpretability for the WA bee community is.
+
+The current `wa_bee_checklist_records.tsv` has only 4 columns: species, county, year, month.
+The full-fidelity CSV source (Bartholomew et al. 2024 supplementary data) contains lat/lon,
+date, recordedBy, locality, and verbatim scientific name. This CSV re-extraction is the
+prerequisite for everything else in v4.7.
 
 ---
 
 ## Scope Constraints That Shape Every Feature Decision
 
-- **Static hosting, no server runtime.** All taxon–occurrence joins must be materialized at pipeline time. No real-time descendant queries against a live DB.
-- **~90K occurrences, ~600 bee species.** This is small enough to load entire occurrence sets into wa-sqlite in-browser; there is no pagination or streaming requirement.
-- **Bee-only browse tree.** Non-bee bycatch taxa live in the hierarchy so their map points resolve to a name, but they get no tree nodes, no autocomplete entries, and no taxon pages. Filtering the tree to Anthophila is a pipeline-time decision.
-- **Two sources, two count types.** Every per-node count must split into: Ecdysis specimens (physical vouchers) and iNaturalist community observations. This split is already established on per-taxon pages; the tree extends the same visual language.
-- **Existing per-taxon pages are the content backend.** The tree is navigation TO those pages, not a replacement for them. Links from tree nodes to taxon pages are load-bearing; the pages already handle the detail rendering.
-- **Checklist-only species (no occurrences) must remain visible** with their existing badge treatment. They are expected in the tree at the species leaf level.
-- **Floral hosts: out of scope.**
+- **Static hosting, no server runtime.** All joins and dedup logic must run at pipeline time and bake
+  into `occurrences.parquet`. No runtime lookups.
+- **33-column dbt contract on `marts/occurrences`.** Adding checklist-specific columns (locality,
+  verbatim_name, coordinate_precision) requires a contract amendment and corresponding frontend
+  column reads.
+- **4th source color in Mapbox style.** Existing palette: ecdysis=blue, waba_sample=green,
+  inat_obs=amber. Checklist gets a 4th distinct color. Source color is the primary visual
+  differentiator on the map.
+- **Dedup risk is the credibility risk.** Checklist and Ecdysis are both museum-specimen sources.
+  The same physical bee plotted twice is the single most likely thing that would make an
+  entomologist distrust the map.
+- **The existing county-fill checklist layer stays.** It remains the fallback for the ~9%
+  no-coordinate records. v4.7 adds points; it does not replace the fill layer.
 
 ---
 
@@ -23,107 +51,116 @@
 
 ### Table Stakes (Users Expect These)
 
-Features that must ship for the milestone to feel complete. These mirror what iNaturalist, GBIF, and ALA all provide at comparable scales. Missing any of these makes the taxonomy browse feel unfinished.
+Features users assume exist. Missing these makes the map feel wrong or untrustworthy.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Expandable tree default view (family → genus → species) | Every taxonomy browse site (iNat life list, ALA classification tab, GBIF species page) shows the standard Linnaean hierarchy starting at family | MEDIUM | Default open state: families collapsed; genus level pre-expanded is reasonable given only 42 genera. Species rendered as static leaf nodes. |
-| Per-node rollup count (specimens + observations, split) | iNaturalist shows "N at or below" for every tree node; absence of a count makes nodes feel like dead-end categories | MEDIUM | Counts precomputed at pipeline time per taxon_id. Node shows "N specimens · N observations" matching existing page header style. Must include all descendants, not just direct children. |
-| Rank-agnostic taxon selection → map filter | The stated goal of the milestone. GBIF resolves any search to a taxon key and returns all descendant occurrences; iNat's explore page filters "Anthophila and all descendants" transparently. Users expect clicking a family or genus name to show all matching map points. | HIGH | Requires hierarchy foundation (ancestor-array or closure table in SQLite artifact) + query that expands selection to descendant taxon_ids. This is the core payoff of the whole normalization effort. |
-| Subfamily / tribe / subgenus as first-class nodes when present | iNat's "Full taxonomy" tree view shows all intermediate ranks. Users familiar with bee taxonomy expect Halictinae, Augochlorini, Dialictus to appear as navigable nodes, not just decorative labels. | MEDIUM | These ranks exist in taxa.csv.gz lineage; they already have taxon pages. Tree nodes link to existing pages. Lazy expand (see Differentiators) defers rendering until parent is expanded. |
-| Type-to-filter collapses tree to matching nodes | The existing `/species/` index already does this (species-index.ts). Users already expect it; removing it from the browse tree would be a regression. | LOW | Existing JS pattern (hide non-matching `.family-section` / `.genus-row` elements) applies to the tree. Matching a genus should auto-expand its family. Matching a species should auto-expand family + genus. |
-| Checklist-only species shown with existing badge | Already present on per-taxon pages. Tree must be consistent — checklist-only species are real taxa that belong in the browse. Hiding them would create a discrepancy between the tree and the individual pages. | LOW | Badge treatment (existing CSS class) reused. These nodes are leaves with 0 occurrence count but non-zero checklist-record count. |
-| URL round-trip for taxon filter | Already implemented for the autocomplete filter. Tree-based taxon selection must write the same `taxon=` URL param and be restored on page load. Users share URLs after clicking into a taxon in the tree. | LOW | Tree node click → writes `taxon_id` to URL state → same filter pipeline as autocomplete. Requires taxon_id → display name reverse lookup for the chip. |
-| New subfamily pages (19 families → + subfamily level) | Subfamily is the only bee rank currently missing static pages. With subfamily/tribe/subgenus as first-class nodes in the tree, a subfamily node with no destination page is a dead link. | MEDIUM | 6 bee families → ~20 subfamilies. Page template mirrors tribe pages (multi-color SVG map, "N specimens · N observations", genus list). Pipeline generates pages from hierarchy. |
+| Source label / dataset attribution on detail card | Checklist and Ecdysis coexist on the same map. A user clicking a point MUST be told which source it came from. A 1920 Puget Sound Museum record looks identical to a 2024 WABA collection without a label. | LOW | `source` column already in `occurrences.parquet`. Add a `_renderChecklist` branch in `bee-occurrence-detail.ts` (parallel to `_renderInatObs`). Attribution line: "Bartholomew et al. 2024, JHR 97" with DOI link. |
+| Collector name on checklist detail card | Museum records without a collector feel like data errors. Users interpret absence as "unknown" only when the UI says so explicitly. | LOW | Map `recordedBy` from source CSV into `int_combined` ARM 4. Render as name or "collector unknown" hint — same pattern already used for Ecdysis `_renderCollectorGroup`. |
+| Date with graceful null/partial handling | ~13% of rows have null dates; some are date-ranges or non-ISO (source spans to 1812). A point with date "null" in the sidebar feels broken. | MEDIUM | Pipeline: parse to best-effort ISO date; store verbatim date string as a separate `verbatim_date` column. UI: display formatted date when parseable, fall back to year-only, fall back to "date unknown". Do NOT drop null-date rows from point layer (only no-coordinate rows are dropped per milestone decision). |
+| Locality text on detail card | For records from 1812–1960 georeferenced to a named locality or county, the locality string explains WHY the point is where it is. Its absence on a historical record signals incomplete provenance. All reference portals (GBIF, Symbiota, ALA, Big-Bee) show this field. | LOW | Add `locality` column to ARM 4 in `int_combined`. Render below collector/date in the detail card. |
+| Checklist points rendered in a distinct 4th source color | Once checklist points appear on the map, users must be able to visually distinguish them from Ecdysis (blue), WABA provisional (green), and iNat expert obs (amber) at a glance — without clicking. | LOW | Assign a 4th color in `style.ts` for `source='checklist'`. The architecture already handles per-source styling via the `source` discriminator. |
+| Source-selection toggle extended to checklist point layer | The county-fill layer has a `cl=1` toggle. If point records appear without a toggle, users cannot turn them off. Source filtering already uses `src=` URL param for ecdysis/inat_obs/waba_sample. | MEDIUM | Extend the source toggle row in `bee-pane.ts` to include checklist. The existing `src=` param multi-value architecture should accommodate a 4th value. |
+| Per-source counts on species/taxon pages | Species pages show "N specimens · N community observations". Users will expect "N checklist records" once checklist is a first-class source. Absence looks like the data is missing. | LOW | Follows the per-source count pattern from v4.2. Add checklist arm to `species.json` export. No architectural change. |
+| Dedup against Ecdysis — suppress double-plot of same physical specimen | Checklist and Ecdysis are both museum-specimen sources with significant overlap (both derived from WA bee collections). The same bee plotted twice as two overlapping points is the most likely way to lose credibility with the target audience (practicing entomologists). | HIGH | Match on catalog_number OR (collector + date + coordinate proximity fuzzy match). Mark duplicate checklist rows `dedup_status='ecdysis_duplicate'`; suppress those rows from the point layer. Do not delete them — they remain available in the county-fill mart. GBIF does not auto-dedup cross-dataset; for this app's scale (~50K checklist vs ~45K Ecdysis), pipeline-time dedup is feasible. |
 
 ### Differentiators (Competitive Advantage)
 
-Features not strictly expected at this scale but that meaningfully raise usability or scientific value. BeeAtlas's core value is "tighten learning cycles for volunteer collectors" — these serve that goal.
+Features that distinguish BeeAtlas from just re-implementing a GBIF occurrence card.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Lazy expand of intermediate ranks (subfamily/tribe/subgenus) | iNat's life list defaults to showing simplified ranks and requires a toggle for "Full taxonomy". For BeeAtlas's ~600-species scope, tribe/subgenus nodes add depth without overwhelming beginners. Lazy rendering (only expand on click) keeps the default view clean while making depth accessible. | LOW | Tree renders family → genus → species by default. Clicking a genus reveals subgenus/tribe nodes if they exist. This is a progressive disclosure pattern; no AJAX needed (all tree data is in the static page). |
-| Per-node "at exactly this rank" count alongside rollup | iNat's life list shows two numbers: total at-or-below (plain number) and observations at exactly this rank (green circle). For a bee atlas, genus-level Ecdysis records (unidentified to species) are scientifically meaningful. Showing "3 specimens at genus" makes visible that some records are identified only to genus. | LOW | Pipeline must track: occurrences where `taxon_id = N exactly` vs `taxon_id in descendants(N)`. The "at exactly this rank" count is meaningful only for genus and higher; species and below already have a single count. |
-| Autocomplete extended to subfamily/tribe/subgenus (bee taxa only) | Existing autocomplete covers family/genus/species. Volunteer collectors often think in terms of tribe (Augochlorini) or subgenus (Dialictus). Extending autocomplete to all bee ranks gives experts a faster path than expanding the tree manually. | MEDIUM | Autocomplete data source expands from current string-column matching to taxon_id-keyed hierarchy query. Disambiguation needed (subgenus names often match genus names). Rank label in dropdown ("Subgenus", "Tribe") disambiguates. |
-| Occurrence normalization size win (transfer weight reduction) | Dropping denormalized rank columns (genus, family, scientificName, canonical_name) from occurrences.db shrinks the SQLite artifact. Faster initial load directly serves "tighten learning cycles" — volunteers waiting for data to load is a friction point. | HIGH | This is the normalization half of the milestone. Drop columns from the 37-col contract; names resolve from hierarchy. Measurable: compare before/after occurrences.db size. |
-| Reusability across atlases | Current code has BEE_FAMILIES constant, bee-specific filter logic. The project context says "wasp atlas should be a config flip". A clean rank-agnostic hierarchy with no bee-hardcoded logic in the structure is a long-term multiplier. | LOW | Design decision: hierarchy structure code must not contain `Anthophila` or family-name constants. The bee-only browse filter is a configuration value, not a code branch. |
+| Verbatim-vs-accepted name display in detail card | Checklist records from 1920–1990 may use names that are now synonyms (e.g., "Anthophora urbana" → current accepted name). Showing the current accepted name prominently WITH a secondary note "originally recorded as X" makes the reconciliation auditable and educates volunteers about taxonomy. No major portal surfaces this distinction prominently in occurrence cards. | MEDIUM | Store `verbatim_name` (original checklist name) alongside `canonical_name`. In `_renderChecklist`, show accepted name (from taxon cache via `taxon_id`) as primary, add "originally identified as [verbatim_name]" as secondary line ONLY when the two differ after reconciliation. |
+| Coordinate-precision note in detail card (not uncertainty circles) | Records georeferenced to a county centroid vs. GPS-precise coordinates differ by 30+ km. ALA-style uncertainty circles (optional; opt-in checkbox; caps at 30 km) are the GBIF/ALA approach. For a volunteer atlas map with 50K points, circles are rendering-expensive and visually cluttered. A simple text note ("approximate location — county level") in the detail card communicates the key fact at zero rendering cost. | MEDIUM | Add `coordinate_precision` enum column to ARM 4: `'gps'`, `'locality'`, `'county'`. Derive at pipeline time from whether source record has decimal-degree coords that appear GPS-precise vs. geocoded centroids. Render as a parenthetical note in the detail card only. |
+| Year-excluded note on seasonality histogram | Historical records with only year (1902) or date ranges ("summer 1921") cannot contribute to month-level seasonality histograms. Silently excluding them loses real presence data without explanation. No portal currently makes this distinction explicit for users. | LOW | On species page histogram, add "N records excluded from seasonality (date resolution below monthly)" as a footnote. Count those records separately. Honest about data completeness. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-| Anti-Feature | Why Requested | Why Problematic | Alternative |
-|--------------|---------------|-----------------|-------------|
-| Real-time descendant count queries at browse time | "Why precompute? Just query the DB live" | occurrences.db is a static SQLite artifact with no taxon hierarchy table; adding the full hierarchy table + real-time ancestor queries would require DuckDB WASM (already rejected for page weight) or a server (violates static hosting constraint) | Precompute per-taxon rollup counts at pipeline time; write to a `taxon_counts` table in the SQLite artifact |
-| Show non-bee bycatch in the tree | "It's in the hierarchy, why not show it?" | The atlas is about bees. Showing flies and wasps in the browse tree confuses the audience and dilutes the value. Bycatch taxa exist in the hierarchy only so their map points resolve to a name. | Non-bee taxa: hierarchy-resident, silently excluded from tree rendering and autocomplete. Their map points still display correctly. |
-| Floral host taxonomy in the tree | "Plants are an interesting dimension" | Floral host taxon_ids don't exist yet (explicitly out of scope in milestone context). Mixing host plants into the bee taxonomy tree would require a separate tree component or confusing interleaving. | Deferred to a future milestone. Host taxonomy is a distinct research question. |
-| Full-depth tree rendered on page load (all ranks visible at once) | "More information upfront" | 600 species × multiple intermediate ranks = large DOM on initial render. Type-to-filter already handles search; the tree is for browsing, not for showing everything at once. | Default view: families + genera only. Intermediate ranks (subfamily/tribe/subgenus) revealed on expand. |
-| Separate tree page vs. integrating into existing `/species/` index | "A dedicated tree URL feels cleaner" | The existing `/species/` index already has the type-to-filter UX that users know. A separate page splits navigation and requires users to learn two surfaces. | Replace the flat family→genus index at `/species/` with the expandable tree. Same URL, enhanced behavior. The index is the tree. |
-| Paginated tree nodes | "Large genera might have too many species" | BeeAtlas has ~600 species total. Even the largest genus (Andrena, ~100 species in WA) renders comfortably without pagination. Pagination complexity far exceeds the problem at this scale. | Full list render with CSS `max-height` + scroll if a genus list is very long. No pagination logic needed. |
-| Per-rank occurrence count in the map filter autocomplete pill | "When I filter to Halictidae, show me 'Halictidae (12,430 occurrences)'" | Count becomes stale the moment the DB is updated; autocomplete dropdown items with counts require re-querying on every keystroke. More complexity, marginal value for volunteers. | Count shown on the taxon's static page (already exists); autocomplete pill shows just the name. Selecting a taxon → map updates and the visible count is the map point density. |
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| Coordinate uncertainty circles on map (ALA-style) | ALA and GBIF support a circle of radius = coordinateUncertaintyInMeters per point. Looks analytically thorough. | For a Mapbox-rendered map with 50K checklist points plus ~90K other occurrences, per-point varying-radius circles require a separate fill-circle layer with per-feature data-driven radius — rendering intensive and visually disastrous (county-level records produce identical overlapping 30-50 km carpet). ALA caps uncertainty display at 30 km and acknowledges that "many records do not have a value." | Show precision category as text in detail card: "Location: county-level approximation." Zero rendering cost; communicates the key fact to users who clicked a point. |
+| Merging checklist + Ecdysis into a single deduplicated occurrence | Seems cleaner — one point per specimen, no double-plot. | Loses audit trail. If the dedup match is wrong (two different collectors named "J. Smith" in the same county in the same year), a merged record is incorrect and uncorrectable without separate provenance. GBIF explicitly does not auto-merge cross-dataset duplicates precisely because match errors are hard to detect post-merge. | Mark duplicate checklist rows with `dedup_status`; suppress from point layer; keep in county-fill mart; make dedup status visible in detail card as a secondary note for power users. |
+| Verbatim date free-text field in the sortable table | Data completeness — "Spring 1901" is more accurate than null. | "Spring 1901" in a sortable date column breaks sort order, breaks date-range filter comparisons, confuses volunteers expecting YYYY-MM-DD. | Show verbatim_date only in the occurrence detail card as secondary informational context. The `date` column in parquet and the table uses best-effort ISO date or year-only for sortability and filtering. |
+| Catalog number as primary display field | Power users want to track back to original museum record. | Institution catalog codes (e.g., "USNM:ENT:1001108") are opaque to the volunteer audience. They add cognitive load to the detail card without payoff for non-specialists. | Include catalog number as a small secondary field in the detail card (following the Big-Bee/Symbiota pattern) for power users, hidden behind normal visual hierarchy. Link to source collection page if a URL is derivable. Do not elevate to primary display. |
+| Coordinate precision as a filter control | Power users want to exclude county-level records from analysis. | Adding another filter control to the already-complex filter panel increases UI surface area for the volunteer audience. Researchers can use the CSV export. | Document that `coordinate_precision` column is available in CSV export for post-export filtering. Do not add a filter control in v4.7. |
+| Showing all 50,646 checklist rows including ~9% with no coordinates | "Don't lose data." | Points with no coordinates have no map placement. Placeholders ("record exists but location unknown") in the sidebar without a corresponding map point are confusing — the user clicked something on the map. | Drop no-coordinate rows from the point layer (already decided in milestone scope). They are retained in the county-fill layer via the existing `checklist.parquet` mart. |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Hierarchy Foundation (pipeline: taxon_id-keyed ancestor table in SQLite)
-    └──enables──> Rank-agnostic descendant filter (map filter cutover)
-    └──enables──> Per-node rollup counts (precomputed from hierarchy)
-    └──enables──> Expandable tree nodes (tree data from hierarchy)
-    └──enables──> Subfamily pages (generated from hierarchy ranks)
-    └──enables──> Autocomplete extension to all bee ranks
+[Full CSV re-extraction (lat/lon, date, recordedBy, locality, verbatim_name)]
+    └──required by──> [checklist ARM 4 in int_combined]
+    └──required by──> [All detail card features]
+    └──required by──> [Dedup against Ecdysis]
 
-Expandable tree (browser UI)
-    └──links to──> Existing per-taxon pages (species/genus/subgenus/tribe/subfamily)
-    └──requires──> Subfamily pages (otherwise subfamily nodes are dead links)
-    └──reuses──> Type-to-filter JS pattern (existing species-index.ts pattern)
-    └──reuses──> Checklist-only badge treatment (existing CSS)
+[checklist ARM 4 in int_combined + occurrences.parquet]
+    └──required by──> [Checklist points on map]
+    └──required by──> [_renderChecklist detail card branch]
+    └──required by──> [Per-source counts on species pages]
+    └──required by──> [CSV export includes checklist rows]
+    └──required by──> [Dedup pipeline step]
 
-Map filter cutover (taxon_id replacing string-column matching)
-    └──requires──> Hierarchy in occurrences.db (ancestor IDs queryable in wa-sqlite)
-    └──preserves──> URL round-trip (same taxon= param, now keyed by taxon_id)
-    └──extends──> Autocomplete (adds subfamily/tribe/subgenus entries)
+[Dedup pipeline step (dedup_status column)]
+    └──required by──> [Suppress ecdysis_duplicate rows from point layer]
+    └──enhances──>    [Detail card (show dedup status note)]
 
-Occurrence normalization (drop denormalized rank columns)
-    └──requires──> Hierarchy foundation (names must resolve from hierarchy, not columns)
-    └──produces──> Smaller occurrences.db (measurable size win)
-    └──rewrites──> 37-col contract (new column contract)
-    └──requires──> Frontend cutover before columns drop (filter.ts must use taxon_id not strings)
+[4th source color in Mapbox style (checklist = distinct color)]
+    └──required by──> [Visual distinction on map]
+
+[Source-selection toggle extension]
+    └──required by──> [User can turn off checklist points]
+    └──depends on──>  [ARM 4 in parquet (source='checklist' value exists)]
 ```
 
 ### Dependency Notes
 
-- **Subfamily pages require hierarchy foundation:** Subfamily taxon_ids and names come from the ancestor table, not from the existing denormalized columns (which have no subfamily column). Subfamily pages cannot be generated until the hierarchy is built.
-- **Map filter cutover is a prerequisite for occurrence normalization:** The denormalized `genus`, `family`, `scientificName` columns cannot be dropped until the frontend filter no longer reads those columns. The filter must use `taxon_id` + hierarchy descendant lookup before the columns disappear.
-- **Checklist-only species require no hierarchy work:** They already have taxon_ids (from v4.5). They appear in the tree as leaves. Their badge treatment is a CSS class, not a hierarchy query.
-- **Lazy expand of intermediate ranks is independent:** This is a pure frontend decision about when to render child nodes. It does not affect the pipeline schema or the filter query.
+- **ARM 4 requires full CSV re-extraction first.** The current `wa_bee_checklist_records.tsv`
+  has only species/county/year/month. ARM 4 cannot be built until the full-fidelity CSV replaces
+  it as the pipeline input. This is strictly the first implementation task.
+- **Dedup key depends on CSV field availability.** If the checklist CSV lacks catalog numbers for
+  most records, dedup must fall back to (collector + date + coordinate proximity) fuzzy match —
+  a moderately complex implementation. Inspect the CSV first; dedup strategy branches on this.
+- **`_renderChecklist` branch is blocked on parquet schema confirmation.** The detail card
+  renderer cannot be finalized until ARM 4 columns (locality, verbatim_name, coordinate_precision)
+  are confirmed in the parquet, since those are nullable fields Ecdysis rows do not have.
+- **Source color and toggle extension are independent of each other** and can be shipped before
+  or after the detail card work.
+- **Per-source species page counts are blocked on ARM 4** (need `source='checklist'` rows to count).
 
 ---
 
-## MVP Definition for v4.6
+## MVP Definition for v4.7
 
-This is a subsequent milestone on a mature app, not a greenfield MVP. "MVP" here means: what is the minimum set of features that makes the milestone coherent and delivers the stated goal (descendant-by-any-rank browsing and filter)?
+### Must Ship
 
-### Must Ship (core milestone scope)
+- [ ] Full CSV re-extraction into pipeline (lat/lon, date, recordedBy, locality, verbatim_name)
+- [ ] Checklist ARM 4 in `int_combined` + `occurrences.parquet` (`source='checklist'`)
+- [ ] Drop no-coordinate rows; retain null-date rows with year-only fallback in `date` column
+- [ ] `verbatim_date` column preserved alongside normalized `date`
+- [ ] Checklist points rendered on map with distinct 4th source color
+- [ ] Source-selection toggle extended to include checklist point source
+- [ ] `_renderChecklist` branch in `bee-occurrence-detail.ts`: collector, date + verbatim_date,
+      locality, dataset attribution ("Bartholomew et al. 2024, JHR 97" with DOI link)
+- [ ] Verbatim-vs-accepted name secondary note in detail card when they differ
+- [ ] Dedup against Ecdysis: `dedup_status` column; suppress `ecdysis_duplicate` rows from
+      point layer
+- [ ] Per-source counts on species pages (checklist arm)
+- [ ] dbt 33-column contract extended for ARM 4 columns
 
-- [ ] Hierarchy foundation — `taxon_id`-keyed ancestor table in SQLite artifact, covering all bee taxa, enabling descendant queries
-- [ ] Rank-agnostic descendant filter — map filter resolves any selected taxon_id to its full descendant set
-- [ ] Map filter cutover — filter.ts reads taxon_id + hierarchy, not string columns; autocomplete extended to subfamily/tribe/subgenus (bee only)
-- [ ] Expandable tree at `/species/` — default family → genus → species; lazy intermediate ranks; type-to-filter preserved
-- [ ] Per-node rollup counts — specimen/observation split, precomputed, shown on each tree node
-- [ ] Subfamily pages — generated from hierarchy; without these, subfamily tree nodes are dead links
-- [ ] Occurrence normalization — drop denormalized rank columns; new column contract; measurable size win
+### Add If Straightforward After Core
 
-### Add Within Milestone If Straightforward
+- [ ] `coordinate_precision` enum and detail card note — add after confirming what precision
+      metadata is actually present in the source CSV
+- [ ] Year-excluded-from-seasonality note on species pages — low complexity, honest UX improvement
 
-- [ ] Per-node "at exactly this rank" count — meaningful for genus-level records; LOW complexity once pipeline rollup is built
-- [ ] Slug-collision edge cases — resolved at planning time as noted in milestone context; must not be discovered mid-implementation
+### Defer
 
-### Defer to Future Milestone
-
-- [ ] Floral host taxonomy — explicitly out of scope
-- [ ] Non-bee taxa in tree or autocomplete — out of scope
-- [ ] Count in autocomplete pill — anti-feature at this scale
-- [ ] Paginated tree nodes — unnecessary at this scale
+- [ ] Link from detail card to source collection catalog page — requires knowing which
+      institutions contributed records and whether they have stable record URLs
+- [ ] County-fill layer retirement/consolidation — remains valid fallback for no-coordinate
+      records; consolidation is a future milestone decision
 
 ---
 
@@ -131,48 +168,62 @@ This is a subsequent milestone on a mature app, not a greenfield MVP. "MVP" here
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Hierarchy foundation (pipeline) | HIGH — enables everything else | HIGH | P1 |
-| Rank-agnostic descendant filter | HIGH — core milestone payoff | MEDIUM (depends on foundation) | P1 |
-| Map filter cutover (taxon_id) | HIGH — prerequisite for normalization | MEDIUM | P1 |
-| Expandable tree at /species/ | HIGH — replaces flat index | MEDIUM | P1 |
-| Subfamily pages | MEDIUM — required for tree completeness | MEDIUM | P1 |
-| Per-node rollup counts | HIGH — expected by any taxonomy browse | MEDIUM (precomputed pipeline) | P1 |
-| Occurrence normalization / size win | MEDIUM — developer value + load perf | HIGH | P1 |
-| Autocomplete extension to all bee ranks | MEDIUM — expert usability | MEDIUM | P2 |
-| Lazy expand of intermediate ranks | MEDIUM — polish | LOW | P2 |
-| Per-node "at exactly this rank" count | LOW — scientific nicety | LOW | P2 |
-| Reusability / no bee-hardcoded logic | LOW visible now, HIGH future | LOW | P2 |
+| Full CSV re-extraction + ARM 4 in parquet | HIGH — prerequisite for everything | HIGH | P1 |
+| Checklist points on map (4th color) | HIGH — core milestone payoff | LOW | P1 |
+| Source attribution + collector + locality in detail card | HIGH — credibility | LOW | P1 |
+| Date handling (null → year-only, verbatim_date fallback) | HIGH — data integrity | MEDIUM | P1 |
+| Dedup against Ecdysis | HIGH — credibility risk | HIGH | P1 |
+| Source toggle extension | MEDIUM — usability | LOW | P1 |
+| Per-source counts on species pages | MEDIUM — consistency | LOW | P1 |
+| Verbatim-vs-accepted name note in detail card | MEDIUM — trust/education | LOW | P2 |
+| Coordinate precision note in detail card | MEDIUM — interpretability | MEDIUM | P2 |
+| Year-excluded-from-seasonality note | LOW — honesty nicety | MEDIUM | P3 |
+| Uncertainty circles on map | LOW — overkill for volunteers | HIGH | anti-feature |
+| Cross-dataset record merge | LOW — correctness risk | HIGH | anti-feature |
 
 ---
 
-## Comparable Site Analysis
+## Portal Comparison
 
-| Feature | iNaturalist Life List | GBIF Species Browse | ALA Classification Tab | BeeAtlas v4.6 Target |
-|---------|----------------------|---------------------|------------------------|----------------------|
-| Tree default depth | Simplified (family → order), toggle for full | Flat species list with rank filter | Full lineage breadcrumb only | Family → genus → species; intermediate ranks lazy |
-| Intermediate ranks (tribe/subfamily/subgenus) | Available via "Full taxonomy" toggle | Not in tree; rank filter on search | Shown in classification tab, not in browse tree | First-class lazy nodes, link to taxon pages |
-| Per-node count: at-or-below total | Yes — plain number | No tree view; occurrence count on taxon page | No tree; per-species count on search results | Precomputed rollup count per node (specimen + obs split) |
-| Per-node count: at exactly this rank | Yes — green circle (iNat life list) | N/A | N/A | Nice-to-have; pipeline supports it |
-| Rank-agnostic filter (select any rank → descendant occurrences) | Yes — "Anthophila" returns all bee observations | Yes — taxon key resolution to descendants | Yes — backbone match includes descendants | Yes — taxon_id + ancestor table, resolved at pipeline time |
-| Type-to-filter / autocomplete | Yes — global autocomplete, any rank | Yes — species search with rank filter | Yes — species search | Existing pattern extended; tribe/subgenus added |
-| Checklist-only species in tree | N/A (iNat is observation-only) | N/A | N/A | Yes — existing badge treatment |
-| Two-source count split (specimens vs. community obs) | No — single observation count | Yes — by record type, not prominently | No | Yes — existing page header convention extended to tree |
-| URL sharing for selected taxon | Yes | Yes | Yes | Yes — existing `taxon=` param, now keyed by taxon_id |
+| Feature | GBIF | Symbiota / Big-Bee | ALA | BeeAtlas v4.7 Approach |
+|---------|------|--------------------|-----|------------------------|
+| Basis-of-record distinction | Filter only; no visual badge on point | `PreservedSpecimen` shown in record detail | Filter + record detail | Source color on point + attribution line in detail card |
+| Verbatim vs accepted name | Stored in API; not prominently surfaced in occurrence card | Verbatim date shown; one scientific name shown (accepted) | Shows both in record detail | Accepted name primary; "originally identified as X" secondary note when they differ |
+| Coordinate uncertainty | Optional filter at CSV download; no map circles by default | `coordinateUncertaintyInMeters` field present; not displayed as circle | Optional circle overlay (opt-in, capped at 30 km); acknowledges many records lack value | Precision category as text note in detail card; no map circles |
+| Dedup across datasets | No auto-dedup; researcher-facing clustering tool | No auto-dedup cross-portal | No auto-dedup | Pipeline-time dedup: `dedup_status` column; suppress duplicate points from layer |
+| Collector display | `recordedBy` in record detail | `recordedBy` in record detail | `recordedBy` in record detail | Same: collector name in detail card; "collector unknown" if null |
+| Dataset attribution | Dataset name + publisher in record detail | Institution code + collection in record detail | Data resource link in record detail | Citation line in detail card ("Bartholomew et al. 2024") |
+| Locality text | `locality` in record detail | `locality` in record detail | `locality` in record detail | `locality` in detail card |
+| Catalog number | Shown in record detail; part of triplet ID | Shown in record detail | Shown in record detail | Secondary field in detail card; not primary display |
 
-### Key takeaway from comparable sites
+---
 
-iNaturalist's life list is the closest design reference: expandable tree with at-or-below counts, togglable intermediate ranks, type-to-filter. Its core insight — that "plain number = total at or below" and "green circle = at exactly this rank" — maps directly to BeeAtlas's need to show genus-level unidentified specimens separately from fully-identified species. GBIF's rank-agnostic taxon key resolution is the backend pattern for the map filter cutover. Neither iNat nor GBIF handles the two-source (specimen vs. observation) split that BeeAtlas already shows on per-taxon pages; this is a genuine BeeAtlas differentiator.
+## Confidence Assessment
+
+| Area | Confidence | Notes |
+|------|------------|-------|
+| Table stakes features | HIGH | Grounded in existing detail card code + ecosystem survey of 4 major portals |
+| Anti-features (uncertainty circles, merge) | HIGH | Directly confirmed by GBIF/ALA design decisions and rendering cost analysis |
+| Dedup approach | MEDIUM | Strategy confirmed; key depends on whether checklist CSV has catalog_number — inspect CSV first |
+| Coordinate precision metadata | LOW | Not yet confirmed whether full checklist CSV contains coordinateUncertaintyInMeters or only lat/lon |
+| Verbatim name availability | MEDIUM | Checklist CSV is expected to have original verbatim scientific names; confirm on re-extraction |
 
 ---
 
 ## Sources
 
-- `/home/peter/dev/beeatlas/.planning/PROJECT.md` — milestone goals, constraints, existing features
-- `/home/peter/dev/beeatlas/src/filter.ts` — current `FilterState` (taxonName string + taxonRank enum); shows what must change for taxon_id cutover
-- `/home/peter/dev/beeatlas/src/entries/species-index.ts` — existing type-to-filter JS pattern (hide/show DOM nodes); directly reusable for tree
-- iNaturalist life list design (from search results): "plain numbers = observations at or below that node; green circles = observations at exactly that rank" — HIGH confidence (multiple corroborating sources)
-- iNaturalist "Full taxonomy" toggle vs. simplified list — MEDIUM confidence (from iNat forum posts and blog)
-- GBIF taxon key resolution for descendant occurrence filtering — HIGH confidence (from GBIF Species API documentation)
-- ALA classification tab linking parent ranks — MEDIUM confidence (from ALA support documentation)
-- Washington's Native Bees site: family → subfamily → tribe → genus → species navigation, no counts shown — HIGH confidence (direct content extraction)
-- Discover Life bee checklist: alpha ordering within subfamily→tribe→genus→subgenus→species — MEDIUM confidence (from search result descriptions; frameset prevented direct scraping)
+- GBIF Basis of Record: https://docs.gbif.org/course-data-use/en/basis-of-record.html
+- GBIF Duplicate/Clustering: https://docs.gbif.org/course-data-use/en/duplicates.html
+- GBIF Geospatial Issues: https://docs.gbif.org/course-data-use/en/geospatial-filters-issues.html
+- Symbiota Occurrence Data Fields: https://symbiota.org/symbiota-occurrence-data-fields-2/
+- Big-Bee Symbiota portal specimen detail: https://library.big-bee.net/portal/collections/individual/index.php?occid=1615893
+- ALA Spatial Portal (uncertainty circles): https://www.ala.org.au/spatial-portal-help/species-add-to-map/
+- Bartholomew et al. 2024 checklist: https://jhr.pensoft.net/article/129013/
+- Codebase: `data/dbt/models/intermediate/int_combined.sql` (existing ARM structure)
+- Codebase: `src/bee-occurrence-detail.ts` (existing detail card; `_renderChecklist` does not yet exist)
+- Codebase: `data/checklist_pipeline.py` (existing 4-column checklist loader; SOURCE_CITATION defined)
+- Codebase: `data/checklists/wa_bee_checklist_records.tsv` (confirms only 4 columns in current derivation)
+
+---
+*Feature research for: v4.7 Checklist Records as Point Data (BeeAtlas)*
+*Researched: 2026-06-03*
