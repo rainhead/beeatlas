@@ -18,9 +18,10 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     execSync('npm run build', { cwd: ROOT, stdio: 'pipe' });
   }, 180_000);
 
-  test('emits _site/species/index.html with .family-section elements (IDX-01, URL-05)', () => {
+  test('emits _site/species/index.html as a tree with family nodes (IDX-01, URL-05)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toMatch(/class="family-section"/);
+    expect(html).toMatch(/class="tree-node tree-node--family"/);
+    expect(html).toMatch(/data-rank="family"/);
     expect(html).not.toContain('<bee-species-page');
   });
 
@@ -31,12 +32,12 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
 
   test('index page has genus links to /species/{Genus}/ (IDX-03)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toMatch(/href="\/species\/Agapostemon\/index\.html"/);
+    expect(html).toMatch(/href="\/species\/Agapostemon\/"/);
   });
 
-  test('index page has species links to /species/{Genus}/{epithet}/index.html (IDX-04)', () => {
+  test('index page has species links to /species/{Genus}/{epithet}/ (IDX-04)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/index\.html"/);
+    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/"/);
   });
 
   // plugin-vite (MPA mode) emits the species page entry under either:
@@ -284,8 +285,8 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(html).toMatch(/src="\/data\/species-maps\//);            // D-06: SVG map shown
   });
 
-  test('species index shows "checklist only" badge for zero-occurrence checklist species (D-14, SPEC-01)', () => {
-    const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toContain('checklist only');  // D-14: badge for checklist-only species
-  });
+  // D-14's "checklist only" index badge was dropped in the Phase 133 tree
+  // rewrite — the index now shows per-node specimen/observation counts and a
+  // Map link, with no checklist badge. The checklist-only signal survives on
+  // the species detail page (covered by the D-15 test above).
 });
