@@ -9,15 +9,15 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 
 ### Ingest (full-fidelity source)
 
-- [ ] **ING-01**: The full-fidelity Bartholomew CSV is committed into `data/checklists/` and loaded by `checklist_pipeline.py` into a DuckDB table carrying `lat, lon, date, recordedBy, locality, verbatim_name` — replacing the 4-column `wa_bee_checklist_records.tsv` derivation.
+- [x] **ING-01**: The full-fidelity Bartholomew CSV is committed into `data/checklists/` and loaded by `checklist_pipeline.py` into a DuckDB table carrying `lat, lon, date, recordedBy, locality, verbatim_name` — replacing the 4-column `wa_bee_checklist_records.tsv` derivation.
   - *Current:* only `species, county, year, month` survive (lat/lon/collector/locality dropped).
   - *Target:* full-column load from the committed CSV.
   - *Accept:* pytest asserts loaded row count (50,646 pre-collapse) and presence of all six columns.
-- [ ] **ING-02**: Coordinate validation at Python ingest excludes invalid coordinates (NULL, `0/0`, lat/lon swapped, outside the WA bounding box) from the point arm.
+- [x] **ING-02**: Coordinate validation at Python ingest excludes invalid coordinates (NULL, `0/0`, lat/lon swapped, outside the WA bounding box) from the point arm.
   - *Current:* no coordinates ingested at all.
   - *Target:* only validated in-WA coordinates reach the point arm; excluded count is logged.
   - *Accept:* zero rows with `lat=0`/`lon=0` or outside the WA bbox enter the point arm; excluded count surfaced in build output.
-- [ ] **ING-03**: Mixed/missing dates (ISO + `m/d/yyyy`, year-range strings, pre-1900, ~13% null) are normalized via `dateparser` into a date plus a `date_quality` enum (`full` / `year_only` / `none`).
+- [x] **ING-03**: Mixed/missing dates (ISO + `m/d/yyyy`, year-range strings, pre-1900, ~13% null) are normalized via `dateparser` into a date plus a `date_quality` enum (`full` / `year_only` / `none`).
   - *Current:* `isdigit()`-based parse silently drops year-range and odd formats to NULL.
   - *Target:* robust parse with an explicit quality flag driving filter eligibility.
   - *Accept:* pytest parses `1812-06-18`, an `m/d/yyyy` value, and a `1989-1991` range; NULL-date rows are tagged `none` and excluded from year-range filtering.
@@ -93,9 +93,9 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ING-01 | Phase 134 | Pending |
-| ING-02 | Phase 134 | Pending |
-| ING-03 | Phase 134 | Pending |
+| ING-01 | Phase 134 | Complete |
+| ING-02 | Phase 134 | Complete |
+| ING-03 | Phase 134 | Complete |
 | RCN-01 | Phase 135 | Pending |
 | RCN-02 | Phase 135 | Pending |
 | RCN-03 | Phase 135 | Pending |

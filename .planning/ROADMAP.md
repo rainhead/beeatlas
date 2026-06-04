@@ -958,7 +958,7 @@ Plans:
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 133. Browse Tree | v4.6 | 4/4 | Complete | 2026-06-03 |
-| 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete   | 2026-06-04 |
+| 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete    | 2026-06-04 |
 | 135. Name Reconciliation | v4.7 | 0/TBD | Not started | - |
 | 136. Deduplication | v4.7 | 0/TBD | Not started | - |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
