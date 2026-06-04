@@ -259,6 +259,107 @@ def _load_checklist_records(con: duckdb.DuckDBPyConnection) -> None:
     print(f"checklist_records: {count} individual occurrence records loaded")  # noqa: T201
 
 
+def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
+    """Load full-fidelity occurrence records from checklist_records_full.csv
+    into checklist_data.checklist_records_full.
+
+    All 50,646 rows are kept — invalid coordinates are tagged via coord_flag
+    (valid/null_coord/zero_coord/out_of_bbox), never dropped (D-03).
+    Dates are normalized into (year, month, day, date_quality) via
+    _parse_checklist_date() (D-05/D-07/D-08/D-09).
+
+    Reads Latitude/Longitude source columns ONLY; x/y redundant columns are
+    ignored (D-02). verbatim_name = raw 'Scientific Name' with authority,
+    stored unmodified — do NOT call normalize_scientific_name() on it (D-12).
+
+    Logs: one summary count line + one per-reason coord exclusion breakdown (D-04).
+    """
+    records: list[tuple] = []
+    with CHECKLIST_RECORDS_FULL_PATH.open(newline="") as f:
+        reader = csv.DictReader(f)  # comma-delimited (not TSV)
+        for row in reader:
+            object_id_str = (row.get("ObjectID") or "").strip()
+            object_id = int(object_id_str) if object_id_str.isdigit() else None
+            family = (row.get("Family") or "").strip() or None
+            genus = (row.get("Genus") or "").strip() or None
+            verbatim_name = (row.get("Scientific Name") or "").strip() or None
+            locality = (row.get("Locality") or "").strip() or None
+            recorded_by = (row.get("recordedBy") or "").strip() or None
+
+            # Coordinates: parse to float or None (D-02: use Lat/Lon only, ignore x/y)
+            lat_str = (row.get("Latitude") or "").strip()
+            lon_str = (row.get("Longitude") or "").strip()
+            try:
+                lat: float | None = float(lat_str) if lat_str else None
+            except ValueError:
+                lat = None
+            try:
+                lon: float | None = float(lon_str) if lon_str else None
+            except ValueError:
+                lon = None
+
+            # Date: normalize to (year, month, day, date_quality)
+            raw_date = row.get("Date") or ""
+            year, month, day, date_quality = _parse_checklist_date(raw_date)
+
+            # Coord flag: classify coordinate quality (D-03, PITFALLS #3)
+            cf = _coord_flag(lat, lon)
+
+            records.append((
+                object_id,    # ObjectID BIGINT
+                family,       # family VARCHAR
+                genus,        # genus VARCHAR
+                verbatim_name,  # verbatim_name VARCHAR (raw, unmodified, with authority)
+                locality,     # locality VARCHAR
+                lat,          # latitude DOUBLE
+                lon,          # longitude DOUBLE
+                recorded_by,  # recordedBy VARCHAR
+                year,         # year BIGINT
+                month,        # month BIGINT
+                day,          # day BIGINT
+                date_quality,  # date_quality VARCHAR
+                cf,           # coord_flag VARCHAR
+            ))
+
+    con.execute("""
+        CREATE OR REPLACE TABLE checklist_data.checklist_records_full (
+            ObjectID BIGINT,
+            family VARCHAR,
+            genus VARCHAR,
+            verbatim_name VARCHAR,
+            locality VARCHAR,
+            latitude DOUBLE,
+            longitude DOUBLE,
+            recordedBy VARCHAR,
+            year BIGINT,
+            month BIGINT,
+            day BIGINT,
+            date_quality VARCHAR,
+            coord_flag VARCHAR
+        )
+    """)
+    con.executemany(
+        "INSERT INTO checklist_data.checklist_records_full VALUES "
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        records,
+    )
+
+    count = con.execute(
+        "SELECT count(*) FROM checklist_data.checklist_records_full"
+    ).fetchone()[0]
+    print(f"checklist_records_full: {count} full-fidelity occurrence records loaded")  # noqa: T201
+
+    # Per-reason coord exclusion breakdown (D-04)
+    null_c = sum(1 for r in records if r[12] == "null_coord")
+    zero_c = sum(1 for r in records if r[12] == "zero_coord")
+    bbox_c = sum(1 for r in records if r[12] == "out_of_bbox")
+    excluded = null_c + zero_c + bbox_c
+    print(  # noqa: T201
+        f"checklist_records_full: {excluded} coordinates excluded "
+        f"(null_coord={null_c}, zero_coord={zero_c}, out_of_bbox={bbox_c})"
+    )
+
+
 def load_checklist() -> None:
     """Read the WA bee checklist TSV and populate checklist_data.species
     + checklist_data.species_counties + checklist_data.checklist_records."""
@@ -333,6 +434,7 @@ def load_checklist() -> None:
         print(f"checklist: {species_count} species, {sc_count} county records")  # noqa: T201
 
         _load_checklist_records(con)
+        _load_checklist_records_full(con)
         _update_occurrences_canonical_name(con)
         reconcile(con)
     finally:
