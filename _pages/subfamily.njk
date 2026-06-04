@@ -53,6 +53,7 @@ layout: default.njk
     </div>
   </div>
   {%- if subfamily.taxon_id -%}
+  <a class="taxon-action" href="/?taxon={{ subfamily.taxon_id }}">View on atlas →</a>
   <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ subfamily.taxon_id }}">View on iNaturalist →</a>
   {%- endif -%}
 </article>
