@@ -1,11 +1,10 @@
 // Build-time data feed for the species page. Read by Eleventy's data cascade
 // and exposed to _pages/species.njk as the `species` global.
 //
-// Contract (PAGE-02): exports { tree, flat, byScientificName }.
+// Contract: exports { flat, byScientificName, fullTree, ... }.
 // - flat: alphabetical-by-scientificName array (D-01)
 // - byScientificName: lookup map keyed by scientificName
-// - tree: family -> subfamily -> tribe -> genus -> subgenus nested object;
-//   placeholder shape -- Phase 81 (NAV-01) will harden.
+// - fullTree: bee-only six-rank nested tree consumed by _pages/species.njk (Phase 133)
 //
 // Pitfall #8: this module reads species.json (NOT the upstream columnar store)
 // so Eleventy's HMR stays sub-100ms. Asserted by src/tests/data-species.test.ts.
@@ -52,35 +51,6 @@ const flat = raw
 const byScientificName = Object.fromEntries(
   flat.map((s) => [s.scientificName, s])
 );
-
-const TAXON_LEVELS = ['family', 'subfamily', 'tribe', 'genus', 'subgenus'];
-
-function buildTree(rows) {
-  const root = { rows: [], children: new Map() };
-  for (const r of rows) {
-    let node = root;
-    for (const level of TAXON_LEVELS) {
-      const key = r[level] == null ? 'null' : String(r[level]);
-      if (!node.children.has(key)) {
-        node.children.set(key, { rows: [], children: new Map() });
-      }
-      node = node.children.get(key);
-    }
-    node.rows.push(r);
-  }
-  return toPlain(root);
-}
-
-function toPlain(node) {
-  return {
-    rows: node.rows,
-    children: Object.fromEntries(
-      [...node.children].map(([k, v]) => [k, toPlain(v)])
-    ),
-  };
-}
-
-const tree = buildTree(flat);
 
 // Phase 93 D-01: HSL→hex formula matching Python colorsys.hls_to_rgb exactly.
 // Color index i is derived from alphabetical-by-canonical_name sort within each
@@ -561,4 +531,4 @@ function buildFullTree() {
 
 const fullTree = buildFullTree();
 
-export default { tree, flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList, fullTree };
+export default { flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList, fullTree };

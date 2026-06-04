@@ -3,8 +3,7 @@
 //   (a) ARCH-04 / PAGE-08: no src/species/**.ts file (seasonality-viz.ts,
 //       seasonality-cache.ts) may import the SPA's mapbox-gl / wa-sqlite /
 //       sqlite / filter / bee-map / bee-atlas modules (static OR dynamic).
-//   (b) ARCH-04 / D-05: src/lib/spa-link.ts must not pull in forbidden SPA deps.
-//   (c) IDX-02 (Phase 96): src/entries/species-index.ts is restricted to
+//   (b) IDX-02 (Phase 96): src/entries/species-index.ts is restricted to
 //       CSS side-effects + bee-header — no SPA modules allowed.
 
 import { describe, test, expect } from 'vitest';
@@ -84,36 +83,6 @@ describe('ARCH-04: src/species boundary (PAGE-08)', () => {
       expect(violations, `${rel} forbidden dynamic imports: ${violations.join(', ')}`).toEqual([]);
     });
   }
-});
-
-// Phase 81 D-05 — src/lib/spa-link.ts boundary.
-// The file is consumed by src/species/** (subject to ARCH-04) AND by
-// the SPA's src/url-state.ts (LINK-04 documentation only). To prevent
-// it from becoming a Trojan that lets src/species/** transitively pull
-// mapbox-gl / wa-sqlite / filter.ts, this file MUST itself import
-// nothing from the forbidden list — plus '../url-state.ts' to forbid
-// the SPA-side import that would re-introduce src/filter.ts.
-describe('ARCH-04: src/lib/spa-link.ts boundary (D-05)', () => {
-  const file = resolve(ROOT, 'src/lib/spa-link.ts');
-  const FORBIDDEN_FOR_LIB = [...FORBIDDEN, '../url-state.ts', '../url-state'];
-
-  test('src/lib/spa-link.ts exists', () => {
-    expect(() => readFileSync(file, 'utf8')).not.toThrow();
-  });
-
-  test('src/lib/spa-link.ts contains no forbidden static imports', () => {
-    const src = readFileSync(file, 'utf8');
-    const imports = extractImports(src, STATIC_IMPORT_RE);
-    const violations = imports.filter(s => FORBIDDEN_FOR_LIB.some(bad => s === bad || s.startsWith(bad + '/')));
-    expect(violations, `forbidden imports: ${violations.join(', ')}`).toEqual([]);
-  });
-
-  test('src/lib/spa-link.ts contains no forbidden dynamic imports', () => {
-    const src = readFileSync(file, 'utf8');
-    const imports = extractImports(src, DYNAMIC_IMPORT_RE);
-    const violations = imports.filter(s => FORBIDDEN_FOR_LIB.some(bad => s === bad || s.startsWith(bad + '/')));
-    expect(violations, `forbidden dynamic imports: ${violations.join(', ')}`).toEqual([]);
-  });
 });
 
 // Phase 96 IDX-02 — species-index.ts entry allowlist.

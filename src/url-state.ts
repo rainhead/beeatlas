@@ -10,10 +10,11 @@
 // _pendingLegacyTaxon in the filter for async resolution after the taxon
 // cache is loaded. The taxonRank param is read for twin disambiguation.
 //
-// Cross-route deep-links from /species/ MUST use buildSpaTaxonLink()
-// from src/lib/spa-link.ts (Phase 81 D-05). Other params (x, y, z, yr0,
-// yr1, months, counties, ecor, collectors, elev_min, elev_max, o, bm,
-// view) are SPA-internal and not part of the cross-route contract.
+// Cross-route deep-links from the static taxon pages (_pages/*.njk) emit the
+// new integer format directly: `/?taxon=<taxon_id>` (Phase 130+, D-06 — rank is
+// derivable from the taxon cache). Other params (x, y, z, yr0, yr1, months,
+// counties, ecor, collectors, elev_min, elev_max, o, bm, view) are SPA-internal
+// and not part of the cross-route contract.
 
 import type { FilterState, CollectorEntry } from './filter.ts';
 
