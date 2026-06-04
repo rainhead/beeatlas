@@ -300,6 +300,16 @@ describe('species-tree — filter + auto-expand (D-09 / TREE-03, CR-02)', () => 
     }
   });
 
+  test('matches word beginnings only — a mid-word substring does not match', () => {
+    // "culeata" is mid-word in "andrena aculeata"; the prefix query must miss it.
+    expect(runFilter(root, 'culeata', false)).toBe(true); // no match → empty state
+    expect(byName(root, 'andrena aculeata').hidden).toBe(true);
+    // The species epithet's own prefix still matches (second word of the name).
+    runFilter(root, '', false);
+    expect(runFilter(root, 'acul', false)).toBe(false);
+    expect(byName(root, 'andrena aculeata').hidden).toBe(false);
+  });
+
   test('clearing the filter restores every rank (CR-03 — no stale hidden nodes)', () => {
     runFilter(root, 'bombus', false);
     expect(byName(root, 'andrena').hidden).toBe(true); // hidden by the filter
