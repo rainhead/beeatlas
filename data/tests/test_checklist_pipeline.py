@@ -6,6 +6,10 @@ Loads the WA bee checklist TSV against an isolated DuckDB and asserts:
   - status='verified' on every row (D-02)
   - canonical_name = normalize_scientific_name(scientificName) on every row, IS NOT NULL
   - CREATE OR REPLACE semantics — re-running is idempotent (CHECK-02)
+
+Phase 134 Plan 02 adds:
+  - Unit tests for _parse_checklist_date() and _coord_flag() helpers (ING-02, ING-03)
+  - Integration tests for checklist_data.checklist_records_full table (ING-01)
 """
 
 import duckdb
@@ -196,6 +200,74 @@ def test_load_checklist_unset_columns_are_null(checklist_db):
 
 
 # ---------------------------------------------------------------------------
+# Phase 134 Plan 02: Unit tests for date-parsing and coord-flag helpers (ING-02/ING-03).
+# These tests call the helpers directly (no DuckDB needed). Written RED first.
+# ---------------------------------------------------------------------------
+
+import checklist_pipeline as _cp134
+
+
+class TestParseChecklistDate:
+    """Tests for _parse_checklist_date(raw) -> (year, month, day, date_quality)."""
+
+    def test_iso_date_pre1900(self):
+        """1812-06-18 (ISO date) must parse to (1812, 6, 18, 'full') — no 1900 floor."""
+        assert _cp134._parse_checklist_date("1812-06-18") == (1812, 6, 18, "full")
+
+    def test_iso_datetime_drops_time(self):
+        """ISO datetime 1991-07-12T00:00:00 must parse to (1991, 7, 12, 'full')."""
+        assert _cp134._parse_checklist_date("1991-07-12T00:00:00") == (1991, 7, 12, "full")
+
+    def test_us_month_first_mdy(self):
+        """M/D/YYYY (US month-first) '6/14/1905' must parse to (1905, 6, 14, 'full')."""
+        assert _cp134._parse_checklist_date("6/14/1905") == (1905, 6, 14, "full")
+
+    def test_empty_string_returns_none(self):
+        """Empty string must return (None, None, None, 'none')."""
+        assert _cp134._parse_checklist_date("") == (None, None, None, "none")
+
+    def test_whitespace_only_returns_none(self):
+        """Whitespace-only string must return (None, None, None, 'none')."""
+        assert _cp134._parse_checklist_date("   ") == (None, None, None, "none")
+
+    def test_year_only_returns_year_only(self):
+        """Year-only string '1995' must return (1995, None, None, 'year_only')."""
+        assert _cp134._parse_checklist_date("1995") == (1995, None, None, "year_only")
+
+
+class TestCoordFlag:
+    """Tests for _coord_flag(lat, lon) -> str."""
+
+    def test_none_coords_return_null_coord(self):
+        """None lat/lon must return 'null_coord'."""
+        assert _cp134._coord_flag(None, None) == "null_coord"
+
+    def test_null_lat_only_returns_null_coord(self):
+        """None lat with valid lon must return 'null_coord'."""
+        assert _cp134._coord_flag(None, -122.2272) == "null_coord"
+
+    def test_null_lon_only_returns_null_coord(self):
+        """None lon with valid lat must return 'null_coord'."""
+        assert _cp134._coord_flag(47.3075, None) == "null_coord"
+
+    def test_zero_zero_returns_zero_coord(self):
+        """(0, 0) Gulf-of-Guinea guard must return 'zero_coord' before bbox test."""
+        assert _cp134._coord_flag(0, 0) == "zero_coord"
+
+    def test_in_state_returns_valid(self):
+        """(47.3075, -122.2272) Auburn WA must return 'valid'."""
+        assert _cp134._coord_flag(47.3075, -122.2272) == "valid"
+
+    def test_south_of_wa_returns_out_of_bbox(self):
+        """(40.0, -122.0) is south of WA — must return 'out_of_bbox'."""
+        assert _cp134._coord_flag(40.0, -122.0) == "out_of_bbox"
+
+    def test_boundary_point_is_valid(self):
+        """(45.5, -124.85) exact bbox boundary must return 'valid' (inclusive bounds)."""
+        assert _cp134._coord_flag(45.5, -124.85) == "valid"
+
+
+# ---------------------------------------------------------------------------
 # Phase 76 Plan 06 integration tests against the shared `fixture_con` fixture.
 # Cover TAX-04 (disagreement fixture), CHECK-05 (synonyms.csv override +
 # unmatched.csv writeback), CHECK-06 (canonical_name JOIN key), and the
@@ -360,3 +432,218 @@ def test_reconcile_unmatched_csv_header(fixture_con, tmp_path, monkeypatch):
     assert unmatched_csv.exists()
     first_line = unmatched_csv.read_text().splitlines()[0]
     assert first_line == "checklist_name,canonical_name,reason"
+
+
+# ---------------------------------------------------------------------------
+# Phase 134 Plan 02: Integration tests for checklist_data.checklist_records_full
+# (ING-01, ING-02, ING-03). Uses checklist_db fixture + real committed CSV.
+# Written RED first, then GREEN.
+# ---------------------------------------------------------------------------
+
+
+def test_checklist_records_full_row_count(checklist_db):
+    """SC#1: checklist_records_full must have ~50,646 rows (BETWEEN 50000 AND 51000)."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        n = con.execute(
+            "SELECT count(*) FROM checklist_data.checklist_records_full"
+        ).fetchone()[0]
+    finally:
+        con.close()
+    assert 50000 <= n <= 51000, f"expected ~50,646 rows, got {n}"
+
+
+def test_checklist_records_full_schema(checklist_db):
+    """SC#1: checklist_records_full must have the full 13-column schema (D-12)."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        cols = {
+            row[0]
+            for row in con.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema='checklist_data' AND table_name='checklist_records_full'"
+            ).fetchall()
+        }
+    finally:
+        con.close()
+    required = {
+        "ObjectID", "family", "genus", "verbatim_name", "locality",
+        "latitude", "longitude", "recordedBy",
+        "year", "month", "day", "date_quality", "coord_flag",
+    }
+    assert required <= cols, f"missing columns: {required - cols}"
+
+
+def test_checklist_records_full_coord_flag_no_zero_valid(checklist_db):
+    """SC#2: no row with coord_flag='valid' should have latitude=0 or longitude=0."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        n = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE coord_flag = 'valid' AND (latitude = 0 OR longitude = 0)
+        """).fetchone()[0]
+    finally:
+        con.close()
+    assert n == 0, f"found {n} rows with coord_flag='valid' and zero lat or lon"
+
+
+def test_checklist_records_full_coord_flag_valid_in_bbox(checklist_db):
+    """SC#2: no 'valid' row should have lat/lon outside the tight WA bbox."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        n = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE coord_flag = 'valid'
+              AND NOT (
+                latitude BETWEEN 45.5 AND 49.0
+                AND longitude BETWEEN -124.85 AND -116.9
+              )
+        """).fetchone()[0]
+    finally:
+        con.close()
+    assert n == 0, f"found {n} 'valid' rows outside the WA bbox"
+
+
+def test_checklist_records_full_coord_flag_coverage(checklist_db):
+    """SC#2: every coord_flag is in the valid enum; null_coord count > 1000."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        bad = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE coord_flag NOT IN ('valid', 'null_coord', 'zero_coord', 'out_of_bbox')
+        """).fetchone()[0]
+        null_coord_count = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE coord_flag = 'null_coord'
+        """).fetchone()[0]
+    finally:
+        con.close()
+    assert bad == 0, f"found {bad} rows with invalid coord_flag"
+    assert null_coord_count > 1000, f"expected >1000 null_coord rows, got {null_coord_count}"
+
+
+def test_checklist_records_full_date_parsing_pre1900(checklist_db):
+    """SC#3: the 1812-06-18 source row parses to year=1812, month=6, day=18, date_quality='full'."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        # The 1812-06-18 row is ObjectID 31311 per CSV
+        row = con.execute("""
+            SELECT year, month, day, date_quality FROM checklist_data.checklist_records_full
+            WHERE year = 1812 AND month = 6 AND day = 18
+        """).fetchone()
+    finally:
+        con.close()
+    assert row is not None, "no row with year=1812, month=6, day=18 found"
+    year, month, day, dq = row
+    assert year == 1812
+    assert month == 6
+    assert day == 18
+    assert dq == "full"
+
+
+def test_checklist_records_full_date_parsing_mdy(checklist_db):
+    """SC#3: at least one M/D/YYYY-sourced row must parse to date_quality='full'."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        # 6/14/1905 is in the CSV (ObjectID 1668); assert year=1905, month=6, day=14
+        n = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE year = 1905 AND month = 6 AND day = 14 AND date_quality = 'full'
+        """).fetchone()[0]
+    finally:
+        con.close()
+    assert n >= 1, "expected at least one M/D/YYYY row parsed to year=1905, month=6, day=14"
+
+
+def test_checklist_records_full_null_date_tagged_none(checklist_db):
+    """SC#3: every empty/NULL-source-date row must have date_quality='none' and year IS NULL."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        # Rows with date_quality='none' should all have NULL year
+        n_bad = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE date_quality = 'none' AND year IS NOT NULL
+        """).fetchone()[0]
+        # There should be some 'none' rows (empirically ~6,689)
+        n_none = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE date_quality = 'none'
+        """).fetchone()[0]
+    finally:
+        con.close()
+    assert n_bad == 0, f"found {n_bad} rows with date_quality='none' but year IS NOT NULL"
+    assert n_none > 1000, f"expected >1000 'none' date rows, got {n_none}"
+
+
+def test_checklist_records_full_date_quality_domain(checklist_db):
+    """Every date_quality value must be in ('full', 'year_only', 'none')."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        bad = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE date_quality NOT IN ('full', 'year_only', 'none')
+        """).fetchone()[0]
+    finally:
+        con.close()
+    assert bad == 0, f"found {bad} rows with invalid date_quality"
+
+
+def test_checklist_records_full_is_idempotent(checklist_db):
+    """Running load_checklist() twice must yield the same checklist_records_full row count."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        n1 = con.execute(
+            "SELECT count(*) FROM checklist_data.checklist_records_full"
+        ).fetchone()[0]
+    finally:
+        con.close()
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        n2 = con.execute(
+            "SELECT count(*) FROM checklist_data.checklist_records_full"
+        ).fetchone()[0]
+    finally:
+        con.close()
+    assert n1 == n2, f"not idempotent: first run {n1} rows, second run {n2} rows"
+
+
+def test_checklist_records_old_table_still_exists(checklist_db):
+    """D-10: checklist_data.checklist_records (4-column OLD table) must still exist."""
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        cols = [
+            row[0]
+            for row in con.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema='checklist_data' AND table_name='checklist_records' "
+                "ORDER BY ordinal_position"
+            ).fetchall()
+        ]
+    finally:
+        con.close()
+    assert cols == ["scientificName", "county", "year", "month"], (
+        f"old checklist_records table missing or schema changed: {cols}"
+    )
