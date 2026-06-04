@@ -762,9 +762,14 @@ describe('MAP-03: checklist taxon filter binding', () => {
     expect(atlasSrc).toMatch(/_onChecklistLayerChanged\s*\(/);
   });
 
-  test('bee-atlas.ts binds .checklistTaxon on <bee-map> using filterState taxon display name', () => {
-    // Phase 130: taxonName → taxonDisplayName (display-only label); taxonId is the filter key
-    expect(atlasSrc).toMatch(/\.checklistTaxon=\$\{this\._filterState\.taxonDisplayName\}/);
+  test('bee-atlas.ts binds .checklistTaxon/.checklistTaxonRank from the resolved taxon cache entry', () => {
+    // Checklist filtering matches the parquet's scientificName/genus/family strings,
+    // so it needs the selected taxon's canonical name + rank — not taxonDisplayName
+    // (a common-name label) and not a hardcoded null rank (regression after Phase 130
+    // dropped taxonName/taxonRank from FilterState). Resolve both from _taxonCache.
+    expect(atlasSrc).toMatch(/this\._taxonCache\.get\(this\._filterState\.taxonId\)/);
+    expect(atlasSrc).toMatch(/\.checklistTaxon=\$\{_checklistTaxon\?\.name \?\? null\}/);
+    expect(atlasSrc).toMatch(/\.checklistTaxonRank=\$\{_checklistTaxon\?\.rank \?\? null\}/);
   });
 
   test('bee-atlas.ts registers @checklist-layer-changed=${this._onChecklistLayerChanged} on <bee-pane>', () => {

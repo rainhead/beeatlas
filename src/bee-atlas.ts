@@ -148,6 +148,14 @@ bee-pane {
   `;
 
   render() {
+    // Checklist filtering matches the parquet's scientificName/genus/family
+    // strings, so it needs the selected taxon's canonical name + rank — not the
+    // display label. taxonDisplayName may be a common name and FilterState no
+    // longer carries a rank (Phase 130 went taxonId-only), so resolve both from
+    // the taxon cache. Without this the checklist ignores the taxon filter.
+    const _checklistTaxon = this._filterState.taxonId !== null
+      ? this._taxonCache.get(this._filterState.taxonId) ?? null
+      : null;
     return html`
       <bee-header></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
@@ -169,8 +177,8 @@ bee-pane {
             .filterState=${this._filterState}
             .showChecklist=${this._checklistVisible}
             .hiddenSources=${this._hiddenSources}
-            .checklistTaxon=${this._filterState.taxonDisplayName}
-            .checklistTaxonRank=${null}
+            .checklistTaxon=${_checklistTaxon?.name ?? null}
+            .checklistTaxonRank=${_checklistTaxon?.rank ?? null}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
             @map-click-region=${this._onRegionClick}
