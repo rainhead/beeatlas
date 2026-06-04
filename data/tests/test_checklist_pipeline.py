@@ -6,6 +6,10 @@ Loads the WA bee checklist TSV against an isolated DuckDB and asserts:
   - status='verified' on every row (D-02)
   - canonical_name = normalize_scientific_name(scientificName) on every row, IS NOT NULL
   - CREATE OR REPLACE semantics — re-running is idempotent (CHECK-02)
+
+Phase 134 Plan 02 adds:
+  - Unit tests for _parse_checklist_date() and _coord_flag() helpers (ING-02, ING-03)
+  - Integration tests for checklist_data.checklist_records_full table (ING-01)
 """
 
 import duckdb
@@ -193,6 +197,74 @@ def test_load_checklist_unset_columns_are_null(checklist_db):
     finally:
         con.close()
     assert nf == 0
+
+
+# ---------------------------------------------------------------------------
+# Phase 134 Plan 02: Unit tests for date-parsing and coord-flag helpers (ING-02/ING-03).
+# These tests call the helpers directly (no DuckDB needed). Written RED first.
+# ---------------------------------------------------------------------------
+
+import checklist_pipeline as _cp134
+
+
+class TestParseChecklistDate:
+    """Tests for _parse_checklist_date(raw) -> (year, month, day, date_quality)."""
+
+    def test_iso_date_pre1900(self):
+        """1812-06-18 (ISO date) must parse to (1812, 6, 18, 'full') — no 1900 floor."""
+        assert _cp134._parse_checklist_date("1812-06-18") == (1812, 6, 18, "full")
+
+    def test_iso_datetime_drops_time(self):
+        """ISO datetime 1991-07-12T00:00:00 must parse to (1991, 7, 12, 'full')."""
+        assert _cp134._parse_checklist_date("1991-07-12T00:00:00") == (1991, 7, 12, "full")
+
+    def test_us_month_first_mdy(self):
+        """M/D/YYYY (US month-first) '6/14/1905' must parse to (1905, 6, 14, 'full')."""
+        assert _cp134._parse_checklist_date("6/14/1905") == (1905, 6, 14, "full")
+
+    def test_empty_string_returns_none(self):
+        """Empty string must return (None, None, None, 'none')."""
+        assert _cp134._parse_checklist_date("") == (None, None, None, "none")
+
+    def test_whitespace_only_returns_none(self):
+        """Whitespace-only string must return (None, None, None, 'none')."""
+        assert _cp134._parse_checklist_date("   ") == (None, None, None, "none")
+
+    def test_year_only_returns_year_only(self):
+        """Year-only string '1995' must return (1995, None, None, 'year_only')."""
+        assert _cp134._parse_checklist_date("1995") == (1995, None, None, "year_only")
+
+
+class TestCoordFlag:
+    """Tests for _coord_flag(lat, lon) -> str."""
+
+    def test_none_coords_return_null_coord(self):
+        """None lat/lon must return 'null_coord'."""
+        assert _cp134._coord_flag(None, None) == "null_coord"
+
+    def test_null_lat_only_returns_null_coord(self):
+        """None lat with valid lon must return 'null_coord'."""
+        assert _cp134._coord_flag(None, -122.2272) == "null_coord"
+
+    def test_null_lon_only_returns_null_coord(self):
+        """None lon with valid lat must return 'null_coord'."""
+        assert _cp134._coord_flag(47.3075, None) == "null_coord"
+
+    def test_zero_zero_returns_zero_coord(self):
+        """(0, 0) Gulf-of-Guinea guard must return 'zero_coord' before bbox test."""
+        assert _cp134._coord_flag(0, 0) == "zero_coord"
+
+    def test_in_state_returns_valid(self):
+        """(47.3075, -122.2272) Auburn WA must return 'valid'."""
+        assert _cp134._coord_flag(47.3075, -122.2272) == "valid"
+
+    def test_south_of_wa_returns_out_of_bbox(self):
+        """(40.0, -122.0) is south of WA — must return 'out_of_bbox'."""
+        assert _cp134._coord_flag(40.0, -122.0) == "out_of_bbox"
+
+    def test_boundary_point_is_valid(self):
+        """(45.5, -124.85) exact bbox boundary must return 'valid' (inclusive bounds)."""
+        assert _cp134._coord_flag(45.5, -124.85) == "valid"
 
 
 # ---------------------------------------------------------------------------
