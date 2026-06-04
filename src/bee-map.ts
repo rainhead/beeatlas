@@ -575,6 +575,16 @@ export class BeeMap extends LitElement {
 
   // --- Private helpers ---
 
+  // Drop features whose source the user has unchecked. Applied to the source
+  // DATA (not a layer filter) so mapbox-gl re-clusters without them — a layer
+  // filter can't hide cluster bubbles, which aggregate at the source level.
+  private _visibleBySource(
+    features: FeatureCollection<Point, OccurrenceProperties>['features']
+  ): FeatureCollection<Point, OccurrenceProperties>['features'] {
+    if (this.hiddenSources.size === 0) return features;
+    return features.filter(f => !this.hiddenSources.has(f.properties.source));
+  }
+
   private _applyVisibleIds() {
     if (!this._map || !this._fullGeoJSON) return;
 
@@ -584,14 +594,20 @@ export class BeeMap extends LitElement {
 
     if (this.filteredGeoJSON !== null) {
       // Filter active: visible features come from SQL (no JS filter pass needed)
-      occSource.setData(this.filteredGeoJSON);
-      const ghostFeatures = this._fullGeoJSON.features.filter(
-        f => !this.visibleIds!.has(f.properties.occId)
+      occSource.setData({
+        type: 'FeatureCollection',
+        features: this._visibleBySource(this.filteredGeoJSON.features),
+      });
+      const ghostFeatures = this._visibleBySource(
+        this._fullGeoJSON.features.filter(f => !this.visibleIds!.has(f.properties.occId))
       );
       ghostSource.setData({ type: 'FeatureCollection', features: ghostFeatures });
     } else {
       // No filter active -- restore full data and clear ghost
-      occSource.setData(this._fullGeoJSON);
+      occSource.setData({
+        type: 'FeatureCollection',
+        features: this._visibleBySource(this._fullGeoJSON.features),
+      });
       ghostSource.setData({ type: 'FeatureCollection', features: [] });
     }
 
@@ -624,7 +640,7 @@ export class BeeMap extends LitElement {
       return;
     }
 
-    const features = this._fullGeoJSON.features.filter(f => {
+    const features = this._visibleBySource(this._fullGeoJSON.features).filter(f => {
       const id = f.properties.occId;
       if (!this.selectedOccIds!.has(id)) return false;
       return this.visibleIds === null || this.visibleIds.has(id);
@@ -633,19 +649,12 @@ export class BeeMap extends LitElement {
   }
 
   private _applySourceFilter() {
-    if (!this._map?.getLayer('unclustered-point')) return;
-
-    if (this.hiddenSources.size === 0) {
-      // All sources visible — restore default filter (no source restriction)
-      this._map.setFilter('unclustered-point', ['!', ['has', 'point_count']]);
-    } else {
-      const hidden = [...this.hiddenSources];
-      this._map.setFilter('unclustered-point', [
-        'all',
-        ['!', ['has', 'point_count']],
-        ['!', ['in', ['get', 'source'], ['literal', hidden]]],
-      ]);
-    }
+    // Re-set the source data so clusters AND unclustered points both honor the
+    // hidden-source set. _applyVisibleIds runs _visibleBySource over the data
+    // and re-clusters; _applySelection drops hidden-source points from the
+    // selection overlay.
+    this._applyVisibleIds();
+    this._applySelection();
   }
 
 
