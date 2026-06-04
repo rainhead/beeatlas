@@ -94,7 +94,10 @@ export function runFilter(root: ParentNode, rawQuery: string, showAll: boolean):
       continue;
     }
     const name = (node.dataset.name ?? '').toLowerCase();
-    if (name.includes(query)) {
+    // Match word beginnings only: "fer" hits "Bombus fervidus" but not "Apis
+    // mellifera". The full-name startsWith also lets a multi-word query like
+    // "bombus fer" match "Bombus fervidus".
+    if (name.startsWith(query) || name.split(/\s+/).some((word) => word.startsWith(query))) {
       node.hidden = false;
       openAncestors(node);
       anyVisible = true;
