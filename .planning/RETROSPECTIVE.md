@@ -2,6 +2,36 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v4.6 — Taxonomy Hierarchy & Normalization
+
+**Shipped:** 2026-06-04
+**Phases:** 5 (129–133) | **Plans:** 18 | **Timeline:** ~3 days | **LOC:** ~+4,306 / −2,468 (59 non-planning files)
+
+### What Was Built
+A `taxon_id`-keyed materialized-path taxon hierarchy in `occurrences.db` (two-pass bee + bycatch, zero-orphan assertion, 2.0 ms descendant query); map filtering cut over to descendant-by-any-rank with 8-rank autocomplete and integer `?taxon=` URLs; the occurrences mart normalized (37→33 cols, 7-field `geo_blob`, −14.2% DB, `display_name` JOIN); subfamily/tribe/subgenus pages added off the `higher_taxa` rollup; and the flat `/species` index replaced by an expandable bee-only `<details>` browse tree (toggle + localStorage, type-to-filter with ancestor auto-expand, count splits, page/map links). 20/20 requirements; audit passed.
+
+### What Worked
+- **Additive-then-subtractive sequencing** (Phase 130 filter cutover before Phase 131 column drop) meant the hierarchy read-path was exercised in production before the risky normalization — no broken intermediate state, and the geo_blob positional-coupling risk was de-risked.
+- **The benchmark-gates-structure discipline** in Phase 129 (decide materialized-path vs nested-set by a 50 ms latency test before finalizing schema) avoided premature commitment; the simplest structure won on measured evidence.
+- **Code review caught what verification missed.** The Phase 133 human-verify approved a feature that was actually broken; the code-review gate (run against the built HTML) found the `display:none` default-view bug and the source-grep tests that masked it.
+
+### What Was Inefficient
+- **Phase 133 needed a full gap-closure cycle + three operator re-verify rounds** after the checkpoint was prematurely approved — the rework (broken default view, missing disclosure affordance, toggle reflow, a `[hidden]`-vs-`display:flex` specificity bug, species outdent) all surfaced post-"done".
+- **Tests that don't execute the behavior are worse than no tests** — they create false confidence. The original `species-index.test.ts` asserted source strings (including the exact `.open = true` line that failed) and stayed green while the page was broken.
+
+### Patterns Established
+- **happy-dom executable tests for plain-DOM client logic** — extract behavior into a pure module (`src/species-tree.ts`, no CSS/custom-element imports) and test toggle/filter/reset against a constructed DOM; reserve human-verify for what has no layout engine (CSS rendering).
+- **`display:contents` for "skip a wrapper rank but keep its descendants"** — the correct primitive for collapsing an intermediate `<details>` without burying its subtree.
+- **Canonical integer `?taxon=<id>` deep-links from static pages**, with legacy name+rank parsed as fallback.
+
+### Key Lessons
+- Treat a UI human-verify checkpoint as **inconclusive until the code review and an executable test agree** — a quick visual pass (especially with a toggle left in a non-default state) can miss a broken default.
+- When a test guards a security/behavior invariant, assert the **sink/effect**, not a substring that can appear in a comment (the `innerHTML`/`.open` false-positive pattern bit twice this milestone).
+
+### Cost Observations
+- Model mix: orchestration + gap closure on Opus; executors/verifier/reviewer on Sonnet.
+- Notable: the Phase 133 gap closure (4 fix commits + 3 re-verify rounds) cost more than the original phase execution — front-loading an executable test in Wave 0 would have caught all three blockers before the checkpoint.
+
 ## Milestone: v4.5 — iNat Taxonomy & Species Completeness
 
 **Shipped:** 2026-06-01
