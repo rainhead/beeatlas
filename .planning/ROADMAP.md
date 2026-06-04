@@ -751,7 +751,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 **Wave 1**
-- [ ] 134-01-PLAN.md — Commit source CSV (LFS) + add dateparser/pygbif/rapidfuzz to pyproject.toml; verify install on Python 3.14 [ING-01]
+- [x] 134-01-PLAN.md — Commit source CSV (LFS) + add dateparser/pygbif/rapidfuzz to pyproject.toml; verify install on Python 3.14 [ING-01]
 **Wave 2** *(blocked on Wave 1)*
 - [ ] 134-02-PLAN.md — New _load_checklist_records_full() loader: coord_flag validation + y/m/d/date_quality date normalization + pytest [ING-01, ING-02, ING-03]
 
@@ -958,7 +958,7 @@ Plans:
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 133. Browse Tree | v4.6 | 4/4 | Complete | 2026-06-03 |
-| 134. Full-Fidelity Ingest | v4.7 | 0/TBD | Not started | - |
+| 134. Full-Fidelity Ingest | v4.7 | 1/2 | In Progress|  |
 | 135. Name Reconciliation | v4.7 | 0/TBD | Not started | - |
 | 136. Deduplication | v4.7 | 0/TBD | Not started | - |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
