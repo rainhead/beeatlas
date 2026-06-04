@@ -30,11 +30,11 @@ function hslToHex(h: number, s: number, l: number): string {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('_data/species.js (PAGE-02)', () => {
-  test('exports { tree, flat, byScientificName }', () => {
+  test('exports { flat, byScientificName, fullTree }', () => {
     expect(Array.isArray((species as any).flat)).toBe(true);
     expect((species as any).flat.length).toBeGreaterThan(0);
     expect(typeof (species as any).byScientificName).toBe('object');
-    expect(typeof (species as any).tree).toBe('object');
+    expect(Array.isArray((species as any).fullTree)).toBe(true);
   });
 
   test('flat is sorted alphabetically by scientificName (D-01)', () => {
