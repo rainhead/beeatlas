@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: planning
+status: executing
 stopped_at: Phase 134 context gathered
-last_updated: "2026-06-04T17:00:43.648Z"
-last_activity: 2026-06-04 — Milestone v4.7 roadmap created (Phases 134–138)
+last_updated: "2026-06-04T17:16:53.893Z"
+last_activity: 2026-06-04 -- Phase 134 execution started
 progress:
   total_phases: 16
   completed_phases: 0
-  total_plans: 0
+  total_plans: 2
   completed_plans: 0
   percent: 0
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 roadmap defined)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v4.7 — promote Bartholomew et al. 2024 checklist records from county-fill to real map points with full-fidelity coordinates, date, collector, locality, and cross-source dedup
+**Current focus:** Phase 134 — full-fidelity-ingest
 
 ## Current Position
 
-Phase: 134 (not started — roadmap defined, awaiting plan-phase)
-Plan: —
-Status: Roadmap defined; ready for Phase 134 planning
-Last activity: 2026-06-04 — Milestone v4.7 roadmap created (Phases 134–138)
+Phase: 134 (full-fidelity-ingest) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 134
+Last activity: 2026-06-04 -- Phase 134 execution started
 
 Progress: [----------] 0% (0/5 phases complete)
 
