@@ -87,11 +87,18 @@ describe('_pages/species.njk (Phase 133 — tree index, TREE-01/02/04)', () => {
     expect(src).toContain('node-counts');
   });
 
-  test('map affordance: contains taxonRank= and aria-label="Map: and world map glyph', () => {
+  test('map affordance: contains taxonRank=, aria-label="Map:, and the word "Map" as link text (no emoji glyph)', () => {
     const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
     expect(src).toContain('taxonRank=');
     expect(src).toMatch(/aria-label="Map:/);
-    expect(src).toContain('\u{1F5FA}');
+    expect(src).toMatch(/occurrences">Map<\/a>/);
+    expect(src).not.toContain('\u{1F5FA}');
+  });
+
+  test('counts are quantified into words (quantify filter), not bare numbers', () => {
+    const src = readFileSync(resolve(ROOT, '_pages/species.njk'), 'utf-8');
+    expect(src).toContain('quantify("specimen")');
+    expect(src).toContain('quantify("community observation")');
   });
 
   test('family is plain text: family-rank summary uses span.node-name (no <a>) for name, not a link', () => {

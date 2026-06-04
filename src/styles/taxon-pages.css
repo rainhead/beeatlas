@@ -232,7 +232,7 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   color: var(--text-muted, #666);
 }
 
-/* Map affordance (world-map glyph): muted by default; expanded tap target via negative margin */
+/* Map affordance ("Map" text link): muted by default; expanded tap target via negative margin */
 .species-index .node-map {
   flex: 0 0 auto;
   font-size: 0.85rem;
