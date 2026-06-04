@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: planning
-last_updated: "2026-06-04T04:52:00.741Z"
+last_updated: "2026-06-04T05:00:00.000Z"
 last_activity: 2026-06-04
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,39 +17,71 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete)
+See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 roadmap defined)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone (v4.6 shipped 2026-06-04)
+**Current focus:** v4.7 — promote Bartholomew et al. 2024 checklist records from county-fill to real map points with full-fidelity coordinates, date, collector, locality, and cross-source dedup
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 134 (not started — roadmap defined, awaiting plan-phase)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-04 — Milestone v4.7 started
+Status: Roadmap defined; ready for Phase 134 planning
+Last activity: 2026-06-04 — Milestone v4.7 roadmap created (Phases 134–138)
+
+Progress: [----------] 0% (0/5 phases complete)
+
+## Milestone Overview
+
+**v4.7 Checklist Records as Point Data — Phases 134–138**
+
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 134 | Full-Fidelity Ingest | ING-01, ING-02, ING-03 | Not started |
+| 135 | Name Reconciliation | RCN-01..07 | Not started |
+| 136 | Deduplication | DUP-01, DUP-02, DUP-03 | Not started |
+| 137 | Promotion into Occurrences | PRO-01, PRO-02, PRO-03, PRO-04 | Not started |
+| 138 | Frontend Points & Detail Card | UIX-01, UIX-02, UIX-03, UIX-04 | Not started |
+
+**Coverage:** 21/21 requirements mapped (ING-01..03, RCN-01..07, DUP-01..03, PRO-01..04, UIX-01..04)
 
 ## Accumulated Context
 
 ### Decisions
 
-v4.6 decisions are archived: full Key Decisions table in PROJECT.md, milestone roadmap in `.planning/milestones/v4.6-ROADMAP.md`. No carry-forward decisions block needed for the next milestone.
+**v4.7 architectural decisions (recorded at roadmap creation):**
+
+- **Human-review gates at Phases 135 and 136**: Phase 136 must not start until the curator reviews `checklist_name_resolution_audit.csv` and promotes GBIF/ITIS matches into `occurrence_synonyms.csv`. Phase 137 must not start until the curator reviews `dedup_candidate_pairs.csv` and marks confirmed duplicates. These gates exist because taxonomic over-matching and dedup false-merge are the two credibility-critical failure modes for a scientific atlas.
+- **External authority is build-time-only**: GBIF and ITIS are consulted once via `checklist_resolution.py` (not part of `run.py`/`nightly.sh`); results baked into a committed DuckDB cache; nightly makes zero taxonomy network calls.
+- **Dedup preference: false-split over false-merge**: For a scientific atlas, displaying a record twice (false split) is recoverable by users; suppressing a distinct specimen (false merge) is not. The conservative cross-source flag requires exact canonical_name + non-year-only date + coordinates within ~1 km + normalized collector (all four AND; NULL on any field = ineligible).
+- **Phase 137 atomic commit**: `sqlite_export._GEO_COLS` and `src/features.ts` column indices are positionally coupled and not type-checked. They must ship as one commit. A one-position slip produces silent data corruption for every row in the database.
+- **Phase 111 isolation test retirement**: The existing pytest asserting checklist exclusion from `occurrences.parquet` must be explicitly replaced (not skipped, not deleted) with a new assertion that `source='checklist'` rows exist, with a comment referencing the v4.7 reversal.
+- **dbt contract bump**: 33 → 34 columns minimum (adds `checklist_id INTEGER`). ARMs 1–3 must cast `NULL::INTEGER AS checklist_id` in `int_combined` to avoid DuckDB UNION type errors.
+- **County-fill layer removal**: The Phase 112 `checklist-county-fill` Mapbox layer is removed from the main map in Phase 138. The static `checklist.parquet` mart (county presence) is unchanged and continues to feed species-page county SVG maps.
+- **`locality` column decision deferred to Phase 138**: Whether `locality` becomes a 35th contract column (vs. supplementary lookup) will be decided during Phase 138 planning to avoid premature contract commitment.
 
 ### Roadmap Evolution
 
-v4.6 (Phases 129–133) shipped 2026-06-04 — see `.planning/milestones/v4.6-ROADMAP.md`.
+v4.7 roadmap defined 2026-06-04: 5 phases (134–138), 21/21 requirements mapped.
+
+Research context: `.planning/research/SUMMARY.md` (HIGH confidence), `.planning/research/ARCHITECTURE.md`, `.planning/research/PITFALLS.md`
+
+Source CSV confirmed present: `/home/peter/final_checklist_records.csv` (50,646 rows). First task of Phase 134 is committing it to `data/checklists/`.
 
 ### Pending Todos
 
-None.
+- Verify `dateparser` Python 3.14 compatibility via `uv add dateparser` before committing to `data/pyproject.toml` (Phase 134 start task)
+- Confirm ITIS SQLite file size before deciding caching strategy on maderas (Phase 135 start task)
+- Confirm DuckDB `jaro_winkler_similarity()` exact function name in >=1.4 before writing `int_checklist_dedup.sql` (Phase 136 start task)
+- Decide `locality` column placement in dbt contract (Phase 138 planning)
 
 ### Blockers/Concerns
 
-None open. All v4.6 phase concerns (Phase 129 hierarchy-structure question; Phase 131 grep audit + geo_blob positional coupling) were resolved during execution — the geo_blob 7-field layout is verified matching between `sqlite_export.py` and `features.ts`.
+None open. Human-review gates at Phases 135 and 136 are expected workflow steps, not blockers.
 
 ## Deferred Items
 
-Acknowledged at v4.6 milestone close (2026-06-04) — 28 open items, all pre-existing / non-blocking, deferred to backlog (none are v4.6 scope gaps):
+Carried forward from v4.6 milestone close (2026-06-04) — 28 open items, all pre-existing / non-blocking:
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -64,8 +96,6 @@ Acknowledged at v4.6 milestone close (2026-06-04) — 28 open items, all pre-exi
 | verification | Phase 110 / 111 / 113 VERIFICATION.md | human_needed (v4.0 phases) |
 | uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (v4.0) |
 
-*(The audit's 1 "UAT gap" was Phase 130 with status `passed` / 0 open scenarios — a false positive, not deferred.)*
-
 ## Quick Tasks Completed
 
 | Date | Slug | Description |
@@ -77,10 +107,10 @@ Acknowledged at v4.6 milestone close (2026-06-04) — 28 open items, all pre-exi
 
 ## Session Continuity
 
-Last session: 2026-06-04 — executed Phase 133, gap closure, milestone v4.6 audit + close
-Stopped at: Milestone v4.6 complete and archived
-Resume file: — (start next milestone via /gsd:new-milestone)
+Last session: 2026-06-04 — v4.7 roadmap created (Phases 134–138); v4.6 complete and archived
+Stopped at: Roadmap defined; Phase 134 plan not yet started
+Resume file: — (run `/gsd:plan-phase 134` to begin)
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Run `/gsd:plan-phase 134` to plan Phase 134: Full-Fidelity Ingest
