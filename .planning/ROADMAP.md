@@ -469,7 +469,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 
 ### v4.7 Checklist Records as Point Data (Phases 134–138) — IN PROGRESS
 
-- [ ] **Phase 134: Full-Fidelity Ingest** - Commit source CSV, extend pipeline for all columns, coordinate validation, date normalization
+- [x] **Phase 134: Full-Fidelity Ingest** - Commit source CSV, extend pipeline for all columns, coordinate validation, date normalization (completed 2026-06-04)
 - [ ] **Phase 135: Name Reconciliation** - Authority/whitespace normalize; tiered resolver; audit CSV; fuzzy human-review gate; slash-compound LCA; synonym unification; homonym guard
 - [ ] **Phase 136: Deduplication** - Collapse internal dupes; cross-source candidate flagging vs Ecdysis; human sign-off gate
 - [ ] **Phase 137: Promotion into Occurrences** - checklist ARM in int_combined; dbt contract bump; Phase 111 test retirement; atomic geo_blob + features.ts deploy
@@ -753,7 +753,7 @@ Plans:
 **Wave 1**
 - [x] 134-01-PLAN.md — Commit source CSV (LFS) + add dateparser/pygbif/rapidfuzz to pyproject.toml; verify install on Python 3.14 [ING-01]
 **Wave 2** *(blocked on Wave 1)*
-- [ ] 134-02-PLAN.md — New _load_checklist_records_full() loader: coord_flag validation + y/m/d/date_quality date normalization + pytest [ING-01, ING-02, ING-03]
+- [x] 134-02-PLAN.md — New _load_checklist_records_full() loader: coord_flag validation + y/m/d/date_quality date normalization + pytest [ING-01, ING-02, ING-03]
 
 ### Phase 135: Name Reconciliation
 
@@ -958,7 +958,7 @@ Plans:
 | 131. Occurrence Normalization | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 133. Browse Tree | v4.6 | 4/4 | Complete | 2026-06-03 |
-| 134. Full-Fidelity Ingest | v4.7 | 1/2 | In Progress|  |
+| 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete   | 2026-06-04 |
 | 135. Name Reconciliation | v4.7 | 0/TBD | Not started | - |
 | 136. Deduplication | v4.7 | 0/TBD | Not started | - |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
