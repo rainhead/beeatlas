@@ -29,6 +29,7 @@ layout: default.njk
     </ul>
   </div>
   {%- if tribe.taxon_id -%}
+  <a class="taxon-action" href="/?taxon={{ tribe.taxon_id }}">View on atlas →</a>
   <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ tribe.taxon_id }}">View on iNaturalist →</a>
   {%- endif -%}
 </article>

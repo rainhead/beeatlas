@@ -36,6 +36,7 @@ layout: default.njk
     </ul>
   </div>
   {%- if genus.taxon_id -%}
+  <a class="taxon-action" href="/?taxon={{ genus.taxon_id }}">View on atlas →</a>
   <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ genus.taxon_id }}">View on iNaturalist →</a>
   {%- endif -%}
 </article>
