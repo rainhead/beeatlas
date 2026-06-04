@@ -1,5 +1,25 @@
 # Milestones
 
+## v4.6 Taxonomy Hierarchy & Normalization (Shipped: 2026-06-04)
+
+**Phases completed:** 5 phases (129–133), 18 plans, 25 tasks
+**Timeline:** ~3 days (2026-06-01 → 2026-06-04)
+**Requirements:** 20/20 complete (HIER-01..06, MFILT-01..03, NORM-01..03, PAGE-01..04, TREE-01..04)
+**Audit:** passed (`.planning/milestones/v4.6-MILESTONE-AUDIT.md`)
+**Known deferred items at close:** 28 (see STATE.md → Deferred Items; all pre-existing/non-blocking)
+
+**Key accomplishments:**
+
+- **Phase 129 — Hierarchy foundation:** a query-ready taxon_id hierarchy (materialized `lineage_path`) built into `occurrences.db` via a two-pass bee + bycatch load with a zero-orphan assertion; Apidae descendant query benchmarked at 2.0 ms (Firefox), far under the 50 ms gate.
+- **Phase 130 — Map filter cutover:** frontend filtering switched to `taxon_id` with descendant-by-any-rank matching (`instr(lineage_path, '/N/')`), 8-rank autocomplete, and integer `?taxon=` URLs with backward-compatible legacy-name resolution.
+- **Phase 131 — Occurrence normalization:** dropped the 4 denormalized rank-string columns (dbt occurrences contract 37→33 cols), rewrote `geo_blob` to a 7-field positional layout (−14.2% DB size), and moved display names to a query-time taxa JOIN.
+- **Phase 132 — Page rebuild & subfamily pages:** rebuilt species/genus pages off the `higher_taxa` rollup and added 12 `/species/subfamily/{Name}/` pages (plus tribe/subgenus) with genus-colored SVG maps and a slug-collision hard-fail.
+- **Phase 133 — Browse tree:** replaced the flat species index with an expandable bee-only `<details>` taxonomy tree — default family→genus→species, "Show all ranks" toggle (localStorage), type-to-filter with ancestor auto-expand, per-node specimen/observation count splits, and taxon-page + filtered-map links.
+
+**Notable:** Phase 133 went through a code-review-driven gap closure — the reviewer caught a default view broken by `display:none` burying nested ranks (and source-grep tests that passed while the feature was broken). Fixed with a `display:contents` rank-skip, executable happy-dom tests, and three operator re-verify rounds. Post-audit, the operator also added taxon-page→map links, removed two orphaned modules, and recorded Phase 133 Nyquist validation.
+
+---
+
 ## v4.5 iNat Taxonomy & Species Completeness (Shipped: 2026-06-01)
 
 **Phases completed:** 5 phases (124–128), 8 plans

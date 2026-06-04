@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.6
 milestone_name: Taxonomy Hierarchy & Normalization
-status: phase_complete
-stopped_at: Phase 133 complete (browse tree) — milestone v4.6 all phases done
-last_updated: "2026-06-03T20:30:00.000Z"
-last_activity: 2026-06-03 -- Phase 133 verified complete (gap closure + human-verify approved)
+status: Awaiting next milestone
+stopped_at: Milestone v4.6 complete and archived
+last_updated: "2026-06-04T00:24:50.481Z"
+last_activity: 2026-06-04 — Milestone v4.6 completed and archived
 progress:
   total_phases: 5
   completed_phases: 5
@@ -18,59 +18,27 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-01 — milestone v4.6 started)
+See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 133 complete — milestone v4.6 ready to close
+**Current focus:** Planning next milestone (v4.6 shipped 2026-06-04)
 
 ## Current Position
 
-Phase: 133 (browse-tree) — COMPLETE & VERIFIED
-Plan: 4 of 4 complete
-Status: Phase 133 verified (TREE-01..04, 4/4 must-haves). Milestone v4.6 all 5 phases complete.
-Last activity: 2026-06-03 -- Phase 133 verified complete (gap closure + human-verify approved)
-
-```
-Progress: [██████████] 100%
-```
+Phase: Milestone v4.6 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-04 — Milestone v4.6 completed and archived
 
 ## Accumulated Context
 
 ### Decisions
 
-All v4.5 decisions logged in `.planning/milestones/v4.5-ROADMAP.md` and PROJECT.md Key Decisions table.
-
-**v4.6 Roadmap decisions (2026-06-01):**
-
-- Phases 129–133 continue the v4.5 numbering (v4.5 ended at Phase 128)
-- NORM and MFILT are now separate phases (130 and 131) in additive-then-subtractive order: the frontend switches to taxon_id filtering first (Phase 130, additive — old string columns still exist and are ignored), then the old columns are dropped (Phase 131, subtractive — safe because the frontend no longer reads them). Atomicity / safe-intermediate-states is explicitly not a concern this milestone.
-- Phase 130 is the first frontend change; it is additive (the denormalized columns still exist). No broken intermediate state is possible.
-- Phase 131 is the column-drop. The grep audit and geo_blob rewrite happen here. This is lower risk than the fused approach because Phase 130 already exercises the hierarchy path in production.
-- Phase 132 (Page Rebuild & Subfamily Pages) depends on Phase 129 (hierarchy foundation) only — the species mart is unaffected by the occurrences column drop in Phase 131, so Phase 132 can be planned independently of Phase 131.
-- Phase 133 (Browse Tree) depends on Phase 130 (filter infrastructure) and Phase 132 (subfamily pages as link destinations).
-- Hierarchy structure (closure table vs. nested sets) decided in Phase 129 via latency benchmark: Apidae descendants filter in wa-sqlite/Firefox must be < 50 ms. If over, use nested-set lft/rgt.
-- Bycatch handled via two-pass hierarchy load: (1) full Anthophila walk as usual, (2) targeted ancestry walk for bycatch taxon_ids actually present in occurrences.parquet. Bycatch gets is_anthophila=0 flag; appears in hierarchy for name resolution only.
-- canonical_name is kept in the occurrences contract — it is the sole textual taxon reference for the ~21k genuinely-unidentified Ecdysis specimens (NULL taxon_id).
-- species mart keeps its rank name columns (family, subfamily, tribe, genus, subgenus) — they serve page generation via Eleventy and are not a transfer-weight concern.
-- PAGE-05 (complex pages) is conditional: decided in Phase 129 based on complex-rank occurrence count. If < ~50 occurrences, complex nodes deep-link to filtered map view instead.
-- URL param `taxon=` migrates from name string to integer taxon_id in Phase 130; old name-format URLs get a backward-compatible fallback parse.
-- [Phase ?]: taxonId integer SQL interpolation
-- [Phase 130 Plan 02]: buildTaxonLabel/RANK_ORDER/buildTaxonOptions extracted to src/taxa.ts as pure stateless helpers
-- [Phase 130 Plan 02]: ParsedParams type adds optional pendingLegacyTaxon for D-06 two-phase legacy URL back-compat
-- [Phase 130 Plan 02]: _resolveLegacyTaxon handles cache-ready and cache-pending cases with rank-based twin disambiguation
-- [Phase 130 Plan 02]: D-01 enumeration uses ancestry-expansion form (DISTINCT taxon_ids + lineage_path walk) vs 10-second EXISTS form
-- [Phase ?]: Wave 0 RED tests pin 7-field geo_blob layout and display_name JOIN before source changes
-- [Phase 131 Plan 04]: NORM-02 size win recorded — occurrences.db 26.7→22.9 MB (−14.2% bytes, −9.5% gzip), 37→33 cols, geo_blob 10→7 fields, row count unchanged (77,744). D-05 honored: no automated size gate.
-- [Phase 131 Plan 04]: Human-verify APPROVED 2026-06-03. Dev-mode load timing (658 ms boot / 1150 ms data-loaded) is NOT comparable to ~250 ms v4.3 prod baseline; change cannot regress boot path (D-08 — taxa JOIN + lazy cache off boot path, smaller DB). Prod apples-to-apples figure is an optional follow-up.
-- [Phase 131 Plan 04]: Verify gate caught ambiguous `taxon_id` after the 131-02 taxa JOIN; fixed in 01acf1e (buildFilterSQL emits o.taxon_id; consumers alias `occurrences o`); added execution-level filter-join-execution.test.ts (node:sqlite, two-table schema) to close the string-only-test gap.
+v4.6 decisions are archived: full Key Decisions table in PROJECT.md, milestone roadmap in `.planning/milestones/v4.6-ROADMAP.md`. No carry-forward decisions block needed for the next milestone.
 
 ### Roadmap Evolution
 
-- Phase 129: Hierarchy Foundation — starting point for v4.6
-- Phase 130: Map Filter Cutover (MFILT-01..03) — additive frontend switch to taxon_id filtering
-- Phase 131: Occurrence Normalization (NORM-01..03) — subtractive column drop, safe after Phase 130
-- Phase 132: Page Rebuild & Subfamily Pages (PAGE-01..04) — depends on 129; independent of 131
-- Phase 133: Browse Tree (TREE-01..04) — depends on 130 and 132
+v4.6 (Phases 129–133) shipped 2026-06-04 — see `.planning/milestones/v4.6-ROADMAP.md`.
 
 ### Pending Todos
 
@@ -78,19 +46,26 @@ None.
 
 ### Blockers/Concerns
 
-- Phase 129 has one open technical question: hierarchy structure (closure vs. nested sets). Resolved by latency benchmark at the start of Phase 129 planning before any schema is finalized.
-- Phase 131 requires a pre-migration grep audit across src/, data/, _pages/ before any column is removed. The geo_blob positional coupling between sqlite_export.py and features.ts is the highest-risk surface (silent wrong data on mismatch, not a thrown error). Risk is lower than originally modeled because Phase 130 will have already exercised the hierarchy read-path in production.
+None open. All v4.6 phase concerns (Phase 129 hierarchy-structure question; Phase 131 grep audit + geo_blob positional coupling) were resolved during execution — the geo_blob 7-field layout is verified matching between `sqlite_export.py` and `features.ts`.
 
 ## Deferred Items
 
-Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
+Acknowledged at v4.6 milestone close (2026-06-04) — 28 open items, all pre-existing / non-blocking, deferred to backlog (none are v4.6 scope gaps):
 
 | Category | Item | Status |
 |----------|------|--------|
+| quick_tasks | 22 legacy quick-task dirs | scanner cruft (empty dates, missing completion marker) |
+| todo | cluster-selection-visual-feedback | medium (frontend, unrelated) |
+| todo | data-test-suite-environmental-deps | medium (pre-existing pytest env deps) |
+| todo | genus-page-subgenera-breakout | medium (captured in Phase 132 verify) |
+| todo | pluralization-sweep-web-copy | low |
+| todo | table-rank-column | low (captured in Phase 131 verify) |
+| nyquist | Phases 129 / 131 / 132 partial Nyquist | accepted — phases shipped + verified |
+| security | Phase 133 SECURITY.md | not generated — threats T-133-07/08/09 mitigated + verified in code; `/gsd:secure-phase 133` to formalize |
 | verification | Phase 110 / 111 / 113 VERIFICATION.md | human_needed (v4.0 phases) |
 | uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (v4.0) |
-| todo | cluster-selection-visual-feedback | medium priority (frontend, unrelated) |
-| quick_tasks | 22 legacy quick-task dirs | missing completion marker (scanner cruft, empty dates) |
+
+*(The audit's 1 "UAT gap" was Phase 130 with status `passed` / 0 open scenarios — a false positive, not deferred.)*
 
 ## Quick Tasks Completed
 
@@ -103,12 +78,10 @@ Carried from v4.5 milestone close (all pre-existing, not v4.5 deliverables):
 
 ## Session Continuity
 
-Last session: 2026-06-03T19:00:16.402Z
-Stopped at: Phase 133 UI-SPEC approved
-Resume file: .planning/phases/133-browse-tree/133-UI-SPEC.md
+Last session: 2026-06-04 — executed Phase 133, gap closure, milestone v4.6 audit + close
+Stopped at: Milestone v4.6 complete and archived
+Resume file: — (start next milestone via /gsd:new-milestone)
 
 ## Operator Next Steps
 
-- Run `/gsd:plan-phase 129` to plan and execute Phase 129 (Hierarchy Foundation)
-- First task in Phase 129: latency benchmark for descendant query in wa-sqlite (Apidae family, ~4000 species) — this gates the hierarchy structure decision
-- Second task: count complex-rank occurrences/species to decide on PAGE-05 (complex pages)
+- Start the next milestone with /gsd-new-milestone
