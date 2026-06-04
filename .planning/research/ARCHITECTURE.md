@@ -1,573 +1,566 @@
 # Architecture Research
 
-**Domain:** BeeAtlas v4.6 — Taxonomy Hierarchy & Normalization
-**Researched:** 2026-06-01
+**Domain:** BeeAtlas v4.7 — Checklist Records as Point Data (integration into existing pipeline)
+**Researched:** 2026-06-03
 **Confidence:** HIGH — all findings from direct codebase inspection
 
 ---
 
-## Current State Inventory (v4.5 Baseline)
-
-### Existing Taxon Infrastructure (what v4.6 extends)
+## Build-Order DAG
 
 ```
-taxa.csv.gz (iNat Open Data S3, ~37 MB gzipped TSV)
-    ↓ taxa_pipeline.load_taxon_lineage_extended
-inaturalist_data.taxon_lineage_extended
-    columns: taxon_id BIGINT, family, subfamily, tribe, genus, subgenus VARCHAR
-    scope:   ALL active Anthophila (bees only — monophyletic via ANTHOPHILA_ID=630955)
-    note:    ancestry string discarded after PIVOT; no rank column; no species rows
-
-stg_inat__genus_taxon_ids  (dbt VIEW, reads taxa.csv.gz directly)
-    columns: genus_name VARCHAR (lowercase, unique within Animalia), taxon_id INTEGER
-    scope:   ALL active Animalia genera (bees + wasp/fly bycatch)
-    purpose: genus-rank taxon_id backfill in int_combined ARM 1/2/3 (Phase 128)
-
-stg_inat__canonical_to_taxon_id (dbt VIEW over inaturalist_data.canonical_to_taxon_id)
-    columns: canonical_name VARCHAR (PK), taxon_id INTEGER, resolved_at, source
-    scope:   species-level bridge populated by resolve_taxon_ids.py (iNat API calls)
-    purpose: canonical_name → taxon_id for species-level occurrences
+[existing] checklist step
+    data/checklist_pipeline.py::load_checklist()
+    [MODIFIED] load full-fidelity TSV (lat/lon/date/recordedBy/locality)
+               into checklist_data.checklist_records_full
+               (existing checklist_records 4-col table preserved for county-fill mart)
+                 ↓
+[new optional] checklist-itis-reconcile step
+    data/checklist_itis_reconcile.py  (run on demand, not nightly)
+    writes reconciled entries to data/dbt/seeds/occurrence_synonyms.csv
+    (baked + committed for offline reproducibility)
+                 ↓
+[existing] resolve-taxon-ids step
+    data/resolve_taxon_ids.py::resolve_taxon_ids()
+    _names_to_resolve() already UNIONs checklist_data.species — NO CHANGE
+    new checklist_records_full canonical_names added to this union
+                 ↓
+[existing] resolution-gate  →  inactive-remap  →  inactive-gate
+    No changes
+                 ↓
+[existing] dbt-build step
+    data/dbt/run.sh build
+    ├── [unchanged] stg_checklist__species
+    │       (county-fill mart input; already applies int_synonyms)
+    ├── [NEW] stg_checklist__records_full.sql
+    │       reads checklist_data.checklist_records_full
+    │       applies int_synonyms synonym JOIN
+    │       joins stg_inat__canonical_to_taxon_id for taxon_id
+    │       excludes ~9% no-coord rows (WHERE lat IS NOT NULL AND lon IS NOT NULL)
+    │       emits verbatim fields: recordedBy, locality, date, year, month
+    ├── [NEW] int_checklist_dedup.sql
+    │       LEFT JOIN against int_ecdysis_base on fuzzy key
+    │       (ROUND(lat,2), ROUND(lon,2), year, month, canonical_name, lower(recordedBy))
+    │       emits only non-duplicate checklist rows
+    ├── [MODIFIED] int_combined.sql
+    │       adds ARM 4: UNION ALL from int_checklist_dedup
+    │       must emit every existing column + new checklist_id column (see ID section)
+    ├── [unchanged] occurrences.sql mart
+    │       spatial joins (county/ecoregion/place) run unchanged over extended int_combined
+    └── [unchanged] checklist.sql mart
+            county-fill mart stays; reads checklist_records (4-col) and species_counties
+                 ↓
+[existing] generate-sqlite step
+    data/sqlite_export.py::generate_sqlite()
+    [MODIFIED] _GEO_COLS: add checklist_id as slot 7 (after source)
+    schema derives from parquet — checklist rows flow through automatically
+    _assert_no_orphan_taxon_ids validates checklist taxon_ids (auto-covered)
+    taxa hierarchy build already seeds checklist.parquet taxon_ids; checklist
+    occurrences now also flow through out.occurrences for the same seeding
+                 ↓
+[frontend] source key extension
+    src/url-state.ts: add 'checklist' to SourceKey + VALID_SOURCES
+    src/filter.ts: add 'checklist' to OccurrenceRow.source union
+    src/features.ts: add checklist_id decode at row[7]; emit checklist:<N> occId
+    src/occurrence.ts: parseOccId recognizes 'checklist' prefix
+    src/bee-occurrence-detail.ts: new source='checklist' detail branch
 ```
-
-### Current occurrences Contract (37 columns, enforced by dbt schema.yml)
-
-Columns that carry redundant taxon text strings scheduled for removal in v4.6:
-- `scientificName` VARCHAR — ecdysis DarwinCore field; NULL for ARM 2 provisional, ARM 3 iNat obs
-- `genus` VARCHAR — present in ARM 1 ecdysis, ARM 2 provisional (specimen_inat_genus); NULL in ARM 3
-- `family` VARCHAR — present in ARM 1 ecdysis, ARM 2 provisional (specimen_inat_family); NULL in ARM 3
-- `canonical_name` VARCHAR — normalized binomial (post-synonymy resolution); foundation for taxon_id join
-- `specimen_inat_taxon_name` VARCHAR — raw iNat text from WABA observer; superseded by taxon_id
-- `specimen_inat_genus` VARCHAR — redundant with genus for ARM 2 rows
-- `specimen_inat_family` VARCHAR — redundant with family for ARM 2 rows
-
-Columns that STAY (non-taxon-name data with other purposes):
-- `taxon_id INTEGER` — already present (Phase 128 TID-02); the v4.6 resolution key
-- `source` VARCHAR — ecdysis/waba_sample/inat_obs discriminator; needed for rendering
-- `canonical_name` — **keep**: used as the join key for taxon lookup; also the display fallback
-  for the ~21k unidentified ecdysis rows that carry NULL taxon_id
-
-Note on `canonical_name` removal: it is the sole text identifier for unidentified rows
-(NULL taxon_id) and the join key for taxon→name resolution. It cannot be dropped until
-every occurrence row that needs a name has a non-null taxon_id, which is not achievable
-for the ~21k truly-unidentified Ecdysis specimens. Keep `canonical_name` in the contract.
-
-### geo_blob Column Layout (load-bearing for frontend)
-
-`sqlite_export.py` pre-serializes this fixed column list into `geo_blob.data`:
-```
-[lat, lon, ecdysis_id, observation_id, specimen_observation_id,
- year, scientificName, genus, family, source]
-```
-`features.ts._buildGeoJSONFromRaw` reads these by positional index (row[6]=scientificName,
-row[7]=genus, row[8]=family). These columns are used to:
-1. Build `taxaOptions` (family/genus/species Set deduplication → autocomplete)
-2. Build the GeoJSON features array with `occId` and `recencyTier`
-
-When `genus` and `family` are dropped from `occurrences`, this column list must change.
-The geo_blob is the tightest coupling point between the pipeline column contract and the
-frontend — it is not validated by TypeScript types, only by positional array access.
-
-### Current Filter Execution Path
-
-```
-User selects taxon → FilterState.{taxonName, taxonRank}
-    ↓ buildFilterSQL (filter.ts)
-SQL WHERE clause:
-    family = 'Halictidae'          (taxonRank='family')
-    genus = 'Bombus'               (taxonRank='genus')
-    scientificName = 'Bombus griseocollis'  (taxonRank='species')
-    ↓ sqlite3.exec on occurrences table in MemoryVFS
-Set<occId>  →  Mapbox style callback Set.has()
-```
-
-The `buildFilterSQL` taxon branch (filter.ts lines 232-240) directly uses the string columns
-`family`, `genus`, `scientificName`. All three must be replaced by taxon_id-keyed descendant
-queries against a hierarchy table to unlock sub-family/tribe/subgenus filtering.
 
 ---
 
-## The New Taxon Hierarchy: What It Is and Where It Lives
+## Name Reconciliation: Unifying Two Disjoint Paths
 
-### Structure Decision: Closure Table in occurrences.db
+### The Problem
 
-A closure table (one row per ancestor-descendant pair) is the correct structure for this
-architecture because:
+Two parallel synonym paths exist today and must be converged for v4.7:
 
-1. **wa-sqlite queries are SQL without recursive CTEs.** SQLite supports `WITH RECURSIVE`
-   but it requires wa-sqlite's exec path to run multi-statement queries, and performance
-   is unpredictable in WASM at ~92k occurrence rows × recursive traversal. A closure table
-   converts `"all descendants of Bombus"` into a single `SELECT taxon_id FROM taxon_closure
-   WHERE ancestor_id = 559244` — one non-recursive JOIN.
+**Path 1 — dbt path (authoritative for occurrences):**
+`occurrence_synonyms.csv` + `auto_synonyms.csv` → `int_synonyms` → LEFT JOIN in `int_combined`
+ARMs 1 and 3. Also applied in `stg_checklist__species`. This is the single source of truth for
+occurrence records flowing into `occurrences.parquet`.
 
-2. **The hierarchy is static per pipeline run.** There is no insert/update workload at
-   runtime. Closure tables are expensive to maintain dynamically but trivially built at
-   pipeline time.
+**Path 2 — Python path (county-fill mart only):**
+`data/checklist_synonyms.csv` → `checklist_pipeline.py::reconcile()` → direct UPDATE on
+`checklist_data.species.canonical_name`. Used only by the county-fill mart. Completely
+disjoint from `int_synonyms`.
 
-3. **The hierarchy is small.** Active Anthophila = ~20k taxa at most. Closure table at
-   depth ≤ 8 levels = at most ~160k rows. At species level, most taxa have ≤ 6 ancestors
-   in the family→subfamily→tribe→genus→subgenus→species chain. Total rows well under 500k.
-   This fits easily in the MemoryVFS alongside the ~92k occurrence rows.
+### Resolution Design
 
-4. **Bycatch (non-bee aculeates) must be representable.** The hierarchy covers all taxa
-   referenced by `taxon_id` in occurrences — not just Anthophila. Bycatch genera need name
-   resolution but get no browse tree or pages. The closure table includes bycatch rows
-   transparently; the bee-only presentation filter (`WHERE is_anthophila`) is applied at
-   the query layer, not the table layer.
-
-### Closure Table Schema
+ARM 4 (checklist occurrence points) **uses the dbt path only** — the same `LEFT JOIN int_synonyms`
+pattern as ARMs 1 and 3. Specifically:
 
 ```sql
--- taxon_hierarchy: one row per taxon (name + rank metadata, keyed by taxon_id)
-CREATE TABLE taxon_hierarchy (
-    taxon_id     INTEGER PRIMARY KEY,
-    name         TEXT NOT NULL,       -- canonical name at this rank (e.g. "Bombus", "griseocollis")
-    rank         TEXT NOT NULL,       -- 'family'|'subfamily'|'tribe'|'genus'|'subgenus'|'species'
-    parent_id    INTEGER,             -- NULL for family-level (top of our hierarchy)
-    is_anthophila INTEGER NOT NULL    -- 1 if within Anthophila clade, 0 for bycatch
-);
-
--- taxon_closure: one row per (ancestor, descendant) pair including self-pairs
-CREATE TABLE taxon_closure (
-    ancestor_id   INTEGER NOT NULL,
-    descendant_id INTEGER NOT NULL,
-    depth         INTEGER NOT NULL    -- 0 = self, 1 = direct child, etc.
-);
-CREATE INDEX tc_ancestor ON taxon_closure(ancestor_id);
-CREATE INDEX tc_descendant ON taxon_closure(descendant_id);
+-- stg_checklist__records_full.sql (mirrors stg_checklist__species synonym JOIN)
+SELECT
+    COALESCE(syn.accepted_name, cr.canonical_name) AS canonical_name,
+    cr.lat, cr.lon, cr.date, cr.year, cr.month,
+    cr.recordedBy, cr.locality,
+    -- ... other fields
+FROM checklist_data.checklist_records_full cr
+LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = cr.canonical_name
+LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt
+    ON ctt.canonical_name = COALESCE(syn.accepted_name, cr.canonical_name)
+WHERE cr.lat IS NOT NULL AND cr.lon IS NOT NULL
+  AND cr.lat != 0 AND cr.lon != 0
 ```
 
-The self-pairs (depth=0) allow uniform queries: `WHERE ancestor_id = X` always returns
-X itself plus all descendants, making "show me all Bombus occurrences" and "show me all
-Apidae occurrences" use the same SQL pattern.
+- `checklist_synonyms.csv` and `reconcile()` are **not changed** — they remain as the county-fill
+  mart's synonym path (OK for a parallel, narrower purpose).
+- Any checklist-specific synonym entries needed for point records go into
+  `data/dbt/seeds/occurrence_synonyms.csv`, not `checklist_synonyms.csv`.
+- `int_synonyms` already gives manual entries precedence over auto-generated ones (anti-join
+  pattern in the view). No structural change needed.
 
-### Where the Hierarchy Lives: Inside occurrences.db (not a separate file)
+### Build-Time ITIS/GBIF External Authority
 
-The hierarchy ships as additional tables inside `occurrences.db`, not as a separate
-Parquet or SQLite artifact. Reasons:
+For multi-class name reconciliation (authority-strip, misspelling, gender-agreement), the
+recommended approach:
 
-1. **Single fetch.** The worker already fetches `occurrences.db` in full before seeding
-   MemoryVFS. A second SQLite file means a second fetch, a second MemoryVFS entry, and
-   a second open_v2 call. The hierarchy (~500k rows) adds modest size vs. the existing
-   occurrence data.
+1. New optional script `data/checklist_itis_reconcile.py` — called **on demand** (not nightly).
+2. Consults ITIS API or GBIF Backbone for verbatim checklist names that don't resolve via the
+   existing synonym paths.
+3. Writes discovered mappings to `data/dbt/seeds/occurrence_synonyms.csv` (or a separate
+   `data/dbt/seeds/checklist_authority_synonyms.csv` that `int_synonyms` reads via a second
+   UNION arm).
+4. Results committed to git — offline builds reproduce without hitting ITIS.
 
-2. **Same SQLite session.** Closure table queries and occurrence queries JOIN in the same
-   `sqlite3.exec` call. No cross-file JOIN plumbing needed.
-
-3. **Single pipeline artifact.** `sqlite_export.py` already produces `occurrences.db`.
-   Extending it to populate `taxon_hierarchy` + `taxon_closure` is one additional step
-   in the same DuckDB→SQLite export, not a new artifact in the pipeline.
-
-4. **Consistent with geo_blob pattern.** The precedent of pre-computing derived tables
-   inside occurrences.db (geo_blob) is already established. Hierarchy tables follow
-   the same pattern.
-
-### What Does NOT Ship in occurrences.db
-
-- The full `taxa.csv.gz` dump (460k+ taxa). Only taxa that appear as `taxon_id` values
-  in the occurrences table, plus their ancestors up to family, enter `taxon_hierarchy`.
-- Species pages' display data (occurrence counts, month histograms). That stays in
-  `species.parquet` / `species.json`.
+**run.py insertion point** (between existing `checklist` and `inat-obs` steps):
+```python
+("checklist", load_checklist),
+("checklist-itis-reconcile", reconcile_checklist_itis),  # NEW: optional, skippable with env flag
+("inat-obs", load_inat_obs),
+```
 
 ---
 
-## Full Data Flow: Pipeline to Frontend
+## Column Conformance: 33-Column dbt Contract + checklist_id Extension
 
-### Pipeline DAG (new + modified components)
+The current occurrences contract is 33 columns (post v4.6 normalization: dropped
+`scientificName`, `genus`, `family`, `specimen_inat_taxon_name`; `canonical_name` retained).
+The spatial join adds `county`, `ecoregion_l3`, `place_slug` (= 33 in `occurrences.parquet`).
 
-```
-taxa.csv.gz (already downloaded by taxa-download step)
-    │
-    ├─→ [EXISTING] taxa_pipeline.load_taxon_lineage_extended
-    │       → inaturalist_data.taxon_lineage_extended
-    │         (taxon_id, family, subfamily, tribe, genus, subgenus — Anthophila only)
-    │
-    ├─→ [EXISTING] stg_inat__genus_taxon_ids (dbt VIEW)
-    │       → genus_name → taxon_id for Animalia (bycatch coverage)
-    │
-    ├─→ [MODIFIED] int_combined.sql
-    │       DROP from SELECT list: genus, family, scientificName,
-    │                             specimen_inat_taxon_name, specimen_inat_genus,
-    │                             specimen_inat_family
-    │       KEEP: taxon_id (already present), canonical_name (keep — see note above)
-    │
-    ├─→ [MODIFIED] marts/occurrences.sql + schema.yml
-    │       New smaller contract: ~29 columns (37 minus 7 dropped + 1 added canonical_name is kept)
-    │       Drop genus, family, scientificName, specimen_inat_taxon_name,
-    │            specimen_inat_genus, specimen_inat_family from contract
-    │
-    ├─→ [MODIFIED] sqlite_export.py
-    │       After writing occurrences table, populate taxon_hierarchy + taxon_closure:
-    │       1. Extract distinct taxon_ids from occurrences table
-    │       2. Read taxa.csv.gz via DuckDB to resolve name/rank/parent chain
-    │          for each referenced taxon_id + ancestors up to family
-    │       3. INSERT into taxon_hierarchy
-    │       4. Compute closure table from parent_id chain
-    │       5. INSERT into taxon_closure + CREATE INDEX
-    │       6. Update geo_blob column list (drop genus/family, add taxon_id)
-    │
-    └─→ [EXISTING] species_export.py (unchanged contract)
-            Uses species.parquet from dbt sandbox; taxon_id already present
-            higher_rank_taxon_ids.json: still valid (genus/subgenus/tribe → taxon_id by name)
+**ARM 4 must emit every int_combined column plus `checklist_id`:**
 
-ARTIFACT: occurrences.db (extended with taxon_hierarchy + taxon_closure tables)
-    ↓ nightly.sh S3 upload
-    ↓ CloudFront
-ARTIFACT: occurrences.parquet (new smaller schema, ~8 fewer columns)
-    ↓ nightly.sh S3 upload
-    ↓ CloudFront
-```
+| Column | ARM 4 Value | Notes |
+|--------|-------------|-------|
+| `ecdysis_id` | NULL BIGINT | |
+| `catalog_number` | NULL VARCHAR | |
+| `lon` | checklist lon DOUBLE | Full-fidelity source |
+| `lat` | checklist lat DOUBLE | Full-fidelity source |
+| `date` | ISO date VARCHAR | Normalized in Python pre-load from mixed formats |
+| `year` | YEAR(date) INTEGER | Computed in dbt |
+| `month` | MONTH(date) INTEGER | Computed in dbt; NULL for range dates |
+| `recordedBy` | collector VARCHAR | From full-fidelity TSV |
+| `fieldNumber` | NULL VARCHAR | Checklist records have no field numbers |
+| `floralHost` | NULL VARCHAR | Not in checklist data |
+| `host_observation_id` | NULL BIGINT | |
+| `inat_host` | NULL VARCHAR | |
+| `inat_quality_grade` | NULL VARCHAR | |
+| `modified` | NULL VARCHAR | |
+| `specimen_observation_id` | NULL BIGINT | NOT used as synthetic ID (see below) |
+| `elevation_m` | NULL INTEGER | |
+| `observation_id` | NULL BIGINT | |
+| `host_inat_login` | NULL VARCHAR | |
+| `specimen_count` | NULL INTEGER | |
+| `sample_id` | NULL INTEGER | |
+| `sample_host` | NULL VARCHAR | |
+| `specimen_inat_quality_grade` | NULL VARCHAR | |
+| `is_provisional` | FALSE BOOLEAN | Verified checklist records |
+| `canonical_name` | accepted name VARCHAR | Post-synonymy via int_synonyms |
+| `taxon_id` | INTEGER from bridge | Via stg_inat__canonical_to_taxon_id; genus backfill via stg_inat__genus_taxon_ids |
+| `source` | `'checklist'` | Literal |
+| `image_url` | NULL VARCHAR | |
+| `obs_url` | NULL VARCHAR | |
+| `user_login` | NULL VARCHAR | |
+| `license` | NULL VARCHAR | |
+| `checklist_id` | ROW_NUMBER() over checklist_records_full | **NEW column — contract bump to 34** |
 
-### geo_blob Rewrite (load-bearing change)
+**Contract bump**: Adding `checklist_id` bumps the contract from 33 to 34 columns
+(plus 3 spatial = 37 in `occurrences.parquet`). This is additive — all existing columns
+are present and unmodified. `sqlite_export.py` derives schema from the parquet at export
+time (no hardcoded DDL), so the bump is automatically handled.
 
-The current geo_blob column list is hardcoded in `sqlite_export.py` (`_GEO_COLS`) and
-read by positional index in `features.ts._buildGeoJSONFromRaw`. This must change:
+**What about `locality`?** A `locality` VARCHAR column (from the full-fidelity TSV) can
+optionally be added to the detail card display. If added, it bumps the contract to 35. Given
+that `locality` is checklist-source-only and not used by any other arm, it could instead be
+exposed only via the occurrence detail query (a second SQL lookup on a supplementary table).
+Decision deferred to the phase implementing the detail card.
 
-Old `_GEO_COLS`:
-```python
-["lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",
- "year", "scientificName", "genus", "family", "source"]
-```
+---
 
-New `_GEO_COLS` (after dropping string columns):
-```python
-["lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",
- "year", "taxon_id", "source"]
-```
+## The occId Problem: Why checklist_id Is Required
 
-Correspondingly, `features.ts._buildGeoJSONFromRaw` loses the genus/family/species Set
-population logic. `taxaOptions` can no longer be built from the geo_blob (which only has
-`taxon_id`, not names). Instead, `taxaOptions` for the autocomplete must be built from
-a separate query against `taxon_hierarchy` after the DB loads:
-
+The current `features.ts::_buildGeoJSONFromRaw()` constructs occIds:
 ```typescript
-// New: build taxaOptions from taxon_hierarchy table (bee taxa only)
-SELECT taxon_id, name, rank FROM taxon_hierarchy WHERE is_anthophila = 1
+if (ecdysis_id != null)              occId = `ecdysis:${ecdysis_id}`;
+else if (observation_id != null)     occId = `inat:${observation_id}`;
+else if (specimen_observation_id != null) occId = `inat_obs:${specimen_observation_id}`;
+if (occId == null) continue;  // ← silently drops the row from the map
 ```
 
-This also resolves the v4.6 requirement to extend autocomplete to subfamily/tribe/subgenus
-(previously impossible because those ranks had no columns in occurrences).
+A checklist row with all three columns NULL would be **silently dropped** from all map
+rendering. This is the highest-risk integration point.
 
-### Runtime Name Resolution: taxon_id → name
+**Fix**: Add `checklist_id INTEGER` as a sequential row number in `int_combined` ARM 4
+(via `ROW_NUMBER() OVER () AS checklist_id` or a DuckDB sequence). Extend `_GEO_COLS`
+in `sqlite_export.py` to include `checklist_id` at position 7 (after `source`). Extend
+`_buildGeoJSONFromRaw` to emit `checklist:<N>` occIds.
 
-When an occurrence row is displayed in the pane/table/detail card, its taxon name must
-be resolved. Currently names come from `genus`, `family`, `scientificName` columns on the
-occurrence row itself. After the column drop, name resolution requires:
+**Why not reuse `specimen_observation_id`?** It is semantically an iNat WABA observation ID.
+The detail card rendering in `bee-occurrence-detail.ts` uses this column to construct iNat
+links. Reusing it for checklist records would produce broken iNat links.
+
+---
+
+## Dedup: Checklist vs. Ecdysis
+
+### Why Dedup Is Needed
+
+Both checklist records and Ecdysis records originate from museum specimen data (WSDA collection).
+A physical bee may appear in both sources. Without dedup, the same specimen plots twice.
+
+### Join Key Design
+
+Exact coordinate match is insufficient due to GPS imprecision. Use a fuzzy spatial key:
 
 ```sql
-SELECT name, rank FROM taxon_hierarchy WHERE taxon_id = ?
+ROUND(checklist.lat, 2) = ROUND(ecdysis.lat, 2)     -- ~1.1 km tolerance at WA latitudes
+AND ROUND(checklist.lon, 2) = ROUND(ecdysis.lon, 2)
+AND checklist.year = ecdysis.year
+AND (checklist.month = ecdysis.month OR checklist.month IS NULL)
+AND checklist.canonical_name = ecdysis.canonical_name  -- post-synonymy on both sides
+AND lower(trim(checklist.recordedBy)) = lower(trim(ecdysis.recordedBy))
+AND checklist.recordedBy IS NOT NULL                   -- never dedup on NULL collector
 ```
 
-This is a single-row lookup on an indexed PK. The resolved name should be cached in a
-`Map<number, {name: string, rank: string}>` in the frontend rather than re-queried per
-row. Loading strategy:
+`ROUND(..., 2)` = ~1.1 km precision at 47° latitude. Month is included to avoid false
+positives for different sampling trips to the same site in the same year. NULL collector
+checklist rows are never deduplicated (too broad — multiple collectors share sites).
 
-1. At DB open time, execute `SELECT taxon_id, name, rank FROM taxon_hierarchy` once.
-2. Store as `_taxonCache: Map<number, TaxonInfo>` in sqlite.ts or a new taxon.ts module.
-3. All occurrence display code calls `_taxonCache.get(row.taxon_id)` instead of reading
-   `row.genus` / `row.family` / `row.scientificName`.
+### Implementation: `int_checklist_dedup.sql`
 
-The `OccurrenceRow` TypeScript interface in `filter.ts` must be updated to remove the
-dropped columns and add `taxon_id: number | null`. The `OCCURRENCE_COLUMNS` constant
-must similarly be updated.
+```sql
+-- data/dbt/models/intermediate/int_checklist_dedup.sql
+{{ config(materialized='table') }}
 
-**Name non-uniqueness constraint:** Names in `taxon_hierarchy` are rank-scoped
-(e.g., "Bombus" appears as both a genus row and a subgenus row with different `taxon_id`
-values). All lookups are keyed by `taxon_id`, never by name. The `taxon_id` on each
-occurrence row is the authoritative disambiguation key — no name matching at runtime.
+WITH ecdysis_keys AS (
+    SELECT
+        ROUND(COALESCE(e.ecdysis_lat, s.sample_lat), 2) AS lat2,
+        ROUND(COALESCE(e.ecdysis_lon, s.sample_lon), 2) AS lon2,
+        COALESCE(e.year, YEAR(s.sample_date_raw))       AS year,
+        COALESCE(e.month, MONTH(s.sample_date_raw))     AS month,
+        COALESCE(syn.accepted_name, e.canonical_name)   AS canonical_name,
+        lower(trim(e.recordedBy))                       AS collector
+    FROM {{ ref('int_ecdysis_base') }} e
+    FULL OUTER JOIN {{ ref('int_samples_base') }} s
+        ON e.host_observation_id = s.observation_id
+    LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = e.canonical_name
+    WHERE COALESCE(e.ecdysis_lat, s.sample_lat) IS NOT NULL
+),
+deduped AS (
+    SELECT
+        cf.*,
+        (ek.lat2 IS NOT NULL) AS ecdysis_duplicate
+    FROM {{ ref('stg_checklist__records_full') }} cf
+    LEFT JOIN ecdysis_keys ek
+        ON  ek.lat2 = ROUND(cf.lat, 2)
+        AND ek.lon2 = ROUND(cf.lon, 2)
+        AND ek.year = cf.year
+        AND (ek.month = cf.month OR cf.month IS NULL)
+        AND ek.canonical_name = cf.canonical_name
+        AND cf.recordedBy IS NOT NULL
+        AND ek.collector = lower(trim(cf.recordedBy))
+)
+SELECT * EXCLUDE (ecdysis_duplicate)
+FROM deduped
+WHERE NOT ecdysis_duplicate
+```
+
+**Provenance**: The `ecdysis_duplicate` boolean is excluded from the output (not in the
+33-col contract). A separate diagnostic step can log dropped counts:
+`SELECT COUNT(*) FROM deduped WHERE ecdysis_duplicate` before the final SELECT.
+
+**Placement**: `int_checklist_dedup` sits between `stg_checklist__records_full` and
+`int_combined`. It reads `int_ecdysis_base` directly (not `int_combined`) to avoid a
+circular dependency.
 
 ---
 
-## Frontend Filtering: The Descendant Query Pattern
+## `checklist.parquet` County-Fill Mart: Stays Unchanged
 
-### Current Pattern (string column match)
+The county-fill mart (`data/dbt/models/marts/checklist.sql`) serves county-range presence
+assertions for all 2,861 species-county pairs including no-coord records. Its inputs
+(`checklist_data.checklist_records` 4-col table, `checklist_data.species_counties`) are
+unchanged by v4.7. The existing county-fill toggle and `_checklistAllRows` frontend cache
+remain the fallback for records without coordinates.
+
+The two layers are complementary:
+- `checklist.parquet` = "this species was documented in this county" (presence assertion)
+- ARM 4 in `occurrences.parquet` = "here is the actual collection point" (~91% of records)
+
+---
+
+## occurrences.db Impact
+
+`sqlite_export.py::generate_sqlite()` derives the occurrences table schema from the parquet
+at export time — no hardcoded DDL. The changes required:
+
+**`_GEO_COLS` update** (position-coupled to `features.ts` — must be atomic):
+```python
+# Current (7 columns, positions 0-6):
+_GEO_COLS = ["lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",
+             "year", "source"]
+
+# After (8 columns, positions 0-7):
+_GEO_COLS = ["lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",
+             "year", "source", "checklist_id"]
+```
+
+**Taxa hierarchy build**: No change. `sqlite_export.py::_build_taxon_hierarchy()` already
+seeds the taxa table from both `out.occurrences` (PASS 1 Anthophila + PASS 2 bycatch) AND
+`checklist.parquet` canonical_names (lines 95-122). Checklist occurrence taxon_ids flow
+into `out.occurrences` and are handled by the existing two-pass build.
+
+**`_assert_no_orphan_taxon_ids`**: No change. Will automatically validate all non-null
+checklist occurrence taxon_ids against the taxa table. Any unresolved checklist name that
+produces a NULL taxon_id passes through without failing the gate (NULL is allowed).
+
+---
+
+## Frontend Integration
+
+### `src/url-state.ts`
 
 ```typescript
-// filter.ts buildFilterSQL — current
-if (f.taxonRank === 'genus') {
-  occurrenceClauses.push(`genus = '${escaped}'`);
-}
+// Current
+export type SourceKey = 'ecdysis' | 'waba_sample' | 'inat_obs';
+const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'inat_obs']);
+
+// After
+export type SourceKey = 'ecdysis' | 'waba_sample' | 'inat_obs' | 'checklist';
+const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'inat_obs', 'checklist']);
 ```
 
-### New Pattern (closure table JOIN)
+### `src/filter.ts`
 
 ```typescript
-// filter.ts buildFilterSQL — v4.6
-if (f.taxonId !== null) {
-  // All descendants of taxon_id (including itself) via closure table.
-  // Self-pair (depth=0) means this covers exact matches too.
-  occurrenceClauses.push(
-    `taxon_id IN (SELECT descendant_id FROM taxon_closure WHERE ancestor_id = ${f.taxonId})`
-  );
-}
+// OccurrenceRow.source union type:
+source: 'ecdysis' | 'waba_sample' | 'inat_obs' | 'checklist' | null;
 ```
 
-`FilterState` gains `taxonId: number | null` replacing `taxonName/taxonRank`.
-The autocomplete resolves a user's text input to a `taxon_id` by querying `taxon_hierarchy`.
-The `taxonRank` field is no longer needed for filtering (the closure handles all ranks).
+The collector filter (`recordedBy IN (...)`) in `buildFilterSQL` already handles checklist
+rows because checklist records carry a non-null `recordedBy` column using the same field
+name as ecdysis. No filter SQL changes needed.
 
-The `taxonName` field may be kept for display purposes (the chip label), but the actual
-filter predicate is always `taxon_id`-keyed. URL state (`taxon=` param) must migrate from
-storing the text name + rank to storing `taxon_id` as an integer (with a fallback for
-old URL round-trips that still have string names).
+### `src/features.ts`
 
-### Filter Race Guard (unchanged)
-
-The existing `_filterQueryGeneration` counter in `bee-atlas.ts` applies unchanged. The
-closure-table query is still async SQLite, so stale results must still be discarded.
-
----
-
-## Page Generation: Hierarchy-Derived Rollups
-
-### Current Pattern (string-column GROUP BY in species_export.py)
-
-Species pages read `species.parquet` which carries denormalized `family`, `subfamily`,
-`tribe`, `genus`, `subgenus` columns populated from `taxon_lineage_extended` JOIN in
-`int_species_universe.sql`. Genus pages show all species in that genus by grouping on
-the `genus` column.
-
-### New Pattern (taxon_id GROUP BY against hierarchy)
-
-After the column drop, `species.parquet` still carries `taxon_id` (species-level). The
-species_export.py rollup for genus/tribe/subfamily pages must be recomputed by:
-
-1. Looking up the ancestor taxon_id for each species via taxon_hierarchy parent chain
-2. Grouping species by their ancestor taxon_id at the relevant rank
-
-This means `int_species_universe.sql` must continue to emit the hierarchy rank names
-(family, subfamily, tribe, genus, subgenus) for page generation — but these can come
-from a JOIN to `taxon_lineage_extended` on `taxon_id` rather than from denormalized
-columns in `int_combined`. The `species` mart keeps its current rank columns for the
-page generator; they are just sourced differently.
-
-**Key insight:** The `species` mart does NOT need to drop its rank columns — only the
-`occurrences` mart drops denormalized strings. The `species` mart is for page generation
-and species index, not for map point rendering. Its rank columns are still the cleanest
-source for Eleventy templates.
-
-New subfamily pages: `int_species_universe.sql` already provides `subfamily` from
-`taxon_lineage_extended`. The Eleventy template generator needs a new grouping key for
-subfamily, mirroring the existing tribe page pattern.
-
----
-
-## Component Inventory: New vs. Modified
-
-### Pipeline Layer
-
-| Component | Status | Change Description |
-|-----------|--------|--------------------|
-| `data/taxa_pipeline.py` | UNCHANGED | No change needed; hierarchy built from taxa.csv.gz in sqlite_export step |
-| `data/sqlite_export.py` | MODIFIED | Add `_build_taxon_hierarchy` function: extract referenced taxon_ids, resolve lineage from taxa.csv.gz, write `taxon_hierarchy` + `taxon_closure` + indexes to occurrences.db. Update `_GEO_COLS` to drop genus/family/scientificName, add taxon_id |
-| `data/dbt/models/intermediate/int_combined.sql` | MODIFIED | Remove `genus`, `family`, `scientificName`, `specimen_inat_taxon_name`, `specimen_inat_genus`, `specimen_inat_family` from each ARM's SELECT list |
-| `data/dbt/models/marts/occurrences.sql` | UNCHANGED (or trivially modified) | If occurrences.sql merely SELECTs `*` from int_combined + spatial columns, the dropped columns vanish automatically; update if there's an explicit SELECT list |
-| `data/dbt/models/marts/schema.yml` | MODIFIED | Remove dropped columns from occurrences contract; update column count. Species mart contract UNCHANGED |
-| `data/dbt/models/intermediate/int_species_universe.sql` | UNCHANGED | Keeps all rank columns for page generation; already gets them from taxon_lineage_extended JOIN |
-| `data/species_export.py` | MODIFIED | Extend to generate new subfamily grouping data; update `higher_rank_taxon_ids.json` if needed |
-| `data/run.py` | UNCHANGED | STEPS list order unchanged; sqlite_export already runs as "generate-sqlite" |
-
-### Frontend Layer
-
-| Component | Status | Change Description |
-|-----------|--------|--------------------|
-| `src/filter.ts` | MODIFIED | `FilterState`: replace `taxonName/taxonRank` with `taxonId: number \| null`, keep `taxonName` for display label only. `buildFilterSQL`: replace string column matches with closure table subquery. `OccurrenceRow` interface: remove dropped columns, add `taxon_id`. `OCCURRENCE_COLUMNS`: update list |
-| `src/features.ts` | MODIFIED | `_buildGeoJSONFromRaw`: update positional column layout; remove genus/family/species Set logic; taxaOptions now built from taxon_hierarchy query, not geo_blob |
-| `src/sqlite.ts` | MODIFIED | Add `loadTaxonCache()` function (runs once after tablesReady, queries taxon_hierarchy, returns `Map<number, TaxonInfo>`). Export the cache or a lookup function |
-| `src/sqlite-worker.ts` | UNCHANGED | Worker just executes SQL; no worker-level changes for hierarchy |
-| `src/bee-atlas.ts` | MODIFIED | On data loaded: build taxaOptions from taxon_hierarchy query. Replace taxonName/taxonRank filter state with taxonId. URL state: migrate `taxon=` param from name+rank to taxon_id integer |
-| `src/bee-filter-controls.ts` | MODIFIED | Autocomplete queries taxon_hierarchy for matches; selection emits taxon_id. Chip display uses resolved name from taxon cache |
-| `src/url-state.ts` | MODIFIED | `taxon=` param: encode as integer taxon_id (e.g. `taxon=559244`). Add backward-compatible parse for old name-format URLs |
-| `src/bee-pane.ts` or occurrence detail components | MODIFIED | Name display: `taxonCache.get(row.taxon_id)?.name` instead of `row.genus` / `row.scientificName` |
-| `src/occurrence.ts` | UNCHANGED | ID construction/parsing unaffected |
-
-### Eleventy/Page Generation Layer
-
-| Component | Status | Change Description |
-|-----------|--------|--------------------|
-| `_data/species.js` | UNCHANGED | Reads species.json which still has rank name columns |
-| Genus/tribe/subgenus Eleventy templates | UNCHANGED | Still driven by rank name columns from species.json |
-| Subfamily Eleventy templates | NEW | New template at `/species/subfamily/{SubfamilyName}/` mirroring tribe template pattern |
-| `data/species_maps.py` | MODIFIED | Add subfamily map generation (same multi-color SVG pattern as tribe maps) |
-
----
-
-## Build Order (Dependency-Respecting Sequence)
-
-```
-Phase A: Foundation — hierarchy structure in the pipeline
-  1. Extend sqlite_export.py with _build_taxon_hierarchy + _build_taxon_closure
-     (reads taxa.csv.gz via DuckDB after occurrences table is written)
-  2. Update _GEO_COLS in sqlite_export.py (taxon_id replaces genus/family/scientificName)
-  3. Verify occurrences.db now contains taxon_hierarchy + taxon_closure + updated geo_blob
-  4. Add pytest tests: hierarchy table exists, closure self-pairs correct, bycatch in hierarchy
-
-Phase B: Occurrences contract normalization — pipeline side
-  5. Modify int_combined.sql: remove 7 denormalized string columns from all 3 ARMs
-  6. Update marts/schema.yml: remove those columns from enforced contract
-  7. Run dbt build — verify contract passes with smaller column count
-  8. Verify occurrences.parquet schema (parquet-tools / pytest)
-  9. Verify occurrences.db occurrences table matches new schema
-
-Phase C: Frontend cutover — filter + name resolution
-  10. Update OccurrenceRow interface in filter.ts (remove dropped columns, add taxon_id)
-  11. Update OCCURRENCE_COLUMNS constant in filter.ts
-  12. Add taxonId: number | null to FilterState; keep taxonName for chip display label
-  13. Rewrite buildFilterSQL taxon branch to use closure table subquery
-  14. Update features.ts _buildGeoJSONFromRaw column layout
-  15. Add loadTaxonCache() to sqlite.ts; populate Map<number, TaxonInfo>
-  16. Update bee-atlas.ts: taxaOptions from taxon_hierarchy query; taxon filter state
-  17. Update bee-filter-controls.ts: autocomplete against taxon_hierarchy
-  18. Update url-state.ts: taxon_id integer encoding + backward-compat parse
-  19. Update occurrence display components: name from taxon cache
-  20. Vitest: filter SQL generation, taxon cache lookup, url-state round-trip
-
-Phase D: Page rebuild — hierarchy-based rollups
-  21. Add subfamily grouping to species_export.py / int_species_universe.sql
-  22. Add subfamily page template + Eleventy pagination
-  23. Add subfamily map generation to species_maps.py
-  24. Verify genus/tribe/subgenus page totals match pre-normalization values
-  25. New: subfamily pages render correctly
-
-Phase E: Browse tree — bee-only expandable tree
-  26. New frontend component: `<bee-species-tree>` reading taxon_hierarchy (is_anthophila=1)
-  27. Default expand to family → genus → species
-  28. Lazy-expand subfamily/tribe/subgenus on click
-  29. Per-node occurrence/specimen split (JOIN closure table → occurrences)
-  30. Type-to-filter auto-expand
-  31. Checklist-only nodes (occurrence_count = 0 but species has checklist entry)
+```typescript
+// _buildGeoJSONFromRaw column layout update (positions 0-7):
+const checklist_id = row[7];
+// occId construction (new branch after existing three):
+else if (checklist_id != null) occId = `checklist:${checklist_id}`;
 ```
 
-**Dependency rationale:**
-- Phase A must precede Phase C (frontend needs the tables in the DB to query)
-- Phase B must precede Phase C (OccurrenceRow interface must match actual columns)
-- Phase B can run in parallel with Phase A (different files, same pipeline run)
-- Phase D can begin as soon as Phase B completes (species mart unchanged; uses existing rank columns)
-- Phase E requires Phase C (tree uses closure table; shares filter infrastructure)
-- Phases A+B together constitute one deployable pipeline change; Phase C is the frontend cutover
+### `src/occurrence.ts`
+
+```typescript
+// parseOccId extension:
+if (parts[0] === 'checklist') return { source: 'checklist', numericId: n };
+
+// occIdFromRow extension:
+// checklist rows have all three existing ID columns null; use checklist_id
+if (row.checklist_id != null) return `checklist:${row.checklist_id}`;
+```
+
+### `src/manifest.ts`
+
+No change — manifest already has `checklist: string` key for `checklist.parquet` URL.
+The `occurrences.db` key is unchanged.
+
+### Sidebar / Detail Card (`src/bee-occurrence-detail.ts`)
+
+New `source='checklist'` branch displays:
+- `recordedBy` — already in `OccurrenceRow`; `collectorDisplay()` in `bee-table.ts` handles it
+- `date` — already rendered for all sources
+- Attribution: "Bartholomew et al. 2024, JHR 97" — hardcoded per source='checklist'
+- `locality` — if added as a new column (optional decision)
+
+No new Lit components required. Existing source-dispatch pattern extended.
 
 ---
 
-## Key Architectural Decisions
+## Phase Decomposition
 
-**Closure table in occurrences.db, not a separate artifact.** Single fetch, same SQLite
-session for all queries, consistent with the geo_blob pre-computation pattern already
-established in v4.3. The hierarchy is static per pipeline run; closure table build cost
-is acceptable at export time.
+### Phase A: Full-Fidelity TSV Extraction + Python Loader
 
-**`taxon_hierarchy` contains ALL taxa referenced by occurrences (bees + bycatch), not just
-Anthophila.** Bycatch genera need name resolution after genus/family columns drop. The
-`is_anthophila` flag gates tree/autocomplete presentation without requiring separate tables.
+**Files changed:**
+- `data/checklists/wa_bee_checklist_records.tsv` — replace with full-fidelity (lat/lon/date/recordedBy/locality)
+- `data/checklist_pipeline.py` — add `_load_checklist_records_full()`, populate `checklist_data.checklist_records_full`; preserve existing `_load_checklist_records()` for county-fill mart
 
-**`canonical_name` stays in the occurrences contract.** It is the display fallback for
-~21k unidentified Ecdysis specimens (NULL taxon_id) and the synonym resolution join key.
-Removing it would require a new display strategy for the unidentified rows.
+**Integration points:** `load_checklist()` step in `run.py` — no STEPS ordering change.
+The 4-column `checklist_records` table must survive intact for `checklist.sql` mart.
 
-**`species` mart keeps rank name columns.** Only the `occurrences` mart drops denormalized
-strings. The species mart feeds Eleventy page generation which legitimately needs rank
-name strings (family, subfamily, tribe, genus, subgenus). Dropping them from the species
-mart would require restructuring all page templates for no payload benefit (species.json
-is not a runtime-loaded artifact; it's consumed at build time by Eleventy).
+**Gate:** pytest: `checklist_data.checklist_records_full` row count ≈ 50,646; columns
+lat/lon/date/recordedBy/locality present; NULL-coord rows ≈ 4,595 identified.
 
-**geo_blob column list change is a load-bearing pipeline↔frontend contract.** The positional
-array layout in `_buildGeoJSONFromRaw` is not TypeScript-typed. The change must be applied
-atomically: update `_GEO_COLS` in `sqlite_export.py` and `_buildGeoJSONFromRaw` column
-positions in `features.ts` in the same deployment. A mismatch produces silent data
-corruption (wrong values in wrong positions), not a thrown error.
-
-**taxaOptions built from taxon_hierarchy, not geo_blob.** The geo_blob only has taxon_id
-after the column drop; names must come from the hierarchy table. This change also unlocks
-subfamily/tribe/subgenus in the autocomplete for free (all ranks present in taxon_hierarchy
-with is_anthophila=1).
-
-**URL param `taxon=` migrates from name string to integer taxon_id.** Old URLs with
-name-format params should be parsed with a fallback that queries taxon_hierarchy by name
-to resolve the id. This avoids breaking bookmarked URLs from before v4.6.
+**Notes on date normalization:** The full-fidelity source has mixed date formats
+(ISO, m/d/yyyy, ranges). Normalize to ISO date string in Python before loading. NULL for
+unparseable dates (~13% of rows). Year/month extracted from the normalized date.
 
 ---
 
-## Anti-Patterns to Avoid
+### Phase B: dbt Staging + Name Reconciliation
 
-### Anti-Pattern 1: Separate hierarchy SQLite file
+**Files changed:**
+- `data/dbt/models/staging/stg_checklist__records_full.sql` — new model
+- Optionally `data/checklist_itis_reconcile.py` + committed seed update (on-demand)
 
-**What people do:** Write `taxonomy.db` as a separate SQLite artifact, fetch it in the
-worker alongside `occurrences.db`, and maintain two open_v2 connections.
+**Integration points:** `stg_checklist__records_full` joins `int_synonyms` and
+`stg_inat__canonical_to_taxon_id`. Genus-rank taxon_id backfill via `stg_inat__genus_taxon_ids`
+(same pattern as ARMs 1-3 in `int_combined`).
 
-**Why it's wrong:** Doubles the fetch count and WASM setup cost. Cross-file JOINs in
-wa-sqlite require ATTACH, which adds complexity. The hierarchy is small enough to embed
-in the existing DB.
+**Gate:** `dbt build --select stg_checklist__records_full` passes; row count ≈ 46,051
+(50,646 minus ~4,595 no-coord); NULL taxon_id rate documented.
 
-**Do this instead:** Add `taxon_hierarchy` and `taxon_closure` tables to `occurrences.db`
-inside `sqlite_export.py`.
+---
 
-### Anti-Pattern 2: Building the hierarchy in a new dbt model
+### Phase C: Dedup + int_combined ARM 4
 
-**What people do:** Create `marts/taxon_hierarchy.sql` as an external parquet, then write
-a separate Python step to convert it to SQLite tables.
+**Files changed:**
+- `data/dbt/models/intermediate/int_checklist_dedup.sql` — new model
+- `data/dbt/models/intermediate/int_combined.sql` — add ARM 4 UNION ALL; add `checklist_id` column to all ARMs (NULL for ARMs 1-3, ROW_NUMBER() for ARM 4)
+- `data/dbt/models/marts/schema.yml` — add `checklist_id` to occurrences contract (34 cols)
 
-**Why it's wrong:** The hierarchy's natural home is the SQLite DB where it will be queried.
-A Parquet intermediate adds a conversion step with no benefit. The hierarchy is a derivative
-of `taxa.csv.gz` + the set of taxon_ids actually in `occurrences` — exactly what
-`sqlite_export.py` knows at export time.
+**Integration points:** NULL `checklist_id` must be explicitly cast in ARMs 1-3 to match
+the ARM 4 INTEGER type. The UNION ALL column type alignment is the primary risk here.
 
-**Do this instead:** Build the hierarchy inside `sqlite_export.py` after the occurrences
-table is written, using a fresh DuckDB connection to read `taxa.csv.gz`.
+**Gate:** Full `dbt build` passes; `occurrences.parquet` row count increases by ~46,051 minus
+dedup drops; `source='checklist'` rows verified in output.
 
-### Anti-Pattern 3: Filtering by taxon name in the closure query
+---
 
-**What people do:** Query `SELECT descendant_id FROM taxon_closure tc JOIN taxon_hierarchy th
-ON th.taxon_id = tc.ancestor_id WHERE th.name = 'Bombus'`.
+### Phase D: sqlite_export.py + geo_blob + Frontend occId
 
-**Why it's wrong:** Name is not unique within a kingdom. "Bombus" as a genus and as a
-subgenus have different taxon_ids. Querying by name can return the wrong ancestor_id
-or multiple rows, producing wrong results for subgenus-named-like-genus cases.
+**Files changed (atomic — must deploy together):**
+- `data/sqlite_export.py::_GEO_COLS` — add `checklist_id` at position 7
+- `src/features.ts::_buildGeoJSONFromRaw` — decode checklist_id at row[7]; emit `checklist:<N>` occId
+- `src/occurrence.ts::parseOccId` + `occIdFromRow` — recognize `checklist:` prefix
+- `src/filter.ts::OccurrenceRow` — add `checklist_id: number | null` field
 
-**Do this instead:** The autocomplete always resolves to a `taxon_id` before the filter
-is applied. The closure query uses only integer IDs: `WHERE ancestor_id = 559244`.
+**Integration points:** The positional coupling between `_GEO_COLS` and `features.ts` is
+explicitly documented in the source comment. This phase carries the highest deployment risk
+— a mismatch produces silent data corruption (wrong values in wrong positions), not a
+thrown error. Must be deployed as a single atomic pipeline + frontend change.
 
-### Anti-Pattern 4: Removing `canonical_name` from occurrences
+**Gate:** `generate_sqlite` completes; zero-orphan assertion passes; Vitest unit tests for
+`_buildGeoJSONFromRaw` cover `checklist:N` path; browser inspection shows checklist point
+markers on the map.
 
-**What people do:** Drop `canonical_name` along with `genus`, `family`, `scientificName`
-to maximize the column count reduction.
+---
 
-**Why it's wrong:** ~21k Ecdysis specimens are genuinely unidentified (NULL taxon_id).
-With no `canonical_name` and no `taxon_id`, these rows have no textual taxon reference at
-all. The occurrence detail card would display nothing for "species". Additionally,
-`canonical_name` is the join key used by `int_synonyms` and `int_combined` for synonym
-resolution — removing it from the output would break downstream model references.
+### Phase E: Source Toggle + Detail Card
 
-**Do this instead:** Keep `canonical_name`. Drop only the columns that are fully superseded
-by `taxon_id` for identified rows: `genus`, `family`, `scientificName`,
-`specimen_inat_taxon_name`, `specimen_inat_genus`, `specimen_inat_family`.
+**Files changed:**
+- `src/url-state.ts` — add `'checklist'` to `SourceKey` + `VALID_SOURCES`
+- `src/filter.ts` — add `'checklist'` to `OccurrenceRow.source` union
+- `src/bee-pane.ts` — add checklist toggle in sources row (fourth checkbox)
+- `src/bee-occurrence-detail.ts` — add `source='checklist'` branch
 
-### Anti-Pattern 5: Migrating taxaOptions population to a SQLite-worker `tables-ready` message
+**Integration points:** `VALID_SOURCES` in `url-state.ts` must match the `source='checklist'`
+rows in occurrences.db. The `src=` URL parameter round-trip must include checklist.
 
-**What people do:** Pre-compute taxaOptions inside the SQLite worker and send them as part
-of the `tables-ready` message, so the main thread has them immediately.
-
-**Why it's wrong:** The worker already has a fixed boot sequence; adding another async
-DuckDB query to the boot path increases the tablesReady latency (the v4.3 win was reducing
-this from 930ms to 250ms). taxaOptions don't need to be ready at tablesReady — they're
-needed when the user opens the autocomplete.
-
-**Do this instead:** Query `taxon_hierarchy` lazily, the first time the user focuses the
-taxon autocomplete, and cache the result. Or query it as a non-blocking background task
-after tablesReady resolves.
+**Gate:** Vitest tests for `parseParams`/`buildParams` with `src=checklist`; manual
+verification of toggle and detail card rendering; `src=ecdysis` URL excludes checklist
+points from the map.
 
 ---
 
 ## Integration Points Summary
 
-| Boundary | Left Side | Right Side | Contract |
-|----------|-----------|------------|----------|
-| sqlite_export.py → occurrences.db | Python writes tables | wa-sqlite worker reads | Table names: `occurrences`, `geo_blob`, `taxon_hierarchy`, `taxon_closure`. Indexes on closure. |
-| occurrences.db → features.ts | geo_blob data TEXT | _buildGeoJSONFromRaw positional | Column order in `_GEO_COLS` must match positional index constants in features.ts |
-| filter.ts → occurrences table | SQL WHERE clause | SQLite occurrences schema | Column names in WHERE must exist in occurrences table |
-| filter.ts → taxon_closure table | SQL subquery | SQLite taxon_closure schema | `ancestor_id`, `descendant_id` column names |
-| int_combined → occurrences contract | dbt SELECT list | schema.yml enforced contract | Column names and types must match exactly |
-| url-state.ts → FilterState | taxon param | taxonId integer | taxon_id integer encoding; backward-compat for old name+rank URLs |
-| taxon_hierarchy → bee-atlas taxaOptions | is_anthophila=1 query | autocomplete suggestions | Rows are rank-named, keyed by taxon_id; names displayed but never used as filter keys |
+| Artifact | Change Type | Risk Level |
+|----------|-------------|------------|
+| `wa_bee_checklist_records.tsv` | Replace with full-fidelity TSV | Medium — column names must match parser |
+| `checklist_data.checklist_records_full` | New DuckDB table; 4-col `checklist_records` preserved | Low |
+| `stg_checklist__records_full.sql` | New staging model | Low |
+| `int_checklist_dedup.sql` | New intermediate; dedup key correctness is main risk | Medium |
+| `int_combined.sql` ARM 4 | UNION ALL + checklist_id column on all ARMs | Medium — NULL cast type alignment |
+| `occurrences.sql` | No change (reads `int_combined` via `*`) | None |
+| `checklist.sql` | No change | None |
+| `schema.yml` occurrences contract | +1 column (checklist_id) = 34 cols | Low |
+| `sqlite_export.py _GEO_COLS` | +1 slot, position-coupled to `features.ts` | **HIGH — atomic deploy required** |
+| `features.ts _buildGeoJSONFromRaw` | New checklist_id branch; without it checklist rows silently dropped | **HIGH** |
+| `url-state.ts VALID_SOURCES` | Add `'checklist'` | Low |
+| `filter.ts OccurrenceRow.source` | Union type extension | Low |
+| `checklist.parquet` county-fill mart | No change | None |
+| `taxa` hierarchy build in `sqlite_export.py` | No change — checklist taxon_ids auto-handled | None |
 
 ---
 
-*Architecture research for: BeeAtlas v4.6 Taxonomy Hierarchy & Normalization*
-*Researched: 2026-06-01*
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Reuse `specimen_observation_id` as the checklist synthetic ID
+
+Using the semantically-wrong `specimen_observation_id` column to carry `checklist_id` breaks
+the `inat_obs:` link construction in `bee-occurrence-detail.ts` for any rendering code that
+inspects `specimen_observation_id` to build iNat URLs.
+
+**Do this instead:** Add an explicit `checklist_id` INTEGER column to the contract.
+
+### Anti-Pattern 2: Dedup in `occurrences.sql` after spatial joins
+
+Dedup placed after the spatial joins processes duplicate rows through expensive `ST_Within`
+operations before discarding them.
+
+**Do this instead:** Dedup in `int_checklist_dedup.sql` before the UNION ALL; spatial joins
+operate only on surviving rows.
+
+### Anti-Pattern 3: Route ARM 4 synonyms through `checklist_synonyms.csv`
+
+The Python `reconcile()` path applies overrides as direct UPDATEs to `checklist_data.species`,
+which is a different table and resolution order than `int_synonyms`. Routing occurrence point
+records through it produces inconsistent canonical_name values vs. ecdysis/inat_obs arms.
+
+**Do this instead:** ARM 4 joins `int_synonyms` exclusively, same as ARMs 1 and 3.
+Checklist-specific synonym entries go into `occurrence_synonyms.csv`.
+
+### Anti-Pattern 4: Deploy `_GEO_COLS` and `_buildGeoJSONFromRaw` in separate commits
+
+The positional coupling is NOT TypeScript-typed — a mismatch silently puts the wrong value
+in the wrong column (e.g., `checklist_id` in the `source` position), corrupting the occId
+for all rows. The existing comment in `features.ts` line 17 documents this dependency:
+"Phase 131 NORM-02: dropped scientificName/genus/family; source moves from index 9 → 6.
+sqlite_export.py _GEO_COLS updated in the same commit (positional coupling)."
+
+**Do this instead:** Phase D is a single atomic commit touching both files simultaneously.
+
+### Anti-Pattern 5: Excluding NULL-coord rows in `int_combined` rather than `stg_checklist__records_full`
+
+ARMs 2 and 3 in `int_combined` have explicit `WHERE lat IS NOT NULL AND lon IS NOT NULL` guards.
+The `occurrences.sql` spatial join calls `ST_Point(lon, lat)` — feeding it a NULL value causes
+a DuckDB error or NULL geometry that breaks the spatial join. All coord filtering must happen
+upstream.
+
+**Do this instead:** Exclude `WHERE lat IS NOT NULL AND lon IS NOT NULL AND lat != 0 AND lon != 0`
+in `stg_checklist__records_full.sql` — before the dedup model and ARM 4 union.
+
+---
+
+## Sources
+
+- `data/dbt/models/intermediate/int_combined.sql` — ARM 1/2/3 pattern, column types
+- `data/dbt/models/marts/checklist.sql` — county-fill mart (unchanged path)
+- `data/dbt/models/intermediate/int_synonyms.sql` — unified synonym JOIN
+- `data/dbt/models/staging/stg_checklist__species.sql` — synonym JOIN pattern for checklist
+- `data/sqlite_export.py` — `_GEO_COLS`, positional coupling comment, taxa build
+- `src/features.ts` — `_buildGeoJSONFromRaw`, occId construction, positional coupling note
+- `src/url-state.ts` — `SourceKey`, `VALID_SOURCES`
+- `src/filter.ts` — `OccurrenceRow`, `OCCURRENCE_COLUMNS`
+- `src/occurrence.ts` — `parseOccId`, `occIdFromRow`
+- `data/run.py` — STEPS ordering
+- `data/checklist_pipeline.py` — `_load_checklist_records()`, `reconcile()`, `CHECKLIST_RECORDS_PATH`
+- `data/resolve_taxon_ids.py` — `_names_to_resolve()` UNION already includes `checklist_data.species`
+- `.planning/PROJECT.md` — v4.7 milestone goal, v4.6 contract history
+
+---
+*Architecture research for: BeeAtlas v4.7 Checklist Records as Point Data*
+*Researched: 2026-06-03*
