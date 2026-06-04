@@ -748,7 +748,12 @@ Plans:
   3. Dates are stored as three nullable integers (`year`, `month`, `day`) plus a `date_quality` enum (`full` / `year_only` / `none`); pytest confirms `1812-06-18` and `m/d/yyyy` inputs parse correctly; NULL-date rows are tagged `none`
   4. `dateparser` and `pygbif`/`rapidfuzz` are added to `data/pyproject.toml` and install cleanly under Python 3.14
 
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+- [ ] 134-01-PLAN.md — Commit source CSV (LFS) + add dateparser/pygbif/rapidfuzz to pyproject.toml; verify install on Python 3.14 [ING-01]
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 134-02-PLAN.md — New _load_checklist_records_full() loader: coord_flag validation + y/m/d/date_quality date normalization + pytest [ING-01, ING-02, ING-03]
 
 ### Phase 135: Name Reconciliation
 
