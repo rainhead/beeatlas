@@ -1,5 +1,19 @@
 # Washington Bee Atlas
 
+## Current Milestone: v4.7 Checklist Records as Point Data
+
+**Goal:** Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV — recovering the coordinates, full dates, collector, and locality that Phases 76/112 discarded — so checklist records render as real map points (a true 4th occurrence source) with proper reconciliation to current taxonomy.
+
+**Target features:**
+- Re-extract the full-fidelity source (lat/lon, date, `recordedBy`, locality) into the pipeline, replacing the 4-column `wa_bee_checklist_records.tsv` derivation.
+- Promote checklist records into `occurrences.parquet` as a `source='checklist'` peer — sharing clustering, `taxon_id` filtering, the source-selection toggle, sidebar list, and CSV export. **Reverses the Phase 111 locked decision**, whose stated rationale ("checklist entries lack GPS coordinates") is factually void.
+- Render coord-bearing records as points; **drop the ~9% (4,595) with no coordinates** from the point layer.
+- Cross-source dedup/provenance strategy against Ecdysis specimen records — both are museum specimen data, so double-plotting the same physical bee is the primary risk of promotion.
+- Multi-class name reconciliation (authority-strip, whitespace, synonym, gender-agreement, misspelling) with ITIS as a build-time external adjudicator; iNat stays the `taxon_id` source via an accepted-name→taxon_id bridge.
+- Normalize mixed/missing dates (ISO + m/d/yyyy, ~13% null, range to 1812) and handle 5,184 internal-duplicate groups.
+
+**Key context:** Static hosting — ITIS/GBIF consulted at pipeline build time, baked into parquet, never at runtime. The existing county-fill presence layer and `checklist.parquet` mart remain the fallback for presence display; this milestone adds the point representation. v4.4 already resolved `texanus→subtilior` in the dbt staging arm, so synonym unification is partly done (the `checklist_unmatched.csv` reconcile path lags the dbt one).
+
 ## Milestone: v4.6 Taxonomy Hierarchy & Normalization — COMPLETE (2026-06-04)
 
 **Shipped:** A `taxon_id`-keyed taxon hierarchy (materialized `lineage_path`) built into `occurrences.db` via a two-pass bee + bycatch load with a zero-orphan assertion (Apidae descendant query 2.0 ms, far under the 50 ms gate); map filtering cut over to `taxon_id` + descendant-by-any-rank matching with an 8-rank autocomplete and integer `?taxon=` URLs (legacy-name back-compat); the occurrences mart dropped its 4 denormalized rank-string columns (dbt contract 37→33, `canonical_name` retained) with a 7-field `geo_blob` rewrite (−14.2% DB size) and a query-time `display_name` taxa JOIN; species/genus pages rebuilt off the `higher_taxa` rollup with 12 new `/species/subfamily/{Name}/` pages (plus tribe/subgenus) and a slug-collision hard-fail; and the flat `/species` index replaced by an expandable bee-only `<details>` taxonomy tree (default family→genus→species, "Show all ranks" toggle, type-to-filter with ancestor auto-expand, per-node count splits, page + filtered-map links). 20/20 requirements complete; audit passed.
