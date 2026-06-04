@@ -30,10 +30,11 @@ jobs:
 
       - name: Fetch build-time data from S3
         # Eleventy `_data/species.js` reads species.json + seasonality.json +
-        # higher_rank_taxon_ids.json synchronously at build time. Other artifacts
+        # higher_taxa.json synchronously at build time. Other artifacts
         # (occurrences.parquet etc.) are fetched by the frontend at runtime via
         # manifest.json; only these three must be present in the working tree for
-        # the build to succeed.
+        # the build to succeed. (higher_taxa.json supersedes the retired
+        # higher_rank_taxon_ids.json — D-03, Phase 132.)
         # Artifacts are content-hashed on S3; manifest.json resolves current names.
         # manifest.json is also written to public/data/ so validate-db can read it.
         run: |
@@ -42,10 +43,10 @@ jobs:
           cp /tmp/manifest.json public/data/manifest.json
           SPECIES_FILE=$(jq -r .species /tmp/manifest.json)
           SEASONALITY_FILE=$(jq -r .seasonality /tmp/manifest.json)
-          HIGHER_RANK_FILE=$(jq -r .higher_rank_taxon_ids /tmp/manifest.json)
+          HIGHER_TAXA_FILE=$(jq -r .higher_taxa /tmp/manifest.json)
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_FILE public/data/species.json
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SEASONALITY_FILE public/data/seasonality.json
-          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$HIGHER_RANK_FILE public/data/higher_rank_taxon_ids.json
+          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$HIGHER_TAXA_FILE public/data/higher_taxa.json
 
       - name: Run tests
         run: npm test
