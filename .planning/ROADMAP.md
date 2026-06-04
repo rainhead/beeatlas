@@ -39,6 +39,7 @@
 - ✅ **v4.4 Pipeline Data Quality** — Phase 123 (shipped 2026-05-29)
 - ✅ **v4.5 iNat Taxonomy & Species Completeness** — Phases 124–128 (shipped 2026-06-01). taxon_id surfaced through the dbt marts + genus-rank backfill (kingdom=Animalia); re-scoped TID-02. See [.planning/milestones/v4.5-ROADMAP.md](milestones/v4.5-ROADMAP.md).
 - ✅ **v4.6 Taxonomy Hierarchy & Normalization** — Phases 129–133 (shipped 2026-06-04). Denormalized rank columns replaced by a taxon_id hierarchy; descendant-by-any-rank map filtering; expandable browse tree; subfamily/taxon pages. See [.planning/milestones/v4.6-ROADMAP.md](milestones/v4.6-ROADMAP.md).
+- **v4.7 Checklist Records as Point Data** — Phases 134–138 (in progress)
 
 ## Phases
 
@@ -466,6 +467,14 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 
 </details>
 
+### v4.7 Checklist Records as Point Data (Phases 134–138) — IN PROGRESS
+
+- [ ] **Phase 134: Full-Fidelity Ingest** - Commit source CSV, extend pipeline for all columns, coordinate validation, date normalization
+- [ ] **Phase 135: Name Reconciliation** - Authority/whitespace normalize; tiered resolver; audit CSV; fuzzy human-review gate; slash-compound LCA; synonym unification; homonym guard
+- [ ] **Phase 136: Deduplication** - Collapse internal dupes; cross-source candidate flagging vs Ecdysis; human sign-off gate
+- [ ] **Phase 137: Promotion into Occurrences** - checklist ARM in int_combined; dbt contract bump; Phase 111 test retirement; atomic geo_blob + features.ts deploy
+- [ ] **Phase 138: Frontend Points & Detail Card** - Checklist map points; county-fill removal; source-selection integration; detail card; per-source counts
+
 ## Phase Details
 
 ### Phase 66: Provisional Rows in Pipeline
@@ -725,6 +734,86 @@ Plans:
 
 - [x] 130-03-PLAN.md — detail-card name resolution from taxon cache by taxon_id with No-determination fallback; taxonCache prop threaded bee-atlas → bee-pane → bee-occurrence-detail [MFILT-03]
 
+---
+
+### Phase 134: Full-Fidelity Ingest
+
+**Goal**: The committed Bartholomew CSV is loaded into the pipeline carrying all six columns; invalid coordinates are excluded and dates are normalized with an explicit quality flag
+**Depends on**: Phase 133
+**Requirements**: ING-01, ING-02, ING-03
+**Success Criteria** (what must be TRUE):
+
+  1. `data/checklists/` contains the committed source CSV and `checklist_pipeline.py` loads it into a DuckDB table with columns `lat`, `lon`, `date`, `recordedBy`, `locality`, `verbatim_name` — pytest asserts row count ~50,646 and all six columns present
+  2. Zero rows with `lat=0`, `lon=0`, or coordinates outside the WA bounding box enter the point arm; excluded-coordinate count is logged to build output
+  3. Dates are stored as three nullable integers (`year`, `month`, `day`) plus a `date_quality` enum (`full` / `year_only` / `none`); pytest confirms `1812-06-18` and `m/d/yyyy` inputs parse correctly; NULL-date rows are tagged `none`
+  4. `dateparser` and `pygbif`/`rapidfuzz` are added to `data/pyproject.toml` and install cleanly under Python 3.14
+
+**Plans**: TBD
+
+### Phase 135: Name Reconciliation
+
+**Goal**: Every verbatim checklist name resolves to a current accepted name and iNat `taxon_id` through a tiered resolver, with all external-authority lookups baked into a committed seed — the nightly pipeline makes no taxonomy network calls; fuzzy candidates are surfaced for human review only
+**Depends on**: Phase 134
+**Requirements**: RCN-01, RCN-02, RCN-03, RCN-04, RCN-05, RCN-06, RCN-07
+
+**HUMAN-REVIEW GATE**: Phase 136 must not begin until the curator has reviewed `checklist_name_resolution_audit.csv` and promoted any GBIF/ITIS matches into `occurrence_synonyms.csv`. Downstream phases must not proceed on unreviewed auto-matches.
+
+**Success Criteria** (what must be TRUE):
+
+  1. `"Agapostemon texanus Cresson, 1872"` and `"Agapostemon texanus "` (trailing space) both normalize to `agapostemon texanus`; authority-strip, whitespace-fold, and case-fold are applied before any matching step
+  2. `checklist_name_resolution_audit.csv` is committed to git listing every name → `taxon_id` decision with its source tier (`exact`, `synonym_seed`, `gbif`, `itis`) and confidence; unresolved names are reported, not hidden
+  3. `run.py` / `nightly.sh` issues zero GBIF or ITIS network calls; the resolver reads only from the committed DuckDB cache; the build is reproducible offline
+  4. `rapidfuzz` candidates for misspelling/gender-agreement are written to a curator-review CSV and are not active in any synonym seed until a human promotes them; a build gate asserts no unreviewed fuzzy mapping is live
+  5. `texanus/angelicus` (slash-compound) resolves to the LCA `taxon_id` via `lineage_path` and is filterable at that rank on the map
+  6. `checklist_synonyms.csv` is retired; all active checklist synonym resolution passes through `occurrence_synonyms` / `int_synonyms`; a test asserts one synonym source
+  7. A dbt test fails the build if any `canonical_name` within Anthophila maps to more than one `taxon_id` in `int_combined`
+
+**Plans**: TBD
+
+### Phase 136: Deduplication
+
+**Goal**: Internal exact duplicates are collapsed and checklist records that duplicate an Ecdysis specimen are conservatively flagged for human sign-off — no record is suppressed without explicit curator confirmation
+**Depends on**: Phase 135
+**Requirements**: DUP-01, DUP-02, DUP-03
+
+**HUMAN-REVIEW GATE**: Phase 137 must not begin until the curator has reviewed `dedup_candidate_pairs.csv` and marked confirmed duplicates. Unreviewed candidates must not suppress any point.
+
+**Success Criteria** (what must be TRUE):
+
+  1. The 5,184 exact internal duplicate groups (identical species, lat, lon, date, collector) collapse to single records; pytest verifies no exact-duplicate tuples remain after collapse
+  2. `dedup_candidate_pairs.csv` is produced listing cross-source candidate pairs matched on exact accepted-name + non-year-only date + coordinates within ~1 km + normalized collector; NULL-date and NULL-coordinate rows are never candidates
+  3. No checklist point is suppressed from the point arm unless its `dedup_status` is explicitly set to `confirmed` by a human; unreviewed candidates render as normal points; per-source counts reflect only confirmed suppressions
+
+**Plans**: TBD
+
+### Phase 137: Promotion into Occurrences
+
+**Goal**: Reconciled, deduplicated, coord-bearing checklist records enter `occurrences.parquet` as a `source='checklist'` ARM 4; the dbt contract is bumped; the Phase 111 isolation test is explicitly retired; `geo_blob` and `features.ts` are updated in one atomic commit
+**Depends on**: Phase 136
+**Requirements**: PRO-01, PRO-02, PRO-03, PRO-04
+**Success Criteria** (what must be TRUE):
+
+  1. `occurrences.parquet` contains `source='checklist'` rows; the dbt schema contract test passes at the new column count (33 → 34 minimum); no-coord records are excluded
+  2. ARMs 1–3 in `int_combined` emit `NULL::INTEGER AS checklist_id`; dbt build succeeds with zero type errors; the new column is NULL for non-checklist rows
+  3. The Phase 111 pytest that asserted checklist exclusion from `occurrences.parquet` is replaced with a new assertion that `source='checklist'` rows exist; a comment in the test file references the v4.7 reversal decision
+  4. `sqlite_export._GEO_COLS` and `src/features.ts` column-index constants change in a single atomic commit; a Vitest test decodes a `checklist:<N>` occId; `_buildGeoJSONFromRaw` drops no checklist point
+
+**Plans**: TBD
+
+### Phase 138: Frontend Points & Detail Card
+
+**Goal**: Checklist records render as real map points in a distinct source color; the county-fill layer is removed; the checklist source joins the real source-selection set; the detail card shows collector, date, locality, attribution, and verbatim-vs-accepted name; per-source counts are correct without double-counting
+**Depends on**: Phase 137
+**Requirements**: UIX-01, UIX-02, UIX-03, UIX-04
+**Success Criteria** (what must be TRUE):
+
+  1. Checklist points appear on the map in a visually distinct fourth source color, cluster with other sources, and respond to the taxon filter; toggling the checklist source off hides all checklist points
+  2. The county-fill layer is gone from the main map; the checklist source is a real entry in `VALID_SOURCES` / the source-selection set; with all four sources toggled off, no checklist points remain and the sidebar reports zero
+  3. Clicking a checklist point opens a detail card showing collector, date (respecting `date_quality`), locality, "Bartholomew et al. 2024" attribution, and both the verbatim determination and current accepted name when they differ
+  4. Per-source checklist counts on species/taxon pages equal the deduped checklist record count; no record is counted under both a county-fill surface and the point layer; `src=checklist` URL round-trip passes in Vitest
+
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
@@ -859,6 +948,16 @@ Plans:
 | 126. Taxon IDs | v4.5 | 3/3 | Complete    | 2026-05-31 |
 | 127. Inactive Taxon Remapping | v4.5 | 2/2 | Complete    | 2026-06-01 |
 | 128. Occurrence Finest-Rank Taxon Backfill | v4.5 | 1/1 | Complete | 2026-06-01 |
+| 129. Hierarchy Foundation | v4.6 | 3/3 | Complete | 2026-06-02 |
+| 130. Map Filter Cutover | v4.6 | 3/3 | Complete | 2026-06-02 |
+| 131. Occurrence Normalization | v4.6 | 4/4 | Complete | 2026-06-03 |
+| 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete | 2026-06-03 |
+| 133. Browse Tree | v4.6 | 4/4 | Complete | 2026-06-03 |
+| 134. Full-Fidelity Ingest | v4.7 | 0/TBD | Not started | - |
+| 135. Name Reconciliation | v4.7 | 0/TBD | Not started | - |
+| 136. Deduplication | v4.7 | 0/TBD | Not started | - |
+| 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
+| 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 

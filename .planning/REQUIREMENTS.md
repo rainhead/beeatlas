@@ -91,12 +91,26 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 
 ## Traceability
 
-Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ING-01..03 | TBD | Pending |
-| RCN-01..07 | TBD | Pending |
-| DUP-01..03 | TBD | Pending |
-| PRO-01..04 | TBD | Pending |
-| UIX-01..04 | TBD | Pending |
+| ING-01 | Phase 134 | Pending |
+| ING-02 | Phase 134 | Pending |
+| ING-03 | Phase 134 | Pending |
+| RCN-01 | Phase 135 | Pending |
+| RCN-02 | Phase 135 | Pending |
+| RCN-03 | Phase 135 | Pending |
+| RCN-04 | Phase 135 | Pending |
+| RCN-05 | Phase 135 | Pending |
+| RCN-06 | Phase 135 | Pending |
+| RCN-07 | Phase 135 | Pending |
+| DUP-01 | Phase 136 | Pending |
+| DUP-02 | Phase 136 | Pending |
+| DUP-03 | Phase 136 | Pending |
+| PRO-01 | Phase 137 | Pending |
+| PRO-02 | Phase 137 | Pending |
+| PRO-03 | Phase 137 | Pending |
+| PRO-04 | Phase 137 | Pending |
+| UIX-01 | Phase 138 | Pending |
+| UIX-02 | Phase 138 | Pending |
+| UIX-03 | Phase 138 | Pending |
+| UIX-04 | Phase 138 | Pending |
