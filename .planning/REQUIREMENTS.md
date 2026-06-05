@@ -1,116 +1,66 @@
-# Requirements: Washington Bee Atlas — v4.7 Checklist Records as Point Data
+# Requirements: Washington Bee Atlas — v4.8 Fast, Honest Test Suite
 
-**Defined:** 2026-06-04
-**Core Value:** Tighten learning cycles for volunteer collectors and convey liveness/togetherness; surface existing data (Ecdysis + iNaturalist + checklist) in ways hard to achieve elsewhere.
+**Defined:** 2026-06-05
+**Core Value:** Tighten learning cycles for volunteer collectors and convey liveness/togetherness; surface existing data (Ecdysis + iNaturalist + checklist) in ways hard to achieve elsewhere. A fast, trustworthy test suite is a force-multiplier on every future data milestone (notably the paused v4.7).
 
-Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordinates, full dates, collector, locality — discarded by Phases 76/112) and promote it into `occurrences.parquet` as a `source='checklist'` point peer, with build-time taxonomic reconciliation and conservative dedup against Ecdysis. Reverses the Phase 111 "checklist out of occurrences" lock (premise "lacks GPS coordinates" is void).
+Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and honest. Grounded in a static analysis of the suite (263 tests across 25 files, collection 2.3 s): the dominant cost is **per-test reparsing of committed data** (`test_checklist_pipeline.py` reparses the 50,646-row / 7.1 MB `checklist_records_full.csv` and reinserts ~50k rows on each of ~25 tests; `test_resolve_checklist_names.py` parses the 39 MB `raw/taxa.csv.gz` ~5 s × 7) — not the assumed un-checked-in-asset brittleness. Un-checked-in built-asset deps mostly degrade to **silent `skipif` skips**, so a green run does not mean coverage ran. ~19 tests are currently red from fixture drift (not slowness).
 
 ## v1 Requirements
 
-### Ingest (full-fidelity source)
+### Baseline & Performance (TPERF)
 
-- [x] **ING-01**: The full-fidelity Bartholomew CSV is committed into `data/checklists/` and loaded by `checklist_pipeline.py` into a DuckDB table carrying `lat, lon, date, recordedBy, locality, verbatim_name` — replacing the 4-column `wa_bee_checklist_records.tsv` derivation.
-  - *Current:* only `species, county, year, month` survive (lat/lon/collector/locality dropped).
-  - *Target:* full-column load from the committed CSV.
-  - *Accept:* pytest asserts loaded row count (50,646 pre-collapse) and presence of all six columns.
-- [x] **ING-02**: Coordinate validation at Python ingest excludes invalid coordinates (NULL, `0/0`, lat/lon swapped, outside the WA bounding box) from the point arm.
-  - *Current:* no coordinates ingested at all.
-  - *Target:* only validated in-WA coordinates reach the point arm; excluded count is logged.
-  - *Accept:* zero rows with `lat=0`/`lon=0` or outside the WA bbox enter the point arm; excluded count surfaced in build output.
-- [x] **ING-03**: Mixed/missing dates (ISO + `m/d/yyyy`, year-range strings, pre-1900, ~13% null) are normalized via `dateparser` into a date plus a `date_quality` enum (`full` / `year_only` / `none`).
-  - *Current:* `isdigit()`-based parse silently drops year-range and odd formats to NULL.
-  - *Target:* robust parse with an explicit quality flag driving filter eligibility.
-  - *Accept:* pytest parses `1812-06-18`, an `m/d/yyyy` value, and a `1989-1991` range; NULL-date rows are tagged `none` and excluded from year-range filtering.
+- [ ] **TPERF-01**: A reproducible runtime baseline is captured and committed — total wall-clock for the current suite plus per-file/per-fixture durations (`pytest --durations`) — documenting the starting point the >40 min claim refers to and pinpointing the dominant contributors.
+  - *Accept:* a `data/tests/BASELINE.md` (or equivalent) records measured totals and the top time sinks; reproducible via a documented command.
+- [ ] **TPERF-02**: The fast default suite (`cd data && uv run pytest`) completes in **< 5 minutes**.
+  - *Accept:* timed run on the dev host finishes under 5 min with the default marker deselection active.
+- [ ] **TPERF-03**: The fast suite runs **green on a clean checkout** with no un-checked-in built assets, no network, and no AWS/S3 — i.e. `git clone` + `uv sync` + `uv run pytest` passes with nothing else built.
+  - *Accept:* verified in a fresh clone / clean worktree (no `dbt/target`, no `public/data`, no `raw/taxa.csv.gz`, no `beeatlas.duckdb`).
 
-### Reconciliation (names → current accepted taxon_id)
+### Fixture Distillation (TFIXTURE)
 
-- [ ] **RCN-01**: Verbatim names are normalized (authority stripped, whitespace/case folded) to a canonical binomial before matching.
-  - *Accept:* `"Agapostemon texanus Cresson, 1872"` and `"Agapostemon texanus "` both normalize to `agapostemon texanus`.
-- [ ] **RCN-02**: Each record resolves to a current accepted name + iNat `taxon_id` via a tiered resolver (exact canonical → committed synonym seed → external authority GBIF/ITIS), with iNat `taxon_id` as the terminal key; every decision is recorded in a committed audit CSV with source + confidence.
-  - *Accept:* `texanus → subtilior` resolves; `checklist_name_resolution_audit.csv` lists every name→taxon_id decision; residual-unresolved count is reported, not hidden.
-- [ ] **RCN-03**: External-authority (GBIF/ITIS) lookups run only as a one-time, on-demand build step whose results are baked into a committed seed/cache; the nightly pipeline makes **no** network taxonomy calls.
-  - *Accept:* `run.py`/`nightly.sh` path issues zero GBIF/ITIS requests; the resolver reads the committed cache only; build is reproducible offline.
-- [ ] **RCN-04**: Low-confidence fuzzy candidates (misspelling, gender-agreement) are surfaced to a human-review CSV and are **never** auto-applied; only human-promoted mappings enter the synonym seed.
-  - *Accept:* `rapidfuzz` candidates written to a review CSV; the 13 known misspellings appear as candidates; a gate asserts no unreviewed fuzzy mapping is active.
-- [ ] **RCN-05**: Slash-compound determinations (e.g. `texanus/angelicus`) resolve to the **lowest-common-ancestor** `taxon_id` of the components via `lineage_path`, and the point is filterable at that rank.
-  - *Accept:* `texanus/angelicus` resolves to subgenus *Agapostemon* and appears under that node in taxon filtering.
-- [ ] **RCN-06**: Checklist reconciliation uses the single maintained dbt synonym subsystem (`occurrence_synonyms` seed / `int_synonyms`); the disjoint empty `checklist_synonyms.csv` Python path is retired/unified.
-  - *Accept:* no active mapping depends on `checklist_synonyms.csv`; a test asserts one synonym source; canonical names are consistent across sources.
-- [ ] **RCN-07**: A homonym guard asserts no `canonical_name` maps to >1 `taxon_id` within Anthophila before checklist rows enter `int_combined`.
-  - *Accept:* a dbt test fails the build on any within-Anthophila name→multiple-taxon_id collision.
+- [ ] **TFIXTURE-01**: A small committed sample distilled from `checklist_records_full.csv` — covering every `coord_flag` and `date_quality` branch the tests assert on — replaces full-file parsing in the fast tier, and the checklist DuckDB is built **once** (session/module-scoped), not per test.
+  - *Accept:* `test_checklist_pipeline.py` fast-tier tests no longer call the full-file loader; the file runs in seconds; assertions are rewritten against the sample's known counts.
+- [ ] **TFIXTURE-02**: `resolve_checklist_names` fast-tier tests run against a small committed ancestry fixture instead of the 39 MB `raw/taxa.csv.gz`.
+  - *Accept:* the fast tier passes with `raw/taxa.csv.gz` absent; per-test cost drops from ~5 s to sub-second.
+- [ ] **TFIXTURE-03**: Tests that depend on un-checked-in dbt `target/sandbox/*.parquet` and `public/data/*.parquet` run against committed fixtures (small parquet or in-test builder) so they **execute** on a clean checkout rather than `skipif`-skipping.
+  - *Accept:* on a clean checkout, the formerly-skipped scaffold/diff/higher-taxa/species-export assertions now run and pass in the fast tier.
+- [ ] **TFIXTURE-04**: Committed test fixtures live in a dedicated, documented location (e.g. `data/tests/fixtures/`) with provenance noted (which real rows each sample was distilled from and what cases it covers).
+  - *Accept:* fixtures directory exists; a short README/docstring records provenance and the invariants each fixture preserves.
 
-### Deduplication
+### Honest Coverage & Greening (TFIX)
 
-- [ ] **DUP-01**: Exact internal duplicates (identical species, lat, lon, date, collector) collapse to a single record.
-  - *Accept:* the 5,184 duplicate groups collapse; pytest verifies no exact-duplicate tuples remain post-collapse.
-- [ ] **DUP-02**: Checklist records duplicating an existing Ecdysis specimen are detected conservatively (exact accepted-name + non-year-only date + coordinates within ~1 km + normalized collector match; NULL date/coord ineligible) and **flagged, not silently merged**.
-  - *Accept:* `dedup_candidate_pairs.csv` is produced; flagged rows carry a `dedup_status`; no NULL-date/coord row is ever matched.
-- [ ] **DUP-03**: Flagged cross-source duplicates are suppressed from point rendering only after human sign-off, preferring false-split (keep both) when uncertain.
-  - *Accept:* only human-confirmed pairs suppress the checklist point; an unreviewed candidate does not auto-suppress; per-source counts reflect suppression.
+- [ ] **TFIX-01**: The ~16 `test_resolve_taxon_ids.py` failures are fixed — the `resolver_db` fixture provides `dbt_sandbox.occurrence_synonyms` (matching `resolve_taxon_ids.py:_names_to_resolve`) and the tests assert real resolution behavior.
+- [ ] **TFIX-02**: The 2 `test_dbt_diff.py` failures are resolved — replaced by fixture-based comparison, or converted to a **loud, explicit** skip-when-stale (never a silent pass).
+- [ ] **TFIX-03**: The `test_resolve_checklist_names` fuzzy-candidate failure (`test_at_least_13_fuzzy_candidates`) is fixed.
+- [ ] **TFIX-04**: No fast-tier test silently skips due to a missing un-checked-in asset; any remaining conditional skips are **reported** (visible in summary) and confined to the slow tier.
+  - *Accept:* a clean-checkout fast run reports 0 silent asset-driven skips.
+- [ ] **TFIX-05**: The full fast suite is green (0 failures, 0 errors) on a clean checkout.
 
-### Promotion (into occurrences)
+### Two-Tier Structure (TTIER)
 
-- [ ] **PRO-01**: Coord-bearing, reconciled, collapsed checklist records enter `int_combined`/`occurrences.parquet` as a `source='checklist'` arm conforming to the dbt occurrences contract (bumped from 33 to the new column count).
-  - *Accept:* `occurrences.parquet` contains `source='checklist'` rows; the dbt contract test passes at the new count; no-coord records are excluded.
-- [ ] **PRO-02**: ARMs 1–3 emit correctly-typed NULL casts for any new checklist-only column so the `UNION ALL` type-aligns.
-  - *Accept:* dbt build succeeds; the new column is NULL for non-checklist rows, integer for checklist rows.
-- [ ] **PRO-03**: The Phase 111 isolation pytest (asserting checklist exclusion from `occurrences.parquet`) is explicitly retired with a comment referencing v4.7 — not left failing or skipped.
-  - *Accept:* the test no longer asserts exclusion; a comment documents the reversal; the suite is green.
-- [ ] **PRO-04**: `occurrences.db` `geo_blob` carries checklist point identity and the `checklist:<N>` occId format; `sqlite_export._GEO_COLS` and frontend `features.ts` column indices change in **one atomic commit**.
-  - *Accept:* a Vitest test decodes a `checklist:<N>` occId; `_buildGeoJSONFromRaw` drops no checklist point; ID round-trip passes.
+- [ ] **TTIER-01**: A `slow`/`integration` pytest marker is registered and `addopts` deselects it by default, so `uv run pytest` runs only the fast tier; an explicit opt-in (e.g. `-m slow` or `--run-slow`) runs the heavy tier.
+- [ ] **TTIER-02**: Genuine full-data checks — the 50,646-row count assertion, full `taxa.csv.gz` LCA, sandbox-vs-public parquet diff — are tagged into the slow tier and still pass when run against real built data.
+- [ ] **TTIER-03**: `nightly.sh` runs the slow/integration tier on maderas against real built data and surfaces failures (non-zero exit / logged).
+  - *Accept:* `nightly.sh` invokes the slow tier; a failure there is observable in the nightly log.
 
-### Frontend UX
+### CI Gate (TCI)
 
-- [ ] **UIX-01**: Checklist records render as map points in a distinct source color, sharing clustering and `taxon_id` filtering with the other sources.
-  - *Accept:* checklist points appear, cluster, and respond to the taxon filter.
-- [ ] **UIX-02**: The existing "Checklist records" county-fill map layer is removed; the checklist source becomes a real entry in the source-selection set (replacing the separate `_showChecklist` toggle), so the "no sources selected" logic counts it correctly.
-  - *Accept:* no county-fill layer on the main map; toggling "Checklist" shows/hides points; with all four sources off, no checklist points remain and the sidebar reports none selected.
-- [ ] **UIX-03**: A checklist point's detail card shows collector, date (respecting `date_quality`), locality, Bartholomew et al. 2024 attribution, and both the verbatim determination and the current accepted name when they differ.
-  - *Accept:* the detail card renders these fields; verbatim-vs-accepted is shown only when the two differ.
-- [ ] **UIX-04**: Per-source counts on species/taxon pages include checklist without double-counting (county-fill removal + dedup suppression respected).
-  - *Accept:* a species' checklist count equals its deduped checklist record count; no record is counted under both a county-fill surface and the point layer.
+- [ ] **TCI-01**: A GitHub Actions job runs the fast pytest suite (`uv` + Python 3.14, `cd data && uv run pytest`) on push and pull request, failing the build on any test failure. (Python tests are not in CI today — CI is frontend-only.)
+- [ ] **TCI-02**: The CI job enforces the runtime budget — the build fails (or is flagged) if the fast suite exceeds the < 5 min target, preventing silent regression.
 
-## v2 Requirements (deferred)
+## Future Requirements
 
-### Presence & uncertainty
-
-- **PRES-01**: Optional county-presence overlay restored as a user toggle if volunteers miss the removed county-fill.
-- **UNC-01**: Coordinate-uncertainty display (e.g. radius) if a future source provides `coordinateUncertaintyInMeters` (absent from this CSV).
+- **TFIXTURE-05** (stretch): Broaden adoption of the session-scoped `fixture_db` / cached `INSTALL spatial` to the remaining per-test DuckDB builders (`test_inactive_remap.py`, `test_places_*`, `test_species_maps.py`, `test_higher_taxa.py`) for incremental ~0.5–1 s/test savings — pursue only if needed to hit the budget after TFIXTURE-01..03.
+- A shared "tiny canonical DuckDB" builder unifying the per-file ad-hoc DB construction into one well-documented fixture module.
 
 ## Out of Scope
 
-| Feature | Reason |
-|---------|--------|
-| Species-page county-presence SVG maps | Separate static surface fed by `checklist.parquet`; unchanged this milestone (only the main-map county-fill layer is removed). |
-| Coordinate-uncertainty circles on the map | Source CSV has no `coordinateUncertaintyInMeters`; rendering-expensive and an anti-feature at 50K points. |
-| Catalog-number-based dedup | CSV has no catalog/institution columns; dedup must be fuzzy on name+date+coords+collector. |
-| Probabilistic record linkage (Splink/recordlinkage) | Overkill for one 46K×70K comparison; DuckDB `jaro_winkler` SQL is sufficient. |
-| `gnverifier`/`gnparser` Go binaries | Redundant with GBIF + ITIS + existing `canonical_name.py`; adds binary deps. |
-| Live/runtime taxonomy or authority lookups | Violates static-hosting constraint; all external authority is build-time, baked into a seed. |
-| Backfilling collector/locality for Ecdysis/iNat sources | Out of scope; this milestone touches only the checklist source. |
+- **Frontend (Vitest) test suite** — this milestone is Python (`data/`) only. The TS suite is separately healthy (v1.9).
+- **Resuming or completing v4.7 functional work** — v4.7 stays paused; no checklist-point features are built here.
+- **Changing the dbt 33-column contract or dbt models** — dbt's contract is enforced separately at `bash data/dbt/run.sh build`; this milestone does not alter models, only how tests obtain/sample their data.
+- **Rewriting production pipeline logic** beyond the minimal seams needed to inject fixtures (e.g. an env/constant override for a data path). No behavioral change to `run.py`/`export.py` outputs.
+- **Making the slow/integration tier itself < 5 min** — full-data checks are allowed to be slow; they live in the nightly tier by design.
 
 ## Traceability
 
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| ING-01 | Phase 134 | Complete |
-| ING-02 | Phase 134 | Complete |
-| ING-03 | Phase 134 | Complete |
-| RCN-01 | Phase 135 | Pending |
-| RCN-02 | Phase 135 | Pending |
-| RCN-03 | Phase 135 | Pending |
-| RCN-04 | Phase 135 | Pending |
-| RCN-05 | Phase 135 | Pending |
-| RCN-06 | Phase 135 | Pending |
-| RCN-07 | Phase 135 | Pending |
-| DUP-01 | Phase 136 | Pending |
-| DUP-02 | Phase 136 | Pending |
-| DUP-03 | Phase 136 | Pending |
-| PRO-01 | Phase 137 | Pending |
-| PRO-02 | Phase 137 | Pending |
-| PRO-03 | Phase 137 | Pending |
-| PRO-04 | Phase 137 | Pending |
-| UIX-01 | Phase 138 | Pending |
-| UIX-02 | Phase 138 | Pending |
-| UIX-03 | Phase 138 | Pending |
-| UIX-04 | Phase 138 | Pending |
+*(Filled by roadmap — each requirement maps to exactly one phase.)*

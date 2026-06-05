@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.7
-milestone_name: Checklist Records as Point Data
-status: executing
-stopped_at: Phase 135 context gathered
-last_updated: "2026-06-05T03:26:25.690Z"
-last_activity: 2026-06-05 -- Phase 135 execution started
+milestone: v4.8
+milestone_name: Fast, Honest Test Suite
+status: planning
+last_updated: "2026-06-05T22:30:35.577Z"
+last_activity: 2026-06-05
 progress:
-  total_phases: 16
-  completed_phases: 1
-  total_plans: 7
-  completed_plans: 2
-  percent: 6
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 roadmap defined)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 135 — name-reconciliation
+**Current focus:** v4.8 Fast, Honest Test Suite — defining requirements (v4.7 paused at Phase 135, resumable)
 
 ## Current Position
 
-Phase: 135 (name-reconciliation) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 135
-Last activity: 2026-06-05 -- Phase 135 execution started
-
-Progress: [----------] 0% (0/5 phases complete)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-05 — Milestone v4.8 started
 
 ## Milestone Overview
 
@@ -47,6 +44,10 @@ Progress: [----------] 0% (0/5 phases complete)
 **Coverage:** 21/21 requirements mapped (ING-01..03, RCN-01..07, DUP-01..03, PRO-01..04, UIX-01..04)
 
 ## Accumulated Context
+
+### ⏸ v4.7 PAUSED (2026-06-05) — resumable
+
+v4.7 "Checklist Records as Point Data" was paused mid-execution to run v4.8 (the slow/red `data/` test suite was impeding iteration). **State at pause:** Phase 134 done; Phase 135 (name-reconciliation) in progress, plan 1 of 5; context gathered in `.planning/phases/135-name-reconciliation/135-CONTEXT.md`. Phase dirs `134-*`/`135-*` and v4.7 requirements (`.planning/REQUIREMENTS-v4.7-paused.md`) are preserved on disk. v4.7 reserved phases 134–138; v4.8 continues at **phase 139**. The v4.7 decisions/todos/overview below are retained for resumption — they do **not** apply to v4.8.
 
 ### Decisions
 
