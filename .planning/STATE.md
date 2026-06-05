@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: ready_to_plan
-stopped_at: Phase 134 complete (2/2) — ready to discuss Phase 135
-last_updated: 2026-06-04T19:10:52.460Z
-last_activity: 2026-06-04 -- Phase 134 execution started
+status: planning
+stopped_at: Phase 135 context gathered
+last_updated: "2026-06-05T02:07:40.035Z"
+last_activity: 2026-06-04
 progress:
   total_phases: 16
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
   completed_plans: 2
-  percent: 0
+  percent: 6
 ---
 
 # Project State
@@ -108,9 +108,9 @@ Carried forward from v4.6 milestone close (2026-06-04) — 28 open items, all pr
 
 ## Session Continuity
 
-Last session: 2026-06-04T17:00:43.611Z
-Stopped at: Phase 134 context gathered
-Resume file: .planning/phases/134-full-fidelity-ingest/134-CONTEXT.md
+Last session: 2026-06-05T02:07:40.000Z
+Stopped at: Phase 135 context gathered
+Resume file: .planning/phases/135-name-reconciliation/135-CONTEXT.md
 
 ## Operator Next Steps
 
