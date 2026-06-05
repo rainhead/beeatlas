@@ -360,6 +360,7 @@ def test_reconcile_unmatched_csv_header(fixture_con, tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.integration
 def test_checklist_records_full_row_count(checklist_db):
     """SC#1: checklist_records_full must have ~50,646 rows (BETWEEN 50000 AND 51000)."""
     db_path, mod = checklist_db
@@ -374,6 +375,7 @@ def test_checklist_records_full_row_count(checklist_db):
     assert 50000 <= n <= 51000, f"expected ~50,646 rows, got {n}"
 
 
+@pytest.mark.integration
 def test_checklist_records_full_schema(checklist_db):
     """SC#1: checklist_records_full must have the full 13-column schema (D-12)."""
     db_path, mod = checklist_db
