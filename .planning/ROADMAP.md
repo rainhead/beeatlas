@@ -776,7 +776,7 @@ Plans:
 **Plans**: 5 plans
 Plans:
 **Wave 0**
-- [ ] 135-01-PLAN.md — RED test scaffolding: test_resolve_checklist_names.py + test_checklist_pipeline.py RCN-06 stubs + assert_no_anthophila_homonyms.sql [RCN-01..07]
+- [x] 135-01-PLAN.md — RED test scaffolding: test_resolve_checklist_names.py + test_checklist_pipeline.py RCN-06 stubs + assert_no_anthophila_homonyms.sql [RCN-01..07]
 **Wave 1** *(blocked on Wave 0; 02/03/04 run in parallel)*
 - [ ] 135-02-PLAN.md — resolve_checklist_names.py: LCA + GBIF refresh + rapidfuzz + audit/fuzzy/seed CSVs + gate [RCN-02, RCN-03, RCN-04, RCN-05]
 - [ ] 135-03-PLAN.md — checklist_pipeline.py: canonical_name column + retire reconcile()/SYNONYMS_PATH [RCN-01, RCN-06]
@@ -968,7 +968,7 @@ Plans:
 | 132. Page Rebuild & Subfamily Pages | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 133. Browse Tree | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete    | 2026-06-04 |
-| 135. Name Reconciliation | v4.7 | 0/TBD | Not started | - |
+| 135. Name Reconciliation | v4.7 | 1/5 | In Progress|  |
 | 136. Deduplication | v4.7 | 0/TBD | Not started | - |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
