@@ -63,4 +63,22 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 ## Traceability
 
-*(Filled by roadmap — each requirement maps to exactly one phase.)*
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TPERF-01 | Phase 139: Baseline & Two-Tier Scaffold | Pending |
+| TTIER-01 | Phase 139: Baseline & Two-Tier Scaffold | Pending |
+| TFIXTURE-01 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
+| TFIXTURE-02 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
+| TFIXTURE-04 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
+| TFIXTURE-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIX-01 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIX-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIX-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIX-04 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TTIER-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIX-05 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
+| TPERF-02 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
+| TPERF-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
+| TTIER-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
+| TCI-01 | Phase 143: CI Gate | Pending |
+| TCI-02 | Phase 143: CI Gate | Pending |
