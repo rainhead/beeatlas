@@ -12,6 +12,8 @@ Phase 134 Plan 02 adds:
   - Integration tests for checklist_data.checklist_records_full table (ING-01)
 """
 
+from pathlib import Path
+
 import duckdb
 import pytest
 
@@ -25,6 +27,9 @@ def checklist_db(tmp_path, monkeypatch):
     Bootstraps a minimal ecdysis_data.occurrences table because Plan 05's
     extension to load_checklist() materializes canonical_name on it; in
     production run.py STEPS guarantees ecdysis runs first (T-76-04).
+
+    Phase 135 Plan 03: SYNONYMS_PATH / UNMATCHED_PATH patches removed —
+    reconcile() was retired per D-07 (RCN-06); those constants no longer exist.
     """
     db_path = str(tmp_path / "checklist.duckdb")
     monkeypatch.setenv("DB_PATH", db_path)
@@ -37,13 +42,6 @@ def checklist_db(tmp_path, monkeypatch):
     con.execute("CREATE SCHEMA ecdysis_data")
     con.execute("CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)")
     con.close()
-    # Redirect synonyms + unmatched paths to tmp so tests don't clobber repo files.
-    monkeypatch.setattr(
-        checklist_pipeline, "SYNONYMS_PATH", tmp_path / "checklist_synonyms.csv"
-    )
-    monkeypatch.setattr(
-        checklist_pipeline, "UNMATCHED_PATH", tmp_path / "checklist_unmatched.csv"
-    )
     return db_path, checklist_pipeline
 
 
@@ -321,117 +319,38 @@ def test_trinomial_subspecies_folds_to_binomial(fixture_con):
     assert normalize_scientific_name("Bombus melanopygus mixtus") == "bombus melanopygus"
 
 
-def test_reconcile_synonym_override_updates_checklist(fixture_con, tmp_path, monkeypatch):
-    """CHECK-05 + D-05 (open-question-3 resolution): a synonyms.csv entry whose
-    canonical_name DOES match an occurrence MUST UPDATE
-    checklist_data.species.canonical_name to the override value, and the row
-    MUST NOT be written to unmatched.csv."""
-    # Seed: a checklist row whose initial canonical_name does NOT match any
-    # occurrence (its canonical_name is intentionally bogus).
-    fixture_con.execute("""
-        INSERT INTO checklist_data.species (
-            scientificName, family, subfamily, tribe, genus, subgenus,
-            specific_epithet, status, source_citation, notes, canonical_name
-        ) VALUES (
-            'Foo barius', NULL, NULL, NULL, 'Foo', NULL, 'barius',
-            'verified', 'test fixture', NULL, 'foo barius_will_not_join'
-        )
-    """)
-    # And an occurrence with a different canonical_name that the synonym
-    # will redirect to.
-    fixture_con.execute("""
-        INSERT INTO ecdysis_data.occurrences (
-            id, occurrence_id, scientific_name, _dlt_load_id, _dlt_id,
-            canonical_name
-        ) VALUES (
-            '7600901', 'p76-syn-uuid-1', 'Foo bara', 'load-syn', 'dlt-syn-1',
-            'foo bara'
-        )
-    """)
-
-    synonyms_csv = tmp_path / "checklist_synonyms.csv"
-    synonyms_csv.write_text(
-        "checklist_name,canonical_name,source\n"
-        "Foo barius,foo bara,test fixture\n"
+@pytest.mark.skip(
+    reason=(
+        "reconcile() retired per D-07 / RCN-06 (Phase 135 Plan 03). "
+        "Checklist synonym resolution now flows through occurrence_synonyms / "
+        "int_synonyms. SYNONYMS_PATH and UNMATCHED_PATH no longer exist in the module."
     )
-    unmatched_csv = tmp_path / "checklist_unmatched.csv"
-    monkeypatch.setattr(checklist_mod, "SYNONYMS_PATH", synonyms_csv)
-    monkeypatch.setattr(checklist_mod, "UNMATCHED_PATH", unmatched_csv)
-
-    try:
-        checklist_mod.reconcile(fixture_con)
-
-        # checklist canonical_name was UPDATEd to the override.
-        new_canon = fixture_con.execute(
-            "SELECT canonical_name FROM checklist_data.species "
-            "WHERE scientificName = 'Foo barius'"
-        ).fetchone()[0]
-        assert new_canon == "foo bara", f"override not applied: {new_canon!r}"
-
-        # And the row is NOT in unmatched.csv.
-        assert unmatched_csv.exists()
-        with unmatched_csv.open() as f:
-            rows = list(csv.DictReader(f))
-        assert all(r["checklist_name"] != "Foo barius" for r in rows), \
-            "Foo barius should not be in unmatched after override hit"
-    finally:
-        # Tear down so other tests sharing fixture_con see clean state.
-        fixture_con.execute(
-            "DELETE FROM checklist_data.species WHERE scientificName = 'Foo barius'"
-        )
-        fixture_con.execute(
-            "DELETE FROM ecdysis_data.occurrences WHERE id = '7600901'"
-        )
+)
+def test_reconcile_synonym_override_updates_checklist(fixture_con, tmp_path, monkeypatch):
+    """CHECK-05 + D-05: RETIRED — reconcile() removed per D-07 (RCN-06)."""
+    pass  # Dead code path; kept as documentation only.
 
 
+@pytest.mark.skip(
+    reason=(
+        "reconcile() retired per D-07 / RCN-06 (Phase 135 Plan 03). "
+        "Checklist synonym resolution now flows through occurrence_synonyms / int_synonyms."
+    )
+)
 def test_reconcile_unmatched_warn_only(fixture_con, tmp_path, monkeypatch):
-    """CHECK-05 + D-05: a checklist row with no synonyms entry that doesn't
-    join any occurrence MUST land in unmatched.csv WITHOUT raising."""
-    fixture_con.execute("""
-        INSERT INTO checklist_data.species (
-            scientificName, family, subfamily, tribe, genus, subgenus,
-            specific_epithet, status, source_citation, notes, canonical_name
-        ) VALUES (
-            'Phantom species', NULL, NULL, NULL, 'Phantom', NULL, 'species',
-            'verified', 'test fixture', NULL, 'phantom species'
-        )
-    """)
-
-    synonyms_csv = tmp_path / "checklist_synonyms.csv"
-    synonyms_csv.write_text("checklist_name,canonical_name,source\n")
-    unmatched_csv = tmp_path / "checklist_unmatched.csv"
-    monkeypatch.setattr(checklist_mod, "SYNONYMS_PATH", synonyms_csv)
-    monkeypatch.setattr(checklist_mod, "UNMATCHED_PATH", unmatched_csv)
-
-    try:
-        # Must not raise.
-        checklist_mod.reconcile(fixture_con)
-
-        assert unmatched_csv.exists()
-        with unmatched_csv.open() as f:
-            rows = list(csv.DictReader(f))
-        matching = [r for r in rows if r["checklist_name"] == "Phantom species"]
-        assert len(matching) == 1, f"Phantom species should appear in unmatched: {rows}"
-        assert "no occurrence" in matching[0]["reason"].lower()
-    finally:
-        fixture_con.execute(
-            "DELETE FROM checklist_data.species WHERE scientificName = 'Phantom species'"
-        )
+    """CHECK-05 + D-05: RETIRED — reconcile() removed per D-07 (RCN-06)."""
+    pass  # Dead code path; kept as documentation only.
 
 
+@pytest.mark.skip(
+    reason=(
+        "reconcile() retired per D-07 / RCN-06 (Phase 135 Plan 03). "
+        "SYNONYMS_PATH and UNMATCHED_PATH no longer exist in the module."
+    )
+)
 def test_reconcile_unmatched_csv_header(fixture_con, tmp_path, monkeypatch):
-    """D-05: unmatched.csv MUST have header `checklist_name,canonical_name,reason`."""
-    synonyms_csv = tmp_path / "checklist_synonyms.csv"
-    synonyms_csv.write_text("checklist_name,canonical_name,source\n")
-    unmatched_csv = tmp_path / "checklist_unmatched.csv"
-    monkeypatch.setattr(checklist_mod, "SYNONYMS_PATH", synonyms_csv)
-    monkeypatch.setattr(checklist_mod, "UNMATCHED_PATH", unmatched_csv)
-
-    checklist_mod.reconcile(fixture_con)
-
-    assert unmatched_csv.exists()
-    first_line = unmatched_csv.read_text().splitlines()[0]
-    assert first_line == "checklist_name,canonical_name,reason"
+    """D-05: RETIRED — reconcile() removed per D-07 (RCN-06)."""
+    pass  # Dead code path; kept as documentation only.
 
 
 # ---------------------------------------------------------------------------
@@ -647,6 +566,119 @@ def test_checklist_records_old_table_still_exists(checklist_db):
     assert cols == ["scientificName", "county", "year", "month"], (
         f"old checklist_records table missing or schema changed: {cols}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 135 Plan 03 — RED stubs for RCN-01 (canonical_name column on
+# checklist_records_full).
+#
+# These tests are intentionally RED now because checklist_records_full
+# does not yet have a canonical_name column. They turn GREEN when
+# Plan 135-03 adds canonical_name to _load_checklist_records_full().
+# ---------------------------------------------------------------------------
+
+
+def test_checklist_records_full_canonical_name_column_exists(checklist_db):
+    """RCN-01: checklist_records_full must have a canonical_name column.
+
+    Currently FAILS because _load_checklist_records_full() does not yet
+    store a canonical_name column. Goes GREEN in Plan 135-03.
+    """
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        cols = {
+            row[0]
+            for row in con.execute(
+                "SELECT column_name FROM information_schema.columns "
+                "WHERE table_schema='checklist_data' AND table_name='checklist_records_full'"
+            ).fetchall()
+        }
+    finally:
+        con.close()
+    assert "canonical_name" in cols, (
+        "checklist_records_full must have a canonical_name column (RCN-01). "
+        "Add canonical_name VARCHAR to the CREATE OR REPLACE TABLE schema."
+    )
+
+
+def test_checklist_records_full_canonical_name_non_slash_rows(checklist_db):
+    """RCN-01: non-slash rows must have canonical_name = normalize_scientific_name(verbatim_name).
+
+    Currently FAILS. Goes GREEN in Plan 135-03.
+    """
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        # Check that non-slash rows with non-null verbatim_name have non-null canonical_name.
+        n_null = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE verbatim_name IS NOT NULL
+              AND verbatim_name NOT LIKE '%/%'
+              AND canonical_name IS NULL
+        """).fetchone()[0]
+        total_non_slash = con.execute("""
+            SELECT count(*) FROM checklist_data.checklist_records_full
+            WHERE verbatim_name IS NOT NULL
+              AND verbatim_name NOT LIKE '%/%'
+        """).fetchone()[0]
+    finally:
+        con.close()
+    assert n_null == 0, (
+        f"Found {n_null} non-slash rows with verbatim_name but NULL canonical_name "
+        f"(out of {total_non_slash} total non-slash rows). "
+        "canonical_name must be populated for all resolvable verbatim_names (RCN-01)."
+    )
+
+
+def test_checklist_records_full_slash_rows_get_lca_canonical_name(checklist_db):
+    """RCN-01 / D-05: slash-compound rows must have a non-null canonical_name (LCA name).
+
+    Verbatim slash string must be preserved in verbatim_name; canonical_name
+    must be the LCA's accepted name (computed from data/raw/taxa.csv.gz).
+
+    NOTE: taxa.csv.gz is gitignored and may be absent in CI/worktree environments.
+    When absent, _slash_canonical_name() returns None and LCA resolution is skipped;
+    the test then only verifies verbatim_name retention (D-05 verbatim retention invariant).
+    The full LCA assertion runs post-merge in the environment where taxa.csv.gz is present
+    (per plan guidance — note this as environment-limited in SUMMARY).
+
+    Currently FAILS because canonical_name column does not exist. Goes GREEN in Plan 135-03.
+    """
+    import os  # noqa: PLC0415
+
+    db_path, mod = checklist_db
+    mod.load_checklist()
+    con = duckdb.connect(db_path, read_only=True)
+    try:
+        slash_rows = con.execute("""
+            SELECT verbatim_name, canonical_name FROM checklist_data.checklist_records_full
+            WHERE verbatim_name LIKE '%/%'
+            LIMIT 5
+        """).fetchall()
+    finally:
+        con.close()
+    assert slash_rows, "expected at least one slash-compound row in checklist_records_full"
+
+    # Check if taxa.csv.gz is available for LCA resolution.
+    taxa_path = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / "raw" / "taxa.csv.gz"
+    taxa_available = taxa_path.exists()
+
+    for verbatim, canon in slash_rows:
+        # The verbatim slash string must still be in verbatim_name (D-05 verbatim retention)
+        assert "/" in verbatim, (
+            f"Expected '/' in verbatim_name after slash-compound loading, got: {verbatim!r}"
+        )
+        if taxa_available:
+            assert canon is not None, (
+                f"Slash-compound row verbatim_name={verbatim!r} has NULL canonical_name. "
+                "Slash rows must resolve to the LCA canonical name per D-05 (RCN-01). "
+                f"taxa.csv.gz is present at {taxa_path} — LCA lookup should succeed."
+            )
+        # When taxa.csv.gz is absent, canonical_name may be None (environment-limited check).
+        # The full LCA assertion is validated post-merge when taxa.csv.gz is present.
 
 
 # ---------------------------------------------------------------------------

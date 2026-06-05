@@ -1,4 +1,9 @@
-"""Tests for Phase 76 / Plan 05 — occurrences canonical_name + reconcile()."""
+"""Tests for Phase 76 / Plan 05 — occurrences canonical_name + reconcile().
+
+Phase 135 Plan 03 — RETIRED: reconcile() removed per D-07 / RCN-06.
+All tests in this file test the defunct reconcile() path and are skipped.
+Checklist synonym resolution now flows through occurrence_synonyms / int_synonyms.
+"""
 
 import csv
 import importlib
@@ -7,6 +12,14 @@ import duckdb
 import pytest
 
 from canonical_name import normalize_scientific_name
+
+_RETIRED = pytest.mark.skip(
+    reason=(
+        "reconcile() retired per D-07 / RCN-06 (Phase 135 Plan 03). "
+        "SYNONYMS_PATH and UNMATCHED_PATH no longer exist in checklist_pipeline. "
+        "Synonym resolution now flows through occurrence_synonyms / int_synonyms."
+    )
+)
 
 
 @pytest.fixture
@@ -25,7 +38,7 @@ def _bootstrap_occurrences(con: duckdb.DuckDBPyConnection) -> None:
     )
 
 
-def test_update_occurrences_adds_canonical_name_column(reload_pipeline):
+def test_update_occurrences_adds_canonical_name_column(reload_pipeline):  # NOT skipped — _update_occurrences_canonical_name is still live
     mod = reload_pipeline
     con = duckdb.connect(":memory:")
     _bootstrap_occurrences(con)
@@ -45,7 +58,7 @@ def test_update_occurrences_adds_canonical_name_column(reload_pipeline):
     assert by_sci[""] is None
 
 
-def test_update_occurrences_is_idempotent(reload_pipeline):
+def test_update_occurrences_is_idempotent(reload_pipeline):  # NOT skipped — _update_occurrences_canonical_name is still live
     mod = reload_pipeline
     con = duckdb.connect(":memory:")
     _bootstrap_occurrences(con)
@@ -76,6 +89,7 @@ def _bootstrap_for_reconcile(con: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
+@_RETIRED
 def test_reconcile_writes_header_only_when_all_match(reload_pipeline, tmp_path, monkeypatch):
     mod = reload_pipeline
     monkeypatch.setattr(mod, "SYNONYMS_PATH", tmp_path / "synonyms.csv")
@@ -96,6 +110,7 @@ def test_reconcile_writes_header_only_when_all_match(reload_pipeline, tmp_path, 
     assert len(text) == 1
 
 
+@_RETIRED
 def test_reconcile_records_unmatched_with_reason(reload_pipeline, tmp_path, monkeypatch):
     mod = reload_pipeline
     monkeypatch.setattr(mod, "SYNONYMS_PATH", tmp_path / "synonyms.csv")
@@ -115,6 +130,7 @@ def test_reconcile_records_unmatched_with_reason(reload_pipeline, tmp_path, monk
     assert rows[0]["reason"] == "no occurrence row matches canonical_name"
 
 
+@_RETIRED
 def test_reconcile_synonym_override_updates_checklist(reload_pipeline, tmp_path, monkeypatch):
     mod = reload_pipeline
     monkeypatch.setattr(mod, "SYNONYMS_PATH", tmp_path / "synonyms.csv")
@@ -141,6 +157,7 @@ def test_reconcile_synonym_override_updates_checklist(reload_pipeline, tmp_path,
     assert len(text) == 1  # header only, no unmatched rows
 
 
+@_RETIRED
 def test_reconcile_synonym_override_no_match_records_unmatched(reload_pipeline, tmp_path, monkeypatch):
     mod = reload_pipeline
     monkeypatch.setattr(mod, "SYNONYMS_PATH", tmp_path / "synonyms.csv")
@@ -163,6 +180,7 @@ def test_reconcile_synonym_override_no_match_records_unmatched(reload_pipeline, 
     assert rows[0]["reason"] == "synonym override did not join occurrences"
 
 
+@_RETIRED
 def test_reconcile_does_not_raise_on_unmatched(reload_pipeline, tmp_path, monkeypatch):
     """D-05 warn-only invariant."""
     mod = reload_pipeline
@@ -182,6 +200,7 @@ def test_reconcile_does_not_raise_on_unmatched(reload_pipeline, tmp_path, monkey
     assert len(rows) == 2
 
 
+@_RETIRED
 def test_reconcile_overwrites_existing_unmatched_csv(reload_pipeline, tmp_path, monkeypatch):
     mod = reload_pipeline
     monkeypatch.setattr(mod, "SYNONYMS_PATH", tmp_path / "synonyms.csv")
