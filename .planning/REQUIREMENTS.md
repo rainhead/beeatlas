@@ -9,7 +9,7 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 ### Baseline & Performance (TPERF)
 
-- [ ] **TPERF-01**: A reproducible runtime baseline is captured and committed — total wall-clock for the current suite plus per-file/per-fixture durations (`pytest --durations`) — documenting the starting point the >40 min claim refers to and pinpointing the dominant contributors.
+- [x] **TPERF-01**: A reproducible runtime baseline is captured and committed — total wall-clock for the current suite plus per-file/per-fixture durations (`pytest --durations`) — documenting the starting point the >40 min claim refers to and pinpointing the dominant contributors.
   - *Accept:* a `data/tests/BASELINE.md` (or equivalent) records measured totals and the top time sinks; reproducible via a documented command.
 - [ ] **TPERF-02**: The fast default suite (`cd data && uv run pytest`) completes in **< 5 minutes**.
   - *Accept:* timed run on the dev host finishes under 5 min with the default marker deselection active.
@@ -38,7 +38,7 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 ### Two-Tier Structure (TTIER)
 
-- [ ] **TTIER-01**: A `slow`/`integration` pytest marker is registered and `addopts` deselects it by default, so `uv run pytest` runs only the fast tier; an explicit opt-in (e.g. `-m slow` or `--run-slow`) runs the heavy tier.
+- [x] **TTIER-01**: A `slow`/`integration` pytest marker is registered and `addopts` deselects it by default, so `uv run pytest` runs only the fast tier; an explicit opt-in (e.g. `-m slow` or `--run-slow`) runs the heavy tier.
 - [ ] **TTIER-02**: Genuine full-data checks — the 50,646-row count assertion, full `taxa.csv.gz` LCA, sandbox-vs-public parquet diff — are tagged into the slow tier and still pass when run against real built data.
 - [ ] **TTIER-03**: `nightly.sh` runs the slow/integration tier on maderas against real built data and surfaces failures (non-zero exit / logged).
   - *Accept:* `nightly.sh` invokes the slow tier; a failure there is observable in the nightly log.
@@ -65,8 +65,8 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TPERF-01 | Phase 139: Baseline & Two-Tier Scaffold | Pending |
-| TTIER-01 | Phase 139: Baseline & Two-Tier Scaffold | Pending |
+| TPERF-01 | Phase 139: Baseline & Two-Tier Scaffold | Complete |
+| TTIER-01 | Phase 139: Baseline & Two-Tier Scaffold | Complete |
 | TFIXTURE-01 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
 | TFIXTURE-02 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
 | TFIXTURE-04 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
