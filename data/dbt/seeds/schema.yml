@@ -24,12 +24,15 @@ seeds:
       - name: source
         description: "Auto-generated: 'inat-inactive-remap:{inactive_taxon_id}'"
   - name: gbif_checklist_synonyms
+    description: "GBIF backbone synonym mappings for unresolved checklist names (Phase 135). Written by resolve_checklist_names.py --refresh-checklist; read by int_synonyms third arm. Lowest precedence: anti-joined against occurrence_synonyms AND auto_synonyms."
     columns:
       - name: synonym
+        description: "Normalized canonical form of the unresolved checklist name (checklist → accepted iNat name)"
         data_tests:
           - not_null
           - unique
       - name: accepted_name
+        description: "Accepted canonical name from GBIF backbone (lowercased)"
         data_tests:
           - not_null
       - name: source
