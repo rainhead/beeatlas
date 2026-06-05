@@ -773,7 +773,16 @@ Plans:
   6. `checklist_synonyms.csv` is retired; all active checklist synonym resolution passes through `occurrence_synonyms` / `int_synonyms`; a test asserts one synonym source
   7. A dbt test fails the build if any `canonical_name` within Anthophila maps to more than one `taxon_id` in `int_combined`
 
-**Plans**: TBD
+**Plans**: 5 plans
+Plans:
+**Wave 0**
+- [ ] 135-01-PLAN.md — RED test scaffolding: test_resolve_checklist_names.py + test_checklist_pipeline.py RCN-06 stubs + assert_no_anthophila_homonyms.sql [RCN-01..07]
+**Wave 1** *(blocked on Wave 0; 02/03/04 run in parallel)*
+- [ ] 135-02-PLAN.md — resolve_checklist_names.py: LCA + GBIF refresh + rapidfuzz + audit/fuzzy/seed CSVs + gate [RCN-02, RCN-03, RCN-04, RCN-05]
+- [ ] 135-03-PLAN.md — checklist_pipeline.py: canonical_name column + retire reconcile()/SYNONYMS_PATH [RCN-01, RCN-06]
+- [ ] 135-04-PLAN.md — dbt: checklist_records_full source + int_synonyms 3rd arm + stg_checklist__records_full + seed schema [RCN-06, RCN-07]
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 135-05-PLAN.md — run.py wiring (no-op resolver + gate) + one-time --refresh-checklist + full dbt build + Anthophila-ancestor verify + HUMAN-REVIEW GATE [RCN-02, RCN-03, RCN-07]
 
 ### Phase 136: Deduplication
 
