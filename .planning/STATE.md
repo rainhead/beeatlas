@@ -4,8 +4,8 @@ milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
 stopped_at: Phase 135 context gathered
-last_updated: "2026-06-05T02:47:53.769Z"
-last_activity: 2026-06-05 -- Phase 135 planning complete
+last_updated: "2026-06-05T03:26:25.690Z"
+last_activity: 2026-06-05 -- Phase 135 execution started
 progress:
   total_phases: 16
   completed_phases: 1
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 roadmap defined)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 135 — name reconciliation
+**Current focus:** Phase 135 — name-reconciliation
 
 ## Current Position
 
-Phase: 135
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-05 -- Phase 135 planning complete
+Phase: 135 (name-reconciliation) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 135
+Last activity: 2026-06-05 -- Phase 135 execution started
 
 Progress: [----------] 0% (0/5 phases complete)
 
