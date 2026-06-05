@@ -27,6 +27,7 @@ sources:
       - name: species
       - name: species_counties
       - name: checklist_records
+      - name: checklist_records_full   # Phase 135: full-fidelity checklist with coord/date/collector
 
   - name: geographies
     schema: geographies

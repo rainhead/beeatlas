@@ -13,3 +13,10 @@ SELECT a.synonym, a.accepted_name, a.source
 FROM {{ ref('auto_synonyms') }} a
 LEFT JOIN {{ ref('occurrence_synonyms') }} m ON m.synonym = a.synonym
 WHERE m.synonym IS NULL
+UNION ALL
+SELECT g.synonym, g.accepted_name, g.source
+FROM {{ ref('gbif_checklist_synonyms') }} g
+LEFT JOIN {{ ref('occurrence_synonyms') }} m ON m.synonym = g.synonym
+LEFT JOIN {{ ref('auto_synonyms') }} a ON a.synonym = g.synonym
+WHERE m.synonym IS NULL
+  AND a.synonym IS NULL
