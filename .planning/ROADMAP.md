@@ -478,7 +478,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 
 ### v4.8 Fast, Honest Test Suite (Phases 139–143) — IN PROGRESS
 
-- [ ] **Phase 139: Baseline & Two-Tier Scaffold** — Estimate current runtime; capture BASELINE.md; register `integration` marker + `addopts` deselect; `uv run pytest` runs build-time tier only
+- [x] **Phase 139: Baseline & Two-Tier Scaffold** — Estimate current runtime; capture BASELINE.md; register `integration` marker + `addopts` deselect; `uv run pytest` runs build-time tier only (completed 2026-06-05)
 - [ ] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory
 - [ ] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips
 - [ ] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh
@@ -981,7 +981,7 @@ Plans:
 | 136. Deduplication | v4.7 | 0/TBD | Not started | - |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
-| 139. Baseline & Two-Tier Scaffold | v4.8 | 0/TBD | Not started | - |
+| 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete   | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 0/TBD | Not started | - |
 | 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 0/TBD | Not started | - |
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
@@ -1031,7 +1031,7 @@ Plans:
   4. The measured baseline runtime matches or exceeds expectations (documents the before-state); the fast tier at this point is a subset of the full suite
 
 **Plans**: 1 plan
-- [ ] 139-01-PLAN.md — BASELINE.md estimate doc + register `integration` marker, addopts deselect, tag 1-2 dataset tests to prove the harness
+- [x] 139-01-PLAN.md — BASELINE.md estimate doc + register `integration` marker, addopts deselect, tag 1-2 dataset tests to prove the harness
 
 > **Note:** Success criteria above predate `/gsd:discuss-phase` and use stale terms (`slow` marker, `-m slow`/`--run-slow`, full timed `--durations` run). The LOCKED decisions in `139-CONTEXT.md` supersede them: marker is `integration` (not `slow`), opt-in is stock `-m integration` only (no custom flag), and the baseline is an ESTIMATE — the full ~40-min run is intentionally NOT paid (D-01/D-05/D-06).
 
