@@ -1,6 +1,22 @@
 # Washington Bee Atlas
 
-## Current Milestone: v4.7 Checklist Records as Point Data
+## Current Milestone: v4.8 Fast, Honest Test Suite
+
+**Goal:** Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and honest — distill large committed/built-asset data into small committed fixtures, session-scope the expensive DuckDB builds, fix the ~19 drift failures, split a fast default tier from a slow nightly tier, and gate the fast suite in CI on push.
+
+**Target features:**
+- **Verified baseline** — measure actual current runtime and per-file profile before refactoring (the ">40 min" figure is unverified; static analysis couldn't capture wall-clock). Establishes the before/after the milestone is judged against.
+- **Eliminate the dominant cost** — distill `checklist_records_full.csv` (50,646 rows) into a tiny committed sample and session/module-scope the DuckDB builds, removing the ~25× per-test 50k-row reparse + reinsert in `test_checklist_pipeline.py` (the bulk of the runtime).
+- **Make coverage honest** — convert un-checked-in built-asset dependencies (dbt `target/sandbox/*.parquet`, `public/data/*.parquet`, 39 MB `raw/taxa.csv.gz`) into committed fixtures so those tests *run* on a clean checkout instead of silently skipping via `skipif`.
+- **Green the suite** — fix the ~19 currently-red tests (stale-fixture drift: `resolver_db` missing `dbt_sandbox.occurrence_synonyms`; `test_dbt_diff` stale sandbox-vs-public parquet; fuzzy-candidate failure).
+- **Two-tier split** — fast default (`uv run pytest`, <5 min, fixtures only, clean-checkout green) plus a marked `slow`/`integration` tier for genuine full-data checks, run in `nightly.sh`.
+- **CI gate** — GitHub Actions runs the fast suite on push/PR (Python tests are not in CI today), failing on red or over the time budget.
+
+**Key context:** Grounded in an October-style static analysis of the `data/` suite (263 tests, 25 files) — no domain research needed. The dominant cost is re-parsing *committed* data per-test, not the assumed un-checked-in-asset brittleness; the un-checked-in deps mostly degrade to silent skips, so "green ≠ covered." Tests already mock all network (iNat/GBIF), so the fast tier needs no AWS/S3. dbt is not invoked by pytest — its 33-col contract is enforced separately at `bash data/dbt/run.sh build`.
+
+## Milestone: v4.7 Checklist Records as Point Data — PAUSED (2026-06-05, at Phase 135)
+
+**Paused mid-execution** to unblock with v4.8 (the slow/red test suite was impeding iteration). Resumable: Phase 134 complete, Phase 135 (name-reconciliation) in progress (plan 1 of 5). Phase dirs `134-full-fidelity-ingest` / `135-name-reconciliation` and the v4.7 requirements (`.planning/REQUIREMENTS-v4.7-paused.md`) are preserved on disk. v4.7 reserved phases 134–138; v4.8 continues at phase 139.
 
 **Goal:** Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV — recovering the coordinates, full dates, collector, and locality that Phases 76/112 discarded — so checklist records render as real map points (a true 4th occurrence source) with proper reconciliation to current taxonomy.
 
@@ -74,7 +90,9 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ### Active
 
-*No active milestone — v4.6 shipped 2026-06-04. Start the next milestone with `/gsd:new-milestone` (which defines a fresh `.planning/REQUIREMENTS.md`).*
+**v4.8 Fast, Honest Test Suite** — see `.planning/REQUIREMENTS.md` (TPERF / TFIX / TFIXTURE / TTIER / TCI categories). Goal: `data/` pytest >40 min → <5 min, green, with built-asset deps distilled into committed fixtures and a CI gate on push.
+
+*v4.7 Checklist Records as Point Data — PAUSED at Phase 135; requirements preserved in `.planning/REQUIREMENTS-v4.7-paused.md`.*
 
 ### Validated
 
@@ -448,4 +466,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-04 — Milestone v4.6 (Taxonomy Hierarchy & Normalization) complete and archived: `taxon_id` hierarchy, descendant-by-any-rank map filtering, occurrences-mart normalization (37→33 cols, −14.2% DB), subfamily/taxon pages, and the expandable bee-only browse tree. 20/20 requirements validated; audit passed. Next: `/gsd:new-milestone`.*
+*Last updated: 2026-06-05 — Milestone v4.8 (Fast, Honest Test Suite) started; v4.7 (Checklist Records as Point Data) paused at Phase 135 and preserved for resumption. v4.8 grounded in a static analysis of the `data/` pytest suite (263 tests / 25 files): dominant cost is per-test reparsing of committed 50k-row data, not un-checked-in-asset brittleness; ~19 tests red from fixture drift. Phases continue at 139. Next: `/gsd:plan-phase` after roadmap.*
