@@ -40,6 +40,7 @@
 - ✅ **v4.5 iNat Taxonomy & Species Completeness** — Phases 124–128 (shipped 2026-06-01). taxon_id surfaced through the dbt marts + genus-rank backfill (kingdom=Animalia); re-scoped TID-02. See [.planning/milestones/v4.5-ROADMAP.md](milestones/v4.5-ROADMAP.md).
 - ✅ **v4.6 Taxonomy Hierarchy & Normalization** — Phases 129–133 (shipped 2026-06-04). Denormalized rank columns replaced by a taxon_id hierarchy; descendant-by-any-rank map filtering; expandable browse tree; subfamily/taxon pages. See [.planning/milestones/v4.6-ROADMAP.md](milestones/v4.6-ROADMAP.md).
 - **v4.7 Checklist Records as Point Data** — Phases 134–138 (in progress)
+- **v4.8 Fast, Honest Test Suite** — Phases 139–143 (in progress)
 
 ## Phases
 
@@ -474,6 +475,14 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 - [ ] **Phase 136: Deduplication** - Collapse internal dupes; cross-source candidate flagging vs Ecdysis; human sign-off gate
 - [ ] **Phase 137: Promotion into Occurrences** - checklist ARM in int_combined; dbt contract bump; Phase 111 test retirement; atomic geo_blob + features.ts deploy
 - [ ] **Phase 138: Frontend Points & Detail Card** - Checklist map points; county-fill removal; source-selection integration; detail card; per-source counts
+
+### v4.8 Fast, Honest Test Suite (Phases 139–143) — IN PROGRESS
+
+- [ ] **Phase 139: Baseline & Two-Tier Scaffold** — Measure current runtime; capture BASELINE.md; register `slow` marker + `addopts` deselect; `uv run pytest` runs fast tier only
+- [ ] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory
+- [ ] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips
+- [ ] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh
+- [ ] **Phase 143: CI Gate** — GitHub Actions job runs fast suite on push/PR; enforce <5 min runtime budget in CI
 
 ## Phase Details
 
@@ -972,6 +981,11 @@ Plans:
 | 136. Deduplication | v4.7 | 0/TBD | Not started | - |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
+| 139. Baseline & Two-Tier Scaffold | v4.8 | 0/TBD | Not started | - |
+| 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 0/TBD | Not started | - |
+| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 0/TBD | Not started | - |
+| 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
+| 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -1003,3 +1017,83 @@ Plans:
 <!-- ✅ v4.6 Taxonomy Hierarchy & Normalization (Phases 129–133) — SHIPPED 2026-06-04.
      Full phase details, success criteria, and progress archived to
      .planning/milestones/v4.6-ROADMAP.md -->
+
+### Phase 139: Baseline & Two-Tier Scaffold
+
+**Goal**: The current suite's actual runtime is measured and documented; the two-tier marker infrastructure is in place so all subsequent phases have a before/after number and a fast/slow harness
+**Depends on**: Nothing (first phase of v4.8)
+**Requirements**: TPERF-01, TTIER-01
+**Success Criteria** (what must be TRUE):
+
+  1. `data/tests/BASELINE.md` is committed listing total wall-clock time and per-file/per-fixture durations from `pytest --durations`, with the exact command to reproduce
+  2. A `slow` marker is registered in `data/pyproject.toml` (or `conftest.py`) and `addopts` deselects it by default; running `uv run pytest` runs only unmarked (fast) tests
+  3. An explicit opt-in (`-m slow` or `--run-slow`) runs the heavy tier; the two-tier mechanism is verified with at least one placeholder `@pytest.mark.slow` test
+  4. The measured baseline runtime matches or exceeds expectations (documents the before-state); the fast tier at this point is a subset of the full suite
+
+**Plans**: TBD
+
+---
+
+### Phase 140: Checklist & Taxonomy Fixture Distillation
+
+**Goal**: The two dominant per-test parse costs are eliminated — checklist CSV full-file parsing is replaced by a committed sample and the DuckDB build is session-scoped; taxa ancestry parsing is replaced by a committed small fixture; all fixtures live in a documented directory
+**Depends on**: Phase 139
+**Requirements**: TFIXTURE-01, TFIXTURE-02, TFIXTURE-04
+**Success Criteria** (what must be TRUE):
+
+  1. `test_checklist_pipeline.py` fast-tier tests load from a committed sample (not `checklist_records_full.csv`) and the per-test DuckDB build is replaced by a session/module-scoped fixture; the file runs in seconds, not minutes
+  2. `test_resolve_checklist_names.py` fast-tier tests pass with `raw/taxa.csv.gz` absent from disk; per-test cost drops to sub-second
+  3. `data/tests/fixtures/` exists and contains committed sample and ancestry fixture files with a README or docstrings recording which real rows each covers and what branch invariants they preserve
+  4. Existing test assertions are rewritten against the samples' known counts; no assertion silently loses coverage by testing against a smaller set without updating expectations
+
+**Plans**: TBD
+
+---
+
+### Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination
+
+**Goal**: Tests that previously required un-checked-in built assets now run on clean checkout using committed fixtures; the ~19 red tests are green; no test silently skips due to a missing asset in the fast tier; full-data checks are tagged slow
+**Depends on**: Phase 140
+**Requirements**: TFIXTURE-03, TFIX-01, TFIX-02, TFIX-03, TFIX-04, TTIER-02
+**Success Criteria** (what must be TRUE):
+
+  1. The formerly-skipped dbt/parquet scaffold, diff, higher-taxa, and species-export assertions now run and pass on a clean checkout (no `dbt/target`, no `public/data/*.parquet`)
+  2. The ~16 `test_resolve_taxon_ids.py` tests that required `dbt_sandbox.occurrence_synonyms` pass — `resolver_db` fixture provides the table and tests assert real resolution behavior
+  3. `test_dbt_diff.py` failures are resolved — either converted to fixture-based comparison or replaced with a loud explicit skip; no silent-pass on stale data
+  4. The `test_at_least_13_fuzzy_candidates` failure in `test_resolve_checklist_names.py` is fixed
+  5. A clean-checkout fast run reports 0 silent asset-driven skips; all remaining conditional skips are visible in the summary and confined to the slow tier
+  6. Genuine full-data checks (50,646-row count, full taxa.csv.gz LCA, sandbox-vs-public parquet diff) are tagged `@pytest.mark.slow`; they pass when explicitly run against real built data
+
+**Plans**: TBD
+
+---
+
+### Phase 142: Verify Budget, Green Suite & Nightly Wiring
+
+**Goal**: The fast suite is demonstrably green, under 5 minutes, and clean-checkout-safe; the slow tier is wired into nightly.sh so full-data regressions surface in the nightly log
+**Depends on**: Phase 141
+**Requirements**: TFIX-05, TPERF-02, TPERF-03, TTIER-03
+**Success Criteria** (what must be TRUE):
+
+  1. `cd data && uv run pytest` completes in under 5 minutes on the dev host (timed run confirmed; result recorded)
+  2. `cd data && uv run pytest` passes with 0 failures and 0 errors on a clean checkout: no `dbt/target`, no `public/data`, no `raw/taxa.csv.gz`, no `beeatlas.duckdb` present
+  3. `nightly.sh` invokes the slow/integration tier after the build completes; a non-zero exit from the slow tier is observable in the nightly log (non-zero exit or logged error)
+  4. The slow tier passes when run on maderas against real built data (full 50,646-row pipeline + dbt outputs present)
+
+**Plans**: TBD
+
+---
+
+### Phase 143: CI Gate
+
+**Goal**: Every push and pull request automatically runs the fast pytest suite; a failed or slow suite fails the build; Python tests are no longer invisible in CI
+**Depends on**: Phase 142
+**Requirements**: TCI-01, TCI-02
+**Success Criteria** (what must be TRUE):
+
+  1. A GitHub Actions job runs `cd data && uv run pytest` using Python 3.14 + uv on push and pull request; the build fails on any test failure or error
+  2. The CI job enforces the runtime budget — the build fails (or is flagged as a warning-level failure) if the fast suite exceeds 5 minutes
+  3. The CI job completes successfully on a clean checkout (no cached built assets); the Python test job is visible in the PR check list alongside the existing frontend build job
+  4. A green CI run is confirmed end-to-end on a push to a branch
+
+**Plans**: TBD

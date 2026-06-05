@@ -6,7 +6,7 @@ status: planning
 last_updated: "2026-06-05T22:30:35.577Z"
 last_activity: 2026-06-05
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,19 +24,33 @@ See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 139 (Not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-05 — Milestone v4.8 started
+Status: Roadmap defined; ready to plan Phase 139
+Last activity: 2026-06-05 — v4.8 roadmap created
 
 ## Milestone Overview
 
-**v4.7 Checklist Records as Point Data — Phases 134–138**
+**v4.8 Fast, Honest Test Suite — Phases 139–143** (Active)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 134 | Full-Fidelity Ingest | ING-01, ING-02, ING-03 | Not started |
-| 135 | Name Reconciliation | RCN-01..07 | Not started |
+| 139 | Baseline & Two-Tier Scaffold | TPERF-01, TTIER-01 | Not started |
+| 140 | Checklist & Taxonomy Fixture Distillation | TFIXTURE-01, TFIXTURE-02, TFIXTURE-04 | Not started |
+| 141 | Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | TFIXTURE-03, TFIX-01..04, TTIER-02 | Not started |
+| 142 | Verify Budget, Green Suite & Nightly Wiring | TFIX-05, TPERF-02, TPERF-03, TTIER-03 | Not started |
+| 143 | CI Gate | TCI-01, TCI-02 | Not started |
+
+**Coverage:** 17/17 requirements mapped (TPERF-01..03, TFIXTURE-01..04, TFIX-01..05, TTIER-01..03, TCI-01..02)
+
+---
+
+**v4.7 Checklist Records as Point Data — Phases 134–138 (PAUSED)**
+
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 134 | Full-Fidelity Ingest | ING-01, ING-02, ING-03 | Complete (2026-06-04) |
+| 135 | Name Reconciliation | RCN-01..07 | In Progress (1/5 plans) |
 | 136 | Deduplication | DUP-01, DUP-02, DUP-03 | Not started |
 | 137 | Promotion into Occurrences | PRO-01, PRO-02, PRO-03, PRO-04 | Not started |
 | 138 | Frontend Points & Detail Card | UIX-01, UIX-02, UIX-03, UIX-04 | Not started |
@@ -115,4 +129,4 @@ Resume file: .planning/phases/135-name-reconciliation/135-CONTEXT.md
 
 ## Operator Next Steps
 
-- Run `/gsd:plan-phase 134` to plan Phase 134: Full-Fidelity Ingest
+- Run `/gsd:plan-phase 139` to plan Phase 139: Baseline & Two-Tier Scaffold
