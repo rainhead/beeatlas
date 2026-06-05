@@ -139,3 +139,12 @@ _Note: TDD tasks — RED stubs for Task 2 were committed in Plan 135-01. Task 1 
 ---
 *Phase: 135-name-reconciliation*
 *Completed: 2026-06-05*
+
+## Self-Check: PASSED
+
+- SUMMARY.md: FOUND at `.planning/phases/135-name-reconciliation/135-03-SUMMARY.md`
+- `data/checklist_pipeline.py`: FOUND
+- `data/tests/test_checklist_pipeline.py`: FOUND (MODIFIED)
+- `data/tests/test_checklist_reconcile.py`: FOUND (MODIFIED)
+- Commit `c02d66e`: FOUND (feat commit)
+- Commit `45fa0fd`: FOUND (docs commit)
