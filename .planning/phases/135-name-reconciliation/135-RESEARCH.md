@@ -889,21 +889,24 @@ No missing dependencies.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should `canonical_name` be added to `checklist_records_full` by Python or computed in SQL?**
    - What we know: DuckDB cannot call Python `normalize_scientific_name()` inline; SQL regex would duplicate the normalization logic.
    - What's unclear: Whether the planner prefers Python-side (extend `_load_checklist_records_full()`) or SQL-side (replicate regex in `stg_checklist__records_full.sql`).
    - Recommendation: Extend `_load_checklist_records_full()` to compute and store `canonical_name`. DRY principle, matches existing module style.
+   - **RESOLVED: Python side (Plan 135-03 — extend `_load_checklist_records_full()` to apply `normalize_scientific_name()`).**
 
 2. **`gbif_checklist_synonyms.csv` or write directly to `occurrence_synonyms.csv`?**
    - What we know: D-03 says promotion target = `occurrence_synonyms.csv`; D-06 says results baked into a committed seed.
    - What's unclear: Whether a separate seed (keeping GBIF-auto and human-curated distinct) is worth the int_synonyms complexity.
    - Recommendation: Separate seed (`gbif_checklist_synonyms.csv`) for audit traceability. Human-promoted entries go to `occurrence_synonyms.csv` as per D-03. The two seeds are complementary.
+   - **RESOLVED: Separate seed `gbif_checklist_synonyms.csv` (Plans 135-02/04 — third anti-joined arm of `int_synonyms`); curator-promoted rows still land in `occurrence_synonyms.csv` per D-03.**
 
 3. **Should the build add a step for `check_checklist_resolution_gate()` in `run.py`?**
    - What we know: The audit CSV is committed; the nightly path reads only seeds.
    - Recommendation: Yes — add a gate step after the checklist step that checks the committed audit CSV for any `unresolved` rows. This prevents new checklist names from silently going unresolved.
+   - **RESOLVED: Yes — gate step wired into `run.py` STEPS after the checklist step (Plan 135-05).**
 
 ---
 
