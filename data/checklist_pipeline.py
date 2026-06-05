@@ -9,10 +9,16 @@ Both tables use CREATE OR REPLACE — full refresh on every run. No dlt cursor.
 Phase 76 / D-01, D-02, D-04, D-05. Plan 05 extends this module with the
 occurrences-side canonical_name materialization and the synonyms.csv-driven
 reconciliation flow with checklist_unmatched.csv writeback.
+
+Phase 135 Plan 03:
+  - Added canonical_name VARCHAR to checklist_records_full (RCN-01).
+  - Slash-compound rows get LCA canonical name; verbatim_name unchanged (D-05).
+  - reconcile() retired per D-07; synonym path constants removed (RCN-06).
 """
 
 import csv
 import datetime
+import gzip
 import os
 from pathlib import Path
 
@@ -24,9 +30,150 @@ DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb
 CHECKLIST_PATH = Path(__file__).parent / "checklists" / "wa_bee_checklist.tsv"
 CHECKLIST_RECORDS_PATH = Path(__file__).parent / "checklists" / "wa_bee_checklist_records.tsv"
 CHECKLIST_RECORDS_FULL_PATH = Path(__file__).parent / "checklists" / "checklist_records_full.csv"
+TAXA_PATH = Path(__file__).parent / "raw" / "taxa.csv.gz"
 SOURCE_CITATION = "Bartholomew et al. 2024, JHR 97 (DOI: 10.3897/jhr.97.129013)"
-SYNONYMS_PATH = Path(__file__).parent / "checklist_synonyms.csv"
-UNMATCHED_PATH = Path(__file__).parent / "checklist_unmatched.csv"
+
+# ---------------------------------------------------------------------------
+# LCA helpers for slash-compound verbatim names (RCN-05 / D-05).
+# All Anthophila ancestor taxon_id = 630955 (verified from taxa.csv.gz).
+# ---------------------------------------------------------------------------
+
+_ANTHOPHILA_ANCESTOR = "630955"
+
+# Module-level cache: loaded once per process, keyed by lowercase species name.
+_TAXA_ANCESTRY: dict[str, dict] | None = None
+
+
+def _load_taxa_ancestry() -> dict[str, dict]:
+    """Load species-rank active Anthophila taxa from taxa.csv.gz into a dict.
+
+    Returns: dict mapping lowercase species name -> {taxon_id: int, ancestry: str}
+    Loaded once and cached in _TAXA_ANCESTRY.
+    """
+    global _TAXA_ANCESTRY
+    if _TAXA_ANCESTRY is not None:
+        return _TAXA_ANCESTRY
+    result: dict[str, dict] = {}
+    if not TAXA_PATH.exists():
+        _TAXA_ANCESTRY = result
+        return result
+    anthophila_marker = f"/{_ANTHOPHILA_ANCESTOR}/"
+    with gzip.open(str(TAXA_PATH), "rt", newline="") as f:
+        reader = csv.reader(f, delimiter="\t")
+        next(reader)  # skip header
+        for row in reader:
+            if len(row) < 6:
+                continue
+            taxon_id, ancestry, _rank_level, rank, name, active = row[:6]
+            if active != "true":
+                continue
+            if rank not in ("species", "subspecies"):
+                continue
+            if anthophila_marker not in (ancestry + "/"):
+                continue
+            result[name.lower()] = {
+                "taxon_id": int(taxon_id),
+                "ancestry": ancestry,
+            }
+    _TAXA_ANCESTRY = result
+    return result
+
+
+def _compute_lca(name1: str, name2: str, taxa: dict[str, dict]) -> int | None:
+    """Compute LCA taxon_id for two lowercase species canonical names.
+
+    Uses the slash-delimited ancestry path from taxa.csv.gz. LCA is the
+    last common node when traversing both paths in parallel (RCN-05).
+    """
+    r1 = taxa.get(name1)
+    r2 = taxa.get(name2)
+    if r1 is None or r2 is None:
+        return None
+    path1 = (r1["ancestry"] + "/" + str(r1["taxon_id"])).split("/")
+    path2 = (r2["ancestry"] + "/" + str(r2["taxon_id"])).split("/")
+    lca = None
+    for a, b in zip(path1, path2):
+        if a == b:
+            lca = a
+        else:
+            break
+    return int(lca) if lca else None
+
+
+def _lca_canonical_name(lca_taxon_id: int, taxa: dict[str, dict]) -> str | None:
+    """Return the lowercase name for the given taxon_id from the taxa dict."""
+    for name, row in taxa.items():
+        if row["taxon_id"] == lca_taxon_id:
+            return name
+    # Taxon might be higher-rank (not in species-only cache) — fall back to None.
+    # This triggers loading all ranks; for correctness, also scan lineage.
+    return None
+
+
+def _slash_canonical_name(verbatim_name: str) -> str | None:
+    """Resolve a slash-compound verbatim name to the LCA canonical name.
+
+    Detects '/' in verbatim_name (raw string, before normalization per Pitfall 4).
+    Splits into two binomials, computes LCA from taxa.csv.gz ancestry.
+
+    Returns: lowercase LCA canonical name, or None if LCA cannot be computed.
+    """
+    # Strip any trailing authority before splitting on slash.
+    # E.g. "Agapostemon texanus/angelicus Cresson, 1872"
+    # Strip the authority by taking everything up to any trailing " Authorname, YYYY"
+    # We can reuse the genus part from verbatim_name by stripping authority words.
+    # Simple approach: find the '/', extract genus from leading tokens, split epithets.
+    parts = verbatim_name.strip().split()
+    if not parts:
+        return None
+
+    # Find the slash-containing token (first token with '/')
+    slash_idx = next((i for i, p in enumerate(parts) if "/" in p), None)
+    if slash_idx is None:
+        return None
+
+    genus = parts[0]  # First token is always the genus
+    slash_token = parts[slash_idx]  # e.g. "texanus/angelicus"
+    epithets = slash_token.split("/")
+    if len(epithets) < 2:
+        return None
+
+    epithet1 = epithets[0].strip()
+    epithet2 = epithets[1].strip()
+    if not epithet1 or not epithet2:
+        return None
+
+    name1 = f"{genus} {epithet1}".lower()
+    name2 = f"{genus} {epithet2}".lower()
+
+    taxa = _load_taxa_ancestry()
+    lca_id = _compute_lca(name1, name2, taxa)
+    if lca_id is None:
+        return None
+
+    # Look up the name for this lca_id in the taxa dict.
+    lca_name = _lca_canonical_name(lca_id, taxa)
+    if lca_name:
+        return lca_name
+
+    # LCA is a higher-rank node (not species-rank) — need to load all ranks.
+    # Re-scan taxa.csv.gz for the exact taxon_id at any rank.
+    if not TAXA_PATH.exists():
+        return None
+    with gzip.open(str(TAXA_PATH), "rt", newline="") as f:
+        reader = csv.reader(f, delimiter="\t")
+        next(reader)  # skip header
+        for row in reader:
+            if len(row) < 5:
+                continue
+            taxon_id_str, _ancestry, _rank_level, _rank, name = row[:5]
+            try:
+                if int(taxon_id_str) == lca_id:
+                    return name.lower()
+            except ValueError:
+                pass
+    return None
+
 
 # Tight WA bounding box (D-01): no padding for border records.
 _WA_LAT_MIN = 45.5
@@ -159,68 +306,6 @@ def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
     print(f"occurrences canonical_name: {updated} rows updated")  # noqa: T201
 
 
-def reconcile(con: duckdb.DuckDBPyConnection) -> None:
-    """Walk checklist; for rows whose canonical_name does not join any
-    occurrence row, consult synonyms.csv; UPDATE checklist on synonym hit;
-    write still-unmatched to checklist_unmatched.csv. Warn-only per D-05."""
-    # Load synonyms.csv (header: checklist_name,canonical_name,source).
-    synonyms: dict[str, str] = {}
-    if SYNONYMS_PATH.exists():
-        with SYNONYMS_PATH.open(newline="") as f:
-            for row in csv.DictReader(f):
-                cn = (row.get("checklist_name") or "").strip()
-                ov = (row.get("canonical_name") or "").strip()
-                if cn and ov:
-                    synonyms[cn] = ov
-
-    # Find checklist rows whose canonical_name does not join any occurrence.
-    rows = con.execute("""
-        SELECT cl.scientificName, cl.canonical_name
-        FROM checklist_data.species cl
-        LEFT JOIN ecdysis_data.occurrences occ
-            ON occ.canonical_name = cl.canonical_name
-        WHERE occ.canonical_name IS NULL
-        GROUP BY cl.scientificName, cl.canonical_name
-    """).fetchall()
-
-    unmatched: list[tuple[str, str, str]] = []
-    overrides_applied = 0
-    for sci, canon in rows:
-        if sci in synonyms:
-            override = synonyms[sci]
-            hit = con.execute(
-                "SELECT 1 FROM ecdysis_data.occurrences "
-                "WHERE canonical_name = ? LIMIT 1",
-                [override],
-            ).fetchone()
-            if hit:
-                # Researcher open-question-3 resolution: UPDATE the checklist
-                # canonical_name to the override so downstream consumers see
-                # no synonyms.csv complexity.
-                con.execute(
-                    "UPDATE checklist_data.species "
-                    "SET canonical_name = ? WHERE scientificName = ?",
-                    [override, sci],
-                )
-                overrides_applied += 1
-                continue
-            unmatched.append((sci, override, "synonym override did not join occurrences"))
-        else:
-            unmatched.append((sci, canon, "no occurrence row matches canonical_name"))
-
-    # Write unmatched.csv (regenerated each run; D-05 warn-only policy).
-    with UNMATCHED_PATH.open("w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(["checklist_name", "canonical_name", "reason"])
-        for row in unmatched:
-            writer.writerow(row)
-
-    print(  # noqa: T201
-        f"reconcile: {overrides_applied} synonym overrides applied; "
-        f"{len(unmatched)} unmatched (warn-only); see {UNMATCHED_PATH.name}"
-    )
-
-
 def _load_checklist_records(con: duckdb.DuckDBPyConnection) -> None:
     """Load individual occurrence records from wa_bee_checklist_records.tsv
     into checklist_data.checklist_records (scientificName, county, year, month).
@@ -259,6 +344,35 @@ def _load_checklist_records(con: duckdb.DuckDBPyConnection) -> None:
     print(f"checklist_records: {count} individual occurrence records loaded")  # noqa: T201
 
 
+def _compute_canonical_names_for_records(
+    verbatim_names: list[str | None],
+) -> dict[str | None, str | None]:
+    """Build a verbatim_name -> canonical_name mapping for checklist_records_full rows.
+
+    Mirrors the _update_occurrences_canonical_name() pattern: operate on
+    DISTINCT values to avoid redundant work, then map back.
+
+    Per RCN-01 / D-05:
+    - Non-slash rows: canonical_name = normalize_scientific_name(verbatim_name)
+    - Slash rows ('/' in verbatim_name): canonical_name = LCA accepted name
+      (verbatim_name unchanged). Slash detection is BEFORE normalization (Pitfall 4).
+    - None or empty verbatim_name: canonical_name = None
+    """
+    distinct = set(verbatim_names)
+    mapping: dict[str | None, str | None] = {}
+    for vn in distinct:
+        if vn is None:
+            mapping[None] = None
+            continue
+        # Slash detection: must precede normalize_scientific_name() (RESEARCH Pitfall 4)
+        if "/" in vn:
+            lca = _slash_canonical_name(vn)
+            mapping[vn] = lca  # None if LCA cannot be resolved
+        else:
+            mapping[vn] = normalize_scientific_name(vn)
+    return mapping
+
+
 def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
     """Load full-fidelity occurrence records from checklist_records_full.csv
     into checklist_data.checklist_records_full.
@@ -272,9 +386,15 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
     ignored (D-02). verbatim_name = raw 'Scientific Name' with authority,
     stored unmodified — do NOT call normalize_scientific_name() on it (D-12).
 
+    Phase 135: canonical_name column added (RCN-01). Slash-compound rows
+    carry the LCA's accepted canonical name; verbatim_name unchanged (D-05).
+    Column is included in CREATE OR REPLACE TABLE (avoids ALTER-ADD-COLUMN
+    re-run failure — RESEARCH Pitfall 5).
+
     Logs: one summary count line + one per-reason coord exclusion breakdown (D-04).
     """
-    records: list[tuple] = []
+    raw_rows: list[tuple] = []
+    verbatim_names: list[str | None] = []
     with CHECKLIST_RECORDS_FULL_PATH.open(newline="") as f:
         reader = csv.DictReader(f)  # comma-delimited (not TSV)
         for row in reader:
@@ -305,7 +425,7 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
             # Coord flag: classify coordinate quality (D-03, PITFALLS #3)
             cf = _coord_flag(lat, lon)
 
-            records.append((
+            raw_rows.append((
                 object_id,    # ObjectID BIGINT
                 family,       # family VARCHAR
                 genus,        # genus VARCHAR
@@ -320,6 +440,39 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
                 date_quality,  # date_quality VARCHAR
                 cf,           # coord_flag VARCHAR
             ))
+            verbatim_names.append(verbatim_name)
+
+    # Build canonical_name mapping from distinct verbatim_names (RCN-01).
+    canonical_map = _compute_canonical_names_for_records(verbatim_names)
+
+    # Assemble final records: insert canonical_name after verbatim_name (index 3).
+    # Schema column order: ObjectID, family, genus, verbatim_name, canonical_name,
+    #   locality, latitude, longitude, recordedBy, year, month, day,
+    #   date_quality, coord_flag (14 columns).
+    records: list[tuple] = []
+    for raw in raw_rows:
+        (
+            object_id, family, genus, verbatim_name,
+            locality, lat, lon, recorded_by,
+            year, month, day, date_quality, cf,
+        ) = raw
+        canon = canonical_map.get(verbatim_name)
+        records.append((
+            object_id,      # ObjectID BIGINT
+            family,         # family VARCHAR
+            genus,          # genus VARCHAR
+            verbatim_name,  # verbatim_name VARCHAR (raw, unmodified)
+            canon,          # canonical_name VARCHAR (RCN-01)
+            locality,       # locality VARCHAR
+            lat,            # latitude DOUBLE
+            lon,            # longitude DOUBLE
+            recorded_by,    # recordedBy VARCHAR
+            year,           # year BIGINT
+            month,          # month BIGINT
+            day,            # day BIGINT
+            date_quality,   # date_quality VARCHAR
+            cf,             # coord_flag VARCHAR
+        ))
 
     con.execute("""
         CREATE OR REPLACE TABLE checklist_data.checklist_records_full (
@@ -327,6 +480,7 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
             family VARCHAR,
             genus VARCHAR,
             verbatim_name VARCHAR,
+            canonical_name VARCHAR,
             locality VARCHAR,
             latitude DOUBLE,
             longitude DOUBLE,
@@ -340,7 +494,7 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
     """)
     con.executemany(
         "INSERT INTO checklist_data.checklist_records_full VALUES "
-        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         records,
     )
 
@@ -350,9 +504,10 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
     print(f"checklist_records_full: {count} full-fidelity occurrence records loaded")  # noqa: T201
 
     # Per-reason coord exclusion breakdown (D-04)
-    null_c = sum(1 for r in records if r[12] == "null_coord")
-    zero_c = sum(1 for r in records if r[12] == "zero_coord")
-    bbox_c = sum(1 for r in records if r[12] == "out_of_bbox")
+    # coord_flag is at index 13 in the new 14-column tuple.
+    null_c = sum(1 for r in records if r[13] == "null_coord")
+    zero_c = sum(1 for r in records if r[13] == "zero_coord")
+    bbox_c = sum(1 for r in records if r[13] == "out_of_bbox")
     excluded = null_c + zero_c + bbox_c
     print(  # noqa: T201
         f"checklist_records_full: {excluded} coordinates excluded "
@@ -436,7 +591,8 @@ def load_checklist() -> None:
         _load_checklist_records(con)
         _load_checklist_records_full(con)
         _update_occurrences_canonical_name(con)
-        reconcile(con)
+        # D-07 / RCN-06: the old disjoint synonym step was retired here.
+        # Synonym resolution now flows through occurrence_synonyms / int_synonyms.
     finally:
         con.close()
 
