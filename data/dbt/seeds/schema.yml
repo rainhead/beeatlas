@@ -23,3 +23,14 @@ seeds:
           - not_null
       - name: source
         description: "Auto-generated: 'inat-inactive-remap:{inactive_taxon_id}'"
+  - name: gbif_checklist_synonyms
+    columns:
+      - name: synonym
+        data_tests:
+          - not_null
+          - unique
+      - name: accepted_name
+        data_tests:
+          - not_null
+      - name: source
+        description: "Auto-generated GBIF backbone match: 'gbif-backbone:{usage_key}'"
