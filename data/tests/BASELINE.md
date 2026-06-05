@@ -15,7 +15,7 @@ The `data/` pytest suite splits into two tiers based on *what* each test validat
 
 The marker decision criterion is **"does this test validate code or validate data?"** — not "is it slow." A slow code test belongs in the build-time tier (and gets fixtures to make it faster, Phase 140). A dataset-validation test gets `@pytest.mark.integration` regardless of speed.
 
-**Implementation:** `addopts = -m "not integration"` in `data/pyproject.toml` deselects the integration tier by default. Run `cd data && uv run pytest -m integration` to opt in.
+**Implementation:** `addopts = "-m 'not integration'"` in `data/pyproject.toml` deselects the integration tier by default. Run `cd data && uv run pytest -m integration` to opt in.
 
 ---
 
