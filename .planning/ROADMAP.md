@@ -478,7 +478,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 
 ### v4.8 Fast, Honest Test Suite (Phases 139–143) — IN PROGRESS
 
-- [ ] **Phase 139: Baseline & Two-Tier Scaffold** — Measure current runtime; capture BASELINE.md; register `slow` marker + `addopts` deselect; `uv run pytest` runs fast tier only
+- [ ] **Phase 139: Baseline & Two-Tier Scaffold** — Estimate current runtime; capture BASELINE.md; register `integration` marker + `addopts` deselect; `uv run pytest` runs build-time tier only
 - [ ] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory
 - [ ] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips
 - [ ] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh
@@ -1030,7 +1030,10 @@ Plans:
   3. An explicit opt-in (`-m slow` or `--run-slow`) runs the heavy tier; the two-tier mechanism is verified with at least one placeholder `@pytest.mark.slow` test
   4. The measured baseline runtime matches or exceeds expectations (documents the before-state); the fast tier at this point is a subset of the full suite
 
-**Plans**: TBD
+**Plans**: 1 plan
+- [ ] 139-01-PLAN.md — BASELINE.md estimate doc + register `integration` marker, addopts deselect, tag 1-2 dataset tests to prove the harness
+
+> **Note:** Success criteria above predate `/gsd:discuss-phase` and use stale terms (`slow` marker, `-m slow`/`--run-slow`, full timed `--durations` run). The LOCKED decisions in `139-CONTEXT.md` supersede them: marker is `integration` (not `slow`), opt-in is stock `-m integration` only (no custom flag), and the baseline is an ESTIMATE — the full ~40-min run is intentionally NOT paid (D-01/D-05/D-06).
 
 ---
 
