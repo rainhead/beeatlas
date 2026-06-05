@@ -3,7 +3,13 @@ title: Data test suite has environmental dependencies (dbt build + slow checklis
 priority: medium
 source: phase-129-regression-gate
 created: 2026-06-02
+resolves_phase: 141
 ---
+
+> **v4.8 note (2026-06-05):** This todo is fully addressed by milestone v4.8. Problem 2 (slow
+> checklist test) → Phase 140 (TFIXTURE-01, sample + session-scope). Problem 1 (dbt-schema
+> failures) → Phase 141 (TFIX-01, `resolver_db` provides `dbt_sandbox.occurrence_synonyms`).
+> Tagged to 141 as the phase where the suite becomes green; close after Phase 141 verifies.
 
 While running the phase 129 regression gate (`cd data && uv run pytest`), two pre-existing
 problems surfaced in the data test suite. Neither is caused by phase 129 — all phase-129
