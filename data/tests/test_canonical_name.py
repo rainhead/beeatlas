@@ -168,3 +168,23 @@ def test_apply_synonym_loads_agapostemon_from_csv(monkeypatch):
 def test_apply_synonym_composed_with_normalize_scientific_name():
     """Portman et al. 2024: 'Agapostemon texanus' scientific name → 'agapostemon subtilior'."""
     assert apply_synonym(normalize_scientific_name("Agapostemon texanus")) == "agapostemon subtilior"
+
+
+# ---------------------------------------------------------------------------
+# Phase 135 Plan 01 — RCN-01 trailing-space regression guard.
+#
+# This test documents existing behavior (normalize_scientific_name already
+# handles trailing spaces via step 5 whitespace collapse). It is intentionally
+# non-RED — the behavior already exists. Kept as a regression guard so a future
+# change to canonical_name.py cannot silently break this RCN-01 requirement.
+# ---------------------------------------------------------------------------
+
+
+def test_canonicalize_trailing_space_regressionguard():
+    """RCN-01: trailing whitespace must be stripped from normalized output.
+
+    'Agapostemon texanus ' (trailing space) must normalize to 'agapostemon texanus'
+    via step 5 (whitespace collapse + strip) of normalize_scientific_name().
+    This test is discoverable via -k trailing.
+    """
+    assert normalize_scientific_name("Agapostemon texanus ") == "agapostemon texanus"

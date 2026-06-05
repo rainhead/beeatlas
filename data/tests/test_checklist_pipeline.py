@@ -647,3 +647,65 @@ def test_checklist_records_old_table_still_exists(checklist_db):
     assert cols == ["scientificName", "county", "year", "month"], (
         f"old checklist_records table missing or schema changed: {cols}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 135 Plan 01 — RED stubs for RCN-06 (D-07: retire reconcile() path).
+#
+# Both tests are intentionally RED now (reconcile() still exists in
+# load_checklist() and SYNONYMS_PATH is still a module-level constant).
+# They turn GREEN when Plan 135-03 removes reconcile() from checklist_pipeline.
+# ---------------------------------------------------------------------------
+
+
+def test_no_active_reconcile_call():
+    """RCN-06 / D-07: reconcile() must be removed from load_checklist().
+
+    Asserts that inspect.getsource(checklist_pipeline.load_checklist) does NOT
+    contain the literal string 'reconcile'. Currently FAILS because reconcile()
+    is still called at line 439. Goes GREEN in Plan 135-03.
+    """
+    import inspect  # noqa: PLC0415
+    import importlib  # noqa: PLC0415
+    import checklist_pipeline  # noqa: PLC0415
+    importlib.reload(checklist_pipeline)
+    src = inspect.getsource(checklist_pipeline.load_checklist)
+    assert "reconcile" not in src, (
+        "reconcile() must be removed from load_checklist() per D-07 (RCN-06). "
+        "All checklist synonym resolution must flow through occurrence_synonyms / "
+        "int_synonyms (the single dbt synonym subsystem)."
+    )
+
+
+def test_single_synonym_source():
+    """RCN-06 / D-07: checklist_synonyms.csv must have zero data rows AND
+    SYNONYMS_PATH must no longer be referenced in checklist_pipeline source.
+
+    Asserts:
+      1. checklist_synonyms.csv has no data rows (header-only or absent)
+      2. 'SYNONYMS_PATH' is not in inspect.getsource(checklist_pipeline)
+
+    Currently FAILS because SYNONYMS_PATH is still a module-level constant
+    in checklist_pipeline.py. Goes GREEN in Plan 135-03.
+    """
+    import inspect  # noqa: PLC0415
+    import importlib  # noqa: PLC0415
+    import checklist_pipeline  # noqa: PLC0415
+    importlib.reload(checklist_pipeline)
+
+    # 1. Inspect source for SYNONYMS_PATH reference.
+    full_src = inspect.getsource(checklist_pipeline)
+    assert "SYNONYMS_PATH" not in full_src, (
+        "SYNONYMS_PATH must be removed from checklist_pipeline.py per D-07 (RCN-06). "
+        "The disjoint Python synonym path is retired; synonym resolution flows "
+        "through occurrence_synonyms / int_synonyms."
+    )
+
+    # 2. checklist_synonyms.csv must have no data rows.
+    synonyms_path = Path(__file__).parent.parent / "checklist_synonyms.csv"
+    if synonyms_path.exists():
+        rows = list(csv.DictReader(synonyms_path.open(newline="")))
+        assert len(rows) == 0, (
+            f"checklist_synonyms.csv must have no active synonym mappings per D-07 "
+            f"(RCN-06). Found {len(rows)} data rows: {rows[:3]}"
+        )
