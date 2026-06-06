@@ -602,7 +602,7 @@ def export_dir(tmp_path):
 # reasons are a defect — the fix is either a committed fixture (D-01) or
 # tagging the test @pytest.mark.integration so it is deselected, not skipped.
 _ASSET_SKIP_SIGNATURES = (
-    "run `bash data/dbt/run.sh build`",
+    "data/dbt/run.sh build",  # stem matches plain and --select higher_taxa / --select species variants
     "run species-export first",
     "run `uv run python data/species_export.py`",
 )
