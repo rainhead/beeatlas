@@ -27,6 +27,7 @@ SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
 # Post-build parquet assertions (skipif guard: requires dbt build)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not (SANDBOX / "occurrences.parquet").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
@@ -36,6 +37,7 @@ def test_occurrences_parquet_exists():
     assert (SANDBOX / "occurrences.parquet").exists()
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not (SANDBOX / "occurrences.parquet").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
@@ -63,6 +65,7 @@ def test_occurrences_has_rows_and_zero_null_county_or_eco():
 # Post-build GeoJSON assertions (skipif guard: requires dbt build)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not (SANDBOX / "counties.geojson").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
@@ -81,6 +84,7 @@ def test_counties_geojson_structural():
         assert "NAME" in feature["properties"], "Feature missing NAME property"
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(
     not (SANDBOX / "ecoregions.geojson").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
@@ -120,12 +124,14 @@ _CHECKLIST_GUARD = pytest.mark.skipif(
 )
 
 
+@pytest.mark.integration
 @_CHECKLIST_GUARD
 def test_checklist_parquet_exists():
     """sandbox/checklist.parquet exists after dbt build (CHECK-02)."""
     assert (SANDBOX / "checklist.parquet").exists()
 
 
+@pytest.mark.integration
 @_CHECKLIST_GUARD
 def test_checklist_row_count():
     """checklist.parquet has at least 2000 rows (CHECK-04)."""
@@ -136,6 +142,7 @@ def test_checklist_row_count():
     assert row[0] >= 2000, f"expected >= 2000 rows, got {row[0]}"
 
 
+@pytest.mark.integration
 @_CHECKLIST_GUARD
 def test_checklist_no_null_canonical_name():
     """checklist.parquet has zero null canonical_name rows (CHECK-04)."""
@@ -147,6 +154,7 @@ def test_checklist_no_null_canonical_name():
     assert row[0] == 0, f"found {row[0]} null canonical_name rows"
 
 
+@pytest.mark.integration
 @_CHECKLIST_GUARD
 def test_checklist_no_null_specific_epithet():
     """checklist.parquet has zero null specific_epithet rows (CHECK-04)."""
@@ -158,6 +166,7 @@ def test_checklist_no_null_specific_epithet():
     assert row[0] == 0, f"found {row[0]} null specific_epithet rows"
 
 
+@pytest.mark.integration
 @_CHECKLIST_GUARD
 def test_checklist_family_trim():
     """checklist.parquet has no rows where TRIM(family) != family (CHECK-04)."""
@@ -169,6 +178,7 @@ def test_checklist_family_trim():
     assert row[0] == 0, f"found {row[0]} rows where TRIM(family) != family"
 
 
+@pytest.mark.integration
 @_CHECKLIST_GUARD
 def test_checklist_source_constant():
     """Every row in checklist.parquet has source='checklist' (EXT-01)."""
@@ -184,6 +194,7 @@ def test_checklist_source_constant():
 
 
 # Isolation: occurrences.parquet must NOT grow after Phase 111
+@pytest.mark.integration
 @pytest.mark.skipif(
     not (SANDBOX / "occurrences.parquet").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
@@ -217,6 +228,7 @@ _OCCURRENCES_GUARD = pytest.mark.skipif(
 )
 
 
+@pytest.mark.integration
 @_OCCURRENCES_GUARD
 def test_occurrences_source_column():
     """occurrences.parquet has a non-null source column (OCC-01)."""
@@ -227,6 +239,7 @@ def test_occurrences_source_column():
     assert row[0] == 0, f"occurrences.parquet has {row[0]} rows with null source"
 
 
+@pytest.mark.integration
 @_OCCURRENCES_GUARD
 def test_inat_obs_rows_in_occurrences():
     """occurrences.parquet contains rows with source='inat_obs' (OCC-01)."""
@@ -237,6 +250,7 @@ def test_inat_obs_rows_in_occurrences():
     assert row[0] > 0, "Expected inat_obs rows in occurrences.parquet"
 
 
+@pytest.mark.integration
 @_OCCURRENCES_GUARD
 def test_source_no_nulls():
     """All rows in occurrences.parquet have source in ('ecdysis', 'waba_sample', 'inat_obs') (OCC-01)."""
@@ -258,6 +272,7 @@ _SPECIES_GUARD = pytest.mark.skipif(
 )
 
 
+@pytest.mark.integration
 @_SPECIES_GUARD
 def test_off_checklist_species_with_occurrences_have_specific_epithet():
     """All two-token off-checklist species with occurrence_count > 0 have specific_epithet (SPV-01)."""
@@ -274,6 +289,7 @@ def test_off_checklist_species_with_occurrences_have_specific_epithet():
     )
 
 
+@pytest.mark.integration
 @_SPECIES_GUARD
 def test_off_checklist_species_scientificname_capitalized():
     """Off-checklist species with two-token canonical names have capitalized scientificName (SPV-01)."""
@@ -289,6 +305,7 @@ def test_off_checklist_species_scientificname_capitalized():
     )
 
 
+@pytest.mark.integration
 @_SPECIES_GUARD
 def test_species_taxon_id_non_null():
     """species.parquet: zero rows with null taxon_id (TID-01)."""
@@ -299,6 +316,7 @@ def test_species_taxon_id_non_null():
     assert n == 0, f"Expected 0 null taxon_id rows in species.parquet, got {n}"
 
 
+@pytest.mark.integration
 @_OCCURRENCES_GUARD
 def test_occurrences_taxon_id_non_null():
     """occurrences.parquet: zero rows with null taxon_id for EVERY named row (TID-02, re-scoped Phase 128).
@@ -328,6 +346,7 @@ def test_occurrences_taxon_id_non_null():
     assert n == 0, f"Expected 0 null taxon_id rows for named occurrences, got {n}"
 
 
+@pytest.mark.integration
 @_OCCURRENCES_GUARD
 @_SPECIES_GUARD
 def test_taxon_id_consistency():

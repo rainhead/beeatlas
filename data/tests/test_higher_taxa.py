@@ -26,6 +26,9 @@ SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
 HIGHER_TAXA_PARQUET = SANDBOX / "higher_taxa.parquet"
 SPECIES_PARQUET = SANDBOX / "species.parquet"
 
+# All tests in this file require a dbt sandbox build — deselect from the fast tier.
+pytestmark = pytest.mark.integration
+
 _SANDBOX_GUARD = pytest.mark.skipif(
     not HIGHER_TAXA_PARQUET.exists(),
     reason=(
