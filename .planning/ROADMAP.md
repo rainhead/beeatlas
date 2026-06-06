@@ -760,8 +760,11 @@ Plans:
 **Plans**: 2 plans
 Plans:
 **Wave 1**
+
 - [x] 134-01-PLAN.md — Commit source CSV (LFS) + add dateparser/pygbif/rapidfuzz to pyproject.toml; verify install on Python 3.14 [ING-01]
+
 **Wave 2** *(blocked on Wave 1)*
+
 - [x] 134-02-PLAN.md — New _load_checklist_records_full() loader: coord_flag validation + y/m/d/date_quality date normalization + pytest [ING-01, ING-02, ING-03]
 
 ### Phase 135: Name Reconciliation
@@ -785,12 +788,17 @@ Plans:
 **Plans**: 5 plans
 Plans:
 **Wave 0**
+
 - [x] 135-01-PLAN.md — RED test scaffolding: test_resolve_checklist_names.py + test_checklist_pipeline.py RCN-06 stubs + assert_no_anthophila_homonyms.sql [RCN-01..07]
+
 **Wave 1** *(blocked on Wave 0; 02/03/04 run in parallel)*
+
 - [ ] 135-02-PLAN.md — resolve_checklist_names.py: LCA + GBIF refresh + rapidfuzz + audit/fuzzy/seed CSVs + gate [RCN-02, RCN-03, RCN-04, RCN-05]
 - [ ] 135-03-PLAN.md — checklist_pipeline.py: canonical_name column + retire reconcile()/SYNONYMS_PATH [RCN-01, RCN-06]
 - [ ] 135-04-PLAN.md — dbt: checklist_records_full source + int_synonyms 3rd arm + stg_checklist__records_full + seed schema [RCN-06, RCN-07]
+
 **Wave 2** *(blocked on Wave 1)*
+
 - [ ] 135-05-PLAN.md — run.py wiring (no-op resolver + gate) + one-time --refresh-checklist + full dbt build + Anthophila-ancestor verify + HUMAN-REVIEW GATE [RCN-02, RCN-03, RCN-07]
 
 ### Phase 136: Deduplication
@@ -853,9 +861,11 @@ Plans:
 **Plans**: 2 plans
 Plans:
 **Wave 1**
+
 - [x] 140-01-PLAN.md — load_checklist(con=) seam + resolve_checklist_names TAXA_PATH constant + committed checklist_sample.csv (8 rows) and taxa_subset.csv.gz (2 rows) with provenance [TFIXTURE-01, TFIXTURE-02, TFIXTURE-04]
 
 **Wave 2** *(blocked on Wave 1)*
+
 - [x] 140-02-PLAN.md — module-scoped shared-connection checklist_sample_db fixture + fast-tier test migration + exact-count rewrites; resolver TAXA_PATH monkeypatch + absent-file proof [TFIXTURE-01, TFIXTURE-02]
 
 ## Progress
@@ -1051,6 +1061,7 @@ Plans:
   4. The measured baseline runtime matches or exceeds expectations (documents the before-state); the fast tier at this point is a subset of the full suite
 
 **Plans**: 1 plan
+
 - [x] 139-01-PLAN.md — BASELINE.md estimate doc + register `integration` marker, addopts deselect, tag 1-2 dataset tests to prove the harness
 
 > **Note:** Success criteria above predate `/gsd:discuss-phase` and use stale terms (`slow` marker, `-m slow`/`--run-slow`, full timed `--durations` run). The LOCKED decisions in `139-CONTEXT.md` supersede them: marker is `integration` (not `slow`), opt-in is stock `-m integration` only (no custom flag), and the baseline is an ESTIMATE — the full ~40-min run is intentionally NOT paid (D-01/D-05/D-06).
@@ -1090,8 +1101,13 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 141-01-PLAN.md — Distilled fixture CSVs (species/higher_taxa/occurrences) + D-05 silent-skip conftest guard
 - [ ] 141-02-PLAN.md — resolver_db fix: add dbt_sandbox.occurrence_synonyms + inaturalist_waba_data.observations (16 tests)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 141-03-PLAN.md — Parquet-fixture consumers: rewrite test_species_export + test_dbt_synonymy; tag real-data tests @integration
 - [ ] 141-04-PLAN.md — @integration tagging (test_dbt_diff / fuzzy / species_maps) + WR-01/WR-02 checklist_pipeline hardening
 
