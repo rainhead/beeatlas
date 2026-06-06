@@ -10,7 +10,7 @@
     "research": true,
     "plan_check": true,
     "verifier": true,
-    "auto_advance": true,
+    "auto_advance": false,
     "nyquist_validation": true,
     "_auto_chain_active": false
   },
