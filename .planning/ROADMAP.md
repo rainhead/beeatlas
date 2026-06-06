@@ -1013,7 +1013,7 @@ Plans:
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
-| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 1/4 | In Progress|  |
+| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 2/4 | In Progress|  |
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
@@ -1104,7 +1104,7 @@ Plans:
 **Wave 1**
 
 - [x] 141-01-PLAN.md — Distilled fixture CSVs (species/higher_taxa/occurrences) + D-05 silent-skip conftest guard
-- [ ] 141-02-PLAN.md — resolver_db fix: add dbt_sandbox.occurrence_synonyms + inaturalist_waba_data.observations (16 tests)
+- [x] 141-02-PLAN.md — resolver_db fix: add dbt_sandbox.occurrence_synonyms + inaturalist_waba_data.observations (16 tests)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
