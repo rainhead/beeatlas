@@ -38,6 +38,7 @@ DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb
 AUDIT_CSV = Path(__file__).parent / "checklist_name_resolution_audit.csv"
 FUZZY_REVIEW_CSV = Path(__file__).parent / "checklist_fuzzy_review.csv"
 GBIF_SEED_CSV = Path(__file__).parent / "dbt" / "seeds" / "gbif_checklist_synonyms.csv"
+TAXA_PATH = str(Path(__file__).parent / "raw" / "taxa.csv.gz")
 
 _GBIF_PACE_SECONDS = 0.3
 
@@ -265,8 +266,7 @@ def resolve_checklist_names(refresh: bool = False) -> None:
     # -----------------------------------------------------------------------
     # Load taxa.csv.gz for LCA computation
     # -----------------------------------------------------------------------
-    taxa_path = str(Path(__file__).parent / "raw" / "taxa.csv.gz")
-    taxa = _load_anthophila_ancestry(taxa_path)
+    taxa = _load_anthophila_ancestry(TAXA_PATH)
 
     con = duckdb.connect(DB_PATH)
     try:
