@@ -24,6 +24,9 @@ from unittest.mock import patch
 import duckdb
 import pytest
 
+# Directory containing committed fixture files (Phase 140 Plan 02 / TFIXTURE-02)
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
 
 # ---------------------------------------------------------------------------
 # Mock helper — mirrors _fake_taxa_search_response shape in test_resolve_taxon_ids.py
@@ -94,6 +97,13 @@ def checklist_resolver_db(tmp_path, monkeypatch):
         resolve_checklist_names, "GBIF_SEED_CSV",
         tmp_path / "gbif_checklist_synonyms.csv"
     )
+    # Redirect TAXA_PATH to the committed 3-row fixture gz (D-06, D-07):
+    #   Agapostemon angelicus (taxon_id=270393, ancestry: .../50086/606634)
+    #   Agapostemon texanus   (taxon_id=1581468, ancestry: .../50086/606634/1581466)
+    #   Agapostemon (subgenus, taxon_id=606634, for LCA name lookup)
+    # LCA = 606634. With this redirect, the fast tier passes with raw/taxa.csv.gz absent.
+    monkeypatch.setattr(resolve_checklist_names, "TAXA_PATH",
+                        str(FIXTURES_DIR / "taxa_subset.csv.gz"))
 
     # Seed minimal DB schema.
     con = duckdb.connect(db_path)
