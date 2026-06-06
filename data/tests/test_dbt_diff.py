@@ -20,13 +20,14 @@ from pathlib import Path
 import duckdb
 import pytest
 
+pytestmark = pytest.mark.integration
 
 SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
 PUBLIC = Path(__file__).resolve().parent.parent.parent / "public" / "data"
 
 _SANDBOX_GUARD = pytest.mark.skipif(
     not (SANDBOX / "occurrences.parquet").exists(),
-    reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
+    reason="[integration] sandbox outputs absent — run `bash data/dbt/run.sh build` first",
 )
 
 # ---------------------------------------------------------------------------

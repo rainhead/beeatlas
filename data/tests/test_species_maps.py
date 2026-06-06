@@ -332,11 +332,13 @@ def test_generate_group_maps_deterministic(tmp_path, monkeypatch):
 # Subfamily-map tests (Plan 03 / D-06 / D-08)
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 def test_generate_group_maps_emits_subfamily_svgs(tmp_path, monkeypatch):
     """_generate_group_maps emits species-maps/subfamily/{Name}.svg for each subfamily
     present in species.parquet (sandbox-gated: uses the real parquet file if present).
 
     Tests Plan 03 requirement: exactly 12 bee subfamily SVGs; no Eumeninae.svg.
+    Requires the real species.parquet from a species-export run — integration tier only.
     """
     import os
     species_parquet = os.environ.get(
@@ -345,7 +347,7 @@ def test_generate_group_maps_emits_subfamily_svgs(tmp_path, monkeypatch):
     )
     real_parquet = Path(species_parquet) / 'species.parquet'
     if not real_parquet.exists():
-        pytest.skip("species.parquet not found — run species-export first")
+        pytest.skip("[integration] species.parquet not found — run species-export first")
 
     import duckdb as _duckdb
     con = _duckdb.connect()
