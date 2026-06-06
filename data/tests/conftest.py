@@ -594,3 +594,49 @@ def export_dir(tmp_path):
     return tmp_path
 
 
+# ---------------------------------------------------------------------------
+# D-05: Silent-skip guard (TFIX-04)
+# ---------------------------------------------------------------------------
+# Known skip-reason substrings that identify asset-driven skips (built outputs
+# absent, not platform limits). Non-@integration tests that skip for these
+# reasons are a defect — the fix is either a committed fixture (D-01) or
+# tagging the test @pytest.mark.integration so it is deselected, not skipped.
+_ASSET_SKIP_SIGNATURES = (
+    "run `bash data/dbt/run.sh build`",
+    "run species-export first",
+    "run `uv run python data/species_export.py`",
+)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """D-05: Fail the fast tier if a non-@integration test skips due to a missing built asset.
+
+    A skip in the fast-tier summary is a defect, not an acceptable degraded pass.
+    Pitfall 5: must be a generator (hookwrapper=True + outcome = yield) — a plain
+    function is silently ignored by pytest's hook machinery.
+    Does not fire on:
+      - non-skipped outcomes
+      - xfail outcomes (wasxfail attribute present)
+      - tests marked @pytest.mark.integration (deselected from fast tier; may skip
+        loudly when assets are absent in the integration tier)
+    """
+    outcome = yield
+    report = outcome.get_result()
+
+    if not report.skipped:
+        return
+    if hasattr(report, "wasxfail"):
+        return  # expected xfail — not an asset-driven skip
+    if any(marker.name == "integration" for marker in item.iter_markers()):
+        return  # @integration tests are allowed to skip when assets are absent
+
+    reason = str(getattr(report, "longrepr", ""))
+    if any(sig in reason for sig in _ASSET_SKIP_SIGNATURES):
+        report.outcome = "failed"
+        report.longrepr = (
+            "[D-05 GUARD] Asset-driven skip in fast tier (non-@integration test). "
+            "Fix: add a committed fixture (D-01) or tag @pytest.mark.integration.\n"
+            f"Original skip reason: {reason}"
+        )
+
