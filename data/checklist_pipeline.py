@@ -515,10 +515,17 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
     )
 
 
-def load_checklist() -> None:
+def load_checklist(con: "duckdb.DuckDBPyConnection | None" = None) -> None:
     """Read the WA bee checklist TSV and populate checklist_data.species
-    + checklist_data.species_counties + checklist_data.checklist_records."""
-    con = duckdb.connect(DB_PATH)
+    + checklist_data.species_counties + checklist_data.checklist_records.
+
+    When called with no arguments (the nightly path), creates and closes its
+    own DB_PATH connection. Pass an existing connection via ``con`` to inject
+    a shared in-memory connection for testing (D-05).
+    """
+    _owns_connection = con is None
+    if _owns_connection:
+        con = duckdb.connect(DB_PATH)
     try:
         con.execute("CREATE SCHEMA IF NOT EXISTS checklist_data")
 
@@ -594,7 +601,8 @@ def load_checklist() -> None:
         # D-07 / RCN-06: the old disjoint synonym step was retired here.
         # Synonym resolution now flows through occurrence_synonyms / int_synonyms.
     finally:
-        con.close()
+        if _owns_connection:
+            con.close()
 
 
 if __name__ == "__main__":
