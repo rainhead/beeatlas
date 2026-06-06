@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.8
 milestone_name: Fast, Honest Test Suite
-status: verifying
-stopped_at: Phase 141 context gathered
-last_updated: "2026-06-06T23:33:05.904Z"
+status: ready_to_plan
+stopped_at: Phase 141 complete (5/5) — ready to discuss Phase 142
+last_updated: 2026-06-06T23:37:40.546Z
 last_activity: 2026-06-06
 progress:
   total_phases: 21
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 roadmap defined)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 141 — built-asset-fixtures-red-test-fixes-silent-skip-elimination
+**Current focus:** Phase 142 — verify budget, green suite & nightly wiring
 
 ## Current Position
 
-Phase: 141 (built-asset-fixtures-red-test-fixes-silent-skip-elimination) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 142
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-06
 
 ## Milestone Overview
