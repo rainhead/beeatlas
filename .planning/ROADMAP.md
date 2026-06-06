@@ -1013,7 +1013,7 @@ Plans:
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
-| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 4/4 | Complete   | 2026-06-06 |
+| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 5/5 | Complete   | 2026-06-06 |
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
@@ -1113,7 +1113,7 @@ Plans:
 
 **Gap closure** *(closes SC-1 / SC-5 / TFIX-04 from 141-VERIFICATION.md)*
 
-- [ ] 141-05-PLAN.md — Migrate the two unmigrated files (test_dbt_scaffold.py, test_higher_taxa.py) to @integration + tighten the D-05 --select signature stem
+- [x] 141-05-PLAN.md — Migrate the two unmigrated files (test_dbt_scaffold.py, test_higher_taxa.py) to @integration + tighten the D-05 --select signature stem
 
 ---
 
