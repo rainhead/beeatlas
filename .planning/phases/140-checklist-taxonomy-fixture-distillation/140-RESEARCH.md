@@ -219,7 +219,7 @@ The code comments state: "0 rows in current file" for `year_only`. The tests ass
 | `test_load_checklist_populates_species_rows` | `n > 100` species | Exact count from sample (e.g., `n == 4` if sample has 4 species) |
 | `test_load_checklist_creates_species_counties_table` | `n > 100` species_counties | Exact count from sample |
 | `test_checklist_records_full_coord_flag_coverage` | `null_coord_count > 1000` | `null_coord_count == 1` (one null_coord row in sample) |
-| `test_checklist_records_full_null_date_tagged_none` | `n_none > 1000` | `n_none == 1` (one none-date row in sample) |
+| `test_checklist_records_full_null_date_tagged_none` | `n_none > 1000` | `n_none == 3` (three none-date rows in sample: ObjectIDs 17423, 8702, 1386 — corrected per PATTERNS.md/Plan 02, which are authoritative) |
 
 **Assertions unchanged** (already exact or structure-only):
 - Schema column lists (not count-dependent)
