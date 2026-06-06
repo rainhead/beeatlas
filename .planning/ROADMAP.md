@@ -479,7 +479,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 ### v4.8 Fast, Honest Test Suite (Phases 139–143) — IN PROGRESS
 
 - [x] **Phase 139: Baseline & Two-Tier Scaffold** — Estimate current runtime; capture BASELINE.md; register `integration` marker + `addopts` deselect; `uv run pytest` runs build-time tier only (completed 2026-06-05)
-- [ ] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory (2 plans: 140-01 seams+fixtures · 140-02 test rewrites)
+- [x] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory (2 plans: 140-01 seams+fixtures · 140-02 test rewrites) (completed 2026-06-06)
 - [ ] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips
 - [ ] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh
 - [ ] **Phase 143: CI Gate** — GitHub Actions job runs fast suite on push/PR; enforce <5 min runtime budget in CI
@@ -856,7 +856,7 @@ Plans:
 - [x] 140-01-PLAN.md — load_checklist(con=) seam + resolve_checklist_names TAXA_PATH constant + committed checklist_sample.csv (8 rows) and taxa_subset.csv.gz (2 rows) with provenance [TFIXTURE-01, TFIXTURE-02, TFIXTURE-04]
 
 **Wave 2** *(blocked on Wave 1)*
-- [ ] 140-02-PLAN.md — module-scoped shared-connection checklist_sample_db fixture + fast-tier test migration + exact-count rewrites; resolver TAXA_PATH monkeypatch + absent-file proof [TFIXTURE-01, TFIXTURE-02]
+- [x] 140-02-PLAN.md — module-scoped shared-connection checklist_sample_db fixture + fast-tier test migration + exact-count rewrites; resolver TAXA_PATH monkeypatch + absent-file proof [TFIXTURE-01, TFIXTURE-02]
 
 ## Progress
 
@@ -1002,7 +1002,7 @@ Plans:
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
-| 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 1/2 | In Progress|  |
+| 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete   | 2026-06-06 |
 | 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 0/TBD | Not started | - |
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
