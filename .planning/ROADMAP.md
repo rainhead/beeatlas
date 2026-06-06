@@ -1084,8 +1084,8 @@ Plans:
   2. The ~16 `test_resolve_taxon_ids.py` tests that required `dbt_sandbox.occurrence_synonyms` pass — `resolver_db` fixture provides the table and tests assert real resolution behavior
   3. `test_dbt_diff.py` failures are resolved — either converted to fixture-based comparison or replaced with a loud explicit skip; no silent-pass on stale data
   4. The `test_at_least_13_fuzzy_candidates` failure in `test_resolve_checklist_names.py` is fixed
-  5. A clean-checkout fast run reports 0 silent asset-driven skips; all remaining conditional skips are visible in the summary and confined to the slow tier
-  6. Genuine full-data checks (50,646-row count, full taxa.csv.gz LCA, sandbox-vs-public parquet diff) are tagged `@pytest.mark.slow`; they pass when explicitly run against real built data
+  5. A clean-checkout fast run reports 0 silent asset-driven skips; all remaining conditional skips are visible in the summary and confined to the integration tier
+  6. Genuine full-data checks (50,646-row count, full taxa.csv.gz LCA, sandbox-vs-public parquet diff) are tagged `@pytest.mark.integration` (the marker locked in Phase 139; `addopts = -m "not integration"` deselects it by default); they pass when explicitly run against real built data
 
 **Plans**: 4 plans
 
