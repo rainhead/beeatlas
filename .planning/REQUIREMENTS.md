@@ -18,13 +18,13 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 ### Fixture Distillation (TFIXTURE)
 
-- [ ] **TFIXTURE-01**: A small committed sample distilled from `checklist_records_full.csv` — covering every `coord_flag` and `date_quality` branch the tests assert on — replaces full-file parsing in the fast tier, and the checklist DuckDB is built **once** (session/module-scoped), not per test.
+- [x] **TFIXTURE-01**: A small committed sample distilled from `checklist_records_full.csv` — covering every `coord_flag` and `date_quality` branch the tests assert on — replaces full-file parsing in the fast tier, and the checklist DuckDB is built **once** (session/module-scoped), not per test.
   - *Accept:* `test_checklist_pipeline.py` fast-tier tests no longer call the full-file loader; the file runs in seconds; assertions are rewritten against the sample's known counts.
-- [ ] **TFIXTURE-02**: `resolve_checklist_names` fast-tier tests run against a small committed ancestry fixture instead of the 39 MB `raw/taxa.csv.gz`.
+- [x] **TFIXTURE-02**: `resolve_checklist_names` fast-tier tests run against a small committed ancestry fixture instead of the 39 MB `raw/taxa.csv.gz`.
   - *Accept:* the fast tier passes with `raw/taxa.csv.gz` absent; per-test cost drops from ~5 s to sub-second.
 - [ ] **TFIXTURE-03**: Tests that depend on un-checked-in dbt `target/sandbox/*.parquet` and `public/data/*.parquet` run against committed fixtures (small parquet or in-test builder) so they **execute** on a clean checkout rather than `skipif`-skipping.
   - *Accept:* on a clean checkout, the formerly-skipped scaffold/diff/higher-taxa/species-export assertions now run and pass in the fast tier.
-- [ ] **TFIXTURE-04**: Committed test fixtures live in a dedicated, documented location (e.g. `data/tests/fixtures/`) with provenance noted (which real rows each sample was distilled from and what cases it covers).
+- [x] **TFIXTURE-04**: Committed test fixtures live in a dedicated, documented location (e.g. `data/tests/fixtures/`) with provenance noted (which real rows each sample was distilled from and what cases it covers).
   - *Accept:* fixtures directory exists; a short README/docstring records provenance and the invariants each fixture preserves.
 
 ### Honest Coverage & Greening (TFIX)
@@ -67,9 +67,9 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 |-------------|-------|--------|
 | TPERF-01 | Phase 139: Baseline & Two-Tier Scaffold | Complete |
 | TTIER-01 | Phase 139: Baseline & Two-Tier Scaffold | Complete |
-| TFIXTURE-01 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
-| TFIXTURE-02 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
-| TFIXTURE-04 | Phase 140: Checklist & Taxonomy Fixture Distillation | Pending |
+| TFIXTURE-01 | Phase 140: Checklist & Taxonomy Fixture Distillation | Complete |
+| TFIXTURE-02 | Phase 140: Checklist & Taxonomy Fixture Distillation | Complete |
+| TFIXTURE-04 | Phase 140: Checklist & Taxonomy Fixture Distillation | Complete |
 | TFIXTURE-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
 | TFIX-01 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
 | TFIX-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
