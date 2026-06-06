@@ -40,21 +40,36 @@ def checklist_db(tmp_path, monkeypatch):
     Phase 135 Plan 03: SYNONYMS_PATH / UNMATCHED_PATH patches removed —
     reconcile() was retired per D-07 (RCN-06); those constants no longer exist.
 
+    Phase 141 Plan 04 (WR-01 / D-08): replaced importlib.reload() with save/restore of
+    mod.DB_PATH, matching the discipline used by checklist_sample_db. importlib.reload()
+    re-executes the module body and clobbers any patches set by checklist_sample_db when
+    tests run in random order (pytest-randomly). Save/restore is safe because the two
+    @integration tests that use checklist_db call mod.load_checklist() with no args and
+    rely solely on mod.DB_PATH to connect to the database.
+
     Kept for the two @pytest.mark.integration tests only (test_checklist_records_full_row_count,
     test_checklist_records_full_schema). All other fast-tier tests use checklist_sample_db.
     """
     db_path = str(tmp_path / "checklist.duckdb")
     monkeypatch.setenv("DB_PATH", db_path)
-    # Reload module so module-level DB_PATH constant picks up the patched env.
-    import importlib
-    import checklist_pipeline
-    importlib.reload(checklist_pipeline)
+
+    import checklist_pipeline as mod
+
+    # Save the module-level DB_PATH constant (importlib.reload used to reset it via env-var
+    # re-read; save/restore achieves the same without re-executing the module body).
+    old_db_path = mod.DB_PATH
+    mod.DB_PATH = db_path
+
     # Pre-create ecdysis_data.occurrences (mirrors prod ordering invariant).
     con = duckdb.connect(db_path)
     con.execute("CREATE SCHEMA ecdysis_data")
     con.execute("CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)")
     con.close()
-    return db_path, checklist_pipeline
+
+    yield db_path, mod
+
+    # Restore module-level constant so subsequent tests are unaffected.
+    mod.DB_PATH = old_db_path
 
 
 @pytest.fixture(scope="module")
@@ -161,10 +176,9 @@ def test_load_checklist_populates_species_rows(checklist_sample_db):
         "SELECT count(*) FROM checklist_data.species WHERE status <> 'verified'"
     ).fetchone()[0]
     # species table comes from wa_bee_checklist_sample.tsv (6 species in fast-tier
-    # fixture). Assertion relaxed from n > 100 to n >= 1 because the full TSV
-    # (DuckDB executemany on 527 rows) is ~3s and defeats the module-scope speed goal.
+    # fixture). Pinned to exact count (WR-02 / D-09): 6 distinct species in sample.
     # The structural/quality invariants (n_null == 0, n_status == 0) are preserved.
-    assert n >= 1, f"expected at least 1 distinct species, got {n}"
+    assert n == 6, f"expected exactly 6 distinct species in sample fixture, got {n}"
     assert n_null == 0, "every row must have canonical_name populated (D-04)"
     assert n_status == 0, "every row must have status='verified' (D-02)"
 
@@ -202,11 +216,10 @@ def test_load_checklist_creates_species_counties_table(checklist_sample_db):
         ).fetchall()
     ]
     # species_counties comes from wa_bee_checklist_sample.tsv (8 rows in fast-tier
-    # fixture). Assertion relaxed from n > 100 to n >= 1 for the same reason as
-    # test_load_checklist_populates_species_rows (DuckDB executemany overhead).
+    # fixture). Pinned to exact count (WR-02 / D-09): 8 (species, county) rows in sample.
     n = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
     assert cols == ["scientificName", "county"]
-    assert n >= 1, f"expected at least 1 (species, county) row, got {n}"
+    assert n == 8, f"expected exactly 8 (species, county) rows in sample fixture, got {n}"
 
 
 def test_load_checklist_source_citation_set(checklist_sample_db):
