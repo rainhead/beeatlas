@@ -22,7 +22,7 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
   - *Accept:* `test_checklist_pipeline.py` fast-tier tests no longer call the full-file loader; the file runs in seconds; assertions are rewritten against the sample's known counts.
 - [x] **TFIXTURE-02**: `resolve_checklist_names` fast-tier tests run against a small committed ancestry fixture instead of the 39 MB `raw/taxa.csv.gz`.
   - *Accept:* the fast tier passes with `raw/taxa.csv.gz` absent; per-test cost drops from ~5 s to sub-second.
-- [ ] **TFIXTURE-03**: Tests that depend on un-checked-in dbt `target/sandbox/*.parquet` and `public/data/*.parquet` run against committed fixtures (small parquet or in-test builder) so they **execute** on a clean checkout rather than `skipif`-skipping.
+- [x] **TFIXTURE-03**: Tests that depend on un-checked-in dbt `target/sandbox/*.parquet` and `public/data/*.parquet` run against committed fixtures (small parquet or in-test builder) so they **execute** on a clean checkout rather than `skipif`-skipping.
   - *Accept:* on a clean checkout, the formerly-skipped scaffold/diff/higher-taxa/species-export assertions now run and pass in the fast tier.
 - [x] **TFIXTURE-04**: Committed test fixtures live in a dedicated, documented location (e.g. `data/tests/fixtures/`) with provenance noted (which real rows each sample was distilled from and what cases it covers).
   - *Accept:* fixtures directory exists; a short README/docstring records provenance and the invariants each fixture preserves.
@@ -32,7 +32,7 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 - [ ] **TFIX-01**: The ~16 `test_resolve_taxon_ids.py` failures are fixed — the `resolver_db` fixture provides `dbt_sandbox.occurrence_synonyms` (matching `resolve_taxon_ids.py:_names_to_resolve`) and the tests assert real resolution behavior.
 - [ ] **TFIX-02**: The 2 `test_dbt_diff.py` failures are resolved — replaced by fixture-based comparison, or converted to a **loud, explicit** skip-when-stale (never a silent pass).
 - [ ] **TFIX-03**: The `test_resolve_checklist_names` fuzzy-candidate failure (`test_at_least_13_fuzzy_candidates`) is fixed.
-- [ ] **TFIX-04**: No fast-tier test silently skips due to a missing un-checked-in asset; any remaining conditional skips are **reported** (visible in summary) and confined to the slow tier.
+- [x] **TFIX-04**: No fast-tier test silently skips due to a missing un-checked-in asset; any remaining conditional skips are **reported** (visible in summary) and confined to the slow tier.
   - *Accept:* a clean-checkout fast run reports 0 silent asset-driven skips.
 - [ ] **TFIX-05**: The full fast suite is green (0 failures, 0 errors) on a clean checkout.
 
@@ -70,11 +70,11 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 | TFIXTURE-01 | Phase 140: Checklist & Taxonomy Fixture Distillation | Complete |
 | TFIXTURE-02 | Phase 140: Checklist & Taxonomy Fixture Distillation | Complete |
 | TFIXTURE-04 | Phase 140: Checklist & Taxonomy Fixture Distillation | Complete |
-| TFIXTURE-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIXTURE-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TFIX-01 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
 | TFIX-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
 | TFIX-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
-| TFIX-04 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIX-04 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TTIER-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
 | TFIX-05 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
 | TPERF-02 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
