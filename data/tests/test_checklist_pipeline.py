@@ -10,6 +10,12 @@ Loads the WA bee checklist TSV against an isolated DuckDB and asserts:
 Phase 134 Plan 02 adds:
   - Unit tests for _parse_checklist_date() and _coord_flag() helpers (ING-02, ING-03)
   - Integration tests for checklist_data.checklist_records_full table (ING-01)
+
+Phase 140 Plan 02 (TFIXTURE-01):
+  - Fast-tier tests migrated to module-scoped shared in-memory connection (D-03/D-04)
+  - checklist_sample_db fixture reads the 8-row committed sample via the real
+    load_checklist(con=con) path instead of the 50,646-row full CSV
+  - The two @pytest.mark.integration tests keep the original checklist_db fixture
 """
 
 from pathlib import Path
@@ -18,6 +24,9 @@ import duckdb
 import pytest
 
 from canonical_name import normalize_scientific_name
+
+# Directory containing committed fixture files (added Phase 140 Plan 02 / TFIXTURE-04)
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
@@ -30,6 +39,9 @@ def checklist_db(tmp_path, monkeypatch):
 
     Phase 135 Plan 03: SYNONYMS_PATH / UNMATCHED_PATH patches removed —
     reconcile() was retired per D-07 (RCN-06); those constants no longer exist.
+
+    Kept for the two @pytest.mark.integration tests only (test_checklist_records_full_row_count,
+    test_checklist_records_full_schema). All other fast-tier tests use checklist_sample_db.
     """
     db_path = str(tmp_path / "checklist.duckdb")
     monkeypatch.setenv("DB_PATH", db_path)
@@ -45,21 +57,85 @@ def checklist_db(tmp_path, monkeypatch):
     return db_path, checklist_pipeline
 
 
-def test_load_checklist_creates_species_table_with_expected_schema(checklist_db):
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        cols = [
-            row[0]
-            for row in con.execute(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_schema='checklist_data' AND table_name='species' "
-                "ORDER BY ordinal_position"
-            ).fetchall()
-        ]
-    finally:
+@pytest.fixture(scope="module")
+def checklist_sample_db(request):
+    """Module-scoped in-memory DuckDB loaded from the committed 8-row checklist sample.
+
+    Distilled from checklist_records_full.csv (2026-06-06). Covers all coord_flag
+    (valid, null_coord, zero_coord, out_of_bbox) and date_quality (full, none, year_only)
+    branches. Built ONCE per test file; all non-integration tests share one connection.
+
+    Does NOT replace checklist_db — the two @pytest.mark.integration tests
+    (test_checklist_records_full_row_count, test_checklist_records_full_schema)
+    continue to use checklist_db unmodified and read the real checklist_records_full.csv.
+
+    taxa_subset.csv.gz provenance: 2 rows covering the angelicus/texanus LCA test:
+      Agapostemon angelicus (taxon_id=270393, ancestry: .../50086/606634)
+      Agapostemon texanus   (taxon_id=1581468, ancestry: .../50086/606634/1581466)
+    LCA = 606634 (subgenus Agapostemon). Verified from live taxa.csv.gz 2026-06-06.
+
+    Uses request.addfinalizer + direct setattr because monkeypatch is function-scoped
+    and cannot be used in a module-scoped fixture (RESEARCH Pitfall 1 — ScopeMismatch).
+    """
+    import checklist_pipeline as mod
+
+    # Save originals for teardown (restored in addfinalizer).
+    old_crfp = mod.CHECKLIST_RECORDS_FULL_PATH
+    old_crp = mod.CHECKLIST_RECORDS_PATH
+    old_cp = mod.CHECKLIST_PATH
+    old_taxa = mod.TAXA_PATH
+    old_cache = mod._TAXA_ANCESTRY
+
+    # Override module-level constants to point at committed fixtures.
+    # CHECKLIST_RECORDS_PATH (wa_bee_checklist_records.tsv) has ~50k rows and is
+    # slow despite being small in KB — DuckDB executemany is the bottleneck.
+    # CHECKLIST_PATH (wa_bee_checklist.tsv) has 527 species × executemany rows —
+    # also slow. Override all three path inputs to achieve sub-second execution.
+    # (Deviation from plan note: plan assumed wa_bee_checklist.tsv was fast; it is
+    # not due to DuckDB executemany overhead at ~3s for 527 rows. Both TSV paths
+    # are overridden here with 6-8 row fixtures. See SUMMARY.md deviation notes.)
+    mod.CHECKLIST_RECORDS_FULL_PATH = FIXTURES_DIR / "checklist_sample.csv"
+    mod.CHECKLIST_RECORDS_PATH = FIXTURES_DIR / "checklist_records_sample.tsv"
+    mod.CHECKLIST_PATH = FIXTURES_DIR / "wa_bee_checklist_sample.tsv"
+    mod.TAXA_PATH = FIXTURES_DIR / "taxa_subset.csv.gz"
+    # Reset taxa cache — forces re-read from fixture gz, not the real taxa.csv.gz
+    # (RESEARCH Pitfall 2: _TAXA_ANCESTRY is a module-level cache that persists
+    # across test runs if not explicitly cleared before each fixture setup).
+    mod._TAXA_ANCESTRY = None
+
+    con = duckdb.connect(":memory:")
+    # Bootstrap ecdysis_data.occurrences BEFORE calling load_checklist()
+    # (T-76-04 prod ordering invariant: run.py STEPS guarantees ecdysis runs first;
+    # _update_occurrences_canonical_name() called at end of load_checklist requires
+    # the table to exist — RESEARCH §3 / Pattern D).
+    con.execute("CREATE SCHEMA ecdysis_data")
+    con.execute("CREATE TABLE ecdysis_data.occurrences (scientific_name VARCHAR)")
+
+    # Load the 8-row sample through the real CSV→DuckDB path (D-01).
+    mod.load_checklist(con=con)
+
+    def teardown():
+        mod.CHECKLIST_RECORDS_FULL_PATH = old_crfp
+        mod.CHECKLIST_RECORDS_PATH = old_crp
+        mod.CHECKLIST_PATH = old_cp
+        mod.TAXA_PATH = old_taxa
+        mod._TAXA_ANCESTRY = old_cache
         con.close()
+
+    request.addfinalizer(teardown)
+    return con
+
+
+def test_load_checklist_creates_species_table_with_expected_schema(checklist_sample_db):
+    con = checklist_sample_db
+    cols = [
+        row[0]
+        for row in con.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='checklist_data' AND table_name='species' "
+            "ORDER BY ordinal_position"
+        ).fetchall()
+    ]
     assert cols == [
         "scientificName",
         "family",
@@ -75,50 +151,39 @@ def test_load_checklist_creates_species_table_with_expected_schema(checklist_db)
     ]
 
 
-def test_load_checklist_populates_species_rows(checklist_db):
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        n = con.execute("SELECT count(*) FROM checklist_data.species").fetchone()[0]
-        n_null = con.execute(
-            "SELECT count(*) FROM checklist_data.species WHERE canonical_name IS NULL"
-        ).fetchone()[0]
-        n_status = con.execute(
-            "SELECT count(*) FROM checklist_data.species WHERE status <> 'verified'"
-        ).fetchone()[0]
-    finally:
-        con.close()
-    assert n > 100, f"expected >100 distinct species, got {n}"
+def test_load_checklist_populates_species_rows(checklist_sample_db):
+    con = checklist_sample_db
+    n = con.execute("SELECT count(*) FROM checklist_data.species").fetchone()[0]
+    n_null = con.execute(
+        "SELECT count(*) FROM checklist_data.species WHERE canonical_name IS NULL"
+    ).fetchone()[0]
+    n_status = con.execute(
+        "SELECT count(*) FROM checklist_data.species WHERE status <> 'verified'"
+    ).fetchone()[0]
+    # species table comes from wa_bee_checklist_sample.tsv (6 species in fast-tier
+    # fixture). Assertion relaxed from n > 100 to n >= 1 because the full TSV
+    # (DuckDB executemany on 527 rows) is ~3s and defeats the module-scope speed goal.
+    # The structural/quality invariants (n_null == 0, n_status == 0) are preserved.
+    assert n >= 1, f"expected at least 1 distinct species, got {n}"
     assert n_null == 0, "every row must have canonical_name populated (D-04)"
     assert n_status == 0, "every row must have status='verified' (D-02)"
 
 
-def test_load_checklist_canonical_name_matches_normalize_scientific_name(checklist_db):
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        rows = con.execute(
-            "SELECT scientificName, canonical_name FROM checklist_data.species LIMIT 50"
-        ).fetchall()
-    finally:
-        con.close()
+def test_load_checklist_canonical_name_matches_normalize_scientific_name(checklist_sample_db):
+    con = checklist_sample_db
+    rows = con.execute(
+        "SELECT scientificName, canonical_name FROM checklist_data.species LIMIT 50"
+    ).fetchall()
     assert rows, "species table must not be empty"
     for sci, canon in rows:
         assert canon == normalize_scientific_name(sci), f"{sci!r}: stored {canon!r} != normalize_scientific_name() {normalize_scientific_name(sci)!r}"
 
 
-def test_load_checklist_genus_and_specific_epithet_split(checklist_db):
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        rows = con.execute(
-            "SELECT scientificName, genus, specific_epithet FROM checklist_data.species LIMIT 50"
-        ).fetchall()
-    finally:
-        con.close()
+def test_load_checklist_genus_and_specific_epithet_split(checklist_sample_db):
+    con = checklist_sample_db
+    rows = con.execute(
+        "SELECT scientificName, genus, specific_epithet FROM checklist_data.species LIMIT 50"
+    ).fetchall()
     for sci, genus, epithet in rows:
         parts = sci.split()
         assert genus == parts[0]
@@ -126,74 +191,58 @@ def test_load_checklist_genus_and_specific_epithet_split(checklist_db):
             assert epithet == parts[1]
 
 
-def test_load_checklist_creates_species_counties_table(checklist_db):
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        cols = [
-            row[0]
-            for row in con.execute(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_schema='checklist_data' AND table_name='species_counties' "
-                "ORDER BY ordinal_position"
-            ).fetchall()
-        ]
-        n = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
-    finally:
-        con.close()
-    assert cols == ["scientificName", "county"]
-    assert n > 100, f"expected >100 (species, county) rows, got {n}"
-
-
-def test_load_checklist_source_citation_set(checklist_db):
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        distinct = con.execute(
-            "SELECT DISTINCT source_citation FROM checklist_data.species"
+def test_load_checklist_creates_species_counties_table(checklist_sample_db):
+    con = checklist_sample_db
+    cols = [
+        row[0]
+        for row in con.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='checklist_data' AND table_name='species_counties' "
+            "ORDER BY ordinal_position"
         ).fetchall()
-    finally:
-        con.close()
+    ]
+    # species_counties comes from wa_bee_checklist_sample.tsv (8 rows in fast-tier
+    # fixture). Assertion relaxed from n > 100 to n >= 1 for the same reason as
+    # test_load_checklist_populates_species_rows (DuckDB executemany overhead).
+    n = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
+    assert cols == ["scientificName", "county"]
+    assert n >= 1, f"expected at least 1 (species, county) row, got {n}"
+
+
+def test_load_checklist_source_citation_set(checklist_sample_db):
+    con = checklist_sample_db
+    distinct = con.execute(
+        "SELECT DISTINCT source_citation FROM checklist_data.species"
+    ).fetchall()
     assert len(distinct) == 1
     assert distinct[0][0].startswith("Bartholomew et al. 2024, JHR 97")
 
 
-def test_load_checklist_is_idempotent(checklist_db):
-    """CREATE OR REPLACE — running twice must not raise and must yield same row counts."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        n1 = con.execute("SELECT count(*) FROM checklist_data.species").fetchone()[0]
-        c1 = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
-    finally:
-        con.close()
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        n2 = con.execute("SELECT count(*) FROM checklist_data.species").fetchone()[0]
-        c2 = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
-    finally:
-        con.close()
+def test_load_checklist_is_idempotent(checklist_sample_db):
+    """CREATE OR REPLACE — running twice must not raise and must yield same row counts.
+
+    Calls load_checklist(con=con) a second time on the shared connection.
+    Safe under CREATE OR REPLACE semantics (RESEARCH §7 / Pattern E idempotency).
+    """
+    import checklist_pipeline as mod
+    con = checklist_sample_db
+    n1 = con.execute("SELECT count(*) FROM checklist_data.species").fetchone()[0]
+    c1 = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
+    mod.load_checklist(con=con)   # second call — CREATE OR REPLACE is idempotent
+    n2 = con.execute("SELECT count(*) FROM checklist_data.species").fetchone()[0]
+    c2 = con.execute("SELECT count(*) FROM checklist_data.species_counties").fetchone()[0]
     assert n1 == n2
     assert c1 == c2
 
 
-def test_load_checklist_unset_columns_are_null(checklist_db):
+def test_load_checklist_unset_columns_are_null(checklist_sample_db):
     """family/subfamily/tribe/subgenus/notes are NULL on every row in this plan."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        nf = con.execute(
-            "SELECT count(*) FROM checklist_data.species "
-            "WHERE family IS NOT NULL OR subfamily IS NOT NULL OR tribe IS NOT NULL "
-            "OR subgenus IS NOT NULL OR notes IS NOT NULL"
-        ).fetchone()[0]
-    finally:
-        con.close()
+    con = checklist_sample_db
+    nf = con.execute(
+        "SELECT count(*) FROM checklist_data.species "
+        "WHERE family IS NOT NULL OR subfamily IS NOT NULL OR tribe IS NOT NULL "
+        "OR subgenus IS NOT NULL OR notes IS NOT NULL"
+    ).fetchone()[0]
     assert nf == 0
 
 
@@ -357,6 +406,7 @@ def test_reconcile_unmatched_csv_header(fixture_con, tmp_path, monkeypatch):
 # Phase 134 Plan 02: Integration tests for checklist_data.checklist_records_full
 # (ING-01, ING-02, ING-03). Uses checklist_db fixture + real committed CSV.
 # Written RED first, then GREEN.
+# UNCHANGED — these two tests must continue to read the real checklist_records_full.csv.
 # ---------------------------------------------------------------------------
 
 
@@ -377,7 +427,11 @@ def test_checklist_records_full_row_count(checklist_db):
 
 @pytest.mark.integration
 def test_checklist_records_full_schema(checklist_db):
-    """SC#1: checklist_records_full must have the full 13-column schema (D-12)."""
+    """SC#1: checklist_records_full must have the full 14-column schema (D-12 + RCN-01).
+
+    Phase 140 Plan 02: added canonical_name to required set (Open Question #2 —
+    canonical_name was added in Phase 135 Plan 03 but missing from this assertion).
+    """
     db_path, mod = checklist_db
     mod.load_checklist()
     con = duckdb.connect(db_path, read_only=True)
@@ -392,80 +446,65 @@ def test_checklist_records_full_schema(checklist_db):
     finally:
         con.close()
     required = {
-        "ObjectID", "family", "genus", "verbatim_name", "locality",
+        "ObjectID", "family", "genus", "verbatim_name", "canonical_name", "locality",
         "latitude", "longitude", "recordedBy",
         "year", "month", "day", "date_quality", "coord_flag",
     }
     assert required <= cols, f"missing columns: {required - cols}"
 
 
-def test_checklist_records_full_coord_flag_no_zero_valid(checklist_db):
+def test_checklist_records_full_coord_flag_no_zero_valid(checklist_sample_db):
     """SC#2: no row with coord_flag='valid' should have latitude=0 or longitude=0."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        n = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE coord_flag = 'valid' AND (latitude = 0 OR longitude = 0)
-        """).fetchone()[0]
-    finally:
-        con.close()
+    con = checklist_sample_db
+    n = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE coord_flag = 'valid' AND (latitude = 0 OR longitude = 0)
+    """).fetchone()[0]
     assert n == 0, f"found {n} rows with coord_flag='valid' and zero lat or lon"
 
 
-def test_checklist_records_full_coord_flag_valid_in_bbox(checklist_db):
+def test_checklist_records_full_coord_flag_valid_in_bbox(checklist_sample_db):
     """SC#2: no 'valid' row should have lat/lon outside the tight WA bbox."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        n = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE coord_flag = 'valid'
-              AND NOT (
-                latitude BETWEEN 45.5 AND 49.0
-                AND longitude BETWEEN -124.85 AND -116.9
-              )
-        """).fetchone()[0]
-    finally:
-        con.close()
+    con = checklist_sample_db
+    n = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE coord_flag = 'valid'
+          AND NOT (
+            latitude BETWEEN 45.5 AND 49.0
+            AND longitude BETWEEN -124.85 AND -116.9
+          )
+    """).fetchone()[0]
     assert n == 0, f"found {n} 'valid' rows outside the WA bbox"
 
 
-def test_checklist_records_full_coord_flag_coverage(checklist_db):
-    """SC#2: every coord_flag is in the valid enum; null_coord count > 1000."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        bad = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE coord_flag NOT IN ('valid', 'null_coord', 'zero_coord', 'out_of_bbox')
-        """).fetchone()[0]
-        null_coord_count = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE coord_flag = 'null_coord'
-        """).fetchone()[0]
-    finally:
-        con.close()
+def test_checklist_records_full_coord_flag_coverage(checklist_sample_db):
+    """SC#2: every coord_flag is in the valid enum; null_coord count == 1 in sample.
+
+    Phase 140 Plan 02 (D-09): assertion tightened to exact sample count —
+    `null_coord_count == 1` — the 8-row checklist_sample.csv has exactly 1 null_coord
+    row (ObjectID 3). Coverage is preserved: all 4 coord_flag branches are present.
+    """
+    con = checklist_sample_db
+    bad = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE coord_flag NOT IN ('valid', 'null_coord', 'zero_coord', 'out_of_bbox')
+    """).fetchone()[0]
+    null_coord_count = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE coord_flag = 'null_coord'
+    """).fetchone()[0]
     assert bad == 0, f"found {bad} rows with invalid coord_flag"
-    assert null_coord_count > 1000, f"expected >1000 null_coord rows, got {null_coord_count}"
+    assert null_coord_count == 1, f"expected 1 null_coord row in sample, got {null_coord_count}"
 
 
-def test_checklist_records_full_date_parsing_pre1900(checklist_db):
+def test_checklist_records_full_date_parsing_pre1900(checklist_sample_db):
     """SC#3: the 1812-06-18 source row parses to year=1812, month=6, day=18, date_quality='full'."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        # The 1812-06-18 row is ObjectID 31311 per CSV
-        row = con.execute("""
-            SELECT year, month, day, date_quality FROM checklist_data.checklist_records_full
-            WHERE year = 1812 AND month = 6 AND day = 18
-        """).fetchone()
-    finally:
-        con.close()
+    con = checklist_sample_db
+    # The 1812-06-18 row is ObjectID 31311 per CSV
+    row = con.execute("""
+        SELECT year, month, day, date_quality FROM checklist_data.checklist_records_full
+        WHERE year = 1812 AND month = 6 AND day = 18
+    """).fetchone()
     assert row is not None, "no row with year=1812, month=6, day=18 found"
     year, month, day, dq = row
     assert year == 1812
@@ -474,97 +513,78 @@ def test_checklist_records_full_date_parsing_pre1900(checklist_db):
     assert dq == "full"
 
 
-def test_checklist_records_full_date_parsing_mdy(checklist_db):
+def test_checklist_records_full_date_parsing_mdy(checklist_sample_db):
     """SC#3: at least one M/D/YYYY-sourced row must parse to date_quality='full'."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        # 6/14/1905 is in the CSV (ObjectID 1668); assert year=1905, month=6, day=14
-        n = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE year = 1905 AND month = 6 AND day = 14 AND date_quality = 'full'
-        """).fetchone()[0]
-    finally:
-        con.close()
+    con = checklist_sample_db
+    # 6/14/1905 is in the CSV (ObjectID 1668); assert year=1905, month=6, day=14
+    n = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE year = 1905 AND month = 6 AND day = 14 AND date_quality = 'full'
+    """).fetchone()[0]
     assert n >= 1, "expected at least one M/D/YYYY row parsed to year=1905, month=6, day=14"
 
 
-def test_checklist_records_full_null_date_tagged_none(checklist_db):
-    """SC#3: every empty/NULL-source-date row must have date_quality='none' and year IS NULL."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        # Rows with date_quality='none' should all have NULL year
-        n_bad = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE date_quality = 'none' AND year IS NOT NULL
-        """).fetchone()[0]
-        # There should be some 'none' rows (empirically ~6,689)
-        n_none = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE date_quality = 'none'
-        """).fetchone()[0]
-    finally:
-        con.close()
+def test_checklist_records_full_null_date_tagged_none(checklist_sample_db):
+    """SC#3: every empty/NULL-source-date row must have date_quality='none' and year IS NULL.
+
+    Phase 140 Plan 02 (D-09): assertion tightened to exact sample count — `n_none == 3` —
+    the 8-row checklist_sample.csv has exactly 3 none-date rows:
+      ObjectID 17423 (zero_coord), ObjectID 8702 (out_of_bbox), ObjectID 1386 (slash, valid).
+    Coverage is preserved: the none branch is tested and n_bad == 0 invariant holds.
+    """
+    con = checklist_sample_db
+    # Rows with date_quality='none' should all have NULL year
+    n_bad = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE date_quality = 'none' AND year IS NOT NULL
+    """).fetchone()[0]
+    n_none = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE date_quality = 'none'
+    """).fetchone()[0]
     assert n_bad == 0, f"found {n_bad} rows with date_quality='none' but year IS NOT NULL"
-    assert n_none > 1000, f"expected >1000 'none' date rows, got {n_none}"
+    assert n_none == 3, f"expected 3 'none' date rows in sample, got {n_none}"
 
 
-def test_checklist_records_full_date_quality_domain(checklist_db):
+def test_checklist_records_full_date_quality_domain(checklist_sample_db):
     """Every date_quality value must be in ('full', 'year_only', 'none')."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        bad = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE date_quality NOT IN ('full', 'year_only', 'none')
-        """).fetchone()[0]
-    finally:
-        con.close()
+    con = checklist_sample_db
+    bad = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE date_quality NOT IN ('full', 'year_only', 'none')
+    """).fetchone()[0]
     assert bad == 0, f"found {bad} rows with invalid date_quality"
 
 
-def test_checklist_records_full_is_idempotent(checklist_db):
-    """Running load_checklist() twice must yield the same checklist_records_full row count."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        n1 = con.execute(
-            "SELECT count(*) FROM checklist_data.checklist_records_full"
-        ).fetchone()[0]
-    finally:
-        con.close()
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        n2 = con.execute(
-            "SELECT count(*) FROM checklist_data.checklist_records_full"
-        ).fetchone()[0]
-    finally:
-        con.close()
+def test_checklist_records_full_is_idempotent(checklist_sample_db):
+    """Running load_checklist() twice must yield the same checklist_records_full row count.
+
+    Calls load_checklist(con=con) a second time on the shared connection.
+    Safe under CREATE OR REPLACE semantics (RESEARCH §7 / Pattern E idempotency).
+    """
+    import checklist_pipeline as mod
+    con = checklist_sample_db
+    n1 = con.execute(
+        "SELECT count(*) FROM checklist_data.checklist_records_full"
+    ).fetchone()[0]
+    mod.load_checklist(con=con)   # second call — CREATE OR REPLACE is idempotent
+    n2 = con.execute(
+        "SELECT count(*) FROM checklist_data.checklist_records_full"
+    ).fetchone()[0]
     assert n1 == n2, f"not idempotent: first run {n1} rows, second run {n2} rows"
 
 
-def test_checklist_records_old_table_still_exists(checklist_db):
+def test_checklist_records_old_table_still_exists(checklist_sample_db):
     """D-10: checklist_data.checklist_records (4-column OLD table) must still exist."""
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        cols = [
-            row[0]
-            for row in con.execute(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_schema='checklist_data' AND table_name='checklist_records' "
-                "ORDER BY ordinal_position"
-            ).fetchall()
-        ]
-    finally:
-        con.close()
+    con = checklist_sample_db
+    cols = [
+        row[0]
+        for row in con.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='checklist_data' AND table_name='checklist_records' "
+            "ORDER BY ordinal_position"
+        ).fetchall()
+    ]
     assert cols == ["scientificName", "county", "year", "month"], (
         f"old checklist_records table missing or schema changed: {cols}"
     )
@@ -580,54 +600,44 @@ def test_checklist_records_old_table_still_exists(checklist_db):
 # ---------------------------------------------------------------------------
 
 
-def test_checklist_records_full_canonical_name_column_exists(checklist_db):
+def test_checklist_records_full_canonical_name_column_exists(checklist_sample_db):
     """RCN-01: checklist_records_full must have a canonical_name column.
 
     Currently FAILS because _load_checklist_records_full() does not yet
     store a canonical_name column. Goes GREEN in Plan 135-03.
     """
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        cols = {
-            row[0]
-            for row in con.execute(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_schema='checklist_data' AND table_name='checklist_records_full'"
-            ).fetchall()
-        }
-    finally:
-        con.close()
+    con = checklist_sample_db
+    cols = {
+        row[0]
+        for row in con.execute(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_schema='checklist_data' AND table_name='checklist_records_full'"
+        ).fetchall()
+    }
     assert "canonical_name" in cols, (
         "checklist_records_full must have a canonical_name column (RCN-01). "
         "Add canonical_name VARCHAR to the CREATE OR REPLACE TABLE schema."
     )
 
 
-def test_checklist_records_full_canonical_name_non_slash_rows(checklist_db):
+def test_checklist_records_full_canonical_name_non_slash_rows(checklist_sample_db):
     """RCN-01: non-slash rows must have canonical_name = normalize_scientific_name(verbatim_name).
 
     Currently FAILS. Goes GREEN in Plan 135-03.
     """
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        # Check that non-slash rows with non-null verbatim_name have non-null canonical_name.
-        n_null = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE verbatim_name IS NOT NULL
-              AND verbatim_name NOT LIKE '%/%'
-              AND canonical_name IS NULL
-        """).fetchone()[0]
-        total_non_slash = con.execute("""
-            SELECT count(*) FROM checklist_data.checklist_records_full
-            WHERE verbatim_name IS NOT NULL
-              AND verbatim_name NOT LIKE '%/%'
-        """).fetchone()[0]
-    finally:
-        con.close()
+    con = checklist_sample_db
+    # Check that non-slash rows with non-null verbatim_name have non-null canonical_name.
+    n_null = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE verbatim_name IS NOT NULL
+          AND verbatim_name NOT LIKE '%/%'
+          AND canonical_name IS NULL
+    """).fetchone()[0]
+    total_non_slash = con.execute("""
+        SELECT count(*) FROM checklist_data.checklist_records_full
+        WHERE verbatim_name IS NOT NULL
+          AND verbatim_name NOT LIKE '%/%'
+    """).fetchone()[0]
     assert n_null == 0, (
         f"Found {n_null} non-slash rows with verbatim_name but NULL canonical_name "
         f"(out of {total_non_slash} total non-slash rows). "
@@ -635,52 +645,40 @@ def test_checklist_records_full_canonical_name_non_slash_rows(checklist_db):
     )
 
 
-def test_checklist_records_full_slash_rows_get_lca_canonical_name(checklist_db):
+def test_checklist_records_full_slash_rows_get_lca_canonical_name(checklist_sample_db):
     """RCN-01 / D-05: slash-compound rows must have a non-null canonical_name (LCA name).
 
     Verbatim slash string must be preserved in verbatim_name; canonical_name
-    must be the LCA's accepted name (computed from data/raw/taxa.csv.gz).
+    must be the LCA's accepted name (computed from taxa_subset.csv.gz fixture).
 
-    NOTE: taxa.csv.gz is gitignored and may be absent in CI/worktree environments.
-    When absent, _slash_canonical_name() returns None and LCA resolution is skipped;
-    the test then only verifies verbatim_name retention (D-05 verbatim retention invariant).
-    The full LCA assertion runs post-merge in the environment where taxa.csv.gz is present
-    (per plan guidance — note this as environment-limited in SUMMARY).
+    Phase 140 Plan 02: the checklist_sample_db fixture points TAXA_PATH at
+    data/tests/fixtures/taxa_subset.csv.gz (2-row fixture covering angelicus/texanus).
+    With the fixture present, _slash_canonical_name() resolves the LCA and
+    canonical_name must be non-null for the slash row (ObjectID 1386).
 
     Currently FAILS because canonical_name column does not exist. Goes GREEN in Plan 135-03.
     """
-    import os  # noqa: PLC0415
-
-    db_path, mod = checklist_db
-    mod.load_checklist()
-    con = duckdb.connect(db_path, read_only=True)
-    try:
-        slash_rows = con.execute("""
-            SELECT verbatim_name, canonical_name FROM checklist_data.checklist_records_full
-            WHERE verbatim_name LIKE '%/%'
-            LIMIT 5
-        """).fetchall()
-    finally:
-        con.close()
+    con = checklist_sample_db
+    slash_rows = con.execute("""
+        SELECT verbatim_name, canonical_name FROM checklist_data.checklist_records_full
+        WHERE verbatim_name LIKE '%/%'
+        LIMIT 5
+    """).fetchall()
     assert slash_rows, "expected at least one slash-compound row in checklist_records_full"
 
-    # Check if taxa.csv.gz is available for LCA resolution.
-    taxa_path = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) / "raw" / "taxa.csv.gz"
-    taxa_available = taxa_path.exists()
-
+    # With the taxa_subset.csv.gz fixture present (always present in fast tier —
+    # the module-scoped fixture unconditionally points TAXA_PATH at the committed gz),
+    # LCA resolution must succeed and canonical_name must be non-null.
     for verbatim, canon in slash_rows:
         # The verbatim slash string must still be in verbatim_name (D-05 verbatim retention)
         assert "/" in verbatim, (
             f"Expected '/' in verbatim_name after slash-compound loading, got: {verbatim!r}"
         )
-        if taxa_available:
-            assert canon is not None, (
-                f"Slash-compound row verbatim_name={verbatim!r} has NULL canonical_name. "
-                "Slash rows must resolve to the LCA canonical name per D-05 (RCN-01). "
-                f"taxa.csv.gz is present at {taxa_path} — LCA lookup should succeed."
-            )
-        # When taxa.csv.gz is absent, canonical_name may be None (environment-limited check).
-        # The full LCA assertion is validated post-merge when taxa.csv.gz is present.
+        assert canon is not None, (
+            f"Slash-compound row verbatim_name={verbatim!r} has NULL canonical_name. "
+            "Slash rows must resolve to the LCA canonical name per D-05 (RCN-01). "
+            "taxa_subset.csv.gz fixture is present — LCA lookup should succeed."
+        )
 
 
 # ---------------------------------------------------------------------------
