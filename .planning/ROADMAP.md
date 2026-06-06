@@ -479,7 +479,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 ### v4.8 Fast, Honest Test Suite (Phases 139–143) — IN PROGRESS
 
 - [x] **Phase 139: Baseline & Two-Tier Scaffold** — Estimate current runtime; capture BASELINE.md; register `integration` marker + `addopts` deselect; `uv run pytest` runs build-time tier only (completed 2026-06-05)
-- [ ] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory
+- [ ] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory (2 plans: 140-01 seams+fixtures · 140-02 test rewrites)
 - [ ] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips
 - [ ] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh
 - [ ] **Phase 143: CI Gate** — GitHub Actions job runs fast suite on push/PR; enforce <5 min runtime budget in CI
@@ -837,6 +837,26 @@ Plans:
 
 **Plans**: TBD
 **UI hint**: yes
+
+### Phase 140: Checklist & Taxonomy Fixture Distillation
+
+**Goal**: The two dominant per-test parse costs in the `data/` build-time tier are eliminated — checklist fast-tier tests read a tiny committed sample through the real `load_checklist()` path against a once-built module-scoped in-memory DuckDB, and resolver fast-tier tests read a tiny committed ancestry gz — with committed, provenance-documented fixtures in `data/tests/fixtures/`. The real nightly path is behavior-unchanged.
+**Depends on**: Phase 139
+**Requirements**: TFIXTURE-01, TFIXTURE-02, TFIXTURE-04
+**Success Criteria** (what must be TRUE):
+
+  1. `test_checklist_pipeline.py` fast-tier tests no longer call the full 50,646-row loader; they read an 8-row committed sample through the real `load_checklist(con=con)` CSV→DuckDB path, with the DuckDB built once per file via a module-scoped shared in-memory connection; rewritten count assertions match the sample's exact counts
+  2. The two `@pytest.mark.integration` checklist tests keep reading the real `checklist_records_full.csv` (unchanged) and remain in the nightly tier
+  3. `resolve_checklist_names` fast-tier tests read a 2-row committed `taxa_subset.csv.gz` and pass with `data/raw/taxa.csv.gz` ABSENT from disk
+  4. `data/tests/fixtures/` exists holding `checklist_sample.csv` + `taxa_subset.csv.gz`, each with recorded provenance (which rows/taxa distilled from, which branch invariants preserved)
+
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+- [ ] 140-01-PLAN.md — load_checklist(con=) seam + resolve_checklist_names TAXA_PATH constant + committed checklist_sample.csv (8 rows) and taxa_subset.csv.gz (2 rows) with provenance [TFIXTURE-01, TFIXTURE-02, TFIXTURE-04]
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 140-02-PLAN.md — module-scoped shared-connection checklist_sample_db fixture + fast-tier test migration + exact-count rewrites; resolver TAXA_PATH monkeypatch + absent-file proof [TFIXTURE-01, TFIXTURE-02]
 
 ## Progress
 
