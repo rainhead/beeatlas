@@ -1,0 +1,50 @@
+# data/tests/fixtures/
+
+Committed test fixture files for the Phase 140 fast-tier test suite.
+
+## checklist_sample.csv
+
+Distilled from data/checklists/checklist_records_full.csv (2026-06-06).
+
+Branch coverage: one row per coord_flag value (valid, null_coord, zero_coord, out_of_bbox),
+one row per date_quality value (full/ISO-datetime, full/pre-1900, full/M-D-YYYY, none),
+one synthetic row for year_only (0 rows in real CSV per code comment — kept for branch coverage
+per D-08), and one slash-compound verbatim_name row (ObjectID 1386).
+
+ObjectID provenance:
+  1     -> valid + full/ISO-datetime  (Agapostemon angelicus, lat=47.3075, lon=-122.2272)
+  3     -> null_coord + full/ISO-datetime  (empty lat/lon, date=1957-08-06T00:00:00)
+  17423 -> zero_coord + none  (lat=0, lon=0, empty date)
+  8702  -> out_of_bbox + none  (lat=49.00003811 > 49.0, empty date)
+  31311 -> valid + full/pre-1900  (Bombus vancouverensis, year=1812)
+  1668  -> valid + full/M-D-YYYY  (Agapostemon texanus, 6/14/1905)
+  1386  -> valid + none + slash  (Agapostemon angelicus/texanus, lat=48.53459, lon=-122.9235)
+  99999 -> valid + year_only  (synthetic row, date="1995")
+
+Note: ObjectID 147 is valid (lon=-117.2137 is inside WA eastern boundary; -124.85 <= -117.2137 <=
+-116.9 is TRUE since -117.2137 < -116.9 numerically). Do not use it for out_of_bbox.
+ObjectID 8702 (lat=49.00003811 > _WA_LAT_MAX=49.0) is the confirmed out_of_bbox row.
+
+Expected post-load counts (checklist_data.checklist_records_full):
+  total rows    = 8
+  valid         = 5  (ObjectIDs 1, 31311, 1668, 1386, 99999)
+  null_coord    = 1  (ObjectID 3)
+  zero_coord    = 1  (ObjectID 17423)
+  out_of_bbox   = 1  (ObjectID 8702)
+  full          = 4  (ObjectIDs 1, 3, 31311, 1668)
+  none          = 3  (ObjectIDs 17423, 8702, 1386)
+  year_only     = 1  (ObjectID 99999)
+
+## taxa_subset.csv.gz
+
+Distilled from data/raw/taxa.csv.gz (2026-06-06).
+
+Contains only the two Anthophila species needed for the angelicus/texanus LCA test:
+  Agapostemon angelicus (taxon_id=270393,  ancestry: .../50086/606634)
+  Agapostemon texanus   (taxon_id=1581468, ancestry: .../50086/606634/1581466)
+
+LCA = 606634 (subgenus Agapostemon). Ancestry strings verified from live taxa.csv.gz 2026-06-06.
+
+Tab-delimited, gzipped. Header: taxon_id\tancestry\trank_level\trank\tname\tactive
+Read by both checklist_pipeline._load_taxa_ancestry() and
+resolve_checklist_names._load_anthophila_ancestry().
