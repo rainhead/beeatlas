@@ -8,13 +8,16 @@ Tests assert the new Genus/specificEpithet slug format for species rows:
 Collision gate tests (D-07):
   - test_check_slug_collisions_raises_on_collision: synthetic collision hard-fails
   - test_check_slug_collisions_bombus_no_false_alarm: genus/subgenus Bombus is NOT a collision
-  - test_check_slug_collisions_clean_real_data: sandbox-gated pass on live data
+  - test_check_slug_collisions_clean_real_data: fixture-based pass on distilled data
 
-Both sandbox tests guarded by _SANDBOX_GUARD so they skip cleanly when
-data/dbt/target/sandbox/species.parquet is absent.
+Phase 141 (TFIXTURE-03, TFIX-04, TTIER-02):
+  - sandbox_parquet fixture builds species/higher_taxa/occurrences parquet from committed CSVs
+    in a tmp dir; redirects se_mod.DBT_SANDBOX_DIR and se_mod.ASSETS_DIR via monkeypatch.setattr.
+  - test_higher_taxa_json_written_and_12_subfamilies and test_taxon_id are tagged
+    @pytest.mark.integration (real-dataset properties, deselected from fast tier).
 
-Run after ``bash data/dbt/run.sh build``:
-    cd data && uv run pytest tests/test_species_export.py -x
+Run after ``bash data/dbt/run.sh build`` for the integration tier:
+    cd data && uv run pytest tests/test_species_export.py -m integration
 """
 
 import json
@@ -28,28 +31,109 @@ from species_export import export_species_parquet, SPECIES_COLUMNS
 
 SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
 SPECIES_JSON = Path(__file__).resolve().parent.parent.parent / "public" / "data" / "species.json"
-
-_SANDBOX_GUARD = pytest.mark.skipif(
-    not (SANDBOX / "species.parquet").exists(),
-    reason="run `bash data/dbt/run.sh build` first to produce sandbox species.parquet",
-)
-
-_HIGHER_TAXA_GUARD = pytest.mark.skipif(
-    not (SANDBOX / "higher_taxa.parquet").exists(),
-    reason="run `bash data/dbt/run.sh build` first to produce sandbox higher_taxa.parquet",
-)
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 _SPECIES_JSON_GUARD = pytest.mark.skipif(
     not SPECIES_JSON.exists(),
-    reason="run `uv run python data/species_export.py` first to produce public/data/species.json",
+    reason="[integration] run `uv run python data/species_export.py` first to produce public/data/species.json",
 )
 
 
-@_SANDBOX_GUARD
-def test_slug_hierarchical(tmp_path, monkeypatch):
-    """species_export.py writes Genus/specificEpithet slug for species rows (PIPE-03a)."""
+# ---------------------------------------------------------------------------
+# Phase 141 D-01 fixture: build parquets from committed CSVs (TFIXTURE-03)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def sandbox_parquet(tmp_path, monkeypatch):
+    """Build minimal sandbox parquet files from committed CSV fixtures (Phase 141 D-01).
+
+    Copies species_fixture.csv and higher_taxa_fixture.csv to parquet in a tmp sandbox dir.
+    Also creates a minimal occurrences.parquet (export_species_parquet reads it for seasonality).
+    Redirects se_mod.DBT_SANDBOX_DIR and se_mod.ASSETS_DIR via monkeypatch.setattr
+    (monkeypatch.setenv is insufficient — DBT_SANDBOX_DIR is read once at module import).
+
+    Also patches se_mod._build_higher_taxa to skip the hardcoded == 12 subfamily assertion
+    (a real-dataset property; the committed fixture has 2 subfamilies by design, and the
+    == 12 assertion belongs in the @integration tier — test_higher_taxa_json_written_and_12_subfamilies).
+    """
+    import duckdb as _duckdb
+
+    sandbox = tmp_path / "sandbox"
+    sandbox.mkdir()
+
+    con = _duckdb.connect()
+
+    # species.parquet: CAST on_checklist to BOOLEAN (RESEARCH Pitfall 3 — CSV true/false
+    # may be auto-detected as VARCHAR; production code casts to bool_ via pyarrow schema).
+    # Also parse month_histogram from JSON string to INTEGER[] so pyarrow can read it as
+    # list<int32> (the production parquet stores it as a list, not a varchar).
+    con.execute(f"""
+        COPY (
+            SELECT * REPLACE (
+                CAST(on_checklist AS BOOLEAN) AS on_checklist,
+                json_extract(month_histogram, '$')::INTEGER[] AS month_histogram
+            )
+            FROM read_csv('{FIXTURES_DIR}/species_fixture.csv', header=True, auto_detect=True)
+        )
+        TO '{sandbox}/species.parquet' (FORMAT PARQUET)
+    """)
+
+    # higher_taxa.parquet: no BOOLEAN columns, straight COPY.
+    con.execute(f"""
+        COPY (
+            SELECT * FROM read_csv('{FIXTURES_DIR}/higher_taxa_fixture.csv', header=True, auto_detect=True)
+        )
+        TO '{sandbox}/higher_taxa.parquet' (FORMAT PARQUET)
+    """)
+
+    # occurrences.parquet: export_species_parquet reads this for seasonality (AGG-05).
+    # Minimal schema — only canonical_name, county, ecoregion_l3, month are queried.
+    con.execute("CREATE TABLE occ_staging (canonical_name VARCHAR, county VARCHAR, ecoregion_l3 VARCHAR, month VARCHAR)")
+    con.execute("INSERT INTO occ_staging VALUES ('agapostemon subtilior', NULL, NULL, NULL)")
+    con.execute(f"COPY occ_staging TO '{sandbox}/occurrences.parquet' (FORMAT PARQUET)")
+
+    con.close()
+
+    # Redirect module-level constants via setattr (setenv is insufficient after import).
+    monkeypatch.setattr(se_mod, 'DBT_SANDBOX_DIR', sandbox)
     monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
-    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
+
+    # Patch _build_higher_taxa to skip the hardcoded == 12 assertion (real-dataset property).
+    # The fixture has 2 subfamilies; the == 12 check belongs in @integration.
+    # This patch preserves the rest of the function's behavior (reads parquet, writes JSON,
+    # returns rows) — only the count assert is bypassed in the fixture context.
+    _original_build_higher_taxa = se_mod._build_higher_taxa
+
+    def _fixture_build_higher_taxa(con):
+        import json as _json
+        higher_taxa_parquet = se_mod.DBT_SANDBOX_DIR / 'higher_taxa.parquet'
+        rows = con.execute(
+            f"SELECT * FROM read_parquet('{higher_taxa_parquet}') ORDER BY rank, name"
+        ).fetchall()
+        cols = [d[0] for d in con.description]
+        higher_taxa_rows = [dict(zip(cols, r)) for r in rows]
+        out = se_mod.ASSETS_DIR / "higher_taxa.json"
+        out.write_text(
+            _json.dumps(higher_taxa_rows, sort_keys=True, indent=2),
+            encoding='utf-8',
+        )
+        assert len(higher_taxa_rows) > 0, "higher_taxa.json must be non-empty"
+        # Note: the == 12 subfamily assertion is intentionally absent here.
+        # It is a real-dataset property tested in test_higher_taxa_json_written_and_12_subfamilies
+        # which is tagged @pytest.mark.integration.
+        return higher_taxa_rows
+
+    monkeypatch.setattr(se_mod, '_build_higher_taxa', _fixture_build_higher_taxa)
+
+    return sandbox
+
+
+# ---------------------------------------------------------------------------
+# Slug format tests (PIPE-03) — consume sandbox_parquet fixture
+# ---------------------------------------------------------------------------
+
+def test_slug_hierarchical(tmp_path, monkeypatch, sandbox_parquet):
+    """species_export.py writes Genus/specificEpithet slug for species rows (PIPE-03a)."""
     con = duckdb.connect()
     export_species_parquet(con)
     rows = duckdb.execute(
@@ -63,8 +147,7 @@ def test_slug_hierarchical(tmp_path, monkeypatch):
         )
 
 
-@_SANDBOX_GUARD
-def test_no_old_slug_format(tmp_path, monkeypatch):
+def test_no_old_slug_format(tmp_path, monkeypatch, sandbox_parquet):
     """No slug uses the old flat lowercase-dash format for species rows (PIPE-03b).
 
     The old format was 'genus-epithet' (no slash, all lowercase), e.g. 'andrena-milwaukeensis'.
@@ -73,8 +156,6 @@ def test_no_old_slug_format(tmp_path, monkeypatch):
     Note: the epithet itself may contain hyphens (e.g. 'w-scripta'), so checking for
     dash presence is insufficient — we check for absence of slash instead.
     """
-    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
-    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
     con = duckdb.connect()
     export_species_parquet(con)
     old_pattern_count = duckdb.execute(
@@ -86,11 +167,8 @@ def test_no_old_slug_format(tmp_path, monkeypatch):
     )
 
 
-@_SANDBOX_GUARD
-def test_inat_obs_count_in_species(tmp_path, monkeypatch):
+def test_inat_obs_count_in_species(tmp_path, monkeypatch, sandbox_parquet):
     """inat_obs_count column is present and non-null in species.parquet/species.json (OCC-02/03)."""
-    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
-    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
     con = duckdb.connect()
     export_species_parquet(con)
     row = duckdb.execute(
@@ -101,9 +179,15 @@ def test_inat_obs_count_in_species(tmp_path, monkeypatch):
     assert 'inat_obs_count' in SPECIES_COLUMNS, "inat_obs_count must be in SPECIES_COLUMNS"
 
 
+@pytest.mark.integration
 @_SPECIES_JSON_GUARD
 def test_taxon_id(tmp_path):
-    """Every species entry in public/data/species.json has a non-null integer taxon_id (TID-03)."""
+    """Every species entry in public/data/species.json has a non-null integer taxon_id (TID-03).
+
+    [integration] Reads public/data/species.json — a downstream artifact produced by
+    `uv run python data/species_export.py`. Requires the full dbt sandbox + export pipeline.
+    Deselected from the fast tier by addopts = -m "not integration" in pyproject.toml.
+    """
     rows = json.loads(SPECIES_JSON.read_text(encoding='utf-8'))
     assert rows, "species.json must be non-empty"
     for row in rows:
@@ -148,20 +232,16 @@ def test_check_slug_collisions_bombus_no_false_alarm():
     se_mod._check_slug_collisions(higher_taxa_rows, species_rows)
 
 
-@_SANDBOX_GUARD
-@_HIGHER_TAXA_GUARD
-def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch):
-    """_check_slug_collisions passes on current real data — no collision in live data (D-07).
+def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch, sandbox_parquet):
+    """_check_slug_collisions passes on fixture data — no collision in distilled fixture (D-07).
 
     Species rows are filtered to specific_epithet IS NOT NULL — genus-only records do not
     generate pages and are excluded from URL collision checking (mirrors speciesList filter
     in _data/species.js line 99).
     """
-    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
-    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
     con = duckdb.connect()
-    # Build higher_taxa_rows from the parquet
-    higher_taxa_parquet = SANDBOX / 'higher_taxa.parquet'
+    # Build higher_taxa_rows from the fixture parquet
+    higher_taxa_parquet = sandbox_parquet / 'higher_taxa.parquet'
     rows = con.execute(
         f"SELECT * FROM read_parquet('{higher_taxa_parquet}') ORDER BY rank, name"
     ).fetchall()
@@ -170,7 +250,7 @@ def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch):
     # Build species_rows with slugs — only species-level rows (specific_epithet != null)
     # Genus-only records (species identified only to genus) do not generate pages and are
     # excluded from URL collision checking (mirrors speciesList filter in species.js).
-    species_parquet = SANDBOX / 'species.parquet'
+    species_parquet = sandbox_parquet / 'species.parquet'
     sp_rows = con.execute(
         f"SELECT canonical_name, taxon_id, genus, specific_epithet FROM read_parquet('{species_parquet}')"
         " WHERE specific_epithet IS NOT NULL"
@@ -187,12 +267,24 @@ def test_check_slug_collisions_clean_real_data(tmp_path, monkeypatch):
 # _build_higher_taxa + retirement tests (D-03, PAGE-01)
 # ---------------------------------------------------------------------------
 
-@_SANDBOX_GUARD
-@_HIGHER_TAXA_GUARD
+@pytest.mark.integration
 def test_higher_taxa_json_written_and_12_subfamilies(tmp_path, monkeypatch):
-    """higher_taxa.json is written, non-empty, and contains exactly 12 subfamily rows (D-08)."""
+    """higher_taxa.json is written, non-empty, and contains exactly 12 subfamily rows (D-08).
+
+    [integration] The == 12 count is a real-dataset property — the committed fixture
+    intentionally has only 2 subfamilies. Requires the full dbt sandbox (species.parquet,
+    higher_taxa.parquet with all 12 bee subfamilies, occurrences.parquet).
+    Deselected from the fast tier by addopts = -m "not integration" in pyproject.toml.
+
+    Run after `bash data/dbt/run.sh build`:
+        cd data && uv run pytest tests/test_species_export.py::test_higher_taxa_json_written_and_12_subfamilies -m integration
+    """
+    if not (SANDBOX / "species.parquet").exists():
+        pytest.skip("[integration] sandbox species.parquet absent — run `bash data/dbt/run.sh build` first")
+    if not (SANDBOX / "higher_taxa.parquet").exists():
+        pytest.skip("[integration] sandbox higher_taxa.parquet absent — run `bash data/dbt/run.sh build` first")
     monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
-    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
+    monkeypatch.setattr(se_mod, 'DBT_SANDBOX_DIR', SANDBOX)
     con = duckdb.connect()
     export_species_parquet(con)
     out = tmp_path / 'higher_taxa.json'
@@ -208,12 +300,8 @@ def test_higher_taxa_json_written_and_12_subfamilies(tmp_path, monkeypatch):
     assert 'Eumeninae' not in names, "Eumeninae (wasp bycatch) must not appear in subfamily rows"
 
 
-@_SANDBOX_GUARD
-@_HIGHER_TAXA_GUARD
-def test_higher_rank_taxon_ids_not_written(tmp_path, monkeypatch):
+def test_higher_rank_taxon_ids_not_written(tmp_path, monkeypatch, sandbox_parquet):
     """higher_rank_taxon_ids.json is NOT written by export (D-03 retirement)."""
-    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
-    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
     con = duckdb.connect()
     export_species_parquet(con)
     retired = tmp_path / 'higher_rank_taxon_ids.json'
@@ -222,12 +310,8 @@ def test_higher_rank_taxon_ids_not_written(tmp_path, monkeypatch):
     )
 
 
-@_SANDBOX_GUARD
-@_HIGHER_TAXA_GUARD
-def test_export_runs_collision_check_clean(tmp_path, monkeypatch):
+def test_export_runs_collision_check_clean(tmp_path, monkeypatch, sandbox_parquet):
     """export_species_parquet invokes _check_slug_collisions and completes without raising."""
-    monkeypatch.setattr(se_mod, 'ASSETS_DIR', tmp_path)
-    monkeypatch.setenv('DBT_SANDBOX_DIR', str(SANDBOX))
     con = duckdb.connect()
     # If a collision were present, this would raise AssertionError.
     # Completing without error confirms the check ran and found no collision.
