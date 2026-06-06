@@ -264,6 +264,7 @@ def test_fuzzy_candidates_written(checklist_resolver_db, monkeypatch):
 # RCN-04: test_at_least_13_fuzzy_candidates
 # ---------------------------------------------------------------------------
 
+@pytest.mark.integration
 def test_at_least_13_fuzzy_candidates(checklist_resolver_db, monkeypatch):
     """RCN-04: running the fuzzy tier over the full unmatched set (178 names)
     yields >= 13 candidates at score_cutoff=85 (A1 assumption from RESEARCH.md).
