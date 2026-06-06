@@ -82,6 +82,19 @@ def resolver_db(tmp_path, monkeypatch):
     con.execute("CREATE TABLE ecdysis_data.occurrences (canonical_name TEXT)")
     con.execute("CREATE SCHEMA inat_obs_data")
     con.execute("CREATE TABLE inat_obs_data.observations (canonical_name TEXT)")
+    # D-06: Two UNION-arm tables missing from the original fixture — their absence caused
+    # CatalogException: schema "dbt_sandbox" does not exist on every test.
+    # Empty tables are correct: each UNION arm returns 0 rows in isolation, which is the
+    # expected state for these unit tests (the seeded names come from checklist_data.species).
+    con.execute("CREATE SCHEMA dbt_sandbox")
+    con.execute(
+        "CREATE TABLE dbt_sandbox.occurrence_synonyms "
+        "(synonym TEXT, accepted_name TEXT, source TEXT)"
+    )
+    con.execute("CREATE SCHEMA inaturalist_waba_data")
+    con.execute(
+        "CREATE TABLE inaturalist_waba_data.observations (taxon__name TEXT)"
+    )
     # Bridge created lazily by resolve_taxon_ids via CREATE TABLE IF NOT EXISTS.
     con.close()
     return db_path, resolve_taxon_ids
