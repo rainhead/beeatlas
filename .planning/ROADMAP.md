@@ -1098,7 +1098,7 @@ Plans:
   5. A clean-checkout fast run reports 0 silent asset-driven skips; all remaining conditional skips are visible in the summary and confined to the integration tier
   6. Genuine full-data checks (50,646-row count, full taxa.csv.gz LCA, sandbox-vs-public parquet diff) are tagged `@pytest.mark.integration` (the marker locked in Phase 139; `addopts = -m "not integration"` deselects it by default); they pass when explicitly run against real built data
 
-**Plans**: 4 plans
+**Plans**: 5 plans (1 gap-closure)
 
 Plans:
 **Wave 1**
@@ -1110,6 +1110,10 @@ Plans:
 
 - [x] 141-03-PLAN.md — Parquet-fixture consumers: rewrite test_species_export + test_dbt_synonymy; tag real-data tests @integration
 - [x] 141-04-PLAN.md — @integration tagging (test_dbt_diff / fuzzy / species_maps) + WR-01/WR-02 checklist_pipeline hardening
+
+**Gap closure** *(closes SC-1 / SC-5 / TFIX-04 from 141-VERIFICATION.md)*
+
+- [ ] 141-05-PLAN.md — Migrate the two unmigrated files (test_dbt_scaffold.py, test_higher_taxa.py) to @integration + tighten the D-05 --select signature stem
 
 ---
 
