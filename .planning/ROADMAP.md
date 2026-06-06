@@ -1146,3 +1146,16 @@ Plans:
   4. A green CI run is confirmed end-to-end on a push to a branch
 
 **Plans**: TBD
+
+---
+
+## Backlog
+
+### Phase 999.1: debounce URL updates when zooming and panning the map (BACKLOG)
+
+**Goal:** [Captured for future planning] — coalesce the rapid map `moveend`/`zoom` events so the URL (and history) is updated only after interaction settles, rather than on every intermediate frame.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
