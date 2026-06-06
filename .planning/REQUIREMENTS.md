@@ -30,8 +30,8 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 ### Honest Coverage & Greening (TFIX)
 
 - [x] **TFIX-01**: The ~16 `test_resolve_taxon_ids.py` failures are fixed — the `resolver_db` fixture provides `dbt_sandbox.occurrence_synonyms` (matching `resolve_taxon_ids.py:_names_to_resolve`) and the tests assert real resolution behavior.
-- [ ] **TFIX-02**: The 2 `test_dbt_diff.py` failures are resolved — replaced by fixture-based comparison, or converted to a **loud, explicit** skip-when-stale (never a silent pass).
-- [ ] **TFIX-03**: The `test_resolve_checklist_names` fuzzy-candidate failure (`test_at_least_13_fuzzy_candidates`) is fixed.
+- [x] **TFIX-02**: The 2 `test_dbt_diff.py` failures are resolved — replaced by fixture-based comparison, or converted to a **loud, explicit** skip-when-stale (never a silent pass).
+- [x] **TFIX-03**: The `test_resolve_checklist_names` fuzzy-candidate failure (`test_at_least_13_fuzzy_candidates`) is fixed.
 - [x] **TFIX-04**: No fast-tier test silently skips due to a missing un-checked-in asset; any remaining conditional skips are **reported** (visible in summary) and confined to the slow tier.
   - *Accept:* a clean-checkout fast run reports 0 silent asset-driven skips.
 - [ ] **TFIX-05**: The full fast suite is green (0 failures, 0 errors) on a clean checkout.
@@ -72,8 +72,8 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 | TFIXTURE-04 | Phase 140: Checklist & Taxonomy Fixture Distillation | Complete |
 | TFIXTURE-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TFIX-01 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
-| TFIX-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
-| TFIX-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Pending |
+| TFIX-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
+| TFIX-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TFIX-04 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TTIER-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TFIX-05 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |

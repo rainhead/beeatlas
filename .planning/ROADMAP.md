@@ -480,7 +480,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 
 - [x] **Phase 139: Baseline & Two-Tier Scaffold** — Estimate current runtime; capture BASELINE.md; register `integration` marker + `addopts` deselect; `uv run pytest` runs build-time tier only (completed 2026-06-05)
 - [x] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory (2 plans: 140-01 seams+fixtures · 140-02 test rewrites) (completed 2026-06-06)
-- [ ] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips
+- [x] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips (completed 2026-06-06)
 - [ ] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh
 - [ ] **Phase 143: CI Gate** — GitHub Actions job runs fast suite on push/PR; enforce <5 min runtime budget in CI
 
@@ -1013,7 +1013,7 @@ Plans:
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
-| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 3/4 | In Progress|  |
+| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 4/4 | Complete   | 2026-06-06 |
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
@@ -1109,7 +1109,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 141-03-PLAN.md — Parquet-fixture consumers: rewrite test_species_export + test_dbt_synonymy; tag real-data tests @integration
-- [ ] 141-04-PLAN.md — @integration tagging (test_dbt_diff / fuzzy / species_maps) + WR-01/WR-02 checklist_pipeline hardening
+- [x] 141-04-PLAN.md — @integration tagging (test_dbt_diff / fuzzy / species_maps) + WR-01/WR-02 checklist_pipeline hardening
 
 ---
 
