@@ -2,10 +2,14 @@
 appears correctly in `occurrences.parquet` and `species.parquet` after
 `bash data/dbt/run.sh build`.
 
-These tests are Wave 0 RED tests for Phase 123 Plan 02 — they assert the desired
-post-JOIN behavior. They will skip (not fail) when the sandbox outputs do not exist,
-and they will pass once Tasks 2 and 3 add the synonym LEFT JOIN to int_combined.sql
-and int_species_universe.sql respectively.
+Phase 141 (TFIXTURE-03, TFIX-04):
+  - synonymy_sandbox fixture builds occurrences.parquet (canonical_name only; agapostemon
+    subtilior present, texanus absent) and species.parquet from committed CSVs in a tmp dir.
+    Monkeypatches the test-module SANDBOX constant via the imported module object:
+    monkeypatch.setattr(m, "SANDBOX", sandbox) where m is the explicitly imported
+    test module (the explicit import form is unambiguous and avoids confusion).
+  - All 3 tests consume synonymy_sandbox instead of the guard decorators.
+  - Fast tier: 0 skips, 0 failures (D-05 guard satisfied).
 
 Requirements covered:
   SYN-02: occurrence_synonyms seed LEFT JOIN in int_combined produces synonymized canonical_name
@@ -19,16 +23,65 @@ import pytest
 
 
 SANDBOX = Path(__file__).resolve().parent.parent / "dbt" / "target" / "sandbox"
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
-_SANDBOX_GUARD = pytest.mark.skipif(
-    not (SANDBOX / "occurrences.parquet").exists(),
-    reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
-)
 
-_SPECIES_GUARD = pytest.mark.skipif(
-    not (SANDBOX / "species.parquet").exists(),
-    reason="run `bash data/dbt/run.sh build` first to produce sandbox species.parquet",
-)
+# ---------------------------------------------------------------------------
+# Phase 141 D-01 fixture: build parquets from committed CSVs (TFIXTURE-03)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def synonymy_sandbox(tmp_path, monkeypatch):
+    """Build minimal sandbox parquet files for synonymy tests (Phase 141 D-01).
+
+    occurrences.parquet: minimal schema (only canonical_name is asserted on).
+      One row: agapostemon subtilior. Zero rows: agapostemon texanus.
+      Uses CREATE TABLE + INSERT + COPY (avoids a brittle 33-column CSV stub).
+    species.parquet: built from species_fixture.csv with CAST(on_checklist AS BOOLEAN)
+      and month_histogram parsed from JSON string to INTEGER[].
+    Monkeypatches the test-module SANDBOX constant via the imported module object:
+      import tests.test_dbt_synonymy as m; monkeypatch.setattr(m, "SANDBOX", sandbox)
+    The SANDBOX constant is defined in THIS test file. The setattr target is the
+    imported module object `m` — the explicit import form is unambiguous and matches
+    the RESEARCH Pitfall 2 specification (the fixture's __name__ is the same module,
+    but using the explicit import makes intent clear and avoids confusion).
+    """
+    import duckdb as _duckdb
+    import tests.test_dbt_synonymy as m
+
+    sandbox = tmp_path / "sandbox"
+    sandbox.mkdir()
+
+    con = _duckdb.connect()
+
+    # occurrences.parquet: minimal schema — only canonical_name is asserted on.
+    # Uses CREATE TABLE + INSERT + COPY (RESEARCH §1.2 recommended approach).
+    # agapostemon subtilior present (1 row); agapostemon texanus absent (0 rows).
+    con.execute("CREATE TABLE occ_staging (canonical_name VARCHAR)")
+    con.execute("INSERT INTO occ_staging VALUES ('agapostemon subtilior')")
+    con.execute(f"COPY occ_staging TO '{sandbox}/occurrences.parquet' (FORMAT PARQUET)")
+
+    # species.parquet: built from species_fixture.csv.
+    # CAST on_checklist to BOOLEAN (RESEARCH Pitfall 3 — CSV true/false may be VARCHAR).
+    # Parse month_histogram from JSON string to INTEGER[] (pyarrow list<int32> compatibility).
+    con.execute(f"""
+        COPY (
+            SELECT * REPLACE (
+                CAST(on_checklist AS BOOLEAN) AS on_checklist,
+                json_extract(month_histogram, '$')::INTEGER[] AS month_histogram
+            )
+            FROM read_csv('{FIXTURES_DIR}/species_fixture.csv', header=True, auto_detect=True)
+        )
+        TO '{sandbox}/species.parquet' (FORMAT PARQUET)
+    """)
+
+    con.close()
+
+    # Monkeypatch the test-module SANDBOX constant via the imported module object.
+    # This redirects the f-string paths in all 3 test bodies to the tmp sandbox.
+    monkeypatch.setattr(m, "SANDBOX", sandbox)
+
+    return sandbox
 
 
 # ---------------------------------------------------------------------------
@@ -36,8 +89,7 @@ _SPECIES_GUARD = pytest.mark.skipif(
 # ---------------------------------------------------------------------------
 
 
-@_SANDBOX_GUARD
-def test_occurrences_has_agapostemon_subtilior():
+def test_occurrences_has_agapostemon_subtilior(synonymy_sandbox):
     """At least 1 row in occurrences.parquet has canonical_name = 'agapostemon subtilior'.
 
     Proves the synonym JOIN fired and rewrote at least one ecdysis or inat_obs record
@@ -53,8 +105,7 @@ def test_occurrences_has_agapostemon_subtilior():
     )
 
 
-@_SANDBOX_GUARD
-def test_occurrences_has_no_agapostemon_texanus():
+def test_occurrences_has_no_agapostemon_texanus(synonymy_sandbox):
     """Zero rows in occurrences.parquet have canonical_name = 'agapostemon texanus'.
 
     Proves every occurrence previously recorded as texanus was rewritten to subtilior
@@ -75,8 +126,7 @@ def test_occurrences_has_no_agapostemon_texanus():
 # ---------------------------------------------------------------------------
 
 
-@_SPECIES_GUARD
-def test_inat_obs_count_uses_synonymized_canonical_name():
+def test_inat_obs_count_uses_synonymized_canonical_name(synonymy_sandbox):
     """inat_obs_count for 'agapostemon texanus' is 0; inat_obs_count for 'agapostemon subtilior' is >= 0.
 
     Asserts that:
