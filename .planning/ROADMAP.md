@@ -1003,7 +1003,7 @@ Plans:
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
-| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 0/TBD | Not started | - |
+| 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 0/4 | Planned | - |
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
@@ -1087,7 +1087,13 @@ Plans:
   5. A clean-checkout fast run reports 0 silent asset-driven skips; all remaining conditional skips are visible in the summary and confined to the slow tier
   6. Genuine full-data checks (50,646-row count, full taxa.csv.gz LCA, sandbox-vs-public parquet diff) are tagged `@pytest.mark.slow`; they pass when explicitly run against real built data
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 141-01-PLAN.md — Distilled fixture CSVs (species/higher_taxa/occurrences) + D-05 silent-skip conftest guard
+- [ ] 141-02-PLAN.md — resolver_db fix: add dbt_sandbox.occurrence_synonyms + inaturalist_waba_data.observations (16 tests)
+- [ ] 141-03-PLAN.md — Parquet-fixture consumers: rewrite test_species_export + test_dbt_synonymy; tag real-data tests @integration
+- [ ] 141-04-PLAN.md — @integration tagging (test_dbt_diff / fuzzy / species_maps) + WR-01/WR-02 checklist_pipeline hardening
 
 ---
 
