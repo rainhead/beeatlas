@@ -709,11 +709,15 @@ def test_no_active_reconcile_call():
     Asserts that inspect.getsource(checklist_pipeline.load_checklist) does NOT
     contain the literal string 'reconcile'. Currently FAILS because reconcile()
     is still called at line 439. Goes GREEN in Plan 135-03.
+
+    Phase 142 Rule 1 fix: importlib.reload() removed — it was causing
+    order-dependence under pytest-randomly by resetting CHECKLIST_RECORDS_FULL_PATH
+    to the real filesystem path mid-run, clobbering checklist_sample_db's fixture
+    patch. inspect.getsource() reads from the source file, not module memory,
+    so the reload was unnecessary.
     """
     import inspect  # noqa: PLC0415
-    import importlib  # noqa: PLC0415
     import checklist_pipeline  # noqa: PLC0415
-    importlib.reload(checklist_pipeline)
     src = inspect.getsource(checklist_pipeline.load_checklist)
     assert "reconcile" not in src, (
         "reconcile() must be removed from load_checklist() per D-07 (RCN-06). "
@@ -732,11 +736,15 @@ def test_single_synonym_source():
 
     Currently FAILS because SYNONYMS_PATH is still a module-level constant
     in checklist_pipeline.py. Goes GREEN in Plan 135-03.
+
+    Phase 142 Rule 1 fix: importlib.reload() removed — it was causing
+    order-dependence under pytest-randomly by resetting CHECKLIST_RECORDS_FULL_PATH
+    to the real filesystem path mid-run, clobbering checklist_sample_db's fixture
+    patch. inspect.getsource() reads from the source file, not module memory,
+    so the reload was unnecessary.
     """
     import inspect  # noqa: PLC0415
-    import importlib  # noqa: PLC0415
     import checklist_pipeline  # noqa: PLC0415
-    importlib.reload(checklist_pipeline)
 
     # 1. Inspect source for SYNONYMS_PATH reference.
     full_src = inspect.getsource(checklist_pipeline)
