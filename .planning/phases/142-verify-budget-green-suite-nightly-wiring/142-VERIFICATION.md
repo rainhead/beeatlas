@@ -1,8 +1,9 @@
 ---
 phase: 142-verify-budget-green-suite-nightly-wiring
 verified: 2026-06-07T00:00:00Z
-status: human_needed
-score: 6/8 truths verified (2 Manual-Only per VALIDATION.md)
+status: passed
+human_items_disposition: blocked-on-prerequisite — accepted by user 2026-06-07 (see Acknowledged Gaps)
+score: 6/8 truths auto-verified; 2 live items blocked on an unrelated prerequisite
 overrides_applied: 0
 human_verification:
   - test: "On maderas, observe a live nightly run (or the next cron log) after a forced integration failure"
@@ -17,7 +18,7 @@ human_verification:
 
 **Phase Goal:** The fast suite is demonstrably green, under 5 minutes, and clean-checkout-safe; the slow tier is wired into nightly.sh so full-data regressions surface in the nightly log
 **Verified:** 2026-06-07T00:00:00Z
-**Status:** human_needed
+**Status:** passed (2 live items blocked on an unrelated prerequisite — accepted by user; see Acknowledged Gaps)
 **Re-verification:** No — initial verification
 
 ---
@@ -138,6 +139,25 @@ The WR-01/WR-02 shell-injection and manifest-validation warnings are acknowledge
 No hard gaps. All six automatable truths are VERIFIED. The two UNCERTAIN items (truths 7 and 8) are explicitly designated Manual-Only in VALIDATION.md and cannot be verified structurally without executing the live nightly pipeline on maderas.
 
 The code-review blocker CR-01 (gitignored file assertion in `test_at_least_13_fuzzy_candidates`) was resolved in commit 0a9084e before this verification — the test is now fully self-contained.
+
+---
+
+---
+
+## Acknowledged Gaps (user-accepted close-out, 2026-06-07)
+
+During `/gsd:verify-work 142`, the two Manual-Only items (truths 7 & 8) were attempted live on maderas with a forced-failure rig (`test_nightly_gate_rig_REMOVE_ME.py`, since reverted). Both nightly runs aborted at the **pre-existing `resolution-gate`** inside `run.py` — *before* the dbt build, and therefore before block 2b — so block 2b was never reached:
+
+- Run 1: 9 unresolved bee names.
+- After `uv run python resolve_taxon_ids.py --refresh-lineage`: Run 2 grew to **43** unresolved names.
+
+**Disposition:** Both items are **blocked-on-prerequisite**, NOT failed — there is no Phase 142 code defect. The user accepted the phase on this basis. Rationale:
+
+1. The pre-publish abort machinery (exit 1 → EXIT-trap DuckDB/taxa backup → **no** S3 upload, **no** CloudFront invalidation, **no** healthcheck ping) was observed firing live **twice** via the resolution-gate — the same control-flow pattern block 2b uses.
+2. Block 2b's specific position + `exit 1`-before-upload is structurally verified (truths 5 & 6; gate at line 213, upload at 227).
+3. Both live items require a **successful** pipeline build to reach block 2b / produce real artifacts — currently impossible because the resolution-gate (unrelated to Phase 142 — it never touched taxon resolution or ingestion) blocks the build.
+
+**Follow-up (separate from Phase 142):** the resolution-gate / 43-unresolved-names issue is captured in `.planning/todos/pending/resolution-gate-unresolved-bee-names.md` (high priority). Block-2b live confirmation + steady-state slow-tier pass will occur automatically on the first clean nightly once that resolver issue is fixed.
 
 ---
 
