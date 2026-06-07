@@ -115,6 +115,61 @@ fi
 aws --profile "$AWS_PROFILE" s3 cp --no-progress \
     "s3://$BUCKET/$TAXA_CACHE_S3_KEY" "$TAXA_CACHE_PATH" 2>/dev/null || true
 
+# 1c. Pull currently-live published artifacts to public/data/ so test_dbt_diff
+# can compare fresh sandbox vs last-night's live data (regression baseline).
+#
+# NOTE (A3): The manifest `species` key maps to the hashed species.json, NOT
+# species.parquet. species.parquet is not published via manifest and is therefore
+# NOT pulled here. Tests that diff public/data/species.parquet will skip in
+# nightly — this is acceptable (those tests skip, they do not fail; the
+# non-parquet diffs still gate). Do not invent a species.parquet manifest key.
+#
+# First-run behavior: if no manifest.json exists in S3 (very first nightly run),
+# the pull is skipped gracefully. test_dbt_diff will skip (not fail) — this is
+# expected. On subsequent runs the manifest is present and the diff asserts.
+echo "--- pulling published artifacts for integration baseline ---"
+_t0=$(date +%s)
+_PREV_MANIFEST="/tmp/beeatlas-prev-manifest.json"
+mkdir -p "$REPO_ROOT/public/data"
+if aws --profile "$AWS_PROFILE" s3 cp --no-progress \
+    "s3://$BUCKET/data/manifest.json" "$_PREV_MANIFEST" 2>/dev/null; then
+    uv run python3 -c "
+import json, subprocess, sys
+manifest = json.load(open('$_PREV_MANIFEST'))
+bucket = '$BUCKET'
+profile = '$AWS_PROFILE'
+dest = '$REPO_ROOT/public/data'
+# Pull content-hashed artifacts by their manifest keys, saving under stable local names.
+# Keys and their local filenames:
+#   occurrences -> occurrences.parquet (hashed parquet)
+#   counties    -> counties.geojson    (hashed geojson)
+#   ecoregions  -> ecoregions.geojson  (hashed geojson)
+#   species     -> species.json        (hashed species.json — NOT species.parquet; see A3)
+#   seasonality -> seasonality.json    (hashed seasonality.json)
+pull = {
+    'occurrences.parquet': manifest.get('occurrences'),
+    'counties.geojson':    manifest.get('counties'),
+    'ecoregions.geojson':  manifest.get('ecoregions'),
+    'species.json':        manifest.get('species'),
+    'seasonality.json':    manifest.get('seasonality'),
+}
+for local, hashed in pull.items():
+    if not hashed:
+        print(f'WARN: manifest key for {local} absent or empty — skipping', file=sys.stderr)
+        continue
+    r = subprocess.run(
+        ['aws', '--profile', profile, 's3', 'cp', '--no-progress',
+         f's3://{bucket}/data/{hashed}', f'{dest}/{local}'],
+        capture_output=True
+    )
+    if r.returncode != 0:
+        print(f'WARN: could not pull {hashed} -> {local}', file=sys.stderr)
+" 2>&1 || true
+    echo "published artifact pull done in $(_elapsed $_t0)"
+else
+    echo "WARN: no manifest.json in S3 (first run) — test_dbt_diff will skip (not fail)"
+fi
+
 # 2. Run pipelines
 echo "--- running pipelines ---"
 _t0=$(date +%s)
@@ -123,6 +178,43 @@ export DB_PATH EXPORT_DIR
 cd "$SCRIPT_DIR"
 uv run python run.py
 echo "--- pipelines done in $(_elapsed $_t0) ---"
+
+# 2b. Run integration (dataset-validation) tier — HARD GATE before publish.
+#
+# D-01/D-01b: ALL @integration tests gate the publish. Any single failure
+# exits non-zero here, before the S3 upload / CloudFront invalidation /
+# healthcheck ping. Stale data stays live until fixed; monitoring catches
+# the skipped ping.
+#
+# D-01a: The gate runs AFTER run.py builds fresh dbt artifacts (SANDBOX is
+# populated) and AFTER block 1c pulled last-night's live data into public/data/
+# (PUBLIC is populated). test_dbt_diff therefore compares fresh sandbox vs
+# currently-live S3 data — the correct regression-diff baseline.
+#
+# EXIT trap: The DuckDB/taxa.csv.gz backup trap (set above) still fires on
+# exit 1 — it uses `|| true` for each S3 copy so the exit code is preserved.
+# Do not modify the trap.
+#
+# Drop -x to get a full failure inventory at the cost of slower abort
+# (Pitfall 7 — -x is faster and sufficient for the deploy gate).
+#
+# EXPECTED FIRST-RUN BEHAVIOR (Open Question 2 resolution):
+# On the FIRST nightly run after the Phase 131 schema change (33 columns),
+# test_dbt_diff WILL fail: the currently-live public/data/occurrences.parquet
+# carries the OLD 37-col schema while the fresh sandbox carries the new 33-col
+# schema. This is CORRECT regression behavior, not a defect.
+# To self-heal: allow one publish of the new 33-col schema (e.g., run the
+# hashing/upload block manually, or temporarily bypass the gate for one run).
+# The SECOND run will compare 33-col vs 33-col and the gate will pass.
+# Success criterion 4 (slow tier green on maderas) applies to steady-state.
+echo "--- integration test gate ---"
+_t0=$(date +%s)
+cd "$SCRIPT_DIR"
+if ! uv run pytest -m integration -x --tb=short -q; then
+    echo "INTEGRATION GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
+    exit 1
+fi
+echo "integration gate passed in $(_elapsed $_t0)"
 
 # 3. Hash artifacts, write manifest.json, push to S3.
 #
