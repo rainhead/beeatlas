@@ -37,3 +37,17 @@ seeds:
           - not_null
       - name: source
         description: "Auto-generated GBIF backbone match: 'gbif-backbone:{usage_key}'"
+  - name: curated_taxon_ids
+    description: "Curator-confirmed direct canonical_name -> iNat taxon_id overrides (debug nightly-resolution-gate). For names the iNat /v1/taxa API cannot resolve (gender variants, subspecies-only names, junior synonyms not in iNat at species rank). Read by resolve_taxon_ids.py and UPSERTed into the bridge BEFORE the API path, so these names never reach the resolution-gate as unresolved. Each row carries human-readable provenance in `note`."
+    columns:
+      - name: canonical_name
+        description: "Lowercased occurrence canonical_name as it appears in the resolution pool (may be 2- or 3-token)."
+        data_tests:
+          - not_null
+          - unique
+      - name: taxon_id
+        description: "iNat taxon_id the name resolves to (verified present in taxa.csv.gz)."
+        data_tests:
+          - not_null
+      - name: note
+        description: "Curator provenance: the iNat accepted name + reason for the override (gender variant / subspecies / synonym citation)."
