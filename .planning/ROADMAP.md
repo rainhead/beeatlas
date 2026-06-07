@@ -1014,7 +1014,7 @@ Plans:
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
 | 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 5/5 | Complete    | 2026-06-06 |
-| 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 2/2 | Complete   | 2026-06-07 |
+| 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 2/2 | Complete    | 2026-06-07 |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->

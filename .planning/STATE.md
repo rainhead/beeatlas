@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.8
 milestone_name: Fast, Honest Test Suite
-status: verifying
-stopped_at: Phase 142 context gathered
-last_updated: "2026-06-07T08:04:40.172Z"
+status: ready_to_plan
+stopped_at: Phase 142 complete (2/2) — ready to discuss Phase 999.1
+last_updated: 2026-06-07T15:37:02.951Z
 last_activity: 2026-06-07
 progress:
   total_phases: 22
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 roadmap defined)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 142 — verify-budget-green-suite-nightly-wiring
+**Current focus:** Phase 999.1 — debounce url updates when zooming and panning the map
 
 ## Current Position
 
-Phase: 142 (verify-budget-green-suite-nightly-wiring) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 999.1
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-07
 
 ## Milestone Overview
