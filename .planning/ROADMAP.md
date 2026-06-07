@@ -1129,7 +1129,15 @@ Plans:
   3. `nightly.sh` invokes the slow/integration tier after the build completes; a non-zero exit from the slow tier is observable in the nightly log (non-zero exit or logged error)
   4. The slow tier passes when run on maderas against real built data (full 50,646-row pipeline + dbt outputs present)
 
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+
+- [ ] 142-01-PLAN.md — Add pytest-randomly; prove fast suite green (randomized) + record budget; fix test_at_least_13_fuzzy_candidates fixture; create+run verify-clean-checkout.sh; update BASELINE.md [TFIX-05, TPERF-02, TPERF-03]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 142-02-PLAN.md — Wire nightly.sh: block 1c pre-run public/data baseline pull + block 2b @integration hard gate before publish; document expected first-run test_dbt_diff behavior [TTIER-03]
 
 ---
 
