@@ -45,8 +45,8 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 ### CI Gate (TCI)
 
-- [ ] **TCI-01**: A GitHub Actions job runs the fast pytest suite (`uv` + Python 3.14, `cd data && uv run pytest`) on push and pull request, failing the build on any test failure. (Python tests are not in CI today — CI is frontend-only.)
-- [ ] **TCI-02**: The CI job enforces the runtime budget — the build fails (or is flagged) if the fast suite exceeds the < 5 min target, preventing silent regression.
+- [x] **TCI-01**: A GitHub Actions job runs the fast pytest suite (`uv` + Python 3.14, `cd data && uv run pytest`) on push and pull request, failing the build on any test failure. (Python tests are not in CI today — CI is frontend-only.)
+- [x] **TCI-02**: The CI job enforces the runtime budget — the build fails (or is flagged) if the fast suite exceeds the < 5 min target, preventing silent regression.
 
 ## Future Requirements
 
@@ -80,5 +80,5 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 | TPERF-02 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
 | TPERF-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
 | TTIER-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
-| TCI-01 | Phase 143: CI Gate | Pending |
-| TCI-02 | Phase 143: CI Gate | Pending |
+| TCI-01 | Phase 143: CI Gate | Complete |
+| TCI-02 | Phase 143: CI Gate | Complete |
