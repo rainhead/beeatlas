@@ -24,7 +24,12 @@ jobs:
         working-directory: data
 
     steps:
+      # lfs: true is REQUIRED — the committed test fixtures and dbt seeds are
+      # *.csv files tracked by Git LFS (.gitattributes). Without it the runner
+      # checks out LFS pointer text instead of fixture data and the suite fails.
       - uses: actions/checkout@v6
+        with:
+          lfs: true
 
       - name: Set up uv + Python 3.14
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
@@ -34,6 +39,13 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --frozen
+
+      # The suite assumes the DuckDB spatial extension is already installed
+      # (places_load.py decision 97-01 does a bare `LOAD spatial`, no INSTALL).
+      # On maderas it is cached in ~/.duckdb; a clean CI runner has nothing, so
+      # install it once here to populate the extension cache before pytest.
+      - name: Pre-install DuckDB spatial extension
+        run: uv run python -c "import duckdb; duckdb.connect().execute('INSTALL spatial')"
 
       # timeout-minutes is on THIS step only (D-03): it bounds the fast suite
       # runtime, excluding setup-uv / uv sync. Over 5 min => step killed => red.
