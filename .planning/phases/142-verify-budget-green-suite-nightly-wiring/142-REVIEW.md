@@ -16,7 +16,16 @@ findings:
   info: 4
   total: 10
 status: issues_found
+resolution: partial
+resolved_in: 0a9084e
 ---
+
+> **Resolution (2026-06-07, commit `0a9084e`):**
+> - **CR-01 (BLOCKER) — FIXED.** Removed the dead `assert unmatched_path.exists()` on the gitignored `data/checklist_unmatched.csv` from `test_at_least_13_fuzzy_candidates`; the test now references the file in docstrings only and draws all data from the seeded `checklist_resolver_db` fixture. Verified: passes (fast tier 6/6; integration fuzzy test 1/1) and has zero runtime dependency on the file.
+> - **WR-03 — FIXED.** Corrected the `verify-clean-checkout.sh` header's blanket "No network access" claim to scope it to test-time and cross-reference the cold-cache `uv sync --frozen` caveat.
+> - **WR-04/WR-05 — FIXED.** Removed the stale `generate_fuzzy_candidates` comment; corrected the fixture count comments (19 verbatim names / 20 bridge entries, the 20th pairing with the misspelling row).
+> - **WR-01/WR-02 (Python-in-`-c` splice + manifest-derived S3 keys in nightly.sh block 1c) — ACKNOWLEDGED, not changed.** Contained by trusted single-bucket config (the manifest is produced by this same script); flagged for hardening if the artifact source ever becomes less trusted.
+> - **INFO items — deferred** (dead skipped reconcile tests, minor fixture robustness).
 
 # Phase 142: Code Review Report
 
