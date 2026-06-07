@@ -435,7 +435,7 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     }
   });
 
-  test('count rollup — Bombus genus specimen_count equals sum of its direct species descendants (D-08)', () => {
+  test('count rollup — Bombus genus specimen_count is at least the sum of its direct species descendants (D-08)', () => {
     // Derive expected value from the data itself — data-driven, not magic total.
     const allNodes = walkNodes(fullTree);
     const bombus = allNodes.find((n: any) => n.name === 'Bombus' && n.rank === 'genus');
@@ -446,8 +446,13 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     // The genus node specimen_count comes from higher_taxa.json rollup (D-08).
     expect(bombus.specimen_count).toBeGreaterThan(0);
     expect(bombus.inat_obs_count).toBeGreaterThanOrEqual(0);
-    // The higher_taxa.json rollup equals the sum of species descendants when all species are leaf nodes.
-    expect(bombus.specimen_count).toBe(sumFromLeaves);
+    // The rollup is >= the sum of species-leaf descendants, NOT strictly equal:
+    // buildFullTree() only emits species leaves for specific_epithet !== null, so
+    // specimens identified only to genus (genus-rank iNat/ecdysis IDs surfaced by the
+    // offline-genus resolver, data/resolve_taxon_ids.py) live in the genus rollup but
+    // under no species leaf. The difference (rollup − Σleaves) is those genus-only
+    // specimens; the per-genus page (genusList) shows them as a grey "Genus sp." entry.
+    expect(bombus.specimen_count).toBeGreaterThanOrEqual(sumFromLeaves);
   });
 
   test('default-depth chain (D-01/TREE-01): genus-rank nodes are reachable in the tree', () => {
