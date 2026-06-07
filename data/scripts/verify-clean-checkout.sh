@@ -3,7 +3,9 @@
 #
 # Creates a git worktree at HEAD, strips built/un-checked-in assets to simulate
 # a clean checkout, then runs `uv run pytest -m "not integration"` inside the
-# worktree's data/ directory. No network access. No AWS. No built assets.
+# worktree's data/ directory. No AWS. No built assets. No network at TEST time
+# (the pytest run itself touches no network); see the cold-cache caveat below for
+# the one exception during `uv sync --frozen`.
 #
 # Phase 143 CI can call this script directly for the clean-checkout gate
 # (TCI-01/TCI-02). The script exits 0 on success and non-zero on any failure.

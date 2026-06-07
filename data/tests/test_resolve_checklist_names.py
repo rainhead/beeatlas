@@ -76,10 +76,12 @@ def checklist_resolver_db(tmp_path, monkeypatch):
         * one known-misspelling row (Lasioglossum heterorhinus)
         * two exact-match rows
     - Phase 142 additions for test_at_least_13_fuzzy_candidates:
-        * Loads all 178 verbatim names from committed data/checklist_unmatched.csv
+        * Inlines 19 verbatim names (sampled from the gitignored pipeline output
+          data/checklist_unmatched.csv — NOT read at runtime; self-contained).
         * Creates inaturalist_data.canonical_to_taxon_id seeded with 20 near-match
           bridge entries (1-char variations of unmatched canonicals) so that
-          rapidfuzz score_cutoff=85 reliably yields >= 13 fuzzy candidates.
+          rapidfuzz score_cutoff=85 reliably yields >= 13 fuzzy candidates
+          (empirically 19 at cutoff=85, comfortably above the >= 13 bar).
           Bridge entries are DIFFERENT from the unmatched canonical forms so they
           do not accidentally trigger Tier 2 (exact) — only the fuzzy tier.
 
@@ -149,13 +151,14 @@ def checklist_resolver_db(tmp_path, monkeypatch):
                'lasioglossum heterorhinus', 'valid')
     """)
 
-    # Phase 142: seed 20 verbatim names that correspond to the 20 bridge entries below.
-    # These are taken from data/checklist_unmatched.csv (the real unmatched set).
+    # Phase 142: seed 19 verbatim names, each paired with a 1-char-variant bridge
+    # entry below (the 20th bridge entry pairs with the misspelling row seeded above).
+    # These are sampled from data/checklist_unmatched.csv (the real unmatched set).
     # Inlined rather than read from the file because checklist_unmatched.csv is
     # gitignored (it is a pipeline output, not a committed fixture) and would be
     # absent in a clean checkout. Inlining keeps the fixture self-contained (D-07 spirit).
     # Each verbatim name normalizes to a canonical that does NOT match any bridge entry
-    # exactly (bridge entries are 1-char variations) — so all 20 fall through to
+    # exactly (bridge entries are 1-char variations) — so all 19 fall through to
     # Tier 5 (fuzzy) and each produces at least 1 candidate row in fuzzy_review.csv.
     con.execute("""
         INSERT INTO checklist_data.checklist_records_full
@@ -348,26 +351,17 @@ def test_fuzzy_candidates_written(checklist_resolver_db, monkeypatch):
 
 @pytest.mark.integration
 def test_at_least_13_fuzzy_candidates(checklist_resolver_db, monkeypatch):
-    """RCN-04: running the fuzzy tier over the full unmatched set (178 names)
+    """RCN-04: running the fuzzy tier over the seeded unmatched set
     yields >= 13 candidates at score_cutoff=85 (A1 assumption from RESEARCH.md).
 
-    This test uses the real data/checklist_unmatched.csv file.
-    FAILS until resolve_checklist_names module exists (Plan 135-02).
+    Self-contained: the unmatched names and candidate pool come entirely from
+    the `checklist_resolver_db` fixture's seeded tables, NOT from the gitignored
+    data/checklist_unmatched.csv (Phase 134 pipeline output, absent on clean
+    checkouts / CI). resolve_checklist_names reads its inputs from the DB.
     """
     tmp_path, mod = checklist_resolver_db
 
-    # The full unmatched CSV lives in data/ (relative to module).
-    unmatched_path = Path(mod.__file__).parent / "checklist_unmatched.csv"
-    assert unmatched_path.exists(), (
-        f"checklist_unmatched.csv not found at {unmatched_path}; "
-        "this file must be committed (Phase 134 output)"
-    )
-
-    # Call the internal fuzzy-candidate generator directly.
-    # The function signature is expected to be:
-    #   generate_fuzzy_candidates(unmatched_names, candidate_names, score_cutoff=85)
-    # Returns a list of (verbatim_name, canonical_name, fuzzy_candidate, score, taxon_id)
-    # Alternatively, run resolve_checklist_names(refresh=True) and count fuzzy_review rows.
+    # Run the resolver over the seeded fixture data and count fuzzy_review rows.
     import pygbif  # noqa: PLC0415
     with patch.object(pygbif.species, "name_backbone",
                       return_value=_fake_gbif_response("NONE")):
