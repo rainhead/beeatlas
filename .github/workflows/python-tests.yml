@@ -1,0 +1,42 @@
+# Independent Python fast-suite CI gate (v4.8 Phase 143, TCI-01/TCI-02).
+# Runs the fast `data/` pytest tier on every branch push, hard-bounded to <5 min.
+# Deliberately separate from deploy.yml: no cloud credentials, no secrets, and a
+# red run here does NOT block the frontend deploy (deploy.yml gates on its own build).
+# Push-only trigger (no pull_request) mirrors deploy.yml — CONTEXT.md D-01/D-02/D-03.
+name: Python tests
+
+on:
+  push:
+    branches: ['**']
+
+concurrency:
+  group: python-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Fast pytest suite (data/)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: data
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv + Python 3.14
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+        with:
+          enable-cache: true
+          working-directory: data
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # timeout-minutes is on THIS step only (D-03): it bounds the fast suite
+      # runtime, excluding setup-uv / uv sync. Over 5 min => step killed => red.
+      - name: Run fast pytest suite
+        timeout-minutes: 5
+        run: uv run pytest --tb=short -q --durations=10
