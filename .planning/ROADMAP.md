@@ -1153,7 +1153,10 @@ Plans:
   3. The CI job completes successfully on a clean checkout (no cached built assets); the Python test job is visible in the PR check list alongside the existing frontend build job
   4. A green CI run is confirmed end-to-end on a push to a branch
 
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 143-01-PLAN.md — Add independent python-tests.yml CI workflow (fast suite on push, hard <5 min budget) and confirm a green run
 
 ---
 
