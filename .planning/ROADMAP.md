@@ -1170,3 +1170,12 @@ Plans:
 
 Plans:
 - [ ] TBD (promote with /gsd:review-backlog when ready)
+
+### Phase 999.2: add npm and python deps to dependabot (BACKLOG)
+
+**Goal:** [Captured for future planning] — enable Dependabot version updates for both dependency ecosystems: npm (root `package.json`/`package-lock.json`) and Python (`data/` via uv/`pyproject.toml` + `uv.lock`), plus the GitHub Actions ecosystem for the workflows in `.github/workflows/`. Keeps deps current with grouped/scheduled PRs.
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (promote with /gsd:review-backlog when ready)
