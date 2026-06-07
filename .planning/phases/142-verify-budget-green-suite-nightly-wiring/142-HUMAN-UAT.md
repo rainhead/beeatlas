@@ -8,7 +8,26 @@ updated: 2026-06-07T00:00:00Z
 
 ## Current Test
 
-[awaiting human testing on maderas]
+number: 1
+name: Live nightly gate failure blocks publish
+expected: |
+  Rigged nightly (forced @integration failure) exits non-zero at block 2b
+  BEFORE the upload, EXIT-trap backup fires.
+awaiting: re-run after resolving taxon names (resolution-gate fired first)
+
+## Notes (2026-06-07)
+
+- First rigged `bash data/nightly.sh` run (rig: `data/tests/test_nightly_gate_rig_REMOVE_ME.py`,
+  untracked) aborted EARLY at the pre-existing **resolution-gate** ("9 bee name(s)
+  unresolved before dbt build": agapostemon, amara, andrena, anthaxia, anthidiellum,
+  anthidium, anthophora, ashmeadiella, atoposmia) — this gate runs inside run.py BEFORE
+  the dbt build, so block 2b (our integration gate) was never reached. EXIT=1 and the
+  EXIT-trap DuckDB/taxa backup fired correctly, but via the resolution-gate, not block 2b.
+- The abort-before-publish + EXIT-trap + exit-1 machinery is therefore observed (no upload,
+  no CloudFront invalidation, no healthcheck ping), but block 2b itself is NOT yet exercised.
+- Unrelated operational finding (NOT introduced by Phase 142): the nightly is currently
+  blocked by the resolution-gate; fix with `uv run python resolve_taxon_ids.py --refresh-lineage`.
+- Decision: resolve names, then re-run the rigged nightly so the build reaches block 2b.
 
 ## Tests
 
