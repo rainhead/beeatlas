@@ -40,7 +40,7 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 - [x] **TTIER-01**: A `slow`/`integration` pytest marker is registered and `addopts` deselects it by default, so `uv run pytest` runs only the fast tier; an explicit opt-in (e.g. `-m slow` or `--run-slow`) runs the heavy tier.
 - [x] **TTIER-02**: Genuine full-data checks — the 50,646-row count assertion, full `taxa.csv.gz` LCA, sandbox-vs-public parquet diff — are tagged into the slow tier and still pass when run against real built data.
-- [ ] **TTIER-03**: `nightly.sh` runs the slow/integration tier on maderas against real built data and surfaces failures (non-zero exit / logged).
+- [x] **TTIER-03**: `nightly.sh` runs the slow/integration tier on maderas against real built data and surfaces failures (non-zero exit / logged).
   - *Accept:* `nightly.sh` invokes the slow tier; a failure there is observable in the nightly log.
 
 ### CI Gate (TCI)
@@ -79,6 +79,6 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 | TFIX-05 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
 | TPERF-02 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
 | TPERF-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
-| TTIER-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
+| TTIER-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
 | TCI-01 | Phase 143: CI Gate | Pending |
 | TCI-02 | Phase 143: CI Gate | Pending |
