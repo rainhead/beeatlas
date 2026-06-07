@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.8
 milestone_name: Fast, Honest Test Suite
-status: ready_to_plan
-stopped_at: Phase 141 complete (5/5) — ready to discuss Phase 142
-last_updated: 2026-06-06T23:37:40.546Z
+status: planning
+stopped_at: Phase 142 context gathered
+last_updated: "2026-06-07T06:15:55.896Z"
 last_activity: 2026-06-06
 progress:
-  total_phases: 21
+  total_phases: 22
   completed_phases: 4
   total_plans: 15
   completed_plans: 14
-  percent: 19
+  percent: 18
 ---
 
 # Project State
@@ -124,9 +124,9 @@ Carried forward from v4.6 milestone close (2026-06-04) — 28 open items, all pr
 
 ## Session Continuity
 
-Last session: 2026-06-06T23:33:05.882Z
-Stopped at: Phase 141 context gathered
-Resume file: None
+Last session: 2026-06-07T06:15:55.874Z
+Stopped at: Phase 142 context gathered
+Resume file: .planning/phases/142-verify-budget-green-suite-nightly-wiring/142-CONTEXT.md
 
 ## Operator Next Steps
 
