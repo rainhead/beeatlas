@@ -149,15 +149,37 @@ def checklist_resolver_db(tmp_path, monkeypatch):
                'lasioglossum heterorhinus', 'valid')
     """)
 
-    # Phase 142: load all 178 verbatim names from committed checklist_unmatched.csv
-    # so that resolve_checklist_names() has a full unmatched set to process.
-    # INSERT via read_csv() consistent with production load_checklist() patterns.
-    unmatched_csv = Path(__file__).parent.parent / "checklist_unmatched.csv"
-    con.execute(f"""
+    # Phase 142: seed 20 verbatim names that correspond to the 20 bridge entries below.
+    # These are taken from data/checklist_unmatched.csv (the real unmatched set).
+    # Inlined rather than read from the file because checklist_unmatched.csv is
+    # gitignored (it is a pipeline output, not a committed fixture) and would be
+    # absent in a clean checkout. Inlining keeps the fixture self-contained (D-07 spirit).
+    # Each verbatim name normalizes to a canonical that does NOT match any bridge entry
+    # exactly (bridge entries are 1-char variations) — so all 20 fall through to
+    # Tier 5 (fuzzy) and each produces at least 1 candidate row in fuzzy_review.csv.
+    con.execute("""
         INSERT INTO checklist_data.checklist_records_full
             (verbatim_name, canonical_name, coord_flag)
-        SELECT checklist_name, canonical_name, 'valid'
-        FROM read_csv('{unmatched_csv}', header=true)
+        VALUES
+            ('Andrena evoluta',           'andrena evoluta',           'valid'),
+            ('Andrena vierecki',          'andrena vierecki',          'valid'),
+            ('Megachile pascoensis',      'megachile pascoensis',      'valid'),
+            ('Nomada jennei',             'nomada jennei',             'valid'),
+            ('Nomada orcusella',          'nomada orcusella',          'valid'),
+            ('Stelis foederalis',         'stelis foederalis',         'valid'),
+            ('Sphecodes kincaidii',       'sphecodes kincaidii',       'valid'),
+            ('Habropoda morrisoni',       'habropoda morrisoni',       'valid'),
+            ('Megachile legalis',         'megachile legalis',         'valid'),
+            ('Melissodes vernalis',       'melissodes vernalis',       'valid'),
+            ('Nomada malonella',          'nomada malonella',          'valid'),
+            ('Osmia obliqua',             'osmia obliqua',             'valid'),
+            ('Lasioglossum longicorne',   'lasioglossum longicorne',   'valid'),
+            ('Lasioglossum pavonotus',    'lasioglossum pavonotus',    'valid'),
+            ('Lasioglossum perdifficile', 'lasioglossum perdifficile', 'valid'),
+            ('Lasioglossum robustum',     'lasioglossum robustum',     'valid'),
+            ('Osmia nigrifrons',          'osmia nigrifrons',          'valid'),
+            ('Osmia tanneri',             'osmia tanneri',             'valid'),
+            ('Lasioglossum sequoiae',     'lasioglossum sequoiae',     'valid')
     """)
 
     # Phase 142: create inaturalist_data schema + canonical_to_taxon_id bridge.
