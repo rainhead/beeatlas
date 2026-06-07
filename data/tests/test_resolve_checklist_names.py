@@ -75,6 +75,13 @@ def checklist_resolver_db(tmp_path, monkeypatch):
         * one slash-compound row (Agapostemon texanus/angelicus)
         * one known-misspelling row (Lasioglossum heterorhinus)
         * two exact-match rows
+    - Phase 142 additions for test_at_least_13_fuzzy_candidates:
+        * Loads all 178 verbatim names from committed data/checklist_unmatched.csv
+        * Creates inaturalist_data.canonical_to_taxon_id seeded with 20 near-match
+          bridge entries (1-char variations of unmatched canonicals) so that
+          rapidfuzz score_cutoff=85 reliably yields >= 13 fuzzy candidates.
+          Bridge entries are DIFFERENT from the unmatched canonical forms so they
+          do not accidentally trigger Tier 2 (exact) — only the fuzzy tier.
 
     Returns (tmp_path, reloaded_module).
     """
@@ -127,6 +134,7 @@ def checklist_resolver_db(tmp_path, monkeypatch):
         )
     """)
     # Seed rows: two exact-match, one slash-compound, one known-misspelling.
+    # The slash row (ObjectID 3) MUST remain for test_slash_verbatim_retained.
     con.execute("""
         INSERT INTO checklist_data.checklist_records_full
             (ObjectID, verbatim_name, canonical_name, coord_flag)
@@ -139,6 +147,58 @@ def checklist_resolver_db(tmp_path, monkeypatch):
                NULL, 'valid'),
             (4, 'Lasioglossum heterorhinus Biscoe, 1939',
                'lasioglossum heterorhinus', 'valid')
+    """)
+
+    # Phase 142: load all 178 verbatim names from committed checklist_unmatched.csv
+    # so that resolve_checklist_names() has a full unmatched set to process.
+    # INSERT via read_csv() consistent with production load_checklist() patterns.
+    unmatched_csv = Path(__file__).parent.parent / "checklist_unmatched.csv"
+    con.execute(f"""
+        INSERT INTO checklist_data.checklist_records_full
+            (verbatim_name, canonical_name, coord_flag)
+        SELECT checklist_name, canonical_name, 'valid'
+        FROM read_csv('{unmatched_csv}', header=true)
+    """)
+
+    # Phase 142: create inaturalist_data schema + canonical_to_taxon_id bridge.
+    # Seeded with 20 near-match entries (1-char variations of unmatched canonicals).
+    # Bridge entries are NOT exact matches of the unmatched canonical forms — they
+    # differ by exactly one character — so they bypass Tier 2 (exact) and reach
+    # Tier 5 (fuzzy) where rapidfuzz WRatio at score_cutoff=85 produces a hit
+    # (empirically verified: 1-char variation yields WRatio ~93-97, well above 85).
+    # Column order matches conftest.py canonical_to_taxon_id INSERT pattern exactly.
+    con.execute("CREATE SCHEMA inaturalist_data")
+    con.execute("""
+        CREATE TABLE inaturalist_data.canonical_to_taxon_id (
+            canonical_name TEXT PRIMARY KEY,
+            taxon_id INTEGER,
+            resolved_at TIMESTAMP,
+            source TEXT
+        )
+    """)
+    con.execute("""
+        INSERT INTO inaturalist_data.canonical_to_taxon_id
+            (canonical_name, taxon_id, resolved_at, source) VALUES
+            ('andrena evolata',             3001, current_timestamp, 'inat_species'),
+            ('andrena viereckii',           3002, current_timestamp, 'inat_species'),
+            ('megachile pascuensis',        3003, current_timestamp, 'inat_species'),
+            ('nomada jenne',                3004, current_timestamp, 'inat_species'),
+            ('nomada orcusela',             3005, current_timestamp, 'inat_species'),
+            ('stelis foederali',            3006, current_timestamp, 'inat_species'),
+            ('lasioglossum heterorhinu',    3007, current_timestamp, 'inat_species'),
+            ('sphecodes kincaidi',          3008, current_timestamp, 'inat_species'),
+            ('habropoda morrisony',         3009, current_timestamp, 'inat_species'),
+            ('megachile legali',            3010, current_timestamp, 'inat_species'),
+            ('melissodes vernali',          3011, current_timestamp, 'inat_species'),
+            ('nomada malonela',             3012, current_timestamp, 'inat_species'),
+            ('osmia obliquu',               3013, current_timestamp, 'inat_species'),
+            ('lasioglossum longicome',      3014, current_timestamp, 'inat_species'),
+            ('lasioglossum pavonotu',       3015, current_timestamp, 'inat_species'),
+            ('lasioglossum perdifficil',    3016, current_timestamp, 'inat_species'),
+            ('lasioglossum robustu',        3017, current_timestamp, 'inat_species'),
+            ('osmia nigrifon',              3018, current_timestamp, 'inat_species'),
+            ('osmia tannerii',              3019, current_timestamp, 'inat_species'),
+            ('lasioglossum sequoiaa',       3020, current_timestamp, 'inat_species')
     """)
     con.close()
 
