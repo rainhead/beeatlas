@@ -454,19 +454,21 @@ Alternatively, the test can be rewritten to use `DB_PATH` env directly (pointing
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **test_at_least_13_fuzzy_candidates fixture strategy**
+> All three resolved during planning — resolutions embedded in plan task actions (see inline RESOLVED notes below).
+
+1. **test_at_least_13_fuzzy_candidates fixture strategy** — RESOLVED in 142-01 Task 2 (seed `checklist_records_full` from `checklist_unmatched.csv` + empirically-iterated `canonical_to_taxon_id` until ≥13 hits; `>=13` assertion preserved).
    - What we know: The test uses `checklist_resolver_db` which seeds ~4 names. With 178 unmatched names and a 919-entry real bridge, >= 13 fuzzy hits are plausible. The fixture bridge has ~19 entries.
    - What's unclear: Whether loading `checklist_unmatched.csv` into `checklist_data.checklist_records_full` (within the fixture) is sufficient — the module reads from the DB, not from the CSV directly. Also unclear: does the fixture DB need the real `canonical_to_taxon_id` rows, or would a ~50-row distilled sample of common bee genera produce enough fuzzy hits?
    - Recommendation: Distill a ~50-row `canonical_to_taxon_id` fixture from the committed checklist's genera/species, and seed `checklist_records_full` from `checklist_unmatched.csv`. This keeps the test isolated and deterministic. Verify the fuzzy match count empirically in Wave 0.
 
-2. **test_dbt_diff schema mismatch on first nightly run after Phase 131 deploy**
+2. **test_dbt_diff schema mismatch on first nightly run after Phase 131 deploy** — RESOLVED in 142-02 Task 2 (expected first-run self-healing behavior documented in a comment block near the gate; success criterion 4 scoped to steady-state).
    - What we know: Local `public/data/occurrences.parquet` has 37 columns (pre-131 schema). The current sandbox has 33 columns. The diff test will fail when comparing the two — this is correct regression behavior.
    - What's unclear: Phase 142 success criterion 4 says "slow tier passes when run on maderas against real built data." If the currently-live S3 data has the old 37-col schema, test_dbt_diff WILL fail on the first nightly run. This is expected and intentional (schema change must be acknowledged).
    - Recommendation: Document this expectation in the plan. The FIRST successful post-Phase-142 nightly run will produce a new 33-col publish; the SECOND run will then compare 33 vs 33 and pass. Success criterion 4 applies to the steady-state (second+ run), not the initial deploy run.
 
-3. **S3 manifest key mapping for species.parquet**
+3. **S3 manifest key mapping for species.parquet** — RESOLVED in 142-02 Task 1 (manifest `species` key = `species.json`, not `species.parquet`; documented in the A3 comment; species.parquet-dependent diff tests are allowed to skip in nightly, not treated as gate failures).
    - What we know: The manifest has keys `occurrences`, `species`, `counties`, `ecoregions`, `checklist`, `photos`, etc. The value for each key is the content-hashed filename (e.g. `occurrences-abc123.parquet`).
    - What's unclear: Does the manifest `species` key point to `species.parquet` or `species.json`? (Looking at nightly.sh: `species_name=$(_upload_hashed "$EXPORT_DIR/species.json" "species")` — the manifest `species` key is the hashed `species.json`, NOT `species.parquet`. The `species.parquet` is uploaded separately as a species-maps artifact or not uploaded at all by nightly.sh.)
    - Recommendation: Verify which hashed S3 key contains `species.parquet`. If it's not in the manifest, `test_species_export::test_species_parquet_row_count_matches` and related tests in `test_dbt_diff` will skip on missing `PUBLIC/species.parquet`. Plan should account for this — either pull species.parquet from S3 or accept those tests skip.
