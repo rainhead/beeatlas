@@ -481,7 +481,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 - [x] **Phase 139: Baseline & Two-Tier Scaffold** — Estimate current runtime; capture BASELINE.md; register `integration` marker + `addopts` deselect; `uv run pytest` runs build-time tier only (completed 2026-06-05)
 - [x] **Phase 140: Checklist & Taxonomy Fixture Distillation** — Distill checklist sample + session-scope DuckDB build; distill taxa ancestry fixture; create documented fixtures directory (2 plans: 140-01 seams+fixtures · 140-02 test rewrites) (completed 2026-06-06)
 - [x] **Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination** — Committed fixtures for dbt/parquet deps; fix resolver_db, test_dbt_diff, fuzzy-candidate failures; tag full-data checks slow; zero silent asset skips (completed 2026-06-06)
-- [ ] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh
+- [x] **Phase 142: Verify Budget, Green Suite & Nightly Wiring** — Confirm fast suite green + <5 min + clean-checkout green; wire slow tier into nightly.sh (completed 2026-06-07)
 - [ ] **Phase 143: CI Gate** — GitHub Actions job runs fast suite on push/PR; enforce <5 min runtime budget in CI
 
 ## Phase Details
@@ -1014,7 +1014,7 @@ Plans:
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
 | 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 5/5 | Complete    | 2026-06-06 |
-| 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 1/2 | In Progress|  |
+| 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 2/2 | Complete   | 2026-06-07 |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
@@ -1137,7 +1137,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 142-02-PLAN.md — Wire nightly.sh: block 1c pre-run public/data baseline pull + block 2b @integration hard gate before publish; document expected first-run test_dbt_diff behavior [TTIER-03]
+- [x] 142-02-PLAN.md — Wire nightly.sh: block 1c pre-run public/data baseline pull + block 2b @integration hard gate before publish; document expected first-run test_dbt_diff behavior [TTIER-03]
 
 ---
 
