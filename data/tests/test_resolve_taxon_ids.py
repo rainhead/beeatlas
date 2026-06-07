@@ -73,6 +73,18 @@ def resolver_db(tmp_path, monkeypatch):
     monkeypatch.setattr(
         resolve_taxon_ids, "UNRESOLVED_CSV", tmp_path / "lineage_unresolved.csv"
     )
+    # debug nightly-resolution-gate: the resolver now consults two offline inputs
+    # (curated_taxon_ids.csv overrides + taxa.csv.gz genus fallback). Reroute both to
+    # nonexistent paths so these legacy API-path tests stay hermetic — they assert the
+    # pure iNat-API behavior and must not pick up the committed curated seed or the real
+    # taxa dump. Tests for the offline paths live in test_resolve_offline_fallbacks.py.
+    from pathlib import Path as _Path  # noqa: PLC0415
+    monkeypatch.setattr(
+        resolve_taxon_ids, "CURATED_TAXON_IDS_CSV", _Path("/nonexistent/curated_taxon_ids.csv")
+    )
+    monkeypatch.setattr(
+        resolve_taxon_ids, "TAXA_CSV_PATH", _Path("/nonexistent/taxa.csv.gz")
+    )
 
     con = duckdb.connect(db_path)
     con.execute("CREATE SCHEMA checklist_data")

@@ -3,6 +3,15 @@
 Source SQL: FULL OUTER union of checklist + ecdysis + inat_obs canonical_name LEFT JOIN bridge.
 Pacing + retry: reuses _inat_get_with_retry from inaturalist_pipeline.
 Unresolved: data/lineage_unresolved.csv with (canonical_name, reason, attempted_at).
+
+Offline resolution paths (debug nightly-resolution-gate, 2026-06-07):
+  - Curated overrides (curated_taxon_ids.csv): direct canonical_name -> taxon_id, applied
+    BEFORE the API path. Handles names the iNat /v1/taxa search cannot resolve (Latin gender
+    variants, subspecies-only names, junior synonyms absent from iNat at species rank).
+  - Genus fallback (taxa.csv.gz): for 1-token genus-only names the API reports as
+    ambiguous/404 (many bee genera have a same-named active subgenus, so the search returns
+    >=2 survivors -> ambiguous). Resolves offline via the same rank='genus' + active + Animalia
+    filter as the stg_inat__genus_taxon_ids dbt model. Zero API calls, deterministic.
 """
 
 import csv
@@ -16,12 +25,26 @@ import requests
 
 from inaturalist_pipeline import _inat_get_with_retry, _INAT_PACE_SECONDS
 
+# The nightly pipeline (data/nightly.sh) runs with DB_PATH=/tmp/beeatlas.duckdb. A manual
+# `uv run python resolve_taxon_ids.py --refresh-lineage` from the data/ directory WITHOUT
+# DB_PATH set defaults to data/beeatlas.duckdb (local dev DB), which silently targets the
+# WRONG database — its bridge UPSERTs then never reach the nightly DB (debug
+# nightly-resolution-gate, Cause 3). resolve_taxon_ids() prints the resolved DB_PATH at
+# startup so an operator can see at a glance which database a manual run is mutating.
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 UNRESOLVED_CSV = Path(__file__).parent / "lineage_unresolved.csv"
 INAT_TAXA_URL = "https://api.inaturalist.org/v1/taxa"
 AUTO_SYNONYMS_CSV = Path(__file__).parent / "dbt/seeds/auto_synonyms.csv"
 INACTIVE_UNRESOLVED_CSV = Path(__file__).parent / "inactive_unresolved.csv"
 INAT_TAXA_ID_URL = "https://api.inaturalist.org/v1/taxa/{}"
+
+# Local iNat Open Data taxa dump (downloaded by the taxa-download STEP). Same file the
+# stg_inat__genus_taxon_ids dbt model reads. Used by the offline genus fallback below.
+TAXA_CSV_PATH = Path(__file__).parent / "raw/taxa.csv.gz"
+
+# Curator-confirmed direct canonical_name -> taxon_id overrides (committed, diffable seed).
+# Applied before the API path; see _load_curated_overrides.
+CURATED_TAXON_IDS_CSV = Path(__file__).parent / "dbt/seeds/curated_taxon_ids.csv"
 
 # WR-05: defensive bounds on the paced per-taxon detail loop in
 # generate_inactive_remaps(). There are 0 inactive taxa today, so these caps only
@@ -72,9 +95,14 @@ def check_resolution_gate() -> None:
     blocking = [r for r in rows_as_dicts if r["canonical_name"] not in KNOWN_NON_BEES]
     if blocking:
         names = ", ".join(r["canonical_name"] for r in blocking)
+        # debug nightly-resolution-gate (Part B): the suggested command MUST name the
+        # nightly database explicitly. A bare `uv run python resolve_taxon_ids.py
+        # --refresh-lineage` defaults to data/beeatlas.duckdb and silently mutates the
+        # wrong DB. DB_PATH={DB_PATH} echoes whatever DB this gate is checking, so
+        # following the gate's own advice always targets the same database.
         sys.exit(
             f"resolution-gate: {len(blocking)} bee name(s) unresolved before dbt build. "
-            f"Fix with: uv run python resolve_taxon_ids.py --refresh-lineage\n"
+            f"Fix with: DB_PATH={DB_PATH} uv run python resolve_taxon_ids.py --refresh-lineage\n"
             f"Offenders: {names}"
         )
     print(  # noqa: T201
@@ -98,6 +126,8 @@ def generate_inactive_remaps() -> None:
     import datetime as _dt
 
     con = duckdb.connect(DB_PATH)
+    # Computed from __file__ at call time (not the module-level TAXA_CSV_PATH constant)
+    # so the inactive-remap unit tests' __file__ monkeypatch keeps redirecting this read.
     taxa_path = str(Path(__file__).parent / "raw/taxa.csv.gz")
     try:
         inactive = con.execute(f"""
@@ -315,6 +345,97 @@ def _ensure_bridge_table(con: duckdb.DuckDBPyConnection) -> None:
     """)
 
 
+def _load_curated_overrides(con: duckdb.DuckDBPyConnection) -> int:
+    """UPSERT curator-confirmed canonical_name -> taxon_id rows into the bridge.
+
+    debug nightly-resolution-gate (Part C). These names cannot be resolved by the iNat
+    /v1/taxa search (Latin gender variants like 'lasioglossum aspilurus', subspecies-only
+    names like 'anthidiellum robertsoni', junior synonyms absent at species rank like
+    'osmia phaceliae'). Reading them into the bridge BEFORE the API path means the
+    `LEFT JOIN ... WHERE b.canonical_name IS NULL` filter in _names_to_resolve excludes
+    them, so they never reach the API or the unresolved CSV / resolution-gate.
+
+    Source CSV is curated_taxon_ids.csv (also a committed dbt seed). Returns the count
+    applied. Idempotent: ON CONFLICT updates in place, so re-running is a no-op on data.
+    A missing file is tolerated (returns 0) so the resolver still runs in minimal test
+    environments that don't ship the seed.
+    """
+    if not CURATED_TAXON_IDS_CSV.exists():
+        return 0
+    applied = 0
+    with CURATED_TAXON_IDS_CSV.open("r", newline="") as f:
+        for row in csv.DictReader(f):
+            canonical_name = (row.get("canonical_name") or "").strip().lower()
+            taxon_id_raw = (row.get("taxon_id") or "").strip()
+            if not canonical_name or not taxon_id_raw:
+                continue
+            con.execute(
+                """
+                INSERT INTO inaturalist_data.canonical_to_taxon_id
+                    (canonical_name, taxon_id, resolved_at, source)
+                VALUES (?, ?, current_timestamp, 'curated')
+                ON CONFLICT (canonical_name) DO UPDATE SET
+                    taxon_id = EXCLUDED.taxon_id,
+                    resolved_at = EXCLUDED.resolved_at,
+                    source = EXCLUDED.source
+                """,
+                [canonical_name, int(taxon_id_raw)],
+            )
+            applied += 1
+    return applied
+
+
+def _resolve_genus_from_taxa_csv(
+    con: duckdb.DuckDBPyConnection, genus_name: str
+) -> int | None:
+    """Resolve a genus-only canonical_name to its iNat genus taxon_id, offline.
+
+    debug nightly-resolution-gate (Part A). Many bee genera (Bombus, Halictus,
+    Lasioglossum, Megachile, Osmia, Ceratina, ...) have BOTH an active genus-rank taxon
+    AND an identically-named active subgenus-rank taxon in iNat. The /v1/taxa search
+    then returns >=2 survivors for the bare genus query and _pick_match returns None
+    ('ambiguous'). This fallback resolves the genus deterministically from the local
+    taxa.csv.gz dump using the SAME filter as the stg_inat__genus_taxon_ids dbt model:
+    rank='genus' AND active='true' AND Animalia ancestry (kingdom taxon 1), then require
+    exactly one match (HAVING COUNT(*)=1) to exclude cross-phylum homonyms. Returns the
+    taxon_id, or None if the genus isn't uniquely resolvable (file absent, 0 matches, or
+    a homonym collision) — in which case the caller falls through to the unresolved CSV.
+    """
+    if not TAXA_CSV_PATH.exists():
+        return None
+    row = con.execute(
+        """
+        WITH animal_genera AS (
+            SELECT lower(name) AS genus_name, taxon_id::INTEGER AS taxon_id
+            FROM read_csv(
+                ?,
+                delim = chr(9),
+                header = true,
+                compression = 'gzip',
+                columns = {
+                    'taxon_id': 'BIGINT',
+                    'ancestry': 'VARCHAR',
+                    'rank_level': 'BIGINT',
+                    'rank': 'VARCHAR',
+                    'name': 'VARCHAR',
+                    'active': 'VARCHAR'
+                }
+            )
+            WHERE rank = 'genus'
+              AND active = 'true'
+              AND list_contains(string_split(ancestry, '/'), '1')  -- kingdom = Animalia
+              AND lower(name) = ?
+        )
+        SELECT ANY_VALUE(taxon_id) AS taxon_id
+        FROM animal_genera
+        GROUP BY genus_name
+        HAVING COUNT(*) = 1  -- exclude cross-phylum homonyms (keeps genus resolution unique)
+        """,
+        [str(TAXA_CSV_PATH), genus_name],
+    ).fetchone()
+    return row[0] if row else None
+
+
 def _read_unresolved_csv() -> set[str]:
     """Return the set of canonical_names from lineage_unresolved.csv, or empty set."""
     if not UNRESOLVED_CSV.exists():
@@ -435,6 +556,10 @@ def _resolve_one(
 
     When the request rank is None, params['rank'] is omitted and `source` is taken
     from the matched result's own `rank` field (e.g. 'inat_family', 'inat_order').
+
+    Offline genus fallback (debug nightly-resolution-gate, Part A): if a 1-token
+    (genus-only) name fails the API path (ambiguous/404 — common for bee genera that
+    share a name with an active subgenus), resolve it from taxa.csv.gz before giving up.
     """
     tokens = canonical_name.split()
     if len(tokens) == 1:
@@ -477,6 +602,27 @@ def _resolve_one(
             [canonical_name, match["id"], source],
         )
         return
+
+    # debug nightly-resolution-gate (Part A): offline genus fallback. For a genus-only
+    # (1-token) name the API could not resolve, try taxa.csv.gz before recording it as
+    # unresolved. Resolves all 39 same-named-subgenus bee genera with zero API calls.
+    if len(tokens) == 1:
+        genus_taxon_id = _resolve_genus_from_taxa_csv(con, tokens[0])
+        if genus_taxon_id is not None:
+            con.execute(
+                """
+                INSERT INTO inaturalist_data.canonical_to_taxon_id
+                    (canonical_name, taxon_id, resolved_at, source)
+                VALUES (?, ?, current_timestamp, 'taxa_csv_genus')
+                ON CONFLICT (canonical_name) DO UPDATE SET
+                    taxon_id = EXCLUDED.taxon_id,
+                    resolved_at = EXCLUDED.resolved_at,
+                    source = EXCLUDED.source
+                """,
+                [canonical_name, genus_taxon_id],
+            )
+            return
+
     unresolved.append(
         (
             canonical_name,
@@ -488,9 +634,17 @@ def _resolve_one(
 
 def resolve_taxon_ids(refresh: bool = False) -> None:
     """Phase 77 pipeline step. Imported by data/run.py STEPS."""
+    # debug nightly-resolution-gate (Part B): echo the target DB so a manual run can't
+    # silently mutate the wrong database without the operator noticing.
+    print(f"resolve-taxon-ids: DB_PATH={DB_PATH}")  # noqa: T201
     con = duckdb.connect(DB_PATH)
     try:
         _ensure_bridge_table(con)
+        # Part C: apply curator overrides first so curated names are already bridged and
+        # excluded from the API path (and thus from the unresolved CSV / gate).
+        n_curated = _load_curated_overrides(con)
+        if n_curated:
+            print(f"resolve-taxon-ids: applied {n_curated} curated taxon_id override(s)")  # noqa: T201
         names = _names_to_resolve(con, refresh)
         unresolved: list[tuple] = []
         for name in names:
