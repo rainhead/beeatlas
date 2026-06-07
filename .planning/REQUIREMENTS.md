@@ -11,9 +11,9 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 
 - [x] **TPERF-01**: A reproducible runtime baseline is captured and committed — total wall-clock for the current suite plus per-file/per-fixture durations (`pytest --durations`) — documenting the starting point the >40 min claim refers to and pinpointing the dominant contributors.
   - *Accept:* a `data/tests/BASELINE.md` (or equivalent) records measured totals and the top time sinks; reproducible via a documented command.
-- [ ] **TPERF-02**: The fast default suite (`cd data && uv run pytest`) completes in **< 5 minutes**.
+- [x] **TPERF-02**: The fast default suite (`cd data && uv run pytest`) completes in **< 5 minutes**.
   - *Accept:* timed run on the dev host finishes under 5 min with the default marker deselection active.
-- [ ] **TPERF-03**: The fast suite runs **green on a clean checkout** with no un-checked-in built assets, no network, and no AWS/S3 — i.e. `git clone` + `uv sync` + `uv run pytest` passes with nothing else built.
+- [x] **TPERF-03**: The fast suite runs **green on a clean checkout** with no un-checked-in built assets, no network, and no AWS/S3 — i.e. `git clone` + `uv sync` + `uv run pytest` passes with nothing else built.
   - *Accept:* verified in a fresh clone / clean worktree (no `dbt/target`, no `public/data`, no `raw/taxa.csv.gz`, no `beeatlas.duckdb`).
 
 ### Fixture Distillation (TFIXTURE)
@@ -34,7 +34,7 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 - [x] **TFIX-03**: The `test_resolve_checklist_names` fuzzy-candidate failure (`test_at_least_13_fuzzy_candidates`) is fixed.
 - [x] **TFIX-04**: No fast-tier test silently skips due to a missing un-checked-in asset; any remaining conditional skips are **reported** (visible in summary) and confined to the slow tier.
   - *Accept:* a clean-checkout fast run reports 0 silent asset-driven skips.
-- [ ] **TFIX-05**: The full fast suite is green (0 failures, 0 errors) on a clean checkout.
+- [x] **TFIX-05**: The full fast suite is green (0 failures, 0 errors) on a clean checkout.
 
 ### Two-Tier Structure (TTIER)
 
@@ -76,9 +76,9 @@ Cut the `data/` pytest suite from >40 min to <5 min **and** make it green and ho
 | TFIX-03 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TFIX-04 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
 | TTIER-02 | Phase 141: Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | Complete |
-| TFIX-05 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
-| TPERF-02 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
-| TPERF-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
+| TFIX-05 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
+| TPERF-02 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
+| TPERF-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Complete |
 | TTIER-03 | Phase 142: Verify Budget, Green Suite & Nightly Wiring | Pending |
 | TCI-01 | Phase 143: CI Gate | Pending |
 | TCI-02 | Phase 143: CI Gate | Pending |

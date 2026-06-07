@@ -1014,7 +1014,7 @@ Plans:
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
 | 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 5/5 | Complete    | 2026-06-06 |
-| 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 0/TBD | Not started | - |
+| 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 1/2 | In Progress|  |
 | 143. CI Gate | v4.8 | 0/TBD | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
@@ -1133,7 +1133,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 142-01-PLAN.md — Add pytest-randomly; prove fast suite green (randomized) + record budget; fix test_at_least_13_fuzzy_candidates fixture; create+run verify-clean-checkout.sh; update BASELINE.md [TFIX-05, TPERF-02, TPERF-03]
+- [x] 142-01-PLAN.md — Add pytest-randomly; prove fast suite green (randomized) + record budget; fix test_at_least_13_fuzzy_candidates fixture; create+run verify-clean-checkout.sh; update BASELINE.md [TFIX-05, TPERF-02, TPERF-03]
 
 **Wave 2** *(blocked on Wave 1)*
 
