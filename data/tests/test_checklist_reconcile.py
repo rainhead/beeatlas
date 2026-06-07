@@ -23,11 +23,40 @@ _RETIRED = pytest.mark.skip(
 
 
 @pytest.fixture
-def reload_pipeline(tmp_path, monkeypatch):
-    """Reload checklist_pipeline so SYNONYMS_PATH/UNMATCHED_PATH point at tmp."""
+def reload_pipeline(tmp_path, monkeypatch, request):
+    """Reload checklist_pipeline so SYNONYMS_PATH/UNMATCHED_PATH point at tmp.
+
+    Phase 142 Rule 1 fix: save/restore module-level path constants around
+    importlib.reload() to prevent order-dependence when pytest-randomly interleaves
+    this fixture with test_checklist_pipeline.py's module-scoped checklist_sample_db
+    (which patches those same constants). Without save/restore, reload() resets the
+    real-filesystem paths and clobbers checklist_sample_db's patches mid-module.
+    """
     monkeypatch.setenv("DB_PATH", str(tmp_path / "test.duckdb"))
     import checklist_pipeline
+
+    # Save any currently-patched module-level path constants before reload.
+    saved = {
+        attr: getattr(checklist_pipeline, attr)
+        for attr in (
+            "CHECKLIST_RECORDS_FULL_PATH",
+            "CHECKLIST_RECORDS_PATH",
+            "CHECKLIST_PATH",
+            "TAXA_PATH",
+            "_TAXA_ANCESTRY",
+            "DB_PATH",
+        )
+        if hasattr(checklist_pipeline, attr)
+    }
+
     importlib.reload(checklist_pipeline)
+
+    # Restore so the module returns to the state it was in before this fixture ran.
+    def _restore():
+        for attr, val in saved.items():
+            setattr(checklist_pipeline, attr, val)
+
+    request.addfinalizer(_restore)
     return checklist_pipeline
 
 
