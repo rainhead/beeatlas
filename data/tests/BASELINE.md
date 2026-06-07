@@ -19,17 +19,21 @@ The marker decision criterion is **"does this test validate code or validate dat
 
 ---
 
-## Per-Tier Baseline Estimates
+## Per-Tier Measured Runtimes (Phase 142 after-numbers)
 
-These are **ESTIMATES** derived from known dominant cost contributors — not a full timed run. Full-suite timing deferred to Phase 142 (D-01, D-02).
+Measured on maderas (the dev/production host), 2026-06-07, with `pytest-randomly` randomized order.
 
-| Tier | Estimated runtime | Notes |
-|------|------------------|-------|
-| **Build-time** (all tests minus integration-marked) | ~30–40 min | Dominated by checklist_pipeline.py and resolve_checklist_names.py reparsing large CSVs on every test; fixture distillation (Phase 140) is expected to cut this dramatically |
-| **Nightly / integration** | ~5–10 min | Currently 2 tests (Phase 141 will bulk-tag; Phase 142 measures the real number) |
-| **Collection time** | ~2.3 s | 263 tests across 25 files |
+| Tier | Before (Phase 139 estimate) | After (Phase 142 measured) | Notes |
+|------|----------------------------|---------------------------|-------|
+| **Build-time** (all tests minus integration-marked) | ~30–40 min | **18.8 s** | 197 passed / 9 skipped — fixture distillation (Phase 140) eliminated the dominant CSV-reparsing cost |
+| **Nightly / integration** | ~5–10 min | not measured in Phase 142 | Dataset-validation tier; runs in nightly cron |
+| **Collection time** | ~2.3 s | ~0.4 s | 197 + 57 deselected = 254 tests collected |
 
-All figures are approximate. The dominant cost is repeated CSV parsing, not test logic.
+Clean-checkout verification command (TPERF-03):
+
+```bash
+bash data/scripts/verify-clean-checkout.sh
+```
 
 ---
 
@@ -82,17 +86,16 @@ Each test parses `data/raw/taxa.csv.gz` (39 MB) — approximately 5 seconds per 
 
 ## Reproduce Command
 
-To sharpen the build-time estimate (runs all non-integration tests with timing output):
+To reproduce the build-time tier (fast suite under randomized order, TFIX-05):
 
 ```bash
-cd data && uv run pytest -m "not integration" --durations=10 -q
+cd data && uv run pytest -m "not integration" -p randomly -q
 ```
 
-To reproduce the full build-time tier timing broken out by file (the dominant contributors):
+To reproduce the clean-checkout fast-suite proof (TPERF-03):
 
 ```bash
-cd data && uv run pytest tests/test_checklist_pipeline.py --durations=0 -q
-cd data && uv run pytest tests/test_resolve_checklist_names.py --durations=0 -q
+bash data/scripts/verify-clean-checkout.sh
 ```
 
 To opt into the integration (dataset-validation) tier:
@@ -101,8 +104,6 @@ To opt into the integration (dataset-validation) tier:
 cd data && uv run pytest -m integration -q
 ```
 
-**Warning:** Running the full suite takes ~30-40 min. Use `--collect-only` for fast sanity checks.
-
 ---
 
 ## History
@@ -110,4 +111,4 @@ cd data && uv run pytest -m integration -q
 | Phase | Event | Date |
 |-------|-------|------|
 | 139 | Baseline established (estimates); two-tier marker scaffold created | 2026-06-05 |
-| 142 | After-numbers measured; this doc updated with actual runtimes | (pending) |
+| 142 | After-numbers measured: fast tier 197 passed / 9 skipped / 18.8 s, randomized seed (pytest-randomly); pytest-randomly added; clean-checkout script created; test_at_least_13_fuzzy_candidates fixture fixed | 2026-06-07 |

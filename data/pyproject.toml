@@ -20,6 +20,7 @@ dependencies = [
 dev = [
     "pytest>=9.0.2",
     "dbt-duckdb==1.10.1",
+    "pytest-randomly>=4.1.0",
 ]
 
 [tool.pytest.ini_options]
