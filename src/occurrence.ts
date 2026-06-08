@@ -36,7 +36,7 @@ export function occIdFromRow(row: OccurrenceRow): string | null {
  * well-formed IDs, or `null` for any malformed input (wrong prefix,
  * non-numeric suffix, empty string).
  */
-export function parseOccId(id: string): { source: 'ecdysis' | 'inat' | 'inat_obs'; numericId: number } | null {
+export function parseOccId(id: string): { source: 'ecdysis' | 'inat' | 'inat_obs' | 'checklist'; numericId: number } | null {
   if (id.startsWith('ecdysis:')) {
     const n = parseInt(id.slice('ecdysis:'.length), 10);
     return isNaN(n) ? null : { source: 'ecdysis', numericId: n };
@@ -48,6 +48,12 @@ export function parseOccId(id: string): { source: 'ecdysis' | 'inat' | 'inat_obs
   if (id.startsWith('inat:')) {
     const n = parseInt(id.slice('inat:'.length), 10);
     return isNaN(n) ? null : { source: 'inat', numericId: n };
+  }
+  // Phase 138 (UIX-01): checklist points are now clickable real points, so a
+  // checklist:N selection must reach the list/table query path, not be dropped.
+  if (id.startsWith('checklist:')) {
+    const n = parseInt(id.slice('checklist:'.length), 10);
+    return isNaN(n) ? null : { source: 'checklist', numericId: n };
   }
   return null;
 }

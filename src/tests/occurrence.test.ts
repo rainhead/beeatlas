@@ -89,6 +89,12 @@ describe('parseOccId', () => {
     expect(parseOccId('inat:456')).toEqual({ source: 'inat', numericId: 456 });
   });
 
+  // Phase 138 (UIX-01): checklist points are clickable; a checklist:N selection
+  // must parse so it reaches the list/table query and shows in the sidebar.
+  test('parses a valid checklist: ID', () => {
+    expect(parseOccId('checklist:1234')).toEqual({ source: 'checklist', numericId: 1234 });
+  });
+
   test('returns null for an unknown prefix (garbage)', () => {
     expect(parseOccId('garbage')).toBeNull();
   });

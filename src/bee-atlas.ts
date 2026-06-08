@@ -522,18 +522,20 @@ bee-pane {
     const selEcdysisIds: number[] = [];
     const selInatIds: number[] = [];
     const selInatObsIds: number[] = [];
+    const selChecklistIds: number[] = [];
     for (const id of this._selectedOccIds ?? []) {
       const parsed = parseOccId(id);
       if (parsed === null) continue;
       if (parsed.source === 'ecdysis') selEcdysisIds.push(parsed.numericId);
       else if (parsed.source === 'inat_obs') selInatObsIds.push(parsed.numericId);
+      else if (parsed.source === 'checklist') selChecklistIds.push(parsed.numericId);
       else selInatIds.push(parsed.numericId);
     }
     const guarded = await this._tableGuard(async () => {
       try {
         return await queryTablePage(
           this._filterState, this._tablePage, this._tableSortBy,
-          selEcdysisIds, selInatIds
+          selEcdysisIds, selInatIds, selChecklistIds
         );
       } catch (err) {
         console.error('Table query failed:', err);
@@ -551,19 +553,21 @@ bee-pane {
     const selEcdysisIds: number[] = [];
     const selInatIds: number[] = [];
     const selInatObsIds: number[] = [];
+    const selChecklistIds: number[] = [];
     for (const id of this._selectedOccIds ?? []) {
       const parsed = parseOccId(id);
       if (parsed === null) continue;
       if (parsed.source === 'ecdysis') selEcdysisIds.push(parsed.numericId);
       else if (parsed.source === 'inat_obs') selInatObsIds.push(parsed.numericId);
+      else if (parsed.source === 'checklist') selChecklistIds.push(parsed.numericId);
       else selInatIds.push(parsed.numericId);
     }
-    const hasSelection = selEcdysisIds.length > 0 || selInatIds.length > 0 || selInatObsIds.length > 0 || this._selectionBounds !== null;
+    const hasSelection = selEcdysisIds.length > 0 || selInatIds.length > 0 || selInatObsIds.length > 0 || selChecklistIds.length > 0 || this._selectionBounds !== null;
     const guarded = await this._listGuard(async () => {
       try {
         const { rows, total } = await queryListPage(
           this._filterState, this._listPage, this._tableSortBy,
-          selEcdysisIds, selInatIds, selInatObsIds,
+          selEcdysisIds, selInatIds, selInatObsIds, selChecklistIds,
           this._selectionBounds ?? null
         );
         return { rows, total, selectionCount: hasSelection ? total : null };
