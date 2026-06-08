@@ -42,11 +42,17 @@ checklist_month_agg AS (
     GROUP BY canonical_name
 ),
 checklist_count_agg AS (
-    -- Separate CTE for total checklist_count — does NOT filter by month IS NOT NULL
-    -- so that all checklist records (including those with unknown month) are counted.
+    -- UIX-04: Re-sourced from int_checklist_dedup_status (deduped, coord-bearing promoted arm)
+    -- so checklist_count equals the actual point record count in occurrences.parquet.
+    -- Previously read ref('checklist') (old county-level mart, 42k rows) — wrong post-Phase-137.
+    -- Uses same filter as ARM 4 in int_combined.sql to guarantee count agreement.
+    -- Uses ref('int_checklist_dedup_status') NOT ref('occurrences') to avoid the external-parquet
+    -- circular DAG (int_species_universe → species mart → occurrences external parquet).
     SELECT canonical_name, COUNT(*) AS checklist_count
-    FROM {{ ref('checklist') }}
+    FROM {{ ref('int_checklist_dedup_status') }}
     WHERE canonical_name IS NOT NULL
+      AND dedup_status IS DISTINCT FROM 'confirmed'
+      AND lat IS NOT NULL AND lon IS NOT NULL
     GROUP BY canonical_name
 ),
 -- Per-species iNat expert obs count (OCC-02). Reads source directly to avoid circular DAG with occurrences mart.
