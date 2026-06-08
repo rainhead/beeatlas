@@ -35,6 +35,7 @@ from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from checklist_pipeline import load_checklist
 from resolve_taxon_ids import resolve_taxon_ids, check_resolution_gate, generate_inactive_remaps, check_inactive_gate
+from resolve_checklist_names import resolve_checklist_names, check_checklist_resolution_gate
 from species_export import main as export_species_parquet
 from species_maps import main as generate_species_maps
 from feeds import main as generate_feeds
@@ -47,6 +48,7 @@ from places_maps import main as generate_place_maps_step
 from sqlite_export import main as generate_sqlite_export
 
 _REFRESH_LINEAGE = "--refresh-lineage" in sys.argv
+_REFRESH_CHECKLIST = "--refresh-checklist" in sys.argv
 
 _DBT_SCRIPT = Path(__file__).parent / "dbt" / "run.sh"
 _DBT_SANDBOX = Path(__file__).parent / "dbt" / "target" / "sandbox"
@@ -89,6 +91,10 @@ STEPS: list[tuple[str, Callable]] = [
     ("projects", load_projects),
     ("anti-entropy", run_anti_entropy),
     ("checklist", load_checklist),
+    # RCN-03: resolve-checklist-names is a no-op nightly (zero GBIF calls);
+    # the one-time --refresh-checklist run bakes the committed seed/audit cache.
+    ("resolve-checklist-names", lambda: resolve_checklist_names(refresh=_REFRESH_CHECKLIST)),
+    ("checklist-resolution-gate", check_checklist_resolution_gate),  # D-04: hard-fail only on source='unresolved'
     ("inat-obs", load_inat_obs),
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
     ("resolution-gate", check_resolution_gate),       # D-02: fail fast on unresolved bee names
