@@ -37,6 +37,7 @@ const BASE_ROW: OccurrenceRow = {
   user_login: null,
   license: null,
   display_name: null,
+  display_rank: null,
 };
 
 // Factory helpers: spread BASE_ROW with the discriminating fields set.
