@@ -87,10 +87,13 @@ export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecifi
 function _occurrencePointPaint(colors: RecencyColors): CircleLayerSpecification['paint'] {
   return {
     'circle-color': [
-      'match', ['get', 'recencyTier'],
-      'thisYear', colors.thisYear,
-      'lastYear', colors.lastYear,
-      colors.earlier,
+      'match', ['get', 'source'],
+      'checklist', '#2c7a2c',
+      ['match', ['get', 'recencyTier'],
+        'thisYear', colors.thisYear,
+        'lastYear', colors.lastYear,
+        colors.earlier,
+      ],
     ],
     'circle-radius': 6,
     'circle-stroke-width': 1,
@@ -221,16 +224,3 @@ export function placeLabelLayerSpec(visibility: Visibility): SymbolLayerSpecific
   };
 }
 
-export function checklistCountyFillLayerSpec(): FillLayerSpecification {
-  return {
-    id: 'checklist-county-fill',
-    type: 'fill',
-    source: 'counties',
-    layout: { visibility: 'none' },
-    paint: {
-      'fill-color': 'rgba(44, 122, 44, 0.25)',
-      'fill-outline-color': 'rgba(44, 122, 44, 0.7)',
-    },
-    filter: ['==', 'NAME', '__never__'],
-  };
-}
