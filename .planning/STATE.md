@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: ready_to_plan
-stopped_at: Phase 136 complete (4/4) — ready to discuss Phase 137 (Promotion into Occurrences); curator dedup gate cleared
-last_updated: 2026-06-08T19:13:10.094Z
+status: planning
+stopped_at: Phase 137 context gathered
+last_updated: "2026-06-08T19:34:33.908Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 23
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 22
   completed_plans: 22
-  percent: 30
+  percent: 35
 ---
 
 # Project State
@@ -138,9 +138,9 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T19:00:00.000Z
-Stopped at: Phase 136 plan 04 complete — HUMAN-REVIEW GATE reached; curator must review data/dedup_candidate_pairs.csv and populate data/dbt/seeds/dedup_decisions.csv, then type "approved" to start Phase 137
-Resume file: None
+Last session: 2026-06-08T19:34:33.868Z
+Stopped at: Phase 137 context gathered
+Resume file: .planning/phases/137-promotion-into-occurrences/137-CONTEXT.md
 
 ## Operator Next Steps
 
