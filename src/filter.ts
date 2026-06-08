@@ -67,6 +67,10 @@ export interface OccurrenceRow {
   sample_host: string | null;
   // Phase 137 (PRO-04): checklist rows carry checklist_id (= ObjectID); null for all other sources.
   checklist_id: number | null;
+  // Phase 138 (D-10): checklist detail fields; null for all other sources.
+  verbatim_name: string | null;
+  locality: string | null;
+  collapsed_count: number | null;
   source: 'ecdysis' | 'waba_sample' | 'inat_obs' | 'checklist' | null;
   image_url: string | null;
   obs_url: string | null;
@@ -86,6 +90,9 @@ export const OCCURRENCE_COLUMNS = [
   'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host',
   'is_provisional', 'specimen_inat_quality_grade',
   'checklist_id',
+  'verbatim_name',
+  'locality',
+  'collapsed_count',
   'source', 'image_url', 'obs_url', 'user_login', 'license',
 ] as const;
 
