@@ -72,6 +72,8 @@ export interface OccurrenceRow {
   license: string | null;
   // JOIN-resolved from taxa.name; null when taxon_id IS NULL (not a mart column)
   display_name: string | null;
+  // JOIN-resolved from taxa.rank; null when taxon_id IS NULL (not a mart column)
+  display_rank: string | null;
 }
 
 export const OCCURRENCE_COLUMNS = [
@@ -151,7 +153,7 @@ export async function queryAllFiltered(
 ): Promise<Record<string, unknown>[]> {
   const { occurrenceWhere } = buildFilterSQL(f);
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -188,7 +190,7 @@ export async function queryTablePage(
   const offset = (page - 1) * PAGE_SIZE;
 
   const { occurrenceWhere } = buildFilterSQL(f);
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -395,7 +397,7 @@ export async function queryListPage(
   const fullWhere = `(${occurrenceWhere})${selFilter}${boundsClause}`;
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -426,7 +428,7 @@ export async function queryOccurrencesByBounds(
 ): Promise<OccurrenceRow[]> {
   const { west, south, east, north } = bounds;
   const { occurrenceWhere } = buildFilterSQL(f);
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: OccurrenceRow[] = [];
@@ -448,7 +450,7 @@ export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]>
   if (ecdysisIds.length > 0) clauses.push(`ecdysis_id IN (${ecdysisIds.join(',')})`);
   if (inatIds.length > 0) clauses.push(`observation_id IN (${inatIds.join(',')})`);
   if (inatObsIds.length > 0) clauses.push(`specimen_observation_id IN (${inatObsIds.join(',')})`);
-  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name';
+  const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const rows: OccurrenceRow[] = [];
