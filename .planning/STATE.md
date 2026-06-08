@@ -123,6 +123,7 @@ Carried forward from v4.6 milestone close (2026-06-04) — 28 open items, all pr
 | 2026-05-28 | syn-occurrence-synonymy-mechanism | Occurrence-side synonymy mechanism; map Agapostemon texanus → subtilior (Portman et al. 2024) |
 | 2026-06-08 | 260607-s5r | Add a rank column to the occurrences table view (closes table-rank-column todo) |
 | 2026-06-08 | pluralization-sweep-web-copy | Apply quantify() across species-detail/places/place-detail njk + bee-pane button (closes pluralization-sweep-web-copy todo) |
+| 2026-06-08 | 260607-syt | Break out subgenera on genus pages — group species list by subgenus (closes genus-page-subgenera-breakout todo) |
 
 ## Session Continuity
 
