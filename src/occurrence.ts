@@ -24,6 +24,8 @@ export function occIdFromRow(row: OccurrenceRow): string | null {
   if (row.ecdysis_id != null) return `ecdysis:${row.ecdysis_id}`;
   if (row.observation_id != null) return `inat:${row.observation_id}`;
   if (row.specimen_observation_id != null) return `inat_obs:${row.specimen_observation_id}`;
+  // Phase 137 (PRO-04): checklist rows carry only checklist_id (all three above are null).
+  if (row.checklist_id != null) return `checklist:${row.checklist_id}`;
   return null;
 }
 

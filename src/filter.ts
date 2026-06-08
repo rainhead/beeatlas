@@ -65,7 +65,9 @@ export interface OccurrenceRow {
   specimen_count: number | null;
   sample_id: number | null;
   sample_host: string | null;
-  source: 'ecdysis' | 'waba_sample' | 'inat_obs' | null;
+  // Phase 137 (PRO-04): checklist rows carry checklist_id (= ObjectID); null for all other sources.
+  checklist_id: number | null;
+  source: 'ecdysis' | 'waba_sample' | 'inat_obs' | 'checklist' | null;
   image_url: string | null;
   obs_url: string | null;
   user_login: string | null;
@@ -83,6 +85,7 @@ export const OCCURRENCE_COLUMNS = [
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
   'year', 'month', 'observation_id', 'host_inat_login', 'specimen_count', 'sample_id', 'sample_host',
   'is_provisional', 'specimen_inat_quality_grade',
+  'checklist_id',
   'source', 'image_url', 'obs_url', 'user_login', 'license',
 ] as const;
 
@@ -319,11 +322,12 @@ export async function queryVisibleGeoJSON(f: FilterState): Promise<{
   const ids = new Set<string>();
   let rowCount = 0;
   await sqlite3.exec(db,
-    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, year, source FROM occurrences o WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
+    // Phase 137 (PRO-04): fetch checklist_id so checklist points that match the filter are not silently dropped from _visibleIds.
+    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, checklist_id, year, source FROM occurrences o WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
     (rowValues: unknown[], columnNames: string[]) => {
       rowCount++;
-      const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'year' | 'source'>;
-      const occId = occIdFromRow({ ecdysis_id: row.ecdysis_id, observation_id: row.observation_id, specimen_observation_id: row.specimen_observation_id, is_provisional: false } as OccurrenceRow);
+      const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'checklist_id' | 'year' | 'source'>;
+      const occId = occIdFromRow({ ecdysis_id: row.ecdysis_id, observation_id: row.observation_id, specimen_observation_id: row.specimen_observation_id, checklist_id: row.checklist_id, is_provisional: false } as OccurrenceRow);
       if (occId == null) return;
       ids.add(occId);
       features.push({
@@ -446,10 +450,13 @@ export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]>
   const ecdysisIds = occIds.filter(id => id.startsWith('ecdysis:')).map(id => id.slice(8));
   const inatIds = occIds.filter(id => id.startsWith('inat:')).map(id => id.slice(5));
   const inatObsIds = occIds.filter(id => id.startsWith('inat_obs:')).map(id => id.slice(9));
+  // Phase 137 (PRO-04): dispatch checklist:N IDs so a checklist-dot click doesn't yield an empty WHERE.
+  const checklistIds = occIds.filter(id => id.startsWith('checklist:')).map(id => id.slice('checklist:'.length));
   const clauses: string[] = [];
   if (ecdysisIds.length > 0) clauses.push(`ecdysis_id IN (${ecdysisIds.join(',')})`);
   if (inatIds.length > 0) clauses.push(`observation_id IN (${inatIds.join(',')})`);
   if (inatObsIds.length > 0) clauses.push(`specimen_observation_id IN (${inatObsIds.join(',')})`);
+  if (checklistIds.length > 0) clauses.push(`checklist_id IN (${checklistIds.join(',')})`);
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
   await tablesReady;
   const { sqlite3, db } = await getDB();
