@@ -31,3 +31,8 @@ seeds:
         synonym: varchar
         accepted_name: varchar
         source: varchar
+    dedup_decisions:
+      +column_types:
+        pair_key: varchar
+        dedup_status: varchar
+        note: varchar
