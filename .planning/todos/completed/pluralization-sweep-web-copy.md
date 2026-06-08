@@ -1,3 +1,4 @@
+completed: 2026-06-08
 ---
 title: Apply the shared quantify() pluralization utility across remaining web copy
 priority: low

@@ -18,6 +18,6 @@ layout: default.njk
            alt="Occurrence map for {{ place.name }}">
     {%- endif -%}
   </div>
-  <p class="metadata">{{ place.specimen_count }} specimens · {{ place.land_owner }}</p>
+  <p class="metadata">{{ place.specimen_count | quantify("specimen") }} · {{ place.land_owner }}</p>
   <a href="/?place={{ place.slug }}">View occurrences on the atlas →</a>
 </article>

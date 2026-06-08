@@ -11,7 +11,7 @@ title: Places — BeeAtlas
     <li>
       <a href="/places/{{ place.slug }}.html">{{ place.name }}</a>
       <span class="owner">{{ place.land_owner }}</span>
-      <span class="count">{{ place.specimen_count }} specimens</span>
+      <span class="count">{{ place.specimen_count | quantify("specimen") }}</span>
     </li>
     {%- endfor -%}
   </ul>
