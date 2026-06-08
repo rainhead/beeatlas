@@ -24,8 +24,9 @@
 {{ config(materialized='table') }}
 
 WITH ecdysis_dated AS (
-    -- Derive day from event_date VARCHAR via TRY_CAST; filter to rows with usable dates.
-    -- D-06: exclude year-only / NULL Ecdysis dates (rows missing year, month, or event_date).
+    -- Derive day from ecdysis_date VARCHAR via TRY_CAST; filter to rows with usable dates.
+    -- Note: int_ecdysis_base aliases o.event_date AS ecdysis_date — use that name here.
+    -- D-06: exclude year-only / NULL Ecdysis dates (rows missing year, month, or ecdysis_date).
     SELECT
         ecdysis_id,
         ecdysis_lat,
@@ -33,15 +34,15 @@ WITH ecdysis_dated AS (
         canonical_name,
         year,
         month,
-        TRY_CAST(EXTRACT('day' FROM TRY_CAST(event_date AS DATE)) AS INTEGER) AS day,
-        event_date,
+        TRY_CAST(EXTRACT('day' FROM TRY_CAST(ecdysis_date AS DATE)) AS INTEGER) AS day,
+        ecdysis_date,
         recordedBy
     FROM {{ ref('int_ecdysis_base') }}
     WHERE ecdysis_lat IS NOT NULL
       AND ecdysis_lon IS NOT NULL
       AND year IS NOT NULL
       AND month IS NOT NULL
-      AND event_date IS NOT NULL
+      AND ecdysis_date IS NOT NULL
 )
 
 SELECT
@@ -63,7 +64,7 @@ SELECT
     cl.month      AS checklist_month,
     cl.day        AS checklist_day,
     cl.date_quality,
-    ec.event_date AS ecdysis_date,
+    ec.ecdysis_date,
     ec.year       AS ecdysis_year,
     ec.month      AS ecdysis_month,
     ec.day        AS ecdysis_day,
