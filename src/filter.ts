@@ -184,13 +184,15 @@ export async function queryTablePage(
   page: number,
   sortBy: SpecimenSortBy = 'date',
   selectedEcdysisIds: number[] = [],
-  selectedInatIds: number[] = []
+  selectedInatIds: number[] = [],
+  selectedChecklistIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
   // Build a selection-priority prefix so selected rows always sort to the top.
   // IDs are pre-validated as integers by the caller.
   const selParts: string[] = [];
   if (selectedEcdysisIds.length > 0) selParts.push(`ecdysis_id IN (${selectedEcdysisIds.join(',')})`);
   if (selectedInatIds.length > 0) selParts.push(`observation_id IN (${selectedInatIds.join(',')})`);
+  if (selectedChecklistIds.length > 0) selParts.push(`checklist_id IN (${selectedChecklistIds.join(',')})`);
   const priorityExpr = selParts.length > 0
     ? `CASE WHEN (${selParts.join(' OR ')}) THEN 0 ELSE 1 END, `
     : '';
@@ -381,6 +383,7 @@ export async function queryListPage(
   selectedEcdysisIds: number[] = [],
   selectedInatIds: number[] = [],
   selectedInatObsIds: number[] = [],
+  selectedChecklistIds: number[] = [],
   selectionBounds: { west: number; south: number; east: number; north: number } | null = null
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
   const { occurrenceWhere } = buildFilterSQL(f);
@@ -393,6 +396,8 @@ export async function queryListPage(
     selParts.push(`observation_id IN (${selectedInatIds.join(',')})`);
   if (selectedInatObsIds.length > 0)
     selParts.push(`specimen_observation_id IN (${selectedInatObsIds.join(',')})`);
+  if (selectedChecklistIds.length > 0)
+    selParts.push(`checklist_id IN (${selectedChecklistIds.join(',')})`);
 
   // Bounds selection is always a WHERE addition, not an ORDER priority
   let boundsClause = '';
