@@ -38,7 +38,12 @@ DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb
 AUDIT_CSV = Path(__file__).parent / "checklist_name_resolution_audit.csv"
 FUZZY_REVIEW_CSV = Path(__file__).parent / "checklist_fuzzy_review.csv"
 GBIF_SEED_CSV = Path(__file__).parent / "dbt" / "seeds" / "gbif_checklist_synonyms.csv"
+# Committed canonical_name -> taxon_id seed loaded into the bridge by
+# resolve_taxon_ids() before the API path (durable across clean nightly rebuilds).
+# iNat-fallback resolutions (see _inat_taxon_id_for) are persisted here.
+CURATED_TAXON_IDS_CSV = Path(__file__).parent / "dbt" / "seeds" / "curated_taxon_ids.csv"
 TAXA_PATH = str(Path(__file__).parent / "raw" / "taxa.csv.gz")
+INAT_TAXA_URL = "https://api.inaturalist.org/v1/taxa"
 
 _GBIF_PACE_SECONDS = 0.3
 
@@ -220,6 +225,41 @@ def _gbif_lookup_one(name: str) -> dict:
     }
 
 
+def _inat_taxon_id_for(name: str) -> int | None:
+    """Resolve an accepted binomial to a current iNat taxon_id via the iNat taxa API.
+
+    Fallback for the GBIF tier: a GBIF-accepted name (e.g. 'andrena chalybioides')
+    is often absent from the local canonical_to_taxon_id bridge, because that bridge
+    is observation-driven (resolve_taxon_ids only resolves names seen in occurrence
+    data). Without this fallback such names resolve to an EMPTY taxon_id even though
+    a valid iNat taxon exists. Reuses the iNat pacing/retry and the ambiguous-match
+    policy (_pick_match) from the occurrences-side resolver so behavior matches.
+    Returns the taxon_id, or None on ambiguity / not-found / network error.
+    """
+    try:
+        from inaturalist_pipeline import _inat_get_with_retry, _INAT_PACE_SECONDS
+        from resolve_taxon_ids import _pick_match
+    except Exception:  # noqa: BLE001  — keep the resolver runnable in minimal envs
+        return None
+    time.sleep(_INAT_PACE_SECONDS)
+    try:
+        resp = _inat_get_with_retry(
+            INAT_TAXA_URL, params={"q": name, "rank": "species"}, timeout=30,
+        )
+        data = resp.json()
+    except Exception:  # noqa: BLE001  — a single lookup failure must not abort the run
+        return None
+    if data.get("total_results", 0) == 0:
+        return None
+    match = _pick_match(data.get("results", []), name, "species")
+    if match is None:
+        return None
+    try:
+        return int(match["id"])
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
 def _generate_fuzzy_candidates(
     query: str,
     candidates: list[str],
@@ -308,14 +348,14 @@ def resolve_checklist_names(refresh: bool = False) -> None:
                     if s and a:
                         synonym_map[s] = a
 
-        # Read gbif_checklist_synonyms.csv if it exists already
-        if GBIF_SEED_CSV.exists():
-            with GBIF_SEED_CSV.open(newline="") as f:
-                for row in csv.DictReader(f):
-                    s = (row.get("synonym") or "").strip()
-                    a = (row.get("accepted_name") or "").strip()
-                    if s and a and s not in synonym_map:
-                        synonym_map[s] = a
+        # NOTE: gbif_checklist_synonyms.csv is intentionally NOT read back into
+        # synonym_map. It is this resolver's OWN output (the committed GBIF cache),
+        # rewritten from scratch each refresh. Reading it back made --refresh-checklist
+        # non-idempotent: on a second run those names resolved as 'synonym_seed' (Tier 3)
+        # before reaching the GBIF tier (Tier 4) — the only tier that writes the seed —
+        # so the seed truncated to header-only. GBIF is re-queried each refresh instead;
+        # the result is reproducible. Curator promotions live in occurrence_synonyms.csv
+        # (read above) and correctly take precedence.
 
         # -------------------------------------------------------------------
         # Build rapidfuzz candidate pool from bridge
@@ -330,6 +370,7 @@ def resolve_checklist_names(refresh: bool = False) -> None:
         fuzzy_rows: list[dict] = []
         gbif_seed_rows: list[tuple] = []
         seen_gbif_synonyms: set[str] = set()
+        inat_fallback_rows: dict[str, int] = {}  # accepted_name -> taxon_id (Fix A)
 
         for verbatim in verbatim_names:
             # ----------------------------------------------------------------
@@ -424,6 +465,30 @@ def resolve_checklist_names(refresh: bool = False) -> None:
             if gbif["accepted_canonical"]:
                 accepted = gbif["accepted_canonical"]
                 resolved_id = bridge.get(accepted, "")
+                # Fix A: the GBIF-accepted name is often absent from the
+                # observation-driven bridge (e.g. 'andrena chalybioides'/573383).
+                # Fall back to the iNat taxa API, then persist: upsert the live
+                # bridge (so this run + the immediately-following dbt build resolve
+                # it) and queue it for the committed curated_taxon_ids.csv seed
+                # (so it survives clean nightly rebuilds).
+                if resolved_id == "":
+                    inat_id = _inat_taxon_id_for(accepted)
+                    if inat_id is not None:
+                        resolved_id = inat_id
+                        bridge[accepted] = inat_id
+                        inat_fallback_rows[accepted] = inat_id
+                        con.execute(
+                            """
+                            INSERT INTO inaturalist_data.canonical_to_taxon_id
+                                (canonical_name, taxon_id, resolved_at, source)
+                            VALUES (?, ?, current_timestamp, 'inat_checklist_fallback')
+                            ON CONFLICT (canonical_name) DO UPDATE SET
+                                taxon_id = EXCLUDED.taxon_id,
+                                resolved_at = EXCLUDED.resolved_at,
+                                source = EXCLUDED.source
+                            """,
+                            [accepted, inat_id],
+                        )
                 source = f"gbif"
                 audit_rows.append({
                     "verbatim_name": verbatim,
@@ -538,6 +603,44 @@ def resolve_checklist_names(refresh: bool = False) -> None:
         writer.writerows(
             tuple(_csv_safe(v) for v in row) for row in gbif_seed_rows
         )
+
+    # -----------------------------------------------------------------------
+    # Persist iNat-fallback taxon_ids into the committed curated_taxon_ids.csv
+    # seed (Fix A). Without this, the bridge entries upserted above live only in
+    # the working DuckDB and vanish on a clean nightly rebuild. resolve_taxon_ids()
+    # loads this seed into the bridge before the API path, so these mappings then
+    # resolve durably each nightly. Merge-and-preserve: existing (curator) rows are
+    # never overwritten; only genuinely new canonical_names are appended.
+    # -----------------------------------------------------------------------
+    if inat_fallback_rows:
+        existing: dict[str, tuple[str, str]] = {}
+        order: list[str] = []
+        if CURATED_TAXON_IDS_CSV.exists():
+            with CURATED_TAXON_IDS_CSV.open(newline="") as f:
+                for row in csv.DictReader(f):
+                    cn = (row.get("canonical_name") or "").strip()
+                    if not cn:
+                        continue
+                    existing[cn] = (
+                        (row.get("taxon_id") or "").strip(),
+                        row.get("note") or "",
+                    )
+                    order.append(cn)
+        for cn, tid in sorted(inat_fallback_rows.items()):
+            if cn not in existing:
+                existing[cn] = (
+                    str(tid),
+                    "iNat exact match for a GBIF-accepted checklist name; "
+                    "auto-resolved by --refresh-checklist (bridge fallback)",
+                )
+                order.append(cn)
+        CURATED_TAXON_IDS_CSV.parent.mkdir(parents=True, exist_ok=True)
+        with CURATED_TAXON_IDS_CSV.open("w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["canonical_name", "taxon_id", "note"])
+            for cn in order:
+                tid, note = existing[cn]
+                writer.writerow([_csv_safe(cn), tid, _csv_safe(note)])
 
     resolved_count = sum(1 for r in audit_rows if r["source"] != "unresolved")
     unresolved_count = sum(1 for r in audit_rows if r["source"] == "unresolved")
