@@ -341,11 +341,25 @@ def resolve_checklist_names(refresh: bool = False) -> None:
                 if pair:
                     lca_taxon_id = compute_lca(pair[0], pair[1], taxa)
 
+                if pair:
+                    # pair = ("genus ep1", "genus ep2") — _split_slash_compound always
+                    # derives a single shared genus (tokens[0]), so the LCA is that genus.
+                    # canonical_name: normalized lowercase, slash compound retained (the raw
+                    # capitalized form stays in verbatim_name). accepted_canonical_name: the
+                    # genus, so it matches resolved_taxon_id (the genus-rank LCA).
+                    genus, ep1 = pair[0].split()
+                    ep2 = pair[1].split()[1]
+                    slash_canonical = f"{genus} {ep1}/{ep2}"
+                    slash_accepted = genus
+                else:
+                    slash_canonical = normalize_scientific_name(verbatim) or verbatim.lower()
+                    slash_accepted = ""
+
                 audit_rows.append({
                     "verbatim_name": verbatim,
-                    "canonical_name": verbatim,  # retain raw slash string
+                    "canonical_name": slash_canonical,
                     "resolved_taxon_id": lca_taxon_id if lca_taxon_id else "",
-                    "accepted_canonical_name": verbatim,
+                    "accepted_canonical_name": slash_accepted,
                     "source": "slash_lca",
                     "confidence": 1.0,
                     "gbif_match_type": "",
