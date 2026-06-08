@@ -38,12 +38,12 @@ layout: default.njk
   el.data = {{ sp.month_histogram | dump | safe }};
   el.onChecklist = {{ sp.on_checklist | dump | safe }};
 });</script>
-  <p class="metadata">{{ sp.specimen_count or 0 }} specimens · {{ sp.inat_obs_count or 0 }} community observations · {{ sp.county_count }} counties · {{ sp.ecoregion_count }} ecoregions</p>
+  <p class="metadata">{{ (sp.specimen_count or 0) | quantify("specimen") }} · {{ (sp.inat_obs_count or 0) | quantify("community observation") }} · {{ sp.county_count | quantify("county", "counties") }} · {{ sp.ecoregion_count | quantify("ecoregion") }}</p>
   {%- if sp.on_checklist -%}
-  <p class="checklist-attribution">{{ sp.checklist_count }} checklist records · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
+  <p class="checklist-attribution">{{ sp.checklist_count | quantify("checklist record") }} · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
   {%- endif -%}
   {%- if sp.occurrence_count > 0 -%}
-  <a class="taxon-action" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ sp.occurrence_count + (sp.inat_obs_count or 0) }} records on the atlas →</a>
+  <a class="taxon-action" href="/?taxon={{ sp.scientificName | urlencode }}&amp;taxonRank=species">View {{ (sp.occurrence_count + (sp.inat_obs_count or 0)) | quantify("record") }} on the atlas →</a>
   {%- endif -%}
   {%- if sp.taxon_id -%}
   <a class="taxon-action" href="https://www.inaturalist.org/taxa/{{ sp.taxon_id }}">View on iNaturalist →</a>

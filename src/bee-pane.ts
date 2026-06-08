@@ -5,6 +5,7 @@ import type { FilterState, CollectorEntry } from './filter.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
 import { resolveDataUrl } from './manifest.ts';
+import { quantify } from './lib/quantify.js';
 import './bee-occurrence-detail.ts';
 import './bee-table.ts';
 import type { OccurrenceRow, SpecimenSortBy } from './filter.ts';
@@ -1224,7 +1225,8 @@ export class BeePane extends LitElement {
   render() {
     if (this.paneState === 'collapsed') {
       const active = this.filterActive || (this.selectionCount ?? 0) > 0;
-      const count = this.specimenCount ?? this.summary?.totalSpecimens ?? '…';
+      const specimens = this.specimenCount ?? this.summary?.totalSpecimens;
+      const countLabel = specimens == null ? '… specimens' : quantify(specimens, 'specimen');
       return html`
         <button
           class=${'filter-btn' + (active ? ' active' : '')}
@@ -1238,7 +1240,7 @@ export class BeePane extends LitElement {
             <circle cx="6.5" cy="6.5" r="4"/>
             <line x1="9.9" y1="9.9" x2="13.5" y2="13.5"/>
           </svg>
-          ${count} specimens
+          ${countLabel}
         </button>
       `;
     }
