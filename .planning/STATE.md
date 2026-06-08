@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: ready_to_plan
-stopped_at: Phase 136 complete (4/4) — ready to discuss Phase 139
+stopped_at: Phase 136 complete (4/4) — ready to discuss Phase 137 (Promotion into Occurrences); curator dedup gate cleared
 last_updated: 2026-06-08T19:13:10.094Z
 last_activity: 2026-06-08
 progress:
@@ -21,11 +21,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 139 — baseline two tier scaffold
+**Current focus:** Phase 137 — Promotion into Occurrences (v4.7)
 
 ## Current Position
 
-Phase: 139
+Phase: 137
 Plan: Not started
 Status: Ready to plan
 Last activity: 2026-06-08
