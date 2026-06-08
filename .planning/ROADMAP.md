@@ -472,7 +472,7 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 
 - [x] **Phase 134: Full-Fidelity Ingest** - Commit source CSV, extend pipeline for all columns, coordinate validation, date normalization (completed 2026-06-04)
 - [~] **Phase 135: Name Reconciliation** - Authority/whitespace normalize; tiered resolver; audit CSV; fuzzy human-review gate; slash-compound LCA; synonym unification; homonym guard (4/5 plans done; 135-05 pending — resolver pipeline wiring + one-time GBIF refresh + curator gate)
-- [ ] **Phase 136: Deduplication** - Collapse internal dupes; cross-source candidate flagging vs Ecdysis; human sign-off gate
+- [~] **Phase 136: Deduplication** - Collapse internal dupes; cross-source candidate flagging vs Ecdysis; human sign-off gate (4/4 plans done — HUMAN-REVIEW GATE pending curator approval of dedup_candidate_pairs.csv)
 - [ ] **Phase 137: Promotion into Occurrences** - checklist ARM in int_combined; dbt contract bump; Phase 111 test retirement; atomic geo_blob + features.ts deploy
 - [ ] **Phase 138: Frontend Points & Detail Card** - Checklist map points; county-fill removal; source-selection integration; detail card; per-source counts
 
@@ -836,7 +836,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3; not autonomous)*
 
-- [ ] 136-04-PLAN.md — int_checklist_dedup_status LEFT JOIN view + check_dedup_gate + run.py dedup-candidates/dedup-gate STEPS + full dbt build + curator HUMAN-REVIEW GATE [DUP-03]
+- [x] 136-04-PLAN.md — int_checklist_dedup_status LEFT JOIN view + check_dedup_gate + run.py dedup-candidates/dedup-gate STEPS + full dbt build + curator HUMAN-REVIEW GATE [DUP-03]
 
 ### Phase 137: Promotion into Occurrences
 

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
-stopped_at: Phase 136 plan 03 complete — DUP-02 candidate generation GREEN (int_dedup_candidates + write_dedup_candidates)
-last_updated: "2026-06-08T18:45:00.000Z"
+stopped_at: Phase 136 plan 04 complete — DUP-03 GREEN (int_checklist_dedup_status + check_dedup_gate + run.py wired); HUMAN-REVIEW GATE reached — curator must review dedup_candidate_pairs.csv before Phase 137
+last_updated: "2026-06-08T19:00:00.000Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 7
   total_plans: 22
-  completed_plans: 21
-  percent: 30
+  completed_plans: 22
+  percent: 31
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as
 
 ## Current Position
 
-Phase: 136 (deduplication) — EXECUTING
-Plan: 4 of 4 (136-03 complete — DUP-02 GREEN + candidate CSV writer)
-Status: Ready to execute Wave 4 (136-04)
+Phase: 136 (deduplication) — COMPLETE (all 4 plans done; HUMAN-REVIEW GATE pending curator approval)
+Plan: 4 of 4 complete (136-04 complete — DUP-03 GREEN + HUMAN-REVIEW GATE reached)
+Status: Awaiting curator review of dedup_candidate_pairs.csv before Phase 137
 Last activity: 2026-06-08
 
 ## Milestone Overview
@@ -81,6 +81,12 @@ v4.7 "Checklist Records as Point Data" was paused mid-execution to run v4.8 (the
 - **Collector filter applied in Python, not SQL**: `_collectors_match` token-set + initials logic applied in `write_dedup_candidates()` after SQL join; raw collector strings carried in the SQL model for Python to filter (D-05).
 - **Bounding-box prefilter before haversine**: `ABS(lat diff) <= 0.012, ABS(lon diff) <= 0.016` advisory optimization guards the expensive `ST_Distance_Sphere` call without changing correctness.
 
+**136-04 decisions:**
+
+- **DISTINCT ON (cl.ObjectID) collapses fan-out**: `int_checklist_dedup_status` uses `SELECT DISTINCT ON (cl.ObjectID)` to avoid duplicate output rows when an ObjectID has multiple candidate pairs.
+- **check_dedup_gate() short-circuits on header-only seed**: if DEDUP_DECISIONS_CSV has no confirmed rows, gate returns OK without requiring candidate CSV to exist — correct for the initial state where no decisions have been made.
+- **test_unreviewed_pair_not_suppressed rewritten as three-part test**: original test passed only one of three needed refs to `_load_model_sql`, causing bare-alias SQL errors; fixed to pass all three refs with empty tables for the "no candidates" case (Rule 1 deviation 136-04).
+
 ### Roadmap Evolution
 
 v4.7 roadmap defined 2026-06-04: 5 phases (134–138), 21/21 requirements mapped.
@@ -132,11 +138,14 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T18:45:00.000Z
-Stopped at: Phase 136 plan 03 complete — DUP-02 candidate generation GREEN (int_dedup_candidates + write_dedup_candidates)
+Last session: 2026-06-08T19:00:00.000Z
+Stopped at: Phase 136 plan 04 complete — HUMAN-REVIEW GATE reached; curator must review data/dedup_candidate_pairs.csv and populate data/dbt/seeds/dedup_decisions.csv, then type "approved" to start Phase 137
 Resume file: None
 
 ## Operator Next Steps
 
-- Execute Wave 4 (status model + gate): `/gsd:execute-phase 136` → plan 136-04
-  - Implements `int_checklist_dedup_status.sql` (LEFT JOIN through decisions) and `check_dedup_gate()` Python gate
+- **HUMAN-REVIEW GATE (blocking Phase 137)**:
+  1. Check `data/dedup_candidate_pairs.csv` — currently 0 rows (no cross-source duplicates found in current data)
+  2. If any confirmed duplicates exist, add them to `data/dbt/seeds/dedup_decisions.csv` with `dedup_status=confirmed` and a `note`
+  3. Re-run `bash data/dbt/run.sh seed && bash data/dbt/run.sh build` and `uv run python run.py --step dedup-gate` (or run `write_dedup_candidates()` + `check_dedup_gate()` directly) — gate must print "dedup-gate: OK"
+  4. Type "approved" to proceed to Phase 137 (Promotion into Occurrences)
