@@ -12,6 +12,7 @@ raw/ecdysis_cache/
 checklist_unmatched.csv
 lineage_unresolved.csv
 inactive_unresolved.csv
+dedup_candidate_pairs.csv
 dbt/seeds/auto_synonyms.csv
 raw/taxa.csv.gz
 raw/taxa.csv.gz.tmp
