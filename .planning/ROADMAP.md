@@ -1043,7 +1043,7 @@ Plans:
 | 135. Name Reconciliation | v4.7 | 5/5 | Complete   | 2026-06-08 |
 | 136. Deduplication | v4.7 | 4/4 | Complete    | 2026-06-08 |
 | 137. Promotion into Occurrences | v4.7 | 2/2 | Complete    | 2026-06-08 |
-| 138. Frontend Points & Detail Card | v4.7 | 4/4 | Complete   | 2026-06-08 |
+| 138. Frontend Points & Detail Card | v4.7 | 4/4 | Complete    | 2026-06-08 |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
 | 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 5/5 | Complete    | 2026-06-06 |
