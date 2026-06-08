@@ -269,39 +269,18 @@ describe('elevation param round-trip', () => {
   });
 });
 
-describe('MAP-04: checklist layer URL param (cl=1)', () => {
-  test('checklistVisible=true: cl param is "1"', () => {
-    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const, checklistVisible: true };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('cl')).toBe('1');
-  });
-
-  test('checklistVisible=false (default): cl param is absent', () => {
+describe('MAP-04: cl= legacy param removed (checklist now flows through src=)', () => {
+  // cl= was the legacy checklist-layer toggle; removed in Plan 138-03.
+  // Stale bookmarks with cl=1 harmlessly no-op since checklist is now a default-on source.
+  test('cl param is never serialized (checklistVisible removed from UiState)', () => {
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
     expect(params.has('cl')).toBe(false);
   });
 
-  test('cl=1 parses to checklistVisible: true in result.ui', () => {
+  test('cl=1 in URL is silently ignored (no checklistVisible in UiState)', () => {
     const result = parseParams('cl=1');
-    expect(result.ui?.checklistVisible).toBe(true);
-  });
-
-  test('cl absent: checklistVisible is absent or false in result.ui', () => {
-    const result = parseParams('bm=counties');
-    expect(result.ui?.checklistVisible ?? false).toBe(false);
-  });
-
-  test('cl=1 + bm=counties: both round-trip together', () => {
-    const ui = { boundaryMode: 'counties' as const, paneState: 'collapsed' as const, checklistVisible: true };
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    const result = parseParams(params.toString());
-    expect(result.ui?.boundaryMode).toBe('counties');
-    expect(result.ui?.checklistVisible).toBe(true);
-  });
-
-  test('cl=0 (not "1"): checklistVisible is false', () => {
-    const result = parseParams('cl=0');
-    expect(result.ui?.checklistVisible ?? false).toBe(false);
+    // cl= is no longer parsed; result.ui is undefined (no other non-default params)
+    expect((result.ui as { checklistVisible?: boolean } | undefined)?.checklistVisible ?? false).toBe(false);
   });
 });
 

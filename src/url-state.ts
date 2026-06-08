@@ -29,14 +29,13 @@ export type SelectionState =
   | { type: 'cluster'; lon: number; lat: number; radiusM: number }
   | { type: 'bounds'; west: number; south: number; east: number; north: number };
 
-export type SourceKey = 'ecdysis' | 'waba_sample' | 'inat_obs';
+export type SourceKey = 'ecdysis' | 'waba_sample' | 'inat_obs' | 'checklist';
 
-const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'inat_obs']);
+const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'inat_obs', 'checklist']);
 
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
   paneState: 'list' | 'table' | 'collapsed';
-  checklistVisible?: boolean;
   hiddenSources?: Set<SourceKey>;
 }
 
@@ -92,7 +91,6 @@ export function buildParams(
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
-  if (ui.checklistVisible) params.set('cl', '1');
   if (ui.hiddenSources && ui.hiddenSources.size > 0) {
     const visibleSources = [...VALID_SOURCES].filter(s => !ui.hiddenSources!.has(s)).sort();
     if (visibleSources.length > 0) params.set('src', visibleSources.join(','));
@@ -264,7 +262,6 @@ export function parseParams(search: string): ParsedParams {
     : paneRaw === 'table' ? 'table'
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
-  const checklistVisible = p.get('cl') === '1';
   const srcRaw = p.get('src');
   let hiddenSources: Set<SourceKey> | undefined;
   if (srcRaw) {
@@ -273,8 +270,8 @@ export function parseParams(search: string): ParsedParams {
     hiddenSources = hidden.size > 0 ? hidden : undefined;
   }
   // Include UI when non-default values present
-  if (boundaryMode !== 'off' || paneState !== 'collapsed' || checklistVisible || (hiddenSources && hiddenSources.size > 0)) {
-    result.ui = { boundaryMode, paneState, checklistVisible, hiddenSources };
+  if (boundaryMode !== 'off' || paneState !== 'collapsed' || (hiddenSources && hiddenSources.size > 0)) {
+    result.ui = { boundaryMode, paneState, hiddenSources };
   }
 
   return result;
