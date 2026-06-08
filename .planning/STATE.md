@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
-stopped_at: Phase 136 plan 02 complete — DUP-01 collapse (int_checklist_collapsed) + collector normalization (_normalize_collector/_collectors_match) GREEN. Wave 3 (136-03) next.
-last_updated: "2026-06-08T19:00:00.000Z"
+stopped_at: Phase 136 plan 03 complete — DUP-02 candidate generation GREEN (int_dedup_candidates + write_dedup_candidates)
+last_updated: "2026-06-08T18:45:00.000Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 7
   total_plans: 22
-  completed_plans: 20
-  percent: 32
+  completed_plans: 21
+  percent: 30
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as
 ## Current Position
 
 Phase: 136 (deduplication) — EXECUTING
-Plan: 3 of 4 (136-02 complete — DUP-01 GREEN + collector normalization)
-Status: Executing Phase 136
-Last activity: 2026-06-08 -- Phase 136 plan 02 complete (int_checklist_collapsed + _collectors_match)
+Plan: 4 of 4 (136-03 complete — DUP-02 GREEN + candidate CSV writer)
+Status: Ready to execute Wave 4 (136-04)
+Last activity: 2026-06-08
 
 ## Milestone Overview
 
@@ -74,6 +74,12 @@ v4.7 "Checklist Records as Point Data" was paused mid-execution to run v4.8 (the
 - **CTE keyed pattern for NULL-safe GROUP BY**: COALESCE(recordedBy, CAST(ObjectID AS VARCHAR)) in a CTE `keyed` avoids GROUP BY expression-mismatch between SELECT and GROUP BY; each NULL-recordedBy row gets a unique per-ObjectID key so NULL-collector rows never collapse together (D-03).
 - **MIN(recordedBy) for NULL-safe survivor field**: Since rows in a group are exact-match duplicates, MIN(recordedBy) returns the shared value; for pure-NULL-collector groups it returns NULL, correctly preserving NULL through the collapse.
 - **tok.isalpha() guard in initials rule**: Prevents numeric length-1 tokens from spuriously matching as initials in _collectors_match; only single alphabetic characters qualify as initials (D-05).
+
+**136-03 decisions:**
+
+- **ecdysis_dated CTE uses ecdysis_date column**: `int_ecdysis_base` aliases `o.event_date AS ecdysis_date`; SQL model and test fixture aligned to that actual output name (Rule 1 fix during implementation).
+- **Collector filter applied in Python, not SQL**: `_collectors_match` token-set + initials logic applied in `write_dedup_candidates()` after SQL join; raw collector strings carried in the SQL model for Python to filter (D-05).
+- **Bounding-box prefilter before haversine**: `ABS(lat diff) <= 0.012, ABS(lon diff) <= 0.016` advisory optimization guards the expensive `ST_Distance_Sphere` call without changing correctness.
 
 ### Roadmap Evolution
 
@@ -126,11 +132,11 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T19:00:00.000Z
-Stopped at: Phase 136 plan 02 complete — DUP-01 collapse GREEN + collector normalization implemented
+Last session: 2026-06-08T18:45:00.000Z
+Stopped at: Phase 136 plan 03 complete — DUP-02 candidate generation GREEN (int_dedup_candidates + write_dedup_candidates)
 Resume file: None
 
 ## Operator Next Steps
 
-- Execute Wave 3 (candidate pair generation): `/gsd:execute-phase 136` → plan 136-03
-  - Implements `int_dedup_candidates.sql` (DUP-02 spatial join with ST_Distance_Sphere) and `write_dedup_candidates()` Python CSV writer
+- Execute Wave 4 (status model + gate): `/gsd:execute-phase 136` → plan 136-04
+  - Implements `int_checklist_dedup_status.sql` (LEFT JOIN through decisions) and `check_dedup_gate()` Python gate
