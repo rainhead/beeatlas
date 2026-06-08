@@ -398,12 +398,14 @@ describe('place filter param', () => {
 });
 
 describe('MAP-03: source filter URL param (src=)', () => {
-  test('hiddenSources={ecdysis}: src param lists the two visible sources', () => {
+  test('hiddenSources={ecdysis}: src param lists the three visible sources (D-11: 4-source universe)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
                  hiddenSources: new Set(['ecdysis'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('src')).toBe('inat_obs,waba_sample');
+    // After Plan 03 ships: VALID_SOURCES = {ecdysis, waba_sample, inat_obs, checklist}
+    // hiddenSources={ecdysis} → visible = {waba_sample, inat_obs, checklist} (sorted)
+    expect(params.get('src')).toBe('checklist,inat_obs,waba_sample');
   });
 
   test('hiddenSources empty (default): src param is absent', () => {
@@ -411,24 +413,48 @@ describe('MAP-03: source filter URL param (src=)', () => {
     expect(params.has('src')).toBe(false);
   });
 
-  test('src=ecdysis parses to hiddenSources of non-ecdysis sources', () => {
+  test('src=ecdysis parses to hiddenSources of non-ecdysis sources (3 hidden — 4-source universe)', () => {
     const result = parseParams('src=ecdysis');
+    // After Plan 03: VALID_SOURCES has 4 members; complement of {ecdysis} = {inat_obs, waba_sample, checklist}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['inat_obs', 'waba_sample']));
+    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['inat_obs', 'waba_sample', 'checklist']));
   });
 
-  test('two hidden sources: src lists the single visible source', () => {
+  test('src=ecdysis hides exactly 3 sources — VALID_SOURCES universe has 4 members (D-11)', () => {
+    const result = parseParams('src=ecdysis');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const hidden: Set<string> = (result.ui as any)?.hiddenSources ?? new Set();
+    expect(hidden.size).toBe(3);
+  });
+
+  test('two hidden sources: src lists the two visible sources (4-source universe)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
                  hiddenSources: new Set(['inat_obs', 'ecdysis'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('src')).toBe('waba_sample');
+    // After Plan 03: visible = {waba_sample, checklist} (sorted)
+    expect(params.get('src')).toBe('checklist,waba_sample');
   });
 
-  test('invalid source value in src= is filtered out', () => {
-    const result = parseParams('src=ecdysis,bogus_source');
+  test('src=checklist round-trip: buildParams encodes checklist-only visible set, parseParams recovers 3 hidden (D-11)', () => {
+    // After Plan 03 ships: only checklist is visible → hiddenSources = {ecdysis, inat_obs, waba_sample}
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['inat_obs', 'waba_sample']));
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
+                 hiddenSources: new Set(['ecdysis', 'inat_obs', 'waba_sample'] as const) } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    // src= should contain 'checklist' (the only visible source)
+    expect(params.get('src')).toContain('checklist');
+    // parseParams of that string should hide the other three
+    const result = parseParams(params.toString());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['ecdysis', 'inat_obs', 'waba_sample']));
+  });
+
+  test('invalid source value in src= is filtered out (4-source complement)', () => {
+    const result = parseParams('src=ecdysis,bogus_source');
+    // After Plan 03: complement of {ecdysis} = {inat_obs, waba_sample, checklist}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['inat_obs', 'waba_sample', 'checklist']));
   });
 
   test('src=ecdysis alone triggers result.ui (hasFilter condition)', () => {
