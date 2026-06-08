@@ -7,8 +7,8 @@ Pipelines are executed in this order:
     ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
     anti-entropy -> checklist -> inat-obs -> resolve-taxon-ids -> taxa-download ->
     inactive-remap -> inactive-gate -> taxon-lineage-extended -> places-validation -> places-load ->
-    dbt-build -> generate-sqlite -> topology-postprocess -> species-export ->
-    species-maps -> places-export -> places-maps -> feeds
+    dbt-build -> dedup-candidates -> dedup-gate -> generate-sqlite -> topology-postprocess ->
+    species-export -> species-maps -> places-export -> places-maps -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
 nightly run. Load them manually: uv run python geographies_pipeline.py
@@ -46,6 +46,7 @@ from places_load import load_places_step
 from places_export import export_places_step
 from places_maps import main as generate_place_maps_step
 from sqlite_export import main as generate_sqlite_export
+from checklist_dedup import write_dedup_candidates, check_dedup_gate
 
 _REFRESH_LINEAGE = "--refresh-lineage" in sys.argv
 _REFRESH_CHECKLIST = "--refresh-checklist" in sys.argv
@@ -105,6 +106,8 @@ STEPS: list[tuple[str, Callable]] = [
     ("places-validation", validate_places_step),
     ("places-load", load_places_step),
     ("dbt-build", _run_dbt_build),
+    ("dedup-candidates", write_dedup_candidates),   # DUP-02: write dedup_candidate_pairs.csv audit CSV
+    ("dedup-gate", check_dedup_gate),               # DUP-03: assert no orphaned confirmed pair_keys
     ("generate-sqlite", generate_sqlite_export),
     ("topology-postprocess", clean_region_topology),
     ("species-export", export_species_parquet),
