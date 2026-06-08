@@ -104,6 +104,7 @@ describe('JOIN queries execute against a real two-table schema with a taxon filt
     expect(rows).toHaveLength(1);
     expect(rows[0]!.taxon_id).toBe(101);
     expect(rows[0]!.display_name).toBe('Bombus vosnesenskii');
+    expect(rows[0]!.display_rank).toBe('species');
   });
 
   test('queryListPage does not throw "ambiguous column name" (the reported failure)', async () => {
@@ -151,5 +152,6 @@ describe('display_name resolution honors Phase 130 D-07 (null taxon_id)', () => 
     const undetermined = rows.find((r) => r.taxon_id == null);
     expect(undetermined).toBeDefined();
     expect(undetermined!.display_name).toBeNull();
+    expect(undetermined!.display_rank).toBeNull();
   });
 });
