@@ -161,4 +161,14 @@ describe('_buildGeoJSONFromRaw', () => {
     const result = _buildGeoJSONFromRaw(rows);
     expect(result.geojson.features).toHaveLength(3);
   });
+
+  it('checklist source row: properties.source equals "checklist" (UIX-01 paint expression key)', () => {
+    // Regression guard: the Mapbox paint expression keys on source='checklist' to style
+    // checklist points differently. This asserts that a row with source at index 6 = 'checklist'
+    // produces properties.source === 'checklist' — behavior that already exists in features.ts.
+    const row = makeChecklistRow({ checklist_id: 7777 });
+    const result = _buildGeoJSONFromRaw([row]);
+    expect(result.geojson.features).toHaveLength(1);
+    expect(result.geojson.features[0]!.properties.source).toBe('checklist');
+  });
 });
