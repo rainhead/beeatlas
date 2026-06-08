@@ -70,6 +70,8 @@ models:
         data_type: varchar
       - name: license
         data_type: varchar
+      - name: checklist_id
+        data_type: integer
       - name: taxon_id
         data_type: integer
         data_tests:

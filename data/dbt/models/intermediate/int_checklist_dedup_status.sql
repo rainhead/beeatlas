@@ -19,11 +19,11 @@
 
 SELECT DISTINCT ON (cl.ObjectID)
     cl.*,
-    CASE
-        WHEN bool_or(dd.dedup_status = 'confirmed') OVER (PARTITION BY cl.ObjectID)
+    CAST(CASE
+        WHEN bool_or(CAST(dd.dedup_status AS VARCHAR) = 'confirmed') OVER (PARTITION BY cl.ObjectID)
         THEN 'confirmed'
-        ELSE MAX(dd.dedup_status) OVER (PARTITION BY cl.ObjectID)
-    END AS dedup_status
+        ELSE MAX(CAST(dd.dedup_status AS VARCHAR)) OVER (PARTITION BY cl.ObjectID)
+    END AS VARCHAR) AS dedup_status
 FROM {{ ref('int_checklist_collapsed') }} cl
 LEFT JOIN {{ ref('int_dedup_candidates') }} cand
     ON cand.checklist_ObjectID = cl.ObjectID

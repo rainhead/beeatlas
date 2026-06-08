@@ -43,7 +43,8 @@ SELECT
     NULL                                           AS obs_url,
     NULL                                           AS user_login,
     NULL                                           AS license,
-    'ecdysis'                                      AS source
+    'ecdysis'                                      AS source,
+    NULL::INTEGER                                  AS checklist_id
 FROM {{ ref('int_ecdysis_base') }} e
 FULL OUTER JOIN {{ ref('int_samples_base') }} s ON e.host_observation_id = s.observation_id
 LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen_observation_id
@@ -98,7 +99,8 @@ SELECT
     NULL                                                                        AS obs_url,
     NULL                                                                        AS user_login,
     NULL                                                                        AS license,
-    'waba_sample'                                                               AS source
+    'waba_sample'                                                               AS source,
+    NULL::INTEGER                                                               AS checklist_id
 FROM {{ ref('int_provisional_waba_ids') }} p
 JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = p.waba_obs_id
 LEFT JOIN {{ ref('stg_waba__ofvs') }} ofv1718
@@ -176,7 +178,8 @@ SELECT
     io.obs_url,
     io.user_login,
     io.license,
-    'inat_obs'                         AS source
+    'inat_obs'                         AS source,
+    NULL::INTEGER                      AS checklist_id
 FROM {{ source('inat_obs_data', 'observations') }} io
 LEFT JOIN {{ ref('int_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_io
@@ -188,3 +191,54 @@ LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_io
    AND position(' ' IN COALESCE(syn_io.accepted_name, io.canonical_name)) = 0
    AND g_io.genus_name = lower(COALESCE(syn_io.accepted_name, io.canonical_name))
 WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL
+
+UNION ALL
+
+-- ARM 4: Checklist records (Phase 137 / PRO-01)
+-- Source: int_checklist_dedup_status (= int_checklist_collapsed.* + dedup_status)
+-- Filter: dedup_status IS DISTINCT FROM 'confirmed' per int_checklist_dedup_status header
+-- Belt-and-suspenders: lat/lon NOT NULL (already filtered upstream by coord_flag='valid')
+SELECT
+    NULL::INTEGER                          AS ecdysis_id,
+    NULL::VARCHAR                          AS catalog_number,
+    cl.lon,
+    cl.lat,
+    CAST(
+        CASE cl.date_quality
+            WHEN 'full'      THEN printf('%04d-%02d-%02d', cl.year, cl.month, cl.day)
+            WHEN 'year_only' THEN printf('%04d', cl.year)
+            ELSE NULL
+        END
+    AS VARCHAR)                            AS date,
+    cl.year,
+    cl.month,
+    cl.recordedBy,
+    NULL::VARCHAR                          AS fieldNumber,
+    NULL::VARCHAR                          AS floralHost,
+    NULL::BIGINT                           AS host_observation_id,
+    NULL::VARCHAR                          AS inat_host,
+    NULL::VARCHAR                          AS inat_quality_grade,
+    NULL::VARCHAR                          AS modified,
+    NULL::BIGINT                           AS specimen_observation_id,
+    NULL::INTEGER                          AS elevation_m,
+    NULL::BIGINT                           AS observation_id,
+    NULL::VARCHAR                          AS host_inat_login,
+    NULL::INTEGER                          AS specimen_count,
+    NULL::INTEGER                          AS sample_id,
+    NULL::VARCHAR                          AS sample_host,
+    NULL::VARCHAR                          AS specimen_inat_login,
+    NULL::VARCHAR                          AS specimen_inat_taxon_name,
+    NULL::VARCHAR                          AS specimen_inat_quality_grade,
+    FALSE::BOOLEAN                         AS is_provisional,
+    cl.canonical_name,
+    cl.taxon_id::INTEGER                   AS taxon_id,
+    NULL::VARCHAR                          AS image_url,
+    NULL::VARCHAR                          AS obs_url,
+    NULL::VARCHAR                          AS user_login,
+    NULL::VARCHAR                          AS license,
+    'checklist'::VARCHAR                   AS source,
+    cl.ObjectID::INTEGER                   AS checklist_id
+FROM {{ ref('int_checklist_dedup_status') }} cl
+WHERE cl.dedup_status IS DISTINCT FROM 'confirmed'
+  AND cl.lat IS NOT NULL
+  AND cl.lon IS NOT NULL
