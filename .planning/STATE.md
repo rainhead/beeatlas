@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
-stopped_at: Phase 136 plan 01 complete — RED scaffold (11 tests + stub module + 3 placeholder models + seed). Wave 2 (136-02) next.
-last_updated: "2026-06-08T18:26:50.520Z"
+stopped_at: Phase 136 plan 02 complete — DUP-01 collapse (int_checklist_collapsed) + collector normalization (_normalize_collector/_collectors_match) GREEN. Wave 3 (136-03) next.
+last_updated: "2026-06-08T19:00:00.000Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 7
   total_plans: 22
-  completed_plans: 19
-  percent: 30
+  completed_plans: 20
+  percent: 32
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as
 ## Current Position
 
 Phase: 136 (deduplication) — EXECUTING
-Plan: 2 of 4 (136-01 complete — RED scaffold)
+Plan: 3 of 4 (136-02 complete — DUP-01 GREEN + collector normalization)
 Status: Executing Phase 136
-Last activity: 2026-06-08 -- Phase 136 plan 01 complete (RED scaffold)
+Last activity: 2026-06-08 -- Phase 136 plan 02 complete (int_checklist_collapsed + _collectors_match)
 
 ## Milestone Overview
 
@@ -68,6 +68,12 @@ v4.7 "Checklist Records as Point Data" was paused mid-execution to run v4.8 (the
 - **dbt contract bump**: 33 → 34 columns minimum (adds `checklist_id INTEGER`). ARMs 1–3 must cast `NULL::INTEGER AS checklist_id` in `int_combined` to avoid DuckDB UNION type errors.
 - **County-fill layer removal**: The Phase 112 `checklist-county-fill` Mapbox layer is removed from the main map in Phase 138. The static `checklist.parquet` mart (county presence) is unchanged and continues to feed species-page county SVG maps.
 - **`locality` column decision deferred to Phase 138**: Whether `locality` becomes a 35th contract column (vs. supplementary lookup) will be decided during Phase 138 planning to avoid premature contract commitment.
+
+**136-02 decisions:**
+
+- **CTE keyed pattern for NULL-safe GROUP BY**: COALESCE(recordedBy, CAST(ObjectID AS VARCHAR)) in a CTE `keyed` avoids GROUP BY expression-mismatch between SELECT and GROUP BY; each NULL-recordedBy row gets a unique per-ObjectID key so NULL-collector rows never collapse together (D-03).
+- **MIN(recordedBy) for NULL-safe survivor field**: Since rows in a group are exact-match duplicates, MIN(recordedBy) returns the shared value; for pure-NULL-collector groups it returns NULL, correctly preserving NULL through the collapse.
+- **tok.isalpha() guard in initials rule**: Prevents numeric length-1 tokens from spuriously matching as initials in _collectors_match; only single alphabetic characters qualify as initials (D-05).
 
 ### Roadmap Evolution
 
@@ -120,11 +126,11 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T18:26:50.491Z
-Stopped at: Phase 135 plan 05 — Tasks 1-3 done; HUMAN-REVIEW GATE (Task 4) pending curator sign-off before Phase 136
+Last session: 2026-06-08T19:00:00.000Z
+Stopped at: Phase 136 plan 02 complete — DUP-01 collapse GREEN + collector normalization implemented
 Resume file: None
 
 ## Operator Next Steps
 
-- Execute the final Phase 135 plan: `/gsd:execute-phase 135`
-  - **Not autonomous** — 135-05 runs a one-time `--refresh-checklist` GBIF lookup (needs outbound network) and ends at the curator HUMAN-REVIEW GATE (review `data/checklist_name_resolution_audit.csv` before Phase 136)
+- Execute Wave 3 (candidate pair generation): `/gsd:execute-phase 136` → plan 136-03
+  - Implements `int_dedup_candidates.sql` (DUP-02 spatial join with ST_Distance_Sphere) and `write_dedup_candidates()` Python CSV writer
