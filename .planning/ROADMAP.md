@@ -1029,7 +1029,7 @@ Plans:
 | 133. Browse Tree | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete    | 2026-06-04 |
 | 135. Name Reconciliation | v4.7 | 5/5 | Complete   | 2026-06-08 |
-| 136. Deduplication | v4.7 | 3/4 | In Progress|  |
+| 136. Deduplication | v4.7 | 4/4 | Complete    | 2026-06-08 |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
