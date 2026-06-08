@@ -874,7 +874,7 @@ Plans:
 
 **Plans**: 4 plans
 - [x] 138-01-PLAN.md — Wave 0 test scaffolds (url-state 4-source, formatRomanDate, GeoJSON source prop, deduped-count pytest)
-- [ ] 138-02-PLAN.md — Data pipeline: promote verbatim_name/locality/collapsed_count (contract 34→37); re-source checklist_count from deduped arm (UIX-04)
+- [x] 138-02-PLAN.md — Data pipeline: promote verbatim_name/locality/collapsed_count (contract 34→37); re-source checklist_count from deduped arm (UIX-04)
 - [ ] 138-03-PLAN.md — Frontend: green point paint, VALID_SOURCES + checklist toggle, remove county-fill plumbing (UIX-01, UIX-02)
 - [ ] 138-04-PLAN.md — Checklist detail card: promoted columns, formatRomanDate, _renderChecklist + human-verify (UIX-03)
 **UI hint**: yes
@@ -1043,7 +1043,7 @@ Plans:
 | 135. Name Reconciliation | v4.7 | 5/5 | Complete   | 2026-06-08 |
 | 136. Deduplication | v4.7 | 4/4 | Complete    | 2026-06-08 |
 | 137. Promotion into Occurrences | v4.7 | 2/2 | Complete    | 2026-06-08 |
-| 138. Frontend Points & Detail Card | v4.7 | 1/4 | In Progress|  |
+| 138. Frontend Points & Detail Card | v4.7 | 2/4 | In Progress|  |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
 | 141. Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | v4.8 | 5/5 | Complete    | 2026-06-06 |
