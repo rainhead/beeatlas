@@ -50,11 +50,11 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 
 ### Promotion (into occurrences)
 
-- [ ] **PRO-01**: Coord-bearing, reconciled, collapsed checklist records enter `int_combined`/`occurrences.parquet` as a `source='checklist'` arm conforming to the dbt occurrences contract (bumped from 33 to the new column count).
+- [x] **PRO-01**: Coord-bearing, reconciled, collapsed checklist records enter `int_combined`/`occurrences.parquet` as a `source='checklist'` arm conforming to the dbt occurrences contract (bumped from 33 to the new column count).
   - *Accept:* `occurrences.parquet` contains `source='checklist'` rows; the dbt contract test passes at the new count; no-coord records are excluded.
-- [ ] **PRO-02**: ARMs 1–3 emit correctly-typed NULL casts for any new checklist-only column so the `UNION ALL` type-aligns.
+- [x] **PRO-02**: ARMs 1–3 emit correctly-typed NULL casts for any new checklist-only column so the `UNION ALL` type-aligns.
   - *Accept:* dbt build succeeds; the new column is NULL for non-checklist rows, integer for checklist rows.
-- [ ] **PRO-03**: The Phase 111 isolation pytest (asserting checklist exclusion from `occurrences.parquet`) is explicitly retired with a comment referencing v4.7 — not left failing or skipped.
+- [x] **PRO-03**: The Phase 111 isolation pytest (asserting checklist exclusion from `occurrences.parquet`) is explicitly retired with a comment referencing v4.7 — not left failing or skipped.
   - *Accept:* the test no longer asserts exclusion; a comment documents the reversal; the suite is green.
 - [ ] **PRO-04**: `occurrences.db` `geo_blob` carries checklist point identity and the `checklist:<N>` occId format; `sqlite_export._GEO_COLS` and frontend `features.ts` column indices change in **one atomic commit**.
   - *Accept:* a Vitest test decodes a `checklist:<N>` occId; `_buildGeoJSONFromRaw` drops no checklist point; ID round-trip passes.
@@ -106,9 +106,9 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 | DUP-01 | Phase 136 | Complete |
 | DUP-02 | Phase 136 | Complete |
 | DUP-03 | Phase 136 | Complete |
-| PRO-01 | Phase 137 | Pending |
-| PRO-02 | Phase 137 | Pending |
-| PRO-03 | Phase 137 | Pending |
+| PRO-01 | Phase 137 | Complete |
+| PRO-02 | Phase 137 | Complete |
+| PRO-03 | Phase 137 | Complete |
 | PRO-04 | Phase 137 | Pending |
 | UIX-01 | Phase 138 | Pending |
 | UIX-02 | Phase 138 | Pending |

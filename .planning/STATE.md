@@ -4,13 +4,13 @@ milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
 stopped_at: Phase 137 context gathered
-last_updated: "2026-06-08T19:54:39.202Z"
-last_activity: 2026-06-08 -- Phase 137 planning complete
+last_updated: "2026-06-08T20:20:41.281Z"
+last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 8
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 23
   percent: 35
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 137 — Promotion into Occurrences (v4.7)
+**Current focus:** Phase 137 — Promotion into Occurrences
 
 ## Current Position
 
-Phase: 137
-Plan: Not started
+Phase: 137 (Promotion into Occurrences) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-08 -- Phase 137 planning complete
+Last activity: 2026-06-08
 
 ## Milestone Overview
 
@@ -138,9 +138,9 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T19:34:33.868Z
+Last session: 2026-06-08T20:20:41.245Z
 Stopped at: Phase 137 context gathered
-Resume file: .planning/phases/137-promotion-into-occurrences/137-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
