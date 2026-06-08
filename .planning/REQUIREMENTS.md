@@ -61,13 +61,13 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 
 ### Frontend UX
 
-- [ ] **UIX-01**: Checklist records render as map points in a distinct source color, sharing clustering and `taxon_id` filtering with the other sources.
+- [x] **UIX-01**: Checklist records render as map points in a distinct source color, sharing clustering and `taxon_id` filtering with the other sources.
   - *Accept:* checklist points appear, cluster, and respond to the taxon filter.
-- [ ] **UIX-02**: The existing "Checklist records" county-fill map layer is removed; the checklist source becomes a real entry in the source-selection set (replacing the separate `_showChecklist` toggle), so the "no sources selected" logic counts it correctly.
+- [x] **UIX-02**: The existing "Checklist records" county-fill map layer is removed; the checklist source becomes a real entry in the source-selection set (replacing the separate `_showChecklist` toggle), so the "no sources selected" logic counts it correctly.
   - *Accept:* no county-fill layer on the main map; toggling "Checklist" shows/hides points; with all four sources off, no checklist points remain and the sidebar reports none selected.
-- [ ] **UIX-03**: A checklist point's detail card shows collector, date (respecting `date_quality`), locality, Bartholomew et al. 2024 attribution, and both the verbatim determination and the current accepted name when they differ.
+- [x] **UIX-03**: A checklist point's detail card shows collector, date (respecting `date_quality`), locality, Bartholomew et al. 2024 attribution, and both the verbatim determination and the current accepted name when they differ.
   - *Accept:* the detail card renders these fields; verbatim-vs-accepted is shown only when the two differ.
-- [ ] **UIX-04**: Per-source counts on species/taxon pages include checklist without double-counting (county-fill removal + dedup suppression respected).
+- [x] **UIX-04**: Per-source counts on species/taxon pages include checklist without double-counting (county-fill removal + dedup suppression respected).
   - *Accept:* a species' checklist count equals its deduped checklist record count; no record is counted under both a county-fill surface and the point layer.
 
 ## v2 Requirements (deferred)
@@ -110,7 +110,7 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 | PRO-02 | Phase 137 | Complete |
 | PRO-03 | Phase 137 | Complete |
 | PRO-04 | Phase 137 | Complete |
-| UIX-01 | Phase 138 | Pending |
-| UIX-02 | Phase 138 | Pending |
-| UIX-03 | Phase 138 | Pending |
-| UIX-04 | Phase 138 | Pending |
+| UIX-01 | Phase 138 | Complete |
+| UIX-02 | Phase 138 | Complete |
+| UIX-03 | Phase 138 | Complete |
+| UIX-04 | Phase 138 | Complete |

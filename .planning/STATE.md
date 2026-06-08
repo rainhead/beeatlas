@@ -4,13 +4,13 @@ milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
 stopped_at: Phase 138 UI-SPEC approved
-last_updated: "2026-06-08T22:40:37.693Z"
-last_activity: 2026-06-08 -- Phase 138 planning complete
+last_updated: "2026-06-08T22:48:36.314Z"
+last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 9
   total_plans: 28
-  completed_plans: 24
+  completed_plans: 25
   percent: 39
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 138 — Frontend Points & Detail Card (final v4.7 phase)
+**Current focus:** Phase 138 — frontend-points-detail-card
 
 ## Current Position
 
-Phase: 138
-Plan: Not started
+Phase: 138 (frontend-points-detail-card) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-08 -- Phase 138 planning complete
+Last activity: 2026-06-08
 
 ## Milestone Overview
 
@@ -138,9 +138,9 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T21:44:19.398Z
+Last session: 2026-06-08T22:48:36.284Z
 Stopped at: Phase 138 UI-SPEC approved
-Resume file: .planning/phases/138-frontend-points-detail-card/138-UI-SPEC.md
+Resume file: None
 
 ## Operator Next Steps
 
