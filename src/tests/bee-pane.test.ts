@@ -253,17 +253,15 @@ describe('PANE-V2: bee-pane v2 collapsed button and selection banner', () => {
   });
 });
 
-describe('MAP-01: checklist toggle in filter panel', () => {
-  test('bee-pane.ts has _showChecklist @state field', () => {
-    expect(src).toMatch(/_showChecklist/);
-  });
-
+describe('MAP-01: checklist toggle in filter panel (flows through hiddenSources)', () => {
+  // _showChecklist and checklist-layer-changed removed in Plan 138-03;
+  // checklist now routes through _onSourceToggle/hiddenSources like other sources.
   test('bee-pane.ts renders "Checklist records" label text', () => {
     expect(src).toMatch(/Checklist records/);
   });
 
-  test('bee-pane.ts dispatches checklist-layer-changed event', () => {
-    expect(src).toMatch(/new CustomEvent\(['"]checklist-layer-changed['"]/);
+  test('bee-pane.ts checklist toggle uses _onSourceToggle(\'checklist\')', () => {
+    expect(src).toMatch(/_onSourceToggle\(['"]checklist['"]/);
   });
 
   test('bee-pane.ts checklist item uses aria-label', () => {
