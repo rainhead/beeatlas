@@ -872,7 +872,11 @@ Plans:
   3. Clicking a checklist point opens a detail card showing collector, date (respecting `date_quality`), locality, "Bartholomew et al. 2024" attribution, and both the verbatim determination and current accepted name when they differ
   4. Per-source checklist counts on species/taxon pages equal the deduped checklist record count; no record is counted under both a county-fill surface and the point layer; `src=checklist` URL round-trip passes in Vitest
 
-**Plans**: TBD
+**Plans**: 4 plans
+- [ ] 138-01-PLAN.md — Wave 0 test scaffolds (url-state 4-source, formatRomanDate, GeoJSON source prop, deduped-count pytest)
+- [ ] 138-02-PLAN.md — Data pipeline: promote verbatim_name/locality/collapsed_count (contract 34→37); re-source checklist_count from deduped arm (UIX-04)
+- [ ] 138-03-PLAN.md — Frontend: green point paint, VALID_SOURCES + checklist toggle, remove county-fill plumbing (UIX-01, UIX-02)
+- [ ] 138-04-PLAN.md — Checklist detail card: promoted columns, formatRomanDate, _renderChecklist + human-verify (UIX-03)
 **UI hint**: yes
 
 ### Phase 140: Checklist & Taxonomy Fixture Distillation
