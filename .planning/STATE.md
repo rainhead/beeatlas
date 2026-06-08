@@ -2,17 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: in_progress
-stopped_at: Phase 135 (Name Reconciliation) — plan 5 of 5 pending execution
-last_updated: "2026-06-08T05:00:00.000Z"
-last_activity: 2026-06-08 — v4.7 resumed (re-activated after v4.8 close); v4.8 shipped 2026-06-08
+status: executing
+stopped_at: Phase 136 context gathered
+last_updated: "2026-06-08T06:11:45.798Z"
+last_activity: 2026-06-08 — v4.7 re-activated after v4.8 close
 progress:
-  milestone: v4.7
-  total_phases: 5
-  completed_phases: 1
-  total_plans: 7
-  completed_plans: 6
-  percent: 35
+  total_phases: 23
+  completed_phases: 6
+  total_plans: 18
+  completed_plans: 17
+  percent: 26
 ---
 
 # Project State
@@ -121,9 +120,9 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08 — v4.7 resumed after v4.8 close
-Stopped at: v4.7 re-activated (REQUIREMENTS.md restored, STATE/PROJECT/ROADMAP flipped to v4.7-active, stale HANDOFF.json removed); proceeding to execute Phase 135 plan 05
-Resume file: .planning/phases/135-name-reconciliation/135-05-PLAN.md
+Last session: 2026-06-08T06:11:45.772Z
+Stopped at: Phase 136 context gathered
+Resume file: .planning/phases/136-deduplication/136-CONTEXT.md
 
 ## Operator Next Steps
 
