@@ -84,7 +84,11 @@ def _create_checklist_table(con, rows, table_name="checklist"):
 
 
 def _create_ecdysis_table(con, rows, table_name="ecdysis"):
-    """Create a minimal int_ecdysis_base-shaped table and seed rows."""
+    """Create a minimal int_ecdysis_base-shaped table and seed rows.
+
+    Column names mirror int_ecdysis_base.sql output: o.event_date is aliased to
+    ecdysis_date in that model, so the fixture uses ecdysis_date.
+    """
     con.execute(f"""
         CREATE TABLE {table_name} (
             ecdysis_id  INTEGER,
@@ -93,7 +97,7 @@ def _create_ecdysis_table(con, rows, table_name="ecdysis"):
             canonical_name VARCHAR,
             year        INTEGER,
             month       INTEGER,
-            event_date  VARCHAR,
+            ecdysis_date  VARCHAR,
             recordedBy  VARCHAR
         )
     """)
@@ -102,7 +106,7 @@ def _create_ecdysis_table(con, rows, table_name="ecdysis"):
             f"""
             INSERT INTO {table_name}
                 (ecdysis_id, ecdysis_lat, ecdysis_lon, canonical_name,
-                 year, month, event_date, recordedBy)
+                 year, month, ecdysis_date, recordedBy)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
