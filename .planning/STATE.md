@@ -4,12 +4,12 @@ milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
 stopped_at: Phase 136 context gathered
-last_updated: "2026-06-08T06:11:45.798Z"
-last_activity: 2026-06-08 — v4.7 re-activated after v4.8 close
+last_updated: "2026-06-08T16:08:23.660Z"
+last_activity: 2026-06-08 -- Phase 136 planning complete
 progress:
   total_phases: 23
   completed_phases: 6
-  total_plans: 18
+  total_plans: 22
   completed_plans: 17
   percent: 26
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as
 
 Phase: 135 of 134–138 (Name Reconciliation)
 Plan: 5 of 5 — 135-05 pending execution (135-01..04 complete)
-Status: In progress (v4.7 resumed 2026-06-08)
-Last activity: 2026-06-08 — v4.7 re-activated after v4.8 close
+Status: Ready to execute
+Last activity: 2026-06-08 -- Phase 136 planning complete
 
 ## Milestone Overview
 
