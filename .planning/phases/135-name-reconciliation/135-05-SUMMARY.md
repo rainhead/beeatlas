@@ -21,11 +21,20 @@
 - `bash dbt/run.sh build` → **PASS=79 WARN=1 ERROR=0** (99.9s). `assert_no_anthophila_homonyms` **PASS** (RCN-07 homonym guard green against real resolved data).
 - Scoped pytest (`test_resolve_checklist_names.py`, `test_checklist_pipeline.py`, `test_canonical_name.py`) → **66 passed, 0 failed** (3 skipped + 3 deselected = network/integration-marked). The 18 pre-existing `dbt_sandbox` failures (`test_resolve_taxon_ids.py`/`test_dbt_diff.py`) were correctly left out of scope (RESEARCH Pitfall 7).
 
-## Deviations
+## Post-gate fixes (curator review round, 2026-06-08)
 
-1. **Fuzzy candidate count: 6 rows / 2 names, vs RESEARCH's ~13 estimate.** Live GBIF absorbed more misspellings into the `gbif` tier (30 names) than the research estimate predicted, leaving fewer for the local rapidfuzz tier. RCN-04's mechanism (fuzzy candidates written to an inert review CSV, never auto-applied) is satisfied. The 2 fuzzy names are `Andrena unknown` (a placeholder) and `Andrena prunorum-prunorum` (malformed duplicated epithet) — both legitimate review items.
-2. **Stale iNat bridge caveat.** `inaturalist_data.canonical_to_taxon_id` (919 rows) was carried from the pre-rebuild DB; only `checklist_records_full` was freshly loaded, not a full `inaturalist`/`resolve-taxon-ids` rebuild. A current bridge could shift a few names between the `exact` and `gbif` tiers. Mitigated by: the 12 GBIF mappings are all orthographic `VARIANT` corrections independent of bridge state, GBIF/fuzzy are promote-reviewable, and **the curator gate (Task 4) reviews all tier assignments.**
-3. **1 dbt WARN** (`test_lin05_lineage_coverage`, warn-only by design, 1 taxon) — a stale-lineage artifact unrelated to 135-05, not a regression.
+During the curator's review of the audit, three resolver issues were found and fixed (all committed; gate re-green, dbt build PASS=79/ERROR=0, 66 tests green):
+
+1. **Slash-compound canonical casing.** `slash_lca` rows wrote the raw capitalized verbatim into `canonical_name`/`accepted_canonical_name` (violating the lowercase-canonical convention; `accepted_canonical_name` disagreed with `resolved_taxon_id`). Now `canonical_name` is the normalized lowercase slash form (`agapostemon texanus/angelicus`) and `accepted_canonical_name` is the resolved genus (`agapostemon`, matching the genus-LCA taxon 606634). `verbatim_name` still holds the raw string.
+2. **Fix A — empty GBIF taxon_ids (iNat fallback).** 19/30 GBIF-accepted names had an empty `taxon_id` because they're absent from the observation-driven bridge (e.g. `andrena chalybiodes → chalybioides`). Added an iNat taxa-API fallback in the GBIF tier that resolves the accepted name, upserts the live bridge, and persists to the committed `curated_taxon_ids.csv` seed (nightly-loaded by `resolve_taxon_ids`, so durable across clean rebuilds). **Empty GBIF taxon_ids: 19 → 1** (`anthidiellum robertsoni`, a subspecies already curated to 361496). `chalybiodes` now resolves end-to-end to 573383.
+3. **Fix B — `--refresh-checklist` non-idempotency.** The resolver read its own `gbif_checklist_synonyms.csv` back into the synonym map, so a second refresh resolved those names as `synonym_seed` before the GBIF tier (the only seed writer) and **truncated the seed to header-only**. Removed the read-back; GBIF is re-queried each refresh. Verified stable across two consecutive runs (seed=12, curated=18 unchanged).
+
+## Deviations (remaining, for curator awareness)
+
+1. **Fuzzy candidate count: 6 rows / 2 names, vs RESEARCH's ~13 estimate.** The ~13 figure is the *fixture* expectation (`test_at_least_13_fuzzy_candidates` runs with GBIF mocked OFF, so all misspellings fall to rapidfuzz). Against live data GBIF is ON and resolves most misspellings as `VARIANT`/`EXACT`, leaving only 2 genuinely-unmatchable names for fuzzy: `Andrena unknown` (placeholder) and `Andrena prunorum-prunorum` (malformed duplicated epithet). RCN-04's mechanism (inert fuzzy review CSV) is satisfied.
+2. **1 dbt WARN** (`test_lin05_lineage_coverage`, warn-only by design, 1 taxon) — a stale-lineage artifact unrelated to 135-05, not a regression.
+
+Final tier split (post-fix): ~947 exact, 26 gbif (1 empty taxon_id), 2 slash_lca, 2 fuzzy; 0 unresolved.
 
 ## ⏸ Task 4 — HUMAN-REVIEW GATE (pending curator)
 The committed `checklist_name_resolution_audit.csv` lists every name → taxon_id decision with its `source` tier + confidence; `checklist_fuzzy_review.csv` lists the fuzzy candidates. **Per the ROADMAP gate, Phase 136 must not begin until the curator:**
