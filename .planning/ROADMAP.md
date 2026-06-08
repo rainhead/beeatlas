@@ -39,7 +39,7 @@
 - ✅ **v4.4 Pipeline Data Quality** — Phase 123 (shipped 2026-05-29)
 - ✅ **v4.5 iNat Taxonomy & Species Completeness** — Phases 124–128 (shipped 2026-06-01). taxon_id surfaced through the dbt marts + genus-rank backfill (kingdom=Animalia); re-scoped TID-02. See [.planning/milestones/v4.5-ROADMAP.md](milestones/v4.5-ROADMAP.md).
 - ✅ **v4.6 Taxonomy Hierarchy & Normalization** — Phases 129–133 (shipped 2026-06-04). Denormalized rank columns replaced by a taxon_id hierarchy; descendant-by-any-rank map filtering; expandable browse tree; subfamily/taxon pages. See [.planning/milestones/v4.6-ROADMAP.md](milestones/v4.6-ROADMAP.md).
-- ⏸ **v4.7 Checklist Records as Point Data** — Phases 134–138 (paused 2026-06-05, resumable; Phase 134 done, 135 mid-flight)
+- 🔄 **v4.7 Checklist Records as Point Data** — Phases 134–138 (active, resumed 2026-06-08; Phase 134 done, 135 at 4/5 plans)
 - ✅ **v4.8 Fast, Honest Test Suite** — Phases 139–143 (shipped 2026-06-08). Two-tier pytest (fast <5 min default, opt-in `@integration` slow tier); distilled committed fixtures replace full-file parsing; ~19 red/silent-skip tests greened and randomized-order-stable; nightly + CI gates. See [.planning/milestones/v4.8-ROADMAP.md](milestones/v4.8-ROADMAP.md).
 
 ## Phases
@@ -468,10 +468,10 @@ See `.planning/milestones/v4.6-ROADMAP.md` for full phase details.
 
 </details>
 
-### ⏸ v4.7 Checklist Records as Point Data (Phases 134–138) — PAUSED 2026-06-05 (resumable)
+### 🔄 v4.7 Checklist Records as Point Data (Phases 134–138) — ACTIVE (resumed 2026-06-08)
 
 - [x] **Phase 134: Full-Fidelity Ingest** - Commit source CSV, extend pipeline for all columns, coordinate validation, date normalization (completed 2026-06-04)
-- [~] **Phase 135: Name Reconciliation** - Authority/whitespace normalize; tiered resolver; audit CSV; fuzzy human-review gate; slash-compound LCA; synonym unification; homonym guard (in progress, 1/5 plans at pause)
+- [~] **Phase 135: Name Reconciliation** - Authority/whitespace normalize; tiered resolver; audit CSV; fuzzy human-review gate; slash-compound LCA; synonym unification; homonym guard (4/5 plans done; 135-05 pending — resolver pipeline wiring + one-time GBIF refresh + curator gate)
 - [ ] **Phase 136: Deduplication** - Collapse internal dupes; cross-source candidate flagging vs Ecdysis; human sign-off gate
 - [ ] **Phase 137: Promotion into Occurrences** - checklist ARM in int_combined; dbt contract bump; Phase 111 test retirement; atomic geo_blob + features.ts deploy
 - [ ] **Phase 138: Frontend Points & Detail Card** - Checklist map points; county-fill removal; source-selection integration; detail card; per-source counts

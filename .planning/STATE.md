@@ -1,63 +1,55 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.8
-milestone_name: Fast, Honest Test Suite
-status: Awaiting next milestone
-stopped_at: Milestone v4.8 complete and archived
-last_updated: "2026-06-08T04:29:54.890Z"
-last_activity: 2026-06-08 — Milestone v4.8 completed and archived
+milestone: v4.7
+milestone_name: Checklist Records as Point Data
+status: in_progress
+stopped_at: Phase 135 (Name Reconciliation) — plan 5 of 5 pending execution
+last_updated: "2026-06-08T05:00:00.000Z"
+last_activity: 2026-06-08 — v4.7 resumed (re-activated after v4.8 close); v4.8 shipped 2026-06-08
 progress:
-  milestone: v4.8
+  milestone: v4.7
   total_phases: 5
-  completed_phases: 5
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 6
+  percent: 35
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-08 — milestone v4.8 complete; no active milestone)
+See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** None active. v4.8 shipped 2026-06-08. Resumable: v4.7 (Checklist Records as Point Data), paused at Phase 135. Backlog: Phase 999.1 (debounce URL updates on map move), 999.2 (dependabot).
+**Current focus:** v4.7 Phase 135 — Name Reconciliation. Plans 135-01..04 shipped; **135-05 is the only remaining plan** (wires the resolver into run.py as a no-op nightly step + build gate, runs the one-time `--refresh-checklist` GBIF lookup, then pauses at the curator HUMAN-REVIEW GATE before Phase 136).
 
 ## Current Position
 
-Phase: Milestone v4.8 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-08 — Milestone v4.8 completed and archived
+Phase: 135 of 134–138 (Name Reconciliation)
+Plan: 5 of 5 — 135-05 pending execution (135-01..04 complete)
+Status: In progress (v4.7 resumed 2026-06-08)
+Last activity: 2026-06-08 — v4.7 re-activated after v4.8 close
 
 ## Milestone Overview
 
-**v4.8 Fast, Honest Test Suite — Phases 139–143** ✅ SHIPPED 2026-06-08 (archived: `.planning/milestones/v4.8-ROADMAP.md`)
-
-| Phase | Name | Requirements | Status |
-|-------|------|--------------|--------|
-| 139 | Baseline & Two-Tier Scaffold | TPERF-01, TTIER-01 | Complete (2026-06-05) |
-| 140 | Checklist & Taxonomy Fixture Distillation | TFIXTURE-01, TFIXTURE-02, TFIXTURE-04 | Complete (2026-06-06) |
-| 141 | Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | TFIXTURE-03, TFIX-01..04, TTIER-02 | Complete (2026-06-06) |
-| 142 | Verify Budget, Green Suite & Nightly Wiring | TFIX-05, TPERF-02, TPERF-03, TTIER-03 | Complete (2026-06-07) |
-| 143 | CI Gate | TCI-01, TCI-02 | Complete (2026-06-07) |
-
-**Coverage:** 17/17 requirements complete (TPERF-01..03, TFIXTURE-01..04, TFIX-01..05, TTIER-01..03, TCI-01..02)
-
----
-
-**v4.7 Checklist Records as Point Data — Phases 134–138 (PAUSED)**
+**v4.7 Checklist Records as Point Data — Phases 134–138** 🔄 ACTIVE (resumed 2026-06-08)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 134 | Full-Fidelity Ingest | ING-01, ING-02, ING-03 | Complete (2026-06-04) |
-| 135 | Name Reconciliation | RCN-01..07 | In Progress (1/5 plans) |
+| 135 | Name Reconciliation | RCN-01..07 | In Progress (4/5 plans — 135-05 pending) |
 | 136 | Deduplication | DUP-01, DUP-02, DUP-03 | Not started |
 | 137 | Promotion into Occurrences | PRO-01, PRO-02, PRO-03, PRO-04 | Not started |
 | 138 | Frontend Points & Detail Card | UIX-01, UIX-02, UIX-03, UIX-04 | Not started |
 
 **Coverage:** 21/21 requirements mapped (ING-01..03, RCN-01..07, DUP-01..03, PRO-01..04, UIX-01..04)
+
+---
+
+**v4.8 Fast, Honest Test Suite — Phases 139–143** ✅ SHIPPED 2026-06-08 (archived: `.planning/milestones/v4.8-ROADMAP.md`)
+
+All 5 phases complete (139–143), 17/17 requirements. See archive for detail.
 
 ## Accumulated Context
 
@@ -129,12 +121,11 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08 — Milestone v4.8 completed and archived
-Stopped at: v4.8 closed (5/5 phases, 11 plans, 17/17 requirements); ROADMAP/REQUIREMENTS/PROJECT/MILESTONES updated; tag v4.8 created
-Resume file: — (no active phase)
+Last session: 2026-06-08 — v4.7 resumed after v4.8 close
+Stopped at: v4.7 re-activated (REQUIREMENTS.md restored, STATE/PROJECT/ROADMAP flipped to v4.7-active, stale HANDOFF.json removed); proceeding to execute Phase 135 plan 05
+Resume file: .planning/phases/135-name-reconciliation/135-05-PLAN.md
 
 ## Operator Next Steps
 
-- Resume the paused v4.7 milestone with `/gsd-resume-work` (Phase 135 name-reconciliation, plan 1/5), OR
-- Start a new milestone with `/gsd-new-milestone`, OR
-- Pick up a backlog item with `/gsd-quick` (Phase 999.1 debounce URL updates · 999.2 dependabot)
+- Execute the final Phase 135 plan: `/gsd:execute-phase 135`
+  - **Not autonomous** — 135-05 runs a one-time `--refresh-checklist` GBIF lookup (needs outbound network) and ends at the curator HUMAN-REVIEW GATE (review `data/checklist_name_resolution_audit.csv` before Phase 136)
