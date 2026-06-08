@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: ready_to_plan
-stopped_at: Phase 137 complete (2/2) — ready to discuss Phase 138 (Frontend Points & Detail Card), the final v4.7 phase. Auto-advance pointed at 139 (a shipped v4.8 dir); corrected to 138.
-last_updated: 2026-06-08T20:46:55.448Z
+status: planning
+stopped_at: Phase 138 context gathered
+last_updated: "2026-06-08T21:35:43.786Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 23
@@ -138,9 +138,9 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T20:24:57.508Z
-Stopped at: Phase 137 context gathered
-Resume file: None
+Last session: 2026-06-08T21:35:43.746Z
+Stopped at: Phase 138 context gathered
+Resume file: .planning/phases/138-frontend-points-detail-card/138-CONTEXT.md
 
 ## Operator Next Steps
 
