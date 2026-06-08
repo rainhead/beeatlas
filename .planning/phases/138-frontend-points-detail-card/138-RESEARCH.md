@@ -449,7 +449,7 @@ All claims in this research were verified against source code or live DuckDB dat
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`cl=` legacy URL param handling**
    - What we know: `checklistVisible?` is in `UiState`; `cl=1` serializes it; removing the param silently makes stale bookmarks default to checklist visible (acceptable since it's now a standard source)
