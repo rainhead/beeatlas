@@ -824,7 +824,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 136-01-PLAN.md — Wave 0 RED scaffold: 11 failing tests + checklist_dedup.py stubs + 3 placeholder int_* models + header-only dedup_decisions.csv seed/schema [DUP-01, DUP-02, DUP-03]
+- [x] 136-01-PLAN.md — Wave 0 RED scaffold: 11 failing tests + checklist_dedup.py stubs + 3 placeholder int_* models + header-only dedup_decisions.csv seed/schema [DUP-01, DUP-02, DUP-03]
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -1029,7 +1029,7 @@ Plans:
 | 133. Browse Tree | v4.6 | 4/4 | Complete | 2026-06-03 |
 | 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete    | 2026-06-04 |
 | 135. Name Reconciliation | v4.7 | 5/5 | Complete   | 2026-06-08 |
-| 136. Deduplication | v4.7 | 0/TBD | Not started | - |
+| 136. Deduplication | v4.7 | 1/4 | In Progress|  |
 | 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
