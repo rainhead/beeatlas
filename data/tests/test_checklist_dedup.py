@@ -492,42 +492,25 @@ def test_distance_1km_window():
 def test_unreviewed_pair_not_suppressed():
     """DUP-03: A candidate pair with NO dedup_decisions row yields dedup_status NULL.
 
-    RED: placeholder int_checklist_dedup_status.sql emits NULL dedup_status for all rows
-    (no LEFT JOIN logic yet) — but it passes through all rows, so we also require the
-    output row count matches input, which verifies the placeholder runs at all.
-    The key assertion (dedup_status is NULL, not 'confirmed') will also need the real
-    LEFT JOIN to be meaningful, but passes trivially with the placeholder NULL cast.
-    To force RED: also assert the placeholder produces a 'collapsed_count' column
-    (which it does not — it passes through stg_checklist__records_full columns only).
+    Part 1: No candidates at all → dedup_status is NULL (LEFT JOIN returns NULL).
+    Part 2: A candidate exists but no confirmed decision → dedup_status is still NULL.
+    Part 3: A confirmed decision exists → dedup_status is 'confirmed'.
+
+    Rule 1 fix (136-04): original test passed only int_checklist_collapsed as a ref,
+    causing the LEFT JOIN refs to be stripped to empty strings by _load_model_sql,
+    producing a CatalogException. All three refs must be passed explicitly; empty
+    int_dedup_candidates / dedup_decisions tables model the "no candidates" case.
     """
     con = _make_dedup_con()
 
-    # Seed a collapsed-shaped table (int_checklist_collapsed output)
+    # Seed a collapsed-shaped table (int_checklist_collapsed output).
+    # Also create empty int_dedup_candidates and dedup_decisions to model
+    # "no candidates / no decisions" (LEFT JOIN → NULL dedup_status).
     collapsed_rows = [
         {"ObjectID": 1, "canonical_name": "apis mellifera", "lat": 47.0, "lon": -120.0,
          "year": 2022, "month": 6, "day": 15, "date_quality": "full", "recordedBy": "J Smith"},
     ]
     _create_checklist_table(con, collapsed_rows, "int_checklist_collapsed")
-
-    # int_checklist_dedup_status references int_checklist_collapsed
-    status_sql = _load_model_sql(
-        "int_checklist_dedup_status",
-        refs={"int_checklist_collapsed": "int_checklist_collapsed"},
-    )
-    result_rows = _rows_to_dicts(con.execute(status_sql))
-
-    assert len(result_rows) == 1, (
-        f"Expected 1 row, got {len(result_rows)}"
-    )
-    status = result_rows[0].get("dedup_status")
-    assert status is None or status != "confirmed", (
-        f"Unreviewed pair should yield dedup_status NULL, got {status!r}"
-    )
-    # Also assert the real LEFT JOIN via dedup_decisions is wired (no such column in placeholder)
-    # The real model should produce dedup_status via LEFT JOIN through int_dedup_candidates;
-    # assert that with a candidate + confirmed decision, the status is 'confirmed'.
-    # Since the placeholder ignores dedup_decisions, this additional check RED-pins the test:
-    # seed a confirmed decision and verify it propagates (it won't with the placeholder).
     con.execute("""
         CREATE TABLE int_dedup_candidates (
             pair_key VARCHAR,
@@ -535,7 +518,6 @@ def test_unreviewed_pair_not_suppressed():
             ecdysis_id INTEGER
         )
     """)
-    con.execute("INSERT INTO int_dedup_candidates VALUES ('1|999', 1, 999)")
     con.execute("""
         CREATE TABLE dedup_decisions (
             pair_key VARCHAR,
@@ -543,19 +525,37 @@ def test_unreviewed_pair_not_suppressed():
             note VARCHAR
         )
     """)
-    con.execute("INSERT INTO dedup_decisions VALUES ('1|999', 'confirmed', 'test')")
 
-    # Re-run status with the same placeholder SQL — it still ignores the decisions table,
-    # so dedup_status should be 'confirmed' here but the placeholder returns NULL.
-    status_sql2 = _load_model_sql(
-        "int_checklist_dedup_status",
-        refs={"int_checklist_collapsed": "int_checklist_collapsed"},
+    all_refs = {
+        "int_checklist_collapsed": "int_checklist_collapsed",
+        "int_dedup_candidates": "int_dedup_candidates",
+        "dedup_decisions": "dedup_decisions",
+    }
+
+    # Part 1: no candidates, no decisions → dedup_status NULL
+    status_sql = _load_model_sql("int_checklist_dedup_status", refs=all_refs)
+    result_rows = _rows_to_dicts(con.execute(status_sql))
+
+    assert len(result_rows) == 1, (
+        f"Expected 1 row, got {len(result_rows)}"
     )
-    result2 = _rows_to_dicts(con.execute(status_sql2))
-    confirmed_status = result2[0].get("dedup_status") if result2 else None
-    # With real SQL (136-04), this would be 'confirmed'. Placeholder returns NULL.
-    # Asserting the round-trip works: once confirmed decisions exist,
-    # the view must propagate them. Will be green in 136-04.
+    status = result_rows[0].get("dedup_status")
+    assert status is None, (
+        f"Unreviewed pair (no candidates) should yield dedup_status NULL, got {status!r}"
+    )
+
+    # Part 2: candidate exists but no decision row → dedup_status NULL (unreviewed)
+    con.execute("INSERT INTO int_dedup_candidates VALUES ('1|999', 1, 999)")
+    result2 = _rows_to_dicts(con.execute(status_sql))
+    assert result2[0].get("dedup_status") is None, (
+        f"Candidate with no decision should yield dedup_status NULL (unreviewed), "
+        f"got {result2[0].get('dedup_status')!r}"
+    )
+
+    # Part 3: confirmed decision exists → dedup_status 'confirmed' propagates
+    con.execute("INSERT INTO dedup_decisions VALUES ('1|999', 'confirmed', 'test')")
+    result3 = _rows_to_dicts(con.execute(status_sql))
+    confirmed_status = result3[0].get("dedup_status") if result3 else None
     assert confirmed_status == "confirmed", (
         f"Expected dedup_status='confirmed' when decision exists, got {confirmed_status!r}"
     )

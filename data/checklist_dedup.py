@@ -193,7 +193,42 @@ def check_dedup_gate() -> None:
     If all confirmed decisions have live candidates (or there are no confirmed decisions):
     prints "dedup-gate: OK".
 
+    Edge cases:
+    - DEDUP_DECISIONS_CSV missing or header-only → OK (no suppressions active).
+    - DEDUP_CANDIDATE_CSV missing but decisions exist → sys.exit (candidates must be generated first).
+
     run.py STEP gate signature: callable taking no args, returns None or sys.exits.
-    Implementation in Wave 4 (136-04).
     """
-    raise NotImplementedError("check_dedup_gate: implemented in Wave 4 (136-04)")
+    import sys  # noqa: PLC0415 (lazy import keeps module importable without side-effects)
+
+    if not DEDUP_DECISIONS_CSV.exists():
+        print("dedup-gate: OK (no decisions seed — no suppressions active)")  # noqa: T201
+        return
+
+    decisions = list(csv.DictReader(DEDUP_DECISIONS_CSV.open(newline="")))
+    confirmed = [r for r in decisions if r.get("dedup_status") == "confirmed"]
+
+    if not confirmed:
+        rejected = len([r for r in decisions if r.get("dedup_status") == "rejected"])
+        print(f"dedup-gate: OK (0 confirmed, {rejected} rejected)")  # noqa: T201
+        return
+
+    if not DEDUP_CANDIDATE_CSV.exists():
+        sys.exit(
+            "dedup-gate: ERROR — dedup_decisions.csv has confirmed entries but "
+            "dedup_candidate_pairs.csv is missing. Run the dedup-candidates step first."
+        )
+
+    candidate_keys = {row["pair_key"] for row in csv.DictReader(DEDUP_CANDIDATE_CSV.open(newline=""))}
+    orphans = [r for r in confirmed if r["pair_key"] not in candidate_keys]
+
+    if orphans:
+        keys = ", ".join(r["pair_key"] for r in orphans)
+        sys.exit(
+            f"dedup-gate: {len(orphans)} confirmed suppression(s) reference pair_keys not in "
+            f"current candidates (stale seed?): {keys}\n"
+            f"Fix: re-run the dedup-candidates step, then re-confirm the correct pair_keys."
+        )
+
+    rejected_count = len(decisions) - len(confirmed)
+    print(f"dedup-gate: OK ({len(confirmed)} confirmed, {rejected_count} rejected)")  # noqa: T201
