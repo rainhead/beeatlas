@@ -1,9 +1,9 @@
 ---
 phase: 137
 slug: promotion-into-occurrences
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-08
 ---
 
@@ -70,11 +70,11 @@ created: 2026-06-08
 
 ## Validation Sign-Off
 
-- [ ] All tasks have an automated verify (dbt build / scoped pytest / Vitest) or a Wave 0 dependency
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references (none — infra exists)
-- [ ] No watch-mode flags (Vitest run, not watch; pytest scoped, not `-m integration` whole-suite)
-- [ ] Feedback latency acceptable (scoped seconds; dbt build minutes)
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have an automated verify (dbt build / scoped pytest / Vitest) or a Wave 0 dependency
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (none — test files are modified, not created; infra exists)
+- [x] No watch-mode flags (Vitest run, not watch; pytest scoped, not `-m integration` whole-suite)
+- [x] Feedback latency acceptable (scoped seconds; dbt build minutes)
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-06-08

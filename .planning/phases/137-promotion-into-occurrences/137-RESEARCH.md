@@ -586,17 +586,17 @@ it('checklist row with checklist_id null → row is skipped (all four IDs null)'
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **What is the expected `source='checklist'` row count in `occurrences.parquet`?**
    - What we know: ~50,646 raw rows; ~4,595 excluded by `coord_flag='valid'` filter = ~46,051 stg rows; some collapsed by Phase 136 (the 5,184 internal dedup groups); `dedup_candidate_pairs.csv` currently has 0 rows → 0 confirmed suppressions
    - What's unclear: exact post-collapse count (Phase 136 materialized int_checklist_collapsed is available in beeatlas.duckdb if it's been run)
-   - Recommendation: The new ceiling guard in the PRO-03 test replacement should use ~60,000 (current ~93K rows + ~46K checklist ≈ 140K; set ceiling at 160,000 to absorb growth). The planner should run `SELECT COUNT(*) FROM int_checklist_collapsed` against the local DuckDB to get the exact figure before writing the ceiling.
+   - **RESOLVED:** The PRO-03 ceiling guard uses ~160,000 (current ~93K rows + ~46K checklist ≈ 140K, plus growth buffer) — do NOT hardcode a brittle exact value. Plan 137-01 instructs the executor to run `bash data/dbt/run.sh build` then `SELECT COUNT(*) FROM int_checklist_collapsed` against the rebuilt local DuckDB to confirm the figure before finalizing the ceiling. (Local DuckDB does not currently have the Phase 136 models materialized — the rebuild is a precondition.)
 
 2. **Does `build-geojson.test.ts` need an update to `toRow` defaults or only new tests?**
    - What we know: All existing `makeEcdysisRow`, `makeInatRow`, `makeSpecimenObsRow` factories call `toRow` with 7 explicit fields; the interface is `Required<RowOverride>`, so adding `checklist_id` to `RowOverride` and making it required in `toRow` means all existing callsites must also pass `checklist_id`. If `checklist_id` is made optional in `RowOverride` but required in `toRow`, a default value of `null` can be provided in each existing factory.
    - What's unclear: Whether the implementer should make `checklist_id?: number | null` optional with `null` default, or required with `null` explicit in each factory call
-   - Recommendation: Make `checklist_id` optional in `RowOverride` with default `null` in `toRow`'s parameter spread — this is the lowest-churn approach.
+   - **RESOLVED:** Plan 137-02 adopts the lowest-churn approach — make `checklist_id?: number | null` optional in `RowOverride` with a `null` default in `toRow`'s parameter spread, so existing 7-field factory callsites do not all need editing.
 
 ---
 
