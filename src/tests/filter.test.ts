@@ -340,6 +340,7 @@ describe('queryTablePage', () => {
     const dataSql = execFn.mock.calls.find((c: unknown[]) => !String(c[1]).includes('COUNT(*)'))?.[1] ?? '';
     expect(dataSql).toContain('LEFT JOIN taxa');
     expect(dataSql).toContain('display_name');
+    expect(dataSql).toContain('display_rank');
   });
 
   test('SQL contains FROM occurrences and does NOT contain ecdysis_id IS NOT NULL discriminator', async () => {

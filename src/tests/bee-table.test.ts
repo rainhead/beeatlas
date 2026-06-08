@@ -43,12 +43,13 @@ async function createBeeTable(props: {
 }
 
 describe('TABLE-01: bee-table column headers', () => {
-  test('renders 10 occurrence column headers', async () => {
+  test('renders 11 occurrence column headers', async () => {
     const el = await createBeeTable({ rows: [], rowCount: 100 });
     const headers = el.shadowRoot!.querySelectorAll('th');
     const labels = Array.from(headers).map(th => th.textContent?.trim() ?? '');
     expect(labels.some(l => l.includes('Date'))).toBe(true);
     expect(labels.some(l => l.includes('Species'))).toBe(true);
+    expect(labels.some(l => l.includes('Rank'))).toBe(true);
     expect(labels.some(l => l.includes('Collector'))).toBe(true);
     expect(labels.some(l => l.includes('County'))).toBe(true);
     expect(labels.some(l => l.includes('Ecoregion'))).toBe(true);
@@ -57,7 +58,7 @@ describe('TABLE-01: bee-table column headers', () => {
     expect(labels.some(l => l.includes('Modified'))).toBe(true);
     expect(labels.some(l => l.includes('Photo'))).toBe(true);
     expect(labels.some(l => l.includes('Links'))).toBe(true);
-    expect(headers.length).toBe(10);
+    expect(headers.length).toBe(11);
     document.body.removeChild(el);
   });
 });

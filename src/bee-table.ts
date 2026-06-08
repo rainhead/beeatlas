@@ -41,6 +41,8 @@ function fieldNumberDisplay(row: OccurrenceRow): string | null {
 const OCCURRENCE_COLUMN_DEFS: ColumnDef[] = [
   { key: 'date',        label: 'Date',       dataField: 'date',                    minWidth: '100px' },
   { key: 'species',     label: 'Species',    dataField: 'display_name',            minWidth: '180px', nullLabel: 'No Determination' },
+  { key: 'rank',        label: 'Rank',       dataField: 'display_rank',            minWidth: '100px', nullLabel: 'No Determination',
+    valueFn: (row) => row.display_rank ? row.display_rank.charAt(0).toUpperCase() + row.display_rank.slice(1) : null },
   { key: 'collector',   label: 'Collector',  dataField: 'recordedBy',              minWidth: '160px',
     valueFn: collectorDisplay },
   { key: 'county',      label: 'County',     dataField: 'county',                  minWidth: '110px' },
