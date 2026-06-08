@@ -1,5 +1,26 @@
 # Milestones
 
+## v4.8 Fast, Honest Test Suite (Shipped: 2026-06-08)
+
+**Phases completed:** 5 phases (139–143), 11 plans
+**Timeline:** ~3 days (2026-06-05 → 2026-06-07)
+**Footprint:** ~+1,672 / −408 lines across 32 files in `data/` + `.github/`
+**Requirements:** 17/17 complete (TPERF-01..03, TFIXTURE-01..04, TFIX-01..05, TTIER-01..03, TCI-01..02)
+**Audit:** none run (close pre-flight clean; requirements 17/17 verified complete)
+**Known deferred items at close:** 25 (24 legacy quick-task scanner-cruft dirs + 1 already-accepted blocked Phase 142 HUMAN-UAT; see STATE.md → Deferred Items)
+
+**Key accomplishments:**
+
+- **Phase 139 — Baseline & Two-Tier Scaffold:** registered an `integration` pytest marker with `addopts` default-deselection so `uv run pytest` runs only the fast tier; committed `BASELINE.md` anchoring per-tier runtime estimates, the < 5 min / ~10 min targets, dominant cost contributors, and an honest ~19-failure red inventory (TPERF-01, TTIER-01).
+- **Phase 140 — Checklist & Taxonomy Fixture Distillation:** added a connection-injection seam to `data/checklist_pipeline.py`, distilled small committed checklist + taxonomy-ancestry fixtures (covering every `coord_flag`/`date_quality` branch) to replace full-file parsing of `checklist_records_full.csv` and the 39 MB `taxa.csv.gz`, and built the checklist DuckDB once via a module-scoped `checklist_sample_db` fixture (TFIXTURE-01, -02, -04).
+- **Phase 141 — Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination:** committed `species_fixture.csv` + built-asset fixtures so target/sandbox-dependent tests execute on a clean checkout; additive DDL stubs fixed the CatalogException crash across all 19 `test_resolve_taxon_ids.py` tests; the 16 `test_dbt_diff` tests were loudly deselected (never silently skipped) and real-data checks tagged `@integration` (TFIXTURE-03, TFIX-01..04, TTIER-02).
+- **Phase 142 — Verify Budget, Green Suite & Nightly Wiring:** pytest-randomly proved the fast suite green (197 passed / 9 skipped / 18.8s) under randomized order, surfacing and fixing three order-dependence bugs; added `verify-clean-checkout.sh`; wired the `@integration` hard gate into `nightly.sh` as block 2b (exits non-zero before S3 publish) with block 1c pre-pulling published artifacts so `test_dbt_diff` asserts against a real regression baseline (TFIX-05, TPERF-02, TPERF-03, TTIER-03).
+- **Phase 143 — CI Gate:** an independent `python-tests.yml` GitHub Actions job runs the fast suite (uv + Python 3.14) on push and PR — with git-LFS checkout and pre-installed DuckDB spatial for the clean runner — failing the build on any test failure or on exceeding the < 5 min budget (TCI-01, TCI-02).
+
+**Notable:** the milestone's entire premise was honesty — it converted a >40 min, partly-red, silently-skipping suite into a green, randomized-order-stable fast tier (< 5 min) that runs on a clean checkout with no built assets, no network, and no AWS, while routing genuine full-data checks (the 50,646-row count, full `taxa.csv.gz` LCA, sandbox-vs-public parquet diff) into an opt-in slow tier exercised nightly on maderas and gated in CI.
+
+---
+
 ## v4.6 Taxonomy Hierarchy & Normalization (Shipped: 2026-06-04)
 
 **Phases completed:** 5 phases (129–133), 18 plans, 25 tasks

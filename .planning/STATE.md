@@ -2,47 +2,48 @@
 gsd_state_version: 1.0
 milestone: v4.8
 milestone_name: Fast, Honest Test Suite
-status: ready_to_plan
-stopped_at: Phase 143 complete (1/1) — ready to discuss Phase 999.1
-last_updated: 2026-06-07T18:56:30.640Z
-last_activity: 2026-06-07 -- Phase 143 planning complete
+status: Awaiting next milestone
+stopped_at: Milestone v4.8 complete and archived
+last_updated: "2026-06-08T04:29:54.890Z"
+last_activity: 2026-06-08 — Milestone v4.8 completed and archived
 progress:
-  total_phases: 22
+  milestone: v4.8
+  total_phases: 5
   completed_phases: 5
-  total_plans: 18
-  completed_plans: 17
-  percent: 23
+  total_plans: 11
+  completed_plans: 11
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-04 — milestone v4.6 complete; v4.7 roadmap defined)
+See: .planning/PROJECT.md (updated 2026-06-08 — milestone v4.8 complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 999.1 — debounce url updates when zooming and panning the map
+**Current focus:** None active. v4.8 shipped 2026-06-08. Resumable: v4.7 (Checklist Records as Point Data), paused at Phase 135. Backlog: Phase 999.1 (debounce URL updates on map move), 999.2 (dependabot).
 
 ## Current Position
 
-Phase: 999.1
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-07
+Phase: Milestone v4.8 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-08 — Milestone v4.8 completed and archived
 
 ## Milestone Overview
 
-**v4.8 Fast, Honest Test Suite — Phases 139–143** (Active)
+**v4.8 Fast, Honest Test Suite — Phases 139–143** ✅ SHIPPED 2026-06-08 (archived: `.planning/milestones/v4.8-ROADMAP.md`)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 139 | Baseline & Two-Tier Scaffold | TPERF-01, TTIER-01 | Not started |
-| 140 | Checklist & Taxonomy Fixture Distillation | TFIXTURE-01, TFIXTURE-02, TFIXTURE-04 | Not started |
-| 141 | Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | TFIXTURE-03, TFIX-01..04, TTIER-02 | Not started |
-| 142 | Verify Budget, Green Suite & Nightly Wiring | TFIX-05, TPERF-02, TPERF-03, TTIER-03 | Not started |
-| 143 | CI Gate | TCI-01, TCI-02 | Not started |
+| 139 | Baseline & Two-Tier Scaffold | TPERF-01, TTIER-01 | Complete (2026-06-05) |
+| 140 | Checklist & Taxonomy Fixture Distillation | TFIXTURE-01, TFIXTURE-02, TFIXTURE-04 | Complete (2026-06-06) |
+| 141 | Built-Asset Fixtures, Red-Test Fixes & Silent-Skip Elimination | TFIXTURE-03, TFIX-01..04, TTIER-02 | Complete (2026-06-06) |
+| 142 | Verify Budget, Green Suite & Nightly Wiring | TFIX-05, TPERF-02, TPERF-03, TTIER-03 | Complete (2026-06-07) |
+| 143 | CI Gate | TCI-01, TCI-02 | Complete (2026-06-07) |
 
-**Coverage:** 17/17 requirements mapped (TPERF-01..03, TFIXTURE-01..04, TFIX-01..05, TTIER-01..03, TCI-01..02)
+**Coverage:** 17/17 requirements complete (TPERF-01..03, TFIXTURE-01..04, TFIX-01..05, TTIER-01..03, TCI-01..02)
 
 ---
 
@@ -98,11 +99,12 @@ None open. Human-review gates at Phases 135 and 136 are expected workflow steps,
 
 ## Deferred Items
 
-Carried forward from v4.6 milestone close (2026-06-04) — 28 open items, all pre-existing / non-blocking:
+Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-tasks + 1 UAT), all pre-existing / non-blocking; superset carried from v4.6 close (2026-06-04):
 
 | Category | Item | Status |
 |----------|------|--------|
-| quick_tasks | 22 legacy quick-task dirs | scanner cruft (empty dates, missing completion marker) |
+| quick_tasks | 24 legacy quick-task dirs | scanner cruft (empty dates, missing completion marker) |
+| uat | Phase 142 HUMAN-UAT.md | blocked, 0 pending scenarios — both items accepted by operator 2026-06-07, phase marked complete |
 | todo | cluster-selection-visual-feedback | medium (frontend, unrelated) |
 | todo | data-test-suite-environmental-deps | medium (pre-existing pytest env deps) |
 | todo | genus-page-subgenera-breakout | medium (captured in Phase 132 verify) |
@@ -127,10 +129,12 @@ Carried forward from v4.6 milestone close (2026-06-04) — 28 open items, all pr
 
 ## Session Continuity
 
-Last session: 2026-06-07T18:23:19.054Z
-Stopped at: Phase 143 context gathered
-Resume file: .planning/phases/143-ci-gate/143-CONTEXT.md
+Last session: 2026-06-08 — Milestone v4.8 completed and archived
+Stopped at: v4.8 closed (5/5 phases, 11 plans, 17/17 requirements); ROADMAP/REQUIREMENTS/PROJECT/MILESTONES updated; tag v4.8 created
+Resume file: — (no active phase)
 
 ## Operator Next Steps
 
-- Run `/gsd:plan-phase 139` to plan Phase 139: Baseline & Two-Tier Scaffold
+- Resume the paused v4.7 milestone with `/gsd-resume-work` (Phase 135 name-reconciliation, plan 1/5), OR
+- Start a new milestone with `/gsd-new-milestone`, OR
+- Pick up a backlog item with `/gsd-quick` (Phase 999.1 debounce URL updates · 999.2 dependabot)

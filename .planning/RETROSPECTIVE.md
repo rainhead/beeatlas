@@ -2,6 +2,37 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v4.8 — Fast, Honest Test Suite
+
+**Shipped:** 2026-06-08
+**Phases:** 5 (139–143) | **Plans:** 11 | **Timeline:** ~3 days | **LOC:** ~+1,672 / −408 (32 `data/`+`.github/` files)
+
+### What Was Built
+The `data/` pytest suite was converted from a >40 min, partly-red, silently-skipping liability into a green < 5 min fast tier. A registered `integration` marker + `addopts` default-deselect splits a fast default (`uv run pytest`) from an opt-in slow tier; `BASELINE.md` anchors the before/after and an honest ~19-failure red inventory. The dominant cost (per-test reparse of the 50,646-row `checklist_records_full.csv`) was removed via distilled committed checklist/taxonomy fixtures + a module-scoped DuckDB build; built-asset-dependent tests now run on a clean checkout instead of `skipif`-skipping; additive DDL stubs greened all 19 `test_resolve_taxon_ids.py` tests; pytest-randomly proved the suite stable (197 passed/9 skipped/18.8s, three order-dependence bugs fixed); the `@integration` hard gate runs in `nightly.sh` and an independent `python-tests.yml` CI job enforces the budget on push/PR. 17/17 requirements.
+
+### What Worked
+- **Baseline-before-refactor (Phase 139 first).** Capturing the real wall-clock profile up front replaced the unverified ">40 min" folklore with measured per-file costs, and correctly fingered *committed-data reparse* — not un-checked-in-asset brittleness — as the dominant cost, which is what the rest of the milestone was actually built around.
+- **"Green ≠ covered" framed as the north star.** Treating a silent `skipif` as a bug (not a pass) drove the loud-deselect / `@integration`-tag discipline; the suite now tells the truth about what it didn't run.
+- **pytest-randomly as an honesty probe.** Randomized order surfaced three latent order-dependence bugs that collection-order green had hidden — cheap insurance against a suite that's only green by accident.
+
+### What Was Inefficient
+- **Phase 142 HUMAN-UAT ended blocked-on-prerequisite** (both items), accepted rather than resolved — the clean-room/nightly-rig prerequisite wasn't available at verify time, so the gate closed on operator acceptance instead of a green run.
+- **The milestone-close CLI over-scoped** — `milestone.complete` scooped the paused v4.7 phase summaries (134–135) into v4.8's accomplishments and counts (reported 9 phases/18 plans), requiring manual correction of MILESTONES.md. Lesson: when a prior milestone is *paused with live phase dirs on disk*, the close tooling can't infer milestone boundaries from `.planning/phases/` alone.
+
+### Patterns Established
+- **Two-tier pytest** (`integration` marker + `addopts = -m "not integration"`): a single suite serves both the fast dev inner loop and the nightly full-data truth-check, with the heavy tier opt-in and CI-gated.
+- **Distill committed fixtures with documented provenance** (`data/tests/fixtures/`, noting which real rows each sample came from and what branches it covers) over reparsing large committed source files per test.
+- **Build expensive DuckDB once** via module/session-scoped fixtures rather than per-test.
+
+### Key Lessons
+- A fast suite and an honest suite are the *same* project: the refactor that makes tests fast (fixtures over full-file parsing) is the same one that makes them runnable on a clean checkout instead of silently skipping.
+- Order-randomization and loud-skip-reporting are cheap, high-leverage honesty guards — adopt them before chasing the last seconds of runtime.
+- Paused milestones leave live phase dirs that confuse boundary-inferring close tooling — verify scope/counts by hand when closing a milestone that ran *alongside* a paused one.
+
+### Cost Observations
+- Model mix: orchestration on Opus; executors/verifier on Sonnet.
+- Notable: a tight, well-scoped milestone (11 plans, ~3 days) with no gap-closure cycles — the bulk of the late effort was verification rigor (clean-checkout script, randomized-order proof, nightly rig) rather than rework.
+
 ## Milestone: v4.6 — Taxonomy Hierarchy & Normalization
 
 **Shipped:** 2026-06-04
