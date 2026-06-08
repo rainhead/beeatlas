@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
-stopped_at: Phase 136 context gathered
-last_updated: "2026-06-08T16:08:23.660Z"
-last_activity: 2026-06-08 -- Phase 136 planning complete
+stopped_at: Phase 135 plan 05 — Tasks 1-3 done; HUMAN-REVIEW GATE (Task 4) pending curator sign-off before Phase 136
+last_updated: "2026-06-08T17:12:14.139Z"
+last_activity: 2026-06-08 -- Phase 135 execution started
 progress:
   total_phases: 23
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 22
-  completed_plans: 17
-  percent: 26
+  completed_plans: 18
+  percent: 30
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v4.7 Phase 135 — Name Reconciliation. Plans 135-01..04 shipped; **135-05 is the only remaining plan** (wires the resolver into run.py as a no-op nightly step + build gate, runs the one-time `--refresh-checklist` GBIF lookup, then pauses at the curator HUMAN-REVIEW GATE before Phase 136).
+**Current focus:** Phase 135 — name-reconciliation
 
 ## Current Position
 
-Phase: 135 of 134–138 (Name Reconciliation)
-Plan: 5 of 5 — 135-05 pending execution (135-01..04 complete)
-Status: Ready to execute
-Last activity: 2026-06-08 -- Phase 136 planning complete
+Phase: 135 (name-reconciliation) — EXECUTING
+Plan: 1 of 5
+Status: Executing Phase 135
+Last activity: 2026-06-08 -- Phase 135 execution started
 
 ## Milestone Overview
 
@@ -120,9 +120,9 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T06:11:45.772Z
-Stopped at: Phase 136 context gathered
-Resume file: .planning/phases/136-deduplication/136-CONTEXT.md
+Last session: 2026-06-08T17:12:14.104Z
+Stopped at: Phase 135 plan 05 — Tasks 1-3 done; HUMAN-REVIEW GATE (Task 4) pending curator sign-off before Phase 136
+Resume file: .planning/phases/135-name-reconciliation/135-05-PLAN.md
 
 ## Operator Next Steps
 
