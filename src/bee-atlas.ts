@@ -38,7 +38,6 @@ export class BeeAtlas extends LitElement {
   @state() private _filteredRowCount: number | null = null;
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
-  @state() private _checklistVisible = false;
   @state() private _hiddenSources: Set<SourceKey> = new Set();
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
@@ -148,14 +147,6 @@ bee-pane {
   `;
 
   render() {
-    // Checklist filtering matches the parquet's scientificName/genus/family
-    // strings, so it needs the selected taxon's canonical name + rank — not the
-    // display label. taxonDisplayName may be a common name and FilterState no
-    // longer carries a rank (Phase 130 went taxonId-only), so resolve both from
-    // the taxon cache. Without this the checklist ignores the taxon filter.
-    const _checklistTaxon = this._filterState.taxonId !== null
-      ? this._taxonCache.get(this._filterState.taxonId) ?? null
-      : null;
     return html`
       <bee-header></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
@@ -175,10 +166,7 @@ bee-pane {
             .ecoregionOptions=${this._ecoregionOptions}
             .viewState=${this._viewState}
             .filterState=${this._filterState}
-            .showChecklist=${this._checklistVisible}
             .hiddenSources=${this._hiddenSources}
-            .checklistTaxon=${_checklistTaxon?.name ?? null}
-            .checklistTaxonRank=${_checklistTaxon?.rank ?? null}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
             @map-click-region=${this._onRegionClick}
@@ -211,11 +199,9 @@ bee-pane {
             .sortBy=${this._tableSortBy}
             .filterActive=${isFilterActive(this._filterState)}
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
-            .checklistVisible=${this._checklistVisible}
             .hiddenSources=${this._hiddenSources}
             @filter-changed=${this._onFilterChanged}
             @source-filter-changed=${this._onSourceFilterChanged}
-            @checklist-layer-changed=${this._onChecklistLayerChanged}
             @pane-expand-list=${this._onPaneExpandList}
             @pane-collapse=${this._onPaneCollapse}
             @pane-expand-table=${this._onPaneExpandTable}
@@ -249,7 +235,6 @@ bee-pane {
     const paneState = initialParams.ui?.paneState ?? 'collapsed';
     this._boundaryMode = initBoundaryMode;
     this._paneState = paneState;
-    this._checklistVisible = initialParams.ui?.checklistVisible ?? false;
     this._hiddenSources = initialParams.ui?.hiddenSources ?? new Set();
     if (paneState === 'table') import('./bee-table.ts');
     // Restore filter state from URL params
@@ -605,7 +590,7 @@ bee-pane {
         : this._selectedCluster
           ? { type: 'cluster' as const, ...this._selectedCluster }
           : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { boundaryMode: this._boundaryMode, paneState: this._paneState, checklistVisible: this._checklistVisible, hiddenSources: this._hiddenSources }
+      { boundaryMode: this._boundaryMode, paneState: this._paneState, hiddenSources: this._hiddenSources }
     );
   }
 
@@ -667,7 +652,6 @@ bee-pane {
 
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
-    this._checklistVisible = parsed.ui?.checklistVisible ?? false;
     this._hiddenSources = parsed.ui?.hiddenSources ?? new Set();
     const paneState = parsed.ui?.paneState ?? 'collapsed';
     this._tablePage = 1;
@@ -1049,11 +1033,6 @@ bee-pane {
   private _onDataError(e: CustomEvent<{ message: string }>) {
     this._error = e.detail.message;
     this._loading = false;
-  }
-
-  private _onChecklistLayerChanged(e: CustomEvent<{ visible: boolean }>) {
-    this._checklistVisible = e.detail.visible;
-    this._replaceUrlState();
   }
 
   private _onSourceFilterChanged(e: CustomEvent<{ hiddenSources: Set<SourceKey> }>) {

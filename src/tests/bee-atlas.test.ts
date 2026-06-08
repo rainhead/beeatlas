@@ -751,29 +751,22 @@ describe('PANE-V2-05: old file removal', () => {
   });
 });
 
-describe('MAP-03: checklist taxon filter binding', () => {
+describe('MAP-03: checklist taxon filter binding (county-fill removed, Plan 138-03)', () => {
   const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  test('bee-atlas.ts has _checklistVisible @state field', () => {
-    expect(atlasSrc).toMatch(/_checklistVisible/);
+  // _checklistVisible, _onChecklistLayerChanged, .checklistTaxon/.checklistTaxonRank bindings
+  // removed in Plan 138-03. Checklist now flows through hiddenSources.
+  test('bee-atlas.ts does NOT have _checklistVisible @state field (retired)', () => {
+    expect(atlasSrc).not.toMatch(/_checklistVisible/);
   });
 
-  test('bee-atlas.ts has _onChecklistLayerChanged method', () => {
-    expect(atlasSrc).toMatch(/_onChecklistLayerChanged\s*\(/);
+  test('bee-atlas.ts does NOT register @checklist-layer-changed (retired)', () => {
+    expect(atlasSrc).not.toMatch(/@checklist-layer-changed/);
   });
 
-  test('bee-atlas.ts binds .checklistTaxon/.checklistTaxonRank from the resolved taxon cache entry', () => {
-    // Checklist filtering matches the parquet's scientificName/genus/family strings,
-    // so it needs the selected taxon's canonical name + rank — not taxonDisplayName
-    // (a common-name label) and not a hardcoded null rank (regression after Phase 130
-    // dropped taxonName/taxonRank from FilterState). Resolve both from _taxonCache.
-    expect(atlasSrc).toMatch(/this\._taxonCache\.get\(this\._filterState\.taxonId\)/);
-    expect(atlasSrc).toMatch(/\.checklistTaxon=\$\{_checklistTaxon\?\.name \?\? null\}/);
-    expect(atlasSrc).toMatch(/\.checklistTaxonRank=\$\{_checklistTaxon\?\.rank \?\? null\}/);
-  });
-
-  test('bee-atlas.ts registers @checklist-layer-changed=${this._onChecklistLayerChanged} on <bee-pane>', () => {
-    expect(atlasSrc).toMatch(/@checklist-layer-changed=\$\{this\._onChecklistLayerChanged\}/);
+  test('bee-atlas.ts handles source-filter-changed and sets _hiddenSources', () => {
+    expect(atlasSrc).toMatch(/_onSourceFilterChanged/);
+    expect(atlasSrc).toMatch(/_hiddenSources\s*=\s*e\.detail\.hiddenSources/);
   });
 
   test('bee-atlas.ts backfills taxon display name on both URL-restore paths (MFILT-03 regression)', () => {
