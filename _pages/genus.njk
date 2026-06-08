@@ -19,6 +19,49 @@ layout: default.njk
          src="/data/species-maps/genus/{{ genus.genus }}.svg"
          alt="Occurrence map for genus {{ genus.genus }}"
          style="aspect-ratio: 15/8; width: 100%;">
+    {# Single grid child so .media-grid stays 2-column (map | members); #}
+    {# subgenus sections stack vertically inside it. #}
+    <div class="taxon-members">
+    {%- if genus.subgenera.length > 0 -%}
+    {# Grouped layout: one <h2> per subgenus, then that subgenus's species list #}
+    {%- for sg in genus.subgenera -%}
+    <h2><a href="/species/{{ genus.genus }}/{{ sg.subgenus }}/index.html"><em>{{ sg.subgenus }}</em></a></h2>
+    <ul class="species-list">
+    {%- for sp in sg.species -%}
+      <li>
+        <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
+        {%- if sp.slug %}<a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>{%- else %}<em>{{ sp.scientificName }}</em>{%- endif %}
+        {%- if sp.occurrence_count > 0 -%}
+        <span class="count">{{ sp.specimen_count | quantify("specimen") }} · {{ sp.inat_obs_count | quantify("community observation") }}</span>
+        {%- elif sp.on_checklist -%}
+        <span class="count">{{ sp.checklist_count | quantify("checklist record") }}</span>
+        {%- else -%}
+        <span class="count">{{ 0 | quantify("record") }}</span>
+        {%- endif -%}
+      </li>
+    {%- endfor -%}
+    </ul>
+    {%- endfor -%}
+    {%- if genus.ungroupedSpecies.length > 0 -%}
+    {# Trailing unheaded list for subgenus-less species and synthetic "Genus sp." entry #}
+    <ul class="species-list">
+    {%- for sp in genus.ungroupedSpecies -%}
+      <li>
+        <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
+        {%- if sp.slug %}<a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>{%- else %}<em>{{ sp.scientificName }}</em>{%- endif %}
+        {%- if sp.occurrence_count > 0 -%}
+        <span class="count">{{ sp.specimen_count | quantify("specimen") }} · {{ sp.inat_obs_count | quantify("community observation") }}</span>
+        {%- elif sp.on_checklist -%}
+        <span class="count">{{ sp.checklist_count | quantify("checklist record") }}</span>
+        {%- else -%}
+        <span class="count">{{ 0 | quantify("record") }}</span>
+        {%- endif -%}
+      </li>
+    {%- endfor -%}
+    </ul>
+    {%- endif -%}
+    {%- else -%}
+    {# D-05 fallback: no subgenera — flat species list unchanged #}
     <ul class="species-list">
     {%- for sp in genus.species -%}
       <li>
@@ -34,6 +77,8 @@ layout: default.njk
       </li>
     {%- endfor -%}
     </ul>
+    {%- endif -%}
+    </div>
   </div>
   {%- if genus.taxon_id -%}
   <a class="taxon-action" href="/?taxon={{ genus.taxon_id }}">View on atlas →</a>

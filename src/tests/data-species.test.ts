@@ -370,6 +370,101 @@ describe('_data/species.js (PAGE-02)', () => {
       }
     }
   });
+
+  // 260607-syt — subgenera grouping + lossless-partition tests
+
+  test('genusList Andrena entry has non-empty subgenera array (each entry has subgenus + species)', () => {
+    const list = (species as any).genusList;
+    const andrena = list.find((g: any) => g.genus === 'Andrena');
+    expect(andrena).toBeDefined();
+    expect(Array.isArray(andrena.subgenera)).toBe(true);
+    expect(andrena.subgenera.length).toBeGreaterThan(0);
+    for (const sg of andrena.subgenera) {
+      expect(typeof sg.subgenus).toBe('string');
+      expect(sg.subgenus.length).toBeGreaterThan(0);
+      expect(Array.isArray(sg.species)).toBe(true);
+      expect(sg.species.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('genusList Andrena subgenera are sorted alphabetically', () => {
+    const list = (species as any).genusList;
+    const andrena = list.find((g: any) => g.genus === 'Andrena');
+    expect(andrena).toBeDefined();
+    const names = andrena.subgenera.map((sg: any) => sg.subgenus);
+    const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
+    expect(names).toEqual(sorted);
+  });
+
+  test('genusList Andrena lossless partition: subgenera species + ungroupedSpecies equals species (same set, same length)', () => {
+    const list = (species as any).genusList;
+    const andrena = list.find((g: any) => g.genus === 'Andrena');
+    expect(andrena).toBeDefined();
+    const allPartitioned = [
+      ...andrena.subgenera.flatMap((sg: any) => sg.species),
+      ...andrena.ungroupedSpecies,
+    ];
+    expect(allPartitioned.length).toBe(andrena.species.length);
+    // Same set of identity keys (canonical_name ?? scientificName)
+    const toKey = (sp: any) => sp.canonical_name ?? sp.scientificName;
+    const partitionedKeys = new Set(allPartitioned.map(toKey));
+    const originalKeys = new Set(andrena.species.map(toKey));
+    expect(partitionedKeys).toEqual(originalKeys);
+  });
+
+  test('genusList Andrena: synthetic "Andrena sp." entry is in ungroupedSpecies, never in a subgenus', () => {
+    const list = (species as any).genusList;
+    const andrena = list.find((g: any) => g.genus === 'Andrena');
+    expect(andrena).toBeDefined();
+    // Synthetic entry has no subgenus field and scientificName ending in " sp."
+    const isSynthetic = (sp: any) => sp.scientificName === 'Andrena sp.';
+    // Must not appear in any subgenus
+    for (const sg of andrena.subgenera) {
+      expect(sg.species.some(isSynthetic)).toBe(false);
+    }
+    // If a synthetic entry exists in species, it must be in ungroupedSpecies
+    if (andrena.species.some(isSynthetic)) {
+      expect(andrena.ungroupedSpecies.some(isSynthetic)).toBe(true);
+    }
+  });
+
+  test('genusList: a genus with no subgenera has subgenera.length === 0 and non-empty ungroupedSpecies', () => {
+    const list = (species as any).genusList;
+    // Find a genus where every species lacks a subgenus (data-driven, not hardcoded)
+    const noSubgenusGenus = list.find((g: any) => g.subgenera.length === 0);
+    expect(noSubgenusGenus).toBeDefined();
+    expect(Array.isArray(noSubgenusGenus.ungroupedSpecies)).toBe(true);
+    expect(noSubgenusGenus.ungroupedSpecies.length).toBeGreaterThan(0);
+    // ungroupedSpecies must equal species for a genus with no subgenera
+    const toKey = (sp: any) => sp.canonical_name ?? sp.scientificName;
+    const ungroupedKeys = noSubgenusGenus.ungroupedSpecies.map(toKey);
+    const speciesKeys = noSubgenusGenus.species.map(toKey);
+    expect(ungroupedKeys).toEqual(speciesKeys);
+  });
+
+  test('genusList: hexColors are preserved (subgenera[].species and ungroupedSpecies share same hexColors as species)', () => {
+    const list = (species as any).genusList;
+    const andrena = list.find((g: any) => g.genus === 'Andrena');
+    expect(andrena).toBeDefined();
+    // Build a map of canonical_name ?? scientificName -> hexColor from species (the source of truth)
+    const colorByKey: Record<string, string> = {};
+    for (const sp of andrena.species) {
+      const key = sp.canonical_name ?? sp.scientificName;
+      colorByKey[key] = sp.hexColor;
+    }
+    // All species in subgenera must have the same hexColor as in species[]
+    for (const sg of andrena.subgenera) {
+      for (const sp of sg.species) {
+        const key = sp.canonical_name ?? sp.scientificName;
+        expect(sp.hexColor, `${andrena.genus}/${sg.subgenus}/${key} hexColor mismatch`).toBe(colorByKey[key]);
+      }
+    }
+    // All species in ungroupedSpecies must also have same hexColor
+    for (const sp of andrena.ungroupedSpecies) {
+      const key = sp.canonical_name ?? sp.scientificName;
+      expect(sp.hexColor, `${andrena.genus}/ungrouped/${key} hexColor mismatch`).toBe(colorByKey[key]);
+    }
+  });
 });
 
 // Phase 133 Plan 01 — Wave 0 RED contract for TREE-01/02/04.
