@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: verifying
-stopped_at: Phase 137 context gathered
-last_updated: "2026-06-08T20:24:57.535Z"
+status: ready_to_plan
+stopped_at: Phase 137 complete (2/2) — ready to discuss Phase 139
+last_updated: 2026-06-08T20:46:55.448Z
 last_activity: 2026-06-08
 progress:
   total_phases: 23
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 138 — Frontend Points & Detail Card
+**Current focus:** Phase 139 — baseline two tier scaffold
 
 ## Current Position
 
-Phase: 137 (Promotion into Occurrences) — COMPLETE
-Plan: 2 of 2 (all plans complete)
-Status: Phase complete — ready for Phase 138
+Phase: 139
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-08
 
 ## Milestone Overview
