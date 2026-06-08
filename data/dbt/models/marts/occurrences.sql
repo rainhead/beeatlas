@@ -95,7 +95,10 @@ SELECT
     j.source, j.image_url, j.obs_url, j.user_login, j.license,
     fc.county, fe.ecoregion_l3,
     fp.place_slug,
-    j.checklist_id
+    j.checklist_id,
+    j.verbatim_name,
+    j.locality,
+    j.collapsed_count
 FROM joined j
 JOIN final_county fc ON fc._row_id = j._row_id
 JOIN final_eco    fe ON fe._row_id = j._row_id

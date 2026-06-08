@@ -44,7 +44,10 @@ SELECT
     NULL                                           AS user_login,
     NULL                                           AS license,
     'ecdysis'                                      AS source,
-    NULL::INTEGER                                  AS checklist_id
+    NULL::INTEGER                                  AS checklist_id,
+    NULL::VARCHAR                                  AS verbatim_name,
+    NULL::VARCHAR                                  AS locality,
+    NULL::INTEGER                                  AS collapsed_count
 FROM {{ ref('int_ecdysis_base') }} e
 FULL OUTER JOIN {{ ref('int_samples_base') }} s ON e.host_observation_id = s.observation_id
 LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen_observation_id
@@ -100,7 +103,10 @@ SELECT
     NULL                                                                        AS user_login,
     NULL                                                                        AS license,
     'waba_sample'                                                               AS source,
-    NULL::INTEGER                                                               AS checklist_id
+    NULL::INTEGER                                                               AS checklist_id,
+    NULL::VARCHAR                                                               AS verbatim_name,
+    NULL::VARCHAR                                                               AS locality,
+    NULL::INTEGER                                                               AS collapsed_count
 FROM {{ ref('int_provisional_waba_ids') }} p
 JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = p.waba_obs_id
 LEFT JOIN {{ ref('stg_waba__ofvs') }} ofv1718
@@ -179,7 +185,10 @@ SELECT
     io.user_login,
     io.license,
     'inat_obs'                         AS source,
-    NULL::INTEGER                      AS checklist_id
+    NULL::INTEGER                      AS checklist_id,
+    NULL::VARCHAR                      AS verbatim_name,
+    NULL::VARCHAR                      AS locality,
+    NULL::INTEGER                      AS collapsed_count
 FROM {{ source('inat_obs_data', 'observations') }} io
 LEFT JOIN {{ ref('int_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_io
@@ -237,7 +246,10 @@ SELECT
     NULL::VARCHAR                          AS user_login,
     NULL::VARCHAR                          AS license,
     'checklist'::VARCHAR                   AS source,
-    cl.ObjectID::INTEGER                   AS checklist_id
+    cl.ObjectID::INTEGER                   AS checklist_id,
+    cl.verbatim_name,
+    cl.locality,
+    cl.collapsed_count::INTEGER            AS collapsed_count
 FROM {{ ref('int_checklist_dedup_status') }} cl
 WHERE cl.dedup_status IS DISTINCT FROM 'confirmed'
   AND cl.lat IS NOT NULL

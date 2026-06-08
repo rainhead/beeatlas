@@ -72,6 +72,12 @@ models:
         data_type: varchar
       - name: checklist_id
         data_type: integer
+      - name: verbatim_name
+        data_type: varchar
+      - name: locality
+        data_type: varchar
+      - name: collapsed_count
+        data_type: integer
       - name: taxon_id
         data_type: integer
         data_tests:
