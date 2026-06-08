@@ -469,6 +469,8 @@ export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]>
   if (inatIds.length > 0) clauses.push(`observation_id IN (${inatIds.join(',')})`);
   if (inatObsIds.length > 0) clauses.push(`specimen_observation_id IN (${inatObsIds.join(',')})`);
   if (checklistIds.length > 0) clauses.push(`checklist_id IN (${checklistIds.join(',')})`);
+  // No recognized id prefixes → an empty WHERE would be a SQL syntax error. Return early.
+  if (clauses.length === 0) return [];
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
   await tablesReady;
   const { sqlite3, db } = await getDB();
