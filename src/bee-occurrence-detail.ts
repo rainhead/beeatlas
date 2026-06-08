@@ -331,8 +331,10 @@ export class BeeOccurrenceDetail extends LitElement {
   render() {
     const specimenBacked = this.occurrences.filter(isSpecimenBacked);
     // nonSpecimen includes BOTH sample-only and provisional rows (!isSpecimenBacked, not the narrower predicate).
+    // Null-safe: checklist rows with date_quality='none' carry date=null (Phase 138).
+    // localeCompare on a null would throw and blank the whole card; null dates sort last.
     const nonSpecimen = this.occurrences.filter(r => !isSpecimenBacked(r))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
     const dateGroups = groupOccurrences(specimenBacked);
     return html`
       ${dateGroups.map(group => this._renderDateGroup(group))}
