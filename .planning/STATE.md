@@ -39,7 +39,7 @@ Last activity: 2026-06-08
 | 134 | Full-Fidelity Ingest | ING-01, ING-02, ING-03 | Complete (2026-06-04) |
 | 135 | Name Reconciliation | RCN-01..07 | In Progress (4/5 plans — 135-05 pending) |
 | 136 | Deduplication | DUP-01, DUP-02, DUP-03 | Not started |
-| 137 | Promotion into Occurrences | PRO-01, PRO-02, PRO-03, PRO-04 | Not started |
+| 137 | Promotion into Occurrences | PRO-01, PRO-02, PRO-03, PRO-04 | Complete (2026-06-08) |
 | 138 | Frontend Points & Detail Card | UIX-01, UIX-02, UIX-03, UIX-04 | Not started |
 
 **Coverage:** 21/21 requirements mapped (ING-01..03, RCN-01..07, DUP-01..03, PRO-01..04, UIX-01..04)
