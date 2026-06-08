@@ -41,11 +41,11 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 
 ### Deduplication
 
-- [ ] **DUP-01**: Exact internal duplicates (identical species, lat, lon, date, collector) collapse to a single record.
+- [x] **DUP-01**: Exact internal duplicates (identical species, lat, lon, date, collector) collapse to a single record.
   - *Accept:* the 5,184 duplicate groups collapse; pytest verifies no exact-duplicate tuples remain post-collapse.
-- [ ] **DUP-02**: Checklist records duplicating an existing Ecdysis specimen are detected conservatively (exact accepted-name + non-year-only date + coordinates within ~1 km + normalized collector match; NULL date/coord ineligible) and **flagged, not silently merged**.
+- [x] **DUP-02**: Checklist records duplicating an existing Ecdysis specimen are detected conservatively (exact accepted-name + non-year-only date + coordinates within ~1 km + normalized collector match; NULL date/coord ineligible) and **flagged, not silently merged**.
   - *Accept:* `dedup_candidate_pairs.csv` is produced; flagged rows carry a `dedup_status`; no NULL-date/coord row is ever matched.
-- [ ] **DUP-03**: Flagged cross-source duplicates are suppressed from point rendering only after human sign-off, preferring false-split (keep both) when uncertain.
+- [x] **DUP-03**: Flagged cross-source duplicates are suppressed from point rendering only after human sign-off, preferring false-split (keep both) when uncertain.
   - *Accept:* only human-confirmed pairs suppress the checklist point; an unreviewed candidate does not auto-suppress; per-source counts reflect suppression.
 
 ### Promotion (into occurrences)
@@ -103,9 +103,9 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 | RCN-05 | Phase 135 | Pending |
 | RCN-06 | Phase 135 | Pending |
 | RCN-07 | Phase 135 | Pending |
-| DUP-01 | Phase 136 | Pending |
-| DUP-02 | Phase 136 | Pending |
-| DUP-03 | Phase 136 | Pending |
+| DUP-01 | Phase 136 | Complete |
+| DUP-02 | Phase 136 | Complete |
+| DUP-03 | Phase 136 | Complete |
 | PRO-01 | Phase 137 | Pending |
 | PRO-02 | Phase 137 | Pending |
 | PRO-03 | Phase 137 | Pending |

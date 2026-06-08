@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: completed
-stopped_at: Phase 135 plan 05 — Tasks 1-3 done; HUMAN-REVIEW GATE (Task 4) pending curator sign-off before Phase 136
-last_updated: "2026-06-08T18:12:17.083Z"
-last_activity: 2026-06-08 -- Phase 135 marked complete
+status: executing
+stopped_at: Phase 136 plan 01 complete — RED scaffold (11 tests + stub module + 3 placeholder models + seed). Wave 2 (136-02) next.
+last_updated: "2026-06-08T18:26:50.520Z"
+last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 7
   total_plans: 22
-  completed_plans: 18
+  completed_plans: 19
   percent: 30
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 135 — name-reconciliation
+**Current focus:** Phase 136 — deduplication
 
 ## Current Position
 
-Phase: 135 — COMPLETE
-Plan: 1 of 5
-Status: Phase 135 complete
-Last activity: 2026-06-08 -- Phase 135 marked complete
+Phase: 136 (deduplication) — EXECUTING
+Plan: 2 of 4 (136-01 complete — RED scaffold)
+Status: Executing Phase 136
+Last activity: 2026-06-08 -- Phase 136 plan 01 complete (RED scaffold)
 
 ## Milestone Overview
 
@@ -120,9 +120,9 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T17:12:14.104Z
+Last session: 2026-06-08T18:26:50.491Z
 Stopped at: Phase 135 plan 05 — Tasks 1-3 done; HUMAN-REVIEW GATE (Task 4) pending curator sign-off before Phase 136
-Resume file: .planning/phases/135-name-reconciliation/135-05-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
