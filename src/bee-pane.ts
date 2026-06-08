@@ -81,7 +81,6 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) sortBy: SpecimenSortBy = 'date';
   @property({ attribute: false }) filterActive = false;
   @property({ attribute: false }) selectedIds: Set<string> | null = null;
-  @property({ attribute: false }) checklistVisible = false;
   @property({ attribute: false }) hiddenSources: Set<string> = new Set();
 
   @state() private _open = false;
@@ -110,9 +109,6 @@ export class BeePane extends LitElement {
   @state() private _yearThisYear = true;
   @state() private _yearLastYear = true;
   @state() private _yearEarlier = true;
-
-  // Checklist layer toggle
-  @state() private _showChecklist = false;
 
   // Source filter (mirrors hiddenSources @property)
   @state() private _hiddenSources: Set<string> = new Set();
@@ -510,9 +506,6 @@ export class BeePane extends LitElement {
   };
 
   updated(changed: PropertyValues) {
-    if (changed.has('checklistVisible') && this._showChecklist !== this.checklistVisible) {
-      this._showChecklist = this.checklistVisible;
-    }
     if (changed.has('hiddenSources')) {
       this._hiddenSources = new Set(this.hiddenSources);
     }
@@ -613,15 +606,6 @@ export class BeePane extends LitElement {
 
   private _onClearSelection() {
     this.dispatchEvent(new CustomEvent('pane-clear-selection', { bubbles: true, composed: true }));
-  }
-
-  private _onChecklistChange(e: Event) {
-    const visible = (e.target as HTMLInputElement).checked;
-    this._showChecklist = visible;
-    this.dispatchEvent(new CustomEvent('checklist-layer-changed', {
-      bubbles: true, composed: true,
-      detail: { visible },
-    }));
   }
 
   private _onSourceToggle(sourceValue: string, checked: boolean) {
@@ -1130,9 +1114,9 @@ export class BeePane extends LitElement {
       },
       {
         label: 'Checklist records',
-        tooltip: 'County-level species presence from observation history',
-        checked: this._showChecklist,
-        onChange: this._onChecklistChange,
+        tooltip: 'Published specimen records from Bartholomew et al. 2024',
+        checked: !this._hiddenSources.has('checklist'),
+        onChange: (e: Event) => this._onSourceToggle('checklist', (e.target as HTMLInputElement).checked),
       },
     ];
     return html`
@@ -1186,7 +1170,7 @@ export class BeePane extends LitElement {
         ` : nothing}
         ${this.listLoading
           ? html`<div class="list-placeholder">Loading…</div>`
-          : this._hiddenSources.size === 3
+          : this._hiddenSources.size === 4
             ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
