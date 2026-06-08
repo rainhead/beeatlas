@@ -51,3 +51,18 @@ seeds:
           - not_null
       - name: note
         description: "Curator provenance: the iNat accepted name + reason for the override (gender variant / subspecies / synonym citation)."
+  - name: dedup_decisions
+    description: "Curator-confirmed cross-source deduplication decisions (Phase 136 / D-01). pair_key = '<ObjectID>|<ecdysis_id>'. Unreviewed pairs have no row; only 'confirmed' suppresses a point."
+    columns:
+      - name: pair_key
+        description: "Composite key: '<checklist ObjectID>|<ecdysis_id>' — human-readable, stable (D-02)."
+        data_tests:
+          - not_null
+          - unique
+      - name: dedup_status
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['confirmed', 'rejected']
+      - name: note
+        description: "Free-text curator rationale for the decision."
