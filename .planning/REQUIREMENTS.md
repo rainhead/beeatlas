@@ -56,7 +56,7 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
   - *Accept:* dbt build succeeds; the new column is NULL for non-checklist rows, integer for checklist rows.
 - [x] **PRO-03**: The Phase 111 isolation pytest (asserting checklist exclusion from `occurrences.parquet`) is explicitly retired with a comment referencing v4.7 — not left failing or skipped.
   - *Accept:* the test no longer asserts exclusion; a comment documents the reversal; the suite is green.
-- [ ] **PRO-04**: `occurrences.db` `geo_blob` carries checklist point identity and the `checklist:<N>` occId format; `sqlite_export._GEO_COLS` and frontend `features.ts` column indices change in **one atomic commit**.
+- [x] **PRO-04**: `occurrences.db` `geo_blob` carries checklist point identity and the `checklist:<N>` occId format; `sqlite_export._GEO_COLS` and frontend `features.ts` column indices change in **one atomic commit**.
   - *Accept:* a Vitest test decodes a `checklist:<N>` occId; `_buildGeoJSONFromRaw` drops no checklist point; ID round-trip passes.
 
 ### Frontend UX
@@ -109,7 +109,7 @@ Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV (coordin
 | PRO-01 | Phase 137 | Complete |
 | PRO-02 | Phase 137 | Complete |
 | PRO-03 | Phase 137 | Complete |
-| PRO-04 | Phase 137 | Pending |
+| PRO-04 | Phase 137 | Complete |
 | UIX-01 | Phase 138 | Pending |
 | UIX-02 | Phase 138 | Pending |
 | UIX-03 | Phase 138 | Pending |

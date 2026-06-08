@@ -858,7 +858,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 137-02-PLAN.md — Atomic _GEO_COLS + features.ts checklist:<N> decode + Vitest (single commit) [PRO-04]
+- [x] 137-02-PLAN.md — Atomic _GEO_COLS + features.ts checklist:<N> decode + Vitest (single commit) [PRO-04]
 
 ### Phase 138: Frontend Points & Detail Card
 
@@ -1038,7 +1038,7 @@ Plans:
 | 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete    | 2026-06-04 |
 | 135. Name Reconciliation | v4.7 | 5/5 | Complete   | 2026-06-08 |
 | 136. Deduplication | v4.7 | 4/4 | Complete    | 2026-06-08 |
-| 137. Promotion into Occurrences | v4.7 | 1/2 | In Progress|  |
+| 137. Promotion into Occurrences | v4.7 | 2/2 | Complete   | 2026-06-08 |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
