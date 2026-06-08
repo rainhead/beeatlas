@@ -820,7 +820,23 @@ Plans:
   2. `dedup_candidate_pairs.csv` is produced listing cross-source candidate pairs matched on exact accepted-name + non-year-only date + coordinates within ~1 km + normalized collector; NULL-date and NULL-coordinate rows are never candidates
   3. No checklist point is suppressed from the point arm unless its `dedup_status` is explicitly set to `confirmed` by a human; unreviewed candidates render as normal points; per-source counts reflect only confirmed suppressions
 
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+
+- [ ] 136-01-PLAN.md — Wave 0 RED scaffold: 11 failing tests + checklist_dedup.py stubs + 3 placeholder int_* models + header-only dedup_decisions.csv seed/schema [DUP-01, DUP-02, DUP-03]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 136-02-PLAN.md — int_checklist_collapsed (lowest-ObjectID survivor + collapsed_count) + token-set collector normalization [DUP-01]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 136-03-PLAN.md — int_dedup_candidates spatial+date+name join (lat-first ST_Distance_Sphere, 1.0 km, coarser-date) + write_dedup_candidates() collector-filtered audit CSV [DUP-02]
+
+**Wave 4** *(blocked on Wave 3; not autonomous)*
+
+- [ ] 136-04-PLAN.md — int_checklist_dedup_status LEFT JOIN view + check_dedup_gate + run.py dedup-candidates/dedup-gate STEPS + full dbt build + curator HUMAN-REVIEW GATE [DUP-03]
 
 ### Phase 137: Promotion into Occurrences
 
