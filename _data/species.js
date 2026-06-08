@@ -121,11 +121,26 @@ const genusList = Object.values(genusMap)
     if (unresolvedOccurrences > 0) {
       species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }
+    // Partition species into subgenus groups + ungrouped (derived from the already-built species array
+    // so hexColors and object identity are preserved exactly). The synthetic "Genus sp." entry has no
+    // subgenus field and falls into ungroupedSpecies automatically.
+    const ungroupedSpecies = species.filter(sp => !sp.subgenus || sp.subgenus.trim() === '');
+    const subgenusGroupMap = {};
+    for (const sp of species) {
+      if (!sp.subgenus || sp.subgenus.trim() === '') continue;
+      if (!subgenusGroupMap[sp.subgenus]) subgenusGroupMap[sp.subgenus] = [];
+      subgenusGroupMap[sp.subgenus].push(sp);
+    }
+    const subgenera = Object.entries(subgenusGroupMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([subgenus, sps]) => ({ subgenus, species: sps }));
     return {
       genus: g.genus,
       family: g.family,
       subfamily: g.subfamily,
       species,
+      subgenera,
+      ungroupedSpecies,
       speciesCount: speciesOnly.length,
       totalOccurrences: speciesOnly.reduce((acc, sp) => acc + sp.occurrence_count, 0) + unresolvedOccurrences,
       taxon_id: higherTaxaByRankName['genus']?.[g.genus]?.taxon_id ?? null,
