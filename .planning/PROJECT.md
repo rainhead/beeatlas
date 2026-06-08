@@ -6,9 +6,9 @@
 
 **Notable:** the milestone's whole premise was honesty — "green ≠ covered." Tests already mocked all network (iNat/GBIF), so the fast tier needs no AWS/S3; dbt is not invoked by pytest (its 33-col contract is enforced separately at `bash data/dbt/run.sh build`). Genuine full-data checks (50,646-row count, full `taxa.csv.gz` LCA, sandbox-vs-public parquet diff) were routed into the opt-in slow tier, exercised nightly on maderas and gated in CI.
 
-## Milestone: v4.7 Checklist Records as Point Data — PAUSED (2026-06-05, at Phase 135)
+## Current Milestone: v4.7 Checklist Records as Point Data — RESUMED (2026-06-08)
 
-**Paused mid-execution** to unblock with v4.8 (the slow/red test suite was impeding iteration). Resumable: Phase 134 complete, Phase 135 (name-reconciliation) in progress (plan 1 of 5). Phase dirs `134-full-fidelity-ingest` / `135-name-reconciliation` and the v4.7 requirements (`.planning/REQUIREMENTS-v4.7-paused.md`) are preserved on disk. v4.7 reserved phases 134–138; v4.8 continues at phase 139.
+**Resumed** after v4.8 shipped (the slow/red test suite that prompted the pause is now fixed). State: Phase 134 complete; Phase 135 (name-reconciliation) at **4 of 5 plans done** — plans 135-01..04 shipped (resolver LCA core, GBIF refresh + fuzzy tier, `canonical_name` + reconcile retirement, dbt synonym subsystem); **135-05 is the only remaining plan** (wires the resolver into `run.py` as a no-op nightly step + build gate, runs the one-time `--refresh-checklist` GBIF lookup, then pauses at the curator HUMAN-REVIEW GATE before Phase 136). Phases 136–138 are not yet planned. Requirements restored to `.planning/REQUIREMENTS.md`. v4.7 reserved phases 134–138.
 
 **Goal:** Re-import the original 50,646-row Bartholomew et al. 2024 checklist CSV — recovering the coordinates, full dates, collector, and locality that Phases 76/112 discarded — so checklist records render as real map points (a true 4th occurrence source) with proper reconciliation to current taxonomy.
 
@@ -82,7 +82,9 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ### Active
 
-*No active milestone. v4.8 shipped 2026-06-08. Resumable next focus: **v4.7 Checklist Records as Point Data** — PAUSED at Phase 135; requirements preserved in `.planning/REQUIREMENTS-v4.7-paused.md`. Backlog: Phase 999.1 (debounce URL updates on map move) and 999.2 (dependabot deps) in ROADMAP.md.*
+**v4.7 Checklist Records as Point Data** (resumed 2026-06-08) — see `.planning/REQUIREMENTS.md` (ING / RCN / DUP / PRO / UIX categories). Re-import the 50,646-row Bartholomew checklist CSV and promote it into `occurrences.parquet` as a `source='checklist'` point peer with build-time taxonomic reconciliation and conservative Ecdysis dedup. **Current:** Phase 135 (Name Reconciliation), plan 135-05 pending; Phases 136–138 unplanned.
+
+*Backlog (ROADMAP.md): Phase 999.1 (debounce URL updates on map move), 999.2 (dependabot deps). v4.8 shipped 2026-06-08.*
 
 ### Validated
 
