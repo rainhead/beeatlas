@@ -4,13 +4,13 @@ milestone: v4.7
 milestone_name: Checklist Records as Point Data
 status: executing
 stopped_at: Phase 138 UI-SPEC approved
-last_updated: "2026-06-08T22:48:36.314Z"
+last_updated: "2026-06-08T23:02:02.086Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 9
   total_plans: 28
-  completed_plans: 25
+  completed_plans: 26
   percent: 39
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as
 ## Current Position
 
 Phase: 138 (frontend-points-detail-card) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-08
 
@@ -86,6 +86,8 @@ v4.7 "Checklist Records as Point Data" was paused mid-execution to run v4.8 (the
 - **DISTINCT ON (cl.ObjectID) collapses fan-out**: `int_checklist_dedup_status` uses `SELECT DISTINCT ON (cl.ObjectID)` to avoid duplicate output rows when an ObjectID has multiple candidate pairs.
 - **check_dedup_gate() short-circuits on header-only seed**: if DEDUP_DECISIONS_CSV has no confirmed rows, gate returns OK without requiring candidate CSV to exist — correct for the initial state where no decisions have been made.
 - **test_unreviewed_pair_not_suppressed rewritten as three-part test**: original test passed only one of three needed refs to `_load_model_sql`, causing bare-alias SQL errors; fixed to pass all three refs with empty tables for the "no candidates" case (Rule 1 deviation 136-04).
+- [Phase ?]: occurrences.sql SELECT must be updated alongside int_combined and schema.yml when adding contract columns
+- [Phase ?]: checklist_count_agg uses ref('int_checklist_dedup_status') not ref('occurrences') to avoid external-parquet circular DAG
 
 ### Roadmap Evolution
 
@@ -138,7 +140,7 @@ Acknowledged at v4.8 milestone close (2026-06-08) — 25 open items (24 quick-ta
 
 ## Session Continuity
 
-Last session: 2026-06-08T22:48:36.284Z
+Last session: 2026-06-08T23:01:57.923Z
 Stopped at: Phase 138 UI-SPEC approved
 Resume file: None
 
