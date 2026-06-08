@@ -854,7 +854,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 137-01-PLAN.md — ARM 4 checklist UNION arm in int_combined + NULL::INTEGER checklist_id casts (ARMs 1-3) + 34-col schema contract bump + Phase 111 test retirement [PRO-01, PRO-02, PRO-03]
+- [x] 137-01-PLAN.md — ARM 4 checklist UNION arm in int_combined + NULL::INTEGER checklist_id casts (ARMs 1-3) + 34-col schema contract bump + Phase 111 test retirement [PRO-01, PRO-02, PRO-03]
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -1038,7 +1038,7 @@ Plans:
 | 134. Full-Fidelity Ingest | v4.7 | 2/2 | Complete    | 2026-06-04 |
 | 135. Name Reconciliation | v4.7 | 5/5 | Complete   | 2026-06-08 |
 | 136. Deduplication | v4.7 | 4/4 | Complete    | 2026-06-08 |
-| 137. Promotion into Occurrences | v4.7 | 0/TBD | Not started | - |
+| 137. Promotion into Occurrences | v4.7 | 1/2 | In Progress|  |
 | 138. Frontend Points & Detail Card | v4.7 | 0/TBD | Not started | - |
 | 139. Baseline & Two-Tier Scaffold | v4.8 | 1/1 | Complete    | 2026-06-05 |
 | 140. Checklist & Taxonomy Fixture Distillation | v4.8 | 2/2 | Complete    | 2026-06-06 |
