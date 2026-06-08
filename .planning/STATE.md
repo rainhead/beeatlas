@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.7
 milestone_name: Checklist Records as Point Data
-status: executing
-stopped_at: Phase 136 plan 04 complete — DUP-03 GREEN (int_checklist_dedup_status + check_dedup_gate + run.py wired); HUMAN-REVIEW GATE reached — curator must review dedup_candidate_pairs.csv before Phase 137
-last_updated: "2026-06-08T19:00:00.000Z"
+status: ready_to_plan
+stopped_at: Phase 136 complete (4/4) — ready to discuss Phase 139
+last_updated: 2026-06-08T19:13:10.094Z
 last_activity: 2026-06-08
 progress:
   total_phases: 23
   completed_phases: 7
   total_plans: 22
   completed_plans: 22
-  percent: 31
+  percent: 30
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.8 complete; v4.7 resumed as active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 136 — deduplication
+**Current focus:** Phase 139 — baseline two tier scaffold
 
 ## Current Position
 
-Phase: 136 (deduplication) — COMPLETE (all 4 plans done; HUMAN-REVIEW GATE pending curator approval)
-Plan: 4 of 4 complete (136-04 complete — DUP-03 GREEN + HUMAN-REVIEW GATE reached)
-Status: Awaiting curator review of dedup_candidate_pairs.csv before Phase 137
+Phase: 139
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-08
 
 ## Milestone Overview
