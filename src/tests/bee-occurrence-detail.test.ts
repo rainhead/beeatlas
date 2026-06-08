@@ -1,0 +1,39 @@
+import { describe, test, expect } from 'vitest';
+import { formatRomanDate } from '../bee-occurrence-detail.ts';
+
+// Wave 0 Nyquist scaffold — tests target post-Plan-04 behavior.
+// The null / year-only / month-precision cases are intentionally RED until
+// Plan 04 extends formatRomanDate to the full signature:
+//   (dateStr: string | null) => string
+// The full-date case ('2019-06-15') passes against the current implementation.
+
+describe('formatRomanDate', () => {
+  test('full date string returns day-in-roman-month format', () => {
+    // '2019-06-15' → 15 June 2019 → '15 VI 2019'
+    expect(formatRomanDate('2019-06-15')).toBe('15 VI 2019');
+  });
+
+  test('null input returns empty string (D-08: null-safe signature)', () => {
+    // Current implementation signature is (dateStr: string) and throws or
+    // misbehaves on null. After Plan 04: (dateStr: string | null) => '' for null.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(formatRomanDate(null as any)).toBe('');
+  });
+
+  test('empty string returns empty string', () => {
+    // No date data — return '' rather than an invalid-date string.
+    expect(formatRomanDate('')).toBe('');
+  });
+
+  test('year-only string (length 4) returns the year as-is (D-08: precision fallback)', () => {
+    // '2019' — only year precision available; no month/day to format
+    // After Plan 04: length-4 strings return the year unchanged.
+    expect(formatRomanDate('2019')).toBe('2019');
+  });
+
+  test('month-precision string (length 7) returns roman-month year format (D-08)', () => {
+    // '2019-06' — year + month precision; no day available
+    // After Plan 04: returns 'VI 2019'
+    expect(formatRomanDate('2019-06')).toBe('VI 2019');
+  });
+});

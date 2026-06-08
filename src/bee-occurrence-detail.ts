@@ -6,7 +6,7 @@ import type { TaxonCacheEntry } from './taxa.ts';
 
 const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 
-function formatRomanDate(dateStr: string): string {
+export function formatRomanDate(dateStr: string): string {
   const d = new Date(dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return `${d.getDate()} ${ROMAN_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
