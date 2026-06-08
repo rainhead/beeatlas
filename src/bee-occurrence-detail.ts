@@ -6,10 +6,26 @@ import type { TaxonCacheEntry } from './taxa.ts';
 
 const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
 
-export function formatRomanDate(dateStr: string): string {
-  const d = new Date(dateStr.length === 10 ? dateStr + 'T00:00:00' : dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return `${d.getDate()} ${ROMAN_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+export function formatRomanDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  if (dateStr.length === 10) {
+    // YYYY-MM-DD full precision
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return dateStr;
+    return `${d.getDate()} ${ROMAN_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  }
+  if (dateStr.length === 7) {
+    // YYYY-MM month precision
+    const parts = dateStr.split('-');
+    const year = Number(parts[0]);
+    const month = Number(parts[1]);
+    return `${ROMAN_MONTHS[month - 1]} ${year}`;
+  }
+  if (dateStr.length === 4) {
+    // YYYY year-only
+    return dateStr;
+  }
+  return dateStr; // fallback: render as-is
 }
 
 interface CollectorGroup {
@@ -284,6 +300,34 @@ export class BeeOccurrenceDetail extends LitElement {
     `;
   }
 
+  private _renderChecklist(row: OccurrenceRow) {
+    const checklistInfo = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
+    const accepted = checklistInfo?.name ?? null;
+    const verbatim = row.verbatim_name;
+    let taxonEl;
+    if (accepted != null && verbatim != null && accepted !== verbatim) {
+      taxonEl = html`<em>${accepted}</em> <span class="hint">(det. as ${verbatim})</span>`;
+    } else if (accepted != null) {
+      taxonEl = html`<em>${accepted}</em>`;
+    } else if (verbatim != null) {
+      taxonEl = html`<em>${verbatim}</em>`;
+    } else {
+      taxonEl = html`<span class="hint">No determination</span>`;
+    }
+    const dateStr = formatRomanDate(row.date);
+    return html`
+      <div class="panel-content sample-dot-detail">
+        <div class="inat-id-label">${taxonEl}</div>
+        ${row.recordedBy != null ? html`<div class="event-observer">${row.recordedBy}</div>` : ''}
+        ${dateStr ? html`<div class="event-date">${dateStr}</div>` : ''}
+        ${row.locality != null && row.locality !== '' ? html`<div class="event-host">${row.locality}</div>` : ''}
+        ${row.collapsed_count != null && row.collapsed_count > 1
+          ? html`<div class="event-count">Represents ${row.collapsed_count} collapsed records</div>` : ''}
+        <div class="hint">Bartholomew et al. 2024</div>
+      </div>
+    `;
+  }
+
   render() {
     const specimenBacked = this.occurrences.filter(isSpecimenBacked);
     // nonSpecimen includes BOTH sample-only and provisional rows (!isSpecimenBacked, not the narrower predicate).
@@ -297,9 +341,11 @@ export class BeeOccurrenceDetail extends LitElement {
       ${nonSpecimen.map(row =>
         isProvisional(row)
           ? this._renderProvisional(row)
-          : row.source === 'inat_obs'
-            ? this._renderInatObs(row)
-            : this._renderSampleOnly(row)
+          : row.source === 'checklist'
+            ? this._renderChecklist(row)
+            : row.source === 'inat_obs'
+              ? this._renderInatObs(row)
+              : this._renderSampleOnly(row)
       )}
     `;
   }
