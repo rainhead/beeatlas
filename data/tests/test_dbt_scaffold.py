@@ -193,28 +193,44 @@ def test_checklist_source_constant():
     assert val == "checklist", f"expected source='checklist', got '{val}'"
 
 
-# Isolation: occurrences.parquet must NOT grow after Phase 111
+# Retired v4.7 (Phase 137): checklist records now intentionally enter int_combined as
+# source='checklist'; the Phase 111 isolation invariant (checklist exclusion) was
+# deliberately reversed once coordinates were confirmed present. See STATE.md §Decisions.
+# This function body has been re-baselined: ceiling raised to absorb ~20K checklist rows
+# and a positive source='checklist' existence assertion added (PRO-03).
 @pytest.mark.integration
 @pytest.mark.skipif(
     not (SANDBOX / "occurrences.parquet").exists(),
     reason="run `bash data/dbt/run.sh build` first to produce sandbox outputs",
 )
 def test_occurrences_row_count_not_inflated_by_checklist():
-    """occurrences.parquet row count stays within expected range after Phase 118.
+    """occurrences.parquet row count is within the expected range (Phase 137 re-baselined).
 
-    Baseline pre-Phase-111: 47,876 rows (ecdysis + waba_sample only).
-    Phase 118 adds ~44,534 inat_obs rows for a total of ~92,802.
-    Ceiling set to 100,000 to absorb natural data growth while still catching
-    checklist-row leakage (those are ~10k rows; any leak would exceed 100k).
-    Checklist records MUST NOT enter int_combined (locked STATE.md decision).
+    Baseline post-Phase-137 (v4.7): ~92,802 existing rows + ~20K checklist rows ≈ ~112K.
+    Ceiling set generously to 160,000 to absorb natural data growth while still catching
+    accidental row explosions (e.g., a runaway JOIN in int_combined).
+
+    Retired v4.7 (Phase 137): the old assertion "Checklist records MUST NOT enter
+    int_combined" has been reversed. Checklist records now intentionally enter as
+    source='checklist'. See STATE.md §Decisions for the v4.7 reversal rationale.
     """
     parquet_path = str(SANDBOX / "occurrences.parquet")
     row = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{parquet_path}')"
     ).fetchone()
-    assert row[0] <= 100_000, (
+    assert row[0] <= 160_000, (
         f"occurrences.parquet has {row[0]} rows — unexpectedly large; "
-        "verify checklist rows did not enter int_combined"
+        "verify no runaway JOIN occurred in int_combined"
+    )
+    # Positive assertion: source='checklist' rows must exist in occurrences.parquet (PRO-03).
+    # Retired v4.7 (Phase 137): checklist records now intentionally promoted from
+    # int_checklist_dedup_status as ARM 4 of int_combined.
+    checklist_count = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE source='checklist'"
+    ).fetchone()[0]
+    assert checklist_count > 0, (
+        f"occurrences.parquet has 0 source='checklist' rows — "
+        "ARM 4 of int_combined may be missing or filtered incorrectly"
     )
 
 
@@ -253,11 +269,14 @@ def test_inat_obs_rows_in_occurrences():
 @pytest.mark.integration
 @_OCCURRENCES_GUARD
 def test_source_no_nulls():
-    """All rows in occurrences.parquet have source in ('ecdysis', 'waba_sample', 'inat_obs') (OCC-01)."""
+    """All rows in occurrences.parquet have a recognized source value (OCC-01 + PRO-01).
+
+    Phase 137 (v4.7): 'checklist' added as a valid source after ARM 4 promotion.
+    """
     parquet_path = str(SANDBOX / "occurrences.parquet")
     row = duckdb.execute(f"""
         SELECT COUNT(*) FROM read_parquet('{parquet_path}')
-        WHERE source NOT IN ('ecdysis', 'waba_sample', 'inat_obs')
+        WHERE source NOT IN ('ecdysis', 'waba_sample', 'inat_obs', 'checklist')
     """).fetchone()
     assert row[0] == 0, f"Found {row[0]} rows with unexpected source values"
 
