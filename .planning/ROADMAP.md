@@ -850,7 +850,15 @@ Plans:
   3. The Phase 111 pytest that asserted checklist exclusion from `occurrences.parquet` is replaced with a new assertion that `source='checklist'` rows exist; a comment in the test file references the v4.7 reversal decision
   4. `sqlite_export._GEO_COLS` and `src/features.ts` column-index constants change in a single atomic commit; a Vitest test decodes a `checklist:<N>` occId; `_buildGeoJSONFromRaw` drops no checklist point
 
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+**Wave 1**
+
+- [ ] 137-01-PLAN.md — ARM 4 checklist UNION arm in int_combined + NULL::INTEGER checklist_id casts (ARMs 1-3) + 34-col schema contract bump + Phase 111 test retirement [PRO-01, PRO-02, PRO-03]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 137-02-PLAN.md — Atomic _GEO_COLS + features.ts checklist:<N> decode + Vitest (single commit) [PRO-04]
 
 ### Phase 138: Frontend Points & Detail Card
 
