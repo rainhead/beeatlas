@@ -121,6 +121,7 @@ Carried forward from v4.6 milestone close (2026-06-04) — 28 open items, all pr
 | 2026-05-27 | 260527-ko5 | Move sqlite and data loading into a worker thread; profile before/after |
 | 2026-05-27 | pst | Replace string-escape INSERT with wa-sqlite prepared statements |
 | 2026-05-28 | syn-occurrence-synonymy-mechanism | Occurrence-side synonymy mechanism; map Agapostemon texanus → subtilior (Portman et al. 2024) |
+| 2026-06-08 | 260607-s5r | Add a rank column to the occurrences table view (closes table-rank-column todo) |
 
 ## Session Continuity
 
