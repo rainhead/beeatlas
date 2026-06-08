@@ -12,9 +12,9 @@ function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
 }
 
 // Column layout: [lat, lon, ecdysis_id, observation_id, specimen_observation_id,
-//                 year, source]
+//                 year, source, checklist_id]
 // Phase 131 NORM-02: dropped scientificName/genus/family; source moves from index 9 → 6.
-// sqlite_export.py _GEO_COLS updated in the same commit (positional coupling).
+// Phase 137: checklist_id appended at index 7; sqlite_export.py _GEO_COLS updated in the same commit (positional coupling).
 export function _buildGeoJSONFromRaw(rows: unknown[][]): {
   geojson: FeatureCollection<Point, OccurrenceProperties>;
 } {
@@ -30,11 +30,13 @@ export function _buildGeoJSONFromRaw(rows: unknown[][]): {
     const specimen_observation_id = row[4];
     const year = Number(row[5]);
     const source = row[6] as string | null;
+    const checklist_id = row[7];
 
     let occId: string | null = null;
     if (ecdysis_id != null) occId = `ecdysis:${ecdysis_id}`;
     else if (observation_id != null) occId = `inat:${observation_id}`;
     else if (specimen_observation_id != null) occId = `inat_obs:${specimen_observation_id}`;
+    else if (checklist_id != null) occId = `checklist:${checklist_id}`;
     if (occId == null) continue;
 
     features.push({
