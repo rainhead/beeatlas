@@ -50,31 +50,60 @@ def _csv_safe(value: object) -> object:
 def _normalize_collector(name: str | None) -> frozenset[str]:
     """Normalize a collector string to a frozenset of lowercased tokens (D-05).
 
-    Rules (implementation in Wave 2, 136-02):
-    - Strip and lowercase the full string.
-    - Split on whitespace and punctuation (re.split).
-    - Expand single-letter initials: 'J' matches any 'john', 'james', etc. token that
-      starts with 'j' (initials are length-1 alpha tokens).
-    - Remove empty tokens.
+    Rules:
+    - None / empty string → empty frozenset (NULL collector rows are not collapsed
+      together per D-03; they are also ineligible as dedup candidates per D-08).
+    - Lowercase the full string.
+    - Replace punctuation (non-word, non-space characters) with spaces via re.sub.
+    - Collapse whitespace and strip.
+    - Split on whitespace; discard empty tokens.
     - Returns frozenset for O(1) set-equality comparison.
-
-    None / empty string → empty frozenset (NULL collector rows are not collapsed together
-    per D-03; they are also ineligible as dedup candidates per D-05).
     """
-    raise NotImplementedError("_normalize_collector: implemented in Wave 2 (136-02)")
+    if name is None:
+        return frozenset()
+    normalized = re.sub(r"[^\w\s]", " ", name.lower())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    if not normalized:
+        return frozenset()
+    return frozenset(normalized.split())
 
 
 def _collectors_match(a: str | None, b: str | None) -> bool:
     """Return True if collector strings a and b are a plausible match (D-05).
 
-    Uses _normalize_collector on each side, then checks if either normalized token-set
-    is a subset of the other (allowing partial name vs. full name, or initial vs. given name).
+    Algorithm (exact token-set + initials awareness, NO fuzzy scoring per D-05):
+    1. If either argument is None → False (D-08: NULL ineligible).
+    2. Normalize both to frozensets of lowercase tokens.
+    3. If sets are equal → True.
+    4. Initials rule: for the smaller set, every token must either:
+       a. appear in the larger set exactly, OR
+       b. be a single alphabetic character that is the initial (startswith) of
+          some token in the larger set.
+       If all tokens in the smaller set satisfy (a) or (b) → True, else → False.
 
-    None on either side → False (no collector info → no match assertion possible).
-
-    Implementation in Wave 2 (136-02).
+    Examples:
+      _collectors_match('J Smith', 'John Smith') → True  (j is initial of john)
+      _collectors_match('Smith, J.', 'J. Smith') → True  (token-set equality after
+                                                           punctuation strip)
+      _collectors_match('A Jones', 'B Jones')   → False (a ≠ initial of b…)
+      _collectors_match(None, 'John Smith')     → False (D-08)
     """
-    raise NotImplementedError("_collectors_match: implemented in Wave 2 (136-02)")
+    if a is None or b is None:
+        return False
+    ts_a = _normalize_collector(a)
+    ts_b = _normalize_collector(b)
+    if ts_a == ts_b:
+        return True
+    # Initials rule: smaller set must be explainable by the larger set.
+    smaller, larger = (ts_a, ts_b) if len(ts_a) <= len(ts_b) else (ts_b, ts_a)
+    for tok in smaller:
+        if tok in larger:
+            continue
+        # Single alpha character can match as an initial.
+        if len(tok) == 1 and tok.isalpha() and any(t.startswith(tok) for t in larger):
+            continue
+        return False
+    return True
 
 
 def write_dedup_candidates() -> int:
