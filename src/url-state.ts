@@ -223,7 +223,8 @@ export function parseParams(search: string): ParsedParams {
     }
   } else if (oRaw) {
     const ids = oRaw.split(',').map(s => s.trim())
-      .filter(s => (s.startsWith('ecdysis:') || s.startsWith('inat:') || s.startsWith('inat_obs:')) && s.length > 5);
+      // Phase 137 (PRO-04): accept checklist:N so a shared/reloaded checklist selection survives the URL roundtrip.
+      .filter(s => (s.startsWith('ecdysis:') || s.startsWith('inat:') || s.startsWith('inat_obs:') || s.startsWith('checklist:')) && s.length > 5);
     if (ids.length > 0) {
       result.selection = { type: 'ids', ids };
     }

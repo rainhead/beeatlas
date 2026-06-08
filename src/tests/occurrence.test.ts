@@ -31,6 +31,7 @@ const BASE_ROW: OccurrenceRow = {
   specimen_count: null,
   sample_id: null,
   sample_host: null,
+  checklist_id: null,
   source: null,
   image_url: null,
   obs_url: null,
@@ -69,6 +70,10 @@ describe('occIdFromRow', () => {
 
   test('ecdysis_id is used even when observation_id is also present', () => {
     expect(occIdFromRow(specimenRow({ ecdysis_id: 99, observation_id: 777 }))).toBe('ecdysis:99');
+  });
+
+  test('returns checklist:N for a checklist row (only checklist_id set)', () => {
+    expect(occIdFromRow({ ...BASE_ROW, checklist_id: 1234, source: 'checklist' })).toBe('checklist:1234');
   });
 });
 

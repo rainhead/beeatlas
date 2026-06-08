@@ -228,9 +228,13 @@ def test_occurrences_row_count_not_inflated_by_checklist():
     checklist_count = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE source='checklist'"
     ).fetchone()[0]
-    assert checklist_count > 0, (
-        f"occurrences.parquet has 0 source='checklist' rows — "
-        "ARM 4 of int_combined may be missing or filtered incorrectly"
+    # Floor (not merely > 0): ~19,929 checklist rows are expected post-collapse. A bare
+    # `> 0` would pass even if an over-aggressive dedup seed or an inverted ARM 4 filter
+    # silently suppressed nearly all of them. 10,000 is comfortably below the real volume
+    # and far above noise. (WR-03)
+    assert checklist_count >= 10_000, (
+        f"occurrences.parquet has only {checklist_count} source='checklist' rows — "
+        "unexpectedly few; verify dedup suppression and the ARM 4 filter in int_combined"
     )
 
 
