@@ -6,7 +6,7 @@ title: Species — BeeAtlas
 {%- macro renderNode(node) -%}
 {%- if node.rank === "species" -%}
 <li data-rank="species" data-name="{{ node.scientificName | lower }}">
-  <a class="node-name" href="/species/{{ node.slug }}/"><em>{{ node.scientificName }}</em></a>
+  <a class="node-name" href="/species/{{ node.slug }}/index.html"><em>{{ node.scientificName }}</em></a>
   <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
   <a class="node-map" href="/?taxon={{ node.scientificName | urlencode }}&amp;taxonRank=species" aria-label="Map: {{ node.scientificName }} occurrences">Map</a>
 </li>
@@ -24,7 +24,7 @@ title: Species — BeeAtlas
 {%- elif node.rank === "genus" -%}
 <details class="tree-node tree-node--genus" data-rank="genus" data-name="{{ node.name | lower }}">
   <summary>
-    <a class="node-name" href="/species/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <a class="node-name" href="/species/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
     <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=genus" aria-label="Map: {{ node.name }} occurrences">Map</a>
   </summary>
@@ -43,7 +43,7 @@ title: Species — BeeAtlas
 {%- elif node.rank === "subgenus" -%}
 <details class="tree-node tree-node--subgenus" data-rank="subgenus" data-name="{{ node.name | lower }}">
   <summary>
-    <a class="node-name" href="/species/{{ node.genusName }}/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <a class="node-name" href="/species/{{ node.genusName }}/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
     <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=subgenus" aria-label="Map: {{ node.name }} occurrences">Map</a>
   </summary>
@@ -62,7 +62,7 @@ title: Species — BeeAtlas
 {%- elif node.rank === "tribe" -%}
 <details class="tree-node tree-node--tribe" data-rank="tribe" data-name="{{ node.name | lower }}">
   <summary>
-    <a class="node-name" href="/species/tribe/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <a class="node-name" href="/species/tribe/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
     <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=tribe" aria-label="Map: {{ node.name }} occurrences">Map</a>
   </summary>
@@ -73,7 +73,7 @@ title: Species — BeeAtlas
 {%- elif node.rank === "subfamily" -%}
 <details class="tree-node tree-node--subfamily" data-rank="subfamily" data-name="{{ node.name | lower }}">
   <summary>
-    <a class="node-name" href="/species/subfamily/{{ node.name }}/"><em>{{ node.name }}</em></a>
+    <a class="node-name" href="/species/subfamily/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
     <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=subfamily" aria-label="Map: {{ node.name }} occurrences">Map</a>
   </summary>
