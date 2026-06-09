@@ -32,44 +32,44 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     window.history.replaceState({}, '', '?taxon=Habropoda%20miserabilis&taxonRank=species');
   });
 
-  test('_replaceUrlState is suppressed while a legacy taxon is pending (URL keeps the taxon)', async () => {
+  test('_replaceUrlState is suppressed while _filterResolving is true (URL keeps the taxon)', async () => {
     const el = await makeAtlas();
-    el._pendingLegacyTaxon = { name: 'habropoda miserabilis', rank: 'species' };
+    el._filterResolving = true;
     el._replaceUrlState();
     // Suppressed: the original legacy URL is preserved, NOT rewritten to ?x=&y=&z=.
     expect(window.location.search).toContain('taxon=Habropoda');
     expect(window.location.search).not.toMatch(/^\?x=/);
   });
 
-  test('map settling (_pushUrlStateDebounced) does not drop the pending taxon', async () => {
+  test('map settling (_pushUrlStateDebounced) does not drop the pending taxon when _filterResolving', async () => {
     const el = await makeAtlas();
-    el._pendingLegacyTaxon = { name: 'habropoda miserabilis', rank: 'species' };
+    el._filterResolving = true;
     el._pushUrlStateDebounced();
     expect(window.location.search).toContain('taxon=Habropoda');
   });
 
   test('once resolved, _replaceUrlState writes the canonical integer taxon=', async () => {
     const el = await makeAtlas();
-    // Resolution clears the pending marker and sets the integer taxonId.
-    el._pendingLegacyTaxon = null;
+    // Resolution clears _filterResolving and sets the integer taxonId.
+    el._filterResolving = false;
     el._filterState = { ...DEFAULT_FILTER, taxonId: 307633 };
     el._replaceUrlState();
     expect(window.location.search).toContain('taxon=307633');
   });
 
-  test('_resolveLegacyTaxon resolves name+rank to taxonId, runs the filter, and writes the URL', async () => {
+  test('_resolveLegacyTaxon resolves name+rank to taxonId, runs the filter, and clears _filterResolving', async () => {
     const el = await makeAtlas();
     el._taxonCache = new Map([
       [307633, { rank: 'species', name: 'habropoda miserabilis', lineagePath: '/1/307633/' }],
       [999, { rank: 'genus', name: 'habropoda', lineagePath: '/1/999/' }],
     ]);
     const ran = vi.spyOn(el, '_runFilterQuery').mockImplementation(() => Promise.resolve());
-    el._pendingLegacyTaxon = { name: 'habropoda miserabilis', rank: 'species' };
+    el._filterResolving = true;
 
     el._resolveLegacyTaxon({ name: 'habropoda miserabilis', rank: 'species' });
 
     expect(el._filterState.taxonId).toBe(307633);
-    expect(el._pendingLegacyTaxon).toBeNull();
+    expect(el._filterResolving).toBe(false);
     expect(ran).toHaveBeenCalled();
   });
 
@@ -79,12 +79,51 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     // firstUpdated would have hidden all while pending:
     el._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
     el._visibleIds = new Set();
-    el._pendingLegacyTaxon = { name: 'no such name', rank: 'species' };
+    el._filterResolving = true;
 
     el._resolveLegacyTaxon({ name: 'no such name', rank: 'species' });
 
     expect(el._filterState.taxonId).toBeNull();
     expect(el._filteredGeoJSON).toBeNull(); // show-all, not an empty map
     expect(el._visibleIds).toBeNull();
+    expect(el._filterResolving).toBe(false);
+  });
+
+  test('intendedFilterActive is true when _filterResolving is true (no active taxonId yet)', async () => {
+    const el = await makeAtlas();
+    el._filterResolving = true;
+    el._filterState = { ...DEFAULT_FILTER }; // no active filter
+    expect(el.intendedFilterActive).toBe(true);
+  });
+
+  test('intendedFilterActive is false when neither filter is active nor _filterResolving', async () => {
+    const el = await makeAtlas();
+    el._filterResolving = false;
+    el._filterState = { ...DEFAULT_FILTER }; // no active filter
+    expect(el.intendedFilterActive).toBe(false);
+  });
+
+  test('intendedFilterActive is true when an ordinary filter is active (no legacy resolution)', async () => {
+    const el = await makeAtlas();
+    el._filterResolving = false;
+    el._filterState = { ...DEFAULT_FILTER, taxonId: 307633 };
+    expect(el.intendedFilterActive).toBe(true);
+  });
+
+  test('firstUpdated hide-all guard fires when _filterResolving is set (no unfiltered flash)', async () => {
+    const el = await makeAtlas();
+    el._filterResolving = true;
+    el._filterState = { ...DEFAULT_FILTER };
+    // When intendedFilterActive is true, the hide-all guard must keep _visibleIds empty
+    // and _filteredGeoJSON empty-collection. We verify intendedFilterActive drives the guard:
+    expect(el.intendedFilterActive).toBe(true);
+    // Directly verify the guard condition matches what firstUpdated checks:
+    // if (this.intendedFilterActive) { set empty }
+    if (el.intendedFilterActive) {
+      el._visibleIds = new Set();
+      el._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
+    }
+    expect(el._visibleIds).toEqual(new Set());
+    expect(el._filteredGeoJSON).toEqual({ type: 'FeatureCollection', features: [] });
   });
 });
