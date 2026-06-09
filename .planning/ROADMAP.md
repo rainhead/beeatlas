@@ -49,6 +49,21 @@
 
 - [ ] **Phase 144: Map-Init Readiness** — Convert legacy-taxon resolution to `await taxaReady` (retire the store-and-poll dance); introduce a dedicated `_filterResolving` flag + single `intendedFilterActive` gate (hide-all + URL suppression); move the render decision into `bee-map` so the occurrence layer is a pure function of `(filteredGeoJSON, intendedFilterActive)` — gated on `mapReady`, no unfiltered flash structurally possible. Builds on `ready.ts` (quick task 260608-tnc).
 
+### Phase 144: Map-Init Readiness
+
+**Goal**: The recurring map-init race class is retired structurally. Legacy-taxon URL resolution awaits `taxaReady` instead of storing-and-polling; a single `intendedFilterActive` gate (backed by a dedicated `_filterResolving` flag, not `_pendingLegacyTaxon`) governs hide-all + URL suppression; and the first occurrence-layer render is a pure function of `(filteredGeoJSON, intendedFilterActive)` gated on `mapReady` — so an unfiltered flash or a stranded legacy-taxon URL is no longer structurally possible, not merely timed-around.
+**Depends on**: `ready.ts` readiness barriers (`taxaReady`/`mapReady`) shipped in quick task 260608-tnc (commit 90dfe12)
+**Requirements**: None formal — v4.9 is a single-phase milestone scoped by this roadmap entry and the LOCKED design decisions in `.planning/STATE.md` (planning discussion 2026-06-09). To be captured in `144-CONTEXT.md` via discuss-phase.
+**Success Criteria** (what must be TRUE):
+
+  1. Legacy-taxon URL resolution `await`s `taxaReady` (the store-in-`_pendingLegacyTaxon`-and-poll dance is removed); a legacy-taxon deep link resolves to its modern taxon and applies the filter without depending on render-cycle timing
+  2. A dedicated `_filterResolving` boolean feeds a single `intendedFilterActive` getter on `<bee-atlas>`; hide-all behavior and URL suppression both read from that one gate (no second source of "are we mid-resolve" truth)
+  3. `<bee-map>` decides the occurrence layer render as a pure function of `(filteredGeoJSON, intendedFilterActive)`, gated on `mapReady`; the unfiltered-flash-on-load path is removed at the structural level, not guarded by a timer or ordering assumption
+  4. State ownership is preserved: `<bee-atlas>` still owns all reactive state, `<bee-map>` remains a pure presenter receiving state as properties (Architecture Invariant); the filter race guard (`_filterQueryGeneration`) and style-cache bypass rules are not regressed
+  5. The regression net `bee-atlas-legacy-taxon.test.ts` (commit 5833b41) passes, and tests cover the await-resolution path and the `intendedFilterActive` gate; `npm test` is green and `npm run build` succeeds
+
+**Plans**: TBD (planner to determine)
+
 <details>
 <summary>✅ v1.0 MVP (Phases 1–6) — SHIPPED 2026-02-22</summary>
 
