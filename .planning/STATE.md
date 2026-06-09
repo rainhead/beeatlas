@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.10
 milestone_name: Housekeeping
-status: verifying
-stopped_at: Phase 146 Plan 01 complete
-last_updated: "2026-06-09T18:40:09.889Z"
+status: milestone_complete
+stopped_at: Milestone complete (Phase 146 was final phase)
+last_updated: 2026-06-09T18:51:44.817Z
 last_activity: 2026-06-09
 progress:
   total_phases: 18
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 146 — debounce-url-updates-when-zooming-and-panning-the-map — COMPLETE
+**Current focus:** Milestone complete
 
 ## Current Position
 
-Phase: 146 (debounce-url-updates-when-zooming-and-panning-the-map) — COMPLETE
-Plan: 1 of 1 (complete)
-Status: Phase 146 complete; v4.10 continues with Phase 145 (dependabot-updates)
-Last activity: 2026-06-09 -- Phase 146 Plan 01 executed and committed
+Phase: 146
+Plan: Not started
+Status: Milestone complete
+Last activity: 2026-06-09
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
