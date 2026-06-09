@@ -293,19 +293,36 @@ def test_curated_overrides_idempotent(resolver_db):
 
 
 def test_committed_curated_seed_matches_expected_mappings():
-    """Pin the committed curated_taxon_ids.csv to the curator-confirmed taxon IDs
-    (debug nightly-resolution-gate Part C). Guards against an accidental edit silently
-    re-breaking the gate.
+    """Guard the committed curated_taxon_ids.csv against edits that would silently
+    re-break the nightly resolution-gate (debug Part C).
 
-    NOTE: exact-match — adding a curator override to the seed (the routine way to
-    clear a newly-unresolved bee name) requires adding it here too.
+    Containment, not exact-match: every curator-confirmed mapping below must be
+    present and correct, and every row must be well-formed — but ADDING a new
+    override (the routine way to clear a newly-unresolved bee name) does NOT
+    require touching this test. Removing/changing a required mapping does.
     """
     seed = Path(__file__).parent.parent / "dbt" / "seeds" / "curated_taxon_ids.csv"
     with seed.open(newline="") as f:
-        mapping = {
-            r["canonical_name"]: int(r["taxon_id"]) for r in csv.DictReader(f)
-        }
-    assert mapping == {
+        rows = list(csv.DictReader(f))
+
+    # No duplicate canonical_name (csv.DictReader would silently collapse them, and a
+    # dup is how a wrong taxon_id could shadow a curator-confirmed one).
+    names = [r["canonical_name"] for r in rows]
+    assert len(names) == len(set(names)), (
+        f"duplicate canonical_name in curated_taxon_ids.csv: "
+        f"{sorted(n for n in names if names.count(n) > 1)}"
+    )
+
+    # Every row well-formed: lowercased, stripped name + positive-integer taxon_id.
+    for r in rows:
+        name, tid = r["canonical_name"], r["taxon_id"]
+        assert name and name == name.strip().lower(), f"malformed canonical_name: {name!r}"
+        assert tid.isdigit() and int(tid) > 0, f"malformed taxon_id for {name!r}: {tid!r}"
+
+    have = {r["canonical_name"]: int(r["taxon_id"]) for r in rows}
+
+    # Curator-confirmed mappings that MUST remain present and unchanged.
+    required = {
         "lasioglossum aspilurus": 1339222,
         "lasioglossum heterorhinus": 271600,
         "anthidiellum robertsoni": 361496,
@@ -325,3 +342,7 @@ def test_committed_curated_seed_matches_expected_mappings():
         "nomada rivalis": 1339416,
         "nomada washingtoni": 1339464,
     }
+    missing_or_changed = {k: v for k, v in required.items() if have.get(k) != v}
+    assert not missing_or_changed, (
+        f"curated_taxon_ids.csv is missing or changed required mappings: {missing_or_changed}"
+    )
