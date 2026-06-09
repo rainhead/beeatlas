@@ -36,6 +36,12 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # @types/node tracks the Node major (.nvmrc → 24); don't let it jump ahead
+      # of the runtime (types for Node 25 APIs would typecheck but fail at run).
+      # Bump this major by hand when the Node version moves.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # npm — infra/ AWS CDK project (package.json / package-lock.json), weekly, minor+patch grouped
   - package-ecosystem: "npm"
@@ -47,6 +53,11 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    ignore:
+      # @types/node tracks the Node major (.nvmrc → 24); don't let it jump ahead
+      # of the runtime. Bump this major by hand when the Node version moves.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   # uv — data/ pyproject.toml / uv.lock, weekly, minor+patch grouped
   - package-ecosystem: "uv"
