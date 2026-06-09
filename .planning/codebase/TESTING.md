@@ -334,7 +334,7 @@ Test data lives in `conftest.py`:
 ```python
 # pytest skipif marker (dbt diff tests)
 @_SANDBOX_GUARD
-def test_occurrences_row_count_matches():
+def test_occurrences_row_count_within_tolerance():
     """Skipped unless `bash data/dbt/run.sh build` has been run to produce sandbox outputs."""
     pass
 
