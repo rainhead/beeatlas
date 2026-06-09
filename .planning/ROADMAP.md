@@ -64,7 +64,7 @@
 
 **Plans**: 2 plans (2 waves — sequential; both touch bee-atlas.ts)
 Plans:
-- [ ] 144-01-PLAN.md — await-taxaReady legacy resolution + dedicated `_filterResolving` flag feeding a single `intendedFilterActive` gate (hide-all + URL suppression); regression net updated (Wave 1)
+- [x] 144-01-PLAN.md — await-taxaReady legacy resolution + dedicated `_filterResolving` flag feeding a single `intendedFilterActive` gate (hide-all + URL suppression); regression net updated (Wave 1)
 - [ ] 144-02-PLAN.md — move occurrence render decision into `bee-map` as f(filteredGeoJSON, intendedFilterActive) gated on `mapReady`; remove bee-atlas empty-collection pre-seed (Wave 2, depends on 144-01)
 
 <details>
