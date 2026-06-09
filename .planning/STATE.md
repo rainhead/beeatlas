@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.9
-milestone_name: Map-Init Readiness
-status: Awaiting next milestone
-stopped_at: v4.9 Map-Init Readiness shipped & archived (Phase 144, 2/2 plans, verified 5/5) — no active milestone
+milestone: v4.10
+milestone_name: Housekeeping
+status: ready_to_plan
+stopped_at: v4.10 Housekeeping opened — Phases 145 (dependabot) + 146 (debounce URL) promoted from backlog; neither planned yet
 last_updated: "2026-06-09T17:01:00.365Z"
-last_activity: 2026-06-09 — Milestone v4.9 completed and archived
+last_activity: 2026-06-09 — v4.9 shipped & archived; opened v4.10 Housekeeping (145 + 146 from backlog)
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_phases: 2
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** None — v4.9 (single-phase: 144 Map-Init Readiness) complete. Close the milestone or start the next one. (999.1/999.2 are parked backlog, NOT v4.9 work — `phase.complete` auto-pointed here; corrected.)
+**Current focus:** v4.10 Housekeeping — Phases 145 (Dependabot deps) + 146 (debounce URL on map move), both promoted from backlog, neither planned yet. Start with `/gsd:discuss-phase 145` or `/gsd:plan-phase 145`.
 
 ## Current Position
 
-Phase: Milestone v4.9 complete — Phase 145 (dependabot) promoted from backlog, standalone, unplanned
-Plan: —
-Status: Awaiting next milestone. Standalone Phase 145 ready to plan (`/gsd:plan-phase 145`) or fold into a new milestone.
-Last activity: 2026-06-09 — Milestone v4.9 completed & archived; v4.7/v4.8 phase dirs cleaned up; backlog 999.2 → Phase 145
+Phase: 145 (Add deps to Dependabot) — first phase of v4.10 Housekeeping, not yet planned
+Plan: — (0 plans; run `/gsd:plan-phase 145`)
+Status: v4.10 opened, ready to plan. Phases 145 + 146 are independent maintenance items (146 does not depend on 145).
+Last activity: 2026-06-09 — v4.9 shipped & archived; v4.7/v4.8 phase dirs cleaned up; backlog 999.1/999.2 promoted to 146/145 and folded into v4.10 Housekeeping
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
