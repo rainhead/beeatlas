@@ -4,6 +4,7 @@ import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJ
 import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
+import { markTaxaReady } from './ready.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from './taxa.ts';
 import type { FeatureCollection, Point } from 'geojson';
@@ -386,6 +387,11 @@ bee-pane {
         r.taxon_id,
         { rank: r.rank, name: r.name, lineagePath: r.lineage_path },
       ]));
+      // Signal the taxon-cache readiness barrier (ready.ts). Nothing awaits it yet
+      // (additive — step 1 of the map-init readiness work); legacy-taxon resolution
+      // will await this in a later change instead of the current _pendingLegacyTaxon
+      // store-and-resolve dance.
+      markTaxaReady();
 
       // Step 2: D-01 enumeration — get distinct present occurrence taxon_ids, then
       // ancestry-expand to build the eligible autocomplete set. This avoids the 10-second
