@@ -1,5 +1,16 @@
 # Milestones
 
+## v4.10 Housekeeping (Shipped: 2026-06-09)
+
+**Phases completed:** 2 phases, 2 plans, 3 tasks
+
+**Key accomplishments:**
+
+- Dependabot v2 config extended with npm (root) and uv (data/) weekly update entries, each grouping minor+patch into one PR, with major bumps ungrouped; github-actions entry retrofitted with the same grouping.
+- Session-coalesced viewport→history writes in `<bee-atlas>`: entire pan/zoom exploration produces one pushState; any filter/selection/UI action resets the session flag so the next exploration starts a fresh entry
+
+---
+
 ## v4.9 Map-Init Readiness (Shipped: 2026-06-09)
 
 **Phases completed:** 1 phase (144), 2 plans, 4 tasks
