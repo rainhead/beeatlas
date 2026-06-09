@@ -11,6 +11,21 @@ updates:
           - "minor"
           - "patch"
 
+  # GitHub Actions — install-lychee composite action. The github-actions entry
+  # at "/" only scans .github/workflows/*, NOT composite actions under
+  # .github/actions/ (confirmed Phase 145 WR-02: its actions/cache lagged a patch
+  # behind deploy.yml's). A directory entry pointing at the composite action's
+  # folder is required to keep it updated.
+  - package-ecosystem: "github-actions"
+    directory: "/.github/actions/install-lychee"
+    schedule:
+      interval: "weekly"
+    groups:
+      install-lychee-actions-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
   # npm — root package.json / package-lock.json, weekly, minor+patch grouped
   - package-ecosystem: "npm"
     directory: "/"

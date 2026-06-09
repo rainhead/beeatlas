@@ -69,12 +69,12 @@ None open.
 
 ## Deferred Items
 
-**v4.10 close (2026-06-09):** 3 items acknowledged and deferred —
+**v4.10 close (2026-06-09):** 3 items acknowledged and deferred; WR-02 since resolved (commit `09ebe94` + dependabot entry) —
 
 | Category | Item | Status |
 |----------|------|--------|
-| uat | `145-HUMAN-UAT.md` | partial — 1 open scenario (WR-02): confirm Dependabot opens a PR for the `install-lychee` composite action after its first weekly GitHub run; unverifiable until then |
-| verification | `145-VERIFICATION.md` | human_needed — same WR-02 post-deploy observation (config verified correct, 5/5 must-haves) |
+| uat | `145-HUMAN-UAT.md` | ✅ resolved (2026-06-09) — WR-02 answered: `directory: "/"` github-actions Dependabot does NOT cover composite actions (the composite `actions/cache` lagged deploy.yml's by a patch). Mitigated: manually pinned to v5.0.5 + added a dedicated `directory: "/.github/actions/install-lychee"` Dependabot entry |
+| verification | `145-VERIFICATION.md` | human_needed at close; the only open item (WR-02) is now resolved — see UAT row above. Report left as the contemporaneous record |
 | todo | `144-code-review-deferred.md` | open — pre-existing, re-surfaced from v4.9 close (see below); non-blocking |
 
 ---
