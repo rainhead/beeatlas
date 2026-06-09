@@ -293,9 +293,12 @@ def test_curated_overrides_idempotent(resolver_db):
 
 
 def test_committed_curated_seed_matches_expected_mappings():
-    """Pin the committed curated_taxon_ids.csv to the 4 curator-confirmed taxon IDs
+    """Pin the committed curated_taxon_ids.csv to the curator-confirmed taxon IDs
     (debug nightly-resolution-gate Part C). Guards against an accidental edit silently
     re-breaking the gate.
+
+    NOTE: exact-match — adding a curator override to the seed (the routine way to
+    clear a newly-unresolved bee name) requires adding it here too.
     """
     seed = Path(__file__).parent.parent / "dbt" / "seeds" / "curated_taxon_ids.csv"
     with seed.open(newline="") as f:
@@ -307,4 +310,18 @@ def test_committed_curated_seed_matches_expected_mappings():
         "lasioglossum heterorhinus": 271600,
         "anthidiellum robertsoni": 361496,
         "osmia phaceliae": 226676,
+        "agapostemon angelicus": 270393,
+        "andrena candidiformis": 458998,
+        "andrena chalybioides": 573383,
+        "bombus suckleyi": 452445,
+        "epimelissodes obliqua": 1630911,
+        "lasioglossum comagenense": 459081,
+        "lasioglossum heterorhinum": 271600,
+        "lasioglossum pavonotum": 1453119,
+        "megachile concinna": 308913,
+        "nomada citrina": 1030776,
+        "nomada heiligbrodtii": 1447845,
+        "nomada kincaidiana": 1588468,
+        "nomada rivalis": 1339416,
+        "nomada washingtoni": 1339464,
     }
