@@ -801,3 +801,55 @@ describe('MAP-02: source-filter-changed event in bee-atlas', () => {
     expect(src).toMatch(/_hiddenSources/);
   });
 });
+
+// SC-3/SC-4: bee-atlas wires intendedFilterActive and removes empty-collection pre-seeds (Plan 144-02)
+describe('144-02: bee-atlas wires intendedFilterActive; removes empty-collection hide-all pre-seeds (SC-3, SC-4)', () => {
+  const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+  test('bee-atlas render() passes .intendedFilterActive to <bee-map>', () => {
+    // The bee-map binding block must contain .intendedFilterActive=${this.intendedFilterActive}
+    expect(atlasSrc).toMatch(/\.intendedFilterActive=\$\{this\.intendedFilterActive\}/);
+  });
+
+  test('firstUpdated does NOT pre-seed empty _filteredGeoJSON as hide-all', () => {
+    // The old hide-all pre-seed in firstUpdated assigned:
+    //   this._filteredGeoJSON = { type: 'FeatureCollection', features: [] }
+    // under an intendedFilterActive guard. After the refactor, intendedFilterActive=true
+    // flowing to bee-map provides hide-all — the pre-seed is removed.
+    const firstUpdatedIdx = atlasSrc.indexOf('async firstUpdated(');
+    expect(firstUpdatedIdx).toBeGreaterThanOrEqual(0);
+    const nextMethod = atlasSrc.indexOf('\n  private ', firstUpdatedIdx + 1);
+    const firstUpdatedBody = atlasSrc.slice(firstUpdatedIdx, nextMethod > firstUpdatedIdx ? nextMethod : firstUpdatedIdx + 3000);
+    // Must not contain the empty FeatureCollection pre-seed for hide-all
+    expect(firstUpdatedBody).not.toMatch(/this\._filteredGeoJSON\s*=\s*\{\s*type\s*:\s*['"]FeatureCollection['"]\s*,\s*features\s*:\s*\[\]/);
+  });
+
+  test('_onPopState does NOT pre-seed empty _filteredGeoJSON as hide-all', () => {
+    // The old hide-all pre-seed in _onPopState assigned the same pattern under a filter guard.
+    // After the refactor it is removed.
+    const onPopStateIdx = atlasSrc.indexOf('private _onPopState(');
+    expect(onPopStateIdx).toBeGreaterThanOrEqual(0);
+    const nextMethod = atlasSrc.indexOf('\n  private ', onPopStateIdx + 1);
+    const onPopStateBody = atlasSrc.slice(onPopStateIdx, nextMethod > onPopStateIdx ? nextMethod : onPopStateIdx + 3000);
+    expect(onPopStateBody).not.toMatch(/this\._filteredGeoJSON\s*=\s*\{\s*type\s*:\s*['"]FeatureCollection['"]\s*,\s*features\s*:\s*\[\]/);
+  });
+
+  test('_runFilterQuery still assigns _filteredGeoJSON/_visibleIds from query results', () => {
+    // The actual filtered results must still flow from _runFilterQuery — unchanged.
+    const runFilterIdx = atlasSrc.indexOf('private async _runFilterQuery(');
+    expect(runFilterIdx).toBeGreaterThanOrEqual(0);
+    const nextMethod = atlasSrc.indexOf('\n  private ', runFilterIdx + 1);
+    const runFilterBody = atlasSrc.slice(runFilterIdx, nextMethod > runFilterIdx ? nextMethod : runFilterIdx + 800);
+    expect(runFilterBody).toMatch(/this\._filteredGeoJSON\s*=/);
+    expect(runFilterBody).toMatch(/this\._visibleIds\s*=/);
+  });
+
+  test('show-all / stale paths still set _filteredGeoJSON and _visibleIds to null', () => {
+    // When there is no active filter (stale legacy, no-match, or clear), bee-atlas must still
+    // null out _filteredGeoJSON/_visibleIds so bee-map renders the full set
+    // (intendedFilterActive will be false at that point).
+    // These null-resets exist in _resolveLegacyTaxon (stale path) and _onPopState (clear path).
+    expect(atlasSrc).toMatch(/this\._filteredGeoJSON\s*=\s*null/);
+    expect(atlasSrc).toMatch(/this\._visibleIds\s*=\s*null/);
+  });
+});
