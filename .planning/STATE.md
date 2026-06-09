@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.9
 milestone_name: Map-Init Readiness
-status: ready_to_plan
-stopped_at: Phase 144 registered — ready to plan
-last_updated: "2026-06-09T01:15:04.517Z"
-last_activity: 2026-06-08 — Milestone v4.7 completed and archived
+status: executing
+stopped_at: quick task 260608-tnc complete (ready.ts scaffolding); steps 2–3 (await-based resolution + intendedFilterActive) deferred to a small phase
+last_updated: "2026-06-09T15:51:25.414Z"
+last_activity: 2026-06-09 -- Phase 144 execution started
 progress:
-  total_phases: 23
-  completed_phases: 10
-  total_plans: 28
-  completed_plans: 28
-  percent: 43
+  total_phases: 19
+  completed_phases: 5
+  total_plans: 13
+  completed_plans: 11
+  percent: 26
 ---
 
 # Project State
@@ -21,16 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v4.9 Phase 144 — Map-Init Readiness (`/gsd:plan-phase 144`)
+**Current focus:** Phase 144 — map-init-readiness
 
 ## Current Position
 
-Phase: 144 (Map-Init Readiness)
-Plan: Planned — 2 plans (144-01, 144-02), verified by plan-checker (no issues)
-Status: Ready to execute (`/gsd:execute-phase 144`)
-Last activity: 2026-06-09 — Phase 144 planned (await-taxaReady + intendedFilterActive gate + render decision into bee-map); ready.ts scaffolding (260608-tnc) shipped
+Phase: 144 (map-init-readiness) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 144
+Last activity: 2026-06-09 -- Phase 144 execution started
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
+
 - Sync gate: a dedicated `_filterResolving` boolean (NOT `_pendingLegacyTaxon`), feeding a single `intendedFilterActive` getter.
 - Scope: behavior-preserving consolidation onto `taxaReady` + `intendedFilterActive` AND harden first occurrence render on `mapReady` (move render decision into bee-map: `render = f(filteredGeoJSON, intendedFilterActive)`).
 - Builds on `ready.ts` (quick 260608-tnc). Regression net: `bee-atlas-legacy-taxon.test.ts` (commit 5833b41).
