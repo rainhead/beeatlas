@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v4.10
 milestone_name: Housekeeping
-status: milestone_complete
-stopped_at: Milestone complete (Phase 146 was final phase)
-last_updated: 2026-06-09T18:51:44.817Z
-last_activity: 2026-06-09
+status: Awaiting next milestone
+stopped_at: Phase 146 context gathered
+last_updated: "2026-06-09T18:55:55.464Z"
+last_activity: 2026-06-09 — Milestone v4.10 completed and archived
 progress:
   total_phases: 18
   completed_phases: 2
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; n
 
 ## Current Position
 
-Phase: 146
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-06-09
+Phase: Milestone v4.10 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-09 — Milestone v4.10 completed and archived
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
@@ -68,6 +68,16 @@ conventions that outlive v4.7:
 None open.
 
 ## Deferred Items
+
+**v4.10 close (2026-06-09):** 3 items acknowledged and deferred —
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat | `145-HUMAN-UAT.md` | partial — 1 open scenario (WR-02): confirm Dependabot opens a PR for the `install-lychee` composite action after its first weekly GitHub run; unverifiable until then |
+| verification | `145-VERIFICATION.md` | human_needed — same WR-02 post-deploy observation (config verified correct, 5/5 must-haves) |
+| todo | `144-code-review-deferred.md` | open — pre-existing, re-surfaced from v4.9 close (see below); non-blocking |
+
+---
 
 **v4.9 close (2026-06-09):** 1 item acknowledged and deferred —
 

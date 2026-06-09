@@ -2,6 +2,35 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v4.10 — Housekeeping
+
+**Shipped:** 2026-06-09
+**Phases:** 2 (145, 146) | **Plans:** 2 | **Timeline:** single day | **Requirements:** none (backlog-promoted)
+
+### What Was Built
+Two independent backlog items. **145 (Dependabot):** `.github/dependabot.yml` extended from github-actions-only to npm (`/` + `/infra`), uv (`/data`), and github-actions — weekly, minor+patch grouped, major ungrouped. **146 (debounce URL):** session-coalesced viewport→history writes in `<bee-atlas>` (`_viewportSessionActive` flag) so a whole pan/zoom exploration is one back-button entry, delimited by filter/selection/UI actions; preserved the v4.9 map-init invariants.
+
+### What Worked
+- **The code-review gate caught real defects on both phases.** On 146 it found a sibling test file (`bee-atlas-legacy-taxon.test.ts`) still calling the renamed `_pushUrlStateDebounced()` — a red-suite regression the *scoped* per-plan test run (`bee-atlas.test.ts` only) structurally could not see. On 145 it caught the uncovered `infra/` npm project. Both fixed before close.
+- **Discuss-phase as reality check.** Phase 146's goal was already ~half-implemented (a 500 ms debounce existed); scouting the actual code during discuss reframed the phase from "add a debounce" to "stop viewport being the app's only pushState," and confirmed the fix against real call sites before any planning. Cheap correction at the cheapest stage.
+- **Scoped verification held.** Per project memory (full suite ≥40 min, partly red, host SIGKILLs long runs), every test run stayed scoped to the affected files — and the code-review gate, not a full-suite run, was what caught the cross-file breakage.
+
+### What Was Inefficient
+- **Context-gathering missed a sibling project (145).** Root npm was scoped without noticing `infra/package.json`; only code review surfaced it (→ D-06). Cheap to fix, but a fuller "find all manifests" scout at discuss would have caught it up front.
+- **`phase.complete` left the milestone-list checkbox unchecked on both phases** (known tooling gotcha — see STATE/memory); hand-corrected each time.
+
+### Patterns Established
+- **Scoped per-plan tests + a code-review gate are complementary, not redundant.** When a change renames/removes a symbol, the per-plan scoped run cannot see sibling test files referencing it — the review (or a full typecheck) is the safety net. Worth a grep for removed symbols across the whole test tree on any rename.
+
+### Key Lessons
+- For "add X to a config/registry" phases, enumerate *all* instances of the thing (every `package.json`, every call site) during discuss — partial scoping is the failure mode.
+- A reframing discuss-phase can turn an "already done" backlog item into a correctly-scoped real change; don't take backlog goal text at face value — verify against the code first.
+
+### Cost Observations
+- Model mix: orchestrator Opus; executors + verifiers + reviewers on Sonnet.
+- One executor per phase (single-plan waves, run on the main tree — no worktree isolation needed without concurrency), one code-review + one verifier agent each.
+- Notable: both phases' real defects came from the review agent, not the (scoped) test runs — consistent with v4.9.
+
 ## Milestone: v4.9 — Map-Init Readiness
 
 **Shipped:** 2026-06-09
