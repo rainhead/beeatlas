@@ -22,6 +22,17 @@ updates:
           - "minor"
           - "patch"
 
+  # npm — infra/ AWS CDK project (package.json / package-lock.json), weekly, minor+patch grouped
+  - package-ecosystem: "npm"
+    directory: "/infra"
+    schedule:
+      interval: "weekly"
+    groups:
+      infra-npm-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
   # uv — data/ pyproject.toml / uv.lock, weekly, minor+patch grouped
   - package-ecosystem: "uv"
     directory: "/data"
