@@ -56,6 +56,7 @@ export class BeeMap extends LitElement {
   };
 
   @property({ attribute: false }) hiddenSources: Set<string> = new Set();
+  @property({ attribute: false }) intendedFilterActive = false;
 
   @state() private _regionMenuOpen = false;
 
@@ -294,8 +295,8 @@ export class BeeMap extends LitElement {
   updated(changedProperties: PropertyValues) {
     super.updated(changedProperties);
 
-    // visibleIds or filteredGeoJSON changed: rebuild source data
-    if (changedProperties.has('visibleIds') || changedProperties.has('filteredGeoJSON')) {
+    // visibleIds, filteredGeoJSON, or intendedFilterActive changed: rebuild source data
+    if (changedProperties.has('visibleIds') || changedProperties.has('filteredGeoJSON') || changedProperties.has('intendedFilterActive')) {
       this._applyVisibleIds();
     }
 
@@ -451,8 +452,10 @@ export class BeeMap extends LitElement {
         // Fetch boundary GeoJSON (deferred after occurrence data)
         this._loadBoundaryData();
 
-        // Apply initial visibleIds if set before load completed
-        if (this.visibleIds !== null) {
+        // Apply initial source data once sources exist. Fire when visibleIds is set OR
+        // intendedFilterActive is true — otherwise a hide-all that arrived before load
+        // would not be applied (the map would flash full data on load before the query resolves).
+        if (this.visibleIds !== null || this.intendedFilterActive) {
           this._applyVisibleIds();
         }
 
@@ -574,18 +577,27 @@ export class BeeMap extends LitElement {
     const ghostSource = this._map.getSource('occurrences-ghost') as mapboxgl.GeoJSONSource | undefined;
     if (!occSource || !ghostSource) return;
 
-    if (this.filteredGeoJSON !== null) {
-      // Filter active: visible features come from SQL (no JS filter pass needed)
+    if (this.intendedFilterActive) {
+      // Filter intended: render filteredGeoJSON if available, otherwise empty (hide-all).
+      // Using ?? guarantees "filter intended but data not yet ready" renders empty — the
+      // structural anti-flash guarantee (SC-3). filteredGeoJSON !== null is NOT the decision
+      // criterion; intendedFilterActive is.
+      const activeFeatures = (this.filteredGeoJSON ?? { type: 'FeatureCollection' as const, features: [] }).features;
       occSource.setData({
         type: 'FeatureCollection',
-        features: this._visibleBySource(this.filteredGeoJSON.features),
+        features: this._visibleBySource(activeFeatures),
       });
-      const ghostFeatures = this._visibleBySource(
-        this._fullGeoJSON.features.filter(f => !this.visibleIds!.has(f.properties.occId))
-      );
-      ghostSource.setData({ type: 'FeatureCollection', features: ghostFeatures });
+      // Ghost: full set minus visible IDs. Only computable once filtered set + visibleIds arrive.
+      if (this.filteredGeoJSON !== null && this.visibleIds !== null) {
+        const ghostFeatures = this._visibleBySource(
+          this._fullGeoJSON.features.filter(f => !this.visibleIds!.has(f.properties.occId))
+        );
+        ghostSource.setData({ type: 'FeatureCollection', features: ghostFeatures });
+      } else {
+        ghostSource.setData({ type: 'FeatureCollection', features: [] });
+      }
     } else {
-      // No filter active -- restore full data and clear ghost
+      // No filter intended -- render full set and clear ghost
       occSource.setData({
         type: 'FeatureCollection',
         features: this._visibleBySource(this._fullGeoJSON.features),

@@ -174,6 +174,7 @@ bee-pane {
             .boundaryMode=${this._boundaryMode}
             .visibleIds=${this._visibleIds}
             .filteredGeoJSON=${this._filteredGeoJSON}
+            .intendedFilterActive=${this.intendedFilterActive}
             .selectedOccIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             .countyOptions=${this._countyOptions}
             .ecoregionOptions=${this._ecoregionOptions}
@@ -274,15 +275,10 @@ bee-pane {
       this._awaitLegacyTaxonResolution(initialParams.pendingLegacyTaxon);
     }
 
-    // If URL restores an active filter — or a legacy taxon name still pending async
-    // resolution (taxonId not yet known) — initialize the visible ID set to empty
-    // (hide-all) so no UNFILTERED dots flash before the filter resolves and the async
-    // query completes. Without the pending-legacy case, a /?taxon=<name>&taxonRank=…
-    // link renders the full clustered set until the taxon cache loads (the race).
-    if (this.intendedFilterActive) {
-      this._visibleIds = new Set();
-      this._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
-    }
+    // Hide-all when intendedFilterActive is true is now carried structurally by passing
+    // .intendedFilterActive=${this.intendedFilterActive} to <bee-map> (Plan 144-02).
+    // <bee-map> renders filteredGeoJSON ?? empty when intendedFilterActive=true, so no
+    // empty-collection pre-seed is needed here. The flash is prevented by construction.
 
     // Start filter query early — queryVisibleIds awaits tablesReady internally,
     // so this runs in parallel with SQLite init and resolves as soon as tables load.
@@ -755,10 +751,13 @@ bee-pane {
       this._runListQuery();
     }
 
-    // Run filter query for restored state
+    // Run filter query for restored state.
+    // Clear stale filtered data before the query resolves; hide-all is now carried
+    // structurally by intendedFilterActive=true flowing to <bee-map> (Plan 144-02) —
+    // bee-map renders filteredGeoJSON ?? empty, so null here → empty render → no flash.
     if (isFilterActive(this._filterState)) {
-      this._visibleIds = new Set(); // hide all until query resolves, preventing stale dot flash
-      this._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
+      this._visibleIds = null;
+      this._filteredGeoJSON = null;
       this._runFilterQuery();
     } else {
       this._visibleIds = null;
