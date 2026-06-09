@@ -62,7 +62,10 @@
   4. State ownership is preserved: `<bee-atlas>` still owns all reactive state, `<bee-map>` remains a pure presenter receiving state as properties (Architecture Invariant); the filter race guard (`_filterQueryGeneration`) and style-cache bypass rules are not regressed
   5. The regression net `bee-atlas-legacy-taxon.test.ts` (commit 5833b41) passes, and tests cover the await-resolution path and the `intendedFilterActive` gate; `npm test` is green and `npm run build` succeeds
 
-**Plans**: TBD (planner to determine)
+**Plans**: 2 plans (2 waves — sequential; both touch bee-atlas.ts)
+Plans:
+- [ ] 144-01-PLAN.md — await-taxaReady legacy resolution + dedicated `_filterResolving` flag feeding a single `intendedFilterActive` gate (hide-all + URL suppression); regression net updated (Wave 1)
+- [ ] 144-02-PLAN.md — move occurrence render decision into `bee-map` as f(filteredGeoJSON, intendedFilterActive) gated on `mapReady`; remove bee-atlas empty-collection pre-seed (Wave 2, depends on 144-01)
 
 <details>
 <summary>✅ v1.0 MVP (Phases 1–6) — SHIPPED 2026-02-22</summary>
