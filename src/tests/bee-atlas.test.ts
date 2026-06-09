@@ -949,9 +949,13 @@ describe('146: session-coalesced viewport history', () => {
     // _onPopState sets _isRestoringFromHistory = true; the next _onViewMoved call
     // clears that flag without writing history (D-06). Simulate the restoration-
     // induced settled move that bee-map fires after flyTo completes.
+    const replaceBefore = replaceSpy.mock.calls.length;
     fireViewMoved(inst, -120, 47.5, 7);
-    // That move must NOT add a pushState (it's the history-restoration settle).
+    // That move must NOT add a pushState (it's the history-restoration settle)...
     expect(pushSpy).toHaveBeenCalledTimes(1);
+    // ...and must NOT write replaceState either — _isRestoringFromHistory (D-06)
+    // suppresses the write entirely, it does not fall through to a live replace.
+    expect(replaceSpy.mock.calls.length).toBe(replaceBefore);
 
     // Now fire a genuine user pan — must produce a new pushState (push #2, D-07).
     fireViewMoved(inst, -119, 48.0, 9);

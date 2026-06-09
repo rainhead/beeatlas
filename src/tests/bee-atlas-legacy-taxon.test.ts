@@ -55,10 +55,10 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     expect(window.location.search).not.toMatch(/^\?x=/);
   });
 
-  test('map settling (_pushUrlStateDebounced) does not drop the pending taxon when _filterResolving', async () => {
+  test('map settling (_writeViewportHistory) does not drop the pending taxon when _filterResolving', async () => {
     const el = await makeAtlas();
     el._filterResolving = true;
-    el._pushUrlStateDebounced();
+    el._writeViewportHistory();
     expect(window.location.search).toContain('taxon=Habropoda');
   });
 
