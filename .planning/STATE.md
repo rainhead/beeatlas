@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.10
 milestone_name: Housekeeping
-status: executing
-stopped_at: Phase 146 context gathered
-last_updated: "2026-06-09T18:34:24.534Z"
-last_activity: 2026-06-09 -- Phase 146 planning complete
+status: verifying
+stopped_at: Phase 146 Plan 01 complete
+last_updated: "2026-06-09T18:40:09.889Z"
+last_activity: 2026-06-09
 progress:
   total_phases: 18
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 2
-  completed_plans: 1
-  percent: 6
+  completed_plans: 2
+  percent: 11
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 146 — debounce url updates when zooming and panning the map
+**Current focus:** Phase 146 — debounce-url-updates-when-zooming-and-panning-the-map — COMPLETE
 
 ## Current Position
 
-Phase: 146
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-09 -- Phase 146 planning complete
+Phase: 146 (debounce-url-updates-when-zooming-and-panning-the-map) — COMPLETE
+Plan: 1 of 1 (complete)
+Status: Phase 146 complete; v4.10 continues with Phase 145 (dependabot-updates)
+Last activity: 2026-06-09 -- Phase 146 Plan 01 executed and committed
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
@@ -61,6 +61,7 @@ conventions that outlive v4.7:
 - **geo_blob ↔ features.ts positional contract**: `sqlite_export._GEO_COLS` and `src/features.ts` column indices are positionally coupled and not type-checked; changes ship in one atomic commit (a one-position slip silently corrupts every row).
 - **Single dbt synonym subsystem**: checklist reconciliation uses `occurrence_synonyms`/`int_synonyms`; the disjoint Python `checklist_synonyms.csv` path is retired.
 - **Internal-link convention**: static pages link to `.../index.html`, never bare directories — production serves from the S3 REST endpoint via OAC (no directory-index resolution). Fixed in `species.njk` at the v4.7 close (commit `4aaa5d0`).
+- **Session-coalesced viewport history (v4.10/Phase 146)**: `_viewportSessionActive` flag on `<bee-atlas>` gates pushState vs replaceState; `_replaceUrlState()` resets it for all non-viewport writes; `_mapMoveDebounce` timer removed (immediate push; flag bounds entry count).
 
 ### Blockers/Concerns
 
@@ -107,9 +108,9 @@ Genuinely-carried items (pre-existing, non-blocking, not scanner-tracked):
 
 ## Session Continuity
 
-Last session: 2026-06-09T18:15:01.711Z
+Last session: 2026-06-09T18:40:09.862Z
 Stopped at: Phase 146 context gathered
-Resume file: .planning/phases/146-debounce-url-updates-when-zooming-and-panning-the-map/146-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
