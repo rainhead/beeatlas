@@ -369,6 +369,11 @@ def test_null_coord_excluded_from_candidates():
     )
 
 
+# Build-dependent: write_dedup_candidates() has no connection seam — it opens
+# DB_PATH and reads dbt_sandbox.int_dedup_candidates, which only exists after a
+# dbt build. Belongs in the @integration (nightly) tier, not the clean fast tier
+# (it passed locally only because the dev DB was contaminated with a prior build).
+@pytest.mark.integration
 def test_candidate_csv_written(tmp_path, monkeypatch):
     """DUP-02: write_dedup_candidates() produces dedup_candidate_pairs.csv with correct columns.
 
