@@ -73,7 +73,11 @@ export class BeeAtlas extends LitElement {
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
   private _isRestoringFromHistory = false;
-  private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
+  // Session-coalescing (D-01/D-02): once the first settled viewport move of an
+  // exploration session fires a pushState, subsequent moves replaceState onto it.
+  // Resets to false on any non-viewport _replaceUrlState() call (D-03) and after
+  // a popstate navigation (D-07), so the next pan/zoom starts a fresh entry.
+  private _viewportSessionActive = false;
   private _selectionDrawnGeneration = 0;
   // Stale-discard guards for the three async query paths. A superseded query
   // returns null rather than committing its result, preventing flicker and
@@ -91,7 +95,7 @@ export class BeeAtlas extends LitElement {
    * Single gate: are we in a state where we intend to filter but may not have the filter
    * query result yet? True when either an ordinary filter is active OR a legacy taxon from
    * the URL is still being resolved (_filterResolving). Both the firstUpdated hide-all guard
-   * and the _replaceUrlState/_pushUrlStateDebounced URL-write suppression read this getter.
+   * and the _replaceUrlState/_writeViewportHistory URL-write suppression read this getter.
    */
   get intendedFilterActive(): boolean {
     return isFilterActive(this._filterState) || this._filterResolving;
@@ -346,10 +350,6 @@ bee-pane {
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPopState);
-    if (this._mapMoveDebounce) {
-      clearTimeout(this._mapMoveDebounce);
-      this._mapMoveDebounce = null;
-    }
   }
 
   // --- Filter query ---
@@ -658,30 +658,34 @@ bee-pane {
     // URL at ?x=&y=&z=. The integer-form URL is written from _loadSummaryFromSQLite once
     // the taxon cache loads and resolves it (Step 3c).
     if (this._filterResolving) return;
+    // Every non-viewport state change (filter/selection/boundary/pane/source) ends the
+    // current exploration session (D-03) so the next viewport move starts a fresh entry.
+    this._viewportSessionActive = false;
     const params = this._buildCurrentParams();
     window.history.replaceState({}, '', '?' + params.toString());
   }
 
-  private _pushUrlStateDebounced() {
-    // Called only from _onViewMoved — schedules a pushState entry for the
-    // final resting position of the map so view moves create history entries.
-    // Suppressed while a legacy taxon is pending (see _replaceUrlState) so the
-    // map settling during load doesn't strand the URL without the taxon.
-    if (this._filterResolving) return;
-    this._replaceUrlState();
-    if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
-    this._mapMoveDebounce = setTimeout(() => {
-      window.history.pushState({}, '', '?' + this._buildCurrentParams().toString());
-      this._mapMoveDebounce = null;
-    }, 500);
+  private _writeViewportHistory() {
+    // Called only from _onViewMoved (settled moveend path). Implements session-coalescing
+    // (D-01/D-02): the first settled move of an exploration session pushes one history entry
+    // and marks the session active; subsequent moves in the same session replaceState onto
+    // it (keeping the URL live without adding entries).
+    // IMPORTANT: writes replaceState DIRECTLY (not via _replaceUrlState()) to avoid
+    // resetting _viewportSessionActive on every live-URL update (D-03 exclusion).
+    if (this._filterResolving) return; // D-05: suppress during legacy-taxon resolution
+    const url = '?' + this._buildCurrentParams().toString();
+    if (!this._viewportSessionActive) {
+      window.history.pushState({}, '', url);
+      this._viewportSessionActive = true;
+    } else {
+      window.history.replaceState({}, '', url);
+    }
   }
 
   private _onPopState = () => {
     this._isRestoringFromHistory = true;
-    if (this._mapMoveDebounce) {
-      clearTimeout(this._mapMoveDebounce);
-      this._mapMoveDebounce = null;
-    }
+    // D-07: reset session so the next user pan/zoom starts a new history entry.
+    this._viewportSessionActive = false;
     const parsed = parseParams(window.location.search);
     const lon = parsed.view?.lon ?? DEFAULT_LON;
     const lat = parsed.view?.lat ?? DEFAULT_LAT;
@@ -778,9 +782,9 @@ bee-pane {
   private _onViewMoved(e: CustomEvent<{ lon: number; lat: number; zoom: number }>) {
     this._currentView = e.detail;
     if (!this._isRestoringFromHistory) {
-      this._pushUrlStateDebounced();
+      this._writeViewportHistory();
     } else {
-      // Reset the flag after bee-map reports the view has settled
+      // Reset the flag after bee-map reports the view has settled (D-06)
       this._isRestoringFromHistory = false;
     }
   }
