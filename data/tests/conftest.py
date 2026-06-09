@@ -588,6 +588,51 @@ def _zero_inat_pacing(monkeypatch):
         pass
 
 
+@pytest.fixture(autouse=True)
+def _guard_real_db_path(request, monkeypatch, tmp_path):
+    """Fast-tier hermeticity guard (contamination defense).
+
+    Point DB_PATH at a non-existent throwaway so any test that reaches the real
+    data/beeatlas.duckdb — instead of an in-memory / fixture DB — fails LOUDLY and
+    locally, instead of false-greening on a dev box whose DB happens to hold a
+    prior `dbt build`. This makes plain `uv run pytest` behave like a clean CI
+    checkout, so dev-DB contamination is caught immediately, not a push later.
+
+    @integration tests are exempt: the nightly/integration tier legitimately runs
+    against the real (S3-restored) DuckDB.
+
+    Covers both binding styles a pipeline module can use, so it is self-maintaining
+    (no hand-kept module list):
+      - the DB_PATH env var (lazy / dbt / not-yet-imported readers), and
+      - the snapshotted module-level ``DB_PATH`` constant on every already-imported
+        data/ module (import-time readers — Pitfall #4).
+    """
+    if request.node.get_closest_marker("integration"):
+        return
+
+    import sys
+    import pathlib
+
+    empty = str(tmp_path / "no-real-db-fast-tier.duckdb")
+    monkeypatch.setenv("DB_PATH", empty)
+
+    # Only the flat pipeline modules that live directly in data/ (parent dir ==
+    # data/). NOT data/.venv/** (the venv is inside data/, so a naive prefix match
+    # would sweep in site-packages — and probing getattr(dlt.hub, "DB_PATH") fires
+    # a PEP-562 __getattr__ that raises), NOT data/dbt/**, NOT data/tests/**.
+    data_dir = pathlib.Path(__file__).resolve().parent.parent
+    for mod in list(sys.modules.values()):
+        mod_file = getattr(mod, "__file__", None)
+        if not mod_file or pathlib.Path(mod_file).parent != data_dir:
+            continue
+        try:
+            current = getattr(mod, "DB_PATH", None)
+        except Exception:
+            continue  # defensive: never let a module's __getattr__ break the guard
+        if isinstance(current, str):
+            monkeypatch.setattr(mod, "DB_PATH", empty, raising=False)
+
+
 @pytest.fixture
 def export_dir(tmp_path):
     """Temporary directory for export output files."""
