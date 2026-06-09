@@ -1,4 +1,4 @@
-import { test, expect, describe, vi } from 'vitest';
+import { test, expect, describe, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -852,5 +852,155 @@ describe('144-02: bee-atlas wires intendedFilterActive; removes empty-collection
     // These null-resets exist in _resolveLegacyTaxon (stale path) and _onPopState (clear path).
     expect(atlasSrc).toMatch(/this\._filteredGeoJSON\s*=\s*null/);
     expect(atlasSrc).toMatch(/this\._visibleIds\s*=\s*null/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 146: session-coalesced viewport history
+// ---------------------------------------------------------------------------
+// Behavioral tests: instantiate <bee-atlas>, cast to access private fields/methods,
+// and count pushState / replaceState calls to verify D-01..D-07.
+// ---------------------------------------------------------------------------
+
+describe('146: session-coalesced viewport history', () => {
+  // Shared element reference — created fresh per test via beforeEach.
+  let el: HTMLElement;
+
+  // Spy references — restored in afterEach.
+  let pushSpy: ReturnType<typeof vi.spyOn>;
+  let replaceSpy: ReturnType<typeof vi.spyOn>;
+
+  // Convenience type alias for private-field access.
+  type BeeAtlasPrivate = {
+    _viewportSessionActive: boolean;
+    _filterResolving: boolean;
+    _isRestoringFromHistory: boolean;
+    _onViewMoved(e: CustomEvent<{ lon: number; lat: number; zoom: number }>): void;
+    _onPopState(): void;
+    _replaceUrlState(): void;
+  };
+
+  // Helper: fire a synthetic settled viewport move.
+  function fireViewMoved(instance: BeeAtlasPrivate, lon = -120.5, lat = 47.5, zoom = 7) {
+    const e = new CustomEvent('view-moved', { detail: { lon, lat, zoom } });
+    instance._onViewMoved(e);
+  }
+
+  beforeEach(async () => {
+    // Import triggers registration; safe to call multiple times (idempotent).
+    const mod = await import('../bee-atlas.ts');
+    // Instantiate without attaching to DOM to avoid triggering firstUpdated
+    // lifecycle, which would call _replaceUrlState and pollute spy call counts.
+    el = new (mod.BeeAtlas as unknown as { new(): HTMLElement })();
+
+    // Spy on history methods and clear call counts.
+    pushSpy = vi.spyOn(window.history, 'pushState').mockImplementation(() => {});
+    replaceSpy = vi.spyOn(window.history, 'replaceState').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // Case 1 (D-01/D-02): N consecutive viewport moves with no intervening non-viewport
+  // write → exactly 1 pushState and N-1 replaceState calls.
+  test('consecutive viewport moves produce exactly one pushState and N-1 replaceState', () => {
+    const inst = el as unknown as BeeAtlasPrivate;
+    inst._filterResolving = false;
+
+    const N = 4;
+    for (let i = 0; i < N; i++) {
+      fireViewMoved(inst, -120 + i, 47.5, 7);
+    }
+
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+    expect(replaceSpy).toHaveBeenCalledTimes(N - 1);
+  });
+
+  // Case 2 (D-03): an intervening non-viewport _replaceUrlState() call resets the session
+  // so the second viewport move starts a NEW history entry (second pushState).
+  test('non-viewport _replaceUrlState() between two viewport moves triggers a second pushState', () => {
+    const inst = el as unknown as BeeAtlasPrivate;
+    inst._filterResolving = false;
+
+    // First exploration session: one viewport move → 1 pushState.
+    fireViewMoved(inst, -120, 47.5, 7);
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+
+    // Non-viewport state change (e.g. filter/selection/boundary/pane toggle).
+    inst._replaceUrlState();
+
+    // Second exploration session: one viewport move → new pushState (2 total).
+    fireViewMoved(inst, -121, 47.0, 8);
+    expect(pushSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // Case 3 (D-07): after _onPopState, the next viewport move starts a NEW entry.
+  test('viewport move after _onPopState fires a new pushState', () => {
+    const inst = el as unknown as BeeAtlasPrivate;
+    inst._filterResolving = false;
+
+    // First exploration: push #1.
+    fireViewMoved(inst, -120, 47.5, 7);
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+
+    // Navigate back/forward.
+    inst._onPopState();
+    // _onPopState sets _isRestoringFromHistory = true; the next _onViewMoved call
+    // clears that flag without writing history (D-06). Simulate the restoration-
+    // induced settled move that bee-map fires after flyTo completes.
+    fireViewMoved(inst, -120, 47.5, 7);
+    // That move must NOT add a pushState (it's the history-restoration settle).
+    expect(pushSpy).toHaveBeenCalledTimes(1);
+
+    // Now fire a genuine user pan — must produce a new pushState (push #2, D-07).
+    fireViewMoved(inst, -119, 48.0, 9);
+    expect(pushSpy).toHaveBeenCalledTimes(2);
+  });
+
+  // Case 4a (D-05): _replaceUrlState is suppressed while _filterResolving is true.
+  test('_replaceUrlState keeps `if (this._filterResolving) return` guard (D-05, source assertion)', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    const methodStart = src.indexOf('private _replaceUrlState()');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextMethod = src.indexOf('\n  private ', methodStart + 1);
+    const body = src.slice(methodStart, nextMethod > methodStart ? nextMethod : methodStart + 600);
+    expect(body).toMatch(/if\s*\(\s*this\._filterResolving\s*\)\s*return/);
+  });
+
+  // Case 4b (D-05 behavioral): _writeViewportHistory is also suppressed while _filterResolving.
+  test('viewport write is suppressed while _filterResolving is true (D-05)', () => {
+    const inst = el as unknown as BeeAtlasPrivate;
+    inst._filterResolving = true;
+
+    fireViewMoved(inst);
+
+    // No history writes while resolving.
+    expect(pushSpy).not.toHaveBeenCalled();
+    expect(replaceSpy).not.toHaveBeenCalled();
+  });
+
+  // Case 4c (D-06): _onViewMoved guards on _isRestoringFromHistory and writes nothing.
+  test('_onViewMoved writes no history when _isRestoringFromHistory is true (D-06)', () => {
+    const inst = el as unknown as BeeAtlasPrivate;
+    inst._filterResolving = false;
+    inst._isRestoringFromHistory = true;
+
+    fireViewMoved(inst);
+
+    expect(pushSpy).not.toHaveBeenCalled();
+    expect(replaceSpy).not.toHaveBeenCalled();
+    // Flag must be cleared after the settled move.
+    expect(inst._isRestoringFromHistory).toBe(false);
+  });
+
+  // Case 4d (D-06 source assertion): _onViewMoved references _isRestoringFromHistory.
+  test('_onViewMoved still references _isRestoringFromHistory (D-06, source assertion)', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+    const methodStart = src.indexOf('private _onViewMoved(');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextMethod = src.indexOf('\n  private ', methodStart + 1);
+    const body = src.slice(methodStart, nextMethod > methodStart ? nextMethod : methodStart + 400);
+    expect(body).toMatch(/_isRestoringFromHistory/);
   });
 });
