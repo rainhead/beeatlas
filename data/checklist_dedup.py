@@ -106,7 +106,7 @@ def _collectors_match(a: str | None, b: str | None) -> bool:
     return True
 
 
-def write_dedup_candidates() -> int:
+def write_dedup_candidates(con=None) -> int:
     """Query int_dedup_candidates from the dbt sandbox, filter by collector match, write CSV.
 
     DUP-02: Produces dedup_candidate_pairs.csv with columns:
@@ -121,6 +121,12 @@ def write_dedup_candidates() -> int:
     are written — collector filter applied here in Python, not in SQL.
     Returns the number of candidate pairs written.
 
+    con: optional DuckDB connection injection seam. When None (the nightly/run.py
+    path) a connection to DB_PATH is opened and the spatial extension loaded. Tests
+    pass an in-memory connection pre-seeded with dbt_sandbox.int_dedup_candidates so
+    they run on a clean checkout without a dbt build (the SELECT reads the precomputed
+    distance_m column and needs no spatial functions itself).
+
     run.py STEP signature: callable taking no args, returns int.
     """
     import duckdb
@@ -133,50 +139,56 @@ def write_dedup_candidates() -> int:
         "checklist_collector", "ecdysis_collector",
     ]
 
-    con = duckdb.connect(DB_PATH)
-    # The candidate table uses ST_Distance_Sphere — ensure spatial extension is loaded.
-    con.execute("INSTALL spatial; LOAD spatial")
+    owns_con = con is None
+    if owns_con:
+        con = duckdb.connect(DB_PATH)
+        # int_dedup_candidates was built with ST_Distance_Sphere — ensure spatial is loaded.
+        con.execute("INSTALL spatial; LOAD spatial")
 
-    cur = con.execute("""
-        SELECT
-            pair_key,
-            checklist_ObjectID,
-            ecdysis_id,
-            canonical_name,
-            checklist_lat,
-            checklist_lon,
-            ecdysis_lat,
-            ecdysis_lon,
-            distance_m,
-            checklist_year,
-            checklist_month,
-            checklist_day,
-            date_quality,
-            ecdysis_date,
-            ecdysis_year,
-            ecdysis_month,
-            ecdysis_day,
-            checklist_collector,
-            ecdysis_collector
-        FROM dbt_sandbox.int_dedup_candidates
-        ORDER BY canonical_name, checklist_ObjectID, ecdysis_id
-    """)
-    all_rows = cur.fetchall()
-    col_names = [d[0] for d in cur.description]
+    try:
+        cur = con.execute("""
+            SELECT
+                pair_key,
+                checklist_ObjectID,
+                ecdysis_id,
+                canonical_name,
+                checklist_lat,
+                checklist_lon,
+                ecdysis_lat,
+                ecdysis_lon,
+                distance_m,
+                checklist_year,
+                checklist_month,
+                checklist_day,
+                date_quality,
+                ecdysis_date,
+                ecdysis_year,
+                ecdysis_month,
+                ecdysis_day,
+                checklist_collector,
+                ecdysis_collector
+            FROM dbt_sandbox.int_dedup_candidates
+            ORDER BY canonical_name, checklist_ObjectID, ecdysis_id
+        """)
+        all_rows = cur.fetchall()
+        col_names = [d[0] for d in cur.description]
 
-    count = 0
-    with DEDUP_CANDIDATE_CSV.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDNAMES)
-        writer.writeheader()
-        for raw_row in all_rows:
-            row = dict(zip(col_names, raw_row))
-            # D-05: apply token-set collector filter in Python (not SQL — initials logic)
-            if not _collectors_match(row.get("checklist_collector"), row.get("ecdysis_collector")):
-                continue
-            # WR-03: formula-injection guard on all string cells
-            safe_row = {k: _csv_safe(v) for k, v in row.items()}
-            writer.writerow(safe_row)
-            count += 1
+        count = 0
+        with DEDUP_CANDIDATE_CSV.open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=_FIELDNAMES)
+            writer.writeheader()
+            for raw_row in all_rows:
+                row = dict(zip(col_names, raw_row))
+                # D-05: apply token-set collector filter in Python (not SQL — initials logic)
+                if not _collectors_match(row.get("checklist_collector"), row.get("ecdysis_collector")):
+                    continue
+                # WR-03: formula-injection guard on all string cells
+                safe_row = {k: _csv_safe(v) for k, v in row.items()}
+                writer.writerow(safe_row)
+                count += 1
+    finally:
+        if owns_con:
+            con.close()
 
     print(f"dedup-candidates: wrote {count} pairs")
     return count

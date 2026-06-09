@@ -369,40 +369,87 @@ def test_null_coord_excluded_from_candidates():
     )
 
 
-# Build-dependent: write_dedup_candidates() has no connection seam — it opens
-# DB_PATH and reads dbt_sandbox.int_dedup_candidates, which only exists after a
-# dbt build. Belongs in the @integration (nightly) tier, not the clean fast tier
-# (it passed locally only because the dev DB was contaminated with a prior build).
-@pytest.mark.integration
-def test_candidate_csv_written(tmp_path, monkeypatch):
-    """DUP-02: write_dedup_candidates() produces dedup_candidate_pairs.csv with correct columns.
+_DEDUP_CANDIDATE_COLS = [
+    "pair_key", "checklist_ObjectID", "ecdysis_id", "canonical_name",
+    "checklist_lat", "checklist_lon", "ecdysis_lat", "ecdysis_lon", "distance_m",
+    "checklist_year", "checklist_month", "checklist_day", "date_quality",
+    "ecdysis_date", "ecdysis_year", "ecdysis_month", "ecdysis_day",
+    "checklist_collector", "ecdysis_collector",
+]
 
-    RED: write_dedup_candidates raises NotImplementedError.
+
+def _seed_dedup_candidates(con, rows):
+    """Create dbt_sandbox.int_dedup_candidates on an in-memory con and insert rows.
+
+    Lets write_dedup_candidates() run in the fast tier (clean checkout, no dbt build)
+    via its con= seam — the SELECT reads the precomputed distance_m column and needs
+    no spatial functions, so a plain in-memory connection suffices.
     """
+    con.execute("CREATE SCHEMA IF NOT EXISTS dbt_sandbox")
+    con.execute(
+        """
+        CREATE TABLE dbt_sandbox.int_dedup_candidates (
+            pair_key VARCHAR, checklist_ObjectID INTEGER, ecdysis_id BIGINT,
+            canonical_name VARCHAR, checklist_lat DOUBLE, checklist_lon DOUBLE,
+            ecdysis_lat DOUBLE, ecdysis_lon DOUBLE, distance_m DOUBLE,
+            checklist_year INTEGER, checklist_month INTEGER, checklist_day INTEGER,
+            date_quality VARCHAR, ecdysis_date VARCHAR, ecdysis_year INTEGER,
+            ecdysis_month INTEGER, ecdysis_day INTEGER,
+            checklist_collector VARCHAR, ecdysis_collector VARCHAR
+        )
+        """
+    )
+    placeholders = ", ".join(["?"] * len(_DEDUP_CANDIDATE_COLS))
+    con.executemany(
+        f"INSERT INTO dbt_sandbox.int_dedup_candidates VALUES ({placeholders})",
+        [[r[c] for c in _DEDUP_CANDIDATE_COLS] for r in rows],
+    )
+
+
+def test_candidate_csv_written(tmp_path, monkeypatch):
+    """DUP-02: write_dedup_candidates() writes dedup_candidate_pairs.csv with the full
+    column set, and applies the D-05 collector filter (matching collectors kept,
+    non-matching dropped).
+
+    Runs in the fast tier via the con= seam — seeds an in-memory
+    dbt_sandbox.int_dedup_candidates, no dbt build required.
+    """
+    import duckdb
+
+    def _row(**kw):
+        base = {c: None for c in _DEDUP_CANDIDATE_COLS}
+        base.update(kw)
+        return base
+
+    con = duckdb.connect()
+    _seed_dedup_candidates(con, [
+        # Matching collectors (J Smith ~ John Smith) → kept.
+        _row(pair_key="1|100", checklist_ObjectID=1, ecdysis_id=100,
+             canonical_name="bombus mixtus", distance_m=420.0,
+             checklist_collector="J Smith", ecdysis_collector="John Smith"),
+        # Non-matching collectors (A Jones vs B Jones) → dropped (D-05).
+        _row(pair_key="2|200", checklist_ObjectID=2, ecdysis_id=200,
+             canonical_name="andrena nivalis", distance_m=310.0,
+             checklist_collector="A Jones", ecdysis_collector="B Jones"),
+    ])
+
     candidate_path = tmp_path / "dedup_candidate_pairs.csv"
-    decisions_path = tmp_path / "dedup_decisions.csv"
-    decisions_path.write_text("pair_key,dedup_status,note\n")
-
     monkeypatch.setattr(checklist_dedup, "DEDUP_CANDIDATE_CSV", candidate_path)
-    monkeypatch.setattr(checklist_dedup, "DEDUP_DECISIONS_CSV", decisions_path)
 
-    # Raises NotImplementedError (stub) — RED condition.
-    checklist_dedup.write_dedup_candidates()
+    count = checklist_dedup.write_dedup_candidates(con=con)
 
     assert candidate_path.exists(), "dedup_candidate_pairs.csv should have been created"
     with candidate_path.open() as f:
         reader = csv.DictReader(f)
+        written = list(reader)
         header = reader.fieldnames or []
-    expected_columns = {
-        "pair_key", "checklist_ObjectID", "ecdysis_id", "canonical_name",
-        "checklist_lat", "checklist_lon", "ecdysis_lat", "ecdysis_lon", "distance_m",
-        "checklist_year", "checklist_month", "checklist_day", "date_quality",
-        "ecdysis_date", "ecdysis_year", "ecdysis_month", "ecdysis_day",
-        "checklist_collector", "ecdysis_collector",
-    }
-    assert expected_columns <= set(header), (
-        f"Missing columns in candidate CSV: {expected_columns - set(header)}"
+
+    assert set(_DEDUP_CANDIDATE_COLS) <= set(header), (
+        f"Missing columns in candidate CSV: {set(_DEDUP_CANDIDATE_COLS) - set(header)}"
     )
+    # D-05 collector filter: only the matching pair survives.
+    assert count == 1
+    assert [r["pair_key"] for r in written] == ["1|100"]
 
 
 def test_collector_normalization():
