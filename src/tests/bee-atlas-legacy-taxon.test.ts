@@ -4,6 +4,20 @@
 // _replaceUrlState / _resolveLegacyTaxon logic on a component instance.
 import { test, expect, describe, vi, beforeEach } from 'vitest';
 
+// Controllable taxaReady barrier for await-path tests
+let _resolveTaxaReady: () => void = () => {};
+vi.mock('../ready.ts', () => {
+  const taxaReadyPromise = new Promise<void>(res => { _resolveTaxaReady = res; });
+  return {
+    taxaReady: taxaReadyPromise,
+    mapReady: new Promise<void>(() => {}),
+    markTaxaReady: vi.fn(() => { _resolveTaxaReady(); }),
+    markMapReady: vi.fn(),
+    tablesReady: Promise.resolve(),
+    deferred: vi.fn(),
+  };
+});
+
 vi.mock('../sqlite.ts', () => ({
   getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
   loadOccurrencesTable: vi.fn(() => Promise.resolve()),
@@ -125,5 +139,66 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     }
     expect(el._visibleIds).toEqual(new Set());
     expect(el._filteredGeoJSON).toEqual({ type: 'FeatureCollection', features: [] });
+  });
+
+  // Task 2: await-taxaReady resolution path tests
+
+  test('await-taxaReady path: resolves name+rank to taxonId and runs filter query after cache is ready', async () => {
+    const { taxaReady } = await import('../ready.ts') as any;
+    const el = await makeAtlas();
+    el._taxonCache = new Map([
+      [307633, { rank: 'species', name: 'habropoda miserabilis', lineagePath: '/1/307633/' }],
+    ]);
+    const ran = vi.spyOn(el, '_runFilterQuery').mockImplementation(() => Promise.resolve());
+    el._filterResolving = true;
+
+    // Simulate the await-taxaReady flow: set _filterResolving, then await taxaReady, then resolve.
+    const resolutionFlow = taxaReady.then(() => {
+      el._resolveLegacyTaxon({ name: 'habropoda miserabilis', rank: 'species' });
+    });
+
+    // Before taxaReady resolves, _filterResolving is still true
+    expect(el._filterResolving).toBe(true);
+
+    // Resolve the barrier (simulates markTaxaReady called after cache builds)
+    _resolveTaxaReady();
+    await resolutionFlow;
+
+    // After resolution: taxonId set, _filterResolving cleared, query ran
+    expect(el._filterState.taxonId).toBe(307633);
+    expect(el._filterResolving).toBe(false);
+    expect(ran).toHaveBeenCalled();
+  });
+
+  test('intendedFilterActive is true while _filterResolving and false once cleared (no other filter); URL suppression follows _filterResolving only', async () => {
+    const el = await makeAtlas();
+    window.history.replaceState({}, '', '?taxon=Habropoda%20miserabilis&taxonRank=species');
+
+    // Phase 1: pending — _filterResolving = true, no taxonId yet
+    el._filterResolving = true;
+    el._filterState = { ...DEFAULT_FILTER };
+    expect(el.intendedFilterActive).toBe(true); // true because _filterResolving
+    // URL suppression gates on _filterResolving — keeps legacy URL intact
+    el._replaceUrlState();
+    expect(window.location.search).toContain('taxon=Habropoda');
+
+    // Phase 2: resolved to taxonId — _filterResolving cleared, taxonId now set
+    el._filterResolving = false;
+    el._filterState = { ...DEFAULT_FILTER, taxonId: 307633 };
+    // intendedFilterActive is still true (isFilterActive(taxonId=307633) is true),
+    // but _filterResolving is false so URL suppression is lifted.
+    expect(el.intendedFilterActive).toBe(true); // true because filter is active
+    expect(el._filterResolving).toBe(false);
+    // _replaceUrlState gates on _filterResolving only — so it now writes canonical URL
+    el._replaceUrlState();
+    expect(window.location.search).toContain('taxon=307633');
+
+    // Phase 3: stale bookmark (no taxonId found) — _filterResolving cleared, no filter
+    el._filterResolving = false;
+    el._filterState = { ...DEFAULT_FILTER }; // stale — no taxon matched
+    expect(el.intendedFilterActive).toBe(false); // false: no filter, no resolving
+    // URL write is not suppressed, shows show-all state
+    el._replaceUrlState();
+    expect(window.location.search).not.toContain('taxon=');
   });
 });
