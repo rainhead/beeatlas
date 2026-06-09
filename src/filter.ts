@@ -185,7 +185,8 @@ export async function queryTablePage(
   sortBy: SpecimenSortBy = 'date',
   selectedEcdysisIds: number[] = [],
   selectedInatIds: number[] = [],
-  selectedChecklistIds: number[] = []
+  selectedChecklistIds: number[] = [],
+  selectedInatObsIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
   // Build a selection-priority prefix so selected rows always sort to the top.
   // IDs are pre-validated as integers by the caller.
@@ -193,6 +194,10 @@ export async function queryTablePage(
   if (selectedEcdysisIds.length > 0) selParts.push(`ecdysis_id IN (${selectedEcdysisIds.join(',')})`);
   if (selectedInatIds.length > 0) selParts.push(`observation_id IN (${selectedInatIds.join(',')})`);
   if (selectedChecklistIds.length > 0) selParts.push(`checklist_id IN (${selectedChecklistIds.join(',')})`);
+  // Phase 138 (WR-01): inat_obs (provisional/WABA) selections were collected by
+  // _runTableQuery but never threaded here, so they lost their table-view sort
+  // priority. Mirror queryListPage so all four sources can be pinned to the top.
+  if (selectedInatObsIds.length > 0) selParts.push(`specimen_observation_id IN (${selectedInatObsIds.join(',')})`);
   const priorityExpr = selParts.length > 0
     ? `CASE WHEN (${selParts.join(' OR ')}) THEN 0 ELSE 1 END, `
     : '';
