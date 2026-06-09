@@ -259,15 +259,20 @@ bee-pane {
       this._pendingLegacyTaxon = initialParams.pendingLegacyTaxon;
     }
 
-    // If URL restores an active filter, initialize visible ID set to empty (hide-all)
-    // so no dots flash before the async filter query completes.
-    if (isFilterActive(this._filterState)) {
+    // If URL restores an active filter — or a legacy taxon name still pending async
+    // resolution (taxonId not yet known) — initialize the visible ID set to empty
+    // (hide-all) so no UNFILTERED dots flash before the filter resolves and the async
+    // query completes. Without the pending-legacy case, a /?taxon=<name>&taxonRank=…
+    // link renders the full clustered set until the taxon cache loads (the race).
+    if (isFilterActive(this._filterState) || this._pendingLegacyTaxon != null) {
       this._visibleIds = new Set();
       this._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
     }
 
     // Start filter query early — queryVisibleIds awaits tablesReady internally,
     // so this runs in parallel with SQLite init and resolves as soon as tables load.
+    // A pending legacy taxon has no taxonId yet; its query runs from
+    // _resolveLegacyTaxon once the taxon cache loads.
     if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
     }
@@ -286,14 +291,20 @@ bee-pane {
     }
     // _runListQuery will be triggered by _onDataLoaded once SQLite is ready
 
-    // Write initial URL state (covers fresh loads — makes URL bar show params immediately)
-    const initParams = buildParams(
-      { lon: initLon, lat: initLat, zoom: initZoom },
-      this._filterState,
-      initSel ?? { type: 'ids' as const, ids: [] },
-      { boundaryMode: initBoundaryMode, paneState }
-    );
-    window.history.replaceState({}, '', '?' + initParams.toString());
+    // Write initial URL state (covers fresh loads — makes URL bar show params
+    // immediately). Skip while a legacy taxon name is pending resolution: the incoming
+    // URL already carries the meaningful taxon=<name>&taxonRank=<rank>, and re-encoding
+    // _filterState now (taxonId still null) would drop it. The canonical integer form
+    // is written from _loadSummaryFromSQLite once the taxon resolves.
+    if (this._pendingLegacyTaxon == null) {
+      const initParams = buildParams(
+        { lon: initLon, lat: initLat, zoom: initZoom },
+        this._filterState,
+        initSel ?? { type: 'ids' as const, ids: [] },
+        { boundaryMode: initBoundaryMode, paneState }
+      );
+      window.history.replaceState({}, '', '?' + initParams.toString());
+    }
 
     // Initialize SQLite (deferred to avoid competing with the parquet file
     // for bandwidth on the critical path).
@@ -390,6 +401,7 @@ bee-pane {
       this._taxaOptions = buildTaxonOptions(presentIds, this._taxonCache);
 
       // Step 3: Resolve any pending legacy taxon from URL (non-integer taxon= value).
+      const hadPendingLegacy = this._pendingLegacyTaxon != null;
       if (this._pendingLegacyTaxon) {
         this._resolveLegacyTaxon(this._pendingLegacyTaxon);
       }
@@ -398,6 +410,12 @@ bee-pane {
       // otherwise render empty despite an active filter. Covers both the integer
       // restore (firstUpdated) and legacy-name resolution paths.
       this._resolveTaxonDisplayName();
+      // Step 3c: the pending legacy taxon is now resolved (or proven stale) and
+      // _pendingLegacyTaxon is null, lifting the URL-write suppression — write the
+      // canonical integer-form URL, replacing the legacy taxon=<name>&taxonRank=<rank>.
+      if (hadPendingLegacy) {
+        this._replaceUrlState();
+      }
 
       // County options
       this._countyOptions = [];
@@ -447,7 +465,13 @@ bee-pane {
         return;
       }
     }
-    // No match found — stale bookmark; leave filter inactive
+    // No match found — stale bookmark; leave the taxon filter inactive. Clear the
+    // hide-all guard (set in firstUpdated for the pending legacy taxon) so the full
+    // set renders instead of an empty map — unless some OTHER URL filter is active.
+    if (!isFilterActive(this._filterState)) {
+      this._filteredGeoJSON = null;
+      this._visibleIds = null;
+    }
   }
 
   /**
@@ -599,6 +623,11 @@ bee-pane {
   }
 
   private _replaceUrlState() {
+    // Suppress writes while a legacy taxon name is pending resolution — _filterState
+    // has no taxonId yet, so buildParams would drop the taxon and strand the URL at
+    // ?x=&y=&z=. The integer-form URL is written from _loadSummaryFromSQLite once the
+    // taxon cache loads and resolves it (Step 3c).
+    if (this._pendingLegacyTaxon != null) return;
     const params = this._buildCurrentParams();
     window.history.replaceState({}, '', '?' + params.toString());
   }
@@ -606,6 +635,9 @@ bee-pane {
   private _pushUrlStateDebounced() {
     // Called only from _onViewMoved — schedules a pushState entry for the
     // final resting position of the map so view moves create history entries.
+    // Suppressed while a legacy taxon is pending (see _replaceUrlState) so the
+    // map settling during load doesn't strand the URL without the taxon.
+    if (this._pendingLegacyTaxon != null) return;
     this._replaceUrlState();
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
