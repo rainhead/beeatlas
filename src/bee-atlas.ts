@@ -61,14 +61,17 @@ export class BeeAtlas extends LitElement {
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
   @state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
+  // Dedicated flag: true while a legacy taxon from the URL is pending resolution via
+  // the await-taxaReady flow. Feeds intendedFilterActive — the single gate for hide-all
+  // and URL-write suppression. MUST be @state: intendedFilterActive (a derived getter) is
+  // bound into <bee-map> as .intendedFilterActive, so a mutation here must schedule a
+  // re-render to propagate the gate. Without @state, propagation would depend on an
+  // incidental co-mutation of another reactive field at every call site (fragile).
+  @state() private _filterResolving = false;
 
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
-  // Dedicated flag: true while a legacy taxon from the URL is pending resolution via
-  // the await-taxaReady flow. Feeds intendedFilterActive — the single gate for hide-all
-  // and URL-write suppression.
-  private _filterResolving = false;
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   private _selectionDrawnGeneration = 0;
@@ -399,11 +402,6 @@ bee-pane {
         r.taxon_id,
         { rank: r.rank, name: r.name, lineagePath: r.lineage_path },
       ]));
-      // Signal the taxon-cache readiness barrier (ready.ts). The await-based legacy
-      // resolver in firstUpdated/_onPopState is waiting on this — it proceeds once
-      // markTaxaReady() fires and calls _resolveLegacyTaxon directly, without any
-      // further interaction with _loadSummaryFromSQLite.
-      markTaxaReady();
 
       // Step 2: D-01 enumeration — get distinct present occurrence taxon_ids, then
       // ancestry-expand to build the eligible autocomplete set. This avoids the 10-second
@@ -446,6 +444,15 @@ bee-pane {
       console.error('Failed to load summary from SQLite:', err, code !== undefined ? `(SQLite error code ${code})` : '');
     } finally {
       this._loading = false;
+      // Signal the taxon-cache readiness barrier (ready.ts) UNCONDITIONALLY. The await-based
+      // legacy resolver in firstUpdated/_onPopState is waiting on this; it sets
+      // _filterResolving=true (hide-all) and only clears it once _resolveLegacyTaxon runs.
+      // markTaxaReady() MUST fire even on the empty-DB early return and the catch path —
+      // otherwise taxaReady never resolves, _filterResolving sticks true, and the map
+      // renders empty forever. Idempotent (Promise.resolve is a no-op after the first call),
+      // so the happy path (cache built above) and the failure paths (empty cache → resolver
+      // finds no match → clears _filterResolving) are both correct.
+      markTaxaReady();
     }
   }
 
