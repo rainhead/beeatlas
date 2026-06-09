@@ -958,7 +958,7 @@ Plans:
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 2/2 | Complete    | 2026-06-07 |
 | 143. CI Gate | v4.8 | 1/1 | Complete    | 2026-06-07 |
 | 144. Map-Init Readiness | v4.9 | 2/2 | Complete    | 2026-06-09 |
-| 145. Add deps to Dependabot | v4.10 | 1/1 | Complete   | 2026-06-09 |
+| 145. Add deps to Dependabot | v4.10 | 1/1 | Complete    | 2026-06-09 |
 | 146. Debounce URL on map move | v4.10 | 0/0 | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->

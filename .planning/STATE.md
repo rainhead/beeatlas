@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.10
 milestone_name: Housekeeping
-status: verifying
-stopped_at: v4.9 Map-Init Readiness shipped & archived (Phase 144). No active milestone — start the next with /gsd-new-milestone
-last_updated: "2026-06-09T17:47:52.219Z"
+status: ready_to_plan
+stopped_at: Phase 145 complete (1/1) — ready to discuss Phase 146
+last_updated: 2026-06-09T18:05:09.225Z
 last_activity: 2026-06-09
 progress:
   total_phases: 18
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 145 — add-npm-and-python-deps-to-dependabot
+**Current focus:** Phase 146 — debounce url updates when zooming and panning the map
 
 ## Current Position
 
-Phase: 145 (add-npm-and-python-deps-to-dependabot) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
+Phase: 146
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-09
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
