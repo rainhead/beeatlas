@@ -1093,6 +1093,16 @@ Plans:
 Plans:
 - [x] 143-01-PLAN.md — Add independent python-tests.yml CI workflow (fast suite on push, hard <5 min budget) and confirm a green run
 
+### Phase 145: add npm and python deps to dependabot
+
+**Goal:** Enable Dependabot version updates across all three dependency ecosystems — npm (root `package.json`/`package-lock.json`), Python (`data/` via uv / `pyproject.toml` + `uv.lock`), and GitHub Actions (the workflows in `.github/workflows/`) — with grouped/scheduled PRs to keep deps current. Promoted from backlog (999.2) 2026-06-09 as a standalone phase; not yet attached to a named milestone.
+**Requirements**: TBD
+**Depends on:** Phase 144
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 145 to break down)
+
 ---
 
 ## Backlog
@@ -1100,15 +1110,6 @@ Plans:
 ### Phase 999.1: debounce URL updates when zooming and panning the map (BACKLOG)
 
 **Goal:** [Captured for future planning] — coalesce the rapid map `moveend`/`zoom` events so the URL (and history) is updated only after interaction settles, rather than on every intermediate frame.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd:review-backlog when ready)
-
-### Phase 999.2: add npm and python deps to dependabot (BACKLOG)
-
-**Goal:** [Captured for future planning] — enable Dependabot version updates for both dependency ecosystems: npm (root `package.json`/`package-lock.json`) and Python (`data/` via uv/`pyproject.toml` + `uv.lock`), plus the GitHub Actions ecosystem for the workflows in `.github/workflows/`. Keeps deps current with grouped/scheduled PRs.
 **Requirements:** TBD
 **Plans:** 0 plans
 

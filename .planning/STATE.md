@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; n
 
 ## Current Position
 
-Phase: Milestone v4.9 complete
+Phase: Milestone v4.9 complete — Phase 145 (dependabot) promoted from backlog, standalone, unplanned
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-09 — Milestone v4.9 completed and archived
+Status: Awaiting next milestone. Standalone Phase 145 ready to plan (`/gsd:plan-phase 145`) or fold into a new milestone.
+Last activity: 2026-06-09 — Milestone v4.9 completed & archived; v4.7/v4.8 phase dirs cleaned up; backlog 999.2 → Phase 145
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
