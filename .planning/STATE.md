@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v4.10
 milestone_name: Housekeeping
-status: ready_to_plan
-stopped_at: Phase 145 complete (1/1) — ready to discuss Phase 146
-last_updated: 2026-06-09T18:05:09.225Z
+status: planning
+stopped_at: Phase 146 context gathered
+last_updated: "2026-06-09T18:15:01.735Z"
 last_activity: 2026-06-09
 progress:
   total_phases: 18
@@ -107,9 +107,9 @@ Genuinely-carried items (pre-existing, non-blocking, not scanner-tracked):
 
 ## Session Continuity
 
-Last session: 2026-06-09T17:47:52.194Z
-Stopped at: v4.9 Map-Init Readiness shipped & archived (Phase 144). No active milestone — start the next with /gsd-new-milestone
-Resume file: None
+Last session: 2026-06-09T18:15:01.711Z
+Stopped at: Phase 146 context gathered
+Resume file: .planning/phases/146-debounce-url-updates-when-zooming-and-panning-the-map/146-CONTEXT.md
 
 ## Operator Next Steps
 
