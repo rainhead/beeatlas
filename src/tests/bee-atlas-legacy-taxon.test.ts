@@ -202,3 +202,38 @@ describe('legacy taxon URL: no strand, no unfiltered flash', () => {
     expect(window.location.search).not.toContain('taxon=');
   });
 });
+
+// CR-01 regression: markTaxaReady() lives in the _loadSummaryFromSQLite finally block, so
+// taxaReady ALWAYS resolves. If it didn't, the await-taxaReady legacy resolver would never
+// run, _filterResolving (set true by _awaitLegacyTaxonResolution) would stick true forever,
+// and the map would render empty permanently. The two paths that skip the cache build —
+// the empty-DB early return and the catch block — are the ones that previously left
+// taxaReady unresolved.
+describe('CR-01: markTaxaReady fires unconditionally so taxaReady never strands', () => {
+  test('empty-DB early return still resolves the taxaReady barrier', async () => {
+    const { getDB } = await import('../sqlite.ts') as any;
+    const { markTaxaReady } = await import('../ready.ts') as any;
+    const el = await makeAtlas();
+    // exec invokes no callback rows → summaryRow stays empty → early return before cache build.
+    getDB.mockResolvedValueOnce({ sqlite3: { exec: vi.fn(async () => {}) }, db: 0 });
+    markTaxaReady.mockClear();
+
+    await el._loadSummaryFromSQLite();
+
+    expect(markTaxaReady).toHaveBeenCalled();
+  });
+
+  test('error during load (catch path) still resolves the taxaReady barrier', async () => {
+    const { getDB } = await import('../sqlite.ts') as any;
+    const { markTaxaReady } = await import('../ready.ts') as any;
+    const el = await makeAtlas();
+    getDB.mockResolvedValueOnce({
+      sqlite3: { exec: vi.fn(async () => { throw new Error('boom'); }) }, db: 0,
+    });
+    markTaxaReady.mockClear();
+
+    await el._loadSummaryFromSQLite();
+
+    expect(markTaxaReady).toHaveBeenCalled();
+  });
+});
