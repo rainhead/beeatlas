@@ -101,7 +101,7 @@ requires-dist = [
     { name = "beautifulsoup4" },
     { name = "boto3", specifier = ">=1.43.25" },
     { name = "dateparser" },
-    { name = "dlt", extras = ["duckdb"], specifier = ">=1.23.0" },
+    { name = "dlt", extras = ["duckdb"], specifier = ">=1.27.2" },
     { name = "duckdb", specifier = ">=1.5.3,<2" },
     { name = "pyarrow", specifier = ">=12" },
     { name = "pygbif" },
@@ -450,7 +450,7 @@ wheels = [
 
 [[package]]
 name = "dlt"
-version = "1.26.0"
+version = "1.27.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -479,9 +479,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "tzdata" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/48/20/c47492cd3c78287133fbba98aa41192c8613a371b8db57738d5096d05b8b/dlt-1.26.0.tar.gz", hash = "sha256:1a066fed8df7ace96a695309d9102046f9e3b9d60692e1cb93e842406aaf55ec", size = 1042686, upload-time = "2026-04-28T17:52:20.379Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/40/5aab6d1ff64226df39a3e241e31452907e32793e18f87ec99c956ce0ddd0/dlt-1.27.2.tar.gz", hash = "sha256:e9cf70883df0d04a1d40e1dea95d34dee29de978a9500d1d434eae881b5d0279", size = 1070289, upload-time = "2026-05-29T16:33:47.725Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/1a/1430fc5989fe9a476b198a8a9b27e0795c2e6856d2593f7d21e660d99e2d/dlt-1.26.0-py3-none-any.whl", hash = "sha256:81e2d28bdc4d33e97978e3654542bdac95347342d15a35102d09fd79df50c2bd", size = 1312681, upload-time = "2026-04-28T17:52:16.234Z" },
+    { url = "https://files.pythonhosted.org/packages/e8/69/d30f79f9fc1f08268c71c4a17f150429f4d00833f18f51059250c02ee03b/dlt-1.27.2-py3-none-any.whl", hash = "sha256:1c54d394864ca2cf1b042a28dafe393f24afbd60653edffc20dc6b77066cab2a", size = 1347718, upload-time = "2026-05-29T16:33:43.835Z" },
 ]
 
 [package.optional-dependencies]
