@@ -78,9 +78,9 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ### Active
 
-_No active milestone._ v4.7 (Checklist Records as Point Data) and v4.8 (Fast, Honest Test Suite) shipped 2026-06-08; v4.9 (Map-Init Readiness) shipped 2026-06-09. Next milestone planning is open — run `/gsd:new-milestone` to define it. Fresh requirements will be created then (`.planning/REQUIREMENTS.md` was archived at the v4.7 close; v4.8/v4.9 were requirement-light, scoped by their ROADMAP entries).
+_Active milestone: **v4.10 Housekeeping** (opened 2026-06-09)_ — two small maintenance/polish items promoted from backlog: Phase 145 (Dependabot version updates across npm + Python/uv + GitHub Actions) and Phase 146 (debounce URL/history writes during map zoom/pan). Neither planned yet; requirement-light, scoped by their ROADMAP entries. Preceding milestones v4.7 + v4.8 (2026-06-08) and v4.9 (2026-06-09) all shipped.
 
-*Backlog (ROADMAP.md): Phase 999.1 (debounce URL updates on map move), 999.2 (dependabot deps). v4.9 shipped 2026-06-09.*
+*Backlog (ROADMAP.md): empty — both items (999.1 debounce-URL, 999.2 dependabot) promoted into v4.10 Housekeeping as Phases 146 + 145 on 2026-06-09.*
 
 ### Validated
 
@@ -467,4 +467,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-09 after the v4.9 (Map-Init Readiness) milestone close — Phase 144, 2 plans, verified 5/5, archived to `.planning/milestones/v4.9-*`. The recurring map-init race class is retired structurally (await-`taxaReady` legacy resolution, a single reactive `intendedFilterActive` gate, render = f(intent) in `<bee-map>`); code review caught and fixed a barrier-stranding regression before close. Preceded by v4.7 (Checklist Records as Point Data, 21/21, audit passed) and v4.8 (Fast, Honest Test Suite, 17/17), both shipped 2026-06-08. No active milestone — next: `/gsd:new-milestone`. Backlog: Phase 999.1 (debounce URL updates on map move), 999.2 (dependabot). One deferred item: `144-code-review-deferred.md`.*
+*Last updated: 2026-06-09 after the v4.9 (Map-Init Readiness) milestone close — Phase 144, 2 plans, verified 5/5, archived to `.planning/milestones/v4.9-*`. The recurring map-init race class is retired structurally (await-`taxaReady` legacy resolution, a single reactive `intendedFilterActive` gate, render = f(intent) in `<bee-map>`); code review caught and fixed a barrier-stranding regression before close. Preceded by v4.7 (Checklist Records as Point Data, 21/21, audit passed) and v4.8 (Fast, Honest Test Suite, 17/17), both shipped 2026-06-08. Active milestone: v4.10 Housekeeping (Phases 145 Dependabot + 146 debounce-URL, both promoted from backlog 2026-06-09, unplanned). Backlog now empty. One deferred item: `144-code-review-deferred.md`.*

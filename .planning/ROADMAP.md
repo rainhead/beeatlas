@@ -42,8 +42,14 @@
 - ✅ **v4.7 Checklist Records as Point Data** — Phases 134–138 (shipped 2026-06-08). 50,646-row Bartholomew CSV promoted into `occurrences.parquet` as a `source='checklist'` point peer with build-time reconciliation + conservative Ecdysis dedup; reverses the Phase 111 lock. See [.planning/milestones/v4.7-ROADMAP.md](milestones/v4.7-ROADMAP.md).
 - ✅ **v4.8 Fast, Honest Test Suite** — Phases 139–143 (shipped 2026-06-08). Two-tier pytest (fast <5 min default, opt-in `@integration` slow tier); distilled committed fixtures replace full-file parsing; ~19 red/silent-skip tests greened and randomized-order-stable; nightly + CI gates. See [.planning/milestones/v4.8-ROADMAP.md](milestones/v4.8-ROADMAP.md).
 - ✅ **v4.9 Map-Init Readiness** — Phase 144 (shipped 2026-06-09). Retired the recurring map-init race class structurally: await-based legacy-taxon resolution on the `ready.ts` barriers, a single `intendedFilterActive` gate (backed by a reactive `_filterResolving` flag) for hide-all + URL suppression, and the occurrence render moved into `<bee-map>` as f(filteredGeoJSON, intendedFilterActive). See [.planning/milestones/v4.9-ROADMAP.md](milestones/v4.9-ROADMAP.md).
+- 🔄 **v4.10 Housekeeping** — Phases 145–146 (active, started 2026-06-09). Two small maintenance/polish items promoted from backlog: Dependabot version updates across npm + Python (uv) + GitHub Actions, and debouncing URL/history writes during map zoom/pan.
 
 ## Phases
+
+### 🔄 v4.10 Housekeeping (Phases 145–146) — ACTIVE (started 2026-06-09)
+
+- [ ] **Phase 145: Add npm + Python deps to Dependabot** — Dependabot version updates across npm (root), Python (`data/` via uv), and GitHub Actions, with grouped/scheduled PRs. Promoted from backlog 999.2.
+- [ ] **Phase 146: Debounce URL updates on map zoom/pan** — coalesce rapid `moveend`/`zoom` events so the URL + history update only after interaction settles. Promoted from backlog 999.1.
 
 ### ✅ v4.9 Map-Init Readiness (Phase 144) — SHIPPED 2026-06-09
 
@@ -951,6 +957,8 @@ Plans:
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 2/2 | Complete    | 2026-06-07 |
 | 143. CI Gate | v4.8 | 1/1 | Complete    | 2026-06-07 |
 | 144. Map-Init Readiness | v4.9 | 2/2 | Complete    | 2026-06-09 |
+| 145. Add deps to Dependabot | v4.10 | 0/0 | Not started | - |
+| 146. Debounce URL on map move | v4.10 | 0/0 | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -1095,7 +1103,7 @@ Plans:
 
 ### Phase 145: add npm and python deps to dependabot
 
-**Goal:** Enable Dependabot version updates across all three dependency ecosystems — npm (root `package.json`/`package-lock.json`), Python (`data/` via uv / `pyproject.toml` + `uv.lock`), and GitHub Actions (the workflows in `.github/workflows/`) — with grouped/scheduled PRs to keep deps current. Promoted from backlog (999.2) 2026-06-09 as a standalone phase; not yet attached to a named milestone.
+**Goal:** Enable Dependabot version updates across all three dependency ecosystems — npm (root `package.json`/`package-lock.json`), Python (`data/` via uv / `pyproject.toml` + `uv.lock`), and GitHub Actions (the workflows in `.github/workflows/`) — with grouped/scheduled PRs to keep deps current. Promoted from backlog (999.2) 2026-06-09; part of v4.10 Housekeeping.
 **Requirements**: TBD
 **Depends on:** Phase 144
 **Plans:** 0 plans
@@ -1103,15 +1111,18 @@ Plans:
 Plans:
 - [ ] TBD (run /gsd-plan-phase 145 to break down)
 
+### Phase 146: debounce URL updates when zooming and panning the map
+
+**Goal:** Coalesce the rapid map `moveend`/`zoom` events so the URL (and browser history) is updated only after interaction settles, rather than on every intermediate frame — fewer history entries, less churn. Promoted from backlog (999.1) 2026-06-09; part of v4.10 Housekeeping.
+**Requirements**: TBD
+**Depends on:** None (independent of Phase 145; baseline is the current `<bee-map>`/URL-state code)
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 146 to break down)
+
 ---
 
 ## Backlog
 
-### Phase 999.1: debounce URL updates when zooming and panning the map (BACKLOG)
-
-**Goal:** [Captured for future planning] — coalesce the rapid map `moveend`/`zoom` events so the URL (and history) is updated only after interaction settles, rather than on every intermediate frame.
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with /gsd:review-backlog when ready)
+_Empty — all items promoted. Add new items with `/gsd:capture --backlog`._
