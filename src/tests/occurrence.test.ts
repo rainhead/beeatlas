@@ -89,6 +89,15 @@ describe('parseOccId', () => {
     expect(parseOccId('inat:456')).toEqual({ source: 'inat', numericId: 456 });
   });
 
+  // WR-04 (load-bearing ordering): parseOccId checks `inat_obs:` BEFORE `inat:`.
+  // A naive reorder (e.g. alphabetizing the branches) would misroute every
+  // inat_obs:N into the inat bucket (observation_id instead of
+  // specimen_observation_id), silently corrupting selection queries. Pin it so a
+  // future reorder is caught.
+  test('parses inat_obs: ID without misrouting it to the inat bucket', () => {
+    expect(parseOccId('inat_obs:42')).toEqual({ source: 'inat_obs', numericId: 42 });
+  });
+
   // Phase 138 (UIX-01): checklist points are clickable; a checklist:N selection
   // must parse so it reaches the list/table query and shows in the sidebar.
   test('parses a valid checklist: ID', () => {
