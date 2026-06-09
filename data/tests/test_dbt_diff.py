@@ -3,8 +3,20 @@
 Scope: occurrences.parquet (row count, schema, ecdysis_id key set, spatial assignment)
        and GeoJSON files (feature counts, property-name equality).
 
+These run as the nightly publish gate, comparing a *fresh* build against the
+*currently-live* data. The two data snapshots legitimately differ run-to-run —
+new iNat/Ecdysis records grow the data, the anti-entropy pipeline shrinks it by
+detecting upstream deletions — so volume/membership checks are bounded, not exact:
+counts must stay within [-2%, +5%] of live (_assert_count_within_tolerance) and key/
+name sets may add freely but lose at most -2% (_assert_set_drift_within_tolerance).
+Structural invariants that must hold regardless of data volume stay strict: column
+schema, the inner-join spatial-assignment diffs (same specimen → same county/ecoregion),
+and the GeoJSON region-name sets. The gate's job is to catch a transform *regression*,
+not routine data drift.
+
 Requirements covered:
-  DIFF-01: Row count, column schema (names + types), and ecdysis_id key-set equality.
+  DIFF-01: Row count and ecdysis_id/host_observation_id key-set drift bounded;
+           column schema (names + types) exact.
   DIFF-02: County spatial diff (0 rows after #14 switched counties to CB 5m;
            was 84 boundary-nondeterminism rows on TIGER tl_), ecoregion_l3 diff (0 rows),
            GeoJSON feature counts, and property-name parity.
@@ -30,16 +42,63 @@ _SANDBOX_GUARD = pytest.mark.skipif(
     reason="[integration] sandbox outputs absent — run `bash data/dbt/run.sh build` first",
 )
 
+# Occurrence/species counts legitimately drift between publishes: new iNat
+# observations and newly-databased Ecdysis records grow the set, while the
+# anti-entropy pipeline can shrink it by detecting upstream-deleted observations.
+# The nightly gate compares a fresh build against the currently-live data, so an
+# exact-equality assertion fails on every routine data change and blocks the
+# publish. We instead bound the drift: the gate exists to catch a *transform
+# regression* (mass row loss or duplication), not normal data movement.
+COUNT_TOLERANCE_LOWER = 0.98  # -2%: headroom for anti-entropy deletions
+COUNT_TOLERANCE_UPPER = 1.05  # +5%: headroom for new observations
+
+
+def _assert_count_within_tolerance(sandbox: int, public: int, label: str) -> None:
+    """Assert the fresh sandbox count is within [-2%, +5%] of the live baseline."""
+    lo = public * COUNT_TOLERANCE_LOWER
+    hi = public * COUNT_TOLERANCE_UPPER
+    pct = (sandbox / public - 1) * 100 if public else float("inf")
+    assert lo <= sandbox <= hi, (
+        f"{label} count {sandbox} is outside the tolerance band "
+        f"[{lo:.0f}, {hi:.0f}] around live baseline {public} ({pct:+.1f}%). "
+        f"Counts may drift -2%/+5% run-to-run; a larger swing signals a transform "
+        f"regression or an upstream data event worth reviewing before publish."
+    )
+
+
+# Anti-entropy can drop a key/name when its last backing observation is deleted
+# upstream, so a key-set comparison can't require exact equality either. We allow
+# additions freely (the count band above bounds mass insertion) and bound only the
+# *disappearances* — a large drop is the regression signature (lost join, dbt
+# filter gone wrong) the gate must still catch.
+SET_REMOVAL_TOLERANCE = round(1 - COUNT_TOLERANCE_LOWER, 4)  # 0.02: -2% of the baseline set may vanish
+
+
+def _assert_set_drift_within_tolerance(
+    only_in_sandbox: int, only_in_public: int, public_total: int, label: str
+) -> None:
+    """Additions are fine; disappearances vs the live baseline are bounded to -2%."""
+    max_removed = public_total * SET_REMOVAL_TOLERANCE
+    assert only_in_public <= max_removed, (
+        f"{label}: {only_in_public} values present in live data are missing from the "
+        f"fresh build (allowed up to {max_removed:.0f} = {SET_REMOVAL_TOLERANCE * 100:.0f}% "
+        f"of the {public_total} live values). A larger drop signals a transform regression "
+        f"or mass upstream deletion — review before publish. "
+        f"({only_in_sandbox} newly-added values are expected and allowed.)"
+    )
+
 # ---------------------------------------------------------------------------
 # DIFF-01: Row count, schema, and ecdysis_id key-set equality
 # ---------------------------------------------------------------------------
 
 
 @_SANDBOX_GUARD
-def test_occurrences_row_count_matches():
-    """Sandbox occurrences.parquet has the same row count as public/data/occurrences.parquet.
+def test_occurrences_row_count_within_tolerance():
+    """Sandbox occurrences.parquet row count is within [-2%, +5%] of public/data.
 
-    Verified baseline: both 47,883 rows.
+    Exact equality would block the nightly publish on any new/deleted observation
+    (see _assert_count_within_tolerance). The band catches mass row loss or
+    duplication from a transform regression while letting routine data drift through.
     """
     s = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{SANDBOX}/occurrences.parquet')"
@@ -47,7 +106,7 @@ def test_occurrences_row_count_matches():
     p = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{PUBLIC}/occurrences.parquet')"
     ).fetchone()[0]
-    assert s == p, f"Row count mismatch: sandbox={s}, public={p}"
+    _assert_count_within_tolerance(s, p, "occurrences")
 
 
 @_SANDBOX_GUARD
@@ -77,10 +136,11 @@ def test_occurrences_schema_matches():
 
 
 @_SANDBOX_GUARD
-def test_occurrences_ecdysis_key_set_matches():
-    """COUNT(DISTINCT ecdysis_id) WHERE ecdysis_id IS NOT NULL is identical in both files.
+def test_occurrences_ecdysis_key_set_within_tolerance():
+    """COUNT(DISTINCT non-null ecdysis_id) is within [-2%, +5%] of the live baseline.
 
-    Verified baseline: 46,090 distinct ecdysis_ids in both.
+    New Ecdysis specimens grow this set; anti-entropy deletions shrink it. Exact
+    equality would block the publish on either, so we bound the drift instead.
     """
     s = duckdb.execute(
         f"SELECT COUNT(DISTINCT ecdysis_id) FROM read_parquet('{SANDBOX}/occurrences.parquet')"
@@ -90,16 +150,17 @@ def test_occurrences_ecdysis_key_set_matches():
         f"SELECT COUNT(DISTINCT ecdysis_id) FROM read_parquet('{PUBLIC}/occurrences.parquet')"
         " WHERE ecdysis_id IS NOT NULL"
     ).fetchone()[0]
-    assert s == p, f"ecdysis_id key-set size mismatch: sandbox={s}, public={p}"
+    _assert_count_within_tolerance(s, p, "ecdysis_id key-set")
 
 
 @_SANDBOX_GUARD
-def test_occurrences_ecdysis_id_join_full():
-    """Full anti-join: ecdysis_ids present in one file but absent in the other must be 0.
+def test_occurrences_ecdysis_id_drift_bounded():
+    """ecdysis_ids in live but absent from the fresh build are bounded to -2%.
 
-    Same cardinality alone does not prove identical key sets; this test checks both
-    directions of the EXCEPT query (sandbox minus public and public minus sandbox).
-    Verified baseline: 0 rows in both directions.
+    Same cardinality alone does not prove the right keys moved; this checks both
+    directions of the EXCEPT query. New ecdysis_ids in the fresh build are routine
+    growth (allowed); ecdysis_ids that vanished vs live are bounded — a large drop
+    is the regression signature (broken join, lost rows) the gate must catch.
     """
     only_in_sandbox = duckdb.execute(
         f"""
@@ -123,21 +184,22 @@ def test_occurrences_ecdysis_id_join_full():
         )
         """
     ).fetchone()[0]
-    assert only_in_sandbox == 0, (
-        f"{only_in_sandbox} ecdysis_ids are in sandbox but not public (expected 0)"
-    )
-    assert only_in_public == 0, (
-        f"{only_in_public} ecdysis_ids are in public but not sandbox (expected 0)"
+    public_total = duckdb.execute(
+        f"SELECT COUNT(DISTINCT ecdysis_id) FROM read_parquet('{PUBLIC}/occurrences.parquet')"
+        " WHERE ecdysis_id IS NOT NULL"
+    ).fetchone()[0]
+    _assert_set_drift_within_tolerance(
+        only_in_sandbox, only_in_public, public_total, "ecdysis_id key set"
     )
 
 
 @_SANDBOX_GUARD
-def test_occurrences_host_observation_id_join_full():
-    """Full anti-join on host_observation_id (the `inat:<id>` sample key) — 0 in both directions.
+def test_occurrences_host_observation_id_drift_bounded():
+    """host_observation_id (the `inat:<id>` sample key): disappearances bounded to -2%.
 
-    DIFF-01 names both ecdysis_id and inat:<id> as required key-set equality checks.
-    Verified baseline: 43,776 non-null host_observation_id values in both files; 0 rows
-    in either EXCEPT direction.
+    DIFF-01 names both ecdysis_id and inat:<id> as the key sets to guard. New samples
+    add host_observation_ids (allowed); samples deleted upstream by anti-entropy remove
+    them (bounded). A large drop is the regression signal the gate must catch.
     """
     only_in_sandbox = duckdb.execute(
         f"""
@@ -161,11 +223,12 @@ def test_occurrences_host_observation_id_join_full():
         )
         """
     ).fetchone()[0]
-    assert only_in_sandbox == 0, (
-        f"{only_in_sandbox} host_observation_ids are in sandbox but not public (expected 0)"
-    )
-    assert only_in_public == 0, (
-        f"{only_in_public} host_observation_ids are in public but not sandbox (expected 0)"
+    public_total = duckdb.execute(
+        f"SELECT COUNT(DISTINCT host_observation_id) FROM read_parquet('{PUBLIC}/occurrences.parquet')"
+        " WHERE host_observation_id IS NOT NULL"
+    ).fetchone()[0]
+    _assert_set_drift_within_tolerance(
+        only_in_sandbox, only_in_public, public_total, "host_observation_id key set"
     )
 
 
@@ -328,10 +391,12 @@ SANDBOX_SPECIES_PARQUET_GUARD = pytest.mark.skipif(
 
 
 @SANDBOX_SPECIES_PARQUET_GUARD
-def test_species_parquet_row_count_matches():
-    """Sandbox species.parquet has same row count as public/data/species.parquet.
+def test_species_parquet_row_count_within_tolerance():
+    """Sandbox species.parquet row count is within [-2%, +5%] of public/data.
 
-    Verified baseline: both 629 rows.
+    Species follow occurrences: new taxa appear as observations are identified, and
+    a species drops out when its last backing record is deleted. Bound the drift
+    rather than require exact equality.
     """
     s = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{SANDBOX}/species.parquet')"
@@ -339,7 +404,7 @@ def test_species_parquet_row_count_matches():
     p = duckdb.execute(
         f"SELECT COUNT(*) FROM read_parquet('{PUBLIC}/species.parquet')"
     ).fetchone()[0]
-    assert s == p, f"Row count mismatch: sandbox={s}, public={p}"
+    _assert_count_within_tolerance(s, p, "species")
 
 
 @SANDBOX_SPECIES_PARQUET_GUARD
@@ -370,8 +435,13 @@ def test_species_parquet_schema_matches():
 
 
 @SANDBOX_SPECIES_PARQUET_GUARD
-def test_species_canonical_name_key_set_matches():
-    """Full anti-join on canonical_name: 0 rows in both EXCEPT directions."""
+def test_species_canonical_name_drift_bounded():
+    """canonical_name anti-join: newly-identified taxa allowed, disappearances bounded to -2%.
+
+    Re-identified specimens and new observations introduce canonical_names (allowed);
+    a name leaves only when its last record is deleted (bounded). A large drop is the
+    regression signature the gate must catch.
+    """
     only_in_sandbox = duckdb.execute(f"""
         SELECT COUNT(*) FROM (
             SELECT canonical_name FROM read_parquet('{SANDBOX}/species.parquet')
@@ -386,8 +456,12 @@ def test_species_canonical_name_key_set_matches():
             SELECT canonical_name FROM read_parquet('{SANDBOX}/species.parquet')
         )
     """).fetchone()[0]
-    assert only_in_sandbox == 0, f"{only_in_sandbox} canonical_names in sandbox but not public"
-    assert only_in_public == 0, f"{only_in_public} canonical_names in public but not sandbox"
+    public_total = duckdb.execute(
+        f"SELECT COUNT(DISTINCT canonical_name) FROM read_parquet('{PUBLIC}/species.parquet')"
+    ).fetchone()[0]
+    _assert_set_drift_within_tolerance(
+        only_in_sandbox, only_in_public, public_total, "species canonical_name set"
+    )
 
 
 @pytest.mark.skipif(
