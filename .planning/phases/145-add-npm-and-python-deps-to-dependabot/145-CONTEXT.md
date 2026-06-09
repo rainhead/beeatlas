@@ -26,6 +26,11 @@ Dependabot itself runs on GitHub, not locally.
 ### Ecosystems
 - **D-01** — Add an npm `package-ecosystem` entry rooted at `directory: "/"`
   (root `package.json` / `package-lock.json`).
+- **D-06** — Also add an npm entry for `directory: "/infra"` (the AWS CDK
+  project: `infra/package.json` + `infra/package-lock.json`, deps `aws-cdk-lib`,
+  `constructs`, `aws-cdk`, `typescript`). Surfaced by code review 2026-06-09 —
+  the original D-01 was scoped before `infra/`'s separate npm project was
+  noticed. Same weekly + minor/patch-grouped treatment as the root entry.
 - **D-02** — Add a Python entry using native uv support:
   `package-ecosystem: "uv"`, `directory: "/data"` (the uv project lives in
   `data/`, per `data/pyproject.toml` + `data/uv.lock`). Do NOT use the legacy
