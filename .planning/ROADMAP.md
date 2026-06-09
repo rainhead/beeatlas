@@ -50,7 +50,7 @@
 
 - [x] **Phase 145: Add npm + Python deps to Dependabot** — Dependabot version updates across npm (root + `infra/`), Python (`data/` via uv), and GitHub Actions, with grouped/scheduled PRs. Promoted from backlog 999.2. Completed 2026-06-09. **Plans:** 1 plan (1 wave).
   - [x] 145-01-PLAN.md — add npm (`/`) + uv (`/data`) entries, retrofit github-actions grouping; all weekly, minor+patch grouped, major ungrouped [D-01..D-05]
-- [ ] **Phase 146: Debounce URL updates on map zoom/pan** — coalesce rapid `moveend`/`zoom` events so the URL + history update only after interaction settles. Promoted from backlog 999.1.
+- [x] **Phase 146: Debounce URL updates on map zoom/pan** — session-coalesced viewport history writes (one entry per exploration session, delimited by filter/selection/UI actions). Promoted from backlog 999.1. Completed 2026-06-09.
 
 ### ✅ v4.9 Map-Init Readiness (Phase 144) — SHIPPED 2026-06-09
 
@@ -959,7 +959,7 @@ Plans:
 | 143. CI Gate | v4.8 | 1/1 | Complete    | 2026-06-07 |
 | 144. Map-Init Readiness | v4.9 | 2/2 | Complete    | 2026-06-09 |
 | 145. Add deps to Dependabot | v4.10 | 1/1 | Complete    | 2026-06-09 |
-| 146. Debounce URL on map move | v4.10 | 1/1 | Complete   | 2026-06-09 |
+| 146. Debounce URL on map move | v4.10 | 1/1 | Complete    | 2026-06-09 |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
