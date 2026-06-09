@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; n
 ## Current Position
 
 Phase: 144 (Map-Init Readiness)
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-09 — Phase 144 registered; ready.ts scaffolding (260608-tnc) shipped
+Plan: Planned — 2 plans (144-01, 144-02), verified by plan-checker (no issues)
+Status: Ready to execute (`/gsd:execute-phase 144`)
+Last activity: 2026-06-09 — Phase 144 planned (await-taxaReady + intendedFilterActive gate + render decision into bee-map); ready.ts scaffolding (260608-tnc) shipped
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 - Sync gate: a dedicated `_filterResolving` boolean (NOT `_pendingLegacyTaxon`), feeding a single `intendedFilterActive` getter.
