@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v4.10
 milestone_name: Housekeeping
-status: ready_to_plan
-stopped_at: v4.10 Housekeeping opened — Phases 145 (dependabot) + 146 (debounce URL) promoted from backlog; neither planned yet
-last_updated: "2026-06-09T17:01:00.365Z"
-last_activity: 2026-06-09 — v4.9 shipped & archived; opened v4.10 Housekeeping (145 + 146 from backlog)
+status: executing
+stopped_at: v4.9 Map-Init Readiness shipped & archived (Phase 144). No active milestone — start the next with /gsd-new-milestone
+last_updated: "2026-06-09T17:44:41.895Z"
+last_activity: 2026-06-09 -- Phase 145 planning complete
 progress:
-  total_phases: 2
+  total_phases: 18
   completed_phases: 0
-  total_plans: 0
+  total_plans: 1
   completed_plans: 0
   percent: 0
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; n
 
 Phase: 145 (Add deps to Dependabot) — first phase of v4.10 Housekeeping, not yet planned
 Plan: — (0 plans; run `/gsd:plan-phase 145`)
-Status: v4.10 opened, ready to plan. Phases 145 + 146 are independent maintenance items (146 does not depend on 145).
-Last activity: 2026-06-09 — v4.9 shipped & archived; v4.7/v4.8 phase dirs cleaned up; backlog 999.1/999.2 promoted to 146/145 and folded into v4.10 Housekeeping
+Status: Ready to execute
+Last activity: 2026-06-09 -- Phase 145 planning complete
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
