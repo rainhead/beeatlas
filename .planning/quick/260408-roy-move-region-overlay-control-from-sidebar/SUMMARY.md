@@ -1,4 +1,5 @@
 ---
+status: complete
 phase: quick
 plan: 260408-roy
 subsystem: frontend/ui

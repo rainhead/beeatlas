@@ -1,4 +1,5 @@
 ---
+status: complete
 phase: quick
 plan: 260421-qk1
 subsystem: data-pipeline

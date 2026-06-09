@@ -1,4 +1,5 @@
 ---
+status: complete
 phase: quick-260412-due
 plan: 01
 subsystem: frontend/table

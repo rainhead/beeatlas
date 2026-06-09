@@ -1,4 +1,5 @@
 ---
+status: complete
 phase: quick-1
 plan: 1
 subsystem: data-pipeline

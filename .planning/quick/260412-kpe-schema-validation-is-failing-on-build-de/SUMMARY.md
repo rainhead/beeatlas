@@ -1,4 +1,5 @@
 ---
+status: complete
 quick_task: 260412-kpe
 date: 2026-04-12
 commit: 10915b3
