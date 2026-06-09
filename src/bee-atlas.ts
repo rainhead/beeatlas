@@ -67,6 +67,9 @@ export class BeeAtlas extends LitElement {
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
   // Pending legacy taxon from URL (non-integer taxon= value) resolved async after cache loads.
   private _pendingLegacyTaxon: { name: string; rank: string | null } | null = null;
+  // Dedicated flag: true while a legacy taxon from the URL is pending resolution.
+  // Feeds intendedFilterActive — the single gate for hide-all and URL-write suppression.
+  private _filterResolving = false;
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
   private _selectionDrawnGeneration = 0;
@@ -81,6 +84,16 @@ export class BeeAtlas extends LitElement {
     lat: DEFAULT_LAT,
     zoom: DEFAULT_ZOOM,
   };
+
+  /**
+   * Single gate: are we in a state where we intend to filter but may not have the filter
+   * query result yet? True when either an ordinary filter is active OR a legacy taxon from
+   * the URL is still being resolved (_filterResolving). Both the firstUpdated hide-all guard
+   * and the _replaceUrlState/_pushUrlStateDebounced URL-write suppression read this getter.
+   */
+  get intendedFilterActive(): boolean {
+    return isFilterActive(this._filterState) || this._filterResolving;
+  }
 
   static styles = css`
 :host {
@@ -256,8 +269,11 @@ bee-pane {
       };
     }
     // Store any pending legacy taxon for async resolution after the taxon cache loads.
+    // Also set _filterResolving = true as the dedicated gate signal — this feeds
+    // intendedFilterActive which drives the hide-all guard and URL suppression.
     if (initialParams.pendingLegacyTaxon) {
       this._pendingLegacyTaxon = initialParams.pendingLegacyTaxon;
+      this._filterResolving = true;
     }
 
     // If URL restores an active filter — or a legacy taxon name still pending async
@@ -265,7 +281,7 @@ bee-pane {
     // (hide-all) so no UNFILTERED dots flash before the filter resolves and the async
     // query completes. Without the pending-legacy case, a /?taxon=<name>&taxonRank=…
     // link renders the full clustered set until the taxon cache loads (the race).
-    if (isFilterActive(this._filterState) || this._pendingLegacyTaxon != null) {
+    if (this.intendedFilterActive) {
       this._visibleIds = new Set();
       this._filteredGeoJSON = { type: 'FeatureCollection', features: [] };
     }
@@ -293,11 +309,13 @@ bee-pane {
     // _runListQuery will be triggered by _onDataLoaded once SQLite is ready
 
     // Write initial URL state (covers fresh loads — makes URL bar show params
-    // immediately). Skip while a legacy taxon name is pending resolution: the incoming
-    // URL already carries the meaningful taxon=<name>&taxonRank=<rank>, and re-encoding
-    // _filterState now (taxonId still null) would drop it. The canonical integer form
-    // is written from _loadSummaryFromSQLite once the taxon resolves.
-    if (this._pendingLegacyTaxon == null) {
+    // immediately). Skip while a legacy taxon name is pending resolution (_filterResolving):
+    // the incoming URL already carries the meaningful taxon=<name>&taxonRank=<rank>, and
+    // re-encoding _filterState now (taxonId still null) would drop it. The canonical integer
+    // form is written from _loadSummaryFromSQLite once the taxon resolves.
+    // NOTE: gate on !_filterResolving (not !intendedFilterActive) so an ordinary active
+    // filter still writes its URL on first load — only pending-legacy resolution suppresses.
+    if (!this._filterResolving) {
       const initParams = buildParams(
         { lon: initLon, lat: initLat, zoom: initZoom },
         this._filterState,
@@ -453,6 +471,7 @@ bee-pane {
    * cache loads), stores as _pendingLegacyTaxon for resolution in _loadSummaryFromSQLite.
    * Uses rank for twin disambiguation (e.g. genus vs subgenus Bombus).
    * The raw name string is NEVER used in SQL — only in an in-memory equality lookup (T-130-LU).
+   * On resolve (match or stale), clears _filterResolving so intendedFilterActive re-evaluates.
    */
   private _resolveLegacyTaxon(pending: { name: string; rank: string | null }): void {
     if (this._taxonCache.size === 0) {
@@ -465,6 +484,7 @@ bee-pane {
     for (const [id, entry] of this._taxonCache) {
       if (entry.name === name && (rank === null || entry.rank === rank)) {
         this._filterState = { ...this._filterState, taxonId: id };
+        this._filterResolving = false;
         if (isFilterActive(this._filterState)) {
           this._runFilterQuery();
         }
@@ -474,6 +494,7 @@ bee-pane {
     // No match found — stale bookmark; leave the taxon filter inactive. Clear the
     // hide-all guard (set in firstUpdated for the pending legacy taxon) so the full
     // set renders instead of an empty map — unless some OTHER URL filter is active.
+    this._filterResolving = false;
     if (!isFilterActive(this._filterState)) {
       this._filteredGeoJSON = null;
       this._visibleIds = null;
@@ -629,11 +650,11 @@ bee-pane {
   }
 
   private _replaceUrlState() {
-    // Suppress writes while a legacy taxon name is pending resolution — _filterState
-    // has no taxonId yet, so buildParams would drop the taxon and strand the URL at
-    // ?x=&y=&z=. The integer-form URL is written from _loadSummaryFromSQLite once the
-    // taxon cache loads and resolves it (Step 3c).
-    if (this._pendingLegacyTaxon != null) return;
+    // Suppress writes while a legacy taxon name is pending resolution (_filterResolving) —
+    // _filterState has no taxonId yet, so buildParams would drop the taxon and strand the
+    // URL at ?x=&y=&z=. The integer-form URL is written from _loadSummaryFromSQLite once
+    // the taxon cache loads and resolves it (Step 3c).
+    if (this._filterResolving) return;
     const params = this._buildCurrentParams();
     window.history.replaceState({}, '', '?' + params.toString());
   }
@@ -643,7 +664,7 @@ bee-pane {
     // final resting position of the map so view moves create history entries.
     // Suppressed while a legacy taxon is pending (see _replaceUrlState) so the
     // map settling during load doesn't strand the URL without the taxon.
-    if (this._pendingLegacyTaxon != null) return;
+    if (this._filterResolving) return;
     this._replaceUrlState();
     if (this._mapMoveDebounce) clearTimeout(this._mapMoveDebounce);
     this._mapMoveDebounce = setTimeout(() => {
