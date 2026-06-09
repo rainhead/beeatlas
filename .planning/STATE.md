@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.9
 milestone_name: Map-Init Readiness
-status: ready_to_plan
-stopped_at: Phase 144 complete (2/2) — ready to discuss Phase 999.1
+status: milestone_complete
+stopped_at: Phase 144 complete (2/2, verified 5/5) — v4.9 single-phase milestone DONE; no active milestone
 last_updated: 2026-06-09T16:29:16.766Z
-last_activity: 2026-06-09 -- Phase 144 execution started
+last_activity: 2026-06-09 — Phase 144 complete; v4.9 Map-Init Readiness milestone done
 progress:
-  total_phases: 19
-  completed_phases: 5
-  total_plans: 13
+  total_phases: 23
+  completed_phases: 11
+  total_plans: 30
   completed_plans: 30
-  percent: 26
+  percent: 48
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 999.1 — debounce url updates when zooming and panning the map
+**Current focus:** None — v4.9 (single-phase: 144 Map-Init Readiness) complete. Close the milestone or start the next one. (999.1/999.2 are parked backlog, NOT v4.9 work — `phase.complete` auto-pointed here; corrected.)
 
 ## Current Position
 
-Phase: 999.1
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-09
+Phase: 144 (Map-Init Readiness) — COMPLETE, verified 5/5
+Plan: 2/2 plans complete (144-01, 144-02)
+Status: v4.9 milestone complete — no active phase
+Last activity: 2026-06-09 — Phase 144 executed, code-reviewed (CR-01 + WR-01..03 fixed in 01760e5), verified 5/5
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
