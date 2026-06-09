@@ -31,6 +31,14 @@ seeds:
         synonym: varchar
         accepted_name: varchar
         source: varchar
+    gbif_checklist_synonyms:
+      +column_types:
+        synonym: varchar
+        accepted_name: varchar
+        source: varchar
+        gbif_usage_key: varchar
+        gbif_match_type: varchar
+        gbif_confidence: varchar
     dedup_decisions:
       +column_types:
         pair_key: varchar
