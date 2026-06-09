@@ -30,14 +30,14 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(html).toMatch(/id="species-filter"/);
   });
 
-  test('index page has genus links to /species/{Genus}/ (IDX-03)', () => {
+  test('index page has genus links to /species/{Genus}/index.html (IDX-03)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toMatch(/href="\/species\/Agapostemon\/"/);
+    expect(html).toMatch(/href="\/species\/Agapostemon\/index\.html"/);
   });
 
-  test('index page has species links to /species/{Genus}/{epithet}/ (IDX-04)', () => {
+  test('index page has species links to /species/{Genus}/{epithet}/index.html (IDX-04)', () => {
     const html = readFileSync(resolve(ROOT, '_site/species/index.html'), 'utf-8');
-    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/"/);
+    expect(html).toMatch(/href="\/species\/Agapostemon\/femoratus\/index\.html"/);
   });
 
   // plugin-vite (MPA mode) emits the species page entry under either:
