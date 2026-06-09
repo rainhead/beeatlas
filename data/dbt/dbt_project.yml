@@ -44,3 +44,8 @@ seeds:
         pair_key: varchar
         dedup_status: varchar
         note: varchar
+    curated_taxon_ids:
+      +column_types:
+        canonical_name: varchar
+        taxon_id: integer
+        note: varchar
