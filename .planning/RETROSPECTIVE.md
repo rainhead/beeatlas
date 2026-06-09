@@ -2,6 +2,35 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v4.9 — Map-Init Readiness
+
+**Shipped:** 2026-06-09
+**Phases:** 1 (144) | **Plans:** 2 | **Timeline:** single day | **LOC:** ~+399 / −82 (5 `src/` files)
+
+### What Was Built
+The recurring map-init race class — legacy-taxon deep links stranding the URL or flashing unfiltered dots while the taxon name resolved async — was retired structurally on the `ready.ts` readiness barriers shipped in quick task 260608-tnc. Legacy-taxon resolution collapsed from a three-site store-and-poll dance into one linear `await taxaReady` path; a single reactive `intendedFilterActive` getter (`isFilterActive || _filterResolving`, backed by a `@state` flag) replaced two separate "are we mid-resolve" signals and now drives both hide-all and URL-write suppression; and the occurrence-layer render decision moved into `<bee-map>` as `f(filteredGeoJSON, intendedFilterActive)` so an unfiltered flash is unreachable by construction rather than timed-around. Verified 5/5; 653/653 tests green.
+
+### What Worked
+- **Barriers + single gate over timers.** Naming the async resources (`taxaReady`/`mapReady`) and making consumers `await` them — plus collapsing two pending-resolve signals into one getter — turned a class of timing races into states that are simply unreachable. The earlier scaffolding-first quick task (260608-tnc, additive `ready.ts`) made the behavior-changing phase small and focused.
+- **The code-review gate paid for itself.** It caught a genuine critical regression the refactor introduced (`markTaxaReady()` unreachable on empty-DB/error paths → permanent blank map) that all 651 tests passed straight through. Fixing it before close — not deferring — kept the phase's own goal intact.
+- **Reactivity made explicit.** Backing `_filterResolving` with `@state` removed an implicit "co-mutate a reactive field at every call site" invariant; the gate now propagates to `<bee-map>` by construction.
+
+### What Was Inefficient
+- **`phase.complete` and `milestone.complete` both mis-scoped on this single-phase milestone.** `phase.complete` auto-advanced STATE into a parked 999.x backlog item and scrambled the progress counters; `milestone.complete` counted the still-in-place v4.7/v4.8 phase dirs (134–143) as v4.9 work (reported 8 phases / 13 plans / 23 tasks) and pulled their accomplishments into the MILESTONES entry. Both needed hand-correction at close — a known tooling gotcha, costing extra cleanup.
+
+### Patterns Established
+- **Readiness barrier discipline:** a barrier coupled to visibility/state MUST resolve on every code path — fire `mark*()` in `finally`, never only on the happy path. Idempotent resolve makes this safe.
+- **Render = f(intent):** push render decisions into the presenter as pure functions of inputs; don't encode them as imperatively-timed state pushes from the coordinator.
+
+### Key Lessons
+- A test suite green in isolation (per-worktree self-check + 651 passing) can still hide a critical integration regression; the adversarial code-review pass is where it surfaced. Keep that gate non-optional even for "behavior-preserving" refactors.
+- On single-phase milestones, distrust the close-automation's phase/plan counts — sibling unarchived phase dirs leak into the scope.
+
+### Cost Observations
+- Model mix: orchestrator Opus; executors + verifier + reviewer on Sonnet.
+- Two executor worktrees (one per wave), one code-review agent, one verifier agent.
+- Notable: the critical fix was found by the review agent, not the test suite — cheap insurance relative to a shipped blank-map regression.
+
 ## Milestone: v4.8 — Fast, Honest Test Suite
 
 **Shipped:** 2026-06-08
