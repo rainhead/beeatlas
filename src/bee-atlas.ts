@@ -4,7 +4,7 @@ import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJ
 import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
-import { markTaxaReady } from './ready.ts';
+import { markTaxaReady, taxaReady } from './ready.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from './taxa.ts';
 import type { FeatureCollection, Point } from 'geojson';
@@ -65,10 +65,9 @@ export class BeeAtlas extends LitElement {
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
-  // Pending legacy taxon from URL (non-integer taxon= value) resolved async after cache loads.
-  private _pendingLegacyTaxon: { name: string; rank: string | null } | null = null;
-  // Dedicated flag: true while a legacy taxon from the URL is pending resolution.
-  // Feeds intendedFilterActive — the single gate for hide-all and URL-write suppression.
+  // Dedicated flag: true while a legacy taxon from the URL is pending resolution via
+  // the await-taxaReady flow. Feeds intendedFilterActive — the single gate for hide-all
+  // and URL-write suppression.
   private _filterResolving = false;
   private _isRestoringFromHistory = false;
   private _mapMoveDebounce: ReturnType<typeof setTimeout> | null = null;
@@ -268,12 +267,11 @@ bee-pane {
         selectedPlace: initFilter.selectedPlace ?? null,
       };
     }
-    // Store any pending legacy taxon for async resolution after the taxon cache loads.
-    // Also set _filterResolving = true as the dedicated gate signal — this feeds
-    // intendedFilterActive which drives the hide-all guard and URL suppression.
+    // If URL contains a legacy taxon name, start the await-taxaReady resolution flow.
+    // _awaitLegacyTaxonResolution sets _filterResolving = true (feeds intendedFilterActive)
+    // and waits for taxaReady before calling _resolveLegacyTaxon — no store-and-poll dance.
     if (initialParams.pendingLegacyTaxon) {
-      this._pendingLegacyTaxon = initialParams.pendingLegacyTaxon;
-      this._filterResolving = true;
+      this._awaitLegacyTaxonResolution(initialParams.pendingLegacyTaxon);
     }
 
     // If URL restores an active filter — or a legacy taxon name still pending async
@@ -405,10 +403,10 @@ bee-pane {
         r.taxon_id,
         { rank: r.rank, name: r.name, lineagePath: r.lineage_path },
       ]));
-      // Signal the taxon-cache readiness barrier (ready.ts). Nothing awaits it yet
-      // (additive — step 1 of the map-init readiness work); legacy-taxon resolution
-      // will await this in a later change instead of the current _pendingLegacyTaxon
-      // store-and-resolve dance.
+      // Signal the taxon-cache readiness barrier (ready.ts). The await-based legacy
+      // resolver in firstUpdated/_onPopState is waiting on this — it proceeds once
+      // markTaxaReady() fires and calls _resolveLegacyTaxon directly, without any
+      // further interaction with _loadSummaryFromSQLite.
       markTaxaReady();
 
       // Step 2: D-01 enumeration — get distinct present occurrence taxon_ids, then
@@ -424,22 +422,12 @@ bee-pane {
       );
       this._taxaOptions = buildTaxonOptions(presentIds, this._taxonCache);
 
-      // Step 3: Resolve any pending legacy taxon from URL (non-integer taxon= value).
-      const hadPendingLegacy = this._pendingLegacyTaxon != null;
-      if (this._pendingLegacyTaxon) {
-        this._resolveLegacyTaxon(this._pendingLegacyTaxon);
-      }
-      // Step 3b: Backfill the display name for a taxon restored from the URL — the
-      // URL carries only the integer taxon_id, so the "Species or group" input would
-      // otherwise render empty despite an active filter. Covers both the integer
-      // restore (firstUpdated) and legacy-name resolution paths.
+      // Step 3: Backfill the display name for a taxon restored from the URL via integer
+      // taxon_id — the URL carries only the id, so the "Species or group" input would
+      // otherwise render empty despite an active filter. The legacy-name resolution path
+      // now calls _resolveTaxonDisplayName itself (in _resolveLegacyTaxon on match), so
+      // this covers only the integer-from-URL restore case.
       this._resolveTaxonDisplayName();
-      // Step 3c: the pending legacy taxon is now resolved (or proven stale) and
-      // _pendingLegacyTaxon is null, lifting the URL-write suppression — write the
-      // canonical integer-form URL, replacing the legacy taxon=<name>&taxonRank=<rank>.
-      if (hadPendingLegacy) {
-        this._replaceUrlState();
-      }
 
       // County options
       this._countyOptions = [];
@@ -466,20 +454,27 @@ bee-pane {
   }
 
   /**
+   * Start the one-shot async legacy-taxon resolution flow: set _filterResolving, await
+   * taxaReady (so the cache is guaranteed populated), then call _resolveLegacyTaxon.
+   * Called from firstUpdated and _onPopState's legacy branch. Fire-and-forget (void) —
+   * the caller already set the hide-all guard via _filterResolving.
+   */
+  private _awaitLegacyTaxonResolution(pending: { name: string; rank: string | null }): void {
+    this._filterResolving = true;
+    void (async () => {
+      await taxaReady;
+      this._resolveLegacyTaxon(pending);
+    })();
+  }
+
+  /**
    * Resolve a legacy taxon {name, rank} record to a taxonId via _taxonCache lookup.
-   * If the cache is already populated, resolves immediately. If not (called before the
-   * cache loads), stores as _pendingLegacyTaxon for resolution in _loadSummaryFromSQLite.
+   * MUST be called only after taxaReady has resolved (cache guaranteed non-empty).
    * Uses rank for twin disambiguation (e.g. genus vs subgenus Bombus).
    * The raw name string is NEVER used in SQL — only in an in-memory equality lookup (T-130-LU).
-   * On resolve (match or stale), clears _filterResolving so intendedFilterActive re-evaluates.
+   * Clears _filterResolving on both match and stale paths so intendedFilterActive re-evaluates.
    */
   private _resolveLegacyTaxon(pending: { name: string; rank: string | null }): void {
-    if (this._taxonCache.size === 0) {
-      // Cache not yet loaded — store for resolution after cache loads
-      this._pendingLegacyTaxon = pending;
-      return;
-    }
-    this._pendingLegacyTaxon = null;
     const { name, rank } = pending;
     for (const [id, entry] of this._taxonCache) {
       if (entry.name === name && (rank === null || entry.rank === rank)) {
@@ -487,6 +482,11 @@ bee-pane {
         this._filterResolving = false;
         if (isFilterActive(this._filterState)) {
           this._runFilterQuery();
+          // Write canonical integer-form URL once legacy taxon resolves — replaces
+          // the legacy taxon=<name>&taxonRank=<rank> with the integer form.
+          // Safe: _filterResolving is now false so _replaceUrlState is unsuppressed.
+          this._resolveTaxonDisplayName();
+          this._replaceUrlState();
         }
         return;
       }
@@ -702,12 +702,13 @@ bee-pane {
       elevMax: parsed.filter?.elevMax ?? null,
       selectedPlace: parsed.filter?.selectedPlace ?? null,
     };
-    // Handle legacy taxon back-compat on history navigation.
-    // If _taxonCache is already populated, resolve immediately; otherwise store for later.
+    // Handle legacy taxon back-compat on history navigation via the same await-taxaReady
+    // flow as firstUpdated. By the time popstate fires, taxaReady is already resolved
+    // (cache loaded), so the await completes synchronously in the microtask queue.
     if (parsed.pendingLegacyTaxon) {
-      this._resolveLegacyTaxon(parsed.pendingLegacyTaxon);
+      this._awaitLegacyTaxonResolution(parsed.pendingLegacyTaxon);
     } else {
-      this._pendingLegacyTaxon = null; // clear any stale pending from a previous navigation
+      this._filterResolving = false; // clear any stale flag from a previous navigation
     }
     // Backfill the display name for the integer taxon_id restored from history — the
     // cache is already loaded by the time history navigation fires.
