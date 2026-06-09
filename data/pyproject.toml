@@ -6,11 +6,11 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "dlt[duckdb]>=1.23.0",
-    "duckdb>=1.4,<2",
+    "duckdb>=1.5.3,<2",
     "pyarrow>=12",
     "requests",
     "beautifulsoup4",
-    "boto3>=1.42.78",
+    "boto3>=1.43.25",
     "dateparser",
     "pygbif",
     "rapidfuzz",
