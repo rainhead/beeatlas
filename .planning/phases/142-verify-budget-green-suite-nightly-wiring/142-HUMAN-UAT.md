@@ -1,14 +1,25 @@
 ---
-status: blocked
+status: complete
 phase: 142-verify-budget-green-suite-nightly-wiring
 source: [142-VERIFICATION.md]
 started: 2026-06-07T00:00:00Z
-updated: 2026-06-07T00:00:00Z
+updated: 2026-06-08T00:00:00Z
 ---
 
 ## Current Test
 
-[both items blocked on prerequisite — accepted by user 2026-06-07; phase marked complete]
+[both items accepted by user 2026-06-07; phase marked complete and shipped in v4.8]
+
+## Update (2026-06-08, v4.7 close)
+
+The blocking prerequisite — the resolution-gate firing on unresolved bee names — was
+**fixed by commit `5047e8e`** ("clear nightly resolution-gate with offline genus + curated
+paths", 2026-06-07) and its tracking todo moved to `.planning/todos/completed/`. The two
+scenarios below were therefore never *observed* passing (they are live-nightly checks that
+must run on maderas), but their blocker is gone and they self-confirm on the next clean
+nightly. The phase itself was operator-accepted and shipped in v4.8; marking this UAT
+`complete` records that acceptance — the scenario-level `result: blocked` notes are left
+intact as the honest record of what was vs. wasn't directly observed.
 
 ## Notes (2026-06-07)
 

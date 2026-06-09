@@ -1,4 +1,5 @@
 ---
+status: complete
 phase: 260607-syt
 plan: 01
 subsystem: frontend/eleventy

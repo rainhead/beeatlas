@@ -1,5 +1,5 @@
 ---
-status: passed
+status: complete
 phase: 138-frontend-points-detail-card
 source: [138-VERIFICATION.md]
 started: 2026-06-08
