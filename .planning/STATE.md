@@ -89,11 +89,12 @@ Genuinely-carried items (pre-existing, non-blocking, not scanner-tracked):
 | 2026-06-08 | 260607-s5r | Add a rank column to the occurrences table view (closes table-rank-column todo) |
 | 2026-06-08 | pluralization-sweep-web-copy | Apply quantify() across species-detail/places/place-detail njk + bee-pane button |
 | 2026-06-08 | 260607-syt | Break out subgenera on genus pages — group species list by subgenus |
+| 2026-06-09 | 260608-tnc | ready.ts readiness barriers (taxaReady/mapReady) — step 1 of 3 for map-init race work; additive, no behavior change |
 
 ## Session Continuity
 
-Last session: 2026-06-08
-Stopped at: v4.7 milestone complete and archived
+Last session: 2026-06-09
+Stopped at: quick task 260608-tnc complete (ready.ts scaffolding); steps 2–3 (await-based resolution + intendedFilterActive) deferred to a small phase
 Resume file: None
 
 ## Operator Next Steps
