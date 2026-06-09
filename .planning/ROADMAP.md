@@ -49,7 +49,7 @@
 ### 🔄 v4.10 Housekeeping (Phases 145–146) — ACTIVE (started 2026-06-09)
 
 - [ ] **Phase 145: Add npm + Python deps to Dependabot** — Dependabot version updates across npm (root), Python (`data/` via uv), and GitHub Actions, with grouped/scheduled PRs. Promoted from backlog 999.2. **Plans:** 1 plan (1 wave).
-  - [ ] 145-01-PLAN.md — add npm (`/`) + uv (`/data`) entries, retrofit github-actions grouping; all weekly, minor+patch grouped, major ungrouped [D-01..D-05]
+  - [x] 145-01-PLAN.md — add npm (`/`) + uv (`/data`) entries, retrofit github-actions grouping; all weekly, minor+patch grouped, major ungrouped [D-01..D-05]
 - [ ] **Phase 146: Debounce URL updates on map zoom/pan** — coalesce rapid `moveend`/`zoom` events so the URL + history update only after interaction settles. Promoted from backlog 999.1.
 
 ### ✅ v4.9 Map-Init Readiness (Phase 144) — SHIPPED 2026-06-09
@@ -958,7 +958,7 @@ Plans:
 | 142. Verify Budget, Green Suite & Nightly Wiring | v4.8 | 2/2 | Complete    | 2026-06-07 |
 | 143. CI Gate | v4.8 | 1/1 | Complete    | 2026-06-07 |
 | 144. Map-Init Readiness | v4.9 | 2/2 | Complete    | 2026-06-09 |
-| 145. Add deps to Dependabot | v4.10 | 0/0 | Not started | - |
+| 145. Add deps to Dependabot | v4.10 | 1/1 | Complete   | 2026-06-09 |
 | 146. Debounce URL on map move | v4.10 | 0/0 | Not started | - |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
@@ -1107,10 +1107,10 @@ Plans:
 **Goal:** Enable Dependabot version updates across all three dependency ecosystems — npm (root `package.json`/`package-lock.json`), Python (`data/` via uv / `pyproject.toml` + `uv.lock`), and GitHub Actions (the workflows in `.github/workflows/`) — with grouped/scheduled PRs to keep deps current. Promoted from backlog (999.2) 2026-06-09; part of v4.10 Housekeeping.
 **Requirements**: TBD
 **Depends on:** Phase 144
-**Plans:** 0 plans
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 145 to break down)
+- [x] TBD (run /gsd-plan-phase 145 to break down) (completed 2026-06-09)
 
 ### Phase 146: debounce URL updates when zooming and panning the map
 

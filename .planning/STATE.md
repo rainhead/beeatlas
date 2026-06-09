@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.10
 milestone_name: Housekeeping
-status: executing
+status: verifying
 stopped_at: v4.9 Map-Init Readiness shipped & archived (Phase 144). No active milestone — start the next with /gsd-new-milestone
-last_updated: "2026-06-09T17:44:41.895Z"
-last_activity: 2026-06-09 -- Phase 145 planning complete
+last_updated: "2026-06-09T17:47:52.219Z"
+last_activity: 2026-06-09
 progress:
   total_phases: 18
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 6
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v4.10 Housekeeping — Phases 145 (Dependabot deps) + 146 (debounce URL on map move), both promoted from backlog, neither planned yet. Start with `/gsd:discuss-phase 145` or `/gsd:plan-phase 145`.
+**Current focus:** Phase 145 — add-npm-and-python-deps-to-dependabot
 
 ## Current Position
 
-Phase: 145 (Add deps to Dependabot) — first phase of v4.10 Housekeeping, not yet planned
-Plan: — (0 plans; run `/gsd:plan-phase 145`)
-Status: Ready to execute
-Last activity: 2026-06-09 -- Phase 145 planning complete
+Phase: 145 (add-npm-and-python-deps-to-dependabot) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-09
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
@@ -107,7 +107,7 @@ Genuinely-carried items (pre-existing, non-blocking, not scanner-tracked):
 
 ## Session Continuity
 
-Last session: 2026-06-09
+Last session: 2026-06-09T17:47:52.194Z
 Stopped at: v4.9 Map-Init Readiness shipped & archived (Phase 144). No active milestone — start the next with /gsd-new-milestone
 Resume file: None
 
