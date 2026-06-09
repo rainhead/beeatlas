@@ -48,7 +48,7 @@
 
 ### 🔄 v4.10 Housekeeping (Phases 145–146) — ACTIVE (started 2026-06-09)
 
-- [ ] **Phase 145: Add npm + Python deps to Dependabot** — Dependabot version updates across npm (root), Python (`data/` via uv), and GitHub Actions, with grouped/scheduled PRs. Promoted from backlog 999.2. **Plans:** 1 plan (1 wave).
+- [x] **Phase 145: Add npm + Python deps to Dependabot** — Dependabot version updates across npm (root + `infra/`), Python (`data/` via uv), and GitHub Actions, with grouped/scheduled PRs. Promoted from backlog 999.2. Completed 2026-06-09. **Plans:** 1 plan (1 wave).
   - [x] 145-01-PLAN.md — add npm (`/`) + uv (`/data`) entries, retrofit github-actions grouping; all weekly, minor+patch grouped, major ungrouped [D-01..D-05]
 - [ ] **Phase 146: Debounce URL updates on map zoom/pan** — coalesce rapid `moveend`/`zoom` events so the URL + history update only after interaction settles. Promoted from backlog 999.1.
 
