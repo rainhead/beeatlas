@@ -1114,13 +1114,13 @@ Plans:
 
 ### Phase 146: debounce URL updates when zooming and panning the map
 
-**Goal:** Coalesce the rapid map `moveend`/`zoom` events so the URL (and browser history) is updated only after interaction settles, rather than on every intermediate frame — fewer history entries, less churn. Promoted from backlog (999.1) 2026-06-09; part of v4.10 Housekeeping.
-**Requirements**: TBD
+**Goal:** Reduce browser-history churn from map pan/zoom by session-coalescing viewport writes: an entire exploration session yields exactly ONE history entry (delimited by a meaningful filter/selection/UI action), while the live URL still always reflects the current viewport. (Reframed during discussion: per-frame URL writes were already a non-issue — `moveend` fires once per settled gesture; the real problem is viewport being the app's only `pushState`.) Promoted from backlog (999.1) 2026-06-09; part of v4.10 Housekeeping.
+**Requirements**: None (no REQUIREMENTS.md IDs for this phase)
 **Depends on:** None (independent of Phase 145; baseline is the current `<bee-map>`/URL-state code)
-**Plans:** 0 plans
+**Plans:** 1 plan
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 146 to break down)
+- [ ] 146-01-PLAN.md — session-coalesced viewport→history writes in <bee-atlas> + scoped bee-atlas tests
 
 ---
 
