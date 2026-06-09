@@ -1,9 +1,9 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.7
-milestone_name: Checklist Records as Point Data
-status: Awaiting next milestone
-stopped_at: v4.7 milestone complete and archived
+milestone: v4.9
+milestone_name: Map-Init Readiness
+status: ready_to_plan
+stopped_at: Phase 144 registered — ready to plan
 last_updated: "2026-06-09T01:15:04.517Z"
 last_activity: 2026-06-08 — Milestone v4.7 completed and archived
 progress:
@@ -21,14 +21,19 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone (`/gsd:new-milestone`)
+**Current focus:** v4.9 Phase 144 — Map-Init Readiness (`/gsd:plan-phase 144`)
 
 ## Current Position
 
-Phase: —
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-08 — Milestone v4.7 completed and archived
+Phase: 144 (Map-Init Readiness)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-09 — Phase 144 registered; ready.ts scaffolding (260608-tnc) shipped
+
+### Phase 144 design decisions (from planning discussion 2026-06-09)
+- Sync gate: a dedicated `_filterResolving` boolean (NOT `_pendingLegacyTaxon`), feeding a single `intendedFilterActive` getter.
+- Scope: behavior-preserving consolidation onto `taxaReady` + `intendedFilterActive` AND harden first occurrence render on `mapReady` (move render decision into bee-map: `render = f(filteredGeoJSON, intendedFilterActive)`).
+- Builds on `ready.ts` (quick 260608-tnc). Regression net: `bee-atlas-legacy-taxon.test.ts` (commit 5833b41).
 
 ## Milestone Overview
 
