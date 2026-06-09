@@ -959,7 +959,7 @@ Plans:
 | 143. CI Gate | v4.8 | 1/1 | Complete    | 2026-06-07 |
 | 144. Map-Init Readiness | v4.9 | 2/2 | Complete    | 2026-06-09 |
 | 145. Add deps to Dependabot | v4.10 | 1/1 | Complete    | 2026-06-09 |
-| 146. Debounce URL on map move | v4.10 | 0/0 | Not started | - |
+| 146. Debounce URL on map move | v4.10 | 1/1 | Complete   | 2026-06-09 |
 
 <!-- Phase 122 details archived to .planning/milestones/v4.3-ROADMAP.md -->
 
@@ -1117,10 +1117,10 @@ Plans:
 **Goal:** Reduce browser-history churn from map pan/zoom by session-coalescing viewport writes: an entire exploration session yields exactly ONE history entry (delimited by a meaningful filter/selection/UI action), while the live URL still always reflects the current viewport. (Reframed during discussion: per-frame URL writes were already a non-issue — `moveend` fires once per settled gesture; the real problem is viewport being the app's only `pushState`.) Promoted from backlog (999.1) 2026-06-09; part of v4.10 Housekeeping.
 **Requirements**: None (no REQUIREMENTS.md IDs for this phase)
 **Depends on:** None (independent of Phase 145; baseline is the current `<bee-map>`/URL-state code)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 146-01-PLAN.md — session-coalesced viewport→history writes in <bee-atlas> + scoped bee-atlas tests
+- [x] 146-01-PLAN.md — session-coalesced viewport→history writes in <bee-atlas> + scoped bee-atlas tests
 
 ---
 
