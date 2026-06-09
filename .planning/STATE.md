@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v4.9
 milestone_name: Map-Init Readiness
-status: executing
-stopped_at: quick task 260608-tnc complete (ready.ts scaffolding); steps 2–3 (await-based resolution + intendedFilterActive) deferred to a small phase
-last_updated: "2026-06-09T15:51:25.414Z"
+status: ready_to_plan
+stopped_at: Phase 144 complete (2/2) — ready to discuss Phase 999.1
+last_updated: 2026-06-09T16:29:16.766Z
 last_activity: 2026-06-09 -- Phase 144 execution started
 progress:
   total_phases: 19
   completed_phases: 5
   total_plans: 13
-  completed_plans: 11
+  completed_plans: 30
   percent: 26
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; no active milestone)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 144 — map-init-readiness
+**Current focus:** Phase 999.1 — debounce url updates when zooming and panning the map
 
 ## Current Position
 
-Phase: 144 (map-init-readiness) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 144
-Last activity: 2026-06-09 -- Phase 144 execution started
+Phase: 999.1
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-09
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
