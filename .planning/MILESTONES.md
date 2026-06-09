@@ -1,5 +1,26 @@
 # Milestones
 
+## v4.7 Checklist Records as Point Data (Shipped: 2026-06-08)
+
+**Phases completed:** 5 phases (134–138), 17 plans
+**Timeline:** 2026-06-04 → 2026-06-08 (paused mid-flight for v4.8, resumed and shipped 2026-06-08)
+**Footprint:** ~+5,067 / −643 lines across 49 non-planning files (46 implementation commits)
+**Requirements:** 21/21 complete (ING-01..03, RCN-01..07, DUP-01..03, PRO-01..04, UIX-01..04)
+**Audit:** passed (`.planning/milestones/v4.7-MILESTONE-AUDIT.md`) — 21/21 requirements, 5/5 phases, 18/18 integration connections, 5/5 E2E flows
+**Known deferred items at close:** 0 (the 26 pre-close audit items — 24 quick-task scanner false-positives + 2 already-accepted UATs — were verified complete and normalized; see commit `9eb1afc`)
+
+**Key accomplishments:**
+
+- **Phase 134 — Full-Fidelity Ingest:** committed the 50,646-row Bartholomew et al. 2024 CSV as a git-LFS object and rebuilt `checklist_pipeline.py` to load all columns (lat/lon/date/recordedBy/locality/verbatim_name); coordinate validation excludes NULL / `0,0` / lat-lon-swapped / outside-WA-bbox from the point arm with an excluded-count log; mixed/missing dates (ISO, `m/d/yyyy`, year-range, pre-1900, ~13% null) normalized via `dateparser` into a date + `date_quality` enum (full/year_only/none) (ING-01..03).
+- **Phase 135 — Name Reconciliation:** tiered resolver (exact canonical → committed synonym seed → one-time build-time GBIF) with iNat `taxon_id` as the terminal key and a committed audit CSV; authority-strip + whitespace/case normalization; slash-compound determinations resolve to the lowest-common-ancestor via `lineage_path`; `rapidfuzz` low-confidence candidates surfaced to a human-review CSV (never auto-applied); unified onto the single dbt synonym subsystem; within-Anthophila homonym guard; **zero nightly taxonomy network calls** (RCN-01..07).
+- **Phase 136 — Deduplication:** `int_checklist_collapsed` collapses the 5,184 exact internal-duplicate groups (lowest-ObjectID survivor + `collapsed_count`); a conservative cross-source flag (exact accepted-name + full-precision shared date + ~1 km `ST_Distance_Sphere` + collector token-set, NULL-on-any-field ineligible) writes an auditable `dedup_candidate_pairs.csv`; nothing is suppressed without a curator-confirmed `dedup_decisions.csv` entry; `check_dedup_gate()` wired into `run.py` STEPS; curator HUMAN-REVIEW gate (0 candidates in current data, approved) (DUP-01..03).
+- **Phase 137 — Promotion into Occurrences:** ARM 4 (`source='checklist'`) added to `int_combined` — 19,929 deduplicated coord-bearing records into `occurrences.parquet`; enforced dbt contract bumped 33→34 (`checklist_id INTEGER`; ARMs 1–3 emit `NULL::INTEGER`); the Phase 111 isolation test retired to a positive `source='checklist'` floor with a greppable v4.7-reversal comment; `sqlite_export._GEO_COLS` index 7 ↔ `src/features.ts` `checklist:<N>` occId decode shipped in **one atomic commit** (PRO-01..04).
+- **Phase 138 — Frontend Points & Detail Card:** checklist renders as distinct green (`#2c7a2c`) map points keyed on the `source` property, clustering and `taxon_id`-filtering with the other three sources; the county-fill layer + entire `_showChecklist`/`_checklistVisible` chain removed; `checklist` is a real `VALID_SOURCES` member with `src=checklist` URL round-trip; the detail card (`_renderChecklist`) shows accepted name + inline `(det. as {verbatim})`, collector, precision-aware Roman date, locality, collapsed-count, and Bartholomew attribution; contract bumped 34→37 (`verbatim_name`/`locality`/`collapsed_count`) with `checklist_count` re-sourced from the deduped status (Bombus mixtus corrected 4,095→1,413); human-UAT approved (UIX-01..04).
+
+**Notable:** reverses the Phase 111 "checklist out of occurrences" lock (its "lacks GPS coordinates" rationale was factually void). Two credibility-critical failure modes — taxonomic over-matching and dedup false-merge — were gated behind committed audit CSVs and curator sign-off, with false-split preferred over false-merge. Shipped out of roadmap order: paused mid-Phase-135 so v4.8 (Fast, Honest Test Suite) could fix the slow/red `data/` pytest suite that was impeding iteration, then resumed and completed.
+
+---
+
 ## v4.8 Fast, Honest Test Suite (Shipped: 2026-06-08)
 
 **Phases completed:** 5 phases (139–143), 11 plans

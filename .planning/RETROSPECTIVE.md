@@ -33,6 +33,38 @@ The `data/` pytest suite was converted from a >40 min, partly-red, silently-skip
 - Model mix: orchestration on Opus; executors/verifier on Sonnet.
 - Notable: a tight, well-scoped milestone (11 plans, ~3 days) with no gap-closure cycles — the bulk of the late effort was verification rigor (clean-checkout script, randomized-order proof, nightly rig) rather than rework.
 
+## Milestone: v4.7 — Checklist Records as Point Data
+
+**Shipped:** 2026-06-08
+**Phases:** 5 (134–138) | **Plans:** 17 | **Timeline:** 2026-06-04 → 2026-06-08 (paused mid-flight for v4.8) | **LOC:** ~+5,067 / −643 (49 non-planning files, 46 impl commits)
+
+### What Was Built
+The original 50,646-row Bartholomew et al. 2024 checklist CSV — coordinates, full dates, collector, locality all discarded by Phases 76/112 — was committed as a git-LFS source and promoted into `occurrences.parquet` as a `source='checklist'` point peer, reversing the Phase 111 lock. Ingest validates coordinates and normalizes mixed dates (`date_quality` enum). A tiered resolver (exact canonical → committed synonym seed → one-time build-time GBIF) keys each record to an iNat `taxon_id` with slash-compound LCA, a `rapidfuzz` human-review gate, a homonym guard, and zero nightly network calls. Dedup collapses 5,184 internal-duplicate groups and conservatively flags cross-source Ecdysis pairs into a curator-gated audit CSV. 19,929 deduped coord-bearing records entered `int_combined` ARM 4 (contract 33→34→37); the frontend renders distinct green points with a full detail card and `src=checklist` URL round-trip; the county-fill layer was retired. 21/21 requirements; audit passed.
+
+### What Worked
+- **Audit-CSV + curator gate for the two credibility-critical failure modes.** Taxonomic over-matching and dedup false-merge were each forced through a committed audit CSV and explicit human sign-off, with false-split preferred over false-merge — the right risk posture for a scientific atlas, and it kept zero silent merges in the shipped data.
+- **Build-time-only external authority.** GBIF resolution runs once and bakes into committed seeds, so the static-hosting / no-runtime-lookup constraint held while still reconciling names to current taxonomy.
+- **Atomic positional-contract commit (Phase 137).** Shipping `_GEO_COLS` and `features.ts` index changes in one commit avoided the silent per-row corruption a split would have caused — the decision was called out up front and honored.
+
+### What Was Inefficient
+- **The milestone-close CLI over-scoped again.** `milestone.complete` swept the still-on-disk v4.8 phase dirs (139–143) into v4.7's counts (reported 12 phases/28 plans) and accomplishments (polluted with malformed one-liners), requiring a full manual rewrite of the MILESTONES.md entry — the *same* failure v4.8's retro flagged. Lesson reconfirmed: when sibling milestones share `.planning/phases/`, the close tooling cannot infer boundaries; correct counts and accomplishments by hand.
+- **Pre-close audit drowned in tooling false-positives.** 24 completed quick-tasks showed as "open" purely because the deployed `gsd-sdk` `audit-open.ts` reads only a bare `SUMMARY.md`, not the documented `${id}-SUMMARY.md` convention. Real triage (all complete) was quick; making the scanner agree took 24 file normalizations.
+- **A real production bug surfaced only by user report at close.** `species.njk` linked to bare directories (`/species/{slug}/`) that 403 under S3-REST+OAC — undetected by tests because no test asserted link targets resolve.
+
+### Patterns Established
+- **Curator-gated audit CSV** for any build-time decision with a credibility-critical false-positive cost (name resolution, cross-source dedup): emit candidates, require an explicit confirmed-decision seed, suppress/apply nothing unreviewed.
+- **`date_quality` enum** (full/year_only/none) driving downstream filter eligibility, rather than silently dropping unparseable dates to NULL.
+- **Internal links target `.../index.html`, never bare directories** — production serves from the S3 REST endpoint via OAC, which has no directory-index resolution.
+
+### Key Lessons
+- Reversing a *locked* decision (Phase 111) is cheap when the original rationale was factually wrong — verify the premise before treating a lock as permanent.
+- Closing a milestone that ran alongside a paused/parallel one needs manual count/accomplishment verification every time — the CLI cannot be trusted to scope `.planning/phases/`.
+- "Green suite" still misses link-resolution and serving-layer bugs; a thin build-output link-check would have caught the `species.njk` 403s.
+
+### Cost Observations
+- Model mix: orchestration on Opus; executors/verifier on Sonnet.
+- Notable: shipped out of order (paused mid-Phase-135 for v4.8, then resumed) with no gap-closure cycles; the heaviest late effort was the human-review gates and the close-time audit/cleanup, not rework.
+
 ## Milestone: v4.6 — Taxonomy Hierarchy & Normalization
 
 **Shipped:** 2026-06-04
