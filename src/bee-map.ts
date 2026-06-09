@@ -3,6 +3,7 @@ import { customElement, property, query, state } from 'lit/decorators.js';
 import mapboxgl from 'mapbox-gl';
 import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
 import { loadOccurrenceGeoJSON } from './features.ts';
+import { markMapReady } from './ready.ts';
 import { type FilterState, getOccurrences, type OccurrenceProperties } from './filter.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import {
@@ -359,6 +360,9 @@ export class BeeMap extends LitElement {
 
     // All source/layer setup must happen after the style loads
     this._map.on('load', async () => {
+      // Signal the map-readiness barrier (ready.ts). Additive (step 1 of the
+      // map-init readiness work) — nothing awaits it yet.
+      markMapReady();
       try {
         const { geojson } = await loadOccurrenceGeoJSON();
         this._fullGeoJSON = geojson;
