@@ -816,21 +816,22 @@ describe('144-02: bee-atlas wires intendedFilterActive; removes empty-collection
     //   this._filteredGeoJSON = { type: 'FeatureCollection', features: [] }
     // under an intendedFilterActive guard. After the refactor, intendedFilterActive=true
     // flowing to bee-map provides hide-all — the pre-seed is removed.
-    const firstUpdatedIdx = atlasSrc.indexOf('async firstUpdated(');
+    // Note: firstUpdated is a public method (not async), arrow or otherwise.
+    const firstUpdatedIdx = atlasSrc.indexOf('firstUpdated(');
     expect(firstUpdatedIdx).toBeGreaterThanOrEqual(0);
-    const nextMethod = atlasSrc.indexOf('\n  private ', firstUpdatedIdx + 1);
-    const firstUpdatedBody = atlasSrc.slice(firstUpdatedIdx, nextMethod > firstUpdatedIdx ? nextMethod : firstUpdatedIdx + 3000);
+    // Grab up to 3000 chars from firstUpdated to the next major method boundary
+    const firstUpdatedBody = atlasSrc.slice(firstUpdatedIdx, firstUpdatedIdx + 3000);
     // Must not contain the empty FeatureCollection pre-seed for hide-all
     expect(firstUpdatedBody).not.toMatch(/this\._filteredGeoJSON\s*=\s*\{\s*type\s*:\s*['"]FeatureCollection['"]\s*,\s*features\s*:\s*\[\]/);
   });
 
   test('_onPopState does NOT pre-seed empty _filteredGeoJSON as hide-all', () => {
     // The old hide-all pre-seed in _onPopState assigned the same pattern under a filter guard.
-    // After the refactor it is removed.
-    const onPopStateIdx = atlasSrc.indexOf('private _onPopState(');
+    // After the refactor it is removed. _onPopState is an arrow function field.
+    const onPopStateIdx = atlasSrc.indexOf('_onPopState = (');
     expect(onPopStateIdx).toBeGreaterThanOrEqual(0);
-    const nextMethod = atlasSrc.indexOf('\n  private ', onPopStateIdx + 1);
-    const onPopStateBody = atlasSrc.slice(onPopStateIdx, nextMethod > onPopStateIdx ? nextMethod : onPopStateIdx + 3000);
+    // Grab up to 3000 chars from _onPopState definition
+    const onPopStateBody = atlasSrc.slice(onPopStateIdx, onPopStateIdx + 3000);
     expect(onPopStateBody).not.toMatch(/this\._filteredGeoJSON\s*=\s*\{\s*type\s*:\s*['"]FeatureCollection['"]\s*,\s*features\s*:\s*\[\]/);
   });
 
