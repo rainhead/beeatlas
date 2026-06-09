@@ -19,6 +19,11 @@ export function formatRomanDate(dateStr: string | null): string {
     const parts = dateStr.split('-');
     const year = Number(parts[0]);
     const month = Number(parts[1]);
+    // WR-02 (defensive): an out-of-range/NaN month would index ROMAN_MONTHS out
+    // of bounds and render "undefined YYYY". Live checklist data (ARM 4) never
+    // hits this branch, but malformed iNat/sample substrings could. Fall back to
+    // the raw string, consistent with the length-10 branch's isNaN guard.
+    if (!Number.isInteger(month) || month < 1 || month > 12) return dateStr;
     return `${ROMAN_MONTHS[month - 1]} ${year}`;
   }
   if (dateStr.length === 4) {
