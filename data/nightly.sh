@@ -198,23 +198,30 @@ echo "--- pipelines done in $(_elapsed $_t0) ---"
 # Drop -x to get a full failure inventory at the cost of slower abort
 # (Pitfall 7 — -x is faster and sufficient for the deploy gate).
 #
-# EXPECTED FIRST-RUN BEHAVIOR (Open Question 2 resolution):
-# On the FIRST nightly run after the Phase 131 schema change (33 columns),
-# test_dbt_diff WILL fail: the currently-live public/data/occurrences.parquet
-# carries the OLD 37-col schema while the fresh sandbox carries the new 33-col
-# schema. This is CORRECT regression behavior, not a defect.
-# To self-heal: allow one publish of the new 33-col schema (e.g., run the
-# hashing/upload block manually, or temporarily bypass the gate for one run).
-# The SECOND run will compare 33-col vs 33-col and the gate will pass.
-# Success criterion 4 (slow tier green on maderas) applies to steady-state.
+# EXPECTED FIRST-RUN BEHAVIOR after an INTENDED occurrences-contract change:
+# test_dbt_diff WILL fail on the first nightly — the currently-live
+# public/data/occurrences.parquet carries the OLD schema while the fresh sandbox
+# carries the NEW schema. This is CORRECT regression behavior, not a defect. But
+# it is a one-time DEADLOCK: the gate also blocks the very publish that would
+# refresh the baseline, so it cannot self-heal on its own.
+# To break it, run ONE publish of the new schema with the gate bypassed:
+#     SKIP_INTEGRATION_GATE=1 bash data/nightly.sh
+# The NEXT normal run then compares new-vs-new and the gate passes unaided.
+# (e.g. v4.7 added checklist_id/verbatim_name/locality/collapsed_count, 33->37.)
+# Use the bypass ONLY for an intended, reviewed contract change — never to paper
+# over an unexpected diff.
 echo "--- integration test gate ---"
 _t0=$(date +%s)
 cd "$SCRIPT_DIR"
-if ! uv run pytest -m integration -x --tb=short -q; then
+if [[ -n "${SKIP_INTEGRATION_GATE:-}" ]]; then
+    echo "WARN: SKIP_INTEGRATION_GATE set — BYPASSING integration gate for this run." >&2
+    echo "WARN: intended only for the one-time publish after a reviewed occurrences-contract change." >&2
+elif ! uv run pytest -m integration -x --tb=short -q; then
     echo "INTEGRATION GATE FAILED in $(_elapsed $_t0) — aborting publish" >&2
     exit 1
+else
+    echo "integration gate passed in $(_elapsed $_t0)"
 fi
-echo "integration gate passed in $(_elapsed $_t0)"
 
 # 3. Hash artifacts, write manifest.json, push to S3.
 #
