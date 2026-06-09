@@ -1,5 +1,26 @@
 # Milestones
 
+## v4.9 Map-Init Readiness (Shipped: 2026-06-09)
+
+**Phases completed:** 1 phase (144), 2 plans, 4 tasks
+**Timeline:** 2026-06-09 (single day)
+**Footprint:** ~+399 / −82 lines across 5 `src/` files (`bee-atlas.ts`, `bee-map.ts`, 3 test files)
+**Requirements:** none formal — single-phase milestone scoped by the ROADMAP entry + LOCKED design decisions (planning discussion 2026-06-09)
+**Verification:** passed 5/5 (`.planning/milestones/v4.9-phases/144-map-init-readiness/144-VERIFICATION.md`)
+**Code review:** 1 critical + 3 warnings fixed at close (commit `01760e5`); 1 warning (WR-04) + 3 info deferred
+**Known deferred items at close:** 1 (`144-code-review-deferred.md` — WR-04 CSV-export headers + 3 info; see STATE.md → Deferred Items)
+
+**Key accomplishments:**
+
+- **Phase 144 — Map-Init Readiness:** retired the recurring map-init race class *structurally*, building on the `ready.ts` readiness barriers (`taxaReady`/`mapReady`) shipped in quick task 260608-tnc.
+  - **Await-based legacy resolution:** the store-and-poll `_pendingLegacyTaxon` dance (store in `firstUpdated` → re-check in `_loadSummaryFromSQLite` → re-store in `_resolveLegacyTaxon`) collapsed into one linear `await taxaReady` path; a legacy-taxon deep link resolves to its modern taxon without depending on render-cycle timing.
+  - **Single intent gate:** a dedicated `_filterResolving` `@state` flag feeds one `intendedFilterActive` getter (`isFilterActive(_filterState) || _filterResolving`); both the hide-all guard and URL-write suppression read that single gate — no second "are we mid-resolve" source of truth.
+  - **Render as a pure function of intent:** the occurrence-layer render decision moved into `<bee-map>` as `f(filteredGeoJSON, intendedFilterActive)` gated on the map load lifecycle; `<bee-atlas>` stopped pre-seeding empty collections as the hide-all mechanism, so an unfiltered flash is structurally impossible rather than timed-around. `<bee-map>` stays a pure presenter (input-only `@property`).
+
+**Notable:** code review caught a barrier-stranding regression the new architecture introduced — `markTaxaReady()` sat inside `_loadSummaryFromSQLite`'s `try` after the empty-DB early-return and before the `catch`, so both failure paths skipped it; with a legacy-taxon URL pending, `_filterResolving` would stick `true` and the map would render empty forever. Fixed before close by moving `markTaxaReady()` into `finally` (idempotent) and adding regression tests for both failure paths. `npm test` green (653/653), typecheck clean.
+
+---
+
 ## v4.7 Checklist Records as Point Data (Shipped: 2026-06-08)
 
 **Phases completed:** 5 phases (134–138), 17 plans

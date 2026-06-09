@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v4.9
 milestone_name: Map-Init Readiness
-status: milestone_complete
-stopped_at: Phase 144 complete (2/2, verified 5/5) — v4.9 single-phase milestone DONE; no active milestone
-last_updated: 2026-06-09T16:29:16.766Z
-last_activity: 2026-06-09 — Phase 144 complete; v4.9 Map-Init Readiness milestone done
+status: Awaiting next milestone
+stopped_at: v4.9 Map-Init Readiness shipped & archived (Phase 144, 2/2 plans, verified 5/5) — no active milestone
+last_updated: "2026-06-09T17:01:00.365Z"
+last_activity: 2026-06-09 — Milestone v4.9 completed and archived
 progress:
-  total_phases: 23
-  completed_phases: 11
-  total_plans: 30
-  completed_plans: 30
-  percent: 48
+  total_phases: 1
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; n
 
 ## Current Position
 
-Phase: 144 (Map-Init Readiness) — COMPLETE, verified 5/5
-Plan: 2/2 plans complete (144-01, 144-02)
-Status: v4.9 milestone complete — no active phase
-Last activity: 2026-06-09 — Phase 144 executed, code-reviewed (CR-01 + WR-01..03 fixed in 01760e5), verified 5/5
+Phase: Milestone v4.9 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-09 — Milestone v4.9 completed and archived
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
@@ -68,6 +68,14 @@ None open.
 
 ## Deferred Items
 
+**v4.9 close (2026-06-09):** 1 item acknowledged and deferred —
+
+| Category | Item | Status |
+|----------|------|--------|
+| todo | `144-code-review-deferred.md` | open — WR-04 (CSV-export `rows[0]` headers) + 3 info findings from the Phase 144 code review; non-blocking, promote into a future milestone |
+
+---
+
 The 26 items surfaced by the v4.7 pre-close audit were **resolved at close** (commit
 `9eb1afc`): 24 quick-tasks were verified complete and normalized (the audit false-flagged
 them via a `gsd-sdk` `audit-open.ts` bug that only reads bare `SUMMARY.md`, not the
@@ -100,7 +108,7 @@ Genuinely-carried items (pre-existing, non-blocking, not scanner-tracked):
 ## Session Continuity
 
 Last session: 2026-06-09
-Stopped at: quick task 260608-tnc complete (ready.ts scaffolding); steps 2–3 (await-based resolution + intendedFilterActive) deferred to a small phase
+Stopped at: v4.9 Map-Init Readiness shipped & archived (Phase 144). No active milestone — start the next with /gsd-new-milestone
 Resume file: None
 
 ## Operator Next Steps
