@@ -14,7 +14,9 @@ findings:
   warning: 4
   info: 3
   total: 8
-status: issues_found
+status: resolved
+resolved: 2026-06-09T16:24:00Z
+resolution_commit: 01760e5
 ---
 
 # Phase 144: Code Review Report
@@ -22,7 +24,21 @@ status: issues_found
 **Reviewed:** 2026-06-09T16:16:45Z
 **Depth:** standard
 **Files Reviewed:** 5
-**Status:** issues_found
+**Status:** resolved (CR-01 + WR-01/02/03 fixed in 01760e5; WR-04 + info deferred to todo)
+
+## Resolution (2026-06-09, commit 01760e5)
+
+- **CR-01 — FIXED.** `markTaxaReady()` moved into the `_loadSummaryFromSQLite` `finally`
+  block, so `taxaReady` resolves unconditionally (empty-DB early return and catch path
+  included). Idempotent. Regression tests added for both failure paths in
+  `bee-atlas-legacy-taxon.test.ts`.
+- **WR-01 / WR-02 / WR-03 — FIXED.** `_filterResolving` is now an `@state()` field, so a
+  mutation schedules the re-render that propagates `intendedFilterActive` to `<bee-map>`.
+  Removes the implicit "co-mutate a reactive field at every call site" invariant.
+- **WR-04 (CSV export `rows[0]`-derived headers) — DEFERRED.** Pre-existing latent issue,
+  out of Phase 144 scope. Tracked in `.planning/todos/pending/`.
+- **Info (CR/INFO items: dead `_selectionDrawnGeneration`, duplicated county/ecoregion
+  queries, `[BENCHMARK]` console.log) — DEFERRED.** Non-blocking; tracked in the same todo.
 
 ## Summary
 
