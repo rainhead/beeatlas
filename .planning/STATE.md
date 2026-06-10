@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v4.10
-milestone_name: Housekeeping
-status: Awaiting next milestone
-stopped_at: Phase 146 context gathered
-last_updated: "2026-06-09T18:55:55.464Z"
-last_activity: 2026-06-09 — Milestone v4.10 completed and archived
+milestone: v5.0
+milestone_name: Offline Field Mode
+status: planning
+last_updated: "2026-06-10T20:34:57.372Z"
+last_activity: 2026-06-10
 progress:
-  total_phases: 18
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 11
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-08 — v4.7 and v4.8 both complete; n
 
 ## Current Position
 
-Phase: Milestone v4.10 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-09 — Milestone v4.10 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-10 — Milestone v5.0 started
 
 ### Phase 144 design decisions (from planning discussion 2026-06-09)
 
