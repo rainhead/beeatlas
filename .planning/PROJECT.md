@@ -80,13 +80,31 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 
 Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
+## Current Milestone: v5.0 Offline Field Mode
+
+**Goal:** Make the map + table usable offline in the field as an installable app with a current-location indicator — privately dogfoodable behind an unlisted route before anyone else is invited.
+
+**Target features:**
+- Installable PWA (manifest + icon + service worker); reliable offline cold-start on mobile
+- Offline map + table: SW caches the app shell + occurrences SQLite DB (~23 MB) + all GeoJSON (statewide); filter/table/selection run offline (already client-side). Species/places/feeds stay online-only.
+- Cached Mapbox basemap tiles so panned-while-online areas survive offline — **TOS-sensitive, self-test only; revisit terms before public rollout**
+- Unlisted dogfood route (e.g. `/app`); the main map page stays untouched (no SW) until proven
+- Current-location indicator via Mapbox `GeolocateControl` (blue dot + accuracy + recenter); GPS works offline
+- "Occurrences near me" — surface/filter occurrences within a distance of the user's position
+- Freshness indicator: "data as of `<pipeline generation date>`" from the manifest; cache refreshes when back online
+
+**Key context:**
+- Static hosting only; data already client-side (SQLite WASM), so offline filtering is nearly free once cached
+- Mobile-first, still works on desktop; requires one online prime to populate the cache
+- Service-worker scope wrinkle: isolating offline behavior to an unlisted route while still caching same-origin `/data/` needs care (planning concern, not a blocker)
+
 ## Requirements
 
 ### Active
 
-_Active milestone: **v4.10 Housekeeping** (opened 2026-06-09)_ — two small maintenance/polish items promoted from backlog: Phase 145 (Dependabot version updates across npm + Python/uv + GitHub Actions) and Phase 146 (debounce URL/history writes during map zoom/pan). Neither planned yet; requirement-light, scoped by their ROADMAP entries. Preceding milestones v4.7 + v4.8 (2026-06-08) and v4.9 (2026-06-09) all shipped.
+_Active milestone: **v5.0 Offline Field Mode** (opened 2026-06-10)_ — offline-capable, installable map+table for field use, plus a current-location indicator with "occurrences near me", dogfooded behind an unlisted route. Requirements being defined; see the Current Milestone section above. Preceding milestone v4.10 Housekeeping shipped 2026-06-09.
 
-*Backlog (ROADMAP.md): empty — both items (999.1 debounce-URL, 999.2 dependabot) promoted into v4.10 Housekeeping as Phases 146 + 145 on 2026-06-09.*
+*Backlog (ROADMAP.md): empty.*
 
 ### Validated
 
@@ -473,4 +491,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-09 after the v4.10 (Housekeeping) milestone close — Phases 145 (Dependabot: npm root+`infra/`, uv, github-actions; weekly, minor+patch grouped) and 146 (session-coalesced viewport→history writes), both promoted from backlog and verified, archived to `.planning/milestones/v4.10-*`. Preceded by v4.9 (Map-Init Readiness, Phase 144, verified 5/5), and v4.7/v4.8 (shipped 2026-06-08). No active milestone — backlog empty; next via `/gsd:new-milestone`. Deferred items (see STATE.md): `145-HUMAN-UAT.md` (Dependabot composite-action coverage, post-deploy check) and `144-code-review-deferred.md`.*
+*Last updated: 2026-06-10 — opened milestone **v5.0 Offline Field Mode** (installable PWA, offline map+table statewide, cached basemap tiles [self-test only], unlisted dogfood route, current-location indicator + "occurrences near me", pipeline-generation-date freshness). Requirements/roadmap being defined. Previously: 2026-06-09 after the v4.10 (Housekeeping) milestone close — Phases 145 (Dependabot: npm root+`infra/`, uv, github-actions; weekly, minor+patch grouped) and 146 (session-coalesced viewport→history writes), both promoted from backlog and verified, archived to `.planning/milestones/v4.10-*`. Preceded by v4.9 (Map-Init Readiness, Phase 144, verified 5/5), and v4.7/v4.8 (shipped 2026-06-08). No active milestone — backlog empty; next via `/gsd:new-milestone`. Deferred items (see STATE.md): `145-HUMAN-UAT.md` (Dependabot composite-action coverage, post-deploy check) and `144-code-review-deferred.md`.*
