@@ -43,8 +43,20 @@
 - ✅ **v4.8 Fast, Honest Test Suite** — Phases 139–143 (shipped 2026-06-08). Two-tier pytest (fast <5 min default, opt-in `@integration` slow tier); distilled committed fixtures replace full-file parsing; ~19 red/silent-skip tests greened and randomized-order-stable; nightly + CI gates. See [.planning/milestones/v4.8-ROADMAP.md](milestones/v4.8-ROADMAP.md).
 - ✅ **v4.9 Map-Init Readiness** — Phase 144 (shipped 2026-06-09). Retired the recurring map-init race class structurally: await-based legacy-taxon resolution on the `ready.ts` barriers, a single `intendedFilterActive` gate (backed by a reactive `_filterResolving` flag) for hide-all + URL suppression, and the occurrence render moved into `<bee-map>` as f(filteredGeoJSON, intendedFilterActive). See [.planning/milestones/v4.9-ROADMAP.md](milestones/v4.9-ROADMAP.md).
 - ✅ **v4.10 Housekeeping** — Phases 145–146 (shipped 2026-06-09). Two maintenance/polish items promoted from backlog: Dependabot version updates across npm (root + `infra/`) + Python (uv) + GitHub Actions, and session-coalesced viewport→history writes so map exploration produces one back-button entry. See [.planning/milestones/v4.10-ROADMAP.md](milestones/v4.10-ROADMAP.md).
+- 🚧 **v5.0 Offline Field Mode** — Phases 147–154 (in progress). Installable PWA with offline map+data+geolocation; dogfooded behind `/app` before public graduation.
 
 ## Phases
+
+### 🚧 v5.0 Offline Field Mode (Phases 147–154) — IN PROGRESS
+
+- [ ] **Phase 147: `/app` Route + SW Topology** — Unlisted `/app/` route served by Eleventy; `sw.js` registered with `scope: '/app'`; no SW on `/`; CDK `no-cache` behavior on `sw.js` + `manifest.webmanifest`.
+- [ ] **Phase 148: App Shell Precache + vite-plugin-pwa Wiring** — `vite-plugin-pwa` wired through `eleventy.config.js` `viteOptions.plugins` with `injectManifest` strategy; hashed JS/CSS for the `/app` entry precached and verified offline.
+- [ ] **Phase 149: `/data/` Runtime Caching + Offline Cold-Start** — `occurrences.db` + all GeoJSON cached via `CacheFirst` runtime strategy; full offline cold-start; re-prime if DB absent on reconnect; `QuotaExceededError` handling; graceful basemap-degradation label; online/offline status indicator.
+- [ ] **Phase 150: Cache Health & Freshness UX** — "Ready for offline" indicator; determinate prime progress bar; cache-size display; "Data as of `<date>`" freshness label; SW update lifecycle with prompt-to-reload (no `skipWaiting`).
+- [ ] **Phase 151: PWA Manifest & Installability** — `manifest.webmanifest` with icons; `beforeinstallprompt` capture for Android; iOS "Add to Home Screen" instructions; offline cold-start in standalone mode confirmed.
+- [ ] **Phase 152: GeolocateControl + Location State** — `GeolocateControl` in `<bee-map>._initMap()`; `user-location-changed` CustomEvent relayed to `<bee-atlas>` (`@state _userLocation`); blue dot + accuracy ring; denied-permission graceful handling.
+- [ ] **Phase 153: Occurrences Near Me** — "Near me" chip filtering to occurrences within 10 km; bbox SQL pre-filter + JS haversine post-filter in worker; `?near=1` URL state; AND-composition with existing filters.
+- [ ] **Phase 154: Mapbox Tile Caching (TOS-gated)** — SW runtime-caches Mapbox tiles behind `beta_tile_cache` flag defaulting **off**; access_token stripped from cache key; `maxEntries` + 12h TTL; documented as self-test-only with hard TOS-review gate.
 
 ### ✅ v4.10 Housekeeping (Phases 145–146) — SHIPPED 2026-06-09
 
@@ -1123,6 +1135,134 @@ Plans:
 - [x] 146-01-PLAN.md — session-coalesced viewport→history writes in <bee-atlas> + scoped bee-atlas tests
 
 ---
+
+### Phase 147: `/app` Route + SW Topology
+
+**Goal**: A correctly-scoped service worker exists at `/app/sw.js` with `scope: '/app'`, the unlisted `/app/` route is served by Eleventy, and the main `/` route has no service worker — verified in DevTools. CDK serves `sw.js` and `manifest.webmanifest` with `Cache-Control: no-cache` so updates are not delayed by CloudFront's default long-TTL.
+**Depends on**: Phase 146 (baseline codebase)
+**Requirements**: ROUTE-01, ROUTE-02, ROUTE-03
+**Success Criteria** (what must be TRUE):
+  1. Navigating to `/app/` loads an Eleventy-served page that is not linked from the main site, sitemap, or nav; the main `/` page is unchanged
+  2. DevTools → Application → Service Workers shows a SW attached to `/app` and nothing attached to `/`
+  3. `curl -I` on `/app/sw.js` and `/app/manifest.webmanifest` returns `Cache-Control: no-cache` (or equivalent no-cache directive) from CloudFront
+  4. SW `scope: /app` means the SW fetch handler intercepts `/data/*` requests made by the `/app` page — confirmed by a DevTools Network entry showing the SW as the initiator for a `/data/` fetch
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 148: App Shell Precache + vite-plugin-pwa Wiring
+
+**Goal**: `vite-plugin-pwa` is wired via `eleventy.config.js` `viteOptions.plugins` (not `vite.config.ts`) with `injectManifest` strategy; the hashed JS/CSS for the `/app` Vite entry point is precached; `maximumFileSizeToCacheInBytes` is raised to at least 30 MB; and the `/app` page loads fully offline from the SW cache after a single online visit.
+**Depends on**: Phase 147
+**Requirements**: OFF-01
+**Success Criteria** (what must be TRUE):
+  1. `_site/app/sw.js` (post-build) contains an injected precache manifest with hash-versioned URLs matching the actual `/app` JS/CSS assets in `_site/`
+  2. After one online load of `/app`, DevTools → Network (offline mode) shows JS/CSS served from `(ServiceWorker)` with no network errors
+  3. `maximumFileSizeToCacheInBytes` is set to ≥ 30,000,000 in the plugin config (confirmed in `eleventy.config.js`)
+  4. `npm run build` succeeds and a post-build verification script (or manual check) confirms every precache URL exists as a file in `_site/`
+**Plans**: TBD
+
+### Phase 149: `/data/` Runtime Caching + Offline Cold-Start
+
+**Goal**: `occurrences.db` (~23 MB) and all GeoJSON files (`counties`, `ecoregions`, `places`) are runtime-cached via Workbox `CacheFirst` strategy in the SW; the app completes a full offline cold-start (map renders, filters run, table populates) with no network connection; iOS eviction is mitigated by re-priming the DB if it is absent on reconnect; `QuotaExceededError` is handled with partial-write cleanup; and the app shows honest UI for the offline state and the blank basemap.
+**Depends on**: Phase 148
+**Requirements**: OFF-02, OFF-03, OFF-04, OFF-05, CACHE-05
+**Success Criteria** (what must be TRUE):
+  1. After one online prime, toggling DevTools to offline and refreshing `/app` loads the map with occurrence dots; filter/table/selection queries run against the cached DB without any network requests
+  2. County/ecoregion overlays render offline (GeoJSON served from SW cache)
+  3. The basemap renders blank (not crashing) offline; a label explains basemap tiles are only available for areas browsed while online
+  4. A non-blocking indicator shows the current online/offline state; the map is fully usable in either state
+  5. If `occurrences.db` is evicted from cache and the device reconnects, the app re-fetches and re-caches the DB without requiring a manual action; `navigator.storage.persist()` is requested at first launch
+  6. A `QuotaExceededError` during DB caching triggers partial-write cleanup (the incomplete cache entry is removed)
+  7. SW update lifecycle uses prompt-to-reload, never `skipWaiting`/`clientsClaim` — confirmed by observing the "waiting" SW state in DevTools before the user acknowledges the update prompt
+**Plans**: TBD
+
+### Phase 150: Cache Health & Freshness UX
+
+**Goal**: The user can see whether the app is ready for offline use, how much space it occupies, how fresh the cached data is, and receives a prompt (not an automatic reload) when a SW update is available.
+**Depends on**: Phase 149
+**Requirements**: CACHE-01, CACHE-02, CACHE-03, CACHE-04
+**Success Criteria** (what must be TRUE):
+  1. A "ready for offline" indicator shows as incomplete (with a "finish setup on WiFi" state) while caching is in progress, and as ready only once app shell + `occurrences.db` + all GeoJSON are cached
+  2. During the ~23 MB initial prime, a determinate progress indicator (showing files or MB) updates as the SW caches each asset (via SW→page `postMessage`), not just an indeterminate spinner
+  3. After priming, the device storage size ("X MB stored on this device") is shown using `navigator.storage.estimate()`
+  4. A "Data as of `<date>`" label is always visible; the date reflects the pipeline `generated_at` from `manifest.json`; it updates only when a newer DB is fetched, not on page refresh
+  5. When a new SW is waiting, a non-blocking prompt ("A data update is available — tap to reload") appears; dismissing it leaves the old version running; tapping it reloads to the new version
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 151: PWA Manifest & Installability
+
+**Goal**: The `/app` route is installable as a PWA on Android (Chrome `beforeinstallprompt`) and iOS (static "Add to Home Screen" instructions); the installed app opens offline in standalone mode and renders the map from cache.
+**Depends on**: Phase 149 (offline cold-start must work before installability is meaningful), Phase 150 (freshness/ready badge)
+**Requirements**: PWA-01, PWA-02, PWA-03
+**Success Criteria** (what must be TRUE):
+  1. `/app/manifest.webmanifest` declares `name`, `start_url: /app`, `display: standalone`, `background_color`, `theme_color`, and 192px / 512px / maskable icons; Chrome DevTools → Application → Manifest shows no validation errors
+  2. On Android/Chrome, an in-app "Install" affordance (captured `beforeinstallprompt`, not a blocking modal) appears and installs the app to the home screen
+  3. On iOS Safari (where `beforeinstallprompt` is unavailable), the `/app` page shows static "Add to Home Screen" instructions; the instructions are hidden when already running standalone (`navigator.standalone === true`)
+  4. Launching the installed app with no network connection opens in standalone mode and renders the map + table fully from cache (offline cold-start confirmed on a real device)
+**Plans**: TBD
+**UI hint**: yes
+
+**Phase note — research flag:** iOS standalone-mode geolocation permission behavior differs from Safari tab; requires real-device verification (not simulable). Plan Phase 152 implementation-time verification on a physical iOS device.
+
+### Phase 152: GeolocateControl + Location State
+
+**Goal**: A Mapbox `GeolocateControl` shows a blue dot + accuracy ring + recenter button; GPS works offline; location state is owned by `<bee-atlas>` per the state-owner/pure-presenter invariant; denied permission is handled gracefully.
+**Depends on**: Phase 147 (the `/app` route must exist; GeolocateControl requires a Map instance in `<bee-map>._initMap()`)
+**Requirements**: LOC-01, LOC-02, LOC-03
+**Success Criteria** (what must be TRUE):
+  1. A blue dot and accuracy ring appear on the map when the user allows location access; a recenter button returns the viewport to the user's position
+  2. GPS positioning works with DevTools "offline" active (no network required for GPS fix)
+  3. `<bee-atlas>` owns `@state _userLocation`; `<bee-map>` hosts the `GeolocateControl` and relays position upward via a `composed: true` `user-location-changed` CustomEvent — confirmed by a source-analysis test asserting `<bee-map>` emits (not stores) the location
+  4. Denying or revoking location permission shows a disabled/error state on the control with a brief explanation; the rest of the app (map, filters, table) is unaffected
+**Plans**: TBD
+**UI hint**: yes
+
+**Phase note — research flag:** Verify geolocation permission prompt fires correctly in iOS standalone mode on a real device before finalizing the implementation. Permission prompt behavior differs between a Safari tab and a home-screen standalone launch.
+
+### Phase 153: Occurrences Near Me
+
+**Goal**: A "Near me" chip filters occurrences to those within 10 km of the user's GPS position; the query AND-composes with all existing filters; the state round-trips in the URL as `?near=1`; the query runs in under 200 ms on the full occurrence set.
+**Depends on**: Phase 152 (`_userLocation` state must exist on `<bee-atlas>`)
+**Requirements**: NEAR-01, NEAR-02, NEAR-03
+**Success Criteria** (what must be TRUE):
+  1. Tapping the "Near me" chip activates geolocation (if not already active) and, once a GPS fix arrives, filters the map and list/table to occurrences within 10 km of the user's position
+  2. The near-me filter AND-composes with the existing taxon/date/region/selection filters — applying a taxon filter while "Near me" is active narrows both simultaneously
+  3. The proximity query uses a SQL bounding-box pre-filter followed by a JavaScript haversine post-filter in the worker; the full query returns in under 200 ms on the full occurrence set (verified by timing log)
+  4. `?near=1` appears in the URL when the chip is active; restoring from that URL re-activates geolocation and defers the query until a fix arrives; "Clear filters" removes the chip and the URL param
+**Plans**: TBD
+**UI hint**: yes
+
+**Phase note — research flag:** Before writing the haversine implementation, run `SELECT sin(1.0)` in the wa-sqlite worker to verify whether MemoryVFS exposes trig functions. If available, a pure SQL haversine is cleaner; if not (more likely per the ARCHITECTURE doc), use bbox SQL pre-filter + JS haversine in the worker.
+
+### Phase 154: Mapbox Tile Caching (TOS-gated)
+
+**Goal**: The SW can runtime-cache Mapbox basemap tiles behind a `beta_tile_cache` feature flag that defaults **off** in committed code; when the flag is enabled for self-testing, cached tiles serve the basemap offline for previously-browsed areas; `access_token` is stripped from the cache key; growth is bounded by `maxEntries` + a 12 h TTL.
+**Depends on**: Phase 149 (SW runtime caching infrastructure must exist)
+**Requirements**: TILE-01, TILE-02
+**Success Criteria** (what must be TRUE):
+  1. The committed codebase has `beta_tile_cache` defaulting `false`; no tile caching behavior is active in any deployment unless the flag is explicitly changed
+  2. When the flag is enabled for local self-testing, Mapbox tile responses are served from the SW cache for previously-visited map areas in DevTools offline mode
+  3. The cache key strips the `access_token` query parameter (confirmed by DevTools → Cache Storage showing keys without the token)
+  4. Only HTTP 200 responses are cached (opaque/error responses excluded); `maxEntries` and `maxAgeSeconds: 43200` (12 h) bound cache growth
+  5. Source comments in `sw.ts` document that tile caching is **self-test only** and must not be enabled in any non-self or public deployment without an explicit Mapbox TOS review
+
+**Phase note — research flag:** Before finalizing `maxEntries`, inspect Mapbox tile responses in DevTools Network panel. If tiles are served with `Access-Control-Allow-Origin: *` (non-opaque), cache entries are normal-sized. If responses are opaque (`no-cors`), each entry costs ~7 MB in Chrome's Storage Quota accounting — `maxEntries` must be very conservative (e.g., 20–30) to avoid triggering iOS origin eviction.
+
+---
+
+## Progress
+
+| Phase | Milestone | Plans Complete | Status | Completed |
+|-------|-----------|----------------|--------|-----------|
+| 147. `/app` Route + SW Topology | v5.0 | 0/TBD | Not started | - |
+| 148. App Shell Precache + vite-plugin-pwa | v5.0 | 0/TBD | Not started | - |
+| 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 0/TBD | Not started | - |
+| 150. Cache Health & Freshness UX | v5.0 | 0/TBD | Not started | - |
+| 151. PWA Manifest & Installability | v5.0 | 0/TBD | Not started | - |
+| 152. GeolocateControl + Location State | v5.0 | 0/TBD | Not started | - |
+| 153. Occurrences Near Me | v5.0 | 0/TBD | Not started | - |
+| 154. Mapbox Tile Caching (TOS-gated) | v5.0 | 0/TBD | Not started | - |
 
 ## Backlog
 

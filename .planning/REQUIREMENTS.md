@@ -95,35 +95,35 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ROUTE-01 | — | Pending |
-| ROUTE-02 | — | Pending |
-| ROUTE-03 | — | Pending |
-| PWA-01 | — | Pending |
-| PWA-02 | — | Pending |
-| PWA-03 | — | Pending |
-| OFF-01 | — | Pending |
-| OFF-02 | — | Pending |
-| OFF-03 | — | Pending |
-| OFF-04 | — | Pending |
-| OFF-05 | — | Pending |
-| CACHE-01 | — | Pending |
-| CACHE-02 | — | Pending |
-| CACHE-03 | — | Pending |
-| CACHE-04 | — | Pending |
-| CACHE-05 | — | Pending |
-| LOC-01 | — | Pending |
-| LOC-02 | — | Pending |
-| LOC-03 | — | Pending |
-| NEAR-01 | — | Pending |
-| NEAR-02 | — | Pending |
-| NEAR-03 | — | Pending |
-| TILE-01 | — | Pending |
-| TILE-02 | — | Pending |
+| ROUTE-01 | Phase 147 | Pending |
+| ROUTE-02 | Phase 147 | Pending |
+| ROUTE-03 | Phase 147 | Pending |
+| PWA-01 | Phase 151 | Pending |
+| PWA-02 | Phase 151 | Pending |
+| PWA-03 | Phase 151 | Pending |
+| OFF-01 | Phase 148 | Pending |
+| OFF-02 | Phase 149 | Pending |
+| OFF-03 | Phase 149 | Pending |
+| OFF-04 | Phase 149 | Pending |
+| OFF-05 | Phase 149 | Pending |
+| CACHE-01 | Phase 150 | Pending |
+| CACHE-02 | Phase 150 | Pending |
+| CACHE-03 | Phase 150 | Pending |
+| CACHE-04 | Phase 150 | Pending |
+| CACHE-05 | Phase 149 | Pending |
+| LOC-01 | Phase 152 | Pending |
+| LOC-02 | Phase 152 | Pending |
+| LOC-03 | Phase 152 | Pending |
+| NEAR-01 | Phase 153 | Pending |
+| NEAR-02 | Phase 153 | Pending |
+| NEAR-03 | Phase 153 | Pending |
+| TILE-01 | Phase 154 | Pending |
+| TILE-02 | Phase 154 | Pending |
 
 **Coverage:**
 - v1 requirements: 24 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 24 ⚠️
+- Mapped to phases: 24 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-10*
