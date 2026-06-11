@@ -19,7 +19,11 @@ export default defineConfig({
     passWithNoTests: true,
     // Exclude stale agent worktrees and Eleventy build output from test discovery.
     // (.claude/worktrees/ and .claire/worktrees/ hold snapshots from prior agent runs; _site/ is build output.)
-    exclude: ['**/node_modules/**', '**/.claude/**', '**/.claire/**', '**/_site/**', '**/dist/**'],
+    // infra/ holds the CDK assertion test — a ts-node script that imports aws-cdk-lib
+    // from infra/node_modules. It is NOT a root Vitest test; collecting it breaks
+    // `npm test` (and the deploy gate) in CI where aws-cdk-lib is not a root dep.
+    // Run it via `cd infra && npx ts-node test/beeatlas-stack.test.ts`.
+    exclude: ['**/node_modules/**', '**/.claude/**', '**/.claire/**', '**/_site/**', '**/dist/**', '**/infra/**'],
   },
   // NOTE: `server.*` (e.g. allowedHosts) does NOT belong here. The dev
   // server is `eleventy --serve`, which runs Vite in middleware mode via
