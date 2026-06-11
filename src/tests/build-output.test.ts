@@ -299,8 +299,10 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   test('_site/app/index.html references a hashed app entry chunk (ROUTE-01)', () => {
     const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
     // Vite rewrites /src/app-entry.ts -> /assets/app/index-<hash>.js
-    // (MPA mode: chunk named from HTML page path, not entry module name)
-    expect(html).toMatch(/src="\/assets\/app\/[^"]+\.js"/);
+    // (MPA mode: chunk named from HTML page path, not entry module name).
+    // Pin the index- prefix so async/vendor chunks under /assets/app/ can't
+    // satisfy this — it must be the rewritten module entry (WR-02).
+    expect(html).toMatch(/src="\/assets\/app\/index-[^"]+\.js"/);
   });
 
   test('_site/app/sw.js exists at unhashed stable URL (D-04)', () => {
