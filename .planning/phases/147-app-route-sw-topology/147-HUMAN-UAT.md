@@ -10,16 +10,16 @@ updated: 2026-06-10
 ## Summary
 
 total: 2
-passed: 0
+passed: 1
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
 
 ## ROUTE-01/ROUTE-02 — SW topology (local preview, D-11)
 
-**Status:** PENDING — auto-approved in the auto chain; awaiting human DevTools confirmation
+**Status:** PASSED — confirmed in-browser 2026-06-10 (Firefox + Chrome, `npm run dev` on `http://localhost:8080/app/`). SW registers and activates for scope `/app/` after the scope fix (commit `e254127`); no SW on `/`; `/data/*` intercept observed. Note: the SW shows "stopped" when idle — normal event-driven lifecycle, respawns on the next fetch.
 
 **Criteria that must hold:**
 - SW registered for scope `/app/` (source `/app/sw.js`) when visiting `/app/`
