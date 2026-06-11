@@ -289,4 +289,20 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   // rewrite — the index now shows per-node specimen/observation counts and a
   // Map link, with no checklist badge. The checklist-only signal survives on
   // the species detail page (covered by the D-15 test above).
+
+  // Phase 147 — /app route build output (ROUTE-01)
+
+  test('emits _site/app/index.html (ROUTE-01)', () => {
+    expect(existsSync(resolve(ROOT, '_site/app/index.html'))).toBe(true);
+  });
+
+  test('_site/app/index.html references a hashed app-entry chunk (ROUTE-01)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
+    // Vite rewrites ./src/app-entry.ts -> /assets/app-entry-<hash>.js
+    expect(html).toMatch(/src="\/assets\/app-entry-[^"]+\.js"/);
+  });
+
+  test('_site/app/sw.js exists at unhashed stable URL (D-04)', () => {
+    expect(existsSync(resolve(ROOT, '_site/app/sw.js'))).toBe(true);
+  });
 });
