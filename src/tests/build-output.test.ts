@@ -68,11 +68,23 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     return undefined;
   }
 
-  test('emits a species-index chunk distinct from index-*.js (Phase 96, IDX-02)', () => {
+  test('emits a species-index chunk distinct from the main / SPA entry (Phase 96, IDX-02)', () => {
     const speciesChunk = findSpeciesChunk();
     expect(speciesChunk, 'no species-index chunk emitted under _site/assets/').toBeDefined();
-    const indexChunks = readdirSync(resolve(ROOT, '_site/assets')).filter(f => /^index-.*\.js$/.test(f));
-    expect(indexChunks.length, 'SPA index chunk missing').toBeGreaterThan(0);
+    // The main `/` SPA entry chunk must be built and referenced by _site/index.html.
+    // Phase 147 added the /app MPA entry, which renamed the root entry chunk from
+    // `index-*.js` to `bee-atlas-*.js` (per-page entries are now `species/index-*.js`,
+    // `app/index-*.js`, and root → `bee-atlas-*.js`). Anchor on what index.html actually
+    // references rather than a hard-coded chunk name, and confirm each chunk exists.
+    const indexHtml = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
+    const entryRefs = [...indexHtml.matchAll(/src="(\/assets\/[^"]+\.js)"/g)].map(m => m[1]!);
+    expect(entryRefs.length, 'no hashed entry chunk referenced by _site/index.html').toBeGreaterThan(0);
+    for (const ref of entryRefs) {
+      expect(existsSync(resolve(ROOT, '_site' + ref)), `chunk referenced by index.html missing on disk: ${ref}`).toBe(true);
+    }
+    // The species/taxon chunk must be split out — i.e. not itself one of the / entry chunks.
+    const speciesFile = speciesChunk?.split('_site')[1];
+    expect(entryRefs.includes(speciesFile ?? '__none__'), 'species chunk should be code-split, not a / entry chunk').toBe(false);
   });
 
   test('species-index chunk does NOT contain mapboxgl symbol (Phase 96)', () => {
@@ -289,4 +301,23 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   // rewrite — the index now shows per-node specimen/observation counts and a
   // Map link, with no checklist badge. The checklist-only signal survives on
   // the species detail page (covered by the D-15 test above).
+
+  // Phase 147 — /app route build output (ROUTE-01)
+
+  test('emits _site/app/index.html (ROUTE-01)', () => {
+    expect(existsSync(resolve(ROOT, '_site/app/index.html'))).toBe(true);
+  });
+
+  test('_site/app/index.html references a hashed app entry chunk (ROUTE-01)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
+    // Vite rewrites /src/app-entry.ts -> /assets/app/index-<hash>.js
+    // (MPA mode: chunk named from HTML page path, not entry module name).
+    // Pin the index- prefix so async/vendor chunks under /assets/app/ can't
+    // satisfy this — it must be the rewritten module entry (WR-02).
+    expect(html).toMatch(/src="\/assets\/app\/index-[^"]+\.js"/);
+  });
+
+  test('_site/app/sw.js exists at unhashed stable URL (D-04)', () => {
+    expect(existsSync(resolve(ROOT, '_site/app/sw.js'))).toBe(true);
+  });
 });

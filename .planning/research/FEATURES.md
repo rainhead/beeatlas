@@ -1,49 +1,20 @@
-# Feature Research: v4.7 Checklist Records as Point Data
+# Feature Research: v5.0 Offline Field Mode
 
-**Domain:** Biodiversity occurrence atlas — historical museum/checklist specimen records as map points
-**Researched:** 2026-06-03
-**Milestone:** v4.7 Checklist Records as Point Data
-**Confidence:** HIGH (ecosystem survey of GBIF/Symbiota/ALA/iDigBio + codebase analysis)
-
----
-
-## Context
-
-v4.7 promotes the Bartholomew et al. 2024 WA bee checklist from a county-fill presence layer to a
-full `source='checklist'` peer in `occurrences.parquet` — rendered as map points, integrated into
-the sidebar, CSV export, and species pages. Records span 1812–present, georeferenced at varying
-precisions (GPS through county-centroid), with ~13% null dates and ~9% null coordinates.
-
-The existing app already delivers: per-source toggle, taxon_id filtering, sidebar occurrence list,
-CSV export, species/taxon pages with per-source counts, seasonality histograms, county-fill
-checklist presence layer.
-
-Audience: volunteer collectors, researchers, WA Bee Atlas coordinators — not professional
-biodiversity informaticists. GBIF-level completeness is not the goal. Credibility and
-interpretability for the WA bee community is.
-
-The current `wa_bee_checklist_records.tsv` has only 4 columns: species, county, year, month.
-The full-fidelity CSV source (Bartholomew et al. 2024 supplementary data) contains lat/lon,
-date, recordedBy, locality, and verbatim scientific name. This CSV re-extraction is the
-prerequisite for everything else in v4.7.
+**Domain:** Offline-capable installable PWA map — field use by volunteer bee collectors
+**Researched:** 2026-06-10
+**Confidence:** HIGH (PWA/SW mechanics — official MDN + web.dev docs; Mapbox GeolocateControl API
+confirmed from official docs; "near me" UX derived from iNat/AllTrails reference apps + spatial-filter
+pattern literature; Mapbox TOS constraint confirmed from official terms page)
 
 ---
 
-## Scope Constraints That Shape Every Feature Decision
+## Scope Boundary
 
-- **Static hosting, no server runtime.** All joins and dedup logic must run at pipeline time and bake
-  into `occurrences.parquet`. No runtime lookups.
-- **33-column dbt contract on `marts/occurrences`.** Adding checklist-specific columns (locality,
-  verbatim_name, coordinate_precision) requires a contract amendment and corresponding frontend
-  column reads.
-- **4th source color in Mapbox style.** Existing palette: ecdysis=blue, waba_sample=green,
-  inat_obs=amber. Checklist gets a 4th distinct color. Source color is the primary visual
-  differentiator on the map.
-- **Dedup risk is the credibility risk.** Checklist and Ecdysis are both museum-specimen sources.
-  The same physical bee plotted twice is the single most likely thing that would make an
-  entomologist distrust the map.
-- **The existing county-fill checklist layer stays.** It remains the fallback for the ~9%
-  no-coordinate records. v4.7 adds points; it does not replace the fill layer.
+This research covers only the NEW features in v5.0. Existing features (Mapbox map, occurrence
+filters, table, taxon/date/region/selection-rectangle filter system, SQLite WASM data layer,
+`_filterQueryGeneration` race guard, `bee-pane` unified pane, `stale-guard.ts`) are pre-built
+and treated as givens. The question is: what does each new feature look like to users, and what
+does the system need to do?
 
 ---
 
@@ -51,179 +22,407 @@ prerequisite for everything else in v4.7.
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these makes the map feel wrong or untrustworthy.
+Features that any "offline field app" must have. Missing any of these = app feels broken or
+untrustworthy to dogfood testers.
 
-| Feature | Why Expected | Complexity | Notes |
-|---------|--------------|------------|-------|
-| Source label / dataset attribution on detail card | Checklist and Ecdysis coexist on the same map. A user clicking a point MUST be told which source it came from. A 1920 Puget Sound Museum record looks identical to a 2024 WABA collection without a label. | LOW | `source` column already in `occurrences.parquet`. Add a `_renderChecklist` branch in `bee-occurrence-detail.ts` (parallel to `_renderInatObs`). Attribution line: "Bartholomew et al. 2024, JHR 97" with DOI link. |
-| Collector name on checklist detail card | Museum records without a collector feel like data errors. Users interpret absence as "unknown" only when the UI says so explicitly. | LOW | Map `recordedBy` from source CSV into `int_combined` ARM 4. Render as name or "collector unknown" hint — same pattern already used for Ecdysis `_renderCollectorGroup`. |
-| Date with graceful null/partial handling | ~13% of rows have null dates; some are date-ranges or non-ISO (source spans to 1812). A point with date "null" in the sidebar feels broken. | MEDIUM | Pipeline: parse to best-effort ISO date; store verbatim date string as a separate `verbatim_date` column. UI: display formatted date when parseable, fall back to year-only, fall back to "date unknown". Do NOT drop null-date rows from point layer (only no-coordinate rows are dropped per milestone decision). |
-| Locality text on detail card | For records from 1812–1960 georeferenced to a named locality or county, the locality string explains WHY the point is where it is. Its absence on a historical record signals incomplete provenance. All reference portals (GBIF, Symbiota, ALA, Big-Bee) show this field. | LOW | Add `locality` column to ARM 4 in `int_combined`. Render below collector/date in the detail card. |
-| Checklist points rendered in a distinct 4th source color | Once checklist points appear on the map, users must be able to visually distinguish them from Ecdysis (blue), WABA provisional (green), and iNat expert obs (amber) at a glance — without clicking. | LOW | Assign a 4th color in `style.ts` for `source='checklist'`. The architecture already handles per-source styling via the `source` discriminator. |
-| Source-selection toggle extended to checklist point layer | The county-fill layer has a `cl=1` toggle. If point records appear without a toggle, users cannot turn them off. Source filtering already uses `src=` URL param for ecdysis/inat_obs/waba_sample. | MEDIUM | Extend the source toggle row in `bee-pane.ts` to include checklist. The existing `src=` param multi-value architecture should accommodate a 4th value. |
-| Per-source counts on species/taxon pages | Species pages show "N specimens · N community observations". Users will expect "N checklist records" once checklist is a first-class source. Absence looks like the data is missing. | LOW | Follows the per-source count pattern from v4.2. Add checklist arm to `species.json` export. No architectural change. |
-| Dedup against Ecdysis — suppress double-plot of same physical specimen | Checklist and Ecdysis are both museum-specimen sources with significant overlap (both derived from WA bee collections). The same bee plotted twice as two overlapping points is the most likely way to lose credibility with the target audience (practicing entomologists). | HIGH | Match on catalog_number OR (collector + date + coordinate proximity fuzzy match). Mark duplicate checklist rows `dedup_status='ecdysis_duplicate'`; suppress those rows from the point layer. Do not delete them — they remain available in the county-fill mart. GBIF does not auto-dedup cross-dataset; for this app's scale (~50K checklist vs ~45K Ecdysis), pipeline-time dedup is feasible. |
+| Feature | Why Expected | Complexity | Dependencies on Existing Features |
+|---------|--------------|------------|-----------------------------------|
+| **PWA install prompt + icon** | Any app claiming to be installable must actually appear on the home screen with a recognizable icon | LOW | None — requires `manifest.webmanifest` + 192 px and 512 px icons only |
+| **Offline cold-start** | A "field app" that errors on first offline launch is useless; this is the entire value proposition | MEDIUM | SW must precache: app shell JS/CSS, `occurrences.db` (~23 MB), all GeoJSON overlays. Existing data-load path (`sqlite.ts`, `stale-guard.ts`) must succeed from cache. |
+| **"Ready for offline" indicator** | Users prime the app at home; they must know before leaving whether the app is actually cached and safe to take offline | MEDIUM | Requires SW lifecycle events (installing → waiting → activated); connects to `navigator.storage.estimate()` for size feedback |
+| **Online/offline status indication** | Users need to know their current connectivity state so they understand why tiles may be gray | LOW | `navigator.onLine` + `online`/`offline` events; independent of SW |
+| **"Data as of \<date\>" freshness label** | Volunteers need to know how stale the occurrence data is before heading into the field | LOW | Pipeline already writes a generation date to the DB; front-end needs to read and surface it |
+| **Graceful basemap degradation** | When uncached Mapbox tiles are requested offline, the map must not crash — gray tile areas with dots still visible is acceptable | MEDIUM | Mapbox GL JS already renders blank tiles for cache misses; SW must not intercept Mapbox tile requests in a way that errors the map |
+| **Blue dot + accuracy ring (GeolocateControl)** | Any map used for "am I near occurrences" must show where the user is; GPS works offline with no signal | LOW | Mapbox `GeolocateControl`; HTTPS is already required for CloudFront — prerequisite met |
+| **Recenter button** | Standard map control: after panning away, one tap returns to user position | LOW | Built into `GeolocateControl` — same button re-centers when tapped in passive state; no extra code |
+| **"Occurrences near me" filter** | The core field use case: what bees have been collected within ~10 km of where I am standing? | MEDIUM | Requires user position (GeolocateControl) + Haversine distance filter on existing SQLite query layer; composes with existing filters |
+| **Unlisted `/app/` route** | Private dogfood without changing the main map; team needs a URL to test | MEDIUM | SW scope isolation: SW at `/app/sw.js` with scope `/app/`; main `index.html` at `/` is untouched |
+| **Data refresh prompt when back online** | A prompt to pull the latest DB when connectivity returns and a newer snapshot exists | MEDIUM | Requires generation-date comparison between cached DB and CDN; user-initiated re-prime of the large SQLite file |
 
-### Differentiators (Competitive Advantage)
+### Differentiators (Worth Having for v1 Dogfood)
 
-Features that distinguish BeeAtlas from just re-implementing a GBIF occurrence card.
+Features that make this genuinely useful beyond baseline offline, without adding significant scope.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Verbatim-vs-accepted name display in detail card | Checklist records from 1920–1990 may use names that are now synonyms (e.g., "Anthophora urbana" → current accepted name). Showing the current accepted name prominently WITH a secondary note "originally recorded as X" makes the reconciliation auditable and educates volunteers about taxonomy. No major portal surfaces this distinction prominently in occurrence cards. | MEDIUM | Store `verbatim_name` (original checklist name) alongside `canonical_name`. In `_renderChecklist`, show accepted name (from taxon cache via `taxon_id`) as primary, add "originally identified as [verbatim_name]" as secondary line ONLY when the two differ after reconciliation. |
-| Coordinate-precision note in detail card (not uncertainty circles) | Records georeferenced to a county centroid vs. GPS-precise coordinates differ by 30+ km. ALA-style uncertainty circles (optional; opt-in checkbox; caps at 30 km) are the GBIF/ALA approach. For a volunteer atlas map with 50K points, circles are rendering-expensive and visually cluttered. A simple text note ("approximate location — county level") in the detail card communicates the key fact at zero rendering cost. | MEDIUM | Add `coordinate_precision` enum column to ARM 4: `'gps'`, `'locality'`, `'county'`. Derive at pipeline time from whether source record has decimal-degree coords that appear GPS-precise vs. geocoded centroids. Render as a parenthetical note in the detail card only. |
-| Year-excluded note on seasonality histogram | Historical records with only year (1902) or date ranges ("summer 1921") cannot contribute to month-level seasonality histograms. Silently excluding them loses real presence data without explanation. No portal currently makes this distinction explicit for users. | LOW | On species page histogram, add "N records excluded from seasonality (date resolution below monthly)" as a footnote. Count those records separately. Honest about data completeness. |
+| **Cache priming progress indicator** | 23 MB is a noticeable download; a visible indicator prevents users abandoning the prime thinking it has stalled | MEDIUM | SW `install` fires per-URL; can send progress counts via `postMessage` to the page. Workbox precache does not expose per-file progress natively — requires a custom SW or explicit fetch-and-cache loop with progress messaging. An indeterminate spinner is acceptable for v1 if determinate progress is too complex. |
+| **Cache size display** | "8.4 MB cached" tells the user the priming is real and builds confidence before heading to the field | LOW | `navigator.storage.estimate()` returns `{usage, quota}`; display in the offline-ready status area |
+| **Basemap limitation label** | Gray tile areas are confusing if unlabeled; a brief explanation ("basemap tiles only cached for areas you've browsed online") prevents bug reports | LOW | Static text in the offline status indicator; no detection logic needed |
+| **Persistent location tracking while using filters** | User's dot stays on map while changing taxon/date/region filters | LOW | `GeolocateControl` state is independent of filter state; no extra work if `trackUserLocation: true` |
 
-### Anti-Features (Commonly Requested, Often Problematic)
+### Anti-Features (Things to Deliberately NOT Build in v1)
 
-| Feature | Why Requested | Why Problematic | Alternative |
-|---------|---------------|-----------------|-------------|
-| Coordinate uncertainty circles on map (ALA-style) | ALA and GBIF support a circle of radius = coordinateUncertaintyInMeters per point. Looks analytically thorough. | For a Mapbox-rendered map with 50K checklist points plus ~90K other occurrences, per-point varying-radius circles require a separate fill-circle layer with per-feature data-driven radius — rendering intensive and visually disastrous (county-level records produce identical overlapping 30-50 km carpet). ALA caps uncertainty display at 30 km and acknowledges that "many records do not have a value." | Show precision category as text in detail card: "Location: county-level approximation." Zero rendering cost; communicates the key fact to users who clicked a point. |
-| Merging checklist + Ecdysis into a single deduplicated occurrence | Seems cleaner — one point per specimen, no double-plot. | Loses audit trail. If the dedup match is wrong (two different collectors named "J. Smith" in the same county in the same year), a merged record is incorrect and uncorrectable without separate provenance. GBIF explicitly does not auto-merge cross-dataset duplicates precisely because match errors are hard to detect post-merge. | Mark duplicate checklist rows with `dedup_status`; suppress from point layer; keep in county-fill mart; make dedup status visible in detail card as a secondary note for power users. |
-| Verbatim date free-text field in the sortable table | Data completeness — "Spring 1901" is more accurate than null. | "Spring 1901" in a sortable date column breaks sort order, breaks date-range filter comparisons, confuses volunteers expecting YYYY-MM-DD. | Show verbatim_date only in the occurrence detail card as secondary informational context. The `date` column in parquet and the table uses best-effort ISO date or year-only for sortability and filtering. |
-| Catalog number as primary display field | Power users want to track back to original museum record. | Institution catalog codes (e.g., "USNM:ENT:1001108") are opaque to the volunteer audience. They add cognitive load to the detail card without payoff for non-specialists. | Include catalog number as a small secondary field in the detail card (following the Big-Bee/Symbiota pattern) for power users, hidden behind normal visual hierarchy. Link to source collection page if a URL is derivable. Do not elevate to primary display. |
-| Coordinate precision as a filter control | Power users want to exclude county-level records from analysis. | Adding another filter control to the already-complex filter panel increases UI surface area for the volunteer audience. Researchers can use the CSV export. | Document that `coordinate_precision` column is available in CSV export for post-export filtering. Do not add a filter control in v4.7. |
-| Showing all 50,646 checklist rows including ~9% with no coordinates | "Don't lose data." | Points with no coordinates have no map placement. Placeholders ("record exists but location unknown") in the sidebar without a corresponding map point are confusing — the user clicked something on the map. | Drop no-coordinate rows from the point layer (already decided in milestone scope). They are retained in the county-fill layer via the existing `checklist.parquet` mart. |
+| Anti-Feature | Why It Seems Appealing | Why Avoid for v1 | What to Do Instead |
+|--------------|----------------------|------------------|--------------------|
+| **Bundled offline tile set (MBTiles/PMTiles for WA basemap)** | "Full offline" sounds better | Mapbox TOS explicitly prohibits redistributing cached tiles; a useful WA tile set would be hundreds of MB; occurrence dots render over blank tiles anyway — functionality is unimpaired | Accept gray tiles for uncached areas; label this behavior honestly in the status indicator |
+| **Adjustable "near me" radius (slider)** | More control seems better | Adds UI complexity, another filter control, URL state encoding complexity, and the "what is the right range?" debate — none of which helps dogfood testers; iNaturalist uses a fixed default with success | Hard-code 10 km in v1 (appropriate for sparse rural WA); make it configurable only if collectors ask |
+| **Background location updates when app is backgrounded** | Feels more native | Background geolocation requires additional permissions, battery drain, and platform differences; not needed for the use case (glance at map while collecting) | Use `trackUserLocation: true` (foreground only); control reactivates on next foreground open |
+| **Push notifications for new data** | Useful for freshness awareness | Requires push subscription infrastructure, backend message queue, notification permissions — none of which exists; adds scope far beyond offline/location goals | Poll on reconnect (or manual tap) is sufficient for nightly data updates |
+| **Offline species/places/feeds pages** | "Full offline app" | These are Eleventy-generated static HTML; caching them adds significant cache size and SW complexity for pages collectors do not use in the field | Scope SW to `/app/` route + `/data/` assets only |
+| **Install promotion on the main `/` page** | More installs | The main map page must stay untouched until v5.0 is dogfood-proven; adding install prompts before validation violates the unlisted-route plan | Install prompt lives only within the `/app/` route |
+| **Offline "save area" flow (explicit tile pre-download)** | Mapbox mobile SDKs have this | Mapbox GL JS has no official offline region web API; implementing it requires intercepting tile requests, storing in Cache API, and navigating TOS risk | Document as a post-dogfood decision item, contingent on terms review |
+| **Silent auto-refresh of the DB on reconnect** | Seamless freshness | A 23 MB download on a metered mobile connection without user consent is hostile; the user may be on a limited data plan in a rural area | Always prompt: "New data available — tap to download" |
+
+---
+
+## Detailed Behavior Specifications
+
+### 1. PWA Install Flow and Offline Cold-Start UX
+
+**Install prompt on Android/Chrome (automatic prompt support):**
+1. Browser fires `beforeinstallprompt` when: valid `manifest.webmanifest` is linked, SW is registered,
+   site is HTTPS, user has engaged with the `/app/` page for ~30 seconds.
+2. App captures and defers the event (`e.preventDefault()`). A subtle "Install app" button or banner
+   appears within the `/app/` UI — not a blocking modal, not on first page load before any engagement.
+3. On tap, `deferredPrompt.prompt()` shows the native browser install sheet with app name and icon.
+4. On accept, the app icon appears on the home screen. Subsequent launches open in `standalone` display
+   mode (no browser address bar or navigation chrome).
+
+**iOS/Safari (manual only):**
+- `beforeinstallprompt` does NOT fire on iOS Safari. Chrome/Edge on iOS also cannot install PWAs.
+- Instead: display static instructional text "Open in Safari, then tap Share > Add to Home Screen" with
+  a visible Safari share icon symbol. Show this only when `window.matchMedia('(display-mode: browser)').matches`
+  is true (i.e., not yet running as an installed app).
+- This instruction should be inline in the `/app/` page UI, not a modal or overlay.
+
+**Splash screen:**
+- Android: auto-generated from `manifest.webmanifest` `name`, `background_color`, `theme_color`, and
+  the 512 px icon. No extra work needed.
+- iOS: requires `<link rel="apple-touch-startup-image">` tags for each device size, or the app opens to
+  a white screen. A white flash is acceptable for v1 dogfood. Proper splash images are a polish item.
+- A branded background color in the manifest (`background_color`) reduces the perceived white-flash gap
+  even without explicit splash images.
+
+**First offline cold-start:**
+- SW must have successfully precached all required assets during the prior online prime. Required:
+  all app shell JS/CSS entry points, `occurrences.db` (~23 MB), `counties.geojson`,
+  `ecoregions.geojson`, all static assets referenced by the app-shell HTML.
+- On cold start with no network: SW intercepts all same-origin fetches and serves from Cache API.
+  The existing SQLite data-load path reads `occurrences.db` from cache. Map renders occurrence dots
+  and GeoJSON overlays. Uncached Mapbox tiles show as gray/blank squares — expected behavior.
+- If the prime was incomplete (user went offline mid-download): app shows a clear error state rather
+  than a partially-working UI. Error text: "Offline data is not fully downloaded — connect to WiFi
+  and open this page to finish setup." This prevents a confusing experience where some features work
+  and others do not.
+
+### 2. Offline-Readiness UX (Priming Flow)
+
+**Prime trigger:** First visit to `/app/` while online (or any visit after a data update).
+
+**Progress states visible to the user:**
+
+| State | What the user sees | When |
+|-------|-------------------|------|
+| Priming | "Setting up for offline use… downloading N MB" — progress indicator (determinate if file count is known, indeterminate spinner if not) | SW install event, precache in progress |
+| Ready | Green/checkmark badge: "Ready to use offline. Data as of \<date\>. Basemap tiles cached for visited areas only." | SW activated, all files cached |
+| Size confirmation | "X MB stored on this device" (below ready state) | Shown once after priming completes, from `navigator.storage.estimate()` |
+| Offline | Persistent banner: "Offline — map and occurrence data available from cache" | `navigator.onLine === false` |
+| Update available | Toast: "New data available (\<new date\>) — tap to download" | Online, newer generation date detected on CDN |
+
+**Progress bar implementation note:** Workbox precaching does not expose per-file progress natively
+(confirmed: GitHub Issue #2498 for workbox). Custom approach: SW sends `postMessage({type: 'CACHE_PROGRESS', done: N, total: M})` during its install event as each file is fetched; the page listens and renders N/M. File count is known ahead of time from the precache manifest. An indeterminate spinner is an acceptable v1 fallback if custom SW messaging adds too much scope.
+
+### 3. Online/Offline State Indication and Basemap Degradation
+
+**Connectivity banner:**
+- `navigator.onLine` polled on load; `online` and `offline` window events listened continuously.
+- Online: no banner (or a subtle "Online" state in the status area, not intrusive).
+- Offline: a persistent, low-prominence banner or status chip: "Offline — cached data". Not a blocking
+  overlay; the map should still be fully usable.
+
+**Basemap tile degradation:**
+- What the user sees: gray squares in areas not previously browsed while online. Occurrence dots (Mapbox
+  source/layer features, not raster tiles) render correctly over gray tiles. County and ecoregion GeoJSON
+  overlays render correctly (precached by SW).
+- Net result: functionally complete for the use case (finding occurrence locations), but visually
+  degraded in unpanned areas.
+- The app should label this behavior: "Basemap tiles are only cached for areas you've browsed while
+  online" — displayed in the offline status area, not per-tile.
+
+**Tile caching policy (passive, not SW-intercepted):**
+- Mapbox GL JS tiles are served from Mapbox CDN. The browser's own HTTP disk cache (12-hour TTL per
+  CDN headers) passively caches tiles viewed while online. This is not under SW control.
+- The SW must NOT intercept Mapbox tile requests. Reasons: (1) Mapbox TOS prohibits redistributing
+  cached tiles; (2) the browser disk cache already handles this naturally.
+- SW fetch handler should only match same-origin requests: `/app/`, `/data/`, and static assets.
+  All `api.mapbox.com` and `events.mapbox.com` requests pass through to the network (or browser cache).
+
+### 4. Data Freshness Indicator
+
+**"Data as of \<date\>" semantics:**
+- The generation date is the pipeline run date — the date the nightly pipeline produced the current
+  `occurrences.db`. This is not the user's load time, not the CDN cache time.
+- Display format: "Data as of June 9, 2026" (human-readable date, not ISO, not relative). Always
+  visible in the status area, not buried in a settings panel.
+- The date does not change just because the user refreshes the page. It changes only when a newer DB
+  is fetched.
+
+**Reconnect and refresh flow:**
+1. On `online` event: fetch a lightweight version/manifest JSON from CDN (e.g., `/data/manifest.json`
+   or an ETag comparison on `occurrences.db`). This is a fast network-first check.
+2. Compare `generation_date` in the fetched manifest to the cached manifest value.
+3. If newer: show a non-blocking toast: "New data available (June 10, 2026) — tap to download".
+4. User taps: SW initiates a re-prime of `occurrences.db` in the background. Progress indication while
+   downloading. On completion: "Data updated — reload to apply changes."
+5. If same generation date: suppress further checks for the current session.
+6. **No auto-refresh without user consent.** A 23 MB download on a metered rural connection is
+   hostile. The user must explicitly tap.
+
+### 5. Current Location: GeolocateControl Behaviors
+
+**Recommended configuration:**
+```javascript
+new mapboxgl.GeolocateControl({
+  positionOptions: { enableHighAccuracy: true },   // GPS over cell/wifi triangulation
+  trackUserLocation: true,                          // toggle mode with active/passive/recenter
+  showAccuracyCircle: true,                         // 95% confidence halo (default)
+  fitBoundsOptions: { maxZoom: 15 }                // don't over-zoom on high-accuracy fix
+})
+```
+
+**Three tracking states (user-driven, not programmable):**
+
+| State | What user sees | How entered |
+|-------|---------------|-------------|
+| Active | Blue dot at center; map camera follows the user's position | Button tapped; initial state on activation |
+| Passive | Blue dot updates position; map camera stays put | User pans or zooms the map while active |
+| Recenter | — (transition) | Tapping the button while passive → returns to Active |
+
+**Offline behavior:** GPS (`enableHighAccuracy: true`) uses satellite signals — no network required.
+The `GeolocateControl` button functions normally offline. Cell/WiFi-based positioning (low accuracy)
+requires a network signal, but GPS does not. For field use in rural WA, GPS is the expected modality.
+
+**Permission prompt:** The browser shows the native location permission dialog on the first tap of the
+GeolocateControl button. The app cannot customize this dialog. If permission is denied:
+- The button should show a disabled/error visual state (Mapbox handles this automatically).
+- Show a brief tooltip or status line: "Location access denied — enable in browser settings to use
+  this feature."
+- The "Near me" chip should also disable and show the same explanation.
+
+**What does NOT work offline:** Reverse geocoding (coordinate → place name). Not needed here — the
+app displays a blue dot and occurrence proximity, not "You are near Wenas Creek."
+
+### 6. "Occurrences Near Me" Interaction
+
+**Interaction model:**
+
+1. A chip or button in the filter area: "Near me" (similar to existing taxon/date/region chips).
+2. On first tap:
+   - If GeolocateControl not active: activate it (request permission, await position fix).
+   - Show "Waiting for location…" state on the chip.
+3. On position fix received:
+   - Map pans/zooms to user's position (GeolocateControl default behavior).
+   - Apply spatial distance filter: show only occurrences within 10 km of user position.
+   - Filter is computed client-side via Haversine formula against `lat`/`lon` columns in the SQLite DB.
+   - The chip label becomes "Within 10 km" (or "Near me ✓").
+4. Distance filter AND-combines with existing taxon/date/region filters using the same query generation
+   that already exists in `filter.ts`. The SQLite `WHERE` clause gains an additional distance predicate.
+5. The existing `_filterQueryGeneration` race guard handles the async dependency: the near-me filter
+   must not fire a query until a position is available, analogous to the `taxaReady` barrier in
+   `_resolveLegacyTaxon`.
+
+**Fixed radius for v1: 10 km.** Appropriate for sparse rural WA collecting sites. No slider, no
+user-configurable range in v1.
+
+**URL state encoding:** Encode as `?near=1` (boolean flag only). The actual coordinates are ephemeral
+(they change with the user's position) and meaningless when a URL is shared. On restoring a URL with
+`?near=1`: show the chip in a "needs location" state and activate GeolocateControl; do not execute
+the distance query until a position is received.
+
+**Composability:**
+- AND semantics with all existing filters: "pollinators, June, King County, within 10 km of me."
+- "Clear filters" clears the near-me chip along with all other filters.
+- If location permission is denied: chip shows disabled. Existing filters still work normally.
+- If user leaves the page and returns: near-me is cleared (ephemeral position); re-tap to re-activate.
+
+**List/table integration:** The occurrence list and table (bee-pane) shows only within-radius
+occurrences. Optionally, a distance column ("0.3 km") in the table view is a differentiator — defer
+to post-dogfood (not table stakes for v1 since the map view communicates proximity visually).
+
+### 7. Unlisted Route Dogfood Pattern
+
+**What "unlisted" means:**
+- `/app/` is a real, deployed, publicly-accessible URL.
+- "Unlisted" = no link from the main site (`/`), no `sitemap.xml` entry, no nav item.
+- Not password-protected (static hosting has no auth layer). Security by obscurity, which is
+  explicitly acceptable for a private team dogfood before public rollout.
+
+**Service worker scope isolation:**
+- SW file served at `/app/sw.js`. Registration: `navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })`.
+- A SW at scope `/app/` controls all URL paths starting with `/app/`. It does NOT control `index.html` at `/`.
+- `manifest.webmanifest` served at `/app/manifest.webmanifest` with `start_url: '/app/'`.
+- The main `index.html` at `/` has no `<link rel="manifest">` pointing to the app manifest and no SW
+  registration — guaranteed isolation.
+
+**Cross-scope fetch for `/data/` assets:**
+- `occurrences.db`, `counties.geojson`, and `ecoregions.geojson` are served from `/data/` — outside
+  the `/app/` scope path but same origin.
+- A SW scoped to `/app/` can still intercept fetches it initiates for `/data/` resources, but only
+  if the SW is the controller of the page making the fetch (i.e., the `/app/` page). This works.
+- However, storing `/data/occurrences.db` in the cache from a `/app/`-scoped SW is valid — SW scope
+  restricts what pages the SW controls, not what URLs it can cache.
+- **Planning concern flagged:** Verify that precaching `/data/occurrences.db` from a `/app/`-scoped
+  SW does not require a `Service-Worker-Allowed` header override. Best practice: set
+  `Service-Worker-Allowed: /` on the SW response to allow caching of paths outside the scope.
+
+**Graduation to default (post-dogfood):**
+- When dogfood is validated: update `index.html` at `/` to link the manifest and register the SW
+  at root scope (`scope: '/'`). Move the `/app/` shell logic to `index.html` (or redirect `/app/`
+  to `/`).
+- Do not graduate until: Mapbox tile-caching TOS implications reviewed, offline experience validated
+  with at least one field outing, team sign-off.
 
 ---
 
 ## Feature Dependencies
 
 ```
-[Full CSV re-extraction (lat/lon, date, recordedBy, locality, verbatim_name)]
-    └──required by──> [checklist ARM 4 in int_combined]
-    └──required by──> [All detail card features]
-    └──required by──> [Dedup against Ecdysis]
+[PWA Manifest + Icons]
+    └──required by──> [Install Prompt]
+    └──required by──> [Splash Screen on launch]
+    └──required by──> [Standalone Launch Mode (no browser chrome)]
 
-[checklist ARM 4 in int_combined + occurrences.parquet]
-    └──required by──> [Checklist points on map]
-    └──required by──> [_renderChecklist detail card branch]
-    └──required by──> [Per-source counts on species pages]
-    └──required by──> [CSV export includes checklist rows]
-    └──required by──> [Dedup pipeline step]
+[Service Worker at /app/sw.js]
+    └──required by──> [Offline Cold-Start]
+    └──required by──> [Cache Priming + Progress]
+    └──required by──> [Offline-Ready Badge]
+    └──required by──> [Data Refresh on Reconnect]
 
-[Dedup pipeline step (dedup_status column)]
-    └──required by──> [Suppress ecdysis_duplicate rows from point layer]
-    └──enhances──>    [Detail card (show dedup status note)]
+[Offline Cold-Start]
+    └──requires──> [Precached app shell JS/CSS]
+    └──requires──> [Precached occurrences.db (~23 MB)]
+    └──requires──> [Precached county + ecoregion GeoJSON]
+    └──requires existing──> [sqlite.ts / SQLite WASM data layer]
+    └──requires existing──> [stale-guard.ts (data load gating)]
+    └──requires existing──> [GeoJSON overlay layers in bee-map.ts]
 
-[4th source color in Mapbox style (checklist = distinct color)]
-    └──required by──> [Visual distinction on map]
+[GeolocateControl (blue dot + recenter)]
+    └──required by──> [Occurrences Near Me]
+    └──note──> [recenter is the same button in passive→active state; no additional code]
 
-[Source-selection toggle extension]
-    └──required by──> [User can turn off checklist points]
-    └──depends on──>  [ARM 4 in parquet (source='checklist' value exists)]
+[Occurrences Near Me]
+    └──requires──> [GeolocateControl (position fix)]
+    └──requires existing──> [filter.ts SQLite query layer]
+    └──requires existing──> [_filterQueryGeneration race guard in bee-atlas.ts]
+    └──requires existing──> [bee-pane list/table display]
+    └──enhances──> [existing taxon/date/region filters] (AND semantics)
+
+[Online/Offline Status Indicator]
+    └──enhances──> [Offline-Ready Badge] (shows "offline" state)
+    └──enhances──> [Data Freshness Label] (shows reconnect state)
+
+[Data Freshness Label]
+    └──enhances──> [Data Refresh on Reconnect] (label updates after re-prime)
+
+[Unlisted /app/ Route + SW Scope Isolation]
+    └──contains all of the above features
+    └──requires──> [SW scope isolation from main /]
+    └──requires planning care──> [cross-scope caching of /data/ assets]
 ```
 
 ### Dependency Notes
 
-- **ARM 4 requires full CSV re-extraction first.** The current `wa_bee_checklist_records.tsv`
-  has only species/county/year/month. ARM 4 cannot be built until the full-fidelity CSV replaces
-  it as the pipeline input. This is strictly the first implementation task.
-- **Dedup key depends on CSV field availability.** If the checklist CSV lacks catalog numbers for
-  most records, dedup must fall back to (collector + date + coordinate proximity) fuzzy match —
-  a moderately complex implementation. Inspect the CSV first; dedup strategy branches on this.
-- **`_renderChecklist` branch is blocked on parquet schema confirmation.** The detail card
-  renderer cannot be finalized until ARM 4 columns (locality, verbatim_name, coordinate_precision)
-  are confirmed in the parquet, since those are nullable fields Ecdysis rows do not have.
-- **Source color and toggle extension are independent of each other** and can be shipped before
-  or after the detail card work.
-- **Per-source species page counts are blocked on ARM 4** (need `source='checklist'` rows to count).
+- **Offline cold-start requires an atomic prime**: partial cache = broken cold-start. The ready
+  indicator must only show "ready" once ALL required assets are cached, not after the first few.
+- **Near Me + race guard**: `_filterQueryGeneration` already handles concurrent async filter changes;
+  Near Me introduces an additional async dependency (GPS fix before query can fire). This must be
+  modeled analogously to `taxaReady` — do not fire the distance query until position is confirmed.
+- **SW scope vs `/data/` path**: the SW must be able to fetch and cache `/data/occurrences.db`
+  despite being scoped to `/app/`. This requires verifying the `Service-Worker-Allowed` header
+  situation. Flag for the architecture/implementation phase.
+- **Mapbox tile requests must bypass SW**: any fetch handler that accidentally intercepts
+  `api.mapbox.com` or `events.mapbox.com` requests risks violating TOS and breaking the map entirely
+  offline (returning a stale cached 401 or style JSON). The SW fetch handler must explicitly allow
+  these to fall through.
 
 ---
 
-## MVP Definition for v4.7
+## MVP Definition (Private Dogfood v1)
 
-### Must Ship
+### Must Have for Self-Test
 
-- [ ] Full CSV re-extraction into pipeline (lat/lon, date, recordedBy, locality, verbatim_name)
-- [ ] Checklist ARM 4 in `int_combined` + `occurrences.parquet` (`source='checklist'`)
-- [ ] Drop no-coordinate rows; retain null-date rows with year-only fallback in `date` column
-- [ ] `verbatim_date` column preserved alongside normalized `date`
-- [ ] Checklist points rendered on map with distinct 4th source color
-- [ ] Source-selection toggle extended to include checklist point source
-- [ ] `_renderChecklist` branch in `bee-occurrence-detail.ts`: collector, date + verbatim_date,
-      locality, dataset attribution ("Bartholomew et al. 2024, JHR 97" with DOI link)
-- [ ] Verbatim-vs-accepted name secondary note in detail card when they differ
-- [ ] Dedup against Ecdysis: `dedup_status` column; suppress `ecdysis_duplicate` rows from
-      point layer
-- [ ] Per-source counts on species pages (checklist arm)
-- [ ] dbt 33-column contract extended for ARM 4 columns
+- [ ] `manifest.webmanifest` at `/app/manifest.webmanifest` with `name`, `start_url: '/app/'`,
+      `display: 'standalone'`, `background_color`, `theme_color`, 192 px and 512 px icons
+- [ ] Service worker at `/app/sw.js` precaching app shell + `occurrences.db` + all GeoJSON
+- [ ] Offline cold-start: occurrence dots and GeoJSON overlays render without any network
+- [ ] "Ready for offline" indicator (text or badge; progress bar is a differentiator)
+- [ ] "Data as of \<date\>" label — pipeline generation date displayed in status area
+- [ ] Online/offline status banner (`navigator.onLine` + events)
+- [ ] Install prompt (Android/Chrome) + iOS Safari "Add to Home Screen" instructions text
+- [ ] `GeolocateControl` with `trackUserLocation: true`, `showAccuracyCircle: true`
+- [ ] "Near me" chip: fixed 10 km radius, composes with existing filters via AND
+- [ ] Unlisted `/app/` route: no link from main site; SW scoped to `/app/`; main `/` untouched
+- [ ] Graceful basemap degradation with explanatory label
 
-### Add If Straightforward After Core
+### Add After Initial Dogfood (P2)
 
-- [ ] `coordinate_precision` enum and detail card note — add after confirming what precision
-      metadata is actually present in the source CSV
-- [ ] Year-excluded-from-seasonality note on species pages — low complexity, honest UX improvement
+- [ ] Determinate cache priming progress bar (N of M files)
+- [ ] Cache size display via `navigator.storage.estimate()`
+- [ ] "New data available" toast + user-initiated re-prime on reconnect
+- [ ] iOS splash screen images (currently: white flash acceptable)
+- [ ] Distance column in occurrence list sorted by proximity to user
 
-### Defer
+### Defer to Post-Dogfood (P3 / v5.1+)
 
-- [ ] Link from detail card to source collection catalog page — requires knowing which
-      institutions contributed records and whether they have stable record URLs
-- [ ] County-fill layer retirement/consolidation — remains valid fallback for no-coordinate
-      records; consolidation is a future milestone decision
+- [ ] Graduate `/app/` to root `/` (requires TOS review + field validation + team sign-off)
+- [ ] Adjustable near-me radius
+- [ ] Public install prompt on main site
+- [ ] Offline tile pre-download for specific areas (requires TOS review + significant scope)
 
 ---
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority |
-|---------|------------|---------------------|----------|
-| Full CSV re-extraction + ARM 4 in parquet | HIGH — prerequisite for everything | HIGH | P1 |
-| Checklist points on map (4th color) | HIGH — core milestone payoff | LOW | P1 |
-| Source attribution + collector + locality in detail card | HIGH — credibility | LOW | P1 |
-| Date handling (null → year-only, verbatim_date fallback) | HIGH — data integrity | MEDIUM | P1 |
-| Dedup against Ecdysis | HIGH — credibility risk | HIGH | P1 |
-| Source toggle extension | MEDIUM — usability | LOW | P1 |
-| Per-source counts on species pages | MEDIUM — consistency | LOW | P1 |
-| Verbatim-vs-accepted name note in detail card | MEDIUM — trust/education | LOW | P2 |
-| Coordinate precision note in detail card | MEDIUM — interpretability | MEDIUM | P2 |
-| Year-excluded-from-seasonality note | LOW — honesty nicety | MEDIUM | P3 |
-| Uncertainty circles on map | LOW — overkill for volunteers | HIGH | anti-feature |
-| Cross-dataset record merge | LOW — correctness risk | HIGH | anti-feature |
+| Feature | Field User Value | Implementation Cost | v1 Priority |
+|---------|-----------------|---------------------|-------------|
+| Offline cold-start (SW + precache) | HIGH | MEDIUM | P1 |
+| PWA install + manifest + icons | HIGH | LOW | P1 |
+| "Ready for offline" indicator | HIGH | MEDIUM | P1 |
+| "Data as of \<date\>" label | HIGH | LOW | P1 |
+| Blue dot + recenter (GeolocateControl) | HIGH | LOW | P1 |
+| "Near me" chip (10 km fixed radius) | HIGH | MEDIUM | P1 |
+| Unlisted `/app/` route + SW scope isolation | HIGH (enables dogfood) | MEDIUM | P1 |
+| Online/offline status banner | MEDIUM | LOW | P1 |
+| Graceful basemap degradation + label | MEDIUM | LOW | P1 |
+| iOS "Add to Home Screen" instructions | MEDIUM | LOW | P1 |
+| Determinate cache priming progress bar | MEDIUM | MEDIUM | P2 |
+| Cache size display | LOW | LOW | P2 |
+| "New data available" toast + refresh | MEDIUM | MEDIUM | P2 |
+| iOS splash screen images | LOW | LOW | P2 |
+| Distance column in occurrence list | LOW | LOW | P3 |
+| Adjustable near-me radius | LOW | MEDIUM | P3 |
 
 ---
 
-## Portal Comparison
+## Reference Apps Analyzed
 
-| Feature | GBIF | Symbiota / Big-Bee | ALA | BeeAtlas v4.7 Approach |
-|---------|------|--------------------|-----|------------------------|
-| Basis-of-record distinction | Filter only; no visual badge on point | `PreservedSpecimen` shown in record detail | Filter + record detail | Source color on point + attribution line in detail card |
-| Verbatim vs accepted name | Stored in API; not prominently surfaced in occurrence card | Verbatim date shown; one scientific name shown (accepted) | Shows both in record detail | Accepted name primary; "originally identified as X" secondary note when they differ |
-| Coordinate uncertainty | Optional filter at CSV download; no map circles by default | `coordinateUncertaintyInMeters` field present; not displayed as circle | Optional circle overlay (opt-in, capped at 30 km); acknowledges many records lack value | Precision category as text note in detail card; no map circles |
-| Dedup across datasets | No auto-dedup; researcher-facing clustering tool | No auto-dedup cross-portal | No auto-dedup | Pipeline-time dedup: `dedup_status` column; suppress duplicate points from layer |
-| Collector display | `recordedBy` in record detail | `recordedBy` in record detail | `recordedBy` in record detail | Same: collector name in detail card; "collector unknown" if null |
-| Dataset attribution | Dataset name + publisher in record detail | Institution code + collection in record detail | Data resource link in record detail | Citation line in detail card ("Bartholomew et al. 2024") |
-| Locality text | `locality` in record detail | `locality` in record detail | `locality` in record detail | `locality` in detail card |
-| Catalog number | Shown in record detail; part of triplet ID | Shown in record detail | Shown in record detail | Secondary field in detail card; not primary display |
-
----
-
-## Confidence Assessment
-
-| Area | Confidence | Notes |
-|------|------------|-------|
-| Table stakes features | HIGH | Grounded in existing detail card code + ecosystem survey of 4 major portals |
-| Anti-features (uncertainty circles, merge) | HIGH | Directly confirmed by GBIF/ALA design decisions and rendering cost analysis |
-| Dedup approach | MEDIUM | Strategy confirmed; key depends on whether checklist CSV has catalog_number — inspect CSV first |
-| Coordinate precision metadata | LOW | Not yet confirmed whether full checklist CSV contains coordinateUncertaintyInMeters or only lat/lon |
-| Verbatim name availability | MEDIUM | Checklist CSV is expected to have original verbatim scientific names; confirm on re-extraction |
+- **iNaturalist mobile app**: Nearby observations uses a fixed ~1 km default radius chip that
+  composes with taxon/location filters. Fixed radius preferred for v1.
+- **AllTrails**: "Distance Away" uses an explicit slider (more complex; not appropriate for v1
+  field dogfood). Good reference for v5.1+ if collectors request adjustable radius.
+- **Mapbox GL JS "Locate User" example**: Standard `GeolocateControl` integration reference.
 
 ---
 
 ## Sources
 
-- GBIF Basis of Record: https://docs.gbif.org/course-data-use/en/basis-of-record.html
-- GBIF Duplicate/Clustering: https://docs.gbif.org/course-data-use/en/duplicates.html
-- GBIF Geospatial Issues: https://docs.gbif.org/course-data-use/en/geospatial-filters-issues.html
-- Symbiota Occurrence Data Fields: https://symbiota.org/symbiota-occurrence-data-fields-2/
-- Big-Bee Symbiota portal specimen detail: https://library.big-bee.net/portal/collections/individual/index.php?occid=1615893
-- ALA Spatial Portal (uncertainty circles): https://www.ala.org.au/spatial-portal-help/species-add-to-map/
-- Bartholomew et al. 2024 checklist: https://jhr.pensoft.net/article/129013/
-- Codebase: `data/dbt/models/intermediate/int_combined.sql` (existing ARM structure)
-- Codebase: `src/bee-occurrence-detail.ts` (existing detail card; `_renderChecklist` does not yet exist)
-- Codebase: `data/checklist_pipeline.py` (existing 4-column checklist loader; SOURCE_CITATION defined)
-- Codebase: `data/checklists/wa_bee_checklist_records.tsv` (confirms only 4 columns in current derivation)
+- [Installation prompt — web.dev](https://web.dev/learn/pwa/installation-prompt) — beforeinstallprompt flow, iOS limitations, defer pattern
+- [Making PWAs installable — MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable) — manifest requirements, browser support matrix
+- [Offline and background operation — MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Offline_and_background_operation) — SW caching strategies
+- [Caching — MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Caching) — stale-while-revalidate, cache-first
+- [GeolocateControl — Mapbox GL JS Docs](https://docs.mapbox.com/mapbox-gl-js/api/markers/#geolocatecontrol) — trackUserLocation, showAccuracyCircle, three tracking states, fitBoundsOptions
+- [Maps APIs Caching — Mapbox Help](https://docs.mapbox.com/help/dive-deeper/api-caching/) — 12-hour tile TTL, passive browser cache behavior
+- [Mapbox Terms of Service](https://www.mapbox.com/legal/tos) — explicit prohibition on redistributing cached tiles (HIGH confidence; load-bearing constraint)
+- [StorageManager estimate() — MDN](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/estimate) — navigator.storage.estimate() for cache size display
+- [workbox-window — Chrome for Developers](https://developer.chrome.com/docs/workbox/modules/workbox-window) — SW lifecycle events for offline-ready detection
+- [workbox precache progress — GitHub Issue #2498](https://github.com/GoogleChrome/workbox/issues/2498) — confirms Workbox does not expose per-file progress natively
+- [iNaturalist Nearby filter — iNaturalist Help](https://help.inaturalist.org/en/support/solutions/articles/151000198035) — fixed-radius "near me" UX reference
+- [AllTrails Distance Away filter](https://support.alltrails.com/hc/en-us/articles/37227796303124) — slider-based alternative (deferred for v1)
+- [Spatial filter pattern — Map UI Patterns](https://mapuipatterns.com/spatial-filter/) — filter-by-geography design pattern
+- [PWA update notifications — Progressier](https://progressier.com/handling-service-worker-updates) — skipWaiting + toast notification pattern
+- [Service Worker scope — web.dev](https://web.dev/learn/pwa/service-workers) — scope isolation mechanics, Service-Worker-Allowed header
 
 ---
-*Feature research for: v4.7 Checklist Records as Point Data (BeeAtlas)*
-*Researched: 2026-06-03*
+
+*Feature research for: v5.0 Offline Field Mode (Washington Bee Atlas)*
+*Researched: 2026-06-10*
