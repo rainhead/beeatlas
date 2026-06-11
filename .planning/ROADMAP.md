@@ -1200,7 +1200,7 @@ Plans:
 **Depends on**: Phase 149 (offline cold-start must work before installability is meaningful), Phase 150 (freshness/ready badge)
 **Requirements**: PWA-01, PWA-02, PWA-03
 **Success Criteria** (what must be TRUE):
-  1. `/app/manifest.webmanifest` declares `name`, `start_url: /app`, `display: standalone`, `background_color`, `theme_color`, and 192px / 512px / maskable icons; Chrome DevTools → Application → Manifest shows no validation errors
+  1. `/app/manifest.webmanifest` declares `name`, `start_url: /app/index.html` (NOT `/app/` — S3+CloudFront OAC returns 403 for trailing-slash paths, so the installed PWA must launch the explicit index.html key; see Phase 147 + memory `cloudfront-subdir-403-no-index-rewrite`), `display: standalone`, `background_color`, `theme_color`, and 192px / 512px / maskable icons; Chrome DevTools → Application → Manifest shows no validation errors
   2. On Android/Chrome, an in-app "Install" affordance (captured `beforeinstallprompt`, not a blocking modal) appears and installs the app to the home screen
   3. On iOS Safari (where `beforeinstallprompt` is unavailable), the `/app` page shows static "Add to Home Screen" instructions; the instructions are hidden when already running standalone (`navigator.standalone === true`)
   4. Launching the installed app with no network connection opens in standalone mode and renders the map + table fully from cache (offline cold-start confirmed on a real device)
@@ -1259,7 +1259,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 147. `/app` Route + SW Topology | v5.0 | 2/2 | Complete   | 2026-06-11 |
+| 147. `/app` Route + SW Topology | v5.0 | 2/2 | Complete    | 2026-06-11 |
 | 148. App Shell Precache + vite-plugin-pwa | v5.0 | 0/TBD | Not started | - |
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 0/TBD | Not started | - |
 | 150. Cache Health & Freshness UX | v5.0 | 0/TBD | Not started | - |
