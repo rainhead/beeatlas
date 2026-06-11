@@ -131,9 +131,9 @@ Browser loads http://localhost/app/ (prod preview) or https://beeatlas.net/app/
         │           └── navigator.serviceWorker.register('/app/sw.js', { scope: '/app' })
         │
         └── /app/sw.js  (Vite passthrough from public/app/sw.js — not hashed)
-              ├── addEventListener('install', e => e.waitUntil(self.skipWaiting()))
-              │     NOTE: no skipWaiting per D-06 — only e.waitUntil(Promise.resolve())
-              ├── addEventListener('activate', ...)
+              ├── addEventListener('install', e => e.waitUntil(Promise.resolve()))
+              │     NOTE: no skipWaiting per D-06
+              ├── addEventListener('activate', ...)   // bare listener — no clients.claim() per D-06
               └── addEventListener('fetch', e => e.respondWith(fetch(e.request)))
                     ↑ intercepts /data/* fetches from /app page (scope controls pages, not paths)
 
@@ -230,9 +230,10 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-  // Note: clients.claim() here is acceptable — this is the FIRST SW install,
-  // not an update. There is no prior app-code+DB version to protect against.
+  // Bare activate listener. Per locked decision D-06, the stub calls NEITHER
+  // skipWaiting NOR clients.claim — both are excluded to preserve the OFF-03
+  // prompt-to-reload lifecycle (no app-code+DB version skew) from day one.
+  // (Logging here is fine; claiming clients is not.)
 });
 
 self.addEventListener('fetch', (event) => {
@@ -244,7 +245,7 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
-**Rationale for `clients.claim()` in activate:** D-06 says no `skipWaiting`/`clientsClaim` to preserve prompt-to-reload. However, for the *initial* install (no prior SW), `clients.claim()` in `activate` is acceptable — it makes the SW control already-open `/app` tabs immediately rather than waiting for a reload. This is not "auto-update behavior" (there is nothing to update from). Phase 148 will review this when real precaching is added. Leave a comment explaining this distinction.
+**Rationale for excluding `clients.claim()` (RESOLVED per D-06):** Locked decision D-06 states "No `skipWaiting` / `clientsClaim`, even in the stub." Both halves are non-negotiable. The earlier consideration — that `clients.claim()` might be acceptable for the *initial* install (no prior SW) — does NOT override the locked decision. The `activate` handler is therefore a bare listener with no `clients.claim()`. The only cost is that already-open `/app` tabs are controlled after the next reload rather than immediately, which is consistent with the prompt-to-reload lifecycle the decision protects. No `clients.claim()` appears anywhere in `public/app/sw.js`.
 
 ### Pattern 3: `src/app-entry.ts` Composition
 
@@ -557,21 +558,19 @@ Used in `_pages/scaffold-check.njk` — the same syntax works in `.html` files w
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | `clients.claim()` in the stub SW's `activate` handler is acceptable for initial install (no prior SW version) | Code Examples, Pattern 2 | If user has strong preference for no `clients.claim()` either, remove it — the SW will control new page loads automatically without it; the difference is whether already-open `/app` tabs are controlled before reload. Low risk either way. |
+| A1 (RESOLVED) | ~~`clients.claim()` in the stub SW's `activate` handler is acceptable for initial install~~ — RESOLVED: removed per locked decision D-06 ("No skipWaiting / clientsClaim, even in the stub"). | Code Examples, Pattern 2 | None — the SW controls new page loads automatically without `clients.claim()`; already-open `/app` tabs are controlled after the next reload, consistent with the prompt-to-reload lifecycle D-06 protects. |
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **CDK test integration into CI**
-   - What we know: CI runs `npm test` from repo root (deploy.yml); `infra/` has no test script yet.
-   - What's unclear: Should the CDK assertion test be wired into CI at all in Phase 147, or is local `ts-node` invocation sufficient (with HUMAN-UAT covering the `curl -I` check)?
-   - Recommendation: Add `npm run test` to `infra/package.json` for the ts-node assertion script; leave CI wiring to the implementer's judgment (not blocking Phase 147 success criteria).
+1. **CDK test integration into CI — RESOLVED**
+   - What we knew: CI runs `npm test` from repo root (deploy.yml); `infra/` had no test script yet.
+   - Resolution: Implementer discretion is acceptable. Add `npm run test` to `infra/package.json` for the ts-node assertion script; whether to wire it into the root-level CI run in Phase 147 is left to the implementer (not blocking Phase 147 success criteria — HUMAN-UAT covers the `curl -I` live check).
 
-2. **`clients.claim()` in stub SW activate**
-   - What we know: D-06 says no `skipWaiting`/`clientsClaim`. However `clients.claim()` without `skipWaiting` is meaningfully different: it claims already-open tabs after activation but doesn't force the waiting SW to skip its waiting state.
-   - What's unclear: Whether "no clientsClaim" is a hard requirement or just "no auto-update pattern."
-   - Recommendation: Include `clients.claim()` in `activate` but document the distinction; remove it if the user prefers maximum lifecycle purity.
+2. **`clients.claim()` in stub SW activate — RESOLVED**
+   - What we knew: D-06 says "No `skipWaiting` / `clientsClaim`, even in the stub."
+   - Resolution: Remove `clients.claim()` per locked decision D-06. The decision is a hard requirement covering BOTH `skipWaiting` and `clientsClaim`; there is no exception for initial install. The `activate` handler is a bare listener with no `clients.claim()`. Plan, patterns, and code examples all reflect this.
 
 ---
 
