@@ -1,9 +1,11 @@
 ---
 phase: 147-app-route-sw-topology
 verified: 2026-06-11T01:09:46Z
-status: human_needed
+human_verified: 2026-06-10
+status: passed
 score: 10/10
 overrides_applied: 0
+human_verification_result: "Both items PASSED. (1) SW topology confirmed in-browser (scope /app/, none on /, /data/* intercept). (2) Post-deploy curl: /app/sw.js -> 200 + Cache-Control: no-cache, no-store, must-revalidate live on beeatlas.net. Canonical route URL is /app/index.html (OAC origin 403s trailing-slash /app/ by design)."
 human_verification:
   - test: "DevTools SW topology: navigate to /app/ in a local production-build preview, confirm SW registered with scope /app/, no SW on /, /data/* shows ServiceWorker as initiator"
     expected: "DevTools Application > Service Workers shows scope '/app/' for /app/sw.js when on /app/; shows 'No service workers detected' when on /; Network tab shows ServiceWorker as initiator/served-by for a /data/* fetch while on /app/"

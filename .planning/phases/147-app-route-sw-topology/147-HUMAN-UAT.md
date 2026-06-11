@@ -1,5 +1,5 @@
 ---
-status: partial
+status: complete
 phase: 147-app-route-sw-topology
 source: [147-VERIFICATION.md]
 updated: 2026-06-10
@@ -7,12 +7,18 @@ updated: 2026-06-10
 
 # Phase 147 — Human UAT Items
 
+> **Canonical prod URL for the route is `https://beeatlas.net/app/index.html`** — NOT `/app/`.
+> The S3+CloudFront origin (OAC, private bucket) does not map trailing-slash paths to
+> `index.html`, so `/app/` returns 403 by design; the project links to `/…/index.html`
+> explicitly (see memory `cloudfront-subdir-403-no-index-rewrite`). The SW registered from
+> `/app/index.html` still has scope `/app/` and controls the page.
+
 ## Summary
 
 total: 2
-passed: 1
+passed: 2
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -46,7 +52,16 @@ blocked: 0
 
 ## ROUTE-03 — CloudFront no-cache (post-deploy, D-10)
 
-**Status:** PENDING — deferred at developer's choice; run at next deploy.
+**Status:** PASSED — confirmed live 2026-06-10 after merge to `main` + deploy. `curl -I https://beeatlas.net/app/sw.js`:
+
+```
+HTTP/2 200
+content-type: text/javascript
+content-length: 937
+cache-control: no-cache, no-store, must-revalidate
+```
+
+`/app/manifest.webmanifest` → `HTTP/2 403` + `cache-control: no-cache, no-store, must-revalidate` — the expected pre-Phase-151 state (file lands in 151; the behavior is harmless before then, D-08).
 
 **Background:** The synth-time guarantee (D-10) is already enforced by the CDK assertion test at `infra/test/beeatlas-stack.test.ts` (passing as of commits `d49959e`–`e563ae8`). This item covers the live distribution confirmation only, which requires a real deploy. Note that `/app/manifest.webmanifest` returning 403/404 with the no-cache header present is the expected pre-Phase-151 state (D-08 — the behavior is harmless before the file exists).
 

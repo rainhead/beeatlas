@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: verifying
-stopped_at: Phase 147 context gathered
-last_updated: "2026-06-11T00:56:27.237Z"
+status: ready_to_plan
+stopped_at: Phase 147 complete (2/2) — ready to discuss Phase 148
+last_updated: 2026-06-11T04:40:32.196Z
 last_activity: 2026-06-11
 progress:
   total_phases: 26
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 147 — app-route-sw-topology
+**Current focus:** Phase 148 — app shell precache + vite plugin pwa wiring
 
 ## Current Position
 
-Phase: 147 (app-route-sw-topology) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 148
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-11
 
 Progress: [██████████] 100%
