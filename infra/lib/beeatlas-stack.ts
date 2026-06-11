@@ -95,6 +95,54 @@ export class BeeAtlasStack extends cdk.Stack {
       }
     );
 
+    // ── /app/sw.js + /app/manifest.webmanifest: no-cache behaviors ────────
+    // Zero-TTL so CloudFront revalidates on every request. SW update detection
+    // requires the browser to always fetch the latest sw.js (the browser's 24h
+    // SW-check maximum is undermined by any CloudFront caching). Per-path only —
+    // NOT /app/* — so Phase 148's app-shell caching is unaffected (D-08, D-09).
+    const swNoCachePolicy = new cloudfront.CachePolicy(this, 'SwNoCachePolicy', {
+      defaultTtl: cdk.Duration.seconds(0),
+      maxTtl: cdk.Duration.seconds(0),
+      minTtl: cdk.Duration.seconds(0),
+      queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+      cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+      enableAcceptEncodingGzip: false,
+      enableAcceptEncodingBrotli: false,
+    });
+
+    // Response headers policy: set Cache-Control: no-cache so the browser
+    // always revalidates the SW script and manifest (override: true ensures
+    // CloudFront overrides any S3 origin response header).
+    const swNoCacheHeadersPolicy = new cloudfront.ResponseHeadersPolicy(this, 'SwNoCacheHeadersPolicy', {
+      customHeadersBehavior: {
+        customHeaders: [{
+          header: 'Cache-Control',
+          value: 'no-cache, no-store, must-revalidate',
+          override: true,
+        }],
+      },
+    });
+
+    distribution.addBehavior('/app/sw.js',
+      origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
+      {
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: swNoCachePolicy,
+        responseHeadersPolicy: swNoCacheHeadersPolicy,
+      }
+    );
+
+    // /app/manifest.webmanifest behavior added now (Phase 151 delivers the file;
+    // the path-pattern behavior is harmless before the file exists — D-08).
+    distribution.addBehavior('/app/manifest.webmanifest',
+      origins.S3BucketOrigin.withOriginAccessControl(siteBucket),
+      {
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        cachePolicy: swNoCachePolicy,
+        responseHeadersPolicy: swNoCacheHeadersPolicy,
+      }
+    );
+
     // ── Route 53 records for beeatlas.net (apex + www) ────────────────────
     const siteTarget = route53.RecordTarget.fromAlias(new targets.CloudFrontTarget(distribution));
     for (const recordName of [undefined, 'www']) {
