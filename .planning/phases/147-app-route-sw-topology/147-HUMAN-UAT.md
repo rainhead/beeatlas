@@ -24,3 +24,21 @@
 6. Back on `/app/`, DevTools → Network: trigger/observe a `/data/*` request (e.g. `/data/occurrences.db` or a GeoJSON). Confirm the request's initiator/served-by shows the Service Worker (ROUTE-02 criterion 4 — the pass-through handler intercepted it).
 
 **To mark complete:** Update this entry with date of confirmation and results observed.
+
+---
+
+## ROUTE-03 — CloudFront no-cache (post-deploy, D-10)
+
+**Status:** PENDING — deferred at developer's choice; run at next deploy.
+
+**Background:** The synth-time guarantee (D-10) is already enforced by the CDK assertion test at `infra/test/beeatlas-stack.test.ts` (passing as of commits `d49959e`–`e563ae8`). This item covers the live distribution confirmation only, which requires a real deploy. Note that `/app/manifest.webmanifest` returning 403/404 with the no-cache header present is the expected pre-Phase-151 state (D-08 — the behavior is harmless before the file exists).
+
+**Verification steps (verbatim from Task 4 checkpoint):**
+
+1. Deploy when ready: `cd infra && npm run deploy` (or fold into the normal deploy flow). The `/app/manifest.webmanifest` file does not exist until Phase 151 — that is expected; the behavior is harmless before the file lands (D-08).
+
+2. After deploy, run `curl -I https://<distribution-domain>/app/sw.js` and confirm the response includes `Cache-Control: no-cache, no-store, must-revalidate`.
+
+3. Record the `curl -I` output (header line) in this file (D-10). `/app/manifest.webmanifest` returning 403/404 with the no-cache header present is the expected pre-151 state.
+
+**To mark complete:** After deploying, paste the `curl -I` output for `/app/sw.js` here and update status to PASSED with date.
