@@ -87,7 +87,7 @@ Each task was committed atomically:
 
 - `_pages/app/index.html` — Eleventy SPA template for `/app`; mirrors `_pages/index.html`, references `/src/app-entry.ts`, front matter sets `eleventyExcludeFromCollections: true`
 - `src/app-entry.ts` — Dedicated Vite entry for `/app`; imports `./bee-atlas.ts` then `./sw-registration.ts` as side effects; no exports
-- `src/sw-registration.ts` — SW registration module; calls `navigator.serviceWorker.register('/app/sw.js', { scope: '/app' })` inside try/catch; fires immediately at module bottom
+- `src/sw-registration.ts` — SW registration module; calls `navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })` inside try/catch; fires immediately at module bottom (see Deviation 3 — scope corrected to `/app/` post-execution)
 - `public/app/sw.js` — Pass-through stub SW; install/activate/fetch listeners; `event.respondWith(fetch(event.request))`; no caching, no `skipWaiting`, no `clients.claim`
 - `src/tests/build-output.test.ts` — Three new assertions inside existing `describe.skipIf(SKIP_BUILD)` block: `_site/app/index.html` exists, contains hashed `/assets/app/index-*.js` chunk reference, and `_site/app/sw.js` exists
 
@@ -116,6 +116,13 @@ Each task was committed atomically:
 - **Files modified:** `src/tests/build-output.test.ts`
 - **Verification:** Three new `/app` build-output tests pass
 - **Committed in:** `8a5ad36` (Task 4 fix commit)
+
+**3. [Post-execution - Bug, found in dogfood] SW `scope` must be `/app/` not `/app`**
+- **Found during:** Manual D-11 DevTools verification (the human-UAT step) on a real browser.
+- **Issue:** D-03 specified `register('/app/sw.js', { scope: '/app' })`, but a script at `/app/sw.js` has a default max scope of `/app/`; the browser rejects any requested scope not prefixed by it. `scope: '/app'` (no trailing slash) is not under `/app/`, so registration threw `SecurityError: ... scope ('/app') is not under the max scope allowed ('/app/')`. This contradicted D-04, which already stated the scope defaults to `/app/`. It escaped the plan-checker/verifier because a SW cannot register in a headless/CI context — exactly the gap D-11 (manual DevTools) existed to cover.
+- **Fix:** Changed `{ scope: '/app' }` → `{ scope: '/app/' }` in `src/sw-registration.ts` (no `Service-Worker-Allowed` header needed; `/app/` is the default scope and still controls the `/app/` page). Plan-01 `must_haves`/grep truths updated to `/app/`.
+- **Files modified:** `src/sw-registration.ts`, `147-01-PLAN.md`
+- **Verification:** `tsc --noEmit` clean; corrected plan grep passes; pending re-confirmation in the browser (SW registers for scope `/app/`, none on `/`, `/data/*` intercepted).
 
 ---
 

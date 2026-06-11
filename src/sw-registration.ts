@@ -9,7 +9,11 @@
 async function registerServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
   try {
-    await navigator.serviceWorker.register('/app/sw.js', { scope: '/app' });
+    // Scope MUST be '/app/' (trailing slash): a script at /app/sw.js has a
+    // default max scope of '/app/', and the browser rejects any requested
+    // scope not prefixed by it — '/app' (no slash) fails with a SecurityError.
+    // No Service-Worker-Allowed header is needed; '/app/' is the default scope.
+    await navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' });
   } catch (err) {
     console.error('[SW] Registration failed:', err);
   }
