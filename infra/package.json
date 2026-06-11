@@ -8,7 +8,8 @@
     "watch": "tsc -w",
     "synth": "cdk synth --all",
     "diff": "cdk diff --all",
-    "deploy": "cdk deploy --all"
+    "deploy": "cdk deploy --all",
+    "test": "ts-node test/beeatlas-stack.test.ts"
   },
   "dependencies": {
     "aws-cdk-lib": "^2.238.0",
