@@ -320,4 +320,32 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
   test('_site/app/sw.js exists at unhashed stable URL (D-04)', () => {
     expect(existsSync(resolve(ROOT, '_site/app/sw.js'))).toBe(true);
   });
+
+  // Phase 148 — precache manifest verification (OFF-01)
+
+  test('_site/app/sw.js contains an injected precache manifest (OFF-01, criterion 1)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    // If self.__WB_MANIFEST appears verbatim, injection failed
+    expect(sw).not.toContain('self.__WB_MANIFEST');
+    // A real precache manifest contains revision-keyed entries: {url:...,revision:...}
+    expect(sw).toMatch(/\{url:/);
+  });
+
+  test('every precached URL in _site/app/sw.js exists as a file in _site/ (OFF-01, criterion 4)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    const urlMatches = [...sw.matchAll(/\{url:"([^"]+)"/g)].map(m => m[1]!);
+    expect(urlMatches.length, 'no precache URLs found — manifest may not have been injected').toBeGreaterThan(0);
+    for (const url of urlMatches) {
+      const filePath = resolve(ROOT, '_site' + url);
+      expect(existsSync(filePath), `precached URL missing from _site/: ${url}`).toBe(true);
+    }
+  });
+
+  test('eleventy.config.js sets maximumFileSizeToCacheInBytes >= 30000000 (OFF-01, criterion 3)', () => {
+    const config = readFileSync(resolve(ROOT, 'eleventy.config.js'), 'utf-8');
+    const match = config.match(/maximumFileSizeToCacheInBytes\s*:\s*([\d_]+)/);
+    expect(match, 'maximumFileSizeToCacheInBytes not found in eleventy.config.js').toBeTruthy();
+    const value = parseInt(match![1]!.replace(/_/g, ''), 10);
+    expect(value).toBeGreaterThanOrEqual(30_000_000);
+  });
 });
