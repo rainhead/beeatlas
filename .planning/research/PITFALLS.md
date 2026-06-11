@@ -1,219 +1,190 @@
 # Pitfalls Research
 
-**Domain:** Historical museum occurrence records — taxonomic reconciliation + cross-dataset dedup + static pipeline promotion (v4.7 Checklist Records as Point Data)
-**Researched:** 2026-06-03
-**Confidence:** HIGH (grounded entirely in this codebase's existing patterns, the Bartholomew et al. 2024 dataset structure, and the dbt/DuckDB pipeline as-built)
+**Domain:** Offline/PWA + geolocation — adding to an existing Eleventy+Vite+Lit+Mapbox GL JS v3+wa-sqlite static site (v5.0 Offline Field Mode)
+**Researched:** 2026-06-10
+**Confidence:** HIGH for service worker lifecycle, iOS storage, and Mapbox TOS risk (multiple corroborating sources); MEDIUM for Mapbox tile auth cache-key specifics (confirmed via issue tracker, not official docs)
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Taxonomic Over-Matching — Silent Mis-Resolution to the Wrong Accepted Name
+### Pitfall 1: SW Scope Bleeds onto the Main Route (`/`) — The Dogfood Experiment Contaminates Production
 
 **What goes wrong:**
-The reconciliation step maps a checklist name to an accepted `canonical_name` / `taxon_id` that is wrong but plausible. The result is rendered on the map and species pages under the incorrect taxon. This is the inverse of the Phase 76 texanus/subtilior problem: instead of failing to merge a synonym, you silently merge two distinct taxa. For bee names specifically: homonyms across subgenera, gender-agreement variants (*Andrena nivalis* vs *Andrena nivale*), and fuzzy-match false merges (*Lasioglossum incompletum* vs *Lasioglossum inconditum*) all happen in Apoidea checklists. The existing `stg_inat__genus_taxon_ids` already guards against cross-kingdom genus homonyms with `HAVING COUNT(*)=1`, but a species-level bridge would need equivalent protection.
+The plan is to dogfood offline behind `/app` (an unlisted route) while leaving the main map at `/` untouched. If the service worker file is placed at `/sw.js` and registered without an explicit `scope` option, or placed at the site root, its default scope is `/` — which covers every route including the main map. The SW then intercepts all fetches on `/`, adding caching, potentially serving stale responses, and breaking the assumption that `/` is a clean, server-first experience. When the experiment is later abandoned and the SW is removed from the build, any user whose browser has the old SW installed will continue being served cached responses until the SW TTL expires (up to 24 hours for the SW script itself).
 
 **Why it happens:**
-The current checklist-to-taxon bridge goes: checklist name → `normalize_scientific_name()` (lowercase, authority-stripped, paren-stripped) → LEFT JOIN on `stg_inat__canonical_to_taxon_id` (the iNat taxa.csv.gz bridge). If ITIS or GBIF is called as an external adjudicator and returns a match above some threshold, that match will be accepted as authoritative even if wrong. Fuzzy matching (Levenshtein / Jaro-Winkler) silently accepts near-misses. Gender-agreement normalization that flattens masculine/feminine/neuter endings before the bridge lookup will incorrectly collapse genuinely different species.
+SW scope defaults to the directory the SW script is served from. A root-served `/sw.js` has global scope. Developers often place the SW at root because it is the simplest path and because Workbox/vite-plugin-pwa default to that location.
 
 **How to avoid:**
-- Build a two-tier resolution: (1) exact canonical match wins, (2) synonym-seed wins (curated `occurrence_synonyms.csv` or `checklist_synonyms.csv`), (3) external-authority match requires a confidence column and human review gate before being committed to any seed.
-- Never auto-commit a fuzzy or external-authority match to a seed CSV. Write it to a `checklist_review.csv` sidecar; require a human to promote entries from that file to `checklist_synonyms.csv`.
-- For ITIS/GBIF calls: store the raw API response (TSN/usageKey, match confidence score, accepted name, match type) in a `checklist_name_resolution_audit.csv` committed to the repo. Every name→taxon_id decision is then auditable in git history.
-- Guard against gender-agreement false merges by requiring the exact specific epithet match; normalize only authority strings, not inflected endings.
-- Run a dbt test after promotion: assert that no two distinct checklist scientificNames resolve to the same taxon_id unless that mapping is explicitly in `checklist_synonyms.csv`.
+- Serve the service worker file from `/app/sw.js`, not `/sw.js`. Its default scope becomes `/app/`, covering only the dogfood route and `/data/` fetches via the `Service-Worker-Allowed` response header trick (see below).
+- Register with an explicit scope: `navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })`.
+- The SW needs to cache `/data/occurrences.db` (served from `/data/`, outside `/app/`). A SW at `/app/sw.js` cannot control fetches to `/data/` by default. Use the `Service-Worker-Allowed: /` HTTP response header on `/app/sw.js` itself (set at the CloudFront/S3 level or via a meta response header rule) to grant broader scope while still only registering it on `/app/`. This is the correct mechanism — do NOT move the SW file to root to work around this.
+- On SW removal: include an explicit unregister step (a tiny `unregister.js` script that calls `navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()))`) at `/app/` if the experiment is retired. Without this, cached SWs outlive the deployment.
 
 **Warning signs:**
-- A species that appears in Ecdysis under one name but in the checklist under another suddenly collapses to a single entry that looks plausible but is wrong.
-- `checklist_unmatched.csv` shrinks too fast after adding GBIF/ITIS calls — legitimate unmatched species get silently mapped.
-- A species page shows a count that cannot be explained by either dataset alone.
-- Duplicate `canonical_name` values in the resolution audit CSV that point to the same `taxon_id` from different checklist names that were not previously synonyms.
+- `/_site/_pages/index.html` starts being intercepted by the DevTools service worker panel after adding the SW.
+- Network requests from `/` show "(ServiceWorker)" origin in DevTools.
+- The main map 404s on data after a build that changes hashed asset filenames.
 
 **Phase to address:**
-The phase that implements ITIS/GBIF build-time calls and populates `taxon_id` for checklist records. Before any checklist rows enter `int_combined`, this phase must land a passing dbt test asserting no unapproved many-to-one name→taxon_id collapses and a committed audit CSV.
+SW scaffolding phase (first phase that introduces the service worker registration). Scope decision must be made and verified before any caching logic is added.
 
 ---
 
-### Pitfall 2: Dedup False Merge — Collapsing Two Different Specimens into One
+### Pitfall 2: The Eleventy+Vite Build Produces a New Hashed Asset Manifest Every Build — The SW Precache Manifest Must Reflect It Exactly
 
 **What goes wrong:**
-The cross-source dedup between checklist records and Ecdysis specimens produces a false merge: two distinct physical bees are treated as duplicates and only one occurrence appears on the map. This is the worse error for a credibility-focused scientific atlas. A false split (failing to merge a true duplicate) results in double-counting, which is bad; a false merge silently destroys a data point that a researcher relied on and may not notice until much later.
-
-The specific risk: both the checklist records and Ecdysis carry museum specimen data. The checklist has `recordedBy`, `locality`, `date`, and `lat/lon`. Ecdysis has its own collector/date/location fields. Matching on (name + date + collector_normalized + rounded_coordinates) will generate false merges when:
-- Two different collectors sampled the same location on the same day (joint collecting events are common in WABA fieldwork and in historical museum surveys).
-- Coordinate rounding places two specimens from different localities into the same grid cell.
-- Collector name normalization collapses "C.S. Bartholomew" and "Bartholomew, C." as the same and they happen to share a date and rough location.
+Vite hashes every JS/CSS bundle: `index-a3f2b1c.js`, `sqlite-worker-d8e9f0a.js`, etc. The service worker's precache manifest must list the exact current hashes. If the SW precache manifest is built from the Eleventy output in a prior step and the Vite build runs afterward (the normal Eleventy+Vite plugin pipeline), the manifest baked into `sw.js` will be stale — it references last build's hashes. The SW installs, precaches non-existent URLs, and the install event fails silently or partially.
 
 **Why it happens:**
-Without a shared specimen ID, there is no ground truth. Any composite key (name + date + collector + location) is approximate and will have collisions in high-density sampling areas or at sites sampled by the same collector on multiple dates. The checklist dates back to 1812 — pre-GPS locality strings describe the same region at wildly varying precision.
+The `@11ty/eleventy-plugin-vite` rename-and-build mechanism runs Eleventy first (populating `.11ty-vite/`), then runs Vite against that temp directory. A precache manifest injection step that runs before Vite finishes will capture zero or stale hashes. The `vite-plugin-pwa` plugin solves this by running as a Vite plugin (after Vite knows the final hashes), but only if it is correctly wired into `vite.config.ts` — which in this project is NOT the config Eleventy's plugin-vite uses for the dev server (see the extensive comments in `eleventy.config.js`).
 
 **How to avoid:**
-- Default to no dedup unless there is a high-confidence shared key. Accept double-counting as the lesser error for a scientific audience (they can identify a double-count; they cannot recover a false merge).
-- If dedup is attempted, require all three of: (a) exact `canonical_name` match after reconciliation, (b) exact date match (not year-only), (c) coordinate match within a tighter threshold than the coordinate precision of either source.
-- Never dedup on collector name alone without date + coordinates. Collector normalization should be logged and auditable, not applied silently in SQL.
-- Treat records with NULL date or NULL coordinates as ineligible for dedup (cannot confirm they are the same physical specimen).
-- Add a `dedup_candidate_pairs.csv` output from the pipeline run listing every candidate pair with the matching criteria satisfied — require human sign-off before any pair is suppressed.
+- Use `vite-plugin-pwa` (or `workbox-build`'s `injectManifest` mode) wired as a Vite plugin in `eleventy.config.js` under `viteOptions.plugins`, not in `vite.config.ts`, so it runs in the Eleventy-driven Vite invocation where it can see the final hashed outputs.
+- Verify the precache manifest in the built `_site/app/sw.js` (after production build) references actual filenames present in `_site/assets/`. Add this as a build gate: `grep -o 'assets/[a-z-]*-[a-f0-9]*\.[a-z]*' _site/app/sw.js | while read f; do test -f "_site/$f" || echo "MISSING: $f"; done`.
+- Set `maximumFileSizeToCacheInBytes` to at least `30_000_000` (30 MB) in Workbox config — the default is 2 MB, and `occurrences.db` at ~23 MB will be silently excluded from the precache manifest, breaking offline with no build-time error in older Workbox versions (newer versions throw, but only if you notice).
 
 **Warning signs:**
-- Per-species counts in `species.json` drop more than the ~9% no-coordinate exclusion rate would predict.
-- A known collector's records in a known date range appear in Ecdysis but not in the map after checklist promotion.
-- `checklist_unmatched.csv` shows no unmatched records even for species that are checklist-only (every record found a dedup partner).
+- `_site/app/sw.js` contains `revision: null` for all entries (means no hash was injected — Vite hashes were not available).
+- DevTools Application → Cache Storage shows 404s during SW install.
+- SW install event fails; DevTools shows `FetchEvent#respondWith` errors.
 
 **Phase to address:**
-The phase that designs the dedup/provenance strategy. This decision should be made explicitly before any SQL is written. The phase requirement should state the accepted error direction and document the dedup key definition.
+SW scaffolding phase — the manifest injection pipeline must be verified with a production build before any offline testing begins.
 
 ---
 
-### Pitfall 3: Coordinate Quality — Datum Mismatch, Locality Centroids Presented as Precise Points, Off-WA Points
+### Pitfall 3: First Visit Does Not Get SW Benefits — Offline Does Not Work After One Visit
 
 **What goes wrong:**
-Museum records from 1812–1990 carry coordinates derived from historical georeferencing: county centroids, town centroids, or coordinates transformed from older datums (NAD27, Clark 1866) without re-projection to WGS84. These appear on the map as precise points but are actually imprecise centroids or shifted by up to 200m (NAD27→WGS84 in Washington State). In the worst case:
-- A county centroid for a rural WA county plots in a lake or off a road.
-- A NAD27 coordinate that was not re-projected looks geometrically valid but is offset.
-- Swapped lat/lon places a WA bee record somewhere in the ocean or in another continent.
-- Zero coordinates (0.0, 0.0) plot in the Gulf of Guinea and pass an `IS NOT NULL` check.
-- Records from Oregon or Idaho border areas appear in WA due to county centroid placement.
-
-The `occurrences.sql` spatial-join uses `ST_Within` with a nearest-neighbor fallback. A point outside all WA counties will get assigned to the nearest county via fallback — silently accepting the bad coordinate rather than flagging it.
-
-**How to avoid:**
-- Filter out coordinates where `lat = 0 AND lon = 0` as a separate guard before the NULL check.
-- Add a WA bounding box prefilter: `lat BETWEEN 45.5 AND 49.1 AND lon BETWEEN -124.8 AND -116.9` — records outside this box should be logged and dropped, not silently fallback-joined.
-- Surface a `coordinate_precision` metadata field on checklist records if the source provides it (e.g. "county centroid" vs "GPS"). Expose this in the sidebar detail card so users know to treat low-precision points as approximate.
-- Add a dbt test: count of checklist rows with `lat=0 OR lon=0 = 0`.
-- If datum information is available in the original CSV, run re-projection at ingest time and record the source datum in a column.
-
-**Warning signs:**
-- The map shows a cluster of checklist points at a location that is obviously wrong (lake center, state border, round-number coordinates like 47.0/-120.0 indicating a rough centroid).
-- More checklist points appear in coastal counties than the source data would predict for historically collected specimens.
-- County assignment for a checklist record differs from the county field in the source data.
-
-**Phase to address:**
-The phase that extracts the full-fidelity source CSV and ingests coordinates. Bounding box validation and zero-coordinate guard belong in the `checklist_pipeline.py` ingest step (Python), not in dbt, so invalid rows never enter the DB.
-
----
-
-### Pitfall 4: Mixed / Missing Date Parsing — Silent NULL Propagation into Year/Month Filters
-
-**What goes wrong:**
-The checklist has ~13% NULL dates and mixed formats (ISO `YYYY-MM-DD`, US `m/d/yyyy`, year-only `YYYY`, year-range `1989-1991`). The current `_load_checklist_records` uses `int(yr_str) if yr_str.isdigit()` — this correctly drops non-digit year strings to NULL but silently drops year-range entries (e.g. "1989-1991" is not isdigit). Pre-1900 dates (records going back to 1812) may have been flagged as out-of-range or rejected by some parsers. If NULL-date rows flow into `int_combined` and the year filter does a `year >= lower AND year <= upper` comparison, NULL rows pass the filter (SQL NULL comparison semantics), which means they appear on the map when a year filter is active that should exclude them.
+On first page load, the SW registration starts but the SW is not yet controlling the page — it is in the "installing" state. The SQLite DB fetch, GeoJSON fetches, and all asset fetches happen outside SW control. If the user immediately goes offline after the first visit without waiting for the SW to fully activate and cache, nothing is available offline. This is especially confusing because DevTools shows "Service Worker: Activated" but the cache may not yet contain `occurrences.db` (a ~23 MB fetch).
 
 **Why it happens:**
-The current year/month filter logic uses `year IS NULL OR (year >= ? AND year <= ?)` or similar — NULL rows pass through permissively. This was intentional for the county-fill checklist mart (unmatched species-county pairs with NULL year should appear when no year filter is active), but for point records with actual NULL dates from failed parsing, the same permissive NULL treatment will show them at wrong times.
+SW lifecycle: `register → install (precache) → waiting → activate → claim`. Even with `skipWaiting` + `clientsClaim`, the install phase must complete before the SW controls the current page's fetches. The install phase is blocked by precaching all listed assets including the 23 MB DB. On slow connections this can take tens of seconds. If the browser is closed mid-install, the SW is left in a broken partial state.
 
 **How to avoid:**
-- Log every date parse failure with the raw value so the failure mode is visible (not silently dropped to NULL).
-- Separate "genuinely undated record" (NULL in source) from "date parse failure" (non-NULL in source but could not be parsed) using a `date_quality` enum: `'dated'|'undated'|'parse_error'`.
-- Year-range entries should use the midpoint year, or better, produce two rows (start year and end year) — document the decision.
-- Pre-1900 dates are valid and should parse correctly; add a pytest parametrize test for `year=1812`.
-- The year/month filter SQL should treat `date_quality='parse_error'` rows as excluded from year-filtered views, not included.
+- Show an explicit "Caching for offline use..." progress indicator during the SW install phase, driven by the SW's install event messaging back to the page via `postMessage`. Do not tell users the app is ready offline until `navigator.serviceWorker.controller` is non-null AND the install phase has completed.
+- Consider NOT including `occurrences.db` in the precache manifest (which runs at install time). Instead use a lazy "background sync" strategy: after activation, trigger a runtime cache priming fetch from the SW's `activate` event. This decouples "app can render" from "DB is cached offline" — but the user still needs explicit feedback.
+- Gate the "Available offline" badge on a positive cache check: `caches.match('/data/occurrences.db')` resolved to a non-null response.
 
 **Warning signs:**
-- The `year` column in checklist records contains NULL for rows where the source plainly has a date string.
-- Specimen counts on species pages increase when a year filter is added (NULL rows passing through when they should not).
-- `year = 0` or implausible years (< 1800 or > current year) appearing in the mart.
+- Users report "it says offline capable but it didn't work the first time I tried."
+- The SW install event takes >30 seconds on a mobile connection.
+- `navigator.serviceWorker.controller` is null after the first page load completes.
 
 **Phase to address:**
-The phase that extracts and normalizes the full-fidelity source CSV. Date parsing and quality-flagging belong in the Python ingest step. The dbt mart can assert `date_quality IN ('dated', 'undated', 'parse_error')` and the downstream filter can use it.
+SW caching phase (when `occurrences.db` is added to the cache strategy). The UX feedback must ship in the same phase.
 
 ---
 
-### Pitfall 5: Contract Drift — Reverting a Locked Decision Breaks the dbt 33-Column Contract and Double-Counts Species Pages
+### Pitfall 4: iOS Safari Evicts the 23 MB Cached DB Under Storage Pressure or After Inactivity
 
 **What goes wrong:**
-Adding `source='checklist'` rows to `int_combined` and therefore to `occurrences.parquet` changes every downstream consumer that assumes the 33-column contract. The current contract (Phase 131) includes `source`, but that column currently only carries `'ecdysis'`, `'waba_sample'`, or `'inat_obs'`. Adding `'checklist'` is additive to the discriminator but:
-1. Species page per-source counts in `species.json` must be updated to include a `checklist_count` field.
-2. The isolation pytest that currently asserts `occurrences.parquet row count unchanged` when checklist.sql is built will now fail — that test was the guard for the Phase 111 locked decision and must be explicitly retired or updated.
-3. The `geo_blob` layout in `sqlite_export.py` is derived from `occurrences.parquet` schema at runtime — if any checklist-specific column is added (e.g. `locality`, `coordinate_precision`), `geo_blob` must be updated or it will silently drop the new column.
-4. `checklist.parquet` remains for the county-fill layer. If checklist rows are now also in `occurrences.parquet`, the county-fill layer will double-count species in the seasonality histogram (one count from the point layer, one from the county-fill layer).
+Safari/WebKit evicts origin data as a whole unit ("origin eviction") under two conditions: (1) disk storage pressure, and (2) site inactivity — the site is not visited for a period calibrated to available disk space (the old "7 days" rule from ITP; the exact threshold is not published and is hardware-dependent). When eviction happens, the entire Cache Storage for the origin is deleted, including `occurrences.db`. The next offline cold start returns the app shell from cache but then fails to load the DB — the user sees the map render with no occurrence data and no explanation.
+
+Key facts from WebKit's official storage policy post (Safari 17.0+):
+- Standalone home screen apps share the same quota as Safari browser (no bonus quota for installed PWAs, contrary to older expectations).
+- `navigator.storage.persist()` is supported since Safari 17 but returns `true` only if the site has been added to the home screen and notification permission has been granted — a high bar. For non-notification PWAs it almost certainly returns `false`.
+- iOS 16 and below: `navigator.storage.persist()` returns `false` always. No persistent storage API available.
+- Clearing Safari browsing history deletes PWA storage on iOS (all versions).
+
+**Why it happens:**
+Field collectors may go weeks between expeditions. A volunteer who used the app in May, then returns in July, will have lost the cache. Worse, if they are already in the field when they discover this, there is no recovery path (no wifi to re-prime).
 
 **How to avoid:**
-- Explicitly retire the Phase 111 isolation test with a comment explaining that the locked decision is being reversed in v4.7 and why (the stated rationale was wrong).
-- Add a test that asserts `occurrences.parquet` contains rows where `source='checklist'` after the promotion, replacing the old exclusion assertion.
-- Update `species.json` export and species page templates to show `checklist_count` separately from `ecdysis_count`.
-- The seasonality histogram and the county-fill layer must source from different data — either the county-fill layer reads `checklist.parquet` (unchanged) and the point layer reads the new `occurrences.parquet` checklist rows, or the county-fill layer filters to records with no coordinates.
-- Run the full dbt column-count assertion after the change.
+- Call `navigator.storage.persist()` at first launch after install; log but do not rely on its result on iOS.
+- Display the cache freshness date prominently ("occurrences cached as of May 3"). This sets expectations.
+- Implement a "re-prime" prompt: if the app detects it has an active network connection on load, silently re-check whether `occurrences.db` is in cache and re-fetch if missing or stale. Do not wait for the user to notice the absence.
+- Document in the dogfood guide that collectors must open the app at least once in the days before a field trip to validate the cache.
+- Consider a lightweight "db heartbeat" entry in a separate small cache (e.g., a 1-byte sentinel file written when the DB was last confirmed present) with a different eviction behavior — this allows detecting eviction early.
 
 **Warning signs:**
-- The Phase 111 isolation pytest passes when it should fail (test was not updated to match new expectation).
-- Species pages show counts higher than expected for checklist-only species (double-counting from both layers).
-- `geo_blob` table in `occurrences.db` is missing columns that are in `occurrences.parquet`.
-- The 33-column assertion in `test_dbt_diff.py` fails if column count changes.
+- `caches.match(occurrencesDbUrl)` returns `undefined` in the SW despite prior successful prime.
+- The map renders its basemap (Mapbox GL) but shows zero occurrence dots after a long gap.
+- `navigator.storage.estimate()` shows `usage < 1MB` for the origin when it should be ~30 MB.
 
 **Phase to address:**
-The phase that adds `source='checklist'` ARM to `int_combined`. This is the architectural inflection point; all downstream contract updates must be included in scope, not deferred.
+Large binary caching phase. The re-prime-on-reconnect logic and the staleness/cache-missing UX must ship together.
 
 ---
 
-### Pitfall 6: Build-Time External Authority Calls — Nondeterministic Builds and Rate Limits on the Nightly Host
+### Pitfall 5: Mapbox Tile Runtime-Caching is TOS-Sensitive and Has Active Technical Gotchas
 
-**What goes wrong:**
-ITIS and GBIF are consulted at pipeline build time. The nightly cron on maderas runs `data/nightly.sh`, which calls `uv run python run.py`. If ITIS/GBIF calls are made inside `run.py` steps (not cached), then:
-1. A network failure on maderas causes the pipeline to fail partway through, leaving `beeatlas.duckdb` in a partially-updated state.
-2. ITIS returns different results on different nights (taxonomy changes, API updates) — the same name resolves to a different TSN, producing a nondeterministic build. This breaks the git-committable audit CSV.
-3. GBIF rate limits (100 req/sec unauthenticated) are irrelevant for 50K records if batched, but are a failure mode if queries are issued individually per row.
-4. GBIF data redistribution: the GBIF backbone is CC BY 4.0. Using it as a build-time adjudicator is fine for data pipeline use, but GBIF taxonomic opinions should not be treated as authoritative for scientific publication without citation.
+**What goes wrong — TOS risk:**
+Mapbox's Terms of Service and Product Terms (April 2025 version) do not document offline tile caching for web apps using GL JS — the documented offline feature is SDK-only (iOS/Android). The GL JS library itself has an internal tile cache (bounded, in-memory), but there is no official "cache tiles to Cache Storage via SW" feature for GL JS. Runtime-caching Mapbox tiles via a service worker is at best an undocumented gray area, at worst a TOS violation depending on how "store" and "redistribute" are interpreted.
+
+The team has accepted this risk for self-test use under the explicit note: "TOS-sensitive, self-test only; revisit terms before public rollout." Before any public flip of the dogfood route to general users, the following must be verified:
+1. Does the Mapbox subscription plan allow offline use? (Web GL JS plans are MAU-based; offline tile packs are a separate Android/iOS feature.)
+2. Does the active token have restrictions that would cause cached tile responses to return 403 on replay?
+3. Has Mapbox support confirmed the use case in writing?
+
+**What goes wrong — technical:**
+Mapbox tile URLs include the access token as a query parameter (`?access_token=pk.eyJ1...`). Service worker cache keys are URL strings by default, including query params. This causes two problems:
+1. Cache keys include the token — a token rotation (even a minor credential refresh) invalidates the entire tile cache. All cached tiles return misses, the user is offline, and they get a blank map.
+2. Mapbox's own internal tile request cache strips the token for lookup (confirmed in issue #8859 discussion and the GL JS source), but a Workbox `registerRoute` for `api.mapbox.com` will use the full URL including token as the cache key. A stale 403 response (from a prior token expiry) can itself be cached and served offline, producing a permanent blank map.
 
 **How to avoid:**
-- Call ITIS/GBIF exactly once per name (not per row) and cache results in a committed `checklist_name_resolution_audit.csv`. On subsequent runs, read from the cache; only query for names not already in the cache.
-- Make the external call a one-time seeding step that is run manually, not as part of the nightly cron. The nightly cron should only read from the committed cache, never hit the network for taxonomy.
-- Use the iNat `taxa.csv.gz` (already in the pipeline, already cached) as the primary authority since `taxon_id` is the iNat taxon_id throughout the system. ITIS/GBIF should only be a secondary adjudicator for names that fail the iNat bridge.
-- Add an `--offline` flag to any taxonomy resolution step so the nightly run never makes external calls.
+- In the Workbox route handler for Mapbox tiles, use a custom cache key function that strips `access_token` from the URL before lookup and storage: `new URL(request.url); url.searchParams.delete('access_token'); return url.toString()`.
+- Set a TTL on the tile runtime cache (e.g., `maxAgeSeconds: 60 * 60 * 24 * 7` — 7 days) and a max entry count (e.g., `maxEntries: 500`) to prevent unbounded growth and stale 403s.
+- Never cache non-2xx tile responses. Use Workbox's `cacheableResponse` plugin with `{ statuses: [200] }` on the tile route.
+- For the dogfood phase: scope tile caching behind a feature flag (`localStorage.getItem('beta_tile_cache') === '1'`) so it can be toggled without a deployment.
+- Add a comment in the SW source that flags this as "self-test only — see PROJECT.md v5.0 TOS note" to prevent the flag from being quietly enabled in a future PR without the TOS review.
 
 **Warning signs:**
-- The nightly pipeline log shows HTTP calls to `www.itis.gov` or `api.gbif.org`.
-- Two consecutive nightly runs produce different `checklist_name_resolution_audit.csv` content for the same input name.
-- Pipeline failure mid-run leaves `checklist_data.checklist_records` populated but `int_combined` not rebuilt.
+- Mapbox tiles in DevTools show `(from ServiceWorker)` after going offline — this is expected/intended, but verify it only happens on the `/app` route.
+- Any tile returns a cached 403 — this means a failed response was stored. Clear the tile cache immediately.
+- `caches.open('mapbox-tiles')` size exceeds 200 MB — unbounded growth; the eviction limit was not set.
 
 **Phase to address:**
-The phase that designs the taxonomy resolution approach. The decision to use iNat `taxa.csv.gz` as primary (already offline) and ITIS/GBIF only as a one-time manual seeding step should be made before any code is written.
+Tile caching phase. TOS review must be a hard gate before any public-facing deployment of tile caching.
 
 ---
 
-### Pitfall 7: Homonyms Across Kingdoms / Subgenera in the Name Bridge
+### Pitfall 6: Large Binary Caching Fails Silently Mid-Download — Partial `occurrences.db` in Cache
 
 **What goes wrong:**
-The existing `stg_inat__genus_taxon_ids` guards genus homonyms with `HAVING COUNT(*) = 1` (Phase 128 — disambiguates Stelis-the-bee from Stelis-the-orchid). But species-level homonyms also exist in bee taxonomy — the same epithet under the same genus used in different subgenera by different authors, or a valid bee species name that is also a valid plant species name. The current `stg_inat__canonical_to_taxon_id` bridge does a direct JOIN on lowercase binomial; if the taxa.csv.gz contains two rows with identical lowercase binomials (different taxon_id, different kingdom), the JOIN fans out and produces two taxon_id values per occurrence.
+`cache.put(request, response)` for a 23 MB response can fail mid-stream if the device runs low on storage during the write. The Cache Storage API throws `QuotaExceededError` at the point of the `put()` call. If the error is not caught, the SW install event rejects and the SW enters a broken state. Worse, if the error IS caught but the partial response was already partially written, the cache entry may exist but be corrupt — `caches.match()` returns a response but `response.arrayBuffer()` fails or returns truncated data.
 
-Additionally: checklist names written with subgenus (e.g. `Lasioglossum (Dialictus) zonulum`) are stripped to `lasioglossum zonulum` by `normalize_scientific_name()`. This is correct for the bridge, but if there is also a `Lasioglossum (Lasioglossum) zonulum` with the same binomial, the bridge cannot distinguish them from the canonical_name alone.
+**Why it happens:**
+iOS Safari quota for non-persistent origins is allocated on demand. On a device near capacity, a 23 MB single-origin write may be partially allowed before quota is exceeded. The Cache Storage spec does not guarantee atomicity for `put()` on large responses.
 
 **How to avoid:**
-- Add a test: `SELECT canonical_name, COUNT(DISTINCT taxon_id) FROM stg_inat__canonical_to_taxon_id WHERE is_anthophila = TRUE GROUP BY canonical_name HAVING COUNT(*) > 1` — assert zero rows.
-- For names that do fan out, require the resolution to be explicit in `checklist_synonyms.csv` with the target `taxon_id`, not just the accepted name string.
-- For the specific case of subgenus-bearing names, strip the subgenus paren at ingest (already done by `normalize_scientific_name`) but log the original form so it is recoverable.
+- Wrap the `occurrences.db` cache write in a try/catch that, on QuotaExceededError, (a) deletes any partial entry via `cache.delete(url)`, (b) posts a message to the client indicating "insufficient storage — cannot cache offline."
+- After a successful `put()`, verify integrity by fetching back the cached entry and checking `response.headers.get('content-length')` against the expected size. If the project embeds a SHA-256 of the DB in `manifest.json`, verify it.
+- Use a two-key approach: write a small sentinel (`occurrences.db.cached`) only after the main file is verified. Check for the sentinel, not the file, to determine cache readiness. This makes partial-write detection explicit.
+- Add `Content-Length` to the CloudFront response for `occurrences.db` so SW can validate size.
 
 **Warning signs:**
-- A species occurrence count is double the expected value for a specific checklist name.
-- A checklist species resolves to a taxon page for a plant or non-bee insect.
-- The taxon hierarchy zero-orphan assertion fires on checklist records.
+- Cache Storage shows `occurrences.db` present but the map shows no occurrences.
+- The SW install event takes its expected time but tablesReady never fires.
+- `navigator.storage.estimate()` shows `quota` very close to `usage` on the device.
 
 **Phase to address:**
-The phase that builds the species-level name bridge for checklist records. The homonym test should be a required passing dbt test before any checklist rows enter `int_combined`.
+Large binary caching phase, same phase as Pitfall 4.
 
 ---
 
-### Pitfall 8: The `checklist_unmatched.csv` Reconcile Path Lags the dbt Synonym Path
+### Pitfall 7: skipWaiting + clientsClaim Causes Version Skew Between App Code and `occurrences.db`
 
 **What goes wrong:**
-The existing pipeline has two synonym resolution systems that can drift:
-1. `data/dbt/seeds/occurrence_synonyms.csv` + `int_synonyms.sql` — the dbt-side synonym JOIN applied to Ecdysis and iNat arms of `int_combined`.
-2. `data/checklist_synonyms.csv` + `checklist_pipeline.py::reconcile()` — the Python-side `UPDATE checklist_data.species SET canonical_name = ?` applied before dbt runs.
+`skipWaiting()` + `clients.claim()` is the standard "auto-update" pattern: the new SW activates immediately without waiting for all tabs to close. With a complex app that has lazy-loaded modules, the new SW may serve new hashed JS chunks that the old page shell cannot parse, causing runtime errors. Specifically in this stack: the `sqlite-worker.ts` is a separate Workbox entry with its own hash. If the SW updates and serves a new `sqlite-worker-NEWHASH.js` but the in-memory page still holds a reference to the old `sqlite-worker.ts` URL (in `new Worker(new URL('./sqlite-worker.ts', import.meta.url))`), the Worker creation will fail with a 404 or serve a cached old version of the worker against a new DB schema.
 
-If a synonym is added to `occurrence_synonyms.csv` but not to `checklist_synonyms.csv`, the same species will have its Ecdysis occurrences merged under the accepted name while the checklist records remain under the old name — they appear as separate entries on species pages and in taxon filtering. The PROJECT.md v4.7 context note confirms this: "the checklist_unmatched.csv reconcile path lags the dbt one."
-
-Note that `stg_checklist__species.sql` already JOINs `int_synonyms` — so the dbt synonym path does apply to checklist species. The risk is the Python-side `reconcile()` UPDATE running before dbt, potentially overwriting the dbt synonym path with a different mapping from `checklist_synonyms.csv`.
+Additionally: the nightly pipeline produces a new `occurrences.db` every night with a new hash (manifested in `manifest.json`). The SW app-shell cache and the data cache can diverge: the SW may serve an old `index-OLDHASH.js` that expects 33 columns from the DB, against a newly-fetched `occurrences.db` that has 37 columns (or vice versa). This "code-data version skew" is a latent risk even without `skipWaiting`.
 
 **How to avoid:**
-- Consolidate to a single synonym source. The `occurrence_synonyms.csv` dbt seed is the canonical list (already applies to Ecdysis + iNat arms and to checklist via `stg_checklist__species`). The Python-side `reconcile()` UPDATE should be removed or replaced with a validation step that checks `checklist_synonyms.csv` agrees with `occurrence_synonyms.csv`.
-- At minimum: add a post-run assertion that every entry in `checklist_synonyms.csv` also appears in `occurrence_synonyms.csv` (same synonym, same accepted name). If they diverge, the build should warn.
+- Do NOT use `skipWaiting()` + `clients.claim()` for the SQLite app. Instead, use the "prompt to reload" update pattern: when a new SW is waiting, show a banner: "A data update is available — tap to reload." This ensures the old page and old DB schema are always retired atomically.
+- Alternatively (and simpler for a self-test dogfood): use `skipWaiting()` but set the SW to do a full cache wipe on activate, not incremental cache update. This forces a hard reload of all assets on any update.
+- Store a `data_version` key in the SW precache manifest (derived from `manifest.json`'s `generated_at`). On SW activate, compare old and new `data_version`. If they differ, delete the `occurrences.db` cache entry — this forces a fresh DB fetch after app update.
+- For the dogfood phase, an explicit "force update" button in the app that calls `caches.delete()` + `registration.update()` + `location.reload()` is a reliable escape hatch.
 
 **Warning signs:**
-- A species appears twice in the species index — once with its old name and once with its accepted name — when a synonym is active.
-- `checklist_unmatched.csv` contains names that are already in `occurrence_synonyms.csv` as synonyms.
-- The `texanus→subtilior` resolution applies to Ecdysis records but checklist records for the same species still appear under `agapostemon texanus`.
+- Console shows `TypeError: Failed to fetch` on `sqlite-worker-OLDHASH.js` after a deployment.
+- `tablesReady` never resolves after app update.
+- The occurrence count shown in the UI does not match the pipeline generation date visible in the freshness indicator.
 
 **Phase to address:**
-The phase that integrates checklist records into `int_combined`. The synonym unification audit should be a required deliverable of that phase.
+SW update lifecycle phase — must be decided before app cache + data cache strategies are finalized.
 
 ---
 
@@ -221,10 +192,13 @@ The phase that integrates checklist records into `int_combined`. The synonym uni
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| One-time manual ITIS/GBIF seeding, result committed to CSV | Avoids build-time network dependency | Taxonomy updates require manual refresh; curator burden | Acceptable indefinitely for museum records; taxonomy changes slowly |
-| Defaulting to no-dedup (accept double-counting) | Avoids false merges; simpler | Some specimens counted twice; inflated per-species totals | Acceptable as v4.7 initial approach with a `dedup_status='unreviewed'` column for future passes |
-| `coordinate_precision` flag rather than full georeferencing audit | Ships faster | Low-precision centroids appear as points; misleads users about data quality | Only acceptable if the flag is surfaced in the UI (sidebar card detail) |
-| Using iNat `taxa.csv.gz` as sole external authority | Already in pipeline, offline, no rate limits | iNat taxonomy ≠ ITIS/GBIF; some names may not resolve | Acceptable; iNat is the taxon_id source throughout the system |
+| Register SW at `/` (global scope) | Simpler path, no SW-Allowed header needed | Contaminates main map route; hard to remove cleanly | Never — always scope to `/app/` |
+| `skipWaiting` + `clientsClaim` | App updates silently | Code-data version skew; broken Worker URLs mid-session | Only if all assets + data are version-locked atomically |
+| Cache ALL tiles (no TTL, no entry limit) | More tiles available offline | Unbounded disk growth; stale 403s; TOS exposure | Never — always set TTL + maxEntries |
+| Ship tile caching without feature flag | One less code path | Cannot disable without a deployment if TOS issues arise | Never during dogfood |
+| Skip `navigator.storage.persist()` call | Less code | No chance of preventing iOS eviction | Never — call it, even if result is usually false on iOS |
+| Put `occurrences.db` in precache manifest | Simpler SW code | Blocks SW install for 30+ seconds; install fails on quota exceeded | Only if precache error handling + progress UI are present |
+| Naive degree arithmetic for "near me" | Fast to implement | Up to 30% distance error at WA latitude (47°N) — see Pitfall 11 | Only for a coarse pre-filter, never as the display value |
 
 ---
 
@@ -232,10 +206,11 @@ The phase that integrates checklist records into `int_combined`. The synonym uni
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| ITIS API | Querying per-row at nightly build time | One-time seed run; cache in committed CSV; nightly reads from cache |
-| GBIF species match API | Using fuzzy match (`matchType=FUZZY`) and accepting all results | Require `matchType=EXACT` and `status=ACCEPTED`; flag `SYNONYM` and `DOUBTFUL` for human review |
-| iNat `taxa.csv.gz` (already present) | Re-downloading on every run | Already cached with ETag (TAX-01); use the existing `stg_inat__canonical_to_taxon_id` bridge |
-| DuckDB `ST_Point(lon, lat)` | Swapping lat/lon order | DuckDB and WKT convention is `ST_Point(x, y)` = `ST_Point(lon, lat)` — already correct in `occurrences.sql`; verify checklist coordinates match this convention |
+| Eleventy+Vite plugin | Running SW manifest injection in `vite.config.ts` instead of under `viteOptions.plugins` in `eleventy.config.js` | Wire `vite-plugin-pwa` into `eleventyConfig.addPlugin(EleventyVitePlugin, { viteOptions: { plugins: [...] } })` |
+| wa-sqlite + SW | Trying to use OPFS (Origin Private File System) VFS — requires `SharedArrayBuffer` + COOP/COEP headers | Stay with `MemoryVFS` (current approach) fed by a `cache.match()` response; OPFS is out of scope for static-only hosting |
+| Mapbox GeolocateControl | Forgetting that the control fires `geolocate` events even when trackUserLocation is false; binding the proximity query to every geolocate event causes redundant DB scans | Debounce the "occurrences near me" query; run it only on explicit user tap, not on every GPS update |
+| CloudFront + SW | CloudFront serves `sw.js` with a long `Cache-Control: max-age` (matching other static assets) | SW script itself must be served with `Cache-Control: no-store` or `max-age=0`. The browser enforces a max 24h check interval for SW scripts, but serving it with a long max-age can delay updates. Set a separate CloudFront behavior for `*/sw.js` with `Cache-Control: no-cache, no-store`. |
+| Manifest + SW version | `manifest.json` (data version) is fetched at runtime by the page but the SW may serve a stale cached `manifest.json` from the app-shell cache | Cache `manifest.json` with a `network-first` strategy, not `cache-first`. Data freshness depends on always getting the latest manifest. |
 
 ---
 
@@ -243,23 +218,45 @@ The phase that integrates checklist records into `int_combined`. The synonym uni
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Adding 50K checklist rows to `int_combined` (currently ~95K rows) increases table by ~53% | `dbt build` time increases; `occurrences.db` size grows | `int_combined` is already `materialized='table'` — this is the correct guard | Acceptable at this scale; revisit if > 500K rows |
-| Spatial join for 50K new checklist points in `occurrences.sql` | `dbt build` slow; nightly overruns cron window | `int_combined` materialization prevents re-evaluation; spatial joins are already batched via CTEs | Should remain within nightly budget; benchmark before shipping |
-| `geo_blob` pre-serialization in `sqlite_export.py` grows with new rows | `occurrences.db` file grows; CloudFront transfer increases | Already 7-field layout (Phase 131); checklist rows with NULL locality can omit optional fields | Monitor `occurrences.db` size post-promotion against the current 22.9 MB baseline |
+| Full-table haversine on every "near me" query | `tablesReady` already fired but UI freezes for 2-3 seconds when "near me" is toggled | Add a bounding-box pre-filter: `lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?` (±0.5°) before the haversine, exploiting SQLite's row scan with a cheap compare before the trig | At any table size; wa-sqlite WASM has higher per-row overhead than native SQLite |
+| Tile cache growth without limits | Cache Storage grows to 500 MB+; iOS evicts the entire origin (including `occurrences.db`) | Set Workbox `maxEntries: 300, maxAgeSeconds: 86400 * 7` on the tile route | After ~200 map tiles are cached (can happen in one session of panning) |
+| `watchPosition` left active when app is backgrounded | Battery drain on iOS; GPS continues running; users complain of heat / battery death | Use `clearWatch()` on page `visibilitychange` → hidden; restore on visible | Always — iOS does not throttle `watchPosition` in standalone mode |
+| Re-fetching `occurrences.db` every SW activation | 23 MB network hit on every app update, even minor code changes | Only re-fetch DB if `manifest.json`'s `generated_at` is newer than the cached DB's stored timestamp | Every deployment if the re-fetch is unconditional |
+
+---
+
+## Security Mistakes
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Caching authenticated API responses in tile route | A cached 403 or expired token response served to next user session causes permanent blank map; SW-cached credentials could leak between sessions if origin is shared | Use `{ statuses: [200] }` cacheableResponse plugin; never cache non-2xx responses; strip `access_token` from cache key |
+| Serving `sw.js` with long CloudFront TTL | SW update is delayed up to 24h (browser max) or longer (CloudFront CDN TTL) if `Cache-Control: max-age=31536000` is inherited from the wildcard S3 policy | Add a dedicated CloudFront cache behavior: `Path: */sw.js`, `Cache-Control: no-cache, no-store` |
+| `Service-Worker-Allowed: /` header on all responses | Overly broad; any SW placed anywhere could claim root scope | Set `Service-Worker-Allowed: /` only on the `/app/sw.js` response, not as a global header |
+
+---
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| No visible "offline ready" status | User drives to field, opens app, gets spinner + no data — no way to know it was never cached | Show a persistent "Last cached: [date]" badge in the app header; show "Not cached — open on wifi to prime" if DB is absent |
+| Geolocation permission dialog fires before user understands why | User dismisses it; permission is permanently denied on iOS (must go to Settings to re-enable) | Show an explanation modal first: "BeeAtlas wants to show your location to help find nearby occurrences. Tap Allow when prompted." |
+| iOS geolocation alert targets the Safari app, not the standalone PWA | The permission dialog appears to do nothing in standalone mode on some iOS versions | Test specifically in standalone mode; if the alert fails, fall back to `display: browser` or show a manual "open in Safari to grant location" message |
+| Blank tile areas when offline (for tiles not yet cached) | User pans to an area never visited online; tiles are blank; no explanation | Add an overlay: "Map tiles for this area weren't cached. Navigate back to a previously visited area." Use a `fetchfailed` SW event or the GL JS `data` event with `source.type === 'tile'` to detect blank-tile conditions |
+| "Occurrences near me" returns 0 results with no explanation | User is in WA but gets 0 results; the distance threshold is too small or the permission was denied | Show the distance radius on the map as a circle; show why 0 results (permission denied vs. nothing within radius vs. filter active) |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Taxonomy resolution:** `checklist_name_resolution_audit.csv` committed to repo with source authority, confidence, and match type for every non-exact resolution — verify git contains this file before merging.
-- [ ] **Dedup decision:** A written decision in the phase REQUIREMENTS.md stating the accepted error direction (false merge vs false split) and the exact dedup key definition — verify this exists, not just implied by code.
-- [ ] **Coordinate validation:** dbt test asserts zero rows with `lat=0 OR lon=0`, and zero rows outside WA bounding box — verify tests pass.
-- [ ] **Contract update:** Phase 111 isolation pytest explicitly retired with a comment; new assertion added for `source='checklist'` in `occurrences.parquet` — verify the old test is gone, not just skipped.
-- [ ] **Synonym unification:** `checklist_synonyms.csv` content agrees with `occurrence_synonyms.csv`; no divergent mappings — verify with a post-run diff.
-- [ ] **Double-count audit:** County-fill layer still reads from `checklist.parquet` (or coord-null subset); point layer reads from `occurrences.parquet` checklist rows — verify species page counts equal point-layer count, not point + county-fill combined.
-- [ ] **Per-source counts:** `species.json` includes `checklist_count` as a distinct field; species page Nunjucks template renders it — verify on a checklist-only species page.
-- [ ] **Build-time network calls:** Nightly log does not contain HTTP calls to `itis.gov` or `gbif.org` — verify after first cron run post-deploy.
-- [ ] **Pre-1900 dates:** pytest parametrize test for year=1812 parsing — verify test exists and passes.
+- [ ] **Offline DB caching:** SW installs and caches `occurrences.db` — verify the cache entry exists AND has the correct byte size after a production build + cold prime (not just in dev mode).
+- [ ] **SW scope isolation:** Main route (`/`) is NOT controlled by any SW — verify via DevTools Application → Service Workers with the main route URL loaded.
+- [ ] **iOS standalone test:** Geolocation permission prompt fires correctly when app is opened from home screen icon (not Safari tab) on a real iOS device.
+- [ ] **Tile cache TOS flag:** The `beta_tile_cache` feature flag exists and defaults to `false`; it is not set to `true` in any committed code path reachable from the public route.
+- [ ] **Version skew gate:** After a nightly pipeline run that changes `manifest.json`, the app shell serves the new `occurrences.db`, not the old one — verify by checking `generated_at` in the freshness indicator against the pipeline's actual run time.
+- [ ] **SW unregister path:** A documented procedure (or automated script) exists to unregister the SW and clear caches at `/app/` — needed if the experiment is retired.
+- [ ] **`occurrences.db` cache integrity:** After prime on a throttled (3G) connection, verify the cached DB returns the correct row count (e.g., `SELECT COUNT(*) FROM occurrences` in the sw-worker).
+- [ ] **CloudFront `sw.js` no-cache behavior:** Verify `curl -I https://beeatlas.net/app/sw.js` returns `Cache-Control: no-cache` (not `max-age=31536000`).
 
 ---
 
@@ -267,11 +264,12 @@ The phase that integrates checklist records into `int_combined`. The synonym uni
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Taxonomic over-match discovered post-ship | HIGH | Identify wrong taxon_id assignments in audit CSV; add corrected entries to `checklist_synonyms.csv`; re-run pipeline; re-deploy |
-| False dedup merge discovered | MEDIUM | Remove the dedup rule that caused the merge; re-run pipeline; both records reappear |
-| Contract drift (33-col broken) | MEDIUM | Identify added/removed column; update `sqlite_export.py` schema derivation (already dynamic); update species.json export; re-run |
-| Build-time network failure mid-run | LOW | nightly.sh exits non-zero; DuckDB state is stale; next nightly re-runs from scratch via `CREATE OR REPLACE TABLE` pattern already in checklist_pipeline.py |
-| Double-counting on species pages | LOW | Fix the data source for the county-fill layer; re-run pipeline; re-deploy |
+| SW scope bleed onto main `/` | MEDIUM | Deploy a new SW at `/app/sw.js` scope that unregisters any root-scoped SW via `self.registration.unregister()` in its activate event; then remove old root SW from build |
+| Partial/corrupt `occurrences.db` in cache | LOW | Force SW update cycle: bump SW version string, activate clears cache, re-prime on next load |
+| Stale cached 403 Mapbox tile | LOW | Clear tile cache: `caches.delete('mapbox-tiles')` from the app + SW update |
+| iOS evicted `occurrences.db` | LOW (for individual user) | Reconnect to wifi and open app — re-prime is automatic if re-prime-on-reconnect is implemented |
+| Code-data version skew (app sees wrong column schema) | MEDIUM | "Force update" button triggers `caches.clear()` + `location.reload()` — user must be on wifi |
+| Mapbox TOS enforcement action | HIGH | Remove tile caching feature flag entirely; deploy without `beta_tile_cache`; audit what was cached and for how many users |
 
 ---
 
@@ -279,25 +277,39 @@ The phase that integrates checklist records into `int_combined`. The synonym uni
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Taxonomic over-matching | Phase: name bridge + ITIS/GBIF seeding | Audit CSV committed; dbt test no-duplicate-taxon_id-from-distinct-names passes |
-| False dedup merge | Phase: dedup strategy design | Written decision in REQUIREMENTS.md; no per-species count drop unexplained by coord exclusion |
-| Coordinate quality | Phase: full-fidelity CSV ingest | dbt test zero-coord rows = 0; bounding-box filter in Python ingest; pytest for WA bbox guard |
-| Date parsing | Phase: full-fidelity CSV ingest | pytest parametrize covering ISO/US/year-only/range/pre-1900/NULL formats; `date_quality` column present |
-| Contract drift + double-counting | Phase: `int_combined` ARM addition | Phase 111 test retired; new assertion added; species page counts verified per-source |
-| External authority nondeterminism | Phase: taxonomy resolution design | `--offline` mode tested; nightly log clean of external HTTP calls |
-| Homonym false merge | Phase: name bridge | dbt test zero multi-taxon_id canonical names within Anthophila |
-| Synonym path divergence | Phase: `int_combined` ARM addition | Diff between `checklist_synonyms.csv` and `occurrence_synonyms.csv` = empty |
+| SW scope bleeds onto `/` (Pitfall 1) | SW scaffolding — scope decision | DevTools confirms no SW on `/`; `Service-Worker-Allowed` header confirmed on `/app/sw.js` |
+| Hashed asset precache manifest stale (Pitfall 2) | SW scaffolding — build pipeline integration | Post-build script checks every precache URL exists in `_site/` |
+| First visit offline cold-start (Pitfall 3) | SW caching + UX — progress indicator | Manual test: prime on wifi, kill wifi, force-reload; verify DB loads |
+| iOS eviction of `occurrences.db` (Pitfall 4) | Large binary caching + re-prime on reconnect | `navigator.storage.persist()` call present; re-prime logic present; UX shows cache date |
+| Mapbox tile caching TOS + token 403 (Pitfall 5) | Tile caching phase — behind feature flag | TOS review is explicit phase gate; feature flag defaults to false; token-strip cache key in SW |
+| Partial DB write / QuotaExceededError (Pitfall 6) | Large binary caching | Error handling test: simulate quota exceeded; verify sentinel key absent; UI shows error |
+| skipWaiting version skew (Pitfall 7) | SW update lifecycle decision — prompt-to-reload | Test: deploy new build while `/app` is open; verify old session does not break |
+| Unbounded tile cache growth (Performance Traps) | Tile caching phase | `navigator.storage.estimate()` checked in integration test |
+| Geolocation permission on iOS standalone (UX Pitfalls) | Geolocation + GeolocateControl phase | Manual test on real iOS device in home screen standalone mode |
+| Proximity query performance (Performance Traps) | "Occurrences near me" phase | Benchmark: `near me` query must return in <200ms on full ~92k occurrence table |
 
 ---
 
 ## Sources
 
-- This codebase: `data/checklist_pipeline.py`, `data/dbt/models/marts/checklist.sql`, `data/dbt/models/intermediate/int_combined.sql`, `data/dbt/models/staging/stg_checklist__species.sql`, `data/dbt/models/marts/occurrences.sql`
-- Project history: `.planning/PROJECT.md` Key Decisions table (Phase 111, Phase 128, Phase 131)
-- Known issues documented in PROJECT.md: "the checklist_unmatched.csv reconcile path lags the dbt one" (v4.7 context note); TID-02 re-scoping lesson; Phase 133 default-tree-broken-by-display-none gap (source-grep tests can pass while features are broken)
-- GBIF Species Matching API: confidence scoring, matchType semantics (gbif.org/developer/species)
-- ITIS API: TSN-based lookups, name change tracking (itis.gov/ws_description.html)
+- WebKit official storage policy: https://webkit.org/blog/14403/updates-to-storage-policy/
+- Mapbox GL JS issue #8859 (SW + 403 tile caching): https://github.com/mapbox/mapbox-gl-js/issues/8859
+- Mapbox GL JS issue #12965 (cache keys too large): https://github.com/mapbox/mapbox-gl-js/issues/12965
+- Mapbox API caching docs: https://docs.mapbox.com/help/troubleshooting/api-caching/
+- Mapbox offline maps (mobile only): https://docs.mapbox.com/help/dive-deeper/mobile-offline/
+- Mapbox Product Terms (April 2025): https://cdn.prod.website-files.com/609ed46055e27a02ffc0749b/67fd8d3325f4dfaf2f5145ef_Mapbox%20Product%20Terms%20(2025-04-14).pdf
+- Vite PWA plugin FAQ: https://vite-pwa-org.netlify.app/guide/faq
+- Vite PWA precache guide: https://vite-pwa-org.netlify.app/guide/service-worker-precache
+- web.dev SW lifecycle: https://web.dev/articles/service-worker-lifecycle
+- Chrome for Developers — Handling SW updates with Workbox: https://developer.chrome.com/docs/workbox/handling-service-worker-updates
+- iOS Safari storage limitations guide: https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide
+- iOS geolocation in standalone mode: https://blog.poespas.me/posts/2025/03/01/handling-geolocation-for-pwa-safari-challenges/
+- Apple Developer Forums — location alert in standalone PWA: https://developer.apple.com/forums/thread/694999
+- MDN ServiceWorkerContainer.register() — scope: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register
+- `navigator.storage.persist()` on iOS: https://medium.com/@firt/there-is-no-persistent-storage-api-on-ios-and-you-dont-have-control-of-that-unfortunately-because-361adb5e9dc0
+- Haversine SQL — bounding box optimization: https://www.plumislandmedia.net/mysql/haversine-mysql-nearest-loc/
+- wa-sqlite discussion — OPFS/MemoryVFS: https://github.com/rhashimoto/wa-sqlite/discussions/221
 
 ---
-*Pitfalls research for: BeeAtlas v4.7 — Checklist Records as Point Data (museum-record import + taxonomic reconciliation + cross-dataset dedup)*
-*Researched: 2026-06-03*
+*Pitfalls research for: v5.0 Offline Field Mode (Eleventy+Vite+Lit+Mapbox GL JS v3+wa-sqlite static PWA)*
+*Researched: 2026-06-10*
