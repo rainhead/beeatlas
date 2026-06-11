@@ -327,13 +327,15 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
     // If self.__WB_MANIFEST appears verbatim, injection failed
     expect(sw).not.toContain('self.__WB_MANIFEST');
-    // A real precache manifest contains revision-keyed entries: {url:...,revision:...}
-    expect(sw).toMatch(/\{url:/);
+    // The Workbox injectManifest step emits a JSON-format precache manifest
+    // with quoted keys: "url":"<path>". Match this to confirm injection occurred.
+    expect(sw).toMatch(/"url":"[^"]+"/);
   });
 
   test('every precached URL in _site/app/sw.js exists as a file in _site/ (OFF-01, criterion 4)', () => {
     const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
-    const urlMatches = [...sw.matchAll(/\{url:"([^"]+)"/g)].map(m => m[1]!);
+    // The Workbox injectManifest step emits JSON-format entries: "url":"/path"
+    const urlMatches = [...sw.matchAll(/"url":"([^"]+)"/g)].map(m => m[1]!);
     expect(urlMatches.length, 'no precache URLs found — manifest may not have been injected').toBeGreaterThan(0);
     for (const url of urlMatches) {
       const filePath = resolve(ROOT, '_site' + url);

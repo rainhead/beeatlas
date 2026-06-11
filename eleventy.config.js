@@ -9,6 +9,8 @@
 // phase leaves it empty (only .gitkeep).
 import EleventyVitePlugin from "@11ty/eleventy-plugin-vite";
 import { quantify } from "./src/lib/quantify.js";
+import { VitePWA } from "vite-plugin-pwa";
+import { resolve } from "path";
 
 export default function (eleventyConfig) {
   // Single pluralization utility for all count-noun copy (e.g. "1 genus" vs
@@ -82,6 +84,40 @@ export default function (eleventyConfig) {
       server: {
         allowedHosts: ["maderas.amandrai.net"],
       },
+      // vite-plugin-pwa must live HERE, not in vite.config.ts — same reason
+      // as server.* above: the dev server and build run Vite rooted at
+      // `.11ty-vite/` and never load `vite.config.ts`, so a plugin wired
+      // there would be silently ignored. Absolute paths for outDir,
+      // globDirectory, and swDest are required because relative paths resolve
+      // relative to `.11ty-vite/` (not the project root), and `.11ty-vite/`
+      // is deleted after the build. process.cwd() is the established idiom
+      // for project-root paths in this file (see envDir above).
+      plugins: [
+        VitePWA({
+          strategies: 'injectManifest',
+          srcDir: 'src',         // .11ty-vite/src/sw.ts (src/ is Eleventy passthrough)
+          filename: 'sw.ts',     // .ts extension triggers TypeScript SW sub-build
+          outDir: resolve(process.cwd(), '_site/app'),  // compiled SW lands at _site/app/sw.js
+          base: '/',             // ensures precache URLs have a leading / (RESEARCH Open Q1)
+          injectRegister: null,  // D-06: keep Phase 147 registration; no competing <script>
+          manifest: false,       // D-07: no webmanifest until Phase 151
+          injectManifest: {
+            globDirectory: resolve(process.cwd(), '_site'),  // scan full output tree
+            swDest: resolve(process.cwd(), '_site/app/sw.js'),  // injection writes here
+            globPatterns: ['app/index.html', 'assets/**/*.{js,css}'],
+            globIgnores: [
+              'data/**', 'feeds/**', '**/*.db', '**/*.geojson',
+              '**/*.parquet', '**/*.png', '**/sw.js',
+            ],
+            maximumFileSizeToCacheInBytes: 30_000_000,  // D-03: 30 MB cap (Phase 149 readiness)
+            // Glob paths are relative to globDirectory (_site/) without a leading /.
+            // modifyURLPrefix prepends / so precache URLs are absolute site paths
+            // (e.g. /app/index.html, /assets/app/index-<hash>.js) as required by
+            // the criterion-4 assertion and the SW precache cache-key contract.
+            modifyURLPrefix: { '': '/' },
+          },
+        }),
+      ],
       // publicDir defaults to "public" (Vite default). The plugin
       // auto-registers `addPassthroughCopy("public")` (.eleventy.js
       // line 40) so `public/` → `_site/public/` (then renamed to
