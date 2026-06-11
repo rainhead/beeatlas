@@ -296,10 +296,11 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(existsSync(resolve(ROOT, '_site/app/index.html'))).toBe(true);
   });
 
-  test('_site/app/index.html references a hashed app-entry chunk (ROUTE-01)', () => {
+  test('_site/app/index.html references a hashed app entry chunk (ROUTE-01)', () => {
     const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
-    // Vite rewrites ./src/app-entry.ts -> /assets/app-entry-<hash>.js
-    expect(html).toMatch(/src="\/assets\/app-entry-[^"]+\.js"/);
+    // Vite rewrites /src/app-entry.ts -> /assets/app/index-<hash>.js
+    // (MPA mode: chunk named from HTML page path, not entry module name)
+    expect(html).toMatch(/src="\/assets\/app\/[^"]+\.js"/);
   });
 
   test('_site/app/sw.js exists at unhashed stable URL (D-04)', () => {
