@@ -3,10 +3,11 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
 status: planning
-last_updated: "2026-06-10"
-last_activity: 2026-06-10
+stopped_at: Phase 147 context gathered
+last_updated: "2026-06-11T00:02:21.951Z"
+last_activity: 2026-06-10 — Roadmap created for v5.0
 progress:
-  total_phases: 8
+  total_phases: 26
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -38,6 +39,7 @@ Progress: [░░░░░░░░░░] 0%
 8 phases, 24 v1 requirements (ROUTE/PWA/OFF/CACHE/LOC/NEAR/TILE). Offline-capable installable PWA dogfooded behind `/app`; current-location indicator with "near me" filter.
 
 Build order:
+
 - 147 SW topology → 148 app shell → 149 data caching → 150 freshness UX → 151 installability
 - 152 GeolocateControl (independent after 147; can parallel with 148–151)
 - 153 Near me (requires 152)
@@ -83,6 +85,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-10
-Stopped at: Roadmap created for v5.0; ready to plan Phase 147
-Resume file: None
+Last session: 2026-06-11T00:02:21.921Z
+Stopped at: Phase 147 context gathered
+Resume file: .planning/phases/147-app-route-sw-topology/147-CONTEXT.md
