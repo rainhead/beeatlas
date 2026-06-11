@@ -1,4 +1,21 @@
+---
+status: partial
+phase: 147-app-route-sw-topology
+source: [147-VERIFICATION.md]
+updated: 2026-06-10
+---
+
 # Phase 147 — Human UAT Items
+
+## Summary
+
+total: 2
+passed: 0
+issues: 0
+pending: 2
+skipped: 0
+blocked: 0
+
 
 ## ROUTE-01/ROUTE-02 — SW topology (local preview, D-11)
 
