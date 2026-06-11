@@ -49,7 +49,7 @@
 
 ### 🚧 v5.0 Offline Field Mode (Phases 147–154) — IN PROGRESS
 
-- [ ] **Phase 147: `/app` Route + SW Topology** — Unlisted `/app/` route served by Eleventy; `sw.js` registered with `scope: '/app'`; no SW on `/`; CDK `no-cache` behavior on `sw.js` + `manifest.webmanifest`.
+- [ ] **Phase 147: `/app` Route + SW Topology** — Unlisted `/app/` route served by Eleventy; `sw.js` registered with `scope: '/app'`; no SW on `/`; CDK `no-cache` behavior on `sw.js` + `manifest.webmanifest`. **Plans:** 2 plans (1 wave).
 - [ ] **Phase 148: App Shell Precache + vite-plugin-pwa Wiring** — `vite-plugin-pwa` wired through `eleventy.config.js` `viteOptions.plugins` with `injectManifest` strategy; hashed JS/CSS for the `/app` entry precached and verified offline.
 - [ ] **Phase 149: `/data/` Runtime Caching + Offline Cold-Start** — `occurrences.db` + all GeoJSON cached via `CacheFirst` runtime strategy; full offline cold-start; re-prime if DB absent on reconnect; `QuotaExceededError` handling; graceful basemap-degradation label; online/offline status indicator.
 - [ ] **Phase 150: Cache Health & Freshness UX** — "Ready for offline" indicator; determinate prime progress bar; cache-size display; "Data as of `<date>`" freshness label; SW update lifecycle with prompt-to-reload (no `skipWaiting`).
@@ -1146,7 +1146,11 @@ Plans:
   2. DevTools → Application → Service Workers shows a SW attached to `/app` and nothing attached to `/`
   3. `curl -I` on `/app/sw.js` and `/app/manifest.webmanifest` returns `Cache-Control: no-cache` (or equivalent no-cache directive) from CloudFront
   4. SW `scope: /app` means the SW fetch handler intercepts `/data/*` requests made by the `/app` page — confirmed by a DevTools Network entry showing the SW as the initiator for a `/data/` fetch
-**Plans**: TBD
+
+**Plans**: 2 plans (1 wave — fully parallel; disjoint file sets)
+Plans:
+- [ ] 147-01-PLAN.md — /app Eleventy template + app-entry + sw-registration + pass-through stub sw.js; extend build-output test [ROUTE-01, ROUTE-02] (Wave 1)
+- [ ] 147-02-PLAN.md — CloudFront no-cache behaviors for /app/sw.js + /app/manifest.webmanifest + CDK template-assertion test [ROUTE-03] (Wave 1)
 **UI hint**: yes
 
 ### Phase 148: App Shell Precache + vite-plugin-pwa Wiring
