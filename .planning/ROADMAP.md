@@ -1149,7 +1149,7 @@ Plans:
 
 **Plans**: 2 plans (1 wave — fully parallel; disjoint file sets)
 Plans:
-- [ ] 147-01-PLAN.md — /app Eleventy template + app-entry + sw-registration + pass-through stub sw.js; extend build-output test [ROUTE-01, ROUTE-02] (Wave 1)
+- [x] 147-01-PLAN.md — /app Eleventy template + app-entry + sw-registration + pass-through stub sw.js; extend build-output test [ROUTE-01, ROUTE-02] (Wave 1)
 - [ ] 147-02-PLAN.md — CloudFront no-cache behaviors for /app/sw.js + /app/manifest.webmanifest + CDK template-assertion test [ROUTE-03] (Wave 1)
 **UI hint**: yes
 
@@ -1259,7 +1259,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 147. `/app` Route + SW Topology | v5.0 | 0/TBD | Not started | - |
+| 147. `/app` Route + SW Topology | v5.0 | 1/2 | In Progress|  |
 | 148. App Shell Precache + vite-plugin-pwa | v5.0 | 0/TBD | Not started | - |
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 0/TBD | Not started | - |
 | 150. Cache Health & Freshness UX | v5.0 | 0/TBD | Not started | - |
