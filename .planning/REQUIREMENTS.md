@@ -13,8 +13,8 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Dogfood Route & Service-Worker Topology
 
-- [ ] **ROUTE-01**: An unlisted `/app/` route serves the offline-capable map+table; it is not linked from the main site, sitemap, or nav. The main `/` route is unchanged and has no service worker registered.
-- [ ] **ROUTE-02**: A service worker served at `/app/sw.js`, registered with `scope: '/app'`, controls the `/app` page and intercepts the same-origin `/data/*` fetches that page issues (no `Service-Worker-Allowed` header needed); DevTools confirms no SW is attached to `/`.
+- [x] **ROUTE-01**: An unlisted `/app/` route serves the offline-capable map+table; it is not linked from the main site, sitemap, or nav. The main `/` route is unchanged and has no service worker registered.
+- [x] **ROUTE-02**: A service worker served at `/app/sw.js`, registered with `scope: '/app'`, controls the `/app` page and intercepts the same-origin `/data/*` fetches that page issues (no `Service-Worker-Allowed` header needed); DevTools confirms no SW is attached to `/`.
 - [ ] **ROUTE-03**: `/app/sw.js` and `/app/manifest.webmanifest` are served with `Cache-Control: no-cache` (CloudFront behavior) so SW/manifest updates are not delayed by the default long-TTL.
 
 ### Installable PWA
@@ -95,8 +95,8 @@ Populated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| ROUTE-01 | Phase 147 | Pending |
-| ROUTE-02 | Phase 147 | Pending |
+| ROUTE-01 | Phase 147 | Complete |
+| ROUTE-02 | Phase 147 | Complete |
 | ROUTE-03 | Phase 147 | Pending |
 | PWA-01 | Phase 151 | Pending |
 | PWA-02 | Phase 151 | Pending |

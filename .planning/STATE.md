@@ -4,13 +4,13 @@ milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 147 context gathered
-last_updated: "2026-06-11T00:35:06.710Z"
-last_activity: 2026-06-11 -- Phase 147 planning complete
+last_updated: "2026-06-11T00:50:26.166Z"
+last_activity: 2026-06-11
 progress:
   total_phases: 26
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v5.0 Offline Field Mode — Phase 147 (ready to plan)
+**Current focus:** Phase 147 — app-route-sw-topology
 
 ## Current Position
 
-Phase: 147 of 154 (first phase — `/app` Route + SW Topology)
-Plan: —
+Phase: 147 (app-route-sw-topology) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 147 planning complete
+Last activity: 2026-06-11
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████░░░░░] 50%
 
 ## Milestone Overview
 
@@ -85,6 +85,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-11T00:02:21.921Z
+Last session: 2026-06-11T00:50:26.143Z
 Stopped at: Phase 147 context gathered
-Resume file: .planning/phases/147-app-route-sw-topology/147-CONTEXT.md
+Resume file: None
