@@ -1163,7 +1163,8 @@ Plans:
   2. After one online load of `/app`, DevTools → Network (offline mode) shows JS/CSS served from `(ServiceWorker)` with no network errors
   3. `maximumFileSizeToCacheInBytes` is set to ≥ 30,000,000 in the plugin config (confirmed in `eleventy.config.js`)
   4. `npm run build` succeeds and a post-build verification script (or manual check) confirms every precache URL exists as a file in `_site/`
-**Plans**: TBD
+**Plans**: 1 plan
+  - [ ] 148-01-PLAN.md — Wire vite-plugin-pwa injectManifest via eleventy.config.js viteOptions.plugins; precache the /app app shell; raise the cache cap to 30 MB; replace the Phase 147 SW stub; verify via build-output assertions + offline HUMAN-UAT
 
 ### Phase 149: `/data/` Runtime Caching + Offline Cold-Start
 
