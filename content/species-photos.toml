@@ -1,7 +1,7 @@
-[species.agapostemon]
+[species.Agapostemon]
 description = ""
 
-  [[species.agapostemon.photos]]
+  [[species.Agapostemon.photos]]
   observation_id = 60_392_821
   photo_id = 96_567_515
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/96567515/large.jpeg"
@@ -10,7 +10,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species.agapostemon.photos]]
+  [[species.Agapostemon.photos]]
   observation_id = 60_392_821
   photo_id = 96_567_528
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/96567528/large.jpeg"
@@ -19,7 +19,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species.agapostemon.photos]]
+  [[species.Agapostemon.photos]]
   observation_id = 60_392_821
   photo_id = 96_567_534
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/96567534/large.jpeg"
@@ -58,10 +58,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."agapostemon subtilior"]
+[species."Agapostemon subtilior"]
 description = ""
 
-  [[species."agapostemon subtilior".photos]]
+  [[species."Agapostemon subtilior".photos]]
   observation_id = 60_392_821
   photo_id = 96_567_515
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/96567515/large.jpeg"
@@ -70,7 +70,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species."agapostemon subtilior".photos]]
+  [[species."Agapostemon subtilior".photos]]
   observation_id = 60_392_821
   photo_id = 96_567_528
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/96567528/large.jpeg"
@@ -79,7 +79,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species."agapostemon subtilior".photos]]
+  [[species."Agapostemon subtilior".photos]]
   observation_id = 60_392_821
   photo_id = 96_567_534
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/96567534/large.jpeg"
@@ -88,6 +88,11 @@ description = ""
   license = "cc-by"
   ordering = 3
 
+# NOTE: "Agapostemon texanus" has curated photos but no occurrence records in the
+# current dataset, so it is intentionally absent from public/data/species.json. The
+# lone `validate-species` warning for this name is therefore EXPECTED, not a data
+# error — it clears on its own once the species shows up in occurrences. Its detail
+# page won't be generated until then either (pages are built from species.json).
 [species."Agapostemon texanus"]
 description = ""
 
@@ -148,10 +153,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.andrena]
+[species.Andrena]
 description = ""
 
-  [[species.andrena.photos]]
+  [[species.Andrena.photos]]
   observation_id = 127_310_559
   photo_id = 216_123_854
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216123854/large.jpg"
@@ -160,7 +165,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.andrena.photos]]
+  [[species.Andrena.photos]]
   observation_id = 127_310_559
   photo_id = 216_124_009
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216124009/large.jpg"
@@ -169,7 +174,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.andrena.photos]]
+  [[species.Andrena.photos]]
   observation_id = 127_310_559
   photo_id = 216_124_008
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216124008/large.jpg"
@@ -1390,7 +1395,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."andrena pertristis"]
+[species."Andrena pertristis"]
 description = ""
 
 [species."Andrena piperi"]
@@ -1795,10 +1800,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."andrena tridens"]
+[species."Andrena tridens"]
 description = ""
 
-  [[species."andrena tridens".photos]]
+  [[species."Andrena tridens".photos]]
   observation_id = 153_993_363
   photo_id = 266_028_270
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/266028270/large.jpeg"
@@ -1807,7 +1812,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species."andrena tridens".photos]]
+  [[species."Andrena tridens".photos]]
   observation_id = 153_993_363
   photo_id = 266_028_268
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/266028268/large.jpeg"
@@ -1816,7 +1821,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species."andrena tridens".photos]]
+  [[species."Andrena tridens".photos]]
   observation_id = 153_993_363
   photo_id = 266_028_294
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/266028294/large.jpeg"
@@ -1864,10 +1869,10 @@ description = ""
 [species."Andrena vierecki"]
 description = ""
 
-[species."andrena vulpicolor"]
+[species."Andrena vulpicolor"]
 description = ""
 
-  [[species."andrena vulpicolor".photos]]
+  [[species."Andrena vulpicolor".photos]]
   observation_id = 336_736_253
   photo_id = 611_988_127
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/611988127/large.jpg"
@@ -1876,7 +1881,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."andrena vulpicolor".photos]]
+  [[species."Andrena vulpicolor".photos]]
   observation_id = 336_736_253
   photo_id = 611_988_143
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/611988143/large.jpg"
@@ -1885,7 +1890,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."andrena vulpicolor".photos]]
+  [[species."Andrena vulpicolor".photos]]
   observation_id = 336_736_253
   photo_id = 611_988_158
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/611988158/large.jpg"
@@ -1930,10 +1935,10 @@ description = ""
 [species."Andrena washingtoni"]
 description = ""
 
-[species.anthidiellum]
+[species.Anthidiellum]
 description = ""
 
-  [[species.anthidiellum.photos]]
+  [[species.Anthidiellum.photos]]
   observation_id = 121_033_414
   photo_id = 204_770_399
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/204770399/large.jpeg"
@@ -1942,7 +1947,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.anthidiellum.photos]]
+  [[species.Anthidiellum.photos]]
   observation_id = 121_033_414
   photo_id = 204_770_446
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/204770446/large.jpeg"
@@ -1951,7 +1956,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.anthidiellum.photos]]
+  [[species.Anthidiellum.photos]]
   observation_id = 121_033_414
   photo_id = 204_770_471
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/204770471/large.jpeg"
@@ -2020,10 +2025,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.anthidium]
+[species.Anthidium]
 description = ""
 
-  [[species.anthidium.photos]]
+  [[species.Anthidium.photos]]
   observation_id = 22_683_034
   photo_id = 35_420_057
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/35420057/large.gif"
@@ -2032,7 +2037,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.anthidium.photos]]
+  [[species.Anthidium.photos]]
   observation_id = 22_683_034
   photo_id = 35_419_527
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/35419527/large.gif"
@@ -2041,7 +2046,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.anthidium.photos]]
+  [[species.Anthidium.photos]]
   observation_id = 22_683_034
   photo_id = 35_418_602
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/35418602/large.gif"
@@ -2203,10 +2208,10 @@ description = ""
 [species."Anthidium formosum"]
 description = ""
 
-[species."anthidium manicatum"]
+[species."Anthidium manicatum"]
 description = ""
 
-  [[species."anthidium manicatum".photos]]
+  [[species."Anthidium manicatum".photos]]
   observation_id = 83_045_697
   photo_id = 136_356_664
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/136356664/large.jpg"
@@ -2215,7 +2220,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."anthidium manicatum".photos]]
+  [[species."Anthidium manicatum".photos]]
   observation_id = 83_045_697
   photo_id = 136_356_679
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/136356679/large.jpg"
@@ -2224,7 +2229,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."anthidium manicatum".photos]]
+  [[species."Anthidium manicatum".photos]]
   observation_id = 258_205_501
   photo_id = 463_233_170
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/463233170/large.jpg"
@@ -2263,10 +2268,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."anthidium oblongatum"]
+[species."Anthidium oblongatum"]
 description = ""
 
-  [[species."anthidium oblongatum".photos]]
+  [[species."Anthidium oblongatum".photos]]
   observation_id = 237_949_159
   photo_id = 423_551_107
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/423551107/large.jpeg"
@@ -2275,7 +2280,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species."anthidium oblongatum".photos]]
+  [[species."Anthidium oblongatum".photos]]
   observation_id = 237_949_159
   photo_id = 423_551_161
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/423551161/large.jpeg"
@@ -2284,7 +2289,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species."anthidium oblongatum".photos]]
+  [[species."Anthidium oblongatum".photos]]
   observation_id = 237_949_159
   photo_id = 423_551_195
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/423551195/large.jpeg"
@@ -2353,10 +2358,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.anthophora]
+[species.Anthophora]
 description = ""
 
-  [[species.anthophora.photos]]
+  [[species.Anthophora.photos]]
   observation_id = 28_890_367
   photo_id = 45_060_293
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/45060293/large.jpg"
@@ -2365,7 +2370,7 @@ description = ""
   license = "cc-by-nc-sa"
   ordering = 1
 
-  [[species.anthophora.photos]]
+  [[species.Anthophora.photos]]
   observation_id = 59_107_253
   photo_id = 136_739_607
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/136739607/large.jpeg"
@@ -2374,7 +2379,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.anthophora.photos]]
+  [[species.Anthophora.photos]]
   observation_id = 59_107_253
   photo_id = 136_739_623
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/136739623/large.jpeg"
@@ -2758,10 +2763,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-[species."apis mellifera"]
+[species."Apis mellifera"]
 description = ""
 
-  [[species."apis mellifera".photos]]
+  [[species."Apis mellifera".photos]]
   observation_id = 183_300_874
   photo_id = 319_767_530
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/319767530/large.jpeg"
@@ -2770,7 +2775,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."apis mellifera".photos]]
+  [[species."Apis mellifera".photos]]
   observation_id = 238_800_618
   photo_id = 425_199_712
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/425199712/large.jpeg"
@@ -2779,7 +2784,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."apis mellifera".photos]]
+  [[species."Apis mellifera".photos]]
   observation_id = 238_800_618
   photo_id = 425_199_683
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/425199683/large.jpeg"
@@ -2788,10 +2793,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.ashmeadiella]
+[species.Ashmeadiella]
 description = ""
 
-  [[species.ashmeadiella.photos]]
+  [[species.Ashmeadiella.photos]]
   observation_id = 250_075_613
   photo_id = 447_163_609
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/447163609/large.jpeg"
@@ -2800,7 +2805,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.ashmeadiella.photos]]
+  [[species.Ashmeadiella.photos]]
   observation_id = 250_075_613
   photo_id = 447_163_627
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/447163627/large.jpeg"
@@ -2809,7 +2814,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.ashmeadiella.photos]]
+  [[species.Ashmeadiella.photos]]
   observation_id = 250_075_613
   photo_id = 447_163_634
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/447163634/large.jpeg"
@@ -2821,10 +2826,10 @@ description = ""
 [species."Ashmeadiella aridula"]
 description = ""
 
-[species."ashmeadiella bucconis"]
+[species."Ashmeadiella bucconis"]
 description = ""
 
-  [[species."ashmeadiella bucconis".photos]]
+  [[species."Ashmeadiella bucconis".photos]]
   observation_id = 5_966_765
   photo_id = 7_455_918
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/7455918/large.jpg"
@@ -2833,7 +2838,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."ashmeadiella bucconis".photos]]
+  [[species."Ashmeadiella bucconis".photos]]
   observation_id = 5_966_765
   photo_id = 7_455_919
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/7455919/large.jpg"
@@ -2842,7 +2847,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."ashmeadiella bucconis".photos]]
+  [[species."Ashmeadiella bucconis".photos]]
   observation_id = 13_900_806
   photo_id = 20_531_691
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/20531691/large.jpeg"
@@ -2881,13 +2886,13 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."ashmeadiella californica"]
+[species."Ashmeadiella californica"]
 description = ""
 
 [species."Ashmeadiella cubiceps"]
 description = ""
 
-[species."ashmeadiella difugita"]
+[species."Ashmeadiella difugita"]
 description = ""
 
 [species."Ashmeadiella foxiella"]
@@ -2923,13 +2928,13 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."ashmeadiella sculleni"]
+[species."Ashmeadiella sculleni"]
 description = ""
 
-[species."ashmeadiella timberlakei"]
+[species."Ashmeadiella timberlakei"]
 description = ""
 
-  [[species."ashmeadiella timberlakei".photos]]
+  [[species."Ashmeadiella timberlakei".photos]]
   observation_id = 131_832_265
   photo_id = 224_408_370
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/224408370/large.jpg"
@@ -2938,7 +2943,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."ashmeadiella timberlakei".photos]]
+  [[species."Ashmeadiella timberlakei".photos]]
   observation_id = 131_832_265
   photo_id = 224_408_385
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/224408385/large.jpg"
@@ -2947,7 +2952,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."ashmeadiella timberlakei".photos]]
+  [[species."Ashmeadiella timberlakei".photos]]
   observation_id = 131_832_265
   photo_id = 224_408_397
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/224408397/large.jpg"
@@ -2956,10 +2961,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.atoposmia]
+[species.Atoposmia]
 description = ""
 
-  [[species.atoposmia.photos]]
+  [[species.Atoposmia.photos]]
   observation_id = 144_393_570
   photo_id = 247_810_284
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/247810284/large.jpeg"
@@ -2968,7 +2973,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.atoposmia.photos]]
+  [[species.Atoposmia.photos]]
   observation_id = 144_393_570
   photo_id = 247_810_312
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/247810312/large.png"
@@ -2977,7 +2982,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.atoposmia.photos]]
+  [[species.Atoposmia.photos]]
   observation_id = 56_142_951
   photo_id = 89_446_190
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/89446190/large.jpeg"
@@ -2986,7 +2991,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."atoposmia abjecta"]
+[species."Atoposmia abjecta"]
 description = ""
 
 [species."Atoposmia copelandica"]
@@ -3040,10 +3045,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-[species."biastes fulviventris"]
+[species."Biastes fulviventris"]
 description = ""
 
-  [[species."biastes fulviventris".photos]]
+  [[species."Biastes fulviventris".photos]]
   observation_id = 252_321_674
   photo_id = 451_663_481
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/451663481/large.jpg"
@@ -3052,7 +3057,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."biastes fulviventris".photos]]
+  [[species."Biastes fulviventris".photos]]
   observation_id = 252_321_674
   photo_id = 451_663_491
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/451663491/large.jpg"
@@ -3061,7 +3066,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."biastes fulviventris".photos]]
+  [[species."Biastes fulviventris".photos]]
   observation_id = 252_321_674
   photo_id = 451_663_492
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/451663492/large.jpg"
@@ -3070,10 +3075,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.bombus]
+[species.Bombus]
 description = ""
 
-  [[species.bombus.photos]]
+  [[species.Bombus.photos]]
   observation_id = 33_289_514
   photo_id = 52_274_835
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/52274835/large.jpg"
@@ -3082,7 +3087,7 @@ description = ""
   license = "cc0"
   ordering = 1
 
-  [[species.bombus.photos]]
+  [[species.Bombus.photos]]
   observation_id = 33_289_514
   photo_id = 52_274_841
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/52274841/large.jpg"
@@ -3091,7 +3096,7 @@ description = ""
   license = "cc0"
   ordering = 2
 
-  [[species.bombus.photos]]
+  [[species.Bombus.photos]]
   observation_id = 33_289_514
   photo_id = 52_274_849
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/52274849/large.jpeg"
@@ -3190,10 +3195,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."bombus fervidus"]
+[species."Bombus fervidus"]
 description = ""
 
-  [[species."bombus fervidus".photos]]
+  [[species."Bombus fervidus".photos]]
   observation_id = 56_979_330
   photo_id = 90_845_929
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/90845929/large.jpg"
@@ -3202,7 +3207,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."bombus fervidus".photos]]
+  [[species."Bombus fervidus".photos]]
   observation_id = 56_979_330
   photo_id = 90_847_678
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/90847678/large.jpg"
@@ -3211,7 +3216,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."bombus fervidus".photos]]
+  [[species."Bombus fervidus".photos]]
   observation_id = 56_979_330
   photo_id = 90_847_701
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/90847701/large.jpg"
@@ -3370,10 +3375,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."bombus impatiens"]
+[species."Bombus impatiens"]
 description = ""
 
-  [[species."bombus impatiens".photos]]
+  [[species."Bombus impatiens".photos]]
   observation_id = 184_449_654
   photo_id = 321_969_194
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/321969194/large.jpeg"
@@ -3382,7 +3387,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."bombus impatiens".photos]]
+  [[species."Bombus impatiens".photos]]
   observation_id = 184_449_654
   photo_id = 321_969_245
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/321969245/large.jpeg"
@@ -3391,7 +3396,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."bombus impatiens".photos]]
+  [[species."Bombus impatiens".photos]]
   observation_id = 184_449_654
   photo_id = 321_969_296
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/321969296/large.jpeg"
@@ -3700,10 +3705,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."bombus sylvicola"]
+[species."Bombus sylvicola"]
 description = ""
 
-  [[species."bombus sylvicola".photos]]
+  [[species."Bombus sylvicola".photos]]
   observation_id = 232_804_116
   photo_id = 413_635_538
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/413635538/large.jpeg"
@@ -3712,7 +3717,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."bombus sylvicola".photos]]
+  [[species."Bombus sylvicola".photos]]
   observation_id = 232_804_116
   photo_id = 413_635_548
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/413635548/large.jpeg"
@@ -3721,7 +3726,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."bombus sylvicola".photos]]
+  [[species."Bombus sylvicola".photos]]
   observation_id = 232_804_116
   photo_id = 413_635_539
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/413635539/large.jpeg"
@@ -3880,10 +3885,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.calliopsis]
+[species.Calliopsis]
 description = ""
 
-  [[species.calliopsis.photos]]
+  [[species.Calliopsis.photos]]
   observation_id = 219_914_280
   photo_id = 389_299_390
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/389299390/large.jpg"
@@ -3892,7 +3897,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.calliopsis.photos]]
+  [[species.Calliopsis.photos]]
   observation_id = 219_914_280
   photo_id = 389_299_407
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/389299407/large.jpg"
@@ -3901,7 +3906,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.calliopsis.photos]]
+  [[species.Calliopsis.photos]]
   observation_id = 219_914_280
   photo_id = 389_299_424
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/389299424/large.jpg"
@@ -3952,19 +3957,19 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."calliopsis scitula"]
+[species."Calliopsis scitula"]
 description = ""
 
 [species."Calliopsis scutellaris"]
 description = ""
 
-[species."calliopsis xenus"]
+[species."Calliopsis xenus"]
 description = ""
 
-[species.ceratina]
+[species.Ceratina]
 description = ""
 
-  [[species.ceratina.photos]]
+  [[species.Ceratina.photos]]
   observation_id = 110_727_277
   photo_id = 186_838_507
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/186838507/large.jpeg"
@@ -3973,7 +3978,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species.ceratina.photos]]
+  [[species.Ceratina.photos]]
   observation_id = 110_727_277
   photo_id = 186_838_528
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/186838528/large.jpeg"
@@ -3982,7 +3987,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species.ceratina.photos]]
+  [[species.Ceratina.photos]]
   observation_id = 110_727_277
   photo_id = 186_838_542
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/186838542/large.jpeg"
@@ -4141,10 +4146,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.chelostoma]
+[species.Chelostoma]
 description = ""
 
-  [[species.chelostoma.photos]]
+  [[species.Chelostoma.photos]]
   observation_id = 248_343_586
   photo_id = 443_710_850
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443710850/large.png"
@@ -4153,7 +4158,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.chelostoma.photos]]
+  [[species.Chelostoma.photos]]
   observation_id = 248_343_586
   photo_id = 443_710_785
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443710785/large.png"
@@ -4162,7 +4167,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.chelostoma.photos]]
+  [[species.Chelostoma.photos]]
   observation_id = 248_343_586
   photo_id = 443_710_824
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443710824/large.png"
@@ -4231,10 +4236,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.coelioxys]
+[species.Coelioxys]
 description = ""
 
-  [[species.coelioxys.photos]]
+  [[species.Coelioxys.photos]]
   observation_id = 13_686_929
   photo_id = 20_159_167
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/20159167/large.jpg"
@@ -4243,7 +4248,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.coelioxys.photos]]
+  [[species.Coelioxys.photos]]
   observation_id = 13_686_929
   photo_id = 20_159_175
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/20159175/large.jpg"
@@ -4252,7 +4257,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.coelioxys.photos]]
+  [[species.Coelioxys.photos]]
   observation_id = 13_686_929
   photo_id = 20_159_181
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/20159181/large.jpg"
@@ -4261,10 +4266,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."coelioxys alternatus"]
+[species."Coelioxys alternatus"]
 description = ""
 
-  [[species."coelioxys alternatus".photos]]
+  [[species."Coelioxys alternatus".photos]]
   observation_id = 170_168_319
   photo_id = 295_105_422
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/295105422/large.jpg"
@@ -4273,7 +4278,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."coelioxys alternatus".photos]]
+  [[species."Coelioxys alternatus".photos]]
   observation_id = 304_036_017
   photo_id = 548_045_906
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/548045906/large.jpg"
@@ -4282,7 +4287,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."coelioxys alternatus".photos]]
+  [[species."Coelioxys alternatus".photos]]
   observation_id = 304_036_017
   photo_id = 548_045_905
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/548045905/large.jpg"
@@ -4291,10 +4296,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."coelioxys apacheorum"]
+[species."Coelioxys apacheorum"]
 description = ""
 
-[species."coelioxys banksi"]
+[species."Coelioxys banksi"]
 description = ""
 
 [species."Coelioxys edita"]
@@ -4327,10 +4332,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."coelioxys funerarius"]
+[species."Coelioxys funerarius"]
 description = ""
 
-[species."coelioxys gilensis"]
+[species."Coelioxys gilensis"]
 description = ""
 
 [species."Coelioxys grindeliae"]
@@ -4369,10 +4374,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."coelioxys octodentata"]
+[species."Coelioxys octodentata"]
 description = ""
 
-  [[species."coelioxys octodentata".photos]]
+  [[species."Coelioxys octodentata".photos]]
   observation_id = 102_225_512
   photo_id = 170_835_706
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/170835706/large.jpeg"
@@ -4381,7 +4386,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."coelioxys octodentata".photos]]
+  [[species."Coelioxys octodentata".photos]]
   observation_id = 102_225_512
   photo_id = 170_835_916
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/170835916/large.jpeg"
@@ -4390,7 +4395,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."coelioxys octodentata".photos]]
+  [[species."Coelioxys octodentata".photos]]
   observation_id = 102_225_512
   photo_id = 170_835_953
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/170835953/large.jpeg"
@@ -4492,10 +4497,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.colletes]
+[species.Colletes]
 description = ""
 
-  [[species.colletes.photos]]
+  [[species.Colletes.photos]]
   observation_id = 122_250_340
   photo_id = 206_963_315
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/206963315/large.jpg"
@@ -4504,7 +4509,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.colletes.photos]]
+  [[species.Colletes.photos]]
   observation_id = 122_250_340
   photo_id = 206_957_885
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/206957885/large.jpg"
@@ -4513,7 +4518,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.colletes.photos]]
+  [[species.Colletes.photos]]
   observation_id = 122_250_340
   photo_id = 206_962_615
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/206962615/large.jpg"
@@ -4780,10 +4785,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.diadasia]
+[species.Diadasia]
 description = ""
 
-  [[species.diadasia.photos]]
+  [[species.Diadasia.photos]]
   observation_id = 12_811_762
   photo_id = 18_579_708
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/18579708/large.jpeg"
@@ -4792,7 +4797,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species.diadasia.photos]]
+  [[species.Diadasia.photos]]
   observation_id = 12_811_762
   photo_id = 18_579_713
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/18579713/large.jpeg"
@@ -4801,7 +4806,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species.diadasia.photos]]
+  [[species.Diadasia.photos]]
   observation_id = 12_811_762
   photo_id = 18_579_720
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/18579720/large.jpeg"
@@ -4810,10 +4815,10 @@ description = ""
   license = "cc-by"
   ordering = 3
 
-[species."diadasia australis"]
+[species."Diadasia australis"]
 description = ""
 
-  [[species."diadasia australis".photos]]
+  [[species."Diadasia australis".photos]]
   observation_id = 12_811_762
   photo_id = 18_579_708
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/18579708/large.jpeg"
@@ -4822,7 +4827,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species."diadasia australis".photos]]
+  [[species."Diadasia australis".photos]]
   observation_id = 12_811_762
   photo_id = 18_579_713
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/18579713/large.jpeg"
@@ -4831,7 +4836,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species."diadasia australis".photos]]
+  [[species."Diadasia australis".photos]]
   observation_id = 12_811_762
   photo_id = 18_579_720
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/18579720/large.jpeg"
@@ -4993,10 +4998,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.dianthidium]
+[species.Dianthidium]
 description = ""
 
-  [[species.dianthidium.photos]]
+  [[species.Dianthidium.photos]]
   observation_id = 249_095_991
   photo_id = 445_214_863
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/445214863/large.jpg"
@@ -5005,7 +5010,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.dianthidium.photos]]
+  [[species.Dianthidium.photos]]
   observation_id = 249_095_991
   photo_id = 445_214_864
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/445214864/large.jpg"
@@ -5014,7 +5019,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.dianthidium.photos]]
+  [[species.Dianthidium.photos]]
   observation_id = 249_095_991
   photo_id = 445_214_881
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/445214881/large.jpg"
@@ -5179,10 +5184,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.dioxys]
+[species.Dioxys]
 description = ""
 
-  [[species.dioxys.photos]]
+  [[species.Dioxys.photos]]
   observation_id = 276_432_060
   photo_id = 496_420_752
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/496420752/large.jpg"
@@ -5191,7 +5196,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.dioxys.photos]]
+  [[species.Dioxys.photos]]
   observation_id = 186_857_526
   photo_id = 326_631_959
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/326631959/large.jpeg"
@@ -5200,7 +5205,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.dioxys.photos]]
+  [[species.Dioxys.photos]]
   observation_id = 186_857_526
   photo_id = 326_631_939
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/326631939/large.jpeg"
@@ -5302,10 +5307,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.dufourea]
+[species.Dufourea]
 description = ""
 
-  [[species.dufourea.photos]]
+  [[species.Dufourea.photos]]
   observation_id = 226_974_537
   photo_id = 402_590_789
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/402590789/large.jpeg"
@@ -5314,7 +5319,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.dufourea.photos]]
+  [[species.Dufourea.photos]]
   observation_id = 226_974_537
   photo_id = 402_590_988
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/402590988/large.jpeg"
@@ -5323,7 +5328,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.dufourea.photos]]
+  [[species.Dufourea.photos]]
   observation_id = 226_974_537
   photo_id = 402_590_872
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/402590872/large.jpeg"
@@ -5392,10 +5397,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."dufourea dilatipes"]
+[species."Dufourea dilatipes"]
 description = ""
 
-  [[species."dufourea dilatipes".photos]]
+  [[species."Dufourea dilatipes".photos]]
   observation_id = 226_974_537
   photo_id = 402_590_789
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/402590789/large.jpeg"
@@ -5404,7 +5409,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."dufourea dilatipes".photos]]
+  [[species."Dufourea dilatipes".photos]]
   observation_id = 226_974_537
   photo_id = 402_590_988
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/402590988/large.jpeg"
@@ -5413,7 +5418,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."dufourea dilatipes".photos]]
+  [[species."Dufourea dilatipes".photos]]
   observation_id = 226_974_537
   photo_id = 402_590_872
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/402590872/large.jpeg"
@@ -5512,10 +5517,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.epeolus]
+[species.Epeolus]
 description = ""
 
-  [[species.epeolus.photos]]
+  [[species.Epeolus.photos]]
   observation_id = 98_573_666
   photo_id = 209_951_939
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/209951939/large.jpg"
@@ -5524,7 +5529,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.epeolus.photos]]
+  [[species.Epeolus.photos]]
   observation_id = 98_573_666
   photo_id = 164_148_159
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/164148159/large.jpg"
@@ -5533,7 +5538,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.epeolus.photos]]
+  [[species.Epeolus.photos]]
   observation_id = 98_573_666
   photo_id = 164_147_932
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/164147932/large.jpg"
@@ -5752,10 +5757,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.eucera]
+[species.Eucera]
 description = ""
 
-  [[species.eucera.photos]]
+  [[species.Eucera.photos]]
   observation_id = 270_743_254
   photo_id = 486_940_714
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/486940714/large.jpeg"
@@ -5764,7 +5769,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.eucera.photos]]
+  [[species.Eucera.photos]]
   observation_id = 270_743_254
   photo_id = 486_941_502
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/486941502/large.jpeg"
@@ -5773,7 +5778,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.eucera.photos]]
+  [[species.Eucera.photos]]
   observation_id = 270_743_254
   photo_id = 486_941_509
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/486941509/large.jpeg"
@@ -5782,7 +5787,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."eucera acerba"]
+[species."Eucera acerba"]
 description = ""
 
 [species."Eucera actuosa"]
@@ -5938,10 +5943,10 @@ description = ""
 [species."Eucera hurdi"]
 description = ""
 
-[species."eucera lunata"]
+[species."Eucera lunata"]
 description = ""
 
-  [[species."eucera lunata".photos]]
+  [[species."Eucera lunata".photos]]
   observation_id = 5_308_759
   photo_id = 6_573_752
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/6573752/large.jpg"
@@ -5950,7 +5955,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."eucera lunata".photos]]
+  [[species."Eucera lunata".photos]]
   observation_id = 5_308_759
   photo_id = 6_573_753
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/6573753/large.jpg"
@@ -5959,7 +5964,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."eucera lunata".photos]]
+  [[species."Eucera lunata".photos]]
   observation_id = 1_472_739
   photo_id = 1_825_845
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/1825845/large.JPG"
@@ -5971,10 +5976,10 @@ description = ""
 [species."Eucera speciosa"]
 description = ""
 
-[species.habropoda]
+[species.Habropoda]
 description = ""
 
-  [[species.habropoda.photos]]
+  [[species.Habropoda.photos]]
   observation_id = 151_100_315
   photo_id = 260_661_634
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/260661634/large.jpg"
@@ -5983,7 +5988,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.habropoda.photos]]
+  [[species.Habropoda.photos]]
   observation_id = 151_100_315
   photo_id = 260_661_671
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/260661671/large.jpg"
@@ -5992,7 +5997,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.habropoda.photos]]
+  [[species.Habropoda.photos]]
   observation_id = 151_100_315
   photo_id = 260_661_679
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/260661679/large.jpg"
@@ -6094,10 +6099,10 @@ description = ""
   license = "cc-by"
   ordering = 3
 
-[species.halictus]
+[species.Halictus]
 description = ""
 
-  [[species.halictus.photos]]
+  [[species.Halictus.photos]]
   observation_id = 242_695_564
   photo_id = 432_676_318
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432676318/large.jpg"
@@ -6106,7 +6111,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.halictus.photos]]
+  [[species.Halictus.photos]]
   observation_id = 242_695_564
   photo_id = 432_676_327
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432676327/large.jpg"
@@ -6115,7 +6120,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.halictus.photos]]
+  [[species.Halictus.photos]]
   observation_id = 242_695_564
   photo_id = 432_676_337
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432676337/large.jpg"
@@ -6214,10 +6219,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."halictus rubicundus"]
+[species."Halictus rubicundus"]
 description = ""
 
-  [[species."halictus rubicundus".photos]]
+  [[species."Halictus rubicundus".photos]]
   observation_id = 162_806_864
   photo_id = 281_538_936
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/281538936/large.jpg"
@@ -6226,7 +6231,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."halictus rubicundus".photos]]
+  [[species."Halictus rubicundus".photos]]
   observation_id = 110_618_671
   photo_id = 186_633_502
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/186633502/large.jpeg"
@@ -6235,7 +6240,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species."halictus rubicundus".photos]]
+  [[species."Halictus rubicundus".photos]]
   observation_id = 110_618_671
   photo_id = 186_633_518
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/186633518/large.jpeg"
@@ -6304,10 +6309,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.heriades]
+[species.Heriades]
 description = ""
 
-  [[species.heriades.photos]]
+  [[species.Heriades.photos]]
   observation_id = 303_861_349
   photo_id = 547_708_191
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/547708191/large.jpg"
@@ -6316,7 +6321,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.heriades.photos]]
+  [[species.Heriades.photos]]
   observation_id = 303_861_349
   photo_id = 547_708_204
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/547708204/large.jpg"
@@ -6325,7 +6330,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.heriades.photos]]
+  [[species.Heriades.photos]]
   observation_id = 303_861_349
   photo_id = 547_708_184
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/547708184/large.jpg"
@@ -6400,10 +6405,10 @@ description = ""
 [species."Heriades variolosa"]
 description = ""
 
-[species.hoplitis]
+[species.Hoplitis]
 description = ""
 
-  [[species.hoplitis.photos]]
+  [[species.Hoplitis.photos]]
   observation_id = 174_527_637
   photo_id = 303_197_545
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/303197545/large.jpg"
@@ -6412,7 +6417,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.hoplitis.photos]]
+  [[species.Hoplitis.photos]]
   observation_id = 174_527_637
   photo_id = 303_197_464
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/303197464/large.jpg"
@@ -6421,7 +6426,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.hoplitis.photos]]
+  [[species.Hoplitis.photos]]
   observation_id = 174_527_637
   photo_id = 303_197_446
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/303197446/large.jpg"
@@ -6709,10 +6714,10 @@ description = ""
 [species."Hoplitis viridimicans"]
 description = ""
 
-[species.hylaeus]
+[species.Hylaeus]
 description = ""
 
-  [[species.hylaeus.photos]]
+  [[species.Hylaeus.photos]]
   observation_id = 225_458_615
   photo_id = 399_736_953
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/399736953/large.jpeg"
@@ -6721,7 +6726,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.hylaeus.photos]]
+  [[species.Hylaeus.photos]]
   observation_id = 225_458_615
   photo_id = 399_736_936
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/399736936/large.jpeg"
@@ -6730,7 +6735,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.hylaeus.photos]]
+  [[species.Hylaeus.photos]]
   observation_id = 225_458_615
   photo_id = 399_736_917
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/399736917/large.jpeg"
@@ -6898,10 +6903,10 @@ description = ""
 [species."Hylaeus granulatus"]
 description = ""
 
-[species."hylaeus leptocephalus"]
+[species."Hylaeus leptocephalus"]
 description = ""
 
-  [[species."hylaeus leptocephalus".photos]]
+  [[species."Hylaeus leptocephalus".photos]]
   observation_id = 56_154_819
   photo_id = 89_465_178
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/89465178/large.jpg"
@@ -6910,7 +6915,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."hylaeus leptocephalus".photos]]
+  [[species."Hylaeus leptocephalus".photos]]
   observation_id = 92_208_990
   photo_id = 152_640_983
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/152640983/large.jpg"
@@ -6919,7 +6924,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."hylaeus leptocephalus".photos]]
+  [[species."Hylaeus leptocephalus".photos]]
   observation_id = 92_208_990
   photo_id = 152_640_978
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/152640978/large.jpg"
@@ -6958,10 +6963,10 @@ description = ""
   license = "cc0"
   ordering = 3
 
-[species."hylaeus modestus"]
+[species."Hylaeus modestus"]
 description = ""
 
-  [[species."hylaeus modestus".photos]]
+  [[species."Hylaeus modestus".photos]]
   observation_id = 248_209_937
   photo_id = 443_451_189
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443451189/large.jpg"
@@ -6970,7 +6975,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."hylaeus modestus".photos]]
+  [[species."Hylaeus modestus".photos]]
   observation_id = 248_209_937
   photo_id = 443_451_230
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443451230/large.jpg"
@@ -6979,7 +6984,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."hylaeus modestus".photos]]
+  [[species."Hylaeus modestus".photos]]
   observation_id = 248_209_937
   photo_id = 443_451_231
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/443451231/large.jpg"
@@ -6991,10 +6996,10 @@ description = ""
 [species."Hylaeus nevadensis"]
 description = ""
 
-[species."hylaeus punctatus"]
+[species."Hylaeus punctatus"]
 description = ""
 
-  [[species."hylaeus punctatus".photos]]
+  [[species."Hylaeus punctatus".photos]]
   observation_id = 90_714_573
   photo_id = 149_951_003
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/149951003/large.jpeg"
@@ -7003,7 +7008,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."hylaeus punctatus".photos]]
+  [[species."Hylaeus punctatus".photos]]
   observation_id = 90_714_573
   photo_id = 149_951_009
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/149951009/large.jpeg"
@@ -7012,7 +7017,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."hylaeus punctatus".photos]]
+  [[species."Hylaeus punctatus".photos]]
   observation_id = 90_714_573
   photo_id = 149_951_025
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/149951025/large.jpeg"
@@ -7084,10 +7089,10 @@ description = ""
 [species."Hylaeus wootoni"]
 description = ""
 
-[species.lasioglossum]
+[species.Lasioglossum]
 description = ""
 
-  [[species.lasioglossum.photos]]
+  [[species.Lasioglossum.photos]]
   observation_id = 63_790_064
   photo_id = 102_437_763
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/102437763/large.jpeg"
@@ -7096,7 +7101,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species.lasioglossum.photos]]
+  [[species.Lasioglossum.photos]]
   observation_id = 63_790_064
   photo_id = 102_437_777
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/102437777/large.jpeg"
@@ -7105,7 +7110,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species.lasioglossum.photos]]
+  [[species.Lasioglossum.photos]]
   observation_id = 63_790_064
   photo_id = 102_437_786
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/102437786/large.jpeg"
@@ -7177,13 +7182,13 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."lasioglossum allonotum"]
+[species."Lasioglossum allonotum"]
 description = ""
 
 [species."Lasioglossum allonotus"]
 description = ""
 
-[species."lasioglossum anhypops"]
+[species."Lasioglossum anhypops"]
 description = ""
 
 [species."Lasioglossum argemonis"]
@@ -7252,10 +7257,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."lasioglossum buccale"]
+[species."Lasioglossum buccale"]
 description = ""
 
-  [[species."lasioglossum buccale".photos]]
+  [[species."Lasioglossum buccale".photos]]
   observation_id = 223_272_451
   photo_id = 395_591_148
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/395591148/large.jpeg"
@@ -7264,7 +7269,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."lasioglossum buccale".photos]]
+  [[species."Lasioglossum buccale".photos]]
   observation_id = 223_272_451
   photo_id = 395_591_166
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/395591166/large.jpeg"
@@ -7273,7 +7278,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."lasioglossum buccale".photos]]
+  [[species."Lasioglossum buccale".photos]]
   observation_id = 223_272_451
   photo_id = 395_591_188
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/395591188/large.jpeg"
@@ -7627,10 +7632,10 @@ description = ""
   license = "cc-by"
   ordering = 3
 
-[species."lasioglossum leucozonium"]
+[species."Lasioglossum leucozonium"]
 description = ""
 
-  [[species."lasioglossum leucozonium".photos]]
+  [[species."Lasioglossum leucozonium".photos]]
   observation_id = 15_877_183
   photo_id = 23_742_384
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/23742384/large.jpg"
@@ -7639,7 +7644,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."lasioglossum leucozonium".photos]]
+  [[species."Lasioglossum leucozonium".photos]]
   observation_id = 15_877_183
   photo_id = 23_743_872
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/23743872/large.jpg"
@@ -7648,7 +7653,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."lasioglossum leucozonium".photos]]
+  [[species."Lasioglossum leucozonium".photos]]
   observation_id = 15_877_183
   photo_id = 23_743_884
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/23743884/large.jpg"
@@ -7690,10 +7695,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."lasioglossum macoupinense"]
+[species."Lasioglossum macoupinense"]
 description = ""
 
-  [[species."lasioglossum macoupinense".photos]]
+  [[species."Lasioglossum macoupinense".photos]]
   observation_id = 294_879_823
   photo_id = 530_804_854
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/530804854/large.jpg"
@@ -7702,7 +7707,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."lasioglossum macoupinense".photos]]
+  [[species."Lasioglossum macoupinense".photos]]
   observation_id = 294_879_823
   photo_id = 530_805_080
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/530805080/large.jpg"
@@ -7711,7 +7716,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."lasioglossum macoupinense".photos]]
+  [[species."Lasioglossum macoupinense".photos]]
   observation_id = 294_879_823
   photo_id = 530_805_090
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/530805090/large.jpg"
@@ -7855,7 +7860,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-[species."lasioglossum obnubilum"]
+[species."Lasioglossum obnubilum"]
 description = ""
 
 [species."Lasioglossum occultum"]
@@ -7933,7 +7938,7 @@ description = ""
 [species."Lasioglossum pallidellum"]
 description = ""
 
-[species."lasioglossum pavoninum"]
+[species."Lasioglossum pavoninum"]
 description = ""
 
 [species."Lasioglossum pavonotus"]
@@ -8032,7 +8037,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."lasioglossum pulveris"]
+[species."Lasioglossum pulveris"]
 description = ""
 
 [species."Lasioglossum punctatoventre"]
@@ -8152,10 +8157,10 @@ description = ""
 [species."Lasioglossum trizonatum"]
 description = ""
 
-[species."lasioglossum villosulum"]
+[species."Lasioglossum villosulum"]
 description = ""
 
-  [[species."lasioglossum villosulum".photos]]
+  [[species."Lasioglossum villosulum".photos]]
   observation_id = 143_999_046
   photo_id = 247_058_572
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/247058572/large.jpg"
@@ -8164,7 +8169,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."lasioglossum villosulum".photos]]
+  [[species."Lasioglossum villosulum".photos]]
   observation_id = 132_288_288
   photo_id = 225_258_135
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/225258135/large.jpg"
@@ -8173,7 +8178,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."lasioglossum villosulum".photos]]
+  [[species."Lasioglossum villosulum".photos]]
   observation_id = 132_288_288
   photo_id = 225_258_163
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/225258163/large.jpg"
@@ -8182,13 +8187,13 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."lasioglossum yukonae"]
+[species."Lasioglossum yukonae"]
 description = ""
 
-[species."lasioglossum zephyrum"]
+[species."Lasioglossum zephyrum"]
 description = ""
 
-  [[species."lasioglossum zephyrum".photos]]
+  [[species."Lasioglossum zephyrum".photos]]
   observation_id = 140_848_586
   photo_id = 241_165_089
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/241165089/large.jpg"
@@ -8197,7 +8202,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."lasioglossum zephyrum".photos]]
+  [[species."Lasioglossum zephyrum".photos]]
   observation_id = 140_848_586
   photo_id = 241_165_092
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/241165092/large.jpg"
@@ -8206,7 +8211,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."lasioglossum zephyrum".photos]]
+  [[species."Lasioglossum zephyrum".photos]]
   observation_id = 140_848_586
   photo_id = 241_165_094
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/241165094/large.jpg"
@@ -8245,10 +8250,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."lasioglossum zonulum"]
+[species."Lasioglossum zonulum"]
 description = ""
 
-  [[species."lasioglossum zonulum".photos]]
+  [[species."Lasioglossum zonulum".photos]]
   observation_id = 21_382_913
   photo_id = 33_077_208
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/33077208/large.jpeg"
@@ -8257,7 +8262,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."lasioglossum zonulum".photos]]
+  [[species."Lasioglossum zonulum".photos]]
   observation_id = 21_382_913
   photo_id = 33_077_259
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/33077259/large.jpeg"
@@ -8266,7 +8271,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."lasioglossum zonulum".photos]]
+  [[species."Lasioglossum zonulum".photos]]
   observation_id = 163_765_369
   photo_id = 283_287_635
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/283287635/large.jpeg"
@@ -8275,10 +8280,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."lasioglossum zonulus"]
+[species."Lasioglossum zonulus"]
 description = ""
 
-  [[species."lasioglossum zonulus".photos]]
+  [[species."Lasioglossum zonulus".photos]]
   observation_id = 21_382_913
   photo_id = 33_077_208
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/33077208/large.jpeg"
@@ -8287,7 +8292,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."lasioglossum zonulus".photos]]
+  [[species."Lasioglossum zonulus".photos]]
   observation_id = 21_382_913
   photo_id = 33_077_259
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/33077259/large.jpeg"
@@ -8296,7 +8301,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."lasioglossum zonulus".photos]]
+  [[species."Lasioglossum zonulus".photos]]
   observation_id = 163_765_369
   photo_id = 283_287_635
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/283287635/large.jpeg"
@@ -8308,10 +8313,10 @@ description = ""
 [species."Macropis steironematis"]
 description = ""
 
-[species.megachile]
+[species.Megachile]
 description = ""
 
-  [[species.megachile.photos]]
+  [[species.Megachile.photos]]
   observation_id = 84_792_756
   photo_id = 139_404_100
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/139404100/large.png"
@@ -8320,7 +8325,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.megachile.photos]]
+  [[species.Megachile.photos]]
   observation_id = 84_792_756
   photo_id = 139_406_021
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/139406021/large.png"
@@ -8329,7 +8334,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.megachile.photos]]
+  [[species.Megachile.photos]]
   observation_id = 84_792_756
   photo_id = 139_406_056
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/139406056/large.png"
@@ -8371,10 +8376,10 @@ description = ""
 [species."Megachile anograe"]
 description = ""
 
-[species."megachile apicalis"]
+[species."Megachile apicalis"]
 description = ""
 
-  [[species."megachile apicalis".photos]]
+  [[species."Megachile apicalis".photos]]
   observation_id = 180_561_738
   photo_id = 314_545_554
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/314545554/large.jpeg"
@@ -8383,7 +8388,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."megachile apicalis".photos]]
+  [[species."Megachile apicalis".photos]]
   observation_id = 180_561_738
   photo_id = 314_545_555
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/314545555/large.jpeg"
@@ -8392,7 +8397,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."megachile apicalis".photos]]
+  [[species."Megachile apicalis".photos]]
   observation_id = 180_561_738
   photo_id = 314_545_548
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/314545548/large.jpeg"
@@ -8563,10 +8568,10 @@ description = ""
 [species."Megachile gravita"]
 description = ""
 
-[species."megachile lapponica"]
+[species."Megachile lapponica"]
 description = ""
 
-  [[species."megachile lapponica".photos]]
+  [[species."Megachile lapponica".photos]]
   observation_id = 37_194_319
   photo_id = 58_924_097
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/58924097/large.jpg"
@@ -8575,7 +8580,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."megachile lapponica".photos]]
+  [[species."Megachile lapponica".photos]]
   observation_id = 37_194_319
   photo_id = 58_924_102
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/58924102/large.jpg"
@@ -8584,7 +8589,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."megachile lapponica".photos]]
+  [[species."Megachile lapponica".photos]]
   observation_id = 37_194_319
   photo_id = 58_924_105
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/58924105/large.jpg"
@@ -8596,10 +8601,10 @@ description = ""
 [species."Megachile legalis"]
 description = ""
 
-[species."megachile lippiae"]
+[species."Megachile lippiae"]
 description = ""
 
-  [[species."megachile lippiae".photos]]
+  [[species."Megachile lippiae".photos]]
   observation_id = 156_830_027
   photo_id = 271_200_102
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/271200102/large.jpg"
@@ -8608,7 +8613,7 @@ description = ""
   license = "cc-by-nc-sa"
   ordering = 1
 
-  [[species."megachile lippiae".photos]]
+  [[species."Megachile lippiae".photos]]
   observation_id = 86_423_539
   photo_id = 142_367_997
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/142367997/large.jpg"
@@ -8617,7 +8622,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."megachile lippiae".photos]]
+  [[species."Megachile lippiae".photos]]
   observation_id = 86_423_539
   photo_id = 142_368_015
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/142368015/large.jpg"
@@ -8938,10 +8943,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."megachile rotundata"]
+[species."Megachile rotundata"]
 description = ""
 
-  [[species."megachile rotundata".photos]]
+  [[species."Megachile rotundata".photos]]
   observation_id = 29_416_850
   photo_id = 45_909_684
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/45909684/large.jpg"
@@ -8950,7 +8955,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."megachile rotundata".photos]]
+  [[species."Megachile rotundata".photos]]
   observation_id = 72_613_405
   photo_id = 118_416_657
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/118416657/large.jpeg"
@@ -8959,7 +8964,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."megachile rotundata".photos]]
+  [[species."Megachile rotundata".photos]]
   observation_id = 72_613_405
   photo_id = 118_416_641
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/118416641/large.jpeg"
@@ -9001,10 +9006,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."megachile texana"]
+[species."Megachile texana"]
 description = ""
 
-  [[species."megachile texana".photos]]
+  [[species."Megachile texana".photos]]
   observation_id = 57_660_523
   photo_id = 91_994_997
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/91994997/large.jpg"
@@ -9013,7 +9018,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."megachile texana".photos]]
+  [[species."Megachile texana".photos]]
   observation_id = 57_660_523
   photo_id = 91_995_033
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/91995033/large.jpg"
@@ -9022,7 +9027,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."megachile texana".photos]]
+  [[species."Megachile texana".photos]]
   observation_id = 57_660_523
   photo_id = 91_995_015
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/91995015/large.jpg"
@@ -9091,10 +9096,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.megachilidae]
+[species.Megachilidae]
 description = ""
 
-  [[species.megachilidae.photos]]
+  [[species.Megachilidae.photos]]
   observation_id = 19_646_284
   photo_id = 30_253_243
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/30253243/large.jpg"
@@ -9103,7 +9108,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.megachilidae.photos]]
+  [[species.Megachilidae.photos]]
   observation_id = 198_232_598
   photo_id = 349_341_911
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/349341911/large.jpeg"
@@ -9112,7 +9117,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.megachilidae.photos]]
+  [[species.Megachilidae.photos]]
   observation_id = 198_232_598
   photo_id = 349_341_914
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/349341914/large.jpeg"
@@ -9121,10 +9126,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.melecta]
+[species.Melecta]
 description = ""
 
-  [[species.melecta.photos]]
+  [[species.Melecta.photos]]
   observation_id = 74_050_177
   photo_id = 120_977_981
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/120977981/large.jpg"
@@ -9133,7 +9138,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.melecta.photos]]
+  [[species.Melecta.photos]]
   observation_id = 270_272_852
   photo_id = 486_041_080
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/486041080/large.jpg"
@@ -9142,7 +9147,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.melecta.photos]]
+  [[species.Melecta.photos]]
   observation_id = 270_272_852
   photo_id = 486_041_089
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/486041089/large.jpg"
@@ -9241,10 +9246,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.melissodes]
+[species.Melissodes]
 description = ""
 
-  [[species.melissodes.photos]]
+  [[species.Melissodes.photos]]
   observation_id = 7_467_283
   photo_id = 9_717_654
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/9717654/large.jpeg"
@@ -9253,7 +9258,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.melissodes.photos]]
+  [[species.Melissodes.photos]]
   observation_id = 7_467_283
   photo_id = 9_717_659
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/9717659/large.jpeg"
@@ -9262,7 +9267,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.melissodes.photos]]
+  [[species.Melissodes.photos]]
   observation_id = 7_467_283
   photo_id = 9_717_668
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/9717668/large.jpeg"
@@ -9403,7 +9408,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."melissodes lustrus"]
+[species."Melissodes lustrus"]
 description = ""
 
 [species."Melissodes lutulentus"]
@@ -9415,7 +9420,7 @@ description = ""
 [species."Melissodes metenua"]
 description = ""
 
-[species."melissodes metenuus"]
+[species."Melissodes metenuus"]
 description = ""
 
 [species."Melissodes microstictus"]
@@ -9601,10 +9606,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."melissodes semilupina"]
+[species."Melissodes semilupina"]
 description = ""
 
-  [[species."melissodes semilupina".photos]]
+  [[species."Melissodes semilupina".photos]]
   observation_id = 243_727_976
   photo_id = 434_646_437
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/434646437/large.jpg"
@@ -9613,7 +9618,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."melissodes semilupina".photos]]
+  [[species."Melissodes semilupina".photos]]
   observation_id = 243_727_976
   photo_id = 434_646_495
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/434646495/large.jpg"
@@ -9622,7 +9627,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."melissodes semilupina".photos]]
+  [[species."Melissodes semilupina".photos]]
   observation_id = 243_727_976
   photo_id = 434_646_497
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/434646497/large.jpg"
@@ -9694,7 +9699,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."melissodes utahensis"]
+[species."Melissodes utahensis"]
 description = ""
 
 [species."Melissodes verbesinarum"]
@@ -9730,10 +9735,10 @@ description = ""
 [species."Melissodes vernalis"]
 description = ""
 
-[species.nomada]
+[species.Nomada]
 description = ""
 
-  [[species.nomada.photos]]
+  [[species.Nomada.photos]]
   observation_id = 74_599_128
   photo_id = 121_940_116
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/121940116/large.jpg"
@@ -9742,7 +9747,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.nomada.photos]]
+  [[species.Nomada.photos]]
   observation_id = 74_599_128
   photo_id = 121_940_126
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/121940126/large.jpg"
@@ -9751,7 +9756,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.nomada.photos]]
+  [[species.Nomada.photos]]
   observation_id = 74_599_128
   photo_id = 121_940_129
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/121940129/large.jpg"
@@ -10099,10 +10104,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."nomada superba"]
+[species."Nomada superba"]
 description = ""
 
-  [[species."nomada superba".photos]]
+  [[species."Nomada superba".photos]]
   observation_id = 6_099_112
   photo_id = 7_630_012
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/7630012/large.jpg"
@@ -10111,7 +10116,7 @@ description = ""
   license = "cc-by"
   ordering = 1
 
-  [[species."nomada superba".photos]]
+  [[species."Nomada superba".photos]]
   observation_id = 6_099_112
   photo_id = 7_630_013
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/7630013/large.jpg"
@@ -10120,7 +10125,7 @@ description = ""
   license = "cc-by"
   ordering = 2
 
-  [[species."nomada superba".photos]]
+  [[species."Nomada superba".photos]]
   observation_id = 5_695_306
   photo_id = 7_054_611
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/7054611/large.jpg"
@@ -10222,10 +10227,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.osmia]
+[species.Osmia]
 description = ""
 
-  [[species.osmia.photos]]
+  [[species.Osmia.photos]]
   observation_id = 19_646_284
   photo_id = 30_253_243
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/30253243/large.jpg"
@@ -10234,7 +10239,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.osmia.photos]]
+  [[species.Osmia.photos]]
   observation_id = 19_646_384
   photo_id = 30_253_472
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/30253472/large.jpg"
@@ -10243,7 +10248,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.osmia.photos]]
+  [[species.Osmia.photos]]
   observation_id = 19_646_384
   photo_id = 30_253_545
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/30253545/large.jpg"
@@ -10396,10 +10401,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."osmia caerulescens"]
+[species."Osmia caerulescens"]
 description = ""
 
-  [[species."osmia caerulescens".photos]]
+  [[species."Osmia caerulescens".photos]]
   observation_id = 217_786_243
   photo_id = 385_318_364
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/385318364/large.jpeg"
@@ -10408,7 +10413,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."osmia caerulescens".photos]]
+  [[species."Osmia caerulescens".photos]]
   observation_id = 217_786_243
   photo_id = 385_318_395
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/385318395/large.jpeg"
@@ -10417,7 +10422,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."osmia caerulescens".photos]]
+  [[species."Osmia caerulescens".photos]]
   observation_id = 217_786_243
   photo_id = 385_318_430
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/385318430/large.jpeg"
@@ -10498,10 +10503,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."osmia cornifrons"]
+[species."Osmia cornifrons"]
 description = ""
 
-  [[species."osmia cornifrons".photos]]
+  [[species."Osmia cornifrons".photos]]
   observation_id = 345_216_900
   photo_id = 629_099_710
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/629099710/large.jpg"
@@ -10510,7 +10515,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."osmia cornifrons".photos]]
+  [[species."Osmia cornifrons".photos]]
   observation_id = 345_216_900
   photo_id = 629_099_740
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/629099740/large.jpg"
@@ -10519,7 +10524,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."osmia cornifrons".photos]]
+  [[species."Osmia cornifrons".photos]]
   observation_id = 112_675_159
   photo_id = 190_334_131
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/190334131/large.jpg"
@@ -10918,10 +10923,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."osmia phaceliae"]
+[species."Osmia phaceliae"]
 description = ""
 
-  [[species."osmia phaceliae".photos]]
+  [[species."Osmia phaceliae".photos]]
   observation_id = 19_646_284
   photo_id = 30_253_243
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/30253243/large.jpg"
@@ -10930,7 +10935,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."osmia phaceliae".photos]]
+  [[species."Osmia phaceliae".photos]]
   observation_id = 19_646_384
   photo_id = 30_253_472
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/30253472/large.jpg"
@@ -10939,7 +10944,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."osmia phaceliae".photos]]
+  [[species."Osmia phaceliae".photos]]
   observation_id = 19_646_384
   photo_id = 30_253_545
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/30253545/large.jpg"
@@ -11185,10 +11190,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.panurginus]
+[species.Panurginus]
 description = ""
 
-  [[species.panurginus.photos]]
+  [[species.Panurginus.photos]]
   observation_id = 119_343_450
   photo_id = 201_722_043
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/201722043/large.jpg"
@@ -11197,7 +11202,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.panurginus.photos]]
+  [[species.Panurginus.photos]]
   observation_id = 119_343_450
   photo_id = 201_722_111
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/201722111/large.jpg"
@@ -11206,7 +11211,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.panurginus.photos]]
+  [[species.Panurginus.photos]]
   observation_id = 119_343_450
   photo_id = 201_722_094
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/201722094/large.jpg"
@@ -11251,10 +11256,10 @@ description = ""
 [species."Panurginus nigrellus"]
 description = ""
 
-[species.perdita]
+[species.Perdita]
 description = ""
 
-  [[species.perdita.photos]]
+  [[species.Perdita.photos]]
   observation_id = 15_633_675
   photo_id = 23_361_667
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/23361667/large.jpg"
@@ -11263,7 +11268,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.perdita.photos]]
+  [[species.Perdita.photos]]
   observation_id = 15_633_675
   photo_id = 23_362_514
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/23362514/large.jpg"
@@ -11272,7 +11277,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.perdita.photos]]
+  [[species.Perdita.photos]]
   observation_id = 15_633_675
   photo_id = 23_362_534
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/23362534/large.jpg"
@@ -11284,7 +11289,7 @@ description = ""
 [species."Perdita ciliata"]
 description = ""
 
-[species."perdita claypolei"]
+[species."Perdita claypolei"]
 description = ""
 
 [species."Perdita lingualis"]
@@ -11347,10 +11352,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."perdita nuda"]
+[species."Perdita nuda"]
 description = ""
 
-  [[species."perdita nuda".photos]]
+  [[species."Perdita nuda".photos]]
   observation_id = 140_026_744
   photo_id = 239_621_556
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/239621556/large.jpg"
@@ -11359,7 +11364,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."perdita nuda".photos]]
+  [[species."Perdita nuda".photos]]
   observation_id = 140_026_744
   photo_id = 239_621_569
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/239621569/large.jpg"
@@ -11368,7 +11373,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."perdita nuda".photos]]
+  [[species."Perdita nuda".photos]]
   observation_id = 140_026_744
   photo_id = 239_621_583
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/239621583/large.jpg"
@@ -11503,10 +11508,10 @@ description = ""
   license = "cc-by"
   ordering = 3
 
-[species.pseudoanthidium]
+[species.Pseudoanthidium]
 description = ""
 
-  [[species.pseudoanthidium.photos]]
+  [[species.Pseudoanthidium.photos]]
   observation_id = 148_639_270
   photo_id = 256_005_218
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/256005218/large.jpeg"
@@ -11515,7 +11520,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.pseudoanthidium.photos]]
+  [[species.Pseudoanthidium.photos]]
   observation_id = 148_639_270
   photo_id = 256_005_243
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/256005243/large.jpeg"
@@ -11524,7 +11529,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.pseudoanthidium.photos]]
+  [[species.Pseudoanthidium.photos]]
   observation_id = 148_639_270
   photo_id = 256_736_429
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/256736429/large.jpeg"
@@ -11533,10 +11538,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species."pseudoanthidium nanum"]
+[species."Pseudoanthidium nanum"]
 description = ""
 
-  [[species."pseudoanthidium nanum".photos]]
+  [[species."Pseudoanthidium nanum".photos]]
   observation_id = 225_323_239
   photo_id = 399_474_250
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/399474250/large.jpg"
@@ -11545,7 +11550,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."pseudoanthidium nanum".photos]]
+  [[species."Pseudoanthidium nanum".photos]]
   observation_id = 176_373_521
   photo_id = 306_628_560
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/306628560/large.jpg"
@@ -11554,7 +11559,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."pseudoanthidium nanum".photos]]
+  [[species."Pseudoanthidium nanum".photos]]
   observation_id = 176_373_521
   photo_id = 306_628_526
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/306628526/large.jpg"
@@ -11563,10 +11568,10 @@ description = ""
   license = "cc-by-nc"
   ordering = 3
 
-[species.sphecodes]
+[species.Sphecodes]
 description = ""
 
-  [[species.sphecodes.photos]]
+  [[species.Sphecodes.photos]]
   observation_id = 210_737_989
   photo_id = 372_705_740
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/372705740/large.jpeg"
@@ -11575,7 +11580,7 @@ description = ""
   license = "cc0"
   ordering = 1
 
-  [[species.sphecodes.photos]]
+  [[species.Sphecodes.photos]]
   observation_id = 242_806_481
   photo_id = 432_886_915
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432886915/large.jpeg"
@@ -11584,7 +11589,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.sphecodes.photos]]
+  [[species.Sphecodes.photos]]
   observation_id = 220_604_418
   photo_id = 390_591_594
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/390591594/large.jpg"
@@ -11614,10 +11619,10 @@ description = ""
 [species."Sphecodes olympicus"]
 description = ""
 
-[species."sphecodes pecosensis"]
+[species."Sphecodes pecosensis"]
 description = ""
 
-  [[species."sphecodes pecosensis".photos]]
+  [[species."Sphecodes pecosensis".photos]]
   observation_id = 210_737_989
   photo_id = 372_705_740
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/372705740/large.jpeg"
@@ -11626,7 +11631,7 @@ description = ""
   license = "cc0"
   ordering = 1
 
-  [[species."sphecodes pecosensis".photos]]
+  [[species."Sphecodes pecosensis".photos]]
   observation_id = 242_806_481
   photo_id = 432_886_915
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/432886915/large.jpeg"
@@ -11638,10 +11643,10 @@ description = ""
 [species."Sphecodes washingtoni"]
 description = ""
 
-[species.stelis]
+[species.Stelis]
 description = ""
 
-  [[species.stelis.photos]]
+  [[species.Stelis.photos]]
   observation_id = 127_745_199
   photo_id = 216_905_653
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216905653/large.jpg"
@@ -11650,7 +11655,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.stelis.photos]]
+  [[species.Stelis.photos]]
   observation_id = 127_745_199
   photo_id = 216_905_858
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216905858/large.jpg"
@@ -11659,7 +11664,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.stelis.photos]]
+  [[species.Stelis.photos]]
   observation_id = 127_745_199
   photo_id = 216_905_859
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/216905859/large.jpg"
@@ -11674,7 +11679,7 @@ description = ""
 [species."Stelis callura"]
 description = ""
 
-[species."stelis carnifex"]
+[species."Stelis carnifex"]
 description = ""
 
 [species."Stelis foederalis"]
@@ -11788,10 +11793,10 @@ description = ""
 [species."Stelis subglauca"]
 description = ""
 
-[species.triepeolus]
+[species.Triepeolus]
 description = ""
 
-  [[species.triepeolus.photos]]
+  [[species.Triepeolus.photos]]
   observation_id = 238_697_641
   photo_id = 424_998_834
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/424998834/large.jpeg"
@@ -11800,7 +11805,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species.triepeolus.photos]]
+  [[species.Triepeolus.photos]]
   observation_id = 238_697_641
   photo_id = 424_998_825
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/424998825/large.jpeg"
@@ -11809,7 +11814,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species.triepeolus.photos]]
+  [[species.Triepeolus.photos]]
   observation_id = 238_697_641
   photo_id = 424_998_827
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/424998827/large.jpeg"
@@ -11950,10 +11955,10 @@ description = ""
 [species."Triepeolus timberlakei"]
 description = ""
 
-[species."xylocopa virginica"]
+[species."Xylocopa virginica"]
 description = ""
 
-  [[species."xylocopa virginica".photos]]
+  [[species."Xylocopa virginica".photos]]
   observation_id = 44_941_944
   photo_id = 71_248_011
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/71248011/large.jpg"
@@ -11962,7 +11967,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 1
 
-  [[species."xylocopa virginica".photos]]
+  [[species."Xylocopa virginica".photos]]
   observation_id = 212_091_424
   photo_id = 374_826_008
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/374826008/large.jpeg"
@@ -11971,7 +11976,7 @@ description = ""
   license = "cc-by-nc"
   ordering = 2
 
-  [[species."xylocopa virginica".photos]]
+  [[species."Xylocopa virginica".photos]]
   observation_id = 212_091_424
   photo_id = 374_825_976
   url = "https://inaturalist-open-data.s3.amazonaws.com/photos/374825976/large.jpeg"
