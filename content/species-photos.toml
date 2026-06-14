@@ -88,11 +88,11 @@ description = ""
   license = "cc-by"
   ordering = 3
 
-# NOTE: "Agapostemon texanus" has curated photos but no occurrence records in the
-# current dataset, so it is intentionally absent from public/data/species.json. The
-# lone `validate-species` warning for this name is therefore EXPECTED, not a data
-# error — it clears on its own once the species shows up in occurrences. Its detail
-# page won't be generated until then either (pages are built from species.json).
+# NOTE: "Agapostemon texanus" is synonymized within Washington with Agapostemon
+# subtilior, so WA records resolve to subtilior and texanus never appears as its own
+# species in public/data/species.json. The lone `validate-species` warning for this
+# name is therefore EXPECTED, not a data error. These curated photos arguably belong
+# under the "Agapostemon subtilior" entry above — left as-is pending a curation call.
 [species."Agapostemon texanus"]
 description = ""
 
