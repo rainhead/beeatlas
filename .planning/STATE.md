@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: executing
-stopped_at: Phase 148 context gathered
-last_updated: "2026-06-11T15:45:29.388Z"
-last_activity: 2026-06-11 -- Phase 148 planning complete
+status: ready_to_plan
+stopped_at: Phase 148 complete (1/1) — ready to discuss Phase 149
+last_updated: 2026-06-14T04:00:37.290Z
+last_activity: 2026-06-11 -- Phase 148 execution started
 progress:
   total_phases: 26
   completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 4
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 148 — app shell precache + vite plugin pwa wiring
+**Current focus:** Phase 149 — `/data/` runtime caching + offline cold start
 
 ## Current Position
 
-Phase: 148
+Phase: 149
 Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 148 planning complete
+Status: Ready to plan
+Last activity: 2026-06-14
 
 Progress: [██████████] 100%
 

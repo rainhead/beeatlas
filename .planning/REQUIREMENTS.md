@@ -25,7 +25,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Offline Caching & Operation
 
-- [ ] **OFF-01**: The app shell (hashed JS/CSS for the `/app` entry) is precached via `vite-plugin-pwa` `injectManifest`, wired through `eleventy.config.js` `viteOptions.plugins`; the `/app` UI loads fully offline.
+- [x] **OFF-01**: The app shell (hashed JS/CSS for the `/app` entry) is precached via `vite-plugin-pwa` `injectManifest`, wired through `eleventy.config.js` `viteOptions.plugins`; the `/app` UI loads fully offline.
 - [ ] **OFF-02**: `occurrences.db` (~23 MB) and all GeoJSON (`counties`/`ecoregions`/`places`) are runtime-cached (`CacheFirst`, `maximumFileSizeToCacheInBytes` raised); offline, occurrence dots and county/ecoregion overlays render and all filter/table/selection queries run against the cached DB.
 - [ ] **OFF-03**: Cache invalidation is keyed to the existing content-hash `manifest.json`; the SW update lifecycle uses prompt-to-reload ("A data update is available — tap to reload"), never `skipWaiting`/`clientsClaim` auto-activation, to avoid app-code↔DB version skew.
 - [ ] **OFF-04**: Uncached Mapbox basemap tiles render blank offline without crashing the map; an honest label explains the basemap is only cached for areas browsed while online.
@@ -101,7 +101,7 @@ Populated during roadmap creation.
 | PWA-01 | Phase 151 | Pending |
 | PWA-02 | Phase 151 | Pending |
 | PWA-03 | Phase 151 | Pending |
-| OFF-01 | Phase 148 | Pending |
+| OFF-01 | Phase 148 | Complete |
 | OFF-02 | Phase 149 | Pending |
 | OFF-03 | Phase 149 | Pending |
 | OFF-04 | Phase 149 | Pending |

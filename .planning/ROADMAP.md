@@ -1164,7 +1164,7 @@ Plans:
   3. `maximumFileSizeToCacheInBytes` is set to ≥ 30,000,000 in the plugin config (confirmed in `eleventy.config.js`)
   4. `npm run build` succeeds and a post-build verification script (or manual check) confirms every precache URL exists as a file in `_site/`
 **Plans**: 1 plan
-  - [ ] 148-01-PLAN.md — Wire vite-plugin-pwa injectManifest via eleventy.config.js viteOptions.plugins; precache the /app app shell; raise the cache cap to 30 MB; replace the Phase 147 SW stub; verify via build-output assertions + offline HUMAN-UAT
+  - [x] 148-01-PLAN.md — Wire vite-plugin-pwa injectManifest via eleventy.config.js viteOptions.plugins; precache the /app app shell; raise the cache cap to 30 MB; replace the Phase 147 SW stub; verify via build-output assertions + offline HUMAN-UAT
 
 ### Phase 149: `/data/` Runtime Caching + Offline Cold-Start
 
@@ -1261,7 +1261,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 147. `/app` Route + SW Topology | v5.0 | 2/2 | Complete    | 2026-06-11 |
-| 148. App Shell Precache + vite-plugin-pwa | v5.0 | 0/TBD | Not started | - |
+| 148. App Shell Precache + vite-plugin-pwa | v5.0 | 1/1 | Complete    | 2026-06-14 |
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 0/TBD | Not started | - |
 | 150. Cache Health & Freshness UX | v5.0 | 0/TBD | Not started | - |
 | 151. PWA Manifest & Installability | v5.0 | 0/TBD | Not started | - |
