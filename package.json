@@ -37,7 +37,7 @@
     "happy-dom": "^20.10.3",
     "hyparquet": "^1.26.0",
     "mapshaper": "^0.7.23",
-    "typescript": "^5.8.2",
+    "typescript": "^6.0.3",
     "vite": "^8.0.16",
     "vitest": "^4.1.8"
   },
