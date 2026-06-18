@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: planning
+status: executing
 stopped_at: Phase 149 planned (3 plans, 2 waves)
-last_updated: "2026-06-18T17:40:18.080Z"
-last_activity: 2026-06-14
+last_updated: "2026-06-18T17:40:59.043Z"
+last_activity: 2026-06-18 -- Phase 149 execution started
 progress:
   total_phases: 10
   completed_phases: 4
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 149 — `/data/` runtime caching + offline cold start
+**Current focus:** Phase 149 — data-runtime-caching-offline-cold-start
 
 ## Current Position
 
-Phase: 149
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-14
+Phase: 149 (data-runtime-caching-offline-cold-start) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 149
+Last activity: 2026-06-18 -- Phase 149 execution started
 
 Progress: [██████████] 100%
 
