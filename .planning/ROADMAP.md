@@ -1282,3 +1282,14 @@ The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is 
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.2: Add WDFW wildlife areas as places (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Add Washington Department of Fish & Wildlife wildlife areas to `content/places.toml` as place entries. Source list: https://wdfw.wa.gov/places-to-go/wildlife-areas. Will need boundary geometries (likely a WDFW GIS layer), permit metadata (WDFW is already a known permit issuer), and per-area entries following the v3.7 place data model.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
