@@ -1194,8 +1194,8 @@ Plans:
 **Plans**: 3 plans (2 waves — Plan 01 in Wave 1; Plans 02 and 03 in Wave 2 in parallel)
 
   - [x] 149-01-PLAN.md — Wave 1: add workbox-strategies / -expiration / -cacheable-response devDeps; extend src/sw.ts with CacheFirst routes for /data/*.db (ExpirationPlugin maxEntries:1, purgeOnQuotaError:true) and /data/*.geojson under the data-artifacts cache; extend build-output.test.ts with the new runtime-route + no-skipWaiting carry-forward + devDep assertions [OFF-02, OFF-03]
-  - [ ] 149-02-PLAN.md — Wave 2 (parallel with 03): add the page-side cold-start probe + online re-prime listener in src/app-entry.ts; add the once-per-profile navigator.storage.persist() request in src/sw-registration.ts (localStorage gate); add src/tests/cache-probe.test.ts covering all probe branches [CACHE-05]
-  - [ ] 149-03-PLAN.md — Wave 2 (parallel with 02): add _offline @state + online/offline event wiring in <bee-atlas>; add offline @property + Offline pill to <bee-header>; add offline @property + blank-basemap explanation overlay to <bee-map> (pure-presenter invariant preserved); add render tests for all three components [OFF-04, OFF-05]
+  - [x] 149-02-PLAN.md — Wave 2 (parallel with 03): add the page-side cold-start probe + online re-prime listener in src/app-entry.ts; add the once-per-profile navigator.storage.persist() request in src/sw-registration.ts (localStorage gate); add src/tests/cache-probe.test.ts covering all probe branches [CACHE-05]
+  - [x] 149-03-PLAN.md — Wave 2 (parallel with 02): add _offline @state + online/offline event wiring in <bee-atlas>; add offline @property + Offline pill to <bee-header>; add offline @property + blank-basemap explanation overlay to <bee-map> (pure-presenter invariant preserved); add render tests for all three components [OFF-04, OFF-05]
 
 ### Phase 150: Cache Health & Freshness UX
 
@@ -1287,7 +1287,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 147. `/app` Route + SW Topology | v5.0 | 2/2 | Complete    | 2026-06-11 |
 | 148. App Shell Precache + vite-plugin-pwa | v5.0 | 1/1 | Complete    | 2026-06-14 |
-| 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 1/3 | In Progress|  |
+| 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 3/3 | Complete   | 2026-06-18 |
 | 150. Cache Health & Freshness UX | v5.0 | 0/TBD | Not started | - |
 | 151. PWA Manifest & Installability | v5.0 | 0/TBD | Not started | - |
 | 152. GeolocateControl + Location State | v5.0 | 0/TBD | Not started | - |
@@ -1300,7 +1300,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
 
