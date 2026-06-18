@@ -1,4 +1,4 @@
-import { test, expect, describe, vi } from 'vitest';
+import { test, expect, describe, vi, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -77,5 +77,38 @@ describe('HDR: bee-header event emission', () => {
     expect(placesLink).not.toBeNull();
 
     document.body.removeChild(el);
+  });
+});
+
+describe('OFF-05: bee-header offline pill (Plan 149-03)', () => {
+  let el: HTMLElement & { offline: boolean; updateComplete: Promise<boolean>; shadowRoot: ShadowRoot };
+
+  afterEach(() => {
+    if (el && el.isConnected) {
+      el.remove();
+    }
+  });
+
+  test('renders an Offline pill when offline=true (OFF-05)', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).offline = true;
+    document.body.appendChild(el);
+    await (el as any).updateComplete;
+
+    const pill = el.shadowRoot!.querySelector('.offline-pill');
+    expect(pill).not.toBeNull();
+    expect(pill!.textContent).toBe('Offline');
+  });
+
+  test('renders no pill when offline=false (OFF-05)', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).offline = false;
+    document.body.appendChild(el);
+    await (el as any).updateComplete;
+
+    const pill = el.shadowRoot!.querySelector('.offline-pill');
+    expect(pill).toBeNull();
   });
 });

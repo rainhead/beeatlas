@@ -99,3 +99,39 @@ describe('144-02: intendedFilterActive @property + render decision (SC-3, SC-4)'
     expect(hasOldGateOnly).toBe(false);
   });
 });
+
+describe('OFF-04: bee-map blank-basemap overlay (Plan 149-03)', () => {
+  test('bee-map.ts declares offline as @property input (OFF-04)', () => {
+    expect(src).toMatch(/@property\(\{\s*attribute:\s*false\s*\}\)\s*offline\s*=\s*false/);
+  });
+
+  test('bee-map.ts contains .offline-basemap-label CSS rule (OFF-04)', () => {
+    expect(src).toMatch(/\.offline-basemap-label\s*\{/);
+  });
+
+  test('bee-map.ts renders offline-basemap-label div when offline is true (OFF-04)', () => {
+    // The conditional template must reference 'offline-basemap-label'
+    expect(src).toMatch(/offline-basemap-label/);
+    // Condition must gate on this.offline
+    expect(src).toMatch(/this\.offline\s*\?/);
+  });
+
+  test('bee-map.ts overlay text contains informational message about basemap unavailability (OFF-04)', () => {
+    expect(src).toMatch(/Basemap tiles unavailable offline/);
+  });
+
+  test('bee-map.ts offline @property is input-only: no internal assignment to this.offline (OFF-04)', () => {
+    // Disallow assignment to the instance property in method bodies
+    expect(src).not.toMatch(/this\.offline\s*=/);
+  });
+
+  test('bee-map.ts DOES NOT register online/offline event listeners (pure presenter invariant, OFF-04)', () => {
+    expect(src).not.toMatch(/addEventListener\s*\(\s*['"]online['"]/);
+    expect(src).not.toMatch(/addEventListener\s*\(\s*['"]offline['"]/);
+  });
+
+  test('bee-map.ts DOES NOT declare _offline @state (state owned by bee-atlas, OFF-04)', () => {
+    expect(src).not.toMatch(/@state[\s\S]{0,20}_offline/);
+    expect(src).not.toMatch(/private\s+_offline/);
+  });
+});
