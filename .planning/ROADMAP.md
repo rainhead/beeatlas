@@ -1271,4 +1271,14 @@ Plans:
 
 ## Backlog
 
-_Empty — all items promoted. Add new items with `/gsd:capture --backlog`._
+### Phase 999.1: Surface shift-drag rectangle selection in the UI (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
