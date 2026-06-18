@@ -302,3 +302,77 @@ def test_member_taxon_ids_column_present():
     assert "member_taxon_ids" in cols, (
         f"member_taxon_ids column missing from higher_taxa.parquet — columns: {cols}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Published-baseline cross-artifact consistency (regression-baseline gate)
+#
+# The sandbox tests above prove higher_taxa.parquet == species.parquet WITHIN one
+# dbt build. But public/data/{species,higher_taxa}.json are pulled INDEPENDENTLY
+# from S3 by nightly.sh block 1c, so they can drift out of sync if the baseline
+# pull set omits one of them (it did: higher_taxa.json/photos.json were missing
+# from the pull for days while species.json refreshed nightly — genus rollup 1768
+# vs Σspecies 1880). This asserts the two published artifacts agree, so any such
+# skew fails the nightly integration gate the same night instead of surfacing days
+# later via the JS suite (src/tests/data-species.test.ts TREE-01/02/04).
+#
+# Mirrors test_genus_rollup_equals_species_sum, but on the public/data baseline.
+# ---------------------------------------------------------------------------
+
+PUBLIC_DATA = Path(__file__).resolve().parent.parent.parent / "public" / "data"
+PUBLIC_SPECIES_JSON = PUBLIC_DATA / "species.json"
+PUBLIC_HIGHER_TAXA_JSON = PUBLIC_DATA / "higher_taxa.json"
+
+_PUBLIC_BASELINE_GUARD = pytest.mark.skipif(
+    not (PUBLIC_SPECIES_JSON.exists() and PUBLIC_HIGHER_TAXA_JSON.exists()),
+    reason=(
+        "[integration] needs public/data/species.json AND higher_taxa.json "
+        "(nightly block 1c pulls both, or run `uv run python data/species_export.py`)"
+    ),
+)
+
+
+@_PUBLIC_BASELINE_GUARD
+def test_published_baseline_genus_rollup_consistency():
+    """Published higher_taxa.json genus counts == SUM of species.json rows per genus.
+
+    higher_taxa.json's genus rollup is SUM(species mart) grouped by genus, so in a
+    coherent build it equals the per-genus SUM of ALL species.json rows (leaf species
+    AND the genus-level specific_epithet=null row). A mismatch means the two baseline
+    artifacts came from different pipeline runs — the staleness this gate exists to
+    catch. Covers specimen_count, inat_obs_count, and occurrence_count.
+    """
+    import json
+
+    species = json.loads(PUBLIC_SPECIES_JSON.read_text())
+    higher_taxa = json.loads(PUBLIC_HIGHER_TAXA_JSON.read_text())
+
+    species_sum_by_genus: dict[str, list[int]] = {}
+    for sp in species:
+        g = sp.get("genus")
+        if not g:
+            continue
+        acc = species_sum_by_genus.setdefault(g, [0, 0, 0])
+        acc[0] += sp.get("specimen_count") or 0
+        acc[1] += sp.get("inat_obs_count") or 0
+        acc[2] += sp.get("occurrence_count") or 0
+
+    mismatches = []
+    for row in higher_taxa:
+        if row.get("rank") != "genus":
+            continue
+        name = row["name"]
+        rollup = (
+            row.get("specimen_count") or 0,
+            row.get("inat_obs_count") or 0,
+            row.get("occurrence_count") or 0,
+        )
+        expected = tuple(species_sum_by_genus.get(name, [0, 0, 0]))
+        if rollup != expected:
+            mismatches.append((name, rollup, expected))
+
+    assert not mismatches, (
+        "public/data baseline skew — higher_taxa.json genus rollup != species.json "
+        "per-genus SUM (specimen, inat_obs, occurrence). The two artifacts are from "
+        f"different pipeline runs (check nightly.sh block 1c pull set). First 5: {mismatches[:5]}"
+    )

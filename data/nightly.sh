@@ -134,28 +134,52 @@ mkdir -p "$REPO_ROOT/public/data"
 if aws --profile "$AWS_PROFILE" s3 cp --no-progress \
     "s3://$BUCKET/data/manifest.json" "$_PREV_MANIFEST" 2>/dev/null; then
     uv run python3 -c "
-import json, subprocess, sys
+import json, os, subprocess, sys
 manifest = json.load(open('$_PREV_MANIFEST'))
 bucket = '$BUCKET'
 profile = '$AWS_PROFILE'
 dest = '$REPO_ROOT/public/data'
-# Pull content-hashed artifacts by their manifest keys, saving under stable local names.
-# Keys and their local filenames:
-#   occurrences -> occurrences.parquet (hashed parquet)
-#   counties    -> counties.geojson    (hashed geojson)
-#   ecoregions  -> ecoregions.geojson  (hashed geojson)
-#   species     -> species.json        (hashed species.json — NOT species.parquet; see A3)
-#   seasonality -> seasonality.json    (hashed seasonality.json)
-pull = {
-    'occurrences.parquet': manifest.get('occurrences'),
-    'counties.geojson':    manifest.get('counties'),
-    'ecoregions.geojson':  manifest.get('ecoregions'),
-    'species.json':        manifest.get('species'),
-    'seasonality.json':    manifest.get('seasonality'),
+
+# Derived-from-manifest baseline pull. Every published artifact the integration
+# gate may diff must land in public/data/ under a stable local name. The pull
+# set is NOT a hardcoded subset — we iterate ALL manifest keys and classify each,
+# so a newly published artifact can never be silently dropped (the exact bug that
+# left higher_taxa.json/photos.json frozen for days while species.json advanced):
+#   - mapped in LOCAL_NAMES      -> pulled to public/data/<local name>
+#   - NON_FILE_KEYS              -> metadata, skipped silently
+#   - INTENTIONALLY_SKIPPED      -> a real artifact we deliberately don't baseline
+#   - anything else              -> WARN (drift alarm: a new key needs classifying)
+# A3: 'species' maps to the hashed species.json (NOT species.parquet).
+LOCAL_NAMES = {
+    'occurrences': 'occurrences.parquet',
+    'counties':    'counties.geojson',
+    'ecoregions':  'ecoregions.geojson',
+    'species':     'species.json',
+    'seasonality': 'seasonality.json',
+    'higher_taxa': 'higher_taxa.json',  # _data/species.js reads this at build (deploy.yml pulls it too)
+    'photos':      'photos.json',
 }
-for local, hashed in pull.items():
+# Pure metadata in the manifest — never files.
+NON_FILE_KEYS = {'occurrences_db_tables', 'generated_at'}
+# Real published artifacts intentionally NOT in the baseline diff (documented so
+# they don't trip the drift WARN): occurrences_db is the 23 MB sqlite (the parquet
+# is the diff baseline); places/checklist artifacts aren't diffed by the gate today.
+INTENTIONALLY_SKIPPED = {'occurrences_db', 'places', 'places_meta', 'checklist'}
+
+pulled, skipped, failed, drift = [], [], [], []
+for key, hashed in manifest.items():
+    if key in NON_FILE_KEYS or key in INTENTIONALLY_SKIPPED:
+        continue
+    if key not in LOCAL_NAMES:
+        print(f'WARN: manifest key {key!r} is not mapped to a public/data baseline '
+              f'file — add it to LOCAL_NAMES (or INTENTIONALLY_SKIPPED) in nightly.sh '
+              f'so the integration gate diffs it (drift guard)', file=sys.stderr)
+        drift.append(key)
+        continue
+    local = LOCAL_NAMES[key]
     if not hashed:
-        print(f'WARN: manifest key for {local} absent or empty — skipping', file=sys.stderr)
+        print(f'WARN: manifest key {key!r} ({local}) absent or empty — skipping', file=sys.stderr)
+        skipped.append(key)
         continue
     r = subprocess.run(
         ['aws', '--profile', profile, 's3', 'cp', '--no-progress',
@@ -163,7 +187,18 @@ for local, hashed in pull.items():
         capture_output=True
     )
     if r.returncode != 0:
-        print(f'WARN: could not pull {hashed} -> {local}', file=sys.stderr)
+        print(f'WARN: could not pull {hashed} -> {local}: {r.stderr.decode().strip()}', file=sys.stderr)
+        failed.append(local)
+        continue
+    sz = os.path.getsize(f'{dest}/{local}')
+    print(f'  pulled {key:<12s} {hashed} -> public/data/{local} ({sz:,} bytes)')
+    pulled.append(local)
+print(f'  baseline pull: {len(pulled)} pulled, {len(skipped)} skipped, '
+      f'{len(failed)} failed, {len(drift)} unmapped(drift)')
+# A failed pull means the baseline is incomplete -> the integration gate would
+# diff stale/partial data. Surface it loudly; the gate still runs (|| true below).
+if failed:
+    print(f'WARN: baseline pull had {len(failed)} failures: {failed}', file=sys.stderr)
 " 2>&1 || true
     echo "published artifact pull done in $(_elapsed $_t0)"
 else
