@@ -1,7 +1,8 @@
 ---
 phase: 150
 slug: cache-health-freshness-ux
-status: draft
+status: approved
+reviewed_at: 2026-06-18
 shadcn_initialized: false
 preset: none
 created: 2026-06-18
