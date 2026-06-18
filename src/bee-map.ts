@@ -57,6 +57,7 @@ export class BeeMap extends LitElement {
 
   @property({ attribute: false }) hiddenSources: Set<string> = new Set();
   @property({ attribute: false }) intendedFilterActive = false;
+  @property({ attribute: false }) offline = false;
 
   @state() private _regionMenuOpen = false;
 
@@ -142,6 +143,19 @@ export class BeeMap extends LitElement {
   height: 0;
   pointer-events: none;
 }
+.offline-basemap-label {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 0.5rem;
+  background: rgba(255, 255, 255, 0.85);
+  color: #333;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+  max-width: 220px;
+  pointer-events: none;
+  z-index: 3;
+}
   `;
 
   private _emit<T>(name: string, detail?: T) {
@@ -177,6 +191,7 @@ export class BeeMap extends LitElement {
           ${label}
         </button>
       </div>
+      ${this.offline ? html`<div class="offline-basemap-label">Basemap tiles unavailable offline. Pan here while online to cache tiles for an area.</div>` : ''}
     `;
   }
 
