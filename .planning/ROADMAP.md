@@ -1315,3 +1315,14 @@ UI bug: the regions dropdown is visually obscured by the filter button (likely a
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.5: Capture specimen photos from non-WABA-field iNat users (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+The current WABA pipeline (Phase 49 / 66) ingests iNat observations tagged with the "WABA" observation field. Some collectors (e.g. swisschick) post specimen photos without using that field, so they fall out of the provisional-occurrence path. Figure out an alternative match strategy — candidates: project membership, place + taxon + collector heuristics, manual allowlist of contributing iNat usernames, or an observation-field-independent "is this a specimen photo by a known collector?" rule.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
