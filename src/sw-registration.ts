@@ -20,3 +20,30 @@ async function registerServiceWorker(): Promise<void> {
 }
 
 registerServiceWorker();
+
+// requestPersistentStorage — CACHE-05 / D-12.
+//
+// Called once at first /app page launch, gated by a localStorage key to avoid
+// spamming the call on every visit. The localStorage write happens BEFORE the
+// await so a rejected/throwing persist() cannot cause a retry on the next visit
+// (one-shot semantics per D-12).
+//
+// iOS behavior: navigator.storage.persist() returns false almost always in
+// normal browser sessions; only returns true for home-screen-installed PWAs
+// with notification permission granted. The result is logged for diagnostics
+// only — no behavior is gated on the boolean (D-12).
+const PERSIST_ASKED_KEY = 'beeatlas-persist-asked';
+
+async function requestPersistentStorage(): Promise<void> {
+  // Feature guard: navigator.storage?.persist uses optional chaining because
+  // navigator.storage exists everywhere but .persist is gated (older Safari).
+  if (!navigator.storage?.persist) return;
+  if (localStorage.getItem(PERSIST_ASKED_KEY)) return;
+  // Set the flag BEFORE the await: if persist() throws, we don't retry next visit.
+  localStorage.setItem(PERSIST_ASKED_KEY, '1');
+  const granted = await navigator.storage.persist();
+  // D-12: log result only — iOS returns false almost always.
+  console.log('[storage] navigator.storage.persist() =>', granted);
+}
+
+void requestPersistentStorage();
