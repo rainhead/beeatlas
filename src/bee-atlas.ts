@@ -68,6 +68,7 @@ export class BeeAtlas extends LitElement {
   // re-render to propagate the gate. Without @state, propagation would depend on an
   // incidental co-mutation of another reactive field at every call site (fragile).
   @state() private _filterResolving = false;
+  @state() private _offline: boolean = !navigator.onLine;
 
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
@@ -168,7 +169,7 @@ bee-pane {
 
   render() {
     return html`
-      <bee-header></bee-header>
+      <bee-header .offline=${this._offline}></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading…</div>` : ''}
       ${this._error ? '' : html`
@@ -188,6 +189,7 @@ bee-pane {
             .viewState=${this._viewState}
             .filterState=${this._filterState}
             .hiddenSources=${this._hiddenSources}
+            .offline=${this._offline}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
             @map-click-region=${this._onRegionClick}
@@ -345,11 +347,15 @@ bee-pane {
 
     // Register popstate handler for browser back/forward navigation
     window.addEventListener('popstate', this._onPopState);
+    window.addEventListener('online', this._onOnline);
+    window.addEventListener('offline', this._onOffline);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener('popstate', this._onPopState);
+    window.removeEventListener('online', this._onOnline);
+    window.removeEventListener('offline', this._onOffline);
   }
 
   // --- Filter query ---
@@ -681,6 +687,9 @@ bee-pane {
       window.history.replaceState({}, '', url);
     }
   }
+
+  private _onOnline = () => { this._offline = false; };
+  private _onOffline = () => { this._offline = true; };
 
   private _onPopState = () => {
     this._isRestoringFromHistory = true;
