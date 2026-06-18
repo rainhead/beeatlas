@@ -1293,3 +1293,14 @@ Add Washington Department of Fish & Wildlife wildlife areas to `content/places.t
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.3: Way to add specific hikes as places (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Support representing individual hikes (named trails / routes) as places. The current v3.7 model expects polygon boundaries; hikes are linear (LineString) or corridor (buffered line) features. Open questions: source (WTA, AllTrails, OSM, hand-curated?), geometry representation (line vs. corridor buffer), how a hike relates to its containing place (e.g. a trail inside a state park), and whether they get their own place category or piggyback on `place_type`.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
