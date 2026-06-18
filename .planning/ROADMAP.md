@@ -1355,3 +1355,15 @@ The current WABA pipeline (Phase 49 / 66) ingests iNat observations tagged with 
 Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.6: Filter by taxon from occurrence summary in sidebar (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+When an occurrence summary in the sidebar lists a taxon, give the user a quick way to filter the map to just that taxon — e.g. a click target on the taxon name or chip, or a small filter icon next to it. Saves the round-trip of opening the filter panel and typing the name. Open questions: which rank to filter at when the displayed taxon is below species (subspecies/form), how this interacts with existing filter state (replace vs intersect), and whether to surface the same affordance from the table view.
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
