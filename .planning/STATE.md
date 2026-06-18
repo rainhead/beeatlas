@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: ready_to_plan
-stopped_at: Phase 148 complete (1/1) — ready to discuss Phase 149
-last_updated: 2026-06-14T04:00:37.290Z
-last_activity: 2026-06-11 -- Phase 148 execution started
+status: planning
+stopped_at: Phase 149 context gathered
+last_updated: "2026-06-18T17:12:10.313Z"
+last_activity: 2026-06-14
 progress:
-  total_phases: 26
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
-  percent: 4
+  total_phases: 10
+  completed_phases: 4
+  total_plans: 5
+  completed_plans: 5
+  percent: 40
 ---
 
 # Project State
@@ -85,6 +85,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-11T15:01:16.206Z
-Stopped at: Phase 148 context gathered
-Resume file: .planning/phases/148-app-shell-precache-vite-plugin-pwa-wiring/148-CONTEXT.md
+Last session: 2026-06-18T17:12:10.308Z
+Stopped at: Phase 149 context gathered
+Resume file: .planning/phases/149-data-runtime-caching-offline-cold-start/149-CONTEXT.md
