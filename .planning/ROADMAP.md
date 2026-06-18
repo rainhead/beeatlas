@@ -1304,3 +1304,14 @@ Support representing individual hikes (named trails / routes) as places. The cur
 Plans:
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+### Phase 999.4: Regions dropdown obscured by filter button (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+UI bug: the regions dropdown is visually obscured by the filter button (likely a z-index or stacking-context issue in the header/toolbar). Repro and fix when picked up.
+
+Plans:
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
