@@ -1179,7 +1179,10 @@ Plans:
   5. If `occurrences.db` is evicted from cache and the device reconnects, the app re-fetches and re-caches the DB without requiring a manual action; `navigator.storage.persist()` is requested at first launch
   6. A `QuotaExceededError` during DB caching triggers partial-write cleanup (the incomplete cache entry is removed)
   7. SW update lifecycle uses prompt-to-reload, never `skipWaiting`/`clientsClaim` — confirmed by observing the "waiting" SW state in DevTools before the user acknowledges the update prompt
-**Plans**: TBD
+**Plans**: 3 plans (2 waves — Plan 01 in Wave 1; Plans 02 and 03 in Wave 2 in parallel)
+  - [ ] 149-01-PLAN.md — Wave 1: add workbox-strategies / -expiration / -cacheable-response devDeps; extend src/sw.ts with CacheFirst routes for /data/*.db (ExpirationPlugin maxEntries:1, purgeOnQuotaError:true) and /data/*.geojson under the data-artifacts cache; extend build-output.test.ts with the new runtime-route + no-skipWaiting carry-forward + devDep assertions [OFF-02, OFF-03]
+  - [ ] 149-02-PLAN.md — Wave 2 (parallel with 03): add the page-side cold-start probe + online re-prime listener in src/app-entry.ts; add the once-per-profile navigator.storage.persist() request in src/sw-registration.ts (localStorage gate); add src/tests/cache-probe.test.ts covering all probe branches [CACHE-05]
+  - [ ] 149-03-PLAN.md — Wave 2 (parallel with 02): add _offline @state + online/offline event wiring in <bee-atlas>; add offline @property + Offline pill to <bee-header>; add offline @property + blank-basemap explanation overlay to <bee-map> (pure-presenter invariant preserved); add render tests for all three components [OFF-04, OFF-05]
 
 ### Phase 150: Cache Health & Freshness UX
 
