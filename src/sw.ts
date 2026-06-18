@@ -21,6 +21,9 @@ declare const self: ServiceWorkerGlobalScope & typeof globalThis & {
 
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
+import { CacheFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 // Precache the /app shell (hashed JS/CSS + /app/index.html).
 // self.__WB_MANIFEST is replaced at build time by vite-plugin-pwa's
@@ -35,3 +38,40 @@ const navigationRoute = new NavigationRoute(handler, {
   allowlist: [/^\/app\//],
 });
 registerRoute(navigationRoute);
+
+// D-01/D-04: DB runtime cache — CacheFirst with 1-entry cap.
+// maxEntries: 1 collapses hash-churn: each nightly pipeline produces a new
+// occurrences_<hash>.db URL; without a cap, old hashes accumulate toward
+// the iOS ~50 MB quota. With maxEntries: 1, Workbox evicts the previous DB
+// entry whenever a new one is cached — steady-state usage stays ~23 MB.
+// purgeOnQuotaError: true cleans up the entire data-artifacts cache on
+// genuine-full-disk quota failures (D-04 backstop).
+// Note: does NOT intercept manifest.json (.json extension, not .db);
+// Phase 150 will add a separate NetworkFirst route for manifest.json.
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/data/') && url.pathname.endsWith('.db'),
+  new CacheFirst({
+    cacheName: 'data-artifacts',
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 1, purgeOnQuotaError: true }),
+      new CacheableResponsePlugin({ statuses: [200] }),
+    ],
+  })
+);
+
+// D-02/D-06: GeoJSON runtime cache — CacheFirst, no entry cap.
+// counties/ecoregions/places GeoJSON use stable URLs that overwrite in place
+// each nightly pipeline run; three files total, <5 MB combined.
+// No ExpirationPlugin — sharing maxEntries: 1 with the DB route would cause
+// GeoJSON entries to be evicted when the DB is cached (RESEARCH Pitfall 1).
+// Both routes share the data-artifacts cache name; ExpirationPlugin scopes
+// its eviction to the route it is registered on, not the cache as a whole.
+registerRoute(
+  ({ url }) => url.pathname.startsWith('/data/') && url.pathname.endsWith('.geojson'),
+  new CacheFirst({
+    cacheName: 'data-artifacts',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [200] }),
+    ],
+  })
+);

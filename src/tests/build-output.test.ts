@@ -350,4 +350,32 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     const value = parseInt(match![1]!.replace(/_/g, ''), 10);
     expect(value).toBeGreaterThanOrEqual(30_000_000);
   });
+
+  // Phase 149 — runtime cache assertions (OFF-02, OFF-03, CACHE-05)
+
+  test('_site/app/sw.js registers a runtime CacheFirst route for /data/ (OFF-02)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    // Rollup preserves string literals like cache names through minification
+    expect(sw).toContain('data-artifacts');
+    // The .db route matcher substring is preserved in the Rollup output
+    expect(sw).toMatch(/\.db/);
+    // The .geojson route matcher substring is preserved
+    expect(sw).toMatch(/\.geojson/);
+  });
+
+  test('_site/app/sw.js does not contain skipWaiting or clients.claim (OFF-03 carry-forward)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    // First time this invariant is gated at built-output level (Phase 147/148 only
+    // enforced it structurally in source). SC-7 carry-forward.
+    expect(sw).not.toContain('skipWaiting');
+    expect(sw).not.toContain('clients.claim');
+  });
+
+  test('workbox-strategies, workbox-expiration, workbox-cacheable-response in package.json (OFF-02)', () => {
+    const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'));
+    const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
+    expect(allDeps['workbox-strategies']).toBeDefined();
+    expect(allDeps['workbox-expiration']).toBeDefined();
+    expect(allDeps['workbox-cacheable-response']).toBeDefined();
+  });
 });
