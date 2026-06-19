@@ -1223,7 +1223,7 @@ Plans:
 
 **Wave 3** *(depends on Wave 2)*
 
-- [ ] 150-04-PLAN.md — <bee-atlas> gains 5 new @state fields, 4 new window listeners, the bottom non-modal update-banner render, and a freshness-refresh wire (online + focus); <bee-header> gains 5 new @property fields + ready-pill (3 states per UI-SPEC) + freshness sub-line + cache-popover (storage estimate, freshness, passive update affordance); cache-update-acted event routes the popover affordance through the same `_onBannerTap` path; new src/tests/cache-state.test.ts pins the contract (Wave 0) [CACHE-01, CACHE-02, CACHE-03, CACHE-04; D-05, D-09, D-14, D-15, D-17, D-18, D-19, D-20]
+- [x] 150-04-PLAN.md — <bee-atlas> gains 5 new @state fields, 4 new window listeners, the bottom non-modal update-banner render, and a freshness-refresh wire (online + focus); <bee-header> gains 5 new @property fields + ready-pill (3 states per UI-SPEC) + freshness sub-line + cache-popover (storage estimate, freshness, passive update affordance); cache-update-acted event routes the popover affordance through the same `_onBannerTap` path; new src/tests/cache-state.test.ts pins the contract (Wave 0) [CACHE-01, CACHE-02, CACHE-03, CACHE-04; D-05, D-09, D-14, D-15, D-17, D-18, D-19, D-20]
 
 **UI hint**: yes
 
@@ -1302,7 +1302,7 @@ Plans:
 | 147. `/app` Route + SW Topology | v5.0 | 2/2 | Complete    | 2026-06-11 |
 | 148. App Shell Precache + vite-plugin-pwa | v5.0 | 1/1 | Complete    | 2026-06-14 |
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 3/3 | Complete   | 2026-06-18 |
-| 150. Cache Health & Freshness UX | v5.0 | 3/4 | In Progress|  |
+| 150. Cache Health & Freshness UX | v5.0 | 4/4 | Complete   | 2026-06-19 |
 | 151. PWA Manifest & Installability | v5.0 | 0/TBD | Not started | - |
 | 152. GeolocateControl + Location State | v5.0 | 0/TBD | Not started | - |
 | 153. Occurrences Near Me | v5.0 | 0/TBD | Not started | - |
@@ -1314,7 +1314,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
 
