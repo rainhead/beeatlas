@@ -1214,7 +1214,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 150-01-PLAN.md — SW source change + build-output gate move together: NetworkFirst route for /data/manifest.json + SKIP_WAITING-gated message listener in src/sw.ts; replace existing skipWaiting-absent assertion with gated form + add NetworkFirst + workbox-window-dep assertions; move workbox-window to runtime dependencies [CACHE-02; D-08, D-13, D-16]
+- [x] 150-01-PLAN.md — SW source change + build-output gate move together: NetworkFirst route for /data/manifest.json + SKIP_WAITING-gated message listener in src/sw.ts; replace existing skipWaiting-absent assertion with gated form + add NetworkFirst + workbox-window-dep assertions; move workbox-window to runtime dependencies [CACHE-02; D-08, D-13, D-16]
 
 **Wave 2** *(parallel — no file overlap)*
 
@@ -1302,7 +1302,7 @@ Plans:
 | 147. `/app` Route + SW Topology | v5.0 | 2/2 | Complete    | 2026-06-11 |
 | 148. App Shell Precache + vite-plugin-pwa | v5.0 | 1/1 | Complete    | 2026-06-14 |
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 3/3 | Complete   | 2026-06-18 |
-| 150. Cache Health & Freshness UX | v5.0 | 0/TBD | Not started | - |
+| 150. Cache Health & Freshness UX | v5.0 | 1/4 | In Progress|  |
 | 151. PWA Manifest & Installability | v5.0 | 0/TBD | Not started | - |
 | 152. GeolocateControl + Location State | v5.0 | 0/TBD | Not started | - |
 | 153. Occurrences Near Me | v5.0 | 0/TBD | Not started | - |
@@ -1314,7 +1314,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 3/3 plans complete
+**Plans:** 1/4 plans executed
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
 
