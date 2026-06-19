@@ -9,8 +9,14 @@ export class BeeHeader extends LitElement {
   @property({ attribute: false }) freshnessLabel: string | null = null;
   @property({ attribute: false }) storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
   @property({ attribute: false }) updateAvailable: boolean = false;
+  // D-09/D-10: true when Android beforeinstallprompt available and not yet installed.
+  @property({ attribute: false }) installable = false;
+  // D-11/D-12: true on iOS Safari (not standalone). Triggers A2HS popover instead of prompt().
+  @property({ attribute: false }) iosInstructable = false;
 
   @state() private _popoverOpen = false;
+  // Transient iOS A2HS popover open/close — local to presenter, not app state.
+  @state() private _iosPopoverOpen = false;
 
   static styles = css`
     :host {
@@ -133,6 +139,12 @@ export class BeeHeader extends LitElement {
     .cache-icon-btn[data-state="incomplete"] { opacity: 0.85; }
 
     .cache-icon-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Install button (D-09/D-11): reuses .icon-btn chrome. Focus ring only — no fill accent. */
+    .install-btn:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
     }
@@ -275,17 +287,25 @@ export class BeeHeader extends LitElement {
   };
 
   private _onDocumentClick = (e: Event) => {
-    if (!this._popoverOpen) return;
     const path = e.composedPath();
-    const popover = this.shadowRoot?.querySelector('.cache-popover');
-    const pill = this.shadowRoot?.querySelector('.cache-icon-btn');
-    if (popover && !path.includes(popover) && !path.includes(pill as Element)) {
-      this._popoverOpen = false;
-      this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
-        detail: { open: false },
-        composed: true,
-        bubbles: true,
-      }));
+    if (this._popoverOpen) {
+      const popover = this.shadowRoot?.querySelector('.cache-popover');
+      const pill = this.shadowRoot?.querySelector('.cache-icon-btn');
+      if (popover && !path.includes(popover) && !path.includes(pill as Element)) {
+        this._popoverOpen = false;
+        this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
+          detail: { open: false },
+          composed: true,
+          bubbles: true,
+        }));
+      }
+    }
+    if (this._iosPopoverOpen) {
+      const iosPopover = this.shadowRoot?.querySelector('.ios-a2hs-popover');
+      const installBtn = this.shadowRoot?.querySelector('.install-btn');
+      if (iosPopover && !path.includes(iosPopover) && !path.includes(installBtn as Element)) {
+        this._iosPopoverOpen = false;
+      }
     }
   };
 
@@ -298,6 +318,9 @@ export class BeeHeader extends LitElement {
         bubbles: true,
       }));
     }
+    if (e.key === 'Escape' && this._iosPopoverOpen) {
+      this._iosPopoverOpen = false;
+    }
   };
 
   private _onUpdateActed = () => {
@@ -305,6 +328,26 @@ export class BeeHeader extends LitElement {
       composed: true,
       bubbles: true,
     }));
+  };
+
+  // D-09: Android Install button click — dispatch install-prompt upward to <bee-atlas>.
+  private _onInstallClick = (e: Event) => {
+    e.stopPropagation();
+    this.dispatchEvent(new CustomEvent('install-prompt', {
+      composed: true,
+      bubbles: true,
+    }));
+  };
+
+  // D-11: iOS A2HS popover toggle.
+  private _toggleIosPopover = (e: Event) => {
+    e.stopPropagation();
+    this._iosPopoverOpen = !this._iosPopoverOpen;
+  };
+
+  private _dismissIosPopover = (e: Event) => {
+    e.stopPropagation();
+    this._iosPopoverOpen = false;
   };
 
   private _cacheButtonState(): 'ready' | 'incomplete' | 'priming' | null {
@@ -421,6 +464,34 @@ export class BeeHeader extends LitElement {
     `;
   }
 
+  // D-11: iOS A2HS popover — cloned from .cache-popover shell (PATTERNS.md §bee-header.ts).
+  // Uses role="dialog" aria-modal="false", 44px ✕ dismiss, Share glyph, 3-step copy.
+  private _renderIosPopover(): TemplateResult {
+    return html`
+      <div class="cache-popover ios-a2hs-popover" role="dialog" aria-modal="false" aria-label="Add to Home Screen instructions">
+        <div class="cache-popover__header">
+          <span>Add to Home Screen</span>
+          <button
+            class="cache-popover__dismiss"
+            @click=${this._dismissIosPopover}
+            aria-label="Close"
+          >✕</button>
+        </div>
+        <div class="cache-popover__row">
+          <!-- iOS Share glyph: rounded-rect with upward arrow rising from top edge -->
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true" width="16" height="16" style="vertical-align: middle; margin-right: 4px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v10m0-10-3 3m3-3 3 3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 8H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-3"/>
+          </svg>
+          1. Tap the Share button
+        </div>
+        <div class="cache-popover__row">2. Scroll down and tap 'Add to Home Screen'</div>
+        <div class="cache-popover__row">3. Tap 'Add' in the top corner</div>
+        <div class="cache-popover__row cache-popover__row--meta">Works in Safari on iPhone and iPad.</div>
+      </div>
+    `;
+  }
+
   render() {
     return html`
       <div class="left-group">
@@ -452,6 +523,36 @@ export class BeeHeader extends LitElement {
       </div>
       <div class="right-group">
         ${this.offline ? html`<span class="offline-pill">Offline</span>` : ''}
+        ${this.installable ? html`
+          <button
+            class="icon-btn install-btn"
+            @click=${this._onInstallClick}
+            aria-label="Install app"
+            title="Install app"
+          >
+            <!-- Install glyph: downward arrow into a tray — distinct from cloud-download (D-09) -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true" width="24" height="24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v11m0 0-3-3m3 3 3-3"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/>
+            </svg>
+          </button>
+        ` : this.iosInstructable ? html`
+          <button
+            class="icon-btn install-btn"
+            @click=${this._toggleIosPopover}
+            aria-label="Add to Home Screen"
+            title="Add to Home Screen"
+            aria-haspopup="dialog"
+            aria-expanded=${String(this._iosPopoverOpen)}
+          >
+            <!-- Install glyph (same as Android — cross-platform parity, D-11) -->
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" fill="none" aria-hidden="true" width="24" height="24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v11m0 0-3-3m3 3 3-3"/>
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 17v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1"/>
+            </svg>
+          </button>
+          ${this._iosPopoverOpen ? this._renderIosPopover() : ''}
+        ` : ''}
         ${(() => {
           const state = this._cacheButtonState();
           if (!state) return '';
