@@ -106,10 +106,10 @@ describe('prime-orchestrator', () => {
   test('computeReadyState: 2 hits, 2 misses → {ready: false, cached: Set of 2, missing: 2 keys}', async () => {
     stubResolveDataUrl();
 
-    const hitUrls = new Set([URLS.occurrences_db, URLS.counties]);
+    const hitUrls = new Set<string>([URLS.occurrences_db, URLS.counties]);
     vi.stubGlobal('caches', {
-      match: vi.fn().mockImplementation(async (url: string) => {
-        return hitUrls.has(url) ? new Response('cached') : undefined;
+      match: vi.fn().mockImplementation(async (url: unknown) => {
+        return hitUrls.has(url as string) ? new Response('cached') : undefined;
       }),
     });
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(makeStreamingResponse([])));
@@ -163,11 +163,11 @@ describe('prime-orchestrator', () => {
 
     // received must be monotonically non-decreasing
     for (let i = 1; i < progressEvents.length; i++) {
-      expect(progressEvents[i].received).toBeGreaterThanOrEqual(progressEvents[i - 1].received);
+      expect(progressEvents[i]!.received).toBeGreaterThanOrEqual(progressEvents[i - 1]!.received);
     }
 
     // Final received should equal final total (at completion)
-    const last = progressEvents[progressEvents.length - 1];
+    const last = progressEvents[progressEvents.length - 1]!;
     expect(last.received).toBeGreaterThan(0);
   });
 
@@ -199,7 +199,7 @@ describe('prime-orchestrator', () => {
     expect(progressEvents.length).toBeGreaterThan(0);
     // total should be the sum of the per-asset fallback constants
     // occurrences_db: 23_000_000, counties: 3_000_000, ecoregions: 2_000_000, places: 200_000 = 28_200_000
-    const firstTotal = progressEvents[0].total;
+    const firstTotal = progressEvents[0]!.total;
     expect(firstTotal).toBeGreaterThan(0);
     // Each per-asset fallback is at least 200_000
     expect(firstTotal).toBeGreaterThanOrEqual(200_000);
@@ -342,7 +342,7 @@ describe('prime-orchestrator', () => {
     await flushMicrotasks();
 
     expect(stateChangedEvents.length).toBeGreaterThan(0);
-    const last = stateChangedEvents[stateChangedEvents.length - 1];
+    const last = stateChangedEvents[stateChangedEvents.length - 1]!;
     expect(last).toHaveProperty('ready');
     expect(last).toHaveProperty('cached');
     expect(last).toHaveProperty('missing');

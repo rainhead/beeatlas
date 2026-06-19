@@ -84,7 +84,7 @@ describe('formatFreshness', () => {
     expect(result).toBeNull();
     expect(warnSpy).toHaveBeenCalledOnce();
     // warn message should reference the unparseable value
-    const warnArg = String(warnSpy.mock.calls[0].join(' '));
+    const warnArg = String(warnSpy.mock.calls[0]?.join(' ') ?? '');
     expect(warnArg).toMatch(/unparseable|local/i);
   });
 
