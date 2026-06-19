@@ -60,6 +60,43 @@ vi.mock('mapbox-gl/dist/mapbox-gl.css?raw', () => ({ default: '' }));
 vi.mock('../prime-orchestrator.ts', () => ({ computeReadyState: vi.fn() }));
 vi.mock('../sw-registration.ts', () => ({}));
 
+// Mock <bee-map> as an inert custom element so `<bee-atlas>` can mount in
+// happy-dom without firstUpdated → `new mapboxgl.Map()` → unhandled rejections
+// (bee-map calls `boxZoom.disable()`, `getCanvasContainer()` etc. that the
+// mapbox-gl stub above doesn't model). The cache-state tests don't exercise
+// the map surface — they assert on `<bee-atlas>` cache @state and the
+// `<bee-header>` chrome — so an inert child is sufficient.
+vi.mock('../bee-map.ts', async () => {
+  const { LitElement } = await import('lit');
+  const { customElement } = await import('lit/decorators.js');
+  @customElement('bee-map')
+  class BeeMapStub extends LitElement {
+    boundaryMode: string = 'off';
+    visibleIds: unknown = null;
+    filteredGeoJSON: unknown = null;
+    selectedOccIds: unknown = null;
+    countyOptions: string[] = [];
+    ecoregionOptions: string[] = [];
+    viewState: unknown = null;
+  }
+  return { BeeMap: BeeMapStub };
+});
+
+// happy-dom can leave `window.location.pathname` undefined in some module
+// load orderings; `<bee-header>`'s render reads `pathname.startsWith(...)`
+// and would surface as an unhandled rejection inside Lit's async update
+// path. Force a concrete value so every test in this file renders cleanly.
+if (typeof window !== 'undefined' && window.location?.pathname == null) {
+  try {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, pathname: '/app/index.html' },
+    });
+  } catch {
+    // ignore — env already has a writable location
+  }
+}
+
 // ---------------------------------------------------------------------------
 // <bee-header> cache surfaces (Phase 150)
 // ---------------------------------------------------------------------------
