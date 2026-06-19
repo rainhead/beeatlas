@@ -2,18 +2,40 @@
 // Imported ONLY by src/app-entry.ts.
 // _pages/index.html -> src/bee-atlas.ts never imports this file,
 // guaranteeing / has no service worker (structural, not runtime).
+//
+// Plan 150-02 (D-13): migrated from manual SW registration to
+// workbox-window.Workbox so the 'waiting' event drives the SW update prompt.
+
+import { Workbox } from 'workbox-window';
 
 // Not exported: registration fires as a module side effect (see call below).
 // Keeping it private preserves the structural no-SW-on-/ guarantee — no other
 // module can import this symbol by name and register the SW from /'s entry.
 async function registerServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator)) return;
+  // Scope MUST be '/app/' (trailing slash): a script at /app/sw.js has a
+  // default max scope of '/app/', and the browser rejects any requested
+  // scope not prefixed by it — '/app' (no slash) fails with a SecurityError.
+  // No Service-Worker-Allowed header is needed; '/app/' is the default scope.
+  const wb = new Workbox('/app/sw.js', { scope: '/app/' });
+
+  // Fired when a new SW is installed but waiting (this tab still controlled by
+  // old SW). event.isExternal === true means another tab triggered the update;
+  // we still want to surface the banner either way — pure signal, no payload.
+  // Attach BEFORE wb.register() so a fast install→waiting transition is not missed.
+  wb.addEventListener('waiting', () => {
+    window.dispatchEvent(new CustomEvent('sw-update-available', {
+      bubbles: true,
+      composed: true,
+    }));
+  });
+
+  // Cross-module handoff to the Plan 04 update-banner tap-handler, which calls
+  // wb.messageSkipWaiting() to post {type:'SKIP_WAITING'} to the waiting SW.
+  (window as Window & { __wb?: Workbox }).__wb = wb;
+
   try {
-    // Scope MUST be '/app/' (trailing slash): a script at /app/sw.js has a
-    // default max scope of '/app/', and the browser rejects any requested
-    // scope not prefixed by it — '/app' (no slash) fails with a SecurityError.
-    // No Service-Worker-Allowed header is needed; '/app/' is the default scope.
-    await navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' });
+    await wb.register();
   } catch (err) {
     console.error('[SW] Registration failed:', err);
   }
