@@ -19,6 +19,43 @@ const DEFAULT_LON = -120.5;
 const DEFAULT_LAT = 47.5;
 const DEFAULT_ZOOM = 7;
 
+// --- D-12: iOS Safari detection helpers ---
+// These are module-level functions (not methods) so install-affordance.test.ts can
+// find the key strings via readFileSync without mounting a component.
+
+// isStandalone: returns true when the app is already installed / launched from home screen.
+// Checks both the W3C display-mode media query (Android + iOS 13+) and the Apple-proprietary
+// navigator.standalone (iOS Safari specific; not on Android Chrome).
+function isStandalone(): boolean {
+  return (
+    matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
+}
+
+// isIosSafari: returns true on iOS Safari (iPhone/iPad) but NOT on Chrome/Firefox/Edge iOS,
+// in-app WebViews (Facebook, Instagram, Line), or desktop Safari on macOS.
+//
+// Heuristics:
+//  1. UA contains iPad|iPhone|iPod (standard iOS), OR
+//     navigator.platform === 'MacIntel' && maxTouchPoints > 1 (iPadOS 13+ desktop-mode UA
+//     where iPad lies and says it's macOS — RESEARCH §iOS Detection, Pitfall 5).
+//  2. UA contains 'Safari' (excludes non-WebKit browsers in theory, but real gate is step 3).
+//  3. UA does NOT contain CriOS|FxiOS|EdgiOS|GSA|FBAN|FBAV|Instagram|Line (browser-in-app
+//     exclusions — share-sheet not available in those contexts, D-12).
+//
+// NOTE: Do NOT parse iOS version numbers — navigator.userAgent is frozen at iOS 26+ for WKWebView.
+function isIosSafari(): boolean {
+  const ua = navigator.userAgent;
+  const isIosDevice =
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isIosDevice) return false;
+  if (!ua.includes('Safari')) return false;
+  if (/CriOS|FxiOS|EdgiOS|GSA|FBAN|FBAV|Instagram|Line/.test(ua)) return false;
+  return true;
+}
+
 @customElement('bee-atlas')
 export class BeeAtlas extends LitElement {
   // App-level state — all formerly on BeeMap, now owned here
@@ -76,10 +113,17 @@ export class BeeAtlas extends LitElement {
   @state() private _updateAvailable: boolean = false;
   @state() private _freshnessLabel: string | null = null;
   @state() private _storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
+  // D-09/D-10: true when beforeinstallprompt was captured and app is not yet standalone.
+  @state() private _installable: boolean = false;
+  // D-11/D-12: true on iOS Safari (not standalone); computed once at construction time.
+  @state() private _iosInstructable: boolean = isIosSafari() && !isStandalone();
 
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
+  // D-10: MediaQueryList for display-mode: standalone, used to clear install state
+  // when the app transitions to standalone mode after mount.
+  private _standaloneQuery = matchMedia('(display-mode: standalone)');
   private _isRestoringFromHistory = false;
   // Session-coalescing (D-01/D-02): once the first settled viewport move of an
   // exploration session fires a pushState, subsequent moves replaceState onto it.
@@ -243,6 +287,8 @@ bee-pane {
         .freshnessLabel=${this._freshnessLabel}
         .storageEstimate=${this._storageEstimate}
         .updateAvailable=${this._updateAvailable}
+        .installable=${this._installable}
+        .iosInstructable=${this._iosInstructable}
       ></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading…</div>` : ''}
@@ -442,6 +488,12 @@ bee-pane {
     window.addEventListener('sw-update-available', this._onSwUpdateAvailable);
     this.addEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.addEventListener('cache-update-acted', this._onBannerTap);
+    // D-09/D-10: install affordance listeners
+    window.addEventListener('pwa-installable', this._onPwaInstallable);
+    window.addEventListener('pwa-installed', this._onPwaInstalled);
+    this.addEventListener('install-prompt', this._onInstallPrompt);
+    // D-10: clear install button if display-mode flips to standalone after mount
+    this._standaloneQuery.addEventListener('change', this._onStandaloneChange);
     // Initial freshness fetch + refresh cadence (PATTERNS.md Pitfall 6)
     void this._refreshFreshness();
     window.addEventListener('focus', this._refreshFreshness);
@@ -457,6 +509,11 @@ bee-pane {
     window.removeEventListener('sw-update-available', this._onSwUpdateAvailable);
     this.removeEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.removeEventListener('cache-update-acted', this._onBannerTap);
+    // D-09/D-10: install affordance cleanup
+    window.removeEventListener('pwa-installable', this._onPwaInstallable);
+    window.removeEventListener('pwa-installed', this._onPwaInstalled);
+    this.removeEventListener('install-prompt', this._onInstallPrompt);
+    this._standaloneQuery.removeEventListener('change', this._onStandaloneChange);
     window.removeEventListener('focus', this._refreshFreshness);
   }
 
@@ -814,6 +871,29 @@ bee-pane {
   };
 
   private _onSwUpdateAvailable = () => { this._updateAvailable = true; };
+
+  // --- Phase 151 install affordance handlers (D-09/D-10/D-11) ---
+
+  // pwa-installable: dispatched by install-prompt.ts after capturing beforeinstallprompt.
+  // Only set _installable = true if not already standalone (D-10 gate).
+  private _onPwaInstallable = () => { if (!isStandalone()) this._installable = true; };
+
+  // pwa-installed: dispatched by install-prompt.ts after appinstalled or after prompt() resolves.
+  private _onPwaInstalled = () => { this._installable = false; };
+
+  // install-prompt: upward CustomEvent from <bee-header> when Android Install button is clicked.
+  // Calls window.__pwaPrompt?() which triggers the native install dialog (D-09).
+  private _onInstallPrompt = () => {
+    void (window as Window & { __pwaPrompt?: () => Promise<void> }).__pwaPrompt?.();
+  };
+
+  // Clears install state when the display-mode flips to standalone (e.g. after install).
+  private _onStandaloneChange = (e: MediaQueryListEvent) => {
+    if (e.matches) {
+      this._installable = false;
+      this._iosInstructable = false;
+    }
+  };
 
   private _onPopoverToggle = async (e: Event) => {
     const ce = e as CustomEvent<{ open: boolean }>;
