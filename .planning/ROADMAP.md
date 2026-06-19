@@ -1218,8 +1218,8 @@ Plans:
 
 **Wave 2** *(parallel — no file overlap)*
 
-- [ ] 150-02-PLAN.md — Migrate src/sw-registration.ts to workbox-window.Workbox; emit `sw-update-available` CustomEvent on the `waiting` lifecycle event; stash `window.__wb` for the banner tap-handler; preserve the 149 D-12 requestPersistentStorage block verbatim; new src/tests/sw-update.test.ts pins the contract [CACHE-02; D-13]
-- [ ] 150-03-PLAN.md — src/manifest.ts gains parseGeneratedAt + formatFreshness + loadFreshnessLabel + promotes loadManifest to exported; new src/prime-orchestrator.ts owns the byte-progress fetch loop + caches.match ready probe + online re-prime + localStorage persistence; src/app-entry.ts reduced to 3 side-effect imports; src/tests/cache-probe.test.ts retired in favor of src/tests/prime-orchestrator.test.ts + src/tests/freshness.test.ts (Wave 0) [CACHE-02, CACHE-04; D-02, D-04, D-06, D-09, D-12]
+- [x] 150-02-PLAN.md — Migrate src/sw-registration.ts to workbox-window.Workbox; emit `sw-update-available` CustomEvent on the `waiting` lifecycle event; stash `window.__wb` for the banner tap-handler; preserve the 149 D-12 requestPersistentStorage block verbatim; new src/tests/sw-update.test.ts pins the contract [CACHE-02; D-13]
+- [x] 150-03-PLAN.md — src/manifest.ts gains parseGeneratedAt + formatFreshness + loadFreshnessLabel + promotes loadManifest to exported; new src/prime-orchestrator.ts owns the byte-progress fetch loop + caches.match ready probe + online re-prime + localStorage persistence; src/app-entry.ts reduced to 3 side-effect imports; src/tests/cache-probe.test.ts retired in favor of src/tests/prime-orchestrator.test.ts + src/tests/freshness.test.ts (Wave 0) [CACHE-02, CACHE-04; D-02, D-04, D-06, D-09, D-12]
 
 **Wave 3** *(depends on Wave 2)*
 
@@ -1302,7 +1302,7 @@ Plans:
 | 147. `/app` Route + SW Topology | v5.0 | 2/2 | Complete    | 2026-06-11 |
 | 148. App Shell Precache + vite-plugin-pwa | v5.0 | 1/1 | Complete    | 2026-06-14 |
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 3/3 | Complete   | 2026-06-18 |
-| 150. Cache Health & Freshness UX | v5.0 | 1/4 | In Progress|  |
+| 150. Cache Health & Freshness UX | v5.0 | 3/4 | In Progress|  |
 | 151. PWA Manifest & Installability | v5.0 | 0/TBD | Not started | - |
 | 152. GeolocateControl + Location State | v5.0 | 0/TBD | Not started | - |
 | 153. Occurrences Near Me | v5.0 | 0/TBD | Not started | - |
@@ -1314,7 +1314,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 1/4 plans executed
+**Plans:** 3/4 plans executed
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
 
