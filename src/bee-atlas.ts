@@ -10,6 +10,7 @@ import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
+import { loadFreshnessLabel } from './manifest.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
@@ -441,6 +442,9 @@ bee-pane {
     window.addEventListener('sw-update-available', this._onSwUpdateAvailable);
     this.addEventListener('cache-popover-toggle', this._onPopoverToggle);
     this.addEventListener('cache-update-acted', this._onBannerTap);
+    // Initial freshness fetch + refresh cadence (PATTERNS.md Pitfall 6)
+    void this._refreshFreshness();
+    window.addEventListener('focus', this._refreshFreshness);
   }
 
   disconnectedCallback() {
@@ -827,7 +831,7 @@ bee-pane {
   private _onBannerDismiss = () => { this._updateAvailable = false; };
 
   private _refreshFreshness = async () => {
-    // Wired in Task 5 — placeholder until loadFreshnessLabel is imported
+    this._freshnessLabel = await loadFreshnessLabel();
   };
 
   private async _readStorageEstimate(): Promise<{ usageMB: string; quotaMB: string | null } | null> {
