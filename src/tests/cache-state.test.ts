@@ -130,35 +130,37 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     if (el && el.isConnected) el.remove();
   });
 
-  test('ready-pill state A: priming online → "Caching… 47%" with inline progress bar', async () => {
+  test('cache-icon state A: priming online → data-state="priming" + progress arc + aria-label includes %', async () => {
     (el as any).cacheState = { ready: false, cached: [], missing: ['db'] };
     (el as any).primeProgress = { received: 47_000, total: 100_000, assetInFlight: 'occurrences.db' };
     (el as any).offline = false;
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill');
-    expect(pill).not.toBeNull();
-    expect(pill!.textContent).toMatch(/Caching… 47%/);
+    const btn = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    expect(btn).not.toBeNull();
+    expect(btn.getAttribute('data-state')).toBe('priming');
+    expect(btn.getAttribute('aria-label')).toMatch(/Caching 47% — tap for details/);
 
-    const fill = el.shadowRoot!.querySelector('.ready-pill__progress-fill');
-    expect(fill).not.toBeNull();
+    const arc = el.shadowRoot!.querySelector('.cache-icon-btn__progress-arc');
+    expect(arc).not.toBeNull();
   });
 
-  test('ready-pill state B: priming + offline → "Finish on WiFi" (no progress bar)', async () => {
+  test('cache-icon state B: priming + offline → data-state="incomplete" + "Finish on WiFi" aria-label + no progress arc', async () => {
     (el as any).cacheState = { ready: false, cached: [], missing: ['db'] };
     (el as any).primeProgress = { received: 10_000, total: 100_000, assetInFlight: 'occurrences.db' };
     (el as any).offline = true;
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill');
-    expect(pill).not.toBeNull();
-    expect(pill!.textContent!.trim()).toBe('Finish on WiFi');
+    const btn = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    expect(btn).not.toBeNull();
+    expect(btn.getAttribute('data-state')).toBe('incomplete');
+    expect(btn.getAttribute('aria-label')).toMatch(/Finish on WiFi — tap for details/);
 
-    const fill = el.shadowRoot!.querySelector('.ready-pill__progress-fill');
-    expect(fill).toBeNull();
+    const arc = el.shadowRoot!.querySelector('.cache-icon-btn__progress-arc');
+    expect(arc).toBeNull();
   });
 
-  test('ready-pill state C: ready → "✓ Offline-ready"', async () => {
+  test('cache-icon state C: ready → data-state="ready" + "Offline-ready" aria-label', async () => {
     (el as any).cacheState = {
       ready: true,
       cached: ['url1', 'url2', 'url3', 'url4'],
@@ -166,18 +168,18 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     };
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill');
-    expect(pill).not.toBeNull();
-    expect(pill!.textContent!.trim()).toMatch(/^✓ Offline-ready$/);
-    expect(pill!.textContent).toContain('✓');
+    const btn = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
+    expect(btn).not.toBeNull();
+    expect(btn.getAttribute('data-state')).toBe('ready');
+    expect(btn.getAttribute('aria-label')).toMatch(/Offline-ready — tap for details/);
   });
 
-  test('ready-pill hidden when cacheState is null', async () => {
+  test('cache-icon hidden when cacheState is null', async () => {
     (el as any).cacheState = null;
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill');
-    expect(pill).toBeNull();
+    const btn = el.shadowRoot!.querySelector('.cache-icon-btn');
+    expect(btn).toBeNull();
   });
 
   test('freshness-caption renders when freshnessLabel non-null', async () => {
@@ -206,7 +208,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     const parentListener = (e: Event) => { capturedEvent = e as CustomEvent; };
     document.body.addEventListener('cache-popover-toggle', parentListener);
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
     expect(pill).not.toBeNull();
     pill.click();
     await (el as any).updateComplete;
@@ -227,7 +229,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     await (el as any).updateComplete;
 
     // Open the popover first
-    const pill = el.shadowRoot!.querySelector('.ready-pill') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -258,7 +260,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     await (el as any).updateComplete;
 
     // Open popover
-    const pill = el.shadowRoot!.querySelector('.ready-pill') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -273,7 +275,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).storageEstimate = { usageMB: '23.4', quotaMB: null };
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -288,7 +290,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).storageEstimate = { usageMB: '23.4', quotaMB: '47' };
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -302,7 +304,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).updateAvailable = false;
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 
@@ -316,7 +318,7 @@ describe('bee-header cache surfaces (Phase 150)', () => {
     (el as any).updateAvailable = true;
     await (el as any).updateComplete;
 
-    const pill = el.shadowRoot!.querySelector('.ready-pill') as HTMLElement;
+    const pill = el.shadowRoot!.querySelector('.cache-icon-btn') as HTMLElement;
     pill.click();
     await (el as any).updateComplete;
 

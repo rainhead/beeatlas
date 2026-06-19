@@ -97,7 +97,7 @@ export class BeeHeader extends LitElement {
       opacity: 1;
     }
 
-    .offline-pill, .ready-pill {
+    .offline-pill {
       font-size: 0.75rem;
       background: rgba(255, 255, 255, 0.2);
       border: 1px solid rgba(255, 255, 255, 0.4);
@@ -106,33 +106,53 @@ export class BeeHeader extends LitElement {
       color: white;
     }
 
-    .ready-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      min-height: 44px;
-      min-width: 9em;
-      position: relative;
-      cursor: pointer;
-      border-style: solid;
-      transition: opacity 200ms ease-out;
+    /* Cache-state button reuses the .icon-btn chrome from the nav icons (44px tap target,
+       opacity ladder, focus ring) so it fits mobile headers without horizontal pressure.
+       The full text status lives in .cache-popover (D-17) — the icon is the entry point. */
+    .cache-icon-btn {
       background: transparent;
+      border: none;
+      cursor: pointer;
+      color: white;
+      opacity: 0.6;
+      padding: 10px;
+      box-sizing: border-box;
+      min-width: 44px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      transition: opacity 200ms ease-out;
       font-family: inherit;
     }
 
-    .ready-pill:focus-visible {
+    .cache-icon-btn:hover { opacity: 0.9; }
+
+    .cache-icon-btn[data-state="ready"] { opacity: 1.0; }
+    .cache-icon-btn[data-state="incomplete"] { opacity: 0.85; }
+
+    .cache-icon-btn:focus-visible {
       outline: 2px solid var(--accent);
       outline-offset: 2px;
     }
 
-    .ready-pill__progress-fill {
+    .cache-icon-btn__progress-arc {
       position: absolute;
-      bottom: 0;
-      left: 0;
-      height: 2px;
-      background: rgba(255, 255, 255, 0.45);
-      transition: width 200ms ease-out;
-      border-radius: 0 0 999px 999px;
+      inset: 4px;
+      pointer-events: none;
+    }
+
+    .cache-icon-btn__progress-arc circle {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.65);
+      stroke-width: 2;
+      stroke-linecap: round;
+      /* circle r=16, circumference ≈ 100.53 — use 100 so pct ≈ stroke-dashoffset */
+      stroke-dasharray: 100;
+      transition: stroke-dashoffset 200ms ease-out;
+      transform: rotate(-90deg);
+      transform-origin: center;
     }
 
     .cache-popover {
@@ -214,8 +234,8 @@ export class BeeHeader extends LitElement {
 
     @media (prefers-reduced-motion: reduce) {
       .cache-popover,
-      .ready-pill__progress-fill,
-      .ready-pill {
+      .cache-icon-btn__progress-arc circle,
+      .cache-icon-btn {
         transition: none;
         animation: none;
       }
@@ -258,7 +278,7 @@ export class BeeHeader extends LitElement {
     if (!this._popoverOpen) return;
     const path = e.composedPath();
     const popover = this.shadowRoot?.querySelector('.cache-popover');
-    const pill = this.shadowRoot?.querySelector('.ready-pill');
+    const pill = this.shadowRoot?.querySelector('.cache-icon-btn');
     if (popover && !path.includes(popover) && !path.includes(pill as Element)) {
       this._popoverOpen = false;
       this.dispatchEvent(new CustomEvent('cache-popover-toggle', {
@@ -287,28 +307,65 @@ export class BeeHeader extends LitElement {
     }));
   };
 
-  private _renderReadyPillContent(): TemplateResult {
+  private _cacheButtonState(): 'ready' | 'incomplete' | 'priming' | null {
     const cs = this.cacheState;
-    if (!cs) return html``;
+    if (!cs) return null;
+    if (cs.ready) return 'ready';
+    if (this.offline) return 'incomplete';
+    return 'priming';
+  }
 
-    if (cs.ready) {
-      return html`<span>✓ Offline-ready</span>`;
-    }
-
-    if (this.offline) {
-      return html`<span>Finish on WiFi</span>`;
-    }
-
+  private _cacheButtonAriaLabel(state: 'ready' | 'incomplete' | 'priming'): string {
+    if (state === 'ready') return 'Offline-ready — tap for details';
+    if (state === 'incomplete') return 'Finish on WiFi — tap for details';
     const pp = this.primeProgress;
     if (pp && pp.total > 0) {
       const pct = Math.max(0, Math.min(99, Math.floor(pp.received / pp.total * 100)));
+      return `Caching ${pct}% — tap for details`;
+    }
+    return 'Caching — tap for details';
+  }
+
+  private _renderCacheIcon(state: 'ready' | 'incomplete' | 'priming'): TemplateResult {
+    // 24x24 stroke icons matching the rest of the header chrome (Heroicons-style).
+    if (state === 'ready') {
+      // Cloud with check (offline-ready)
       return html`
-        <span>Caching… ${pct}%</span>
-        <span class="ready-pill__progress-fill" style="width: ${pct}%"></span>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="m8.75 13.5 2.25 2.25 4.25-4.5"/>
+        </svg>
       `;
     }
+    if (state === 'incomplete') {
+      // Cloud with slash — finish on WiFi
+      return html`
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 4l16 16"/>
+        </svg>
+      `;
+    }
+    // Priming — cloud with downward arrow
+    return html`
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" width="24" height="24" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15a4.5 4.5 0 0 0 4.5 4.5H18a3.75 3.75 0 0 0 1.332-7.257 3 3 0 0 0-3.758-3.848 5.25 5.25 0 0 0-10.233 2.33A4.502 4.502 0 0 0 2.25 15Z"/>
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 10.5v5.25m0 0-2-2m2 2 2-2"/>
+      </svg>
+    `;
+  }
 
-    return html`<span>Caching…</span>`;
+  private _renderProgressArc(): TemplateResult {
+    const pp = this.primeProgress;
+    if (!pp || pp.total <= 0) return html``;
+    const pct = Math.max(0, Math.min(99, Math.floor(pp.received / pp.total * 100)));
+    // Reveal the arc proportional to pct: dashoffset 100→0 as pct 0→100.
+    const dashoffset = 100 - pct;
+    return html`
+      <svg class="cache-icon-btn__progress-arc" viewBox="0 0 36 36" aria-hidden="true">
+        <circle cx="18" cy="18" r="16" style="stroke-dashoffset: ${dashoffset};"></circle>
+      </svg>
+    `;
   }
 
   private _renderPopover(): TemplateResult {
@@ -395,14 +452,24 @@ export class BeeHeader extends LitElement {
       </div>
       <div class="right-group">
         ${this.offline ? html`<span class="offline-pill">Offline</span>` : ''}
-        ${this.cacheState ? html`
-          <button
-            class="ready-pill"
-            @click=${this._togglePopover}
-            aria-haspopup="dialog"
-            aria-expanded=${String(this._popoverOpen)}
-          >${this._renderReadyPillContent()}</button>
-        ` : ''}
+        ${(() => {
+          const state = this._cacheButtonState();
+          if (!state) return '';
+          return html`
+            <button
+              class="cache-icon-btn"
+              data-state=${state}
+              @click=${this._togglePopover}
+              aria-haspopup="dialog"
+              aria-expanded=${String(this._popoverOpen)}
+              aria-label=${this._cacheButtonAriaLabel(state)}
+              title=${this._cacheButtonAriaLabel(state)}
+            >
+              ${this._renderCacheIcon(state)}
+              ${state === 'priming' ? this._renderProgressArc() : ''}
+            </button>
+          `;
+        })()}
         ${this._popoverOpen ? this._renderPopover() : ''}
         <a href="https://github.com/rainhead/beeatlas" target="_blank" rel="noopener" aria-label="GitHub repository" class="github-link">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
