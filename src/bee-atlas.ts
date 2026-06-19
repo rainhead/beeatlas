@@ -9,6 +9,8 @@ import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
 import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from './taxa.ts';
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
+import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
+import { loadFreshnessLabel } from './manifest.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
@@ -69,6 +71,11 @@ export class BeeAtlas extends LitElement {
   // incidental co-mutation of another reactive field at every call site (fragile).
   @state() private _filterResolving = false;
   @state() private _offline: boolean = !navigator.onLine;
+  @state() private _cacheState: { ready: boolean; cached: string[]; missing: string[] } | null = null;
+  @state() private _primeProgress: { received: number; total: number; assetInFlight: string | null } | null = null;
+  @state() private _updateAvailable: boolean = false;
+  @state() private _freshnessLabel: string | null = null;
+  @state() private _storageEstimate: { usageMB: string; quotaMB: string | null } | null = null;
 
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
@@ -165,11 +172,78 @@ bee-pane {
     border-radius: 8px 8px 0 0;
   }
 }
+.update-banner {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: 16px;
+  right: 16px;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 12px 16px;
+  background: var(--banner-bg, var(--header-bg));
+  color: var(--banner-text, #ffffff);
+  border-left: 4px solid var(--banner-accent, var(--accent));
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 40;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
+}
+.update-banner__body {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.update-banner__body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.update-banner__dismiss {
+  background: transparent;
+  border: none;
+  color: var(--banner-text, #ffffff);
+  opacity: 0.6;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+.update-banner__dismiss:hover { opacity: 0.9; }
+.update-banner__dismiss:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .update-banner {
+    transition: none;
+    animation: none;
+  }
+}
   `;
 
   render() {
     return html`
-      <bee-header .offline=${this._offline}></bee-header>
+      <bee-header
+        .offline=${this._offline}
+        .cacheState=${this._cacheState}
+        .primeProgress=${this._primeProgress}
+        .freshnessLabel=${this._freshnessLabel}
+        .storageEstimate=${this._storageEstimate}
+        .updateAvailable=${this._updateAvailable}
+      ></bee-header>
       ${this._error ? html`<div class="error-overlay">${this._error}</div>` : ''}
       ${this._loading ? html`<div class="loading-overlay">Loading…</div>` : ''}
       ${this._error ? '' : html`
@@ -238,6 +312,20 @@ bee-pane {
           ></bee-pane>
         </div>
       `}
+      ${this._updateAvailable ? html`
+        <div class="update-banner" role="status" aria-live="polite">
+          <button
+            class="update-banner__body"
+            @click=${this._onBannerTap}
+            aria-label="A data update is available, tap to reload"
+          >A data update is available — tap to reload</button>
+          <button
+            class="update-banner__dismiss"
+            @click=${this._onBannerDismiss}
+            aria-label="Dismiss update for this session"
+          >✕</button>
+        </div>
+      ` : ''}
     `;
   }
 
@@ -349,6 +437,14 @@ bee-pane {
     window.addEventListener('popstate', this._onPopState);
     window.addEventListener('online', this._onOnline);
     window.addEventListener('offline', this._onOffline);
+    window.addEventListener('cache-prime-progress', this._onPrimeProgress);
+    window.addEventListener('cache-state-changed', this._onCacheStateChanged);
+    window.addEventListener('sw-update-available', this._onSwUpdateAvailable);
+    this.addEventListener('cache-popover-toggle', this._onPopoverToggle);
+    this.addEventListener('cache-update-acted', this._onBannerTap);
+    // Initial freshness fetch + refresh cadence (PATTERNS.md Pitfall 6)
+    void this._refreshFreshness();
+    window.addEventListener('focus', this._refreshFreshness);
   }
 
   disconnectedCallback() {
@@ -356,6 +452,12 @@ bee-pane {
     window.removeEventListener('popstate', this._onPopState);
     window.removeEventListener('online', this._onOnline);
     window.removeEventListener('offline', this._onOffline);
+    window.removeEventListener('cache-prime-progress', this._onPrimeProgress);
+    window.removeEventListener('cache-state-changed', this._onCacheStateChanged);
+    window.removeEventListener('sw-update-available', this._onSwUpdateAvailable);
+    this.removeEventListener('cache-popover-toggle', this._onPopoverToggle);
+    this.removeEventListener('cache-update-acted', this._onBannerTap);
+    window.removeEventListener('focus', this._refreshFreshness);
   }
 
   // --- Filter query ---
@@ -688,8 +790,64 @@ bee-pane {
     }
   }
 
-  private _onOnline = () => { this._offline = false; };
+  private _onOnline = () => { this._offline = false; void this._refreshFreshness(); };
   private _onOffline = () => { this._offline = true; };
+
+  // --- Phase 150 cache state handlers ---
+
+  private _onPrimeProgress = (e: Event) => {
+    const ce = e as CustomEvent<CachePrimeProgressDetail>;
+    this._primeProgress = {
+      received: ce.detail.received,
+      total: ce.detail.total,
+      assetInFlight: ce.detail.assetInFlight,
+    };
+  };
+
+  private _onCacheStateChanged = (e: Event) => {
+    const ce = e as CustomEvent<CacheStateChangedDetail>;
+    this._cacheState = {
+      ready: ce.detail.ready,
+      cached: ce.detail.cached,
+      missing: ce.detail.missing,
+    };
+  };
+
+  private _onSwUpdateAvailable = () => { this._updateAvailable = true; };
+
+  private _onPopoverToggle = async (e: Event) => {
+    const ce = e as CustomEvent<{ open: boolean }>;
+    if (ce.detail.open) {
+      this._storageEstimate = await this._readStorageEstimate();
+    }
+  };
+
+  private _onBannerTap = () => {
+    const wb = (window as Window & { __wb?: { messageSkipWaiting(): void } }).__wb;
+    wb?.messageSkipWaiting();
+    window.location.reload();
+  };
+
+  private _onBannerDismiss = () => { this._updateAvailable = false; };
+
+  private _refreshFreshness = async () => {
+    this._freshnessLabel = await loadFreshnessLabel();
+  };
+
+  private async _readStorageEstimate(): Promise<{ usageMB: string; quotaMB: string | null } | null> {
+    if (typeof navigator.storage?.estimate !== 'function') return null;
+    try {
+      const { usage, quota } = await navigator.storage.estimate();
+      if (typeof usage !== 'number') return null;
+      const usageMB = (usage / 1_048_576).toFixed(1);
+      const quotaMB = (typeof quota === 'number' && quota > 0 && quota < 200 * 1_048_576)
+        ? Math.round(quota / 1_048_576).toString()
+        : null;
+      return { usageMB, quotaMB };
+    } catch {
+      return null;
+    }
+  }
 
   private _onPopState = () => {
     this._isRestoringFromHistory = true;
