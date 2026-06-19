@@ -391,4 +391,48 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(pkg.dependencies['workbox-window']).toBeDefined();
     expect(pkg.devDependencies?.['workbox-window']).toBeUndefined();
   });
+
+  // Phase 151 — PWA manifest assertions (PWA-01, D-01..D-06, D-13)
+
+  test('emits _site/app/manifest.webmanifest with required keys (PWA-01, D-13)', () => {
+    const manifestPath = resolve(ROOT, '_site/app/manifest.webmanifest');
+    expect(existsSync(manifestPath), '_site/app/manifest.webmanifest missing').toBe(true);
+    const m = JSON.parse(readFileSync(manifestPath, 'utf-8'));
+    expect(m.name).toBe('Washington Bee Atlas');
+    expect(m.short_name).toBe('BeeAtlas');
+    expect(m.start_url).toBe('/app/index.html');   // D-01 — explicit, do NOT "fix" to /app
+    expect(m.scope).toBe('/app/');
+    expect(m.display).toBe('standalone');
+    expect(m.theme_color).toBe('#080d26');          // D-03
+    expect(m.background_color).toBe('#080d26');     // D-03
+    const sizes = m.icons.map((i: { sizes: string }) => i.sizes);
+    expect(sizes).toContain('192x192');
+    expect(sizes).toContain('512x512');
+    expect(
+      m.icons.some((i: { purpose?: string }) => (i.purpose ?? '').includes('maskable')),
+      'no maskable icon declared'
+    ).toBe(true);
+    // Verify every icon file actually exists on disk (D-06/D-07)
+    for (const icon of m.icons) {
+      expect(
+        existsSync(resolve(ROOT, '_site' + icon.src)),
+        `icon declared in manifest but missing on disk: ${icon.src}`
+      ).toBe(true);
+    }
+  });
+
+  // Wave 0 RED: link assertions pass only after Plan 02 adds <link rel="manifest">
+  // and iOS meta to _pages/app/index.html. Expected to fail until Plan 02 merges.
+
+  test('_site/app/index.html links the manifest and apple-touch-icon (PWA-01, D-04)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/app/index.html'), 'utf-8');
+    expect(html).toMatch(/<link[^>]+rel="manifest"[^>]+href="\/app\/manifest\.webmanifest"/);
+    expect(html).toMatch(/apple-mobile-web-app-capable/);
+    expect(html).toMatch(/rel="apple-touch-icon"/);
+  });
+
+  test('_site/index.html does NOT link a manifest (no-PWA-on-/ guarantee, D-04)', () => {
+    const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
+    expect(html).not.toMatch(/rel="manifest"/);
+  });
 });

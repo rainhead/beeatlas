@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed green field: accent color #2c7a2c -->
+  <rect width="512" height="512" fill="#2c7a2c"/>
+
+  <!-- Bee glyph: all content within maskable safe zone (circle r=40% of width). -->
+  <g transform="translate(256,256)" fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+
+    <!-- Body: vertical oval -->
+    <ellipse cx="0" cy="20" rx="52" ry="78" fill="#f5c842" stroke="#fff" stroke-width="6"/>
+
+    <!-- Abdomen stripes -->
+    <!-- Band 1 -->
+    <path d="M -52,28 C -40,22 40,22 52,28" stroke="#2c2c00" stroke-width="14" fill="none"/>
+    <!-- Band 2 -->
+    <path d="M -52,52 C -40,46 40,46 52,52" stroke="#2c2c00" stroke-width="14" fill="none"/>
+    <!-- Band 3 -->
+    <path d="M -40,76 C -28,70 28,70 40,76" stroke="#2c2c00" stroke-width="12" fill="none"/>
+
+    <!-- Thorax -->
+    <ellipse cx="0" cy="-38" rx="46" ry="38" fill="#d4a017" stroke="#fff" stroke-width="6"/>
+
+    <!-- Head: small circle above thorax -->
+    <circle cx="0" cy="-100" r="30" fill="#d4a017" stroke="#fff" stroke-width="6"/>
+
+    <!-- Eyes -->
+    <circle cx="-14" cy="-102" r="6" fill="#2c2c00" stroke="none"/>
+    <circle cx="14" cy="-102" r="6" fill="#2c2c00" stroke="none"/>
+
+    <!-- Antennae -->
+    <path d="M -10,-128 C -20,-148 -40,-152 -50,-148" stroke="#fff" stroke-width="5" fill="none"/>
+    <path d="M 10,-128 C 20,-148 40,-152 50,-148" stroke="#fff" stroke-width="5" fill="none"/>
+    <!-- Tips -->
+    <circle cx="-52" cy="-148" r="6" fill="#fff" stroke="none"/>
+    <circle cx="52" cy="-148" r="6" fill="#fff" stroke="none"/>
+
+    <!-- Upper wings -->
+    <ellipse cx="-90" cy="-40" rx="72" ry="32" transform="rotate(-20,-90,-40)"
+             fill="rgba(255,255,255,0.55)" stroke="#fff" stroke-width="4"/>
+    <ellipse cx="90" cy="-40" rx="72" ry="32" transform="rotate(20,90,-40)"
+             fill="rgba(255,255,255,0.55)" stroke="#fff" stroke-width="4"/>
+
+    <!-- Lower wings -->
+    <ellipse cx="-80" cy="-8" rx="48" ry="22" transform="rotate(-10,-80,-8)"
+             fill="rgba(255,255,255,0.40)" stroke="#fff" stroke-width="3"/>
+    <ellipse cx="80" cy="-8" rx="48" ry="22" transform="rotate(10,80,-8)"
+             fill="rgba(255,255,255,0.40)" stroke="#fff" stroke-width="3"/>
+
+    <!-- Stinger -->
+    <path d="M -8,96 L 0,118 L 8,96" fill="#d4a017" stroke="#fff" stroke-width="4"/>
+
+  </g>
+</svg>
