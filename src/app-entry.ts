@@ -9,3 +9,4 @@
 import './bee-atlas.ts';
 import './sw-registration.ts';
 import './prime-orchestrator.ts';
+import './install-prompt.ts';
