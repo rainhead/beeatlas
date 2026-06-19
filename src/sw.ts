@@ -1,7 +1,9 @@
 // Service worker source for the /app shell — compiled to _site/app/sw.js by
 // vite-plugin-pwa (injectManifest strategy, wired in eleventy.config.js).
 //
-// D-04: NO skipWaiting, NO clients.claim.
+// D-04: NO top-level skipWaiting, NO claiming of clients. The no-skipWaiting invariant
+// is now satisfied STRUCTURALLY via the SKIP_WAITING gate (D-16): skipWaiting()
+// fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.
 // The new SW waits until all /app tabs are closed before activating.
 // This preserves the prompt-to-reload lifecycle (OFF-03) and prevents
 // app-code ↔ DB version skew (Phase 149+).
@@ -17,11 +19,12 @@
 // recognises self.__WB_MANIFEST in the SW global scope (RESEARCH Pitfall 4).
 declare const self: ServiceWorkerGlobalScope & typeof globalThis & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
+  skipWaiting(): Promise<void>;
 };
 
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -75,3 +78,26 @@ registerRoute(
     ],
   })
 );
+
+// D-08: manifest.json NetworkFirst route — separate from data-artifacts per cache-isolation rationale.
+// networkTimeoutSeconds: 3 falls back to cache on slow/offline; CacheableResponsePlugin restricts
+// caching to status 200 so error responses are not poisoned into the cache.
+// Cache name 'data-manifest' is intentionally separate from 'data-artifacts' to keep storage-estimate
+// breakdown clean and to allow cheap future invalidation of manifest without touching the DB/GeoJSON cache.
+registerRoute(
+  ({ url }) => url.pathname === '/data/manifest.json',
+  new NetworkFirst({
+    cacheName: 'data-manifest',
+    networkTimeoutSeconds: 3,
+    plugins: [new CacheableResponsePlugin({ statuses: [200] })],
+  })
+);
+
+// D-16: skipWaiting fires ONLY in response to wb.messageSkipWaiting() from the user-clicked update banner.
+// No top-level skipWaiting call — the no-skipWaiting invariant from 147/148/149 is satisfied
+// structurally: this handler is the only path, and it requires an explicit SKIP_WAITING message.
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
