@@ -1,8 +1,13 @@
 ---
 phase: 150-cache-health-freshness-ux
 verified: 2026-06-18T17:50:00Z
-status: needs_human
-score: 5/5 success criteria verified (automated); 4 manual UAT items pending real-device/network testing
+human_verified: 2026-06-19
+status: passed
+score: 5/5 success criteria verified (automated + human UAT in deployed prod)
+human_uat_notes: |
+  Verified in deployed production after nightly.sh on 2026-06-19. Non-private Safari window: pill cycles "Caching… N%" → "✓ Offline-ready"; popover shows correct freshness ("Today") and storage estimate. navigator.storage.persist() returned true (iOS granted persistent storage — field reliability win). Phase 149's prompt-to-reload contract worked: old SW served the page, new SW landed in waiting state, banner appeared, tap reloaded into Phase 150 chrome.
+
+  Safari **private browsing** caches.put() is a silent no-op — orchestrator streams bytes but cache stays empty so the post-prime probe finds all 4 URLs MISS and the pill caps at 99% forever. Diagnosed via the user's Inspector probe; treated as expected browser behavior, not a defect. Filed as backlog 999.7 for optional UX surface.
 overrides_applied: 0
 human_verification:
   - test: Ready-pill transitions render correctly under real network
