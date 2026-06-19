@@ -54,7 +54,7 @@
 - [ ] **Phase 149: `/data/` Runtime Caching + Offline Cold-Start** — `occurrences.db` + all GeoJSON cached via `CacheFirst` runtime strategy; full offline cold-start; re-prime if DB absent on reconnect; `QuotaExceededError` handling; graceful basemap-degradation label; online/offline status indicator.
 - [ ] **Phase 150: Cache Health & Freshness UX** — "Ready for offline" indicator; determinate prime progress bar; cache-size display; "Data as of `<date>`" freshness label; SW update lifecycle with prompt-to-reload (no `skipWaiting`).
 - [ ] **Phase 151: PWA Manifest & Installability** — `manifest.webmanifest` with icons; `beforeinstallprompt` capture for Android; iOS "Add to Home Screen" instructions; offline cold-start in standalone mode confirmed. **Plans:** 4 plans (3 waves).
-  - [ ] 151-01-PLAN.md — Wave 0: static `manifest.webmanifest` + from-scratch icon set (SVG master + 192/512/maskable/apple-touch PNGs) + non-build-wired `gen-app-icons.sh` + test scaffolds (`install-affordance.test.ts`, `build-output.test.ts` extension) [PWA-01, PWA-02; D-01..D-08, D-13]
+  - [x] 151-01-PLAN.md — Wave 0: static `manifest.webmanifest` + from-scratch icon set (SVG master + 192/512/maskable/apple-touch PNGs) + non-build-wired `gen-app-icons.sh` + test scaffolds (`install-affordance.test.ts`, `build-output.test.ts` extension) [PWA-01, PWA-02; D-01..D-08, D-13]
   - [ ] 151-02-PLAN.md — Wave 1: `<link rel="manifest">` + iOS `apple-*` meta + apple-touch-icon on `_pages/app/index.html` only (no-PWA-on-/ guarantee) [PWA-01, PWA-02; D-04]
   - [ ] 151-03-PLAN.md — Wave 1: install affordance — `install-prompt.ts` capture + `<bee-atlas>` `_installable`/`_iosInstructable` relay + `<bee-header>` Install button & iOS A2HS popover (reuse cache chrome) [PWA-01, PWA-02; D-09..D-12]
   - [ ] 151-04-PLAN.md — Wave 2: `151-HUMAN-UAT.md` real-device offline cold-start checklist + blocking human-verify checkpoint (autonomous: false, UI hint: yes) [PWA-03; D-13, D-14]
@@ -1307,7 +1307,7 @@ Plans:
 | 148. App Shell Precache + vite-plugin-pwa | v5.0 | 1/1 | Complete    | 2026-06-14 |
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 3/3 | Complete   | 2026-06-18 |
 | 150. Cache Health & Freshness UX | v5.0 | 4/4 | Complete   | 2026-06-19 |
-| 151. PWA Manifest & Installability | v5.0 | 0/TBD | Not started | - |
+| 151. PWA Manifest & Installability | v5.0 | 1/4 | In Progress|  |
 | 152. GeolocateControl + Location State | v5.0 | 0/TBD | Not started | - |
 | 153. Occurrences Near Me | v5.0 | 0/TBD | Not started | - |
 | 154. Mapbox Tile Caching (TOS-gated) | v5.0 | 0/TBD | Not started | - |

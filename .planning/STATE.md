@@ -4,8 +4,8 @@ milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 151 context gathered
-last_updated: "2026-06-19T23:28:27.432Z"
-last_activity: 2026-06-19 -- Phase 151 planning complete
+last_updated: "2026-06-19T23:29:20.587Z"
+last_activity: 2026-06-19 -- Phase 151 execution started
 progress:
   total_phases: 33
   completed_phases: 6
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 149 — data-runtime-caching-offline-cold-start
+**Current focus:** Phase 151 — pwa-manifest-installability
 
 ## Current Position
 
-Phase: 149 (data-runtime-caching-offline-cold-start) — EXECUTING
-Plan: 1 of 3
-Status: Ready to execute
-Last activity: 2026-06-19 -- Phase 151 planning complete
+Phase: 151 (pwa-manifest-installability) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 151
+Last activity: 2026-06-19 -- Phase 151 execution started
 
 Progress: [██████████] 100%
 
