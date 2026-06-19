@@ -8,6 +8,15 @@ eleventyExcludeFromCollections: true
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BeeAtlas</title>
     <link rel="icon" href="data:,">
+    <link rel="manifest" href="/app/manifest.webmanifest" />
+    <!-- iOS standalone + status bar -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BeeAtlas" />
+    <!-- iOS home-screen icon: 180x180, opaque -->
+    <link rel="apple-touch-icon" href="/app/icons/apple-touch-icon-180.png" />
+    <!-- theme color for browser chrome (belt-and-suspenders; Android Chrome reads manifest) -->
+    <meta name="theme-color" content="#080d26" />
     <link rel="stylesheet" href="/src/index.css" />
     <script type="module" src="/src/app-entry.ts"></script>
   </head>
