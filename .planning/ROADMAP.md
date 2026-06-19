@@ -1210,7 +1210,21 @@ Plans:
   4. A "Data as of `<date>`" label is always visible; the date reflects the pipeline `generated_at` from `manifest.json`; it updates only when a newer DB is fetched, not on page refresh
   5. When a new SW is waiting, a non-blocking prompt ("A data update is available — tap to reload") appears; dismissing it leaves the old version running; tapping it reloads to the new version
 
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+Plans:
+**Wave 1**
+
+- [ ] 150-01-PLAN.md — SW source change + build-output gate move together: NetworkFirst route for /data/manifest.json + SKIP_WAITING-gated message listener in src/sw.ts; replace existing skipWaiting-absent assertion with gated form + add NetworkFirst + workbox-window-dep assertions; move workbox-window to runtime dependencies [CACHE-02; D-08, D-13, D-16]
+
+**Wave 2** *(parallel — no file overlap)*
+
+- [ ] 150-02-PLAN.md — Migrate src/sw-registration.ts to workbox-window.Workbox; emit `sw-update-available` CustomEvent on the `waiting` lifecycle event; stash `window.__wb` for the banner tap-handler; preserve the 149 D-12 requestPersistentStorage block verbatim; new src/tests/sw-update.test.ts pins the contract [CACHE-02; D-13]
+- [ ] 150-03-PLAN.md — src/manifest.ts gains parseGeneratedAt + formatFreshness + loadFreshnessLabel + promotes loadManifest to exported; new src/prime-orchestrator.ts owns the byte-progress fetch loop + caches.match ready probe + online re-prime + localStorage persistence; src/app-entry.ts reduced to 3 side-effect imports; src/tests/cache-probe.test.ts retired in favor of src/tests/prime-orchestrator.test.ts + src/tests/freshness.test.ts (Wave 0) [CACHE-02, CACHE-04; D-02, D-04, D-06, D-09, D-12]
+
+**Wave 3** *(depends on Wave 2)*
+
+- [ ] 150-04-PLAN.md — <bee-atlas> gains 5 new @state fields, 4 new window listeners, the bottom non-modal update-banner render, and a freshness-refresh wire (online + focus); <bee-header> gains 5 new @property fields + ready-pill (3 states per UI-SPEC) + freshness sub-line + cache-popover (storage estimate, freshness, passive update affordance); cache-update-acted event routes the popover affordance through the same `_onBannerTap` path; new src/tests/cache-state.test.ts pins the contract (Wave 0) [CACHE-01, CACHE-02, CACHE-03, CACHE-04; D-05, D-09, D-14, D-15, D-17, D-18, D-19, D-20]
+
 **UI hint**: yes
 
 ### Phase 151: PWA Manifest & Installability
