@@ -12,24 +12,39 @@
 import { describe, test, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ---------------------------------------------------------------------------
-// Hoist the workbox-window mock so it is evaluated before any imports.
-// The workboxInstance is shared between the mock factory and the tests so we
-// can inspect the same object the SUT receives.
+// Hoist all mock state so it is accessible both inside the vi.mock() factory
+// and in test bodies. vi.hoisted() runs before module evaluation; vi.mock()
+// factories also run in the hoisted phase, so they can safely close over
+// variables declared via vi.hoisted().
 // ---------------------------------------------------------------------------
-const { workboxInstance, WorkboxMock } = vi.hoisted(() => {
-  const workboxInstance = {
+const mocks = vi.hoisted(() => {
+  const instance = {
     register: vi.fn(() => Promise.resolve()),
     addEventListener: vi.fn(),
     messageSkipWaiting: vi.fn(),
   };
-  const WorkboxMock = vi.fn(() => workboxInstance);
-  return { workboxInstance, WorkboxMock };
+  // Track constructor calls: each element is the args array passed to `new Workbox()`
+  const constructorCalls: unknown[][] = [];
+  return { instance, constructorCalls };
 });
 
 // Mock 'workbox-window' — the SUT imports { Workbox } from 'workbox-window'.
-vi.mock('workbox-window', () => ({
-  Workbox: WorkboxMock,
-}));
+// Using a real class so that `new Workbox(...)` works without TypeErrors.
+vi.mock('workbox-window', () => {
+  class Workbox {
+    register: () => Promise<void>;
+    addEventListener: (...args: unknown[]) => void;
+    messageSkipWaiting: () => void;
+
+    constructor(...args: unknown[]) {
+      mocks.constructorCalls.push(args);
+      this.register = mocks.instance.register;
+      this.addEventListener = mocks.instance.addEventListener;
+      this.messageSkipWaiting = mocks.instance.messageSkipWaiting;
+    }
+  }
+  return { Workbox };
+});
 
 // ---------------------------------------------------------------------------
 
@@ -42,13 +57,14 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     vi.unstubAllGlobals();
     // Clear localStorage (persisted-storage gate)
     localStorage.clear();
-    // Reset the Workbox mock's call history but keep the same instance reference
-    WorkboxMock.mockClear();
-    workboxInstance.register.mockClear();
-    workboxInstance.addEventListener.mockClear();
-    workboxInstance.messageSkipWaiting.mockClear();
-    // Default: navigator.onLine = true (not directly used by sw-registration but
-    // keeps the environment realistic)
+    // Reset mock state
+    mocks.constructorCalls.length = 0;
+    mocks.instance.register.mockClear();
+    mocks.instance.addEventListener.mockClear();
+    mocks.instance.messageSkipWaiting.mockClear();
+    // Clean up any window.__wb from previous test
+    delete (window as Window & { __wb?: unknown }).__wb;
+    // Default: navigator.onLine = true
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
     // Stub navigator.storage.persist (requestPersistentStorage block)
     Object.defineProperty(navigator, 'storage', {
@@ -56,10 +72,11 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
       configurable: true,
     });
     // Ensure navigator.serviceWorker exists (most tests need it; the skip-test removes it)
-    if (!('serviceWorker' in navigator)) {
+    if (!Object.getOwnPropertyDescriptor(navigator, 'serviceWorker')) {
       Object.defineProperty(navigator, 'serviceWorker', {
         value: {},
         configurable: true,
+        writable: true,
       });
     }
   });
@@ -76,8 +93,8 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     await import('../sw-registration.ts');
     await flushMicrotasks();
 
-    expect(WorkboxMock).toHaveBeenCalledOnce();
-    expect(WorkboxMock).toHaveBeenCalledWith('/app/sw.js', { scope: '/app/' });
+    expect(mocks.constructorCalls).toHaveLength(1);
+    expect(mocks.constructorCalls[0]).toEqual(['/app/sw.js', { scope: '/app/' }]);
   });
 
   // ---------------------------------------------------------------------------
@@ -87,7 +104,7 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     await import('../sw-registration.ts');
     await flushMicrotasks();
 
-    expect(workboxInstance.register).toHaveBeenCalledOnce();
+    expect(mocks.instance.register).toHaveBeenCalledOnce();
   });
 
   // ---------------------------------------------------------------------------
@@ -96,7 +113,7 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
   test("dispatches sw-update-available CustomEvent on window when 'waiting' fires", async () => {
     // Capture the dispatched event before importing (so the listener is in place
     // when the SUT's wb.addEventListener('waiting', ...) fires the stored handler)
-    let capturedEvent: Event | null = null;
+    let capturedEvent: Event | undefined;
     const captureFn = (e: Event) => { capturedEvent = e; };
     window.addEventListener('sw-update-available', captureFn);
 
@@ -104,7 +121,7 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     await flushMicrotasks();
 
     // Retrieve the 'waiting' handler from the mock's recorded calls
-    const waitingCall = workboxInstance.addEventListener.mock.calls.find(
+    const waitingCall = mocks.instance.addEventListener.mock.calls.find(
       (args: unknown[]) => args[0] === 'waiting',
     );
     expect(waitingCall).toBeDefined();
@@ -114,7 +131,7 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     waitingHandler();
 
     // Assert the CustomEvent arrived
-    expect(capturedEvent).not.toBeNull();
+    expect(capturedEvent).toBeDefined();
     const ce = capturedEvent as CustomEvent;
     expect(ce.type).toBe('sw-update-available');
     expect(ce.bubbles).toBe(true);
@@ -130,7 +147,12 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     await import('../sw-registration.ts');
     await flushMicrotasks();
 
-    expect((window as Window & { __wb?: unknown }).__wb).toBe(workboxInstance);
+    const wb = (window as Window & { __wb?: unknown }).__wb;
+    expect(wb).toBeDefined();
+    // The wb instance should have the methods from our mock
+    expect(typeof (wb as { register?: unknown }).register).toBe('function');
+    expect(typeof (wb as { addEventListener?: unknown }).addEventListener).toBe('function');
+    expect(typeof (wb as { messageSkipWaiting?: unknown }).messageSkipWaiting).toBe('function');
   });
 
   // ---------------------------------------------------------------------------
@@ -145,22 +167,8 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     // Ensure the key is NOT set so requestPersistentStorage proceeds
     localStorage.removeItem('beeatlas-persist-asked');
 
-    // Track setItem calls to verify write-before-await ordering
-    const setItemCalls: string[] = [];
-    const persistCalls: string[] = [];
-
-    // Intercept localStorage.setItem
-    const origSetItem = localStorage.setItem.bind(localStorage);
-    vi.spyOn(localStorage, 'setItem').mockImplementation((key: string, value: string) => {
-      setItemCalls.push(`setItem:${key}=${value}`);
-      origSetItem(key, value);
-    });
-
     // persist() resolves asynchronously; record when it is CALLED (not when it settles)
-    const persistFn = vi.fn(() => {
-      persistCalls.push('persist-called');
-      return Promise.resolve(false);
-    });
+    const persistFn = vi.fn(() => Promise.resolve(false));
     Object.defineProperty(navigator, 'storage', {
       value: { persist: persistFn },
       configurable: true,
@@ -174,9 +182,8 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
     // persist must have been called once
     expect(persistFn).toHaveBeenCalledOnce();
 
-    // The localStorage key must have been written (we verify it exists; ordering is
-    // guaranteed by the write-before-await pattern in the source — the setItem call
-    // is synchronous, before the await of persist())
+    // The localStorage key must have been written (ordering is guaranteed by
+    // write-before-await pattern in the source — setItem is synchronous, before await)
     expect(localStorage.getItem('beeatlas-persist-asked')).toBe('1');
   });
 
@@ -184,21 +191,24 @@ describe('sw-registration.ts — workbox-window migration (Plan 150-02)', () => 
   // Test 6: skips registration when 'serviceWorker' is not in navigator
   // ---------------------------------------------------------------------------
   test("skips registration when 'serviceWorker' not in navigator", async () => {
-    // Remove serviceWorker from navigator
-    const origDescriptor = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
-    Object.defineProperty(navigator, 'serviceWorker', {
-      value: undefined,
-      configurable: true,
-    });
+    // The `'serviceWorker' in navigator` check requires the property to be
+    // completely absent. We achieve this by stubbing the global `navigator`
+    // with an object that omits the serviceWorker key entirely.
+    const fakeNavigator = Object.create(
+      Object.getPrototypeOf(navigator),
+      // Copy all own enumerable properties except serviceWorker
+      Object.fromEntries(
+        Object.getOwnPropertyNames(navigator)
+          .filter(k => k !== 'serviceWorker')
+          .map(k => [k, Object.getOwnPropertyDescriptor(navigator, k)!]),
+      ),
+    );
+    vi.stubGlobal('navigator', fakeNavigator);
 
     await import('../sw-registration.ts');
     await flushMicrotasks();
 
-    expect(WorkboxMock).not.toHaveBeenCalled();
-
-    // Restore
-    if (origDescriptor) {
-      Object.defineProperty(navigator, 'serviceWorker', origDescriptor);
-    }
+    // The Workbox constructor must NOT have been called
+    expect(mocks.constructorCalls).toHaveLength(0);
   });
 });
