@@ -363,11 +363,11 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(sw).toMatch(/\.geojson/);
   });
 
-  test('_site/app/sw.js does not contain skipWaiting or clients.claim (OFF-03 carry-forward)', () => {
+  test('_site/app/sw.js calls skipWaiting only inside a message handler (D-16)', () => {
     const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
-    // First time this invariant is gated at built-output level (Phase 147/148 only
-    // enforced it structurally in source). SC-7 carry-forward.
-    expect(sw).not.toContain('skipWaiting');
+    const skipMatches = [...sw.matchAll(/skipWaiting/g)];
+    expect(skipMatches.length).toBeGreaterThan(0);
+    expect(sw).toContain('SKIP_WAITING');
     expect(sw).not.toContain('clients.claim');
   });
 
@@ -377,5 +377,18 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(allDeps['workbox-strategies']).toBeDefined();
     expect(allDeps['workbox-expiration']).toBeDefined();
     expect(allDeps['workbox-cacheable-response']).toBeDefined();
+  });
+
+  test('_site/app/sw.js registers NetworkFirst route for /data/manifest.json (D-08)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    expect(sw).toContain('data-manifest');
+    expect(sw).toMatch(/manifest\.json/);
+    expect(sw).toMatch(/NetworkFirst|networkTimeout/);
+  });
+
+  test('workbox-window is a runtime dependency (D-13)', () => {
+    const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['workbox-window']).toBeDefined();
+    expect(pkg.devDependencies?.['workbox-window']).toBeUndefined();
   });
 });
