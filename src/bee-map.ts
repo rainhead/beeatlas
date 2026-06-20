@@ -64,6 +64,7 @@ export class BeeMap extends LitElement {
   // Mapbox GL JS map instance
   private _map: mapboxgl.Map | null = null;
 
+
   // Full unfiltered GeoJSON for setData-based filtering
   private _fullGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   // Resolves when occurrence data has loaded (or failed) — independent of the
@@ -387,6 +388,40 @@ export class BeeMap extends LitElement {
       zoom: this.viewState?.zoom ?? DEFAULT_ZOOM,
       attributionControl: true,
     });
+
+    // Add GeolocateControl immediately after map construction — NOT inside 'load'.
+    // The blue dot + accuracy circle are DOM Markers (appended to getCanvasContainer()),
+    // not style layers, so they render offline without the style having loaded.
+    // Gating this behind 'load' would break offline GPS (LOC-01 SC-2). [Phase 151 / Phase 152]
+    const geolocate = new mapboxgl.GeolocateControl({
+      trackUserLocation: true,
+      positionOptions: { enableHighAccuracy: true },
+      showAccuracyCircle: true,
+    });
+    this._map.addControl(geolocate);
+
+    geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
+      this._emit('user-location-changed', {
+        lat: e.coords.latitude,
+        lon: e.coords.longitude,
+        accuracy: e.coords.accuracy,
+      });
+    });
+
+    geolocate.on('error', (e: { code: number; message: string }) => {
+      this._emit('user-location-changed', { error: { code: e.code, message: e.message } });
+    });
+
+    // D-03: auto-trigger only if geolocation permission is already granted.
+    // .trigger() MUST be called inside a resolved .then() — the control's _setup
+    // flag is set asynchronously after its own navigator.permissions.query microtask
+    // resolves; calling trigger() synchronously finds _setup===false and silently no-ops.
+    if (navigator.permissions) {
+      navigator.permissions
+        .query({ name: 'geolocation' as PermissionName })
+        .then(status => { if (status.state === 'granted') geolocate.trigger(); })
+        .catch(() => {});
+    }
 
     // Disable default shift-drag box-zoom so the custom rectangle gesture can claim it
     this._map.boxZoom.disable();
