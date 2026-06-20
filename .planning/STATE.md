@@ -4,13 +4,13 @@ milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 152 context gathered
-last_updated: "2026-06-20T16:44:43.280Z"
-last_activity: 2026-06-19 -- Phase 151 execution started
+last_updated: "2026-06-20T16:49:34.640Z"
+last_activity: 2026-06-20
 progress:
   total_phases: 33
   completed_phases: 7
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 19
+  completed_plans: 17
   percent: 21
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 151 — pwa-manifest-installability
+**Current focus:** Phase 152 — geolocatecontrol-location-state
 
 ## Current Position
 
-Phase: 151 (pwa-manifest-installability) — EXECUTING
-Plan: 1 of 4
+Phase: 152 (geolocatecontrol-location-state) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-19 -- Phase 151 execution started
+Last activity: 2026-06-20
 
-Progress: [██████████] 100%
+Progress: [█████████░] 89%
 
 ## Milestone Overview
 
@@ -85,6 +85,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-20T16:18:15.010Z
+Last session: 2026-06-20T16:49:34.632Z
 Stopped at: Phase 152 context gathered
-Resume file: .planning/phases/152-geolocatecontrol-location-state/152-CONTEXT.md
+Resume file: None

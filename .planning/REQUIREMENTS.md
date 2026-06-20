@@ -42,7 +42,7 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 ### Current Location
 
 - [ ] **LOC-01**: A Mapbox `GeolocateControl` (`trackUserLocation`, `enableHighAccuracy`, `showAccuracyCircle`) shows a blue dot + accuracy ring with a recenter button; it works offline via GPS (no signal required).
-- [ ] **LOC-02**: Location state is owned by `<bee-atlas>` (`@state _userLocation`); `<bee-map>` hosts the control and relays position upward via a `composed` CustomEvent, preserving the state-owner/pure-presenter invariant.
+- [x] **LOC-02**: Location state is owned by `<bee-atlas>` (`@state _userLocation`); `<bee-map>` hosts the control and relays position upward via a `composed` CustomEvent, preserving the state-owner/pure-presenter invariant.
 - [ ] **LOC-03**: Denied or unavailable location permission is handled gracefully — the control shows a disabled/error state and a brief explanation; the rest of the app is unaffected.
 
 ### Occurrences Near Me
@@ -112,7 +112,7 @@ Populated during roadmap creation.
 | CACHE-04 | Phase 150 | Pending |
 | CACHE-05 | Phase 149 | Pending |
 | LOC-01 | Phase 152 | Pending |
-| LOC-02 | Phase 152 | Pending |
+| LOC-02 | Phase 152 | Complete |
 | LOC-03 | Phase 152 | Pending |
 | NEAR-01 | Phase 153 | Pending |
 | NEAR-02 | Phase 153 | Pending |
