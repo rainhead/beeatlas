@@ -8,3 +8,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+// Compile-time build identifier injected by Vite `define` (eleventy.config.js).
+// Undefined under Vitest (no define) — read it through a `typeof` guard.
+declare const __APP_VERSION__: string;

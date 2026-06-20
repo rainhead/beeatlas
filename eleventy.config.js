@@ -11,6 +11,20 @@ import EleventyVitePlugin from "@11ty/eleventy-plugin-vite";
 import { quantify } from "./src/lib/quantify.js";
 import { VitePWA } from "vite-plugin-pwa";
 import { resolve } from "path";
+import { execSync } from "node:child_process";
+
+// Build identifier shown in the offline cache popover so a stale installed PWA
+// is diagnosable at a glance (iOS keeps an old SW + caches across reinstalls).
+// Prefer the CI commit SHA; fall back to local git; then to "dev".
+function buildVersion() {
+  let sha = process.env.GITHUB_SHA || "";
+  if (!sha) {
+    try { sha = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim(); } catch { /* no git */ }
+  }
+  const short = sha ? sha.slice(0, 7) : "dev";
+  const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+  return `${short} · ${stamp}Z`;
+}
 
 export default function (eleventyConfig) {
   // Single pluralization utility for all count-noun copy (e.g. "1 genus" vs
@@ -70,6 +84,10 @@ export default function (eleventyConfig) {
       // Production `vite build` discovers vite.config.ts via cwd and
       // works without this — it's a dev-server-only concern.
       envDir: process.cwd(),
+      // Compile-time build identifier surfaced in the offline cache popover.
+      define: {
+        __APP_VERSION__: JSON.stringify(buildVersion()),
+      },
       optimizeDeps: {
         exclude: ["wa-sqlite"],
       },

@@ -1,6 +1,10 @@
 import { LitElement, css, html, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 
+// Build identifier injected by Vite `define` (eleventy.config.js). The `typeof`
+// guard keeps this safe under Vitest, where the define is absent.
+const BUILD_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+
 @customElement('bee-header')
 export class BeeHeader extends LitElement {
   @property({ attribute: false }) offline = false;
@@ -460,6 +464,7 @@ export class BeeHeader extends LitElement {
             App update available — tap to reload
           </button>
         ` : ''}
+        <div class="cache-popover__row--meta">Build ${BUILD_VERSION}</div>
       </div>
     `;
   }
