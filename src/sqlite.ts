@@ -1,3 +1,15 @@
+// Inline the worker into the main bundle (base64) so its script needs NO network
+// fetch to start. iOS Safari does not reliably serve a dedicated/module worker's
+// script through the service worker offline (the worker lives at /assets/, outside
+// the /app SW scope), so a separate worker-script request fails on an offline
+// cold-start and tablesReady hangs forever. Inlining removes that fetch entirely
+// (Phase 151 iOS offline fix).
+import SqliteWorker from './sqlite-worker.ts?worker&inline';
+// Resolve the engine binary's hashed asset URL on the MAIN thread (where
+// import.meta.url is a real http(s) URL) and hand it to the inline worker, whose
+// own blob: origin can't resolve /assets/ URLs (Phase 151 iOS offline fix).
+import wasmUrl from 'wa-sqlite/dist/wa-sqlite.wasm?url';
+
 type ExecCallback = (rowValues: unknown[], columnNames: string[]) => void;
 type SQLiteAPI = { exec: (db: number, sql: string, cb?: ExecCallback) => Promise<void> };
 type WorkerMsg = { kind: string; id?: number; rows?: unknown[][]; columns?: string[]; message?: string; logs?: string[]; result?: unknown; buffer?: ArrayBuffer };
@@ -19,7 +31,10 @@ export const tablesReady: Promise<void> = new Promise(resolve => {
 function _ensureWorker(): Worker {
   if (_worker) return _worker;
   _workerT0 = performance.now();
-  _worker = new Worker(new URL('./sqlite-worker.ts', import.meta.url), { type: 'module' });
+  _worker = new SqliteWorker();
+  // Hand the worker its wasm URL (absolute) before it instantiates the engine.
+  // The message is queued until the worker's top-level listener is attached.
+  _worker.postMessage({ kind: 'worker-init', wasmUrl: new URL(wasmUrl, location.href).href });
   _worker.onmessage = (e: MessageEvent) => {
     const msg = e.data as WorkerMsg;
     if (msg.kind === 'tables-ready') {

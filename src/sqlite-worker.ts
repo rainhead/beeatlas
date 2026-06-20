@@ -3,13 +3,53 @@ import * as SQLite from 'wa-sqlite';
 import { MemoryVFS } from 'wa-sqlite/src/examples/MemoryVFS.js';
 import { resolveDataUrl } from './manifest.ts';
 
+// The wasm engine URL is resolved on the MAIN thread and handed in via a one-time
+// 'worker-init' message. This worker is bundled inline (a blob: origin), where the
+// worker's own import.meta.url cannot resolve /assets/ URLs — so we must not derive
+// the wasm URL here (Phase 151 iOS offline fix).
+let _resolveWasmUrl: (url: string) => void;
+const _wasmUrlReady: Promise<string> = new Promise((r) => { _resolveWasmUrl = r; });
+self.addEventListener('message', function _initListener(e: MessageEvent) {
+  const d = e.data as { kind?: string; wasmUrl?: string };
+  if (d?.kind === 'worker-init' && d.wasmUrl) {
+    self.removeEventListener('message', _initListener);
+    _resolveWasmUrl(d.wasmUrl);
+  }
+});
+
 const GEO_BLOB_SQL = 'SELECT data FROM geo_blob';
 
 let _geoBuffer: ArrayBuffer | null = null;
 
 (async () => {
   const t0 = performance.now();
-  const module = await SQLiteESMFactory();
+  const wasmUrl = await _wasmUrlReady;
+  // Provide the wasm bytes ourselves from Cache Storage instead of letting
+  // Emscripten fetch the binary. iOS Safari does not serve a worker's subresource
+  // fetches through the service worker offline, so Emscripten's default fetch of
+  // the precached wasm fails on an offline cold-start. caches.match reads Cache
+  // Storage directly in a worker (no SW interception needed); ignoreSearch matches
+  // the precache key, which carries a ?__WB_REVISION__ query (Phase 151).
+  const module = await SQLiteESMFactory({
+    // Override Emscripten's default wasm-path resolution: in an inline (blob:)
+    // worker its built-in resolver derives a broken blob: URL and throws
+    // "Invalid URL" during factory init. Hand it the real asset URL instead.
+    locateFile: () => wasmUrl,
+    instantiateWasm: (
+      imports: WebAssembly.Imports,
+      receiveInstance: (instance: WebAssembly.Instance, module?: WebAssembly.Module) => void,
+    ) => {
+      void (async () => {
+        let resp: Response | undefined;
+        if (typeof caches !== 'undefined') resp = await caches.match(wasmUrl, { ignoreSearch: true });
+        if (!resp) resp = await fetch(wasmUrl);
+        const bytes = await resp.arrayBuffer();
+        const { instance, module: mod } = await WebAssembly.instantiate(bytes, imports);
+        receiveInstance(instance, mod);
+      })();
+      return {}; // async path: exports delivered via receiveInstance
+    },
+  });
   const sqlite3 = SQLite.Factory(module);
   const vfs = new MemoryVFS();
   sqlite3.vfs_register(vfs, true);
