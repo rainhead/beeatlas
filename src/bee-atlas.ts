@@ -118,6 +118,13 @@ export class BeeAtlas extends LitElement {
   // D-11/D-12: true on iOS Safari (not standalone); computed once at construction time.
   @state() private _iosInstructable: boolean = isIosSafari() && !isStandalone();
 
+  // LOC-02: location state owned by bee-atlas (pure-presenter invariant — bee-map only emits)
+  @state() private _userLocation: { lat: number; lon: number; accuracy: number } | null = null;
+  // LOC-03: set true on geolocation error; drives the app-level denial banner
+  @state() private _locationError: boolean = false;
+  // LOC-03: distinct copy — 'denied' (code 1) vs 'unavailable' (code 2/3)
+  @state() private _locationErrorKind: 'denied' | 'unavailable' | null = null;
+
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
@@ -152,6 +159,12 @@ export class BeeAtlas extends LitElement {
   get intendedFilterActive(): boolean {
     return isFilterActive(this._filterState) || this._filterResolving;
   }
+
+  /**
+   * Current user location — exposed for Phase 153 "Near me" filter consumption.
+   * Null until the user grants geolocation permission and the first GPS fix arrives.
+   */
+  get userLocation() { return this._userLocation; }
 
   static styles = css`
 :host {
@@ -276,6 +289,47 @@ bee-pane {
     animation: none;
   }
 }
+/* LOC-03: denial/unavailable banner — mirrors .update-banner with error accent color */
+.location-error-banner {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: 16px;
+  right: 16px;
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 12px 16px;
+  background: var(--banner-bg, var(--header-bg));
+  color: var(--banner-text, #ffffff);
+  border-left: 4px solid #d9534f;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.24);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 40;
+}
+.location-error-banner__body {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.location-error-banner__dismiss {
+  background: transparent;
+  border: none;
+  color: var(--banner-text, #ffffff);
+  opacity: 0.6;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+.location-error-banner__dismiss:hover { opacity: 0.9; }
+.location-error-banner__dismiss:focus-visible { outline: 2px solid #d9534f; outline-offset: 2px; }
   `;
 
   render() {
@@ -319,6 +373,7 @@ bee-pane {
             @boundary-mode-changed=${this._onBoundaryModeChanged}
             @place-selected=${this._onPlaceSelected}
             @selection-drawn=${this._onSelectionDrawn}
+            @user-location-changed=${this._onUserLocationChanged}
           ></bee-map>
           <bee-pane
             .paneState=${this._paneState}
@@ -369,6 +424,20 @@ bee-pane {
             class="update-banner__dismiss"
             @click=${this._onBannerDismiss}
             aria-label="Dismiss update for this session"
+          >✕</button>
+        </div>
+      ` : ''}
+      ${this._locationError ? html`
+        <div class="location-error-banner" role="alert" aria-live="polite">
+          <span class="location-error-banner__body">
+            ${this._locationErrorKind === 'denied'
+              ? 'Location access is blocked. To enable, go to Settings → Safari → Location.'
+              : 'Unable to determine your location.'}
+          </span>
+          <button
+            class="location-error-banner__dismiss"
+            @click=${() => { this._locationError = false; }}
+            aria-label="Dismiss location error"
           >✕</button>
         </div>
       ` : ''}
@@ -909,6 +978,26 @@ bee-pane {
   };
 
   private _onBannerDismiss = () => { this._updateAvailable = false; };
+
+  // LOC-02 / LOC-03: relay handler for user-location-changed from <bee-map>
+  // On success: store position in _userLocation, clear error.
+  // On error: set _locationError true, clear stale _userLocation (security: T-152-04).
+  // Does NOT call _runFilterQuery — _userLocation is consumed only in Phase 153 (D-05).
+  private _onUserLocationChanged(
+    e: CustomEvent<{ lat: number; lon: number; accuracy: number } | { error: { code: number; message: string } }>
+  ) {
+    if ('error' in e.detail) {
+      this._locationError = true;
+      this._locationErrorKind = e.detail.error.code === 1 ? 'denied' : 'unavailable';
+      this._userLocation = null; // clear stale position on revocation (T-152-04)
+    } else {
+      // Validate accuracy is a finite non-negative number before storing (RESEARCH V5)
+      const { lat, lon, accuracy } = e.detail;
+      if (!isFinite(accuracy) || accuracy < 0) return;
+      this._userLocation = { lat, lon, accuracy };
+      this._locationError = false;
+    }
+  }
 
   private _refreshFreshness = async () => {
     this._freshnessLabel = await loadFreshnessLabel();
