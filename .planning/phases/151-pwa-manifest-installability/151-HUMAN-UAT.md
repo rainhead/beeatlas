@@ -1,17 +1,19 @@
 ---
 phase: 151-pwa-manifest-installability
 plan: 04
-status: pending
+status: approved
 gates: /gsd-verify-work
 ui_hint: yes
 auto_advance: false
 created: 2026-06-19
+verified: 2026-06-20
 ---
 
 # Phase 151 — Human UAT: PWA Offline Cold-Start & Installability
 
-**Status: PENDING** — This checklist must be completed on real devices before
-`/gsd-verify-work` is run for Phase 151.
+**Status: APPROVED** — Verified on real devices 2026-06-20. PWA-01/02/03 met (data + table
+render offline; basemap-offline is a documented Phase 154 dependency). See "UAT Findings &
+Fixes" below for the five offline-caching defects this UAT surfaced and resolved.
 
 **UI hint: yes** — This phase must NOT auto-advance past this UAT checkpoint.
 The `auto_advance: false` constraint is in effect (per `feedback_uat_ui_phases`).
@@ -71,12 +73,15 @@ cannot be simulated in CI (D-13).
 
 **Result:**
 
-- [ ] PASS
+- [x] PASS
 - [ ] FAIL
 
-**Device / Chrome version:** _____________________________________
+**Device / Chrome version:** Desktop Chrome
 
-**Notes:** ___________________________________________________
+**Notes:** Manifest valid (no errors). DevTools reported "Banner not shown:
+beforeinstallprompt.preventDefault() called" — this is the *expected* behavior of the in-app
+Install affordance (D-09 suppresses Chrome's default banner). The header Install button appeared
+and opened Chrome's native install dialog. PWA-01 confirmed.
 
 ---
 
@@ -112,10 +117,15 @@ from cache with no network.
 
 - [ ] PASS
 - [ ] FAIL
+- [x] DEFERRED — no Android device available at verification time.
 
-**Device / Android version / Chrome version:** ___________________
+**Device / Android version / Chrome version:** n/a
 
-**Notes:** ___________________________________________________
+**Notes:** Not tested — no Android hardware on hand. ROADMAP criterion 4 requires offline
+cold-start "confirmed on a real device" (singular); Scenario 3 (iOS) satisfies that. The
+in-app Install button + `beforeinstallprompt` path was confirmed working on desktop Chrome
+(same code path as Android). Android real-device offline cold-start carried to the v-next
+deferred list for opportunistic confirmation.
 
 ---
 
@@ -163,31 +173,63 @@ status bar is legible against the navy theme.
 
 **Result:**
 
-- [ ] PASS
+- [x] PASS
 - [ ] FAIL
 
-**Device / iOS version / Safari version:** _______________________
+**Device / iOS version / Safari version:** Real iPhone, Safari
 
-**Status-bar decision (black-translucent vs black):** _____________
+**Status-bar decision (black-translucent vs black):** `black-translucent` kept — legible against
+navy, no change requested.
 
-**Notes:** ___________________________________________________
+**Notes:** Install popover (Share → Add to Home Screen) worked; standalone launch confirmed
+(no Safari chrome). Offline cold-start now loads and renders the cached occurrence **data +
+table** (was hanging on "Loading…" before the fixes below). The **basemap renders blank
+offline** — Mapbox style + tiles are online-only (TOS-gated, deferred to Phase 154); this is the
+documented expected offline state, not a defect. The build-id line in the cache popover
+(`Build <sha>`) was essential for confirming each fix actually reached the installed PWA (iOS
+retains the old SW/caches across icon delete+reinstall — a full **Settings → Safari → Website
+Data** clear is required). PWA-02 + PWA-03 (data/table) confirmed.
+
+---
+
+## UAT Findings & Fixes
+
+Real-device UAT surfaced that offline cold-start had **never actually worked** — Phases 147–149
+were validated in DevTools, which masks several real-device behaviors. Five defects were found
+and fixed (all on `main`, deployed):
+
+1. **wasm not precached** (`fix(151)` 69097427) — the injectManifest glob was `{js,css}`, excluding
+   `wa-sqlite-*.wasm`. Added `wasm` to the glob + a `build-output.test.ts` regression guard.
+2. **Data caches never populated** (`fix(151)` f81a4ed6) — the prime relied on the SW passively
+   caching its fetches, but a freshly-installed PWA's first load is uncontrolled (no clientsClaim),
+   so nothing was cached. Now the prime + `loadManifest` write to Cache Storage directly; the worker
+   reads the DB from cache.
+3. **Worker script wouldn't load offline on iOS** (`fix(151)` e77232a4) — iOS Safari doesn't serve a
+   dedicated/module worker's script through the SW offline. Inlined the worker (`?worker&inline`);
+   resolve the wasm URL on the main thread and load it from cache via `locateFile`/`instantiateWasm`.
+4. **Data load coupled to the basemap** (`fix(151)` c980281c) — `loadOccurrenceGeoJSON()` + the
+   curtain-clearing `data-loaded` event lived inside `map.on('load')`, which never fires offline
+   (Mapbox style is online-only). Decoupled into `_loadOccurrenceData()` so cached data + table
+   render even when the basemap can't.
+5. **Build-id surfaced** (`feat(151)` build-number) — added a `Build <sha>` line to the cache
+   popover so a stale installed PWA is diagnosable (this was load-bearing for the UAT itself).
+
+**Carried forward (deferred, not blocking):**
+- Offline **basemap** (tiles + style) — online-only; TOS-gated; **Phase 154**.
+- Optional: occurrence **dots on a blank-gray map** offline via a local fallback style — nice-to-have,
+  separable.
+- **Android** real-device offline cold-start — no device at verification; opportunistic later.
+- Broader concern: the no-`skipWaiting`/`clientsClaim` update model makes installed PWAs (esp. iOS)
+  sticky on old code — worth revisiting as its own item.
 
 ---
 
 ## Sign-Off
 
-Once all three scenarios are recorded:
+**Overall result:** PASS — PWA-01, PWA-02, PWA-03 verified on real devices (iOS); Android deferred
+(no hardware). Offline cold-start renders cached data + table; basemap-offline is a Phase 154
+dependency.
 
-1. Update each scenario's result checkbox above (PASS or FAIL).
-2. Fill in device/version fields and any notes.
-3. Update the frontmatter `status:` field:
-   - All PASS → change to `status: approved`
-   - Any FAIL → change to `status: failed` and run `/gsd-plan-phase --gaps`
-4. Commit this file with the recorded results.
-5. Send the resume signal: type `"approved"` to continue the phase, or describe failures.
+**Signed off by:** Peter Abrahamsen (real-device UAT) + Claude (fixes + local verification)
 
-**Overall result:** _____________________________________________
-
-**Signed off by:** _____________________________________________
-
-**Date:** ______________________________________________________
+**Date:** 2026-06-20
