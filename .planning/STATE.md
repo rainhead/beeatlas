@@ -4,13 +4,13 @@ milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 152 context gathered
-last_updated: "2026-06-20T16:49:34.640Z"
+last_updated: "2026-06-20T16:57:55.180Z"
 last_activity: 2026-06-20
 progress:
   total_phases: 33
   completed_phases: 7
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 21
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 ## Current Position
 
 Phase: 152 (geolocatecontrol-location-state) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-20
 
-Progress: [█████████░] 89%
+Progress: [██████████] 95%
 
 ## Milestone Overview
 
@@ -57,6 +57,9 @@ Load-bearing conventions carried from prior milestones:
 - **Style cache bypass**: must bypass when `filterState` is active or `selectedOccIds` non-empty; the near-me filter extends `FilterState` so the bypass rule is inherited.
 - **Static hosting only**: no server runtime — SW, manifest, and CDK `no-cache` behavior are the only moving parts.
 - **Session-coalesced viewport history (Phase 146)**: `_viewportSessionActive` flag gates pushState vs replaceState; `?near=1` is a non-viewport write that should reset the session flag.
+- [Phase ?]: GeolocateControl placement outside load handler
+- [Phase ?]: Permission-gated auto-trigger timing
+- [Phase ?]: UserLocation state shape
 
 ### Research Flags (carry forward to implementation)
 
@@ -85,6 +88,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-20T16:49:34.632Z
+Last session: 2026-06-20T16:57:50.702Z
 Stopped at: Phase 152 context gathered
 Resume file: None

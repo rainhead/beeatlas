@@ -60,7 +60,7 @@
   - [x] 151-04-PLAN.md — Wave 2: `151-HUMAN-UAT.md` real-device offline cold-start checklist + blocking human-verify checkpoint (autonomous: false, UI hint: yes) [PWA-03; D-13, D-14]
 - [ ] **Phase 152: GeolocateControl + Location State** — `GeolocateControl` added in `<bee-map>.firstUpdated()` (after `new mapboxgl.Map()`, offline-safe); `user-location-changed` composed CustomEvent relayed to `<bee-atlas>` (`@state _userLocation`); blue dot + accuracy ring + recenter; granted-only auto-trigger (D-03); app-level denied/unavailable banner. **Plans:** 3 plans (3 waves). **UI hint:** yes.
   - [x] 152-01-PLAN.md — Wave 0: create `src/tests/geolocation.test.ts` (source-analysis gate for the LOC-02 pure-presenter invariant) + extend the `mapbox-gl` `vi.mock` in `bee-atlas.test.ts`/`cache-state.test.ts` (addControl + GeolocateControl stub) [LOC-02]
-  - [ ] 152-02-PLAN.md — Wave 1: GeolocateControl in `bee-map.ts` (D-01 opts, granted-only auto-trigger D-03, emit `user-location-changed`) + `bee-atlas.ts` `@state _userLocation`/`_locationError`, handler, binding, denial banner (D-04) [LOC-01, LOC-02, LOC-03]
+  - [x] 152-02-PLAN.md — Wave 1: GeolocateControl in `bee-map.ts` (D-01 opts, granted-only auto-trigger D-03, emit `user-location-changed`) + `bee-atlas.ts` `@state _userLocation`/`_locationError`, handler, binding, denial banner (D-04) [LOC-01, LOC-02, LOC-03]
   - [ ] 152-03-PLAN.md — Wave 2: `152-HUMAN-UAT.md` (blue dot/recenter, offline GPS, denial banner, real-device iOS standalone) + blocking human-verify checkpoint (autonomous: false) [LOC-01, LOC-03]
 - [ ] **Phase 153: Occurrences Near Me** — "Near me" chip filtering to occurrences within 10 km; bbox SQL pre-filter + JS haversine post-filter in worker; `?near=1` URL state; AND-composition with existing filters.
 - [ ] **Phase 154: Mapbox Tile Caching (TOS-gated)** — SW runtime-caches Mapbox tiles behind `beta_tile_cache` flag defaulting **off**; access_token stripped from cache key; `maxEntries` + 12h TTL; documented as self-test-only with hard TOS-review gate.
@@ -1311,7 +1311,7 @@ Plans:
 | 149. `/data/` Runtime Caching + Cold-Start | v5.0 | 3/3 | Complete   | 2026-06-18 |
 | 150. Cache Health & Freshness UX | v5.0 | 4/4 | Complete   | 2026-06-19 |
 | 151. PWA Manifest & Installability | v5.0 | 4/4 | Complete   | 2026-06-20 |
-| 152. GeolocateControl + Location State | v5.0 | 1/3 | In Progress|  |
+| 152. GeolocateControl + Location State | v5.0 | 2/3 | In Progress|  |
 | 153. Occurrences Near Me | v5.0 | 0/TBD | Not started | - |
 | 154. Mapbox Tile Caching (TOS-gated) | v5.0 | 0/TBD | Not started | - |
 
