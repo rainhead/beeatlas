@@ -52,11 +52,16 @@ vi.mock('mapbox-gl', () => {
     setFeatureState: vi.fn(),
     removeFeatureState: vi.fn(),
     querySourceFeatures: vi.fn(() => []),
+    addControl: vi.fn(),
   }));
   return {
     default: {
       accessToken: '',
       Map: MapMock,
+      GeolocateControl: vi.fn().mockImplementation(() => ({
+        on: vi.fn(),
+        trigger: vi.fn(() => true),
+      })),
     },
   };
 });
