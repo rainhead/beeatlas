@@ -109,10 +109,19 @@ async function primeAsset(
     throw new Error(`prime: ${url} → ${res.status}`);
   }
 
-  // CRITICAL: Workbox's CacheFirst already cloned the response in the SW and is
-  // draining the clone into Cache Storage via waitUntil(). We are free to read
-  // and discard the original stream. The body must not be consumed again after
-  // this reader loop — it will be fully drained.
+  // Write the response into Cache Storage DIRECTLY rather than relying on the SW's
+  // CacheFirst route to passively cache it. The SW only caches fetches from pages
+  // it controls, but a freshly-installed PWA's first load is uncontrolled (no
+  // clientsClaim), so the passive path silently no-ops and the data caches stay
+  // empty → offline cold-start hangs forever. Caching here works regardless of SW
+  // control timing (Phase 151 offline cold-start fix). res.clone() feeds the cache;
+  // the original stream is read below for byte-progress.
+  try { const cache = await caches.open(CACHE_NAME); await cache.put(url, res.clone()); }
+  catch (err) { console.warn('[prime-orchestrator] direct cache put failed:', url, err); }
+
+  // Read and discard the original stream for progress reporting; the clone above is
+  // what lands in Cache Storage. The body must not be consumed again after this
+  // reader loop — it will be fully drained.
   const assetFallback = FALLBACK_BYTES[key];
   const assetTotal = Number(res.headers.get('content-length')) || assetFallback;
   // Reconcile total: replace the fallback estimate with the discovered size

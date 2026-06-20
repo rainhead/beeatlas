@@ -22,9 +22,17 @@ let _geoBuffer: ArrayBuffer | null = null;
   const occurrencesDbUrl = await resolveDataUrl('occurrences_db');
   if (occurrencesDbUrl == null) throw new Error('manifest is missing occurrences_db key');
 
-  // Fetch the pre-built SQLite database.
+  // Load the pre-built SQLite database. Read from Cache Storage FIRST (populated by
+  // the page-side prime), falling back to the network. This worker runs at /assets/…,
+  // outside the /app service-worker scope, so a bare fetch() bypasses the SW and would
+  // fail offline; caches.match() works regardless of SW control (Phase 151 offline fix).
   const tFetch0 = performance.now();
-  const resp = await fetch(occurrencesDbUrl);
+  let resp: Response | undefined;
+  if (typeof caches !== 'undefined') {
+    resp = (await caches.match(occurrencesDbUrl, { cacheName: 'data-artifacts' }))
+      ?? (await caches.match(occurrencesDbUrl));
+  }
+  if (!resp) resp = await fetch(occurrencesDbUrl);
   const buffer = await resp.arrayBuffer();
   const tFetch1 = performance.now();
   logs.push(
@@ -93,4 +101,11 @@ let _geoBuffer: ArrayBuffer | null = null;
   };
 
   self.postMessage({ kind: 'tables-ready', logs });
-})();
+})().catch((err: unknown) => {
+  // Without this, any failure in worker init (wasm, DB, or manifest fetch) is
+  // swallowed: tablesReady never resolves and the page hangs on the "Loading…"
+  // curtain with no clue why. Surface it so it's diagnosable (Phase 151).
+  const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
+  console.error('[sqlite-worker] init failed:', message);
+  self.postMessage({ kind: 'init-error', message });
+});
