@@ -66,6 +66,9 @@ export class BeeMap extends LitElement {
 
   // Full unfiltered GeoJSON for setData-based filtering
   private _fullGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
+  // Resolves when occurrence data has loaded (or failed) — independent of the
+  // basemap style, so an offline cold-start doesn't hang waiting for map 'load'.
+  private _dataReady: Promise<void> | null = null;
 
   private _resizeObserver: ResizeObserver | null = null;
 
@@ -354,6 +357,24 @@ export class BeeMap extends LitElement {
     }
   }
 
+  /**
+   * Load occurrence data (boots the SQLite worker, builds the GeoJSON) and emit
+   * `data-loaded` so <bee-atlas> clears the loading curtain and renders the table.
+   * Deliberately NOT gated on the Mapbox style 'load' event — the basemap is
+   * unavailable offline, but the cached data must still render (Phase 151).
+   */
+  private async _loadOccurrenceData(): Promise<void> {
+    try {
+      const { geojson } = await loadOccurrenceGeoJSON();
+      this._fullGeoJSON = geojson;
+      // Bare signal — the summary is owned by bee-atlas._loadSummaryFromSQLite.
+      this._emit('data-loaded', {});
+    } catch (err) {
+      console.error('Failed to load occurrence data:', err);
+      this._emit('data-error', { message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
   public firstUpdated(_changedProperties: PropertyValues): void {
     // Set Mapbox access token from Vite env
     (mapboxgl as unknown as { accessToken: string }).accessToken = import.meta.env.VITE_MAPBOX_TOKEN ?? '';
@@ -374,14 +395,22 @@ export class BeeMap extends LitElement {
     const rectCanvas = this._map.getCanvasContainer();
     rectCanvas.addEventListener('mousedown', this._onRectMouseDown, true);
 
-    // All source/layer setup must happen after the style loads
+    // Load occurrence data INDEPENDENT of the basemap style. The Mapbox style
+    // (outdoors-v12) is fetched from api.mapbox.com and is unavailable offline, so
+    // an offline cold-start never fires map 'load'. Kicking the data load here means
+    // the cached data + table still render (the "Loading…" curtain clears via the
+    // data-loaded event) instead of hanging forever; the style-dependent map layers
+    // below still wait for 'load' (online only). [Phase 151 iOS offline fix]
+    this._dataReady = this._loadOccurrenceData();
+
+    // All source/layer setup must happen after the style loads (online).
     this._map.on('load', async () => {
-      // Signal the map-readiness barrier (ready.ts). Additive (step 1 of the
-      // map-init readiness work) — nothing awaits it yet.
+      // Signal the map-readiness barrier (ready.ts).
       markMapReady();
       try {
-        const { geojson } = await loadOccurrenceGeoJSON();
-        this._fullGeoJSON = geojson;
+        await this._dataReady;
+        const geojson = this._fullGeoJSON;
+        if (!geojson) return;
 
         // Add clustered GeoJSON source for occurrences
         this._map!.addSource('occurrences', {
@@ -461,9 +490,6 @@ export class BeeMap extends LitElement {
         });
         this._map!.addLayer(selectedOccurrencesLayerSpec(RECENCY_COLORS));
 
-        // Emit data-loaded event (bare signal — summary is owned by bee-atlas._loadSummaryFromSQLite)
-        this._emit('data-loaded', {});
-
         // Fetch boundary GeoJSON (deferred after occurrence data)
         this._loadBoundaryData();
 
@@ -484,8 +510,10 @@ export class BeeMap extends LitElement {
           this._applySourceFilter();
         }
       } catch (err) {
-        console.error('Failed to load occurrence data:', err);
-        this._emit('data-error', { message: err instanceof Error ? err.message : String(err) });
+        // Map-layer setup failed (style loaded but a source/layer add threw). Data
+        // already loaded + table rendered via _loadOccurrenceData, so don't blank the
+        // app with a data-error — just log.
+        console.error('Failed to set up map layers:', err);
       }
     });
 
