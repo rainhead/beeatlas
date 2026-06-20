@@ -15,14 +15,40 @@ interface Manifest {
 
 let _promise: Promise<Manifest> | null = null;
 
+/** Cache Storage bucket for manifest.json — same name as the SW NetworkFirst route. */
+const MANIFEST_CACHE = 'data-manifest';
+
+async function _loadManifestOnce(): Promise<Manifest> {
+  const url = `${_BASE}/manifest.json`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`manifest.json: ${r.status}`);
+    // Self-prime: write a copy straight into Cache Storage so an offline cold-start
+    // can read it WITHOUT depending on the service worker controlling this client.
+    // The SQLite worker runs outside the /app SW scope, and a freshly-installed
+    // PWA's first page load is uncontrolled (no clientsClaim) — in both cases the
+    // SW's passive NetworkFirst route never fires, so we cache it ourselves here
+    // (Phase 151 offline cold-start fix).
+    if (typeof caches !== 'undefined') {
+      try { const c = await caches.open(MANIFEST_CACHE); await c.put(url, r.clone()); } catch { /* best-effort */ }
+    }
+    return await r.json() as Manifest;
+  } catch (netErr) {
+    // Offline / network failure: fall back to the copy primed on a prior online load.
+    if (typeof caches !== 'undefined') {
+      const hit = (await caches.match(url, { cacheName: MANIFEST_CACHE })) ?? (await caches.match(url));
+      if (hit) return await hit.json() as Manifest;
+    }
+    throw netErr;
+  }
+}
+
 export function loadManifest(): Promise<Manifest> {
   if (!_promise) {
-    _promise = fetch(`${_BASE}/manifest.json`)
-      .then(r => { if (!r.ok) throw new Error(`manifest.json: ${r.status}`); return r.json() as Promise<Manifest>; })
-      // Do NOT memoize a rejected fetch: a failed boot (e.g. offline before the
-      // manifest was cached) would otherwise stay sticky and block recovery when
-      // connectivity returns. Clear the cache on failure so the next call retries.
-      .catch((err: unknown) => { _promise = null; throw err; });
+    // Do NOT memoize a rejected fetch: a failed boot (e.g. offline before the
+    // manifest was cached) would otherwise stay sticky and block recovery when
+    // connectivity returns. Clear the cache on failure so the next call retries.
+    _promise = _loadManifestOnce().catch((err: unknown) => { _promise = null; throw err; });
   }
   return _promise;
 }
