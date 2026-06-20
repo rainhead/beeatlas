@@ -18,7 +18,11 @@ let _promise: Promise<Manifest> | null = null;
 export function loadManifest(): Promise<Manifest> {
   if (!_promise) {
     _promise = fetch(`${_BASE}/manifest.json`)
-      .then(r => { if (!r.ok) throw new Error(`manifest.json: ${r.status}`); return r.json() as Promise<Manifest>; });
+      .then(r => { if (!r.ok) throw new Error(`manifest.json: ${r.status}`); return r.json() as Promise<Manifest>; })
+      // Do NOT memoize a rejected fetch: a failed boot (e.g. offline before the
+      // manifest was cached) would otherwise stay sticky and block recovery when
+      // connectivity returns. Clear the cache on failure so the next call retries.
+      .catch((err: unknown) => { _promise = null; throw err; });
   }
   return _promise;
 }

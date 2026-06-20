@@ -104,7 +104,11 @@ export default function (eleventyConfig) {
           injectManifest: {
             globDirectory: resolve(process.cwd(), '_site'),  // scan full output tree
             swDest: resolve(process.cwd(), '_site/app/sw.js'),  // injection writes here
-            globPatterns: ['app/index.html', 'assets/**/*.{js,css}'],
+            // `.wasm` is load-bearing for offline cold-start: the wa-sqlite engine
+            // binary (assets/wa-sqlite-<hash>.wasm) must be precached or the SQL
+            // worker can't initialize offline → tablesReady never resolves → the
+            // "Loading…" curtain hangs forever (Phase 151 real-device UAT, PWA-03).
+            globPatterns: ['app/index.html', 'assets/**/*.{js,css,wasm}'],
             globIgnores: [
               'data/**', 'feeds/**', '**/*.db', '**/*.geojson',
               '**/*.parquet', '**/*.png', '**/sw.js',
