@@ -4,7 +4,7 @@ milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 152 context gathered
-last_updated: "2026-06-20T16:18:15.023Z"
+last_updated: "2026-06-20T16:44:43.280Z"
 last_activity: 2026-06-19 -- Phase 151 execution started
 progress:
   total_phases: 33
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 Phase: 151 (pwa-manifest-installability) — EXECUTING
 Plan: 1 of 4
-Status: Executing Phase 151
+Status: Ready to execute
 Last activity: 2026-06-19 -- Phase 151 execution started
 
 Progress: [██████████] 100%
