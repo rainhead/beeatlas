@@ -343,6 +343,18 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     }
   });
 
+  test('precache manifest includes the wa-sqlite .wasm engine binary (PWA-03 offline cold-start regression)', () => {
+    // Phase 151 real-device UAT: the SQL worker cannot initialize offline unless
+    // the wa-sqlite WebAssembly binary is precached. Without it, tablesReady never
+    // resolves and the "Loading…" curtain hangs forever on offline cold-start.
+    // The precache glob in eleventy.config.js must keep `wasm` in its extension list.
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    const urlMatches = [...sw.matchAll(/"url":"([^"]+)"/g)].map(m => m[1]!);
+    const wasmEntries = urlMatches.filter(u => u.endsWith('.wasm'));
+    expect(wasmEntries.length, 'no .wasm precached — offline SQL engine init will hang (see eleventy.config.js globPatterns)').toBeGreaterThan(0);
+    expect(wasmEntries.some(u => /wa-sqlite/.test(u)), `wa-sqlite wasm not precached; entries: ${wasmEntries.join(', ')}`).toBe(true);
+  });
+
   test('eleventy.config.js sets maximumFileSizeToCacheInBytes >= 30000000 (OFF-01, criterion 3)', () => {
     const config = readFileSync(resolve(ROOT, 'eleventy.config.js'), 'utf-8');
     const match = config.match(/maximumFileSizeToCacheInBytes\s*:\s*([\d_]+)/);
