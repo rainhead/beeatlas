@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
-stopped_at: Phase 151 COMPLETE — PWA installability + offline cold-start verified (4/4); basemap-offline → Phase 154
-last_updated: "2026-06-20T04:39:39.258Z"
+stopped_at: Phase 152 context gathered
+last_updated: "2026-06-20T16:18:15.023Z"
 last_activity: 2026-06-19 -- Phase 151 execution started
 progress:
   total_phases: 33
@@ -85,6 +85,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-20T04:39:39.246Z
-Stopped at: Phase 151 COMPLETE — PWA installability + offline cold-start verified (4/4); basemap-offline → Phase 154
-Resume file: .planning/phases/151-pwa-manifest-installability/151-VERIFICATION.md
+Last session: 2026-06-20T16:18:15.010Z
+Stopped at: Phase 152 context gathered
+Resume file: .planning/phases/152-geolocatecontrol-location-state/152-CONTEXT.md
