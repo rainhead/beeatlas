@@ -323,13 +323,25 @@ export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
   return { occurrenceWhere };
 }
 
-export async function queryVisibleGeoJSON(f: FilterState): Promise<{
+export async function queryVisibleGeoJSON(
+  f: FilterState,
+  selectionBounds: { west: number; south: number; east: number; north: number } | null = null
+): Promise<{
   geojson: FeatureCollection<Point, OccurrenceProperties>;
   ids: Set<string>;
   rowCount: number;
 } | null> {
-  if (!isFilterActive(f)) return null;
+  // A selection bounding box (near-me / shift-drag) filters the MAP too — so the map
+  // must run even when no taxon/date/region filter is active, as long as bounds exist.
+  if (!isFilterActive(f) && selectionBounds === null) return null;
   const { occurrenceWhere } = buildFilterSQL(f);
+  // Same bbox clause the list/table queries use (queryListPage) — keeps the map, list,
+  // and table in lockstep on the identical bounds.
+  let boundsClause = '';
+  if (selectionBounds !== null) {
+    const { west, south, east, north } = selectionBounds;
+    boundsClause = ` AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east}`;
+  }
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const features: Feature<Point, OccurrenceProperties>[] = [];
@@ -337,7 +349,7 @@ export async function queryVisibleGeoJSON(f: FilterState): Promise<{
   let rowCount = 0;
   await sqlite3.exec(db,
     // Phase 137 (PRO-04): fetch checklist_id so checklist points that match the filter are not silently dropped from _visibleIds.
-    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, checklist_id, year, source FROM occurrences o WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
+    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, checklist_id, year, source FROM occurrences o WHERE (${occurrenceWhere})${boundsClause} AND lat IS NOT NULL AND lon IS NOT NULL`,
     (rowValues: unknown[], columnNames: string[]) => {
       rowCount++;
       const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'checklist_id' | 'year' | 'source'>;

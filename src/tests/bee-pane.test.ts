@@ -315,32 +315,33 @@ describe('NEAR-01/D-04/D-05: near-me affordance in the where input', () => {
     expect(src).toMatch(/near-me-btn[\s\S]{0,200}aria-label=/);
   });
 
-  test('bee-pane.ts bounds chip dispatches near-me-cleared (bubbles, composed)', () => {
+  test('bee-pane.ts declares selectionBoundsLabel @property', () => {
+    expect(src).toMatch(/@property[\s\S]{0,80}selectionBoundsLabel/);
+  });
+
+  test('bee-pane.ts puts the bounds label IN the where input value when active (not a chip)', () => {
+    // The input's value shows selectionBoundsLabel when a bounds selection is active.
+    expect(src).toMatch(/\.value=\$\{this\.selectionBoundsActive[\s\S]{0,80}selectionBoundsLabel/);
+  });
+
+  test('bee-pane.ts makes the where input readonly while bounds are active', () => {
+    expect(src).toMatch(/\?readonly=\$\{this\.selectionBoundsActive/);
+  });
+
+  test('bee-pane.ts does NOT render a standalone bounds chip (hasChips excludes selectionBoundsActive)', () => {
+    // The chip pattern was explicitly removed — bounds live in the input, not the .chips row.
+    expect(src).not.toMatch(/hasChips[\s\S]{0,300}selectionBoundsActive/);
+    // No <span class="chip"> gated on selectionBoundsActive remains.
+    expect(src).not.toMatch(/selectionBoundsActive[\s\S]{0,120}class=["']chip["']/);
+  });
+
+  test('bee-pane.ts trailing button toggles: clear (near-me-cleared) when active, geolocate (near-me-requested) when not', () => {
     expect(src).toMatch(/new CustomEvent\(['"]near-me-cleared['"]/);
     expect(src).toMatch(/near-me-cleared[\s\S]{0,200}bubbles:\s*true/);
     expect(src).toMatch(/near-me-cleared[\s\S]{0,200}composed:\s*true/);
-  });
-
-  test('bee-pane.ts bounds chip clear button has aria-label for near-me', () => {
     expect(src).toMatch(/Clear near-me filter/);
-  });
-
-  test('bee-pane.ts renders bounds chip only when selectionBoundsActive is true', () => {
-    expect(src).toMatch(/selectionBoundsActive/);
-    // chip must be gated on selectionBoundsActive
-    expect(src).toMatch(/this\.selectionBoundsActive[\s\S]{0,300}near-me-cleared|near-me-cleared[\s\S]{0,300}this\.selectionBoundsActive/);
-  });
-
-  test('bee-pane.ts bounds chip uses the shared crosshair SVG (not text)', () => {
-    // The bounds chip must reference the shared crosshair getter near the near-me-cleared dispatch.
-    // Both the button and the chip reference _crosshairSvg so they share the same SVG definition.
-    expect(src).toMatch(/_crosshairSvg[\s\S]{0,800}near-me-cleared|near-me-cleared[\s\S]{0,800}_crosshairSvg/);
-    // The getter itself must define an <svg element
-    expect(src).toMatch(/_crosshairSvg[\s\S]{0,200}<svg/);
-  });
-
-  test('bee-pane.ts hasChips condition includes selectionBoundsActive', () => {
-    expect(src).toMatch(/hasChips[\s\S]{0,300}selectionBoundsActive|selectionBoundsActive[\s\S]{0,300}hasChips/);
+    // The active branch (selectionBoundsActive) drives near-me-cleared.
+    expect(src).toMatch(/this\.selectionBoundsActive[\s\S]{0,400}near-me-cleared/);
   });
 
   test('bee-pane.ts does not contain _selectionBounds or nearMeCenter or haversine', () => {
