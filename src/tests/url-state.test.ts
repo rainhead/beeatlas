@@ -191,6 +191,7 @@ describe('combined round-trip', () => {
       elevMin: null,
       elevMax: null,
       selectedPlace: null,
+      nearMe: false,
     };
     const selection: SelectionState = { type: 'ids', ids: ['ecdysis:999'] };
     const ui = { boundaryMode: 'counties' as const, paneState: 'table' as const };
