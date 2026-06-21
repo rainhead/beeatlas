@@ -410,6 +410,24 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(src).toContain("parsedSel?.type === 'bounds'");
   });
 
+  test('NEAR-01: restored bounds populate the MAP — _onDataLoaded runs the filter query for _selectionBounds', () => {
+    // Regression: a fresh sel= URL filtered the sidebar but left the map empty because
+    // _onDataLoaded only ran the map query when isFilterActive (not for a bounds box).
+    // Bounds are a filter, so the data-loaded gate must include _selectionBounds.
+    const methodStart = src.indexOf('private _onDataLoaded(');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(body).toMatch(/if \(isFilterActive\(this\._filterState\) \|\| this\._selectionBounds !== null\)[\s\S]{0,80}_runFilterQuery/);
+  });
+
+  test('NEAR-01: intendedFilterActive treats a bounds box as an active filter', () => {
+    const getterStart = src.indexOf('get intendedFilterActive(');
+    expect(getterStart).toBeGreaterThan(-1);
+    const body = src.slice(getterStart, getterStart + 240);
+    expect(body).toContain('this._selectionBounds !== null');
+  });
+
   test('SEL-07: _onPaneCollapse clears _selectionBounds', () => {
     const methodStart = src.indexOf('private _onPaneCollapse(');
     expect(methodStart).toBeGreaterThan(-1);
