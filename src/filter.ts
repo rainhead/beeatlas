@@ -22,6 +22,7 @@ export interface FilterState {
   elevMin: number | null;
   elevMax: number | null;
   selectedPlace: string | null;     // D-07 — singular; multi-place is deferred PRICH-02
+  bounds: { west: number; south: number; east: number; north: number } | null; // D-01 (phase 999.8): spatial bounding box as first-class filter field
 }
 
 export interface OccurrenceProperties {
@@ -240,7 +241,8 @@ export function isFilterActive(f: FilterState): boolean {
     || f.selectedCollectors.length > 0
     || f.elevMin !== null
     || f.elevMax !== null
-    || f.selectedPlace !== null;
+    || f.selectedPlace !== null
+    || f.bounds !== null;
 }
 
 // INVARIANT: the returned clause qualifies the occurrences table as `o`
