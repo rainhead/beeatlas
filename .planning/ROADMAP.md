@@ -1341,7 +1341,6 @@ Plans:
 **Plans:** 1 plan
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
-
 Plans:
 
 - [ ] 999.1-01-PLAN.md — Add desktop-only "Shift-drag on map to set bounds" hint below the where input (.hint reuse + pointer-capability media query) with source-text tests
