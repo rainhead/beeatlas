@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: executing
-stopped_at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
-last_updated: "2026-06-21T23:03:23.150Z"
-last_activity: 2026-06-21 -- Phase 154 planning complete
+status: verifying
+stopped_at: Phase 154 Plan 01 complete — mapbox-basemap SW route + ToS ADR shipped; ready for /gsd-verify-work
+last_updated: "2026-06-21T23:11:20.159Z"
+last_activity: 2026-06-21
 progress:
-  total_phases: 17
-  completed_phases: 11
-  total_plans: 27
-  completed_plans: 27
-  percent: 65
+  total_phases: 34
+  completed_phases: 12
+  total_plans: 28
+  completed_plans: 28
+  percent: 35
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 999.1 — surface-shift-drag-rectangle-selection-in-ui
+**Current focus:** Phase 154 — mapbox-tile-caching-tos-gated (COMPLETE — pending /gsd-verify-work)
 
 ## Current Position
 
-Phase: 999.1
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-21 -- Phase 154 planning complete
+Phase: 154 (mapbox-tile-caching-tos-gated) — COMPLETE
+Plan: 1 of 1 (all plans complete)
+Status: Phase complete — ready for /gsd-verify-work
+Last activity: 2026-06-21
 
 Progress: [██████████] 100%
 
@@ -60,6 +60,7 @@ Load-bearing conventions carried from prior milestones:
 - [Phase ?]: GeolocateControl placement outside load handler
 - [Phase ?]: Permission-gated auto-trigger timing
 - [Phase ?]: UserLocation state shape
+- **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: access_token retained (§1.1/§2.9.4); events.mapbox.com excluded by hostname; /map-sessions/ excluded by path; 7-day TTL (§2.8.1 ceiling: 30 days). docs/adr/0001-mapbox-basemap-cache.md is the ToS record. Web-SDK offline basemap is NOT licensed.
 
 ### Research Flags (carry forward to implementation)
 
@@ -88,6 +89,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-21T22:43:33.441Z
+Last session: 2026-06-21T23:11:20.151Z
 Stopped at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
-Resume file: .planning/phases/154-mapbox-tile-caching-tos-gated/154-CONTEXT.md
+Resume file: None
