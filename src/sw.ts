@@ -24,7 +24,7 @@ declare const self: ServiceWorkerGlobalScope & typeof globalThis & {
 
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { NavigationRoute, registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst } from 'workbox-strategies';
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
@@ -90,6 +90,40 @@ registerRoute(
     cacheName: 'data-manifest',
     networkTimeoutSeconds: 3,
     plugins: [new CacheableResponsePlugin({ statuses: [200] })],
+  })
+);
+
+// D-03/D-04/D-05/D-06/D-07: Mapbox basemap performance cache — §2.8.1 compliant.
+// StaleWhileRevalidate: serves cached asset instantly, revalidates from network in background.
+// This is the actual perf win over the browser's own HTTP cache (D-03).
+//
+// matchCallback: strict hostname check so events.mapbox.com (telemetry) is NEVER matched
+// (different hostname). The /map-sessions/ billing path is explicitly excluded (D-07; RESEARCH Open Q2).
+//
+// access_token is RETAINED in the cache key — no cache-key-rewriting plugin (D-04: §1.1 / §2.9.4).
+// Token is static per deployment, so cache URLs are naturally stable.
+//
+// 200-only (D-05): CacheableResponsePlugin implements cacheWillUpdate, which suppresses
+// SWR's default cacheOkAndOpaquePlugin (status 0 / opaque allowance) — see RESEARCH Pitfall 2.
+//
+// TTL: 604800s = 7 days — well within the 2,592,000s (30-day) §2.8.1 ceiling (D-05).
+// maxEntries: 150 is safe given Mapbox CORS (non-opaque) responses (D-05; RESEARCH CORS vs Opaque).
+// Dedicated cacheName 'mapbox-basemap' keeps storage-estimate breakdown clean (D-06).
+// Registered unconditionally — no feature flag (D-07).
+registerRoute(
+  ({ url }) =>
+    url.hostname === 'api.mapbox.com' && !url.pathname.startsWith('/map-sessions/'),
+  new StaleWhileRevalidate({
+    cacheName: 'mapbox-basemap',
+    plugins: [
+      // 200-only: excludes opaque (status 0) responses; see RESEARCH Pitfall 2.
+      new CacheableResponsePlugin({ statuses: [200] }),
+      new ExpirationPlugin({
+        maxEntries: 150,
+        maxAgeSeconds: 604800, // 7 days (§2.8.1 ceiling is 30 days = 2,592,000s)
+        purgeOnQuotaError: true,
+      }),
+    ],
   })
 );
 

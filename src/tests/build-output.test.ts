@@ -466,18 +466,20 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     expect(sw).toContain('/map-sessions/');
   });
 
-  test('154-01-03: _site/app/sw.js maxAgeSeconds <= 30-day ceiling; access_token retained (no cacheKeyWillBeUsed) (TILE-01)', () => {
+  test('154-01-03: _site/app/sw.js maxAgeSeconds <= 30-day ceiling; access_token retained (TILE-01)', () => {
     const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
-    // Parse every maxAgeSeconds value in the compiled SW; at least one must be
+    // Parse every maxAgeSeconds numeric value in the compiled SW; at least one must be
     // within (0, 2_592_000] — the 30-day ToS ceiling from §2.8.1
     const maxAgeValues = [...sw.matchAll(/maxAgeSeconds[^\d]*(\d+)/g)].map(m => parseInt(m[1]!, 10));
     expect(
       maxAgeValues.some(v => v > 0 && v <= 2_592_000),
       `expected a maxAgeSeconds value in (0, 2_592_000] but got: ${maxAgeValues.join(', ')}`
     ).toBe(true);
-    // Token-retention rule: no cacheKeyWillBeUsed plugin anywhere implies access_token
-    // is retained in the cache key (D-04 §1.1 / §2.9.4)
-    expect(sw).not.toContain('cacheKeyWillBeUsed');
+    // Token-retention rule: verify src/sw.ts does not add a CacheKeyWillBeUsed plugin
+    // (checked in source, not compiled output — Workbox bundles 'cacheKeyWillBeUsed' internally
+    // as a plugin lifecycle callback name; checking the source is the correct proxy for D-04).
+    const swSrc = readFileSync(resolve(ROOT, 'src/sw.ts'), 'utf-8');
+    expect(swSrc).not.toContain('cacheKeyWillBeUsed');
   });
 
   test('154-01-04: src/bee-map.ts has attributionControl: true — Mapbox attribution intact (TILE-01, D-08)', () => {
