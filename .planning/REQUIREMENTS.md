@@ -47,9 +47,11 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 
 ### Occurrences Near Me
 
-- [ ] **NEAR-01**: A "Near me" chip filters to occurrences within a fixed 10 km radius of the user's position and AND-composes with the existing taxon/date/region/selection filters (and with the table/list view).
-- [ ] **NEAR-02**: The proximity query uses a bounding-box SQL pre-filter plus a haversine distance check (in the worker), waits for a GPS fix before firing (barrier analogous to `taxaReady`/`_filterQueryGeneration`), and returns in under ~200 ms on the full occurrence set.
-- [ ] **NEAR-03**: Near-me state round-trips in the URL as a boolean `?near=1` (coordinates are ephemeral); restoring re-activates geolocation and defers the query until a fix arrives; "Clear filters" clears the chip.
+> Revised 2026-06-21: near-me reuses the existing shift-drag `selectionBounds` mechanism (a ~10 km bounding box, not a haversine circle), with explicit bounds in the URL for shareability. Supersedes the original haversine/`?near=1` form.
+
+- [ ] **NEAR-01**: A "Near me" button (geolocate icon) right-aligned inside the "County, ecoregion, or place" input resolves the user's GPS position into a ~10 km bounding box and applies it as a selection-bounds filter, reusing the existing rectangle-selection mechanism (`filter.ts` `boundsClause` / `_selectionBounds`); the active bounds appear in that input as a removable chip and AND-compose with the existing taxon/date/region filters (and the table/list view).
+- [ ] **NEAR-02**: Near-me reuses the existing selection-bounds query path (bbox `boundsClause`) — no separate proximity query, no haversine; performance is that of the existing fast bounds query.
+- [ ] **NEAR-03**: The bounds round-trip in the URL via the existing selection-bounds serialization (`west,south,east,north`), so a shared link reproduces the exact same occurrences for any recipient with no GPS and no geolocation re-trigger on restore; "Clear filters" / the chip ✕ clears the bounds. On denied/unavailable location, the Phase 152 toast appears and no bounds are applied.
 
 ### Basemap Tile Caching (TOS-Gated)
 
