@@ -91,6 +91,7 @@ export class BeeAtlas extends LitElement {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
+    bounds: null,
   };
 
   @state() private _visibleIds: Set<string> | null = null;
@@ -119,7 +120,6 @@ export class BeeAtlas extends LitElement {
   @state() private _loading = true;
   @state() private _error: string | null = null;
   @state() private _viewState: { lon: number; lat: number; zoom: number } | null = null;
-  @state() private _selectionBounds: { west: number; south: number; east: number; north: number } | null = null;
   // Dedicated flag: true while a legacy taxon from the URL is pending resolution via
   // the await-taxaReady flow. Feeds intendedFilterActive — the single gate for hide-all
   // and URL-write suppression. MUST be @state: intendedFilterActive (a derived getter) is
@@ -187,15 +187,14 @@ export class BeeAtlas extends LitElement {
    * and the _replaceUrlState/_writeViewportHistory URL-write suppression read this getter.
    */
   get intendedFilterActive(): boolean {
-    // A selection bounding box (near-me / shift-drag) filters the map, so it must flip
-    // the same gate that hides the unfiltered base layer and shows the filtered layer.
-    return isFilterActive(this._filterState) || this._filterResolving || this._selectionBounds !== null;
+    // isFilterActive now covers bounds (f.bounds !== null), so no separate _selectionBounds check needed.
+    return isFilterActive(this._filterState) || this._filterResolving;
   }
 
   // Human-readable bounding box shown IN the "County, ecoregion, or place" input when a
-  // selection box (near-me / shift-drag) is active. SW → NE corners (lat, lon).
-  private get _selectionBoundsLabel(): string {
-    const b = this._selectionBounds;
+  // bounds filter (near-me / shift-drag) is active. SW → NE corners (lat, lon).
+  private get _boundsFilterLabel(): string {
+    const b = this._filterState.bounds;
     if (b === null) return '';
     return `${b.south.toFixed(3)}, ${b.west.toFixed(3)} → ${b.north.toFixed(3)}, ${b.east.toFixed(3)}`;
   }
@@ -452,8 +451,8 @@ bee-pane {
             @pane-clear-selection=${this._onClearSelection}
             @near-me-requested=${this._onNearMeRequested}
             @near-me-cleared=${this._onNearMeCleared}
-            .selectionBoundsActive=${this._selectionBounds !== null}
-            .selectionBoundsLabel=${this._selectionBoundsLabel}
+            .boundsFilterActive=${this._filterState.bounds !== null}
+            .boundsFilterLabel=${this._boundsFilterLabel}
           ></bee-pane>
         </div>
       `}
@@ -522,6 +521,7 @@ bee-pane {
         elevMin: initFilter.elevMin ?? null,
         elevMax: initFilter.elevMax ?? null,
         selectedPlace: initFilter.selectedPlace ?? null,
+        bounds: initFilter.bounds ?? null,
       };
     }
     // If URL contains a legacy taxon name, start the await-taxaReady resolution flow.
@@ -551,9 +551,6 @@ bee-pane {
       this._paneState = 'list';
     } else if (initSel?.type === 'cluster') {
       this._selectedCluster = { lon: initSel.lon, lat: initSel.lat, radiusM: initSel.radiusM };
-      this._paneState = 'list';
-    } else if (initSel?.type === 'bounds') {
-      this._selectionBounds = { west: initSel.west, south: initSel.south, east: initSel.east, north: initSel.north };
       this._paneState = 'list';
     }
     // _runListQuery will be triggered by _onDataLoaded once SQLite is ready
@@ -633,7 +630,7 @@ bee-pane {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
-    const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState, this._selectionBounds));
+    const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState));
     if (guarded === null) return;
     this._filteredGeoJSON = guarded.result?.geojson ?? null;
     this._visibleIds = guarded.result?.ids ?? null;
@@ -894,13 +891,12 @@ bee-pane {
       else if (parsed.source === 'checklist') selChecklistIds.push(parsed.numericId);
       else selInatIds.push(parsed.numericId);
     }
-    const hasSelection = selEcdysisIds.length > 0 || selInatIds.length > 0 || selInatObsIds.length > 0 || selChecklistIds.length > 0 || this._selectionBounds !== null;
+    const hasSelection = selEcdysisIds.length > 0 || selInatIds.length > 0 || selInatObsIds.length > 0 || selChecklistIds.length > 0;
     const guarded = await this._listGuard(async () => {
       try {
         const { rows, total } = await queryListPage(
           this._filterState, this._listPage, this._tableSortBy,
-          selEcdysisIds, selInatIds, selInatObsIds, selChecklistIds,
-          this._selectionBounds ?? null
+          selEcdysisIds, selInatIds, selInatObsIds, selChecklistIds
         );
         return { rows, total, selectionCount: hasSelection ? total : null };
       } catch (err) {
@@ -921,11 +917,9 @@ bee-pane {
     return buildParams(
       this._currentView,
       this._filterState,
-      this._selectionBounds && this._paneState === 'list'
-        ? { type: 'bounds' as const, ...this._selectionBounds }
-        : this._selectedCluster
-          ? { type: 'cluster' as const, ...this._selectedCluster }
-          : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
+      this._selectedCluster
+        ? { type: 'cluster' as const, ...this._selectedCluster }
+        : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
       { boundaryMode: this._boundaryMode, paneState: this._paneState, hiddenSources: this._hiddenSources }
     );
   }
@@ -1053,7 +1047,7 @@ bee-pane {
         this._nearMePending = false;
         const box = boundsFromLocation({ lat, lon });
         if (box !== null) {
-          this._applyBoundsSelection(box);
+          this._applyBoundsFilter(box);
         }
       }
     }
@@ -1071,14 +1065,12 @@ bee-pane {
     this._beeMap?.requestUserLocation();
   };
 
-  // NEAR-01 / D-05: handler for near-me-cleared from <bee-pane> chip ✕.
-  // Nulls _selectionBounds via the same pattern as _onMapClickEmpty's else-branch.
+  // NEAR-01 / D-07: handler for near-me-cleared from <bee-pane> ✕ button.
+  // The ONLY path that clears _filterState.bounds (D-07).
+  // D-04: does NOT touch _paneState. D-05: does NOT null record selection.
   private _onNearMeCleared = () => {
     this._nearMePending = false;
-    this._selectedOccIds = null;
-    this._selectedCluster = null;
-    this._selectionBounds = null;
-    this._paneState = 'collapsed';
+    this._filterState = { ...this._filterState, bounds: null };
     // Re-run so the map/table drop the bounds constraint (a still-active taxon/date
     // filter would otherwise keep showing the stale bounded set).
     this._runFilterQuery();
@@ -1131,6 +1123,7 @@ bee-pane {
       elevMin: parsed.filter?.elevMin ?? null,
       elevMax: parsed.filter?.elevMax ?? null,
       selectedPlace: parsed.filter?.selectedPlace ?? null,
+      bounds: parsed.filter?.bounds ?? null,
     };
     // Handle legacy taxon back-compat on history navigation via the same await-taxaReady
     // flow as firstUpdated. By the time popstate fires, taxaReady is already resolved
@@ -1155,26 +1148,18 @@ bee-pane {
     if (parsedSel?.type === 'ids' && parsedSel.ids.length > 0) {
       this._selectedOccIds = parsedSel.ids;
       this._selectedCluster = null;
-      this._selectionBounds = null;
     } else if (parsedSel?.type === 'cluster') {
       this._selectedCluster = { lon: parsedSel.lon, lat: parsedSel.lat, radiusM: parsedSel.radiusM };
       this._selectedOccIds = null;
-      this._selectionBounds = null;
-    } else if (parsedSel?.type === 'bounds') {
-      this._selectionBounds = { west: parsedSel.west, south: parsedSel.south, east: parsedSel.east, north: parsedSel.north };
-      this._selectedOccIds = null;
-      this._selectedCluster = null;
     } else {
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectionBounds = null;
     }
 
     // Derive final paneState once, after selection is known.
     // A selection always forces 'list'; otherwise use the URL-encoded value.
     const hasSelection = (parsedSel?.type === 'ids' && parsedSel.ids.length > 0)
-      || parsedSel?.type === 'cluster'
-      || parsedSel?.type === 'bounds';
+      || parsedSel?.type === 'cluster';
     const finalPaneState = hasSelection ? 'list' : paneState;
     this._paneState = finalPaneState;
     if (finalPaneState === 'table') {
@@ -1214,7 +1199,6 @@ bee-pane {
 
   private _onOccurrenceClick(e: CustomEvent<{ occurrences: OccurrenceRow[]; occIds: string[]; centroid?: { lon: number; lat: number }; radiusM?: number }>) {
     this._selectedOccIds = e.detail.occIds;
-    this._selectionBounds = null;
     if (e.detail.centroid && e.detail.radiusM != null) {
       this._selectedCluster = { lon: e.detail.centroid.lon, lat: e.detail.centroid.lat, radiusM: e.detail.radiusM };
     } else {
@@ -1277,7 +1261,6 @@ bee-pane {
     } else {
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectionBounds = null;
       this._paneState = 'collapsed';
     }
     this._runFilterQuery().then(() => {
@@ -1301,7 +1284,6 @@ bee-pane {
     } else {
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectionBounds = null;
       this._paneState = 'collapsed';
     }
     this._runFilterQuery().then(() => {
@@ -1313,21 +1295,19 @@ bee-pane {
   private _openSidebarForFilter(_filterState: FilterState): void {
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._selectionBounds = null;
+    // D-05: bounds is a filter; do NOT clear it when opening the sidebar for a filter change
     this._paneState = 'list';
     this._listPage = 1;
     this._runListQuery();
   }
 
-  // Shared bounds-selection state transition — called by BOTH _onSelectionDrawn (shift-drag)
-  // and the near-me success path. Guarantees a near-me box and a shift-drag box produce
-  // byte-identical _selectionBounds state + identical sel= URL encoding (D-01).
-  private _applyBoundsSelection(bounds: { west: number; south: number; east: number; north: number }): void {
+  // Shared bounds-filter state transition — called by BOTH _onSelectionDrawn (shift-drag)
+  // and the near-me success path. Guarantees byte-identical _filterState.bounds (D-01).
+  // D-04: does NOT touch _paneState (bounds is "just another filter" — no pane force-open).
+  // D-05: does NOT null _selectedOccIds or _selectedCluster (bounds + record selection coexist).
+  private _applyBoundsFilter(bounds: { west: number; south: number; east: number; north: number }): void {
     ++this._selectionDrawnGeneration;
-    this._selectionBounds = bounds;
-    this._selectedOccIds = null;
-    this._selectedCluster = null;
-    this._paneState = 'list';
+    this._filterState = { ...this._filterState, bounds };
     this._listPage = 1;
     this._runFilterQuery();   // map: show only in-bounds occurrences
     this._runListQuery();     // list
@@ -1336,12 +1316,12 @@ bee-pane {
   }
 
   private _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
-    this._applyBoundsSelection(e.detail);
+    this._applyBoundsFilter(e.detail);
   }
 
   private _onMapClickEmpty() {
     if (this._boundaryMode !== 'off') {
-      // Clear region filter and any open selection
+      // Clear region filter and any open record selection (D-06: bounds filter is preserved)
       this._filterState = {
         ...this._filterState,
         selectedCounties: new Set(),
@@ -1349,7 +1329,6 @@ bee-pane {
       };
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectionBounds = null;
       this._paneState = 'collapsed';
       this._runFilterQuery().then(() => {
         this._replaceUrlState();
@@ -1357,10 +1336,9 @@ bee-pane {
       this._tablePage = 1;
       this._runTableQuery();
     } else {
-      // Clear selection
+      // Clear record selection only (D-06: bounds filter is preserved)
       this._selectedOccIds = null;
       this._selectedCluster = null;
-      this._selectionBounds = null;
       this._paneState = 'collapsed';
       this._replaceUrlState();
     }
@@ -1382,6 +1360,8 @@ bee-pane {
       elevMin: detail.elevMin ?? null,
       elevMax: detail.elevMax ?? null,
       selectedPlace: detail.selectedPlace ?? null,
+      // D-05: FilterChangedEvent carries no bounds — preserve active bounds explicitly
+      bounds: this._filterState.bounds,
     };
 
     // Auto-switch boundary layer to match newly added region filter type.
@@ -1393,10 +1373,9 @@ bee-pane {
       this._boundaryMode = 'places';
     }
 
-    // Clear selections when filter changes
+    // Clear record selections when filter changes (D-05: bounds is preserved above)
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._selectionBounds = null;
     if (this._paneState !== 'list') this._paneState = 'collapsed';
     if (this._paneState === 'list') { this._listPage = 1; this._runListQuery(); }
 
@@ -1434,7 +1413,7 @@ bee-pane {
   private _onClearSelection() {
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._selectionBounds = null;
+    // D-05: clearing per-record selection leaves bounds filter active
     this._selectionCount = null;
     this._listPage = 1;
     this._runListQuery();
@@ -1485,7 +1464,7 @@ bee-pane {
   private _onPaneCollapse() {
     this._selectedOccIds = null;
     this._selectedCluster = null;
-    this._selectionBounds = null;
+    // D-07: pane collapse does NOT clear bounds filter (only near-me-cleared does)
     this._paneState = 'collapsed';
     this._replaceUrlState();
   }
@@ -1517,12 +1496,12 @@ bee-pane {
     // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
     this._loadCountyEcoregionOptions();
 
-    // If a filter OR a spatial bounds box was restored from URL, run the map query now
-    // that data is loaded. Bounds behave as a filter (hide non-matching dots on the map),
-    // so a restored sel= box must populate the map, not just the list. The generation
-    // counter in _runFilterQuery discards stale results, so this is safe even if
-    // firstUpdated already started a query.
-    if (isFilterActive(this._filterState) || this._selectionBounds !== null) {
+    // If a filter (including bounds) was restored from URL, run the map query now
+    // that data is loaded. isFilterActive covers bounds (f.bounds !== null), so a
+    // restored bbox= or legacy sel= box populates the map. The generation counter in
+    // _runFilterQuery discards stale results, so this is safe even if firstUpdated
+    // already started a query.
+    if (isFilterActive(this._filterState)) {
       this._runFilterQuery();
     }
 
