@@ -10,7 +10,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Mock heavy modules that have module-level side effects incompatible with happy-dom
 vi.mock('../sqlite.ts', () => ({
-  getDB: vi.fn(() => Promise.resolve({ sqlite3: {}, db: 0 })),
+  // exec is a no-op that ignores its row callback — enough for the now-reachable
+  // queryVisibleGeoJSON map query (near-me/shift-drag bounds) to resolve to an empty set.
+  getDB: vi.fn(() => Promise.resolve({ sqlite3: { exec: vi.fn(() => Promise.resolve()) }, db: 0 })),
   loadOccurrencesTable: vi.fn(() => Promise.resolve()),
   tablesReady: Promise.resolve(),
 }));

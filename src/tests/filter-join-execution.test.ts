@@ -5,6 +5,7 @@ import {
   queryListPage,
   queryAllFiltered,
   queryOccurrencesByBounds,
+  queryVisibleGeoJSON,
   getOccurrences,
   OCCURRENCE_COLUMNS,
 } from '../filter.ts';
@@ -122,6 +123,30 @@ describe('JOIN queries execute against a real two-table schema with a taxon filt
     const rows = await queryAllFiltered(f);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.display_name).toBe('Bombus vosnesenskii');
+  });
+});
+
+describe('NEAR-01: queryVisibleGeoJSON (the MAP query) filters by selection bounds', () => {
+  // Row A is at (47.6, -122.3); Row B at (47.7, -122.4).
+  test('returns null when no filter AND no bounds are active', async () => {
+    const res = await queryVisibleGeoJSON(emptyFilter(), null);
+    expect(res).toBeNull();
+  });
+
+  test('runs with NO taxon/date filter when a bounds box is given, returning only in-bounds points', async () => {
+    // Box around Row A only (excludes Row B at lat 47.7 / lon -122.4).
+    const box = { west: -122.35, south: 47.55, east: -122.25, north: 47.65 };
+    const res = await queryVisibleGeoJSON(emptyFilter(), box);
+    expect(res).not.toBeNull();
+    expect(res!.rowCount).toBe(1);
+    expect(res!.geojson.features).toHaveLength(1);
+    expect(res!.geojson.features[0]!.geometry.coordinates).toEqual([-122.3, 47.6]);
+  });
+
+  test('a wider box returns both points (map shows the full in-bounds set)', async () => {
+    const box = { west: -122.5, south: 47.5, east: -122.2, north: 47.8 };
+    const res = await queryVisibleGeoJSON(emptyFilter(), box);
+    expect(res!.rowCount).toBe(2);
   });
 });
 

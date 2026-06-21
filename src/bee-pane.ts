@@ -86,6 +86,8 @@ export class BeePane extends LitElement {
   // Near-me: true when a selection-bounds filter sourced from geolocation is active.
   // bee-pane is a pure presenter — bounds state lives in bee-atlas.
   @property({ attribute: false }) selectionBoundsActive: boolean = false;
+  // Human-readable bounds shown IN the where input when selectionBoundsActive (owned by bee-atlas).
+  @property({ attribute: false }) selectionBoundsLabel: string = '';
 
   @state() private _open = false;
 
@@ -1008,7 +1010,7 @@ export class BeePane extends LitElement {
   private _renderWhere() {
     const counties = [...this._selectedCounties];
     const ecoregions = [...this._selectedEcoregions];
-    const hasChips = counties.length > 0 || ecoregions.length > 0 || this._selectedPlace !== null || this.selectionBoundsActive;
+    const hasChips = counties.length > 0 || ecoregions.length > 0 || this._selectedPlace !== null;
     return html`
       <div class="filter-row">
         <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -1039,14 +1041,6 @@ export class BeePane extends LitElement {
                     aria-label="Remove ${this._placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}">&#x2715;</button>
                 </span>
               ` : nothing}
-              ${this.selectionBoundsActive ? html`
-                <span class="chip">
-                  ${this._crosshairSvg}
-                  <button class="chip-remove"
-                    aria-label="Clear near-me filter"
-                    @click=${() => this.dispatchEvent(new CustomEvent('near-me-cleared', { bubbles: true, composed: true }))}>&#x2715;</button>
-                </span>
-              ` : nothing}
             </div>
           ` : nothing}
           <div class="input-wrap">
@@ -1054,7 +1048,8 @@ export class BeePane extends LitElement {
               type="text"
               class=${'filter-input has-near-me'}
               placeholder="County, ecoregion, or place"
-              .value=${this._whereInput}
+              .value=${this.selectionBoundsActive ? this.selectionBoundsLabel : this._whereInput}
+              ?readonly=${this.selectionBoundsActive}
               @input=${this._onWhereInput}
               @keydown=${(e: KeyboardEvent) => this._handleKeydown(e, 'where', () => {
                 if (ecoregions.length > 0) this._removeEcoregion(ecoregions[ecoregions.length - 1]!);
@@ -1065,11 +1060,17 @@ export class BeePane extends LitElement {
               autocomplete="off"
               spellcheck="false"
             />
-            <button type="button" class="near-me-btn"
-              aria-label="Find occurrences near me"
-              @click=${() => this.dispatchEvent(new CustomEvent('near-me-requested', { bubbles: true, composed: true }))}>
-              ${this._crosshairSvg}
-            </button>
+            ${this.selectionBoundsActive ? html`
+              <button type="button" class="near-me-btn"
+                aria-label="Clear near-me filter"
+                @click=${() => this.dispatchEvent(new CustomEvent('near-me-cleared', { bubbles: true, composed: true }))}>&#x2715;</button>
+            ` : html`
+              <button type="button" class="near-me-btn"
+                aria-label="Find occurrences near me"
+                @click=${() => this.dispatchEvent(new CustomEvent('near-me-requested', { bubbles: true, composed: true }))}>
+                ${this._crosshairSvg}
+              </button>
+            `}
             ${this._openSection === 'where' && this._suggestions.length > 0 ? html`
               <ul class="suggestions" role="listbox">
                 ${this._suggestions.map((s, i) => html`

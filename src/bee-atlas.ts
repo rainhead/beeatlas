@@ -187,7 +187,17 @@ export class BeeAtlas extends LitElement {
    * and the _replaceUrlState/_writeViewportHistory URL-write suppression read this getter.
    */
   get intendedFilterActive(): boolean {
-    return isFilterActive(this._filterState) || this._filterResolving;
+    // A selection bounding box (near-me / shift-drag) filters the map, so it must flip
+    // the same gate that hides the unfiltered base layer and shows the filtered layer.
+    return isFilterActive(this._filterState) || this._filterResolving || this._selectionBounds !== null;
+  }
+
+  // Human-readable bounding box shown IN the "County, ecoregion, or place" input when a
+  // selection box (near-me / shift-drag) is active. SW → NE corners (lat, lon).
+  private get _selectionBoundsLabel(): string {
+    const b = this._selectionBounds;
+    if (b === null) return '';
+    return `${b.south.toFixed(3)}, ${b.west.toFixed(3)} → ${b.north.toFixed(3)}, ${b.east.toFixed(3)}`;
   }
 
   /**
@@ -443,6 +453,7 @@ bee-pane {
             @near-me-requested=${this._onNearMeRequested}
             @near-me-cleared=${this._onNearMeCleared}
             .selectionBoundsActive=${this._selectionBounds !== null}
+            .selectionBoundsLabel=${this._selectionBoundsLabel}
           ></bee-pane>
         </div>
       `}
@@ -622,7 +633,7 @@ bee-pane {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
-    const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState));
+    const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState, this._selectionBounds));
     if (guarded === null) return;
     this._filteredGeoJSON = guarded.result?.geojson ?? null;
     this._visibleIds = guarded.result?.ids ?? null;
@@ -1068,6 +1079,10 @@ bee-pane {
     this._selectedCluster = null;
     this._selectionBounds = null;
     this._paneState = 'collapsed';
+    // Re-run so the map/table drop the bounds constraint (a still-active taxon/date
+    // filter would otherwise keep showing the stale bounded set).
+    this._runFilterQuery();
+    this._runTableQuery();
     this._replaceUrlState();
   };
 
@@ -1314,7 +1329,9 @@ bee-pane {
     this._selectedCluster = null;
     this._paneState = 'list';
     this._listPage = 1;
-    this._runListQuery();
+    this._runFilterQuery();   // map: show only in-bounds occurrences
+    this._runListQuery();     // list
+    this._runTableQuery();    // table
     this._replaceUrlState();
   }
 
