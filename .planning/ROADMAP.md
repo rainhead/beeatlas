@@ -1280,7 +1280,12 @@ Plans:
   3. The proximity query uses a SQL bounding-box pre-filter followed by a JavaScript haversine post-filter in the worker; the full query returns in under 200 ms on the full occurrence set (verified by timing log)
   4. `?near=1` appears in the URL when the chip is active; restoring from that URL re-activates geolocation and defers the query until a fix arrives; "Clear filters" removes the chip and the URL param
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 153-01-PLAN.md — model + SQL: nearMe FilterState field, bbox+haversine clause, ?near=1 round-trip (NEAR-01/02/03)
+- [ ] 153-02-PLAN.md — wiring: standalone chip, near-me-changed event, triggerGeolocate, frozen-center activation/deferral state machine (NEAR-01/02/03)
+- [ ] 153-03-PLAN.md — in-app timing log + real-device Human UAT (NEAR-02 <200 ms; UI-hint, no auto-advance)
 **UI hint**: yes
 
 **Phase note — research flag:** Before writing the haversine implementation, run `SELECT sin(1.0)` in the wa-sqlite worker to verify whether MemoryVFS exposes trig functions. If available, a pure SQL haversine is cleaner; if not (more likely per the ARCHITECTURE doc), use bbox SQL pre-filter + JS haversine in the worker.
@@ -1312,7 +1317,7 @@ Plans:
 | 150. Cache Health & Freshness UX | v5.0 | 4/4 | Complete   | 2026-06-19 |
 | 151. PWA Manifest & Installability | v5.0 | 4/4 | Complete   | 2026-06-20 |
 | 152. GeolocateControl + Location State | v5.0 | 3/3 | Complete   | 2026-06-21 |
-| 153. Occurrences Near Me | v5.0 | 0/TBD | Not started | - |
+| 153. Occurrences Near Me | v5.0 | 0/3 | Planned | - |
 | 154. Mapbox Tile Caching (TOS-gated) | v5.0 | 0/TBD | Not started | - |
 
 ## Backlog
