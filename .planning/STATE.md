@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: verifying
-stopped_at: Phase 999.8 context gathered
-last_updated: "2026-06-21T20:56:30.246Z"
+status: milestone_complete
+stopped_at: Milestone complete (Phase 999.8 was final phase)
+last_updated: 2026-06-21T21:08:41.190Z
 last_activity: 2026-06-21
 progress:
   total_phases: 34
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 999.8 — separate-spatial-bounds-filter-from-per-record-selection-bac
+**Current focus:** Milestone complete
 
 ## Current Position
 
-Phase: 999.8 (separate-spatial-bounds-filter-from-per-record-selection-bac) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 999.8
+Plan: Not started
+Status: Milestone complete
 Last activity: 2026-06-21
 
 Progress: [██████████] 100%
