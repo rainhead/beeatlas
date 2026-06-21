@@ -1,11 +1,12 @@
 ---
 phase: 153-occurrences-near-me
 plan: 04
-status: pending
+status: passed
 gates: /gsd-verify-work
 ui_hint: yes
 auto_advance: false
 created: 2026-06-21
+updated: 2026-06-21
 ---
 
 # Phase 153 — Human UAT: Occurrences Near Me
