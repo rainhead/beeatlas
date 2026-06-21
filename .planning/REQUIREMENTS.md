@@ -59,8 +59,8 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 > not licensed for the web SDK; re-scoped from a flag-gated offline cache to a
 > ship-enabled compliant performance cache.
 
-- [ ] **TILE-01**: The SW runtime-caches Mapbox basemap requests (tiles, style, sprites, glyphs) with a `StaleWhileRevalidate` strategy, shipped **enabled** (no feature flag); the handler **retains** `access_token` in the cache key, caches only status-200 responses, bounds growth with `maxEntries` + a TTL ≤ 30 days, and does not intercept `events.mapbox.com` telemetry.
-- [ ] **TILE-02**: An ADR documents the Mapbox ToS analysis — the verdict that web-SDK offline serving is unlicensed, and the §2.8.1/§1.4 compliance checklist this performance cache satisfies (token retained, ≤30-day TTL, live-populated, attribution intact).
+- [x] **TILE-01**: The SW runtime-caches Mapbox basemap requests (tiles, style, sprites, glyphs) with a `StaleWhileRevalidate` strategy, shipped **enabled** (no feature flag); the handler **retains** `access_token` in the cache key, caches only status-200 responses, bounds growth with `maxEntries` + a TTL ≤ 30 days, and does not intercept `events.mapbox.com` telemetry.
+- [x] **TILE-02**: An ADR documents the Mapbox ToS analysis — the verdict that web-SDK offline serving is unlicensed, and the §2.8.1/§1.4 compliance checklist this performance cache satisfies (token retained, ≤30-day TTL, live-populated, attribution intact).
 
 ## v2 / Future Requirements
 
@@ -123,8 +123,8 @@ Populated during roadmap creation.
 | NEAR-01 | Phase 153 | Pending |
 | NEAR-02 | Phase 153 | Pending |
 | NEAR-03 | Phase 153 | Pending |
-| TILE-01 | Phase 154 | Pending |
-| TILE-02 | Phase 154 | Pending |
+| TILE-01 | Phase 154 | Complete |
+| TILE-02 | Phase 154 | Complete |
 
 **Coverage:**
 - v1 requirements: 24 total

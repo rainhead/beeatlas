@@ -68,7 +68,7 @@
   - [x] 153-03-PLAN.md — Wave 2: `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, Phase 152 denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
   - [x] 153-04-PLAN.md — Wave 3: `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + the shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
 - [ ] **Phase 154: Mapbox Basemap Performance Cache (ToS-compliant)** — Re-scoped 2026-06-21: ToS review found web-SDK offline serving isn't licensed, so this is now a ship-enabled StaleWhileRevalidate **performance** cache for basemap requests (token retained, 200-only, `maxEntries` + ≤30d TTL, attribution intact), not an offline feature; ADR records the legal analysis. **Plans:** 1 plan (1 wave).
-  - [ ] 154-01-PLAN.md — SWR `mapbox-basemap` route in `src/sw.ts` (token retained, 200-only, 7-day TTL, `maxEntries` 150, `/map-sessions/`+events excluded) + ToS ADR `docs/adr/0001-mapbox-basemap-cache.md` + CLAUDE.md pointer + build-output assertions [TILE-01, TILE-02; D-01..D-08]
+  - [x] 154-01-PLAN.md — SWR `mapbox-basemap` route in `src/sw.ts` (token retained, 200-only, 7-day TTL, `maxEntries` 150, `/map-sessions/`+events excluded) + ToS ADR `docs/adr/0001-mapbox-basemap-cache.md` + CLAUDE.md pointer + build-output assertions [TILE-01, TILE-02; D-01..D-08]
 
 ### ✅ v4.10 Housekeeping (Phases 145–146) — SHIPPED 2026-06-09
 
@@ -1346,7 +1346,7 @@ offline).
 | 151. PWA Manifest & Installability | v5.0 | 4/4 | Complete   | 2026-06-20 |
 | 152. GeolocateControl + Location State | v5.0 | 3/3 | Complete   | 2026-06-21 |
 | 153. Occurrences Near Me | v5.0 | 4/4 | Complete   | 2026-06-21 |
-| 154. Mapbox Basemap Performance Cache | v5.0 | 0/1 | Not started | - |
+| 154. Mapbox Basemap Performance Cache | v5.0 | 1/1 | Complete   | 2026-06-21 |
 
 ## Backlog
 
