@@ -104,6 +104,11 @@ export function buildParams(
   if (filter.selectedPlace !== null) {
     params.set('place', filter.selectedPlace);
   }
+  // D-07 / NEAR-03: only the boolean round-trips; the captured center is ephemeral
+  // and must NEVER be serialized (coordinates are private and not on FilterState).
+  if (filter.nearMe) {
+    params.set('near', '1');
+  }
   if (filter.selectedCollectors.length > 0) {
     // Each entry encoded as "recordedBy:host_inat_login" (either part may be empty)
     params.set('collectors', filter.selectedCollectors.map(c =>
@@ -171,6 +176,10 @@ export function parseParams(search: string): ParsedParams {
 
   const selectedPlace = p.get('place') ?? null;
 
+  // D-07 / NEAR-03: parse the boolean flag; coordinates are never in the URL.
+  // On restore, nearMe:true triggers geolocation re-activation (Wave-2 plan 153-02).
+  const nearMe = p.get('near') === '1';
+
   const collectorsRaw = p.get('collectors') ?? '';
   const selectedCollectors: CollectorEntry[] = collectorsRaw
     ? collectorsRaw.split('|').flatMap(part => {
@@ -184,11 +193,13 @@ export function parseParams(search: string): ParsedParams {
       })
     : [];
 
-  // Include filter sub-object when any filter param is present
+  // Include filter sub-object when any filter param is present.
+  // RESEARCH Pitfall 1: hasFilter is a parallel copy of isFilterActive; it must include
+  // every field or ?near=1 alone would restore with no filter sub-object.
   const hasFilter = resolvedTaxonId !== null || yearFrom !== null || yearTo !== null
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
     || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null
-    || selectedPlace !== null;
+    || selectedPlace !== null || nearMe;
   if (hasFilter) {
     result.filter = {
       taxonId: resolvedTaxonId,
@@ -202,6 +213,7 @@ export function parseParams(search: string): ParsedParams {
       elevMin,
       elevMax,
       selectedPlace,
+      nearMe,
     };
   }
 
