@@ -161,7 +161,6 @@ export class BeeAtlas extends LitElement {
   // Resets to false on any non-viewport _replaceUrlState() call (D-03) and after
   // a popstate navigation (D-07), so the next pan/zoom starts a fresh entry.
   private _viewportSessionActive = false;
-  private _selectionDrawnGeneration = 0;
   // D-07 / NEAR: true while a near-me geolocation request is in flight.
   // Set true by _onNearMeRequested; cleared in _onUserLocationChanged on both
   // success and error paths. Non-reactive — toggling this must never trigger
@@ -1072,9 +1071,13 @@ bee-pane {
   private _onNearMeCleared = () => {
     this._nearMePending = false;
     this._filterState = { ...this._filterState, bounds: null };
-    // Re-run so the map/table drop the bounds constraint (a still-active taxon/date
-    // filter would otherwise keep showing the stale bounded set).
+    // Re-run so the map/list/table all drop the bounds constraint (a still-active
+    // taxon/date filter would otherwise keep showing the stale bounded set). The list
+    // must refresh too: under D-04 the pane is no longer force-collapsed on clear, so an
+    // open list would otherwise show a stale bounded page (code review WR-01).
+    this._listPage = 1;
     this._runFilterQuery();
+    this._runListQuery();
     this._runTableQuery();
     this._replaceUrlState();
   };
@@ -1307,7 +1310,6 @@ bee-pane {
   // D-04: does NOT touch _paneState (bounds is "just another filter" — no pane force-open).
   // D-05: does NOT null _selectedOccIds or _selectedCluster (bounds + record selection coexist).
   private _applyBoundsFilter(bounds: { west: number; south: number; east: number; north: number }): void {
-    ++this._selectionDrawnGeneration;
     this._filterState = { ...this._filterState, bounds };
     this._listPage = 1;
     this._runFilterQuery();   // map: show only in-bounds occurrences
