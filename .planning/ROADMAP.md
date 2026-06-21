@@ -1334,17 +1334,17 @@ Plans:
 
 ## Backlog
 
-### Phase 999.1: Surface shift-drag rectangle selection in the UI (BACKLOG)
+### Phase 999.1: Surface shift-drag rectangle selection in the UI
 
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 4/4 plans complete
+**Goal:** Make the existing shift-drag bounding-box (bounds-filter) gesture discoverable on desktop via a persistent hint in the sidebar filters section, hidden on touch — no behavior change.
+**Requirements:** D-01, D-02, D-03, D-04, D-05, D-06
+**Plans:** 1 plan
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
 
 Plans:
 
-- [ ] TBD (promote with /gsd-review-backlog when ready)
+- [ ] 999.1-01-PLAN.md — Add desktop-only "Shift-drag on map to set bounds" hint below the where input (.hint reuse + pointer-capability media query) with source-text tests
 
 > Note (2026-06-21): Phase 153 reclassified spatial bounds (shift-drag + near-me) as a **filter**, not a selection (see Phase 999.8). This reframes 999.1 — "surfacing" now means making the shift-drag *filter* gesture discoverable.
 
