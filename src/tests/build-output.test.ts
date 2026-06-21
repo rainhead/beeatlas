@@ -447,4 +447,59 @@ describe.skipIf(SKIP_BUILD)('build output (PAGE-07, PAGE-09)', () => {
     const html = readFileSync(resolve(ROOT, '_site/index.html'), 'utf-8');
     expect(html).not.toMatch(/rel="manifest"/);
   });
+
+  // Phase 154 — Mapbox basemap performance cache assertions (TILE-01, TILE-02)
+
+  test('154-01-01: _site/app/sw.js registers StaleWhileRevalidate route for api.mapbox.com with mapbox-basemap cacheName (TILE-01)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    // Rollup preserves string literals (cache name + hostname predicate) through minification
+    expect(sw).toContain('mapbox-basemap');
+    expect(sw).toContain('api.mapbox.com');
+  });
+
+  test('154-01-02: _site/app/sw.js does NOT intercept events.mapbox.com telemetry or /map-sessions/ billing path (TILE-01)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    // Telemetry host must never appear in the SW — it is excluded by hostname strict equality
+    expect(sw).not.toContain('events.mapbox.com');
+    // The /map-sessions/ exclusion predicate string must be present in the compiled SW,
+    // proving the route explicitly excludes the billing path (D-07 / RESEARCH Open Q2)
+    expect(sw).toContain('/map-sessions/');
+  });
+
+  test('154-01-03: _site/app/sw.js maxAgeSeconds <= 30-day ceiling; access_token retained (no cacheKeyWillBeUsed) (TILE-01)', () => {
+    const sw = readFileSync(resolve(ROOT, '_site/app/sw.js'), 'utf-8');
+    // Parse every maxAgeSeconds value in the compiled SW; at least one must be
+    // within (0, 2_592_000] — the 30-day ToS ceiling from §2.8.1
+    const maxAgeValues = [...sw.matchAll(/maxAgeSeconds[^\d]*(\d+)/g)].map(m => parseInt(m[1]!, 10));
+    expect(
+      maxAgeValues.some(v => v > 0 && v <= 2_592_000),
+      `expected a maxAgeSeconds value in (0, 2_592_000] but got: ${maxAgeValues.join(', ')}`
+    ).toBe(true);
+    // Token-retention rule: no cacheKeyWillBeUsed plugin anywhere implies access_token
+    // is retained in the cache key (D-04 §1.1 / §2.9.4)
+    expect(sw).not.toContain('cacheKeyWillBeUsed');
+  });
+
+  test('154-01-04: src/bee-map.ts has attributionControl: true — Mapbox attribution intact (TILE-01, D-08)', () => {
+    // Read the source (not the build output) — attributionControl is a constructor option,
+    // not a runtime string literal that survives bundling. §1.4 has no offline exception.
+    const src = readFileSync(resolve(ROOT, 'src/bee-map.ts'), 'utf-8');
+    expect(src).toContain('attributionControl: true');
+  });
+
+  test('154-02-01: docs/adr/0001-mapbox-basemap-cache.md exists and contains ToS analysis (TILE-02)', () => {
+    const adrPath = resolve(ROOT, 'docs/adr/0001-mapbox-basemap-cache.md');
+    expect(existsSync(adrPath)).toBe(true);
+    const adr = readFileSync(adrPath, 'utf-8');
+    // §2.8.1 is the on-device performance cache exception; must appear in the compliance checklist
+    expect(adr).toContain('2.8.1');
+    // StaleWhileRevalidate is the chosen strategy; must be named in the Decision section
+    expect(adr).toContain('StaleWhileRevalidate');
+  });
+
+  test('154-02-02: CLAUDE.md Known State has pointer to mapbox-basemap cache and ADR (TILE-02)', () => {
+    const claude = readFileSync(resolve(ROOT, 'CLAUDE.md'), 'utf-8');
+    expect(claude).toContain('mapbox-basemap');
+    expect(claude).toContain('docs/adr/0001-mapbox-basemap-cache.md');
+  });
 });
