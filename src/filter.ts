@@ -321,29 +321,33 @@ export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
     occurrenceClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
   }
 
+  // Spatial bounds filter — bounding box from shift-drag or near-me gesture (D-01, phase 999.8)
+  // Values are numeric floats validated upstream in url-state.ts parseParams (range-checked)
+  // and produced as numbers by the bounds gesture — no string concatenation of unvalidated input.
+  if (f.bounds !== null) {
+    const { west, south, east, north } = f.bounds;
+    occurrenceClauses.push(
+      `lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east}`
+    );
+  }
+
   const occurrenceWhere = occurrenceClauses.length > 0 ? occurrenceClauses.join(' AND ') : '1 = 1';
   return { occurrenceWhere };
 }
 
 export async function queryVisibleGeoJSON(
-  f: FilterState,
-  selectionBounds: { west: number; south: number; east: number; north: number } | null = null
+  f: FilterState
 ): Promise<{
   geojson: FeatureCollection<Point, OccurrenceProperties>;
   ids: Set<string>;
   rowCount: number;
 } | null> {
-  // A selection bounding box (near-me / shift-drag) filters the MAP too — so the map
-  // must run even when no taxon/date/region filter is active, as long as bounds exist.
-  if (!isFilterActive(f) && selectionBounds === null) return null;
+  // Bounds is now part of FilterState.bounds (D-01, phase 999.8) — isFilterActive(f) returns
+  // true when bounds is set, so a bounds-only filter correctly runs the map query.
+  if (!isFilterActive(f)) return null;
   const { occurrenceWhere } = buildFilterSQL(f);
-  // Same bbox clause the list/table queries use (queryListPage) — keeps the map, list,
-  // and table in lockstep on the identical bounds.
-  let boundsClause = '';
-  if (selectionBounds !== null) {
-    const { west, south, east, north } = selectionBounds;
-    boundsClause = ` AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east}`;
-  }
+  // occurrenceWhere already includes the bounds clause when f.bounds is set — map, list,
+  // and table all see the identical spatial filter via buildFilterSQL.
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const features: Feature<Point, OccurrenceProperties>[] = [];
@@ -351,7 +355,7 @@ export async function queryVisibleGeoJSON(
   let rowCount = 0;
   await sqlite3.exec(db,
     // Phase 137 (PRO-04): fetch checklist_id so checklist points that match the filter are not silently dropped from _visibleIds.
-    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, checklist_id, year, source FROM occurrences o WHERE (${occurrenceWhere})${boundsClause} AND lat IS NOT NULL AND lon IS NOT NULL`,
+    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, checklist_id, year, source FROM occurrences o WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
     (rowValues: unknown[], columnNames: string[]) => {
       rowCount++;
       const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'checklist_id' | 'year' | 'source'>;
@@ -402,12 +406,12 @@ export async function queryListPage(
   selectedEcdysisIds: number[] = [],
   selectedInatIds: number[] = [],
   selectedInatObsIds: number[] = [],
-  selectedChecklistIds: number[] = [],
-  selectionBounds: { west: number; south: number; east: number; north: number } | null = null
+  selectedChecklistIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
   const { occurrenceWhere } = buildFilterSQL(f);
+  // occurrenceWhere already includes the bounds clause when f.bounds is set (D-01, phase 999.8).
 
-  // Selection constraint: IDs (from cluster click) OR bounds (from rectangle draw)
+  // Selection constraint: IDs (from cluster click) filter rows by identity
   const selParts: string[] = [];
   if (selectedEcdysisIds.length > 0)
     selParts.push(`ecdysis_id IN (${selectedEcdysisIds.join(',')})`);
@@ -418,18 +422,10 @@ export async function queryListPage(
   if (selectedChecklistIds.length > 0)
     selParts.push(`checklist_id IN (${selectedChecklistIds.join(',')})`);
 
-  // Bounds selection is always a WHERE addition, not an ORDER priority
-  let boundsClause = '';
-  if (selectionBounds !== null) {
-    const { west, south, east, north } = selectionBounds;
-    boundsClause =
-      ` AND lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east}`;
-  }
-
   // When IDs are present, restrict to only those rows (intersection with filter)
   const selFilter = selParts.length > 0 ? ` AND (${selParts.join(' OR ')})` : '';
 
-  const fullWhere = `(${occurrenceWhere})${selFilter}${boundsClause}`;
+  const fullWhere = `(${occurrenceWhere})${selFilter}`;
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const offset = (page - 1) * PAGE_SIZE;
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
