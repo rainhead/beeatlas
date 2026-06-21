@@ -1346,6 +1346,8 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
+> Note (2026-06-21): Phase 153 reclassified spatial bounds (shift-drag + near-me) as a **filter**, not a selection (see Phase 999.8). This reframes 999.1 — "surfacing" now means making the shift-drag *filter* gesture discoverable.
+
 ### Phase 999.2: Add WDFW wildlife areas as places (BACKLOG)
 
 **Goal:** [Captured for future planning]
@@ -1413,6 +1415,18 @@ Plans:
 **Plans:** 0 plans
 
 Surfaced during Phase 150 UAT (2026-06-19): in Safari private browsing, `caches.put()` is a silent no-op, so the Phase 150 prime orchestrator streams 29 MB through the SW but the `data-artifacts` cache stays empty. The post-prime cache probe finds all 4 URLs MISS and the ready-pill caps at 99% forever, showing "Caching…" indefinitely. Functionally the app still works (the page can hold the manifest + DB in memory for the session), but the affordance lies. Options to evaluate: detect via a probe entry round-trip (write/read/delete) or via `navigator.storage.estimate()` returning quota 0; on detection, suppress the prime bar and show a quiet pill like "Offline mode unavailable in private browsing" or hide the chrome entirely. Open questions: does private browsing always report quota 0 (cross-browser), should the table/queries still work in-memory, and is this worth shipping vs leaving as a known limitation.
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 999.8: Separate spatial-bounds FILTER from per-record SELECTION (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Surfaced during Phase 153 (2026-06-21). Phase 153 made near-me and shift-drag bounds **behave** as filters (hide non-matching dots on the map + list + table; round-trip in the URL), but they still ride the legacy *selection* plumbing: the box lives in `_selectionBounds`, serializes under the `sel=` selection URL param, and shares `_applyBoundsSelection`/`_paneState='list'` with cluster/id selection. The agreed conceptual model is: **a spatial box is a FILTER; SELECTION is only for individual occurrence records (cluster click / id list).** This phase does the clean separation — e.g. move bounds into a filter concept (rename off `_selectionBounds`, its own state + URL param distinct from `sel=`), keep `sel=` for record selection only, and stop forcing the list pane open on a bounds change. Must preserve backward-compatible restore of existing `sel=`-bounds links (or migrate them). Touches `filter.ts`, `url-state.ts`, `bee-atlas.ts`, `bee-pane.ts`; coordinate with 999.1 (surfacing the shift-drag gesture).
 
 Plans:
 
