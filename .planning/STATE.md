@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
-stopped_at: "Phase 153 (REDESIGN bounds-reuse) paused at human-verify checkpoint (153-04) — automated work complete (build+tests green), awaiting UAT (key: shared-URL reproduces same occurrences)"
-last_updated: "2026-06-21T18:48:09.590Z"
+stopped_at: Phase 153 COMPLETE — near-me spatial filter shipped (operator UAT PASS; 792 tests green). Bounds-as-filter; follow-up 999.8 for filter/selection separation
+last_updated: "2026-06-21T19:33:01.852Z"
 last_activity: 2026-06-21 -- Phase 153 execution started
 progress:
   total_phases: 15
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 23
-  completed_plans: 22
-  percent: 53
+  completed_plans: 23
+  percent: 60
 ---
 
 # Project State
@@ -88,6 +88,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-21T18:48:09.585Z
-Stopped at: Phase 153 (REDESIGN bounds-reuse) paused at human-verify checkpoint (153-04) — automated work complete (build+tests green), awaiting UAT (key: shared-URL reproduces same occurrences)
-Resume file: .planning/phases/153-occurrences-near-me/153-HUMAN-UAT.md
+Last session: 2026-06-21T19:33:01.847Z
+Stopped at: Phase 153 COMPLETE — near-me spatial filter shipped (operator UAT PASS; 792 tests green). Bounds-as-filter; follow-up 999.8 for filter/selection separation
+Resume file: .planning/phases/153-occurrences-near-me/153-VERIFICATION.md

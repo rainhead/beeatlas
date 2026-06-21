@@ -62,11 +62,11 @@
   - [x] 152-01-PLAN.md — Wave 0: create `src/tests/geolocation.test.ts` (source-analysis gate for the LOC-02 pure-presenter invariant) + extend the `mapbox-gl` `vi.mock` in `bee-atlas.test.ts`/`cache-state.test.ts` (addControl + GeolocateControl stub) [LOC-02]
   - [x] 152-02-PLAN.md — Wave 1: GeolocateControl in `bee-map.ts` (D-01 opts, granted-only auto-trigger D-03, emit `user-location-changed`) + `bee-atlas.ts` `@state _userLocation`/`_locationError`, handler, binding, denial banner (D-04) [LOC-01, LOC-02, LOC-03]
   - [x] 152-03-PLAN.md — Wave 2: `152-HUMAN-UAT.md` (blue dot/recenter, offline GPS, denial banner, real-device iOS standalone) + blocking human-verify checkpoint (autonomous: false) [LOC-01, LOC-03]
-- [ ] **Phase 153: Occurrences Near Me** — A geolocate-icon button inside the "County, ecoregion, or place" input resolves the user's GPS into a ~10 km bounding box, applied as a selection-bounds filter that REUSES the existing shift-drag mechanism (`_selectionBounds` → `filter.ts` `boundsClause` → `sel=west,south,east,north` URL round-trip). Active bounds show as an icon-only removable chip; AND-composes with other filters; a shared link reproduces the exact occurrence set with no recipient GPS. Redesigned 2026-06-21 from the reverted haversine/`?near=1` form (commit a4e269cb). **Plans:** 4 plans (3 waves). **UI hint:** yes.
+- [x] **Phase 153: Occurrences Near Me** — A geolocate-icon button inside the "County, ecoregion, or place" input resolves the user's GPS into a ~10 km bounding box, applied as a spatial **filter** (map + list + table) that REUSES the existing shift-drag mechanism (`_selectionBounds` → `filter.ts` `boundsClause` → `sel=west,south,east,north` URL round-trip). Active bounds show **in that input** (no chip); AND-composes with other filters; a shared link reproduces the exact occurrence set with no recipient GPS. Redesigned 2026-06-21 from the reverted haversine/`?near=1` form (commit a4e269cb); bounds promoted from selection to filter (shift-drag too — see backlog 999.8). Completed 2026-06-21 (operator UAT PASS; 792 tests green). **Plans:** 4 plans (3 waves). **UI hint:** yes.
   - [x] 153-01-PLAN.md — Wave 1: `<bee-map>` public `requestUserLocation()` seam (promote GeolocateControl to an instance field) + geolocation source-analysis gate [NEAR-01/02/03; D-06]
   - [x] 153-02-PLAN.md — Wave 1: `<bee-pane>` geolocate button in the where `.input-wrap` (emits `near-me-requested`) + icon-only removable bounds chip (emits `near-me-cleared`) + `selectionBoundsActive` property + render tests [NEAR-01/02/03; D-04, D-05]
   - [x] 153-03-PLAN.md — Wave 2: `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, Phase 152 denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
-  - [ ] 153-04-PLAN.md — Wave 3: `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + the shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
+  - [x] 153-04-PLAN.md — Wave 3: `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + the shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
 - [ ] **Phase 154: Mapbox Tile Caching (TOS-gated)** — SW runtime-caches Mapbox tiles behind `beta_tile_cache` flag defaulting **off**; access_token stripped from cache key; `maxEntries` + 12h TTL; documented as self-test-only with hard TOS-review gate.
 
 ### ✅ v4.10 Housekeeping (Phases 145–146) — SHIPPED 2026-06-09
@@ -1294,11 +1294,11 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 153-03-PLAN.md — `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
+- [x] 153-03-PLAN.md — `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 153-04-PLAN.md — `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
+- [x] 153-04-PLAN.md — `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
 
 **UI hint**: yes
 
@@ -1329,7 +1329,7 @@ Plans:
 | 150. Cache Health & Freshness UX | v5.0 | 4/4 | Complete   | 2026-06-19 |
 | 151. PWA Manifest & Installability | v5.0 | 4/4 | Complete   | 2026-06-20 |
 | 152. GeolocateControl + Location State | v5.0 | 3/3 | Complete   | 2026-06-21 |
-| 153. Occurrences Near Me | v5.0 | 3/4 | In Progress|  |
+| 153. Occurrences Near Me | v5.0 | 4/4 | Complete   | 2026-06-21 |
 | 154. Mapbox Tile Caching (TOS-gated) | v5.0 | 0/TBD | Not started | - |
 
 ## Backlog
@@ -1338,7 +1338,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
 
