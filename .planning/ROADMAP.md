@@ -1329,8 +1329,7 @@ offline).
 
 **Phase note — maxEntries research flag:** Before finalizing `maxEntries`, inspect Mapbox basemap responses in DevTools Network. GL JS fetches tiles with CORS (non-opaque → normal-sized entries) — confirm; if any response is opaque (`no-cors`), each entry costs ~7 MB in Chrome's Storage Quota accounting and `maxEntries` must be very conservative.
 
-**Plans**: 1 plan (1 wave — single autonomous plan; sw.ts + ADR + CLAUDE.md + build-output test)
-Plans:
+**Plans**: 1 plan (1 wave — single autonomous plan; sw.ts + ADR + CLAUDE.md + build-output test)Plans:
 
 - [ ] 154-01-PLAN.md — SWR `mapbox-basemap` route + ToS ADR + CLAUDE.md pointer + build-output assertions [TILE-01, TILE-02]
 
