@@ -1,8 +1,8 @@
 ---
-phase: 999.1-surface-shift-drag-rectangle-selection-in-ui
+phase: 155-surface-shift-drag-rectangle-selection-in-ui
 verified: 2026-06-21T00:00:00Z
 status: passed
-human_uat: passed 2026-06-21 (operator approved both visual checks — see 999.1-HUMAN-UAT.md)
+human_uat: passed 2026-06-21 (operator approved both visual checks — see 155-HUMAN-UAT.md)
 score: 6/6 must-haves verified
 overrides_applied: 0
 human_verification:
@@ -14,7 +14,7 @@ human_verification:
     why_human: "Media query behavior requires a real (or emulated) touch viewport; cannot be asserted from source."
 ---
 
-# Phase 999.1: Surface Shift-Drag Rectangle Selection in UI — Verification Report
+# Phase 155: Surface Shift-Drag Rectangle Selection in UI — Verification Report
 
 **Phase Goal:** Make the existing shift-drag bounding-box (bounds-filter) gesture discoverable on desktop via a persistent hint in the sidebar filters section, hidden on touch — no behavior change.
 **Verified:** 2026-06-21
@@ -32,7 +32,7 @@ human_verification:
 | 3 | Hint is gated by `@media (hover: hover) and (pointer: fine)` — CSS only, no JS device detection (D-01, D-02) | VERIFIED | `src/bee-pane.ts:511-518` — `.hint--desktop-only { display: none; }` base rule followed by `@media (hover: hover) and (pointer: fine) { .hint--desktop-only { display: block; } }` in `static styles` |
 | 4 | Hint is always rendered regardless of bounds/filter state — no `boundsFilterActive` binding, no `nothing` branch (D-04) | VERIFIED | Line 1095 is unconditional literal template content — not wrapped in any conditional expression or ternary; no new `@property`/`@state` added |
 | 5 | No new reactive `@property`/`@state` added to bee-pane; bee-pane stays a pure presenter | VERIFIED | Audit of `@property`/`@state` lines in bee-pane.ts shows no hint-related additions; existing decorators unchanged |
-| 6 | `src/bee-map.ts` is unmodified; shift-drag gesture, bounds-filter plumbing, near-me path, and URL contract unchanged (D-01) | VERIFIED | `git log --diff-filter=M -- src/bee-map.ts` shows no 999.1 commit touched bee-map.ts; `boundsFilterActive` and `boundsFilterLabel` props confirmed present at bee-pane.ts:88-90 (999.8 naming intact) |
+| 6 | `src/bee-map.ts` is unmodified; shift-drag gesture, bounds-filter plumbing, near-me path, and URL contract unchanged (D-01) | VERIFIED | `git log --diff-filter=M -- src/bee-map.ts` shows no 155 commit touched bee-map.ts; `boundsFilterActive` and `boundsFilterLabel` props confirmed present at bee-pane.ts:88-90 (156 naming intact) |
 
 **Score:** 6/6 truths verified
 
@@ -73,12 +73,12 @@ No probes declared or applicable for this presentation-only phase.
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|------------|-------------|--------|----------|
-| D-01 | 999.1-01-PLAN.md | No behavior change; bee-map.ts unmodified | SATISFIED | bee-map.ts not in 999.1 git diff; gesture plumbing intact |
-| D-02 | 999.1-01-PLAN.md | Desktop-only via CSS hover+pointer media query; no JS detection | SATISFIED | `@media (hover: hover) and (pointer: fine)` at bee-pane.ts:514 |
-| D-03 | 999.1-01-PLAN.md | Reuses existing `.hint` class; no new text-styling pattern | SATISFIED | `class="hint hint--desktop-only"` at line 1095 |
-| D-04 | 999.1-01-PLAN.md | Always rendered; not bound to boundsFilterActive or any reactive state | SATISFIED | Unconditional template literal at line 1095 |
-| D-05 | 999.1-01-PLAN.md | Placed immediately below div.input-wrap, before div.elev-row | SATISFIED | Line 1094 closes div.input-wrap, line 1095 is hint, line 1096 opens div.elev-row |
-| D-06 | 999.1-01-PLAN.md | Exact copy "Shift-drag on map to set bounds" | SATISFIED | Verbatim string at bee-pane.ts:1095 |
+| D-01 | 155-01-PLAN.md | No behavior change; bee-map.ts unmodified | SATISFIED | bee-map.ts not in 155 git diff; gesture plumbing intact |
+| D-02 | 155-01-PLAN.md | Desktop-only via CSS hover+pointer media query; no JS detection | SATISFIED | `@media (hover: hover) and (pointer: fine)` at bee-pane.ts:514 |
+| D-03 | 155-01-PLAN.md | Reuses existing `.hint` class; no new text-styling pattern | SATISFIED | `class="hint hint--desktop-only"` at line 1095 |
+| D-04 | 155-01-PLAN.md | Always rendered; not bound to boundsFilterActive or any reactive state | SATISFIED | Unconditional template literal at line 1095 |
+| D-05 | 155-01-PLAN.md | Placed immediately below div.input-wrap, before div.elev-row | SATISFIED | Line 1094 closes div.input-wrap, line 1095 is hint, line 1096 opens div.elev-row |
+| D-06 | 155-01-PLAN.md | Exact copy "Shift-drag on map to set bounds" | SATISFIED | Verbatim string at bee-pane.ts:1095 |
 
 ### Anti-Patterns Found
 

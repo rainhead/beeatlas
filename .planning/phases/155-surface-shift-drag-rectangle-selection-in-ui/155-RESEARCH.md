@@ -1,4 +1,4 @@
-# Phase 999.1: Surface Shift-Drag Rectangle Selection in UI - Research
+# Phase 155: Surface Shift-Drag Rectangle Selection in UI - Research
 
 **Researched:** 2026-06-21
 **Domain:** Lit Web Components / CSS media queries / presentational UI addition

@@ -1,5 +1,5 @@
 ---
-phase: 999.8-separate-spatial-bounds-filter-from-per-record-selection-bac
+phase: 156-separate-spatial-bounds-filter-from-per-record-selection
 verified: 2026-06-21T14:10:00Z
 status: passed
 score: 8/8 must-haves verified
@@ -7,7 +7,7 @@ overrides_applied: 0
 re_verification: null
 ---
 
-# Phase 999.8: Separate Spatial-Bounds FILTER from Per-Record SELECTION — Verification Report
+# Phase 156: Separate Spatial-Bounds FILTER from Per-Record SELECTION — Verification Report
 
 **Phase Goal:** Cleanly separate the spatial-bounds FILTER from per-record SELECTION in the state model and URL contract. Move bounds off `_selectionBounds`/`sel=` into a first-class filter concept; keep record-selection params (`o=`/`sel=`) for record selection only; stop forcing the list pane open on a bounds change; preserve backward-compatible restore of existing `sel=`-bounds links. Touches filter.ts, url-state.ts, bee-atlas.ts, bee-pane.ts.
 **Verified:** 2026-06-21T14:10:00Z
@@ -90,7 +90,7 @@ No conventional probe scripts exist for this phase. Behavioral spot-checks above
 
 ### Requirements Coverage
 
-No formal REQ-IDs are assigned to backlog phase 999.8. Requirements are the locked decisions D-01..D-08 in `999.8-CONTEXT.md`. All trackable decisions verified:
+No formal REQ-IDs are assigned to backlog phase 156. Requirements are the locked decisions D-01..D-08 in `156-CONTEXT.md`. All trackable decisions verified:
 
 | Decision | Description | Status | Evidence |
 |----------|-------------|--------|----------|
@@ -117,7 +117,7 @@ No `TBD`, `FIXME`, `XXX` markers in any of the four modified source files. No st
 
 ### Human Verification Required
 
-Two manual verifications are documented in `999.8-VALIDATION.md`. Both are covered structurally by automated tests (url-state tests cover D-03 back-compat parsing; bee-atlas tests cover D-05 coexistence logic), but the end-to-end browser experience cannot be verified programmatically:
+Two manual verifications are documented in `156-VALIDATION.md`. Both are covered structurally by automated tests (url-state tests cover D-03 back-compat parsing; bee-atlas tests cover D-05 coexistence logic), but the end-to-end browser experience cannot be verified programmatically:
 
 1. **Legacy `?sel=` shared link restores correctly in browser**
    - Test: Open a saved `?sel=west,south,east,north` link in the running app

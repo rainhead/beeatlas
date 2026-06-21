@@ -44,8 +44,19 @@
 - ✅ **v4.9 Map-Init Readiness** — Phase 144 (shipped 2026-06-09). Retired the recurring map-init race class structurally: await-based legacy-taxon resolution on the `ready.ts` barriers, a single `intendedFilterActive` gate (backed by a reactive `_filterResolving` flag) for hide-all + URL suppression, and the occurrence render moved into `<bee-map>` as f(filteredGeoJSON, intendedFilterActive). See [.planning/milestones/v4.9-ROADMAP.md](milestones/v4.9-ROADMAP.md).
 - ✅ **v4.10 Housekeeping** — Phases 145–146 (shipped 2026-06-09). Two maintenance/polish items promoted from backlog: Dependabot version updates across npm (root + `infra/`) + Python (uv) + GitHub Actions, and session-coalesced viewport→history writes so map exploration produces one back-button entry. See [.planning/milestones/v4.10-ROADMAP.md](milestones/v4.10-ROADMAP.md).
 - ✅ **v5.0 Offline Field Mode** — Phases 147–154 (shipped 2026-06-21). Installable PWA dogfooded behind unlisted `/app`: scoped service worker, app-shell + `/data/` offline caching with cold-start, cache-health/freshness UX, PWA manifest + install affordances, GeolocateControl + "occurrences near me", and a ToS-compliant Mapbox basemap performance cache. See [.planning/milestones/v5.0-ROADMAP.md](milestones/v5.0-ROADMAP.md).
+- 🔨 **v5.1 Housekeeping** — Phases 155–159 (in progress). Post-v5.0 cleanup: the shift-drag discoverability hint and the bounds-as-filter state/URL refactor (155–156, shipped 2026-06-21 during the near-me work), plus three promoted backlog items — regions-dropdown stacking fix, non-WABA specimen-photo capture, and a sidebar taxon-filter shortcut (157–159, pending).
 
 ## Phases
+
+### 🔨 v5.1 Housekeeping (Phases 155–159) — IN PROGRESS
+
+Post-v5.0 cleanup. Phases 155–156 (promoted from backlog 999.1/999.8, executed 2026-06-21 during the near-me work) are complete; 157–159 are promoted backlog ideas awaiting planning.
+
+- [x] **Phase 155: Surface shift-drag rectangle selection in the UI** — Desktop-only "Shift-drag on map to set bounds" hint below the "County, ecoregion, or place" input (`.hint` reuse + `@media (hover: hover) and (pointer: fine)` gate; hidden on touch), making the bounds-**filter** gesture discoverable with no behavior change. Promoted from backlog 999.1. Completed 2026-06-21 (operator UAT PASS). **Plans:** 1 plan (1 wave). **UI hint:** yes.
+- [x] **Phase 156: Separate spatial-bounds FILTER from per-record SELECTION** — Made the state model and URL contract honest: a spatial box is a FILTER (`FilterState.bounds`, serialized `bbox=`); SELECTION (`o=` ids/cluster) is per-record only. Removed the legacy `_selectionBounds`/`sel=`-write/`_applyBoundsSelection` plumbing and the forced `_paneState='list'`; bounds + selection now coexist; legacy `?sel=` links still restore. Promoted from backlog 999.8. Completed 2026-06-21 (815 tests green; D-08 global filter-reset affordance deferred). **Plans:** 3 plans.
+- [ ] **Phase 157: Regions dropdown obscured by filter button** — UI bug: the regions dropdown is visually obscured by the filter button (z-index / stacking-context issue in the header/toolbar). Repro and fix. Promoted from backlog 999.4. **Plans:** 0 (needs planning).
+- [ ] **Phase 158: Capture specimen photos from non-WABA-field iNat users** — Some collectors post specimen photos without the "WABA" observation field, so they fall out of the provisional-occurrence path. Devise an observation-field-independent match strategy (project membership, place+taxon+collector heuristics, or a curated collector allowlist). Promoted from backlog 999.5. **Plans:** 0 (needs planning).
+- [ ] **Phase 159: Filter by taxon from occurrence summary in sidebar** — Give a quick click target on a taxon in the sidebar occurrence summary to filter the map to just that taxon, saving the filter-panel round-trip. Open questions: rank to filter at when below species, replace-vs-intersect with existing filter state, and whether to surface the same affordance in the table view. Promoted from backlog 999.6. **Plans:** 0 (needs planning).
 
 ### ✅ v5.0 Offline Field Mode (Phases 147–154) — SHIPPED 2026-06-21
 
@@ -62,7 +73,7 @@
   - [x] 152-01-PLAN.md — Wave 0: create `src/tests/geolocation.test.ts` (source-analysis gate for the LOC-02 pure-presenter invariant) + extend the `mapbox-gl` `vi.mock` in `bee-atlas.test.ts`/`cache-state.test.ts` (addControl + GeolocateControl stub) [LOC-02]
   - [x] 152-02-PLAN.md — Wave 1: GeolocateControl in `bee-map.ts` (D-01 opts, granted-only auto-trigger D-03, emit `user-location-changed`) + `bee-atlas.ts` `@state _userLocation`/`_locationError`, handler, binding, denial banner (D-04) [LOC-01, LOC-02, LOC-03]
   - [x] 152-03-PLAN.md — Wave 2: `152-HUMAN-UAT.md` (blue dot/recenter, offline GPS, denial banner, real-device iOS standalone) + blocking human-verify checkpoint (autonomous: false) [LOC-01, LOC-03]
-- [x] **Phase 153: Occurrences Near Me** — A geolocate-icon button inside the "County, ecoregion, or place" input resolves the user's GPS into a ~10 km bounding box, applied as a spatial **filter** (map + list + table) that REUSES the existing shift-drag mechanism (`_selectionBounds` → `filter.ts` `boundsClause` → `sel=west,south,east,north` URL round-trip). Active bounds show **in that input** (no chip); AND-composes with other filters; a shared link reproduces the exact occurrence set with no recipient GPS. Redesigned 2026-06-21 from the reverted haversine/`?near=1` form (commit a4e269cb); bounds promoted from selection to filter (shift-drag too — see backlog 999.8). Completed 2026-06-21 (operator UAT PASS; 792 tests green). **Plans:** 4 plans (3 waves). **UI hint:** yes.
+- [x] **Phase 153: Occurrences Near Me** — A geolocate-icon button inside the "County, ecoregion, or place" input resolves the user's GPS into a ~10 km bounding box, applied as a spatial **filter** (map + list + table) that REUSES the existing shift-drag mechanism (`_selectionBounds` → `filter.ts` `boundsClause` → `sel=west,south,east,north` URL round-trip). Active bounds show **in that input** (no chip); AND-composes with other filters; a shared link reproduces the exact occurrence set with no recipient GPS. Redesigned 2026-06-21 from the reverted haversine/`?near=1` form (commit a4e269cb); bounds promoted from selection to filter (shift-drag too — see Phase 156). Completed 2026-06-21 (operator UAT PASS; 792 tests green). **Plans:** 4 plans (3 waves). **UI hint:** yes.
   - [x] 153-01-PLAN.md — Wave 1: `<bee-map>` public `requestUserLocation()` seam (promote GeolocateControl to an instance field) + geolocation source-analysis gate [NEAR-01/02/03; D-06]
   - [x] 153-02-PLAN.md — Wave 1: `<bee-pane>` geolocate button in the where `.input-wrap` (emits `near-me-requested`) + icon-only removable bounds chip (emits `near-me-cleared`) + `selectionBoundsActive` property + render tests [NEAR-01/02/03; D-04, D-05]
   - [x] 153-03-PLAN.md — Wave 2: `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, Phase 152 denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
@@ -1350,19 +1361,6 @@ offline).
 
 ## Backlog
 
-### Phase 999.1: Surface shift-drag rectangle selection in the UI
-
-**Goal:** Make the existing shift-drag bounding-box (bounds-filter) gesture discoverable on desktop via a persistent hint in the sidebar filters section, hidden on touch — no behavior change.
-**Requirements:** D-01, D-02, D-03, D-04, D-05, D-06
-**Plans:** 1/1 plans complete
-
-The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
-Plans:
-
-- [x] 999.1-01-PLAN.md — Add desktop-only "Shift-drag on map to set bounds" hint below the where input (.hint reuse + pointer-capability media query) with source-text tests
-
-> Note (2026-06-21): Phase 153 reclassified spatial bounds (shift-drag + near-me) as a **filter**, not a selection (see Phase 999.8). This reframes 999.1 — "surfacing" now means making the shift-drag *filter* gesture discoverable.
-
 ### Phase 999.2: Add WDFW wildlife areas as places (BACKLOG)
 
 **Goal:** [Captured for future planning]
@@ -1387,42 +1385,6 @@ Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
 
-### Phase 999.4: Regions dropdown obscured by filter button (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-UI bug: the regions dropdown is visually obscured by the filter button (likely a z-index or stacking-context issue in the header/toolbar). Repro and fix when picked up.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.5: Capture specimen photos from non-WABA-field iNat users (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-The current WABA pipeline (Phase 49 / 66) ingests iNat observations tagged with the "WABA" observation field. Some collectors (e.g. swisschick) post specimen photos without using that field, so they fall out of the provisional-occurrence path. Figure out an alternative match strategy — candidates: project membership, place + taxon + collector heuristics, manual allowlist of contributing iNat usernames, or an observation-field-independent "is this a specimen photo by a known collector?" rule.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.6: Filter by taxon from occurrence summary in sidebar (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-When an occurrence summary in the sidebar lists a taxon, give the user a quick way to filter the map to just that taxon — e.g. a click target on the taxon name or chip, or a small filter icon next to it. Saves the round-trip of opening the filter panel and typing the name. Open questions: which rank to filter at when the displayed taxon is below species (subspecies/form), how this interacts with existing filter state (replace vs intersect), and whether to surface the same affordance from the table view.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
 ### Phase 999.7: Handle Safari private-browsing in the offline-ready UI (BACKLOG)
 
 **Goal:** [Captured for future planning]
@@ -1434,17 +1396,3 @@ Surfaced during Phase 150 UAT (2026-06-19): in Safari private browsing, `caches.
 Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.8: Separate spatial-bounds FILTER from per-record SELECTION (BACKLOG)
-
-**Goal:** Make the state model and URL contract honest — a spatial bounding box is a FILTER (folded into `FilterState.bounds`, serialized as `bbox=`), and SELECTION (`o=` ids/cluster) is only for individual occurrence records. Remove the legacy `_selectionBounds`/`sel=`-write/`_applyBoundsSelection` plumbing and the forced `_paneState='list'`; bounds and per-record selection coexist; legacy `?sel=` links still restore.
-**Requirements:** D-01..D-08 (locked decisions in 999.8-CONTEXT.md; D-08 deferred — no global filter-reset affordance exists yet)
-**Plans:** 3/3 plans complete
-
-Surfaced during Phase 153 (2026-06-21). Phase 153 made near-me and shift-drag bounds **behave** as filters (hide non-matching dots on the map + list + table; round-trip in the URL), but they still ride the legacy *selection* plumbing: the box lives in `_selectionBounds`, serializes under the `sel=` selection URL param, and shares `_applyBoundsSelection`/`_paneState='list'` with cluster/id selection. The agreed conceptual model is: **a spatial box is a FILTER; SELECTION is only for individual occurrence records (cluster click / id list).** This phase does the clean separation — e.g. move bounds into a filter concept (rename off `_selectionBounds`, its own state + URL param distinct from `sel=`), keep `sel=` for record selection only, and stop forcing the list pane open on a bounds change. Must preserve backward-compatible restore of existing `sel=`-bounds links (or migrate them). Touches `filter.ts`, `url-state.ts`, `bee-atlas.ts`, `bee-pane.ts`; coordinate with 999.1 (surfacing the shift-drag gesture).
-
-Plans:
-
-- [x] 999.8-01-PLAN.md — filter.ts: FilterState.bounds field, isFilterActive + buildFilterSQL bounds clause, drop selectionBounds args (D-01)
-- [x] 999.8-02-PLAN.md — url-state.ts: write bbox=, read bbox=+legacy sel= into filter.bounds, narrow SelectionState (D-02, D-03)
-- [x] 999.8-03-PLAN.md — bee-atlas.ts/bee-pane.ts: _filterState.bounds ownership, _applyBoundsFilter, D-04/D-05/D-06/D-07 behavior + test migration

@@ -1,5 +1,5 @@
 ---
-phase: "999.8"
+phase: "156"
 plan: "01"
 subsystem: filter
 tags: [filter, bounds, sql, refactor, tdd, D-01]
@@ -36,7 +36,7 @@ metrics:
   files_modified: 2
 ---
 
-# Phase 999.8 Plan 01: FilterState.bounds + buildFilterSQL bounds clause Summary
+# Phase 156 Plan 01: FilterState.bounds + buildFilterSQL bounds clause Summary
 
 **One-liner:** Added `FilterState.bounds` field and routed it through `isFilterActive` + `buildFilterSQL` so map/list/table queries inherit the spatial bounding box as "just another filter."
 
@@ -52,10 +52,10 @@ metrics:
 
 | Task | Phase | Commit | Description |
 |------|-------|--------|-------------|
-| Task 1 | RED | d512c0c9 | test(999.8-01): add failing tests for FilterState.bounds + isFilterActive |
-| Task 1 | GREEN | 46a1344e | feat(999.8-01): add FilterState.bounds field + isFilterActive bounds clause |
-| Task 2 | RED | 5a3b87f0 | test(999.8-01): add failing tests for buildFilterSQL bounds clause |
-| Task 2 | GREEN | 2de003a0 | feat(999.8-01): move boundsClause into buildFilterSQL; drop selectionBounds args |
+| Task 1 | RED | d512c0c9 | test(156-01): add failing tests for FilterState.bounds + isFilterActive |
+| Task 1 | GREEN | 46a1344e | feat(156-01): add FilterState.bounds field + isFilterActive bounds clause |
+| Task 2 | RED | 5a3b87f0 | test(156-01): add failing tests for buildFilterSQL bounds clause |
+| Task 2 | GREEN | 2de003a0 | feat(156-01): move boundsClause into buildFilterSQL; drop selectionBounds args |
 
 ## Deviations from Plan
 
@@ -77,7 +77,7 @@ None — all implementations are wired (no placeholder data flowing to UI).
 
 - FOUND: src/filter.ts
 - FOUND: src/tests/filter.test.ts
-- FOUND: 999.8-01-SUMMARY.md
+- FOUND: 156-01-SUMMARY.md
 - FOUND commit d512c0c9 (test RED Task 1)
 - FOUND commit 46a1344e (feat GREEN Task 1)
 - FOUND commit 5a3b87f0 (test RED Task 2)

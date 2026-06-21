@@ -1,4 +1,4 @@
-# Phase 999.8: Separate Spatial-Bounds FILTER from Per-Record SELECTION — Pattern Map
+# Phase 156: Separate Spatial-Bounds FILTER from Per-Record SELECTION — Pattern Map
 
 **Mapped:** 2026-06-21
 **Files analyzed:** 4 modified source files + 3 modified test files
@@ -90,7 +90,7 @@ if (selectionBounds !== null) {
 
 **Target: add to buildFilterSQL after the elevation block (before line 322):**
 ```typescript
-  // Bounds filter — spatial bounding box from shift-drag or near-me (D-01, phase 999.8)
+  // Bounds filter — spatial bounding box from shift-drag or near-me (D-01, phase 156)
   if (f.bounds !== null) {
     const { west, south, east, north } = f.bounds;
     occurrenceClauses.push(
@@ -326,7 +326,7 @@ export type SelectionState =
 
 **Target migration structure:**
 ```typescript
-  // NEW: bbox= reader (canonical post-999.8 format)
+  // NEW: bbox= reader (canonical post-156 format)
   let boundsResult: { west: number; south: number; east: number; north: number } | null = null;
   const bboxRaw = p.get('bbox') ?? '';
   if (bboxRaw) {

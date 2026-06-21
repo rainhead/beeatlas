@@ -1,5 +1,5 @@
 ---
-phase: "999.8"
+phase: "156"
 plan: "03"
 subsystem: filter
 tags: [filter, bounds, refactor, bee-atlas, bee-pane, D-01, D-04, D-05, D-06, D-07]
@@ -50,7 +50,7 @@ duration: "25 minutes"
 completed: "2026-06-21"
 ---
 
-# Phase 999.8 Plan 03: Consumer Transition — bounds to _filterState, rename bee-pane props Summary
+# Phase 156 Plan 03: Consumer Transition — bounds to _filterState, rename bee-pane props Summary
 
 **Moved bounding-box state from `_selectionBounds` into `_filterState.bounds` in `<bee-atlas>`, applied all four behavior decisions (D-04/D-05/D-06/D-07), renamed `boundsFilterActive`/`boundsFilterLabel` in bee-pane, and migrated the affected test blocks — zero `_selectionBounds` remain, 815 tests green.**
 
@@ -146,9 +146,9 @@ No new security-relevant surface introduced. The threat model from the plan's `<
 
 ## Next Phase Readiness
 
-- Phase 999.8 is complete: all three plans executed, `_selectionBounds` fully removed, bounds is a first-class filter field.
+- Phase 156 is complete: all three plans executed, `_selectionBounds` fully removed, bounds is a first-class filter field.
 - D-08 (global "clear all filters" reset that includes bounds) is deferred — no global-reset affordance exists; `FilterState.bounds` makes it trivial when/if added.
-- Backlog 999.1 (surfacing the shift-drag gesture) can now proceed with the clean filter model.
+- Backlog 155 (surfacing the shift-drag gesture) can now proceed with the clean filter model.
 
 ## Self-Check
 
@@ -164,5 +164,5 @@ No new security-relevant surface introduced. The threat model from the plan's `<
 ## Self-Check: PASSED
 
 ---
-*Phase: 999.8-separate-spatial-bounds-filter-from-per-record-selection-bac*
+*Phase: 156-separate-spatial-bounds-filter-from-per-record-selection*
 *Completed: 2026-06-21*

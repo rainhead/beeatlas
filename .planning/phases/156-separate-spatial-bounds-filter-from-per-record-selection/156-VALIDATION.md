@@ -1,5 +1,5 @@
 ---
-phase: 999.8
+phase: 156
 slug: separate-spatial-bounds-filter-from-per-record-selection-bac
 status: draft
 nyquist_compliant: true
@@ -7,7 +7,7 @@ wave_0_complete: false
 created: 2026-06-21
 ---
 
-# Phase 999.8 — Validation Strategy
+# Phase 156 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
 
@@ -36,7 +36,7 @@ created: 2026-06-21
 
 ## Per-Task Verification Map
 
-> No formal REQ-IDs on this backlog phase — requirements are the locked decisions D-01..D-08 in `999.8-CONTEXT.md`. Threat refs: none (pure client-side refactor; no new attack surface — `bbox=`/`sel=` floats are range-validated exactly as today; no string interpolation into SQL).
+> No formal REQ-IDs on this backlog phase — requirements are the locked decisions D-01..D-08 in `156-CONTEXT.md`. Threat refs: none (pure client-side refactor; no new attack surface — `bbox=`/`sel=` floats are range-validated exactly as today; no string interpolation into SQL).
 
 | Behavior | Decision | Test Type | Automated Command | File Exists | Status |
 |----------|----------|-----------|-------------------|-------------|--------|

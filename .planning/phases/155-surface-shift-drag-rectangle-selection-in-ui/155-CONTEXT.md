@@ -1,4 +1,4 @@
-# Phase 999.1: Surface shift-drag rectangle selection in the UI - Context
+# Phase 155: Surface shift-drag rectangle selection in the UI - Context
 
 **Gathered:** 2026-06-21
 **Status:** Ready for planning
@@ -8,7 +8,7 @@
 
 Make the existing **shift-drag bounding-box gesture discoverable**. Today, holding Shift and dragging on the map draws a rectangle that filters occurrences (`bee-map.ts` `mousedown`+`shiftKey` → `selection-drawn` event → `_filterState.bounds`), but nothing in the UI tells users this exists.
 
-**Purely additive discoverability — NO behavior change.** This phase adds a persistent hint that communicates the gesture. The gesture itself, the bounds-filter plumbing (Phase 999.8), and near-me (Phase 153) are unchanged. Reframed by the 2026-06-21 roadmap note: since 999.8 reclassified a spatial box as a **FILTER** (not a selection), "surfacing" means making the bounds-**filter** gesture discoverable.
+**Purely additive discoverability — NO behavior change.** This phase adds a persistent hint that communicates the gesture. The gesture itself, the bounds-filter plumbing (Phase 156), and near-me (Phase 153) are unchanged. Reframed by the 2026-06-21 roadmap note: since 156 reclassified a spatial box as a **FILTER** (not a selection), "surfacing" means making the bounds-**filter** gesture discoverable.
 
 </domain>
 
@@ -27,7 +27,7 @@ Make the existing **shift-drag bounding-box gesture discoverable**. Today, holdi
 - **D-05:** The hint sits **in the sidebar filters section, immediately below the "County, ecoregion, or place" (`where`) input** (`bee-pane.ts`) — NOT overlaid on the map canvas. This pairs the hint with the near-me crosshair button and where active bounds already render (Phase 153), so it appears exactly where bounds are managed.
 
 ### Copy
-- **D-06:** Hint text is exactly: **"Shift-drag on map to set bounds"** (user-locked wording; aligns with the FILTER/bounds vocabulary from 999.8).
+- **D-06:** Hint text is exactly: **"Shift-drag on map to set bounds"** (user-locked wording; aligns with the FILTER/bounds vocabulary from 156).
 
 ### Claude's Discretion
 - Exact hint styling/spacing, optional emphasis on "Shift" (bold/`<kbd>`), and whether an icon accompanies the text — pick what reads cleanly with the existing `.hint` usages.
@@ -42,8 +42,8 @@ Make the existing **shift-drag bounding-box gesture discoverable**. Today, holdi
 **Downstream agents MUST read these before planning or implementing.**
 
 ### This phase's origin & prior decisions
-- `.planning/ROADMAP.md` §"Phase 999.1: Surface shift-drag rectangle selection in the UI" (line ~1337) — phase definition + the 2026-06-21 note reframing it around the *filter* gesture.
-- `.planning/phases/999.8-separate-spatial-bounds-filter-from-per-record-selection-bac/999.8-CONTEXT.md` — the FILTER-vs-SELECTION model; bounds live in `_filterState.bounds`, serialize as `bbox=`, shift-drag ≡ near-me byte-identical state. Establishes the vocabulary ("bounds" = a filter) the hint copy uses.
+- `.planning/ROADMAP.md` §"Phase 155: Surface shift-drag rectangle selection in the UI" (line ~1337) — phase definition + the 2026-06-21 note reframing it around the *filter* gesture.
+- `.planning/phases/156-separate-spatial-bounds-filter-from-per-record-selection-bac/156-CONTEXT.md` — the FILTER-vs-SELECTION model; bounds live in `_filterState.bounds`, serialize as `bbox=`, shift-drag ≡ near-me byte-identical state. Establishes the vocabulary ("bounds" = a filter) the hint copy uses.
 - `.planning/phases/153-occurrences-near-me/153-CONTEXT.md` — near-me UX; active bounds render *in* the `where` input (no chip), near-me crosshair button lives there. This phase's hint sits directly below that input.
 
 ### Architecture invariants (repo root)
@@ -76,7 +76,7 @@ Make the existing **shift-drag bounding-box gesture discoverable**. Today, holdi
 
 - Hint copy is locked verbatim: **"Shift-drag on map to set bounds"** (D-06).
 - Placement is locked: directly below the `where` ("County, ecoregion, or place") input in the sidebar filters section (D-05).
-- Regression bar: must not alter the shift-drag gesture, bounds-filter behavior, near-me, or the 153/999.8 URL round-trip. Existing test suite (792+ green as of 999.8) must stay green.
+- Regression bar: must not alter the shift-drag gesture, bounds-filter behavior, near-me, or the 153/156 URL round-trip. Existing test suite (792+ green as of 156) must stay green.
 
 </specifics>
 
@@ -93,5 +93,5 @@ None — no pending todos matched this phase.
 
 ---
 
-*Phase: 999.1-surface-shift-drag-rectangle-selection-in-ui*
+*Phase: 155-surface-shift-drag-rectangle-selection-in-ui*
 *Context gathered: 2026-06-21*
