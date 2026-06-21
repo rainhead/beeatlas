@@ -422,11 +422,23 @@ unavailability that does not block the phase goal — e.g., Scenario 8 may be de
 to a field trip if the operator is indoors, but Scenario 7 desktop denial is not
 deferrable).
 
-**Verdict:** [ ] PASS  [ ] FAIL
+**Verdict:** [x] PASS  [ ] FAIL
+
+**Operator sign-off (2026-06-21):** Verified interactively on desktop (Firefox). Confirmed:
+the geolocate button inside the "County, ecoregion, or place" input; the bounds shown IN
+that input (not a chip); the map filtering to the in-bounds occurrences; AND-composition
+with taxon/date filters; the denial toast firing on a real permission-denied state; and a
+shared `?…&sel=…` URL reproducing the same occurrences on the map + list in a fresh load.
+
+Two defects were found and fixed during UAT (post-plan): bounds did not filter the map
+(only the list) and a restored `sel=` URL left the map empty — both fixed (the spatial box
+is now a true filter across map/list/table). Scenario 8 (real-device iPhone) DEFERRED to a
+field trip; it does not block the phase goal. The clean filter-vs-selection architectural
+separation is captured as backlog Phase 999.8.
 
 **If FAIL:** Record which scenario failed and route to `/gsd-plan-phase 153 --gaps` for
 gap closure before advancing the phase.
 
-**Signed off by:**
+**Signed off by:** Operator (Peter), 2026-06-21
 
 **Date:**
