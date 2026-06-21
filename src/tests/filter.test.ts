@@ -137,6 +137,7 @@ describe('combined filters', () => {
       elevMin: null,
       elevMax: null,
       selectedPlace: null,
+      nearMe: false,
     };
     const { occurrenceWhere } = buildFilterSQL(f);
 

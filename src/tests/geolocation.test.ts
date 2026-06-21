@@ -49,13 +49,13 @@ describe('D-04 / Pitfall-3: freeze invariant — bee-atlas re-queries only under
   });
 
   test('bee-atlas.ts _onUserLocationChanged only calls _runFilterQuery inside a _nearMePending guard', () => {
-    // Extract the _onUserLocationChanged handler body
-    const handlerIdx = beeAtlasSrc.indexOf('_onUserLocationChanged');
+    // Find the _onUserLocationChanged METHOD definition (not field references)
+    const handlerIdx = beeAtlasSrc.indexOf('private _onUserLocationChanged(');
     expect(handlerIdx).toBeGreaterThanOrEqual(0);
     const handlerBody = beeAtlasSrc.slice(handlerIdx, handlerIdx + 1500);
     // Must contain _nearMePending check before calling _runFilterQuery
     expect(handlerBody).toMatch(/_nearMePending/);
-    // _runFilterQuery must only appear inside a _nearMePending conditional, not unconditionally
+    // _runFilterQuery must appear inside the handler body
     const runFilterIdx = handlerBody.indexOf('_runFilterQuery');
     expect(runFilterIdx).toBeGreaterThanOrEqual(0);
     const beforeRunFilter = handlerBody.slice(0, runFilterIdx);
