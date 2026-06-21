@@ -1,5 +1,5 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
-import { customElement, query, state } from 'lit/decorators.js';
+import { customElement, state } from 'lit/decorators.js';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, type OccurrenceProperties } from './filter.ts';
 import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
@@ -71,7 +71,6 @@ export class BeeAtlas extends LitElement {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
-    nearMe: false,
   };
 
   @state() private _visibleIds: Set<string> | null = null;
@@ -126,19 +125,9 @@ export class BeeAtlas extends LitElement {
   // LOC-03: distinct copy — 'denied' (code 1) vs 'unavailable' (code 2/3)
   @state() private _locationErrorKind: 'denied' | 'unavailable' | null = null;
 
-  // Phase 153: element ref to <bee-map> for imperative triggerGeolocate() command
-  @query('bee-map') private _beeMap?: any;
-
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
-
-  // Phase 153 / D-04 / D-07: FROZEN center snapshot — NOT @state, NOT on FilterState.
-  // Private: never reaches buildParams or FilterState serialization (location privacy).
-  private _nearMeCenter: { lat: number; lon: number } | null = null;
-  // Phase 153 / RESEARCH Pattern 3: one-shot GPS-fix barrier.
-  // Set when near-me is toggled on; cleared by the first successful fix in _onUserLocationChanged.
-  private _nearMePending = false;
   // D-10: MediaQueryList for display-mode: standalone, used to clear install state
   // when the app transitions to standalone mode after mount.
   private _standaloneQuery = matchMedia('(display-mode: standalone)');
@@ -410,7 +399,6 @@ bee-pane {
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
             .hiddenSources=${this._hiddenSources}
             @filter-changed=${this._onFilterChanged}
-            @near-me-changed=${this._onNearMeToggle}
             @source-filter-changed=${this._onSourceFilterChanged}
             @pane-expand-list=${this._onPaneExpandList}
             @pane-collapse=${this._onPaneCollapse}
@@ -490,19 +478,7 @@ bee-pane {
         elevMin: initFilter.elevMin ?? null,
         elevMax: initFilter.elevMax ?? null,
         selectedPlace: initFilter.selectedPlace ?? null,
-        nearMe: initFilter.nearMe ?? false,
       };
-      // Phase 153 D-07: if ?near=1 was in the URL, activate the deferred-query flow —
-      // same as a fresh tap: set _nearMePending, command the control; query fires on first fix.
-      if (initFilter.nearMe) {
-        this._nearMePending = true;
-        // The map is not yet fully initialized here, so we defer triggerGeolocate() until
-        // after firstUpdated via a microtask. The map's _setup async chain resolves before
-        // the user's first GPS fix, so this is safe.
-        Promise.resolve().then(() => {
-          this._beeMap?.triggerGeolocate();
-        });
-      }
     }
     // If URL contains a legacy taxon name, start the await-taxaReady resolution flow.
     // _awaitLegacyTaxonResolution sets _filterResolving = true (feeds intendedFilterActive)
@@ -613,14 +589,8 @@ bee-pane {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
-    const t0 = this._nearMeCenter !== null ? performance.now() : null;
-    const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState, this._nearMeCenter));
+    const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState));
     if (guarded === null) return;
-    if (t0 !== null) {
-      const elapsed = performance.now() - t0;
-      const rowCount = guarded.result?.rowCount ?? 0;
-      console.info(`[near-me] proximity query ${elapsed.toFixed(1)} ms, ${rowCount} rows`);
-    }
     this._filteredGeoJSON = guarded.result?.geojson ?? null;
     this._visibleIds = guarded.result?.ids ?? null;
     this._filteredRowCount = guarded.result?.rowCount ?? null;
@@ -853,8 +823,7 @@ bee-pane {
       try {
         return await queryTablePage(
           this._filterState, this._tablePage, this._tableSortBy,
-          selEcdysisIds, selInatIds, selChecklistIds, selInatObsIds,
-          this._nearMeCenter
+          selEcdysisIds, selInatIds, selChecklistIds, selInatObsIds
         );
       } catch (err) {
         console.error('Table query failed:', err);
@@ -887,8 +856,7 @@ bee-pane {
         const { rows, total } = await queryListPage(
           this._filterState, this._listPage, this._tableSortBy,
           selEcdysisIds, selInatIds, selInatObsIds, selChecklistIds,
-          this._selectionBounds ?? null,
-          this._nearMeCenter
+          this._selectionBounds ?? null
         );
         return { rows, total, selectionCount: hasSelection ? total : null };
       } catch (err) {
@@ -1013,12 +981,8 @@ bee-pane {
 
   // LOC-02 / LOC-03: relay handler for user-location-changed from <bee-map>
   // On success: store position in _userLocation, clear error.
-  //   Phase 153 D-04 / RESEARCH Pattern 3: if _nearMePending is set, FREEZE the center
-  //   into _nearMeCenter, clear the one-shot flag, and fire one guarded filter query.
-  //   Subsequent drifting fixes update _userLocation (blue dot) but do NOT re-query (Pitfall 3).
   // On error: set _locationError true, clear stale _userLocation (security: T-152-04).
-  //   Phase 153 D-02: also clear _nearMePending and deactivate nearMe chip so it does
-  //   not strand in pending state; the existing Phase 152 toast communicates the failure.
+  // Does NOT call _runFilterQuery — _userLocation is consumed only in Phase 153 (D-05).
   private _onUserLocationChanged(
     e: CustomEvent<{ lat: number; lon: number; accuracy: number } | { error: { code: number; message: string } }>
   ) {
@@ -1026,63 +990,12 @@ bee-pane {
       this._locationError = true;
       this._locationErrorKind = e.detail.error.code === 1 ? 'denied' : 'unavailable';
       this._userLocation = null; // clear stale position on revocation (T-152-04)
-      // Phase 153 D-02: deactivate pending near-me chip on denial so it does not strand
-      if (this._nearMePending) {
-        this._nearMePending = false;
-        this._nearMeCenter = null;
-        this._filterState = { ...this._filterState, nearMe: false };
-        this._replaceUrlState();
-      }
     } else {
       // Validate accuracy is a finite non-negative number before storing (RESEARCH V5)
       const { lat, lon, accuracy } = e.detail;
       if (!isFinite(accuracy) || accuracy < 0) return;
       this._userLocation = { lat, lon, accuracy };
       this._locationError = false;
-      // Phase 153 D-04 / RESEARCH Pattern 3: one-shot deferred query on first fix after activation.
-      // Subsequent drifting fixes do NOT re-query (Pitfall 3 — freeze-at-activation).
-      if (this._nearMePending) {
-        this._nearMeCenter = { lat, lon }; // FROZEN snapshot (D-04)
-        this._nearMePending = false;       // subsequent fixes are ignored
-        this._runFilterQuery();
-        this._runTableQuery();
-        if (this._paneState === 'list') this._runListQuery();
-        this._replaceUrlState();
-      }
-    }
-  }
-
-  // Phase 153: handler for near-me-changed event from <bee-pane>.
-  // Activates/deactivates the proximity filter, commands the GeolocateControl via
-  // <bee-map>.triggerGeolocate() (D-03), and manages the one-shot pending barrier (D-04).
-  private _onNearMeToggle(e: CustomEvent<boolean>) {
-    const active = e.detail;
-    if (active) {
-      this._filterState = { ...this._filterState, nearMe: true };
-      this._nearMePending = true;
-      // Command <bee-map> to surface the blue dot + accuracy ring (D-03).
-      this._beeMap?.triggerGeolocate();
-      // FAST PATH (RESEARCH Pattern 3): if a fix is already available, capture immediately
-      // and fire the query without waiting for another GPS event.
-      if (this._userLocation !== null) {
-        const { lat, lon } = this._userLocation;
-        this._nearMeCenter = { lat, lon };
-        this._nearMePending = false;
-        this._runFilterQuery();
-        this._runTableQuery();
-        if (this._paneState === 'list') this._runListQuery();
-      }
-      // ?near=1 appears immediately (D-07) regardless of whether the query fired yet.
-      this._replaceUrlState();
-    } else {
-      // Chip removed: deactivate and re-query without proximity constraint.
-      this._filterState = { ...this._filterState, nearMe: false };
-      this._nearMeCenter = null;
-      this._nearMePending = false;
-      this._tablePage = 1;
-      this._runFilterQuery().then(() => { this._replaceUrlState(); });
-      this._runTableQuery();
-      if (this._paneState === 'list') this._runListQuery();
     }
   }
 
@@ -1119,7 +1032,6 @@ bee-pane {
     this._currentView = { lon, lat, zoom };
 
     // Restore filter state
-    const restoredNearMe = parsed.filter?.nearMe ?? false;
     this._filterState = {
       taxonId: parsed.filter?.taxonId ?? null,
       taxonDisplayName: parsed.filter?.taxonDisplayName ?? null,
@@ -1132,17 +1044,7 @@ bee-pane {
       elevMin: parsed.filter?.elevMin ?? null,
       elevMax: parsed.filter?.elevMax ?? null,
       selectedPlace: parsed.filter?.selectedPlace ?? null,
-      nearMe: restoredNearMe,
     };
-    // Phase 153 D-07: if ?near=1 is in the restored URL, re-activate the deferred-query flow.
-    if (restoredNearMe) {
-      this._nearMeCenter = null; // center is never persisted (privacy)
-      this._nearMePending = true;
-      this._beeMap?.triggerGeolocate();
-    } else {
-      this._nearMeCenter = null;
-      this._nearMePending = false;
-    }
     // Handle legacy taxon back-compat on history navigation via the same await-taxaReady
     // flow as firstUpdated. By the time popstate fires, taxaReady is already resolved
     // (cache loaded), so the await completes synchronously in the microtask queue.
@@ -1385,9 +1287,6 @@ bee-pane {
       elevMin: detail.elevMin ?? null,
       elevMax: detail.elevMax ?? null,
       selectedPlace: detail.selectedPlace ?? null,
-      // Preserve nearMe across generic filter changes — near-me uses its own dedicated event
-      // and is not carried by FilterChangedEvent (RESEARCH Q3 / dedicated-event invariant).
-      nearMe: this._filterState.nearMe,
     };
 
     // Auto-switch boundary layer to match newly added region filter type.
@@ -1449,7 +1348,7 @@ bee-pane {
 
   private async _onDownloadCsv() {
     try {
-      const rows = await queryAllFiltered(this._filterState, this._tableSortBy, this._nearMeCenter);
+      const rows = await queryAllFiltered(this._filterState, this._tableSortBy);
       if (rows.length === 0) return;
       const headers = Object.keys(rows[0]!);
       const csvLines = [

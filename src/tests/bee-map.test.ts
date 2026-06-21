@@ -100,31 +100,6 @@ describe('144-02: intendedFilterActive @property + render decision (SC-3, SC-4)'
   });
 });
 
-describe('LOC-153: bee-map triggerGeolocate + pure-presenter invariant (Phase 153)', () => {
-  test('bee-map.ts declares _geolocate instance field (lifted from local const)', () => {
-    expect(src).toMatch(/private\s+_geolocate/);
-  });
-
-  test('bee-map.ts declares public triggerGeolocate() method', () => {
-    expect(src).toMatch(/triggerGeolocate\s*\(\s*\)/);
-  });
-
-  test('bee-map.ts triggerGeolocate() calls this._geolocate?.trigger()', () => {
-    expect(src).toMatch(/this\._geolocate\?\.trigger\s*\(\s*\)/);
-  });
-
-  test('bee-map.ts does NOT store near-me or location state as a result of triggerGeolocate (pure-presenter)', () => {
-    // Pure-presenter invariant: bee-map must not have private _nearMe or @state _userLocation fields
-    expect(src).not.toMatch(/private\s+_nearMe\b/);
-    expect(src).not.toMatch(/@state[\s\S]{0,20}_userLocation/);
-  });
-
-  test('bee-map.ts filterState default literal contains nearMe: false', () => {
-    // The inline default filterState at the @property declaration must include nearMe
-    expect(src).toMatch(/nearMe:\s*false/);
-  });
-});
-
 describe('OFF-04: bee-map blank-basemap overlay (Plan 149-03)', () => {
   test('bee-map.ts declares offline as @property input (OFF-04)', () => {
     expect(src).toMatch(/@property\(\{\s*attribute:\s*false\s*\}\)\s*offline\s*=\s*false/);
