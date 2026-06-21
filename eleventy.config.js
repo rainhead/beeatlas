@@ -100,7 +100,13 @@ export default function (eleventyConfig) {
       // here. The plugin deep-merges this with its default
       // `server: { middlewareMode: true }`.
       server: {
-        allowedHosts: ["maderas.amandrai.net"],
+        allowedHosts: [
+          "maderas.amandrai.net",
+          // Tailscale MagicDNS name — lets `tailscale serve` proxy the dev
+          // server over HTTPS for on-device (iOS) testing, which needs a
+          // secure context for geolocation + PWA install. (Phase 152 UAT.)
+          "peters-macbook-air.tail5d2e45.ts.net",
+        ],
       },
       // vite-plugin-pwa must live HERE, not in vite.config.ts — same reason
       // as server.* above: the dev server and build run Vite rooted at

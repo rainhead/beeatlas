@@ -398,7 +398,10 @@ export class BeeMap extends LitElement {
       positionOptions: { enableHighAccuracy: true },
       showAccuracyCircle: true,
     });
-    this._map.addControl(geolocate);
+    // Place top-left: the default top-right corner is occupied by the custom
+    // .region-control button (Phase 152 UAT — the control was rendering hidden
+    // behind it). top-left is otherwise empty.
+    this._map.addControl(geolocate, 'top-left');
 
     geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
       this._emit('user-location-changed', {
