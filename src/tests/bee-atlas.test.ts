@@ -2,6 +2,9 @@ import { test, expect, describe, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildParams, parseParams } from '../url-state.ts';
+import type { SelectionState } from '../url-state.ts';
+import type { FilterState } from '../filter.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -1080,5 +1083,389 @@ describe('OFF-04/OFF-05: bee-atlas _offline state propagation (Plan 149-03)', ()
     const beforeDispatch = inst._offline;
     window.dispatchEvent(new Event('offline'));
     expect(inst._offline).toBe(beforeDispatch);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// NEAR: near-me bounds reuse (Plan 153-03)
+// ---------------------------------------------------------------------------
+// Tests for boundsFromLocation, near-me ≡ shift-drag URL equivalence, denial
+// toast, success box-apply, clear, and plan-checker fixes (W1, W2, W3).
+// ---------------------------------------------------------------------------
+
+describe('NEAR: near-me bounds reuse', () => {
+  // -------------------------------------------------------------------------
+  // Box math (W2: boundsFromLocation pure function tests)
+  // -------------------------------------------------------------------------
+
+  describe('boundsFromLocation', () => {
+    test('is exported from bee-atlas.ts (source assertion)', () => {
+      const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+      expect(src).toMatch(/export function boundsFromLocation/);
+    });
+
+    test('produces a valid ±10 km box for a mid-latitude fix (Seattle area)', async () => {
+      const { boundsFromLocation } = await import('../bee-atlas.ts');
+      const lat = 47.5;
+      const lon = -122.0;
+      const box = boundsFromLocation({ lat, lon });
+      expect(box).not.toBeNull();
+      if (!box) throw new Error('unreachable');
+
+      const dLat = 10 / 111.32;
+      const dLon = 10 / (111.32 * Math.cos(lat * Math.PI / 180));
+
+      // Box dimensions
+      expect(box.north - box.south).toBeCloseTo(2 * dLat, 6);
+      expect(box.east - box.west).toBeCloseTo(2 * dLon, 6);
+
+      // Orientation
+      expect(box.north).toBeGreaterThan(box.south);
+      expect(box.east).toBeGreaterThan(box.west);
+
+      // All finite
+      expect(isFinite(box.west)).toBe(true);
+      expect(isFinite(box.east)).toBe(true);
+      expect(isFinite(box.south)).toBe(true);
+      expect(isFinite(box.north)).toBe(true);
+    });
+
+    test('returns null for lat=90 (pole — cos→0 → dLon infinite)', async () => {
+      const { boundsFromLocation } = await import('../bee-atlas.ts');
+      expect(boundsFromLocation({ lat: 90, lon: 0 })).toBeNull();
+    });
+
+    test('returns null for NaN inputs', async () => {
+      const { boundsFromLocation } = await import('../bee-atlas.ts');
+      expect(boundsFromLocation({ lat: NaN, lon: 0 })).toBeNull();
+      expect(boundsFromLocation({ lat: 47, lon: NaN })).toBeNull();
+    });
+
+    test('returns null for lat=-90 (south pole — cos→0)', async () => {
+      const { boundsFromLocation } = await import('../bee-atlas.ts');
+      expect(boundsFromLocation({ lat: -90, lon: 0 })).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // near-me ≡ shift-drag URL equivalence (D-03, D-01)
+  // -------------------------------------------------------------------------
+
+  describe('near-me box ≡ shift-drag box in URL (D-03 reproducibility)', () => {
+    function emptyFilter(): FilterState {
+      return {
+        taxonId: null,
+        taxonDisplayName: null,
+        yearFrom: null,
+        yearTo: null,
+        months: new Set(),
+        selectedCounties: new Set(),
+        selectedEcoregions: new Set(),
+        selectedCollectors: [],
+        elevMin: null,
+        elevMax: null,
+        selectedPlace: null,
+      };
+    }
+
+    const defaultView = { lon: -120.5, lat: 47.5, zoom: 8 };
+    const defaultUi = { boundaryMode: 'off' as const, paneState: 'collapsed' as const };
+
+    test('a near-me box and a shift-drag box with identical coordinates produce the same sel= URL param', async () => {
+      const { boundsFromLocation } = await import('../bee-atlas.ts');
+      const lat = 47.5;
+      const lon = -120.0;
+      const box = boundsFromLocation({ lat, lon });
+      expect(box).not.toBeNull();
+      if (!box) throw new Error('unreachable');
+
+      // Near-me SelectionState (what bee-atlas will set after computing box)
+      const nearMeSelection: SelectionState = { type: 'bounds', ...box };
+      // Shift-drag SelectionState (same box, same numbers)
+      const shiftDragSelection: SelectionState = {
+        type: 'bounds',
+        west: box.west,
+        south: box.south,
+        east: box.east,
+        north: box.north,
+      };
+
+      const nearMeParams = buildParams(defaultView, emptyFilter(), nearMeSelection, defaultUi);
+      const shiftDragParams = buildParams(defaultView, emptyFilter(), shiftDragSelection, defaultUi);
+
+      expect(nearMeParams.get('sel')).not.toBeNull();
+      expect(nearMeParams.get('sel')).toBe(shiftDragParams.get('sel'));
+    });
+
+    test('a near-me sel= round-trips back to the exact same bounds via parseParams (D-03)', async () => {
+      const { boundsFromLocation } = await import('../bee-atlas.ts');
+      const box = boundsFromLocation({ lat: 47.5, lon: -120.0 });
+      expect(box).not.toBeNull();
+      if (!box) throw new Error('unreachable');
+
+      const selection: SelectionState = { type: 'bounds', ...box };
+      const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+      const parsed = parseParams(params.toString());
+
+      expect(parsed.selection?.type).toBe('bounds');
+      if (parsed.selection?.type !== 'bounds') throw new Error('unreachable');
+      expect(parsed.selection.west).toBeCloseTo(box.west, 3);
+      expect(parsed.selection.south).toBeCloseTo(box.south, 3);
+      expect(parsed.selection.east).toBeCloseTo(box.east, 3);
+      expect(parsed.selection.north).toBeCloseTo(box.north, 3);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // bee-atlas behavioral tests (no DOM mount — direct handler invocation)
+  // -------------------------------------------------------------------------
+
+  describe('bee-atlas near-me behavioral tests', () => {
+    type BeeAtlasNearMe = {
+      _nearMePending: boolean;
+      _selectionBounds: { west: number; south: number; east: number; north: number } | null;
+      _locationError: boolean;
+      _locationErrorKind: 'denied' | 'unavailable' | null;
+      _paneState: string;
+      _selectedOccIds: string[] | null;
+      _selectedCluster: unknown;
+      _listPage: number;
+      _onUserLocationChanged(e: CustomEvent<unknown>): void;
+      _onNearMeCleared(): void;
+      _onNearMeRequested(): void;
+      _runListQuery(): void;
+      _replaceUrlState(): void;
+    };
+
+    let inst: BeeAtlasNearMe;
+
+    beforeEach(async () => {
+      const mod = await import('../bee-atlas.ts');
+      const raw = new (mod.BeeAtlas as unknown as { new(): object })();
+      inst = raw as unknown as BeeAtlasNearMe;
+      // Stub out side-effectful methods so tests stay unit-level
+      inst._runListQuery = vi.fn();
+      inst._replaceUrlState = vi.fn();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    // -----------------------------------------------------------------------
+    // W2: stranded-pending bug — bad accuracy on near-me fix
+    // -----------------------------------------------------------------------
+    test('W2: bad accuracy fix (non-finite) on a near-me request clears _nearMePending and applies no bounds', () => {
+      inst._nearMePending = true;
+      inst._selectionBounds = null;
+
+      // Simulate a user-location-changed success event with non-finite accuracy
+      const e = new CustomEvent('user-location-changed', {
+        detail: { lat: 47.5, lon: -120.0, accuracy: NaN },
+      });
+      inst._onUserLocationChanged(e);
+
+      // _nearMePending must be cleared (not stranded)
+      expect(inst._nearMePending).toBe(false);
+      // No bounds applied
+      expect(inst._selectionBounds).toBeNull();
+    });
+
+    test('W2: bad accuracy fix (negative) on a near-me request clears _nearMePending and applies no bounds', () => {
+      inst._nearMePending = true;
+      inst._selectionBounds = null;
+
+      const e = new CustomEvent('user-location-changed', {
+        detail: { lat: 47.5, lon: -120.0, accuracy: -1 },
+      });
+      inst._onUserLocationChanged(e);
+
+      expect(inst._nearMePending).toBe(false);
+      expect(inst._selectionBounds).toBeNull();
+    });
+
+    // -----------------------------------------------------------------------
+    // Success path: valid fix with _nearMePending applies the box
+    // -----------------------------------------------------------------------
+    test('success with _nearMePending=true applies box to _selectionBounds', async () => {
+      const { boundsFromLocation } = await import('../bee-atlas.ts');
+      const lat = 47.5;
+      const lon = -120.0;
+      inst._nearMePending = true;
+
+      const e = new CustomEvent('user-location-changed', {
+        detail: { lat, lon, accuracy: 15 },
+      });
+      inst._onUserLocationChanged(e);
+
+      const expected = boundsFromLocation({ lat, lon });
+      expect(expected).not.toBeNull();
+      expect(inst._selectionBounds).not.toBeNull();
+      expect(inst._selectionBounds).toEqual(expected);
+      expect(inst._nearMePending).toBe(false);
+    });
+
+    test('success WITHOUT _nearMePending does NOT set _selectionBounds', () => {
+      inst._nearMePending = false;
+      inst._selectionBounds = null;
+
+      const e = new CustomEvent('user-location-changed', {
+        detail: { lat: 47.5, lon: -120.0, accuracy: 15 },
+      });
+      inst._onUserLocationChanged(e);
+
+      // No pending near-me request → bounds unchanged
+      expect(inst._selectionBounds).toBeNull();
+    });
+
+    // -----------------------------------------------------------------------
+    // Denial path (D-08): error sets toast, clears _nearMePending, no bounds
+    // -----------------------------------------------------------------------
+    test('denial (code 1) with _nearMePending sets _locationError, _locationErrorKind=denied, no bounds, clears pending', () => {
+      inst._nearMePending = true;
+      inst._selectionBounds = null;
+
+      const e = new CustomEvent('user-location-changed', {
+        detail: { error: { code: 1, message: 'User denied Geolocation' } },
+      });
+      inst._onUserLocationChanged(e);
+
+      expect(inst._locationError).toBe(true);
+      expect(inst._locationErrorKind).toBe('denied');
+      expect(inst._selectionBounds).toBeNull();
+      expect(inst._nearMePending).toBe(false);
+    });
+
+    test('unavailable error (code 2) with _nearMePending sets _locationErrorKind=unavailable', () => {
+      inst._nearMePending = true;
+
+      const e = new CustomEvent('user-location-changed', {
+        detail: { error: { code: 2, message: 'Position unavailable' } },
+      });
+      inst._onUserLocationChanged(e);
+
+      expect(inst._locationError).toBe(true);
+      expect(inst._locationErrorKind).toBe('unavailable');
+      expect(inst._nearMePending).toBe(false);
+    });
+
+    // -----------------------------------------------------------------------
+    // Clear path (D-05, W3): _onNearMeCleared nulls _selectionBounds
+    // -----------------------------------------------------------------------
+    test('_onNearMeCleared nulls _selectionBounds and writes URL', () => {
+      inst._selectionBounds = { west: -120.1, south: 47.4, east: -119.9, north: 47.6 };
+
+      inst._onNearMeCleared();
+
+      expect(inst._selectionBounds).toBeNull();
+      expect(inst._replaceUrlState).toHaveBeenCalledTimes(1);
+    });
+
+    // -----------------------------------------------------------------------
+    // W3: "Clear filters" (pane-clear-selection) also clears near-me bounds
+    // -----------------------------------------------------------------------
+    test('W3: _onClearSelection (the global Clear affordance) nulls _selectionBounds', async () => {
+      const mod = await import('../bee-atlas.ts');
+      type WithClear = BeeAtlasNearMe & { _onClearSelection(): void; _selectionCount: number | null };
+      const clearInst = new (mod.BeeAtlas as unknown as { new(): object })() as unknown as WithClear;
+      clearInst._runListQuery = vi.fn();
+      clearInst._replaceUrlState = vi.fn();
+
+      // Pre-condition: a near-me box is active
+      clearInst._selectionBounds = { west: -120.1, south: 47.4, east: -119.9, north: 47.6 };
+
+      clearInst._onClearSelection();
+
+      expect(clearInst._selectionBounds).toBeNull();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Source assertions: plan-checker fixes and architecture invariants
+  // -------------------------------------------------------------------------
+
+  describe('NEAR source assertions', () => {
+    const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+
+    test('W1: @query decorator imported from lit/decorators.js', () => {
+      expect(src).toMatch(/import\s*\{[^}]*\bquery\b[^}]*\}\s*from\s*['"]lit\/decorators\.js['"]/);
+    });
+
+    test('W1: BeeMap type imported for the @query accessor', () => {
+      // Either a type import from bee-map.ts or the BeeMap class is accessible
+      expect(src).toMatch(/import\s+type\s*\{[^}]*BeeMap[^}]*\}\s*from\s*['"]\.\/bee-map\.ts['"]/);
+    });
+
+    test('W1: @query accessor for bee-map element exists', () => {
+      expect(src).toMatch(/@query\s*\(\s*['"]bee-map['"]\s*\)/);
+    });
+
+    test('no haversine, ?near=1, or nearMeCenter in non-comment lines (D-01)', () => {
+      // Strip single-line comments and check
+      const nonCommentLines = src
+        .split('\n')
+        .filter(line => !line.trim().startsWith('//'))
+        .join('\n');
+      expect(nonCommentLines).not.toMatch(/haversine/i);
+      expect(nonCommentLines).not.toMatch(/\?near=1/);
+      expect(nonCommentLines).not.toMatch(/nearMeCenter/);
+    });
+
+    test('_applyBoundsSelection exists and is used by _onSelectionDrawn', () => {
+      expect(src).toMatch(/private\s+_applyBoundsSelection\b/);
+      // _onSelectionDrawn should call _applyBoundsSelection
+      const selDrawnIdx = src.indexOf('_onSelectionDrawn(');
+      const nextPrivate = src.indexOf('\n  private ', selDrawnIdx + 1);
+      const body = src.slice(selDrawnIdx, nextPrivate > selDrawnIdx ? nextPrivate : selDrawnIdx + 500);
+      expect(body).toContain('_applyBoundsSelection');
+    });
+
+    test('bee-pane template binds @near-me-requested', () => {
+      expect(src).toMatch(/@near-me-requested=/);
+    });
+
+    test('bee-pane template binds @near-me-cleared', () => {
+      expect(src).toMatch(/@near-me-cleared=/);
+    });
+
+    test('bee-pane template binds .selectionBoundsActive', () => {
+      expect(src).toMatch(/\.selectionBoundsActive=\$\{/);
+    });
+
+    test('selectionBoundsActive is bound to (_selectionBounds !== null)', () => {
+      expect(src).toMatch(/selectionBoundsActive=\$\{this\._selectionBounds\s*!==\s*null\}/);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Toast fix (Task 2): trigger()===false path emits error in bee-map
+  // -------------------------------------------------------------------------
+
+  describe('NEAR toast fix (D-08 / Task 2)', () => {
+    test('bee-map requestUserLocation source: emits user-location-changed error when trigger() returns false', () => {
+      const beeMapSrc = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+      // The fix: when _geolocate.trigger() returns false (permission already denied),
+      // bee-map should emit a user-location-changed error rather than silently doing nothing.
+      const reqUserLocIdx = beeMapSrc.indexOf('requestUserLocation()');
+      expect(reqUserLocIdx).toBeGreaterThan(-1);
+      const nextMethod = beeMapSrc.indexOf('\n  ', reqUserLocIdx + 1);
+      const body = beeMapSrc.slice(reqUserLocIdx, nextMethod > reqUserLocIdx ? nextMethod + 500 : reqUserLocIdx + 800);
+      // Should check the return value of trigger() and handle the false case
+      expect(body).toMatch(/trigger\(\)\s*===\s*false|trigger\(\)\s*!==\s*true|const\s+\w+\s*=\s*this\._geolocate/);
+    });
+
+    test('bee-atlas.ts _locationError banner is rendered outside the main content block (always reachable)', () => {
+      const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+      // The banner must NOT be gated behind this._error check or the main content block
+      // It should be at the root template level after the main content
+      const bannerIdx = src.indexOf('location-error-banner');
+      const errorBlockStart = src.indexOf("this._error ? '' : html`");
+      // Banner must appear AFTER the error-gated content block (not inside it)
+      expect(bannerIdx).toBeGreaterThan(errorBlockStart);
+      // But the banner must not itself be gated by this._error (it has its own _locationError gate)
+      // Verify _locationError gates the banner, not _error
+      const bannerContext = src.slice(Math.max(0, bannerIdx - 200), bannerIdx + 50);
+      expect(bannerContext).toMatch(/\$\{this\._locationError\s*\?/);
+    });
   });
 });
