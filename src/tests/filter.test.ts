@@ -26,7 +26,6 @@ function emptyFilter(): FilterState {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
-    nearMe: false,
   };
 }
 
@@ -137,7 +136,6 @@ describe('combined filters', () => {
       elevMin: null,
       elevMax: null,
       selectedPlace: null,
-      nearMe: false,
     };
     const { occurrenceWhere } = buildFilterSQL(f);
 
@@ -463,72 +461,5 @@ describe('getOccurrences', () => {
     const rows = await getOccurrences(['ecdysis:42']);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ ecdysis_id: 42, display_name: 'Bombus vosnesenskii' });
-  });
-});
-
-describe('nearMe filter (NEAR-01 / NEAR-02)', () => {
-  const seattleCenter = { lat: 47.6, lon: -122.3 };
-
-  test('emptyFilter() includes nearMe: false', () => {
-    expect(emptyFilter().nearMe).toBe(false);
-  });
-
-  test('isFilterActive: nearMe:true returns true', () => {
-    expect(isFilterActive({ ...emptyFilter(), nearMe: true })).toBe(true);
-  });
-
-  test('isFilterActive: nearMe:false (empty filter) returns false', () => {
-    expect(isFilterActive(emptyFilter())).toBe(false);
-  });
-
-  test('buildFilterSQL with nearMe:true + center emits lat BETWEEN bbox clause', () => {
-    const f = { ...emptyFilter(), nearMe: true };
-    const { occurrenceWhere } = buildFilterSQL(f, seattleCenter);
-    expect(occurrenceWhere).toContain('lat BETWEEN');
-  });
-
-  test('buildFilterSQL with nearMe:true + center emits lon BETWEEN bbox clause', () => {
-    const f = { ...emptyFilter(), nearMe: true };
-    const { occurrenceWhere } = buildFilterSQL(f, seattleCenter);
-    expect(occurrenceWhere).toContain('lon BETWEEN');
-  });
-
-  test('buildFilterSQL with nearMe:true + center emits haversine fragment (asin + radians)', () => {
-    const f = { ...emptyFilter(), nearMe: true };
-    const { occurrenceWhere } = buildFilterSQL(f, seattleCenter);
-    expect(occurrenceWhere).toContain('asin');
-    expect(occurrenceWhere).toContain('radians');
-  });
-
-  test('buildFilterSQL with nearMe:true + null center returns 1 = 1 (center is the gate)', () => {
-    const f = { ...emptyFilter(), nearMe: true };
-    const { occurrenceWhere } = buildFilterSQL(f, null);
-    expect(occurrenceWhere).toBe('1 = 1');
-  });
-
-  test('buildFilterSQL with nearMe:false + center returns 1 = 1 (boolean gates proximity)', () => {
-    const f = { ...emptyFilter(), nearMe: false };
-    const { occurrenceWhere } = buildFilterSQL(f, seattleCenter);
-    expect(occurrenceWhere).toBe('1 = 1');
-  });
-
-  test('buildFilterSQL with nearMe:true + NaN lat returns 1 = 1 (isFinite guard)', () => {
-    const f = { ...emptyFilter(), nearMe: true };
-    const { occurrenceWhere } = buildFilterSQL(f, { lat: NaN, lon: -122.3 });
-    expect(occurrenceWhere).toBe('1 = 1');
-  });
-
-  test('buildFilterSQL with nearMe:true + Infinity lon returns 1 = 1 (isFinite guard)', () => {
-    const f = { ...emptyFilter(), nearMe: true };
-    const { occurrenceWhere } = buildFilterSQL(f, { lat: 47.6, lon: Infinity });
-    expect(occurrenceWhere).toBe('1 = 1');
-  });
-
-  test('buildFilterSQL AND-composition: nearMe:true + yearFrom:2020 + center emits both clauses joined by AND', () => {
-    const f = { ...emptyFilter(), nearMe: true, yearFrom: 2020 };
-    const { occurrenceWhere } = buildFilterSQL(f, seattleCenter);
-    expect(occurrenceWhere).toContain('year >= 2020');
-    expect(occurrenceWhere).toContain('asin');
-    expect(occurrenceWhere).toContain(' AND ');
   });
 });

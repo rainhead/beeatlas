@@ -275,53 +275,6 @@ describe('MAP-01: checklist toggle in filter panel (flows through hiddenSources)
   });
 });
 
-describe('NEAR-153: bee-pane near-me chip + event (Phase 153)', () => {
-  test('bee-pane.ts declares @state _nearMe private field', () => {
-    expect(src).toMatch(/@state\(\)\s*private\s+_nearMe\b/);
-  });
-
-  test('bee-pane.ts declares _renderNearMe() method', () => {
-    expect(src).toMatch(/_renderNearMe\s*\(\s*\)/);
-  });
-
-  test('bee-pane.ts _renderNearMe is NOT nested inside _renderWhere (D-06 standalone chip)', () => {
-    // The _renderWhere method body must not contain a call to _renderNearMe
-    const renderWhereBody = src.match(/_renderWhere\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{2,4}\}/)?.[0] ?? '';
-    expect(renderWhereBody).not.toMatch(/_renderNearMe/);
-  });
-
-  test('bee-pane.ts _renderNearMe is called from _renderListContent as a sibling row', () => {
-    const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/)?.[0] ?? '';
-    expect(listContentBody).toMatch(/this\._renderNearMe\s*\(\)/);
-  });
-
-  test('bee-pane.ts declares _emitNearMe() method', () => {
-    expect(src).toMatch(/_emitNearMe\s*\(/);
-  });
-
-  test('bee-pane.ts emits near-me-changed CustomEvent with bubbles+composed', () => {
-    expect(src).toMatch(/new CustomEvent[^)]*['"]near-me-changed['"]/);
-    // near-me-changed event must be bubbles+composed (like all cross-shadow-root events)
-    const nearMeEmitBlock = src.match(/near-me-changed[\s\S]{0,200}bubbles[\s\S]{0,100}composed/);
-    expect(nearMeEmitBlock).not.toBeNull();
-  });
-
-  test('bee-pane.ts near-me chip renders Near me label when _nearMe is true', () => {
-    expect(src).toMatch(/Near\s*me/i);
-  });
-
-  test('bee-pane.ts near-me chip has chip-remove button when active', () => {
-    const renderNearMeBody = src.match(/_renderNearMe\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{2,4}\}/)?.[0] ?? '';
-    expect(renderNearMeBody).toMatch(/chip-remove/);
-  });
-
-  test('bee-pane.ts updated() syncs _nearMe from filterState', () => {
-    // The updated() method must sync _nearMe from f.nearMe.
-    // Assert both that the field exists and that the sync pattern is present in the file.
-    expect(src).toMatch(/this\._nearMe\s*!==\s*f\.nearMe|f\.nearMe\s*!==\s*this\._nearMe/);
-  });
-});
-
 describe('MAP-02: source filter row in bee-pane', () => {
   test('bee-pane.ts declares hiddenSources @property', () => {
     expect(src).toMatch(/@property[\s\S]{0,50}hiddenSources/);

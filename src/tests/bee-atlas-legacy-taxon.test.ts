@@ -30,7 +30,7 @@ const DEFAULT_FILTER = {
   taxonId: null, taxonDisplayName: null, yearFrom: null, yearTo: null,
   months: new Set<number>(), selectedCounties: new Set<string>(),
   selectedEcoregions: new Set<string>(), selectedCollectors: [],
-  elevMin: null, elevMax: null, selectedPlace: null, nearMe: false,
+  elevMin: null, elevMax: null, selectedPlace: null,
 };
 
 async function makeAtlas() {

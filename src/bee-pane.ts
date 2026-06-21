@@ -105,9 +105,6 @@ export class BeePane extends LitElement {
   @state() private _elevMin: number | null = null;
   @state() private _elevMax: number | null = null;
 
-  // Near me (Phase 153 — mirrors filterState.nearMe as local @state)
-  @state() private _nearMe = false;
-
   // Year buckets (all true = no year filter)
   @state() private _yearThisYear = true;
   @state() private _yearLastYear = true;
@@ -557,9 +554,6 @@ export class BeePane extends LitElement {
     if (this._elevMin !== f.elevMin) this._elevMin = f.elevMin;
     if (this._elevMax !== f.elevMax) this._elevMax = f.elevMax;
 
-    // Near me (Phase 153)
-    if (this._nearMe !== f.nearMe) this._nearMe = f.nearMe;
-
     // Year buckets
     const { yearFrom: localFrom, yearTo: localTo } = yearBucketsToFilter(
       this._yearThisYear, this._yearLastYear, this._yearEarlier
@@ -592,36 +586,6 @@ export class BeePane extends LitElement {
         selectedPlace: this._selectedPlace,
       } as FilterChangedEvent,
     }));
-  }
-
-  // Phase 153: dedicated near-me event — NOT threaded through _emitFilter/FilterChangedEvent
-  // because activation has a geolocation side effect (D-03, RESEARCH Q3).
-  private _emitNearMe(active: boolean) {
-    this.dispatchEvent(new CustomEvent<boolean>('near-me-changed', {
-      bubbles: true, composed: true, detail: active,
-    }));
-  }
-
-  // Phase 153 D-06: standalone chip on its own row, NOT inside _renderWhere.
-  private _renderNearMe() {
-    return html`
-      <div class="filter-row">
-        ${this._nearMe ? html`
-          <div class="chips">
-            <span class="chip">
-              Near me &middot; 10&nbsp;km
-              <button class="chip-remove" @click=${() => this._emitNearMe(false)}
-                aria-label="Remove near me filter">&#x2715;</button>
-            </span>
-          </div>
-        ` : html`
-          <button class="filter-btn near-me-btn" @click=${() => this._emitNearMe(true)}
-            title="Filter to occurrences within 10 km of your current location">
-            Near me
-          </button>
-        `}
-      </div>
-    `;
   }
 
   private _onToggle() {
@@ -1193,7 +1157,6 @@ export class BeePane extends LitElement {
           ${this._renderWhat()}
           ${this._renderWho()}
           ${this._renderWhere()}
-          ${this._renderNearMe()}
           ${this._renderWhen()}
           ${this._renderSources()}
         </div>

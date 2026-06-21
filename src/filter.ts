@@ -22,7 +22,6 @@ export interface FilterState {
   elevMin: number | null;
   elevMax: number | null;
   selectedPlace: string | null;     // D-07 — singular; multi-place is deferred PRICH-02
-  nearMe: boolean;                  // NEAR-01/D-07 — boolean only; coordinates are NEVER on FilterState
 }
 
 export interface OccurrenceProperties {
@@ -160,10 +159,9 @@ export function buildCsvFilename(f: FilterState): string {
 
 export async function queryAllFiltered(
   f: FilterState,
-  sortBy: SpecimenSortBy = 'date',
-  nearMeCenter: { lat: number; lon: number } | null = null
+  sortBy: SpecimenSortBy = 'date'
 ): Promise<Record<string, unknown>[]> {
-  const { occurrenceWhere } = buildFilterSQL(f, nearMeCenter);
+  const { occurrenceWhere } = buildFilterSQL(f);
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
@@ -188,8 +186,7 @@ export async function queryTablePage(
   selectedEcdysisIds: number[] = [],
   selectedInatIds: number[] = [],
   selectedChecklistIds: number[] = [],
-  selectedInatObsIds: number[] = [],
-  nearMeCenter: { lat: number; lon: number } | null = null
+  selectedInatObsIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
   // Build a selection-priority prefix so selected rows always sort to the top.
   // IDs are pre-validated as integers by the caller.
@@ -209,7 +206,7 @@ export async function queryTablePage(
   const orderBy = priorityExpr + baseOrder;
   const offset = (page - 1) * PAGE_SIZE;
 
-  const { occurrenceWhere } = buildFilterSQL(f, nearMeCenter);
+  const { occurrenceWhere } = buildFilterSQL(f);
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
   await tablesReady;
@@ -243,8 +240,7 @@ export function isFilterActive(f: FilterState): boolean {
     || f.selectedCollectors.length > 0
     || f.elevMin !== null
     || f.elevMax !== null
-    || f.selectedPlace !== null
-    || f.nearMe;
+    || f.selectedPlace !== null;
 }
 
 // INVARIANT: the returned clause qualifies the occurrences table as `o`
@@ -252,17 +248,7 @@ export function isFilterActive(f: FilterState): boolean {
 // in its FROM clause (`FROM occurrences o` or `FROM occurrences o LEFT JOIN taxa t …`).
 // `taxon_id` exists in BOTH occurrences and taxa, so an unqualified reference is
 // ambiguous once `taxa` is joined for display_name resolution.
-//
-// nearMeCenter: optional ephemeral GPS position; NEVER stored on FilterState (D-07 —
-// coordinates must not be serialized to the URL). Passed separately so buildParams
-// cannot accidentally emit them. Clause is emitted only when f.nearMe AND center non-null.
-const NEAR_RADIUS_KM = 10.0;
-const EARTH_KM = 6371.0;
-
-export function buildFilterSQL(
-  f: FilterState,
-  nearMeCenter: { lat: number; lon: number } | null = null
-): { occurrenceWhere: string } {
+export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
   const occurrenceClauses: string[] = [];
 
   // Taxon filter — descendant subquery against taxa.lineage_path (MFILT-01)
@@ -333,47 +319,17 @@ export function buildFilterSQL(
     occurrenceClauses.push(`(elevation_m IS NULL OR elevation_m <= ${f.elevMax})`);
   }
 
-  // Proximity filter — D-07: center is threaded separately, never on FilterState.
-  // NEAR-02: bbox pre-filter (cheap) + pure-SQL haversine (exact). Both use bare lat/lon
-  // (no `o.` prefix) — these columns exist only in occurrences so are unambiguous.
-  // Security (T-153-02 / V5): lat/lon are JS numbers from GeolocationCoordinates;
-  // isFinite guard rejects NaN/Infinity before interpolation to prevent malformed SQL.
-  if (f.nearMe && nearMeCenter !== null) {
-    const { lat, lon } = nearMeCenter;
-    if (isFinite(lat) && isFinite(lon)) {
-      const dLat = NEAR_RADIUS_KM / 111.32;
-      const cosLat = Math.cos(lat * Math.PI / 180);
-      const dLon = NEAR_RADIUS_KM / (111.32 * cosLat);
-      // Bbox pre-filter — coarse, lets the planner skip trig on far rows.
-      occurrenceClauses.push(
-        `lat BETWEEN ${lat - dLat} AND ${lat + dLat} ` +
-        `AND lon BETWEEN ${lon - dLon} AND ${lon + dLon}`
-      );
-      // Exact haversine — pure SQL (math extension confirmed: SELECT sin(1.0) => 0.841…).
-      // Source: RESEARCH Pattern 1 (153-RESEARCH.md:131-150), verified empirically 2026-06-20.
-      occurrenceClauses.push(
-        `${EARTH_KM} * 2 * asin(sqrt(` +
-        `power(sin(radians(lat - ${lat}) / 2), 2) + ` +
-        `cos(radians(${lat})) * cos(radians(lat)) * ` +
-        `power(sin(radians(lon - (${lon})) / 2), 2))) <= ${NEAR_RADIUS_KM}`
-      );
-    }
-  }
-
   const occurrenceWhere = occurrenceClauses.length > 0 ? occurrenceClauses.join(' AND ') : '1 = 1';
   return { occurrenceWhere };
 }
 
-export async function queryVisibleGeoJSON(
-  f: FilterState,
-  nearMeCenter: { lat: number; lon: number } | null = null
-): Promise<{
+export async function queryVisibleGeoJSON(f: FilterState): Promise<{
   geojson: FeatureCollection<Point, OccurrenceProperties>;
   ids: Set<string>;
   rowCount: number;
 } | null> {
   if (!isFilterActive(f)) return null;
-  const { occurrenceWhere } = buildFilterSQL(f, nearMeCenter);
+  const { occurrenceWhere } = buildFilterSQL(f);
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const features: Feature<Point, OccurrenceProperties>[] = [];
@@ -433,10 +389,9 @@ export async function queryListPage(
   selectedInatIds: number[] = [],
   selectedInatObsIds: number[] = [],
   selectedChecklistIds: number[] = [],
-  selectionBounds: { west: number; south: number; east: number; north: number } | null = null,
-  nearMeCenter: { lat: number; lon: number } | null = null
+  selectionBounds: { west: number; south: number; east: number; north: number } | null = null
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
-  const { occurrenceWhere } = buildFilterSQL(f, nearMeCenter);
+  const { occurrenceWhere } = buildFilterSQL(f);
 
   // Selection constraint: IDs (from cluster click) OR bounds (from rectangle draw)
   const selParts: string[] = [];
@@ -490,11 +445,10 @@ export async function queryListPage(
 
 export async function queryOccurrencesByBounds(
   f: FilterState,
-  bounds: { west: number; south: number; east: number; north: number },
-  nearMeCenter: { lat: number; lon: number } | null = null
+  bounds: { west: number; south: number; east: number; north: number }
 ): Promise<OccurrenceRow[]> {
   const { west, south, east, north } = bounds;
-  const { occurrenceWhere } = buildFilterSQL(f, nearMeCenter);
+  const { occurrenceWhere } = buildFilterSQL(f);
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
   await tablesReady;
   const { sqlite3, db } = await getDB();
