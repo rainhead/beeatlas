@@ -613,8 +613,14 @@ bee-pane {
   // --- Filter query ---
 
   private async _runFilterQuery(): Promise<void> {
+    const t0 = this._nearMeCenter !== null ? performance.now() : null;
     const guarded = await this._filterGuard(() => queryVisibleGeoJSON(this._filterState, this._nearMeCenter));
     if (guarded === null) return;
+    if (t0 !== null) {
+      const elapsed = performance.now() - t0;
+      const rowCount = guarded.result?.rowCount ?? 0;
+      console.info(`[near-me] proximity query ${elapsed.toFixed(1)} ms, ${rowCount} rows`);
+    }
     this._filteredGeoJSON = guarded.result?.geojson ?? null;
     this._visibleIds = guarded.result?.ids ?? null;
     this._filteredRowCount = guarded.result?.rowCount ?? null;
