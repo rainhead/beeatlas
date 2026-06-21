@@ -67,7 +67,7 @@
   - [x] 153-02-PLAN.md — Wave 1: `<bee-pane>` geolocate button in the where `.input-wrap` (emits `near-me-requested`) + icon-only removable bounds chip (emits `near-me-cleared`) + `selectionBoundsActive` property + render tests [NEAR-01/02/03; D-04, D-05]
   - [x] 153-03-PLAN.md — Wave 2: `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, Phase 152 denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
   - [x] 153-04-PLAN.md — Wave 3: `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + the shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
-- [ ] **Phase 154: Mapbox Tile Caching (TOS-gated)** — SW runtime-caches Mapbox tiles behind `beta_tile_cache` flag defaulting **off**; access_token stripped from cache key; `maxEntries` + 12h TTL; documented as self-test-only with hard TOS-review gate.
+- [ ] **Phase 154: Mapbox Basemap Performance Cache (ToS-compliant)** — Re-scoped 2026-06-21: ToS review found web-SDK offline serving isn't licensed, so this is now a ship-enabled StaleWhileRevalidate **performance** cache for basemap requests (token retained, 200-only, `maxEntries` + ≤30d TTL, attribution intact), not an offline feature; ADR records the legal analysis.
 
 ### ✅ v4.10 Housekeeping (Phases 145–146) — SHIPPED 2026-06-09
 
@@ -1302,20 +1302,31 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 154: Mapbox Tile Caching (TOS-gated)
+### Phase 154: Mapbox Basemap Performance Cache (ToS-compliant)
 
-**Goal**: The SW can runtime-cache Mapbox basemap tiles behind a `beta_tile_cache` feature flag that defaults **off** in committed code; when the flag is enabled for self-testing, cached tiles serve the basemap offline for previously-browsed areas; `access_token` is stripped from the cache key; growth is bounded by `maxEntries` + a 12 h TTL.
+> **Re-scoped 2026-06-21.** Original scope (flag-gated *offline* tile cache) was
+> dropped after a ToS review found offline basemap serving is **not licensed for
+> the Mapbox web SDK** (Product Terms 2026-06-17 §1.9 + §2.8.1; offline is a
+> Mobile-SDK-only right). Now a ship-enabled, compliant *performance* cache. See
+> `.planning/phases/154-mapbox-tile-caching-tos-gated/154-CONTEXT.md`.
+
+**Goal**: The SW runtime-caches Mapbox basemap requests (tiles, style, sprites,
+glyphs) with a **StaleWhileRevalidate** strategy to speed up warm/repeat map
+loads while online — a §2.8.1-compliant on-device performance cache populated
+live from the Mapping APIs, shipped **enabled** (no feature flag). It does **not**
+provide offline basemap serving (Phase 149's graceful degradation still covers
+offline).
 **Depends on**: Phase 149 (SW runtime caching infrastructure must exist)
 **Requirements**: TILE-01, TILE-02
 **Success Criteria** (what must be TRUE):
 
-  1. The committed codebase has `beta_tile_cache` defaulting `false`; no tile caching behavior is active in any deployment unless the flag is explicitly changed
-  2. When the flag is enabled for local self-testing, Mapbox tile responses are served from the SW cache for previously-visited map areas in DevTools offline mode
-  3. The cache key strips the `access_token` query parameter (confirmed by DevTools → Cache Storage showing keys without the token)
-  4. Only HTTP 200 responses are cached (opaque/error responses excluded); `maxEntries` and `maxAgeSeconds: 43200` (12 h) bound cache growth
-  5. Source comments in `sw.ts` document that tile caching is **self-test only** and must not be enabled in any non-self or public deployment without an explicit Mapbox TOS review
+  1. `src/sw.ts` registers a `StaleWhileRevalidate` route (dedicated `cacheName`, e.g. `mapbox-basemap`) for Mapbox basemap GET requests, active by default with no feature flag
+  2. The `access_token` is **retained** in the request/cache key (not stripped — ToS §1.1/§2.9.4); `events.mapbox.com` telemetry is **not** intercepted
+  3. Only HTTP 200 responses are cached; `ExpirationPlugin` bounds growth with `maxEntries` + a TTL **≤ 30 days** (legal ceiling) and `purgeOnQuotaError: true`
+  4. Mapbox GL JS default attribution (logo + © Mapbox + © OpenStreetMap + Improve this map) remains visible — not suppressed when serving from cache (ToS §1.4, no offline exception)
+  5. An ADR (`docs/adr/`) records the ToS analysis, the verdict (web offline not licensed), and the compliance checklist this design satisfies; a one-line pointer is added to CLAUDE.md "Known State"
 
-**Phase note — research flag:** Before finalizing `maxEntries`, inspect Mapbox tile responses in DevTools Network panel. If tiles are served with `Access-Control-Allow-Origin: *` (non-opaque), cache entries are normal-sized. If responses are opaque (`no-cors`), each entry costs ~7 MB in Chrome's Storage Quota accounting — `maxEntries` must be very conservative (e.g., 20–30) to avoid triggering iOS origin eviction.
+**Phase note — maxEntries research flag:** Before finalizing `maxEntries`, inspect Mapbox basemap responses in DevTools Network. GL JS fetches tiles with CORS (non-opaque → normal-sized entries) — confirm; if any response is opaque (`no-cors`), each entry costs ~7 MB in Chrome's Storage Quota accounting and `maxEntries` must be very conservative.
 
 ---
 

@@ -53,10 +53,14 @@ Requirements for this milestone. Each maps to exactly one roadmap phase.
 - [ ] **NEAR-02**: Near-me reuses the existing selection-bounds query path (bbox `boundsClause`) — no separate proximity query, no haversine; performance is that of the existing fast bounds query.
 - [ ] **NEAR-03**: The bounds round-trip in the URL via the existing selection-bounds serialization (`west,south,east,north`), so a shared link reproduces the exact same occurrences for any recipient with no GPS and no geolocation re-trigger on restore; "Clear filters" / the chip ✕ clears the bounds. On denied/unavailable location, the Phase 152 toast appears and no bounds are applied.
 
-### Basemap Tile Caching (TOS-Gated)
+### Basemap Performance Cache (ToS-compliant) — re-scoped 2026-06-21
 
-- [ ] **TILE-01**: The SW can runtime-cache Mapbox basemap tiles behind a `beta_tile_cache` feature flag that defaults **off** in committed code; the cache handler strips `access_token` from the cache key, caches only status-200 responses, and bounds growth with `maxEntries` + a ≤12 h TTL.
-- [ ] **TILE-02**: Tile caching is documented as **self-test only**, with a hard Mapbox-TOS-review gate that must pass before the flag is enabled in any non-self/public deployment.
+> ToS review (Mapbox Product Terms 2026-06-17) found offline basemap serving is
+> not licensed for the web SDK; re-scoped from a flag-gated offline cache to a
+> ship-enabled compliant performance cache.
+
+- [ ] **TILE-01**: The SW runtime-caches Mapbox basemap requests (tiles, style, sprites, glyphs) with a `StaleWhileRevalidate` strategy, shipped **enabled** (no feature flag); the handler **retains** `access_token` in the cache key, caches only status-200 responses, bounds growth with `maxEntries` + a TTL ≤ 30 days, and does not intercept `events.mapbox.com` telemetry.
+- [ ] **TILE-02**: An ADR documents the Mapbox ToS analysis — the verdict that web-SDK offline serving is unlicensed, and the §2.8.1/§1.4 compliance checklist this performance cache satisfies (token retained, ≤30-day TTL, live-populated, attribution intact).
 
 ## v2 / Future Requirements
 
