@@ -2,6 +2,35 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v5.0 — Offline Field Mode
+
+**Shipped:** 2026-06-21
+**Phases:** 8 (147–154) | **Plans:** 22 | **Timeline:** 2026-06-10 → 2026-06-21 (~11 days) | **Requirements:** ROUTE/OFF/CACHE/PWA/LOC/NEAR/TILE
+
+### What Was Built
+An installable PWA dogfooded behind unlisted `/app`: scoped pass-through service worker (no SW on `/`), app-shell precache (vite-plugin-pwa injectManifest) + `/data/` `CacheFirst` runtime cache with full offline cold-start and reconnect re-prime, cache-health/freshness UX with prompt-to-reload updates (no `skipWaiting`), manifest + from-scratch icon set + Android/iOS install affordances, offline-safe GeolocateControl with `<bee-atlas>`-owned state, "occurrences near me" as a shareable ~10 km bounds filter, and a ToS-compliant Mapbox basemap `StaleWhileRevalidate` performance cache.
+
+### What Worked
+- **Research-before-build caught an unlicensable feature before a line was written.** The biggest win was a *negative* result: a ToS research pass on Phase 154 found offline basemap caching isn't licensed for the web SDK. Because the question was asked at discuss time, the phase was reshaped (offline → compliant perf cache) instead of shipping a TOS violation and discovering it later. The flag-gated "self-test only" framing the roadmap carried for months resolved to "no."
+- **PWA offline patterns compounded.** Phases 147–149 built the SW infrastructure that 150–154 reused cheaply; the `data-artifacts` route was a ready template for the 154 basemap route.
+- **Honest verification gates.** 152/153/154 returned `human_needed` for genuinely browser-only checks (GPS, CORS/opaque, SW cache hits) rather than rubber-stamping — the automated layer verified everything verifiable and stopped.
+
+### What Was Inefficient
+- **The milestone-close CLI over-counted and produced garbage one-liners.** `milestone.complete` scanned all non-archived phase dirs (pulling in v4.10's 145/146 and backlog 999.x → "17 phases, 28 plans") and emitted fragments like "New imports" / "bee-header.test.ts". Required manual correction of MILESTONES.md.
+- **Stale terminal statuses accumulated.** 153 HUMAN-UAT stayed `pending` and 145 verification stayed `human_needed` after the work shipped, surfacing as false "open items" at close. Flipping UAT/verification frontmatter at completion time would avoid the cleanup.
+
+### Patterns Established
+- **ADR-backed scope decisions.** First `docs/adr/` entry (`0001-mapbox-basemap-cache.md`) records a legal verdict + compliance checklist — a durable home for "why we did NOT do the obvious thing." Paired with a project-memory pointer so it's not re-litigated.
+- **Re-scope-on-finding within a phase:** when discuss/research invalidates the roadmap's premise, update ROADMAP success criteria + REQUIREMENTS inline and capture the pivot in CONTEXT.md, rather than forcing the original scope.
+
+### Key Lessons
+- Ask the licensing/ToS question at discuss time for any feature that caches or redistributes third-party content. A "self-test only, revisit later" flag is a smell that the legal question was deferred, not answered.
+- For features whose only remaining verification is browser-observable, plan a HUMAN-UAT file from the start (UI hint) so the phase doesn't auto-advance past a gate it can't clear automatically.
+
+### Cost Observations
+- Model mix: opus (planning/orchestration) + sonnet (research/execute/verify subagents).
+- Phase 154 ran the full discuss→plan→execute→verify chain in one `--chain` session; the ToS research pass was the highest-leverage spend.
+
 ## Milestone: v4.10 — Housekeeping
 
 **Shipped:** 2026-06-09

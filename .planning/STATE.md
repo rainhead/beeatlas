@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: verifying
+status: Awaiting next milestone
 stopped_at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
-last_updated: "2026-06-21T23:22:10.133Z"
-last_activity: 2026-06-21
+last_updated: "2026-06-21T23:34:49.322Z"
+last_activity: 2026-06-21 — Milestone v5.0 completed and archived
 progress:
   total_phases: 17
   completed_phases: 12
@@ -25,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 154
-Plan: Not started
-Status: Phase complete — ready for /gsd-verify-work
-Last activity: 2026-06-21
-
-Progress: [██████████] 100%
+Phase: Milestone v5.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-21 — Milestone v5.0 completed and archived
 
 ## Milestone Overview
 
@@ -92,3 +90,7 @@ Carried from v4.10 close:
 Last session: 2026-06-21T23:11:20.151Z
 Stopped at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
