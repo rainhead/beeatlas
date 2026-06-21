@@ -184,11 +184,51 @@ export function parseParams(search: string): ParsedParams {
       })
     : [];
 
+  // Bounds filter — bbox=west,south,east,north (canonical post-999.8 format, D-02)
+  let boundsResult: { west: number; south: number; east: number; north: number } | null = null;
+  const bboxRaw = p.get('bbox') ?? '';
+  if (bboxRaw) {
+    const parts = bboxRaw.split(',');
+    if (parts.length === 4) {
+      const west  = parseFloat(parts[0]!);
+      const south = parseFloat(parts[1]!);
+      const east  = parseFloat(parts[2]!);
+      const north = parseFloat(parts[3]!);
+      if (isFinite(west)  && west  >= -180 && west  <= 180 &&
+          isFinite(east)  && east  >= -180 && east  <= 180 &&
+          isFinite(south) && south >= -90  && south <= 90  &&
+          isFinite(north) && north >= -90  && north <= 90  &&
+          south < north) {
+        boundsResult = { west, south, east, north };
+      }
+    }
+  }
+
+  // Legacy bounds back-compat — sel=west,south,east,north (SEL-06 / D-03)
+  // Maps into filter.bounds (not selection); silently migrates to bbox= on next URL write.
+  const selRaw = p.get('sel') ?? '';
+  if (selRaw && boundsResult === null) {
+    const parts = selRaw.split(',');
+    if (parts.length === 4) {
+      const west  = parseFloat(parts[0]!);
+      const south = parseFloat(parts[1]!);
+      const east  = parseFloat(parts[2]!);
+      const north = parseFloat(parts[3]!);
+      if (isFinite(west)  && west  >= -180 && west  <= 180 &&
+          isFinite(east)  && east  >= -180 && east  <= 180 &&
+          isFinite(south) && south >= -90  && south <= 90  &&
+          isFinite(north) && north >= -90  && north <= 90  &&
+          south < north) {
+        boundsResult = { west, south, east, north };
+      }
+    }
+  }
+
   // Include filter sub-object when any filter param is present
   const hasFilter = resolvedTaxonId !== null || yearFrom !== null || yearTo !== null
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
     || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null
-    || selectedPlace !== null;
+    || selectedPlace !== null || boundsResult !== null;
   if (hasFilter) {
     result.filter = {
       taxonId: resolvedTaxonId,
@@ -202,6 +242,7 @@ export function parseParams(search: string): ParsedParams {
       elevMin,
       elevMax,
       selectedPlace,
+      bounds: boundsResult,
     };
   }
 
@@ -225,25 +266,6 @@ export function parseParams(search: string): ParsedParams {
       .filter(s => (s.startsWith('ecdysis:') || s.startsWith('inat:') || s.startsWith('inat_obs:') || s.startsWith('checklist:')) && s.length > 5);
     if (ids.length > 0) {
       result.selection = { type: 'ids', ids };
-    }
-  }
-
-  // Bounds selection — sel=west,south,east,north (SEL-06)
-  const selRaw = p.get('sel') ?? '';
-  if (selRaw) {
-    const parts = selRaw.split(',');
-    if (parts.length === 4) {
-      const west  = parseFloat(parts[0]!);
-      const south = parseFloat(parts[1]!);
-      const east  = parseFloat(parts[2]!);
-      const north = parseFloat(parts[3]!);
-      if (isFinite(west)  && west  >= -180 && west  <= 180 &&
-          isFinite(east)  && east  >= -180 && east  <= 180 &&
-          isFinite(south) && south >= -90  && south <= 90  &&
-          isFinite(north) && north >= -90  && north <= 90  &&
-          south < north) {
-        result.selection = { type: 'bounds', west, south, east, north };
-      }
     }
   }
 
