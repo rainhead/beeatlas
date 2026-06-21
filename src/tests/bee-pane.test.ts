@@ -295,3 +295,62 @@ describe('MAP-02: source filter row in bee-pane', () => {
     expect(src).toMatch(/waba_sample/);
   });
 });
+
+describe('NEAR-01/D-04/D-05: near-me affordance in the where input', () => {
+  test('bee-pane.ts declares selectionBoundsActive @property', () => {
+    expect(src).toMatch(/@property[\s\S]{0,80}selectionBoundsActive/);
+  });
+
+  test('bee-pane.ts renders .near-me-btn inside _renderWhere', () => {
+    expect(src).toMatch(/class=["']near-me-btn["']/);
+  });
+
+  test('bee-pane.ts near-me button dispatches near-me-requested (bubbles, composed)', () => {
+    expect(src).toMatch(/new CustomEvent\(['"]near-me-requested['"]/);
+    expect(src).toMatch(/near-me-requested[\s\S]{0,200}bubbles:\s*true/);
+    expect(src).toMatch(/near-me-requested[\s\S]{0,200}composed:\s*true/);
+  });
+
+  test('bee-pane.ts near-me button has aria-label', () => {
+    expect(src).toMatch(/near-me-btn[\s\S]{0,200}aria-label=/);
+  });
+
+  test('bee-pane.ts bounds chip dispatches near-me-cleared (bubbles, composed)', () => {
+    expect(src).toMatch(/new CustomEvent\(['"]near-me-cleared['"]/);
+    expect(src).toMatch(/near-me-cleared[\s\S]{0,200}bubbles:\s*true/);
+    expect(src).toMatch(/near-me-cleared[\s\S]{0,200}composed:\s*true/);
+  });
+
+  test('bee-pane.ts bounds chip clear button has aria-label for near-me', () => {
+    expect(src).toMatch(/Clear near-me filter/);
+  });
+
+  test('bee-pane.ts renders bounds chip only when selectionBoundsActive is true', () => {
+    expect(src).toMatch(/selectionBoundsActive/);
+    // chip must be gated on selectionBoundsActive
+    expect(src).toMatch(/this\.selectionBoundsActive[\s\S]{0,300}near-me-cleared|near-me-cleared[\s\S]{0,300}this\.selectionBoundsActive/);
+  });
+
+  test('bee-pane.ts bounds chip contains an svg (crosshair icon, not text)', () => {
+    // near-me-cleared block must contain an <svg inside it
+    expect(src).toMatch(/near-me-cleared[\s\S]{0,600}<svg/);
+  });
+
+  test('bee-pane.ts hasChips condition includes selectionBoundsActive', () => {
+    expect(src).toMatch(/hasChips[\s\S]{0,300}selectionBoundsActive|selectionBoundsActive[\s\S]{0,300}hasChips/);
+  });
+
+  test('bee-pane.ts does not contain _selectionBounds or nearMeCenter or haversine', () => {
+    expect(src).not.toMatch(/_selectionBounds/);
+    expect(src).not.toMatch(/nearMeCenter/);
+    expect(src).not.toMatch(/haversine/);
+  });
+
+  test('bee-pane.ts near-me chip does not call _emitFilter', () => {
+    // the near-me-cleared handler must not call _emitFilter()
+    const nearMeSection = src.match(/near-me-cleared[\s\S]{0,400}/);
+    expect(nearMeSection).not.toBeNull();
+    // The near-me-cleared handler itself should not call _emitFilter
+    expect(nearMeSection![0]).not.toMatch(/_emitFilter\(\)/);
+  });
+});
