@@ -653,7 +653,17 @@ export class BeeMap extends LitElement {
    */
   public requestUserLocation(): void {
     // Guard: safe no-op if called before firstUpdated() initialises the control.
-    if (this._geolocate) this._geolocate.trigger();
+    if (!this._geolocate) return;
+    // D-08 / toast fix: trigger() returns false when the browser has already denied
+    // geolocation permission. In that case the GeolocateControl does NOT fire its
+    // own 'error' event, so we must synthesise one to surface the Phase 152 denial
+    // banner in <bee-atlas>. This was the root cause of the UAT gap — the banner
+    // state assignment in _onUserLocationChanged was correct, but the event never
+    // arrived when the user had previously denied and then tapped the near-me button.
+    const started = this._geolocate.trigger();
+    if (started === false) {
+      this._emit('user-location-changed', { error: { code: 1, message: 'Permission denied' } });
+    }
   }
 
   // --- Private helpers ---

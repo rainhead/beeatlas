@@ -1,5 +1,6 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, query, state } from 'lit/decorators.js';
+import type { BeeMap } from './bee-map.ts';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, type OccurrenceProperties } from './filter.ts';
 import { parseOccId } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
@@ -54,6 +55,25 @@ function isIosSafari(): boolean {
   if (!ua.includes('Safari')) return false;
   if (/CriOS|FxiOS|EdgiOS|GSA|FBAN|FBAV|Instagram|Line/.test(ua)) return false;
   return true;
+}
+
+// ---------------------------------------------------------------------------
+// D-02: near-me ±10 km bounding box helper
+// ---------------------------------------------------------------------------
+// Pure function — no class dependency. Exported so tests can call it directly.
+// Returns null when any edge is non-finite (polar cos→0, NaN inputs — T-153-07).
+export function boundsFromLocation(loc: { lat: number; lon: number }): { west: number; south: number; east: number; north: number } | null {
+  const dLat = 10 / 111.32;
+  const dLon = 10 / (111.32 * Math.cos(loc.lat * Math.PI / 180));
+  // Guard: dLon is non-finite (polar singularity) or absurdly large (near-polar — the box
+  // would span more than the full globe, making it meaningless). T-153-07.
+  if (!isFinite(dLon) || dLon > 180) return null;
+  const west  = loc.lon - dLon;
+  const east  = loc.lon + dLon;
+  const south = loc.lat - dLat;
+  const north = loc.lat + dLat;
+  if (!isFinite(west) || !isFinite(east) || !isFinite(south) || !isFinite(north)) return null;
+  return { west, east, south, north };
 }
 
 @customElement('bee-atlas')
@@ -125,6 +145,10 @@ export class BeeAtlas extends LitElement {
   // LOC-03: distinct copy — 'denied' (code 1) vs 'unavailable' (code 2/3)
   @state() private _locationErrorKind: 'denied' | 'unavailable' | null = null;
 
+  // W1 (plan-checker fix): query accessor so _onNearMeRequested can call
+  // requestUserLocation() imperatively without reaching through renderRoot.
+  @query('bee-map') private _beeMap!: BeeMap;
+
   // Non-reactive private fields
   // _taxonCache is NOT @state — only _taxaOptions (the sorted option array) drives re-renders.
   private _taxonCache: Map<number, TaxonCacheEntry> = new Map();
@@ -138,6 +162,12 @@ export class BeeAtlas extends LitElement {
   // a popstate navigation (D-07), so the next pan/zoom starts a fresh entry.
   private _viewportSessionActive = false;
   private _selectionDrawnGeneration = 0;
+  // D-07 / NEAR: true while a near-me geolocation request is in flight.
+  // Set true by _onNearMeRequested; cleared in _onUserLocationChanged on both
+  // success and error paths. Non-reactive — toggling this must never trigger
+  // a re-render on its own (the subsequent _selectionBounds / _locationError
+  // state mutations drive any needed renders).
+  private _nearMePending = false;
   // Stale-discard guards for the three async query paths. A superseded query
   // returns null rather than committing its result, preventing flicker and
   // unnecessary MapboxGL re-cluster work on outdated filter state.
@@ -410,6 +440,9 @@ bee-pane {
             @row-pan=${this._onRowPan}
             @list-page-changed=${this._onListPageChanged}
             @pane-clear-selection=${this._onClearSelection}
+            @near-me-requested=${this._onNearMeRequested}
+            @near-me-cleared=${this._onNearMeCleared}
+            .selectionBoundsActive=${this._selectionBounds !== null}
           ></bee-pane>
         </div>
       `}
@@ -979,10 +1012,11 @@ bee-pane {
 
   private _onBannerDismiss = () => { this._updateAvailable = false; };
 
-  // LOC-02 / LOC-03: relay handler for user-location-changed from <bee-map>
-  // On success: store position in _userLocation, clear error.
-  // On error: set _locationError true, clear stale _userLocation (security: T-152-04).
-  // Does NOT call _runFilterQuery — _userLocation is consumed only in Phase 153 (D-05).
+  // LOC-02 / LOC-03 / NEAR-01: relay handler for user-location-changed from <bee-map>
+  // On success: store position in _userLocation, clear error; if a near-me request is
+  //   pending, compute a ±10 km box and apply it as _selectionBounds (D-02).
+  // On error: set _locationError true, clear stale _userLocation (security: T-152-04);
+  //   clear _nearMePending so a bad-accuracy or denied fix cannot strand the flag (W2).
   private _onUserLocationChanged(
     e: CustomEvent<{ lat: number; lon: number; accuracy: number } | { error: { code: number; message: string } }>
   ) {
@@ -990,14 +1024,52 @@ bee-pane {
       this._locationError = true;
       this._locationErrorKind = e.detail.error.code === 1 ? 'denied' : 'unavailable';
       this._userLocation = null; // clear stale position on revocation (T-152-04)
+      this._nearMePending = false; // D-08: denial clears pending flag; no bounds applied
     } else {
       // Validate accuracy is a finite non-negative number before storing (RESEARCH V5)
       const { lat, lon, accuracy } = e.detail;
-      if (!isFinite(accuracy) || accuracy < 0) return;
+      // W2 (plan-checker fix): clear _nearMePending here BEFORE the early-return so a
+      // malformed fix (bad accuracy) cannot strand the pending flag indefinitely.
+      if (!isFinite(accuracy) || accuracy < 0) {
+        this._nearMePending = false;
+        return;
+      }
       this._userLocation = { lat, lon, accuracy };
       this._locationError = false;
+      // NEAR-01 / D-02: if a near-me request is pending, compute the ±10 km box and
+      // apply it via the shared bounds-selection path (same as shift-drag, D-01).
+      if (this._nearMePending) {
+        this._nearMePending = false;
+        const box = boundsFromLocation({ lat, lon });
+        if (box !== null) {
+          this._applyBoundsSelection(box);
+        }
+      }
     }
   }
+
+  // NEAR-01 / D-06: handler for near-me-requested from <bee-pane> button.
+  // Sets the pending flag and triggers the GeolocateControl via the @query accessor.
+  // The resulting user-location-changed success drives box-compute in _onUserLocationChanged.
+  private _onNearMeRequested = () => {
+    this._nearMePending = true;
+    this._locationError = false; // clear any prior error so the new attempt starts clean
+    // W1 (plan-checker fix): use the @query accessor to obtain a live element ref.
+    // A null ref would make this a silent no-op — the guard surfaces that as a no-op
+    // rather than crashing, but the acceptance assertion in tests verifies the ref resolves.
+    this._beeMap?.requestUserLocation();
+  };
+
+  // NEAR-01 / D-05: handler for near-me-cleared from <bee-pane> chip ✕.
+  // Nulls _selectionBounds via the same pattern as _onMapClickEmpty's else-branch.
+  private _onNearMeCleared = () => {
+    this._nearMePending = false;
+    this._selectedOccIds = null;
+    this._selectedCluster = null;
+    this._selectionBounds = null;
+    this._paneState = 'collapsed';
+    this._replaceUrlState();
+  };
 
   private _refreshFreshness = async () => {
     this._freshnessLabel = await loadFreshnessLabel();
@@ -1232,16 +1304,22 @@ bee-pane {
     this._runListQuery();
   }
 
-  private async _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
+  // Shared bounds-selection state transition — called by BOTH _onSelectionDrawn (shift-drag)
+  // and the near-me success path. Guarantees a near-me box and a shift-drag box produce
+  // byte-identical _selectionBounds state + identical sel= URL encoding (D-01).
+  private _applyBoundsSelection(bounds: { west: number; south: number; east: number; north: number }): void {
     ++this._selectionDrawnGeneration;
-    this._selectionBounds = e.detail;
-    // Synchronously clear prior selection state before any await
+    this._selectionBounds = bounds;
     this._selectedOccIds = null;
     this._selectedCluster = null;
     this._paneState = 'list';
     this._listPage = 1;
     this._runListQuery();
     this._replaceUrlState();
+  }
+
+  private _onSelectionDrawn(e: CustomEvent<{ west: number; south: number; east: number; north: number }>) {
+    this._applyBoundsSelection(e.detail);
   }
 
   private _onMapClickEmpty() {

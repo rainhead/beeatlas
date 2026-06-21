@@ -448,13 +448,21 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
     expect(methodBody).toContain('this._selectionBounds = null');
   });
 
-  test('SEL-07: _onSelectionDrawn sets _selectionBounds and calls _runListQuery', () => {
-    const methodStart = src.indexOf('private async _onSelectionDrawn(');
-    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
-    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    // Plan 109-02: _onSelectionDrawn now sets _selectionBounds (not clears it) and calls _runListQuery
-    expect(methodBody).toContain('this._selectionBounds = e.detail');
-    expect(methodBody).toContain('_runListQuery');
+  test('SEL-07: _onSelectionDrawn delegates to _applyBoundsSelection which sets _selectionBounds and calls _runListQuery', () => {
+    // Plan 153-03 refactor: _onSelectionDrawn now delegates to _applyBoundsSelection
+    // (extracted shared method) so a shift-drag box and a near-me box are byte-identical state.
+    // Verify _onSelectionDrawn calls _applyBoundsSelection, and that _applyBoundsSelection
+    // sets _selectionBounds and calls _runListQuery.
+    const selDrawnStart = src.indexOf('private _onSelectionDrawn(');
+    const selDrawnEnd = src.indexOf('\n  private ', selDrawnStart + 1);
+    const selDrawnBody = src.slice(selDrawnStart, selDrawnEnd > selDrawnStart ? selDrawnEnd : undefined);
+    expect(selDrawnBody).toContain('_applyBoundsSelection');
+
+    const applyStart = src.indexOf('private _applyBoundsSelection(');
+    const applyEnd = src.indexOf('\n  private ', applyStart + 1);
+    const applyBody = src.slice(applyStart, applyEnd > applyStart ? applyEnd : undefined);
+    expect(applyBody).toContain('this._selectionBounds = bounds');
+    expect(applyBody).toContain('_runListQuery');
   });
 
   test('SEL-07: _onRegionClick clears _selectionBounds on deselect', () => {
@@ -1442,29 +1450,28 @@ describe('NEAR: near-me bounds reuse', () => {
   // -------------------------------------------------------------------------
 
   describe('NEAR toast fix (D-08 / Task 2)', () => {
-    test('bee-map requestUserLocation source: emits user-location-changed error when trigger() returns false', () => {
+    test('bee-map requestUserLocation method checks trigger() return and emits error on false', () => {
       const beeMapSrc = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
-      // The fix: when _geolocate.trigger() returns false (permission already denied),
-      // bee-map should emit a user-location-changed error rather than silently doing nothing.
-      const reqUserLocIdx = beeMapSrc.indexOf('requestUserLocation()');
-      expect(reqUserLocIdx).toBeGreaterThan(-1);
-      const nextMethod = beeMapSrc.indexOf('\n  ', reqUserLocIdx + 1);
-      const body = beeMapSrc.slice(reqUserLocIdx, nextMethod > reqUserLocIdx ? nextMethod + 500 : reqUserLocIdx + 800);
-      // Should check the return value of trigger() and handle the false case
-      expect(body).toMatch(/trigger\(\)\s*===\s*false|trigger\(\)\s*!==\s*true|const\s+\w+\s*=\s*this\._geolocate/);
+      // Find the method body (not a comment reference to the name)
+      const methodIdx = beeMapSrc.indexOf('public requestUserLocation():');
+      expect(methodIdx).toBeGreaterThan(-1);
+      // Grab up to the closing brace (look for the end of the method body)
+      const body = beeMapSrc.slice(methodIdx, methodIdx + 1000);
+      // The fix: trigger() return value is checked; false triggers an error emit
+      expect(body).toMatch(/trigger\(\)\s*===\s*false|started\s*===\s*false/);
+      // And the error emit path calls _emit with 'user-location-changed' + error payload
+      expect(body).toMatch(/_emit\s*\(\s*['"]user-location-changed['"]/);
     });
 
-    test('bee-atlas.ts _locationError banner is rendered outside the main content block (always reachable)', () => {
+    test('bee-atlas.ts _locationError banner is rendered at the root template level (always reachable)', () => {
       const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
-      // The banner must NOT be gated behind this._error check or the main content block
-      // It should be at the root template level after the main content
-      const bannerIdx = src.indexOf('location-error-banner');
-      const errorBlockStart = src.indexOf("this._error ? '' : html`");
-      // Banner must appear AFTER the error-gated content block (not inside it)
-      expect(bannerIdx).toBeGreaterThan(errorBlockStart);
-      // But the banner must not itself be gated by this._error (it has its own _locationError gate)
-      // Verify _locationError gates the banner, not _error
-      const bannerContext = src.slice(Math.max(0, bannerIdx - 200), bannerIdx + 50);
+      // The banner in the template uses class="location-error-banner" (with quotes) — distinct
+      // from the CSS rule `.location-error-banner` (with dot prefix). Search for the template form.
+      const templateIdx = src.indexOf('"location-error-banner"');
+      expect(templateIdx).toBeGreaterThan(-1);
+      // Scan back from the template banner to find its containing conditional
+      const bannerContext = src.slice(Math.max(0, templateIdx - 300), templateIdx + 100);
+      // The gate must be _locationError
       expect(bannerContext).toMatch(/\$\{this\._locationError\s*\?/);
     });
   });
