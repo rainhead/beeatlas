@@ -53,6 +53,7 @@ export class BeeMap extends LitElement {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
+    nearMe: false,
   };
 
   @property({ attribute: false }) hiddenSources: Set<string> = new Set();
@@ -63,6 +64,8 @@ export class BeeMap extends LitElement {
 
   // Mapbox GL JS map instance
   private _map: mapboxgl.Map | null = null;
+  // Phase 153: lifted from local const in firstUpdated so triggerGeolocate() can reach it
+  private _geolocate?: mapboxgl.GeolocateControl;
 
 
   // Full unfiltered GeoJSON for setData-based filtering
@@ -166,6 +169,15 @@ export class BeeMap extends LitElement {
     this.dispatchEvent(new CustomEvent(name, {
       bubbles: true, composed: true, detail,
     }));
+  }
+
+  /**
+   * Phase 153 / D-03: command method for <bee-atlas> to activate the GeolocateControl.
+   * Pure-presenter: no state stored as a result. The optional-chain tolerates the
+   * not-yet-setup case (though in practice the chip renders only after the map is ready).
+   */
+  triggerGeolocate() {
+    this._geolocate?.trigger();
   }
 
   render() {
@@ -393,7 +405,7 @@ export class BeeMap extends LitElement {
     // The blue dot + accuracy circle are DOM Markers (appended to getCanvasContainer()),
     // not style layers, so they render offline without the style having loaded.
     // Gating this behind 'load' would break offline GPS (LOC-01 SC-2). [Phase 151 / Phase 152]
-    const geolocate = new mapboxgl.GeolocateControl({
+    this._geolocate = new mapboxgl.GeolocateControl({
       trackUserLocation: true,
       positionOptions: { enableHighAccuracy: true },
       showAccuracyCircle: true,
@@ -401,9 +413,9 @@ export class BeeMap extends LitElement {
     // Place top-left: the default top-right corner is occupied by the custom
     // .region-control button (Phase 152 UAT — the control was rendering hidden
     // behind it). top-left is otherwise empty.
-    this._map.addControl(geolocate, 'top-left');
+    this._map.addControl(this._geolocate, 'top-left');
 
-    geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
+    this._geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
       this._emit('user-location-changed', {
         lat: e.coords.latitude,
         lon: e.coords.longitude,
@@ -411,7 +423,7 @@ export class BeeMap extends LitElement {
       });
     });
 
-    geolocate.on('error', (e: { code: number; message: string }) => {
+    this._geolocate.on('error', (e: { code: number; message: string }) => {
       this._emit('user-location-changed', { error: { code: e.code, message: e.message } });
     });
 
@@ -422,7 +434,7 @@ export class BeeMap extends LitElement {
     if (navigator.permissions) {
       navigator.permissions
         .query({ name: 'geolocation' as PermissionName })
-        .then(status => { if (status.state === 'granted') geolocate.trigger(); })
+        .then(status => { if (status.state === 'granted') this._geolocate?.trigger(); })
         .catch(() => {});
     }
 
