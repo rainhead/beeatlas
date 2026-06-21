@@ -1277,7 +1277,7 @@ Plans:
 
   1. Tapping the "Near me" chip activates geolocation (if not already active) and, once a GPS fix arrives, filters the map and list/table to occurrences within 10 km of the user's position
   2. The near-me filter AND-composes with the existing taxon/date/region/selection filters — applying a taxon filter while "Near me" is active narrows both simultaneously
-  3. The proximity query uses a SQL bounding-box pre-filter followed by a JavaScript haversine post-filter in the worker; the full query returns in under 200 ms on the full occurrence set (verified by timing log)
+  3. The proximity query uses a SQL bounding-box pre-filter plus a haversine distance check in the worker; the full query returns in under 200 ms on the full occurrence set (verified by timing log). **Mechanism note (resolved in 153-RESEARCH):** the `SELECT sin(1.0)` probe confirmed the wa-sqlite build compiles in SQLite math functions, so the haversine is implemented as **pure SQL** (not a JS post-filter) — measured 12.7 ms on 97.6k rows. The original "JavaScript haversine post-filter" wording was the contingent fallback; SC-3's intent (in-worker, <200 ms) is fully satisfied and the pure-SQL path additionally covers the table/list/CSV query paths.
   4. `?near=1` appears in the URL when the chip is active; restoring from that URL re-activates geolocation and defers the query until a fix arrives; "Clear filters" removes the chip and the URL param
 
 **Plans**: 3 plans
