@@ -16,6 +16,7 @@ function emptyFilter(): FilterState {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
+    nearMe: false,
   };
 }
 
@@ -512,6 +513,57 @@ describe('bounds selection (SEL-06)', () => {
     const result = parseParams(params.toString());
     expect(result.selection).toEqual({ type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
     expect(result.filter?.taxonId).toBe(52775);
+  });
+});
+
+describe('nearMe URL param (NEAR-03)', () => {
+  test('buildParams with nearMe:true emits near=1', () => {
+    const filter = { ...emptyFilter(), nearMe: true };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('near')).toBe('1');
+  });
+
+  test('buildParams with nearMe:true does NOT emit lat/lon/coordinate params', () => {
+    const filter = { ...emptyFilter(), nearMe: true };
+    const paramsStr = buildParams(defaultView, filter, defaultSelection, defaultUi).toString();
+    // The only coordinate params allowed are x/y/z (viewport). No lat/lon added by near-me.
+    // Assert no decimal-degree key beyond x, y, z appears (covers 'lat', 'lon', 'near_lat', etc.)
+    expect(paramsStr).not.toMatch(/\blat=/);
+    expect(paramsStr).not.toMatch(/\blon=/);
+    expect(paramsStr).not.toMatch(/\bnear_lat=/);
+    expect(paramsStr).not.toMatch(/\bnear_lon=/);
+  });
+
+  test('buildParams with nearMe:false does NOT emit near= param', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('near')).toBe(false);
+  });
+
+  test('parseParams near=1: filter.nearMe is true', () => {
+    const result = parseParams('?near=1');
+    expect(result.filter?.nearMe).toBe(true);
+  });
+
+  test('parseParams near=1: result.filter is defined (hasFilter guard includes nearMe)', () => {
+    const result = parseParams('?near=1');
+    expect(result.filter).toBeDefined();
+  });
+
+  test('parseParams with view params only (no near): nearMe defaults false or filter is undefined', () => {
+    const result = parseParams('x=-120.5&y=47.3&z=8');
+    // No filter params → filter sub-object may be undefined; if defined, nearMe must be false
+    if (result.filter !== undefined) {
+      expect(result.filter.nearMe).toBe(false);
+    } else {
+      expect(result.filter).toBeUndefined();
+    }
+  });
+
+  test('nearMe round-trip: buildParams(nearMe:true) -> parseParams -> nearMe === true', () => {
+    const filter = { ...emptyFilter(), nearMe: true };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    const result = parseParams(params.toString());
+    expect(result.filter?.nearMe).toBe(true);
   });
 });
 
