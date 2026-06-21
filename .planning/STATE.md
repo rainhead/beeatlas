@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
-stopped_at: Phase 999.1 context gathered
-last_updated: "2026-06-21T21:52:42.063Z"
+stopped_at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
+last_updated: "2026-06-21T22:43:33.451Z"
 last_activity: 2026-06-21
 progress:
-  total_phases: 16
+  total_phases: 17
   completed_phases: 11
   total_plans: 27
   completed_plans: 27
-  percent: 69
+  percent: 65
 ---
 
 # Project State
@@ -88,6 +88,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-21T21:29:39.326Z
-Stopped at: Phase 999.1 context gathered
-Resume file: .planning/phases/999.1-surface-shift-drag-rectangle-selection-in-ui/999.1-CONTEXT.md
+Last session: 2026-06-21T22:43:33.441Z
+Stopped at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
+Resume file: .planning/phases/154-mapbox-tile-caching-tos-gated/154-CONTEXT.md
