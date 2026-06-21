@@ -16,6 +16,7 @@ function emptyFilter(): FilterState {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
+    bounds: null,
   };
 }
 
@@ -190,6 +191,7 @@ describe('combined round-trip', () => {
       elevMin: null,
       elevMax: null,
       selectedPlace: null,
+      bounds: null,
     };
     const selection: SelectionState = { type: 'ids', ids: ['ecdysis:999'] };
     const ui = { boundaryMode: 'counties' as const, paneState: 'table' as const };
@@ -442,75 +444,130 @@ describe('MAP-03: source filter URL param (src=)', () => {
   });
 });
 
-describe('bounds selection (SEL-06)', () => {
-  test('bounds round-trip: encodes as sel=west,south,east,north with toFixed(4)', () => {
-    const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
-    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
-    expect(params.get('sel')).toBe('-122.3456,47.1234,-122.1234,47.5678');
-    const result = parseParams(params.toString());
-    expect(result.selection).toEqual({ type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
+describe('bounds filter (D-01/D-02/D-03)', () => {
+  // --- buildParams: bbox= write (D-02) ---
+
+  test('bbox write: filter.bounds set emits bbox=west,south,east,north with toFixed(4)', () => {
+    const filter = { ...emptyFilter(), bounds: { west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 } };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('bbox')).toBe('-122.3456,47.1234,-122.1234,47.5678');
   });
 
-  test('bounds with positive longitudes: toFixed(4) applied (e.g. 120 becomes "120.0000")', () => {
-    const selection: SelectionState = { type: 'bounds', west: 120, south: 30, east: 121, north: 31 };
-    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
-    expect(params.get('sel')).toBe('120.0000,30.0000,121.0000,31.0000');
-    const result = parseParams(params.toString());
-    expect(result.selection).toEqual({ type: 'bounds', west: 120, south: 30, east: 121, north: 31 });
+  test('bbox write: buildParams with bounds set does NOT emit sel=', () => {
+    const filter = { ...emptyFilter(), bounds: { west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 } };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.has('sel')).toBe(false);
   });
 
-  test('bounds does NOT emit o= — params.has("o") is false when selection.type === "bounds"', () => {
-    const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
-    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+  test('bbox write: positive longitudes toFixed(4) applied', () => {
+    const filter = { ...emptyFilter(), bounds: { west: 120, south: 30, east: 121, north: 31 } };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('bbox')).toBe('120.0000,30.0000,121.0000,31.0000');
+  });
+
+  test('bbox write: filter.bounds null emits neither bbox= nor sel=', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('bbox')).toBe(false);
+    expect(params.has('sel')).toBe(false);
+  });
+
+  test('bbox write: does NOT emit o= when bounds set and ids selection is empty', () => {
+    const filter = { ...emptyFilter(), bounds: { west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 } };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
     expect(params.has('o')).toBe(false);
-    expect(params.has('sel')).toBe(true);
   });
 
-  test('sel= does NOT emit when selection.type === "ids" (empty)', () => {
-    const selection: SelectionState = { type: 'ids', ids: [] };
-    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
-    expect(params.has('sel')).toBe(false);
+  // --- parseParams: bbox= read (D-02) ---
+
+  test('bbox read: parseParams sets filter.bounds from bbox= param', () => {
+    const result = parseParams('bbox=-122.3456,47.1234,-122.1234,47.5678');
+    expect(result.filter?.bounds).toEqual({ west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
   });
 
-  test('sel= does NOT emit when selection.type === "cluster"', () => {
-    const selection: SelectionState = { type: 'cluster', lon: -120.5, lat: 47.3, radiusM: 500 };
-    const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
-    expect(params.has('sel')).toBe(false);
+  test('bbox read: parseParams with bbox= does NOT set selection to a bounds variant', () => {
+    const result = parseParams('bbox=-122.3456,47.1234,-122.1234,47.5678');
+    expect((result.selection as { type?: string } | undefined)?.type).not.toBe('bounds');
   });
 
-  test('malformed sel: not four values — selection undefined', () => {
+  test('bbox read: malformed bbox (not four values) — filter.bounds null / filter undefined', () => {
+    const result = parseParams('bbox=not,four,values');
+    expect(result.filter?.bounds ?? null).toBeNull();
+  });
+
+  test('bbox read: out-of-range west (999) — filter.bounds null', () => {
+    const result = parseParams('bbox=999,47,-120,48');
+    expect(result.filter?.bounds ?? null).toBeNull();
+  });
+
+  test('bbox read: out-of-range north (999) — filter.bounds null', () => {
+    const result = parseParams('bbox=-122,47,-121,999');
+    expect(result.filter?.bounds ?? null).toBeNull();
+  });
+
+  test('bbox read: south >= north (inverted) — filter.bounds null', () => {
+    const result = parseParams('bbox=-122,48,-121,47');
+    expect(result.filter?.bounds ?? null).toBeNull();
+  });
+
+  test('bbox read: non-finite NaN west — filter.bounds null', () => {
+    const result = parseParams('bbox=NaN,47,-121,48');
+    expect(result.filter?.bounds ?? null).toBeNull();
+  });
+
+  test('bbox round-trip: buildParams(filter.bounds) then parseParams gives filter.bounds back', () => {
+    const filter = { ...emptyFilter(), bounds: { west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 } };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    const result = parseParams(params.toString());
+    expect(result.filter?.bounds).toEqual({ west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
+  });
+
+  // --- Legacy sel= back-compat (D-03) ---
+
+  test('legacy sel= read: parseParams maps sel= into filter.bounds (not into selection)', () => {
+    const result = parseParams('sel=-122.3456,47.1234,-122.1234,47.5678');
+    expect(result.filter?.bounds).toEqual({ west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
+  });
+
+  test('legacy sel= read: parseParams does NOT set selection.type==="bounds"', () => {
+    const result = parseParams('sel=-122.3456,47.1234,-122.1234,47.5678');
+    expect((result.selection as { type?: string } | undefined)?.type).not.toBe('bounds');
+  });
+
+  test('legacy sel= read: malformed sel — filter.bounds null', () => {
     const result = parseParams('sel=not,four,values');
-    expect(result.selection).toBeUndefined();
+    expect(result.filter?.bounds ?? null).toBeNull();
   });
 
-  test('out-of-range west (999): selection undefined', () => {
+  test('legacy sel= read: out-of-range west (999) — filter.bounds null', () => {
     const result = parseParams('sel=999,47,-120,48');
-    expect(result.selection).toBeUndefined();
+    expect(result.filter?.bounds ?? null).toBeNull();
   });
 
-  test('out-of-range north (999): selection undefined', () => {
-    const result = parseParams('sel=-122,47,-121,999');
-    expect(result.selection).toBeUndefined();
-  });
-
-  test('south >= north (inverted/degenerate): selection undefined', () => {
+  test('legacy sel= read: south >= north (inverted) — filter.bounds null', () => {
     const result = parseParams('sel=-122,48,-121,47');
-    expect(result.selection).toBeUndefined();
+    expect(result.filter?.bounds ?? null).toBeNull();
   });
 
-  test('non-finite value (NaN west): selection undefined', () => {
-    const result = parseParams('sel=NaN,47,-121,48');
-    expect(result.selection).toBeUndefined();
+  test('bbox takes precedence over sel= when both present', () => {
+    const result = parseParams('bbox=-122.0,47.0,-121.0,48.0&sel=-120.0,45.0,-119.0,46.0');
+    expect(result.filter?.bounds).toEqual({ west: -122.0, south: 47.0, east: -121.0, north: 48.0 });
   });
 
-  test('combined params: bounds selection + filter coexist on round-trip (SEL-06)', () => {
-    const selection: SelectionState = { type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 };
-    const filter = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
-    const params = buildParams(defaultView, filter, selection, defaultUi);
-    expect(params.get('sel')).toBe('-122.3456,47.1234,-122.1234,47.5678');
+  // --- Coexistence: bbox= + o= (D-05) ---
+
+  test('coexistence: bbox= + o=ids yields filter.bounds AND selection.type===ids', () => {
+    const result = parseParams('bbox=-122.3,47.1,-122.1,47.5&o=ecdysis:1,inat:2');
+    expect(result.filter?.bounds).toEqual({ west: -122.3, south: 47.1, east: -122.1, north: 47.5 });
+    expect(result.selection).toEqual({ type: 'ids', ids: ['ecdysis:1', 'inat:2'] });
+  });
+
+  test('combined round-trip: bounds filter + taxon filter coexist (D-02/D-03)', () => {
+    const filter = { ...emptyFilter(), bounds: { west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 }, taxonId: 52775, taxonDisplayName: 'Bombus (genus)' };
+    const params = buildParams(defaultView, filter, defaultSelection, defaultUi);
+    expect(params.get('bbox')).toBe('-122.3456,47.1234,-122.1234,47.5678');
     expect(params.get('taxon')).toBe('52775');
     const result = parseParams(params.toString());
-    expect(result.selection).toEqual({ type: 'bounds', west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
+    expect(result.filter?.bounds).toEqual({ west: -122.3456, south: 47.1234, east: -122.1234, north: 47.5678 });
     expect(result.filter?.taxonId).toBe(52775);
   });
 });
