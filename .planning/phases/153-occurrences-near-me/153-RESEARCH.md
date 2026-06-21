@@ -270,7 +270,7 @@ lat=49.0: dLat=0.0898°, dLon=0.1369°  (cos=0.6561)
 | A1 | Worker-RPC serialization overhead (postMessage of ~5k filtered rows) keeps total under 200 ms in-browser, as the Node probe excludes it. | Performance | Low — the SQL is 12.7 ms; `queryVisibleGeoJSON` already serializes comparable filtered sets (e.g. a broad taxon filter) within budget today. Verify with the timing log SC-3 requires. |
 | A2 | `<bee-map>` will expose a public method (or accept a prop edge) for `<bee-atlas>` to command `.trigger()`; the control instance is local to `firstUpdated` today (bee-map.ts:396). | Activation flow | Low — straightforward to lift `geolocate` to an instance field + add a `triggerGeolocate()` method, preserving pure-presenter (command in, no state stored). |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **SC-3 wording: pure-SQL haversine vs the prescribed JS post-filter.**
    - What we know: The math extension is compiled in; pure-SQL haversine runs in 12.7 ms in the worker; it covers map + table + list + CSV in one place.
