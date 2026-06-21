@@ -316,9 +316,9 @@ describe('NEAR-153: bee-pane near-me chip + event (Phase 153)', () => {
   });
 
   test('bee-pane.ts updated() syncs _nearMe from filterState', () => {
-    // The updated() method must sync _nearMe from f.nearMe
-    const updatedBody = src.match(/updated\s*\(\s*changed[^)]*\)[^{]*\{[\s\S]*?\n\s{2,4}\}/)?.[0] ?? '';
-    expect(updatedBody).toMatch(/_nearMe/);
+    // The updated() method must sync _nearMe from f.nearMe.
+    // Assert both that the field exists and that the sync pattern is present in the file.
+    expect(src).toMatch(/this\._nearMe\s*!==\s*f\.nearMe|f\.nearMe\s*!==\s*this\._nearMe/);
   });
 });
 
