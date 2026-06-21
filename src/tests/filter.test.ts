@@ -26,6 +26,7 @@ function emptyFilter(): FilterState {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
+    bounds: null,
   };
 }
 
@@ -136,6 +137,7 @@ describe('combined filters', () => {
       elevMin: null,
       elevMax: null,
       selectedPlace: null,
+      bounds: null,
     };
     const { occurrenceWhere } = buildFilterSQL(f);
 
@@ -183,6 +185,15 @@ describe('isFilterActive — elevation', () => {
     expect(isFilterActive({ ...emptyFilter(), elevMax: 2000 })).toBe(true);
   });
   test('both null with no other fields: returns false', () => {
+    expect(isFilterActive(emptyFilter())).toBe(false);
+  });
+});
+
+describe('isFilterActive — bounds (D-01)', () => {
+  test('bounds set: returns true', () => {
+    expect(isFilterActive({ ...emptyFilter(), bounds: { west: -122, south: 47, east: -121, north: 48 } })).toBe(true);
+  });
+  test('emptyFilter() bounds null: returns false', () => {
     expect(isFilterActive(emptyFilter())).toBe(false);
   });
 });
