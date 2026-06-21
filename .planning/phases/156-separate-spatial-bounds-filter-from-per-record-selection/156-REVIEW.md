@@ -1,5 +1,5 @@
 ---
-phase: 999.8-separate-spatial-bounds-filter-from-per-record-selection
+phase: 156-separate-spatial-bounds-filter-from-per-record-selection
 reviewed: 2026-06-21T21:01:47Z
 depth: standard
 files_reviewed: 11
@@ -23,7 +23,7 @@ findings:
 status: issues_found
 ---
 
-# Phase 999.8: Code Review Report
+# Phase 156: Code Review Report
 
 **Reviewed:** 2026-06-21T21:01:47Z
 **Depth:** standard

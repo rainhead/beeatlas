@@ -1,7 +1,7 @@
 ---
 status: passed
-phase: 999.1-surface-shift-drag-rectangle-selection-in-ui
-source: [999.1-VERIFICATION.md]
+phase: 155-surface-shift-drag-rectangle-selection-in-ui
+source: [155-VERIFICATION.md]
 started: 2026-06-21
 updated: 2026-06-21
 ---

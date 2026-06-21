@@ -1,4 +1,4 @@
-# Phase 999.8: Separate Spatial-Bounds FILTER from Per-Record SELECTION — Research
+# Phase 156: Separate Spatial-Bounds FILTER from Per-Record SELECTION — Research
 
 **Researched:** 2026-06-21
 **Domain:** TypeScript / Lit web component state-model refactor (src/filter.ts, src/url-state.ts, src/bee-atlas.ts, src/bee-pane.ts)
@@ -26,7 +26,7 @@
 
 ### Deferred Ideas (OUT OF SCOPE)
 - Global "clear all filters" reset that also drops bounds (D-08).
-- Surfacing the shift-drag gesture (backlog 999.1).
+- Surfacing the shift-drag gesture (backlog 155).
 </user_constraints>
 
 ---
@@ -256,7 +256,7 @@ if (filter.bounds !== null) {
 Add a `bbox=` reader alongside the existing `sel=` reader. Both populate the same `boundsResult` local variable; `bbox=` takes precedence if both are present (edge case for manually crafted URLs):
 
 ```typescript
-// New: bbox= reader (canonical post-999.8 format)
+// New: bbox= reader (canonical post-156 format)
 let boundsResult: { west: number; south: number; east: number; north: number } | null = null;
 const bboxRaw = p.get('bbox') ?? '';
 if (bboxRaw) { /* same 4-part parse + range validation as current sel= reader */ }
@@ -675,10 +675,10 @@ src/
 
 | Old Approach | Current Approach | When Changed | Impact |
 |--------------|------------------|--------------|--------|
-| `_selectionBounds` side field + `SelectionState { type: 'bounds' }` | `FilterState.bounds` first-class field | This phase (999.8) | Bounds participates in `isFilterActive`, `buildFilterSQL`, and `buildParams` automatically |
-| `sel=` URL param for bounds | `bbox=` URL param; `sel=` is legacy-read only | This phase (999.8) | Old shared links still work; new links use `bbox=` |
-| Bounds clears per-record selection | Bounds and selection coexist (AND-compose) | This phase (999.8) | D-05 — applying a spatial box no longer dismisses record selection |
-| Bounds forces `_paneState = 'list'` | Bounds does not touch pane state | This phase (999.8) | D-04 — bounds behaves like every other filter |
+| `_selectionBounds` side field + `SelectionState { type: 'bounds' }` | `FilterState.bounds` first-class field | This phase (156) | Bounds participates in `isFilterActive`, `buildFilterSQL`, and `buildParams` automatically |
+| `sel=` URL param for bounds | `bbox=` URL param; `sel=` is legacy-read only | This phase (156) | Old shared links still work; new links use `bbox=` |
+| Bounds clears per-record selection | Bounds and selection coexist (AND-compose) | This phase (156) | D-05 — applying a spatial box no longer dismisses record selection |
+| Bounds forces `_paneState = 'list'` | Bounds does not touch pane state | This phase (156) | D-04 — bounds behaves like every other filter |
 
 ---
 
@@ -727,7 +727,7 @@ src/
 - `src/tests/url-state.test.ts` — SEL-06 describe block (lines 445–516) confirmed
 - `src/tests/bee-pane.test.ts` — NEAR-01/D-04/D-05 describe block (lines 299–357) confirmed
 - `src/tests/filter.test.ts` — `emptyFilter()` helper and `isFilterActive` tests confirmed
-- `.planning/phases/999.8-separate-spatial-bounds-filter-from-per-record-selection-bac/999.8-CONTEXT.md` — All 8 locked decisions confirmed
+- `.planning/phases/156-separate-spatial-bounds-filter-from-per-record-selection/156-CONTEXT.md` — All 8 locked decisions confirmed
 - `.planning/phases/153-occurrences-near-me/153-CONTEXT.md` and `153-VERIFICATION.md` — Baseline behavior confirmed
 
 ### Secondary (MEDIUM confidence)
@@ -751,7 +751,7 @@ src/
 
 ## RESEARCH COMPLETE
 
-**Phase:** 999.8 - Separate spatial-bounds FILTER from per-record SELECTION
+**Phase:** 156 - Separate spatial-bounds FILTER from per-record SELECTION
 **Confidence:** HIGH
 
 ### Key Findings
@@ -763,7 +763,7 @@ src/
 - The most subtle behavioral change: `_onFilterChanged`, `_onClearSelection`, and `_onPaneCollapse` currently clear bounds as a side-effect — under D-05/D-07 they must NOT. This requires explicitly preserving `bounds` through the `_filterState` spread in `_onFilterChanged`.
 
 ### File Created
-`.planning/phases/999.8-separate-spatial-bounds-filter-from-per-record-selection-bac/999.8-RESEARCH.md`
+`.planning/phases/156-separate-spatial-bounds-filter-from-per-record-selection/156-RESEARCH.md`
 
 ### Confidence Assessment
 | Area | Level | Reason |

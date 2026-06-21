@@ -1,10 +1,10 @@
-# Phase 999.1: Surface shift-drag rectangle selection in the UI - Discussion Log
+# Phase 155: Surface shift-drag rectangle selection in the UI - Discussion Log
 
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
 
 **Date:** 2026-06-21
-**Phase:** 999.1-surface-shift-drag-rectangle-selection-in-ui
+**Phase:** 155-surface-shift-drag-rectangle-selection-in-ui
 **Areas discussed:** Scope, Affordance form, Placement
 
 ---
@@ -67,7 +67,7 @@
 ## Copy
 
 **User's choice (verbatim):** "Shift-drag on map to set bounds"
-**Notes:** Aligns with the FILTER/bounds vocabulary established in Phase 999.8.
+**Notes:** Aligns with the FILTER/bounds vocabulary established in Phase 156.
 
 ---
 

@@ -1,10 +1,10 @@
-# Phase 999.8: Separate spatial-bounds FILTER from per-record SELECTION - Discussion Log
+# Phase 156: Separate spatial-bounds FILTER from per-record SELECTION - Discussion Log
 
 > **Audit trail only.** Do not use as input to planning, research, or execution agents.
 > Decisions are captured in CONTEXT.md — this log preserves the alternatives considered.
 
 **Date:** 2026-06-21
-**Phase:** 999.8-separate-spatial-bounds-filter-from-per-record-selection-bac
+**Phase:** 156-separate-spatial-bounds-filter-from-per-record-selection
 **Areas discussed:** State model, URL param & migration, Pane behavior, Coexistence, Empty-click clear, Bounds clear affordance
 
 ---
@@ -91,4 +91,4 @@
 ## Deferred Ideas
 
 - Global "clear all filters" reset that also drops bounds (no such affordance exists yet — D-08).
-- Surfacing the shift-drag gesture (backlog 999.1) — coordinate, don't absorb.
+- Surfacing the shift-drag gesture (backlog 155) — coordinate, don't absorb.

@@ -1,5 +1,5 @@
 ---
-phase: 999.1
+phase: 155
 slug: surface-shift-drag-rectangle-selection-in-ui
 status: draft
 nyquist_compliant: false
@@ -7,7 +7,7 @@ wave_0_complete: false
 created: 2026-06-21
 ---
 
-# Phase 999.1 — Validation Strategy
+# Phase 155 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
 
@@ -38,9 +38,9 @@ created: 2026-06-21
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 999.1-01-01 | 01 | 1 | D-05/D-06 (exact hint copy) | — | N/A | unit (source-text) | `npm test` | ✅ | ⬜ pending |
-| 999.1-01-02 | 01 | 1 | D-03 (`.hint` class applied) | — | N/A | unit (source-text) | `npm test` | ✅ | ⬜ pending |
-| 999.1-01-03 | 01 | 1 | D-02 (pointer-capability media query gates hint) | — | N/A | unit (source-text) | `npm test` | ✅ | ⬜ pending |
+| 155-01-01 | 01 | 1 | D-05/D-06 (exact hint copy) | — | N/A | unit (source-text) | `npm test` | ✅ | ⬜ pending |
+| 155-01-02 | 01 | 1 | D-03 (`.hint` class applied) | — | N/A | unit (source-text) | `npm test` | ✅ | ⬜ pending |
+| 155-01-03 | 01 | 1 | D-02 (pointer-capability media query gates hint) | — | N/A | unit (source-text) | `npm test` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

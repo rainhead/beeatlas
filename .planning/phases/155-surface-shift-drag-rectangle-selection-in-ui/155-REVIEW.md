@@ -1,5 +1,5 @@
 ---
-phase: 999.1-surface-shift-drag-rectangle-selection-in-ui
+phase: 155-surface-shift-drag-rectangle-selection-in-ui
 reviewed: 2026-06-21T22:10:00Z
 depth: standard
 files_reviewed: 2
@@ -14,7 +14,7 @@ findings:
 status: clean
 ---
 
-# Phase 999.1: Code Review Report
+# Phase 155: Code Review Report
 
 **Reviewed:** 2026-06-21T22:10:00Z
 **Depth:** standard

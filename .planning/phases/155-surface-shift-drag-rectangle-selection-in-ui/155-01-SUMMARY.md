@@ -1,12 +1,12 @@
 ---
-phase: 999.1-surface-shift-drag-rectangle-selection-in-ui
+phase: 155-surface-shift-drag-rectangle-selection-in-ui
 plan: 01
 subsystem: ui
 tags: [lit, web-components, css-media-query, hint-text]
 
 # Dependency graph
 requires:
-  - phase: 999.8-separate-spatial-bounds-filter-from-per-record-selection-bac
+  - phase: 156-separate-spatial-bounds-filter-from-per-record-selection-bac
     provides: shift-drag bounds-filter gesture and vocabulary (bounds = filter, bbox= URL param)
 provides:
   - hint element <p class="hint hint--desktop-only">Shift-drag on map to set bounds</p> in bee-pane filters section
@@ -43,7 +43,7 @@ duration: 8min
 completed: 2026-06-21
 ---
 
-# Phase 999.1 Plan 01: Surface Shift-Drag Rectangle Selection in UI Summary
+# Phase 155 Plan 01: Surface Shift-Drag Rectangle Selection in UI Summary
 
 **Static hint line "Shift-drag on map to set bounds" added to bee-pane below the where input, gated CSS-only via @media (hover: hover) and (pointer: fine)**
 
@@ -91,10 +91,10 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- Phase 999.1 plan 01 complete. Desktop users now see the verbatim hint below the where input.
+- Phase 155 plan 01 complete. Desktop users now see the verbatim hint below the where input.
 - No blockers. The hint is purely additive; no further phases are blocked on this deliverable.
 - If a future phase adds touch-mode box-drawing, the .hint--desktop-only modifier pattern can be extended.
 
 ---
-*Phase: 999.1-surface-shift-drag-rectangle-selection-in-ui*
+*Phase: 155-surface-shift-drag-rectangle-selection-in-ui*
 *Completed: 2026-06-21*

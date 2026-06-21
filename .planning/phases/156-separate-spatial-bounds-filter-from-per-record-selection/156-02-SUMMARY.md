@@ -1,5 +1,5 @@
 ---
-phase: "999.8"
+phase: "156"
 plan: "02"
 subsystem: url-state
 tags: [url, filter, bounds, bbox, tdd, D-02, D-03]
@@ -41,7 +41,7 @@ metrics:
   files_modified: 2
 ---
 
-# Phase 999.8 Plan 02: URL bbox= Migration + Legacy sel= Back-Compat Summary
+# Phase 156 Plan 02: URL bbox= Migration + Legacy sel= Back-Compat Summary
 
 **One-liner:** Migrated bounds URL contract to `bbox=` filter param, removed `{ type: 'bounds' }` from SelectionState, and added `sel=` legacy read-into-filter.bounds back-compat (D-02/D-03).
 
@@ -55,9 +55,9 @@ metrics:
 
 | Task | Phase | Commit | Description |
 |------|-------|--------|-------------|
-| Task 1 | RED | bd1a1925 | test(999.8-02): add failing tests for bbox= write + parseParams bounds-as-filter |
-| Task 1 | GREEN | 4d8d9362 | feat(999.8-02): narrow SelectionState; write bbox= from filter.bounds in buildParams |
-| Task 2 | GREEN | 6b3235af | feat(999.8-02): parseParams reads bbox= and legacy sel= into filter.bounds (D-03) |
+| Task 1 | RED | bd1a1925 | test(156-02): add failing tests for bbox= write + parseParams bounds-as-filter |
+| Task 1 | GREEN | 4d8d9362 | feat(156-02): narrow SelectionState; write bbox= from filter.bounds in buildParams |
+| Task 2 | GREEN | 6b3235af | feat(156-02): parseParams reads bbox= and legacy sel= into filter.bounds (D-03) |
 
 Note: Task 2 RED tests were included in the Task 1 RED commit (the `bounds filter` describe block covers both write-side and parse-side tests; the parse-side tests remained failing until Task 2 GREEN).
 
@@ -83,7 +83,7 @@ None.
 
 - FOUND: src/url-state.ts
 - FOUND: src/tests/url-state.test.ts
-- FOUND: 999.8-02-SUMMARY.md
+- FOUND: 156-02-SUMMARY.md
 - FOUND commit bd1a1925 (test RED Task 1)
 - FOUND commit 4d8d9362 (feat GREEN Task 1)
 - FOUND commit 6b3235af (feat GREEN Task 2)

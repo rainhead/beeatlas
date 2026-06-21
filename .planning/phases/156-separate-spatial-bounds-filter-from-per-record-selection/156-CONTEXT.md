@@ -1,4 +1,4 @@
-# Phase 999.8: Separate spatial-bounds FILTER from per-record SELECTION - Context
+# Phase 156: Separate spatial-bounds FILTER from per-record SELECTION - Context
 
 **Gathered:** 2026-06-21
 **Status:** Ready for planning
@@ -13,7 +13,7 @@ Phase 153 already made bounds *behave* as a filter (hide non-matching dots on ma
 - the forced `_paneState='list'` on a bounds change;
 - the mutual exclusivity between bounds and record selection.
 
-**Purely structural — no new user-facing capability.** Behavior visible to the user is unchanged except where explicitly decided below (pane no longer force-opens; bounds + selection may now coexist). Touches `filter.ts`, `url-state.ts`, `bee-atlas.ts`, `bee-pane.ts`. Coordinate with backlog 999.1 (surfacing the shift-drag gesture).
+**Purely structural — no new user-facing capability.** Behavior visible to the user is unchanged except where explicitly decided below (pane no longer force-opens; bounds + selection may now coexist). Touches `filter.ts`, `url-state.ts`, `bee-atlas.ts`, `bee-pane.ts`. Coordinate with backlog 155 (surfacing the shift-drag gesture).
 
 </domain>
 
@@ -54,7 +54,7 @@ Phase 153 already made bounds *behave* as a filter (hide non-matching dots on ma
 **Downstream agents MUST read these before planning or implementing.**
 
 ### This phase's origin & prior decisions
-- `.planning/ROADMAP.md` §"Phase 999.8" (line ~1423) — the phase definition and the FILTER-vs-SELECTION conceptual model.
+- `.planning/ROADMAP.md` §"Phase 156" (line ~1423) — the phase definition and the FILTER-vs-SELECTION conceptual model.
 - `.planning/phases/153-occurrences-near-me/153-CONTEXT.md` — Phase 153 decisions; bounds-as-filter behavior, "shows in the where input, no chip," shared near-me ≡ shift-drag state, `sel=` round-trip.
 - `.planning/phases/153-occurrences-near-me/153-VERIFICATION.md` — what 153 actually shipped (the behavior baseline this refactor must not regress).
 
@@ -100,8 +100,8 @@ Phase 153 already made bounds *behave* as a filter (hide non-matching dots on ma
 <deferred>
 ## Deferred Ideas
 
-- **Global "clear all filters" reset that also drops bounds (D-08):** No global filter-reset affordance exists yet. Building one is its own scope (a new UI control + behavior across ALL filters, not just bounds) — out of scope here. When/if it lands, bounds must participate; D-01 (bounds in `FilterState`) makes that automatic. Note for a future phase or backlog 999.1.
-- **Surfacing the shift-drag gesture (backlog 999.1):** Making the bounds-filter gesture discoverable is a separate phase; coordinate but don't absorb. The 2026-06-21 roadmap note reframes 999.1 around the *filter* gesture given this reclassification.
+- **Global "clear all filters" reset that also drops bounds (D-08):** No global filter-reset affordance exists yet. Building one is its own scope (a new UI control + behavior across ALL filters, not just bounds) — out of scope here. When/if it lands, bounds must participate; D-01 (bounds in `FilterState`) makes that automatic. Note for a future phase or backlog 155.
+- **Surfacing the shift-drag gesture (backlog 155):** Making the bounds-filter gesture discoverable is a separate phase; coordinate but don't absorb. The 2026-06-21 roadmap note reframes 155 around the *filter* gesture given this reclassification.
 
 ### Reviewed Todos (not folded)
 None — no pending todos matched this phase.
@@ -110,5 +110,5 @@ None — no pending todos matched this phase.
 
 ---
 
-*Phase: 999.8-separate-spatial-bounds-filter-from-per-record-selection-bac*
+*Phase: 156-separate-spatial-bounds-filter-from-per-record-selection*
 *Context gathered: 2026-06-21*
