@@ -4,14 +4,14 @@ milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 153 context gathered
-last_updated: "2026-06-21T00:44:13.288Z"
-last_activity: 2026-06-21 -- Phase 153 planning complete
+last_updated: "2026-06-21T00:45:35.689Z"
+last_activity: 2026-06-21 -- Phase 153 execution started
 progress:
-  total_phases: 33
+  total_phases: 15
   completed_phases: 8
   total_plans: 22
   completed_plans: 19
-  percent: 24
+  percent: 53
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 152 — geolocatecontrol-location-state
+**Current focus:** Phase 153 — occurrences-near-me
 
 ## Current Position
 
-Phase: 152 (geolocatecontrol-location-state) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
-Last activity: 2026-06-21 -- Phase 153 planning complete
+Phase: 153 (occurrences-near-me) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 153
+Last activity: 2026-06-21 -- Phase 153 execution started
 
 Progress: [██████████] 95%
 

@@ -1285,7 +1285,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 153-01-PLAN.md — model + SQL: nearMe FilterState field, bbox+haversine clause, ?near=1 round-trip (NEAR-01/02/03)
+- [x] 153-01-PLAN.md — model + SQL: nearMe FilterState field, bbox+haversine clause, ?near=1 round-trip (NEAR-01/02/03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -1326,7 +1326,7 @@ Plans:
 | 150. Cache Health & Freshness UX | v5.0 | 4/4 | Complete   | 2026-06-19 |
 | 151. PWA Manifest & Installability | v5.0 | 4/4 | Complete   | 2026-06-20 |
 | 152. GeolocateControl + Location State | v5.0 | 3/3 | Complete   | 2026-06-21 |
-| 153. Occurrences Near Me | v5.0 | 0/3 | Planned | - |
+| 153. Occurrences Near Me | v5.0 | 1/3 | In Progress|  |
 | 154. Mapbox Tile Caching (TOS-gated) | v5.0 | 0/TBD | Not started | - |
 
 ## Backlog
@@ -1335,7 +1335,7 @@ Plans:
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 3/3 plans complete
+**Plans:** 1/3 plans executed
 
 The v3.5 shift-drag selection rectangle (Phases 89–91, shipped 2026-05-15) is undiscoverable — no UI affordance hints that it exists. Add a way to communicate the feature in the UI (e.g. toolbar button, hint text, keyboard-shortcut overlay, onboarding chip).
 
