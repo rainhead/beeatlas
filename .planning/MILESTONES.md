@@ -1,5 +1,28 @@
 # Milestones
 
+## v5.0 Offline Field Mode (Shipped: 2026-06-21)
+
+**Phases completed:** 8 phases (147–154), 22 plans. Timeline: 2026-06-10 → 2026-06-21 (~11 days).
+
+**Goal delivered:** An installable PWA, dogfooded behind the unlisted `/app` route, that a collector with no signal can use in the field — map + table + selection running entirely against cached client-side data.
+
+**Key accomplishments (one per phase):**
+
+- **147 — `/app` route + SW topology:** Unlisted Eleventy+Vite `/app` route with a correctly-scoped pass-through service worker (`scope:'/app'`) and a structural no-SW-on-`/` import-topology guarantee; per-path CloudFront `no-cache` behaviors for `sw.js`/`manifest.webmanifest`.
+- **148 — App-shell precache:** `vite-plugin-pwa` injectManifest wired through `eleventy.config.js viteOptions.plugins`, building a Workbox SW at `/app/sw.js` that precaches the `/app` shell so it loads fully offline after one online visit.
+- **149 — `/data/` runtime caching + cold-start:** `occurrences.db` (~23 MB) + GeoJSON cached `CacheFirst`; full offline cold-start; reconnect re-prime if the DB was evicted; `QuotaExceededError`/`persist()` handling; online/offline indicator.
+- **150 — Cache health & freshness UX:** workbox-window update lifecycle with prompt-to-reload (no `skipWaiting`), NetworkFirst `manifest.json`, "Data as of `<date>`" generation-date label, determinate prime progress.
+- **151 — PWA manifest & installability:** static `manifest.webmanifest` + from-scratch bee-glyph icon set; Android `beforeinstallprompt` capture surfaced as a quiet Install affordance; iOS A2HS instructions; standalone offline cold-start confirmed.
+- **152 — GeolocateControl + location state:** offline-safe Mapbox `GeolocateControl` (blue dot/accuracy ring/recenter) hosted by `<bee-map>`, with `_userLocation` owned by `<bee-atlas>` and an app-level denial banner — preserving the state-owner/pure-presenter invariant.
+- **153 — Occurrences near me:** a geolocate button in the where-input resolves GPS into a ~10 km bounding box applied as a shareable spatial **filter**, reusing the shift-drag bounds mechanism end to end.
+- **154 — Mapbox basemap performance cache (ToS-compliant):** after a ToS review found web-SDK offline basemap serving is unlicensed, shipped a ship-enabled `StaleWhileRevalidate` `mapbox-basemap` cache (token retained, 200-only, 7-day TTL, telemetry/billing excluded) with the full legal analysis recorded in `docs/adr/0001-mapbox-basemap-cache.md`.
+
+**Also shipped during this window (backlog, not milestone-scoped):** 999.1 (desktop shift-drag bounds hint) and 999.8 (separated the spatial-bounds FILTER from per-record SELECTION — `FilterState.bounds` + `bbox=` URL param).
+
+**Resolved at close:** 153 HUMAN-UAT frontmatter flipped to `passed`; 145 (v4.10) verification resolved — Dependabot confirmed live across all ecosystems via observed PRs #28–35.
+
+---
+
 ## v4.10 Housekeeping (Shipped: 2026-06-09)
 
 **Phases completed:** 2 phases, 2 plans, 3 tasks
