@@ -285,6 +285,29 @@ describe('OCCURRENCE_COLUMNS', () => {
   });
 });
 
+describe('buildFilterSQL — bounds (D-01)', () => {
+  test('bounds set: occurrenceWhere contains lat BETWEEN and lon BETWEEN', () => {
+    const f = { ...emptyFilter(), bounds: { west: -122, south: 47, east: -121, north: 48 } };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain('lat BETWEEN 47 AND 48');
+    expect(occurrenceWhere).toContain('lon BETWEEN -122 AND -121');
+  });
+
+  test('emptyFilter() produces no lat BETWEEN / lon BETWEEN fragment', () => {
+    const { occurrenceWhere } = buildFilterSQL(emptyFilter());
+    expect(occurrenceWhere).not.toContain('lat BETWEEN');
+    expect(occurrenceWhere).not.toContain('lon BETWEEN');
+  });
+
+  test('bounds + taxonId AND-compose both clauses into occurrenceWhere', () => {
+    const f = { ...emptyFilter(), taxonId: 52775, bounds: { west: -122, south: 47, east: -121, north: 48 } };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain('taxon_id = 52775');
+    expect(occurrenceWhere).toContain('lat BETWEEN 47 AND 48');
+    expect(occurrenceWhere).toContain(' AND ');
+  });
+});
+
 describe('place filter', () => {
   test('emptyFilter() includes selectedPlace: null', () => {
     const f = emptyFilter();
