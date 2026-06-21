@@ -1517,10 +1517,12 @@ bee-pane {
     // (previously loaded from region GeoJSON sources, now stubbed for Phase 71)
     this._loadCountyEcoregionOptions();
 
-    // If filter was restored from URL, (re-)run the filter query now that data is loaded.
-    // The generation counter in _runFilterQuery discards stale results, so this is safe
-    // even if firstUpdated already started a query.
-    if (isFilterActive(this._filterState)) {
+    // If a filter OR a spatial bounds box was restored from URL, run the map query now
+    // that data is loaded. Bounds behave as a filter (hide non-matching dots on the map),
+    // so a restored sel= box must populate the map, not just the list. The generation
+    // counter in _runFilterQuery discards stale results, so this is safe even if
+    // firstUpdated already started a query.
+    if (isFilterActive(this._filterState) || this._selectionBounds !== null) {
       this._runFilterQuery();
     }
 
