@@ -1424,7 +1424,7 @@ Plans:
 
 **Goal:** Make the state model and URL contract honest — a spatial bounding box is a FILTER (folded into `FilterState.bounds`, serialized as `bbox=`), and SELECTION (`o=` ids/cluster) is only for individual occurrence records. Remove the legacy `_selectionBounds`/`sel=`-write/`_applyBoundsSelection` plumbing and the forced `_paneState='list'`; bounds and per-record selection coexist; legacy `?sel=` links still restore.
 **Requirements:** D-01..D-08 (locked decisions in 999.8-CONTEXT.md; D-08 deferred — no global filter-reset affordance exists yet)
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Surfaced during Phase 153 (2026-06-21). Phase 153 made near-me and shift-drag bounds **behave** as filters (hide non-matching dots on the map + list + table; round-trip in the URL), but they still ride the legacy *selection* plumbing: the box lives in `_selectionBounds`, serializes under the `sel=` selection URL param, and shares `_applyBoundsSelection`/`_paneState='list'` with cluster/id selection. The agreed conceptual model is: **a spatial box is a FILTER; SELECTION is only for individual occurrence records (cluster click / id list).** This phase does the clean separation — e.g. move bounds into a filter concept (rename off `_selectionBounds`, its own state + URL param distinct from `sel=`), keep `sel=` for record selection only, and stop forcing the list pane open on a bounds change. Must preserve backward-compatible restore of existing `sel=`-bounds links (or migrate them). Touches `filter.ts`, `url-state.ts`, `bee-atlas.ts`, `bee-pane.ts`; coordinate with 999.1 (surfacing the shift-drag gesture).
 
@@ -1432,4 +1432,4 @@ Plans:
 
 - [x] 999.8-01-PLAN.md — filter.ts: FilterState.bounds field, isFilterActive + buildFilterSQL bounds clause, drop selectionBounds args (D-01)
 - [x] 999.8-02-PLAN.md — url-state.ts: write bbox=, read bbox=+legacy sel= into filter.bounds, narrow SelectionState (D-02, D-03)
-- [ ] 999.8-03-PLAN.md — bee-atlas.ts/bee-pane.ts: _filterState.bounds ownership, _applyBoundsFilter, D-04/D-05/D-06/D-07 behavior + test migration
+- [x] 999.8-03-PLAN.md — bee-atlas.ts/bee-pane.ts: _filterState.bounds ownership, _applyBoundsFilter, D-04/D-05/D-06/D-07 behavior + test migration
