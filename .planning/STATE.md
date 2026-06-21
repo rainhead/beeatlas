@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: completed
+status: executing
 stopped_at: Phase 999.1 context gathered
-last_updated: "2026-06-21T21:38:42.838Z"
-last_activity: 2026-06-21 -- Phase 999.1 planning complete
+last_updated: "2026-06-21T21:39:27.940Z"
+last_activity: 2026-06-21 -- Phase 999.1 execution started
 progress:
-  total_phases: 34
+  total_phases: 16
   completed_phases: 10
-  total_plans: 26
+  total_plans: 27
   completed_plans: 26
-  percent: 29
+  percent: 63
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Milestone complete
+**Current focus:** Phase 999.1 — surface-shift-drag-rectangle-selection-in-ui
 
 ## Current Position
 
-Phase: 999.8
-Plan: Not started
-Status: Milestone complete
-Last activity: 2026-06-21 -- Phase 999.1 planning complete
+Phase: 999.1 (surface-shift-drag-rectangle-selection-in-ui) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 999.1
+Last activity: 2026-06-21 -- Phase 999.1 execution started
 
 Progress: [██████████] 100%
 
