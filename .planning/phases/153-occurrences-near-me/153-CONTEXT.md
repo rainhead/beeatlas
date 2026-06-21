@@ -1,46 +1,46 @@
-# Phase 153: Occurrences Near Me - Context
+# Phase 153: Occurrences Near Me - Context (REVISED)
 
 **Gathered:** 2026-06-20
+**Revised:** 2026-06-21 — redesigned to reuse the existing shift-drag `selectionBounds` mechanism after UAT feedback. Supersedes the original haversine-circle / `?near=1` design (reverted in commit a4e269cb).
 **Status:** Ready for planning
 
 <domain>
 ## Phase Boundary
 
-A standalone "Near me" chip filters occurrences to those within a fixed **10 km** radius of the user's GPS position. The filter AND-composes with all existing taxon/date/region/selection filters and applies to the map and the list/table view. The proximity query runs as a **bbox SQL pre-filter + haversine distance check** and fires only **after a GPS fix** (barrier analogous to `taxaReady` / the `_filterQueryGeneration` stale-guard). State round-trips in the URL as a boolean `?near=1` (coordinates are ephemeral); "Clear filters" removes the chip and the param.
+"Near me" is a one-tap convenience that resolves the user's GPS position into a **~10 km bounding box** and applies it as a **selection-bounds filter** — reusing the rectangle-selection mechanism that already exists end-to-end for shift-drag (`_selectionBounds` → `filter.ts` `boundsClause` → `SelectionState{type:'bounds'}` URL round-trip → restore). The trigger is a **geolocate-icon button inside the existing "County, ecoregion, or place" input**; the resolved bounds appear in that input as a removable chip (the existing county/ecoregion/place chip pattern). Because the bounds are explicit and already round-trip in the URL, a **shared link reproduces the exact same occurrences for any recipient — no GPS required**.
 
-**In scope:** NEAR-01 (10 km chip + AND-composition), NEAR-02 (bbox + haversine, GPS-fix barrier, <200 ms), NEAR-03 (`?near=1` round-trip, restore re-activates geolocation and defers query, clearable).
-**Out of scope:** configurable/surfaced radius (fixed 10 km is locked); a separate distance-sort or "nearest N" ranking; basemap tile caching (Phase 154); live-following the moving user (explicitly declined — see D-04).
+**In scope:** NEAR-01 (geolocate button in the where input → ~10 km bbox → selection-bounds filter, AND-composing), NEAR-02 (reuse the existing bbox `boundsClause` query path — no new proximity query), NEAR-03 (bounds round-trip in the URL via the existing selection serialization; shareable/reproducible; Phase 152 toast on denial).
+**Out of scope:** surfacing the shift-drag rectangle *gesture* in the UI (backlog 999.1 — its URL round-trip already exists); a haversine circle; a configurable radius; a distance sort.
 
 </domain>
 
 <decisions>
 ## Implementation Decisions
 
-### Pending / failure UX (NEAR-02, NEAR-03)
-- **D-01:** Tapping "Near me" puts the chip into an **active/pending state immediately**; the map/list holds (no result change) until the first GPS fix arrives, then filters. This is the GPS-fix barrier in user-visible form.
-- **D-02:** On **denied or unavailable** location, **reuse the Phase 152 toast/banner** (`_locationError` / `_locationErrorKind: 'denied' | 'unavailable'`, D-04 of Phase 152) and leave the chip inactive (do not strand it in a permanently-pending state). The rest of the app is unaffected.
+### Reuse, not reinvent (NEAR-01/02/03)
+- **D-01:** Near-me sets `_selectionBounds` — the SAME state shift-drag rectangle selection produces (`bee-atlas.ts:103`). It reuses the existing query `boundsClause` (`filter.ts:454`) and the existing `SelectionState{type:'bounds'}` URL serialization (`url-state.ts:83`) **as-is**. NO haversine, NO `nearMeCenter` threading, NO `?near=1` boolean, NO separate query function. This is the core of the redesign — near-me is a thin producer of a bounds selection.
 
-### Activation ↔ GeolocateControl coupling (NEAR-01)
-- **D-03:** Tapping "Near me" **also activates the map's `GeolocateControl`** (programmatically `.trigger()` it) so the blue dot + accuracy ring appear and recenter — one tap gives both the filter and the visual "this is where you are" anchor. Near-me consumes the `_userLocation` the control relays upward (the control is the single source of the position; near-me does not open its own `getCurrentPosition`).
+### Box, not circle (NEAR-01)
+- **D-02:** "Near me" computes a **bounding box of ±10 km around the user's position** (≈20 km square): `dLat = 10/111.32`, `dLon = 10/(111.32·cos(lat))`, box = `{west: lon−dLon, east: lon+dLon, south: lat−dLat, north: lat+dLat}`. The haversine circle is dropped. The ±10 km is a fixed default (tunable later); "within 10 km in any cardinal direction."
 
-### Position capture: freeze, not follow (NEAR-02)
-- **D-04:** The filtered set is **frozen at the position captured when the chip is activated**. The blue dot keeps tracking and may drift, but the near-me set does **not** re-query on every GPS fix. This sidesteps the throttle/debounce concern deferred from Phase 152 (D-05) — with a frozen snapshot there is no per-fix re-query cost, so no throttling is needed in this phase.
-- **D-05:** **Refresh = re-tap the chip.** Toggling near-me off then on re-captures the current GPS position. No dedicated refresh affordance, no coupling to the recenter button for re-capture. (Re-tap is the intended, sufficient mechanism for a field tool.)
+### Shareable URL — intentionally reverses old privacy stance (NEAR-03)
+- **D-03:** The bounds round-trip in the URL via the **existing** selection-bounds param (`west,south,east,north`). A shared link reproduces the **identical** occurrence set; a recipient needs no GPS and no geolocation re-trigger on restore (the bounds are explicit, applied directly). This **deliberately reverses** the original D-07/NEAR-03 (coords-ephemeral, boolean `?near=1`, location-privacy threat model): a coarse ~20 km box around the user is in the shareable URL **by design**, because shareability/reproducibility is the goal. No `?near=1`, no coords-deferral machinery.
 
-### Chip UI (NEAR-01)
-- **D-06:** "Near me" is a **standalone chip on its own line** in the filter summary — a distinct location-relative filter, **not** grouped under the Where/region section with county/ecoregion/place chips. It renders as a removable chip when active (✕ removes it, same removable-chip affordance as other filters). Suggested read: `Near me · 10 km`.
+### UI — geolocate button inside the "County, ecoregion, or place" input (NEAR-01)
+- **D-04:** Replace the standalone chip with a **button**, right-aligned within/over the "County, ecoregion, or place" input (`_renderWhere`, `bee-pane.ts:1049` `.input-wrap`). The button **reuses the geolocate icon** (the crosshair used by `mapboxgl-ctrl-geolocate` / the Phase 152 `GeolocateControl`). Do NOT invent a new standalone affordance — fold it into this existing input. (See [[feedback_no_unrequested_ui_patterns]].)
+- **D-05:** When near-me resolves, the active bounds render **in that input** as a removable chip in the existing `.chips` row of the where input-group (`bee-pane.ts:1024-1048`) — the same pattern county/ecoregion/place chips use, removable via ✕ (clears `_selectionBounds`). **Chip label: OPEN — proposed "Near me"** (vs a generic "Selected area" that would also fit shift-drag, vs showing the bounds). To confirm with the user before building.
 
-### URL round-trip (NEAR-03)
-- **D-07:** Add `nearMe: boolean` to `FilterState`; serialize as `?near=1` only when active (parse `near=1` → true). On restore from `?near=1`, **re-activate geolocation (trigger the control) and defer the query until a fix arrives** — same pending-then-filter flow as a fresh tap. Coordinates are never persisted. "Clear filters" sets `nearMe=false` and drops `near` from the URL, like every other filter.
+### Activation, freeze, denial
+- **D-06:** Tapping the button triggers the Phase 152 `GeolocateControl` so the blue dot + accuracy ring appear (the control remains the single source of position); near-me consumes the relayed `_userLocation`. Keep the 152 granted-auto path.
+- **D-07:** Freeze falls out for free — the bounds are an explicit snapshot, not a live query; the moving dot does not re-filter. Re-tap re-captures (recompute the box from the current position).
+- **D-08:** On denied/unavailable location, surface the **existing Phase 152 toast** (`_locationError`/`_locationErrorKind`) and leave the button inactive / no bounds applied. **Fix the toast so it actually fires** (it failed in UAT). (User-selected.)
 
-### Empty result state
-- **D-08:** When zero occurrences fall within 10 km, **reuse the existing empty state** (whatever the map/list/table already shows when a filter matches nothing). No near-me-specific copy.
+### AND-composition
+- **D-09:** The bounds filter AND-composes with taxon/date/region filters exactly as shift-drag bounds already do (`boundsClause` is ANDed in the query). No new composition logic.
 
 ### Claude's Discretion
-- The exact `FilterState` field name (`nearMe` suggested) and the chip's exact label/spacing.
-- Whether the bbox pre-filter widens by the GPS `accuracy` value or uses a plain 10 km box (lat/lon degree deltas). The bbox is only a coarse pre-filter; the haversine post-filter enforces the true 10 km — pick the simpler correct option.
-- Whether the haversine runs as pure SQL (if MemoryVFS exposes trig — see research flag) or as a JS post-filter over returned rows in `queryVisibleGeoJSON`. This is the phase's named research item, not a user decision.
-- The precise mechanics of the pending→active chip styling.
+- Exact button placement/styling within the input (trailing-icon position), and how the geolocate crosshair icon is shared between the map control and the where-input button (extract to a shared SVG vs replicate).
+- Whether the active bounds chip and a shift-drag-produced bounds chip render identically (they are the same `_selectionBounds`).
 
 </decisions>
 
@@ -50,64 +50,63 @@ A standalone "Near me" chip filters occurrences to those within a fixed **10 km*
 **Downstream agents MUST read these before planning or implementing.**
 
 ### Requirements & roadmap
-- `.planning/REQUIREMENTS.md` §NEAR-01/NEAR-02/NEAR-03 — the three locked requirements for this phase.
-- `.planning/ROADMAP.md` (Phase 153 entry, ~line 1271) — goal, success criteria, and the **research flag**: run `SELECT sin(1.0)` in the wa-sqlite worker to verify whether MemoryVFS exposes trig functions before choosing pure-SQL vs JS haversine.
+- `.planning/REQUIREMENTS.md` §NEAR-01/02/03 (revised 2026-06-21 to the bounds-reuse design).
+- `.planning/ROADMAP.md` (Phase 153 entry) — note SC-3's haversine wording is now obsolete; near-me reuses the existing bbox bounds path.
 
-### Prior-phase context (the location substrate this phase consumes)
-- `.planning/phases/152-geolocatecontrol-location-state/152-CONTEXT.md` — defines `_userLocation: { lat, lon, accuracy }` (shape chosen to anticipate this haversine work), the relay event, the granted-only auto-trigger, and the denial toast (D-04) that D-02 above reuses.
+### The existing bounds mechanism this phase reuses (READ FIRST)
+- `src/filter.ts:436-463` — `selectionBounds` parameter + `boundsClause` in the query (the filter near-me feeds).
+- `src/url-state.ts:30, 63, 79-86` — `SelectionState{type:'bounds'}` serialize; the bounds URL round-trip already exists.
+- `src/bee-atlas.ts:103` (`_selectionBounds` state), `:536, :884-913, :1169-1181` (selection restore/clear/query wiring), `:1240` (`_onRegionClick` shift-key path).
+- `src/bee-map.ts:220-303` — shift-drag rectangle gesture (SEL-01/02) emitting `selection-drawn` with bounds (the analog producer near-me mirrors).
+- `src/bee-pane.ts:1013-1066` (`_renderWhere`) — the "County, ecoregion, or place" input + its `.chips` row (`:1024-1048`) + `.input-wrap` (`:1049`) where the button goes; `.chip`/`.chip-remove` CSS at `:303-325`.
+
+### Location substrate (Phase 152)
+- `src/bee-map.ts:404-437` — the `GeolocateControl` instance + crosshair icon (to reuse) + granted-auto path.
+- `.planning/phases/152-geolocatecontrol-location-state/152-CONTEXT.md` — `_userLocation` shape + the denial toast (`_locationError`/`_locationErrorKind`) D-08 reuses.
 
 ### Architecture invariants
-- `/Users/rainhead/dev/beeatlas/CLAUDE.md` §"Architecture Invariants" — state-owner/pure-presenter rule, the **style-cache bypass** rule (cache must be bypassed when `filterState` is active — near-me is a new active-filter source), and the **filter race guard** (`_filterQueryGeneration` / `makeStaleGuard`) that the GPS-fix-deferred query must respect.
-
-### Code touchpoints (from codebase scout)
-- `src/filter.ts:13-25` (`FilterState`), `:251-324` (`buildFilterSQL` AND-composition — add bbox clause), `:326-355` (`queryVisibleGeoJSON` — where the haversine post-filter goes; `lat`/`lon` columns available).
-- `src/bee-atlas.ts:121-126` (`_userLocation` / `_locationError` state), `:167` (`userLocation` getter), `:591-597` (`_runFilterQuery` + `_filterGuard`), `:986-1000` (`_onUserLocationChanged` — currently does NOT re-query; D-04 keeps it that way), `:1274-1313` (`_onFilterChanged`).
-- `src/url-state.ts:60-114` (`buildParams` — serialize `near=1`), `:116-278` (`parseParams` — parse `near`).
-- `src/bee-pane.ts:926-1062` (chip render patterns), `:303-325` (`.chip` / `.chip-remove` CSS) — note D-06 wants a standalone chip, NOT inside `_renderWhere`.
-- `src/bee-map.ts:406-427` (geolocate event + auto-trigger) — the `.trigger()` path D-03/D-07 reuse.
-- `src/stale-guard.ts` — the `makeStaleGuard` race guard.
+- `/Users/rainhead/dev/beeatlas/CLAUDE.md` §"Architecture Invariants" — state-owner/pure-presenter, style-cache bypass when a filter/selection is active, `_filterQueryGeneration` race guard.
 
 </canonical_refs>
 
 <code_context>
 ## Existing Code Insights
 
-### Reusable Assets
-- **Phase 152 location substrate:** `_userLocation` ({lat, lon, accuracy}), the `user-location-changed` relay, and the granted-only `.trigger()` path — near-me consumes these directly rather than opening its own geolocation.
-- **Denial toast/banner** (`_locationError` / `_locationErrorKind`) — reused verbatim for D-02; no new failure UI.
-- **Removable-chip pattern** (`bee-pane.ts` chips + `.chip`/`.chip-remove` CSS) — the near-me chip follows the same remove/emit-`filter-changed` mechanics, just rendered standalone (D-06).
-- **`makeStaleGuard` / `_filterGuard`** — already discards stale async query results; the GPS-fix-deferred near-me query slots into the same guarded `_runFilterQuery()` path.
+### Reusable Assets (this phase is mostly reuse)
+- **`selectionBounds` end-to-end**: query `boundsClause` (filter.ts), `_selectionBounds` state (bee-atlas), `SelectionState{type:'bounds'}` URL round-trip (url-state) — all already exist and are tested. Near-me only needs to PRODUCE a bounds object and feed it in.
+- **GeolocateControl + crosshair icon** (Phase 152, bee-map.ts:404) — reused for both the blue dot and the where-input button's icon.
+- **Where input-group chip pattern** (bee-pane.ts:1024-1048) — the active bounds chip reuses it; no new chip pattern.
+- **Phase 152 denial toast** (`_locationError`/`_locationErrorKind`) — reused for D-08.
 
 ### Established Patterns
-- Filters AND-compose by joining WHERE clauses in `buildFilterSQL` (`' AND '`); a bbox clause is one more pushed clause — composition is automatic.
-- `queryVisibleGeoJSON` materializes rows then builds GeoJSON; the haversine post-filter (if JS) inserts between materialization and feature push.
-- DB queries are decoupled from Lit's render cycle — only explicit handlers call `_runFilterQuery()`. Freeze-at-activation (D-04) means location updates still do NOT trigger re-query (preserves Phase 152's D-05 stance).
-- **Style-cache bypass:** near-me active = `filterState` active → the mapbox-gl style cache must be bypassed (Architecture Invariant); confirm the new boolean participates in that check.
+- Selection bounds AND-compose into the query via `boundsClause`; near-me inherits that automatically.
+- `<bee-map>` is a pure presenter; the where-input button lives in `<bee-pane>` and emits upward to `<bee-atlas>`, which owns `_selectionBounds` and triggers the control (state-owner invariant).
 
 ### Integration Points
-- `nearMe: boolean` added to `FilterState` (filter.ts) → serialized/parsed in url-state.ts → bbox clause in `buildFilterSQL` → haversine in `queryVisibleGeoJSON` → standalone chip in bee-pane → activation handler in bee-atlas that `.trigger()`s the control (via bee-map) and fires the deferred guarded query once `_userLocation` is non-null.
+- New: a geolocate button in `bee-pane._renderWhere` emitting an event to `<bee-atlas>`; a `<bee-atlas>` handler that triggers the GeolocateControl, and on the resulting `_userLocation` computes the ±10 km box and sets `_selectionBounds` (then the existing query + URL paths fire). Denial → existing toast.
 
 </code_context>
 
 <specifics>
 ## Specific Ideas
 
-- Consumer framing (carried from Phase 152): v5.0 "Offline Field Mode" — a volunteer collector standing in a field asking "what's been found right here?" This drove freeze-at-activation (you snapshot where you're collecting, not a continuously-shifting set) and the single-tap filter+blue-dot coupling.
-- The "freeze + still-tracking dot" tension was raised and resolved deliberately: the dot is a live visual anchor; the filtered set is a deliberate snapshot you refresh by re-tapping.
+- The unifying insight (user): near-me and shift-drag rectangle selection are the **same mechanism** — both produce a bounds selection that round-trips in the URL. Near-me is just a geolocated default box. The shift-drag bounds URL round-trip already exists; surfacing its *gesture* in the UI is backlog 999.1 and stays out of scope.
+- Sharing semantics drove the reversal of the privacy model: a sent link must show the recipient the **sender's** occurrences, which requires explicit bounds in the URL — not a boolean that re-geolocates the recipient.
+- UI lesson captured: do not introduce a new UI pattern (the standalone chip) without asking — fold into the existing input. [[feedback_no_unrequested_ui_patterns]]
 
 </specifics>
 
 <deferred>
 ## Deferred Ideas
 
-- **Live-following near-me (re-query per GPS fix, throttled):** considered and explicitly declined in favor of freeze-at-activation (D-04). If field use shows collectors want a continuously-updating set, a future phase could add it with the throttle/debounce that Phase 152 D-05 anticipated.
-- **Configurable/surfaced radius:** 10 km is fixed by requirements; a user-adjustable radius is a separate future capability.
-- **Distance sort / "nearest N" ranking:** near-me is a binary within-radius filter, not a ranking; ordering by distance is out of scope.
-- **Recenter-button-as-refresh coupling:** declined (D-05) in favor of re-tap; revisit only if re-tap proves non-obvious in the field.
+- **Surfacing the shift-drag rectangle gesture in the UI** — backlog 999.1; the bounds URL round-trip already exists, so this is a discoverability/affordance task, separate from near-me.
+- **Configurable box size / radius** — ±10 km is a fixed default.
+- **Distance sort / nearest-N** — out of scope.
+- **Superseded (reverted in a4e269cb):** the pure-SQL haversine circle, `?near=1` boolean, `nearMeCenter` threading, the coords-ephemeral privacy model, and the `<200 ms` timing log (the existing bbox query is already fast; no separate measurement surface needed).
 
 </deferred>
 
 ---
 
-*Phase: 153-occurrences-near-me*
-*Context gathered: 2026-06-20*
+*Phase: 153-occurrences-near-me (REVISED — bounds-reuse design)*
+*Context revised: 2026-06-21*
