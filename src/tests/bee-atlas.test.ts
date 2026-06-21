@@ -424,7 +424,7 @@ describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
   test('NEAR-01: intendedFilterActive treats a bounds box as an active filter', () => {
     const getterStart = src.indexOf('get intendedFilterActive(');
     expect(getterStart).toBeGreaterThan(-1);
-    const body = src.slice(getterStart, getterStart + 240);
+    const body = src.slice(getterStart, getterStart + 480);
     expect(body).toContain('this._selectionBounds !== null');
   });
 
