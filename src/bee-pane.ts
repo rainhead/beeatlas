@@ -507,6 +507,15 @@ export class BeePane extends LitElement {
       opacity: 0.4;
       cursor: default;
     }
+    /* Desktop-only visibility gate for shift-drag bounds hint */
+    .hint--desktop-only {
+      display: none;
+    }
+    @media (hover: hover) and (pointer: fine) {
+      .hint--desktop-only {
+        display: block;
+      }
+    }
   `;
 
   connectedCallback() {
@@ -1083,6 +1092,7 @@ export class BeePane extends LitElement {
               </ul>
             ` : nothing}
           </div>
+          <p class="hint hint--desktop-only">Shift-drag on map to set bounds</p>
           <div class="elev-row">
             <input
               type="number" class="elev-input"
