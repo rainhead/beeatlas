@@ -98,3 +98,21 @@ describe('DC-05: bee-atlas passes _taxonCache to bee-pane', () => {
     expect(atlasSrc).toMatch(/\.taxonCache=\$\{this\._taxonCache\}/);
   });
 });
+
+// -----------------------------------------------------------------------
+// UI-01: shift-drag bounds hint in bee-pane
+// -----------------------------------------------------------------------
+
+describe('UI-01: shift-drag bounds hint in bee-pane', () => {
+  test('bee-pane.ts contains the exact hint copy', () => {
+    expect(paneSrc).toContain('Shift-drag on map to set bounds');
+  });
+
+  test('bee-pane.ts applies .hint class to the shift-drag hint', () => {
+    expect(paneSrc).toMatch(/class=["'][^"']*hint[^"']*["'][^>]*>Shift-drag on map to set bounds/);
+  });
+
+  test('bee-pane.ts gates hint with pointer capability media query', () => {
+    expect(paneSrc).toMatch(/@media\s*\(\s*hover\s*:\s*hover\s*\).*pointer\s*:\s*fine/s);
+  });
+});
