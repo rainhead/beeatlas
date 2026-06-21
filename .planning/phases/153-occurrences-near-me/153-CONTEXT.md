@@ -28,7 +28,7 @@
 
 ### UI — geolocate button inside the "County, ecoregion, or place" input (NEAR-01)
 - **D-04:** Replace the standalone chip with a **button**, right-aligned within/over the "County, ecoregion, or place" input (`_renderWhere`, `bee-pane.ts:1049` `.input-wrap`). The button **reuses the geolocate icon** (the crosshair used by `mapboxgl-ctrl-geolocate` / the Phase 152 `GeolocateControl`). Do NOT invent a new standalone affordance — fold it into this existing input. (See [[feedback_no_unrequested_ui_patterns]].)
-- **D-05:** When near-me resolves, the active bounds render **in that input** as a removable chip in the existing `.chips` row of the where input-group (`bee-pane.ts:1024-1048`) — the same pattern county/ecoregion/place chips use, removable via ✕ (clears `_selectionBounds`). **Chip label: OPEN — proposed "Near me"** (vs a generic "Selected area" that would also fit shift-drag, vs showing the bounds). To confirm with the user before building.
+- **D-05:** When near-me resolves, the active bounds render **in that input** as a removable chip in the existing `.chips` row of the where input-group (`bee-pane.ts:1024-1048`) — the same pattern county/ecoregion/place chips use, removable via ✕ (clears `_selectionBounds`). **The chip displays the geolocate crosshair icon** (the same icon reused for the trigger button), tying the two together visually — not a text label. ("Near me" text is the fallback only if the icon can't be reused.) User-confirmed 2026-06-21.
 
 ### Activation, freeze, denial
 - **D-06:** Tapping the button triggers the Phase 152 `GeolocateControl` so the blue dot + accuracy ring appear (the control remains the single source of position); near-me consumes the relayed `_userLocation`. Keep the 152 granted-auto path.
