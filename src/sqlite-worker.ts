@@ -145,7 +145,13 @@ let _geoBuffer: ArrayBuffer | null = null;
   // Without this, any failure in worker init (wasm, DB, or manifest fetch) is
   // swallowed: tablesReady never resolves and the page hangs on the "Loading…"
   // curtain with no clue why. Surface it so it's diagnosable (Phase 151).
-  const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
-  console.error('[sqlite-worker] init failed:', message);
+  // Surface name + message explicitly — err.stack alone is minified frames (`d@blob:…`)
+  // that say nothing. The message (e.g. a WebAssembly CompileError or a fetch 404 text)
+  // is the diagnosable part.
+  const name = err instanceof Error ? err.name : 'UnknownError';
+  const detail = err instanceof Error ? err.message : String(err);
+  const stack = err instanceof Error ? err.stack : undefined;
+  const message = `${name}: ${detail}`;
+  console.error('[sqlite-worker] init failed:', message, '\nstack:', stack);
   self.postMessage({ kind: 'init-error', message });
 });
