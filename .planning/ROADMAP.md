@@ -62,7 +62,11 @@
   - [x] 152-01-PLAN.md — Wave 0: create `src/tests/geolocation.test.ts` (source-analysis gate for the LOC-02 pure-presenter invariant) + extend the `mapbox-gl` `vi.mock` in `bee-atlas.test.ts`/`cache-state.test.ts` (addControl + GeolocateControl stub) [LOC-02]
   - [x] 152-02-PLAN.md — Wave 1: GeolocateControl in `bee-map.ts` (D-01 opts, granted-only auto-trigger D-03, emit `user-location-changed`) + `bee-atlas.ts` `@state _userLocation`/`_locationError`, handler, binding, denial banner (D-04) [LOC-01, LOC-02, LOC-03]
   - [x] 152-03-PLAN.md — Wave 2: `152-HUMAN-UAT.md` (blue dot/recenter, offline GPS, denial banner, real-device iOS standalone) + blocking human-verify checkpoint (autonomous: false) [LOC-01, LOC-03]
-- [ ] **Phase 153: Occurrences Near Me** — "Near me" chip filtering to occurrences within 10 km; bbox SQL pre-filter + JS haversine post-filter in worker; `?near=1` URL state; AND-composition with existing filters.
+- [ ] **Phase 153: Occurrences Near Me** — A geolocate-icon button inside the "County, ecoregion, or place" input resolves the user's GPS into a ~10 km bounding box, applied as a selection-bounds filter that REUSES the existing shift-drag mechanism (`_selectionBounds` → `filter.ts` `boundsClause` → `sel=west,south,east,north` URL round-trip). Active bounds show as an icon-only removable chip; AND-composes with other filters; a shared link reproduces the exact occurrence set with no recipient GPS. Redesigned 2026-06-21 from the reverted haversine/`?near=1` form (commit a4e269cb). **Plans:** 4 plans (3 waves). **UI hint:** yes.
+  - [ ] 153-01-PLAN.md — Wave 1: `<bee-map>` public `requestUserLocation()` seam (promote GeolocateControl to an instance field) + geolocation source-analysis gate [NEAR-01/02/03; D-06]
+  - [ ] 153-02-PLAN.md — Wave 1: `<bee-pane>` geolocate button in the where `.input-wrap` (emits `near-me-requested`) + icon-only removable bounds chip (emits `near-me-cleared`) + `selectionBoundsActive` property + render tests [NEAR-01/02/03; D-04, D-05]
+  - [ ] 153-03-PLAN.md — Wave 2: `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, Phase 152 denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
+  - [ ] 153-04-PLAN.md — Wave 3: `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + the shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
 - [ ] **Phase 154: Mapbox Tile Caching (TOS-gated)** — SW runtime-caches Mapbox tiles behind `beta_tile_cache` flag defaulting **off**; access_token stripped from cache key; `maxEntries` + 12h TTL; documented as self-test-only with hard TOS-review gate.
 
 ### ✅ v4.10 Housekeeping (Phases 145–146) — SHIPPED 2026-06-09
@@ -1270,34 +1274,33 @@ Plans:
 
 ### Phase 153: Occurrences Near Me
 
-**Goal**: A "Near me" chip filters occurrences to those within 10 km of the user's GPS position; the query AND-composes with all existing filters; the state round-trips in the URL as `?near=1`; the query runs in under 200 ms on the full occurrence set.
-**Depends on**: Phase 152 (`_userLocation` state must exist on `<bee-atlas>`)
+**Goal**: A geolocate-icon button inside the "County, ecoregion, or place" input resolves the user's GPS into a ~10 km bounding box and applies it as a selection-bounds filter, REUSING the existing shift-drag rectangle-selection mechanism end-to-end (`_selectionBounds` → `filter.ts` `boundsClause` → `SelectionState{type:'bounds'}` `sel=west,south,east,north` URL round-trip). The bounds are explicit and round-trip in the URL, so a shared link reproduces the exact same occurrences for any recipient with no GPS. Redesigned 2026-06-21 from the reverted haversine/`?near=1` form (commit a4e269cb); the old SC-3 (<200 ms haversine timing log) is obsolete — performance is that of the existing fast bounds query.
+**Depends on**: Phase 152 (GeolocateControl + `_userLocation` state on `<bee-atlas>`)
 **Requirements**: NEAR-01, NEAR-02, NEAR-03
 **Success Criteria** (what must be TRUE):
 
-  1. Tapping the "Near me" chip activates geolocation (if not already active) and, once a GPS fix arrives, filters the map and list/table to occurrences within 10 km of the user's position
-  2. The near-me filter AND-composes with the existing taxon/date/region/selection filters — applying a taxon filter while "Near me" is active narrows both simultaneously
-  3. The proximity query uses a SQL bounding-box pre-filter plus a haversine distance check in the worker; the full query returns in under 200 ms on the full occurrence set (verified by timing log). **Mechanism note (resolved in 153-RESEARCH):** the `SELECT sin(1.0)` probe confirmed the wa-sqlite build compiles in SQLite math functions, so the haversine is implemented as **pure SQL** (not a JS post-filter) — measured 12.7 ms on 97.6k rows. The original "JavaScript haversine post-filter" wording was the contingent fallback; SC-3's intent (in-worker, <200 ms) is fully satisfied and the pure-SQL path additionally covers the table/list/CSV query paths.
-  4. `?near=1` appears in the URL when the chip is active; restoring from that URL re-activates geolocation and defers the query until a fix arrives; "Clear filters" removes the chip and the URL param
+  1. A geolocate-icon button right-aligned inside the where input resolves the user's GPS into a ±10 km bounding box (`dLat=10/111.32`, `dLon=10/(111.32·cos(lat))`) and assigns it to `_selectionBounds`; the map + list/table filter to that box and an icon-only removable chip appears in the where input (NEAR-01)
+  2. Near-me reuses the EXISTING selection-bounds query path (`boundsClause`) — no separate proximity query, no haversine; a near-me box is indistinguishable from a shift-drag box and AND-composes with taxon/date/region filters (NEAR-01, NEAR-02)
+  3. The bounds round-trip in the URL via the existing selection-bounds serialization (`sel=west,south,east,north`); a shared link reproduces the exact occurrence set with no recipient GPS and no geolocation re-trigger on restore; the chip ✕ / "Clear filters" clears the bounds (NEAR-03)
+  4. On denied/unavailable location, the Phase 152 toast appears (fixed — it failed in the 152 UAT) and no bounds are applied (NEAR-03)
 
-**Plans**: 3 plans
+**Plans**: 4 plans (3 waves)
 
 Plans:
-**Wave 1**
+**Wave 1** *(parallel — no shared files)*
 
-- [x] 153-01-PLAN.md — model + SQL: nearMe FilterState field, bbox+haversine clause, ?near=1 round-trip (NEAR-01/02/03)
+- [ ] 153-01-PLAN.md — `<bee-map>` public `requestUserLocation()` seam (promote GeolocateControl to an instance field) + geolocation source gate [NEAR-01/02/03; D-06]
+- [ ] 153-02-PLAN.md — `<bee-pane>` geolocate button (emits `near-me-requested`) + icon-only removable bounds chip (emits `near-me-cleared`) + `selectionBoundsActive` property + render tests [NEAR-01/02/03; D-04, D-05]
 
-**Wave 2** *(blocked on Wave 1 completion)*
+**Wave 2** *(blocked on Wave 1)*
 
-- [x] 153-02-PLAN.md — wiring: standalone chip, near-me-changed event, triggerGeolocate, frozen-center activation/deferral state machine (NEAR-01/02/03)
+- [ ] 153-03-PLAN.md — `<bee-atlas>` integration — `boundsFromLocation` ±10 km box, shared `_applyBoundsSelection` (near-me ≡ shift-drag state + `sel=` URL), event handlers, `selectionBoundsActive` binding, denial-toast fix + tests [NEAR-01/02/03; D-01, D-02, D-03, D-07, D-08, D-09]
 
-**Wave 3** *(blocked on Wave 2 completion)*
+**Wave 3** *(blocked on Wave 2)*
 
-- [ ] 153-03-PLAN.md — in-app timing log + real-device Human UAT (NEAR-02 <200 ms; UI-hint, no auto-advance)
+- [ ] 153-04-PLAN.md — `153-HUMAN-UAT.md` (desktop DevTools-Sensors scenarios + shared-URL reproducibility check + real-device confirmation) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [NEAR-01/02/03; D-03, D-05, D-08, D-09]
 
 **UI hint**: yes
-
-**Phase note — research flag:** Before writing the haversine implementation, run `SELECT sin(1.0)` in the wa-sqlite worker to verify whether MemoryVFS exposes trig functions. If available, a pure SQL haversine is cleaner; if not (more likely per the ARCHITECTURE doc), use bbox SQL pre-filter + JS haversine in the worker.
 
 ### Phase 154: Mapbox Tile Caching (TOS-gated)
 
