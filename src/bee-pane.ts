@@ -83,11 +83,11 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) selectedIds: Set<string> | null = null;
   @property({ attribute: false }) hiddenSources: Set<string> = new Set();
 
-  // Near-me: true when a selection-bounds filter sourced from geolocation is active.
-  // bee-pane is a pure presenter — bounds state lives in bee-atlas.
-  @property({ attribute: false }) selectionBoundsActive: boolean = false;
-  // Human-readable bounds shown IN the where input when selectionBoundsActive (owned by bee-atlas).
-  @property({ attribute: false }) selectionBoundsLabel: string = '';
+  // Near-me: true when a bounds filter (near-me / shift-drag) is active.
+  // bee-pane is a pure presenter — bounds state lives in bee-atlas._filterState.bounds.
+  @property({ attribute: false }) boundsFilterActive: boolean = false;
+  // Human-readable bounds shown IN the where input when boundsFilterActive (owned by bee-atlas).
+  @property({ attribute: false }) boundsFilterLabel: string = '';
 
   @state() private _open = false;
 
@@ -1048,8 +1048,8 @@ export class BeePane extends LitElement {
               type="text"
               class=${'filter-input has-near-me'}
               placeholder="County, ecoregion, or place"
-              .value=${this.selectionBoundsActive ? this.selectionBoundsLabel : this._whereInput}
-              ?readonly=${this.selectionBoundsActive}
+              .value=${this.boundsFilterActive ? this.boundsFilterLabel : this._whereInput}
+              ?readonly=${this.boundsFilterActive}
               @input=${this._onWhereInput}
               @keydown=${(e: KeyboardEvent) => this._handleKeydown(e, 'where', () => {
                 if (ecoregions.length > 0) this._removeEcoregion(ecoregions[ecoregions.length - 1]!);
@@ -1060,7 +1060,7 @@ export class BeePane extends LitElement {
               autocomplete="off"
               spellcheck="false"
             />
-            ${this.selectionBoundsActive ? html`
+            ${this.boundsFilterActive ? html`
               <button type="button" class="near-me-btn"
                 aria-label="Clear near-me filter"
                 @click=${() => this.dispatchEvent(new CustomEvent('near-me-cleared', { bubbles: true, composed: true }))}>&#x2715;</button>

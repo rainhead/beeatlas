@@ -297,8 +297,12 @@ describe('MAP-02: source filter row in bee-pane', () => {
 });
 
 describe('NEAR-01/D-04/D-05: near-me affordance in the where input', () => {
-  test('bee-pane.ts declares selectionBoundsActive @property', () => {
-    expect(src).toMatch(/@property[\s\S]{0,80}selectionBoundsActive/);
+  test('bee-pane.ts declares boundsFilterActive @property (renamed from selectionBoundsActive)', () => {
+    expect(src).toMatch(/@property[\s\S]{0,80}boundsFilterActive/);
+  });
+
+  test('bee-pane.ts does NOT declare selectionBoundsActive (old prop name retired)', () => {
+    expect(src).not.toMatch(/selectionBoundsActive/);
   });
 
   test('bee-pane.ts renders .near-me-btn inside _renderWhere', () => {
@@ -315,24 +319,28 @@ describe('NEAR-01/D-04/D-05: near-me affordance in the where input', () => {
     expect(src).toMatch(/near-me-btn[\s\S]{0,200}aria-label=/);
   });
 
-  test('bee-pane.ts declares selectionBoundsLabel @property', () => {
-    expect(src).toMatch(/@property[\s\S]{0,80}selectionBoundsLabel/);
+  test('bee-pane.ts declares boundsFilterLabel @property (renamed from selectionBoundsLabel)', () => {
+    expect(src).toMatch(/@property[\s\S]{0,80}boundsFilterLabel/);
+  });
+
+  test('bee-pane.ts does NOT declare selectionBoundsLabel (old prop name retired)', () => {
+    expect(src).not.toMatch(/selectionBoundsLabel/);
   });
 
   test('bee-pane.ts puts the bounds label IN the where input value when active (not a chip)', () => {
-    // The input's value shows selectionBoundsLabel when a bounds selection is active.
-    expect(src).toMatch(/\.value=\$\{this\.selectionBoundsActive[\s\S]{0,80}selectionBoundsLabel/);
+    // The input's value shows boundsFilterLabel when a bounds filter is active.
+    expect(src).toMatch(/\.value=\$\{this\.boundsFilterActive[\s\S]{0,80}boundsFilterLabel/);
   });
 
   test('bee-pane.ts makes the where input readonly while bounds are active', () => {
-    expect(src).toMatch(/\?readonly=\$\{this\.selectionBoundsActive/);
+    expect(src).toMatch(/\?readonly=\$\{this\.boundsFilterActive/);
   });
 
-  test('bee-pane.ts does NOT render a standalone bounds chip (hasChips excludes selectionBoundsActive)', () => {
+  test('bee-pane.ts does NOT render a standalone bounds chip (hasChips excludes boundsFilterActive)', () => {
     // The chip pattern was explicitly removed — bounds live in the input, not the .chips row.
-    expect(src).not.toMatch(/hasChips[\s\S]{0,300}selectionBoundsActive/);
-    // No <span class="chip"> gated on selectionBoundsActive remains.
-    expect(src).not.toMatch(/selectionBoundsActive[\s\S]{0,120}class=["']chip["']/);
+    expect(src).not.toMatch(/hasChips[\s\S]{0,300}boundsFilterActive/);
+    // No <span class="chip"> gated on boundsFilterActive remains.
+    expect(src).not.toMatch(/boundsFilterActive[\s\S]{0,120}class=["']chip["']/);
   });
 
   test('bee-pane.ts trailing button toggles: clear (near-me-cleared) when active, geolocate (near-me-requested) when not', () => {
@@ -340,8 +348,8 @@ describe('NEAR-01/D-04/D-05: near-me affordance in the where input', () => {
     expect(src).toMatch(/near-me-cleared[\s\S]{0,200}bubbles:\s*true/);
     expect(src).toMatch(/near-me-cleared[\s\S]{0,200}composed:\s*true/);
     expect(src).toMatch(/Clear near-me filter/);
-    // The active branch (selectionBoundsActive) drives near-me-cleared.
-    expect(src).toMatch(/this\.selectionBoundsActive[\s\S]{0,400}near-me-cleared/);
+    // The active branch (boundsFilterActive) drives near-me-cleared.
+    expect(src).toMatch(/this\.boundsFilterActive[\s\S]{0,400}near-me-cleared/);
   });
 
   test('bee-pane.ts does not contain _selectionBounds or nearMeCenter or haversine', () => {

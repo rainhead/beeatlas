@@ -3,7 +3,6 @@ import { readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildParams, parseParams } from '../url-state.ts';
-import type { SelectionState } from '../url-state.ts';
 import type { FilterState } from '../filter.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -383,127 +382,183 @@ describe('SEL-05: sidebar not opened on empty bounds result', () => {
   // the pane opens immediately and the list query handles empty results gracefully.
 });
 
-describe('SEL-06 + SEL-07 wiring (Phase 91)', () => {
+describe('SEL-06 + SEL-07 wiring (Phase 91, updated in Phase 999.8)', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
-  test('SEL-06: _pushUrlState gives _selectionBounds precedence over cluster/ids', () => {
-    expect(src).toContain("this._selectionBounds && this._paneState === 'list'");
-  });
+  // --- Guard: _selectionBounds fully removed (Phase 999.8-03) ---
 
-  test('SEL-06: _pushUrlState emits bounds via buildParams', () => {
-    expect(src).toContain("type: 'bounds' as const");
+  test('Phase 999.8-03: bee-atlas.ts contains NO _selectionBounds references', () => {
+    // grep -v comment lines, count must be zero
+    const nonCommentLines = src.split('\n').filter(l => !l.trimStart().startsWith('//')).join('\n');
+    expect(nonCommentLines).not.toContain('_selectionBounds');
   });
 
   test('SEL-06: _onSelectionDrawn calls _pushUrlState after sidebar opens (placeholder removed)', () => {
     expect(src).not.toContain('Phase 91 will call this._pushUrlState() here');
   });
 
-  // NOTE: Plan 109-02 removed _restoreBoundsSelection; bounds restore now handled
-  // by setting _selectionBounds and letting _onDataLoaded call _runListQuery.
+  // --- D-01: bounds lives in _filterState ---
 
-  test('SEL-06: firstUpdated routes bounds selection to _selectionBounds state', () => {
-    expect(src).toContain("initSel?.type === 'bounds'");
-    expect(src).toMatch(/initSel\?\.type === 'bounds'[\s\S]{0,300}_selectionBounds\s*=/);
+  test('D-01: _filterState initial literal includes bounds: null', () => {
+    const literalStart = src.indexOf('@state() private _filterState: FilterState = {');
+    expect(literalStart).toBeGreaterThan(-1);
+    const literalEnd = src.indexOf('\n  };', literalStart);
+    const literal = src.slice(literalStart, literalEnd);
+    expect(literal).toContain('bounds: null');
   });
 
-  test('SEL-06: _onPopState routes bounds selection to _selectionBounds state', () => {
-    expect(src).toContain("parsedSel?.type === 'bounds'");
+  test('D-01: _applyBoundsFilter writes _filterState.bounds via spread (not _selectionBounds)', () => {
+    const applyStart = src.indexOf('private _applyBoundsFilter(');
+    expect(applyStart).toBeGreaterThan(-1);
+    const applyEnd = src.indexOf('\n  private ', applyStart + 1);
+    const applyBody = src.slice(applyStart, applyEnd > applyStart ? applyEnd : undefined);
+    expect(applyBody).toMatch(/_filterState\s*=\s*\{[\s\S]{0,60}bounds\s*\}/);
+    expect(applyBody).toContain('_runListQuery');
   });
 
-  test('NEAR-01: restored bounds populate the MAP — _onDataLoaded runs the filter query for _selectionBounds', () => {
-    // Regression: a fresh sel= URL filtered the sidebar but left the map empty because
-    // _onDataLoaded only ran the map query when isFilterActive (not for a bounds box).
-    // Bounds are a filter, so the data-loaded gate must include _selectionBounds.
-    const methodStart = src.indexOf('private _onDataLoaded(');
-    expect(methodStart).toBeGreaterThan(-1);
-    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
-    const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(body).toMatch(/if \(isFilterActive\(this\._filterState\) \|\| this\._selectionBounds !== null\)[\s\S]{0,80}_runFilterQuery/);
+  test('D-04: _applyBoundsFilter does NOT set _paneState = list', () => {
+    const applyStart = src.indexOf('private _applyBoundsFilter(');
+    const applyEnd = src.indexOf('\n  private ', applyStart + 1);
+    const applyBody = src.slice(applyStart, applyEnd > applyStart ? applyEnd : undefined);
+    expect(applyBody).not.toContain("_paneState = 'list'");
   });
 
-  test('NEAR-01: intendedFilterActive treats a bounds box as an active filter', () => {
-    const getterStart = src.indexOf('get intendedFilterActive(');
-    expect(getterStart).toBeGreaterThan(-1);
-    const body = src.slice(getterStart, getterStart + 480);
-    expect(body).toContain('this._selectionBounds !== null');
+  test('D-05: _applyBoundsFilter does NOT null _selectedOccIds', () => {
+    const applyStart = src.indexOf('private _applyBoundsFilter(');
+    const applyEnd = src.indexOf('\n  private ', applyStart + 1);
+    const applyBody = src.slice(applyStart, applyEnd > applyStart ? applyEnd : undefined);
+    expect(applyBody).not.toContain('_selectedOccIds = null');
   });
 
-  test('SEL-07: _onPaneCollapse clears _selectionBounds', () => {
+  test('SEL-07: _onSelectionDrawn delegates to _applyBoundsFilter (renamed from _applyBoundsSelection)', () => {
+    const selDrawnStart = src.indexOf('private _onSelectionDrawn(');
+    const selDrawnEnd = src.indexOf('\n  private ', selDrawnStart + 1);
+    const selDrawnBody = src.slice(selDrawnStart, selDrawnEnd > selDrawnStart ? selDrawnEnd : undefined);
+    expect(selDrawnBody).toContain('_applyBoundsFilter');
+    expect(selDrawnBody).not.toContain('_applyBoundsSelection');
+  });
+
+  // --- D-04/D-07: pane collapse leaves bounds active ---
+
+  test('D-07/D-04: _onPaneCollapse does NOT clear bounds', () => {
     const methodStart = src.indexOf('private _onPaneCollapse(');
     expect(methodStart).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(methodBody).toContain('this._selectionBounds = null');
+    expect(methodBody).not.toContain('_selectionBounds');
+    expect(methodBody).not.toMatch(/bounds.*=.*null/);
   });
 
-  test('SEL-07: _onMapClickEmpty clears _selectionBounds in both branches', () => {
+  // --- D-06: empty-map click clears record selection only ---
+
+  test('D-06: _onMapClickEmpty does NOT clear bounds in either branch', () => {
     const methodStart = src.indexOf('private _onMapClickEmpty()');
     expect(methodStart).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    const clearCount = (methodBody.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
-    expect(clearCount).toBeGreaterThanOrEqual(2);
+    expect(methodBody).not.toContain('_selectionBounds');
+    // bounds is a filter; only near-me-cleared clears it
+    expect(methodBody).not.toMatch(/\._filterState\.bounds\s*=\s*null/);
   });
 
-  test('SEL-07: _onFilterChanged clears _selectionBounds', () => {
+  // --- D-05: filter changes preserve bounds ---
+
+  test('D-05: _onFilterChanged preserves bounds via explicit spread (bounds: this._filterState.bounds)', () => {
     const methodStart = src.indexOf('private _onFilterChanged(');
     expect(methodStart).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(methodBody).toContain('this._selectionBounds = null');
+    expect(methodBody).toContain('bounds: this._filterState.bounds');
+    expect(methodBody).not.toContain('_selectionBounds');
   });
 
-  test('SEL-07: _onPopState clears _selectionBounds in all three branches (ids, cluster, else)', () => {
+  // --- D-07: near-me-cleared is the only bounds-clear path ---
+
+  test('D-07: _onNearMeCleared clears bounds via _filterState spread with bounds: null', () => {
+    const methodStart = src.indexOf('private _onNearMeCleared');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).toContain('bounds: null');
+    expect(methodBody).toMatch(/_filterState\s*=\s*\{[\s\S]{0,60}bounds:\s*null/);
+  });
+
+  test('D-07/D-04: _onNearMeCleared does NOT touch _paneState', () => {
+    const methodStart = src.indexOf('private _onNearMeCleared');
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(methodBody).not.toContain('_paneState');
+  });
+
+  // --- Restore wiring: firstUpdated + _onPopState ---
+
+  test('D-01/D-03: firstUpdated adds bounds: initFilter?.bounds ?? null to _filterState restore', () => {
+    const fuStart = src.indexOf('public firstUpdated(');
+    expect(fuStart).toBeGreaterThan(-1);
+    // firstUpdated is followed by disconnectedCallback (not private)
+    const fuEnd = src.indexOf('\n  disconnectedCallback(', fuStart + 1);
+    const fuBody = src.slice(fuStart, fuEnd > fuStart ? fuEnd : fuStart + 5000);
+    // Inside if (initFilter) block — no optional chaining needed
+    expect(fuBody).toMatch(/bounds:\s*initFilter\.?\??bounds\s*\?\?\s*null/);
+    // Old branch removed
+    expect(fuBody).not.toContain("initSel?.type === 'bounds'");
+  });
+
+  test('D-01/D-03: _onPopState adds bounds: parsed.filter?.bounds ?? null to _filterState restore', () => {
     const methodStart = src.indexOf('private _onPopState');
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    const clearCount = (methodBody.match(/this\._selectionBounds\s*=\s*null/g) ?? []).length;
-    expect(clearCount).toBeGreaterThanOrEqual(3);
+    expect(methodBody).toContain('bounds: parsed.filter?.bounds ?? null');
+    // Old branch removed
+    expect(methodBody).not.toContain("parsedSel?.type === 'bounds'");
   });
 
-  test('SEL-07: _onOccurrenceClick clears _selectionBounds', () => {
-    const methodStart = src.indexOf('private _onOccurrenceClick(');
+  // --- intendedFilterActive — no _selectionBounds ---
+
+  test('NEAR-01: intendedFilterActive does NOT reference _selectionBounds (isFilterActive covers bounds)', () => {
+    const getterStart = src.indexOf('get intendedFilterActive(');
+    expect(getterStart).toBeGreaterThan(-1);
+    const body = src.slice(getterStart, getterStart + 480);
+    expect(body).not.toContain('_selectionBounds');
+    expect(body).toContain('isFilterActive');
+  });
+
+  // --- _onDataLoaded guard ---
+
+  test('NEAR-01: _onDataLoaded runs the filter query via isFilterActive (covers bounds; no _selectionBounds branch)', () => {
+    const methodStart = src.indexOf('private _onDataLoaded(');
+    expect(methodStart).toBeGreaterThan(-1);
+    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
+    const body = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
+    expect(body).toMatch(/if \(isFilterActive\(this\._filterState\)\)[\s\S]{0,80}_runFilterQuery/);
+    expect(body).not.toContain('_selectionBounds');
+  });
+
+  // --- bee-pane bindings renamed ---
+
+  test('D-01: bee-atlas.ts bee-pane template binds .boundsFilterActive (renamed prop)', () => {
+    expect(src).toMatch(/\.boundsFilterActive=\$\{this\._filterState\.bounds\s*!==\s*null\}/);
+  });
+
+  test('D-01: bee-atlas.ts bee-pane template binds .boundsFilterLabel (renamed prop)', () => {
+    expect(src).toMatch(/\.boundsFilterLabel=\$\{this\._boundsFilterLabel\}/);
+  });
+
+  // --- _buildCurrentParams: no type: 'bounds' ---
+
+  test('D-02: _buildCurrentParams contains no type: bounds as const (bbox= written by buildParams from filter.bounds)', () => {
+    const methodStart = src.indexOf('private _buildCurrentParams(');
+    expect(methodStart).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
     const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(methodBody).toContain('this._selectionBounds = null');
+    expect(methodBody).not.toContain("type: 'bounds' as const");
+    expect(methodBody).not.toContain('_selectionBounds');
   });
 
-  test('SEL-07: _onSelectionDrawn delegates to _applyBoundsSelection which sets _selectionBounds and calls _runListQuery', () => {
-    // Plan 153-03 refactor: _onSelectionDrawn now delegates to _applyBoundsSelection
-    // (extracted shared method) so a shift-drag box and a near-me box are byte-identical state.
-    // Verify _onSelectionDrawn calls _applyBoundsSelection, and that _applyBoundsSelection
-    // sets _selectionBounds and calls _runListQuery.
-    const selDrawnStart = src.indexOf('private _onSelectionDrawn(');
-    const selDrawnEnd = src.indexOf('\n  private ', selDrawnStart + 1);
-    const selDrawnBody = src.slice(selDrawnStart, selDrawnEnd > selDrawnStart ? selDrawnEnd : undefined);
-    expect(selDrawnBody).toContain('_applyBoundsSelection');
+  // --- Coexistence: no handler couples bounds-clear to record-selection-clear ---
 
-    const applyStart = src.indexOf('private _applyBoundsSelection(');
-    const applyEnd = src.indexOf('\n  private ', applyStart + 1);
-    const applyBody = src.slice(applyStart, applyEnd > applyStart ? applyEnd : undefined);
-    expect(applyBody).toContain('this._selectionBounds = bounds');
-    expect(applyBody).toContain('_runListQuery');
-  });
-
-  test('SEL-07: _onRegionClick clears _selectionBounds on deselect', () => {
-    const methodStart = src.indexOf('private _onRegionClick(');
-    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
-    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(methodBody).toContain('this._selectionBounds = null');
-  });
-
-  test('SEL-07: _onPlaceSelected clears _selectionBounds on deselect', () => {
-    const methodStart = src.indexOf('private _onPlaceSelected(');
-    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
-    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(methodBody).toContain('this._selectionBounds = null');
-  });
-
-  test('SEL-07: _openSidebarForFilter clears _selectionBounds', () => {
-    const methodStart = src.indexOf('private _openSidebarForFilter(');
-    const nextPrivate = src.indexOf('\n  private ', methodStart + 1);
-    const methodBody = src.slice(methodStart, nextPrivate > methodStart ? nextPrivate : undefined);
-    expect(methodBody).toContain('this._selectionBounds = null');
+  test('D-05: no _selectionBounds = null in any handler (coexistence assured)', () => {
+    expect(src).not.toMatch(/_selectionBounds\s*=\s*null/);
   });
 });
 
@@ -629,15 +684,15 @@ describe('PANE-01: bee-atlas bee-pane wiring (Phase 108)', () => {
     expect(src).not.toMatch(/@toggle-filter=/);
   });
 
-  test('bee-atlas.ts contains _onPaneCollapse method that clears selection fields and sets _paneState = collapsed', () => {
+  test('bee-atlas.ts contains _onPaneCollapse method that clears record selection fields and sets _paneState = collapsed', () => {
     const start = src.indexOf('private _onPaneCollapse(');
     expect(start).toBeGreaterThan(-1);
     const nextPrivate = src.indexOf('\n  private ', start + 1);
     const body = src.slice(start, nextPrivate > start ? nextPrivate : undefined);
-    // Plan 109-02: _selectedOccurrences removed; three remaining selection fields cleared
+    // Phase 999.8-03 (D-07): pane collapse clears record selection only; bounds filter is preserved
     expect(body).toContain('this._selectedOccIds = null');
     expect(body).toContain('this._selectedCluster = null');
-    expect(body).toContain('this._selectionBounds = null');
+    expect(body).not.toContain('this._selectionBounds = null');  // D-07: bounds left active
     expect(body).toContain("this._paneState = 'collapsed'");
   });
 
@@ -1176,10 +1231,11 @@ describe('NEAR: near-me bounds reuse', () => {
   });
 
   // -------------------------------------------------------------------------
-  // near-me ≡ shift-drag URL equivalence (D-03, D-01)
+  // near-me ≡ shift-drag URL equivalence (D-01/D-02/D-03, Phase 999.8)
+  // Post-999.8: bounds is in FilterState.bounds; bbox= param replaces sel=.
   // -------------------------------------------------------------------------
 
-  describe('near-me box ≡ shift-drag box in URL (D-03 reproducibility)', () => {
+  describe('near-me box ≡ shift-drag box in URL (D-01/D-02/D-03 reproducibility)', () => {
     function emptyFilter(): FilterState {
       return {
         taxonId: null,
@@ -1193,13 +1249,14 @@ describe('NEAR: near-me bounds reuse', () => {
         elevMin: null,
         elevMax: null,
         selectedPlace: null,
+        bounds: null,
       };
     }
 
     const defaultView = { lon: -120.5, lat: 47.5, zoom: 8 };
     const defaultUi = { boundaryMode: 'off' as const, paneState: 'collapsed' as const };
 
-    test('a near-me box and a shift-drag box with identical coordinates produce the same sel= URL param', async () => {
+    test('D-01: a near-me box and a shift-drag box with identical coordinates produce the same bbox= URL param', async () => {
       const { boundsFromLocation } = await import('../bee-atlas.ts');
       const lat = 47.5;
       const lon = -120.0;
@@ -1207,40 +1264,47 @@ describe('NEAR: near-me bounds reuse', () => {
       expect(box).not.toBeNull();
       if (!box) throw new Error('unreachable');
 
-      // Near-me SelectionState (what bee-atlas will set after computing box)
-      const nearMeSelection: SelectionState = { type: 'bounds', ...box };
-      // Shift-drag SelectionState (same box, same numbers)
-      const shiftDragSelection: SelectionState = {
-        type: 'bounds',
-        west: box.west,
-        south: box.south,
-        east: box.east,
-        north: box.north,
-      };
+      // Near-me: _applyBoundsFilter sets _filterState.bounds = box
+      const nearMeFilter = { ...emptyFilter(), bounds: box };
+      // Shift-drag: same path via _applyBoundsFilter — byte-identical bounds
+      const shiftDragFilter = { ...emptyFilter(), bounds: { west: box.west, south: box.south, east: box.east, north: box.north } };
 
-      const nearMeParams = buildParams(defaultView, emptyFilter(), nearMeSelection, defaultUi);
-      const shiftDragParams = buildParams(defaultView, emptyFilter(), shiftDragSelection, defaultUi);
+      const nearMeParams = buildParams(defaultView, nearMeFilter, { type: 'ids' as const, ids: [] }, defaultUi);
+      const shiftDragParams = buildParams(defaultView, shiftDragFilter, { type: 'ids' as const, ids: [] }, defaultUi);
 
-      expect(nearMeParams.get('sel')).not.toBeNull();
-      expect(nearMeParams.get('sel')).toBe(shiftDragParams.get('sel'));
+      // D-02: bounds serializes as bbox= (not sel=)
+      expect(nearMeParams.get('bbox')).not.toBeNull();
+      expect(nearMeParams.get('sel')).toBeNull();
+      expect(nearMeParams.get('bbox')).toBe(shiftDragParams.get('bbox'));
     });
 
-    test('a near-me sel= round-trips back to the exact same bounds via parseParams (D-03)', async () => {
+    test('D-02/D-03: a near-me bbox= round-trips back to the exact same bounds via parseParams', async () => {
       const { boundsFromLocation } = await import('../bee-atlas.ts');
       const box = boundsFromLocation({ lat: 47.5, lon: -120.0 });
       expect(box).not.toBeNull();
       if (!box) throw new Error('unreachable');
 
-      const selection: SelectionState = { type: 'bounds', ...box };
-      const params = buildParams(defaultView, emptyFilter(), selection, defaultUi);
+      const filter = { ...emptyFilter(), bounds: box };
+      const params = buildParams(defaultView, filter, { type: 'ids' as const, ids: [] }, defaultUi);
       const parsed = parseParams(params.toString());
 
-      expect(parsed.selection?.type).toBe('bounds');
-      if (parsed.selection?.type !== 'bounds') throw new Error('unreachable');
-      expect(parsed.selection.west).toBeCloseTo(box.west, 3);
-      expect(parsed.selection.south).toBeCloseTo(box.south, 3);
-      expect(parsed.selection.east).toBeCloseTo(box.east, 3);
-      expect(parsed.selection.north).toBeCloseTo(box.north, 3);
+      // D-02: bbox= is the canonical param, parsed into filter.bounds (not selection.type)
+      expect(parsed.filter?.bounds).not.toBeNull();
+      expect(parsed.selection?.type).not.toBe('bounds');
+      expect(parsed.filter?.bounds?.west).toBeCloseTo(box.west, 3);
+      expect(parsed.filter?.bounds?.south).toBeCloseTo(box.south, 3);
+      expect(parsed.filter?.bounds?.east).toBeCloseTo(box.east, 3);
+      expect(parsed.filter?.bounds?.north).toBeCloseTo(box.north, 3);
+    });
+
+    test('D-03: legacy sel= URL round-trips into filter.bounds (backward compat)', async () => {
+      // A saved sel= link should still load bounds into filter.bounds
+      const legacyUrl = 'sel=-122.3000,47.5000,-122.1000,47.7000';
+      const parsed = parseParams(legacyUrl);
+      expect(parsed.filter?.bounds).not.toBeNull();
+      expect(parsed.filter?.bounds?.west).toBeCloseTo(-122.3, 3);
+      expect(parsed.filter?.bounds?.south).toBeCloseTo(47.5, 3);
+      expect(parsed.selection?.type).not.toBe('bounds');
     });
   });
 
@@ -1249,9 +1313,10 @@ describe('NEAR: near-me bounds reuse', () => {
   // -------------------------------------------------------------------------
 
   describe('bee-atlas near-me behavioral tests', () => {
+    // Post-999.8: bounds lives in _filterState.bounds (not _selectionBounds).
     type BeeAtlasNearMe = {
       _nearMePending: boolean;
-      _selectionBounds: { west: number; south: number; east: number; north: number } | null;
+      _filterState: { bounds: { west: number; south: number; east: number; north: number } | null; [key: string]: unknown };
       _locationError: boolean;
       _locationErrorKind: 'denied' | 'unavailable' | null;
       _paneState: string;
@@ -1285,7 +1350,8 @@ describe('NEAR: near-me bounds reuse', () => {
     // -----------------------------------------------------------------------
     test('W2: bad accuracy fix (non-finite) on a near-me request clears _nearMePending and applies no bounds', () => {
       inst._nearMePending = true;
-      inst._selectionBounds = null;
+      // bounds starts at null (the _filterState default)
+      expect(inst._filterState.bounds).toBeNull();
 
       // Simulate a user-location-changed success event with non-finite accuracy
       const e = new CustomEvent('user-location-changed', {
@@ -1296,12 +1362,11 @@ describe('NEAR: near-me bounds reuse', () => {
       // _nearMePending must be cleared (not stranded)
       expect(inst._nearMePending).toBe(false);
       // No bounds applied
-      expect(inst._selectionBounds).toBeNull();
+      expect(inst._filterState.bounds).toBeNull();
     });
 
     test('W2: bad accuracy fix (negative) on a near-me request clears _nearMePending and applies no bounds', () => {
       inst._nearMePending = true;
-      inst._selectionBounds = null;
 
       const e = new CustomEvent('user-location-changed', {
         detail: { lat: 47.5, lon: -120.0, accuracy: -1 },
@@ -1309,13 +1374,13 @@ describe('NEAR: near-me bounds reuse', () => {
       inst._onUserLocationChanged(e);
 
       expect(inst._nearMePending).toBe(false);
-      expect(inst._selectionBounds).toBeNull();
+      expect(inst._filterState.bounds).toBeNull();
     });
 
     // -----------------------------------------------------------------------
     // Success path: valid fix with _nearMePending applies the box
     // -----------------------------------------------------------------------
-    test('success with _nearMePending=true applies box to _selectionBounds', async () => {
+    test('success with _nearMePending=true applies box to _filterState.bounds (D-01)', async () => {
       const { boundsFromLocation } = await import('../bee-atlas.ts');
       const lat = 47.5;
       const lon = -120.0;
@@ -1328,14 +1393,14 @@ describe('NEAR: near-me bounds reuse', () => {
 
       const expected = boundsFromLocation({ lat, lon });
       expect(expected).not.toBeNull();
-      expect(inst._selectionBounds).not.toBeNull();
-      expect(inst._selectionBounds).toEqual(expected);
+      expect(inst._filterState.bounds).not.toBeNull();
+      expect(inst._filterState.bounds).toEqual(expected);
       expect(inst._nearMePending).toBe(false);
     });
 
-    test('success WITHOUT _nearMePending does NOT set _selectionBounds', () => {
+    test('success WITHOUT _nearMePending does NOT set _filterState.bounds', () => {
       inst._nearMePending = false;
-      inst._selectionBounds = null;
+      expect(inst._filterState.bounds).toBeNull();
 
       const e = new CustomEvent('user-location-changed', {
         detail: { lat: 47.5, lon: -120.0, accuracy: 15 },
@@ -1343,7 +1408,7 @@ describe('NEAR: near-me bounds reuse', () => {
       inst._onUserLocationChanged(e);
 
       // No pending near-me request → bounds unchanged
-      expect(inst._selectionBounds).toBeNull();
+      expect(inst._filterState.bounds).toBeNull();
     });
 
     // -----------------------------------------------------------------------
@@ -1351,7 +1416,6 @@ describe('NEAR: near-me bounds reuse', () => {
     // -----------------------------------------------------------------------
     test('denial (code 1) with _nearMePending sets _locationError, _locationErrorKind=denied, no bounds, clears pending', () => {
       inst._nearMePending = true;
-      inst._selectionBounds = null;
 
       const e = new CustomEvent('user-location-changed', {
         detail: { error: { code: 1, message: 'User denied Geolocation' } },
@@ -1360,7 +1424,7 @@ describe('NEAR: near-me bounds reuse', () => {
 
       expect(inst._locationError).toBe(true);
       expect(inst._locationErrorKind).toBe('denied');
-      expect(inst._selectionBounds).toBeNull();
+      expect(inst._filterState.bounds).toBeNull();
       expect(inst._nearMePending).toBe(false);
     });
 
@@ -1378,33 +1442,46 @@ describe('NEAR: near-me bounds reuse', () => {
     });
 
     // -----------------------------------------------------------------------
-    // Clear path (D-05, W3): _onNearMeCleared nulls _selectionBounds
+    // Clear path (D-07): _onNearMeCleared nulls _filterState.bounds (only path)
     // -----------------------------------------------------------------------
-    test('_onNearMeCleared nulls _selectionBounds and writes URL', () => {
-      inst._selectionBounds = { west: -120.1, south: 47.4, east: -119.9, north: 47.6 };
+    test('D-07: _onNearMeCleared clears _filterState.bounds (via spread) and writes URL', () => {
+      // Set an active bounds via _filterState spread
+      inst._filterState = { ...inst._filterState, bounds: { west: -120.1, south: 47.4, east: -119.9, north: 47.6 } };
 
       inst._onNearMeCleared();
 
-      expect(inst._selectionBounds).toBeNull();
+      expect(inst._filterState.bounds).toBeNull();
       expect(inst._replaceUrlState).toHaveBeenCalledTimes(1);
     });
 
+    test('D-05/D-07: _onNearMeCleared does NOT clear _selectedOccIds', () => {
+      inst._filterState = { ...inst._filterState, bounds: { west: -120.1, south: 47.4, east: -119.9, north: 47.6 } };
+      inst._selectedOccIds = ['ecdysis:1', 'inat:2'];
+
+      inst._onNearMeCleared();
+
+      expect(inst._filterState.bounds).toBeNull();
+      // D-05: record selection is preserved
+      expect(inst._selectedOccIds).toEqual(['ecdysis:1', 'inat:2']);
+    });
+
     // -----------------------------------------------------------------------
-    // W3: "Clear filters" (pane-clear-selection) also clears near-me bounds
+    // W3: "Clear filters" (pane-clear-selection) does NOT clear bounds (D-05)
     // -----------------------------------------------------------------------
-    test('W3: _onClearSelection (the global Clear affordance) nulls _selectionBounds', async () => {
+    test('D-05: _onClearSelection leaves _filterState.bounds active (bounds is a filter, not a selection)', async () => {
       const mod = await import('../bee-atlas.ts');
       type WithClear = BeeAtlasNearMe & { _onClearSelection(): void; _selectionCount: number | null };
       const clearInst = new (mod.BeeAtlas as unknown as { new(): object })() as unknown as WithClear;
       clearInst._runListQuery = vi.fn();
       clearInst._replaceUrlState = vi.fn();
 
-      // Pre-condition: a near-me box is active
-      clearInst._selectionBounds = { west: -120.1, south: 47.4, east: -119.9, north: 47.6 };
+      // Pre-condition: bounds filter is active
+      clearInst._filterState = { ...clearInst._filterState, bounds: { west: -120.1, south: 47.4, east: -119.9, north: 47.6 } };
 
       clearInst._onClearSelection();
 
-      expect(clearInst._selectionBounds).toBeNull();
+      // D-05: clearing per-record selection leaves bounds active
+      expect(clearInst._filterState.bounds).not.toBeNull();
     });
   });
 
@@ -1439,13 +1516,14 @@ describe('NEAR: near-me bounds reuse', () => {
       expect(nonCommentLines).not.toMatch(/nearMeCenter/);
     });
 
-    test('_applyBoundsSelection exists and is used by _onSelectionDrawn', () => {
-      expect(src).toMatch(/private\s+_applyBoundsSelection\b/);
-      // _onSelectionDrawn should call _applyBoundsSelection
+    test('Phase 999.8-03: _applyBoundsFilter (renamed) exists and is used by _onSelectionDrawn', () => {
+      expect(src).toMatch(/private\s+_applyBoundsFilter\b/);
+      // _onSelectionDrawn should call _applyBoundsFilter (not the old _applyBoundsSelection)
       const selDrawnIdx = src.indexOf('_onSelectionDrawn(');
       const nextPrivate = src.indexOf('\n  private ', selDrawnIdx + 1);
       const body = src.slice(selDrawnIdx, nextPrivate > selDrawnIdx ? nextPrivate : selDrawnIdx + 500);
-      expect(body).toContain('_applyBoundsSelection');
+      expect(body).toContain('_applyBoundsFilter');
+      expect(body).not.toContain('_applyBoundsSelection');
     });
 
     test('bee-pane template binds @near-me-requested', () => {
@@ -1456,12 +1534,13 @@ describe('NEAR: near-me bounds reuse', () => {
       expect(src).toMatch(/@near-me-cleared=/);
     });
 
-    test('bee-pane template binds .selectionBoundsActive', () => {
-      expect(src).toMatch(/\.selectionBoundsActive=\$\{/);
+    test('Phase 999.8-03: bee-pane template binds .boundsFilterActive (renamed from selectionBoundsActive)', () => {
+      expect(src).toMatch(/\.boundsFilterActive=\$\{/);
+      expect(src).not.toMatch(/\.selectionBoundsActive=\$\{/);
     });
 
-    test('selectionBoundsActive is bound to (_selectionBounds !== null)', () => {
-      expect(src).toMatch(/selectionBoundsActive=\$\{this\._selectionBounds\s*!==\s*null\}/);
+    test('Phase 999.8-03: boundsFilterActive is bound to (_filterState.bounds !== null)', () => {
+      expect(src).toMatch(/boundsFilterActive=\$\{this\._filterState\.bounds\s*!==\s*null\}/);
     });
   });
 
