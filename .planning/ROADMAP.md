@@ -1283,9 +1283,18 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 153-01-PLAN.md — model + SQL: nearMe FilterState field, bbox+haversine clause, ?near=1 round-trip (NEAR-01/02/03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 153-02-PLAN.md — wiring: standalone chip, near-me-changed event, triggerGeolocate, frozen-center activation/deferral state machine (NEAR-01/02/03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 153-03-PLAN.md — in-app timing log + real-device Human UAT (NEAR-02 <200 ms; UI-hint, no auto-advance)
+
 **UI hint**: yes
 
 **Phase note — research flag:** Before writing the haversine implementation, run `SELECT sin(1.0)` in the wa-sqlite worker to verify whether MemoryVFS exposes trig functions. If available, a pure SQL haversine is cleaner; if not (more likely per the ARCHITECTURE doc), use bbox SQL pre-filter + JS haversine in the worker.
