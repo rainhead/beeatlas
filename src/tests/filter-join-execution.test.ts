@@ -7,7 +7,6 @@ import {
   queryOccurrencesByBounds,
   getOccurrences,
   OCCURRENCE_COLUMNS,
-  queryVisibleGeoJSON,
 } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 
