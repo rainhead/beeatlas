@@ -198,7 +198,10 @@ export function parseParams(search: string): ParsedParams {
           isFinite(east)  && east  >= -180 && east  <= 180 &&
           isFinite(south) && south >= -90  && south <= 90  &&
           isFinite(north) && north >= -90  && north <= 90  &&
-          south < north) {
+          south < north && west < east) {
+        // west < east rejects inverted/corrupt boxes (WA never crosses the
+        // antimeridian; a crafted bbox= with west>=east would silently match
+        // zero rows otherwise — code review WR-02).
         boundsResult = { west, south, east, north };
       }
     }
@@ -218,7 +221,10 @@ export function parseParams(search: string): ParsedParams {
           isFinite(east)  && east  >= -180 && east  <= 180 &&
           isFinite(south) && south >= -90  && south <= 90  &&
           isFinite(north) && north >= -90  && north <= 90  &&
-          south < north) {
+          south < north && west < east) {
+        // west < east rejects inverted/corrupt boxes (WA never crosses the
+        // antimeridian; a crafted bbox= with west>=east would silently match
+        // zero rows otherwise — code review WR-02).
         boundsResult = { west, south, east, north };
       }
     }
