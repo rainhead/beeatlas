@@ -64,6 +64,11 @@ export class BeeMap extends LitElement {
   // Mapbox GL JS map instance
   private _map: mapboxgl.Map | null = null;
 
+  // The Phase 152 GeolocateControl — stored on the instance so <bee-atlas> can
+  // trigger it via requestUserLocation() (D-06 seam for near-me). NOT @state;
+  // <bee-map> is a pure presenter and holds no reactive location state.
+  private _geolocate: mapboxgl.GeolocateControl | null = null;
+
 
   // Full unfiltered GeoJSON for setData-based filtering
   private _fullGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
@@ -393,7 +398,7 @@ export class BeeMap extends LitElement {
     // The blue dot + accuracy circle are DOM Markers (appended to getCanvasContainer()),
     // not style layers, so they render offline without the style having loaded.
     // Gating this behind 'load' would break offline GPS (LOC-01 SC-2). [Phase 151 / Phase 152]
-    const geolocate = new mapboxgl.GeolocateControl({
+    this._geolocate = new mapboxgl.GeolocateControl({
       trackUserLocation: true,
       positionOptions: { enableHighAccuracy: true },
       showAccuracyCircle: true,
@@ -401,9 +406,9 @@ export class BeeMap extends LitElement {
     // Place top-left: the default top-right corner is occupied by the custom
     // .region-control button (Phase 152 UAT — the control was rendering hidden
     // behind it). top-left is otherwise empty.
-    this._map.addControl(geolocate, 'top-left');
+    this._map.addControl(this._geolocate, 'top-left');
 
-    geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
+    this._geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
       this._emit('user-location-changed', {
         lat: e.coords.latitude,
         lon: e.coords.longitude,
@@ -411,7 +416,7 @@ export class BeeMap extends LitElement {
       });
     });
 
-    geolocate.on('error', (e: { code: number; message: string }) => {
+    this._geolocate.on('error', (e: { code: number; message: string }) => {
       this._emit('user-location-changed', { error: { code: e.code, message: e.message } });
     });
 
@@ -422,7 +427,7 @@ export class BeeMap extends LitElement {
     if (navigator.permissions) {
       navigator.permissions
         .query({ name: 'geolocation' as PermissionName })
-        .then(status => { if (status.state === 'granted') geolocate.trigger(); })
+        .then(status => { if (status.state === 'granted') this._geolocate!.trigger(); })
         .catch(() => {});
     }
 
@@ -637,6 +642,18 @@ export class BeeMap extends LitElement {
     // ResizeObserver to handle container dimension changes (e.g., table-mode toggle)
     this._resizeObserver = new ResizeObserver(() => this._map?.resize());
     this._resizeObserver.observe(this.mapElement);
+  }
+
+  /**
+   * D-06 seam: ask the existing Phase 152 GeolocateControl to start a location fix.
+   * The blue dot + accuracy ring will appear; the resulting position is relayed upward
+   * via `user-location-changed` so the state-owner (<bee-atlas>) can compute the
+   * near-me bounding box (plan 153-03). This method does NOT store the position —
+   * <bee-map> remains a pure presenter. Safe to call before firstUpdated() (no-op).
+   */
+  public requestUserLocation(): void {
+    // Guard: safe no-op if called before firstUpdated() initialises the control.
+    if (this._geolocate) this._geolocate.trigger();
   }
 
   // --- Private helpers ---
