@@ -1,8 +1,9 @@
 ---
 phase: 154-mapbox-tile-caching-tos-gated
 verified: 2026-06-21T16:30:00Z
-status: human_needed
+status: passed
 score: 7/7 must-haves verified
+human_verification_result: passed (operator UAT 2026-06-21 — 3/3 DevTools checks confirmed; see 154-HUMAN-UAT.md)
 overrides_applied: 0
 human_verification:
   - test: "In DevTools > Application > Cache Storage, confirm a 'mapbox-basemap' cache appears after map load and entries have access_token retained in cache-key URLs"

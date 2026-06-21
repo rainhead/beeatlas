@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 154-mapbox-tile-caching-tos-gated
 source: [154-VERIFICATION.md]
 started: 2026-06-21T23:17:08Z
@@ -15,28 +15,28 @@ the cache behaves as designed against real Mapbox traffic. Run `npm run dev`, op
 
 ## Current Test
 
-[awaiting human testing]
+[complete — operator approved 2026-06-21]
 
 ## Tests
 
 ### 1. Cache Storage population
 expected: After loading the map on `/app/`, DevTools → Application → Cache Storage shows a `mapbox-basemap` cache. Stored request URLs are from `api.mapbox.com`, are CORS/non-opaque (status 200, not "opaque"), and **retain** the `?access_token=...` query param in the key. No `events.mapbox.com` or `/map-sessions/` entries appear.
-result: [pending]
+result: passed (operator UAT 2026-06-21)
 
 ### 2. Warm-reload cache hit + attribution
 expected: Reload the page (still online). In DevTools → Network, basemap tile/style requests are served "(from ServiceWorker)" / "(ServiceWorker)". The basemap renders, and the Mapbox attribution control (Mapbox logo + © Mapbox + © OpenStreetMap + Improve this map) remains visible.
-result: [pending]
+result: passed (operator UAT 2026-06-21)
 
 ### 3. Tile host confirmation
 expected: In DevTools → Network (filter `mapbox`), confirm Mapbox GL JS v3 (outdoors-v12) routes tile/style/sprite/glyph fetches through `api.mapbox.com` (not `tiles.mapbox.com`), validating that the `url.hostname === 'api.mapbox.com'` predicate covers real basemap traffic.
-result: [pending]
+result: passed (operator UAT 2026-06-21)
 
 ## Summary
 
 total: 3
-passed: 0
+passed: 3
 issues: 0
-pending: 3
+pending: 0
 skipped: 0
 blocked: 0
 

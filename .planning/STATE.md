@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
 status: verifying
-stopped_at: Phase 154 Plan 01 complete — mapbox-basemap SW route + ToS ADR shipped; ready for /gsd-verify-work
-last_updated: "2026-06-21T23:11:20.159Z"
+stopped_at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
+last_updated: "2026-06-21T23:22:10.133Z"
 last_activity: 2026-06-21
 progress:
-  total_phases: 34
+  total_phases: 17
   completed_phases: 12
   total_plans: 28
   completed_plans: 28
-  percent: 35
+  percent: 71
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 154 (mapbox-tile-caching-tos-gated) — COMPLETE
-Plan: 1 of 1 (all plans complete)
+Phase: 154
+Plan: Not started
 Status: Phase complete — ready for /gsd-verify-work
 Last activity: 2026-06-21
 
