@@ -331,9 +331,12 @@ describe('NEAR-01/D-04/D-05: near-me affordance in the where input', () => {
     expect(src).toMatch(/this\.selectionBoundsActive[\s\S]{0,300}near-me-cleared|near-me-cleared[\s\S]{0,300}this\.selectionBoundsActive/);
   });
 
-  test('bee-pane.ts bounds chip contains an svg (crosshair icon, not text)', () => {
-    // near-me-cleared block must contain an <svg inside it
-    expect(src).toMatch(/near-me-cleared[\s\S]{0,600}<svg/);
+  test('bee-pane.ts bounds chip uses the shared crosshair SVG (not text)', () => {
+    // The bounds chip must reference the shared crosshair getter near the near-me-cleared dispatch.
+    // Both the button and the chip reference _crosshairSvg so they share the same SVG definition.
+    expect(src).toMatch(/_crosshairSvg[\s\S]{0,800}near-me-cleared|near-me-cleared[\s\S]{0,800}_crosshairSvg/);
+    // The getter itself must define an <svg element
+    expect(src).toMatch(/_crosshairSvg[\s\S]{0,200}<svg/);
   });
 
   test('bee-pane.ts hasChips condition includes selectionBoundsActive', () => {

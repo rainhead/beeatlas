@@ -83,6 +83,10 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) selectedIds: Set<string> | null = null;
   @property({ attribute: false }) hiddenSources: Set<string> = new Set();
 
+  // Near-me: true when a selection-bounds filter sourced from geolocation is active.
+  // bee-pane is a pure presenter — bounds state lives in bee-atlas.
+  @property({ attribute: false }) selectionBoundsActive: boolean = false;
+
   @state() private _open = false;
 
   // Taxon (single-select)
@@ -294,6 +298,22 @@ export class BeePane extends LitElement {
       line-height: 1;
     }
     .input-clear:hover { color: var(--text-body); }
+    .near-me-btn {
+      position: absolute;
+      right: 0.4rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      padding: 0.1rem;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+    }
+    .near-me-btn:hover { color: var(--text-body); }
+    .filter-input.has-near-me { padding-right: 1.8rem; }
     .chips {
       display: flex;
       flex-wrap: wrap;
@@ -564,6 +584,17 @@ export class BeePane extends LitElement {
       this._yearLastYear = b.lastYear;
       this._yearEarlier  = b.earlier;
     }
+  }
+
+  /** Crosshair SVG shared between the near-me button and the active-bounds chip. */
+  private get _crosshairSvg() {
+    return html`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <circle cx="8" cy="8" r="4"/>
+      <line x1="8" y1="1" x2="8" y2="4"/>
+      <line x1="8" y1="12" x2="8" y2="15"/>
+      <line x1="1" y1="8" x2="4" y2="8"/>
+      <line x1="12" y1="8" x2="15" y2="8"/>
+    </svg>`;
   }
 
   private _emitFilter() {
@@ -977,7 +1008,7 @@ export class BeePane extends LitElement {
   private _renderWhere() {
     const counties = [...this._selectedCounties];
     const ecoregions = [...this._selectedEcoregions];
-    const hasChips = counties.length > 0 || ecoregions.length > 0 || this._selectedPlace !== null;
+    const hasChips = counties.length > 0 || ecoregions.length > 0 || this._selectedPlace !== null || this.selectionBoundsActive;
     return html`
       <div class="filter-row">
         <svg class="row-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -1008,12 +1039,20 @@ export class BeePane extends LitElement {
                     aria-label="Remove ${this._placeNameBySlug.get(this._selectedPlace) ?? this._selectedPlace}">&#x2715;</button>
                 </span>
               ` : nothing}
+              ${this.selectionBoundsActive ? html`
+                <span class="chip">
+                  ${this._crosshairSvg}
+                  <button class="chip-remove"
+                    aria-label="Clear near-me filter"
+                    @click=${() => this.dispatchEvent(new CustomEvent('near-me-cleared', { bubbles: true, composed: true }))}>&#x2715;</button>
+                </span>
+              ` : nothing}
             </div>
           ` : nothing}
           <div class="input-wrap">
             <input
               type="text"
-              class="filter-input"
+              class=${'filter-input has-near-me'}
               placeholder="County, ecoregion, or place"
               .value=${this._whereInput}
               @input=${this._onWhereInput}
@@ -1026,6 +1065,11 @@ export class BeePane extends LitElement {
               autocomplete="off"
               spellcheck="false"
             />
+            <button type="button" class="near-me-btn"
+              aria-label="Find occurrences near me"
+              @click=${() => this.dispatchEvent(new CustomEvent('near-me-requested', { bubbles: true, composed: true }))}>
+              ${this._crosshairSvg}
+            </button>
             ${this._openSection === 'where' && this._suggestions.length > 0 ? html`
               <ul class="suggestions" role="listbox">
                 ${this._suggestions.map((s, i) => html`
