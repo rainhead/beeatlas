@@ -1346,6 +1346,42 @@ offline).
 
 ---
 
+### Phase 157: Regions dropdown obscured by filter button
+
+**Goal**: The map "Regions" dropdown menu renders fully visible and clickable, no
+longer obscured by the filter pane / filter button. Root cause is a
+cross-component stacking-context interaction: the region control lives inside
+`<bee-map>`, which is `z-index: 0` within `.content` (so it forms a stacking
+context capped below its siblings); `<bee-pane>` is `position: absolute; z-index: 1`
+anchored at `right: 0.5em; top: calc(0.5em + 2.5rem)` — directly below the
+`right: 0.5em` region button. When the region menu opens downward it expands into
+the pane's territory and is painted beneath it. Raising the menu's *local*
+z-index inside `<bee-map>` cannot fix this — the whole map subtree is below
+`<bee-pane>`. Repro and fix at the right layer.
+**Depends on**: none (isolated UI fix; must not regress the Phase 152 fix that
+made the region control render visibly, nor the Phase 999.8/156 bounds+selection
+coexistence)
+**Requirements**: none (v5.1 housekeeping — no REQUIREMENTS.md for this milestone)
+**Success Criteria** (what must be TRUE):
+
+  1. Opening the Regions dropdown shows all four options (Off / Counties /
+     Ecoregions / Places) fully visible and clickable — not clipped or covered by
+     the filter button or pane — in both the wide (side pane) and narrow
+     (`max-aspect-ratio: 1`, bottom pane) layouts
+  2. The fix addresses the cross-component stacking context (the `<bee-map>`
+     `z-index: 0` vs `<bee-pane>` `z-index: 1` relationship), not just a local
+     z-index bump inside `<bee-map>` that the bug analysis shows cannot work
+  3. The architecture invariants hold: `<bee-map>` and `<bee-pane>` stay pure
+     presenters with state owned by `<bee-atlas>`; no shared module-level mutable
+     state is introduced
+  4. A regression test (source-analysis assertion and/or render test) locks in the
+     chosen stacking mechanism so the obscuring cannot silently return
+
+**Plans**: TBD
+**UI hint**: yes
+
+---
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
