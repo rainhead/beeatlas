@@ -165,7 +165,7 @@ export class BeeAtlas extends LitElement {
   // D-07 / NEAR: true while a near-me geolocation request is in flight.
   // Set true by _onNearMeRequested; cleared in _onUserLocationChanged on both
   // success and error paths. Non-reactive — toggling this must never trigger
-  // a re-render on its own (the subsequent _selectionBounds / _locationError
+  // a re-render on its own (the subsequent _filterState.bounds / _locationError
   // state mutations drive any needed renders).
   private _nearMePending = false;
   // Stale-discard guards for the three async query paths. A superseded query
@@ -187,7 +187,8 @@ export class BeeAtlas extends LitElement {
    * and the _replaceUrlState/_writeViewportHistory URL-write suppression read this getter.
    */
   get intendedFilterActive(): boolean {
-    // isFilterActive now covers bounds (f.bounds !== null), so no separate _selectionBounds check needed.
+    // isFilterActive covers f.bounds !== null (Phase 999.8-03), so bounds-only state
+    // correctly trips the hide-all gate (style-cache bypass — CLAUDE.md invariant).
     return isFilterActive(this._filterState) || this._filterResolving;
   }
 
@@ -1019,7 +1020,7 @@ bee-pane {
 
   // LOC-02 / LOC-03 / NEAR-01: relay handler for user-location-changed from <bee-map>
   // On success: store position in _userLocation, clear error; if a near-me request is
-  //   pending, compute a ±10 km box and apply it as _selectionBounds (D-02).
+  //   pending, compute a ±10 km box and apply it as _filterState.bounds (D-01/999.8).
   // On error: set _locationError true, clear stale _userLocation (security: T-152-04);
   //   clear _nearMePending so a bad-accuracy or denied fix cannot strand the flag (W2).
   private _onUserLocationChanged(
