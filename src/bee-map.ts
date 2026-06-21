@@ -53,6 +53,7 @@ export class BeeMap extends LitElement {
     elevMin: null,
     elevMax: null,
     selectedPlace: null,
+    bounds: null,
   };
 
   @property({ attribute: false }) hiddenSources: Set<string> = new Set();
