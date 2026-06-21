@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
 status: executing
-stopped_at: Phase 152 — code complete (152-01/02 shipped, 747 tests green); Wave 3 awaiting human UAT (real-device iOS)
-last_updated: "2026-06-20T17:01:46.981Z"
+stopped_at: Phase 152 COMPLETE — GeolocateControl + location state shipped (3/3 plans, verified 4/4, operator UAT PASS); control top-left
+last_updated: "2026-06-21T00:02:48.285Z"
 last_activity: 2026-06-20
 progress:
   total_phases: 14
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 19
-  completed_plans: 18
-  percent: 50
+  completed_plans: 19
+  percent: 57
 ---
 
 # Project State
@@ -88,6 +88,6 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-20T17:01:46.976Z
-Stopped at: Phase 152 — code complete (152-01/02 shipped, 747 tests green); Wave 3 awaiting human UAT (real-device iOS)
-Resume file: .planning/phases/152-geolocatecontrol-location-state/152-HUMAN-UAT.md
+Last session: 2026-06-21T00:02:48.281Z
+Stopped at: Phase 152 COMPLETE — GeolocateControl + location state shipped (3/3 plans, verified 4/4, operator UAT PASS); control top-left
+Resume file: .planning/phases/152-geolocatecontrol-location-state/152-VERIFICATION.md

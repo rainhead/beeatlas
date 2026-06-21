@@ -1,16 +1,24 @@
 ---
 phase: 152-geolocatecontrol-location-state
 plan: 03
-status: pending
+status: passed
 gates: /gsd-verify-work
 ui_hint: yes
 auto_advance: false
 created: 2026-06-20
+signed_off: 2026-06-20
 ---
 
 # Phase 152 — Human UAT: GeolocateControl + Location State
 
-**Status: PENDING** — Awaiting real-device + manual-browser verification.
+**Status: PASSED** — Operator-approved 2026-06-20 (desktop + mobile).
+
+**UAT finding (fixed during verification):** the GeolocateControl was initially
+rendering hidden behind the custom `.region-control` ("Regions") button — both
+defaulted to the top-right corner. Relocated the control to **top-left**
+(`addControl(geolocate, 'top-left')` in `src/bee-map.ts`); operator confirmed it
+is visible and usable. This is a deviation from CONTEXT.md D-02 ("top-right
+default"), which did not account for the existing Regions control in that corner.
 
 **UI hint: yes** — This phase must NOT auto-advance past this UAT checkpoint.
 The `auto_advance: false` constraint is in effect (per `feedback_uat_ui_phases`).
@@ -58,7 +66,7 @@ recenter button returns the viewport to the dot after panning.
 **Steps:**
 
 1. Open the `/app` route in a browser.
-2. Locate the GeolocateControl button in the top-right corner of the map.
+2. Locate the GeolocateControl button in the top-left corner of the map.
 3. Tap / click the GeolocateControl button.
 4. When the browser permission prompt appears, choose **Allow** (or "Allow once" / "Allow
    while using app" — any grant).
@@ -195,7 +203,7 @@ iPhone or iPad is required.
 6. Launch the app by tapping the **home-screen icon** (not by opening Safari — the app must
    run in standalone mode, i.e., full-screen without a Safari address bar).
 7. Confirm the app opens in **standalone mode** (no Safari chrome visible).
-8. Tap the **GeolocateControl button** (top-right of the map).
+8. Tap the **GeolocateControl button** (top-left of the map).
 9. Confirm the **iOS permission dialog** appears ("Allow [app] to use your location?").
 10. Tap **Allow While Using App** (or "Allow Once").
 11. Confirm the **blue dot appears** on the map at your current location.
@@ -229,11 +237,14 @@ iPhone or iPad is required.
 **PASS** requires all four scenarios to record PASS (or a justified DEFERRED for hardware
 unavailability that does not block the phase goal).
 
-**Verdict:** [ ] PASS  [ ] FAIL
+**Verdict:** [x] PASS  [ ] FAIL
+
+Operator verified the GeolocateControl on desktop and mobile and approved after the
+control was relocated to the top-left corner (see UAT finding at the top of this file).
 
 **If FAIL:** Record which scenario failed and route to `/gsd-plan-phase 152 --gaps` for gap
 closure before advancing the phase.
 
-**Signed off by:**
+**Signed off by:** Peter Abrahamsen (operator)
 
-**Date:**
+**Date:** 2026-06-20
