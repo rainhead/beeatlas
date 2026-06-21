@@ -26,8 +26,7 @@ export interface ViewState {
 
 export type SelectionState =
   | { type: 'ids'; ids: string[] }
-  | { type: 'cluster'; lon: number; lat: number; radiusM: number }
-  | { type: 'bounds'; west: number; south: number; east: number; north: number };
+  | { type: 'cluster'; lon: number; lat: number; radiusM: number };
 
 export type SourceKey = 'ecdysis' | 'waba_sample' | 'inat_obs' | 'checklist';
 
@@ -76,17 +75,18 @@ export function buildParams(
   if (filter.elevMin !== null) params.set('elev_min', String(filter.elevMin));
   if (filter.elevMax !== null) params.set('elev_max', String(filter.elevMax));
   if (filter.months.size > 0)  params.set('months', [...filter.months].sort((a, b) => a - b).join(','));
+  if (filter.bounds !== null) {
+    params.set('bbox', [
+      filter.bounds.west.toFixed(4),
+      filter.bounds.south.toFixed(4),
+      filter.bounds.east.toFixed(4),
+      filter.bounds.north.toFixed(4),
+    ].join(','));
+  }
   if (selection.type === 'ids' && selection.ids.length > 0) {
     params.set('o', selection.ids.join(','));
   } else if (selection.type === 'cluster') {
     params.set('o', `@${selection.lon.toFixed(4)},${selection.lat.toFixed(4)},${Math.ceil(selection.radiusM)}`);
-  } else if (selection.type === 'bounds') {
-    params.set('sel', [
-      selection.west.toFixed(4),
-      selection.south.toFixed(4),
-      selection.east.toFixed(4),
-      selection.north.toFixed(4),
-    ].join(','));
   }
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
