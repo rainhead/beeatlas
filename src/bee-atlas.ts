@@ -228,16 +228,22 @@ bee-map {
 }
 /* Map toolbar (Phase 157): a top-right flex row holding the region control
    (relocated from <bee-map>) and — when the pane is collapsed — the filter
-   toggle button, ordered regions-then-filter with a 0.5rem gap. The toolbar
-   paints above the pane: z-index 2 > <bee-pane>'s :host z-index 1 > <bee-map>'s
-   z-index 0 (the load-bearing rule that keeps Mapbox's bottom-right attribution
-   below the pane — RETAINED, not deleted). */
+   toggle button, separated by a 0.5rem gap. The toolbar paints above the pane:
+   z-index 2 > <bee-pane>'s :host z-index 1 > <bee-map>'s z-index 0 (the
+   load-bearing rule that keeps Mapbox's bottom-right attribution below the pane
+   — RETAINED, not deleted).
+
+   row-reverse pins the region control (first child) to the RIGHT edge — the same
+   spot it occupies when the pane is expanded — so opening the sidebar (which
+   turns the collapsed filter button into the panel) does NOT shift the regions
+   button. The filter button tucks to its left. */
 .map-toolbar {
   position: absolute;
   top: 0.5em;
   right: 0.5em;
   z-index: 2;
   display: flex;
+  flex-direction: row-reverse;
   gap: 0.5rem;
   align-items: flex-start;
 }
