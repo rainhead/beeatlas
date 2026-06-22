@@ -1382,7 +1382,7 @@ coexistence)
 Plans:
 **Wave 1**
 
-- [ ] 157-01-PLAN.md — relocate region control from `<bee-map>` into `<bee-atlas>` (markup + CSS + `_regionMenuOpen` + outside-click), route selection via shared `_applyBoundaryMode`, RETAIN `bee-map { z-index: 0 }`, lay collapsed filter button beside the regions button; STACK-01 source-analysis tests [SC-1, SC-2, SC-3, SC-4]
+- [x] 157-01-PLAN.md — relocate region control from `<bee-map>` into `<bee-atlas>` (markup + CSS + `_regionMenuOpen` + outside-click), route selection via shared `_applyBoundaryMode`, RETAIN `bee-map { z-index: 0 }`, lay collapsed filter button beside the regions button; STACK-01 source-analysis tests [SC-1, SC-2, SC-3, SC-4]
 
 **Wave 2** *(blocked on Wave 1)*
 
