@@ -226,15 +226,23 @@ bee-map {
   position: relative;
   z-index: 0;
 }
-/* Region control relocated from <bee-map> (Phase 157): as a sibling of
-   <bee-pane> in .content it can paint above the pane (z-index 2 > pane's 1),
-   escaping <bee-map>'s z-index:0 stacking context — without deleting that
-   load-bearing rule (keeps Mapbox bottom-right attribution below the pane). */
-.region-control {
+/* Map toolbar (Phase 157): a top-right flex row holding the region control
+   (relocated from <bee-map>) and — when the pane is collapsed — the filter
+   toggle button, ordered regions-then-filter with a 0.5rem gap. The toolbar
+   paints above the pane: z-index 2 > <bee-pane>'s :host z-index 1 > <bee-map>'s
+   z-index 0 (the load-bearing rule that keeps Mapbox's bottom-right attribution
+   below the pane — RETAINED, not deleted). */
+.map-toolbar {
   position: absolute;
   top: 0.5em;
   right: 0.5em;
   z-index: 2;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+.region-control {
+  position: relative;
 }
 .region-btn {
   background: white;
@@ -273,20 +281,38 @@ bee-map {
 }
 .region-menu button:hover { background: #f0f0f0; }
 .region-menu button.active { font-weight: 600; color: var(--accent, #2c7be5); }
-/* Collapsed pane: Phase 157 Part A — lay the filter toggle BESIDE (left of)
-   the regions button, not stacked below it. The offset clears the widest
-   region-button label ("Ecoregions"). Expanded geometry (.pane-list /
-   .pane-table / narrow @media) is governed by the rules below, unchanged. */
-bee-pane {
+/* Collapsed: <bee-pane> renders only the filter toggle button — make it a flex
+   item in the toolbar (override its :host position:absolute; the .map-toolbar
+   descendant selector outranks :host) so it sits in the row to the right of the
+   region button. Phase 157 Part A. */
+.map-toolbar bee-pane {
+  position: static;
+}
+/* Expanded (list/table): <bee-pane> becomes a panel positioned relative to
+   .content, so the toolbar must stop being its containing block. display:contents
+   dissolves the toolbar box; the region control re-establishes its own top-right
+   placement and <bee-pane> resolves against .content again (no 8rem inset). */
+.content.pane-list .map-toolbar,
+.content.pane-table .map-toolbar {
+  display: contents;
+}
+.content.pane-list .region-control,
+.content.pane-table .region-control {
+  position: absolute;
   top: 0.5em;
-  right: calc(1em + 8rem);
+  right: 0.5em;
+  z-index: 2;
 }
 .content.pane-list bee-pane {
+  position: absolute;
+  top: calc(0.5em + 2.5rem);
+  right: 0.5em;
   bottom: 0.5em;
   width: 25rem;
   max-height: calc(100% - 1em);
 }
 .content.pane-table bee-pane {
+  position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
@@ -470,6 +496,7 @@ bee-pane {
             @selection-drawn=${this._onSelectionDrawn}
             @user-location-changed=${this._onUserLocationChanged}
           ></bee-map>
+          <div class="map-toolbar">
           <div class="region-control">
             ${this._regionMenuOpen ? html`
               <div class="region-menu">
@@ -529,6 +556,7 @@ bee-pane {
             .boundsFilterActive=${this._filterState.bounds !== null}
             .boundsFilterLabel=${this._boundsFilterLabel}
           ></bee-pane>
+          </div>
         </div>
       `}
       ${this._updateAvailable ? html`
