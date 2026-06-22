@@ -60,7 +60,8 @@ describe('bee-occurrence-detail.ts source structure', () => {
   });
 
   test('FilterChangedEvent detail carries taxonId from row.taxon_id (D-05)', () => {
-    expect(src).toMatch(/taxonId[^,\n]*taxon_id/);
+    // _onTaxonClick is called with row.taxon_id! as first arg — verifies exact taxon, no roll-up
+    expect(src).toMatch(/\._onTaxonClick\(row\.taxon_id/);
   });
 
   test('FilterChangedEvent detail preserves filterState dimensions (D-07)', () => {

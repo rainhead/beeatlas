@@ -1229,7 +1229,7 @@ export class BeePane extends LitElement {
             ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
-              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache}></bee-occurrence-detail>`
+              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState}></bee-occurrence-detail>`
         }
       </div>
       ${this.listRowCount > PAGE_SIZE ? html`
