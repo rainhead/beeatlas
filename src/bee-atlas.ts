@@ -98,6 +98,8 @@ export class BeeAtlas extends LitElement {
   @state() private _filteredGeoJSON: FeatureCollection<Point, OccurrenceProperties> | null = null;
   @state() private _filteredRowCount: number | null = null;
   @state() private _boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places' = 'off';
+  // Region control menu open/close (relocated from <bee-map> in Phase 157).
+  @state() private _regionMenuOpen = false;
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
   @state() private _hiddenSources: Set<SourceKey> = new Set();
   @state() private _tablePage = 1;
@@ -224,9 +226,60 @@ bee-map {
   position: relative;
   z-index: 0;
 }
-bee-pane {
-  top: calc(0.5em + 2.5rem);
+/* Region control relocated from <bee-map> (Phase 157): as a sibling of
+   <bee-pane> in .content it can paint above the pane (z-index 2 > pane's 1),
+   escaping <bee-map>'s z-index:0 stacking context — without deleting that
+   load-bearing rule (keeps Mapbox bottom-right attribution below the pane). */
+.region-control {
+  position: absolute;
+  top: 0.5em;
   right: 0.5em;
+  z-index: 2;
+}
+.region-btn {
+  background: white;
+  border: 1px solid rgba(0,0,0,0.3);
+  border-radius: 4px;
+  padding: 0.4rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.region-btn:hover { background: #f0f0f0; }
+.region-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.3rem;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.2);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  min-width: 10rem;
+  overflow: hidden;
+}
+.region-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.region-menu button:hover { background: #f0f0f0; }
+.region-menu button.active { font-weight: 600; color: var(--accent, #2c7be5); }
+/* Collapsed pane: Phase 157 Part A — lay the filter toggle BESIDE (left of)
+   the regions button, not stacked below it. The offset clears the widest
+   region-button label ("Ecoregions"). Expanded geometry (.pane-list /
+   .pane-table / narrow @media) is governed by the rules below, unchanged. */
+bee-pane {
+  top: 0.5em;
+  right: calc(1em + 8rem);
 }
 .content.pane-list bee-pane {
   bottom: 0.5em;
@@ -372,6 +425,10 @@ bee-pane {
   `;
 
   render() {
+    const regionLabel = this._boundaryMode === 'off' ? 'Regions'
+      : this._boundaryMode === 'counties' ? 'Counties'
+      : this._boundaryMode === 'ecoregions' ? 'Ecoregions'
+      : 'Places';
     return html`
       <bee-header
         .offline=${this._offline}
@@ -409,11 +466,29 @@ bee-pane {
             @map-click-empty=${this._onMapClickEmpty}
             @data-loaded=${this._onDataLoaded}
             @data-error=${this._onDataError}
-            @boundary-mode-changed=${this._onBoundaryModeChanged}
             @place-selected=${this._onPlaceSelected}
             @selection-drawn=${this._onSelectionDrawn}
             @user-location-changed=${this._onUserLocationChanged}
           ></bee-map>
+          <div class="region-control">
+            ${this._regionMenuOpen ? html`
+              <div class="region-menu">
+                <button class=${this._boundaryMode === 'off' ? 'active' : ''} @click=${() => this._selectBoundaryMode('off')}>Off</button>
+                <button class=${this._boundaryMode === 'counties' ? 'active' : ''} @click=${() => this._selectBoundaryMode('counties')}>Counties</button>
+                <button class=${this._boundaryMode === 'ecoregions' ? 'active' : ''} @click=${() => this._selectBoundaryMode('ecoregions')}>Ecoregions</button>
+                <button class=${this._boundaryMode === 'places' ? 'active' : ''} @click=${() => this._selectBoundaryMode('places')}>Places</button>
+              </div>
+            ` : ''}
+            <button class="region-btn" @click=${this._toggleRegionMenu}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="1" y="1" width="6" height="6" rx="1"/>
+                <rect x="9" y="1" width="6" height="6" rx="1"/>
+                <rect x="1" y="9" width="6" height="6" rx="1"/>
+                <rect x="9" y="9" width="6" height="6" rx="1"/>
+              </svg>
+              ${regionLabel}
+            </button>
+          </div>
           <bee-pane
             .paneState=${this._paneState}
             .filterState=${this._filterState}
@@ -607,6 +682,8 @@ bee-pane {
     // Initial freshness fetch + refresh cadence (PATTERNS.md Pitfall 6)
     void this._refreshFreshness();
     window.addEventListener('focus', this._refreshFreshness);
+    // Phase 157: close the relocated region menu on outside click.
+    document.addEventListener('click', this._onDocumentClick);
   }
 
   disconnectedCallback() {
@@ -625,6 +702,7 @@ bee-pane {
     this.removeEventListener('install-prompt', this._onInstallPrompt);
     this._standaloneQuery.removeEventListener('change', this._onStandaloneChange);
     window.removeEventListener('focus', this._refreshFreshness);
+    document.removeEventListener('click', this._onDocumentClick);
   }
 
   // --- Filter query ---
@@ -1529,8 +1607,31 @@ bee-pane {
     this._replaceUrlState();
   }
 
-  private _onBoundaryModeChanged(e: CustomEvent<'off' | 'counties' | 'ecoregions' | 'places'>) {
-    const newMode = e.detail;
+  private _toggleRegionMenu() {
+    this._regionMenuOpen = !this._regionMenuOpen;
+  }
+
+  private _selectBoundaryMode(mode: 'off' | 'counties' | 'ecoregions' | 'places') {
+    this._regionMenuOpen = false;
+    if (mode === this._boundaryMode) return;
+    this._applyBoundaryMode(mode);
+  }
+
+  // Close the region menu when a click lands outside the relocated control.
+  // composedPath() pierces the shadow boundary; clicks on the button/menu keep
+  // it open (mirrors the prior <bee-map> behavior).
+  private _onDocumentClick = (e: MouseEvent) => {
+    if (!this._regionMenuOpen) return;
+    const control = this.renderRoot?.querySelector('.region-control');
+    if (control && !e.composedPath().includes(control)) {
+      this._regionMenuOpen = false;
+    }
+  };
+
+  // Shared boundary-mode side effects (extracted from the former
+  // _onBoundaryModeChanged event handler). Set the mode, clear the selected
+  // place when leaving 'places' (re-running filter/table queries), and sync URL.
+  private _applyBoundaryMode(newMode: 'off' | 'counties' | 'ecoregions' | 'places') {
     this._boundaryMode = newMode;
     const leavingPlaces = newMode !== 'places' && this._filterState.selectedPlace !== null;
     if (leavingPlaces) {
