@@ -1,6 +1,6 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
-import type { OccurrenceRow } from './filter.ts';
+import type { OccurrenceRow, FilterState, FilterChangedEvent } from './filter.ts';
 import { isSpecimenBacked, isProvisional } from './occurrence.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
 
@@ -68,6 +68,7 @@ function groupOccurrences(rows: OccurrenceRow[]): DateGroup[] {
 export class BeeOccurrenceDetail extends LitElement {
   @property({ attribute: false }) occurrences: OccurrenceRow[] = [];
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
+  @property({ attribute: false }) filterState: FilterState | null = null;
 
   static styles = css`
     :host {
@@ -180,7 +181,39 @@ export class BeeOccurrenceDetail extends LitElement {
       border-top: 1px solid var(--border-subtle);
       margin: 0.5rem 0;
     }
+    .taxon-filter-link {
+      cursor: pointer;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      color: inherit;
+    }
+    .taxon-filter-link:hover,
+    .taxon-filter-link:focus {
+      text-decoration-style: solid;
+      outline: none;
+    }
   `;
+
+  private _onTaxonClick(taxonId: number, displayName: string) {
+    if (!this.filterState) return;
+    this.dispatchEvent(new CustomEvent<FilterChangedEvent>('filter-changed', {
+      bubbles: true,
+      composed: true,
+      detail: {
+        taxonId,
+        taxonDisplayName: displayName,
+        yearFrom: this.filterState.yearFrom,
+        yearTo: this.filterState.yearTo,
+        months: this.filterState.months,
+        selectedCounties: this.filterState.selectedCounties,
+        selectedEcoregions: this.filterState.selectedEcoregions,
+        selectedCollectors: this.filterState.selectedCollectors,
+        elevMin: this.filterState.elevMin,
+        elevMax: this.filterState.elevMax,
+        selectedPlace: this.filterState.selectedPlace,
+      } as FilterChangedEvent,
+    }));
+  }
 
   private _renderHostInfo(row: OccurrenceRow) {
     const grade = row.inat_quality_grade;
@@ -211,7 +244,11 @@ export class BeeOccurrenceDetail extends LitElement {
             const displayName = info?.name ?? null;
             return html`
             <li>
-              <a href="https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}" target="_blank" rel="noopener">${displayName ? displayName : html`<span class="no-determination">No determination</span>`}</a>
+              ${displayName && row.taxon_id != null
+                ? html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, displayName)}>${displayName}</span>`
+                : html`<span class="no-determination">No determination</span>`
+              }
+              · <a href="https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}" target="_blank" rel="noopener" aria-label="View on Ecdysis">🔗</a>
               ${row.host_observation_id != null ? html`
                 · <a href="https://www.inaturalist.org/observations/${row.host_observation_id}" target="_blank" rel="noopener">${this._renderHostInfo(row)}</a>
               ` : html` · <span class="inat-missing">iNat: —</span>`}
@@ -254,9 +291,11 @@ export class BeeOccurrenceDetail extends LitElement {
   }
 
   private _renderProvisional(row: OccurrenceRow) {
-    const taxonEl = row.display_name
-      ? html`<em>${row.display_name}</em>`
-      : html`<span class="hint">identification pending</span>`;
+    const taxonEl = row.display_name && row.taxon_id != null
+      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, row.display_name!)}><em>${row.display_name}</em></span>`
+      : row.display_name
+        ? html`<em>${row.display_name}</em>`
+        : html`<span class="hint">identification pending</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">iNat ID: ${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
@@ -278,9 +317,11 @@ export class BeeOccurrenceDetail extends LitElement {
     const isCC = row.license != null && row.license.toUpperCase().startsWith('CC');
     const inatInfo = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
     const inatDisplayName = inatInfo?.name ?? null;
-    const taxonEl = inatDisplayName
-      ? html`<em>${inatDisplayName}</em>`
-      : html`<span class="hint">identification unknown</span>`;
+    const taxonEl = inatDisplayName && row.taxon_id != null
+      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, inatDisplayName)}><em>${inatDisplayName}</em></span>`
+      : inatDisplayName
+        ? html`<em>${inatDisplayName}</em>`
+        : html`<span class="hint">identification unknown</span>`;
     return html`
       <div class="panel-content sample-dot-detail">
         <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.inat_quality_grade)}</div>
@@ -311,9 +352,9 @@ export class BeeOccurrenceDetail extends LitElement {
     const verbatim = row.verbatim_name;
     let taxonEl;
     if (accepted != null && verbatim != null && accepted !== verbatim) {
-      taxonEl = html`<em>${accepted}</em> <span class="hint">(det. as ${verbatim})</span>`;
+      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span> <span class="hint">(det. as ${verbatim})</span>`;
     } else if (accepted != null) {
-      taxonEl = html`<em>${accepted}</em>`;
+      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span>`;
     } else if (verbatim != null) {
       taxonEl = html`<em>${verbatim}</em>`;
     } else {
