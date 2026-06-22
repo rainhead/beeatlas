@@ -54,7 +54,7 @@ Post-v5.0 cleanup. Phases 155–156 (promoted from backlog 999.1/999.8, executed
 
 - [x] **Phase 155: Surface shift-drag rectangle selection in the UI** — Desktop-only "Shift-drag on map to set bounds" hint below the "County, ecoregion, or place" input (`.hint` reuse + `@media (hover: hover) and (pointer: fine)` gate; hidden on touch), making the bounds-**filter** gesture discoverable with no behavior change. Promoted from backlog 999.1. Completed 2026-06-21 (operator UAT PASS). **Plans:** 1 plan (1 wave). **UI hint:** yes.
 - [x] **Phase 156: Separate spatial-bounds FILTER from per-record SELECTION** — Made the state model and URL contract honest: a spatial box is a FILTER (`FilterState.bounds`, serialized `bbox=`); SELECTION (`o=` ids/cluster) is per-record only. Removed the legacy `_selectionBounds`/`sel=`-write/`_applyBoundsSelection` plumbing and the forced `_paneState='list'`; bounds + selection now coexist; legacy `?sel=` links still restore. Promoted from backlog 999.8. Completed 2026-06-21 (815 tests green; D-08 global filter-reset affordance deferred). **Plans:** 3 plans.
-- [ ] **Phase 157: Regions dropdown obscured by filter button** — UI bug: the regions dropdown is visually obscured by the filter button (z-index / stacking-context issue in the header/toolbar). Repro and fix. Promoted from backlog 999.4. **Plans:** 0 (needs planning).
+- [ ] **Phase 157: Regions dropdown obscured by filter button** — UI bug: the regions dropdown is visually obscured by the filter button (z-index / stacking-context issue in the header/toolbar). Repro and fix. Promoted from backlog 999.4. **Plans:** 2 plans (2 waves).
 - [ ] **Phase 158: Capture specimen photos from non-WABA-field iNat users** — Some collectors post specimen photos without the "WABA" observation field, so they fall out of the provisional-occurrence path. Devise an observation-field-independent match strategy (project membership, place+taxon+collector heuristics, or a curated collector allowlist). Promoted from backlog 999.5. **Plans:** 0 (needs planning).
 - [ ] **Phase 159: Filter by taxon from occurrence summary in sidebar** — Give a quick click target on a taxon in the sidebar occurrence summary to filter the map to just that taxon, saving the filter-panel round-trip. Open questions: rank to filter at when below species, replace-vs-intersect with existing filter state, and whether to surface the same affordance in the table view. Promoted from backlog 999.6. **Plans:** 0 (needs planning).
 
@@ -1377,7 +1377,17 @@ coexistence)
   4. A regression test (source-analysis assertion and/or render test) locks in the
      chosen stacking mechanism so the obscuring cannot silently return
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves)
+
+Plans:
+**Wave 1**
+
+- [ ] 157-01-PLAN.md — relocate region control from `<bee-map>` into `<bee-atlas>` (markup + CSS + `_regionMenuOpen` + outside-click), route selection via shared `_applyBoundaryMode`, RETAIN `bee-map { z-index: 0 }`, lay collapsed filter button beside the regions button; STACK-01 source-analysis tests [SC-1, SC-2, SC-3, SC-4]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 157-02-PLAN.md — `157-HUMAN-UAT.md` (3 pane states × 2 layouts + attribution-not-bleeding regression check) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [SC-1, SC-2, SC-4]
+
 **UI hint**: yes
 
 ---
