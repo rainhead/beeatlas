@@ -1591,10 +1591,11 @@ describe('STACK-01: regions dropdown above pane (Phase 157)', () => {
     expect(beeAtlasSrc).toMatch(/bee-map\s*\{[^}]*z-index:\s*0/);
   });
 
-  // 2. Elevation: region-control (2) > bee-pane :host (1) > bee-map (0).
-  //    bee-pane's z-index:1 baseline lives in bee-pane.ts, NOT bee-atlas.ts.
-  test('.region-control is z-index:2 (above bee-pane:1, above bee-map:0)', () => {
-    expect(beeAtlasSrc).toMatch(/\.region-control\s*\{[^}]*z-index:\s*2/);
+  // 2. Elevation: the .map-toolbar (region control + collapsed filter button)
+  //    is z-index:2 > bee-pane :host (1) > bee-map (0). bee-pane's z-index:1
+  //    baseline lives in bee-pane.ts, NOT bee-atlas.ts.
+  test('.map-toolbar is z-index:2 (above bee-pane:1, above bee-map:0)', () => {
+    expect(beeAtlasSrc).toMatch(/\.map-toolbar\s*\{[^}]*z-index:\s*2/);
     expect(beePaneSrc).toMatch(/:host\s*\{[^}]*z-index:\s*1/);
     expect(beeAtlasSrc).toMatch(/bee-map\s*\{[^}]*z-index:\s*0/);
   });
@@ -1612,9 +1613,14 @@ describe('STACK-01: regions dropdown above pane (Phase 157)', () => {
     expect(beeMapSrc).toMatch(/map-click-region/);
   });
 
-  // 4. Part A layout: the collapsed pane no longer stacks below the regions
-  //    button via the `top: calc(0.5em + 2.5rem)` offset — it sits beside it.
-  test('collapsed bee-pane no longer uses the calc(0.5em + 2.5rem) stacking offset', () => {
-    expect(beeAtlasSrc).not.toMatch(/top:\s*calc\(0\.5em\s*\+\s*2\.5rem\)/);
+  // 4. Part A layout: the regions button and collapsed filter button are a flex
+  //    row (0.5rem gap), not manually offset. The collapsed <bee-pane> is a flex
+  //    item in the toolbar (position:static overriding its :host position).
+  test('regions + filter buttons form a flex-row toolbar with the collapsed pane as a flex item', () => {
+    expect(beeAtlasSrc).toMatch(/\.map-toolbar\s*\{[^}]*display:\s*flex/);
+    expect(beeAtlasSrc).toMatch(/\.map-toolbar\s*\{[^}]*gap:\s*0\.5rem/);
+    expect(beeAtlasSrc).toMatch(/\.map-toolbar\s+bee-pane\s*\{[^}]*position:\s*static/);
+    // The brittle hard-coded right-offset approach is gone.
+    expect(beeAtlasSrc).not.toMatch(/right:\s*calc\(1em\s*\+\s*8rem\)/);
   });
 });
