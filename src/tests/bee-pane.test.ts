@@ -224,6 +224,10 @@ describe('PANE-05: list state filter controls + occurrence detail', () => {
   test('bee-pane.ts list content stub is removed', () => {
     expect(src).not.toMatch(/List content \(Plan 02 fills in/);
   });
+
+  test('bee-pane.ts passes filterState to bee-occurrence-detail (Phase 159)', () => {
+    expect(src).toMatch(/\.filterState=\$\{this\.filterState\}[\s\S]*?bee-occurrence-detail|bee-occurrence-detail[\s\S]*?\.filterState=\$\{this\.filterState\}/s);
+  });
 });
 
 describe('PANE-V2: bee-pane v2 collapsed button and selection banner', () => {
