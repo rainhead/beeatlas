@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v5.0
 milestone_name: Offline Field Mode
-status: Phase 157 in progress (Wave 1 done; Wave 2 HUMAN-UAT pending)
-stopped_at: Phase 157 plan 01 complete (region control relocated into bee-atlas); plan 02 blocking HUMAN-UAT pending
-last_updated: "2026-06-21T00:00:00.000Z"
-last_activity: 2026-06-21 — Phase 157 Wave 1 complete (region-dropdown stacking fix); awaiting operator UAT
+status: Phase 157 complete (operator UAT PASS)
+stopped_at: Phase 157 complete — regions-dropdown stacking fix shipped; next up Phase 158 (non-WABA specimen-photo capture, needs planning)
+last_updated: "2026-06-22T00:00:00.000Z"
+last_activity: 2026-06-22 — Phase 157 complete (region control relocated to bee-atlas .map-toolbar; operator UAT PASS; 828 tests green)
 progress:
   total_phases: 17
   completed_phases: 12
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 157 — Regions dropdown obscured by filter button (v5.1 Housekeeping)
-Plan: 157-02 (HUMAN-UAT) pending — 157-01 complete
-Status: Wave 1 complete (region control relocated, 828 tests green); blocking operator UAT pending
+Phase: 157 complete (v5.1 Housekeeping) — next up Phase 158
+Plan: — (both 157-01 and 157-02 complete)
+Status: Phase 157 shipped — regions dropdown relocated to a stable top-right flex toolbar; operator UAT PASS; 828 tests green
 Last activity: 2026-06-21 — Milestone v5.0 completed and archived
 
 ## Milestone Overview
