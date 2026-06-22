@@ -35,7 +35,7 @@ key-decisions:
   - "SC-2: bee-map { z-index: 0 } RETAINED — the fix is the relocation, not a z-index deletion (Phase 108 attribution-bleed guard)"
   - "Region control becomes a pure presenter inside the state-owner <bee-atlas>; <bee-map> sheds UI it never needed to own (strengthens the pure-presenter invariant)"
   - "_onDocumentClick checks composedPath against the .region-control element (queried from renderRoot), not the whole host — clicks on map/pane close the menu"
-  - "Part A: collapsed pane uses a fixed right offset (calc(1em + 8rem)) sized for the widest label ('Ecoregions'); a flex-toolbar wrapper was rejected because <bee-pane> is the same element across collapsed/list/table states"
+  - "Part A (revised after UAT): a top-right .map-toolbar flex row (gap 0.5rem) holds the region control then the collapsed <bee-pane> filter button; the collapsed pane is a flex item via `.map-toolbar bee-pane { position: static }` (outranks its :host absolute). When expanded, the toolbar dissolves with `display: contents` so <bee-pane> positions against .content again (flush right). This replaced the first cut's hard-coded `right: calc(1em + 8rem)`, which leaked into the open list pane and inset it ~8rem (UAT feedback)."
   - "_onDocumentClick registered in firstUpdated / removed in disconnectedCallback (matches bee-atlas's existing global-listener pattern, same as bee-map did)"
 requirements-completed: [SC-1, SC-2, SC-3, SC-4]
 duration: "inline (subagent spawn 529-overloaded; orchestrator executed)"
@@ -77,6 +77,6 @@ completed: "2026-06-21"
 ## Notes / deviations
 
 - **Execution path:** the subagent spawn returned `529 Overloaded` twice (0 work each). Per the workflow's documented fallback for small single-plan waves on large-context models, the orchestrator executed the plan inline. Commits remain atomic per task (8226b87c = relocation, 14f59066 = STACK-01).
-- **Part A mechanism:** used a fixed `right` offset rather than the research-suggested flex toolbar wrapper, because `<bee-pane>` is one element shared across collapsed/list/table states and can't be wrapped only when collapsed. The offset (`calc(1em + 8rem)`) clears the widest label; pixel correctness is the subject of the blocking HUMAN-UAT (plan 157-02).
+- **Part A mechanism (post-UAT):** the first cut used a fixed `right: calc(1em + 8rem)` offset on the collapsed pane, but that leaked into the OPEN list pane (the `.pane-list` rule never reset `right`), insetting the open sidebar ~8rem. Reworked (commit 53c5ae77) into the research-suggested flex toolbar after all: a `.map-toolbar` flex row that holds both buttons when collapsed and dissolves via `display: contents` when the pane expands, so `<bee-pane>` positions against `.content` again. Verified in-browser (wide + narrow) — collapsed flex row flush right, open list flush right, region menu above the pane, table-mode attribution behind the pane (SC-2).
 
 ## Self-Check: PASSED
