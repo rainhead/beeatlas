@@ -1,5 +1,5 @@
 import { css, html, LitElement, unsafeCSS, type PropertyValues } from 'lit';
-import { customElement, property, query, state } from 'lit/decorators.js';
+import { customElement, property, query } from 'lit/decorators.js';
 import mapboxgl from 'mapbox-gl';
 import mapboxCssText from 'mapbox-gl/dist/mapbox-gl.css?raw';
 import { loadOccurrenceGeoJSON } from './features.ts';
@@ -60,8 +60,6 @@ export class BeeMap extends LitElement {
   @property({ attribute: false }) intendedFilterActive = false;
   @property({ attribute: false }) offline = false;
 
-  @state() private _regionMenuOpen = false;
-
   // Mapbox GL JS map instance
   private _map: mapboxgl.Map | null = null;
 
@@ -100,49 +98,6 @@ export class BeeMap extends LitElement {
 #map {
   flex-grow: 1;
 }
-.region-control {
-  position: absolute;
-  top: 0.5em;
-  right: 0.5em;
-  z-index: 2;
-}
-.region-btn {
-  background: white;
-  border: 1px solid rgba(0,0,0,0.3);
-  border-radius: 4px;
-  padding: 0.4rem 0.6rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-}
-.region-btn:hover { background: #f0f0f0; }
-.region-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 0.3rem;
-  background: white;
-  border: 1px solid rgba(0,0,0,0.2);
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  min-width: 10rem;
-  overflow: hidden;
-}
-.region-menu button {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 0.5rem 0.75rem;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.region-menu button:hover { background: #f0f0f0; }
-.region-menu button.active { font-weight: 600; color: var(--accent, #2c7be5); }
 .selection-box {
   background: rgba(56, 135, 190, 0.1);
   border: 2px solid #3887be;
@@ -175,41 +130,12 @@ export class BeeMap extends LitElement {
   }
 
   render() {
-    const label = this.boundaryMode === 'off' ? 'Regions'
-      : this.boundaryMode === 'counties' ? 'Counties'
-      : this.boundaryMode === 'ecoregions' ? 'Ecoregions'
-      : 'Places';
     return html`
       <style>${BeeMap._mapboxCss}</style>
       <div id="map"></div>
-      <div class="region-control">
-        ${this._regionMenuOpen ? html`
-          <div class="region-menu">
-            <button class=${this.boundaryMode === 'off' ? 'active' : ''} @click=${() => this._selectBoundary('off')}>Off</button>
-            <button class=${this.boundaryMode === 'counties' ? 'active' : ''} @click=${() => this._selectBoundary('counties')}>Counties</button>
-            <button class=${this.boundaryMode === 'ecoregions' ? 'active' : ''} @click=${() => this._selectBoundary('ecoregions')}>Ecoregions</button>
-            <button class=${this.boundaryMode === 'places' ? 'active' : ''} @click=${() => this._selectBoundary('places')}>Places</button>
-          </div>
-        ` : ''}
-        <button class="region-btn" @click=${this._toggleRegionMenu}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-            <rect x="1" y="1" width="6" height="6" rx="1"/>
-            <rect x="9" y="1" width="6" height="6" rx="1"/>
-            <rect x="1" y="9" width="6" height="6" rx="1"/>
-            <rect x="9" y="9" width="6" height="6" rx="1"/>
-          </svg>
-          ${label}
-        </button>
-      </div>
       ${this.offline ? html`<div class="offline-basemap-label">Basemap tiles unavailable offline. Pan here while online to cache tiles for an area.</div>` : ''}
     `;
   }
-
-  private _onDocumentClick = (e: MouseEvent) => {
-    if (this._regionMenuOpen && !e.composedPath().includes(this)) {
-      this._regionMenuOpen = false;
-    }
-  };
 
   // --- Shift-drag rectangle gesture handlers (SEL-01, SEL-02) ---
 
@@ -303,18 +229,7 @@ export class BeeMap extends LitElement {
     document.removeEventListener('mouseup', this._onRectMouseUp);
     this._map?.remove();
     this._resizeObserver?.disconnect();
-    document.removeEventListener('click', this._onDocumentClick);
     super.disconnectedCallback();
-  }
-
-  private _toggleRegionMenu() {
-    this._regionMenuOpen = !this._regionMenuOpen;
-  }
-
-  private _selectBoundary(mode: 'off' | 'counties' | 'ecoregions' | 'places') {
-    this._regionMenuOpen = false;
-    if (mode === this.boundaryMode) return;
-    this._emit<'off' | 'counties' | 'ecoregions' | 'places'>('boundary-mode-changed', mode);
   }
 
   updated(changedProperties: PropertyValues) {
@@ -404,9 +319,9 @@ export class BeeMap extends LitElement {
       positionOptions: { enableHighAccuracy: true },
       showAccuracyCircle: true,
     });
-    // Place top-left: the default top-right corner is occupied by the custom
-    // .region-control button (Phase 152 UAT — the control was rendering hidden
-    // behind it). top-left is otherwise empty.
+    // Place top-left: the top-right corner is occupied by the custom region
+    // control (relocated to <bee-atlas> in Phase 157, but still painted over the
+    // map's top-right via a sibling z-index). top-left is otherwise empty.
     this._map.addControl(this._geolocate, 'top-left');
 
     this._geolocate.on('geolocate', (e: { coords: GeolocationCoordinates; timestamp: number }) => {
@@ -636,9 +551,6 @@ export class BeeMap extends LitElement {
       if (this._clickConsumed) return;
       this._emit('map-click-empty');
     });
-
-    // Close region menu when clicking outside this component
-    document.addEventListener('click', this._onDocumentClick);
 
     // ResizeObserver to handle container dimension changes (e.g., table-mode toggle)
     this._resizeObserver = new ResizeObserver(() => this._map?.resize());
