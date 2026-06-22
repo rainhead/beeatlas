@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
-status: Phase 157 shipped — regions dropdown relocated to a stable top-right flex toolbar; operator UAT PASS; 828 tests green
+status: verifying
 stopped_at: Phase 159 context gathered
-last_updated: "2026-06-22T23:28:11.767Z"
-last_activity: 2026-06-21 — Milestone v5.0 completed and archived
+last_updated: "2026-06-22T23:49:51.211Z"
+last_activity: 2026-06-22
 progress:
-  total_phases: 17
-  completed_phases: 13
-  total_plans: 30
-  completed_plans: 30
-  percent: 76
+  total_phases: 30
+  completed_phases: 11
+  total_plans: 26
+  completed_plans: 26
+  percent: 37
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 154 — mapbox-tile-caching-tos-gated (COMPLETE — pending /gsd-verify-work)
+**Current focus:** Phase 159 — filter-by-taxon-from-occurrence-summary-in-sidebar
 
 ## Current Position
 
-Phase: 157 complete (v5.1 Housekeeping) — next up Phase 158
-Plan: — (both 157-01 and 157-02 complete)
-Status: Phase 157 shipped — regions dropdown relocated to a stable top-right flex toolbar; operator UAT PASS; 828 tests green
-Last activity: 2026-06-21 — Milestone v5.0 completed and archived
+Phase: 159 (filter-by-taxon-from-occurrence-summary-in-sidebar) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-22
 
 ## Milestone Overview
 
@@ -87,9 +87,9 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-22T23:28:11.761Z
+Last session: 2026-06-22T23:49:51.203Z
 Stopped at: Phase 159 context gathered
-Resume file: .planning/phases/159-filter-by-taxon-from-occurrence-summary-in-sidebar/159-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 

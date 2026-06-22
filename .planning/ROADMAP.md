@@ -58,7 +58,7 @@ Post-v5.0 cleanup. Phases 155–157 are complete (155–156 executed 2026-06-21 
 - [ ] **Phase 158: Capture specimen photos from non-WABA-field iNat users** — Some collectors post specimen photos without the "WABA" observation field, so they fall out of the provisional-occurrence path. Devise an observation-field-independent match strategy (project membership, place+taxon+collector heuristics, or a curated collector allowlist). Promoted from backlog 999.5. **Plans:** 0 (needs planning).
 - [ ] **Phase 159: Filter by taxon from occurrence summary in sidebar** — Give a quick click target on a taxon in the sidebar occurrence summary to filter the map to just that taxon, saving the filter-panel round-trip. Decisions locked in 159-CONTEXT.md: filter at the exact `taxon_id` clicked (no species roll-up, D-05); replace only the taxon dimension and preserve all other active filters (intersect, D-07); table/drawer view affordance deferred (sidebar list only). Implementation is a new *entry point* into the existing filter — thread `filterState` pane→`bee-occurrence-detail`, dispatch the existing `FilterChangedEvent` upward (`bubbles/composed`), demote external record links to icons. Promoted from backlog 999.6. **Plans:** 1 plan (1 wave). **UI hint:** yes.
   Plans:
-  - [ ] 159-01-PLAN.md — Taxon name → one-click filter across occurrence-detail render paths; external links demoted to icons; source-text tests.
+  - [x] 159-01-PLAN.md — Taxon name → one-click filter across occurrence-detail render paths; external links demoted to icons; source-text tests.
 
 ### ✅ v5.0 Offline Field Mode (Phases 147–154) — SHIPPED 2026-06-21
 
