@@ -1,18 +1,18 @@
 ---
 phase: 157-regions-dropdown-obscured-by-filter-button
 plan: 02
-status: pending
+status: passed
 gates: /gsd-verify-work
 ui_hint: yes
 auto_advance: false
 source: [157-01-SUMMARY.md, 157-RESEARCH.md]
 created: 2026-06-21
-updated: 2026-06-21
+updated: 2026-06-22
 ---
 
 # Phase 157 — Human UAT: Regions dropdown above the filter button
 
-**Status: PENDING** — Awaiting operator sign-off.
+**Status: PASSED** — Operator approved 2026-06-22.
 
 **UI hint: yes** — This phase must NOT auto-advance past this UAT checkpoint.
 The `auto_advance: false` constraint is in effect (per `feedback_uat_ui_phases`).
@@ -162,15 +162,25 @@ regression from moving the control into `<bee-atlas>`.
 ## Summary
 
 total: 4
-passed: 0
+passed: 4
 issues: 0
-pending: 4
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
-(none recorded yet)
+(none — all scenarios passed)
+
+During UAT two layout defects were found and fixed before sign-off:
+1. The open sidebar was inset ~8rem from the right (a hard-coded collapsed offset
+   leaked into the `.pane-list` rule). Fixed by reworking the layout into a
+   `.map-toolbar` flex row that dissolves (`display: contents`) when the pane
+   expands so the pane positions against `.content` again (commit 53c5ae77).
+2. The regions button shifted when the sidebar opened (it was the left flex item,
+   so it slid to the corner once the filter button became the panel). Fixed with
+   `flex-direction: row-reverse`, pinning the regions button at the right corner
+   in all states (commit 77480fe9). Verified in-browser: shift = 0px.
 
 ---
 
@@ -180,12 +190,19 @@ blocked: 0
 PASS. Scenario 3's attribution check (SC-2) is **not** deferrable — it is the Phase 108
 regression guard.
 
-**Verdict:** [ ] PASS  [ ] FAIL
+**Verdict:** [x] PASS  [ ] FAIL
+
+**Operator sign-off (2026-06-22):** Approved. The regions dropdown paints above the pane
+in collapsed / list / table states (verified in-browser, wide + narrow); the collapsed
+filter button sits beside the regions button as a flex row; the open sidebar is flush to
+the right (inset bug fixed); the regions button no longer shifts when the sidebar opens
+(row-reverse pin); `bee-map { z-index: 0 }` retained and the Mapbox attribution stays
+behind the table pane (SC-2). Two defects found-and-fixed during UAT (see Gaps).
 
 **If FAIL:** Record which scenario/layout failed in its Notes, update the `## Summary` and
 `## Gaps` sections, then route to `/gsd-plan-phase 157 --gaps` for gap closure before
 advancing the phase.
 
-**Signed off by:**
+**Signed off by:** Operator (Peter), 2026-06-22
 
-**Date:**
+**Date:** 2026-06-22

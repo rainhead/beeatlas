@@ -1386,7 +1386,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 157-02-PLAN.md — `157-HUMAN-UAT.md` (3 pane states × 2 layouts + attribution-not-bleeding regression check) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [SC-1, SC-2, SC-4]
+- [x] 157-02-PLAN.md — `157-HUMAN-UAT.md` (3 pane states × 2 layouts + attribution-not-bleeding regression check) + blocking human-verify checkpoint (autonomous: false / auto_advance: false) [SC-1, SC-2, SC-4]
 
 **UI hint**: yes
 
