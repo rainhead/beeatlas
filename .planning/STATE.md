@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v5.0
-milestone_name: Offline Field Mode
-status: Phase 157 complete (operator UAT PASS)
-stopped_at: Phase 157 complete — regions-dropdown stacking fix shipped; next up Phase 158 (non-WABA specimen-photo capture, needs planning)
-last_updated: "2026-06-22T00:00:00.000Z"
-last_activity: 2026-06-22 — Phase 157 complete (region control relocated to bee-atlas .map-toolbar; operator UAT PASS; 828 tests green)
+milestone: v5.1
+milestone_name: Housekeeping
+status: Phase 157 shipped — regions dropdown relocated to a stable top-right flex toolbar; operator UAT PASS; 828 tests green
+stopped_at: Phase 159 context gathered
+last_updated: "2026-06-22T23:28:11.767Z"
+last_activity: 2026-06-21 — Milestone v5.0 completed and archived
 progress:
   total_phases: 17
-  completed_phases: 12
-  total_plans: 28
-  completed_plans: 28
-  percent: 71
+  completed_phases: 13
+  total_plans: 30
+  completed_plans: 30
+  percent: 76
 ---
 
 # Project State
@@ -87,9 +87,9 @@ Carried from v4.10 close:
 
 ## Session Continuity
 
-Last session: 2026-06-21T23:11:20.151Z
-Stopped at: Phase 154 context gathered (re-scoped to ToS-compliant perf cache)
-Resume file: None
+Last session: 2026-06-22T23:28:11.761Z
+Stopped at: Phase 159 context gathered
+Resume file: .planning/phases/159-filter-by-taxon-from-occurrence-summary-in-sidebar/159-CONTEXT.md
 
 ## Operator Next Steps
 
