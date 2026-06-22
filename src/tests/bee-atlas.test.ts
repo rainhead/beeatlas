@@ -1578,3 +1578,43 @@ describe('NEAR: near-me bounds reuse', () => {
     });
   });
 });
+
+describe('STACK-01: regions dropdown above pane (Phase 157)', () => {
+  const beeAtlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
+  const beeMapSrc = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
+  const beePaneSrc = readFileSync(resolve(__dirname, '../bee-pane.ts'), 'utf-8');
+
+  // 1. Regression guard: deleting bee-map's containing z-index:0 was the WRONG
+  //    fix (it would let Mapbox's bottom-right attribution bleed over the table
+  //    pane — the Phase 108-02 regression). This locks that rule in place.
+  test('bee-atlas.ts RETAINS the load-bearing `bee-map { ... z-index: 0 }` rule', () => {
+    expect(beeAtlasSrc).toMatch(/bee-map\s*\{[^}]*z-index:\s*0/);
+  });
+
+  // 2. Elevation: region-control (2) > bee-pane :host (1) > bee-map (0).
+  //    bee-pane's z-index:1 baseline lives in bee-pane.ts, NOT bee-atlas.ts.
+  test('.region-control is z-index:2 (above bee-pane:1, above bee-map:0)', () => {
+    expect(beeAtlasSrc).toMatch(/\.region-control\s*\{[^}]*z-index:\s*2/);
+    expect(beePaneSrc).toMatch(/:host\s*\{[^}]*z-index:\s*1/);
+    expect(beeAtlasSrc).toMatch(/bee-map\s*\{[^}]*z-index:\s*0/);
+  });
+
+  // 3. Relocation: the region control now lives in <bee-atlas>; <bee-map> no
+  //    longer renders it (it keeps only the map-click boundary logic).
+  test('region control relocated into bee-atlas; removed from bee-map', () => {
+    expect(beeAtlasSrc).toMatch(/region-control/);
+    expect(beeAtlasSrc).toMatch(/_regionMenuOpen/);
+    expect(beeMapSrc).not.toMatch(/region-control/);
+    expect(beeMapSrc).not.toMatch(/_regionMenuOpen/);
+    expect(beeMapSrc).not.toMatch(/boundary-mode-changed/);
+    // bee-map keeps the boundaryMode input and map-click boundary selection.
+    expect(beeMapSrc).toMatch(/boundaryMode/);
+    expect(beeMapSrc).toMatch(/map-click-region/);
+  });
+
+  // 4. Part A layout: the collapsed pane no longer stacks below the regions
+  //    button via the `top: calc(0.5em + 2.5rem)` offset — it sits beside it.
+  test('collapsed bee-pane no longer uses the calc(0.5em + 2.5rem) stacking offset', () => {
+    expect(beeAtlasSrc).not.toMatch(/top:\s*calc\(0\.5em\s*\+\s*2\.5rem\)/);
+  });
+});
