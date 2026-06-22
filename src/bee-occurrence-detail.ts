@@ -187,12 +187,25 @@ export class BeeOccurrenceDetail extends LitElement {
       text-decoration-style: dotted;
       color: inherit;
     }
-    .taxon-filter-link:hover,
-    .taxon-filter-link:focus {
+    .taxon-filter-link:hover {
       text-decoration-style: solid;
-      outline: none;
+    }
+    .taxon-filter-link:focus-visible {
+      text-decoration-style: solid;
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+      border-radius: 2px;
     }
   `;
+
+  // Keyboard activation for the role="button" taxon spans (WR-159-01): Enter/Space
+  // trigger the element's own @click handler so we don't thread args through here.
+  private _onTaxonKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      (e.currentTarget as HTMLElement).click();
+    }
+  }
 
   private _onTaxonClick(taxonId: number, displayName: string) {
     if (!this.filterState) return;
@@ -245,7 +258,7 @@ export class BeeOccurrenceDetail extends LitElement {
             return html`
             <li>
               ${displayName && row.taxon_id != null
-                ? html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, displayName)}>${displayName}</span>`
+                ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, displayName)}>${displayName}</span>`
                 : html`<span class="no-determination">No determination</span>`
               }
               · <a href="https://ecdysis.org/collections/individual/index.php?occid=${row.ecdysis_id}" target="_blank" rel="noopener" aria-label="View on Ecdysis">🔗</a>
@@ -292,7 +305,7 @@ export class BeeOccurrenceDetail extends LitElement {
 
   private _renderProvisional(row: OccurrenceRow) {
     const taxonEl = row.display_name && row.taxon_id != null
-      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, row.display_name!)}><em>${row.display_name}</em></span>`
+      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, row.display_name!)}><em>${row.display_name}</em></span>`
       : row.display_name
         ? html`<em>${row.display_name}</em>`
         : html`<span class="hint">identification pending</span>`;
@@ -318,7 +331,7 @@ export class BeeOccurrenceDetail extends LitElement {
     const inatInfo = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
     const inatDisplayName = inatInfo?.name ?? null;
     const taxonEl = inatDisplayName && row.taxon_id != null
-      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, inatDisplayName)}><em>${inatDisplayName}</em></span>`
+      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, inatDisplayName)}><em>${inatDisplayName}</em></span>`
       : inatDisplayName
         ? html`<em>${inatDisplayName}</em>`
         : html`<span class="hint">identification unknown</span>`;
@@ -352,9 +365,9 @@ export class BeeOccurrenceDetail extends LitElement {
     const verbatim = row.verbatim_name;
     let taxonEl;
     if (accepted != null && verbatim != null && accepted !== verbatim) {
-      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span> <span class="hint">(det. as ${verbatim})</span>`;
+      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span> <span class="hint">(det. as ${verbatim})</span>`;
     } else if (accepted != null) {
-      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span>`;
+      taxonEl = html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, accepted)}><em>${accepted}</em></span>`;
     } else if (verbatim != null) {
       taxonEl = html`<em>${verbatim}</em>`;
     } else {

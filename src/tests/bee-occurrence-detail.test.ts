@@ -79,4 +79,21 @@ describe('bee-occurrence-detail.ts source structure', () => {
     const collectorGroupBody = src.match(/_renderCollectorGroup[\s\S]*?\n  private /)?.[0] ?? '';
     expect(collectorGroupBody).not.toMatch(/href="https:\/\/ecdysis[^"]*"[^>]*>\$\{displayName\}/);
   });
+
+  test('taxon-filter spans are keyboard-activatable (WR-159-01)', () => {
+    // every role="button" filter span wires @keydown so Enter/Space activate it
+    const spanCount = (src.match(/class="taxon-filter-link" role="button"/g) ?? []).length;
+    const keydownCount = (src.match(/role="button" tabindex="0" @keydown=\$\{this\._onTaxonKeydown\}/g) ?? []).length;
+    expect(spanCount).toBeGreaterThan(0);
+    expect(keydownCount).toBe(spanCount);
+  });
+
+  test('_onTaxonKeydown activates on Enter and Space (WR-159-01)', () => {
+    expect(src).toMatch(/_onTaxonKeydown[\s\S]*?e\.key === 'Enter' \|\| e\.key === ' '/);
+  });
+
+  test('focus styling uses :focus-visible with a visible outline (WR-159-02)', () => {
+    expect(src).toMatch(/\.taxon-filter-link:focus-visible/);
+    expect(src).not.toMatch(/\.taxon-filter-link:focus\s*\{[^}]*outline:\s*none/);
+  });
 });
