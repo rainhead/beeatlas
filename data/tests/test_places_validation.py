@@ -2,7 +2,8 @@
 
 Covers:
     PLC-03: slug format, duplicate slugs, WKT validity, WGS84 coordinate bounds
-    PLC-04: polygon overlap detection
+    Phase 160 (D-03): overlapping polygons now LOAD (the ST_Overlaps rejection
+    was removed in favor of the many-to-many occurrence_places membership model).
 """
 
 import pytest
@@ -133,7 +134,16 @@ def test_place_without_permits_key_passes(tmp_path):
 
 
 def test_overlapping_polygons(tmp_path):
-    """Two polygons that share area raise ValueError matching 'overlap'."""
+    """Overlapping polygons LOAD (no raise) — the many-to-many model (D-03/SC-2).
+
+    Phase 160 removed the ST_Overlaps rejection from places_validation.py: an
+    occurrence may belong to every place its coordinate falls within, so
+    partially-overlapping place polygons are now legal. This test asserts
+    validate_places returns None (no raise) for two overlapping polygons.
+
+    RED-by-design until 160-02 removes the ST_Overlaps guard
+    (places_validation.py ~lines 109-133). The live guard still raises today.
+    """
     # Place A: lon -121.0..-120.9, lat 47.0..47.1
     place_a = {
         **_VALID_PLACE,
@@ -153,5 +163,4 @@ def test_overlapping_polygons(tmp_path):
         ),
     }
     path = write_toml(tmp_path, [place_a, place_b])
-    with pytest.raises(ValueError, match="overlap"):
-        validate_places(path)
+    assert validate_places(path) is None  # overlaps now LOAD (no raise)
