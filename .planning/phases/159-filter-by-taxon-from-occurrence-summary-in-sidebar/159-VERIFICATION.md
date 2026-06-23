@@ -1,7 +1,9 @@
 ---
 phase: 159-filter-by-taxon-from-occurrence-summary-in-sidebar
 verified: 2026-06-22T23:52:15Z
-status: human_needed
+status: passed
+reverified: 2026-06-23T00:06:00Z
+reverification_note: "All 3 human-verification items confirmed via automated Playwright UAT against the live dev server with real data (see 159-HUMAN-UAT.md — 4/4 pass). Code score was already 7/7."
 score: 7/7 must-haves verified
 overrides_applied: 0
 human_verification:
@@ -19,9 +21,9 @@ human_verification:
 # Phase 159: Filter by Taxon from Occurrence Summary in Sidebar — Verification Report
 
 **Phase Goal:** Give a quick click target on a taxon in the sidebar occurrence summary to filter the map to just that taxon, saving the filter-panel round-trip.
-**Verified:** 2026-06-22T23:52:15Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-06-22T23:52:15Z (re-verified 2026-06-23 after UAT)
+**Status:** passed
+**Re-verification:** Yes — human-verification items closed by automated Playwright UAT (4/4 pass, 159-HUMAN-UAT.md)
 
 ## Goal Achievement
 
