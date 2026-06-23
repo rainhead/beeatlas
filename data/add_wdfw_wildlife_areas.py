@@ -128,10 +128,21 @@ def slug_for(name: str) -> str:
     return slug
 
 
+def _toml_escape(s: str) -> str:
+    """Escape special characters for a TOML basic string.
+
+    WLA_Name comes from an external ArcGIS service, so a name containing a
+    double-quote or backslash would otherwise emit invalid TOML and silently
+    corrupt content/places.toml.
+    """
+    return s.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def toml_block(slug: str, name: str, land_owner: str, wkt: str, permits: list[dict]) -> str:
     """Emit a [[places]] TOML block.
 
-    Reused verbatim from data/add_new_places.py:78-97.
+    Reused verbatim from data/add_new_places.py:78-97, with TOML basic-string
+    escaping added for the externally-sourced ``name`` (and ``land_owner``).
     """
     if permits:
         parts = []
@@ -145,8 +156,8 @@ def toml_block(slug: str, name: str, land_owner: str, wkt: str, permits: list[di
     return f"""
 [[places]]
 slug        = "{slug}"
-name        = "{name}"
-land_owner  = "{land_owner}"
+name        = "{_toml_escape(name)}"
+land_owner  = "{_toml_escape(land_owner)}"
 geometry_wkt = \"\"\"
 {wkt}
 \"\"\"
@@ -192,6 +203,8 @@ def main() -> None:
         with open(TOML_PATH, "a", encoding="utf-8") as f:
             for block in blocks:
                 f.write(block)
+        # Defense in depth: confirm the appended blocks re-parse as valid TOML.
+        tomllib.loads(TOML_PATH.read_text(encoding="utf-8"))
 
     print(f"\nDone: {added} added, {skipped} skipped")
     if slugs_added:
