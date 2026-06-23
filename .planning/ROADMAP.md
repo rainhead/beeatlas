@@ -1530,6 +1530,18 @@ will overlap its parent place). Independent of Phase 161.
 
 ## Backlog
 
+### Phase 999.9: Duplicate occurrence rows sharing one occ_id across int_combined source arms (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Surfaced during Phase 160 UAT (2026-06-23): a single physical specimen can appear as TWO `marts/occurrences` rows from different `int_combined` source arms — e.g. `specimen_observation_id 320276469` exists as both a `waba_sample` row and an `inat_obs` row. Both resolve to the SAME synthetic `occ_id` (`inat_obs:320276469`) via `occIdFromRow` (specimen_observation_id arm), so: the occurrence lists **twice** in the sidebar, the D-04 member-place chip renders twice, and the `occurrence_places` bridge gets duplicate `(occ_id, place_slug)` rows. **Pre-existing** in the unified occurrence model (predates Phase 160; 160's WR-01 fix already dedupes per-place counts/maps via `COUNT(DISTINCT occ_id)` / `SELECT DISTINCT`, and `getOccurrencePlaceSlugs` dedupes the name map — so the *data integrity* is fine; only the *list rendering* shows the dup). Rare today (exactly 1 such pair), but Phase 161 (WDFW) and more sample/specimen linkage will surface more. Options to evaluate: (a) dedupe the list/selection query by `occ_id`; (b) give the two source arms distinct `occ_id`s; (c) merge the sample+specimen rows into one occurrence at the `int_combined` level (most correct, biggest change). Open question: are these semantically one occurrence (collapse) or two (the sample event vs the specimen observation — keep both but de-dup display)?
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.7: Handle Safari private-browsing in the offline-ready UI (BACKLOG)
 
 **Goal:** [Captured for future planning]
