@@ -10,7 +10,10 @@ Checks performed in order:
     3. Permit field presence (issuing_authority, type) for each permit entry
     4. WKT geometry validity via DuckDB ST_GeomFromText
     5. WGS84 coordinate-range bounds (lon -180..180, lat -90..90)
-    6. Polygon overlap via ST_Intersects on all pairs
+
+Phase 160 (D-03): the former pairwise ST_Overlaps overlap-rejection check was
+removed. Overlapping place polygons are now legal — membership is many-to-many
+(see data/dbt/models/marts/occurrence_places.sql).
 """
 
 import re
@@ -71,8 +74,6 @@ def validate_places(toml_path: "Path | str") -> None:
     con = duckdb.connect(":memory:")
     con.execute("LOAD spatial")
 
-    valid_geometries: list[tuple[str, str]] = []  # (slug, wkt)
-
     for place in places:
         slug = place["slug"]
         wkt = place.get("geometry_wkt", "").strip()
@@ -102,34 +103,6 @@ def validate_places(toml_path: "Path | str") -> None:
             raise ValueError(
                 f"places.toml: place '{slug}': "
                 "geometry is not in WGS84 (coordinates out of range)"
-            )
-
-        valid_geometries.append((slug, wkt))
-
-    # ------------------------------------------------------------------ #
-    # 6 — Overlap check via ST_Intersects on all pairs                   #
-    # ------------------------------------------------------------------ #
-    if len(valid_geometries) >= 2:
-        con.execute(
-            "CREATE TABLE places_geom (slug VARCHAR, geom GEOMETRY)"
-        )
-        for slug, wkt in valid_geometries:
-            con.execute(
-                "INSERT INTO places_geom VALUES (?, ST_GeomFromText(?))",
-                [slug, wkt],
-            )
-        overlaps = con.execute(
-            """
-            SELECT a.slug, b.slug
-            FROM places_geom a, places_geom b
-            WHERE a.slug < b.slug AND ST_Overlaps(a.geom, b.geom)
-            """
-        ).fetchall()
-        if overlaps:
-            slug_a, slug_b = overlaps[0]
-            raise ValueError(
-                f"places.toml: place '{slug_a}': "
-                f"polygon overlaps with place '{slug_b}'"
             )
 
 
