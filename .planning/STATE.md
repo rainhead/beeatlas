@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
 status: Awaiting next milestone
-stopped_at: Phase 159 context gathered
-last_updated: "2026-06-23T00:18:57.388Z"
+stopped_at: Phase 160 context gathered
+last_updated: "2026-06-23T04:11:12.346Z"
 last_activity: 2026-06-23 — Milestone v5.1 completed and archived
 progress:
   total_phases: 17
@@ -75,9 +75,9 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-22T23:49:51.203Z
-Stopped at: Phase 159 context gathered
-Resume file: None
+Last session: 2026-06-23T04:11:12.334Z
+Stopped at: Phase 160 context gathered
+Resume file: .planning/phases/160-add-wdfw-wildlife-areas-as-places/160-CONTEXT.md
 
 ## Operator Next Steps
 
