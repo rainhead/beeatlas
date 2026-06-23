@@ -306,6 +306,12 @@ def _create_taxa_indexes(dst_db: Path) -> None:
         idx_con.execute(
             "CREATE INDEX IF NOT EXISTS idx_taxa_is_anthophila ON taxa(is_anthophila)"
         )
+        # Phase 160: membership lookups go place_slug -> occ_id (frontend EXISTS clause
+        # filters by selected place). Index AFTER DETACH (WR-04) via the stdlib handle.
+        idx_con.execute(
+            "CREATE INDEX IF NOT EXISTS idx_occ_places "
+            "ON occurrence_places(place_slug, occ_id)"
+        )
 
 
 def _assert_no_orphan_taxon_ids(db_path: Path) -> None:
@@ -428,6 +434,13 @@ def generate_sqlite(
         con.execute(f"ATTACH '{dst_db}' AS out (TYPE sqlite)")
         con.execute(
             f"CREATE TABLE out.occurrences AS SELECT * FROM read_parquet('{src_parquet}')"
+        )
+        # Phase 160: ship the many-to-many occurrence_places bridge as a second table.
+        # The bridge parquet is a sibling of occurrences.parquet in the same directory
+        # (run.py copies both into EXPORT_DIR; main() locates occurrences in _DBT_SANDBOX).
+        bridge_parquet = src_parquet.parent / "occurrence_places.parquet"
+        con.execute(
+            f"CREATE TABLE out.occurrence_places AS SELECT * FROM read_parquet('{bridge_parquet}')"
         )
         # Build taxa hierarchy while 'out' is still ATTACHed.
         _build_taxon_hierarchy(con, dst_db, taxa_path, db_path)

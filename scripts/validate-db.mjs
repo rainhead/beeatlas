@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const REQUIRED_TABLES = ['geo_blob', 'occurrences'];
+const REQUIRED_TABLES = ['geo_blob', 'occurrences', 'occurrence_places'];
 
 export function validateDbTables(manifest) {
   const tables = manifest.occurrences_db_tables;
