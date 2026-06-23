@@ -1,8 +1,9 @@
 -- occurrence_places bridge mart: one row per (occ_id, place_slug) membership.
 -- Many-to-many replacement for the scalar place_slug formerly carried on the
--- occurrences mart (Phase 160 D-01/D-02). Sourced from the SAME ST_Within join
--- occurrences.sql used (occurrences.sql:73-78), MINUS the DISTINCT ON collapse —
--- a point inside the overlap of two places yields one row per place.
+-- occurrences mart (Phase 160 D-01/D-02). The place ST_Within join now lives ONLY
+-- in this bridge file (Phase 160 dropped the with_place/place_dedup CTEs from
+-- occurrences.sql). There is no DISTINCT ON collapse here — a point inside the
+-- overlap of two places yields one row per place.
 --
 -- occ_id is the Option-B synthetic canonical occurrence identity (Phase 160 D-discretion
 -- "Join key"). The CASE branch order below is POSITIONALLY COUPLED to
