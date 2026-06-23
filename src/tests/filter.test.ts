@@ -1,5 +1,5 @@
 import { test, expect, describe, vi, beforeAll, afterAll } from 'vitest';
-import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, isFilterActive, getOccurrences } from '../filter.ts';
+import { buildFilterSQL, buildCsvFilename, queryTablePage, OCCURRENCE_COLUMNS, isFilterActive, getOccurrences, getOccurrencePlaceSlugs, occurrencePlacesAvailable, _resetOccurrencePlacesProbe } from '../filter.ts';
 import type { FilterState } from '../filter.ts';
 import { getDB } from '../sqlite.ts';
 
@@ -508,5 +508,29 @@ describe('getOccurrences', () => {
     const rows = await getOccurrences(['ecdysis:42']);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ ecdysis_id: 42, display_name: 'Bombus vosnesenskii' });
+  });
+});
+
+describe('Phase 160 robustness — missing occurrence_places bridge (stale-DB skew)', () => {
+  test('buildFilterSQL omits the place clause when the bridge is unavailable', () => {
+    const f = { ...emptyFilter(), selectedPlace: 'ebeys-landing' };
+    const { occurrenceWhere } = buildFilterSQL(f, false);
+    expect(occurrenceWhere).not.toContain('occurrence_places');
+    expect(occurrenceWhere).not.toContain("'ebeys-landing'");
+  });
+
+  test('occurrencePlacesAvailable() resolves false when the bridge table is absent', async () => {
+    _resetOccurrencePlacesProbe();
+    // sqlite_master probe matches nothing → table treated as absent
+    const execFn = vi.fn(() => Promise.resolve());
+    vi.mocked(getDB).mockResolvedValue({ sqlite3: { exec: execFn } as any, db: 0 });
+    expect(await occurrencePlacesAvailable()).toBe(false);
+  });
+
+  test('getOccurrencePlaceSlugs returns [] (never throws) when the bridge is absent', async () => {
+    _resetOccurrencePlacesProbe();
+    const execFn = vi.fn(() => Promise.resolve());
+    vi.mocked(getDB).mockResolvedValue({ sqlite3: { exec: execFn } as any, db: 0 });
+    await expect(getOccurrencePlaceSlugs('inat_obs:320276469')).resolves.toEqual([]);
   });
 });
