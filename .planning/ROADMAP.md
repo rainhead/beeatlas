@@ -1453,7 +1453,7 @@ Plans:
 - [x] 160-01-PLAN.md — Wave 0: failing tests/fixtures — bridge-membership DuckDB test (`test_occurrence_places.py`), inverted overlap-acceptance test, double-count export fixtures, frontend EXISTS-clause assertions [SC-2, SC-3, SC-5]
 - [x] 160-02-PLAN.md — Wave 1 (pipeline / dbt-green gate): `occurrence_places` bridge mart (Option B `occ_id`), drop `place_slug` from occurrences (contract 33→32) + new bridge contract, remove `ST_Overlaps` guard, copy bridge parquet through `run.py`, ship as indexed `occurrences.db` table, fix both JS table whitelists [SC-1, SC-2, SC-5]
 - [x] 160-03-PLAN.md — Wave 2 (exports): `places_export._query_counts` + `places_maps` recomputed via the bridge JOIN; an occurrence counts toward / maps in every place it belongs to (D-05) [SC-3]
-- [ ] 160-04-PLAN.md — Wave 3 (frontend): `filter.ts` membership `EXISTS` rewrite + remove `place_slug` from row type/projection; D-04 occurrence-detail member-place list (state-owner-resolved names) [SC-4, D-04]
+- [x] 160-04-PLAN.md — Wave 3 (frontend): `filter.ts` membership `EXISTS` rewrite + remove `place_slug` from row type/projection; D-04 occurrence-detail member-place list (state-owner-resolved names) [SC-4, D-04]
 
 ### Phase 161: Add WDFW wildlife areas as places
 
