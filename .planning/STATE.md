@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.1
-milestone_name: milestone
-status: verifying
+milestone_name: Place Coverage Expansion
+status: executing
 stopped_at: "Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked)."
-last_updated: "2026-06-23T21:29:37.380Z"
+last_updated: "2026-06-23T23:14:32.083Z"
 last_activity: 2026-06-23
 progress:
-  total_phases: 33
-  completed_phases: 13
-  total_plans: 32
-  completed_plans: 32
-  percent: 39
+  total_phases: 18
+  completed_phases: 16
+  total_plans: 39
+  completed_plans: 38
+  percent: 89
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 161 — add-wdfw-wildlife-areas-as-places
+**Current focus:** Phase 162 — add-specific-hikes-as-places
 
 ## Current Position
 
-Phase: 162
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 162 (add-specific-hikes-as-places) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-06-23
 
 ## Milestone Overview
@@ -80,7 +80,7 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-23T21:10:42.904Z
+Last session: 2026-06-23T23:14:32.075Z
 Stopped at: Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked).
 Resume file: None
 
