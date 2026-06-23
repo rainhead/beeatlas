@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
-status: Awaiting next milestone
+status: executing
 stopped_at: Phase 160 context gathered (overlap-capable place model)
-last_updated: "2026-06-23T18:15:12.533Z"
-last_activity: 2026-06-23 — Milestone v5.1 completed and archived
+last_updated: "2026-06-23T18:43:41.203Z"
+last_activity: 2026-06-23
 progress:
   total_phases: 18
   completed_phases: 14
-  total_plans: 31
-  completed_plans: 31
+  total_plans: 35
+  completed_plans: 32
   percent: 78
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** None — 145–159 working set closed. Next: `/gsd-new-milestone` or pull from the 999.x backlog.
+**Current focus:** Phase 160 — overlap-capable-place-model-many-to-many-membership
 
 ## Current Position
 
-Phase: Milestone v5.1 complete
-Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-23 — Milestone v5.1 completed and archived
+Phase: 160 (overlap-capable-place-model-many-to-many-membership) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
+Last activity: 2026-06-23
 
 ## Milestone Overview
 
@@ -52,6 +52,7 @@ Load-bearing conventions carried from prior milestones:
 - [Phase ?]: Permission-gated auto-trigger timing
 - [Phase ?]: UserLocation state shape
 - **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: access_token retained (§1.1/§2.9.4); events.mapbox.com excluded by hostname; /map-sessions/ excluded by path; 7-day TTL (§2.8.1 ceiling: 30 days). docs/adr/0001-mapbox-basemap-cache.md is the ToS record. Web-SDK offline basemap is NOT licensed.
+- [Phase ?]: [Phase 160] Place bridge keyed on synthetic occ_id (Option B): occurrence_places (occ_id, place_slug); occ_id CASE mirrors src/occurrence.ts occIdFromRow priority
 
 ### Pending Todos
 
@@ -75,9 +76,9 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-23T18:15:12.521Z
+Last session: 2026-06-23T18:43:21.136Z
 Stopped at: Phase 160 context gathered (overlap-capable place model)
-Resume file: .planning/phases/160-overlap-capable-place-model-many-to-many-membership/160-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
