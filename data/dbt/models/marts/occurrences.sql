@@ -68,18 +68,9 @@ eco_fallback AS (
 final_eco AS (
     SELECT * FROM eco_dedup WHERE ecoregion_l3 IS NOT NULL
     UNION ALL SELECT * FROM eco_fallback
-),
--- PPIPE-02: place_slug via ST_Within LEFT JOIN; no fallback (NULL is correct outside all named places).
-wa_places AS (SELECT * FROM {{ source('geographies', 'places') }}),
-with_place AS (
-    SELECT occ_pt._row_id, p.slug AS place_slug
-    FROM occ_pt
-    LEFT JOIN wa_places p ON ST_Within(occ_pt.pt, p.geom)
-),
-place_dedup AS (
-    SELECT DISTINCT ON (_row_id) _row_id, place_slug
-    FROM with_place
 )
+-- Phase 160 (D-02): place_slug dropped from this mart; place membership is now the
+-- many-to-many occurrence_places bridge (data/dbt/models/marts/occurrence_places.sql).
 SELECT
     j.ecdysis_id, j.catalog_number,
     j.lon, j.lat, j.date, j.year, j.month,
@@ -94,7 +85,6 @@ SELECT
     j.taxon_id,
     j.source, j.image_url, j.obs_url, j.user_login, j.license,
     fc.county, fe.ecoregion_l3,
-    fp.place_slug,
     j.checklist_id,
     j.verbatim_name,
     j.locality,
@@ -102,4 +92,3 @@ SELECT
 FROM joined j
 JOIN final_county fc ON fc._row_id = j._row_id
 JOIN final_eco    fe ON fe._row_id = j._row_id
-LEFT JOIN place_dedup fp ON fp._row_id = j._row_id
