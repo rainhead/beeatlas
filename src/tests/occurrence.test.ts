@@ -10,7 +10,6 @@ const BASE_ROW: OccurrenceRow = {
   date: '2024-06-01',
   county: null,
   ecoregion_l3: null,
-  place_slug: null,
   ecdysis_id: null,
   catalog_number: null,
   recordedBy: null,

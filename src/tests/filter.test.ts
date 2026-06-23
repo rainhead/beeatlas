@@ -330,8 +330,9 @@ describe('place filter', () => {
     expect(occurrenceWhere).toContain('EXISTS');
     expect(occurrenceWhere).toContain('occurrence_places');
     expect(occurrenceWhere).toContain("op.place_slug = 'ebeys-landing'");
-    // No bare scalar place_slug equality on the occurrences row.
-    expect(occurrenceWhere).not.toContain("place_slug = 'ebeys-landing'");
+    // No bare scalar place_slug equality on the occurrences row (`o.place_slug`).
+    // The membership equality lives on the bridge alias `op.`, never on `o.`.
+    expect(occurrenceWhere).not.toContain("o.place_slug =");
   });
 
   test('buildFilterSQL with selectedPlace null emits no membership place clause', () => {
