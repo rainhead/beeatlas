@@ -182,6 +182,9 @@ export class BeeAtlas extends LitElement {
   private _filterGuard = makeStaleGuard<{ geojson: FeatureCollection<Point, OccurrenceProperties>; ids: Set<string>; rowCount: number } | null>();
   private _tableGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number }>();
   private _listGuard = makeStaleGuard<{ rows: OccurrenceRow[]; total: number; selectionCount: number | null }>();
+  // Stale-result guard for the unguarded _resolvePlaceNames async chain (WR-02):
+  // bump-and-capture so a superseded resolution cannot overwrite _placeNamesByOccId.
+  private _placeNamesGeneration = 0;
   private _currentView: { lon: number; lat: number; zoom: number } = {
     lon: DEFAULT_LON,
     lat: DEFAULT_LAT,
@@ -1061,15 +1064,22 @@ bee-map {
   // (getOccurrencePlaceSlugs — the wa-sqlite call lives HERE, not in a presenter)
   // and map slugs to display names, sorted/deduped for determinism.
   private async _resolvePlaceNames(rows: OccurrenceRow[]): Promise<void> {
+    // WR-02: guard against out-of-order resolutions. Mirrors the
+    // _filterQueryGeneration / makeStaleGuard pattern — capture the generation at
+    // the start; after every await point, bail if a newer call has superseded us so
+    // a slower resolution cannot clobber _placeNamesByOccId with stale membership.
+    const myGen = ++this._placeNamesGeneration;
     const occIds = [...new Set(rows.map(occIdFromRow).filter((id): id is string => id != null))];
     if (occIds.length === 0) { this._placeNamesByOccId = new Map(); return; }
     const nameBySlug = await this._ensurePlaceNameBySlug();
+    if (myGen !== this._placeNamesGeneration) return; // superseded
     const byOccId = new Map<string, string[]>();
     await Promise.all(occIds.map(async occId => {
       const slugs = await getOccurrencePlaceSlugs(occId);
       const names = [...new Set(slugs.map(s => nameBySlug.get(s) ?? s))].sort();
       if (names.length > 0) byOccId.set(occId, names);
     }));
+    if (myGen !== this._placeNamesGeneration) return; // superseded
     this._placeNamesByOccId = byOccId;
   }
 
