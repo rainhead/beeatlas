@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
 status: Awaiting next milestone
-stopped_at: Phase 160 context gathered
-last_updated: "2026-06-23T04:11:12.346Z"
+stopped_at: Phase 160 context gathered (overlap-capable place model)
+last_updated: "2026-06-23T18:15:12.533Z"
 last_activity: 2026-06-23 — Milestone v5.1 completed and archived
 progress:
-  total_phases: 17
+  total_phases: 18
   completed_phases: 14
   total_plans: 31
   completed_plans: 31
-  percent: 82
+  percent: 78
 ---
 
 # Project State
@@ -75,9 +75,9 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-23T04:11:12.334Z
-Stopped at: v5.2 restructured — overlap-capable place model split out as Phase 160; WDFW renumbered to 161 (researched, blocked on 160); hikes to 162
-Resume file: .planning/phases/161-add-wdfw-wildlife-areas-as-places/161-CONTEXT.md
+Last session: 2026-06-23T18:15:12.521Z
+Stopped at: Phase 160 context gathered (overlap-capable place model)
+Resume file: .planning/phases/160-overlap-capable-place-model-many-to-many-membership/160-CONTEXT.md
 
 ## Operator Next Steps
 
