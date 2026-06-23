@@ -45,14 +45,15 @@
 - ✅ **v4.10 Housekeeping** — Phases 145–146 (shipped 2026-06-09). Two maintenance/polish items promoted from backlog: Dependabot version updates across npm (root + `infra/`) + Python (uv) + GitHub Actions, and session-coalesced viewport→history writes so map exploration produces one back-button entry. See [.planning/milestones/v4.10-ROADMAP.md](milestones/v4.10-ROADMAP.md).
 - ✅ **v5.0 Offline Field Mode** — Phases 147–154 (shipped 2026-06-21). Installable PWA dogfooded behind unlisted `/app`: scoped service worker, app-shell + `/data/` offline caching with cold-start, cache-health/freshness UX, PWA manifest + install affordances, GeolocateControl + "occurrences near me", and a ToS-compliant Mapbox basemap performance cache. See [.planning/milestones/v5.0-ROADMAP.md](milestones/v5.0-ROADMAP.md).
 - ✅ **v5.1 Housekeeping** — Phases 155–159 (shipped 2026-06-23). Post-v5.0 cleanup: the shift-drag discoverability hint and the bounds-as-filter state/URL refactor (155–156), the regions-dropdown stacking fix (157), non-WABA specimen-photo capture via reusable WABA-backfill curation tooling (158, resolved by curation — no pipeline change), and a one-click sidebar taxon-filter shortcut (159). See [.planning/milestones/v5.1-ROADMAP.md](milestones/v5.1-ROADMAP.md).
-- 🔜 **v5.2 Place Coverage Expansion** — Phases 160–161 (planned). Extend the v3.7 place data model with two new place sources: WDFW wildlife areas (160) and individual hikes/trails as linear or corridor features (161). Both promoted from backlog 2026-06-22.
+- 🔜 **v5.2 Place Coverage Expansion** — Phases 160–162 (planned). Make the place model overlap-capable so an occurrence can belong to multiple places (160), then add two new place sources on top of it: WDFW wildlife areas (161) and individual hikes/trails as linear or corridor features (162). The model change (160) was split out during Phase 161 research, which found 16 real WDFW↔existing-place overlaps and established that the legacy one-place-per-occurrence rule was an implementation artifact, not a requirement. Sources 161/162 promoted from backlog 2026-06-22.
 
 ## Phases
 
-### v5.2 Place Coverage Expansion (Phases 160–161) — PLANNED
+### v5.2 Place Coverage Expansion (Phases 160–162) — PLANNED
 
-- [ ] **Phase 160: Add WDFW wildlife areas as places** — Add Washington Department of Fish & Wildlife wildlife areas to `content/places.toml` as place entries. Source list: https://wdfw.wa.gov/places-to-go/wildlife-areas. Needs boundary geometries (likely a WDFW GIS layer), permit metadata (WDFW is already a known permit issuer), and per-area entries following the v3.7 place data model. Promoted from backlog 999.2 (2026-06-22). **Depends on:** v3.7 place data model (extends `places.toml`). **Plans:** 0 plans.
-- [ ] **Phase 161: Add specific hikes as places** — Support representing individual hikes (named trails / routes) as places. The current v3.7 model expects polygon boundaries; hikes are linear (LineString) or corridor (buffered line) features. Open questions: source (WTA, AllTrails, OSM, hand-curated?), geometry representation (line vs. corridor buffer), how a hike relates to its containing place (e.g. a trail inside a state park), and whether they get their own place category or piggyback on `place_type`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model (extends `places.toml`); independent of Phase 160. **Plans:** 0 plans.
+- [ ] **Phase 160: Overlap-capable place model (many-to-many membership)** — Make a bee occurrence able to belong to *multiple* places. Today `marts/occurrences.sql` assigns a single `place_slug` via `ST_Within` + `DISTINCT ON` (no tiebreak), and `places_validation.py` rejects partially-overlapping place polygons (`ST_Overlaps`) to keep that assignment deterministic — an implementation artifact, not a domain requirement (land management genuinely nests/overlaps). Replace the scalar with a `place_slugs VARCHAR[]` list aggregate, drop the overlap-rejection guard, update the dbt occurrences contract (stays 33 cols — one column retyped), per-place counts in `places_export.py`, per-place `places_maps.py`, and the frontend place filter (`bee-atlas.ts`) to a membership test. **Depends on:** v3.7 place data model. **Plans:** 0 plans.
+- [ ] **Phase 161: Add WDFW wildlife areas as places** — Add the 33 web-listed Washington Department of Fish & Wildlife wildlife areas to `content/places.toml`, one MultiPolygon entry per area (units dissolved). Source verified: WDFW ArcGIS REST layer (EPSG:4326 GeoJSON); DuckDB-spatial dissolve→WKT, zero new deps. The 16 WDFW↔existing overlaps just work once Phase 160 lands (a shared-ground point tags to both places). Geometry simplified for the browser-shipped `places.geojson` per measured weight (D-05). See `161-CONTEXT.md` + `161-RESEARCH.md`. Promoted from backlog 999.2 (2026-06-22). **Depends on:** Phase 160 (overlap-capable model). **Plans:** 0 plans.
+- [ ] **Phase 162: Add specific hikes as places** — Support representing individual hikes (named trails / routes) as places. The place model expects polygon boundaries; hikes are linear (LineString) or corridor (buffered line) features. Open questions: source (WTA, AllTrails, OSM, hand-curated?), geometry representation (line vs. corridor buffer), how a hike relates to its containing place, and whether they get their own category or reuse `place_type`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model; benefits from Phase 160 (a hike corridor will overlap its parent place). Independent of Phase 161. **Plans:** 0 plans.
 
 <details>
 <summary>✅ v5.1 Housekeeping (Phases 155–159) — SHIPPED 2026-06-23</summary>
@@ -1403,55 +1404,94 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 160: Add WDFW wildlife areas as places
+### Phase 160: Overlap-capable place model (many-to-many membership)
 
-**Goal**: Add all statewide Washington Department of Fish & Wildlife (WDFW)
-wildlife areas (~33) to `content/places.toml` as new `[[places]]` entries — one
-entry per wildlife area, with a MultiPolygon `geometry_wkt` combining all of
-that area's non-contiguous units — so bee occurrence records collected inside
-them are tagged with a `place_slug`, become filterable, and render as named
-boundaries on the map. This is a data/content addition; the existing place
-pipeline (validate → load → `ST_Within` join → export → frontend) auto-exposes
-new entries with no code changes.
-**Depends on**: v3.7 place data model (extends `content/places.toml`);
-independent of Phase 161.
+**Goal**: Let a bee occurrence belong to *more than one* place. Today the place
+model is a forced partition: `marts/occurrences.sql` assigns a single
+`place_slug` via `ST_Within` + `DISTINCT ON` (no `ORDER BY` → non-deterministic
+when a point falls in two polygons), and `places_validation.py` rejects
+partially-overlapping place polygons (`ST_Overlaps`) so that ambiguity never
+surfaces. This one-place-per-occurrence rule is an implementation artifact of
+the scalar column, NOT a domain requirement — real land management nests and
+overlaps (a wildlife area enclosing a state park; an easement over other
+ownership), and the guard is already incoherent (it blocks partial overlap but
+lets full containment through to the same arbitrary assignment). Make place
+membership many-to-many so a point keeps every place it falls within.
+**Depends on**: v3.7 place data model.
 **Requirements**: none (v5.2 — no REQUIREMENTS.md for this milestone)
 **Success Criteria** (what must be TRUE):
 
-  1. All ~33 statewide WDFW wildlife areas appear as `[[places]]` entries in
-     `content/places.toml`, each with `land_owner = "Washington Department of
-     Fish & Wildlife"`, an immutable `[a-z0-9-]` slug, and a WGS84
-     Polygon/MultiPolygon `geometry_wkt` covering all of that area's units
+  1. The occurrences mart carries `place_slugs VARCHAR[]` (list of every place a
+     point is `ST_Within`), replacing the scalar `place_slug` + `DISTINCT ON`;
+     the dbt occurrences contract is updated and still passes at build (column
+     count stays 33 — one column retyped, not added)
 
-  2. `bash data/dbt/run.sh build` (and the full `data/run.py` pipeline:
-     places-validation → places-load → dbt-build → places-export → places-maps)
-     completes green — every new entry passes the 6 `places_validation.py`
-     checks, including the pairwise `ST_Overlaps` gate
+  2. `places_validation.py` no longer rejects overlapping place polygons; WKT
+     validity and WGS84-bounds checks are retained. Overlapping places load
+     cleanly.
 
-  3. If any WDFW boundary trips the `ST_Overlaps` overlap check against an
-     existing place, execution STOPS and surfaces the collision for a decision
-     — no silent clip/skip/alter (per 160-CONTEXT.md D-04)
+  3. Per-place counts (`places_export.py` → `places.json`) and per-place maps
+     (`places_maps.py`) use membership, so an occurrence counts toward every
+     place it belongs to
 
-  4. The browser-shipped `public/data/places.geojson` weight delta is measured;
-     boundaries are stored full-fidelity unless that payload is problematic, in
-     which case display geometry is simplified to a recorded tolerance (D-05)
+  4. The frontend place filter (`bee-atlas.ts` / `filter.ts`) matches on
+     membership (a point in place X is found whether or not it's also in Y);
+     selecting a place still works and existing single-place behavior is
+     preserved for non-overlapping places
 
-  5. Occurrences whose point falls inside a WDFW area acquire the correct
-     `place_slug` via the existing `marts/occurrences.sql` `ST_Within` join, and
-     the area is selectable as a place filter on the map
+  5. Existing tests stay green and the change is covered (a point in an
+     overlap region resolves to BOTH place slugs, deterministically)
 
 **Plans**: TBD
 
-### Phase 161: Add specific hikes as places
+### Phase 161: Add WDFW wildlife areas as places
+
+**Goal**: Add the 33 web-listed Washington Department of Fish & Wildlife (WDFW)
+wildlife areas to `content/places.toml` as new `[[places]]` entries — one entry
+per wildlife area, `geometry_wkt` a MultiPolygon dissolving all of that area's
+non-contiguous units — so occurrences inside them are tagged, filterable, and
+mapped. Source verified (161-RESEARCH.md): the WDFW ArcGIS REST WildlifeAreas
+layer returns EPSG:4326 GeoJSON; DuckDB-spatial dissolves units → one
+MultiPolygon WKT per area with zero new dependencies, via a committed
+`data/add_wdfw_wildlife_areas.py` curation script. Decisions in 161-CONTEXT.md
+(scope = 33 web-listed, one-entry-per-area, full-fidelity-then-simplify-by-weight).
+**Depends on**: **Phase 160** (overlap-capable model — the 16 measured
+WDFW↔existing overlaps load cleanly only after the partition is removed); v3.7
+place data model. Independent of Phase 162.
+**Requirements**: none (v5.2 — no REQUIREMENTS.md for this milestone)
+**Success Criteria** (what must be TRUE):
+
+  1. The 33 web-listed WDFW wildlife areas appear as `[[places]]` entries in
+     `content/places.toml`, each with `land_owner = "Washington Department of
+     Fish & Wildlife"`, an immutable `[a-z0-9-]` slug, and a valid WGS84
+     MultiPolygon `geometry_wkt` covering all of that area's units
+
+  2. The full `data/run.py` pipeline (places-validation → places-load →
+     dbt-build → places-export → places-maps) completes green with the new
+     entries, including the 16 areas that overlap existing places (now legal
+     post-Phase-160)
+
+  3. The browser-shipped `public/data/places.geojson` weight delta is measured;
+     geometry is simplified to a recorded tolerance so the total stays within
+     the threshold agreed during planning (full fidelity ≈ +3 MB is too heavy)
+
+  4. Occurrences whose point falls inside a WDFW area acquire that area's slug
+     in `place_slugs` (alongside any overlapping existing place), and the area
+     is selectable as a place filter on the map
+
+**Plans**: TBD
+
+### Phase 162: Add specific hikes as places
 
 **Goal**: Support representing individual hikes (named trails / routes) as
-places. The current place model expects polygon boundaries; hikes are linear
+places. The place model expects polygon boundaries; hikes are linear
 (LineString) or corridor (buffered line) features, and `ST_Within` will not tag
-points against a LineString. Open questions (deferred to that phase's
+points against a bare LineString. Open questions (deferred to that phase's
 discuss/plan): source (WTA/AllTrails/OSM/hand-curated), geometry representation
 (line vs. corridor buffer), containment relationship to a parent place, and
 whether hikes get their own category or reuse `place_type`.
-**Depends on**: v3.7 place data model; independent of Phase 160.
+**Depends on**: v3.7 place data model; benefits from Phase 160 (a hike corridor
+will overlap its parent place). Independent of Phase 161.
 **Requirements**: none (v5.2 — no REQUIREMENTS.md for this milestone)
 **Success Criteria** (what must be TRUE):
 

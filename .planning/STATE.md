@@ -76,8 +76,8 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 ## Session Continuity
 
 Last session: 2026-06-23T04:11:12.334Z
-Stopped at: Phase 160 context gathered
-Resume file: .planning/phases/160-add-wdfw-wildlife-areas-as-places/160-CONTEXT.md
+Stopped at: v5.2 restructured — overlap-capable place model split out as Phase 160; WDFW renumbered to 161 (researched, blocked on 160); hikes to 162
+Resume file: .planning/phases/161-add-wdfw-wildlife-areas-as-places/161-CONTEXT.md
 
 ## Operator Next Steps
 
