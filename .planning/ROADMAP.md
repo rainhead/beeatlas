@@ -51,7 +51,7 @@
 
 ### v5.2 Place Coverage Expansion (Phases 160–162) — PLANNED
 
-- [ ] **Phase 160: Overlap-capable place model (many-to-many membership)** — Make a bee occurrence able to belong to *multiple* places. Today `marts/occurrences.sql` assigns a single `place_slug` via `ST_Within` + `DISTINCT ON` (no tiebreak), and `places_validation.py` rejects partially-overlapping place polygons (`ST_Overlaps`) to keep that assignment deterministic — an implementation artifact, not a domain requirement (land management genuinely nests/overlaps). Replace the scalar with a `place_slugs VARCHAR[]` list aggregate, drop the overlap-rejection guard, update the dbt occurrences contract (stays 33 cols — one column retyped), per-place counts in `places_export.py`, per-place `places_maps.py`, and the frontend place filter (`bee-atlas.ts`) to a membership test. **Depends on:** v3.7 place data model. **Plans:** 0 plans.
+- [ ] **Phase 160: Overlap-capable place model (many-to-many membership)** — Make a bee occurrence able to belong to *multiple* places. Today `marts/occurrences.sql` assigns a single `place_slug` via `ST_Within` + `DISTINCT ON` (no tiebreak), and `places_validation.py` rejects partially-overlapping place polygons (`ST_Overlaps`) to keep that assignment deterministic — an implementation artifact, not a domain requirement (land management genuinely nests/overlaps). Per the locked 160-CONTEXT decisions (D-01/D-02 supersede the earlier `place_slugs VARCHAR[]` sketch): introduce a normalized `occurrence_places` **bridge mart** (one row per occurrence↔place membership, keyed on a synthetic `occ_id` mirroring `occIdFromRow`), **drop** the scalar `place_slug` from the occurrences mart (dbt contract 33→32), drop the overlap-rejection guard, recompute per-place counts (`places_export.py`) + maps (`places_maps.py`) via the bridge (double-count per D-05), and rewrite the frontend place filter (`filter.ts`) to an `EXISTS` membership test + list all member places in occurrence detail (D-04). **Depends on:** v3.7 place data model. **Plans:** 4 plans (4 waves).
 - [ ] **Phase 161: Add WDFW wildlife areas as places** — Add the 33 web-listed Washington Department of Fish & Wildlife wildlife areas to `content/places.toml`, one MultiPolygon entry per area (units dissolved). Source verified: WDFW ArcGIS REST layer (EPSG:4326 GeoJSON); DuckDB-spatial dissolve→WKT, zero new deps. The 16 WDFW↔existing overlaps just work once Phase 160 lands (a shared-ground point tags to both places). Geometry simplified for the browser-shipped `places.geojson` per measured weight (D-05). See `161-CONTEXT.md` + `161-RESEARCH.md`. Promoted from backlog 999.2 (2026-06-22). **Depends on:** Phase 160 (overlap-capable model). **Plans:** 0 plans.
 - [ ] **Phase 162: Add specific hikes as places** — Support representing individual hikes (named trails / routes) as places. The place model expects polygon boundaries; hikes are linear (LineString) or corridor (buffered line) features. Open questions: source (WTA, AllTrails, OSM, hand-curated?), geometry representation (line vs. corridor buffer), how a hike relates to its containing place, and whether they get their own category or reuse `place_type`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model; benefits from Phase 160 (a hike corridor will overlap its parent place). Independent of Phase 161. **Plans:** 0 plans.
 
@@ -1442,7 +1442,21 @@ membership many-to-many so a point keeps every place it falls within.
   5. Existing tests stay green and the change is covered (a point in an
      overlap region resolves to BOTH place slugs, deterministically)
 
-**Plans**: TBD
+**Plans**: 4 plans (4 waves — sequential; the dbt build is the gate between pipeline and frontend)
+
+> Note: SC-1 below is worded for the earlier `place_slugs VARCHAR[]` (33-col
+> retype) sketch; the LOCKED 160-CONTEXT decisions D-01/D-02 supersede it with a
+> normalized `occurrence_places` bridge mart and DROP `place_slug` (contract
+> 33→32). Plans implement the bridge model; SC-1's intent ("the scalar
+> single-place partition is replaced; the dbt contract is updated and passes at
+> build") is satisfied by the bridge + 32-col contract.
+
+Plans:
+
+- [ ] 160-01-PLAN.md — Wave 0: failing tests/fixtures — bridge-membership DuckDB test (`test_occurrence_places.py`), inverted overlap-acceptance test, double-count export fixtures, frontend EXISTS-clause assertions [SC-2, SC-3, SC-5]
+- [ ] 160-02-PLAN.md — Wave 1 (pipeline / dbt-green gate): `occurrence_places` bridge mart (Option B `occ_id`), drop `place_slug` from occurrences (contract 33→32) + new bridge contract, remove `ST_Overlaps` guard, copy bridge parquet through `run.py`, ship as indexed `occurrences.db` table, fix both JS table whitelists [SC-1, SC-2, SC-5]
+- [ ] 160-03-PLAN.md — Wave 2 (exports): `places_export._query_counts` + `places_maps` recomputed via the bridge JOIN; an occurrence counts toward / maps in every place it belongs to (D-05) [SC-3]
+- [ ] 160-04-PLAN.md — Wave 3 (frontend): `filter.ts` membership `EXISTS` rewrite + remove `place_slug` from row type/projection; D-04 occurrence-detail member-place list (state-owner-resolved names) [SC-4, D-04]
 
 ### Phase 161: Add WDFW wildlife areas as places
 
