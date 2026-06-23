@@ -45,7 +45,6 @@ export interface OccurrenceRow {
   date: string;
   county: string | null;
   ecoregion_l3: string | null;
-  place_slug: string | null;
   ecdysis_id: number | null;
   catalog_number: string | null;
   recordedBy: string | null;
@@ -84,7 +83,7 @@ export interface OccurrenceRow {
 }
 
 export const OCCURRENCE_COLUMNS = [
-  'taxon_id', 'lat', 'lon', 'date', 'county', 'ecoregion_l3', 'place_slug',
+  'taxon_id', 'lat', 'lon', 'date', 'county', 'ecoregion_l3',
   'ecdysis_id', 'catalog_number', 'recordedBy', 'fieldNumber',
   'floralHost', 'host_observation_id', 'inat_host',
   'inat_quality_grade', 'modified', 'specimen_observation_id', 'elevation_m',
@@ -98,6 +97,19 @@ export const OCCURRENCE_COLUMNS = [
 ] as const;
 
 const PAGE_SIZE = 100;
+
+// Inline SQL CASE that reconstructs the synthetic occ_id from the occurrences
+// row (aliased `o`). POSITIONALLY COUPLED to src/occurrence.ts occIdFromRow
+// (:23-30) and to data/dbt/models/marts/occurrence_places.sql — the priority
+// order ecdysis → inat → inat_obs → checklist must stay identical across all
+// three so the bridge join keys line up. Change all three together.
+const OCC_ID_SQL_CASE =
+  "CASE " +
+  "WHEN o.ecdysis_id IS NOT NULL THEN 'ecdysis:' || o.ecdysis_id " +
+  "WHEN o.observation_id IS NOT NULL THEN 'inat:' || o.observation_id " +
+  "WHEN o.specimen_observation_id IS NOT NULL THEN 'inat_obs:' || o.specimen_observation_id " +
+  "WHEN o.checklist_id IS NOT NULL THEN 'checklist:' || o.checklist_id " +
+  "END";
 
 export type SpecimenSortBy = 'date' | 'modified';
 
@@ -292,10 +304,18 @@ export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
     occurrenceClauses.push(`ecoregion_l3 IN (${ecors})`);
   }
 
-  // Place filter — singular value (D-08); multi-place is deferred PRICH-02
+  // Place filter — singular value (D-08); multi-place is deferred PRICH-02.
+  // Phase 160 (SC-4/D-02): place_slug is no longer a scalar occurrences column;
+  // membership lives in the occurrence_places bridge. Resolve by an EXISTS test
+  // against (occ_id, place_slug) so a point inside overlapping places X∩Y is
+  // found whether X or Y is selected. The occ_id CASE mirrors occIdFromRow
+  // (src/occurrence.ts:23-30) verbatim — ecdysis → inat → inat_obs → checklist.
+  // T-160-01: the user-influenced slug retains its single-quote escaping.
   if (f.selectedPlace !== null) {
     const escaped = f.selectedPlace.replace(/'/g, "''");
-    occurrenceClauses.push(`place_slug = '${escaped}'`);
+    occurrenceClauses.push(
+      `EXISTS (SELECT 1 FROM occurrence_places op WHERE op.place_slug = '${escaped}' AND op.occ_id = ${OCC_ID_SQL_CASE})`
+    );
   }
 
   // Collector filter — single OR clause combining recordedBy (ecdysis) and host_inat_login (iNat)
@@ -470,6 +490,28 @@ export async function queryOccurrencesByBounds(
     }
   );
   return rows;
+}
+
+// D-04: resolve the set of place slugs a single occurrence belongs to, keyed on
+// the synthetic occ_id (ecdysis:N / inat:N / inat_obs:N / checklist:N). Returns
+// a sorted, de-duplicated slug array (determinism — Pitfall 4). Membership lives
+// in the occurrence_places bridge table (shipped inside occurrences.db by 160-02).
+// occ_id is machine-derived, but the single-quote escaping is retained for
+// defense-in-depth (the exec path interpolates rather than binds).
+export async function getOccurrencePlaceSlugs(occId: string): Promise<string[]> {
+  const escaped = occId.replace(/'/g, "''");
+  await tablesReady;
+  const { sqlite3, db } = await getDB();
+  const slugs: string[] = [];
+  await sqlite3.exec(db,
+    `SELECT place_slug FROM occurrence_places WHERE occ_id = '${escaped}' ORDER BY place_slug`,
+    (rowValues: unknown[]) => {
+      const slug = rowValues[0];
+      if (typeof slug === 'string') slugs.push(slug);
+    }
+  );
+  // ORDER BY already sorts; dedupe defensively in case of duplicate bridge rows.
+  return [...new Set(slugs)];
 }
 
 export async function getOccurrences(occIds: string[]): Promise<OccurrenceRow[]> {
