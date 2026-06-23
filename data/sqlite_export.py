@@ -439,6 +439,10 @@ def generate_sqlite(
         # The bridge parquet is a sibling of occurrences.parquet in the same directory
         # (run.py copies both into EXPORT_DIR; main() locates occurrences in _DBT_SANDBOX).
         bridge_parquet = src_parquet.parent / "occurrence_places.parquet"
+        if not bridge_parquet.exists():
+            raise FileNotFoundError(
+                f"{bridge_parquet} not found — run dbt before generate-sqlite"
+            )
         con.execute(
             f"CREATE TABLE out.occurrence_places AS SELECT * FROM read_parquet('{bridge_parquet}')"
         )
