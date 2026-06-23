@@ -1403,6 +1403,65 @@ Plans:
 
 **UI hint**: yes
 
+### Phase 160: Add WDFW wildlife areas as places
+
+**Goal**: Add all statewide Washington Department of Fish & Wildlife (WDFW)
+wildlife areas (~33) to `content/places.toml` as new `[[places]]` entries — one
+entry per wildlife area, with a MultiPolygon `geometry_wkt` combining all of
+that area's non-contiguous units — so bee occurrence records collected inside
+them are tagged with a `place_slug`, become filterable, and render as named
+boundaries on the map. This is a data/content addition; the existing place
+pipeline (validate → load → `ST_Within` join → export → frontend) auto-exposes
+new entries with no code changes.
+**Depends on**: v3.7 place data model (extends `content/places.toml`);
+independent of Phase 161.
+**Requirements**: none (v5.2 — no REQUIREMENTS.md for this milestone)
+**Success Criteria** (what must be TRUE):
+
+  1. All ~33 statewide WDFW wildlife areas appear as `[[places]]` entries in
+     `content/places.toml`, each with `land_owner = "Washington Department of
+     Fish & Wildlife"`, an immutable `[a-z0-9-]` slug, and a WGS84
+     Polygon/MultiPolygon `geometry_wkt` covering all of that area's units
+
+  2. `bash data/dbt/run.sh build` (and the full `data/run.py` pipeline:
+     places-validation → places-load → dbt-build → places-export → places-maps)
+     completes green — every new entry passes the 6 `places_validation.py`
+     checks, including the pairwise `ST_Overlaps` gate
+
+  3. If any WDFW boundary trips the `ST_Overlaps` overlap check against an
+     existing place, execution STOPS and surfaces the collision for a decision
+     — no silent clip/skip/alter (per 160-CONTEXT.md D-04)
+
+  4. The browser-shipped `public/data/places.geojson` weight delta is measured;
+     boundaries are stored full-fidelity unless that payload is problematic, in
+     which case display geometry is simplified to a recorded tolerance (D-05)
+
+  5. Occurrences whose point falls inside a WDFW area acquire the correct
+     `place_slug` via the existing `marts/occurrences.sql` `ST_Within` join, and
+     the area is selectable as a place filter on the map
+
+**Plans**: TBD
+
+### Phase 161: Add specific hikes as places
+
+**Goal**: Support representing individual hikes (named trails / routes) as
+places. The current place model expects polygon boundaries; hikes are linear
+(LineString) or corridor (buffered line) features, and `ST_Within` will not tag
+points against a LineString. Open questions (deferred to that phase's
+discuss/plan): source (WTA/AllTrails/OSM/hand-curated), geometry representation
+(line vs. corridor buffer), containment relationship to a parent place, and
+whether hikes get their own category or reuse `place_type`.
+**Depends on**: v3.7 place data model; independent of Phase 160.
+**Requirements**: none (v5.2 — no REQUIREMENTS.md for this milestone)
+**Success Criteria** (what must be TRUE):
+
+  1. Named hikes can be represented as places and surfaced on the map and in
+     the filter, with a geometry representation that lets occurrences along the
+     hike be associated with it (corridor buffer or equivalent — not a bare
+     LineString that `ST_Within` can never match)
+
+**Plans**: TBD
+
 ---
 
 ## Progress
