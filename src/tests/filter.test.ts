@@ -273,8 +273,11 @@ describe('OCCURRENCE_COLUMNS', () => {
     expect(OCCURRENCE_COLUMNS).toContain('elevation_m');
   });
 
-  test('OCCURRENCE_COLUMNS includes place_slug', () => {
-    expect(OCCURRENCE_COLUMNS).toContain('place_slug');
+  // Phase 160 (SC-1/D-02): place_slug is dropped from the occurrences mart;
+  // membership now lives in the occurrence_places bridge. RED until 160-04
+  // removes 'place_slug' from OCCURRENCE_COLUMNS in src/filter.ts.
+  test('OCCURRENCE_COLUMNS does NOT include place_slug', () => {
+    expect(OCCURRENCE_COLUMNS).not.toContain('place_slug');
   });
 
   test('OCCURRENCE_COLUMNS does NOT contain the 4 dropped denormalized columns', () => {
@@ -318,22 +321,31 @@ describe('place filter', () => {
     expect(isFilterActive({ ...emptyFilter(), selectedPlace: 'ebeys-landing' })).toBe(true);
   });
 
-  test('buildFilterSQL with selectedPlace emits place_slug = clause', () => {
+  // Phase 160 (SC-1/D-01): the place clause resolves via MEMBERSHIP against the
+  // occurrence_places bridge, not a scalar place_slug equality. RED until 160-04
+  // rewrites the clause in src/filter.ts to an EXISTS subquery (Option B occ_id).
+  test('buildFilterSQL with selectedPlace emits an EXISTS membership subquery against occurrence_places', () => {
     const f = { ...emptyFilter(), selectedPlace: 'ebeys-landing' };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toContain("place_slug = 'ebeys-landing'");
+    expect(occurrenceWhere).toContain('EXISTS');
+    expect(occurrenceWhere).toContain('occurrence_places');
+    expect(occurrenceWhere).toContain("op.place_slug = 'ebeys-landing'");
+    // No bare scalar place_slug equality on the occurrences row.
+    expect(occurrenceWhere).not.toContain("place_slug = 'ebeys-landing'");
   });
 
-  test('buildFilterSQL with selectedPlace null does not mention place_slug', () => {
+  test('buildFilterSQL with selectedPlace null emits no membership place clause', () => {
     const f = { ...emptyFilter(), selectedPlace: null };
     const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).not.toContain('occurrence_places');
     expect(occurrenceWhere).not.toContain('place_slug');
   });
 
-  test("buildFilterSQL escapes single quotes in selectedPlace (o'brien-ranch)", () => {
+  test("buildFilterSQL escapes single quotes in the membership place clause (o'brien-ranch)", () => {
     const f = { ...emptyFilter(), selectedPlace: "o'brien-ranch" };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toContain("place_slug = 'o''brien-ranch'");
+    // Escaping (T-160-01 mitigation) preserved in the EXISTS clause.
+    expect(occurrenceWhere).toContain("op.place_slug = 'o''brien-ranch'");
   });
 });
 
