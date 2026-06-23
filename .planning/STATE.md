@@ -4,14 +4,14 @@ milestone: v5.1
 milestone_name: Housekeeping
 status: verifying
 stopped_at: Phase 159 context gathered
-last_updated: "2026-06-22T23:49:51.211Z"
-last_activity: 2026-06-22
+last_updated: "2026-06-23T00:09:39.328Z"
+last_activity: 2026-06-23
 progress:
-  total_phases: 30
-  completed_phases: 11
-  total_plans: 26
-  completed_plans: 26
-  percent: 37
+  total_phases: 17
+  completed_phases: 14
+  total_plans: 31
+  completed_plans: 31
+  percent: 82
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 159 (filter-by-taxon-from-occurrence-summary-in-sidebar) — EXECUTING
-Plan: 1 of 1
+Phase: 159
+Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-06-22
+Last activity: 2026-06-23
 
 ## Milestone Overview
 
