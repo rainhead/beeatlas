@@ -54,7 +54,15 @@ def fetch_wdfw_features() -> list[dict]:
         timeout=120,
     )
     r.raise_for_status()
-    return r.json()["features"]
+    body = r.json()
+    # ArcGIS can return an {"error": {...}} body with HTTP 200, so
+    # raise_for_status() alone is not sufficient.
+    if isinstance(body, dict) and "error" in body:
+        raise RuntimeError(f"WDFW service returned an error: {body['error']}")
+    features = body.get("features", []) if isinstance(body, dict) else []
+    if not features:
+        raise RuntimeError("WDFW service returned zero features; aborting.")
+    return features
 
 
 def dissolve_to_wkt(features: list[dict], tol: float) -> list[tuple[str, str]]:
@@ -177,6 +185,10 @@ def main() -> None:
     print(f"Dissolving to MultiPolygon WKT (tol={TOL}°)...")
     areas = dissolve_to_wkt(features, TOL)
     print(f"  {len(areas)} wildlife areas dissolved (Jackman Creek excluded)")
+    if not areas:
+        raise RuntimeError(
+            "Dissolve produced no wildlife areas; check EXCLUDE / source data."
+        )
 
     existing_text = TOML_PATH.read_text(encoding="utf-8")
     permits = [
