@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
-status: verifying
-stopped_at: Phase 159 context gathered
-last_updated: "2026-06-23T00:09:39.328Z"
+status: idle
+stopped_at: Phase 159 complete (UAT 4/4 passed); Phase 158 reconciled complete (resolved by curation)
+last_updated: "2026-06-23T00:12:00.000Z"
 last_activity: 2026-06-23
 progress:
   total_phases: 17
-  completed_phases: 14
+  completed_phases: 15
   total_plans: 31
   completed_plans: 31
-  percent: 82
+  percent: 88
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 159 — filter-by-taxon-from-occurrence-summary-in-sidebar
+**Current focus:** None — 145–159 working set closed. Next: `/gsd-new-milestone` or pull from the 999.x backlog.
 
 ## Current Position
 
-Phase: 159
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 159 (complete) — 158 reconciled complete
+Plan: —
+Status: Phase 159 complete (UAT 4/4 passed, VERIFICATION passed). Phase 158 reconciled complete (resolved by manual WABA curation, tooling in data/curation/waba_backfill/, commit 21b11df0 — no plan/execute pass). No unplanned work remains in the current set.
 Last activity: 2026-06-23
 
 ## Milestone Overview
