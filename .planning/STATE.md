@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
-status: idle
-stopped_at: Phase 159 complete (UAT 4/4 passed); Phase 158 reconciled complete (resolved by curation)
-last_updated: "2026-06-23T00:12:00.000Z"
-last_activity: 2026-06-23
+status: Awaiting next milestone
+stopped_at: Phase 159 context gathered
+last_updated: "2026-06-23T00:18:57.388Z"
+last_activity: 2026-06-23 — Milestone v5.1 completed and archived
 progress:
   total_phases: 17
-  completed_phases: 15
+  completed_phases: 14
   total_plans: 31
   completed_plans: 31
-  percent: 88
+  percent: 82
 ---
 
 # Project State
@@ -25,23 +25,16 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 159 (complete) — 158 reconciled complete
+Phase: Milestone v5.1 complete
 Plan: —
-Status: Phase 159 complete (UAT 4/4 passed, VERIFICATION passed). Phase 158 reconciled complete (resolved by manual WABA curation, tooling in data/curation/waba_backfill/, commit 21b11df0 — no plan/execute pass). No unplanned work remains in the current set.
-Last activity: 2026-06-23
+Status: Awaiting next milestone
+Last activity: 2026-06-23 — Milestone v5.1 completed and archived
 
 ## Milestone Overview
 
-**v5.0 Offline Field Mode — Phases 147–154** (in progress, opened 2026-06-10)
+**No active milestone.** v5.1 Housekeeping (Phases 155–159) shipped and archived 2026-06-23 — see [milestones/v5.1-ROADMAP.md](milestones/v5.1-ROADMAP.md) and MILESTONES.md. The 145–159 working set is fully closed.
 
-8 phases, 24 v1 requirements (ROUTE/PWA/OFF/CACHE/LOC/NEAR/TILE). Offline-capable installable PWA dogfooded behind `/app`; current-location indicator with "near me" filter.
-
-Build order:
-
-- 147 SW topology → 148 app shell → 149 data caching → 150 freshness UX → 151 installability
-- 152 GeolocateControl (independent after 147; can parallel with 148–151)
-- 153 Near me (requires 152)
-- 154 Tile caching (independent, TOS-gated, flag-off)
+Next: start a new milestone with `/gsd-new-milestone`, or pull a `999.x` backlog item (WDFW wildlife areas as places, specific-hikes-as-places, Safari private-browsing offline UI).
 
 ## Accumulated Context
 
@@ -60,12 +53,6 @@ Load-bearing conventions carried from prior milestones:
 - [Phase ?]: UserLocation state shape
 - **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: access_token retained (§1.1/§2.9.4); events.mapbox.com excluded by hostname; /map-sessions/ excluded by path; 7-day TTL (§2.8.1 ceiling: 30 days). docs/adr/0001-mapbox-basemap-cache.md is the ToS record. Web-SDK offline basemap is NOT licensed.
 
-### Research Flags (carry forward to implementation)
-
-- **Phase 153 (near me):** Run `SELECT sin(1.0)` in the wa-sqlite worker before writing haversine. If trig is unavailable (expected per ARCHITECTURE doc), use bbox SQL pre-filter + JS haversine.
-- **Phase 154 (tile caching):** Inspect Mapbox tile CORS mode in DevTools. Opaque responses cost ~7 MB each in Storage Quota — set `maxEntries` very conservatively if tiles are opaque.
-- **Phase 152 (geolocation):** iOS standalone-mode geolocation permission requires real-device test; simulators are not reliable.
-
 ### Pending Todos
 
 - `144-code-review-deferred.md` — WR-04 (CSV-export `rows[0]` headers) + 3 info findings; non-blocking, promote into a future milestone.
@@ -76,14 +63,15 @@ None open.
 
 ## Deferred Items
 
-Carried from v4.10 close:
+Acknowledged at v5.1 milestone close (2026-06-23):
 
 | Category | Item | Status |
 |----------|------|--------|
-| todo | `144-code-review-deferred.md` | open — non-blocking, pre-existing |
-| nyquist | Phases 129/131/132/134/135/136/138 partial Nyquist | accepted |
-| verification | Phase 110/111/113 VERIFICATION.md | human_needed (v4.0) |
-| uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (v4.0) |
+| todo | `144-code-review-deferred.md` | open — non-blocking, pre-existing (WR-04 CSV headers + 3 info) |
+| uat | Phases 149/151/152/153/154/155/157 HUMAN-UAT.md | passed/approved, 0 pending scenarios — flagged by audit only because status ≠ literal "complete" (not real gaps) |
+| nyquist | Phases 129/131/132/134/135/136/138 partial Nyquist | accepted (carried from v4.x) |
+| verification | Phase 110/111/113 VERIFICATION.md | human_needed (carried from v4.0) |
+| uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (carried from v4.0) |
 
 ## Session Continuity
 

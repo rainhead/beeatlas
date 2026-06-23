@@ -2,6 +2,37 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v5.1 — Housekeeping
+
+**Shipped:** 2026-06-23
+**Phases:** 5 (155–159) | **Plans:** 7 | **Timeline:** 2026-06-21 → 2026-06-23 | **Requirements:** none (housekeeping)
+
+### What Was Built
+Five independent backlog promotions: a desktop shift-drag bounds discoverability hint (155); the bounds-FILTER-vs-SELECTION state/URL separation that made `FilterState.bounds`/`bbox=` the honest contract and retired `_selectionBounds` (156); a regions-dropdown stacking fix relocating the control out of `<bee-map>`'s `z-index:0` context into a `<bee-atlas>` toolbar (157); non-WABA specimen-photo capture resolved by reusable WABA-backfill curation tooling rather than pipeline automation (158, 470 fields written); and a one-click sidebar taxon filter via composed `filter-changed` event (159).
+
+### What Worked
+- **A "build a match strategy" roadmap item correctly resolved to "curation tooling + operator process," not code.** Phase 158's roadmap framing implied a pipeline feature; the discussion found the real fix was copying description-embedded catalog numbers into the WABA field, and the deliverable became a durable, reusable `data/curation/waba_backfill/` toolset + documented process. Recognizing "this isn't a pipeline change" saved building automation nobody needed.
+- **Headless UAT closed a UI phase's `human_needed` gate without a human.** For 159, the verifier flagged 3 browser-only checks; driving the real dev server with Playwright via the `o=<ids>&pane=list` URL (which populates the sidebar from the data layer, no map-canvas interaction) verified all of them, plus a keyboard-a11y check. Recorded as a reusable technique.
+- **Code review caught real a11y defects the tests didn't.** The clickable `<span role="button">` taxon trigger shipped without keyboard activation or focus visibility; the review surfaced both and they were fixed inline before close (839 tests green).
+- **One-session autonomous chain.** 159 ran discuss→plan→execute→verify→UAT→complete in a single `--chain` session with the operator only confirming gates.
+
+### What Was Inefficient
+- **The milestone-close CLI over-counted again** — exactly the v5.0 lesson, unfixed. `milestone.complete` scanned all non-archived phase dirs (v5.0's 147–154 still present) → "17 phases, 31 plans, 39 tasks" for a 5-phase/7-plan milestone, with the same junk one-liners ("New imports", "src/bee-map.ts"). Manually rewrote the MILESTONES.md entry. **Root cause:** phase dirs are never physically archived (the optional archival step is always skipped), so the scanner's denominator is the whole repo. Either archive phase dirs at close or scope the CLI to the milestone's phase range.
+- **Phase 158 was never formally checked off** until a separate reconcile step — it was resolved by curation outside the plan/execute path, so STATE/ROADMAP kept routing to it as "next" until manually marked complete.
+
+### Patterns Established
+- **Curation-tooling-as-deliverable:** when an occurrence-capture gap is per-collector and judgment-bound, ship an idempotent, rate-limited, auditable curation script + operator doc rather than nightly automation.
+- **Headless UI UAT via URL state:** drive the data-layer-backed sidebar through `o=`/`pane=` params + Playwright; assert through shadow DOM and `adoptedStyleSheets`. Saved as project memory.
+
+### Key Lessons
+- Flip UAT/VERIFICATION frontmatter to its terminal status *at completion time* — stale `pending`/`human_needed` statuses are the dominant source of false "open items" at milestone close (third milestone running with this friction).
+- The milestone-close phase/plan/task counts cannot be trusted while phase dirs accumulate unarchived; verify scope manually before publishing MILESTONES.md.
+
+### Cost Observations
+- Model mix: orchestration on Opus; researcher/planner-checker/executor/verifier/reviewer subagents on Sonnet.
+- Sessions: 1 primary autonomous chain for 159 + reconcile/close.
+- Notable: 158 shipped zero production code in this milestone window (curation tooling landed in `21b11df0` before close); the milestone's code surface was 156's refactor + 157's relocation + 159's affordance.
+
 ## Milestone: v5.0 — Offline Field Mode
 
 **Shipped:** 2026-06-21

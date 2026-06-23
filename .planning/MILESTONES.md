@@ -1,5 +1,24 @@
 # Milestones
 
+## v5.1 Housekeeping (Shipped: 2026-06-23)
+
+**Phases completed:** 5 phases (155–159), 7 plans. Timeline: 2026-06-21 → 2026-06-23.
+
+Post-v5.0 cleanup — five independent items promoted from the backlog. No formal REQUIREMENTS.md (housekeeping milestone); each phase verified individually.
+
+**Key accomplishments:**
+
+1. **Phase 155 — Shift-drag bounds discoverability:** desktop-only hint "Shift-drag on map to set bounds" below the where input (`.hint` reuse, `@media (hover: hover) and (pointer: fine)` gate, hidden on touch). Makes the bounds-**filter** gesture discoverable with zero behavior change.
+2. **Phase 156 — Bounds FILTER vs SELECTION separation:** made the state model and URL contract honest — a spatial box is a FILTER (`FilterState.bounds`, serialized `bbox=`); SELECTION (`o=`) is per-record only. Removed the legacy `_selectionBounds`/`sel=`-write/`_applyBoundsSelection` plumbing; bounds + selection now coexist; legacy `?sel=` links still restore. (3 plans, 815 tests green.)
+3. **Phase 157 — Regions dropdown stacking fix:** relocated the region control out of `<bee-map>`'s `z-index:0` shadow DOM into a `<bee-atlas>` `.map-toolbar` flex row (regions + collapsed filter button), retaining the load-bearing `bee-map { z-index: 0 }`. STACK-01 regression locks it in. (2 plans, operator UAT PASS, 828 tests.)
+4. **Phase 158 — Non-WABA specimen-photo capture (resolved by curation):** collectors who write their WSDA catalog number in the iNat observation *description* instead of the WABA field are now captured by copying it into field `18116`, after which existing `int_waba_link` matches it. Built durable, reusable curation tooling at `data/curation/waba_backfill/`; executed for @swisschick (470 WABA fields written, 0 errors) + @rainhead. No pipeline automation — a curator-run operation by design.
+5. **Phase 159 — One-click sidebar taxon filter:** clicking a taxon name in the occurrence list applies the existing filter (exact `taxon_id`, other dimensions preserved) via a composed `filter-changed` event; external records demoted to icon links; keyboard-accessible. (1 plan, UAT 4/4 via automated browser verification, 839 tests green.)
+
+**Verification:** all phases individually UAT-verified (155/157 operator PASS, 159 automated 4/4). No milestone audit (no requirements doc; independent cleanup items).
+**Known deferred:** `144-code-review-deferred.md` (WR-04 CSV-export headers + 3 info findings; non-blocking, pre-existing).
+
+---
+
 ## v5.0 Offline Field Mode (Shipped: 2026-06-21)
 
 **Phases completed:** 8 phases (147–154), 22 plans. Timeline: 2026-06-10 → 2026-06-21 (~11 days).
