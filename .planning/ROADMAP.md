@@ -57,7 +57,11 @@
 
   - [x] 161-01-PLAN.md — Wave 1: create the committed curation script `data/add_wdfw_wildlife_areas.py` (WDFW ArcGIS fetch → DuckDB dissolve-by-WLA_Name + simplify → 33 MultiPolygon `[[places]]` blocks; Jackman Creek excluded; NO overlap handling — Phase 160 removed the guard) + golden-fixture test [WLA-ACQUIRE, WLA-DISSOLVE, WLA-WGS84; D-01, D-02, D-03]
   - [x] 161-02-PLAN.md — Wave 2: run the script to append 33 WDFW entries to `content/places.toml`, ratify the D-05 simplification tolerance against the ≤~1 MB `places.geojson` budget, and confirm the full pipeline runs green (validation passes with the 16 overlaps loading as multi-place membership; ST_Within + bridge assign slugs; size reported) [WLA-DISSOLVE, WLA-WGS84, WLA-VALID, WLA-WEIGHT; D-01, D-02, D-05]
-- [ ] **Phase 162: Add specific hikes as places** — Support representing individual hikes (named trails / routes) as places. The place model expects polygon boundaries; hikes are linear (LineString) or corridor (buffered line) features. Open questions: source (WTA, AllTrails, OSM, hand-curated?), geometry representation (line vs. corridor buffer), how a hike relates to its containing place, and whether they get their own category or reuse `place_type`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model; benefits from Phase 160 (a hike corridor will overlap its parent place). Independent of Phase 161. **Plans:** 0 plans.
+- [ ] **Phase 162: Add specific hikes as places** — Add a hand-curated proof-of-concept set of 14 named WTA hikes to `content/places.toml` as ordinary `[[places]]` entries. Hikes are linear (trail centerline), so each is represented as a ~250 m **corridor buffer** (D-02): OSM/Overpass trail geometry → DuckDB metric buffer in UTM 10N (`always_xy=true`) → MULTIPOLYGON WKT → the reused place pipeline. Source is OSM only (WTA ToS prohibits scraping); 12/14 hikes resolve from OSM, 2 are gaps (Snoqualmie–Olallie, Geyser Valley) handled via deeper OSM query or hand-traced GPX. No `place_type` schema change (D-03); Phase-160 many-to-many means trail↔area overlaps just work. See `162-CONTEXT.md` + `162-RESEARCH.md`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model; benefits from Phase 160 (a hike corridor will overlap its parent place). Independent of Phase 161. **Plans:** 2 plans (2 waves).
+  Plans:
+
+  - [ ] 162-01-PLAN.md — Wave 1: create the committed list-driven curation script `data/add_hikes_as_places.py` (OSM/GPX trail geometry → DuckDB ~250 m metric-buffer corridor with `always_xy=true` → 14 MULTIPOLYGON `[[places]]` blocks; 2 OSM gaps tracked-not-dropped) + golden-fixture buffer/slug test [HKE-BUFFER, HKE-SLUG, HKE-NONETWORK; D-01, D-02, D-03]
+  - [ ] 162-02-PLAN.md — Wave 2: run the script to append the hike corridors to `content/places.toml`, resolve the 2 OSM-gap hikes (deeper OSM query → hand-traced GPX → or formal defer; checkpoint), ratify the simplification tolerance against the ≤~1 MB `places.geojson` budget, and confirm the full pipeline runs green (trail↔area overlaps load as multi-place membership; ST_Within + bridge assign hike slugs; size reported) [HKE-VALID, HKE-LOAD, HKE-WEIGHT; D-01, D-02]
 
 <details>
 <summary>✅ v5.1 Housekeeping (Phases 155–159) — SHIPPED 2026-06-23</summary>
@@ -1505,13 +1509,14 @@ place data model. Independent of Phase 162.
 
 ### Phase 162: Add specific hikes as places
 
-**Goal**: Support representing individual hikes (named trails / routes) as
-places. The place model expects polygon boundaries; hikes are linear
-(LineString) or corridor (buffered line) features, and `ST_Within` will not tag
-points against a bare LineString. Open questions (deferred to that phase's
-discuss/plan): source (WTA/AllTrails/OSM/hand-curated), geometry representation
-(line vs. corridor buffer), containment relationship to a parent place, and
-whether hikes get their own category or reuse `place_type`.
+**Goal**: Add a hand-curated proof-of-concept set of 14 named WTA hikes as
+ordinary `[[places]]` entries. Each linear trail centerline is represented as a
+~250 m corridor buffer (so `ST_Within` can tag along-trail occurrences), sourced
+from OpenStreetMap via Overpass (WTA ToS prohibits scraping), buffered in a metric
+CRS (UTM 10N, `always_xy=true`) and simplified for browser weight. No `place_type`
+schema change (D-03); the Phase-160 many-to-many model means a trail corridor
+overlapping its parent place tags to both. The only new code is a committed,
+list-driven curation script `data/add_hikes_as_places.py`.
 **Depends on**: v3.7 place data model; benefits from Phase 160 (a hike corridor
 will overlap its parent place). Independent of Phase 161.
 **Requirements**: none (v5.2 — no REQUIREMENTS.md for this milestone)
@@ -1522,7 +1527,17 @@ will overlap its parent place). Independent of Phase 161.
      hike be associated with it (corridor buffer or equivalent — not a bare
      LineString that `ST_Within` can never match)
 
-**Plans**: TBD
+**Plans**: 2 (planned 2026-06-23)
+
+  - 162-01 — curation script `data/add_hikes_as_places.py`: OSM/Overpass (+ GPX
+    fallback) trail geometry → DuckDB ~250 m metric-buffer corridor (`always_xy=true`)
+    → 14 MULTIPOLYGON `[[places]]` blocks (2 OSM gaps tracked-not-dropped) +
+    golden-fixture buffer/slug test
+  - 162-02 — run the script + resolve the 2 OSM-gap hikes (checkpoint) + append the
+    hike corridors to `content/places.toml`, ratify the simplification tolerance vs.
+    the ≤~1 MB `places.geojson` budget, and confirm the full pipeline runs green
+    (trail↔area overlaps load as multi-place membership; ST_Within + bridge assign
+    hike slugs; weight reported)
 
 ---
 
