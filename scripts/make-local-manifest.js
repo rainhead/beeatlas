@@ -11,7 +11,7 @@ mkdirSync(join(root, 'public', 'data'), { recursive: true });
 writeFileSync(outPath, JSON.stringify({
   occurrences: 'occurrences.parquet',
   occurrences_db: 'occurrences.db',
-  occurrences_db_tables: ['geo_blob', 'occurrences'],
+  occurrences_db_tables: ['geo_blob', 'occurrences', 'occurrence_places'],
   species: 'species.json',
   seasonality: 'seasonality.json',
   counties: 'counties.geojson',
