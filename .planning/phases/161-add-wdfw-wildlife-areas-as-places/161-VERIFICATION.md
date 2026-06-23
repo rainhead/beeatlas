@@ -1,13 +1,14 @@
 ---
 phase: 161-add-wdfw-wildlife-areas-as-places
 verified: 2026-06-23T22:00:00Z
-status: human_needed
-score: 3/4 must-haves verified (SC-4 split: automated portion VERIFIED; UI filter visual is human-only)
+status: passed
+score: 4/4 must-haves verified (SC-1..3 automated; SC-4 automated portion verified + UI filter visual confirmed by human UAT 2026-06-23)
 overrides_applied: 0
 human_verification:
   - test: "Load /app, open Regions panel, confirm all 33 WDFW wildlife areas are listed as selectable place filters, click one and confirm its boundary renders on the map"
     expected: "WDFW areas appear in the Regions/place-filter UI with correct names; clicking one filters occurrences to that area and draws the MultiPolygon boundary on the map"
     why_human: "Frontend auto-exposes new places.toml entries; visual and interactive confirmation is the only way to verify the full UI rendering pipeline"
+    result: "passed — user confirmed 2026-06-23 (place=klickitat-wildlife-area lists occurrences after regenerating the stale local occurrences.db; not a code defect)"
 ---
 
 # Phase 161: Add WDFW Wildlife Areas as Places — Verification Report
