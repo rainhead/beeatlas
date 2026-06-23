@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.1
-milestone_name: Place Coverage Expansion
+milestone_name: milestone
 status: verifying
 stopped_at: "Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked)."
-last_updated: "2026-06-23T21:10:42.911Z"
+last_updated: "2026-06-23T21:29:37.380Z"
 last_activity: 2026-06-23
 progress:
-  total_phases: 18
-  completed_phases: 16
-  total_plans: 37
-  completed_plans: 37
-  percent: 89
+  total_phases: 33
+  completed_phases: 13
+  total_plans: 32
+  completed_plans: 32
+  percent: 39
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 161 (add-wdfw-wildlife-areas-as-places) — EXECUTING
-Plan: 2 of 2
+Phase: 162
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-06-23
 

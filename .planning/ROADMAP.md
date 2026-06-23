@@ -52,7 +52,7 @@
 ### v5.2 Place Coverage Expansion (Phases 160–162) — PLANNED
 
 - [ ] **Phase 160: Overlap-capable place model (many-to-many membership)** — Make a bee occurrence able to belong to *multiple* places. Today `marts/occurrences.sql` assigns a single `place_slug` via `ST_Within` + `DISTINCT ON` (no tiebreak), and `places_validation.py` rejects partially-overlapping place polygons (`ST_Overlaps`) to keep that assignment deterministic — an implementation artifact, not a domain requirement (land management genuinely nests/overlaps). Per the locked 160-CONTEXT decisions (D-01/D-02 supersede the earlier `place_slugs VARCHAR[]` sketch): introduce a normalized `occurrence_places` **bridge mart** (one row per occurrence↔place membership, keyed on a synthetic `occ_id` mirroring `occIdFromRow`), **drop** the scalar `place_slug` from the occurrences mart (dbt contract 37→36 cols), drop the overlap-rejection guard, recompute per-place counts (`places_export.py`) + maps (`places_maps.py`) via the bridge (double-count per D-05), and rewrite the frontend place filter (`filter.ts`) to an `EXISTS` membership test + list all member places in occurrence detail (D-04). **Depends on:** v3.7 place data model. **Plans:** 4 plans (4 waves).
-- [ ] **Phase 161: Add WDFW wildlife areas as places** — Add the 33 web-listed Washington Department of Fish & Wildlife wildlife areas to `content/places.toml`, one MultiPolygon entry per area (units dissolved). Source verified: WDFW ArcGIS REST layer (EPSG:4326 GeoJSON); DuckDB-spatial dissolve→WKT, zero new deps. The 16 WDFW↔existing overlaps just work once Phase 160 lands (a shared-ground point tags to both places). Geometry simplified for the browser-shipped `places.geojson` per measured weight (D-05). See `161-CONTEXT.md` + `161-RESEARCH.md`. Promoted from backlog 999.2 (2026-06-22). **Depends on:** Phase 160 (overlap-capable model). **Plans:** 2 plans (2 waves).
+- [x] **Phase 161: Add WDFW wildlife areas as places** — Add the 33 web-listed Washington Department of Fish & Wildlife wildlife areas to `content/places.toml`, one MultiPolygon entry per area (units dissolved). Source verified: WDFW ArcGIS REST layer (EPSG:4326 GeoJSON); DuckDB-spatial dissolve→WKT, zero new deps. The 16 WDFW↔existing overlaps just work once Phase 160 lands (a shared-ground point tags to both places). Geometry simplified for the browser-shipped `places.geojson` per measured weight (D-05). See `161-CONTEXT.md` + `161-RESEARCH.md`. Promoted from backlog 999.2 (2026-06-22). **Depends on:** Phase 160 (overlap-capable model). **Plans:** 2 plans (2 waves). (completed 2026-06-23)
   Plans:
 
   - [x] 161-01-PLAN.md — Wave 1: create the committed curation script `data/add_wdfw_wildlife_areas.py` (WDFW ArcGIS fetch → DuckDB dissolve-by-WLA_Name + simplify → 33 MultiPolygon `[[places]]` blocks; Jackman Creek excluded; NO overlap handling — Phase 160 removed the guard) + golden-fixture test [WLA-ACQUIRE, WLA-DISSOLVE, WLA-WGS84; D-01, D-02, D-03]
@@ -1495,9 +1495,11 @@ place data model. Independent of Phase 162.
      is selectable as a place filter on the map
 
 **Plans**: 2 (planned 2026-06-23)
+
   - 161-01 — curation script `data/add_wdfw_wildlife_areas.py`: WDFW ArcGIS
     fetch → DuckDB dissolve-by-area + simplify → 33 MultiPolygon `[[places]]`
     blocks (Jackman Creek excluded) + golden-fixture test
+
   - 161-02 — run script to append 33 entries; ratify D-05 tolerance vs ≤~1 MB
     budget; full `run.py` green + size report
 
@@ -1543,7 +1545,7 @@ will overlap its parent place). Independent of Phase 161.
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 0 plans
+**Plans:** 2/2 plans complete
 
 Surfaced during Phase 160 UAT (2026-06-23): a single physical specimen can appear as TWO `marts/occurrences` rows from different `int_combined` source arms — e.g. `specimen_observation_id 320276469` exists as both a `waba_sample` row and an `inat_obs` row. Both resolve to the SAME synthetic `occ_id` (`inat_obs:320276469`) via `occIdFromRow` (specimen_observation_id arm), so: the occurrence lists **twice** in the sidebar, the D-04 member-place chip renders twice, and the `occurrence_places` bridge gets duplicate `(occ_id, place_slug)` rows. **Pre-existing** in the unified occurrence model (predates Phase 160; 160's WR-01 fix already dedupes per-place counts/maps via `COUNT(DISTINCT occ_id)` / `SELECT DISTINCT`, and `getOccurrencePlaceSlugs` dedupes the name map — so the *data integrity* is fine; only the *list rendering* shows the dup). Rare today (exactly 1 such pair), but Phase 161 (WDFW) and more sample/specimen linkage will surface more. Options to evaluate: (a) dedupe the list/selection query by `occ_id`; (b) give the two source arms distinct `occ_id`s; (c) merge the sample+specimen rows into one occurrence at the `int_combined` level (most correct, biggest change). Open question: are these semantically one occurrence (collapse) or two (the sample event vs the specimen observation — keep both but de-dup display)?
 
