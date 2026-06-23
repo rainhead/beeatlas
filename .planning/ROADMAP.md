@@ -45,8 +45,14 @@
 - ✅ **v4.10 Housekeeping** — Phases 145–146 (shipped 2026-06-09). Two maintenance/polish items promoted from backlog: Dependabot version updates across npm (root + `infra/`) + Python (uv) + GitHub Actions, and session-coalesced viewport→history writes so map exploration produces one back-button entry. See [.planning/milestones/v4.10-ROADMAP.md](milestones/v4.10-ROADMAP.md).
 - ✅ **v5.0 Offline Field Mode** — Phases 147–154 (shipped 2026-06-21). Installable PWA dogfooded behind unlisted `/app`: scoped service worker, app-shell + `/data/` offline caching with cold-start, cache-health/freshness UX, PWA manifest + install affordances, GeolocateControl + "occurrences near me", and a ToS-compliant Mapbox basemap performance cache. See [.planning/milestones/v5.0-ROADMAP.md](milestones/v5.0-ROADMAP.md).
 - ✅ **v5.1 Housekeeping** — Phases 155–159 (shipped 2026-06-23). Post-v5.0 cleanup: the shift-drag discoverability hint and the bounds-as-filter state/URL refactor (155–156), the regions-dropdown stacking fix (157), non-WABA specimen-photo capture via reusable WABA-backfill curation tooling (158, resolved by curation — no pipeline change), and a one-click sidebar taxon-filter shortcut (159). See [.planning/milestones/v5.1-ROADMAP.md](milestones/v5.1-ROADMAP.md).
+- 🔜 **v5.2 Place Coverage Expansion** — Phases 160–161 (planned). Extend the v3.7 place data model with two new place sources: WDFW wildlife areas (160) and individual hikes/trails as linear or corridor features (161). Both promoted from backlog 2026-06-22.
 
 ## Phases
+
+### v5.2 Place Coverage Expansion (Phases 160–161) — PLANNED
+
+- [ ] **Phase 160: Add WDFW wildlife areas as places** — Add Washington Department of Fish & Wildlife wildlife areas to `content/places.toml` as place entries. Source list: https://wdfw.wa.gov/places-to-go/wildlife-areas. Needs boundary geometries (likely a WDFW GIS layer), permit metadata (WDFW is already a known permit issuer), and per-area entries following the v3.7 place data model. Promoted from backlog 999.2 (2026-06-22). **Depends on:** v3.7 place data model (extends `places.toml`). **Plans:** 0 plans.
+- [ ] **Phase 161: Add specific hikes as places** — Support representing individual hikes (named trails / routes) as places. The current v3.7 model expects polygon boundaries; hikes are linear (LineString) or corridor (buffered line) features. Open questions: source (WTA, AllTrails, OSM, hand-curated?), geometry representation (line vs. corridor buffer), how a hike relates to its containing place (e.g. a trail inside a state park), and whether they get their own place category or piggyback on `place_type`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model (extends `places.toml`); independent of Phase 160. **Plans:** 0 plans.
 
 <details>
 <summary>✅ v5.1 Housekeeping (Phases 155–159) — SHIPPED 2026-06-23</summary>
@@ -1413,30 +1419,6 @@ Plans:
 | 154. Mapbox Basemap Performance Cache | v5.0 | 1/1 | Complete    | 2026-06-21 |
 
 ## Backlog
-
-### Phase 999.2: Add WDFW wildlife areas as places (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Add Washington Department of Fish & Wildlife wildlife areas to `content/places.toml` as place entries. Source list: https://wdfw.wa.gov/places-to-go/wildlife-areas. Will need boundary geometries (likely a WDFW GIS layer), permit metadata (WDFW is already a known permit issuer), and per-area entries following the v3.7 place data model.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.3: Way to add specific hikes as places (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Support representing individual hikes (named trails / routes) as places. The current v3.7 model expects polygon boundaries; hikes are linear (LineString) or corridor (buffered line) features. Open questions: source (WTA, AllTrails, OSM, hand-curated?), geometry representation (line vs. corridor buffer), how a hike relates to its containing place (e.g. a trail inside a state park), and whether they get their own place category or piggyback on `place_type`.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
 
 ### Phase 999.7: Handle Safari private-browsing in the offline-ready UI (BACKLOG)
 
