@@ -73,6 +73,11 @@ export class BeePane extends LitElement {
   // Taxon cache (threaded from bee-atlas for name resolution in bee-occurrence-detail)
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
 
+  // D-04: per-occurrence member-place names, resolved by the state owner
+  // (<bee-atlas>) and passed straight through to <bee-occurrence-detail>.
+  // bee-pane is a pure presenter — it only forwards this map, never queries.
+  @property({ attribute: false }) placeNames: Map<string, string[]> | null = null;
+
   // Table-specific (from bee-atlas render)
   @property({ attribute: false }) rows: OccurrenceRow[] = [];
   @property({ attribute: false }) rowCount = 0;
@@ -1229,7 +1234,7 @@ export class BeePane extends LitElement {
             ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
-              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState}></bee-occurrence-detail>`
+              : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState} .placeNames=${this.placeNames}></bee-occurrence-detail>`
         }
       </div>
       ${this.listRowCount > PAGE_SIZE ? html`

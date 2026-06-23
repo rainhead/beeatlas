@@ -1,8 +1,8 @@
 import { css, html, LitElement, type PropertyValues } from 'lit';
 import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
-import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, type OccurrenceProperties } from './filter.ts';
-import { parseOccId } from './occurrence.ts';
+import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, type OccurrenceProperties } from './filter.ts';
+import { parseOccId, occIdFromRow } from './occurrence.ts';
 import { buildParams, parseParams, type SourceKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import { markTaxaReady, taxaReady } from './ready.ts';
@@ -11,7 +11,7 @@ import { buildTaxonOptions, resolveTaxonDisplayName, type TaxonCacheEntry } from
 import type { FeatureCollection, Point } from 'geojson';
 import { makeStaleGuard } from './stale-guard.ts';
 import type { CachePrimeProgressDetail, CacheStateChangedDetail } from './prime-orchestrator.ts';
-import { loadFreshnessLabel } from './manifest.ts';
+import { loadFreshnessLabel, resolveDataUrl } from './manifest.ts';
 import './bee-header.ts';
 import './bee-pane.ts';
 import './bee-map.ts';
@@ -111,6 +111,13 @@ export class BeeAtlas extends LitElement {
   @state() private _listRowCount = 0;
   @state() private _listPage = 1;
   @state() private _listLoading = false;
+  // D-04: member-place names per displayed occurrence, keyed on occId. Resolved
+  // HERE (the state owner) from the occurrence_places bridge (getOccurrencePlaceSlugs)
+  // and the places_meta slug→name source, then passed DOWN through <bee-pane> to
+  // <bee-occurrence-detail> as a property — presenters never query wa-sqlite
+  // themselves (state-ownership invariant, CLAUDE.md).
+  @state() private _placeNamesByOccId: Map<string, string[]> = new Map();
+  private _placeNameBySlug: Map<string, string> | null = null;
   @state() private _selectionCount: number | null = null;
   @state() private _selectedOccIds: string[] | null = null;
   @state() private _selectedCluster: { lon: number; lat: number; radiusM: number } | null = null;
@@ -533,6 +540,7 @@ bee-map {
             .summary=${this._summary}
             .specimenCount=${isFilterActive(this._filterState) ? this._filteredRowCount : null}
             .listRows=${this._listRows}
+            .placeNames=${this._placeNamesByOccId}
             .listRowCount=${this._listRowCount}
             .listPage=${this._listPage}
             .listLoading=${this._listLoading}
@@ -1021,6 +1029,48 @@ bee-map {
     this._listRowCount = guarded.result.total;
     this._selectionCount = guarded.result.selectionCount;
     this._listLoading = false;
+    // D-04: resolve member-place names for the freshly loaded rows. Fire-and-forget;
+    // the await chain assigns _placeNamesByOccId (a @state field) which re-renders
+    // the detail pane once membership resolves.
+    void this._resolvePlaceNames(this._listRows);
+  }
+
+  // D-04: ensure the slug→name map (from places_meta, the static places JSON) is
+  // loaded once. Owned here in the state owner; the resolved names flow DOWN to
+  // <bee-occurrence-detail>.
+  private async _ensurePlaceNameBySlug(): Promise<Map<string, string>> {
+    if (this._placeNameBySlug !== null) return this._placeNameBySlug;
+    const nameMap = new Map<string, string>();
+    try {
+      const url = await resolveDataUrl('places_meta');
+      if (url) {
+        const resp = await fetch(url);
+        const records = await resp.json() as { slug: string; name: string }[];
+        for (const r of records) {
+          if (r.slug && r.name) nameMap.set(r.slug, r.name);
+        }
+      }
+    } catch {
+      // swallow — detail simply renders no member-place names
+    }
+    this._placeNameBySlug = nameMap;
+    return nameMap;
+  }
+
+  // D-04: for each displayed occurrence, query the occurrence_places bridge
+  // (getOccurrencePlaceSlugs — the wa-sqlite call lives HERE, not in a presenter)
+  // and map slugs to display names, sorted/deduped for determinism.
+  private async _resolvePlaceNames(rows: OccurrenceRow[]): Promise<void> {
+    const occIds = [...new Set(rows.map(occIdFromRow).filter((id): id is string => id != null))];
+    if (occIds.length === 0) { this._placeNamesByOccId = new Map(); return; }
+    const nameBySlug = await this._ensurePlaceNameBySlug();
+    const byOccId = new Map<string, string[]>();
+    await Promise.all(occIds.map(async occId => {
+      const slugs = await getOccurrencePlaceSlugs(occId);
+      const names = [...new Set(slugs.map(s => nameBySlug.get(s) ?? s))].sort();
+      if (names.length > 0) byOccId.set(occId, names);
+    }));
+    this._placeNamesByOccId = byOccId;
   }
 
   // --- URL state ---

@@ -1,7 +1,7 @@
 import { css, html, LitElement } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import type { OccurrenceRow, FilterState, FilterChangedEvent } from './filter.ts';
-import { isSpecimenBacked, isProvisional } from './occurrence.ts';
+import { isSpecimenBacked, isProvisional, occIdFromRow } from './occurrence.ts';
 import type { TaxonCacheEntry } from './taxa.ts';
 
 const ROMAN_MONTHS = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
@@ -69,6 +69,12 @@ export class BeeOccurrenceDetail extends LitElement {
   @property({ attribute: false }) occurrences: OccurrenceRow[] = [];
   @property({ attribute: false }) taxonCache: Map<number, TaxonCacheEntry> | null = null;
   @property({ attribute: false }) filterState: FilterState | null = null;
+  // D-04: per-occurrence member-place names, resolved by the state owner
+  // (<bee-atlas>) from the occurrence_places bridge and passed DOWN as a
+  // property. Keyed on the synthetic occId (occIdFromRow). This presenter
+  // ONLY reads this map — it never queries wa-sqlite itself (state-ownership
+  // invariant, CLAUDE.md). Each value is a sorted, de-duplicated name array.
+  @property({ attribute: false }) placeNames: Map<string, string[]> | null = null;
 
   static styles = css`
     :host {
@@ -165,6 +171,19 @@ export class BeeOccurrenceDetail extends LitElement {
     }
     .event-inat {
       font-size: 0.85rem;
+    }
+    .member-places {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      margin-top: 0.25rem;
+    }
+    .member-place {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      background: var(--border-subtle);
+      border-radius: 3px;
+      padding: 0.05rem 0.35rem;
     }
     .hint {
       color: var(--text-hint);
@@ -268,6 +287,7 @@ export class BeeOccurrenceDetail extends LitElement {
               ${row.specimen_observation_id != null ? html`
                 · <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}" target="_blank" rel="noopener" aria-label="View photo on iNaturalist">📷</a>
               ` : ''}
+              ${this._renderPlaceNames(row)}
             </li>
           `; })}
         </ul>
@@ -299,6 +319,7 @@ export class BeeOccurrenceDetail extends LitElement {
               <a href="https://www.inaturalist.org/observations/${row.observation_id}" target="_blank" rel="noopener">View on iNaturalist</a>
             </div>`
           : ''}
+        ${this._renderPlaceNames(row)}
       </div>
     `;
   }
@@ -322,6 +343,7 @@ export class BeeOccurrenceDetail extends LitElement {
              target="_blank" rel="noopener"
              aria-label="View WABA observation on iNaturalist">View WABA observation</a>
         </div>
+        ${this._renderPlaceNames(row)}
       </div>
     `;
   }
@@ -355,6 +377,7 @@ export class BeeOccurrenceDetail extends LitElement {
             <a href="${row.obs_url}" target="_blank" rel="noopener">View on iNaturalist</a>
           </div>
         ` : ''}
+        ${this._renderPlaceNames(row)}
       </div>
     `;
   }
@@ -383,8 +406,22 @@ export class BeeOccurrenceDetail extends LitElement {
         ${row.collapsed_count != null && row.collapsed_count > 1
           ? html`<div class="event-count">Represents ${row.collapsed_count} collapsed records</div>` : ''}
         <div class="hint">Bartholomew et al. 2024</div>
+        ${this._renderPlaceNames(row)}
       </div>
     `;
+  }
+
+  // D-04: render the list of places this occurrence belongs to. Names come from
+  // the passed-down placeNames map (state-owner-resolved); renders nothing when
+  // the occurrence has no membership (zero rows → no sentinel).
+  private _renderPlaceNames(row: OccurrenceRow) {
+    const occId = occIdFromRow(row);
+    if (occId == null || this.placeNames == null) return '';
+    const names = this.placeNames.get(occId);
+    if (names == null || names.length === 0) return '';
+    return html`<div class="member-places">
+      ${names.map(name => html`<span class="member-place">${name}</span>`)}
+    </div>`;
   }
 
   render() {
