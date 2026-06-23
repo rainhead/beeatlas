@@ -29,7 +29,7 @@ def validate_places(toml_path: "Path | str") -> None:
     """Read toml_path and validate all place entries.
 
     Raises ValueError("places.toml: place '{slug}': {reason}") for the first
-    violation found in each category (slug, geometry, overlap).  Returns None
+    violation found in each category (slug, geometry/WGS84, permit).  Returns None
     when the file is valid.
     """
     toml_path = Path(toml_path)
@@ -78,7 +78,7 @@ def validate_places(toml_path: "Path | str") -> None:
         slug = place["slug"]
         wkt = place.get("geometry_wkt", "").strip()
 
-        # 3. WKT validity
+        # 4. WKT validity
         try:
             row = con.execute("SELECT ST_GeomFromText(?)", [wkt]).fetchone()
             if row is None or row[0] is None:
@@ -90,7 +90,7 @@ def validate_places(toml_path: "Path | str") -> None:
                 f"places.toml: place '{slug}': invalid geometry WKT: {exc}"
             ) from exc
 
-        # 4. WGS84 bounds
+        # 5. WGS84 bounds
         xmin, xmax, ymin, ymax = con.execute(
             """
             SELECT ST_XMin(g), ST_XMax(g), ST_YMin(g), ST_YMax(g)
