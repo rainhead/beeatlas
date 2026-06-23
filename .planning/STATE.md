@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
 status: verifying
-stopped_at: "Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked)."
+stopped_at: "Phase 161 PLANNED (2 plans, verification passed). Next: /gsd-execute-phase 161."
 last_updated: "2026-06-23T20:32:33.328Z"
 last_activity: 2026-06-23
 progress:

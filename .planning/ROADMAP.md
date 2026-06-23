@@ -1494,7 +1494,12 @@ place data model. Independent of Phase 162.
      in `place_slugs` (alongside any overlapping existing place), and the area
      is selectable as a place filter on the map
 
-**Plans**: TBD
+**Plans**: 2 (planned 2026-06-23)
+  - 161-01 — curation script `data/add_wdfw_wildlife_areas.py`: WDFW ArcGIS
+    fetch → DuckDB dissolve-by-area + simplify → 33 MultiPolygon `[[places]]`
+    blocks (Jackman Creek excluded) + golden-fixture test
+  - 161-02 — run script to append 33 entries; ratify D-05 tolerance vs ≤~1 MB
+    budget; full `run.py` green + size report
 
 ### Phase 162: Add specific hikes as places
 
