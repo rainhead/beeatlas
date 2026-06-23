@@ -14,11 +14,25 @@
     "sample_count": 0
   },
   {
+    "slug": "asotin-creek-wildlife-area",
+    "name": "Asotin Creek",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 140,
+    "sample_count": 8
+  },
+  {
     "slug": "beacon-rock-state-park",
     "name": "Beacon Rock State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
     "sample_count": 0
+  },
+  {
+    "slug": "big-bend-wildlife-area",
+    "name": "Big Bend",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 98,
+    "sample_count": 9
   },
   {
     "slug": "birch-bay-state-park",
@@ -112,11 +126,46 @@
     "sample_count": 5
   },
   {
+    "slug": "chehalis-wildlife-area",
+    "name": "Chehalis",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "chelan-wildlife-area",
+    "name": "Chelan",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 55,
+    "sample_count": 6
+  },
+  {
+    "slug": "chief-joseph-wildlife-area",
+    "name": "Chief Joseph",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 191,
+    "sample_count": 13
+  },
+  {
+    "slug": "colockum-wildlife-area",
+    "name": "Colockum",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 39,
+    "sample_count": 9
+  },
+  {
+    "slug": "columbia-basin-wildlife-area",
+    "name": "Columbia Basin",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 1115,
+    "sample_count": 23
+  },
+  {
     "slug": "columbia-hills-state-park",
     "name": "Columbia Hills State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
-    "sample_count": 0
+    "sample_count": 2
   },
   {
     "slug": "conboy-lake-nwr",
@@ -154,6 +203,13 @@
     "sample_count": 12
   },
   {
+    "slug": "cowlitz-wildlife-area",
+    "name": "Cowlitz",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "crawford-state-park",
     "name": "Crawford State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
@@ -165,7 +221,7 @@
     "name": "Curlew Lake State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
-    "sample_count": 0
+    "sample_count": 1
   },
   {
     "slug": "daroga-state-park",
@@ -308,6 +364,13 @@
     "sample_count": 0
   },
   {
+    "slug": "johns-river-wildlife-area",
+    "name": "Johns River",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "jones-island-marine-state-park",
     "name": "Jones Island Marine State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
@@ -327,6 +390,20 @@
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
     "sample_count": 0
+  },
+  {
+    "slug": "klickitat-wildlife-area",
+    "name": "Klickitat",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 1,
+    "sample_count": 1
+  },
+  {
+    "slug": "l-t-murray-wildlife-area",
+    "name": "L.T. Murray",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 2038,
+    "sample_count": 15
   },
   {
     "slug": "lake-easton-state-park",
@@ -364,6 +441,13 @@
     "sample_count": 4
   },
   {
+    "slug": "leclerc-wildlife-area",
+    "name": "LeClerc",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "lewis-creek-park",
     "name": "Lewis Creek Park",
     "land_owner": "City of Bellevue",
@@ -399,6 +483,13 @@
     "sample_count": 8
   },
   {
+    "slug": "methow-wildlife-area",
+    "name": "Methow",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 113,
+    "sample_count": 6
+  },
+  {
     "slug": "miller-peninsula-state-park",
     "name": "Miller Peninsula State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
@@ -425,6 +516,13 @@
     "land_owner": "National Park Service",
     "specimen_count": 6,
     "sample_count": 2
+  },
+  {
+    "slug": "mount-saint-helens-wildlife-area",
+    "name": "Mount Saint Helens",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
   },
   {
     "slug": "mount-spokane-state-park",
@@ -455,6 +553,20 @@
     "sample_count": 0
   },
   {
+    "slug": "north-olympic-wildlife-area",
+    "name": "North Olympic",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 311,
+    "sample_count": 11
+  },
+  {
+    "slug": "oak-creek-wildlife-area",
+    "name": "Oak Creek",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 342,
+    "sample_count": 11
+  },
+  {
     "slug": "ocean-city-state-park",
     "name": "Ocean City State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
@@ -474,6 +586,13 @@
     "land_owner": "National Park Service",
     "specimen_count": 1256,
     "sample_count": 19
+  },
+  {
+    "slug": "olympic-wildlife-area",
+    "name": "Olympic",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 30,
+    "sample_count": 5
   },
   {
     "slug": "pacific-beach-state-park",
@@ -508,7 +627,7 @@
     "name": "Pearrygin Lake State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
-    "sample_count": 4
+    "sample_count": 2
   },
   {
     "slug": "peshastin-pinnacles-state-park",
@@ -553,6 +672,13 @@
     "sample_count": 0
   },
   {
+    "slug": "revere-wildlife-area",
+    "name": "Revere",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "ridgefield-nwr",
     "name": "Ridgefield National Wildlife Refuge",
     "land_owner": "US Fish & Wildlife Service",
@@ -574,6 +700,13 @@
     "sample_count": 0
   },
   {
+    "slug": "sagebrush-flat-wildlife-area",
+    "name": "Sagebrush Flat",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 14
+  },
+  {
     "slug": "sammamish-river-park",
     "name": "Sammamish River Park",
     "land_owner": "City of Bothell",
@@ -581,11 +714,25 @@
     "sample_count": 0
   },
   {
+    "slug": "scatter-creek-wildlife-area",
+    "name": "Scatter Creek",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 431,
+    "sample_count": 12
+  },
+  {
     "slug": "schafer-state-park",
     "name": "Schafer State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
     "sample_count": 0
+  },
+  {
+    "slug": "scotch-creek-wildlife-area",
+    "name": "Scotch Creek",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 1
   },
   {
     "slug": "sequim-bay-state-park",
@@ -602,11 +749,32 @@
     "sample_count": 7
   },
   {
+    "slug": "sherman-creek-wildlife-area",
+    "name": "Sherman Creek",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 88,
+    "sample_count": 11
+  },
+  {
+    "slug": "shillapoo-wildlife-area",
+    "name": "Shillapoo",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "shine-tidelands-state-park",
     "name": "Shine Tidelands State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
     "sample_count": 0
+  },
+  {
+    "slug": "sinlahekin-wildlife-area",
+    "name": "Sinlahekin",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 17,
+    "sample_count": 4
   },
   {
     "slug": "sjcclb-beaverton-marsh",
@@ -819,6 +987,27 @@
     "sample_count": 2
   },
   {
+    "slug": "skagit-wildlife-area",
+    "name": "Skagit",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 38,
+    "sample_count": 4
+  },
+  {
+    "slug": "snoqualmie-wildlife-area",
+    "name": "Snoqualmie",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
+    "slug": "south-puget-sound-wildlife-area",
+    "name": "South Puget Sound",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 0
+  },
+  {
     "slug": "squilchuck-state-park",
     "name": "Squilchuck State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
@@ -852,6 +1041,20 @@
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 546,
     "sample_count": 19
+  },
+  {
+    "slug": "sunnyside-snake-river-wildlife-area",
+    "name": "Sunnyside-Snake River",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 38,
+    "sample_count": 8
+  },
+  {
+    "slug": "swanson-lakes-wildlife-area",
+    "name": "Swanson Lakes",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 214,
+    "sample_count": 7
   },
   {
     "slug": "swedish-cemetery",
@@ -903,6 +1106,27 @@
     "sample_count": 0
   },
   {
+    "slug": "w-t-wooten-wildlife-area",
+    "name": "W.T. Wooten",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 34,
+    "sample_count": 4
+  },
+  {
+    "slug": "wells-wildlife-area",
+    "name": "Wells",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 2,
+    "sample_count": 4
+  },
+  {
+    "slug": "wenas-wildlife-area",
+    "name": "Wenas",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 2087,
+    "sample_count": 18
+  },
+  {
     "slug": "wenatchee-confluence-state-park",
     "name": "Wenatchee Confluence State Park",
     "land_owner": "Washington State Parks and Recreation Commission",
@@ -915,6 +1139,13 @@
     "land_owner": "Washington State Parks and Recreation Commission",
     "specimen_count": 0,
     "sample_count": 0
+  },
+  {
+    "slug": "whatcom-wildlife-area",
+    "name": "Whatcom",
+    "land_owner": "Washington Department of Fish & Wildlife",
+    "specimen_count": 0,
+    "sample_count": 1
   },
   {
     "slug": "willapa-hills-trail-state-park",
