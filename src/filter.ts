@@ -174,7 +174,7 @@ export async function queryAllFiltered(
   f: FilterState,
   sortBy: SpecimenSortBy = 'date'
 ): Promise<Record<string, unknown>[]> {
-  const { occurrenceWhere } = buildFilterSQL(f);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
   const orderBy = sortBy === 'modified' ? SPECIMEN_ORDER_MODIFIED : SPECIMEN_ORDER;
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
@@ -219,7 +219,7 @@ export async function queryTablePage(
   const orderBy = priorityExpr + baseOrder;
   const offset = (page - 1) * PAGE_SIZE;
 
-  const { occurrenceWhere } = buildFilterSQL(f);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
 
   await tablesReady;
@@ -262,7 +262,39 @@ export function isFilterActive(f: FilterState): boolean {
 // in its FROM clause (`FROM occurrences o` or `FROM occurrences o LEFT JOIN taxa t …`).
 // `taxon_id` exists in BOTH occurrences and taxa, so an unqualified reference is
 // ambiguous once `taxa` is joined for display_name resolution.
-export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
+// Phase 160 robustness: occurrence_places is a newer table. Under the v5.0 `/app`
+// service worker (CacheFirst on /data/*.db), a stale cached occurrences.db can be
+// loaded by newer JS during a data-update skew window — querying the bridge then
+// throws "no such table". Probe once per session (the worker loads the DB once into
+// MemoryVFS, so the answer is stable) and degrade gracefully: chips resolve to none
+// and the place filter goes inert rather than throwing. Production is normally immune
+// (the DB is content-hashed, so JS and DB stay in lockstep via the manifest).
+let _occPlacesAvailable: boolean | null = null;
+export async function occurrencePlacesAvailable(): Promise<boolean> {
+  if (_occPlacesAvailable !== null) return _occPlacesAvailable;
+  try {
+    await tablesReady;
+    const { sqlite3, db } = await getDB();
+    let found = false;
+    await sqlite3.exec(db,
+      "SELECT 1 FROM sqlite_master WHERE type='table' AND name='occurrence_places' LIMIT 1",
+      () => { found = true; }
+    );
+    _occPlacesAvailable = found;
+  } catch {
+    _occPlacesAvailable = false; // DB not ready / probe failed → treat as unavailable
+  }
+  return _occPlacesAvailable;
+}
+
+/** Test-only: reset the cached occurrence_places probe between cases. */
+export function _resetOccurrencePlacesProbe(): void { _occPlacesAvailable = null; }
+
+// `hasPlacesBridge` gates the place-membership clause. Callers pass the cached probe
+// result so a place filter on a stale (bridge-less) DB degrades to inert instead of
+// throwing. Defaults to true: prod always has the table, and pure-SQL unit tests that
+// don't exercise the bridge keep their existing behaviour.
+export function buildFilterSQL(f: FilterState, hasPlacesBridge: boolean = true): { occurrenceWhere: string } {
   const occurrenceClauses: string[] = [];
 
   // Taxon filter — descendant subquery against taxa.lineage_path (MFILT-01)
@@ -311,7 +343,7 @@ export function buildFilterSQL(f: FilterState): { occurrenceWhere: string } {
   // found whether X or Y is selected. The occ_id CASE mirrors occIdFromRow
   // (src/occurrence.ts:23-30) verbatim — ecdysis → inat → inat_obs → checklist.
   // T-160-01: the user-influenced slug retains its single-quote escaping.
-  if (f.selectedPlace !== null) {
+  if (f.selectedPlace !== null && hasPlacesBridge) {
     const escaped = f.selectedPlace.replace(/'/g, "''");
     occurrenceClauses.push(
       `EXISTS (SELECT 1 FROM occurrence_places op WHERE op.place_slug = '${escaped}' AND op.occ_id = ${OCC_ID_SQL_CASE})`
@@ -365,7 +397,7 @@ export async function queryVisibleGeoJSON(
   // Bounds is now part of FilterState.bounds (D-01, phase 999.8) — isFilterActive(f) returns
   // true when bounds is set, so a bounds-only filter correctly runs the map query.
   if (!isFilterActive(f)) return null;
-  const { occurrenceWhere } = buildFilterSQL(f);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
   // occurrenceWhere already includes the bounds clause when f.bounds is set — map, list,
   // and table all see the identical spatial filter via buildFilterSQL.
   await tablesReady;
@@ -428,7 +460,7 @@ export async function queryListPage(
   selectedInatObsIds: number[] = [],
   selectedChecklistIds: number[] = []
 ): Promise<{ rows: OccurrenceRow[]; total: number }> {
-  const { occurrenceWhere } = buildFilterSQL(f);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
   // occurrenceWhere already includes the bounds clause when f.bounds is set (D-01, phase 999.8).
 
   // Selection constraint: IDs (from cluster click) filter rows by identity
@@ -478,7 +510,7 @@ export async function queryOccurrencesByBounds(
   bounds: { west: number; south: number; east: number; north: number }
 ): Promise<OccurrenceRow[]> {
   const { west, south, east, north } = bounds;
-  const { occurrenceWhere } = buildFilterSQL(f);
+  const { occurrenceWhere } = buildFilterSQL(f, _occPlacesAvailable !== false);
   const selectCols = OCCURRENCE_COLUMNS.map(c => `o.${c}`).join(', ') + ', t.name AS display_name, t.rank AS display_rank';
   await tablesReady;
   const { sqlite3, db } = await getDB();
@@ -499,17 +531,25 @@ export async function queryOccurrencesByBounds(
 // occ_id is machine-derived, but the single-quote escaping is retained for
 // defense-in-depth (the exec path interpolates rather than binds).
 export async function getOccurrencePlaceSlugs(occId: string): Promise<string[]> {
+  // Phase 160 robustness: degrade to "no memberships" when the bridge table is
+  // absent (stale cached DB under the /app SW) instead of throwing an uncaught
+  // "no such table: occurrence_places". See occurrencePlacesAvailable().
+  if (!(await occurrencePlacesAvailable())) return [];
   const escaped = occId.replace(/'/g, "''");
   await tablesReady;
   const { sqlite3, db } = await getDB();
   const slugs: string[] = [];
-  await sqlite3.exec(db,
-    `SELECT place_slug FROM occurrence_places WHERE occ_id = '${escaped}' ORDER BY place_slug`,
-    (rowValues: unknown[]) => {
-      const slug = rowValues[0];
-      if (typeof slug === 'string') slugs.push(slug);
-    }
-  );
+  try {
+    await sqlite3.exec(db,
+      `SELECT place_slug FROM occurrence_places WHERE occ_id = '${escaped}' ORDER BY place_slug`,
+      (rowValues: unknown[]) => {
+        const slug = rowValues[0];
+        if (typeof slug === 'string') slugs.push(slug);
+      }
+    );
+  } catch {
+    return []; // belt-and-suspenders: any query failure → no memberships, never throw
+  }
   // ORDER BY already sorts; dedupe defensively in case of duplicate bridge rows.
   return [...new Set(slugs)];
 }
