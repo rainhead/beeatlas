@@ -1421,35 +1421,32 @@ membership many-to-many so a point keeps every place it falls within.
 **Requirements**: none (v5.2 — no REQUIREMENTS.md for this milestone)
 **Success Criteria** (what must be TRUE):
 
-  1. The occurrences mart carries `place_slugs VARCHAR[]` (list of every place a
-     point is `ST_Within`), replacing the scalar `place_slug` + `DISTINCT ON`;
-     the dbt occurrences contract is updated and still passes at build (column
-     count stays 33 — one column retyped, not added)
+  1. A new `occurrence_places` bridge mart holds one row per (occurrence, place)
+     membership, sourced from the `ST_Within` join (no `DISTINCT ON` collapse),
+     keyed on a synthetic `occ_id` matching the frontend's `occIdFromRow`
+     priority. The scalar `place_slug` is DROPPED from the occurrences mart (dbt
+     contract 33 → 32 cols), the bridge has its own contract, and
+     `bash data/dbt/run.sh build` passes.
 
   2. `places_validation.py` no longer rejects overlapping place polygons; WKT
-     validity and WGS84-bounds checks are retained. Overlapping places load
-     cleanly.
+     validity, WGS84-bounds, slug, and permit checks are retained. Overlapping
+     places load cleanly.
 
   3. Per-place counts (`places_export.py` → `places.json`) and per-place maps
-     (`places_maps.py`) use membership, so an occurrence counts toward every
-     place it belongs to
+     (`places_maps.py`) JOIN the bridge, so an occurrence counts toward / maps
+     in every place it belongs to (D-05 double-count).
 
   4. The frontend place filter (`bee-atlas.ts` / `filter.ts`) matches on
-     membership (a point in place X is found whether or not it's also in Y);
-     selecting a place still works and existing single-place behavior is
-     preserved for non-overlapping places
+     membership via an `EXISTS` subquery against the `occurrence_places` table
+     in `occurrences.db` (a point in place X is found whether or not it's also
+     in Y); single-place selection behavior is preserved. The sidebar
+     occurrence detail lists ALL member place names (D-04).
 
-  5. Existing tests stay green and the change is covered (a point in an
-     overlap region resolves to BOTH place slugs, deterministically)
+  5. The change is covered: a point in the overlap of two places resolves to
+     BOTH place slugs (two bridge rows), deterministically, and selecting
+     either place finds it.
 
 **Plans**: 4 plans (4 waves — sequential; the dbt build is the gate between pipeline and frontend)
-
-> Note: SC-1 below is worded for the earlier `place_slugs VARCHAR[]` (33-col
-> retype) sketch; the LOCKED 160-CONTEXT decisions D-01/D-02 supersede it with a
-> normalized `occurrence_places` bridge mart and DROP `place_slug` (contract
-> 33→32). Plans implement the bridge model; SC-1's intent ("the scalar
-> single-place partition is replaced; the dbt contract is updated and passes at
-> build") is satisfied by the bridge + 32-col contract.
 
 Plans:
 
