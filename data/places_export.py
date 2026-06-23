@@ -83,7 +83,7 @@ def _query_counts(
             -- Matches isSpecimenBacked() in src/occurrence.ts (the canonical cross-layer definition).
             -- Do NOT use is_provisional = false — that is true for both Ecdysis-backed rows AND
             -- sample-only iNat rows (ecdysis_id IS NULL, is_provisional = false).
-            COUNT(CASE WHEN occ.ecdysis_id IS NOT NULL THEN 1 END) AS specimen_count,
+            COUNT(DISTINCT CASE WHEN occ.ecdysis_id IS NOT NULL THEN occ.occ_id END) AS specimen_count,
             COUNT(DISTINCT CASE WHEN occ.sample_id IS NOT NULL THEN occ.sample_id END) AS sample_count
         FROM occ JOIN read_parquet(?) b ON b.occ_id = occ.occ_id
         GROUP BY b.place_slug
