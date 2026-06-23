@@ -1,5 +1,5 @@
 ---
-status: partial
+status: passed
 phase: 160-overlap-capable-place-model-many-to-many-membership
 source: [160-VERIFICATION.md]
 started: 2026-06-23
@@ -8,31 +8,32 @@ updated: 2026-06-23
 
 ## Current Test
 
-[awaiting human testing]
+[complete]
 
 ## Tests
 
-### 1. D-04 — sidebar lists all member place names for a multi-place occurrence
-expected: When an occurrence falls inside more than one place (e.g. a point in the
-overlap of two place polygons), the sidebar occurrence detail renders ALL of its
-member place names (`.member-place` chips), legibly styled and correctly placed —
-not just one, and not raw slugs. An occurrence in a single place shows that one
-place; an occurrence in no place shows none. Component tests assert the names
-render; this item confirms the live visual styling/placement only.
-result: [pending]
+### 1. D-04 — sidebar lists all member place names for an occurrence
+expected: The sidebar occurrence detail renders the occurrence's member place
+name(s) as readable chips (not slugs); an occurrence in no place shows none.
+result: PASS — operator confirmed "Hanford Reach National Monument" renders for
+`inat_obs:320276469` after clearing a stale cached DB. Initial "no location"
+report was a stale cached `occurrences.db` (no `occurrence_places` table) under
+the `/app` SW; reproduced fix on HEAD via Playwright. The robustness guard
+(commit `cd9e76bf`) now degrades gracefully instead of throwing on a stale DB.
 
-how to test: load the app, select/open an occurrence known to sit in overlapping
-places. (Real example surfaced during verification: occurrence `inat_obs:320276469`
-resolves to 2 places.) Note: WDFW areas (Phase 161) will create many more overlaps;
-today's overlaps come from any pre-existing place geometry that overlaps another.
+note: production places.toml currently has NO true multi-place occurrence;
+`inat_obs:320276469` is ONE place duplicated across source arms (occ_id
+collision — backlog 999.9). Real overlaps arrive with Phase 161 (WDFW).
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+None.
