@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.1
-milestone_name: Housekeeping
-status: verifying
-stopped_at: "Phase 161 PLANNED (2 plans, verification passed). Next: /gsd-execute-phase 161."
-last_updated: "2026-06-23T20:32:33.328Z"
+milestone_name: Place Coverage Expansion
+status: executing
+stopped_at: "Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked)."
+last_updated: "2026-06-23T21:04:43.374Z"
 last_activity: 2026-06-23
 progress:
   total_phases: 18
   completed_phases: 15
-  total_plans: 35
-  completed_plans: 35
+  total_plans: 37
+  completed_plans: 36
   percent: 83
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 160 — overlap-capable-place-model-many-to-many-membership
+**Current focus:** Phase 161 — add-wdfw-wildlife-areas-as-places
 
 ## Current Position
 
-Phase: 160 (overlap-capable-place-model-many-to-many-membership) — EXECUTING
-Plan: 4 of 4
-Status: Phase complete — ready for verification
+Phase: 161 (add-wdfw-wildlife-areas-as-places) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-06-23
 
 ## Milestone Overview
@@ -80,9 +80,9 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-23T20:32:33.314Z
+Last session: 2026-06-23T21:04:43.366Z
 Stopped at: Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked).
-Resume file: .planning/ROADMAP.md
+Resume file: None
 
 ## Operator Next Steps
 
