@@ -99,9 +99,12 @@ def dissolve_to_wkt(features: list[dict], tol: float) -> list[tuple[str, str]]:
     ).fetchall()
 
     for wla, wkt in rows:
-        assert wkt and wkt.startswith("MULTIPOLYGON"), (
-            f"Unexpected geometry type for {wla!r}: {wkt[:60] if wkt else None}"
-        )
+        if not (wkt and wkt.startswith("MULTIPOLYGON")):
+            raise ValueError(
+                f"Dissolve produced non-MULTIPOLYGON geometry for {wla!r}: "
+                f"{wkt!r}. Likely over-simplified at tol={tol}; lower TOL or "
+                f"inspect source units."
+            )
 
     return rows
 
