@@ -31,7 +31,7 @@ WDFW_URL = (
     "MapServices/WildlifeAreas/MapServer/0/query"
 )
 TOML_PATH = Path(__file__).parent.parent / "content" / "places.toml"
-TOL = 0.0002  # ST_SimplifyPreserveTopology tolerance in degrees (~22 m)
+TOL = 0.0005  # ST_SimplifyPreserveTopology tolerance in degrees (~55 m); chosen to keep total places.geojson ≤ ~1 MB (D-05)
 LAND_OWNER = "Washington Department of Fish & Wildlife"
 EXCLUDE = frozenset({"Jackman Creek"})
 
