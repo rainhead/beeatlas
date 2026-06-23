@@ -23,9 +23,30 @@ PARQUET_ROWS = [
 ]
 
 
+def _write_bridge_sibling(occurrences_parquet: Path) -> None:
+    """Write the ``occurrence_places.parquet`` bridge alongside an occurrences parquet.
+
+    Phase 160: ``generate_sqlite`` ships the many-to-many bridge as a second table,
+    reading it from ``occurrences_parquet.parent / "occurrence_places.parquet"``.
+    Contents are arbitrary for sqlite_export (it does ``CREATE TABLE AS SELECT *``,
+    no join) — one occ_id in two places mirrors the many-to-many shape.
+    """
+    bridge = pa.table(
+        {
+            "occ_id": pa.array(["inat:1", "inat:1", "inat:2"], type=pa.string()),
+            "place_slug": pa.array(["place-a", "place-b", "place-a"], type=pa.string()),
+        }
+    )
+    pq.write_table(bridge, occurrences_parquet.parent / "occurrence_places.parquet")
+
+
 @pytest.fixture
 def src_parquet(tmp_path: Path) -> Path:
-    """Write a tiny parquet fixture to tmp_path and return its path."""
+    """Write a tiny parquet fixture to tmp_path and return its path.
+
+    Phase 160: also writes a sibling ``occurrence_places.parquet`` bridge, since
+    ``generate_sqlite`` now ships it as a second table.
+    """
     table = pa.table(
         {
             "lat": pa.array([r[0] for r in PARQUET_ROWS], type=pa.float64()),
@@ -36,6 +57,7 @@ def src_parquet(tmp_path: Path) -> Path:
     )
     path = tmp_path / "occurrences.parquet"
     pq.write_table(table, path)
+    _write_bridge_sibling(path)
     return path
 
 
@@ -143,9 +165,10 @@ def test_main_uses_sandbox_and_export_dir(src_parquet: Path, tmp_path: Path, mon
     export_dir = tmp_path / "export"
     # Note: export_dir deliberately not pre-created — main() must create it
 
-    # Copy fixture parquet into fake sandbox
+    # Copy fixture parquet into fake sandbox (incl. the occurrence_places bridge sibling)
     import shutil
     shutil.copy(src_parquet, sandbox_dir / "occurrences.parquet")
+    shutil.copy(src_parquet.parent / "occurrence_places.parquet", sandbox_dir / "occurrence_places.parquet")
 
     monkeypatch.setattr(sqlite_export, "_DBT_SANDBOX", sandbox_dir)
     monkeypatch.setattr(sqlite_export, "_EXPORT_DIR", export_dir)
@@ -227,6 +250,7 @@ def src_parquet_with_taxon(tmp_path: Path) -> Path:
     )
     path = tmp_path / "occurrences_with_taxon.parquet"
     pq.write_table(table, path)
+    _write_bridge_sibling(path)
     return path
 
 
@@ -455,6 +479,7 @@ def test_offtree_checklist_taxon_not_flagged_anthophila(taxa_csv_gz: Path, tmp_p
     )
     src = tmp_path / "occ_bee_only.parquet"
     pq.write_table(bee_only, src)
+    _write_bridge_sibling(src)
 
     # Point the module's sandbox at our fake checklist.parquet location.
     import unittest.mock as mock

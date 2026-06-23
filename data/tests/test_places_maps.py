@@ -32,13 +32,29 @@ def _seed_counties(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def _write_test_occurrences_parquet(path: Path) -> None:
-    """Write a minimal occurrences parquet with two slugs and one NULL-place row."""
-    table = pa.table({
-        "place_slug": pa.array(["rattlesnake-ledge", "tiger-mountain", None], type=pa.string()),
+    """Write minimal occurrences + occurrence_places bridge fixtures.
+
+    Phase 160 (D-02/D-05): places_maps derives an Option-B ``occ_id`` from the
+    identity columns and JOINs the ``occurrence_places`` bridge (no scalar
+    ``place_slug`` column). Three occurrences (occ_id ``inat:1/2/3``); the bridge
+    maps inat:1 → rattlesnake-ledge and inat:2 → tiger-mountain, and leaves inat:3
+    unmapped so it produces no SVG (the old NULL-place-slug case).
+    """
+    occ = pa.table({
+        "ecdysis_id": pa.array([None, None, None], type=pa.int64()),
+        "observation_id": pa.array([1, 2, 3], type=pa.int64()),
+        "specimen_observation_id": pa.array([None, None, None], type=pa.int64()),
+        "checklist_id": pa.array([None, None, None], type=pa.int64()),
         "lon": pa.array([-121.77, -121.94, -120.0], type=pa.float64()),
         "lat": pa.array([47.435, 47.42, 47.5], type=pa.float64()),
     })
-    pq.write_table(table, str(path))
+    pq.write_table(occ, str(path))
+
+    bridge = pa.table({
+        "occ_id": pa.array(["inat:1", "inat:2"], type=pa.string()),
+        "place_slug": pa.array(["rattlesnake-ledge", "tiger-mountain"], type=pa.string()),
+    })
+    pq.write_table(bridge, str(path.parent / "occurrence_places.parquet"))
 
 
 def test_place_svg_files_exist(tmp_path, monkeypatch):
