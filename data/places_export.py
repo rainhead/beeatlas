@@ -37,31 +37,58 @@ def _load_place_metadata(toml_path: Path) -> dict[str, dict]:
     return {p["slug"]: p for p in data.get("places", [])}
 
 
-def _query_counts(con: duckdb.DuckDBPyConnection, parquet_path: Path) -> dict[str, dict[str, int]]:
-    """Return per-slug specimen_count and sample_count from occurrences.parquet.
+def _query_counts(
+    con: duckdb.DuckDBPyConnection,
+    occ_parquet: Path,
+    bridge_parquet: Path,
+) -> dict[str, dict[str, int]]:
+    """Return per-slug specimen_count and sample_count via the occurrence_places bridge.
 
-    Reads from ASSETS_DIR/occurrences.parquet (the copy made by _run_dbt_build),
+    Phase 160 (D-02/D-05): place_slug is no longer a scalar column on the
+    occurrences mart. Membership lives in the occurrence_places bridge keyed by
+    the synthetic occ_id. We rebuild the Option-B occ_id over occurrences.parquet
+    (the same CASE priority as occIdFromRow in src/occurrence.ts:23-30 — positionally
+    coupled), JOIN the bridge on occ_id, and GROUP BY place_slug. Because an
+    occurrence in A∩B has two bridge rows, it is counted under BOTH place_slugs —
+    the intended double-count (D-05); per-place totals may exceed the global count.
+
+    Both parquets are read from ASSETS_DIR (the copies made by _run_dbt_build),
     NOT from DBT_SANDBOX_DIR (Pitfall 5 — reading from sandbox risks stale data).
     """
-    if not parquet_path.exists():
+    if not occ_parquet.exists():
         raise FileNotFoundError(
-            f"{parquet_path} not found — run dbt before places-export"
+            f"{occ_parquet} not found — run dbt before places-export"
+        )
+    if not bridge_parquet.exists():
+        raise FileNotFoundError(
+            f"{bridge_parquet} not found — run dbt before places-export"
         )
     rows = con.execute(
         """
+        WITH occ AS (
+            SELECT *,
+                -- Option-B synthetic occ_id; mirrors occIdFromRow priority
+                -- (src/occurrence.ts:23-30 — positionally coupled with the bridge).
+                CASE
+                    WHEN ecdysis_id IS NOT NULL THEN 'ecdysis:' || ecdysis_id
+                    WHEN observation_id IS NOT NULL THEN 'inat:' || observation_id
+                    WHEN specimen_observation_id IS NOT NULL THEN 'inat_obs:' || specimen_observation_id
+                    WHEN checklist_id IS NOT NULL THEN 'checklist:' || checklist_id
+                END AS occ_id
+            FROM read_parquet(?)
+        )
         SELECT
-            place_slug,
+            b.place_slug,
             -- Canonical "confirmed specimen" predicate: ecdysis_id IS NOT NULL.
             -- Matches isSpecimenBacked() in src/occurrence.ts (the canonical cross-layer definition).
             -- Do NOT use is_provisional = false — that is true for both Ecdysis-backed rows AND
             -- sample-only iNat rows (ecdysis_id IS NULL, is_provisional = false).
-            COUNT(CASE WHEN ecdysis_id IS NOT NULL THEN 1 END) AS specimen_count,
-            COUNT(DISTINCT CASE WHEN sample_id IS NOT NULL THEN sample_id END) AS sample_count
-        FROM read_parquet(?)
-        WHERE place_slug IS NOT NULL
-        GROUP BY place_slug
+            COUNT(CASE WHEN occ.ecdysis_id IS NOT NULL THEN 1 END) AS specimen_count,
+            COUNT(DISTINCT CASE WHEN occ.sample_id IS NOT NULL THEN occ.sample_id END) AS sample_count
+        FROM occ JOIN read_parquet(?) b ON b.occ_id = occ.occ_id
+        GROUP BY b.place_slug
         """,
-        [str(parquet_path)],
+        [str(occ_parquet), str(bridge_parquet)],
     ).fetchall()
     return {row[0]: {"specimen_count": int(row[1]), "sample_count": int(row[2])} for row in rows}
 
@@ -133,7 +160,11 @@ def export_places(con: duckdb.DuckDBPyConnection | None = None) -> None:
     try:
         ASSETS_DIR.mkdir(parents=True, exist_ok=True)
         places_meta = _load_place_metadata(_PLACES_TOML_PATH)
-        counts = _query_counts(con, ASSETS_DIR / "occurrences.parquet")
+        counts = _query_counts(
+            con,
+            ASSETS_DIR / "occurrences.parquet",
+            ASSETS_DIR / "occurrence_places.parquet",
+        )
         _write_places_geojson(con, ASSETS_DIR / "places.geojson")
         _write_places_json(places_meta, counts, ASSETS_DIR / "places.json")
     finally:
