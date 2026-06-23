@@ -29,7 +29,7 @@ prerequisite phase. See [[project_place_model_many_to_many]].
 - A new `occurrence_places` bridge mart (occurrence ↔ place_slug, one row per
   membership) sourced from the `ST_Within` join.
 - Remove the scalar `place_slug` column from the occurrences mart (contract
-  33 → 32 cols) and the `DISTINCT ON` collapse.
+  37 → 36 cols — the "33" estimate was stale) and the `DISTINCT ON` collapse.
 - Remove the `ST_Overlaps` overlap-rejection check from `places_validation.py`
   (keep WKT-validity + WGS84-bounds checks).
 - Per-place counts (`places_export.py` → `places.json`) and per-place maps
@@ -59,9 +59,9 @@ prerequisite phase. See [[project_place_model_many_to_many]].
   `EXISTS`/join. One row per (occurrence, place) membership.
 - **D-02:** **Drop the scalar `place_slug`** from the occurrences mart entirely
   (the bridge is the single source of truth). The dbt occurrences contract goes
-  **33 → 32 columns**. This is acceptable — Phase 131 precedent dropped 4
-  columns; the dbt contract is the gate (see [[project_schema_validation]]) and
-  must be updated in lockstep.
+  **37 → 36 columns** (the "33" estimate predated columns added since Phase 131).
+  This is acceptable — Phase 131 precedent dropped 4 columns; the dbt contract is
+  the gate (see [[project_schema_validation]]) and must be updated in lockstep.
 
 ### Validation
 - **D-03:** Remove the pairwise `ST_Overlaps` rejection from
@@ -122,9 +122,9 @@ prerequisite phase. See [[project_place_model_many_to_many]].
   `test_places_export.py` — contract tests to update.
 
 ### dbt contract
-- The 33-column contract on `marts/occurrences` is enforced at every
+- The occurrences contract is enforced at every
   `bash data/dbt/run.sh build` (CLAUDE.md; [[project_schema_validation]]).
-  Dropping `place_slug` → 32 columns; update the contract definition + the
+  Dropping `place_slug` → 36 columns; update the contract definition + the
   occurrences schema YAML in lockstep, and add the `occurrence_places` mart's
   own contract.
 
