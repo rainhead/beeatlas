@@ -25,6 +25,7 @@ import duckdb
 import requests
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_HEADERS = {"User-Agent": "BeeAtlas/1.0 (https://github.com/rainhead/beeatlas; data curation script)"}
 TOML_PATH = Path(__file__).parent.parent / "content" / "places.toml"
 BUFFER_M = 250.0
 TOL_DEG = 0.0002  # ST_SimplifyPreserveTopology tolerance in degrees (~22 m at WA latitudes)
@@ -51,8 +52,10 @@ HIKES: list[dict] = [
         "slug": "snoqualmie-pass-to-olallie-meadow-trail",
         "name": "Snoqualmie Pass to Olallie Meadow",
         "land_owner": "USDA Forest Service — Mt. Baker-Snoqualmie National Forest",
-        "osm_name_query": "PCT|Pacific Crest Trail",
-        "gpx_path": "data/fixtures/hike-gpx/snoqualmie-pass-to-olallie-meadow.gpx",
+        # PCT Section J (I-90 at Snoqualmie Pass → Hwy 2 at Stevens Pass) covers this route.
+        # The WTA hike (Snoqualmie Pass to Olallie Meadow, ~10 mi RT) is the southern portion.
+        # The full corridor polygon provides reasonable geographic coverage for filtering.
+        "osm_relation_id": 1296807,
     },
     {
         "slug": "iron-peak-trail",
@@ -70,14 +73,18 @@ HIKES: list[dict] = [
         "slug": "geyser-valley-trail",
         "name": "Geyser Valley",
         "land_owner": "National Park Service — Olympic National Park",
-        "osm_ways": ["Geyser Valley Trail"],
+        # Single named way in Olympic NP; narrow bbox to stay within Overpass resource limits.
+        "osm_name_query": "Geyser Valley Trail",
+        "bbox": (47.9, -123.6, 48.0, -123.5),
         "gpx_path": "data/fixtures/hike-gpx/geyser-valley.gpx",
     },
     {
         "slug": "deception-pass-goose-rock-trail",
         "name": "Deception Pass–Goose Rock",
         "land_owner": "Washington State Parks",
+        # WA_BBOX is too large for Overpass geom queries; narrow to Deception Pass area.
         "osm_name_query": "Goose Rock",
+        "bbox": (48.3, -122.7, 48.5, -122.5),
     },
     {
         "slug": "perry-creek-trail",
@@ -95,13 +102,17 @@ HIKES: list[dict] = [
         "slug": "umtanum-creek-canyon-trail",
         "name": "Umtanum Creek Canyon",
         "land_owner": "Bureau of Land Management",
+        # Yakima Canyon area; narrow bbox avoids Overpass resource limits on WA_BBOX.
         "osm_name_query": "Umtanum Creek Trail",
+        "bbox": (46.7, -120.9, 47.0, -120.4),
     },
     {
         "slug": "catherine-creek-loop-trail",
         "name": "Catherine Creek Loop",
         "land_owner": "USDA Forest Service — Columbia River Gorge NSA",
-        "osm_name_query": "Catherine Creek.*Loop",
+        # OSM relations 9210173 (South Loop) + 10542427 (North Loop) cover the combined loop.
+        # Use the South Loop relation as primary (larger/more representative).
+        "osm_relation_id": 9210173,
     },
     {
         "slug": "icicle-gorge-loop-trail",
@@ -216,7 +227,7 @@ relation({relation_id});
 (._;>;);
 out geom;
 """
-    r = requests.post(OVERPASS_URL, data={"data": query}, timeout=60)
+    r = requests.post(OVERPASS_URL, headers=OVERPASS_HEADERS, data={"data": query}, timeout=60)
     r.raise_for_status()
     response = r.json()
     elements = response.get("elements", [])
@@ -254,7 +265,7 @@ def fetch_osm_ways_by_name(name_pattern: str, bbox: tuple) -> list[dict]:
 );
 out geom;
 """
-    r = requests.post(OVERPASS_URL, data={"data": query}, timeout=60)
+    r = requests.post(OVERPASS_URL, headers=OVERPASS_HEADERS, data={"data": query}, timeout=60)
     r.raise_for_status()
     response = r.json()
     elements = response.get("elements", [])
@@ -417,7 +428,10 @@ def geometry_for_hike(hike: dict) -> str:
 
     if "osm_name_query" in hike:
         try:
-            elements = fetch_osm_ways_by_name(hike["osm_name_query"], WA_BBOX)
+            # Use per-hike bbox if provided; WA_BBOX is too large for out geom queries on
+            # high-density trail networks and causes Overpass to return empty results.
+            bbox = hike.get("bbox", WA_BBOX)
+            elements = fetch_osm_ways_by_name(hike["osm_name_query"], bbox)
             return osm_ways_to_linestring_wkt(elements)
         except (RuntimeError, ValueError) as exc:
             osm_error = exc
@@ -425,9 +439,10 @@ def geometry_for_hike(hike: dict) -> str:
     if "osm_ways" in hike:
         try:
             # osm_ways is a list of name patterns to try
+            bbox = hike.get("bbox", WA_BBOX)
             for name_pattern in hike["osm_ways"]:
                 try:
-                    elements = fetch_osm_ways_by_name(name_pattern, WA_BBOX)
+                    elements = fetch_osm_ways_by_name(name_pattern, bbox)
                     return osm_ways_to_linestring_wkt(elements)
                 except (RuntimeError, ValueError):
                     continue
