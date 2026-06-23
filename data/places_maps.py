@@ -69,7 +69,7 @@ def generate_place_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
         # group points per place_slug. A point whose occurrence is in two places
         # has two bridge rows, so it lands in both by_slug lists → both SVGs (D-05).
         rows = con.execute(
-            f"""
+            """
             WITH occ AS (
                 SELECT *,
                     CASE
@@ -78,12 +78,17 @@ def generate_place_maps(con: duckdb.DuckDBPyConnection | None = None) -> None:
                         WHEN specimen_observation_id IS NOT NULL THEN 'inat_obs:' || specimen_observation_id
                         WHEN checklist_id IS NOT NULL THEN 'checklist:' || checklist_id
                     END AS occ_id
-                FROM read_parquet('{occurrences_parquet}')
+                FROM read_parquet(?)
             )
-            SELECT b.place_slug, occ.lon, occ.lat
-            FROM occ JOIN read_parquet('{bridge_parquet}') b ON b.occ_id = occ.occ_id
+            -- DISTINCT defends against bridge fan-out: if one occ_id ever lands in a
+            -- place twice (no structural uniqueness on (occ_id, place_slug)), the
+            -- point must not be plotted/clipped twice within a single place (D-05:
+            -- double-count is intended ACROSS places only). See WR-01.
+            SELECT DISTINCT b.place_slug, occ.lon, occ.lat
+            FROM occ JOIN read_parquet(?) b ON b.occ_id = occ.occ_id
             WHERE occ.lon IS NOT NULL AND occ.lat IS NOT NULL
-            """
+            """,
+            [str(occurrences_parquet), str(bridge_parquet)],
         ).fetchall()
 
         by_slug: dict[str, list[tuple[float, float]]] = defaultdict(list)
