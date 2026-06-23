@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Housekeeping
 status: executing
-stopped_at: Phase 160 plan 02 complete (occurrence_places bridge — dbt gate green)
-last_updated: "2026-06-23T18:50:32.004Z"
+stopped_at: Completed 160-03-PLAN.md
+last_updated: "2026-06-23T18:56:27.704Z"
 last_activity: 2026-06-23
 progress:
   total_phases: 18
   completed_phases: 14
   total_plans: 35
-  completed_plans: 33
+  completed_plans: 34
   percent: 78
 ---
 
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 ## Current Position
 
 Phase: 160 (overlap-capable-place-model-many-to-many-membership) — EXECUTING
-Plan: 3 of 4
-Status: Plan 02 complete (dbt-green gate passed — bridge mart + 36-col occurrences contract + overlap-capable validation + indexed occurrences.db table); 160-03/160-04 unblocked
+Plan: 4 of 4
+Status: Ready to execute
 Last activity: 2026-06-23
 
 ## Milestone Overview
@@ -54,6 +54,7 @@ Load-bearing conventions carried from prior milestones:
 - **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: access_token retained (§1.1/§2.9.4); events.mapbox.com excluded by hostname; /map-sessions/ excluded by path; 7-day TTL (§2.8.1 ceiling: 30 days). docs/adr/0001-mapbox-basemap-cache.md is the ToS record. Web-SDK offline basemap is NOT licensed.
 - [Phase ?]: [Phase 160] Place bridge keyed on synthetic occ_id (Option B): occurrence_places (occ_id, place_slug); occ_id CASE mirrors src/occurrence.ts occIdFromRow priority
 - **[Phase 160-02]** Bridge parquet resolved as a sibling of `src_parquet` (`src_parquet.parent / "occurrence_places.parquet"`) in sqlite_export.py — no new injectable arg; run.py copy loop lands both occurrences + bridge in EXPORT_DIR. occurrences mart contract is 36 cols after dropping place_slug (CONTEXT's "33→32" was an estimate); the dbt contract gate enforces it. occurrences.db ships an indexed `occurrence_places(place_slug, occ_id)` table; both JS table whitelists list it.
+- [Phase ?]: 160-03: per-place counts and SVG points are bridge-driven via occurrences JOIN occurrence_places on synthetic occ_id; multi-place occurrences double-count by design (D-05)
 
 ### Pending Todos
 
@@ -77,8 +78,8 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-23T18:50:31.997Z
-Stopped at: Phase 160 plan 02 complete (occurrence_places bridge — dbt gate green)
+Last session: 2026-06-23T18:56:27.697Z
+Stopped at: Completed 160-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
