@@ -58,8 +58,6 @@ models:
         data_type: varchar
       - name: ecoregion_l3
         data_type: varchar
-      - name: place_slug
-        data_type: varchar
       - name: source
         data_type: varchar
       - name: image_url
@@ -91,6 +89,22 @@ models:
               config:
                 severity: warn
                 where: "canonical_name is not null and canonical_name <> '' and canonical_name not in ('anthidiellum robertsoni', 'lasioglossum aspilurus', 'osmia phaceliae')"
+
+  - name: occurrence_places
+    # Phase 160 (D-01): many-to-many occurrence ↔ place bridge. One row per
+    # (occ_id, place_slug) membership; occ_id mirrors src/occurrence.ts occIdFromRow.
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: occ_id
+        data_type: varchar
+        data_tests:
+          - not_null
+      - name: place_slug
+        data_type: varchar
+        data_tests:
+          - not_null
 
   - name: species
     config:
