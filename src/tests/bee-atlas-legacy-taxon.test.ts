@@ -31,6 +31,7 @@ const DEFAULT_FILTER = {
   months: new Set<number>(), selectedCounties: new Set<string>(),
   selectedEcoregions: new Set<string>(), selectedCollectors: [],
   elevMin: null, elevMax: null, selectedPlace: null, bounds: null,
+  hiddenSources: new Set<import('../url-state.ts').SourceKey>(),
 };
 
 async function makeAtlas() {
