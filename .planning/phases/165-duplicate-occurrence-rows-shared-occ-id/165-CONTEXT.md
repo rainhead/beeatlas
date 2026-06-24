@@ -108,10 +108,53 @@ superseded by "fix the model." See Deferred Ideas.
   feasibility against the contract). The selected fix is data-layer, so the test
   belongs there too.
 
+### Three-category model (REFINED during planning discussion, 2026-06-24 — supersedes the "accept regression" framing)
+Research (HIGH confidence, verified vs. live DuckDB) showed the original "redefine
+provisional → drop the rest" plan would silently remove **33 real WABA bee
+specimens** (catalog # + iNat photo, no Ecdysis record yet; 28 of them from **2024**
+— a standing ~2-year lag, not transient) from the public map. The D-05 catalog-match
+fix rescues only **1** of the 34. Per the `CLAUDE.md` Domain Vocabulary ("Specimen …
+may be represented by an iNat observation, an Ecdysis record, both, or neither"),
+these are first-class **specimens** awaiting cataloguing — not provisional samples.
+Decision: **keep them, modeled as their own category.** Final model the planner MUST
+target:
+
+| # | Category | `source` | `is_provisional` | occ_id |
+|---|----------|----------|------------------|--------|
+| 1 | Catalogued specimen (Ecdysis ± iNat) | `ecdysis` | FALSE | `ecdysis:N` |
+| 2 | **iNat-photo specimen, pre-Ecdysis** (the 33) | **`waba_specimen` (NEW value)** | **FALSE** | `inat_obs:N` |
+| 3 | Provisional sample (the ~28 plant/sample project members) | `waba_sample` | TRUE | `inat:N` |
+| 4 | Expert observation (research-grade iNat) | `inat_obs` | FALSE | `inat_obs:N` |
+| 5 | Checklist | `checklist` | FALSE | `checklist:N` |
+
+- **D-10 — keep the 33 specimens:** Do NOT drop them. They get their own arm/source
+  `waba_specimen`, `is_provisional=FALSE`. occ_id stays `inat_obs:<bee_obs_id>`. Verified
+  no `inat_obs` (ARM 3) overlap except `320276469`, which the D-05 `MIN()` fix moves to
+  `ecdysis:` — so category 2 collides with nothing.
+- **D-11 — `waba_sample` is samples ONLY:** "There should be no specimens in
+  `waba_sample`." The corrected `waba_sample` (provisional) arm contains ONLY the ~28
+  WABA plant-images/sample-IDs project members (`is_provisional=TRUE`). This refines
+  D-03: D-03's project-membership definition applies to the **provisional sample** arm
+  (category 3); the bee specimens move to category 2, they are NOT deleted.
+- **D-12 — `waba_specimen` source value:** new `source` value `waba_specimen` for
+  category 2, parallel to `waba_sample` in the `waba_*` family.
+- **D-13 — this is a FRONTEND change too (not data-only):** add `waba_specimen` to the
+  `SourceKey` union + `VALID_SOURCES` (`src/url-state.ts`, `src/filter.ts`), a new
+  source-toggle entry (`src/bee-pane.ts` — the `src=` filter Phase 164 just touched),
+  and a badge/predicate as needed (`src/bee-occurrence-detail.ts`). The existing
+  `waba_sample` toggle's meaning shifts to "provisional samples." Keep the
+  `occIdFromRow` priority + `OCC_ID_SQL_CASE` unchanged (occ_ids are unaffected).
+  NOTE: the RESEARCH.md "no frontend change / accept regression" recommendation is
+  SUPERSEDED by D-10..D-13.
+
 ### Claude's Discretion
-- Exact dbt restructuring of the provisional arm (new int model vs. reworking
-  `int_provisional_waba_ids` / `int_matched_waba_ids`) — planner's call.
-- The precise mechanics of the catalog-number match fix (D-05) — research/plan.
+- Exact dbt restructuring: the new category-2 `waba_specimen` arm (rework of the
+  current bee-specimen ARM 2 minus matched obs) vs. the new category-3 provisional
+  arm (project-membership anti-join `int_samples_base`) — planner's call, but both
+  must exist.
+- The precise mechanics of the catalog-number match fix (D-05 — remove `MIN()` in
+  `int_waba_link`) — research/plan.
+- Badge styling / label copy for the new `waba_specimen` source in the UI.
 </decisions>
 
 <canonical_refs>
