@@ -1556,6 +1556,30 @@ will overlap its parent place). Independent of Phase 161.
 
 ## Backlog
 
+### Phase 999.10: Sidebar occurrence list ignores the `src=` source filter (shows deselected sources) (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Surfaced during Phase 162 work (2026-06-23). Repro:
+`https://beeatlas.net/?x=-121.6452&y=48.9436&z=13.03&bbox=-121.6466,48.9429,-121.6328,48.9532&pane=list&src=ecdysis,waba_sample`
+— the URL restricts sources to `ecdysis` + `waba_sample`, but the sidepanel
+occurrence list still includes occurrences from **deselected** sources (e.g.
+`inat`/`inat_obs`/`checklist`). The source filter (Phase 119 — `hiddenSources` /
+`_applySourceFilter`, the `src=` URL param) is applied to the **map** layer but
+not to the **sidebar list / `bbox=` list query**, so the two views disagree:
+the map hides a source while the list still shows it. Likely fix area: extend the
+source-filter predicate into the `queryVisibleIds` / `bbox=`-list path so the
+sidebar honors `hiddenSources` the same way the map paint does. Verify the
+`src=` round-trip (URL ↔ Sources filter chips ↔ list) is consistent. Relates to
+the `bounds-are-filter-not-selection` separation (bbox filter) and the
+many-to-many place membership work.
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.9: Duplicate occurrence rows sharing one occ_id across int_combined source arms (BACKLOG)
 
 **Goal:** [Captured for future planning]
