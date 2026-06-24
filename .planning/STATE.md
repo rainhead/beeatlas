@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.1
-milestone_name: Place Coverage Expansion
-status: verifying
-stopped_at: "Phase 162 Plan 02 COMPLETE — 13 hike corridors in places.geojson (920 KB, tol=0.0002°), pipeline green, awaiting operator UAT (map corridors + place filter)."
-last_updated: "2026-06-24T00:49:45.334Z"
+milestone_name: milestone
+status: Awaiting operator UAT — map corridors render + place filter returns results
+stopped_at: Phase 162 Plan 02 COMPLETE — 13 hike corridors in places.geojson (920 KB), pipeline green; awaiting operator UAT.
+last_updated: "2026-06-24T01:07:21.031Z"
 last_activity: 2026-06-24
 progress:
-  total_phases: 18
-  completed_phases: 17
-  total_plans: 39
-  completed_plans: 39
-  percent: 94
+  total_phases: 35
+  completed_phases: 14
+  total_plans: 34
+  completed_plans: 34
+  percent: 40
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 162 (add-specific-hikes-as-places) — COMPLETE (awaiting operator UAT)
-Plan: 2 of 2 (all plans complete)
+Phase: 999.11
+Plan: Not started
 Status: Awaiting operator UAT — map corridors render + place filter returns results
 Last activity: 2026-06-24
 

@@ -1,13 +1,14 @@
 ---
 phase: 162-add-specific-hikes-as-places
 verified: 2026-06-23T21:30:00Z
-status: human_needed
-score: 5/5 must-haves verified
+status: passed
+score: 5/5 must-haves verified (automated) + UI render confirmed by human UAT 2026-06-23
 overrides_applied: 0
 human_verification:
   - test: "Load /app locally, open the Regions menu, confirm hike names appear; select one (e.g., Umtanum Creek Canyon) and confirm the corridor polygon renders on the map and the occurrence count in the sidebar matches the expected count."
     expected: "Hike names listed in Regions filter; selecting a hike draws the corridor boundary on the map and filters occurrences to ~1,243 for umtanum-creek-canyon-trail. fortune-creek-pass-trail shows 0 occurrences."
     why_human: "Visual/spatial polygon render and sidebar filtering are not verifiable without a running browser. Requires hard reload after regenerating local occurrences.db."
+    result: "passed — user confirmed 2026-06-23"
 ---
 
 # Phase 162: Add Specific Hikes as Places — Verification Report

@@ -1,16 +1,16 @@
 ---
-status: partial
+status: passed
 phase: 162-add-specific-hikes-as-places
 source: [162-VERIFICATION.md]
 started: 2026-06-23T23:30:00Z
-updated: 2026-06-23T23:30:00Z
+updated: 2026-06-24T00:00:00Z
 ---
 
 # Phase 162: Add specific hikes as places — Human UAT
 
 ## Current Test
 
-[awaiting human testing]
+[complete — all scenarios passed]
 
 ## Tests
 
@@ -23,14 +23,14 @@ map. Spot-check Umtanum Creek Canyon (overlaps the L.T. Murray WDFW area — an
 occurrence should belong to both, post-160 many-to-many).
 why_human: Frontend auto-exposes new places.toml entries; visual + interactive
 confirmation is the only way to verify the full UI rendering pipeline.
-result: [pending]
+result: passed — user confirmed 2026-06-23 (13 hike corridors render + filter on the map)
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
