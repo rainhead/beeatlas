@@ -288,47 +288,60 @@ out geom;
 
 
 def osm_relation_to_linestring_wkt(overpass_response: dict) -> str:
-    """Extract ordered coordinates from an Overpass relation response as LINESTRING WKT.
+    """Extract member-way geometry from an Overpass relation response as MULTILINESTRING WKT.
 
-    Collects member ways in member order, concatenates their geometry (lon, lat)
-    node coords, and drops duplicate endpoints between consecutive ways.
-    Way ordering and minor gaps are tolerated — the ST_Buffer of a (MULTI)LINESTRING
-    is the union corridor regardless of segment order (Pitfall 2).
+    Each member way becomes its own MULTILINESTRING segment (mirroring
+    osm_ways_to_linestring_wkt). The ST_Buffer of a MULTILINESTRING is the union
+    corridor, so segment order and gaps are tolerated (Pitfall 2) — and, crucially,
+    NO cross-way join is performed, so a member stored with reversed orientation
+    cannot inject a spurious head-to-tail straight segment into the corridor.
 
     Args:
         overpass_response: Overpass JSON response dict (from fetch_osm_relation_geometry).
 
     Returns:
-        "LINESTRING(lon lat, ...)" WKT string.
+        "MULTILINESTRING((lon lat, ...), ...)" WKT string.
 
     Raises:
-        ValueError: if no relation or fewer than 2 coords are found.
+        ValueError: if no relation or no usable member-way segment is found.
     """
-    elements = {e["id"]: e for e in overpass_response.get("elements", [])}
+    # Index ways ONLY, keyed by id. OSM ids are namespaced per type (a node, a
+    # way, and a relation may share an id); the Overpass `>;` recursion emits
+    # member nodes too, so a flat {id: element} map could let a node shadow a
+    # member way with the same numeric id. Restricting to ways gives a single,
+    # collision-free keyspace for the member["ref"] lookup below.
+    ways_by_id = {
+        e["id"]: e for e in overpass_response.get("elements", []) if e.get("type") == "way"
+    }
     relations = [e for e in overpass_response["elements"] if e["type"] == "relation"]
     if not relations:
         raise ValueError("No relation element found in Overpass response")
     relation = relations[0]
 
-    coords: list[tuple[float, float]] = []
+    # Emit each member way as its own segment — do NOT concatenate ways. Joining
+    # ways requires orientation-aware endpoint matching; getting it wrong injects
+    # a spurious cross-trail jump that ST_Buffer then widens. A MULTILINESTRING
+    # buffers each segment independently and unions the result, which is correct
+    # regardless of member order or orientation.
+    segments: list[str] = []
     for member in relation.get("members", []):
         if member["type"] != "way":
             continue
-        way = elements.get(member["ref"])
+        way = ways_by_id.get(member["ref"])
         if not way or "geometry" not in way:
             continue
-        way_coords = [(pt["lon"], pt["lat"]) for pt in way["geometry"]]
-        # Drop duplicate endpoint between consecutive ways
-        if coords and coords[-1] == way_coords[0]:
-            way_coords = way_coords[1:]
-        coords.extend(way_coords)
+        seg_coords = [(pt["lon"], pt["lat"]) for pt in way["geometry"]]
+        if len(seg_coords) >= 2:
+            segments.append(
+                "(" + ", ".join(f"{lon} {lat}" for lon, lat in seg_coords) + ")"
+            )
 
-    if len(coords) < 2:
+    if not segments:
         raise ValueError(
-            f"Relation {relations[0].get('id')} produced fewer than 2 coordinate points"
+            f"Relation {relation.get('id')} produced no usable member-way segments"
         )
 
-    return "LINESTRING(" + ", ".join(f"{lon} {lat}" for lon, lat in coords) + ")"
+    return "MULTILINESTRING(" + ", ".join(segments) + ")"
 
 
 def osm_ways_to_linestring_wkt(elements: list[dict]) -> str:
@@ -350,16 +363,18 @@ def osm_ways_to_linestring_wkt(elements: list[dict]) -> str:
     # Prefer relations with geometry (they may come back from fetch_osm_ways_by_name)
     relations = [e for e in elements if e.get("type") == "relation" and e.get("members")]
     if relations:
-        # Use the first relation's members to build a linestring
-        # Build a synthetic response dict for osm_relation_to_linestring_wkt
-        all_elements_by_id = {e["id"]: e for e in elements}
+        # Index ways ONLY, keyed by id — OSM ids are namespaced per type, so a
+        # flat {id: element} map could let a recursed node shadow a member way
+        # sharing the same numeric id. Restricting to ways gives a collision-free
+        # keyspace for the member["ref"] lookup.
+        ways_by_id = {e["id"]: e for e in elements if e.get("type") == "way"}
         # Collect way geometries from the relation members
         best_relation = relations[0]
         segments: list[str] = []
         for member in best_relation.get("members", []):
             if member.get("type") != "way":
                 continue
-            way = all_elements_by_id.get(member["ref"])
+            way = ways_by_id.get(member["ref"])
             if not way or "geometry" not in way:
                 continue
             seg_coords = [(pt["lon"], pt["lat"]) for pt in way["geometry"]]
