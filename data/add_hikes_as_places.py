@@ -247,6 +247,12 @@ def fetch_osm_ways_by_name(name_pattern: str, bbox: tuple) -> list[dict]:
     The highway filter restricts to trail-type ways to avoid roads/buildings
     sharing the same name (Pitfall 3).
 
+    `name_pattern` is interpolated into an Overpass QL regex literal (`~"...",i`),
+    so it is treated as a regex by Overpass. Callers must regex-escape any
+    metacharacters they want matched literally. The QL string delimiters (`"`)
+    and backslashes are escaped here so a name cannot break out of the literal
+    or alter the query — the OSM analogue of the TOML `_toml_escape` hardening.
+
     Args:
         name_pattern: Regex pattern for the OSM name tag (case-insensitive).
         bbox: (south, west, north, east) in WGS84 degrees.
@@ -259,11 +265,13 @@ def fetch_osm_ways_by_name(name_pattern: str, bbox: tuple) -> list[dict]:
         RuntimeError: if Overpass returns zero elements.
     """
     s, w, n, e = bbox
+    # Escape QL string delimiters so the pattern stays inside the ~"..." literal.
+    safe_pattern = name_pattern.replace("\\", "\\\\").replace('"', '\\"')
     query = f"""
 [out:json][timeout:30];
 (
-  way["name"~"{name_pattern}",i]["highway"~"^(path|footway|bridleway|track)$"]({s},{w},{n},{e});
-  relation["name"~"{name_pattern}",i]["route"="hiking"]({s},{w},{n},{e});
+  way["name"~"{safe_pattern}",i]["highway"~"^(path|footway|bridleway|track)$"]({s},{w},{n},{e});
+  relation["name"~"{safe_pattern}",i]["route"="hiking"]({s},{w},{n},{e});
 );
 out geom;
 """
