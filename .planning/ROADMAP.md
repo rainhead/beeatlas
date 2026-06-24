@@ -59,7 +59,14 @@
   Plans:
 
   - [x] 164-01-PLAN.md — Wave 1: promote source into `FilterState.hiddenSources` (type + `buildFilterSQL` `o.source IN (visible)` predicate + `isFilterActive` + `parseParams` read-side) with D-01/D-05 unit tests, then rewire `bee-atlas` so `_onSourceFilterChanged` re-runs the map/count, list, and table queries off `_filterState.hiddenSources` (CSV auto-fixed) and preserves the source filter across other filter changes; map left as-is (`_visibleBySource` retained, D-03/D-04) [D-01..D-05]
-- [ ] **Phase 165: Duplicate occurrence rows sharing one occ_id across int_combined source arms** — A single physical specimen can appear as TWO `marts/occurrences` rows from different `int_combined` source arms (e.g. `specimen_observation_id 320276469` as both a `waba_sample` and an `inat_obs` row), both resolving to the SAME synthetic `occ_id` via `occIdFromRow` → the occurrence lists **twice** in the sidebar and the D-04 member-place chip renders twice. **Pre-existing** in the unified occurrence model (predates Phase 160; data integrity is fine — Phase 160's WR-01 fix dedupes per-place counts/maps via `COUNT(DISTINCT occ_id)`/`SELECT DISTINCT`; only the *list rendering* shows the dup). Rare today (1 pair) but Phase 161 (WDFW) and more sample/specimen linkage will surface more. Options: (a) dedupe the list/selection query by `occ_id`; (b) give the two source arms distinct `occ_id`s; (c) merge sample+specimen rows into one occurrence at `int_combined` (most correct, biggest change). Open question: semantically one occurrence (collapse) or two (keep both, de-dup display)? Promoted from backlog 999.9. **Depends on:** v2.7 unified occurrence model; surfaced by Phase 160. **Plans:** TBD.
+- [x] **Phase 165: Duplicate occurrence rows sharing one occ_id across int_combined source arms** — A single physical specimen can appear as TWO `marts/occurrences` rows from different `int_combined` source arms (e.g. `specimen_observation_id 320276469` as both a `waba_sample` and an `inat_obs` row), both resolving to the SAME synthetic `occ_id` via `occIdFromRow` → the occurrence lists **twice** in the sidebar and the D-04 member-place chip renders twice. **Pre-existing** in the unified occurrence model (predates Phase 160; data integrity is fine — Phase 160's WR-01 fix dedupes per-place counts/maps via `COUNT(DISTINCT occ_id)`/`SELECT DISTINCT`; only the *list rendering* shows the dup). Rare today (1 pair) but Phase 161 (WDFW) and more sample/specimen linkage will surface more. Options: (a) dedupe the list/selection query by `occ_id`; (b) give the two source arms distinct `occ_id`s; (c) merge sample+specimen rows into one occurrence at `int_combined` (most correct, biggest change). Open question: semantically one occurrence (collapse) or two (keep both, de-dup display)? Promoted from backlog 999.9. Discussion reframed the dup as a symptom of data-model drift; the chosen approach FIXES the int_combined model (D-01..D-13): correct is_provisional to WABA plant-images project (166376) membership, remove the int_waba_link MIN() catalog-match gap, and keep the 33 pre-Ecdysis iNat-photo specimens as a new `waba_specimen` source — plus a human-first `docs/domain-model.md`. **Depends on:** v2.7 unified occurrence model; surfaced by Phase 160. **Plans:** 4 plans (3 waves). (completed 2026-06-24)
+  Plans:
+
+  - [x] 165-01-PLAN.md — Wave 1: create the D-09 occ_id uniqueness dbt test (severity:warn) + the category-3 occIdFromRow vitest case [D-09, D-11]
+  - [x] 165-02-PLAN.md — Wave 2: the data-model correction — int_waba_link MIN() fix (rescue 320276469, no ARM 1 fan-out), provisional `waba_sample` arm via project-166376 membership (samples only, D-11), and the new `waba_specimen` arm (the 33 specimens) [D-01,D-02,D-05,D-08,D-09,D-10,D-11,D-12]
+  - [x] 165-03-PLAN.md — Wave 3: frontend `waba_specimen` source — SourceKey/VALID_SOURCES, fifth source toggle (+ corrected `waba_sample` copy), occurrence-detail badge [D-12, D-13]
+  - [x] 165-04-PLAN.md — Wave 3: `docs/domain-model.md` (human-first 5-category model) + CLAUDE.md link [D-03,D-04,D-06,D-07]
+- [ ] **Phase 166: Seasonality charts on species and genus pages** — Add a phenology / seasonality chart showing the months each bee is active. **Species page:** one chart — bars/area over the 12 months showing occurrence counts per month for that species. **Genus page:** the flight season of each species in the genus (small-multiples or a stacked/heatmap "phenogram", species × month grid) for at-a-glance comparison. Pure frontend/visualization over the in-browser wa-sqlite store — `marts/occurrences` already carries the `month` column (used by the existing month filter in `buildFilterSQL`), so no pipeline change; a per-month `COUNT(*)` grouped by `taxon_id` (with descendant roll-up for the genus, mirroring the taxon-descendant subquery already in `buildFilterSQL`) feeds the chart. Open questions for discuss/plan: (1) **where these pages live** — BeeAtlas is map-centric with no per-taxon page route, so this may need a new species/genus view (relates to [[project_taxon_id_milestone]]); (2) chart form (12-bar histogram vs ridgeline/heatmap phenogram) under the static-hosting + no-heavy-deps constraint (CLAUDE.md); (3) null-`month` rows excluded vs shown as "unknown"; (4) count vs normalized y-axis, and whether to respect active source/year filters or always show all-time phenology. Promoted from backlog 999.13 (2026-06-24). **Depends on:** per-taxon page route (none exists yet — see open question 1). **Plans:** TBD.
 
 <details>
 <summary>✅ v5.2 Place Coverage Expansion (Phases 160–162) — SHIPPED 2026-06-24</summary>
@@ -1572,29 +1579,11 @@ will overlap its parent place). Independent of Phase 161.
 
 ## Backlog
 
-### Phase 999.13: Seasonality charts on species and genus pages (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Captured 2026-06-24. Add a **phenology / seasonality chart** showing the months each bee is active:
-- **Species page:** one chart for the species — bars/area over the 12 months showing when that species is recorded (occurrence counts per month).
-- **Genus page:** the months each species in the genus is active — small-multiples or a stacked/heatmap "phenogram" (species × month grid) so you can compare flight seasons across the genus at a glance.
-
-Data is already present: `marts/occurrences` carries a `month` column (used by the existing month filter in `buildFilterSQL`), so this is a pure frontend/visualization feature over the in-browser wa-sqlite store — no pipeline change. A per-month `COUNT(*)` grouped by `taxon_id` (with descendant roll-up for the genus, mirroring the taxon-descendant subquery already in `buildFilterSQL`) feeds the chart.
-
-Open questions for discuss/plan: (1) **where these pages live** — BeeAtlas is currently map-centric with no dedicated per-taxon page route; this may need a new species/genus view (relates to [[project_taxon_id_milestone]], which would give stable taxon IDs to key such pages on). (2) Chart form — simple 12-bar histogram vs ridgeline/heatmap phenogram for the genus small-multiples; what charting approach fits the static-hosting + no-heavy-deps constraint (CLAUDE.md). (3) Whether months with null `month` (sample-only / undated rows) are excluded or shown as "unknown". (4) Count vs normalized (proportion) y-axis, and whether to respect the active source/year filters or always show all-time phenology.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
 ### Phase 999.11: Add federal wilderness areas as regions (BACKLOG)
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 2/2 plans complete
+**Plans:** 0 plans
 
 Captured 2026-06-23. A new place/region source in the same family as Phase 161
 (WDFW wildlife areas) and Phase 162 (hikes): add federally designated

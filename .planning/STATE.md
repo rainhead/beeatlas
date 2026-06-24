@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v5.2
 milestone_name: milestone
 status: verifying
-stopped_at: Phase 164 complete (UAT passed) — ready to push
-last_updated: "2026-06-24T19:10:43.939Z"
+stopped_at: Completed 165-03-PLAN.md — frontend waba_specimen wiring (D-13); Phase 165 complete
+last_updated: "2026-06-24T22:18:59.595Z"
 last_activity: 2026-06-24
 progress:
-  total_phases: 34
+  total_phases: 33
   completed_phases: 14
   total_plans: 34
   completed_plans: 34
-  percent: 41
+  percent: 42
 ---
 
 # Project State
@@ -21,12 +21,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 164 — sidebar-list-ignores-src-source-filter
+**Current focus:** Phase 165 — duplicate-occurrence-rows-shared-occ-id
 
 ## Current Position
 
-Phase: 164 (sidebar-list-ignores-src-source-filter) — EXECUTING
-Plan: 1 of 1
+Phase: 999.11
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-06-24
 
@@ -58,7 +58,11 @@ Load-bearing conventions carried from prior milestones:
 - [Phase ?]: 160-04: place filter resolves by occurrence_places EXISTS membership; place_slug removed from frontend OccurrenceRow/OCCURRENCE_COLUMNS
 - [Phase ?]: 160-04 D-04: member-place names resolved in bee-atlas (state owner) and passed down to bee-occurrence-detail as a property (state-ownership invariant)
 - **[Phase 162-02]** `snoqualmie-pass-to-olallie-meadow-trail` deferred (2026-06-23): OSM only has the full PCT Section J (~75 km relation 1296807), which over-claims ~9× vs the ~8 km day-hike. Needs hand-traced GPX to Olallie Meadow turnaround. 13 hike corridors shipped instead of 14.
-- **[Phase 162-02]** `tol=0.0002°` (~22 m) ratified for hike corridor simplification: 13 corridors add +24 KB (895→920 KB), well under 1 MB cap. `geyser-valley-trail` accepted as-is (OSM way 261478799).
+- **[Phase 162-02]** `tol=0.0002°` (~22 m) ratified for hike corridor simplification: 13 corridors add +24 KB (895→920 KB), well under 1 MB cap. `geyser-valley-trail` accepted as-is (OSM way 261478797).
+- **[Phase 165-02] D-05**: `MIN(waba.id) GROUP BY catalog_suffix` removed from `int_waba_link` — 1:N catalog-match so all WABA obs sharing a catalog suffix are recognized; fan-out guard via MIN subquery at `int_ecdysis_base` consumer keeps ARM 1 1:1.
+- **[Phase 165-02] D-03/D-11**: `waba_sample` (provisional) arm redefined on project_id=166376 membership anti-joined `int_samples_base` (~28 rows, is_provisional=TRUE, specimen fields NULL).
+- **[Phase 165-02] D-10/D-12**: `waba_specimen` NEW source arm for the 33 WABA iNat-photo bee specimens not yet in Ecdysis (is_provisional=FALSE, occ_id=inat_obs:N, carries bee species + obs_url).
+- **[Phase 165-03] D-13**: `waba_specimen` wired end-to-end in frontend: SourceKey union + VALID_SOURCES in url-state.ts, OccurrenceRow.source + VALID_SOURCES in filter.ts, 5th source toggle in bee-pane.ts (_renderSources layers), _renderWabaSpecimen dispatch in bee-occurrence-detail.ts. waba_sample toggle copy corrected to 'Provisional samples'. All-off guard updated 4 → 5.
 
 ### Pending Todos
 
@@ -84,8 +88,8 @@ Carried forward (originally acknowledged at v5.1 close 2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-24T19:10:43.932Z
-Stopped at: Phase 164 complete (UAT passed) — ready to push
+Last session: 2026-06-24T21:54:32.050Z
+Stopped at: Completed 165-03-PLAN.md — frontend waba_specimen wiring (D-13); Phase 165 complete
 Resume file: None
 
 ## Operator Next Steps

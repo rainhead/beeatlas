@@ -338,11 +338,37 @@ export class BeeOccurrenceDetail extends LitElement {
         ${row.specimen_count != null && !isNaN(row.specimen_count)
           ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
           : ''}
+        ${row.observation_id != null ? html`
         <div class="event-inat">
-          <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}"
+          <a href="https://www.inaturalist.org/observations/${row.observation_id}"
              target="_blank" rel="noopener"
              aria-label="View WABA observation on iNaturalist">View WABA observation</a>
-        </div>
+        </div>` : ''}
+        ${this._renderPlaceNames(row)}
+      </div>
+    `;
+  }
+
+  private _renderWabaSpecimen(row: OccurrenceRow) {
+    const inatInfo = row.taxon_id != null ? this.taxonCache?.get(row.taxon_id) : null;
+    const inatDisplayName = inatInfo?.name ?? row.display_name ?? null;
+    const taxonEl = inatDisplayName && row.taxon_id != null
+      ? html`<span class="taxon-filter-link" role="button" tabindex="0" @keydown=${this._onTaxonKeydown} @click=${() => this._onTaxonClick(row.taxon_id!, inatDisplayName)}><em>${inatDisplayName}</em></span>`
+      : inatDisplayName
+        ? html`<em>${inatDisplayName}</em>`
+        : html`<span class="hint">identification unknown</span>`;
+    return html`
+      <div class="panel-content sample-dot-detail">
+        <div class="inat-id-label">${taxonEl} ${this._renderQualityBadge(row.specimen_inat_quality_grade)}</div>
+        <div class="event-date">${formatRomanDate(row.date)}</div>
+        ${row.user_login != null
+          ? html`<div class="event-observer">${row.user_login}</div>` : ''}
+        ${row.obs_url != null ? html`
+          <div class="event-inat">
+            <a href="${row.obs_url}" target="_blank" rel="noopener">View on iNaturalist</a>
+          </div>
+        ` : ''}
+        <div class="hint">Awaiting Ecdysis catalogue entry</div>
         ${this._renderPlaceNames(row)}
       </div>
     `;
@@ -441,9 +467,11 @@ export class BeeOccurrenceDetail extends LitElement {
           ? this._renderProvisional(row)
           : row.source === 'checklist'
             ? this._renderChecklist(row)
-            : row.source === 'inat_obs'
-              ? this._renderInatObs(row)
-              : this._renderSampleOnly(row)
+            : row.source === 'waba_specimen'
+              ? this._renderWabaSpecimen(row)
+              : row.source === 'inat_obs'
+                ? this._renderInatObs(row)
+                : this._renderSampleOnly(row)
       )}
     `;
   }

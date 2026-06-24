@@ -1161,10 +1161,16 @@ export class BeePane extends LitElement {
         onChange: (e: Event) => this._onSourceToggle('ecdysis', (e.target as HTMLInputElement).checked),
       },
       {
-        label: 'Provisional WABA',
-        tooltip: 'WABA field collections not yet entered in Ecdysis',
+        label: 'Provisional samples',
+        tooltip: 'Floral-host / sample observations in the WABA plant-images project, awaiting sample metadata',
         checked: !this._hiddenSources.has('waba_sample'),
         onChange: (e: Event) => this._onSourceToggle('waba_sample', (e.target as HTMLInputElement).checked),
+      },
+      {
+        label: 'WABA specimens',
+        tooltip: 'WABA bee specimens photographed on iNaturalist, not yet catalogued in Ecdysis',
+        checked: !this._hiddenSources.has('waba_specimen'),
+        onChange: (e: Event) => this._onSourceToggle('waba_specimen', (e.target as HTMLInputElement).checked),
       },
       {
         label: 'iNat expert obs',
@@ -1230,7 +1236,7 @@ export class BeePane extends LitElement {
         ` : nothing}
         ${this.listLoading
           ? html`<div class="list-placeholder">Loading…</div>`
-          : this._hiddenSources.size === 4
+          : this._hiddenSources.size === 5
             ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`

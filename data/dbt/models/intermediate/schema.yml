@@ -9,7 +9,26 @@ models:
           - not_null
           - unique    # VERIFIED: 46,090 rows, 46,090 distinct coreids
 
+  - name: int_provisional_waba_ids
+    description: >
+      D-03/D-11 corrected definition (Phase 165-02): provisional sample observations =
+      members of the WABA plant-images/sample-IDs iNat project (project_id=166376) that
+      lack a specimen_count OFV (anti-joined against int_samples_base). These are
+      floral-host / sample observations, never bee specimen observations. Output column:
+      observation_id (the plant obs iNat id → occ_id inat:N in int_combined ARM 2).
+      ~28 mappable rows. Changed from the old definition of "WABA catalog-field obs NOT
+      in int_matched_waba_ids", which incorrectly captured bee specimens (D-04 bug).
+
   - name: int_combined
+    description: >
+      UNION ALL of five source arms: source='ecdysis' (ARM 1, catalogued specimens),
+      source='waba_sample' (ARM 2, provisional plant/sample project-166376 members,
+      is_provisional=TRUE), source='waba_specimen' (ARM 3, iNat-photo bee specimens not
+      yet in Ecdysis, is_provisional=FALSE), source='inat_obs' (ARM 4, expert iNat obs),
+      source='checklist' (ARM 5, museum/collection records).
+      Regression guard: data/dbt/tests/test_no_duplicate_occ_ids.sql asserts that the synthetic
+      occ_id (CASE ecdysis→inat→inat_obs→checklist) is unique per row. severity:warn until the
+      Shape C OFV fan-out bug (obs 288589692 duplicate sample_id OFV) is separately fixed.
     columns:
       - name: is_provisional
         data_tests:
