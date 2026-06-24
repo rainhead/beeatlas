@@ -1560,6 +1560,31 @@ will overlap its parent place). Independent of Phase 161.
 
 ## Backlog
 
+### Phase 999.12: Ecdysis download requires an authenticated session — add Symbiota login (BACKLOG) — ⚠ BLOCKS NIGHTLY
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Surfaced 2026-06-24 attempting the post-v5.2 nightly. Ecdysis/Symbiota's
+`downloadhandler.php` now returns `401 {"error":"Unauthorized access"}` even with
+`publicsearch=1` (reproduced via curl 2026-06-24). The pipeline's Ecdysis
+ingestion (`data/ecdysis_pipeline.py` `_download_zip`) was **always anonymous** —
+no login/token, just `publicsearch=1` — so this is an **upstream breaking change**
+(the public-download path was closed), not an expired credential on our side. The
+`ecdysis` step is run.py STEP 1, so **every nightly now fails at the start** until
+fixed → production data goes stale. Fix design drafted in `999.12-FINDINGS.md`
+(authenticated Symbiota session: `POST /profile/index.php` form `loginForm`
+[`login`/`password`] → capture `PHPSESSID` on a `requests.Session` → reuse for
+`downloadhandler.php`; needs an Ecdysis account with dataset-44 access + creds in
+`data/.dlt/secrets.toml` on maderas; CI/deploy unaffected — it only pulls from
+S3). Decoupled immediate unblock for the v5.2 deploy:
+`ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses the cached ZIP.
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.11: Add federal wilderness areas as regions (BACKLOG)
 
 **Goal:** [Captured for future planning]
