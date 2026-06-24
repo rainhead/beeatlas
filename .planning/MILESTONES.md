@@ -1,5 +1,28 @@
 # Milestones
 
+## v5.2 Place Coverage Expansion (Shipped: 2026-06-24)
+
+**Phases completed:** 3 phases (160–162), 8 plans. Timeline: 2026-06-23 → 2026-06-24.
+
+Made the place model overlap-capable, then added two new curated place sources on top of it. No formal REQUIREMENTS.md (sources promoted from backlog); each phase verified individually + operator UAT.
+
+**Key accomplishments:**
+
+1. **Phase 160 — Overlap-capable place model (many-to-many):** introduced the `occurrence_places` bridge mart (one row per occurrence↔place membership, keyed on a synthetic `occ_id` mirroring `occIdFromRow`), **dropped** the scalar `place_slug` from the occurrences mart (dbt contract 37→36 cols), removed the `ST_Overlaps` rejection guard, and rewrote per-place counts/maps + the frontend filter (`filter.ts`) to an `EXISTS` membership test. A bee occurrence can now belong to multiple overlapping places. (4 plans.)
+2. **Phase 161 — 33 WDFW wildlife areas:** committed `data/add_wdfw_wildlife_areas.py` (WDFW ArcGIS REST → DuckDB dissolve-by-area → 33 MultiPolygon `[[places]]` entries, Jackman Creek excluded, zero new deps); the 16 WDFW↔existing overlaps load cleanly as multi-place membership. Simplified to `0.0005°` → `places.geojson` 896 KB. (2 plans.)
+3. **Phase 162 — 13 WTA hike corridors:** committed `data/add_hikes_as_places.py` solving the linear-feature problem — OSM/Overpass trail line → ~250 m **corridor buffer** in a metric CRS (UTM 10N, `always_xy=true`) → MULTIPOLYGON. Source is OSM only (WTA ToS forbids scraping); 13 of 14 shipped (`snoqualmie-pass-to-olallie-meadow-trail` deferred — OSM only had the full ~75 km PCT Section J). `places.geojson` 920 KB at tol=0.0002°. (2 plans.)
+4. **Reusable place-source curation pattern** established and reused across 161/162: fetch authoritative geometry → DuckDB-spatial transform → `ST_SimplifyPreserveTopology` for browser weight → emit TOML via the shared `toml_block()` writer. Both code-review passes hardened the scripts (TOML escaping + `tomllib` round-trip, the `always_xy` `(inf,inf)` regression guard, OSM geometry-assembly correctness).
+
+**Delivered:** A bee occurrence can now belong to multiple overlapping places, and the place layer gained two new curated sources — 33 WDFW wildlife areas and 13 WTA hike corridors — all surfaced as filterable "Regions" on the map.
+
+### Known Gaps / Deferred
+
+- `snoqualmie-pass-to-olallie-meadow-trail` deferred (OSM lacks a day-hike-scoped geometry); re-add with hand-traced GPX later.
+- New backlog: 999.10 (sidebar list ignores `src=` source filter), 999.11 (federal wilderness areas as regions).
+- Known deferred items at close: pre-existing non-blocking 144 code-review todo + carried-forward UAT/Nyquist/verification items (see STATE.md Deferred Items); milestone open-artifact audit showed 12 items, all verified non-blocking (passed/approved UAT with 0 pending scenarios, resolved CONTEXT open-questions).
+
+---
+
 ## v5.1 Housekeeping (Shipped: 2026-06-23)
 
 **Phases completed:** 5 phases (155–159), 7 plans. Timeline: 2026-06-21 → 2026-06-23.

@@ -1,5 +1,11 @@
 # Washington Bee Atlas
 
+## Milestone: v5.2 Place Coverage Expansion — COMPLETE (2026-06-24)
+
+**Shipped:** Made the place model overlap-capable, then added two new curated place sources on top of it (Phases 160–162, 8 plans, 2026-06-23→24). **160** — a bee occurrence can now belong to *multiple* places: introduced the `occurrence_places` many-to-many bridge mart (keyed on a synthetic `occ_id` mirroring `occIdFromRow`), dropped the scalar `place_slug` (dbt contract 37→36 cols), removed the `ST_Overlaps` rejection guard, and rewrote per-place counts/maps + the frontend `filter.ts` to an `EXISTS` membership test. **161** — 33 WDFW wildlife areas via committed `data/add_wdfw_wildlife_areas.py` (WDFW ArcGIS REST → DuckDB dissolve-by-area → MultiPolygons, Jackman Creek excluded, zero new deps); the 16 WDFW↔existing overlaps load as multi-place membership. **162** — 13 WTA hike corridors via `data/add_hikes_as_places.py`, solving the linear-feature problem (a bare LineString can never match `ST_Within`): OSM/Overpass trail line → ~250 m metric-CRS corridor buffer (UTM 10N, `always_xy=true`) → MULTIPOLYGON; OSM-only (WTA ToS forbids scraping); 1 of 14 deferred (Snoqualmie–Olallie — OSM only had the full ~75 km PCT Section J). `places.geojson` held under the ~1 MB browser-weight cap (920 KB).
+
+**Notable:** a single reusable place-source curation pattern (fetch → DuckDB-spatial transform → simplify-for-weight → emit TOML via the shared `toml_block()` writer) now backs both new sources with zero new Python dependencies, and is the template for the 999.11 federal-wilderness-areas backlog item. Operator UAT on 161 surfaced a durable local-dev gotcha — the gitignored `occurrences.db` (built by the `generate-sqlite` step) goes stale when the full `run.py` is blocked by the Ecdysis auth gate locally; regenerate via `sqlite_export.py` (production unaffected). Saved to project memory.
+
 ## Milestone: v5.1 Housekeeping — COMPLETE (2026-06-23)
 
 **Shipped:** Five independent items promoted from backlog, no formal requirements (Phases 155–159, 7 plans, 2026-06-21→23). **155** — desktop-only "Shift-drag on map to set bounds" hint (`.hint` reuse, hover/fine-pointer gate) makes the bounds-**filter** gesture discoverable. **156** — made the state model honest: a spatial box is a FILTER (`FilterState.bounds`, serialized `bbox=`), SELECTION (`o=`) is per-record only; removed the legacy `_selectionBounds`/`sel=`-write/`_applyBoundsSelection` plumbing so bounds + selection coexist (legacy `?sel=` still restores). **157** — relocated the regions dropdown out of `<bee-map>`'s `z-index:0` shadow DOM into a `<bee-atlas>` `.map-toolbar` flex row (retaining the load-bearing `bee-map { z-index: 0 }`), fixing the filter-button stacking occlusion; STACK-01 regression locks it. **158** — non-WABA specimen-photo capture **resolved by manual curation, not a pipeline change**: collectors who write their WSDA catalog number in the iNat observation *description* are captured by copying it into field `18116` (then existing `int_waba_link` matches); built reusable tooling at `data/curation/waba_backfill/`, executed for @swisschick (470 fields, 0 errors) + @rainhead. **159** — one-click sidebar taxon filter: clicking a taxon name applies the existing filter (exact `taxon_id`, other dimensions preserved) via a composed `filter-changed` event, external records demoted to keyboard-accessible icon links. Each phase verified individually (155/157 operator UAT PASS; 159 automated browser UAT 4/4, 839 tests green).
@@ -94,11 +100,11 @@ Tighten learning cycles for volunteer collectors (close the gap between collecti
 
 ## Current Milestone: none (between milestones)
 
-v5.1 Housekeeping shipped 2026-06-23 (the 145–159 working set is fully closed). No active milestone — start the next with `/gsd-new-milestone`.
+v5.2 Place Coverage Expansion shipped 2026-06-24 (Phases 160–162; the 145–162 working set is fully closed). No active milestone — start the next with `/gsd-new-milestone`.
 
 **Dogfood status:** the offline PWA lives behind the unlisted `/app` route and has not been graduated to the public map. A future milestone decides whether/how `/app` graduates (or merges into `/`).
 
-**Open backlog (ROADMAP.md `## Backlog`):** 999.2 (WDFW wildlife areas as places), 999.3 (specific hikes as places), 999.7 (Safari private-browsing in offline-ready UI). Promote with `/gsd-review-backlog`. (999.4/999.5/999.6 shipped as Phases 157/158/159 in v5.1.)
+**Open backlog (ROADMAP.md `## Backlog`):** 999.11 (federal wilderness areas as regions), 999.10 (sidebar list ignores `src=` source filter), 999.9 (duplicate occurrence rows sharing one occ_id), 999.7 (Safari private-browsing in offline-ready UI). Promote with `/gsd-review-backlog`. (999.2/999.3 shipped as Phases 161/162 in v5.2.)
 
 ## Requirements
 
