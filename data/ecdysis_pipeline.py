@@ -53,14 +53,15 @@ def _get_credentials() -> tuple[str, str]:
     )
 
 
-def _login_session(session: requests.Session) -> None:
+def _login_session(session: requests.Session, username: str, password: str) -> None:
     """Authenticate the Symbiota session in place by POSTing the real credential form.
 
-    The password is NEVER interpolated into any log/print/exception (V7). The download
-    response guard — not this login response — is the authoritative success signal
-    (163-RESEARCH.md Q2), so the login HTML is intentionally not parsed for a marker.
+    Credentials are passed in (resolved by the caller BEFORE the resilience try) so a
+    missing/misprovisioned credential fails loudly instead of being swallowed by the
+    cache-fallback. The password is NEVER interpolated into any log/print/exception
+    (V7). The download response guard — not this login response — is the authoritative
+    success signal (163-RESEARCH.md Q2), so the login HTML is not parsed for a marker.
     """
-    username, password = _get_credentials()
     session.post(
         ECDYSIS_LOGIN_URL,
         data={
@@ -133,9 +134,14 @@ def _download_zip(dataset_id: int) -> bytes:
         }),
         "submitaction": "",
     }
+    # Resolve credentials BEFORE the resilience try (WR-01): a missing or
+    # misprovisioned credential must fail loudly per _get_credentials' contract,
+    # not be silently masked by the cache-fallback when a (possibly stale) cache
+    # exists. This is the exact silent-staleness trap D-3 is meant to avoid.
+    username, password = _get_credentials()
     try:
         session = requests.Session()
-        _login_session(session)
+        _login_session(session, username, password)
         response = session.post(
             ECDYSIS_DOWNLOAD_URL,
             data=parse.urlencode(params),
