@@ -104,7 +104,9 @@ v5.2 Place Coverage Expansion shipped 2026-06-24 (Phases 160–162; the 145–16
 
 **Dogfood status:** the offline PWA lives behind the unlisted `/app` route and has not been graduated to the public map. A future milestone decides whether/how `/app` graduates (or merges into `/`).
 
-**Open backlog (ROADMAP.md `## Backlog`):** 999.11 (federal wilderness areas as regions), 999.10 (sidebar list ignores `src=` source filter), 999.9 (duplicate occurrence rows sharing one occ_id), 999.7 (Safari private-browsing in offline-ready UI). Promote with `/gsd-review-backlog`. (999.2/999.3 shipped as Phases 161/162 in v5.2.)
+**Open backlog (ROADMAP.md `## Backlog`):** 999.11 (federal wilderness areas as regions), 999.7 (Safari private-browsing in offline-ready UI). Promote with `/gsd-review-backlog`. (999.2/999.3 shipped as Phases 161/162 in v5.2; 999.12/999.10/999.9 promoted to Phases 163/164/165 on 2026-06-24.)
+
+**Active (promoted from backlog 2026-06-24, milestone TBD):** Phase 163 (Ecdysis auth-session fix — ⚠ BLOCKS NIGHTLY, gated on an Ecdysis dataset-44 account), Phase 164 (sidebar list ignores `src=` source filter), Phase 165 (duplicate occurrence rows sharing one occ_id).
 
 ## Requirements
 

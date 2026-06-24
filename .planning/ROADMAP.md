@@ -49,6 +49,12 @@
 
 ## Phases
 
+### Active (promoted from backlog 2026-06-24 — milestone TBD)
+
+- [ ] **Phase 163: Ecdysis download requires an authenticated session — add Symbiota login** — ⚠ **BLOCKS NIGHTLY.** Ecdysis/Symbiota's `downloadhandler.php` now returns `401 {"error":"Unauthorized access"}` even with `publicsearch=1` (reproduced via curl 2026-06-24). The pipeline's Ecdysis ingestion (`data/ecdysis_pipeline.py` `_download_zip`) was **always anonymous**, so this is an **upstream breaking change** (the public-download path was closed), not an expired credential. `ecdysis` is `run.py` STEP 1, so every nightly fails at the start until fixed → production data goes stale. Fix design drafted in `163-FINDINGS.md` (authenticated Symbiota session: `POST /profile/index.php` form `loginForm` → capture `PHPSESSID` on a `requests.Session` → reuse for `downloadhandler.php`; needs an Ecdysis account with dataset-44 access + creds in `data/.dlt/secrets.toml` on maderas; CI/deploy unaffected — it only pulls from S3). Decoupled immediate unblock for the v5.2 deploy: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses the cached ZIP. **Open blocker:** need an Ecdysis account with dataset-44 download rights before planning (see 163-FINDINGS.md open questions). Promoted from backlog 999.12. **Depends on:** none structural (external account access). **Plans:** TBD.
+- [ ] **Phase 164: Sidebar occurrence list ignores the `src=` source filter** — The source filter (Phase 119 — `hiddenSources` / `_applySourceFilter`, the `src=` URL param) is applied to the **map** layer but not to the **sidebar list / `bbox=` list query**, so the two views disagree: the map hides a source while the list still shows occurrences from **deselected** sources (e.g. `inat`/`inat_obs`/`checklist`). Repro: `?…&pane=list&src=ecdysis,waba_sample` restricts sources but the sidepanel list still includes others. Likely fix area: extend the source-filter predicate into the `queryVisibleIds` / `bbox=`-list path so the sidebar honors `hiddenSources` the same way the map paint does; verify the `src=` round-trip (URL ↔ Sources filter chips ↔ list) is consistent. Relates to [[project_bounds_are_filter_not_selection]] and the many-to-many place membership work. Promoted from backlog 999.10. **Depends on:** Phase 119 (source filter). **Plans:** TBD.
+- [ ] **Phase 165: Duplicate occurrence rows sharing one occ_id across int_combined source arms** — A single physical specimen can appear as TWO `marts/occurrences` rows from different `int_combined` source arms (e.g. `specimen_observation_id 320276469` as both a `waba_sample` and an `inat_obs` row), both resolving to the SAME synthetic `occ_id` via `occIdFromRow` → the occurrence lists **twice** in the sidebar and the D-04 member-place chip renders twice. **Pre-existing** in the unified occurrence model (predates Phase 160; data integrity is fine — Phase 160's WR-01 fix dedupes per-place counts/maps via `COUNT(DISTINCT occ_id)`/`SELECT DISTINCT`; only the *list rendering* shows the dup). Rare today (1 pair) but Phase 161 (WDFW) and more sample/specimen linkage will surface more. Options: (a) dedupe the list/selection query by `occ_id`; (b) give the two source arms distinct `occ_id`s; (c) merge sample+specimen rows into one occurrence at `int_combined` (most correct, biggest change). Open question: semantically one occurrence (collapse) or two (keep both, de-dup display)? Promoted from backlog 999.9. **Depends on:** v2.7 unified occurrence model; surfaced by Phase 160. **Plans:** TBD.
+
 <details>
 <summary>✅ v5.2 Place Coverage Expansion (Phases 160–162) — SHIPPED 2026-06-24</summary>
 
@@ -1560,31 +1566,6 @@ will overlap its parent place). Independent of Phase 161.
 
 ## Backlog
 
-### Phase 999.12: Ecdysis download requires an authenticated session — add Symbiota login (BACKLOG) — ⚠ BLOCKS NIGHTLY
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Surfaced 2026-06-24 attempting the post-v5.2 nightly. Ecdysis/Symbiota's
-`downloadhandler.php` now returns `401 {"error":"Unauthorized access"}` even with
-`publicsearch=1` (reproduced via curl 2026-06-24). The pipeline's Ecdysis
-ingestion (`data/ecdysis_pipeline.py` `_download_zip`) was **always anonymous** —
-no login/token, just `publicsearch=1` — so this is an **upstream breaking change**
-(the public-download path was closed), not an expired credential on our side. The
-`ecdysis` step is run.py STEP 1, so **every nightly now fails at the start** until
-fixed → production data goes stale. Fix design drafted in `999.12-FINDINGS.md`
-(authenticated Symbiota session: `POST /profile/index.php` form `loginForm`
-[`login`/`password`] → capture `PHPSESSID` on a `requests.Session` → reuse for
-`downloadhandler.php`; needs an Ecdysis account with dataset-44 access + creds in
-`data/.dlt/secrets.toml` on maderas; CI/deploy unaffected — it only pulls from
-S3). Decoupled immediate unblock for the v5.2 deploy:
-`ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses the cached ZIP.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
 ### Phase 999.11: Add federal wilderness areas as regions (BACKLOG)
 
 **Goal:** [Captured for future planning]
@@ -1607,42 +1588,6 @@ broader per [[project_multi_state_expansion]]), `land_owner` attribution
 (managing agency — USFS/NPS/BLM/USFWS varies per wilderness), and weight impact
 on `places.geojson` (already ~898 KB after 161+162 vs the ~1 MB guard — may force
 a tighter simplification tolerance or a budget rethink).
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.10: Sidebar occurrence list ignores the `src=` source filter (shows deselected sources) (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 0 plans
-
-Surfaced during Phase 162 work (2026-06-23). Repro:
-`https://beeatlas.net/?x=-121.6452&y=48.9436&z=13.03&bbox=-121.6466,48.9429,-121.6328,48.9532&pane=list&src=ecdysis,waba_sample`
-— the URL restricts sources to `ecdysis` + `waba_sample`, but the sidepanel
-occurrence list still includes occurrences from **deselected** sources (e.g.
-`inat`/`inat_obs`/`checklist`). The source filter (Phase 119 — `hiddenSources` /
-`_applySourceFilter`, the `src=` URL param) is applied to the **map** layer but
-not to the **sidebar list / `bbox=` list query**, so the two views disagree:
-the map hides a source while the list still shows it. Likely fix area: extend the
-source-filter predicate into the `queryVisibleIds` / `bbox=`-list path so the
-sidebar honors `hiddenSources` the same way the map paint does. Verify the
-`src=` round-trip (URL ↔ Sources filter chips ↔ list) is consistent. Relates to
-the `bounds-are-filter-not-selection` separation (bbox filter) and the
-many-to-many place membership work.
-
-Plans:
-
-- [ ] TBD (promote with /gsd-review-backlog when ready)
-
-### Phase 999.9: Duplicate occurrence rows sharing one occ_id across int_combined source arms (BACKLOG)
-
-**Goal:** [Captured for future planning]
-**Requirements:** TBD
-**Plans:** 2/2 plans complete
-
-Surfaced during Phase 160 UAT (2026-06-23): a single physical specimen can appear as TWO `marts/occurrences` rows from different `int_combined` source arms — e.g. `specimen_observation_id 320276469` exists as both a `waba_sample` row and an `inat_obs` row. Both resolve to the SAME synthetic `occ_id` (`inat_obs:320276469`) via `occIdFromRow` (specimen_observation_id arm), so: the occurrence lists **twice** in the sidebar, the D-04 member-place chip renders twice, and the `occurrence_places` bridge gets duplicate `(occ_id, place_slug)` rows. **Pre-existing** in the unified occurrence model (predates Phase 160; 160's WR-01 fix already dedupes per-place counts/maps via `COUNT(DISTINCT occ_id)` / `SELECT DISTINCT`, and `getOccurrencePlaceSlugs` dedupes the name map — so the *data integrity* is fine; only the *list rendering* shows the dup). Rare today (exactly 1 such pair), but Phase 161 (WDFW) and more sample/specimen linkage will surface more. Options to evaluate: (a) dedupe the list/selection query by `occ_id`; (b) give the two source arms distinct `occ_id`s; (c) merge the sample+specimen rows into one occurrence at the `int_combined` level (most correct, biggest change). Open question: are these semantically one occurrence (collapse) or two (the sample event vs the specimen observation — keep both but de-dup display)?
 
 Plans:
 

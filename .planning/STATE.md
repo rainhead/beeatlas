@@ -34,7 +34,7 @@ Last activity: 2026-06-24
 
 **No active milestone.** v5.2 Place Coverage Expansion (Phases 160–162) shipped and archived 2026-06-24 — see [milestones/v5.2-ROADMAP.md](milestones/v5.2-ROADMAP.md) and MILESTONES.md. The 145–162 working set is fully closed.
 
-Next: start a new milestone with `/gsd-new-milestone`, or pull a `999.x` backlog item (federal wilderness areas as regions 999.11, sidebar `src=` filter bug 999.10, duplicate occ_id rows 999.9, Safari private-browsing offline UI 999.7).
+Three backlog items were promoted to active (milestone TBD) on 2026-06-24: **Phase 163** (Ecdysis auth-session fix — ⚠ BLOCKS NIGHTLY, gated on an Ecdysis dataset-44 account), **Phase 164** (sidebar `src=` filter bug), **Phase 165** (duplicate occ_id rows). Next: plan Phase 163 first (it blocks the nightly), or start a new milestone with `/gsd-new-milestone`. Remaining backlog: federal wilderness areas as regions (999.11), Safari private-browsing offline UI (999.7).
 
 ## Accumulated Context
 
