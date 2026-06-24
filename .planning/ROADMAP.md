@@ -61,7 +61,7 @@
   Plans:
 
   - [x] 162-01-PLAN.md — Wave 1: create the committed list-driven curation script `data/add_hikes_as_places.py` (OSM/GPX trail geometry → DuckDB ~250 m metric-buffer corridor with `always_xy=true` → 14 MULTIPOLYGON `[[places]]` blocks; 2 OSM gaps tracked-not-dropped) + golden-fixture buffer/slug test [HKE-BUFFER, HKE-SLUG, HKE-NONETWORK; D-01, D-02, D-03]
-  - [ ] 162-02-PLAN.md — Wave 2: run the script to append the hike corridors to `content/places.toml`, resolve the 2 OSM-gap hikes (deeper OSM query → hand-traced GPX → or formal defer; checkpoint), ratify the simplification tolerance against the ≤~1 MB `places.geojson` budget, and confirm the full pipeline runs green (trail↔area overlaps load as multi-place membership; ST_Within + bridge assign hike slugs; size reported) [HKE-VALID, HKE-LOAD, HKE-WEIGHT; D-01, D-02]
+  - [x] 162-02-PLAN.md — Wave 2: run the script to append the hike corridors to `content/places.toml`, resolve the 2 OSM-gap hikes (deeper OSM query → hand-traced GPX → or formal defer; checkpoint), ratify the simplification tolerance against the ≤~1 MB `places.geojson` budget, and confirm the full pipeline runs green (trail↔area overlaps load as multi-place membership; ST_Within + bridge assign hike slugs; size reported) [HKE-VALID, HKE-LOAD, HKE-WEIGHT; D-01, D-02]
 
 <details>
 <summary>✅ v5.1 Housekeeping (Phases 155–159) — SHIPPED 2026-06-23</summary>

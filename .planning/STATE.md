@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v5.1
 milestone_name: Place Coverage Expansion
-status: executing
-stopped_at: "Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked)."
-last_updated: "2026-06-23T23:14:32.083Z"
-last_activity: 2026-06-23
+status: verifying
+stopped_at: "Phase 162 Plan 02 COMPLETE — 13 hike corridors in places.geojson (920 KB, tol=0.0002°), pipeline green, awaiting operator UAT (map corridors + place filter)."
+last_updated: "2026-06-24T00:49:45.334Z"
+last_activity: 2026-06-24
 progress:
   total_phases: 18
-  completed_phases: 16
+  completed_phases: 17
   total_plans: 39
-  completed_plans: 38
-  percent: 89
+  completed_plans: 39
+  percent: 94
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
 
 ## Current Position
 
-Phase: 162 (add-specific-hikes-as-places) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
-Last activity: 2026-06-23
+Phase: 162 (add-specific-hikes-as-places) — COMPLETE (awaiting operator UAT)
+Plan: 2 of 2 (all plans complete)
+Status: Awaiting operator UAT — map corridors render + place filter returns results
+Last activity: 2026-06-24
 
 ## Milestone Overview
 
@@ -57,6 +57,8 @@ Load-bearing conventions carried from prior milestones:
 - [Phase ?]: 160-03: per-place counts and SVG points are bridge-driven via occurrences JOIN occurrence_places on synthetic occ_id; multi-place occurrences double-count by design (D-05)
 - [Phase ?]: 160-04: place filter resolves by occurrence_places EXISTS membership; place_slug removed from frontend OccurrenceRow/OCCURRENCE_COLUMNS
 - [Phase ?]: 160-04 D-04: member-place names resolved in bee-atlas (state owner) and passed down to bee-occurrence-detail as a property (state-ownership invariant)
+- **[Phase 162-02]** `snoqualmie-pass-to-olallie-meadow-trail` deferred (2026-06-23): OSM only has the full PCT Section J (~75 km relation 1296807), which over-claims ~9× vs the ~8 km day-hike. Needs hand-traced GPX to Olallie Meadow turnaround. 13 hike corridors shipped instead of 14.
+- **[Phase 162-02]** `tol=0.0002°` (~22 m) ratified for hike corridor simplification: 13 corridors add +24 KB (895→920 KB), well under 1 MB cap. `geyser-valley-trail` accepted as-is (OSM way 261478799).
 
 ### Pending Todos
 
@@ -80,10 +82,15 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-23T23:14:32.075Z
-Stopped at: Phase 160 COMPLETE (UAT passed; robustness guard added). Next: Phase 161 WDFW areas (unblocked).
+Last session: 2026-06-24T00:49:45.326Z
+Stopped at: Phase 162 Plan 02 COMPLETE — 13 hike corridors in places.geojson (920 KB), pipeline green; awaiting operator UAT.
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+1. Regenerate local occurrences.db: `cd data && uv run python sqlite_export.py`
+2. Hard-reload `/app` and verify:
+   - Regions menu shows the 13 new hike corridors
+   - Selecting a hike (e.g. `umtanum-creek-canyon-trail`) filters sidebar to ~1,243 occurrences
+   - Hike corridor polygons render on the map
+3. After UAT passes: run `/gsd-complete-phase 162` and start the next milestone with `/gsd-new-milestone`
