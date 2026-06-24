@@ -4,13 +4,13 @@ milestone: v5.2
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 165 context gathered
-last_updated: "2026-06-24T21:32:51.933Z"
+last_updated: "2026-06-24T21:42:26.728Z"
 last_activity: 2026-06-24
 progress:
   total_phases: 23
   completed_phases: 19
   total_plans: 45
-  completed_plans: 42
+  completed_plans: 43
   percent: 83
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion 
 ## Current Position
 
 Phase: 165 (duplicate-occurrence-rows-shared-occ-id) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-06-24
 
@@ -58,7 +58,10 @@ Load-bearing conventions carried from prior milestones:
 - [Phase ?]: 160-04: place filter resolves by occurrence_places EXISTS membership; place_slug removed from frontend OccurrenceRow/OCCURRENCE_COLUMNS
 - [Phase ?]: 160-04 D-04: member-place names resolved in bee-atlas (state owner) and passed down to bee-occurrence-detail as a property (state-ownership invariant)
 - **[Phase 162-02]** `snoqualmie-pass-to-olallie-meadow-trail` deferred (2026-06-23): OSM only has the full PCT Section J (~75 km relation 1296807), which over-claims ~9× vs the ~8 km day-hike. Needs hand-traced GPX to Olallie Meadow turnaround. 13 hike corridors shipped instead of 14.
-- **[Phase 162-02]** `tol=0.0002°` (~22 m) ratified for hike corridor simplification: 13 corridors add +24 KB (895→920 KB), well under 1 MB cap. `geyser-valley-trail` accepted as-is (OSM way 261478799).
+- **[Phase 162-02]** `tol=0.0002°` (~22 m) ratified for hike corridor simplification: 13 corridors add +24 KB (895→920 KB), well under 1 MB cap. `geyser-valley-trail` accepted as-is (OSM way 261478797).
+- **[Phase 165-02] D-05**: `MIN(waba.id) GROUP BY catalog_suffix` removed from `int_waba_link` — 1:N catalog-match so all WABA obs sharing a catalog suffix are recognized; fan-out guard via MIN subquery at `int_ecdysis_base` consumer keeps ARM 1 1:1.
+- **[Phase 165-02] D-03/D-11**: `waba_sample` (provisional) arm redefined on project_id=166376 membership anti-joined `int_samples_base` (~28 rows, is_provisional=TRUE, specimen fields NULL).
+- **[Phase 165-02] D-10/D-12**: `waba_specimen` NEW source arm for the 33 WABA iNat-photo bee specimens not yet in Ecdysis (is_provisional=FALSE, occ_id=inat_obs:N, carries bee species + obs_url).
 
 ### Pending Todos
 
@@ -84,8 +87,8 @@ Carried forward (originally acknowledged at v5.1 close 2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-24T21:32:51.923Z
-Stopped at: Phase 165 context gathered
+Last session: 2026-06-24T21:43:00Z
+Stopped at: Completed 165-02-PLAN.md — core data-model correction (D-05/D-03/D-10/D-12)
 Resume file: None
 
 ## Operator Next Steps
