@@ -13,7 +13,13 @@ findings:
   warning: 3
   info: 2
   total: 5
-status: issues_found
+status: resolved
+resolution:
+  WR-01: fixed (commit 00423df3 — src=none sentinel round-trips the all-off state; all-bogus src= now treated as no filter)
+  WR-02: accepted — no code change; the ghost layer collapses to empty via the idempotent double-filter (D-04 analysis). Flagged for manual UAT (confirm no ghost dots/flicker on a source-only toggle).
+  WR-03: fixed (commit 00423df3 — empty CSV name segments collapse to the -all- form)
+  IN-01: deferred — dead ui.hiddenSources fallback; url-state tests still assert result.ui.hiddenSources, so removal is a follow-up cleanup.
+  IN-02: deferred — centralizing VALID_SOURCES risks a url-state↔filter circular import; fold into the planned multi-state refactor.
 ---
 
 # Phase 164: Code Review Report
