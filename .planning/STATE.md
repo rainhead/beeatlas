@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.2
-milestone_name: Offline Field Mode
+milestone_name: milestone
 status: verifying
 stopped_at: Completed 165-03-PLAN.md — frontend waba_specimen wiring (D-13); Phase 165 complete
-last_updated: "2026-06-24T21:54:32.059Z"
+last_updated: "2026-06-24T22:18:59.595Z"
 last_activity: 2026-06-24
 progress:
-  total_phases: 23
-  completed_phases: 20
-  total_plans: 45
-  completed_plans: 45
-  percent: 87
+  total_phases: 33
+  completed_phases: 14
+  total_plans: 34
+  completed_plans: 34
+  percent: 42
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion 
 
 ## Current Position
 
-Phase: 165 (duplicate-occurrence-rows-shared-occ-id) — EXECUTING
-Plan: 4 of 4 (complete)
+Phase: 999.11
+Plan: Not started
 Status: Phase complete — ready for verification
 Last activity: 2026-06-24
 
