@@ -4,8 +4,8 @@ milestone: v5.2
 milestone_name: Offline Field Mode
 status: executing
 stopped_at: Phase 165 context gathered
-last_updated: "2026-06-24T21:25:54.740Z"
-last_activity: 2026-06-24 -- Phase 165 planning complete
+last_updated: "2026-06-24T21:29:25.291Z"
+last_activity: 2026-06-24 -- Phase 165 execution started
 progress:
   total_phases: 23
   completed_phases: 19
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 164 — sidebar-list-ignores-src-source-filter
+**Current focus:** Phase 165 — duplicate-occurrence-rows-shared-occ-id
 
 ## Current Position
 
-Phase: 164 (sidebar-list-ignores-src-source-filter) — EXECUTING
-Plan: 1 of 1
-Status: Ready to execute
-Last activity: 2026-06-24 -- Phase 165 planning complete
+Phase: 165 (duplicate-occurrence-rows-shared-occ-id) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 165
+Last activity: 2026-06-24 -- Phase 165 execution started
 
 ## Milestone Overview
 
