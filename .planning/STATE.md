@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
-milestone: v5.1
-milestone_name: milestone
-status: Awaiting operator UAT — map corridors render + place filter returns results
-stopped_at: Phase 162 Plan 02 COMPLETE — 13 hike corridors in places.geojson (920 KB), pipeline green; awaiting operator UAT.
-last_updated: "2026-06-24T01:07:21.031Z"
+milestone: v5.2
+milestone_name: Place Coverage Expansion
+status: shipped — v5.2 complete and archived; no active milestone
+stopped_at: v5.2 Place Coverage Expansion SHIPPED (Phases 160–162). Next milestone via /gsd-new-milestone, or pull a 999.x backlog item.
+last_updated: "2026-06-24T01:30:00.000Z"
 last_activity: 2026-06-24
 progress:
   total_phases: 35
@@ -18,23 +18,23 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-09 — v4.10 Housekeeping shipped)
+See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 162 — add-specific-hikes-as-places
+**Current focus:** none — between milestones (v5.2 shipped 2026-06-24)
 
 ## Current Position
 
-Phase: 999.11
+Phase: none (v5.2 closed)
 Plan: Not started
-Status: Awaiting operator UAT — map corridors render + place filter returns results
+Status: v5.2 Place Coverage Expansion shipped + archived; no active milestone
 Last activity: 2026-06-24
 
 ## Milestone Overview
 
-**No active milestone.** v5.1 Housekeeping (Phases 155–159) shipped and archived 2026-06-23 — see [milestones/v5.1-ROADMAP.md](milestones/v5.1-ROADMAP.md) and MILESTONES.md. The 145–159 working set is fully closed.
+**No active milestone.** v5.2 Place Coverage Expansion (Phases 160–162) shipped and archived 2026-06-24 — see [milestones/v5.2-ROADMAP.md](milestones/v5.2-ROADMAP.md) and MILESTONES.md. The 145–162 working set is fully closed.
 
-Next: start a new milestone with `/gsd-new-milestone`, or pull a `999.x` backlog item (WDFW wildlife areas as places, specific-hikes-as-places, Safari private-browsing offline UI).
+Next: start a new milestone with `/gsd-new-milestone`, or pull a `999.x` backlog item (federal wilderness areas as regions 999.11, sidebar `src=` filter bug 999.10, duplicate occ_id rows 999.9, Safari private-browsing offline UI 999.7).
 
 ## Accumulated Context
 
@@ -70,7 +70,9 @@ None open.
 
 ## Deferred Items
 
-Acknowledged at v5.1 milestone close (2026-06-23):
+Acknowledged at v5.2 milestone close (2026-06-24): the open-artifact audit showed 12 items, **all verified non-blocking** — the 10 UAT "gaps" (incl. 160/161/162) are all `passed`/`approved` with 0 pending scenarios (flagged only because status ≠ literal "complete"); the 1 todo is the pre-existing 144 deferral below; Phase 162's "open questions" are the CONTEXT `<open_questions>` section already resolved by 162-RESEARCH.md. Plus: `snoqualmie-pass-to-olallie-meadow-trail` deferred (needs hand-traced GPX), and Phase 162's OSM geometry-assembly paths lack a direct regression test (162 code-review IN-05).
+
+Carried forward (originally acknowledged at v5.1 close 2026-06-23):
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -82,15 +84,11 @@ Acknowledged at v5.1 milestone close (2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-24T00:49:45.326Z
-Stopped at: Phase 162 Plan 02 COMPLETE — 13 hike corridors in places.geojson (920 KB), pipeline green; awaiting operator UAT.
+Last session: 2026-06-24T01:30:00.000Z
+Stopped at: v5.2 Place Coverage Expansion SHIPPED + archived (Phases 160–162; tag v5.2). main is ahead of origin/main and unpushed.
 Resume file: None
 
 ## Operator Next Steps
 
-1. Regenerate local occurrences.db: `cd data && uv run python sqlite_export.py`
-2. Hard-reload `/app` and verify:
-   - Regions menu shows the 13 new hike corridors
-   - Selecting a hike (e.g. `umtanum-creek-canyon-trail`) filters sidebar to ~1,243 occurrences
-   - Hike corridor polygons render on the map
-3. After UAT passes: run `/gsd-complete-phase 162` and start the next milestone with `/gsd-new-milestone`
+1. **Push** when ready: `git push origin main && git push origin v5.2` (main is ahead of origin/main; v5.2 work — 160–162 — is unpushed).
+2. Start the next milestone with `/gsd-new-milestone`, or promote a backlog item with `/gsd-review-backlog` (999.11 federal wilderness areas is the natural next place-source, reusing the 161/162 curation pattern).

@@ -2,6 +2,41 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v5.2 — Place Coverage Expansion
+
+**Shipped:** 2026-06-24
+**Phases:** 3 (160–162) | **Plans:** 8 | **Timeline:** 2026-06-23 → 2026-06-24 | **Requirements:** none (backlog promotions)
+
+### What Was Built
+Made the place model overlap-capable (160 — `occurrence_places` many-to-many bridge mart on a synthetic `occ_id`, scalar `place_slug` dropped from the occurrences mart, `ST_Overlaps` guard removed, frontend filter rewritten to `EXISTS` membership), then added two new curated place sources on it: 33 WDFW wildlife areas (161, ArcGIS → DuckDB dissolve) and 13 WTA hike corridors (162, OSM/Overpass line → ~250 m metric-CRS buffer). Both sources ship committed, list-driven curation scripts and stay under the ~1 MB `places.geojson` browser-weight cap.
+
+### What Worked
+- **Splitting the model change out of the feature was the right call.** Phase 161's research discovered 16 real WDFW↔existing-place overlaps; rather than clip/triage, the team recognized one-place-per-occurrence was an implementation artifact and split the many-to-many model into its own phase (160). 161 and 162 then "just worked" with overlaps — a hike corridor inside a WDFW area is simply dual membership.
+- **A reusable curation pattern paid off immediately.** 161's `add_wdfw_wildlife_areas.py` became the near-verbatim template for 162's `add_hikes_as_places.py` (shared `toml_block()`, idempotent append, `tomllib` round-trip, explicit raises). The only genuinely new code in 162 was the metric-buffer chain. Zero new Python deps across both.
+- **The human-action checkpoint earned its keep.** 162's planner correctly marked the OSM-gap resolution `autonomous: false`; at execution the gap turned out to be a data-quality call (full ~75 km PCT Section J vs the ~8 km day-hike) that was genuinely the operator's — deferred cleanly rather than shipping a 9× over-claiming corridor.
+- **Operator UAT caught a real defect tests couldn't.** 161's "empty sidebar" repro traced to the gitignored `occurrences.db` going stale (the `generate-sqlite` step never ran because the full `run.py` is blocked by the Ecdysis auth gate in local dev). Not a code bug; documented to project memory with the `sqlite_export.py` fix.
+- **`always_xy=true` flagged as the single highest risk and test-guarded.** The planner/research surfaced that omitting the 4th `ST_Transform` arg yields a silent `POINT(inf inf)`; the golden-fixture test asserts finite/valid geometry as a regression guard.
+
+### What Was Inefficient
+- **Two code-review `--fix` passes shipped after each phase's UAT**, not before — both curation scripts had latent robustness bugs (TOML injection from remote names in 161; unreachable GPX fallback, OSM id-namespace collision, reversed-way concatenation, Overpass-QL injection in 162). None affected the shipped data, but folding a review pass into execution (before UAT) would have caught them earlier.
+- **Stale ROADMAP checkbox at close.** Phase 160 was closed before this session but its ROADMAP checkbox stayed unticked, requiring a manual fix at milestone close — same "flip frontmatter/checkboxes at completion time" friction noted in v5.1.
+- **OSM geometry-assembly paths still untested.** 162's WR-02/WR-03 fixes were verified by reasoning about Overpass response shapes, not an executing test (no fixture for relation/way assembly) — carried as known tech debt before the hike set expands.
+
+### Patterns Established
+- **Place-source curation script:** fetch authoritative geometry → DuckDB-spatial transform (dissolve for areas, metric-CRS `ST_Buffer` for linear) → `ST_SimplifyPreserveTopology` against the `places.geojson` weight budget → emit `[[places]]` TOML via the shared `toml_block()` writer. Template for the 999.11 wilderness-areas backlog item.
+- **Linear features as corridor polygons:** `ST_Within` needs a polygon; buffer trail LineStrings in a metric CRS (UTM 10N, `always_xy=true`), never in degrees.
+- **`places.geojson` ~1 MB cap is the binding fidelity constraint** — ratify a simplification tolerance per source and report before/after size.
+
+### Key Lessons
+- When research surfaces that a "constraint" is an implementation artifact, split the model fix into its own phase — downstream feature phases collapse in complexity.
+- Local UAT of data-layer features can lie when a gitignored derived artifact (`occurrences.db`) is stale; the fix is a one-command regen, but the failure mode is non-obvious — worth the project-memory note.
+- A `--chain` run still pauses correctly at a genuine human-action decision; don't try to automate data-quality judgment calls.
+
+### Cost Observations
+- Model mix: orchestration on Opus; researcher/pattern-mapper/planner-checker/executor/verifier/reviewer/fixer subagents on Sonnet.
+- Sessions: 1 primary `--chain` session covering 161 plan→execute, 162 plan→execute, two `--fix` passes, two backlog captures, and milestone close.
+- Notable: 162 made live Overpass API calls during execution (network available in-sandbox); both curation scripts run at maintainer time only — nothing new ships to the static runtime.
+
 ## Milestone: v5.1 — Housekeeping
 
 **Shipped:** 2026-06-23
