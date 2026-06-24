@@ -29,6 +29,79 @@ ECDYSIS_CACHE_DIR = Path(os.environ.get(
 ECDYSIS_CACHE_TTL_SECONDS = int(os.environ.get("ECDYSIS_CACHE_TTL_SECONDS", "21600"))
 
 
+# Ecdysis/Symbiota now requires an authenticated session for the dataset-44 bulk
+# download (anonymous publicsearch=1 POSTs return 401 {"error":"Unauthorized access"}).
+# The login form has NO CSRF token (no pre-GET needed); the real credential form's
+# submit control is `action=login` and its username field is `login` (verified live
+# 2026-06-24 — see 163-RESEARCH.md Q1). Credentials live in data/.dlt/secrets.toml
+# [sources.ecdysis] (gitignored, maderas-only) and are NEVER logged.
+ECDYSIS_LOGIN_URL = "https://ecdysis.org/profile/index.php"
+ECDYSIS_DOWNLOAD_URL = "https://ecdysis.org/collections/download/downloadhandler.php"
+_ZIP_MAGIC = b"PK\x03\x04"  # ZIP local-file-header magic bytes
+
+
+def _get_credentials() -> tuple[str, str]:
+    """Read (username, password) from data/.dlt/secrets.toml [sources.ecdysis].
+
+    Bracket access (not .get) so a missing key fails loudly when creds aren't
+    provisioned. Standalone module-level function so tests can monkeypatch this seam
+    instead of touching dlt.secrets.
+    """
+    return (
+        dlt.secrets["sources.ecdysis.username"],
+        dlt.secrets["sources.ecdysis.password"],
+    )
+
+
+def _login_session(session: requests.Session) -> None:
+    """Authenticate the Symbiota session in place by POSTing the real credential form.
+
+    The password is NEVER interpolated into any log/print/exception (V7). The download
+    response guard — not this login response — is the authoritative success signal
+    (163-RESEARCH.md Q2), so the login HTML is intentionally not parsed for a marker.
+    """
+    username, password = _get_credentials()
+    session.post(
+        ECDYSIS_LOGIN_URL,
+        data={
+            "login": username,
+            "password": password,
+            "action": "login",
+            "remember": "0",
+        },
+        headers={"User-Agent": "curl/8.7.1"},
+        timeout=120,
+    )
+
+
+def _assert_zip_response(response: requests.Response) -> None:
+    """Raise loudly unless `response` is a real ZIP, so a JSON/401 error body is never
+    cached as a corrupt ZIP. Never includes credentials in the message."""
+    response.raise_for_status()
+    content_type = response.headers.get("Content-Type", "")
+    if "application/json" in content_type or "text/html" in content_type:
+        raise RuntimeError(
+            f"Ecdysis download returned {content_type!r}, not a ZIP: "
+            f"{response.content[:200]!r}"
+        )
+    if not response.content.startswith(_ZIP_MAGIC):
+        raise RuntimeError(
+            "Ecdysis download body is not a ZIP (missing PK\\x03\\x04 magic): "
+            f"{response.content[:200]!r}"
+        )
+
+
+def _is_valid_cached_zip(path: Path) -> bool:
+    """True iff `path` exists, is non-empty, and opens as a ZIP with no corrupt members."""
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    try:
+        with zipfile.ZipFile(path) as zf:
+            return zf.testzip() is None
+    except zipfile.BadZipFile:
+        return False
+
+
 def _download_zip(dataset_id: int) -> bytes:
     cache_path = ECDYSIS_CACHE_DIR / f"{dataset_id}.zip"
     if ECDYSIS_CACHE_TTL_SECONDS > 0 and cache_path.exists():
@@ -60,16 +133,30 @@ def _download_zip(dataset_id: int) -> bytes:
         }),
         "submitaction": "",
     }
-    response = requests.post(
-        "https://ecdysis.org/collections/download/downloadhandler.php",
-        data=parse.urlencode(params),
-        headers={
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "curl/8.7.1",
-        },
-        timeout=120,
-    )
-    response.raise_for_status()
+    try:
+        session = requests.Session()
+        _login_session(session)
+        response = session.post(
+            ECDYSIS_DOWNLOAD_URL,
+            data=parse.urlencode(params),
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "curl/8.7.1",
+            },
+            timeout=120,
+        )
+        _assert_zip_response(response)
+    except Exception as e:  # login / download / guard / network failure
+        # Degrade gracefully (D-3): reuse a valid cached ZIP rather than zeroing out
+        # the nightly. The exception `e` carries no credentials (login/guard never
+        # interpolate the password), so it is safe to print.
+        if _is_valid_cached_zip(cache_path):
+            print(  # noqa: T201
+                f"  WARNING: Ecdysis download failed ({e}); reusing cached ZIP "
+                f"at {cache_path}"
+            )
+            return cache_path.read_bytes()
+        raise  # no usable cache → hard-fail loudly
 
     # Atomic write so a kill mid-download can't leave a half-written cache file.
     ECDYSIS_CACHE_DIR.mkdir(parents=True, exist_ok=True)
