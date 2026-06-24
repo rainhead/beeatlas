@@ -40,15 +40,16 @@ created: 2026-06-24
 
 | Task | Wave | Decision | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |------|------|----------|-----------------|-----------|-------------------|-------------|--------|
-| occ_id uniqueness guard | 0 | D-09 | N/A | dbt singular test | `bash data/dbt/run.sh test --select test_no_duplicate_occ_ids` | ❌ W0 | ⬜ pending |
-| `int_waba_link` MIN() removal | 1 | D-05 | N/A | dbt build + query 320276469 matched | `bash data/dbt/run.sh build --select int_waba_link+ && duckdb data/beeatlas.duckdb -c "SELECT * FROM dbt_sandbox.int_matched_waba_ids WHERE waba_obs_id=320276469"` | ✅ | ⬜ pending |
-| Category-3 provisional arm (project 166376 anti-join) | 1 | D-03/D-11 | N/A | dbt build + row assertion (~28 mappable) | `bash data/dbt/run.sh build --select int_combined` | ✅ | ⬜ pending |
-| Category-2 `waba_specimen` arm (the 33) | 1 | D-10/D-12 | N/A | dbt build + assert 33 rows source='waba_specimen', is_provisional=FALSE | `bash data/dbt/run.sh build --select int_combined` | ✅ | ⬜ pending |
-| No duplicate occ_ids after correction (Shapes A+B gone) | 2 | D-01 | N/A | dbt singular test returns only Shape C (warn) | `bash data/dbt/run.sh test --select test_no_duplicate_occ_ids` | ❌ W0 | ⬜ pending |
-| `waba_specimen` in SourceKey/VALID_SOURCES + toggle | 2 | D-13 | N/A | vitest unit (url-state round-trip, filter) | `npm test` | ✅/❌ | ⬜ pending |
-| `occIdFromRow` priority unchanged | 2 | D-06 | N/A | vitest unit | `npm test -- src/tests/occurrence.test.ts` | ✅ | ⬜ pending |
-| `marts/occurrences` 36-col contract still passes | 2 | — | N/A | dbt contract | `bash data/dbt/run.sh build` | ✅ | ⬜ pending |
-| `docs/domain-model.md` exists + linked from CLAUDE.md | 2 | D-07 | N/A | grep | `test -f docs/domain-model.md && grep -q domain-model.md CLAUDE.md` | ❌ W0 | ⬜ pending |
+| occ_id uniqueness guard (plan 165-01) | 1 | D-09 | N/A | dbt singular test | `bash data/dbt/run.sh test --select test_no_duplicate_occ_ids` | ❌ W0 | ⬜ pending |
+| category-3 `inat:N` vitest case (plan 165-01) | 1 | D-11 | N/A | vitest unit | `npm test -- src/tests/occurrence.test.ts` | ✅ | ⬜ pending |
+| `int_waba_link` MIN() removal (plan 165-02) | 2 | D-05 | N/A | dbt build + query 320276469 matched | `bash data/dbt/run.sh build --select int_waba_link+ && duckdb data/beeatlas.duckdb -c "SELECT * FROM dbt_sandbox.int_matched_waba_ids WHERE waba_obs_id=320276469"` | ✅ | ⬜ pending |
+| Category-3 provisional arm, project 166376 anti-join (plan 165-02) | 2 | D-03/D-11 | N/A | dbt build + row assertion (~28 mappable) | `bash data/dbt/run.sh build --select int_combined` | ✅ | ⬜ pending |
+| Category-2 `waba_specimen` arm — the 33 (plan 165-02) | 2 | D-10/D-12 | N/A | dbt build + assert 33 rows source='waba_specimen', is_provisional=FALSE | `bash data/dbt/run.sh build --select int_combined` | ✅ | ⬜ pending |
+| No duplicate occ_ids after correction, Shapes A+B gone (plan 165-02) | 2 | D-01 | N/A | dbt singular test returns only Shape C (warn) | `bash data/dbt/run.sh test --select test_no_duplicate_occ_ids` | ❌ W0 | ⬜ pending |
+| `marts/occurrences` 36-col contract still passes (plan 165-02) | 2 | — | N/A | dbt contract | `bash data/dbt/run.sh build` | ✅ | ⬜ pending |
+| `waba_specimen` in SourceKey/VALID_SOURCES + toggle (plan 165-03) | 3 | D-13 | N/A | vitest unit (url-state round-trip, filter) | `npm test` | ✅/❌ | ⬜ pending |
+| `occIdFromRow` priority unchanged (plan 165-03) | 3 | D-06 | N/A | vitest unit | `npm test -- src/tests/occurrence.test.ts` | ✅ | ⬜ pending |
+| `docs/domain-model.md` exists + linked from CLAUDE.md (plan 165-04) | 3 | D-07 | N/A | grep | `test -f docs/domain-model.md && grep -q domain-model.md CLAUDE.md` | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

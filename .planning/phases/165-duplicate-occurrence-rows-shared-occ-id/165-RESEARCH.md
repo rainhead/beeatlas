@@ -484,7 +484,18 @@ WHERE waba.id NOT IN (SELECT waba_obs_id FROM dbt_sandbox.int_matched_waba_ids);
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> **All three resolved by the CONTEXT.md three-category refinement (D-10..D-13), 2026-06-24.**
+> The "accept the regression / no frontend change" recommendation below is **SUPERSEDED**:
+> the 33 specimens are KEPT as a new `source='waba_specimen'` arm (`is_provisional=FALSE`),
+> which makes this a frontend change too. Specifically:
+> - **Q1 → KEEP + DOCUMENT.** The 33 are not dropped; they become category 2 (`waba_specimen`),
+>   and the pipeline-lag state is documented in `docs/domain-model.md` (D-06/D-10).
+> - **Q2 → NEW VALUE.** `source` for the bee specimens = `waba_specimen` (D-12); `waba_sample`
+>   is reserved for provisional plant/sample project members only (D-11).
+> - **Q3 → OUT OF SCOPE.** Shape C (OFV fan-out) stays out of scope; the D-09 test is
+>   `severity: warn` so it does not block the build (note it for a backlog item).
 
 1. **Should the 33 data-regressed bee specimens be noted in the domain model?**
    - What we know: 34 current ARM 2 specimens will be removed from int_combined under D-03. 33 have no Ecdysis match. They'll be invisible until Ecdysis upload catches up.
