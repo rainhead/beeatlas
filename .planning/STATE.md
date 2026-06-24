@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.2
-milestone_name: Place Coverage Expansion
-status: ready_to_plan
-stopped_at: Phase 163 complete (1/1) — ready to discuss Phase 164
-last_updated: 2026-06-24T16:51:52.017Z
-last_activity: 2026-06-24 -- Phase 163 execution started
+milestone_name: milestone
+status: planning
+stopped_at: Phase 164 context gathered
+last_updated: "2026-06-24T17:47:01.054Z"
+last_activity: 2026-06-24
 progress:
-  total_phases: 22
-  completed_phases: 17
-  total_plans: 40
-  completed_plans: 40
-  percent: 77
+  total_phases: 33
+  completed_phases: 14
+  total_plans: 34
+  completed_plans: 34
+  percent: 42
 ---
 
 # Project State
@@ -84,9 +84,9 @@ Carried forward (originally acknowledged at v5.1 close 2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-24T01:30:00.000Z
-Stopped at: v5.2 Place Coverage Expansion SHIPPED + archived (Phases 160–162; tag v5.2). main is ahead of origin/main and unpushed.
-Resume file: None
+Last session: 2026-06-24T17:47:01.048Z
+Stopped at: Phase 164 context gathered
+Resume file: .planning/phases/164-sidebar-list-ignores-src-source-filter/164-CONTEXT.md
 
 ## Operator Next Steps
 
