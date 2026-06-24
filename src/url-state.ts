@@ -230,11 +230,23 @@ export function parseParams(search: string): ParsedParams {
     }
   }
 
-  // Include filter sub-object when any filter param is present
+  // Source filter — parse src= before hasFilter so hiddenSources is in scope for both
+  // the filter result and the UI result. The src= tokens are validated against VALID_SOURCES
+  // (T-164-IV: bogus values are dropped on parse, never reaching SQL).
+  const srcRaw = p.get('src');
+  let hiddenSources: Set<SourceKey> | undefined;
+  if (srcRaw) {
+    const visible = new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[]);
+    const hidden = new Set([...VALID_SOURCES].filter(s => !visible.has(s)));
+    hiddenSources = hidden.size > 0 ? hidden : undefined;
+  }
+
+  // Include filter sub-object when any filter param is present (including src=).
   const hasFilter = resolvedTaxonId !== null || yearFrom !== null || yearTo !== null
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
     || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null
-    || selectedPlace !== null || boundsResult !== null;
+    || selectedPlace !== null || boundsResult !== null
+    || (hiddenSources !== undefined && hiddenSources.size > 0);
   if (hasFilter) {
     result.filter = {
       taxonId: resolvedTaxonId,
@@ -249,6 +261,7 @@ export function parseParams(search: string): ParsedParams {
       elevMax,
       selectedPlace,
       bounds: boundsResult,
+      hiddenSources: hiddenSources ?? new Set(),
     };
   }
 
@@ -290,13 +303,6 @@ export function parseParams(search: string): ParsedParams {
     : paneRaw === 'table' ? 'table'
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
-  const srcRaw = p.get('src');
-  let hiddenSources: Set<SourceKey> | undefined;
-  if (srcRaw) {
-    const visible = new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[]);
-    const hidden = new Set([...VALID_SOURCES].filter(s => !visible.has(s)));
-    hiddenSources = hidden.size > 0 ? hidden : undefined;
-  }
   // Include UI when non-default values present
   if (boundaryMode !== 'off' || paneState !== 'collapsed' || (hiddenSources && hiddenSources.size > 0)) {
     result.ui = { boundaryMode, paneState, hiddenSources };

@@ -1,6 +1,7 @@
 import { getDB, tablesReady } from './sqlite.ts';
 import { occIdFromRow } from './occurrence.ts';
 import type { FeatureCollection, Point, Feature } from 'geojson';
+import type { SourceKey } from './url-state.ts';
 
 // A resolved collector entry links a human name to an iNat username (either may be null).
 // Stored in FilterState.selectedCollectors and used as CollectorOption in autocomplete.
@@ -23,6 +24,7 @@ export interface FilterState {
   elevMax: number | null;
   selectedPlace: string | null;     // D-07 — singular; multi-place is deferred PRICH-02
   bounds: { west: number; south: number; east: number; north: number } | null; // D-01 (phase 999.8): spatial bounding box as first-class filter field
+  hiddenSources: Set<SourceKey>; // empty Set = no source filter (show all)
 }
 
 export interface OccurrenceProperties {
@@ -254,7 +256,8 @@ export function isFilterActive(f: FilterState): boolean {
     || f.elevMin !== null
     || f.elevMax !== null
     || f.selectedPlace !== null
-    || f.bounds !== null;
+    || f.bounds !== null
+    || f.hiddenSources.size > 0;
 }
 
 // INVARIANT: the returned clause qualifies the occurrences table as `o`
@@ -381,6 +384,22 @@ export function buildFilterSQL(f: FilterState, hasPlacesBridge: boolean = true):
     occurrenceClauses.push(
       `lat BETWEEN ${south} AND ${north} AND lon BETWEEN ${west} AND ${east}`
     );
+  }
+
+  // Source filter — restrict to user-visible sources; empty visible set = honest zero (D-05, phase 164).
+  // Security (T-164-SQL): values come from the hardcoded VALID_SOURCES local array, NOT from user input.
+  // The visible complement is computed from the allowlist, so every interpolated token is a
+  // compile-time-known literal. o.-alias invariant: qualify as o.source.
+  if (f.hiddenSources.size > 0) {
+    const VALID_SOURCES: SourceKey[] = ['ecdysis', 'waba_sample', 'inat_obs', 'checklist'];
+    const visibleSources = VALID_SOURCES.filter(s => !f.hiddenSources.has(s));
+    if (visibleSources.length === 0) {
+      // All sources hidden — force a false clause (no rows can match, D-05).
+      occurrenceClauses.push('1 = 0');
+    } else {
+      const list = visibleSources.map(s => `'${s}'`).join(',');
+      occurrenceClauses.push(`o.source IN (${list})`);
+    }
   }
 
   const occurrenceWhere = occurrenceClauses.length > 0 ? occurrenceClauses.join(' AND ') : '1 = 1';
