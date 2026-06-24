@@ -111,10 +111,15 @@ def test_occurrences_row_count_within_tolerance():
 
 @_SANDBOX_GUARD
 def test_occurrences_schema_matches():
-    """Column names AND types from DESCRIBE match exactly between sandbox and public (37 cols).
+    """Column names AND types from DESCRIBE match exactly between sandbox and public (36 cols).
 
     Asserts the full ordered list of (column_name, data_type) pairs is identical.
-    Verified baseline: 37 columns with identical names and types in both files.
+    Verified baseline: 36 columns with identical names and types in both files
+    (Phase 160 dropped the scalar `place_slug` — 37→36 — moving place membership to
+    the separate `occurrence_places` bridge). NOTE: an intentional occurrences-contract
+    change makes this gate fail on the FIRST post-change nightly, because live S3 still
+    carries the old schema; that publish is a documented one-time deadlock broken with
+    `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` (see nightly.sh).
     """
     s_cols = [
         (r[0], r[1])
