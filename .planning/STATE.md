@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
 milestone: v5.2
-milestone_name: milestone
-status: executing
+milestone_name: Offline Field Mode
+status: verifying
 stopped_at: Phase 164 context gathered
-last_updated: "2026-06-24T18:03:35.082Z"
-last_activity: 2026-06-24 -- Phase 164 planning complete
+last_updated: "2026-06-24T18:12:23.186Z"
+last_activity: 2026-06-24
 progress:
-  total_phases: 33
-  completed_phases: 14
-  total_plans: 34
-  completed_plans: 34
-  percent: 42
+  total_phases: 22
+  completed_phases: 19
+  total_plans: 41
+  completed_plans: 41
+  percent: 86
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 164 — sidebar list ignores src source filter
+**Current focus:** Phase 164 — sidebar-list-ignores-src-source-filter
 
 ## Current Position
 
-Phase: 164
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-24 -- Phase 164 planning complete
+Phase: 164 (sidebar-list-ignores-src-source-filter) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-24
 
 ## Milestone Overview
 
@@ -84,9 +84,9 @@ Carried forward (originally acknowledged at v5.1 close 2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-24T17:47:01.048Z
+Last session: 2026-06-24T18:12:23.178Z
 Stopped at: Phase 164 context gathered
-Resume file: .planning/phases/164-sidebar-list-ignores-src-source-filter/164-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
