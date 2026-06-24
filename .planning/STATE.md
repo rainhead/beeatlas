@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v5.2
 milestone_name: Place Coverage Expansion
-status: executing
-stopped_at: v5.2 Place Coverage Expansion SHIPPED + archived (Phases 160–162; tag v5.2). main is ahead of origin/main and unpushed.
-last_updated: "2026-06-24T05:35:20.116Z"
+status: ready_to_plan
+stopped_at: Phase 163 complete (1/1) — ready to discuss Phase 164
+last_updated: 2026-06-24T16:51:52.017Z
 last_activity: 2026-06-24 -- Phase 163 execution started
 progress:
   total_phases: 22
   completed_phases: 17
   total_plans: 40
-  completed_plans: 39
+  completed_plans: 40
   percent: 77
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 163 — ecdysis-download-requires-authenticated-session
+**Current focus:** Phase 164 — sidebar list ignores src source filter
 
 ## Current Position
 
-Phase: 163 (ecdysis-download-requires-authenticated-session) — EXECUTING
-Plan: 1 of 1
-Status: Executing Phase 163
-Last activity: 2026-06-24 -- Phase 163 execution started
+Phase: 164
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-24
 
 ## Milestone Overview
 
