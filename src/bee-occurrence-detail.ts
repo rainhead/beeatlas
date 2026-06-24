@@ -338,11 +338,12 @@ export class BeeOccurrenceDetail extends LitElement {
         ${row.specimen_count != null && !isNaN(row.specimen_count)
           ? html`<div class="event-count">${row.specimen_count} specimen${row.specimen_count === 1 ? '' : 's'} collected</div>`
           : ''}
+        ${row.observation_id != null ? html`
         <div class="event-inat">
-          <a href="https://www.inaturalist.org/observations/${row.specimen_observation_id}"
+          <a href="https://www.inaturalist.org/observations/${row.observation_id}"
              target="_blank" rel="noopener"
              aria-label="View WABA observation on iNaturalist">View WABA observation</a>
-        </div>
+        </div>` : ''}
         ${this._renderPlaceNames(row)}
       </div>
     `;
