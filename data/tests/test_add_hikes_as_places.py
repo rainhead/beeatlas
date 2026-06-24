@@ -13,9 +13,10 @@ Covers:
     POINT(inf inf) which would fail the MULTIPOLYGON/validity/bbox checks.)
   - gpx_to_linestring_wkt: parses a tiny 3-point GPX 1.1 document to
     LINESTRING with lon-lat order (offline; guards the GPX fallback).
-  - Slug convention: all 14 HIKES slugs match ^[a-z0-9-]+$ and end with
-    '-trail'; HIKES has exactly 14 entries; every entry carries slug, name,
-    land_owner, and at least one geometry-source key.
+  - Slug convention: all 13 active HIKES slugs match ^[a-z0-9-]+$ and end with
+    '-trail'; HIKES has exactly 13 entries (snoqualmie-pass-to-olallie-meadow-trail
+    is deferred — OSM only has the full ~75 km PCT Section J); every entry carries
+    slug, name, land_owner, and at least one geometry-source key.
 """
 
 import re
@@ -156,7 +157,8 @@ def test_corridor_area_sane():
 
 def test_all_hike_slugs_match_regex():
     """Every HIKES slug must match ^[a-z0-9-]+$ and end with '-trail'."""
-    assert len(HIKES) == 14, f"Expected 14 HIKES entries, got {len(HIKES)}"
+    # 14 planned; 1 deferred (snoqualmie-pass-to-olallie-meadow-trail, 2026-06-23)
+    assert len(HIKES) == 13, f"Expected 13 HIKES entries, got {len(HIKES)}"
 
     for hike in HIKES:
         slug = hike["slug"]
