@@ -1556,6 +1556,33 @@ will overlap its parent place). Independent of Phase 161.
 
 ## Backlog
 
+### Phase 999.11: Add federal wilderness areas as regions (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Captured 2026-06-23. A new place/region source in the same family as Phase 161
+(WDFW wildlife areas) and Phase 162 (hikes): add federally designated
+**wilderness areas** (National Wilderness Preservation System) as `[[places]]`
+entries so occurrences inside them are tagged, filterable, and surfaced as
+"Regions" on the map. Polygon boundaries (no linear-geometry problem like hikes),
+so the established curation pattern applies directly — mirror
+`data/add_wdfw_wildlife_areas.py`: fetch authoritative boundaries → DuckDB
+dissolve/validate → simplify for browser weight → emit TOML. Benefits from Phase
+160 (many-to-many): a wilderness area overlaps its managing agency's land and
+often a national forest/park, so multi-place membership is expected. Open
+questions for discuss/plan: authoritative source (Wilderness.net / NWPS GIS,
+USGS PAD-US, or per-agency layers), scope (WA-only to match current coverage, or
+broader per [[project_multi_state_expansion]]), `land_owner` attribution
+(managing agency — USFS/NPS/BLM/USFWS varies per wilderness), and weight impact
+on `places.geojson` (already ~898 KB after 161+162 vs the ~1 MB guard — may force
+a tighter simplification tolerance or a budget rethink).
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.10: Sidebar occurrence list ignores the `src=` source filter (shows deselected sources) (BACKLOG)
 
 **Goal:** [Captured for future planning]
