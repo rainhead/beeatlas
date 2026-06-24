@@ -858,9 +858,12 @@ describe('MAP-03: checklist taxon filter binding (county-fill removed, Plan 138-
     expect(atlasSrc).not.toMatch(/@checklist-layer-changed/);
   });
 
-  test('bee-atlas.ts handles source-filter-changed and sets _hiddenSources', () => {
+  test('bee-atlas.ts handles source-filter-changed and writes _filterState.hiddenSources (D-02/164)', () => {
     expect(atlasSrc).toMatch(/_onSourceFilterChanged/);
-    expect(atlasSrc).toMatch(/_hiddenSources\s*=\s*e\.detail\.hiddenSources/);
+    // New pattern: writes _filterState spread with hiddenSources: e.detail.hiddenSources
+    expect(atlasSrc).toMatch(/_filterState\s*=\s*\{[^}]*hiddenSources:\s*e\.detail\.hiddenSources/s);
+    // Handler must re-run all three query methods (D-01)
+    expect(atlasSrc).toMatch(/_onSourceFilterChanged[\s\S]*?_runFilterQuery\(\)[\s\S]*?_runListQuery\(\)[\s\S]*?_runTableQuery\(\)/);
   });
 
   test('bee-atlas.ts backfills taxon display name on both URL-restore paths (MFILT-03 regression)', () => {
@@ -891,8 +894,22 @@ describe('MAP-02: source-filter-changed event in bee-atlas', () => {
   test('bee-atlas.ts handles source-filter-changed event', () => {
     expect(src).toMatch(/source-filter-changed/);
   });
-  test('bee-atlas.ts declares _hiddenSources state', () => {
-    expect(src).toMatch(/_hiddenSources/);
+  test('bee-atlas.ts uses _filterState.hiddenSources as source of truth (standalone _hiddenSources field deleted)', () => {
+    // The standalone @state() private _hiddenSources field is retired — _filterState.hiddenSources is the owner
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_hiddenSources/);
+    // _filterState must reference hiddenSources
+    expect(src).toMatch(/_filterState\.hiddenSources/);
+  });
+  test('bee-atlas.ts _buildCurrentParams passes _filterState.hiddenSources to ui arg', () => {
+    expect(src).toMatch(/hiddenSources:\s*this\._filterState\.hiddenSources/);
+  });
+  test('bee-atlas.ts _onFilterChanged preserves hiddenSources across chip changes (Pitfall 1)', () => {
+    // _onFilterChanged must include hiddenSources: this._filterState.hiddenSources in the rewritten state
+    expect(src).toMatch(/hiddenSources:\s*this\._filterState\.hiddenSources/);
+  });
+  test('bee-atlas.ts render passes .hiddenSources=${this._filterState.hiddenSources} to both bee-map and bee-pane', () => {
+    const occurrences = src.match(/\.hiddenSources=\$\{this\._filterState\.hiddenSources\}/g) ?? [];
+    expect(occurrences.length).toBeGreaterThanOrEqual(2);
   });
 });
 

@@ -92,6 +92,7 @@ export class BeeAtlas extends LitElement {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
+    hiddenSources: new Set(),
   };
 
   @state() private _visibleIds: Set<string> | null = null;
@@ -101,7 +102,6 @@ export class BeeAtlas extends LitElement {
   // Region control menu open/close (relocated from <bee-map> in Phase 157).
   @state() private _regionMenuOpen = false;
   @state() private _paneState: 'collapsed' | 'list' | 'table' = 'collapsed';
-  @state() private _hiddenSources: Set<SourceKey> = new Set();
   @state() private _tablePage = 1;
   @state() private _tableSortBy: SpecimenSortBy = 'date';
   @state() private _tableRows: OccurrenceRow[] = [];
@@ -500,7 +500,7 @@ bee-map {
             .ecoregionOptions=${this._ecoregionOptions}
             .viewState=${this._viewState}
             .filterState=${this._filterState}
-            .hiddenSources=${this._hiddenSources}
+            .hiddenSources=${this._filterState.hiddenSources}
             .offline=${this._offline}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
@@ -555,7 +555,7 @@ bee-map {
             .sortBy=${this._tableSortBy}
             .filterActive=${isFilterActive(this._filterState)}
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
-            .hiddenSources=${this._hiddenSources}
+            .hiddenSources=${this._filterState.hiddenSources}
             @filter-changed=${this._onFilterChanged}
             @source-filter-changed=${this._onSourceFilterChanged}
             @pane-expand-list=${this._onPaneExpandList}
@@ -624,7 +624,6 @@ bee-map {
     const paneState = initialParams.ui?.paneState ?? 'collapsed';
     this._boundaryMode = initBoundaryMode;
     this._paneState = paneState;
-    this._hiddenSources = initialParams.ui?.hiddenSources ?? new Set();
     if (paneState === 'table') import('./bee-table.ts');
     // Restore filter state from URL params
     const initFilter = initialParams.filter;
@@ -642,6 +641,8 @@ bee-map {
         elevMax: initFilter.elevMax ?? null,
         selectedPlace: initFilter.selectedPlace ?? null,
         bounds: initFilter.bounds ?? null,
+        // hiddenSources from filter (hasFilter now recognizes src=); belt-and-suspenders fallback to ui
+        hiddenSources: initFilter.hiddenSources ?? initialParams.ui?.hiddenSources ?? new Set(),
       };
     }
     // If URL contains a legacy taxon name, start the await-taxaReady resolution flow.
@@ -687,7 +688,7 @@ bee-map {
         { lon: initLon, lat: initLat, zoom: initZoom },
         this._filterState,
         initSel ?? { type: 'ids' as const, ids: [] },
-        { boundaryMode: initBoundaryMode, paneState }
+        { boundaryMode: initBoundaryMode, paneState, hiddenSources: this._filterState.hiddenSources }
       );
       window.history.replaceState({}, '', '?' + initParams.toString());
     }
@@ -1092,7 +1093,7 @@ bee-map {
       this._selectedCluster
         ? { type: 'cluster' as const, ...this._selectedCluster }
         : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { boundaryMode: this._boundaryMode, paneState: this._paneState, hiddenSources: this._hiddenSources }
+      { boundaryMode: this._boundaryMode, paneState: this._paneState, hiddenSources: this._filterState.hiddenSources }
     );
   }
 
@@ -1300,6 +1301,7 @@ bee-map {
       elevMax: parsed.filter?.elevMax ?? null,
       selectedPlace: parsed.filter?.selectedPlace ?? null,
       bounds: parsed.filter?.bounds ?? null,
+      hiddenSources: parsed.filter?.hiddenSources ?? parsed.ui?.hiddenSources ?? new Set(),
     };
     // Handle legacy taxon back-compat on history navigation via the same await-taxaReady
     // flow as firstUpdated. By the time popstate fires, taxaReady is already resolved
@@ -1315,7 +1317,6 @@ bee-map {
 
     // Restore UI state
     this._boundaryMode = parsed.ui?.boundaryMode ?? 'off';
-    this._hiddenSources = parsed.ui?.hiddenSources ?? new Set();
     const paneState = parsed.ui?.paneState ?? 'collapsed';
     this._tablePage = 1;
 
@@ -1537,6 +1538,8 @@ bee-map {
       selectedPlace: detail.selectedPlace ?? null,
       // D-05: FilterChangedEvent carries no bounds — preserve active bounds explicitly
       bounds: this._filterState.bounds,
+      // FilterChangedEvent carries no hiddenSources — preserve active source filter explicitly (Pitfall 1)
+      hiddenSources: this._filterState.hiddenSources,
     };
 
     // Auto-switch boundary layer to match newly added region filter type.
@@ -1697,8 +1700,13 @@ bee-map {
   }
 
   private _onSourceFilterChanged(e: CustomEvent<{ hiddenSources: Set<SourceKey> }>) {
-    this._hiddenSources = e.detail.hiddenSources;
-    this._replaceUrlState();
+    // Write _filterState first (Pitfall 4 — assign before querying)
+    this._filterState = { ...this._filterState, hiddenSources: e.detail.hiddenSources };
+    this._listPage = 1;
+    this._runFilterQuery();  // map + filter-result count
+    this._runListQuery();    // sidebar list
+    this._runTableQuery();   // table view
+    this._replaceUrlState(); // URL sync (now also triggers isFilterActive → style-cache bypass)
   }
 
   private _toggleRegionMenu() {
