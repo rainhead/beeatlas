@@ -206,6 +206,15 @@ describe('buildCsvFilename', () => {
     expect(buildCsvFilename(emptyFilter())).toBe('occurrences-all-20260115.csv');
   });
 
+  // WR-03: a source-only filter is active (isFilterActive true) but produces no name segment.
+  // The filename must collapse to the -all- form, not a malformed `occurrences--20260115.csv`.
+  test('source-only filter: occurrences-all-20260115.csv (no double-dash)', () => {
+    const f = { ...emptyFilter(), hiddenSources: new Set(['inat_obs'] as const) };
+    const name = buildCsvFilename(f);
+    expect(name).toBe('occurrences-all-20260115.csv');
+    expect(name).not.toContain('--');
+  });
+
   test('taxon only: occurrences-bombus-20260115.csv', () => {
     const f = { ...emptyFilter(), taxonId: 52775, taxonDisplayName: 'Bombus' };
     expect(buildCsvFilename(f)).toBe('occurrences-bombus-20260115.csv');

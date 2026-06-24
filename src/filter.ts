@@ -169,7 +169,11 @@ export function buildCsvFilename(f: FilterState): string {
     }
   }
 
-  return `occurrences-${segments.join('-')}-${date}.csv`;
+  // WR-03: some active filters (source-only, bounds-only, place-only, months-only) produce no
+  // name segment. Collapse the empty case back to the `-all-` convention rather than emitting a
+  // malformed `occurrences--<date>.csv` double-dash name.
+  const body = segments.length > 0 ? segments.join('-') : 'all';
+  return `occurrences-${body}-${date}.csv`;
 }
 
 export async function queryAllFiltered(

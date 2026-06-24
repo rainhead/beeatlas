@@ -465,6 +465,36 @@ describe('MAP-03: source filter URL param (src=)', () => {
     const result = parseParams('');
     expect(result.filter).toBeUndefined();
   });
+
+  // WR-01 (D-05): the all-sources-hidden state must survive a URL round-trip via the
+  // explicit `src=none` sentinel — not silently revert to "show all" on reload/share.
+  test('all 4 sources hidden: buildParams emits src=none', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
+                 hiddenSources: new Set(['ecdysis', 'waba_sample', 'inat_obs', 'checklist'] as const) } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    expect(params.get('src')).toBe('none');
+  });
+
+  test('src=none parses to all 4 sources hidden (honest-empty round-trip)', () => {
+    const result = parseParams('src=none');
+    expect(result.filter?.hiddenSources).toEqual(new Set(['ecdysis', 'waba_sample', 'inat_obs', 'checklist']));
+  });
+
+  test('all-hidden buildParams → parseParams recovers all-hidden (full round-trip)', () => {
+    const hidden = new Set(['ecdysis', 'waba_sample', 'inat_obs', 'checklist'] as const);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const, hiddenSources: hidden } as any;
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
+    const result = parseParams(params.toString());
+    expect(result.filter?.hiddenSources).toEqual(hidden);
+  });
+
+  test('src= with only unknown tokens is treated as no source filter (not all-hidden)', () => {
+    const result = parseParams('src=bogus_source');
+    // visible=∅ → no filter; all-hidden is reachable only via the explicit src=none sentinel.
+    expect(result.filter?.hiddenSources ?? undefined).toBeUndefined();
+  });
 });
 
 describe('bounds filter (D-01/D-02/D-03)', () => {
