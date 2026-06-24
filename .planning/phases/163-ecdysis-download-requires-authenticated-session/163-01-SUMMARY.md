@@ -80,9 +80,15 @@ TDD gate sequence intact: `test(163-01)` RED → `feat(163-01)` GREEN; REFACTOR 
 - `data/ecdysis_pipeline.py` — four new helpers (`_get_credentials`, `_login_session`, `_assert_zip_response`, `_is_valid_cached_zip`) + rewired `_download_zip`
 - `data/tests/test_ecdysis_auth.py` — 6 fast-tier behaviors (`login_fields`, `session_reuse`, `json_error_raises`, `cache_fallback`, `no_cache_hard_fail`, `password_not_logged`), HTTP mocked per Pattern D
 
+## Post-Review Hardening (commit `c3da5c11`)
+Code review (`163-REVIEW.md`: 0 critical, 4 warnings) surfaced two warnings fixed by operator decision:
+- **WR-01:** credential resolution hoisted OUT of the resilience `try` in `_download_zip`, so a missing/misprovisioned credential now fails loudly instead of being silently masked by the cache-fallback when a stale cache exists — the exact silent-staleness trap D-3 is meant to avoid (made concrete by the live credential-expiry detour). `_login_session` now takes `(username, password)` from the caller.
+- **WR-04:** added `test_password_not_logged_on_fallback_warning` to pin password-absence on the WARNING-print fallback branch (which interpolates the failure `{e}`) — the hard-fail-branch test did not reach that line.
+- WR-02 (integrity-check the pre-existing TTL fast-path), WR-03, IN-01..03 deferred (out of scope / cosmetic).
+
 ## Verification
-- `cd data && uv run pytest tests/test_ecdysis_auth.py` → 6 passed (all GREEN)
-- `cd data && uv run pytest` → 242 passed, 9 skipped — no regressions
+- `cd data && uv run pytest tests/test_ecdysis_auth.py` → 7 passed (6 original + WR-04 fallback-warning test; all GREEN)
+- `cd data && uv run pytest` → 243 passed, 9 skipped — no regressions
 - `git check-ignore -v data/.dlt/secrets.toml` → resolves to `data/.gitignore:4` (T-163-01 mitigated)
 - **Manual maderas integration (Task 3):** a fresh authenticated download fetched a valid `data/.ecdysis_cache/44.zip`, the dlt load completed (`LOADED, no failed jobs`), `run.py` ran through `generate-sqlite`, and the `nightly.sh` integration gate (`pytest -m integration`) passed.
 
