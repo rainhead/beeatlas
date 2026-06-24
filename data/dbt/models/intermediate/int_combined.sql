@@ -119,7 +119,95 @@ JOIN {{ ref('stg_inat__observations') }} obs ON obs.id = p.observation_id
 
 UNION ALL
 
--- ARM 3: iNat expert observations (Phase 118 / OCC-01)
+-- ARM 3 (category 2 / D-10/D-12): WABA iNat-photo bee specimens not yet in Ecdysis (~33).
+-- source='waba_specimen', is_provisional=FALSE. occ_id=inat_obs:N (observation_id=NULL,
+-- host_observation_id=NULL → falls to specimen_observation_id=sob.waba_obs_id).
+-- Carries bee canonical_name/taxon_id (same derivation as old ARM 2 — these are specimens).
+-- obs_url surfaces the iNat observation link (D-10 "ideally surface obs_url").
+-- Verified: no inat_obs (ARM 4) overlap except 320276469, which the MIN fix moved to ecdysis:
+-- so category 2 collides with nothing after D-05.
+SELECT
+    NULL                                                                        AS ecdysis_id,
+    NULL                                                                        AS catalog_number,
+    sob.longitude                                                               AS lon,
+    sob.latitude                                                                AS lat,
+    CAST(sob.observed_on AS VARCHAR)                                            AS date,
+    YEAR(sob.observed_on)                                                       AS year,
+    MONTH(sob.observed_on)                                                      AS month,
+    NULL                                                                        AS recordedBy,
+    NULL                                                                        AS fieldNumber,
+    NULL                                                                        AS floralHost,
+    NULL::BIGINT                                                                AS host_observation_id,
+    NULL                                                                        AS inat_host,
+    sob.quality_grade                                                           AS inat_quality_grade,
+    NULL                                                                        AS modified,
+    sob.waba_obs_id                                                             AS specimen_observation_id,
+    NULL::INTEGER                                                               AS elevation_m,
+    NULL::BIGINT                                                                AS observation_id,
+    NULL                                                                        AS host_inat_login,
+    NULL::INTEGER                                                               AS specimen_count,
+    NULL::INTEGER                                                               AS sample_id,
+    NULL::VARCHAR                                                               AS sample_host,
+    sob.specimen_inat_login,
+    sob.specimen_inat_taxon_name,
+    sob.quality_grade                                                           AS specimen_inat_quality_grade,
+    FALSE                                                                       AS is_provisional,
+    lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))::VARCHAR                                                                 AS canonical_name,
+    COALESCE(ctt_ws.taxon_id, g_ws.taxon_id)::INTEGER                          AS taxon_id,
+    NULL                                                                        AS image_url,
+    'https://www.inaturalist.org/observations/' || sob.waba_obs_id             AS obs_url,
+    NULL                                                                        AS user_login,
+    NULL                                                                        AS license,
+    'waba_specimen'                                                             AS source,
+    NULL::INTEGER                                                               AS checklist_id,
+    NULL::VARCHAR                                                               AS verbatim_name,
+    NULL::VARCHAR                                                               AS locality,
+    NULL::INTEGER                                                               AS collapsed_count
+FROM {{ ref('int_specimen_obs_base') }} sob
+LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_ws
+    ON ctt_ws.canonical_name = lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))
+-- Phase 128 (TID-02): genus self-row backfill for waba_specimen — same pattern as other arms.
+LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_ws
+    ON ctt_ws.taxon_id IS NULL
+   AND position(' ' IN lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))) = 0
+   AND g_ws.genus_name = lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+    ))
+WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL
+  AND sob.waba_obs_id NOT IN (SELECT waba_obs_id FROM {{ ref('int_matched_waba_ids') }})
+  AND lower(trim(
+        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
+             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
+                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
+             ELSE trim(sob.specimen_inat_taxon_name)
+        END
+      )) NOT IN ('cicindela pugetana', 'cleridae', 'encopognathus')
+
+UNION ALL
+
+-- ARM 4: iNat expert observations (Phase 118 / OCC-01)
 SELECT
     NULL                               AS ecdysis_id,
     NULL                               AS catalog_number,
@@ -171,7 +259,7 @@ WHERE io.lat IS NOT NULL AND io.lon IS NOT NULL
 
 UNION ALL
 
--- ARM 4: Checklist records (Phase 137 / PRO-01)
+-- ARM 5: Checklist records (Phase 137 / PRO-01)
 -- Source: int_checklist_dedup_status (= int_checklist_collapsed.* + dedup_status)
 -- Filter: dedup_status IS DISTINCT FROM 'confirmed' per int_checklist_dedup_status header
 -- Belt-and-suspenders: lat/lon NOT NULL (already filtered upstream by coord_flag='valid')
