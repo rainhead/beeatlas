@@ -1,6 +1,6 @@
-# 999.12 — Ecdysis download requires an authenticated session: fix design
+# Phase 163 — Ecdysis download requires an authenticated session: fix design
 
-**Drafted:** 2026-06-24 · **Status:** design / pre-plan (backlog) · **Severity:** BLOCKS NIGHTLY
+**Drafted:** 2026-06-24 · **Status:** design / pre-plan (promoted from backlog 999.12, 2026-06-24) · **Severity:** BLOCKS NIGHTLY
 
 ## Problem (confirmed)
 
