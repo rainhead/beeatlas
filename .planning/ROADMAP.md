@@ -1572,6 +1572,24 @@ will overlap its parent place). Independent of Phase 161.
 
 ## Backlog
 
+### Phase 999.13: Seasonality charts on species and genus pages (BACKLOG)
+
+**Goal:** [Captured for future planning]
+**Requirements:** TBD
+**Plans:** 0 plans
+
+Captured 2026-06-24. Add a **phenology / seasonality chart** showing the months each bee is active:
+- **Species page:** one chart for the species — bars/area over the 12 months showing when that species is recorded (occurrence counts per month).
+- **Genus page:** the months each species in the genus is active — small-multiples or a stacked/heatmap "phenogram" (species × month grid) so you can compare flight seasons across the genus at a glance.
+
+Data is already present: `marts/occurrences` carries a `month` column (used by the existing month filter in `buildFilterSQL`), so this is a pure frontend/visualization feature over the in-browser wa-sqlite store — no pipeline change. A per-month `COUNT(*)` grouped by `taxon_id` (with descendant roll-up for the genus, mirroring the taxon-descendant subquery already in `buildFilterSQL`) feeds the chart.
+
+Open questions for discuss/plan: (1) **where these pages live** — BeeAtlas is currently map-centric with no dedicated per-taxon page route; this may need a new species/genus view (relates to [[project_taxon_id_milestone]], which would give stable taxon IDs to key such pages on). (2) Chart form — simple 12-bar histogram vs ridgeline/heatmap phenogram for the genus small-multiples; what charting approach fits the static-hosting + no-heavy-deps constraint (CLAUDE.md). (3) Whether months with null `month` (sample-only / undated rows) are excluded or shown as "unknown". (4) Count vs normalized (proportion) y-axis, and whether to respect the active source/year filters or always show all-time phenology.
+
+Plans:
+
+- [ ] TBD (promote with /gsd-review-backlog when ready)
+
 ### Phase 999.11: Add federal wilderness areas as regions (BACKLOG)
 
 **Goal:** [Captured for future planning]
