@@ -1,16 +1,18 @@
 ---
 phase: 164-sidebar-list-ignores-src-source-filter
 verified: 2026-06-24T18:40:00Z
-status: human_needed
+status: passed
 score: 6/6 must-haves verified
+uat: passed — operator approved 2026-06-24 (WR-02 source-only map toggle: no ghost dots / flicker)
 overrides_applied: 0
 re_verification:
-  previous_status: none
-  note: initial verification (no prior VERIFICATION.md)
+  previous_status: human_needed
+  note: code-verified 6/6 at initial pass; WR-02 visual UAT confirmed by operator 2026-06-24 → status passed
 human_verification:
   - test: "Toggle a single source off on the MAP (e.g. deselect ecdysis via the Sources chips) with no other filter active."
     expected: "No greyed-out ghost dots appear for the hidden-source points, and there is no flicker as the map re-renders. The hidden source's points simply disappear (matching pre-164 client-side behavior)."
     why_human: "WR-02 — Phase 164 made a source-only filter trip isFilterActive, so the map now flows through the SQL/ghost-layer path instead of the legacy pure-client-side path. The double-filter (_visibleBySource at bee-map.ts:614) is expected to collapse the ghost set to empty, but this is a visual/render-timing property (ghost dots, flicker) that cannot be asserted by grep or unit test. Code review accepted WR-02 with no code change pending this UAT confirmation; if ghost dots appear it is a BLOCKER per the review."
+    result: "PASS — operator confirmed 2026-06-24: no ghost dots, no flicker."
 ---
 
 # Phase 164: Sidebar occurrence list ignores the `src=` source filter — Verification Report
