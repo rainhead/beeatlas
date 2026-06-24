@@ -1,13 +1,21 @@
--- UNION ALL of ARM 1 (ecdysis FOJ samples + LEFT JOIN specimen_obs),
--- ARM 2 (provisional WABA via ofv1718), and ARM 3 (iNat expert observations).
+-- UNION ALL of five source arms:
+--   ARM 1  source='ecdysis'       — catalogued Ecdysis specimens (± iNat sample FULL OUTER JOIN)
+--   ARM 2  source='waba_sample'   — WABA plant-images/sample-IDs project (166376) members
+--                                   lacking specimen_count OFV (is_provisional=TRUE, occ_id=inat:N)
+--   ARM 3  source='waba_specimen' — WABA iNat-photo bee specimens not yet in Ecdysis (~33;
+--                                   is_provisional=FALSE, occ_id=inat_obs:N, carries bee species)
+--   ARM 4  source='inat_obs'      — expert iNat observations (research-grade; occ_id=inat_obs:N)
+--   ARM 5  source='checklist'     — museum/collection checklist records
 -- Materialized as TABLE (not view) per RESEARCH Pitfall 5: prevents re-evaluating
 -- the full UNION ALL on every spatial join in the occurrences mart.
 -- Mirrors export.py:135-197 (combined CTE).
 -- Phase 123 (SYN-02): synonymy applied via LEFT JOIN on ref('int_synonyms')
--- for ARM 1 (ecdysis) and ARM 3 (inat_obs); ARM 2 (provisional WABA) has
--- NULL canonical_name (no scientific name) and is not joined.
+-- for ARM 1 (ecdysis) and ARM 4 (inat_obs); ARM 2 (waba_sample) has
+-- NULL canonical_name (plant obs, no bee species — D-08) and is not joined.
 -- Phase 127 (ITR-03): repointed to int_synonyms so auto-generated remappings
 -- flow through the same synonym JOIN path as curated entries.
+-- Phase 165 (D-03/D-05/D-10): ARM 2 redefined on project membership (not unmatched WABA obs);
+-- ARM 3 (waba_specimen) NEW — the 33 bee specimens awaiting Ecdysis upload.
 {{ config(materialized='table') }}
 
 -- ARM 1: Ecdysis rows (FULL OUTER JOIN preserved) with WABA specimen fields LEFT JOINed
@@ -63,41 +71,40 @@ LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_e
 
 UNION ALL
 
--- ARM 2: Provisional WABA rows (unmatched WABA obs with no Ecdysis catalog match)
+-- ARM 2 (category 3 / D-03/D-11): WABA plant-images/sample-IDs project (166376) members
+-- that lack a specimen_count OFV (anti-joined out of int_samples_base). These are
+-- floral-host / sample observations — is_provisional=TRUE, occ_id=inat:N (via observation_id).
+-- Per D-11: NO specimens here — specimen_observation_id is always NULL.
+-- canonical_name/taxon_id NULL: plant obs carry no bee species (D-08 safe path per RESEARCH Pitfall 2).
+-- host_inat_login from the plant obs user__login; all specimen fields NULL.
 SELECT
     NULL                                                                        AS ecdysis_id,
     NULL                                                                        AS catalog_number,
-    sob.longitude                                                               AS lon,
-    sob.latitude                                                                AS lat,
-    CAST(sob.observed_on AS VARCHAR)                                            AS date,
-    YEAR(sob.observed_on)                                                       AS year,
-    MONTH(sob.observed_on)                                                      AS month,
+    obs.longitude                                                               AS lon,
+    obs.latitude                                                                AS lat,
+    CAST(obs.observed_on AS VARCHAR)                                            AS date,
+    YEAR(obs.observed_on)                                                       AS year,
+    MONTH(obs.observed_on)                                                      AS month,
     NULL                                                                        AS recordedBy,
     NULL                                                                        AS fieldNumber,
     NULL                                                                        AS floralHost,
-    CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)              AS host_observation_id,
+    NULL::BIGINT                                                                AS host_observation_id,
     NULL                                                                        AS inat_host,
-    sob.quality_grade                                                           AS inat_quality_grade,
+    NULL                                                                        AS inat_quality_grade,
     NULL                                                                        AS modified,
-    sob.waba_obs_id                                                             AS specimen_observation_id,
-    NULL                                                                        AS elevation_m,
-    s.observation_id,
-    s.host_inat_login,
-    s.specimen_count,
-    s.sample_id,
-    s.sample_host,
-    sob.specimen_inat_login,
-    sob.specimen_inat_taxon_name,
-    sob.quality_grade                                                           AS specimen_inat_quality_grade,
+    NULL::BIGINT                                                                AS specimen_observation_id,
+    NULL::INTEGER                                                               AS elevation_m,
+    obs.id                                                                      AS observation_id,
+    obs.user__login                                                             AS host_inat_login,
+    NULL::INTEGER                                                               AS specimen_count,
+    NULL::INTEGER                                                               AS sample_id,
+    NULL::VARCHAR                                                               AS sample_host,
+    NULL                                                                        AS specimen_inat_login,
+    NULL                                                                        AS specimen_inat_taxon_name,
+    NULL                                                                        AS specimen_inat_quality_grade,
     TRUE                                                                        AS is_provisional,
-    lower(trim(
-        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
-             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
-                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
-             ELSE trim(sob.specimen_inat_taxon_name)
-        END
-    ))::VARCHAR                                                                 AS canonical_name,
-    COALESCE(ctt_w.taxon_id, g_w.taxon_id)::INTEGER                             AS taxon_id,
+    NULL::VARCHAR                                                               AS canonical_name,
+    NULL::INTEGER                                                               AS taxon_id,
     NULL                                                                        AS image_url,
     NULL                                                                        AS obs_url,
     NULL                                                                        AS user_login,
@@ -108,46 +115,7 @@ SELECT
     NULL::VARCHAR                                                               AS locality,
     NULL::INTEGER                                                               AS collapsed_count
 FROM {{ ref('int_provisional_waba_ids') }} p
-JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = p.waba_obs_id
-LEFT JOIN {{ ref('stg_waba__ofvs') }} ofv1718
-    ON ofv1718._dlt_root_id = sob.waba_dlt_id AND ofv1718.field_id = {{ inat_ofv_host_obs_url() }}
-LEFT JOIN {{ ref('int_samples_base') }} s
-    ON s.observation_id = CAST(regexp_extract(ofv1718.value, '([0-9]+)$', 1) AS BIGINT)
-LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_w
-    ON ctt_w.canonical_name = lower(trim(
-        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
-             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
-                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
-             ELSE trim(sob.specimen_inat_taxon_name)
-        END
-    ))
--- Phase 128 (TID-02): genus self-row backfill for ARM 2. The join key reuses the exact inline
--- lower(trim(CASE ...)) expression already present above (already single/double-token aware);
--- fires only when the species bridge missed and that key is single-token.
-LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_w
-    ON ctt_w.taxon_id IS NULL
-   AND position(' ' IN lower(trim(
-        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
-             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
-                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
-             ELSE trim(sob.specimen_inat_taxon_name)
-        END
-    ))) = 0
-   AND g_w.genus_name = lower(trim(
-        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
-             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
-                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
-             ELSE trim(sob.specimen_inat_taxon_name)
-        END
-    ))
-WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL
-  AND lower(trim(
-        CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
-             THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
-                  || ' ' || split_part(trim(sob.specimen_inat_taxon_name), ' ', 2)
-             ELSE trim(sob.specimen_inat_taxon_name)
-        END
-      )) NOT IN ('cicindela pugetana', 'cleridae', 'encopognathus')
+JOIN {{ ref('stg_inat__observations') }} obs ON obs.id = p.observation_id
 
 UNION ALL
 

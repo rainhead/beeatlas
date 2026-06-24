@@ -12,6 +12,7 @@ sources:
     tables:
       - name: observations
       - name: observations__ofvs
+      - name: observations__observation_projects  # iNat project membership; loaded by projects_pipeline.py
       - name: canonical_to_taxon_id   # written by resolve_taxon_ids.py (ingestion)
       - name: taxon_lineage_extended  # written by taxa_pipeline.load_taxon_lineage_extended (Phase 110 offline taxonomy)
 
