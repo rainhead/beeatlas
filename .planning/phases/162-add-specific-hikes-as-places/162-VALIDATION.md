@@ -1,9 +1,9 @@
 ---
 phase: 162
 slug: add-specific-hikes-as-places
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: approved
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-06-23
 ---
 
@@ -84,4 +84,4 @@ created: 2026-06-23
 - [ ] Feedback latency < 20s (quick command)
 - [ ] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** approved 2026-06-23 (Wave 0 tests present + green; 23/23 place+hike tests pass)
