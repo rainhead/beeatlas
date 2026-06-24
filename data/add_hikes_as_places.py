@@ -48,15 +48,16 @@ HIKES: list[dict] = [
         "land_owner": "USDA Forest Service — Okanogan-Wenatchee National Forest",
         "osm_relation_id": 14367348,
     },
-    {
-        "slug": "snoqualmie-pass-to-olallie-meadow-trail",
-        "name": "Snoqualmie Pass to Olallie Meadow",
-        "land_owner": "USDA Forest Service — Mt. Baker-Snoqualmie National Forest",
-        # PCT Section J (I-90 at Snoqualmie Pass → Hwy 2 at Stevens Pass) covers this route.
-        # The WTA hike (Snoqualmie Pass to Olallie Meadow, ~10 mi RT) is the southern portion.
-        # The full corridor polygon provides reasonable geographic coverage for filtering.
-        "osm_relation_id": 1296807,
-    },
+    # DEFERRED 2026-06-23 — OSM only has the full PCT Section J (relation 1296807,
+    # ~75 km I-90→Stevens Pass), which over-claims ~9× vs the ~8 km day-hike to
+    # Olallie Meadow. Needs a hand-traced GPX to the Olallie Meadow turnaround.
+    # {
+    #     "slug": "snoqualmie-pass-to-olallie-meadow-trail",
+    #     "name": "Snoqualmie Pass to Olallie Meadow",
+    #     "land_owner": "USDA Forest Service — Mt. Baker-Snoqualmie National Forest",
+    #     "osm_relation_id": 1296807,
+    #     "gpx_path": "data/fixtures/hike-gpx/snoqualmie-pass-to-olallie-meadow.gpx",
+    # },
     {
         "slug": "iron-peak-trail",
         "name": "Iron Peak",
