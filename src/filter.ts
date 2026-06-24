@@ -73,7 +73,7 @@ export interface OccurrenceRow {
   verbatim_name: string | null;
   locality: string | null;
   collapsed_count: number | null;
-  source: 'ecdysis' | 'waba_sample' | 'inat_obs' | 'checklist' | null;
+  source: 'ecdysis' | 'waba_sample' | 'waba_specimen' | 'inat_obs' | 'checklist' | null;
   image_url: string | null;
   obs_url: string | null;
   user_login: string | null;
@@ -395,7 +395,7 @@ export function buildFilterSQL(f: FilterState, hasPlacesBridge: boolean = true):
   // The visible complement is computed from the allowlist, so every interpolated token is a
   // compile-time-known literal. o.-alias invariant: qualify as o.source.
   if (f.hiddenSources.size > 0) {
-    const VALID_SOURCES: SourceKey[] = ['ecdysis', 'waba_sample', 'inat_obs', 'checklist'];
+    const VALID_SOURCES: SourceKey[] = ['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist'];
     const visibleSources = VALID_SOURCES.filter(s => !f.hiddenSources.has(s));
     if (visibleSources.length === 0) {
       // All sources hidden — force a false clause (no rows can match, D-05).

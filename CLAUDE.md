@@ -16,6 +16,8 @@ Use these terms precisely — ambiguity here has caused confusion before.
 
 **Collection event** — a scheduled group outing; implicitly yields many samples from multiple people. No data record exists for events yet.
 
+See [docs/domain-model.md](docs/domain-model.md) for the full occurrence data model: the five `int_combined` source categories, the corrected `is_provisional` definition, and the synthetic `occ_id` prefix vocabulary.
+
 ## Architecture Invariants
 
 **State ownership:** `<bee-atlas>` owns all reactive state. `<bee-map>` and `<bee-sidebar>` are pure presenters — they receive state as properties and emit custom events upward. No shared module-level mutable state.
