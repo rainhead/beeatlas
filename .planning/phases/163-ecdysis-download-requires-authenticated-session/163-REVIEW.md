@@ -13,9 +13,20 @@ findings:
   info: 3
   total: 7
 status: issues_found
+resolution:
+  resolved: [WR-01, WR-04]   # fixed in c3da5c11
+  deferred: [WR-02, WR-03, IN-01, IN-02, IN-03]   # see Resolution note
 ---
 
 # Phase 163: Code Review Report
+
+> **Resolution (2026-06-24):** WR-01 (cred read hoisted out of the resilience try so
+> missing creds fail loudly) and WR-04 (test pinning password-absence on the WARNING
+> fallback branch) were fixed in commit `c3da5c11`. WR-02 (integrity-check the TTL
+> fast-path — touches the pre-existing path this plan deliberately left unchanged),
+> WR-03, and IN-01..03 (doc/cosmetic) were deferred by operator decision; nothing
+> blocks shipping.
+
 
 **Reviewed:** 2026-06-24T00:00:00Z
 **Depth:** standard
