@@ -93,7 +93,10 @@ export function buildParams(
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
   if (ui.hiddenSources && ui.hiddenSources.size > 0) {
     const visibleSources = [...VALID_SOURCES].filter(s => !ui.hiddenSources!.has(s)).sort();
-    if (visibleSources.length > 0) params.set('src', visibleSources.join(','));
+    // WR-01 (D-05): when every source is hidden, emit the explicit `src=none` sentinel so the
+    // honest-empty all-off state survives a URL round-trip/share instead of silently reverting
+    // to "show all" (absent src= = no source filter).
+    params.set('src', visibleSources.length > 0 ? visibleSources.join(',') : 'none');
   }
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
@@ -235,10 +238,19 @@ export function parseParams(search: string): ParsedParams {
   // (T-164-IV: bogus values are dropped on parse, never reaching SQL).
   const srcRaw = p.get('src');
   let hiddenSources: Set<SourceKey> | undefined;
-  if (srcRaw) {
+  if (srcRaw === 'none') {
+    // WR-01 (D-05): explicit all-hidden sentinel. Distinct from absent src= (no source filter),
+    // so a shared "filtered to nothing" link reproduces the honest-empty state.
+    hiddenSources = new Set<SourceKey>(VALID_SOURCES);
+  } else if (srcRaw) {
     const visible = new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[]);
-    const hidden = new Set([...VALID_SOURCES].filter(s => !visible.has(s)));
-    hiddenSources = hidden.size > 0 ? hidden : undefined;
+    // All-hidden is represented canonically by src=none above; a src= listing only unknown
+    // tokens (visible=∅) is treated as no filter rather than all-hidden, so a crafted/garbage
+    // src= cannot blank every view.
+    if (visible.size > 0) {
+      const hidden = new Set([...VALID_SOURCES].filter(s => !visible.has(s)));
+      hiddenSources = hidden.size > 0 ? hidden : undefined;
+    }
   }
 
   // Include filter sub-object when any filter param is present (including src=).
