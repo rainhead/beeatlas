@@ -1270,6 +1270,7 @@ describe('NEAR: near-me bounds reuse', () => {
         elevMax: null,
         selectedPlace: null,
         bounds: null,
+        hiddenSources: new Set(),
       };
     }
 
