@@ -57,7 +57,7 @@
 
   - [x] 161-01-PLAN.md — Wave 1: create the committed curation script `data/add_wdfw_wildlife_areas.py` (WDFW ArcGIS fetch → DuckDB dissolve-by-WLA_Name + simplify → 33 MultiPolygon `[[places]]` blocks; Jackman Creek excluded; NO overlap handling — Phase 160 removed the guard) + golden-fixture test [WLA-ACQUIRE, WLA-DISSOLVE, WLA-WGS84; D-01, D-02, D-03]
   - [x] 161-02-PLAN.md — Wave 2: run the script to append 33 WDFW entries to `content/places.toml`, ratify the D-05 simplification tolerance against the ≤~1 MB `places.geojson` budget, and confirm the full pipeline runs green (validation passes with the 16 overlaps loading as multi-place membership; ST_Within + bridge assign slugs; size reported) [WLA-DISSOLVE, WLA-WGS84, WLA-VALID, WLA-WEIGHT; D-01, D-02, D-05]
-- [ ] **Phase 162: Add specific hikes as places** — Add a hand-curated proof-of-concept set of 14 named WTA hikes to `content/places.toml` as ordinary `[[places]]` entries. Hikes are linear (trail centerline), so each is represented as a ~250 m **corridor buffer** (D-02): OSM/Overpass trail geometry → DuckDB metric buffer in UTM 10N (`always_xy=true`) → MULTIPOLYGON WKT → the reused place pipeline. Source is OSM only (WTA ToS prohibits scraping); 12/14 hikes resolve from OSM, 2 are gaps (Snoqualmie–Olallie, Geyser Valley) handled via deeper OSM query or hand-traced GPX. No `place_type` schema change (D-03); Phase-160 many-to-many means trail↔area overlaps just work. See `162-CONTEXT.md` + `162-RESEARCH.md`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model; benefits from Phase 160 (a hike corridor will overlap its parent place). Independent of Phase 161. **Plans:** 2 plans (2 waves).
+- [x] **Phase 162: Add specific hikes as places** — Add a hand-curated proof-of-concept set of 14 named WTA hikes to `content/places.toml` as ordinary `[[places]]` entries. Hikes are linear (trail centerline), so each is represented as a ~250 m **corridor buffer** (D-02): OSM/Overpass trail geometry → DuckDB metric buffer in UTM 10N (`always_xy=true`) → MULTIPOLYGON WKT → the reused place pipeline. Source is OSM only (WTA ToS prohibits scraping); 12/14 hikes resolve from OSM, 2 are gaps (Snoqualmie–Olallie, Geyser Valley) handled via deeper OSM query or hand-traced GPX. No `place_type` schema change (D-03); Phase-160 many-to-many means trail↔area overlaps just work. See `162-CONTEXT.md` + `162-RESEARCH.md`. Promoted from backlog 999.3 (2026-06-22). **Depends on:** v3.7 place data model; benefits from Phase 160 (a hike corridor will overlap its parent place). Independent of Phase 161. **Plans:** 2 plans (2 waves). (completed 2026-06-24)
   Plans:
 
   - [x] 162-01-PLAN.md — Wave 1: create the committed list-driven curation script `data/add_hikes_as_places.py` (OSM/GPX trail geometry → DuckDB ~250 m metric-buffer corridor with `always_xy=true` → 14 MULTIPOLYGON `[[places]]` blocks; 2 OSM gaps tracked-not-dropped) + golden-fixture buffer/slug test [HKE-BUFFER, HKE-SLUG, HKE-NONETWORK; D-01, D-02, D-03]
@@ -1533,6 +1533,7 @@ will overlap its parent place). Independent of Phase 161.
     fallback) trail geometry → DuckDB ~250 m metric-buffer corridor (`always_xy=true`)
     → 14 MULTIPOLYGON `[[places]]` blocks (2 OSM gaps tracked-not-dropped) +
     golden-fixture buffer/slug test
+
   - 162-02 — run the script + resolve the 2 OSM-gap hikes (checkpoint) + append the
     hike corridors to `content/places.toml`, ratify the simplification tolerance vs.
     the ≤~1 MB `places.geojson` budget, and confirm the full pipeline runs green
@@ -1560,7 +1561,7 @@ will overlap its parent place). Independent of Phase 161.
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 0 plans
+**Plans:** 2/2 plans complete
 
 Captured 2026-06-23. A new place/region source in the same family as Phase 161
 (WDFW wildlife areas) and Phase 162 (hikes): add federally designated
