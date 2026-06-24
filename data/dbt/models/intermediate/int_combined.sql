@@ -197,6 +197,9 @@ LEFT JOIN {{ ref('stg_inat__genus_taxon_ids') }} g_ws
     ))
 WHERE sob.longitude IS NOT NULL AND sob.latitude IS NOT NULL
   AND sob.waba_obs_id NOT IN (SELECT waba_obs_id FROM {{ ref('int_matched_waba_ids') }})
+  -- CR-01: exclude obs that also appear in the expert iNat feed (ARM 4 wins; inat_obs wins).
+  -- obs_id is the non-null PK of inat_obs_data.observations so NOT IN is NULL-safe.
+  AND sob.waba_obs_id NOT IN (SELECT obs_id FROM {{ source('inat_obs_data', 'observations') }})
   AND lower(trim(
         CASE WHEN position(' ' IN trim(sob.specimen_inat_taxon_name)) > 0
              THEN split_part(trim(sob.specimen_inat_taxon_name), ' ', 1)
