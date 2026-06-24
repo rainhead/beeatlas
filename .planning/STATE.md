@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v5.2
 milestone_name: Offline Field Mode
 status: executing
-stopped_at: Phase 165 context gathered
-last_updated: "2026-06-24T21:42:26.728Z"
+stopped_at: Completed 165-03-PLAN.md — frontend waba_specimen wiring (D-13)
+last_updated: "2026-06-24T22:00:00.000Z"
 last_activity: 2026-06-24
 progress:
   total_phases: 23
   completed_phases: 19
   total_plans: 45
-  completed_plans: 43
+  completed_plans: 45
   percent: 83
 ---
 
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion 
 ## Current Position
 
 Phase: 165 (duplicate-occurrence-rows-shared-occ-id) — EXECUTING
-Plan: 3 of 4
-Status: Ready to execute
+Plan: 4 of 4 (complete)
+Status: Phase complete
 Last activity: 2026-06-24
 
 ## Milestone Overview
@@ -62,6 +62,7 @@ Load-bearing conventions carried from prior milestones:
 - **[Phase 165-02] D-05**: `MIN(waba.id) GROUP BY catalog_suffix` removed from `int_waba_link` — 1:N catalog-match so all WABA obs sharing a catalog suffix are recognized; fan-out guard via MIN subquery at `int_ecdysis_base` consumer keeps ARM 1 1:1.
 - **[Phase 165-02] D-03/D-11**: `waba_sample` (provisional) arm redefined on project_id=166376 membership anti-joined `int_samples_base` (~28 rows, is_provisional=TRUE, specimen fields NULL).
 - **[Phase 165-02] D-10/D-12**: `waba_specimen` NEW source arm for the 33 WABA iNat-photo bee specimens not yet in Ecdysis (is_provisional=FALSE, occ_id=inat_obs:N, carries bee species + obs_url).
+- **[Phase 165-03] D-13**: `waba_specimen` wired end-to-end in frontend: SourceKey union + VALID_SOURCES in url-state.ts, OccurrenceRow.source + VALID_SOURCES in filter.ts, 5th source toggle in bee-pane.ts (_renderSources layers), _renderWabaSpecimen dispatch in bee-occurrence-detail.ts. waba_sample toggle copy corrected to 'Provisional samples'. All-off guard updated 4 → 5.
 
 ### Pending Todos
 
@@ -87,8 +88,8 @@ Carried forward (originally acknowledged at v5.1 close 2026-06-23):
 
 ## Session Continuity
 
-Last session: 2026-06-24T21:43:00Z
-Stopped at: Completed 165-02-PLAN.md — core data-model correction (D-05/D-03/D-10/D-12)
+Last session: 2026-06-24T22:00:00.000Z
+Stopped at: Completed 165-03-PLAN.md — frontend waba_specimen wiring (D-13); Phase 165 complete
 Resume file: None
 
 ## Operator Next Steps
