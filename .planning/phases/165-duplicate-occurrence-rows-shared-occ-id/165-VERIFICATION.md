@@ -1,9 +1,10 @@
 ---
 phase: 165-duplicate-occurrence-rows-shared-occ-id
 verified: 2026-06-24T22:10:00Z
-status: human_needed
+status: passed
 score: 11/11 must-haves verified
 overrides_applied: 0
+uat_closed: "All 4 human_verification items PASSED via headless Playwright-MCP UAT (2026-06-24) — see 165-HUMAN-UAT.md. Map source feature counts read live: toggling 'WABA specimens' off = exactly −33 waba_specimen; 'Provisional samples' off = exactly −28 waba_sample; waba_specimen detail card + provisional iNat link (WR-01) confirmed correct."
 human_verification:
   - test: "Toggle 'WABA specimens' on/off in /app sidebar and confirm the ~33 specimen points appear/disappear on the map"
     expected: "The waba_specimen source toggle shows 33 specimen pins; toggling off removes them; toggling on restores them"
