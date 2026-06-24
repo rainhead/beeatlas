@@ -27,6 +27,7 @@ function emptyFilter(): FilterState {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
+    hiddenSources: new Set(),
   };
 }
 
@@ -138,6 +139,7 @@ describe('combined filters', () => {
       elevMax: null,
       selectedPlace: null,
       bounds: null,
+      hiddenSources: new Set(),
     };
     const { occurrenceWhere } = buildFilterSQL(f);
 
@@ -308,6 +310,46 @@ describe('buildFilterSQL — bounds (D-01)', () => {
     expect(occurrenceWhere).toContain('taxon_id = 52775');
     expect(occurrenceWhere).toContain('lat BETWEEN 47 AND 48');
     expect(occurrenceWhere).toContain(' AND ');
+  });
+});
+
+describe('isFilterActive — hiddenSources', () => {
+  test('one source hidden: returns true', () => {
+    expect(isFilterActive({ ...emptyFilter(), hiddenSources: new Set(['ecdysis'] as const) })).toBe(true);
+  });
+  test('emptyFilter() hiddenSources empty: returns false', () => {
+    expect(isFilterActive({ ...emptyFilter(), hiddenSources: new Set() })).toBe(false);
+  });
+});
+
+describe('buildFilterSQL — source filter (D-01/D-05)', () => {
+  test('hiddenSources={ecdysis}: occurrenceWhere contains o.source IN with 3 visible sources', () => {
+    const f = { ...emptyFilter(), hiddenSources: new Set(['ecdysis'] as const) };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toMatch(/o\.source IN \('waba_sample','inat_obs','checklist'\)/);
+    expect(occurrenceWhere).not.toContain("'ecdysis'");
+  });
+
+  test('empty hiddenSources: occurrenceWhere does NOT contain o.source', () => {
+    const { occurrenceWhere } = buildFilterSQL(emptyFilter());
+    expect(occurrenceWhere).not.toContain('o.source');
+  });
+
+  test('all 4 sources hidden: occurrenceWhere contains 1 = 0 (D-05 honest empty)', () => {
+    const f = { ...emptyFilter(), hiddenSources: new Set(['ecdysis', 'waba_sample', 'inat_obs', 'checklist'] as const) };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain('1 = 0');
+    expect(occurrenceWhere).not.toMatch(/o\.source IN/);
+  });
+
+  test('hiddenSources={waba_sample,checklist}: occurrenceWhere contains o.source IN with 2 visible sources', () => {
+    const f = { ...emptyFilter(), hiddenSources: new Set(['waba_sample', 'checklist'] as const) };
+    const { occurrenceWhere } = buildFilterSQL(f);
+    expect(occurrenceWhere).toContain("o.source IN (");
+    expect(occurrenceWhere).toContain("'ecdysis'");
+    expect(occurrenceWhere).toContain("'inat_obs'");
+    expect(occurrenceWhere).not.toContain("'waba_sample'");
+    expect(occurrenceWhere).not.toContain("'checklist'");
   });
 });
 

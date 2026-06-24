@@ -17,6 +17,7 @@ function emptyFilter(): FilterState {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
+    hiddenSources: new Set(),
   };
 }
 
@@ -441,6 +442,27 @@ describe('MAP-03: source filter URL param (src=)', () => {
   test('src=ecdysis alone triggers result.ui (hasFilter condition)', () => {
     const result = parseParams('src=ecdysis');
     expect(result.ui).toBeDefined();
+  });
+
+  test('src=ecdysis populates result.filter.hiddenSources with 3 hidden sources (D-02)', () => {
+    const result = parseParams('src=ecdysis');
+    expect(result.filter?.hiddenSources).toEqual(new Set(['inat_obs', 'waba_sample', 'checklist']));
+  });
+
+  test('src=ecdysis populates result.filter (hasFilter recognizes src=)', () => {
+    const result = parseParams('src=ecdysis');
+    expect(result.filter).toBeDefined();
+  });
+
+  test('src=ecdysis result.filter.hiddenSources matches result.ui.hiddenSources', () => {
+    const result = parseParams('src=ecdysis');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(result.filter?.hiddenSources).toEqual((result.ui as any)?.hiddenSources);
+  });
+
+  test('no src= param: result.filter.hiddenSources is absent from result.filter when no filter is active', () => {
+    const result = parseParams('');
+    expect(result.filter).toBeUndefined();
   });
 });
 
