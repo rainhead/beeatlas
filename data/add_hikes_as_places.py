@@ -26,7 +26,8 @@ import requests
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 OVERPASS_HEADERS = {"User-Agent": "BeeAtlas/1.0 (https://github.com/rainhead/beeatlas; data curation script)"}
-TOML_PATH = Path(__file__).parent.parent / "content" / "places.toml"
+REPO_ROOT = Path(__file__).parent.parent  # gpx_path values are repo-root-relative
+TOML_PATH = REPO_ROOT / "content" / "places.toml"
 BUFFER_M = 250.0
 TOL_DEG = 0.0002  # ST_SimplifyPreserveTopology tolerance in degrees (~22 m at WA latitudes)
 METRIC_CRS = "EPSG:32610"  # UTM Zone 10N (meters); all 14 WTA hikes lon < -120°.
@@ -450,16 +451,19 @@ def geometry_for_hike(hike: dict) -> str:
         except Exception as exc:
             osm_error = exc
 
-    # GPX fallback (only for hikes that have a gpx_path)
+    # GPX fallback (only for hikes that have a gpx_path).
+    # gpx_path values are repo-root-relative (e.g. "data/fixtures/hike-gpx/..."),
+    # so anchor them to REPO_ROOT — the script is run from cwd `data/`, where a
+    # bare Path(gpx_path) would resolve against `data/data/...` and never exist.
     if "gpx_path" in hike:
-        gpx_path = hike["gpx_path"]
-        if Path(gpx_path).exists():
-            return gpx_to_linestring_wkt(gpx_path)
+        gpx_path = REPO_ROOT / hike["gpx_path"]
+        if gpx_path.exists():
+            return gpx_to_linestring_wkt(str(gpx_path))
         # GPX file doesn't exist yet — not an error at this stage
         raise RuntimeError(
             f"GAP: no usable geometry for {slug!r}. "
             f"OSM source failed ({osm_error}); "
-            f"GPX fallback file not found: {gpx_path!r}. "
+            f"GPX fallback file not found: {str(gpx_path)!r}. "
             "Hand-trace the route and commit the GPX file to resolve."
         )
 
