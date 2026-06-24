@@ -1,4 +1,7 @@
 *.zip
+# Ecdysis Symbiota credentials ([sources.ecdysis] username/password) — operator
+# provisions real secrets on maderas only; MUST NEVER be committed (Phase 163, D-1).
+.dlt/secrets.toml
 *.pyc
 __pycache__
 last_fetch.txt
