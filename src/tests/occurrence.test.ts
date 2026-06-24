@@ -77,6 +77,13 @@ describe('occIdFromRow', () => {
   test('returns checklist:N for a checklist row (only checklist_id set)', () => {
     expect(occIdFromRow({ ...BASE_ROW, checklist_id: 1234, source: 'checklist' })).toBe('checklist:1234');
   });
+
+  // D-03/D-11: category-3 provisional sample rows now carry the host/plant observation_id
+  // and resolve to inat:N, NOT null. The legacy provisionalRow() fixture (observation_id null →
+  // null) remains valid for old-shape rows, but the corrected ARM 2 shape has observation_id set.
+  test('returns inat:N for a provisional sample row that has observation_id (new category-3 ARM 2 shape)', () => {
+    expect(occIdFromRow({ ...BASE_ROW, observation_id: 351027987, is_provisional: true })).toBe('inat:351027987');
+  });
 });
 
 describe('parseOccId', () => {
