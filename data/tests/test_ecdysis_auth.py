@@ -206,3 +206,22 @@ def test_password_not_logged(_isolate_cache, capsys, monkeypatch):
     captured = capsys.readouterr()
     assert "sekret" not in captured.out
     assert "sekret" not in captured.err
+
+
+def test_password_not_logged_on_fallback_warning(_isolate_cache, capsys, monkeypatch):
+    """WR-04 — the cache-fallback WARNING print interpolates the failure `{e}`; pin that
+    the password value never leaks there. With a VALID cache present and the download
+    failing, _download_zip takes the warn-and-reuse branch (no raise), so this exercises
+    the single most credential-sensitive log statement that test_password_not_logged
+    (which hits the hard-fail branch) does not reach."""
+    monkeypatch.setattr(ecdysis_pipeline, "_get_credentials", lambda: ("u", "sekret"))
+    _write_valid_cache(_isolate_cache)
+    session = _session_with([_login_response(), _json_401_response()])
+    with patch.object(ecdysis_pipeline.requests, "Session", return_value=session):
+        result = ecdysis_pipeline._download_zip(44)  # warns + reuses cache, no raise
+
+    assert result == _fake_zip_bytes()
+    captured = capsys.readouterr()
+    assert "warn" in captured.out.lower() or "cached" in captured.out.lower()
+    assert "sekret" not in captured.out
+    assert "sekret" not in captured.err
