@@ -1577,7 +1577,7 @@ will overlap its parent place). Independent of Phase 161.
 
 **Goal:** [Captured for future planning]
 **Requirements:** TBD
-**Plans:** 2/2 plans complete
+**Plans:** 0 plans
 
 Captured 2026-06-23. A new place/region source in the same family as Phase 161
 (WDFW wildlife areas) and Phase 162 (hikes): add federally designated
