@@ -83,7 +83,7 @@
   Plans:
 
   - [x] 169-01-PLAN.md — Wave 1: `collectors_export.py` + golden-fixture pytest + run.py STEPS entry + committed `collectors.json` (D-01 gate, D-03 counts, D-04 name, D-05/D-06/D-07 status split) [PAGE-01, PAGE-02, PAGE-03]
-  - [ ] 169-02-PLAN.md — Wave 2: `_data/collectors.js` loader + `_pages/collector-detail.njk` (stats, status split, `?collectors=` map deep-link) + `_pages/collectors.njk` index + D-09 floor Vitest [PAGE-01, PAGE-02, PAGE-03, PAGE-04]
+  - [x] 169-02-PLAN.md — Wave 2: `_data/collectors.js` loader + `_pages/collector-detail.njk` (stats, status split, `?collectors=` map deep-link) + `_pages/collectors.njk` index + D-09 floor Vitest [PAGE-01, PAGE-02, PAGE-03, PAGE-04]
 - [ ] **Phase 170: Source → Provenance Facets Rebuild** — Replace the `source` enum with orthogonal provenance-tier facets across all three coupled consumers; atomic commit with positional-coupling Vitest assertion; `tier=` URL param with `src=` back-compat
 - [ ] **Phase 171: Per-Collector Event Stream** — Reverse-chronological collection→ID feed on the collector page; waba_specimen cataloguing event; pagination for high-volume collectors
 - [ ] **Phase 172: Accomplishment View** — County coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and active-seasons badge on the collector page
@@ -1684,7 +1684,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 169-01-PLAN.md — Wave 1: `collectors_export.py` (DuckDB over `occurrences.parquet` LEFT JOIN `species.parquet`, D-01 gate, no bridge) + golden-fixture pytest + run.py `collectors-export` STEPS entry + committed `collectors.json` with the `.gitignore` exception
+- [x] 169-01-PLAN.md — Wave 1: `collectors_export.py` (DuckDB over `occurrences.parquet` LEFT JOIN `species.parquet`, D-01 gate, no bridge) + golden-fixture pytest + run.py `collectors-export` STEPS entry + committed `collectors.json` with the `.gitignore` exception
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
