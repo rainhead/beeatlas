@@ -3,14 +3,15 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: planning
-last_updated: "2026-06-25T00:00:00.000Z"
-last_activity: 2026-06-25
+stopped_at: Phase 167 context gathered
+last_updated: "2026-06-25T04:27:11.677Z"
+last_activity: 2026-06-25 — v6.0 roadmap created (6 phases, 167–172)
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 38
+  completed_phases: 14
+  total_plans: 34
+  completed_plans: 34
+  percent: 37
 ---
 
 # Project State
@@ -96,9 +97,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-25
-Stopped at: v6.0 roadmap created — 6 phases (167–172), 17/17 requirements mapped
-Resume file: None
+Last session: 2026-06-25T04:27:11.664Z
+Stopped at: Phase 167 context gathered
+Resume file: .planning/phases/167-collector-identity-column/167-CONTEXT.md
 
 ## Operator Next Steps
 
