@@ -1688,7 +1688,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 169-02-PLAN.md — Wave 2: `_data/collectors.js` + `_pages/collector-detail.njk` (`/collectors/{login}/`, stats, status split, `?collectors=<recordedBy>:<host_inat_login>` deep-link) + `_pages/collectors.njk` index (`/collectors.html`) + D-09 floor/shape Vitest
+- [x] 169-02-PLAN.md — Wave 2: `_data/collectors.js` + `_pages/collector-detail.njk` (`/collectors/{login}/`, stats, status split, `?collectors=<recordedBy>:<host_inat_login>` deep-link) + `_pages/collectors.njk` index (`/collectors.html`) + D-09 floor/shape Vitest
 
 > **Note on criteria 1/4/5:** superseded by 169-CONTEXT decisions. Criterion 1/5's literal "every non-NULL `collector_inat_login`" is narrowed by **D-01** (gate excludes ~4,702 casual observers → ~124 pages). Criterion 3's "derived from lifecycle date availability" is superseded by **D-06/D-07**: the split keys on **taxon rank = species** (`specific_epithet IS NOT NULL`), NOT `id_date`. Criterion 4's `?collector={login}` is superseded by **D-10**: the existing `?collectors=<recordedBy>:<host_inat_login>` param (no new FilterState field).
 
