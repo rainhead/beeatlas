@@ -79,7 +79,7 @@
   Plans:
 
   - [x] 168-01-PLAN.md — Wave 0: new singular test `assert_id_date_parse_complete.sql` (warn); Wave 1: project raw `date_identified` from `int_ecdysis_base`, derive `id_date` in ARM 1 (parsed) + `NULL::VARCHAR` in ARMs 2-5 of `int_combined`, project through `occurrences.sql`, append to the `schema.yml` contract (37→38); local `run.sh build` + per-arm/TEMP-02/sqlite validation; one-time operator `SKIP_INTEGRATION_GATE` nightly (gated on 167's 37-col S3 landing) [TEMP-01, TEMP-02; D-01..D-13]
-- [ ] **Phase 169: Per-Collector Static Pages** — Export `collectors.json`, generate Eleventy pages at `/collectors/{login}/` following the places pattern; public (no auth), gated on `collector_inat_login IS NOT NULL AND (ecdysis_id IS NOT NULL OR source IN ('waba_specimen','waba_sample'))` (D-01; ~124 collectors, casual observers excluded). **Plans:** 2 plans (2 waves).
+- [x] **Phase 169: Per-Collector Static Pages** — Export `collectors.json`, generate Eleventy pages at `/collectors/{login}/` following the places pattern; public (no auth), gated on `collector_inat_login IS NOT NULL AND (ecdysis_id IS NOT NULL OR source IN ('waba_specimen','waba_sample'))` (D-01; ~124 collectors, casual observers excluded). **Plans:** 2 plans (2 waves). (completed 2026-06-25 — 124 pages + /collectors.html index; code-review fixed CR-01 display_name + CR-02 deep-link guard; operator UAT 3/3 PASS)
   Plans:
 
   - [x] 169-01-PLAN.md — Wave 1: `collectors_export.py` + golden-fixture pytest + run.py STEPS entry + committed `collectors.json` (D-01 gate, D-03 counts, D-04 name, D-05/D-06/D-07 status split) [PAGE-01, PAGE-02, PAGE-03]

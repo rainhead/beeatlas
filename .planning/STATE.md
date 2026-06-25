@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion 
 
 ## Current Position
 
-Phase: 169 (per-collector-static-pages) — EXECUTING
+Phase: 169 (per-collector-static-pages) — COMPLETE
 Plan: 2 of 2
-Status: Phase complete — ready for verification
+Status: Phase 169 complete — verification passed, operator UAT 3/3; next: Phase 170
 Last activity: 2026-06-25
 
 ## Milestone Overview
@@ -42,7 +42,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 |-------|------|--------------|--------|
 | 167 | Collector Identity Column | Phase 165 | Not started |
 | 168 | Temporal Lifecycle Dates | Phase 167 | Not started |
-| 169 | Per-Collector Static Pages | Phase 167 | Not started |
+| 169 | Per-Collector Static Pages | Phase 167 | Complete |
 | 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Not started |
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
