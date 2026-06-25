@@ -1,0 +1,17 @@
+---
+layout: default.njk
+permalink: /collectors.html
+title: Collectors — BeeAtlas
+---
+<link rel="stylesheet" href="/src/styles/places.css">
+<article class="places-page places-index">
+  <h1>Collectors</h1>
+  <ul class="places-list">
+    {%- for collector in collectors.collectorsArray -%}
+    <li>
+      <a href="/collectors/{{ collector.login | urlencode }}/">{{ collector.display_name }}</a>
+      <span class="count">{{ collector.specimen_count | quantify("specimen") }}</span>
+    </li>
+    {%- endfor -%}
+  </ul>
+</article>

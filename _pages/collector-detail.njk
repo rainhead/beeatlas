@@ -1,0 +1,19 @@
+---
+pagination:
+  data: collectors.collectorsArray
+  size: 1
+  alias: collector
+permalink: "/collectors/{{ collector.login | urlencode }}/index.html"
+eleventyComputed:
+  title: "{{ collector.display_name }} — BeeAtlas"
+layout: default.njk
+---
+<link rel="stylesheet" href="/src/styles/places.css">
+<article class="places-page place-detail">
+  <h1>{{ collector.display_name }}</h1>
+  <p class="metadata">{{ collector.specimen_count | quantify("specimen") }} · {{ collector.sample_count | quantify("sample") }} · {{ collector.species_count | quantify("species", "species") }}</p>
+  {%- if collector.status_denominator > 0 -%}
+  <p class="status-split">{{ collector.status_identified }} identified to species, {{ collector.status_awaiting }} awaiting ID</p>
+  {%- endif -%}
+  <a href="/?collectors={{ collector.recordedBy | urlencode }}:{{ collector.host_inat_login | urlencode }}">View on the atlas →</a>
+</article>
