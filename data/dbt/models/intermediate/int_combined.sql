@@ -55,7 +55,8 @@ SELECT
     NULL::INTEGER                                  AS checklist_id,
     NULL::VARCHAR                                  AS verbatim_name,
     NULL::VARCHAR                                  AS locality,
-    NULL::INTEGER                                  AS collapsed_count
+    NULL::INTEGER                                  AS collapsed_count,
+    COALESCE(specimen_inat_login, host_inat_login, user_login) AS collector_inat_login
 FROM {{ ref('int_ecdysis_base') }} e
 FULL OUTER JOIN {{ ref('int_samples_base') }} s ON e.host_observation_id = s.observation_id
 LEFT JOIN {{ ref('int_specimen_obs_base') }} sob ON sob.waba_obs_id = e.specimen_observation_id
@@ -113,7 +114,8 @@ SELECT
     NULL::INTEGER                                                               AS checklist_id,
     NULL::VARCHAR                                                               AS verbatim_name,
     NULL::VARCHAR                                                               AS locality,
-    NULL::INTEGER                                                               AS collapsed_count
+    NULL::INTEGER                                                               AS collapsed_count,
+    COALESCE(specimen_inat_login, host_inat_login, user_login)                 AS collector_inat_login
 FROM {{ ref('int_provisional_waba_ids') }} p
 JOIN {{ ref('stg_inat__observations') }} obs ON obs.id = p.observation_id
 
@@ -168,7 +170,8 @@ SELECT
     NULL::INTEGER                                                               AS checklist_id,
     NULL::VARCHAR                                                               AS verbatim_name,
     NULL::VARCHAR                                                               AS locality,
-    NULL::INTEGER                                                               AS collapsed_count
+    NULL::INTEGER                                                               AS collapsed_count,
+    COALESCE(specimen_inat_login, host_inat_login, user_login)                 AS collector_inat_login
 FROM {{ ref('int_specimen_obs_base') }} sob
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_ws
     ON ctt_ws.canonical_name = lower(trim(
@@ -247,7 +250,8 @@ SELECT
     NULL::INTEGER                      AS checklist_id,
     NULL::VARCHAR                      AS verbatim_name,
     NULL::VARCHAR                      AS locality,
-    NULL::INTEGER                      AS collapsed_count
+    NULL::INTEGER                      AS collapsed_count,
+    COALESCE(specimen_inat_login, host_inat_login, user_login) AS collector_inat_login
 FROM {{ source('inat_obs_data', 'observations') }} io
 LEFT JOIN {{ ref('int_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_io
@@ -308,7 +312,8 @@ SELECT
     cl.ObjectID::INTEGER                   AS checklist_id,
     cl.verbatim_name,
     cl.locality,
-    cl.collapsed_count::INTEGER            AS collapsed_count
+    cl.collapsed_count::INTEGER            AS collapsed_count,
+    COALESCE(specimen_inat_login, host_inat_login, user_login) AS collector_inat_login
 FROM {{ ref('int_checklist_dedup_status') }} cl
 WHERE cl.dedup_status IS DISTINCT FROM 'confirmed'
   AND cl.lat IS NOT NULL

@@ -88,7 +88,8 @@ SELECT
     j.checklist_id,
     j.verbatim_name,
     j.locality,
-    j.collapsed_count
+    j.collapsed_count,
+    j.collector_inat_login
 FROM joined j
 JOIN final_county fc ON fc._row_id = j._row_id
 JOIN final_eco    fe ON fe._row_id = j._row_id
