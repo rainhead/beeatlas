@@ -1,20 +1,73 @@
-# Feature Research: v5.0 Offline Field Mode
+# Feature Research: v6.0 My Work — Progress & Provenance
 
-**Domain:** Offline-capable installable PWA map — field use by volunteer bee collectors
-**Researched:** 2026-06-10
-**Confidence:** HIGH (PWA/SW mechanics — official MDN + web.dev docs; Mapbox GeolocateControl API
-confirmed from official docs; "near me" UX derived from iNat/AllTrails reference apps + spatial-filter
-pattern literature; Mapbox TOS constraint confirmed from official terms page)
+**Domain:** Per-collector "work" surface — personal event stream + accomplishments for volunteer bee collectors
+**Researched:** 2026-06-24
+**Confidence:** HIGH (iNat/eBird behavior from official docs + help centers; citizen-science motivation
+research from peer-reviewed literature; gamification design from multiple sources; data dependencies
+derived from current codebase knowledge)
 
 ---
 
 ## Scope Boundary
 
-This research covers only the NEW features in v5.0. Existing features (Mapbox map, occurrence
-filters, table, taxon/date/region/selection-rectangle filter system, SQLite WASM data layer,
-`_filterQueryGeneration` race guard, `bee-pane` unified pane, `stale-guard.ts`) are pre-built
-and treated as givens. The question is: what does each new feature look like to users, and what
-does the system need to do?
+This research covers the NEW features in v6.0: a per-collector page (bookmarkable, no auth,
+public data) surfacing a collection→ID event stream and accomplishment/coverage view. Pre-built
+features (Mapbox map, filter system, taxon/place static pages, occurrence detail cards, offline
+PWA) are treated as givens. The "work" surface is the first personal page type — it follows the
+existing per-taxon/per-place static-page pattern.
+
+**Explicitly deferred and out of scope:**
+- Community/shared liveness feed ("someone near you found a Bombus") → `collection-event-coordination.md` seed
+- Role badges ("instructor", "trainer") — need a roster/identity source absent from the pipeline
+- "Where to go next" planning surface (gaps × access × bloom) → `where-to-go-next.md` seed
+
+---
+
+## Ecosystem Patterns: What Comparable Platforms Do
+
+**iNaturalist user profile:**
+Counts (total observations, species, identifications), activity graphs, badges by volume tiers
+(10/50/500 observations), account-age badges, longest streak. Weak point: the personal stats are
+buried, the community has repeatedly asked for a better achievements page, and there is no
+lifecycle view ("did my observation get IDed?") — you have to hunt through your observation list
+manually. The "Needs ID" vs "Research Grade" status is visible per-observation but not surfaced
+as a personal event feed.
+
+**eBird My eBird:**
+The gold standard for personal birding dashboards. Per-year/month/day totals; life list, year
+list, county list, yard/patch lists automatically maintained with every checklist submission;
+profile map coloring regions by activity; recent checklists surfaced prominently; bar charts
+comparing current year to prior years; species/checklists/media toggles. Genuinely useful because
+the data (checklists submitted) arrives in near-real-time and the lists are derivative — zero
+extra user work. Notable: no cheap badge soup. The satisfaction comes from the lists and the map
+filling in, not from earning arbitrary points.
+
+**Zooniverse:**
+Contribution counts and volunteer hours, but no per-record feedback. Volunteers never find out if
+their classification was correct or contributed to a scientific result. This is a well-documented
+retention problem in citizen science literature — rapid feedback on submitted records is the most
+cited factor for volunteer retention.
+
+**Bumble Bee Watch:**
+Photo submissions enter a manual expert-verification queue. The user can see their submission but
+has no feedback on its verification status unless they proactively check. The gap between
+submission and expert ID is measured in weeks or months. Exactly the gap WABA should close.
+
+**Research consensus on citizen science motivation:**
+"Communication and feedback were rated the most important organisational offers by citizen science
+participants" (Tandfonline, 2020). "Rapid feedback on submitted records has the potential to
+strengthen engagement." Volunteers want to feel their time is well spent. The Zooniverse model
+(batch work, no individual feedback) works for click-through tasks; it fails for skilled
+specimen-based science where the individual record matters.
+
+**Gamification design research:**
+Well-designed gamification uses milestones that are intrinsically meaningful (a new county record
+IS a real scientific finding) rather than arbitrary point thresholds. Duolingo's weakness is that
+streaks become an obligation divorced from actual learning; when the streak breaks, there's
+nothing left. The eBird model works because the list is the activity, not a reward layered on
+top. The iNat badge-soup approach (brown/beige/green tiers for observation counts) is mildly
+engaging but hollow. For WABA the right model is eBird's: surface the data itself as the
+accomplishment, not a points layer.
 
 ---
 
@@ -22,407 +75,189 @@ does the system need to do?
 
 ### Table Stakes (Users Expect These)
 
-Features that any "offline field app" must have. Missing any of these = app feels broken or
-untrustworthy to dogfood testers.
+| Feature | Why Expected | Complexity | Data Dependencies |
+|---------|--------------|------------|-------------------|
+| **Per-collector page** (bookmarkable URL, e.g. `/collectors/janedoe`) | Follows the established per-taxon/per-place static page pattern already in the site; a collector should be able to share their page | LOW | Collector attribution field already in `occurrences.parquet` (`recordedBy`); page generation follows Eleventy pattern |
+| **Total count stats** (specimens, samples, species, years active) | iNat/eBird both surface summary counts; absence feels like an oversight | LOW | Derivable from existing occurrence columns; no new pipeline fields needed |
+| **Current status breakdown** ("N awaiting ID, N identified, N provisional") | Volunteers' core question is "where do my bees stand?" without having to count manually across iNat/Ecdysis | LOW–MEDIUM | Requires `is_provisional` column (already in occurrences) + an `id_status` derived field; relies on the source→facets rebuild |
+| **County coverage map** | eBird's profile map is the single most cited "satisfying" feature; for a state atlas, seeing your counties fill in is the natural equivalent | MEDIUM | County field already in occurrences (`county`); need per-collector aggregation by county; reuse SVG map pattern from taxon pages |
+| **Taxon breadth list** ("species you've contributed to") | Answers "what have I personally contributed to the scientific record?" — the core reward | LOW | Derivable via GROUP BY collector + taxon_id on occurrences; taxa already keyed on taxon_id |
+| **Static page, no auth required** | WABA collectors are not going to make accounts; public data means no login gate; the existing per-taxon/per-place pattern sets this expectation | LOW | Self-identification via URL (e.g., visiting `/collectors/janedoe`) — no session state |
 
-| Feature | Why Expected | Complexity | Dependencies on Existing Features |
-|---------|--------------|------------|-----------------------------------|
-| **PWA install prompt + icon** | Any app claiming to be installable must actually appear on the home screen with a recognizable icon | LOW | None — requires `manifest.webmanifest` + 192 px and 512 px icons only |
-| **Offline cold-start** | A "field app" that errors on first offline launch is useless; this is the entire value proposition | MEDIUM | SW must precache: app shell JS/CSS, `occurrences.db` (~23 MB), all GeoJSON overlays. Existing data-load path (`sqlite.ts`, `stale-guard.ts`) must succeed from cache. |
-| **"Ready for offline" indicator** | Users prime the app at home; they must know before leaving whether the app is actually cached and safe to take offline | MEDIUM | Requires SW lifecycle events (installing → waiting → activated); connects to `navigator.storage.estimate()` for size feedback |
-| **Online/offline status indication** | Users need to know their current connectivity state so they understand why tiles may be gray | LOW | `navigator.onLine` + `online`/`offline` events; independent of SW |
-| **"Data as of \<date\>" freshness label** | Volunteers need to know how stale the occurrence data is before heading into the field | LOW | Pipeline already writes a generation date to the DB; front-end needs to read and surface it |
-| **Graceful basemap degradation** | When uncached Mapbox tiles are requested offline, the map must not crash — gray tile areas with dots still visible is acceptable | MEDIUM | Mapbox GL JS already renders blank tiles for cache misses; SW must not intercept Mapbox tile requests in a way that errors the map |
-| **Blue dot + accuracy ring (GeolocateControl)** | Any map used for "am I near occurrences" must show where the user is; GPS works offline with no signal | LOW | Mapbox `GeolocateControl`; HTTPS is already required for CloudFront — prerequisite met |
-| **Recenter button** | Standard map control: after panning away, one tap returns to user position | LOW | Built into `GeolocateControl` — same button re-centers when tapped in passive state; no extra code |
-| **"Occurrences near me" filter** | The core field use case: what bees have been collected within ~10 km of where I am standing? | MEDIUM | Requires user position (GeolocateControl) + Haversine distance filter on existing SQLite query layer; composes with existing filters |
-| **Unlisted `/app/` route** | Private dogfood without changing the main map; team needs a URL to test | MEDIUM | SW scope isolation: SW at `/app/sw.js` with scope `/app/`; main `index.html` at `/` is untouched |
-| **Data refresh prompt when back online** | A prompt to pull the latest DB when connectivity returns and a newer snapshot exists | MEDIUM | Requires generation-date comparison between cached DB and CDN; user-initiated re-prime of the large SQLite file |
+### Differentiators (Competitive Advantage for WABA)
 
-### Differentiators (Worth Having for v1 Dogfood)
+| Feature | Value Proposition | Complexity | Data Dependencies |
+|---------|-------------------|------------|-------------------|
+| **Personal event stream** (collection→ID lifecycle feed) | No other tool in the WABA ecosystem (Canvas, iNat, Ecdysis, Facebook) closes this loop. "Your sample from June 5 was identified as *Agapostemon virescens*" is information a volunteer currently has no reliable way to receive | HIGH | Requires temporal lifecycle data — either pipeline-side `first_appeared_at` / `id_status_changed_at` timestamps, or client-side diff against a locally stored watermark. This is the open fork. The pipeline currently emits a snapshot. **This is the hardest dependency.** |
+| **"New county record!" milestone marker** | A first occurrence in a county is a genuine scientific contribution — surfacing it as a named event makes the significance legible without hype | MEDIUM | Requires a per-collector, per-species, per-county query to identify which of a collector's records were the first for that combination. Derivable at build time from existing data. |
+| **Pending vs identified visual split** | A two-section layout — "still waiting for ID" above, "returned IDed" below — converts status anxiety into actionable visibility | LOW–MEDIUM | Depends on reliable `id_status` derivation; the source→facets rebuild must expose this cleanly |
+| **"Years active" derivable badge** | Earnable from occurrence dates alone, no roster needed; reflects genuine longitudinal commitment; renders as "Active since 2022 (3 seasons)" not a cheap point total | LOW | `MIN(date)` GROUP BY collector; already in data |
+| **Recency signal on the map** | Showing where a collector has collected (dot map, colored by year) gives a spatial autobiography that's intrinsically interesting | LOW | All occurrence points have collector attribution + coordinates; reuse Mapbox point rendering |
+| **Link to the filtered main map** | "See your occurrences on the map" deep-links to the main map pre-filtered to the collector — pays off the existing filter/URL system | LOW | Existing `?collector=` filter (to be built in source→facets rebuild) + URL state system |
+| **Ecoregion breadth** | For collectors who range across different habitat types, ecoregion coverage is meaningful — "collected in 4 of 7 WA ecoregions" conveys dedication | LOW | `ecoregion_l3` already in occurrences; same derivation as county |
 
-Features that make this genuinely useful beyond baseline offline, without adding significant scope.
+### Anti-Features (Explicitly NOT Build)
 
-| Feature | Value Proposition | Complexity | Notes |
-|---------|-------------------|------------|-------|
-| **Cache priming progress indicator** | 23 MB is a noticeable download; a visible indicator prevents users abandoning the prime thinking it has stalled | MEDIUM | SW `install` fires per-URL; can send progress counts via `postMessage` to the page. Workbox precache does not expose per-file progress natively — requires a custom SW or explicit fetch-and-cache loop with progress messaging. An indeterminate spinner is acceptable for v1 if determinate progress is too complex. |
-| **Cache size display** | "8.4 MB cached" tells the user the priming is real and builds confidence before heading to the field | LOW | `navigator.storage.estimate()` returns `{usage, quota}`; display in the offline-ready status area |
-| **Basemap limitation label** | Gray tile areas are confusing if unlabeled; a brief explanation ("basemap tiles only cached for areas you've browsed online") prevents bug reports | LOW | Static text in the offline status indicator; no detection logic needed |
-| **Persistent location tracking while using filters** | User's dot stays on map while changing taxon/date/region filters | LOW | `GeolocateControl` state is independent of filter state; no extra work if `trackUserLocation: true` |
-
-### Anti-Features (Things to Deliberately NOT Build in v1)
-
-| Anti-Feature | Why It Seems Appealing | Why Avoid for v1 | What to Do Instead |
-|--------------|----------------------|------------------|--------------------|
-| **Bundled offline tile set (MBTiles/PMTiles for WA basemap)** | "Full offline" sounds better | Mapbox TOS explicitly prohibits redistributing cached tiles; a useful WA tile set would be hundreds of MB; occurrence dots render over blank tiles anyway — functionality is unimpaired | Accept gray tiles for uncached areas; label this behavior honestly in the status indicator |
-| **Adjustable "near me" radius (slider)** | More control seems better | Adds UI complexity, another filter control, URL state encoding complexity, and the "what is the right range?" debate — none of which helps dogfood testers; iNaturalist uses a fixed default with success | Hard-code 10 km in v1 (appropriate for sparse rural WA); make it configurable only if collectors ask |
-| **Background location updates when app is backgrounded** | Feels more native | Background geolocation requires additional permissions, battery drain, and platform differences; not needed for the use case (glance at map while collecting) | Use `trackUserLocation: true` (foreground only); control reactivates on next foreground open |
-| **Push notifications for new data** | Useful for freshness awareness | Requires push subscription infrastructure, backend message queue, notification permissions — none of which exists; adds scope far beyond offline/location goals | Poll on reconnect (or manual tap) is sufficient for nightly data updates |
-| **Offline species/places/feeds pages** | "Full offline app" | These are Eleventy-generated static HTML; caching them adds significant cache size and SW complexity for pages collectors do not use in the field | Scope SW to `/app/` route + `/data/` assets only |
-| **Install promotion on the main `/` page** | More installs | The main map page must stay untouched until v5.0 is dogfood-proven; adding install prompts before validation violates the unlisted-route plan | Install prompt lives only within the `/app/` route |
-| **Offline "save area" flow (explicit tile pre-download)** | Mapbox mobile SDKs have this | Mapbox GL JS has no official offline region web API; implementing it requires intercepting tile requests, storing in Cache API, and navigating TOS risk | Document as a post-dogfood decision item, contingent on terms review |
-| **Silent auto-refresh of the DB on reconnect** | Seamless freshness | A 23 MB download on a metered mobile connection without user consent is hostile; the user may be on a limited data plan in a rural area | Always prompt: "New data available — tap to download" |
-
----
-
-## Detailed Behavior Specifications
-
-### 1. PWA Install Flow and Offline Cold-Start UX
-
-**Install prompt on Android/Chrome (automatic prompt support):**
-1. Browser fires `beforeinstallprompt` when: valid `manifest.webmanifest` is linked, SW is registered,
-   site is HTTPS, user has engaged with the `/app/` page for ~30 seconds.
-2. App captures and defers the event (`e.preventDefault()`). A subtle "Install app" button or banner
-   appears within the `/app/` UI — not a blocking modal, not on first page load before any engagement.
-3. On tap, `deferredPrompt.prompt()` shows the native browser install sheet with app name and icon.
-4. On accept, the app icon appears on the home screen. Subsequent launches open in `standalone` display
-   mode (no browser address bar or navigation chrome).
-
-**iOS/Safari (manual only):**
-- `beforeinstallprompt` does NOT fire on iOS Safari. Chrome/Edge on iOS also cannot install PWAs.
-- Instead: display static instructional text "Open in Safari, then tap Share > Add to Home Screen" with
-  a visible Safari share icon symbol. Show this only when `window.matchMedia('(display-mode: browser)').matches`
-  is true (i.e., not yet running as an installed app).
-- This instruction should be inline in the `/app/` page UI, not a modal or overlay.
-
-**Splash screen:**
-- Android: auto-generated from `manifest.webmanifest` `name`, `background_color`, `theme_color`, and
-  the 512 px icon. No extra work needed.
-- iOS: requires `<link rel="apple-touch-startup-image">` tags for each device size, or the app opens to
-  a white screen. A white flash is acceptable for v1 dogfood. Proper splash images are a polish item.
-- A branded background color in the manifest (`background_color`) reduces the perceived white-flash gap
-  even without explicit splash images.
-
-**First offline cold-start:**
-- SW must have successfully precached all required assets during the prior online prime. Required:
-  all app shell JS/CSS entry points, `occurrences.db` (~23 MB), `counties.geojson`,
-  `ecoregions.geojson`, all static assets referenced by the app-shell HTML.
-- On cold start with no network: SW intercepts all same-origin fetches and serves from Cache API.
-  The existing SQLite data-load path reads `occurrences.db` from cache. Map renders occurrence dots
-  and GeoJSON overlays. Uncached Mapbox tiles show as gray/blank squares — expected behavior.
-- If the prime was incomplete (user went offline mid-download): app shows a clear error state rather
-  than a partially-working UI. Error text: "Offline data is not fully downloaded — connect to WiFi
-  and open this page to finish setup." This prevents a confusing experience where some features work
-  and others do not.
-
-### 2. Offline-Readiness UX (Priming Flow)
-
-**Prime trigger:** First visit to `/app/` while online (or any visit after a data update).
-
-**Progress states visible to the user:**
-
-| State | What the user sees | When |
-|-------|-------------------|------|
-| Priming | "Setting up for offline use… downloading N MB" — progress indicator (determinate if file count is known, indeterminate spinner if not) | SW install event, precache in progress |
-| Ready | Green/checkmark badge: "Ready to use offline. Data as of \<date\>. Basemap tiles cached for visited areas only." | SW activated, all files cached |
-| Size confirmation | "X MB stored on this device" (below ready state) | Shown once after priming completes, from `navigator.storage.estimate()` |
-| Offline | Persistent banner: "Offline — map and occurrence data available from cache" | `navigator.onLine === false` |
-| Update available | Toast: "New data available (\<new date\>) — tap to download" | Online, newer generation date detected on CDN |
-
-**Progress bar implementation note:** Workbox precaching does not expose per-file progress natively
-(confirmed: GitHub Issue #2498 for workbox). Custom approach: SW sends `postMessage({type: 'CACHE_PROGRESS', done: N, total: M})` during its install event as each file is fetched; the page listens and renders N/M. File count is known ahead of time from the precache manifest. An indeterminate spinner is an acceptable v1 fallback if custom SW messaging adds too much scope.
-
-### 3. Online/Offline State Indication and Basemap Degradation
-
-**Connectivity banner:**
-- `navigator.onLine` polled on load; `online` and `offline` window events listened continuously.
-- Online: no banner (or a subtle "Online" state in the status area, not intrusive).
-- Offline: a persistent, low-prominence banner or status chip: "Offline — cached data". Not a blocking
-  overlay; the map should still be fully usable.
-
-**Basemap tile degradation:**
-- What the user sees: gray squares in areas not previously browsed while online. Occurrence dots (Mapbox
-  source/layer features, not raster tiles) render correctly over gray tiles. County and ecoregion GeoJSON
-  overlays render correctly (precached by SW).
-- Net result: functionally complete for the use case (finding occurrence locations), but visually
-  degraded in unpanned areas.
-- The app should label this behavior: "Basemap tiles are only cached for areas you've browsed while
-  online" — displayed in the offline status area, not per-tile.
-
-**Tile caching policy (passive, not SW-intercepted):**
-- Mapbox GL JS tiles are served from Mapbox CDN. The browser's own HTTP disk cache (12-hour TTL per
-  CDN headers) passively caches tiles viewed while online. This is not under SW control.
-- The SW must NOT intercept Mapbox tile requests. Reasons: (1) Mapbox TOS prohibits redistributing
-  cached tiles; (2) the browser disk cache already handles this naturally.
-- SW fetch handler should only match same-origin requests: `/app/`, `/data/`, and static assets.
-  All `api.mapbox.com` and `events.mapbox.com` requests pass through to the network (or browser cache).
-
-### 4. Data Freshness Indicator
-
-**"Data as of \<date\>" semantics:**
-- The generation date is the pipeline run date — the date the nightly pipeline produced the current
-  `occurrences.db`. This is not the user's load time, not the CDN cache time.
-- Display format: "Data as of June 9, 2026" (human-readable date, not ISO, not relative). Always
-  visible in the status area, not buried in a settings panel.
-- The date does not change just because the user refreshes the page. It changes only when a newer DB
-  is fetched.
-
-**Reconnect and refresh flow:**
-1. On `online` event: fetch a lightweight version/manifest JSON from CDN (e.g., `/data/manifest.json`
-   or an ETag comparison on `occurrences.db`). This is a fast network-first check.
-2. Compare `generation_date` in the fetched manifest to the cached manifest value.
-3. If newer: show a non-blocking toast: "New data available (June 10, 2026) — tap to download".
-4. User taps: SW initiates a re-prime of `occurrences.db` in the background. Progress indication while
-   downloading. On completion: "Data updated — reload to apply changes."
-5. If same generation date: suppress further checks for the current session.
-6. **No auto-refresh without user consent.** A 23 MB download on a metered rural connection is
-   hostile. The user must explicitly tap.
-
-### 5. Current Location: GeolocateControl Behaviors
-
-**Recommended configuration:**
-```javascript
-new mapboxgl.GeolocateControl({
-  positionOptions: { enableHighAccuracy: true },   // GPS over cell/wifi triangulation
-  trackUserLocation: true,                          // toggle mode with active/passive/recenter
-  showAccuracyCircle: true,                         // 95% confidence halo (default)
-  fitBoundsOptions: { maxZoom: 15 }                // don't over-zoom on high-accuracy fix
-})
-```
-
-**Three tracking states (user-driven, not programmable):**
-
-| State | What user sees | How entered |
-|-------|---------------|-------------|
-| Active | Blue dot at center; map camera follows the user's position | Button tapped; initial state on activation |
-| Passive | Blue dot updates position; map camera stays put | User pans or zooms the map while active |
-| Recenter | — (transition) | Tapping the button while passive → returns to Active |
-
-**Offline behavior:** GPS (`enableHighAccuracy: true`) uses satellite signals — no network required.
-The `GeolocateControl` button functions normally offline. Cell/WiFi-based positioning (low accuracy)
-requires a network signal, but GPS does not. For field use in rural WA, GPS is the expected modality.
-
-**Permission prompt:** The browser shows the native location permission dialog on the first tap of the
-GeolocateControl button. The app cannot customize this dialog. If permission is denied:
-- The button should show a disabled/error visual state (Mapbox handles this automatically).
-- Show a brief tooltip or status line: "Location access denied — enable in browser settings to use
-  this feature."
-- The "Near me" chip should also disable and show the same explanation.
-
-**What does NOT work offline:** Reverse geocoding (coordinate → place name). Not needed here — the
-app displays a blue dot and occurrence proximity, not "You are near Wenas Creek."
-
-### 6. "Occurrences Near Me" Interaction
-
-**Interaction model:**
-
-1. A chip or button in the filter area: "Near me" (similar to existing taxon/date/region chips).
-2. On first tap:
-   - If GeolocateControl not active: activate it (request permission, await position fix).
-   - Show "Waiting for location…" state on the chip.
-3. On position fix received:
-   - Map pans/zooms to user's position (GeolocateControl default behavior).
-   - Apply spatial distance filter: show only occurrences within 10 km of user position.
-   - Filter is computed client-side via Haversine formula against `lat`/`lon` columns in the SQLite DB.
-   - The chip label becomes "Within 10 km" (or "Near me ✓").
-4. Distance filter AND-combines with existing taxon/date/region filters using the same query generation
-   that already exists in `filter.ts`. The SQLite `WHERE` clause gains an additional distance predicate.
-5. The existing `_filterQueryGeneration` race guard handles the async dependency: the near-me filter
-   must not fire a query until a position is available, analogous to the `taxaReady` barrier in
-   `_resolveLegacyTaxon`.
-
-**Fixed radius for v1: 10 km.** Appropriate for sparse rural WA collecting sites. No slider, no
-user-configurable range in v1.
-
-**URL state encoding:** Encode as `?near=1` (boolean flag only). The actual coordinates are ephemeral
-(they change with the user's position) and meaningless when a URL is shared. On restoring a URL with
-`?near=1`: show the chip in a "needs location" state and activate GeolocateControl; do not execute
-the distance query until a position is received.
-
-**Composability:**
-- AND semantics with all existing filters: "pollinators, June, King County, within 10 km of me."
-- "Clear filters" clears the near-me chip along with all other filters.
-- If location permission is denied: chip shows disabled. Existing filters still work normally.
-- If user leaves the page and returns: near-me is cleared (ephemeral position); re-tap to re-activate.
-
-**List/table integration:** The occurrence list and table (bee-pane) shows only within-radius
-occurrences. Optionally, a distance column ("0.3 km") in the table view is a differentiator — defer
-to post-dogfood (not table stakes for v1 since the map view communicates proximity visually).
-
-### 7. Unlisted Route Dogfood Pattern
-
-**What "unlisted" means:**
-- `/app/` is a real, deployed, publicly-accessible URL.
-- "Unlisted" = no link from the main site (`/`), no `sitemap.xml` entry, no nav item.
-- Not password-protected (static hosting has no auth layer). Security by obscurity, which is
-  explicitly acceptable for a private team dogfood before public rollout.
-
-**Service worker scope isolation:**
-- SW file served at `/app/sw.js`. Registration: `navigator.serviceWorker.register('/app/sw.js', { scope: '/app/' })`.
-- A SW at scope `/app/` controls all URL paths starting with `/app/`. It does NOT control `index.html` at `/`.
-- `manifest.webmanifest` served at `/app/manifest.webmanifest` with `start_url: '/app/'`.
-- The main `index.html` at `/` has no `<link rel="manifest">` pointing to the app manifest and no SW
-  registration — guaranteed isolation.
-
-**Cross-scope fetch for `/data/` assets:**
-- `occurrences.db`, `counties.geojson`, and `ecoregions.geojson` are served from `/data/` — outside
-  the `/app/` scope path but same origin.
-- A SW scoped to `/app/` can still intercept fetches it initiates for `/data/` resources, but only
-  if the SW is the controller of the page making the fetch (i.e., the `/app/` page). This works.
-- However, storing `/data/occurrences.db` in the cache from a `/app/`-scoped SW is valid — SW scope
-  restricts what pages the SW controls, not what URLs it can cache.
-- **Planning concern flagged:** Verify that precaching `/data/occurrences.db` from a `/app/`-scoped
-  SW does not require a `Service-Worker-Allowed` header override. Best practice: set
-  `Service-Worker-Allowed: /` on the SW response to allow caching of paths outside the scope.
-
-**Graduation to default (post-dogfood):**
-- When dogfood is validated: update `index.html` at `/` to link the manifest and register the SW
-  at root scope (`scope: '/'`). Move the `/app/` shell logic to `index.html` (or redirect `/app/`
-  to `/`).
-- Do not graduate until: Mapbox tile-caching TOS implications reviewed, offline experience validated
-  with at least one field outing, team sign-off.
+| Anti-Feature | Why It's Requested | Why to Avoid | What to Do Instead |
+|--------------|-------------------|--------------|-------------------|
+| **Leaderboards / rankings** | "Who's contributed the most?" feels like useful motivation | Demotivates the vast majority (bottom 90%) who are not at the top; research shows leaderboards benefit the top tier and harm retention for everyone else; turns collaboration into competition | Surface personal progress vs the collector's own prior years (eBird model: "your best June ever") not vs other collectors |
+| **Generic point totals** | Satisfying to watch a number grow | Disconnected from scientific meaning; motivates gaming (many low-quality observations) over quality; eBird deliberately does not show a "total score" | Show counts that ARE the data: specimens, species, counties — things that mean something independently of the platform |
+| **Streak tracking** (consecutive days active) | Duolingo-brained users may want this | Collecting bees has seasons; a winter break is not failure; streaks create anxiety and obligation around a volunteer hobby; breaks the Duolingo model entirely for a seasonal activity | Show "years active" and "active seasons" instead — celebrates commitment over duration without punishing seasonal gaps |
+| **Push notifications / email alerts for ID events** | "Notify me when my bee gets IDed" is the intuitive request | No server infrastructure (static hosting only constraint); requires opt-in auth flow; push subscriptions require a service worker + push server; out of scope | The event stream on the collector page IS the notification surface — the collector checks it like a feed when they want to; periodic link-sharing fills the pull role |
+| **Private / authenticated collector page** | "I don't want everyone to see my stats" | All occurrence data is already public; no PII beyond iNat handles is involved; adding auth to a static site requires a significant infrastructure change | Page is public but hard to discover (no site-wide index of collectors initially); the handle-in-URL pattern is opt-in (you share your URL) |
+| **Self-submitted records (new observations entered here)** | "I want to log my collection directly on BeeAtlas" | WABA already uses iNat + Ecdysis as canonical record systems; duplicating them builds a competing data entry system and diverges from the pipeline data; scope is enormous | Deepen the read/display of existing records instead; the value add is the synthesis view, not the entry point |
+| **Community feed on the collector page** | "See what other collectors near you found" | Deferred deliberately to `collection-event-coordination.md` seed; premature before semi-regular site users exist; cold-start problem — sparse feed worse than no feed | Build personal-only stream first; validate engagement before adding community layer |
+| **Role badges** ("Master Collector", "Instructor") | Recognition of community contribution | Need a roster/identity data source that does not exist in the occurrence pipeline; cannot be derived from observation data alone | Derivable badges (years active, counties, species count) first; role badges when a roster exists |
 
 ---
 
 ## Feature Dependencies
 
 ```
-[PWA Manifest + Icons]
-    └──required by──> [Install Prompt]
-    └──required by──> [Splash Screen on launch]
-    └──required by──> [Standalone Launch Mode (no browser chrome)]
+[Source → Facets Rebuild]
+    └──required by──> [Personal Event Stream] (needs collector-attributed occurrence–sample pairs)
+    └──required by──> [Pending vs Identified Split] (needs clean id_status derivation)
+    └──required by──> [Filter-to-collector map link] (needs collector= URL param)
 
-[Service Worker at /app/sw.js]
-    └──required by──> [Offline Cold-Start]
-    └──required by──> [Cache Priming + Progress]
-    └──required by──> [Offline-Ready Badge]
-    └──required by──> [Data Refresh on Reconnect]
+[Temporal ID-Status Lifecycle]  ← design fork (pipeline timestamps vs client watermark)
+    └──required by──> [Personal Event Stream] (needs "what changed" not just "current state")
+    └──enhances──> [Pending vs Identified Split] (makes "when it changed" visible)
 
-[Offline Cold-Start]
-    └──requires──> [Precached app shell JS/CSS]
-    └──requires──> [Precached occurrences.db (~23 MB)]
-    └──requires──> [Precached county + ecoregion GeoJSON]
-    └──requires existing──> [sqlite.ts / SQLite WASM data layer]
-    └──requires existing──> [stale-guard.ts (data load gating)]
-    └──requires existing──> [GeoJSON overlay layers in bee-map.ts]
+[Per-Collector Page (static, Eleventy)]
+    └──required by──> [County Coverage Map on collector page]
+    └──required by──> [Taxon Breadth List on collector page]
+    └──required by──> [Years Active Badge]
+    └──required by──> [Ecoregion Breadth]
+    └──required by──> [Collector dot map]
 
-[GeolocateControl (blue dot + recenter)]
-    └──required by──> [Occurrences Near Me]
-    └──note──> [recenter is the same button in passive→active state; no additional code]
+[County Coverage Map]
+    └──requires existing──> [county field in occurrences]
+    └──requires existing──> [SVG map generation pattern from taxon pages]
 
-[Occurrences Near Me]
-    └──requires──> [GeolocateControl (position fix)]
-    └──requires existing──> [filter.ts SQLite query layer]
-    └──requires existing──> [_filterQueryGeneration race guard in bee-atlas.ts]
-    └──requires existing──> [bee-pane list/table display]
-    └──enhances──> [existing taxon/date/region filters] (AND semantics)
-
-[Online/Offline Status Indicator]
-    └──enhances──> [Offline-Ready Badge] (shows "offline" state)
-    └──enhances──> [Data Freshness Label] (shows reconnect state)
-
-[Data Freshness Label]
-    └──enhances──> [Data Refresh on Reconnect] (label updates after re-prime)
-
-[Unlisted /app/ Route + SW Scope Isolation]
-    └──contains all of the above features
-    └──requires──> [SW scope isolation from main /]
-    └──requires planning care──> [cross-scope caching of /data/ assets]
+[New County Record Milestone]
+    └──requires──> [Per-Collector Page]
+    └──requires──> [county field in occurrences]
+    └──requires build-time query──> [first collector × species × county occurrence]
 ```
 
 ### Dependency Notes
 
-- **Offline cold-start requires an atomic prime**: partial cache = broken cold-start. The ready
-  indicator must only show "ready" once ALL required assets are cached, not after the first few.
-- **Near Me + race guard**: `_filterQueryGeneration` already handles concurrent async filter changes;
-  Near Me introduces an additional async dependency (GPS fix before query can fire). This must be
-  modeled analogously to `taxaReady` — do not fire the distance query until position is confirmed.
-- **SW scope vs `/data/` path**: the SW must be able to fetch and cache `/data/occurrences.db`
-  despite being scoped to `/app/`. This requires verifying the `Service-Worker-Allowed` header
-  situation. Flag for the architecture/implementation phase.
-- **Mapbox tile requests must bypass SW**: any fetch handler that accidentally intercepts
-  `api.mapbox.com` or `events.mapbox.com` requests risks violating TOS and breaking the map entirely
-  offline (returning a stale cached 401 or style JSON). The SW fetch handler must explicitly allow
-  these to fall through.
+- **Source→facets rebuild is the prerequisite:** the event stream cannot be meaningful without
+  collector-attributed occurrence–sample pairs where `id_status` is derived cleanly. This is the
+  v6.0 foundational phase and must land before the personal page features.
+
+- **Temporal fork is the hardest dependency:** the event stream requires knowing *what changed*
+  since the user last visited, not just the current state. Two options: (a) pipeline adds
+  `first_appeared_at` / `id_status_changed_at` columns — permanent nightly snapshot enrichment,
+  HIGH confidence in the feed; (b) client stores a "last visited" watermark in localStorage and
+  diffs the current snapshot against it — no pipeline change, but ephemeral (clears on device
+  switch). This fork must be resolved at discuss/plan time. Recommendation: option (a) for
+  accuracy; option (b) is a viable faster fallback.
+
+- **Per-collector page follows the Eleventy pattern:** the existing per-taxon/per-place page
+  generation logic is the template. The main difference is that "collector" is a person identity,
+  not a scientific category, so the index is keyed by `recordedBy` handle normalization.
+
+- **New County Record is a build-time query:** "which of this collector's occurrences were the
+  first in their county for that species?" is a pure SQL question answerable at Eleventy build
+  time. It does not require any new pipeline infrastructure. It does require that `county`,
+  `taxon_id`, `recordedBy`, and `date` are all populated — which they are for Ecdysis and iNat
+  records (checklist records have lower spatial precision and should be excluded from county-record
+  claims).
 
 ---
 
-## MVP Definition (Private Dogfood v1)
+## MVP Definition
 
-### Must Have for Self-Test
+### v6.0 Launch With (the "Status THEN Accomplishment" arc)
 
-- [ ] `manifest.webmanifest` at `/app/manifest.webmanifest` with `name`, `start_url: '/app/'`,
-      `display: 'standalone'`, `background_color`, `theme_color`, 192 px and 512 px icons
-- [ ] Service worker at `/app/sw.js` precaching app shell + `occurrences.db` + all GeoJSON
-- [ ] Offline cold-start: occurrence dots and GeoJSON overlays render without any network
-- [ ] "Ready for offline" indicator (text or badge; progress bar is a differentiator)
-- [ ] "Data as of \<date\>" label — pipeline generation date displayed in status area
-- [ ] Online/offline status banner (`navigator.onLine` + events)
-- [ ] Install prompt (Android/Chrome) + iOS Safari "Add to Home Screen" instructions text
-- [ ] `GeolocateControl` with `trackUserLocation: true`, `showAccuracyCircle: true`
-- [ ] "Near me" chip: fixed 10 km radius, composes with existing filters via AND
-- [ ] Unlisted `/app/` route: no link from main site; SW scoped to `/app/`; main `/` untouched
-- [ ] Graceful basemap degradation with explanatory label
+The sequence matters. Status (event stream) is the hook — it answers the question volunteers
+actually have right now. Accomplishment is the reward they discover after. Build in this order.
 
-### Add After Initial Dogfood (P2)
+**Phase A — Foundation (source→facets rebuild + collector page skeleton):**
+- [ ] Source→facets rebuild — orthogonal collector/provenance/id-status facets replacing `source`
+- [ ] Per-collector page at `/collectors/{handle}` (Eleventy static, no auth)
+- [ ] Total count stats (specimens, samples, species, years active)
+- [ ] Current status breakdown (awaiting ID, identified, provisional)
+- [ ] Collector index page or discoverable via URL convention
 
-- [ ] Determinate cache priming progress bar (N of M files)
-- [ ] Cache size display via `navigator.storage.estimate()`
-- [ ] "New data available" toast + user-initiated re-prime on reconnect
-- [ ] iOS splash screen images (currently: white flash acceptable)
-- [ ] Distance column in occurrence list sorted by proximity to user
+**Phase B — Status surface (event stream):**
+- [ ] Temporal id-status lifecycle decision resolved and implemented (pipeline timestamps recommended)
+- [ ] Personal event stream: collection→ID lifecycle, ordered reverse-chronologically
+- [ ] "New county record!" milestone events in the stream
+- [ ] Pending vs identified visual split on the page
 
-### Defer to Post-Dogfood (P3 / v5.1+)
+**Phase C — Accomplishment surface (coverage + breadth):**
+- [ ] County coverage map (SVG, matches taxon-page pattern)
+- [ ] Taxon breadth list (species contributed to, with taxon links)
+- [ ] Ecoregion breadth
+- [ ] "Active since YYYY (N seasons)" badge
+- [ ] Link to filtered main map (`?collector=handle`)
 
-- [ ] Graduate `/app/` to root `/` (requires TOS review + field validation + team sign-off)
-- [ ] Adjustable near-me radius
-- [ ] Public install prompt on main site
-- [ ] Offline tile pre-download for specific areas (requires TOS review + significant scope)
+### v6.1 Add After Validation
+
+- [ ] Collector dot map (occurrence points, color by year) — adds spatial autobiography
+- [ ] Year-over-year comparison chart (eBird-style bar) — "your best collection year"
+- [ ] Highlight "first for WA" occurrences if any exist
+
+### v2+ Future Consideration
+
+- [ ] Community feed on collector page — deferred to `collection-event-coordination.md`
+- [ ] Role badges — requires roster data source
+- [ ] "Where to go next" suggestions — separate seed; requires gap × access × bloom data
 
 ---
 
 ## Feature Prioritization Matrix
 
-| Feature | Field User Value | Implementation Cost | v1 Priority |
-|---------|-----------------|---------------------|-------------|
-| Offline cold-start (SW + precache) | HIGH | MEDIUM | P1 |
-| PWA install + manifest + icons | HIGH | LOW | P1 |
-| "Ready for offline" indicator | HIGH | MEDIUM | P1 |
-| "Data as of \<date\>" label | HIGH | LOW | P1 |
-| Blue dot + recenter (GeolocateControl) | HIGH | LOW | P1 |
-| "Near me" chip (10 km fixed radius) | HIGH | MEDIUM | P1 |
-| Unlisted `/app/` route + SW scope isolation | HIGH (enables dogfood) | MEDIUM | P1 |
-| Online/offline status banner | MEDIUM | LOW | P1 |
-| Graceful basemap degradation + label | MEDIUM | LOW | P1 |
-| iOS "Add to Home Screen" instructions | MEDIUM | LOW | P1 |
-| Determinate cache priming progress bar | MEDIUM | MEDIUM | P2 |
-| Cache size display | LOW | LOW | P2 |
-| "New data available" toast + refresh | MEDIUM | MEDIUM | P2 |
-| iOS splash screen images | LOW | LOW | P2 |
-| Distance column in occurrence list | LOW | LOW | P3 |
-| Adjustable near-me radius | LOW | MEDIUM | P3 |
+| Feature | Volunteer Value | Build Cost | Priority |
+|---------|----------------|------------|----------|
+| Source→facets rebuild | HIGH (substrate for everything) | HIGH | P1 |
+| Per-collector page skeleton + stats | HIGH (table stakes) | LOW | P1 |
+| Status breakdown (awaiting/ID'd/provisional) | HIGH (answers #1 question) | LOW–MEDIUM | P1 |
+| Temporal lifecycle + event stream | HIGH (core differentiator) | HIGH | P1 |
+| "New county record!" milestone | HIGH (intrinsically meaningful) | MEDIUM | P1 |
+| County coverage map | HIGH (eBird model — satisfying) | MEDIUM | P1 |
+| Taxon breadth list | MEDIUM | LOW | P1 |
+| Years active / seasons badge | MEDIUM | LOW | P1 |
+| Ecoregion breadth | MEDIUM | LOW | P2 |
+| Link to filtered main map | MEDIUM | LOW | P2 |
+| Collector dot map | LOW–MEDIUM | LOW | P2 |
+| Year-over-year comparison | LOW | MEDIUM | P3 |
+| Community feed | HIGH (long-term) | HIGH | DEFERRED |
 
 ---
 
-## Reference Apps Analyzed
+## Competitor Feature Analysis
 
-- **iNaturalist mobile app**: Nearby observations uses a fixed ~1 km default radius chip that
-  composes with taxon/location filters. Fixed radius preferred for v1.
-- **AllTrails**: "Distance Away" uses an explicit slider (more complex; not appropriate for v1
-  field dogfood). Good reference for v5.1+ if collectors request adjustable radius.
-- **Mapbox GL JS "Locate User" example**: Standard `GeolocateControl` integration reference.
+| Feature | iNaturalist | eBird | WABA v6.0 Approach |
+|---------|-------------|-------|-------------------|
+| Personal stats page | Basic counts; buried achievements; badge-soup | Excellent: lists auto-maintained, profile map, yearly comparison | Follow eBird structure; omit the badge soup |
+| ID lifecycle visibility | Per-observation status visible; no feed; user must hunt | N/A (IDs are instant via community voting) | Build the feed iNat lacks — this is the gap |
+| County coverage map | Not provided | Profile map coloring regions | Replicate eBird's most-loved feature for WA counties |
+| New-record milestones | No | No | Build as in-stream events — intrinsically meaningful, not gamified |
+| Streak/points | Streak counter; observation count badges | No streaks; lists are the metric | No streaks (seasonal activity); no points; counts only |
+| Community on personal page | Followers/following; comment threads | Friends see your checklists | Deferred — build after personal surface validates |
+| Auth required | Yes (to submit) | Yes (to submit) | No — display only, public data |
 
 ---
 
 ## Sources
 
-- [Installation prompt — web.dev](https://web.dev/learn/pwa/installation-prompt) — beforeinstallprompt flow, iOS limitations, defer pattern
-- [Making PWAs installable — MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable) — manifest requirements, browser support matrix
-- [Offline and background operation — MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Offline_and_background_operation) — SW caching strategies
-- [Caching — MDN](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Caching) — stale-while-revalidate, cache-first
-- [GeolocateControl — Mapbox GL JS Docs](https://docs.mapbox.com/mapbox-gl-js/api/markers/#geolocatecontrol) — trackUserLocation, showAccuracyCircle, three tracking states, fitBoundsOptions
-- [Maps APIs Caching — Mapbox Help](https://docs.mapbox.com/help/dive-deeper/api-caching/) — 12-hour tile TTL, passive browser cache behavior
-- [Mapbox Terms of Service](https://www.mapbox.com/legal/tos) — explicit prohibition on redistributing cached tiles (HIGH confidence; load-bearing constraint)
-- [StorageManager estimate() — MDN](https://developer.mozilla.org/en-US/docs/Web/API/StorageManager/estimate) — navigator.storage.estimate() for cache size display
-- [workbox-window — Chrome for Developers](https://developer.chrome.com/docs/workbox/modules/workbox-window) — SW lifecycle events for offline-ready detection
-- [workbox precache progress — GitHub Issue #2498](https://github.com/GoogleChrome/workbox/issues/2498) — confirms Workbox does not expose per-file progress natively
-- [iNaturalist Nearby filter — iNaturalist Help](https://help.inaturalist.org/en/support/solutions/articles/151000198035) — fixed-radius "near me" UX reference
-- [AllTrails Distance Away filter](https://support.alltrails.com/hc/en-us/articles/37227796303124) — slider-based alternative (deferred for v1)
-- [Spatial filter pattern — Map UI Patterns](https://mapuipatterns.com/spatial-filter/) — filter-by-geography design pattern
-- [PWA update notifications — Progressier](https://progressier.com/handling-service-worker-updates) — skipWaiting + toast notification pattern
-- [Service Worker scope — web.dev](https://web.dev/learn/pwa/service-workers) — scope isolation mechanics, Service-Worker-Allowed header
+- [My eBird Help Center](https://support.ebird.org/en/support/solutions/articles/48000794682-my-ebird) — dashboard features, list types, profile map
+- [New ways to explore your activity on My eBird](https://ebird.org/news/updated-my-ebird) — design philosophy, recent-activity emphasis, yearly totals
+- [eBird: The Gamification of Birding?](https://becausebirds.com/ebird-gamification-birding/) — life list as intrinsic motivator, comparison to Pokédex mechanic
+- [iNaturalist Badges announcement](https://www.inaturalist.org/posts/26934-introducing-badges) — badge tier structure
+- [iNaturalist community: better stats/achievements page request](https://forum.inaturalist.org/t/a-more-easily-accessible-and-fun-user-stats-achievements-page-section/9325) — evidence for iNat stats gap
+- [Meeting volunteer expectations — retention review (Tandfonline 2020)](https://www.tandfonline.com/doi/full/10.1080/09640568.2020.1853507) — feedback as top retention factor
+- [Community science participants gain awareness but improvements needed (PeerJ 2020 — Bumble Bee Watch)](https://peerj.com/articles/9141/) — gaps in expert-verification feedback loop
+- [Bumble Bee Watch program analysis (PMC 2024)](https://pmc.ncbi.nlm.nih.gov/articles/PMC11111064/) — community science program structure
+- [Why Duolingo's gamification works (and when it doesn't) (dev.to)](https://dev.to/pocket_linguist/why-duolingos-gamification-works-and-when-it-doesnt-1d4) — streak anti-pattern for seasonal activities
+- [Gamifying citizen science: study of two user groups (ResearchGate)](https://www.researchgate.net/publication/262291073_Gamifying_citizen_science_A_study_of_two_user_groups) — badges vs intrinsic motivation
+- [iNaturalist observation lifecycle](https://www.inaturalist.org/posts/62770-what-is-a-verifiable-observation-and-how-does-it-reach-research-grade) — Casual → Needs ID → Research Grade status model
+- Project context: `.planning/notes/work-vs-learning-two-halves.md`, `.planning/seeds/me-and-my-progress.md`, `.planning/research/questions.md`
 
 ---
 
-*Feature research for: v5.0 Offline Field Mode (Washington Bee Atlas)*
-*Researched: 2026-06-10*
+*Feature research for: v6.0 My Work — Progress & Provenance (Washington Bee Atlas)*
+*Researched: 2026-06-24*

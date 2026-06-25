@@ -1,292 +1,167 @@
-# Stack Research
+# Stack Research: v6.0 My Work — Progress & Provenance
 
-**Domain:** Offline-capable installable PWA additions to existing Eleventy+Vite+Lit+Mapbox static map site
-**Researched:** 2026-06-10
-**Confidence:** HIGH (core stack); MEDIUM (Mapbox tile caching mechanism); HIGH (location features)
-
----
-
-## 1. PWA Installability (Manifest + Icons)
-
-### What is already built-in — no new dependency
-
-The Web App Manifest (`manifest.webmanifest`) and `<link rel="manifest">` injection are handled by **vite-plugin-pwa** (see §3 below). The browser Geolocation API and `GeolocateControl` (§5) are already in `mapbox-gl` 3.x.
-
-iOS Safari requires an `<link rel="apple-touch-icon">` in `<head>` in addition to the manifest; it does NOT reliably use manifest `icons` on its own. This tag must be added manually to `_pages/index.html` (or the `/app/` entry point if isolated there).
-
-### Icon generation
-
-| Tool | Version | Purpose | Why |
-|------|---------|---------|-----|
-| `@vite-pwa/assets-generator` | 1.0.2 | CLI: one SVG → all required PNG sizes (192, 512, apple-touch, maskable) | Official vite-plugin-pwa companion; one command produces every icon variant from a single source SVG; avoids maintaining many PNGs by hand |
-
-Run once at design time, commit the outputs to `public/`:
-
-```bash
-npx @vite-pwa/assets-generator --preset minimal-2023 icons/bee.svg
-```
-
-This is a **dev-time tool only**, not a build dependency; add to `devDependencies` or run ad hoc.
-
-**Maskable icon note:** maskable icons need safe-zone padding (inner 80% of image). The `minimal-2023` preset produces a `maskable-icon-512x512.png` automatically if the source SVG has sufficient padding.
+**Domain:** Per-collector "work" surface added to an existing static-hosted naturalist atlas
+**Researched:** 2026-06-24
+**Confidence:** HIGH (all findings verified against live codebase + live iNat API + live DuckDB)
 
 ---
 
-## 2. Service Worker — Core Approach
+## Existing Stack (Fixed — Do Not Re-Research)
 
-### Recommended: vite-plugin-pwa 1.3.0 with `injectManifest` strategy
-
-| Technology | Version | Purpose | Why |
-|------------|---------|---------|-----|
-| `vite-plugin-pwa` | 1.3.0 | SW generation + manifest injection + Workbox precache manifest injection | Current release; peer-dep confirms Vite 8 support as of v1.3.0 (`"vite": "^3.1.0 || ... || ^8.0.0"`); active maintenance (May 2026 release) |
-| `workbox-build` | 7.4.1 | Workbox build-time library (peer-dep of vite-plugin-pwa) | Required peer dep; do not install separately unless using bare Workbox CLI |
-| `workbox-window` | 7.4.1 | In-browser SW registration helper (peer-dep of vite-plugin-pwa) | Required peer dep |
-| `workbox-precaching` | 7.4.1 | SW: precache + route built assets | Part of the Workbox 7.x family; same version |
-| `workbox-routing` | 7.4.1 | SW: `registerRoute` for runtime cache rules | Same version as above |
-| `workbox-strategies` | 7.4.1 | SW: `CacheFirst`, `NetworkFirst`, `StaleWhileRevalidate` | Same version |
-| `workbox-expiration` | 7.4.1 | SW: per-cache TTL and max-entries eviction | Same version |
-| `workbox-cacheable-response` | 7.4.1 | SW: allow caching opaque responses (needed for tile caching) | Same version |
-
-**Why `injectManifest` over `generateSW`:**
-
-`generateSW` auto-generates the entire SW and injects precache entries — but gives no control over the caching strategy for the `occurrences.db` fetch or the Mapbox tile runtime cache. `injectManifest` compiles a hand-written `src/sw.ts` with full Workbox API access, then injects `self.__WB_MANIFEST` (the Vite-hashed precache list) into it at build time. This is the right choice when you need custom runtime-cache rules alongside automated precaching.
-
-### Integration with `@11ty/eleventy-plugin-vite`
-
-`vite-plugin-pwa` is a standard Vite plugin and integrates via `viteOptions.plugins` in `eleventy.config.js`. The plugin's `EleventyVite.runBuild` does a `DeepCopy({}, this.options.viteOptions)` then calls Vite's `build()` — any plugins in `viteOptions.plugins` are passed through cleanly. (Confirmed by reading `node_modules/@11ty/eleventy-plugin-vite/EleventyVite.js` line 61 and the `runBuild` method.)
-
-**Key configuration wrinkle — root and outDir:** When `eleventy-plugin-vite` runs the Vite build, it sets `root` to `.11ty-vite/` (the renamed temp folder) and `outDir` to `_site/`. vite-plugin-pwa uses these to determine `globDirectory` for the Workbox precache manifest scan. Since `occurrences.db` and the GeoJSONs live under `public/data/` and are copied into `_site/` via Vite's `publicDir` handling, they will be present in `globDirectory` at build time — **but only if you explicitly add their glob pattern** to `injectManifest.globPatterns` and raise `maximumFileSizeToCacheInBytes` above the default 2 MB.
-
-The `occurrences.db` (~23 MB SQLite) should **not** be in the Workbox precache manifest. Precaching downloads everything on SW install, synchronously, as a unit — a 23 MB DB will make install take ages on mobile and risks triggering iOS's 50 MB cache quota. Instead, cache it as a **named runtime cache entry** in `sw.ts`. See §3 below.
-
-### Service worker scope and the `/app` dogfood route
-
-A SW at `/sw.js` (served from root) has scope `/` by default and intercepts every same-origin request including `/data/`. A SW at `/app/sw.js` has scope `/app/` only.
-
-**The cross-scope problem:** to intercept `/data/occurrences.db` fetches from a page at `/app/`, the SW script file must be at the root OR the CloudFront distribution must serve `Service-Worker-Allowed: /` on the `/app/sw.js` response. CloudFront's `ResponseHeadersPolicy` (already used in the CDK stack for CORS headers on `/data/*`) can add a custom `Service-Worker-Allowed: /` header on the behavior that serves `/app/sw.js`. This is the recommended approach for the unlisted-route dogfood setup.
-
-**Alternative (simpler for dogfood):** place `sw.js` at the root (`/sw.js`) and register it with scope `/app/` via `navigator.serviceWorker.register('/sw.js', { scope: '/app/' })`. The SW's `NavigationRoute` uses an allowlist to serve the app shell only for `/app` and `/app/*`. Other pages fall through to the network. This requires no CloudFront CDK changes. The main site (`/`, species pages) is also under SW control for fetch routing, but navigation routes are allowlist-scoped to `/app/`.
-
-For the initial dogfood phase, **root-hosted SW + allowlist NavigationRoute** is simpler. Switch to `/app/sw.js` + `Service-Worker-Allowed` header only if the main site SW control becomes a problem.
+TypeScript · Mapbox GL JS · Lit web components · wa-sqlite + hyparquet · Eleventy + Vite ·
+dbt → DuckDB (`data/beeatlas.duckdb`) → parquet + SQLite export → S3/CloudFront nightly cron.
+Static hosting only. No server runtime. DuckDB-WASM explicitly rejected (page weight).
 
 ---
 
-## 3. Caching Strategy Design
+## New Stack Pieces Required for v6.0
 
-### App shell (HTML + JS + CSS + WASM)
+The table below covers only what is **not already present**.
 
-**Precache via `self.__WB_MANIFEST`** — Vite content-hashes all assets; `injectManifest` injects the manifest list; Workbox's `precacheAndRoute` handles cache-first serving and revision-based cache busting automatically. WASM files (`.wasm`) must be included in `globPatterns`.
+### Pipeline (dbt / Python)
 
-Exclude the large data artifacts from `globPatterns`:
-```typescript
-VitePWA({
-  strategies: 'injectManifest',
-  srcDir: 'src',
-  filename: 'sw.ts',
-  injectManifest: {
-    globPatterns: ['**/*.{js,css,html,wasm}'],
-    globIgnores: ['**/occurrences.db', '**/occurrences.parquet', '**/checklist.parquet'],
-  },
-  manifest: { /* ... */ },
-})
-```
+| Addition | Version | Purpose | Why |
+|---|---|---|---|
+| `occurrence_status_history` table in `beeatlas.duckdb` | — | Append-only record of per-occurrence status transitions (`occ_id`, `status`, `status_date`, `canonical_name`, `county`) | Snapshot pipeline cannot reconstruct "what changed since date X" without retained history; see §Temporal History Recommendation below |
+| `collectors.json` export | — | Per-collector metadata: iNat login, display name, occurrence/specimen counts by year/county/taxon | Feeds Eleventy static page generation and client-side accomplishment view |
+| `collector-events-{login}.json` exports (one per collector) | — | Chronological event list for a single collector's event stream | Fetched client-side at runtime; content-hashed for cache busting |
 
-### `occurrences.db` (~23 MB SQLite) and GeoJSONs
+No new Python packages. `duckdb`, `dbt-duckdb`, and `requests` are already in `data/pyproject.toml`. The history table and new exports are pure DuckDB DDL + INSERT / SELECT logic inside `run.py`.
 
-**Runtime cache, `CacheFirst` strategy, named cache `data-artifacts`** in `sw.ts`:
+### Frontend (Eleventy + TypeScript + Lit)
 
-```typescript
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
+**No new npm dependencies.** All four v6.0 features compose from the existing toolkit:
 
-registerRoute(
-  ({ url }) => url.pathname.includes('/data/') && (
-    url.pathname.endsWith('.db') ||
-    url.pathname.endsWith('.geojson')
-  ),
-  new CacheFirst({
-    cacheName: 'data-artifacts',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 20,        // GeoJSONs + db
-        maxAgeSeconds: 60 * 60 * 24 * 30,  // 30 days
-        purgeOnQuotaError: true,
-      }),
-    ],
-  })
-);
-```
-
-**Cache versioning tied to the content-hash manifest:** The files served under `/data/` are already content-addressed (manifest.json maps logical keys → hashed filenames like `occurrences-abc123.db`). When the pipeline runs and produces a new hash, the old cached DB URL becomes stale naturally — the new URL is a cache miss and re-fetched. No manual cache version management needed; the existing `manifest.json` mechanism handles this.
-
-**manifest.json freshness indicator:** `manifest.json` carries `generated_at`. Cache it with `StaleWhileRevalidate` so the current timestamp is always shown and the background update primes the next cold start. On next app open, the cached manifest is served immediately while the network version updates silently.
-
-### iOS storage caveat
-
-iOS Safari imposes approximately 50 MB aggregate Cache API quota per origin. The 23 MB DB plus app shell (~several MB) consumes most of this. The 7-day eviction policy means a user who hasn't opened the app in a week will hit a cache miss on the DB. **Design requirement:** show the "data as of" indicator prominently and handle a DB cache miss gracefully (offer a "reload + re-cache" prompt). Do not assume the cache is populated on every cold start.
+| Feature | Technique | Why no new dep |
+|---|---|---|
+| Per-collector static pages | Eleventy pagination over `collectors.json` (same pattern as `places.json` → `place-detail.njk`) | Eleventy pagination is already the site's static page primitive |
+| Accomplishment view | Lit template over pre-aggregated fields in `collectors.json` | Aggregation cheaper at build time (DuckDB) than at runtime (client SQL) |
+| Event-stream UI | Lit template over `collector-events-{login}.json` fetched client-side | No UI library needed for a chronological list; existing `<bee-occurrence-detail>` component family already covers card rendering |
+| Source → facets rebuild | Refactor of `filter.ts`, `style.ts`, `bee-occurrence-detail.ts` | Pure TypeScript refactor; no new dep |
 
 ---
 
-## 4. Mapbox Basemap Tile Caching
+## Temporal History Fork — Concrete Recommendation
 
-**No new library needed.** Use Workbox's `CacheFirst` + `CacheableResponsePlugin` in `sw.ts`.
+**Recommendation: pipeline-side append-only history table in DuckDB.**
 
-### Mechanism
+### Why Not Client-Side localStorage Watermark
 
-Mapbox vector tiles served from `api.mapbox.com` include `Cache-Control: max-age=43200` (12 hours) on tile responses. Whether they are served with `Access-Control-Allow-Origin: *` (making them non-opaque when fetched with CORS mode) needs empirical verification: if mapbox-gl v3 fetches tiles as `mode: 'cors'`, responses are cacheable with status 200. If tiles are fetched `no-cors`, they arrive as opaque responses (status 0).
+Option B (client stores a `lastSeen` timestamp, diffs the current snapshot) has two fatal incompatibilities with the feature brief:
 
-**Opaque response storage penalty:** Each cached opaque response occupies a minimum of ~7 MB in the Storage Quota accounting (Chrome confirmed, Workbox issue #2226). This makes large-scale tile caching impractical with opaque responses. Verify by inspecting tile request headers in DevTools Network panel — look for `Access-Control-Allow-Origin` on the responses.
+1. **Volatile and non-bookmarkable.** A new browser/device/incognito window has no history. The per-collector page is explicitly bookmarkable and meant to be shared across devices; localStorage is per-origin per-browser.
+2. **Shallow.** It can only detect "this changed since I last visited." It cannot reconstruct a timeline of "this changed on 2026-04-12, then again on 2026-05-03." A chronological feed requires historical records, not a diff against a current snapshot.
 
-**If CORS responses (status 200):**
-```typescript
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst } from 'workbox-strategies';
-import { CacheableResponsePlugin } from 'workbox-cacheable-response';
-import { ExpirationPlugin } from 'workbox-expiration';
+### Pipeline History Table (Recommended)
 
-registerRoute(
-  ({ url }) =>
-    url.hostname.endsWith('.mapbox.com'),
-  new CacheFirst({
-    cacheName: 'mapbox-tiles',
-    plugins: [
-      new CacheableResponsePlugin({ statuses: [0, 200] }),
-      new ExpirationPlugin({
-        maxEntries: 500,   // tune to expected field area
-        maxAgeSeconds: 60 * 60 * 12,  // 12 hours, matching Mapbox tile TTL
-        purgeOnQuotaError: true,
-      }),
-    ],
-  })
-);
-```
+The nightly `run.py` maintains a `dbt_sandbox.occurrence_status_history` table inside the persisted `beeatlas.duckdb` (already backed up to S3 after every run and restored at the start of the next run — see `nightly.sh` steps 1 and 9). Each run:
 
-**If opaque only:** use `maxEntries: 50` and accept limited coverage, or investigate `map-gl-offline` (npm `map-gl-offline`, v0.5+) which caches via IndexedDB with explicit tile download. IndexedDB on iOS can hold up to ~500 MB vs the ~50 MB Cache API limit.
+1. Compute the current status of every occurrence: whether it has a current Ecdysis identification, the `inat_quality_grade`, the `modified` max-timestamp, the `canonical_name`.
+2. `INSERT INTO occurrence_status_history` rows where status has changed since the last recorded snapshot — append only; never delete.
+3. Export `collector-events-{login}.json` per collector: array of `{occ_id, event_type, status_date, canonical_name, county}` sorted newest-first.
 
-**Known 403 issue:** Mapbox GL JS has a history of returning 403 from ServiceWorker on revisit (GitHub issue #8859). Root cause is the access token embedded in tile URLs expiring while a cached response is served. Mitigate by setting `maxAgeSeconds` to 12 hours or less (Mapbox's documented device cache TTL), ensuring tokens never go stale in the cache.
+The DuckDB is already a persisted artifact across nightly runs (backed up to S3 even on failure per the trap). Adding an append-only history table costs zero additional S3 bandwidth beyond the existing DuckDB backup.
+
+### Available Status Signals — Verified Against Live Data
+
+| Source | Signal | Confidence | Notes |
+|---|---|---|---|
+| `ecdysis_data.identifications.modified` | `MAX(modified) > last known value` per `coreid` — "identification was updated in Ecdysis" | HIGH | Verified via live DuckDB: `modified` timestamps span every month from 2025-02 through 2026-06. This is the Ecdysis DB's own modification time, **not** a bulk-import date. The existing `int_id_modified.sql` model already uses this field. |
+| `inaturalist_waba_data.observations.quality_grade` + `updated_at` | `quality_grade` transition (e.g. `needs_id` → `research`) with timestamp | HIGH | Verified: `created_at` and `updated_at` are `TIMESTAMP WITH TIME ZONE` in DuckDB. `updated_at` advances when quality grade changes. 303 WABA observations currently have `quality_grade = 'research'`; 1,113 remain `needs_id`. |
+| `inaturalist_waba_data.observations.created_at` | Sample was first posted to iNat | HIGH | Verified: timestamp present and reliable; spans 2024-06 through 2026-06. |
+| `waba_specimen` → `ecdysis` source transition | Pipeline run N-1 had `source=waba_specimen`; run N has `source=ecdysis` | HIGH | Pipeline-retained history table detects this. This represents "your specimen was catalogued in Ecdysis." |
+
+**iNat Identifications API (deferred from Phase 1):** The `/v1/identifications` endpoint returns per-identification records with a `created_at` ISO 8601 timestamp (confirmed by live API call). This enables "your sample received an ID by [identifier] on [date]." Requires an extra nightly API call per observation_id. Defer to a follow-on phase; the transition-based detection above is sufficient for MVP.
+
+The `date_identified` field on Ecdysis identifications is year-only for ~43% of records (e.g. `"2025"`, `"2026"`) and `"s.d."` (sine dato) for ~43%. It is not usable as a precise event timestamp. Use `modified` instead.
 
 ---
 
-## 5. Current-Location Indicator
+## Per-Collector Static Pages
 
-### GeolocateControl — built-in, no new dependency
+**Pattern: identical to existing per-place pages (zero new concepts).**
 
-`mapboxgl.GeolocateControl` ships with `mapbox-gl` 3.x. No new package:
+The `place-detail.njk` → `_data/places.js` → `public/data/places.json` chain is the exact template:
 
-```typescript
-map.addControl(
-  new mapboxgl.GeolocateControl({
-    positionOptions: { enableHighAccuracy: true },
-    trackUserLocation: true,
-    showUserLocation: true,
-    showUserHeading: true,
-  }),
-  'top-right'
-);
-```
+1. Pipeline exports `public/data/collectors.json` — array of collector objects with fields: `login`, `display_name`, `occurrence_count`, `specimen_count`, `active_years[]`, `top_counties[]`, `top_taxa[]`.
+2. New `_data/collectors.js` Eleventy data module: `readFileSync('public/data/collectors.json')`, same 4-line pattern as `places.js`.
+3. New `_pages/collector-detail.njk` paginates over `collectors.collectorsArray`, permalink `/collectors/{login}.html`.
+4. New Vite entry `src/entries/collector-page.ts` fetches `collector-events-{login}-{hash}.json` at runtime and renders the live event stream.
 
-This provides the blue dot, accuracy ring, heading indicator, and recenter button. GPS works offline (browser Geolocation API does not require network). The `geolocate` event fires with a `GeolocationPosition` that can be used to drive the "occurrences near me" query.
-
-### "Occurrences near me" proximity query
-
-**Recommendation: pure SQL haversine in wa-sqlite — no new library.**
-
-SQLite supports `sin()`, `cos()`, `asin()`, `sqrt()`, and standard math functions. The haversine formula is expressible as a SQL query, keeping all computation in the existing worker thread:
-
-```sql
-SELECT *,
-  (2 * 6371 * asin(sqrt(
-    sin(radians((lat - :lat) / 2)) * sin(radians((lat - :lat) / 2)) +
-    cos(radians(:lat)) * cos(radians(lat)) *
-    sin(radians((lon - :lon) / 2)) * sin(radians((lon - :lon) / 2))
-  ))) AS distance_km
-FROM occurrences
-WHERE lat BETWEEN :lat - (:radius_km / 111.045)
-  AND :lat + (:radius_km / 111.045)
-  AND lon BETWEEN :lon - (:radius_km / (111.045 * cos(radians(:lat))))
-  AND :lon + (:radius_km / (111.045 * cos(radians(:lat))))
-HAVING distance_km <= :radius_km
-ORDER BY distance_km
-```
-
-The `WHERE` bounding box pre-filters on `lat`/`lon` columns before the expensive haversine computation. wa-sqlite's MemoryVFS sync build includes standard SQLite math functions; no extension loading or UDFs needed.
-
-**Alternative: `@turf/distance`** (7.3.5, 14 KB unpacked). Use in JavaScript if the SQL approach proves awkward to integrate with the existing query architecture. Acceptable bundle size. But the SQL approach keeps the query entirely in the worker thread (no main-thread geometry math) and is the natural fit for the existing filter SQL pattern.
+**Collector identity key:** `host_inat_login` is the authoritative WABA-collector identifier — the iNat login of the sample observer. This field is already present in `int_combined` and carried through `occurrences.parquet`. Distinct WABA collector count from the live DuckDB: ~156 collectors with `host_inat_login` on Ecdysis rows, ~16 with only provisional WABA samples. These are small numbers — 172 static pages is negligible build time.
 
 ---
 
-## Installation
+## Accomplishment View
 
-```bash
-# Core new dependencies (all devDependencies — Workbox sub-packages
-# imported in sw.ts are bundled by vite-plugin-pwa's separate SW build pass)
-npm install -D vite-plugin-pwa workbox-build workbox-window \
-               workbox-precaching workbox-routing workbox-strategies \
-               workbox-expiration workbox-cacheable-response
+No new technology. The accomplishment data (counties visited, taxa count, years active, specimen count) is fully derivable at pipeline build time from `occurrences.parquet` grouped by `host_inat_login`. These aggregates belong in `collectors.json`, computed by the pipeline at export time, not at runtime by the client.
 
-# Icon generator — run once at design time, commit outputs; then can remove
-npm install -D @vite-pwa/assets-generator
-```
+The per-collector coverage map (which counties has this collector contributed from) can be a pre-generated SVG using the existing `data/svg_map.py` / `data/species_maps.py` pattern. Zero new dependencies. Upload as stable URLs `/data/collector-maps/{login}.svg` (same S3 pattern as `/data/species-maps/` and `/data/place-maps/`).
 
 ---
 
-## Alternatives Considered
+## Source → Facets Rebuild
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| vite-plugin-pwa (injectManifest) | Hand-rolled bare service worker | Bare SW requires manual precache manifest construction (re-implementing content-hash tracking); no Workbox retry/expiration logic; much more code for equivalent reliability |
-| vite-plugin-pwa (injectManifest) | vite-plugin-pwa (generateSW) | generateSW gives no custom runtime cache control; cannot special-case the 23 MB DB fetch or Mapbox tile caching |
-| vite-plugin-pwa (injectManifest) | Workbox CLI (workbox-cli) directly | Requires a separate build step outside Vite; vite-plugin-pwa integrates into the existing Vite build pass as a plugin |
-| SQL haversine in wa-sqlite | @turf/distance | Both work; SQL approach keeps all computation in the worker, requires no new dependency, fits the existing filter SQL architecture |
-| SQL haversine in wa-sqlite | Spatial SQLite extension (SpatiaLite) | SpatiaLite is a native C extension; not loadable in wa-sqlite WASM without a custom WASM build; overkill for a single distance function |
-| GeolocateControl (mapbox-gl built-in) | Custom blue-dot overlay | GeolocateControl already handles permission prompting, accuracy ring, tracking mode, heading |
-| Root-hosted SW + allowlist NavigationRoute | /app/sw.js + Service-Worker-Allowed header | Service-Worker-Allowed requires a CDK change and CloudFront ResponseHeadersPolicy addition; root-hosted SW is simpler for the dogfood phase |
+A **pure TypeScript refactor** of three existing files — no new dependencies:
+
+- `src/filter.ts` — replace `source`-based SQL WHERE logic with orthogonal facet predicates
+- `src/style.ts` — replace `source`-based Mapbox GL style switch with facet-based style function
+- `src/bee-occurrence-detail.ts` — replace `source`-based card renderer switch with facet predicates
+
+The `source` string column in `occurrences.parquet` stays in the data. The refactor replaces the ad-hoc switch-on-source logic with predicates derived from the existing occurrence fields (`ecdysis_id IS NOT NULL`, `is_provisional`, `host_inat_login IS NOT NULL`, etc.). The dbt contract is unaffected in Phase 1 of the refactor.
 
 ---
 
-## What NOT to Use
+## New Artifacts for `nightly.sh` Manifest
+
+| Artifact | Manifest key | Pattern |
+|---|---|---|
+| `collectors.json` | `collectors_meta` | Content-hashed, `immutable` |
+| `collector-events-{login}-{hash}.json` | Not in manifest; fetched by client at `/data/collector-events/{login}-{hash}.json` | Content-hashed URL baked into `collectors.json` |
+| Per-collector SVG maps | Stable URL: `/data/collector-maps/{login}.svg` | Same pattern as `/data/species-maps/` and `/data/place-maps/` |
+
+The `nightly.sh` manifest extension and CloudFront invalidation for these are direct copies of the existing `places_meta` and `species-maps` patterns. No new S3 buckets, no new CloudFront behaviors, no CDK changes.
+
+---
+
+## What NOT to Add
 
 | Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| `workbox-webpack-plugin` | Webpack plugin; irrelevant to Vite | `workbox-build` (peer dep of vite-plugin-pwa) |
-| Workbox CDN import in sw.ts (`importScripts`) | vite-plugin-pwa's SW build pass bundles Workbox modules via Rollup/Rolldown; CDN imports break the bundle and make offline caching of the SW itself impossible | ESM imports in sw.ts |
-| `@mapbox/mapbox-gl-geocoder` | Geocoding requires network; adds substantial weight; not needed for location feature | GeolocateControl built-in |
-| `map-gl-offline` | Third-party lib wrapping tile caching in IndexedDB; useful for large pre-downloaded areas; overkill for "panned-while-online areas survive offline" use case | Workbox CacheFirst for tiles |
-| `idb` or `idb-keyval` | wa-sqlite already uses MemoryVFS (in-memory from ArrayBuffer fetch); the fetch response is what needs caching, and the Cache API is the right tool; IndexedDB path would require significant wa-sqlite VFS rework | Cache API via Workbox |
-| Putting `occurrences.db` in the precache manifest | 23 MB install payload blocks SW activation; risks iOS 50 MB quota; vite-plugin-pwa's default `maximumFileSizeToCacheInBytes` (2 MB) would reject it anyway | Runtime CacheFirst in sw.ts |
+|---|---|---|
+| DuckDB-WASM in the frontend | Already rejected (project memory explicit); page weight of tens of MB | wa-sqlite remains the frontend SQL engine |
+| Auth / user accounts / login | Static hosting constraint. Personal page is public data + self-identification: pick iNat handle via URL param or navigate to `/collectors/{login}.html` | No auth. Public data. Bookmarkable URL. |
+| Event sourcing framework (Kafka, Temporal.io, EventStoreDB) | Catastrophic overkill — the event history is a ~100k-row append-only DuckDB table; nightly batch is the correct cadence for a citizen-science atlas | Append-only DuckDB table, INSERT on detected status transitions |
+| Per-identification API calls during nightly run (Phase 1) | Adds network dependency, rate-limit risk, and latency for marginal MVP gain; transition-based detection (quality_grade, ecdysis modified) is sufficient | Defer per-identification `created_at` to a follow-on phase |
+| React / Vue / Svelte for event stream UI | The event stream is a sorted list of cards; Lit + existing `<bee-occurrence-detail>` component family already renders occurrence cards | Lit web components |
+| Separate "history" S3 bucket or second database | DuckDB is already persisted to S3 between runs; the history table lives in the existing `beeatlas.duckdb` | Append-only table in the existing persisted DuckDB |
+| Client-side localStorage watermark approach for event history | Non-bookmarkable, non-shareable, single-device, shallow | Pipeline-retained history table |
 
 ---
 
-## Version Compatibility
+## Integration with Existing occurrences-Schema Change Process
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `vite-plugin-pwa@1.3.0` | `vite@^8.0.0` | Confirmed in peer dep range; v1.3.0 added Vite 8 support explicitly (GitHub releases, May 2026) |
-| `workbox-*@7.4.1` | `vite-plugin-pwa@1.3.0` | Required peer dep; use same `^7.x` for all Workbox sub-packages |
-| `@11ty/eleventy-plugin-vite@8.0.0` | `vite@^8.x` | VitePWA goes in `viteOptions.plugins`; plugin passes through cleanly via `Merge + build(viteOptions)` |
-| vite-plugin-pwa injectManifest | Eleventy rename-and-build mechanism | `root` is set to `.11ty-vite/` at build time; `globDirectory` for precache scan resolves from that root; public assets in `_site/` at time of Workbox scan are correct |
+The `occurrence_status_history` table is NOT a dbt-managed model. It lives in the `dbt_sandbox` schema as pipeline bookkeeping — written by Python in `run.py`, not by dbt. This means:
+
+- It is exempt from the dbt contract enforcement (`data/dbt/models/marts/schema.yml`)
+- It does NOT trigger the `test_dbt_diff` gate
+- It IS preserved across nightly runs via the DuckDB S3 backup/restore
+
+If v6.0 adds new columns to `occurrences.parquet` (e.g. a `collector_login` unified field), that requires the standard schema-change process documented in `project_occurrences_contract_release_sequence.md`: data-before-code ordering + one-time `SKIP_INTEGRATION_GATE=1` nightly.
 
 ---
 
 ## Sources
 
-- Context7 `/vite-pwa/vite-plugin-pwa` — injectManifest strategy, globPatterns, maximumFileSizeToCacheInBytes, MPA routing (HIGH confidence)
-- Context7 `/googlechrome/workbox` — runtime caching, CacheableResponsePlugin, opaque responses, ExpirationPlugin (HIGH confidence)
-- Context7 `/mapbox/mapbox-gl-js` — GeolocateControl API (HIGH confidence)
-- `npm info vite-plugin-pwa` — confirmed version 1.3.0, peer deps including `vite@^8.0.0`, published 2026-05-05 (HIGH confidence)
-- `npm info workbox-build` — confirmed version 7.4.1, published 2026-05-04 (HIGH confidence)
-- `npm info @vite-pwa/assets-generator` — confirmed version 1.0.2, published 2025-10-14 (HIGH confidence)
-- `npm info @turf/distance` — confirmed version 7.3.5, 14 KB unpacked (HIGH confidence)
-- [vite-plugin-pwa releases](https://github.com/vite-pwa/vite-plugin-pwa/releases) — v1.3.0 added Vite 8 peerDep (HIGH confidence, official source)
-- [Mapbox issue #8859](https://github.com/mapbox/mapbox-gl-js/issues/8859) — 403-from-SW tile issue on revisit; token expiry root cause (MEDIUM confidence — older issue)
-- [PWA iOS limitations](https://www.magicbell.com/blog/pwa-ios-limitations-safari-support-complete-guide) — 50 MB cache quota, 7-day eviction (MEDIUM confidence — third-party article, consistent with MDN)
-- [Workbox opaque response quota issue #2226](https://github.com/GoogleChrome/workbox/issues/2226) — 7 MB per opaque entry (HIGH confidence, Chrome team confirmed)
-- [Mapbox API caching docs](https://docs.mapbox.com/help/troubleshooting/api-caching/) — `max-age=43200` (12h) on tile responses (MEDIUM confidence — page confirmed TTL values but not CORS header presence)
-- `/home/peter/dev/beeatlas/node_modules/@11ty/eleventy-plugin-vite/EleventyVite.js` — confirmed `Merge + build(viteOptions)` flow; plugins pass through (HIGH confidence, source code read directly)
-- `/home/peter/dev/beeatlas/infra/lib/beeatlas-stack.ts` — CDK `ResponseHeadersPolicy` already in use on `/data/*`; extending for `Service-Worker-Allowed` is a small CDK addition (HIGH confidence, source code read directly)
+- Live `data/beeatlas.duckdb` query — Ecdysis `identifications.modified` spans 2025-02 through 2026-06 (not a bulk-import date); HIGH confidence (primary source)
+- Live `data/beeatlas.duckdb` query — `inaturalist_waba_data.observations` has `created_at` and `updated_at` as `TIMESTAMP WITH TIME ZONE`; HIGH confidence (primary source)
+- Live `data/beeatlas.duckdb` query — WABA quality_grade distribution: 303 research, 1113 needs_id, 1 casual; HIGH confidence (primary source)
+- Live `data/raw/inat_expert_obs.csv` — column headers include `created_at` and `updated_at` at observation level; HIGH confidence (primary source)
+- iNat API live call to `https://api.inaturalist.org/v1/identifications?user_login=rainhead&per_page=1` — per-identification `created_at` field confirmed present and ISO 8601 with timezone; HIGH confidence
+- `_data/places.js`, `_pages/place-detail.njk`, `data/nightly.sh` — per-place static page and manifest upload patterns; HIGH confidence (primary sources)
+- `data/dbt/models/intermediate/int_id_modified.sql`, `int_ecdysis_base.sql` — `modified` field already used in the dbt model; HIGH confidence (primary source)
+- iNaturalist open-data GitHub README (fetched) — six CSV files, no identifications table in the open-data export; HIGH confidence (means per-identification `created_at` requires the live API, not the open-data dump)
 
 ---
 
-*Stack research for: v5.0 Offline Field Mode additions to beeatlas.net*
-*Researched: 2026-06-10*
+*Stack research for: BeeAtlas v6.0 My Work — Progress & Provenance*
+*Researched: 2026-06-24*

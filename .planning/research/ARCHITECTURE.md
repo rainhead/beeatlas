@@ -1,445 +1,450 @@
-# Architecture Research: v5.0 Offline Field Mode
+# Architecture Research: v6.0 My Work — Progress & Provenance
 
-**Domain:** PWA offline + geolocation integration for an existing Eleventy+Vite+Lit static map SPA
-**Researched:** 2026-06-10
-**Confidence:** HIGH (SW scope rules from MDN; Cache API behavior from web.dev; existing code read directly)
+**Domain:** Static web app + dbt pipeline integration
+**Researched:** 2026-06-24
+**Confidence:** HIGH (grounded in actual source files read)
 
----
+## Integration Analysis
 
-## 1. SW Scope vs. `/data/` Intercept: The Decisive Fact
-
-**The tension is real but resolvable without any CDK/CloudFront header changes.**
-
-The scope of a service worker controls which **pages/documents** it governs, not which **fetches** it can intercept. MDN is explicit: once a page at `/app` is controlled by a SW, that SW's `fetch` handler fires for every network request that page issues — including same-origin requests to `/data/occurrences_hash.db`, `/data/counties_hash.geojson`, and all other content-hashed `/data/` artifacts — regardless of those paths being outside the SW's scope.
-
-Consequence: registering the SW with `scope: '/app'` and serving `sw.js` from `/app/sw.js` gives full intercept power over all `/data/` fetches made by the `/app` page. The `/` (index) page has no SW and is unaffected.
-
-### 1a. SW File Location and Scope Declaration
-
-| Option | File served at | Registration scope | `Service-Worker-Allowed` needed? |
-|--------|---------------|-------------------|----------------------------------|
-| A (recommended) | `/app/sw.js` | `/app` (default) | No |
-| B | `/sw.js` (root) | `/` | No (default = script dir) |
-| C | `/app/sw.js` | `/` | YES — CloudFront must add `Service-Worker-Allowed: /` on that path |
-
-**Use Option A.** The SW file lives in `public/app/sw.js` (Vite copies `public/` verbatim, no hashing). Registration inside the `/app` page HTML: `navigator.serviceWorker.register('/app/sw.js', { scope: '/app' })`. Scope defaults to `/app/` because the script is at `/app/sw.js`. No header changes needed anywhere.
-
-The only case requiring `Service-Worker-Allowed` is if `sw.js` were served from a Vite-hashed path (e.g. `/assets/sw-abc123.js`) with `scope: '/'`. Avoid hashing `sw.js` — service workers must be at a stable URL for the browser's update detection to work correctly. Placing it in `public/app/` keeps it stable.
-
-### 1b. Why `/` Stays Clean
-
-Pages at `/`, `/species/...`, `/places/...` are not within the SW's scope (`/app`). They load with no service worker attached. The SW has zero effect on them. There is no contamination and no change needed to the existing pages.
-
-### 1c. PWA Web App Manifest
-
-`manifest.webmanifest` must declare:
-```json
-{ "start_url": "/app", "scope": "/app" }
-```
-
-Linked only from `/app/index.html`, not from `/index.html`. Chrome's installability check requires `start_url` within `scope` and within the registered SW's scope — all three align at `/app`.
+This document answers four concrete questions about integrating v6.0 features into the existing
+architecture. Every claim is grounded in the files read: `int_combined.sql`, `occurrences.sql`,
+`filter.ts`, `style.ts`, `bee-occurrence-detail.ts`, `occurrence.ts`, `occurrence_places.sql`,
+`sqlite_export.py`, `schema.yml`, and the static page templates.
 
 ---
 
-## 2. Caching Strategy
+## (a) Collector Identity: Where It Lives and How to Key It
 
-### 2a. App Shell Precache
+### Current collector fields across the five ARMs
 
-The app shell — `/app/index.html` plus the Vite-hashed JS and CSS bundles for the `/app` entry — is precached at SW install time. Because Vite emits content-hashed filenames (`/assets/bee-atlas-abc123.js`), the precache manifest is a static list. The SW stores these in Cache Storage under a `shell-v1` cache.
+Collector identity is split across four separate fields in `int_combined` that flow into the
+`occurrences` mart:
 
-Use Workbox `injectManifest` mode (not `generateSW`) because the existing build pipeline is already bespoke and the SW needs custom logic: manifest.json-keyed invalidation and proximity caching. Workbox reads the Vite build manifest at build time and injects the precache list into the hand-written SW source.
+| Field | ARM(s) present | Meaning |
+|-------|---------------|---------|
+| `recordedBy` | ARM 1 (ecdysis), ARM 5 (checklist) | Ecdysis free-text string, e.g. "Abrahamsen, Peter" |
+| `host_inat_login` | ARM 1 (via `int_samples_base`), ARM 2 (waba_sample via `obs.user__login`) | iNat handle of the person who posted the sample/floral-host observation |
+| `user_login` | ARM 4 (inat_obs) | iNat handle of the expert observer |
+| `specimen_inat_login` | ARM 1 (via `int_specimen_obs_base`), ARM 3 (waba_specimen) | iNat handle of the WABA collector who photo-documented the specimen |
 
-### 2b. Runtime Cache for `/data/` Artifacts
+**Critical finding:** `specimen_inat_login` is present in `int_combined` (carried from
+`int_specimen_obs_base`) but is **NOT** projected into the `occurrences` mart SELECT and does not
+appear in `schema.yml`. It is invisible to the frontend. This is the key identity field for WABA
+collectors (who photograph their bees in iNat before Ecdysis upload), and it covers ARM 1 (ecdysis
+specimens linked to a specimen observation) and ARM 3 (waba_specimen — the ~33 specimens awaiting
+Ecdysis upload).
 
-`occurrences_<hash>.db`, `counties_<hash>.geojson`, `ecoregions_<hash>.geojson`, `places_<hash>.geojson`, and `checklist_<hash>.geojson` are all content-hashed. They live outside the SW scope path but are fetched by the controlled `/app` page, so the SW's `fetch` handler intercepts them.
+**Current filter integration:** `filter.ts` `buildFilterSQL()` handles the split via a
+`CollectorEntry` type carrying both `recordedBy` and `host_inat_login`, with an OR clause in SQL.
+But it misses `specimen_inat_login` (ARM 1/3) and `user_login` (ARM 4 — expert iNat observers,
+not WABA collectors).
 
-**Strategy: Cache-First for all `/data/` content-hashed files** (they are immutable — the hash changes when content changes). Use a dedicated `data-v1` cache. Intercept all same-origin `/data/` fetches from the `/app` page.
+### Identity gaps and normalization strategy
 
-**Large binary (`occurrences.db`, ~23 MB):** Cache Storage is the correct storage layer, not IndexedDB. Reasons:
-- Cache Storage holds `Response` objects keyed by `Request` — the natural fit for HTTP-fetched files.
-- The existing `sqlite-worker.ts` does `fetch(occurrencesDbUrl)` then `resp.arrayBuffer()`. The SW intercepts this fetch and responds from cache with a cached `Response`. The worker sees no difference.
-- IndexedDB can hold binary blobs but adds ~850 ms overhead for large ArrayBuffer writes vs ~90 ms for Cache Storage (benchmark data from OPFS/IndexedDB comparison studies).
-- OPFS (Origin Private File System) would be faster than IndexedDB for binary, but it requires changing the worker's VFS (MemoryVFS → OPFSCoopSyncVFS) — a larger change that breaks the existing initialization path. Defer OPFS migration to a future milestone if startup latency is a problem. Stay with MemoryVFS + Cache Storage for v5.0.
+For a WABA collector like `@rainhead`:
+- Ecdysis specimens appear under `recordedBy` = "Abrahamsen, Peter" AND under `host_inat_login` =
+  "rainhead" (via the sample's plant observation in ARM 1)
+- waba_specimen rows (ARM 3) carry `specimen_inat_login` = "rainhead" — currently dropped from the mart
+- There is no single normalized "collector identity" column
 
-**Range requests:** CloudFront can serve `206 Partial Content` responses to range requests. The Cache API cannot cache `206` responses via `cache.put`. The existing `sqlite-worker.ts` issues a single full non-range `fetch` — no range header — so this is not currently a problem. Note this as a constraint: if the fetch is ever refactored to use range requests (e.g., for progressive loading), the caching strategy must change.
+**Recommendation: add a `collector_inat_login` derived column to `int_combined` and the mart.**
 
-### 2c. Cache Invalidation Keyed to `manifest.json`
+```sql
+COALESCE(
+  sob.specimen_inat_login,   -- ARM 1, ARM 3: WABA collector's iNat handle (highest priority)
+  s.host_inat_login,         -- ARM 1 (via sample), ARM 2: sample observer's handle
+  io.user_login              -- ARM 4: expert observer's handle
+) AS collector_inat_login
+```
 
-The nightly pipeline produces content-hashed filenames. `manifest.json` maps logical keys to hashed filenames, e.g. `{ "occurrences_db": "occurrences_abc123.db", ... }`. When a new snapshot ships, only the hash changes; the logical key stays the same.
+The slug for per-collector pages is the iNat handle (`collector_inat_login`): URL-safe, already in
+use in `url-state.ts` via the `collectors=` param, unique in the iNat namespace. `recordedBy` is
+retained as a display label for Ecdysis-backed rows where `collector_inat_login` is NULL (historical
+museum specimens in checklist ARM 5).
 
-**Invalidation mechanism:**
+The `recordedBy` ↔ `inat_login` linkage for WABA collectors is implicitly established when both are
+non-null on the same `ecdysis` ARM 1 row (a catalogued specimen that also has a sample observation).
+No separate identity seed is needed for MVP.
 
-1. SW runtime-caches `manifest.json` with a `NetworkFirst` strategy (fall back to cache if offline). `manifest.json` is NOT content-hashed — it lives at a stable URL `/data/manifest.json`.
-2. On SW activation (triggered when a new SW version installs, detected by change in `sw.js` content), the SW fetches the latest `manifest.json` from the network, compares each hashed filename to what is in `data-v1`, deletes entries whose hash has changed, and queues a background fetch of the new artifacts.
-3. Old content-hashed files no longer referenced by the new manifest are deleted from `data-v1` at activation time.
-
-This ensures the cache is always internally consistent with the manifest version the SW saw on its last activation. The freshness indicator (Section 3) comes directly from `manifest.generated_at`.
-
-### 2d. Mapbox Tile Caching
-
-Mapbox GL JS fetches tiles from Mapbox CDN (cross-origin, `https://api.mapbox.com/`). The SW's `fetch` handler does fire for these requests (cross-origin fetches from a controlled page still trigger the SW), but caching opaque (no-CORS) responses in Cache Storage carries known risks: browsers may store opaque responses with a padded size estimate of ~7 MB regardless of actual size, and `cache.put` on an opaque response succeeds but the stored response has status 0 (not 200), which causes Workbox's default `cacheableResponse` plugin to reject it.
-
-For v5.0 dogfood (self-test only), an opaque response strategy is acceptable with Workbox's `CacheableResponsePlugin({ statuses: [0, 200] })` opt-in. This is TOS-sensitive — noted in project requirements. Use Workbox's `StaleWhileRevalidate` strategy with explicit opaque-response support for `https://api.mapbox.com/` and `https://events.mapbox.com/`. Accept graceful degradation (blank tiles for uncached areas). **Review TOS before any public rollout.**
+**dbt contract impact:** adds one VARCHAR column `collector_inat_login` to `schema.yml` (36 → 37
+cols). Apply the data-before-code release sequence.
 
 ---
 
-## 3. Generation Timestamp and Freshness Signal
+## (b) Temporal Status History: Mechanism Recommendation
 
-`manifest.json` already has `generated_at: string` (confirmed in `src/manifest.ts` line 13). No pipeline changes needed.
+### The snapshot problem
 
-**How it flows:**
+The nightly pipeline emits a complete snapshot of `int_combined`. No change log exists. The
+`modified` field (VARCHAR, Ecdysis only, sourced from `int_id_modified`) records the last edit
+date of an Ecdysis identification. No `first_appeared` or `first_seen_date` timestamp exists for
+any row. For waba_sample/waba_specimen/inat_obs/checklist rows, there is no pipeline-level date
+representing "when this occurrence first entered the atlas."
 
-Online path (current):
+### Three candidate approaches
+
+**Option 1 — Pipeline-maintained append-only snapshot-diff event table**
+
+After each nightly run, compare the new snapshot against yesterday's parquet (already pulled for
+`test_dbt_diff`). Emit a `occurrence_events.parquet` CDN artifact with rows like:
 ```
-manifest.ts: loadManifest() → fetch /data/manifest.json → Manifest object
-                                                        → manifest.generated_at string
+(occ_id, event_type, event_date, prior_taxon_id, new_taxon_id)
+```
+Shipped to CDN alongside `occurrences.db`, loaded by the collector page frontend.
+
+Pros: shareable, supports the community feed in a later milestone, authoritative. Cons:
+indefinitely growing artifact, requires a second CDN file loaded by every collector page, adds
+pipeline complexity.
+
+**Option 2 — Client `localStorage` "last seen" watermark only**
+
+The frontend stores the last-loaded DB generation date in `localStorage`. On load, it diffs the
+current snapshot to surface "new since last visit" using only the `modified` field (available only
+for ecdysis rows) and occurrence existence.
+
+Cons: truly device-local (no cross-device portability), a fresh device shows everything as new,
+and `modified` doesn't exist for non-Ecdysis rows so most of the event stream is uncomputable.
+
+**Option 3 — Hybrid: `first_seen_date` column in the pipeline + client watermark**
+
+The pipeline adds two new VARCHAR columns to the `occurrences` mart:
+- `first_seen_date` — the nightly-run date when this `occ_id` first appeared in the atlas. On each
+  nightly run, `first_seen_date = COALESCE(yesterday.first_seen_date, TODAY())` (computed by
+  DuckDB JOIN against yesterday's parquet pulled from S3).
+- `id_date` — the date this occurrence first had a species identification. For ecdysis rows this
+  is derivable from `modified` when `taxon_id` changed from NULL. For others it approximates as
+  `first_seen_date` when `taxon_id IS NOT NULL`.
+
+The client uses a `localStorage` watermark (the DB generation date of the last visit) to filter
+events: show rows where `first_seen_date > watermark`. A fresh device with no watermark shows the
+last 30 days.
+
+### Recommendation: Option 3 (hybrid)
+
+**Why:** `first_seen_date` makes the event stream deterministic and portable — the same result
+appears on any device for the same watermark. The computation reuses an S3 artifact (yesterday's
+parquet) that is already pulled for `test_dbt_diff`. No new CDN file is needed; the two new columns
+ride in `occurrences.db`. The event log (Option 1) is reserved for the community feed milestone.
+
+**Implementation:** In `nightly.sh` / `run.py`, after the S3 pull of yesterday's parquet, add a
+DuckDB step:
+```sql
+SELECT
+  new.*,
+  COALESCE(old.first_seen_date, strftime(CURRENT_DATE, '%Y-%m-%d')) AS first_seen_date,
+  -- id_date: date taxon_id first became non-null (approximation for non-ecdysis)
+  CASE
+    WHEN new.taxon_id IS NOT NULL AND (old.taxon_id IS NULL OR old.first_seen_date IS NULL)
+      THEN strftime(CURRENT_DATE, '%Y-%m-%d')
+    ELSE old.id_date
+  END AS id_date
+FROM new_occurrences new
+LEFT JOIN yesterday_occurrences old USING (occ_id)
 ```
 
-Offline path (new, via SW cache):
-```
-SW intercepts fetch /data/manifest.json → returns cached manifest.json Response
-manifest.ts: loadManifest() → Manifest object with cached generated_at
-```
+**dbt contract impact:** adds `first_seen_date` VARCHAR and `id_date` VARCHAR to `schema.yml`
+(37 → 39 cols after Phase 1). These are computed after `dbt build` completes, as a post-dbt step
+in `run.py`, before `sqlite_export.py` reads the final parquet. This avoids complicating the dbt
+model itself with pipeline-date logic.
 
-The `manifest.ts` module currently exposes `resolveDataUrl(key: DataKey)` where `DataKey = keyof Omit<Manifest, 'generated_at'>` — `generated_at` is explicitly excluded. Add one export:
-
-```typescript
-export async function loadGeneratedAt(): Promise<string | null> {
-  const m = await loadManifest();
-  return m.generated_at ?? null;
-}
-```
-
-`<bee-atlas>` calls `loadGeneratedAt()` after `tablesReady` resolves (the manifest is already fetched by then via `resolveDataUrl('occurrences_db')`), stores it as `@state _generatedAt: string | null`, and passes it down to `<bee-pane>` as a `@property generatedAt`. `<bee-pane>` renders "Data as of [date]" in a footer or the pane header — exact placement is a UX decision for the implementation phase.
-
-Optional enhancement: the SW injects a custom `X-From-Cache: 1` response header when serving from the `data-v1` cache. `<bee-atlas>` can inspect this on the manifest response to surface a "cached data" indicator distinct from "live data". Not required for v5.0 but a clean hook.
+**Release sequence:** data-before-code applies (project memory `project_occurrences_contract_release_sequence`). Ship the new columns in one nightly run before the frontend JS that reads them.
 
 ---
 
-## 4. Geolocation State Ownership and "Occurrences Near Me"
+## (c) Facets: How to Model Them
 
-### 4a. The Invariant Preserved
+### What "facets" means in v6.0
 
-`<bee-atlas>` owns all reactive state. `<bee-map>` is a pure presenter. This maps cleanly to geolocation:
+The current `source` enum (`ecdysis | waba_sample | waba_specimen | inat_obs | checklist`) is
+mutually exclusive. The three consumers are:
+1. `src/filter.ts` — `hiddenSources` in `FilterState`; `VALID_SOURCES` allowlist; `o.source IN
+   (...)` SQL clause; `SourceKey` type (also in `url-state.ts`)
+2. `src/style.ts` — `_occurrencePointPaint()` uses `['match', ['get', 'source'], 'checklist',
+   '#2c7a2c', ...]` on GeoJSON feature property
+3. `src/bee-occurrence-detail.ts` — detail card branches on source to select the correct fields
+   and template
 
-- `GeolocateControl` lives inside `<bee-map>` (it requires a `mapboxgl.Map` instance to call `map.addControl()`).
-- `GeolocateControl` fires a `geolocate` event on each position update.
-- `<bee-map>` listens to this event and re-emits it upward as a `CustomEvent('user-location-changed', { detail: { lat, lon, accuracy } | null })`.
-- `<bee-atlas>` handles the event and stores `@state _userLocation: { lat: number; lon: number; accuracy: number } | null`.
-- `<bee-atlas>` passes `userLocation` down to `<bee-map>` as a `@property` (for any future custom proximity radius layer beyond GeolocateControl's built-in blue dot) and to `<bee-pane>` as a `@property` (for the "near me" filter trigger UI).
+The v6.0 goal is to replace mutually-exclusive source filtering with orthogonal facets. The
+proposed dimensions are: provenance tier (how was this documented?), identification status, and
+collector identity. Time, taxon, and place are already orthogonal filter dimensions.
 
-No shared module-level state. No circular reference. `<bee-map>` holds no location state; it only relays the raw event upward.
+### Three modeling options
 
-### 4b. GeolocateControl in `<bee-map>`
+**Option A — Derived columns in the occurrences mart**
 
-In `<bee-map>._initMap()` after `map.on('load', ...)`:
+Add computed boolean/enum columns: `provenance_tier` (enum: 'physical_specimen' | 'photo_observation' | 'expert_inat' | 'museum_record'), `is_identified` (`taxon_id IS NOT NULL`). All are derivable from existing columns without data loss.
 
-```typescript
-const geolocate = new mapboxgl.GeolocateControl({
-  positionOptions: { enableHighAccuracy: true },
-  trackUserLocation: true,
-  showUserHeading: true,
-});
-map.addControl(geolocate, 'top-right');
-geolocate.on('geolocate', (e: GeolocationPosition) => {
-  this.dispatchEvent(new CustomEvent('user-location-changed', {
-    bubbles: true,
-    composed: true,  // required to cross shadow DOM boundary
-    detail: { lat: e.coords.latitude, lon: e.coords.longitude, accuracy: e.coords.accuracy },
-  }));
-});
-geolocate.on('error', () => {
-  this.dispatchEvent(new CustomEvent('user-location-changed', {
-    bubbles: true, composed: true, detail: null,
-  }));
-});
+Widens the mart contract (adds to the 36-col base) but requires no JOIN at query time.
+
+**Option B — Separate facets bridge**
+
+A new `occurrence_facets.parquet` with one row per (occ_id, facet_key, facet_value). Arbitrary extensibility at the cost of SQL JOIN overhead on every query. Not justified for a fixed, known set of orthogonal booleans.
+
+**Option C — Computed query-time in the frontend**
+
+Derive facet predicates from existing `OccurrenceRow` fields in the frontend SQL. `ecdysis_id IS
+NOT NULL` is already available in the mart. A "provenance tier" filter can be expressed as a SQL
+CASE clause over existing columns without any new mart columns.
+
+### Recommendation: Option C for filter SQL, Option C also for GeoJSON properties
+
+**Filter layer:** Replace `hiddenSources` → a `hiddenProvenanceTiers` set in `FilterState`. The
+SQL clause maps tiers to existing column predicates:
+
+```sql
+-- provenance_tier derivation (inline in buildFilterSQL)
+CASE
+  WHEN ecdysis_id IS NOT NULL THEN 'physical_specimen'
+  WHEN source IN ('waba_specimen', 'waba_sample') THEN 'photo_observation'
+  WHEN source = 'inat_obs' THEN 'expert_inat'
+  WHEN source = 'checklist' THEN 'museum_record'
+END
 ```
 
-`GeolocateControl` renders its own blue dot and accuracy circle — no additional Mapbox source/layer is needed for v5.0. The control also handles GPS offline (browser Geolocation API works without network).
+No new mart column needed. The mapping is a constant in `filter.ts`.
 
-`trackUserLocation: true` means the control tracks position continuously while active. `<bee-atlas>` must handle `detail: null` (emitted on error or user deactivation) by clearing `_userLocation`.
+**Map symbology layer:** `queryVisibleGeoJSON` in `filter.ts` constructs the GeoJSON features.
+Currently it embeds `source` as a feature property. Switch to embedding a computed
+`provenance_tier` string derived from the same CASE at GeoJSON construction time. `style.ts`
+`_occurrencePointPaint` then uses `['get', 'provenance_tier']` instead of `['get', 'source']`.
 
-### 4c. "Occurrences Near Me" Query
+**Detail card layer:** `bee-occurrence-detail.ts` can continue branching on the raw `source`
+field from `OccurrenceRow` for precise field rendering — source is still in the mart and the row.
+The detail card does not need to change its branching logic just because the filter UI uses tiers.
 
-**Where it belongs: the sqlite worker.**
+**No new mart columns needed for facets.** The mart `source` column is retained as the raw
+discriminator. Facet logic lives entirely in the frontend as pure derivations from existing data.
 
-The proximity filter is an SQL query against the `occurrences` table. It belongs in the same place all other filter queries live — `sqlite-worker.ts` / `filter.ts`. Main-thread proximity computation would require a round-trip message to retrieve raw rows from the worker, then computation on the main thread, which is the wrong direction.
+### URL contract impact
 
-**The SQLite math constraint:** wa-sqlite with MemoryVFS does not have `sin`/`cos`/`asin` functions loaded. The full Haversine formula cannot be expressed in SQL without loading an extension (e.g. `sqlean`, which adds WASM complexity). Workaround: bounding-box pre-filter in SQL, then exact Haversine in JavaScript on the returned (small) subset.
+`SourceKey` in `url-state.ts` currently lists the raw source enum values. If filtering switches
+to provenance tiers, `SourceKey` becomes `ProvenanceTierKey` and the `src=` URL param changes to
+`tier=`. This is a URL breaking change — needs legacy fallback parsing for existing bookmarks
+that use `src=ecdysis` etc.
 
-Bounding box at ~47°N latitude (WA):
-- 1° latitude ≈ 111 km
-- 1° longitude ≈ 111 × cos(47°) ≈ 76 km
+### Impact on the three source consumers (summary)
 
-For radius R km: `delta_lat = R/111`, `delta_lon = R/76`.
-
-Post-filter haversine in the worker (TypeScript):
-```typescript
-function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-```
-
-The bounding-box keeps the JavaScript-side haversine set small. At WA field-collection densities, a 5 km bounding box returns at most a few hundred rows.
-
-**`FilterState` extension:** Add `nearMe: { lat: number; lon: number; radiusKm: number } | null` to `FilterState`. When set, `filter.ts`'s `buildFilterSQL` adds the bounding-box `WHERE` clause. The haversine post-filter runs inside the worker on the SQL result rows before the `exec-result` message is sent back.
-
-**New worker message type:** `kind: 'query-near'` is not strictly needed — the `nearMe` field in `FilterState` feeds the existing `kind: 'exec'` path via `buildFilterSQL`. The haversine post-filter is added as an in-worker step when `filterState.nearMe` is non-null. No new message type required; the existing filter pipeline extends naturally.
-
-**`_filterQueryGeneration` race guard applies here.** Geolocation events can fire faster than queries complete. The existing `makeStaleGuard` instances in `<bee-atlas>` cover this automatically — a location update that triggers a filter re-run is guarded by the same generation counter as any other filter change.
+| Consumer | Change |
+|----------|--------|
+| `filter.ts` | `hiddenSources: Set<SourceKey>` → `hiddenProvenanceTiers: Set<ProvenanceTierKey>`; SQL clause becomes CASE-based; `OccurrenceRow` unchanged |
+| `style.ts` | `_occurrencePointPaint` match expression switches from `source` to `provenance_tier` GeoJSON feature property |
+| `bee-occurrence-detail.ts` | No change to source-based branching; detail rendering remains source-aware |
+| `url-state.ts` | `SourceKey` → `ProvenanceTierKey`; `src=` → `tier=` with legacy fallback |
 
 ---
 
-## 5. System Overview
+## (d) Build Order
+
+### Dependency graph
 
 ```
-Browser (/app route, online first-load)
-  │
-  ├── /app/index.html  ← new Eleventy template page
-  │     ├── links /app/manifest.webmanifest
-  │     ├── registers /app/sw.js (scope: /app)
-  │     └── <script type="module" src="./src/app-entry.ts">
-  │
-  ├── src/app-entry.ts  ← new Vite entry
-  │     imports <bee-atlas> + sw-registration.ts
-  │
-  ├── <bee-atlas>  (state owner — MODIFIED)
-  │     ├── @state _userLocation: {lat, lon, accuracy} | null
-  │     ├── @state _nearMeRadiusKm: number | null
-  │     ├── @state _generatedAt: string | null
-  │     ├── @state _filterState  (+ nearMe field — MODIFIED)
-  │     │
-  │     ├── <bee-map>  (pure presenter — MODIFIED)
-  │     │     ├── GeolocateControl (Mapbox built-in, added in _initMap)
-  │     │     │     ├── geolocate event → CustomEvent('user-location-changed')
-  │     │     │     └── error event → CustomEvent('user-location-changed', null)
-  │     │     └── @property userLocation (pass-through for future proximity viz)
-  │     │
-  │     └── <bee-pane>  (pure presenter — MODIFIED)
-  │           ├── @property generatedAt  → "Data as of [date]" footer
-  │           ├── @property userLocation → "Near me" mode trigger
-  │           └── @property nearMeRadiusKm → radius UI control
-  │
-  ├── sqlite.ts + sqlite-worker.ts  (MODIFIED)
-  │     ├── filter.ts buildFilterSQL: bbox WHERE when nearMe set
-  │     └── haversine post-filter in worker when nearMe set
-  │
-  └── manifest.ts  (MODIFIED — add loadGeneratedAt())
+Phase 1: collector_inat_login in mart (dbt contract 36→37)
+    │
+    ├─→ Phase 3: collectors.json export artifact + Eleventy data
+    │       │
+    │       └─→ Phase 4: collector-detail.njk static pages
+    │
+Phase 2: first_seen_date + id_date in mart (contract 37→39, after Phase 1)
+    │
+    └─→ Phase 6: event stream frontend (gated on Phase 5 too)
 
-/app/sw.js  (scope: /app)  ← new, at public/app/sw.js (Vite passthrough, not hashed)
-  ├── precache: app shell (index.html + hashed JS/CSS for /app entry)
-  ├── NetworkFirst: /data/manifest.json  → manifest-v1 cache
-  ├── Cache-First: /data/*_<hash>.db     → data-v1 cache
-  ├── Cache-First: /data/*_<hash>.geojson → data-v1 cache
-  └── fetch handler intercepts /data/ fetches from /app page (KEY FACT: scope controls
-      pages, not fetches; /data/ is fully interceptable from /app-scoped page)
-
-CloudFront (existing, minimal changes):
-  /data/* behavior: unchanged (content-hashed, Cache-Control: max-age=31536000)
-  /app/sw.js:        Cache-Control: no-cache, no-store (ensures SW update detection)
-  /app/manifest.webmanifest: Cache-Control: no-cache
-  (no Service-Worker-Allowed header needed — sw.js served from /app/)
+Phase 5: source → facets rebuild (filter.ts + style.ts + url-state.ts)
+    │     (can start after Phase 1; independent of Phase 2)
+    │
+    └─→ Phase 6: event stream frontend (provenance rendering uses tiers)
+            │
+            └─→ Phase 7: accomplishment view (coverage map, breadth, badges)
 ```
+
+### Recommended build order
+
+**Phase 1 — Collector identity column in the mart**
+Add `collector_inat_login` (VARCHAR) to `int_combined` (COALESCE of `specimen_inat_login`,
+`host_inat_login`, `user_login`) and project it into `occurrences.sql`. Add to `schema.yml` (36 →
+37 cols). This is a dbt contract change — apply data-before-code release sequence.
+
+**Phase 2 — Temporal columns in the mart**
+Add `first_seen_date` and `id_date` (VARCHAR) as post-dbt pipeline steps in `run.py`. Add to
+`schema.yml` (37 → 39 cols). This is a second contract change — ship separately from Phase 1 to
+avoid a double-gated release. `sqlite_export.py` picks up the new columns automatically (it reads
+the full parquet schema; no positional coupling on columns added to the end).
+
+**Phase 3 — `collectors.json` export artifact**
+Add `generate_collectors()` step to `export.py`/`run.py` producing `public/data/collectors.json`:
+array of collector records keyed on `collector_inat_login` (slug), with display name, occurrence
+count, year range, species count. Follows the `places.json` pattern. Add `_data/collectors.js`
+Eleventy data module reading it (mirrors `_data/places.js`). No dbt contract change.
+
+**Phase 4 — Per-collector static pages (Eleventy)**
+Add `_pages/collector-detail.njk` following `place-detail.njk`. Permalink:
+`/collectors/{inat_login}/`. Page shows static stats and a filtered-map link using the existing
+`collectors=inat_login:handle` URL param (already implemented in `url-state.ts`). No frontend JS
+changes. Gated on Phase 3.
+
+**Phase 5 — Source → facets rebuild (filter + style + URL)**
+Refactor the three `source` consumers atomically. This is the highest-risk change: it touches
+`FilterState` (all callers must update — project memory `project_filterstate_required_field_contract`
+applies), the GeoJSON feature property schema, and the URL state contract. Do it in a single atomic
+phase to avoid a half-refactored state. Include legacy `src=` → `tier=` fallback in `parseParams`.
+Can start after Phase 1; independent of Phase 2.
+
+**Phase 6 — Per-collector event stream (frontend)**
+Add event stream query to `filter.ts` / the collector page: for a given `collector_inat_login`,
+fetch their occurrences ordered by `first_seen_date DESC`, render as a chronological feed. Gated
+on Phase 2 (temporal columns in mart) and Phase 5 (provenance tiers for rendering). This is a
+new frontend component (`<bee-collector>` coordinator or a simpler entry-level page component).
+
+**Phase 7 — Accomplishment view (frontend)**
+County coverage map (choropleth), taxonomic breadth, derivable badges (years active, species count).
+Gated on Phase 4 (collector page exists) and Phase 6 (event stream renders).
+
+### Summary table
+
+| Phase | Primary change | dbt contract? | Static hosting safe? | Gated on |
+|-------|---------------|---------------|----------------------|----------|
+| 1 | `collector_inat_login` in mart | YES (36→37) | Yes | — |
+| 2 | `first_seen_date`, `id_date` in mart | YES (37→39) | Yes | Phase 1 |
+| 3 | `collectors.json` + Eleventy data | No | Yes | Phase 1 |
+| 4 | `collector-detail.njk` static pages | No | Yes | Phase 3 |
+| 5 | Source → facets rebuild | No | Yes | Phase 1 (conceptually) |
+| 6 | Event stream frontend | No | Yes | Phases 2, 5 |
+| 7 | Accomplishment view | No | Yes | Phases 4, 6 |
 
 ---
 
-## 6. New vs. Modified Files
+## Component Boundaries
 
-### New Files
+### New vs. modified components
 
-| File | Purpose |
-|------|---------|
-| `_pages/app/index.html` | `/app` route — Eleventy template; links webmanifest; registers SW |
-| `src/app-entry.ts` | Vite entry for `/app`; imports `<bee-atlas>` + `sw-registration.ts` |
-| `src/sw-registration.ts` | `navigator.serviceWorker.register('/app/sw.js', { scope: '/app' })`; Workbox Window update lifecycle |
-| `public/app/sw.js` | Service worker source (Workbox `injectManifest` target); app shell precache + `/data/` runtime cache + manifest invalidation logic |
-| `public/app/manifest.webmanifest` | PWA manifest: `name`, `start_url: /app`, `scope: /app`, icons, `display: standalone` |
-| `public/app/icons/` | App icons (192×192 and 512×512 PNG minimum for installability) |
+**New:**
+- `data/export.py` — `generate_collectors()` step producing `collectors.json`
+- `_data/collectors.js` — Eleventy data module (mirrors `places.js`)
+- `_pages/collector-detail.njk` — static page template (mirrors `place-detail.njk`)
+- `src/entries/collector.ts` (if interactive) — Vite entry for collector page JS
+- New `<bee-collector>` coordinator element (if the collector page needs reactive state beyond
+  static HTML)
 
-### Modified Files
+**Modified:**
+- `data/dbt/models/intermediate/int_combined.sql` — add `collector_inat_login` COALESCE to all five ARMs
+- `data/dbt/models/marts/occurrences.sql` — project `collector_inat_login` in SELECT
+- `data/dbt/models/marts/schema.yml` — add `collector_inat_login`, `first_seen_date`, `id_date`
+- `data/run.py` — add temporal column computation step (post-dbt, pre-sqlite-export)
+- `src/filter.ts` — `FilterState.hiddenSources` → `hiddenProvenanceTiers`; collector SQL clause
+  gains `collector_inat_login`; `OccurrenceRow` adds three new fields
+- `src/style.ts` — `_occurrencePointPaint` switches `['get', 'source']` → `['get', 'provenance_tier']`
+- `src/bee-occurrence-detail.ts` — minor: adapt any source-tier display if needed
+- `src/url-state.ts` — `SourceKey` type renamed; `src=` param → `tier=` with legacy fallback
 
-| File | Change |
-|------|--------|
-| `src/manifest.ts` | Add `loadGeneratedAt(): Promise<string \| null>` export |
-| `src/filter.ts` | `FilterState` + `nearMe` field; `buildFilterSQL` bounding-box clause when `nearMe` set |
-| `src/sqlite-worker.ts` | Haversine post-filter when `filterState.nearMe` is non-null in exec handler |
-| `src/bee-atlas.ts` | `@state _userLocation`, `@state _generatedAt`, `@state _nearMeRadiusKm`; handle `user-location-changed` CustomEvent; call `loadGeneratedAt()` after `tablesReady`; pass new `@property` values to `<bee-map>` and `<bee-pane>` |
-| `src/bee-map.ts` | Add `GeolocateControl` in `_initMap`; listen to `geolocate` + `error` events; dispatch `user-location-changed` upward; accept `@property userLocation` (no state stored here) |
-| `src/bee-pane.ts` | Accept `@property generatedAt`, `@property userLocation`, `@property nearMeRadiusKm`; render freshness footer; render "Near me" radius control |
-| `src/url-state.ts` | Optionally persist `nearMe` state to URL (deferred; not required for dogfood) |
-| `eleventy.config.js` | If `/app` needs a distinct Vite entry, configure multi-entry in `viteOptions.build.rollupOptions.input` |
-| `vite.config.ts` | Exclude `sw.js` from asset hashing (or rely on `public/` passthrough) |
-| `infra/lib/beeatlas-stack.ts` | Add `/app/sw.js` and `/app/manifest.webmanifest` cache behaviors: `Cache-Control: no-cache, no-store` via a new `ResponseHeadersPolicy` on an `/app/*` behavior or a path-pattern override |
+### State ownership invariant (unchanged)
 
----
+The invariant is unaffected. The per-collector static page is an Eleventy-rendered HTML page with
+no coordinator needed for the static content. If an interactive event stream is added, it follows
+the `<bee-atlas>` ownership pattern: a new `<bee-collector>` coordinator owns all reactive state,
+and any sub-components are pure presenters.
 
-## 7. Data Flow Changes
+### occ_id positional coupling (unaffected)
 
-### 7a. SW Registration (new, one-time per device)
-
-```
-/app page loads
-  → src/app-entry.ts imports sw-registration.ts
-  → navigator.serviceWorker.register('/app/sw.js', { scope: '/app' })
-  → SW installs → precaches app shell from Workbox-injected manifest list
-  → SW activates → fetches /data/manifest.json → caches /data/ artifacts in data-v1
-```
-
-### 7b. Offline Cold Start (after one prior online visit)
-
-```
-User opens /app with no network
-  → /app/index.html served from SW precache (shell-v1)
-  → src/app-entry.ts loads
-  → sqlite-worker.ts: fetch(occurrencesDbUrl)
-       → SW intercepts → returns from data-v1 cache
-       → worker seeds MemoryVFS → DB ready
-  → manifest.ts: loadManifest() fetch
-       → SW intercepts → returns from manifest-v1 cache
-       → loadGeneratedAt() → _generatedAt set → freshness shown in <bee-pane>
-  → GeolocateControl works (browser Geolocation API, GPS, no network needed)
-  → All filter/table/selection queries run locally in worker → fully offline UX
-```
-
-### 7c. "Near Me" Filter Flow (new)
-
-```
-User taps GeolocateControl button in <bee-map>
-  → GeolocateControl.geolocate event fires
-  → <bee-map> dispatches CustomEvent('user-location-changed', { lat, lon, accuracy })
-  → <bee-atlas>._userLocation = { lat, lon, accuracy }
-  → User enables "Near me" mode in <bee-pane> (new toggle) or <bee-atlas> auto-enables it
-  → <bee-atlas>._filterState.nearMe = { lat, lon, radiusKm: _nearMeRadiusKm }
-  → _filterQueryGeneration incremented (existing race guard covers this)
-  → existing filter pipeline: buildFilterSQL adds bbox WHERE clause
-  → sqlite-worker.ts executes SQL → haversine post-filter → returns rows within radius
-  → <bee-atlas>._filteredGeoJSON updated → <bee-map> re-renders filtered points
-```
-
-### 7d. Nightly Cache Invalidation Flow
-
-```
-New nightly run → new content-hashed occurrences.db → manifest.json updated
-  → CloudFront invalidation for /data/manifest.json (existing nightly.sh behavior)
-Next time /app is opened (online):
-  → SW update check: new sw.js content detected → new SW installs
-  → New SW activates → fetches manifest.json (network) → new hash detected
-  → Deletes old occurrences_oldhash.db from data-v1
-  → Background-fetches occurrences_newhash.db into data-v1
-  → <bee-atlas>: loadGeneratedAt() returns updated generated_at → freshness indicator updated
-```
+The `collector_inat_login` addition, the temporal columns, and the facets rebuild do NOT touch the
+occ_id CASE expression. No change to the three positionally-coupled files (`src/occurrence.ts`,
+`src/filter.ts` `OCC_ID_SQL_CASE`, `data/dbt/models/marts/occurrence_places.sql`).
 
 ---
 
-## 8. Suggested Build Order
+## Architecture Patterns to Follow
 
-```
-Phase A: /app route + SW topology
-  Deliverable: /app route exists; sw.js registers with scope /app;
-               no SW on /; CloudFront no-cache on sw.js verified
-  Blocks: all other phases (scope topology must be correct before any caching)
+### Pattern 1: Static page from Eleventy data module
 
-Phase B: App shell precache + offline cold-start
-  Requires: Phase A (SW scope confirmed)
-  Deliverable: /app page loads offline after one prior online visit;
-               Vite-hashed JS/CSS served from SW cache
+`_data/places.js` reads `places.json` (written by pipeline). `_pages/place-detail.njk` paginates
+over `places.placesArray`. The collector page follows this pattern exactly:
+- `export.py` writes `collectors.json`
+- `_data/collectors.js` reads it, exports `{ collectorsArray }`
+- `_pages/collector-detail.njk` paginates over `collectors.collectorsArray`
+- Permalink: `/collectors/{inat_login}/`
 
-Phase C: /data/ runtime caching + occurrences.db cached
-  Requires: Phase B (SW active and precaching)
-  Deliverable: occurrences.db + all GeoJSON served from Cache Storage offline;
-               cold-start completes fully offline
+### Pattern 2: Filtered map deep-link from static page
 
-Phase D: manifest.json freshness signal
-  Requires: Phase C (manifest.json cached via NetworkFirst)
-  Deliverable: "Data as of [date]" visible in <bee-pane>;
-               loadGeneratedAt() wired through <bee-atlas> → <bee-pane>
+Existing static pages link to the SPA with filter params: `/?place=slug`, `/?taxon=12345`. The
+collector page uses the already-wired `collectors=` URL param. In `url-state.ts`, the `collectors`
+param encodes a `|`-separated list of `recordedBy:NAME` or `inat_login:HANDLE` entries. The
+collector page links to `/?collectors=inat_login:rainhead`. No new URL param needed.
 
-Phase E: GeolocateControl + location state ownership
-  Independent of Phases B-D; can start after Phase A (needs /app route)
-  Deliverable: blue dot + accuracy ring on map; _userLocation in <bee-atlas>;
-               user-location-changed CustomEvent flowing correctly
+### Pattern 3: Bridge mart for many-to-many
 
-Phase F: "Occurrences near me" query
-  Requires: Phase E (_userLocation state exists)
-  Deliverable: FilterState.nearMe; bbox SQL + haversine in worker;
-               <bee-pane> "Near me" radius UI; filtered points within radius
-
-Phase G: PWA manifest + installability
-  Requires: Phases A+B (SW working); Phase D (freshness indicator, not blocking but good)
-  Deliverable: "Add to Home Screen" prompt; icons; standalone display mode
-
-Phase H: Mapbox tile caching (TOS-gated, defer)
-  Independent; unblock only after TOS review
-  Deliverable: cached basemap tiles survive offline for panned areas
-```
+`occurrence_places.sql` is the canonical pattern. A new `occurrence_collector` bridge is NOT
+needed — collector identity is a scalar (`collector_inat_login`) directly on the occurrence row.
 
 ---
 
-## 9. Anti-Patterns to Avoid
+## Anti-Patterns to Avoid
 
-### SW at `/sw.js` with Root Scope (contaminating `/`)
+### Anti-Pattern 1: Adding a full event log to occurrences.db
 
-Registering a root-scoped SW from the main index page would place every page on the site — species pages, place pages, feed pages — under the SW's control. Any caching bugs would affect the public-facing site, not just the `/app` dogfood route. The unlisted `/app` route with `scope: /app` is the correct isolation boundary.
+An append-only event log that grows with each nightly run will bloat `occurrences.db` (currently
+22.9 MB compressed). The `first_seen_date` + client watermark approach bounds DB size growth to
+two VARCHAR columns per row. The event log as a separate CDN artifact is reserved for the
+community feed milestone.
 
-### Caching `occurrences.db` in IndexedDB
+### Anti-Pattern 2: Partial facets refactor across phases
 
-Fetching a 23 MB `ArrayBuffer`, writing it to IndexedDB, and reading it back on every cold start adds ~1.7 s of overhead (IndexedDB large blob write: ~850 ms per published benchmark). Cache Storage returns the original `Response` object directly to the `fetch()` interceptor with near-zero overhead. The existing `sqlite-worker.ts` does not need to change its fetch call at all when the SW intercepts it.
+The three `source` consumers are tightly coupled. Changing `filter.ts` without updating
+`style.ts` leaves the map rendering on `source` while the filter uses `provenance_tier` — a
+half-refactored state that breaks the map layer. Phase 5 must be atomic: all three consumers
+switch in one commit, with the URL param backward-compat in the same diff.
 
-### Storing `_userLocation` in `<bee-map>`
+### Anti-Pattern 3: Adding `specimen_inat_login` directly to `OccurrenceRow` without routing through the mart
 
-`<bee-map>` is a pure presenter. If location state lived there, `<bee-atlas>` would need to reach into `<bee-map>` to retrieve coordinates for proximity queries, violating the coordinator invariant. The pattern is: `<bee-map>` relays the raw event upward via `CustomEvent`, `<bee-atlas>` owns the state.
+`specimen_inat_login` is currently in `int_combined` but NOT projected into `occurrences`. Adding
+it to `OccurrenceRow` without a mart + schema.yml change would produce a column that is NULL
+everywhere (it simply would not exist in the SQLite export). The correct path is: add to mart
+SELECT → add to `schema.yml` → add to `OCCURRENCE_COLUMNS` in `filter.ts` → add to `OccurrenceRow`.
+The unified `collector_inat_login` approach (coalescing all three iNat identity fields) is cleaner
+than exposing the raw `specimen_inat_login` directly.
 
-### Running Haversine in the Main Thread
+### Anti-Pattern 4: Per-collector pages requiring auth
 
-The existing architecture keeps all SQL and data-processing in `sqlite-worker.ts`. Running proximity distance calculations on the main thread would require retrieving raw rows from the worker via an extra `postMessage` round-trip, then blocking the main thread with the computation. Keep proximity queries in the worker, consistent with the existing filter pipeline.
+The milestone explicitly requires no auth, public data, static hosting. The collector page is
+identified by the iNat handle in the URL. Self-identification (visiting your own page) requires no
+login — collectors bookmark `beeatlas.net/collectors/rainhead/`.
 
-### Hashing `sw.js` via Vite
+### Anti-Pattern 5: FilterState partial update (per project memory `project_filterstate_required_field_contract`)
 
-Vite content-hashes all files processed through its pipeline. If `sw.js` gets a hashed filename (e.g. `/assets/sw-abc123.js`), each build produces a new registration URL, and the browser treats it as a brand-new SW rather than an update to the existing one. This breaks SW update detection and can leave users with stale workers. Place `sw.js` in `public/app/` — Vite copies `public/` verbatim with no hashing.
+When adding or renaming a FilterState field (hiddenSources → hiddenProvenanceTiers), every literal
+construction of FilterState — including the `bee-map.ts` default literal — must be updated. Run
+`tsc --noEmit` as the post-merge gate, not file-by-file byte checks.
 
 ---
 
-## 10. Integration Points
+## Scalability Considerations
 
-### External Services
-
-| Service | Integration | Notes |
-|---------|-------------|-------|
-| CloudFront `/data/*` | SW fetch handler intercepts same-origin `/data/` fetches from `/app` page | No CDK header change needed; scope controls pages, not which fetches are intercepted |
-| Mapbox CDN tiles | Opaque runtime cache (`StaleWhileRevalidate` + `CacheableResponsePlugin({statuses:[0,200]})`) | TOS-gated; self-test only for v5.0 |
-| Browser Geolocation API | `GeolocateControl` in `<bee-map>`; GPS works offline, no network needed | `enableHighAccuracy: true` for field use |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `<bee-map>` → `<bee-atlas>` (location) | `CustomEvent('user-location-changed', { detail: {lat,lon,accuracy} \| null })` | `composed: true` required to cross shadow DOM boundary |
-| `<bee-atlas>` → `<bee-map>` (location) | `@property userLocation` | Only needed if custom proximity radius visualization is added |
-| `<bee-atlas>` → `<bee-pane>` (freshness) | `@property generatedAt: string \| null` | "Data as of …" display |
-| `<bee-atlas>` → `<bee-pane>` (near me UI) | `@property userLocation`, `@property nearMeRadiusKm` | Near-me toggle + radius slider |
-| `filter.ts` → `sqlite-worker.ts` (proximity) | `FilterState.nearMe` field → bbox SQL clause + haversine post-filter | Consistent with existing `buildFilterSQL` pattern |
-| `manifest.ts` → `<bee-atlas>` | New `loadGeneratedAt()` export | Reads `manifest.generated_at`; reuses the same singleton `loadManifest()` promise |
-| SW → page (cache provenance) | Optional `X-From-Cache: 1` header on SW-served responses | Enables online/offline indicator; not required for v5.0 |
+| Concern | Current (v5.2) | v6.0 impact |
+|---------|----------------|-------------|
+| `occurrences.db` size | 22.9 MB compressed | +3 VARCHAR cols ≈ +4–5%; within budget |
+| `collectors.json` artifact | Does not exist | ~5–20 KB (estimate: ~50–100 WABA collectors) |
+| Per-collector static pages | 0 | ~50–100 pages at build time; negligible vs 600+ species pages |
+| Nightly runtime | S3 pull already done for `test_dbt_diff` | Previous parquet reuse; one DuckDB JOIN step added |
+| `first_seen_date` history correctness | N/A | Bootstrapped on first run: all existing rows get TODAY; future runs correctly carry forward |
 
 ---
 
 ## Sources
 
-- [Service-Worker-Allowed header — MDN](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Service-Worker-Allowed)
-- [ServiceWorkerContainer.register() — MDN](https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register)
-- [Service Worker API — MDN](https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API) — scope controls pages, not fetches
-- [Service workers and the Cache Storage API — web.dev](https://web.dev/articles/service-workers-cache-storage)
-- [workbox-precaching — Chrome Developers](https://developer.chrome.com/docs/workbox/modules/workbox-precaching)
-- [Caching resources during runtime (Workbox) — Chrome Developers](https://developer.chrome.com/docs/workbox/caching-resources-during-runtime)
-- [OPFS vs IndexedDB binary performance — RxDB](https://rxdb.info/articles/localstorage-indexeddb-cookies-opfs-sqlite-wasm.html)
-- [wa-sqlite OPFS discussion — GitHub rhashimoto/wa-sqlite#63](https://github.com/rhashimoto/wa-sqlite/discussions/63)
-- [Add/remove HTTP headers in CloudFront — AWS Docs](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/modifying-response-headers.html)
-- Codebase: `src/manifest.ts`, `src/sqlite-worker.ts`, `src/bee-atlas.ts`, `src/bee-map.ts`, `src/filter.ts`, `src/features.ts`, `eleventy.config.js`, `infra/lib/beeatlas-stack.ts`, `_pages/index.html`
+All findings are grounded directly in the codebase files read for this research. No external web
+searches were required — the architecture questions are about integrating with the existing system.
+
+- `data/dbt/models/intermediate/int_combined.sql` — five ARM structure, all collector fields confirmed
+- `data/dbt/models/marts/occurrences.sql` — mart SELECT (confirmed `specimen_inat_login` absence)
+- `data/dbt/models/marts/schema.yml` — authoritative 36-column dbt contract
+- `data/dbt/models/marts/occurrence_places.sql` — bridge mart pattern; occ_id positional coupling documented
+- `src/filter.ts` — `FilterState`, `CollectorEntry`, `buildFilterSQL`, `OccurrenceRow`, `OCC_ID_SQL_CASE`, `OCCURRENCE_COLUMNS`
+- `src/occurrence.ts` — `occIdFromRow`, `isSpecimenBacked`, positional coupling documentation
+- `src/style.ts` — `_occurrencePointPaint` source match expression
+- `src/bee-occurrence-detail.ts` — detail card source branching pattern
+- `src/url-state.ts` — `SourceKey`, `VALID_SOURCES`, `collectors=` URL param encoding
+- `_data/places.js` — Eleventy data module pattern to follow
+- `_pages/place-detail.njk` — static page template pattern to follow
+- `docs/domain-model.md` — occ_id positional coupling; five ARM definitions; `is_provisional` semantics
 
 ---
-*Architecture research for: v5.0 Offline Field Mode — PWA + geolocation integration*
-*Researched: 2026-06-10*
+
+*Architecture research for: v6.0 My Work — Progress & Provenance*
+*Researched: 2026-06-24*
