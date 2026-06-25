@@ -4,8 +4,9 @@ Usage:
     cd data && uv run python run.py
 
 Pipelines are executed in this order:
-    ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
-    anti-entropy -> checklist -> inat-obs -> resolve-taxon-ids -> taxa-download ->
+    taxa-download -> ecdysis -> ecdysis-links -> inaturalist -> waba -> projects ->
+    anti-entropy -> checklist -> resolve-checklist-names -> checklist-resolution-gate ->
+    inat-obs -> resolve-taxon-ids -> resolution-gate ->
     inactive-remap -> inactive-gate -> taxon-lineage-extended -> places-validation -> places-load ->
     dbt-build -> dedup-candidates -> dedup-gate -> generate-sqlite -> topology-postprocess ->
     species-export -> species-maps -> places-export -> places-maps -> feeds
@@ -86,6 +87,15 @@ def _run_dbt_build() -> None:
 
 
 STEPS: list[tuple[str, Callable]] = [
+    # taxa-download runs FIRST: it has no upstream dependency (HTTP fetch from iNat
+    # Open Data with ETag caching) and taxa.csv.gz is read by many downstream steps
+    # (checklist, resolve-taxon-ids, generate-sqlite, …). Keeping it ahead of every
+    # consumer fixes a read-before-write ordering bug AND decouples the taxa.csv.gz
+    # S3 cache from upstream hard-fail gates: when a later step aborts the run (e.g.
+    # the ecdysis auth gate), the EXIT trap in nightly.sh still finds a fresh
+    # taxa.csv.gz to push, so the cache populates instead of reporting "first run"
+    # every night.
+    ("taxa-download", download_taxa_csv),
     ("ecdysis", load_ecdysis),
     ("ecdysis-links", load_links),
     ("inaturalist", load_inaturalist_observations),
@@ -100,7 +110,6 @@ STEPS: list[tuple[str, Callable]] = [
     ("inat-obs", load_inat_obs),
     ("resolve-taxon-ids", lambda: resolve_taxon_ids(refresh=_REFRESH_LINEAGE)),
     ("resolution-gate", check_resolution_gate),       # D-02: fail fast on unresolved bee names
-    ("taxa-download", download_taxa_csv),
     ("inactive-remap", generate_inactive_remaps),    # NEW: detect + auto-remap inactive taxa (D-11)
     ("inactive-gate", check_inactive_gate),          # NEW: hard-fail on unresolvable inactives (D-05)
     ("taxon-lineage-extended", load_taxon_lineage_extended),
