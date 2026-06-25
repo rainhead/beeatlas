@@ -108,6 +108,13 @@ models:
               config:
                 severity: warn
                 where: "source = 'ecdysis'"
+      # D-05/D-06 (Phase 168): the "Identified" timeline anchor. VARCHAR keeps year-only
+      # partials (D-06) — a DATE column would NULL ~26k year-only ecdysis IDs. Derived only
+      # for ARM 1 (parsed date_identified); NULL for the other four arms (D-08/D-09).
+      # Parse-completeness is enforced by the warn-severity singular test
+      # assert_id_date_parse_complete (D-13), not an inline data_test here.
+      - name: id_date
+        data_type: varchar
 
   - name: occurrence_places
     # Phase 160 (D-01): many-to-many occurrence ↔ place bridge. One row per
