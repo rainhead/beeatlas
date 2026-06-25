@@ -43,7 +43,7 @@ where they conflict:**
   Collected and Identified.** No "posted", no "catalogued" as dated events.
 - **D-02:** **Posting is not an event** — `posted_date`/`created_at` is dropped
   entirely (column + concept). Supersedes ROADMAP criterion 1 and TEMP-01.
-- **D-03:** `[informational]` **Cataloguing is not a dated event** — Ecdysis has
+- **D-03 [informational]:** **Cataloguing is not a dated event** — Ecdysis has
   no trustworthy cataloguing date (only `modified`, which bumps on any edit). "In
   iNat vs. in Ecdysis" is a **status/provenance facet (Phase 170)**, not a
   timestamp. Scope-fence rationale only — no implementable surface in this phase.
