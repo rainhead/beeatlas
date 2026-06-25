@@ -4,14 +4,14 @@ milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
 stopped_at: Phase 168 context gathered
-last_updated: "2026-06-25T18:47:18.521Z"
-last_activity: 2026-06-25 -- Phase 168 execution started
+last_updated: "2026-06-25T19:33:25.552Z"
+last_activity: 2026-06-25
 progress:
-  total_phases: 38
-  completed_phases: 16
-  total_plans: 36
-  completed_plans: 36
-  percent: 42
+  total_phases: 25
+  completed_phases: 22
+  total_plans: 47
+  completed_plans: 47
+  percent: 88
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion 
 
 ## Current Position
 
-Phase: 168 (temporal-lifecycle-dates) — EXECUTING
-Plan: 1 of 1
+Phase: 168
+Plan: Not started
 Status: Executing Phase 168
-Last activity: 2026-06-25 -- Phase 168 execution started
+Last activity: 2026-06-25
 
 ## Milestone Overview
 
