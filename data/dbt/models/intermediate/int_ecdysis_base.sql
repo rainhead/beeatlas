@@ -23,7 +23,8 @@ SELECT
     strftime(GREATEST(o.modified, COALESCE(im.max_id_modified, o.modified)), '%Y-%m-%d') AS modified,
     wl.specimen_observation_id,
     TRY_CAST(NULLIF(o.minimum_elevation_in_meters, '') AS INTEGER)              AS elevation_m,
-    o.canonical_name
+    o.canonical_name,
+    o.date_identified
 FROM {{ ref('stg_ecdysis__occurrences') }} o
 LEFT JOIN {{ ref('stg_ecdysis__occurrence_links') }} links ON links.occurrence_id = o.occurrence_id
 LEFT JOIN {{ ref('stg_inat__observations') }} inat ON inat.id = links.host_observation_id
