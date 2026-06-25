@@ -11,7 +11,7 @@
 
 ### Collector Identity (IDENT)
 
-- [ ] **IDENT-01**: Each occurrence carries a unified `collector_inat_login` (COALESCE `specimen_inat_login` > `host_inat_login` > `user_login`), projected through the `occurrences` mart (dbt contract bump 36→37, shipped data-before-code). WABA collectors always have an iNat handle (they appear in iNaturalist before Ecdysis), so no free-text `recordedBy` reconciliation seed is needed.
+- [x] **IDENT-01**: Each occurrence carries a unified `collector_inat_login` (COALESCE `specimen_inat_login` > `host_inat_login` > `user_login`), projected through the `occurrences` mart (dbt contract bump 36→37, shipped data-before-code). WABA collectors always have an iNat handle (they appear in iNaturalist before Ecdysis), so no free-text `recordedBy` reconciliation seed is needed.
 
 ### Provenance & Facets (PROV)
 
@@ -79,7 +79,7 @@ Explicitly excluded for v6.0.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| IDENT-01 | Phase 167 | Pending |
+| IDENT-01 | Phase 167 | Complete |
 | TEMP-01 | Phase 168 | Pending |
 | TEMP-02 | Phase 168 | Pending |
 | PAGE-01 | Phase 169 | Pending |

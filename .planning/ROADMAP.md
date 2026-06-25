@@ -74,7 +74,7 @@
 - [ ] **Phase 167: Collector Identity Column** — COALESCE `collector_inat_login` into the occurrences mart; dbt contract 36→37; data-before-code S3 release sequence. **Plans:** 1 plan (1 wave; final operator step is a blocking checkpoint).
   Plans:
 
-  - [ ] 167-01-PLAN.md — COALESCE `collector_inat_login` into all 5 int_combined arms + occurrences mart SELECT + schema.yml contract (36→37) with the D-05 hard-error and D-06 warn `not_null` tests; local `run.sh build` + sqlite spot-check; one-time operator SKIP_INTEGRATION_GATE nightly to land the column in S3 [IDENT-01; D-01..D-08]
+  - [x] 167-01-PLAN.md — COALESCE `collector_inat_login` into all 5 int_combined arms + occurrences mart SELECT + schema.yml contract (36→37) with the D-05 hard-error and D-06 warn `not_null` tests; local `run.sh build` + sqlite spot-check; one-time operator SKIP_INTEGRATION_GATE nightly to land the column in S3 [IDENT-01; D-01..D-08]
 - [ ] **Phase 168: Temporal Lifecycle Dates** — Surface intrinsic lifecycle dates (collection, posting, identification) into the mart; second isolated dbt contract bump; waba_specimen→ecdysis transition linkage; data-before-code S3 release
 - [ ] **Phase 169: Per-Collector Static Pages** — Export `collectors.json`, generate Eleventy pages at `/collectors/{login}/` following the places pattern; public (no auth), gated on `collector_inat_login IS NOT NULL`
 - [ ] **Phase 170: Source → Provenance Facets Rebuild** — Replace the `source` enum with orthogonal provenance-tier facets across all three coupled consumers; atomic commit with positional-coupling Vitest assertion; `tier=` URL param with `src=` back-compat
