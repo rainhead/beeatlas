@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: planning
-stopped_at: Phase 167 context gathered
-last_updated: "2026-06-25T04:47:08.302Z"
-last_activity: 2026-06-25 — v6.0 roadmap created (6 phases, 167–172)
+status: verifying
+stopped_at: Phase 167 Tasks 1+2 complete; Task 3 awaits operator (SKIP_INTEGRATION_GATE nightly on maderas)
+last_updated: "2026-06-25T04:53:10.263Z"
+last_activity: 2026-06-25
 progress:
   total_phases: 38
-  completed_phases: 14
-  total_plans: 34
-  completed_plans: 34
-  percent: 37
+  completed_phases: 15
+  total_plans: 35
+  completed_plans: 35
+  percent: 39
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v6.0 My Work — Progress & Provenance (Phase 167 next)
+**Current focus:** Phase 167 — collector-identity-column
 
 ## Current Position
 
-Phase: 167 (not started)
-Plan: —
-Status: Roadmap defined, ready to plan Phase 167
-Last activity: 2026-06-25 — v6.0 roadmap created (6 phases, 167–172)
+Phase: 167 (collector-identity-column) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-06-25
 
 ## Milestone Overview
 
@@ -47,7 +47,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
-**Progress:** ░░░░░░░░░░ 0/6 phases (0%)
+**Progress:** [██████████] 100%
 
 ## Accumulated Context
 
@@ -72,6 +72,8 @@ Load-bearing conventions carried from prior milestones:
 - **[v6.0 TEMP]** Temporal approach resolved (operator decision 2026-06-24): lifecycle dates read from intrinsic source data (collection/event date, iNat `created_at`, identification dates) — NOT snapshot-diffing. Option A/B/C fork dissolved. No first-run-flood concern for static dates. The two dbt contract bumps (IDENT-01 col, TEMP-01 cols) must be separate nightly runs per `project_occurrences_contract_release_sequence`.
 - **[v6.0 PROV]** Source → facets rebuild is high-risk atomic: all three occ_id-coupled consumers (`src/occurrence.ts`, `src/filter.ts`, `data/dbt/models/marts/occurrence_places.sql`) change in one commit; plan must include a positional-coupling Vitest test + `tier=`/`src=` URL back-compat. `tsc --noEmit` is the post-merge gate.
 - **[v6.0 PAGE]** Per-collector pages are gated on `collector_identity.csv` — never generated from all distinct `host_inat_login` values (would include casual iNat observers). Public, no auth, no gating per operator decision 2026-06-24.
+- **[Phase 167] dbt test disambiguation**: Two `not_null` tests on the same column in dbt 1.10.1 require explicit `name:` keys to avoid compilation error. Added `not_null_occurrences_collector_inat_login_waba` (D-05, error) and `not_null_occurrences_collector_inat_login_ecdysis_drift` (D-06, warn) — this is the required pattern for any future phase adding multiple severity-scoped tests on a single column.
+- **[Phase 167] collector_inat_login shipped (dbt contract 36→37)**: Column live in local sandbox/occurrences.parquet and occurrences.db. Awaiting operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to land in live S3 (Task 3 checkpoint).
 
 ### Pending Todos
 
@@ -97,9 +99,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-25T04:27:11.664Z
+Last session: 2026-06-25T04:53:10.254Z
 Stopped at: Phase 167 context gathered
-Resume file: .planning/phases/167-collector-identity-column/167-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
