@@ -82,7 +82,7 @@
 - [ ] **Phase 169: Per-Collector Static Pages** — Export `collectors.json`, generate Eleventy pages at `/collectors/{login}/` following the places pattern; public (no auth), gated on `collector_inat_login IS NOT NULL AND (ecdysis_id IS NOT NULL OR source IN ('waba_specimen','waba_sample'))` (D-01; ~124 collectors, casual observers excluded). **Plans:** 2 plans (2 waves).
   Plans:
 
-  - [ ] 169-01-PLAN.md — Wave 1: `collectors_export.py` + golden-fixture pytest + run.py STEPS entry + committed `collectors.json` (D-01 gate, D-03 counts, D-04 name, D-05/D-06/D-07 status split) [PAGE-01, PAGE-02, PAGE-03]
+  - [x] 169-01-PLAN.md — Wave 1: `collectors_export.py` + golden-fixture pytest + run.py STEPS entry + committed `collectors.json` (D-01 gate, D-03 counts, D-04 name, D-05/D-06/D-07 status split) [PAGE-01, PAGE-02, PAGE-03]
   - [ ] 169-02-PLAN.md — Wave 2: `_data/collectors.js` loader + `_pages/collector-detail.njk` (stats, status split, `?collectors=` map deep-link) + `_pages/collectors.njk` index + D-09 floor Vitest [PAGE-01, PAGE-02, PAGE-03, PAGE-04]
 - [ ] **Phase 170: Source → Provenance Facets Rebuild** — Replace the `source` enum with orthogonal provenance-tier facets across all three coupled consumers; atomic commit with positional-coupling Vitest assertion; `tier=` URL param with `src=` back-compat
 - [ ] **Phase 171: Per-Collector Event Stream** — Reverse-chronological collection→ID feed on the collector page; waba_specimen cataloguing event; pagination for high-volume collectors

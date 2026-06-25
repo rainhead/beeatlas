@@ -4,13 +4,13 @@ milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
 stopped_at: Phase 169 context gathered
-last_updated: "2026-06-25T21:54:53.436Z"
-last_activity: 2026-06-25 -- Phase 169 planning complete
+last_updated: "2026-06-25T22:00:57.356Z"
+last_activity: 2026-06-25
 progress:
   total_phases: 38
   completed_phases: 16
   total_plans: 38
-  completed_plans: 36
+  completed_plans: 37
   percent: 42
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 168 — temporal-lifecycle-dates
+**Current focus:** Phase 169 — per-collector-static-pages
 
 ## Current Position
 
-Phase: 168
-Plan: Not started
+Phase: 169 (per-collector-static-pages) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-25 -- Phase 169 planning complete
+Last activity: 2026-06-25
 
 ## Milestone Overview
 
@@ -47,7 +47,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [██████████] 97%
 
 ## Accumulated Context
 
@@ -101,9 +101,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-25T21:24:21.611Z
+Last session: 2026-06-25T22:00:57.345Z
 Stopped at: Phase 169 context gathered
-Resume file: .planning/phases/169-per-collector-static-pages/169-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
