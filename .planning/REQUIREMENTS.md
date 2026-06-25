@@ -21,8 +21,8 @@
 
 ### Temporal Lifecycle (TEMP)
 
-- [ ] **TEMP-01**: The occurrence model surfaces the intrinsic lifecycle dates already present in the source data — collection/event date, iNat posting date (`created_at`), and best-available identification date — projected into the mart so a per-record timeline can be built **without** snapshot-diffing (dbt contract bump, shipped data-before-code).
-- [ ] **TEMP-02**: A `waba_specimen → ecdysis` transition reads as a single specimen carrying both its iNat posting date and its Ecdysis cataloguing date (linked via `specimen_observation_id`) — cataloguing is one event in that specimen's timeline, not a separate delete + create.
+- [x] **TEMP-01**: The occurrence model surfaces the intrinsic lifecycle dates already present in the source data — collection/event date, iNat posting date (`created_at`), and best-available identification date — projected into the mart so a per-record timeline can be built **without** snapshot-diffing (dbt contract bump, shipped data-before-code).
+- [x] **TEMP-02**: A `waba_specimen → ecdysis` transition reads as a single specimen carrying both its iNat posting date and its Ecdysis cataloguing date (linked via `specimen_observation_id`) — cataloguing is one event in that specimen's timeline, not a separate delete + create.
 
 ### Per-Collector Page (PAGE)
 
@@ -80,8 +80,8 @@ Explicitly excluded for v6.0.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | IDENT-01 | Phase 167 | Complete |
-| TEMP-01 | Phase 168 | Pending |
-| TEMP-02 | Phase 168 | Pending |
+| TEMP-01 | Phase 168 | Complete |
+| TEMP-02 | Phase 168 | Complete |
 | PAGE-01 | Phase 169 | Pending |
 | PAGE-02 | Phase 169 | Pending |
 | PAGE-03 | Phase 169 | Pending |

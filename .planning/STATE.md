@@ -4,14 +4,14 @@ milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
 stopped_at: Phase 168 context gathered
-last_updated: "2026-06-25T18:39:35.288Z"
-last_activity: 2026-06-25 -- Phase 168 planning complete
+last_updated: "2026-06-25T18:47:18.521Z"
+last_activity: 2026-06-25 -- Phase 168 execution started
 progress:
-  total_phases: 25
-  completed_phases: 21
-  total_plans: 46
-  completed_plans: 46
-  percent: 84
+  total_phases: 38
+  completed_phases: 16
+  total_plans: 36
+  completed_plans: 36
+  percent: 42
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 167 — collector-identity-column
+**Current focus:** Phase 168 — temporal-lifecycle-dates
 
 ## Current Position
 
-Phase: 167 (collector-identity-column) — EXECUTING
+Phase: 168 (temporal-lifecycle-dates) — EXECUTING
 Plan: 1 of 1
-Status: Ready to execute
-Last activity: 2026-06-25 -- Phase 168 planning complete
+Status: Executing Phase 168
+Last activity: 2026-06-25 -- Phase 168 execution started
 
 ## Milestone Overview
 
@@ -74,6 +74,7 @@ Load-bearing conventions carried from prior milestones:
 - **[v6.0 PAGE]** Per-collector pages are gated on `collector_identity.csv` — never generated from all distinct `host_inat_login` values (would include casual iNat observers). Public, no auth, no gating per operator decision 2026-06-24.
 - **[Phase 167] dbt test disambiguation**: Two `not_null` tests on the same column in dbt 1.10.1 require explicit `name:` keys to avoid compilation error. Added `not_null_occurrences_collector_inat_login_waba` (D-05, error) and `not_null_occurrences_collector_inat_login_ecdysis_drift` (D-06, warn) — this is the required pattern for any future phase adding multiple severity-scoped tests on a single column.
 - **[Phase 167] collector_inat_login shipped (dbt contract 36→37)**: Column live in local sandbox/occurrences.parquet and occurrences.db. Awaiting operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to land in live S3 (Task 3 checkpoint).
+- [Phase 168]: id_date column shipped to local mart (dbt contract 37 to 38): VARCHAR parse of ecdysis date_identified in int_combined ARM 1 (26,565 kept; year-only + full ISO verbatim, garbage NULLed); ARMs 2-5 NULL; assert_id_date_parse_complete warn singular test. Awaiting operator SKIP_INTEGRATION_GATE nightly to land in live S3 (Task 4, gated behind Phase 167 37-col landing).
 
 ### Pending Todos
 
@@ -83,6 +84,7 @@ Load-bearing conventions carried from prior milestones:
 ### Blockers/Concerns
 
 - Phase 163 (Ecdysis auth) ⚠ blocks nightly pipeline. Decouple: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses cached ZIP as immediate workaround.
+- [Phase 168 Task 4] Awaiting operator SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to land id_date (38 cols) in live S3; gated behind Phase 167 37-col S3 landing (D-12, confirmed live per commit 69821883).
 
 ## Deferred Items
 
@@ -99,9 +101,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-25T18:21:27.652Z
+Last session: 2026-06-25T18:47:18.513Z
 Stopped at: Phase 168 context gathered
-Resume file: .planning/phases/168-temporal-lifecycle-dates/168-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
