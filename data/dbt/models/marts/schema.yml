@@ -89,6 +89,25 @@ models:
               config:
                 severity: warn
                 where: "canonical_name is not null and canonical_name <> '' and canonical_name not in ('anthidiellum robertsoni', 'lasioglossum aspilurus', 'osmia phaceliae')"
+      - name: collector_inat_login
+        data_type: varchar
+        data_tests:
+          # D-05 (Phase 167): WABA-named arms (waba_sample, waba_specimen) are small and
+          # provably 100% resolved (0 NULLs as of 2026-06-24). A NULL here is a join regression.
+          # Hard-error to block nightly.
+          - not_null:
+              name: not_null_occurrences_collector_inat_login_waba
+              config:
+                severity: error
+                where: "source in ('waba_sample', 'waba_specimen')"
+          # D-06 (Phase 167): ecdysis has ~2,767 unresolvable NULLs (specimens with no matched
+          # iNat observation). Warn-only; surfaces drift count each build without blocking nightly.
+          # Baseline 2026-06-24: 2,767 of 48,801 ecdysis rows. Warn count = current drift.
+          - not_null:
+              name: not_null_occurrences_collector_inat_login_ecdysis_drift
+              config:
+                severity: warn
+                where: "source = 'ecdysis'"
 
   - name: occurrence_places
     # Phase 160 (D-01): many-to-many occurrence ↔ place bridge. One row per
