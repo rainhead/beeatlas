@@ -46,6 +46,7 @@
 - ✅ **v5.0 Offline Field Mode** — Phases 147–154 (shipped 2026-06-21). Installable PWA dogfooded behind unlisted `/app`: scoped service worker, app-shell + `/data/` offline caching with cold-start, cache-health/freshness UX, PWA manifest + install affordances, GeolocateControl + "occurrences near me", and a ToS-compliant Mapbox basemap performance cache. See [.planning/milestones/v5.0-ROADMAP.md](milestones/v5.0-ROADMAP.md).
 - ✅ **v5.1 Housekeeping** — Phases 155–159 (shipped 2026-06-23). Post-v5.0 cleanup: the shift-drag discoverability hint and the bounds-as-filter state/URL refactor (155–156), the regions-dropdown stacking fix (157), non-WABA specimen-photo capture via reusable WABA-backfill curation tooling (158, resolved by curation — no pipeline change), and a one-click sidebar taxon-filter shortcut (159). See [.planning/milestones/v5.1-ROADMAP.md](milestones/v5.1-ROADMAP.md).
 - ✅ **v5.2 Place Coverage Expansion** — Phases 160–162 (shipped 2026-06-24). Made the place model overlap-capable so an occurrence can belong to multiple places (160 — `occurrence_places` many-to-many bridge mart, scalar `place_slug` dropped, overlap guard removed), then added two new curated place sources on top of it: 33 WDFW wildlife areas (161) and 13 WTA hike corridors (162, ~250 m metric buffers solving the linear-feature problem; 1 of 14 deferred). The model change (160) was split out during Phase 161 research, which found 16 real WDFW↔existing-place overlaps and established that the legacy one-place-per-occurrence rule was an implementation artifact, not a requirement. See [.planning/milestones/v5.2-ROADMAP.md](milestones/v5.2-ROADMAP.md).
+- **v6.0 My Work — Progress & Provenance** — Phases 167–172 (in progress). Per-collector bookmarkable pages with a collection→ID lifecycle event stream and accomplishments view, on a rebuilt occurrence model replacing `source` with orthogonal provenance-tier facets. See [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md).
 
 ## Phases
 
@@ -67,6 +68,15 @@
   - [x] 165-03-PLAN.md — Wave 3: frontend `waba_specimen` source — SourceKey/VALID_SOURCES, fifth source toggle (+ corrected `waba_sample` copy), occurrence-detail badge [D-12, D-13]
   - [x] 165-04-PLAN.md — Wave 3: `docs/domain-model.md` (human-first 5-category model) + CLAUDE.md link [D-03,D-04,D-06,D-07]
 - [ ] **Phase 166: Seasonality charts on species and genus pages** — Add a phenology / seasonality chart showing the months each bee is active. **Species page:** one chart — bars/area over the 12 months showing occurrence counts per month for that species. **Genus page:** the flight season of each species in the genus (small-multiples or a stacked/heatmap "phenogram", species × month grid) for at-a-glance comparison. Pure frontend/visualization over the in-browser wa-sqlite store — `marts/occurrences` already carries the `month` column (used by the existing month filter in `buildFilterSQL`), so no pipeline change; a per-month `COUNT(*)` grouped by `taxon_id` (with descendant roll-up for the genus, mirroring the taxon-descendant subquery already in `buildFilterSQL`) feeds the chart. Open questions for discuss/plan: (1) **where these pages live** — BeeAtlas is map-centric with no per-taxon page route, so this may need a new species/genus view (relates to [[project_taxon_id_milestone]]); (2) chart form (12-bar histogram vs ridgeline/heatmap phenogram) under the static-hosting + no-heavy-deps constraint (CLAUDE.md); (3) null-`month` rows excluded vs shown as "unknown"; (4) count vs normalized y-axis, and whether to respect active source/year filters or always show all-time phenology. Promoted from backlog 999.13 (2026-06-24). **Depends on:** per-taxon page route (none exists yet — see open question 1). **Plans:** TBD.
+
+### v6.0 My Work — Progress & Provenance (Phases 167–172)
+
+- [ ] **Phase 167: Collector Identity Column** — COALESCE `collector_inat_login` into the occurrences mart; dbt contract 36→37; data-before-code S3 release sequence
+- [ ] **Phase 168: Temporal Lifecycle Dates** — Surface intrinsic lifecycle dates (collection, posting, identification) into the mart; second isolated dbt contract bump; waba_specimen→ecdysis transition linkage; data-before-code S3 release
+- [ ] **Phase 169: Per-Collector Static Pages** — Export `collectors.json`, generate Eleventy pages at `/collectors/{login}/` following the places pattern; public (no auth), gated on `collector_inat_login IS NOT NULL`
+- [ ] **Phase 170: Source → Provenance Facets Rebuild** — Replace the `source` enum with orthogonal provenance-tier facets across all three coupled consumers; atomic commit with positional-coupling Vitest assertion; `tier=` URL param with `src=` back-compat
+- [ ] **Phase 171: Per-Collector Event Stream** — Reverse-chronological collection→ID feed on the collector page; waba_specimen cataloguing event; pagination for high-volume collectors
+- [ ] **Phase 172: Accomplishment View** — County coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and active-seasons badge on the collector page
 
 <details>
 <summary>✅ v5.2 Place Coverage Expansion (Phases 160–162) — SHIPPED 2026-06-24</summary>
@@ -1617,3 +1627,80 @@ Surfaced during Phase 150 UAT (2026-06-19): in Safari private browsing, `caches.
 Plans:
 
 - [ ] TBD (promote with /gsd-review-backlog when ready)
+
+### Phase 167: Collector Identity Column
+
+**Goal**: Every occurrence row carries a unified `collector_inat_login` COALESCE column, unblocking all per-collector queries downstream
+**Depends on**: Phase 165 (waba_specimen arm defines the COALESCE priority order)
+**Requirements**: IDENT-01
+**Success Criteria** (what must be TRUE):
+  1. `occurrences.parquet` and `occurrences.db` carry a `collector_inat_login VARCHAR` column (dbt contract 36→37) resolving via `COALESCE(specimen_inat_login, host_inat_login, user_login)`
+  2. WABA collector occurrences — Ecdysis specimens, WABA samples, and waba_specimen rows — all resolve to the correct iNat login without NULL
+  3. The data-before-code S3 release sequence completes: nightly runs with `SKIP_INTEGRATION_GATE=1`, the new column is live in S3 before any TypeScript that reads it ships
+  4. No identity-reconciliation seed is required (WABA collectors always carry an iNat handle, appearing in iNaturalist before Ecdysis); a build-time assertion validates that WABA specimen/sample rows resolve to a non-NULL `collector_inat_login`
+**Plans**: TBD
+
+### Phase 168: Temporal Lifecycle Dates
+
+**Goal**: Each occurrence carries its intrinsic lifecycle dates (collection, posting, identification) readable from the mart, and the waba_specimen→ecdysis transition reads as a single specimen's timeline rather than a phantom delete+create
+**Depends on**: Phase 167 (collector identity column; same data layer)
+**Requirements**: TEMP-01, TEMP-02
+**Success Criteria** (what must be TRUE):
+  1. `occurrences.db` carries `collection_date`, `posted_date` (iNat `created_at`), and `id_date` (best-available identification date) columns; dbt contract bump ships data-before-code with its own isolated S3 release
+  2. A `waba_specimen` row linked to a subsequent Ecdysis record (via `specimen_observation_id`) carries both its iNat `posted_date` and the Ecdysis `collection_date` — the transition does not produce a phantom delete+create in the event timeline
+  3. Lifecycle dates are read from intrinsic source fields (no snapshot-diffing), so no first-run baseline is needed; rows with partial/missing dates (e.g. Ecdysis `date_identified` year-only or `s.d.`) are handled explicitly rather than dropped
+  4. Lifecycle dates for Ecdysis specimens, waba_specimen rows, iNat expert obs, WABA samples, and checklist records are each populated from the correct source field (no cross-ARM NULL gaps for available fields)
+**Plans**: TBD
+
+### Phase 169: Per-Collector Static Pages
+
+**Goal**: Every active WABA collector has a bookmarkable, public page at `/collectors/{inat_login}/` with headline stats, a status split, and a map deep-link
+**Depends on**: Phase 167 (collector_inat_login in the mart)
+**Requirements**: PAGE-01, PAGE-02, PAGE-03, PAGE-04
+**Success Criteria** (what must be TRUE):
+  1. Visiting `/collectors/{inat_login}/` renders a static page for every collector with a non-NULL `collector_inat_login`; the page URL is stable and bookmarkable with no auth
+  2. The page shows headline contribution stats: specimen count, sample count, species count
+  3. The page shows a pending-vs-identified status split ("N identified, N awaiting ID") derived from lifecycle date availability
+  4. The page links to the main map filtered to that collector (`/?collector={login}` or equivalent), and the map filter applies correctly
+  5. Pages are generated only where `collector_inat_login IS NOT NULL` (checklist-only contributors without iNat handles are excluded); a build-time page-count assertion fails the build if count is below expected floor
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 170: Source → Provenance Facets Rebuild
+
+**Goal**: The `source` enum is replaced by orthogonal provenance-tier facets across all three coupled consumers, with `tier=` URL round-trip and `src=` back-compat, and the occ_id positional coupling is preserved and asserted
+**Depends on**: Phase 165 (waba_specimen arm defines all five source categories); Phase 167 (collector facet now meaningful in the model)
+**Requirements**: PROV-01, PROV-02, PROV-03
+**Success Criteria** (what must be TRUE):
+  1. The map filter, map symbology (`style.ts`), and occurrence detail card (`bee-occurrence-detail.ts`) are all driven by provenance tier, not the raw `source` string — the three consumers ship as one atomic commit
+  2. `FilterState` carries `hiddenProvenanceTiers` replacing `hiddenSources`; `tier=` URL param round-trips correctly; `src=` legacy param parses and maps to the new tier vocabulary (back-compat)
+  3. A Vitest assertion compares the occ_id CASE branch priority order between `src/occurrence.ts` (`occIdFromRow`) and `src/filter.ts` (`OCC_ID_SQL_CASE`) — the positional coupling is explicit and tested; the `data/dbt/models/marts/occurrence_places.sql` CASE is cross-checked in the same commit
+  4. `tsc --noEmit` is green after the facets commit; all place-filter queries return correct results for each source arm (no silent zero-result regressions)
+**Plans**: TBD
+
+### Phase 171: Per-Collector Event Stream
+
+**Goal**: The collector page shows a reverse-chronological collection→identification event feed, including the waba_specimen→ecdysis cataloguing event, with pagination for high-volume collectors
+**Depends on**: Phase 168 (lifecycle dates in mart); Phase 170 (provenance-tier rendering for the feed)
+**Requirements**: STREAM-01, STREAM-02, STREAM-03
+**Success Criteria** (what must be TRUE):
+  1. The collector page shows a reverse-chronological feed of events (collection, posting, identification) keyed on lifecycle dates from the mart — the feed is readable on any device from the same bookmarked URL
+  2. A waba_specimen row that gains an Ecdysis cataloguing link (via `specimen_observation_id`) appears as a "specimen catalogued in Ecdysis" event in the feed, not as a deletion + creation
+  3. Collectors with more than ~500 occurrence records see the feed paginated or bounded (no unbounded DOM or query); the bound is documented and the collector-page load time stays reasonable
+  4. The feed renders correctly when lifecycle dates are partially absent (e.g. identification date NULL for unidentified specimens — the event still appears as "collected, awaiting ID")
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 172: Accomplishment View
+
+**Goal**: The collector page shows a county coverage map, taxonomic-breadth list, ecoregion breadth, and active-seasons badge — all pre-aggregated in the pipeline, not computed in the browser
+**Depends on**: Phase 169 (per-collector static page shell); Phase 171 (event stream establishes the full collector page)
+**Requirements**: ACCOM-01, ACCOM-02, ACCOM-03, ACCOM-04
+**Success Criteria** (what must be TRUE):
+  1. The collector page includes a county coverage SVG map (reusing the taxon/place SVG pattern from `data/svg_map.py`) showing counties where the collector has contributed occurrences
+  2. The page shows a taxonomic-breadth list of contributed species, each linked to its taxon page
+  3. The page shows ecoregion breadth (the distinct ecoregions the collector has contributed to)
+  4. The page shows an "Active since YYYY (N seasons)" badge derived from the `collection_date` column range — no streak tracking, no leaderboard elements
+  5. All aggregations are pre-computed in the pipeline (`collectors.json`) and rendered statically; no wa-sqlite GROUP BY query runs in the browser on the collector page
+**Plans**: TBD
+**UI hint**: yes

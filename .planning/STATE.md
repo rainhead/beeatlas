@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: planning
-last_updated: "2026-06-25T03:41:15.491Z"
+last_updated: "2026-06-25T00:00:00.000Z"
 last_activity: 2026-06-25
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,20 +20,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 165 — duplicate-occurrence-rows-shared-occ-id
+**Current focus:** v6.0 My Work — Progress & Provenance (Phase 167 next)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 167 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-25 — Milestone v6.0 started
+Status: Roadmap defined, ready to plan Phase 167
+Last activity: 2026-06-25 — v6.0 roadmap created (6 phases, 167–172)
 
 ## Milestone Overview
 
-**No active milestone.** v5.2 Place Coverage Expansion (Phases 160–162) shipped and archived 2026-06-24 — see [milestones/v5.2-ROADMAP.md](milestones/v5.2-ROADMAP.md) and MILESTONES.md. The 145–162 working set is fully closed.
+**v6.0 My Work — Progress & Provenance (Phases 167–172)**
 
-Three backlog items were promoted to active (milestone TBD) on 2026-06-24: **Phase 163** (Ecdysis auth-session fix — ⚠ BLOCKS NIGHTLY, gated on an Ecdysis dataset-44 account), **Phase 164** (sidebar `src=` filter bug), **Phase 165** (duplicate occ_id rows). Next: plan Phase 163 first (it blocks the nightly), or start a new milestone with `/gsd-new-milestone`. Remaining backlog: federal wilderness areas as regions (999.11), Safari private-browsing offline UI (999.7).
+Goal: Stand up the first "work" surface — a bookmarkable, no-auth, public per-collector page showing the collection→ID lifecycle as an event stream and accomplishments as coverage/breadth — on a rebuilt occurrence model that replaces `source` with orthogonal facets and a temporal status lifecycle.
+
+Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
+
+| Phase | Name | Dependencies | Status |
+|-------|------|--------------|--------|
+| 167 | Collector Identity Column | Phase 165 | Not started |
+| 168 | Temporal Lifecycle Dates | Phase 167 | Not started |
+| 169 | Per-Collector Static Pages | Phase 167 | Not started |
+| 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Not started |
+| 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
+| 172 | Accomplishment View | Phase 169, 171 | Not started |
+
+**Progress:** ░░░░░░░░░░ 0/6 phases (0%)
 
 ## Accumulated Context
 
@@ -42,40 +55,35 @@ Three backlog items were promoted to active (milestone TBD) on 2026-06-24: **Pha
 Load-bearing conventions carried from prior milestones:
 
 - **geo_blob ↔ features.ts positional contract**: `_GEO_COLS` and `features.ts` column indices are positionally coupled; changes ship in one atomic commit.
-- **`<bee-atlas>` owns all reactive state**: `<bee-map>` and `<bee-pane>` are pure presenters — LOC-02 must follow this; location state goes on `<bee-atlas>._userLocation`, relayed up via `composed: true` CustomEvent.
-- **`_filterQueryGeneration` race guard**: near-me queries will be covered automatically by the existing generation counter; no new guard needed.
-- **Style cache bypass**: must bypass when `filterState` is active or `selectedOccIds` non-empty; the near-me filter extends `FilterState` so the bypass rule is inherited.
+- **`<bee-atlas>` owns all reactive state**: `<bee-map>` and `<bee-pane>` are pure presenters — state goes on `<bee-atlas>`, relayed down as properties.
+- **`_filterQueryGeneration` race guard**: async query results must be discarded if the counter has advanced.
+- **Style cache bypass**: must bypass when `filterState` is active or `selectedOccIds` non-empty.
 - **Static hosting only**: no server runtime — SW, manifest, and CDK `no-cache` behavior are the only moving parts.
-- **Session-coalesced viewport history (Phase 146)**: `_viewportSessionActive` flag gates pushState vs replaceState; `?near=1` is a non-viewport write that should reset the session flag.
-- [Phase ?]: GeolocateControl placement outside load handler
-- [Phase ?]: Permission-gated auto-trigger timing
-- [Phase ?]: UserLocation state shape
+- **Session-coalesced viewport history (Phase 146)**: `_viewportSessionActive` flag gates pushState vs replaceState.
 - **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: access_token retained (§1.1/§2.9.4); events.mapbox.com excluded by hostname; /map-sessions/ excluded by path; 7-day TTL (§2.8.1 ceiling: 30 days). docs/adr/0001-mapbox-basemap-cache.md is the ToS record. Web-SDK offline basemap is NOT licensed.
-- [Phase ?]: [Phase 160] Place bridge keyed on synthetic occ_id (Option B): occurrence_places (occ_id, place_slug); occ_id CASE mirrors src/occurrence.ts occIdFromRow priority
-- **[Phase 160-02]** Bridge parquet resolved as a sibling of `src_parquet` (`src_parquet.parent / "occurrence_places.parquet"`) in sqlite_export.py — no new injectable arg; run.py copy loop lands both occurrences + bridge in EXPORT_DIR. occurrences mart contract is 36 cols after dropping place_slug (CONTEXT's "33→32" was an estimate); the dbt contract gate enforces it. occurrences.db ships an indexed `occurrence_places(place_slug, occ_id)` table; both JS table whitelists list it.
-- [Phase ?]: 160-03: per-place counts and SVG points are bridge-driven via occurrences JOIN occurrence_places on synthetic occ_id; multi-place occurrences double-count by design (D-05)
-- [Phase ?]: 160-04: place filter resolves by occurrence_places EXISTS membership; place_slug removed from frontend OccurrenceRow/OCCURRENCE_COLUMNS
-- [Phase ?]: 160-04 D-04: member-place names resolved in bee-atlas (state owner) and passed down to bee-occurrence-detail as a property (state-ownership invariant)
-- **[Phase 162-02]** `snoqualmie-pass-to-olallie-meadow-trail` deferred (2026-06-23): OSM only has the full PCT Section J (~75 km relation 1296807), which over-claims ~9× vs the ~8 km day-hike. Needs hand-traced GPX to Olallie Meadow turnaround. 13 hike corridors shipped instead of 14.
-- **[Phase 162-02]** `tol=0.0002°` (~22 m) ratified for hike corridor simplification: 13 corridors add +24 KB (895→920 KB), well under 1 MB cap. `geyser-valley-trail` accepted as-is (OSM way 261478797).
+- **[Phase 160] Place bridge keyed on synthetic occ_id (Option B)**: occurrence_places (occ_id, place_slug); occ_id CASE mirrors src/occurrence.ts occIdFromRow priority.
+- **[Phase 160-02]** Bridge parquet resolved as a sibling of `src_parquet` in sqlite_export.py; occurrences mart contract is 36 cols after dropping place_slug.
 - **[Phase 165-02] D-05**: `MIN(waba.id) GROUP BY catalog_suffix` removed from `int_waba_link` — 1:N catalog-match so all WABA obs sharing a catalog suffix are recognized; fan-out guard via MIN subquery at `int_ecdysis_base` consumer keeps ARM 1 1:1.
 - **[Phase 165-02] D-03/D-11**: `waba_sample` (provisional) arm redefined on project_id=166376 membership anti-joined `int_samples_base` (~28 rows, is_provisional=TRUE, specimen fields NULL).
 - **[Phase 165-02] D-10/D-12**: `waba_specimen` NEW source arm for the 33 WABA iNat-photo bee specimens not yet in Ecdysis (is_provisional=FALSE, occ_id=inat_obs:N, carries bee species + obs_url).
 - **[Phase 165-03] D-13**: `waba_specimen` wired end-to-end in frontend: SourceKey union + VALID_SOURCES in url-state.ts, OccurrenceRow.source + VALID_SOURCES in filter.ts, 5th source toggle in bee-pane.ts (_renderSources layers), _renderWabaSpecimen dispatch in bee-occurrence-detail.ts. waba_sample toggle copy corrected to 'Provisional samples'. All-off guard updated 4 → 5.
+- **[v6.0 IDENT-01]** `collector_inat_login` COALESCE priority: `COALESCE(specimen_inat_login, host_inat_login, user_login)` — the five-ARM model from Phase 165 defines all field sources; checklist ARM (free-text `recordedBy`) is excluded per requirements scope.
+- **[v6.0 TEMP]** Temporal approach resolved (operator decision 2026-06-24): lifecycle dates read from intrinsic source data (collection/event date, iNat `created_at`, identification dates) — NOT snapshot-diffing. Option A/B/C fork dissolved. No first-run-flood concern for static dates. The two dbt contract bumps (IDENT-01 col, TEMP-01 cols) must be separate nightly runs per `project_occurrences_contract_release_sequence`.
+- **[v6.0 PROV]** Source → facets rebuild is high-risk atomic: all three occ_id-coupled consumers (`src/occurrence.ts`, `src/filter.ts`, `data/dbt/models/marts/occurrence_places.sql`) change in one commit; plan must include a positional-coupling Vitest test + `tier=`/`src=` URL back-compat. `tsc --noEmit` is the post-merge gate.
+- **[v6.0 PAGE]** Per-collector pages are gated on `collector_identity.csv` — never generated from all distinct `host_inat_login` values (would include casual iNat observers). Public, no auth, no gating per operator decision 2026-06-24.
 
 ### Pending Todos
 
 - `144-code-review-deferred.md` — WR-04 (CSV-export `rows[0]` headers) + 3 info findings; non-blocking, promote into a future milestone.
+- Phase 163 (Ecdysis auth-session fix) — promoted to active, 163-01 plan exists but execution pending. ⚠ BLOCKS NIGHTLY until resolved.
 
 ### Blockers/Concerns
 
-None open.
+- Phase 163 (Ecdysis auth) ⚠ blocks nightly pipeline. Decouple: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses cached ZIP as immediate workaround.
 
 ## Deferred Items
 
-Acknowledged at v5.2 milestone close (2026-06-24): the open-artifact audit showed 12 items, **all verified non-blocking** — the 10 UAT "gaps" (incl. 160/161/162) are all `passed`/`approved` with 0 pending scenarios (flagged only because status ≠ literal "complete"); the 1 todo is the pre-existing 144 deferral below; Phase 162's "open questions" are the CONTEXT `<open_questions>` section already resolved by 162-RESEARCH.md. Plus: `snoqualmie-pass-to-olallie-meadow-trail` deferred (needs hand-traced GPX), and Phase 162's OSM geometry-assembly paths lack a direct regression test (162 code-review IN-05).
-
-Carried forward (originally acknowledged at v5.1 close 2026-06-23):
+Carried forward from v5.2 close (2026-06-24):
 
 | Category | Item | Status |
 |----------|------|--------|
@@ -84,14 +92,17 @@ Carried forward (originally acknowledged at v5.1 close 2026-06-23):
 | nyquist | Phases 129/131/132/134/135/136/138 partial Nyquist | accepted (carried from v4.x) |
 | verification | Phase 110/111/113 VERIFICATION.md | human_needed (carried from v4.0) |
 | uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (carried from v4.0) |
+| place | snoqualmie-pass-to-olallie-meadow-trail | deferred — needs hand-traced GPX |
 
 ## Session Continuity
 
-Last session: 2026-06-24T21:54:32.050Z
-Stopped at: Completed 165-03-PLAN.md — frontend waba_specimen wiring (D-13); Phase 165 complete
+Last session: 2026-06-25
+Stopped at: v6.0 roadmap created — 6 phases (167–172), 17/17 requirements mapped
 Resume file: None
 
 ## Operator Next Steps
 
-1. **Push** when ready: `git push origin main && git push origin v5.2` (main is ahead of origin/main; v5.2 work — 160–162 — is unpushed).
-2. Start the next milestone with `/gsd-new-milestone`, or promote a backlog item with `/gsd-review-backlog` (999.11 federal wilderness areas is the natural next place-source, reusing the 161/162 curation pattern).
+1. **Resolve Phase 163** (Ecdysis auth — blocks nightly): plan and execute 163-01.
+2. **Start v6.0 Phase 167**: `/gsd-plan-phase 167` — Collector Identity Column (dbt contract bump 36→37, data-before-code S3 sequence).
+3. Phase 168 (Temporal Lifecycle Dates) follows 167 — separate dbt contract bump, same S3 sequence.
+4. Phases 169 (Per-Collector Pages) and 170 (Facets Rebuild) can run in parallel after 167.
