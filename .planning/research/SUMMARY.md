@@ -1,17 +1,54 @@
 # Project Research Summary
 
-**Project:** Washington Bee Atlas — v5.0 Offline Field Mode
-**Domain:** PWA offline + geolocation additions to an existing Eleventy+Vite+Lit+Mapbox+wa-sqlite static map app
-**Researched:** 2026-06-10
+**Project:** BeeAtlas v6.0 — My Work: Progress & Provenance
+**Domain:** Per-collector personal progress surface on a static-hosted citizen-science atlas
+**Researched:** 2026-06-24
 **Confidence:** HIGH
 
 ## Executive Summary
 
-BeeAtlas v5.0 adds an installable PWA with offline map+data capability and a current-location filter to an already-working client-side SQLite map app. Because the data layer is already fully client-side (wa-sqlite, ~23 MB occurrences.db fetched at runtime), the offline story is essentially: cache what the app already fetches, then surface that cache state to the user. The main technical challenge is not architecture-in-the-large but a cluster of concrete, well-documented wrinkles: wiring vite-plugin-pwa into `eleventy.config.js` rather than `vite.config.ts`, keeping the service worker out of the main `/` route, handling iOS Safari's aggressive ~50 MB cache quota and 7-day eviction, and choosing prompt-to-reload over skipWaiting to prevent app-code/DB version skew.
+v6.0 adds the first personal page type to BeeAtlas: a bookmarkable, no-auth, public per-collector page showing a collection→ID lifecycle event stream and an accomplishment/coverage view. The recommended approach follows two well-established site patterns (per-place Eleventy static pages, nightly pipeline JSON exports) and requires zero new npm dependencies or infrastructure. The one genuinely hard problem — surfacing "what changed since you last visited" on a snapshot-only pipeline — has a viable MVP path (two VARCHAR columns added as a post-dbt pipeline step), but that path requires an architectural decision that must be made before Phase 2 is planned.
 
-The recommended approach is `vite-plugin-pwa@1.3.0` with `injectManifest` strategy, a SW served at `/app/sw.js` scoped to `/app`, Workbox runtime `CacheFirst` for the 23 MB DB (not precache), and `StaleWhileRevalidate` for `manifest.json`. The SW scope decision is clean: scope controls which *pages* the SW governs, not which URLs it can cache. A SW at `/app/sw.js` with `scope: /app` fully intercepts all `/data/` fetches issued by the `/app` page — no `Service-Worker-Allowed` header, no CDK change. The `occurrences.db` cache miss after iOS eviction is a real field risk; "last cached" UI and re-prime-on-reconnect are must-haves, not polish. Mapbox tile caching is in scope but TOS-gated: it must default OFF in committed code and go behind a feature flag that requires an explicit TOS review before any public use.
+The feature dependency order is firm: (1) unify collector identity with a `collector_inat_login` COALESCE column and commit to the first dbt contract bump, (2) add `first_seen_date`/`id_date` temporal columns as a second contract bump, (3) export `collectors.json` and generate Eleventy static pages (parallelizable with step 4), (4) rebuild the `source` enum into orthogonal provenance facets, (5) build the event stream frontend, (6) build the accomplishment view. The two dbt contract bumps each require the documented data-before-code S3 release sequence and must be shipped as separate nightly runs to avoid the double-gate deadlock.
 
-The geolocation and "near me" features are low complexity. `GeolocateControl` is already in mapbox-gl 3.x — no new dependency. The `nearMe` proximity query extends the existing `FilterState`/`buildFilterSQL` pattern: a bounding-box SQL pre-filter followed by a haversine post-filter in the worker in JavaScript (wa-sqlite MemoryVFS lacks `sin`/`cos`, so the full haversine cannot run in SQL — verify empirically before finalizing). Both tracks — offline caching and geolocation — are independent after the `/app` route exists, enabling parallel development.
+The highest structural risks are: (a) the `waba_specimen → ecdysis` occ_id transition that makes a physical bee appear as a phantom delete+create in any naive snapshot diff — this must be resolved before the event-history schema is committed; (b) the three-file positional coupling across `src/occurrence.ts`, `src/filter.ts`, and `data/dbt/models/marts/occurrence_places.sql` that the facets rebuild will touch; and (c) privacy on the public per-collector pages — opt-out seed, minimum-activity threshold, and `noindex` meta tag are launch requirements, not polish.
+
+---
+
+## Key Design Fork: Temporal History Mechanism
+
+**This is the milestone's single unresolved design decision. It must be resolved before Phase 2 is planned.**
+
+The core problem: the nightly pipeline emits a complete snapshot. No change log exists. The event stream feature needs "what changed" not just "current state."
+
+### Option A — Pipeline append-only history table (STACK.md recommendation)
+
+A `dbt_sandbox.occurrence_status_history` DuckDB table maintained by `run.py`. Each night, compare current snapshot against the prior state, INSERT changed rows. Export `collector-events-{login}.json` per collector.
+
+Pros: portable (bookmarkable, shareable across devices), supports community feed in a later milestone, authoritative timeline.
+Cons: history table grows indefinitely in the persisted DuckDB (though cost is minimal — DuckDB is already S3-backed); adds pipeline complexity; requires managing the `waba_specimen → ecdysis` transition identity explicitly; one JSON file per collector to upload and bust.
+
+### Option B — Client `localStorage` watermark only
+
+Frontend stores `lastSeen` date; diffs current snapshot on load.
+
+Pros: no pipeline changes.
+Cons: device-local (breaks on new device/incognito), `modified` field absent for non-Ecdysis rows (most of the corpus), cannot reconstruct a timeline. Not viable for a bookmarkable shared page.
+
+### Option C — Hybrid: `first_seen_date`/`id_date` columns + client watermark (ARCHITECTURE.md recommendation)
+
+Pipeline adds two VARCHAR columns computed via a post-dbt DuckDB JOIN against yesterday's parquet (already pulled for `test_dbt_diff`). Client watermark gates what is "new" on first visit (default: last 30 days). No separate CDN file; columns ride in `occurrences.db`.
+
+Pros: portable (same result on any device for same watermark), bounds DB growth to two columns, no new CDN artifact, reuses existing S3 pull step.
+Cons: first-run bootstraps all existing rows as `first_seen_date=TODAY` (one-time event flood that must be suppressed); `id_date` is an approximation for non-Ecdysis rows; still requires the `waba_specimen → ecdysis` transition to be handled.
+
+### Recommended MVP path: Option C
+
+Option C is lower-risk for static hosting: no growing separate artifact, no per-collector JSON upload complexity at this stage, and the client watermark is adequate for a personal (non-shared) event feed. The `waba_specimen → ecdysis` transition problem must be addressed regardless of which option is chosen.
+
+Option A is the right long-term architecture (required for the community feed milestone) and should be targeted for v6.1. If the roadmapper treats the community feed as in-scope for this milestone, go directly to Option A instead.
+
+**Mark for explicit resolution at discuss/plan time for Phase 2.**
 
 ---
 
@@ -19,167 +56,145 @@ The geolocation and "near me" features are low complexity. `GeolocateControl` is
 
 ### Recommended Stack
 
-No new runtime dependencies are needed for geolocation or SQL queries. The only new dependency is `vite-plugin-pwa@1.3.0` plus five Workbox 7.x peer packages (`workbox-precaching`, `workbox-routing`, `workbox-strategies`, `workbox-expiration`, `workbox-cacheable-response`) — all devDependencies since the Workbox modules imported in `sw.ts` are bundled by vite-plugin-pwa's separate SW build pass. Icon generation uses `@vite-pwa/assets-generator@1.0.2` as a run-once dev-time tool.
+The existing stack requires no new dependencies. All v6.0 features compose from TypeScript + Lit + Eleventy + dbt + DuckDB. The collector page follows the same pattern as per-place pages (`places.json` → `_data/places.js` → `place-detail.njk`). Accomplishment aggregations belong in the pipeline (DuckDB GROUP BY at export time), not in the browser (avoid wa-sqlite scan of 90k+ rows on every page load). Per-collector coverage maps reuse `data/svg_map.py`.
 
-**Core new technologies:**
-- `vite-plugin-pwa@1.3.0` — SW generation + manifest injection + Workbox precache manifest; confirmed Vite 8 peer dep support; MUST be wired via `viteOptions.plugins` in `eleventy.config.js`, NOT `vite.config.ts`
-- `workbox-*@7.4.1` (5 sub-packages) — runtime caching strategies; same-version family required
-- `injectManifest` strategy over `generateSW` — custom runtime-cache rules for the 23 MB DB and tile caching cannot be expressed in `generateSW`
-- `mapboxgl.GeolocateControl` — already in mapbox-gl 3.x; zero new dependencies for blue dot, accuracy ring, recenter, GPS offline
-- SQL bounding-box + JS haversine in sqlite-worker.ts — no new dependency; keeps computation in the worker thread
+**New pipeline artifacts (Option C path):**
+- `collectors.json` — pre-aggregated collector stats keyed on `collector_inat_login`
+- Two new VARCHAR columns (`first_seen_date`, `id_date`) inside `occurrences.db`
+- Per-collector SVG coverage maps (reuses `data/svg_map.py` pattern)
 
-**Critical configuration requirements:**
-- `maximumFileSizeToCacheInBytes` must be raised to at least `30_000_000` (default 2 MB silently excludes the 23 MB DB)
-- `sw.js` must be placed in `public/app/` (Vite passthrough, not asset-pipeline-processed) to avoid content-hashing that breaks SW update detection
-- `/app/sw.js` and `/app/manifest.webmanifest` must be served with `Cache-Control: no-cache, no-store` (small CDK addition — new CloudFront behavior)
-- Register with `navigator.serviceWorker.register('/app/sw.js', { scope: '/app' })` — explicit scope; no `Service-Worker-Allowed` header needed
+**No new npm packages. No new infrastructure. No DuckDB-WASM.**
 
 ### Expected Features
 
-All seven features locked in PROJECT.md v5.0 are confirmed feasible with the recommended stack.
+**Must have (table stakes):**
+- Per-collector page at `/collectors/{inat_login}/` — bookmarkable, no auth, public
+- Total count stats (specimens, samples, species, years active)
+- Current status breakdown (awaiting ID / identified / provisional)
+- County coverage map (SVG, reuses taxon-page pattern)
+- Taxon breadth list (species contributed to, with taxon links)
 
-**Must have (all v5.0):**
-- Installable PWA: `manifest.webmanifest` + icons (192px, 512px, maskable) + `display: standalone` + `start_url: /app`
-- Offline cold-start: SW precaches app shell; runtime-caches occurrences.db + all GeoJSON; existing sqlite.ts/stale-guard.ts work unchanged against cached responses
-- "Ready for offline" indicator + "data as of `<date>`" freshness label — iOS eviction makes both mandatory, not optional polish; `generated_at` already in `manifest.json` (no pipeline change needed)
-- Unlisted `/app/` route — no link from main site; SW scoped to `/app`; main `/` completely unaffected
-- `GeolocateControl` — blue dot + accuracy ring + recenter; GPS works offline; no new dependency
-- "Occurrences near me" — fixed 10 km radius chip, AND-composes with existing filters, URL state as `?near=1` boolean only (coordinates ephemeral)
-- Cached Mapbox basemap tiles — TOS-gated, self-test only, feature-flag defaulting OFF in committed code
+**Should have (differentiators):**
+- Personal event stream (collection→ID lifecycle, reverse-chronological)
+- "New county record!" milestone events in the stream
+- Pending vs. identified visual split on the page
+- "Active since YYYY (N seasons)" badge
+- Link to filtered main map (`/?collectors=inat_login:handle`)
 
-**Should have (P2, after initial dogfood):**
-- Determinate cache-priming progress bar (SW→page postMessage; indeterminate spinner acceptable for v1)
-- Cache size display via `navigator.storage.estimate()`
-- "New data available" toast + user-initiated re-prime on reconnect
+**Defer to v6.1+:**
+- Collector dot map (occurrence points colored by year)
+- Year-over-year comparison chart (eBird-style)
+- Community/shared feed (`collection-event-coordination.md` seed)
+- Role badges (require a roster data source not in the pipeline)
 
-**Deliberate anti-features:**
-- No silent auto-refresh of the DB on reconnect (23 MB on metered rural connection without user consent is hostile)
-- No `skipWaiting` + `clientsClaim` (causes code/DB version skew with nightly content-hash churn)
-- No bundled offline tile set (Mapbox TOS; hundreds of MB; occurrence dots render over blank tiles anyway)
-- No adjustable near-me radius in v1 (hard-code 10 km; iNaturalist precedent for fixed default)
+**Anti-features (explicitly do not build):**
+- Leaderboards / rankings — demotivates the bottom 90%
+- Generic point totals — disconnected from scientific meaning
+- Streak tracking — wrong model for seasonal activity
+- Push notifications / email alerts — requires server infrastructure
 
 ### Architecture Approach
 
-The existing `<bee-atlas>` state-owner / `<bee-map>` pure-presenter / `<bee-pane>` pure-presenter invariant is preserved without compromise. `GeolocateControl` lives in `<bee-map>._initMap()` (requires a Map instance), fires `user-location-changed` CustomEvents (with `composed: true` to cross shadow DOM) up to `<bee-atlas>`, which owns `@state _userLocation`. The proximity filter extends `FilterState` with `nearMe: { lat, lon, radiusKm } | null` that feeds `buildFilterSQL`'s bounding-box clause and a haversine post-filter inside sqlite-worker.ts. The existing `_filterQueryGeneration` race guard covers location-driven query generation automatically.
-
-The SW is architecturally isolated: `public/app/sw.js` (Vite passthrough, not hashed), scoped to `/app`, no effect on any other route. Cache invalidation is keyed to content-hash filenames via `manifest.json` (NetworkFirst strategy); no manual version management required.
+The build is structured as seven sequential-with-parallelism phases. Two phases require dbt contract bumps (collector identity column: 36→37 cols; temporal columns: 37→39 cols), each triggering the documented data-before-code S3 release sequence and requiring a separate nightly run. The facets rebuild (source enum → orthogonal provenance tiers) touches `filter.ts`, `style.ts`, and `url-state.ts` and must be committed atomically. Per-collector pages follow the places pattern exactly.
 
 **Major new/modified components:**
-1. `_pages/app/index.html` + `src/app-entry.ts` — new `/app` route and Vite entry point
-2. `public/app/sw.js` (source: `src/sw.ts`) — Workbox injectManifest target; app shell precache + `/data/` runtime cache + manifest invalidation
-3. `src/sw-registration.ts` — SW registration + workbox-window update lifecycle + prompt-to-reload
-4. `src/filter.ts` — `FilterState.nearMe` field + bbox SQL clause in `buildFilterSQL`
-5. `src/sqlite-worker.ts` — haversine post-filter in JavaScript when `nearMe` is set
-6. `src/bee-atlas.ts` — `_userLocation`, `_generatedAt` state; handles `user-location-changed`
-7. `src/bee-map.ts` — adds `GeolocateControl`, relays location events upward via CustomEvent
-8. `src/bee-pane.ts` — freshness footer + "Near me" chip UI
-9. `src/manifest.ts` — add `loadGeneratedAt(): Promise<string | null>` export
-10. `infra/lib/beeatlas-stack.ts` — `Cache-Control: no-cache` behavior for `/app/sw.js` and `/app/manifest.webmanifest`
+1. `data/dbt/models/intermediate/int_combined.sql` + `occurrences.sql` — add `collector_inat_login` COALESCE
+2. `data/run.py` — post-dbt temporal column computation; `collectors.json` export
+3. `_data/collectors.js` + `_pages/collector-detail.njk` — Eleventy static page (mirrors places pattern)
+4. `src/filter.ts` + `src/style.ts` + `src/url-state.ts` — facets rebuild (atomic)
+5. New `<bee-collector>` coordinator element — owns reactive state for the event stream page
+
+**Collector identity is currently fragmented across four fields:**
+
+| Field | ARM(s) | Notes |
+|-------|--------|-------|
+| `recordedBy` | ARM 1 (ecdysis), ARM 5 (checklist) | Free-text; not URL-safe |
+| `host_inat_login` | ARM 1 (via sample), ARM 2 | iNat handle of sample observer |
+| `user_login` | ARM 4 (inat_obs) | iNat handle of expert observer |
+| `specimen_inat_login` | ARM 1, ARM 3 (waba_specimen) | **Currently dropped from mart SELECT** |
+
+The fix: `COALESCE(specimen_inat_login, host_inat_login, user_login) AS collector_inat_login` in `int_combined.sql`, projected through `occurrences.sql`, added to `schema.yml`. A `collector_identity.csv` seed handles the `recordedBy` ↔ iNat handle mapping for WABA collectors whose Ecdysis records lack an iNat link.
 
 ### Critical Pitfalls
 
-1. **SW scope bleeds onto `/`** — Placing `sw.js` at root or failing to scope to `/app` contaminates the public-facing site and is hard to undo for users with cached SWs. Serve from `public/app/sw.js`, register with `{ scope: '/app' }`. Verify in DevTools after scaffolding that no SW is attached to `/`.
+1. **Three-file occ_id positional coupling** — `src/occurrence.ts` (`occIdFromRow`), `src/filter.ts` (`OCC_ID_SQL_CASE`), and `data/dbt/models/marts/occurrence_places.sql` must stay byte-identical in CASE branch priority order. The facets rebuild will touch at least `filter.ts`. Treat as an atomic commit unit; add a Vitest assertion comparing both TypeScript structures. Breakage is silent (place filters return zero results for one source category).
 
-2. **occurrences.db silently excluded from Workbox cache** — Default `maximumFileSizeToCacheInBytes` is 2 MB; the 23 MB DB is silently excluded. Set to `30_000_000`. Also: do NOT put the DB in the precache manifest (blocks SW install for 30+ seconds on mobile and risks quota); use runtime `CacheFirst` in `sw.ts`.
+2. **`waba_specimen → ecdysis` occ_id transition** — ~33 `waba_specimen` rows (mostly 2024 backlog) carry `occ_id='inat_obs:N'` before Ecdysis upload and `occ_id='ecdysis:M'` after. A naive snapshot diff shows a phantom delete+create rather than "specimen catalogued." Design the transition linkage via `specimen_observation_id` cross-reference before committing any event-history schema. Recovery cost if skipped: redesign + full history re-run.
 
-3. **vite-plugin-pwa wired in wrong config** — If wired via `vite.config.ts` instead of under `viteOptions.plugins` in `eleventy.config.js`, the precache manifest is injected into the wrong Vite invocation and will contain stale/zero hashes. Always wire under `eleventy.config.js`.
+3. **Two dbt contract bumps require isolated S3 release sequences** — `collector_inat_login` (Phase 1) and `first_seen_date`/`id_date` (Phase 2) must each follow: update `schema.yml` → nightly with `SKIP_INTEGRATION_GATE=1` → then ship TypeScript that reads new columns. Never combined into a single nightly run. See `project_occurrences_contract_release_sequence.md`.
 
-4. **iOS Safari evicts the 23 MB DB** — Storage pressure or 7+ days of inactivity can trigger whole-origin eviction. `navigator.storage.persist()` returns `false` on iOS without notification permission. Mitigation: show "last cached" date prominently; re-prime automatically on reconnect if DB is missing; document that collectors must open the app before heading out.
+4. **`specimen_inat_login` is absent from the mart** — currently dropped from `occurrences.sql` SELECT despite being in `int_combined`. Adding it to `OccurrenceRow` without the mart change produces a column that is NULL everywhere. The `collector_inat_login` COALESCE is the correct fix.
 
-5. **skipWaiting + clientsClaim causes code/DB version skew** — The nightly pipeline changes `occurrences.db` hash nightly. A new SW auto-activating mid-session can serve a new DB against old app code (different column count). Use prompt-to-reload pattern instead: display "A data update is available — tap to reload" and let the user control when the old session is retired.
+5. **Privacy on public per-collector pages is a launch requirement** — `collector_optout.csv` seed, minimum-activity threshold (≥5 occurrences), `<meta name="robots" content="noindex">`, and no coordinate display (county only) must be in Phase 3 acceptance criteria. Not polish.
 
-6. **Mapbox tile cache key includes access token** — Token rotation invalidates the entire tile cache; a stale 403 can itself be cached and served offline, producing a permanent blank map. Strip `access_token` from cache key in the Workbox route handler; set TTL ≤ 12 hours; only cache status-200 responses; keep behind `beta_tile_cache` feature flag defaulting `false`.
+6. **Collector page generation must be gated on the identity seed** — generating pages from all distinct `host_inat_login` values includes casual iNat observers and historical museum contributors from checklist ARM 5. Gate on `collector_identity.csv`; add a build-time assertion on page count.
 
-7. **wa-sqlite MemoryVFS lacks trig functions** — The full SQL haversine (`sin`/`cos`/`asin`) cannot run in wa-sqlite MemoryVFS without loading a math extension. Haversine must run in JavaScript in the worker, after a bounding-box SQL pre-filter. Verify empirically at implementation time with `SELECT sin(1.0)` before finalizing the approach.
-
----
-
-## Conflict Resolutions
-
-### SW Scope and `/data/` Intercept (RESOLVED — ARCHITECTURE doc is correct)
-
-The PITFALLS and FEATURES docs incorrectly stated that a `Service-Worker-Allowed: /` header is required for a `/app`-scoped SW to intercept `/data/` fetches. **This is wrong.**
-
-**The correct rule:** SW scope controls which *pages/documents* the SW governs — not which URLs the SW's fetch handler can intercept. Once the `/app` page is controlled by the SW (because it is within `scope: /app`), the SW's `fetch` handler fires for every network request that page issues — including cross-path same-origin requests to `/data/occurrences.db`, `/data/manifest.json`, and `/data/*.geojson` — regardless of those paths being outside `/app`.
-
-`Service-Worker-Allowed` is only required when the SW *script file's path* is shallower than the desired registration scope (e.g., you want `scope: /` but `sw.js` lives at `/app/sw.js`). That case does not apply here.
-
-**The header that IS required:** `/app/sw.js` and `/app/manifest.webmanifest` must be served with `Cache-Control: no-cache, no-store` so CloudFront's default long-TTL behavior does not delay SW updates. Small CDK addition.
-
-### Mapbox Tile Caching (LOCKED DECISION — honor it)
-
-The decision is locked: tile caching is **in scope for self-test only, behind a `beta_tile_cache` feature flag defaulting `false` in committed code, with a hard TOS-review gate before any public/non-self use.** The FEATURES doc's drift toward "do not cache tiles" is not the recommendation. Technical cautions that remain valid regardless of the TOS decision: strip `access_token` from cache key, opaque responses inflate Storage Quota (~7 MB per entry), restrict `cacheableResponse` to status 200 only, set `maxEntries` and TTL to prevent unbounded growth that could trigger iOS origin eviction.
+7. **First-run event flood** — on the first nightly run with temporal history, every existing occurrence gets `first_seen_date=TODAY`. Set the baseline without emitting events; show historical accomplishments from the snapshot, not the diff. Required as an explicit design decision in Phase 2.
 
 ---
 
 ## Implications for Roadmap
 
-### Suggested Phase Structure
+Based on research, suggested phase structure:
 
-The key dependency: SW scope topology must be correct before any caching logic is added. A scope mistake made in Phase 1 corrupts everything downstream. After that, app-shell offline and `/data/` runtime caching can be validated independently of geolocation, enabling parallel work.
+### Phase 1: Collector Identity Column
 
-**Phase 1: `/app` Route + SW Topology**
-- Rationale: All phases depend on the SW scope being correct. Verify first with nothing cached.
-- Delivers: `/app/index.html` Eleventy page; `sw.js` registers with `scope: /app`; no SW on `/`; CloudFront `no-cache` behavior on `sw.js` + `manifest.webmanifest` confirmed via `curl -I`
-- Avoids: Pitfall 1 (scope bleed); SW hashing pitfall (`public/app/sw.js`, not Vite-processed)
-- Research flag: Standard patterns; no research phase needed
+**Rationale:** Everything downstream keys on a unified collector identity. `specimen_inat_login` is currently dropped from the mart; the COALESCE unblocks all per-collector queries. Ship this contract bump standalone so the S3 release sequence is isolated.
+**Delivers:** `collector_inat_login` VARCHAR in `occurrences.parquet` + `occurrences.db`; dbt contract 36→37 cols; `collector_identity.csv` seed bootstrapped with active WABA collectors
+**Avoids:** `specimen_inat_login` null-everywhere trap; double-gate deadlock from combining with Phase 2
+**Research flag:** Standard patterns — no deeper research needed
 
-**Phase 2: App Shell Precache + vite-plugin-pwa Wiring**
-- Rationale: Validate the Eleventy+Vite plugin integration before attempting to cache anything large; a stale precache manifest is a confusing silent failure.
-- Delivers: Vite-hashed JS/CSS for `/app` entry served from SW cache offline; `injectManifest` producing correct hash list in `_site/app/sw.js`; `maximumFileSizeToCacheInBytes` raised to 30 MB; post-build verification script confirming every precache URL exists in `_site/`
-- Avoids: Pitfall 2 (stale precache manifest); Pitfall 3 (plugin wired in wrong config)
-- Research flag: Standard patterns; no research phase needed
+### Phase 2: Temporal Columns + Transition Design
 
-**Phase 3: `/data/` Runtime Caching + Offline Cold-Start**
-- Rationale: Core value proposition; requires Phase 2 (SW active and correct). Ships re-prime-on-reconnect logic alongside caching — the iOS eviction problem demands both in the same phase.
-- Delivers: `occurrences.db` + all GeoJSON served from Cache Storage offline; fully offline cold-start; "Offline — cached data" banner; graceful basemap-degradation label; re-prime if DB absent on reconnect; QuotaExceededError handling with partial-write cleanup
-- Key: `CacheFirst` runtime strategy, NOT precache; `purgeOnQuotaError: true`; `navigator.storage.persist()` called at first launch
-- Avoids: Pitfall 4 (iOS eviction); Pitfall 6 (partial DB write)
-- Research flag: Standard patterns; verify `sqlite-worker.ts` fetch path produces a non-range request (confirmed in ARCHITECTURE doc)
+**Rationale:** Second dbt contract bump, isolated from Phase 1. The `waba_specimen → ecdysis` transition linkage and the "first-run baseline" strategy are unresolved design decisions that must be made here — before the event-history schema is committed.
+**Delivers:** `first_seen_date` + `id_date` VARCHAR in mart (37→39 cols); `waba_specimen` transition matched via `specimen_observation_id`; first-run flood suppressed
+**Resolves:** Temporal history fork (Option A vs Option C) — must be decided at discuss/plan step
+**Avoids:** waba_specimen identity break; first-run flood; late-arriving backfill corrupting timeline
+**Research flag:** Needs discuss step before planning — temporal fork and transition design are unresolved
 
-**Phase 4: manifest.json Freshness Signal + SW Update Lifecycle**
-- Rationale: `generated_at` is already in `manifest.json` — low-effort, high-value. SW update lifecycle (prompt-to-reload) must be decided before any real tester installs the app.
-- Delivers: "Data as of [date]" in `<bee-pane>`; `loadGeneratedAt()` in `manifest.ts`; prompt-to-reload banner (not skipWaiting); `manifest.json` cached with `NetworkFirst`; cache invalidation keyed to content-hash manifest
-- Avoids: Pitfall 7 (skipWaiting version skew)
-- Research flag: Standard patterns
+### Phase 3: `collectors.json` Export + Eleventy Static Pages (parallelizable with Phase 4)
 
-**Phase 5: PWA Manifest + Installability**
-- Rationale: Depends on Phase 2 (SW working) and Phase 4 (freshness label for ready badge). Unlocks real-device testing.
-- Delivers: `public/app/manifest.webmanifest`; icons via `@vite-pwa/assets-generator`; iOS `<link rel="apple-touch-icon">` in `/app/index.html`; "ready for offline" badge; Android `beforeinstallprompt` capture; iOS "Add to Home Screen" static instructions text
-- Research flag: Standard patterns; iOS standalone mode geolocation permission requires real-device test (see Phase 6)
+**Rationale:** Once Phase 1 lands, the pipeline can aggregate per-collector stats. Follows the exact `places.json`/`place-detail.njk` pattern — no new concepts.
+**Delivers:** `collectors.json` artifact; `_data/collectors.js`; `_pages/collector-detail.njk` at `/collectors/{login}/`; privacy requirements baked in (noindex, opt-out seed, min-threshold gate, county-only display)
+**Avoids:** Privacy exposure; scale blowup (seed-gated generation); static-gen performance trap (pre-aggregate in pipeline, not Eleventy)
+**Research flag:** Standard patterns — no deeper research needed
 
-**Phase 6: GeolocateControl + Location State Ownership**
-- Rationale: Independent of Phases 2–5 after Phase 1. Can be developed in parallel with Phases 2–5.
-- Delivers: `GeolocateControl` in `<bee-map>._initMap()`; `user-location-changed` CustomEvent with `composed: true`; `@state _userLocation` in `<bee-atlas>`; blue dot + accuracy ring + recenter
-- Avoids: location state stored in `<bee-map>` (violates presenter invariant); `watchPosition` left active when backgrounded (use `visibilitychange` to pause/resume)
-- Research flag: Verify geolocation permission prompt fires correctly in iOS standalone mode on a real device — not verifiable in simulators
+### Phase 4: Source → Provenance Facets Rebuild (parallelizable with Phase 3)
 
-**Phase 7: "Occurrences Near Me"**
-- Rationale: Requires Phase 6 (`_userLocation` state exists). Extends the existing filter pipeline cleanly.
-- Delivers: `FilterState.nearMe` field; bounding-box `WHERE` clause in `buildFilterSQL`; haversine post-filter in `sqlite-worker.ts` (JavaScript, not SQL); "Near me" chip in `<bee-pane>`; `?near=1` URL state; AND-composition with existing filters
-- Key constraint: haversine runs in JS in the worker (bbox SQL pre-filter first); benchmark must return < 200 ms on full ~92k-row table
-- Avoids: full-table haversine (bbox pre-filter is mandatory); main-thread distance computation
-- Research flag: Verify wa-sqlite MemoryVFS math function availability with `SELECT sin(1.0)` before finalizing; if trig is available, pure SQL is cleaner
+**Rationale:** High-risk, self-contained refactor. Must be atomic. Unblocks the event stream rendering in Phase 5. The three source consumers (`filter.ts`, `style.ts`, `url-state.ts`) cannot be half-refactored.
+**Delivers:** `hiddenProvenanceTiers` in `FilterState`; `provenance_tier` GeoJSON property replacing `source` in `style.ts`; `tier=` URL param with legacy `src=` fallback in `parseParams`
+**Avoids:** Partial facets state (all three consumers in one commit); occ_id positional coupling break; `FilterState` partial update (run `tsc --noEmit` as gate)
+**Research flag:** Standard patterns but HIGH execution risk — plan must include positional-coupling verification criterion and atomic-commit requirement; place-filter integration test covering each source arm is acceptance criterion
 
-**Phase 8: Mapbox Tile Caching (TOS-Gated, Independent Track)**
-- Rationale: Entirely independent; unblock only after TOS review is complete.
-- Delivers: `CacheFirst` or `StaleWhileRevalidate` for `api.mapbox.com`; `access_token` stripped from cache key; `maxEntries: 500`, `maxAgeSeconds: 43200`; `beta_tile_cache` feature flag defaulting `false`; comment in SW source flagging self-test-only status
-- Hard gate: explicit TOS review before flag is enabled in any non-self deployment
-- Research flag: Verify whether Mapbox GL JS v3 fetches tiles as `mode: 'cors'` (non-opaque, status 200) or `no-cors` (opaque, status 0) — determines per-entry storage cost and practical `maxEntries` limit
+### Phase 5: Per-Collector Event Stream Frontend
+
+**Rationale:** Gated on Phase 2 (temporal columns) and Phase 4 (provenance tiers for rendering). Core differentiator — no other WABA-ecosystem tool closes the collection→ID loop.
+**Delivers:** Event stream on collector page, reverse-chronological by `first_seen_date`; "specimen catalogued" event for waba_specimen transitions; "new county record!" milestone events; pending vs. identified visual split
+**Avoids:** Sorting by collection date (use ingestion date); event stream without pagination for 500+ record collectors; late-arriving backfill shown as recent
+**Research flag:** Standard patterns — hard design decisions resolved in Phases 2 and 4
+
+### Phase 6: Accomplishment View
+
+**Rationale:** Final phase — gated on Phases 3 and 5. All data is pre-aggregated in the pipeline; the frontend renders from JSON artifacts.
+**Delivers:** County coverage SVG map; taxon breadth list; "Active since YYYY (N seasons)" badge; ecoregion breadth; filtered-map deep link
+**Avoids:** Gamification anti-patterns (no leaderboards, no percentages, absolute counts only); empty-state zeros (prompt framing, not scorecard); metrics that plateau quickly
+**Research flag:** Standard patterns — UX copy for empty state must be resolved at plan step
+
+### Phase Ordering Rationale
+
+- Phases 1 and 2 are sequential: each carries an independent dbt contract bump with its own S3 release sequence; combining them creates a double-gate deadlock.
+- Phases 3 and 4 can run in parallel after Phase 1: they share no pipeline or frontend dependencies on each other.
+- Phase 5 is gated on both Phase 2 (for data) and Phase 4 (for rendering).
+- Phase 6 is last because it builds on the complete data + rendering + page foundation.
+- Per ARCHITECTURE.md's dependency graph: the build-order is source-identity (Phase 1) → temporal substrate (Phase 2) → static pages + facets rebuild (Phases 3, 4) → event stream (Phase 5) → accomplishment (Phase 6).
 
 ### Research Flags
 
-**Phases needing implementation-time verification:**
-- **Phase 7 (near me):** Empirically verify wa-sqlite MemoryVFS math function availability with `SELECT sin(1.0)` in the worker. STACK and ARCHITECTURE docs conflict; the ARCHITECTURE doc (which read the wa-sqlite source) says MemoryVFS lacks math extensions. Verify before coding.
-- **Phase 8 (tile caching):** Inspect Mapbox tile responses in DevTools Network panel for `Access-Control-Allow-Origin`. Opaque responses carry ~7 MB Storage Quota penalty per entry in Chrome's accounting.
-- **Phase 6 (geolocation):** iOS standalone mode geolocation permission — requires real-device test. Permission prompt behavior differs between Safari tab and home-screen standalone launch.
+Needs discuss step before planning:
+- **Phase 2:** Temporal history fork (Option A vs Option C) and `waba_specimen → ecdysis` transition linkage are unresolved. Do not plan Phase 2 without a discuss step.
 
-**Phases with well-documented standard patterns (skip research phase):**
-- Phase 1: SW scope rules from MDN; `EleventyVite.js` source read directly confirms plugin pass-through
-- Phase 2: `vite-plugin-pwa` integration verified against actual source; maximumFileSizeToCacheInBytes is documented behavior
-- Phase 3: Workbox CacheFirst for large Response objects is standard; Cache Storage vs IndexedDB choice is benchmarked
-- Phase 4: manifest.json NetworkFirst + prompt-to-reload is standard Workbox Window pattern
-- Phase 5: PWA manifest requirements fully documented; iOS limitations well-catalogued
+Standard patterns (no research-phase needed):
+- **Phases 1, 3, 4, 5, 6:** All follow established project patterns (dbt contract bumps, Eleventy data modules, FilterState refactors, Lit frontends). Pitfalls are known; prevention strategies are concrete.
 
 ---
 
@@ -187,47 +202,43 @@ The key dependency: SW scope topology must be correct before any caching logic i
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | vite-plugin-pwa 1.3.0 + Vite 8 peer dep confirmed via `npm info`; plugin integration verified by reading `EleventyVite.js` source; GeolocateControl from official Mapbox docs |
-| Features | HIGH | All 7 locked features confirmed feasible; iOS limitations from WebKit official storage policy; Mapbox TOS from official terms page |
-| Architecture | HIGH | SW scope rules from MDN; component boundaries read from existing source files; `manifest.ts` `generated_at` field confirmed in source |
-| Pitfalls | HIGH (critical pitfalls); MEDIUM (Mapbox tile auth) | iOS eviction and version skew well-documented; tile 403 behavior from GitHub issue #8859 (older issue; mechanism plausible) |
+| Stack | HIGH | Verified against live codebase and live DuckDB; no new deps required; all patterns already in production |
+| Features | HIGH | Grounded in peer-reviewed citizen-science motivation research + direct iNat/eBird comparisons + authoritative project docs |
+| Architecture | HIGH | Every claim grounded in actual source files; collector field gaps confirmed by direct mart SELECT inspection |
+| Pitfalls | HIGH (structural) / MEDIUM (gamification) | Positional coupling, contract deadlock, waba_specimen transition: directly observed. Gamification pitfalls: inferred from domain knowledge, no prior analogous phase |
 
 **Overall confidence:** HIGH
 
-### Gaps to Address at Implementation Time
+### Gaps to Address
 
-- **wa-sqlite MemoryVFS trig functions:** Run `SELECT sin(1.0)` in the worker at start of Phase 7 before finalizing the haversine strategy. If trig is available, pure SQL haversine is cleaner. If not (more likely per ARCHITECTURE doc), use bbox SQL + JS haversine.
-- **Mapbox tile CORS mode:** Inspect tile responses in DevTools. If tiles are `Access-Control-Allow-Origin: *` (non-opaque), tile caching is practical. If opaque, `maxEntries` must be very conservative (opaque entries cost ~7 MB each in Storage Quota).
-- **iOS persist() behavior:** Call `navigator.storage.persist()` at first launch and log the result; design freshness UX to work without persistent storage (it almost certainly returns `false`).
-- **`/app` Eleventy page placement:** Confirm `_pages/app/index.html` is the correct location for the project's `_pages/` convention before scaffolding Phase 1.
-- **Multi-entry Vite build:** Confirm `rollupOptions.input` multi-entry configuration works cleanly with `eleventy-plugin-vite`'s rename-and-build mechanism for a separate `app-entry.ts`. Most likely integration wrinkle.
+- **Temporal fork resolution (Phase 2 discuss step):** Choose Option A (append-only history table) vs Option C (two columns + client watermark). Decision criteria: if community feed is within two milestones, go Option A now. If >6 months out, Option C for MVP then Option A for v6.1.
+- **`collector_identity.csv` initial seed content:** Must be populated with active WABA collectors before Phase 3 ships. Data curation task, not engineering — but it gates the phase.
+- **`collector_optout.csv` operator process:** No process currently exists for a collector to request removal. Document the workflow at Phase 3 plan step.
+- **Per-identification `created_at` from iNat API (deferred):** Requires extra nightly API call per observation; deferred from MVP. Target for v6.1 to enrich event stream with "your sample was IDed by [identifier] on [date]."
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence)
-- `node_modules/@11ty/eleventy-plugin-vite/EleventyVite.js` — confirmed `viteOptions.plugins` pass-through; `Merge + build(viteOptions)` flow
-- `src/manifest.ts`, `src/sqlite-worker.ts`, `src/bee-atlas.ts`, `src/filter.ts` — direct source read for integration points
-- `infra/lib/beeatlas-stack.ts` — CDK ResponseHeadersPolicy already in use on `/data/*`; extension is small
-- MDN `ServiceWorkerContainer.register()` + `Service-Worker-Allowed` header spec — SW scope rules
-- `npm info vite-plugin-pwa` — version 1.3.0, Vite 8 peer dep, published 2026-05-05
-- `npm info workbox-build` — version 7.4.1, published 2026-05-04
-- Mapbox GL JS GeolocateControl API docs — trackUserLocation, showAccuracyCircle, fitBoundsOptions
-- WebKit official storage policy (Safari 17.0+) — quota, eviction, persist() behavior
-- Mapbox Product Terms (April 2025) — offline tile caching TOS constraint
+### Primary (HIGH confidence — live codebase + live data)
+- `data/beeatlas.duckdb` (live queries) — Ecdysis `modified` timestamps 2025-02 through 2026-06; `created_at`/`updated_at` as `TIMESTAMP WITH TIME ZONE`; quality_grade distribution; ~156 WABA collectors with `host_inat_login`
+- `data/dbt/models/intermediate/int_combined.sql` — five ARM structure, all collector fields confirmed
+- `data/dbt/models/marts/occurrences.sql` — mart SELECT; `specimen_inat_login` absence confirmed
+- `data/dbt/models/marts/schema.yml` — 36-column enforced contract
+- `data/dbt/models/marts/occurrence_places.sql` — occ_id positional coupling
+- `src/filter.ts`, `src/occurrence.ts`, `src/style.ts`, `src/bee-occurrence-detail.ts`, `src/url-state.ts`
+- `_data/places.js`, `_pages/place-detail.njk` — Eleventy pattern to follow
+- `docs/domain-model.md` — occ_id transitions, waba_specimen lifecycle
+- iNat API live call — per-identification `created_at` confirmed ISO 8601
 
-### Secondary (MEDIUM confidence)
-- Mapbox GL JS issue #8859 — SW + 403 tile caching; token expiry root cause (older issue; mechanism plausible)
-- Mapbox API caching docs — `max-age=43200` (12h) on tile responses (TTL confirmed; CORS header presence not confirmed)
-- Workbox opaque response quota issue #2226 — ~7 MB per opaque entry (Chrome team confirmed)
-- OPFS vs IndexedDB binary performance benchmark (RxDB) — Cache Storage preferred for large Response objects (~850 ms IndexedDB vs ~90 ms Cache Storage for 23 MB write)
-- PWA iOS limitations guide (magicbell.com) — 50 MB cache quota, 7-day eviction (consistent with WebKit post)
-
-### Tertiary (needs implementation-time verification)
-- wa-sqlite MemoryVFS math function availability — conflicting claims in research; requires `SELECT sin(1.0)` test
-- Mapbox GL JS v3 tile fetch CORS mode — not confirmed from official docs; requires DevTools Network inspection
+### Secondary (HIGH confidence — peer-reviewed / official docs)
+- Tandfonline 2020 — feedback as top citizen-science retention factor
+- eBird My eBird help center + design philosophy notes
+- iNat observation lifecycle documentation
+- `MEMORY.md` → `project_occurrences_contract_release_sequence.md` — S3 deadlock recovery (documented prior incident)
+- `.planning/seeds/me-and-my-progress.md`, `.planning/research/questions.md`, `.planning/notes/work-vs-learning-two-halves.md`
 
 ---
-*Research completed: 2026-06-10*
-*Ready for roadmap: yes*
+
+*Research completed: 2026-06-24*
+*Ready for roadmap: yes — resolve temporal fork at Phase 2 discuss step before planning*
