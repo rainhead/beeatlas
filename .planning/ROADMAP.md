@@ -79,7 +79,11 @@
   Plans:
 
   - [x] 168-01-PLAN.md — Wave 0: new singular test `assert_id_date_parse_complete.sql` (warn); Wave 1: project raw `date_identified` from `int_ecdysis_base`, derive `id_date` in ARM 1 (parsed) + `NULL::VARCHAR` in ARMs 2-5 of `int_combined`, project through `occurrences.sql`, append to the `schema.yml` contract (37→38); local `run.sh build` + per-arm/TEMP-02/sqlite validation; one-time operator `SKIP_INTEGRATION_GATE` nightly (gated on 167's 37-col S3 landing) [TEMP-01, TEMP-02; D-01..D-13]
-- [ ] **Phase 169: Per-Collector Static Pages** — Export `collectors.json`, generate Eleventy pages at `/collectors/{login}/` following the places pattern; public (no auth), gated on `collector_inat_login IS NOT NULL`
+- [ ] **Phase 169: Per-Collector Static Pages** — Export `collectors.json`, generate Eleventy pages at `/collectors/{login}/` following the places pattern; public (no auth), gated on `collector_inat_login IS NOT NULL AND (ecdysis_id IS NOT NULL OR source IN ('waba_specimen','waba_sample'))` (D-01; ~124 collectors, casual observers excluded). **Plans:** 2 plans (2 waves).
+  Plans:
+
+  - [ ] 169-01-PLAN.md — Wave 1: `collectors_export.py` + golden-fixture pytest + run.py STEPS entry + committed `collectors.json` (D-01 gate, D-03 counts, D-04 name, D-05/D-06/D-07 status split) [PAGE-01, PAGE-02, PAGE-03]
+  - [ ] 169-02-PLAN.md — Wave 2: `_data/collectors.js` loader + `_pages/collector-detail.njk` (stats, status split, `?collectors=` map deep-link) + `_pages/collectors.njk` index + D-09 floor Vitest [PAGE-01, PAGE-02, PAGE-03, PAGE-04]
 - [ ] **Phase 170: Source → Provenance Facets Rebuild** — Replace the `source` enum with orthogonal provenance-tier facets across all three coupled consumers; atomic commit with positional-coupling Vitest assertion; `tier=` URL param with `src=` back-compat
 - [ ] **Phase 171: Per-Collector Event Stream** — Reverse-chronological collection→ID feed on the collector page; waba_specimen cataloguing event; pagination for high-volume collectors
 - [ ] **Phase 172: Accomplishment View** — County coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and active-seasons badge on the collector page
@@ -1675,7 +1679,14 @@ Plans:
   4. The page links to the main map filtered to that collector (`/?collector={login}` or equivalent), and the map filter applies correctly
   5. Pages are generated only where `collector_inat_login IS NOT NULL` (checklist-only contributors without iNat handles are excluded); a build-time page-count assertion fails the build if count is below expected floor
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves — Wave 1 data export, Wave 2 Eleventy pages; sequential, Wave 2 reads the committed `collectors.json`)
+Plans:
+
+- [ ] 169-01-PLAN.md — Wave 1: `collectors_export.py` (DuckDB over `occurrences.parquet` LEFT JOIN `species.parquet`, D-01 gate, no bridge) + golden-fixture pytest + run.py `collectors-export` STEPS entry + committed `collectors.json` with the `.gitignore` exception
+- [ ] 169-02-PLAN.md — Wave 2: `_data/collectors.js` + `_pages/collector-detail.njk` (`/collectors/{login}/`, stats, status split, `?collectors=<recordedBy>:<host_inat_login>` deep-link) + `_pages/collectors.njk` index (`/collectors.html`) + D-09 floor/shape Vitest
+
+> **Note on criteria 1/4/5:** superseded by 169-CONTEXT decisions. Criterion 1/5's literal "every non-NULL `collector_inat_login`" is narrowed by **D-01** (gate excludes ~4,702 casual observers → ~124 pages). Criterion 3's "derived from lifecycle date availability" is superseded by **D-06/D-07**: the split keys on **taxon rank = species** (`specific_epithet IS NOT NULL`), NOT `id_date`. Criterion 4's `?collector={login}` is superseded by **D-10**: the existing `?collectors=<recordedBy>:<host_inat_login>` param (no new FilterState field).
+
 **UI hint**: yes
 
 ### Phase 170: Source → Provenance Facets Rebuild
