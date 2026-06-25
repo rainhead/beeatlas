@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
-stopped_at: Phase 168 context gathered
-last_updated: "2026-06-25T19:33:25.552Z"
+stopped_at: Phase 169 context gathered
+last_updated: "2026-06-25T21:24:21.625Z"
 last_activity: 2026-06-25
 progress:
-  total_phases: 25
-  completed_phases: 22
-  total_plans: 47
-  completed_plans: 47
-  percent: 88
+  total_phases: 38
+  completed_phases: 16
+  total_plans: 36
+  completed_plans: 36
+  percent: 42
 ---
 
 # Project State
@@ -101,9 +101,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-25T18:47:18.513Z
-Stopped at: Phase 168 context gathered
-Resume file: None
+Last session: 2026-06-25T21:24:21.611Z
+Stopped at: Phase 169 context gathered
+Resume file: .planning/phases/169-per-collector-static-pages/169-CONTEXT.md
 
 ## Operator Next Steps
 
