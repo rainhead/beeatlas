@@ -3,6 +3,7 @@ title: Rebuild occurrence `source` into orthogonal facets
 priority: medium
 source: gsd-explore-2026-06-24
 created: 2026-06-24
+resolves_phase: 170
 ---
 
 Replace the single mutually-exclusive `source` category (five `int_combined` arms — see
