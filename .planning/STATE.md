@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: verifying
-stopped_at: Phase 167 Tasks 1+2 complete; Task 3 awaits operator (SKIP_INTEGRATION_GATE nightly on maderas)
-last_updated: "2026-06-25T04:53:10.263Z"
+stopped_at: Phase 168 context gathered
+last_updated: "2026-06-25T18:21:27.662Z"
 last_activity: 2026-06-25
 progress:
-  total_phases: 38
-  completed_phases: 15
-  total_plans: 35
-  completed_plans: 35
-  percent: 39
+  total_phases: 25
+  completed_phases: 21
+  total_plans: 46
+  completed_plans: 46
+  percent: 84
 ---
 
 # Project State
@@ -99,9 +99,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-25T04:53:10.254Z
-Stopped at: Phase 167 context gathered
-Resume file: None
+Last session: 2026-06-25T18:21:27.652Z
+Stopped at: Phase 168 context gathered
+Resume file: .planning/phases/168-temporal-lifecycle-dates/168-CONTEXT.md
 
 ## Operator Next Steps
 
