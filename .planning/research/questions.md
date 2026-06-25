@@ -1,19 +1,32 @@
 # Open Research Questions
 
-## What does "my progress" concretely surface?
+## ✓ RESOLVED — What does "my progress" concretely surface?
 
-*Raised: 2026-06-24 (gsd-explore — work/learning reframe)*
+*Raised & resolved: 2026-06-24 (gsd-explore — work/learning reframe)*
 
-For the "Me and my progress" work surface (`.planning/seeds/me-and-my-progress.md`), what is the
-compelling primary view? Candidates:
+**Answer: status THEN accomplishment.** Status leads (it's what pulls a volunteer back);
+accomplishment is the retrospective reward they earn.
 
-- **Coverage / accomplishment** — "you've logged 47 samples across 12 species; here's your
-  personal map." Retrospective, satisfying, simple.
-- **Status / liveness** — "your 8 samples awaiting ID; 3 came back — one's a new county record!"
-  The collection→identification gap visibly closing.
-- **The status lifecycle itself** — near-real-time gap-closing as the core experience; the most
-  direct expression of the "tighten learning cycles" Core Value.
+- **Status** = a **personal event stream** — the collection→ID lifecycle as a chronological feed
+  ("your sample was IDed as *Agapostemon virescens*"; "new county record!"). **Personal only for
+  MVP.** Maps to the "liveness" Core Value.
+- **Accomplishment** = coverage map (counties or ecosystems), taxonomic breadth, and lightweight
+  **badges** (years active, etc.). Maps to the "tighten learning cycles" payoff.
 
-This decision defines the MVP scope of the work surface and constrains the data model in
-`.planning/todos/pending/rebuild-source-into-facets.md` (does the model need an explicit ID-status
-lifecycle, or just collector attribution + counts?).
+**Scope decisions:**
+- **Community feed deferred** — a shared "*someone* near you found a *Bombus*" stream is important
+  but less urgent and prerequisite-heavy; it folds into the existing
+  `.planning/seeds/collection-event-coordination.md` seed, not the MVP.
+- **Role badges deferred** — "instructor" and similar need identity/role data (a roster) that does
+  not exist in the occurrence pipeline. Derivable badges (years active, taxonomic breadth) only for
+  MVP.
+
+### Follow-on open question — event stream needs temporal history
+
+The event stream implies **state transitions over time**, but the nightly pipeline emits a
+**snapshot**, not a change log. Design fork to resolve at discuss/plan time:
+- (a) pipeline retains per-occurrence status-history / "first-appeared" timestamps, or
+- (b) client diffs the snapshot against a locally-stored "last seen" watermark.
+
+This is the part that most stresses `.planning/todos/pending/rebuild-source-into-facets.md`: the
+ID-status lifecycle must be **temporal**, not just a current-state label.
