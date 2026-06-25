@@ -35,7 +35,7 @@ def checklist_db(tmp_path, monkeypatch):
 
     Bootstraps a minimal ecdysis_data.occurrences table because Plan 05's
     extension to load_checklist() materializes canonical_name on it; in
-    production run.py STEPS guarantees ecdysis runs first (T-76-04).
+    production run.py STEPS guarantees ecdysis runs before checklist (T-76-04).
 
     Phase 135 Plan 03: SYNONYMS_PATH / UNMATCHED_PATH patches removed —
     reconcile() was retired per D-07 (RCN-06); those constants no longer exist.
@@ -120,7 +120,7 @@ def checklist_sample_db(request):
 
     con = duckdb.connect(":memory:")
     # Bootstrap ecdysis_data.occurrences BEFORE calling load_checklist()
-    # (T-76-04 prod ordering invariant: run.py STEPS guarantees ecdysis runs first;
+    # (T-76-04 prod ordering invariant: run.py STEPS guarantees ecdysis runs before checklist;
     # _update_occurrences_canonical_name() called at end of load_checklist requires
     # the table to exist — RESEARCH §3 / Pattern D).
     con.execute("CREATE SCHEMA ecdysis_data")
