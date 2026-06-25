@@ -73,37 +73,35 @@ Explicitly excluded for v6.0.
 | Generic point totals | Disconnected from scientific meaning; use counts that matter (species, counties, seasons). |
 | Streak tracking | Wrong model for seasonal (Mar–Oct) collecting; punishes winter. Use "years/seasons active." |
 | Push / email notifications | Requires server infrastructure; project is static-hosting-only. |
-| Append-only history table (temporal Option A) | Deferred to the community-feed milestone; MVP uses Option C (columns + watermark). |
+| Append-only history table (temporal Option A) | Deferred to the community-feed milestone; v6.0 reads intrinsic lifecycle dates from the source data instead. |
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| IDENT-01 | TBD | Pending |
-| PROV-01 | TBD | Pending |
-| PROV-02 | TBD | Pending |
-| PROV-03 | TBD | Pending |
-| TEMP-01 | TBD | Pending |
-| TEMP-02 | TBD | Pending |
-| PAGE-01 | TBD | Pending |
-| PAGE-02 | TBD | Pending |
-| PAGE-03 | TBD | Pending |
-| PAGE-04 | TBD | Pending |
-| STREAM-01 | TBD | Pending |
-| STREAM-02 | TBD | Pending |
-| STREAM-03 | TBD | Pending |
-| ACCOM-01 | TBD | Pending |
-| ACCOM-02 | TBD | Pending |
-| ACCOM-03 | TBD | Pending |
-| ACCOM-04 | TBD | Pending |
+| IDENT-01 | Phase 167 | Pending |
+| TEMP-01 | Phase 168 | Pending |
+| TEMP-02 | Phase 168 | Pending |
+| PAGE-01 | Phase 169 | Pending |
+| PAGE-02 | Phase 169 | Pending |
+| PAGE-03 | Phase 169 | Pending |
+| PAGE-04 | Phase 169 | Pending |
+| PROV-01 | Phase 170 | Pending |
+| PROV-02 | Phase 170 | Pending |
+| PROV-03 | Phase 170 | Pending |
+| STREAM-01 | Phase 171 | Pending |
+| STREAM-02 | Phase 171 | Pending |
+| STREAM-03 | Phase 171 | Pending |
+| ACCOM-01 | Phase 172 | Pending |
+| ACCOM-02 | Phase 172 | Pending |
+| ACCOM-03 | Phase 172 | Pending |
+| ACCOM-04 | Phase 172 | Pending |
 
 **Coverage:**
 - v1 requirements: 17 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 17 ⚠️
+- Mapped to phases: 17 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-06-24*
-*Last updated: 2026-06-24 after initial definition (v6.0 via /gsd-new-milestone)*
+*Last updated: 2026-06-25 after roadmap creation (v6.0 via /gsd-new-project roadmapper)*
