@@ -98,9 +98,22 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 
 Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
-## Current Milestone: none (between milestones)
+## Current Milestone: v6.0 My Work — Progress & Provenance
 
-v5.2 Place Coverage Expansion shipped 2026-06-24 (Phases 160–162; the 145–162 working set is fully closed). No active milestone — start the next with `/gsd-new-milestone`.
+**Goal:** Stand up the first "work" surface — a per-collector page (no auth, public data, bookmarkable) where a volunteer sees their collection→ID lifecycle as a live event stream and their accomplishments as coverage/breadth — on a rebuilt occurrence model that replaces `source` with orthogonal facets and a temporal status lifecycle.
+
+**Target features:**
+- **Source → facets rebuild** — replace the mutually-exclusive `source` enum across its three consumers (`filter.ts`/`bee-map.ts`, `bee-occurrence-detail.ts`, `style.ts`) with orthogonal facets (collector, place, taxon, time, provenance-tier). The substrate for everything else.
+- **Temporal ID-status lifecycle** — give the model the history needed to answer "what changed since" (the event-stream substrate; resolve the snapshot-vs-history fork: pipeline status-history **or** client "last seen" watermark).
+- **Per-collector pages** — one bookmarkable page per collector (keyed on iNat handle / collector name), following the existing per-taxon/per-place static page pattern; no auth, public data.
+- **Personal event stream** — chronological collection→ID feed on the collector's page ("your sample was IDed"; "new county record!"). Personal-only this milestone.
+- **Accomplishment view** — coverage map (counties/ecosystems), taxonomic breadth, derivable badges (years active, …).
+
+**Background:** Emerged from the 2026-06-24 `/gsd-explore` session that reframed the site into a *work* half (prospective/personal — under-served by other tools) and a *learning* half (retrospective/reference). Rationale in `.planning/notes/work-vs-learning-two-halves.md`; seeds `me-and-my-progress.md`, `where-to-go-next.md`.
+
+**Explicitly deferred:** community/shared liveness feed → `collection-event-coordination` seed; "where to go next" planning surface (gaps × access × bloom) → `where-to-go-next` seed; role badges (need a roster / identity source that doesn't exist in the pipeline).
+
+The prior v5.2 Place Coverage Expansion shipped 2026-06-24 (Phases 160–162; the 145–162 working set is fully closed).
 
 **Dogfood status:** the offline PWA lives behind the unlisted `/app` route and has not been graduated to the public map. A future milestone decides whether/how `/app` graduates (or merges into `/`).
 
@@ -112,7 +125,7 @@ v5.2 Place Coverage Expansion shipped 2026-06-24 (Phases 160–162; the 145–16
 
 ### Active
 
-_No active milestone (v5.0 shipped 2026-06-21)._ Next milestone's requirements are defined via `/gsd-new-milestone`. See the Backlog list above for candidate work.
+**v6.0 My Work — Progress & Provenance.** Requirements defined in `.planning/REQUIREMENTS.md`; roadmap in `.planning/ROADMAP.md`.
 
 ### Validated
 
@@ -501,4 +514,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-23 — closed milestone **v5.1 Housekeeping** (Phases 155–159, 7 plans): shift-drag bounds discoverability (155), bounds-FILTER-vs-SELECTION state/URL separation (156), regions-dropdown stacking fix (157), non-WABA specimen-photo capture resolved by reusable curation tooling at `data/curation/waba_backfill/` (158), and a one-click sidebar taxon filter (159). Each phase verified individually (155/157 operator UAT PASS; 159 automated browser UAT 4/4, 839 tests green). Archived to `.planning/milestones/v5.1-*`; tagged `v5.1`. No active milestone — next via `/gsd-new-milestone`; open backlog 999.2/999.3/999.7 (999.4/999.5/999.6 shipped in v5.1). Carried-forward deferred item: `144-code-review-deferred.md` (low). Previously: 2026-06-21 closed v5.0 Offline Field Mode; 2026-06-09 closed v4.10 Housekeeping.*
+*Last updated: 2026-06-24 — started milestone **v6.0 My Work — Progress & Provenance** via `/gsd-new-milestone`: the first "work" surface (per-collector pages, no auth) showing the collection→ID lifecycle as a live event stream + accomplishment view, on a rebuilt occurrence model (source→facets + temporal status lifecycle). Emerged from the 2026-06-24 `/gsd-explore` work/learning reframe. Previously: 2026-06-23 — closed milestone **v5.1 Housekeeping** (Phases 155–159, 7 plans): shift-drag bounds discoverability (155), bounds-FILTER-vs-SELECTION state/URL separation (156), regions-dropdown stacking fix (157), non-WABA specimen-photo capture resolved by reusable curation tooling at `data/curation/waba_backfill/` (158), and a one-click sidebar taxon filter (159). Each phase verified individually (155/157 operator UAT PASS; 159 automated browser UAT 4/4, 839 tests green). Archived to `.planning/milestones/v5.1-*`; tagged `v5.1`. No active milestone — next via `/gsd-new-milestone`; open backlog 999.2/999.3/999.7 (999.4/999.5/999.6 shipped in v5.1). Carried-forward deferred item: `144-code-review-deferred.md` (low). Previously: 2026-06-21 closed v5.0 Offline Field Mode; 2026-06-09 closed v4.10 Housekeeping.*
