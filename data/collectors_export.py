@@ -31,8 +31,11 @@ ASSETS_DIR = Path(os.environ.get("EXPORT_DIR", _default_assets))
 _QUERY = """
     SELECT
         o.collector_inat_login                                         AS login,
-        -- D-04: human display name; '@login' fallback for sample-host-only collectors
-        MIN(COALESCE(o.recordedBy, '@' || o.collector_inat_login))     AS display_name,
+        -- D-04: human display name; '@login' fallback only when NO row carries a name.
+        -- MIN(recordedBy) ignores NULLs, so COALESCE the aggregate (not per-row): a
+        -- per-row COALESCE would let a single NULL-recordedBy row (e.g. waba_sample) win
+        -- the MIN as '@login' and mask the real name (CR-01).
+        COALESCE(MIN(o.recordedBy), '@' || MIN(o.collector_inat_login)) AS display_name,
         MIN(o.recordedBy)                                              AS recordedBy,
         MIN(o.host_inat_login)                                         AS host_inat_login,
         -- D-03: specimen count = distinct ecdysis_id values

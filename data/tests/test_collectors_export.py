@@ -37,6 +37,10 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
                   sample_count must be NON-ZERO (via the observation_id formula).
         'carol' — inat_obs only (source='inat_obs', ecdysis_id=None).
                   Must NOT survive the D-01 gate.
+        'dave'  — MIXED recordedBy: one ecdysis row with a real name ('Dave D')
+                  and one waba_sample row with recordedBy=None. display_name MUST
+                  resolve to 'Dave D', not '@dave' (CR-01 regression: a per-row
+                  COALESCE would let the NULL row's '@dave' win the MIN).
     """
     schema = pa.schema([
         ("collector_inat_login", pa.string()),
@@ -50,14 +54,14 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
     ])
     table = pa.table(
         {
-            "collector_inat_login": ["alice",  "alice",  "bob",   "carol"],
-            "recordedBy":           ["Alice A", "Alice A", None,   "Carol C"],
-            "host_inat_login":      ["alice",   "alice",  "bob",   "carol"],
-            "ecdysis_id":           [42,        77,       None,    None],
-            "source":               ["ecdysis", "ecdysis", "waba_sample", "inat_obs"],
-            "sample_id":            [10,        20,       None,    None],
-            "observation_id":       [None,      None,     888,     999],
-            "taxon_id":             [10,        99,       None,    None],
+            "collector_inat_login": ["alice",  "alice",  "bob",   "carol",   "dave",    "dave"],
+            "recordedBy":           ["Alice A", "Alice A", None,   "Carol C", "Dave D",  None],
+            "host_inat_login":      ["alice",   "alice",  "bob",   "carol",   "dave",    "dave"],
+            "ecdysis_id":           [42,        77,       None,    None,      55,        None],
+            "source":               ["ecdysis", "ecdysis", "waba_sample", "inat_obs", "ecdysis", "waba_sample"],
+            "sample_id":            [10,        20,       None,    None,      30,        None],
+            "observation_id":       [None,      None,     888,     999,       None,      777],
+            "taxon_id":             [10,        99,       None,    None,      10,        None],
         },
         schema=schema,
     )
@@ -182,6 +186,29 @@ def test_status_split_invariant(tmp_path, monkeypatch):
             f"identified={r['status_identified']} + awaiting={r['status_awaiting']} "
             f"!= denominator={r['status_denominator']}"
         )
+
+
+def test_mixed_null_recordedby_keeps_real_name(tmp_path, monkeypatch):
+    """CR-01 regression: a collector with both a named row and a NULL-recordedBy row
+    must display the real name, not the '@login' fallback.
+
+    'dave' has an ecdysis row (recordedBy='Dave D') and a waba_sample row
+    (recordedBy=None). A per-row COALESCE(recordedBy, '@'||login) followed by MIN
+    would pick '@dave' (the '@' sorts before letters), masking the real name.
+    The correct COALESCE(MIN(recordedBy), '@'||MIN(login)) yields 'Dave D'.
+    """
+    ce_mod = _setup_env(tmp_path, monkeypatch)
+    ce_mod.export_collectors_step()
+
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    by_login = {r["login"]: r for r in records}
+
+    dave = by_login.get("dave")
+    assert dave is not None, "'dave' must be in collectors.json"
+    assert dave["display_name"] == "Dave D", (
+        f"Mixed-null recordedBy must resolve to the real name, not '@login' (CR-01). "
+        f"Got display_name={dave['display_name']!r}"
+    )
 
 
 def test_required_keys(tmp_path, monkeypatch):

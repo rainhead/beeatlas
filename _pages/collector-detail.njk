@@ -15,5 +15,10 @@ layout: default.njk
   {%- if collector.status_denominator > 0 -%}
   <p class="status-split">{{ collector.status_identified }} identified to species, {{ collector.status_awaiting }} awaiting ID</p>
   {%- endif -%}
+  {%- if collector.recordedBy or collector.host_inat_login -%}
+  {#- Guard: a both-null collector would render `?collectors=:`, which url-state.ts discards,
+      silently showing ALL occurrences instead of this collector's (CR-02). 0 such collectors
+      today, but the guard keeps the link honest if a name-less waba_specimen-only one appears. -#}
   <a href="/?collectors={{ collector.recordedBy | urlencode }}:{{ collector.host_inat_login | urlencode }}">View on the atlas →</a>
+  {%- endif -%}
 </article>
