@@ -71,7 +71,7 @@
 
 ### v6.0 My Work — Progress & Provenance (Phases 167–172)
 
-- [ ] **Phase 167: Collector Identity Column** — COALESCE `collector_inat_login` into the occurrences mart; dbt contract 36→37; data-before-code S3 release sequence. **Plans:** 1 plan (1 wave; final operator step is a blocking checkpoint).
+- [x] **Phase 167: Collector Identity Column** — COALESCE `collector_inat_login` into the occurrences mart; dbt contract 36→37; data-before-code S3 release sequence. **Plans:** 1 plan (1 wave; final operator step is a blocking checkpoint). ✓ shipped — column live in S3 (37 cols) after SKIP_INTEGRATION_GATE nightly 2026-06-25.
   Plans:
 
   - [x] 167-01-PLAN.md — COALESCE `collector_inat_login` into all 5 int_combined arms + occurrences mart SELECT + schema.yml contract (36→37) with the D-05 hard-error and D-06 warn `not_null` tests; local `run.sh build` + sqlite spot-check; one-time operator SKIP_INTEGRATION_GATE nightly to land the column in S3 [IDENT-01; D-01..D-08]
@@ -1637,10 +1637,12 @@ Plans:
 **Depends on**: Phase 165 (waba_specimen arm defines the COALESCE priority order)
 **Requirements**: IDENT-01
 **Success Criteria** (what must be TRUE):
+
   1. `occurrences.parquet` and `occurrences.db` carry a `collector_inat_login VARCHAR` column (dbt contract 36→37) resolving via `COALESCE(specimen_inat_login, host_inat_login, user_login)`
   2. WABA collector occurrences — Ecdysis specimens, WABA samples, and waba_specimen rows — all resolve to the correct iNat login without NULL
   3. The data-before-code S3 release sequence completes: nightly runs with `SKIP_INTEGRATION_GATE=1`, the new column is live in S3 before any TypeScript that reads it ships
   4. No identity-reconciliation seed is required (WABA collectors always carry an iNat handle, appearing in iNaturalist before Ecdysis); a build-time assertion validates that WABA specimen/sample rows resolve to a non-NULL `collector_inat_login`
+
 **Plans**: TBD
 
 ### Phase 168: Temporal Lifecycle Dates
@@ -1649,10 +1651,12 @@ Plans:
 **Depends on**: Phase 167 (collector identity column; same data layer)
 **Requirements**: TEMP-01, TEMP-02
 **Success Criteria** (what must be TRUE):
+
   1. `occurrences.db` carries `collection_date`, `posted_date` (iNat `created_at`), and `id_date` (best-available identification date) columns; dbt contract bump ships data-before-code with its own isolated S3 release
   2. A `waba_specimen` row linked to a subsequent Ecdysis record (via `specimen_observation_id`) carries both its iNat `posted_date` and the Ecdysis `collection_date` — the transition does not produce a phantom delete+create in the event timeline
   3. Lifecycle dates are read from intrinsic source fields (no snapshot-diffing), so no first-run baseline is needed; rows with partial/missing dates (e.g. Ecdysis `date_identified` year-only or `s.d.`) are handled explicitly rather than dropped
   4. Lifecycle dates for Ecdysis specimens, waba_specimen rows, iNat expert obs, WABA samples, and checklist records are each populated from the correct source field (no cross-ARM NULL gaps for available fields)
+
 **Plans**: TBD
 
 ### Phase 169: Per-Collector Static Pages
@@ -1661,11 +1665,13 @@ Plans:
 **Depends on**: Phase 167 (collector_inat_login in the mart)
 **Requirements**: PAGE-01, PAGE-02, PAGE-03, PAGE-04
 **Success Criteria** (what must be TRUE):
+
   1. Visiting `/collectors/{inat_login}/` renders a static page for every collector with a non-NULL `collector_inat_login`; the page URL is stable and bookmarkable with no auth
   2. The page shows headline contribution stats: specimen count, sample count, species count
   3. The page shows a pending-vs-identified status split ("N identified, N awaiting ID") derived from lifecycle date availability
   4. The page links to the main map filtered to that collector (`/?collector={login}` or equivalent), and the map filter applies correctly
   5. Pages are generated only where `collector_inat_login IS NOT NULL` (checklist-only contributors without iNat handles are excluded); a build-time page-count assertion fails the build if count is below expected floor
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -1675,10 +1681,12 @@ Plans:
 **Depends on**: Phase 165 (waba_specimen arm defines all five source categories); Phase 167 (collector facet now meaningful in the model)
 **Requirements**: PROV-01, PROV-02, PROV-03
 **Success Criteria** (what must be TRUE):
+
   1. The map filter, map symbology (`style.ts`), and occurrence detail card (`bee-occurrence-detail.ts`) are all driven by provenance tier, not the raw `source` string — the three consumers ship as one atomic commit
   2. `FilterState` carries `hiddenProvenanceTiers` replacing `hiddenSources`; `tier=` URL param round-trips correctly; `src=` legacy param parses and maps to the new tier vocabulary (back-compat)
   3. A Vitest assertion compares the occ_id CASE branch priority order between `src/occurrence.ts` (`occIdFromRow`) and `src/filter.ts` (`OCC_ID_SQL_CASE`) — the positional coupling is explicit and tested; the `data/dbt/models/marts/occurrence_places.sql` CASE is cross-checked in the same commit
   4. `tsc --noEmit` is green after the facets commit; all place-filter queries return correct results for each source arm (no silent zero-result regressions)
+
 **Plans**: TBD
 
 ### Phase 171: Per-Collector Event Stream
@@ -1687,10 +1695,12 @@ Plans:
 **Depends on**: Phase 168 (lifecycle dates in mart); Phase 170 (provenance-tier rendering for the feed)
 **Requirements**: STREAM-01, STREAM-02, STREAM-03
 **Success Criteria** (what must be TRUE):
+
   1. The collector page shows a reverse-chronological feed of events (collection, posting, identification) keyed on lifecycle dates from the mart — the feed is readable on any device from the same bookmarked URL
   2. A waba_specimen row that gains an Ecdysis cataloguing link (via `specimen_observation_id`) appears as a "specimen catalogued in Ecdysis" event in the feed, not as a deletion + creation
   3. Collectors with more than ~500 occurrence records see the feed paginated or bounded (no unbounded DOM or query); the bound is documented and the collector-page load time stays reasonable
   4. The feed renders correctly when lifecycle dates are partially absent (e.g. identification date NULL for unidentified specimens — the event still appears as "collected, awaiting ID")
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -1700,10 +1710,12 @@ Plans:
 **Depends on**: Phase 169 (per-collector static page shell); Phase 171 (event stream establishes the full collector page)
 **Requirements**: ACCOM-01, ACCOM-02, ACCOM-03, ACCOM-04
 **Success Criteria** (what must be TRUE):
+
   1. The collector page includes a county coverage SVG map (reusing the taxon/place SVG pattern from `data/svg_map.py`) showing counties where the collector has contributed occurrences
   2. The page shows a taxonomic-breadth list of contributed species, each linked to its taxon page
   3. The page shows ecoregion breadth (the distinct ecoregions the collector has contributed to)
   4. The page shows an "Active since YYYY (N seasons)" badge derived from the `collection_date` column range — no streak tracking, no leaderboard elements
   5. All aggregations are pre-computed in the pipeline (`collectors.json`) and rendered statically; no wa-sqlite GROUP BY query runs in the browser on the collector page
+
 **Plans**: TBD
 **UI hint**: yes
