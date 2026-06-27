@@ -1,6 +1,7 @@
 // Phase 169 Wave 0 — RED contract for _data/collectors.js (PAGE-01, D-09). Mirrors data-places.test.ts.
+// Phase 171 Wave 0 — STREAM-01/02/03 event-feed artifact-shape assertions (RED until Task 2 generates artifacts).
 
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,5 +45,85 @@ describe('_data/collectors.js (PAGE-01, D-09)', () => {
   test('does NOT read parquet (Pitfall #8 — HMR)', () => {
     const src = readFileSync(resolve(ROOT, '_data/collectors.js'), 'utf-8');
     expect(src).not.toMatch(/parquet/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 171 — event feed artifact-shape assertions (STREAM-01/02/03)
+//
+// Reads committed artifacts DIRECTLY (readFileSync), NOT via _data/collectors.js,
+// so these assertions are not affected by the dev-mode ELEVENTY_ENV guard that
+// makes collectorEventPages return [] in Plan 02's extended loader (STREAM-03).
+//
+// RED state: collector_event_pages.json does not exist until Task 2 runs the export.
+// beforeAll will throw → all tests in this block are RED until the artifact is committed.
+// ---------------------------------------------------------------------------
+
+describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
+  let collectorsRaw: any[];
+  let collectorEventPagesRaw: any[];
+
+  beforeAll(() => {
+    // Read collectors.json directly (not via loader) to see the Phase 171 extended fields.
+    collectorsRaw = JSON.parse(
+      readFileSync(resolve(ROOT, 'public/data/collectors.json'), 'utf-8'),
+    );
+    // collector_event_pages.json does not exist until Task 2 generates it.
+    // This readFileSync will throw in RED state → all tests below fail (expected).
+    collectorEventPagesRaw = JSON.parse(
+      readFileSync(resolve(ROOT, 'public/data/collector_event_pages.json'), 'utf-8'),
+    );
+  });
+
+  // STREAM-01: each collectorsArray entry carries event-feed pagination metadata
+  test('collectorsArray entries have first_page_events array and pagination counts (STREAM-01)', () => {
+    for (const c of collectorsRaw) {
+      expect(
+        Array.isArray(c.first_page_events),
+        `first_page_events of ${c.login} must be an array`,
+      ).toBe(true);
+      expect(typeof c.total_event_pages, `total_event_pages of ${c.login}`).toBe('number');
+      expect(typeof c.total_event_count, `total_event_count of ${c.login}`).toBe('number');
+    }
+  });
+
+  // STREAM-01: event items in first_page_events have the required shape
+  test('first_page_events items have required event shape (STREAM-01)', () => {
+    for (const c of collectorsRaw) {
+      for (const ev of c.first_page_events as any[]) {
+        expect(
+          ['Collected', 'Identified'],
+          `event_type of entry in ${c.login}`,
+        ).toContain(ev.event_type);
+        expect(typeof ev.event_type).toBe('string');
+        // is_current must be boolean for Identified; null for Collected is allowed
+        if (ev.event_type === 'Identified') {
+          expect(
+            typeof ev.is_current,
+            `is_current must be boolean for Identified in ${c.login}`,
+          ).toBe('boolean');
+        }
+        // is_pending must be a boolean (true for waba_specimen awaiting-ID, false otherwise)
+        expect(typeof ev.is_pending, `is_pending in ${c.login}`).toBe('boolean');
+      }
+    }
+  });
+
+  // STREAM-03: collector_event_pages.json is a non-empty array (pagination fires in production)
+  test('collector_event_pages.json is a non-empty array (STREAM-03)', () => {
+    expect(Array.isArray(collectorEventPagesRaw)).toBe(true);
+    expect(collectorEventPagesRaw.length).toBeGreaterThan(0);
+  });
+
+  // STREAM-03: every sub-page entry has the required descriptor shape
+  test('every collectorEventPages entry has required fields (STREAM-03)', () => {
+    for (const page of collectorEventPagesRaw) {
+      expect(typeof page.login).toBe('string');
+      expect(typeof page.page_num).toBe('number');
+      expect(page.page_num).toBeGreaterThanOrEqual(2);
+      expect(typeof page.total_pages).toBe('number');
+      expect(Array.isArray(page.events)).toBe(true);
+      expect(page.events.length).toBeGreaterThan(0);
+    }
   });
 });
