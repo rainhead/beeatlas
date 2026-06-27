@@ -18,6 +18,8 @@ from pathlib import Path
 
 import duckdb
 
+from domain import slugify
+
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 _default_assets = str(Path(__file__).parent.parent / "public" / "data")
@@ -125,6 +127,13 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 "display_name": display_name,
                 "recordedBy": recorded_by,           # may be None for sample-host-only
                 "host_inat_login": host_inat_login,
+                # Per-collector Atom feed (data/feeds.py keys collector feeds by
+                # slugify(recorded_by); byte-match that filename here). None when
+                # recordedBy is null (sample-host-only collectors have no determination feed).
+                "atom_feed_url": (
+                    f"/data/feeds/collector-{slugify(recorded_by)}.xml"
+                    if recorded_by else None
+                ),
                 "specimen_count": int(specimen_count),
                 "sample_count": int(sample_count),
                 "species_count": int(species_count),

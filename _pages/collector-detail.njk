@@ -9,6 +9,7 @@ eleventyComputed:
 layout: default.njk
 ---
 <link rel="stylesheet" href="/src/styles/places.css">
+{%- if collector.atom_feed_url %}<link rel="alternate" type="application/atom+xml" title="{{ collector.display_name }} — recent determinations" href="{{ collector.atom_feed_url }}">{% endif %}
 <article class="places-page place-detail">
   <h1>{{ collector.display_name }}</h1>
   <p class="metadata">{{ collector.specimen_count | quantify("specimen") }} · {{ collector.sample_count | quantify("sample") }} · {{ collector.species_count | quantify("species", "species") }}</p>
@@ -24,7 +25,7 @@ layout: default.njk
   {#- Phase 171: Event feed section (STREAM-01/02/03) -#}
   {%- if collector.total_event_count > 0 -%}
   <section class="event-feed-section">
-    <h2>Collection history</h2>
+    <h2>Collection history{%- if collector.atom_feed_url %} <a class="feed-link" type="application/atom+xml" href="{{ collector.atom_feed_url }}">Subscribe to recent determinations</a>{% endif %}</h2>
     <div class="event-feed-wrap">
     <table class="event-feed">
       <thead>
@@ -78,7 +79,7 @@ layout: default.njk
   </section>
   {%- else -%}
   <section class="event-feed-section">
-    <h2>Collection history</h2>
+    <h2>Collection history{%- if collector.atom_feed_url %} <a class="feed-link" type="application/atom+xml" href="{{ collector.atom_feed_url }}">Subscribe to recent determinations</a>{% endif %}</h2>
     <p class="metadata">No specimen events recorded yet.</p>
   </section>
   {%- endif -%}
