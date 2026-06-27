@@ -750,9 +750,9 @@ def test_nonbee_inat_url_and_bee_resolution(tmp_path, monkeypatch):
     assert inat is not None, "Non-bee determination (Diptera) must have inat_url"
     assert "inaturalist.org" in inat, f"inat_url must link to iNaturalist; got {inat!r}"
     assert "Diptera" in inat, f"inat_url must include the taxon name; got {inat!r}"
-    assert inat.startswith("https://www.inaturalist.org/taxa/search?q="), (
-        f"inat_url must use the taxa/search endpoint; got {inat!r}"
-    )
+    assert inat.startswith("https://www.inaturalist.org/taxa/") and not inat.startswith(
+        "https://www.inaturalist.org/taxa/search"
+    ), f"inat_url must use the /taxa/{{name}} redirect endpoint (not taxa/search); got {inat!r}"
 
     # --- Undetermined: "undetermined" → neither species_slug nor inat_url ---
     undet = by_name.get("undetermined")

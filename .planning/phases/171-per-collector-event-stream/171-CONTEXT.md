@@ -114,7 +114,8 @@ Collected/Identified label, **plus**:
     `Hylaeus polifolii`, `Lasioglossum foxii`, etc. → `/species/{Genus}/`.
     (c) `genus_map` now built from `public/data/species.json` + `public/data/higher_taxa.json`
     (same files the frontend uses), covering all 47 known bee genera.
-  - **Non-bee named → iNat:** `inat_url` set (`https://www.inaturalist.org/taxa/search?q={urlencoded_name}`),
+  - **Non-bee named → iNat:** `inat_url` set (`https://www.inaturalist.org/taxa/{urlencoded_name}`
+    — the `/taxa/{name}` redirect lands on the canonical taxon page; the `/taxa/search?q=` results UI was poor),
     `species_slug` null. Applies to bycatch: Diptera, Eumeninae, Chrysididae, Philanthus,
     Hymenoptera, Lepidoptera, wasps/flies/bugs (~2,235 rows / ~111 unique names).
     Network-free: URL is constructed at export time with no iNat API call.

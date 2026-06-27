@@ -330,12 +330,14 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
             is_reidentification = None
 
         # iNat fallback: named non-bee determinations (slug=None, not undetermined) get
-        # an iNaturalist taxon-search URL. Mutually exclusive with species_slug.
-        # URL-encode species_name (the raw SQL value) so special chars are safe.
+        # an iNaturalist taxon URL. `/taxa/{name}` resolves the name and redirects to the
+        # canonical taxon page (the `/taxa/search?q=` results UI is poor). Mutually
+        # exclusive with species_slug. URL-encode the raw name so spaces/special chars are
+        # safe (e.g. binomial 'Oxybelus uniglumis' -> 'Oxybelus%20uniglumis').
         inat_url: str | None = None
         if slug is None and display and display.lower().strip() not in _UNDETERMINED:
             inat_url = (
-                "https://www.inaturalist.org/taxa/search?q="
+                "https://www.inaturalist.org/taxa/"
                 + quote(species_name or display)
             )
 

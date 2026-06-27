@@ -172,9 +172,11 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
             `species_slug must be null/absent when inat_url is set (${c.login})`,
           ).toBeFalsy();
           expect(typeof ev.inat_url).toBe('string');
+          const inat = ev.inat_url as string;
           expect(
-            (ev.inat_url as string).startsWith('https://www.inaturalist.org/taxa/search?q='),
-            `inat_url must use iNat taxa/search endpoint; got ${ev.inat_url}`,
+            inat.startsWith('https://www.inaturalist.org/taxa/')
+              && !inat.startsWith('https://www.inaturalist.org/taxa/search'),
+            `inat_url must use the /taxa/{name} redirect endpoint (not taxa/search); got ${inat}`,
           ).toBe(true);
           foundInatUrl = true;
         }

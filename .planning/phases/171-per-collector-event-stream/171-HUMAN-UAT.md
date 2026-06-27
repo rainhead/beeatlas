@@ -123,10 +123,13 @@ Near the bottom of the first page, find rows dated **2026-01-29** labelled **"Id
 Near the top of the acfranz feed, find a row with taxon **"Eumeninae"** or **"Diptera"**:
 
 - [ ] 4d.1 "Eumeninae" (or "Diptera") is rendered as a **hyperlink** pointing to
-      `https://www.inaturalist.org/taxa/search?q=Eumeninae` (or `/taxa/search?q=Diptera`).
+      `https://www.inaturalist.org/taxa/Eumeninae` (or `/taxa/Diptera`) — the `/taxa/{name}`
+      form, which iNaturalist redirects to the canonical taxon page.
 - [ ] 4d.2 The link has `rel="external"` attribute and `class="event-taxon--external"`.
-- [ ] 4d.3 Clicking the link opens iNaturalist in a new context (browser may open new tab
-      depending on `rel` attribute behavior); the iNat search shows the taxon.
+- [ ] 4d.3 Clicking the link lands on the iNaturalist **taxon page** for that name
+      (redirect resolves). Spot-check a binomial too (e.g. a `Vespula pensylvanica` /
+      `Oxybelus uniglumis` row → `/taxa/Vespula%20pensylvanica`) to confirm it redirects.
+- [ ] 4d.4 The **catalog number** now appears **immediately after the date** on each row.
 - [ ] 4d.4 The name text (`Eumeninae`, `Diptera`, etc.) is **not** duplicated and renders cleanly
       alongside the determiner ("by Karen W. Wright") and catalog number.
 
