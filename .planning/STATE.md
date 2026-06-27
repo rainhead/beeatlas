@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: ready_to_plan
-stopped_at: Phase 171 complete (3/3) — ready to discuss Phase 999.11
+stopped_at: Phase 171 complete (3/3) — ready to discuss Phase 172 (final v6.0 phase)
 last_updated: 2026-06-27T23:37:50.870Z
 last_activity: 2026-06-27
 progress:
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 999.11 — add federal wilderness areas as regions
+**Current focus:** Phase 172 — Accomplishment View (final v6.0 phase)
 
 ## Current Position
 
-Phase: 999.11
+Phase: 172
 Plan: Not started
-Status: Ready to plan
+Status: Ready to plan (Phase 171 complete + verified)
 Last activity: 2026-06-27
 
 ## Milestone Overview
@@ -40,11 +40,11 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 
 | Phase | Name | Dependencies | Status |
 |-------|------|--------------|--------|
-| 167 | Collector Identity Column | Phase 165 | Not started |
-| 168 | Temporal Lifecycle Dates | Phase 167 | Not started |
+| 167 | Collector Identity Column | Phase 165 | Complete |
+| 168 | Temporal Lifecycle Dates | Phase 167 | Complete |
 | 169 | Per-Collector Static Pages | Phase 167 | Complete |
 | 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Complete |
-| 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
+| 171 | Per-Collector Event Stream | Phase 168, 170 | Complete |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
 **Progress:** [██████████] 100%
