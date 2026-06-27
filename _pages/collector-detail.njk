@@ -41,7 +41,7 @@ layout: default.njk
       {%- if event.event_type == 'Collected' -%}
       <tr class="event-row{%- if event.is_pending %} event-row--pending{% endif %}">
         <td class="event-date"><time datetime="{{ event.event_date }}">{{ event.event_date }}</time></td>
-        <td class="event-catalog">{%- if event.ecdysis_id %}<a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a>{% endif %}</td>
+        <td class="event-catalog">{%- if event.ecdysis_id %}<a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}" title="{{ event.catalog_number }}">{{ event.catalog_number | replace("WSDA_", "") }}</a>{% endif %}</td>
         <td class="event-type event-type--collected">Collected</td>
         <td class="event-taxon">
           {%- if event.species_slug and not event.is_pending %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
@@ -56,7 +56,7 @@ layout: default.njk
       {%- set id_label = 'Re-identified' if event.is_reidentification else 'Identified' -%}
       <tr class="event-row{%- if event.is_reidentification %} event-row--reidentified{% endif %}">
         <td class="event-date"><time datetime="{{ event.event_date }}">{{ event.event_date }}</time></td>
-        <td class="event-catalog">{%- if event.ecdysis_id %}<a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a>{% endif %}</td>
+        <td class="event-catalog">{%- if event.ecdysis_id %}<a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}" title="{{ event.catalog_number }}">{{ event.catalog_number | replace("WSDA_", "") }}</a>{% endif %}</td>
         <td class="event-type {{ id_type_class }}">{{ id_label }}</td>
         <td class="event-taxon">
           {%- if event.species_slug %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
