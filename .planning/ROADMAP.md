@@ -1706,7 +1706,10 @@ Plans:
   3. A Vitest assertion compares the occ_id CASE branch priority order between `src/occurrence.ts` (`occIdFromRow`) and `src/filter.ts` (`OCC_ID_SQL_CASE`) — the positional coupling is explicit and tested; the `data/dbt/models/marts/occurrence_places.sql` CASE is cross-checked in the same commit
   4. `tsc --noEmit` is green after the facets commit; all place-filter queries return correct results for each source arm (no silent zero-result regressions)
 
-**Plans**: TBD
+**Plans**: 2 plans (2 waves — sequential; Wave B depends on Wave A's data published to S3 first, data-before-code)
+Plans:
+- [ ] 170-01-PLAN.md — Wave A (data leg): int_combined projects tier + record_type (drop source, inat_obs→inat_expert), occurrences/schema.yml contract bump (38→39), collectors_export + sqlite_export _GEO_COLS predicates; one-time SKIP_INTEGRATION_GATE=1 S3 publish [PROV-01; D-02..D-07]
+- [ ] 170-02-PLAN.md — Wave B (frontend, ONE atomic commit): hiddenSources→hiddenTiers + tier=/src= back-compat, tier-driven symbology + record_type-driven card, 2 tier toggles, PROV-03 occ_id-coupling Vitest test, fixture + docs/domain-model.md updates; tsc --noEmit gate [PROV-01/02/03; D-01, D-06..D-11]
 
 ### Phase 171: Per-Collector Event Stream
 
