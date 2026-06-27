@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: verifying
-stopped_at: Phase 171 context gathered
-last_updated: "2026-06-27T19:27:46.914Z"
+stopped_at: Phase 171 UI-SPEC approved
+last_updated: "2026-06-27T20:02:35.687Z"
 last_activity: 2026-06-27 -- Phase 170 complete + deployed (source→tier/record_type facets)
 progress:
   total_phases: 38
@@ -104,9 +104,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-27T19:27:46.897Z
-Stopped at: Phase 171 context gathered
-Resume file: .planning/phases/171-per-collector-event-stream/171-CONTEXT.md
+Last session: 2026-06-27T20:02:35.674Z
+Stopped at: Phase 171 UI-SPEC approved
+Resume file: .planning/phases/171-per-collector-event-stream/171-UI-SPEC.md
 
 ## Operator Next Steps
 
