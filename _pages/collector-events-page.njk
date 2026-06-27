@@ -1,32 +1,20 @@
 ---
 pagination:
-  data: collectors.collectorsArray
+  data: collectors.collectorEventPages
   size: 1
-  alias: collector
-permalink: "/collectors/{{ collector.login | urlencode }}/index.html"
+  alias: evpage
+permalink: "/collectors/{{ evpage.login | urlencode }}/page/{{ evpage.page_num }}/index.html"
 eleventyComputed:
-  title: "{{ collector.display_name }} — BeeAtlas"
+  title: "{{ evpage.login }} — BeeAtlas (page {{ evpage.page_num }} of {{ evpage.total_pages }})"
 layout: default.njk
 ---
 <link rel="stylesheet" href="/src/styles/places.css">
 <article class="places-page place-detail">
-  <h1>{{ collector.display_name }}</h1>
-  <p class="metadata">{{ collector.specimen_count | quantify("specimen") }} · {{ collector.sample_count | quantify("sample") }} · {{ collector.species_count | quantify("species", "species") }}</p>
-  {%- if collector.status_denominator > 0 -%}
-  <p class="status-split">{{ collector.status_identified }} identified to species, {{ collector.status_awaiting }} awaiting ID</p>
-  {%- endif -%}
-  {%- if collector.recordedBy or collector.host_inat_login -%}
-  {#- Guard: a both-null collector would render `?collectors=:`, which url-state.ts discards,
-      silently showing ALL occurrences instead of this collector's (CR-02). 0 such collectors
-      today, but the guard keeps the link honest if a name-less waba_specimen-only one appears. -#}
-  <a href="/?collectors={{ collector.recordedBy | urlencode }}:{{ collector.host_inat_login | urlencode }}">View on the atlas →</a>
-  {%- endif -%}
-  {#- Phase 171: Event feed section (STREAM-01/02/03) -#}
-  {%- if collector.total_event_count > 0 -%}
+  <h1>{{ evpage.login }}</h1>
   <section class="event-feed-section">
     <h2>Collection history</h2>
     <ol class="event-feed" reversed>
-      {%- for event in collector.first_page_events -%}
+      {%- for event in evpage.events -%}
       {%- if event.event_type == 'Collected' -%}
       <li class="event-row{%- if event.is_pending %} event-row--pending{% endif %}">
         <time class="event-date" datetime="{{ event.event_date }}">{{ event.event_date }}</time>
@@ -60,16 +48,16 @@ layout: default.njk
       {%- endif -%}
       {%- endfor -%}
     </ol>
-    {%- if collector.total_event_pages > 1 -%}
     <nav class="event-pagination" aria-label="Event history pages">
-      <a href="/collectors/{{ collector.login | urlencode }}/page/2/">Older events →</a>
+      {%- if evpage.page_num == 2 -%}
+      <a href="/collectors/{{ evpage.login | urlencode }}/">← Newer events</a>
+      {%- else -%}
+      <a href="/collectors/{{ evpage.login | urlencode }}/page/{{ evpage.page_num - 1 }}/">← Newer events</a>
+      {%- endif -%}
+      <span class="page-indicator">Page {{ evpage.page_num }} of {{ evpage.total_pages }}</span>
+      {%- if evpage.page_num < evpage.total_pages -%}
+      <a href="/collectors/{{ evpage.login | urlencode }}/page/{{ evpage.page_num + 1 }}/">Older events →</a>
+      {%- endif -%}
     </nav>
-    {%- endif -%}
   </section>
-  {%- else -%}
-  <section class="event-feed-section">
-    <h2>Collection history</h2>
-    <p class="metadata">No specimen events recorded yet.</p>
-  </section>
-  {%- endif -%}
 </article>
