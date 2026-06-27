@@ -1713,7 +1713,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 170-02-PLAN.md — Wave B (frontend, ONE atomic commit): hiddenSources→hiddenTiers + tier=/src= back-compat, tier-driven symbology + record_type-driven card, 2 tier toggles, PROV-03 occ_id-coupling Vitest test, fixture + docs/domain-model.md updates; tsc --noEmit gate [PROV-01/02/03; D-01, D-06..D-11]
+- [x] 170-02-PLAN.md — Wave B (frontend, ONE atomic commit): hiddenSources→hiddenTiers + tier=/src= back-compat, tier-driven symbology + record_type-driven card, 2 tier toggles, PROV-03 occ_id-coupling Vitest test, fixture + docs/domain-model.md updates; tsc --noEmit gate [PROV-01/02/03; D-01, D-06..D-11]
 
 ### Phase 171: Per-Collector Event Stream
 

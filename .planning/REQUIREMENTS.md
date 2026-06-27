@@ -15,9 +15,9 @@
 
 ### Provenance & Facets (PROV)
 
-- [ ] **PROV-01**: The occurrence model exposes orthogonal facets — collector, place, taxon, time, and provenance-tier — replacing the mutually-exclusive `source` enum as the UI's organizing primitive.
-- [ ] **PROV-02**: Map filter, map symbology, and the detail card are driven by **provenance tier** (not `source`); tier filtering round-trips via a `tier=` URL param with legacy `src=` back-compat.
-- [ ] **PROV-03**: The `occ_id` positional coupling across `src/occurrence.ts`, `src/filter.ts`, and `data/dbt/models/marts/occurrence_places.sql` is preserved and asserted by a test; the facets rebuild ships as one atomic commit across all three consumers.
+- [x] **PROV-01**: The occurrence model exposes orthogonal facets — collector, place, taxon, time, and provenance-tier — replacing the mutually-exclusive `source` enum as the UI's organizing primitive.
+- [x] **PROV-02**: Map filter, map symbology, and the detail card are driven by **provenance tier** (not `source`); tier filtering round-trips via a `tier=` URL param with legacy `src=` back-compat.
+- [x] **PROV-03**: The `occ_id` positional coupling across `src/occurrence.ts`, `src/filter.ts`, and `data/dbt/models/marts/occurrence_places.sql` is preserved and asserted by a test; the facets rebuild ships as one atomic commit across all three consumers.
 
 ### Temporal Lifecycle (TEMP)
 
@@ -86,9 +86,9 @@ Explicitly excluded for v6.0.
 | PAGE-02 | Phase 169 | Complete |
 | PAGE-03 | Phase 169 | Complete |
 | PAGE-04 | Phase 169 | Complete |
-| PROV-01 | Phase 170 | Pending |
-| PROV-02 | Phase 170 | Pending |
-| PROV-03 | Phase 170 | Pending |
+| PROV-01 | Phase 170 | Complete |
+| PROV-02 | Phase 170 | Complete |
+| PROV-03 | Phase 170 | Complete |
 | STREAM-01 | Phase 171 | Pending |
 | STREAM-02 | Phase 171 | Pending |
 | STREAM-03 | Phase 171 | Pending |

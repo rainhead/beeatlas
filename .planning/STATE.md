@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
-stopped_at: Phase 170-01 Tasks 1-2 done (data leg green, committed 92b5e3cd/b4456021); STOPPED at Task 3 blocking operator checkpoint (SKIP_INTEGRATION_GATE S3 publish)
-last_updated: "2026-06-27T02:16:22.306Z"
-last_activity: 2026-06-27 -- Phase 170 execution started
+stopped_at: Phase 170-02 frontend leg complete (atomic commit 4513a170; tsc 0 / 877 tests pass). NOT pushed — push/deploy GATED on Plan 01 Task 3 operator S3 publish (SKIP_INTEGRATION_GATE nightly)
+last_updated: "2026-06-27T17:43:55.477Z"
+last_activity: 2026-06-27
 progress:
   total_phases: 38
-  completed_phases: 17
+  completed_phases: 18
   total_plans: 40
-  completed_plans: 39
-  percent: 45
+  completed_plans: 40
+  percent: 47
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion 
 
 ## Current Position
 
-Phase: 170 (source-provenance-facets-rebuild) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 170
-Last activity: 2026-06-27 -- Phase 170 execution started
+Phase: 170 (source-provenance-facets-rebuild) — both plans complete (data leg committed locally; frontend leg committed 4513a170)
+Plan: 2 of 2 — complete
+Status: Gated on operator S3 publish (Plan 01 Task 3) before push/deploy
+Last activity: 2026-06-27 -- Phase 170-02 frontend leg shipped (atomic)
 
 ## Milestone Overview
 
@@ -43,7 +43,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 167 | Collector Identity Column | Phase 165 | Not started |
 | 168 | Temporal Lifecycle Dates | Phase 167 | Not started |
 | 169 | Per-Collector Static Pages | Phase 167 | Complete |
-| 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Not started |
+| 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Both plans complete (committed; push gated on operator S3 publish) |
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
@@ -76,6 +76,7 @@ Load-bearing conventions carried from prior milestones:
 - **[Phase 167] collector_inat_login shipped (dbt contract 36→37)**: Column live in local sandbox/occurrences.parquet and occurrences.db. Awaiting operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to land in live S3 (Task 3 checkpoint).
 - [Phase 168]: id_date column shipped to local mart (dbt contract 37 to 38): VARCHAR parse of ecdysis date_identified in int_combined ARM 1 (26,565 kept; year-only + full ISO verbatim, garbage NULLed); ARMs 2-5 NULL; assert_id_date_parse_complete warn singular test. Awaiting operator SKIP_INTEGRATION_GATE nightly to land in live S3 (Task 4, gated behind Phase 167 37-col landing).
 - [Phase 170-01]: marts/occurrences source decomposed → tier (atlas/other) + record_type (specimen/provisional_sample/waba_specimen/inat_expert/checklist); arm→tier mapping lives only in int_combined.sql; contract 38→39. Data leg locally green (PASS=92); AWAITING operator SKIP_INTEGRATION_GATE nightly to land in S3 before Plan 02 deploys (D-04).
+- [Phase 170-02]: Frontend leg shipped as ONE atomic commit 4513a170 (PROV-01/02/03). FilterState.hiddenSources→hiddenTiers; tier= URL param + src= 5→2 back-compat (parse-only, lossy by design); tier-driven symbology (atlas recency / other muted #7a8a99, D-08); record_type-driven detail card (inat_obs→inat_expert, D-09/D-10 — card is record_type-driven NOT tier-driven, deliberate); features.ts geo_blob index 6 = tier; OCC_ID_SQL_CASE exported + PROV-03 occ_id-coupling Vitest assertion (3-site equality, occ_id prefix inat_obs: unchanged per D-07). tsc --noEmit 0; 877 tests pass. NOT pushed — gated on Plan 01 Task 3 operator S3 publish.
 
 ### Pending Todos
 
@@ -86,7 +87,7 @@ Load-bearing conventions carried from prior milestones:
 
 - Phase 163 (Ecdysis auth) ⚠ blocks nightly pipeline. Decouple: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses cached ZIP as immediate workaround.
 - [Phase 168 Task 4] Awaiting operator SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to land id_date (38 cols) in live S3; gated behind Phase 167 37-col S3 landing (D-12, confirmed live per commit 69821883).
-- Phase 170-01 Task 3: BLOCKING operator checkpoint — run one-time SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to publish occurrences contract (tier+record_type, no source, 38→39 cols) to S3 ALONE before Plan 02 deploys (D-04). Resume signal: 'published'.
+- Phase 170-01 Task 3 / 170-02 push gate: BLOCKING operator checkpoint — run one-time SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to publish occurrences contract (tier+record_type, no source, 38→39 cols) to S3 ALONE. The frontend leg (170-02, commit 4513a170) is committed locally but MUST NOT be pushed/deployed until 'published' is confirmed — the deploy validate-db gate reads the freshly-published S3 occurrences.db (project_occurrences_contract_release_sequence). Resume signal: 'published'.
 
 ## Deferred Items
 
@@ -103,9 +104,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-27T02:16:22.296Z
-Stopped at: Phase 170-01 Tasks 1-2 done (data leg green, committed 92b5e3cd/b4456021); STOPPED at Task 3 blocking operator checkpoint (SKIP_INTEGRATION_GATE S3 publish)
-Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-01-SUMMARY.md
+Last session: 2026-06-27T17:43:55.465Z
+Stopped at: Phase 170-02 frontend leg complete (atomic commit 4513a170; tsc 0 / 877 tests pass). Both 170 plans committed locally; push/deploy gated on Plan 01 Task 3 operator S3 publish.
+Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-02-SUMMARY.md
 
 ## Operator Next Steps
 
