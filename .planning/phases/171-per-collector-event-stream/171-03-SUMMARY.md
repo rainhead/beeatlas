@@ -277,3 +277,61 @@ from the canonical frontend JSON files.
 - 5b153f54: chore(171): regenerate event artifacts with inat_url for non-bee determinations
 
 **Status:** Returned to UAT gate — do NOT mark phase verified until operator re-UAT passes.
+
+---
+
+## Operator UAT Revision 3 (2026-06-27)
+
+Revision 4: faux-columns list converted to a real `<table>`, with horizontal-scroll on mobile.
+
+### Change: event feed is now a semantic `<table>` with `<thead>`
+
+**Background:** The event feed was rendered as `<ol class="event-feed" reversed>` with `<li>`
+rows of whitespace-separated `<span>` elements (faux columns). This revision converts it to a
+proper HTML `<table>` with a `<thead>` row of `<th scope="col">` headers and `<td>` cells.
+
+**Column order:** Date · Catalog · Event · Taxon · Determiner
+
+**Mobile approach:** The table is wrapped in `<div class="event-feed-wrap">` (`overflow-x: auto`)
+so it scrolls horizontally on narrow screens. No stacked-card responsive collapse.
+
+**Files changed:**
+- `_pages/collector-detail.njk`: `<ol>/<li>/<span>` → `<div class="event-feed-wrap"><table><thead><tbody><tr><td>`
+- `_pages/collector-events-page.njk`: same conversion
+- `src/styles/places.css`: flex/list rules replaced with `table.event-feed` + `.event-feed-wrap` rules
+- `src/tests/page-scaffold.test.ts`: structural assertions updated to require `<table class="event-feed">`,
+  `<thead>`, `<th scope="col">`, `<td class="event-date">`, `class="event-feed-wrap"`
+- `.planning/phases/171-per-collector-event-stream/171-UI-SPEC.md`: component inventory + CSS section updated
+
+**All semantics preserved:** three-way taxon link logic, determiner, pending/awaiting-ID, current-determination
+accent, iNat external affordance, empty state paragraph (no empty table), no `<script`, no `| safe`.
+
+### Test Results
+
+| Suite | Result |
+|-------|--------|
+| `npm test` | **892 passed** (+1 net, structural assertions updated to assert table) |
+| `cd data && uv run pytest -m "not integration"` | **259 passed, 9 skipped** (unchanged) |
+| Production build (`npx @11ty/eleventy`) | 2174 files written, exit 0 |
+
+### Build Spot-Checks
+
+| Check | Result |
+|-------|--------|
+| `<table class="event-feed">` in `acfranz/index.html` | 1 (correct) |
+| `<ol class="event-feed"` in `acfranz/index.html` | 0 (old list gone) |
+| `<li class="event-row"` in `acfranz/index.html` | 0 (old list gone) |
+| `<thead>` in `acfranz/index.html` | 1 (correct) |
+| `<td class="event-date"` count in `acfranz/index.html` | 100 (correct per-page) |
+| `.event-feed-wrap` in `acfranz/index.html` | 1 (correct) |
+| `<table class="event-feed">` in `acfranz/page/2/index.html` | 1 (paginated sub-page correct) |
+| Empty state on `apascal` | "No specimen events recorded yet." — no table rendered |
+| `awaiting ID` span in `mylodon/page/9/index.html` | present inside `<td class="event-taxon">` |
+| ecdysis.org link inside `<td class="event-catalog">` in `acfranz` | YES |
+| iNat external link (`event-taxon--external`) in `acfranz` | YES (Eumeninae) |
+| `| safe` count in both templates | 0 / 0 |
+| `<script` count in both templates | 0 / 0 |
+
+**Commit:** 48da3a17: feat(171): convert event feed from faux-columns list to real &lt;table&gt;
+
+**Status:** Returned to UAT gate — do NOT mark phase verified until operator re-UAT passes.

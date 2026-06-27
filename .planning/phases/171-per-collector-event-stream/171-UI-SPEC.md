@@ -95,80 +95,95 @@ D-EMPTY).
 ```html
 <section class="event-feed-section">
   <h2>Collection history</h2>
-  <ol class="event-feed" reversed>
-    <!-- event rows pre-sorted newest-to-oldest by the export -->
-  </ol>
+  <div class="event-feed-wrap">
+  <table class="event-feed">
+    <thead>
+      <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Catalog</th>
+        <th scope="col">Event</th>
+        <th scope="col">Taxon</th>
+        <th scope="col">Determiner</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- event rows pre-sorted newest-to-oldest by the export -->
+    </tbody>
+  </table>
+  </div>
   <!-- .event-pagination nav rendered here if total_event_pages > 1 -->
 </section>
 ```
 
-The `reversed` attribute on `<ol>` makes assistive technology count down, consistent with the
-newest-first visual order. Visual order is controlled by the pre-sorted export array; `reversed`
-only affects the rendered list-item numbers (hidden via `list-style: none`).
+The `<div class="event-feed-wrap">` has `overflow-x: auto` so the full 5-column table scrolls
+horizontally on narrow screens rather than breaking layout. No stacked-card responsive collapse —
+horizontal scroll is the chosen mobile approach.
+
+Column order: **Date · Catalog · Event · Taxon · Determiner**. Visual order is controlled by the
+pre-sorted export array (newest-to-oldest); rows are emitted in order with no `reversed` attribute
+(tables have no such attribute).
 
 ### 2. Event row
 
-Each event is one `<li>` in the `<ol>`. The four concrete row variants:
+Each event is one `<tr>` in the `<tbody>`. Five `<td>` cells in column order: Date, Catalog, Event,
+Taxon, Determiner. The four concrete row variants:
 
 **Collected — ecdysis specimen (name known, link resolvable):**
 ```html
-<li class="event-row">
-  <time class="event-date" datetime="2024-08-15">2024-08-15</time>
-  <span class="event-type event-type--collected">Collected</span>
-  <span class="event-taxon">
-    <a href="/species/Lasioglossum/albohirtum/">Lasioglossum albohirtum</a>
-  </span>
-</li>
+<tr class="event-row">
+  <td class="event-date"><time datetime="2024-08-15">2024-08-15</time></td>
+  <td class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=1234">WSDA_001</a></td>
+  <td class="event-type event-type--collected">Collected</td>
+  <td class="event-taxon"><a href="/species/Lasioglossum/albohirtum/">Lasioglossum albohirtum</a></td>
+  <td class="event-determiner"></td>
+</tr>
 ```
 
 **Collected — waba_specimen, awaiting ID (no Ecdysis record yet):**
 ```html
-<li class="event-row event-row--pending">
-  <time class="event-date" datetime="2024-07-10">2024-07-10</time>
-  <span class="event-type event-type--collected">Collected</span>
-  <span class="event-taxon">Bombus huntii</span>
-  <span class="event-pending">awaiting ID</span>
-</li>
+<tr class="event-row event-row--pending">
+  <td class="event-date"><time datetime="2024-07-10">2024-07-10</time></td>
+  <td class="event-catalog"></td>
+  <td class="event-type event-type--collected">Collected</td>
+  <td class="event-taxon">Bombus huntii <span class="event-pending">awaiting ID</span></td>
+  <td class="event-determiner"></td>
+</tr>
 ```
-The `canonical_name` from the mart (iNat community ID, tentative) is shown as plain text here —
+The `canonical_name` from the mart (iNat community ID, tentative) is shown as plain text —
 no link, no "tentative" qualifier — the "awaiting ID" label signals its provisional status.
+The catalog cell is empty for waba_specimen rows (no ecdysis_id).
 
-**Identified — current determination (is_current = '1'):**
+**Identified — current determination (is_current = true):**
 ```html
-<li class="event-row">
-  <time class="event-date" datetime="2026-06-02">2026-06-02</time>
-  <span class="event-type event-type--identified">Identified</span>
-  <span class="event-taxon">
-    <a href="/species/Heriades/carinata/">Heriades carinata</a>
-  </span>
-  <span class="event-determiner">by Karen Wright</span>
-</li>
+<tr class="event-row">
+  <td class="event-date"><time datetime="2026-06-02">2026-06-02</time></td>
+  <td class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=5604637">WSDA_2425162</a></td>
+  <td class="event-type event-type--identified">Identified</td>
+  <td class="event-taxon"><a href="/species/Heriades/carinata/">Heriades carinata</a></td>
+  <td class="event-determiner">by Karen Wright</td>
+</tr>
 ```
 
-**Identified — first determination (is_reidentification = false, is_current = false here — superseded):**
+**Identified — first determination (is_reidentification = false, is_current = false — superseded):**
 ```html
-<li class="event-row">
-  <time class="event-date" datetime="2025-09-01">2025-09-01</time>
-  <span class="event-type event-type--reidentified">Identified</span>
-  <span class="event-taxon">
-    <a href="/species/Heriades/">Heriades</a>
-  </span>
-  <span class="event-determiner">by Karen Wright</span>
-  <span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=5604637">WSDA_2425162</a></span>
-</li>
+<tr class="event-row">
+  <td class="event-date"><time datetime="2025-09-01">2025-09-01</time></td>
+  <td class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=5604637">WSDA_2425162</a></td>
+  <td class="event-type event-type--reidentified">Identified</td>
+  <td class="event-taxon"><a href="/species/Heriades/">Heriades</a></td>
+  <td class="event-determiner">by Karen Wright</td>
+</tr>
 ```
 
-**Re-identified — later determination (is_reidentification = true, is_current = true here — currently accepted):**
+**Re-identified — later determination (is_reidentification = true, is_current = true — currently accepted):**
 ```html
-<li class="event-row event-row--reidentified">
-  <time class="event-date" datetime="2025-10-06">2025-10-06</time>
-  <span class="event-type event-type--identified">Re-identified</span>
-  <span class="event-taxon">
-    <a href="/species/Heriades/carinata/">Heriades carinata</a>
-  </span>
-  <span class="event-determiner">by Karen Wright</span>
-  <span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=5604637">WSDA_2425162</a></span>
-</li>
+<tr class="event-row event-row--reidentified">
+  <td class="event-date"><time datetime="2025-10-06">2025-10-06</time></td>
+  <td class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=5604637">WSDA_2425162</a></td>
+  <td class="event-type event-type--identified">Re-identified</td>
+  <td class="event-taxon"><a href="/species/Heriades/carinata/">Heriades carinata</a></td>
+  <td class="event-determiner">by Karen Wright</td>
+</tr>
 ```
 
 **Event-type label rules (REVISED 2026-06-27 operator UAT):**
@@ -272,7 +287,7 @@ variants depending on position:
 
 ---
 
-## CSS Additions (append to `src/styles/places.css`)
+## CSS (`src/styles/places.css`)
 
 ```css
 /* Phase 171: event feed */
@@ -281,32 +296,39 @@ variants depending on position:
   margin-top: 1.5rem; /* lg: clear space below the atlas link above */
 }
 
-.event-feed {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Horizontal-scroll wrapper for narrow screens */
+.event-feed-wrap {
+  overflow-x: auto;
 }
 
-.event-feed .event-row {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;          /* mobile: long taxon names wrap onto a second line */
-  gap: 0.5rem;              /* sm between inline elements */
-  padding: 0.5rem 0;        /* sm top/bottom */
+table.event-feed {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.event-feed th {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.5rem 0.75rem;    /* sm block, 12px inline */
+  border-bottom: 2px solid var(--border, #ddd);
+  white-space: nowrap;
+}
+
+table.event-feed td {
+  padding: 0.5rem 0.75rem;    /* sm block, 12px inline */
   border-bottom: 1px solid var(--border, #ddd);
+  vertical-align: baseline;
 }
 
 .event-date {
   font-size: 0.85rem;
   color: var(--text-muted, #666);
   white-space: nowrap;
-  flex: 0 0 auto;
-  min-width: 6.5rem;        /* aligns dates consistently across rows */
 }
 
 .event-type {
   font-size: 0.85rem;
-  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -314,17 +336,12 @@ variants depending on position:
 .event-type--identified  { color: var(--accent, #2c7a2c); }
 .event-type--reidentified { color: var(--text-muted, #666); }
 
-.event-taxon {
-  flex: 1 1 auto;
-  min-width: 0;
-  /* font-size 1rem (body) — inherited from :root */
-}
+/* .event-taxon — font-size 1rem (body) inherited from :root */
 /* Taxon links inherit global <a> styles: #646cff, font-weight 500 */
 
 .event-determiner {
   font-size: 0.85rem;
   color: var(--text-muted, #666);
-  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -332,7 +349,11 @@ variants depending on position:
   font-size: 0.85rem;
   color: var(--text-muted, #666);
   font-style: italic;
-  flex: 0 0 auto;
+}
+
+.event-catalog {
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 /* Phase 171: pagination nav */

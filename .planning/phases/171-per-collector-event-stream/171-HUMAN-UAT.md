@@ -14,13 +14,15 @@ auto_advance: false
 > the dev HMR guard returns `[]` for `collectorEventPages`. A plain `npx @11ty/eleventy` build
 > followed by `npx serve _site` suffices; pagination URLs are static routes on disk.
 >
-> The automated pre-checks (T1) confirmed:
-> - `npm test`: 889 passed
-> - `uv run pytest -m "not integration"`: 256 passed, 9 skipped
-> - Build-mode Eleventy generates `collectors/swisschick/page/2/index.html` with 100 `event-row`
->   elements (swisschick: 14,754 events, 148 pages)
+> The automated pre-checks (Revision 4) confirmed:
+> - `npm test`: 892 passed (structural assertions updated for table)
+> - `uv run pytest -m "not integration"`: 259 passed, 9 skipped
+> - Build-mode Eleventy generates `collectors/swisschick/page/2/index.html` with 100 `<tr class="event-row">`
+>   elements inside `<table class="event-feed">` (swisschick: 14,754 events, 148 pages)
 > - No `<script` tags in event-feed templates; the two script tags in generated HTML are the
 >   site-wide `bee-header` from `default.njk` layout (expected)
+> - Feed is now a real `<table>` with `<thead>` (Date/Catalog/Event/Taxon/Determiner) wrapped
+>   in `<div class="event-feed-wrap">` for horizontal scroll on mobile
 
 ---
 
@@ -65,7 +67,7 @@ auto_advance: false
 
 - [ ] 3.1 The "Collection history" section heading is visible.
 - [ ] 3.2 The section shows the **empty state**: `"No specimen events recorded yet."` (`.metadata` class — muted small text).
-- [ ] 3.3 No `<ol>` feed list or event rows appear. No broken or empty list element.
+- [ ] 3.3 No `<table>` feed or event rows appear. No broken or empty table element.
 - [ ] 3.4 The existing stats line (`0 specimens · N samples · 0 species`) and atlas link still render above the section.
 
 ---
@@ -158,9 +160,11 @@ Near the top of the acfranz feed, find a row with taxon **"Eumeninae"** or **"Di
 
 Narrow the browser to ~375px (iPhone SE width) on the `swisschick` main page.
 
-- [ ] 6.1 Event rows **wrap** — long taxon names flow onto a second line without horizontal scroll.
-- [ ] 6.2 The date column (`min-width: 6.5rem`) remains on the first line; the label ("Identified", "Collected")
-      also stays inline until the taxon wraps.
+- [ ] 6.1 The feed table scrolls **horizontally** inside its `overflow-x: auto` wrapper — all 5 columns
+      (Date, Catalog, Event, Taxon, Determiner) remain visible by scrolling; none are clipped or
+      hidden, and the page itself does not overflow the viewport.
+- [ ] 6.2 The header row (`<thead>`) remains sticky to the left as expected for a horizontal-scroll table.
+      Confirm the "Date", "Catalog", "Event", "Taxon", "Determiner" column headers are visible.
 - [ ] 6.3 Pagination links on `/collectors/swisschick/page/2/` have a comfortable vertical tap target
       (the "← Newer events" and "Older events →" links should not be cramped).
 - [ ] 6.4 No overflow of the "Page N of M" indicator beyond the viewport.
