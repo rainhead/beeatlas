@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: verifying
+status: executing
 stopped_at: Phase 171 UI-SPEC approved
-last_updated: "2026-06-27T20:02:35.687Z"
-last_activity: 2026-06-27 -- Phase 170 complete + deployed (source→tier/record_type facets)
+last_updated: "2026-06-27T20:25:25.771Z"
+last_activity: 2026-06-27 -- Phase 171 planning complete
 progress:
   total_phases: 38
   completed_phases: 18
-  total_plans: 40
+  total_plans: 43
   completed_plans: 40
   percent: 47
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion 
 
 Phase: 170 (source-provenance-facets-rebuild) — COMPLETE
 Plan: 2 of 2 — complete
-Status: Phase 170 complete — verification passed, operator UAT 2/2, deployed to production; next: Phase 171
-Last activity: 2026-06-27 -- Phase 170 complete + deployed (source→tier/record_type facets)
+Status: Ready to execute
+Last activity: 2026-06-27 -- Phase 171 planning complete
 
 ## Milestone Overview
 
