@@ -2,10 +2,17 @@
 phase: 171
 plan: 03
 type: human-uat
-status: pending-operator
+status: passed
 created: 2026-06-27
+approved: 2026-06-27
 auto_advance: false
 ---
+
+> **Operator UAT: APPROVED 2026-06-27.** Verified across iterative revisions —
+> real `<table>` feed (Date · Catalog · Event · Taxon · Determiner), chronological
+> Identified/Re-identified labels, catalog label-number linked to Ecdysis,
+> rank-aware BeeAtlas links + iNaturalist `/taxa/{name}` fallback for non-bee taxa,
+> per-collector Atom feed subscribe link, empty-state + pagination.
 
 # Phase 171 — Human UAT Checklist: Per-Collector Event Stream
 
