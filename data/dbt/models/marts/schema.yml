@@ -58,7 +58,9 @@ models:
         data_type: varchar
       - name: ecoregion_l3
         data_type: varchar
-      - name: source
+      - name: tier
+        data_type: varchar
+      - name: record_type
         data_type: varchar
       - name: image_url
         data_type: varchar
@@ -99,7 +101,7 @@ models:
               name: not_null_occurrences_collector_inat_login_waba
               config:
                 severity: error
-                where: "source in ('waba_sample', 'waba_specimen')"
+                where: "record_type in ('provisional_sample', 'waba_specimen')"
           # D-06 (Phase 167): ecdysis has ~2,767 unresolvable NULLs (specimens with no matched
           # iNat observation). Warn-only; surfaces drift count each build without blocking nightly.
           # Baseline 2026-06-24: 2,767 of 48,801 ecdysis rows. Warn count = current drift.
@@ -107,7 +109,7 @@ models:
               name: not_null_occurrences_collector_inat_login_ecdysis_drift
               config:
                 severity: warn
-                where: "source = 'ecdysis'"
+                where: "record_type = 'specimen'"
       # D-05/D-06 (Phase 168): the "Identified" timeline anchor. VARCHAR keeps year-only
       # partials (D-06) — a DATE column would NULL ~26k year-only ecdysis IDs. Derived only
       # for ARM 1 (parsed date_identified); NULL for the other four arms (D-08/D-09).

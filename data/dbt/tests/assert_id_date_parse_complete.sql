@@ -30,7 +30,7 @@ SELECT
     src.date_identified
 FROM {{ ref('stg_ecdysis__occurrences') }} src
 JOIN {{ ref('occurrences') }} m ON CAST(m.ecdysis_id AS VARCHAR) = src.id
-WHERE m.source = 'ecdysis'
+WHERE m.record_type = 'specimen'
   AND (
         regexp_full_match(trim(src.date_identified), '^[0-9]{4}$')
      OR regexp_full_match(trim(src.date_identified), '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')

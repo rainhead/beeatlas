@@ -83,7 +83,7 @@ SELECT
     j.is_provisional,
     j.canonical_name,
     j.taxon_id,
-    j.source, j.image_url, j.obs_url, j.user_login, j.license,
+    j.tier, j.record_type, j.image_url, j.obs_url, j.user_login, j.license,
     fc.county, fe.ecoregion_l3,
     j.checklist_id,
     j.verbatim_name,
