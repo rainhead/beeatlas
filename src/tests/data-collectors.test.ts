@@ -1,5 +1,6 @@
 // Phase 169 Wave 0 — RED contract for _data/collectors.js (PAGE-01, D-09). Mirrors data-places.test.ts.
 // Phase 171 Wave 0 — STREAM-01/02/03 event-feed artifact-shape assertions (RED until Task 2 generates artifacts).
+// Phase 171 Plan 02 — loader-contract assertion: collectorEventPages Array (STREAM-03).
 
 import { describe, test, expect, beforeAll } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -43,6 +44,23 @@ describe('_data/collectors.js (PAGE-01, D-09)', () => {
   });
 
   test('does NOT read parquet (Pitfall #8 — HMR)', () => {
+    const src = readFileSync(resolve(ROOT, '_data/collectors.js'), 'utf-8');
+    expect(src).not.toMatch(/parquet/i);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 171 Plan 02 — loader-contract: the _data/collectors.js default export must expose
+// collectorEventPages. Under vitest (ELEVENTY_RUN_MODE unset) the guard returns []; assert
+// Array-ness only (not non-empty — that lives in the artifact-shape block below).
+// ---------------------------------------------------------------------------
+
+describe('_data/collectors.js loader contract — Phase 171 (STREAM-03)', () => {
+  test('default export has a collectorEventPages property that is an Array', () => {
+    expect(Array.isArray((collectors as any).collectorEventPages)).toBe(true);
+  });
+
+  test('does NOT read parquet (extended file — Pitfall #8)', () => {
     const src = readFileSync(resolve(ROOT, '_data/collectors.js'), 'utf-8');
     expect(src).not.toMatch(/parquet/i);
   });
