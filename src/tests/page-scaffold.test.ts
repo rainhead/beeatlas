@@ -38,8 +38,16 @@ describe('_pages/collector-events-page.njk (Phase 171 — sub-page template, STR
     expect(src).toMatch(/\/collectors\/\{\{ evpage\.login \| urlencode \}\}\/page\/\{\{ evpage\.page_num \}\}\/index\.html/);
   });
 
-  test('collector-detail.njk contains class="event-feed" (feed section wired, STREAM-01)', () => {
-    expect(detailSrc).toMatch(/class="event-feed"/);
+  test('collector-detail.njk renders <table class="event-feed"> with <thead> (table conversion, STREAM-01)', () => {
+    expect(detailSrc).toMatch(/<table\s+class="event-feed"/);
+    expect(detailSrc).toMatch(/<thead>/);
+    expect(detailSrc).toMatch(/<th\s+scope="col">/);
+    expect(detailSrc).toMatch(/<td\s+class="event-date"/);
+  });
+
+  test('both templates wrap the table in an overflow-x:auto container (.event-feed-wrap)', () => {
+    expect(detailSrc).toMatch(/class="event-feed-wrap"/);
+    expect(src).toMatch(/class="event-feed-wrap"/);
   });
 
   test('neither template contains <script (JS-free invariant — Pitfall 5)', () => {

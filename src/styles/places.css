@@ -61,32 +61,39 @@
   margin-top: 1.5rem; /* lg: clear space below the atlas link above */
 }
 
-.event-feed {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Horizontal-scroll wrapper for narrow screens */
+.event-feed-wrap {
+  overflow-x: auto;
 }
 
-.event-feed .event-row {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;          /* mobile: long taxon names wrap onto a second line */
-  gap: 0.5rem;              /* sm between inline elements */
-  padding: 0.5rem 0;        /* sm top/bottom */
+table.event-feed {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table.event-feed th {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.5rem 0.75rem;    /* sm block, 12px inline */
+  border-bottom: 2px solid var(--border, #ddd);
+  white-space: nowrap;
+}
+
+table.event-feed td {
+  padding: 0.5rem 0.75rem;    /* sm block, 12px inline */
   border-bottom: 1px solid var(--border, #ddd);
+  vertical-align: baseline;
 }
 
 .event-date {
   font-size: 0.85rem;
   color: var(--text-muted, #666);
   white-space: nowrap;
-  flex: 0 0 auto;
-  min-width: 6.5rem;        /* aligns dates consistently across rows */
 }
 
 .event-type {
   font-size: 0.85rem;
-  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -94,17 +101,12 @@
 .event-type--identified  { color: var(--accent, #2c7a2c); }
 .event-type--reidentified { color: var(--text-muted, #666); }
 
-.event-taxon {
-  flex: 1 1 auto;
-  min-width: 0;
-  /* font-size 1rem (body) — inherited from :root */
-}
+/* .event-taxon — font-size 1rem (body) inherited from :root */
 /* Taxon links inherit global <a> styles: #646cff, font-weight 500 */
 
 .event-determiner {
   font-size: 0.85rem;
   color: var(--text-muted, #666);
-  flex: 0 0 auto;
   white-space: nowrap;
 }
 
@@ -112,12 +114,10 @@
   font-size: 0.85rem;
   color: var(--text-muted, #666);
   font-style: italic;
-  flex: 0 0 auto;
 }
 
 .event-catalog {
   font-size: 0.85rem;
-  flex: 0 0 auto;
   white-space: nowrap;
 }
 

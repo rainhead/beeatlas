@@ -25,37 +25,51 @@ layout: default.njk
   {%- if collector.total_event_count > 0 -%}
   <section class="event-feed-section">
     <h2>Collection history</h2>
-    <ol class="event-feed" reversed>
+    <div class="event-feed-wrap">
+    <table class="event-feed">
+      <thead>
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Catalog</th>
+          <th scope="col">Event</th>
+          <th scope="col">Taxon</th>
+          <th scope="col">Determiner</th>
+        </tr>
+      </thead>
+      <tbody>
       {%- for event in collector.first_page_events -%}
       {%- if event.event_type == 'Collected' -%}
-      <li class="event-row{%- if event.is_pending %} event-row--pending{% endif %}">
-        <time class="event-date" datetime="{{ event.event_date }}">{{ event.event_date }}</time>
-        {%- if event.ecdysis_id %}<span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a></span>{% endif %}
-        <span class="event-type event-type--collected">Collected</span>
-        <span class="event-taxon">
+      <tr class="event-row{%- if event.is_pending %} event-row--pending{% endif %}">
+        <td class="event-date"><time datetime="{{ event.event_date }}">{{ event.event_date }}</time></td>
+        <td class="event-catalog">{%- if event.ecdysis_id %}<a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a>{% endif %}</td>
+        <td class="event-type event-type--collected">Collected</td>
+        <td class="event-taxon">
           {%- if event.species_slug and not event.is_pending %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
           {%- elif event.inat_url and not event.is_pending %}<a href="{{ event.inat_url }}" rel="external" class="event-taxon--external">{{ event.species_name }}</a>
           {%- else %}{{ event.species_name }}{% endif %}
-        </span>
-        {%- if event.is_pending %}<span class="event-pending">awaiting ID</span>{% endif %}
-      </li>
+          {%- if event.is_pending %} <span class="event-pending">awaiting ID</span>{% endif %}
+        </td>
+        <td class="event-determiner"></td>
+      </tr>
       {%- else -%}
       {%- set id_type_class = 'event-type--identified' if event.is_current else 'event-type--reidentified' -%}
       {%- set id_label = 'Re-identified' if event.is_reidentification else 'Identified' -%}
-      <li class="event-row{%- if event.is_reidentification %} event-row--reidentified{% endif %}">
-        <time class="event-date" datetime="{{ event.event_date }}">{{ event.event_date }}</time>
-        {%- if event.ecdysis_id %}<span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a></span>{% endif %}
-        <span class="event-type {{ id_type_class }}">{{ id_label }}</span>
-        <span class="event-taxon">
+      <tr class="event-row{%- if event.is_reidentification %} event-row--reidentified{% endif %}">
+        <td class="event-date"><time datetime="{{ event.event_date }}">{{ event.event_date }}</time></td>
+        <td class="event-catalog">{%- if event.ecdysis_id %}<a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a>{% endif %}</td>
+        <td class="event-type {{ id_type_class }}">{{ id_label }}</td>
+        <td class="event-taxon">
           {%- if event.species_slug %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
           {%- elif event.inat_url %}<a href="{{ event.inat_url }}" rel="external" class="event-taxon--external">{{ event.species_name }}</a>
           {%- else %}{{ event.species_name }}{% endif %}
-        </span>
-        {%- if event.determiner %}<span class="event-determiner">by {{ event.determiner }}</span>{% endif %}
-      </li>
+        </td>
+        <td class="event-determiner">{%- if event.determiner %}by {{ event.determiner }}{% endif %}</td>
+      </tr>
       {%- endif -%}
       {%- endfor -%}
-    </ol>
+      </tbody>
+    </table>
+    </div>
     {%- if collector.total_event_pages > 1 -%}
     <nav class="event-pagination" aria-label="Event history pages">
       <a href="/collectors/{{ collector.login | urlencode }}/page/2/">Older events →</a>
