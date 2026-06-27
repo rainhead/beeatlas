@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: verifying
-stopped_at: Phase 171 UI-SPEC approved
-last_updated: "2026-06-27T21:09:08.823Z"
+status: ready_to_plan
+stopped_at: Phase 171 complete (3/3) — ready to discuss Phase 999.11
+last_updated: 2026-06-27T23:37:50.870Z
 last_activity: 2026-06-27
 progress:
   total_phases: 38
   completed_phases: 19
   total_plans: 43
-  completed_plans: 43
+  completed_plans: 54
   percent: 50
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 171 — per-collector-event-stream
+**Current focus:** Phase 999.11 — add federal wilderness areas as regions
 
 ## Current Position
 
-Phase: 171 (per-collector-event-stream) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 999.11
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-27
 
 ## Milestone Overview
