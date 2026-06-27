@@ -149,6 +149,43 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
     }
   });
 
+  // Phase 171 iNat-fallback: inat_url is string or null/undefined on every event item.
+  test('first_page_events items have inat_url as string or null (Part 2 iNat fallback)', () => {
+    for (const c of collectorsRaw) {
+      for (const ev of c.first_page_events as any[]) {
+        expect(
+          ev.inat_url === null || ev.inat_url === undefined || typeof ev.inat_url === 'string',
+          `inat_url must be string or null/undefined in ${c.login}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  // Phase 171 iNat-fallback: species_slug and inat_url are mutually exclusive.
+  test('species_slug and inat_url are mutually exclusive; at least one event has inat_url (Part 2)', () => {
+    let foundInatUrl = false;
+    for (const c of collectorsRaw) {
+      for (const ev of c.first_page_events as any[]) {
+        if (ev.inat_url) {
+          expect(
+            ev.species_slug,
+            `species_slug must be null/absent when inat_url is set (${c.login})`,
+          ).toBeFalsy();
+          expect(typeof ev.inat_url).toBe('string');
+          expect(
+            (ev.inat_url as string).startsWith('https://www.inaturalist.org/taxa/search?q='),
+            `inat_url must use iNat taxa/search endpoint; got ${ev.inat_url}`,
+          ).toBe(true);
+          foundInatUrl = true;
+        }
+      }
+    }
+    expect(
+      foundInatUrl,
+      'at least one event in committed collectors.json must have inat_url (non-bee determination exists)',
+    ).toBe(true);
+  });
+
   // STREAM-03: collector_event_pages.json is a non-empty array (pagination fires in production)
   test('collector_event_pages.json is a non-empty array (STREAM-03)', () => {
     expect(Array.isArray(collectorEventPagesRaw)).toBe(true);

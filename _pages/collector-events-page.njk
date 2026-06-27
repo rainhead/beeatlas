@@ -21,6 +21,7 @@ layout: default.njk
         <span class="event-type event-type--collected">Collected</span>
         <span class="event-taxon">
           {%- if event.species_slug and not event.is_pending %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
+          {%- elif event.inat_url and not event.is_pending %}<a href="{{ event.inat_url }}" rel="external" class="event-taxon--external">{{ event.species_name }}</a>
           {%- else %}{{ event.species_name }}{% endif %}
         </span>
         {%- if event.is_pending %}<span class="event-pending">awaiting ID</span>{% endif %}
@@ -34,6 +35,7 @@ layout: default.njk
         <span class="event-type {{ id_type_class }}">{{ id_label }}</span>
         <span class="event-taxon">
           {%- if event.species_slug %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
+          {%- elif event.inat_url %}<a href="{{ event.inat_url }}" rel="external" class="event-taxon--external">{{ event.species_name }}</a>
           {%- else %}{{ event.species_name }}{% endif %}
         </span>
         {%- if event.determiner %}<span class="event-determiner">by {{ event.determiner }}</span>{% endif %}

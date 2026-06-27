@@ -87,32 +87,54 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
     return out_path
 
 
-def _write_test_species_parquet(tmp_path: Path) -> Path:
-    """Write species.parquet with one species entry: Lasioglossum albohirtum.
+def _write_test_species_json(tmp_path: Path) -> Path:
+    """Write species.json with Lasioglossum albohirtum (species) + Lasioglossum/Hylaeus (genera).
 
     Provides:
     - species match for 'lasioglossum albohirtum' → slug='Lasioglossum/albohirtum'
-    - genus_map entry: 'lasioglossum' → 'Lasioglossum' (for genus-tier slug)
+    - genus page for 'lasioglossum' → slug='Lasioglossum'
+    - genus page for 'hylaeus' → slug='Hylaeus' (for first-token genus fallback tests)
     """
-    schema = pa.schema([
-        ("canonical_name", pa.string()),
-        ("scientificName", pa.string()),
-        ("genus", pa.string()),
-        ("specific_epithet", pa.string()),
-        ("slug", pa.string()),
-    ])
-    table = pa.table(
+    data = [
         {
-            "canonical_name":   ["lasioglossum albohirtum"],
-            "scientificName":   ["Lasioglossum albohirtum"],
-            "genus":            ["Lasioglossum"],
-            "specific_epithet": ["albohirtum"],
-            "slug":             ["Lasioglossum/albohirtum"],
+            "canonical_name": "lasioglossum albohirtum",
+            "scientificName": "Lasioglossum albohirtum",
+            "slug": "Lasioglossum/albohirtum",
+            "specific_epithet": "albohirtum",
+            "genus": "Lasioglossum",
         },
-        schema=schema,
-    )
-    out_path = tmp_path / "species.parquet"
-    pq.write_table(table, out_path)
+        {
+            "canonical_name": "lasioglossum",
+            "scientificName": "Lasioglossum",
+            "slug": "Lasioglossum",
+            "specific_epithet": None,
+            "genus": None,
+        },
+        {
+            "canonical_name": "hylaeus",
+            "scientificName": "Hylaeus",
+            "slug": "Hylaeus",
+            "specific_epithet": None,
+            "genus": None,
+        },
+    ]
+    out_path = tmp_path / "species.json"
+    out_path.write_text(json.dumps(data), encoding="utf-8")
+    return out_path
+
+
+def _write_test_higher_taxa_json(tmp_path: Path) -> Path:
+    """Write higher_taxa.json with Lasioglossum and Hylaeus genera.
+
+    Provides the known-bee-genus set used by _load_species_maps (higher_taxa.json path).
+    """
+    data = [
+        {"name": "Lasioglossum", "rank": "genus"},
+        {"name": "Hylaeus", "rank": "genus"},
+        {"name": "Dialictus", "rank": "subgenus"},
+    ]
+    out_path = tmp_path / "higher_taxa.json"
+    out_path.write_text(json.dumps(data), encoding="utf-8")
     return out_path
 
 
@@ -212,7 +234,8 @@ def _setup_env(tmp_path: Path, monkeypatch) -> object:
     importlib.reload(collectors_events_export)
 
     _write_test_occurrences_parquet(tmp_path)
-    _write_test_species_parquet(tmp_path)
+    _write_test_species_json(tmp_path)
+    _write_test_higher_taxa_json(tmp_path)
     _write_seed_collectors_json(tmp_path)
     _setup_ecdysis_duckdb(tmp_path)
 
@@ -586,4 +609,163 @@ def test_is_reidentification_chronological_label(tmp_path, monkeypatch):
         )
         assert ev["is_reidentification"] is None, (
             f"Collected events must have is_reidentification=None; got {ev.get('is_reidentification')!r}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# New: Part 1 + Part 2 — iNat URL fallback for non-bee; improved bee resolution
+# ---------------------------------------------------------------------------
+
+# Separate DuckDB coreid for the iNat-URL test (distinct from _ECDYSIS_ID=42)
+_INAT_COREID = "99"
+
+
+def _setup_ecdysis_duckdb_with_nonbee(tmp_path: Path) -> Path:
+    """Create a DuckDB seeded with identifications covering the four D-CARD-02 cases.
+
+    coreid=99 (alice's specimen) — four identification rows:
+    - 'Lasioglossum (Dialictus)': subgenus-parenthetical bee → slug='Lasioglossum'
+    - 'Hylaeus polifolii': first-token genus fallback (genus col empty) → slug='Hylaeus'
+    - 'Diptera': non-bee named determination → inat_url set, slug=None
+    - 'undetermined': undetermined → neither slug nor inat_url
+    """
+    db_path = tmp_path / "test_inat.duckdb"
+    con = duckdb.connect(str(db_path))
+    con.execute("CREATE SCHEMA IF NOT EXISTS ecdysis_data")
+    con.execute("""
+        CREATE TABLE ecdysis_data.identifications (
+            coreid                  VARCHAR,
+            modified                TIMESTAMPTZ,
+            identified_by           VARCHAR,
+            scientific_name         VARCHAR,
+            date_identified         VARCHAR,
+            identification_is_current VARCHAR,
+            genus                   VARCHAR
+        )
+    """)
+    con.execute(
+        """
+        INSERT INTO ecdysis_data.identifications VALUES
+            (?, TIMESTAMPTZ '2024-01-10 10:00:00+00', 'Dr A', 'Lasioglossum (Dialictus)', '2024', '0', ''),
+            (?, TIMESTAMPTZ '2024-02-10 10:00:00+00', 'Dr B', 'Hylaeus polifolii',        '2024', '0', ''),
+            (?, TIMESTAMPTZ '2024-03-10 10:00:00+00', 'Dr C', 'Diptera',                  '2024', '0', ''),
+            (?, TIMESTAMPTZ '2024-04-10 10:00:00+00', 'Dr D', 'undetermined',             '2024', '1', '')
+        """,
+        [_INAT_COREID, _INAT_COREID, _INAT_COREID, _INAT_COREID],
+    )
+    con.close()
+    return db_path
+
+
+def _write_inat_test_occurrences_parquet(tmp_path: Path) -> Path:
+    """Write minimal occurrences.parquet with alice's ecdysis specimen (coreid=99)."""
+    schema = pa.schema([
+        ("collector_inat_login", pa.string()),
+        ("recordedBy", pa.string()),
+        ("host_inat_login", pa.string()),
+        ("ecdysis_id", pa.int64()),
+        ("record_type", pa.string()),
+        ("date", pa.string()),
+        ("canonical_name", pa.string()),
+        ("catalog_number", pa.string()),
+    ])
+    table = pa.table(
+        {
+            "collector_inat_login": ["alice"],
+            "recordedBy":           ["Alice A"],
+            "host_inat_login":      ["alice"],
+            "ecdysis_id":           [int(_INAT_COREID)],
+            "record_type":          ["ecdysis"],
+            "date":                 ["2023-06-01"],
+            "canonical_name":       ["lasioglossum albohirtum"],
+            "catalog_number":       ["WSDA_INAT_99"],
+        },
+        schema=schema,
+    )
+    out_path = tmp_path / "occurrences.parquet"
+    pq.write_table(table, out_path)
+    return out_path
+
+
+def test_nonbee_inat_url_and_bee_resolution(tmp_path, monkeypatch):
+    """D-CARD-02 Part 1 + Part 2: iNat URL for non-bee; bees resolve to species_slug.
+
+    - 'Lasioglossum (Dialictus)': subgenus-parenthetical → species_slug='Lasioglossum', no inat_url
+    - 'Hylaeus polifolii': first-token genus fallback (genus col empty) → species_slug='Hylaeus', no inat_url
+    - 'Diptera': non-bee named determination → inat_url set, species_slug=None
+    - 'undetermined': undetermined → neither species_slug nor inat_url (plain text)
+    """
+    db_path = tmp_path / "test_inat.duckdb"
+    monkeypatch.setenv("DB_PATH", str(db_path))
+    monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
+    monkeypatch.setenv("EVENT_CHUNK_SIZE", "100")
+
+    import collectors_events_export
+    importlib.reload(collectors_events_export)
+
+    _write_inat_test_occurrences_parquet(tmp_path)
+    _write_test_species_json(tmp_path)
+    _write_test_higher_taxa_json(tmp_path)
+    _write_seed_collectors_json(tmp_path)
+    _setup_ecdysis_duckdb_with_nonbee(tmp_path)
+
+    collectors_events_export.export_collectors_events_step()
+
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
+    all_events = _gather_all_events(records, sub_pages, "alice")
+
+    identified = [e for e in all_events if e["event_type"] == "Identified"]
+    # Map by the species_name field (which equals the original scientific_name for non-species matches)
+    by_name = {e["species_name"]: e for e in identified}
+
+    # --- Subgenus parenthetical: "Lasioglossum (Dialictus)" → genus slug, no inat_url ---
+    las_dialictus = by_name.get("Lasioglossum (Dialictus)")
+    assert las_dialictus is not None, "'Lasioglossum (Dialictus)' event not found"
+    assert las_dialictus["species_slug"] == "Lasioglossum", (
+        f"Subgenus-paren bee must resolve to genus slug='Lasioglossum'; "
+        f"got {las_dialictus['species_slug']!r}"
+    )
+    assert las_dialictus.get("inat_url") is None, (
+        "Bee determination (Lasioglossum (Dialictus)) must NOT have inat_url"
+    )
+
+    # --- First-token genus fallback: "Hylaeus polifolii" (genus col empty) → genus slug ---
+    hyl = by_name.get("Hylaeus polifolii")
+    assert hyl is not None, "'Hylaeus polifolii' event not found"
+    assert hyl["species_slug"] == "Hylaeus", (
+        f"First-token genus fallback must resolve to slug='Hylaeus'; got {hyl['species_slug']!r}"
+    )
+    assert hyl.get("inat_url") is None, (
+        "Bee determination (Hylaeus polifolii) must NOT have inat_url"
+    )
+
+    # --- Non-bee: "Diptera" → inat_url, no species_slug ---
+    diptera = by_name.get("Diptera")
+    assert diptera is not None, "'Diptera' event not found"
+    assert diptera["species_slug"] is None, (
+        "Non-bee determination (Diptera) must NOT resolve to a BeeAtlas slug"
+    )
+    inat = diptera.get("inat_url")
+    assert inat is not None, "Non-bee determination (Diptera) must have inat_url"
+    assert "inaturalist.org" in inat, f"inat_url must link to iNaturalist; got {inat!r}"
+    assert "Diptera" in inat, f"inat_url must include the taxon name; got {inat!r}"
+    assert inat.startswith("https://www.inaturalist.org/taxa/search?q="), (
+        f"inat_url must use the taxa/search endpoint; got {inat!r}"
+    )
+
+    # --- Undetermined: "undetermined" → neither species_slug nor inat_url ---
+    undet = by_name.get("undetermined")
+    assert undet is not None, "'undetermined' event not found"
+    assert undet["species_slug"] is None, (
+        "Undetermined must NOT have species_slug"
+    )
+    assert undet.get("inat_url") is None, (
+        "Undetermined must NOT have inat_url (plain text only)"
+    )
+
+    # --- Mutual exclusivity: no event has both species_slug and inat_url ---
+    for ev in all_events:
+        assert not (ev.get("species_slug") and ev.get("inat_url")), (
+            f"species_slug and inat_url are mutually exclusive; both set on {ev!r}"
         )

@@ -10,12 +10,23 @@ Writes:
 Runs AFTER collectors-export: reads the collectors.json written by that step and
 rewrites it with the event fields appended.
 
-D-CARD-02 slug resolution (ORCHESTRATOR CORRECTION — rank-aware):
-    1. Synonym-normalized species name matches species.parquet → /species/{Genus}/{epithet}/
+D-CARD-02 slug resolution (rank-aware, bee classification via JSON taxon files):
+    1. Synonym-normalized species name matches species.json → /species/{Genus}/{epithet}/
     2. Subspecies trinomial: strip 3rd token and retry binomial match
-    3. First token (or identifications.genus column) matches a genus in species.parquet
-       → /species/{Genus}/ (genus page)
-    4. Else (undetermined, non-bee, not-in-atlas) → species_slug=None (plain text)
+    2b. Subgenus parenthetical: "Genus (Subgenus)" → first token in genus_map → genus page
+    3. First-token genus fallback: first token of scientific_name in genus_map
+       → /species/{Genus}/ (genus page). Recovers "Hylaeus polifolii", "Lasioglossum foxii", etc.
+       when identifications.genus column is empty.
+    4. identifications.genus column fallback in genus_map → genus page
+    5. Unresolved non-bee bycatch → species_slug=None
+
+    iNat fallback (D-CARD-02 Part 2): when species_slug is None and the name is named
+    (not blank / not "undetermined"), emit inat_url for the iNaturalist taxon search page.
+    Mutually exclusive with species_slug: bee → BeeAtlas; non-bee named → iNat; undetermined → text.
+
+    genus_map is built from ASSETS_DIR/species.json (genus-level pages) +
+    ASSETS_DIR/higher_taxa.json (bee genera, rank="genus"). These are the same files
+    the frontend uses, ensuring consistent coverage of all 47 known bee genera.
 
 Usage:
     cd data && EVENT_CHUNK_SIZE=100 uv run python collectors_events_export.py
@@ -25,6 +36,7 @@ import csv
 import json
 import os
 from pathlib import Path
+from urllib.parse import quote
 
 import duckdb
 
@@ -116,27 +128,44 @@ def _load_synonyms() -> dict[str, str]:
     return synonym_map
 
 
-def _load_species_maps(
-    con: duckdb.DuckDBPyConnection, species_parquet: Path
-) -> tuple[dict, dict]:
-    """Return (species_by_name, genus_map) from ASSETS_DIR/species.parquet.
+def _load_species_maps(assets_dir: Path) -> tuple[dict, dict]:
+    """Return (species_by_name, genus_map) from species.json + higher_taxa.json.
 
     species_by_name : {lower(canonical_name): (slug, scientificName)}
-    genus_map       : {lower(genus): Genus}  — genus pages in the atlas
+                      All taxon pages (species + genus) from species.json.
+    genus_map       : {lower(name): slug}
+                      Genus-level pages from species.json (no specific_epithet) plus
+                      all bee genera from higher_taxa.json (rank="genus"). Covers all
+                      47 known bee genera, including those with only species pages.
+                      Used by _resolve_slug steps 2b, 3, and 4.
     """
-    rows = con.execute(
-        "SELECT lower(canonical_name), slug, scientificName, lower(genus), genus"
-        " FROM read_parquet(?)",
-        [str(species_parquet)],
-    ).fetchall()
+    species_json_path = assets_dir / "species.json"
+    higher_taxa_path = assets_dir / "higher_taxa.json"
 
     species_by_name: dict[str, tuple[str, str]] = {}
     genus_map: dict[str, str] = {}
-    for lower_cn, slug, sci_name, lower_genus, genus in rows:
-        if lower_cn and slug:
-            species_by_name[lower_cn] = (slug, sci_name or lower_cn)
-        if lower_genus and genus:
-            genus_map[lower_genus] = genus
+
+    # species.json: canonical source of taxon slugs (species + genus-level pages).
+    for entry in json.loads(species_json_path.read_text(encoding="utf-8")):
+        cn = (entry.get("canonical_name") or "").strip()
+        slug = (entry.get("slug") or "").strip()
+        sci = (entry.get("scientificName") or "").strip()
+        if cn and slug:
+            species_by_name[cn.lower()] = (slug, sci or cn)
+        # Genus-level pages have no specific_epithet; add to genus_map.
+        specific_epithet = (entry.get("specific_epithet") or "").strip()
+        if cn and slug and not specific_epithet:
+            genus_map[cn.lower()] = slug
+
+    # higher_taxa.json: bee genera (rank="genus") complete the genus_map for genera
+    # that have species pages but no separate genus-level entry in species.json.
+    for entry in json.loads(higher_taxa_path.read_text(encoding="utf-8")):
+        name = (entry.get("name") or "").strip()
+        rank = entry.get("rank") or ""
+        if name and rank == "genus":
+            # setdefault: don't overwrite if species.json already provided the slug.
+            genus_map.setdefault(name.lower(), name)
+
     return species_by_name, genus_map
 
 
@@ -174,14 +203,27 @@ def _resolve_slug(
         display = sci_name if event_type == "Collected" else species_name
         return slug, display
 
-    # Step 2: subspecies — strip 3rd token and retry
+    # Step 2: subspecies trinomial — strip 3rd token and retry
     if len(parts) >= 3:
         binomial = parts[0] + " " + parts[1]
         if binomial in species_by_name:
             slug, _ = species_by_name[binomial]
             return slug, species_name
 
-    # Step 3: first token in genus_map (e.g. "Lasioglossum" determination)
+    # Step 2b: subgenus parenthetical — "Genus (Subgenus)" → genus page.
+    # Detects the pattern where the second token is fully parenthesized, e.g.
+    # "Lasioglossum (Dialictus)" → first token "lasioglossum" in genus_map → genus page.
+    # The genus-page link (/species/{Genus}/) is the safe default; a subgenus-specific
+    # page would require a separate lookup not warranted for this pattern.
+    if len(parts) == 2 and parts[1].startswith("(") and parts[1].endswith(")"):
+        genus_token = parts[0]
+        if genus_token in genus_map:
+            return genus_map[genus_token], species_name
+
+    # Step 3: first-token genus fallback.
+    # When the full name and binomial don't match, take the first whitespace token of
+    # scientific_name as the genus. Recovers names like "Hylaeus polifolii" or
+    # "Lasioglossum foxii" when identifications.genus is empty (step 4 wouldn't fire).
     first_token = parts[0] if parts else ""
     if first_token and first_token in genus_map:
         return genus_map[first_token], species_name
@@ -192,7 +234,7 @@ def _resolve_slug(
         if genus_lower in genus_map:
             return genus_map[genus_lower], species_name
 
-    # Step 5: unresolved (undetermined, non-bee, not-in-atlas)
+    # Step 5: unresolved — non-bee bycatch (Diptera, Chrysididae, etc.) or truly undetermined
     return None, species_name
 
 
@@ -211,25 +253,32 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
     ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
     occ_parquet = ASSETS_DIR / "occurrences.parquet"
-    species_parquet = ASSETS_DIR / "species.parquet"
+    species_json = ASSETS_DIR / "species.json"
+    higher_taxa_json = ASSETS_DIR / "higher_taxa.json"
     collectors_json = ASSETS_DIR / "collectors.json"
 
     if not occ_parquet.exists():
         raise FileNotFoundError(
             f"{occ_parquet} not found — run dbt-build before collectors-events-export"
         )
-    if not species_parquet.exists():
+    if not species_json.exists():
         raise FileNotFoundError(
-            f"{species_parquet} not found — run species-export before collectors-events-export"
+            f"{species_json} not found — run species-export before collectors-events-export"
+        )
+    if not higher_taxa_json.exists():
+        raise FileNotFoundError(
+            f"{higher_taxa_json} not found — run higher-taxa-export before collectors-events-export"
         )
     if not collectors_json.exists():
         raise FileNotFoundError(
             f"{collectors_json} not found — run collectors-export before collectors-events-export"
         )
 
-    # Load slug resolution dictionaries (synonym map + species_by_name + genus_map)
+    # Load slug resolution dictionaries (synonym map + species_by_name + genus_map).
+    # species.json + higher_taxa.json are the same files the frontend uses, ensuring
+    # consistent coverage of all 47 known bee genera.
     synonym_map = _load_synonyms()
-    species_by_name, genus_map = _load_species_maps(con, species_parquet)
+    species_by_name, genus_map = _load_species_maps(ASSETS_DIR)
 
     # Single batch query: all WABA collectors' events in one pass (Pattern 3).
     # The query JOINs ecdysis_data.identifications (live duckdb) with
@@ -250,6 +299,9 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
             key = (login, ecdysis_id)
             if key not in earliest_id_ts or sort_ts < earliest_id_ts[key]:
                 earliest_id_ts[key] = sort_ts
+
+    # Names that resolve to None slug AND should remain plain text (not iNat URL).
+    _UNDETERMINED: frozenset[str] = frozenset({"undetermined"})
 
     # Pass 2: Group rows by login preserving ORDER BY order (login ASC, sort_ts DESC).
     events_by_login: dict[str, list[dict]] = {}
@@ -277,11 +329,22 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
         else:
             is_reidentification = None
 
+        # iNat fallback: named non-bee determinations (slug=None, not undetermined) get
+        # an iNaturalist taxon-search URL. Mutually exclusive with species_slug.
+        # URL-encode species_name (the raw SQL value) so special chars are safe.
+        inat_url: str | None = None
+        if slug is None and display and display.lower().strip() not in _UNDETERMINED:
+            inat_url = (
+                "https://www.inaturalist.org/taxa/search?q="
+                + quote(species_name or display)
+            )
+
         event: dict = {
             "event_type": event_type,
             "event_date": event_date,
             "species_name": display,
             "species_slug": slug,
+            "inat_url": inat_url,
             "determiner": determiner,
             "is_current": bool(is_current) if is_current is not None else None,
             "is_pending": bool(is_pending),
