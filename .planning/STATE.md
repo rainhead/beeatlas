@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
-stopped_at: Phase 170 context gathered
-last_updated: "2026-06-27T02:06:36.870Z"
-last_activity: 2026-06-27 -- Phase 170 planning complete
+stopped_at: Phase 170-01 Tasks 1-2 done (data leg green, committed 92b5e3cd/b4456021); STOPPED at Task 3 blocking operator checkpoint (SKIP_INTEGRATION_GATE S3 publish)
+last_updated: "2026-06-27T02:16:22.306Z"
+last_activity: 2026-06-27 -- Phase 170 execution started
 progress:
   total_phases: 38
   completed_phases: 17
-  total_plans: 38
-  completed_plans: 38
+  total_plans: 40
+  completed_plans: 39
   percent: 45
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 169 — per-collector-static-pages
+**Current focus:** Phase 170 — source-provenance-facets-rebuild
 
 ## Current Position
 
-Phase: 169 (per-collector-static-pages) — COMPLETE
-Plan: 2 of 2
-Status: Ready to execute
-Last activity: 2026-06-27 -- Phase 170 planning complete
+Phase: 170 (source-provenance-facets-rebuild) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 170
+Last activity: 2026-06-27 -- Phase 170 execution started
 
 ## Milestone Overview
 
@@ -75,6 +75,7 @@ Load-bearing conventions carried from prior milestones:
 - **[Phase 167] dbt test disambiguation**: Two `not_null` tests on the same column in dbt 1.10.1 require explicit `name:` keys to avoid compilation error. Added `not_null_occurrences_collector_inat_login_waba` (D-05, error) and `not_null_occurrences_collector_inat_login_ecdysis_drift` (D-06, warn) — this is the required pattern for any future phase adding multiple severity-scoped tests on a single column.
 - **[Phase 167] collector_inat_login shipped (dbt contract 36→37)**: Column live in local sandbox/occurrences.parquet and occurrences.db. Awaiting operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to land in live S3 (Task 3 checkpoint).
 - [Phase 168]: id_date column shipped to local mart (dbt contract 37 to 38): VARCHAR parse of ecdysis date_identified in int_combined ARM 1 (26,565 kept; year-only + full ISO verbatim, garbage NULLed); ARMs 2-5 NULL; assert_id_date_parse_complete warn singular test. Awaiting operator SKIP_INTEGRATION_GATE nightly to land in live S3 (Task 4, gated behind Phase 167 37-col landing).
+- [Phase 170-01]: marts/occurrences source decomposed → tier (atlas/other) + record_type (specimen/provisional_sample/waba_specimen/inat_expert/checklist); arm→tier mapping lives only in int_combined.sql; contract 38→39. Data leg locally green (PASS=92); AWAITING operator SKIP_INTEGRATION_GATE nightly to land in S3 before Plan 02 deploys (D-04).
 
 ### Pending Todos
 
@@ -85,6 +86,7 @@ Load-bearing conventions carried from prior milestones:
 
 - Phase 163 (Ecdysis auth) ⚠ blocks nightly pipeline. Decouple: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses cached ZIP as immediate workaround.
 - [Phase 168 Task 4] Awaiting operator SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to land id_date (38 cols) in live S3; gated behind Phase 167 37-col S3 landing (D-12, confirmed live per commit 69821883).
+- Phase 170-01 Task 3: BLOCKING operator checkpoint — run one-time SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to publish occurrences contract (tier+record_type, no source, 38→39 cols) to S3 ALONE before Plan 02 deploys (D-04). Resume signal: 'published'.
 
 ## Deferred Items
 
@@ -101,9 +103,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-27T01:44:28.202Z
-Stopped at: Phase 170 context gathered
-Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-CONTEXT.md
+Last session: 2026-06-27T02:16:22.296Z
+Stopped at: Phase 170-01 Tasks 1-2 done (data leg green, committed 92b5e3cd/b4456021); STOPPED at Task 3 blocking operator checkpoint (SKIP_INTEGRATION_GATE S3 publish)
+Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-01-SUMMARY.md
 
 ## Operator Next Steps
 

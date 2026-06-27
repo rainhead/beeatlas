@@ -1709,7 +1709,7 @@ Plans:
 **Plans**: 2 plans (2 waves — sequential; Wave B depends on Wave A's data published to S3 first, data-before-code)Plans:
 **Wave 1**
 
-- [ ] 170-01-PLAN.md — Wave A (data leg): int_combined projects tier + record_type (drop source, inat_obs→inat_expert), occurrences/schema.yml contract bump (38→39), collectors_export + sqlite_export _GEO_COLS predicates; one-time SKIP_INTEGRATION_GATE=1 S3 publish [PROV-01; D-02..D-07]
+- [x] 170-01-PLAN.md — Wave A (data leg): int_combined projects tier + record_type (drop source, inat_obs→inat_expert), occurrences/schema.yml contract bump (38→39), collectors_export + sqlite_export _GEO_COLS predicates; one-time SKIP_INTEGRATION_GATE=1 S3 publish [PROV-01; D-02..D-07]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
