@@ -704,3 +704,39 @@ A2 note: Nunjucks does support integer arithmetic in `{{ }}` expressions, but th
 
 **Research date:** 2026-06-27
 **Valid until:** 2026-09-27 (stable domain; 90 days)
+
+---
+
+## ⚠ ORCHESTRATOR CORRECTION (2026-06-27) — taxon link resolution is RANK-AWARE, not species-only
+
+The "Q5 / ~33% resolve to /species/" finding above UNDERSTATES linkability. The
+BeeAtlas site generates taxon pages at **every rank**, not just species:
+
+- `_pages/species-detail.njk` → `/species/{slug}/` (species)
+- `_pages/genus.njk` → `/species/{Genus}/` (e.g. `/species/Agapostemon/` EXISTS)
+- `_pages/subgenus.njk` → `/species/{Genus}/{Subgenus}/`
+- `_pages/tribe.njk` → `/species/tribe/{Tribe}/`, plus `subfamily.njk`
+- Linkable name set = `public/data/species.json` (species, has `slug`) ∪
+  `public/data/higher_taxa.json` (genus/subgenus/tribe/subfamily, keyed by rank+name).
+
+**Corrected resolution of CURRENT determinations (45,558), measured against the full set:**
+- 53% → species page (24,102)
+- 42% → literally `undetermined` / blank (18,914) — CORRECTLY no link
+- ~6% → real misses (2,529): non-bee bycatch (`Diptera` → text, correct) +
+  **subspecies trinomials** (`Eucera frater frater` misses because species.json
+  keys on the binomial `Eucera frater` — STRIP the infraspecific epithet to link).
+
+**`specific_epithet` and `taxon_rank` columns in `ecdysis_data.identifications`
+are SPARSE/unreliable** — do NOT infer rank from them. Use `scientific_name`
+(authoritative string) + the `genus` column. Genus-only determinations carry the
+bare genus in the `genus` column (often with blank scientific_name); they appear
+mostly in the SUPERSEDED re-ID history (D-FEED-02) and SHOULD link to the genus page.
+
+**Planner: implement D-CARD-02 link resolution RANK-AWARE:**
+1. binomial `scientific_name` matches species.json (lower(canonical_name)) → `/species/{slug}/`
+2. else strip a 3rd token (subspecies) and retry species match
+3. else `genus` column matches a genus page → `/species/{Genus}/`
+4. else (undetermined / non-bee / not-in-atlas) → render species name as plain text, no link
+Apply the Phase 123 `texanus→subtilior` synonym so clean species names don't miss.
+Expect a HIGH link rate on real determinations — the earlier 20–33% figures were
+measurement artifacts (species-only match + trusting the sparse specific_epithet column).
