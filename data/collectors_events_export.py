@@ -51,7 +51,8 @@ WITH collector_specimens AS (
         ecdysis_id,
         date,
         record_type,
-        canonical_name
+        canonical_name,
+        catalog_number
     FROM read_parquet(?)
     WHERE collector_inat_login IS NOT NULL
       AND (ecdysis_id IS NOT NULL OR record_type = 'waba_specimen')
@@ -66,7 +67,8 @@ collected_events AS (
         (cs.record_type = 'waba_specimen' AND cs.ecdysis_id IS NULL)   AS is_pending,
         TRY_CAST(cs.date || 'T00:00:00+00:00' AS TIMESTAMPTZ)          AS sort_ts,
         cs.ecdysis_id                                                   AS ecdysis_id,
-        NULL::VARCHAR                                                   AS genus
+        NULL::VARCHAR                                                   AS genus,
+        cs.catalog_number                                               AS catalog_number
     FROM collector_specimens cs
 ),
 identified_events AS (
@@ -79,7 +81,8 @@ identified_events AS (
         false                                                           AS is_pending,
         i.modified                                                      AS sort_ts,
         cs.ecdysis_id                                                   AS ecdysis_id,
-        NULLIF(i.genus, '')                                             AS genus
+        NULLIF(i.genus, '')                                             AS genus,
+        cs.catalog_number                                               AS catalog_number
     FROM collector_specimens cs
     JOIN ecdysis_data.identifications i
         ON i.coreid = CAST(cs.ecdysis_id AS VARCHAR)
@@ -233,12 +236,27 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
     # read_parquet(occurrences.parquet), so the connection must be open.
     rows = con.execute(_QUERY, [str(occ_parquet)]).fetchall()
 
-    # Group rows by login preserving ORDER BY order (login ASC, sort_ts DESC).
+    # Pass 1: find the earliest sort_ts for each (login, ecdysis_id) pair among
+    # Identified events. This determines which determination was first chronologically
+    # (is_reidentification=False) vs. later (is_reidentification=True).
+    # The query returns sort_ts DESC so we track the minimum by comparing.
+    earliest_id_ts: dict[tuple, object] = {}
+    for row in rows:
+        (
+            login, event_type, _species_name, _determiner, _is_current,
+            _is_pending, sort_ts, ecdysis_id, _genus_col, _catalog_number,
+        ) = row
+        if event_type == "Identified" and ecdysis_id is not None and sort_ts is not None:
+            key = (login, ecdysis_id)
+            if key not in earliest_id_ts or sort_ts < earliest_id_ts[key]:
+                earliest_id_ts[key] = sort_ts
+
+    # Pass 2: Group rows by login preserving ORDER BY order (login ASC, sort_ts DESC).
     events_by_login: dict[str, list[dict]] = {}
     for row in rows:
         (
             login, event_type, species_name, determiner, is_current,
-            is_pending, sort_ts, _ecdysis_id, genus_col,
+            is_pending, sort_ts, ecdysis_id, genus_col, catalog_number,
         ) = row
 
         # Compute YYYY-MM-DD display date from sort_ts (sort order implicit in array position)
@@ -250,6 +268,15 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
             synonym_map, species_by_name, genus_map,
         )
 
+        # is_reidentification: True when this Identified event is NOT the earliest
+        # determination for this specimen (chronological order, not is_current).
+        # Collected events and Identified events with no ecdysis_id carry None.
+        if event_type == "Identified" and ecdysis_id is not None:
+            key = (login, ecdysis_id)
+            is_reidentification: bool | None = (sort_ts != earliest_id_ts.get(key))
+        else:
+            is_reidentification = None
+
         event: dict = {
             "event_type": event_type,
             "event_date": event_date,
@@ -258,6 +285,9 @@ def export_collector_events(con: duckdb.DuckDBPyConnection) -> None:
             "determiner": determiner,
             "is_current": bool(is_current) if is_current is not None else None,
             "is_pending": bool(is_pending),
+            "catalog_number": catalog_number,
+            "ecdysis_id": ecdysis_id,
+            "is_reidentification": is_reidentification,
         }
         events_by_login.setdefault(login, []).append(event)
 

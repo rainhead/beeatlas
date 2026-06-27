@@ -36,26 +36,20 @@ layout: default.njk
           {%- else %}{{ event.species_name }}{% endif %}
         </span>
         {%- if event.is_pending %}<span class="event-pending">awaiting ID</span>{% endif %}
-      </li>
-      {%- elif event.is_current -%}
-      <li class="event-row">
-        <time class="event-date" datetime="{{ event.event_date }}">{{ event.event_date }}</time>
-        <span class="event-type event-type--identified">Identified</span>
-        <span class="event-taxon">
-          {%- if event.species_slug %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
-          {%- else %}{{ event.species_name }}{% endif %}
-        </span>
-        {%- if event.determiner %}<span class="event-determiner">by {{ event.determiner }}</span>{% endif %}
+        {%- if event.ecdysis_id %}<span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a></span>{% endif %}
       </li>
       {%- else -%}
-      <li class="event-row event-row--reidentified">
+      {%- set id_type_class = 'event-type--identified' if event.is_current else 'event-type--reidentified' -%}
+      {%- set id_label = 'Re-identified' if event.is_reidentification else 'Identified' -%}
+      <li class="event-row{%- if event.is_reidentification %} event-row--reidentified{% endif %}">
         <time class="event-date" datetime="{{ event.event_date }}">{{ event.event_date }}</time>
-        <span class="event-type event-type--reidentified">Re-identified</span>
+        <span class="event-type {{ id_type_class }}">{{ id_label }}</span>
         <span class="event-taxon">
           {%- if event.species_slug %}<a href="/species/{{ event.species_slug }}/">{{ event.species_name }}</a>
           {%- else %}{{ event.species_name }}{% endif %}
         </span>
         {%- if event.determiner %}<span class="event-determiner">by {{ event.determiner }}</span>{% endif %}
+        {%- if event.ecdysis_id %}<span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a></span>{% endif %}
       </li>
       {%- endif -%}
       {%- endfor -%}

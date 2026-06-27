@@ -49,10 +49,13 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
     Rows:
         alice / ecdysis_id=42   / record_type='ecdysis'       / date='2023-05-15'
                                   canonical_name='lasioglossum albohirtum'
+                                  catalog_number='WSDA_TEST_42'
         alice / ecdysis_id=None / record_type='waba_specimen' / date='2022-03-10'
                                   canonical_name='bee sp.' (unmatched → species_slug=None)
+                                  catalog_number=None (not-yet-catalogued)
         bob   / ecdysis_id=None / record_type='waba_specimen' / date='2021-06-20'
                                   canonical_name='halictus sp.' (unmatched)
+                                  catalog_number=None
 
     With EVENT_CHUNK_SIZE=2, alice's 4 events split across 2 pages (pagination fires).
     """
@@ -64,6 +67,7 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
         ("record_type", pa.string()),
         ("date", pa.string()),
         ("canonical_name", pa.string()),
+        ("catalog_number", pa.string()),
     ])
     table = pa.table(
         {
@@ -74,6 +78,7 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
             "record_type":          ["ecdysis",             "waba_specimen", "waba_specimen"],
             "date":                 ["2023-05-15",          "2022-03-10",   "2021-06-20"],
             "canonical_name":       ["lasioglossum albohirtum", "bee sp.", "halictus sp."],
+            "catalog_number":       ["WSDA_TEST_42",        None,           None],
         },
         schema=schema,
     )
@@ -456,4 +461,129 @@ def test_collector_event_pages_json_shape(tmp_path, monkeypatch):
         )
         assert len(page["events"]) > 0, (
             f"sub-page must have at least 1 event; got empty events for login={page['login']}"
+        )
+
+
+def test_catalog_number_and_ecdysis_id_fields(tmp_path, monkeypatch):
+    """Every event emits catalog_number and ecdysis_id fields.
+
+    - alice's ecdysis specimen (ecdysis_id=42, catalog_number='WSDA_TEST_42') → Collected and
+      Identified events must carry both fields.
+    - alice's waba_specimen (ecdysis_id=None, catalog_number=None) → Collected event has
+      ecdysis_id=None and catalog_number=None (empty catalog cell, no link).
+    - Covers D-CARD-03 reversal: catalog number + Ecdysis link now in scope (operator UAT).
+    """
+    mod = _setup_env(tmp_path, monkeypatch)
+    mod.export_collectors_events_step()
+
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
+    all_events = _gather_all_events(records, sub_pages, "alice")
+
+    # Collected event for alice's ecdysis specimen must carry catalog_number + ecdysis_id
+    ecdysis_collected = [
+        e for e in all_events
+        if e["event_type"] == "Collected" and e.get("ecdysis_id") == _ECDYSIS_ID
+    ]
+    assert len(ecdysis_collected) == 1, (
+        f"Expected 1 Collected event with ecdysis_id={_ECDYSIS_ID}; got {len(ecdysis_collected)}"
+    )
+    ec = ecdysis_collected[0]
+    assert ec["catalog_number"] == "WSDA_TEST_42", (
+        f"Collected event for ecdysis specimen must carry catalog_number; got {ec.get('catalog_number')!r}"
+    )
+    assert ec["ecdysis_id"] == _ECDYSIS_ID, (
+        f"Collected event must carry ecdysis_id={_ECDYSIS_ID}; got {ec.get('ecdysis_id')!r}"
+    )
+
+    # Identified events for alice's ecdysis specimen must also carry catalog_number + ecdysis_id
+    identified = [e for e in all_events if e["event_type"] == "Identified"]
+    assert len(identified) == 2, f"Expected 2 Identified events; got {len(identified)}"
+    for ev in identified:
+        assert ev["ecdysis_id"] == _ECDYSIS_ID, (
+            f"Identified event must carry ecdysis_id; got {ev.get('ecdysis_id')!r}"
+        )
+        assert ev["catalog_number"] == "WSDA_TEST_42", (
+            f"Identified event must carry catalog_number; got {ev.get('catalog_number')!r}"
+        )
+
+    # alice's waba_specimen Collected event must have ecdysis_id=None + catalog_number=None
+    pending_events = [e for e in all_events if e.get("is_pending")]
+    assert len(pending_events) == 1, f"Expected 1 pending event; got {len(pending_events)}"
+    pe = pending_events[0]
+    assert pe["ecdysis_id"] is None, (
+        f"waba_specimen Collected event must have ecdysis_id=None; got {pe.get('ecdysis_id')!r}"
+    )
+    assert pe["catalog_number"] is None, (
+        f"waba_specimen Collected event must have catalog_number=None; got {pe.get('catalog_number')!r}"
+    )
+
+
+def test_is_reidentification_chronological_label(tmp_path, monkeypatch):
+    """is_reidentification is based on chronological order of modifications, not is_current.
+
+    Fixture identifications for ecdysis_id=42:
+    - Row 1 (EARLIER modified 2024-01-15): scientific_name='Lasioglossum', is_current='0'
+      → is_reidentification=False (it is the FIRST determination; label = 'Identified')
+    - Row 2 (LATER modified 2024-06-01): scientific_name='Lasioglossum albohirtum', is_current='1'
+      → is_reidentification=True (it is a LATER determination; label = 'Re-identified')
+
+    This is the operator-UAT-driven reversal of the previous is_current-based label logic.
+    is_current is still emitted and drives visual emphasis (accent color) in the templates.
+    """
+    mod = _setup_env(tmp_path, monkeypatch)
+    mod.export_collectors_events_step()
+
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
+    all_events = _gather_all_events(records, sub_pages, "alice")
+
+    identified = [e for e in all_events if e["event_type"] == "Identified"]
+    assert len(identified) == 2, f"Expected 2 Identified events; got {len(identified)}"
+
+    # All Identified events must have is_reidentification set (not None)
+    for ev in identified:
+        assert "is_reidentification" in ev, f"is_reidentification missing from event {ev!r}"
+        assert isinstance(ev["is_reidentification"], bool), (
+            f"is_reidentification must be bool for Identified events; got {ev.get('is_reidentification')!r}"
+        )
+
+    # The earliest determination (2024-01-15, Lasioglossum genus, is_current=False)
+    # must be is_reidentification=False.
+    # Events are returned sorted DESC (newest first), so this is the SECOND in the list.
+    # Use event_date to identify: '2024-01-15' vs '2024-06-01'.
+    by_date = {ev["event_date"]: ev for ev in identified}
+    earliest = by_date.get("2024-01-15")
+    later = by_date.get("2024-06-01")
+
+    assert earliest is not None, "No Identified event with event_date='2024-01-15'"
+    assert later is not None, "No Identified event with event_date='2024-06-01'"
+
+    assert earliest["is_reidentification"] is False, (
+        f"Earliest determination (2024-01-15) must have is_reidentification=False; "
+        f"got {earliest['is_reidentification']!r}"
+    )
+    assert later["is_reidentification"] is True, (
+        f"Later determination (2024-06-01) must have is_reidentification=True; "
+        f"got {later['is_reidentification']!r}"
+    )
+
+    # is_current must still be correctly emitted (orthogonal to is_reidentification)
+    assert earliest["is_current"] is False, (
+        f"Earliest determination (2024-01-15, superseded) must have is_current=False; "
+        f"got {earliest['is_current']!r}"
+    )
+    assert later["is_current"] is True, (
+        f"Later determination (2024-06-01, current) must have is_current=True; "
+        f"got {later['is_current']!r}"
+    )
+
+    # Collected events must have is_reidentification=None (field exists, but is None)
+    collected = [e for e in all_events if e["event_type"] == "Collected"]
+    for ev in collected:
+        assert "is_reidentification" in ev, (
+            f"is_reidentification must be present on Collected events too; missing from {ev!r}"
+        )
+        assert ev["is_reidentification"] is None, (
+            f"Collected events must have is_reidentification=None; got {ev.get('is_reidentification')!r}"
         )
