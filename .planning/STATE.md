@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: executing
-stopped_at: Phase 170-02 frontend leg complete (atomic commit 4513a170; tsc 0 / 877 tests pass). NOT pushed — push/deploy GATED on Plan 01 Task 3 operator S3 publish (SKIP_INTEGRATION_GATE nightly)
-last_updated: "2026-06-27T17:43:55.477Z"
-last_activity: 2026-06-27
+status: Gated on operator S3 publish (Plan 01 Task 3) before push/deploy
+stopped_at: Phase 170 executed; 8/8 must-haves verified, awaiting human UAT (2 visual items) + main push to deploy
+last_updated: "2026-06-27T17:56:52.121Z"
+last_activity: 2026-06-27 -- Phase 170-02 frontend leg shipped (atomic)
 progress:
-  total_phases: 38
-  completed_phases: 18
-  total_plans: 40
-  completed_plans: 40
-  percent: 47
+  total_phases: 27
+  completed_phases: 24
+  total_plans: 51
+  completed_plans: 51
+  percent: 89
 ---
 
 # Project State
@@ -104,9 +104,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-27T17:43:55.465Z
-Stopped at: Phase 170-02 frontend leg complete (atomic commit 4513a170; tsc 0 / 877 tests pass). Both 170 plans committed locally; push/deploy gated on Plan 01 Task 3 operator S3 publish.
-Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-02-SUMMARY.md
+Last session: 2026-06-27T17:56:52.112Z
+Stopped at: Phase 170 executed; 8/8 must-haves verified, awaiting human UAT (2 visual items) + main push to deploy
+Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-HUMAN-UAT.md
 
 ## Operator Next Steps
 
