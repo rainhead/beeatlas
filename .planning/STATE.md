@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: Phase 170 complete — verification passed, operator UAT 2/2, deployed; next Phase 171
-stopped_at: Phase 170 complete (data published to S3, frontend deployed, verification passed, operator UAT 2/2)
-last_updated: "2026-06-27T18:40:00.000Z"
+status: verifying
+stopped_at: Phase 171 context gathered
+last_updated: "2026-06-27T19:27:46.914Z"
 last_activity: 2026-06-27 -- Phase 170 complete + deployed (source→tier/record_type facets)
 progress:
-  total_phases: 27
-  completed_phases: 24
-  total_plans: 51
-  completed_plans: 51
-  percent: 89
+  total_phases: 38
+  completed_phases: 18
+  total_plans: 40
+  completed_plans: 40
+  percent: 47
 ---
 
 # Project State
@@ -104,9 +104,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-27T17:56:52.112Z
-Stopped at: Phase 170 executed; 8/8 must-haves verified, awaiting human UAT (2 visual items) + main push to deploy
-Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-HUMAN-UAT.md
+Last session: 2026-06-27T19:27:46.897Z
+Stopped at: Phase 171 context gathered
+Resume file: .planning/phases/171-per-collector-event-stream/171-CONTEXT.md
 
 ## Operator Next Steps
 
