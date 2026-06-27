@@ -2,4 +2,14 @@ timeout = 20
 max_retries = 3
 cache = true
 accept = ["100..=103", "200..=299", "429"]
-exclude = ["\\.(?:jpg|jpeg|png|gif|webp|svg|ico)$"]
+# Exclude image assets, plus the two high-volume external domains the per-collector
+# event feed (Phase 171) links to en masse — one ecdysis.org occid link per event row
+# across ~1,000 sub-pages, plus ~thousands of inaturalist.org /taxa/ links for non-bee
+# taxa. Both are rate-limited (iNat is Cloudflare-gated → 403) so checking them every
+# deploy balloons the link-check with no signal about OUR pages. Internal links and the
+# Atom feed are still validated.
+exclude = [
+  "\\.(?:jpg|jpeg|png|gif|webp|svg|ico)$",
+  "ecdysis\\.org",
+  "inaturalist\\.org",
+]
