@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: verifying
-stopped_at: Phase 169 executed; 6/6 must-haves verified, awaiting human UAT (3 items)
-last_updated: "2026-06-25T22:27:18.221Z"
+stopped_at: Phase 170 context gathered
+last_updated: "2026-06-27T01:44:28.215Z"
 last_activity: 2026-06-25
 progress:
   total_phases: 38
@@ -101,9 +101,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-25T22:27:18.179Z
-Stopped at: Phase 169 executed; 6/6 must-haves verified, awaiting human UAT (3 items)
-Resume file: .planning/phases/169-per-collector-static-pages/169-HUMAN-UAT.md
+Last session: 2026-06-27T01:44:28.202Z
+Stopped at: Phase 170 context gathered
+Resume file: .planning/phases/170-source-provenance-facets-rebuild/170-CONTEXT.md
 
 ## Operator Next Steps
 
