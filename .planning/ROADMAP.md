@@ -90,7 +90,7 @@
 
   - [x] 171-01-PLAN.md — Wave 1: `collectors_events_export.py` (feeds.py identifications join + rank-aware slug resolution + 2D chunking) extending `collectors.json` (first_page_events) and emitting committed `collector_event_pages.json`; run.py STEPS entry; Wave 0 golden-fixture pytest + vitest artifact-shape assertions [STREAM-01/02/03]
   - [x] 171-02-PLAN.md — Wave 2: `_data/collectors.js` loader (collectorEventPages + ELEVENTY_RUN_MODE HMR guard) + `collector-detail.njk` first-page feed/empty-state + new `collector-events-page.njk` sub-pages + UI-SPEC event-feed CSS [STREAM-01/02/03]
-  - [ ] 171-03-PLAN.md — Wave 3: full-suite (npm test + pytest) + build-mode sub-page generation verification + `171-HUMAN-UAT.md` blocking operator checkpoint (autonomous: false — UI phase) [STREAM-01/02/03]
+  - [x] 171-03-PLAN.md — Wave 3: full-suite (npm test + pytest) + build-mode sub-page generation verification + `171-HUMAN-UAT.md` blocking operator checkpoint (autonomous: false — UI phase) [STREAM-01/02/03]
 - [ ] **Phase 172: Accomplishment View** — County coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and active-seasons badge on the collector page
 
 <details>
