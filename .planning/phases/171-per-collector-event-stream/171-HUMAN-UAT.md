@@ -118,11 +118,23 @@ Near the bottom of the first page, find rows dated **2026-01-29** labelled **"Id
 - [ ] 4c.2 No broken anchor tag or empty `<a href="">` surrounds the word.
 - [ ] 4c.3 The row reads cleanly: `[date] Identified undetermined by unknown` (muted determiner).
 
-### 4d — Species link resolves
+### 4d — Non-bee determination links to iNaturalist (NEW — 2026-06-27 enhancement)
 
-- [ ] 4d.1 Click a species link (e.g. "Eumeninae" or "Lasioglossum" from the top of the acfranz feed) —
-      confirm it resolves to the correct `/species/{Genus}/` or `/species/{Genus}/{epithet}/` page
-      (or notes a 404 only if that species/genus has no page, which is a data gap, not a template bug).
+Near the top of the acfranz feed, find a row with taxon **"Eumeninae"** or **"Diptera"**:
+
+- [ ] 4d.1 "Eumeninae" (or "Diptera") is rendered as a **hyperlink** pointing to
+      `https://www.inaturalist.org/taxa/search?q=Eumeninae` (or `/taxa/search?q=Diptera`).
+- [ ] 4d.2 The link has `rel="external"` attribute and `class="event-taxon--external"`.
+- [ ] 4d.3 Clicking the link opens iNaturalist in a new context (browser may open new tab
+      depending on `rel` attribute behavior); the iNat search shows the taxon.
+- [ ] 4d.4 The name text (`Eumeninae`, `Diptera`, etc.) is **not** duplicated and renders cleanly
+      alongside the determiner ("by Karen W. Wright") and catalog number.
+
+### 4e — Species link resolves (formerly 4d)
+
+- [ ] 4e.1 Click a BeeAtlas species link (e.g. "Lasioglossum" from the top of the acfranz feed) —
+      confirm it resolves to `/species/Lasioglossum/` (genus page, not an iNat link).
+      Non-bee determination rows ("Eumeninae", "Diptera") go to iNat; bee rows go to BeeAtlas.
 
 ---
 
@@ -164,7 +176,8 @@ Record pass/fail per scenario after completing UAT.
 | 4a | Re-ID arc: acfranz Heriades | | |
 | 4b | Determiner names | | |
 | 4c | Undetermined plain text | | |
-| 4d | Species link resolves | | |
+| 4d | Non-bee iNat link (Eumeninae/Diptera) — NEW | | |
+| 4e | BeeAtlas species link resolves | | |
 | 5 | Awaiting-ID: mylodon page 9 | | |
 | 6 | Mobile width + wrapping | | |
 
@@ -187,8 +200,8 @@ Record pass/fail per scenario after completing UAT.
 | D-FEED-02: waba_specimen shows as Collected + awaiting ID | 5 |
 | D-SORT: Newest-first pre-sorted by export | 1.3 |
 | D-PAGE-01: Paginated at 100 events/page into static sub-pages | 1.5–1.9 |
-| D-CARD-01: Rank-aware species/genus links | 4a.3, 4a.4, 4d |
-| D-CARD-02: "undetermined" as plain text (no broken link) | 4c |
+| D-CARD-01: Rank-aware species/genus links | 4a.3, 4a.4, 4e |
+| D-CARD-02: bee → BeeAtlas; non-bee named → iNat; undetermined → plain text | 4c, 4d, 4e |
 | D-CARD-03 (REVISED): Catalog number + Ecdysis link present for catalogued events; waba_specimen empty | 4a.6, 5 |
 | Chronological labels: first determination = "Identified"; later = "Re-identified" | 4a.1, 4a.2 |
 | Color orthogonal to label: green = is_current; muted = superseded | 4a.2 |

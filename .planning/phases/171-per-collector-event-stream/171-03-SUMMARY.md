@@ -196,3 +196,84 @@ Re-ran `uv run python data/collectors_events_export.py` against committed `publi
 - 9c73ed0c: chore(171): regenerate event artifacts with catalog_number + is_reidentification
 
 **Status:** Returned to UAT gate — do NOT mark phase verified until operator re-UAT passes.
+
+---
+
+## Operator UAT Revision 2 (2026-06-27)
+
+Second enhancement after operator UAT; phase returned to UAT gate for re-verification.
+
+### Enhancement: Improved bee-slug resolver + iNaturalist fallback for non-bee determinations
+
+**Background:** The taxon-link resolver left ~2,235 determination rows (142 unique names) as
+plain text. All are genuine non-bee bycatch: Diptera, Eumeninae, Chrysididae, Philanthus,
+Hymenoptera, Lepidoptera, wasps/flies/bugs. The operator wanted these linked to iNaturalist.
+Simultaneously, the resolver was strengthened to cover edge cases more explicitly and to load
+from the canonical frontend JSON files.
+
+### Part 1 — Strengthened bee-slug resolver
+
+**`data/collectors_events_export.py`:**
+- Changed `_load_species_maps` from reading `species.parquet` (via duckdb) to reading
+  `public/data/species.json` + `public/data/higher_taxa.json`. These are the same files the
+  frontend uses, covering all 47 known bee genera (including 9 that have only species pages,
+  not genus pages, in species.json).
+- Added explicit **Step 2b**: subgenus-parenthetical pattern `Genus (Subgenus)` (e.g.,
+  `Lasioglossum (Dialictus)`) → detects the two-token second-token-in-parens shape →
+  links to genus page `/species/{Genus}/`. Previously caught implicitly by Step 3; now
+  documented explicitly.
+- Updated **Step 3** comment: first-token genus fallback for cases where `identifications.genus`
+  column is empty, recovering `Hylaeus polifolii`, `Lasioglossum foxii`, etc.
+
+### Part 2 — iNaturalist fallback for non-bee determinations
+
+- Added `inat_url` field to every event dict in `export_collector_events`.
+  Logic: `species_slug=None AND name not blank AND name.lower() != 'undetermined'`
+  → emit `https://www.inaturalist.org/taxa/search?q={urllib.parse.quote(species_name)}`.
+  `species_slug` and `inat_url` are **mutually exclusive** (never both set).
+- Templates `_pages/collector-detail.njk` + `_pages/collector-events-page.njk`: added
+  `elif event.inat_url` branch → `<a href="{{ event.inat_url }}" rel="external"
+  class="event-taxon--external">{{ event.species_name }}</a>`. Name text is auto-escaped
+  (no `| safe`); `event.inat_url` is a constructed string (safe in href).
+
+### Test updates
+
+- `data/tests/test_collectors_events_export.py`:
+  - Replaced `_write_test_species_parquet` (pyarrow) with `_write_test_species_json`
+    + `_write_test_higher_taxa_json` (plain JSON, matching new loading path).
+  - Added `test_nonbee_inat_url_and_bee_resolution`: covers all four D-CARD-02 cases
+    with four new identification rows (Lasioglossum (Dialictus), Hylaeus polifolii,
+    Diptera, undetermined) in a separate DuckDB fixture.
+- `src/tests/data-collectors.test.ts`:
+  - Added `inat_url` shape assertion on committed `collectors.json`.
+  - Added mutual-exclusivity assertion + format check on `inat_url` field.
+
+### Artifacts Regenerated
+
+| Artifact | Size | Notes |
+|----------|------|-------|
+| `public/data/collectors.json` | 3.7 MB | +inat_url field per event |
+| `public/data/collector_event_pages.json` | 30.2 MB | +inat_url field per event |
+
+### Test Results
+
+| Suite | Result |
+|-------|--------|
+| `cd data && uv run pytest -m "not integration"` | **259 passed, 9 skipped** (+1 new test) |
+| `npm test` | **891 passed** (+2 new TS assertions) |
+| Production build (`npx @11ty/eleventy`) | 2174 files written, exit 0 |
+
+**Spot-checks (build):**
+- `Diptera` determination renders as `<a href="https://www.inaturalist.org/taxa/search?q=Diptera" rel="external" class="event-taxon--external">Diptera</a>`
+- `Eumeninae` renders same pattern with `q=Eumeninae`
+- `undetermined` remains plain text (no link, no inat_url)
+- `Lasioglossum` remains `<a href="/species/Lasioglossum/">Lasioglossum</a>` (BeeAtlas genus page)
+- `grep -c '| safe'` on both templates → 0 / 0
+- `grep -c '<script'` on both templates → 0 / 0
+- Multi-word non-bee names (e.g. `Oxybelus uniglumis`) → `?q=Oxybelus%20uniglumis` (URL-encoded)
+
+**Commits:**
+- ede3a65d: feat(171): iNat fallback for non-bee determinations + strengthen bee slug resolver
+- 5b153f54: chore(171): regenerate event artifacts with inat_url for non-bee determinations
+
+**Status:** Returned to UAT gate — do NOT mark phase verified until operator re-UAT passes.

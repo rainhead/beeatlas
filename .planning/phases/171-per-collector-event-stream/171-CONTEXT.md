@@ -101,9 +101,24 @@ Collected/Identified label, **plus**:
   (`identifications.identified_by`; blank → render "identified" without a name).
   Tells the self-ID-vs-expert story (169 D-06) and serves the milestone's
   "togetherness" value.
-- **D-CARD-02:** The species name **links to its BeeAtlas taxon page** (existing
-  `/taxa` pattern). Requires resolving each event's species to a `taxon_id` /
-  taxon-page slug.
+- **D-CARD-02 (UPDATED 2026-06-27 — post-UAT enhancement):** The species name links
+  to its BeeAtlas taxon page for bee determinations; non-bee named determinations link
+  to iNaturalist taxon search; undetermined remains plain text. Three mutually exclusive
+  cases:
+  - **Bee → BeeAtlas:** `species_slug` set, `inat_url` null. Rank-aware slug resolver
+    (steps 1–4 in `collectors_events_export.py`). Improvements over original:
+    (a) Subgenus parenthetical `Genus (Subgenus)` (e.g. `Lasioglossum (Dialictus)`) →
+    explicit Step 2b strips parenthetical, links to genus page `/species/{Genus}/`.
+    (b) First-token genus fallback (Step 3): when `identifications.genus` is empty,
+    first token of `scientific_name` is tried against genus_map, recovering
+    `Hylaeus polifolii`, `Lasioglossum foxii`, etc. → `/species/{Genus}/`.
+    (c) `genus_map` now built from `public/data/species.json` + `public/data/higher_taxa.json`
+    (same files the frontend uses), covering all 47 known bee genera.
+  - **Non-bee named → iNat:** `inat_url` set (`https://www.inaturalist.org/taxa/search?q={urlencoded_name}`),
+    `species_slug` null. Applies to bycatch: Diptera, Eumeninae, Chrysididae, Philanthus,
+    Hymenoptera, Lepidoptera, wasps/flies/bugs (~2,235 rows / ~111 unique names).
+    Network-free: URL is constructed at export time with no iNat API call.
+  - **Undetermined/blank → plain text:** both null.
 - **D-CARD-03 (REVISED 2026-06-27 operator UAT):** Original decision excluded
   direct specimen links. **Operator UAT reversed this for Ecdysis-catalogued
   specimens**: each event now emits `catalog_number` + `ecdysis_id` so the

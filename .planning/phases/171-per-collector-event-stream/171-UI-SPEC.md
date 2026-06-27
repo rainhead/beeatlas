@@ -193,13 +193,21 @@ Label and color are **orthogonal**: label = chronological position; color = curr
 - Catalog number rendered via auto-escaped `{{ }}` (NO `| safe`). The `<a href>` is safe because `occid` is an integer.
 - `.event-catalog` CSS: `font-size: 0.85rem; flex: 0 0 auto; white-space: nowrap;`
 
-**Taxon link rules (rank-aware per ORCHESTRATOR CORRECTION):**
+**Taxon link rules (rank-aware, with iNat fallback for non-bee — updated 2026-06-27):**
 
-| Name type | Display |
-|---|---|
-| Resolves to species page | `<a href="/species/{Genus}/{epithet}/">Name</a>` |
-| Resolves to genus page | `<a href="/species/{Genus}/">Name</a>` |
-| Unresolvable (undetermined, non-bee, unmatched) | Plain text, no `<a>` tag |
+| Name type | `species_slug` | `inat_url` | Display |
+|---|---|---|---|
+| Resolves to BeeAtlas species page | set | null | `<a href="/species/{Genus}/{epithet}/">Name</a>` |
+| Resolves to BeeAtlas genus page | set | null | `<a href="/species/{Genus}/">Name</a>` |
+| Non-bee named (Diptera, Eumeninae, Chrysididae, etc.) | null | set | `<a href="{inat_url}" rel="external" class="event-taxon--external">Name</a>` |
+| Undetermined / blank | null | null | Plain text, no `<a>` tag |
+
+`species_slug` and `inat_url` are **mutually exclusive** — never both set on the same event.
+
+The `event-taxon--external` class provides a subtle affordance that the link leaves BeeAtlas.
+No emoji or icon is required; styling is at the operator's discretion (the class is present for
+targeting). The name text is auto-escaped by Nunjucks (`{{ event.species_name }}`) — `| safe` is
+never used.
 
 Text "undetermined" renders as plain text without a link. It must read cleanly, not as a broken
 or empty element. About 42% of current determinations are "undetermined" — this is the expected,
