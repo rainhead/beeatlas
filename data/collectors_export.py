@@ -42,30 +42,30 @@ _QUERY = """
         COUNT(DISTINCT CASE WHEN o.ecdysis_id IS NOT NULL
                             THEN o.ecdysis_id END)                     AS specimen_count,
         -- D-03: sample count = distinct sample_id (ecdysis-linked)
-        --       + distinct observation_id WHERE source='waba_sample'
-        --       (waba_sample rows have sample_id IS NULL; Research #3)
+        --       + distinct observation_id WHERE record_type='provisional_sample'
+        --       (provisional_sample rows have sample_id IS NULL; Research #3)
         COUNT(DISTINCT o.sample_id)
-        + COUNT(DISTINCT CASE WHEN o.source = 'waba_sample'
+        + COUNT(DISTINCT CASE WHEN o.record_type = 'provisional_sample'
                               THEN o.observation_id END)               AS sample_count,
         -- D-03/D-06: species count = distinct species-rank taxon_ids
         COUNT(DISTINCT CASE WHEN sp.specific_epithet IS NOT NULL
                             THEN o.taxon_id END)                       AS species_count,
         -- D-05/D-06: status split denominator = ecdysis + waba_specimen rows
         --            (samples and casual observations excluded)
-        SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.source = 'waba_specimen')
+        SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.record_type = 'waba_specimen')
                  THEN 1 ELSE 0 END)                                    AS status_denominator,
         -- D-06: "identified" = species-rank determination (specific_epithet IS NOT NULL)
         --       NOT keyed on id_date (D-07)
-        SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.source = 'waba_specimen')
+        SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.record_type = 'waba_specimen')
                       AND sp.specific_epithet IS NOT NULL
                  THEN 1 ELSE 0 END)                                    AS status_identified,
-        SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.source = 'waba_specimen')
+        SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.record_type = 'waba_specimen')
                       AND sp.specific_epithet IS NULL
                  THEN 1 ELSE 0 END)                                    AS status_awaiting
     FROM read_parquet(?) o
     LEFT JOIN read_parquet(?) sp ON sp.taxon_id = o.taxon_id
     WHERE o.collector_inat_login IS NOT NULL
-      AND (o.ecdysis_id IS NOT NULL OR o.source IN ('waba_specimen', 'waba_sample'))
+      AND (o.ecdysis_id IS NOT NULL OR o.record_type IN ('waba_specimen', 'provisional_sample'))
     GROUP BY o.collector_inat_login
     ORDER BY o.collector_inat_login
 """

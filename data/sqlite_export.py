@@ -470,13 +470,18 @@ def generate_sqlite(
     # Pre-serialize geo rows as a single TEXT blob so the browser worker fetches them
     # with one SQL query and one WASM→JS callback (vs 92K callbacks = ~600 ms in Firefox).
     # Column order: [lat, lon, ecdysis_id, observation_id, specimen_observation_id,
-    #                year, source, checklist_id]
+    #                year, tier, checklist_id]
     # Phase 131 NORM-02: dropped scientificName, genus, family (~4 MB transfer-weight win).
-    # source moves from index 9 → 6; features.ts _buildGeoJSONFromRaw decode updated in same commit.
+    # source moved from index 9 → 6; features.ts _buildGeoJSONFromRaw decode updated in same commit.
     # Phase 137: checklist_id appended at index 7; features.ts updated in same commit (positional coupling).
+    # Phase 170 (D-04): source decomposed → tier rides index 6 (drives symbology, D-08). ONLY the
+    # tier facet is carried on the geo_blob (page-weight budget); the per-arm record-type facet
+    # reaches the detail card via the full wa-sqlite row query, NOT map feature properties. THIS
+    # index-6 swap is positionally coupled to features.ts row[6] (Plan 02) — ships S3-then-deploy
+    # in lockstep with the features.ts reader.
     _GEO_COLS = [
         "lat", "lon", "ecdysis_id", "observation_id", "specimen_observation_id",
-        "year", "source", "checklist_id",
+        "year", "tier", "checklist_id",
     ]
     with _sqlite3.connect(dst_db) as idx_con:
         actual = {row[1] for row in idx_con.execute("PRAGMA table_info(occurrences)").fetchall()}
