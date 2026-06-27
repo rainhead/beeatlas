@@ -117,3 +117,82 @@ Files exist:
 
 Commits exist:
 - 52ad90b1: chore(171-03): add operator UAT checklist for event feed ✓
+
+---
+
+## Operator UAT Revision (2026-06-27)
+
+Two fixes applied after operator UAT; phase returned to UAT gate for re-verification.
+
+### Fix 1: Catalog number + Ecdysis occurrence link (D-CARD-03 reversal)
+
+**Operator request:** Each event row should display the specimen's catalog number linked to its Ecdysis
+occurrence page, reversing the earlier D-CARD-03 "no specimen link" exclusion.
+
+**Changes:**
+- `data/collectors_events_export.py`: Added `catalog_number` to `collector_specimens` CTE and both event
+  arms in `_QUERY`. Added `catalog_number` and `ecdysis_id` to the event output dict (ecdysis_id was
+  previously dropped as `_ecdysis_id`).
+- `_pages/collector-detail.njk` + `_pages/collector-events-page.njk`: Added `<span class="event-catalog">
+  <a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">
+  {{ event.catalog_number }}</a></span>` at end of each event row. Renders only when `event.ecdysis_id`
+  is set; waba_specimen rows (no ecdysis_id) emit no catalog cell.
+- `src/styles/places.css`: Added `.event-catalog` rule (0.85rem, flex:0 0 auto, nowrap).
+- Auto-escaping: catalog_number rendered via `{{ }}` without `| safe`; ecdysis_id (integer) safe in href.
+
+### Fix 2: Corrected Identified/Re-identified label semantics
+
+**Operator request:** Label should reflect chronological order (first determination = "Identified"), not
+`is_current` status. Previous logic was backwards: it labeled the superseded determination "Re-identified".
+
+**New rule:** Within each specimen, the determination with the earliest `modified` timestamp gets
+`is_reidentification=False` (label "Identified"); all subsequent determinations get `is_reidentification=True`
+(label "Re-identified"). `is_current` drives color emphasis only (green = current, muted = superseded).
+
+**Changes:**
+- `data/collectors_events_export.py`: Added two-pass processing — Pass 1 computes
+  `earliest_id_ts: dict[(login, ecdysis_id), sort_ts]` for all Identified events; Pass 2 sets
+  `is_reidentification` per event by comparing `sort_ts` to the per-specimen minimum.
+- `_pages/collector-detail.njk` + `_pages/collector-events-page.njk`: Collapsed the 3-branch Identified
+  template logic to a single branch using `{%- set id_type_class = 'event-type--identified' if event.is_current
+  else 'event-type--reidentified' -%}` for color and `{%- set id_label = 'Re-identified' if
+  event.is_reidentification else 'Identified' -%}` for label.
+- `171-CONTEXT.md`: Documented revised D-CARD-03 and added chronological-label decision record.
+- `171-UI-SPEC.md`: Updated event-row HTML examples, event-type-label table, and copywriting contract.
+- `171-HUMAN-UAT.md`: Updated Scenario 4a with corrected expected labels; updated Decisions Verified table.
+
+### Artifacts Regenerated
+
+Re-ran `uv run python data/collectors_events_export.py` against committed `public/data/occurrences.parquet`
+(already on Phase-170 schema with `catalog_number` + `record_type`).
+
+| Artifact | Size | Notes |
+|----------|------|-------|
+| `public/data/collectors.json` | 3.4 MB | +1 MB from three new fields per event |
+| `public/data/collector_event_pages.json` | 28.2 MB | +9 MB from three new fields per event |
+
+### Test Results
+
+| Suite | Result |
+|-------|--------|
+| `cd data && uv run pytest -m "not integration"` | **258 passed, 9 skipped** (+2 new tests) |
+| `npm test` | **889 passed** (artifact shape assertions updated) |
+| Production build (`npx @11ty/eleventy`) | 2174 files written, exit 0 |
+
+**Spot-checks (build):**
+- Catalogued event rows link to `ecdysis.org/...?occid=` with WSDA_* catalog numbers
+- Pending waba_specimen rows have no catalog cell (empty correctly)
+- `grep -c '| safe' _pages/collector-detail.njk _pages/collector-events-page.njk` → 0 / 0
+- `grep -c '<script' _pages/collector-detail.njk _pages/collector-events-page.njk` → 0 / 0
+
+**New Python tests added:**
+- `test_catalog_number_and_ecdysis_id_fields`: asserts catalog_number/ecdysis_id on ecdysis events,
+  null values on waba_specimen pending events
+- `test_is_reidentification_chronological_label`: asserts is_reidentification=False on earliest
+  determination (2024-01-15), True on later (2024-06-01); asserts is_reidentification=None on Collected
+
+**Commits:**
+- 5ce46292: fix(171): catalog number + corrected Identified/Re-identified label semantics
+- 9c73ed0c: chore(171): regenerate event artifacts with catalog_number + is_reidentification
+
+**Status:** Returned to UAT gate — do NOT mark phase verified until operator re-UAT passes.

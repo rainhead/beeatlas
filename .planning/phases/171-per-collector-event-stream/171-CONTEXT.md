@@ -104,15 +104,36 @@ Collected/Identified label, **plus**:
 - **D-CARD-02:** The species name **links to its BeeAtlas taxon page** (existing
   `/taxa` pattern). Requires resolving each event's species to a `taxon_id` /
   taxon-page slug.
-- **D-CARD-03 (exclusions):** **No** direct link to the specimen (Ecdysis
-  individual page / iNat observation) and **no** place / floral-host context on
-  events — explicitly out of scope for the card this phase.
+- **D-CARD-03 (REVISED 2026-06-27 operator UAT):** Original decision excluded
+  direct specimen links. **Operator UAT reversed this for Ecdysis-catalogued
+  specimens**: each event now emits `catalog_number` + `ecdysis_id` so the
+  template can render the catalog number linked to the Ecdysis occurrence page
+  (`https://ecdysis.org/collections/individual/index.php?occid={ecdysis_id}`).
+  Un-catalogued `waba_specimen` rows (no `ecdysis_id`) render an empty catalog
+  cell — no link, no text. iNat observation links remain out of scope.
+  **Place / floral-host context on events remains excluded.**
 
 ### Empty-state edge case (record, not a question)
 - **D-EMPTY:** The **16 sample-host-only collectors** (gated in by 169 D-01 but
   with no catalogued specimens) have **no feed events** — per 168, samples are not
   in any feed. Render an empty-state ("no specimen events yet") or omit the feed
   section for them. Planner's call on copy.
+
+### Identified/Re-identified label semantics (RESOLVED 2026-06-27 operator UAT)
+
+Original planner's-discretion: "Identified" vs "Re-identified" labeling was based
+on `identification_is_current` ('1' = Identified, '0' = Re-identified). **Operator
+UAT found this backwards** and the rule was corrected:
+
+- **Label is chronological:** Within each specimen, the determination with the
+  earliest `modified` timestamp = **"Identified"** (the original act of naming it);
+  every subsequent determination = **"Re-identified"** (the later act of renaming).
+- **Color / emphasis is is_current:** `event-type--identified` (green accent) when
+  `is_current=True`; `event-type--reidentified` (muted) when `is_current=False`.
+  These two dimensions are orthogonal — a currently-accepted determination can
+  correctly show the "Re-identified" label if it was not the specimen's first ID.
+- **Export field:** `is_reidentification` (boolean, Identified events only; `None`
+  for Collected events). Computed in Python two-pass over the query result set.
 
 ### Claude's / planner's discretion
 - Per-page chunk size and the Eleventy pagination mechanism (D-PAGE-01).
@@ -121,8 +142,6 @@ Collected/Identified label, **plus**:
   separate `collectors_events.json` / per-collector files (build-time read only —
   not shipped to the browser, so weight is a build concern). Planner's call;
   flagged for research below.
-- Exact "Identified" vs "Re-identified" labeling of superseded vs current
-  determinations, and whether to show the stated year alongside `modified`.
 
 </decisions>
 

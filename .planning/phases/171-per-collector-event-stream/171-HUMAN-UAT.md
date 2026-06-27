@@ -76,18 +76,31 @@ auto_advance: false
 
 The first page of acfranz has all four row variants on one page.
 
-### 4a — Re-identified arc
+### 4a — Re-identified arc (REVISED 2026-06-27: chronological labels + catalog column)
+
+Label semantics changed from is_current-based to chronological (operator UAT revision):
+- "Identified" = chronologically FIRST determination for this specimen
+- "Re-identified" = any SUBSEQUENT determination
+- Color (green/muted) is driven by is_current (currently accepted vs superseded), orthogonal to label.
 
 Around position 73–80 in the feed (scroll well down past the Eumeninae and Lasioglossum entries),
 find the **Heriades** cluster dated **2025-10-06**:
 
-- [ ] 4a.1 **"Identified"** rows for **"Heriades carinata"** appear just above the "Re-identified" rows for "Heriades"
-      (reverse-chron: the current re-determination date-ties with the superseded one; the current appears first).
-- [ ] 4a.2 The "Re-identified" row uses a **muted label** (grey "Re-identified" text, not green).
-- [ ] 4a.3 The "Heriades" re-identified row links to **`/species/Heriades/`** (genus-only URL — click it to confirm no 404
-      if the Heriades genus page exists, or confirm the URL format ends in `/species/Heriades/`).
-- [ ] 4a.4 The "Heriades carinata" current row links to **`/species/Heriades/carinata/`**.
+- [ ] 4a.1 **"Re-identified"** rows for **"Heriades carinata"** appear just above the "Re-identified" rows for
+      "Heriades" (reverse-chron: the current re-determination date-ties with the superseded one; the current
+      appears first). **Both are labeled "Re-identified"** because each had a prior determination even earlier.
+- [ ] 4a.2 The "Heriades carinata" rows use **green label text** (`event-type--identified` class, is_current=True).
+      The "Heriades" rows use **muted label text** (`event-type--reidentified` class, is_current=False).
+- [ ] 4a.3 The "Heriades" row links to **`/species/Heriades/`** (genus-only URL).
+- [ ] 4a.4 The "Heriades carinata" row links to **`/species/Heriades/carinata/`**.
 - [ ] 4a.5 Both rows show **`by Karen W. Wright`** as the determiner.
+- [ ] 4a.6 Both rows show a **catalog number** linked to `ecdysis.org/collections/individual/index.php?occid=...`
+      (the `WSDA_*` catalog number appears as the link text).
+
+To see the **"Identified"** label (first determination per specimen), look for early rows near the bottom of
+the first page — these are the specimens' original identifications and should render as "Identified".
+Specifically, rows labeled **"Identified"** with green text are first determinations that are still current.
+Rows labeled **"Identified"** with muted text are first determinations that were later superseded.
 
 ### 4b — Determiner names
 
@@ -176,5 +189,7 @@ Record pass/fail per scenario after completing UAT.
 | D-PAGE-01: Paginated at 100 events/page into static sub-pages | 1.5–1.9 |
 | D-CARD-01: Rank-aware species/genus links | 4a.3, 4a.4, 4d |
 | D-CARD-02: "undetermined" as plain text (no broken link) | 4c |
-| D-CARD-03: Determiner names (no PII beyond what's on iNat) | 4b |
+| D-CARD-03 (REVISED): Catalog number + Ecdysis link present for catalogued events; waba_specimen empty | 4a.6, 5 |
+| Chronological labels: first determination = "Identified"; later = "Re-identified" | 4a.1, 4a.2 |
+| Color orthogonal to label: green = is_current; muted = superseded | 4a.2 |
 | D-EMPTY: Empty state for sample-host-only collectors | 3 |

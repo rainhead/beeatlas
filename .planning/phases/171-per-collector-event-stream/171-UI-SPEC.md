@@ -145,25 +145,53 @@ no link, no "tentative" qualifier — the "awaiting ID" label signals its provis
 </li>
 ```
 
-**Re-identified — superseded determination (is_current = '0'):**
+**Identified — first determination (is_reidentification = false, is_current = false here — superseded):**
 ```html
-<li class="event-row event-row--reidentified">
-  <time class="event-date" datetime="2025-10-06">2025-10-06</time>
-  <span class="event-type event-type--reidentified">Re-identified</span>
+<li class="event-row">
+  <time class="event-date" datetime="2025-09-01">2025-09-01</time>
+  <span class="event-type event-type--reidentified">Identified</span>
   <span class="event-taxon">
     <a href="/species/Heriades/">Heriades</a>
   </span>
   <span class="event-determiner">by Karen Wright</span>
+  <span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=5604637">WSDA_2425162</a></span>
 </li>
 ```
 
-**Event-type label rules:**
+**Re-identified — later determination (is_reidentification = true, is_current = true here — currently accepted):**
+```html
+<li class="event-row event-row--reidentified">
+  <time class="event-date" datetime="2025-10-06">2025-10-06</time>
+  <span class="event-type event-type--identified">Re-identified</span>
+  <span class="event-taxon">
+    <a href="/species/Heriades/carinata/">Heriades carinata</a>
+  </span>
+  <span class="event-determiner">by Karen Wright</span>
+  <span class="event-catalog"><a href="https://ecdysis.org/collections/individual/index.php?occid=5604637">WSDA_2425162</a></span>
+</li>
+```
+
+**Event-type label rules (REVISED 2026-06-27 operator UAT):**
+
+| Label | When | Color class |
+|---|---|---|
+| "Identified" | `is_reidentification = false` (chronologically first determination) | `event-type--identified` (green) if `is_current`, else `event-type--reidentified` (muted) |
+| "Re-identified" | `is_reidentification = true` (any subsequent determination) | `event-type--identified` (green) if `is_current`, else `event-type--reidentified` (muted) |
+
+Label and color are **orthogonal**: label = chronological position; color = current-determination status.
 
 | `event-type--` class | When | Color |
 |---|---|---|
 | `collected` | Any Collected event | `--text-body` (#213547) — neutral |
-| `identified` | `identification_is_current = '1'` | `--accent` (#2c7a2c) — green signals completion |
-| `reidentified` | `identification_is_current = '0'` | `--text-muted` (#666) — muted signals historical |
+| `identified` | `is_current = true` (currently accepted determination) | `--accent` (#2c7a2c) — green signals completion |
+| `reidentified` | `is_current = false` (superseded determination) | `--text-muted` (#666) — muted signals historical |
+
+**Catalog number column (ADDED 2026-06-27 operator UAT, D-CARD-03 reversal):**
+- Rendered as `<span class="event-catalog">` at the end of each Collected or Identified event row.
+- If `event.ecdysis_id` is set: `<a href="https://ecdysis.org/collections/individual/index.php?occid={{ event.ecdysis_id }}">{{ event.catalog_number }}</a>`
+- If `event.ecdysis_id` is null (un-catalogued waba_specimen): render nothing — empty span omitted.
+- Catalog number rendered via auto-escaped `{{ }}` (NO `| safe`). The `<a href>` is safe because `occid` is an integer.
+- `.event-catalog` CSS: `font-size: 0.85rem; flex: 0 0 auto; white-space: nowrap;`
 
 **Taxon link rules (rank-aware per ORCHESTRATOR CORRECTION):**
 
@@ -334,8 +362,8 @@ variants depending on position:
 |---------|------|
 | Section heading | "Collection history" |
 | Event label — Collected | "Collected" |
-| Event label — Identified (current determination) | "Identified" |
-| Event label — Re-identified (superseded determination) | "Re-identified" |
+| Event label — Identified (first/original determination) | "Identified" |
+| Event label — Re-identified (any subsequent determination) | "Re-identified" |
 | Awaiting-ID annotation | "awaiting ID" (italic, muted; follows taxon name on waba_specimen rows) |
 | Determiner prefix | "by {name}" (e.g. "by Karen Wright") |
 | Determiner omitted | (no text rendered — no "by" orphan) |
