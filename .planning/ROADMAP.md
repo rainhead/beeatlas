@@ -85,7 +85,12 @@
   - [x] 169-01-PLAN.md — Wave 1: `collectors_export.py` + golden-fixture pytest + run.py STEPS entry + committed `collectors.json` (D-01 gate, D-03 counts, D-04 name, D-05/D-06/D-07 status split) [PAGE-01, PAGE-02, PAGE-03]
   - [x] 169-02-PLAN.md — Wave 2: `_data/collectors.js` loader + `_pages/collector-detail.njk` (stats, status split, `?collectors=` map deep-link) + `_pages/collectors.njk` index + D-09 floor Vitest [PAGE-01, PAGE-02, PAGE-03, PAGE-04]
 - [x] **Phase 170: Source → Provenance Facets Rebuild** — Replace the `source` enum with orthogonal provenance-tier facets across all three coupled consumers; atomic commit with positional-coupling Vitest assertion; `tier=` URL param with `src=` back-compat (completed 2026-06-27 — social reframe: `tier`=atlas/other + `record_type`; `inat_obs`→`inat_expert`; data-before-code S3 publish; operator UAT 2/2)
-- [ ] **Phase 171: Per-Collector Event Stream** — Reverse-chronological collection→ID feed on the collector page; waba_specimen cataloguing event; pagination for high-volume collectors
+- [ ] **Phase 171: Per-Collector Event Stream** — Reverse-chronological Collected→Identified event feed on the collector page (full re-determination history retained); `waba_specimen` cataloguing satisfied structurally as one continuous row (D-EVENT-01, no fake event); Eleventy-generated paginated sub-pages for high-volume collectors. Data-export + static-frontend only; NO dbt contract change. **Depends on:** Phase 168, 170. **Plans:** 3 plans (3 waves).
+  Plans:
+
+  - [ ] 171-01-PLAN.md — Wave 1: `collectors_events_export.py` (feeds.py identifications join + rank-aware slug resolution + 2D chunking) extending `collectors.json` (first_page_events) and emitting committed `collector_event_pages.json`; run.py STEPS entry; Wave 0 golden-fixture pytest + vitest artifact-shape assertions [STREAM-01/02/03]
+  - [ ] 171-02-PLAN.md — Wave 2: `_data/collectors.js` loader (collectorEventPages + ELEVENTY_RUN_MODE HMR guard) + `collector-detail.njk` first-page feed/empty-state + new `collector-events-page.njk` sub-pages + UI-SPEC event-feed CSS [STREAM-01/02/03]
+  - [ ] 171-03-PLAN.md — Wave 3: full-suite (npm test + pytest) + build-mode sub-page generation verification + `171-HUMAN-UAT.md` blocking operator checkpoint (autonomous: false — UI phase) [STREAM-01/02/03]
 - [ ] **Phase 172: Accomplishment View** — County coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and active-seasons badge on the collector page
 
 <details>
