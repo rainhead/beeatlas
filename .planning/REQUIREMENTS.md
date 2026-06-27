@@ -33,9 +33,9 @@
 
 ### Event Stream (STREAM)
 
-- [ ] **STREAM-01**: The collector page shows a reverse-chronological **collection→identification event feed**.
-- [ ] **STREAM-02**: A specimen being catalogued (`waba_specimen → ecdysis`) appears as an event in the feed.
-- [ ] **STREAM-03**: The feed paginates / bounds its length for high-volume collectors (500+ records).
+- [x] **STREAM-01**: The collector page shows a reverse-chronological **collection→identification event feed**.
+- [x] **STREAM-02**: A specimen being catalogued (`waba_specimen → ecdysis`) appears as an event in the feed.
+- [x] **STREAM-03**: The feed paginates / bounds its length for high-volume collectors (500+ records).
 
 ### Accomplishment View (ACCOM)
 
@@ -89,9 +89,9 @@ Explicitly excluded for v6.0.
 | PROV-01 | Phase 170 | Complete |
 | PROV-02 | Phase 170 | Complete |
 | PROV-03 | Phase 170 | Complete |
-| STREAM-01 | Phase 171 | Pending |
-| STREAM-02 | Phase 171 | Pending |
-| STREAM-03 | Phase 171 | Pending |
+| STREAM-01 | Phase 171 | Complete |
+| STREAM-02 | Phase 171 | Complete |
+| STREAM-03 | Phase 171 | Complete |
 | ACCOM-01 | Phase 172 | Pending |
 | ACCOM-02 | Phase 172 | Pending |
 | ACCOM-03 | Phase 172 | Pending |

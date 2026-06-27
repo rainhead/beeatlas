@@ -4,13 +4,13 @@ milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
 stopped_at: Phase 171 UI-SPEC approved
-last_updated: "2026-06-27T20:25:25.771Z"
-last_activity: 2026-06-27 -- Phase 171 planning complete
+last_updated: "2026-06-27T20:52:31.095Z"
+last_activity: 2026-06-27
 progress:
   total_phases: 38
   completed_phases: 18
   total_plans: 43
-  completed_plans: 40
+  completed_plans: 41
   percent: 47
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 171 — per-collector-event-stream (next)
+**Current focus:** Phase 171 — per-collector-event-stream
 
 ## Current Position
 
-Phase: 170 (source-provenance-facets-rebuild) — COMPLETE
-Plan: 2 of 2 — complete
+Phase: 171 (per-collector-event-stream) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-27 -- Phase 171 planning complete
+Last activity: 2026-06-27
 
 ## Milestone Overview
 
@@ -47,7 +47,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [██████████] 95%
 
 ## Accumulated Context
 
@@ -104,9 +104,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-27T20:02:35.674Z
+Last session: 2026-06-27T20:52:31.087Z
 Stopped at: Phase 171 UI-SPEC approved
-Resume file: .planning/phases/171-per-collector-event-stream/171-UI-SPEC.md
+Resume file: None
 
 ## Operator Next Steps
 
