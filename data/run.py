@@ -46,6 +46,7 @@ from places_validation import validate_places_step
 from places_load import load_places_step
 from places_export import export_places_step
 from collectors_export import export_collectors_step
+from collectors_events_export import export_collectors_events_step
 from places_maps import main as generate_place_maps_step
 from sqlite_export import main as generate_sqlite_export
 from checklist_dedup import write_dedup_candidates, check_dedup_gate
@@ -125,6 +126,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("species-maps", generate_species_maps),
     ("places-export", export_places_step),
     ("collectors-export", export_collectors_step),
+    ("collectors-events-export", export_collectors_events_step),
     ("places-maps", generate_place_maps_step),
     ("feeds", generate_feeds),
 ]
