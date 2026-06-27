@@ -120,9 +120,31 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
             typeof ev.is_current,
             `is_current must be boolean for Identified in ${c.login}`,
           ).toBe('boolean');
+          // is_reidentification must be boolean for Identified events (UAT fix 2026-06-27):
+          // true = later determination (Re-identified), false = earliest (Identified)
+          expect(
+            typeof ev.is_reidentification,
+            `is_reidentification must be boolean for Identified in ${c.login}`,
+          ).toBe('boolean');
+        } else {
+          // Collected events carry is_reidentification=null (not applicable)
+          expect(
+            ev.is_reidentification,
+            `is_reidentification must be null for Collected in ${c.login}`,
+          ).toBeNull();
         }
         // is_pending must be a boolean (true for waba_specimen awaiting-ID, false otherwise)
         expect(typeof ev.is_pending, `is_pending in ${c.login}`).toBe('boolean');
+        // catalog_number: string for catalogued specimens, null otherwise
+        expect(
+          ev.catalog_number === null || typeof ev.catalog_number === 'string',
+          `catalog_number must be string or null in ${c.login}`,
+        ).toBe(true);
+        // ecdysis_id: number for catalogued specimens, null for waba_specimen awaiting-ID
+        expect(
+          ev.ecdysis_id === null || typeof ev.ecdysis_id === 'number',
+          `ecdysis_id must be number or null in ${c.login}`,
+        ).toBe(true);
       }
     }
   });
