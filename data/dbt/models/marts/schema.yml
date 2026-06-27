@@ -60,8 +60,29 @@ models:
         data_type: varchar
       - name: tier
         data_type: varchar
+        # Phase 170 (WR-02): tier is projected deterministically from the int_combined arms,
+        # so an unexpected value or a NULL is a real bug that silently mis-routes map symbology.
+        # Hard-error to block the nightly.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - accepted_values:
+              values: ['atlas', 'other']
+              config:
+                severity: error
       - name: record_type
         data_type: varchar
+        # Phase 170 (WR-02): record_type drives the 5-way detail-card dispatch; a typo or NULL
+        # would silently fall through to the wrong card variant. Hard-error to block the nightly.
+        data_tests:
+          - not_null:
+              config:
+                severity: error
+          - accepted_values:
+              values: ['specimen', 'waba_specimen', 'provisional_sample', 'inat_expert', 'checklist']
+              config:
+                severity: error
       - name: image_url
         data_type: varchar
       - name: obs_url
