@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: Gated on operator S3 publish (Plan 01 Task 3) before push/deploy
-stopped_at: Phase 170 executed; 8/8 must-haves verified, awaiting human UAT (2 visual items) + main push to deploy
-last_updated: "2026-06-27T17:56:52.121Z"
-last_activity: 2026-06-27 -- Phase 170-02 frontend leg shipped (atomic)
+status: Phase 170 complete — verification passed, operator UAT 2/2, deployed; next Phase 171
+stopped_at: Phase 170 complete (data published to S3, frontend deployed, verification passed, operator UAT 2/2)
+last_updated: "2026-06-27T18:40:00.000Z"
+last_activity: 2026-06-27 -- Phase 170 complete + deployed (source→tier/record_type facets)
 progress:
   total_phases: 27
   completed_phases: 24
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 170 — source-provenance-facets-rebuild
+**Current focus:** Phase 171 — per-collector-event-stream (next)
 
 ## Current Position
 
-Phase: 170 (source-provenance-facets-rebuild) — both plans complete (data leg committed locally; frontend leg committed 4513a170)
+Phase: 170 (source-provenance-facets-rebuild) — COMPLETE
 Plan: 2 of 2 — complete
-Status: Gated on operator S3 publish (Plan 01 Task 3) before push/deploy
-Last activity: 2026-06-27 -- Phase 170-02 frontend leg shipped (atomic)
+Status: Phase 170 complete — verification passed, operator UAT 2/2, deployed to production; next: Phase 171
+Last activity: 2026-06-27 -- Phase 170 complete + deployed (source→tier/record_type facets)
 
 ## Milestone Overview
 
@@ -43,7 +43,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 167 | Collector Identity Column | Phase 165 | Not started |
 | 168 | Temporal Lifecycle Dates | Phase 167 | Not started |
 | 169 | Per-Collector Static Pages | Phase 167 | Complete |
-| 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Both plans complete (committed; push gated on operator S3 publish) |
+| 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Complete |
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 

@@ -1,10 +1,12 @@
 ---
-status: partial
+status: resolved
 phase: 170-source-provenance-facets-rebuild
 source: [170-VERIFICATION.md]
 started: 2026-06-27
 updated: 2026-06-27
 ---
+
+> **Approved by operator 2026-06-27.** Both items pass on the live site.
 
 # Phase 170 — Human UAT
 
@@ -18,7 +20,7 @@ also works once the local `public/data` is the new-contract export.
 ## Gaps
 
 ### UAT-01 — Tier symbology (D-08)
-- **status:** pending
+- **status:** resolved
 - **What to check:** On the map, Atlas occurrences keep the **recency color gradient** (fresh
   work pops), while Other occurrences (`inat_expert` + `checklist`) render **muted/neutral**
   (`#7a8a99`). The checklist layer should fold into that muted treatment — **no dedicated green**.
@@ -26,7 +28,7 @@ also works once the local `public/data` is the new-contract export.
   recency still varies within Atlas.
 
 ### UAT-02 — Legacy `src=` back-compat restore
-- **status:** pending
+- **status:** resolved
 - **What to check:** A legacy link like `?src=ecdysis,waba_sample` still restores the correct
   visible tier set on reload (both map to `atlas`), and a `tier=atlas` link round-trips.
 - **How:** Open `…/?src=ecdysis,waba_sample`, confirm the filter shows only Atlas; reload and

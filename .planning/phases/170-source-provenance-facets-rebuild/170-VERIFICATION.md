@@ -1,8 +1,8 @@
 ---
 phase: 170-source-provenance-facets-rebuild
 verified: 2026-06-27T17:54:31Z
-status: human_needed
-score: 8/8 must-haves verified
+status: passed
+score: 8/8 must-haves verified (+ 2/2 human UAT approved 2026-06-27)
 overrides_applied: 0
 human_verification:
   - test: "Open /app, toggle the two tier filters; confirm Atlas points keep the recency gradient and Other points render muted grey-blue (#7a8a99) with no green checklist points."
@@ -17,7 +17,7 @@ human_verification:
 
 **Phase Goal:** The `source` enum is replaced by orthogonal provenance-tier facets across all three coupled consumers, with `tier=` URL round-trip and `src=` back-compat, and the occ_id positional coupling is preserved and asserted.
 **Verified:** 2026-06-27T17:54:31Z
-**Status:** human_needed
+**Status:** passed (8/8 must-haves + 2/2 human UAT approved 2026-06-27)
 **Re-verification:** No — initial verification
 
 ## Goal Achievement
