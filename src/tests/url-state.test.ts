@@ -17,7 +17,7 @@ function emptyFilter(): FilterState {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
-    hiddenSources: new Set(),
+    hiddenTiers: new Set(),
   };
 }
 
@@ -193,7 +193,7 @@ describe('combined round-trip', () => {
       elevMax: null,
       selectedPlace: null,
       bounds: null,
-      hiddenSources: new Set(),
+      hiddenTiers: new Set(),
     };
     const selection: SelectionState = { type: 'ids', ids: ['ecdysis:999'] };
     const ui = { boundaryMode: 'counties' as const, paneState: 'table' as const };
@@ -380,120 +380,121 @@ describe('place filter param', () => {
   });
 });
 
-describe('MAP-03: source filter URL param (src=)', () => {
-  test('hiddenSources={ecdysis}: src param lists the four visible sources (D-11: 5-source universe)', () => {
+describe('PROV-02: tier filter URL param (tier=)', () => {
+  test('hiddenTiers={other}: tier param lists the visible tier (atlas)', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
-                 hiddenSources: new Set(['ecdysis'] as const) } as any;
+                 hiddenTiers: new Set(['other'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    // VALID_SOURCES = {ecdysis, waba_sample, waba_specimen, inat_obs, checklist}
-    // hiddenSources={ecdysis} → visible = {waba_sample, waba_specimen, inat_obs, checklist} (sorted)
-    expect(params.get('src')).toBe('checklist,inat_obs,waba_sample,waba_specimen');
-  });
-
-  test('hiddenSources empty (default): src param is absent', () => {
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.get('tier')).toBe('atlas');
+    // The legacy src= is no longer emitted.
     expect(params.has('src')).toBe(false);
   });
 
-  test('src=ecdysis parses to hiddenSources of non-ecdysis sources (4 hidden — 5-source universe)', () => {
-    const result = parseParams('src=ecdysis');
-    // VALID_SOURCES has 5 members; complement of {ecdysis} = {waba_sample, waba_specimen, inat_obs, checklist}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['waba_sample', 'waba_specimen', 'inat_obs', 'checklist']));
+  test('hiddenTiers empty (default): tier param is absent', () => {
+    const params = buildParams(defaultView, emptyFilter(), defaultSelection, defaultUi);
+    expect(params.has('tier')).toBe(false);
   });
 
-  test('src=ecdysis hides exactly 4 sources — VALID_SOURCES universe has 5 members (D-11)', () => {
-    const result = parseParams('src=ecdysis');
+  test('tier=atlas parses to hiddenTiers={other}', () => {
+    const result = parseParams('tier=atlas');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const hidden: Set<string> = (result.ui as any)?.hiddenSources ?? new Set();
-    expect(hidden.size).toBe(4);
+    expect((result.ui as any)?.hiddenTiers).toEqual(new Set(['other']));
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['other']));
   });
 
-  test('two hidden sources: src lists the three visible sources (5-source universe)', () => {
+  test('tier round-trip: buildParams({hiddenTiers:{other}}) → parseParams recovers {other}', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
-                 hiddenSources: new Set(['inat_obs', 'ecdysis'] as const) } as any;
+                 hiddenTiers: new Set(['other'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    // visible = {waba_sample, waba_specimen, checklist} (sorted)
-    expect(params.get('src')).toBe('checklist,waba_sample,waba_specimen');
-  });
-
-  test('src=checklist round-trip: buildParams encodes checklist-only visible set, parseParams recovers 3 hidden (D-11)', () => {
-    // After Plan 03 ships: only checklist is visible → hiddenSources = {ecdysis, inat_obs, waba_sample}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
-                 hiddenSources: new Set(['ecdysis', 'inat_obs', 'waba_sample'] as const) } as any;
-    const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    // src= should contain 'checklist' (the only visible source)
-    expect(params.get('src')).toContain('checklist');
-    // parseParams of that string should hide the other three
     const result = parseParams(params.toString());
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['ecdysis', 'inat_obs', 'waba_sample']));
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['other']));
   });
 
-  test('invalid source value in src= is filtered out (5-source complement)', () => {
-    const result = parseParams('src=ecdysis,bogus_source');
-    // complement of {ecdysis} = {waba_sample, waba_specimen, inat_obs, checklist}
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((result.ui as any)?.hiddenSources).toEqual(new Set(['waba_sample', 'waba_specimen', 'inat_obs', 'checklist']));
-  });
-
-  test('src=ecdysis alone triggers result.ui (hasFilter condition)', () => {
-    const result = parseParams('src=ecdysis');
+  test('tier=atlas alone triggers result.ui and result.filter (hasFilter recognizes tier=)', () => {
+    const result = parseParams('tier=atlas');
     expect(result.ui).toBeDefined();
-  });
-
-  test('src=ecdysis populates result.filter.hiddenSources with 4 hidden sources (D-02)', () => {
-    const result = parseParams('src=ecdysis');
-    expect(result.filter?.hiddenSources).toEqual(new Set(['waba_sample', 'waba_specimen', 'inat_obs', 'checklist']));
-  });
-
-  test('src=ecdysis populates result.filter (hasFilter recognizes src=)', () => {
-    const result = parseParams('src=ecdysis');
     expect(result.filter).toBeDefined();
   });
 
-  test('src=ecdysis result.filter.hiddenSources matches result.ui.hiddenSources', () => {
-    const result = parseParams('src=ecdysis');
+  test('tier=atlas: result.filter.hiddenTiers matches result.ui.hiddenTiers', () => {
+    const result = parseParams('tier=atlas');
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(result.filter?.hiddenSources).toEqual((result.ui as any)?.hiddenSources);
+    expect(result.filter?.hiddenTiers).toEqual((result.ui as any)?.hiddenTiers);
   });
 
-  test('no src= param: result.filter.hiddenSources is absent from result.filter when no filter is active', () => {
+  test('no tier= param: result.filter is absent when no filter is active', () => {
     const result = parseParams('');
     expect(result.filter).toBeUndefined();
   });
 
-  // WR-01 (D-05): the all-sources-hidden state must survive a URL round-trip via the
-  // explicit `src=none` sentinel — not silently revert to "show all" on reload/share.
-  test('all 5 sources hidden: buildParams emits src=none', () => {
+  // Phase 170: the all-tiers-hidden state must survive a URL round-trip via the explicit
+  // `tier=none` sentinel — not silently revert to "show all" on reload/share.
+  test('both tiers hidden: buildParams emits tier=none', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const,
-                 hiddenSources: new Set(['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist'] as const) } as any;
+                 hiddenTiers: new Set(['atlas', 'other'] as const) } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
-    expect(params.get('src')).toBe('none');
+    expect(params.get('tier')).toBe('none');
   });
 
-  test('src=none parses to all 5 sources hidden (honest-empty round-trip)', () => {
-    const result = parseParams('src=none');
-    expect(result.filter?.hiddenSources).toEqual(new Set(['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist']));
+  test('tier=none parses to both tiers hidden (honest-empty round-trip)', () => {
+    const result = parseParams('tier=none');
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['atlas', 'other']));
   });
 
   test('all-hidden buildParams → parseParams recovers all-hidden (full round-trip)', () => {
-    const hidden = new Set(['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist'] as const);
+    const hidden = new Set(['atlas', 'other'] as const);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const, hiddenSources: hidden } as any;
+    const ui = { boundaryMode: 'off' as const, paneState: 'collapsed' as const, hiddenTiers: hidden } as any;
     const params = buildParams(defaultView, emptyFilter(), defaultSelection, ui);
     const result = parseParams(params.toString());
-    expect(result.filter?.hiddenSources).toEqual(hidden);
+    expect(result.filter?.hiddenTiers).toEqual(hidden);
   });
 
-  test('src= with only unknown tokens is treated as no source filter (not all-hidden)', () => {
+  test('tier= with only unknown tokens is treated as no tier filter (not all-hidden, anti-blank guard)', () => {
+    const result = parseParams('tier=garbage');
+    // visible=∅ → no filter; all-hidden is reachable only via the explicit tier=none sentinel.
+    expect(result.filter?.hiddenTiers ?? undefined).toBeUndefined();
+  });
+});
+
+describe('PROV-02: legacy src= back-compat fold (5→2 → tier, lossy by design)', () => {
+  test('src=ecdysis (one atlas arm) folds to visibleTiers={atlas} → hiddenTiers={other}', () => {
+    const result = parseParams('src=ecdysis');
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['other']));
+  });
+
+  test('src=inat_obs (one other arm) folds to visibleTiers={other} → hiddenTiers={atlas}', () => {
+    const result = parseParams('src=inat_obs');
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['atlas']));
+  });
+
+  test('src=ecdysis,inat_obs (both tiers visible) → hiddenTiers=∅ → no filter', () => {
+    const result = parseParams('src=ecdysis,inat_obs');
+    expect(result.filter?.hiddenTiers ?? undefined).toBeUndefined();
+  });
+
+  test('src=checklist (other arm) folds to hiddenTiers={atlas}', () => {
+    const result = parseParams('src=checklist');
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['atlas']));
+  });
+
+  test('src=none folds to both tiers hidden (all-hidden sentinel)', () => {
+    const result = parseParams('src=none');
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['atlas', 'other']));
+  });
+
+  test('legacy src= with only unknown tokens → no filter (anti-blank guard)', () => {
     const result = parseParams('src=bogus_source');
-    // visible=∅ → no filter; all-hidden is reachable only via the explicit src=none sentinel.
-    expect(result.filter?.hiddenSources ?? undefined).toBeUndefined();
+    expect(result.filter?.hiddenTiers ?? undefined).toBeUndefined();
+  });
+
+  test('tier= takes precedence over src= when both present', () => {
+    // tier=atlas (hides other) wins over src=inat_obs (would hide atlas)
+    const result = parseParams('tier=atlas&src=inat_obs');
+    expect(result.filter?.hiddenTiers).toEqual(new Set(['other']));
   });
 });
 

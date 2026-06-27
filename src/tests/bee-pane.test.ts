@@ -257,46 +257,55 @@ describe('PANE-V2: bee-pane v2 collapsed button and selection banner', () => {
   });
 });
 
-describe('MAP-01: checklist toggle in filter panel (flows through hiddenSources)', () => {
-  // _showChecklist and checklist-layer-changed removed in Plan 138-03;
-  // checklist now routes through _onSourceToggle/hiddenSources like other sources.
-  test('bee-pane.ts renders "Checklist records" label text', () => {
-    expect(src).toMatch(/Checklist records/);
+describe('PROV-02: tier toggles in filter panel (Phase 170 — 5 sources collapsed to 2 tiers)', () => {
+  // Phase 170 (D-01/D-08): the 5 source checkboxes collapse into 2 social-tier toggles
+  // ("Atlas work" / "Other records"), routed through _onTierToggle/hiddenTiers.
+  test('bee-pane.ts renders "Atlas work" tier toggle label', () => {
+    expect(src).toMatch(/Atlas work/);
   });
 
-  test('bee-pane.ts checklist toggle uses _onSourceToggle(\'checklist\')', () => {
-    expect(src).toMatch(/_onSourceToggle\(['"]checklist['"]/);
+  test('bee-pane.ts renders "Other records" tier toggle label', () => {
+    expect(src).toMatch(/Other records/);
   });
 
-  test('bee-pane.ts checklist item uses aria-label', () => {
+  test("bee-pane.ts atlas toggle uses _onTierToggle('atlas')", () => {
+    expect(src).toMatch(/_onTierToggle\(['"]atlas['"]/);
+  });
+
+  test("bee-pane.ts other toggle uses _onTierToggle('other')", () => {
+    expect(src).toMatch(/_onTierToggle\(['"]other['"]/);
+  });
+
+  test('bee-pane.ts tier item uses aria-label', () => {
     expect(src).toMatch(/aria-label=["']\$\{l\.label\}["']/);
   });
 
-  test('bee-pane.ts calls _renderSources inside _renderListContent', () => {
+  test('bee-pane.ts calls _renderTiers inside _renderListContent', () => {
     const listContentBody = src.match(/_renderListContent\s*\([^)]*\)[^{]*\{[\s\S]*?\n\s{0,4}\}/);
     expect(listContentBody).not.toBeNull();
-    expect(listContentBody![0]).toMatch(/this\._renderSources\s*\(\)/);
+    expect(listContentBody![0]).toMatch(/this\._renderTiers\s*\(\)/);
   });
 });
 
-describe('MAP-02: source filter row in bee-pane', () => {
-  test('bee-pane.ts declares hiddenSources @property', () => {
-    expect(src).toMatch(/@property[\s\S]{0,50}hiddenSources/);
+describe('PROV-02: tier filter row in bee-pane', () => {
+  test('bee-pane.ts declares hiddenTiers @property', () => {
+    expect(src).toMatch(/@property[\s\S]{0,50}hiddenTiers/);
   });
-  test('bee-pane.ts dispatches source-filter-changed event', () => {
-    expect(src).toMatch(/new CustomEvent\(['"]source-filter-changed['"]/);
+  test('bee-pane.ts dispatches tier-filter-changed event', () => {
+    expect(src).toMatch(/new CustomEvent\(['"]tier-filter-changed['"]/);
   });
-  test('bee-pane.ts contains _renderSources method', () => {
-    expect(src).toMatch(/_renderSources\s*\(/);
+  test('bee-pane.ts contains _renderTiers method', () => {
+    expect(src).toMatch(/_renderTiers\s*\(/);
   });
-  test('bee-pane.ts has checkbox for ecdysis source', () => {
-    expect(src).toMatch(/ecdysis/);
+  test('bee-pane.ts no longer references the old _renderSources/source-filter-changed/hiddenSources', () => {
+    expect(src).not.toMatch(/_renderSources/);
+    expect(src).not.toMatch(/source-filter-changed/);
+    expect(src).not.toMatch(/hiddenSources/);
   });
-  test('bee-pane.ts has checkbox for inat_obs source', () => {
-    expect(src).toMatch(/inat_obs/);
-  });
-  test('bee-pane.ts has checkbox for waba_sample source', () => {
-    expect(src).toMatch(/waba_sample/);
+  test('bee-pane.ts renders exactly 2 tier toggles (not 5 source checkboxes)', () => {
+    // The 5→2 collapse: only atlas + other tier toggles remain in _renderTiers.
+    const tiersBody = src.match(/_renderTiers\s*\(\)[\s\S]*?\n  private /)?.[0] ?? '';
+    expect((tiersBody.match(/_onTierToggle\(/g) ?? []).length).toBe(2);
   });
 });
 

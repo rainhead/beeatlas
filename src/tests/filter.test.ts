@@ -27,7 +27,7 @@ function emptyFilter(): FilterState {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
-    hiddenSources: new Set(),
+    hiddenTiers: new Set(),
   };
 }
 
@@ -139,7 +139,7 @@ describe('combined filters', () => {
       elevMax: null,
       selectedPlace: null,
       bounds: null,
-      hiddenSources: new Set(),
+      hiddenTiers: new Set(),
     };
     const { occurrenceWhere } = buildFilterSQL(f);
 
@@ -206,10 +206,10 @@ describe('buildCsvFilename', () => {
     expect(buildCsvFilename(emptyFilter())).toBe('occurrences-all-20260115.csv');
   });
 
-  // WR-03: a source-only filter is active (isFilterActive true) but produces no name segment.
+  // WR-03: a tier-only filter is active (isFilterActive true) but produces no name segment.
   // The filename must collapse to the -all- form, not a malformed `occurrences--20260115.csv`.
-  test('source-only filter: occurrences-all-20260115.csv (no double-dash)', () => {
-    const f = { ...emptyFilter(), hiddenSources: new Set(['inat_obs'] as const) };
+  test('tier-only filter: occurrences-all-20260115.csv (no double-dash)', () => {
+    const f = { ...emptyFilter(), hiddenTiers: new Set(['other'] as const) };
     const name = buildCsvFilename(f);
     expect(name).toBe('occurrences-all-20260115.csv');
     expect(name).not.toContain('--');
@@ -322,43 +322,40 @@ describe('buildFilterSQL — bounds (D-01)', () => {
   });
 });
 
-describe('isFilterActive — hiddenSources', () => {
-  test('one source hidden: returns true', () => {
-    expect(isFilterActive({ ...emptyFilter(), hiddenSources: new Set(['ecdysis'] as const) })).toBe(true);
+describe('isFilterActive — hiddenTiers (Phase 170)', () => {
+  test('one tier hidden: returns true', () => {
+    expect(isFilterActive({ ...emptyFilter(), hiddenTiers: new Set(['other'] as const) })).toBe(true);
   });
-  test('emptyFilter() hiddenSources empty: returns false', () => {
-    expect(isFilterActive({ ...emptyFilter(), hiddenSources: new Set() })).toBe(false);
+  test('emptyFilter() hiddenTiers empty: returns false', () => {
+    expect(isFilterActive({ ...emptyFilter(), hiddenTiers: new Set() })).toBe(false);
   });
 });
 
-describe('buildFilterSQL — source filter (D-01/D-05)', () => {
-  test('hiddenSources={ecdysis}: occurrenceWhere contains o.source IN with 4 visible sources', () => {
-    const f = { ...emptyFilter(), hiddenSources: new Set(['ecdysis'] as const) };
+describe('buildFilterSQL — tier filter (Phase 170 PROV-02, D-08)', () => {
+  test("hiddenTiers={other}: occurrenceWhere contains o.tier IN ('atlas')", () => {
+    const f = { ...emptyFilter(), hiddenTiers: new Set(['other'] as const) };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toMatch(/o\.source IN \('waba_sample','waba_specimen','inat_obs','checklist'\)/);
-    expect(occurrenceWhere).not.toContain("'ecdysis'");
+    expect(occurrenceWhere).toMatch(/o\.tier IN \('atlas'\)/);
+    expect(occurrenceWhere).not.toContain("'other'");
   });
 
-  test('empty hiddenSources: occurrenceWhere does NOT contain o.source', () => {
+  test('empty hiddenTiers: occurrenceWhere does NOT contain o.tier', () => {
     const { occurrenceWhere } = buildFilterSQL(emptyFilter());
-    expect(occurrenceWhere).not.toContain('o.source');
+    expect(occurrenceWhere).not.toContain('o.tier');
   });
 
-  test('all 5 sources hidden: occurrenceWhere contains 1 = 0 (D-05 honest empty)', () => {
-    const f = { ...emptyFilter(), hiddenSources: new Set(['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist'] as const) };
+  test('both tiers hidden: occurrenceWhere contains 1 = 0 (D-05 honest empty)', () => {
+    const f = { ...emptyFilter(), hiddenTiers: new Set(['atlas', 'other'] as const) };
     const { occurrenceWhere } = buildFilterSQL(f);
     expect(occurrenceWhere).toContain('1 = 0');
-    expect(occurrenceWhere).not.toMatch(/o\.source IN/);
+    expect(occurrenceWhere).not.toMatch(/o\.tier IN/);
   });
 
-  test('hiddenSources={waba_sample,checklist}: occurrenceWhere contains o.source IN with 2 visible sources', () => {
-    const f = { ...emptyFilter(), hiddenSources: new Set(['waba_sample', 'checklist'] as const) };
+  test("hiddenTiers={atlas}: occurrenceWhere contains o.tier IN ('other')", () => {
+    const f = { ...emptyFilter(), hiddenTiers: new Set(['atlas'] as const) };
     const { occurrenceWhere } = buildFilterSQL(f);
-    expect(occurrenceWhere).toContain("o.source IN (");
-    expect(occurrenceWhere).toContain("'ecdysis'");
-    expect(occurrenceWhere).toContain("'inat_obs'");
-    expect(occurrenceWhere).not.toContain("'waba_sample'");
-    expect(occurrenceWhere).not.toContain("'checklist'");
+    expect(occurrenceWhere).toMatch(/o\.tier IN \('other'\)/);
+    expect(occurrenceWhere).not.toContain("'atlas'");
   });
 });
 

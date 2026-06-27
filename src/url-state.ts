@@ -28,14 +28,34 @@ export type SelectionState =
   | { type: 'ids'; ids: string[] }
   | { type: 'cluster'; lon: number; lat: number; radiusM: number };
 
+// Phase 170 (PROV-02): the live filter facet is now `tier` (atlas/other). `SourceKey`
+// and `VALID_SOURCES` are RETAINED solely for the legacy `src=` back-compat parse — the
+// pre-170 5-source vocabulary is folded 5→2 onto the tier facet on read. We never EMIT
+// `src=` any more.
 export type SourceKey = 'ecdysis' | 'waba_sample' | 'waba_specimen' | 'inat_obs' | 'checklist';
 
 const VALID_SOURCES = new Set<SourceKey>(['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist']);
 
+// Phase 170 (PROV-01/02): the reified social-provenance tier facet (D-01/D-02).
+export type TierKey = 'atlas' | 'other';
+
+const VALID_TIERS = new Set<TierKey>(['atlas', 'other']);
+
+// Legacy source → tier fold (D-02): the three Atlas-work arms map to `atlas`;
+// the expert-obs + literature arms map to `other`. Used only by the `src=`
+// back-compat parse. The mapping is lossy by design (5→2).
+const TIER_OF: Record<SourceKey, TierKey> = {
+  ecdysis: 'atlas',
+  waba_sample: 'atlas',
+  waba_specimen: 'atlas',
+  inat_obs: 'other',
+  checklist: 'other',
+};
+
 export interface UiState {
   boundaryMode: 'off' | 'counties' | 'ecoregions' | 'places';
   paneState: 'list' | 'table' | 'collapsed';
-  hiddenSources?: Set<SourceKey>;
+  hiddenTiers?: Set<TierKey>;
 }
 
 export interface AppState {
@@ -91,12 +111,13 @@ export function buildParams(
   // Boundary mode and region filter — omit entirely when off (absence = off)
   if (ui.boundaryMode !== 'off') params.set('bm', ui.boundaryMode);
   if (ui.paneState !== 'collapsed') params.set('pane', ui.paneState);
-  if (ui.hiddenSources && ui.hiddenSources.size > 0) {
-    const visibleSources = [...VALID_SOURCES].filter(s => !ui.hiddenSources!.has(s)).sort();
-    // WR-01 (D-05): when every source is hidden, emit the explicit `src=none` sentinel so the
-    // honest-empty all-off state survives a URL round-trip/share instead of silently reverting
-    // to "show all" (absent src= = no source filter).
-    params.set('src', visibleSources.length > 0 ? visibleSources.join(',') : 'none');
+  if (ui.hiddenTiers && ui.hiddenTiers.size > 0) {
+    const visibleTiers = [...VALID_TIERS].filter(t => !ui.hiddenTiers!.has(t)).sort();
+    // WR-01 (D-05) / Phase 170: when every tier is hidden, emit the explicit `tier=none`
+    // sentinel so the honest-empty all-off state survives a URL round-trip/share instead of
+    // silently reverting to "show all" (absent tier= = no tier filter). We no longer emit the
+    // legacy `src=` — it is parse-only back-compat now.
+    params.set('tier', visibleTiers.length > 0 ? visibleTiers.join(',') : 'none');
   }
   if (filter.selectedCounties.size > 0) {
     params.set('counties', [...filter.selectedCounties].sort().join(','));
@@ -233,32 +254,49 @@ export function parseParams(search: string): ParsedParams {
     }
   }
 
-  // Source filter — parse src= before hasFilter so hiddenSources is in scope for both
-  // the filter result and the UI result. The src= tokens are validated against VALID_SOURCES
-  // (T-164-IV: bogus values are dropped on parse, never reaching SQL).
+  // Tier filter (Phase 170, PROV-02) — parse tier= before hasFilter so hiddenTiers is in scope
+  // for both the filter result and the UI result. tier= tokens are validated against VALID_TIERS
+  // (T-170B-01: bogus values are dropped on parse, never reaching SQL). When tier= is absent we
+  // fall back to a legacy src= back-compat parse (5→2 fold, D-02). tier= takes precedence over
+  // src= when both are present.
+  const tierRaw = p.get('tier');
   const srcRaw = p.get('src');
-  let hiddenSources: Set<SourceKey> | undefined;
-  if (srcRaw === 'none') {
-    // WR-01 (D-05): explicit all-hidden sentinel. Distinct from absent src= (no source filter),
+  let hiddenTiers: Set<TierKey> | undefined;
+  if (tierRaw === 'none') {
+    // Phase 170: explicit all-hidden sentinel. Distinct from absent tier= (no tier filter),
     // so a shared "filtered to nothing" link reproduces the honest-empty state.
-    hiddenSources = new Set<SourceKey>(VALID_SOURCES);
-  } else if (srcRaw) {
-    const visible = new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[]);
-    // All-hidden is represented canonically by src=none above; a src= listing only unknown
-    // tokens (visible=∅) is treated as no filter rather than all-hidden, so a crafted/garbage
-    // src= cannot blank every view.
+    hiddenTiers = new Set<TierKey>(VALID_TIERS);
+  } else if (tierRaw) {
+    const visible = new Set(tierRaw.split(',').filter(t => VALID_TIERS.has(t as TierKey)) as TierKey[]);
+    // All-hidden is canonically tier=none above; a tier= listing only unknown tokens (visible=∅)
+    // is treated as no filter rather than all-hidden (T-170B-02 anti-blank guard) — a crafted/
+    // garbage tier= cannot blank every view.
     if (visible.size > 0) {
-      const hidden = new Set([...VALID_SOURCES].filter(s => !visible.has(s)));
-      hiddenSources = hidden.size > 0 ? hidden : undefined;
+      const hidden = new Set([...VALID_TIERS].filter(t => !visible.has(t)));
+      hiddenTiers = hidden.size > 0 ? hidden : undefined;
+    }
+  } else if (srcRaw === 'none') {
+    // Legacy src=none — both tiers hidden (5→2 fold of the all-hidden sentinel).
+    hiddenTiers = new Set<TierKey>(VALID_TIERS);
+  } else if (srcRaw) {
+    // Legacy src= back-compat (D-02, lossy 5→2): map each visible legacy source token through
+    // TIER_OF, then hiddenTiers = {atlas,other} \ visibleTiers. Garbage tokens (visible=∅) →
+    // no filter (anti-blank guard, mirrors tier= above). A link showing both tiers' arms →
+    // visibleTiers = {atlas,other} → hiddenTiers = ∅ → no filter.
+    const visibleSources = new Set(srcRaw.split(',').filter(s => VALID_SOURCES.has(s as SourceKey)) as SourceKey[]);
+    if (visibleSources.size > 0) {
+      const visibleTiers = new Set<TierKey>([...visibleSources].map(s => TIER_OF[s]));
+      const hidden = new Set([...VALID_TIERS].filter(t => !visibleTiers.has(t)));
+      hiddenTiers = hidden.size > 0 ? hidden : undefined;
     }
   }
 
-  // Include filter sub-object when any filter param is present (including src=).
+  // Include filter sub-object when any filter param is present (including tier=/legacy src=).
   const hasFilter = resolvedTaxonId !== null || yearFrom !== null || yearTo !== null
     || months.size > 0 || selectedCounties.size > 0 || selectedEcoregions.size > 0
     || selectedCollectors.length > 0 || elevMin !== null || elevMax !== null
     || selectedPlace !== null || boundsResult !== null
-    || (hiddenSources !== undefined && hiddenSources.size > 0);
+    || (hiddenTiers !== undefined && hiddenTiers.size > 0);
   if (hasFilter) {
     result.filter = {
       taxonId: resolvedTaxonId,
@@ -273,7 +311,7 @@ export function parseParams(search: string): ParsedParams {
       elevMax,
       selectedPlace,
       bounds: boundsResult,
-      hiddenSources: hiddenSources ?? new Set(),
+      hiddenTiers: hiddenTiers ?? new Set(),
     };
   }
 
@@ -316,8 +354,8 @@ export function parseParams(search: string): ParsedParams {
     : viewRaw === 'table' ? 'table'
     : 'collapsed';
   // Include UI when non-default values present
-  if (boundaryMode !== 'off' || paneState !== 'collapsed' || (hiddenSources && hiddenSources.size > 0)) {
-    result.ui = { boundaryMode, paneState, hiddenSources };
+  if (boundaryMode !== 'off' || paneState !== 'collapsed' || (hiddenTiers && hiddenTiers.size > 0)) {
+    result.ui = { boundaryMode, paneState, hiddenTiers };
   }
 
   return result;

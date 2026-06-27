@@ -63,7 +63,7 @@ function emptyFilter(): FilterState {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
-    hiddenSources: new Set(),
+    hiddenTiers: new Set(),
   };
 }
 
@@ -86,10 +86,10 @@ beforeAll(() => {
     (101, 'species', 'Bombus vosnesenskii', '/630955/100/101/', 1)`);
   // Row A: identified specimen (taxon_id 101, a descendant of 100).
   // Row B: undetermined occurrence (taxon_id NULL -> display_name must be NULL).
-  db.exec(`INSERT INTO occurrences (taxon_id, lat, lon, year, source, ecdysis_id, date, recordedBy)
-    VALUES (101, 47.6, -122.3, 2024, 'ecdysis', 5001, '2024-06-01', 'Alice')`);
-  db.exec(`INSERT INTO occurrences (taxon_id, lat, lon, year, source, observation_id, date, recordedBy)
-    VALUES (NULL, 47.7, -122.4, 2023, 'inat', 9001, '2023-05-01', 'Bob')`);
+  db.exec(`INSERT INTO occurrences (taxon_id, lat, lon, year, tier, record_type, ecdysis_id, date, recordedBy)
+    VALUES (101, 47.6, -122.3, 2024, 'atlas', 'specimen', 5001, '2024-06-01', 'Alice')`);
+  db.exec(`INSERT INTO occurrences (taxon_id, lat, lon, year, tier, record_type, observation_id, date, recordedBy)
+    VALUES (NULL, 47.7, -122.4, 2023, 'other', 'inat_expert', 9001, '2023-05-01', 'Bob')`);
   h.db = db;
 });
 

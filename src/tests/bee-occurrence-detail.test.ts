@@ -20,7 +20,7 @@ function ecdysisRow(ecdysisId: number): OccurrenceRow {
     host_inat_login: null, is_provisional: false,
     specimen_inat_quality_grade: null, specimen_count: null, sample_id: null,
     sample_host: null, checklist_id: null, verbatim_name: null, locality: null,
-    collapsed_count: null, source: 'ecdysis', image_url: null, obs_url: null,
+    collapsed_count: null, tier: 'atlas', record_type: 'specimen', image_url: null, obs_url: null,
     user_login: null, license: null, display_name: null, display_rank: null,
   };
 }

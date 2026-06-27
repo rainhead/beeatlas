@@ -463,13 +463,17 @@ export class BeeOccurrenceDetail extends LitElement {
       ${dateGroups.length > 0 && nonSpecimen.length > 0
         ? html`<hr class="separator">` : ''}
       ${nonSpecimen.map(row =>
+        // Phase 170 (D-09/D-10): the card is record_type-driven (orthogonal to tier — a 2-value
+        // tier cannot pick the 5 card variants). isProvisional fires first (true for the
+        // provisional_sample record_type). The `inat_obs` arm's record_type value is now
+        // `inat_expert` (D-06); the occ_id prefix `inat_obs:` is unchanged (D-07).
         isProvisional(row)
           ? this._renderProvisional(row)
-          : row.source === 'checklist'
+          : row.record_type === 'checklist'
             ? this._renderChecklist(row)
-            : row.source === 'waba_specimen'
+            : row.record_type === 'waba_specimen'
               ? this._renderWabaSpecimen(row)
-              : row.source === 'inat_obs'
+              : row.record_type === 'inat_expert'
                 ? this._renderInatObs(row)
                 : this._renderSampleOnly(row)
       )}

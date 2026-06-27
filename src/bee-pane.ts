@@ -86,7 +86,7 @@ export class BeePane extends LitElement {
   @property({ attribute: false }) sortBy: SpecimenSortBy = 'date';
   @property({ attribute: false }) filterActive = false;
   @property({ attribute: false }) selectedIds: Set<string> | null = null;
-  @property({ attribute: false }) hiddenSources: Set<string> = new Set();
+  @property({ attribute: false }) hiddenTiers: Set<string> = new Set();
 
   // Near-me: true when a bounds filter (near-me / shift-drag) is active.
   // bee-pane is a pure presenter — bounds state lives in bee-atlas._filterState.bounds.
@@ -121,8 +121,8 @@ export class BeePane extends LitElement {
   @state() private _yearLastYear = true;
   @state() private _yearEarlier = true;
 
-  // Source filter (mirrors hiddenSources @property)
-  @state() private _hiddenSources: Set<string> = new Set();
+  // Tier filter (mirrors hiddenTiers @property) — Phase 170 (PROV-02)
+  @state() private _hiddenTiers: Set<string> = new Set();
 
   // Suggestion dropdown
   @state() private _openSection: 'taxon' | 'collector' | 'where' | null = null;
@@ -542,8 +542,8 @@ export class BeePane extends LitElement {
   };
 
   updated(changed: PropertyValues) {
-    if (changed.has('hiddenSources')) {
-      this._hiddenSources = new Set(this.hiddenSources);
+    if (changed.has('hiddenTiers')) {
+      this._hiddenTiers = new Set(this.hiddenTiers);
     }
     if (!changed.has('filterState') || !this.filterState) return;
     const f = this.filterState;
@@ -655,14 +655,14 @@ export class BeePane extends LitElement {
     this.dispatchEvent(new CustomEvent('pane-clear-selection', { bubbles: true, composed: true }));
   }
 
-  private _onSourceToggle(sourceValue: string, checked: boolean) {
-    const next = new Set(this._hiddenSources);
-    if (checked) next.delete(sourceValue);
-    else next.add(sourceValue);
-    this._hiddenSources = next;
-    this.dispatchEvent(new CustomEvent('source-filter-changed', {
+  private _onTierToggle(tierValue: string, checked: boolean) {
+    const next = new Set(this._hiddenTiers);
+    if (checked) next.delete(tierValue);
+    else next.add(tierValue);
+    this._hiddenTiers = next;
+    this.dispatchEvent(new CustomEvent('tier-filter-changed', {
       bubbles: true, composed: true,
-      detail: { hiddenSources: next },
+      detail: { hiddenTiers: next },
     }));
   }
 
@@ -1152,37 +1152,23 @@ export class BeePane extends LitElement {
     `;
   }
 
-  private _renderSources() {
+  private _renderTiers() {
+    // Phase 170 (PROV-02, D-01/D-08): the 5 source checkboxes collapse into 2 social-tier
+    // toggles. "Atlas work" = the community's own specimens + provisional samples (recency-
+    // graded on the map); "Other records" = expert iNat observations + published literature
+    // (muted on the map).
     const layers: Array<{ label: string; tooltip: string; checked: boolean; onChange: (e: Event) => void }> = [
       {
-        label: 'Ecdysis specimens',
-        tooltip: 'Physical bee specimens in the Ecdysis catalog',
-        checked: !this._hiddenSources.has('ecdysis'),
-        onChange: (e: Event) => this._onSourceToggle('ecdysis', (e.target as HTMLInputElement).checked),
+        label: 'Atlas work',
+        tooltip: 'Specimens and provisional samples collected by the WA Bee Atlas community',
+        checked: !this._hiddenTiers.has('atlas'),
+        onChange: (e: Event) => this._onTierToggle('atlas', (e.target as HTMLInputElement).checked),
       },
       {
-        label: 'Provisional samples',
-        tooltip: 'Floral-host / sample observations in the WABA plant-images project, awaiting sample metadata',
-        checked: !this._hiddenSources.has('waba_sample'),
-        onChange: (e: Event) => this._onSourceToggle('waba_sample', (e.target as HTMLInputElement).checked),
-      },
-      {
-        label: 'WABA specimens',
-        tooltip: 'WABA bee specimens photographed on iNaturalist, not yet catalogued in Ecdysis',
-        checked: !this._hiddenSources.has('waba_specimen'),
-        onChange: (e: Event) => this._onSourceToggle('waba_specimen', (e.target as HTMLInputElement).checked),
-      },
-      {
-        label: 'iNat expert obs',
-        tooltip: 'iNaturalist observations identified by experts',
-        checked: !this._hiddenSources.has('inat_obs'),
-        onChange: (e: Event) => this._onSourceToggle('inat_obs', (e.target as HTMLInputElement).checked),
-      },
-      {
-        label: 'Checklist records',
-        tooltip: 'Published specimen records from Bartholomew et al. 2024',
-        checked: !this._hiddenSources.has('checklist'),
-        onChange: (e: Event) => this._onSourceToggle('checklist', (e.target as HTMLInputElement).checked),
+        label: 'Other records',
+        tooltip: 'Expert iNaturalist observations and published literature records',
+        checked: !this._hiddenTiers.has('other'),
+        onChange: (e: Event) => this._onTierToggle('other', (e.target as HTMLInputElement).checked),
       },
     ];
     return html`
@@ -1224,7 +1210,7 @@ export class BeePane extends LitElement {
           ${this._renderWho()}
           ${this._renderWhere()}
           ${this._renderWhen()}
-          ${this._renderSources()}
+          ${this._renderTiers()}
         </div>
         <div class="divider"></div>
         ${this.selectionCount !== null ? html`
@@ -1236,8 +1222,8 @@ export class BeePane extends LitElement {
         ` : nothing}
         ${this.listLoading
           ? html`<div class="list-placeholder">Loading…</div>`
-          : this._hiddenSources.size === 5
-            ? html`<div class="panel-content"><p class="hint">No sources selected. Enable at least one source above.</p></div>`
+          : this._hiddenTiers.size === 2
+            ? html`<div class="panel-content"><p class="hint">No tiers selected. Enable at least one tier above.</p></div>`
             : this.listRows.length === 0
               ? html`<div class="panel-content"><p class="hint">Click a point on the map to see details.</p></div>`
               : html`<bee-occurrence-detail .occurrences=${this.listRows} .taxonCache=${this.taxonCache} .filterState=${this.filterState} .placeNames=${this.placeNames}></bee-occurrence-detail>`

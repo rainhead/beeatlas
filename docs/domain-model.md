@@ -1,26 +1,70 @@
 # BeeAtlas Occurrence Data Model
 
-A reference for the five `int_combined` occurrence categories, the `is_provisional` definition,
-the synthetic `occ_id` prefix vocabulary, and the same-occurrence identity rule. Written for
-human readers; cross-references authoritative source files rather than duplicating them.
+A reference for the five `int_combined` occurrence categories, the social-provenance **tier** and
+**record_type** facets (Phase 170), the `is_provisional` definition, the synthetic `occ_id` prefix
+vocabulary, and the same-occurrence identity rule. Written for human readers; cross-references
+authoritative source files rather than duplicating them.
 
 For the canonical vocabulary definitions (Specimen, Sample, Floral host, Observation, Occurrence
 record, Collection event), see [CLAUDE.md § Domain Vocabulary](../CLAUDE.md).
 
 ---
 
+## The Social-Provenance Facets: `tier` + `record_type` (Phase 170)
+
+Before Phase 170, a single overloaded `source` enum conflated three independent things: social
+provenance ("whose work is this"), record type, and platform/role. Phase 170 **removed `source`**
+from `marts/occurrences` and replaced it with two orthogonal materialized columns:
+
+- **`tier`** — the **social** cut: *whose work is this?* The reified values are **`atlas`** (the WA
+  Bee Atlas community's own work) and **`other`** (expert observations + published literature).
+  The user's full mental model is three tiers — **My specimens / Atlas / Other** — but only the two
+  viewer-independent tiers are reified; "Mine" is reached via the orthogonal Collector facet, not a
+  third tier (no auth on a static site). `tier` drives the **map filter, URL param, and symbology**.
+- **`record_type`** — the per-arm record nature. `tier` drives filter/symbology; `record_type`
+  drives the **detail card** (5 card variants need the 5-value record_type — a 2-value tier cannot
+  select them). They are **orthogonal in the UI** even though `tier = f(record_type)` in the data.
+
+The arm → tier → record_type mapping is materialized **once**, in the five `int_combined.sql` arm
+SELECTs — downstream SQL/URL/UI never recompute it.
+
+| Arm | `tier` | `record_type` |
+|-----|--------|---------------|
+| ecdysis | `atlas` | `specimen` |
+| waba_specimen | `atlas` | `waba_specimen` |
+| waba_sample | `atlas` | `provisional_sample` |
+| inat_obs (renamed) | `other` | `inat_expert` |
+| checklist | `other` | `checklist` |
+
+> **Naming note (D-06/D-07):** the old `inat_obs` source value was misleading (three of the five
+> arms are literally iNaturalist observations), so its **record_type value is renamed `inat_expert`**.
+> The shared **`occ_id` prefix literal `inat_obs:` is independent and UNCHANGED** — it is the
+> occurrence-identity prefix (shared by `waba_specimen` and the expert-obs arm via
+> `specimen_observation_id`), not the record_type. Only the record_type value moved.
+
+> **Symbology (D-08):** `atlas` records keep the **recency gradient** (fresh community work pops —
+> the liveness/togetherness signal); `other` records render **muted** (a desaturated grey-blue).
+> `checklist` loses its former dedicated green and folds into the muted `other` treatment.
+
+The map filter (`hiddenTiers`), the `tier=` URL param (with `src=` legacy back-compat that folds
+the old 5 sources to 2 tiers, lossy by design), and the `properties.tier` map-feature attribute
+all consume `tier`. The detail card (`bee-occurrence-detail.ts`) dispatches on `record_type`.
+
+---
+
 ## The Five Occurrence Categories
 
 `data/dbt/models/intermediate/int_combined.sql` is a UNION ALL of five source arms. Each row
-in `marts/occurrences` comes from exactly one arm.
+in `marts/occurrences` comes from exactly one arm. (The legacy `source` column was decomposed into
+`tier` + `record_type` in Phase 170 — see the facets section above.)
 
-| # | `source` value | `is_provisional` | `occ_id` prefix | Real-world thing |
-|---|---------------|-----------------|-----------------|-----------------|
-| 1 | `ecdysis` | FALSE | `ecdysis:N` | Catalogued specimen with an Ecdysis record |
-| 2 | `waba_specimen` | FALSE | `inat_obs:N` | iNat-photo bee specimen, WABA catalog #, no Ecdysis record yet |
-| 3 | `waba_sample` | TRUE | `inat:N` | Provisional sample / floral-host observation from the WABA plant-images project |
-| 4 | `inat_obs` | FALSE | `inat_obs:N` | Expert research-grade iNaturalist observation |
-| 5 | `checklist` | FALSE | `checklist:N` | Museum / collection checklist record (Bartholomew et al. 2024) |
+| # | arm (`record_type`) | `tier` | `is_provisional` | `occ_id` prefix | Real-world thing |
+|---|---------------------|--------|-----------------|-----------------|-----------------|
+| 1 | `specimen` (ecdysis) | `atlas` | FALSE | `ecdysis:N` | Catalogued specimen with an Ecdysis record |
+| 2 | `waba_specimen` | `atlas` | FALSE | `inat_obs:N` | iNat-photo bee specimen, WABA catalog #, no Ecdysis record yet |
+| 3 | `provisional_sample` (waba_sample) | `atlas` | TRUE | `inat:N` | Provisional sample / floral-host observation from the WABA plant-images project |
+| 4 | `inat_expert` (was `inat_obs`) | `other` | FALSE | `inat_obs:N` | Expert research-grade iNaturalist observation |
+| 5 | `checklist` | `other` | FALSE | `checklist:N` | Museum / collection checklist record (Bartholomew et al. 2024) |
 
 ### Category 1 — `ecdysis`: catalogued specimen
 
@@ -59,11 +103,13 @@ observation moves into `int_samples_base` and this record transitions to a sampl
 **No specimens here**: category 3 contains only plant/sample images. Bee specimens belong to
 categories 1 or 2.
 
-### Category 4 — `inat_obs`: expert observation
+### Category 4 — `inat_expert` (was `inat_obs`): expert observation
 
 Research-grade iNaturalist observations of bees submitted by experts (not WABA collectors).
-Sourced from a separate `inat_obs_data` pipeline. `occ_id = inat_obs:N`. These carry
-`image_url`, `obs_url`, `user_login`, and `license` fields that other categories lack.
+Sourced from a separate `inat_obs_data` pipeline. `tier = other`, `record_type = inat_expert`
+(renamed from `inat_obs` in Phase 170, D-06 — role-named). `occ_id = inat_obs:N` (the occ_id
+prefix is unchanged, D-07). These carry `image_url`, `obs_url`, `user_login`, and `license`
+fields that other categories lack.
 
 ### Category 5 — `checklist`: museum/collection records
 
@@ -146,12 +192,14 @@ provisional samples** — they are first-class specimens awaiting cataloguing. T
 category exists to keep them visible on the map during the lag.
 
 Once the Ecdysis record is uploaded and the nightly pipeline runs, the row transitions from
-`waba_specimen` (occ_id `inat_obs:N`) to `ecdysis` (occ_id `ecdysis:M`). This is a change in
-both `source` and `occ_id`, so any saved URL containing `o=inat_obs:N` will no longer resolve
-to that specimen after the transition.
+`waba_specimen` (occ_id `inat_obs:N`) to the `specimen` record_type (occ_id `ecdysis:M`). This is
+a change in both `record_type` and `occ_id`, so any saved URL containing `o=inat_obs:N` will no
+longer resolve to that specimen after the transition. (Both rows stay in `tier=atlas` — the social
+tier is unchanged through the transition.)
 
 ---
 
 *Phase 165 — duplicate-occurrence-rows-shared-occ-id (2026-06-24)*
+*Phase 170 — source → tier + record_type facets (2026-06-27)*
 *Authoritative source for `occIdFromRow` vocabulary: `src/occurrence.ts`*
-*Authoritative source for `int_combined` arms: `data/dbt/models/intermediate/int_combined.sql`*
+*Authoritative source for the arm → tier → record_type mapping: `data/dbt/models/intermediate/int_combined.sql`*

@@ -1,7 +1,7 @@
 import { getDB, tablesReady } from './sqlite.ts';
 import { occIdFromRow } from './occurrence.ts';
 import type { FeatureCollection, Point, Feature } from 'geojson';
-import type { SourceKey } from './url-state.ts';
+import type { TierKey } from './url-state.ts';
 
 // A resolved collector entry links a human name to an iNat username (either may be null).
 // Stored in FilterState.selectedCollectors and used as CollectorOption in autocomplete.
@@ -24,13 +24,13 @@ export interface FilterState {
   elevMax: number | null;
   selectedPlace: string | null;     // D-07 — singular; multi-place is deferred PRICH-02
   bounds: { west: number; south: number; east: number; north: number } | null; // D-01 (phase 999.8): spatial bounding box as first-class filter field
-  hiddenSources: Set<SourceKey>; // empty Set = no source filter (show all)
+  hiddenTiers: Set<TierKey>; // empty Set = no tier filter (show all) — Phase 170 (PROV-02)
 }
 
 export interface OccurrenceProperties {
   occId: string;
   recencyTier: 'thisYear' | 'lastYear' | 'earlier';
-  source: string;
+  tier: string; // Phase 170: drives map symbology (atlas/other, D-08); was `source`
 }
 
 function _recencyTier(year: number): OccurrenceProperties['recencyTier'] {
@@ -73,7 +73,10 @@ export interface OccurrenceRow {
   verbatim_name: string | null;
   locality: string | null;
   collapsed_count: number | null;
-  source: 'ecdysis' | 'waba_sample' | 'waba_specimen' | 'inat_obs' | 'checklist' | null;
+  // Phase 170 (PROV-01): `source` decomposed into orthogonal `tier` (drives filter/symbology)
+  // and `record_type` (drives the detail card). The 5 record_type spellings are fixed by 170-01.
+  tier: 'atlas' | 'other' | null;
+  record_type: 'specimen' | 'provisional_sample' | 'waba_specimen' | 'inat_expert' | 'checklist' | null;
   image_url: string | null;
   obs_url: string | null;
   user_login: string | null;
@@ -95,7 +98,7 @@ export const OCCURRENCE_COLUMNS = [
   'verbatim_name',
   'locality',
   'collapsed_count',
-  'source', 'image_url', 'obs_url', 'user_login', 'license',
+  'tier', 'record_type', 'image_url', 'obs_url', 'user_login', 'license',
 ] as const;
 
 const PAGE_SIZE = 100;
@@ -105,7 +108,11 @@ const PAGE_SIZE = 100;
 // (:23-30) and to data/dbt/models/marts/occurrence_places.sql — the priority
 // order ecdysis → inat → inat_obs → checklist must stay identical across all
 // three so the bridge join keys line up. Change all three together.
-const OCC_ID_SQL_CASE =
+// Exported (Phase 170, PROV-03) so the occ_id-coupling Vitest assertion can import it and
+// compare its CASE-branch priority order against occIdFromRow (occurrence.ts) and
+// occurrence_places.sql — all three MUST stay `ecdysis → inat → inat_obs → checklist` (D-07).
+// The branch order below is byte-unchanged from before the export.
+export const OCC_ID_SQL_CASE =
   "CASE " +
   "WHEN o.ecdysis_id IS NOT NULL THEN 'ecdysis:' || o.ecdysis_id " +
   "WHEN o.observation_id IS NOT NULL THEN 'inat:' || o.observation_id " +
@@ -261,7 +268,7 @@ export function isFilterActive(f: FilterState): boolean {
     || f.elevMax !== null
     || f.selectedPlace !== null
     || f.bounds !== null
-    || f.hiddenSources.size > 0;
+    || f.hiddenTiers.size > 0;
 }
 
 // INVARIANT: the returned clause qualifies the occurrences table as `o`
@@ -390,19 +397,20 @@ export function buildFilterSQL(f: FilterState, hasPlacesBridge: boolean = true):
     );
   }
 
-  // Source filter — restrict to user-visible sources; empty visible set = honest zero (D-05, phase 164).
-  // Security (T-164-SQL): values come from the hardcoded VALID_SOURCES local array, NOT from user input.
-  // The visible complement is computed from the allowlist, so every interpolated token is a
-  // compile-time-known literal. o.-alias invariant: qualify as o.source.
-  if (f.hiddenSources.size > 0) {
-    const VALID_SOURCES: SourceKey[] = ['ecdysis', 'waba_sample', 'waba_specimen', 'inat_obs', 'checklist'];
-    const visibleSources = VALID_SOURCES.filter(s => !f.hiddenSources.has(s));
-    if (visibleSources.length === 0) {
-      // All sources hidden — force a false clause (no rows can match, D-05).
+  // Tier filter (Phase 170, PROV-02) — restrict to user-visible tiers; empty visible set =
+  // honest zero (D-05, phase 164 pattern carried to the tier facet).
+  // Security (T-170B-01/T-164-SQL): values come from the hardcoded VALID_TIERS local array, NOT
+  // from user input. The visible complement is computed from the allowlist, so every interpolated
+  // token is a compile-time-known literal. o.-alias invariant: qualify as o.tier.
+  if (f.hiddenTiers.size > 0) {
+    const VALID_TIERS: TierKey[] = ['atlas', 'other'];
+    const visibleTiers = VALID_TIERS.filter(t => !f.hiddenTiers.has(t));
+    if (visibleTiers.length === 0) {
+      // All tiers hidden — force a false clause (no rows can match, D-05).
       occurrenceClauses.push('1 = 0');
     } else {
-      const list = visibleSources.map(s => `'${s}'`).join(',');
-      occurrenceClauses.push(`o.source IN (${list})`);
+      const list = visibleTiers.map(t => `'${t}'`).join(',');
+      occurrenceClauses.push(`o.tier IN (${list})`);
     }
   }
 
@@ -430,17 +438,17 @@ export async function queryVisibleGeoJSON(
   let rowCount = 0;
   await sqlite3.exec(db,
     // Phase 137 (PRO-04): fetch checklist_id so checklist points that match the filter are not silently dropped from _visibleIds.
-    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, checklist_id, year, source FROM occurrences o WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
+    `SELECT lat, lon, ecdysis_id, observation_id, specimen_observation_id, checklist_id, year, tier FROM occurrences o WHERE (${occurrenceWhere}) AND lat IS NOT NULL AND lon IS NOT NULL`,
     (rowValues: unknown[], columnNames: string[]) => {
       rowCount++;
-      const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'checklist_id' | 'year' | 'source'>;
+      const row = Object.fromEntries(columnNames.map((col, i) => [col, rowValues[i]])) as Pick<OccurrenceRow, 'lat' | 'lon' | 'ecdysis_id' | 'observation_id' | 'specimen_observation_id' | 'checklist_id' | 'year' | 'tier'>;
       const occId = occIdFromRow({ ecdysis_id: row.ecdysis_id, observation_id: row.observation_id, specimen_observation_id: row.specimen_observation_id, checklist_id: row.checklist_id, is_provisional: false } as OccurrenceRow);
       if (occId == null) return;
       ids.add(occId);
       features.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: [Number(row.lon), Number(row.lat)] },
-        properties: { occId, recencyTier: _recencyTier(Number(row.year)), source: String(row.source ?? '') },
+        properties: { occId, recencyTier: _recencyTier(Number(row.year)), tier: String(row.tier ?? '') },
       });
     }
   );

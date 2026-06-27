@@ -54,10 +54,10 @@ export class BeeMap extends LitElement {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
-    hiddenSources: new Set(),
+    hiddenTiers: new Set(),
   };
 
-  @property({ attribute: false }) hiddenSources: Set<string> = new Set();
+  @property({ attribute: false }) hiddenTiers: Set<string> = new Set();
   @property({ attribute: false }) intendedFilterActive = false;
   @property({ attribute: false }) offline = false;
 
@@ -274,9 +274,9 @@ export class BeeMap extends LitElement {
       this._applyBoundarySelection();
     }
 
-    // Source visibility changed: apply setFilter to unclustered-point
-    if (changedProperties.has('hiddenSources')) {
-      this._applySourceFilter();
+    // Tier visibility changed: re-set source data so clusters + points honor the hidden-tier set
+    if (changedProperties.has('hiddenTiers')) {
+      this._applyTierFilter();
     }
   }
 
@@ -465,9 +465,9 @@ export class BeeMap extends LitElement {
           this._applySelection();
         }
 
-        // Apply initial source filter if hiddenSources was set before map loaded
-        if (this.hiddenSources.size > 0) {
-          this._applySourceFilter();
+        // Apply initial tier filter if hiddenTiers was set before map loaded
+        if (this.hiddenTiers.size > 0) {
+          this._applyTierFilter();
         }
       } catch (err) {
         // Map-layer setup failed (style loaded but a source/layer add threw). Data
@@ -582,14 +582,14 @@ export class BeeMap extends LitElement {
 
   // --- Private helpers ---
 
-  // Drop features whose source the user has unchecked. Applied to the source
-  // DATA (not a layer filter) so mapbox-gl re-clusters without them — a layer
-  // filter can't hide cluster bubbles, which aggregate at the source level.
-  private _visibleBySource(
+  // Drop features whose tier the user has unchecked (Phase 170, PROV-02). Applied to the
+  // source DATA (not a layer filter) so mapbox-gl re-clusters without them — a layer filter
+  // can't hide cluster bubbles, which aggregate at the source level.
+  private _visibleByTier(
     features: FeatureCollection<Point, OccurrenceProperties>['features']
   ): FeatureCollection<Point, OccurrenceProperties>['features'] {
-    if (this.hiddenSources.size === 0) return features;
-    return features.filter(f => !this.hiddenSources.has(f.properties.source));
+    if (this.hiddenTiers.size === 0) return features;
+    return features.filter(f => !this.hiddenTiers.has(f.properties.tier));
   }
 
   private _applyVisibleIds() {
@@ -607,11 +607,11 @@ export class BeeMap extends LitElement {
       const activeFeatures = (this.filteredGeoJSON ?? { type: 'FeatureCollection' as const, features: [] }).features;
       occSource.setData({
         type: 'FeatureCollection',
-        features: this._visibleBySource(activeFeatures),
+        features: this._visibleByTier(activeFeatures),
       });
       // Ghost: full set minus visible IDs. Only computable once filtered set + visibleIds arrive.
       if (this.filteredGeoJSON !== null && this.visibleIds !== null) {
-        const ghostFeatures = this._visibleBySource(
+        const ghostFeatures = this._visibleByTier(
           this._fullGeoJSON.features.filter(f => !this.visibleIds!.has(f.properties.occId))
         );
         ghostSource.setData({ type: 'FeatureCollection', features: ghostFeatures });
@@ -622,7 +622,7 @@ export class BeeMap extends LitElement {
       // No filter intended -- render full set and clear ghost
       occSource.setData({
         type: 'FeatureCollection',
-        features: this._visibleBySource(this._fullGeoJSON.features),
+        features: this._visibleByTier(this._fullGeoJSON.features),
       });
       ghostSource.setData({ type: 'FeatureCollection', features: [] });
     }
@@ -656,7 +656,7 @@ export class BeeMap extends LitElement {
       return;
     }
 
-    const features = this._visibleBySource(this._fullGeoJSON.features).filter(f => {
+    const features = this._visibleByTier(this._fullGeoJSON.features).filter(f => {
       const id = f.properties.occId;
       if (!this.selectedOccIds!.has(id)) return false;
       return this.visibleIds === null || this.visibleIds.has(id);
@@ -664,10 +664,10 @@ export class BeeMap extends LitElement {
     selectedSource.setData({ type: 'FeatureCollection', features });
   }
 
-  private _applySourceFilter() {
+  private _applyTierFilter() {
     // Re-set the source data so clusters AND unclustered points both honor the
-    // hidden-source set. _applyVisibleIds runs _visibleBySource over the data
-    // and re-clusters; _applySelection drops hidden-source points from the
+    // hidden-tier set. _applyVisibleIds runs _visibleByTier over the data
+    // and re-clusters; _applySelection drops hidden-tier points from the
     // selection overlay.
     this._applyVisibleIds();
     this._applySelection();

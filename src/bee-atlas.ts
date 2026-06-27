@@ -3,7 +3,7 @@ import { customElement, query, state } from 'lit/decorators.js';
 import type { BeeMap } from './bee-map.ts';
 import { type FilterState, type CollectorEntry, isFilterActive, queryVisibleGeoJSON, queryTablePage, queryAllFiltered, buildCsvFilename, type OccurrenceRow, type SpecimenSortBy, queryListPage, getOccurrencePlaceSlugs, type OccurrenceProperties } from './filter.ts';
 import { parseOccId, occIdFromRow } from './occurrence.ts';
-import { buildParams, parseParams, type SourceKey } from './url-state.ts';
+import { buildParams, parseParams, type TierKey } from './url-state.ts';
 import { getDB, loadOccurrencesTable, tablesReady } from './sqlite.ts';
 import { markTaxaReady, taxaReady } from './ready.ts';
 import type { DataSummary, TaxonOption, FilterChangedEvent } from './filter.ts';
@@ -92,7 +92,7 @@ export class BeeAtlas extends LitElement {
     elevMax: null,
     selectedPlace: null,
     bounds: null,
-    hiddenSources: new Set(),
+    hiddenTiers: new Set(),
   };
 
   @state() private _visibleIds: Set<string> | null = null;
@@ -500,7 +500,7 @@ bee-map {
             .ecoregionOptions=${this._ecoregionOptions}
             .viewState=${this._viewState}
             .filterState=${this._filterState}
-            .hiddenSources=${this._filterState.hiddenSources}
+            .hiddenTiers=${this._filterState.hiddenTiers}
             .offline=${this._offline}
             @view-moved=${this._onViewMoved}
             @map-click-occurrence=${this._onOccurrenceClick}
@@ -555,9 +555,9 @@ bee-map {
             .sortBy=${this._tableSortBy}
             .filterActive=${isFilterActive(this._filterState)}
             .selectedIds=${this._selectedOccIds ? new Set(this._selectedOccIds) : null}
-            .hiddenSources=${this._filterState.hiddenSources}
+            .hiddenTiers=${this._filterState.hiddenTiers}
             @filter-changed=${this._onFilterChanged}
-            @source-filter-changed=${this._onSourceFilterChanged}
+            @tier-filter-changed=${this._onTierFilterChanged}
             @pane-expand-list=${this._onPaneExpandList}
             @pane-collapse=${this._onPaneCollapse}
             @pane-expand-table=${this._onPaneExpandTable}
@@ -641,8 +641,8 @@ bee-map {
         elevMax: initFilter.elevMax ?? null,
         selectedPlace: initFilter.selectedPlace ?? null,
         bounds: initFilter.bounds ?? null,
-        // hiddenSources from filter (hasFilter now recognizes src=); belt-and-suspenders fallback to ui
-        hiddenSources: initFilter.hiddenSources ?? initialParams.ui?.hiddenSources ?? new Set(),
+        // hiddenTiers from filter (hasFilter recognizes tier=/legacy src=); belt-and-suspenders fallback to ui
+        hiddenTiers: initFilter.hiddenTiers ?? initialParams.ui?.hiddenTiers ?? new Set(),
       };
     }
     // If URL contains a legacy taxon name, start the await-taxaReady resolution flow.
@@ -688,7 +688,7 @@ bee-map {
         { lon: initLon, lat: initLat, zoom: initZoom },
         this._filterState,
         initSel ?? { type: 'ids' as const, ids: [] },
-        { boundaryMode: initBoundaryMode, paneState, hiddenSources: this._filterState.hiddenSources }
+        { boundaryMode: initBoundaryMode, paneState, hiddenTiers: this._filterState.hiddenTiers }
       );
       window.history.replaceState({}, '', '?' + initParams.toString());
     }
@@ -1093,7 +1093,7 @@ bee-map {
       this._selectedCluster
         ? { type: 'cluster' as const, ...this._selectedCluster }
         : { type: 'ids' as const, ids: this._selectedOccIds ?? [] },
-      { boundaryMode: this._boundaryMode, paneState: this._paneState, hiddenSources: this._filterState.hiddenSources }
+      { boundaryMode: this._boundaryMode, paneState: this._paneState, hiddenTiers: this._filterState.hiddenTiers }
     );
   }
 
@@ -1301,7 +1301,7 @@ bee-map {
       elevMax: parsed.filter?.elevMax ?? null,
       selectedPlace: parsed.filter?.selectedPlace ?? null,
       bounds: parsed.filter?.bounds ?? null,
-      hiddenSources: parsed.filter?.hiddenSources ?? parsed.ui?.hiddenSources ?? new Set(),
+      hiddenTiers: parsed.filter?.hiddenTiers ?? parsed.ui?.hiddenTiers ?? new Set(),
     };
     // Handle legacy taxon back-compat on history navigation via the same await-taxaReady
     // flow as firstUpdated. By the time popstate fires, taxaReady is already resolved
@@ -1538,8 +1538,8 @@ bee-map {
       selectedPlace: detail.selectedPlace ?? null,
       // D-05: FilterChangedEvent carries no bounds — preserve active bounds explicitly
       bounds: this._filterState.bounds,
-      // FilterChangedEvent carries no hiddenSources — preserve active source filter explicitly (Pitfall 1)
-      hiddenSources: this._filterState.hiddenSources,
+      // FilterChangedEvent carries no hiddenTiers — preserve active tier filter explicitly (Pitfall 1)
+      hiddenTiers: this._filterState.hiddenTiers,
     };
 
     // Auto-switch boundary layer to match newly added region filter type.
@@ -1699,9 +1699,9 @@ bee-map {
     this._loading = false;
   }
 
-  private _onSourceFilterChanged(e: CustomEvent<{ hiddenSources: Set<SourceKey> }>) {
+  private _onTierFilterChanged(e: CustomEvent<{ hiddenTiers: Set<TierKey> }>) {
     // Write _filterState first (Pitfall 4 — assign before querying)
-    this._filterState = { ...this._filterState, hiddenSources: e.detail.hiddenSources };
+    this._filterState = { ...this._filterState, hiddenTiers: e.detail.hiddenTiers };
     this._listPage = 1;
     this._runFilterQuery();  // map + filter-result count
     this._runListQuery();    // sidebar list

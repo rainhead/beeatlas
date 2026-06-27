@@ -86,9 +86,14 @@ export function clusterCountLayerSpec(colors: RecencyColors): SymbolLayerSpecifi
 
 function _occurrencePointPaint(colors: RecencyColors): CircleLayerSpecification['paint'] {
   return {
+    // Phase 170 (D-08): tier drives the color family. `atlas` (community work) keeps the
+    // recency gradient so fresh work pops — the liveness/togetherness signal. `other`
+    // (expert observations + literature, incl. former checklist green) renders muted/neutral
+    // so external records recede. Muted color: a desaturated grey-blue, distinct from the
+    // recency palette so Atlas stands out.
     'circle-color': [
-      'match', ['get', 'source'],
-      'checklist', '#2c7a2c',
+      'match', ['get', 'tier'],
+      'other', '#7a8a99',
       ['match', ['get', 'recencyTier'],
         'thisYear', colors.thisYear,
         'lastYear', colors.lastYear,

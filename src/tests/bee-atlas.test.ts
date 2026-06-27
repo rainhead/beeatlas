@@ -849,7 +849,7 @@ describe('MAP-03: checklist taxon filter binding (county-fill removed, Plan 138-
   const atlasSrc = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
 
   // _checklistVisible, _onChecklistLayerChanged, .checklistTaxon/.checklistTaxonRank bindings
-  // removed in Plan 138-03. Checklist now flows through hiddenSources.
+  // removed in Plan 138-03. Checklist now flows through hiddenTiers (Phase 170).
   test('bee-atlas.ts does NOT have _checklistVisible @state field (retired)', () => {
     expect(atlasSrc).not.toMatch(/_checklistVisible/);
   });
@@ -858,12 +858,12 @@ describe('MAP-03: checklist taxon filter binding (county-fill removed, Plan 138-
     expect(atlasSrc).not.toMatch(/@checklist-layer-changed/);
   });
 
-  test('bee-atlas.ts handles source-filter-changed and writes _filterState.hiddenSources (D-02/164)', () => {
-    expect(atlasSrc).toMatch(/_onSourceFilterChanged/);
-    // New pattern: writes _filterState spread with hiddenSources: e.detail.hiddenSources
-    expect(atlasSrc).toMatch(/_filterState\s*=\s*\{[^}]*hiddenSources:\s*e\.detail\.hiddenSources/s);
+  test('bee-atlas.ts handles tier-filter-changed and writes _filterState.hiddenTiers (Phase 170 PROV-02)', () => {
+    expect(atlasSrc).toMatch(/_onTierFilterChanged/);
+    // New pattern: writes _filterState spread with hiddenTiers: e.detail.hiddenTiers
+    expect(atlasSrc).toMatch(/_filterState\s*=\s*\{[^}]*hiddenTiers:\s*e\.detail\.hiddenTiers/s);
     // Handler must re-run all three query methods (D-01)
-    expect(atlasSrc).toMatch(/_onSourceFilterChanged[\s\S]*?_runFilterQuery\(\)[\s\S]*?_runListQuery\(\)[\s\S]*?_runTableQuery\(\)/);
+    expect(atlasSrc).toMatch(/_onTierFilterChanged[\s\S]*?_runFilterQuery\(\)[\s\S]*?_runListQuery\(\)[\s\S]*?_runTableQuery\(\)/);
   });
 
   test('bee-atlas.ts backfills taxon display name on both URL-restore paths (MFILT-03 regression)', () => {
@@ -879,37 +879,43 @@ describe('MAP-03: checklist taxon filter binding (county-fill removed, Plan 138-
 
 
 
-describe('DET-01: _renderInatObs dispatched for source=inat_obs', () => {
+describe('DET-01: _renderInatObs dispatched for record_type=inat_expert (Phase 170 D-09)', () => {
   const src = readFileSync(resolve(__dirname, '../bee-occurrence-detail.ts'), 'utf-8');
   test('bee-occurrence-detail.ts declares _renderInatObs method', () => {
     expect(src).toMatch(/_renderInatObs\s*\(/);
   });
-  test('bee-occurrence-detail.ts checks source === inat_obs in render dispatch', () => {
-    expect(src).toMatch(/row\.source\s*===\s*['"]inat_obs['"]/);
+  test('bee-occurrence-detail.ts checks record_type === inat_expert in render dispatch (was source===inat_obs)', () => {
+    expect(src).toMatch(/row\.record_type\s*===\s*['"]inat_expert['"]/);
+    // The card is record_type-driven now; no row.source dispatch remains.
+    expect(src).not.toMatch(/row\.source\s*===/);
   });
 });
 
-describe('MAP-02: source-filter-changed event in bee-atlas', () => {
+describe('PROV-02: tier-filter-changed event in bee-atlas (Phase 170)', () => {
   const src = readFileSync(resolve(__dirname, '../bee-atlas.ts'), 'utf-8');
-  test('bee-atlas.ts handles source-filter-changed event', () => {
-    expect(src).toMatch(/source-filter-changed/);
+  test('bee-atlas.ts handles tier-filter-changed event', () => {
+    expect(src).toMatch(/tier-filter-changed/);
+    expect(src).not.toMatch(/source-filter-changed/);
   });
-  test('bee-atlas.ts uses _filterState.hiddenSources as source of truth (standalone _hiddenSources field deleted)', () => {
-    // The standalone @state() private _hiddenSources field is retired — _filterState.hiddenSources is the owner
-    expect(src).not.toMatch(/@state\(\)\s+private\s+_hiddenSources/);
-    // _filterState must reference hiddenSources
-    expect(src).toMatch(/_filterState\.hiddenSources/);
+  test('bee-atlas.ts uses _filterState.hiddenTiers as source of truth (standalone _hiddenTiers field absent)', () => {
+    // The standalone @state() private _hiddenTiers field is not introduced — _filterState.hiddenTiers is the owner
+    expect(src).not.toMatch(/@state\(\)\s+private\s+_hiddenTiers/);
+    // _filterState must reference hiddenTiers
+    expect(src).toMatch(/_filterState\.hiddenTiers/);
   });
-  test('bee-atlas.ts _buildCurrentParams passes _filterState.hiddenSources to ui arg', () => {
-    expect(src).toMatch(/hiddenSources:\s*this\._filterState\.hiddenSources/);
+  test('bee-atlas.ts _buildCurrentParams passes _filterState.hiddenTiers to ui arg', () => {
+    expect(src).toMatch(/hiddenTiers:\s*this\._filterState\.hiddenTiers/);
   });
-  test('bee-atlas.ts _onFilterChanged preserves hiddenSources across chip changes (Pitfall 1)', () => {
-    // _onFilterChanged must include hiddenSources: this._filterState.hiddenSources in the rewritten state
-    expect(src).toMatch(/hiddenSources:\s*this\._filterState\.hiddenSources/);
+  test('bee-atlas.ts _onFilterChanged preserves hiddenTiers across chip changes (Pitfall 1)', () => {
+    // _onFilterChanged must include hiddenTiers: this._filterState.hiddenTiers in the rewritten state
+    expect(src).toMatch(/hiddenTiers:\s*this\._filterState\.hiddenTiers/);
   });
-  test('bee-atlas.ts render passes .hiddenSources=${this._filterState.hiddenSources} to both bee-map and bee-pane', () => {
-    const occurrences = src.match(/\.hiddenSources=\$\{this\._filterState\.hiddenSources\}/g) ?? [];
+  test('bee-atlas.ts render passes .hiddenTiers=${this._filterState.hiddenTiers} to both bee-map and bee-pane', () => {
+    const occurrences = src.match(/\.hiddenTiers=\$\{this\._filterState\.hiddenTiers\}/g) ?? [];
     expect(occurrences.length).toBeGreaterThanOrEqual(2);
+  });
+  test('bee-atlas.ts no longer references hiddenSources (required-field rename complete)', () => {
+    expect(src).not.toMatch(/hiddenSources/);
   });
 });
 
@@ -1270,7 +1276,7 @@ describe('NEAR: near-me bounds reuse', () => {
         elevMax: null,
         selectedPlace: null,
         bounds: null,
-        hiddenSources: new Set(),
+        hiddenTiers: new Set(),
       };
     }
 

@@ -1,41 +1,42 @@
 import { describe, it, expect } from 'vitest';
 import { _buildGeoJSONFromRaw } from '../../src/features.ts';
 
-// Positional layout (target — 8-field): [lat, lon, ecdysis_id, observation_id,
-//                                         specimen_observation_id, year, source, checklist_id]
-// source is at index 6; checklist_id at index 7 (Phase 137 — atomic with sqlite_export.py _GEO_COLS).
+// Positional layout (Phase 170 — 8-field): [lat, lon, ecdysis_id, observation_id,
+//                                            specimen_observation_id, year, tier, checklist_id]
+// tier is at index 6 (was `source`, decomposed in 170-01); checklist_id at index 7
+// (Phase 137 — atomic with sqlite_export.py _GEO_COLS).
 interface RowOverride {
   lat?: number | null; lon?: number | null;
   ecdysis_id?: number | null; observation_id?: number | null; specimen_observation_id?: number | null;
-  year?: number | null; source?: string | null;
+  year?: number | null; tier?: string | null;
   checklist_id?: number | null;
 }
 
 function toRow(r: Required<RowOverride>): unknown[] {
   return [r.lat, r.lon, r.ecdysis_id, r.observation_id, r.specimen_observation_id,
-          r.year, r.source, r.checklist_id]; // source at index 6, checklist_id at index 7
+          r.year, r.tier, r.checklist_id]; // tier at index 6, checklist_id at index 7
 }
 
 const CURRENT_YEAR = new Date().getFullYear();
 
 function makeEcdysisRow(overrides: RowOverride = {}): unknown[] {
   return toRow({ lat: 47.5, lon: -120.3, ecdysis_id: 1001, observation_id: null,
-    specimen_observation_id: null, year: 2020, source: 'ecdysis', checklist_id: null, ...overrides });
+    specimen_observation_id: null, year: 2020, tier: 'atlas', checklist_id: null, ...overrides });
 }
 
 function makeInatRow(overrides: RowOverride = {}): unknown[] {
   return toRow({ lat: 47.6, lon: -120.4, ecdysis_id: null, observation_id: 12345,
-    specimen_observation_id: null, year: 2021, source: 'inat_obs', checklist_id: null, ...overrides });
+    specimen_observation_id: null, year: 2021, tier: 'other', checklist_id: null, ...overrides });
 }
 
 function makeSpecimenObsRow(overrides: RowOverride = {}): unknown[] {
   return toRow({ lat: 47.7, lon: -120.5, ecdysis_id: null, observation_id: null,
-    specimen_observation_id: 99999, year: 2019, source: 'inat_obs', checklist_id: null, ...overrides });
+    specimen_observation_id: 99999, year: 2019, tier: 'other', checklist_id: null, ...overrides });
 }
 
 function makeChecklistRow(overrides: RowOverride = {}): unknown[] {
   return toRow({ lat: 47.4, lon: -120.6, ecdysis_id: null, observation_id: null,
-    specimen_observation_id: null, year: 1998, source: 'checklist', checklist_id: 7777, ...overrides });
+    specimen_observation_id: null, year: 1998, tier: 'other', checklist_id: 7777, ...overrides });
 }
 
 describe('_buildGeoJSONFromRaw', () => {
@@ -92,27 +93,27 @@ describe('_buildGeoJSONFromRaw', () => {
     expect(result.geojson.features).toHaveLength(0);
   });
 
-  it('source at index 6 — feature carries the source value from that position', () => {
-    // This test pins that source is decoded from index 6 (not index 9).
+  it('tier at index 6 — feature carries the tier value from that position', () => {
+    // This test pins that tier is decoded from index 6 (Phase 170 — was `source`).
     // The row is manually constructed to put a known value at position 6 only.
-    const row: unknown[] = [47.5, -120.3, 1001, null, null, 2020, 'ecdysis', null]; // [6] = 'ecdysis', [7] = null
+    const row: unknown[] = [47.5, -120.3, 1001, null, null, 2020, 'atlas', null]; // [6] = 'atlas', [7] = null
     const result = _buildGeoJSONFromRaw([row]);
     expect(result.geojson.features).toHaveLength(1);
-    expect(result.geojson.features[0]!.properties.source).toBe('ecdysis');
+    expect(result.geojson.features[0]!.properties.tier).toBe('atlas');
   });
 
-  it('source at index 6 — inat_obs source value decoded correctly', () => {
-    const row: unknown[] = [47.6, -120.4, null, 12345, null, 2021, 'inat_obs', null]; // [6] = 'inat_obs', [7] = null
+  it('tier at index 6 — other tier value decoded correctly', () => {
+    const row: unknown[] = [47.6, -120.4, null, 12345, null, 2021, 'other', null]; // [6] = 'other', [7] = null
     const result = _buildGeoJSONFromRaw([row]);
     expect(result.geojson.features).toHaveLength(1);
-    expect(result.geojson.features[0]!.properties.source).toBe('inat_obs');
+    expect(result.geojson.features[0]!.properties.tier).toBe('other');
   });
 
-  it('source null at index 6 → feature source is empty string', () => {
+  it('tier null at index 6 → feature tier is empty string', () => {
     const row: unknown[] = [47.5, -120.3, 1001, null, null, 2020, null, null]; // [6] = null, [7] = null
     const result = _buildGeoJSONFromRaw([row]);
     expect(result.geojson.features).toHaveLength(1);
-    expect(result.geojson.features[0]!.properties.source).toBe('');
+    expect(result.geojson.features[0]!.properties.tier).toBe('');
   });
 
   it('checklist_id non-null → occId = "checklist:{id}"', () => {
@@ -162,13 +163,13 @@ describe('_buildGeoJSONFromRaw', () => {
     expect(result.geojson.features).toHaveLength(3);
   });
 
-  it('checklist source row: properties.source equals "checklist" (UIX-01 paint expression key)', () => {
-    // Regression guard: the Mapbox paint expression keys on source='checklist' to style
-    // checklist points differently. This asserts that a row with source at index 6 = 'checklist'
-    // produces properties.source === 'checklist' — behavior that already exists in features.ts.
+  it('checklist row: properties.tier equals "other" (D-08 — checklist folds into muted Other)', () => {
+    // Phase 170 (D-08): the Mapbox paint expression keys on tier='other' to render external
+    // records (incl. former checklist green) muted. This asserts that a checklist row carries
+    // tier='other' at index 6 → properties.tier === 'other'.
     const row = makeChecklistRow({ checklist_id: 7777 });
     const result = _buildGeoJSONFromRaw([row]);
     expect(result.geojson.features).toHaveLength(1);
-    expect(result.geojson.features[0]!.properties.source).toBe('checklist');
+    expect(result.geojson.features[0]!.properties.tier).toBe('other');
   });
 });

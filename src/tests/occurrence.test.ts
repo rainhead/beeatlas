@@ -1,5 +1,7 @@
 import { describe, test, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { occIdFromRow, parseOccId, isSpecimenBacked, isSampleOnly, isProvisional, isSpecimenId } from '../occurrence.ts';
+import { OCC_ID_SQL_CASE } from '../filter.ts';
 import type { OccurrenceRow } from '../filter.ts';
 
 // Base row with every OccurrenceRow field populated to null / 0 / false defaults.
@@ -34,7 +36,8 @@ const BASE_ROW: OccurrenceRow = {
   verbatim_name: null,
   locality: null,
   collapsed_count: null,
-  source: null,
+  tier: null,
+  record_type: null,
   image_url: null,
   obs_url: null,
   user_login: null,
@@ -75,7 +78,7 @@ describe('occIdFromRow', () => {
   });
 
   test('returns checklist:N for a checklist row (only checklist_id set)', () => {
-    expect(occIdFromRow({ ...BASE_ROW, checklist_id: 1234, source: 'checklist' })).toBe('checklist:1234');
+    expect(occIdFromRow({ ...BASE_ROW, checklist_id: 1234, tier: 'other', record_type: 'checklist' })).toBe('checklist:1234');
   });
 
   // D-03/D-11: category-3 provisional sample rows now carry the host/plant observation_id
@@ -188,5 +191,43 @@ describe('isSpecimenId', () => {
 
   test('returns false for an empty string', () => {
     expect(isSpecimenId('')).toBe(false);
+  });
+});
+
+// PROV-03 (Phase 170, D-07/D-11): the synthetic occ_id is reconstructed in THREE coupled
+// sites — occIdFromRow (src/occurrence.ts), OCC_ID_SQL_CASE (src/filter.ts, the wa-sqlite
+// query path), and the CASE in data/dbt/models/marts/occurrence_places.sql (the bridge join
+// key). Their branch PRIORITY ORDER must stay identical (ecdysis → inat → inat_obs →
+// checklist) or the place-membership join silently fails to match. This assertion pins the
+// coupling WITHOUT changing any CASE — the occ_id prefix `inat_obs:` is unchanged by the
+// 170 source→tier/record_type decomposition (only the record_type VALUE inat_obs→inat_expert
+// moved; the prefix is independent, D-07).
+describe('occ_id CASE coupling (PROV-03)', () => {
+  // Canonical priority order — mirrors the occIdFromRow branch order in src/occurrence.ts.
+  const TS_ORDER = ['ecdysis', 'inat', 'inat_obs', 'checklist'];
+
+  // Pull the prefix literal from each "THEN 'prefix:'" branch, in source order.
+  function extractCaseOrder(sql: string): string[] {
+    return [...sql.matchAll(/THEN\s+'([a-z_]+):'/g)].map(m => m[1]!);
+  }
+
+  test('OCC_ID_SQL_CASE (filter.ts) matches occIdFromRow priority order', () => {
+    expect(extractCaseOrder(OCC_ID_SQL_CASE)).toEqual(TS_ORDER);
+  });
+
+  test('occurrence_places.sql CASE matches occIdFromRow priority order', () => {
+    const sql = readFileSync('data/dbt/models/marts/occurrence_places.sql', 'utf8');
+    // Isolate the occ_id CASE block (between the SELECT-clause CASE and END AS occ_id) so the
+    // regex only sees the three coupled branches, not unrelated SQL.
+    const caseBlock = sql.slice(sql.indexOf('CASE'), sql.indexOf('END AS occ_id'));
+    expect(extractCaseOrder(caseBlock)).toEqual(TS_ORDER);
+  });
+
+  test('all three sites share the identical occ_id prefix order', () => {
+    const sql = readFileSync('data/dbt/models/marts/occurrence_places.sql', 'utf8');
+    const bridgeOrder = extractCaseOrder(sql.slice(sql.indexOf('CASE'), sql.indexOf('END AS occ_id')));
+    const filterOrder = extractCaseOrder(OCC_ID_SQL_CASE);
+    expect(filterOrder).toEqual(bridgeOrder);
+    expect(filterOrder).toEqual(TS_ORDER);
   });
 });

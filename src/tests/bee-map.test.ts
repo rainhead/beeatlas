@@ -7,7 +7,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(resolve(__dirname, '../bee-map.ts'), 'utf-8');
 
 describe('MAP-02: checklist county fill layer removed (Plan 138-03)', () => {
-  // County-fill layer and its plumbing removed; checklist now flows through hiddenSources.
+  // County-fill layer and its plumbing removed; checklist now flows through hiddenTiers (Phase 170).
   test('bee-map.ts does NOT declare showChecklist @property (retired)', () => {
     expect(src).not.toMatch(/showChecklist/);
   });
@@ -20,8 +20,8 @@ describe('MAP-02: checklist county fill layer removed (Plan 138-03)', () => {
     expect(src).not.toMatch(/checklistCountyFillLayerSpec/);
   });
 
-  test('bee-map.ts declares hiddenSources @property (checklist standard path)', () => {
-    expect(src).toMatch(/@property[\s\S]{0,50}hiddenSources/);
+  test('bee-map.ts declares hiddenTiers @property (Phase 170 tier-driven filter)', () => {
+    expect(src).toMatch(/@property[\s\S]{0,50}hiddenTiers/);
   });
 });
 
