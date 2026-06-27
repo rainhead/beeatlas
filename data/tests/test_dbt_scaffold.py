@@ -212,7 +212,8 @@ def test_occurrences_row_count_not_inflated_by_checklist():
 
     Retired v4.7 (Phase 137): the old assertion "Checklist records MUST NOT enter
     int_combined" has been reversed. Checklist records now intentionally enter as
-    source='checklist'. See STATE.md §Decisions for the v4.7 reversal rationale.
+    record_type='checklist'. See STATE.md §Decisions for the v4.7 reversal rationale.
+    (Phase 170: the `source` column was replaced by `tier`+`record_type`.)
     """
     parquet_path = str(SANDBOX / "occurrences.parquet")
     row = duckdb.execute(
@@ -222,24 +223,25 @@ def test_occurrences_row_count_not_inflated_by_checklist():
         f"occurrences.parquet has {row[0]} rows — unexpectedly large; "
         "verify no runaway JOIN occurred in int_combined"
     )
-    # Positive assertion: source='checklist' rows must exist in occurrences.parquet (PRO-03).
+    # Positive assertion: record_type='checklist' rows must exist in occurrences.parquet (PRO-03).
     # Retired v4.7 (Phase 137): checklist records now intentionally promoted from
     # int_checklist_dedup_status as ARM 4 of int_combined.
     checklist_count = duckdb.execute(
-        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE source='checklist'"
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE record_type='checklist'"
     ).fetchone()[0]
     # Floor (not merely > 0): ~19,929 checklist rows are expected post-collapse. A bare
     # `> 0` would pass even if an over-aggressive dedup seed or an inverted ARM 4 filter
     # silently suppressed nearly all of them. 10,000 is comfortably below the real volume
     # and far above noise. (WR-03)
     assert checklist_count >= 10_000, (
-        f"occurrences.parquet has only {checklist_count} source='checklist' rows — "
+        f"occurrences.parquet has only {checklist_count} record_type='checklist' rows — "
         "unexpectedly few; verify dedup suppression and the ARM 4 filter in int_combined"
     )
 
 
 # ---------------------------------------------------------------------------
-# OCC-01: source column assertions (Phase 118)
+# OCC-01 / PROV-01: tier + record_type column assertions
+# (Phase 170 replaced the `source` enum with orthogonal `tier`+`record_type`.)
 # ---------------------------------------------------------------------------
 
 _OCCURRENCES_GUARD = pytest.mark.skipif(
@@ -250,39 +252,53 @@ _OCCURRENCES_GUARD = pytest.mark.skipif(
 
 @pytest.mark.integration
 @_OCCURRENCES_GUARD
-def test_occurrences_source_column():
-    """occurrences.parquet has a non-null source column (OCC-01)."""
+def test_occurrences_tier_and_record_type_columns():
+    """occurrences.parquet has non-null tier and record_type columns (OCC-01 / PROV-01)."""
     parquet_path = str(SANDBOX / "occurrences.parquet")
-    row = duckdb.execute(f"""
-        SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE source IS NULL
-    """).fetchone()
-    assert row[0] == 0, f"occurrences.parquet has {row[0]} rows with null source"
+    null_tier = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE tier IS NULL"
+    ).fetchone()[0]
+    null_rt = duckdb.execute(
+        f"SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE record_type IS NULL"
+    ).fetchone()[0]
+    assert null_tier == 0, f"occurrences.parquet has {null_tier} rows with null tier"
+    assert null_rt == 0, f"occurrences.parquet has {null_rt} rows with null record_type"
 
 
 @pytest.mark.integration
 @_OCCURRENCES_GUARD
-def test_inat_obs_rows_in_occurrences():
-    """occurrences.parquet contains rows with source='inat_obs' (OCC-01)."""
-    parquet_path = str(SANDBOX / "occurrences.parquet")
-    row = duckdb.execute(f"""
-        SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE source = 'inat_obs'
-    """).fetchone()
-    assert row[0] > 0, "Expected inat_obs rows in occurrences.parquet"
+def test_inat_expert_rows_in_occurrences():
+    """occurrences.parquet contains rows with record_type='inat_expert' (OCC-01).
 
-
-@pytest.mark.integration
-@_OCCURRENCES_GUARD
-def test_source_no_nulls():
-    """All rows in occurrences.parquet have a recognized source value (OCC-01 + PRO-01).
-
-    Phase 137 (v4.7): 'checklist' added as a valid source after ARM 4 promotion.
+    Phase 170 renamed the `inat_obs` record_type value to `inat_expert` (the occ_id
+    prefix `inat_obs:` is intentionally unchanged).
     """
     parquet_path = str(SANDBOX / "occurrences.parquet")
     row = duckdb.execute(f"""
-        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
-        WHERE source NOT IN ('ecdysis', 'waba_sample', 'inat_obs', 'checklist')
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}') WHERE record_type = 'inat_expert'
     """).fetchone()
-    assert row[0] == 0, f"Found {row[0]} rows with unexpected source values"
+    assert row[0] > 0, "Expected inat_expert rows in occurrences.parquet"
+
+
+@pytest.mark.integration
+@_OCCURRENCES_GUARD
+def test_record_type_and_tier_no_unexpected_values():
+    """Every occurrences row has a recognized record_type and tier (OCC-01 + PROV-01).
+
+    Phase 170: record_type ∈ {specimen, waba_specimen, provisional_sample, inat_expert,
+    checklist}; tier ∈ {atlas, other}.
+    """
+    parquet_path = str(SANDBOX / "occurrences.parquet")
+    bad_rt = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE record_type NOT IN ('specimen', 'waba_specimen', 'provisional_sample', 'inat_expert', 'checklist')
+    """).fetchone()[0]
+    bad_tier = duckdb.execute(f"""
+        SELECT COUNT(*) FROM read_parquet('{parquet_path}')
+        WHERE tier NOT IN ('atlas', 'other')
+    """).fetchone()[0]
+    assert bad_rt == 0, f"Found {bad_rt} rows with unexpected record_type values"
+    assert bad_tier == 0, f"Found {bad_tier} rows with unexpected tier values"
 
 
 # ---------------------------------------------------------------------------

@@ -31,14 +31,14 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
                   one with a species-rank taxon (taxon_id=10 → in species.parquet),
                   one without a species match (taxon_id=99 → NOT in species.parquet).
                   specimen_count=2, status_denominator=2, status_identified=1, status_awaiting=1
-        'bob'   — sample-host-only (source='waba_sample', ecdysis_id=None,
+        'bob'   — sample-host-only (record_type='provisional_sample', ecdysis_id=None,
                   sample_id=None, observation_id=888).
-                  Passes D-01 gate via source='waba_sample'.
+                  Passes D-01 gate via record_type='provisional_sample'.
                   sample_count must be NON-ZERO (via the observation_id formula).
-        'carol' — inat_obs only (source='inat_obs', ecdysis_id=None).
+        'carol' — inat_expert only (record_type='inat_expert', ecdysis_id=None).
                   Must NOT survive the D-01 gate.
-        'dave'  — MIXED recordedBy: one ecdysis row with a real name ('Dave D')
-                  and one waba_sample row with recordedBy=None. display_name MUST
+        'dave'  — MIXED recordedBy: one specimen row with a real name ('Dave D')
+                  and one provisional_sample row with recordedBy=None. display_name MUST
                   resolve to 'Dave D', not '@dave' (CR-01 regression: a per-row
                   COALESCE would let the NULL row's '@dave' win the MIN).
     """
@@ -47,7 +47,7 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
         ("recordedBy", pa.string()),
         ("host_inat_login", pa.string()),
         ("ecdysis_id", pa.int64()),
-        ("source", pa.string()),
+        ("record_type", pa.string()),
         ("sample_id", pa.int64()),
         ("observation_id", pa.int64()),
         ("taxon_id", pa.int64()),
@@ -58,7 +58,7 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
             "recordedBy":           ["Alice A", "Alice A", None,   "Carol C", "Dave D",  None],
             "host_inat_login":      ["alice",   "alice",  "bob",   "carol",   "dave",    "dave"],
             "ecdysis_id":           [42,        77,       None,    None,      55,        None],
-            "source":               ["ecdysis", "ecdysis", "waba_sample", "inat_obs", "ecdysis", "waba_sample"],
+            "record_type":          ["specimen", "specimen", "provisional_sample", "inat_expert", "specimen", "provisional_sample"],
             "sample_id":            [10,        20,       None,    None,      30,        None],
             "observation_id":       [None,      None,     888,     999,       None,      777],
             "taxon_id":             [10,        99,       None,    None,      10,        None],
@@ -126,7 +126,7 @@ def test_gate_excludes_inat_obs_only(tmp_path, monkeypatch):
     """D-01: inat_obs-only login 'carol' must NOT appear in collectors.json.
 
     Gate predicate: collector_inat_login IS NOT NULL AND
-        (ecdysis_id IS NOT NULL OR source IN ('waba_specimen', 'waba_sample'))
+        (ecdysis_id IS NOT NULL OR record_type IN ('waba_specimen', 'provisional_sample'))
     """
     ce_mod = _setup_env(tmp_path, monkeypatch)
     ce_mod.export_collectors_step()
@@ -142,12 +142,12 @@ def test_gate_excludes_inat_obs_only(tmp_path, monkeypatch):
 
 
 def test_sample_host_only_has_nonzero_sample_count(tmp_path, monkeypatch):
-    """waba_sample rows have NULL sample_id; their sample is the observation_id.
+    """provisional_sample rows have NULL sample_id; their sample is the observation_id.
 
     Research finding #3: sample_count formula =
-        COUNT(DISTINCT sample_id) + COUNT(DISTINCT CASE WHEN source='waba_sample' THEN observation_id END)
-    For 'bob' (source='waba_sample', sample_id=None, observation_id=888):
-        COUNT(DISTINCT sample_id)=0 + COUNT(DISTINCT observation_id where source='waba_sample')=1 → 1.
+        COUNT(DISTINCT sample_id) + COUNT(DISTINCT CASE WHEN record_type='provisional_sample' THEN observation_id END)
+    For 'bob' (record_type='provisional_sample', sample_id=None, observation_id=888):
+        COUNT(DISTINCT sample_id)=0 + COUNT(DISTINCT observation_id where record_type='provisional_sample')=1 → 1.
     """
     ce_mod = _setup_env(tmp_path, monkeypatch)
     ce_mod.export_collectors_step()
@@ -192,7 +192,7 @@ def test_mixed_null_recordedby_keeps_real_name(tmp_path, monkeypatch):
     """CR-01 regression: a collector with both a named row and a NULL-recordedBy row
     must display the real name, not the '@login' fallback.
 
-    'dave' has an ecdysis row (recordedBy='Dave D') and a waba_sample row
+    'dave' has a specimen row (recordedBy='Dave D') and a provisional_sample row
     (recordedBy=None). A per-row COALESCE(recordedBy, '@'||login) followed by MIN
     would pick '@dave' (the '@' sorts before letters), masking the real name.
     The correct COALESCE(MIN(recordedBy), '@'||MIN(login)) yields 'Dave D'.
