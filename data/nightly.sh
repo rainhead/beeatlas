@@ -158,13 +158,16 @@ LOCAL_NAMES = {
     'seasonality': 'seasonality.json',
     'higher_taxa': 'higher_taxa.json',  # _data/species.js reads this at build (deploy.yml pulls it too)
     'photos':      'photos.json',
+    'collectors':  'collectors.json',
 }
 # Pure metadata in the manifest — never files.
 NON_FILE_KEYS = {'occurrences_db_tables', 'generated_at'}
 # Real published artifacts intentionally NOT in the baseline diff (documented so
 # they don't trip the drift WARN): occurrences_db is the 23 MB sqlite (the parquet
 # is the diff baseline); places/checklist artifacts aren't diffed by the gate today.
-INTENTIONALLY_SKIPPED = {'occurrences_db', 'places', 'places_meta', 'checklist'}
+# collector_event_pages is ~29 MB — too large for a daily baseline pull (same
+# reasoning as occurrences_db).
+INTENTIONALLY_SKIPPED = {'occurrences_db', 'places', 'places_meta', 'checklist', 'collector_event_pages'}
 
 pulled, skipped, failed, drift = [], [], [], []
 for key, hashed in manifest.items():
