@@ -153,3 +153,70 @@ table.event-feed td {
   font-weight: 400;
   margin-left: 0.5rem;
 }
+
+/* Phase 172: collector coverage maps */
+.places-page img[src*="/collector-maps/"] {
+  aspect-ratio: 15 / 8;
+  width: 100%;
+  max-width: 600px;
+}
+
+.coverage-section {
+  margin-top: 1.5rem;
+}
+
+.coverage-maps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .coverage-maps {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+}
+
+/* Phase 172: species-by-genus section */
+.species-section {
+  margin-top: 1.5rem;
+}
+
+.genus-section {
+  margin-bottom: 1rem;
+}
+
+.genus-heading {
+  font-size: 1rem;
+  font-weight: 700;
+  font-style: italic;
+  color: var(--text-body, #213547);
+  margin: 0.5rem 0 0.25rem;
+}
+
+/*
+ * .species-list pattern: duplicated from taxon-pages.css to avoid loading
+ * the entire taxon-pages.css stylesheet on collector pages.
+ */
+.species-section .species-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.species-section .species-list li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border, #ddd);
+}
+
+.species-section .species-list .count {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+}

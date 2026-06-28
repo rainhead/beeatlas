@@ -13,6 +13,9 @@ layout: default.njk
 <article class="places-page place-detail">
   <h1>{{ collector.display_name }}</h1>
   <p class="metadata">{{ collector.specimen_count | quantify("specimen") }} · {{ collector.sample_count | quantify("sample") }} · {{ collector.species_count | quantify("species", "species") }}</p>
+  {%- if collector.active_since -%}
+  <p class="metadata">Active since {{ collector.active_since }} ({{ collector.seasons_count | quantify("season") }})</p>
+  {%- endif -%}
   {%- if collector.status_denominator > 0 -%}
   <p class="status-split">{{ collector.status_identified }} identified to species, {{ collector.status_awaiting }} awaiting ID</p>
   {%- endif -%}
@@ -21,6 +24,49 @@ layout: default.njk
       silently showing ALL occurrences instead of this collector's (CR-02). 0 such collectors
       today, but the guard keeps the link honest if a name-less waba_specimen-only one appears. -#}
   <a href="/?collectors={{ collector.recordedBy | urlencode }}:{{ collector.host_inat_login | urlencode }}">View on the atlas →</a>
+  {%- endif -%}
+  {#- Phase 172: Coverage maps (ACCOM-01/03) and species list (ACCOM-02) -#}
+  {%- if collector.county_count > 0 or collector.ecoregion_count > 0 -%}
+  <section class="coverage-section">
+    <div class="coverage-maps">
+      {%- if collector.county_count > 0 -%}
+      <div class="map-block">
+        <img loading="lazy"
+             src="/data/collector-maps/{{ collector.login }}.svg"
+             alt="County coverage map for {{ collector.display_name }} — {{ collector.county_count | quantify('county', 'counties') }}">
+        <p class="metadata">{{ collector.county_count | quantify("county", "counties") }}</p>
+      </div>
+      {%- endif -%}
+      {%- if collector.ecoregion_count > 0 -%}
+      <div class="map-block">
+        <img loading="lazy"
+             src="/data/collector-maps/{{ collector.login }}-eco.svg"
+             alt="Ecoregion coverage map for {{ collector.display_name }} — {{ collector.ecoregion_count | quantify('ecoregion') }}">
+        <p class="metadata">{{ collector.ecoregion_count | quantify("ecoregion") }}</p>
+      </div>
+      {%- endif -%}
+    </div>
+  </section>
+  {%- endif -%}
+  {%- if collector.species_by_genus and collector.species_by_genus.length > 0 -%}
+  <section class="species-section">
+    <h2>Species collected</h2>
+    <div class="species-by-genus">
+    {%- for genus_group in collector.species_by_genus -%}
+      <div class="genus-section">
+        <h3 class="genus-heading"><em>{{ genus_group.genus }}</em></h3>
+        <ul class="species-list">
+        {%- for sp in genus_group.species -%}
+          <li>
+            <a href="/species/{{ sp.slug }}/">{{ sp.canonical_name }}</a>
+            <span class="count">({{ sp.count }})</span>
+          </li>
+        {%- endfor -%}
+        </ul>
+      </div>
+    {%- endfor -%}
+    </div>
+  </section>
   {%- endif -%}
   {#- Phase 171: Event feed section (STREAM-01/02/03) -#}
   {%- if collector.total_event_count > 0 -%}
