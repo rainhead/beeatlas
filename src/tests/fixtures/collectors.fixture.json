@@ -1,0 +1,101 @@
+[
+  {
+    "login": "alice",
+    "display_name": "Alice Smith",
+    "recordedBy": "Alice Smith",
+    "host_inat_login": "alice",
+    "atom_feed_url": "/data/feeds/collector-alice-smith.xml",
+    "specimen_count": 2,
+    "sample_count": 1,
+    "species_count": 1,
+    "status_denominator": 2,
+    "status_identified": 1,
+    "status_awaiting": 1,
+    "first_page_events": [
+      {
+        "event_type": "Identified",
+        "event_date": "2024-05-01",
+        "species_name": "Bombus vosnesenskii",
+        "species_slug": "Bombus/vosnesenskii",
+        "inat_url": null,
+        "determiner": "J. Smith",
+        "is_current": true,
+        "is_pending": false,
+        "catalog_number": "WAB-001",
+        "ecdysis_id": 12345,
+        "is_reidentification": false
+      },
+      {
+        "event_type": "Identified",
+        "event_date": "2024-03-10",
+        "species_name": "Syrphus ribesii",
+        "species_slug": null,
+        "inat_url": "https://www.inaturalist.org/taxa/Syrphus%20ribesii",
+        "determiner": "B. Jones",
+        "is_current": true,
+        "is_pending": false,
+        "catalog_number": null,
+        "ecdysis_id": null,
+        "is_reidentification": false
+      }
+    ],
+    "total_event_pages": 1,
+    "total_event_count": 2
+  },
+  {
+    "login": "bob",
+    "display_name": "Bob Chen",
+    "recordedBy": "Bob Chen",
+    "host_inat_login": "bob",
+    "atom_feed_url": "/data/feeds/collector-bob-chen.xml",
+    "specimen_count": 3,
+    "sample_count": 2,
+    "species_count": 1,
+    "status_denominator": 3,
+    "status_identified": 2,
+    "status_awaiting": 1,
+    "first_page_events": [
+      {
+        "event_type": "Identified",
+        "event_date": "2024-06-15",
+        "species_name": "Bombus mixtus",
+        "species_slug": "Bombus/mixtus",
+        "inat_url": null,
+        "determiner": "J. Smith",
+        "is_current": true,
+        "is_pending": false,
+        "catalog_number": "WAB-050",
+        "ecdysis_id": 99002,
+        "is_reidentification": false
+      },
+      {
+        "event_type": "Identified",
+        "event_date": "2024-04-20",
+        "species_name": "Bombus mixtus",
+        "species_slug": "Bombus/mixtus",
+        "inat_url": null,
+        "determiner": "K. Lee",
+        "is_current": false,
+        "is_pending": false,
+        "catalog_number": "WAB-051",
+        "ecdysis_id": 99003,
+        "is_reidentification": true
+      },
+      {
+        "event_type": "Collected",
+        "event_date": "2023-09-05",
+        "species_name": null,
+        "species_slug": null,
+        "inat_url": null,
+        "determiner": null,
+        "is_current": null,
+        "is_pending": true,
+        "catalog_number": "WAB-052",
+        "ecdysis_id": 99004,
+        "is_reidentification": null
+      }
+    ],
+    "total_event_pages": 2,
+    "total_event_count": 4
+  }
+]
