@@ -316,6 +316,8 @@ places_name=$(_upload_hashed "$EXPORT_DIR/places.geojson" "places" --content-typ
 places_meta_name=$(_upload_hashed "$EXPORT_DIR/places.json" "places_meta" --content-type application/json)
 checklist_name=$(_upload_hashed "$EXPORT_DIR/checklist.parquet" "checklist")
 photos_name=$(_upload_hashed "$EXPORT_DIR/photos.json" "photos")
+collectors_name=$(_upload_hashed "$EXPORT_DIR/collectors.json" "collectors")
+collector_event_pages_name=$(_upload_hashed "$EXPORT_DIR/collector_event_pages.json" "collector_event_pages")
 
 cat > "$EXPORT_DIR/manifest.json" <<JSON
 {
@@ -330,6 +332,8 @@ cat > "$EXPORT_DIR/manifest.json" <<JSON
   "places_meta": "$places_meta_name",
   "checklist": "$checklist_name",
   "photos": "$photos_name",
+  "collectors": "$collectors_name",
+  "collector_event_pages": "$collector_event_pages_name",
   "occurrences_db_tables": $occ_db_tables,
   "generated_at": "$(_ts)"
 }
