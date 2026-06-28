@@ -345,10 +345,11 @@ aws --profile "$AWS_PROFILE" s3 cp --no-progress \
     --cache-control "no-cache" \
     "$EXPORT_DIR/manifest.json" "s3://$BUCKET/data/manifest.json"
 
-# Feeds, species-maps, and place-maps use stable (non-hashed) URLs for external consumers.
+# Feeds, species-maps, place-maps, and collector-maps use stable (non-hashed) URLs for external consumers.
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/feeds/" "s3://$BUCKET/data/feeds/"
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/species-maps/" "s3://$BUCKET/data/species-maps/"
 aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/place-maps/" "s3://$BUCKET/data/place-maps/"
+aws --profile "$AWS_PROFILE" s3 cp --recursive --no-progress "$EXPORT_DIR/collector-maps/" "s3://$BUCKET/data/collector-maps/"   # Phase 172
 echo "exports uploaded in $(_elapsed $_t0)"
 
 # 4. Invalidate CloudFront. Hashed artifacts are new URLs each run — no
@@ -357,7 +358,7 @@ echo "--- invalidating CloudFront ---"
 _t0=$(date +%s)
 aws --profile "$AWS_PROFILE" cloudfront create-invalidation \
     --distribution-id "$DISTRIBUTION_ID" \
-    --paths "/data/manifest.json" "/data/feeds/*" "/data/species-maps/*" "/data/place-maps/*" \
+    --paths "/data/manifest.json" "/data/feeds/*" "/data/species-maps/*" "/data/place-maps/*" "/data/collector-maps/*" \
     --query "Invalidation.Id" --output text
 echo "invalidation requested in $(_elapsed $_t0)"
 

@@ -9,7 +9,8 @@ Pipelines are executed in this order:
     inat-obs -> resolve-taxon-ids -> resolution-gate ->
     inactive-remap -> inactive-gate -> taxon-lineage-extended -> places-validation -> places-load ->
     dbt-build -> dedup-candidates -> dedup-gate -> generate-sqlite -> topology-postprocess ->
-    species-export -> species-maps -> places-export -> collectors-export -> places-maps -> feeds
+    species-export -> species-maps -> places-export -> collectors-export ->
+    collectors-events-export -> collector-maps -> places-maps -> feeds
 
 Geographies (county/ecoregion boundaries) change rarely and are excluded from the
 nightly run. Load them manually: uv run python geographies_pipeline.py
@@ -47,6 +48,7 @@ from places_load import load_places_step
 from places_export import export_places_step
 from collectors_export import export_collectors_step
 from collectors_events_export import export_collectors_events_step
+from collector_maps import generate_collector_maps_step
 from places_maps import main as generate_place_maps_step
 from sqlite_export import main as generate_sqlite_export
 from checklist_dedup import write_dedup_candidates, check_dedup_gate
@@ -127,6 +129,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("places-export", export_places_step),
     ("collectors-export", export_collectors_step),
     ("collectors-events-export", export_collectors_events_step),
+    ("collector-maps", generate_collector_maps_step),   # Phase 172: per-collector county + ecoregion SVGs
     ("places-maps", generate_place_maps_step),
     ("feeds", generate_feeds),
 ]
