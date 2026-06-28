@@ -91,7 +91,7 @@
   - [x] 171-01-PLAN.md — Wave 1: `collectors_events_export.py` (feeds.py identifications join + rank-aware slug resolution + 2D chunking) extending `collectors.json` (first_page_events) and emitting committed `collector_event_pages.json`; run.py STEPS entry; Wave 0 golden-fixture pytest + vitest artifact-shape assertions [STREAM-01/02/03]
   - [x] 171-02-PLAN.md — Wave 2: `_data/collectors.js` loader (collectorEventPages + ELEVENTY_RUN_MODE HMR guard) + `collector-detail.njk` first-page feed/empty-state + new `collector-events-page.njk` sub-pages + UI-SPEC event-feed CSS [STREAM-01/02/03]
   - [x] 171-03-PLAN.md — Wave 3: full-suite (npm test + pytest) + build-mode sub-page generation verification + `171-HUMAN-UAT.md` blocking operator checkpoint (autonomous: false — UI phase) [STREAM-01/02/03]
-- [ ] **Phase 172: Accomplishment View** — County coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and active-seasons badge on the collector page
+- [x] **Phase 172: Accomplishment View** — County coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and active-seasons badge on the collector page. (completed 2026-06-28 — verification 5/5; operator UAT PASS after 2 gap-closure passes: aggregations moved to the `tier='atlas'` facet so uncatalogued specimens count; cased binomials; per-species "N specimens"; map delivery redesigned from 248 per-collector SVGs (~122 MB) to two committed shared base-map partials inlined + highlighted per-collector via CSS — no per-collector files, no JS.) **Plans:** 5 (Waves 0–3).
 
 <details>
 <summary>✅ v5.2 Place Coverage Expansion (Phases 160–162) — SHIPPED 2026-06-24</summary>
