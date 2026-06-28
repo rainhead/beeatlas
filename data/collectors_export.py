@@ -114,13 +114,15 @@ _ACCOM_QUERY = """
 # ACCOM-02 / D-04: species-rank species list per collector.
 # Predicate: tier='atlas' (consistent with _ACCOM_QUERY — includes uncatalogued specimens).
 # Uses cased sp.scientificName (NOT lowercase sp.canonical_name).
-# No per-species count (operator: unexplained, removed per UAT).
+# count = the collector's atlas records of that species (rendered "N specimens"
+# in the template — operator chose the explicit unit over the bare parenthetical).
 _SPECIES_QUERY = """
     SELECT
         o.collector_inat_login                                            AS login,
         sp.genus,
         sp.scientificName,
-        sp.slug
+        sp.slug,
+        COUNT(*)                                                          AS occ_count
     FROM read_parquet(?) o
     LEFT JOIN read_parquet(?) sp ON sp.taxon_id = o.taxon_id
     WHERE o.collector_inat_login IS NOT NULL
@@ -235,20 +237,21 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
 
         # ACCOM-02 / D-04: species-rank species list grouped by genus.
         # Run _SPECIES_QUERY with the same parquet parameters, then group:
-        #   login → genus → list of {name (cased scientificName), slug}
+        #   login → genus → list of {name (cased scientificName), slug, count}
         # SQL ORDER BY login, genus, scientificName ensures insertion order is correct;
         # sorted() on genus_dict makes genera alphabetical (D-04).
-        # No per-species count emitted (operator: unexplained/removed per UAT round 1).
+        # count = the collector's atlas records of that species; rendered "N specimens".
         species_rows = con.execute(
             _SPECIES_QUERY,
             [str(occ_parquet), str(species_parquet)],
         ).fetchall()
 
         species_by_login: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
-        for login_sp, genus, scientific_name, slug in species_rows:
+        for login_sp, genus, scientific_name, slug, occ_count in species_rows:
             species_by_login[login_sp][genus].append({
                 "name": scientific_name,
                 "slug": slug,
+                "count": int(occ_count),
             })
 
         for rec in records:

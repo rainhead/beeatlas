@@ -375,10 +375,11 @@ def test_county_and_ecoregion_counts(tmp_path, monkeypatch):
 
 
 def test_species_by_genus_structure(tmp_path, monkeypatch):
-    """species_by_genus is a list of {genus, species:[{name (cased), slug}]} (ACCOM-02).
+    """species_by_genus is a list of {genus, species:[{name (cased), slug, count}]} (ACCOM-02).
 
     FIX B: `name` uses cased sp.scientificName, not lowercase sp.canonical_name.
-    FIX C: no per-species `count` key (removed per UAT round 1).
+    UAT round 2: per-species `count` (atlas records of that species) restored,
+    rendered "N specimens" in the template.
 
     The fixture has taxon_id=10 → scientificName='Testgenus testicus' (cased).
     alice has taxon_id=10 (species-rank); the species list must include one genus
@@ -406,10 +407,10 @@ def test_species_by_genus_structure(tmp_path, monkeypatch):
                     f"species name must be cased (FIX B); got {sp['name']!r} for {r['login']}"
                 )
                 assert "slug" in sp, f"slug missing in species entry for {r['login']}"
-                # FIX C: per-species count removed per UAT round 1.
-                assert "count" not in sp, (
-                    f"per-species 'count' key must NOT be present (FIX C / UAT round 1). "
-                    f"Got keys: {list(sp.keys())} for {r['login']}"
+                # UAT round 2: per-species count restored (atlas records of the species).
+                assert isinstance(sp.get("count"), int) and sp["count"] >= 1, (
+                    f"per-species 'count' must be a positive int (UAT round 2). "
+                    f"Got {sp.get('count')!r} for {r['login']}"
                 )
                 assert "canonical_name" not in sp, (
                     f"'canonical_name' must be replaced by 'name' (FIX B). "

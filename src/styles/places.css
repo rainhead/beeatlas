@@ -215,4 +215,9 @@ table.event-feed td {
   border-bottom: 1px solid var(--border, #ddd);
 }
 
-/* .count rule removed — per-species count not rendered (UAT round 1 operator decision) */
+/* Per-species count, rendered "— N specimens" (operator chose the explicit unit, UAT round 2) */
+.species-section .species-count {
+  color: var(--text-muted, #666);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}

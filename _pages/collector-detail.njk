@@ -70,8 +70,8 @@ layout: default.njk
     </div>
   </section>
   {%- endif -%}
-  {#- Species list: uses sp.name (cased scientificName from collectors_export.py _SPECIES_QUERY).
-      Per-species count removed per UAT round 1 (operator: unexplained, not needed). -#}
+  {#- Species list: uses sp.name (cased scientificName) + sp.count (atlas records of
+      that species), rendered as "— N specimens" (operator chose the explicit unit). -#}
   {%- if collector.species_by_genus and collector.species_by_genus.length > 0 -%}
   <section class="species-section">
     <h2>Species collected</h2>
@@ -82,7 +82,7 @@ layout: default.njk
         <ul class="species-list">
         {%- for sp in genus_group.species -%}
           <li>
-            <a href="/species/{{ sp.slug }}/">{{ sp.name }}</a>
+            <a href="/species/{{ sp.slug }}/">{{ sp.name }}</a> <span class="species-count">— {{ sp.count | quantify("specimen") }}</span>
           </li>
         {%- endfor -%}
         </ul>
@@ -94,7 +94,7 @@ layout: default.njk
   {#- Phase 171: Event feed section (STREAM-01/02/03) -#}
   {%- if collector.total_event_count > 0 -%}
   <section class="event-feed-section">
-    <h2>Collection history{%- if collector.atom_feed_url %} <a class="feed-link" type="application/atom+xml" href="{{ collector.atom_feed_url }}">Subscribe to recent determinations</a>{% endif %}</h2>
+    <h2>Recently identified specimens{%- if collector.atom_feed_url %} <a class="feed-link" type="application/atom+xml" href="{{ collector.atom_feed_url }}">Subscribe to recent determinations</a>{% endif %}</h2>
     <div class="event-feed-wrap">
     <table class="event-feed">
       <thead>

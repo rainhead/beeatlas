@@ -44,22 +44,48 @@
     "active_since": 2019,
     "seasons_count": 4,
     "county_count": 5,
-    "county_names": ["Chelan", "King", "Pierce", "Spokane", "Yakima"],
+    "county_names": [
+      "Chelan",
+      "King",
+      "Pierce",
+      "Spokane",
+      "Yakima"
+    ],
     "ecoregion_count": 3,
-    "ecoregion_names": ["Cascades", "Columbia Plateau", "Puget Lowland Forests"],
+    "ecoregion_names": [
+      "Cascades",
+      "Columbia Plateau",
+      "Puget Lowland Forests"
+    ],
     "species_by_genus": [
       {
         "genus": "Andrena",
         "species": [
-          {"name": "Andrena milwaukeensis", "slug": "Andrena/milwaukeensis"},
-          {"name": "Andrena prunorum", "slug": "Andrena/prunorum"}
+          {
+            "name": "Andrena milwaukeensis",
+            "slug": "Andrena/milwaukeensis",
+            "count": 7
+          },
+          {
+            "name": "Andrena prunorum",
+            "slug": "Andrena/prunorum",
+            "count": 3
+          }
         ]
       },
       {
         "genus": "Bombus",
         "species": [
-          {"name": "Bombus mixtus", "slug": "Bombus/mixtus"},
-          {"name": "Bombus vosnesenskii", "slug": "Bombus/vosnesenskii"}
+          {
+            "name": "Bombus mixtus",
+            "slug": "Bombus/mixtus",
+            "count": 7
+          },
+          {
+            "name": "Bombus vosnesenskii",
+            "slug": "Bombus/vosnesenskii",
+            "count": 3
+          }
         ]
       }
     ]
@@ -122,14 +148,25 @@
     "active_since": 2021,
     "seasons_count": 2,
     "county_count": 3,
-    "county_names": ["Benton", "King", "Yakima"],
+    "county_names": [
+      "Benton",
+      "King",
+      "Yakima"
+    ],
     "ecoregion_count": 2,
-    "ecoregion_names": ["Columbia Plateau", "Puget Lowland Forests"],
+    "ecoregion_names": [
+      "Columbia Plateau",
+      "Puget Lowland Forests"
+    ],
     "species_by_genus": [
       {
         "genus": "Bombus",
         "species": [
-          {"name": "Bombus mixtus", "slug": "Bombus/mixtus"}
+          {
+            "name": "Bombus mixtus",
+            "slug": "Bombus/mixtus",
+            "count": 7
+          }
         ]
       }
     ]

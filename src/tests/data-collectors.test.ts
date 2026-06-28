@@ -275,7 +275,7 @@ describe('Phase 172 — accomplishment fields (ACCOM-01..04)', () => {
     }
   });
 
-  test('species_by_genus genus groups have correct shape — name cased, no count (FIX B/C)', () => {
+  test('species_by_genus genus groups have correct shape — name cased, count present (FIX B / UAT round 2)', () => {
     for (const c of fixtureData) {
       for (const g of c.species_by_genus as any[]) {
         expect(typeof g.genus, `genus in ${c.login}`).toBe('string');
@@ -296,11 +296,15 @@ describe('Phase 172 — accomplishment fields (ACCOM-01..04)', () => {
           ).toBe(false);
           expect(typeof sp.slug, `slug in ${c.login}/${g.genus}`).toBe('string');
           expect(sp.slug, `slug must contain "/" (D-04 Genus/epithet format)`).toContain('/');
-          // FIX C: per-species count removed per UAT round 1
+          // UAT round 2: per-species count restored (atlas records of the species)
           expect(
-            'count' in sp,
-            `count must NOT be present in species entry (FIX C / UAT round 1): ${c.login}/${g.genus}`,
-          ).toBe(false);
+            typeof sp.count,
+            `count must be a number in species entry (UAT round 2): ${c.login}/${g.genus}`,
+          ).toBe('number');
+          expect(
+            sp.count,
+            `count must be >= 1: ${c.login}/${g.genus}`,
+          ).toBeGreaterThanOrEqual(1);
         }
       }
     }
