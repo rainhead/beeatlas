@@ -242,6 +242,53 @@ def test_mixed_null_recordedby_keeps_real_name(tmp_path, monkeypatch):
     )
 
 
+def test_display_name_uses_most_recent_recordedby(tmp_path, monkeypatch):
+    """display_name takes the MOST RECENT recordedBy (arg_max by year), not MIN.
+
+    Discriminating fixture: 'erin' is 'Amy Adams' in 2021 and 'Zelda Q' in 2024 (a name
+    change), both on catalogued specimen rows. MIN(recordedBy) would pick the stale
+    'Amy Adams'; most-recent picks 'Zelda Q'. (Operator decision 2026-06-28: names can
+    change over time — show the latest.)
+    """
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "test.duckdb"))
+    monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
+    import collectors_export  # noqa: PLC0415
+    importlib.reload(collectors_export)
+
+    occ = pa.table({
+        "collector_inat_login": ["erin", "erin"],
+        "recordedBy":           ["Amy Adams", "Zelda Q"],   # older name MIN-wins, newer differs
+        "host_inat_login":      ["erin", "erin"],
+        "ecdysis_id":           [101, 202],                 # both catalogued → in _QUERY predicate
+        "record_type":          ["specimen", "specimen"],
+        "sample_id":            [1, 2],
+        "observation_id":       [None, None],
+        "taxon_id":             [10, 10],
+        "year":                 [2021, 2024],               # 'Zelda Q' is most recent
+        "county":               ["King", "King"],
+        "ecoregion_l3":         ["Puget Lowland Forests", "Puget Lowland Forests"],
+        "tier":                 ["atlas", "atlas"],
+    }, schema=pa.schema([
+        ("collector_inat_login", pa.string()), ("recordedBy", pa.string()),
+        ("host_inat_login", pa.string()), ("ecdysis_id", pa.int64()),
+        ("record_type", pa.string()), ("sample_id", pa.int64()),
+        ("observation_id", pa.int64()), ("taxon_id", pa.int64()),
+        ("year", pa.int32()), ("county", pa.string()),
+        ("ecoregion_l3", pa.string()), ("tier", pa.string()),
+    ]))
+    pq.write_table(occ, tmp_path / "occurrences.parquet")
+    _write_test_species_parquet(tmp_path)
+
+    collectors_export.export_collectors_step()
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    erin = {r["login"]: r for r in records}.get("erin")
+    assert erin is not None, "'erin' must be in collectors.json"
+    assert erin["display_name"] == "Zelda Q", (
+        f"display_name must be the most-recent recordedBy ('Zelda Q', 2024), not MIN "
+        f"('Amy Adams'). Got {erin['display_name']!r}"
+    )
+
+
 def test_required_keys(tmp_path, monkeypatch):
     """Every record carries all 10 required keys with correct types."""
     ce_mod = _setup_env(tmp_path, monkeypatch)

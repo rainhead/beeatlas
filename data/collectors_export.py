@@ -46,10 +46,14 @@ _QUERY = """
     SELECT
         o.collector_inat_login                                         AS login,
         -- D-04: human display name; '@login' fallback only when NO row carries a name.
-        -- MIN(recordedBy) ignores NULLs, so COALESCE the aggregate (not per-row): a
-        -- per-row COALESCE would let a single NULL-recordedBy row (e.g. waba_sample) win
-        -- the MIN as '@login' and mask the real name (CR-01).
-        COALESCE(MIN(o.recordedBy), '@' || MIN(o.collector_inat_login)) AS display_name,
+        -- Use the MOST RECENT recordedBy (arg_max by year), not MIN: a person's recorded
+        -- name can change over time (marriage, spelling) — show their latest. The FILTER
+        -- skips NULL-recordedBy rows (e.g. waba_sample) so a single nameless row can't win
+        -- and mask the real name (CR-01); COALESCE the aggregate, not per-row.
+        COALESCE(
+            arg_max(o.recordedBy, o.year) FILTER (WHERE o.recordedBy IS NOT NULL),
+            '@' || MIN(o.collector_inat_login)
+        )                                                              AS display_name,
         MIN(o.recordedBy)                                              AS recordedBy,
         MIN(o.host_inat_login)                                         AS host_inat_login,
         -- D-03: specimen count = distinct ecdysis_id values
