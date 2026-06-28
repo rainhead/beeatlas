@@ -7,7 +7,8 @@ Produces:
   public/data/feeds/index.json             (machine-readable feed index)
 
 Covers all determinations whose modified timestamp falls within the last 90 days,
-with blank scientific_name / identified_by rows excluded.
+with blank scientific_name / identified_by rows and Ecdysis "undetermined"
+placeholder identifications excluded (the latter are non-determinations).
 
 Usage:
     uv run --project data python data/feeds.py
@@ -47,6 +48,9 @@ _QUERY = """
     WHERE i.modified >= NOW() - INTERVAL '90 days'
       AND i.scientific_name != ''
       AND i.identified_by   != ''
+      -- Ecdysis's "undetermined" placeholder (often identified_by='unknown')
+      -- is a non-determination, not a determination — keep it out of the feed.
+      AND lower(trim(i.scientific_name)) != 'undetermined'
     ORDER BY i.modified DESC
 """
 
@@ -151,6 +155,7 @@ _COLLECTOR_QUERY = """
     WHERE i.modified >= NOW() - INTERVAL '90 days'
       AND i.scientific_name != ''
       AND i.identified_by   != ''
+      AND lower(trim(i.scientific_name)) != 'undetermined'
       AND o.recorded_by = ?
     ORDER BY i.modified DESC
 """
@@ -169,6 +174,7 @@ _GENUS_QUERY = """
     WHERE i.modified >= NOW() - INTERVAL '90 days'
       AND i.scientific_name != ''
       AND i.identified_by   != ''
+      AND lower(trim(i.scientific_name)) != 'undetermined'
       AND o.genus = ?
     ORDER BY i.modified DESC
 """

@@ -310,6 +310,15 @@ def _seed_data(con: duckdb.DuckDBPyConnection) -> None:
         )
     """, [datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=100)])
 
+    # d. Recent undetermined: Ecdysis placeholder (identified_by='unknown') —
+    #    should be excluded by the undetermined filter, not surfaced as a determination
+    con.execute("""
+        INSERT INTO ecdysis_data.identifications VALUES (
+            '5594569', 'undetermined', 'unknown',
+            ?, 'det-uuid-4', '1', 's.d.', 'load1', 'det-4'
+        )
+    """, [datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=3)])
+
     # Phase 76 disagreement fixtures (TAX-04 + PITFALLS.md #1, #2).
     # `p76-*` ID prefix avoids collisions with existing test_export PK rows.
     SOURCE_CITATION_FIXTURE = "Bartholomew et al. 2024, JHR 97 (DOI: 10.3897/jhr.97.129013)"

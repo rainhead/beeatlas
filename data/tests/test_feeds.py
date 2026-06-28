@@ -136,6 +136,9 @@ def test_blank_fields_excluded(fixture_con, export_dir, monkeypatch):
     entry_ids = [e.find(_atom('id')).text for e in entries]
     assert not any('det-uuid-2' in eid for eid in entry_ids), \
         "Blank-field row should not appear in feed"
+    # The undetermined placeholder (det-uuid-4) should not appear
+    assert not any('det-uuid-4' in eid for eid in entry_ids), \
+        "Undetermined placeholder should not appear in feed"
     # The valid row should appear
     assert len(entries) == 1
 

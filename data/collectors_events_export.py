@@ -22,7 +22,11 @@ D-CARD-02 slug resolution (rank-aware, bee classification via JSON taxon files):
 
     iNat fallback (D-CARD-02 Part 2): when species_slug is None and the name is named
     (not blank / not "undetermined"), emit inat_url for the iNaturalist taxon search page.
-    Mutually exclusive with species_slug: bee → BeeAtlas; non-bee named → iNat; undetermined → text.
+    Mutually exclusive with species_slug: bee → BeeAtlas; non-bee named → iNat.
+
+    Ecdysis "undetermined" placeholder identifications (scientific_name='undetermined')
+    are filtered out in _QUERY's identified_events arm — they are non-determinations, not
+    events. The _UNDETERMINED guard below remains as defense-in-depth for any other arm.
 
     genus_map is built from ASSETS_DIR/species.json (genus-level pages) +
     ASSETS_DIR/higher_taxa.json (bee genera, rank="genus"). These are the same files
@@ -101,6 +105,11 @@ identified_events AS (
     WHERE cs.ecdysis_id IS NOT NULL
       AND i.scientific_name IS NOT NULL
       AND i.scientific_name != ''
+      -- Ecdysis records undetermined specimens with a placeholder
+      -- identification row (scientific_name='undetermined', identified_by
+      -- 'unknown', date 's.d.'). It is a non-determination, not an event —
+      -- emitting it produces an oxymoronic "Identified: undetermined" row.
+      AND lower(trim(i.scientific_name)) != 'undetermined'
 )
 SELECT * FROM collected_events
 UNION ALL

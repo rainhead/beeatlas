@@ -754,14 +754,11 @@ def test_nonbee_inat_url_and_bee_resolution(tmp_path, monkeypatch):
         "https://www.inaturalist.org/taxa/search"
     ), f"inat_url must use the /taxa/{{name}} redirect endpoint (not taxa/search); got {inat!r}"
 
-    # --- Undetermined: "undetermined" → neither species_slug nor inat_url ---
-    undet = by_name.get("undetermined")
-    assert undet is not None, "'undetermined' event not found"
-    assert undet["species_slug"] is None, (
-        "Undetermined must NOT have species_slug"
-    )
-    assert undet.get("inat_url") is None, (
-        "Undetermined must NOT have inat_url (plain text only)"
+    # --- Undetermined: "undetermined" is Ecdysis's placeholder non-determination,
+    # not a real identification — it must NOT produce an "Identified" event
+    # (rendering "Identified: undetermined" is an oxymoron). ---
+    assert "undetermined" not in by_name, (
+        "Undetermined placeholder must NOT produce an 'Identified' event"
     )
 
     # --- Mutual exclusivity: no event has both species_slug and inat_url ---
