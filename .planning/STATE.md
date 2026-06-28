@@ -4,13 +4,13 @@ milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: executing
 stopped_at: Phase 171.1 context gathered
-last_updated: "2026-06-28T02:42:56.854Z"
-last_activity: 2026-06-28 -- Phase 171.1 planning complete
+last_updated: "2026-06-28T02:49:02.675Z"
+last_activity: 2026-06-28
 progress:
   total_phases: 39
   completed_phases: 19
   total_plans: 47
-  completed_plans: 43
+  completed_plans: 44
   percent: 49
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 171.1 — Collector Data Delivery Rebuild
+**Current focus:** Phase 171.1 — collector-data-delivery-rebuild
 
 ## Current Position
 
-Phase: 171.1
-Plan: Not started
+Phase: 171.1 (collector-data-delivery-rebuild) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-06-28 -- Phase 171.1 planning complete
+Last activity: 2026-06-28
 
 ## Milestone Overview
 
@@ -48,7 +48,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 171.1 | Collector Data Delivery Rebuild (INSERTED) | Phase 171 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
-**Progress:** [████████░░] 83% (5/6 + inserted 171.1)
+**Progress:** [█████████░] 94%
 
 ## Accumulated Context
 
@@ -109,9 +109,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-28T02:03:14.881Z
+Last session: 2026-06-28T02:49:02.666Z
 Stopped at: Phase 171.1 context gathered
-Resume file: .planning/phases/171.1-collector-data-delivery-rebuild/171.1-CONTEXT.md
+Resume file: None
 
 ## Operator Next Steps
 
