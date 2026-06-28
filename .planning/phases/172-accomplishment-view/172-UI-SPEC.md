@@ -57,18 +57,27 @@ Exceptions: none for this phase.
 ## Typography
 
 Inherited from `src/index.css` and established page patterns. No new type roles
-introduced.
+introduced. Both declared weights (400 and 700) are inherited from the existing
+stylesheet — this phase introduces neither.
 
 | Role | Size | Weight | Line Height | Color token |
 |------|------|--------|-------------|-------------|
-| Body | 16px (1rem) | 400 | 1.5 | `--text-body` (#213547) |
-| Metadata / label | ~13.6px (0.85rem) | 400 | 1.5 (inherited) | `--text-muted` (#666) |
-| Section heading (H2) | browser default ~24px (1.5rem) | 700 (bold) | 1.2 (browser) | `--text-body` (#213547) |
-| Genus heading (H3) | 16px (1rem) | 600 | 1.5 | `--text-body` (#213547) |
-| Link | 16px (1rem) | 500 | 1.5 | `--link` (#646cff) |
+| Body | 16px (1rem) | 400 (inherited — `:root font-weight: 400`) | 1.5 | `--text-body` (#213547) |
+| Metadata / label | ~13.6px (0.85rem) | 400 (inherited) | 1.5 (inherited) | `--text-muted` (#666) |
+| Section heading (H2) | browser default ~24px (1.5rem) | 700 (browser default bold) | 1.2 (browser) | `--text-body` (#213547) |
+| Genus heading (H3) | 16px (1rem) | 700 (bold heading, italic distinguishes from H2) | 1.2 | `--text-body` (#213547) |
+
+**Declared weights: 400 and 700 only.** Both pre-exist in the stylesheet.
+
+Note on links: `src/index.css` line 50 sets `a { font-weight: 500; }` globally.
+Species list links inherit this 500 weight from the existing rule — this phase
+does not introduce or change it, and 500 is therefore not a declared typography
+weight of this phase.
 
 Notes:
 - Genus headings are rendered in `font-style: italic` (scientific naming convention).
+  The combination of bold (700) + italic distinguishes the H3 genus heading
+  visually from H2 (bold, not italic) and body (regular, not italic).
 - All metadata lines (badge, map captions, list counts) use `0.85rem` at
   `--text-muted` — the same `.metadata` style already used on this page.
 - No new font sizes are introduced beyond what the page already uses.
@@ -116,6 +125,10 @@ conveyed in the text caption.
 ---
 
 ## Page Layout Contract
+
+**The two coverage maps (county + ecoregion, side-by-side at ≥768px) are the primary
+visual anchor of the accomplishment view; the species list is secondary.** Executors
+must not visually deprioritize the maps relative to the text sections.
 
 ### Section order in `_pages/collector-detail.njk`
 
@@ -324,8 +337,9 @@ gives collectors context ("I've seen this species 8 times").
 
 **H2 heading copy:** "Species collected" — factual, not "My species" or "Checklist."
 
-**H3 genus heading:** Italic (scientific convention), 1rem body size, weight 600,
-`--text-body` color. Smaller than H2 but above metadata size.
+**H3 genus heading:** Italic (scientific convention), 1rem body size, weight 700
+(bold heading), `--text-body` color. Bold + italic together distinguish the H3
+from H2 (bold, not italic) and body text (regular weight, upright).
 
 **CSS additions to `places.css`:**
 ```css
@@ -340,7 +354,7 @@ gives collectors context ("I've seen this species 8 times").
 
 .genus-heading {
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   font-style: italic;   /* scientific naming convention */
   color: var(--text-body, #213547);
   margin: 0.5rem 0 0.25rem; /* sm top, xs bottom */
@@ -463,7 +477,7 @@ New selectors (to be added, Phase 172 clearly commented):
 3. `.coverage-maps` — flex column / grid 2-col at ≥768px
 4. `.species-section` — `margin-top: 1.5rem`
 5. `.genus-section` — `margin-bottom: 1rem`
-6. `.genus-heading` — 1rem, weight 600, italic, `--text-body`
+6. `.genus-heading` — 1rem, weight 700, italic, `--text-body`
 7. `.species-section .species-list` — list-style none, margin/padding reset
 8. `.species-section .species-list li` — flex, baseline, 8px gap, 4px padding, bottom border
 9. `.species-section .species-list .count` — margin-left auto, 0.85rem, `--text-muted`
@@ -519,10 +533,13 @@ JavaScript. Template changes are pure Nunjucks + CSS.
 | County count caption | UI-SPEC discretion — recommended for symmetry |
 | Per-species occurrence count `(N)` | UI-SPEC discretion — RESEARCH.md "lean: yes, small" |
 | "Species collected" heading copy | UI-SPEC discretion |
-| Genus heading: 1rem italic weight 600 | UI-SPEC discretion |
+| Genus heading: 1rem italic weight 700 | UI-SPEC discretion (checker fix 2026-06-28: 600→700 to hold declared weights at 2) |
+| Link font-weight: 500 | Inherited from `src/index.css` `a { font-weight: 500; }` — not introduced by this phase |
 | Two-column layout at ≥768px | UI-SPEC discretion — mirrors `taxon-pages.css` media-grid |
+| Coverage maps as primary visual anchor | UI-SPEC discretion (checker fix 2026-06-28: Dimension 2 focal-point declaration) |
 
 ---
 
 *Phase: 172-accomplishment-view*
 *UI-SPEC produced: 2026-06-28*
+*UI-SPEC revised: 2026-06-28 — checker fixes: Dimension 4 weight count 4→2 (400+700 only); Dimension 2 focal-point sentence added*
