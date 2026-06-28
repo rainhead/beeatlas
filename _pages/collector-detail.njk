@@ -73,7 +73,7 @@ layout: default.njk
     </div>
     {%- if collector.total_event_pages > 1 -%}
     <nav class="event-pagination" aria-label="Event history pages">
-      <a href="/collectors/{{ collector.login | urlencode }}/page/2/">Older events →</a>
+      <a href="/collectors/{{ collector.login | urlencode }}/page/2/index.html">Older events →</a>
     </nav>
     {%- endif -%}
   </section>

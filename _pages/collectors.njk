@@ -9,7 +9,7 @@ title: Collectors — BeeAtlas
   <ul class="places-list">
     {%- for collector in collectors.collectorsArray -%}
     <li>
-      <a href="/collectors/{{ collector.login | urlencode }}/">{{ collector.display_name }}</a>
+      <a href="/collectors/{{ collector.login | urlencode }}/index.html">{{ collector.display_name }}</a>
       <span class="count">{{ collector.specimen_count | quantify("specimen") }}</span>
     </li>
     {%- endfor -%}

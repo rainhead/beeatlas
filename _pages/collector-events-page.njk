@@ -60,13 +60,13 @@ layout: default.njk
     </div>
     <nav class="event-pagination" aria-label="Event history pages">
       {%- if evpage.page_num == 2 -%}
-      <a href="/collectors/{{ evpage.login | urlencode }}/">← Newer events</a>
+      <a href="/collectors/{{ evpage.login | urlencode }}/index.html">← Newer events</a>
       {%- else -%}
-      <a href="/collectors/{{ evpage.login | urlencode }}/page/{{ evpage.page_num - 1 }}/">← Newer events</a>
+      <a href="/collectors/{{ evpage.login | urlencode }}/page/{{ evpage.page_num - 1 }}/index.html">← Newer events</a>
       {%- endif -%}
       <span class="page-indicator">Page {{ evpage.page_num }} of {{ evpage.total_pages }}</span>
       {%- if evpage.page_num < evpage.total_pages -%}
-      <a href="/collectors/{{ evpage.login | urlencode }}/page/{{ evpage.page_num + 1 }}/">Older events →</a>
+      <a href="/collectors/{{ evpage.login | urlencode }}/page/{{ evpage.page_num + 1 }}/index.html">Older events →</a>
       {%- endif -%}
     </nav>
   </section>
