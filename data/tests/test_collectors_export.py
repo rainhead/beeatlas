@@ -51,6 +51,9 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
         ("sample_id", pa.int64()),
         ("observation_id", pa.int64()),
         ("taxon_id", pa.int64()),
+        ("year", pa.int32()),
+        ("county", pa.string()),
+        ("ecoregion_l3", pa.string()),
     ])
     table = pa.table(
         {
@@ -62,6 +65,12 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
             "sample_id":            [10,        20,       None,    None,      30,        None],
             "observation_id":       [None,      None,     888,     999,       None,      777],
             "taxon_id":             [10,        99,       None,    None,      10,        None],
+            # alice: years 2020 and 2022 (gap in 2021 — stress-tests D-05: 2 distinct seasons, not 3)
+            "year":                 [2020,      2022,     2023,    2021,      2024,      2024],
+            "county":               ["King", "Yakima", "King", "Clark", "King", "Yakima"],
+            "ecoregion_l3":         ["Puget Lowland Forests", "Columbia Plateau",
+                                     "Puget Lowland Forests", "Cascades",
+                                     "Puget Lowland Forests", "Columbia Plateau"],
         },
         schema=schema,
     )
@@ -73,17 +82,24 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
 def _write_test_species_parquet(tmp_path: Path) -> Path:
     """Write a small species.parquet with one species-rank taxon (taxon_id=10).
 
-    taxon_id=10 → specific_epithet='testicus' (identified to species).
+    taxon_id=10 → specific_epithet='testicus', genus='Testgenus',
+                  canonical_name='Testgenus testicus', slug='Testgenus/testicus'.
     taxon_id=99 is absent → LEFT JOIN yields NULL specific_epithet (awaiting).
     """
     schema = pa.schema([
         ("taxon_id", pa.int64()),
         ("specific_epithet", pa.string()),
+        ("genus", pa.string()),
+        ("canonical_name", pa.string()),
+        ("slug", pa.string()),
     ])
     table = pa.table(
         {
             "taxon_id":        [10],
             "specific_epithet": ["testicus"],
+            "genus":           ["Testgenus"],
+            "canonical_name":  ["Testgenus testicus"],
+            "slug":            ["Testgenus/testicus"],
         },
         schema=schema,
     )
@@ -236,3 +252,113 @@ def test_required_keys(tmp_path, monkeypatch):
 
         for k in required_int_keys:
             assert isinstance(r[k], int), f"login={r['login']}: {k} must be int, got {type(r[k])}"
+
+
+# ---------------------------------------------------------------------------
+# Phase 172 — ACCOM-01/02/03/04 aggregation-field tests (RED until Plan 02)
+#
+# These tests fail with KeyError/AssertionError because collectors_export.py
+# does not yet emit the new fields. They turn GREEN in Plan 02 when the
+# export is extended. The existing tests above remain GREEN throughout.
+# ---------------------------------------------------------------------------
+
+def test_badge_fields_present_and_typed(tmp_path, monkeypatch):
+    """active_since (int) and seasons_count (int) present for every record (ACCOM-04)."""
+    ce_mod = _setup_env(tmp_path, monkeypatch)
+    ce_mod.export_collectors_step()
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    for r in records:
+        assert isinstance(r["active_since"], int), (
+            f"active_since must be int for login={r['login']}, got {type(r.get('active_since'))}"
+        )
+        assert isinstance(r["seasons_count"], int), (
+            f"seasons_count must be int for login={r['login']}, got {type(r.get('seasons_count'))}"
+        )
+
+
+def test_seasons_count_is_distinct_years(tmp_path, monkeypatch):
+    """seasons_count = COUNT(DISTINCT year), not max-min span (D-05).
+
+    alice has years {2020, 2022} — a gap in 2021. COUNT(DISTINCT year) = 2.
+    A max-min+1 span would incorrectly return 3. The test asserts exactly 2.
+    """
+    ce_mod = _setup_env(tmp_path, monkeypatch)
+    ce_mod.export_collectors_step()
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    by_login = {r["login"]: r for r in records}
+    alice = by_login["alice"]
+    assert alice["seasons_count"] == 2, (
+        f"alice has 2 distinct years {{2020, 2022}} — seasons_count must be 2 (not the "
+        f"max-min+1 span of 3). Got seasons_count={alice['seasons_count']} (D-05)."
+    )
+
+
+def test_active_since_is_min_year(tmp_path, monkeypatch):
+    """active_since = MIN(year) over D-01 WABA-contribution rows (D-05).
+
+    alice's earliest WABA year is 2020.
+    """
+    ce_mod = _setup_env(tmp_path, monkeypatch)
+    ce_mod.export_collectors_step()
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    by_login = {r["login"]: r for r in records}
+    alice = by_login["alice"]
+    assert alice["active_since"] == 2020, (
+        f"alice's earliest year is 2020; active_since must be 2020. "
+        f"Got active_since={alice['active_since']} (D-05)."
+    )
+
+
+def test_county_and_ecoregion_counts(tmp_path, monkeypatch):
+    """county_count and ecoregion_count are COUNT(DISTINCT …) over D-01 rows (ACCOM-01/03).
+
+    alice has county rows: King (2020), Yakima (2022) → county_count=2.
+    alice has ecoregion rows: Puget Lowland Forests, Columbia Plateau → ecoregion_count=2.
+    """
+    ce_mod = _setup_env(tmp_path, monkeypatch)
+    ce_mod.export_collectors_step()
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    by_login = {r["login"]: r for r in records}
+    alice = by_login["alice"]
+    assert isinstance(alice["county_count"], int), (
+        f"county_count must be int for alice, got {type(alice.get('county_count'))}"
+    )
+    assert isinstance(alice["ecoregion_count"], int), (
+        f"ecoregion_count must be int for alice, got {type(alice.get('ecoregion_count'))}"
+    )
+    assert alice["county_count"] == 2, (
+        f"alice's D-01 rows cover King and Yakima counties; county_count must be 2. "
+        f"Got county_count={alice['county_count']} (ACCOM-01)."
+    )
+    assert alice["ecoregion_count"] == 2, (
+        f"alice's D-01 rows cover 2 distinct ecoregions; ecoregion_count must be 2. "
+        f"Got ecoregion_count={alice['ecoregion_count']} (ACCOM-03)."
+    )
+
+
+def test_species_by_genus_structure(tmp_path, monkeypatch):
+    """species_by_genus is a list of {genus, species:[{canonical_name, slug, count}]} (ACCOM-02).
+
+    The fixture has taxon_id=10 → Testgenus testicus. alice has taxon_id=10 (species-rank);
+    the species list must include one genus group with one species entry.
+    """
+    ce_mod = _setup_env(tmp_path, monkeypatch)
+    ce_mod.export_collectors_step()
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    for r in records:
+        assert isinstance(r["species_by_genus"], list), (
+            f"species_by_genus must be a list for login={r['login']}"
+        )
+        for g in r["species_by_genus"]:
+            assert "genus" in g, f"genus key missing in species_by_genus entry for {r['login']}"
+            assert isinstance(g["species"], list), (
+                f"species must be a list in genus group for {r['login']}"
+            )
+            for sp in g["species"]:
+                assert "canonical_name" in sp, (
+                    f"canonical_name missing in species entry for {r['login']}"
+                )
+                assert "slug" in sp, f"slug missing in species entry for {r['login']}"
+                assert isinstance(sp["count"], int), (
+                    f"count must be int in species entry for {r['login']}"
+                )
