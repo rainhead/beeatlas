@@ -364,3 +364,20 @@ echo "invalidation requested in $(_elapsed $_t0)"
 echo "=== pipeline complete $(_ts) ==="
 
 [[ -n "$HEALTHCHECK_URL" ]] && curl -fsS --retry 3 --max-time 10 "$HEALTHCHECK_URL" > /dev/null
+
+# Trigger GitHub Actions deploy so collector pages refresh from today's S3 data.
+GH_DISPATCH_PAT_FILE="${GH_DISPATCH_PAT_FILE:-$HOME/.secrets/beeatlas-github-pat}"
+echo "--- triggering repository_dispatch ---"
+if [[ -f "$GH_DISPATCH_PAT_FILE" ]]; then
+    GH_PAT=$(cat "$GH_DISPATCH_PAT_FILE")
+    curl -fsS --retry 3 --max-time 15 \
+        -X POST \
+        -H "Authorization: token $GH_PAT" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/rainhead/beeatlas/dispatches" \
+        -d '{"event_type":"nightly-data-updated"}' \
+    && echo "  dispatch sent" \
+    || echo "WARN: repository_dispatch failed (non-fatal)" >&2
+else
+    echo "WARN: $GH_DISPATCH_PAT_FILE not found — skipping dispatch" >&2
+fi
