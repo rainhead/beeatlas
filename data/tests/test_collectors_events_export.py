@@ -766,3 +766,75 @@ def test_nonbee_inat_url_and_bee_resolution(tmp_path, monkeypatch):
         assert not (ev.get("species_slug") and ev.get("inat_url")), (
             f"species_slug and inat_url are mutually exclusive; both set on {ev!r}"
         )
+
+
+def test_undetermined_only_specimen_yields_no_events(tmp_path, monkeypatch):
+    """An Ecdysis specimen whose ONLY identification is the 'undetermined' placeholder
+    produces no events at all — no Identified (oxymoron) AND no blank-taxon Collected
+    row. The specimen stays on the map / awaiting-ID count, just absent from the stream.
+    """
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "undet.duckdb"))
+    monkeypatch.setenv("EXPORT_DIR", str(tmp_path))
+    monkeypatch.setenv("EVENT_CHUNK_SIZE", "100")
+
+    import collectors_events_export
+    importlib.reload(collectors_events_export)
+
+    # Occurrences: carol has a single Ecdysis specimen, undetermined (canonical_name NULL).
+    schema = pa.schema([
+        ("collector_inat_login", pa.string()),
+        ("recordedBy", pa.string()),
+        ("host_inat_login", pa.string()),
+        ("ecdysis_id", pa.int64()),
+        ("record_type", pa.string()),
+        ("date", pa.string()),
+        ("canonical_name", pa.string()),
+        ("catalog_number", pa.string()),
+    ])
+    pq.write_table(pa.table({
+        "collector_inat_login": ["carol"],
+        "recordedBy":           ["Carol C"],
+        "host_inat_login":      ["carol"],
+        "ecdysis_id":           [7777],
+        "record_type":          ["ecdysis"],
+        "date":                 ["2024-05-01"],
+        "canonical_name":       [None],
+        "catalog_number":       ["WSDA_UNDET_1"],
+    }, schema=schema), tmp_path / "occurrences.parquet")
+
+    _write_test_species_json(tmp_path)
+    _write_test_higher_taxa_json(tmp_path)
+    (tmp_path / "collectors.json").write_text(json.dumps([{
+        "login": "carol", "display_name": "Carol C", "recordedBy": "Carol C",
+        "host_inat_login": "carol", "specimen_count": 1, "sample_count": 0,
+        "species_count": 0, "status_denominator": 1,
+        "status_identified": 0, "status_awaiting": 1,
+    }]), encoding="utf-8")
+
+    # Ecdysis: the lone identification is the 'undetermined' placeholder.
+    con = duckdb.connect(str(tmp_path / "undet.duckdb"))
+    con.execute("CREATE SCHEMA IF NOT EXISTS ecdysis_data")
+    con.execute("""
+        CREATE TABLE ecdysis_data.identifications (
+            coreid VARCHAR, modified TIMESTAMPTZ, identified_by VARCHAR,
+            scientific_name VARCHAR, date_identified VARCHAR,
+            identification_is_current VARCHAR, genus VARCHAR
+        )
+    """)
+    con.execute(
+        "INSERT INTO ecdysis_data.identifications VALUES "
+        "('7777', TIMESTAMPTZ '2024-05-02 10:00:00+00', 'unknown', 'undetermined', 's.d.', '1', '')"
+    )
+    con.close()
+
+    collectors_events_export.export_collectors_events_step()
+
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    sub_pages = json.loads((tmp_path / "collector_event_pages.json").read_text())
+    events = _gather_all_events(records, sub_pages, "carol")
+
+    assert events == [], (
+        f"Undetermined-only specimen must produce no events; got {events!r}"
+    )
+    carol = next(r for r in records if r["login"] == "carol")
+    assert carol["total_event_count"] == 0

@@ -86,6 +86,20 @@ collected_events AS (
         NULL::VARCHAR                                                   AS genus,
         cs.catalog_number                                               AS catalog_number
     FROM collector_specimens cs
+    WHERE
+        -- Pending waba_specimen (not yet in Ecdysis): keep — shows "awaiting ID".
+        (cs.record_type = 'waba_specimen' AND cs.ecdysis_id IS NULL)
+        -- Otherwise keep only specimens with a real determination. Specimens whose
+        -- only Ecdysis identification is the 'undetermined' placeholder produce no
+        -- Collected event at all (no blank-taxon row); they remain on the map and
+        -- in the page's awaiting-ID count, just absent from the event stream.
+        OR EXISTS (
+            SELECT 1 FROM ecdysis_data.identifications i
+            WHERE i.coreid = CAST(cs.ecdysis_id AS VARCHAR)
+              AND i.scientific_name IS NOT NULL
+              AND i.scientific_name != ''
+              AND lower(trim(i.scientific_name)) != 'undetermined'
+        )
 ),
 identified_events AS (
     SELECT
