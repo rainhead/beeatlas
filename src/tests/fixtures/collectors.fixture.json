@@ -40,7 +40,27 @@
       }
     ],
     "total_event_pages": 1,
-    "total_event_count": 2
+    "total_event_count": 2,
+    "active_since": 2019,
+    "seasons_count": 4,
+    "county_count": 5,
+    "ecoregion_count": 3,
+    "species_by_genus": [
+      {
+        "genus": "Andrena",
+        "species": [
+          {"canonical_name": "Andrena milwaukeensis", "slug": "Andrena/milwaukeensis", "count": 8},
+          {"canonical_name": "Andrena prunorum", "slug": "Andrena/prunorum", "count": 3}
+        ]
+      },
+      {
+        "genus": "Bombus",
+        "species": [
+          {"canonical_name": "Bombus mixtus", "slug": "Bombus/mixtus", "count": 12},
+          {"canonical_name": "Bombus vosnesenskii", "slug": "Bombus/vosnesenskii", "count": 5}
+        ]
+      }
+    ]
   },
   {
     "login": "bob",
@@ -96,6 +116,18 @@
       }
     ],
     "total_event_pages": 2,
-    "total_event_count": 4
+    "total_event_count": 4,
+    "active_since": 2021,
+    "seasons_count": 2,
+    "county_count": 3,
+    "ecoregion_count": 2,
+    "species_by_genus": [
+      {
+        "genus": "Bombus",
+        "species": [
+          {"canonical_name": "Bombus mixtus", "slug": "Bombus/mixtus", "count": 6}
+        ]
+      }
+    ]
   }
 ]

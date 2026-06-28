@@ -201,3 +201,64 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 172 — accomplishment fields (ACCOM-01..04)
+//
+// Reads the committed fixture directly via readFileSync — NOT via the live
+// _data/collectors.js loader (which returns collectorsArray=[] on a clean
+// checkout because public/data/collectors.json is S3-delivered and gitignored).
+// These assertions are self-consistent and GREEN immediately; Plans 02/03
+// extend the export to produce the shape asserted here.
+// ---------------------------------------------------------------------------
+
+describe('Phase 172 — accomplishment fields (ACCOM-01..04)', () => {
+  let fixtureData: any[];
+
+  beforeAll(() => {
+    fixtureData = JSON.parse(
+      readFileSync(resolve(ROOT, 'src/tests/fixtures/collectors.fixture.json'), 'utf-8'),
+    );
+  });
+
+  test('every fixture entry has active_since and seasons_count as numbers (ACCOM-04)', () => {
+    expect(fixtureData.length).toBeGreaterThan(0);
+    for (const c of fixtureData) {
+      expect(typeof c.active_since, `active_since of ${c.login}`).toBe('number');
+      expect(typeof c.seasons_count, `seasons_count of ${c.login}`).toBe('number');
+    }
+  });
+
+  test('every fixture entry has county_count and ecoregion_count as numbers (ACCOM-01/03)', () => {
+    for (const c of fixtureData) {
+      expect(typeof c.county_count, `county_count of ${c.login}`).toBe('number');
+      expect(typeof c.ecoregion_count, `ecoregion_count of ${c.login}`).toBe('number');
+    }
+  });
+
+  test('every fixture entry has species_by_genus as an Array (ACCOM-02)', () => {
+    for (const c of fixtureData) {
+      expect(Array.isArray(c.species_by_genus), `species_by_genus of ${c.login} must be Array`).toBe(true);
+    }
+  });
+
+  test('species_by_genus genus groups have correct shape and slug contains "/" (D-04)', () => {
+    for (const c of fixtureData) {
+      for (const g of c.species_by_genus as any[]) {
+        expect(typeof g.genus, `genus in ${c.login}`).toBe('string');
+        expect(Array.isArray(g.species), `species in genus ${g.genus} of ${c.login}`).toBe(true);
+        for (const sp of g.species as any[]) {
+          expect(typeof sp.canonical_name, `canonical_name in ${c.login}/${g.genus}`).toBe('string');
+          expect(typeof sp.slug, `slug in ${c.login}/${g.genus}`).toBe('string');
+          expect(sp.slug, `slug must contain "/" (D-04 Genus/epithet format)`).toContain('/');
+          expect(typeof sp.count, `count in ${c.login}/${g.genus}`).toBe('number');
+        }
+      }
+    }
+  });
+
+  test('at least one fixture entry has multi-genus species_by_genus (D-04 ordering)', () => {
+    const hasMultiGenus = fixtureData.some((c: any) => c.species_by_genus.length > 1);
+    expect(hasMultiGenus, 'at least one fixture entry must have multiple genus groups').toBe(true);
+  });
+});
