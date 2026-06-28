@@ -8,8 +8,14 @@ accept = ["100..=103", "200..=299", "429"]
 # taxa. Both are rate-limited (iNat is Cloudflare-gated → 403) so checking them every
 # deploy balloons the link-check with no signal about OUR pages. Internal links and the
 # Atom feed are still validated.
+#
+# /data/feeds/ Atom feeds are served from S3 by the nightly pipeline (data/nightly.sh),
+# NOT built into _site/ — the code deploy excludes data/* from its S3 sync. lychee runs
+# against the local _site/ tree where these files never exist, so the ~122 per-collector
+# feed links (Phase 171) are unverifiable false-positives, not real breakage.
 exclude = [
   "\\.(?:jpg|jpeg|png|gif|webp|svg|ico)$",
   "ecdysis\\.org",
   "inaturalist\\.org",
+  "/data/feeds/",
 ]
