@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: completed
-stopped_at: Phase 171.1 context gathered
+status: ready
+stopped_at: Phase 171.1 COMPLETE (4/4 plans, verification passed 5/5, UAT pass 2026-06-28); next: Phase 172
 last_updated: "2026-06-28T04:40:48.812Z"
 last_activity: 2026-06-28
 progress:
@@ -21,13 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 171.1 — collector-data-delivery-rebuild
+**Current focus:** Phase 171.1 complete — next: Phase 172 (Accomplishment View)
 
 ## Current Position
 
-Phase: 171.1 (collector-data-delivery-rebuild) — EXECUTING
-Plan: 4 of 4
+Phase: 171.1 (collector-data-delivery-rebuild) — COMPLETE
+Plan: 4 of 4 (all complete, verification passed 5/5, UAT pass 2026-06-28)
 Status: complete
+Next: Phase 172 (Accomplishment View)
 Last activity: 2026-06-28
 
 ## Milestone Overview
@@ -45,10 +46,10 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 169 | Per-Collector Static Pages | Phase 167 | Complete |
 | 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Complete |
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Complete |
-| 171.1 | Collector Data Delivery Rebuild (INSERTED) | Phase 171 | Not started |
+| 171.1 | Collector Data Delivery Rebuild (INSERTED) | Phase 171 | Complete |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [█████████░] 86% (6/7 phases — Phase 172 remaining)
 
 ## Accumulated Context
 
