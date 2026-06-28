@@ -1781,7 +1781,7 @@ Plans:
 
 - [x] 172-01-PLAN.md — Wave 0: failing-test scaffold (fixture + frontend/Python tests)
 - [x] 172-02-PLAN.md — Wave 1: collectors_export.py aggregations (badge, counts, species_by_genus)
-- [ ] 172-03-PLAN.md — Wave 1: collector_maps.py county + ecoregion coverage SVG generator
+- [x] 172-03-PLAN.md — Wave 1: collector_maps.py county + ecoregion coverage SVG generator
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
