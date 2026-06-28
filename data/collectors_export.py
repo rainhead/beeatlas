@@ -63,7 +63,14 @@ _QUERY = """
                  THEN 1 ELSE 0 END)                                    AS status_identified,
         SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.record_type = 'waba_specimen')
                       AND sp.specific_epithet IS NULL
-                 THEN 1 ELSE 0 END)                                    AS status_awaiting
+                 THEN 1 ELSE 0 END)                                    AS status_awaiting,
+        -- ACCOM-04: active-seasons badge (D-05 — year column, COUNT DISTINCT, not max-min span)
+        MIN(o.year)                                                     AS active_since,
+        COUNT(DISTINCT o.year)                                          AS seasons_count,
+        -- ACCOM-01/03: map caption counts
+        COUNT(DISTINCT o.county) FILTER (WHERE o.county IS NOT NULL)    AS county_count,
+        COUNT(DISTINCT o.ecoregion_l3) FILTER (WHERE o.ecoregion_l3 IS NOT NULL)
+                                                                        AS ecoregion_count
     FROM read_parquet(?) o
     LEFT JOIN read_parquet(?) sp ON sp.taxon_id = o.taxon_id
     WHERE o.collector_inat_login IS NOT NULL
@@ -121,6 +128,7 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 login, display_name, recorded_by, host_inat_login,
                 specimen_count, sample_count, species_count,
                 status_denominator, status_identified, status_awaiting,
+                active_since, seasons_count, county_count, ecoregion_count,
             ) = row
             records.append({
                 "login": login,
@@ -140,6 +148,12 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 "status_denominator": int(status_denominator),
                 "status_identified": int(status_identified),
                 "status_awaiting": int(status_awaiting),
+                # ACCOM-04 / D-05: active-seasons badge
+                "active_since": int(active_since) if active_since is not None else None,
+                "seasons_count": int(seasons_count),
+                # ACCOM-01/03: map caption counts
+                "county_count": int(county_count),
+                "ecoregion_count": int(ecoregion_count),
             })
 
         out_path = ASSETS_DIR / "collectors.json"
