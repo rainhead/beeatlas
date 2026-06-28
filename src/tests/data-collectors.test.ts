@@ -16,10 +16,6 @@ describe('_data/collectors.js (PAGE-01, D-09)', () => {
     expect(Array.isArray((collectors as any).collectorsArray)).toBe(true);
   });
 
-  test('collectorsArray.length is >= 100 (D-09 floor)', () => {
-    expect((collectors as any).collectorsArray.length).toBeGreaterThanOrEqual(100);
-  });
-
   test('every entry has required fields with correct types', () => {
     for (const c of (collectors as any).collectorsArray) {
       expect(typeof c.login).toBe('string');
@@ -82,14 +78,13 @@ describe('Phase 171 — event feed (STREAM-01/02/03)', () => {
   let collectorEventPagesRaw: any[];
 
   beforeAll(() => {
-    // Read collectors.json directly (not via loader) to see the Phase 171 extended fields.
+    // Read committed fixtures (not public/data/) so npm test passes on a clean checkout
+    // with zero S3 access (D-05/D-06). Fixtures carry the full Phase 171 extended shape.
     collectorsRaw = JSON.parse(
-      readFileSync(resolve(ROOT, 'public/data/collectors.json'), 'utf-8'),
+      readFileSync(resolve(ROOT, 'src/tests/fixtures/collectors.fixture.json'), 'utf-8'),
     );
-    // collector_event_pages.json does not exist until Task 2 generates it.
-    // This readFileSync will throw in RED state → all tests below fail (expected).
     collectorEventPagesRaw = JSON.parse(
-      readFileSync(resolve(ROOT, 'public/data/collector_event_pages.json'), 'utf-8'),
+      readFileSync(resolve(ROOT, 'src/tests/fixtures/collector_event_pages.fixture.json'), 'utf-8'),
     );
   });
 

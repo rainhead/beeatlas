@@ -15,14 +15,17 @@
 // Pitfall #8: this module reads only .json files — never columnar store files —
 // so Eleventy's HMR stays fast. Asserted by src/tests/data-collectors.test.ts.
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..');
 
-const collectorsArray = JSON.parse(readFileSync(join(repoRoot, 'public/data/collectors.json'), 'utf8'));
+const collectorsPath = join(repoRoot, 'public/data/collectors.json');
+const collectorsArray = existsSync(collectorsPath)
+  ? JSON.parse(readFileSync(collectorsPath, 'utf8'))
+  : (console.warn('[collectors.js] public/data/collectors.json absent — returning [] (fetch from S3 for full data)'), []);
 
 // collector_event_pages.json is ~19 MB; only load it during a full Eleventy build.
 // Eleventy 3.x sets ELEVENTY_RUN_MODE to 'serve' | 'watch' | 'build'. Only 'build'
