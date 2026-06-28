@@ -368,7 +368,7 @@ echo "=== pipeline complete $(_ts) ==="
 # Trigger GitHub Actions deploy so collector pages refresh from today's S3 data.
 GH_DISPATCH_PAT_FILE="${GH_DISPATCH_PAT_FILE:-$HOME/.secrets/beeatlas-github-pat}"
 echo "--- triggering repository_dispatch ---"
-if [[ -f "$GH_DISPATCH_PAT_FILE" ]]; then
+if [[ -f "$GH_DISPATCH_PAT_FILE" && -r "$GH_DISPATCH_PAT_FILE" ]]; then
     GH_PAT=$(cat "$GH_DISPATCH_PAT_FILE")
     curl -fsS --retry 3 --max-time 15 \
         -X POST \
@@ -379,5 +379,5 @@ if [[ -f "$GH_DISPATCH_PAT_FILE" ]]; then
     && echo "  dispatch sent" \
     || echo "WARN: repository_dispatch failed (non-fatal)" >&2
 else
-    echo "WARN: $GH_DISPATCH_PAT_FILE not found — skipping dispatch" >&2
+    echo "WARN: $GH_DISPATCH_PAT_FILE not found or unreadable — skipping dispatch" >&2
 fi

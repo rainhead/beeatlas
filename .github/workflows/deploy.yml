@@ -32,11 +32,12 @@ jobs:
           aws-region: us-west-2
 
       - name: Fetch build-time data from S3
-        # Eleventy `_data/species.js` reads species.json + seasonality.json +
-        # higher_taxa.json synchronously at build time. Other artifacts
-        # (occurrences.parquet etc.) are fetched by the frontend at runtime via
-        # manifest.json; only these three must be present in the working tree for
-        # the build to succeed. (higher_taxa.json supersedes the retired
+        # Eleventy reads several files synchronously at build time:
+        # `_data/species.js` reads species.json + seasonality.json + higher_taxa.json;
+        # `_data/collectors.js` reads collectors.json + collector_event_pages.json
+        # (Phase 171.1). Other artifacts (occurrences.parquet etc.) are fetched by the
+        # frontend at runtime via manifest.json; only these five must be present in the
+        # working tree for the build to succeed. (higher_taxa.json supersedes the retired
         # higher_rank_taxon_ids.json — D-03, Phase 132.)
         # Artifacts are content-hashed on S3; manifest.json resolves current names.
         # manifest.json is also written to public/data/ so validate-db can read it.

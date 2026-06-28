@@ -31,8 +31,17 @@ const collectorsArray = existsSync(collectorsPath)
 // Eleventy 3.x sets ELEVENTY_RUN_MODE to 'serve' | 'watch' | 'build'. Only 'build'
 // (i.e. `npm run build` / CI deploy) needs the sub-page file. Dev HMR and vitest
 // imports both see [] because ELEVENTY_RUN_MODE is unset or 'serve'/'watch'.
-const collectorEventPages = process.env.ELEVENTY_RUN_MODE === 'build'
-  ? JSON.parse(readFileSync(join(repoRoot, 'public/data/collector_event_pages.json'), 'utf8'))
-  : [];
+// existsSync guard (like collectorsArray): the file is gitignored + fetched from S3
+// in CI, so a clean-checkout `npm run build` without S3 must degrade to [] rather
+// than ENOENT-crash.
+const collectorEventPagesPath = join(repoRoot, 'public/data/collector_event_pages.json');
+let collectorEventPages = [];
+if (process.env.ELEVENTY_RUN_MODE === 'build') {
+  if (existsSync(collectorEventPagesPath)) {
+    collectorEventPages = JSON.parse(readFileSync(collectorEventPagesPath, 'utf8'));
+  } else {
+    console.warn('[collectors.js] public/data/collector_event_pages.json absent — returning [] (fetch from S3 for full data)');
+  }
+}
 
 export default { collectorsArray, collectorEventPages };
