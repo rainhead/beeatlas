@@ -3,6 +3,9 @@ name: Build and Deploy
 on:
   push:
     branches: ['**']
+  repository_dispatch:
+    types: [nightly-data-updated]
+  workflow_dispatch:   # optional: manual rebuild via GitHub UI
 
 jobs:
   build:
@@ -47,6 +50,10 @@ jobs:
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_FILE public/data/species.json
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SEASONALITY_FILE public/data/seasonality.json
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$HIGHER_TAXA_FILE public/data/higher_taxa.json
+          COLLECTORS_FILE=$(jq -r .collectors /tmp/manifest.json)
+          COLLECTOR_EVENT_PAGES_FILE=$(jq -r .collector_event_pages /tmp/manifest.json)
+          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTORS_FILE public/data/collectors.json
+          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTOR_EVENT_PAGES_FILE public/data/collector_event_pages.json
 
       - name: Run tests
         run: npm test
