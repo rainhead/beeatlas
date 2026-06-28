@@ -1789,6 +1789,6 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 172-05-PLAN.md — Wave 3: operator UAT checkpoint (blocking)
+- [x] 172-05-PLAN.md — Wave 3: operator UAT checkpoint (blocking)
 
 **UI hint**: yes

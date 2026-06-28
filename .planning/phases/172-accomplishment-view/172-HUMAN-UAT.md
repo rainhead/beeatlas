@@ -4,7 +4,23 @@
 **Gate:** blocking human-verify (UI hint: yes — `feedback_uat_ui_phases`)
 **Prepared:** 2026-06-28
 
-## Status: ❌ ISSUES FOUND (UAT round 1) — gap-closure in progress
+## Status: ✅ PASS (UAT round 2, 2026-06-28) — operator approved after gap-closure
+
+Round 1 issues (below) all fixed in two gap-closure passes (GC1 export-correctness, GC2 shared-base-map redesign) and re-verified on the rendered page; operator approved 2026-06-28. The empty local "collection history" observed during re-review was a local two-step-regen artifact (only `collectors_export.py` was run, not `collectors_events_export.py`) — not a phase defect; production fine. See memory `project_local_collector_data_two_step_rebuild`.
+
+### Round-2 verification (rendered `/collectors/rainhead/`)
+- Badge "Active since 2024 (3 seasons)" ✓ (was "2 seasons" — predicate now `tier='atlas'`, counts uncatalogued specimens)
+- Cased binomials "Agapostemon femoratus" linked to `/species/Agapostemon/femoratus/` ✓; no `(N)` count
+- Shared base maps inlined + per-collector `[data-region]` CSS highlight; ecoregion partial 17 KB (was ~1.3 MB/collector)
+- `npm run build` clean; 281 pytest + 897 vitest green
+
+### Round-2 addendum (post-approval correction)
+Operator: "you dropped the specimen counts." The earlier round-1 question ("why is the specimen count in parentheses?") was about clarity, not deletion — the count should stay. Restored the per-species count (atlas records of each species) rendered as **"— N specimens"** (operator chose the explicit unit over the bare parenthetical via a format question). Commit `6c053e3a`. Verified rendered: "Agapostemon femoratus — 1 specimen", "Agapostemon subtilior — 4 specimens". 12 pytest + 897 vitest green, build clean.
+
+---
+
+## Round 1 (superseded)
+## Status: ❌ ISSUES FOUND (UAT round 1) — gap-closure (done)
 
 **Operator:** rainhead, 2026-06-28. Tested `/collectors/rainhead/`.
 
