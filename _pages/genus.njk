@@ -25,7 +25,7 @@ layout: default.njk
     {%- if genus.subgenera.length > 0 -%}
     {# Grouped layout: one <h2> per subgenus, then that subgenus's species list #}
     {%- for sg in genus.subgenera -%}
-    <h2><a href="/species/{{ genus.genus }}/{{ sg.subgenus }}/index.html"><em>{{ sg.subgenus }}</em></a></h2>
+    <h2>{%- if sg.hasPage %}<a href="/species/{{ genus.genus }}/{{ sg.subgenus }}/index.html"><em>{{ sg.subgenus }}</em></a>{%- else %}<em>{{ sg.subgenus }}</em>{%- endif %}</h2>
     <ul class="species-list">
     {%- for sp in sg.species -%}
       <li>

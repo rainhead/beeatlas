@@ -546,4 +546,34 @@ function buildFullTree() {
 
 const fullTree = buildFullTree();
 
+// Mark which subgenus/tribe cross-links resolve to a generated page. The tree (fullTree),
+// genus pages, and subfamily pages link every subgenus/tribe present in the taxonomy rollup
+// (higher_taxa.json), but subgenusList/tribeList only generate pages for taxa with content
+// (occurrences, or checklist members). Checklist-only taxa with zero occurrences and no
+// checklist_count (e.g. Hoplitis/Proteriades, Lasioglossum/Evylaeus, tribe Ammobatini) are
+// linked but ungenerated → broken internal links. Tag each cross-link target so templates can
+// render plain text instead of a dead <a>. Self-healing: once a taxon gains occurrences it
+// re-enters the generated list and the link returns. Derived from the final generated lists
+// (single source of truth — stays in sync if the filters change).
+const generatedSubgenusKeys = new Set(subgenusList.map((s) => `${s.genus}::${s.subgenus}`));
+const generatedTribeNames = new Set(tribeList.map((t) => t.tribe));
+
+for (const g of genusList) {
+  for (const sg of g.subgenera) {
+    sg.hasPage = generatedSubgenusKeys.has(`${g.genus}::${sg.subgenus}`);
+  }
+}
+for (const sf of subfamilyList) {
+  for (const t of sf.tribes) {
+    t.hasPage = generatedTribeNames.has(t.tribe);
+  }
+}
+(function tagTree(nodes) {
+  for (const node of nodes) {
+    if (node.rank === 'subgenus') node.hasPage = generatedSubgenusKeys.has(`${node.genusName}::${node.name}`);
+    else if (node.rank === 'tribe') node.hasPage = generatedTribeNames.has(node.name);
+    if (node.children) tagTree(node.children);
+  }
+})(fullTree);
+
 export default { flat, byScientificName, counties, ecoregionL3, speciesList, genusList, subgenusList, tribeList, subfamilyList, fullTree };

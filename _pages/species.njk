@@ -43,7 +43,7 @@ title: Species — BeeAtlas
 {%- elif node.rank === "subgenus" -%}
 <details class="tree-node tree-node--subgenus" data-rank="subgenus" data-name="{{ node.name | lower }}">
   <summary>
-    <a class="node-name" href="/species/{{ node.genusName }}/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
+    {%- if node.hasPage %}<a class="node-name" href="/species/{{ node.genusName }}/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>{%- else %}<span class="node-name"><em>{{ node.name }}</em></span>{%- endif %}
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
     <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=subgenus" aria-label="Map: {{ node.name }} occurrences">Map</a>
   </summary>
@@ -62,7 +62,7 @@ title: Species — BeeAtlas
 {%- elif node.rank === "tribe" -%}
 <details class="tree-node tree-node--tribe" data-rank="tribe" data-name="{{ node.name | lower }}">
   <summary>
-    <a class="node-name" href="/species/tribe/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>
+    {%- if node.hasPage %}<a class="node-name" href="/species/tribe/{{ node.name }}/index.html"><em>{{ node.name }}</em></a>{%- else %}<span class="node-name"><em>{{ node.name }}</em></span>{%- endif %}
     <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
     <a class="node-map" href="/?taxon={{ node.name | urlencode }}&amp;taxonRank=tribe" aria-label="Map: {{ node.name }} occurrences">Map</a>
   </summary>

@@ -27,7 +27,7 @@ layout: default.njk
     {%- if subfamily.tribes.length > 0 -%}
     {# D-04: nested tribes->genera layout #}
     {%- for t in subfamily.tribes -%}
-    <h2><a href="/species/tribe/{{ t.tribe }}/index.html">{{ t.tribe }}</a></h2>
+    <h2>{%- if t.hasPage %}<a href="/species/tribe/{{ t.tribe }}/index.html">{{ t.tribe }}</a>{%- else %}{{ t.tribe }}{%- endif %}</h2>
     <ul class="species-list">
       {%- for g in t.genera -%}
       <li>
