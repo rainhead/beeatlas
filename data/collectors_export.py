@@ -14,6 +14,7 @@ Usage:
 
 import json
 import os
+from collections import defaultdict
 from pathlib import Path
 
 import duckdb
@@ -77,6 +78,23 @@ _QUERY = """
       AND (o.ecdysis_id IS NOT NULL OR o.record_type IN ('waba_specimen', 'provisional_sample'))
     GROUP BY o.collector_inat_login
     ORDER BY o.collector_inat_login
+"""
+
+
+_SPECIES_QUERY = """
+    SELECT
+        o.collector_inat_login                                            AS login,
+        sp.genus,
+        sp.canonical_name,
+        sp.slug,
+        COUNT(*)                                                          AS occ_count
+    FROM read_parquet(?) o
+    LEFT JOIN read_parquet(?) sp ON sp.taxon_id = o.taxon_id
+    WHERE o.collector_inat_login IS NOT NULL
+      AND (o.ecdysis_id IS NOT NULL OR o.record_type IN ('waba_specimen', 'provisional_sample'))
+      AND sp.specific_epithet IS NOT NULL
+    GROUP BY o.collector_inat_login, sp.genus, sp.canonical_name, sp.slug
+    ORDER BY o.collector_inat_login, sp.genus, sp.canonical_name
 """
 
 
@@ -155,6 +173,31 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 "county_count": int(county_count),
                 "ecoregion_count": int(ecoregion_count),
             })
+
+        # ACCOM-02 / D-04: species-rank species list grouped by genus.
+        # Run _SPECIES_QUERY with the same parquet parameters, then group:
+        #   login → genus → list of {canonical_name, slug, count}
+        # SQL ORDER BY login, genus, canonical_name ensures insertion order is correct;
+        # sorted() on genus_dict makes genera alphabetical (D-04).
+        species_rows = con.execute(
+            _SPECIES_QUERY,
+            [str(occ_parquet), str(species_parquet)],
+        ).fetchall()
+
+        species_by_login: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
+        for login_sp, genus, canonical_name, slug, occ_count in species_rows:
+            species_by_login[login_sp][genus].append({
+                "canonical_name": canonical_name,
+                "slug": slug,
+                "count": int(occ_count),
+            })
+
+        for rec in records:
+            genus_dict = species_by_login.get(rec["login"], {})
+            rec["species_by_genus"] = [
+                {"genus": genus, "species": species_list}
+                for genus, species_list in sorted(genus_dict.items())
+            ]
 
         out_path = ASSETS_DIR / "collectors.json"
         out_path.write_text(json.dumps(records, indent=2), encoding="utf-8")
