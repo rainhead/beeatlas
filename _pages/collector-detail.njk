@@ -10,6 +10,24 @@ layout: default.njk
 ---
 <link rel="stylesheet" href="/src/styles/places.css">
 {%- if collector.atom_feed_url %}<link rel="alternate" type="application/atom+xml" title="{{ collector.display_name }} — recent determinations" href="{{ collector.atom_feed_url }}">{% endif %}
+{#- Phase 172 GC2: per-collector CSS highlight blocks.
+    Scope by .coverage-county / .coverage-eco wrapper class so the two maps
+    don't cross-highlight each other (both use [data-region] attribute selectors).
+    Specificity of .coverage-county [data-region="…"] (0,1,1,0) beats .region
+    (0,1,0,0) in the inlined SVG's own <style>, so highlights always win.
+-#}
+{%- if collector.county_names and collector.county_names.length > 0 -%}
+<style>
+{% for c in collector.county_names %}.coverage-county [data-region="{{ c }}"]{% if not loop.last %},
+{% endif %}{% endfor %} { fill: #b0cfe8; }
+</style>
+{%- endif -%}
+{%- if collector.ecoregion_names and collector.ecoregion_names.length > 0 -%}
+<style>
+{% for e in collector.ecoregion_names %}.coverage-eco [data-region="{{ e }}"]{% if not loop.last %},
+{% endif %}{% endfor %} { fill: #b0cfe8; }
+</style>
+{%- endif -%}
 <article class="places-page place-detail">
   <h1>{{ collector.display_name }}</h1>
   <p class="metadata">{{ collector.specimen_count | quantify("specimen") }} · {{ collector.sample_count | quantify("sample") }} · {{ collector.species_count | quantify("species", "species") }}</p>
@@ -25,29 +43,35 @@ layout: default.njk
       today, but the guard keeps the link honest if a name-less waba_specimen-only one appears. -#}
   <a href="/?collectors={{ collector.recordedBy | urlencode }}:{{ collector.host_inat_login | urlencode }}">View on the atlas →</a>
   {%- endif -%}
-  {#- Phase 172: Coverage maps (ACCOM-01/03) and species list (ACCOM-02) -#}
+  {#- Phase 172 GC2: Inline shared base maps with per-collector CSS highlight.
+      Replaced per-collector <img src="/data/collector-maps/..."> (248 files, ~122 MB)
+      with two committed SVG partials highlighted per-collector via <style> blocks above.
+      The wrapping div carries role="img" aria-label="..." for accessibility since the
+      inline SVG has aria-hidden="true" (it's decorative — the label carries the info). -#}
   {%- if collector.county_count > 0 or collector.ecoregion_count > 0 -%}
   <section class="coverage-section">
     <div class="coverage-maps">
       {%- if collector.county_count > 0 -%}
-      <div class="map-block">
-        <img loading="lazy"
-             src="/data/collector-maps/{{ collector.login }}.svg"
-             alt="County coverage map for {{ collector.display_name }} — {{ collector.county_count | quantify('county', 'counties') }}">
+      <div class="map-block coverage-county"
+           role="img"
+           aria-label="County coverage map for {{ collector.display_name }} — {{ collector.county_count | quantify('county', 'counties') }}">
+        {% include "maps/counties-base.svg" %}
         <p class="metadata">{{ collector.county_count | quantify("county", "counties") }}</p>
       </div>
       {%- endif -%}
       {%- if collector.ecoregion_count > 0 -%}
-      <div class="map-block">
-        <img loading="lazy"
-             src="/data/collector-maps/{{ collector.login }}-eco.svg"
-             alt="Ecoregion coverage map for {{ collector.display_name }} — {{ collector.ecoregion_count | quantify('ecoregion') }}">
+      <div class="map-block coverage-eco"
+           role="img"
+           aria-label="Ecoregion coverage map for {{ collector.display_name }} — {{ collector.ecoregion_count | quantify('ecoregion') }}">
+        {% include "maps/ecoregions-base.svg" %}
         <p class="metadata">{{ collector.ecoregion_count | quantify("ecoregion") }}</p>
       </div>
       {%- endif -%}
     </div>
   </section>
   {%- endif -%}
+  {#- Species list: uses sp.name (cased scientificName from collectors_export.py _SPECIES_QUERY).
+      Per-species count removed per UAT round 1 (operator: unexplained, not needed). -#}
   {%- if collector.species_by_genus and collector.species_by_genus.length > 0 -%}
   <section class="species-section">
     <h2>Species collected</h2>
@@ -58,8 +82,7 @@ layout: default.njk
         <ul class="species-list">
         {%- for sp in genus_group.species -%}
           <li>
-            <a href="/species/{{ sp.slug }}/">{{ sp.canonical_name }}</a>
-            <span class="count">({{ sp.count }})</span>
+            <a href="/species/{{ sp.slug }}/">{{ sp.name }}</a>
           </li>
         {%- endfor -%}
         </ul>

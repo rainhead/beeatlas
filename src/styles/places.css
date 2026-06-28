@@ -154,11 +154,11 @@ table.event-feed td {
   margin-left: 0.5rem;
 }
 
-/* Phase 172: collector coverage maps */
-.places-page img[src*="/collector-maps/"] {
-  aspect-ratio: 15 / 8;
+/* Phase 172 GC2: inline SVG coverage maps (replaces per-collector <img> delivery). */
+.map-block svg {
   width: 100%;
-  max-width: 600px;
+  height: auto;
+  display: block;
 }
 
 .coverage-section {
@@ -215,8 +215,4 @@ table.event-feed td {
   border-bottom: 1px solid var(--border, #ddd);
 }
 
-.species-section .species-list .count {
-  margin-left: auto;
-  font-size: 0.85rem;
-  color: var(--text-muted, #666);
-}
+/* .count rule removed — per-species count not rendered (UAT round 1 operator decision) */
