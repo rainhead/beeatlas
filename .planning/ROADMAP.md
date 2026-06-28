@@ -1746,6 +1746,7 @@ Plans:
 **Why (defect being fixed)**: Phase 171 committed `collector_event_pages.json` (29 MB) + `collectors.json` (3.5 MB) to git via a `.gitignore` allowlist, reasoning that a build-time-read file must be committed — conflating "read at build time" with "committed". This deviated from the `species.json` pattern (S3 + manifest + `deploy.yml` fetch), bloated git history ~150 MB (re-committed 19→28→30 MB across three plans), and left the live pages stale because the nightly regenerates the file but never commits it back and never rebuilds the site. See memory `feedback_no_committed_data_artifacts`.
 
 **Success Criteria** (what must be TRUE):
+
   1. `collectors.json` + `collector_event_pages.json` are uploaded to S3 by `data/nightly.sh` (content-hashed, added to `manifest.json`), exactly like `species.json`/`occurrences.parquet`
   2. `deploy.yml`'s "Fetch build-time data from S3" step pulls both files; `_data/collectors.js` reads them from `public/data/` unchanged; a clean-checkout `npm run build` + `npm test` still pass
   3. Both files are removed from git tracking and purged from history; `.gitignore` no longer allowlists them; repo size drops accordingly
@@ -1759,6 +1760,7 @@ Plans:
 - [x] 171.1-02-PLAN.md — Wave 1: commit tiny synthetic fixtures (outside public/data/) + existsSync guard in `_data/collectors.js` + repoint `data-collectors.test.ts` so a clean checkout is `npm test`-green with zero S3 access [D-05, D-06]
 - [x] 171.1-03-PLAN.md — Wave 2: `deploy.yml` fetches both files from S3 + accepts `repository_dispatch` (nightly-data-updated) / `workflow_dispatch`; `nightly.sh` fires the dispatch via a root-only fine-grained PAT for daily page refresh [D-03, D-04]
 - [x] 171.1-04-PLAN.md — Wave 3: untrack both files (`.gitignore` allowlist removal + `git rm --cached` in one commit) + operator `git filter-repo --invert-paths` + force-push to purge ~150 MB of history [D-01, D-02]
+
 **Resolved decision (2026-06-28)**: freshness = **nightly-triggered rebuild** via `repository_dispatch` (not fresh-per-deploy). The nightly owns the redeploy trigger; this requires the deploy workflow to accept a `repository_dispatch` event and `nightly.sh` to fire it (needs a GitHub token/auth path on maderas).
 
 ### Phase 172: Accomplishment View
@@ -1774,5 +1776,19 @@ Plans:
   4. The page shows an "Active since YYYY (N seasons)" badge derived from the `collection_date` column range — no streak tracking, no leaderboard elements
   5. All aggregations are pre-computed in the pipeline (`collectors.json`) and rendered statically; no wa-sqlite GROUP BY query runs in the browser on the collector page
 
-**Plans**: TBD
+**Plans**: 5 plans (4 waves)
+**Wave 1**
+
+- [ ] 172-01-PLAN.md — Wave 0: failing-test scaffold (fixture + frontend/Python tests)
+- [ ] 172-02-PLAN.md — Wave 1: collectors_export.py aggregations (badge, counts, species_by_genus)
+- [ ] 172-03-PLAN.md — Wave 1: collector_maps.py county + ecoregion coverage SVG generator
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 172-04-PLAN.md — Wave 2: collector-detail.njk render + places.css + run.py/nightly.sh wiring
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 172-05-PLAN.md — Wave 3: operator UAT checkpoint (blocking)
+
 **UI hint**: yes

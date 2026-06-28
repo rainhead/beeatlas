@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: completed
-stopped_at: Phase 172 context gathered
-last_updated: "2026-06-28T15:58:19.015Z"
-last_activity: 2026-06-28
+stopped_at: Phase 172 UI-SPEC approved
+last_updated: "2026-06-28T16:49:43.302Z"
+last_activity: 2026-06-28 -- Phase 172 planning complete
 progress:
   total_phases: 30
   completed_phases: 26
@@ -29,7 +29,7 @@ Phase: 171.1 (collector-data-delivery-rebuild) — COMPLETE
 Plan: 4 of 4 (all complete, verification passed 5/5, UAT pass 2026-06-28)
 Status: complete
 Next: Phase 172 (Accomplishment View)
-Last activity: 2026-06-28
+Last activity: 2026-06-28 -- Phase 172 planning complete
 
 ## Milestone Overview
 
@@ -110,9 +110,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-28T15:58:19.004Z
-Stopped at: Phase 172 context gathered
-Resume file: .planning/phases/172-accomplishment-view/172-CONTEXT.md
+Last session: 2026-06-28T16:23:39.867Z
+Stopped at: Phase 172 UI-SPEC approved
+Resume file: .planning/phases/172-accomplishment-view/172-UI-SPEC.md
 
 ## Operator Next Steps
 
