@@ -39,10 +39,10 @@
 
 ### Accomplishment View (ACCOM)
 
-- [ ] **ACCOM-01**: The page shows a **county coverage SVG map** (reusing the taxon/place SVG pattern).
-- [ ] **ACCOM-02**: The page shows a **taxonomic-breadth** list of contributed species, linked to taxon pages.
-- [ ] **ACCOM-03**: The page shows **ecoregion breadth**.
-- [ ] **ACCOM-04**: The page shows an **"Active since YYYY (N seasons)"** badge (no streaks).
+- [x] **ACCOM-01**: The page shows a **county coverage SVG map** (reusing the taxon/place SVG pattern).
+- [x] **ACCOM-02**: The page shows a **taxonomic-breadth** list of contributed species, linked to taxon pages.
+- [x] **ACCOM-03**: The page shows **ecoregion breadth**.
+- [x] **ACCOM-04**: The page shows an **"Active since YYYY (N seasons)"** badge (no streaks).
 
 ## v2 / Future Requirements
 
@@ -92,10 +92,10 @@ Explicitly excluded for v6.0.
 | STREAM-01 | Phase 171 | Complete |
 | STREAM-02 | Phase 171 | Complete |
 | STREAM-03 | Phase 171 | Complete |
-| ACCOM-01 | Phase 172 | Pending |
-| ACCOM-02 | Phase 172 | Pending |
-| ACCOM-03 | Phase 172 | Pending |
-| ACCOM-04 | Phase 172 | Pending |
+| ACCOM-01 | Phase 172 | Complete |
+| ACCOM-02 | Phase 172 | Complete |
+| ACCOM-03 | Phase 172 | Complete |
+| ACCOM-04 | Phase 172 | Complete |
 
 **Coverage:**
 - v1 requirements: 17 total

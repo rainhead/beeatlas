@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: completed
+status: executing
 stopped_at: Phase 172 UI-SPEC approved
-last_updated: "2026-06-28T16:49:43.302Z"
-last_activity: 2026-06-28 -- Phase 172 planning complete
+last_updated: "2026-06-28T16:56:17.135Z"
+last_activity: 2026-06-28
 progress:
-  total_phases: 30
-  completed_phases: 26
-  total_plans: 58
-  completed_plans: 58
-  percent: 87
+  total_phases: 39
+  completed_phases: 20
+  total_plans: 52
+  completed_plans: 48
+  percent: 51
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 171.1 complete — next: Phase 172 (Accomplishment View)
+**Current focus:** Phase 172 — Accomplishment View
 
 ## Current Position
 
-Phase: 171.1 (collector-data-delivery-rebuild) — COMPLETE
-Plan: 4 of 4 (all complete, verification passed 5/5, UAT pass 2026-06-28)
-Status: complete
+Phase: 172 (Accomplishment View) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
 Next: Phase 172 (Accomplishment View)
-Last activity: 2026-06-28 -- Phase 172 planning complete
+Last activity: 2026-06-28
 
 ## Milestone Overview
 
@@ -49,7 +49,7 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 171.1 | Collector Data Delivery Rebuild (INSERTED) | Phase 171 | Complete |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
-**Progress:** [█████████░] 86% (6/7 phases — Phase 172 remaining)
+**Progress:** [█████████░] 92%
 
 ## Accumulated Context
 
@@ -110,9 +110,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-28T16:23:39.867Z
+Last session: 2026-06-28T16:56:17.127Z
 Stopped at: Phase 172 UI-SPEC approved
-Resume file: .planning/phases/172-accomplishment-view/172-UI-SPEC.md
+Resume file: None
 
 ## Operator Next Steps
 

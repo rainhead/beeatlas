@@ -1779,7 +1779,7 @@ Plans:
 **Plans**: 5 plans (4 waves)
 **Wave 1**
 
-- [ ] 172-01-PLAN.md — Wave 0: failing-test scaffold (fixture + frontend/Python tests)
+- [x] 172-01-PLAN.md — Wave 0: failing-test scaffold (fixture + frontend/Python tests)
 - [ ] 172-02-PLAN.md — Wave 1: collectors_export.py aggregations (badge, counts, species_by_genus)
 - [ ] 172-03-PLAN.md — Wave 1: collector_maps.py county + ecoregion coverage SVG generator
 
