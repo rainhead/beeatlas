@@ -1755,7 +1755,7 @@ Plans:
 **Plans**: 4 plans (3 waves)
 Plans:
 
-- [ ] 171.1-01-PLAN.md — Wave 1: nightly.sh uploads both collector files to S3 (content-hashed, plain `_upload_hashed`) + 2 manifest keys + drift-guard classification, then a one-time operator nightly lands the data in S3 [D-07, D-08]
+- [x] 171.1-01-PLAN.md — Wave 1: nightly.sh uploads both collector files to S3 (content-hashed, plain `_upload_hashed`) + 2 manifest keys + drift-guard classification, then a one-time operator nightly lands the data in S3 [D-07, D-08]
 - [x] 171.1-02-PLAN.md — Wave 1: commit tiny synthetic fixtures (outside public/data/) + existsSync guard in `_data/collectors.js` + repoint `data-collectors.test.ts` so a clean checkout is `npm test`-green with zero S3 access [D-05, D-06]
 - [ ] 171.1-03-PLAN.md — Wave 2: `deploy.yml` fetches both files from S3 + accepts `repository_dispatch` (nightly-data-updated) / `workflow_dispatch`; `nightly.sh` fires the dispatch via a root-only fine-grained PAT for daily page refresh [D-03, D-04]
 - [ ] 171.1-04-PLAN.md — Wave 3: untrack both files (`.gitignore` allowlist removal + `git rm --cached` in one commit) + operator `git filter-repo --invert-paths` + force-push to purge ~150 MB of history [D-01, D-02]
