@@ -1741,7 +1741,7 @@ Plans:
 
 **Depends on**: Phase 171 (created the collector-data artifacts and the defective committed-to-git delivery)
 **Blocks**: Phase 172 (Accomplishment View extends the same `collectors.json` delivery; build the correct foundation first)
-**Requirements**: TBD (run /gsd-plan-phase 171.1)
+**Requirements**: None formal in REQUIREMENTS.md — coverage driven by CONTEXT.md decisions D-01..D-08 and the 5 success criteria above
 
 **Why (defect being fixed)**: Phase 171 committed `collector_event_pages.json` (29 MB) + `collectors.json` (3.5 MB) to git via a `.gitignore` allowlist, reasoning that a build-time-read file must be committed — conflating "read at build time" with "committed". This deviated from the `species.json` pattern (S3 + manifest + `deploy.yml` fetch), bloated git history ~150 MB (re-committed 19→28→30 MB across three plans), and left the live pages stale because the nightly regenerates the file but never commits it back and never rebuilds the site. See memory `feedback_no_committed_data_artifacts`.
 
@@ -1752,7 +1752,13 @@ Plans:
   4. The static collector pages refresh **daily**: `data/nightly.sh`, after uploading the artifacts to S3, triggers a site rebuild/redeploy (GitHub Actions `repository_dispatch` to the deploy workflow) so the regenerated collector pages go live each night without a code push (operator decision 2026-06-28)
   5. The live collector pages no longer show stale data (carries the undetermined-events fix already in `main`); rainhead's page reflects current data
 
-**Plans**: TBD (run /gsd-plan-phase 171.1)
+**Plans**: 4 plans (3 waves)
+Plans:
+
+- [ ] 171.1-01-PLAN.md — Wave 1: nightly.sh uploads both collector files to S3 (content-hashed, plain `_upload_hashed`) + 2 manifest keys + drift-guard classification, then a one-time operator nightly lands the data in S3 [D-07, D-08]
+- [ ] 171.1-02-PLAN.md — Wave 1: commit tiny synthetic fixtures (outside public/data/) + existsSync guard in `_data/collectors.js` + repoint `data-collectors.test.ts` so a clean checkout is `npm test`-green with zero S3 access [D-05, D-06]
+- [ ] 171.1-03-PLAN.md — Wave 2: `deploy.yml` fetches both files from S3 + accepts `repository_dispatch` (nightly-data-updated) / `workflow_dispatch`; `nightly.sh` fires the dispatch via a root-only fine-grained PAT for daily page refresh [D-03, D-04]
+- [ ] 171.1-04-PLAN.md — Wave 3: untrack both files (`.gitignore` allowlist removal + `git rm --cached` in one commit) + operator `git filter-repo --invert-paths` + force-push to purge ~150 MB of history [D-01, D-02]
 **Resolved decision (2026-06-28)**: freshness = **nightly-triggered rebuild** via `repository_dispatch` (not fresh-per-deploy). The nightly owns the redeploy trigger; this requires the deploy workflow to accept a `repository_dispatch` event and `nightly.sh` to fire it (needs a GitHub token/auth path on maderas).
 
 ### Phase 172: Accomplishment View
