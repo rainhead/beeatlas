@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
 status: ready_to_plan
-stopped_at: Phase 171 complete (3/3) — ready to discuss Phase 172 (final v6.0 phase)
-last_updated: 2026-06-27T23:37:50.870Z
+stopped_at: Phase 171.1 context gathered
+last_updated: "2026-06-28T02:03:14.889Z"
 last_activity: 2026-06-27
 progress:
-  total_phases: 38
+  total_phases: 39
   completed_phases: 19
   total_plans: 43
-  completed_plans: 54
-  percent: 50
+  completed_plans: 43
+  percent: 49
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 172 — Accomplishment View (final v6.0 phase)
+**Current focus:** Phase 171.1 — Collector Data Delivery Rebuild
 
 ## Current Position
 
-Phase: 172
+Phase: 171.1
 Plan: Not started
-Status: Ready to plan (Phase 171 complete + verified)
+Status: ready_to_plan
 Last activity: 2026-06-27
 
 ## Milestone Overview
@@ -45,11 +45,16 @@ Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
 | 169 | Per-Collector Static Pages | Phase 167 | Complete |
 | 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Complete |
 | 171 | Per-Collector Event Stream | Phase 168, 170 | Complete |
+| 171.1 | Collector Data Delivery Rebuild (INSERTED) | Phase 171 | Not started |
 | 172 | Accomplishment View | Phase 169, 171 | Not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [████████░░] 83% (5/6 + inserted 171.1)
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 171.1 inserted after Phase 171: Collector Data Delivery Rebuild — fixes Phase 171 defect: 29MB+ artifact committed to git instead of S3/manifest pattern (URGENT)
 
 ### Decisions
 
@@ -104,9 +109,9 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-27T21:09:08.815Z
-Stopped at: Phase 171 UI-SPEC approved
-Resume file: None
+Last session: 2026-06-28T02:03:14.881Z
+Stopped at: Phase 171.1 context gathered
+Resume file: .planning/phases/171.1-collector-data-delivery-rebuild/171.1-CONTEXT.md
 
 ## Operator Next Steps
 

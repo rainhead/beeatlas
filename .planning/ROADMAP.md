@@ -1735,6 +1735,26 @@ Plans:
 **Plans**: TBD
 **UI hint**: yes
 
+### Phase 171.1: Collector Data Delivery Rebuild (INSERTED)
+
+**Goal**: Collector page data (`collectors.json`, `collector_event_pages.json`) is delivered like every other build-time data artifact — uploaded to S3 by the nightly (content-hashed, registered in `manifest.json`) and fetched at build time by `deploy.yml` — instead of being committed to git. The 29 MB+ artifact and its history are removed from the repo, and the static collector pages have a defined freshness mechanism.
+
+**Depends on**: Phase 171 (created the collector-data artifacts and the defective committed-to-git delivery)
+**Blocks**: Phase 172 (Accomplishment View extends the same `collectors.json` delivery; build the correct foundation first)
+**Requirements**: TBD (run /gsd-plan-phase 171.1)
+
+**Why (defect being fixed)**: Phase 171 committed `collector_event_pages.json` (29 MB) + `collectors.json` (3.5 MB) to git via a `.gitignore` allowlist, reasoning that a build-time-read file must be committed — conflating "read at build time" with "committed". This deviated from the `species.json` pattern (S3 + manifest + `deploy.yml` fetch), bloated git history ~150 MB (re-committed 19→28→30 MB across three plans), and left the live pages stale because the nightly regenerates the file but never commits it back and never rebuilds the site. See memory `feedback_no_committed_data_artifacts`.
+
+**Success Criteria** (what must be TRUE):
+  1. `collectors.json` + `collector_event_pages.json` are uploaded to S3 by `data/nightly.sh` (content-hashed, added to `manifest.json`), exactly like `species.json`/`occurrences.parquet`
+  2. `deploy.yml`'s "Fetch build-time data from S3" step pulls both files; `_data/collectors.js` reads them from `public/data/` unchanged; a clean-checkout `npm run build` + `npm test` still pass
+  3. Both files are removed from git tracking and purged from history; `.gitignore` no longer allowlists them; repo size drops accordingly
+  4. The static collector pages refresh **daily**: `data/nightly.sh`, after uploading the artifacts to S3, triggers a site rebuild/redeploy (GitHub Actions `repository_dispatch` to the deploy workflow) so the regenerated collector pages go live each night without a code push (operator decision 2026-06-28)
+  5. The live collector pages no longer show stale data (carries the undetermined-events fix already in `main`); rainhead's page reflects current data
+
+**Plans**: TBD (run /gsd-plan-phase 171.1)
+**Resolved decision (2026-06-28)**: freshness = **nightly-triggered rebuild** via `repository_dispatch` (not fresh-per-deploy). The nightly owns the redeploy trigger; this requires the deploy workflow to accept a `repository_dispatch` event and `nightly.sh` to fire it (needs a GitHub token/auth path on maderas).
+
 ### Phase 172: Accomplishment View
 
 **Goal**: The collector page shows a county coverage map, taxonomic-breadth list, ecoregion breadth, and active-seasons badge — all pre-aggregated in the pipeline, not computed in the browser
