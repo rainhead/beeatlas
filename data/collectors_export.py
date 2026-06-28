@@ -8,6 +8,17 @@ Runs AFTER dbt-build AND species-export because per-collector counts come from
 ASSETS_DIR/occurrences.parquet and ASSETS_DIR/species.parquet
 (Pitfall 5 — NOT from DBT_SANDBOX_DIR).
 
+Query split:
+    _QUERY        — existing D-01 gate metrics (specimen/sample/species counts,
+                    status split).  Predicate: ecdysis_id IS NOT NULL OR
+                    record_type IN ('waba_specimen', 'provisional_sample').
+    _ACCOM_QUERY  — accomplishment aggregations (active_since, seasons_count,
+                    county/ecoregion names + counts).  Predicate: tier='atlas',
+                    which includes uncatalogued atlas specimens (record_type=
+                    'specimen', ecdysis_id IS NULL) that the old predicate drops.
+    _SPECIES_QUERY — species-rank species list grouped by genus.
+                    Predicate: tier='atlas'.  Uses cased scientificName.
+
 Usage:
     cd data && uv run python collectors_export.py
 """
@@ -64,14 +75,7 @@ _QUERY = """
                  THEN 1 ELSE 0 END)                                    AS status_identified,
         SUM(CASE WHEN (o.ecdysis_id IS NOT NULL OR o.record_type = 'waba_specimen')
                       AND sp.specific_epithet IS NULL
-                 THEN 1 ELSE 0 END)                                    AS status_awaiting,
-        -- ACCOM-04: active-seasons badge (D-05 — year column, COUNT DISTINCT, not max-min span)
-        MIN(o.year)                                                     AS active_since,
-        COUNT(DISTINCT o.year)                                          AS seasons_count,
-        -- ACCOM-01/03: map caption counts
-        COUNT(DISTINCT o.county) FILTER (WHERE o.county IS NOT NULL)    AS county_count,
-        COUNT(DISTINCT o.ecoregion_l3) FILTER (WHERE o.ecoregion_l3 IS NOT NULL)
-                                                                        AS ecoregion_count
+                 THEN 1 ELSE 0 END)                                    AS status_awaiting
     FROM read_parquet(?) o
     LEFT JOIN read_parquet(?) sp ON sp.taxon_id = o.taxon_id
     WHERE o.collector_inat_login IS NOT NULL
@@ -81,20 +85,49 @@ _QUERY = """
 """
 
 
+# ACCOM-01/03/04 — accomplishment aggregations over tier='atlas' rows.
+# Use tier='atlas' (not the ecdysis_id-based D-01 predicate) to include
+# atlas specimens collected-but-not-yet-catalogued (record_type='specimen',
+# tier='atlas', ecdysis_id IS NULL) — UAT bug fix.
+_ACCOM_QUERY = """
+    SELECT
+        o.collector_inat_login                                              AS login,
+        -- D-05: earliest collection year (NOT id_date).
+        -- COALESCE applied to MIN aggregate, NOT inside MIN — per feedback_min_coalesce_aggregation.
+        MIN(o.year)                                                         AS active_since,
+        COUNT(DISTINCT o.year)                                              AS seasons_count,
+        -- Sorted distinct non-null county and ecoregion name lists for display.
+        list_sort(array_agg(DISTINCT o.county) FILTER (WHERE o.county IS NOT NULL))
+                                                                            AS county_names,
+        list_sort(array_agg(DISTINCT o.ecoregion_l3) FILTER (WHERE o.ecoregion_l3 IS NOT NULL))
+                                                                            AS ecoregion_names,
+        COUNT(DISTINCT o.county) FILTER (WHERE o.county IS NOT NULL)        AS county_count,
+        COUNT(DISTINCT o.ecoregion_l3) FILTER (WHERE o.ecoregion_l3 IS NOT NULL)
+                                                                            AS ecoregion_count
+    FROM read_parquet(?) o
+    WHERE o.collector_inat_login IS NOT NULL
+      AND o.tier = 'atlas'
+    GROUP BY o.collector_inat_login
+"""
+
+
+# ACCOM-02 / D-04: species-rank species list per collector.
+# Predicate: tier='atlas' (consistent with _ACCOM_QUERY — includes uncatalogued specimens).
+# Uses cased sp.scientificName (NOT lowercase sp.canonical_name).
+# No per-species count (operator: unexplained, removed per UAT).
 _SPECIES_QUERY = """
     SELECT
         o.collector_inat_login                                            AS login,
         sp.genus,
-        sp.canonical_name,
-        sp.slug,
-        COUNT(*)                                                          AS occ_count
+        sp.scientificName,
+        sp.slug
     FROM read_parquet(?) o
     LEFT JOIN read_parquet(?) sp ON sp.taxon_id = o.taxon_id
     WHERE o.collector_inat_login IS NOT NULL
-      AND (o.ecdysis_id IS NOT NULL OR o.record_type IN ('waba_specimen', 'provisional_sample'))
+      AND o.tier = 'atlas'
       AND sp.specific_epithet IS NOT NULL
-    GROUP BY o.collector_inat_login, sp.genus, sp.canonical_name, sp.slug
-    ORDER BY o.collector_inat_login, sp.genus, sp.canonical_name
+    GROUP BY o.collector_inat_login, sp.genus, sp.scientificName, sp.slug
+    ORDER BY o.collector_inat_login, sp.genus, sp.scientificName
 """
 
 
@@ -146,7 +179,6 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 login, display_name, recorded_by, host_inat_login,
                 specimen_count, sample_count, species_count,
                 status_denominator, status_identified, status_awaiting,
-                active_since, seasons_count, county_count, ecoregion_count,
             ) = row
             records.append({
                 "login": login,
@@ -166,36 +198,66 @@ def export_collectors(con: duckdb.DuckDBPyConnection | None = None) -> None:
                 "status_denominator": int(status_denominator),
                 "status_identified": int(status_identified),
                 "status_awaiting": int(status_awaiting),
-                # ACCOM-04 / D-05: active-seasons badge
+            })
+
+        # ACCOM-01/03/04: accomplishment aggregations over tier='atlas'.
+        # Separate from _QUERY to include uncatalogued atlas specimens
+        # (ecdysis_id IS NULL, record_type='specimen', tier='atlas') — UAT bug fix.
+        _ACCOM_DEFAULT = {
+            "active_since": None,
+            "seasons_count": 0,
+            "county_names": [],
+            "ecoregion_names": [],
+            "county_count": 0,
+            "ecoregion_count": 0,
+        }
+        accom_rows = con.execute(
+            _ACCOM_QUERY,
+            [str(occ_parquet)],
+        ).fetchall()
+        accom_by_login: dict[str, dict] = {}
+        for row in accom_rows:
+            (
+                login_ac, active_since, seasons_count,
+                county_names, ecoregion_names,
+                county_count, ecoregion_count,
+            ) = row
+            accom_by_login[login_ac] = {
                 "active_since": int(active_since) if active_since is not None else None,
                 "seasons_count": int(seasons_count),
-                # ACCOM-01/03: map caption counts
+                "county_names": list(county_names) if county_names is not None else [],
+                "ecoregion_names": list(ecoregion_names) if ecoregion_names is not None else [],
                 "county_count": int(county_count),
                 "ecoregion_count": int(ecoregion_count),
-            })
+            }
+        for rec in records:
+            rec.update(accom_by_login.get(rec["login"], _ACCOM_DEFAULT))
 
         # ACCOM-02 / D-04: species-rank species list grouped by genus.
         # Run _SPECIES_QUERY with the same parquet parameters, then group:
-        #   login → genus → list of {canonical_name, slug, count}
-        # SQL ORDER BY login, genus, canonical_name ensures insertion order is correct;
+        #   login → genus → list of {name (cased scientificName), slug}
+        # SQL ORDER BY login, genus, scientificName ensures insertion order is correct;
         # sorted() on genus_dict makes genera alphabetical (D-04).
+        # No per-species count emitted (operator: unexplained/removed per UAT round 1).
         species_rows = con.execute(
             _SPECIES_QUERY,
             [str(occ_parquet), str(species_parquet)],
         ).fetchall()
 
         species_by_login: dict[str, dict[str, list]] = defaultdict(lambda: defaultdict(list))
-        for login_sp, genus, canonical_name, slug, occ_count in species_rows:
+        for login_sp, genus, scientific_name, slug in species_rows:
             species_by_login[login_sp][genus].append({
-                "canonical_name": canonical_name,
+                "name": scientific_name,
                 "slug": slug,
-                "count": int(occ_count),
             })
 
         for rec in records:
             genus_dict = species_by_login.get(rec["login"], {})
             rec["species_by_genus"] = [
-                {"genus": genus, "species": species_list}
+                {
+                    "genus": genus,
+                    "species": sorted(species_list, key=lambda x: x["name"]),
+                }
                 for genus, species_list in sorted(genus_dict.items())
             ]
 
