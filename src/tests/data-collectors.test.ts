@@ -236,22 +236,71 @@ describe('Phase 172 — accomplishment fields (ACCOM-01..04)', () => {
     }
   });
 
+  test('every fixture entry has county_names and ecoregion_names as sorted arrays (FIX A)', () => {
+    for (const c of fixtureData) {
+      expect(
+        Array.isArray(c.county_names),
+        `county_names of ${c.login} must be an Array`,
+      ).toBe(true);
+      expect(
+        Array.isArray(c.ecoregion_names),
+        `ecoregion_names of ${c.login} must be an Array`,
+      ).toBe(true);
+      // Counts must match the length of the name arrays
+      expect(
+        c.county_count,
+        `county_count must equal county_names.length for ${c.login}`,
+      ).toBe((c.county_names as string[]).length);
+      expect(
+        c.ecoregion_count,
+        `ecoregion_count must equal ecoregion_names.length for ${c.login}`,
+      ).toBe((c.ecoregion_names as string[]).length);
+      // Arrays must be sorted alphabetically
+      const sortedCounties = [...(c.county_names as string[])].sort();
+      expect(
+        c.county_names,
+        `county_names must be sorted alphabetically for ${c.login}`,
+      ).toEqual(sortedCounties);
+      const sortedEcoregions = [...(c.ecoregion_names as string[])].sort();
+      expect(
+        c.ecoregion_names,
+        `ecoregion_names must be sorted alphabetically for ${c.login}`,
+      ).toEqual(sortedEcoregions);
+    }
+  });
+
   test('every fixture entry has species_by_genus as an Array (ACCOM-02)', () => {
     for (const c of fixtureData) {
       expect(Array.isArray(c.species_by_genus), `species_by_genus of ${c.login} must be Array`).toBe(true);
     }
   });
 
-  test('species_by_genus genus groups have correct shape and slug contains "/" (D-04)', () => {
+  test('species_by_genus genus groups have correct shape — name cased, no count (FIX B/C)', () => {
     for (const c of fixtureData) {
       for (const g of c.species_by_genus as any[]) {
         expect(typeof g.genus, `genus in ${c.login}`).toBe('string');
         expect(Array.isArray(g.species), `species in genus ${g.genus} of ${c.login}`).toBe(true);
         for (const sp of g.species as any[]) {
-          expect(typeof sp.canonical_name, `canonical_name in ${c.login}/${g.genus}`).toBe('string');
+          // FIX B: `name` (cased scientificName) replaces `canonical_name`
+          expect(
+            typeof sp.name,
+            `name in ${c.login}/${g.genus} must be string (FIX B)`,
+          ).toBe('string');
+          expect(
+            sp.name[0],
+            `name must start with uppercase (FIX B — cased scientificName): ${sp.name}`,
+          ).toBe(sp.name[0].toUpperCase());
+          expect(
+            'canonical_name' in sp,
+            `canonical_name must NOT be present — replaced by name (FIX B): ${c.login}/${g.genus}`,
+          ).toBe(false);
           expect(typeof sp.slug, `slug in ${c.login}/${g.genus}`).toBe('string');
           expect(sp.slug, `slug must contain "/" (D-04 Genus/epithet format)`).toContain('/');
-          expect(typeof sp.count, `count in ${c.login}/${g.genus}`).toBe('number');
+          // FIX C: per-species count removed per UAT round 1
+          expect(
+            'count' in sp,
+            `count must NOT be present in species entry (FIX C / UAT round 1): ${c.login}/${g.genus}`,
+          ).toBe(false);
         }
       }
     }

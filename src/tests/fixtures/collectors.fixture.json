@@ -44,20 +44,22 @@
     "active_since": 2019,
     "seasons_count": 4,
     "county_count": 5,
+    "county_names": ["Chelan", "King", "Pierce", "Spokane", "Yakima"],
     "ecoregion_count": 3,
+    "ecoregion_names": ["Cascades", "Columbia Plateau", "Puget Lowland Forests"],
     "species_by_genus": [
       {
         "genus": "Andrena",
         "species": [
-          {"canonical_name": "Andrena milwaukeensis", "slug": "Andrena/milwaukeensis", "count": 8},
-          {"canonical_name": "Andrena prunorum", "slug": "Andrena/prunorum", "count": 3}
+          {"name": "Andrena milwaukeensis", "slug": "Andrena/milwaukeensis"},
+          {"name": "Andrena prunorum", "slug": "Andrena/prunorum"}
         ]
       },
       {
         "genus": "Bombus",
         "species": [
-          {"canonical_name": "Bombus mixtus", "slug": "Bombus/mixtus", "count": 12},
-          {"canonical_name": "Bombus vosnesenskii", "slug": "Bombus/vosnesenskii", "count": 5}
+          {"name": "Bombus mixtus", "slug": "Bombus/mixtus"},
+          {"name": "Bombus vosnesenskii", "slug": "Bombus/vosnesenskii"}
         ]
       }
     ]
@@ -120,12 +122,14 @@
     "active_since": 2021,
     "seasons_count": 2,
     "county_count": 3,
+    "county_names": ["Benton", "King", "Yakima"],
     "ecoregion_count": 2,
+    "ecoregion_names": ["Columbia Plateau", "Puget Lowland Forests"],
     "species_by_genus": [
       {
         "genus": "Bombus",
         "species": [
-          {"canonical_name": "Bombus mixtus", "slug": "Bombus/mixtus", "count": 6}
+          {"name": "Bombus mixtus", "slug": "Bombus/mixtus"}
         ]
       }
     ]

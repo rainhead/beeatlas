@@ -24,23 +24,28 @@ import pytest
 # ---------------------------------------------------------------------------
 
 def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
-    """Write a small occurrences.parquet fixture with three collector logins.
+    """Write a small occurrences.parquet fixture with four collector logins.
 
     Collectors in fixture:
-        'alice' — ecdysis-backed (ecdysis_id IS NOT NULL); two rows:
+        'alice' — ecdysis-backed (ecdysis_id IS NOT NULL); two catalogued rows:
                   one with a species-rank taxon (taxon_id=10 → in species.parquet),
                   one without a species match (taxon_id=99 → NOT in species.parquet).
-                  specimen_count=2, status_denominator=2, status_identified=1, status_awaiting=1
+                  PLUS one uncatalogued atlas row (ecdysis_id=NULL, record_type='specimen',
+                  tier='atlas', year=2025) — the FIX A regression row. This row passes
+                  _ACCOM_QUERY (tier='atlas') but NOT the old _QUERY D-01 gate.
+                  specimen_count=2, status_denominator=2, status_identified=1, status_awaiting=1.
+                  With tier='atlas': seasons_count=3 {2020, 2022, 2025}, county_count=2,
+                  ecoregion_count=2.
         'bob'   — sample-host-only (record_type='provisional_sample', ecdysis_id=None,
-                  sample_id=None, observation_id=888).
+                  sample_id=None, observation_id=888, tier='atlas').
                   Passes D-01 gate via record_type='provisional_sample'.
                   sample_count must be NON-ZERO (via the observation_id formula).
-        'carol' — inat_expert only (record_type='inat_expert', ecdysis_id=None).
+        'carol' — inat_expert only (record_type='inat_expert', ecdysis_id=None, tier='other').
                   Must NOT survive the D-01 gate.
-        'dave'  — MIXED recordedBy: one specimen row with a real name ('Dave D')
-                  and one provisional_sample row with recordedBy=None. display_name MUST
-                  resolve to 'Dave D', not '@dave' (CR-01 regression: a per-row
-                  COALESCE would let the NULL row's '@dave' win the MIN).
+        'dave'  — MIXED recordedBy: one specimen row with a real name ('Dave D', tier='atlas')
+                  and one provisional_sample row with recordedBy=None (tier='atlas').
+                  display_name MUST resolve to 'Dave D', not '@dave' (CR-01 regression:
+                  a per-row COALESCE would let the NULL row's '@dave' win the MIN).
     """
     schema = pa.schema([
         ("collector_inat_login", pa.string()),
@@ -54,23 +59,29 @@ def _write_test_occurrences_parquet(tmp_path: Path) -> Path:
         ("year", pa.int32()),
         ("county", pa.string()),
         ("ecoregion_l3", pa.string()),
+        ("tier", pa.string()),
     ])
     table = pa.table(
         {
-            "collector_inat_login": ["alice",  "alice",  "bob",   "carol",   "dave",    "dave"],
-            "recordedBy":           ["Alice A", "Alice A", None,   "Carol C", "Dave D",  None],
-            "host_inat_login":      ["alice",   "alice",  "bob",   "carol",   "dave",    "dave"],
-            "ecdysis_id":           [42,        77,       None,    None,      55,        None],
-            "record_type":          ["specimen", "specimen", "provisional_sample", "inat_expert", "specimen", "provisional_sample"],
-            "sample_id":            [10,        20,       None,    None,      30,        None],
-            "observation_id":       [None,      None,     888,     999,       None,      777],
-            "taxon_id":             [10,        99,       None,    None,      10,        None],
-            # alice: years 2020 and 2022 (gap in 2021 — stress-tests D-05: 2 distinct seasons, not 3)
-            "year":                 [2020,      2022,     2023,    2021,      2024,      2024],
-            "county":               ["King", "Yakima", "King", "Clark", "King", "Yakima"],
+            "collector_inat_login": ["alice",   "alice",   "bob",               "carol",      "dave",    "dave",               "alice"],
+            "recordedBy":           ["Alice A",  "Alice A", None,                "Carol C",    "Dave D",  None,                 "Alice A"],
+            "host_inat_login":      ["alice",    "alice",   "bob",               "carol",      "dave",    "dave",               "alice"],
+            "ecdysis_id":           [42,         77,        None,                None,         55,        None,                 None],
+            "record_type":          ["specimen", "specimen", "provisional_sample", "inat_expert", "specimen", "provisional_sample", "specimen"],
+            "sample_id":            [10,         20,        None,                None,         30,        None,                 None],
+            "observation_id":       [None,       None,      888,                 999,          None,      777,                  None],
+            "taxon_id":             [10,         99,        None,                None,         10,        None,                 None],
+            # alice: ecdysis-backed years 2020/2022 + uncatalogued tier='atlas' year 2025.
+            # With tier='atlas' predicate: 3 distinct seasons {2020, 2022, 2025}.
+            # Gaps in 2021/2023/2024 stress-test COUNT(DISTINCT) vs max-min+1 (would be 6).
+            "year":                 [2020,       2022,      2023,                2021,         2024,      2024,                 2025],
+            "county":               ["King",    "Yakima",  "King",              "Clark",      "King",    "Yakima",             "King"],
             "ecoregion_l3":         ["Puget Lowland Forests", "Columbia Plateau",
                                      "Puget Lowland Forests", "Cascades",
-                                     "Puget Lowland Forests", "Columbia Plateau"],
+                                     "Puget Lowland Forests", "Columbia Plateau",
+                                     "Puget Lowland Forests"],
+            # tier: 'atlas' for WABA collecting rows; 'other' for casual inat_expert rows.
+            "tier":                 ["atlas",    "atlas",   "atlas",             "other",      "atlas",   "atlas",              "atlas"],
         },
         schema=schema,
     )
@@ -83,7 +94,9 @@ def _write_test_species_parquet(tmp_path: Path) -> Path:
     """Write a small species.parquet with one species-rank taxon (taxon_id=10).
 
     taxon_id=10 → specific_epithet='testicus', genus='Testgenus',
-                  canonical_name='Testgenus testicus', slug='Testgenus/testicus'.
+                  scientificName='Testgenus testicus' (cased — used for display),
+                  canonical_name='testgenus testicus' (lowercase — NOT used for display),
+                  slug='Testgenus/testicus'.
     taxon_id=99 is absent → LEFT JOIN yields NULL specific_epithet (awaiting).
     """
     schema = pa.schema([
@@ -91,15 +104,17 @@ def _write_test_species_parquet(tmp_path: Path) -> Path:
         ("specific_epithet", pa.string()),
         ("genus", pa.string()),
         ("canonical_name", pa.string()),
+        ("scientificName", pa.string()),
         ("slug", pa.string()),
     ])
     table = pa.table(
         {
-            "taxon_id":        [10],
+            "taxon_id":         [10],
             "specific_epithet": ["testicus"],
-            "genus":           ["Testgenus"],
-            "canonical_name":  ["Testgenus testicus"],
-            "slug":            ["Testgenus/testicus"],
+            "genus":            ["Testgenus"],
+            "canonical_name":   ["testgenus testicus"],  # lowercase in production (not used by export)
+            "scientificName":   ["Testgenus testicus"],  # cased — used by _SPECIES_QUERY (FIX B)
+            "slug":             ["Testgenus/testicus"],
         },
         schema=schema,
     )
@@ -277,19 +292,22 @@ def test_badge_fields_present_and_typed(tmp_path, monkeypatch):
 
 
 def test_seasons_count_is_distinct_years(tmp_path, monkeypatch):
-    """seasons_count = COUNT(DISTINCT year), not max-min span (D-05).
+    """seasons_count = COUNT(DISTINCT year) over tier='atlas' rows (D-05).
 
-    alice has years {2020, 2022} — a gap in 2021. COUNT(DISTINCT year) = 2.
-    A max-min+1 span would incorrectly return 3. The test asserts exactly 2.
+    alice has tier='atlas' years {2020, 2022, 2025}: two ecdysis-backed rows (2020, 2022)
+    plus the uncatalogued regression row (2025, ecdysis_id=NULL, tier='atlas').
+    COUNT(DISTINCT year) = 3. A max-min+1 span (2025-2020+1=6) would be wrong.
+    The gaps in 2021/2023/2024 confirm COUNT(DISTINCT) rather than span arithmetic.
     """
     ce_mod = _setup_env(tmp_path, monkeypatch)
     ce_mod.export_collectors_step()
     records = json.loads((tmp_path / "collectors.json").read_text())
     by_login = {r["login"]: r for r in records}
     alice = by_login["alice"]
-    assert alice["seasons_count"] == 2, (
-        f"alice has 2 distinct years {{2020, 2022}} — seasons_count must be 2 (not the "
-        f"max-min+1 span of 3). Got seasons_count={alice['seasons_count']} (D-05)."
+    assert alice["seasons_count"] == 3, (
+        f"alice has 3 distinct tier='atlas' years {{2020, 2022, 2025}} — seasons_count "
+        f"must be 3 (max-min+1 span would be 6). "
+        f"Got seasons_count={alice['seasons_count']} (D-05)."
     )
 
 
@@ -310,10 +328,11 @@ def test_active_since_is_min_year(tmp_path, monkeypatch):
 
 
 def test_county_and_ecoregion_counts(tmp_path, monkeypatch):
-    """county_count and ecoregion_count are COUNT(DISTINCT …) over D-01 rows (ACCOM-01/03).
+    """county_count/ecoregion_count and _names lists are over tier='atlas' rows (ACCOM-01/03).
 
-    alice has county rows: King (2020), Yakima (2022) → county_count=2.
-    alice has ecoregion rows: Puget Lowland Forests, Columbia Plateau → ecoregion_count=2.
+    alice has tier='atlas' county rows: King (2020), Yakima (2022), King (2025) → 2 distinct.
+    alice has tier='atlas' ecoregion rows: Puget Lowland Forests, Columbia Plateau → 2 distinct.
+    county_names and ecoregion_names must be sorted JSON arrays of the distinct values.
     """
     ce_mod = _setup_env(tmp_path, monkeypatch)
     ce_mod.export_collectors_step()
@@ -327,20 +346,43 @@ def test_county_and_ecoregion_counts(tmp_path, monkeypatch):
         f"ecoregion_count must be int for alice, got {type(alice.get('ecoregion_count'))}"
     )
     assert alice["county_count"] == 2, (
-        f"alice's D-01 rows cover King and Yakima counties; county_count must be 2. "
+        f"alice's tier='atlas' rows cover King and Yakima counties; county_count must be 2. "
         f"Got county_count={alice['county_count']} (ACCOM-01)."
     )
     assert alice["ecoregion_count"] == 2, (
-        f"alice's D-01 rows cover 2 distinct ecoregions; ecoregion_count must be 2. "
+        f"alice's tier='atlas' rows cover 2 distinct ecoregions; ecoregion_count must be 2. "
         f"Got ecoregion_count={alice['ecoregion_count']} (ACCOM-03)."
+    )
+    # Sorted name lists (FIX A: county_names and ecoregion_names are new fields).
+    assert isinstance(alice["county_names"], list), (
+        f"county_names must be a list for alice, got {type(alice.get('county_names'))}"
+    )
+    assert isinstance(alice["ecoregion_names"], list), (
+        f"ecoregion_names must be a list for alice, got {type(alice.get('ecoregion_names'))}"
+    )
+    assert alice["county_names"] == ["King", "Yakima"], (
+        f"county_names must be sorted ['King', 'Yakima']. Got {alice['county_names']}"
+    )
+    assert alice["ecoregion_names"] == ["Columbia Plateau", "Puget Lowland Forests"], (
+        f"ecoregion_names must be sorted alphabetically. Got {alice['ecoregion_names']}"
+    )
+    assert alice["county_count"] == len(alice["county_names"]), (
+        "county_count must equal len(county_names)"
+    )
+    assert alice["ecoregion_count"] == len(alice["ecoregion_names"]), (
+        "ecoregion_count must equal len(ecoregion_names)"
     )
 
 
 def test_species_by_genus_structure(tmp_path, monkeypatch):
-    """species_by_genus is a list of {genus, species:[{canonical_name, slug, count}]} (ACCOM-02).
+    """species_by_genus is a list of {genus, species:[{name (cased), slug}]} (ACCOM-02).
 
-    The fixture has taxon_id=10 → Testgenus testicus. alice has taxon_id=10 (species-rank);
-    the species list must include one genus group with one species entry.
+    FIX B: `name` uses cased sp.scientificName, not lowercase sp.canonical_name.
+    FIX C: no per-species `count` key (removed per UAT round 1).
+
+    The fixture has taxon_id=10 → scientificName='Testgenus testicus' (cased).
+    alice has taxon_id=10 (species-rank); the species list must include one genus
+    group with one species entry carrying `name`='Testgenus testicus'.
     """
     ce_mod = _setup_env(tmp_path, monkeypatch)
     ce_mod.export_collectors_step()
@@ -355,10 +397,50 @@ def test_species_by_genus_structure(tmp_path, monkeypatch):
                 f"species must be a list in genus group for {r['login']}"
             )
             for sp in g["species"]:
-                assert "canonical_name" in sp, (
-                    f"canonical_name missing in species entry for {r['login']}"
+                # FIX B: `name` (cased scientificName) replaces `canonical_name`.
+                assert "name" in sp, (
+                    f"'name' key missing in species entry for {r['login']} — "
+                    f"export must use cased sp.scientificName"
+                )
+                assert sp["name"][0].isupper(), (
+                    f"species name must be cased (FIX B); got {sp['name']!r} for {r['login']}"
                 )
                 assert "slug" in sp, f"slug missing in species entry for {r['login']}"
-                assert isinstance(sp["count"], int), (
-                    f"count must be int in species entry for {r['login']}"
+                # FIX C: per-species count removed per UAT round 1.
+                assert "count" not in sp, (
+                    f"per-species 'count' key must NOT be present (FIX C / UAT round 1). "
+                    f"Got keys: {list(sp.keys())} for {r['login']}"
                 )
+                assert "canonical_name" not in sp, (
+                    f"'canonical_name' must be replaced by 'name' (FIX B). "
+                    f"Got keys: {list(sp.keys())} for {r['login']}"
+                )
+
+
+def test_uncatalogued_atlas_specimen_counted_in_seasons(tmp_path, monkeypatch):
+    """FIX A regression: tier='atlas' specimens with ecdysis_id=NULL must be counted.
+
+    The fixture includes alice's 2025 row: record_type='specimen', tier='atlas',
+    ecdysis_id=NULL.  Under the old ecdysis_id-based _QUERY predicate, this row was
+    dropped, giving seasons_count=2 (years 2020, 2022 only).  After FIX A, the
+    _ACCOM_QUERY uses tier='atlas', which includes the uncatalogued 2025 row:
+    seasons_count=3 {2020, 2022, 2025}.
+
+    This is the exact UAT bug: operator collected in 2024/2025/2026 but the badge
+    showed only catalogued years.
+    """
+    ce_mod = _setup_env(tmp_path, monkeypatch)
+    ce_mod.export_collectors_step()
+    records = json.loads((tmp_path / "collectors.json").read_text())
+    by_login = {r["login"]: r for r in records}
+    alice = by_login["alice"]
+    assert alice["seasons_count"] == 3, (
+        f"alice's tier='atlas' rows span years {{2020, 2022, 2025}} — the 2025 row has "
+        f"ecdysis_id=NULL but tier='atlas'. seasons_count must be 3 "
+        f"(was 2 under the old ecdysis_id-based predicate). "
+        f"Got seasons_count={alice['seasons_count']} (FIX A)."
+    )
+    assert alice["active_since"] == 2020, (
+        f"active_since must still be the earliest year (2020), not 2025. "
+        f"Got active_since={alice['active_since']} (FIX A)."
+    )
