@@ -1785,7 +1785,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 172-04-PLAN.md — Wave 2: collector-detail.njk render + places.css + run.py/nightly.sh wiring
+- [x] 172-04-PLAN.md — Wave 2: collector-detail.njk render + places.css + run.py/nightly.sh wiring
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
