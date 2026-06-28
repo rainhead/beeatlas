@@ -57,7 +57,14 @@ SELECT
     NULL::VARCHAR                                  AS verbatim_name,
     NULL::VARCHAR                                  AS locality,
     NULL::INTEGER                                  AS collapsed_count,
-    COALESCE(specimen_inat_login, host_inat_login, user_login) AS collector_inat_login,
+    -- Collector identity: prefer host_inat_login (the floral-host/sample owner = the
+    -- actual collector) OVER specimen_inat_login (whoever POSTED the specimen photo to
+    -- iNat). A third party can photograph + post + ID someone else's pinned specimen with
+    -- its WABA catalog field; int_waba_link then matches the specimen to THAT poster's obs,
+    -- so specimen_inat_login is the cataloguer, not the collector. host_inat_login /
+    -- recordedBy carry the true collector. (Only Arm 1 has both non-null; reordered
+    -- uniformly across arms for consistency. Blast radius on 2026-06-28 prod data: 2 rows.)
+    COALESCE(host_inat_login, specimen_inat_login, user_login) AS collector_inat_login,
     -- D-06/D-07: id_date = the "Identified" timeline anchor, parsed from the dirty raw
     -- ecdysis date_identified. Keep year-only ('2025') and full ('YYYY-MM-DD') verbatim;
     -- blank '', 's.d.', and garbage ('female') fall to ELSE NULL. The two regexes are
@@ -127,7 +134,7 @@ SELECT
     NULL::VARCHAR                                                               AS verbatim_name,
     NULL::VARCHAR                                                               AS locality,
     NULL::INTEGER                                                               AS collapsed_count,
-    COALESCE(specimen_inat_login, host_inat_login, user_login)                 AS collector_inat_login,
+    COALESCE(host_inat_login, specimen_inat_login, user_login)                 AS collector_inat_login,
     NULL::VARCHAR                                                               AS id_date  -- D-09: non-specimen arm, no identification date
 FROM {{ ref('int_provisional_waba_ids') }} p
 JOIN {{ ref('stg_inat__observations') }} obs ON obs.id = p.observation_id
@@ -185,7 +192,7 @@ SELECT
     NULL::VARCHAR                                                               AS verbatim_name,
     NULL::VARCHAR                                                               AS locality,
     NULL::INTEGER                                                               AS collapsed_count,
-    COALESCE(specimen_inat_login, host_inat_login, user_login)                 AS collector_inat_login,
+    COALESCE(host_inat_login, specimen_inat_login, user_login)                 AS collector_inat_login,
     NULL::VARCHAR                                                               AS id_date  -- D-08: identification = formal Ecdysis determination only; not-yet-catalogued specimen has none
 FROM {{ ref('int_specimen_obs_base') }} sob
 LEFT JOIN {{ ref('stg_inat__canonical_to_taxon_id') }} ctt_ws
@@ -267,7 +274,7 @@ SELECT
     NULL::VARCHAR                      AS verbatim_name,
     NULL::VARCHAR                      AS locality,
     NULL::INTEGER                      AS collapsed_count,
-    COALESCE(specimen_inat_login, host_inat_login, user_login) AS collector_inat_login,
+    COALESCE(host_inat_login, specimen_inat_login, user_login) AS collector_inat_login,
     NULL::VARCHAR                      AS id_date  -- D-09: expert iNat obs, not volunteer work; no identification date
 FROM {{ source('inat_obs_data', 'observations') }} io
 LEFT JOIN {{ ref('int_synonyms') }} syn_io ON syn_io.synonym = io.canonical_name
@@ -331,7 +338,7 @@ SELECT
     cl.verbatim_name,
     cl.locality,
     cl.collapsed_count::INTEGER            AS collapsed_count,
-    COALESCE(specimen_inat_login, host_inat_login, user_login) AS collector_inat_login,
+    COALESCE(host_inat_login, specimen_inat_login, user_login) AS collector_inat_login,
     NULL::VARCHAR                          AS id_date  -- D-09: museum/checklist record, not volunteer work; no identification date
 FROM {{ ref('int_checklist_dedup_status') }} cl
 WHERE cl.dedup_status IS DISTINCT FROM 'confirmed'
