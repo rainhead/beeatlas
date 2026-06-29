@@ -73,13 +73,12 @@ Load-bearing conventions carried forward (full v6.0 decision log in PROJECT.md /
 
 - `144-code-review-deferred.md` — WR-04 (CSV-export `rows[0]` headers) + 3 info findings; non-blocking, pre-existing.
 - `165-code-review-deferred.md` — deferred Phase 165 code-review findings; non-blocking.
-- Phase 163 (Ecdysis auth-session fix) — 163-01 plan exists, execution pending. ⚠ BLOCKS NIGHTLY.
 - `rebuild-source-into-facets.md` — **OBSOLETE** (shipped as Phase 170); close it.
 
 ### Blockers/Concerns
 
-- **Phase 163 (Ecdysis auth) ⚠ blocks the nightly pipeline.** Immediate workaround: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses the cached ZIP. 163-01 plan exists; execution pending.
-- **Operational live-S3 caveat (NOT a code gap):** the v6.0 data leg (dbt contract 37→38→39 cols + collector pages data) lands in live S3 via an operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas. Code is deployed; confirm the live prod site serves the 39-col contract + renders collector pages. This is gated behind the Phase 163 nightly blocker. (The per-phase 167/168/170 publish gates from execution are considered resolved — 171/172 shipped on top of them and main == origin/main.)
+- **No active blockers.** The Phase 163 Ecdysis-auth nightly blocker was **RESOLVED 2026-06-24** (authenticated Symbiota session + ZIP guard + cache fallback; operator-verified a real nightly through `generate-sqlite`). The nightly pipeline is unblocked. (Corrected 2026-06-29: STATE had stale-tracked 163 as open through the v6.0 close — it was already complete.)
+- **Operational confirmation (NOT a code gap):** the v6.0 data leg (dbt contract 37→38→39 cols + collector pages) lands in live S3 via the operator nightly on maderas. Since the nightly is unblocked (163 fixed 2026-06-24) and the contract bumps (167/168/170) landed afterward — with 171/172 shipping on top of the 39-col contract — the data leg is very likely live. Worth a one-time confirm that the latest nightly published cleanly and prod renders collector pages.
 
 ## Deferred Items
 
@@ -87,8 +86,7 @@ Items acknowledged and deferred at v6.0 milestone close (2026-06-29):
 
 | Category | Item | Status |
 |----------|------|--------|
-| blocker | Phase 163 Ecdysis auth | open — ⚠ blocks nightly; 163-01 plan ready, execution pending |
-| operational | v6.0 live-S3 data landing (39-col contract + collector pages) | unverified from audit host — confirm on maderas/prod |
+| operational | v6.0 live-S3 data landing (39-col contract + collector pages) | likely live (nightly unblocked since 163 fixed 2026-06-24; contracts landed after) — confirm latest nightly published + prod renders pages |
 | phase | Phase 166 (seasonality charts) | open — needs a per-taxon page route (none exists yet) |
 | todo | `144-code-review-deferred.md` | open — non-blocking, pre-existing |
 | todo | `165-code-review-deferred.md` | open — non-blocking |
@@ -109,6 +107,6 @@ Resume file: None
 
 ## Operator Next Steps
 
-1. **Resolve Phase 163** (Ecdysis auth — blocks nightly): plan/execute 163-01, then confirm the v6.0 data leg (39-col contract + collector pages) is live in prod S3.
+1. **Confirm v6.0 is live in prod** (optional): verify the latest maderas nightly published the 39-col contract cleanly and the prod site renders collector pages. The nightly is unblocked (Phase 163 fixed 2026-06-24).
 2. **Start the next milestone**: `/gsd-new-milestone` — candidates from the deferred-seed backlog: community/shared liveness feed (needs the append-only history table), per-identification enrichment ("IDed by X on date"), "where to go next" planning surface, accomplishment depth (collector dot map / year-over-year).
 3. Optional cleanup: close the obsolete `rebuild-source-into-facets.md` todo; promote 999.11 (federal wilderness areas) / 999.7 (Safari private-browsing) from backlog if desired.

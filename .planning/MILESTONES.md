@@ -20,7 +20,7 @@ Stood up the first **"work" surface** — a bookmarkable, no-auth, public per-co
 
 ### Known Gaps / Deferred
 
-- **Operational (not a code gap):** the data leg of 167/168/170 (dbt contract 37→38→39 cols) lands in live S3 via an operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas, gated behind the **Phase 163 Ecdysis-auth nightly blocker** (still open — blocks the nightly pipeline). Code is deployed; live-prod data freshness tracked operationally.
+- **Operational (not a code gap):** the data leg of 167/168/170 (dbt contract 37→38→39 cols) lands in live S3 via the operator nightly on maderas. The nightly is **unblocked** (Phase 163 Ecdysis-auth was resolved 2026-06-24, before these contract bumps landed), so the data leg is very likely live; worth a one-time confirm that the latest nightly published cleanly and prod renders collector pages. *(Corrected 2026-06-29: the milestone close initially mis-tracked Phase 163 as an open blocker from a stale STATE.md entry — it was already complete.)*
 - **Intentional scope narrowing:** TEMP-01's `posted_date`/`created_at` dropped per 168 D-02 (reconciled in `v6.0-REQUIREMENTS.md` outcomes).
 - **Nyquist:** all 7 phases `nyquist_compliant: false` (formal Wave-0 scaffold incomplete) — accepted per the project's partial-Nyquist convention; phases shipped with green suites (npm 892 / pytest 281) + operator UATs.
 - **Process:** Phase 167 has no standalone VERIFICATION.md (verified inline in SUMMARY + VALIDATION.md). Stale todo `rebuild-source-into-facets.md` (shipped as Phase 170) — close it.
