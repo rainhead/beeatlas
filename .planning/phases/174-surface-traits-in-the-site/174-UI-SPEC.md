@@ -38,18 +38,19 @@ The existing site uses `rem` units. The scale below documents observed values fr
 
 | Token | rem | px | Usage |
 |-------|-----|----|-------|
-| xs | 0.25rem | 4px | Swatch margin-right, list-item padding-y |
-| sm | 0.5rem | 8px | Gap between flex items (`.species-list li gap: 0.5rem`), compact margin |
+| xs | 0.25rem | 4px | Swatch margin-right, list-item padding-y, `.node-badge` padding-top/bottom |
+| sm | 0.5rem | 8px | Gap between flex items (`.species-list li gap: 0.5rem`), compact margin, `.node-badge` padding-left/right |
 | md | 1rem | 16px | Default padding (`.taxon-page { padding: 1rem }`) |
 | lg | 1.5rem | 24px | Family-section margin-bottom, tree indentation per depth level |
 
 Exceptions:
-- Badge padding: `0.1rem × 0.35rem` (off-grid intentionally — pill inset must stay
-  visually compact; increasing to on-grid `0.25rem × 0.5rem` would make badges bulky
-  and crowd the dense species-index row).
 - Traits DL column-gap: `0.75rem` (12px) — between dt and dd; not on the xs/sm/md
   steps because the closest on-grid value (sm=8px) is too tight for readable labeling.
 - Traits DL row-gap: `0.25rem` (4px = xs) — tight vertical rhythm within the trait list.
+
+No off-grid values. `.node-badge` padding uses xs (0.25rem) × sm (0.5rem).
+Optical baseline alignment of `.traits-dl dt` is handled by `align-items: baseline`
+on the grid container rather than a `padding-top` nudge.
 
 ---
 
@@ -365,6 +366,7 @@ Place after the existing Phase 133 block (line ~297).
   grid-template-columns: max-content 1fr;
   column-gap: 0.75rem;
   row-gap: 0.25rem;
+  align-items: baseline;
   margin: 0;
 }
 
@@ -374,7 +376,6 @@ Place after the existing Phase 133 block (line ~297).
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--text-muted, #666);
-  padding-top: 0.15rem;  /* optical baseline alignment with dd */
   cursor: help;
 }
 
@@ -406,7 +407,7 @@ Place after the existing Phase 133 block (line ~297).
 .node-badge {
   flex: 0 0 auto;
   font-size: 0.75rem;
-  padding: 0.1rem 0.35rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 3px;
   background: var(--surface-subtle, #f5f5f5);
   border: 1px solid var(--border, #ddd);
@@ -527,6 +528,8 @@ no filter changes.
 | No .species-index scope on .node-badge | Researcher finding: genus/subgenus templates lack .species-index class |
 | No badge for "Generalist" | D-06 specifies "specialist marker" only, not generalist |
 | Tribe pages: no change | RESEARCH.md §Open Questions §1 + direct inspection of tribe.njk |
+| .node-badge padding on-grid (xs × sm) | Spacing checker fix: replaced off-grid 0.1rem×0.35rem with 0.25rem×0.5rem |
+| .traits-dl align-items: baseline | Spacing checker fix: removed off-grid padding-top:0.15rem; optical alignment via baseline instead |
 
 ---
 
