@@ -2,107 +2,100 @@
 gsd_state_version: 1.0
 milestone: v6.0
 milestone_name: My Work — Progress & Provenance
-status: completed
-stopped_at: Phase 172 UI-SPEC approved
-last_updated: "2026-06-28T18:33:17.984Z"
-last_activity: 2026-06-28 -- Phase 172 marked complete
+status: milestone_complete
+stopped_at: v6.0 milestone closed, archived, tagged
+last_updated: "2026-06-29"
+last_activity: 2026-06-29 -- v6.0 milestone complete (archived + tagged)
 progress:
-  total_phases: 30
-  completed_phases: 27
-  total_plans: 63
-  completed_plans: 65
-  percent: 90
+  total_phases: 7
+  completed_phases: 7
+  total_plans: 16
+  completed_plans: 16
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-24 — v5.2 Place Coverage Expansion shipped)
+See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 172 — Accomplishment View
+**Current focus:** Planning next milestone (no active milestone). Start with `/gsd-new-milestone`.
 
 ## Current Position
 
-Phase: 172 — COMPLETE
-Plan: 5 of 5
-Status: Phase 172 complete
-Next: Phase 172 (Accomplishment View)
-Last activity: 2026-06-28 -- Phase 172 marked complete
+Milestone: v6.0 — COMPLETE (archived to .planning/milestones/v6.0-*, tagged v6.0)
+Phase: 172 — COMPLETE (highest in milestone)
+Next: no active milestone — `/gsd-new-milestone`
+Last activity: 2026-06-29 -- v6.0 milestone complete
 
 ## Milestone Overview
 
-**v6.0 My Work — Progress & Provenance (Phases 167–172)**
+**v6.0 My Work — Progress & Provenance (Phases 167–172 incl. 171.1) — SHIPPED 2026-06-28**
 
-Goal: Stand up the first "work" surface — a bookmarkable, no-auth, public per-collector page showing the collection→ID lifecycle as an event stream and accomplishments as coverage/breadth — on a rebuilt occurrence model that replaces `source` with orthogonal facets and a temporal status lifecycle.
+17/17 v1 requirements satisfied; cross-phase integration clean (5/5 seams); audit `tech_debt` (no blockers). Goal delivered: the first bookmarkable, no-auth, public per-collector page showing the collection→ID lifecycle as an event stream and accomplishments as coverage/breadth, on a rebuilt occurrence model (`source` enum → `tier`+`record_type` facets; added `collector_inat_login` + `id_date`; dbt contract 36→39).
 
-Roadmap: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md)
+Roadmap archive: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md) · Audit: [.planning/v6.0-MILESTONE-AUDIT.md](v6.0-MILESTONE-AUDIT.md)
 
-| Phase | Name | Dependencies | Status |
-|-------|------|--------------|--------|
-| 167 | Collector Identity Column | Phase 165 | Complete |
-| 168 | Temporal Lifecycle Dates | Phase 167 | Complete |
-| 169 | Per-Collector Static Pages | Phase 167 | Complete |
-| 170 | Source → Provenance Facets Rebuild | Phase 165, 167 | Complete |
-| 171 | Per-Collector Event Stream | Phase 168, 170 | Complete |
-| 171.1 | Collector Data Delivery Rebuild (INSERTED) | Phase 171 | Complete |
-| 172 | Accomplishment View | Phase 169, 171 | Not started |
+| Phase | Name | Status |
+|-------|------|--------|
+| 167 | Collector Identity Column | Complete |
+| 168 | Temporal Lifecycle Dates | Complete |
+| 169 | Per-Collector Static Pages | Complete |
+| 170 | Source → Provenance Facets Rebuild | Complete |
+| 171 | Per-Collector Event Stream | Complete |
+| 171.1 | Collector Data Delivery Rebuild (INSERTED) | Complete |
+| 172 | Accomplishment View | Complete |
 
-**Progress:** [██████████] 98%
+**Progress:** [██████████] 100%
 
 ## Accumulated Context
 
-### Roadmap Evolution
-
-- Phase 171.1 inserted after Phase 171: Collector Data Delivery Rebuild — fixes Phase 171 defect: 29MB+ artifact committed to git instead of S3/manifest pattern (URGENT)
-
 ### Decisions
 
-Load-bearing conventions carried from prior milestones:
+Load-bearing conventions carried forward (full v6.0 decision log in PROJECT.md / milestone archive):
 
-- **geo_blob ↔ features.ts positional contract**: `_GEO_COLS` and `features.ts` column indices are positionally coupled; changes ship in one atomic commit.
+- **geo_blob ↔ features.ts positional contract**: `_GEO_COLS` and `features.ts` column indices are positionally coupled; changes ship in one atomic commit. **[v6.0 update]** geo_blob index 6 = `tier`.
 - **`<bee-atlas>` owns all reactive state**: `<bee-map>` and `<bee-pane>` are pure presenters — state goes on `<bee-atlas>`, relayed down as properties.
 - **`_filterQueryGeneration` race guard**: async query results must be discarded if the counter has advanced.
 - **Style cache bypass**: must bypass when `filterState` is active or `selectedOccIds` non-empty.
-- **Static hosting only**: no server runtime — SW, manifest, and CDK `no-cache` behavior are the only moving parts.
-- **Session-coalesced viewport history (Phase 146)**: `_viewportSessionActive` flag gates pushState vs replaceState.
-- **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: access_token retained (§1.1/§2.9.4); events.mapbox.com excluded by hostname; /map-sessions/ excluded by path; 7-day TTL (§2.8.1 ceiling: 30 days). docs/adr/0001-mapbox-basemap-cache.md is the ToS record. Web-SDK offline basemap is NOT licensed.
-- **[Phase 160] Place bridge keyed on synthetic occ_id (Option B)**: occurrence_places (occ_id, place_slug); occ_id CASE mirrors src/occurrence.ts occIdFromRow priority.
-- **[Phase 160-02]** Bridge parquet resolved as a sibling of `src_parquet` in sqlite_export.py; occurrences mart contract is 36 cols after dropping place_slug.
-- **[Phase 165-02] D-05**: `MIN(waba.id) GROUP BY catalog_suffix` removed from `int_waba_link` — 1:N catalog-match so all WABA obs sharing a catalog suffix are recognized; fan-out guard via MIN subquery at `int_ecdysis_base` consumer keeps ARM 1 1:1.
-- **[Phase 165-02] D-03/D-11**: `waba_sample` (provisional) arm redefined on project_id=166376 membership anti-joined `int_samples_base` (~28 rows, is_provisional=TRUE, specimen fields NULL).
-- **[Phase 165-02] D-10/D-12**: `waba_specimen` NEW source arm for the 33 WABA iNat-photo bee specimens not yet in Ecdysis (is_provisional=FALSE, occ_id=inat_obs:N, carries bee species + obs_url).
-- **[Phase 165-03] D-13**: `waba_specimen` wired end-to-end in frontend: SourceKey union + VALID_SOURCES in url-state.ts, OccurrenceRow.source + VALID_SOURCES in filter.ts, 5th source toggle in bee-pane.ts (_renderSources layers), _renderWabaSpecimen dispatch in bee-occurrence-detail.ts. waba_sample toggle copy corrected to 'Provisional samples'. All-off guard updated 4 → 5.
-- **[v6.0 IDENT-01]** `collector_inat_login` COALESCE priority: `COALESCE(specimen_inat_login, host_inat_login, user_login)` — the five-ARM model from Phase 165 defines all field sources; checklist ARM (free-text `recordedBy`) is excluded per requirements scope.
-- **[v6.0 TEMP]** Temporal approach resolved (operator decision 2026-06-24): lifecycle dates read from intrinsic source data (collection/event date, iNat `created_at`, identification dates) — NOT snapshot-diffing. Option A/B/C fork dissolved. No first-run-flood concern for static dates. The two dbt contract bumps (IDENT-01 col, TEMP-01 cols) must be separate nightly runs per `project_occurrences_contract_release_sequence`.
-- **[v6.0 PROV]** Source → facets rebuild is high-risk atomic: all three occ_id-coupled consumers (`src/occurrence.ts`, `src/filter.ts`, `data/dbt/models/marts/occurrence_places.sql`) change in one commit; plan must include a positional-coupling Vitest test + `tier=`/`src=` URL back-compat. `tsc --noEmit` is the post-merge gate.
-- **[v6.0 PAGE]** Per-collector pages are gated on `collector_identity.csv` — never generated from all distinct `host_inat_login` values (would include casual iNat observers). Public, no auth, no gating per operator decision 2026-06-24.
-- **[Phase 167] dbt test disambiguation**: Two `not_null` tests on the same column in dbt 1.10.1 require explicit `name:` keys to avoid compilation error. Added `not_null_occurrences_collector_inat_login_waba` (D-05, error) and `not_null_occurrences_collector_inat_login_ecdysis_drift` (D-06, warn) — this is the required pattern for any future phase adding multiple severity-scoped tests on a single column.
-- **[Phase 167] collector_inat_login shipped (dbt contract 36→37)**: Column live in local sandbox/occurrences.parquet and occurrences.db. Awaiting operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to land in live S3 (Task 3 checkpoint).
-- [Phase 168]: id_date column shipped to local mart (dbt contract 37 to 38): VARCHAR parse of ecdysis date_identified in int_combined ARM 1 (26,565 kept; year-only + full ISO verbatim, garbage NULLed); ARMs 2-5 NULL; assert_id_date_parse_complete warn singular test. Awaiting operator SKIP_INTEGRATION_GATE nightly to land in live S3 (Task 4, gated behind Phase 167 37-col landing).
-- [Phase 170-01]: marts/occurrences source decomposed → tier (atlas/other) + record_type (specimen/provisional_sample/waba_specimen/inat_expert/checklist); arm→tier mapping lives only in int_combined.sql; contract 38→39. Data leg locally green (PASS=92); AWAITING operator SKIP_INTEGRATION_GATE nightly to land in S3 before Plan 02 deploys (D-04).
-- [Phase 170-02]: Frontend leg shipped as ONE atomic commit 4513a170 (PROV-01/02/03). FilterState.hiddenSources→hiddenTiers; tier= URL param + src= 5→2 back-compat (parse-only, lossy by design); tier-driven symbology (atlas recency / other muted #7a8a99, D-08); record_type-driven detail card (inat_obs→inat_expert, D-09/D-10 — card is record_type-driven NOT tier-driven, deliberate); features.ts geo_blob index 6 = tier; OCC_ID_SQL_CASE exported + PROV-03 occ_id-coupling Vitest assertion (3-site equality, occ_id prefix inat_obs: unchanged per D-07). tsc --noEmit 0; 877 tests pass. NOT pushed — gated on Plan 01 Task 3 operator S3 publish.
+- **Static hosting only**: no server runtime.
+- **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: token retained; 7-day TTL; web-SDK offline basemap NOT licensed. docs/adr/0001 is the ToS record.
+- **[Phase 160] Place bridge keyed on synthetic occ_id**: `occurrence_places` (occ_id, place_slug); occ_id CASE mirrors `src/occurrence.ts` priority.
+- **[v6.0 PROV] occ_id positional coupling is load-bearing across THREE consumers** (`src/occurrence.ts`, `src/filter.ts`, `data/dbt/models/marts/occurrence_places.sql`): change in one atomic commit guarded by the `OCC_ID_SQL_CASE` export + the 3-site coupling Vitest assertion. `tier`(atlas/other)+`record_type`(specimen/provisional_sample/waba_specimen/inat_expert/checklist) replace the old `source` enum; `tier=` URL with legacy `src=` parse-only back-compat. `tsc --noEmit` is the post-merge gate.
+- **[v6.0 IDENT-01] collector_inat_login is host-first**: `COALESCE(host_inat_login, specimen_inat_login, user_login)` — the sample owner wins over a third-party specimen-photo poster (corrected from the original specimen-first ship). Guarded by `assert_collector_prefers_host`. `display_name` = most-recent `recordedBy` (not MIN). See memory `project_collector_identity_prefers_host`.
+- **[v6.0 TEMP] id_date only**: lifecycle reads intrinsic source dates (no snapshot-diffing); `posted_date`/iNat `created_at` deliberately dropped (posting is not an event). Collected = pre-existing `date` column; Identified = `id_date` (dirty-parsed Ecdysis `date_identified`).
+- **[v6.0] dbt contract changes ship data-before-code**: each bump lands in live S3 via a one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` BEFORE the TS reading it deploys; never stack two unreleased bumps. The deploy `validate-db` gate reads live S3. See memory `project_occurrences_contract_release_sequence`.
+- **[v6.0] build-time data is delivered via S3 + manifest.json + deploy.yml, NEVER committed to git** (the `species.json` pattern). "read at build time" ≠ "commit." A clean git status is not a verification PASS for a regenerated artifact. See memory `feedback_no_committed_data_artifacts`.
 
 ### Pending Todos
 
-- `144-code-review-deferred.md` — WR-04 (CSV-export `rows[0]` headers) + 3 info findings; non-blocking, promote into a future milestone.
-- Phase 163 (Ecdysis auth-session fix) — promoted to active, 163-01 plan exists but execution pending. ⚠ BLOCKS NIGHTLY until resolved.
+- `144-code-review-deferred.md` — WR-04 (CSV-export `rows[0]` headers) + 3 info findings; non-blocking, pre-existing.
+- `165-code-review-deferred.md` — deferred Phase 165 code-review findings; non-blocking.
+- Phase 163 (Ecdysis auth-session fix) — 163-01 plan exists, execution pending. ⚠ BLOCKS NIGHTLY.
+- `rebuild-source-into-facets.md` — **OBSOLETE** (shipped as Phase 170); close it.
 
 ### Blockers/Concerns
 
-- Phase 163 (Ecdysis auth) ⚠ blocks nightly pipeline. Decouple: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses cached ZIP as immediate workaround.
-- [Phase 168 Task 4] Awaiting operator SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to land id_date (38 cols) in live S3; gated behind Phase 167 37-col S3 landing (D-12, confirmed live per commit 69821883).
-- Phase 170-01 Task 3 / 170-02 push gate: BLOCKING operator checkpoint — run one-time SKIP_INTEGRATION_GATE=1 bash data/nightly.sh on maderas to publish occurrences contract (tier+record_type, no source, 38→39 cols) to S3 ALONE. The frontend leg (170-02, commit 4513a170) is committed locally but MUST NOT be pushed/deployed until 'published' is confirmed — the deploy validate-db gate reads the freshly-published S3 occurrences.db (project_occurrences_contract_release_sequence). Resume signal: 'published'.
+- **Phase 163 (Ecdysis auth) ⚠ blocks the nightly pipeline.** Immediate workaround: `ECDYSIS_CACHE_TTL_SECONDS=99999999 bash data/nightly.sh` reuses the cached ZIP. 163-01 plan exists; execution pending.
+- **Operational live-S3 caveat (NOT a code gap):** the v6.0 data leg (dbt contract 37→38→39 cols + collector pages data) lands in live S3 via an operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas. Code is deployed; confirm the live prod site serves the 39-col contract + renders collector pages. This is gated behind the Phase 163 nightly blocker. (The per-phase 167/168/170 publish gates from execution are considered resolved — 171/172 shipped on top of them and main == origin/main.)
 
 ## Deferred Items
 
-Carried forward from v5.2 close (2026-06-24):
+Items acknowledged and deferred at v6.0 milestone close (2026-06-29):
 
 | Category | Item | Status |
 |----------|------|--------|
-| todo | `144-code-review-deferred.md` | open — non-blocking, pre-existing (WR-04 CSV headers + 3 info) |
-| uat | Phases 149/151/152/153/154/155/157 HUMAN-UAT.md | passed/approved, 0 pending scenarios — flagged by audit only because status ≠ literal "complete" (not real gaps) |
+| blocker | Phase 163 Ecdysis auth | open — ⚠ blocks nightly; 163-01 plan ready, execution pending |
+| operational | v6.0 live-S3 data landing (39-col contract + collector pages) | unverified from audit host — confirm on maderas/prod |
+| phase | Phase 166 (seasonality charts) | open — needs a per-taxon page route (none exists yet) |
+| todo | `144-code-review-deferred.md` | open — non-blocking, pre-existing |
+| todo | `165-code-review-deferred.md` | open — non-blocking |
+| todo | `rebuild-source-into-facets.md` | obsolete (shipped as Phase 170) — close |
+| nyquist | Phases 167–172 + 171.1 `nyquist_compliant: false` | accepted (partial-Nyquist convention; green suites + operator UAT) |
+| process | Phase 167 no standalone VERIFICATION.md | accepted — verified inline in SUMMARY + VALIDATION.md |
+| uat | Prior-milestone HUMAN-UAT.md (149/151–155/157/160–162/165/171/172) | passed/approved, 0 pending scenarios — flagged by audit only because status ≠ literal "complete" |
 | nyquist | Phases 129/131/132/134/135/136/138 partial Nyquist | accepted (carried from v4.x) |
 | verification | Phase 110/111/113 VERIFICATION.md | human_needed (carried from v4.0) |
 | uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (carried from v4.0) |
@@ -110,13 +103,12 @@ Carried forward from v5.2 close (2026-06-24):
 
 ## Session Continuity
 
-Last session: 2026-06-28T17:16:23.600Z
-Stopped at: Phase 172 UI-SPEC approved
+Last session: 2026-06-29 (v6.0 milestone close)
+Stopped at: v6.0 archived + tagged
 Resume file: None
 
 ## Operator Next Steps
 
-1. **Resolve Phase 163** (Ecdysis auth — blocks nightly): plan and execute 163-01.
-2. **Start v6.0 Phase 167**: `/gsd-plan-phase 167` — Collector Identity Column (dbt contract bump 36→37, data-before-code S3 sequence).
-3. Phase 168 (Temporal Lifecycle Dates) follows 167 — separate dbt contract bump, same S3 sequence.
-4. Phases 169 (Per-Collector Pages) and 170 (Facets Rebuild) can run in parallel after 167.
+1. **Resolve Phase 163** (Ecdysis auth — blocks nightly): plan/execute 163-01, then confirm the v6.0 data leg (39-col contract + collector pages) is live in prod S3.
+2. **Start the next milestone**: `/gsd-new-milestone` — candidates from the deferred-seed backlog: community/shared liveness feed (needs the append-only history table), per-identification enrichment ("IDed by X on date"), "where to go next" planning surface, accomplishment depth (collector dot map / year-over-year).
+3. Optional cleanup: close the obsolete `rebuild-source-into-facets.md` todo; promote 999.11 (federal wilderness areas) / 999.7 (Safari private-browsing) from backlog if desired.

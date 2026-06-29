@@ -2,6 +2,42 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v6.0 — My Work: Progress & Provenance
+
+**Shipped:** 2026-06-28
+**Phases:** 7 (167–172 incl. inserted 171.1) | **Plans:** 16 | **Timeline:** 2026-06-25 → 2026-06-28 | **Requirements:** 17/17 v1 satisfied (audit `tech_debt`, no blockers)
+
+### What Was Built
+The first public, no-auth per-collector "work" surface — bookmarkable `/collectors/{login}/` pages with headline stats, a pending-vs-identified status split, a reverse-chronological Collected→Identified event feed (+ Atom), and an accomplishments view (county/ecoregion coverage SVGs, taxonomic breadth, active-seasons badge) — on a rebuilt occurrence model. The data layer added a unified `collector_inat_login` (host-first COALESCE) and a lifecycle `id_date`, and replaced the mutually-exclusive `source` enum with orthogonal `tier`(atlas/other)+`record_type` facets across all three `occ_id`-coupled consumers in one atomic commit (dbt contract 36→39). Collector data delivered via the `species.json` S3+manifest+`deploy.yml` pattern.
+
+### What Worked
+- **The high-risk atomic rebuild (170) shipped clean because the coupling was made explicit and test-guarded.** The `source`→facets decomposition touched `src/occurrence.ts`, `src/filter.ts`, and `occurrence_places.sql` together; a positional-coupling Vitest assertion (3-site `occ_id` equality) + the `OCC_ID_SQL_CASE` export locked the contract, and the integration checker later confirmed all three consumers still agree. `tsc --noEmit` as the post-merge gate caught nothing because the coupling test caught it first.
+- **Data-before-code S3 sequencing held across three contract bumps.** 167 (37 cols), 168 (38), 170 (39) each landed in live S3 via a one-time `SKIP_INTEGRATION_GATE=1` nightly *before* the TypeScript reading the new columns shipped — honoring `project_occurrences_contract_release_sequence` and never stacking two unreleased bumps.
+- **Operator UAT remained the real verification surface for UI phases.** 171 took 6 UAT revisions and 172 took 2 gap-closure passes; both surfaced substantive design changes (real `<table>` feed, rank-aware links; aggregations moved to the `tier='atlas'` facet so uncatalogued specimens count) that no automated test would have flagged. `feedback_uat_ui_phases` (don't auto-advance UI phases) paid off.
+- **The 172 map-delivery redesign avoided a second committed-artifact disaster.** Mid-UAT the per-collector SVG approach (248 files, ~122 MB) was replaced with two committed shared base-map partials highlighted per-collector via a CSS `<style>` block — no per-collector files, no JS, no S3 artifact.
+
+### What Was Inefficient
+- **Phase 171 committed a 29 MB+ data artifact to git, requiring an entire inserted phase (171.1) to undo.** The executor conflated "read at build time" with "committed to git," deviating from the established `species.json` S3+manifest pattern and bloating history. This is the milestone's biggest miss and is now memorialized in `feedback_no_committed_data_artifacts` ("committed/clean git status is never a verification PASS for a regenerated data file"). The history-purge that motivated 171.1 also over-estimated the bloat (~1 MB actually reclaimed, not ~150 MB — `project_git_artifact_bloat_overestimated`).
+- **Collector-identity logic needed two post-phase corrections.** `collector_inat_login` shipped specimen-first, then was flipped to host-first (sample owner over third-party specimen-photo poster); `display_name` shipped as `MIN(recordedBy)` then corrected to most-recent. Both landed as `fix(167)`/`fix(169)` commits after the phases closed — the COALESCE priority deserved a sharper discuss-phase decision (and a `MIN(COALESCE(...))` aggregation bug nearly masked the real value — `feedback_min_coalesce_aggregation`).
+- **Phase 167 shipped without a standalone VERIFICATION.md** (verification ran inline in the SUMMARY + VALIDATION.md). Caught only at milestone audit.
+- **Uniform Nyquist non-compliance:** all 7 phases `nyquist_compliant: false`. Phases shipped green (npm 892 / pytest 281) + operator UAT, but the formal Wave-0 RED-first scaffold was skipped throughout — accepted as the project's standing partial-Nyquist pattern, but it's now milestone-wide.
+
+### Patterns Established
+- **Atomic multi-consumer rebuild:** when a change spans N positionally-coupled files, ship them in one commit guarded by a coupling-assertion test that fails if any site drifts — and export the canonical definition (`OCC_ID_SQL_CASE`) from one place so the test has a single source of truth.
+- **Per-collector static page** = the per-taxon/per-place Eleventy pattern, gated on a resolved identity column (`collector_inat_login IS NOT NULL`), data delivered via S3+manifest — never committed JSON.
+- **Coverage maps as shared base SVG + per-entity CSS highlight**, not per-entity SVG files: bounds the artifact count to O(1) regardless of collector count.
+
+### Key Lessons
+- "Read at build time" does **not** mean "commit to git." Build-time data follows the S3+manifest+`deploy.yml` fetch pattern; a clean git status is not a verification PASS for a regenerated artifact.
+- For identity/precedence COALESCE columns, pin the priority order as an explicit discuss-phase decision with a guard test (`assert_collector_prefers_host`) — getting it wrong is silent and ships.
+- UI phases earn their operator-UAT gate: budget for multiple revision passes and don't auto-advance them.
+- Data-before-code release sequencing is non-negotiable when a dbt contract changes; the deploy `validate-db` gate reads live S3, so the data must land first.
+
+### Cost Observations
+- Model mix: orchestration on Opus; researcher/pattern-mapper/planner/checker/executor/verifier/reviewer/integration-checker subagents on Sonnet.
+- Sessions: multiple plan→execute→verify chains across 7 phases plus an inserted remediation phase (171.1) and milestone audit + close.
+- Notable: the live data leg is gated behind the open Phase 163 Ecdysis-auth nightly blocker — code is deployed but prod-data freshness depends on an operator nightly that the pipeline auth break currently halts.
+
 ## Milestone: v5.2 — Place Coverage Expansion
 
 **Shipped:** 2026-06-24

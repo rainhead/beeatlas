@@ -1,5 +1,33 @@
 # Milestones
 
+## v6.0 My Work — Progress & Provenance (Shipped: 2026-06-28)
+
+**Phases completed:** 7 phases (167–172, incl. inserted 171.1), 16 plans. Timeline: 2026-06-25 → 2026-06-28. **Requirements:** 17/17 v1 satisfied (audit `tech_debt` — no blockers; `v6.0-MILESTONE-AUDIT.md`).
+
+Stood up the first **"work" surface** — a bookmarkable, no-auth, public per-collector page showing the collection→ID lifecycle as an event stream and accomplishments as coverage/breadth — on a rebuilt occurrence model that replaced the mutually-exclusive `source` enum with orthogonal facets and added collector-identity + lifecycle-date columns to the mart. Cross-phase integration verified clean (5/5 seams, 0 broken wires).
+
+**Key accomplishments:**
+
+1. **Phase 167 — Collector identity column:** unified `collector_inat_login` COALESCE (`host_inat_login` > `specimen_inat_login` > `user_login` — host-first, corrected post-ship so the sample owner wins over a third-party specimen-photo poster) projected through the occurrences mart across all 5 `int_combined` arms; dbt contract 36→37; data-before-code S3 release; `assert_collector_prefers_host` test. The keystone column every per-collector query depends on. (1 plan.)
+2. **Phase 168 — Temporal lifecycle dates:** added a single `id_date VARCHAR` column (Ecdysis `date_identified`, dirty-parse: year-only + full ISO verbatim, garbage NULLed) so a specimen history reads as a two-event **Collected→Identified** timeline; contract 37→38. Scope narrowed in discuss (D-02): `posted_date`/iNat `created_at` deliberately dropped (posting is not an event); TEMP-02 satisfied structurally by the existing ARM-3 de-dup. (1 plan.)
+3. **Phase 169 — Per-collector static pages:** `collectors_export.py` → 124 bookmarkable `/collectors/{login}/` Eleventy pages (headline stats, species-level pending-vs-identified status split, `?collectors=` map deep-link) + a `/collectors.html` index roster; gated on `collector_inat_login IS NOT NULL` (casual observers excluded). (2 plans.)
+4. **Phase 170 — Source → provenance facets rebuild:** replaced the `source` enum with orthogonal `tier` (atlas/other) + `record_type` (specimen/provisional_sample/waba_specimen/inat_expert/checklist) across all three `occ_id`-coupled consumers (`src/occurrence.ts`, `src/filter.ts`, `occurrence_places.sql`) in one atomic commit with a positional-coupling Vitest assertion; tier-driven map filter/symbology/detail-card; `tier=` URL param with legacy `src=` back-compat; `inat_obs`→`inat_expert` rename; contract 38→39. (2 plans.)
+5. **Phase 171 — Per-collector event stream:** reverse-chronological Collected→Identified `<table>` feed on the collector page (full re-determination history; rank-aware BeeAtlas + iNaturalist `/taxa/` fallback links; per-collector Atom subscribe feed), `waba_specimen` cataloguing as one continuous row (no fake event), Eleventy-paginated sub-pages for high-volume collectors. Operator UAT approved after 6 revisions. (3 plans.)
+6. **Phase 171.1 (INSERTED) — Collector data delivery rebuild:** moved `collectors.json` + `collector_event_pages.json` (29 MB+) off git onto the `species.json` S3 + `manifest.json` + `deploy.yml` fetch pattern; committed tiny synthetic fixtures outside `public/data/` + `existsSync` guard so a clean checkout is `npm test`/`npm run build`-green with zero S3 access. Fixes a Phase 171 committed-artifact defect. (4 plans.)
+7. **Phase 172 — Accomplishment view:** county coverage SVG map, taxonomic-breadth species list, ecoregion breadth, and "active since YYYY (N seasons)" badge on the collector page — all aggregated over the Phase 170 `tier='atlas'` facet (uncatalogued specimens count). Map delivery redesigned mid-UAT from 248 per-collector SVGs (~122 MB) to two committed shared base-map partials inlined + highlighted per-collector via a CSS `<style>` block — no per-collector files, no JS. Operator UAT PASS after 2 gap-closure passes. (5 plans.)
+
+**Delivered:** A volunteer collector can now visit a bookmarkable public page and see — with no login — their specimens/samples/species headline, whether their bees got IDed, a chronological collection→ID event feed, and their county/ecoregion/taxonomic coverage, all on an occurrence model whose `source` enum was replaced by orthogonal collector/place/taxon/time/provenance facets.
+
+### Known Gaps / Deferred
+
+- **Operational (not a code gap):** the data leg of 167/168/170 (dbt contract 37→38→39 cols) lands in live S3 via an operator `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas, gated behind the **Phase 163 Ecdysis-auth nightly blocker** (still open — blocks the nightly pipeline). Code is deployed; live-prod data freshness tracked operationally.
+- **Intentional scope narrowing:** TEMP-01's `posted_date`/`created_at` dropped per 168 D-02 (reconciled in `v6.0-REQUIREMENTS.md` outcomes).
+- **Nyquist:** all 7 phases `nyquist_compliant: false` (formal Wave-0 scaffold incomplete) — accepted per the project's partial-Nyquist convention; phases shipped with green suites (npm 892 / pytest 281) + operator UATs.
+- **Process:** Phase 167 has no standalone VERIFICATION.md (verified inline in SUMMARY + VALIDATION.md). Stale todo `rebuild-source-into-facets.md` (shipped as Phase 170) — close it.
+- Known deferred items at close: see STATE.md Deferred Items; the milestone open-artifact audit showed 17 items, all verified non-blocking (UAT files with 0 pending scenarios, deferred non-blocking code-review todos, one old CONTEXT open-question).
+
+---
+
 ## v5.2 Place Coverage Expansion (Shipped: 2026-06-24)
 
 **Phases completed:** 3 phases (160–162), 8 plans. Timeline: 2026-06-23 → 2026-06-24.
