@@ -104,9 +104,18 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 
 Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
-## Current Milestone: none (v6.0 shipped 2026-06-28)
+## Current Milestone: v7.0 Species Trait Annotations
 
-No active milestone. v6.0 My Work — Progress & Provenance shipped 2026-06-28 (Phases 167–172 incl. 171.1, 16 plans; the first "work" surface — per-collector pages + event stream + accomplishments — on the rebuilt facets/lifecycle occurrence model). Start the next milestone with `/gsd-new-milestone`.
+**Goal:** Annotate bee species with curated ecological traits (sociality, diet breadth, nesting, native status, and the host bee of cuckoos) and surface them through the site — turning the species index and detail pages into a reference that conveys *what kind of bee* each species is, not just where it occurs.
+
+**Target features:**
+- A `species_traits` data layer assembled from license-clean sources (USGS Bee-Gap, Fowler & Droege specialist lists, a genus-level backbone), keyed on `canonical_name`, every label carrying its provenance. **[Phase 173 — COMPLETE, shipped ad-hoc on branch `species-trait-annotations`]**
+- Traits surfaced on the **species detail page** and **species list/index**, with per-trait source shown (e.g. tooltip) so users can judge label confidence.
+- Cuckoo (cleptoparasitic) species show their host bee(s).
+
+**Out of scope this milestone:** trait-based *map filtering* (deferred — touches FilterState/style-cache/URL contract); deriving the unrecorded ~33 *Sphecodes*/*Stelis* hosts from GloBI; backfilling sparse native-status coverage.
+
+Prior milestone: v6.0 My Work — Progress & Provenance shipped 2026-06-28 (Phases 167–172 incl. 171.1).
 
 **Background:** the "work" surface emerged from the 2026-06-24 `/gsd-explore` session that reframed the site into a *work* half (prospective/personal — under-served by other tools) and a *learning* half (retrospective/reference). Rationale in `.planning/notes/work-vs-learning-two-halves.md`; seeds `me-and-my-progress.md`, `where-to-go-next.md`.
 

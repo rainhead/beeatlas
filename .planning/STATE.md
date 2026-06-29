@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v6.0
-milestone_name: My Work — Progress & Provenance
-status: milestone_complete
-stopped_at: v6.0 milestone closed, archived, tagged
-last_updated: "2026-06-29"
-last_activity: 2026-06-29 -- v6.0 milestone complete (archived + tagged)
+milestone: v7.0
+milestone_name: Species Trait Annotations
+status: planning
+last_updated: "2026-06-29T22:58:03.023Z"
+last_activity: 2026-06-29
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 16
-  completed_plans: 16
-  percent: 100
+  total_phases: 2
+  completed_phases: 1
+  total_plans: 0
+  completed_plans: 0
+  percent: 50
 ---
 
 # Project State
@@ -21,34 +20,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Planning next milestone (no active milestone). Start with `/gsd-new-milestone`.
+**Current focus:** v7.0 Species Trait Annotations — data layer (Phase 173) shipped; surfacing traits on the site (Phase 174) is next.
 
 ## Current Position
 
-Milestone: v6.0 — COMPLETE (archived to .planning/milestones/v6.0-*, tagged v6.0)
-Phase: 172 — COMPLETE (highest in milestone)
-Next: no active milestone — `/gsd-new-milestone`
-Last activity: 2026-06-29 -- v6.0 milestone complete
+Phase: 174 — Surface Traits in the Site (NEXT — not started)
+Plan: — (Phase 173 data layer COMPLETE, shipped ad-hoc on branch `species-trait-annotations`)
+Status: Ready to plan Phase 174
+Next: `/gsd-plan-phase 174` (or `/gsd-discuss-phase 174` first — UI phase)
+Last activity: 2026-06-29 — Milestone v7.0 started; Phase 173 (species_traits data layer) recorded complete
 
 ## Milestone Overview
 
-**v6.0 My Work — Progress & Provenance (Phases 167–172 incl. 171.1) — SHIPPED 2026-06-28**
+**v7.0 Species Trait Annotations (Phases 173–174) — IN PROGRESS**
 
-17/17 v1 requirements satisfied; cross-phase integration clean (5/5 seams); audit `tech_debt` (no blockers). Goal delivered: the first bookmarkable, no-auth, public per-collector page showing the collection→ID lifecycle as an event stream and accomplishments as coverage/breadth, on a rebuilt occurrence model (`source` enum → `tier`+`record_type` facets; added `collector_inat_login` + `id_date`; dbt contract 36→39).
-
-Roadmap archive: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md) · Audit: [.planning/v6.0-MILESTONE-AUDIT.md](v6.0-MILESTONE-AUDIT.md)
+Annotate species with curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean sources, and surface them on the species index + detail pages with per-trait provenance. Phase 173 (the `species_traits` mart + a latent-synonymy-bug fix) shipped ad-hoc on branch `species-trait-annotations`; Phase 174 (site integration) is next.
 
 | Phase | Name | Status |
 |-------|------|--------|
-| 167 | Collector Identity Column | Complete |
-| 168 | Temporal Lifecycle Dates | Complete |
-| 169 | Per-Collector Static Pages | Complete |
-| 170 | Source → Provenance Facets Rebuild | Complete |
-| 171 | Per-Collector Event Stream | Complete |
-| 171.1 | Collector Data Delivery Rebuild (INSERTED) | Complete |
-| 172 | Accomplishment View | Complete |
+| 173 | Species Trait Data Layer | Complete (ad-hoc) |
+| 174 | Surface Traits in the Site | Next — not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [█████░░░░░] 50%
+
+Prior milestone: **v6.0 My Work — Progress & Provenance** (Phases 167–172 incl. 171.1) — SHIPPED 2026-06-28. Archive: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md) · Audit: [.planning/v6.0-MILESTONE-AUDIT.md](v6.0-MILESTONE-AUDIT.md)
 
 ## Accumulated Context
 
