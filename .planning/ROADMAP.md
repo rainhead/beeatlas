@@ -1798,7 +1798,7 @@ Plans:
 
 **UI hint**: yes
 
-### Phase 175: Floral Host Provenance — 'Collected from' flower families and genera per bee species, from sample/collection data
+### Phase 175: Floral Host Provenance — 'Collected from' flower families and genera per bee species, from sample/collection data ✅ COMPLETE (2026-06-30)
 
 **Goal:** On the species detail page, show each bee species' *observed* floral hosts — flower FAMILIES with their GENERA nested underneath, ordered by sample count — derived from actual sample/collection data (distinct from the v7.0 literature `host_plant_family` diet-breadth annotation). Source: iNat host-plant observations via `occurrence_links.host_observation_id` (534 species / 26,190 specimens). Adds plant-family resolution by mirroring `taxa_pipeline.load_taxon_lineage_extended` over the existing `raw/taxa.csv.gz` (no new API calls); aggregates per `canonical_name` into a separate `species_hosts.json` sidecar (nested families→genera, like seasonality.json — keeps the dbt contract untouched). See `175-CONTEXT.md` for locked decisions + data findings.
 **Requirements**: Floral-host "Collected from" block on species pages; plant family+genus from sample data; no dbt-contract change.
