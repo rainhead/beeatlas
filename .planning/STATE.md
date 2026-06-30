@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 ## Current Position
 
-Phase: 175 — Floral Host Provenance ("Collected from") — added, not yet planned
-Plan: —
-Status: Phase 175 added; ready for /gsd-plan-phase 175 (decisions locked in 175-CONTEXT.md)
+Phase: 175 — Floral Host Provenance ("Collected from") — PLANNED (2 plans, 2 waves), plan-check PASSED
+Plan: 175-01 (data pipeline) → 175-02 (frontend + release wiring)
+Status: Ready for /gsd-execute-phase 175
 Last activity: 2026-06-30 — Completed quick task 260629-tqw: checklist_record_count (all checklist records) + "0 checklist records" contradiction fix
 
 ## Milestone Overview
