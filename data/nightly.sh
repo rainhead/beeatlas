@@ -159,6 +159,7 @@ LOCAL_NAMES = {
     'higher_taxa': 'higher_taxa.json',  # _data/species.js reads this at build (deploy.yml pulls it too)
     'photos':      'photos.json',
     'collectors':  'collectors.json',
+    'species_hosts': 'species_hosts.json',  # _data/species_hosts.js reads this at build (deploy.yml pulls it too)
 }
 # Pure metadata in the manifest — never files.
 NON_FILE_KEYS = {'occurrences_db_tables', 'generated_at'}
@@ -319,6 +320,7 @@ places_name=$(_upload_hashed "$EXPORT_DIR/places.geojson" "places" --content-typ
 places_meta_name=$(_upload_hashed "$EXPORT_DIR/places.json" "places_meta" --content-type application/json)
 checklist_name=$(_upload_hashed "$EXPORT_DIR/checklist.parquet" "checklist")
 photos_name=$(_upload_hashed "$EXPORT_DIR/photos.json" "photos")
+species_hosts_name=$(_upload_hashed "$EXPORT_DIR/species_hosts.json" "species_hosts")
 collectors_name=$(_upload_hashed "$EXPORT_DIR/collectors.json" "collectors")
 collector_event_pages_name=$(_upload_hashed "$EXPORT_DIR/collector_event_pages.json" "collector_event_pages")
 
@@ -335,6 +337,7 @@ cat > "$EXPORT_DIR/manifest.json" <<JSON
   "places_meta": "$places_meta_name",
   "checklist": "$checklist_name",
   "photos": "$photos_name",
+  "species_hosts": "$species_hosts_name",
   "collectors": "$collectors_name",
   "collector_event_pages": "$collector_event_pages_name",
   "occurrences_db_tables": $occ_db_tables,

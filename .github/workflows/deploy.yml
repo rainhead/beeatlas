@@ -35,9 +35,10 @@ jobs:
         # Eleventy reads several files synchronously at build time:
         # `_data/species.js` reads species.json + seasonality.json + higher_taxa.json;
         # `_data/collectors.js` reads collectors.json + collector_event_pages.json
-        # (Phase 171.1). Other artifacts (occurrences.parquet etc.) are fetched by the
-        # frontend at runtime via manifest.json; only these five must be present in the
-        # working tree for the build to succeed. (higher_taxa.json supersedes the retired
+        # (Phase 171.1); `_data/species_hosts.js` reads species_hosts.json (Phase 175).
+        # Other artifacts (occurrences.parquet etc.) are fetched by the frontend at
+        # runtime via manifest.json; only these six must be present in the working tree
+        # for the build to succeed. (higher_taxa.json supersedes the retired
         # higher_rank_taxon_ids.json — D-03, Phase 132.)
         # Artifacts are content-hashed on S3; manifest.json resolves current names.
         # manifest.json is also written to public/data/ so validate-db can read it.
@@ -55,6 +56,8 @@ jobs:
           COLLECTOR_EVENT_PAGES_FILE=$(jq -r .collector_event_pages /tmp/manifest.json)
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTORS_FILE public/data/collectors.json
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTOR_EVENT_PAGES_FILE public/data/collector_event_pages.json
+          SPECIES_HOSTS_FILE=$(jq -r .species_hosts /tmp/manifest.json)
+          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_HOSTS_FILE public/data/species_hosts.json
 
       - name: Run tests
         run: npm test
