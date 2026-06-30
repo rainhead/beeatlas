@@ -465,6 +465,41 @@ describe('_data/species.js (PAGE-02)', () => {
       expect(sp.hexColor, `${andrena.genus}/ungrouped/${key} hexColor mismatch`).toBe(colorByKey[key]);
     }
   });
+
+  // Phase 174 Plan 02 — trait threading + host-bee resolver (D-05/D-06/D-07)
+
+  test('genusList species entries carry resolvedHostBees via { ...sp } spread (Phase 174 D-05/D-07)', () => {
+    // The genusList builder uses { ...sp, hexColor } — all flat-row fields including
+    // resolvedHostBees (set by the Phase 174 flat loop) must be present on each real entry.
+    const list = (species as any).genusList;
+    expect(list.length).toBeGreaterThan(0);
+    const firstGenus = list[0];
+    const speciesEntries = (firstGenus.species ?? []).filter((sp: any) => sp.canonical_name != null);
+    expect(speciesEntries.length).toBeGreaterThan(0);
+    for (const sp of speciesEntries) {
+      // resolvedHostBees is always set by the Phase 174 flat loop; { ...sp } spread must carry it.
+      expect('resolvedHostBees' in sp).toBe(true);
+    }
+  });
+
+  test('every species.flat row has a resolvedHostBees key (null or typed-entry array) (Phase 174 D-05)', () => {
+    // resolveHostBees() is called on every flat row at module load time (Phase 174).
+    // Result is null when host_bees is absent, or an array of typed link targets otherwise.
+    const flat = (species as any).flat;
+    expect(flat.length).toBeGreaterThan(0);
+    const VALID_TYPES = new Set(['species', 'genus', 'text']);
+    for (const sp of flat) {
+      expect('resolvedHostBees' in sp).toBe(true);
+      if (sp.resolvedHostBees !== null) {
+        expect(Array.isArray(sp.resolvedHostBees)).toBe(true);
+        for (const hb of sp.resolvedHostBees) {
+          expect(VALID_TYPES.has(hb.type),
+            `unexpected resolvedHostBees entry type "${hb.type}" on ${sp.scientificName}`
+          ).toBe(true);
+        }
+      }
+    }
+  });
 });
 
 // Phase 133 Plan 01 — Wave 0 RED contract for TREE-01/02/04.
@@ -629,5 +664,23 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
     const allNodes = walkNodes(fullTree);
     const eumeninae = allNodes.find((n: any) => n.name === 'Eumeninae');
     expect(eumeninae).toBeUndefined();
+  });
+
+  test('makeSpeciesNode species leaf carries sociality, diet_breadth, host_plant_family keys (Phase 174 D-07)', () => {
+    // makeSpeciesNode must include the 5 badge fields with ?? null so they are always
+    // present on tree leaves (null is correct for species with no trait data;
+    // undefined means makeSpeciesNode omitted the field, breaking badge rendering).
+    const allLeaves: any[] = [];
+    function collectLeaves(node: any) {
+      if (node.rank === 'species') allLeaves.push(node);
+      if (node.children) node.children.forEach(collectLeaves);
+    }
+    fullTree.forEach(collectLeaves);
+    expect(allLeaves.length).toBeGreaterThan(0);
+    for (const leaf of allLeaves) {
+      expect('sociality' in leaf, `leaf ${leaf.scientificName} missing sociality key`).toBe(true);
+      expect('diet_breadth' in leaf, `leaf ${leaf.scientificName} missing diet_breadth key`).toBe(true);
+      expect('host_plant_family' in leaf, `leaf ${leaf.scientificName} missing host_plant_family key`).toBe(true);
+    }
   });
 });
