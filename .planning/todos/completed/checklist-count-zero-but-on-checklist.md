@@ -4,7 +4,19 @@ priority: medium
 source: incidental-find-2026-06-29 (Nomada aldrichi detail page)
 created: 2026-06-29
 area: data + species-detail template
+resolved: 2026-06-30
+resolution: "Quick task 260629-tqw — Both fix options shipped: new checklist_record_count column (all checklist records, incl. non-georeferenced) + display fallback ('Listed on the WA Bee Atlas checklist' / 'On checklist') when still 0."
 ---
+
+> **RESOLVED 2026-06-30 (quick task 260629-tqw).** Operator chose Both fix options.
+> Added `checklist_record_count` (all checklist records per species, every coord_flag,
+> synonym-resolved from `checklist_data.checklist_records_full`) flowing through
+> int_species_universe → marts/species (+ enforced contract) → species_export. Species pages
+> now show the true total; the 27 affected species with non-georeferenced records report a
+> real count, and the 13 pure list-memberships (zero records of any kind) show
+> "Listed on the WA Bee Atlas checklist" instead of "0 checklist records". `checklist_count`
+> (georeferenced points) is unchanged. See
+> `.planning/quick/260629-tqw-data-fix-count-all-checklist-records-inc/`.
 
 ## Symptom
 

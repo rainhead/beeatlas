@@ -55,6 +55,23 @@ checklist_count_agg AS (
       AND lat IS NOT NULL AND lon IS NOT NULL
     GROUP BY canonical_name
 ),
+checklist_record_count_agg AS (
+    -- Total checklist records per species INCLUDING non-georeferenced ones
+    -- (every coord_flag), for the species-page attribution count. Distinct from
+    -- checklist_count_agg above, which counts only coord-bearing point records that
+    -- flow into occurrences.parquet. Reads the RAW source (not
+    -- stg_checklist__records_full) so it bypasses that model's coord_flag='valid'
+    -- filter and its ../raw/taxa.csv.gz genus-bridge dependency. Synonym-resolved
+    -- (int_synonyms) like the other checklist aggs so listed records keyed under a
+    -- synonym merge under the accepted canonical_name.
+    SELECT
+        COALESCE(syn.accepted_name, cr.canonical_name) AS canonical_name,
+        COUNT(*) AS checklist_record_count
+    FROM {{ source('checklist_data', 'checklist_records_full') }} cr
+    LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = cr.canonical_name
+    WHERE cr.canonical_name IS NOT NULL
+    GROUP BY 1
+),
 -- Per-species iNat expert obs count (OCC-02). Reads source directly to avoid circular DAG with occurrences mart.
 -- Phase 123 (SYN-02): apply occurrence synonymy here too. Reads source
 -- directly (avoids circular DAG with occurrences mart) so it must
@@ -130,6 +147,7 @@ species_universe AS (
         COALESCE(ga.county_count, 0) AS county_count,
         COALESCE(ga.ecoregion_count, 0) AS ecoregion_count,
         COALESCE(cca.checklist_count, 0)::BIGINT AS checklist_count,
+        COALESCE(crca.checklist_record_count, 0)::BIGINT AS checklist_record_count,
         COALESCE(ioa.inat_obs_count, 0)::BIGINT AS inat_obs_count,
         ctt.taxon_id::INTEGER AS taxon_id
     FROM {{ ref('stg_checklist__species') }} c
@@ -146,6 +164,8 @@ species_universe AS (
         ON cma.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
     LEFT JOIN checklist_count_agg cca
         ON cca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
+    LEFT JOIN checklist_record_count_agg crca
+        ON crca.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
     LEFT JOIN inat_obs_count_agg ioa
         ON ioa.canonical_name = COALESCE(c.canonical_name, oa.canonical_name)
 )

@@ -19,7 +19,11 @@ layout: default.njk
     <div class="hero-meta">
       <p class="metadata">{{ (sp.specimen_count or 0) | quantify("specimen") }} · {{ (sp.inat_obs_count or 0) | quantify("community observation") }} · {{ sp.county_count | quantify("county", "counties") }} · {{ sp.ecoregion_count | quantify("ecoregion") }}</p>
       {%- if sp.on_checklist -%}
-      <p class="checklist-attribution">{{ sp.checklist_count | quantify("checklist record") }} · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
+      {%- if sp.checklist_record_count > 0 -%}
+      <p class="checklist-attribution">{{ sp.checklist_record_count | quantify("checklist record") }} · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
+      {%- else -%}
+      <p class="checklist-attribution">Listed on the WA Bee Atlas checklist · <a href="https://jhr.pensoft.net/article/129013/">Bartholomew et al. 2024</a></p>
+      {%- endif -%}
       {%- endif -%}
       {%- set hasSociality  = sp.sociality -%}
       {%- set hasDiet       = sp.diet_breadth -%}

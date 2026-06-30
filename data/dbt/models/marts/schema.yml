@@ -198,6 +198,8 @@ models:
         data_type: bigint
       - name: checklist_count
         data_type: bigint
+      - name: checklist_record_count
+        data_type: bigint
       - name: inat_obs_count
         data_type: bigint
       - name: taxon_id
