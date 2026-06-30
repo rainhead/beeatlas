@@ -1840,7 +1840,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 174-02-PLAN.md — Wave 2: thread traits through `_data/species.js` (`resolveHostBees` typed host-bee targets + `makeSpeciesNode` badge fields; genus/subgenus carry traits via `{...sp}` spread) + the `.traits*`/`.node-badge*` CSS + JS threading/resolver tests [TRAIT-UI-02,03; D-05,D-06,D-07]
+- [x] 174-02-PLAN.md — Wave 2: thread traits through `_data/species.js` (`resolveHostBees` typed host-bee targets + `makeSpeciesNode` badge fields; genus/subgenus carry traits via `{...sp}` spread) + the `.traits*`/`.node-badge*` CSS + JS threading/resolver tests [TRAIT-UI-02,03; D-05,D-06,D-07]
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
