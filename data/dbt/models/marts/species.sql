@@ -1,10 +1,10 @@
--- Species mart: 21-column external parquet (species.parquet).
+-- Species mart: 22-column external parquet (species.parquet).
 -- slug column is intentionally OMITTED — it requires unicodedata.normalize('NFKD')
 -- which is not byte-identically reproducible in SQL (PATTERNS.md Surprise 1).
 -- The Python post-step (Plan 086-05) reads this mart, adds slug via feeds._slugify,
--- and overwrites the parquet to reach 22 columns before public/data/ deployment.
--- Enforced contract in schema.yml covers all 21 SQL-emittable columns.
--- 21 SQL columns + 1 Python-added slug = 22 final columns.
+-- and overwrites the parquet to reach 23 columns before public/data/ deployment.
+-- Enforced contract in schema.yml covers all 22 SQL-emittable columns.
+-- 22 SQL columns + 1 Python-added slug = 23 final columns.
 {{ config(
     materialized='external',
     location='target/sandbox/species.parquet',
@@ -32,6 +32,7 @@ SELECT
     county_count,
     ecoregion_count,
     checklist_count,
+    checklist_record_count,
     inat_obs_count,
     taxon_id
 FROM {{ ref('int_species_universe') }}
