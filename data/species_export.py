@@ -61,6 +61,19 @@ SPECIES_COLUMNS = [
 
 _ZERO_HIST = [0] * 12
 
+# Phase 174 D-02: the 11 trait fields merged from species_traits.parquet into
+# species_rows (and therefore into species.json) via Path B.
+# NOT in SPECIES_COLUMNS — trait fields bypass the pyarrow schema write and
+# reach species.json only through _jsonify_rows() serializing all dict keys.
+_TRAIT_FIELDS = [
+    'sociality', 'sociality_source',
+    'nesting', 'nesting_source',
+    'diet_breadth', 'diet_breadth_source',
+    'host_plant_family', 'host_plant_detail',
+    'native_status',
+    'host_bees', 'host_bee_count',
+]
+
 
 def _jsonify_rows(rows: list[dict]) -> list[dict]:
     """Convert DuckDB rows to JSON-safe dicts.
@@ -233,6 +246,31 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
             r['slug'] = genus if genus else slugify(r['scientificName'])
         if r.get('month_histogram') is None:
             r['month_histogram'] = list(_ZERO_HIST)
+
+    # Phase 174 D-03 Path B: merge species_traits.parquet into species_rows by
+    # canonical_name. SPECIES_COLUMNS and the pyarrow schema are NOT changed —
+    # trait fields enter species.json via _jsonify_rows() serializing ALL dict keys.
+    # Graceful degradation: warn and null-fill when parquet absent (local dev without
+    # full dbt build); do NOT hard-fail (RESEARCH Open Question 2 resolved: warn-and-proceed).
+    traits_parquet = DBT_SANDBOX_DIR / 'species_traits.parquet'
+    if traits_parquet.exists():
+        trait_rows = con.execute(
+            f"SELECT * FROM read_parquet('{traits_parquet}')"
+        ).fetchall()
+        trait_cols = [d[0] for d in con.description]
+        traits_by_name = {
+            dict(zip(trait_cols, r))['canonical_name']: dict(zip(trait_cols, r))
+            for r in trait_rows
+        }
+        for r in species_rows:
+            t = traits_by_name.get(r['canonical_name'], {})
+            for field in _TRAIT_FIELDS:
+                r[field] = t.get(field)
+    else:
+        print("  WARNING: species_traits.parquet not found — trait fields omitted from species.json")
+        for r in species_rows:
+            for field in _TRAIT_FIELDS:
+                r[field] = None
 
     # Build the parquet via pyarrow so the in-memory slug column lands on disk
     # without a temp DuckDB table that would lose the INT[12] type. Convert
