@@ -1836,7 +1836,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 174-01-PLAN.md — Wave 1: emit `species_traits.parquet` (dbt external materialization) + merge the 11 trait fields into `species.json` by `canonical_name` (RESEARCH Path B — no dbt contract / SPECIES_COLUMNS / pyarrow-schema change) + Python merge/graceful-degradation tests + the one-time `SKIP_INTEGRATION_GATE` operator transition nightly [TRAIT-UI-05; D-01,D-02,D-03]
+- [x] 174-01-PLAN.md — Wave 1: emit `species_traits.parquet` (dbt external materialization) + merge the 11 trait fields into `species.json` by `canonical_name` (RESEARCH Path B — no dbt contract / SPECIES_COLUMNS / pyarrow-schema change) + Python merge/graceful-degradation tests + the one-time `SKIP_INTEGRATION_GATE` operator transition nightly [TRAIT-UI-05; D-01,D-02,D-03]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

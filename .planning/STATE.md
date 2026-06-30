@@ -4,13 +4,13 @@ milestone: v7.0
 milestone_name: Species Trait Annotations
 status: executing
 stopped_at: Phase 174 UI-SPEC approved
-last_updated: "2026-06-30T00:22:20.084Z"
-last_activity: 2026-06-30 -- Phase 174 planning complete
+last_updated: "2026-06-30T00:34:45.725Z"
+last_activity: 2026-06-30
 progress:
   total_phases: 2
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** v7.0 Species Trait Annotations — data layer (Phase 173) shipped; surfacing traits on the site (Phase 174) is next.
+**Current focus:** Phase 174 — surface-traits-in-the-site
 
 ## Current Position
 
-Phase: 174 — Surface Traits in the Site (NEXT — not started)
-Plan: — (Phase 173 data layer COMPLETE, shipped ad-hoc on branch `species-trait-annotations`)
+Phase: 174 (surface-traits-in-the-site) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
 Next: `/gsd-plan-phase 174` (or `/gsd-discuss-phase 174` first — UI phase)
-Last activity: 2026-06-30 -- Phase 174 planning complete
+Last activity: 2026-06-30
 
 ## Milestone Overview
 
@@ -42,7 +42,7 @@ Annotate species with curated ecological traits (sociality, diet breadth + host 
 | 173 | Species Trait Data Layer | Complete (ad-hoc) |
 | 174 | Surface Traits in the Site | Next — not started |
 
-**Progress:** [█████░░░░░] 50%
+**Progress:** [███░░░░░░░] 33%
 
 Prior milestone: **v6.0 My Work — Progress & Provenance** (Phases 167–172 incl. 171.1) — SHIPPED 2026-06-28. Archive: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md) · Audit: [.planning/v6.0-MILESTONE-AUDIT.md](v6.0-MILESTONE-AUDIT.md)
 
@@ -97,9 +97,9 @@ Items acknowledged and deferred at v6.0 milestone close (2026-06-29):
 
 ## Session Continuity
 
-Last session: 2026-06-29T23:56:45.644Z
+Last session: 2026-06-30T00:34:45.715Z
 Stopped at: Phase 174 UI-SPEC approved
-Resume file: .planning/phases/174-surface-traits-in-the-site/174-UI-SPEC.md
+Resume file: None
 
 ## Operator Next Steps
 
