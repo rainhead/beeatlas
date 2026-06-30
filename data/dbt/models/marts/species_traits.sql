@@ -47,7 +47,9 @@ beegap AS (
     )
     QUALIFY ROW_NUMBER() OVER (
         PARTITION BY canonical_name
-        ORDER BY (sociality <> '') DESC, (nesting <> '') DESC, (foraging <> '') DESC
+        -- canonical_name is a deterministic final tiebreaker so two synonym-merged rows
+        -- with the same emptiness profile resolve identically across builds (CR WR-01).
+        ORDER BY (sociality <> '') DESC, (nesting <> '') DESC, (foraging <> '') DESC, canonical_name
     ) = 1
 ),
 
@@ -62,7 +64,7 @@ specialist AS (
         LEFT JOIN syn ON syn.synonym = sp.canonical_name
     )
     QUALIFY ROW_NUMBER() OVER (
-        PARTITION BY canonical_name ORDER BY (host_plant_family <> '') DESC
+        PARTITION BY canonical_name ORDER BY (host_plant_family <> '') DESC, canonical_name
     ) = 1
 ),
 
@@ -109,7 +111,7 @@ SELECT
         WHEN bg.foraging IN ('Specialist', 'Generalist') THEN 'beegap-species'
     END AS diet_breadth_source,
     NULLIF(sp.host_plant_family, '') AS host_plant_family,
-    sp.host_plant_detail,
+    NULLIF(sp.host_plant_detail, '') AS host_plant_detail,  -- consistent nullability (CR WR-04)
 
     -- Native vs introduced (Bee-Gap species-level; partial coverage).
     NULLIF(bg.native, '') AS native_status,
