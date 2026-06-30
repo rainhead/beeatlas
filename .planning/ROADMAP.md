@@ -1831,6 +1831,11 @@ Plans:
   4. Each surfaced trait exposes its provenance/source (e.g. tooltip) distinguishing species-level from genus-backbone / Fowler-derived labels
   5. Trait fields reach the frontend via the `species.json` fetch-at-build pattern (S3 + manifest + deploy.yml) — no committed pipeline artifacts, static hosting preserved
 
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+- [ ] 174-01-PLAN.md — Wave 1: emit `species_traits.parquet` (dbt external materialization) + merge the 11 trait fields into `species.json` by `canonical_name` (RESEARCH Path B — no dbt contract / SPECIES_COLUMNS / pyarrow-schema change) + Python merge/graceful-degradation tests + the one-time `SKIP_INTEGRATION_GATE` operator transition nightly [TRAIT-UI-05; D-01,D-02,D-03]
+- [ ] 174-02-PLAN.md — Wave 2: thread traits through `_data/species.js` (`resolveHostBees` typed host-bee targets + `makeSpeciesNode` badge fields; genus/subgenus carry traits via `{...sp}` spread) + the `.traits*`/`.node-badge*` CSS + JS threading/resolver tests [TRAIT-UI-02,03; D-05,D-06,D-07]
+- [ ] 174-03-PLAN.md — Wave 3: render the detail-page Traits definition list (friendly labels, host-bee links, `title=` provenance) + sociality/Specialist badges on the index tree + genus/subgenus pages (tribe excluded) + human UAT [TRAIT-UI-01,02,03,04; D-04,D-05,D-06,D-07,D-08,D-09]
 
 **UI hint**: yes
