@@ -57,6 +57,20 @@ layout: default.njk
         </dl>
       </section>
       {%- endif -%}
+      {%- set hosts = species_hosts[sp.canonical_name] -%}
+      {%- if hosts and hosts.length > 0 -%}
+      <section class="collected-from">
+        <h2>Collected from</h2>
+        {%- for fam in hosts -%}
+        {%- if loop.index0 < 6 -%}
+        <p>{{ fam.family }} · {% for g in fam.genera %}{%- if loop.index0 < 8 -%}{%- if not loop.first %}, {% endif %}{{ g.genus }}{%- endif -%}{%- endfor %}</p>
+        {%- endif -%}
+        {%- endfor -%}
+        {%- if hosts.length > 6 -%}
+        <p class="more">(+{{ hosts.length - 6 }} more {%- if hosts.length - 6 === 1 %} family{%- else %} families{%- endif %})</p>
+        {%- endif -%}
+      </section>
+      {%- endif -%}
     </div>
     {# Top-right: photo #}
     <figure class="hero-photo">

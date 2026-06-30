@@ -389,3 +389,29 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   border-color: var(--accent, #2c7a2c);
   color: var(--accent, #2c7a2c);
 }
+
+/* Phase 175: Collected from block on species detail pages */
+.collected-from {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.collected-from h2 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #444);
+  margin: 0 0 0.25rem;
+}
+
+.collected-from p {
+  font-size: 0.85rem;
+  color: var(--text-body, #213547);
+  margin: 0 0 0.2rem;
+}
+
+.collected-from .more {
+  font-size: 0.8rem;
+  color: var(--text-muted, #666);
+  margin-top: 0.1rem;
+}
