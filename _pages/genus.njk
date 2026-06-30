@@ -44,7 +44,7 @@ layout: default.njk
         {%- if sp.occurrence_count > 0 -%}
         <span class="count">{{ sp.specimen_count | quantify("specimen") }} · {{ sp.inat_obs_count | quantify("community observation") }}</span>
         {%- elif sp.on_checklist -%}
-        <span class="count">{{ sp.checklist_count | quantify("checklist record") }}</span>
+        <span class="count">{%- if sp.checklist_record_count > 0 -%}{{ sp.checklist_record_count | quantify("checklist record") }}{%- else -%}On checklist{%- endif -%}</span>
         {%- else -%}
         <span class="count">{{ 0 | quantify("record") }}</span>
         {%- endif -%}
@@ -72,7 +72,7 @@ layout: default.njk
         {%- if sp.occurrence_count > 0 -%}
         <span class="count">{{ sp.specimen_count | quantify("specimen") }} · {{ sp.inat_obs_count | quantify("community observation") }}</span>
         {%- elif sp.on_checklist -%}
-        <span class="count">{{ sp.checklist_count | quantify("checklist record") }}</span>
+        <span class="count">{%- if sp.checklist_record_count > 0 -%}{{ sp.checklist_record_count | quantify("checklist record") }}{%- else -%}On checklist{%- endif -%}</span>
         {%- else -%}
         <span class="count">{{ 0 | quantify("record") }}</span>
         {%- endif -%}
@@ -100,7 +100,7 @@ layout: default.njk
         {%- if sp.occurrence_count > 0 -%}
         <span class="count">{{ sp.specimen_count | quantify("specimen") }} · {{ sp.inat_obs_count | quantify("community observation") }}</span>
         {%- elif sp.on_checklist -%}
-        <span class="count">{{ sp.checklist_count | quantify("checklist record") }}</span>
+        <span class="count">{%- if sp.checklist_record_count > 0 -%}{{ sp.checklist_record_count | quantify("checklist record") }}{%- else -%}On checklist{%- endif -%}</span>
         {%- else -%}
         <span class="count">{{ 0 | quantify("record") }}</span>
         {%- endif -%}
