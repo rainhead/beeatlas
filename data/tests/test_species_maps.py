@@ -564,6 +564,76 @@ def test_generate_group_maps_genus_subgenus_coloring(tmp_path, monkeypatch):
     )
 
 
+def _write_checklist_only_subgenus_parquet(tmp_path):
+    """Write a species.parquet where one subgenus is represented ONLY by a
+    checklist-only species (occurrence_count == 0).
+
+    - genus 'Andrena': subgenera 'Alpha' (1 occ-bearing species) and 'Beta'
+      (1 occ-bearing species) => >=2 distinct occurrence-bearing subgenera =>
+      SUBGENUS mode on the genus map.
+    - 'Andrena parandrena' is checklist-only (occurrence_count == 0) in subgenus
+      'Parandrena'. Because subgen_colors is built ONLY over occurrence-bearing
+      members, 'Parandrena' is absent from it. The pre-fix color loop assigned
+      subgen_colors[sg] for ANY member with a subgenus, so this row raised
+      KeyError: 'Parandrena'. The fix guards the lookup on `sg in subgen_colors`.
+    """
+    table = pa.table({
+        'canonical_name': [
+            'Andrena alpha1', 'Andrena beta1', 'Andrena parandrena',
+        ],
+        'genus': ['Andrena', 'Andrena', 'Andrena'],
+        'subgenus': ['Alpha', 'Beta', 'Parandrena'],
+        'tribe': ['Andrenini', 'Andrenini', 'Andrenini'],
+        'occurrence_count': [2, 2, 0],  # parandrena is checklist-only
+        'specific_epithet': ['alpha1', 'beta1', 'parandrena'],
+        'subfamily': ['Andreninae', 'Andreninae', 'Andreninae'],
+        'on_checklist': [True, True, True],
+    })
+    parquet_path = tmp_path / "species.parquet"
+    pq.write_table(table, parquet_path)
+    return parquet_path
+
+
+def test_generate_group_maps_checklist_only_subgenus_no_crash(tmp_path, monkeypatch):
+    """A subgenus whose only member is checklist-only (occurrence_count == 0)
+    must not crash genus SUBGENUS-mode coloring (regression for KeyError).
+
+    The checklist-only species' subgenus ('Parandrena') is absent from the
+    occurrence-bearing subgen_colors map. Before the fix, the color loop raised
+    KeyError. After the fix it falls back to grey, and the occurrence-bearing
+    subgenera still get distinct shared fills.
+    """
+    monkeypatch.setattr(species_maps_module, 'ASSETS_DIR', tmp_path)
+    _write_checklist_only_subgenus_parquet(tmp_path)
+
+    con = duckdb.connect()
+    backdrop = ET.Element(f"{{{SVG_NS}}}svg")
+    WA_IN = (-120.5, 47.5)
+    # Only the occurrence-bearing species have points; checklist-only draws no dots.
+    occ_by_canon = {
+        'Andrena alpha1': [WA_IN],
+        'Andrena beta1': [WA_IN],
+    }
+    maps_dir = tmp_path / "species-maps"
+    maps_dir.mkdir()
+
+    # Must NOT raise KeyError: 'Parandrena'
+    _generate_group_maps(con, occ_by_canon, backdrop, maps_dir)
+
+    multi_svg = maps_dir / "genus" / "Andrena.svg"
+    assert multi_svg.exists(), "genus/Andrena.svg must exist"
+    root = ET.parse(str(multi_svg)).getroot()
+    g_elements = root.findall(f'.//{{{SVG_NS}}}g')
+    fills = [g.attrib.get('fill', '') for g in g_elements if g.attrib.get('fill')]
+
+    # Checklist-only species draws no dots, so only the 2 occurrence-bearing
+    # species produce <g fill> groups, and they must have distinct shared fills.
+    expected = _group_colors(['Alpha', 'Beta'])
+    assert fills == [expected['Alpha'], expected['Beta']], (
+        f"Occurrence-bearing subgenera must get distinct shared fills; got {fills!r}"
+    )
+
+
 def test_generate_group_maps_no_eumeninae_svg(tmp_path, monkeypatch):
     """No species-maps/subfamily/Eumeninae.svg is emitted (D-08 wasp-bycatch gate).
 

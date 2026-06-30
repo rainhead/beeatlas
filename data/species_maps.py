@@ -394,7 +394,15 @@ def _generate_group_maps(
             colors = {}
             for c in members:
                 sg = subgenus_of.get(c)
-                if c not in unresolved and sg:
+                # Parity with _data/species.js: colorByCanon is built over the
+                # occurrence-bearing member set (withOcc), so checklist-only
+                # species (occurrence_count == 0) — whose subgenus may not appear
+                # among the occurrence-bearing members and thus is absent from
+                # subgen_colors — must NOT be given a subgenus hue. Guard the
+                # lookup on membership in subgen_colors and fall back to grey.
+                # Such species draw no dots (occ_by_canon empty), so the visible
+                # map is unaffected; this is crash-safety + swatch<->dot parity.
+                if c not in unresolved and sg and sg in subgen_colors:
                     colors[c] = subgen_colors[sg]
                 else:
                     colors[c] = _UNRESOLVED_COLOR
