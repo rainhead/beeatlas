@@ -1807,7 +1807,7 @@ Plans:
 
 Plans:
 
-- [ ] 175-01-PLAN.md — data pipeline: plant-host lineage build + dbt source/staging/int_species_host_plants + species_hosts.json sidecar
+- [x] 175-01-PLAN.md — data pipeline: plant-host lineage build + dbt source/staging/int_species_host_plants + species_hosts.json sidecar
 - [ ] 175-02-PLAN.md — frontend: _data loader + Collected from block + CSS + release wiring (nightly/deploy) + clean-checkout CI gate
 
 ---

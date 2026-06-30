@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v7.0
 milestone_name: Species Trait Annotations
-status: Awaiting next milestone
-stopped_at: Milestone v7.0 shipped (PR #39 merged) and archived
-last_updated: "2026-06-30T04:07:36.956Z"
-last_activity: 2026-06-30 — Milestone v7.0 completed and archived
+status: executing
+stopped_at: Phase 174 UI-SPEC approved
+last_updated: "2026-06-30T18:29:00.652Z"
+last_activity: 2026-06-30
 progress:
   total_phases: 2
-  completed_phases: 2
+  completed_phases: 1
   total_plans: 3
   completed_plans: 3
-  percent: 100
+  percent: 50
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Milestone complete
+**Current focus:** Phase 175 — floral-host-provenance-collected-from-flower-families-and-ge
 
 ## Current Position
 
-Phase: 175 — Floral Host Provenance ("Collected from") — PLANNED (2 plans, 2 waves), plan-check PASSED
-Plan: 175-01 (data pipeline) → 175-02 (frontend + release wiring)
-Status: Ready for /gsd-execute-phase 175
-Last activity: 2026-06-30 — Completed quick task 260629-tqw: checklist_record_count (all checklist records) + "0 checklist records" contradiction fix
+Phase: 175 (floral-host-provenance-collected-from-flower-families-and-ge) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-06-30
 
 ## Milestone Overview
 
@@ -81,6 +81,9 @@ Load-bearing conventions carried forward (full v6.0 decision log in PROJECT.md /
 - **[v6.0 TEMP] id_date only**: lifecycle reads intrinsic source dates (no snapshot-diffing); `posted_date`/iNat `created_at` deliberately dropped (posting is not an event). Collected = pre-existing `date` column; Identified = `id_date` (dirty-parsed Ecdysis `date_identified`).
 - **[v6.0] dbt contract changes ship data-before-code**: each bump lands in live S3 via a one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` BEFORE the TS reading it deploys; never stack two unreleased bumps. The deploy `validate-db` gate reads live S3. See memory `project_occurrences_contract_release_sequence`.
 - **[v6.0] build-time data is delivered via S3 + manifest.json + deploy.yml, NEVER committed to git** (the `species.json` pattern). "read at build time" ≠ "commit." A clean git status is not a verification PASS for a regenerated artifact. See memory `feedback_no_committed_data_artifacts`.
+- [Phase ?]: Seed-set restriction replaces Anthophila LIKE filter
+- [Phase ?]: int_species_host_plants is private external-parquet intermediate — dbt contracts on marts/occurrences and marts/species untouched (Phase 175)
+- [Phase ?]: species_hosts.json producer is absence-tolerant: missing parquet writes empty object (Phase 175)
 
 ### Pending Todos
 
@@ -120,7 +123,7 @@ Items acknowledged and deferred at v6.0 milestone close (2026-06-29):
 
 ## Session Continuity
 
-Last session: 2026-06-30T00:56:24.510Z
+Last session: 2026-06-30T18:28:33.693Z
 Stopped at: Phase 174 UI-SPEC approved
 Resume file: None
 
