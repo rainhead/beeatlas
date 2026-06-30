@@ -52,6 +52,32 @@ const byScientificName = Object.fromEntries(
   flat.map((s) => [s.scientificName, s])
 );
 
+// Phase 174 D-05: resolve host_bees comma-joined strings to typed link targets.
+// Uses byScientificName (species-level) and higherTaxaByRankName['genus'] (genus-level).
+// Returns null for absent host_bees; otherwise an array of typed entries.
+// Security: only byScientificName matches yield a slug (safe path); only
+// higherTaxaByRankName['genus'] matches yield a genusName (known atlas genus).
+// Unmatched names become type 'text' — never reach href construction (T-174-03).
+function resolveHostBees(hostBees) {
+  if (!hostBees) return null;
+  return hostBees.split(', ').map(name => {
+    const trimmed = name.trim();
+    const speciesMatch = byScientificName[trimmed];
+    if (speciesMatch && speciesMatch.slug) {
+      return { name: trimmed, slug: speciesMatch.slug, type: 'species' };
+    }
+    const genusMatch = higherTaxaByRankName['genus']?.[trimmed];
+    if (genusMatch) {
+      return { name: trimmed, genusName: trimmed, type: 'genus' };
+    }
+    return { name: trimmed, type: 'text' };
+  });
+}
+
+for (const sp of flat) {
+  sp.resolvedHostBees = resolveHostBees(sp.host_bees);
+}
+
 // Phase 93 D-01: HSL→hex formula matching Python colorsys.hls_to_rgb exactly.
 // Color index i is derived from alphabetical-by-canonical_name sort within each
 // genus group (D-02). Formula verified numerically for hue=0→#d92626, hue=120→#26d926,
@@ -377,6 +403,13 @@ function buildFullTree() {
       occurrence_count: sp.occurrence_count ?? 0,
       slug: sp.slug,
       scientificName: sp.scientificName,
+      // Phase 174 D-07: trait badge fields for species index leaf nodes.
+      // null-coalesced so keys are always present even when species.json predates 174-01.
+      sociality: sp.sociality ?? null,
+      sociality_source: sp.sociality_source ?? null,
+      diet_breadth: sp.diet_breadth ?? null,
+      diet_breadth_source: sp.diet_breadth_source ?? null,
+      host_plant_family: sp.host_plant_family ?? null,
       children: [],
     };
   }
