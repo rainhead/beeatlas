@@ -1,5 +1,20 @@
 # Milestones
 
+## v7.0 Species Trait Annotations (Shipped: 2026-06-30)
+
+**Phases completed:** 2 phases (173 Species Trait Data Layer — shipped ad-hoc; 174 Surface Traits in the Site — 3 plans / 8 tasks). Timeline: 2026-06-29 → 2026-06-30. Merged via PR #39. **Requirements:** TRAIT-DATA-01..03 + TRAIT-UI-01..05 satisfied.
+
+**Key accomplishments:**
+
+- **`species_traits` dbt mart** — one row per species with curated ecological traits (sociality, nesting, diet breadth + host plant, native status, cuckoo host bee) assembled from three license-clean seeds (USGS Bee-Gap 2017 PD, Fowler & Droege specialist list, a genus-level backbone). Every label carries a `*_source` provenance column; seed join keys route through `int_synonyms`. Also fixed a latent synonymy gap in the checklist/ecdysis arms.
+- **Traits surfaced site-wide** — a "Traits" definition list on the species detail page (linked cleptoparasite host bees, native `title=` provenance tooltips, friendly domain labels) plus compact sociality + Specialist badges on the species index tree, genus, and subgenus pages — all build-time Nunjucks, zero JS.
+- **Path B delivery** — trait fields merged into `species.json` through the existing fetch-at-build pipeline with `species.parquet`'s schema unchanged (22 cols); no committed `public/data/` artifacts, static hosting preserved.
+- **Post-merge polish** — surfaced the specialist host plant for the 44% of Fowler specialists that carried only a genus-level host (e.g. *Andrena frigida* → "Specialist (Salix)"); alphabetized genus/subgenus species lists; restructured the species detail hero into a 2×2 grid.
+
+**Known deferred items at close:** the `checklist_count=0` vs `on_checklist=true` detail-page display issue (`.planning/todos/pending/checklist-count-zero-but-on-checklist.md`), plus pre-existing tech debt (16 older UAT gaps + 3 prior todos) acknowledged and deferred — see STATE.md Deferred Items. Operator action pending: one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to refresh the S3 `species.json` baseline.
+
+---
+
 ## v6.0 My Work — Progress & Provenance (Shipped: 2026-06-28)
 
 **Phases completed:** 7 phases (167–172, incl. inserted 171.1), 16 plans. Timeline: 2026-06-25 → 2026-06-28. **Requirements:** 17/17 v1 satisfied (audit `tech_debt` — no blockers; `v6.0-MILESTONE-AUDIT.md`).

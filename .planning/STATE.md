@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v7.0
 milestone_name: Species Trait Annotations
-status: milestone_complete
-stopped_at: Milestone complete (Phase 174 was final phase)
-last_updated: 2026-06-30T02:29:23.449Z
-last_activity: 2026-06-30
+status: Awaiting next milestone
+stopped_at: Milestone v7.0 shipped (PR #39 merged) and archived
+last_updated: "2026-06-30T04:07:36.956Z"
+last_activity: 2026-06-30 — Milestone v7.0 completed and archived
 progress:
   total_phases: 2
   completed_phases: 2
@@ -25,17 +25,16 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 ## Current Position
 
-Phase: 174 (complete)
-Plan: 3/3 complete
-Status: All v7.0 phases complete — PR #39 open against main, pending merge/close
-Next: merge PR #39 → main, then `/gsd-complete-milestone`; run the one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas after merge
-Last activity: 2026-06-30
+Phase: Milestone v7.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-30 — Milestone v7.0 completed and archived
 
 ## Milestone Overview
 
-**v7.0 Species Trait Annotations (Phases 173–174) — PHASES COMPLETE (PR #39 open)**
+**v7.0 Species Trait Annotations (Phases 173–174) — SHIPPED 2026-06-30 (PR #39 merged)**
 
-Annotate species with curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean sources, and surface them on the species index + detail pages with per-trait provenance. Phase 173 (the `species_traits` mart + a latent-synonymy-bug fix) shipped ad-hoc on branch `species-trait-annotations`; Phase 174 (site integration) is complete. PR [#39](https://github.com/rainhead/beeatlas/pull/39) is open against main; the milestone is not yet archived.
+Annotate species with curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean sources, and surface them on the species index + detail pages with per-trait provenance. Phase 173 (the `species_traits` mart + a latent-synonymy-bug fix) shipped ad-hoc on branch `species-trait-annotations`; Phase 174 (site integration) shipped via PR [#39](https://github.com/rainhead/beeatlas/pull/39), merged to main. Archive: [.planning/milestones/v7.0-ROADMAP.md](milestones/v7.0-ROADMAP.md).
 
 | Phase | Name | Status |
 |-------|------|--------|
@@ -43,6 +42,20 @@ Annotate species with curated ecological traits (sociality, diet breadth + host 
 | 174 | Surface Traits in the Site | Complete |
 
 **Progress:** [██████████] 100%
+
+## Deferred Items
+
+Items acknowledged and deferred at v7.0 milestone close on 2026-06-30:
+
+| Category | Item | Status |
+|----------|------|--------|
+| todo | checklist-count-zero-but-on-checklist | open (medium — v7.0 find) |
+| todo | rebuild-source-into-facets | open (medium, pre-existing) |
+| todo | 144-code-review-deferred | open (low, pre-existing) |
+| todo | 165-code-review-deferred | open (pre-existing) |
+| uat_gaps | 16 HUMAN-UAT items across phases 145+ | open (pre-existing tech debt) |
+| context_question | 1 open context question | open (pre-existing) |
+| operator | one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas | pending (refresh S3 species.json baseline post-merge) |
 
 Prior milestone: **v6.0 My Work — Progress & Provenance** (Phases 167–172 incl. 171.1) — SHIPPED 2026-06-28. Archive: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md) · Audit: [.planning/v6.0-MILESTONE-AUDIT.md](v6.0-MILESTONE-AUDIT.md)
 
@@ -103,6 +116,4 @@ Resume file: None
 
 ## Operator Next Steps
 
-1. **Confirm v6.0 is live in prod** (optional): verify the latest maderas nightly published the 39-col contract cleanly and the prod site renders collector pages. The nightly is unblocked (Phase 163 fixed 2026-06-24).
-2. **Start the next milestone**: `/gsd-new-milestone` — candidates from the deferred-seed backlog: community/shared liveness feed (needs the append-only history table), per-identification enrichment ("IDed by X on date"), "where to go next" planning surface, accomplishment depth (collector dot map / year-over-year).
-3. Optional cleanup: close the obsolete `rebuild-source-into-facets.md` todo; promote 999.11 (federal wilderness areas) / 999.7 (Safari private-browsing) from backlog if desired.
+- Start the next milestone with /gsd-new-milestone
