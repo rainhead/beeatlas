@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 Phase: 999.11
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-06-30
+Last activity: 2026-06-30 - Completed quick task 260630-ihl: Color genus-page map by subgenera (not species) where a genus has multiple subgenera
 
 ## Milestone Overview
 
@@ -101,6 +101,7 @@ Load-bearing conventions carried forward (full v6.0 decision log in PROJECT.md /
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260629-tqw | checklist_record_count (all checklist records, incl. non-georeferenced) + fix contradictory "0 checklist records" line | 2026-06-30 | e946cbfd | [260629-tqw-data-fix-count-all-checklist-records-inc](./quick/260629-tqw-data-fix-count-all-checklist-records-inc/) |
+| 260630-ihl | Color genus-page map by subgenera (not species) where a genus has multiple subgenera | 2026-06-30 | bbeac971 | [260630-ihl-color-genus-page-map-by-subgenera-not-sp](./quick/260630-ihl-color-genus-page-map-by-subgenera-not-sp/) |
 
 ## Deferred Items
 
