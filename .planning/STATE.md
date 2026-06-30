@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 Phase: Milestone v7.0 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-06-30 — Milestone v7.0 completed and archived
+Last activity: 2026-06-30 — Completed quick task 260629-tqw: checklist_record_count (all checklist records) + "0 checklist records" contradiction fix
 
 ## Milestone Overview
 
@@ -88,6 +88,12 @@ Load-bearing conventions carried forward (full v6.0 decision log in PROJECT.md /
 
 - **No active blockers.** The Phase 163 Ecdysis-auth nightly blocker was **RESOLVED 2026-06-24** (authenticated Symbiota session + ZIP guard + cache fallback; operator-verified a real nightly through `generate-sqlite`). The nightly pipeline is unblocked. (Corrected 2026-06-29: STATE had stale-tracked 163 as open through the v6.0 close — it was already complete.)
 - **Operational confirmation (NOT a code gap):** the v6.0 data leg (dbt contract 37→38→39 cols + collector pages) lands in live S3 via the operator nightly on maderas. Since the nightly is unblocked (163 fixed 2026-06-24) and the contract bumps (167/168/170) landed afterward — with 171/172 shipping on top of the 39-col contract — the data leg is very likely live. Worth a one-time confirm that the latest nightly published cleanly and prod renders collector pages.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260629-tqw | checklist_record_count (all checklist records, incl. non-georeferenced) + fix contradictory "0 checklist records" line | 2026-06-30 | e946cbfd | [260629-tqw-data-fix-count-all-checklist-records-inc](./quick/260629-tqw-data-fix-count-all-checklist-records-inc/) |
 
 ## Deferred Items
 
