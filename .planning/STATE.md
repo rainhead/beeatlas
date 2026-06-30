@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 ## Current Position
 
-Phase: Milestone v7.0 complete
+Phase: 175 — Floral Host Provenance ("Collected from") — added, not yet planned
 Plan: —
-Status: Awaiting next milestone
+Status: Phase 175 added; ready for /gsd-plan-phase 175 (decisions locked in 175-CONTEXT.md)
 Last activity: 2026-06-30 — Completed quick task 260629-tqw: checklist_record_count (all checklist records) + "0 checklist records" contradiction fix
 
 ## Milestone Overview
@@ -60,6 +60,10 @@ Items acknowledged and deferred at v7.0 milestone close on 2026-06-30:
 Prior milestone: **v6.0 My Work — Progress & Provenance** (Phases 167–172 incl. 171.1) — SHIPPED 2026-06-28. Archive: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md) · Audit: [.planning/v6.0-MILESTONE-AUDIT.md](v6.0-MILESTONE-AUDIT.md)
 
 ## Accumulated Context
+
+### Roadmap Evolution
+
+- Phase 175 added 2026-06-30: Floral Host Provenance — "Collected from" flower families & genera per bee species from sample data. Decisions + data findings locked in `175-CONTEXT.md`.
 
 ### Decisions
 
