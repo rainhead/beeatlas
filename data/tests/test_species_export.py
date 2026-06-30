@@ -326,3 +326,33 @@ def test_export_runs_collision_check_clean(tmp_path, monkeypatch, sandbox_parque
     # If a collision were present, this would raise AssertionError.
     # Completing without error confirms the check ran and found no collision.
     export_species_parquet(con)
+
+
+# ---------------------------------------------------------------------------
+# Phase 174 trait merge tests (Path B — D-01/D-02/D-03)
+# ---------------------------------------------------------------------------
+
+def test_trait_fields_in_species_json(tmp_path, monkeypatch, sandbox_parquet):
+    """At least one species.json row has a non-null sociality after trait merge (Phase 174)."""
+    con = duckdb.connect()
+    export_species_parquet(con)
+    rows = json.loads((tmp_path / 'species.json').read_text())
+    assert rows, "species.json must be non-empty"
+    sociality_values = [r.get('sociality') for r in rows]
+    assert any(v is not None for v in sociality_values), (
+        "Expected at least one species.json row with a non-null sociality field"
+    )
+
+
+def test_trait_fields_absent_gracefully(tmp_path, monkeypatch, sandbox_parquet):
+    """When species_traits.parquet is absent, export completes and trait fields are None (Phase 174)."""
+    # Remove the fixture parquet to simulate local dev without full dbt build.
+    (sandbox_parquet / 'species_traits.parquet').unlink()
+    con = duckdb.connect()
+    export_species_parquet(con)   # must not raise
+    rows = json.loads((tmp_path / 'species.json').read_text())
+    assert rows, "species.json must be non-empty"
+    for row in rows:
+        assert row.get('sociality') is None, (
+            f"Expected sociality=None when traits absent, got {row.get('sociality')!r}"
+        )
