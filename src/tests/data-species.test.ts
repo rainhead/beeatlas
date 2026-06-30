@@ -723,6 +723,9 @@ describe('_data/species.js fullTree (TREE-01/02/04)', () => {
       expect('sociality' in leaf, `leaf ${leaf.scientificName} missing sociality key`).toBe(true);
       expect('diet_breadth' in leaf, `leaf ${leaf.scientificName} missing diet_breadth key`).toBe(true);
       expect('host_plant_family' in leaf, `leaf ${leaf.scientificName} missing host_plant_family key`).toBe(true);
+      // Provenance fields drive the badge title= tooltips, so they're part of the contract.
+      expect('sociality_source' in leaf, `leaf ${leaf.scientificName} missing sociality_source key`).toBe(true);
+      expect('diet_breadth_source' in leaf, `leaf ${leaf.scientificName} missing diet_breadth_source key`).toBe(true);
     }
   });
 });

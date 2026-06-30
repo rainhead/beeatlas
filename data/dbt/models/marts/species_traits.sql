@@ -47,9 +47,12 @@ beegap AS (
     )
     QUALIFY ROW_NUMBER() OVER (
         PARTITION BY canonical_name
-        -- canonical_name is a deterministic final tiebreaker so two synonym-merged rows
-        -- with the same emptiness profile resolve identically across builds (CR WR-01).
-        ORDER BY (sociality <> '') DESC, (nesting <> '') DESC, (foraging <> '') DESC, canonical_name
+        -- Prefer the most-populated synonym-merged row across ALL four fields (native
+        -- included so a populated native_status is never dropped), then break ties on the
+        -- field values themselves for a build-deterministic pick. Ordering by canonical_name
+        -- would be a no-op here since it is the partition key (CR WR-01 follow-up).
+        ORDER BY (sociality <> '') DESC, (nesting <> '') DESC, (foraging <> '') DESC, (native <> '') DESC,
+                 native, nesting, sociality, foraging
     ) = 1
 ),
 
@@ -64,7 +67,12 @@ specialist AS (
         LEFT JOIN syn ON syn.synonym = sp.canonical_name
     )
     QUALIFY ROW_NUMBER() OVER (
-        PARTITION BY canonical_name ORDER BY (host_plant_family <> '') DESC, canonical_name
+        PARTITION BY canonical_name
+        -- Prefer a populated family, then a populated detail, then break ties on the values
+        -- themselves so the chosen host row is stable across builds (partition-key ordering
+        -- would be a no-op; CR WR-01 follow-up).
+        ORDER BY (host_plant_family <> '') DESC, (host_plant_detail <> '') DESC,
+                 host_plant_family, host_plant_detail
     ) = 1
 ),
 

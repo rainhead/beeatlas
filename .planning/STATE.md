@@ -8,10 +8,10 @@ last_updated: 2026-06-30T02:29:23.449Z
 last_activity: 2026-06-30
 progress:
   total_phases: 2
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 3
-  completed_plans: 68
-  percent: 50
+  completed_plans: 3
+  percent: 100
 ---
 
 # Project State
@@ -25,22 +25,22 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 ## Current Position
 
-Phase: 174
-Plan: Not started
-Status: Milestone complete
-Next: `/gsd-plan-phase 174` (or `/gsd-discuss-phase 174` first — UI phase)
+Phase: 174 (complete)
+Plan: 3/3 complete
+Status: All v7.0 phases complete — PR #39 open against main, pending merge/close
+Next: merge PR #39 → main, then `/gsd-complete-milestone`; run the one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas after merge
 Last activity: 2026-06-30
 
 ## Milestone Overview
 
-**v7.0 Species Trait Annotations (Phases 173–174) — IN PROGRESS**
+**v7.0 Species Trait Annotations (Phases 173–174) — PHASES COMPLETE (PR #39 open)**
 
-Annotate species with curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean sources, and surface them on the species index + detail pages with per-trait provenance. Phase 173 (the `species_traits` mart + a latent-synonymy-bug fix) shipped ad-hoc on branch `species-trait-annotations`; Phase 174 (site integration) is next.
+Annotate species with curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean sources, and surface them on the species index + detail pages with per-trait provenance. Phase 173 (the `species_traits` mart + a latent-synonymy-bug fix) shipped ad-hoc on branch `species-trait-annotations`; Phase 174 (site integration) is complete. PR [#39](https://github.com/rainhead/beeatlas/pull/39) is open against main; the milestone is not yet archived.
 
 | Phase | Name | Status |
 |-------|------|--------|
 | 173 | Species Trait Data Layer | Complete (ad-hoc) |
-| 174 | Surface Traits in the Site | Next — not started |
+| 174 | Surface Traits in the Site | Complete |
 
 **Progress:** [██████████] 100%
 

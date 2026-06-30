@@ -60,18 +60,23 @@ const byScientificName = Object.fromEntries(
 // Unmatched names become type 'text' — never reach href construction (T-174-03).
 function resolveHostBees(hostBees) {
   if (!hostBees) return null;
-  return hostBees.split(', ').map(name => {
-    const trimmed = name.trim();
-    const speciesMatch = byScientificName[trimmed];
-    if (speciesMatch && speciesMatch.slug) {
-      return { name: trimmed, slug: speciesMatch.slug, type: 'species' };
-    }
-    const genusMatch = higherTaxaByRankName['genus']?.[trimmed];
-    if (genusMatch) {
-      return { name: trimmed, genusName: trimmed, type: 'genus' };
-    }
-    return { name: trimmed, type: 'text' };
-  });
+  // Split on any comma (not just ", ") and drop empties, so a spacing variation in the
+  // seed/mart data can't collapse two hosts into one unresolved token (CR feedback).
+  return hostBees
+    .split(',')
+    .map(name => name.trim())
+    .filter(Boolean)
+    .map(trimmed => {
+      const speciesMatch = byScientificName[trimmed];
+      if (speciesMatch && speciesMatch.slug) {
+        return { name: trimmed, slug: speciesMatch.slug, type: 'species' };
+      }
+      const genusMatch = higherTaxaByRankName['genus']?.[trimmed];
+      if (genusMatch) {
+        return { name: trimmed, genusName: trimmed, type: 'genus' };
+      }
+      return { name: trimmed, type: 'text' };
+    });
 }
 
 // Phase 174 (gap closure): build a human-readable specialist host label from the
