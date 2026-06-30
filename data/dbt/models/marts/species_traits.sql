@@ -24,6 +24,13 @@
 -- added to occurrence_synonyms bridges trait data automatically. Post-normalization
 -- collisions are de-duplicated (preferring the most-populated row) to keep one row/species.
 
+{{ config(
+    materialized='external',
+    location='target/sandbox/species_traits.parquet',
+    format='parquet',
+    options={'CODEC': "'SNAPPY'"}
+) }}
+
 WITH syn AS (
     SELECT synonym, accepted_name FROM {{ ref('int_synonyms') }}
 ),

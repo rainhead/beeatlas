@@ -92,6 +92,16 @@ def sandbox_parquet(tmp_path, monkeypatch):
     con.execute("INSERT INTO occ_staging VALUES ('agapostemon subtilior', NULL, NULL, NULL)")
     con.execute(f"COPY occ_staging TO '{sandbox}/occurrences.parquet' (FORMAT PARQUET)")
 
+    # species_traits.parquet: Phase 174 trait merge input.
+    # Must match canonical_names in species_fixture.csv so the merge can join.
+    con.execute(f"""
+        COPY (
+            SELECT * FROM read_csv('{FIXTURES_DIR}/species_traits_fixture.csv',
+                                   header=True, auto_detect=True)
+        )
+        TO '{sandbox}/species_traits.parquet' (FORMAT PARQUET)
+    """)
+
     con.close()
 
     # Redirect module-level constants via setattr (setenv is insufficient after import).
