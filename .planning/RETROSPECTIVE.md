@@ -2,6 +2,40 @@
 
 *A living document updated after each milestone. Lessons feed forward into future planning.*
 
+## Milestone: v7.0 — Species Trait Annotations
+
+**Shipped:** 2026-06-30
+**Phases:** 2 (173 ad-hoc + 174) | **Plans:** 3 (174) | **Timeline:** 2026-06-29 → 2026-06-30 | **Requirements:** TRAIT-DATA-01..03 + TRAIT-UI-01..05 satisfied | Merged via PR #39
+
+### What Was Built
+A `species_traits` dbt mart (one row per species) assembling sociality, nesting, diet breadth + host plant, native status, and cuckoo host bee from three license-clean seeds (USGS Bee-Gap 2017 PD, Fowler & Droege specialists, a genus-level backbone), every label carrying a `*_source` provenance column and routing its join key through `int_synonyms`. Surfaced on the site via a Path-B `species.json` merge: a "Traits" definition list on the species detail page (linked cleptoparasite hosts, native `title=` provenance tooltips, friendly domain labels) and compact sociality + Specialist badges on the index tree, genus, and subgenus pages — build-time Nunjucks, zero JS.
+
+### What Worked
+- **Path B kept the change off the contracted parquet.** Merging trait fields into `species.json` in `species_export.py` (schema frozen at 22 cols) avoided a `species.parquet` contract bump and the multi-step data-before-code dance — just one transition `SKIP_INTEGRATION_GATE` nightly for the JSON shape. Researcher correctly picked this over widening the `species` mart.
+- **The full GSD pipeline ran clean in one `--chain` session** for 174: discuss → research → UI-SPEC (1 revision) → pattern-map → plan (1 revision) → execute → verify, with the data-layer→frontend wave ordering holding.
+- **Interactive operator review caught real product gaps the automated gates missed** — the bare-"Specialist" display for 44% of specialists, and non-alphabetical genus ordering — both found by eyeballing real pages. Reinforces the UI-UAT lesson.
+- **External PR review (CodeRabbit) caught a real bug the internal reviewer rationalized.** It flagged that my WR-01 "fix" tiebreaker was a no-op (ordering by the partition key inside its own partition) — the `gsd-code-reviewer` raised WR-01 but accepted my non-fix.
+
+### What Was Inefficient
+- **My code-review fix didn't actually fix the finding.** Adding `ORDER BY canonical_name` to a `QUALIFY` window partitioned by `canonical_name` discriminates nothing. Lesson: when resolving a determinism finding, confirm the tiebreaker actually varies within the partition — against real data.
+- **`host_plant_detail` was exported but rendered nowhere**, so the trait UI shipped showing a bare "Specialist" for 44% of Fowler specialists despite holding the host genus. CONTEXT/UI-SPEC fixated on `host_plant_family` (44% null) and missed that `detail` was the richer field (100% of Fowler). A data-coverage check during discuss/research would have caught it pre-ship.
+- **`milestone.complete` CLI mis-counted and re-broke STATE.md** (reported 1 phase not 2, emitted junk "One-liner:" accomplishments, reset `completed_plans` to a stale 68 / percent 50). Every close here needs hand-reconciliation — `feedback_milestone_close_cli_overcounts`.
+- **Phase 173 shipped ad-hoc** (no GSD phase dir), so milestone tooling can't see it — its provenance had to be entered into ROADMAP/MILESTONES by hand.
+
+### Patterns Established
+- **Path B for additive per-species data:** emit a separate `materialized='external'` parquet, merge into `species.json` in Python keyed by `canonical_name`, leave the contracted `species.parquet` schema frozen — additive frontend data with no contract bump and no committed artifact.
+- **Pre-compute display-ready derived fields** (`resolvedHostBees`, `dietHost`) in the `_data/species.js` layer, not in Nunjucks — keeps templates dumb and the logic unit-testable.
+
+### Key Lessons
+- When surfacing a multi-field source, check which field actually carries the data across the population before designing the display (`host_plant_detail` 100% vs `host_plant_family` 44%).
+- A determinism tiebreaker must discriminate *within* the partition; ordering by the partition key is a no-op — verify against the real data.
+- External AI review complements the internal reviewer; it caught a no-op the internal pass accepted.
+
+### Cost Observations
+- Model mix: Opus orchestration; Sonnet researcher/UI/pattern-mapper/planner/checker/executor/verifier/reviewer subagents.
+- Sessions: one `--chain` discuss→execute→verify pipeline for 174, plus interactive post-UAT fixes, a PR review round, and milestone close.
+- Notable: the live data leg is gated on the one-time `SKIP_INTEGRATION_GATE` nightly on maderas — code merged, prod trait data lands after the operator runs it.
+
 ## Milestone: v6.0 — My Work: Progress & Provenance
 
 **Shipped:** 2026-06-28
