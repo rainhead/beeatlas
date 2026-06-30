@@ -101,11 +101,26 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   font-size: 0.85rem;
 }
 
+/* Species detail hero: 2x2 grid — metadata top-left, photo top-right,
+   seasonality + map side by side on the second row. Auto-placement fills
+   row-major from the DOM order (meta, photo, seasonality, map). */
+.taxon-page .hero-photo {
+  margin: 0;
+}
+
 @media (min-width: 768px) {
+  /* Two-column media row used by genus/subgenus/tribe/subfamily/place pages. */
   .taxon-page .media-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
+    align-items: start;
+  }
+
+  .taxon-page .species-hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem 1.5rem;
     align-items: start;
   }
 }
