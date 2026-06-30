@@ -491,12 +491,18 @@ Short text badges ("Clepto", "Solitary", "Social", "Specialist") are readable at
 
 ### New CSS for badges
 
+> ⚠ SUPERSEDED — the authoritative CSS contract is `174-UI-SPEC.md` (§CSS Contract).
+> This early sketch is **wrong in two ways**: (1) it scopes `.node-badge` to
+> `.species-index`, but the badge MUST be unscoped because genus/subgenus pages use
+> `.taxon-page`, NOT `.species-index`; (2) padding `0.1rem 0.35rem` is off the 4px grid.
+> Use UI-SPEC's unscoped `.node-badge { padding: 0.25rem 0.5rem }`. Do NOT copy the block below.
+
 ```css
-/* .node-badge: compact inline trait label in the species index tree */
-.species-index .node-badge {
+/* SUPERSEDED — see 174-UI-SPEC.md CSS Contract; do NOT scope to .species-index, do NOT copy */
+.species-index .node-badge { /* WRONG SCOPE — UI-SPEC uses unscoped .node-badge */
   flex: 0 0 auto;
   font-size: 0.75rem;
-  padding: 0.1rem 0.35rem;
+  padding: 0.1rem 0.35rem; /* WRONG — off-grid; UI-SPEC uses 0.25rem 0.5rem */
   border-radius: 3px;
   background: var(--surface-subtle, #f5f5f5);
   border: 1px solid var(--border, #ddd);
@@ -647,9 +653,15 @@ No new authentication, sessions, user input, or cryptography. Species traits are
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-### 1. D-07 "tribe pages" — what does this mean for tribe.njk?
+> All three questions were closed during planning (Phase 174 plan-check). Plans
+> 174-01..03 implement the recommended answer for each:
+> - **Q1 RESOLVED:** tribe.njk has no species rows → no badge work there; D-07's tribe mention is a no-op (planner confirmed; tribe.njk excluded from badge tasks).
+> - **Q2 RESOLVED:** warn-and-proceed with null trait fields when `species_traits.parquet` is absent in local dev (no hard-fail).
+> - **Q3 RESOLVED:** keep the raw "Social" label (no eusocial remap).
+
+### 1. D-07 "tribe pages" — what does this mean for tribe.njk?  *(RESOLVED: exclude tribe.njk — no species rows to badge; planner confirmed)*
 
 **What we know:** `tribe.njk` iterates `tribe.genera` (genus rows, not species rows). There are no species `<li>` items on the tribe page. D-07 says "species rows on genus / subgenus / tribe pages."
 
@@ -659,7 +671,7 @@ No new authentication, sessions, user input, or cryptography. Species traits are
 
 **Recommendation:** Implement (b) — no change to tribe.njk. The tribeList builder in `_data/species.js` carries genera only and the template renders genera only. Adding a species listing to tribe.njk is a scope expansion beyond what species-detail pages and genus/subgenus pages require. Flag for planner to confirm.
 
-### 2. species_traits.parquet graceful-degradation in local dev
+### 2. species_traits.parquet graceful-degradation in local dev  *(RESOLVED: warn-and-proceed, no hard-fail)*
 
 **What we know:** `species_traits.parquet` will not exist in local dev unless the developer runs `bash data/dbt/run.sh build` first.
 
@@ -667,7 +679,7 @@ No new authentication, sessions, user input, or cryptography. Species traits are
 
 **Recommendation:** Warn and proceed (option b). The species export is still useful without traits (the rest of the site works). A developer running `uv run python species_export.py` locally should see a clear warning but not a hard failure. A `FileNotFoundError` would be too aggressive since local dev often skips the full dbt build.
 
-### 3. Sociality label for "Social" — eusocial distinction?
+### 3. Sociality label for "Social" — eusocial distinction?  *(RESOLVED: keep "Social" as-is)*
 
 **What we know:** Bee-Gap uses "Social" (not "Eusocial"). The domain vocabulary in CLAUDE.md does not mention eusocial. The CONTEXT.md D-09 only prescribes the "Parasitic" → "Cleptoparasitic" remap.
 
