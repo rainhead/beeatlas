@@ -1,12 +1,13 @@
 """Export per-species aggregates and JSON sidecars for the Species Tab.
 
 Reads dbt-produced sandbox/species.parquet and sandbox/occurrences.parquet,
-adds slug via domain.slugify, emits six artifacts:
+adds slug via domain.slugify, emits seven artifacts:
   - species.parquet              (23 cols incl. taxon_id + slug)
   - species.json                 (flat array — Eleventy _data/species.js consumer)
   - seasonality.json             (species → bucket → INT[12] — VIZ-04 lookup)
   - photos.json                  (per-species CC-licensed iNat photo list — D-07/D-08)
   - higher_taxa.json             (dbt rollup: all higher-rank taxa with counts + membership — D-03)
+  - species_hosts.json           (per-bee family/genus floral hosts from sample data — Phase 175)
 
 higher_rank_taxon_ids.json is retired (D-03). higher_taxa.json supersedes it.
 
@@ -189,11 +190,12 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
     ``domain.slugify``. Also reads ``DBT_SANDBOX_DIR/occurrences.parquet``
     for the per-occurrence seasonality bucket accumulation.
 
-    Writes six artifacts to ASSETS_DIR:
+    Writes seven artifacts to ASSETS_DIR:
       - species.parquet             (23 cols including taxon_id + slug)
       - species.json                (json.dumps sort_keys=True, indent=2)
       - seasonality.json            (json.dumps sort_keys=True, separators=(',', ':'))
       - photos.json                 (CC-licensed iNat obs photos, keyed by canonical_name)
+      - species_hosts.json          (per-bee floral host families/genera from sample data, Phase 175)
       - higher_taxa.json            (dbt rollup: all higher-rank taxa with counts + membership, D-03)
 
     ``higher_rank_taxon_ids.json`` is retired (D-03) — use ``higher_taxa.json`` instead.
@@ -402,6 +404,55 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
         encoding='utf-8',
     )
     print(f"  photos.json: {len(photos):,} species, {photos_out.stat().st_size:,} bytes")
+
+    # ---- Phase 175: species_hosts.json ----------------------------------------
+    # Per-species floral host families and genera, derived from actual sample data.
+    # Reads species_host_plants.parquet (int_species_host_plants dbt intermediate).
+    # Graceful degradation: warn + write empty object when parquet is absent
+    # (local dev without a full dbt build); mirrors species_traits.parquet branch.
+    # JSON shape (LOCKED for 175-02):
+    #   { canonical_name: [ {family, sample_count, genera: [{genus, sample_count}, ...] }, ... ] }
+    # Families ordered by sample_count desc; genera per family ordered desc.
+    # sort_keys=True + indent=2 for byte-stable idempotency (nightly diff gate).
+    hosts: dict[str, list[dict]] = {}
+    hosts_parquet = DBT_SANDBOX_DIR / "species_host_plants.parquet"
+    if hosts_parquet.exists():
+        hosts_rows = con.execute(
+            f"""
+            SELECT canonical_name, family, genus, sample_count
+            FROM read_parquet('{hosts_parquet}')
+            ORDER BY canonical_name, sample_count DESC
+            """
+        ).fetchall()
+        # Build nested structure: canonical_name -> families (ordered by sample_count desc)
+        # family sample_count = sum of its rows (each host_observation maps to exactly
+        # one family/genus pair, so the sum equals the family-level distinct-sample count).
+        for canon, family, genus, sample_count in hosts_rows:
+            if canon not in hosts:
+                hosts[canon] = []
+            # Find existing family entry or create a new one
+            family_entry = next(
+                (f for f in hosts[canon] if f["family"] == family), None
+            )
+            if family_entry is None:
+                family_entry = {"family": family, "sample_count": 0, "genera": []}
+                hosts[canon].append(family_entry)
+            family_entry["sample_count"] += sample_count
+            if genus is not None:
+                family_entry["genera"].append({"genus": genus, "sample_count": sample_count})
+        # Ensure families are ordered by sample_count desc (accumulated from ordered rows).
+        # Genera are already in desc order (parquet is ordered by sample_count DESC).
+        for canon in hosts:
+            hosts[canon].sort(key=lambda f: f["sample_count"], reverse=True)
+    else:
+        print("  species_hosts.json: WARNING — species_host_plants.parquet not found; writing empty object")
+
+    hosts_out = ASSETS_DIR / "species_hosts.json"
+    hosts_out.write_text(
+        json.dumps(hosts, sort_keys=True, indent=2),
+        encoding='utf-8',
+    )
+    print(f"  species_hosts.json: {len(hosts):,} species, {hosts_out.stat().st_size:,} bytes")
 
     # ---- D-03: higher_taxa.json (replaces higher_rank_taxon_ids.json) -------
     # Reads DBT_SANDBOX_DIR/higher_taxa.parquet produced by the new dbt rollup.
