@@ -39,6 +39,7 @@ from ecdysis_pipeline import load_ecdysis, load_links
 from inaturalist_pipeline import load_observations as load_inaturalist_observations
 from waba_pipeline import load_observations as load_waba_observations
 from taxa_pipeline import download_taxa_csv, load_taxon_lineage_extended
+from host_plant_lineage import load_host_plant_lineage
 from projects_pipeline import load_projects
 from anti_entropy_pipeline import run_anti_entropy
 from checklist_pipeline import load_checklist
@@ -122,6 +123,7 @@ STEPS: list[tuple[str, Callable]] = [
     ("inactive-remap", generate_inactive_remaps),    # NEW: detect + auto-remap inactive taxa (D-11)
     ("inactive-gate", check_inactive_gate),          # NEW: hard-fail on unresolvable inactives (D-05)
     ("taxon-lineage-extended", load_taxon_lineage_extended),
+    ("host-plant-lineage", load_host_plant_lineage),
     ("places-validation", validate_places_step),
     ("places-load", load_places_step),
     ("dbt-build", _run_dbt_build),
