@@ -165,13 +165,44 @@ const genusList = Object.values(genusMap)
       .filter(sp => sp.occurrence_count > 0)
       .sort((a, b) => a.canonical_name.localeCompare(b.canonical_name));
     const n = withOcc.length;
-    // Unresolved records (specific_epithet null) get #aaaaaa, matching Python's _UNRESOLVED_COLOR.
-    const colorByCanon = Object.fromEntries(
-      withOcc.map((sp, i) => [
-        sp.canonical_name,
-        sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
-      ])
-    );
+    // Color the genus by SUBGENUS when it has >=2 distinct subgenera among its
+    // occurrence-bearing, epithet-bearing members; otherwise keep per-species coloring.
+    // This MUST stay byte-identical to data/species_maps.py _generate_group_maps (genus
+    // loop): same bucketing rule + same input set, so the page swatch color equals the SVG
+    // dot color for every species (swatch<->dot parity, Pitfall 2). The per-subgenus <h2>
+    // sections on the genus page act as the legend. Mirrors the subfamily->genus block below,
+    // one rank down. Unresolved records (specific_epithet null) get #aaaaaa (Python _UNRESOLVED_COLOR).
+    const cleanSubgenus = sp => (sp.subgenus && sp.subgenus.trim() !== '' ? sp.subgenus.trim() : null);
+    const distinctSubgenera = [...new Set(
+      withOcc
+        .filter(sp => sp.specific_epithet !== null && cleanSubgenus(sp))
+        .map(sp => cleanSubgenus(sp))
+    )].sort();
+    let colorByCanon;
+    if (distinctSubgenera.length >= 2) {
+      // SUBGENUS mode: one hue per subgenus over the sorted distinct-subgenus list.
+      const subgenusHex = {};
+      for (let i = 0; i < distinctSubgenera.length; i++) {
+        subgenusHex[distinctSubgenera[i]] = hslToHex(i * 360 / distinctSubgenera.length, 70, 50);
+      }
+      colorByCanon = Object.fromEntries(
+        withOcc.map(sp => {
+          const sg = cleanSubgenus(sp);
+          return [
+            sp.canonical_name,
+            sp.specific_epithet !== null && sg ? subgenusHex[sg] : '#aaaaaa',
+          ];
+        })
+      );
+    } else {
+      // SPECIES mode (0 or 1 distinct subgenus): one hue per species, unchanged.
+      colorByCanon = Object.fromEntries(
+        withOcc.map((sp, i) => [
+          sp.canonical_name,
+          sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
+        ])
+      );
+    }
     // Display species (specific_epithet != null) on the genus page.
     const speciesOnly = withOcc
       .filter(sp => sp.specific_epithet !== null)

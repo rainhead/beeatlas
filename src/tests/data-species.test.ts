@@ -119,10 +119,14 @@ describe('_data/species.js (PAGE-02)', () => {
     }
   });
 
-  test('genusList hexColors match the Python _group_colors algorithm for all genera (D-01)', () => {
+  test('genusList hexColors match the Python algorithm for all genera (D-01 / subgenus-mode parity)', () => {
     // Verifies color index computation across the full withOcc (including unresolved records),
     // matching Python's `WHERE occurrence_count > 0 ORDER BY canonical_name` input. Data-driven
     // so it stays green regardless of which species have occurrences in the current pipeline run.
+    // Two modes (mirrors data/species_maps.py _generate_group_maps genus loop):
+    //   - >=2 distinct subgenera among occurrence-bearing epithet-bearing members -> SUBGENUS mode
+    //     (one hue per subgenus over the sorted distinct-subgenus list).
+    //   - 0 or 1 distinct subgenus -> SPECIES mode (one hue per species, unchanged).
     // Checklist-only species (occurrence_count === 0) receive '#cccccc' and are excluded from
     // this check (tested separately in the D-03 test below).
     const flat = (species as any).flat;
@@ -132,17 +136,88 @@ describe('_data/species.js (PAGE-02)', () => {
         .filter((s: any) => s.genus === g.genus && s.occurrence_count > 0)
         .sort((a: any, b: any) => a.canonical_name.localeCompare(b.canonical_name));
       const n = withOcc.length;
-      const colorByCanon = Object.fromEntries(
-        withOcc.map((sp: any, i: number) => [
-          sp.canonical_name,
-          sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
-        ])
-      );
+      const cleanSubgen = (sp: any) =>
+        sp.subgenus && sp.subgenus.trim() !== '' ? sp.subgenus.trim() : null;
+      const distinctSubgenera = [...new Set(
+        withOcc
+          .filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp))
+          .map((sp: any) => cleanSubgen(sp))
+      )].sort() as string[];
+      let colorByCanon: Record<string, string>;
+      if (distinctSubgenera.length >= 2) {
+        const subgenusHex: Record<string, string> = {};
+        for (let i = 0; i < distinctSubgenera.length; i++) {
+          const name = distinctSubgenera[i] as string;
+          subgenusHex[name] = hslToHex(i * 360 / distinctSubgenera.length, 70, 50);
+        }
+        colorByCanon = Object.fromEntries(
+          withOcc.map((sp: any) => {
+            const sg = cleanSubgen(sp);
+            return [sp.canonical_name, (sp.specific_epithet !== null && sg) ? subgenusHex[sg] : '#aaaaaa'];
+          })
+        );
+      } else {
+        colorByCanon = Object.fromEntries(
+          withOcc.map((sp: any, i: number) => [
+            sp.canonical_name,
+            sp.specific_epithet !== null ? hslToHex(i * 360 / n, 70, 50) : '#aaaaaa',
+          ])
+        );
+      }
       for (const sp of g.species) {
         if (sp.slug === null) continue; // synthetic "Genus sp." key entry — no canonical_name
         if (sp.occurrence_count === 0) continue; // checklist-only species — verified in D-03 test
         expect(sp.hexColor, `${g.genus}/${sp.canonical_name}`).toBe(colorByCanon[sp.canonical_name]);
       }
+    }
+  });
+
+  test('genusList: a multi-subgenus genus buckets swatch colors by subgenus (GENUS-SUBGEN-COLOR)', () => {
+    // For any genus with >=2 distinct subgenera among occurrence-bearing epithet-bearing
+    // species: every species sharing a subgenus has ONE hexColor; different subgenera differ;
+    // and the recomputed reference color (hslToHex over the sorted distinct-subgenus list)
+    // equals the species' hexColor — the swatch<->dot parity contract with species_maps.py.
+    const flat = (species as any).flat;
+    const list = (species as any).genusList;
+    const cleanSubgen = (sp: any) =>
+      sp.subgenus && sp.subgenus.trim() !== '' ? sp.subgenus.trim() : null;
+
+    // Find every multi-subgenus genus (data-driven). At least one must exist (e.g. Andrena).
+    const multiSubgenusGenera = list.filter((g: any) => {
+      const withOcc = flat.filter((s: any) => s.genus === g.genus && s.occurrence_count > 0);
+      const distinct = new Set(
+        withOcc.filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp)).map(cleanSubgen)
+      );
+      return distinct.size >= 2;
+    });
+    expect(multiSubgenusGenera.length, 'expected at least one multi-subgenus genus (e.g. Andrena)').toBeGreaterThan(0);
+
+    for (const g of multiSubgenusGenera) {
+      const withOcc = flat.filter((s: any) => s.genus === g.genus && s.occurrence_count > 0);
+      const distinctSubgenera = [...new Set(
+        withOcc.filter((sp: any) => sp.specific_epithet !== null && cleanSubgen(sp)).map(cleanSubgen)
+      )].sort() as string[];
+      const subgenusHex: Record<string, string> = {};
+      for (let i = 0; i < distinctSubgenera.length; i++) {
+        const name = distinctSubgenera[i] as string;
+        subgenusHex[name] = hslToHex(i * 360 / distinctSubgenera.length, 70, 50);
+      }
+
+      // (a) one distinct hexColor per subgenus + (c) reference-color parity.
+      const colorBySubgenus: Record<string, string> = {};
+      for (const sp of g.species) {
+        if (sp.slug === null || sp.occurrence_count === 0) continue;
+        const sg = cleanSubgen(sp);
+        if (!sg) continue;
+        // (c) recomputed reference color matches the actual swatch color.
+        expect(sp.hexColor, `${g.genus}/${sp.canonical_name} parity`).toBe(subgenusHex[sg]);
+        // (a) every species of this subgenus shares one color.
+        if (colorBySubgenus[sg] === undefined) colorBySubgenus[sg] = sp.hexColor;
+        expect(sp.hexColor, `${g.genus}/${sg} not monochromatic`).toBe(colorBySubgenus[sg]);
+      }
+      // (b) >=2 distinct colors overall for the genus.
+      const distinctColors = new Set(Object.values(colorBySubgenus));
+      expect(distinctColors.size, `${g.genus} should have >=2 subgenus colors`).toBeGreaterThanOrEqual(2);
     }
   });
 
