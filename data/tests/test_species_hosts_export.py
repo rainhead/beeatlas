@@ -254,3 +254,42 @@ def test_idempotent_write(hosts_sandbox):
     second_bytes = (assets / "species_hosts.json").read_bytes()
 
     assert first_bytes == second_bytes, "species_hosts.json must be byte-identical across runs"
+
+
+def test_equal_sample_count_breaks_ties_by_name(hosts_sandbox):
+    """Families/genera at equal sample_count fall back to ascending name order.
+
+    Without a deterministic name tiebreaker the list order churns across builds
+    (the byte-stable nightly diff gate fails). sort_keys=True only orders dict
+    keys, not list elements, so the idempotency test alone can't catch this.
+    """
+    sandbox, assets = hosts_sandbox
+
+    # Overwrite the fixture parquet with an all-ties scenario: two families both
+    # at sample_count 5, and within Asteraceae two genera both at sample_count 5.
+    con = duckdb.connect()
+    con.execute(f"""
+        COPY (
+            SELECT canonical_name, family, genus, sample_count
+            FROM (VALUES
+                ('andrena cerasifolii', 'Rosaceae',   'Prunus',  5),
+                ('andrena cerasifolii', 'Asteraceae', 'Erigeron', 5),
+                ('andrena cerasifolii', 'Asteraceae', 'Aster',    5)
+            ) t(canonical_name, family, genus, sample_count)
+        )
+        TO '{sandbox}/species_host_plants.parquet' (FORMAT PARQUET)
+    """)
+    con.close()
+
+    _run(sandbox, assets)
+    families = _load_hosts_json(assets)["andrena cerasifolii"]
+
+    # Both families have sample_count 5 → ascending family name: Asteraceae, Rosaceae
+    assert [f["family"] for f in families] == ["Asteraceae", "Rosaceae"], (
+        f"Equal-count families must tiebreak by name asc, got {[f['family'] for f in families]}"
+    )
+    # Both genera have sample_count 5 → ascending genus name: Aster, Erigeron
+    aster = next(f for f in families if f["family"] == "Asteraceae")
+    assert [g["genus"] for g in aster["genera"]] == ["Aster", "Erigeron"], (
+        f"Equal-count genera must tiebreak by name asc, got {[g['genus'] for g in aster['genera']]}"
+    )

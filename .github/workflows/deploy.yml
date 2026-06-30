@@ -56,8 +56,15 @@ jobs:
           COLLECTOR_EVENT_PAGES_FILE=$(jq -r .collector_event_pages /tmp/manifest.json)
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTORS_FILE public/data/collectors.json
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTOR_EVENT_PAGES_FILE public/data/collector_event_pages.json
-          SPECIES_HOSTS_FILE=$(jq -r .species_hosts /tmp/manifest.json)
-          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_HOSTS_FILE public/data/species_hosts.json
+          # species_hosts is published by the nightly; on the first CODE deploy the
+          # live manifest predates it, so guard the fetch — `_data/species_hosts.js`
+          # tolerates absence (returns {}), keeping the data-before-code deploy green.
+          SPECIES_HOSTS_FILE=$(jq -r '.species_hosts // empty' /tmp/manifest.json)
+          if [ -n "$SPECIES_HOSTS_FILE" ]; then
+            aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_HOSTS_FILE public/data/species_hosts.json
+          else
+            echo "species_hosts not yet in manifest (pre-first-nightly); loader tolerates absence."
+          fi
 
       - name: Run tests
         run: npm test

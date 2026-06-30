@@ -28,9 +28,15 @@ aggregated AS (
         -- See feedback_checklist_synonymy_gap — apply int_synonyms join on any raw arm.
         COALESCE(syn.accepted_name, base.canonical_name)                            AS canonical_name,
         tle.family,
-        -- Genus from lineage walk; fall back to first token of host taxon name.
-        -- Handles species-rank hosts where the genus is the first name token.
-        COALESCE(tle.genus, split_part(obs.taxon__name, ' ', 1))                   AS genus,
+        -- Genus from lineage walk; fall back to first token of host taxon name
+        -- ONLY for species/genus-rank hosts (where token 1 IS the genus). Higher-rank
+        -- hosts (family/tribe/subfamily) have no genus — guarding the fallback on
+        -- taxon__rank avoids fabricating a bogus genus (e.g. "Asteraceae" as a genus).
+        COALESCE(
+            tle.genus,
+            CASE WHEN obs.taxon__rank IN ('species', 'genus')
+                 THEN split_part(obs.taxon__name, ' ', 1) END
+        )                                                                          AS genus,
         base.host_observation_id
     FROM base
     LEFT JOIN {{ ref('int_synonyms') }}                  syn ON syn.synonym = base.canonical_name
@@ -45,4 +51,6 @@ SELECT
     COUNT(DISTINCT host_observation_id) AS sample_count
 FROM aggregated
 GROUP BY canonical_name, family, genus
-ORDER BY canonical_name, sample_count DESC
+-- family, genus tiebreakers make list order deterministic on equal sample_count,
+-- preserving the byte-stable species_hosts.json the nightly diff gate relies on.
+ORDER BY canonical_name, sample_count DESC, family, genus

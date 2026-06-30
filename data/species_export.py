@@ -421,7 +421,7 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
             f"""
             SELECT canonical_name, family, genus, sample_count
             FROM read_parquet('{hosts_parquet}')
-            ORDER BY canonical_name, sample_count DESC
+            ORDER BY canonical_name, sample_count DESC, family, genus
             """
         ).fetchall()
         # Build nested structure: canonical_name -> families (ordered by sample_count desc)
@@ -440,10 +440,12 @@ def export_species_parquet(con: duckdb.DuckDBPyConnection) -> None:
             family_entry["sample_count"] += sample_count
             if genus is not None:
                 family_entry["genera"].append({"genus": genus, "sample_count": sample_count})
-        # Ensure families are ordered by sample_count desc (accumulated from ordered rows).
-        # Genera are already in desc order (parquet is ordered by sample_count DESC).
+        # Order families by sample_count desc, with family name as a deterministic
+        # tiebreaker so equal-count families keep a stable order across builds
+        # (byte-stable nightly diff gate). Genera are already in (sample_count desc,
+        # genus asc) order from the parquet ORDER BY.
         for canon in hosts:
-            hosts[canon].sort(key=lambda f: f["sample_count"], reverse=True)
+            hosts[canon].sort(key=lambda f: (-f["sample_count"], f["family"]))
     else:
         print("  species_hosts.json: WARNING — species_host_plants.parquet not found; writing empty object")
 
