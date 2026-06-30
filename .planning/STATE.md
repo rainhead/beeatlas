@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v7.0
 milestone_name: Species Trait Annotations
-status: verifying
-stopped_at: Phase 174 UI-SPEC approved
-last_updated: "2026-06-30T18:38:19.029Z"
+status: ready_to_plan
+stopped_at: Phase 175 complete (2/2) — ready to discuss Phase 999.11
+last_updated: 2026-06-30T19:06:44.323Z
 last_activity: 2026-06-30
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 3
-  completed_plans: 3
+  completed_plans: 70
   percent: 50
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 175 — floral-host-provenance-collected-from-flower-families-and-ge
+**Current focus:** Phase 999.11 — add federal wilderness areas as regions
 
 ## Current Position
 
-Phase: 175 (floral-host-provenance-collected-from-flower-families-and-ge) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
+Phase: 999.11
+Plan: Not started
+Status: Ready to plan
 Last activity: 2026-06-30
 
 ## Milestone Overview
