@@ -1844,6 +1844,6 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 174-03-PLAN.md — Wave 3: render the detail-page Traits definition list (friendly labels, host-bee links, `title=` provenance) + sociality/Specialist badges on the index tree + genus/subgenus pages (tribe excluded) + human UAT [TRAIT-UI-01,02,03,04; D-04,D-05,D-06,D-07,D-08,D-09]
+- [x] 174-03-PLAN.md — Wave 3: render the detail-page Traits definition list (friendly labels, host-bee links, `title=` provenance) + sociality/Specialist badges on the index tree + genus/subgenus pages (tribe excluded) + human UAT [TRAIT-UI-01,02,03,04; D-04,D-05,D-06,D-07,D-08,D-09]
 
 **UI hint**: yes
