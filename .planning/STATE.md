@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v7.0
 milestone_name: Species Trait Annotations
-status: verifying
-stopped_at: Phase 174 UI-SPEC approved
-last_updated: "2026-06-30T00:56:24.517Z"
+status: milestone_complete
+stopped_at: Milestone complete (Phase 174 was final phase)
+last_updated: 2026-06-30T02:29:23.449Z
 last_activity: 2026-06-30
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 3
-  completed_plans: 3
+  completed_plans: 68
   percent: 50
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 174 — surface-traits-in-the-site
+**Current focus:** Milestone complete
 
 ## Current Position
 
-Phase: 174 (surface-traits-in-the-site) — EXECUTING
-Plan: 3 of 3
-Status: Phase complete — ready for verification
+Phase: 174
+Plan: Not started
+Status: Milestone complete
 Next: `/gsd-plan-phase 174` (or `/gsd-discuss-phase 174` first — UI phase)
 Last activity: 2026-06-30
 

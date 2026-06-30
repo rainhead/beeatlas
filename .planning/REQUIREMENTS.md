@@ -14,10 +14,10 @@ are recorded here as **satisfied** for provenance. Phase 174 (integration) is th
 
 ### Trait Surfacing — Phase 174 (active)
 
-- [ ] **TRAIT-UI-01**: The species detail page displays the species' available traits — sociality, diet breadth (with host plant family for specialists), nesting, and native status — and omits traits with no data rather than showing blanks.
-- [ ] **TRAIT-UI-02**: Cleptoparasitic species show their recorded host bee(s) on the detail page.
-- [ ] **TRAIT-UI-03**: The species list/index surfaces trait labels (e.g. badges or columns) so traits are scannable without opening each species.
-- [ ] **TRAIT-UI-04**: Each surfaced trait exposes its provenance/source (e.g. via tooltip) so a user can tell a species-level label from a genus-backbone or Fowler-derived one.
+- [x] **TRAIT-UI-01**: The species detail page displays the species' available traits — sociality, diet breadth (with host plant family for specialists), nesting, and native status — and omits traits with no data rather than showing blanks.
+- [x] **TRAIT-UI-02**: Cleptoparasitic species show their recorded host bee(s) on the detail page.
+- [x] **TRAIT-UI-03**: The species list/index surfaces trait labels (e.g. badges or columns) so traits are scannable without opening each species.
+- [x] **TRAIT-UI-04**: Each surfaced trait exposes its provenance/source (e.g. via tooltip) so a user can tell a species-level label from a genus-backbone or Fowler-derived one.
 - [x] **TRAIT-UI-05**: Trait data reaches the frontend via the established `species.json` fetch-at-build pattern (S3 + manifest + deploy.yml) — no pipeline-regenerated artifacts committed, static hosting preserved.
 
 ## Future Requirements (deferred)
