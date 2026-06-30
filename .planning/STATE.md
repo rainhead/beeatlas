@@ -49,7 +49,7 @@ Items acknowledged and deferred at v7.0 milestone close on 2026-06-30:
 
 | Category | Item | Status |
 |----------|------|--------|
-| todo | checklist-count-zero-but-on-checklist | open (medium — v7.0 find) |
+| todo | checklist-count-zero-but-on-checklist | ✅ resolved 2026-06-30 (quick task 260629-tqw) |
 | todo | rebuild-source-into-facets | open (medium, pre-existing) |
 | todo | 144-code-review-deferred | open (low, pre-existing) |
 | todo | 165-code-review-deferred | open (pre-existing) |
