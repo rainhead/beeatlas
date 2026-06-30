@@ -471,6 +471,99 @@ def test_generate_group_maps_subfamily_genus_coloring(tmp_path, monkeypatch):
     )
 
 
+def _write_multi_subgenus_species_parquet(tmp_path):
+    """Write a species.parquet with one multi-subgenus genus and one single-subgenus genus.
+
+    - genus 'Multigenus': subgenera 'Alpha' (2 species) and 'Beta' (2 species)
+      -> >=2 distinct subgenera => SUBGENUS mode on the genus map.
+    - genus 'Singlegenus': subgenus 'Solo' (2 species)
+      -> exactly 1 distinct subgenus => SPECIES mode (per-species colors retained).
+    All occurrence-bearing, all epithet-bearing.
+    """
+    table = pa.table({
+        'canonical_name': [
+            'Multigenus alpha1', 'Multigenus alpha2',
+            'Multigenus beta1', 'Multigenus beta2',
+            'Singlegenus solo1', 'Singlegenus solo2',
+        ],
+        'genus': ['Multigenus', 'Multigenus', 'Multigenus', 'Multigenus',
+                  'Singlegenus', 'Singlegenus'],
+        'subgenus': ['Alpha', 'Alpha', 'Beta', 'Beta', 'Solo', 'Solo'],
+        'tribe': ['Multini', 'Multini', 'Multini', 'Multini', 'Singlini', 'Singlini'],
+        'occurrence_count': [2, 2, 2, 2, 2, 2],
+        'specific_epithet': ['alpha1', 'alpha2', 'beta1', 'beta2', 'solo1', 'solo2'],
+        'subfamily': ['Testinae', 'Testinae', 'Testinae', 'Testinae', 'Testinae', 'Testinae'],
+        'on_checklist': [True, True, True, True, True, True],
+    })
+    parquet_path = tmp_path / "species.parquet"
+    pq.write_table(table, parquet_path)
+    return parquet_path
+
+
+def test_generate_group_maps_genus_subgenus_coloring(tmp_path, monkeypatch):
+    """A genus with >=2 distinct subgenera colors its genus SVG by SUBGENUS.
+
+    Two species in subgenus 'Alpha' share one fill; two species in 'Beta' share a
+    different fill. Mirrors the subfamily->genus coloring assertion (D-06), one rank down.
+    A single-subgenus genus ('Singlegenus') stays in SPECIES mode (its two species get
+    DIFFERENT fills) — proving the >=2 threshold gate.
+    """
+    monkeypatch.setattr(species_maps_module, 'ASSETS_DIR', tmp_path)
+    _write_multi_subgenus_species_parquet(tmp_path)
+
+    con = duckdb.connect()
+    backdrop = ET.Element(f"{{{SVG_NS}}}svg")
+    WA_IN = (-120.5, 47.5)
+    occ_by_canon = {
+        'Multigenus alpha1': [WA_IN],
+        'Multigenus alpha2': [WA_IN],
+        'Multigenus beta1': [WA_IN],
+        'Multigenus beta2': [WA_IN],
+        'Singlegenus solo1': [WA_IN],
+        'Singlegenus solo2': [WA_IN],
+    }
+    maps_dir = tmp_path / "species-maps"
+    maps_dir.mkdir()
+
+    _generate_group_maps(con, occ_by_canon, backdrop, maps_dir)
+
+    ns = {'s': SVG_NS}
+
+    # --- Multigenus: SUBGENUS mode ---
+    multi_svg = maps_dir / "genus" / "Multigenus.svg"
+    assert multi_svg.exists(), "genus/Multigenus.svg must exist"
+    root = ET.parse(str(multi_svg)).getroot()
+    g_elements = root.findall(f'.//{{{SVG_NS}}}g')
+    fills = [g.attrib.get('fill', '') for g in g_elements if g.attrib.get('fill')]
+    # <g> groups appear in sorted canonical_name order:
+    # alpha1, alpha2, beta1, beta2
+    assert len(fills) == 4, f"Expected 4 <g fill> groups, got {len(fills)}: {fills}"
+
+    expected_subgen_colors = _group_colors(['Alpha', 'Beta'])
+    alpha_color = expected_subgen_colors['Alpha']
+    beta_color = expected_subgen_colors['Beta']
+    assert fills[0] == alpha_color, f"alpha1 expected {alpha_color!r}, got {fills[0]!r}"
+    assert fills[1] == alpha_color, f"alpha2 expected {alpha_color!r}, got {fills[1]!r}"
+    assert fills[2] == beta_color, f"beta1 expected {beta_color!r}, got {fills[2]!r}"
+    assert fills[3] == beta_color, f"beta2 expected {beta_color!r}, got {fills[3]!r}"
+    # Same subgenus -> same fill; different subgenus -> different fill.
+    assert fills[0] == fills[1], "Both Alpha species must share one fill (subgenus mode)"
+    assert fills[2] == fills[3], "Both Beta species must share one fill (subgenus mode)"
+    assert fills[0] != fills[2], "Alpha and Beta subgenera must have different fills"
+
+    # --- Singlegenus: SPECIES mode (1 distinct subgenus) ---
+    single_svg = maps_dir / "genus" / "Singlegenus.svg"
+    assert single_svg.exists(), "genus/Singlegenus.svg must exist"
+    single_root = ET.parse(str(single_svg)).getroot()
+    single_g = single_root.findall(f'.//{{{SVG_NS}}}g')
+    single_fills = [g.attrib.get('fill', '') for g in single_g if g.attrib.get('fill')]
+    assert len(single_fills) == 2, f"Expected 2 groups, got {len(single_fills)}"
+    assert single_fills[0] != single_fills[1], (
+        "A single-subgenus genus must retain per-species coloring (species mode), "
+        f"got identical fills {single_fills!r}"
+    )
+
+
 def test_generate_group_maps_no_eumeninae_svg(tmp_path, monkeypatch):
     """No species-maps/subfamily/Eumeninae.svg is emitted (D-08 wasp-bycatch gate).
 

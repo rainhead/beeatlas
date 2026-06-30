@@ -318,7 +318,8 @@ def _generate_group_maps(
 
     rows = con.execute(
         f"""
-        SELECT canonical_name, genus, subgenus, tribe, specific_epithet, subfamily
+        SELECT canonical_name, genus, subgenus, tribe, specific_epithet, subfamily,
+               occurrence_count
         FROM read_parquet('{species_parquet}')
         WHERE occurrence_count > 0 OR on_checklist = true
         ORDER BY canonical_name
@@ -332,18 +333,26 @@ def _generate_group_maps(
     tribe_members: dict[str, list[str]] = defaultdict(list)
     subfamily_members: dict[str, list[str]] = defaultdict(list)
     genus_of: dict[str, str] = {}  # canonical_name -> genus (for subfamily coloring, D-06)
+    # subgenus_of: canonical_name -> cleaned subgenus or None (for genus-by-subgenus coloring).
+    subgenus_of: dict[str, str | None] = {}
+    occ_count_of: dict[str, int] = {}  # canonical_name -> occurrence_count
     unresolved: set[str] = set()
 
-    for canonical_name, genus, subgenus, tribe, specific_epithet, subfamily in rows:
+    for (canonical_name, genus, subgenus, tribe, specific_epithet, subfamily,
+         occurrence_count) in rows:
         if specific_epithet is None:
             unresolved.add(canonical_name)
+        occ_count_of[canonical_name] = occurrence_count or 0
+        # Subgenus null guard (PATTERNS observation #3): treat empty/whitespace as None.
+        cleaned_subgenus = subgenus.strip() if (subgenus is not None and subgenus.strip() != '') else None
+        subgenus_of[canonical_name] = cleaned_subgenus
         if genus:
             genus_members[genus].append(canonical_name)
             genus_of[canonical_name] = genus
             # Subgenus null guard (PATTERNS observation #3): filter in Python,
             # not SQL, to catch both NULL and empty-string values.
-            if subgenus is not None and subgenus.strip() != '':
-                subgenus_members[(genus, subgenus)].append(canonical_name)
+            if cleaned_subgenus is not None:
+                subgenus_members[(genus, cleaned_subgenus)].append(canonical_name)
         if tribe:
             tribe_members[tribe].append(canonical_name)
         if subfamily:
@@ -362,14 +371,39 @@ def _generate_group_maps(
     # aren't identified to species. Per-species SVGs exclude them via SQL filter.
 
     # Genus maps: genus/<Genus>.svg
+    # When a genus has >=2 distinct subgenera among its occurrence-bearing,
+    # epithet-bearing members, color the dots by SUBGENUS (one hue per subgenus)
+    # so big genera (Andrena, Lasioglossum, ...) don't exhaust the categorical
+    # palette. The per-subgenus <h2> section headings on the genus page act as the
+    # legend. Genera with 0 or 1 distinct subgenus keep per-species coloring
+    # (coloring a single-subgenus genus by subgenus would make every dot one color).
+    # This mirrors the subfamily->genus pattern (D-06), one rank down. The same
+    # bucketing rule + member set is applied in _data/species.js (swatch<->dot parity).
     genus_dir = maps_dir / "genus"
     for genus_name in sorted(genus_members.keys()):
         members = genus_members[genus_name]
         species_points = {c: occ_by_canon.get(c, []) for c in members}
-        colors = _group_colors(members)
-        for c in members:
-            if c in unresolved:
-                colors[c] = _UNRESOLVED_COLOR
+        distinct_subgen = sorted({
+            subgenus_of[c]
+            for c in members
+            if occ_count_of.get(c, 0) > 0 and c not in unresolved and subgenus_of.get(c)
+        })
+        if len(distinct_subgen) >= 2:
+            # SUBGENUS mode: one color per subgenus NAME.
+            subgen_colors = _group_colors(distinct_subgen)
+            colors = {}
+            for c in members:
+                sg = subgenus_of.get(c)
+                if c not in unresolved and sg:
+                    colors[c] = subgen_colors[sg]
+                else:
+                    colors[c] = _UNRESOLVED_COLOR
+        else:
+            # SPECIES mode (0 or 1 distinct subgenus): unchanged per-species coloring.
+            colors = _group_colors(members)
+            for c in members:
+                if c in unresolved:
+                    colors[c] = _UNRESOLVED_COLOR
         total_clipped += _write_group_svg(genus_name, species_points, colors, backdrop, genus_dir)
         n_genus += 1
 
