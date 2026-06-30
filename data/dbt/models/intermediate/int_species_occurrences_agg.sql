@@ -16,8 +16,13 @@
 -- in phase 104 (SEM-01) to match this definition.
 {{ config(materialized='view') }}
 
+-- Synonymy: this reads the raw Ecdysis source, which may carry junior/gender-variant
+-- names (e.g. 'coelioxys octodentata' alongside accepted 'octodentatus'). Route the
+-- group key through int_synonyms so synonymous spellings collapse into one species row
+-- — mirroring the inat_obs arm of int_species_universe. Without this, a synonym present
+-- in raw Ecdysis leaks a duplicate species into the universe.
 SELECT
-    canonical_name,
+    COALESCE(syn.accepted_name, o.canonical_name) AS canonical_name,
     COUNT(*) AS occurrence_count,
     CAST(SUM(CASE WHEN id IS NOT NULL THEN 1 ELSE 0 END) AS BIGINT) AS specimen_count,
     MIN(TRY_CAST(event_date AS DATE)) AS first_occurrence_date,
@@ -36,6 +41,7 @@ SELECT
         SUM(CASE WHEN TRY_CAST(month AS INT) = 11 THEN 1 ELSE 0 END),
         SUM(CASE WHEN TRY_CAST(month AS INT) = 12 THEN 1 ELSE 0 END)
     )::INTEGER[12] AS month_histogram
-FROM {{ source('ecdysis_data', 'occurrences') }}
-WHERE canonical_name IS NOT NULL
-GROUP BY canonical_name
+FROM {{ source('ecdysis_data', 'occurrences') }} o
+LEFT JOIN {{ ref('int_synonyms') }} syn ON syn.synonym = o.canonical_name
+WHERE o.canonical_name IS NOT NULL
+GROUP BY COALESCE(syn.accepted_name, o.canonical_name)

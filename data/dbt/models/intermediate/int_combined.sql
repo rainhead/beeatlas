@@ -326,7 +326,7 @@ SELECT
     NULL::VARCHAR                          AS specimen_inat_taxon_name,
     NULL::VARCHAR                          AS specimen_inat_quality_grade,
     FALSE::BOOLEAN                         AS is_provisional,
-    cl.canonical_name,
+    COALESCE(syn_cl.accepted_name, cl.canonical_name) AS canonical_name,
     cl.taxon_id::INTEGER                   AS taxon_id,
     NULL::VARCHAR                          AS image_url,
     NULL::VARCHAR                          AS obs_url,
@@ -341,6 +341,13 @@ SELECT
     COALESCE(host_inat_login, specimen_inat_login, user_login) AS collector_inat_login,
     NULL::VARCHAR                          AS id_date  -- D-09: museum/checklist record, not volunteer work; no identification date
 FROM {{ ref('int_checklist_dedup_status') }} cl
+-- SYN-02 / ARM 5 fix: the checklist-records arm previously emitted cl.canonical_name raw,
+-- bypassing the synonymy every other arm applies (header L12). A checklist record using a
+-- junior/gender-variant name (e.g. 'coelioxys octodentata' vs accepted 'octodentatus')
+-- therefore leaked a duplicate species into int_species_universe. Route it through the
+-- same int_synonyms map. taxon_id is left as the checklist's own resolved id (accepted and
+-- synonym share it for the gender-variant cases that motivated this).
+LEFT JOIN {{ ref('int_synonyms') }} syn_cl ON syn_cl.synonym = cl.canonical_name
 WHERE cl.dedup_status IS DISTINCT FROM 'confirmed'
   AND cl.lat IS NOT NULL
   AND cl.lon IS NOT NULL

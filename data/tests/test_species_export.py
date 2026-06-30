@@ -92,6 +92,16 @@ def sandbox_parquet(tmp_path, monkeypatch):
     con.execute("INSERT INTO occ_staging VALUES ('agapostemon subtilior', NULL, NULL, NULL)")
     con.execute(f"COPY occ_staging TO '{sandbox}/occurrences.parquet' (FORMAT PARQUET)")
 
+    # species_traits.parquet: Phase 174 trait merge input.
+    # Must match canonical_names in species_fixture.csv so the merge can join.
+    con.execute(f"""
+        COPY (
+            SELECT * FROM read_csv('{FIXTURES_DIR}/species_traits_fixture.csv',
+                                   header=True, auto_detect=True)
+        )
+        TO '{sandbox}/species_traits.parquet' (FORMAT PARQUET)
+    """)
+
     con.close()
 
     # Redirect module-level constants via setattr (setenv is insufficient after import).
@@ -316,3 +326,41 @@ def test_export_runs_collision_check_clean(tmp_path, monkeypatch, sandbox_parque
     # If a collision were present, this would raise AssertionError.
     # Completing without error confirms the check ran and found no collision.
     export_species_parquet(con)
+
+
+# ---------------------------------------------------------------------------
+# Phase 174 trait merge tests (Path B — D-01/D-02/D-03)
+# ---------------------------------------------------------------------------
+
+def test_trait_fields_in_species_json(tmp_path, monkeypatch, sandbox_parquet):
+    """Every one of the 11 trait fields is present as a key, and at least one row
+    carries non-null trait data after the merge (Phase 174; CR WR-03)."""
+    con = duckdb.connect()
+    export_species_parquet(con)
+    rows = json.loads((tmp_path / 'species.json').read_text())
+    assert rows, "species.json must be non-empty"
+    # All 11 trait fields must appear as keys on every row (merged, even if null).
+    for field in se_mod._TRAIT_FIELDS:
+        assert all(field in r for r in rows), f"trait field {field!r} missing from some species.json rows"
+    # The merge must actually land values, not just keys — at least one trait field
+    # is non-null somewhere (the fixture carries sociality/nesting/native for bombus mixtus).
+    assert any(
+        any(r.get(field) is not None for field in se_mod._TRAIT_FIELDS) for r in rows
+    ), "no trait values merged into species.json"
+    assert any(r.get('sociality') is not None for r in rows), "no sociality merged"
+
+
+def test_trait_fields_absent_gracefully(tmp_path, monkeypatch, sandbox_parquet):
+    """When species_traits.parquet is absent, export completes and ALL 11 trait fields
+    are None on every row (Phase 174 graceful degradation; CR WR-02)."""
+    # Remove the fixture parquet to simulate local dev without full dbt build.
+    (sandbox_parquet / 'species_traits.parquet').unlink()
+    con = duckdb.connect()
+    export_species_parquet(con)   # must not raise
+    rows = json.loads((tmp_path / 'species.json').read_text())
+    assert rows, "species.json must be non-empty"
+    for row in rows:
+        for field in se_mod._TRAIT_FIELDS:
+            assert row.get(field) is None, (
+                f"Expected {field}=None when traits absent, got {row.get(field)!r}"
+            )

@@ -51,6 +51,94 @@ seeds:
           - not_null
       - name: note
         description: "Curator provenance: the iNat accepted name + reason for the override (gender variant / subspecies / synonym citation)."
+  - name: bee_traits_beegap
+    description: >
+      USGS Bee-Gap 2017 species-level ecological traits (Public Domain — U.S. Geological
+      Survey, ScienceBase item 5bd868b2e4b0b3fc5ce9dadd, 'Taxonomy and General Traits').
+      One row per US bee species (national). Read by marts/species_traits as the primary
+      sociality / nesting / native source and the fallback diet-breadth flag. Empty string
+      = not recorded by Bee-Gap (NOT 'no'). Joins on lowercased binomial canonical_name;
+      Bee-Gap's own key is an ITIS ID, so the join is name-based and 2017-vintage names may
+      need synonym reconciliation against the live checklist.
+    columns:
+      - name: canonical_name
+        description: "Lowercased Genus species binomial."
+        data_tests:
+          - not_null
+          - unique
+      - name: native
+        description: "native | introduced | '' (unrecorded)."
+      - name: nesting
+        description: "Ground | Cavity | Wood | Host Nest | Multiple | Open | '' (unrecorded)."
+      - name: sociality
+        description: "Solitary | Parasitic | Eusocial | Primitively Eusocial | Subsocial | Plastic | Communal | '' (unrecorded)."
+      - name: foraging
+        description: "Generalist | Specialist | '' (unrecorded). Sparse — diet breadth is sourced primarily from bee_specialist_hosts."
+  - name: bee_specialist_hosts
+    description: >
+      Pollen-specialist (oligolectic) bees of the Western United States, from Jarrod Fowler
+      & Sam Droege (jarrodfowler.com/pollen_specialist.html; data USGS-affiliated, credit
+      required, no explicit license — stored as derived trait labels). One row per specialist
+      bee species with its host plant taxon. Presence on this list = specialist; absence is
+      NOT proof of generalism. host_states is host-plant presence at state granularity, so a
+      WA listing does not guarantee the bee occurs in WA. Read by marts/species_traits as the
+      authoritative diet-breadth overlay (wins ties over Bee-Gap's foraging flag).
+    columns:
+      - name: canonical_name
+        description: "Lowercased Genus species binomial (from the DiscoverLife search link)."
+        data_tests:
+          - not_null
+          - unique
+      - name: host_plant_family
+        description: "Host plant family (…aceae) when the host cell names a family; '' when only a host genus is given."
+      - name: host_plant_detail
+        description: "Full host plant text as published (Family : Tribe : Genera)."
+      - name: host_states
+        description: "Hyphen-joined western-state postal codes where the host plant occurs (e.g. 'CA-ID-OR-WA')."
+      - name: fowler_status
+        description: "Fowler's abundance note for the bee (e.g. Rare, Uncommon)."
+  - name: bee_genus_traits
+    description: >
+      Genus-level sociality/nesting backbone, derived from Bee-Gap 2017 but emitted ONLY for
+      genera that are unambiguous (a single distinct non-blank value across all US species in
+      the genus). Fills species the species-level table misses. Ambiguous genera (e.g.
+      Lasioglossum, Bombus, Hylaeus, Hoplitis, Andrena, Agapostemon) carry an empty value
+      rather than a guessed label. Diet breadth is intentionally absent here — it is
+      species-level and never assigned from the genus. Read by marts/species_traits as the
+      fallback below bee_traits_beegap.
+    columns:
+      - name: genus
+        description: "Lowercased genus name."
+        data_tests:
+          - not_null
+          - unique
+      - name: sociality
+        description: "Genus-stable sociality, or '' when Bee-Gap shows >1 distinct value for the genus."
+      - name: nesting
+        description: "Genus-stable nesting behavior, or '' when ambiguous."
+      - name: note
+        description: "Provenance: Bee-Gap species counts and distinct-value counts behind the assignment."
+  - name: bee_parasite_hosts
+    description: >
+      Host bees of cleptoparasitic ("cuckoo") species, from USGS Bee-Gap 2017 (Public Domain,
+      ScienceBase item 5bd868b2e4b0b3fc5ce9dadd, "Parasites and Hosts.csv"). One row per
+      parasite–host pair (many-to-many: a cuckoo may parasitize several hosts). host_species
+      is empty when Bee-Gap records the host only to genus. Read by marts/species_traits, which
+      aggregates host_taxon per parasite into the host_bees column. Distinct from the host
+      *plant* of pollen specialists (bee_specialist_hosts) — this is the host *bee*.
+    columns:
+      - name: parasite
+        description: "Lowercased Genus species binomial of the cleptoparasite."
+        data_tests:
+          - not_null
+      - name: host_genus
+        description: "Lowercased host bee genus."
+        data_tests:
+          - not_null
+      - name: host_species
+        description: "Lowercased host bee specific epithet, or '' when recorded only to genus."
+      - name: host_taxon
+        description: "Display form: 'Genus species', or 'Genus' when species is unrecorded."
   - name: dedup_decisions
     description: "Curator-confirmed cross-source deduplication decisions (Phase 136 / D-01). pair_key = '<ObjectID>|<ecdysis_id>'. Unreviewed pairs have no row; only 'confirmed' suppresses a point."
     columns:

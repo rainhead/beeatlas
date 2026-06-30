@@ -47,6 +47,7 @@
 - ✅ **v5.1 Housekeeping** — Phases 155–159 (shipped 2026-06-23). Post-v5.0 cleanup: the shift-drag discoverability hint and the bounds-as-filter state/URL refactor (155–156), the regions-dropdown stacking fix (157), non-WABA specimen-photo capture via reusable WABA-backfill curation tooling (158, resolved by curation — no pipeline change), and a one-click sidebar taxon-filter shortcut (159). See [.planning/milestones/v5.1-ROADMAP.md](milestones/v5.1-ROADMAP.md).
 - ✅ **v5.2 Place Coverage Expansion** — Phases 160–162 (shipped 2026-06-24). Made the place model overlap-capable so an occurrence can belong to multiple places (160 — `occurrence_places` many-to-many bridge mart, scalar `place_slug` dropped, overlap guard removed), then added two new curated place sources on top of it: 33 WDFW wildlife areas (161) and 13 WTA hike corridors (162, ~250 m metric buffers solving the linear-feature problem; 1 of 14 deferred). The model change (160) was split out during Phase 161 research, which found 16 real WDFW↔existing-place overlaps and established that the legacy one-place-per-occurrence rule was an implementation artifact, not a requirement. See [.planning/milestones/v5.2-ROADMAP.md](milestones/v5.2-ROADMAP.md).
 - ✅ **v6.0 My Work — Progress & Provenance** — Phases 167–172 incl. inserted 171.1 (shipped 2026-06-28). Per-collector bookmarkable pages (`/collectors/{login}/`) with a collection→ID lifecycle event stream and an accomplishments view (county/ecoregion coverage, taxonomic breadth, active-seasons badge), on a rebuilt occurrence model that replaced the `source` enum with orthogonal `tier`+`record_type` facets and added a unified `collector_inat_login` + lifecycle `id_date` to the mart (dbt contract 36→39). See [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md).
+- 🚧 **v7.0 Species Trait Annotations** — Phases 173–174 (in progress). Annotate species with curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean sources and surface them on the species index + detail pages with per-trait provenance. Phase 173 (the `species_traits` data layer + synonymy-arm fix) shipped ad-hoc on branch `species-trait-annotations`; Phase 174 (site integration) is the active work.
 
 ## Phases
 
@@ -1794,5 +1795,55 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 172-05-PLAN.md — Wave 3: operator UAT checkpoint (blocking)
+
+**UI hint**: yes
+
+---
+
+## v7.0 Species Trait Annotations
+
+### Phase 173: Species Trait Data Layer ✅ COMPLETE
+
+**Goal**: A `species_traits` mart, keyed on `canonical_name`, carries curated ecological traits (sociality, diet breadth + host plant family, nesting, native status, cuckoo host bee) with per-trait provenance, assembled from license-clean committed seeds
+**Depends on**: nothing (additive — leaves the contracted `species` mart untouched)
+**Requirements**: TRAIT-DATA-01, TRAIT-DATA-02, TRAIT-DATA-03
+**Success Criteria** (what must be TRUE):
+
+  1. `marts/species_traits` emits one row per atlas binomial species with sociality / diet_breadth / nesting / native_status / host_plant_family / host_bees plus a `*_source` column for each label
+  2. Four committed dbt seeds supply the labels — `bee_traits_beegap` (USGS Bee-Gap 2017, public domain), `bee_specialist_hosts` (Fowler & Droege Western specialists), `bee_genus_traits` (genus backbone), `bee_parasite_hosts` (cuckoo hosts) — with not_null/unique tests passing
+  3. All seed join keys route through `int_synonyms`; a latent bug where `int_combined` ARM 5 and `int_species_occurrences_agg` bypassed synonymy was fixed, resolving the `coelioxys octodentata`/`octodentatus` duplicate species
+  4. Coverage on 591 binomial species: nesting 95%, sociality 88%, diet breadth 46%, cuckoo host 63/96 — full `dbt build` green, occurrences contract holds, 282 pytest pass
+
+**Note**: Executed ad-hoc (not via GSD plan/execute) — branch `species-trait-annotations`, commits `051a16ab` (synonymy fix) + `275206aa` (trait mart + seeds). Recorded here for provenance.
+
+**Plans**: n/a (ad-hoc)
+
+### Phase 174: Surface Traits in the Site
+
+**Goal**: A site visitor can see a species' ecological traits — with each label's source — on both the species list/index and the species detail page
+**Depends on**: Phase 173 (`species_traits` mart)
+**Requirements**: TRAIT-UI-01, TRAIT-UI-02, TRAIT-UI-03, TRAIT-UI-04, TRAIT-UI-05
+**Success Criteria** (what must be TRUE):
+
+  1. The species detail page shows the species' available traits (sociality, diet breadth + host plant for specialists, nesting, native status), omitting traits with no data
+  2. Cleptoparasitic species show their recorded host bee(s) on the detail page
+  3. The species list/index surfaces trait labels (badges/columns) so traits are scannable without opening each species
+  4. Each surfaced trait exposes its provenance/source (e.g. tooltip) distinguishing species-level from genus-backbone / Fowler-derived labels
+  5. Trait fields reach the frontend via the `species.json` fetch-at-build pattern (S3 + manifest + deploy.yml) — no committed pipeline artifacts, static hosting preserved
+
+**Plans**: 3 plans (3 waves)
+
+Plans:
+**Wave 1**
+
+- [x] 174-01-PLAN.md — Wave 1: emit `species_traits.parquet` (dbt external materialization) + merge the 11 trait fields into `species.json` by `canonical_name` (RESEARCH Path B — no dbt contract / SPECIES_COLUMNS / pyarrow-schema change) + Python merge/graceful-degradation tests + the one-time `SKIP_INTEGRATION_GATE` operator transition nightly [TRAIT-UI-05; D-01,D-02,D-03]
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 174-02-PLAN.md — Wave 2: thread traits through `_data/species.js` (`resolveHostBees` typed host-bee targets + `makeSpeciesNode` badge fields; genus/subgenus carry traits via `{...sp}` spread) + the `.traits*`/`.node-badge*` CSS + JS threading/resolver tests [TRAIT-UI-02,03; D-05,D-06,D-07]
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 174-03-PLAN.md — Wave 3: render the detail-page Traits definition list (friendly labels, host-bee links, `title=` provenance) + sociality/Specialist badges on the index tree + genus/subgenus pages (tribe excluded) + human UAT [TRAIT-UI-01,02,03,04; D-04,D-05,D-06,D-07,D-08,D-09]
 
 **UI hint**: yes

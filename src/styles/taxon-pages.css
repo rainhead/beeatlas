@@ -101,11 +101,26 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   font-size: 0.85rem;
 }
 
+/* Species detail hero: 2x2 grid — metadata top-left, photo top-right,
+   seasonality + map side by side on the second row. Auto-placement fills
+   row-major from the DOM order (meta, photo, seasonality, map). */
+.taxon-page .hero-photo {
+  margin: 0;
+}
+
 @media (min-width: 768px) {
+  /* Two-column media row used by genus/subgenus/tribe/subfamily/place pages. */
   .taxon-page .media-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
+    align-items: start;
+  }
+
+  .taxon-page .species-hero {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem 1.5rem;
     align-items: start;
   }
 }
@@ -294,4 +309,83 @@ seasonality-viz .axis        { font: 10px system-ui; fill: #555; }
   .species-index .species-list {
     padding-left: 1rem;
   }
+}
+
+/* Phase 174: Traits fact-sheet section on species detail pages */
+.traits {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.traits-heading {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #444);
+  margin: 0 0 0.25rem;
+}
+
+.traits-dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+  align-items: baseline;
+  margin: 0;
+}
+
+.traits-dl dt {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #666);
+  cursor: help;
+}
+
+.traits-dl dt:focus-visible {
+  outline: 2px solid var(--accent, #2c7a2c);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.traits-dl dd {
+  font-size: 0.85rem;
+  color: var(--text-body, #213547);
+  margin: 0;
+}
+
+.traits-dl dd a {
+  color: var(--link, #646cff);
+}
+
+.traits-dl dd a:hover {
+  color: var(--link-hover, #535bf2);
+}
+
+/* Phase 174: Compact trait badges in species rows (index tree + genus/subgenus pages) */
+.node-badge {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  background: var(--surface-subtle, #f5f5f5);
+  border: 1px solid var(--border, #ddd);
+  color: var(--text-muted, #666);
+  white-space: nowrap;
+  cursor: help;
+  line-height: 1.4;
+}
+
+.node-badge:focus-visible {
+  outline: 2px solid var(--accent, #2c7a2c);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Specialist diet modifier — accent color as secondary signal;
+   text label ("Specialist") is the primary differentiator. */
+.node-badge--specialist {
+  border-color: var(--accent, #2c7a2c);
+  color: var(--accent, #2c7a2c);
 }

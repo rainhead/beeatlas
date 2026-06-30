@@ -25,6 +25,16 @@ layout: default.njk
       <li>
         <span class="swatch" style="background: {{ sp.hexColor }};" aria-hidden="true"></span>
         {%- if sp.slug %}<a href="/species/{{ sp.slug }}/index.html"><em>{{ sp.scientificName }}</em></a>{%- else %}<em>{{ sp.scientificName }}</em>{%- endif %}
+        {%- if sp.sociality -%}
+        <span class="node-badge" tabindex="0"
+              title="Sociality: {% if sp.sociality === 'Parasitic' %}Cleptoparasitic{% else %}{{ sp.sociality }}{% endif %} · {% if sp.sociality_source === 'beegap-species' %}Bee-Gap 2017{% else %}Genus backbone{% endif %}">
+          {%- if sp.sociality === 'Parasitic' %}Clepto{%- else %}{{ sp.sociality }}{%- endif -%}
+        </span>
+        {%- endif -%}
+        {%- if sp.diet_breadth === 'specialist' -%}
+        <span class="node-badge node-badge--specialist" tabindex="0"
+              title="Diet: Specialist{% if sp.host_plant_family %} ({{ sp.host_plant_family }}){% endif %} · {% if sp.diet_breadth_source === 'fowler' %}Fowler &amp; Droege{% else %}Bee-Gap 2017{% endif %}">Specialist</span>
+        {%- endif -%}
         {%- if sp.occurrence_count > 0 -%}
         <span class="count">{{ sp.specimen_count | quantify("specimen") }} · {{ sp.inat_obs_count | quantify("community observation") }}</span>
         {%- elif sp.on_checklist -%}

@@ -7,6 +7,16 @@ title: Species — BeeAtlas
 {%- if node.rank === "species" -%}
 <li data-rank="species" data-name="{{ node.scientificName | lower }}">
   <a class="node-name" href="/species/{{ node.slug }}/index.html"><em>{{ node.scientificName }}</em></a>
+  {%- if node.sociality -%}
+  <span class="node-badge" tabindex="0"
+        title="Sociality: {% if node.sociality === 'Parasitic' %}Cleptoparasitic{% else %}{{ node.sociality }}{% endif %} · {% if node.sociality_source === 'beegap-species' %}Bee-Gap 2017{% else %}Genus backbone{% endif %}">
+    {%- if node.sociality === 'Parasitic' %}Clepto{%- else %}{{ node.sociality }}{%- endif -%}
+  </span>
+  {%- endif -%}
+  {%- if node.diet_breadth === 'specialist' -%}
+  <span class="node-badge node-badge--specialist" tabindex="0"
+        title="Diet: Specialist{% if node.host_plant_family %} ({{ node.host_plant_family }}){% endif %} · {% if node.diet_breadth_source === 'fowler' %}Fowler &amp; Droege{% else %}Bee-Gap 2017{% endif %}">Specialist</span>
+  {%- endif -%}
   <span class="node-counts">{{ node.specimen_count | quantify("specimen") }} · {{ node.inat_obs_count | quantify("community observation") }}</span>
   <a class="node-map" href="/?taxon={{ node.scientificName | urlencode }}&amp;taxonRank=species" aria-label="Map: {{ node.scientificName }} occurrences">Map</a>
 </li>

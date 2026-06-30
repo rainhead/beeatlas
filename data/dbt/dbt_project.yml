@@ -49,3 +49,29 @@ seeds:
         canonical_name: varchar
         taxon_id: integer
         note: varchar
+    bee_traits_beegap:
+      +column_types:
+        canonical_name: varchar
+        native: varchar
+        nesting: varchar
+        sociality: varchar
+        foraging: varchar
+    bee_specialist_hosts:
+      +column_types:
+        canonical_name: varchar
+        host_plant_family: varchar
+        host_plant_detail: varchar
+        host_states: varchar
+        fowler_status: varchar
+    bee_genus_traits:
+      +column_types:
+        genus: varchar
+        sociality: varchar
+        nesting: varchar
+        note: varchar
+    bee_parasite_hosts:
+      +column_types:
+        parasite: varchar
+        host_genus: varchar
+        host_species: varchar
+        host_taxon: varchar
