@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v7.0
 milestone_name: Species Trait Annotations
-status: planning
+status: executing
 stopped_at: Phase 174 UI-SPEC approved
-last_updated: "2026-06-29T23:56:45.657Z"
-last_activity: 2026-06-29 — Milestone v7.0 started; Phase 173 (species_traits data layer) recorded complete
+last_updated: "2026-06-30T00:22:20.084Z"
+last_activity: 2026-06-30 -- Phase 174 planning complete
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 Phase: 174 — Surface Traits in the Site (NEXT — not started)
 Plan: — (Phase 173 data layer COMPLETE, shipped ad-hoc on branch `species-trait-annotations`)
-Status: Ready to plan Phase 174
+Status: Ready to execute
 Next: `/gsd-plan-phase 174` (or `/gsd-discuss-phase 174` first — UI phase)
-Last activity: 2026-06-29 — Milestone v7.0 started; Phase 173 (species_traits data layer) recorded complete
+Last activity: 2026-06-30 -- Phase 174 planning complete
 
 ## Milestone Overview
 
