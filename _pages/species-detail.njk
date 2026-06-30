@@ -57,7 +57,7 @@ layout: default.njk
       {%- endif -%}
       {%- if hasDiet -%}
       <dt tabindex="0" title="Source: {% if sp.diet_breadth_source === 'fowler' %}Fowler &amp; Droege specialist list{% elif sp.diet_breadth_source === 'beegap-species' %}Bee-Gap 2017, species-level{% endif %}">Diet</dt>
-      <dd>{%- if sp.diet_breadth === 'specialist' %}{%- if sp.host_plant_family %}Specialist ({{ sp.host_plant_family }}){%- else %}Specialist{%- endif %}{%- else %}Generalist{%- endif %}</dd>
+      <dd>{%- if sp.diet_breadth === 'specialist' %}{%- if sp.dietHost %}Specialist ({{ sp.dietHost }}){%- else %}Specialist{%- endif %}{%- else %}Generalist{%- endif %}</dd>
       {%- endif -%}
       {%- if hasNesting -%}
       <dt tabindex="0" title="Source: {% if sp.nesting_source === 'beegap-species' %}Bee-Gap 2017, species-level{% elif sp.nesting_source === 'genus-backbone' %}Genus backbone (inferred from genus){% endif %}">Nesting</dt>

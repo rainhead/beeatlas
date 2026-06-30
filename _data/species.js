@@ -74,8 +74,48 @@ function resolveHostBees(hostBees) {
   });
 }
 
+// Phase 174 (gap closure): build a human-readable specialist host label from the
+// Fowler fields. `host_plant_detail` is the rich field — a comma-separated genus
+// list, each entry "Genus Author …", optionally prefixed with "Family : ". The
+// genus name is reliably the first capitalised word of each comma-separated entry,
+// so botanical authorities and parenthetical synonyms are dropped. `host_plant_family`
+// is the family. Display contract (chosen 2026-06-29): "Family: genus, genus" when
+// both are known, genus-only when no family, family-only when no genera, null when
+// neither (e.g. Bee-Gap-sourced specialists carry no host). 44% of Fowler specialists
+// have only `host_plant_detail` (no family) — without this they showed a bare
+// "Specialist". See species-detail.njk Diet row.
+function dietHostLabel(family, detail) {
+  let fam = family || null;
+  let genera = [];
+  if (detail) {
+    let rest = detail;
+    const colonIdx = detail.indexOf(':');
+    if (colonIdx !== -1) {
+      const prefix = detail.slice(0, colonIdx).trim();
+      if (!fam && prefix) fam = prefix;
+      rest = detail.slice(colonIdx + 1);
+    }
+    genera = rest
+      .split(',')
+      .map(g => g.trim())
+      .map(g => (g.match(/^[A-Z][a-zA-Z-]*/) || [''])[0]) // genus = first capitalised word
+      .filter(Boolean);
+    genera = [...new Set(genera)];
+    // detail that is only the family name (e.g. "Fabaceae") yields no distinct genera
+    if (fam && genera.length === 1 && genera[0] === fam) genera = [];
+  }
+  if (genera.length && fam) return `${fam}: ${genera.join(', ')}`;
+  if (genera.length) return genera.join(', ');
+  if (fam) return fam;
+  return null;
+}
+
 for (const sp of flat) {
   sp.resolvedHostBees = resolveHostBees(sp.host_bees);
+  // Specialist host label for the detail-page Diet row (null when no host is recorded).
+  sp.dietHost = sp.diet_breadth === 'specialist'
+    ? dietHostLabel(sp.host_plant_family, sp.host_plant_detail)
+    : null;
 }
 
 // Phase 93 D-01: HSL→hex formula matching Python colorsys.hls_to_rgb exactly.
@@ -143,7 +183,13 @@ const genusList = Object.values(genusMap)
     const unresolvedOccurrences = unresolvedMembers.reduce((acc, sp) => acc + sp.occurrence_count, 0);
     const unresolvedSpecimenCount = unresolvedMembers.reduce((acc, sp) => acc + (sp.specimen_count || 0), 0);
     const unresolvedInatObsCount = unresolvedMembers.reduce((acc, sp) => acc + (sp.inat_obs_count || 0), 0);
-    const species = [...speciesOnly, ...checklistSpecies];
+    // Alphabetical for display: merge occurrence-bearing + checklist-only species and
+    // sort by name (they were two separately-sorted runs, so the concatenation looked
+    // unsorted on genus/subgenus pages). Color indices stay keyed by canonical_name over
+    // `withOcc`, so display order does not affect swatch hues. The synthetic "Genus sp."
+    // entry is appended after this sort and remains last.
+    const species = [...speciesOnly, ...checklistSpecies]
+      .sort((a, b) => a.scientificName.localeCompare(b.scientificName));
     if (unresolvedOccurrences > 0) {
       species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }
@@ -223,7 +269,13 @@ const subgenusList = Object.values(subgenusMap)
     const unresolvedOccurrences = unresolvedSubgenusMembers.reduce((acc, sp) => acc + sp.occurrence_count, 0);
     const unresolvedSpecimenCount = unresolvedSubgenusMembers.reduce((acc, sp) => acc + (sp.specimen_count || 0), 0);
     const unresolvedInatObsCount = unresolvedSubgenusMembers.reduce((acc, sp) => acc + (sp.inat_obs_count || 0), 0);
-    const species = [...speciesOnly, ...checklistSpecies];
+    // Alphabetical for display: merge occurrence-bearing + checklist-only species and
+    // sort by name (they were two separately-sorted runs, so the concatenation looked
+    // unsorted on genus/subgenus pages). Color indices stay keyed by canonical_name over
+    // `withOcc`, so display order does not affect swatch hues. The synthetic "Genus sp."
+    // entry is appended after this sort and remains last.
+    const species = [...speciesOnly, ...checklistSpecies]
+      .sort((a, b) => a.scientificName.localeCompare(b.scientificName));
     if (unresolvedOccurrences > 0) {
       species.push({ scientificName: `${g.genus} sp.`, hexColor: '#aaaaaa', occurrence_count: unresolvedOccurrences, specimen_count: unresolvedSpecimenCount, inat_obs_count: unresolvedInatObsCount, slug: null });
     }

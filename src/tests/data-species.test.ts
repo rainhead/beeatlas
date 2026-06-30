@@ -65,16 +65,58 @@ describe('_data/species.js (PAGE-02)', () => {
     expect(typeof agapostemon.totalOccurrences).toBe('number');
   });
 
-  test('genusList species sorted alphabetically by canonical_name (D-02)', () => {
-    // WABA species (occurrence_count > 0) are sorted alphabetically by canonical_name.
-    // Checklist-only species (occurrence_count === 0, on_checklist) are appended after WABA
-    // species in their own alphabetical sort block — the combined list is not fully sorted.
+  test('genusList species are fully alphabetical by name, synthetic "Genus sp." last (Phase 174 gap fix)', () => {
+    // Display order: occurrence-bearing AND checklist-only species are merged into one
+    // alphabetical (scientificName) run on every genus page; the synthetic "Genus sp."
+    // entry (slug === null) is appended last. Previously the two groups were concatenated
+    // separately, so the combined list looked unsorted wherever a genus had both kinds.
     const list = (species as any).genusList;
-    const agapostemon = list.find((g: any) => g.genus === 'Agapostemon');
-    const wabaSpecies = agapostemon.species.filter((s: any) => s.occurrence_count > 0 && s.slug !== null);
-    const names = wabaSpecies.map((s: any) => s.canonical_name);
-    const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
-    expect(names).toEqual(sorted);
+    for (const g of list) {
+      const real = g.species.filter((s: any) => s.slug !== null);
+      const names = real.map((s: any) => s.scientificName);
+      const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
+      expect(names, `genus ${g.genus} species not alphabetical`).toEqual(sorted);
+      // synthetic "Genus sp." (slug null) only ever appears as the final entry
+      const syntheticIdx = g.species.findIndex((s: any) => s.slug === null);
+      if (syntheticIdx !== -1) {
+        expect(syntheticIdx, `synthetic entry not last in ${g.genus}`).toBe(g.species.length - 1);
+      }
+    }
+  });
+
+  test('subgenusList species are fully alphabetical by name (Phase 174 gap fix)', () => {
+    const list = (species as any).subgenusList;
+    for (const g of list) {
+      const real = g.species.filter((s: any) => s.slug !== null);
+      const names = real.map((s: any) => s.scientificName);
+      const sorted = [...names].sort((a: string, b: string) => a.localeCompare(b));
+      expect(names, `subgenus ${g.genus}/${g.subgenus} species not alphabetical`).toEqual(sorted);
+    }
+  });
+
+  test('specialist dietHost surfaces the host plant from host_plant_detail (Phase 174 gap fix)', () => {
+    // Every Fowler specialist (diet_breadth_source === 'fowler') carries a host in
+    // host_plant_detail, so dietHost must be non-null — previously ~44% (detail-only,
+    // no host_plant_family) rendered a bare "Specialist". Bee-Gap-sourced specialists
+    // carry no host and may be null. Generalists/absent diet are always null.
+    const flat = (species as any).flat;
+    const fowler = flat.filter((s: any) => s.diet_breadth === 'specialist' && s.diet_breadth_source === 'fowler');
+    // Data-driven: only assert when the local species.json carries trait fields.
+    if (fowler.length > 0) {
+      for (const s of fowler) {
+        expect(typeof s.dietHost, `${s.canonical_name} dietHost`).toBe('string');
+        expect(s.dietHost.length).toBeGreaterThan(0);
+        // botanical authorities are stripped — no stray "L." / "Nutt." tokens
+        expect(s.dietHost, `${s.canonical_name} authority leaked`).not.toMatch(/\b[A-Z][a-z]{0,4}\.\B|\bL\.\b/);
+      }
+      // "Family: genus" shape when family known; bare genus when not (frigida → "Salix")
+      const frigida = flat.find((s: any) => s.canonical_name === 'Andrena frigida');
+      if (frigida) expect(frigida.dietHost).toBe('Salix');
+    }
+    // Non-specialists never carry a dietHost
+    for (const s of flat) {
+      if (s.diet_breadth !== 'specialist') expect(s.dietHost ?? null).toBeNull();
+    }
   });
 
   test('genusList hexColors match the Python _group_colors algorithm for all genera (D-01)', () => {
