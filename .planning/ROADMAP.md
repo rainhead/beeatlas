@@ -68,7 +68,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 176. Build-Seam Refoundation (Thread 1) | 0/TBD | Not started | - |
+| 176. Build-Seam Refoundation (Thread 1) | 0/4 | Not started | - |
 | 177. Authoritative Store, Migrations & Backup/DR | 0/TBD | Not started | - |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
@@ -84,7 +84,13 @@
   3. A regression run produces a byte-identical `manifest.json` and identical baseline-pull and build-time-fetch file sets for the existing derived artifacts — no behavior change.
   4. Every artifact carries an explicit `derived`|`authoritative` classification; an `authoritative` artifact is forced `baseline_diff=false` and is structurally excluded from `test_dbt_diff` / block-1c (never pulled, never diffed, never produced as a dbt model).
   5. The two schema-evolution regimes are documented and enforced as distinct: `derived` = diff-against-live baseline + bypass-and-rebuild valid; `authoritative` = forward-only migrations only, rebuild/bypass verbs forbidden.
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+Plans:
+
+- [ ] 176-01-PLAN.md — Wave 1: create `data/artifacts.toml` (16 published artifacts, full metadata) + stdlib-only `data/artifacts.py` (verbs: publish-plan, manifest, baseline-pull-plan, build-time-fetch, validate) + `test_artifacts.py` (fail-loud invariants, byte-exact manifest golden, 9/6 set-equality floor, synthetic-authoritative exclusion) [SEAM-01, SEAM-02, SEAM-04, SEAM-05]
+- [ ] 176-02-PLAN.md — Wave 2: rewire `nightly.sh` — publish loop + manifest assembly via publish-plan/manifest verbs; replace the ~70-line baseline-classifier heredoc (LOCAL_NAMES/NON_FILE_KEYS/INTENTIONALLY_SKIPPED) with baseline-pull-plan; all S3 I/O stays in bash [SEAM-02, SEAM-03]
+- [ ] 176-03-PLAN.md — Wave 2: rewire `deploy.yml` build-time fetch via build-time-fetch verb (bare-CI python3, species_hosts tolerate-absence preserved) + ADR `docs/adr/0002-derived-vs-authoritative-artifacts.md` (two regimes + stable-dir exclusion) + CLAUDE.md pointer [SEAM-03, SEAM-05]
+- [ ] 176-04-PLAN.md — Wave 3: blocking operator checkpoint — first post-merge maderas nightly proves byte-identical manifest + 9-pull/0-drift baseline + green deploy fetch (autonomous: false) [SEAM-03]
 **Notes**: Grounded directly in the real `nightly.sh`/`deploy.yml`/`run.py` code — a well-scoped refactor, no `--research-phase` needed. Repo constraint (memory `project_local_dbt_build_not_runnable`): dbt build / full pipeline can't run locally, so verification leans on `pytest` over `artifacts.py` + direct DuckDB queries + the byte-identical-manifest regression floor; the nightly `run.sh build` is the real contract gate. Invariant preserved: `artifacts.py` emits plans/classifications only — `nightly.sh` retains all S3/CloudFront I/O (CLAUDE.md: Python knows nothing about S3).
 
 ### Phase 177: Authoritative Store, Migrations & Backup/DR
