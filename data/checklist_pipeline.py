@@ -323,11 +323,21 @@ def _update_occurrences_canonical_name(con: duckdb.DuckDBPyConnection) -> None:
         (normalize_scientific_name(r[0]), r[0]) for r in rows
     ]
     if mapping:
-        con.executemany(
-            "UPDATE ecdysis_data.occurrences "
-            "SET canonical_name = ? WHERE scientific_name = ?",
-            mapping,
-        )
+        canon_col, sci_col = zip(*mapping)
+        arrow_tbl = pa.table({
+            "canonical_name": pa.array(canon_col),
+            "scientific_name": pa.array(sci_col),
+        })
+        try:
+            con.register("_canon_map", arrow_tbl)
+            con.execute(
+                "UPDATE ecdysis_data.occurrences AS o "
+                "SET canonical_name = m.canonical_name "
+                "FROM _canon_map AS m "
+                "WHERE o.scientific_name = m.scientific_name"
+            )
+        finally:
+            con.unregister("_canon_map")
     updated = con.execute(
         "SELECT count(*) FROM ecdysis_data.occurrences "
         "WHERE canonical_name IS NOT NULL"

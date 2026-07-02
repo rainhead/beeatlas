@@ -762,3 +762,69 @@ def test_single_synonym_source():
             f"checklist_synonyms.csv must have no active synonym mappings per D-07 "
             f"(RCN-06). Found {len(rows)} data rows: {rows[:3]}"
         )
+
+
+# ---------------------------------------------------------------------------
+# quick-260702-lvc: New fast-tier test for the set-based UPDATE conversion.
+# ---------------------------------------------------------------------------
+
+
+def test_update_occurrences_canonical_name_maps_distinct_names():
+    """Set-based UPDATE maps distinct scientific_names to canonical form.
+
+    Guards _update_occurrences_canonical_name() using a fresh in-memory
+    connection with real rows (not the zero-row occurrence table in
+    checklist_sample_db). Verifies:
+    - Two rows sharing a trinomial scientific_name both receive the binomial
+      canonical_name (duplicate rows handled by the JOIN, not per-row loop)
+    - An authority-bearing name has its authority stripped
+    - A row with NULL scientific_name keeps canonical_name NULL (no join match)
+    """
+    import duckdb as _duckdb
+    import checklist_pipeline as _mod
+
+    con = _duckdb.connect(":memory:")
+    try:
+        con.execute("CREATE SCHEMA ecdysis_data")
+        con.execute(
+            "CREATE TABLE ecdysis_data.occurrences "
+            "(scientific_name VARCHAR, canonical_name VARCHAR)"
+        )
+        con.execute("""
+            INSERT INTO ecdysis_data.occurrences VALUES
+            ('Bombus melanopygus mixtus', NULL),
+            ('Bombus melanopygus mixtus', NULL),
+            ('Andrena fulva (Müller, 1766)', NULL),
+            (NULL, NULL)
+        """)
+
+        _mod._update_occurrences_canonical_name(con)
+
+        rows = con.execute(
+            "SELECT scientific_name, canonical_name "
+            "FROM ecdysis_data.occurrences "
+            "ORDER BY scientific_name NULLS LAST"
+        ).fetchall()
+
+        # Both Bombus trinomial rows -> 'bombus melanopygus'
+        bombus = [r for r in rows if r[0] == "Bombus melanopygus mixtus"]
+        assert len(bombus) == 2, f"expected 2 Bombus rows, got {len(bombus)}"
+        for sci, canon in bombus:
+            expected = normalize_scientific_name(sci)
+            assert canon == expected, f"{sci!r}: got {canon!r}, expected {expected!r}"
+
+        # Authority-bearing Andrena -> 'andrena fulva'
+        andrena = [r for r in rows if r[0] == "Andrena fulva (Müller, 1766)"]
+        assert len(andrena) == 1
+        assert andrena[0][1] == "andrena fulva", (
+            f"authority not stripped: {andrena[0][1]!r}"
+        )
+
+        # NULL scientific_name -> canonical_name stays NULL
+        null_rows = [r for r in rows if r[0] is None]
+        assert len(null_rows) == 1
+        assert null_rows[0][1] is None, (
+            f"NULL scientific_name row got canonical_name={null_rows[0][1]!r}, expected NULL"
+        )
+    finally:
+        con.close()
