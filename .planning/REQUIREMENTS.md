@@ -6,7 +6,7 @@
 Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specific expert species natural-history notes with no iNaturalist/Ecdysis upstream — and refound the build seam around an explicit **derived-vs-authoritative** split so both data classes are managed correctly. The user-visible feature is deliberately a single thin vertical slice; the milestone's weight is the architecture.
 
 **Anchoring decisions (from milestone discussion + research):**
-- **Store technology deferred to Phase 2** — requirements are written store-agnostic; the Neon-Postgres-vs-DynamoDB call is made during Phase 2 planning (research recommends Neon; pure-AWS DynamoDB is the viable alternative). Research: `.planning/research/SUMMARY.md`.
+- **Store technology deferred to Phase 177** — requirements are written store-agnostic; the Neon-Postgres-vs-DynamoDB call is made during Phase 177 planning (research recommends Neon; pure-AWS DynamoDB is the viable alternative). Research: `.planning/research/SUMMARY.md`.
 - **Moderation = trusted-author allowlist + curator takedown** — only allowlisted experts may author; their notes publish immediately (no pre-publish queue); a curator can hide/delete without a code deploy. A pre-moderation queue is deferred (add only if abuse emerges).
 - **Read path = hybrid harvest-dominant** — approved notes are harvested into a build-time `notes.json` (mirroring the shipped `species_hosts.js` bake); the read path stays fully static and offline-safe. An optional live island (NOTES-04) is a differentiator, not table stakes.
 - **Auth = iNaturalist OAuth2 (PKCE)** — collectors already have iNat logins; identity is derived server-side, never trusted from the client.
@@ -78,12 +78,28 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 
 ## Traceability
 
-Which phases cover which requirements. Filled during roadmap creation.
+Which phases cover which requirements. Filled during roadmap creation (2026-07-02). Coverage: **21/21 mapped, no orphans, no duplicates.**
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEAM-01 … SEAM-05 | — | Pending |
-| STORE-01 … STORE-04 | — | Pending |
-| WRITE-01 … WRITE-04 | — | Pending |
-| NOTES-01 … NOTES-04 | — | Pending |
-| MOD-01 … MOD-04 | — | Pending |
+| SEAM-01 | Phase 176 | Pending |
+| SEAM-02 | Phase 176 | Pending |
+| SEAM-03 | Phase 176 | Pending |
+| SEAM-04 | Phase 176 | Pending |
+| SEAM-05 | Phase 176 | Pending |
+| STORE-01 | Phase 177 | Pending |
+| STORE-02 | Phase 177 | Pending |
+| STORE-03 | Phase 177 | Pending |
+| STORE-04 | Phase 177 | Pending |
+| WRITE-01 | Phase 178 | Pending |
+| WRITE-02 | Phase 178 | Pending |
+| WRITE-03 | Phase 178 | Pending |
+| WRITE-04 | Phase 178 | Pending |
+| NOTES-01 | Phase 179 | Pending |
+| NOTES-02 | Phase 179 | Pending |
+| NOTES-03 | Phase 179 | Pending |
+| NOTES-04 *(optional)* | Phase 179 | Pending |
+| MOD-01 | Phase 180 | Pending |
+| MOD-02 | Phase 180 | Pending |
+| MOD-03 | Phase 180 | Pending |
+| MOD-04 | Phase 180 | Pending |

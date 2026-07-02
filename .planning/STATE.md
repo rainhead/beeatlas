@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: planning
-last_updated: "2026-07-02T19:15:43.393Z"
+last_updated: "2026-07-02T20:00:00.000Z"
 last_activity: 2026-07-02
 progress:
-  total_phases: 0
+  total_phases: 5
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,116 +17,107 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
+See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation)
 
-**Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants.
-**Current focus:** Phase 999.11 — add federal wilderness areas as regions
+**Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants. Long-term: become the gathering place for the Washington Bee Atlas.
+**Current focus:** Phase 176 — Build-Seam Refoundation (Thread 1)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-07-02 — Milestone v8.0 started
+Phase: 176 of 180 (Build-Seam Refoundation — Thread 1)
+Plan: — (roadmap approved; not yet planned)
+Status: Ready to plan
+Last activity: 2026-07-02 — v8.0 roadmap created (5 phases, 21/21 requirements mapped)
+
+Progress: [░░░░░░░░░░] 0%
 
 ## Milestone Overview
 
-**v7.0 Species Trait Annotations (Phases 173–174) — SHIPPED 2026-06-30 (PR #39 merged)**
+**v8.0 Authoritative Data Foundation (Phases 176–180) — IN PROGRESS**
 
-Annotate species with curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean sources, and surface them on the species index + detail pages with per-trait provenance. Phase 173 (the `species_traits` mart + a latent-synonymy-bug fix) shipped ad-hoc on branch `species-trait-annotations`; Phase 174 (site integration) shipped via PR [#39](https://github.com/rainhead/beeatlas/pull/39), merged to main. Archive: [.planning/milestones/v7.0-ROADMAP.md](milestones/v7.0-ROADMAP.md).
+Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specific expert species natural-history notes with no iNat/Ecdysis upstream — and refound the build seam around a **derived-vs-authoritative** split. The user-visible feature is a deliberately thin vertical slice; the milestone's weight is the architecture. Build-seam cleanup lands first; the runtime-bending write layer is isolated; public writes gate on a proven backup restore. Roadmap: [.planning/ROADMAP.md](ROADMAP.md) · Requirements: [.planning/REQUIREMENTS.md](REQUIREMENTS.md) · Research: [.planning/research/SUMMARY.md](research/SUMMARY.md).
 
-| Phase | Name | Status |
-|-------|------|--------|
-| 173 | Species Trait Data Layer | Complete (ad-hoc) |
-| 174 | Surface Traits in the Site | Complete |
+| Phase | Name | Requirements | UI | Status |
+|-------|------|--------------|----|--------|
+| 176 | Build-Seam Refoundation (Thread 1) | SEAM-01..05 | — | Not started (ready to plan) |
+| 177 | Authoritative Store, Migrations & Backup/DR | STORE-01..04 | — | Not started |
+| 178 | Thin Write Layer + iNat OAuth | WRITE-01..04 | yes | Not started |
+| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Not started |
+| 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [░░░░░░░░░░] 0% (0/5 phases)
 
-## Deferred Items
+**Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
-Items acknowledged and deferred at v7.0 milestone close on 2026-06-30:
+**Research flags for planning:** Phase 177 (`--research-phase` — final store-tech decision Neon vs DynamoDB, PITR retention, dual-consumer read path, IAM/bucket boundary); Phase 178 (`--research-phase` — confirm iNat OAuth PKCE live, carry server-side code-exchange fallback, `/users/api_token` raw-header gotcha). Phases 176 & 179 use established patterns (real code / the `species_hosts.js` bake) — no research-phase needed.
 
-| Category | Item | Status |
-|----------|------|--------|
-| todo | checklist-count-zero-but-on-checklist | ✅ resolved 2026-06-30 (quick task 260629-tqw) |
-| todo | rebuild-source-into-facets | open (medium, pre-existing) |
-| todo | 144-code-review-deferred | open (low, pre-existing) |
-| todo | 165-code-review-deferred | open (pre-existing) |
-| uat_gaps | 16 HUMAN-UAT items across phases 145+ | open (pre-existing tech debt) |
-| context_question | 1 open context question | open (pre-existing) |
-| operator | one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas | pending (refresh S3 species.json baseline post-merge) |
-
-Prior milestone: **v6.0 My Work — Progress & Provenance** (Phases 167–172 incl. 171.1) — SHIPPED 2026-06-28. Archive: [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md) · Audit: [.planning/v6.0-MILESTONE-AUDIT.md](v6.0-MILESTONE-AUDIT.md)
+Prior milestone: **v7.0 Species Trait Annotations** (Phases 173–174) — SHIPPED 2026-06-30 (PR #39 merged). Archive: [.planning/milestones/v7.0-ROADMAP.md](milestones/v7.0-ROADMAP.md).
 
 ## Accumulated Context
 
-### Roadmap Evolution
-
-- Phase 175 added 2026-06-30: Floral Host Provenance — "Collected from" flower families & genera per bee species from sample data. Decisions + data findings locked in `175-CONTEXT.md`.
-
 ### Decisions
 
-Load-bearing conventions carried forward (full v6.0 decision log in PROJECT.md / milestone archive):
+v8.0 anchoring decisions (from milestone discussion + research; full detail in REQUIREMENTS.md + research/):
 
-- **geo_blob ↔ features.ts positional contract**: `_GEO_COLS` and `features.ts` column indices are positionally coupled; changes ship in one atomic commit. **[v6.0 update]** geo_blob index 6 = `tier`.
-- **`<bee-atlas>` owns all reactive state**: `<bee-map>` and `<bee-pane>` are pure presenters — state goes on `<bee-atlas>`, relayed down as properties.
-- **`_filterQueryGeneration` race guard**: async query results must be discarded if the counter has advanced.
-- **Style cache bypass**: must bypass when `filterState` is active or `selectedOccIds` non-empty.
-- **Static hosting only**: no server runtime.
-- **[Phase 154] mapbox-basemap StaleWhileRevalidate cache**: token retained; 7-day TTL; web-SDK offline basemap NOT licensed. docs/adr/0001 is the ToS record.
-- **[Phase 160] Place bridge keyed on synthetic occ_id**: `occurrence_places` (occ_id, place_slug); occ_id CASE mirrors `src/occurrence.ts` priority.
-- **[v6.0 PROV] occ_id positional coupling is load-bearing across THREE consumers** (`src/occurrence.ts`, `src/filter.ts`, `data/dbt/models/marts/occurrence_places.sql`): change in one atomic commit guarded by the `OCC_ID_SQL_CASE` export + the 3-site coupling Vitest assertion. `tier`(atlas/other)+`record_type`(specimen/provisional_sample/waba_specimen/inat_expert/checklist) replace the old `source` enum; `tier=` URL with legacy `src=` parse-only back-compat. `tsc --noEmit` is the post-merge gate.
-- **[v6.0 IDENT-01] collector_inat_login is host-first**: `COALESCE(host_inat_login, specimen_inat_login, user_login)` — the sample owner wins over a third-party specimen-photo poster (corrected from the original specimen-first ship). Guarded by `assert_collector_prefers_host`. `display_name` = most-recent `recordedBy` (not MIN). See memory `project_collector_identity_prefers_host`.
-- **[v6.0 TEMP] id_date only**: lifecycle reads intrinsic source dates (no snapshot-diffing); `posted_date`/iNat `created_at` deliberately dropped (posting is not an event). Collected = pre-existing `date` column; Identified = `id_date` (dirty-parsed Ecdysis `date_identified`).
-- **[v6.0] dbt contract changes ship data-before-code**: each bump lands in live S3 via a one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` BEFORE the TS reading it deploys; never stack two unreleased bumps. The deploy `validate-db` gate reads live S3. See memory `project_occurrences_contract_release_sequence`.
-- **[v6.0] build-time data is delivered via S3 + manifest.json + deploy.yml, NEVER committed to git** (the `species.json` pattern). "read at build time" ≠ "commit." A clean git status is not a verification PASS for a regenerated artifact. See memory `feedback_no_committed_data_artifacts`.
-- [Phase ?]: Seed-set restriction replaces Anthophila LIKE filter
-- [Phase ?]: int_species_host_plants is private external-parquet intermediate — dbt contracts on marts/occurrences and marts/species untouched (Phase 175)
-- [Phase ?]: species_hosts.json producer is absence-tolerant: missing parquet writes empty object (Phase 175)
+- **[v8.0] Derived-vs-authoritative is an explicit declared property.** Provenance follows the data's *ultimate source*, not the file's production mechanism: any byte tracing to a user write is `authoritative` (excluded from the reproducibility diff; the store is backup-critical), everything else is `derived`. `notes.json` is mechanically a projection but `authoritative` — the store is backed up, the JSON is disposable/re-harvestable.
+- **[v8.0] Double isolation of authoritative artifacts:** never a dbt model (so the sandbox parquet diff can't include them) AND `baseline_diff=false` in the contract (so `test_dbt_diff`/block-1c never pull/diff them). The `SKIP_INTEGRATION_GATE` bypass-and-rebuild reflex is FORBIDDEN for authoritative tables — there is no source to rebuild from, so "rebuild" = "delete."
+- **[v8.0] Backup is a launch gate, not a follow-up.** PITR + S3 Versioning ON and *test-restored* before the write endpoint accepts its first non-test write (WRITE-04 gates on STORE-03). An untested backup is not a backup.
+- **[v8.0] Store technology deferred to Phase 177 planning** — requirements written store-agnostic. Research recommends Neon Serverless Postgres (SQL + Alembic, scale-to-zero, PITR, readable by both the Lambda writer and the nightly pipeline); pure-AWS DynamoDB single-table is the one viable alternative (no external vendor, IAM-only, native PITR). DuckDB-WASM is NOT a candidate (page-weight, rejected project-wide — memory `project_duckdb_wasm_direction`).
+- **[v8.0] Auth = iNat OAuth2 PKCE, server-derived identity.** The thin write layer is the sole identity/authz authority; the static read path holds no secrets and never authenticates. Short-lived app session; iNat token stays server-side; minimal (identity-only) scope; exact-pinned redirect URI. No token in `localStorage`/URL.
+- **[v8.0] Moderation = allowlist + curator takedown** (not a pre-publish queue). reader/author/curator roles; allowlisted authors publish immediately; curator hides/deletes without a deploy (flip `status`); XSS-sanitize on write + escape on render.
+- **[v8.0] Read path stays 100% static/offline-safe.** Nightly harvest bakes only approved notes into `notes.json` via the Phase-176 contract (`build_time_fetch=true`), mirroring the Phase-175 `species_hosts.js` bake. Optional live island (NOTES-04) is pure enhancement, never the sole display path.
+- **[v8.0] Write layer bends "no server runtime" — isolated in one deployable** (API Gateway HTTP API + thin Lambda) via surgical `BeeAtlasStack` edit. The retired 260514-fcq Function-URL Lambda is CDK precedent for a *thin* handler, NOT the retired 15-min pipeline Lambda.
+
+Load-bearing conventions carried forward (relevant to v8.0):
+
+- **`BeeAtlasStack` houses the whole site** — never `cdk destroy`; add write-layer/store/backup resources by surgical edit only (memory `project_cdk_stack_composition`).
+- **Build-time data ships via S3 + `manifest.json` + `deploy.yml` fetch, NEVER committed to git** (the `species.json` pattern). A clean git status is not a verification PASS for a regenerated artifact (memory `feedback_no_committed_data_artifacts`). `notes.json` follows this.
+- **dbt contract changes ship data-before-code** via a one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` (memory `project_occurrences_contract_release_sequence`). Applies to any *derived* contract touch in Phase 176; does NOT apply to the authoritative store (forward-only migrations).
+- **dbt build / full pipeline can't run locally** (mashumaro+Python3.14 + absent raw files + Ecdysis auth) — verify via pytest + direct DuckDB queries + the byte-identical-manifest floor; nightly `run.sh build` is the real contract gate (memory `project_local_dbt_build_not_runnable`).
+- **Static hosting only** for the read path (the write layer is the single, isolated exception).
+
+### Roadmap Evolution
+
+- 2026-07-02: v8.0 roadmap created — Phases 176–180 derived from SEAM/STORE/WRITE/NOTES/MOD requirements. Numbering continues from v7.0's last phase (175); the 999.x entries are a permanent backlog, not milestone phases.
 
 ### Pending Todos
 
-- `144-code-review-deferred.md` — WR-04 (CSV-export `rows[0]` headers) + 3 info findings; non-blocking, pre-existing.
-- `165-code-review-deferred.md` — deferred Phase 165 code-review findings; non-blocking.
+Carried forward (non-blocking, pre-existing):
+
+- `144-code-review-deferred.md` — WR-04 (CSV-export `rows[0]` headers) + 3 info findings.
+- `165-code-review-deferred.md` — deferred Phase 165 code-review findings.
 - `rebuild-source-into-facets.md` — **OBSOLETE** (shipped as Phase 170); close it.
 
 ### Blockers/Concerns
 
-- **No active blockers.** The Phase 163 Ecdysis-auth nightly blocker was **RESOLVED 2026-06-24** (authenticated Symbiota session + ZIP guard + cache fallback; operator-verified a real nightly through `generate-sqlite`). The nightly pipeline is unblocked. (Corrected 2026-06-29: STATE had stale-tracked 163 as open through the v6.0 close — it was already complete.)
-- **Operational confirmation (NOT a code gap):** the v6.0 data leg (dbt contract 37→38→39 cols + collector pages) lands in live S3 via the operator nightly on maderas. Since the nightly is unblocked (163 fixed 2026-06-24) and the contract bumps (167/168/170) landed afterward — with 171/172 shipping on top of the 39-col contract — the data leg is very likely live. Worth a one-time confirm that the latest nightly published cleanly and prod renders collector pages.
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 260629-tqw | checklist_record_count (all checklist records, incl. non-georeferenced) + fix contradictory "0 checklist records" line | 2026-06-30 | e946cbfd | [260629-tqw-data-fix-count-all-checklist-records-inc](./quick/260629-tqw-data-fix-count-all-checklist-records-inc/) |
-| 260630-ihl | Color genus-page map by subgenera (not species) where a genus has multiple subgenera | 2026-06-30 | bbeac971 | [260630-ihl-color-genus-page-map-by-subgenera-not-sp](./quick/260630-ihl-color-genus-page-map-by-subgenera-not-sp/) |
+- **No active blockers for v8.0.** The nightly pipeline is unblocked (Phase 163 Ecdysis-auth resolved 2026-06-24).
+- **Operational confirmation (NOT a code gap, carried from v7.0 close):** one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to refresh the S3 `species.json` baseline post-PR-#39 — confirm the latest nightly published cleanly. Phase 176's byte-identical-manifest goal assumes the current publish behavior is the baseline to preserve.
 
 ## Deferred Items
 
-Items acknowledged and deferred at v6.0 milestone close (2026-06-29):
+Items acknowledged and carried forward from prior milestone closes:
 
 | Category | Item | Status |
 |----------|------|--------|
-| operational | v6.0 live-S3 data landing (39-col contract + collector pages) | likely live (nightly unblocked since 163 fixed 2026-06-24; contracts landed after) — confirm latest nightly published + prod renders pages |
+| operator | one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` (refresh S3 species.json baseline post-PR-#39) | pending |
 | phase | Phase 166 (seasonality charts) | open — needs a per-taxon page route (none exists yet) |
-| todo | `144-code-review-deferred.md` | open — non-blocking, pre-existing |
+| trait follow-on | trait-based map filtering; GloBI-derived Sphecodes/Stelis cuckoo hosts; sparse native-status backfill; `checklist_count=0` vs `on_checklist=true` display fix | deferred (v7.0 carry-forward) |
+| todo | `144-code-review-deferred.md` | open — non-blocking |
 | todo | `165-code-review-deferred.md` | open — non-blocking |
 | todo | `rebuild-source-into-facets.md` | obsolete (shipped as Phase 170) — close |
-| nyquist | Phases 167–172 + 171.1 `nyquist_compliant: false` | accepted (partial-Nyquist convention; green suites + operator UAT) |
-| process | Phase 167 no standalone VERIFICATION.md | accepted — verified inline in SUMMARY + VALIDATION.md |
-| uat | Prior-milestone HUMAN-UAT.md (149/151–155/157/160–162/165/171/172) | passed/approved, 0 pending scenarios — flagged by audit only because status ≠ literal "complete" |
-| nyquist | Phases 129/131/132/134/135/136/138 partial Nyquist | accepted (carried from v4.x) |
+| backlog | 999.11 (federal wilderness areas as regions), 999.7 (Safari private-browsing offline UI) | open — promote via `/gsd-review-backlog` |
+| nyquist | Phases 129/131/132/134/135/136/138 + 167–172 partial Nyquist | accepted (partial-Nyquist convention) |
 | verification | Phase 110/111/113 VERIFICATION.md | human_needed (carried from v4.0) |
 | uat | Phase 110 HUMAN-UAT.md | partial — 2 open scenarios (carried from v4.0) |
 | place | snoqualmie-pass-to-olallie-meadow-trail | deferred — needs hand-traced GPX |
 
 ## Session Continuity
 
-Last session: 2026-06-30T18:38:19.022Z
-Stopped at: Phase 174 UI-SPEC approved
+Last session: 2026-07-02
+Stopped at: v8.0 roadmap created (ROADMAP.md phases 176–180, STATE.md, REQUIREMENTS.md traceability)
 Resume file: None
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Review the v8.0 roadmap draft in `.planning/ROADMAP.md` (phases 176–180) + `.planning/REQUIREMENTS.md` traceability.
+- Then plan the first phase: `/gsd-plan-phase 176`.

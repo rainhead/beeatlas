@@ -48,8 +48,95 @@
 - ✅ **v5.2 Place Coverage Expansion** — Phases 160–162 (shipped 2026-06-24). Made the place model overlap-capable so an occurrence can belong to multiple places (160 — `occurrence_places` many-to-many bridge mart, scalar `place_slug` dropped, overlap guard removed), then added two new curated place sources on top of it: 33 WDFW wildlife areas (161) and 13 WTA hike corridors (162, ~250 m metric buffers solving the linear-feature problem; 1 of 14 deferred). The model change (160) was split out during Phase 161 research, which found 16 real WDFW↔existing-place overlaps and established that the legacy one-place-per-occurrence rule was an implementation artifact, not a requirement. See [.planning/milestones/v5.2-ROADMAP.md](milestones/v5.2-ROADMAP.md).
 - ✅ **v6.0 My Work — Progress & Provenance** — Phases 167–172 incl. inserted 171.1 (shipped 2026-06-28). Per-collector bookmarkable pages (`/collectors/{login}/`) with a collection→ID lifecycle event stream and an accomplishments view (county/ecoregion coverage, taxonomic breadth, active-seasons badge), on a rebuilt occurrence model that replaced the `source` enum with orthogonal `tier`+`record_type` facets and added a unified `collector_inat_login` + lifecycle `id_date` to the mart (dbt contract 36→39). See [.planning/milestones/v6.0-ROADMAP.md](milestones/v6.0-ROADMAP.md).
 - ✅ **v7.0 Species Trait Annotations** — Phases 173–174 (shipped 2026-06-30). Curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host bee) from license-clean seeds (Bee-Gap PD, Fowler specialists, genus backbone) assembled into a `species_traits` dbt mart with per-label provenance, and surfaced on the species detail page (Traits fact-sheet + linked clepto hosts) and the index/genus/subgenus pages (sociality + Specialist badges) via the Path-B `species.json` merge. Merged via PR #39. See [.planning/milestones/v7.0-ROADMAP.md](milestones/v7.0-ROADMAP.md).
+- 🚧 **v8.0 Authoritative Data Foundation** — Phases 176–180 (in progress, started 2026-07-02). Introduces BeeAtlas's first *authoritative, non-reproducible* data — WA-specific expert species natural-history notes with no iNat/Ecdysis upstream — and refounds the build seam around an explicit **derived-vs-authoritative** split so both data classes are managed correctly. Build-seam refoundation (a single declarative `data/artifacts.toml`) lands first; each authoritative capability (store + backup → write layer + iNat OAuth → notes bake → moderation) is provable before the next builds on it, and public writes are gated on a demonstrated backup restore. Requirements: SEAM / STORE / WRITE / NOTES / MOD in [.planning/REQUIREMENTS.md](REQUIREMENTS.md).
 
 ## Phases
+
+### 🚧 v8.0 Authoritative Data Foundation (Phases 176–180) — IN PROGRESS
+
+**Goal:** Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specific expert species natural-history notes with no iNat/Ecdysis upstream — and refound the build seam around a **derived-vs-authoritative** split so both data classes are managed correctly. The user-visible feature is a deliberately thin vertical slice; the milestone's weight is the architecture. Build-seam cleanup lands first, the runtime-bending write layer is isolated in one deployable, and public writes are gated on a proven backup restore.
+
+**Coverage:** 21/21 v1 requirements mapped — SEAM-01..05 → Phase 176 · STORE-01..04 → Phase 177 · WRITE-01..04 → Phase 178 · NOTES-01..04 → Phase 179 · MOD-01..04 → Phase 180.
+
+- [ ] **Phase 176: Build-Seam Refoundation (Thread 1)** — Collapse the triple hand-synced manifest key lists (nightly.sh upload/manifest block, the inline classifier heredoc, deploy.yml fetch) into one declarative `data/artifacts.toml` + tested `data/artifacts.py`; establish the explicit derived-vs-authoritative classification and the two schema-evolution regimes. Pure, regression-safe refactor — byte-identical manifest, no user-visible change; de-risks everything downstream.
+- [ ] **Phase 177: Authoritative Store, Migrations & Backup/DR** — Stand up the first non-reproducible store (technology decided here), a forward-only migration runner, notes/roles schema shaped for moderation + attribution, physical + IAM separation from the derived pipeline and `/data/` prefix, and a demonstrated test-restore. No public writes until restore is proven.
+- [ ] **Phase 178: Thin Write Layer + iNat OAuth** — An event-driven writer isolated in one deployable within the existing CDK stack; iNat OAuth2 PKCE with server-derived identity + a minted app session; allowlist authz + CSRF; public-write launch gate on the proven restore. The only phase that consciously bends "no server runtime" — kept isolated.
+- [ ] **Phase 179: Notes Feature + Harvest → Build-Time Bake** — Allowlisted authors create/edit/delete attributed notes; nightly harvest of published notes into a build-time `notes.json` (mirroring the shipped `species_hosts.js` bake); species pages render an attributed stacked list with an empty state; read path stays static/offline-safe. First user-visible slice.
+- [ ] **Phase 180: Moderation Loop** — reader/author/curator roles from a declared, auditable source; deploy-free curator takedown excluded from harvest; XSS sanitization + audit fields; takedown clears the public site within one build cycle (and the live island if NOTES-04 shipped).
+
+**Progress (v8.0):**
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 176. Build-Seam Refoundation (Thread 1) | 0/TBD | Not started | - |
+| 177. Authoritative Store, Migrations & Backup/DR | 0/TBD | Not started | - |
+| 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
+| 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
+| 180. Moderation Loop | 0/TBD | Not started | - |
+
+### Phase 176: Build-Seam Refoundation (Thread 1)
+**Goal**: One declarative artifact contract (`data/artifacts.toml` + a tested `data/artifacts.py` loader) becomes the sole source of truth for every published artifact, replacing the three hand-synced key lists (the `nightly.sh` publish/manifest block, the inline heredoc classifier, and `deploy.yml`'s build-time fetch). Every artifact carries an explicit `derived`|`authoritative` classification and the two schema-evolution regimes are documented and enforced — establishing the machine-checkable split *before* any authoritative data exists. Pure refactor: byte-identical manifest and identical baseline/fetch set for the existing derived artifacts.
+**Depends on**: Nothing (first v8.0 phase; independently shippable)
+**Requirements**: SEAM-01, SEAM-02, SEAM-03, SEAM-04, SEAM-05
+**Success Criteria** (what must be TRUE):
+  1. `data/artifacts.toml` declares every currently-published artifact with its full metadata (logical name, local filename, provenance, kind, `baseline_diff`, `build_time_fetch`, `gzip`, `content_type`); adding or changing an artifact requires editing only this one file — no hand-synced key list survives in `nightly.sh` or `deploy.yml`.
+  2. A tested `data/artifacts.py` drives the nightly publish/manifest assembly, the baseline pull, and `deploy.yml`'s build-time fetch; `pytest` covers it — every `manifest.json` key resolves to exactly one artifact, an unknown/unclassified artifact fails loud, `authoritative ⇒ not baseline_diff`, and `metadata ⇒ no filename`.
+  3. A regression run produces a byte-identical `manifest.json` and identical baseline-pull and build-time-fetch file sets for the existing derived artifacts — no behavior change.
+  4. Every artifact carries an explicit `derived`|`authoritative` classification; an `authoritative` artifact is forced `baseline_diff=false` and is structurally excluded from `test_dbt_diff` / block-1c (never pulled, never diffed, never produced as a dbt model).
+  5. The two schema-evolution regimes are documented and enforced as distinct: `derived` = diff-against-live baseline + bypass-and-rebuild valid; `authoritative` = forward-only migrations only, rebuild/bypass verbs forbidden.
+**Plans**: TBD
+**Notes**: Grounded directly in the real `nightly.sh`/`deploy.yml`/`run.py` code — a well-scoped refactor, no `--research-phase` needed. Repo constraint (memory `project_local_dbt_build_not_runnable`): dbt build / full pipeline can't run locally, so verification leans on `pytest` over `artifacts.py` + direct DuckDB queries + the byte-identical-manifest regression floor; the nightly `run.sh build` is the real contract gate. Invariant preserved: `artifacts.py` emits plans/classifications only — `nightly.sh` retains all S3/CloudFront I/O (CLAUDE.md: Python knows nothing about S3).
+
+### Phase 177: Authoritative Store, Migrations & Backup/DR
+**Goal**: The first non-reproducible authoritative store exists end-to-end: it holds notes + roles with attribution/moderation affordances, evolves only via forward-only versioned migrations, is physically and IAM-fenced from the derived `beeatlas.duckdb` and the `/data/` prefix, and has a *demonstrated* backup restore — all before any write endpoint opens. Store technology is decided in this phase (research recommends Neon Serverless Postgres; pure-AWS DynamoDB single-table is the viable alternative).
+**Depends on**: Phase 176 (the derived-vs-authoritative contract property + the `authoritative` classification that keeps the store off the diff gate)
+**Requirements**: STORE-01, STORE-02, STORE-03, STORE-04
+**Success Criteria** (what must be TRUE):
+  1. A store (technology chosen here) holds notes with author identity, created/updated timestamps, a `status`, and role/allowlist affordances — schema shaped for moderation + attribution from day one; the store is seedable via a script (no write UI yet).
+  2. Authoritative tables evolve only via forward-only versioned migrations recorded in a `schema_migrations`-style ledger; there is no rebuild-from-source path, and `run.py` / the nightly pipeline never migrates or writes the store (migrations owned and run by the write layer).
+  3. The store is physically and IAM-separated from `beeatlas.duckdb` and the `/data/` S3 prefix; a normal green nightly (`--delete` syncs, DuckDB rebuild/push) provably cannot reach, overwrite, or delete authoritative data — verified by running a full `run.py`/dbt rebuild and confirming the store is untouched.
+  4. Backup is real and proven: native point-in-time recovery **plus** an independent periodic logical dump into the owned S3 bucket, and a test-restore has been demonstrated and documented.
+**Plans**: TBD
+**Notes**: Store-tech decision (Neon Postgres vs DynamoDB) is deliberately deferred to this phase — plan with `--research-phase` to confirm PITR retention, the dual-consumer read path (Lambda writer + nightly pipeline both read the store), and the IAM/bucket boundary shape. `BeeAtlasStack` houses the whole site — surgical stack edit only, never `cdk destroy` (memory `project_cdk_stack_composition`). Schema must carry `status`/`author_id`/audit + `note_revisions` (append-only, soft-delete) from day one so moderation (Phase 180) isn't a retrofit.
+
+### Phase 178: Thin Write Layer + iNat OAuth
+**Goal**: A thin, event-driven managed write layer — isolated in one deployable within the existing CDK stack — accepts authenticated, authorized writes while the read path stays fully static. iNaturalist OAuth2 (PKCE) authenticates authors with server-derived identity and a minted short-lived app session; an author allowlist + CSRF/origin protection gate writes; enabling public writes is gated on the demonstrated Phase-177 restore. This is the only phase that consciously bends the "static hosting only, no server runtime" constraint — kept isolated in one deployable.
+**Depends on**: Phase 177 (the store must exist and its backup restore must be demonstrated before any write is accepted)
+**Requirements**: WRITE-01, WRITE-02, WRITE-03, WRITE-04
+**Success Criteria** (what must be TRUE):
+  1. A thin event-driven write layer (API Gateway HTTP API + Lambda, isolated in one deployable within `BeeAtlasStack`) accepts authenticated writes; the read path remains fully static — no runtime dependency is added to species-page loads.
+  2. An author signs in via iNaturalist OAuth2 (PKCE); the write layer derives identity server-side (never trusting client-supplied identity) and mints a short-lived app session rather than calling iNat per request — no secret ships in the client bundle, no token in `localStorage`/URL, minimal (identity-only) OAuth scope, exact-pinned redirect URI.
+  3. Only allowlisted experts can create/edit notes; the endpoint enforces server-side authorization with CSRF/origin protection — a forged-author request and a cross-origin POST are both rejected.
+  4. Public writes are not enabled until the Phase-177 backup restore has been demonstrated — an explicit launch-checklist gate, verified before the endpoint accepts its first non-test write.
+**Plans**: TBD
+**Notes**: Confirm iNat OAuth **PKCE** support end-to-end against the live iNat OAuth docs during planning (`--research-phase`); carry the server-side code-exchange fallback (browser never sees a secret) until confirmed. Pin the `/users/api_token` JWT → `/v1/users/me` raw-`Authorization`-header gotcha and scope minimality. The retired 260514-fcq Function-URL Lambda is CDK precedent for a *thin* handler (NOT the retired 15-min pipeline Lambda). Security-critical human UAT (no token leak; forged-author + cross-origin rejection) — do not auto-advance past UAT.
+**UI hint**: yes
+
+### Phase 179: Notes Feature + Harvest → Build-Time Bake
+**Goal**: The first user-visible authoritative slice. An allowlisted author creates, edits, and deletes attributed WA-specific natural-history notes on a species page; published notes are harvested nightly into a build-time `notes.json` (an exact mirror of the shipped `species_hosts.js` bake) and rendered on species pages as an attributed, stacked list with a graceful empty state; the read path stays 100% static and offline-safe.
+**Depends on**: Phase 178 (need written, authenticated data to harvest) and Phase 176 (publishes `notes.json` as an `authoritative`, `build_time_fetch=true` artifact via the contract)
+**Requirements**: NOTES-01, NOTES-02, NOTES-03, NOTES-04 (NOTES-04 optional differentiator)
+**Success Criteria** (what must be TRUE):
+  1. An allowlisted author can create a natural-history note on a species page — plain text / restricted, server-sanitized markdown — attributed with a byline and created/updated timestamps.
+  2. An author can edit and delete their own notes.
+  3. Published (non-hidden) notes are harvested nightly into a build-time `notes.json` (mirroring `species_hosts.js`); species pages render them as an attributed, stacked list with a sensible empty state (most of ~560 species have none); the read path stays static and offline-safe with no runtime call on page load.
+  4. *(Optional, NOTES-04)* A per-species live island shows an author their just-written note immediately, before the next build refreshes `notes.json`; offline / no-JS still shows the baked note (the island is pure enhancement, never the sole display path).
+**Plans**: TBD
+**Notes**: The harvest → bake is an exact structural mirror of the Phase 175 `species_hosts.js` build-time bake — established pattern, no `--research-phase` for harvest/render. Never commit the harvested `notes.json` to git (memory `feedback_no_committed_data_artifacts`); it ships via the S3 + `manifest.json` + `deploy.yml` fetch pattern (published through the Phase-176 contract). XSS backstop lives in Phase 180 but escape-on-render applies here. NOTES-04 is a differentiator, not table stakes — build only if 178/179 scope allows.
+**UI hint**: yes
+
+### Phase 180: Moderation Loop
+**Goal**: A curator can keep the public notes surface safe: deploy-free takedown, an auditable trail, XSS-safe rendering, and a takedown that clears the public site within one build cycle. Three roles (reader / author / curator) are sourced from a declared, auditable place; moderation stays server-enforced, never client-trusted.
+**Depends on**: Phase 179 (the notes feature + harvest to moderate), Phase 178 (write-layer role transitions), and Phase 177 (the `status`/audit schema affordances)
+**Requirements**: MOD-01, MOD-02, MOD-03, MOD-04
+**Success Criteria** (what must be TRUE):
+  1. Three roles exist — reader / author / curator — with the author allowlist and the curator set sourced from a declared, auditable place.
+  2. A curator can hide/take down any note **without a code deploy**; hidden notes are excluded from the harvest.
+  3. Note content is XSS-sanitized on write and every note carries audit fields (`author_id`, `status`, `created`, `updated`) — a `<script>`/`onerror=` payload renders inert.
+  4. A takedown removes a note from the public site within one harvest/build cycle (and immediately from the live island, if NOTES-04 shipped) — verified by an end-to-end submit → publish → takedown walkthrough.
+**Plans**: TBD
+**Notes**: The moderator/curator-role *source* (committed allowlist vs a `roles` column vs external roster) is an open decision resolved here; the schema affordances already land in Phase 177. Scope guardrail: this is allowlist + author-vs-curator check + curator takedown — NOT a pre-moderation queue, reader flagging/voting, or a moderation workbench (all deferred). End-to-end human UAT gate; do not auto-advance past UAT.
+**UI hint**: yes
 
 ### Active (promoted from backlog 2026-06-24 — milestone TBD)
 
