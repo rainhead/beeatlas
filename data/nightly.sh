@@ -303,47 +303,31 @@ _upload_hashed_gz() {
     echo "$hashed_name"
 }
 
-occ_name=$(_upload_hashed "$EXPORT_DIR/occurrences.parquet" "occurrences")
-occ_db_name=$(_upload_hashed_gz "$EXPORT_DIR/occurrences.db" "occurrences")
+# Read occurrences.db tables (stays in bash — sqlite I/O is local, not S3).
 occ_db_tables=$(uv run python3 -c "
 import sqlite3, json
 con = sqlite3.connect('$EXPORT_DIR/occurrences.db')
 tables = sorted(r[0] for r in con.execute(\"SELECT name FROM sqlite_master WHERE type='table'\"))
 print(json.dumps(tables))
 ")
-species_name=$(_upload_hashed "$EXPORT_DIR/species.json" "species")
-seasonality_name=$(_upload_hashed "$EXPORT_DIR/seasonality.json" "seasonality")
-higher_taxa_name=$(_upload_hashed "$EXPORT_DIR/higher_taxa.json" "higher_taxa")
-counties_name=$(_upload_hashed "$EXPORT_DIR/counties.geojson" "counties" --content-type application/json)
-ecoregions_name=$(_upload_hashed "$EXPORT_DIR/ecoregions.geojson" "ecoregions" --content-type application/json)
-places_name=$(_upload_hashed "$EXPORT_DIR/places.geojson" "places" --content-type application/json)
-places_meta_name=$(_upload_hashed "$EXPORT_DIR/places.json" "places_meta" --content-type application/json)
-checklist_name=$(_upload_hashed "$EXPORT_DIR/checklist.parquet" "checklist")
-photos_name=$(_upload_hashed "$EXPORT_DIR/photos.json" "photos")
-species_hosts_name=$(_upload_hashed "$EXPORT_DIR/species_hosts.json" "species_hosts")
-collectors_name=$(_upload_hashed "$EXPORT_DIR/collectors.json" "collectors")
-collector_event_pages_name=$(_upload_hashed "$EXPORT_DIR/collector_event_pages.json" "collector_event_pages")
 
-cat > "$EXPORT_DIR/manifest.json" <<JSON
-{
-  "occurrences": "$occ_name",
-  "occurrences_db": "$occ_db_name",
-  "species": "$species_name",
-  "seasonality": "$seasonality_name",
-  "higher_taxa": "$higher_taxa_name",
-  "counties": "$counties_name",
-  "ecoregions": "$ecoregions_name",
-  "places": "$places_name",
-  "places_meta": "$places_meta_name",
-  "checklist": "$checklist_name",
-  "photos": "$photos_name",
-  "species_hosts": "$species_hosts_name",
-  "collectors": "$collectors_name",
-  "collector_event_pages": "$collector_event_pages_name",
-  "occurrences_db_tables": $occ_db_tables,
-  "generated_at": "$(_ts)"
-}
-JSON
+# Upload each artifact from the declarative contract; accumulate name→hashed pairs.
+_mapfile=$(mktemp)
+while IFS=$'\t' read -r _name _src _basename _gzip _ctype; do
+    _fn="_upload_hashed"
+    [[ "$_gzip" == "true" ]] && _fn="_upload_hashed_gz"
+    _call_args=("$EXPORT_DIR/$_src" "$_basename")
+    [[ "$_ctype" != "-" ]] && _call_args+=(--content-type "$_ctype")
+    _hname=$("$_fn" "${_call_args[@]}")
+    printf '%s\t%s\n' "$_name" "$_hname" >> "$_mapfile"
+done < <(python3 $SCRIPT_DIR/artifacts.py publish-plan)
+
+# Assemble manifest.json from the contract + hashed names + bash-side metadata.
+python3 $SCRIPT_DIR/artifacts.py manifest "$_mapfile" \
+    --meta "occurrences_db_tables=$occ_db_tables" \
+    --meta "generated_at=$(_ts)" \
+    > "$EXPORT_DIR/manifest.json"
+rm "$_mapfile"
 aws --profile "$AWS_PROFILE" s3 cp --no-progress \
     --cache-control "no-cache" \
     "$EXPORT_DIR/manifest.json" "s3://$BUCKET/data/manifest.json"
