@@ -16,11 +16,11 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 
 ### Build-Seam Refoundation (Thread 1 — no user value alone; de-risks everything downstream)
 
-- [ ] **SEAM-01**: A single declarative artifact contract (e.g. `data/artifacts.toml`) is the sole source of truth for every published artifact's metadata: logical name, local filename, provenance (`derived`|`authoritative`), kind (hashed | stable-dir | metadata), `baseline_diff`, `build_time_fetch`, `gzip`, `content_type`.
-- [ ] **SEAM-02**: A tested `data/` module (e.g. `data/artifacts.py`) reads the contract; the ~40-line inline Python baseline-classifier heredoc in `nightly.sh` is replaced by calls to it, covered by `pytest`.
+- [x] **SEAM-01**: A single declarative artifact contract (e.g. `data/artifacts.toml`) is the sole source of truth for every published artifact's metadata: logical name, local filename, provenance (`derived`|`authoritative`), kind (hashed | stable-dir | metadata), `baseline_diff`, `build_time_fetch`, `gzip`, `content_type`.
+- [x] **SEAM-02**: A tested `data/` module (e.g. `data/artifacts.py`) reads the contract; the ~40-line inline Python baseline-classifier heredoc in `nightly.sh` is replaced by calls to it, covered by `pytest`.
 - [ ] **SEAM-03**: `nightly.sh` (upload + baseline pull) and `deploy.yml` (build-time fetch) both consume the declarative contract — no hand-synced key lists remain in any of the three former sites. The refactor is regression-safe: the manifest and pulled/fetched file set are unchanged for the existing derived artifacts.
-- [ ] **SEAM-04**: Every artifact/table carries an explicit `derived` vs `authoritative` classification. Authoritative artifacts are structurally excluded from the schema-change gate — never produced as a dbt model, and `baseline_diff=false` so `test_dbt_diff` / block-1c never pull or diff them.
-- [ ] **SEAM-05**: The two schema-evolution regimes are documented and enforced as distinct: `derived` = diff-against-live baseline + bypass-and-rebuild valid; `authoritative` = forward-only migrations only, rebuild/bypass verbs forbidden.
+- [x] **SEAM-04**: Every artifact/table carries an explicit `derived` vs `authoritative` classification. Authoritative artifacts are structurally excluded from the schema-change gate — never produced as a dbt model, and `baseline_diff=false` so `test_dbt_diff` / block-1c never pull or diff them.
+- [x] **SEAM-05**: The two schema-evolution regimes are documented and enforced as distinct: `derived` = diff-against-live baseline + bypass-and-rebuild valid; `authoritative` = forward-only migrations only, rebuild/bypass verbs forbidden.
 
 ### Authoritative Store, Migrations & Backup
 
@@ -82,11 +82,11 @@ Which phases cover which requirements. Filled during roadmap creation (2026-07-0
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SEAM-01 | Phase 176 | Pending |
-| SEAM-02 | Phase 176 | Pending |
+| SEAM-01 | Phase 176 | Complete |
+| SEAM-02 | Phase 176 | Complete |
 | SEAM-03 | Phase 176 | Pending |
-| SEAM-04 | Phase 176 | Pending |
-| SEAM-05 | Phase 176 | Pending |
+| SEAM-04 | Phase 176 | Complete |
+| SEAM-05 | Phase 176 | Complete |
 | STORE-01 | Phase 177 | Pending |
 | STORE-02 | Phase 177 | Pending |
 | STORE-03 | Phase 177 | Pending |

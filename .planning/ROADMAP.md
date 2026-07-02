@@ -68,7 +68,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 176. Build-Seam Refoundation (Thread 1) | 0/4 | Not started | - |
+| 176. Build-Seam Refoundation (Thread 1) | 1/4 | In Progress|  |
 | 177. Authoritative Store, Migrations & Backup/DR | 0/TBD | Not started | - |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
@@ -90,7 +90,7 @@
 **Plans**: 4 plans (3 waves)Plans:
 **Wave 1**
 
-- [ ] 176-01-PLAN.md — Wave 1: create `data/artifacts.toml` (16 published artifacts, full metadata) + stdlib-only `data/artifacts.py` (verbs: publish-plan, manifest, baseline-pull-plan, build-time-fetch, validate) + `test_artifacts.py` (fail-loud invariants, byte-exact manifest golden, 9/6 set-equality floor, synthetic-authoritative exclusion) [SEAM-01, SEAM-02, SEAM-04, SEAM-05]
+- [x] 176-01-PLAN.md — Wave 1: create `data/artifacts.toml` (16 published artifacts, full metadata) + stdlib-only `data/artifacts.py` (verbs: publish-plan, manifest, baseline-pull-plan, build-time-fetch, validate) + `test_artifacts.py` (fail-loud invariants, byte-exact manifest golden, 9/6 set-equality floor, synthetic-authoritative exclusion) [SEAM-01, SEAM-02, SEAM-04, SEAM-05]
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
