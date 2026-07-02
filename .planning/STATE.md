@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v7.0
-milestone_name: Species Trait Annotations
-status: ready_to_plan
-stopped_at: Phase 175 complete (2/2) — ready to discuss Phase 999.11
-last_updated: 2026-06-30T19:06:44.323Z
-last_activity: 2026-06-30
+milestone: v8.0
+milestone_name: Authoritative Data Foundation
+status: planning
+last_updated: "2026-07-02T19:15:43.393Z"
+last_activity: 2026-07-02
 progress:
-  total_phases: 2
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 70
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-29 — v6.0 My Work shipped)
 
 ## Current Position
 
-Phase: 999.11
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-06-30 - Completed quick task 260630-ihl: Color genus-page map by subgenera (not species) where a genus has multiple subgenera
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-07-02 — Milestone v8.0 started
 
 ## Milestone Overview
 

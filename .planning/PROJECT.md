@@ -110,9 +110,21 @@ An interactive web map displaying Ecdysis specimen records and iNaturalist colle
 
 Tighten learning cycles for volunteer collectors (close the gap between collection and identification appearing on the map) and convey liveness and togetherness among participants. Near-term: surface existing data in ways that are difficult to achieve without the site. Long-term: become the gathering place for the Washington Bee Atlas project — integrating data from Ecdysis and iNaturalist with community coordination that Canvas, iNat, Ecdysis, and Facebook each fail to provide.
 
-## No Active Milestone (v7.0 shipped 2026-06-30 — next via `/gsd-new-milestone`)
+## Current Milestone: v8.0 Authoritative Data Foundation
 
-v7.0 Species Trait Annotations is complete (summary at top). Carried-forward candidates for the next milestone:
+**Goal:** Introduce BeeAtlas's first *authoritative, non-reproducible* data — species natural-history notes with no iNaturalist upstream — and refound the build seam around a **derived-vs-authoritative** split so both data classes are managed correctly.
+
+**Framing:** Every byte the site serves today is *derived* from iNat/Ecdysis and fully reproducible by re-running the pipeline (the DuckDB is a cache, not a system of record). That invariant is why `--delete`-syncs, content-hashing, and the bypass-and-rebuild schema-change dance are all safe. Authoritative user content breaks it: losing it is unrecoverable, and it cannot be diffed against a rebuildable baseline. The anchoring user value is deliberately a single vertical slice (species natural-history notes) so the milestone's weight lands on the architecture, not the feature surface.
+
+**Target features:**
+- **Build-seam refoundation (Phase 1 — Thread 1, no user value alone):** collapse the triple-synced manifest key lists (nightly.sh upload block, inline classifier `LOCAL_NAMES`/`INTENTIONALLY_SKIPPED`, deploy.yml fetch) into **one declarative artifact contract**; de-heredoc the ~40-line baseline classifier into a tested `data/` module; establish the **derived vs. authoritative** distinction as an explicit declared property; keep derived tables on the diff-against-live-baseline gate (bypass+rebuild valid).
+- **Authoritative data store:** first non-reproducible store, with **forward-only versioned migrations** (no rebuild escape) developed here alongside real authoritative data.
+- **Thin managed write layer:** accepts writes — **consciously bends the "static hosting only, no server runtime at any layer" constraint** (note: the Function-URL Lambda was retired in quick task 260514-fcq).
+- **Auth / identity:** likely iNat OAuth (collectors already have iNat logins).
+- **Species natural-history notes:** create/edit WA-specific expert prose on species pages; public display; **moderation** loop.
+- **Safety-critical backup** for the authoritative store.
+
+### Carried forward (not scoped into v8.0)
 
 **Trait follow-ons (deferred from v7.0):** trait-based *map filtering* (touches FilterState/style-cache/URL contract); deriving the unrecorded ~33 *Sphecodes*/*Stelis* cuckoo hosts from GloBI; backfilling sparse native-status coverage; the `checklist_count=0` vs `on_checklist=true` detail-page display fix (todo).
 
@@ -130,7 +142,7 @@ v7.0 Species Trait Annotations is complete (summary at top). Carried-forward can
 
 ### Active
 
-None — no active milestone. Next requirements defined via `/gsd-new-milestone`.
+v8.0 Authoritative Data Foundation — requirements defined below in REQUIREMENTS.md (this milestone).
 
 ### Validated
 
@@ -376,6 +388,7 @@ Shipped v1.0 on 2026-02-22 (~6,172 lines across 47 files, 4 days). Shipped v1.1 
 ## Constraints
 
 - **Static hosting**: No server runtime — all data must be in static Parquet files bundled with or fetched by the frontend
+  - ⚠ **Under revision in v8.0:** authoritative user content (natural-history notes) requires a write path. v8.0 consciously introduces a *thin managed write layer* as a bounded exception to "no server runtime at any layer." The read path stays fully static. Scope/shape of the exception is a v8.0 architecture decision (see REQUIREMENTS.md).
 - **Python version**: 3.14+ (per `data/pyproject.toml`)
 - **Node.js**: Version pinned in `package.json`
 - **AWS**: Infrastructure via CDK in `infra/`; deploy via OIDC role (not long-lived access keys)
@@ -520,4 +533,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-30 — closed milestone **v7.0 Species Trait Annotations** (Phases 173–174, merged via PR #39, 2026-06-29→30): curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host) from license-clean seeds assembled into a `species_traits` dbt mart with per-label provenance, surfaced on the species detail page (Traits fact-sheet + linked clepto hosts) and the index/genus/subgenus pages (sociality + Specialist badges) via the Path-B `species.json` merge (no contract/artifact change). All TRAIT-DATA + TRAIT-UI requirements satisfied. Archived to `.planning/milestones/v7.0-*`; tagged `v7.0`. Deferred: `checklist-count-zero-but-on-checklist` (detail-page count display), plus pre-existing tech debt. Operator action pending: one-time `SKIP_INTEGRATION_GATE=1` nightly on maderas. No active milestone — next via `/gsd-new-milestone`. Previously: 2026-06-28 closed milestone **v6.0 My Work — Progress & Provenance** (Phases 167–172 incl. inserted 171.1, 16 plans, 2026-06-25→28): the first public no-auth per-collector "work" surface — bookmarkable `/collectors/{login}/` pages with a collection→ID event stream and an accomplishments view — on a rebuilt occurrence model that replaced the `source` enum with orthogonal `tier`+`record_type` facets and added `collector_inat_login` + `id_date` to the mart (dbt contract 36→39). All 17 v1 requirements satisfied; cross-phase integration clean (5/5 seams); milestone audit `tech_debt` (no blockers — the one operational unknown is confirming the live-S3 data landing, but the nightly is unblocked since Phase 163 was resolved 2026-06-24). Archived to `.planning/milestones/v6.0-*`; tagged `v6.0`. No active milestone — next via `/gsd-new-milestone`. Carried-forward open phase: 166 (seasonality charts). Deferred: `144-code-review-deferred.md` + `165-code-review-deferred.md` (low, non-blocking). Previously: 2026-06-24 closed **v5.2 Place Coverage Expansion** (Phases 160–162); 2026-06-23 closed v5.1 Housekeeping; 2026-06-21 closed v5.0 Offline Field Mode.*
+*Last updated: 2026-07-02 — started milestone **v8.0 Authoritative Data Foundation**: introduces BeeAtlas's first authoritative, non-reproducible data (species natural-history notes, no iNat upstream) and refounds the build seam around a derived-vs-authoritative split (Thread 1 build-seam cleanup = phase 1: one declarative artifact contract + tested classifier module; forward-only migrations + thin managed write layer + iNat-OAuth auth + moderation + safety-critical backup developed alongside the store). Consciously bends the "no server runtime" constraint for the write path only (read path stays static). Previously: 2026-06-30 — closed milestone **v7.0 Species Trait Annotations** (Phases 173–174, merged via PR #39, 2026-06-29→30): curated ecological traits (sociality, diet breadth + host plant, nesting, native status, cuckoo host) from license-clean seeds assembled into a `species_traits` dbt mart with per-label provenance, surfaced on the species detail page (Traits fact-sheet + linked clepto hosts) and the index/genus/subgenus pages (sociality + Specialist badges) via the Path-B `species.json` merge (no contract/artifact change). All TRAIT-DATA + TRAIT-UI requirements satisfied. Archived to `.planning/milestones/v7.0-*`; tagged `v7.0`. Deferred: `checklist-count-zero-but-on-checklist` (detail-page count display), plus pre-existing tech debt. Operator action pending: one-time `SKIP_INTEGRATION_GATE=1` nightly on maderas. No active milestone — next via `/gsd-new-milestone`. Previously: 2026-06-28 closed milestone **v6.0 My Work — Progress & Provenance** (Phases 167–172 incl. inserted 171.1, 16 plans, 2026-06-25→28): the first public no-auth per-collector "work" surface — bookmarkable `/collectors/{login}/` pages with a collection→ID event stream and an accomplishments view — on a rebuilt occurrence model that replaced the `source` enum with orthogonal `tier`+`record_type` facets and added `collector_inat_login` + `id_date` to the mart (dbt contract 36→39). All 17 v1 requirements satisfied; cross-phase integration clean (5/5 seams); milestone audit `tech_debt` (no blockers — the one operational unknown is confirming the live-S3 data landing, but the nightly is unblocked since Phase 163 was resolved 2026-06-24). Archived to `.planning/milestones/v6.0-*`; tagged `v6.0`. No active milestone — next via `/gsd-new-milestone`. Carried-forward open phase: 166 (seasonality charts). Deferred: `144-code-review-deferred.md` + `165-code-review-deferred.md` (low, non-blocking). Previously: 2026-06-24 closed **v5.2 Place Coverage Expansion** (Phases 160–162); 2026-06-23 closed v5.1 Housekeeping; 2026-06-21 closed v5.0 Offline Field Mode.*
