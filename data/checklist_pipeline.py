@@ -23,8 +23,37 @@ import os
 from pathlib import Path
 
 import duckdb
+import pyarrow as pa
 
 from canonical_name import normalize_scientific_name
+
+def _bulk_insert(
+    con: duckdb.DuckDBPyConnection,
+    table: str,
+    columns: list[str],
+    records: list[tuple],
+) -> None:
+    """Bulk-insert records into a DuckDB table via Apache Arrow.
+
+    Transposes the list of tuples into columnar form, registers as an Arrow
+    view on the connection, and issues a single INSERT..SELECT. This is
+    significantly faster than row-by-row executemany for large row sets.
+
+    Empty records list is a no-op, matching executemany([]) behaviour.
+    DuckDB casts each Arrow column to the target table's declared type, so
+    the CREATE OR REPLACE TABLE DDL remains the authoritative type source.
+    """
+    if not records:
+        return
+    cols_data = list(zip(*records))
+    arrow_tbl = pa.table({name: pa.array(col) for name, col in zip(columns, cols_data)})
+    col_list = ", ".join(columns)
+    try:
+        con.register("_bulk_arrow", arrow_tbl)
+        con.execute(f"INSERT INTO {table} ({col_list}) SELECT {col_list} FROM _bulk_arrow")
+    finally:
+        con.unregister("_bulk_arrow")
+
 
 DB_PATH = os.environ.get("DB_PATH", str(Path(__file__).parent / "beeatlas.duckdb"))
 CHECKLIST_PATH = Path(__file__).parent / "checklists" / "wa_bee_checklist.tsv"
@@ -336,8 +365,10 @@ def _load_checklist_records(con: duckdb.DuckDBPyConnection) -> None:
             month BIGINT
         )
     """)
-    con.executemany(
-        "INSERT INTO checklist_data.checklist_records VALUES (?, ?, ?, ?)",
+    _bulk_insert(
+        con,
+        "checklist_data.checklist_records",
+        ["scientificName", "county", "year", "month"],
         records,
     )
     count = con.execute("SELECT count(*) FROM checklist_data.checklist_records").fetchone()[0]
@@ -492,9 +523,14 @@ def _load_checklist_records_full(con: duckdb.DuckDBPyConnection) -> None:
             coord_flag VARCHAR
         )
     """)
-    con.executemany(
-        "INSERT INTO checklist_data.checklist_records_full VALUES "
-        "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    _bulk_insert(
+        con,
+        "checklist_data.checklist_records_full",
+        [
+            "ObjectID", "family", "genus", "verbatim_name", "canonical_name",
+            "locality", "latitude", "longitude", "recordedBy",
+            "year", "month", "day", "date_quality", "coord_flag",
+        ],
         records,
     )
 
@@ -575,8 +611,14 @@ def load_checklist(con: "duckdb.DuckDBPyConnection | None" = None) -> None:
                 canonical_name VARCHAR NOT NULL
             )
         """)
-        con.executemany(
-            "INSERT INTO checklist_data.species VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        _bulk_insert(
+            con,
+            "checklist_data.species",
+            [
+                "scientificName", "family", "subfamily", "tribe", "genus",
+                "subgenus", "specific_epithet", "status", "source_citation",
+                "notes", "canonical_name",
+            ],
             species_rows,
         )
 
@@ -586,8 +628,10 @@ def load_checklist(con: "duckdb.DuckDBPyConnection | None" = None) -> None:
                 county VARCHAR
             )
         """)
-        con.executemany(
-            "INSERT INTO checklist_data.species_counties VALUES (?, ?)",
+        _bulk_insert(
+            con,
+            "checklist_data.species_counties",
+            ["scientificName", "county"],
             species_counties,
         )
 
