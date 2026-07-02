@@ -1,368 +1,334 @@
 # Pitfalls Research
 
-**Domain:** v6.0 "My Work — Progress & Provenance" — source-enum migration, temporal event history on a snapshot pipeline, per-collector static pages, accomplishments, collector identity on a public static site
-**Researched:** 2026-06-24
-**Confidence:** HIGH for the positional-coupling and contract migration risks (directly observed in the codebase); HIGH for the occ_id-transition-breaks-history risk (the waba_specimen→ecdysis lifecycle is documented and the transition behavior is explicit in domain-model.md); MEDIUM for the collector-identity and gamification pitfalls (inferred from domain knowledge and the existing data model, no analogous prior phase to observe directly)
+**Domain:** Adding authoritative, non-reproducible user-generated content (moderated species notes) + a thin write layer + OAuth to a previously read-only, 100%-derived static site (S3/CloudFront, nightly Python/dbt/DuckDB pipeline)
+**Researched:** 2026-07-02
+**Confidence:** HIGH (grounded in the actual `data/nightly.sh` sync/manifest/gate code + PROJECT.md framing; external OAuth/moderation practices MEDIUM)
+
+> **Framing (from PROJECT.md):** every byte the site serves today is *derived* from iNat/Ecdysis and fully reproducible. The DuckDB (`data/beeatlas.duckdb`) is a **cache, not a system of record** — `nightly.sh` literally does `s3 cp` the DB down, rebuilds it with `run.py`, and `s3 cp`s it back up. That pull→rebuild→push round-trip, `--recursive` overwrites, content-hashing, and the bypass-and-rebuild schema-change dance are all *safe today precisely because losing any byte costs one pipeline run*. Authoritative user notes break that invariant: **losing them is unrecoverable, and they cannot be diffed against a rebuildable baseline.** Every pitfall below is a place where a habit that is correct for derived data becomes destructive for authoritative data.
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Breaking the Three-File Positional Coupling During the `source` Rebuild
+### Pitfall 1: The nightly rebuild wipes authoritative data (the cache-is-system-of-record trap)
 
 **What goes wrong:**
-The `occ_id` construction logic is duplicated across three files and must stay byte-identical in priority order: `src/occurrence.ts` (`occIdFromRow`), `src/filter.ts` (`OCC_ID_SQL_CASE`), and `data/dbt/models/marts/occurrence_places.sql`. The `source` rebuild will touch at minimum `filter.ts` (to change `o.source IN (...)` to orthogonal facet clauses) and probably `occurrence.ts` (to add new predicates). A developer who refactors the `source` handling in `filter.ts` without reading the POSITIONALLY COUPLED comment can unconsciously break `OCC_ID_SQL_CASE` — for example, by adding a new column alias, changing the `o.` qualification, or adding a new occ_id prefix arm in a different priority order than `occurrence.ts`. The result is that place-filter hits stop working for the new/changed arm: `EXISTS (SELECT 1 FROM occurrence_places op WHERE op.occ_id = ${OCC_ID_SQL_CASE})` generates IDs that no longer match the bridge table rows.
-
-The dbt contract on `occurrences` (36 columns as of v5.2) enforces column presence and type but does NOT enforce that `OCC_ID_SQL_CASE` in `filter.ts` matches the CASE in `occurrence_places.sql`. Type tests pass; place filters silently return zero results for one source category.
+Authoritative notes are stored in the same `beeatlas.duckdb` that `nightly.sh` treats as a cache. The nightly does `aws s3 cp "$DB_PATH" s3://.../$DB_S3_KEY` (upload) and pulls it back next run (lines 88/101). If the notes table lives in that DB, a `dbt build --full-refresh`, a `DROP … CREATE`, a schema-change rebuild, or simply a run that *doesn't* re-populate the table (because there is no upstream source to populate it from) leaves the table empty — and the push overwrites the only surviving copy in S3. One green nightly and the notes are gone with no source to regenerate them.
 
 **Why it happens:**
-The coupling comment is in the file but is easy to miss during a large refactor. The three sites are in different languages (TypeScript, inline SQL string, dbt SQL). There is no test that runs all three together end-to-end (the unit tests for `filter.ts` use in-memory SQLite with no `occurrence_places` table; the dbt tests run in the pipeline separately). The breakage is silent — it does not throw, it just returns wrong (empty) place-filter results for the broken arm.
+Every prior milestone's mental model is "the DB is disposable; rebuild fixes everything." dbt's whole ergonomic is idempotent rebuild-from-source. Authoritative data has no source, so "rebuild" = "delete."
 
 **How to avoid:**
-- Treat the three-file block as an atomic commit unit. The PR must include changes to all three or a comment explaining why only a subset changed.
-- Add a Vitest test that asserts `OCC_ID_SQL_CASE` (the string constant in `filter.ts`) produces the same priority-ordered branch structure as `occIdFromRow` in `occurrence.ts`. This is achievable by parsing both into a canonical form (list of `[column, prefix]` pairs) and comparing.
-- If the facets rebuild introduces new derivable facet columns to the dbt model, add them to `schema.yml` contract immediately (same commit) — do not land a partial model where the TypeScript expects a column that the dbt contract does not yet declare.
+- **Physically separate the authoritative store from the pipeline DuckDB.** The notes must not be a dbt model and must not live in a table the nightly `cp`s or `dbt build` touches. Options: a distinct store (separate SQLite/DuckDB file, DynamoDB table, or Postgres) that the pipeline *reads from as a source* but never *writes to* and never *overwrites*.
+- If it must sit near the pipeline, the pipeline's job is **ingest (read-only) into a derived projection**, never mutate the authoritative rows.
+- Mark it `authoritative` in the new declarative artifact contract (Phase 1) so tooling refuses to `--full-refresh` / overwrite it.
+- **Never `s3 cp`/`s3 sync --delete` over the authoritative store.** Writes to it are append/update through the write layer only.
 
 **Warning signs:**
-- Place-filter chips resolve to zero occurrences for one source category but not others.
-- The `occurrence_places` bridge has rows but `EXISTS` queries return false for that arm.
-- A PR touches `filter.ts` but not `occurrence_places.sql` or `occurrence.ts` (check in code review).
+A dbt model named `notes`; the notes table appearing in `manifest.json`; the notes living inside `beeatlas.duckdb`; any code path that recreates the notes table from a SELECT; a nightly log line that uploads a DB containing notes.
 
-**Phase to address:**
-Phase 1 of v6.0 (source → facets rebuild). Must be the explicit verification criterion for that phase: run a place filter with each source arm represented and assert non-zero results.
+**Phase to address:** **Phase 2 (authoritative store)** designs the physical separation; **Phase 1 (build-seam)** establishes the `derived` vs `authoritative` declared property that makes "the pipeline may never overwrite this" machine-checkable.
 
 ---
 
-### Pitfall 2: The dbt Contract + S3 Deadlock When Adding Facet Columns
+### Pitfall 2: No backup / PITR exists *before the first real note is written*
 
 **What goes wrong:**
-The project's `occurrences_contract_release_sequence` memory documents a known deadlock pattern: the nightly `test_dbt_diff` integration test diffs the new-build parquet against the last-published S3 artifact. If you add a new column to `schema.yml` and ship the TypeScript that reads it in the same deploy, the nightly test will fail because S3 still has the old-schema artifact — the gate fires before the column is live in production data. Conversely, if you try to ship the new column to S3 first (data-before-code order), but the contract gate prevents `dbt build` from succeeding until `schema.yml` is updated, you are stuck.
-
-The facets rebuild is exactly this shape: it is likely to add new columns to the `occurrences` mart (e.g., a `first_seen_at` timestamp, a `collection_status` enum, or facet-derived boolean flags). Each such addition requires the contract→data→code sequence and a one-time `SKIP_INTEGRATION_GATE=1` nightly run.
+Backup is treated as a "harden later" task. The write layer ships, a handful of real experts write genuinely valuable WA-specific prose, and *then* a bad migration, a fat-fingered `DELETE`, or a store misconfiguration destroys it — with no snapshot to restore. Unlike every prior incident in this project, there is no `run.py` to re-derive it.
 
 **Why it happens:**
-The release sequence was documented precisely because it has bitten the project before. It is easy to forget under time pressure, especially when a phase touches both the dbt model and the TypeScript schema simultaneously (which the facets rebuild will).
+In a derived-data world backups were pointless (S3 versioning on regenerable artifacts is theater), so the team has no backup muscle memory. Backup feels like polish, so it slides right in the schedule.
 
 **How to avoid:**
-- Plan the schema change explicitly as its own step in the phase plan, using the established data-before-code order: (1) update `schema.yml` + add the column to the dbt model, (2) run nightly with `SKIP_INTEGRATION_GATE=1`, (3) then ship the TypeScript that reads the new column.
-- If the facets rebuild can be staged — e.g., add the columns in one phase without changing the frontend, then cut the frontend over in the next — the release sequence is simpler: the new column lands in S3 before any frontend reads it.
-- Do NOT add new `occurrences` columns in the middle of a phase that is also changing the TypeScript filter logic. Separate schema changes from logic changes into distinct commits.
+- **Backup is a launch gate, not a follow-up.** The store must have automated point-in-time recovery / snapshots *turned on and test-restored* before the write endpoint accepts its first non-test write. PROJECT.md already lists "safety-critical backup" as an explicit target — treat it as a hard predecessor of "open writes."
+- Prefer a store with built-in PITR (DynamoDB continuous backups, RDS/Aurora automated backups, or Litestream/S3-versioned snapshots for SQLite).
+- **Enable S3 Versioning + a deny-delete/MFA-delete-style guard on the authoritative bucket/prefix** so an overwrite is recoverable even if app-level backup fails.
+- **Rehearse a restore** as an acceptance test — an untested backup is not a backup.
 
 **Warning signs:**
-- `test_dbt_diff` fails after a phase that added columns to `schema.yml`.
-- The nightly pipeline exits non-zero at the `test-dbt-diff` step before S3 publish.
-- A code review finds a `OCCURRENCE_COLUMNS` addition in `filter.ts` that is not yet in `schema.yml`.
+"We'll add backups after launch"; the write endpoint is reachable but no snapshot has ever been restored; the store has no versioning; backup config exists but has never been exercised.
 
-**Phase to address:**
-Phase 1 (source → facets rebuild) and Phase 2 (temporal lifecycle columns). Both will likely add columns to the mart. The phase plan must include the release sequence as explicit steps.
+**Phase to address:** **Phase 2** (store creation) provisions backup/PITR + versioning; **Phase 3 (write layer)** must not enable public writes until a restore has been demonstrated. Make "test-restore performed" a Phase 3 acceptance criterion.
 
 ---
 
-### Pitfall 3: The `waba_specimen → ecdysis` Transition Breaks the Event Stream
+### Pitfall 3: The schema-diff integration gate misfires on authoritative tables (the bypass-and-rebuild dance turns destructive)
 
 **What goes wrong:**
-A WABA bee specimen appears in the pipeline as `source='waba_specimen'`, `occ_id='inat_obs:N'` while it awaits cataloguing. When the Ecdysis record is uploaded and the nightly pipeline runs, the row transitions to `source='ecdysis'`, `occ_id='ecdysis:M'`. This is documented in `docs/domain-model.md` as "a change in both source and occ_id."
-
-For the event stream, this transition looks exactly like: (a) `inat_obs:N` was deleted, (b) `ecdysis:M` was created — a delete+create event rather than a status-update event. Any snapshot-diff approach (diffing yesterday's parquet against today's) will surface this as two separate events ("your specimen disappeared" + "a new ecdysis specimen appeared") rather than one ("your specimen was catalogued"). Even a pipeline-side history table keyed on `occ_id` will not link them: the two rows have different `occ_id` values by design.
-
-As of 2026-06-24, there are ~33 `waba_specimen` rows, ~28 from 2024 — the transition will happen repeatedly as the 2024 backlog is catalogued.
+The nightly integration gate (`test_dbt_diff`) iterates **every** `manifest.json` key, pulls the published artifact as a baseline, rebuilds from source, and asserts equality (lines 143–190 of `nightly.sh`). Its escape hatch for legitimate schema changes is **bypass the gate (`SKIP_INTEGRATION_GATE=1`) then rebuild to regenerate the baseline** — documented in memory `project_occurrences_contract_release_sequence`. Point that machinery at an authoritative table and two failure modes appear: (a) it can never pass, because there is no reproducible baseline to diff against — the live table legitimately differs from any rebuild; (b) far worse, an operator following the muscle-memory "bypass + rebuild to make the diff green" dance **regenerates the authoritative table from nothing, wiping it**, and the now-empty table happily matches the freshly-rebuilt-empty baseline. Green gate, destroyed data.
 
 **Why it happens:**
-The `occ_id` prefix is assigned by the first applicable rule in `occIdFromRow`: `ecdysis_id` wins over `specimen_observation_id`. Before cataloguing, `ecdysis_id` is NULL so the ID comes from `specimen_observation_id`. After cataloguing, `ecdysis_id` is set and the ID changes. There is no stable cross-state identity for this physical bee in the current model.
+The gate was designed on the axiom "everything published is reproducible." The bypass-and-rebuild remediation is a *reflex* the operator has used across many contract bumps (36→37→38→39). Nobody re-examined whether the reflex is safe when the artifact is a system of record.
 
 **How to avoid:**
-- Accept the identity gap at MVP: the event stream shows the `waba_specimen` disappearing and the `ecdysis` row appearing as separate events. Surface this as a positive framing: "Your specimen @username/obs/N was catalogued as Ecdysis #M." This requires matching the two events on a shared signal (e.g., `specimen_observation_id` present on the ecdysis row — which it is when the ecdysis arm has a WABA link).
-- Implement the matching in the pipeline, not the frontend: add a `transitioned_from_inat_obs` column (or a join key) to the `ecdysis` arm rows that came from `waba_specimen`. This makes the transition visible as a single event type rather than a delete+create.
-- Do NOT store event history keyed purely on `occ_id` without first resolving this: a history table built from nightly diffs will permanently lose the link between `inat_obs:N` and `ecdysis:M`.
+- **Authoritative tables must be structurally excluded from the diff-against-live-baseline gate.** In Phase 1's declarative contract, `derived` artifacts stay on the `test_dbt_diff` gate; `authoritative` artifacts are routed to a *different* verification (schema-shape/contract check + row-count-floor + "did the migration run cleanly," never content-equality-vs-rebuild).
+- Replace the free-text `LOCAL_NAMES` / `INTENTIONALLY_SKIPPED` sets with the single declarative contract, and make the classifier **fail loud** if an artifact is neither `derived` nor `authoritative` (no silent default that could sweep a note table onto the wrong gate).
+- **Make the rebuild path physically unable to touch authoritative rows** (Pitfall 1) so that even a mis-invoked bypass-rebuild cannot empty them.
+- Forbid `--full-refresh` / rebuild verbs against anything tagged `authoritative` at the tool level.
 
 **Warning signs:**
-- The event stream shows a collector's specimen disappearing and reappearing with no explanation.
-- The history table has `DELETE inat_obs:N` followed by `INSERT ecdysis:M` with no linkage.
-- A diff-based event log shows a spike in "deleted" events whenever a batch of Ecdysis records is uploaded after a gap.
+The notes table has a `manifest.json` key; `test_dbt_diff` output mentions the notes artifact; an operator reaches for `SKIP_INTEGRATION_GATE=1` in the context of the notes table; the classifier's "unknown key → skip" branch swallows a new authoritative artifact.
 
-**Phase to address:**
-Phase 2 (temporal ID-status lifecycle). The matching logic for `waba_specimen → ecdysis` transitions must be designed before any event-history storage schema is committed. This is the single highest-risk design decision in the milestone.
+**Phase to address:** **Phase 1 (build-seam refoundation)** — this *is* the milestone's Thread-1 reason for being. The declarative contract must split the two verification regimes; verify by attempting a rebuild and confirming the authoritative table is untouched.
 
 ---
 
-### Pitfall 4: "Everything Is New" First-Run Flood
+### Pitfall 4: `s3 sync --delete` / `--recursive` overwrite reaches an authoritative prefix
 
 **What goes wrong:**
-If the event stream is built by diffing nightly snapshots, the first time the diff runs against an initial empty history baseline, every occurrence in the current snapshot is emitted as a "new" event — potentially thousands of events. For a collector with 500 records, the personal event stream would show 500 "new" events on first load, which is useless as a "what changed" signal and demotivating as an accomplishment view (there is no sense of progression if everything arrives at once).
-
-The same flood can recur after any history gap: if the pipeline misses a night (Ecdysis auth failure, maderas downtime), the next morning's diff emits all changes since the last good run as a single timestamp bucket.
+The nightly already does `aws s3 cp --recursive` over `feeds/`, `species-maps/`, `place-maps/` and a plain `cp` overwrite of the DuckDB and manifest. A future convenience edit — "just sync the whole `/data/` prefix," or adding `--delete` to prune stale hashed artifacts — silently deletes or clobbers any authoritative artifact that shares the prefix. Content-immutable hashed naming (used for derived artifacts) tempts a `--delete` sweep of "orphaned" objects; an authoritative object with a stable (non-hashed) key looks like an orphan.
 
 **Why it happens:**
-Snapshot diffing naturally has no concept of "before the beginning." The first baseline is an empty set, so everything in the first snapshot is a creation event. There is no distinction between "existed before we started tracking" and "created today."
+`--delete` is the natural way to keep a hashed-artifact bucket tidy. The authoritative object doesn't participate in the hash-and-manifest scheme, so cleanup logic treats it as garbage.
 
 **How to avoid:**
-- On first run, set the baseline to the current snapshot (no events emitted). Emit events only for changes from that point forward. Surface historical accomplishments (total count, county coverage) separately from the event stream — they come from the snapshot, not the diff.
-- For pipeline gaps: if the diff gap is longer than a threshold (e.g., >3 days), emit a "data refresh" summary event rather than individual per-occurrence events, and discard the fine-grained diff.
-- If using client-side "last seen" watermark instead of pipeline history: on first visit, set the watermark to "now" and show accomplishments from the full snapshot. The event stream starts accumulating from that visit.
+- **Put authoritative data under its own bucket or a clearly-fenced prefix** that no pipeline sync command names — ideally a *different bucket* with S3 Versioning + a bucket policy denying `DeleteObject`/overwrite to the pipeline's OIDC role.
+- Grant the nightly's IAM identity **no write/delete permission** on the authoritative prefix (least privilege makes the mistake impossible, not just discouraged).
+- Never introduce `--delete` to a sync that could name the authoritative prefix; if pruning derived orphans is needed, scope it to the hashed `data/<hash>` objects explicitly.
 
 **Warning signs:**
-- Event stream shows hundreds of events on first load for an established collector.
-- Pipeline history table has a row count equal to the full occurrence count on the first nightly run.
-- A collector reports "it shows everything as new every time."
+Any `s3 sync … --delete`; a `cp --recursive` whose destination prefix contains authoritative objects; the pipeline OIDC role holding `s3:DeleteObject` on the notes prefix.
 
-**Phase to address:**
-Phase 2 (temporal lifecycle). The "first-run baseline" strategy must be an explicit design decision in the phase plan, not an implementation detail discovered during execution.
+**Phase to address:** **Phase 2** (bucket/prefix + IAM boundary) and **Phase 1** (the contract declares which prefixes are authoritative so sync scoping is derivable).
 
 ---
 
-### Pitfall 5: Collector Identity Mismatch — `recordedBy` vs. `host_inat_login`
+### Pitfall 5: No takedown path / moderation loop for hosted user content (legal + reputational)
 
 **What goes wrong:**
-Occurrences attributed to a collector come from two independent identity fields: `recordedBy` (free-text from Ecdysis, e.g. "Peter Abrahamsen") and `host_inat_login` (iNat username from the sample observation, e.g. "rainhead"). These are not reliably the same person across all records. The existing `CollectorEntry` type in `filter.ts` models this duality, but the matching is done with an OR clause: `recordedBy IN (...) OR host_inat_login IN (...)`.
-
-For the per-collector page, the page must be keyed on something stable (a URL slug). If the slug is the iNat handle, collectors who have Ecdysis records but no iNat presence get no page. If the slug is `recordedBy`, free-text names with typos, abbreviations, or multiple formats ("P. Abrahamsen", "Peter Abrahamsen", "abrahamsen") generate multiple pages or silently drop records.
-
-There are also collectors who appear under both identities with no programmatic link: a researcher who posts to iNat as "dragonfly_expert" but whose Ecdysis records say "M. Johnson." Their ecdysis records and iNat observations appear on separate pages (or no page at all) unless manually resolved.
+The site becomes a publisher of arbitrary free-text prose. Someone posts defamation, harassment, copyrighted text, PII (a collector's home address, a rare-species locality that invites poaching), or offensive content — and there is no way to remove it quickly, no audit trail of who wrote what, and no pre-publication gate. For a US volunteer-science project this is both a liability exposure and a trust-destroying incident.
 
 **Why it happens:**
-The pipeline has no canonical collector registry. `recordedBy` in Ecdysis is a free-text field entered by the collection manager. `host_inat_login` comes from the iNat observation's user login, which is stable. There is no join key between the two except when a WABA iNat observation (`host_observation_id`) links to an Ecdysis row.
+The "thin vertical slice" framing makes moderation feel like scope creep. The team's instinct is "our experts are trustworthy," ignoring account compromise, disgruntlement, and honest mistakes (PII pasted inadvertently).
 
-**How to avoid:**
-- For MVP: key per-collector pages exclusively on `host_inat_login` (iNat handle). This covers WABA collectors, who are the target audience, and avoids the free-text normalization problem. Ecdysis-only records without an iNat link are excluded from the personal page — document this as a known gap.
-- Build a `collector_identity.csv` seed (analogous to `dedup_decisions.csv`) that manually maps `recordedBy` strings to `host_inat_login` for known WABA collectors. Use this to merge their Ecdysis records onto their iNat-keyed page. Keep the file small and curator-managed.
-- Do NOT auto-fuzzy-match `recordedBy` to `host_inat_login` (similar to the checklist dedup lesson: false merge is worse than false split).
-- Validate the page generation gate: if `collector_identity.csv` maps a name that appears in zero records, fail loud rather than generating an empty page.
+**How to avoid (minimum viable safety):**
+- **Moderation-before-publish for the first release.** New/edited notes enter a pending state; a maintainer approves before public display. This is far cheaper than reactive moderation and matches the project's existing curator-gate culture (dedup CSV sign-off, name-resolution human-review gate).
+- **A one-action takedown / unpublish** that a maintainer can invoke without a deploy (flip a `status` column), plus **hard-delete with audit retention**.
+- **Full attribution + audit trail**: every note version records author iNat identity, timestamp, and prior content (this also gives you edit history for free and supports vandalism rollback).
+- **Restrict who can write.** Gate writing to authenticated iNat users, and consider an allowlist (WABA participants) for v1 rather than "anyone with an iNat login." This shrinks the abuse surface dramatically for a single-slice launch.
+- **PII/locality guidance in the UI** ("do not post precise localities of sensitive taxa; do not post personal contact info") and a reporting affordance.
+- Note US §230 generally protects platforms for third-party content, **but** approval-before-publish and takedown are still the right operational posture; copyright (DMCA) needs a takedown path regardless.
 
 **Warning signs:**
-- Two pages exist for the same real person (one under their iNat handle, one under their Ecdysis name).
-- A collector's personal page is missing their pinned-bee specimens because those rows have a `recordedBy` not in the identity seed.
-- A page is generated with zero occurrences (the identity key resolved but matched nothing).
+Notes render publicly the instant they're submitted; no `status`/`is_published` column; no author identity stored; no way to remove a note without a code deploy; "our users are trusted" as the entire abuse model.
 
-**Phase to address:**
-Phase 3 (per-collector page generation). The identity model must be resolved before the Eleventy template is built. The `collector_identity.csv` seed should be seeded with at least the active WABA collectors before launch.
+**Phase to address:** **Phase 4 (notes feature + moderation)** owns the loop, but **Phase 2** must include the schema affordances (`status`, `author_id`, version/audit columns) so moderation isn't bolted on. Verify with an end-to-end "submit → pending → approve → publish → takedown" walkthrough.
 
 ---
 
-### Pitfall 6: Privacy Risk — Personally-Identifiable Activity on Public Static Pages
+### Pitfall 6: OAuth token leakage / no PKCE in a static SPA
 
 **What goes wrong:**
-A per-collector page at `/collector/rainhead/` (bookmarkable, indexed by search engines, no auth) shows: collection date, collection location (lat/lon → county), bee species found. For most WABA collectors this is expected and desired. However:
-
-1. **iNat obscured coordinates**: iNat observations marked "obscured" by the observer have their coordinates randomized (usually to a ~22 km box) to protect sensitive species or the collector's location. The pipeline currently uses these obscured coordinates. A per-collector page that maps these occurrences will show the collector as having been "in King County" rather than a specific point — which may still reveal more than the collector intended if combined with other signals (date + host plant = "this person was at Camas Prairie on May 3").
-2. **Collector opt-out**: some WABA participants may not want a public page. There is currently no consent mechanism in the pipeline. A volunteer who contributed specimens to the project may not expect a public page about their activity.
-3. **Name vs. handle exposure**: using `recordedBy` (real name) as the page title is more privacy-sensitive than using an iNat handle. Real names in URLs can be indexed and attributed in ways the collector did not anticipate.
+A static SPA cannot hold a client secret. Teams reflexively copy a server-side "authorization code + client secret" or "implicit flow" example. The result is either a leaked client secret shipped in JS, or an access token in the URL fragment / `localStorage` that any XSS or third-party script can exfiltrate. iNat OAuth tokens then let an attacker act as the user *on iNaturalist itself*, not just on BeeAtlas.
 
 **Why it happens:**
-The "no auth needed, just self-identification" insight that makes the work surface feasible also removes the gate that would normally require a collector to opt in. The data is technically public (iNat observations are public, Ecdysis is public), but aggregating it into a named, bookmarkable personal page is a different disclosure level.
+The site has never had auth. Most OAuth tutorials assume a confidential server client. The static-hosting constraint conflicts with the classic code-exchange flow.
 
 **How to avoid:**
-- Key pages exclusively on iNat handle (not `recordedBy` / real name). This is the lower-privacy identifier since the collector already chose it as a public identity on iNat.
-- Do not generate pages for collectors below a minimum activity threshold (e.g., fewer than 5 occurrences). This avoids generating a page for a one-time participant who may have forgotten about the project.
-- Add a `collector_optout.csv` seed (just a list of iNat handles). Any handle in the file gets no page generated. Document this process in the operator guide.
-- Never show GPS coordinates on the collector page. Show county/ecoregion only — same granularity as the existing map filter.
-- Do not index collector pages in search engines (add `<meta name="robots" content="noindex">` to the per-collector page template) until an explicit decision is made that this is desired.
+- **Authorization Code flow with PKCE**, treating the app as a **public client** (no secret in the browser). Verify iNat's OAuth supports PKCE; if it only supports confidential code exchange, the **thin write layer (Phase 3) performs the code→token exchange server-side** and the browser never sees the iNat client secret or long-lived tokens.
+- **Do not use the implicit flow** (deprecated; leaks tokens in the URL).
+- **Never store long-lived tokens in `localStorage`.** Prefer the write layer minting its own **short-lived, HttpOnly, SameSite session cookie / signed session token** after verifying the iNat identity, and keeping the iNat access token server-side (or discarding it after identity verification if you only need "who is this").
+- **Request the narrowest scope.** For "who is this user," you likely need only identity/`login`, not write scope on iNat. Do not request write/delete scopes you never use.
+- **Pin the redirect URI** to an exact registered value; reject others.
 
 **Warning signs:**
-- A collector contacts the project to ask that their page be removed (zero current mechanism to do so quickly without a deploy).
-- iNat obscured observations appear on a collector page with their obscured (still usable for triangulation) coordinates.
-- A page is generated for a one-time visitor who posted a single iNat observation and has no Ecdysis records.
+A client secret anywhere in the frontend bundle; access token in a URL fragment or `localStorage`; `response_type=token`; broad scopes; wildcard redirect URIs.
 
-**Phase to address:**
-Phase 3 (per-collector pages). The opt-out seed, the minimum-threshold gate, and the noindex meta tag are requirements, not polish. They must be in the phase plan's acceptance criteria.
+**Phase to address:** **Phase 3 (write layer + auth)**. Verify by inspecting the network flow (no secret in bundle, no token in URL, PKCE `code_challenge` present) and confirming scope minimality.
 
 ---
 
-### Pitfall 7: Gamification Anti-Patterns — Demotivating Empty States and Vanity Metrics
+### Pitfall 7: Trusting client-supplied identity on the write endpoint (authz bypass + CSRF)
 
 **What goes wrong:**
-Three failure modes are common when adding an accomplishments view to a data-sparse audience:
-
-1. **Empty state for new collectors**: A volunteer who has been collecting for one season opens their page and sees "0 counties covered," "0 species identified," "0 badges." This is accurate but demotivating. The empty state communicates failure rather than potential.
-
-2. **Vanity metrics that plateau quickly**: If the "taxonomic breadth" metric tops out at genus-level (there are only ~50 bee genera in WA), an experienced collector hits 100% within two years and the metric stops being motivating. A metric that maxes out is a dead metric.
-
-3. **Relative comparison without context**: Showing "you have 47 species identified — the project average is 82" turns a personal accomplishment view into an implicit competition. For volunteer science this is actively harmful: it discourages participants who contribute niche data (e.g., only collecting in one specialized habitat) from continuing.
+The write endpoint accepts the author's iNat login (or user id) as a **request field** the client sets, or authorizes writes based on anything the browser asserts. An attacker posts as any user, edits anyone's note, or (via CSRF) rides a logged-in maintainer's session to approve/delete content. Because notes are authoritative and public, forged authorship is a credibility attack on a scientific resource.
 
 **Why it happens:**
-Accomplishment systems are borrowed from game design where the audience opted into competition. Volunteer science audiences are inherently mixed: some are motivated by numbers, others by contribution. The project's stated Core Value is "tighten learning cycles" and "convey liveness," not "rank collectors."
+Client-driven habits from a read-only SPA (everything is a client-side param). The write layer is "thin," so identity plumbing gets shortcut.
 
 **How to avoid:**
-- Design the empty state as a prompt, not a scorecard: "Your first season — here's what we're tracking for you." Show what the metrics will show once data arrives.
-- Make all metrics absolute (counties you've covered, species you've recorded) rather than comparative (no project averages, no leaderboards, no "top N").
-- Choose metrics that scale with time invested, not just breadth: "years active" and "total collection events" grow monotonically and never plateau.
-- Explicitly defer role badges (as already noted in the seed) — these require an identity/role roster that does not exist in the pipeline, and shipping a placeholder badge is worse than shipping none.
-- Do not show a "percent of WA species recorded" metric at MVP — with ~800 WA bee species and most collectors recording 30–100, the number is always small and conveys only how much is missing.
+- **Identity is derived server-side from the verified session token, never from the request body.** The write layer resolves "who is calling" from the validated session and ignores any client-supplied author field.
+- **CSRF protection on state-changing endpoints**: use a non-cookie bearer token (Authorization header) so cross-site form posts can't carry credentials, *or* SameSite=strict cookies + a CSRF token. Reject writes lacking the expected header/origin.
+- **Server-side authorization checks**: only the author may edit their note; only maintainers may approve/take down. Enforce in the endpoint, not the UI.
+- **Validate/normalize/escape all free-text server-side** (length caps, strip control chars, treat as untrusted on render — see Pitfall 8).
 
 **Warning signs:**
-- The first draft of the accomplishments view shows a comparison table or a project-wide leaderboard.
-- Metrics are described in requirements as "goals to reach" rather than "records of contribution."
-- An empty-state mockup shows zeros across the board with no contextual framing.
+An `author` / `user_id` field in the write request body that the server trusts; authorization decisions only in frontend code; no CSRF/origin check on POST/PUT/DELETE; the approve/takedown endpoints reachable with only a cookie.
 
-**Phase to address:**
-Phase 4 (accomplishments view). The UX copy for the empty state and the choice of which metrics to surface must be resolved in the discuss/plan step, not during execution.
+**Phase to address:** **Phase 3 (write layer + auth)** for identity/CSRF; **Phase 4** for the author-vs-maintainer authorization matrix. Verify with a forged-author request and a cross-origin POST that must both be rejected.
 
 ---
 
-### Pitfall 8: Static-Generation Scale — Per-Collector Page Blowup
+### Pitfall 8: Stored XSS via free-text notes rendered into public pages
 
 **What goes wrong:**
-The existing pattern generates one page per taxon (592 species + genus/subfamily pages = ~800 pages) and one page per place (~50 places). Per-collector pages follow the same pattern. However, the scale question is different: how many distinct collectors appear in the occurrence data?
-
-The `recordedBy` field in Ecdysis is free-text with high cardinality (name variants, initials, etc.). If the page generation naively iterates every distinct value of `host_inat_login` or `recordedBy`, it could attempt to generate pages for hundreds of Ecdysis enterers, museum contributors from the checklist (Bartholomew et al. covers historical records with many `recordedBy` values), and one-time iNat observers.
-
-The checklist source alone (19,929 records) has many distinct `recordedBy` values from historical museum collections. These are not WABA volunteers and should not get personal pages.
+Notes are expert *prose* that gets rendered onto public species pages. If markdown/HTML is allowed and not sanitized, a note can inject `<script>` or event-handler attributes that execute for every visitor — including maintainers whose session could then be used to approve/delete content (chaining into Pitfall 7).
 
 **Why it happens:**
-The taxon and place page patterns are bounded by controlled vocabularies (iNat taxon IDs, curated `places.toml`). Collector identity has no such bound unless it is explicitly scoped to a curated set.
+"It's just text from trusted experts." Rich formatting (links, emphasis) invites permitting HTML/markdown, and sanitization is easy to under-do.
 
 **How to avoid:**
-- Gate page generation on the `collector_identity.csv` seed (from Pitfall 5). Only collectors explicitly in the seed get a page. This makes scale a function of the manually maintained list, not the full occurrence cardinality.
-- Exclude `source='checklist'` records from collector page attribution entirely — these are historical museum records, not WABA volunteer activity. Checklist records should appear only in the aggregate accomplishments (county coverage) if at all.
-- Set a build-time assertion: if the number of generated collector pages exceeds a threshold (e.g., 50), fail with an informative error ("unexpected collector count — review collector_identity.csv"). This prevents accidental blowup from a buggy identity join.
-- Measure Eleventy build time with ~20 collector pages (a realistic WABA active-collector count) before committing to the pattern. The per-place and per-taxon pages already make the build non-trivial; 500+ collector pages would be a problem.
+- **Escape on render by default.** If formatting is desired, allow a **restricted, server-sanitized markdown subset** (no raw HTML, links `rel="noopener nofollow"`, no `javascript:` URIs) with a vetted sanitizer.
+- Sanitize/validate **server-side at write time and escape at render time** (defense in depth).
+- The moderation-before-publish gate (Pitfall 5) is also an XSS backstop — a human sees the content before it's live.
 
 **Warning signs:**
-- The Eleventy build starts generating pages for every distinct `recordedBy` in the checklist data.
-- Build time increases significantly after adding the collector page template.
-- The `_pages/` output directory contains pages for historical museum collectors.
+Notes rendered with `innerHTML`/`{{! raw }}` without sanitization; raw HTML permitted; no link/protocol allowlist.
 
-**Phase to address:**
-Phase 3 (per-collector page generation). The page-generation gate (seed-driven, not occurrence-driven) must be designed before the Eleventy template is written.
-
----
-
-### Pitfall 9: Late-Arriving / Backfilled Data Corrupts the Event Timeline
-
-**What goes wrong:**
-The Ecdysis pipeline is subject to batch uploads from physical curation: a curator pins and identifies 100 specimens from 2024 and uploads them all to Ecdysis in one session in 2026. The nightly pipeline ingests these as 100 new `ecdysis` rows with `date` values from 2024. A snapshot-diff event history would surface this as "100 specimens identified today" — which is accurate from the pipeline's perspective but misleading from the collector's perspective ("these were collected two years ago, not today").
-
-Similarly, the iNat pipeline can backfill expert identifications retroactively when a taxon is revised. A single identification revision on iNat can flip dozens of `canonical_name` values overnight, triggering a false "new species for you!" event.
-
-**Why it happens:**
-The pipeline ingests current state on each run; it has no concept of "when did this record first appear in the source system." The `modified` column exists for Ecdysis rows but is not uniformly populated. The `date` column is the collection date, not the ingestion date.
-
-**How to avoid:**
-- Store `first_ingested_at` (the nightly pipeline run date on which each `occ_id` first appeared) in the event history table. This is the correct timestamp for "what changed in the pipeline" events, regardless of the collection date or modification date.
-- For the event stream display, use `first_ingested_at` as the event date, not `date` (collection date). The feed headline should read "catalogued this week" not "collected in 2024."
-- Gate identification events (taxon name change) on a meaningful delta: if the `taxon_id` changes but the `canonical_name` at the genus level stays the same, do not emit a "new species" event — only emit it when the species-level identification is new.
-- If using client-side watermark: the watermark is stored as a UTC date, and the event query filters `first_ingested_at > watermark`. This is robust to pipeline gaps because `first_ingested_at` accumulates monotonically.
-
-**Warning signs:**
-- A collector's event stream shows a spike of "new" occurrences on a date when they were not collecting.
-- "New species for you!" events fire for taxon revisions that change only the subspecies epithet.
-- The event stream sorts by collection date (the `date` column) rather than ingestion date, making old backfilled records appear in the middle of the feed.
-
-**Phase to address:**
-Phase 2 (temporal lifecycle). The `first_ingested_at` field must be added to the event history model before Phase 3 (collector pages) builds on top of it. It cannot be backfilled after the fact without a full re-run from an empty history table.
+**Phase to address:** **Phase 4 (notes feature)**. Verify by submitting a note containing `<script>` and an `onerror=` image and confirming it renders inert.
 
 ---
 
 ## Technical Debt Patterns
 
+Shortcuts that seem reasonable but create long-term problems.
+
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Key event history on `occ_id` without resolving the `waba_specimen→ecdysis` transition | Skip the identity design work | Events from the same physical bee are permanently split; the event stream shows a phantom delete+create for every catalogued specimen | Never — design the transition model before committing a history schema |
-| Generate collector pages from all distinct `host_inat_login` values | No seed maintenance required | Hundreds of pages for casual iNat observers; scale blowup; no opt-out mechanism | Never — always gate on the identity seed |
-| Store first-seen state in `localStorage` (client-side watermark) instead of the pipeline | No pipeline changes needed | Each device/browser has an independent watermark; a collector visiting on a new device sees "everything is new"; no server-side history to reason about | Acceptable for MVP if clearly labeled as "this device's history" and the pipeline option is deferred |
-| Expose `recordedBy` (real name) as the page slug | Simpler identity model | Privacy risk; free-text normalization failures; real names in indexed URLs | Never — use iNat handle as the stable, lower-privacy slug |
-| Add accomplishment metrics without an empty-state design | Faster to build | Demotivating zero-state for new collectors; visible immediately on first launch | Never — empty state must be part of the feature, not a follow-up |
-
----
+| Store notes as a dbt model inside `beeatlas.duckdb` | Reuses existing export/manifest plumbing | Nightly rebuild/`cp` wipes them; gate misfires (Pitfalls 1, 3) | **Never** |
+| Public writes before backup/PITR is test-restored | Ship the demo sooner | First data-loss incident is unrecoverable | **Never** |
+| Publish-on-submit, "we'll moderate reactively" | No approval UI to build | First abusive/PII/defamatory post is live with no takedown | **Never** for public content |
+| `localStorage` bearer token | Simplest SPA auth | XSS exfiltrates an iNat token (Pitfall 6) | Never for iNat tokens; short-lived app session only, HttpOnly preferred |
+| One shared "notes" S3 prefix under `/data/` | One bucket to manage | A future `--delete` sync clobbers it (Pitfall 4) | Only with Versioning + deny-delete IAM boundary |
+| Build the full declarative-contract + migration framework now | Feels rigorous | Over-engineered for one authoritative table (see below) | Build the contract (the gate needs it); keep migrations minimal-but-forward-only |
+| Anyone-with-iNat-login can write | Max reach | Large abuse surface for a single-slice launch | Later, once moderation scales; start allowlisted/WABA-gated |
+| Reuse the retired pipeline-Lambda pattern verbatim | Familiar | Reintroduces the OOM/timeout/cold-start problems that got it retired | Only a *thin* write handler (no pipeline), distinct from the retired 15-min pipeline Lambda |
 
 ## Integration Gotchas
 
+Common mistakes when connecting to external services.
+
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| iNat obscured coordinates | Treating obscured coordinates as precise (the pipeline stores them as received) | Never display coordinates below county granularity on the collector page; compute county from the obscured point (which the pipeline already does via spatial join) and show only county |
-| Ecdysis `recordedBy` | Joining collector identity on a raw `recordedBy` string match across pipeline runs | Normalize through the `collector_identity.csv` seed; accept that some Ecdysis records will not match any iNat handle and exclude them from the personal page (not an error) |
-| dbt contract + new facet columns | Adding a column to `occurrences.sql` without updating `schema.yml` simultaneously | Update `schema.yml` in the same commit as the column addition; the contract enforcement at `dbt build` time will fail otherwise, blocking the nightly pipeline |
-| Eleventy static pages + collector data | Passing the full per-collector occurrence list as Eleventy template data (can be 500+ rows per collector) | Compute the aggregated accomplishment metrics (county set, species set, badge list) in the pipeline and store as a JSON artifact per collector; the Eleventy template reads the pre-aggregated JSON, not raw occurrence rows |
-| `src=` URL back-compat | Removing `source` values from `VALID_SOURCES` without adding a URL migration | Old bookmarks with `src=waba_specimen` will silently apply no source filter (unknown tokens are dropped on parse per `url-state.ts` line 246); add a legacy-token-to-facet mapping in `parseParams` if source tokens are renamed |
-
----
+| iNat OAuth | Implicit flow / client secret in bundle | Auth-code + PKCE public client, or server-side code exchange in the write layer (Pitfall 6) |
+| iNat OAuth | Over-broad scope (write/delete on iNat) | Request only identity; you need "who is this," not iNat write access |
+| iNat OAuth | Wildcard/loose redirect URI | Exact registered redirect URI; reject mismatches |
+| Write endpoint (new runtime) | Missing/permissive CORS → either broken or wide-open | Allowlist the CloudFront origin(s) only; credentials mode consistent with the session mechanism |
+| Write endpoint | No rate limiting → spam/abuse floods the store | Per-identity + per-IP rate limits; the moderation queue is not a rate limiter |
+| S3 authoritative store | Pipeline OIDC role can delete/overwrite it | Separate bucket/prefix, Versioning, deny-delete for the pipeline role (Pitfall 4) |
+| Secrets for the write layer | New secret surface (iNat client secret, session signing key) in repo/env | AWS Secrets Manager / SSM; never in the frontend or committed; rotate-able |
+| CloudFront + dynamic writes | Caching the write endpoint or serving stale approved notes | Writes bypass the CDN (separate origin/path, no-cache); published notes invalidate the relevant page |
 
 ## Performance Traps
 
+Patterns that work at small scale but fail as usage grows.
+
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Per-collector occurrence query at page-load time (no pre-aggregation) | Collector page takes 2+ seconds to render; wa-sqlite scans 90k+ occurrences on every load | Pre-aggregate per-collector metrics in the pipeline (a `collector_stats.json` artifact); the collector page reads the artifact, not the live DB | At any non-trivial occurrence count; wa-sqlite WASM has higher per-row overhead than native SQLite |
-| Diff-based event history recomputed client-side | Client must load two snapshots and diff them; 2× the 23 MB DB weight | Store event history server-side (in the pipeline) as a `collector_events.json` or similar; ship only the events, not two full snapshots | Immediately — two 23 MB loads is not feasible on mobile |
-| Eleventy build iterates all occurrences per collector page | Build time grows O(collectors × occurrences) instead of O(collectors) | Pre-join in the pipeline; each collector's page data is a small JSON blob written by the pipeline, not computed at build time by Eleventy | When the collector count × occurrence count exceeds ~10k rows total |
-
----
+| Cold starts on the new runtime | First write after idle is slow/times out; UX feels broken | Lightweight handler (fast cold start); provisioned concurrency only if warranted; the write path is low-QPS so keep it cheap | Low-traffic project → almost always cold; noticeable from day one but tolerable if the handler is thin |
+| Serving notes as another runtime read on every page | Species pages now depend on a live service; latency + cost + availability regression vs static | Keep the **read path static**: publish approved notes into a derived, cached artifact (build-time or on-approval regeneration), served from CloudFront like everything else | Whenever the write layer lands on the read hot path |
+| Unbounded note length / count per species | Store bloat; slow render; expensive backups | Length caps + one-current-version-per-(species,author) with a history table | Rare at project scale, but caps are cheap insurance |
+| Cost creep from the reintroduced runtime | Monthly AWS bill rises; idle cost for a rarely-used endpoint | Prefer pay-per-invoke (Lambda/Function URL) over always-on; alarm on invocation count + cost | Any always-on choice for a low-QPS write path |
 
 ## Security Mistakes
 
+Domain-specific security issues beyond general web security.
+
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| Collector page URL constructed from `recordedBy` free text without sanitization | Path traversal if `recordedBy` contains `../` or null bytes; XSS if the name is reflected in HTML without escaping | Use only `host_inat_login` (a controlled iNat username, alphanumeric) as the slug; apply the existing `slugify()` function if needed; never use free-text fields as URL path components |
-| Injecting `host_inat_login` into SQL without escaping | SQL injection in the collector filter query (the existing `buildFilterSQL` already escapes `host_inat_login` via `replace(/'/g, "''")`) | Confirm the existing escaping applies to the new per-collector page query path; do not add a new SQL code path that bypasses the existing escaping |
-
----
+| Trusting client-supplied author identity | Forged authorship on a scientific resource | Derive identity from the verified session only (Pitfall 7) |
+| No CSRF/origin check on write/approve/delete | Cross-site forced writes / maintainer-session abuse | Header-based bearer or SameSite+CSRF token; origin allowlist (Pitfall 7) |
+| Stored XSS from note prose | Script runs for all visitors incl. maintainers | Sanitize server-side + escape on render; restricted markdown (Pitfall 8) |
+| iNat token in `localStorage`/URL | Account takeover *on iNaturalist* | PKCE public client; short-lived HttpOnly app session; keep iNat token server-side (Pitfall 6) |
+| PII / sensitive-taxon localities in free text | Real-world harm (harassment, poaching), liability | Moderation-before-publish + UI guidance + takedown (Pitfall 5) |
+| New secret surface leaked | Compromise of write layer / iNat app | Secrets Manager/SSM, least-privilege roles, no secrets in frontend |
+| Pipeline role can write/delete authoritative store | Accidental or compromised nightly destroys data | IAM boundary: pipeline role read-only (or no access) to the authoritative prefix (Pitfall 4) |
+| No audit log of moderation actions | Can't investigate abuse or restore | Record author, editor, timestamps, prior versions |
 
 ## UX Pitfalls
 
+Common user experience mistakes in this domain.
+
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Event stream sorted by collection date (not ingestion date) | Old backfilled records appear in the feed as if they were recent, confusing the "what's new" framing | Sort the event stream by `first_ingested_at` (pipeline ingestion date); show collection date as a secondary field in each event card |
-| "Your specimens" includes checklist records attributed to a historical collector with the same name | A modern collector named "J. Smith" sees records from a 1940s museum collector also named "J. Smith" | Exclude `source='checklist'` from the personal page entirely; checklist records carry no iNat handle and cannot be reliably attributed to a living WABA volunteer |
-| Accomplishment map shows county coverage as a percentage | A specialist who collects only in two eastern-WA counties sees "5% coverage" | Show absolute counts ("you've collected in 7 counties"), not percentages of the total |
-| Event stream for a collector with 500+ records shows no pagination | The feed is unscrollable; first load is slow | Paginate the event stream; show the 20 most recent events with a "show more" control; the page-level artifact stores only the most recent N events |
-| Per-collector page is navigable from the main occurrence detail card | Clicking a `recordedBy` name on any occurrence card navigates to the collector page | Only create collector page links where the identity is confirmed (i.e., the iNat handle is in the identity seed); unresolved `recordedBy` names should not be links |
-
----
+| No visible "pending review" state after submit | Author thinks their note vanished; double-submits | Clear "submitted, awaiting review" confirmation + a way to see their pending note |
+| Public notes with no authorship/date | Readers can't judge authority; erodes scientific trust | Show author (iNat login/link) + last-updated date on published notes |
+| Silent edit overwrites | Author clobbers a colleague's note with no history | One-per-author current version, or explicit versioning; never a shared mutable blob |
+| Login required to *read* | Kills the "gathering place" openness; read is public today | Read stays anonymous/static; auth gates only writes |
+| Losing a draft on the auth redirect | Note text lost when bounced through iNat OAuth | Preserve the draft across the OAuth round-trip |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Source rebuild back-compat:** Old `src=waba_specimen` deep links still filter correctly after `VALID_SOURCES` is changed — verify URL round-trip tests cover renamed/removed source keys.
-- [ ] **Positional coupling:** After any change to `filter.ts` or `occurrence.ts`, confirm `OCC_ID_SQL_CASE` and `occurrence_places.sql` CASE branch order are identical — run a place-filter integration test against each source category.
-- [ ] **waba_specimen transition:** Event stream shows "specimen catalogued" (not "deleted" + "created") when a `waba_specimen` row transitions to `ecdysis` — requires test fixture with a known transitioned pair.
-- [ ] **First-run baseline:** A collector's first visit to their page shows zero stream events but non-zero accomplishment counts — the baseline was set to "now" rather than emitting all history.
-- [ ] **Opt-out mechanism:** `collector_optout.csv` exists, is checked at build time, and a test verifies that a handle in the file generates no page.
-- [ ] **Collector page noindex:** `<meta name="robots" content="noindex">` is present in the collector page template until an explicit decision is made to index.
-- [ ] **Checklist exclusion:** Collector pages do not surface `source='checklist'` records — verify the per-collector query filters `source != 'checklist'` or is keyed exclusively on `host_inat_login` (which checklist records never carry).
-- [ ] **Empty state framing:** A collector with zero post-baseline events sees explanatory copy, not a row of zeros — verify with a test fixture of a new collector (0 events since watermark, 5 historical occurrences).
-- [ ] **dbt contract + schema.yml sync:** Every new column added to `occurrences.sql` appears in `schema.yml` in the same commit — verify by running `dbt build` after the column addition commit before merging.
+Things that appear complete but are missing critical pieces.
 
----
+- [ ] **Authoritative store:** works in the demo — verify it is **not** inside `beeatlas.duckdb`, has **no** `manifest.json` key on the diff gate, and **survives a full `run.py` rebuild** untouched (Pitfalls 1, 3).
+- [ ] **Backup:** config exists — verify a **restore has actually been performed** and S3 Versioning is on **before** the first public write (Pitfall 2).
+- [ ] **Build-seam contract:** the three key-lists are collapsed — verify an **unknown/unclassified artifact fails loud**, and `derived` vs `authoritative` route to **different** verification regimes (Pitfall 3).
+- [ ] **OAuth:** login works — verify **no client secret in the bundle**, **no token in URL/`localStorage`**, PKCE or server-side exchange, **minimal scope**, exact redirect URI (Pitfall 6).
+- [ ] **Write endpoint:** accepts writes — verify identity is **server-derived**, CSRF/origin checked, author-vs-maintainer authz enforced, rate-limited (Pitfall 7).
+- [ ] **Rendering:** notes display — verify a `<script>`/`onerror=` payload renders **inert** (Pitfall 8).
+- [ ] **Moderation:** approve flow works — verify a **takedown/unpublish without a deploy** and an **audit trail** exist (Pitfall 5).
+- [ ] **IAM:** deploy succeeds — verify the **pipeline OIDC role cannot delete/overwrite** the authoritative prefix (Pitfall 4).
+- [ ] **Read path:** notes visible — verify published notes are served **statically via CloudFront**, not by a live call to the write runtime on every page load.
 
 ## Recovery Strategies
 
+When pitfalls occur despite prevention, how to recover.
+
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Positional coupling break (place filters silently empty) | LOW-MEDIUM | Identify the arm with broken IDs; fix all three files in one commit; no data migration needed — the bridge table is regenerated nightly |
-| dbt contract + S3 deadlock | LOW (if playbook is followed) | Follow the established sequence: `SKIP_INTEGRATION_GATE=1` nightly run; then re-enable the gate; documented in `project_occurrences_contract_release_sequence.md` |
-| History table keyed on `occ_id` without transition linkage | HIGH | Requires redesigning the history schema and re-running from an empty baseline; cannot be patched incrementally — the entire history for transitioned occurrences is lost |
-| First-run event flood | LOW | Drop the history table and re-create it with the "baseline = current snapshot" rule; collectors lose their event history but the flood stops |
-| Collector page generated for an opted-out person | LOW | Add handle to `collector_optout.csv`; next deploy removes the page; no CDN cache to bust since the page is simply absent |
-| Gamification metrics plateau / demotivation | MEDIUM | Metrics can be added/removed without a schema change (they come from the pre-aggregated JSON); but requires a user-facing communications step if the old metrics were shown publicly |
-
----
+| Nightly wiped notes, no backup (P1+P2) | **HIGH / possibly total loss** | If S3 Versioning was on: restore prior object version. Else attempt PITR snapshot. If neither: **unrecoverable** — this is why P2 is a launch gate. |
+| Nightly wiped notes, backup existed (P1) | MEDIUM | Restore from latest snapshot; quantify writes since snapshot; re-solicit lost notes from authors; then fix the physical separation |
+| Gate misfire regenerated empty table (P3) | MEDIUM–HIGH | Restore from backup/version; exclude the table from the diff gate; forbid rebuild verbs on `authoritative` |
+| `--delete` sync clobbered store (P4) | LOW if Versioning on / HIGH if off | Restore object versions; add deny-delete IAM + scope the sync; enable Versioning if it wasn't |
+| Abusive/PII note published (P5) | LOW (if takedown exists) / HIGH (if not) | Unpublish via `status` flip; hard-delete with audit retained; if no takedown path, the emergency is a code deploy — which is why the flip must exist |
+| Leaked iNat token (P6) | MEDIUM | Revoke the iNat app token / rotate client credentials; invalidate app sessions; fix storage; notify affected users |
+| Stored XSS shipped (P8) | MEDIUM | Take down the note; rotate any maintainer sessions that viewed it; add sanitization; audit other notes |
 
 ## Pitfall-to-Phase Mapping
 
+Phase numbering per the milestone framing: **P1 = Thread-1 build-seam refoundation**, **P2 = authoritative store + forward-only migrations**, **P3 = thin write layer + iNat OAuth**, **P4 = notes feature + moderation**.
+
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Positional coupling break (Pitfall 1) | Phase 1: source → facets rebuild | Place-filter test covers each source arm; all three files changed in same commit |
-| dbt contract + S3 deadlock (Pitfall 2) | Phase 1 and Phase 2 (any phase adding mart columns) | Phase plan includes explicit release-sequence steps; `test_dbt_diff` green before close |
-| waba_specimen → ecdysis transition breaks history (Pitfall 3) | Phase 2: temporal ID-status lifecycle design | Test fixture covers the transition case; event stream shows "catalogued" not "deleted+created" |
-| First-run event flood (Pitfall 4) | Phase 2: temporal lifecycle | Verified with a new-collector fixture showing zero events but non-zero accomplishments on first load |
-| Collector identity mismatch (Pitfall 5) | Phase 3: per-collector pages | `collector_identity.csv` seed exists; build fails on zero-match entries; no pages for unresolved `recordedBy` |
-| Privacy on public pages (Pitfall 6) | Phase 3: per-collector pages | noindex tag present; opt-out seed checked; coordinates not shown; minimum-threshold gate enforced |
-| Gamification anti-patterns (Pitfall 7) | Phase 4: accomplishments view (discuss/plan step) | No leaderboards, no percentages, no project averages; empty state shows framing copy |
-| Static-gen scale blowup (Pitfall 8) | Phase 3: per-collector pages | Build-time assertion on page count; build time benchmarked with realistic collector count |
-| Late-arriving / backfilled data (Pitfall 9) | Phase 2: temporal lifecycle | `first_ingested_at` field present; event stream sorts by ingestion date, not collection date |
+| 1. Rebuild wipes authoritative data | **P2** (physical separation) + **P1** (declared property) | Run a full `run.py`/dbt rebuild; assert the notes table is untouched |
+| 2. No backup before first write | **P2** provisions; **P3** gates public writes on it | A restore is demonstrated before the write endpoint opens |
+| 3. Diff gate misfires / bypass-rebuild destroys data | **P1** (split verification regimes) | Notes artifact absent from `test_dbt_diff`; unknown key fails loud; rebuild leaves data intact |
+| 4. `--delete`/`--recursive` clobber | **P2** (bucket/prefix + IAM); **P1** (contract declares prefixes) | Pipeline role has no delete on the authoritative prefix; Versioning on |
+| 5. No moderation/takedown/liability | **P4** (loop) + **P2** (schema affordances) | End-to-end submit→pending→approve→publish→takedown works; audit trail present |
+| 6. OAuth token leakage / no PKCE | **P3** | No secret in bundle; no token in URL/`localStorage`; PKCE/server-exchange; minimal scope |
+| 7. Trusting client identity / CSRF | **P3** (identity/CSRF) + **P4** (authz matrix) | Forged-author and cross-origin POST both rejected |
+| 8. Stored XSS | **P4** | `<script>`/`onerror=` payload renders inert |
+| Over-engineering the contract/migrations | **P1/P2** (scope discipline) | Contract covers exactly two classes; migrations forward-only but not a generalized framework |
+| Scope creep to a wiki/comment system | **P4** (guardrails) | Feature is one-note-per-(species,author) prose, not threads/replies/reactions |
 
 ---
+
+## Over-building vs Under-building the Contract & Migrations
+
+The milestone's stated point is architecture over feature surface, so there's real temptation to *over*-generalize — but also a real risk of *under*-building the safety-critical minimum. Balance:
+
+- **Build now (under-building is dangerous here):**
+  - The **declarative artifact contract with a `derived` vs `authoritative` property** — the whole gate/sync safety story depends on it (Pitfalls 1, 3, 4). This is not speculative; it's the load-bearing distinction and the Thread-1 reason for being.
+  - **Forward-only versioned migrations** with **no rebuild escape hatch** — even for one table, because "rebuild to fix schema" is the exact reflex that destroys authoritative data. A migration runner can be ~50 lines (ordered SQL files + an applied-versions table); that's enough.
+  - **Backup/PITR + Versioning + IAM boundary** — safety-critical, not speculative.
+  - **Moderation status + audit columns** in the schema from day one (cheap now, painful to retrofit).
+
+- **Do NOT build yet (over-building / speculative):**
+  - A generalized migration framework with rollbacks, branching, or a plugin system — forward-only ordered files suffice for one table; YAGNI until a second authoritative table with real divergence exists.
+  - An abstract "authoritative store adapter" over multiple backends — pick one store, wire it concretely.
+  - A full moderation workbench (bulk actions, reviewer roles, SLA dashboards) — one maintainer + a pending queue + takedown is the MVP.
+  - Rule of thumb: the *distinction* (derived/authoritative) is worth generalizing now because two data classes already exist; the *migration machinery* is not, because only one authoritative table exists.
+
+## Scope-Creep Guardrails (thin vertical slice → wiki)
+
+Explicit non-goals to write into requirements so the slice stays thin:
+
+- **One structured note per (species, author)** with edit history — **not** threaded comments, replies, reactions, or @mentions.
+- **Species pages only** — not arbitrary attachable notes on genera/places/occurrences (that's the next milestone's temptation).
+- **Text prose** — not image uploads, attachments, or rich embeds (each adds storage, moderation, and licensing surface).
+- **Maintainer moderation** — not a community flag/vote/reputation system.
+- **Auth for writing only** — not user profiles, notifications, or activity feeds (those are the deferred "community/liveness" milestone).
+- Treat any of the above appearing in a plan as a signal to stop and re-scope; the milestone's weight is the derived-vs-authoritative architecture, not the feature.
 
 ## Sources
 
-- `docs/domain-model.md` — `waba_specimen` lifecycle, occ_id transitions, positional coupling documentation (HIGH confidence: project-authoritative)
-- `src/occurrence.ts`, `src/filter.ts`, `data/dbt/models/marts/occurrence_places.sql` — current positional coupling implementation (HIGH confidence: directly observed)
-- `src/url-state.ts` — `src=` URL parameter contract, `VALID_SOURCES` set, `parseParams` unknown-token drop behavior (HIGH confidence: directly observed)
-- `data/dbt/models/marts/schema.yml` — 36-column enforced contract (HIGH confidence: directly observed)
-- `.planning/seeds/me-and-my-progress.md`, `.planning/research/questions.md` — snapshot-vs-history fork, event stream design (HIGH confidence: project-authoritative design notes)
-- `.planning/notes/work-vs-learning-two-halves.md` — source-as-wrong-primitive framing (HIGH confidence: project-authoritative)
-- `.planning/todos/pending/rebuild-source-into-facets.md` — three source consumers + open questions (HIGH confidence: project-authoritative)
-- `MEMORY.md` → `project_occurrences_contract_release_sequence.md` — S3 deadlock recovery playbook (HIGH confidence: documented prior incident)
-- `MEMORY.md` → `project_source_domain_rebuild_intent.md` — rebuild intent note (HIGH confidence: project-authoritative)
-- iNat coordinate obscuring: https://www.inaturalist.org/pages/geoprivacy (MEDIUM confidence: policy known, exact pipeline behavior requires pipeline-level verification)
+- `data/nightly.sh` (lines 88–190, 265–366) — actual S3 `cp`/`--recursive` sync, DuckDB pull→rebuild→push round-trip, manifest hashing, and the `test_dbt_diff` gate iterating all manifest keys via `LOCAL_NAMES`/`INTENTIONALLY_SKIPPED`/`NON_FILE_KEYS` (HIGH)
+- `.planning/PROJECT.md` — v8.0 milestone framing (derived-is-a-cache invariant, "losing authoritative data is unrecoverable," bends the no-server-runtime constraint), Constraints, Key Decisions (HIGH)
+- Project memory: `project_occurrences_contract_release_sequence` (the bypass-and-rebuild release dance), `feedback_no_committed_data_artifacts` (species.json S3+manifest+deploy fetch pattern), `project_cdk_stack_composition` (never destroy BeeAtlasStack), `feedback_no_force_add_gitignored` (HIGH)
+- `CLAUDE.md` — Constraints (static hosting, OIDC, no stored AWS credentials), Known State (Lambda surface retired 2026-05-14; dbt contract is the gate; no JS schema validator) (HIGH)
+- OAuth 2.0 for Browser-Based Apps / PKCE public-client guidance; US §230 + DMCA takedown posture for hosted UGC (MEDIUM — general practice, not project-specific)
 
 ---
-*Pitfalls research for: v6.0 My Work — Progress & Provenance (source-enum migration, temporal event history, per-collector static pages, accomplishments)*
-*Researched: 2026-06-24*
+*Pitfalls research for: authoritative UGC + write layer on a static/derived-data scientific atlas*
+*Researched: 2026-07-02*

@@ -1,167 +1,204 @@
-# Stack Research: v6.0 My Work — Progress & Provenance
+# Stack Research — v8.0 Authoritative Data Foundation
 
-**Domain:** Per-collector "work" surface added to an existing static-hosted naturalist atlas
-**Researched:** 2026-06-24
-**Confidence:** HIGH (all findings verified against live codebase + live iNat API + live DuckDB)
+**Domain:** First authoritative, non-reproducible user-generated content (species natural-history notes) with a write path, layered onto an otherwise fully-static AWS-CDK site + Python/dbt/DuckDB batch pipeline.
+**Researched:** 2026-07-02
+**Confidence:** HIGH on write-layer/store options, AWS PITR, Neon/D1/DynamoDB facts, iNat OAuth shape; MEDIUM on exact sub-library patch versions (projected past Jan-2026 cutoff).
 
----
-
-## Existing Stack (Fixed — Do Not Re-Research)
-
-TypeScript · Mapbox GL JS · Lit web components · wa-sqlite + hyparquet · Eleventy + Vite ·
-dbt → DuckDB (`data/beeatlas.duckdb`) → parquet + SQLite export → S3/CloudFront nightly cron.
-Static hosting only. No server runtime. DuckDB-WASM explicitly rejected (page weight).
+> Scope discipline: the existing read stack (TypeScript / Mapbox GL JS / Lit / wa-sqlite / hyparquet / dbt-duckdb / CDK / CloudFront / OIDC) is **fixed**. This file only covers what is *new* for accepting, storing, moderating, and serving authoritative notes. The read path stays 100% static — nothing here changes how the browser fetches Parquet/GeoJSON/JSON from CloudFront.
 
 ---
 
-## New Stack Pieces Required for v6.0
+## The two load-bearing constraints that pick the stack
 
-The table below covers only what is **not already present**.
+1. **Non-reproducible + backup-critical.** Every other byte the site serves is derived from iNat/Ecdysis and rebuildable; this data is not. Backup/PITR is a *safety* requirement, not a nicety. That rules out any store whose only backup is "copy the file yourself."
+2. **The authoritative store must be readable by TWO consumers, not one.** The Lambda write layer *writes* it, but the **nightly Python pipeline on maderas must also read it** to bake approved notes into the static `species.json` that renders on species pages. So the store must be reachable both from an AWS Lambda *and* from the Python/dbt box. This subtly favors a SQL store the Python pipeline can query natively over a NoSQL store.
 
-### Pipeline (dbt / Python)
-
-| Addition | Version | Purpose | Why |
-|---|---|---|---|
-| `occurrence_status_history` table in `beeatlas.duckdb` | — | Append-only record of per-occurrence status transitions (`occ_id`, `status`, `status_date`, `canonical_name`, `county`) | Snapshot pipeline cannot reconstruct "what changed since date X" without retained history; see §Temporal History Recommendation below |
-| `collectors.json` export | — | Per-collector metadata: iNat login, display name, occurrence/specimen counts by year/county/taxon | Feeds Eleventy static page generation and client-side accomplishment view |
-| `collector-events-{login}.json` exports (one per collector) | — | Chronological event list for a single collector's event stream | Fetched client-side at runtime; content-hashed for cache busting |
-
-No new Python packages. `duckdb`, `dbt-duckdb`, and `requests` are already in `data/pyproject.toml`. The history table and new exports are pure DuckDB DDL + INSERT / SELECT logic inside `run.py`.
-
-### Frontend (Eleventy + TypeScript + Lit)
-
-**No new npm dependencies.** All four v6.0 features compose from the existing toolkit:
-
-| Feature | Technique | Why no new dep |
-|---|---|---|
-| Per-collector static pages | Eleventy pagination over `collectors.json` (same pattern as `places.json` → `place-detail.njk`) | Eleventy pagination is already the site's static page primitive |
-| Accomplishment view | Lit template over pre-aggregated fields in `collectors.json` | Aggregation cheaper at build time (DuckDB) than at runtime (client SQL) |
-| Event-stream UI | Lit template over `collector-events-{login}.json` fetched client-side | No UI library needed for a chronological list; existing `<bee-occurrence-detail>` component family already covers card rendering |
-| Source → facets rebuild | Refactor of `filter.ts`, `style.ts`, `bee-occurrence-detail.ts` | Pure TypeScript refactor; no new dep |
+Plus the stated milestone requirements: a **relational** store, **forward-only versioned migrations** (no rebuild escape), a **thin managed write layer** (bounded exception to "no server runtime"), and **iNat OAuth** identity. The migration-tool list in the brief (Alembic / sqlite / D1 / Supabase migrations) is *all SQL* — the milestone clearly envisions a relational store, so the recommendation below is SQL, not DynamoDB.
 
 ---
 
-## Temporal History Fork — Concrete Recommendation
+## Recommended Stack
 
-**Recommendation: pipeline-side append-only history table in DuckDB.**
+**API Gateway HTTP API + Lambda (Python 3.14) + Neon Serverless Postgres, migrations via Alembic, identity via iNaturalist OAuth2 PKCE, DR via Neon PITR + a nightly `pg_dump` into the existing S3 bucket.**
 
-### Why Not Client-Side localStorage Watermark
+### Core Technologies
 
-Option B (client stores a `lastSeen` timestamp, diffs the current snapshot) has two fatal incompatibilities with the feature brief:
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| **AWS API Gateway HTTP API** (`aws-apigatewayv2`) | CDK v2 (aws-cdk-lib ~2.2xx) | Public HTTPS write endpoint (`POST /notes`, `POST /notes/{id}/moderate`, `POST /session`) | HTTP API (v2) is ~70% cheaper and simpler than REST API; defined in the *existing* CDK stack; a Lambda authorizer verifies the app session JWT locally. Native fit — no new control plane. |
+| **AWS Lambda** | Python **3.14** managed runtime | The "thin managed write layer": OAuth callback exchange, identity verification, note create/edit, moderation transitions | Lambda **now supports Python 3.14 as a managed runtime** (matches the pipeline's 3.14 exactly). Scale-to-zero → effectively free at expert-note volume. It reintroduces a *runtime* but as event-driven functions, not an always-on server — the retired Function-URL Lambda was killed for OOM/timeout on the *heavy nightly pipeline*, a completely different workload. Deploys through the same CDK + GitHub-OIDC path already in place. |
+| **Neon Serverless Postgres** | Postgres 17, Neon platform (Databricks-owned since May 2025) | The authoritative relational store for moderated notes | Real relational Postgres (satisfies "relational + forward-only migrations"); **scale-to-zero** (5-min idle) so idle cost ≈ $0; free tier = 0.5 GB + 100 CU-hrs + scale-to-zero; **PITR built in** (7 days on the usage-based Launch plan, 30 on Scale); **branching** gives a throwaway copy for testing a migration before it touches prod. Reachable over TLS from *both* the Lambda write layer *and* the Python nightly pipeline (psycopg) — no VPC needed (public pooled endpoint + PgBouncer). Databricks backing makes it a safe multi-year bet for non-reproducible data. |
+| **iNaturalist OAuth2** (Authorization Code + **PKCE**) | live API, base `https://www.inaturalist.org` | Identity — collectors already have iNat logins; iNat *is* the identity provider | No second identity system to reconcile. iNat officially supports the **PKCE** variant designed for public/no-secret SPAs. (Flow details below.) |
+| **Alembic** | ~1.16.x (with SQLAlchemy 2.0.x) | Forward-only versioned migrations for the notes schema | Idiomatic Python — the same language/mental-model as the dbt/pipeline team. Enforce "forward-only" by convention: author `upgrade()` only, leave `downgrade()` as `raise NotImplementedError`. Each migration is a numbered, reviewed, committed file — exactly the "no rebuild escape" the milestone wants. |
 
-1. **Volatile and non-bookmarkable.** A new browser/device/incognito window has no history. The per-collector page is explicitly bookmarkable and meant to be shared across devices; localStorage is per-origin per-browser.
-2. **Shallow.** It can only detect "this changed since I last visited." It cannot reconstruct a timeline of "this changed on 2026-04-12, then again on 2026-05-03." A chronological feed requires historical records, not a diff against a current snapshot.
+### Supporting Libraries
 
-### Pipeline History Table (Recommended)
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `psycopg[binary]` | ~3.2.x | Postgres driver for Lambda + nightly pipeline | The Lambda handler and `species.json` builder both talk to Neon. |
+| `SQLAlchemy` | 2.0.x | Thin data-access + Alembic backbone | Keep it minimal (Core, not a heavy ORM) for a 2–3 table schema. |
+| `PyJWT` | ~2.x | Mint + verify the short-lived **app session JWT** (HS256) | Lambda authorizer verifies sessions locally so writes don't hit iNat on every request. |
+| `oauth4webapi` (frontend) *or* ~30 lines of Web Crypto | ~3.x | PKCE code-challenge (S256) generation in the SPA | The existing Lit SPA drives the `/oauth/authorize` redirect + `/oauth/token` exchange. Hand-rolling S256 with `crypto.subtle` is viable and dependency-free. |
+| AWS SSM Parameter Store *(SecureString)* or Secrets Manager | — (CDK-native) | Hold the Neon connection string + the app-JWT signing secret | Parameter Store SecureString is free and sufficient; Lambda reads it via IAM (no secret in code). maderas gets the same connection string in its nightly env. |
 
-The nightly `run.py` maintains a `dbt_sandbox.occurrence_status_history` table inside the persisted `beeatlas.duckdb` (already backed up to S3 after every run and restored at the start of the next run — see `nightly.sh` steps 1 and 9). Each run:
+### Development Tools
 
-1. Compute the current status of every occurrence: whether it has a current Ecdysis identification, the `inat_quality_grade`, the `modified` max-timestamp, the `canonical_name`.
-2. `INSERT INTO occurrence_status_history` rows where status has changed since the last recorded snapshot — append only; never delete.
-3. Export `collector-events-{login}.json` per collector: array of `{occ_id, event_type, status_date, canonical_name, county}` sorted newest-first.
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| AWS CDK v2 (existing `infra/`) | Define HTTP API + Lambda + IAM + SSM params | New constructs land in `BeeAtlasStack` — never `cdk destroy` (see project memory); surgical add + `cdk deploy`. |
+| `alembic upgrade head` (CI step) | Apply migrations forward on deploy | Run against a **Neon branch** first, then prod, from the OIDC deploy job. |
+| Neon branching | Zero-cost throwaway DB to rehearse a migration | `neon branches create` → run `alembic upgrade head` → verify → discard. |
 
-The DuckDB is already a persisted artifact across nightly runs (backed up to S3 even on failure per the trap). Adding an append-only history table costs zero additional S3 bandwidth beyond the existing DuckDB backup.
+## Installation
 
-### Available Status Signals — Verified Against Live Data
+```bash
+# Write-layer Lambda (data/ or a new writer/ package, pinned to Lambda's Python 3.14)
+uv add psycopg[binary] sqlalchemy alembic pyjwt httpx
 
-| Source | Signal | Confidence | Notes |
-|---|---|---|---|
-| `ecdysis_data.identifications.modified` | `MAX(modified) > last known value` per `coreid` — "identification was updated in Ecdysis" | HIGH | Verified via live DuckDB: `modified` timestamps span every month from 2025-02 through 2026-06. This is the Ecdysis DB's own modification time, **not** a bulk-import date. The existing `int_id_modified.sql` model already uses this field. |
-| `inaturalist_waba_data.observations.quality_grade` + `updated_at` | `quality_grade` transition (e.g. `needs_id` → `research`) with timestamp | HIGH | Verified: `created_at` and `updated_at` are `TIMESTAMP WITH TIME ZONE` in DuckDB. `updated_at` advances when quality grade changes. 303 WABA observations currently have `quality_grade = 'research'`; 1,113 remain `needs_id`. |
-| `inaturalist_waba_data.observations.created_at` | Sample was first posted to iNat | HIGH | Verified: timestamp present and reliable; spans 2024-06 through 2026-06. |
-| `waba_specimen` → `ecdysis` source transition | Pipeline run N-1 had `source=waba_specimen`; run N has `source=ecdysis` | HIGH | Pipeline-retained history table detects this. This represents "your specimen was catalogued in Ecdysis." |
+# Infra (infra/ — CDK v2 already present)
+npm install   # aws-cdk-lib already includes apigatewayv2 + lambda + dynamodb constructs
 
-**iNat Identifications API (deferred from Phase 1):** The `/v1/identifications` endpoint returns per-identification records with a `created_at` ISO 8601 timestamp (confirmed by live API call). This enables "your sample received an ID by [identifier] on [date]." Requires an extra nightly API call per observation_id. Defer to a follow-on phase; the transition-based detection above is sufficient for MVP.
-
-The `date_identified` field on Ecdysis identifications is year-only for ~43% of records (e.g. `"2025"`, `"2026"`) and `"s.d."` (sine dato) for ~43%. It is not usable as a precise event timestamp. Use `modified` instead.
-
----
-
-## Per-Collector Static Pages
-
-**Pattern: identical to existing per-place pages (zero new concepts).**
-
-The `place-detail.njk` → `_data/places.js` → `public/data/places.json` chain is the exact template:
-
-1. Pipeline exports `public/data/collectors.json` — array of collector objects with fields: `login`, `display_name`, `occurrence_count`, `specimen_count`, `active_years[]`, `top_counties[]`, `top_taxa[]`.
-2. New `_data/collectors.js` Eleventy data module: `readFileSync('public/data/collectors.json')`, same 4-line pattern as `places.js`.
-3. New `_pages/collector-detail.njk` paginates over `collectors.collectorsArray`, permalink `/collectors/{login}.html`.
-4. New Vite entry `src/entries/collector-page.ts` fetches `collector-events-{login}-{hash}.json` at runtime and renders the live event stream.
-
-**Collector identity key:** `host_inat_login` is the authoritative WABA-collector identifier — the iNat login of the sample observer. This field is already present in `int_combined` and carried through `occurrences.parquet`. Distinct WABA collector count from the live DuckDB: ~156 collectors with `host_inat_login` on Ecdysis rows, ~16 with only provisional WABA samples. These are small numbers — 172 static pages is negligible build time.
+# Frontend (optional PKCE helper; or hand-roll with Web Crypto)
+npm install oauth4webapi
+```
 
 ---
 
-## Accomplishment View
+## Auth: the concrete iNaturalist OAuth2 flow (verified)
 
-No new technology. The accomplishment data (counties visited, taxa count, years active, specimen count) is fully derivable at pipeline build time from `occurrences.parquet` grouped by `host_inat_login`. These aggregates belong in `collectors.json`, computed by the pipeline at export time, not at runtime by the client.
+iNat is an OAuth2 provider and **supports PKCE** specifically for "clients that cannot store a secret securely, e.g. client-side JavaScript." Use `https://www.inaturalist.org` as the base for all auth so credentials stay TLS-encrypted.
 
-The per-collector coverage map (which counties has this collector contributed from) can be a pre-generated SVG using the existing `data/svg_map.py` / `data/species_maps.py` pattern. Zero new dependencies. Upload as stable URLs `/data/collector-maps/{login}.svg` (same S3 pattern as `/data/species-maps/` and `/data/place-maps/`).
+**1. SPA → authorize (browser redirect, PKCE):**
+```
+GET https://www.inaturalist.org/oauth/authorize
+    ?client_id=<APP_ID>
+    &redirect_uri=<static-site callback>
+    &response_type=code
+    &code_challenge=<BASE64URL(SHA256(verifier))>
+    &code_challenge_method=S256
+```
+Store the `code_verifier` in session/localStorage before redirecting.
+
+**2. SPA → token exchange (public client, no secret):**
+```
+POST https://www.inaturalist.org/oauth/token
+    grant_type=authorization_code
+    client_id=<APP_ID>
+    redirect_uri=<callback>
+    code=<from step 1>
+    code_verifier=<stored verifier>
+→ { access_token, token_type: "Bearer", ... }
+```
+
+**3. Exchange OAuth token → JWT (required for the node API):**
+```
+GET https://www.inaturalist.org/users/api_token
+    Authorization: Bearer <access_token>
+→ { api_token: "<JWT>" }   # JWT valid ~24 hours
+```
+
+**4. Resolve identity server-side (this is how the write layer verifies WHO is calling):**
+```
+GET https://api.inaturalist.org/v1/users/me
+    Authorization: <JWT>          # ⚠ node API wants the raw JWT, NOT "Bearer <JWT>"
+→ results[0]: { id, login, name, ... }
+```
+
+**Recommended session handling (keeps the read path static, avoids hammering iNat):**
+- SPA completes steps 1–3, then POSTs the iNat JWT once to Lambda `POST /session`.
+- Lambda validates it by calling `/v1/users/me`, reads `login`/`id`, checks a **moderator allowlist** (small committed list or a `role` column), then **mints its own short-lived app session JWT** (HS256, secret from SSM) carrying `{inat_id, login, is_moderator, exp}` and returns it.
+- Subsequent writes carry the *app* JWT; the API Gateway **Lambda authorizer verifies it locally** — no per-request iNat round-trip, and iNat downtime never blocks an already-authenticated session.
+- iNat's api_token is signed with iNat's secret (not third-party-verifiable), which is *why* you call `/v1/users/me` to validate rather than verifying the JWT signature yourself.
 
 ---
 
-## Source → Facets Rebuild
+## Backup / DR (the safety-critical part)
 
-A **pure TypeScript refactor** of three existing files — no new dependencies:
-
-- `src/filter.ts` — replace `source`-based SQL WHERE logic with orthogonal facet predicates
-- `src/style.ts` — replace `source`-based Mapbox GL style switch with facet-based style function
-- `src/bee-occurrence-detail.ts` — replace `source`-based card renderer switch with facet predicates
-
-The `source` string column in `occurrences.parquet` stays in the data. The refactor replaces the ad-hoc switch-on-source logic with predicates derived from the existing occurrence fields (`ecdysis_id IS NOT NULL`, `is_provisional`, `host_inat_login IS NOT NULL`, etc.). The dbt contract is unaffected in Phase 1 of the refactor.
+Belt **and** suspenders, both independent of any single vendor:
+1. **Neon PITR** — restore to any point in the retention window (7 days Launch / 30 days Scale) with no manual backup management. Use for oops-recovery (bad migration, accidental delete). Rehearse migrations on a Neon **branch** first.
+2. **Nightly `pg_dump` → the existing versioned S3 bucket.** The nightly pipeline already reads Neon to build `species.json`; add a `pg_dump` of the notes schema into S3 (which the team owns, understands, and already lifecycle-manages). This is a store-independent logical backup in infrastructure you control — the true "unrecoverable-loss" insurance. Do this regardless of which store you pick.
 
 ---
 
-## New Artifacts for `nightly.sh` Manifest
+## Alternatives Considered
 
-| Artifact | Manifest key | Pattern |
-|---|---|---|
-| `collectors.json` | `collectors_meta` | Content-hashed, `immutable` |
-| `collector-events-{login}-{hash}.json` | Not in manifest; fetched by client at `/data/collector-events/{login}-{hash}.json` | Content-hashed URL baked into `collectors.json` |
-| Per-collector SVG maps | Stable URL: `/data/collector-maps/{login}.svg` | Same pattern as `/data/species-maps/` and `/data/place-maps/` |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Neon Postgres | **DynamoDB single-table (pure-AWS)** | If eliminating the *one* non-AWS vendor and staying 100% inside CDK/OIDC outweighs the relational requirement. See detailed writeup below — this is the **one viable alternative**. |
+| Neon Postgres | **Turso / libSQL (hosted SQLite over HTTP)** | Works from both Lambda and the Python pipeline (libsql client), 90-day PITR, cheap, and SQLite matches the frontend's wa-sqlite mental model. **But** the platform is mid-pivot: libSQL is being succeeded by a from-scratch Rust rewrite ("Turso Database", still beta). Vendor turbulence is a poor bet for a store you must trust for years. Choose only if you specifically want hosted SQLite and accept the roadmap risk. |
+| Neon Postgres | **Supabase (Postgres + Auth + PostgREST + Studio)** | If you expect a *lot* more UGC surface soon — Supabase gives an auto REST API, row-level security, and a ready-made moderation admin UI (Studio) out of the box, fastest path to a moderation MVP. For a single prose field it's more platform than needed, and it's a heavier new vendor (you adopt PostgREST + RLS + their auth). |
+| Alembic (forward-only) | **sqitch / dbmate / plain numbered `.sql` + tiny runner** | If you'd rather keep migrations language-agnostic and out of Python. Alembic wins here only because the team already lives in Python. |
 
-The `nightly.sh` manifest extension and CloudFront invalidation for these are direct copies of the existing `places_meta` and `species-maps` patterns. No new S3 buckets, no new CloudFront behaviors, no CDK changes.
+### The one viable alternative in full: pure-AWS DynamoDB
+
+**API Gateway HTTP API + Lambda + DynamoDB single-table.**
+
+- **Fits the shop hardest:** zero non-AWS vendors, everything in `BeeAtlasStack`, **no DB password anywhere** — Lambda and maderas both reach DynamoDB via IAM. One control plane, one auth model.
+- **Backup:** **PITR 1–35 days** ($0.20/GB-month; at notes volume, pennies) + native **Export-to-S3** for the logical dump. Excellent DR story with no extra tooling.
+- **Cost:** on-demand billing → effectively free at expert-note write volume.
+- **The tradeoff you accept:** DynamoDB is **NoSQL, not relational** — you give up SQL and Alembic. "Forward-only migrations" become versioned single-table item-shape evolution (a `schema_version` attribute + a one-off migration Lambda), which is *coherent* but not what the milestone's migration-tool list describes. The nightly pipeline reads it via `boto3` scan rather than SQL — workable but less natural for a dbt-shaped team.
+- **Choose it if** the requirements author decides "no external vendor + IAM-only access + native PITR" beats "relational + Alembic." This is a genuinely defensible call; the recommendation above only edges it out because the brief explicitly asks for a relational store with SQL migrations.
 
 ---
 
-## What NOT to Add
+## What NOT to Use
 
 | Avoid | Why | Use Instead |
-|---|---|---|
-| DuckDB-WASM in the frontend | Already rejected (project memory explicit); page weight of tens of MB | wa-sqlite remains the frontend SQL engine |
-| Auth / user accounts / login | Static hosting constraint. Personal page is public data + self-identification: pick iNat handle via URL param or navigate to `/collectors/{login}.html` | No auth. Public data. Bookmarkable URL. |
-| Event sourcing framework (Kafka, Temporal.io, EventStoreDB) | Catastrophic overkill — the event history is a ~100k-row append-only DuckDB table; nightly batch is the correct cadence for a citizen-science atlas | Append-only DuckDB table, INSERT on detected status transitions |
-| Per-identification API calls during nightly run (Phase 1) | Adds network dependency, rate-limit risk, and latency for marginal MVP gain; transition-based detection (quality_grade, ecdysis modified) is sufficient | Defer per-identification `created_at` to a follow-on phase |
-| React / Vue / Svelte for event stream UI | The event stream is a sorted list of cards; Lit + existing `<bee-occurrence-detail>` component family already renders occurrence cards | Lit web components |
-| Separate "history" S3 bucket or second database | DuckDB is already persisted to S3 between runs; the history table lives in the existing `beeatlas.duckdb` | Append-only table in the existing persisted DuckDB |
-| Client-side localStorage watermark approach for event history | Non-bookmarkable, non-shareable, single-device, shallow | Pipeline-retained history table |
+|-------|-----|-------------|
+| **Cloudflare Workers + D1** | D1 is GA and technically excellent (Time Travel = 30-day PITR, 7 on free), but it introduces an **entire second cloud** next to AWS — a second control plane, second IAM, a Wrangler/OIDC deploy path CDK can't manage, and a Cloudflare-HTTP hop for the Python pipeline to read notes. Fights the single-vendor AWS-CDK/OIDC shop for no domain benefit. | Keep compute in AWS (Lambda) where CDK/OIDC already live. |
+| **PocketBase** | Delightful single-Go-binary (SQLite + admin UI + auth + REST), but it is an **always-on server** you must host and keep alive — reintroducing exactly the persistent runtime the team deliberately avoids, with single-node backup (copy the file / Litestream). | Lambda scale-to-zero + a managed store. |
+| **Aurora Serverless v2 / RDS** | Relational, yes — but heavy for one notes table: VPC wiring (Lambda-in-VPC cold starts), a non-zero minimum bill, connection-pool management. Over-engineered for a single vertical slice. | Neon (scale-to-zero, public pooled endpoint, no VPC). |
+| **DuckDB / SQLite-on-Lambda as the *system of record*** | DuckDB is analytical/embedded and the pipeline's DuckDB is explicitly a *cache*; embedded SQLite-on-Lambda has no concurrent-write or managed-backup story. Never make the authoritative, non-reproducible store an embedded analytical engine. | A managed OLTP store (Neon / DynamoDB). |
+| **Turso *Database* (the new Rust rewrite)** | Still **beta**. Never build authoritative, non-reproducible data on a beta engine. | If you want hosted SQLite, use production libSQL — but prefer Neon (see alternatives). |
+| **Cognito / Auth0 / Clerk / Supabase Auth** | A second identity system to reconcile against iNat logins the collectors *already have*. Pure added surface. | iNat OAuth2 PKCE *is* the identity. |
+| **A CMS (Strapi / Directus / Sanity / Contentful) or GraphQL layer** | Running/paying for a whole content platform (or a GraphQL server) for one prose field per species. | 3 REST endpoints on API Gateway + a gated moderation view in the existing Lit SPA. |
+| **Queues / Kafka / event-sourcing** | Massive overkill for a moderation loop that processes a handful of expert edits. | Synchronous Lambda writes; status column drives the moderation state machine. |
 
 ---
 
-## Integration with Existing occurrences-Schema Change Process
+## Migration tooling, idiomatic per store (reference)
 
-The `occurrence_status_history` table is NOT a dbt-managed model. It lives in the `dbt_sandbox` schema as pipeline bookkeeping — written by Python in `run.py`, not by dbt. This means:
+| Store | Forward-only migration tool | Notes |
+|-------|-----------------------------|-------|
+| **Neon / Postgres (recommended)** | **Alembic** | Numbered revision files; author `upgrade()` only. Rehearse on a Neon branch, then `alembic upgrade head` from the OIDC deploy job. |
+| DynamoDB | *(no schema)* | Versioned item-shape evolution + `schema_version` attribute + a one-off migration Lambda. |
+| Cloudflare D1 | `wrangler d1 migrations` | Numbered `.sql` applied forward. |
+| Turso / libSQL | dbmate / golang-migrate / Atlas (or Alembic via a libsql SQLAlchemy dialect) | No first-party migration tool. |
+| Supabase | `supabase migration` / `supabase db push` | Numbered SQL over Postgres; forward-only. |
 
-- It is exempt from the dbt contract enforcement (`data/dbt/models/marts/schema.yml`)
-- It does NOT trigger the `test_dbt_diff` gate
-- It IS preserved across nightly runs via the DuckDB S3 backup/restore
+---
 
-If v6.0 adds new columns to `occurrences.parquet` (e.g. a `collector_login` unified field), that requires the standard schema-change process documented in `project_occurrences_contract_release_sequence.md`: data-before-code ordering + one-time `SKIP_INTEGRATION_GATE=1` nightly.
+## Integration points with existing infra
+
+- **CDK (`infra/`):** add HTTP API + writer Lambda(s) + Lambda authorizer + SSM SecureString params to `BeeAtlasStack`. Surgical add, `cdk deploy`. Never `cdk destroy`.
+- **GitHub OIDC deploy role:** extend the existing role's policy to deploy the new Lambda/APIGW and read the SSM params; add an `alembic upgrade head` step (against a Neon branch, then prod). No long-lived AWS keys — same as today.
+- **Nightly pipeline (maderas):** add a step that (a) reads `status='approved'` notes from Neon via psycopg and merges them into `species.json` (Path-B merge, same pattern as v7.0 traits — no `species.parquet`/contract change), and (b) `pg_dump`s the notes schema into the existing S3 bucket. The read path stays static: the browser still fetches `species.json` from CloudFront; it never talks to the write layer to *display* notes.
+- **Manifest/artifact contract (v8.0 Phase 1):** the derived-vs-authoritative split is the seam — `species.json` remains a *derived* artifact (on the diff-against-live gate); the Neon notes table is the *authoritative* source that feeds it.
+
+---
+
+## Version Compatibility
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| Lambda Python 3.14 runtime | pipeline Python 3.14 | Confirmed available as a managed runtime — write layer can match the pipeline exactly. |
+| psycopg 3.2.x | SQLAlchemy 2.0.x + Alembic 1.16.x | Standard, well-supported combination. |
+| Neon (public pooled endpoint) | Lambda **without VPC** | Neon is public + TLS + PgBouncer pooling → no VPC/NAT needed; avoids the classic Lambda-in-VPC cold-start tax. |
+| iNat node API (`api.inaturalist.org/v1`) | JWT from `/users/api_token` | ⚠ Header is raw `Authorization: <JWT>`, *not* `Bearer <JWT>` — a known gotcha. JWT expires in ~24h. |
 
 ---
 
 ## Sources
 
-- Live `data/beeatlas.duckdb` query — Ecdysis `identifications.modified` spans 2025-02 through 2026-06 (not a bulk-import date); HIGH confidence (primary source)
-- Live `data/beeatlas.duckdb` query — `inaturalist_waba_data.observations` has `created_at` and `updated_at` as `TIMESTAMP WITH TIME ZONE`; HIGH confidence (primary source)
-- Live `data/beeatlas.duckdb` query — WABA quality_grade distribution: 303 research, 1113 needs_id, 1 casual; HIGH confidence (primary source)
-- Live `data/raw/inat_expert_obs.csv` — column headers include `created_at` and `updated_at` at observation level; HIGH confidence (primary source)
-- iNat API live call to `https://api.inaturalist.org/v1/identifications?user_login=rainhead&per_page=1` — per-identification `created_at` field confirmed present and ISO 8601 with timezone; HIGH confidence
-- `_data/places.js`, `_pages/place-detail.njk`, `data/nightly.sh` — per-place static page and manifest upload patterns; HIGH confidence (primary sources)
-- `data/dbt/models/intermediate/int_id_modified.sql`, `int_ecdysis_base.sql` — `modified` field already used in the dbt model; HIGH confidence (primary source)
-- iNaturalist open-data GitHub README (fetched) — six CSV files, no identifications table in the open-data export; HIGH confidence (means per-identification `created_at` requires the live API, not the open-data dump)
+- https://www.inaturalist.org/pages/api+reference — iNat OAuth2 (Authorization Code + **PKCE**), base URL `www.inaturalist.org` (HIGH; page 403s to automated fetch, corroborated across results)
+- https://pyinaturalist.readthedocs.io/en/stable/user_guide/authentication.html — `/users/api_token` JWT endpoint, ~24h validity (HIGH)
+- iNat API Recommended Practices + community forum — OAuth→JWT exchange (`curl -H "Authorization: Bearer OAUTH" .../users/api_token`), raw-JWT header for node API (HIGH)
+- https://developers.cloudflare.com/d1/reference/time-travel/ — D1 GA (Apr 2024), Time Travel 30-day PITR (HIGH; considered, not chosen)
+- https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Point-in-time-recovery.html — DynamoDB PITR 1–35 days, $0.20/GB-mo (HIGH)
+- https://aws.amazon.com/blogs/compute/python-3-14-runtime-now-available-in-aws-lambda/ — Lambda Python 3.14 managed runtime (HIGH)
+- https://neon.com/pricing + Databricks-acquisition coverage — Neon scale-to-zero, PITR 7d Launch / 30d Scale, branching, Postgres, Databricks-owned (HIGH)
+- https://turso.tech/blog/upcoming-changes-to-the-turso-platform-and-roadmap + github.com/tursodatabase/turso — libSQL production-ready but succeeded by the beta Rust "Turso Database" rewrite → vendor-turbulence flag (MEDIUM-HIGH)
 
 ---
-
-*Stack research for: BeeAtlas v6.0 My Work — Progress & Provenance*
-*Researched: 2026-06-24*
+*Stack research for: authoritative UGC write layer on a static AWS-CDK + Python/dbt/DuckDB site*
+*Researched: 2026-07-02*

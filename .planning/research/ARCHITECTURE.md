@@ -1,450 +1,410 @@
-# Architecture Research: v6.0 My Work — Progress & Provenance
+# Architecture Research: v8.0 Authoritative Data Foundation
 
-**Domain:** Static web app + dbt pipeline integration
-**Researched:** 2026-06-24
-**Confidence:** HIGH (grounded in actual source files read)
-
-## Integration Analysis
-
-This document answers four concrete questions about integrating v6.0 features into the existing
-architecture. Every claim is grounded in the files read: `int_combined.sql`, `occurrences.sql`,
-`filter.ts`, `style.ts`, `bee-occurrence-detail.ts`, `occurrence.ts`, `occurrence_places.sql`,
-`sqlite_export.py`, `schema.yml`, and the static page templates.
+**Domain:** Adding a first authoritative, non-reproducible data store to a fully-derived static-site data pipeline
+**Researched:** 2026-07-02
+**Confidence:** HIGH (grounded in the actual `nightly.sh`, `run.py`, `deploy.yml`, `dbt/run.sh`, `beeatlas-stack.ts`, `manifest.ts`, and the Eleventy `_data/*.js` + `_pages/*.njk` build seam)
 
 ---
 
-## (a) Collector Identity: Where It Lives and How to Key It
+## The Load-Bearing Invariant This Milestone Breaks
 
-### Current collector fields across the five ARMs
+Every byte the site serves today is **derived** and **reproducible**: re-running `data/run.py`
+against fresh iNat/Ecdysis pulls regenerates it. The DuckDB (`beeatlas.duckdb`) is a *cache*, not a
+system of record — which is exactly why three things are safe:
 
-Collector identity is split across four separate fields in `int_combined` that flow into the
-`occurrences` mart:
+1. `aws s3 sync --delete` in `deploy.yml` (nothing unrecoverable lives only in S3),
+2. content-hashed immutable filenames (a stale hash is never data loss),
+3. the **schema-change dance** — a one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` to break
+   the two-gate deadlock (`test_dbt_diff` vs `validate-db`) after a `marts/occurrences` contract bump.
 
-| Field | ARM(s) present | Meaning |
-|-------|---------------|---------|
-| `recordedBy` | ARM 1 (ecdysis), ARM 5 (checklist) | Ecdysis free-text string, e.g. "Abrahamsen, Peter" |
-| `host_inat_login` | ARM 1 (via `int_samples_base`), ARM 2 (waba_sample via `obs.user__login`) | iNat handle of the person who posted the sample/floral-host observation |
-| `user_login` | ARM 4 (inat_obs) | iNat handle of the expert observer |
-| `specimen_inat_login` | ARM 1 (via `int_specimen_obs_base`), ARM 3 (waba_specimen) | iNat handle of the WABA collector who photo-documented the specimen |
-
-**Critical finding:** `specimen_inat_login` is present in `int_combined` (carried from
-`int_specimen_obs_base`) but is **NOT** projected into the `occurrences` mart SELECT and does not
-appear in `schema.yml`. It is invisible to the frontend. This is the key identity field for WABA
-collectors (who photograph their bees in iNat before Ecdysis upload), and it covers ARM 1 (ecdysis
-specimens linked to a specimen observation) and ARM 3 (waba_specimen — the ~33 specimens awaiting
-Ecdysis upload).
-
-**Current filter integration:** `filter.ts` `buildFilterSQL()` handles the split via a
-`CollectorEntry` type carrying both `recordedBy` and `host_inat_login`, with an OR clause in SQL.
-But it misses `specimen_inat_login` (ARM 1/3) and `user_login` (ARM 4 — expert iNat observers,
-not WABA collectors).
-
-### Identity gaps and normalization strategy
-
-For a WABA collector like `@rainhead`:
-- Ecdysis specimens appear under `recordedBy` = "Abrahamsen, Peter" AND under `host_inat_login` =
-  "rainhead" (via the sample's plant observation in ARM 1)
-- waba_specimen rows (ARM 3) carry `specimen_inat_login` = "rainhead" — currently dropped from the mart
-- There is no single normalized "collector identity" column
-
-**Recommendation: add a `collector_inat_login` derived column to `int_combined` and the mart.**
-
-```sql
-COALESCE(
-  sob.specimen_inat_login,   -- ARM 1, ARM 3: WABA collector's iNat handle (highest priority)
-  s.host_inat_login,         -- ARM 1 (via sample), ARM 2: sample observer's handle
-  io.user_login              -- ARM 4: expert observer's handle
-) AS collector_inat_login
-```
-
-The slug for per-collector pages is the iNat handle (`collector_inat_login`): URL-safe, already in
-use in `url-state.ts` via the `collectors=` param, unique in the iNat namespace. `recordedBy` is
-retained as a display label for Ecdysis-backed rows where `collector_inat_login` is NULL (historical
-museum specimens in checklist ARM 5).
-
-The `recordedBy` ↔ `inat_login` linkage for WABA collectors is implicitly established when both are
-non-null on the same `ecdysis` ARM 1 row (a catalogued specimen that also has a sample observation).
-No separate identity seed is needed for MVP.
-
-**dbt contract impact:** adds one VARCHAR column `collector_inat_login` to `schema.yml` (36 → 37
-cols). Apply the data-before-code release sequence.
+Authoritative user content (species natural-history notes with **no iNat/Ecdysis upstream**) violates
+this: losing it is unrecoverable, and it cannot be diffed against a rebuildable baseline. The whole
+milestone is making **"is this artifact reproducible?"** an *explicit declared property* so the two
+data classes coexist without the authoritative class ever touching the reproducibility machinery.
 
 ---
 
-## (b) Temporal Status History: Mechanism Recommendation
+## Standard Architecture (target state)
 
-### The snapshot problem
-
-The nightly pipeline emits a complete snapshot of `int_combined`. No change log exists. The
-`modified` field (VARCHAR, Ecdysis only, sourced from `int_id_modified`) records the last edit
-date of an Ecdysis identification. No `first_appeared` or `first_seen_date` timestamp exists for
-any row. For waba_sample/waba_specimen/inat_obs/checklist rows, there is no pipeline-level date
-representing "when this occurrence first entered the atlas."
-
-### Three candidate approaches
-
-**Option 1 — Pipeline-maintained append-only snapshot-diff event table**
-
-After each nightly run, compare the new snapshot against yesterday's parquet (already pulled for
-`test_dbt_diff`). Emit a `occurrence_events.parquet` CDN artifact with rows like:
 ```
-(occ_id, event_type, event_date, prior_taxon_id, new_taxon_id)
-```
-Shipped to CDN alongside `occurrences.db`, loaded by the collector page frontend.
-
-Pros: shareable, supports the community feed in a later milestone, authoritative. Cons:
-indefinitely growing artifact, requires a second CDN file loaded by every collector page, adds
-pipeline complexity.
-
-**Option 2 — Client `localStorage` "last seen" watermark only**
-
-The frontend stores the last-loaded DB generation date in `localStorage`. On load, it diffs the
-current snapshot to surface "new since last visit" using only the `modified` field (available only
-for ecdysis rows) and occurrence existence.
-
-Cons: truly device-local (no cross-device portability), a fresh device shows everything as new,
-and `modified` doesn't exist for non-Ecdysis rows so most of the event stream is uncomputable.
-
-**Option 3 — Hybrid: `first_seen_date` column in the pipeline + client watermark**
-
-The pipeline adds two new VARCHAR columns to the `occurrences` mart:
-- `first_seen_date` — the nightly-run date when this `occ_id` first appeared in the atlas. On each
-  nightly run, `first_seen_date = COALESCE(yesterday.first_seen_date, TODAY())` (computed by
-  DuckDB JOIN against yesterday's parquet pulled from S3).
-- `id_date` — the date this occurrence first had a species identification. For ecdysis rows this
-  is derivable from `modified` when `taxon_id` changed from NULL. For others it approximates as
-  `first_seen_date` when `taxon_id IS NOT NULL`.
-
-The client uses a `localStorage` watermark (the DB generation date of the last visit) to filter
-events: show rows where `first_seen_date > watermark`. A fresh device with no watermark shows the
-last 30 days.
-
-### Recommendation: Option 3 (hybrid)
-
-**Why:** `first_seen_date` makes the event stream deterministic and portable — the same result
-appears on any device for the same watermark. The computation reuses an S3 artifact (yesterday's
-parquet) that is already pulled for `test_dbt_diff`. No new CDN file is needed; the two new columns
-ride in `occurrences.db`. The event log (Option 1) is reserved for the community feed milestone.
-
-**Implementation:** In `nightly.sh` / `run.py`, after the S3 pull of yesterday's parquet, add a
-DuckDB step:
-```sql
-SELECT
-  new.*,
-  COALESCE(old.first_seen_date, strftime(CURRENT_DATE, '%Y-%m-%d')) AS first_seen_date,
-  -- id_date: date taxon_id first became non-null (approximation for non-ecdysis)
-  CASE
-    WHEN new.taxon_id IS NOT NULL AND (old.taxon_id IS NULL OR old.first_seen_date IS NULL)
-      THEN strftime(CURRENT_DATE, '%Y-%m-%d')
-    ELSE old.id_date
-  END AS id_date
-FROM new_occurrences new
-LEFT JOIN yesterday_occurrences old USING (occ_id)
+┌──────────────────────────────────────────────────────────────────────────┐
+│ READ PATH  (static, cached, offline-capable — UNCHANGED CONTRACT)          │
+│  CloudFront ── /data/*  (hashed, immutable)   ── /  (Eleventy static HTML)  │
+│      ▲                        ▲                          ▲                  │
+│      │ manifest.json          │ occurrences.db/parquet   │ species pages    │
+│      │                        │ notes.json (NEW)         │ bake notes at    │
+│      │                        │                          │ build (NEW)      │
+└──────┼────────────────────────┼──────────────────────────┼─────────────────┘
+       │                        │                          │
+┌──────┴────────────────────────┴──────────────────────────┴─────────────────┐
+│ BUILD / PUBLISH SEAM   (ONE declarative artifact contract — Phase 1)        │
+│                                                                             │
+│   data/artifacts.toml  ──►  data/artifacts.py  ──►  { nightly.sh publish,   │
+│   (single source of truth)   (tested loader)         nightly.sh baseline,   │
+│                                                       deploy.yml fetch }     │
+└──────────────┬──────────────────────────────────────────┬──────────────────┘
+               │ DERIVED (reproducible, diff-gated)        │ AUTHORITATIVE
+               │                                           │ (content from store)
+┌──────────────┴───────────────────────┐   ┌───────────────┴────────────────────┐
+│ DERIVED PIPELINE (run.py, dbt)        │   │ AUTHORITATIVE SUBSYSTEM (NEW)       │
+│  iNat/Ecdysis → DuckDB cache → dbt    │   │                                     │
+│  marts/* → exports → S3               │   │  Thin write layer (iNat OAuth) ──┐  │
+│  test_dbt_diff regression gate        │   │        writes ▼                  │  │
+│  bypass+rebuild is SAFE               │   │  Authoritative store  ◄── forward-│  │
+│                                       │   │  (notes + revisions + roles)  only│  │
+│  notes-harvest step (NEW) ────────────┼───┼──► reads approved rows      migra-│  │
+│  reads store, emits notes.json        │   │                             tions │  │
+│  (authoritative-content, NOT diffed)  │   │  Versioned backup + restore drill  │  │
+└───────────────────────────────────────┘   └────────────────────────────────────┘
 ```
 
-**dbt contract impact:** adds `first_seen_date` VARCHAR and `id_date` VARCHAR to `schema.yml`
-(37 → 39 cols after Phase 1). These are computed after `dbt build` completes, as a post-dbt step
-in `run.py`, before `sqlite_export.py` reads the final parquet. This avoids complicating the dbt
-model itself with pipeline-date logic.
-
-**Release sequence:** data-before-code applies (project memory `project_occurrences_contract_release_sequence`). Ship the new columns in one nightly run before the frontend JS that reads them.
+Two subsystems, one publish seam. The derived pipeline may **read** the authoritative store (the
+harvest) but never writes or migrates it; the write layer owns the authoritative store exclusively.
 
 ---
 
-## (c) Facets: How to Model Them
+## 1. The Derived-vs-Authoritative Split (concrete)
 
-### What "facets" means in v6.0
+### The classification rule
 
-The current `source` enum (`ecdysis | waba_sample | waba_specimen | inat_obs | checklist`) is
-mutually exclusive. The three consumers are:
-1. `src/filter.ts` — `hiddenSources` in `FilterState`; `VALID_SOURCES` allowlist; `o.source IN
-   (...)` SQL clause; `SourceKey` type (also in `url-state.ts`)
-2. `src/style.ts` — `_occurrencePointPaint()` uses `['match', ['get', 'source'], 'checklist',
-   '#2c7a2c', ...]` on GeoJSON feature property
-3. `src/bee-occurrence-detail.ts` — detail card branches on source to select the correct fields
-   and template
+> **Provenance follows the data's ultimate source, not the mechanism that produced the file.**
+> If any byte of an artifact traces to a user write, it is `authoritative` — excluded from the
+> reproducibility diff, and its upstream store is backup-critical. Otherwise it is `derived`.
 
-The v6.0 goal is to replace mutually-exclusive source filtering with orthogonal facets. The
-proposed dimensions are: provenance tier (how was this documented?), identification status, and
-collector identity. Time, taxon, and place are already orthogonal filter dimensions.
+This is the crucial subtlety: `notes.json` is *mechanically* a projection (a nightly Python step
+emits it), but its content originates from user writes, so it is classified `authoritative`. The
+**store** is what gets backed up; `notes.json` itself is disposable (re-harvestable from the store).
 
-### Three modeling options
+### How the split materializes across the three surfaces
 
-**Option A — Derived columns in the occurrences mart**
+**dbt models** — *unchanged*. dbt stays a pure transform engine over reproducible sources; **no
+authoritative table is ever a dbt materialization.** The `marts/occurrences` 36-col contract, the
+sandbox build, and `test_dbt_diff` keep operating only on derived data. The authoritative store is
+read by a dedicated `notes-harvest` step (new in `run.py`, after `dbt-build` so the species universe
+exists), NOT by dbt. Optionally the store can be registered as a read-only dbt *source* if notes ever
+need a mart-level join, but the default and safer design is a standalone Python export that reads the
+store + the already-built `species`/taxa tables. Either way, **dbt never materializes it, so the
+sandbox-vs-live parquet diff physically cannot include it.**
 
-Add computed boolean/enum columns: `provenance_tier` (enum: 'physical_specimen' | 'photo_observation' | 'expert_inat' | 'museum_record'), `is_identified` (`taxon_id IS NOT NULL`). All are derivable from existing columns without data loss.
+**Export / artifact contract** — gains a `provenance` field per artifact (§2). All 14 current
+artifacts are `provenance = "derived"`. The new `notes` artifact is `provenance = "authoritative"`,
+which *forces* `baseline_diff = false`.
 
-Widens the mart contract (adds to the 36-col base) but requires no JOIN at query time.
+**Migration / gate machinery** — the integration baseline pull (`nightly.sh` block 1c) and
+`test_dbt_diff` iterate **only** artifacts where `baseline_diff = true` (all derived). `notes.json`
+(`baseline_diff = false`) is never pulled as a baseline and never diffed. **Double isolation**: it
+isn't a dbt model (so `dbt build` can't produce a diffable sandbox copy) *and* it's contract-flagged
+out of the baseline set. The schema-change dance (`SKIP_INTEGRATION_GATE`) therefore stays a purely
+derived concern — a derived contract bump and an authoritative migration can never interact.
 
-**Option B — Separate facets bridge**
+### Why the gate can't cross-contaminate — the two schema-evolution mechanisms
 
-A new `occurrence_facets.parquet` with one row per (occ_id, facet_key, facet_value). Arbitrary extensibility at the cost of SQL JOIN overhead on every query. Not justified for a fixed, known set of orthogonal booleans.
+| | Derived table (e.g. `marts/occurrences`) | Authoritative table (`notes`) |
+|---|---|---|
+| Schema change via | edit dbt model → **bypass + rebuild** | **forward-only migration** (in-place ALTER/backfill) |
+| Old data on change | discarded, re-derived from source | preserved (there is no source to re-derive from) |
+| Regression gate | `test_dbt_diff` (sandbox vs live) | **none** — excluded by `baseline_diff = false` |
+| Recovery if lost | re-run pipeline | restore from backup (unrecoverable otherwise) |
+| Lives in | DuckDB cache → parquet/sqlite exports | separate system-of-record store |
 
-**Option C — Computed query-time in the frontend**
-
-Derive facet predicates from existing `OccurrenceRow` fields in the frontend SQL. `ecdysis_id IS
-NOT NULL` is already available in the mart. A "provenance tier" filter can be expressed as a SQL
-CASE clause over existing columns without any new mart columns.
-
-### Recommendation: Option C for filter SQL, Option C also for GeoJSON properties
-
-**Filter layer:** Replace `hiddenSources` → a `hiddenProvenanceTiers` set in `FilterState`. The
-SQL clause maps tiers to existing column predicates:
-
-```sql
--- provenance_tier derivation (inline in buildFilterSQL)
-CASE
-  WHEN ecdysis_id IS NOT NULL THEN 'physical_specimen'
-  WHEN source IN ('waba_specimen', 'waba_sample') THEN 'photo_observation'
-  WHEN source = 'inat_obs' THEN 'expert_inat'
-  WHEN source = 'checklist' THEN 'museum_record'
-END
-```
-
-No new mart column needed. The mapping is a constant in `filter.ts`.
-
-**Map symbology layer:** `queryVisibleGeoJSON` in `filter.ts` constructs the GeoJSON features.
-Currently it embeds `source` as a feature property. Switch to embedding a computed
-`provenance_tier` string derived from the same CASE at GeoJSON construction time. `style.ts`
-`_occurrencePointPaint` then uses `['get', 'provenance_tier']` instead of `['get', 'source']`.
-
-**Detail card layer:** `bee-occurrence-detail.ts` can continue branching on the raw `source`
-field from `OccurrenceRow` for precise field rendering — source is still in the mart and the row.
-The detail card does not need to change its branching logic just because the filter UI uses tiers.
-
-**No new mart columns needed for facets.** The mart `source` column is retained as the raw
-discriminator. Facet logic lives entirely in the frontend as pure derivations from existing data.
-
-### URL contract impact
-
-`SourceKey` in `url-state.ts` currently lists the raw source enum values. If filtering switches
-to provenance tiers, `SourceKey` becomes `ProvenanceTierKey` and the `src=` URL param changes to
-`tier=`. This is a URL breaking change — needs legacy fallback parsing for existing bookmarks
-that use `src=ecdysis` etc.
-
-### Impact on the three source consumers (summary)
-
-| Consumer | Change |
-|----------|--------|
-| `filter.ts` | `hiddenSources: Set<SourceKey>` → `hiddenProvenanceTiers: Set<ProvenanceTierKey>`; SQL clause becomes CASE-based; `OccurrenceRow` unchanged |
-| `style.ts` | `_occurrencePointPaint` match expression switches from `source` to `provenance_tier` GeoJSON feature property |
-| `bee-occurrence-detail.ts` | No change to source-based branching; detail rendering remains source-aware |
-| `url-state.ts` | `SourceKey` → `ProvenanceTierKey`; `src=` → `tier=` with legacy fallback |
+The `SKIP_INTEGRATION_GATE` escape hatch is **forbidden** for authoritative tables — there is no
+source to rebuild from, so "bypass and rebuild" is meaningless. Authoritative schema evolves only
+forward (§4).
 
 ---
 
-## (d) Build Order
+## 2. One Declarative Artifact Contract (replaces the triple hand-sync)
 
-### Dependency graph
+Today the artifact set is hand-synced across **three** places:
+- `nightly.sh` lines 306–346 — hardcoded `_upload_hashed*` calls + the `manifest.json` heredoc,
+- `nightly.sh` lines 153–171 — the inline ~40-line Python heredoc classifier
+  (`LOCAL_NAMES` / `NON_FILE_KEYS` / `INTENTIONALLY_SKIPPED`),
+- `deploy.yml` lines 45–67 — the hand-coded `jq` build-time fetch of 6 files.
 
+Adding one artifact means editing all three, correctly, or silently freezing a file (the
+`higher_taxa.json`/`photos.json` bug the code comments already memorialize).
+
+### Format & location
+
+**`data/artifacts.toml`** — TOML, matching project convention (`content/places.toml`,
+`content/species-photos.toml`) and Python-native via `tomllib` (3.14). Loaded by a small tested
+module **`data/artifacts.py`** that all three consumers call. TOML over JSON (comments — this file
+is heavily rationale-laden) and over a `.py` module (data, not code; safely parseable by CI without
+importing pipeline deps).
+
+### Schema (one block per artifact)
+
+```toml
+# data/artifacts.toml
+schema_version = 1
+
+[artifact.occurrences]
+local_filename = "occurrences.parquet"
+provenance     = "derived"        # derived | authoritative
+kind           = "hashed"         # hashed | stable_dir | metadata
+baseline_diff  = true             # participate in test_dbt_diff regression baseline
+build_time_fetch = false          # deploy.yml pulls into working tree before `npm run build`
+gzip           = false            # pre-gzip + Content-Encoding: gzip (was _upload_hashed_gz)
+content_type   = ""               # override; "" = infer (geojson → application/json)
+
+[artifact.occurrences_db]
+local_filename = "occurrences.db"
+provenance     = "derived"
+kind           = "hashed"
+baseline_diff  = false            # was INTENTIONALLY_SKIPPED (23 MB — too big to baseline daily)
+gzip           = true
+build_time_fetch = false
+
+[artifact.higher_taxa]
+local_filename = "higher_taxa.json"
+provenance     = "derived"
+kind           = "hashed"
+baseline_diff  = true
+build_time_fetch = true           # _data/species.js reads it at build
+
+[artifact.counties]
+local_filename = "counties.geojson"
+provenance     = "derived"
+kind           = "hashed"
+baseline_diff  = true
+content_type   = "application/json"   # so CloudFront auto-compresses (geo+json not on allowlist)
+
+[artifact.feeds]
+kind           = "stable_dir"     # recursive, non-hashed (feeds/, species-maps/, place-maps/)
+provenance     = "derived"
+source_subdir  = "feeds"
+
+# ── metadata keys: computed into manifest.json, never files ──
+[artifact.occurrences_db_tables]
+kind = "metadata"                 # was NON_FILE_KEYS
+[artifact.generated_at]
+kind = "metadata"
+
+# ── NEW authoritative-content artifact ──
+[artifact.notes]
+local_filename = "notes.json"
+provenance     = "authoritative"  # ⇒ baseline_diff forced false by artifacts.py
+kind           = "hashed"
+build_time_fetch = true           # _data/notes.js bakes it into species pages
 ```
-Phase 1: collector_inat_login in mart (dbt contract 36→37)
-    │
-    ├─→ Phase 3: collectors.json export artifact + Eleventy data
-    │       │
-    │       └─→ Phase 4: collector-detail.njk static pages
-    │
-Phase 2: first_seen_date + id_date in mart (contract 37→39, after Phase 1)
-    │
-    └─→ Phase 6: event stream frontend (gated on Phase 5 too)
 
-Phase 5: source → facets rebuild (filter.ts + style.ts + url-state.ts)
-    │     (can start after Phase 1; independent of Phase 2)
-    │
-    └─→ Phase 6: event stream frontend (provenance rendering uses tiers)
-            │
-            └─→ Phase 7: accomplishment view (coverage map, breadth, badges)
-```
+### `data/artifacts.py` API (each consumer calls one function)
 
-### Recommended build order
+| Consumer | Call | Replaces |
+|---|---|---|
+| `nightly.sh` publish block | `iter_publishable()` → `(key, local_filename, gzip, content_type)` plans; bash keeps `_upload_hashed*`, then a tiny Python assembles `manifest.json` from `(key → hashed_name)` results | lines 306–349 |
+| `nightly.sh` baseline pull | `python -m data.artifacts pull-baseline --manifest $_PREV_MANIFEST --dest public/data` (iterates `baseline_diff=true`, warns on unmapped manifest keys) | the ~40-line heredoc (lines 136–206) |
+| `deploy.yml` fetch | `python -m data.artifacts fetch-build-time --manifest /tmp/manifest.json --dest public/data` (iterates `build_time_fetch=true`) | the `jq` block (lines 45–67) |
 
-**Phase 1 — Collector identity column in the mart**
-Add `collector_inat_login` (VARCHAR) to `int_combined` (COALESCE of `specimen_inat_login`,
-`host_inat_login`, `user_login`) and project it into `occurrences.sql`. Add to `schema.yml` (36 →
-37 cols). This is a dbt contract change — apply data-before-code release sequence.
-
-**Phase 2 — Temporal columns in the mart**
-Add `first_seen_date` and `id_date` (VARCHAR) as post-dbt pipeline steps in `run.py`. Add to
-`schema.yml` (37 → 39 cols). This is a second contract change — ship separately from Phase 1 to
-avoid a double-gated release. `sqlite_export.py` picks up the new columns automatically (it reads
-the full parquet schema; no positional coupling on columns added to the end).
-
-**Phase 3 — `collectors.json` export artifact**
-Add `generate_collectors()` step to `export.py`/`run.py` producing `public/data/collectors.json`:
-array of collector records keyed on `collector_inat_login` (slug), with display name, occurrence
-count, year range, species count. Follows the `places.json` pattern. Add `_data/collectors.js`
-Eleventy data module reading it (mirrors `_data/places.js`). No dbt contract change.
-
-**Phase 4 — Per-collector static pages (Eleventy)**
-Add `_pages/collector-detail.njk` following `place-detail.njk`. Permalink:
-`/collectors/{inat_login}/`. Page shows static stats and a filtered-map link using the existing
-`collectors=inat_login:handle` URL param (already implemented in `url-state.ts`). No frontend JS
-changes. Gated on Phase 3.
-
-**Phase 5 — Source → facets rebuild (filter + style + URL)**
-Refactor the three `source` consumers atomically. This is the highest-risk change: it touches
-`FilterState` (all callers must update — project memory `project_filterstate_required_field_contract`
-applies), the GeoJSON feature property schema, and the URL state contract. Do it in a single atomic
-phase to avoid a half-refactored state. Include legacy `src=` → `tier=` fallback in `parseParams`.
-Can start after Phase 1; independent of Phase 2.
-
-**Phase 6 — Per-collector event stream (frontend)**
-Add event stream query to `filter.ts` / the collector page: for a given `collector_inat_login`,
-fetch their occurrences ordered by `first_seen_date DESC`, render as a chronological feed. Gated
-on Phase 2 (temporal columns in mart) and Phase 5 (provenance tiers for rendering). This is a
-new frontend component (`<bee-collector>` coordinator or a simpler entry-level page component).
-
-**Phase 7 — Accomplishment view (frontend)**
-County coverage map (choropleth), taxonomic breadth, derivable badges (years active, species count).
-Gated on Phase 4 (collector page exists) and Phase 6 (event stream renders).
-
-### Summary table
-
-| Phase | Primary change | dbt contract? | Static hosting safe? | Gated on |
-|-------|---------------|---------------|----------------------|----------|
-| 1 | `collector_inat_login` in mart | YES (36→37) | Yes | — |
-| 2 | `first_seen_date`, `id_date` in mart | YES (37→39) | Yes | Phase 1 |
-| 3 | `collectors.json` + Eleventy data | No | Yes | Phase 1 |
-| 4 | `collector-detail.njk` static pages | No | Yes | Phase 3 |
-| 5 | Source → facets rebuild | No | Yes | Phase 1 (conceptually) |
-| 6 | Event stream frontend | No | Yes | Phases 2, 5 |
-| 7 | Accomplishment view | No | Yes | Phases 4, 6 |
+**Invariant preserved:** `nightly.sh` retains S3/CloudFront ownership (per CLAUDE.md, `run.py`/Python
+knows nothing about S3) — `artifacts.py` emits *plans and classifications*; bash performs the S3 I/O.
+The drift guard survives verbatim, but now **tested** (a `pytest` over `artifacts.py`: every manifest
+key resolves to exactly one artifact; `authoritative ⇒ not baseline_diff`; `metadata ⇒ no filename`).
+Enforce a round-trip test: `manifest.json`'s emitted keys == `artifacts.toml`'s non-metadata keys.
 
 ---
 
-## Component Boundaries
+## 3. Write-Path Integration — Recommendation: hybrid (harvest-primary + progressive live island)
 
-### New vs. modified components
+The read path is static, CloudFront-immutable-cached, and offline-capable (PWA). Species pages are
+Eleventy static HTML built at **deploy time** from `_data/*.js` loaders reading build-time JSON — v7.0
+traits shipped as "build-time Nunjucks, zero JS." So there are three ways to get authoritative notes
+onto a species page:
 
-**New:**
-- `data/export.py` — `generate_collectors()` step producing `collectors.json`
-- `_data/collectors.js` — Eleventy data module (mirrors `places.js`)
-- `_pages/collector-detail.njk` — static page template (mirrors `place-detail.njk`)
-- `src/entries/collector.ts` (if interactive) — Vite entry for collector page JS
-- New `<bee-collector>` coordinator element (if the collector page needs reactive state beyond
-  static HTML)
+| Option | Freshness | Offline/PWA | Moderation visibility | Read-path-static goal |
+|---|---|---|---|---|
+| (a) live client fetch from write store | instant | **breaks** (needs network + store up) | client must filter — leak risk | **violated** (runtime dep + secrets surface) |
+| (b) nightly harvest → `notes.json` → build-time bake | ≤24h (nightly + deploy) | works (baked into static HTML, cached) | **enforced at harvest** (`status='approved'` filter) | preserved |
+| (c) **hybrid: (b) baseline + (a) progressive island** | ≤24h floor, instant when online for the author | works (falls back to baked) | enforced at harvest; moderators preview via authed island | preserved (island is optional enhancement) |
 
-**Modified:**
-- `data/dbt/models/intermediate/int_combined.sql` — add `collector_inat_login` COALESCE to all five ARMs
-- `data/dbt/models/marts/occurrences.sql` — project `collector_inat_login` in SELECT
-- `data/dbt/models/marts/schema.yml` — add `collector_inat_login`, `first_seen_date`, `id_date`
-- `data/run.py` — add temporal column computation step (post-dbt, pre-sqlite-export)
-- `src/filter.ts` — `FilterState.hiddenSources` → `hiddenProvenanceTiers`; collector SQL clause
-  gains `collector_inat_login`; `OccurrenceRow` adds three new fields
-- `src/style.ts` — `_occurrencePointPaint` switches `['get', 'source']` → `['get', 'provenance_tier']`
-- `src/bee-occurrence-detail.ts` — minor: adapt any source-tier display if needed
-- `src/url-state.ts` — `SourceKey` type renamed; `src=` param → `tier=` with legacy fallback
+**Recommendation: (c) hybrid, (b)-dominant.**
 
-### State ownership invariant (unchanged)
+- **Default display = baked `notes.json`** (option b): the harvest emits **only `status='approved'`**
+  rows, joined to `canonical_name`/`taxon_id` from the derived species universe. Published via the
+  Phase-1 contract as an `authoritative`, `build_time_fetch=true` artifact; a new `_data/notes.js`
+  loader bakes it into `_pages/species-detail.njk` — an exact structural mirror of `_data/species_hosts.js`
+  (Phase 175). This keeps the read path static, cacheable, offline-safe, and keeps unmoderated notes
+  physically out of the public bytes.
+- **Progressive `src/notes-live.ts` island** (option a) *only on species pages*: when online, fetch
+  the note(s) for **that one species** from the write layer's read API and overlay the baked version.
+  This closes the ≤24h freshness gap for the author who just wrote a note, and gives moderators an
+  authenticated pending-note preview — as pure progressive enhancement. Offline / no-JS still shows
+  the baked note. Never the sole display path.
+- **Harvest trigger:** run as a `run.py` step (nightly cadence, zero new triggers) for v8.0. A
+  write-triggered `repository_dispatch` targeted harvest+deploy is a *later* optimization, not v8.0.
 
-The invariant is unaffected. The per-collector static page is an Eleventy-rendered HTML page with
-no coordinator needed for the static content. If an interactive event stream is added, it follows
-the `<bee-atlas>` ownership pattern: a new `<bee-collector>` coordinator owns all reactive state,
-and any sub-components are pure presenters.
-
-### occ_id positional coupling (unaffected)
-
-The `collector_inat_login` addition, the temporal columns, and the facets rebuild do NOT touch the
-occ_id CASE expression. No change to the three positionally-coupled files (`src/occurrence.ts`,
-`src/filter.ts` `OCC_ID_SQL_CASE`, `data/dbt/models/marts/occurrence_places.sql`).
+Rationale: natural-history prose is reference content, not a liveness feed — a ≤24h floor is fine, and
+the island removes the only sharp edge (author immediacy). Moderation stays server-enforced, never
+trusted to the browser.
 
 ---
 
-## Architecture Patterns to Follow
+## 4. Forward-Only Migrations for the Authoritative Store
 
-### Pattern 1: Static page from Eleventy data module
+The store cannot be rebuilt, so its schema evolves by **versioned, forward-only, idempotent,
+in-place** migrations — the inverse of the derived rebuild model.
 
-`_data/places.js` reads `places.json` (written by pipeline). `_pages/place-detail.njk` paginates
-over `places.placesArray`. The collector page follows this pattern exactly:
-- `export.py` writes `collectors.json`
-- `_data/collectors.js` reads it, exports `{ collectorsArray }`
-- `_pages/collector-detail.njk` paginates over `collectors.collectorsArray`
-- Permalink: `/collectors/{inat_login}/`
+- **Layout:** `data/notes_store/migrations/NNNN_description.sql` (monotonic). A `schema_migrations`
+  table records applied versions; a tiny runner applies only unapplied files, in order, once.
+- **Runner location:** the **write layer** (on deploy/boot), *not* `run.py`. The write layer owns the
+  authoritative schema; `run.py` only ever *reads* the store (harvest) and must never migrate/write it.
+  This keeps ownership clean and prevents the derived pipeline from mutating the system of record.
+- **Discipline:** additive/transform-in-place only. Destructive changes use data-preserving migrations
+  (add column → backfill → cut over → drop in a *later* migration), never DROP+recreate. There is no
+  `SKIP_INTEGRATION_GATE`-style bypass — the gate doesn't apply, and there's no source to rebuild from.
+- **Contrast with derived:** derived "migration" = edit dbt model + bypass-and-rebuild (whole table
+  recomputed, old shape discarded). Authoritative migration = ALTER + backfill in place (data is the
+  source of truth). Keep these two mechanisms *physically separate* so neither's tooling can touch the
+  other's tables.
 
-### Pattern 2: Filtered map deep-link from static page
+---
 
-Existing static pages link to the SPA with filter params: `/?place=slug`, `/?taxon=12345`. The
-collector page uses the already-wired `collectors=` URL param. In `url-state.ts`, the `collectors`
-param encodes a `|`-separated list of `recordedBy:NAME` or `inat_login:HANDLE` entries. The
-collector page links to `/?collectors=inat_login:rainhead`. No new URL param needed.
+## 5. Backup / DR for Non-Reproducible Data
 
-### Pattern 3: Bridge mart for many-to-many
+Backup is a **safety requirement**, not a nicety — and must be **distinct** from the DuckDB cache's
+overwrite-in-place `s3 cp` (that EXIT-trap backup has no history; reusing it for authoritative data
+would silently overwrite the only copy).
 
-`occurrence_places.sql` is the canonical pattern. A new `occurrence_collector` bridge is NOT
-needed — collector identity is a scalar (`collector_inat_login`) directly on the occurrence row.
+- **Application-level safety first:** the store is **append-only / soft-delete** — edits create new
+  rows in a `note_revisions` table; deletes flip a `status`/`deleted_at` flag. This gives user-error
+  recovery and a moderation audit trail *independent of infrastructure backups*.
+- **Infra backup (choose per store):**
+  - *SQLite/DuckDB file in S3:* enable **S3 versioning** on the store prefix (every write = a new
+    version) + a lifecycle rule retaining N versions/days, **plus** a scheduled copy to a separate
+    backup prefix/bucket (ideally different account/region for DR) with its own retention.
+  - *Managed Postgres (Neon/Supabase/RDS):* native PITR + scheduled `pg_dump` to S3.
+- **Restore drills:** DR is real only if restore is exercised — a documented, periodically-run restore
+  procedure is part of the milestone, not a follow-up.
+- **CLAUDE.md caution:** `BeeAtlasStack` houses the whole site; **never `cdk destroy`**. Add the store
+  bucket/prefix + versioning + backup automation by *surgical* stack edit only.
+
+---
+
+## 6. Auth Integration (iNat OAuth)
+
+- **Mechanism:** iNat OAuth — collectors already have iNat logins (the "self-identification"
+  framing from `work-vs-learning-two-halves.md` now becomes real auth for *writes*). Authorization
+  Code + **PKCE** (no confidential secret on the static read path).
+- **Where verified:** the **thin write layer is the sole identity/authorization authority.** Flow:
+  browser → iNat OAuth → write layer exchanges the code, verifies the iNat token, mints a short-lived
+  session (signed cookie/JWT). The static read path never authenticates and holds no secrets. iNat
+  tokens live only in the write layer's server-side session.
+- **Identity → authorization → roles:** the iNat user id/login is the principal. A `roles` table (or
+  column) in the authoritative store maps principal → role:
+  - *author* — any authenticated collector: create/edit own notes → note enters `status='pending'`.
+  - *moderator/editor* — curated allowlist: approve/reject; approved rows become harvest-eligible.
+  Every role check is **server-side** in the write layer; the client never asserts its own role.
+- **Read path stays anonymous:** the harvest (read) needs no auth; public display shows only approved
+  notes.
+
+---
+
+## 7. Suggested Build Order (Thread 1 first)
+
+**Phase 1 — Thread 1: Build-seam refoundation (no user value; de-risks everything).**
+Introduce `data/artifacts.toml` + tested `data/artifacts.py`; refactor `nightly.sh` block 1c
+(heredoc → module call), the publish/manifest block, and `deploy.yml`'s fetch step to consume it.
+Add `provenance` + `baseline_diff`; classify all 14 existing artifacts as `derived`. **Pure refactor —
+byte-identical `manifest.json` and identical baseline set**, gated by the nightly + new `artifacts.py`
+unit tests. Establishes the explicit split with zero behavior change. Independently shippable.
+
+**Phase 2 — Authoritative store + migration harness + backup/DR.**
+Stand up the store (recommend SQLite/DuckDB-in-S3-with-versioning *or* managed Postgres),
+`schema_migrations` + forward-only runner, `notes` + `note_revisions` + `roles` (append-only,
+soft-delete), and backup automation + a documented restore drill. No write UI yet — seedable via a
+script. Establishes the authoritative class end-to-end with the Phase-1 split.
+
+**Phase 3 — Thin managed write layer + iNat OAuth.**
+The consciously-bent "static-only" constraint, isolated in one deployable (Lambda Function URL or
+small managed service; note the retired `260514-fcq` Lambda surface is precedent for the CDK shape).
+iNat OAuth (PKCE), session, write authorization, roles, create/edit-note API. No public display yet.
+
+**Phase 4 — Harvest → `notes.json` → build-time bake (public read, approved-only).**
+Add the `notes-harvest` `run.py` step after `dbt-build` (reads store `status='approved'` + joins
+species universe → `notes.json`); publish via the Phase-1 contract (`authoritative`,
+`build_time_fetch=true`); `_data/notes.js` loader + `species-detail.njk` render (mirrors
+`species_hosts`). First visible vertical slice.
+
+**Phase 5 — Moderation loop + progressive live island.**
+Moderator pending queue + approve/reject in the write layer; `src/notes-live.ts` progressive island
+on species pages (author immediacy + moderator preview). Depends on all prior phases.
+
+*(Optional split: the author-facing create/edit **form** on the species page can be its own phase
+between 3 and 5 if Phase 3's scope grows.)*
+
+**Ordering rationale:** contract cleanup first (safe artifact addition unblocked) → store+backup
+before any write is accepted (never accept data you can't back up) → auth/write before harvest (need
+data to harvest) → harvest+display before moderation polish (get the slice visible) → moderation +
+live-refresh last (depends on everything).
+
+---
+
+## Integration Points — New vs. Modified
+
+### New components
+
+| Component | Responsibility |
+|---|---|
+| `data/artifacts.toml` | Single declarative artifact contract |
+| `data/artifacts.py` (+ tests) | Loader/classifier; drives publish, baseline pull, build-time fetch |
+| Authoritative store | System of record for notes (NOT a dbt model, NOT the DuckDB cache) |
+| `data/notes_store/migrations/` + runner | Forward-only versioned schema evolution (run by write layer) |
+| Thin write layer | Accepts writes; iNat OAuth; roles/moderation; **bends static-only constraint** |
+| `data/notes_export.py` (harvest) | Reads store approved rows + species universe → `notes.json` |
+| `_data/notes.js` | Eleventy build-time loader (mirrors `species_hosts.js`) |
+| `src/notes-live.ts` | Optional progressive per-species live-refresh island |
+| Backup automation + restore drill | Versioning + independent backup copy + tested restore |
+
+### Modified components
+
+| File | Change |
+|---|---|
+| `data/nightly.sh` | Block 1c heredoc → `artifacts.py` call; publish/manifest block → contract-driven |
+| `data/run.py` | Add `notes-harvest` step after `dbt-build` |
+| `.github/workflows/deploy.yml` | Fetch step (jq block) → `artifacts.py fetch-build-time` |
+| `infra/lib/beeatlas-stack.ts` | **Surgical add** of write-layer + store + backup resources (never `cdk destroy`) |
+| `src/manifest.ts` | Add `notes` key to `Manifest` interface |
+| `_pages/species-detail.njk` | Notes render block |
+
+### Data-flow changes
+
+1. **WRITE (new):** browser → iNat OAuth → write layer → authoritative store (migration-managed
+   schema, versioned backup, append-only revisions).
+2. **HARVEST (new):** nightly `run.py` reads store (`status='approved'`) + joins species universe →
+   `notes.json` → published as an `authoritative` artifact → `deploy.yml` build-time fetch → static
+   species page. **The regression diff never sees it** (double isolation §1).
+3. **READ display (new):** static baked note (floor) + optional online live-refresh island (enhancement).
+4. **DERIVED flow (unchanged):** iNat/Ecdysis → DuckDB cache → dbt → exports → S3; now merely
+   *contract-driven* instead of triple-hand-synced.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Adding a full event log to occurrences.db
-
-An append-only event log that grows with each nightly run will bloat `occurrences.db` (currently
-22.9 MB compressed). The `first_seen_date` + client watermark approach bounds DB size growth to
-two VARCHAR columns per row. The event log as a separate CDN artifact is reserved for the
-community feed milestone.
-
-### Anti-Pattern 2: Partial facets refactor across phases
-
-The three `source` consumers are tightly coupled. Changing `filter.ts` without updating
-`style.ts` leaves the map rendering on `source` while the filter uses `provenance_tier` — a
-half-refactored state that breaks the map layer. Phase 5 must be atomic: all three consumers
-switch in one commit, with the URL param backward-compat in the same diff.
-
-### Anti-Pattern 3: Adding `specimen_inat_login` directly to `OccurrenceRow` without routing through the mart
-
-`specimen_inat_login` is currently in `int_combined` but NOT projected into `occurrences`. Adding
-it to `OccurrenceRow` without a mart + schema.yml change would produce a column that is NULL
-everywhere (it simply would not exist in the SQLite export). The correct path is: add to mart
-SELECT → add to `schema.yml` → add to `OCCURRENCE_COLUMNS` in `filter.ts` → add to `OccurrenceRow`.
-The unified `collector_inat_login` approach (coalescing all three iNat identity fields) is cleaner
-than exposing the raw `specimen_inat_login` directly.
-
-### Anti-Pattern 4: Per-collector pages requiring auth
-
-The milestone explicitly requires no auth, public data, static hosting. The collector page is
-identified by the iNat handle in the URL. Self-identification (visiting your own page) requires no
-login — collectors bookmark `beeatlas.net/collectors/rainhead/`.
-
-### Anti-Pattern 5: FilterState partial update (per project memory `project_filterstate_required_field_contract`)
-
-When adding or renaming a FilterState field (hiddenSources → hiddenProvenanceTiers), every literal
-construction of FilterState — including the `bee-map.ts` default literal — must be updated. Run
-`tsc --noEmit` as the post-merge gate, not file-by-file byte checks.
-
----
-
-## Scalability Considerations
-
-| Concern | Current (v5.2) | v6.0 impact |
-|---------|----------------|-------------|
-| `occurrences.db` size | 22.9 MB compressed | +3 VARCHAR cols ≈ +4–5%; within budget |
-| `collectors.json` artifact | Does not exist | ~5–20 KB (estimate: ~50–100 WABA collectors) |
-| Per-collector static pages | 0 | ~50–100 pages at build time; negligible vs 600+ species pages |
-| Nightly runtime | S3 pull already done for `test_dbt_diff` | Previous parquet reuse; one DuckDB JOIN step added |
-| `first_seen_date` history correctness | N/A | Bootstrapped on first run: all existing rows get TODAY; future runs correctly carry forward |
+- **Making the notes table a dbt model.** It would enter the sandbox build and `test_dbt_diff`,
+  re-coupling authoritative data to the reproducibility gate — the exact contamination to prevent.
+- **Reusing the DuckDB EXIT-trap backup for the store.** That's an overwrite-in-place `s3 cp` with no
+  history; one bad run overwrites the only authoritative copy. Authoritative data needs versioned,
+  independent, retained backups.
+- **Client-only note display (pure option a).** Breaks offline/PWA, adds a runtime dependency on the
+  write store, and risks leaking unmoderated notes if filtering is client-side. Bake approved notes;
+  live-fetch only as enhancement.
+- **`SKIP_INTEGRATION_GATE` for authoritative schema.** There's no source to rebuild — evolve forward
+  with in-place migrations only.
+- **Adding an artifact by editing `nightly.sh`/`deploy.yml` directly.** After Phase 1, the only edit
+  site is `artifacts.toml`; direct edits reintroduce the triple-sync drift bug.
 
 ---
 
 ## Sources
 
-All findings are grounded directly in the codebase files read for this research. No external web
-searches were required — the architecture questions are about integrating with the existing system.
-
-- `data/dbt/models/intermediate/int_combined.sql` — five ARM structure, all collector fields confirmed
-- `data/dbt/models/marts/occurrences.sql` — mart SELECT (confirmed `specimen_inat_login` absence)
-- `data/dbt/models/marts/schema.yml` — authoritative 36-column dbt contract
-- `data/dbt/models/marts/occurrence_places.sql` — bridge mart pattern; occ_id positional coupling documented
-- `src/filter.ts` — `FilterState`, `CollectorEntry`, `buildFilterSQL`, `OccurrenceRow`, `OCC_ID_SQL_CASE`, `OCCURRENCE_COLUMNS`
-- `src/occurrence.ts` — `occIdFromRow`, `isSpecimenBacked`, positional coupling documentation
-- `src/style.ts` — `_occurrencePointPaint` source match expression
-- `src/bee-occurrence-detail.ts` — detail card source branching pattern
-- `src/url-state.ts` — `SourceKey`, `VALID_SOURCES`, `collectors=` URL param encoding
-- `_data/places.js` — Eleventy data module pattern to follow
-- `_pages/place-detail.njk` — static page template pattern to follow
-- `docs/domain-model.md` — occ_id positional coupling; five ARM definitions; `is_provisional` semantics
+- `data/nightly.sh`, `data/run.py`, `.github/workflows/deploy.yml`, `data/dbt/run.sh`,
+  `infra/lib/beeatlas-stack.ts`, `src/manifest.ts` — current implementation (HIGH)
+- `_data/species_hosts.js` + `_pages/species-detail.njk` — build-time bake pattern to mirror (HIGH)
+- `.planning/PROJECT.md` (v8.0 framing), `.planning/notes/work-vs-learning-two-halves.md`,
+  `docs/domain-model.md`, project MEMORY (`project_duckdb_wasm_direction`, `project_cdk_stack_composition`,
+  `feedback_no_committed_data_artifacts`, `project_deploy_paths`) — constraints & precedent (HIGH)
 
 ---
-
-*Architecture research for: v6.0 My Work — Progress & Provenance*
-*Researched: 2026-06-24*
+*Architecture research for: authoritative-data integration into a derived static pipeline*
+*Researched: 2026-07-02*
