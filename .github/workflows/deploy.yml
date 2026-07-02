@@ -32,39 +32,30 @@ jobs:
           aws-region: us-west-2
 
       - name: Fetch build-time data from S3
-        # Eleventy reads several files synchronously at build time:
-        # `_data/species.js` reads species.json + seasonality.json + higher_taxa.json;
-        # `_data/collectors.js` reads collectors.json + collector_event_pages.json
-        # (Phase 171.1); `_data/species_hosts.js` reads species_hosts.json (Phase 175).
-        # Other artifacts (occurrences.parquet etc.) are fetched by the frontend at
-        # runtime via manifest.json; only these six must be present in the working tree
-        # for the build to succeed. (higher_taxa.json supersedes the retired
-        # higher_rank_taxon_ids.json — D-03, Phase 132.)
-        # Artifacts are content-hashed on S3; manifest.json resolves current names.
-        # manifest.json is also written to public/data/ so validate-db can read it.
+        # The build-time artifact list is sourced from data/artifacts.toml via
+        # `python3 data/artifacts.py build-time-fetch` (stdlib-only, bare python3 —
+        # no setup-python or uv step needed). Eleventy reads these files synchronously
+        # at build time; all other artifacts (occurrences.parquet etc.) are fetched by
+        # the frontend at runtime via manifest.json. Artifacts are content-hashed on
+        # S3; manifest.json resolves current names. manifest.json is also written to
+        # public/data/ so validate-db can read it.
         run: |
           mkdir -p public/data
           aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/manifest.json /tmp/manifest.json
           cp /tmp/manifest.json public/data/manifest.json
-          SPECIES_FILE=$(jq -r .species /tmp/manifest.json)
-          SEASONALITY_FILE=$(jq -r .seasonality /tmp/manifest.json)
-          HIGHER_TAXA_FILE=$(jq -r .higher_taxa /tmp/manifest.json)
-          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_FILE public/data/species.json
-          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SEASONALITY_FILE public/data/seasonality.json
-          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$HIGHER_TAXA_FILE public/data/higher_taxa.json
-          COLLECTORS_FILE=$(jq -r .collectors /tmp/manifest.json)
-          COLLECTOR_EVENT_PAGES_FILE=$(jq -r .collector_event_pages /tmp/manifest.json)
-          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTORS_FILE public/data/collectors.json
-          aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$COLLECTOR_EVENT_PAGES_FILE public/data/collector_event_pages.json
-          # species_hosts is published by the nightly; on the first CODE deploy the
-          # live manifest predates it, so guard the fetch — `_data/species_hosts.js`
-          # tolerates absence (returns {}), keeping the data-before-code deploy green.
-          SPECIES_HOSTS_FILE=$(jq -r '.species_hosts // empty' /tmp/manifest.json)
-          if [ -n "$SPECIES_HOSTS_FILE" ]; then
-            aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$SPECIES_HOSTS_FILE public/data/species_hosts.json
-          else
-            echo "species_hosts not yet in manifest (pre-first-nightly); loader tolerates absence."
-          fi
+          python3 data/artifacts.py build-time-fetch | while IFS=$'\t' read -r key local optional; do
+            HASHED=$(jq -r --arg k "$key" '.[$k] // empty' /tmp/manifest.json)
+            if [ -z "$HASHED" ]; then
+              if [ "$optional" = "true" ]; then
+                echo "$key not yet in manifest (pre-first-nightly); loader tolerates absence."
+                continue
+              else
+                echo "ERROR: required build-time artifact $key missing from manifest" >&2
+                exit 1
+              fi
+            fi
+            aws s3 cp s3://${{ vars.S3_BUCKET_NAME }}/data/$HASHED public/data/$local
+          done
 
       - name: Run tests
         run: npm test
