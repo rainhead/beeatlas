@@ -58,7 +58,7 @@
 
 **Coverage:** 21/21 v1 requirements mapped — SEAM-01..05 → Phase 176 · STORE-01..04 → Phase 177 · WRITE-01..04 → Phase 178 · NOTES-01..04 → Phase 179 · MOD-01..04 → Phase 180.
 
-- [ ] **Phase 176: Build-Seam Refoundation (Thread 1)** — Collapse the triple hand-synced manifest key lists (nightly.sh upload/manifest block, the inline classifier heredoc, deploy.yml fetch) into one declarative `data/artifacts.toml` + tested `data/artifacts.py`; establish the explicit derived-vs-authoritative classification and the two schema-evolution regimes. Pure, regression-safe refactor — byte-identical manifest, no user-visible change; de-risks everything downstream.
+- [x] **Phase 176: Build-Seam Refoundation (Thread 1)** — Collapse the triple hand-synced manifest key lists (nightly.sh upload/manifest block, the inline classifier heredoc, deploy.yml fetch) into one declarative `data/artifacts.toml` + tested `data/artifacts.py`; establish the explicit derived-vs-authoritative classification and the two schema-evolution regimes. Pure, regression-safe refactor — byte-identical manifest, no user-visible change; de-risks everything downstream.
 - [ ] **Phase 177: Authoritative Store, Migrations & Backup/DR** — Stand up the first non-reproducible store (technology decided here), a forward-only migration runner, notes/roles schema shaped for moderation + attribution, physical + IAM separation from the derived pipeline and `/data/` prefix, and a demonstrated test-restore. No public writes until restore is proven.
 - [ ] **Phase 178: Thin Write Layer + iNat OAuth** — An event-driven writer isolated in one deployable within the existing CDK stack; iNat OAuth2 PKCE with server-derived identity + a minted app session; allowlist authz + CSRF; public-write launch gate on the proven restore. The only phase that consciously bends "no server runtime" — kept isolated.
 - [ ] **Phase 179: Notes Feature + Harvest → Build-Time Bake** — Allowlisted authors create/edit/delete attributed notes; nightly harvest of published notes into a build-time `notes.json` (mirroring the shipped `species_hosts.js` bake); species pages render an attributed stacked list with an empty state; read path stays static/offline-safe. First user-visible slice.
@@ -68,7 +68,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 176. Build-Seam Refoundation (Thread 1) | 3/4 | In Progress|  |
+| 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 0/TBD | Not started | - |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
@@ -99,7 +99,7 @@
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 176-04-PLAN.md — Wave 3: blocking operator checkpoint — first post-merge maderas nightly proves byte-identical manifest + 9-pull/0-drift baseline + green deploy fetch (autonomous: false) [SEAM-03]
+- [x] 176-04-PLAN.md — Wave 3: blocking operator checkpoint — first post-merge maderas nightly proves byte-identical manifest + 9-pull/0-drift baseline + green deploy fetch (autonomous: false) [SEAM-03]
 
 **Notes**: Grounded directly in the real `nightly.sh`/`deploy.yml`/`run.py` code — a well-scoped refactor, no `--research-phase` needed. Repo constraint (memory `project_local_dbt_build_not_runnable`): dbt build / full pipeline can't run locally, so verification leans on `pytest` over `artifacts.py` + direct DuckDB queries + the byte-identical-manifest regression floor; the nightly `run.sh build` is the real contract gate. Invariant preserved: `artifacts.py` emits plans/classifications only — `nightly.sh` retains all S3/CloudFront I/O (CLAUDE.md: Python knows nothing about S3).
 
