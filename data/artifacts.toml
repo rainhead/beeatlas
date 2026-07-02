@@ -1,0 +1,138 @@
+# data/artifacts.toml — single source of truth for every published artifact.
+#
+# Purpose: Declarative contract for all 16 published manifest artifacts
+# (14 hashed + 2 metadata) in manifest order (matching nightly.sh heredoc).
+#
+# Python (artifacts.py) emits plans (publish-plan, baseline-pull-plan,
+# build-time-fetch, manifest) as text only. All S3 I/O stays in nightly.sh
+# and .github/workflows/deploy.yml per CLAUDE.md: "Python knows nothing about S3".
+#
+# Schema fields:
+#   provenance              — "derived" | "authoritative"
+#   kind                    — "hashed" | "metadata"
+#   source_file             — local filename in EXPORT_DIR (hashed only)
+#   hash_basename           — basename passed to _upload_hashed* (hashed only)
+#   baseline_diff           — bool (default false); pull for integration diff baseline
+#   build_time_fetch        — bool (default false); deploy.yml fetches at build time
+#   build_time_fetch_optional — bool (default false); only species_hosts (pre-first-nightly guard)
+#   gzip                    — bool (default false); only occurrences_db
+#   content_type            — string (omit unless set; only geojson artifacts)
+#   metadata_type           — "json" | "string" (metadata kind only)
+#
+# Documented exclusion: feeds/, species-maps/, place-maps/ are recursive S3 publishes
+# with no per-file hash or manifest key; they stay hardcoded in nightly.sh.
+
+[artifacts.occurrences]
+provenance = "derived"
+kind = "hashed"
+source_file = "occurrences.parquet"
+hash_basename = "occurrences"
+baseline_diff = true
+
+[artifacts.occurrences_db]
+provenance = "derived"
+kind = "hashed"
+source_file = "occurrences.db"
+hash_basename = "occurrences"
+gzip = true
+
+[artifacts.species]
+provenance = "derived"
+kind = "hashed"
+source_file = "species.json"
+hash_basename = "species"
+baseline_diff = true
+build_time_fetch = true
+
+[artifacts.seasonality]
+provenance = "derived"
+kind = "hashed"
+source_file = "seasonality.json"
+hash_basename = "seasonality"
+baseline_diff = true
+build_time_fetch = true
+
+[artifacts.higher_taxa]
+provenance = "derived"
+kind = "hashed"
+source_file = "higher_taxa.json"
+hash_basename = "higher_taxa"
+baseline_diff = true
+build_time_fetch = true
+
+[artifacts.counties]
+provenance = "derived"
+kind = "hashed"
+source_file = "counties.geojson"
+hash_basename = "counties"
+baseline_diff = true
+content_type = "application/json"
+
+[artifacts.ecoregions]
+provenance = "derived"
+kind = "hashed"
+source_file = "ecoregions.geojson"
+hash_basename = "ecoregions"
+baseline_diff = true
+content_type = "application/json"
+
+[artifacts.places]
+provenance = "derived"
+kind = "hashed"
+source_file = "places.geojson"
+hash_basename = "places"
+content_type = "application/json"
+
+[artifacts.places_meta]
+provenance = "derived"
+kind = "hashed"
+source_file = "places.json"
+hash_basename = "places_meta"
+content_type = "application/json"
+
+[artifacts.checklist]
+provenance = "derived"
+kind = "hashed"
+source_file = "checklist.parquet"
+hash_basename = "checklist"
+
+[artifacts.photos]
+provenance = "derived"
+kind = "hashed"
+source_file = "photos.json"
+hash_basename = "photos"
+baseline_diff = true
+
+[artifacts.species_hosts]
+provenance = "derived"
+kind = "hashed"
+source_file = "species_hosts.json"
+hash_basename = "species_hosts"
+baseline_diff = true
+build_time_fetch = true
+build_time_fetch_optional = true
+
+[artifacts.collectors]
+provenance = "derived"
+kind = "hashed"
+source_file = "collectors.json"
+hash_basename = "collectors"
+baseline_diff = true
+build_time_fetch = true
+
+[artifacts.collector_event_pages]
+provenance = "derived"
+kind = "hashed"
+source_file = "collector_event_pages.json"
+hash_basename = "collector_event_pages"
+build_time_fetch = true
+
+[artifacts.occurrences_db_tables]
+provenance = "derived"
+kind = "metadata"
+metadata_type = "json"
+
+[artifacts.generated_at]
+provenance = "derived"
+kind = "metadata"
+metadata_type = "string"
