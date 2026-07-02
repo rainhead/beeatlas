@@ -68,7 +68,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 176. Build-Seam Refoundation (Thread 1) | 1/4 | In Progress|  |
+| 176. Build-Seam Refoundation (Thread 1) | 2/4 | In Progress|  |
 | 177. Authoritative Store, Migrations & Backup/DR | 0/TBD | Not started | - |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
@@ -94,7 +94,7 @@
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 176-02-PLAN.md — Wave 2: rewire `nightly.sh` — publish loop + manifest assembly via publish-plan/manifest verbs; replace the ~70-line baseline-classifier heredoc (LOCAL_NAMES/NON_FILE_KEYS/INTENTIONALLY_SKIPPED) with baseline-pull-plan; all S3 I/O stays in bash [SEAM-02, SEAM-03]
+- [x] 176-02-PLAN.md — Wave 2: rewire `nightly.sh` — publish loop + manifest assembly via publish-plan/manifest verbs; replace the ~70-line baseline-classifier heredoc (LOCAL_NAMES/NON_FILE_KEYS/INTENTIONALLY_SKIPPED) with baseline-pull-plan; all S3 I/O stays in bash [SEAM-02, SEAM-03]
 - [ ] 176-03-PLAN.md — Wave 2: rewire `deploy.yml` build-time fetch via build-time-fetch verb (bare-CI python3, species_hosts tolerate-absence preserved) + ADR `docs/adr/0002-derived-vs-authoritative-artifacts.md` (two regimes + stable-dir exclusion) + CLAUDE.md pointer [SEAM-03, SEAM-05]
 
 **Wave 3** *(blocked on Wave 2 completion)*
