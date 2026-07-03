@@ -43,9 +43,13 @@ Run once on maderas before starting the app or running any backup.
 
 ### 2a. Create the store directory
 
+maderas has **no passwordless sudo**, so the store lives in the operator's home dir
+(outside `/tmp/beeatlas-export`, `/tmp/beeatlas.duckdb`, and the git checkout — which is
+all that STORE-04 requires). Actual deployed path: `~/beeatlas-store/notes.db`.
+
 ```bash
-sudo mkdir -p /opt/beeatlas-store
-sudo chown $(whoami) /opt/beeatlas-store
+mkdir -p ~/beeatlas-store
+export NOTES_DB_PATH=$HOME/beeatlas-store/notes.db
 ```
 
 ### 2b. Run the initial migration
@@ -66,15 +70,18 @@ NOTES_DB_PATH=/opt/beeatlas-store/notes.db \
   uv run python -m notes_store.seed
 ```
 
-### 2d. Start the app once to create WAL sidecars
+### 2d. Confirm WAL mode is persisted
+
+WAL is a **persisted header property** — running the migration or seed (which connect via
+`make_engine()` and set `PRAGMA journal_mode=WAL`) flips the DB into WAL mode permanently.
+The `-wal`/`-shm` sidecars are **transient**: they exist only while a connection is open and
+are checkpointed away on clean close, so an idle store showing just `notes.db` is normal and
+correct. What Phase 179's read-only harvest needs is WAL *mode*, not the sidecar files.
 
 ```bash
-NOTES_DB_PATH=/opt/beeatlas-store/notes.db \
-  uvicorn data.notes_app.main:app --host 127.0.0.1 --port 8001 &
+uv run python -c "import sqlite3,os; print(sqlite3.connect(os.path.expanduser('~/beeatlas-store/notes.db')).execute('PRAGMA journal_mode').fetchone()[0])"
+# expect: wal
 ```
-
-The `-wal` and `-shm` sidecars are created on first write. They must exist before the
-Phase-179 nightly harvest opens the DB read-only.
 
 ---
 
@@ -172,7 +179,9 @@ Append a row each time the drill is completed before the phase gate is closed.
 
 | Date | Operator | Note count | Schema version | Result |
 |------|----------|------------|----------------|--------|
-| (first run pending — run before phase exit) | | | | |
+| 2026-07-03 | Peter (via Claude) | 3 (live) == 3 (restored) | 0001 == 0001 | PASS ✅ |
+
+Drill details: snapshot `backups/notes_20260703_211606.db.gz` from `beeatlasstack-authoritativebackupbucket144dcc85-q0yzx52wsvse`, restored into a scratch DB; live vs restored matched on note count (3), `alembic_version` (0001), and table set (`notes`, `note_revisions`, `alembic_version`). Verified with `uv run python` (maderas has no `sqlite3` CLI). **STORE-03 / WRITE-04 launch gate satisfied.**
 
 ---
 
@@ -185,13 +194,20 @@ or the backup bucket — confirming physical and IAM separation (D-17).
 
 ```bash
 # On maderas, before starting the nightly
-sha256sum /opt/beeatlas-store/notes.db
-ls -la /opt/beeatlas-store/notes.db
+sha256sum ~/beeatlas-store/notes.db
+stat -c '%y' ~/beeatlas-store/notes.db
 
 # Snapshot of backup bucket objects (count + latest key)
 aws --profile beeatlas s3 ls s3://$NOTES_BACKUP_BUCKET/backups/ | wc -l
 aws --profile beeatlas s3 ls s3://$NOTES_BACKUP_BUCKET/backups/ | sort | tail -1
 ```
+
+**Baseline captured 2026-07-03 (pre first real nightly):**
+- `notes.db` sha256 = `dba84d52b2120e1fcce57980d23208c779092bed823f46cc497351919c0f7478`
+- `notes.db` mtime = `2026-07-03 14:15:46 -0700`
+- backup bucket objects = 1 (`backups/notes_20260703_211606.db.gz`)
+- Structural check: `grep -c "beeatlas-store\|AuthoritativeBackup\|<bucket>" nightly.sh` → **0** (the pipeline never names the store or backup bucket; `notes.db` is outside every path the nightly writes: `/tmp/beeatlas.duckdb`, `/tmp/beeatlas-export/`, `s3://sitebucket/{data,db,raw}`).
+- **Post-nightly confirmation:** pending the next scheduled 3 AM `nightly.sh` run — re-run 5c and confirm the sha256/mtime and object count are unchanged, then append the isolation result here.
 
 ### 5b. Run a full nightly pipeline
 
