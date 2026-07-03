@@ -41,6 +41,12 @@ The write layer is a **maderas-hosted Flask (WSGI) app served via Apache `mod_fc
 ### 178 frontend scope (UI hint: yes)
 - **D-10:** **Sign-in + whoami only.** A "Sign in with iNaturalist" entry point that runs the OAuth round-trip and establishes the session cookie, plus a minimal signed-in indicator (whoami: iNat login + allowlisted-or-not) and sign-out. **No note CRUD UI** — that is Phase 179. This is the 178/179 seam the security UAT drives against.
 
+### Deployment topology & OAuth app (added 2026-07-03, post-research)
+- **D-11:** **Serving topology = the `api.beeatlas.net` subdomain** (as `178-RESEARCH.md` designed): a direct Route53 A-record to maderas (`45.79.96.48`) + certbot TLS, with the Flask app behind Apache `mod_fcgid`. The static `beeatlas.net` site calls it **cross-origin but same-site** (shared registrable domain), so CORS is real (`flask-cors` scoped to the exact `https://beeatlas.net` origin, credentials enabled, never wildcard+credentials) but `SameSite=Strict` cookies still work. CloudFront path-routing to maderas was considered and rejected.
+- **D-12:** **OAuth app is registered and credentials are provisioned** (client_id + client_secret ready). **Redirect URI (exact-match pin) = `https://api.beeatlas.net/auth/callback`.**
+- **D-13 — OPERATOR ACTION: ✅ DONE 2026-07-03.** The iNat app's registered redirect URI was reconfigured to `https://api.beeatlas.net/auth/callback` (confirmed by operator), matching D-11/D-12. The redirect URI is an exact-match value — keep the plan's pinned constant `https://api.beeatlas.net/auth/callback` and re-verify it in the security UAT.
+- **D-14:** Secrets (`client_secret` + cookie-signing key) live in a **new gitignored `data/notes_app/secrets.toml`**, mirroring the existing `data/.dlt/secrets.toml` Ecdysis-credentials pattern — never committed, never in the client bundle.
+
 ### Claude's Discretion (planner/researcher, within guardrails)
 - **CSRF/origin protection (WRITE-03):** planner's call among `SameSite` + Origin/Referer check vs. double-submit token vs. both — the guardrail is that a **cross-origin POST and a forged-author request must both be rejected** (security UAT). User declined to lock the mechanism.
 - **WRITE-04 launch-gate encoding:** planner's call. The Phase-177 restore is already demonstrated (177-07, PASS). Note that writes are **never truly "public"** — the allowlist gates every write — so WRITE-04 is plausibly satisfied by the allowlist gate + the documented restore rather than a separate feature flag. Confirm the encoding during planning.
