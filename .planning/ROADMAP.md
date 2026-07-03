@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
+| 178. Thin Write Layer + iNat OAuth | 0/9 | Planned (ready to execute) | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -150,7 +150,39 @@
   3. Only allowlisted experts can create/edit notes; the endpoint enforces server-side authorization with CSRF/origin protection — a forged-author request and a cross-origin POST are both rejected.
   4. Public writes are not enabled until the Phase-177 backup restore has been demonstrated — an explicit launch-checklist gate, verified before the endpoint accepts its first non-test write.
 
-**Plans**: TBD
+**Plans**: 9 plans (7 waves)
+
+Plans:
+
+**Wave 1**
+
+- [ ] 178-01-PLAN.md — Package legitimacy checkpoint (flup6 + flask-cors on PyPI) before install — blocking-human [WRITE-01]
+- [ ] 178-02-PLAN.md — Users table: `User` model + forward-only Alembic migration 0002 (store-side; D-07/D-08/D-09) [WRITE-02]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 178-03-PLAN.md — Foundation: `uv add flup6 flask-cors` + top-level `api/` package (relocate skeleton, D-15) + secrets loader (D-14) + redirect_uri pin (D-12/D-13) + pytest wiring [WRITE-01]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 178-04-PLAN.md — OAuth module: server-side PKCE code exchange + `/v1/users/me` identity + iNat-token discard (D-01/D-02/D-03; Bearer-vs-raw header gotcha) [WRITE-02]
+- [ ] 178-05-PLAN.md — Session + authz + users-access: itsdangerous long-lived cookie (D-04), per-write allowlist recheck + Origin CSRF gate + launch-gate check + forged-author rejection + `upsert_user` (D-05/D-07/D-08/D-09) [WRITE-02, WRITE-03, WRITE-04]
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 178-06-PLAN.md — Routes + app factory + flask-cors scoped to beeatlas.net (D-11) + `.fcgi` wrapper (debug=False, Pitfall 3/5) + guarded `POST /api/write-check` (WRITE-03 authz/CSRF test target) [WRITE-01, WRITE-02, WRITE-03]
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 178-07-PLAN.md — Frontend Sign-in + whoami UI (D-10) in bee-header + `auth-client.ts` + no-secret bundle check [WRITE-02, WRITE-03]
+
+**Wave 6** *(blocked on Wave 5; operator-only, autonomous: false)*
+
+- [ ] 178-08-PLAN.md — Operator: CDK `api` A-record + Apache/mod_fcgid/certbot deploy + migration 0002 on maderas + WRITE-04 launch gate (flip `writes_enabled` after confirming the 177-07 restore) [WRITE-01, WRITE-04]
+
+**Wave 7** *(blocked on Wave 6; human UAT, autonomous: false — do NOT auto-advance)*
+
+- [ ] 178-09-PLAN.md — Security UAT: no token/secret leak + forged-author + cross-origin POST rejection + redirect_uri exact-match pin + traceback guard [WRITE-02, WRITE-03, WRITE-04]
 **Notes**: **Re-scoped to the 177 D-01 maderas-Flask shape** (this ROADMAP entry + WRITE-01/WRITE-02 in REQUIREMENTS updated 2026-07-03; the earlier "API Gateway + Lambda / event-driven / short-lived session" wording was pre-pivot AWS framing). Decisions locked in `178-CONTEXT.md` (D-01..D-10): server-side code exchange + PKCE (iNat/Doorkeeper PKCE support **confirmed** against live docs; carry a no-PKCE fallback if live behavior differs), one long-lived signed HttpOnly cookie with per-write allowlist recheck, BeeAtlas-minted internal user id as `author_id` with iNat login/numeric-id as user properties (new `users` table via forward-only Alembic), allowlist keyed on iNat login, and Sign-in + whoami UI only (note CRUD is Phase 179). Verify iNat OAuth against the **live** provider, NOT the `~/dev/inaturalist/` source clone (user constraint). Pin the `/users/api_token` JWT → `/v1/users/me` raw-`Authorization`-header gotcha and scope minimality. Security-critical human UAT (no token leak; forged-author + cross-origin rejection) — do not auto-advance past UAT.
 **UI hint**: yes
 
