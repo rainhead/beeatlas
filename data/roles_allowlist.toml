@@ -1,0 +1,21 @@
+# data/roles_allowlist.toml
+# Maps iNat login → role. Git history is the audit trail (D-07).
+#
+# Roles:
+#   author  = can create notes; commits record who was added/removed
+#   curator = can take down any note (author privileges implied)
+#
+# Reader is the default: anyone NOT listed here is a read-only visitor.
+#
+# To add a contributor: add a line below and commit. The commit IS the
+# audit record — no separate roles table exists in this phase (D-07).
+#
+# Example:
+#   janedoe = "author"
+#   admincurator = "curator"
+
+[roles]
+# Example entries — fixture-friendly labels; clearly not real operator logins.
+# These are read by tests (test_notes_seed_roles.py). Do not remove.
+example_author = "author"
+example_curator = "curator"
