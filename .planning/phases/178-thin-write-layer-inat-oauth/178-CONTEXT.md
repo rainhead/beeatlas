@@ -31,7 +31,7 @@ The write layer is a **maderas-hosted Flask (WSGI) app served via Apache `mod_fc
 ### App session mechanism (WRITE-02)
 - **D-04:** **One long-lived, stateless signed cookie.** `HttpOnly` + `Secure` + `SameSite` cookie carrying a signed (itsdangerous or JWT) payload `{internal user id, iNat identity, role, long expiry — e.g. weeks}`. No server-side session store (fits `mod_fcgid`'s ephemeral, no-shared-memory workers). Rationale: "no great threat; don't make people log in often."
 - **D-05:** **Revocation = per-write allowlist recheck.** Because the cookie is long-lived, every write request re-reads the committed allowlist TOML; removing someone from the allowlist revokes their write ability at the next request regardless of cookie age. This is the security property that replaces WRITE-02's "short-lived session" wording.
-- **D-06:** **No half-logged-in / step-up tier in 178.** The two-tier "identity cookie + elevated write token" idea was considered and deferred — notes are the only sensitive op and no preferences feature exists yet. (See Deferred Ideas.)
+- **D-06:** [informational] **No half-logged-in / step-up tier in 178.** The two-tier "identity cookie + elevated write token" idea was considered and deferred — notes are the only sensitive op and no preferences feature exists yet. Not a build decision (a deliberate non-goal); see Deferred Ideas.
 
 ### Identity & allowlist keying (WRITE-03)
 - **D-07:** **BeeAtlas mints its own internal integer user id**, which is the authorship key: `notes.author_id` → internal user id. iNat login and iNat numeric id are stored as **properties** of the user, not the authorship key. This decouples long-lived attribution from mutable iNat logins.
