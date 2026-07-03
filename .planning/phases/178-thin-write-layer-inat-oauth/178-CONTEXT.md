@@ -107,7 +107,7 @@ The write layer is a **maderas-hosted Flask (WSGI) app served via Apache `mod_fc
 <deferred>
 ## Deferred Ideas
 
-- **ROADMAP.md + REQUIREMENTS.md re-scope for the D-01 pivot** — WRITE-01 ("event-driven, within the CDK stack"), WRITE-02 ("short-lived app session"), and ROADMAP Phase-178 SC-1 ("API Gateway HTTP API + Lambda") describe the rejected AWS shape. Update them to the maderas-Flask/mod_fcgid reality + long-session model **before planning executes**. (Flagged in 177's CONTEXT deferred list; still not done. This is a pre-planning bookkeeping edit, not new phase scope.)
+- **ROADMAP.md + REQUIREMENTS.md re-scope for the D-01 pivot** — ✅ DONE 2026-07-03. WRITE-01/WRITE-02 and ROADMAP Phase-178 goal/SC-1/Notes were rewritten from the rejected AWS shape ("API Gateway + Lambda / event-driven / short-lived session") to the maderas-Flask/mod_fcgid + long-session model. (Was flagged in 177's CONTEXT deferred list; resolved as a pre-planning bookkeeping edit before planning executes.)
 - **Half-logged-in / step-up auth** (identity cookie + elevated write token requiring fresh re-auth) — considered (D-06), deferred until a second sensitive surface or a preferences feature exists.
 - **Server-side session store / explicit logout revocation** — deferred; per-write allowlist recheck (D-05) covers the revocation need without a store.
 

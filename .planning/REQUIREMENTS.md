@@ -31,8 +31,8 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 
 ### Write Layer & Authentication
 
-- [ ] **WRITE-01**: A thin managed write layer (event-driven, isolated in one deployable within the existing CDK stack) accepts authenticated writes; the read path remains fully static.
-- [ ] **WRITE-02**: iNaturalist OAuth2 (PKCE) authenticates authors; the write layer derives identity server-side (never trusts client-supplied identity) and issues a short-lived app session rather than calling iNat per request. No secret ships in the client bundle; no token in `localStorage`/URL.
+- [ ] **WRITE-01**: A thin managed write app (a maderas-hosted Flask/WSGI service behind Apache `mod_fcgid`, isolated alongside the existing pipeline — per 177 D-01, NOT API Gateway + Lambda) accepts authenticated writes; the read path remains fully static.
+- [ ] **WRITE-02**: iNaturalist OAuth2 (server-side code exchange with PKCE) authenticates authors; the write app derives identity server-side (never trusts client-supplied identity) and issues its own app session rather than calling iNat per request. Given the low threat model the session is long-lived with per-write allowlist recheck for revocation (relaxing the original "short-lived" wording). No secret ships in the client bundle; no token in `localStorage`/URL.
 - [ ] **WRITE-03**: Write authorization checks an author allowlist — only allowlisted experts can create/edit notes — with CSRF/origin protection on the write endpoint and minimal (identity-only) OAuth scope.
 - [ ] **WRITE-04**: Enabling public writes is gated on a demonstrated backup restore (STORE-03) — a launch checklist item, not an afterthought.
 
