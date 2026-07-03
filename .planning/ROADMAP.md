@@ -69,7 +69,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
-| 177. Authoritative Store, Migrations & Backup/DR | 2/7 | In Progress|  |
+| 177. Authoritative Store, Migrations & Backup/DR | 3/7 | In Progress|  |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
@@ -124,7 +124,7 @@
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 177-03-PLAN.md — SQLite store schema (`notes` + append-only `note_revisions`, moderation/attribution columns, multi-note-per-species) + WAL engine factory + schema/WAL/multi-note tests [STORE-01]
+- [x] 177-03-PLAN.md — SQLite store schema (`notes` + append-only `note_revisions`, moderation/attribution columns, multi-note-per-species) + WAL engine factory + schema/WAL/multi-note tests [STORE-01]
 
 **Wave 3** *(blocked on Wave 2)*
 
