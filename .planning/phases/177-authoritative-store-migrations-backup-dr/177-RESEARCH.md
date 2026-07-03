@@ -601,24 +601,24 @@ The `s3 cp --recursive` commands in `nightly.sh` target `$EXPORT_DIR/feeds/`, `$
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **SQLite version on maderas**
+1. **SQLite version on maderas** — RESOLVED: non-blocking for Phase 177; operator verifies `python3 -c "import sqlite3; print(sqlite3.sqlite_version)"` on maderas before Phase 179's WAL read-only harvest relies on it.
    - What we know: Python 3.14 ships with SQLite 3.46+ which supports WAL read-only.
    - What's unclear: Whether maderas actually has Python 3.14 installed/active for the pipeline (uv handles the venv, but the system SQLite could differ).
    - Recommendation: Operator to run `python3 -c "import sqlite3; print(sqlite3.sqlite_version)"` on maderas before Phase 179 relies on WAL read-only; not blocking for Phase 177.
 
-2. **Persistent store path on maderas**
+2. **Persistent store path on maderas** — RESOLVED: deployment-time operator decision (any path outside `/tmp`, EXPORT_DIR, and the git checkout satisfies STORE-04); documented at bootstrap in plan 177-07.
    - What we know: The path must be outside /tmp, EXPORT_DIR, git checkout.
    - What's unclear: Whether `/opt/beeatlas-store/` needs sudo to create, or if the pipeline user's home directory is a better fit.
    - Recommendation: Operator decides at implementation time; document the chosen path in a CLAUDE.md update or maderas-specific README.
 
-3. **Backup cron vs nightly.sh integration**
+3. **Backup cron vs nightly.sh integration** — RESOLVED: a separate hourly cron (independent of pipeline cadence), adopted in plan 177-06's DR runbook.
    - What we know: D-09 says "snapshot cadence is planner's call, within 'frequent enough'."
    - What's unclear: Whether adding a backup step to `nightly.sh` is better than a separate cron (hourly or post-nightly).
    - Recommendation: A separate cron entry (hourly) is cleaner — backup frequency is independent of pipeline frequency, and `nightly.sh` is already responsible for enough. The planner can choose a post-nightly hook if simpler.
 
-4. **REQUIREMENTS.md STORE-03 wording update**
+4. **REQUIREMENTS.md STORE-03 wording update** — RESOLVED: applied as plan 177-01 Task 3 (relax "native PITR" → snapshot-based-now / Litestream-later), landing before VERIFICATION reads the gate.
    - What we know: D-11 says to update STORE-03 before VERIFICATION reads the gate.
    - What's unclear: Exactly when this should happen — in Phase 177 planning or as a pre-VERIFICATION step.
    - Recommendation: Include as Wave 0 task in Phase 177 plan: update STORE-03 to say "snapshot-based recovery (backup API snapshots to S3); Litestream/PITR deferred to later phase."
