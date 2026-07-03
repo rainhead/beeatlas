@@ -69,7 +69,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
-| 177. Authoritative Store, Migrations & Backup/DR | 4/7 | In Progress|  |
+| 177. Authoritative Store, Migrations & Backup/DR | 5/7 | In Progress|  |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
@@ -129,7 +129,7 @@
 **Wave 3** *(blocked on Wave 2)*
 
 - [x] 177-04-PLAN.md — Forward-only Alembic migrations (`render_as_batch=True`, `downgrade()` raises, `alembic_version` ledger) + run.py-never-migrates proof [STORE-02]
-- [ ] 177-05-PLAN.md — Committed roles allowlist TOML + loader + seed script (D-04) + minimal FastAPI health skeleton (D-01/D-02) [STORE-01]
+- [x] 177-05-PLAN.md — Committed roles allowlist TOML + loader + seed script (D-04) + minimal FastAPI health skeleton (D-01/D-02) [STORE-01]
 - [ ] 177-06-PLAN.md — Consistent-snapshot backup script (stdlib online-backup API → dedicated S3 bucket) + restore-roundtrip tests + DR runbook [STORE-03]
 
 **Wave 4** *(blocked on Wave 3; operator-only, autonomous: false)*
