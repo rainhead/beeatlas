@@ -69,7 +69,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
-| 177. Authoritative Store, Migrations & Backup/DR | 0/TBD | Not started | - |
+| 177. Authoritative Store, Migrations & Backup/DR | 0/7 | Not started | - |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
@@ -105,7 +105,7 @@
 
 ### Phase 177: Authoritative Store, Migrations & Backup/DR
 
-**Goal**: The first non-reproducible authoritative store exists end-to-end: it holds notes + roles with attribution/moderation affordances, evolves only via forward-only versioned migrations, is physically and IAM-fenced from the derived `beeatlas.duckdb` and the `/data/` prefix, and has a *demonstrated* backup restore — all before any write endpoint opens. Store technology is decided in this phase (research recommends Neon Serverless Postgres; pure-AWS DynamoDB single-table is the viable alternative).
+**Goal**: The first non-reproducible authoritative store exists end-to-end: it holds notes + roles with attribution/moderation affordances, evolves only via forward-only versioned migrations, is physically and IAM-fenced from the derived `beeatlas.duckdb` and the `/data/` prefix, and has a *demonstrated* backup restore — all before any write endpoint opens. The store is a **SQLite database file on maderas** fronted by a small Python (FastAPI) app behind Apache (D-01 — overriding the research Neon/DynamoDB recommendation); the read path stays static, and only this owned maderas runtime is added.
 **Depends on**: Phase 176 (the derived-vs-authoritative contract property + the `authoritative` classification that keeps the store off the diff gate)
 **Requirements**: STORE-01, STORE-02, STORE-03, STORE-04
 **Success Criteria** (what must be TRUE):
@@ -113,10 +113,30 @@
   1. A store (technology chosen here) holds notes with author identity, created/updated timestamps, a `status`, and role/allowlist affordances — schema shaped for moderation + attribution from day one; the store is seedable via a script (no write UI yet).
   2. Authoritative tables evolve only via forward-only versioned migrations recorded in a `schema_migrations`-style ledger; there is no rebuild-from-source path, and `run.py` / the nightly pipeline never migrates or writes the store (migrations owned and run by the write layer).
   3. The store is physically and IAM-separated from `beeatlas.duckdb` and the `/data/` S3 prefix; a normal green nightly (`--delete` syncs, DuckDB rebuild/push) provably cannot reach, overwrite, or delete authoritative data — verified by running a full `run.py`/dbt rebuild and confirming the store is untouched.
-  4. Backup is real and proven: native point-in-time recovery **plus** an independent periodic logical dump into the owned S3 bucket, and a test-restore has been demonstrated and documented.
+  4. Backup is real and proven: frequent **consistent snapshots** (SQLite online-backup API) pushed to a dedicated, IAM-isolated, versioned S3 bucket, and a test-restore has been **demonstrated and documented before any public write**. Continuous/near-second PITR (Litestream) is deferred (D-10/D-11).
 
-**Plans**: TBD
-**Notes**: Store-tech decision (Neon Postgres vs DynamoDB) is deliberately deferred to this phase — plan with `--research-phase` to confirm PITR retention, the dual-consumer read path (Lambda writer + nightly pipeline both read the store), and the IAM/bucket boundary shape. `BeeAtlasStack` houses the whole site — surgical stack edit only, never `cdk destroy` (memory `project_cdk_stack_composition`). Schema must carry `status`/`author_id`/audit + `note_revisions` (append-only, soft-delete) from day one so moderation (Phase 180) isn't a retrofit.
+**Plans**: 7 plans (4 waves)
+
+**Wave 1**
+
+- [ ] 177-01-PLAN.md — Dependencies (alembic/sqlalchemy/fastapi/uvicorn behind a package-legitimacy gate) + `notes_store`/`notes_app` scaffold + relax REQUIREMENTS.md STORE-03 wording to snapshot-based (D-11) [STORE-01, STORE-02, STORE-03]
+- [ ] 177-02-PLAN.md — CDK `AuthoritativeBackupBucket` (versioned, RemovalPolicy.RETAIN, 180-day object + noncurrent lifecycle) + isolated pipeline PutObject/GetObject grant (no DeleteObject), ZERO deployer access + synth-time isolation assertion [STORE-04]
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 177-03-PLAN.md — SQLite store schema (`notes` + append-only `note_revisions`, moderation/attribution columns, multi-note-per-species) + WAL engine factory + schema/WAL/multi-note tests [STORE-01]
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 177-04-PLAN.md — Forward-only Alembic migrations (`render_as_batch=True`, `downgrade()` raises, `alembic_version` ledger) + run.py-never-migrates proof [STORE-02]
+- [ ] 177-05-PLAN.md — Committed roles allowlist TOML + loader + seed script (D-04) + minimal FastAPI health skeleton (D-01/D-02) [STORE-01]
+- [ ] 177-06-PLAN.md — Consistent-snapshot backup script (stdlib online-backup API → dedicated S3 bucket) + restore-roundtrip tests + DR runbook [STORE-03]
+
+**Wave 4** *(blocked on Wave 3; operator-only, autonomous: false)*
+
+- [ ] 177-07-PLAN.md — Operator: `cdk deploy` the bucket + bootstrap the store on maderas, demonstrated restore drill (STORE-03 / D-12 launch gate) + full-nightly isolation proof (STORE-04 / D-17) [STORE-03, STORE-04]
+
+**Notes**: MAJOR PIVOT from research — the store is self-hosted SQLite on maderas behind Apache (D-01), NOT Neon/DynamoDB + Lambda; no `--research-phase` was needed (RESEARCH.md already grounded the SQLite/Alembic/backup mechanics). `BeeAtlasStack` houses the whole site — surgical stack edit only, never `cdk destroy` (memory `project_cdk_stack_composition`). Schema carries `status`/`author_id`/audit + append-only `note_revisions` from day one so moderation (Phase 180) isn't a retrofit. Roles live in a committed TOML allowlist, not a DB table (D-07). The full pipeline can't run locally (memory `project_local_dbt_build_not_runnable`) — the STORE-03 restore drill and STORE-04 nightly-isolation proof are operator-run on maderas (177-07). Deferred, NOT acted on here: the ROADMAP/PROJECT re-scope for Phases 178/179 that the SQLite-on-maderas pivot implies (a separate roadmap edit before planning Phase 178).
 
 ### Phase 178: Thin Write Layer + iNat OAuth
 

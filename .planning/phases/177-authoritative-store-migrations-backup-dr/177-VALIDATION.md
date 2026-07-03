@@ -42,7 +42,15 @@ Populated by the planner as tasks are defined. Every STORE requirement maps to a
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | STORE-01..04 | T-177-* | see plans | unit / manual | see plans | ❌ W0 | ⬜ pending |
+| pkg-gate | 177-01 | 1 | STORE-01/02/03 | T-177-SC | 4 [ASSUMED] pkgs verified on PyPI before install | manual | blocking human checkpoint | n/a | ⬜ pending |
+| deps | 177-01 | 1 | STORE-01/02/03 | — | deps import; STORE-03 wording relaxed | unit | `cd data && uv run python -c "import alembic,sqlalchemy,fastapi,uvicorn"` | ❌ W0 | ⬜ pending |
+| cdk-bucket | 177-02 | 1 | STORE-04 | T-177-03, T-177-04 | versioned+RETAIN+180d; zero deployer access; no pipeline DeleteObject | unit (synth) | `cd infra && npm test` | ❌ W0 | ⬜ pending |
+| schema | 177-03 | 2 | STORE-01 | T-177-02, T-177-05 | notes+note_revisions; WAL; multi-note-per-species | unit | `cd data && uv run pytest tests/test_notes_store_schema.py -x` | ❌ W0 | ⬜ pending |
+| migrations | 177-04 | 3 | STORE-02 | T-177-01, T-177-02 | forward-only; downgrade raises; alembic_version ledger; run.py never migrates | unit | `cd data && uv run pytest tests/test_notes_migrations.py -x` | ❌ W0 | ⬜ pending |
+| seed/roles/app | 177-05 | 3 | STORE-01 | T-177-05a/b | committed allowlist; seedable; health-only app | unit | `cd data && uv run pytest tests/test_notes_seed_roles.py tests/test_notes_app.py -x` | ❌ W0 | ⬜ pending |
+| backup | 177-06 | 3 | STORE-03 | T-177-05, T-177-06 | consistent snapshot (no raw cp); restore roundtrip (count+version) | unit | `cd data && uv run pytest tests/test_backup_notes.py -x` | ❌ W0 | ⬜ pending |
+| restore-drill | 177-07 | 4 | STORE-03 | T-177-06 | demonstrated restore before any public write (D-12) | manual | operator drill on maderas → Drill Log | n/a | ⬜ pending |
+| isolation-proof | 177-07 | 4 | STORE-04 | T-177-02 | full nightly leaves store + backups untouched (D-17) | manual | operator full `bash data/nightly.sh` → Drill Log | n/a | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -50,9 +58,9 @@ Populated by the planner as tasks are defined. Every STORE requirement maps to a
 
 ## Wave 0 Requirements
 
-- [ ] `data/store/tests/` (or equivalent) — pytest package for the new store/migration/backup code
-- [ ] Alembic scaffolding (`env.py` with `render_as_batch=True`, forward-only `downgrade()` raising `NotImplementedError`)
-- [ ] Fixtures: a temp SQLite DB seeded via the seed script for migration + backup tests
+- [x] Test files planned per plan: `tests/test_notes_store_schema.py` (03), `tests/test_notes_migrations.py` (04), `tests/test_notes_seed_roles.py`+`tests/test_notes_app.py` (05), `tests/test_backup_notes.py` (06), `infra/test/beeatlas-stack.test.ts` assertions (02)
+- [x] Alembic scaffolding (`env.py` `render_as_batch=True`, forward-only `downgrade()` raising) — plan 177-04
+- [x] Fixtures: temp SQLite DB via `Base.metadata.create_all` + seed script (plans 03-06 use `tmp_path`)
 
 ---
 
