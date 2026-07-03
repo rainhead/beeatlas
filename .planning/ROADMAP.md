@@ -69,7 +69,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
-| 177. Authoritative Store, Migrations & Backup/DR | 0/7 | Not started | - |
+| 177. Authoritative Store, Migrations & Backup/DR | 1/7 | In Progress|  |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
@@ -120,7 +120,7 @@
 **Wave 1**
 
 - [ ] 177-01-PLAN.md — Dependencies (alembic/sqlalchemy/fastapi/uvicorn behind a package-legitimacy gate) + `notes_store`/`notes_app` scaffold + relax REQUIREMENTS.md STORE-03 wording to snapshot-based (D-11) [STORE-01, STORE-02, STORE-03]
-- [ ] 177-02-PLAN.md — CDK `AuthoritativeBackupBucket` (versioned, RemovalPolicy.RETAIN, 180-day object + noncurrent lifecycle) + isolated pipeline PutObject/GetObject grant (no DeleteObject), ZERO deployer access + synth-time isolation assertion [STORE-04]
+- [x] 177-02-PLAN.md — CDK `AuthoritativeBackupBucket` (versioned, RemovalPolicy.RETAIN, 180-day object + noncurrent lifecycle) + isolated pipeline PutObject/GetObject grant (no DeleteObject), ZERO deployer access + synth-time isolation assertion [STORE-04]
 
 **Wave 2** *(blocked on Wave 1)*
 

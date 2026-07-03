@@ -27,7 +27,7 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 - [ ] **STORE-01**: A store-agnostic authoritative store holds notes with author identity, created/updated timestamps, a `status`, and role/allowlist affordances — schema shaped for moderation and attribution from day one.
 - [ ] **STORE-02**: Authoritative tables evolve via forward-only versioned migrations with no rebuild-from-source path; migrations are owned/run by the write layer, never by `run.py`/the nightly pipeline.
 - [ ] **STORE-03**: Safety-critical backup: native point-in-time recovery **plus** an independent periodic logical dump into the owned S3 bucket, and a **test-restore demonstrated before any public write** exists.
-- [ ] **STORE-04**: The authoritative store is physically and IAM-separated from the derived `beeatlas.duckdb` and the `/data/` S3 prefix, so a normal green nightly (`--delete` syncs, DuckDB rebuild/push) can never reach or overwrite authoritative data.
+- [x] **STORE-04**: The authoritative store is physically and IAM-separated from the derived `beeatlas.duckdb` and the `/data/` S3 prefix, so a normal green nightly (`--delete` syncs, DuckDB rebuild/push) can never reach or overwrite authoritative data.
 
 ### Write Layer & Authentication
 
@@ -90,7 +90,7 @@ Which phases cover which requirements. Filled during roadmap creation (2026-07-0
 | STORE-01 | Phase 177 | Pending |
 | STORE-02 | Phase 177 | Pending |
 | STORE-03 | Phase 177 | Pending |
-| STORE-04 | Phase 177 | Pending |
+| STORE-04 | Phase 177 | Complete |
 | WRITE-01 | Phase 178 | Pending |
 | WRITE-02 | Phase 178 | Pending |
 | WRITE-03 | Phase 178 | Pending |
