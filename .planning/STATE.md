@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: "Phase 177: all 6 autonomous plans (177-01..06) complete + tests green; 177-07 remaining is operator-only maderas work (cdk deploy + restore drill + nightly-isolation proof)"
-last_updated: "2026-07-03T19:04:39.750Z"
+stopped_at: "Phase 177: bucket deployed, store bootstrapped+migrated+seeded on maderas, backup working, RESTORE DRILL PASSED (STORE-03 gate met); STORE-04 baseline captured + structurally proven; empirical post-nightly isolation confirmation pending tonight's 3am run. 2 drill-found bugs fixed+validated (alembic prepend_sys_path, runbook)."
+last_updated: "2026-07-03T21:21:36.578Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 5
@@ -122,9 +122,9 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-03T19:04:39.745Z
-Stopped at: Phase 177: all 6 autonomous plans (177-01..06) complete + tests green; 177-07 remaining is operator-only maderas work (cdk deploy + restore drill + nightly-isolation proof)
-Resume file: .planning/phases/177-authoritative-store-migrations-backup-dr/177-07-PLAN.md
+Last session: 2026-07-03T21:21:36.571Z
+Stopped at: Phase 177: bucket deployed, store bootstrapped+migrated+seeded on maderas, backup working, RESTORE DRILL PASSED (STORE-03 gate met); STORE-04 baseline captured + structurally proven; empirical post-nightly isolation confirmation pending tonight's 3am run. 2 drill-found bugs fixed+validated (alembic prepend_sys_path, runbook).
+Resume file: docs/runbooks/notes-store-dr.md
 
 ## Operator Next Steps
 
