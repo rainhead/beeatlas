@@ -1,30 +1,25 @@
-"""BeeAtlas notes-app — Phase 177 FastAPI skeleton.
+"""BeeAtlas notes-app — Phase 177 Flask (WSGI) skeleton.
 
-Phase-177 groundwork only. Exposes a single health-check route to prove
-the maderas app layer exists and is shaped for Apache reverse proxy.
-Write/identity/auth endpoints land in Phase 178.
-
-Run with:
-    uvicorn notes_app.main:app --host 127.0.0.1 --port 8001
-
-Apache proxies /notes-api/* here. The ``root_path`` setting tells FastAPI
-its externally-visible prefix so generated OpenAPI URLs are correct
-(RESEARCH.md Pattern 6).
+Phase-177 groundwork only. Exposes a single health-check route to prove the
+maderas app layer exists. On maderas the app is served behind Apache via
+``mod_fcgid`` (WSGI/FastCGI, worker processes spawned on demand and reaped when
+idle — no always-on daemon); the module-level ``app`` is the WSGI callable the
+FastCGI wrapper hands to mod_fcgid. Write/identity/auth endpoints land in
+Phase 178, along with the ``.fcgi`` wrapper and the ``api.beeatlas.net`` vhost.
 
 SCOPE GUARD: No write routes, no identity, no CSRF, no DB, no CORS.
 """
 
-import os
+from flask import Flask
 
-from fastapi import FastAPI
-
-app = FastAPI(root_path=os.environ.get("NOTES_APP_ROOT_PATH", "/notes-api"),
-              title="BeeAtlas Notes API",
-              description="Phase-177 skeleton. Write/identity endpoints in Phase 178.",
-              version="0.1.0")
+app = Flask(__name__)
 
 
 @app.get("/health")
 def health() -> dict:
-    """Return service health status. Unauthenticated; no DB access."""
+    """Return service health status. Unauthenticated; no DB access.
+
+    Returning a dict makes Flask emit a JSON response at request time; the
+    unit tests call this directly and assert the dict.
+    """
     return {"status": "ok"}
