@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: "Phase 177 Wave 3: 177-04 complete (Alembic scaffold + initial migration + migration tests)"
-last_updated: "2026-07-03T18:49:24.779Z"
+stopped_at: "Phase 177 Wave 3: 177-06 complete (backup script + restore-roundtrip tests + DR runbook)"
+last_updated: "2026-07-03T19:03:30.210Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 47
   completed_phases: 24
   total_plans: 68
-  completed_plans: 68
+  completed_plans: 69
   percent: 51
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 177 (authoritative-store-migrations-backup-dr) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-07-03
 
@@ -77,6 +77,7 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - **dbt build / full pipeline can't run locally** (mashumaro+Python3.14 + absent raw files + Ecdysis auth) — verify via pytest + direct DuckDB queries + the byte-identical-manifest floor; nightly `run.sh build` is the real contract gate (memory `project_local_dbt_build_not_runnable`).
 - **Static hosting only** for the read path (the write layer is the single, isolated exception).
 - [Phase ?]: render_as_batch=True set globally in env.py; downgrade() raises NotImplementedError in both mako template and initial migration (Pitfall 4 guard, T-177-01)
+- [Phase ?]: backup_notes split into make_snapshot/upload_snapshot for local testability without S3
 
 ### Roadmap Evolution
 
@@ -121,8 +122,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-03T18:49:24.766Z
-Stopped at: Phase 177 Wave 3: 177-04 complete (Alembic scaffold + initial migration + migration tests)
+Last session: 2026-07-03T19:03:30.201Z
+Stopped at: Phase 177 Wave 3: 177-06 complete (backup script + restore-roundtrip tests + DR runbook)
 Resume file: None
 
 ## Operator Next Steps
