@@ -175,3 +175,7 @@ data/_dem_cache/
 
 # lychee link-checker cache
 .lycheecache
+
+# Auth/write-layer secrets (client_secret, cookie-signing key) — never commit
+api/secrets.toml
+secrets.toml
