@@ -69,7 +69,7 @@
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
-| 177. Authoritative Store, Migrations & Backup/DR | 6/7 | In Progress|  |
+| 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 0/TBD | Not started | - |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
@@ -134,7 +134,7 @@
 
 **Wave 4** *(blocked on Wave 3; operator-only, autonomous: false)*
 
-- [ ] 177-07-PLAN.md — Operator: `cdk deploy` the bucket + bootstrap the store on maderas, demonstrated restore drill (STORE-03 / D-12 launch gate) + full-nightly isolation proof (STORE-04 / D-17) [STORE-03, STORE-04]
+- [x] 177-07-PLAN.md — Operator: `cdk deploy` the bucket + bootstrap the store on maderas, demonstrated restore drill (STORE-03 / D-12 launch gate) + full-nightly isolation proof (STORE-04 / D-17) [STORE-03, STORE-04]
 
 **Notes**: MAJOR PIVOT from research — the store is self-hosted SQLite on maderas behind Apache (D-01), NOT Neon/DynamoDB + Lambda; no `--research-phase` was needed (RESEARCH.md already grounded the SQLite/Alembic/backup mechanics). `BeeAtlasStack` houses the whole site — surgical stack edit only, never `cdk destroy` (memory `project_cdk_stack_composition`). Schema carries `status`/`author_id`/audit + append-only `note_revisions` from day one so moderation (Phase 180) isn't a retrofit. Roles live in a committed TOML allowlist, not a DB table (D-07). The full pipeline can't run locally (memory `project_local_dbt_build_not_runnable`) — the STORE-03 restore drill and STORE-04 nightly-isolation proof are operator-run on maderas (177-07). Deferred, NOT acted on here: the ROADMAP/PROJECT re-scope for Phases 178/179 that the SQLite-on-maderas pivot implies (a separate roadmap edit before planning Phase 178).
 

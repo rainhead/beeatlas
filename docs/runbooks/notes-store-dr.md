@@ -207,7 +207,11 @@ aws --profile beeatlas s3 ls s3://$NOTES_BACKUP_BUCKET/backups/ | sort | tail -1
 - `notes.db` mtime = `2026-07-03 14:15:46 -0700`
 - backup bucket objects = 1 (`backups/notes_20260703_211606.db.gz`)
 - Structural check: `grep -c "beeatlas-store\|AuthoritativeBackup\|<bucket>" nightly.sh` → **0** (the pipeline never names the store or backup bucket; `notes.db` is outside every path the nightly writes: `/tmp/beeatlas.duckdb`, `/tmp/beeatlas-export/`, `s3://sitebucket/{data,db,raw}`).
-- **Post-nightly confirmation:** pending the next scheduled 3 AM `nightly.sh` run — re-run 5c and confirm the sha256/mtime and object count are unchanged, then append the isolation result here.
+- **Post-nightly confirmation — 2026-07-03: PASS ✅.** A full `nightly.sh` was run on maderas (exit 0; dbt build + exports → `s3://sitebucket/data/`, CloudFront invalidation, DuckDB backup → `s3://sitebucket/db/`). After the run:
+  - `notes.db` sha256 = `dba84d52b2120e1fcce57980d23208c779092bed823f46cc497351919c0f7478` (**unchanged**)
+  - `notes.db` mtime = `2026-07-03 14:15:46 -0700` (**unchanged**)
+  - backup bucket objects = 1 (**unchanged**)
+  - The nightly could neither reach nor overwrite the authoritative store or its backups. **STORE-04 physical + IAM isolation demonstrated.**
 
 ### 5b. Run a full nightly pipeline
 
