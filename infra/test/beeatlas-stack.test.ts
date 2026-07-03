@@ -87,4 +87,140 @@ for (const pathPattern of ['/app/sw.js', '/app/manifest.webmanifest']) {
   });
 }
 
+// ── Phase 177 STORE-04 assertions ─────────────────────────────────────────
+// Synth-time boundary lock: proves the CDK template enforces the IAM isolation
+// between the GitHub OIDC deployer role and the AuthoritativeBackupBucket, and
+// that the pipeline user has only the expected limited grants on it.
+
+const cfTemplate = template.toJSON();
+const cfResources = cfTemplate.Resources as Record<string, any>;
+
+// 1. Find the AuthoritativeBackupBucket: versioned + RETAIN + 180-day lifecycle.
+//    There must be exactly one bucket with VersioningConfiguration.Status=Enabled
+//    and DeletionPolicy=Retain (the siteBucket uses DeletionPolicy=Delete).
+const backupBucketEntries = Object.entries(cfResources).filter(([, r]: [string, any]) =>
+  r.Type === 'AWS::S3::Bucket' &&
+  r.Properties?.VersioningConfiguration?.Status === 'Enabled' &&
+  r.DeletionPolicy === 'Retain',
+) as [string, any][];
+assert.equal(
+  backupBucketEntries.length,
+  1,
+  `Expected exactly one versioned+RETAIN S3 bucket (AuthoritativeBackupBucket), found ${backupBucketEntries.length}`,
+);
+const [backupBucketId, backupBucketCf] = backupBucketEntries[0];
+
+assert.equal(
+  backupBucketCf.UpdateReplacePolicy,
+  'Retain',
+  'AuthoritativeBackupBucket must have UpdateReplacePolicy: Retain',
+);
+
+// 2. Assert 180-day object expiration AND 180-day noncurrent-version expiration.
+const lifecycleRules: any[] = backupBucketCf.Properties?.LifecycleConfiguration?.Rules ?? [];
+const has180DayLifecycle = lifecycleRules.some((r: any) =>
+  r.ExpirationInDays === 180 &&
+  r.NoncurrentVersionExpiration?.NoncurrentDays === 180 &&
+  r.Status === 'Enabled',
+);
+assert.ok(
+  has180DayLifecycle,
+  'AuthoritativeBackupBucket must have a lifecycle rule: ExpirationInDays=180 ' +
+  'and NoncurrentVersionExpiration.NoncurrentDays=180',
+);
+
+// 3. Deployer role (beeatlas-github-deployer) must have ZERO references to the
+//    backup bucket in any attached IAM policy — structural STORE-04 boundary.
+const deployerRoleEntries = Object.entries(cfResources).filter(([, r]: [string, any]) =>
+  r.Type === 'AWS::IAM::Role' &&
+  r.Properties?.RoleName === 'beeatlas-github-deployer',
+) as [string, any][];
+assert.equal(deployerRoleEntries.length, 1, 'Expected exactly one beeatlas-github-deployer role');
+const deployerRoleId = deployerRoleEntries[0][0];
+
+const deployerPolicyEntries = Object.entries(cfResources).filter(([, r]: [string, any]) => {
+  if (r.Type !== 'AWS::IAM::Policy') return false;
+  const roles: any[] = r.Properties?.Roles ?? [];
+  return roles.some((ref: any) => ref?.Ref === deployerRoleId);
+}) as [string, any][];
+
+for (const [policyLogicalId, policy] of deployerPolicyEntries) {
+  const policyStr = JSON.stringify(policy);
+  assert.ok(
+    !policyStr.includes(backupBucketId),
+    `Deployer role policy ${policyLogicalId} must NOT reference backup bucket ` +
+    `${backupBucketId} — STORE-04 boundary violated`,
+  );
+}
+
+// 4. Pipeline user (beeatlas-pipeline) policy assertions on the backup bucket.
+const pipelineUserEntries = Object.entries(cfResources).filter(([, r]: [string, any]) =>
+  r.Type === 'AWS::IAM::User' &&
+  r.Properties?.UserName === 'beeatlas-pipeline',
+) as [string, any][];
+assert.equal(pipelineUserEntries.length, 1, 'Expected exactly one beeatlas-pipeline user');
+const pipelineUserId = pipelineUserEntries[0][0];
+
+// Gather all statements from all IAM policies attached to the pipeline user.
+const pipelinePolicyStatements: any[] = (Object.values(cfResources) as any[])
+  .filter((r: any) => {
+    if (r.Type !== 'AWS::IAM::Policy') return false;
+    const users: any[] = r.Properties?.Users ?? [];
+    return users.some((ref: any) => ref?.Ref === pipelineUserId);
+  })
+  .flatMap((r: any) => r.Properties?.PolicyDocument?.Statement ?? []);
+
+// 4a. Must have s3:PutObject + s3:GetObject on backup bucket arnForObjects('*').
+//     CDK renders arnForObjects('*') as {"Fn::Join":["",["<bucket-arn>","/*"]]}.
+const hasPutGetOnBackup = pipelinePolicyStatements.some((stmt: any) => {
+  const actions: string[] = [stmt.Action].flat();
+  const resources: any[] = [stmt.Resource].flat();
+  return (
+    actions.includes('s3:PutObject') &&
+    actions.includes('s3:GetObject') &&
+    resources.some((r: any) => {
+      const s = JSON.stringify(r);
+      return s.includes(backupBucketId) && s.includes('/*');
+    })
+  );
+});
+assert.ok(
+  hasPutGetOnBackup,
+  'Pipeline user must have s3:PutObject + s3:GetObject on backup bucket arnForObjects("*")',
+);
+
+// 4b. Must have s3:ListBucket on backup bucket ARN (bucket-level, no /* suffix).
+//     CDK renders bucketArn as {"Fn::GetAtt":["<logical-id>","Arn"]} (no /* suffix).
+const hasListBucketOnBackup = pipelinePolicyStatements.some((stmt: any) => {
+  const actions: string[] = [stmt.Action].flat();
+  const resources: any[] = [stmt.Resource].flat();
+  return (
+    actions.includes('s3:ListBucket') &&
+    resources.some((r: any) => {
+      const s = JSON.stringify(r);
+      return s.includes(backupBucketId) && !s.includes('/*');
+    })
+  );
+});
+assert.ok(
+  hasListBucketOnBackup,
+  'Pipeline user must have s3:ListBucket on backup bucket bucket ARN (not arnForObjects)',
+);
+
+// 4c. Must NOT have s3:DeleteObject on backup bucket — negative regression lock.
+//     S3 Versioning is the recovery layer; DeleteObject by the pipeline would
+//     bypass it by creating a delete marker.
+const hasDeleteObjectOnBackup = pipelinePolicyStatements.some((stmt: any) => {
+  const actions: string[] = [stmt.Action].flat();
+  const resources: any[] = [stmt.Resource].flat();
+  return (
+    actions.some((a: string) => a === 's3:DeleteObject' || a === 's3:*') &&
+    resources.some((r: any) => JSON.stringify(r).includes(backupBucketId))
+  );
+});
+assert.ok(
+  !hasDeleteObjectOnBackup,
+  'Pipeline user must NOT have s3:DeleteObject (or s3:*) on backup bucket — STORE-04 boundary violated',
+);
+
 console.log('All CDK assertions passed.');
