@@ -26,7 +26,7 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 
 - [ ] **STORE-01**: A store-agnostic authoritative store holds notes with author identity, created/updated timestamps, a `status`, and role/allowlist affordances — schema shaped for moderation and attribution from day one.
 - [ ] **STORE-02**: Authoritative tables evolve via forward-only versioned migrations with no rebuild-from-source path; migrations are owned/run by the write layer, never by `run.py`/the nightly pipeline.
-- [ ] **STORE-03**: Safety-critical backup: native point-in-time recovery **plus** an independent periodic logical dump into the owned S3 bucket, and a **test-restore demonstrated before any public write** exists.
+- [ ] **STORE-03**: Safety-critical backup: frequent **consistent snapshots** (SQLite online-backup API, never a raw `cp`) pushed to a dedicated IAM-isolated versioned S3 bucket, with RPO = snapshot interval (matching the stated risk tolerance); a **test-restore demonstrated before any public write** exists. Continuous near-second PITR via Litestream is explicitly deferred to a later phase.
 - [x] **STORE-04**: The authoritative store is physically and IAM-separated from the derived `beeatlas.duckdb` and the `/data/` S3 prefix, so a normal green nightly (`--delete` syncs, DuckDB rebuild/push) can never reach or overwrite authoritative data.
 
 ### Write Layer & Authentication
