@@ -272,6 +272,44 @@ function handler(event) {
       resources: [`arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`],
     }));
 
+    // ── Authoritative Store Backup Bucket ─────────────────────────────────
+    // Separate from siteBucket: neither the GitHub OIDC deployer role nor the
+    // derived pipeline can accidentally reach this via their existing policies.
+    // RemovalPolicy.RETAIN: never auto-delete authoritative backups (contrast
+    // siteBucket which is DESTROY because it is 100% reproducible from source).
+    const backupBucket = new s3.Bucket(this, 'AuthoritativeBackupBucket', {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      versioned: true,
+      lifecycleRules: [
+        {
+          expiration: cdk.Duration.days(180),
+          noncurrentVersionExpiration: cdk.Duration.days(180),
+        },
+      ],
+    });
+
+    // Pipeline IAM user (maderas nightly + backup script) gets PutObject + GetObject
+    // on the backup bucket ONLY — NOT DeleteObject (S3 Versioning is the recovery layer).
+    // The deployer OIDC role (deployerRole) gets NO grant here — structural STORE-04 boundary.
+    pipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:PutObject', 's3:GetObject'],
+      resources: [backupBucket.arnForObjects('*')],
+    }));
+
+    // ListBucket at bucket level — required for restore-drill `aws s3 ls s3://<backup>/backups/`
+    pipelineUser.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:ListBucket'],
+      resources: [backupBucket.bucketArn],
+    }));
+
+    new cdk.CfnOutput(this, 'BackupBucketName', {
+      value: backupBucket.bucketName,
+      description: 'Authoritative backup bucket → NOTES_BACKUP_BUCKET env var on maderas',
+    });
+
     // ── Outputs (consumed as GitHub Actions secrets) ──────────────────────
     new cdk.CfnOutput(this, 'BucketName', {
       value: siteBucket.bucketName,
