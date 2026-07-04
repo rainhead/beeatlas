@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 178-07-PLAN.md
+stopped_at: 178-08-PLAN.md Task 1 done; awaiting operator maderas deploy (Task 2 checkpoint)
 last_updated: "2026-07-04T05:18:59.218Z"
 last_activity: 2026-07-04
 progress:
@@ -27,7 +27,10 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 
 Phase: 178 (thin-write-layer-inat-oauth) — EXECUTING
 Plan: 8 of 9
-Status: Ready to execute
+Status: Task 1 of 178-08 committed (api A-record + go-live runbook). Blocked on Task 2
+  (checkpoint:human-action, gate=blocking) — operator must deploy on maderas (Apache
+  mod_proxy_http vhost + certbot TLS + Waitress supervisor + secrets + migration 0002).
+  Resume with "deployed" for Task 2, then "writes open" for Task 3. Plan NOT complete.
 Last activity: 2026-07-04
 
 Progress: [██████████] 100%
