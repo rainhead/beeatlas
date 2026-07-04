@@ -47,13 +47,31 @@ if _toml_redirect_uri is not None:
     )
 
 
+_LAUNCH = _CFG.get("launch", {})
+_SERVE = _CFG.get("serve", {})
+
 # WRITE-04 launch gate: writes are refused (503) until the operator confirms
-# the 177-07 restore drill and flips this on. Env-driven (like data/run.py's
-# DB_PATH/EXPORT_DIR), NOT read from secrets.toml — this is an operational
-# switch, not a secret. Default False (writes closed) so a fresh checkout or
-# CI never accidentally serves writes. See 178-06/178-08 for where the
-# operator sets WRITES_ENABLED=true on maderas after confirming the restore.
-WRITES_ENABLED: bool = os.environ.get("WRITES_ENABLED", "false").lower() == "true"
+# the 177-07 restore drill and flips this on. Default False (writes closed)
+# so a fresh checkout or CI never accidentally serves writes. Primary source
+# is the `[launch] writes_enabled` key in api/secrets.toml (a non-secret
+# operational switch, documented in api/secrets.example.toml); the
+# WRITES_ENABLED env var — added in 178-05 as a Rule-3 blocking fix, before
+# this toml key existed — always overrides the toml value when set, so an
+# operator can flip the gate (e.g. from the systemd unit / cron entry) without
+# touching the secrets file. See 178-06/178-08 for where the operator sets
+# this true on maderas after confirming the restore.
+_env_writes_enabled = os.environ.get("WRITES_ENABLED")
+WRITES_ENABLED: bool
+if _env_writes_enabled is not None:
+    WRITES_ENABLED = _env_writes_enabled.lower() == "true"
+else:
+    WRITES_ENABLED = bool(_LAUNCH.get("writes_enabled", False))
+
+# Loopback port Waitress binds (api/serve.py); Apache mod_proxy_http reverse-
+# proxies https://api.beeatlas.net -> 127.0.0.1:<port> (D-17). Sourced from
+# the `[serve] port` key in api/secrets.toml, default 8080 if absent; a
+# SERVE_PORT env var override takes precedence, mirroring WRITES_ENABLED.
+SERVE_PORT: int = int(os.environ.get("SERVE_PORT", _SERVE.get("port", 8080)))
 
 
 def require_real_secrets() -> None:
