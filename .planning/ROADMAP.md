@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 7/9 | In Progress|  |
+| 178. Thin Write Layer + iNat OAuth | 8/9 | In Progress|  |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -178,7 +178,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5; operator-only, autonomous: false)*
 
-- [ ] 178-08-PLAN.md — Operator: CDK `api` A-record + Apache `mod_proxy_http`/Waitress/certbot deploy + Waitress supervision (systemd-user or cron @reboot) + migration 0002 on maderas + WRITE-04 launch gate (flip `writes_enabled` after confirming the 177-07 restore) [WRITE-01, WRITE-04]
+- [x] 178-08-PLAN.md — Operator: CDK `api` A-record + Apache `mod_proxy_http`/Waitress/certbot deploy + Waitress supervision (systemd-user or cron @reboot) + migration 0002 on maderas + WRITE-04 launch gate (flip `writes_enabled` after confirming the 177-07 restore) [WRITE-01, WRITE-04]
 
 **Wave 7** *(blocked on Wave 6; human UAT, autonomous: false — do NOT auto-advance)*
 

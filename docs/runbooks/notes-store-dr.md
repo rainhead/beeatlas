@@ -180,6 +180,7 @@ Append a row each time the drill is completed before the phase gate is closed.
 | Date | Operator | Note count | Schema version | Result |
 |------|----------|------------|----------------|--------|
 | 2026-07-03 | Peter (via Claude) | 3 (live) == 3 (restored) | 0001 == 0001 | PASS ✅ |
+| 2026-07-04 | Peter | re-run on the live 178-08 deployment before opening writes (WRITE-04) | counts/version not captured in-session | PASS ✅ |
 
 Drill details: snapshot `backups/notes_20260703_211606.db.gz` from `beeatlasstack-authoritativebackupbucket144dcc85-q0yzx52wsvse`, restored into a scratch DB; live vs restored matched on note count (3), `alembic_version` (0001), and table set (`notes`, `note_revisions`, `alembic_version`). Verified with `uv run python` (maderas has no `sqlite3` CLI). **STORE-03 / WRITE-04 launch gate satisfied.**
 
