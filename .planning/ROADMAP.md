@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 2/9 | In Progress|  |
+| 178. Thin Write Layer + iNat OAuth | 3/9 | In Progress|  |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -161,7 +161,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 178-03-PLAN.md — Foundation: `uv add waitress flask-cors` (D-17, NOT flup6) + top-level `api/` package (relocate skeleton, D-15) + secrets loader (D-14) + redirect_uri pin (D-12/D-13) + pytest wiring [WRITE-01]
+- [x] 178-03-PLAN.md — Foundation: `uv add waitress flask-cors` (D-17, NOT flup6) + top-level `api/` package (relocate skeleton, D-15) + secrets loader (D-14) + redirect_uri pin (D-12/D-13) + pytest wiring [WRITE-01]
 
 **Wave 3** *(blocked on Wave 2)*
 
