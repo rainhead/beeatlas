@@ -61,18 +61,22 @@ def _load_migration_module(revision: str):
 
 
 def test_migration_applies(tmp_path, monkeypatch):
-    """alembic upgrade head creates notes + note_revisions and stamps alembic_version.
+    """alembic upgrade to 0001 creates notes + note_revisions and stamps alembic_version.
 
     Verifies:
-      - Both tables exist in the SQLite file after upgrade head
+      - Both tables exist in the SQLite file after upgrading to revision 0001
       - alembic_version table has exactly 1 row
       - version_num == '0001'
+
+    Targets revision "0001" explicitly (not "head") — head has since advanced
+    past 0001 (e.g. 0002 added the users table in Phase 178-02) and this test's
+    purpose is to verify the *0001* migration in isolation, not the overall chain.
     """
     from alembic import command
 
     db_path = tmp_path / "notes.db"
     cfg = _make_alembic_config(db_path, monkeypatch)
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "0001")
 
     conn = sqlite3.connect(db_path)
     try:
