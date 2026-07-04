@@ -1,5 +1,6 @@
 import { LitElement, css, html, type TemplateResult } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import type { AuthState } from './auth-client.ts';
 
 // Build identifier injected by Vite `define` (eleventy.config.js). The `typeof`
 // guard keeps this safe under Vitest, where the define is absent.
@@ -17,6 +18,9 @@ export class BeeHeader extends LitElement {
   @property({ attribute: false }) installable = false;
   // D-11/D-12: true on iOS Safari (not standalone). Triggers A2HS popover instead of prompt().
   @property({ attribute: false }) iosInstructable = false;
+  // D-10 (178-07): server-derived identity, fetched by the mounting controller
+  // (entry or app root) — bee-header stays a pure presenter, no fetch here.
+  @property({ attribute: false }) authState: AuthState | null = null;
 
   @state() private _popoverOpen = false;
   // Transient iOS A2HS popover open/close — local to presenter, not app state.
@@ -115,6 +119,47 @@ export class BeeHeader extends LitElement {
       padding: 0.2rem 0.6rem;
       color: white;
     }
+
+    /* D-10 (178-07): sign-in / whoami / sign-out affordance. Text pill buttons
+       rather than .icon-btn chrome since these carry a label, not a glyph. */
+    .auth-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 999px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-family: inherit;
+      padding: 0.35rem 0.75rem;
+      white-space: nowrap;
+      opacity: 0.85;
+    }
+
+    .auth-btn:hover { opacity: 1; }
+
+    .auth-btn:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .whoami {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .whoami-badge {
+      font-size: 0.7rem;
+      border-radius: 999px;
+      padding: 0.1rem 0.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+    }
+
+    .whoami-badge--author { background: rgba(255, 255, 255, 0.25); }
+    .whoami-badge--guest { opacity: 0.7; }
 
     /* Cache-state button reuses the .icon-btn chrome from the nav icons (44px tap target,
        opacity ladder, focus ring) so it fits mobile headers without horizontal pressure.
@@ -343,6 +388,27 @@ export class BeeHeader extends LitElement {
     }));
   };
 
+  // D-10 (178-07): sign-in click — dispatch upward; the mounting controller
+  // (entry/app root) calls auth-client's startSignIn(). No window.location
+  // write here (presenter invariant).
+  private _onSignInClick = (e: Event) => {
+    e.stopPropagation();
+    this.dispatchEvent(new CustomEvent('sign-in', {
+      composed: true,
+      bubbles: true,
+    }));
+  };
+
+  // D-10 (178-07): sign-out click — dispatch upward; the mounting controller
+  // calls auth-client's signOut() and re-fetches whoami.
+  private _onSignOutClick = (e: Event) => {
+    e.stopPropagation();
+    this.dispatchEvent(new CustomEvent('sign-out', {
+      composed: true,
+      bubbles: true,
+    }));
+  };
+
   // D-11: iOS A2HS popover toggle.
   private _toggleIosPopover = (e: Event) => {
     e.stopPropagation();
@@ -497,6 +563,36 @@ export class BeeHeader extends LitElement {
     `;
   }
 
+  // D-10 (178-07): sign-in entry point / whoami indicator / sign-out. Pure
+  // render off the `authState` property — no fetch, no window.location here.
+  private _renderAuth(): TemplateResult {
+    const auth = this.authState;
+    if (!auth?.authenticated) {
+      return html`
+        <button
+          class="auth-btn sign-in-btn"
+          @click=${this._onSignInClick}
+          aria-label="Sign in with iNaturalist"
+          title="Sign in with iNaturalist"
+        >Sign in with iNaturalist</button>
+      `;
+    }
+    return html`
+      <span class="whoami" title=${auth.role ?? 'no role'}>
+        ${auth.login}
+        <span class="whoami-badge ${auth.isAuthor ? 'whoami-badge--author' : 'whoami-badge--guest'}">
+          ${auth.isAuthor ? 'Author' : 'Not an editor'}
+        </span>
+      </span>
+      <button
+        class="auth-btn sign-out-btn"
+        @click=${this._onSignOutClick}
+        aria-label="Sign out"
+        title="Sign out"
+      >Sign out</button>
+    `;
+  }
+
   render() {
     return html`
       <div class="left-group">
@@ -532,6 +628,7 @@ export class BeeHeader extends LitElement {
         </a>
       </div>
       <div class="right-group">
+        ${this._renderAuth()}
         ${this.offline ? html`<span class="offline-pill">Offline</span>` : ''}
         ${this.installable ? html`
           <button

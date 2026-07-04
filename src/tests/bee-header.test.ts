@@ -112,3 +112,104 @@ describe('OFF-05: bee-header offline pill (Plan 149-03)', () => {
     expect(pill).toBeNull();
   });
 });
+
+describe('178-07: bee-header sign-in / whoami / sign-out (D-10)', () => {
+  let el: HTMLElement & { authState: unknown; updateComplete: Promise<boolean>; shadowRoot: ShadowRoot };
+
+  afterEach(() => {
+    if (el && el.isConnected) {
+      el.remove();
+    }
+  });
+
+  test('renders "Sign in with iNaturalist" when authState is null', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const btn = el.shadowRoot!.querySelector('.sign-in-btn');
+    expect(btn).not.toBeNull();
+    expect(btn!.textContent).toContain('Sign in with iNaturalist');
+    expect(el.shadowRoot!.querySelector('.sign-out-btn')).toBeNull();
+    expect(el.shadowRoot!.querySelector('.whoami')).toBeNull();
+  });
+
+  test('renders "Sign in with iNaturalist" when authState.authenticated is false', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = { authenticated: false };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    expect(el.shadowRoot!.querySelector('.sign-in-btn')).not.toBeNull();
+  });
+
+  test('dispatches a composed+bubbling sign-in event on click', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const handler = vi.fn();
+    document.addEventListener('sign-in', handler);
+    const btn = el.shadowRoot!.querySelector('.sign-in-btn') as HTMLButtonElement;
+    btn.click();
+    document.removeEventListener('sign-in', handler);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const event = handler.mock.calls[0]?.[0] as CustomEvent;
+    expect(event.composed).toBe(true);
+    expect(event.bubbles).toBe(true);
+  });
+
+  test('renders login + allowlisted badge + sign-out when authenticated and isAuthor', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = { authenticated: true, login: 'someuser', role: 'author', isAuthor: true };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const whoami = el.shadowRoot!.querySelector('.whoami');
+    expect(whoami).not.toBeNull();
+    expect(whoami!.textContent).toContain('someuser');
+    const badge = el.shadowRoot!.querySelector('.whoami-badge');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toContain('Author');
+    expect(badge!.classList.contains('whoami-badge--author')).toBe(true);
+    expect(el.shadowRoot!.querySelector('.sign-out-btn')).not.toBeNull();
+    expect(el.shadowRoot!.querySelector('.sign-in-btn')).toBeNull();
+  });
+
+  test('renders "Not an editor" badge when authenticated but not allowlisted', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = { authenticated: true, login: 'guestuser', role: null, isAuthor: false };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const badge = el.shadowRoot!.querySelector('.whoami-badge');
+    expect(badge).not.toBeNull();
+    expect(badge!.textContent).toContain('Not an editor');
+    expect(badge!.classList.contains('whoami-badge--guest')).toBe(true);
+  });
+
+  test('dispatches a composed+bubbling sign-out event on click', async () => {
+    await import('../bee-header.ts');
+    el = document.createElement('bee-header') as any;
+    (el as any).authState = { authenticated: true, login: 'someuser', role: 'author', isAuthor: true };
+    document.body.appendChild(el);
+    await el.updateComplete;
+
+    const handler = vi.fn();
+    document.addEventListener('sign-out', handler);
+    const btn = el.shadowRoot!.querySelector('.sign-out-btn') as HTMLButtonElement;
+    btn.click();
+    document.removeEventListener('sign-out', handler);
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    const event = handler.mock.calls[0]?.[0] as CustomEvent;
+    expect(event.composed).toBe(true);
+    expect(event.bubbles).toBe(true);
+  });
+});
