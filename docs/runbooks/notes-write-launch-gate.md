@@ -67,7 +67,15 @@ in use before writing the vhost).
 Replace the port in both `ProxyPass`/`ProxyPassReverse` lines if `SERVE_PORT` differs
 from the `8080` default.
 
+Save this block to `/etc/apache2/sites-available/api.beeatlas.net.conf` (maderas runs the
+Debian/Ubuntu Apache layout — same as the `a2enmod` calls above), then enable the site
+(symlinks it into `sites-enabled/`) and reload. `certbot certonly --apache` only issues the
+cert; it does **not** write this vhost, so A3 is manual — and it must run **after** A2 (the
+vhost references `/etc/letsencrypt/live/api.beeatlas.net/…`, which A2 creates).
+
 ```bash
+sudo nano /etc/apache2/sites-available/api.beeatlas.net.conf   # paste the <VirtualHost> block above
+sudo a2ensite api.beeatlas.net
 sudo apachectl configtest
 sudo systemctl reload apache2
 ```
