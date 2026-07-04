@@ -21,6 +21,7 @@ session), never from request body/query data -- a client-supplied
 
 import tomllib
 from functools import wraps
+from urllib.parse import urlsplit
 
 from flask import abort, g, request
 
@@ -34,28 +35,43 @@ from notes_store import roles as roles_module
 # cookie's SameSite policy.
 ALLOWED_ORIGINS = {"https://beeatlas.net", "https://www.beeatlas.net"}
 
-# Local-development origins (the Eleventy/Vite dev server) — honored ONLY when
-# config.DEV_MODE is on, i.e. the gitignored secrets.toml carries a localhost
-# redirect_uri for a separate dev iNat app (see api/config.py). Any loopback
-# port: the dev-server port is not security-relevant on a laptop setup, and
-# DEV_MODE cannot be on in production without breaking the prod OAuth app.
-_DEV_ORIGIN_PREFIXES = ("http://localhost:", "http://127.0.0.1:")
-
 # Verbs for which a missing/foreign Origin header is treated as a forged
 # cross-site write attempt (RESEARCH.md Pattern 3 -- "state-changing verb").
 _STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
+def _is_loopback_origin(origin: str) -> bool:
+    """Strictly parse a local-dev-server origin (the Eleventy/Vite dev loop):
+    plain http, hostname exactly localhost/127.0.0.1, explicit numeric port.
+
+    Parsed with urlsplit rather than a string prefix check (WR-04): a raw
+    `startswith("http://localhost:")` also admits lookalikes such as
+    `http://localhost:80.evil.com` (bogus port) and
+    `http://127.0.0.1:80@attacker.test` (loopback in the userinfo, real host
+    attacker.test). Any loopback PORT is fine: the dev-server port is not
+    security-relevant on a laptop setup.
+    """
+    try:
+        parts = urlsplit(origin)
+        port = parts.port  # raises ValueError on a non-numeric port
+    except ValueError:
+        return False
+    return (
+        parts.scheme == "http"
+        and parts.hostname in ("localhost", "127.0.0.1")
+        and port is not None
+    )
+
+
 def origin_allowed(origin: str | None) -> bool:
     """Return True if *origin* is one of the configured allowed origins
-    (exact match), or any loopback origin when DEV_MODE is on."""
+    (exact match), or a strictly-parsed loopback origin when DEV_MODE is on
+    (i.e. the gitignored secrets.toml carries a localhost redirect_uri for a
+    separate dev iNat app — see api/config.py; DEV_MODE cannot be on in
+    production without breaking the prod OAuth app)."""
     if origin in ALLOWED_ORIGINS:
         return True
-    return (
-        config.DEV_MODE
-        and origin is not None
-        and origin.startswith(_DEV_ORIGIN_PREFIXES)
-    )
+    return config.DEV_MODE and origin is not None and _is_loopback_origin(origin)
 
 
 def _current_roles() -> dict[str, str]:

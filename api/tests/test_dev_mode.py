@@ -8,10 +8,13 @@ round-trip. Production behavior (the D-12/D-13 exact-match pin, the strict
 origin allow-list) must be provably unchanged when DEV_MODE is off.
 """
 
+import re
+
 import pytest
 
 import api.auth as auth
 import api.config as config
+import api.main as main
 
 
 # --- config.resolve_redirect_uri -------------------------------------------
@@ -78,6 +81,45 @@ def test_dev_mode_does_not_admit_non_loopback_origins(monkeypatch):
     assert auth.origin_allowed("https://evil.example") is False
     assert auth.origin_allowed("http://localhost.evil.example") is False
     assert auth.origin_allowed(None) is False
+
+
+@pytest.mark.parametrize(
+    "lookalike",
+    [
+        "http://localhost:80.evil.com",  # bogus "port" carrying a real host suffix
+        "http://localhost:1234.evil.com",  # would pass an unanchored regex/prefix
+        "http://127.0.0.1:80@attacker.test",  # loopback in userinfo, host attacker.test
+        "http://localhost:80@attacker.test",
+        "https://localhost:8080",  # wrong scheme for the dev shape
+        "http://localhost",  # no explicit port
+        "http://localhost:notaport",
+        "http://evillocalhost:8080",
+    ],
+)
+def test_dev_mode_rejects_loopback_lookalike_origins(monkeypatch, lookalike):
+    """WR-04 regression: a prefix `startswith("http://localhost:")` check
+    admits several of these; origin_allowed must parse the origin and match
+    scheme/hostname/port exactly."""
+    monkeypatch.setattr(config, "DEV_MODE", True)
+    assert auth.origin_allowed(lookalike) is False
+
+
+def test_dev_cors_origin_patterns_are_end_anchored():
+    """WR-04 regression: flask-cors matches origin patterns with re.match,
+    which anchors only at the START — the dev loopback patterns must carry
+    an explicit `$` or http://localhost:1234.evil.com gets credentialed CORS.
+    Mirror flask-cors's matching (re.match) against the actual patterns."""
+    good = ["http://localhost:8080", "http://localhost:8081", "http://127.0.0.1:5173"]
+    evil = [
+        "http://localhost:1234.evil.com",
+        "http://127.0.0.1:80.evil.com",
+        "http://localhost:8080@attacker.test",
+    ]
+    patterns = main._DEV_CORS_ORIGIN_PATTERNS
+    for origin in good:
+        assert any(re.match(p, origin) for p in patterns), origin
+    for origin in evil:
+        assert not any(re.match(p, origin) for p in patterns), origin
 
 
 def test_prod_origins_still_allowed_in_both_modes(monkeypatch):

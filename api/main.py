@@ -63,9 +63,14 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 # DEV_MODE additionally admits loopback dev-server origins (regex — flask-cors
 # treats patterned strings as regexes); can only be on with a localhost
 # redirect_uri in the gitignored secrets.toml (see api/config.py).
+# The `$` end-anchors are load-bearing (WR-04): flask-cors matches origin
+# patterns with re.match, which anchors only at the START — without `$`,
+# `http://localhost:\d+` also grants credentialed CORS to lookalikes such
+# as http://localhost:1234.evil.com.
+_DEV_CORS_ORIGIN_PATTERNS = [r"http://localhost:\d+$", r"http://127\.0\.0\.1:\d+$"]
 _cors_origins: list[str] = list(auth.ALLOWED_ORIGINS)
 if config.DEV_MODE:
-    _cors_origins += [r"http://localhost:\d+", r"http://127\.0\.0\.1:\d+"]
+    _cors_origins += _DEV_CORS_ORIGIN_PATTERNS
 CORS(app, resources={r"/*": {"origins": _cors_origins}}, supports_credentials=True)
 
 # Cookies carry Secure in production; in DEV_MODE (plain-http loopback) the
