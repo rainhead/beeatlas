@@ -110,3 +110,6 @@ None - no external service configuration required. `api/secrets.toml` still carr
 ---
 *Phase: 178-thin-write-layer-inat-oauth*
 *Completed: 2026-07-04*
+
+## Self-Check: PASSED
+All created/modified files confirmed present on disk; all 5 task/summary commit hashes confirmed in `git log`.
