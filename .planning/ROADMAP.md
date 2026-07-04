@@ -61,7 +61,7 @@
 - [x] **Phase 176: Build-Seam Refoundation (Thread 1)** — Collapse the triple hand-synced manifest key lists (nightly.sh upload/manifest block, the inline classifier heredoc, deploy.yml fetch) into one declarative `data/artifacts.toml` + tested `data/artifacts.py`; establish the explicit derived-vs-authoritative classification and the two schema-evolution regimes. Pure, regression-safe refactor — byte-identical manifest, no user-visible change; de-risks everything downstream.
 - [x] **Phase 177: Authoritative Store, Migrations & Backup/DR** — Stand up the first non-reproducible store (technology decided here), a forward-only migration runner, notes/roles schema shaped for moderation + attribution, physical + IAM separation from the derived pipeline and `/data/` prefix, and a demonstrated test-restore. No public writes until restore is proven.
 - [x] **Phase 178: Thin Write Layer + iNat OAuth** — A thin write app on maderas (Flask served by Waitress behind Apache `mod_proxy_http`, per 177 D-01 + 178 D-17 — NOT `mod_fcgid`/flup6, NOT API Gateway + Lambda); iNat OAuth2 server-side code exchange with PKCE, server-derived identity + a minted long-lived app session; allowlist authz (per-write recheck) + CSRF; public-write launch gate on the proven restore. The only phase that consciously bends "no server runtime" — kept isolated in one owned maderas runtime. (completed 2026-07-04)
-- [ ] **Phase 179: Notes Feature + Harvest → Build-Time Bake** — Allowlisted authors create/edit/delete attributed notes; nightly harvest of published notes into a build-time `notes.json` (mirroring the shipped `species_hosts.js` bake); species pages render an attributed stacked list with an empty state; read path stays static/offline-safe. First user-visible slice.
+- [x] **Phase 179: Notes Feature + Harvest → Build-Time Bake** — Allowlisted authors create/edit/delete attributed notes; nightly harvest of published notes into a build-time `notes.json` (mirroring the shipped `species_hosts.js` bake); species pages render an attributed stacked list with an empty state; read path stays static/offline-safe. First user-visible slice.
 - [ ] **Phase 180: Moderation Loop** — reader/author/curator roles from a declared, auditable source; deploy-free curator takedown excluded from harvest; XSS sanitization + audit fields; takedown clears the public site within one build cycle (and the live island if NOTES-04 shipped).
 
 **Progress (v8.0):**
@@ -71,7 +71,7 @@
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 9/9 | Complete    | 2026-07-04 |
-| 179. Notes Feature + Harvest Bake | 5/6 | In Progress|  |
+| 179. Notes Feature + Harvest Bake | 6/6 | Complete | 2026-07-04 |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
 ### Phase 176: Build-Seam Refoundation (Thread 1)
@@ -222,7 +222,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4; human UAT, autonomous: false — do NOT auto-advance)*
 
-- [ ] 179-06-PLAN.md — Security + end-to-end UAT: live author create/edit/delete, forged-author + cross-origin write rejection, notes.json rendering on the static site after a nightly cycle [NOTES-01, NOTES-02, NOTES-03, NOTES-04]
+- [x] 179-06-PLAN.md — Security + end-to-end UAT: live author create/edit/delete, forged-author + cross-origin write rejection, notes.json rendering on the static site after a nightly cycle [NOTES-01, NOTES-02, NOTES-03, NOTES-04] — all 3 human gates APPROVED 2026-07-04; surfaced + fixed a ship-blocking harvest store mis-wire (NOTES_DB_PATH, commit 3154a07a)
 **Notes**: The harvest → bake is an exact structural mirror of the Phase 175 `species_hosts.js` build-time bake — established pattern, no `--research-phase` for harvest/render. Never commit the harvested `notes.json` to git (memory `feedback_no_committed_data_artifacts`); it ships via the S3 + `manifest.json` + `deploy.yml` fetch pattern (published through the Phase-176 contract). XSS backstop lives in Phase 180 but escape-on-render applies here. NOTES-04 is a differentiator, not table stakes — build only if 178/179 scope allows.
 **UI hint**: yes
 

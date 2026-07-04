@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 179-05-PLAN.md
-last_updated: "2026-07-04T19:13:33.415Z"
+stopped_at: Completed 179 (all 6 plans; phase VERIFIED pass)
+last_updated: "2026-07-04T21:10:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 47
-  completed_phases: 26
+  completed_phases: 27
   total_plans: 83
-  completed_plans: 84
-  percent: 55
+  completed_plans: 85
+  percent: 57
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation)
 
 **Core value:** Tighten learning cycles for volunteer collectors — surface existing data in ways difficult to achieve without the site; convey liveness and togetherness among participants. Long-term: become the gathering place for the Washington Bee Atlas.
-**Current focus:** Phase 179 — notes-feature-harvest-build-time-bake
+**Current focus:** Phase 180 — Moderation Loop (next; 179 complete)
 
 ## Current Position
 
-Phase: 179 (notes-feature-harvest-build-time-bake) — EXECUTING
-Plan: 6 of 6
-Status: Executing — 179-06 (security + end-to-end UAT) remaining
+Phase: 179 (notes-feature-harvest-build-time-bake) — COMPLETE (verified pass 2026-07-04)
+Plan: 6 of 6 complete
+Status: Phase 179 done — all 3 human-UAT gates approved; NOTES-01..04 verified. Next: Phase 180 (Moderation Loop).
 Last activity: 2026-07-04
 
-Progress: [█████░░░░░] 55%
+Progress: [██████░░░░] 57%
 
 ## Milestone Overview
 
@@ -43,10 +43,10 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 176 | Build-Seam Refoundation (Thread 1) | SEAM-01..05 | — | Complete (2026-07-02) |
 | 177 | Authoritative Store, Migrations & Backup/DR | STORE-01..04 | — | Complete (2026-07-03) |
 | 178 | Thin Write Layer + iNat OAuth | WRITE-01..04 | yes | Complete (2026-07-04) |
-| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Executing (5/6 plans) |
+| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Complete (2026-07-04) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [█████░░░░░] 55% (26/47 phases complete project-wide; v8.0 milestone itself is 3/5 phases + 179's 5/6 plans in progress)
+**Progress:** [██████░░░░] 57% (27/47 phases complete project-wide; v8.0 milestone itself is 4/5 phases complete — only Phase 180 Moderation Loop remains)
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -94,6 +94,9 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase 179]: 179-04: new src/lib/*.js utils consumed by both Eleventy and TS ship with a matching *.d.ts (formatDate.d.ts mirrors quantify.d.ts) since tsconfig has no allowJs
 - [Phase 179]: 179-05: mutating note-client calls resolve {ok:false,status:0} on network error rather than throwing
 - [Phase 179]: 179-05: bee-notes hides Add note whenever any editor (add or edit) is open, since both use .note-btn--primary
+- [Phase 179]: 179-06: nightly.sh must export NOTES_DB_PATH ($HOME/beeatlas-store/notes.db) so the harvest reads the SAME live store the write API writes to — the code default (/opt/beeatlas-store/notes.db) is absent on maderas (commit 3154a07a). Producer store path is an env-var contract matching the systemd unit + runbook §A4, not the make_engine default. Surfaced by 179-06 Checkpoint 3 UAT.
+- [Phase 179]: 179-06: notes-harvest kept FAIL-LOUD (a store-open error aborts the whole nightly before publish) — user decision 2026-07-04, over graceful-degrade; a broken notes pipeline must be impossible to miss.
+- [Phase 179]: 179-06: operator-triggered nightly gotcha — bash parses nightly.sh at invocation, so `git pull` on the host BEFORE running it (its own internal pull updates the file too late for the loaded process).
 
 ### Roadmap Evolution
 
@@ -140,11 +143,12 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-04T19:13:10.881Z
-Stopped at: Completed 179-05-PLAN.md
+Last session: 2026-07-04T21:10:00.000Z
+Stopped at: Completed Phase 179 (all 6 plans; VERIFICATION.md = pass, NOTES-01..04)
 Resume file: None
 
 ## Operator Next Steps
 
-- Review the v8.0 roadmap draft in `.planning/ROADMAP.md` (phases 176–180) + `.planning/REQUIREMENTS.md` traceability.
-- Then plan the first phase: `/gsd-plan-phase 176`.
+- Phase 179 is complete and LIVE (notes render on public species pages; harvest→bake proven end-to-end on maderas). Only Phase 180 (Moderation Loop) remains in v8.0.
+- Next: `/gsd-plan-phase 180`, then `/gsd-execute-phase 180`. After 180, `/gsd-complete-milestone` for v8.0.
+- Non-blocking follow-ups still open: the pre-existing operator `SKIP_INTEGRATION_GATE=1` species.json baseline refresh; `144-/165-code-review-deferred`; `notes-guest-freshness-gap` todo (guest-visible note lag until nightly bake — future improvement, user-flagged).
