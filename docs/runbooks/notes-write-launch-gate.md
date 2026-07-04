@@ -48,7 +48,11 @@ in use before writing the vhost).
     SSLCertificateKeyFile   /etc/letsencrypt/live/api.beeatlas.net/privkey.pem
 
     ProxyPreserveHost On
-    ProxyPass        / http://127.0.0.1:8080/
+    # retry=0: without it, one refused connection (e.g. Waitress restarting) puts the
+    # proxy worker in an error state and Apache serves 503 for retry=60s (default)
+    # WITHOUT re-trying the backend — even after Waitress is back. For a single
+    # loopback backend the error-state cache is pure downside.
+    ProxyPass        / http://127.0.0.1:8080/ retry=0
     ProxyPassReverse / http://127.0.0.1:8080/
 
     # Waitress/Flask trusts exactly one Apache hop via ProxyFix (api/main.py).
@@ -195,8 +199,16 @@ curl https://api.beeatlas.net/health
 # Waitress) — T-178-15
 curl -i https://api.beeatlas.net/auth/callback   # malformed request, no code param
 
-# Simulate a crash and confirm the supervisor restarts it
-pkill -f "api.serve"; sleep 5; curl https://api.beeatlas.net/health
+# Simulate a crash and confirm the supervisor restarts it.
+# Two timing effects can make the follow-up curl 503 even when the restart worked:
+#   - systemd waits RestartSec=5 before respawning, so sleep past that; and
+#   - without retry=0 on ProxyPass, Apache serves 503 from the worker's error
+#     state for up to 60s without re-trying the backend.
+# The authoritative check is the service status + a direct loopback curl:
+pkill -f "api.serve"; sleep 10
+systemctl --user status beeatlas-api    # expect: active (running)
+curl -s http://127.0.0.1:8080/health    # expect: {"status": "ok"} (Waitress restarted)
+curl https://api.beeatlas.net/health    # via Apache; immediate with retry=0
 ```
 
 ---
