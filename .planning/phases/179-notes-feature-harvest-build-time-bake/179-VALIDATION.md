@@ -1,16 +1,17 @@
 ---
 phase: 179
 slug: notes-feature-harvest-build-time-bake
-status: draft
-nyquist_compliant: false
+status: reconciled
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-07-04
+reconciled: 2026-07-04
 ---
 
 # Phase 179 — Validation Strategy
 
 > Per-phase validation contract for feedback sampling during execution.
-> Two test surfaces: Python (api/ + data/ harvest, pytest) and TypeScript (src/ island, vitest).
+> Reconciled against the final 6-plan structure (179-01..06) after planning + plan-check.
 
 ---
 
@@ -18,71 +19,75 @@ created: 2026-07-04
 
 | Property | Value |
 |----------|-------|
-| **Framework** | pytest (api/tests, data/tests) + vitest (src/tests) |
-| **Config file** | api/ + data/ pyproject.toml; vitest via package.json |
-| **Quick run command** | `npm test` (vitest) AND `cd api && uv run pytest -m "not integration"` |
-| **Full suite command** | `npm test` + `cd api && uv run pytest` + `cd data && uv run pytest -m "not integration"` |
+| **Framework** | pytest (single shared venv) + vitest (src/) |
+| **Config file** | `data/pyproject.toml` (its `testpaths` include `../api/tests`, so api route tests run from `data/`); vitest via `package.json` |
+| **Quick run command** | language-scoped: `npm test` (src/) · `cd data && uv run pytest tests/... ../api/tests/... -x` (Python) |
+| **Full suite command** | `npm test` + `cd data && uv run pytest -m "not integration"` (covers both `data/tests` and `../api/tests`) |
 | **Estimated runtime** | ~60–120 seconds |
+
+> **CRITICAL — no `api/pyproject.toml` exists.** Never invoke `cd api && uv run pytest`. All Python tests (including `api/tests/test_notes_routes.py`) run through the `data/` venv, e.g. `cd data && uv run pytest ../api/tests/test_notes_routes.py -x`. The PLAN.md task-level `<automated>` commands already follow this form.
 
 ---
 
 ## Sampling Rate
 
-- **After every task commit:** Run the quick command for the language(s) that task touched (`npm test` for src/, `cd api && uv run pytest -m "not integration"` for api/, `cd data && uv run pytest -m "not integration"` for the harvest).
-- **After every plan wave:** Run the full suite for all changed languages (per memory `feedback_run_tests_before_push` — run EVERY changed language's suite, not just one).
-- **Before `/gsd-verify-work`:** Full suite must be green.
+- **After every task commit:** Run the quick command for the language(s) that task touched.
+- **After every plan wave:** Run every changed language's suite (memory `feedback_run_tests_before_push` — `npm test` for src/, `cd data && uv run pytest -m "not integration"` for api/ + data/).
+- **Before `/gsd-verify-work`:** Full suite green.
 - **Max feedback latency:** 120 seconds.
 
 ---
 
-## Per-Task Verification Map
+## Per-Plan Verification Map
 
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 179-01-* | shared render | 1 | NOTES-01 | T-179-XSS | markdown→HTML restricted allowlist; `<script>`/`onerror=` payload renders inert; links get rel=noopener | unit | `cd api && uv run pytest tests/test_render.py` | ❌ W0 | ⬜ pending |
-| 179-02-* | migration | 1 | NOTES-01 | — | body_html column + author_id FK added via forward-only batch migration; downgrade raises | unit | `cd data && uv run pytest -m "not integration"` | ❌ W0 | ⬜ pending |
-| 179-03-* | note CRUD API | 2 | NOTES-01, NOTES-02 | T-179-AUTHZ | POST/PATCH/DELETE /api/notes require @require_author; PATCH/DELETE reject uid != note.author_id (403); soft-delete sets status='removed' + note_revisions row | unit | `cd api && uv run pytest tests/test_notes.py` | ❌ W0 | ⬜ pending |
-| 179-04-* | read endpoint | 2 | NOTES-04 | T-179-LEAK | GET species notes returns approved-only, server-scoped; non-approved never leak | unit | `cd api && uv run pytest tests/test_notes.py` | ❌ W0 | ⬜ pending |
-| 179-05-* | harvest → notes.json | 3 | NOTES-03 | — | approved-only, newest-first; byline reuses collectors display_name; shape mirrors species_hosts; runs after collectors-export | unit | `cd data && uv run pytest -m "not integration"` | ❌ W0 | ⬜ pending |
-| 179-06-* | artifacts.toml entry | 3 | NOTES-03 | — | notes declared authoritative + build_time_fetch; authoritative ⇒ baseline_diff=false, never a dbt model | unit | `cd data && uv run pytest tests/test_artifacts.py` | ✅ | ⬜ pending |
-| 179-07-* | _data/notes.js loader | 3 | NOTES-03 | — | absence-tolerant: returns {} when notes.json absent/unparseable; default-export only | unit | `npm test -- data-notes` | ❌ W0 | ⬜ pending |
-| 179-08-* | authoring island | 4 | NOTES-01, NOTES-02, NOTES-04 | — | island hydrates for allowlisted author; guest/no-JS shows baked list; calls fetchWhoami() independently; re-fetches after write | unit | `npm test -- notes-island` | ❌ W0 | ⬜ pending |
-| 179-09-* | species-detail render | 4 | NOTES-03 | T-179-XSS | baked stacked list, newest-first, byline links to /collectors/<login>/ when present; empty state graceful; trusted HTML injected | unit | `npm test` | ❌ W0 | ⬜ pending |
+| Plan | Wave | Requirement | Threat Ref | Secure Behavior | Automated Command |
+|------|------|-------------|------------|-----------------|-------------------|
+| 179-01 (render helper + migration 0003) | 1 | NOTES-01, 02 | T-179-XSS | `render_note_markdown` → sanitized HTML; `<script>`/`onerror=`/`javascript:` renders inert; links get rel=noopener; migration forward-only, backfills body_html, author_id FK | `cd data && uv run pytest tests/test_notes_render.py tests/test_notes_migrations.py tests/test_notes_store_schema.py -x` |
+| 179-02 (note CRUD + read API) | 2 | NOTES-01, 02, 04 | T-179-AUTHZ, T-179-LEAK | POST/PATCH/DELETE `/api/notes` `@require_author`; PATCH/DELETE by non-owner → 403; soft-delete (status='removed' + note_revisions row); `GET /api/notes?species=` approved-only newest-first; author_id always `g.identity['uid']` | `cd data && uv run pytest ../api/tests/test_notes_routes.py -x` |
+| 179-03 (harvest → notes.json + contract + loader) | 2 | NOTES-03 | — | read-only WAL store read; approved-only newest-first; byline reuses collectors.json display_name (D-11/D-12); authoritative + build_time_fetch(+_optional); never committed; run.py never migrates | `cd data && uv run pytest tests/test_notes_harvest.py tests/test_artifacts.py tests/test_notes_migrations.py -x && npm test -- data-notes` |
+| 179-04 (baked `<section>` + formatDate + CSS) | 3 | NOTES-03 | T-179-XSS | static stacked list newest-first, byline → /collectors/<login>/ when present; zero-notes omits section; `note.html` via `\| safe` only (no client re-sanitize); bee-notes mount always emitted; no runtime API call on load | `npm test -- formatDate && npm test` |
+| 179-05 (`<bee-notes>` island + notes client) | 4 | NOTES-01, 02, 04 | — | calls `fetchWhoami()` itself (never reads bee-header DOM); inert for guest/no-JS; author-only Add/Edit/Delete on own notes; live re-fetch after write; no markdown lib in browser; inline two-step delete confirm; no optimistic updates | `npm test -- notes-client bee-notes` |
+| 179-06 (security + human UAT) | 5 | NOTES-01, 02, 03, 04 | T-179-XSS, T-179-AUTHZ, T-179-LEAK | live create→edit→delete against api.beeatlas.net; signed-out/offline/no-JS sees only baked list; forged-author + cross-origin both 403; notes.json on static site after a build cycle | **manual — `autonomous: false`, blocking human UAT** |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky. Task IDs are indicative — planner assigns final IDs.*
+*Task IDs within each plan carry the finer-grained `<automated>` commands; this table is the plan-level rollup. Plan verify commands verified present in the PLAN.md files.*
 
 ---
 
-## Wave 0 Requirements
+## Wave 0 Requirements (new test files the plans create)
 
-- [ ] `api/tests/test_render.py` — restricted-markdown render + sanitize (allowlist, inert-payload, rel=noopener) stubs
-- [ ] `api/tests/test_notes.py` — note CRUD + ownership (403 on foreign edit/delete) + soft-delete + approved-only read stubs
-- [ ] `data/tests/test_notes_harvest.py` — harvest shape/order/byline/approved-only stubs
-- [ ] `src/tests/data-notes.test.ts` — absence-tolerant loader stub (mirror `data-species_hosts.test.ts`)
-- [ ] `src/tests/notes-island.test.ts` — island hydration/degradation stub
-- [ ] `nh3` + `markdown-it-py` added to api/ (and data/ if the shared renderer lives there) deps
+- [ ] `data/tests/test_notes_render.py` — restricted-markdown render + sanitize (allowlist, inert `<script>`/`onerror=`/`javascript:`, rel=noopener)
+- [ ] `data/tests/test_notes_migrations.py` — 0003 forward-only, body_html backfill, author_id FK; the `test_run_py_never_migrates` assertion narrowed to permit the sanctioned read-only `notes-harvest` STEP while keeping the migrate/write ban
+- [ ] `data/tests/test_notes_store_schema.py` — notes table has NOT NULL body_html + author_id FK → users.id
+- [ ] `data/tests/test_notes_harvest.py` — harvest shape (Record<canonical_name, Note[]>), approved-only, newest-first, byline reuse, after-collectors ordering
+- [ ] `api/tests/test_notes_routes.py` — CRUD + ownership 403 + soft-delete + approved-only read + forged/cross-origin rejection
+- [ ] `src/tests/data-notes.test.ts` — absence-tolerant `_data/notes.js` loader (mirror `data-species_hosts.test.ts`)
+- [ ] `src/tests/formatDate.test.ts` — `formatDate(iso)` → `'Jul 4, 2026'`
+- [ ] `src/tests/notes-client.test.ts` — auth-client note CRUD methods
+- [ ] `src/tests/bee-notes.test.ts` — `<bee-notes>` hydration (author) / inert degradation (guest/no-JS)
+- [ ] Python deps: `nh3` + `markdown-it-py` added to `data/pyproject.toml` (shared venv; the renderer lives in `data/notes_store/render.py`, imported by both api/ and the harvest)
 
-*Existing infrastructure (pytest in api/ + data/, vitest in src/) covers the frameworks — only new test files + the two Python deps are needed.*
+*Frameworks already exist (pytest in the data/ venv, vitest in src/) — only new test files + the two Python deps are needed.*
 
 ---
 
-## Manual-Only Verifications
+## Manual-Only Verifications (Plan 179-06, `autonomous: false`)
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| End-to-end author create→edit→delete on a real species page against api.beeatlas.net | NOTES-01, NOTES-02, NOTES-04 | Requires live iNat OAuth session + allowlist + cross-origin cookie flow (Phase-178 UAT precedent — security-critical, no auto-advance) | Sign in as an allowlisted author on /species/<slug>/, add a note, confirm live-island shows it immediately, edit it, delete it; confirm a signed-out/offline reader sees only the baked list |
-| Forged-author + cross-origin POST rejection on note endpoints | NOTES-02 | Adversarial security check (mirrors 178 write-check UAT) | Attempt a note PATCH/DELETE with a mismatched author + a cross-origin POST; both must be rejected |
-| notes.json appears on the public site after a nightly build cycle | NOTES-03 | Full nightly harvest→publish→deploy fetch cycle runs only on maderas | After a nightly run, confirm a published note renders on the static species page with no runtime API call |
+| Live author create→edit→delete on a real species page against api.beeatlas.net, live island reflects each change immediately | NOTES-01, 02, 04 | Requires a live iNat OAuth session + allowlist + cross-origin credentialed cookie flow (Phase-178 UAT precedent — security-critical, no auto-advance) | Sign in as an allowlisted author on `/species/<slug>/`, add a note, confirm the live island shows it immediately, edit it, delete it |
+| Signed-out / offline / no-JS reader sees only the baked list; no runtime API call on page load | NOTES-03 | Real offline/no-JS behavior on the static page | Load the species page signed-out and with JS disabled / offline; confirm only the baked list renders and no network call fires on load |
+| Forged-author + cross-origin note write rejection | NOTES-02 | Adversarial security check (mirrors the 178 write-check UAT) | Attempt a note PATCH/DELETE with a mismatched author + a cross-origin POST; both must be rejected (403) |
+| notes.json appears on the public site after a nightly build cycle | NOTES-03 | Full nightly harvest→publish→deploy fetch runs only on maderas | After a nightly run, confirm a published note renders on the static species page with no runtime API call |
 
 ---
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 120s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references (9 new test files enumerated above)
+- [x] No watch-mode flags (all `pytest ... -x`, `npm test`)
+- [x] Feedback latency < 120s
+- [x] `nyquist_compliant: true` set in frontmatter (reconciled to the final 6-plan structure)
 
-**Approval:** pending
+**Approval:** approved 2026-07-04 (reconciled post-plan-check; `wave_0_complete` flips true once the Wave 1 test scaffolding lands during execution)
