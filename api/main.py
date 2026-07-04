@@ -304,6 +304,13 @@ def write_check():
     field in the request body is never consulted (D-07); `require_author`
     (api/auth.py) has already verified the session, re-read the allowlist
     fresh, checked Origin, and checked the WRITE-04 launch gate.
+
+    The echoed role is re-read fresh from the allowlist (same D-05 read
+    `require_author` and whoami perform), NOT the role baked into the
+    session cookie at login time — a user promoted/demoted since their
+    last login must be reported with their current role, or Phase 179
+    curator-only actions keyed off this field would go stale.
     """
     identity = g.identity
-    return jsonify({"uid": identity["uid"], "login": identity["login"], "role": identity["role"]})
+    role = _fresh_role(identity["login"])
+    return jsonify({"uid": identity["uid"], "login": identity["login"], "role": role})

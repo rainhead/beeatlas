@@ -179,6 +179,21 @@ def test_write_check_allowlisted_allowed_origin_gate_on_is_200(client, monkeypat
     assert resp.get_json() == {"uid": 7, "login": "allowed_author", "role": "author"}
 
 
+def test_write_check_reports_fresh_role_not_cookie_baked_role(client, monkeypatch, tmp_path):
+    """WR-02: the echoed role must come from the fresh allowlist read (D-05),
+    never the role baked into the session cookie at login time — a user
+    promoted author -> curator after login must be reported as curator."""
+    allowlist_path = _allowlist_toml(tmp_path, {"allowed_author": "curator"})  # promoted on disk
+    monkeypatch.setattr(auth.roles_module, "_ALLOWLIST", allowlist_path)
+
+    token = _mint(login="allowed_author", role="author", uid=7)  # stale baked role
+    client.set_cookie(session.COOKIE_NAME, token, domain="localhost")
+
+    resp = client.post("/api/write-check", headers={"Origin": ALLOWED_ORIGIN})
+    assert resp.status_code == 200
+    assert resp.get_json() == {"uid": 7, "login": "allowed_author", "role": "curator"}
+
+
 def test_write_check_foreign_origin_is_403(client, monkeypatch, tmp_path):
     allowlist_path = _allowlist_toml(tmp_path, {"allowed_author": "author"})
     monkeypatch.setattr(auth.roles_module, "_ALLOWLIST", allowlist_path)
