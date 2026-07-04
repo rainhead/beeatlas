@@ -112,6 +112,13 @@ Record which branch was used in the plan's SUMMARY.
 
 ### B1. systemd present — `--user` unit
 
+Launch through `uv run` (not the venv python directly) so the environment is synced
+against the committed `uv.lock` before every start — a `git pull` that adds dependencies
+can never crash-loop the service on `ModuleNotFoundError`. `--frozen` asserts the
+lockfile instead of re-resolving, so boot-time starts are deterministic. systemd user
+units don't inherit your shell PATH: use the absolute `uv` path (`which uv`; shown here
+as `%h/.local/bin/uv` — adjust if yours differs).
+
 ```ini
 # ~/.config/systemd/user/beeatlas-api.service
 [Unit]
@@ -121,7 +128,7 @@ After=network.target
 [Service]
 WorkingDirectory=%h/dev/beeatlas
 Environment=NOTES_DB_PATH=%h/beeatlas-store/notes.db
-ExecStart=%h/dev/beeatlas/data/.venv/bin/python -m api.serve
+ExecStart=%h/.local/bin/uv run --frozen --project %h/dev/beeatlas/data python -m api.serve
 Restart=on-failure
 RestartSec=5
 
@@ -144,23 +151,25 @@ systemctl --user restart beeatlas-api
 
 ### B2. No systemd — cron `@reboot` (+ optional keepalive)
 
+Same `uv run --frozen` rationale as B1 (cron's PATH is minimal too — absolute `uv` path):
+
 ```cron
 # crontab -e
-@reboot NOTES_DB_PATH=$HOME/beeatlas-store/notes.db $HOME/dev/beeatlas/data/.venv/bin/python -m api.serve >> $HOME/beeatlas-api.log 2>&1
+@reboot NOTES_DB_PATH=$HOME/beeatlas-store/notes.db $HOME/.local/bin/uv run --frozen --project $HOME/dev/beeatlas/data python -m api.serve >> $HOME/beeatlas-api.log 2>&1
 
 # Optional: per-minute keepalive so a crashed process restarts without a full reboot.
 # flock prevents overlapping launches if the process is already running.
-* * * * * flock -n $HOME/.beeatlas-api.lock -c 'pgrep -f "api.serve" > /dev/null || (NOTES_DB_PATH=$HOME/beeatlas-store/notes.db $HOME/dev/beeatlas/data/.venv/bin/python -m api.serve >> $HOME/beeatlas-api.log 2>&1 &)'
+* * * * * flock -n $HOME/.beeatlas-api.lock -c 'pgrep -f "api.serve" > /dev/null || (NOTES_DB_PATH=$HOME/beeatlas-store/notes.db $HOME/.local/bin/uv run --frozen --project $HOME/dev/beeatlas/data python -m api.serve >> $HOME/beeatlas-api.log 2>&1 &)'
 ```
 
 Restart to pick up code/secrets changes (no service manager to ask, so kill and let the
-keepalive/next reboot relaunch it — or manually re-run the `python -m api.serve` command
-in the background after killing the old PID):
+keepalive/next reboot relaunch it — or manually re-run the serve command in the
+background after killing the old PID):
 
 ```bash
 pkill -f "api.serve"
 # then either wait for the keepalive cron (<=1 min) or relaunch manually:
-NOTES_DB_PATH=$HOME/beeatlas-store/notes.db $HOME/dev/beeatlas/data/.venv/bin/python -m api.serve >> $HOME/beeatlas-api.log 2>&1 &
+NOTES_DB_PATH=$HOME/beeatlas-store/notes.db $HOME/.local/bin/uv run --frozen --project $HOME/dev/beeatlas/data python -m api.serve >> $HOME/beeatlas-api.log 2>&1 &
 ```
 
 ### B3. Confirm loopback binding + apply migration
