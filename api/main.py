@@ -469,3 +469,74 @@ def delete_note(note_id):
         )
         db_session.commit()
         return jsonify({"id": note.id}), 200
+
+
+@app.get("/api/notes")
+def list_notes_for_species():
+    """GET /api/notes?species=<canonical_name>: public read (NOTES-04/D-02).
+
+    NO @auth.require_author -- this is the read endpoint the notes island
+    polls after every write and on initial page hydration; the same notes
+    are baked publicly by the nightly harvest, so an unauthenticated read
+    is fine. It still MUST scope to `status='approved'` server-side on
+    every request, regardless of who is asking or whether they authored
+    the note themselves -- `pending`/`removed` notes are never serialized
+    here (D-10, T-179-LEAK).
+
+    Mirrors `/auth/whoami`'s optional-session pattern: a valid session
+    cookie is read if present (never required). For any note whose
+    `author_id` matches the viewer's session uid, the item additionally
+    carries `body_md` (the raw markdown source) and `can_edit: True` so the
+    island can prefill that note's own inline editor -- anonymous callers,
+    and authenticated callers viewing someone else's note, get neither
+    field.
+
+    `byline.display_name`/`byline.collector_url` are intentionally null
+    here: this live endpoint does NOT compute display_name -- only the
+    nightly harvest resolves it from `collectors.json` (D-11, no second
+    name system). The live island therefore shows `@login` immediately
+    after a write, upgrading to the full display name after the next
+    nightly bake -- an expected, intentional divergence between the live
+    and baked bylines (179-RESEARCH.md Pitfall 4), not a bug.
+    """
+    species = request.args.get("species", "")
+    if not species:
+        return jsonify([])
+
+    viewer_uid = None
+    token = request.cookies.get(session.COOKIE_NAME)
+    if token:
+        payload = session.verify_cookie(
+            session.make_serializer(config.SESSION_SIGNING_KEY), token, session.COOKIE_MAX_AGE
+        )
+        if payload is not None:
+            viewer_uid = payload["uid"]
+
+    with Session(_ENGINE) as db_session:
+        rows = (
+            db_session.query(Note, User)
+            .join(User, Note.author_id == User.id)
+            .filter(Note.canonical_name == species, Note.status == "approved")
+            .order_by(Note.created_at.desc())
+            .all()
+        )
+
+        items = []
+        for note, user in rows:
+            item = {
+                "id": note.id,
+                "html": note.body_html,
+                "byline": {
+                    "login": user.inat_login,
+                    "display_name": None,
+                    "collector_url": None,
+                },
+                "created": note.created_at.isoformat(),
+                "updated": note.updated_at.isoformat(),
+            }
+            if viewer_uid is not None and note.author_id == viewer_uid:
+                item["body_md"] = note.body
+                item["can_edit"] = True
+            items.append(item)
+
+        return jsonify(items)
