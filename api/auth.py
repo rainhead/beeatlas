@@ -34,14 +34,28 @@ from notes_store import roles as roles_module
 # cookie's SameSite policy.
 ALLOWED_ORIGINS = {"https://beeatlas.net", "https://www.beeatlas.net"}
 
+# Local-development origins (the Eleventy/Vite dev server) — honored ONLY when
+# config.DEV_MODE is on, i.e. the gitignored secrets.toml carries a localhost
+# redirect_uri for a separate dev iNat app (see api/config.py). Any loopback
+# port: the dev-server port is not security-relevant on a laptop setup, and
+# DEV_MODE cannot be on in production without breaking the prod OAuth app.
+_DEV_ORIGIN_PREFIXES = ("http://localhost:", "http://127.0.0.1:")
+
 # Verbs for which a missing/foreign Origin header is treated as a forged
 # cross-site write attempt (RESEARCH.md Pattern 3 -- "state-changing verb").
 _STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
 def origin_allowed(origin: str | None) -> bool:
-    """Return True if *origin* is exactly one of the configured allowed origins."""
-    return origin in ALLOWED_ORIGINS
+    """Return True if *origin* is one of the configured allowed origins
+    (exact match), or any loopback origin when DEV_MODE is on."""
+    if origin in ALLOWED_ORIGINS:
+        return True
+    return (
+        config.DEV_MODE
+        and origin is not None
+        and origin.startswith(_DEV_ORIGIN_PREFIXES)
+    )
 
 
 def _current_roles() -> dict[str, str]:

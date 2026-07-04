@@ -60,7 +60,18 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 # D-11/Pattern 3: explicit origin allow-list + credentials; NEVER wildcard
 # combined with credentials (browsers reject that combination, and it would
 # defeat the whole point of an allow-list) — T-178-16.
-CORS(app, resources={r"/*": {"origins": list(auth.ALLOWED_ORIGINS)}}, supports_credentials=True)
+# DEV_MODE additionally admits loopback dev-server origins (regex — flask-cors
+# treats patterned strings as regexes); can only be on with a localhost
+# redirect_uri in the gitignored secrets.toml (see api/config.py).
+_cors_origins: list[str] = list(auth.ALLOWED_ORIGINS)
+if config.DEV_MODE:
+    _cors_origins += [r"http://localhost:\d+", r"http://127\.0\.0\.1:\d+"]
+CORS(app, resources={r"/*": {"origins": _cors_origins}}, supports_credentials=True)
+
+# Cookies carry Secure in production; in DEV_MODE (plain-http loopback) the
+# flag is dropped so Safari — which, unlike Chrome/Firefox, refuses Secure
+# cookies over http://localhost — works locally too.
+_COOKIE_SECURE = not config.DEV_MODE
 
 app.config["DEBUG"] = False
 app.debug = False
@@ -183,7 +194,7 @@ def auth_login():
         FLOW_COOKIE_NAME,
         flow_token,
         httponly=True,
-        secure=True,
+        secure=_COOKIE_SECURE,
         samesite="Lax",
         max_age=FLOW_COOKIE_MAX_AGE,
     )
@@ -240,7 +251,11 @@ def auth_callback():
     )
 
     resp = redirect(flow["return_to"])
-    resp.set_cookie(session.COOKIE_NAME, session_token, **session.COOKIE_KWARGS)
+    resp.set_cookie(
+        session.COOKIE_NAME,
+        session_token,
+        **{**session.COOKIE_KWARGS, "secure": _COOKIE_SECURE},
+    )
     resp.delete_cookie(FLOW_COOKIE_NAME)
     return resp
 

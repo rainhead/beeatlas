@@ -35,16 +35,41 @@ INAT_CLIENT_SECRET: str = _OAUTH.get("client_secret", _PLACEHOLDER)
 SESSION_SIGNING_KEY: str = _SESSION.get("signing_key", _PLACEHOLDER)
 
 # Exact-match pin (D-12/D-13) — the iNat app's registered redirect URI.
-# This is the authoritative value regardless of what secrets.toml carries;
-# we assert the toml agrees rather than trusting the file's copy.
-REDIRECT_URI: str = "https://api.beeatlas.net/auth/callback"
+# This is the authoritative production value regardless of what secrets.toml
+# carries; we assert the toml agrees rather than trusting the file's copy.
+#
+# DEV MODE exception: a localhost/127.0.0.1 redirect_uri in the (gitignored)
+# secrets.toml switches the app into local-development mode — a separate dev
+# iNat app registration whose redirect points at the local api/serve.py
+# process. This can never fire in production without the operator rewriting
+# maderas's secrets.toml to a URI that iNat's prod app would refuse anyway.
+_PROD_REDIRECT_URI = "https://api.beeatlas.net/auth/callback"
+_DEV_REDIRECT_PREFIXES = ("http://localhost:", "http://127.0.0.1:")
 
-_toml_redirect_uri = _OAUTH.get("redirect_uri")
-if _toml_redirect_uri is not None:
-    assert _toml_redirect_uri == REDIRECT_URI, (
-        f"api/secrets.toml redirect_uri {_toml_redirect_uri!r} does not match "
-        f"the pinned constant {REDIRECT_URI!r} (D-12/D-13 exact-match requirement)"
+
+def resolve_redirect_uri(toml_value: str | None) -> tuple[str, bool]:
+    """Return ``(redirect_uri, dev_mode)`` for a secrets.toml redirect value.
+
+    - absent → the production pin, dev_mode False
+    - a localhost/127.0.0.1 ``/auth/callback`` URI → that URI, dev_mode True
+    - anything else MUST equal the production pin exactly (D-12/D-13),
+      otherwise AssertionError at import.
+    """
+    if toml_value is None:
+        return _PROD_REDIRECT_URI, False
+    if toml_value.startswith(_DEV_REDIRECT_PREFIXES) and toml_value.endswith(
+        "/auth/callback"
+    ):
+        return toml_value, True
+    assert toml_value == _PROD_REDIRECT_URI, (
+        f"api/secrets.toml redirect_uri {toml_value!r} does not match "
+        f"the pinned constant {_PROD_REDIRECT_URI!r} (D-12/D-13 exact-match "
+        "requirement; only localhost dev URIs are exempt)"
     )
+    return _PROD_REDIRECT_URI, False
+
+
+REDIRECT_URI, DEV_MODE = resolve_redirect_uri(_OAUTH.get("redirect_uri"))
 
 
 _LAUNCH = _CFG.get("launch", {})
