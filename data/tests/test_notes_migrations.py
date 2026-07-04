@@ -9,7 +9,13 @@ Tests:
   test_no_downgrade           — downgrade() on 0001 raises NotImplementedError (Pitfall 4)
   test_run_py_never_migrates  — run.py text contains no notes_store/alembic/notes.db
                                  references and no STEPS entry name contains 'migrat'
-                                 or 'notes' (D-03, STORE-02)
+                                 (D-03, STORE-02). The single sanctioned exception is
+                                 the exact "notes-harvest" step name (Phase 179 D-09):
+                                 a READ-ONLY build-time harvest that opens the store
+                                 via notes_store.db.make_engine (WAL) and never writes
+                                 to it -- see data/notes_harvest.py. Any OTHER
+                                 'notes'-named step (e.g. a hypothetical "notes-write"
+                                 or "notes-migrate") is still banned.
   test_migration_0003_backfills_body_html — 0003 backfills body_html for pre-existing
                                  rows through render_note_markdown and recasts
                                  author_id to an int FK -> users.id (D-05/D-08)
@@ -141,7 +147,16 @@ def test_run_py_never_migrates():
     notes store. This test inspects run.py as plain text (never imports it, since
     that would pull in the whole pipeline) and asserts:
       1. None of the banned strings appear anywhere in the file.
-      2. No STEPS entry name contains 'migrat' or 'notes'.
+      2. No STEPS entry name contains 'migrat', and no STEPS entry name contains
+         'notes' UNLESS it is exactly "notes-harvest" -- the one sanctioned
+         read-only build-time harvest step (Phase 179 D-09/D-16). This narrowing
+         (vs. a blanket "'notes' in name" ban) exists because the harvest step
+         legitimately needs a 'notes'-bearing STEPS name, but the invariant this
+         test guards -- run.py never MIGRATES or WRITES the store -- is unaffected:
+         data/notes_harvest.py only opens notes_store.db.make_engine for reads,
+         and the banned-substring check above still fails loud if the harvest (or
+         any other step) starts referencing alembic/notes_store internals directly
+         from run.py.
 
     STEPS names are extracted by looking for quoted strings on lines that contain
     the tuple open-paren pattern that defines STEPS entries.
@@ -167,14 +182,17 @@ def test_run_py_never_migrates():
     step_names = re.findall(r'^\s*\(\s*["\']([^"\']+)["\']', text, re.MULTILINE)
     assert step_names, "Could not parse any STEPS names from run.py — regex may need updating"
 
+    _ALLOWED_NOTES_STEP = "notes-harvest"  # Phase 179 D-09: sanctioned read-only harvest
     bad_steps = [
         name for name in step_names
-        if "migrat" in name.lower() or "notes" in name.lower()
+        if "migrat" in name.lower()
+        or ("notes" in name.lower() and name != _ALLOWED_NOTES_STEP)
     ]
     assert not bad_steps, (
         f"run.py STEPS contains entries that look like notes migration/write steps: "
         f"{bad_steps}. The nightly pipeline must never migrate or write the "
-        "authoritative notes store (D-03, STORE-02)."
+        f"authoritative notes store (D-03, STORE-02); only {_ALLOWED_NOTES_STEP!r} "
+        "(a read-only build-time harvest) is permitted."
     )
 
 

@@ -1,7 +1,7 @@
 # data/artifacts.toml — single source of truth for every published artifact.
 #
-# Purpose: Declarative contract for all 16 published manifest artifacts
-# (14 hashed + 2 metadata) in manifest order (matching nightly.sh heredoc).
+# Purpose: Declarative contract for all 17 published manifest artifacts
+# (15 hashed + 2 metadata) in manifest order (matching nightly.sh heredoc).
 #
 # Python (artifacts.py) emits plans (publish-plan, baseline-pull-plan,
 # build-time-fetch, manifest) as text only. All S3 I/O stays in nightly.sh
@@ -126,6 +126,14 @@ kind = "hashed"
 source_file = "collector_event_pages.json"
 hash_basename = "collector_event_pages"
 build_time_fetch = true
+
+[artifacts.notes]
+provenance = "authoritative"
+kind = "hashed"
+source_file = "notes.json"
+hash_basename = "notes"
+build_time_fetch = true
+build_time_fetch_optional = true
 
 [artifacts.occurrences_db_tables]
 provenance = "derived"

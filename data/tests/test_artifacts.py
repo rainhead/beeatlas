@@ -1,7 +1,7 @@
 """pytest suite for data/artifacts.py — Phase 176 Plan 01.
 
 Covers:
-- Real contract: 16 artifacts load and validate (in manifest order)
+- Real contract: 17 artifacts load and validate (in manifest order)
 - Fail-loud invariants: every validate() rule has a test
 - SEAM-04 synthetic authoritative: authoritative artifact excluded from baseline pull set
 - SC-3 set-equality regression floor: baseline / build-time-fetch sets locked to
@@ -46,8 +46,10 @@ _EXPECTED_BASELINE = {
     "species_hosts": "species_hosts.json",
 }
 
-# From .github/workflows/deploy.yml lines 49–67 (6 fetches; species_hosts optional)
-# Value = build_time_fetch_optional (True only for species_hosts)
+# From .github/workflows/deploy.yml lines 49–67 (7 fetches; species_hosts and
+# notes optional — Phase 179 D-09/A3: notes is authoritative and has no
+# pre-first-nightly manifest key either, same guard as species_hosts).
+# Value = build_time_fetch_optional
 _EXPECTED_BUILD_TIME_FETCH = {
     "species": False,
     "seasonality": False,
@@ -55,6 +57,7 @@ _EXPECTED_BUILD_TIME_FETCH = {
     "collectors": False,
     "collector_event_pages": False,
     "species_hosts": True,
+    "notes": True,
 }
 
 # Byte-exact manifest golden (reproduces nightly.sh heredoc layout).
@@ -78,6 +81,7 @@ _GOLDEN_MANIFEST = """\
   "species_hosts": "species_hosts-DEADBEEF0000.json",
   "collectors": "collectors-DEADBEEF0000.json",
   "collector_event_pages": "collector_event_pages-DEADBEEF0000.json",
+  "notes": "notes-DEADBEEF0000.json",
   "occurrences_db_tables": ["a","b"],
   "generated_at": "2026-01-01T00:00:00Z"
 }
@@ -98,10 +102,10 @@ def _write_toml(tmp_path, content: str):
 # 1. Real contract: load + validate
 # ---------------------------------------------------------------------------
 
-def test_load_returns_16_artifacts():
-    """Loader returns 16 artifacts from the real contract."""
+def test_load_returns_17_artifacts():
+    """Loader returns 17 artifacts from the real contract."""
     spec = load()
-    assert len(spec) == 16
+    assert len(spec) == 17
 
 
 def test_validate_passes_real_contract():
@@ -111,13 +115,13 @@ def test_validate_passes_real_contract():
 
 
 def test_artifact_order():
-    """16 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
+    """17 artifacts are declared in manifest order (matching nightly.sh heredoc)."""
     spec = load()
     expected = [
         "occurrences", "occurrences_db", "species", "seasonality", "higher_taxa",
         "counties", "ecoregions", "places", "places_meta", "checklist",
         "photos", "species_hosts", "collectors", "collector_event_pages",
-        "occurrences_db_tables", "generated_at",
+        "notes", "occurrences_db_tables", "generated_at",
     ]
     assert list(spec.keys()) == expected
 
@@ -314,8 +318,8 @@ def test_baseline_diff_source_files():
 
 
 def test_build_time_fetch_artifacts_set_equality():
-    """SC-3: build_time_fetch artifact names == deploy.yml fetch-step keys (6 names),
-    with species_hosts optional=true and all others optional=false."""
+    """SC-3: build_time_fetch artifact names == deploy.yml fetch-step keys (7 names),
+    with species_hosts and notes optional=true, all others optional=false."""
     spec = load()
     btf = build_time_fetch_artifacts(spec)
     assert set(btf.keys()) == set(_EXPECTED_BUILD_TIME_FETCH.keys()), (

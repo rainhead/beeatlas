@@ -10,7 +10,13 @@ Pipelines are executed in this order:
     inactive-remap -> inactive-gate -> taxon-lineage-extended -> places-validation -> places-load ->
     dbt-build -> dedup-candidates -> dedup-gate -> generate-sqlite -> topology-postprocess ->
     species-export -> species-maps -> places-export -> collectors-export ->
-    collectors-events-export -> places-maps -> feeds
+    collectors-events-export -> notes-harvest -> places-maps -> feeds
+
+Note: notes-harvest (Phase 179, D-09) is a READ-ONLY build-time harvest of the
+separate authoritative notes store (data/notes_harvest.py) -- it runs AFTER
+collectors-events-export (D-12: needs collectors.json's login set for byline
+resolution) and never migrates or writes that store (D-03/STORE-02; the store
+itself is owned by the write-layer deploy, outside this module).
 
 Note: collector-maps was removed in Phase 172 GC2. Per-collector SVG files are
 replaced by two committed base-map partials (_includes/maps/counties-base.svg and
@@ -55,6 +61,7 @@ from places_load import load_places_step
 from places_export import export_places_step
 from collectors_export import export_collectors_step
 from collectors_events_export import export_collectors_events_step
+from notes_harvest import main as export_notes_step
 from places_maps import main as generate_place_maps_step
 from sqlite_export import main as generate_sqlite_export
 from checklist_dedup import write_dedup_candidates, check_dedup_gate
@@ -136,6 +143,10 @@ STEPS: list[tuple[str, Callable]] = [
     ("places-export", export_places_step),
     ("collectors-export", export_collectors_step),
     ("collectors-events-export", export_collectors_events_step),
+    # D-12: notes-harvest runs after collectors-export so collectors.json's
+    # login set is available for byline resolution. Read-only against the
+    # authoritative notes store (D-09/D-16) -- never migrates or writes it.
+    ("notes-harvest", export_notes_step),
     ("places-maps", generate_place_maps_step),
     ("feeds", generate_feeds),
 ]
