@@ -1,5 +1,16 @@
 # Phase 178: Thin Write Layer + iNat OAuth - Research
 
+> **⚠ SERVING-MECHANISM SUPERSESSION (2026-07-03) — read before using the deployment sections.**
+> This research recommended `flup6` + Apache `mod_fcgid` + a `.fcgi` wrapper. **That was REJECTED
+> during execution** — `flup6`'s last release was 2015; an unmaintained decade-stale dependency for
+> the write layer's HTTP front door is unacceptable. **Authoritative decision: CONTEXT.md D-17/D-18 —
+> serve the WSGI app with [Waitress](https://docs.pylonsproject.org/projects/waitress/) (maintained,
+> pure-Python WSGI server) as a persistent loopback process behind Apache `mod_proxy_http`; Flask uses
+> `ProxyFix` to trust `X-Forwarded-*`; supervise via a `--user` systemd unit (confirm systemd on
+> maderas first) else cron `@reboot`.** Everything below about `flup6`/`mod_fcgid`/`.fcgi`/Pitfall 3
+> (flup `cgitb`) is **obsolete** — the OAuth, session, CSRF/CORS, and secrets research is unaffected.
+> Waitress keeps the one virtue flup6 had here: pure-Python, so nothing compiles against Python 3.14.
+
 **Researched:** 2026-07-03
 **Domain:** Server-side OAuth2 (Doorkeeper/iNaturalist) + Apache mod_fcgid/Flask deployment + cross-subdomain CSRF/CORS
 **Confidence:** HIGH (OAuth mechanics + mod_fcgid deployment verified live; MEDIUM on exact scope/consent behavior — iNat's scope model is coarser than typical OAuth providers)
