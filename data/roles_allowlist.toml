@@ -19,3 +19,6 @@
 # These are read by tests (test_notes_seed_roles.py). Do not remove.
 example_author = "author"
 example_curator = "curator"
+
+# Real contributors (the commit adding each line is the audit record — D-07).
+rainhead = "curator"  # Peter Abrahamsen — site operator; first real contributor (178-08 C2, WRITE-04)
