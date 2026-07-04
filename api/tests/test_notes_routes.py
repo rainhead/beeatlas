@@ -1,0 +1,351 @@
+"""Route-level integration tests for the note CRUD + read endpoints
+(179-02; NOTES-01, NOTES-02, NOTES-04).
+
+Mirrors api/tests/test_routes.py's fixture style (client/tmp_engine/_mint/
+_allowlist_toml helpers, monkeypatched signing key + allowlist path) since
+those fixtures are module-local to that file, not importable from
+conftest.py -- duplicated here rather than redefined differently.
+
+Session cookies embed {uid, login, role}; author_id on a written Note is a
+real FK to users.id, so tests that create/edit notes always insert a
+matching User row first via `_make_user`, then mint the session with that
+same internal id as uid -- exactly the shape api/users.py:upsert_user
+produces in the real login flow.
+"""
+
+import datetime
+
+import pytest
+from sqlalchemy.orm import Session
+
+import api.config as config
+import api.main as main
+import api.session as session
+from notes_store.db import make_engine
+from notes_store.models import Base, Note, NoteRevision, User
+
+ALLOWED_ORIGIN = "https://beeatlas.net"
+
+
+@pytest.fixture
+def client():
+    return main.app.test_client()
+
+
+@pytest.fixture(autouse=True)
+def _base_env(monkeypatch):
+    monkeypatch.setattr(config, "SESSION_SIGNING_KEY", "throwaway-test-signing-key")
+    monkeypatch.setattr(config, "INAT_CLIENT_ID", "test-client-id")
+    monkeypatch.setattr(config, "WRITES_ENABLED", True)
+
+
+@pytest.fixture
+def tmp_engine(tmp_path, monkeypatch):
+    engine = make_engine(tmp_path / "notes.db")
+    Base.metadata.create_all(engine)
+    monkeypatch.setattr(main, "_ENGINE", engine)
+    return engine
+
+
+def _mint(login="allowed_author", role="author", uid=1):
+    serializer = session.make_serializer("throwaway-test-signing-key")
+    return session.mint_cookie(serializer, internal_id=uid, inat_login=login, role=role)
+
+
+def _allowlist_toml(tmp_path, roles: dict):
+    path = tmp_path / "roles_allowlist.toml"
+    body = "[roles]\n" + "\n".join(f'{login} = "{role}"' for login, role in roles.items())
+    path.write_text(body)
+    return path
+
+
+def _make_user(engine, login="allowed_author", inat_user_id=42) -> int:
+    now = datetime.datetime.now(datetime.UTC)
+    with Session(engine) as db_session:
+        user = User(
+            inat_login=login,
+            inat_user_id=inat_user_id,
+            created_at=now,
+            updated_at=now,
+        )
+        db_session.add(user)
+        db_session.commit()
+        return user.id
+
+
+def _make_note(engine, canonical_name="apis mellifera", author_id=1, body_md="hello", status="approved"):
+    now = datetime.datetime.now(datetime.UTC)
+    with Session(engine) as db_session:
+        note = Note(
+            canonical_name=canonical_name,
+            author_id=author_id,
+            body=body_md,
+            body_html=f"<p>{body_md}</p>",
+            status=status,
+            created_at=now,
+            updated_at=now,
+        )
+        db_session.add(note)
+        db_session.flush()
+        db_session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=body_md,
+                editor_id=str(author_id),
+                revised_at=now,
+                action="create",
+            )
+        )
+        db_session.commit()
+        return note.id
+
+
+def _sign_in(client, monkeypatch, tmp_path, login="allowed_author", role="author", uid=1):
+    allowlist_path = _allowlist_toml(tmp_path, {login: role})
+    monkeypatch.setattr(main.auth.roles_module, "_ALLOWLIST", allowlist_path)
+    token = _mint(login=login, role=role, uid=uid)
+    client.set_cookie(session.COOKIE_NAME, token, domain="localhost")
+
+
+# ---------------------------------------------------------------------------
+# POST /api/notes
+# ---------------------------------------------------------------------------
+
+
+def test_create_note_renders_and_sanitizes(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine, login="allowed_author")
+    _sign_in(client, monkeypatch, tmp_path, login="allowed_author", uid=uid)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "**bold** note with a [link](https://example.com)"},
+    )
+    assert resp.status_code == 201
+    note_id = resp.get_json()["id"]
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.canonical_name == "apis mellifera"
+        assert note.author_id == uid
+        assert note.status == "approved"
+        assert note.body == "**bold** note with a [link](https://example.com)"
+        assert "<strong>bold</strong>" in note.body_html
+        assert "<script>" not in note.body_html
+        assert note.created_at is not None
+        assert note.updated_at is not None
+
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note.id).all()
+        assert len(revisions) == 1
+        assert revisions[0].action == "create"
+
+
+def test_create_note_empty_body_md_is_400(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "   "},
+    )
+    assert resp.status_code == 400
+    with Session(tmp_engine) as db_session:
+        assert db_session.query(Note).count() == 0
+
+
+def test_create_note_empty_canonical_name_is_400(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "  ", "body_md": "a fine note"},
+    )
+    assert resp.status_code == 400
+    with Session(tmp_engine) as db_session:
+        assert db_session.query(Note).count() == 0
+
+
+def test_create_note_body_over_length_cap_is_400(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "x" * 5001},
+    )
+    assert resp.status_code == 400
+    with Session(tmp_engine) as db_session:
+        assert db_session.query(Note).count() == 0
+
+
+def test_create_note_no_cookie_is_401(client):
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hi"},
+    )
+    assert resp.status_code == 401
+
+
+def test_create_note_foreign_origin_is_403(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": "https://evil.example.com"},
+        json={"canonical_name": "apis mellifera", "body_md": "hi"},
+    )
+    assert resp.status_code == 403
+
+
+def test_create_note_writes_disabled_is_503(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+    monkeypatch.setattr(config, "WRITES_ENABLED", False)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"canonical_name": "apis mellifera", "body_md": "hi"},
+    )
+    assert resp.status_code == 503
+
+
+def test_create_note_forged_author_id_in_body_is_ignored(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine, login="allowed_author")
+    _sign_in(client, monkeypatch, tmp_path, login="allowed_author", uid=uid)
+
+    resp = client.post(
+        "/api/notes",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={
+            "canonical_name": "apis mellifera",
+            "body_md": "hi",
+            "author_id": 999999,
+            "author": "someone_else_entirely",
+        },
+    )
+    assert resp.status_code == 201
+    note_id = resp.get_json()["id"]
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.author_id == uid
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/notes/<id>
+# ---------------------------------------------------------------------------
+
+
+def test_edit_note_by_owner_succeeds(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=uid, body_md="original")
+    _sign_in(client, monkeypatch, tmp_path, login="owner", uid=uid)
+
+    resp = client.patch(
+        f"/api/notes/{note_id}",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"body_md": "**updated** text"},
+    )
+    assert resp.status_code == 200
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.body == "**updated** text"
+        assert "<strong>updated</strong>" in note.body_html
+
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).order_by(NoteRevision.id).all()
+        assert [r.action for r in revisions] == ["create", "edit"]
+
+
+def test_edit_note_by_non_owner_is_403(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid, body_md="original")
+
+    other_uid = _make_user(tmp_engine, login="someone_else")
+    _sign_in(client, monkeypatch, tmp_path, login="someone_else", uid=other_uid)
+
+    resp = client.patch(
+        f"/api/notes/{note_id}",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"body_md": "hijack attempt"},
+    )
+    assert resp.status_code == 403
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.body == "original"
+
+
+def test_edit_note_missing_is_404(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+
+    resp = client.patch(
+        "/api/notes/999999",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"body_md": "whatever"},
+    )
+    assert resp.status_code == 404
+
+
+def test_edit_note_no_cookie_is_401(client, tmp_engine):
+    uid = _make_user(tmp_engine)
+    note_id = _make_note(tmp_engine, author_id=uid)
+
+    resp = client.patch(
+        f"/api/notes/{note_id}",
+        headers={"Origin": ALLOWED_ORIGIN},
+        json={"body_md": "whatever"},
+    )
+    assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/notes/<id>
+# ---------------------------------------------------------------------------
+
+
+def test_delete_note_by_owner_is_soft_delete(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=uid, body_md="to be removed")
+    _sign_in(client, monkeypatch, tmp_path, login="owner", uid=uid)
+
+    resp = client.delete(f"/api/notes/{note_id}", headers={"Origin": ALLOWED_ORIGIN})
+    assert resp.status_code == 200
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note is not None  # row survives (soft delete)
+        assert note.status == "removed"
+
+        revisions = db_session.query(NoteRevision).filter_by(note_id=note_id).order_by(NoteRevision.id).all()
+        assert [r.action for r in revisions] == ["create", "remove"]
+
+
+def test_delete_note_by_non_owner_is_403(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    note_id = _make_note(tmp_engine, author_id=owner_uid)
+
+    other_uid = _make_user(tmp_engine, login="someone_else")
+    _sign_in(client, monkeypatch, tmp_path, login="someone_else", uid=other_uid)
+
+    resp = client.delete(f"/api/notes/{note_id}", headers={"Origin": ALLOWED_ORIGIN})
+    assert resp.status_code == 403
+
+    with Session(tmp_engine) as db_session:
+        note = db_session.get(Note, note_id)
+        assert note.status == "approved"
+
+
+def test_delete_note_missing_is_404(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine)
+    _sign_in(client, monkeypatch, tmp_path, uid=uid)
+
+    resp = client.delete("/api/notes/999999", headers={"Origin": ALLOWED_ORIGIN})
+    assert resp.status_code == 404
