@@ -154,6 +154,20 @@ export class BeeAtlasStack extends cdk.Stack {
       });
     }
 
+    // ── Route 53 record: api.beeatlas.net → maderas (Phase 178 write layer) ──
+    // Plain A record to a fixed IP, NOT a CloudFront alias — api.beeatlas.net
+    // serves directly from maderas via Apache mod_proxy_http -> Waitress
+    // (D-17), with its own certbot-issued TLS cert (independent of the
+    // CloudFront ACM certs used for beeatlas.net / beeatlas.com). Surgical,
+    // additive-only edit — never touch siteBucket/distribution/OIDC role/
+    // AuthoritativeBackupBucket here, and never `cdk destroy`
+    // (memory project_cdk_stack_composition).
+    new route53.ARecord(this, 'ApiA', {
+      zone: netZone,
+      recordName: 'api',
+      target: route53.RecordTarget.fromIpAddresses('45.79.96.48'),
+    });
+
     // ── Redirect: beeatlas.com → beeatlas.net ─────────────────────────────
     // A CloudFront Function returns a 301 at the viewer-request stage so the
     // origin (siteBucket) is never actually contacted for .com requests.
