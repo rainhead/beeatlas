@@ -13,6 +13,7 @@ tests and the static build never need real secrets. Call
 loudly before any route that actually needs a real secret.
 """
 
+import os
 import tomllib
 from pathlib import Path
 
@@ -44,6 +45,15 @@ if _toml_redirect_uri is not None:
         f"api/secrets.toml redirect_uri {_toml_redirect_uri!r} does not match "
         f"the pinned constant {REDIRECT_URI!r} (D-12/D-13 exact-match requirement)"
     )
+
+
+# WRITE-04 launch gate: writes are refused (503) until the operator confirms
+# the 177-07 restore drill and flips this on. Env-driven (like data/run.py's
+# DB_PATH/EXPORT_DIR), NOT read from secrets.toml — this is an operational
+# switch, not a secret. Default False (writes closed) so a fresh checkout or
+# CI never accidentally serves writes. See 178-06/178-08 for where the
+# operator sets WRITES_ENABLED=true on maderas after confirming the restore.
+WRITES_ENABLED: bool = os.environ.get("WRITES_ENABLED", "false").lower() == "true"
 
 
 def require_real_secrets() -> None:
