@@ -29,7 +29,8 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+pythonpath = [".", ".."]
+testpaths = ["tests", "../api/tests"]
 addopts = "-m 'not integration'"
 markers = [
     "integration: validates real datasets/built artifacts (nightly tier); deselected by default",
