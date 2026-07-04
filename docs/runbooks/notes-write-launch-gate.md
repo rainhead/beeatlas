@@ -243,3 +243,24 @@ the demonstrated restore + the `writes_enabled` flag, in this order:
 
 Record the `503` → `200` transition and the restore confirmation in the plan's SUMMARY
 when this checklist is executed (178-08 Task 3).
+
+---
+
+## Security UAT results — 2026-07-04 (178-09)
+
+Run live against the deployed api.beeatlas.net (Waitress behind Apache `mod_proxy_http`)
+in a real Chrome session (Claude-driven, operator-verified). Verdict: **PASS, all 7 items.**
+
+| # | Check | Result | Evidence |
+|---|-------|--------|----------|
+| 1 | Sign-in E2E from beeatlas.net | PASS ✅ | Full OAuth round trip; header shows `rainhead (Author)` — exercised from the MAP page header (178-07 gap-fix wiring verified live) |
+| 2 | No secret/token leak; session cookie flags | PASS ✅ | `document.cookie` empty + 0 JS-visible cookies (CookieStore API) while the session works ⇒ HttpOnly live-proven; no token/secret keys in local/sessionStorage; no `client_secret` in bundle/network/URLs; operator confirmed HttpOnly ✓ Secure ✓ SameSite=Strict on `beeatlas_session` in DevTools; site origin `beeatlas.net` carries zero cookies |
+| 3 | Forged-author POST rejected | PASS ✅ | `POST /api/write-check` with `{"author_id": 999999}` → 200 with server-derived `{login: rainhead, role, uid}`; `999999` nowhere in the response. Anonymous same POST → 401 |
+| 4 | Cross-origin POST blocked | PASS ✅ | Same POST from `https://example.com` console with `credentials:'include'` → CORS preflight failure (`TypeError: Failed to fetch`), request never sent; server-side Origin 403 gate is the second layer (unit-tested) |
+| 5 | redirect_uri exact-match pin | PASS ✅ | Positive: live authorize URL carries exactly `https://api.beeatlas.net/auth/callback`. Negative: tampered `redirect_uri=https://api.beeatlas.net/evil` → iNat/Doorkeeper error page "The redirect uri included is not valid." |
+| 6 | PKCE used (no plain fallback) | PASS ✅ | Live authorize URL carries `code_challenge` + `code_challenge_method=S256`; exchange succeeded with the verifier |
+| 7 | Traceback guard under Waitress | PASS ✅ | `GET /auth/callback` (no params) → generic "Bad Request" page, no traceback markers in the HTML (`app.debug=False` + generic handler) |
+
+Context: the flow cookie is `Secure; HttpOnly; SameSite=Lax` by design (Lax is load-bearing —
+see the 2026-07-04 SameSite fix `b4ba0005`; the callback is a cross-site top-level navigation
+from inaturalist.org). The long-lived `beeatlas_session` cookie is `Strict`.
