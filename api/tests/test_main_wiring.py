@@ -76,4 +76,9 @@ def test_config_exposes_writes_enabled_and_serve_port():
     assert isinstance(config.WRITES_ENABLED, bool)
     assert hasattr(config, "SERVE_PORT")
     assert isinstance(config.SERVE_PORT, int)
-    assert config.SERVE_PORT == 8080  # default, no env/toml override in CI
+    # The import-time SERVE_PORT legitimately varies with the developer's
+    # gitignored secrets.toml (the dev loop uses 8081) — assert the
+    # resolution logic, not the machine-dependent snapshot.
+    assert config.resolve_serve_port(None, None) == 8080  # documented default
+    assert config.resolve_serve_port(None, 8081) == 8081  # toml key
+    assert config.resolve_serve_port("9090", 8081) == 9090  # env wins

@@ -72,15 +72,20 @@ def test_authorize_url_contains_required_params():
 
 
 def test_authorize_url_pins_exact_redirect_uri_constant():
-    """authorize_url() must carry the exact pinned api.config.REDIRECT_URI (D-12/D-13)."""
+    """authorize_url() must carry the exact pinned production redirect URI
+    (D-12/D-13). The import-time config.REDIRECT_URI legitimately varies with
+    the developer's gitignored secrets.toml (localhost in the dev loop), so
+    assert the pin via the resolution logic, not the machine snapshot."""
+    prod_uri, dev = config.resolve_redirect_uri(None)
+    assert prod_uri == "https://api.beeatlas.net/auth/callback"
+    assert dev is False
     url = oauth.authorize_url(
         client_id="client-123",
-        redirect_uri=config.REDIRECT_URI,
+        redirect_uri=prod_uri,
         state="state-abc",
         code_challenge="challenge-xyz",
     )
-    assert config.REDIRECT_URI == "https://api.beeatlas.net/auth/callback"
-    assert f"redirect_uri={config.REDIRECT_URI}" in url
+    assert f"redirect_uri={prod_uri}" in url
 
 
 # ---------------------------------------------------------------------------

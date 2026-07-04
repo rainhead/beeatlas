@@ -96,7 +96,34 @@ else:
 # proxies https://api.beeatlas.net -> 127.0.0.1:<port> (D-17). Sourced from
 # the `[serve] port` key in api/secrets.toml, default 8080 if absent; a
 # SERVE_PORT env var override takes precedence, mirroring WRITES_ENABLED.
-SERVE_PORT: int = int(os.environ.get("SERVE_PORT", _SERVE.get("port", 8080)))
+def resolve_serve_port(env_value: str | None, toml_value: int | None) -> int:
+    """SERVE_PORT precedence: env var > `[serve] port` toml key > 8080."""
+    if env_value is not None:
+        return int(env_value)
+    if toml_value is not None:
+        return int(toml_value)
+    return 8080
+
+
+SERVE_PORT: int = resolve_serve_port(
+    os.environ.get("SERVE_PORT"), _SERVE.get("port")
+)
+
+# DEV_MODE consistency guard: the loopback redirect URI must point at the
+# port this process actually binds, or the OAuth callback lands on nothing
+# (or shadows the Eleventy dev server on 8080 — found live during dev-loop
+# setup). Fail at import with an actionable message rather than a dead
+# callback at sign-in time.
+if DEV_MODE:
+    from urllib.parse import urlsplit as _urlsplit
+
+    _redirect_port = _urlsplit(REDIRECT_URI).port
+    assert _redirect_port == SERVE_PORT, (
+        f"DEV_MODE port mismatch: redirect_uri points at port {_redirect_port} "
+        f"but the server binds SERVE_PORT={SERVE_PORT}. Align them — set "
+        '`[serve] port` in api/secrets.toml to the redirect port (8081 per '
+        "api/README.md; 8080 is the Eleventy dev server)."
+    )
 
 
 def require_real_secrets() -> None:

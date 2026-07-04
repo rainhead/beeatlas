@@ -85,3 +85,17 @@ def test_prod_origins_still_allowed_in_both_modes(monkeypatch):
         monkeypatch.setattr(config, "DEV_MODE", dev)
         assert auth.origin_allowed("https://beeatlas.net") is True
         assert auth.origin_allowed("https://www.beeatlas.net") is True
+
+
+# --- DEV_MODE port-consistency guard ----------------------------------------
+
+
+def test_dev_port_mismatch_guard_message():
+    """The import-time guard (config.py) asserts redirect port == SERVE_PORT
+    in DEV_MODE. The module under test is already imported, so exercise the
+    same predicate the guard uses rather than re-importing with a bad file."""
+    from urllib.parse import urlsplit
+
+    uri, dev = config.resolve_redirect_uri("http://localhost:8081/auth/callback")
+    assert dev is True
+    assert urlsplit(uri).port == 8081  # what the guard compares to SERVE_PORT

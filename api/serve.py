@@ -56,6 +56,19 @@ app.debug = False
 
 
 def main() -> None:
+    # Startup confirmation (flush=True: journald/log files see it even when
+    # stdout is block-buffered under a supervisor). No secrets — only the
+    # bind address, mode, and store path.
+    from api.config import DEV_MODE, REDIRECT_URI
+
+    mode = "DEV" if DEV_MODE else "production"
+    print(
+        f"beeatlas-api: waitress listening on http://127.0.0.1:{SERVE_PORT} "
+        f"[{mode} mode] redirect_uri={REDIRECT_URI} "
+        f"store={os.environ['NOTES_DB_PATH']}",
+        flush=True,
+    )
+
     # The loopback literal is HARDCODED here -- never 0.0.0.0, never
     # config-driven -- so this process is unreachable except through
     # Apache's reverse proxy (D-17 security posture, T-178-25). Only the
