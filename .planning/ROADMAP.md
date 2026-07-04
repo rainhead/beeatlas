@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 4/9 | In Progress|  |
+| 178. Thin Write Layer + iNat OAuth | 5/9 | In Progress|  |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -166,7 +166,7 @@ Plans:
 **Wave 3** *(blocked on Wave 2)*
 
 - [x] 178-04-PLAN.md — OAuth module: server-side PKCE code exchange + `/v1/users/me` identity + iNat-token discard (D-01/D-02/D-03; Bearer-vs-raw header gotcha) [WRITE-02]
-- [ ] 178-05-PLAN.md — Session + authz + users-access: itsdangerous long-lived cookie (D-04), per-write allowlist recheck + Origin CSRF gate + launch-gate check + forged-author rejection + `upsert_user` (D-05/D-07/D-08/D-09) [WRITE-02, WRITE-03, WRITE-04]
+- [x] 178-05-PLAN.md — Session + authz + users-access: itsdangerous long-lived cookie (D-04), per-write allowlist recheck + Origin CSRF gate + launch-gate check + forged-author rejection + `upsert_user` (D-05/D-07/D-08/D-09) [WRITE-02, WRITE-03, WRITE-04]
 
 **Wave 4** *(blocked on Wave 3)*
 

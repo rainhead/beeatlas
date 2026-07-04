@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 178-04-PLAN.md
-last_updated: "2026-07-04T04:47:33.909Z"
+stopped_at: Completed 178-05-PLAN.md
+last_updated: "2026-07-04T04:57:53.009Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 47
   completed_phases: 25
   total_plans: 77
-  completed_plans: 74
+  completed_plans: 75
   percent: 53
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 178 (thin-write-layer-inat-oauth) — EXECUTING
-Plan: 5 of 9
+Plan: 6 of 9
 Status: Ready to execute
 Last activity: 2026-07-04
 
@@ -46,7 +46,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Not started |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 96%
+**Progress:** [██████████] 97%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -80,6 +80,7 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase ?]: backup_notes split into make_snapshot/upload_snapshot for local testability without S3
 - [Phase ?]: 178-02: test_notes_migrations.py::test_migration_applies now targets revision 0001 explicitly instead of head (head advanced to 0002 with users-table migration)
 - [Phase 178]: OAuth fetch_identity sends Bearer to /users/api_token but RAW JWT (no Bearer) to /v1/users/me, matching the official inaturalistjs client — RESEARCH.md Pitfall 2 flagged this as ambiguous; implemented per the HIGH-confidence official-client citation
+- [Phase 178]: 178-05: allowlist revocation re-reads roles TOML from disk per request; WRITES_ENABLED is an env-driven launch gate (not a secret)
 
 ### Roadmap Evolution
 
@@ -124,8 +125,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-04T04:47:33.900Z
-Stopped at: Completed 178-04-PLAN.md
+Last session: 2026-07-04T04:57:53.000Z
+Stopped at: Completed 178-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

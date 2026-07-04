@@ -33,8 +33,8 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 
 - [x] **WRITE-01**: A thin managed write app (a maderas-hosted Flask/WSGI service served by Waitress behind Apache `mod_proxy_http`, isolated alongside the existing pipeline — per 177 D-01 + 178 D-17, NOT `mod_fcgid`/flup6, NOT API Gateway + Lambda) accepts authenticated writes; the read path remains fully static.
 - [x] **WRITE-02**: iNaturalist OAuth2 (server-side code exchange with PKCE) authenticates authors; the write app derives identity server-side (never trusts client-supplied identity) and issues its own app session rather than calling iNat per request. Given the low threat model the session is long-lived with per-write allowlist recheck for revocation (relaxing the original "short-lived" wording). No secret ships in the client bundle; no token in `localStorage`/URL.
-- [ ] **WRITE-03**: Write authorization checks an author allowlist — only allowlisted experts can create/edit notes — with CSRF/origin protection on the write endpoint and minimal (identity-only) OAuth scope.
-- [ ] **WRITE-04**: Enabling public writes is gated on a demonstrated backup restore (STORE-03) — a launch checklist item, not an afterthought.
+- [x] **WRITE-03**: Write authorization checks an author allowlist — only allowlisted experts can create/edit notes — with CSRF/origin protection on the write endpoint and minimal (identity-only) OAuth scope.
+- [x] **WRITE-04**: Enabling public writes is gated on a demonstrated backup restore (STORE-03) — a launch checklist item, not an afterthought.
 
 ### Species Natural-History Notes
 
@@ -93,8 +93,8 @@ Which phases cover which requirements. Filled during roadmap creation (2026-07-0
 | STORE-04 | Phase 177 | Complete |
 | WRITE-01 | Phase 178 | Complete |
 | WRITE-02 | Phase 178 | Complete |
-| WRITE-03 | Phase 178 | Pending |
-| WRITE-04 | Phase 178 | Pending |
+| WRITE-03 | Phase 178 | Complete |
+| WRITE-04 | Phase 178 | Complete |
 | NOTES-01 | Phase 179 | Pending |
 | NOTES-02 | Phase 179 | Pending |
 | NOTES-03 | Phase 179 | Pending |
