@@ -16,6 +16,104 @@ export interface AuthState {
   isAuthor?: boolean;
 }
 
+// Phase 179-05: note CRUD client. Shapes mirror the read endpoint's JSON
+// (GET /api/notes?species=, 179-02-PLAN.md) and the write endpoints'
+// {id} success bodies (POST/PATCH/DELETE /api/notes[...]).
+//
+// `body_md`/`can_edit` are only present on items belonging to the viewer's
+// own session (server-enriched) -- used to prefill the editor for the
+// author's own notes (179-UI-SPEC.md Interaction Contract, Edit section).
+export interface NoteView {
+  id: number;
+  html: string;
+  byline: {
+    login: string;
+    display_name: string | null;
+    collector_url: string | null;
+  };
+  created: string;
+  updated: string;
+  body_md?: string;
+  can_edit?: boolean;
+}
+
+// Discriminated result for mutating calls so the island can distinguish
+// success / 403 (ownership lost mid-session) / other failure (network,
+// 400, 401, 503) without ever throwing (mirrors fetchWhoami's never-throw
+// stance).
+export type NoteMutationResult =
+  | { ok: true; data: { id: number } }
+  | { ok: false; status: number };
+
+/**
+ * GET /api/notes?species=<canonicalName> -- public read; a network error or
+ * non-ok response resolves to [] rather than throwing, so the island's
+ * initial load / re-fetch-after-write never needs a try/catch of its own.
+ */
+export async function fetchSpeciesNotes(canonicalName: string): Promise<NoteView[]> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/notes?species=${encodeURIComponent(canonicalName)}`,
+      { credentials: 'include' },
+    );
+    if (!res.ok) return [];
+    const body = await res.json();
+    return Array.isArray(body) ? (body as NoteView[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * POST /api/notes -- create a note as the signed-in author. Never throws:
+ * network errors resolve to `{ok:false, status:0}` so the caller can show
+ * the same "couldn't save" copy regardless of failure cause.
+ */
+export async function createNote(canonicalName: string, bodyMd: string): Promise<NoteMutationResult> {
+  return _postJson(`${API_BASE}/api/notes`, 'POST', { canonical_name: canonicalName, body_md: bodyMd });
+}
+
+/**
+ * PATCH /api/notes/<id> -- edit the caller's own note. A 403 means
+ * ownership was lost mid-session (e.g. role revoked) -- surfaced distinctly
+ * so the UI can show the "no longer have permission" copy instead of the
+ * generic error.
+ */
+export async function updateNote(id: number, bodyMd: string): Promise<NoteMutationResult> {
+  return _postJson(`${API_BASE}/api/notes/${id}`, 'PATCH', { body_md: bodyMd });
+}
+
+/**
+ * DELETE /api/notes/<id> -- soft-delete the caller's own note (server-side
+ * D-07; the client never sees or cares that it's a soft delete).
+ */
+export async function deleteNote(id: number): Promise<NoteMutationResult> {
+  try {
+    const res = await fetch(`${API_BASE}/api/notes/${id}`, { method: 'DELETE', credentials: 'include' });
+    if (!res.ok) return { ok: false, status: res.status };
+    const data = await res.json();
+    return { ok: true, data };
+  } catch {
+    return { ok: false, status: 0 };
+  }
+}
+
+async function _postJson(url: string, method: 'POST' | 'PATCH', payload: unknown): Promise<NoteMutationResult> {
+  try {
+    const res = await fetch(url, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return { ok: false, status: res.status };
+    const data = await res.json();
+    return { ok: true, data };
+  } catch {
+    return { ok: false, status: 0 };
+  }
+}
+
 /**
  * GET /auth/whoami — anonymous-friendly session introspection. Never throws:
  * network errors resolve to `{authenticated:false}` so the caller (the
