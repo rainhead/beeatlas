@@ -30,6 +30,7 @@ are belt-and-suspenders).
 Do NOT inline note CRUD here — that is Phase 179.
 """
 
+import datetime
 import secrets as _secrets
 import tomllib
 from urllib.parse import urlsplit
@@ -37,6 +38,7 @@ from urllib.parse import urlsplit
 from flask import Flask, abort, g, jsonify, redirect, request
 from flask_cors import CORS
 from itsdangerous import BadSignature, URLSafeTimedSerializer
+from sqlalchemy.orm import Session
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -47,6 +49,8 @@ import api.session as session
 import api.users as users
 from notes_store import roles as roles_module
 from notes_store.db import make_engine
+from notes_store.models import Note, NoteRevision, User
+from notes_store.render import render_note_markdown
 
 app = Flask(__name__)
 
@@ -319,3 +323,149 @@ def write_check():
     identity = g.identity
     role = _fresh_role(identity["login"])
     return jsonify({"uid": identity["uid"], "login": identity["login"], "role": role})
+
+
+# ---------------------------------------------------------------------------
+# Note CRUD + read routes (179-02; NOTES-01, NOTES-02, NOTES-04)
+#
+# author_id is ALWAYS g.identity["uid"] (the server-derived session identity)
+# -- a client-supplied author_id/author field in the request body is never
+# consulted (D-08, T-179-AUTHZ). Ownership on PATCH/DELETE is a plain
+# `note.author_id != g.identity["uid"]` comparison -- the one genuinely new
+# authz check this phase adds on top of the already-hardened
+# `require_author` (session verify + fresh allowlist recheck + Origin check
+# + WRITE-04 launch gate).
+# ---------------------------------------------------------------------------
+
+# D-03/Pitfall (markdown-based DoS defense-in-depth): a generous but bounded
+# cap on note length; not a locked requirement, planner's discretion.
+_NOTE_BODY_MAX_LENGTH = 5000
+
+
+@app.post("/api/notes")
+@auth.require_author
+def create_note():
+    """POST /api/notes: an allowlisted author creates a note (NOTES-01).
+
+    Stores both the raw markdown (`body`, for future editing) and the
+    server-rendered+sanitized HTML (`body_html`, D-04/D-06) -- rendered
+    exactly once, here, via the shared `render_note_markdown`. Appends a
+    `note_revisions` row (`action='create'`, D-07's audit ledger).
+    """
+    identity = g.identity
+    payload = request.get_json(silent=True) or {}
+    canonical_name = (payload.get("canonical_name") or "").strip()
+    body_md = (payload.get("body_md") or "").strip()
+
+    if not canonical_name or not body_md:
+        abort(400)
+    if len(body_md) > _NOTE_BODY_MAX_LENGTH:
+        abort(400)
+
+    body_html = render_note_markdown(body_md)
+    now = datetime.datetime.now(datetime.UTC)
+
+    with Session(_ENGINE) as db_session:
+        note = Note(
+            canonical_name=canonical_name,
+            author_id=identity["uid"],
+            body=body_md,
+            body_html=body_html,
+            status="approved",
+            created_at=now,
+            updated_at=now,
+        )
+        db_session.add(note)
+        db_session.flush()  # assigns note.id for the revision FK below
+        db_session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=body_md,
+                editor_id=str(identity["uid"]),
+                revised_at=now,
+                action="create",
+            )
+        )
+        db_session.commit()
+        return jsonify({"id": note.id}), 201
+
+
+@app.patch("/api/notes/<int:note_id>")
+@auth.require_author
+def edit_note(note_id):
+    """PATCH /api/notes/<id>: the note's owner edits it (NOTES-02).
+
+    Ownership (D-08 -- an author acts only on their own notes; curator
+    override is Phase 180) is a server-derived `note.author_id ==
+    g.identity["uid"]` comparison; abort(404) if the note doesn't exist at
+    all, abort(403) if it exists but belongs to someone else -- the load
+    happens BEFORE the ownership check so a guessed/enumerated id belonging
+    to another author never mutates (T-179-IDOR).
+    """
+    identity = g.identity
+    payload = request.get_json(silent=True) or {}
+    body_md = (payload.get("body_md") or "").strip()
+
+    if not body_md:
+        abort(400)
+    if len(body_md) > _NOTE_BODY_MAX_LENGTH:
+        abort(400)
+
+    now = datetime.datetime.now(datetime.UTC)
+    with Session(_ENGINE) as db_session:
+        note = db_session.get(Note, note_id)
+        if note is None:
+            abort(404)
+        if note.author_id != identity["uid"]:
+            abort(403)
+
+        note.body = body_md
+        note.body_html = render_note_markdown(body_md)
+        note.updated_at = now
+        db_session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=body_md,
+                editor_id=str(identity["uid"]),
+                revised_at=now,
+                action="edit",
+            )
+        )
+        db_session.commit()
+        return jsonify({"id": note.id}), 200
+
+
+@app.delete("/api/notes/<int:note_id>")
+@auth.require_author
+def delete_note(note_id):
+    """DELETE /api/notes/<id>: the note's owner soft-deletes it (NOTES-02).
+
+    Soft-delete (D-07): sets `status='removed'` and appends a
+    `note_revisions` row (`action='remove'`) -- the note row and its full
+    history survive. Harvest/read scoping (D-10) excludes non-'approved'
+    notes, so a removed note simply disappears from every read surface
+    without destroying the audit trail. Same ownership-then-load-first
+    shape as edit_note (T-179-IDOR).
+    """
+    identity = g.identity
+    now = datetime.datetime.now(datetime.UTC)
+    with Session(_ENGINE) as db_session:
+        note = db_session.get(Note, note_id)
+        if note is None:
+            abort(404)
+        if note.author_id != identity["uid"]:
+            abort(403)
+
+        note.status = "removed"
+        note.updated_at = now
+        db_session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=note.body,
+                editor_id=str(identity["uid"]),
+                revised_at=now,
+                action="remove",
+            )
+        )
+        db_session.commit()
+        return jsonify({"id": note.id}), 200
