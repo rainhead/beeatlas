@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 1/9 | In Progress|  |
+| 178. Thin Write Layer + iNat OAuth | 2/9 | In Progress|  |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -156,7 +156,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 178-01-PLAN.md — Package legitimacy checkpoint (waitress + flask-cors on PyPI) before install — blocking-human (D-17: waitress replaces the rejected flup6) [WRITE-01]
+- [x] 178-01-PLAN.md — Package legitimacy checkpoint (waitress + flask-cors on PyPI) before install — blocking-human (D-17: waitress replaces the rejected flup6) [WRITE-01]
 - [x] 178-02-PLAN.md — Users table: `User` model + forward-only Alembic migration 0002 (store-side; D-07/D-08/D-09) [WRITE-02]
 
 **Wave 2** *(blocked on Wave 1)*
@@ -183,6 +183,7 @@ Plans:
 **Wave 7** *(blocked on Wave 6; human UAT, autonomous: false — do NOT auto-advance)*
 
 - [ ] 178-09-PLAN.md — Security UAT: no token/secret leak + forged-author + cross-origin POST rejection + redirect_uri exact-match pin + traceback guard [WRITE-02, WRITE-03, WRITE-04]
+
 **Notes**: **Re-scoped to the 177 D-01 maderas-Flask shape** (this ROADMAP entry + WRITE-01/WRITE-02 in REQUIREMENTS updated 2026-07-03; the earlier "API Gateway + Lambda / event-driven / short-lived session" wording was pre-pivot AWS framing). Decisions locked in `178-CONTEXT.md` (D-01..D-10): server-side code exchange + PKCE (iNat/Doorkeeper PKCE support **confirmed** against live docs; carry a no-PKCE fallback if live behavior differs), one long-lived signed HttpOnly cookie with per-write allowlist recheck, BeeAtlas-minted internal user id as `author_id` with iNat login/numeric-id as user properties (new `users` table via forward-only Alembic), allowlist keyed on iNat login, and Sign-in + whoami UI only (note CRUD is Phase 179). Verify iNat OAuth against the **live** provider, NOT the `~/dev/inaturalist/` source clone (user constraint). Pin the `/users/api_token` JWT → `/v1/users/me` raw-`Authorization`-header gotcha and scope minimality. Security-critical human UAT (no token leak; forged-author + cross-origin rejection) — do not auto-advance past UAT.
 **UI hint**: yes
 
