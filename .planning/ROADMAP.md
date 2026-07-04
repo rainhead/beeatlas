@@ -71,7 +71,7 @@
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 9/9 | Complete    | 2026-07-04 |
-| 179. Notes Feature + Harvest Bake | 3/6 | In Progress|  |
+| 179. Notes Feature + Harvest Bake | 4/6 | In Progress|  |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
 ### Phase 176: Build-Seam Refoundation (Thread 1)
@@ -214,7 +214,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 179-04-PLAN.md — Baked notes `<section>` on species-detail.njk (newest-first, linked/plain byline, graceful empty state, always-present `<bee-notes>` mount) + `formatDate` Eleventy filter + Phase-179 CSS; static, offline-safe, no page-load API call [NOTES-03]
+- [x] 179-04-PLAN.md — Baked notes `<section>` on species-detail.njk (newest-first, linked/plain byline, graceful empty state, always-present `<bee-notes>` mount) + `formatDate` Eleventy filter + Phase-179 CSS; static, offline-safe, no page-load API call [NOTES-03]
 
 **Wave 4** *(blocked on Waves 2-3)*
 
