@@ -11,3 +11,4 @@ import '../index.css';
 import '../styles/taxon-pages.css';
 import '../bee-header.ts';
 import '../species/seasonality-viz.ts';
+import '../bee-notes.ts';
