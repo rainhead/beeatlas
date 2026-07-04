@@ -183,3 +183,4 @@ secrets.toml
 # Python bytecode cache (api/ is outside data/, whose own .gitignore covers this locally)
 __pycache__/
 *.pyc
+data/notes-dev.db
