@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 0/9 | Planned (ready to execute) | - |
+| 178. Thin Write Layer + iNat OAuth | 1/9 | In Progress|  |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -157,7 +157,7 @@ Plans:
 **Wave 1**
 
 - [ ] 178-01-PLAN.md — Package legitimacy checkpoint (waitress + flask-cors on PyPI) before install — blocking-human (D-17: waitress replaces the rejected flup6) [WRITE-01]
-- [ ] 178-02-PLAN.md — Users table: `User` model + forward-only Alembic migration 0002 (store-side; D-07/D-08/D-09) [WRITE-02]
+- [x] 178-02-PLAN.md — Users table: `User` model + forward-only Alembic migration 0002 (store-side; D-07/D-08/D-09) [WRITE-02]
 
 **Wave 2** *(blocked on Wave 1)*
 
