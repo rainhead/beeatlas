@@ -8,6 +8,8 @@ day one so Phase 180 is not a retrofit (D-05, D-08).
 Tables:
   notes          — expert species natural-history notes; multiple per canonical_name (D-06)
   note_revisions — append-only audit ledger for edits and soft-deletes (D-05)
+  users          — BeeAtlas-internal identity; internal id is the durable authorship
+                   key, iNat login/numeric id are mutable properties (D-07/D-08)
 
 D-07: No ``roles`` table — roles live in a committed allowlist TOML (plan 177-05).
 """
@@ -61,3 +63,26 @@ class NoteRevision(Base):
     action: Mapped[str] = mapped_column(String, nullable=False)  # 'create'/'edit'/'remove'
 
     note: Mapped["Note"] = relationship(back_populates="revisions")
+
+
+class User(Base):
+    """BeeAtlas-internal identity record.
+
+    ``id`` is BeeAtlas's own durable authorship key (D-07) — it is what
+    ``notes.author_id`` will eventually reference (wiring deferred to Phase 179).
+    The iNat login and iNat numeric id are stored as *mutable properties* of the
+    user, not as the key: a renamed iNat login does not orphan prior authorship.
+
+    ``inat_login`` is unique (D-09) — the committed allowlist authorizes by iNat
+    login (human-readable, matches the existing ``collector_inat_login`` /
+    ``host_inat_login`` convention) before the internal id exists at first login.
+    ``inat_user_id`` (the iNat numeric id) is also captured for robustness.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    inat_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    inat_login: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
