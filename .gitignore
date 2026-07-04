@@ -179,3 +179,7 @@ data/_dem_cache/
 # Auth/write-layer secrets (client_secret, cookie-signing key) — never commit
 api/secrets.toml
 secrets.toml
+
+# Python bytecode cache (api/ is outside data/, whose own .gitignore covers this locally)
+__pycache__/
+*.pyc
