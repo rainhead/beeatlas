@@ -4,13 +4,13 @@ milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
 stopped_at: Completed 179-02-PLAN.md
-last_updated: "2026-07-04T18:39:54.361Z"
+last_updated: "2026-07-04T18:50:29.259Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 47
   completed_phases: 26
   total_plans: 83
-  completed_plans: 81
+  completed_plans: 82
   percent: 55
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 179 (notes-feature-harvest-build-time-bake) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-07-04
 
@@ -46,7 +46,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Executing (1/6 plans) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 98%
+**Progress:** [██████████] 99%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -89,6 +89,7 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase ?]: 179-01: nh3 default link_rel="noopener noreferrer" satisfies D-06 (never pass rel in the attributes allowlist alongside it); three-step SQLite batch pattern (add nullable body_html -> backfill via render_note_markdown -> tighten NOT NULL) + author_id String->Integer FK to users.id, all in migration 0003
 - [Phase 179]: Body length cap set to 5000 chars for note markdown (D-05 defense-in-depth against markdown-DoS)
 - [Phase 179]: Note mutation routes load the row before checking ownership (404 before 403) so IDOR probing never mutates
+- [Phase 179]: 179-03: notes-harvest reuses collectors.json for byline resolution (D-11); notes declared authoritative + build_time_fetch_optional=true in artifacts.toml
 
 ### Roadmap Evolution
 
@@ -135,7 +136,7 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-04T18:39:54.352Z
+Last session: 2026-07-04T18:50:23.088Z
 Stopped at: Completed 179-02-PLAN.md
 Resume file: None
 

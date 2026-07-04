@@ -71,7 +71,7 @@
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 9/9 | Complete    | 2026-07-04 |
-| 179. Notes Feature + Harvest Bake | 2/6 | In Progress|  |
+| 179. Notes Feature + Harvest Bake | 3/6 | In Progress|  |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
 ### Phase 176: Build-Seam Refoundation (Thread 1)
@@ -210,7 +210,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1)*
 
 - [x] 179-02-PLAN.md — Note CRUD + public read API in api/main.py (POST/PATCH/DELETE + GET /api/notes; @require_author + per-note ownership 403; soft-delete via note_revisions; approved-only read with own-note body_md) [NOTES-01, NOTES-02, NOTES-04]
-- [ ] 179-03-PLAN.md — Harvest -> notes.json (read-only WAL store read, collectors.json byline reuse, approved-only newest-first) + run.py `notes-harvest` STEP + authoritative `[artifacts.notes]` (build_time_fetch + optional) + `_data/notes.js` loader; narrows the run.py-isolation test to allow the read-only step [NOTES-03]
+- [x] 179-03-PLAN.md — Harvest -> notes.json (read-only WAL store read, collectors.json byline reuse, approved-only newest-first) + run.py `notes-harvest` STEP + authoritative `[artifacts.notes]` (build_time_fetch + optional) + `_data/notes.js` loader; narrows the run.py-isolation test to allow the read-only step [NOTES-03]
 
 **Wave 3** *(blocked on Wave 2)*
 
