@@ -349,3 +349,106 @@ def test_delete_note_missing_is_404(client, monkeypatch, tmp_path, tmp_engine):
 
     resp = client.delete("/api/notes/999999", headers={"Origin": ALLOWED_ORIGIN})
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# GET /api/notes?species=<canonical_name>
+# ---------------------------------------------------------------------------
+
+
+def test_read_notes_approved_only_newest_first(client, tmp_engine):
+    uid = _make_user(tmp_engine, login="author_one")
+    older_id = _make_note(tmp_engine, canonical_name="apis mellifera", author_id=uid, body_md="older")
+    newer_id = _make_note(tmp_engine, canonical_name="apis mellifera", author_id=uid, body_md="newer")
+    # Nudge timestamps apart so ORDER BY created_at DESC is unambiguous.
+    with Session(tmp_engine) as db_session:
+        older = db_session.get(Note, older_id)
+        older.created_at = older.created_at - datetime.timedelta(minutes=5)
+        db_session.commit()
+
+    pending_id = _make_note(
+        tmp_engine, canonical_name="apis mellifera", author_id=uid, body_md="pending", status="pending"
+    )
+    removed_id = _make_note(
+        tmp_engine, canonical_name="apis mellifera", author_id=uid, body_md="removed", status="removed"
+    )
+
+    resp = client.get("/api/notes?species=apis mellifera")
+    assert resp.status_code == 200
+    items = resp.get_json()
+
+    returned_ids = [item["id"] for item in items]
+    assert returned_ids == [newer_id, older_id]
+    assert pending_id not in returned_ids
+    assert removed_id not in returned_ids
+
+
+def test_read_notes_item_shape(client, tmp_engine):
+    uid = _make_user(tmp_engine, login="author_one")
+    note_id = _make_note(tmp_engine, canonical_name="apis mellifera", author_id=uid, body_md="hello **world**")
+
+    resp = client.get("/api/notes?species=apis mellifera")
+    assert resp.status_code == 200
+    items = resp.get_json()
+    assert len(items) == 1
+    item = items[0]
+    assert item["id"] == note_id
+    assert "html" in item
+    assert item["byline"]["login"] == "author_one"
+    assert item["byline"]["display_name"] is None
+    assert item["byline"]["collector_url"] is None
+    assert "created" in item
+    assert "updated" in item
+    # Anonymous caller never gets edit-source fields.
+    assert "body_md" not in item
+    assert "can_edit" not in item
+
+
+def test_read_notes_own_note_gets_body_md_and_can_edit(client, monkeypatch, tmp_path, tmp_engine):
+    uid = _make_user(tmp_engine, login="author_one")
+    note_id = _make_note(tmp_engine, canonical_name="apis mellifera", author_id=uid, body_md="raw source")
+    _sign_in(client, monkeypatch, tmp_path, login="author_one", uid=uid)
+
+    resp = client.get("/api/notes?species=apis mellifera")
+    assert resp.status_code == 200
+    item = resp.get_json()[0]
+    assert item["body_md"] == "raw source"
+    assert item["can_edit"] is True
+
+
+def test_read_notes_authenticated_but_not_owner_gets_no_body_md(client, monkeypatch, tmp_path, tmp_engine):
+    owner_uid = _make_user(tmp_engine, login="owner")
+    _make_note(tmp_engine, canonical_name="apis mellifera", author_id=owner_uid, body_md="raw source")
+
+    other_uid = _make_user(tmp_engine, login="someone_else")
+    _sign_in(client, monkeypatch, tmp_path, login="someone_else", uid=other_uid)
+
+    resp = client.get("/api/notes?species=apis mellifera")
+    assert resp.status_code == 200
+    item = resp.get_json()[0]
+    assert "body_md" not in item
+    assert "can_edit" not in item
+
+
+def test_read_notes_unknown_species_is_empty_array(client, tmp_engine):
+    resp = client.get("/api/notes?species=nonexistent species")
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+
+def test_read_notes_absent_species_param_is_empty_array(client, tmp_engine):
+    resp = client.get("/api/notes")
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+
+def test_read_notes_is_public_no_session_needed(client, tmp_engine):
+    """The read route has NO @auth.require_author -- an anonymous GET (no
+    cookie, no Origin header) must succeed, not 401/403, even when notes
+    exist for the requested species."""
+    uid = _make_user(tmp_engine, login="author_one")
+    _make_note(tmp_engine, canonical_name="apis mellifera", author_id=uid)
+
+    resp = client.get("/api/notes?species=apis mellifera")
+    assert resp.status_code == 200
+    assert len(resp.get_json()) == 1
