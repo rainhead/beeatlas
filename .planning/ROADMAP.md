@@ -70,7 +70,7 @@
 |-------|----------------|--------|-----------|
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
-| 178. Thin Write Layer + iNat OAuth | 6/9 | In Progress|  |
+| 178. Thin Write Layer + iNat OAuth | 7/9 | In Progress|  |
 | 179. Notes Feature + Harvest Bake | 0/TBD | Not started | - |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
@@ -174,7 +174,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 178-07-PLAN.md — Frontend Sign-in + whoami UI (D-10) in bee-header + `auth-client.ts` + no-secret bundle check [WRITE-02, WRITE-03]
+- [x] 178-07-PLAN.md — Frontend Sign-in + whoami UI (D-10) in bee-header + `auth-client.ts` + no-secret bundle check [WRITE-02, WRITE-03]
 
 **Wave 6** *(blocked on Wave 5; operator-only, autonomous: false)*
 

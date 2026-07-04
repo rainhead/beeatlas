@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 178-05-PLAN.md
-last_updated: "2026-07-04T05:09:31.620Z"
+stopped_at: Completed 178-07-PLAN.md
+last_updated: "2026-07-04T05:18:59.218Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 47
   completed_phases: 25
   total_plans: 77
-  completed_plans: 76
+  completed_plans: 77
   percent: 53
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 178 (thin-write-layer-inat-oauth) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Status: Ready to execute
 Last activity: 2026-07-04
 
@@ -46,7 +46,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Not started |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 99%
+**Progress:** [██████████] 100%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -83,6 +83,9 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase 178]: 178-05: allowlist revocation re-reads roles TOML from disk per request; WRITES_ENABLED is an env-driven launch gate (not a secret)
 - [Phase 178]: config.WRITES_ENABLED now also reads [launch] writes_enabled from secrets.toml (per plan 178-06), with the 178-05 WRITES_ENABLED env var still overriding when set
 - [Phase 178]: require_real_secrets() called just-in-time in /auth/callback, after the no-secret state check, so a state mismatch still returns 400 with placeholder secrets.toml
+- [Phase ?]: [Phase 178] 178-07: fetchWhoami normalizes the API's snake_case is_author to AuthState.isAuthor at the client boundary
+- [Phase ?]: [Phase 178] 178-07: sign-in/sign-out rendered as text .auth-btn pills, not .icon-btn glyph chrome
+- [Phase ?]: [Phase 178] 178-07: auth controller wired only into entries/bee-header.ts (standalone pages); bee-atlas.ts's own <bee-header> is not yet wired -- sign-in button is a no-op on the map page until a follow-up plan wires it
 
 ### Roadmap Evolution
 
@@ -100,6 +103,7 @@ Carried forward (non-blocking, pre-existing):
 
 - **No active blockers for v8.0.** The nightly pipeline is unblocked (Phase 163 Ecdysis-auth resolved 2026-06-24).
 - **Operational confirmation (NOT a code gap, carried from v7.0 close):** one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to refresh the S3 `species.json` baseline post-PR-#39 — confirm the latest nightly published cleanly. Phase 176's byte-identical-manifest goal assumes the current publish behavior is the baseline to preserve.
+- 178-07: bee-atlas.ts (map page /) mounts its own <bee-header> without the whoami/sign-in/sign-out controller -- Sign in button renders but is a no-op there; entries/bee-header.ts (standalone pages) is wired. Needs follow-up (178-08/09 UAT or 179) to decide whether to wire bee-atlas.ts or intentionally scope auth UI to non-map pages.
 
 ### Quick Tasks Completed
 
@@ -127,8 +131,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-04T05:09:20.985Z
-Stopped at: Completed 178-05-PLAN.md
+Last session: 2026-07-04T05:18:50.751Z
+Stopped at: Completed 178-07-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
