@@ -71,7 +71,7 @@
 | 176. Build-Seam Refoundation (Thread 1) | 4/4 | Complete   | 2026-07-02 |
 | 177. Authoritative Store, Migrations & Backup/DR | 7/7 | Complete   | 2026-07-03 |
 | 178. Thin Write Layer + iNat OAuth | 9/9 | Complete    | 2026-07-04 |
-| 179. Notes Feature + Harvest Bake | 4/6 | In Progress|  |
+| 179. Notes Feature + Harvest Bake | 5/6 | In Progress|  |
 | 180. Moderation Loop | 0/TBD | Not started | - |
 
 ### Phase 176: Build-Seam Refoundation (Thread 1)
@@ -218,7 +218,7 @@ Plans:
 
 **Wave 4** *(blocked on Waves 2-3)*
 
-- [ ] 179-05-PLAN.md — `<bee-notes>` light-DOM hydrating Lit island + note CRUD client (independent fetchWhoami gate, inline editor, own-note edit/delete, confirm-then-refetch live re-render) [NOTES-01, NOTES-02, NOTES-04]
+- [x] 179-05-PLAN.md — `<bee-notes>` light-DOM hydrating Lit island + note CRUD client (independent fetchWhoami gate, inline editor, own-note edit/delete, confirm-then-refetch live re-render) [NOTES-01, NOTES-02, NOTES-04]
 
 **Wave 5** *(blocked on Wave 4; human UAT, autonomous: false — do NOT auto-advance)*
 

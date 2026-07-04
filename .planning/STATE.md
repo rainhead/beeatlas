@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 179-04-PLAN.md
-last_updated: "2026-07-04T18:59:57.826Z"
+stopped_at: Completed 179-05-PLAN.md
+last_updated: "2026-07-04T19:13:33.415Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 47
   completed_phases: 26
   total_plans: 83
-  completed_plans: 83
+  completed_plans: 84
   percent: 55
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 179 (notes-feature-harvest-build-time-bake) — EXECUTING
-Plan: 5 of 6
-Status: Ready to execute
+Plan: 6 of 6
+Status: Executing — 179-06 (security + end-to-end UAT) remaining
 Last activity: 2026-07-04
 
-Progress: [██████████] 100%
+Progress: [█████░░░░░] 55%
 
 ## Milestone Overview
 
@@ -43,10 +43,10 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 176 | Build-Seam Refoundation (Thread 1) | SEAM-01..05 | — | Complete (2026-07-02) |
 | 177 | Authoritative Store, Migrations & Backup/DR | STORE-01..04 | — | Complete (2026-07-03) |
 | 178 | Thin Write Layer + iNat OAuth | WRITE-01..04 | yes | Complete (2026-07-04) |
-| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Executing (1/6 plans) |
+| 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Executing (5/6 plans) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [██████████] 100%
+**Progress:** [█████░░░░░] 55% (26/47 phases complete project-wide; v8.0 milestone itself is 3/5 phases + 179's 5/6 plans in progress)
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -92,6 +92,8 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase 179]: 179-03: notes-harvest reuses collectors.json for byline resolution (D-11); notes declared authoritative + build_time_fetch_optional=true in artifacts.toml
 - [Phase 179]: 179-04: formatDate pinned to timeZone:'UTC' since bare date-only ISO strings parse as UTC midnight and would roll back a day in local timezones behind UTC
 - [Phase 179]: 179-04: new src/lib/*.js utils consumed by both Eleventy and TS ship with a matching *.d.ts (formatDate.d.ts mirrors quantify.d.ts) since tsconfig has no allowJs
+- [Phase 179]: 179-05: mutating note-client calls resolve {ok:false,status:0} on network error rather than throwing
+- [Phase 179]: 179-05: bee-notes hides Add note whenever any editor (add or edit) is open, since both use .note-btn--primary
 
 ### Roadmap Evolution
 
@@ -138,8 +140,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-04T18:59:57.817Z
-Stopped at: Completed 179-04-PLAN.md
+Last session: 2026-07-04T19:13:10.881Z
+Stopped at: Completed 179-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
