@@ -7,6 +7,9 @@ DB path or Alembic (the 0002 migration is covered separately by
 data/tests/test_notes_users.py).
 """
 
+import datetime
+
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from notes_store.db import make_engine
@@ -60,6 +63,53 @@ def test_repeat_upsert_refreshes_inat_user_id_when_changed(tmp_path):
         rows = session.query(User).all()
         assert len(rows) == 1
         assert rows[0].inat_user_id == 999
+
+
+def test_concurrent_first_login_race_resolves_to_winning_row(tmp_path, monkeypatch):
+    """WR-03: two concurrent first logins for the same iNat login are not
+    atomic (check-then-insert); the loser's INSERT hits the
+    ix_users_inat_login unique index. It must catch the IntegrityError,
+    re-select the winner's row, and return its id — not 500 the login.
+
+    The race is simulated deterministically: the loser's first commit()
+    is intercepted to (a) release its transaction, (b) commit the winner's
+    competing row via a separate session, then (c) raise the IntegrityError
+    the real INSERT would have hit."""
+    engine = _make_engine(tmp_path)
+    raced = {"done": False}
+
+    class RacingSession(Session):
+        def commit(self):
+            if not raced["done"]:
+                raced["done"] = True
+                super().rollback()  # release the loser's pending INSERT/locks
+                now = datetime.datetime.now(datetime.UTC)
+                with Session(engine) as winner:
+                    winner.add(
+                        User(
+                            inat_login="beeperson",
+                            inat_user_id=42,
+                            created_at=now,
+                            updated_at=now,
+                        )
+                    )
+                    winner.commit()
+                raise IntegrityError(
+                    "INSERT INTO users ...",
+                    {},
+                    Exception("UNIQUE constraint failed: users.inat_login"),
+                )
+            return super().commit()
+
+    monkeypatch.setattr(users, "Session", RacingSession)
+
+    internal_id = users.upsert_user(engine, inat_login="beeperson", inat_user_id=999)
+
+    with Session(engine) as session:
+        rows = session.query(User).all()
+        assert len(rows) == 1  # the winner's row — no duplicate, no 500
+        assert rows[0].id == internal_id
+        assert rows[0].inat_user_id == 999  # loser's refresh still applied
 
 
 def test_different_logins_create_separate_rows(tmp_path):

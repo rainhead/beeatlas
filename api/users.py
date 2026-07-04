@@ -13,6 +13,7 @@ engine).
 
 import datetime
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from notes_store.models import User
@@ -34,5 +35,17 @@ def upsert_user(engine, inat_login: str, inat_user_id: int) -> int:
         else:
             user.inat_user_id = inat_user_id
             user.updated_at = now
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError:
+            # Two concurrent FIRST logins for the same iNat login (Waitress
+            # is multi-threaded): both saw no row above, both INSERTed, and
+            # this request lost the race on the ix_users_inat_login unique
+            # index. Resolve to the winner's row instead of 500ing the
+            # user's login mid-callback.
+            session.rollback()
+            user = session.query(User).filter_by(inat_login=inat_login).one()
+            user.inat_user_id = inat_user_id
+            user.updated_at = now
+            session.commit()
         return user.id
