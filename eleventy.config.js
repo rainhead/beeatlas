@@ -9,6 +9,7 @@
 // phase leaves it empty (only .gitkeep).
 import EleventyVitePlugin from "@11ty/eleventy-plugin-vite";
 import { quantify } from "./src/lib/quantify.js";
+import { formatDate } from "./src/lib/formatDate.js";
 import { VitePWA } from "vite-plugin-pwa";
 import { resolve } from "path";
 import { execSync } from "node:child_process";
@@ -31,6 +32,11 @@ export default function (eleventyConfig) {
   // "3 genera"). Pass an explicit plural for irregular nouns:
   //   {{ count | quantify("genus", "genera") }}
   eleventyConfig.addFilter("quantify", quantify);
+
+  // Renders an ISO timestamp as "Jul 4, 2026" — shared verbatim with the
+  // bee-notes island (src/lib/formatDate.js) so baked and live note
+  // timestamps never diverge (Phase 179).
+  eleventyConfig.addFilter("formatDate", formatDate);
 
   // The SPA entry lives in _pages/index.html and is rendered as an
   // Eleventy template (plain HTML, no front-matter). DEVIATION from
