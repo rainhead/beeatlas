@@ -37,6 +37,14 @@ HEALTHCHECK_URL="${HEALTHCHECK_URL:-https://hc-ping.com/411cd80a-965b-408c-8f89-
 DB_S3_KEY="db/beeatlas.duckdb"
 DB_PATH="/tmp/beeatlas.duckdb"
 EXPORT_DIR="/tmp/beeatlas-export"
+# Notes store (Phase 179): the notes-harvest step reads the SAME authoritative
+# SQLite store the write API (systemd beeatlas-api) writes to. Must match the
+# API's NOTES_DB_PATH (~/.config/systemd/user/beeatlas-api.service) and the
+# go-live runbook (docs/runbooks/notes-write-launch-gate.md §A4), NOT the code
+# default in notes_store/db.py (/opt/beeatlas-store/notes.db, which is unused on
+# maderas). Without this export the harvest reads a nonexistent store and emits
+# an empty notes.json — no author note ever reaches the static site.
+NOTES_DB_PATH="${NOTES_DB_PATH:-$HOME/beeatlas-store/notes.db}"
 AWS_PROFILE="${AWS_PROFILE:-beeatlas}"
 TAXA_S3_KEY="raw/taxa.csv.gz"
 TAXA_CACHE_S3_KEY="raw/taxa_cache.json"
@@ -161,7 +169,7 @@ fi
 echo "--- running pipelines ---"
 _t0=$(date +%s)
 mkdir -p "$EXPORT_DIR"
-export DB_PATH EXPORT_DIR
+export DB_PATH EXPORT_DIR NOTES_DB_PATH
 cd "$SCRIPT_DIR"
 uv run python run.py
 echo "--- pipelines done in $(_elapsed $_t0) ---"
