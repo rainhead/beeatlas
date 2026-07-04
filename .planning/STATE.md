@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v8.0
 milestone_name: Authoritative Data Foundation
 status: executing
-stopped_at: Completed 179-01-PLAN.md
-last_updated: "2026-07-04T18:28:21.113Z"
+stopped_at: Completed 179-02-PLAN.md
+last_updated: "2026-07-04T18:39:54.361Z"
 last_activity: 2026-07-04
 progress:
-  total_phases: 5
-  completed_phases: 3
-  total_plans: 26
-  completed_plans: 21
-  percent: 81
+  total_phases: 47
+  completed_phases: 26
+  total_plans: 83
+  completed_plans: 81
+  percent: 55
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (Current Milestone: v8.0 Authoritative Data Foundation
 ## Current Position
 
 Phase: 179 (notes-feature-harvest-build-time-bake) — EXECUTING
-Plan: 2 of 6
-Status: Plan 179-01 complete; 179-02 ready to execute
+Plan: 3 of 6
+Status: Ready to execute
 Last activity: 2026-07-04
 
 Progress: [██████████] 100%
@@ -46,7 +46,7 @@ Introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-specifi
 | 179 | Notes Feature + Harvest → Build-Time Bake | NOTES-01..04 | yes | Executing (1/6 plans) |
 | 180 | Moderation Loop | MOD-01..04 | yes | Not started |
 
-**Progress:** [████████░░] 81%
+**Progress:** [██████████] 98%
 
 **Phase dependency chain:** 176 (independent) → 177 → 178 → 179 (also needs 176's contract) → 180.
 
@@ -87,6 +87,8 @@ Load-bearing conventions carried forward (relevant to v8.0):
 - [Phase ?]: [Phase 178] 178-07: sign-in/sign-out rendered as text .auth-btn pills, not .icon-btn glyph chrome
 - [Phase ?]: [Phase 178] 178-07: auth controller wired only into entries/bee-header.ts (standalone pages); bee-atlas.ts's own <bee-header> is not yet wired -- sign-in button is a no-op on the map page until a follow-up plan wires it
 - [Phase ?]: 179-01: nh3 default link_rel="noopener noreferrer" satisfies D-06 (never pass rel in the attributes allowlist alongside it); three-step SQLite batch pattern (add nullable body_html -> backfill via render_note_markdown -> tighten NOT NULL) + author_id String->Integer FK to users.id, all in migration 0003
+- [Phase 179]: Body length cap set to 5000 chars for note markdown (D-05 defense-in-depth against markdown-DoS)
+- [Phase 179]: Note mutation routes load the row before checking ownership (404 before 403) so IDOR probing never mutates
 
 ### Roadmap Evolution
 
@@ -133,8 +135,8 @@ Items acknowledged and carried forward from prior milestone closes:
 
 ## Session Continuity
 
-Last session: 2026-07-04T18:28:21.104Z
-Stopped at: Completed 179-01-PLAN.md
+Last session: 2026-07-04T18:39:54.352Z
+Stopped at: Completed 179-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

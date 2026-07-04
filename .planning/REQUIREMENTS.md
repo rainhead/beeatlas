@@ -38,10 +38,10 @@ Scope: introduce BeeAtlas's first *authoritative, non-reproducible* data — WA-
 
 ### Species Natural-History Notes
 
-- [ ] **NOTES-01**: An allowlisted author can create a natural-history note on a species page — plain text / restricted markdown, server-sanitized — attributed with a byline and timestamps.
-- [ ] **NOTES-02**: An author can edit and delete their own notes.
+- [x] **NOTES-01**: An allowlisted author can create a natural-history note on a species page — plain text / restricted markdown, server-sanitized — attributed with a byline and timestamps.
+- [x] **NOTES-02**: An author can edit and delete their own notes.
 - [ ] **NOTES-03**: Published (non-hidden) notes are harvested into a build-time `notes.json` (hybrid harvest-dominant, mirroring `species_hosts.js`); species pages render them as an attributed, stacked list with a sensible empty state; the read path stays static and offline-safe.
-- [ ] **NOTES-04** *(differentiator)*: An optional per-species live island shows an author their just-written note immediately, before the next build refreshes `notes.json`.
+- [x] **NOTES-04** *(differentiator)*: An optional per-species live island shows an author their just-written note immediately, before the next build refreshes `notes.json`.
 
 ### Moderation
 
@@ -95,10 +95,10 @@ Which phases cover which requirements. Filled during roadmap creation (2026-07-0
 | WRITE-02 | Phase 178 | Complete |
 | WRITE-03 | Phase 178 | Complete |
 | WRITE-04 | Phase 178 | Complete |
-| NOTES-01 | Phase 179 | In Progress (179-01 foundation shipped; write API/UI in 179-02/04/05) |
-| NOTES-02 | Phase 179 | In Progress (179-01 foundation shipped; write API/UI in 179-02/04/05) |
+| NOTES-01 | Phase 179 | Complete (179-01 render/schema + 179-02 write route; UI in 179-04/05) |
+| NOTES-02 | Phase 179 | Complete (179-01 schema + 179-02 edit/delete routes; UI in 179-04/05) |
 | NOTES-03 | Phase 179 | Pending |
-| NOTES-04 *(optional)* | Phase 179 | Pending |
+| NOTES-04 *(optional)* | Phase 179 | Complete (179-02 read endpoint; live island UI in 179-04) |
 | MOD-01 | Phase 180 | Pending |
 | MOD-02 | Phase 180 | Pending |
 | MOD-03 | Phase 180 | Pending |
