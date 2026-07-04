@@ -10,8 +10,13 @@ Tests:
   test_run_py_never_migrates  — run.py text contains no notes_store/alembic/notes.db
                                  references and no STEPS entry name contains 'migrat'
                                  or 'notes' (D-03, STORE-02)
+  test_migration_0003_backfills_body_html — 0003 backfills body_html for pre-existing
+                                 rows through render_note_markdown and recasts
+                                 author_id to an int FK -> users.id (D-05/D-08)
+  test_no_downgrade_0003      — downgrade() on 0003 raises NotImplementedError
 """
 
+import datetime
 import importlib.util
 import sqlite3
 from pathlib import Path
@@ -171,3 +176,91 @@ def test_run_py_never_migrates():
         f"{bad_steps}. The nightly pipeline must never migrate or write the "
         "authoritative notes store (D-03, STORE-02)."
     )
+
+
+# ---------------------------------------------------------------------------
+# test_migration_0003_backfills_body_html — D-05/D-08
+# ---------------------------------------------------------------------------
+
+
+def test_migration_0003_backfills_body_html(tmp_path, monkeypatch):
+    """alembic upgrade 0002 -> 0003 backfills body_html and recasts author_id.
+
+    Seeds a DB at revision 0002 with one user and one note (author_id stored
+    as the pre-0003 String form), upgrades to 0003, and verifies:
+      - body_html == render_note_markdown(body) for the pre-existing row
+      - body_html is NOT NULL (a fresh insert omitting it is rejected)
+      - author_id is stored as an integer that FK-resolves to users.id
+    """
+    from alembic import command
+
+    from notes_store.render import render_note_markdown
+
+    db_path = tmp_path / "notes.db"
+    cfg = _make_alembic_config(db_path, monkeypatch)
+    command.upgrade(cfg, "0002")
+
+    now = datetime.datetime(2026, 7, 4, 12, 0, 0).isoformat(sep=" ")
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.execute(
+            "INSERT INTO users (id, inat_user_id, inat_login, created_at, updated_at) "
+            "VALUES (1, 100, 'alice_inat', ?, ?)",
+            (now, now),
+        )
+        conn.execute(
+            "INSERT INTO notes (id, canonical_name, author_id, body, status, "
+            "created_at, updated_at) VALUES (1, 'apis mellifera', '1', '**x**', "
+            "'approved', ?, ?)",
+            (now, now),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    command.upgrade(cfg, "0003")
+
+    expected_html = render_note_markdown("**x**")
+
+    conn = sqlite3.connect(db_path)
+    try:
+        row = conn.execute(
+            "SELECT body_html, author_id FROM notes WHERE id = 1"
+        ).fetchone()
+        assert row is not None, "seeded note row missing after upgrade to 0003"
+        body_html, author_id = row
+        assert body_html == expected_html, (
+            f"Expected backfilled body_html == render_note_markdown('**x**') "
+            f"({expected_html!r}), got {body_html!r}"
+        )
+        assert author_id == 1, f"Expected author_id recast to int 1, got {author_id!r}"
+
+        # author_id FK-resolves to users.id
+        fk_rows = conn.execute("PRAGMA foreign_key_list(notes)").fetchall()
+        fk_targets = {(row[2], row[3], row[4]) for row in fk_rows}  # (table, from, to)
+        assert ("users", "author_id", "id") in fk_targets, (
+            f"Expected an author_id -> users.id FK, got {fk_rows}"
+        )
+
+        # body_html NOT NULL: an insert omitting it must fail
+        with pytest.raises(sqlite3.IntegrityError):
+            conn.execute(
+                "INSERT INTO notes (id, canonical_name, author_id, body, status, "
+                "created_at, updated_at) VALUES (2, 'bombus vosnesenskii', 1, "
+                "'y', 'approved', ?, ?)",
+                (now, now),
+            )
+    finally:
+        conn.close()
+
+
+# ---------------------------------------------------------------------------
+# test_no_downgrade_0003 — Pitfall 4 / D-05
+# ---------------------------------------------------------------------------
+
+
+def test_no_downgrade_0003():
+    """downgrade() on the 0003 migration raises NotImplementedError."""
+    mod = _load_migration_module("0003")
+    with pytest.raises(NotImplementedError):
+        mod.downgrade()

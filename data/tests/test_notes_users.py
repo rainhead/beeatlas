@@ -65,12 +65,18 @@ def test_users_migration_applies(tmp_path, monkeypatch):
 
     Proves the 0001->0002 chain runs end to end and the users table has the
     expected columns plus a unique index on inat_login.
+
+    Targets revision "0002" explicitly (not "head") — head has since advanced
+    past 0002 (0003 added body_html/author_id FK in Phase 179-01) and this
+    test's purpose is to verify the *0002* migration in isolation, mirroring
+    the same "pin the revision under test" convention test_notes_migrations.py
+    already uses for 0001.
     """
     from alembic import command
 
     db_path = tmp_path / "notes.db"
     cfg = _make_alembic_config(db_path, monkeypatch)
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "0002")
 
     conn = sqlite3.connect(db_path)
     try:

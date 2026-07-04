@@ -12,6 +12,11 @@ Tables:
                    key, iNat login/numeric id are mutable properties (D-07/D-08)
 
 D-07: No ``roles`` table — roles live in a committed allowlist TOML (plan 177-05).
+
+Phase 179 (migration 0003) wires ``notes.author_id`` to the ``users.id`` FK
+described above and adds ``notes.body_html`` (pre-sanitized HTML rendered by
+``notes_store.render.render_note_markdown`` — D-04/D-05/D-08); ``body`` is
+retained as the markdown source.
 """
 
 import datetime
@@ -37,8 +42,9 @@ class Note(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     canonical_name: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    author_id: Mapped[str] = mapped_column(String, nullable=False)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    body_html: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="approved")
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
     updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
@@ -68,8 +74,8 @@ class NoteRevision(Base):
 class User(Base):
     """BeeAtlas-internal identity record.
 
-    ``id`` is BeeAtlas's own durable authorship key (D-07) — it is what
-    ``notes.author_id`` will eventually reference (wiring deferred to Phase 179).
+    ``id`` is BeeAtlas's own durable authorship key (D-07) — ``notes.author_id``
+    references it via an integer FK, wired in migration 0003 (Phase 179).
     The iNat login and iNat numeric id are stored as *mutable properties* of the
     user, not as the key: a renamed iNat login does not orphan prior authorship.
 

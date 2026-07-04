@@ -42,7 +42,7 @@ def _make_seeded_db(tmp_path: pathlib.Path, note_count: int = 3) -> pathlib.Path
     table, not in Base.metadata) with version_num='0001'.
     """
     from notes_store.db import make_engine
-    from notes_store.models import Base, Note
+    from notes_store.models import Base, Note, User
     from sqlalchemy.orm import Session
 
     db = tmp_path / "src_notes.db"
@@ -52,11 +52,22 @@ def _make_seeded_db(tmp_path: pathlib.Path, note_count: int = 3) -> pathlib.Path
     now = datetime.datetime(2026, 7, 3, 12, 0, 0)
     with Session(engine) as session:
         for i in range(note_count):
+            # D-08: author_id is now an int FK -> users.id; create the User
+            # row first and use its assigned id.
+            author = User(
+                inat_user_id=i,
+                inat_login=f"author_{i}",
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(author)
+            session.flush()  # assign author.id without committing
             session.add(
                 Note(
                     canonical_name=f"species_{i}",
-                    author_id=f"author_{i}",
+                    author_id=author.id,
                     body=f"Note body {i}.",
+                    body_html=f"<p>Note body {i}.</p>",
                     created_at=now,
                     updated_at=now,
                 )

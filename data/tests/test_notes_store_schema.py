@@ -8,6 +8,12 @@ Covers:
   - D-06: multiple author-owned notes per canonical_name (no unique constraint)
   - D-16: WAL mode + foreign_keys enabled on every connection
   - D-08: status defaults to 'approved'
+  - NOTES-02/D-07: soft-delete keeps the note row + revision history
+    (append-only note_revisions ledger)
+
+Phase 179 (D-08) recast notes.author_id from a free-text String to an integer
+FK -> users.id, and added the NOT NULL notes.body_html column — every Note
+insert below first creates a real users row and supplies body_html.
 """
 
 import sqlite3
@@ -17,11 +23,11 @@ import pytest
 from sqlalchemy.orm import Session
 
 from notes_store.db import make_engine
-from notes_store.models import Base, Note, NoteRevision
+from notes_store.models import Base, Note, NoteRevision, User
 
 
 # ---------------------------------------------------------------------------
-# Helper
+# Helpers
 # ---------------------------------------------------------------------------
 
 
@@ -31,6 +37,19 @@ def _make_db(tmp_path, name="notes.db"):
     engine = make_engine(path)
     Base.metadata.create_all(engine)
     return engine
+
+
+def _make_user(session, inat_login, inat_user_id, now):
+    """Insert and return a User row (author_id FK target, D-08)."""
+    user = User(
+        inat_user_id=inat_user_id,
+        inat_login=inat_login,
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(user)
+    session.flush()  # assign user.id without committing
+    return user
 
 
 # ---------------------------------------------------------------------------
@@ -60,6 +79,7 @@ def test_schema_notes(tmp_path):
         "canonical_name",
         "author_id",
         "body",
+        "body_html",
         "status",
         "created_at",
         "updated_at",
@@ -101,11 +121,14 @@ def test_multiple_notes_per_species(tmp_path):
     now = datetime.datetime(2026, 7, 3, 12, 0, 0)
 
     with Session(engine) as session:
+        alice = _make_user(session, "alice_inat", 1, now)
+        bob = _make_user(session, "bob_inat", 2, now)
         session.add(
             Note(
                 canonical_name="apis mellifera",
-                author_id="alice_inat",
+                author_id=alice.id,
                 body="Alice's note on honey bees.",
+                body_html="<p>Alice's note on honey bees.</p>",
                 created_at=now,
                 updated_at=now,
             )
@@ -113,8 +136,9 @@ def test_multiple_notes_per_species(tmp_path):
         session.add(
             Note(
                 canonical_name="apis mellifera",
-                author_id="bob_inat",
+                author_id=bob.id,
                 body="Bob's note on honey bees.",
+                body_html="<p>Bob's note on honey bees.</p>",
                 created_at=now,
                 updated_at=now,
             )
@@ -166,10 +190,12 @@ def test_status_default(tmp_path):
     now = datetime.datetime(2026, 7, 3, 12, 0, 0)
 
     with Session(engine) as session:
+        carol = _make_user(session, "carol_inat", 3, now)
         note = Note(
             canonical_name="bombus vosnesenskii",
-            author_id="carol_inat",
+            author_id=carol.id,
             body="Carol's note on yellow-faced bumble bees.",
+            body_html="<p>Carol's note on yellow-faced bumble bees.</p>",
             created_at=now,
             updated_at=now,
         )
@@ -186,3 +212,83 @@ def test_status_default(tmp_path):
     assert status == "approved", (
         f"Expected status='approved' (D-08 default), got {status!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# test_soft_delete_keeps_row_and_appends_revision — NOTES-02/D-07
+# ---------------------------------------------------------------------------
+
+
+def test_soft_delete_keeps_row_and_appends_revision(tmp_path):
+    """Soft-delete sets status='removed', keeps the row, and appends a NoteRevision.
+
+    The append-only note_revisions ledger accumulates one row per action
+    ('create', then 'remove') — deleting a note never deletes its history
+    (D-07: the same mechanism Phase 180 curator takedown reuses).
+    """
+    engine = _make_db(tmp_path)
+    now = datetime.datetime(2026, 7, 4, 12, 0, 0)
+
+    with Session(engine) as session:
+        dave = _make_user(session, "dave_inat", 4, now)
+        note = Note(
+            canonical_name="bombus vosnesenskii",
+            author_id=dave.id,
+            body="Dave's note.",
+            body_html="<p>Dave's note.</p>",
+            status="approved",
+            created_at=now,
+            updated_at=now,
+        )
+        session.add(note)
+        session.flush()
+        session.add(
+            NoteRevision(
+                note_id=note.id,
+                body=note.body,
+                editor_id=str(dave.id),
+                revised_at=now,
+                action="create",
+            )
+        )
+        session.commit()
+        note_id = note.id
+        dave_id = dave.id
+
+    # Soft-delete: flip status, append a 'remove' revision — never DELETE the row.
+    later = now + datetime.timedelta(days=1)
+    with Session(engine) as session:
+        note = session.get(Note, note_id)
+        note.status = "removed"
+        note.updated_at = later
+        session.add(
+            NoteRevision(
+                note_id=note_id,
+                body=note.body,
+                editor_id=str(dave_id),
+                revised_at=later,
+                action="remove",
+            )
+        )
+        session.commit()
+
+    con = sqlite3.connect(tmp_path / "notes.db")
+    try:
+        row = con.execute(
+            "SELECT status FROM notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        assert row is not None, "note row was deleted; expected soft-delete (D-07)"
+        assert row[0] == "removed", f"Expected status='removed', got {row[0]!r}"
+
+        actions = [
+            r[0]
+            for r in con.execute(
+                "SELECT action FROM note_revisions WHERE note_id = ? ORDER BY id",
+                (note_id,),
+            ).fetchall()
+        ]
+        assert actions == ["create", "remove"], (
+            f"Expected append-only ['create', 'remove'] revision history, got {actions}"
+        )
+    finally:
+        con.close()
