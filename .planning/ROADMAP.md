@@ -156,12 +156,12 @@ Plans:
 
 **Wave 1**
 
-- [ ] 178-01-PLAN.md — Package legitimacy checkpoint (flup6 + flask-cors on PyPI) before install — blocking-human [WRITE-01]
+- [ ] 178-01-PLAN.md — Package legitimacy checkpoint (waitress + flask-cors on PyPI) before install — blocking-human (D-17: waitress replaces the rejected flup6) [WRITE-01]
 - [ ] 178-02-PLAN.md — Users table: `User` model + forward-only Alembic migration 0002 (store-side; D-07/D-08/D-09) [WRITE-02]
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 178-03-PLAN.md — Foundation: `uv add flup6 flask-cors` + top-level `api/` package (relocate skeleton, D-15) + secrets loader (D-14) + redirect_uri pin (D-12/D-13) + pytest wiring [WRITE-01]
+- [ ] 178-03-PLAN.md — Foundation: `uv add waitress flask-cors` (D-17, NOT flup6) + top-level `api/` package (relocate skeleton, D-15) + secrets loader (D-14) + redirect_uri pin (D-12/D-13) + pytest wiring [WRITE-01]
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -170,7 +170,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 178-06-PLAN.md — Routes + app factory + flask-cors scoped to beeatlas.net (D-11) + `.fcgi` wrapper (debug=False, Pitfall 3/5) + guarded `POST /api/write-check` (WRITE-03 authz/CSRF test target) [WRITE-01, WRITE-02, WRITE-03]
+- [ ] 178-06-PLAN.md — Routes + app factory + flask-cors scoped to beeatlas.net (D-11) + `ProxyFix` (one hop) + `api/serve.py` Waitress serve entrypoint (loopback-only) + generic error handler (debug=False; Pitfall 5) (D-17) + guarded `POST /api/write-check` (WRITE-03 authz/CSRF test target) [WRITE-01, WRITE-02, WRITE-03]
 
 **Wave 5** *(blocked on Wave 4)*
 
