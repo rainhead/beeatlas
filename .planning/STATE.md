@@ -106,7 +106,8 @@ Carried forward (non-blocking, pre-existing):
 
 - **No active blockers for v8.0.** The nightly pipeline is unblocked (Phase 163 Ecdysis-auth resolved 2026-06-24).
 - **Operational confirmation (NOT a code gap, carried from v7.0 close):** one-time `SKIP_INTEGRATION_GATE=1 bash data/nightly.sh` on maderas to refresh the S3 `species.json` baseline post-PR-#39 — confirm the latest nightly published cleanly. Phase 176's byte-identical-manifest goal assumes the current publish behavior is the baseline to preserve.
-- 178-07: bee-atlas.ts (map page /) mounts its own <bee-header> without the whoami/sign-in/sign-out controller -- Sign in button renders but is a no-op there; entries/bee-header.ts (standalone pages) is wired. Needs follow-up (178-08/09 UAT or 179) to decide whether to wire bee-atlas.ts or intentionally scope auth UI to non-map pages.
+- ~~178-07: bee-atlas.ts (map page /) <bee-header> sign-in was a no-op~~ — RESOLVED 2026-07-03 (commit e137418c): map-page header now wired to auth-client (fetchWhoami/startSignIn/signOut) as bee-atlas-owned state, mirroring entries/bee-header.ts; +5 tests, full JS suite 923 green.
+- **178-08 awaiting operator (human-action/human-verify, gate=blocking):** write layer built + unit-green through Wave 6 Task 1 (A-record + go-live runbook committed). Tasks 2–3 need the maderas deploy (interactive sudo: cdk deploy, Apache mod_proxy_http + certbot, Waitress supervisor, real secrets, alembic upgrade → 0002) and the WRITE-04 launch gate (confirm 177-07 restore PASS → flip writes_enabled → add first author → 503→200). Runbook: docs/runbooks/notes-write-launch-gate.md. Resume signals: "deployed" (Task 2), "writes open" (Task 3). 178-09 security UAT blocks on this going live. Phase 178 NOT complete; verification deferred until all plans done.
 
 ### Quick Tasks Completed
 
